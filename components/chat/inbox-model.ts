@@ -9,6 +9,14 @@ export interface InboxFilters {
   assignee: InboxAssignee;
   q: string;
   tag: string;
+  /** Bandeja de un equipo de Chat. */
+  teamId?: string;
+  priority?: string;
+  channel?: string;
+  /** Solo las que sigo. */
+  following?: boolean;
+  /** Asignadas a un agente puntual (vistas guardadas). */
+  assigneeId?: string;
 }
 
 /**
@@ -21,9 +29,48 @@ export function inboxQuery(f: InboxFilters, widgetIds: string[], currentUserId: 
   if (f.status !== 'all') out.status = f.status;
   if (f.assignee === 'unassigned') out.assignedTo = 'unassigned';
   if (f.assignee === 'mine') out.assignedTo = currentUserId;
+  if (f.assignee === 'any' && f.assigneeId) out.assignedTo = f.assigneeId;
   if (f.q) out.q = f.q;
   if (f.tag) out.tag = f.tag;
+  if (f.teamId) out.teamId = f.teamId;
+  if (f.priority) out.priority = f.priority;
+  if (f.channel) out.channel = f.channel;
+  if (f.following) out.following = '1';
   return out;
+}
+
+/** Los filtros actuales como filtros de una vista guardada (lib/chat-views.ts). */
+export function filtersToView(f: InboxFilters): Record<string, string> {
+  const out: Record<string, string> = { status: f.status };
+  if (f.assignee !== 'any') out.assignee = f.assignee;
+  else if (f.assigneeId) out.assignee = f.assigneeId;
+  if (f.teamId) out.teamId = f.teamId;
+  if (f.tag) out.tag = f.tag;
+  if (f.priority) out.priority = f.priority;
+  if (f.channel) out.channel = f.channel;
+  if (f.q) out.q = f.q;
+  return out;
+}
+
+/** Filtros de una vista guardada para la bandeja (un asignado puntual cae en "De cualquiera" + el id). */
+export function viewToFilters(v: { status?: string; assignee?: string; teamId?: string; tag?: string; priority?: string; channel?: string; q?: string }): InboxFilters {
+  const status = INBOX_STATUSES.includes(v.status as InboxStatus) ? (v.status as InboxStatus) : 'all';
+  const assignee: InboxAssignee = v.assignee === 'mine' || v.assignee === 'unassigned' ? v.assignee : 'any';
+  return {
+    status,
+    assignee,
+    assigneeId: v.assignee && v.assignee !== 'mine' && v.assignee !== 'unassigned' ? v.assignee : undefined,
+    q: v.q ?? '',
+    tag: v.tag ?? '',
+    teamId: v.teamId,
+    priority: v.priority,
+    channel: v.channel,
+  };
+}
+
+/** Hay algo para guardar como vista (algo distinto de la bandeja por defecto). */
+export function hasCustomFilters(f: InboxFilters): boolean {
+  return f.status !== 'open' || f.assignee !== 'any' || !!f.assigneeId || !!f.tag || !!f.q || !!f.teamId || !!f.priority || !!f.channel;
 }
 
 /** Filtros guardados en sessionStorage: lo que no se reconoce vuelve al default. */

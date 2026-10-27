@@ -22,10 +22,26 @@ interface SendOptions {
   attachments?: EmailAttachment[];
   /** Remitente; por defecto el de EMAIL_FROM (o el de Calendar). Los avisos de apps usan appSender(). */
   from?: string;
+  /** Reply-To (Chat: la dirección de entrada de la conversación, lib/chat-email.ts). */
+  replyTo?: string;
+  /** Headers extra (Chat: In-Reply-To y References para agrupar el hilo). */
+  headers?: Record<string, string>;
 }
 
 function fromEmail(): string {
   return process.env.EMAIL_FROM ?? 'calendar@zerosoft.ai';
+}
+
+/**
+ * Remitente de Chat: "<nombre del widget> vía zerosoft" con la dirección de la
+ * app. El "vía" deja claro que no es el dominio del cliente (el nombre lo
+ * pone el workspace) y el nombre se limpia y se acorta.
+ */
+export function namedSender(name: string, via = 'via'): string {
+  const base = appSender();
+  const address = base.match(/<([^>]+)>/)?.[1] ?? base.trim();
+  const clean = name.replace(/["\\<>@\r\n]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  return clean ? `"${clean} ${via} zerosoft" <${address}>` : base;
 }
 
 /**
@@ -56,6 +72,8 @@ async function sendResend(opts: SendOptions): Promise<{ id?: string; ok: boolean
         subject: opts.subject,
         text: opts.text,
         html: opts.html,
+        ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
+        ...(opts.headers && Object.keys(opts.headers).length ? { headers: opts.headers } : {}),
         attachments: opts.attachments?.map((a) => ({
           filename: a.filename,
           content: Buffer.from(a.content, 'utf8').toString('base64'),

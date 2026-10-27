@@ -19,6 +19,8 @@ export function isPrivateIp(ip: string): boolean {
     const v = ip.toLowerCase();
     if (v === '::1' || v === '::') return true;
     if (v.startsWith('fc') || v.startsWith('fd') || /^fe[89ab]/.test(v) || v.startsWith('fec')) return true;
+    // 6to4 (2002::/16) lleva una IPv4 adentro, que puede ser interna: se bloquea entero.
+    if (/^2002:/.test(v)) return true;
     // IPv4-mapped / NAT64 / IPv4-compatible: dotted (::ffff:127.0.0.1) o, como
     // lo normaliza `new URL()`, en hex (::ffff:7f00:1). Antes la forma hex
     // pasaba el filtro y permitía SSRF a 127.0.0.1 / 10.x / 169.254.x.
@@ -37,6 +39,8 @@ export function isPrivateIp(ip: string): boolean {
     (a === 172 && b >= 16 && b <= 31) ||
     (a === 192 && b === 168) ||
     (a === 100 && b >= 64 && b <= 127) ||
+    // 198.18.0.0/15: redes de benchmark, que algunos proveedores usan como internas.
+    (a === 198 && (b === 18 || b === 19)) ||
     a >= 224
   );
 }
@@ -114,4 +118,28 @@ export async function safeFetch(
     }
     url = next;
   }
+}
+
+/**
+ * Lee el cuerpo como texto en streaming y corta en `maxBytes` (sin confiar en
+ * content-length): un servidor no puede mandar un cuerpo infinito.
+ */
+export async function readTextCapped(res: Response, maxBytes: number): Promise<string> {
+  if (!res.body) return '';
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done || !value) break;
+      const room = maxBytes - total;
+      chunks.push(value.byteLength > room ? value.subarray(0, room) : value);
+      total += Math.min(value.byteLength, room);
+      if (total >= maxBytes) break;
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
+  return new TextDecoder('utf-8', { fatal: false }).decode(Buffer.concat(chunks));
 }

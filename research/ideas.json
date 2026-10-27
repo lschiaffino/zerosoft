@@ -44,7 +44,9 @@
     "description": "updateAgent in lib/agents.ts writes instructions, tools and guardrails straight to the live row, so every save in the editor goes to production channels instantly and there is no record of what changed. Fin Releases keep changes in a space separate from the customer-facing version until you publish (https://fin.ai/testing), and AgentKit offers full versioning (https://openai.com/index/introducing-agentkit/). Without versions you cannot tie a drop in thumbs-up to an edit or undo a bad prompt quickly. First scope: an agent_versions snapshot on publish, playground and tests run on the draft, a Publish button with a short diff, and a version list with restore; store version id on agent_conversations for later analytics.\n\nPriority: high. Effort: M. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
     "product": "agents",
     "kind": "idea",
-    "parity": "draft-publish-rollback"
+    "parity": "draft-publish-rollback",
+    "status": "done",
+    "changelog": "2026-10-27-agents"
   },
   {
     "title": "Agents: Add an analytics tab with resolution, handoff, tool error and topic metrics",
@@ -162,7 +164,9 @@
     "title": "Chat: Email unread agent replies to offline visitors and thread email replies back",
     "description": "Intercom delivers an inbox reply by email when the customer has not seen it in the Messenger within a few minutes, and Chatwoot's conversation continuity threads the customer's email reply back into the same chat (https://community.intercom.com/questions/6536, https://chatwoot.com/docs/product/channels/live-chat/conversation-continuity). Today an agent reply is only stored and shown on the next widget poll: app/api/chat/conversations/[id]/messages/route.ts sends no email, and lib/chat-visitor-message.ts only notifies agents. For a small team that answers hours later, the visitor has usually left the page, so the reply is never read. First scope: if a visitor with an email has not read an agent message (read_at null) after 5 minutes, send one email with the reply and a link that reopens the widget; then add inbound reply-by-email via a per-conversation reply-to address.\n\nPriority: high. Effort: M. Compared with Intercom.",
     "product": "chat",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-27-chat-intercom"
   },
   {
     "title": "Chat: Localize the embedded widget UI (en/es/pt) instead of hardcoded English",
@@ -520,14 +524,18 @@
     "description": "Fin reviews real conversations to recommend content updates and surface missing topics, approvable in one click from its Optimize dashboard (https://fin.ai/train, https://fin.ai/capabilities). We already log every search_knowledge call with its query and empty results in agent_tool_calls and have Docs in the same suite, but nothing connects them (lib/agent-tools.ts, lib/agents.ts). This is a suite advantage: the fix lands directly in the knowledge source the agent reads live. First scope: weekly job that clusters empty-result queries plus handoff reasons, drafts an answer from the teammate replies in handed-off Chat conversations, and creates an unpublished Docs page linked to the agent for review.\n\nPriority: medium. Effort: M. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
     "product": "agents",
     "kind": "idea",
-    "parity": "content-suggestions"
+    "parity": "content-suggestions",
+    "status": "done",
+    "changelog": "2026-10-27-agents"
   },
   {
     "title": "Agents: Give the agent the identified visitor's CRM, Cal and Track context",
     "description": "Fin personalizes answers using customer data and connectors (Stripe, Shopify, Salesforce) and can route by customer attributes (https://fin.ai/capabilities, https://fin.ai/train). Our prompt (buildAgentInstructions in lib/agents.ts) contains no visitor identity even when the Chat widget already knows the visitor's email, and the agent can only learn a contact's first name and lifecycle stage via crm_find_contact (lib/agent-tools.ts). Owning CRM, Cal and Track lets us do this without integrations: upcoming bookings, open issues the visitor reported, deal stage. First scope: when the Chat visitor has a verified email, inject a short read-only context block (name, company, lifecycle stage, next booking, open Track issues by that email) and add tools to list or cancel that visitor's own bookings.\n\nPriority: medium. Effort: M. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
     "product": "agents",
     "kind": "idea",
-    "parity": "identified-visitor-context"
+    "parity": "identified-visitor-context",
+    "status": "done",
+    "changelog": "2026-10-27-agents"
   },
   {
     "title": "Agents: Add semantic retrieval and show source links in answers",
@@ -675,7 +683,9 @@
     "title": "Chat: Let visitors see past conversations and unify visitors across devices",
     "description": "Intercom's Messenger home and, since June 2026, the Customer Portal list a customer's past conversations with status and search (https://www.intercom.com/changes/en/page/1). Our widget only loads the latest open/pending/snoozed conversation via getOpenConversationByVisitor in lib/chat-data.ts; once resolved, the thread disappears for the visitor and the next message starts a blank conversation. Visitors are keyed by a random localStorage id, so the same person on a phone and a laptop becomes two People with split history. First scope: a 'Previous conversations' list in the widget (read only, last 10), and for verified identities (see identity gap) attach new devices to the existing visitor record by email.\n\nPriority: medium. Effort: M. Compared with Intercom.",
     "product": "chat",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-27-chat-intercom"
   },
   {
     "title": "Chat: Expose a public REST API and webhooks for replies, assignment and resolve",
@@ -1166,7 +1176,9 @@
     "description": "Intercom's inbox AI lets teammates expand shorthand, change tone, fix grammar and translate a reply (Cmd+J), and summarize a conversation into an editable internal note (https://www.intercom.com/help/en/articles/6955446-fin-ai-for-help-desk). We already call the AI Gateway for the visitor-facing bot in lib/chat-bot-ai.ts, but the agent composer in components/chat/ConversationClient.tsx has no AI actions. This is agent assist, separate from the backlog items for a docs-answering bot and action-taking agents. First scope: a composer menu with 'Rephrase', 'Translate to visitor language' and 'Summarize to note', billed through the existing usage metering and hidden when AI_GATEWAY_API_KEY is absent.\n\nPriority: low. Effort: M. Compared with Intercom.",
     "product": "chat",
     "kind": "idea",
-    "parity": "agent-copilot"
+    "parity": "agent-copilot",
+    "status": "done",
+    "changelog": "2026-10-27-chat-intercom"
   },
   {
     "title": "Chat: Allow editing and deleting internal notes and agent messages",
@@ -1300,7 +1312,9 @@
     "description": "Chatbase trains on PDF, TXT, DOC and DOCX up to 20 MB each (https://www.chatbase.co/docs/user-guides/chatbot/data-sources.md) and Voiceflow imports PDF, DOCX and CSV/XLSX tables where each row becomes a chunk (https://www.voiceflow.com/docs/documentation/build/importing-data-sources.md). Our Knowledge tab only takes Docs pages, up to 20 URLs and Chat saved replies (knowledgeConfigSchema in lib/agents-config.ts); there is no file input (verified in the browser). Price lists and manuals usually live in PDFs. First scope: upload files to an agent (reuse the Docs upload storage), extract text server side, chunk and index them next to URLs for search_knowledge, show size, status and re-upload, with a per-workspace size cap.",
     "product": "agents",
     "kind": "idea",
-    "parity": "file-upload"
+    "parity": "file-upload",
+    "status": "done",
+    "changelog": "2026-10-27-agents"
   },
   {
     "title": "Agents: Crawl a whole site or sitemap with include and exclude patterns",
@@ -1320,14 +1334,18 @@
     "description": "Fin Simulations play a full conversation with an AI customer, mock connector outputs and judge the result; Batch Test replays real conversations (https://fin.ai/updates/simulations-for-procedures, https://fin.ai/updates). Voiceflow tests support AI-simulated users with success criteria and assertions on tool calls (https://www.voiceflow.com/docs/documentation/measure/tests.md). Our tests (lib/agents-tests.ts) are one question plus an expected behavior, which does not cover booking or qualification flows. First scope: a test can be a persona plus a goal; an LLM plays the customer for up to N turns in dry run and the judge checks the goal and which tools were called; plus 'Replay last 20 conversations' that reruns real visitor messages against the current instructions and highlights answers that changed.",
     "product": "agents",
     "kind": "idea",
-    "parity": "multi-turn-simulation"
+    "parity": "multi-turn-simulation",
+    "status": "done",
+    "changelog": "2026-10-27-agents"
   },
   {
     "title": "Agents: Score every conversation for sentiment and quality with AI",
     "description": "Fin rates every conversation with a CX Score without surveys and detects sentiment and urgency (https://community.intercom.com/product-updates/a-new-era-of-insights-has-arrived-10513); Chatbase shows sentiment and CSAT (https://www.chatbase.co/docs/user-guides/chatbot/analytics.md). Our Analytics tab (lib/agents-analytics.ts) has resolution, handoffs, tool errors, keyword topics and thumbs, which few visitors click. First scope: when a conversation goes idle, a cheap model call scores sentiment, whether the question was answered and a 1 to 5 quality score with a one-line reason; show averages and a worst-conversations list in Analytics and feed the existing alerts.",
     "product": "agents",
     "kind": "idea",
-    "parity": "csat-sentiment"
+    "parity": "csat-sentiment",
+    "status": "done",
+    "changelog": "2026-10-27-agents"
   },
   {
     "title": "Agents: Show buttons and short forms in the chat to capture leads",
@@ -1341,7 +1359,9 @@
     "description": "Fin added MCP connectors including a Zapier MCP that reaches thousands of apps (https://fin.ai/updates) and Voiceflow has an MCP tool (https://www.voiceflow.com/docs/documentation/build/tools/overview.md). Our tools are the suite tools plus http_request with secret headers (lib/agent-tools.ts), so calling a third-party system means hand-writing HTTP calls. First scope: add an MCP server URL with an optional secret header (reuse agent secrets), list its tools, enable specific tools per agent, run them through the existing logging, dry-run simulation and approval flow, and block private hosts with safeFetch.",
     "product": "agents",
     "kind": "idea",
-    "parity": "mcp"
+    "parity": "mcp",
+    "status": "done",
+    "changelog": "2026-10-27-agents"
   },
   {
     "title": "Agents: Add step-by-step procedures the agent follows for a specific task",
@@ -1517,35 +1537,45 @@
     "description": "Intercom includes proactive chats, banners and tooltips on every plan (https://www.intercom.com/pricing) and Crisp has chat triggers from the Mini plan (https://crisp.chat/en/pricing/). Our widget only opens when the visitor clicks the launcher; the widget already knows the page URL and referrer (lib/chat-visitor-context.ts) but no rule uses them. A pricing-page nudge is how small teams turn chat into sales. First scope: per-widget auto messages with conditions (URL contains, seconds on page, first or returning visit, office hours only), a message body and optional sender, shown as an unread bubble without creating a conversation until the visitor answers, with a per-visitor frequency cap and sent/replied counts.",
     "product": "chat",
     "kind": "idea",
-    "parity": "proactive-messages"
+    "parity": "proactive-messages",
+    "status": "done",
+    "changelog": "2026-10-27-chat-intercom"
   },
   {
     "title": "Chat: Notify agents on their phone with an installable PWA and Web Push",
     "description": "Intercom and Crisp ship iOS and Android teammate apps with push, and Crisp added Mac and Windows apps in 2026 (https://crisp.chat/en/blog/march-2026-product-update/). zerosoft has no service worker or Web Push, so an agent away from the desk never learns about a new chat until they reopen the tab; the inbox at 390px already works (tested). First scope: a web app manifest and service worker for /app, an opt-in for push in Chat settings, push on new conversation, on a visitor reply to a conversation assigned to me and on @mention, with a deep link to /app/chat/inbox/<id> and per-user quiet hours.",
     "product": "chat",
     "kind": "idea",
-    "parity": "agent-push"
+    "parity": "agent-push",
+    "status": "done",
+    "changelog": "2026-10-27-chat-intercom"
   },
   {
     "title": "Chat: Add teams with their own inbox, round-robin and assignment rules",
     "description": "Intercom has team inboxes, round robin per team and skill-based routing (https://www.intercom.com/helpdesk, https://www.intercom.com/changes/en/page/1); Crisp has sub-inboxes from Essentials (https://crisp.chat/en/pricing/). Our assignment rules (app/api/chat/rules) and the conversation header only assign to a person, so a team of four cannot split Support and Sales or route billing questions to one group. First scope: chat teams (name, members), assign a conversation to a team and optionally a person, an inbox filter per team, rules that target a team with round-robin among its available members, and team in reports and webhooks.",
     "product": "chat",
     "kind": "idea",
-    "parity": "team-inboxes"
+    "parity": "team-inboxes",
+    "status": "done",
+    "changelog": "2026-10-27-chat-intercom"
   },
   {
     "title": "Chat: Show who is viewing or replying to a conversation to avoid double answers",
     "description": "Intercom shows when a teammate is viewing or typing in the same conversation; without it two agents answer the same customer. We already track typing for the visitor side (app/api/chat/conversations/[id]/typing) but agents never see each other. First scope: record agent presence per conversation on the existing 3 s poll, show avatars of other agents viewing and an 'Ana is replying' line above the composer, and warn before sending if another agent replied in the last minute.",
     "product": "chat",
     "kind": "idea",
-    "parity": "collision-detection"
+    "parity": "collision-detection",
+    "status": "done",
+    "changelog": "2026-10-27-chat-intercom"
   },
   {
     "title": "Chat: Fill variables like {{name}} and {{email}} in saved replies and macros",
     "description": "Intercom macros insert attributes such as first name and company. Our saved replies (components/chat/CannedClient.tsx) are inserted literally: a reply with {{name}} reached the visitor as '{{name}}' in the benchmark walk, and the keyword bot sends canned bodies as they are. First scope: support {{name}}, {{first_name}}, {{email}}, {{agent_name}} and custom conversation attributes with a fallback ({{name|there}}), a variable picker in the canned editor, substitution on insert in the composer and in the bot path, and a preview.",
     "product": "chat",
     "kind": "idea",
-    "parity": "reply-variables"
+    "parity": "reply-variables",
+    "status": "done",
+    "changelog": "2026-10-27-chat-intercom"
   },
   {
     "title": "Chat: Create or link a Track issue from a conversation and reply to all when it ships",
@@ -1558,20 +1588,26 @@
     "description": "Intercom reports Fin and humans together with response times, ratings and SLA metrics, plus custom reports on higher plans (https://www.intercom.com/pricing). Our Reports page (getChatRangeReport in lib/chat-inbox.ts) shows conversations, first response, resolution and CSAT per agent; a conversation answered by the bot shows a dash in first response and there is no bot resolution rate. First scope: bot-resolved vs handed-off counts, conversations by tag and by widget, a weekday by hour heatmap of new conversations, and percent within SLA for first response and resolution, all with the same date range and CSV.",
     "product": "chat",
     "kind": "idea",
-    "parity": "breakdown-reports"
+    "parity": "breakdown-reports",
+    "status": "done",
+    "changelog": "2026-10-27-chat-intercom"
   },
   {
     "title": "Chat: Save inbox filters as views in the sidebar",
     "description": "Intercom turned saved searches into sidebar Views in October 2026 (https://www.intercom.com/changes/en/page/1). Our inbox (components/chat/InboxShell.tsx) has status, assignee, tag and text filters but they reset on each visit, so 'urgent + billing tag + unassigned' has to be rebuilt every time. First scope: save the current filter set with a name, list views under Inbox in the Chat sidebar with live counts, share a view with the team or keep it private, and reorder or delete views.",
     "product": "chat",
     "kind": "idea",
-    "parity": "saved-views"
+    "parity": "saved-views",
+    "status": "done",
+    "changelog": "2026-10-27-chat-intercom"
   },
   {
     "title": "Chat: Find conversations and people from Cmd+K",
     "description": "Cmd+K (lib/app-search.ts) finds chat widgets but not conversations or visitors, so finding 'the customer from yesterday' means opening the inbox and switching the status filter. Intercom search covers conversations, people and messages. First scope: add chat visitors (name, email) and conversations (subject, last message, visitor) to the palette with status and age as meta, linking to /app/chat/inbox/<id> and /app/chat/people/<id>, scoped to the widgets the user can access.",
     "product": "chat",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-27-chat-intercom"
   },
   {
     "title": "CRM: Show records as cards on phones with one-tap call, WhatsApp and note, and make the CRM installable",

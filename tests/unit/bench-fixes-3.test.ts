@@ -212,10 +212,10 @@ describe('Agents: el visitante nunca ve el error pensado para el dueño', () => 
   it('sin derivación: la página pública recibe "unavailable" y el playground el detalle', async () => {
     const { agent } = await setupAgent('pub-err', { tools: { enabled: ['search_knowledge'], ...TOOLS_BASE } });
     setAiModelOverride(noCreditsModel());
-    const pub = await readStream(streamAgentReply({ agent, channel: 'public', visitorKey: 'v'.repeat(20), text: 'hola' }));
+    const pub = await readStream(await streamAgentReply({ agent, channel: 'public', visitorKey: 'v'.repeat(20), text: 'hola' }));
     expect(pub.at(-1)).toEqual({ type: 'error', code: 'unavailable' });
 
-    const play = await readStream(streamAgentReply({ agent, channel: 'playground', text: 'hola' }));
+    const play = await readStream(await streamAgentReply({ agent, channel: 'playground', text: 'hola' }));
     expect(play.at(-1)).toEqual({ type: 'error', code: 'ai_no_credits' });
   });
 
@@ -232,7 +232,7 @@ describe('Agents: el visitante nunca ve el error pensado para el dueño', () => 
 
     // El stream termina con "done" (sin error) y handoff.
     const events = await readStream(
-      streamAgentReply({ agent, channel: 'public', visitorKey: 'x'.repeat(20), text: 'hello' }),
+      await streamAgentReply({ agent, channel: 'public', visitorKey: 'x'.repeat(20), text: 'hello' }),
     );
     expect(events.at(-1)).toMatchObject({ type: 'done', handoff: true });
     expect(events.some((e) => e.type === 'error')).toBe(false);

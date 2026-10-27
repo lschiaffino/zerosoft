@@ -1462,6 +1462,12 @@ export interface ChatConversationRow {
   csat_comment: string | null;
   /** JSON objeto id de atributo → valor (lib/chat-attributes.ts). */
   attributes?: string;
+  /** Equipo de Chat (chat_teams) al que está asignada; su bandeja la muestra. */
+  team_id?: string | null;
+  /** Por dónde entró: el widget o un email (lib/chat-email.ts). */
+  channel?: 'web' | 'email';
+  /** Mensaje saliente que la originó (lib/chat-outbound.ts). */
+  outbound_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1500,6 +1506,10 @@ export interface ChatAssignmentRuleRow {
   match_type: 'all' | 'keyword' | 'time' | 'round_robin';
   match_value: string | null;
   assign_to: string | null;
+  /** Equipo al que asigna (lib/chat-teams.ts); con round_robin reparte entre sus miembros. */
+  assign_team_id?: string | null;
+  /** 1 = reparte entre los miembros del equipo (round robin), aunque la condición sea por palabra u horario. */
+  team_round_robin?: 0 | 1;
   position: number;
   active: 0 | 1;
   created_at: string;
@@ -1900,6 +1910,14 @@ export interface AgentRow {
   http_secrets?: string;
   /** 1 = email al dueño cuando suben los pulgares abajo, errores o topes de pasos (lib/agents-alerts.ts). */
   alerts_enabled?: number;
+  /** JSON AgentSettingsConfig (120). */
+  settings?: string;
+  /** JSON con la configuración en borrador (lib/agents-versions.ts); NULL = sin cambios sin publicar. */
+  draft?: string | null;
+  /** Versión publicada; NULL = sin versiones (lo guardado ya está en vivo). */
+  published_version_id?: string | null;
+  /** JSON AgentMcpServerStored[] (lib/agents-mcp.ts), con el header de auth cifrado. */
+  mcp_servers?: string;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -1915,6 +1933,8 @@ export interface AgentKnowledgeUrlRow {
   status: 'pending' | 'ok' | 'error';
   error: string | null;
   fetched_at: string | null;
+  /** Sitemap del que salió (NULL = agregada a mano). */
+  origin?: string | null;
   created_at: string;
 }
 
@@ -1934,6 +1954,23 @@ export interface AgentConversationRow {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  /** Visitante identificado (firma del widget o la API key) y su clave de memoria. */
+  visitor_email?: string | null;
+  visitor_name?: string | null;
+  visitor_ref?: string | null;
+  country?: string | null;
+  /** Puntaje con AI (JSON AgentConversationScoreDto sin la revisión). */
+  score?: string | null;
+  csat?: number | null;
+  sentiment?: string | null;
+  topic?: string | null;
+  scored_at?: string | null;
+  score_claimed_until?: string | null;
+  reviewed_at?: string | null;
+  reviewed_by?: string | null;
+  review_note?: string;
+  redacted_at?: string | null;
+  memory_at?: string | null;
 }
 
 export interface AgentMessageRow {
@@ -1986,6 +2023,10 @@ export interface AgentTestCaseRow {
   last_reply: string;
   last_tools: string; // JSON AgentTestToolSummary[]
   last_run_at: string | null;
+  kind?: 'single' | 'simulation';
+  persona?: string;
+  max_turns?: number;
+  last_transcript?: string;
   created_by: string | null;
   created_at: string;
   updated_at: string;

@@ -131,6 +131,8 @@ export interface SidebarLabels {
     people: string;
     reports: string;
     settings: string;
+    teams?: string;
+    views?: string;
   };
   flow: {
     flows: string;
@@ -488,7 +490,8 @@ export function buildNav(
         {
           section: labels.records,
           items: [
-            { href: '/app/chat/inbox', label: labels.chat.inbox, active: at('/app/chat/inbox'), icon: 'inbox' },
+            // Siguiendo, bandejas de equipo y vistas guardadas (ChatInboxBranch en el hueco #side-branch).
+            { href: '/app/chat/inbox', label: labels.chat.inbox, active: at('/app/chat/inbox'), icon: 'inbox', branch: true },
             { href: '/app/chat/people', label: labels.chat.people, active: at('/app/chat/people'), icon: 'contacts' },
           ],
         },
@@ -506,6 +509,8 @@ export function buildNav(
               active: at('/app/chat/widgets') || at('/app/chat/settings'),
               icon: 'settings',
             },
+            ...(labels.chat.teams ? [{ href: '/app/chat/teams', label: labels.chat.teams, active: at('/app/chat/teams'), icon: 'groups' as const }] : []),
+            ...(labels.chat.views ? [{ href: '/app/chat/views', label: labels.chat.views, active: at('/app/chat/views'), icon: 'lists' as const }] : []),
           ],
         },
       ];

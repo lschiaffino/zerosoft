@@ -185,6 +185,8 @@ export default async function AppLayout(
                 { href: '/app/chat/people', label: tChat('sidebar.people') },
                 { href: '/app/chat/reports', label: tChat('sidebar.reports') },
                 { href: '/app/chat/widgets', label: tChat('sidebar.widgets') },
+                { href: '/app/chat/teams', label: tChat('sidebar.teams') },
+                { href: '/app/chat/views', label: tChat('sidebar.views') },
                 { href: '/app/flow', label: tFlow('sidebar.flows') },
                 { href: '/app/flow/tables', label: tFlow('sidebar.tables') },
                 { href: '/app/flow/credentials', label: tFlow('sidebar.credentials') },
@@ -331,6 +333,8 @@ export default async function AppLayout(
               people: tChat('sidebar.people'),
               reports: tChat('sidebar.reports'),
               settings: tChat('sidebar.settings'),
+              teams: tChat('sidebar.teams'),
+              views: tChat('sidebar.views'),
             },
             flow: {
               flows: tFlow('sidebar.flows'),

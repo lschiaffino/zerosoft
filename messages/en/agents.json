@@ -89,7 +89,8 @@
     "channels": "Channels",
     "playground": "Playground",
     "conversations": "Conversations",
-    "analytics": "Analytics"
+    "analytics": "Analytics",
+    "versions": "Versions"
   },
   "fields": {
     "name": "name",
@@ -119,7 +120,8 @@
     "instructionsHelp": "Write it like a brief for someone new on the team.",
     "templateHelp": "Replaces the current instructions.",
     "advancedHint": "Handoff, limits and model",
-    "templateLabel": "Template"
+    "templateLabel": "Template",
+    "replace": "Replace"
   },
   "handoff": {
     "title": "Handoff to a human",
@@ -206,7 +208,7 @@
       },
       "crm_find_contact": {
         "name": "Find CRM contact",
-        "desc": "Finds the visitor in the CRM (first name and lifecycle stage) only when the website verified their identity in the Chat widget. A typed email is not enough."
+        "desc": "Finds the visitor in the CRM (first name and lifecycle stage) only when their identity is verified (signed in the Chat widget or sent by your server through the API). A typed email is not enough."
       },
       "crm_upsert_contact": {
         "name": "Save CRM contact",
@@ -255,6 +257,10 @@
       "docs_write_row": {
         "name": "Add and update database rows",
         "desc": "Adds rows to the databases on those pages or changes them. Synced databases stay read-only."
+      },
+      "mcp_call": {
+        "name": "MCP servers",
+        "desc": "Use the tools of MCP servers you connect, like Zapier or your own API. Tools that change data are simulated in the playground and wait for an admin’s approval in live channels."
       }
     },
     "groups": {
@@ -275,7 +281,9 @@
     "needsDocsPages": "Pick at least one Docs page.",
     "untitledPage": "Untitled",
     "docsPrivatePublic": "Some of these pages are in a closed or private teamspace, and this agent has a public page: anyone who talks to it can get answers from them.",
-    "docsHiddenPublic": "This public agent has pages in private teamspaces you cannot see. Anyone who talks to it can get answers from them."
+    "docsHiddenPublic": "This public agent has pages in private teamspaces you cannot see. Anyone who talks to it can get answers from them.",
+    "needsMcp": "Connect a server below.",
+    "approvalMcp": "Ask an admin to approve every call, including the ones that only read"
   },
   "channels": {
     "chatTitle": "Chat widgets",
@@ -358,7 +366,24 @@
     "replyPlaceholder": "Write a reply to the visitor…",
     "replyHintPublic": "The visitor sees it on the public page. The agent stops replying in this conversation.",
     "replyHintApi": "It is saved in the conversation for your integration to read. The agent stops replying here.",
-    "replySend": "Send reply"
+    "replySend": "Send reply",
+    "needsReview": "To review",
+    "csatBadge": "CSAT {csat}/5",
+    "reviewed": "Reviewed",
+    "visitor": "Visitor",
+    "score": "Quality score",
+    "resolved": "Resolved",
+    "notResolved": "Not resolved",
+    "pass": "Pass",
+    "fail": "Fail",
+    "reviewNote": "Review note",
+    "markReviewed": "Mark reviewed",
+    "unmarkReviewed": "Mark not reviewed",
+    "memory": "What the agent remembers",
+    "forget": "Forget",
+    "block": "Block visitor",
+    "blockConfirm": "Block this visitor? The agent stops answering them. Your team can still reply.",
+    "blocked": "Visitor blocked. You can unblock them in Instructions › Context, memory and privacy."
   },
   "errors": {
     "generic": "Something went wrong. Try again.",
@@ -390,7 +415,40 @@
     "ai_no_credits": "The AI provider refused the request: the account has no credits or no access to this model. Add credits in the Vercel AI Gateway, or set a model your plan includes under Instructions > Model.",
     "ai_auth": "The AI provider rejected the server credentials. Check AI_GATEWAY_API_KEY in the server settings.",
     "unavailable": "The assistant can't reply right now. Please try again in a few minutes.",
-    "not_allowed": "You need edit access to that Docs page to decide this action."
+    "not_allowed": "You need edit access to that Docs page to decide this action.",
+    "unsupported_file": "That file type is not supported. Use PDF, DOCX, TXT, Markdown or CSV.",
+    "file_too_large": "The file is over 10 MB.",
+    "invalid_pdf": "That PDF could not be read.",
+    "pdf_encrypted": "The PDF is password protected. Upload a copy without a password.",
+    "pdf_no_text": "The PDF has no text (it looks scanned). Upload a version with selectable text.",
+    "invalid_docx": "That Word file could not be read.",
+    "empty_file": "The file has no text.",
+    "too_many_files": "This agent already has 25 files.",
+    "too_many_qa": "This agent already has 500 Q&A pairs.",
+    "sitemap_not_found": "No sitemap found at that address.",
+    "sitemap_empty": "The sitemap has no pages on that site or path.",
+    "too_many_mcp_servers": "This agent already has 5 MCP servers.",
+    "mcp_duplicate": "That server is already connected.",
+    "invalid_header": "Check the header name and value.",
+    "mcp_unauthorized": "The server rejected the credentials. Check the token.",
+    "mcp_timeout": "The server took too long to answer.",
+    "mcp_unreachable": "Could not reach the server.",
+    "mcp_bad_response": "The server did not answer like an MCP server. Check that the URL is the streamable HTTP endpoint.",
+    "mcp_error": "The server returned an error.",
+    "mcp_tool_not_allowed": "That MCP tool is no longer enabled for this agent.",
+    "mcp_tool_error": "The MCP tool returned an error.",
+    "nothing_to_publish": "There are no unpublished changes.",
+    "nothing_to_discard": "There is no draft to discard.",
+    "conflict": "Someone published at the same time. Reload and try again.",
+    "blocked": "This conversation is not available.",
+    "cannot_block": "This visitor cannot be blocked (no browser or Chat visitor to block).",
+    "empty_conversation": "The conversation has no visitor messages.",
+    "scoring_off": "AI scoring is off for this agent. Turn it on in Instructions › Quality scorecard.",
+    "score_limit": "This agent reached today’s limit of scored conversations.",
+    "pdf_too_complex": "The PDF is too large or complex to read. Split it or export it again.",
+    "mcp_http_error": "The server answered with an error. Check the URL and the token.",
+    "mcp_blocked_url": "That address is not allowed: use a public HTTPS URL.",
+    "identity_not_verified": "The visitor’s identity is not verified."
   },
   "public": {
     "subtitle": "AI assistant",
@@ -438,7 +496,24 @@
       "fail": "Failed",
       "error": "Error",
       "none": "Not run"
-    }
+    },
+    "kind": "Type",
+    "kinds": {
+      "single": "One question",
+      "simulation": "Simulated conversation"
+    },
+    "kindHint": {
+      "single": "One visitor message and what a good reply does.",
+      "simulation": "An AI customer with this persona talks to the agent for several turns. The judge grades the whole conversation."
+    },
+    "persona": "Customer persona and goal",
+    "personaPlaceholder": "Ana, owner of a small bakery. Wants a demo next week and gives her email when asked.",
+    "maxTurns": "Max. turns",
+    "opening": "First customer message",
+    "criteria": "Success criteria",
+    "transcript": "Conversation",
+    "simCustomer": "Customer",
+    "simAgent": "Agent"
   },
   "secrets": {
     "title": "Secret headers",
@@ -515,5 +590,266 @@
       "failed": "Failed"
     },
     "locked": "Only someone who can edit that Docs page can see and decide this action."
+  },
+  "mcp": {
+    "title": "MCP servers",
+    "empty": "No servers connected yet.",
+    "name": "Name",
+    "url": "Server URL (streamable HTTP)",
+    "headerName": "Auth header",
+    "headerValue": "Header value",
+    "headerHint": "Saved encrypted. The agent and the AI model never see it, and it is not shown again.",
+    "add": "Connect server",
+    "adding": "Connecting…",
+    "tools": "Tools the agent can use",
+    "toolsCount": "{count, plural, =0 {No tools} one {# tool} other {# tools}}",
+    "readOnly": "Reads",
+    "writes": "Changes data",
+    "refresh": "Read tools again",
+    "changeToken": "Change token",
+    "tokenPlaceholder": "New value (empty to remove it)",
+    "saveToken": "Save token",
+    "clearToken": "Remove token",
+    "remove": "Remove",
+    "removeConfirm": "Disconnect {name}? The agent stops using its tools.",
+    "authSet": "Sends {header}",
+    "noAuth": "No auth",
+    "status": {
+      "ok": "Connected",
+      "error": "Error"
+    },
+    "adminsOnly": "Only admins see and change the connected servers."
+  },
+  "versions": {
+    "hint": "Once you publish a first version, saving keeps your changes as a draft: the playground and tests use the draft and your live channels keep the published version until you publish again. Files, Q&A pairs, MCP servers and secret headers apply as soon as you save them.",
+    "title": "Published versions",
+    "loading": "Loading versions…",
+    "emptyTitle": "No versions yet",
+    "emptyBody": "Publish the agent to save version 1. After that, your edits stay as a draft until you publish them.",
+    "noNote": "Published",
+    "liveBadge": "Live",
+    "restore": "Go back to this version",
+    "restoreConfirm": "Put version {number} live? It becomes a new version and your draft is discarded.",
+    "restored": "Version {number} is live again.",
+    "saveFirst": "Save or discard your changes first.",
+    "history": "Change history",
+    "historyEmpty": "No changes recorded yet.",
+    "someone": "Someone",
+    "statusOff": "Changes go live on save",
+    "statusLive": "Live: v{number}",
+    "statusDraft": "Live: v{number} · Unpublished changes",
+    "publish": "Publish",
+    "publishFirst": "Publish v1",
+    "publishFirstHint": "Publishing turns on drafts: from then on, saving does not change what visitors see until you publish.",
+    "publishing": "Publishing…",
+    "published": "Version {number} is live.",
+    "discard": "Discard draft",
+    "discardConfirm": "Discard the unpublished changes? The editor goes back to the live version.",
+    "discarded": "Draft discarded.",
+    "savedDraft": "Saved as a draft. Publish to put it live.",
+    "fields": {
+      "name": "name",
+      "emoji": "emoji",
+      "enabled": "on/off",
+      "publicHandle": "public page",
+      "instructions": "instructions",
+      "welcomeMessage": "welcome message",
+      "model": "model",
+      "temperature": "temperature",
+      "knowledge": "knowledge",
+      "tools": "tools",
+      "handoff": "handoff",
+      "guardrails": "guardrails",
+      "settings": "channels, privacy and scorecard"
+    },
+    "kinds": {
+      "create": "Created the agent",
+      "save": "Changed {fields}",
+      "saveDraft": "Changed {fields} in the draft",
+      "publish": "Published version {number}",
+      "restore": "Put version {from} back live as version {number}",
+      "discard": "Discarded the draft",
+      "file_added": "Uploaded the file {name}",
+      "file_removed": "Removed the file {name}",
+      "qa_add": "Added the Q&A pair “{question}”",
+      "qa_edit": "Edited the Q&A pair “{question}”",
+      "qa_remove": "Removed the Q&A pair “{question}”",
+      "mcp_add": "Connected the MCP server {server}",
+      "mcp_edit": "Changed the MCP server {server}",
+      "mcp_remove": "Disconnected the MCP server {server}",
+      "secret_changed": "Changed a secret header"
+    },
+    "publishTitle": "Publish version {number}",
+    "publishFirstTitle": "Publish version 1",
+    "publishBody": "Your live channels switch to this version. You can go back to any earlier one.",
+    "note": "Note (optional)",
+    "notePlaceholder": "What changed"
+  },
+  "files": {
+    "title": "Files",
+    "hint": "Upload manuals, price lists or policies. The agent searches their text, from the moment you upload them.",
+    "types": "PDF, Word (.docx), TXT, Markdown or CSV, up to 10 MB each and 25 files.",
+    "upload": "Upload files",
+    "uploading": "Reading…",
+    "empty": "No files yet.",
+    "remove": "Remove",
+    "removeConfirm": "Remove {name}? The agent stops using it."
+  },
+  "qa": {
+    "title": "Questions and answers",
+    "hint": "Exact answers for the questions you get the most. Add other ways people ask the same thing so the agent finds them.",
+    "question": "Question",
+    "answer": "Answer",
+    "variants": "Other ways to ask it",
+    "variantsPlaceholder": "How much does it cost?\nWhat are your prices?",
+    "variantsHint": "One per line, up to 10.",
+    "variantsCount": "{count, plural, one {# other way to ask} other {# other ways to ask}}",
+    "add": "Add pair",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "remove": "Remove",
+    "removeConfirm": "Remove this question and answer?",
+    "required": "Write the question and the answer.",
+    "empty": "No pairs yet.",
+    "importCsv": "Import CSV",
+    "importHint": "CSV columns: question, answer and, optional, variants separated by |.",
+    "imported": "{added, plural, one {# pair added} other {# pairs added}}, {skipped} skipped."
+  },
+  "sitemaps": {
+    "title": "Sitemaps",
+    "hint": "Add a sitemap or a site’s address and every page it lists becomes knowledge, up to 300 per sitemap. Pages are read in the background and refreshed every day.",
+    "url": "Sitemap URL",
+    "prefix": "Only pages under",
+    "prefixPlaceholder": "/help (optional)",
+    "add": "Add sitemap",
+    "empty": "No sitemaps yet.",
+    "onlyPrefix": "Only {prefix}",
+    "progress": "{fetched} of {pages} pages read",
+    "failed": "{count, plural, one {# failed} other {# failed}}",
+    "notRead": "Not read yet",
+    "reading": "Reading the sitemap…"
+  },
+  "suggestions": {
+    "title": "Questions without an answer",
+    "hint": "What visitors asked in the last 30 days that the agent could not find in its knowledge. Answer them once and the agent uses the answer from then on.",
+    "loading": "Loading questions…",
+    "empty": "Nothing pending. Every question found something in the knowledge.",
+    "count": "{count, plural, one {Asked once} other {Asked # times}}",
+    "addAnswer": "Add answer",
+    "dismiss": "Dismiss"
+  },
+  "settings": {
+    "channelTitle": "Instructions per channel",
+    "channelHint": "Extra instructions that apply only in one channel, on top of the general ones.",
+    "channelAdvanced": "Chat widget, public page and API",
+    "channelPlaceholder": {
+      "chat": "Visitors are browsing the site: keep answers short and point to the right page.",
+      "public": "Visitors come from a shared link: say who you are in the first reply.",
+      "api": "Answers are shown in our app: no greetings, just the answer."
+    },
+    "privacyTitle": "Context, memory and privacy",
+    "privacyHint": "What the agent knows about the person it talks to, and what is kept afterwards.",
+    "citations": "Cite sources",
+    "citationsHint": "Replies that use the knowledge end with the sources, with a link when the page is public (help center or website).",
+    "visitorContext": "Use the identified visitor’s data",
+    "visitorContextHint": "When the visitor is identified (signed in the Chat widget, or sent as user by your server through the API), the agent reads their CRM contact, upcoming Cal bookings and open Track requests.",
+    "memory": "Remember visitors between conversations",
+    "memoryHint": "After a conversation, the agent keeps short facts about an identified visitor (or the same browser on the public page) and uses them next time. You can see and delete them in Conversations.",
+    "redactPii": "Hide personal data in transcripts",
+    "redactPiiHint": "An hour after a conversation goes quiet, emails, phone numbers, card numbers and ID numbers are replaced in what is saved.",
+    "blockingHint": "Blocked countries and visitors",
+    "blockedCountries": "Blocked countries",
+    "blockedCountriesHint": "Two-letter codes, separated by commas. The public page does not answer visitors from these countries.",
+    "blockedWords": "Spam words",
+    "blockedWordsPlaceholder": "casino, crypto giveaway",
+    "blockedWordsHint": "A message with one of these words gets no reply and the agent does not run.",
+    "blockedVisitors": "Blocked visitors",
+    "blockedVisitorsEmpty": "Nobody is blocked. Block a visitor from their conversation.",
+    "blockKinds": {
+      "chat": "Chat visitor",
+      "public": "Public page visitor"
+    },
+    "unblock": "Unblock",
+    "scorecardTitle": "Quality scorecard",
+    "scorecardHint": "Satisfaction, sentiment, topic, resolution and these criteria, scored by AI for each conversation.",
+    "scorecard": "Criteria",
+    "scorecardPlaceholder": "Greets the visitor by name\nOffers a meeting when the visitor asks about pricing",
+    "scorecardHelp": "One per line, up to 10.",
+    "aiScoring": "Score conversations with AI",
+    "aiScoringHint": "Off by default. When on, each conversation is scored half an hour after it goes quiet, up to 300 per day, and it uses the workspace AI quota."
+  },
+  "rules": {
+    "check": "Check rules",
+    "checking": "Checking…",
+    "hint": "Finds instructions that contradict each other or the guardrails.",
+    "saveFirst": "Save your changes first to check them.",
+    "none": "Nothing collides.",
+    "noneStatic": "The fixed checks found nothing.",
+    "suggestion": "Suggestion",
+    "aiError": "The AI review did not run: {error}",
+    "codes": {
+      "avoid_in_instructions": "“{subject}” is a topic to avoid, but the instructions talk about it.",
+      "keyword_is_avoided": "The handoff keyword “{subject}” is also a topic to avoid.",
+      "long_answers_short_limit": "The instructions ask for detailed answers, but replies are capped at {subject} characters.",
+      "handoff_tool_off": "Handoff rules are set, but the “Hand off to a human” tool is off.",
+      "knowledge_tool_off": "The instructions mention the knowledge base, but “Search knowledge” is off.",
+      "generic": "Possible conflict."
+    }
+  },
+  "quality": {
+    "title": "Quality",
+    "hint": "AI score of each conversation half an hour after it goes quiet: satisfaction (1 to 5), sentiment, topic, resolution and your scorecard. Turn it on in Instructions › Quality scorecard.",
+    "scoreNow": "Score now",
+    "scoring": "Scoring…",
+    "scored": "{count, plural, =0 {Nothing new to score.} one {# conversation scored.} other {# conversations scored.}}",
+    "scoredHint": "{count, plural, one {# conversation scored} other {# conversations scored}}",
+    "none": "No scored conversations in this period yet.",
+    "avgCsat": "Satisfaction",
+    "csatRate": "Satisfied (4 or 5)",
+    "sentiment": "Sentiment",
+    "sentimentHint": "Positive / neutral / negative",
+    "sentiments": {
+      "positive": "Positive",
+      "neutral": "Neutral",
+      "negative": "Negative"
+    },
+    "needsReview": "To review",
+    "openQueue": "Open the queue",
+    "aiTopics": "Topics (AI)",
+    "criteria": "Scorecard",
+    "criterion": "Criterion",
+    "passRate": "Passed",
+    "channels": "By channel",
+    "channel": "Channel",
+    "handoffReasons": "Why it handed off",
+    "noHandoffs": "No handoffs in this period.",
+    "reasonKinds": {
+      "keyword": "Keyword",
+      "model_failure": "Model failed",
+      "agent": "Agent"
+    },
+    "reasonEmpty": {
+      "keyword": "Keyword",
+      "model_failure": "The AI model did not answer",
+      "agent": "No reason given"
+    },
+    "export": "Export CSV"
+  },
+  "replay": {
+    "title": "Replay real conversations",
+    "hint": "Sends the first messages of the last 10 real conversations to the saved draft (simulated, nothing runs) and compares what it answered then with what it answers now.",
+    "run": "Replay last 10",
+    "running": "Replaying {done} of {total}…",
+    "empty": "No real conversations to replay yet.",
+    "visitor": "Visitor:",
+    "before": "Before",
+    "after": "Now",
+    "noReply": "(no reply)",
+    "verdict": {
+      "better": "Better",
+      "same": "Same",
+      "worse": "Worse"
+    }
   }
 }

@@ -293,7 +293,7 @@ describe('herramientas de la suite', () => {
     const conversation = await createConversation(agent, 'chat', { title: 't' });
     const ask = (email: string) => {
       setAiModelOverride(scriptedModel([{ tool: 'crm_find_contact', input: { email } }, { text: 'ok' }]));
-      return runAgent({ agent, conversation, channel: 'chat', identifiedEmail: 'me@x.com', messages: [{ role: 'user', content: `I am ${email}` }] });
+      return runAgent({ agent, conversation, channel: 'chat', identity: { email: 'me@x.com', name: null }, messages: [{ role: 'user', content: `I am ${email}` }] });
     };
     expect((await ask('me@x.com')).toolCalls[0].output).toMatchObject({ found: true, firstName: 'Me' });
     expect((await ask('other@x.com')).toolCalls[0].error).toBe('identity_not_verified');

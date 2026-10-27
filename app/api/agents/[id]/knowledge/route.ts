@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { getAgentRow, listKnowledgeUrls, refreshKnowledgeUrls } from '@/lib/agents';
+import { getAgentRow, listKnowledgeUrls, refreshKnowledgeUrls, syncAgentKnowledgeSources } from '@/lib/agents';
+import { sitemapStatus } from '@/lib/agents-knowledge';
 import { canEditAgents, forbidden, notFound, unauthorized } from '@/lib/agents-http';
 import { rateLimit } from '@/lib/rate-limit';
 import { agentError } from '@/lib/agents-http';
@@ -16,7 +17,7 @@ export async function GET(_req: NextRequest, props: Ctx) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   if (!(await getAgentRow(user.id, id))) return notFound();
-  return NextResponse.json({ urls: await listKnowledgeUrls(id) });
+  return NextResponse.json({ urls: await listKnowledgeUrls(id), sitemaps: await sitemapStatus(id) });
 }
 
 /** Vuelve a descargar las URLs de conocimiento del agente (safeFetch). */
@@ -25,10 +26,13 @@ export async function POST(_req: NextRequest, props: Ctx) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   if (!canEditAgents(user)) return forbidden();
-  if (!(await getAgentRow(user.id, id))) return notFound();
+  const row = await getAgentRow(user.id, id);
+  if (!row) return notFound();
   if (process.env.RATE_LIMIT_DISABLED !== 'true') {
     const limited = await rateLimit(`agent-refresh:${id}`, 6, 600);
     if (!limited.ok) return agentError(429, 'rate_limited');
   }
-  return NextResponse.json({ urls: await refreshKnowledgeUrls(user.id, id) });
+  // Encola releer los sitemaps (los lee el cron de cada minuto) y baja las URLs a mano.
+  await syncAgentKnowledgeSources(user.id, row, { force: true });
+  return NextResponse.json({ urls: await refreshKnowledgeUrls(user.id, id), sitemaps: await sitemapStatus(id) });
 }

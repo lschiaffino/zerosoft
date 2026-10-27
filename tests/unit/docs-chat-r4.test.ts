@@ -250,6 +250,7 @@ describe('Widget: envío, adjuntos y recibos de lectura', () => {
     const errors: Array<[string, string]> = [];
     const send = await widgetFunction<(b: string) => void>('sendMessage', {
       formRequest: null,
+      pendingOutbound: null,
       selectedFile: null,
       sendError: { style: {} },
       withIdentity: (x: unknown) => x,
@@ -278,6 +279,7 @@ describe('Widget: envío, adjuntos y recibos de lectura', () => {
     const calls: string[] = [];
     const send = await widgetFunction<(b: string) => void>('sendMessage', {
       formRequest,
+      pendingOutbound: null,
       selectedFile: null,
       sendError: { style: {} },
       withIdentity: (x: unknown) => x,

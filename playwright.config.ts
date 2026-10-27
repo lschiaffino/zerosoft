@@ -98,9 +98,18 @@ export default defineConfig({
       // Bases sincronizadas de Docs (GitHub, Jira, Salesforce) con datos fijos (lib/docs-sync.ts) y
       // page.updated sin espera (el cron de cada minuto lo emite en la próxima corrida).
       DOCS_SYNC_FAKE: '1',
+      // Agents contra el modelo falso (lib/agents-ai.ts) solo en los requests con la
+      // cookie agents_ai_fake=on: el resto de la suite sigue viendo el agente sin AI.
+      AGENTS_AI_FAKE: '1',
       DOCS_EVENT_WINDOW_SEC: '0',
       // Talk con polling corto en vez de SSE: con el stream abierto la página nunca llega a networkidle.
       TALK_REALTIME: 'poll',
+      // Chat: AI del agente contra el modelo falso (lib/chat-copilot.ts; con la cookie
+      // chat_ai_fake=off se ve ai_disabled) y el canal email entrante sin firma de Resend
+      // (lib/chat-email.ts, el texto viene en el payload del webhook).
+      CHAT_AI_FAKE: '1',
+      CHAT_INBOUND_FAKE: '1',
+      CHAT_INBOUND_DOMAIN: 'inbound.zerosoft.test',
       AI_GATEWAY_API_KEY: '',
       VERCEL_OIDC_TOKEN: '',
     },

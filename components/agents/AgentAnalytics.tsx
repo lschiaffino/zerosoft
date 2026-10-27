@@ -17,10 +17,13 @@ export default function AgentAnalytics({
   agentId,
   canEdit,
   onOpenConversations,
+  onOpenReview,
 }: {
   agentId: string;
   canEdit: boolean;
   onOpenConversations?: () => void;
+  /** Abre Conversaciones con el filtro "Para revisar". */
+  onOpenReview?: () => void;
 }) {
   const t = useTranslations('agents');
   const format = useFormatter();
@@ -31,6 +34,9 @@ export default function AgentAnalytics({
   const [alerts, setAlerts] = useState<boolean | null>(null);
   const [alertsBusy, setAlertsBusy] = useState(false);
   const [alertsError, setAlertsError] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
+  const [scoring, setScoring] = useState(false);
+  const [scoreNote, setScoreNote] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,7 +53,28 @@ export default function AgentAnalytics({
     return () => {
       cancelled = true;
     };
-  }, [agentId, days, locale, t]);
+  }, [agentId, days, locale, t, reload]);
+
+  async function scoreNow() {
+    setScoring(true);
+    setScoreNote(null);
+    const res = await api<{ scored?: number; pending?: number; error?: string }>(`/api/agents/${agentId}/quality`, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'score' }),
+    });
+    setScoring(false);
+    if (!res.ok) {
+      setScoreNote({ kind: 'error', text: errorText(t, res.data.error) });
+      return;
+    }
+    const scored = res.data.scored ?? 0;
+    setScoreNote(
+      res.data.error && scored === 0
+        ? { kind: 'error', text: errorText(t, res.data.error) }
+        : { kind: 'ok', text: t('quality.scored', { count: scored }) },
+    );
+    setReload((n) => n + 1);
+  }
 
   async function toggleAlerts(on: boolean) {
     setAlertsBusy(true);
@@ -104,6 +131,9 @@ export default function AgentAnalytics({
     <div className="ag-block ag-analytics">
       <div className="ag-analytics-head">
         <p className="ui-help">{t('analytics.intro')}</p>
+        <a className="btn btn-secondary btn-sm" href={`/api/agents/${agentId}/export?days=${days}`} download>
+          {t('quality.export')}
+        </a>
         <nav className="btn-group" aria-label={t('analytics.range')}>
           {RANGES.map((d) => (
             <button
@@ -236,13 +266,164 @@ export default function AgentAnalytics({
             )}
           </section>
 
-          {data.channels.length > 1 && (
-            <p className="ui-help">
-              {data.channels
-                .map((c) => `${t.has(`channelNames.${c.channel}` as never) ? t(`channelNames.${c.channel}` as never) : c.channel}: ${num(c.conversations)}`)
-                .join(' · ')}
-            </p>
-          )}
+          <section className="ag-block" aria-labelledby="ag-analytics-quality">
+            <div className="ag-section-head">
+              <h3 id="ag-analytics-quality" className="ui-section-title">
+                {t('quality.title')}
+              </h3>
+              {canEdit && (
+                <button type="button" className="btn btn-secondary btn-sm" aria-busy={scoring || undefined} disabled={scoring} onClick={() => void scoreNow()}>
+                  {scoring ? t('quality.scoring') : t('quality.scoreNow')}
+                </button>
+              )}
+            </div>
+            <p className="ui-help">{t('quality.hint')}</p>
+            {scoreNote && (
+              <p className={scoreNote.kind === 'error' ? 'ui-error' : 'ui-help'} role={scoreNote.kind === 'error' ? 'alert' : 'status'}>
+                {scoreNote.text}
+              </p>
+            )}
+            {data.quality.scored === 0 ? (
+              <p className="ag-quiet">{t('quality.none')}</p>
+            ) : (
+              <>
+                <dl className="ag-kpis">
+                  <div className="ag-kpi">
+                    <dt>{t('quality.avgCsat')}</dt>
+                    <dd className="data">{data.quality.avgCsat == null ? '–' : format.number(data.quality.avgCsat, { maximumFractionDigits: 1 })} / 5</dd>
+                    <dd className="ag-kpi-hint">{t('quality.scoredHint', { count: data.quality.scored })}</dd>
+                  </div>
+                  <div className="ag-kpi">
+                    <dt>{t('quality.csatRate')}</dt>
+                    <dd className="data">{pct(data.quality.csatRate)}</dd>
+                  </div>
+                  <div className="ag-kpi">
+                    <dt>{t('quality.sentiment')}</dt>
+                    <dd className="data">
+                      {num(data.quality.sentiment.positive)} / {num(data.quality.sentiment.neutral)} / {num(data.quality.sentiment.negative)}
+                    </dd>
+                    <dd className="ag-kpi-hint">{t('quality.sentimentHint')}</dd>
+                  </div>
+                  <div className="ag-kpi">
+                    <dt>{t('quality.needsReview')}</dt>
+                    <dd className="data">{num(data.quality.needsReview)}</dd>
+                    {onOpenReview && data.quality.needsReview > 0 && (
+                      <dd className="ag-kpi-hint">
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={onOpenReview}>
+                          {t('quality.openQueue')}
+                        </button>
+                      </dd>
+                    )}
+                  </div>
+                </dl>
+                {data.quality.aiTopics.length > 0 && (
+                  <div className="table-wrap">
+                    <table className="table">
+                      <caption className="ui-help ag-caption">{t('quality.aiTopics')}</caption>
+                      <thead>
+                        <tr>
+                          <th scope="col">{t('analytics.topic')}</th>
+                          <th scope="col" className="num">
+                            {t('analytics.conversations')}
+                          </th>
+                          <th scope="col" className="num">
+                            {t('quality.avgCsat')}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.quality.aiTopics.map((topic) => (
+                          <tr key={topic.topic}>
+                            <td>{topic.topic}</td>
+                            <td className="num data">{num(topic.count)}</td>
+                            <td className="num data">{topic.avgCsat == null ? '–' : format.number(topic.avgCsat, { maximumFractionDigits: 1 })}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {data.quality.criteria.length > 0 && (
+                  <div className="table-wrap">
+                    <table className="table">
+                      <caption className="ui-help ag-caption">{t('quality.criteria')}</caption>
+                      <thead>
+                        <tr>
+                          <th scope="col">{t('quality.criterion')}</th>
+                          <th scope="col" className="num">
+                            {t('quality.passRate')}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.quality.criteria.map((c) => (
+                          <tr key={c.criterion}>
+                            <td>{c.criterion}</td>
+                            <td className="num data" data-bad={c.fail > c.pass || undefined}>
+                              {pct(c.pass + c.fail ? c.pass / (c.pass + c.fail) : null)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+
+          <section className="ag-block" aria-labelledby="ag-analytics-channels">
+            <h3 id="ag-analytics-channels" className="ui-section-title">
+              {t('quality.channels')}
+            </h3>
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th scope="col">{t('quality.channel')}</th>
+                    <th scope="col" className="num">
+                      {t('analytics.conversations')}
+                    </th>
+                    <th scope="col" className="num">
+                      {t('analytics.resolution')}
+                    </th>
+                    <th scope="col" className="num">
+                      {t('analytics.handoff')}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.channels.map((c) => (
+                    <tr key={c.channel}>
+                      <td>{t.has(`channelNames.${c.channel}` as never) ? t(`channelNames.${c.channel}` as never) : c.channel}</td>
+                      <td className="num data">{num(c.conversations)}</td>
+                      <td className="num data">{pct(c.resolutionRate)}</td>
+                      <td className="num data">{num(c.handedOff)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="ag-block" aria-labelledby="ag-analytics-reasons">
+            <h3 id="ag-analytics-reasons" className="ui-section-title">
+              {t('quality.handoffReasons')}
+            </h3>
+            {data.handoffReasons.length === 0 ? (
+              <p className="ag-quiet">{t('quality.noHandoffs')}</p>
+            ) : (
+              <ul className="ag-rows">
+                {data.handoffReasons.map((r) => (
+                  <li key={`${r.kind}:${r.reason}`} className="ag-reason">
+                    <span className="badge">{t(`quality.reasonKinds.${r.kind}`)}</span>
+                    <span className="ag-reason-text">{r.reason || t(`quality.reasonEmpty.${r.kind}`)}</span>
+                    <span className="data">{num(r.count)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </>
       )}
 

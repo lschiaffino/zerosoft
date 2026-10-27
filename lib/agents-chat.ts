@@ -6,7 +6,7 @@
  * Ante cualquier falla cae al bot por keywords. Server-only.
  */
 import type { ChatConversationRow, ChatMessageRow, ChatWidgetRow } from './db';
-import { aiEnabled } from './ai';
+import { agentsAiEnabled } from './agents-ai';
 import { createChatMessage, getChatConversation, maybeRunChatBot } from './chat-data';
 import {
   clearBotTyping,
@@ -20,7 +20,7 @@ import {
   type ScheduleTask,
 } from './chat-bot-ai';
 import { AgentError, assertAgentLimits, conversationForChat, getAgentRowById, runAgent } from './agents';
-import { getDb, type AgentRow } from './db';
+import type { AgentRow } from './db';
 
 export type AgentChatStatus = 'replied' | 'handoff' | 'skipped' | 'fallback' | 'rate_limited';
 
@@ -68,15 +68,23 @@ export async function runAgentChatReply(
       throw err;
     }
 
+    // Visitante bloqueado desde Conversaciones: el agente no le contesta (el equipo sí puede).
+    const { isChatVisitorBlocked } = await import('./agents-privacy');
+    if (await isChatVisitorBlocked(agent.id, conversation.visitor_id)) return { status: 'skipped', message: null };
+    // Identidad firmada por el sitio (lib/chat-identity.ts): contexto y memoria del visitante.
+    const { chatVisitorIdentity, memoryRefFor, setConversationIdentity } = await import('./agents-context');
+    const identity = await chatVisitorIdentity(conversationId);
+    if (identity && !agentConv.visitor_ref) {
+      await setConversationIdentity(agentConv.id, identity, memoryRefFor('chat', { identity }));
+      agentConv.visitor_email = identity.email;
+      agentConv.visitor_ref = memoryRefFor('chat', { identity });
+    }
+
     let result;
     try {
       const messages = toModelMessages(rows);
       if (messages.length === 0) return { status: 'skipped', message: null };
-      // Email firmado por el sitio (lib/chat-identity.ts): solo con él el agente lee el contacto del CRM.
-      const verified = (await getDb()
-        .prepare('SELECT v.email FROM chat_conversations c JOIN chat_visitors v ON v.id = c.visitor_id WHERE c.id = ? AND v.email_verified = 1')
-        .get(conversationId)) as { email: string | null } | undefined;
-      result = await runAgent({ agent, conversation: agentConv, messages, channel: 'chat', identifiedEmail: verified?.email ?? null });
+      result = await runAgent({ agent, conversation: agentConv, messages, channel: 'chat', identity });
     } catch (err) {
       console.error('[agents-chat] run failed', err);
       const message = await maybeRunChatBot(widget, conversation, describeMessage(lastVisitor));
@@ -86,6 +94,9 @@ export async function runAgentChatReply(
     // Si un humano contestó mientras el agente pensaba, no se mete.
     if (await humanHasReplied(conversationId)) return { status: 'skipped', message: null };
     const message = result.text ? await createChatMessage(conversationId, 'bot', { body: result.text }) : null;
+    // La conversación del agente queda con actividad (puntaje, memoria y redacción miran updated_at).
+    const { getDb } = await import('./db');
+    await getDb().prepare('UPDATE agent_conversations SET updated_at = ? WHERE id = ?').run(new Date().toISOString(), agentConv.id);
     if (result.handoff) {
       await markHandoff(widget, conversation, `the agent "${agent.name}"`);
       return { status: 'handoff', message };
@@ -104,7 +115,7 @@ export async function dispatchAgentChat(
   schedule?: ScheduleTask,
 ): Promise<ChatMessageRow | null> {
   const agent = await widgetAgent(widget);
-  if (!agent || !aiEnabled()) return maybeRunChatBot(widget, conversation, visitorMessage.body);
+  if (!agent || !(await agentsAiEnabled())) return maybeRunChatBot(widget, conversation, visitorMessage.body);
   if ((await humanHasReplied(conversation.id)) || (await wasHandedOff(conversation.id))) return null;
 
   await setBotTyping(conversation.id).catch(() => {});

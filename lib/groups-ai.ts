@@ -318,5 +318,6 @@ async function knowledgeFor(
   // Sin agente: un "agente" vacío que solo mira las páginas públicas de Docs (no hay URLs con id vacío).
   const subject = agent ?? ({ id: '', knowledge: knowledgeConfigSchema.parse({ allPublicDocs: true }) } as unknown as Agent);
   const hits = await searchAgentKnowledge(subject, ws, query, 3).catch(() => []);
-  return hits.map((h) => ({ kind: h.kind, title: h.title, text: h.text }));
+  // Archivos y pares de pregunta-respuesta del agente cuentan como doc y respuesta guardada.
+  return hits.map((h) => ({ kind: h.kind === 'file' ? 'doc' : h.kind === 'qa' ? 'canned' : h.kind, title: h.title, text: h.text }));
 }

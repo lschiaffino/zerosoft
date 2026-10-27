@@ -4,9 +4,11 @@
  */
 import { NextResponse } from 'next/server';
 import type { SessionUser } from './session';
+import type { AgentRow } from './db';
 import { roleAtLeast } from './teams';
-import { AiError, aiEnabled } from './ai';
-import { AgentError, sendAgentMessage, type SendAgentMessageOptions } from './agents';
+import { AiError } from './ai';
+import { agentsAiEnabled } from './agents-ai';
+import { AgentError, getAgentRow, sendAgentMessage, type SendAgentMessageOptions } from './agents';
 import type { AgentStreamEvent } from './agents-config';
 
 export function agentError(status: number, error: string, extra: Record<string, unknown> = {}): NextResponse {
@@ -24,6 +26,24 @@ export function canEditAgents(user: Pick<SessionUser, 'role'>): boolean {
 
 export function realUserId(user: Pick<SessionUser, 'id' | 'actingUser'>): string {
   return user.actingUser?.id ?? user.id;
+}
+
+/**
+ * Sesión y agente del workspace para una ruta de /api/agents/[id]/…; con
+ * `edit`, solo admins y owners. Devuelve la respuesta de error o los datos.
+ */
+export async function agentRouteContext(
+  id: string,
+  opts: { edit?: boolean } = {},
+): Promise<{ res: NextResponse } | { user: SessionUser; row: AgentRow; personId: string }> {
+  // Import diferido: los tests unitarios de este módulo no cargan next-auth.
+  const { getCurrentUser } = await import('./session');
+  const user = await getCurrentUser();
+  if (!user) return { res: unauthorized() };
+  if (opts.edit && !canEditAgents(user)) return { res: forbidden() };
+  const row = await getAgentRow(user.id, id);
+  if (!row) return { res: notFound() };
+  return { user, row, personId: realUserId(user) };
 }
 
 /**
@@ -68,7 +88,7 @@ export function runErrorCode(err: unknown): { code: string; status: number } {
 // Errores que el visitante de la página pública puede entender o resolver.
 // El resto (créditos, credenciales, cuota, AI apagada) es para el dueño: el
 // visitante ve 'unavailable' y el detalle queda en el log.
-const PUBLIC_SAFE_ERRORS = new Set(['rate_limited', 'conversation_not_found', 'empty_message', 'invalid_input', 'not_found']);
+const PUBLIC_SAFE_ERRORS = new Set(['rate_limited', 'conversation_not_found', 'empty_message', 'invalid_input', 'not_found', 'blocked']);
 
 export function publicErrorCode(code: string): string {
   return PUBLIC_SAFE_ERRORS.has(code) ? code : 'unavailable';
@@ -78,13 +98,13 @@ export function publicErrorCode(code: string): string {
  * Respuesta en streaming (NDJSON: un AgentStreamEvent por línea) para el
  * playground y la página pública. Sin dependencias de cliente (fetch + reader).
  */
-export function streamAgentReply(
+export async function streamAgentReply(
   opts: Omit<SendAgentMessageOptions, 'onEvent' | 'stream'>,
-): Response {
+): Promise<Response> {
   // Sin AI no hay stream (salvo en una conversación existente, que puede estar
   // derivada a una persona: sendAgentMessage decide).
   const visitorCode = (code: string) => (opts.channel === 'public' ? publicErrorCode(code) : code);
-  if (!aiEnabled() && !opts.conversationId) return agentError(503, visitorCode('ai_disabled'));
+  if (!(await agentsAiEnabled()) && !opts.conversationId) return agentError(503, visitorCode('ai_disabled'));
   const encoder = new TextEncoder();
   const body = new ReadableStream<Uint8Array>({
     async start(controller) {

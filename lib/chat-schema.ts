@@ -90,6 +90,7 @@ export const conversationPatchSchema = z.object({
   priority: chatPrioritySchema.optional(),
   subject: shortText.optional(),
   snoozedUntil: z.string().trim().max(40).nullable().optional(), // ISO datetime
+  teamId: id.nullable().optional(),
   // Atributos de conversación: id → valor (null o '' borra). Los valida
   // applyAttributePatch contra las definiciones del widget.
   attributes: z

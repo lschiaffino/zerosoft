@@ -10,6 +10,8 @@ import ChatIcon from './icons';
 interface RulesClientProps {
   widgetId: string;
   agents: ChatAgent[];
+  /** Equipos de Chat del workspace (lib/chat-collab.ts). */
+  teams?: Array<{ id: string; name: string }>;
   /** Zona en la que se evalúan las reglas de horario (la del horario de atención). */
   timeZone: string;
 }
@@ -19,18 +21,20 @@ interface RuleForm {
   matchType: 'all' | 'keyword' | 'time' | 'round_robin';
   matchValue: string;
   assignTo: string;
+  teamId: string;
+  teamRoundRobin: boolean;
   active: boolean;
 }
 
 function emptyForm(): RuleForm {
-  return { name: '', matchType: 'all', matchValue: '', assignTo: '', active: true };
+  return { name: '', matchType: 'all', matchValue: '', assignTo: '', teamId: '', teamRoundRobin: false, active: true };
 }
 
 /**
  * Reglas de asignación en orden: la primera que coincide asigna. Tabla densa
  * con el orden visible, un switch por regla y subir/bajar con teclado.
  */
-export default function RulesClient({ widgetId, agents, timeZone }: RulesClientProps) {
+export default function RulesClient({ widgetId, agents, teams = [], timeZone }: RulesClientProps) {
   const t = useTranslations('chat');
   const [rules, setRules] = useState<ChatAssignmentRuleRow[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -69,6 +73,8 @@ export default function RulesClient({ widgetId, agents, timeZone }: RulesClientP
       matchType: rule.match_type,
       matchValue: rule.match_value ?? '',
       assignTo: rule.assign_to ?? '',
+      teamId: rule.assign_team_id ?? '',
+      teamRoundRobin: rule.team_round_robin === 1,
       active: rule.active === 1,
     });
   }
@@ -93,7 +99,9 @@ export default function RulesClient({ widgetId, agents, timeZone }: RulesClientP
         name: form.name.trim(),
         matchType: form.matchType,
         matchValue: form.matchValue.trim() || null,
-        assignTo: form.matchType === 'round_robin' ? null : form.assignTo || null,
+        assignTo: form.matchType === 'round_robin' || (form.teamId && form.teamRoundRobin) ? null : form.assignTo || null,
+        assignTeamId: form.teamId || null,
+        teamRoundRobin: !!form.teamId && form.teamRoundRobin,
         active: form.active,
       };
       const isNew = editingId === 'new';
@@ -102,7 +110,11 @@ export default function RulesClient({ widgetId, agents, timeZone }: RulesClientP
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error('save_failed');
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        setFormError(data.error === 'invalid_team' ? t('teams.invalid') : t('errors.generic'));
+        return;
+      }
       await fetchRules();
       setEditingId(null);
       setForm(emptyForm());
@@ -229,7 +241,20 @@ export default function RulesClient({ widgetId, agents, timeZone }: RulesClientP
                       {rule.match_value && <span className="chat-rule-value data">{rule.match_value}</span>}
                     </span>
                   </td>
-                  <td data-label={t('rules.assignTo')}>{rule.match_type === 'round_robin' ? t('rules.roundRobinTeam') : agentLabel(rule.assign_to)}</td>
+                  <td data-label={t('rules.assignTo')}>
+                    {(() => {
+                      const team = teams.find((x) => x.id === rule.assign_team_id);
+                      const who =
+                        rule.match_type === 'round_robin' || (team && rule.team_round_robin === 1)
+                          ? team
+                            ? t('teams.roundRobinIn', { team: team.name })
+                            : t('rules.roundRobinTeam')
+                          : team && !rule.assign_to
+                            ? t('teams.inboxOf', { team: team.name })
+                            : agentLabel(rule.assign_to);
+                      return team && rule.assign_to && rule.match_type !== 'round_robin' && rule.team_round_robin !== 1 ? `${team.name} · ${who}` : who;
+                    })()}
+                  </td>
                   <td data-label={t('rules.state')}>
                     <label className="ui-switch">
                       <input
@@ -324,7 +349,7 @@ export default function RulesClient({ widgetId, agents, timeZone }: RulesClientP
                 <option value="round_robin">{t('rules.roundRobin')}</option>
               </select>
             </div>
-            {form.matchType !== 'round_robin' && (
+            {form.matchType !== 'round_robin' && !(form.teamId && form.teamRoundRobin) && (
               <div className="ui-field">
                 <label className="label" htmlFor="rule-assign">
                   {t('rules.assignTo')}
@@ -345,6 +370,39 @@ export default function RulesClient({ widgetId, agents, timeZone }: RulesClientP
               </div>
             )}
           </div>
+          {teams.length > 0 && (
+            <div className="ui-fields-2">
+              <div className="ui-field">
+                <label className="label" htmlFor="rule-team">
+                  {t('teams.assignTeam')}
+                </label>
+                <select
+                  id="rule-team"
+                  className="select"
+                  value={form.teamId}
+                  onChange={(e) => setForm((f) => ({ ...f, teamId: e.target.value }))}
+                >
+                  <option value="">{t('teams.noTeam')}</option>
+                  {teams.map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {form.teamId && form.matchType !== 'round_robin' && (
+                <label className="ui-switch chat-rule-switch">
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    checked={form.teamRoundRobin}
+                    onChange={(e) => setForm((f) => ({ ...f, teamRoundRobin: e.target.checked }))}
+                  />
+                  {t('teams.spread')}
+                </label>
+              )}
+            </div>
+          )}
           {form.matchType === 'keyword' && (
             <div className="ui-field">
               <label className="label" htmlFor="rule-keyword">
