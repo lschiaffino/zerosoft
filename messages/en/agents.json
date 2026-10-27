@@ -206,7 +206,7 @@
       },
       "crm_find_contact": {
         "name": "Find CRM contact",
-        "desc": "Checks if the visitor's email is already a contact (returns only first name and lifecycle stage)."
+        "desc": "Finds the visitor in the CRM (first name and lifecycle stage) only when the website verified their identity in the Chat widget. A typed email is not enough."
       },
       "crm_upsert_contact": {
         "name": "Save CRM contact",

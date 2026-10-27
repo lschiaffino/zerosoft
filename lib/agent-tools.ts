@@ -52,6 +52,8 @@ export interface AgentRunContext {
   dryRun?: boolean;
   /** Headers secretos de http_request ya descifrados. Nunca van al modelo ni al registro. */
   secretHeaders?: Array<{ name: string; domain: string; value: string }>;
+  /** Email verificado del visitante (firma HMAC del widget de Chat). Solo con él se leen datos de su contacto. */
+  identifiedEmail?: string | null;
 }
 
 type ToolOutput = Record<string, unknown>;
@@ -345,13 +347,17 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
       'crm_find_contact',
       tool({
         description:
-          "Look up the visitor in the CRM by the email address THEY gave you. Returns only whether they exist, their first name and lifecycle stage.",
+          "Look up the visitor in the CRM by their email. Only works when the visitor's identity is verified by the website (or in the playground); otherwise it returns identity_not_verified and you should not claim to know who they are.",
         inputSchema: z.object({ email: z.string().trim().max(200) }),
         execute: logged(ctx, 'crm_find_contact', async ({ email }: { email: string }) => {
           if (!EMAIL_RE.test(email)) return { error: 'invalid_email' };
           // Solo el email que el propio visitante escribió: evita usar al agente
           // para averiguar si un email cualquiera está en el CRM.
           if (!visitorGaveEmail(ctx, email)) return { error: 'email_not_given_by_visitor' };
+          // Un email escrito en el chat lo puede tipear cualquiera: los datos del
+          // contacto (o si existe) solo con la identidad verificada y el mismo email.
+          const verified = ctx.channel === 'playground' || (ctx.identifiedEmail ?? '').trim().toLowerCase() === email.trim().toLowerCase();
+          if (!verified) return { error: 'identity_not_verified' };
           const c = await findContact(workspaceId, email);
           if (!c) return { found: false };
           return { found: true, contactId: c.id, firstName: c.first_name, lifecycleStage: c.lifecycle_stage };

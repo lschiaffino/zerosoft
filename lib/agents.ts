@@ -1181,6 +1181,8 @@ export interface RunAgentOptions {
   abortSignal?: AbortSignal;
   /** Simula las herramientas que escriben. Por defecto: solo en el playground. */
   dryRun?: boolean;
+  /** Email verificado del visitante (firma HMAC del widget de Chat). */
+  identifiedEmail?: string | null;
 }
 
 export interface RunAgentResult {
@@ -1268,6 +1270,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
     visitorText: allUserText(opts.messages),
     dryRun: opts.dryRun ?? channel === 'playground',
     secretHeaders: loadSecretHeaders(row),
+    identifiedEmail: opts.identifiedEmail ?? null,
   };
   const { tools, enabled, handoff } = await buildAgentTools(ctx);
 
