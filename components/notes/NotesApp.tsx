@@ -1,35 +1,51 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import EmptyState from '@/components/ui/EmptyState';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { DocsBlock } from '@/lib/docs-types';
+import { registerAppServiceWorker } from '@/lib/sw-client';
 import {
   blocksToText,
   makeSnippet,
   type NoteDetail,
+  type NoteLockEnvelope,
   type NoteSummary,
   type NotebookInfo,
   type NotesSort,
+  type SavedSearchInfo,
   type TagInfo,
 } from '@/lib/notes-types';
-import NoteEditorPane from './NoteEditorPane';
+import NoteEditorPane, { type SaveStatus } from './NoteEditorPane';
 import { NotebookShareDrawer } from './NoteSharePeople';
 import NotesAskPanel from './NotesAskPanel';
 import NotesIcon from './NotesIcon';
-import RowMenu from './RowMenu';
+import NotesTemplatesDialog from './NotesTemplatesDialog';
+import { NotebooksNav, SavedSearchesNav, TagsNav } from './NotesNavSections';
+import { PromptDialog } from './NotesModal';
 import { usePopover } from './usePopover';
 import {
   SEARCH_OPERATORS,
   emptyKind,
   filterQuery,
+  highlightTerms,
   isTypingTarget,
   listKey,
+  nextSelection,
   sameFilter,
   stepIndex,
   type NotesFilter,
 } from './notes-ui';
+import {
+  NotesOfflineStore,
+  applyPatchLocally,
+  offlineList,
+  replayOutbox,
+  type CachedNote,
+  type OfflineOwner,
+} from './notesOffline';
 import { parseDbUtc } from '@/lib/utils';
 
 export type { NotesFilter } from './notes-ui';
@@ -45,17 +61,46 @@ interface Props {
   initialNote: NoteDetail | null;
   /** Filtro inicial de la lista (p. ej. "Compartidas conmigo" desde un aviso). */
   initialFilter?: NotesFilter;
+  initialSearches?: SavedSearchInfo[];
+  /** Búsqueda con la que abre (?q= o una búsqueda guardada de ⌘K). */
+  initialQuery?: string;
+  initialSearchId?: string | null;
+  /** Plantilla propia elegida en ⌘K: crea la nota al entrar. */
+  initialTemplate?: { title: string; content: DocsBlock[] } | null;
+  /** Persona y workspace de la copia offline (IndexedDB). */
+  offlineOwner?: OfflineOwner;
   startNew?: boolean;
   /** "Ahora" del render del servidor (fechas relativas sin hydration mismatch). */
   serverNow: number;
 }
 
 const TOAST_MS = 6000;
+const SYNC_PAGES = 20;
+
+/** El fetch falló por red (no por una respuesta del servidor). */
+function isNetworkError(err: unknown): boolean {
+  return err instanceof TypeError;
+}
+
+/** Prompts del sidebar y la lista (uno a la vez). */
+type Prompt =
+  | { kind: 'saveSearch' }
+  | { kind: 'renameSearch'; search: SavedSearchInfo }
+  | { kind: 'stack'; notebook: NotebookInfo }
+  | { kind: 'renameStack'; stack: string }
+  | { kind: 'renameTag'; tag: string };
+
+type Confirm =
+  | { kind: 'deleteSearch'; search: SavedSearchInfo }
+  | { kind: 'deleteTag'; tag: string }
+  | { kind: 'bulkDelete'; ids: string[] };
 
 /**
  * Notes: tres paneles (libretas · lista · editor), como Apple Notes. En
  * pantallas chicas se ve un panel por vez, con navegación hacia atrás.
- * Teclado: N nueva nota, / buscar, flechas para recorrer la lista.
+ * Teclado: N nueva nota, / buscar, flechas para recorrer la lista, ⌘/Shift
+ * clic para elegir varias. Sin red sigue andando con la copia del
+ * dispositivo (components/notes/notesOffline.ts).
  */
 export default function NotesApp({
   aiEnabled,
@@ -64,33 +109,59 @@ export default function NotesApp({
   initialTags,
   initialNote,
   initialFilter,
+  initialSearches = [],
+  initialQuery = '',
+  initialSearchId = null,
+  initialTemplate = null,
+  offlineOwner,
   startNew = false,
   serverNow,
 }: Props) {
   const t = useTranslations('notes');
   const format = useFormatter();
+  const locale = useLocale();
   const [filter, setFilter] = useState<NotesFilter>(initialFilter ?? { kind: 'all' });
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState(initialQuery);
   const [sort, setSort] = useState<NotesSort>('updated');
   const [notes, setNotes] = useState<NoteSummary[]>(initialNotes);
   const [notebooks, setNotebooks] = useState<NotebookInfo[]>(initialNotebooks);
   const [tags, setTags] = useState<TagInfo[]>(initialTags);
+  const [searches, setSearches] = useState<SavedSearchInfo[]>(initialSearches);
+  const [activeSearch, setActiveSearch] = useState<string | null>(initialSearchId);
   const [note, setNote] = useState<NoteDetail | null>(initialNote);
   const [pane, setPane] = useState<Pane>(initialNote ? 'editor' : 'list');
   const [loading, setLoading] = useState(false);
   const [loadedKey, setLoadedKey] = useState(() => listKey(initialFilter ?? { kind: 'all' }, 'updated'));
   const [listError, setListError] = useState(false);
   const [askOpen, setAskOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [newNotebook, setNewNotebook] = useState(false);
   const [renamingNotebook, setRenamingNotebook] = useState<string | null>(null);
-  const [notebookMenu, setNotebookMenu] = useState<string | null>(null);
   const [sharingNotebook, setSharingNotebook] = useState<NotebookInfo | null>(null);
+  const [prompt, setPrompt] = useState<Prompt | null>(null);
+  const [confirmState, setConfirmState] = useState<Confirm | null>(null);
   const [focusTitle, setFocusTitle] = useState(0);
-  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [status, setStatus] = useState<SaveStatus>('idle');
   const [toast, setToast] = useState<string | null>(null);
   /** Aviso de éxito (importación); `toast` es siempre de error. */
   const [okToast, setOkToast] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  /** Selección múltiple (mover, etiquetar, papelera, exportar). */
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [anchor, setAnchor] = useState<string | null>(null);
+  const [bulkTag, setBulkTag] = useState('');
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
+  /** Términos de la búsqueda con la que se abrió la nota (se resaltan). */
+  const [highlight, setHighlight] = useState<string[]>(() => (initialNote && initialQuery ? highlightTerms(initialQuery) : []));
+  const [offline, setOffline] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const offlineRef = useRef(false);
+  offlineRef.current = offline;
+  const storeRef = useRef<NotesOfflineStore | null>(null);
+  /** flushOutbox, para usarla desde sendPatch (que se define antes). */
+  const flushRef = useRef<() => Promise<void>>(async () => undefined);
   const importRef = useRef<HTMLInputElement>(null);
   const searchHelp = usePopover();
   const searchRef = useRef<HTMLInputElement>(null);
@@ -114,6 +185,18 @@ export default function NotesApp({
   /** Sube al recargar la nota tras un conflicto: el editor se monta de nuevo con el contenido del servidor. */
   const [editorKey, setEditorKey] = useState(0);
 
+  const ownerUser = offlineOwner?.userId ?? '';
+  const ownerWs = offlineOwner?.ws ?? '';
+  useEffect(() => {
+    if (!ownerUser || !NotesOfflineStore.available()) return;
+    const store = new NotesOfflineStore({ userId: ownerUser, ws: ownerWs });
+    storeRef.current = store;
+    return () => {
+      store.close();
+      if (storeRef.current === store) storeRef.current = null;
+    };
+  }, [ownerUser, ownerWs]);
+
   /** Encola un PATCH de la nota detrás de los anteriores. */
   const enqueue = useCallback(<T,>(id: string, run: () => Promise<T>): Promise<T> => {
     const prev = saveChains.current.get(id) ?? Promise.resolve();
@@ -127,20 +210,60 @@ export default function NotesApp({
     return next;
   }, []);
 
-  /** Manda un PATCH con la base conocida (o sin ella, para "conservar la mía"). */
+  /** Guarda un cambio en la copia del dispositivo y lo encola para cuando vuelva la red. */
+  const saveLocally = useCallback(
+    async (id: string, patch: Record<string, unknown>, base: string | null, markOffline = true): Promise<NoteDetail | null> => {
+      const store = storeRef.current;
+      if (!store) return null;
+      const cached = await store.get(id).catch(() => null);
+      if (!cached) return null;
+      await store.enqueue({ kind: 'patch', id, patch, base, at: Date.now() });
+      const next = applyPatchLocally(cached, patch, new Date().toISOString());
+      await store.putNote(next);
+      if (markOffline) setOffline(true);
+      return next as NoteDetail;
+    },
+    [],
+  );
+
+  /** Manda un PATCH con la base conocida (o sin ella, para "conservar la mía"). Sin red, queda en el dispositivo. */
   const sendPatch = useCallback(
     async (
       id: string,
       patch: Record<string, unknown>,
       force = false,
-    ): Promise<{ conflict: 'trashed' | 'changed'; updated?: undefined } | { conflict?: undefined; updated: NoteDetail }> => {
+    ): Promise<
+      { conflict: 'trashed' | 'changed'; updated?: undefined; local?: undefined } | { conflict?: undefined; updated: NoteDetail; local?: boolean }
+    > => {
       const base = bases.current.get(id);
       const body = force || !base ? patch : { ...patch, base_updated_at: base };
-      const res = await fetch(`/api/notes/${id}`, {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+      // Volvió la red pero la nota todavía tiene cambios offline sin subir
+      // (por ejemplo, se creó sin red): va detrás de ellos en la cola.
+      const store = storeRef.current;
+      if (store && !offlineRef.current) {
+        const pending = await store.outbox().catch(() => []);
+        if (pending.some((o) => o.id === id)) {
+          const local = await saveLocally(id, patch, force ? null : (base ?? null), false);
+          if (local) {
+            void flushRef.current();
+            return { updated: local, local: true };
+          }
+        }
+      }
+      let res: Response;
+      try {
+        if (offlineRef.current) throw new TypeError('offline');
+        res = await fetch(`/api/notes/${id}`, {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+      } catch (err) {
+        if (!isNetworkError(err)) throw err;
+        const local = await saveLocally(id, patch, force ? null : (base ?? null));
+        if (!local) throw err;
+        return { updated: local, local: true };
+      }
       if (res.status === 409) {
         const data = (await res.json().catch(() => null)) as { error?: string } | null;
         return { conflict: data?.error === 'note_trashed' ? 'trashed' : 'changed' };
@@ -148,9 +271,10 @@ export default function NotesApp({
       if (!res.ok) throw new Error(String(res.status));
       const updated = (await res.json()) as NoteDetail;
       bases.current.set(id, updated.updated_at);
+      void storeRef.current?.putDetails([updated]).catch(() => undefined);
       return { updated };
     },
-    [],
+    [saveLocally],
   );
 
   useEffect(() => {
@@ -171,11 +295,25 @@ export default function NotesApp({
     return () => clearTimeout(h);
   }, [okToast]);
 
+  /** Lista desde la copia del dispositivo (sin red). */
+  const listFromDevice = useCallback(
+    async (key: string, seq: number) => {
+      const store = storeRef.current;
+      const all = store ? await store.all().catch(() => [] as CachedNote[]) : [];
+      if (seq !== reqSeq.current) return;
+      setNotes(offlineList(all, filter, q, sort, notebooks));
+      setLoadedKey(key);
+      setListError(false);
+    },
+    [filter, q, sort, notebooks],
+  );
+
   const refreshList = useCallback(async () => {
     const seq = ++reqSeq.current;
     const key = listKey(filter, sort);
     setLoading(true);
     try {
+      if (offlineRef.current) throw new TypeError('offline');
       const res = await fetch(`/api/notes?${filterQuery(filter, q, sort)}`);
       if (!res.ok) throw new Error(String(res.status));
       const data = (await res.json()) as { notes: NoteSummary[] };
@@ -190,14 +328,19 @@ export default function NotesApp({
         setLoadedKey(key);
         setListError(false);
       }
-    } catch {
-      if (seq === reqSeq.current) setListError(true);
+      if (filter.kind !== 'shared') void storeRef.current?.putSummaries(data.notes).catch(() => undefined);
+    } catch (err) {
+      if (isNetworkError(err) && storeRef.current) {
+        setOffline(true);
+        await listFromDevice(key, seq);
+      } else if (seq === reqSeq.current) setListError(true);
     } finally {
       if (seq === reqSeq.current) setLoading(false);
     }
-  }, [filter, q, sort]);
+  }, [filter, q, sort, listFromDevice]);
 
   const refreshSide = useCallback(async () => {
+    if (offlineRef.current) return;
     const [nb, tg] = await Promise.all([
       fetch('/api/notes/notebooks').then((r) => (r.ok ? r.json() : null)).catch(() => null),
       fetch('/api/notes/tags').then((r) => (r.ok ? r.json() : null)).catch(() => null),
@@ -205,6 +348,155 @@ export default function NotesApp({
     if (nb) setNotebooks(nb.notebooks);
     if (tg) setTags(tg.tags);
   }, []);
+
+  /**
+   * Baja a la copia del dispositivo lo que cambió desde la última vez
+   * (todas las notas propias, con bloques), para abrirlas sin red.
+   */
+  const syncDevice = useCallback(async () => {
+    const store = storeRef.current;
+    if (!store || offlineRef.current) return;
+    try {
+      const since = await store.getMeta<string>('since');
+      const keep = new Set((await store.outbox()).map((o) => o.id));
+      let offset = 0;
+      let stamp: string | null = null;
+      for (let page = 0; page < SYNC_PAGES; page++) {
+        const sp = new URLSearchParams();
+        if (since) sp.set('since', since);
+        if (offset) sp.set('offset', String(offset));
+        const res = await fetch(`/api/notes/sync?${sp.toString()}`);
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          notes: NoteDetail[];
+          index: NoteSummary[];
+          notebooks: NotebookInfo[];
+          tags: TagInfo[];
+          now: string;
+          nextOffset: number | null;
+        };
+        if (page === 0) {
+          stamp = data.now;
+          await store.putSummaries(data.index, { prune: true, keep });
+          await store.setMeta('notebooks', data.notebooks);
+          await store.setMeta('tags', data.tags);
+        }
+        await store.putDetails(data.notes);
+        if (data.nextOffset == null) break;
+        offset = data.nextOffset;
+      }
+      if (stamp) await store.setMeta('since', stamp);
+    } catch {
+      /* sin red o sin almacenamiento: queda para la próxima */
+    }
+  }, []);
+
+  /** Reenvía los cambios hechos sin red (uno por vez: un segundo pedido espera al que está corriendo). */
+  const flushing = useRef<Promise<void> | null>(null);
+  const flushOutbox = useCallback(async (): Promise<void> => {
+    if (flushing.current) {
+      await flushing.current;
+    }
+    const run = flushOnce();
+    flushing.current = run;
+    try {
+      await run;
+    } finally {
+      if (flushing.current === run) flushing.current = null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [note?.id, t]);
+  flushRef.current = flushOutbox;
+
+  async function flushOnce(): Promise<void> {
+    const store = storeRef.current;
+    if (!store) return;
+    const ops = await store.outbox().catch(() => []);
+    if (!ops.length) return;
+    setSyncing(true);
+    try {
+      const r = await replayOutbox(ops, {
+        fetch: (url, init) => fetch(url, init),
+        remove: (op) => store.removeOp(op),
+        copyTitle: (title) => t('offline.copyTitle', { title: title || t('untitled') }),
+      });
+      if (r.remaining) {
+        setOffline(true);
+        return;
+      }
+      for (const op of ops) bases.current.delete(op.id);
+      if (r.copies) setToast(t('offline.copies', { count: r.copies }));
+      else if (r.done) setOkToast(t('offline.synced', { count: r.done }));
+      // La nota abierta: la versión del servidor (con su base nueva).
+      const open = note?.id;
+      if (open && ops.some((o) => o.id === open)) {
+        const res = await fetch(`/api/notes/${open}`).catch(() => null);
+        if (res?.ok) {
+          const fresh = (await res.json()) as NoteDetail;
+          bases.current.set(fresh.id, fresh.updated_at);
+          if (r.copies) {
+            // Chocó: lo propio quedó en una copia y se muestra la versión del servidor.
+            setNote((cur) => (cur && cur.id === fresh.id ? fresh : cur));
+            setEditorKey((k) => k + 1);
+          } else {
+            // Sin volver a montar el editor: lo que se ve ya es lo que se subió.
+            setNote((cur) => (cur && cur.id === fresh.id ? { ...fresh, content: cur.content, title: cur.title } : cur));
+          }
+        }
+      }
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  // Red: al perderla, la lista sale del dispositivo; al volver, se suben los cambios y se baja lo nuevo.
+  useEffect(() => {
+    void registerAppServiceWorker();
+    const goOffline = () => setOffline(true);
+    const goOnline = () => setOffline(false);
+    if (!navigator.onLine) setOffline(true);
+    window.addEventListener('offline', goOffline);
+    window.addEventListener('online', goOnline);
+    return () => {
+      window.removeEventListener('offline', goOffline);
+      window.removeEventListener('online', goOnline);
+    };
+  }, []);
+
+  const wasOffline = useRef<boolean | null>(null);
+  useEffect(() => {
+    const prev = wasOffline.current;
+    wasOffline.current = offline;
+    if (offline) {
+      if (prev === false) void refreshList();
+      return;
+    }
+    // Primera carga con red, o volvió la red.
+    void (async () => {
+      await flushOutbox();
+      if (prev === true) {
+        void refreshList();
+        void refreshSide();
+      }
+      await syncDevice();
+    })();
+    // Solo cuando cambia el estado de la red.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offline]);
+
+  // Sin red al cargar: libretas y etiquetas de la última copia.
+  useEffect(() => {
+    if (!offline) return;
+    void (async () => {
+      const store = storeRef.current;
+      if (!store) return;
+      const nb = await store.getMeta<NotebookInfo[]>('notebooks').catch(() => null);
+      const tg = await store.getMeta<TagInfo[]>('tags').catch(() => null);
+      if (nb?.length && !notebooks.length) setNotebooks(nb);
+      if (tg?.length && !tags.length) setTags(tg);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offline]);
 
   // Recarga la lista al cambiar filtro/orden (inmediato) o búsqueda (debounce).
   useEffect(() => {
@@ -221,13 +513,20 @@ export default function NotesApp({
     const url = new URL(window.location.href);
     if (note) url.searchParams.set('note', note.id);
     else url.searchParams.delete('note');
-    url.searchParams.delete('new');
+    for (const k of ['new', 'search', 'template', 'q']) url.searchParams.delete(k);
     window.history.replaceState(null, '', url.toString());
   }, [note]);
 
+  // La selección sale de la lista visible (filtrar o borrar la achica).
+  useEffect(() => {
+    setSelected((cur) => cur.filter((id) => notes.some((n) => n.id === id)));
+  }, [notes]);
+
   const openNote = useCallback(
     async (id: string) => {
+      setHighlight(q.trim() ? highlightTerms(q) : []);
       try {
+        if (offlineRef.current) throw new TypeError('offline');
         const res = await fetch(`/api/notes/${id}`);
         if (!res.ok) throw new Error(String(res.status));
         const opened = (await res.json()) as NoteDetail;
@@ -236,11 +535,24 @@ export default function NotesApp({
         setConflict((c) => (c && c.id !== opened.id ? null : c));
         setPane('editor');
         setStatus('idle');
-      } catch {
+        void storeRef.current?.putDetails([opened]).catch(() => undefined);
+      } catch (err) {
+        if (isNetworkError(err) && storeRef.current) {
+          setOffline(true);
+          const cached = await storeRef.current.get(id).catch(() => null);
+          if (cached?.full) {
+            setNote({ ...(cached as NoteDetail), content: cached.content ?? [], share_token: cached.share_token ?? null });
+            setPane('editor');
+            setStatus('idle');
+            return;
+          }
+          setToast(t('offline.notCached'));
+          return;
+        }
         setToast(t('editor.openError'));
       }
     },
-    [t],
+    [t, q],
   );
 
   /** Abrir desde un link [[ ]] o "Enlazada desde". */
@@ -262,23 +574,31 @@ export default function NotesApp({
     [filter],
   );
 
+  /** La nota cambió entera (bloquear o sacar el bloqueo): se reemplaza y el editor se monta de nuevo. */
+  const replaceNote = useCallback(
+    (fresh: NoteDetail) => {
+      bases.current.set(fresh.id, fresh.updated_at);
+      setNote((cur) => (cur && cur.id === fresh.id ? fresh : cur));
+      setEditorKey((k) => k + 1);
+      setStatus('idle');
+      void storeRef.current?.putDetails([fresh]).catch(() => undefined);
+      void refreshList();
+    },
+    [refreshList],
+  );
+
   /** Recarga la nota abierta (después de restaurar una versión): el editor se monta de nuevo. */
   const reloadNote = useCallback(
     async (id: string) => {
       try {
         const res = await fetch(`/api/notes/${id}`);
         if (!res.ok) throw new Error(String(res.status));
-        const fresh = (await res.json()) as NoteDetail;
-        bases.current.set(fresh.id, fresh.updated_at);
-        setNote((cur) => (cur && cur.id === fresh.id ? fresh : cur));
-        setEditorKey((k) => k + 1);
-        setStatus('idle');
-        void refreshList();
+        replaceNote((await res.json()) as NoteDetail);
       } catch {
         setToast(t('editor.openError'));
       }
     },
-    [refreshList, t],
+    [replaceNote, t],
   );
 
   /**
@@ -341,62 +661,98 @@ export default function NotesApp({
   /**
    * Creación instantánea (optimista): la nota se abre y enfoca al toque con un
    * id generado en el cliente; el POST va en paralelo y los guardados de esa
-   * nota esperan a que termine (pendingCreates).
+   * nota esperan a que termine (pendingCreates). Sin red queda en el
+   * dispositivo y se sube al volver. Con plantilla, trae su título y bloques.
    */
-  const createNote = useCallback(async () => {
-    const id = crypto.randomUUID();
-    const nowIso = new Date().toISOString();
-    const created: NoteDetail = {
-      id,
-      notebook_id: filter.kind === 'notebook' ? filter.id : null,
-      title: '',
-      snippet: '',
-      tags: filter.kind === 'tag' ? [filter.tag] : [],
-      pinned: filter.kind === 'pinned',
-      trashed: false,
-      source_url: null,
-      shared: false,
-      share_token: null,
-      created_at: nowIso,
-      updated_at: nowIso,
-      content: [{ id: crypto.randomUUID(), type: 'paragraph', content: '' }],
-    };
-    const request = fetch('/api/notes', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
+  const createNote = useCallback(
+    async (init?: { title: string; content: DocsBlock[] }) => {
+      const id = crypto.randomUUID();
+      const nowIso = new Date().toISOString();
+      const content = init?.content.length ? init.content : [{ id: crypto.randomUUID(), type: 'paragraph' as const, content: '' }];
+      const created: NoteDetail = {
         id,
+        notebook_id: filter.kind === 'notebook' ? filter.id : null,
+        title: init?.title ?? '',
+        snippet: init ? makeSnippet(blocksToText(content)) : '',
+        tags: filter.kind === 'tag' ? [filter.tag] : [],
+        pinned: filter.kind === 'pinned',
+        trashed: false,
+        source_url: null,
+        shared: false,
+        share_token: null,
+        created_at: nowIso,
+        updated_at: nowIso,
+        content,
+      };
+      const body = {
+        id,
+        title: created.title,
         content: created.content,
         notebook_id: created.notebook_id,
         tags: created.tags,
         pinned: created.pinned,
-      }),
-    })
-      .then(async (res) => {
-        if (!res.ok) return false;
-        const saved = (await res.json().catch(() => null)) as NoteDetail | null;
-        if (saved?.updated_at) bases.current.set(id, saved.updated_at);
-        return true;
-      })
-      .catch(() => false)
-      .finally(() => {
-        pendingCreates.current.delete(id);
-      });
-    pendingCreates.current.set(id, request);
-    if (filter.kind === 'trash' || filter.kind === 'shared') setFilter({ kind: 'all' });
-    setQ('');
-    setNotes((prev) => [created, ...prev.filter((n) => n.id !== created.id)]);
-    setNote(created);
-    setPane('editor');
-    setFocusTitle((n) => n + 1);
-    if (filter.kind === 'notebook') {
-      setNotebooks((prev) => prev.map((nb) => (nb.id === filter.id ? { ...nb, count: nb.count + 1 } : nb)));
-    }
-  }, [filter]);
+      };
+      const queueLocally = async () => {
+        const store = storeRef.current;
+        if (!store) return false;
+        try {
+          await store.enqueue({ kind: 'create', id, body, at: Date.now() });
+          await store.putNote({ ...created, full: true });
+          setOffline(true);
+          return true;
+        } catch {
+          return false;
+        }
+      };
+      const request = (
+        offlineRef.current
+          ? queueLocally()
+          : fetch('/api/notes', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify(body),
+            }).then(async (res) => {
+              if (!res.ok) return false;
+              const saved = (await res.json().catch(() => null)) as NoteDetail | null;
+              if (saved?.updated_at) bases.current.set(id, saved.updated_at);
+              if (saved) void storeRef.current?.putDetails([saved]).catch(() => undefined);
+              return true;
+            })
+      )
+        .catch((err) => (isNetworkError(err) ? queueLocally() : false))
+        .finally(() => {
+          pendingCreates.current.delete(id);
+        });
+      pendingCreates.current.set(id, request);
+      if (filter.kind === 'trash' || filter.kind === 'shared') setFilter({ kind: 'all' });
+      setQ('');
+      setActiveSearch(null);
+      setHighlight([]);
+      setNotes((prev) => [created, ...prev.filter((n) => n.id !== created.id)]);
+      setNote(created);
+      setPane('editor');
+      setFocusTitle((n) => n + 1);
+      if (filter.kind === 'notebook') {
+        setNotebooks((prev) => prev.map((nb) => (nb.id === filter.id ? { ...nb, count: nb.count + 1 } : nb)));
+      }
+    },
+    [filter],
+  );
 
-  // Atajos: N = nueva nota, / = buscar (fuera de campos de texto).
+  // Atajos: N = nueva nota, / = buscar (fuera de campos de texto); Esc sale del modo foco o de la selección.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape' && !e.defaultPrevented && !document.querySelector('dialog[open]')) {
+        if (focusMode && !isTypingTarget(e.target)) {
+          setFocusMode(false);
+          return;
+        }
+        if (selectMode && !isTypingTarget(e.target)) {
+          setSelectMode(false);
+          setSelected([]);
+          return;
+        }
+      }
       if (e.metaKey || e.ctrlKey || e.altKey || e.repeat || isTypingTarget(e.target)) return;
       if (document.querySelector('dialog[open]')) return;
       if (e.key === 'n' || e.key === 'N') {
@@ -404,35 +760,38 @@ export default function NotesApp({
         void createNote();
       } else if (e.key === '/') {
         e.preventDefault();
+        setFocusMode(false);
         setPane('list');
         searchRef.current?.focus();
       }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [createNote]);
+  }, [createNote, focusMode, selectMode]);
 
-  // /app/notes?new=1 (sidebar "Nueva nota", ⌘K) crea al entrar.
+  // /app/notes?new=1 (sidebar "Nueva nota", ⌘K) crea al entrar; ?template=<id> crea desde una plantilla.
   const startedNew = useRef(false);
   useEffect(() => {
-    if (!startNew) {
+    if (!startNew && !initialTemplate) {
       startedNew.current = false;
     } else if (!startedNew.current) {
       startedNew.current = true;
-      void createNote();
+      void createNote(
+        initialTemplate ? { title: initialTemplate.title, content: initialTemplate.content.map((b) => ({ ...b, id: crypto.randomUUID() })) } : undefined,
+      );
     }
-  }, [startNew, createNote]);
+  }, [startNew, initialTemplate, createNote]);
 
   /** Autosave del editor (DocsEditor ya hace debounce de 600 ms). */
   const saveContent = useCallback(
-    async (id: string, patch: { title: string; content: DocsBlock[] }) => {
+    async (id: string, patch: { title: string; content: DocsBlock[]; lock?: NoteLockEnvelope }) => {
       setStatus('saving');
       const creating = pendingCreates.current.get(id);
       if (creating && !(await creating)) {
         setStatus('error');
         return;
       }
-      const snippet = makeSnippet(blocksToText(patch.content).replace(/<[^>]*>/g, ''));
+      const snippet = patch.lock ? '' : makeSnippet(blocksToText(patch.content).replace(/<[^>]*>/g, ''));
       const nowIso = new Date().toISOString();
       setNotes((prev) => {
         const idx = prev.findIndex((n) => n.id === id);
@@ -450,7 +809,7 @@ export default function NotesApp({
             return;
           }
           setConflict((c) => (c?.id === id ? null : c));
-          setStatus('saved');
+          setStatus(res.local ? 'local' : 'saved');
         } catch {
           setStatus('error');
         }
@@ -473,7 +832,7 @@ export default function NotesApp({
           return null;
         }
         const updated = res.updated;
-        setNote((cur) => (cur && cur.id === id ? { ...updated, content: cur.content, title: cur.title } : cur));
+        setNote((cur) => (cur && cur.id === id ? { ...updated, content: cur.content, title: cur.title, lock: cur.lock } : cur));
         void refreshList();
         void refreshSide();
         return updated;
@@ -576,21 +935,29 @@ export default function NotesApp({
     [t],
   );
 
+  const patchNotebook = useCallback(
+    async (nb: NotebookInfo, body: { name?: string; stack?: string | null }) => {
+      setNotebooks((prev) => prev.map((x) => (x.id === nb.id ? { ...x, ...body } : x)));
+      const res = await fetch(`/api/notes/notebooks/${nb.id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      }).catch(() => null);
+      if (!res?.ok) setToast(t('editor.actionError'));
+      void refreshSide();
+      return Boolean(res?.ok);
+    },
+    [refreshSide, t],
+  );
+
   const renameNotebook = useCallback(
     async (nb: NotebookInfo, raw: string) => {
       setRenamingNotebook(null);
       const name = raw.trim();
       if (!name || name === nb.name) return;
-      setNotebooks((prev) => prev.map((x) => (x.id === nb.id ? { ...x, name } : x)));
-      const res = await fetch(`/api/notes/notebooks/${nb.id}`, {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name }),
-      }).catch(() => null);
-      if (!res?.ok) setToast(t('editor.actionError'));
-      void refreshSide();
+      await patchNotebook(nb, { name });
     },
-    [refreshSide, t],
+    [patchNotebook],
   );
 
   const deleteNotebook = useCallback(
@@ -608,22 +975,195 @@ export default function NotesApp({
     [note, refreshSide, t],
   );
 
-  function choose(f: NotesFilter) {
-    if (!sameFilter(f, filter)) dropStaleNote.current = true;
-    setFilter(f);
+  const renameStack = useCallback(
+    async (from: string, to: string | null) => {
+      setNotebooks((prev) => prev.map((x) => (x.stack === from ? { ...x, stack: to } : x)));
+      if (filter.kind === 'stack' && filter.stack === from) setFilter(to ? { kind: 'stack', stack: to } : { kind: 'all' });
+      const res = await fetch('/api/notes/stacks', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ from, to }),
+      }).catch(() => null);
+      if (!res?.ok) setToast(t('editor.actionError'));
+      void refreshSide();
+      return Boolean(res?.ok);
+    },
+    [filter, refreshSide, t],
+  );
+
+  // ---------- Etiquetas ----------
+
+  const renameTag = useCallback(
+    async (from: string, to: string) => {
+      const res = await fetch('/api/notes/tags', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ from, to }),
+      }).catch(() => null);
+      if (!res?.ok) {
+        setToast(t('editor.actionError'));
+        return false;
+      }
+      const data = (await res.json()) as { tag: string };
+      if (filter.kind === 'tag' && (filter.tag === from || filter.tag.startsWith(`${from}/`))) setFilter({ kind: 'tag', tag: data.tag });
+      if (note) void reloadNote(note.id);
+      void refreshList();
+      void refreshSide();
+      return true;
+    },
+    [filter, note, refreshList, refreshSide, reloadNote, t],
+  );
+
+  const deleteTag = useCallback(
+    async (tag: string) => {
+      const res = await fetch(`/api/notes/tags?tag=${encodeURIComponent(tag)}`, { method: 'DELETE' }).catch(() => null);
+      if (!res?.ok) {
+        setToast(t('editor.actionError'));
+        return;
+      }
+      if (filter.kind === 'tag' && (filter.tag === tag || filter.tag.startsWith(`${tag}/`))) setFilter({ kind: 'all' });
+      if (note) void reloadNote(note.id);
+      void refreshList();
+      void refreshSide();
+    },
+    [filter, note, refreshList, refreshSide, reloadNote, t],
+  );
+
+  // ---------- Búsquedas guardadas ----------
+
+  const saveSearch = useCallback(
+    async (name: string) => {
+      const res = await fetch('/api/notes/searches', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name, query: q.trim() }),
+      }).catch(() => null);
+      if (!res?.ok) {
+        setToast(res?.status === 409 ? t('searches.limit') : t('editor.actionError'));
+        return false;
+      }
+      const created = (await res.json()) as SavedSearchInfo;
+      setSearches((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+      setActiveSearch(created.id);
+      setOkToast(t('searches.saved'));
+      return true;
+    },
+    [q, t],
+  );
+
+  const patchSearch = useCallback(
+    async (s: SavedSearchInfo, body: { name?: string; query?: string }) => {
+      const res = await fetch(`/api/notes/searches/${s.id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      }).catch(() => null);
+      if (!res?.ok) {
+        setToast(t('editor.actionError'));
+        return false;
+      }
+      const updated = (await res.json()) as SavedSearchInfo;
+      setSearches((prev) => prev.map((x) => (x.id === s.id ? updated : x)).sort((a, b) => a.name.localeCompare(b.name)));
+      return true;
+    },
+    [t],
+  );
+
+  const deleteSearch = useCallback(
+    async (s: SavedSearchInfo) => {
+      const prev = searches;
+      setSearches((cur) => cur.filter((x) => x.id !== s.id));
+      if (activeSearch === s.id) setActiveSearch(null);
+      const res = await fetch(`/api/notes/searches/${s.id}`, { method: 'DELETE' }).catch(() => null);
+      if (!res?.ok) {
+        setSearches(prev);
+        setToast(t('editor.actionError'));
+      }
+    },
+    [activeSearch, searches, t],
+  );
+
+  function pickSearch(s: SavedSearchInfo) {
+    dropStaleNote.current = true;
+    setFilter({ kind: 'all' });
+    setQ(s.query);
+    setActiveSearch(s.id);
     setPane('list');
   }
 
-  const isActive = (f: NotesFilter) => sameFilter(f, filter);
+  // ---------- Selección múltiple ----------
+
+  const runBulk = useCallback(
+    async (action: string, extra: Record<string, unknown> = {}) => {
+      const ids = selected;
+      if (!ids.length) return;
+      setBulkBusy(true);
+      try {
+        const res = await fetch('/api/notes/bulk', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ ids, action, ...extra }),
+        });
+        if (!res.ok) throw new Error(String(res.status));
+        const data = (await res.json()) as { changed: string[] };
+        setOkToast(t('select.updated', { count: data.changed.length }));
+        if (note && data.changed.includes(note.id)) {
+          if (action === 'trash' || action === 'delete') setNote(null);
+          else void reloadNote(note.id);
+        }
+        if (action === 'trash' || action === 'delete' || action === 'restore') setSelected([]);
+        void refreshList();
+        void refreshSide();
+      } catch {
+        setToast(t('select.error'));
+      } finally {
+        setBulkBusy(false);
+      }
+    },
+    [selected, note, reloadNote, refreshList, refreshSide, t],
+  );
+
+  function exportSelected() {
+    window.location.href = `/api/notes/export?ids=${encodeURIComponent(selected.join(','))}&locale=${locale}`;
+  }
+
+  function onItemClick(e: React.MouseEvent, id: string) {
+    const ids = notes.map((n) => n.id);
+    if (selectMode || e.metaKey || e.ctrlKey || e.shiftKey) {
+      e.preventDefault();
+      if (!selectMode) {
+        setSelectMode(true);
+        // ⌘clic con una nota abierta: la abierta entra en la selección también.
+        const start = note && ids.includes(note.id) && note.id !== id && !e.shiftKey ? [note.id] : [];
+        setSelected(nextSelection(start, ids, id, e.shiftKey ? 'range' : 'toggle', anchor ?? note?.id ?? null));
+      } else {
+        setSelected((cur) => nextSelection(cur, ids, id, e.shiftKey ? 'range' : 'toggle', anchor));
+      }
+      if (!e.shiftKey) setAnchor(id);
+      return;
+    }
+    void openNote(id);
+  }
+
+  function choose(f: NotesFilter) {
+    if (!sameFilter(f, filter)) dropStaleNote.current = true;
+    setFilter(f);
+    setActiveSearch(null);
+    setPane('list');
+  }
+
+  const isActive = (f: NotesFilter) => sameFilter(f, filter) && !activeSearch;
 
   const listTitle = useMemo(() => {
+    if (activeSearch) return searches.find((s) => s.id === activeSearch)?.name ?? t('nav.savedSearches');
     if (filter.kind === 'pinned') return t('nav.pinned');
     if (filter.kind === 'trash') return t('nav.trash');
     if (filter.kind === 'shared') return t('nav.shared');
     if (filter.kind === 'notebook') return notebooks.find((n) => n.id === filter.id)?.name ?? t('nav.notebooks');
+    if (filter.kind === 'stack') return filter.stack;
     if (filter.kind === 'tag') return `#${filter.tag}`;
     return t('nav.all');
-  }, [filter, notebooks, t]);
+  }, [filter, notebooks, t, activeSearch, searches]);
 
   const relTime = (iso: string) => {
     const d = parseDbUtc(iso);
@@ -633,20 +1173,27 @@ export default function NotesApp({
     return format.dateTime(d, { day: 'numeric', month: 'short', year: d.getFullYear() === new Date(now).getFullYear() ? undefined : 'numeric' });
   };
 
-  /** Flechas en la lista: mueven el foco y abren la nota, como en Apple Notes. */
+  /** Flechas en la lista: mueven el foco y abren la nota, como en Apple Notes. Espacio marca en modo selección. */
   function onListKey(e: React.KeyboardEvent) {
     const items = Array.from(itemsRef.current?.querySelectorAll<HTMLButtonElement>('.notes-item') ?? []);
     const current = items.indexOf(document.activeElement as HTMLButtonElement);
+    if (selectMode && e.key === ' ' && current >= 0) {
+      e.preventDefault();
+      const id = items[current].dataset.id;
+      if (id) setSelected((cur) => nextSelection(cur, notes.map((n) => n.id), id, 'toggle', null));
+      return;
+    }
     const next = stepIndex(current, e.key, items.length);
     if (next == null) return;
     e.preventDefault();
     items[next].focus();
     const id = items[next].dataset.id;
-    if (id && id !== note?.id) void openNote(id);
+    if (id && id !== note?.id && !selectMode) void openNote(id);
   }
 
   const showSkeleton = loading && loadedKey !== listKey(filter, sort);
   const empty = emptyKind(filter, q);
+  const inTrash = filter.kind === 'trash';
   const navItem = (f: NotesFilter, label: string, icon?: 'pin' | 'trash' | 'users') => (
     <button
       type="button"
@@ -658,9 +1205,11 @@ export default function NotesApp({
       <span className="notes-nav-name">{label}</span>
     </button>
   );
+  const stacks = useMemo(() => [...new Set(notebooks.map((n) => n.stack).filter((s): s is string => Boolean(s)))].sort(), [notebooks]);
+  const activeSearchQuery = activeSearch ? searches.find((s) => s.id === activeSearch)?.query : null;
 
   return (
-    <div className="notes-app" data-pane={pane}>
+    <div className="notes-app" data-pane={pane} data-focus={focusMode ? 'true' : undefined} data-offline={offline ? 'true' : undefined}>
       {/* ---------- Libretas / filtros ---------- */}
       <aside className="notes-nav" aria-label={t('nav.label')}>
         <div className="notes-nav-top">
@@ -669,11 +1218,25 @@ export default function NotesApp({
             {t('actions.newNote')}
             <kbd className="kbd">N</kbd>
           </button>
+          <button type="button" className="btn btn-block notes-new-template" onClick={() => setTemplatesOpen(true)} disabled={offline}>
+            <NotesIcon name="template" size={14} />
+            {t('actions.newFromTemplate')}
+          </button>
         </div>
         <nav className="notes-nav-list" aria-label={t('nav.label')}>
           {navItem({ kind: 'all' }, t('nav.all'))}
           {navItem({ kind: 'pinned' }, t('nav.pinned'), 'pin')}
           {navItem({ kind: 'shared' }, t('nav.shared'), 'users')}
+
+          <SavedSearchesNav
+            searches={searches}
+            activeId={activeSearch}
+            onPick={pickSearch}
+            onRename={(s) => setPrompt({ kind: 'renameSearch', search: s })}
+            onUpdate={(s) => void patchSearch(s, { query: q.trim() })}
+            onDelete={(s) => setConfirmState({ kind: 'deleteSearch', search: s })}
+            canUpdate={Boolean(q.trim())}
+          />
 
           <div className="notes-nav-section">
             <h2>{t('nav.notebooks')}</h2>
@@ -701,90 +1264,31 @@ export default function NotesApp({
               onBlur={(e) => void addNotebook(e.currentTarget.value)}
             />
           )}
-          {notebooks.map((nb) =>
-            renamingNotebook === nb.id ? (
-              <input
-                key={nb.id}
-                className="input notes-nav-input"
-                autoFocus
-                defaultValue={nb.name}
-                aria-label={t('notebooks.renameLabel')}
-                maxLength={80}
-                onFocus={(e) => e.currentTarget.select()}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') void renameNotebook(nb, e.currentTarget.value);
-                  if (e.key === 'Escape') setRenamingNotebook(null);
-                }}
-                onBlur={(e) => void renameNotebook(nb, e.currentTarget.value)}
-              />
-            ) : (
-              <div key={nb.id} className="notes-nav-row">
-                <button
-                  type="button"
-                  className="notes-nav-item"
-                  aria-current={isActive({ kind: 'notebook', id: nb.id }) ? 'true' : undefined}
-                  onClick={() => choose({ kind: 'notebook', id: nb.id })}
-                >
-                  <span className="notes-nav-name">{nb.name}</span>
-                  <span className="notes-count num">{nb.count}</span>
-                </button>
-                <RowMenu
-                  className="notes-nav-menu"
-                  open={notebookMenu === nb.id}
-                  label={`${t('notebooks.actions')}: ${nb.name}`}
-                  onToggle={(open) => setNotebookMenu(open ? nb.id : null)}
-                  items={[
-                    {
-                      label: t('notebooks.rename'),
-                      onSelect: () => {
-                        setNotebookMenu(null);
-                        setRenamingNotebook(nb.id);
-                      },
-                    },
-                    {
-                      label: t('notebooks.share'),
-                      onSelect: () => {
-                        setNotebookMenu(null);
-                        setSharingNotebook(nb);
-                      },
-                    },
-                    {
-                      label: t('notebooks.delete'),
-                      danger: true,
-                      onSelect: () => {
-                        setNotebookMenu(null);
-                        void deleteNotebook(nb);
-                      },
-                    },
-                  ]}
-                />
-              </div>
-            ),
-          )}
+          <NotebooksNav
+            notebooks={notebooks}
+            isActive={isActive}
+            onChoose={choose}
+            renaming={renamingNotebook}
+            onStartRename={(nb) => setRenamingNotebook(nb.id)}
+            onRename={(nb, name) => void renameNotebook(nb, name)}
+            onCancelRename={() => setRenamingNotebook(null)}
+            onShare={setSharingNotebook}
+            onDelete={(nb) => void deleteNotebook(nb)}
+            onMoveToStack={(nb) => setPrompt({ kind: 'stack', notebook: nb })}
+            onRemoveFromStack={(nb) => void patchNotebook(nb, { stack: null })}
+            onExport={(nb) => (window.location.href = `/api/notes/export?notebook=${encodeURIComponent(nb.id)}&locale=${locale}`)}
+            onRenameStack={(stack) => setPrompt({ kind: 'renameStack', stack })}
+            onUngroupStack={(stack) => void renameStack(stack, null)}
+          />
           {notebooks.length === 0 && !newNotebook && <p className="notes-nav-hint">{t('notebooks.empty')}</p>}
 
-          {tags.length > 0 && (
-            <>
-              <div className="notes-nav-section">
-                <h2>{t('nav.tags')}</h2>
-              </div>
-              {tags.map((tg) => (
-                <button
-                  key={tg.tag}
-                  type="button"
-                  className="notes-nav-item"
-                  aria-current={isActive({ kind: 'tag', tag: tg.tag }) ? 'true' : undefined}
-                  onClick={() => choose({ kind: 'tag', tag: tg.tag })}
-                >
-                  <span className="notes-nav-name">
-                    <span className="notes-hash" aria-hidden="true">#</span>
-                    {tg.tag}
-                  </span>
-                  <span className="notes-count num">{tg.count}</span>
-                </button>
-              ))}
-            </>
-          )}
+          <TagsNav
+            tags={tags}
+            isActive={isActive}
+            onChoose={choose}
+            onRename={(tag) => setPrompt({ kind: 'renameTag', tag })}
+            onDelete={(tag) => setConfirmState({ kind: 'deleteTag', tag })}
+          />
 
           <div className="notes-nav-spacer" />
           <button
@@ -792,11 +1296,20 @@ export default function NotesApp({
             className="notes-nav-item"
             onClick={() => importRef.current?.click()}
             aria-busy={importing}
-            disabled={importing}
+            disabled={importing || offline}
             title={t('import.hint')}
           >
             <NotesIcon name="import" size={14} />
             <span className="notes-nav-name">{importing ? t('import.importing') : t('import.button')}</span>
+          </button>
+          <button
+            type="button"
+            className="notes-nav-item"
+            disabled={offline}
+            onClick={() => (window.location.href = `/api/notes/export?locale=${locale}`)}
+          >
+            <NotesIcon name="export" size={14} />
+            <span className="notes-nav-name">{t('nav.exportAll')}</span>
           </button>
           <input
             ref={importRef}
@@ -812,7 +1325,7 @@ export default function NotesApp({
           />
           {navItem({ kind: 'trash' }, t('nav.trash'), 'trash')}
         </nav>
-        {aiEnabled && (
+        {aiEnabled && !offline && (
           <div className="notes-nav-foot">
             <button type="button" className="notes-nav-item" onClick={() => setAskOpen(true)}>
               <NotesIcon name="ask" size={14} />
@@ -829,8 +1342,31 @@ export default function NotesApp({
             <NotesIcon name="back" size={14} />
             {t('nav.label')}
           </button>
+          {offline && (
+            <p className="notes-offline-banner" role="status">
+              <NotesIcon name="cloudOff" size={14} />
+              {t('offline.banner')}
+            </p>
+          )}
+          {syncing && !offline && (
+            <p className="notes-offline-banner" role="status">
+              {t('offline.syncing')}
+            </p>
+          )}
           <div className="notes-list-title">
             <h1>{listTitle}</h1>
+            <button
+              type="button"
+              className={`btn btn-ghost btn-sm notes-select-toggle${selectMode ? ' is-on' : ''}`}
+              aria-pressed={selectMode}
+              onClick={() => {
+                setSelectMode((v) => !v);
+                setSelected([]);
+              }}
+              disabled={offline || filter.kind === 'shared'}
+            >
+              {selectMode ? t('select.done') : t('select.start')}
+            </button>
             <button
               type="button"
               className="btn btn-sm btn-icon notes-list-new"
@@ -849,11 +1385,15 @@ export default function NotesApp({
                 className="input"
                 type="search"
                 value={q}
-                onChange={(e) => setQ(e.target.value)}
+                onChange={(e) => {
+                  setQ(e.target.value);
+                  if (activeSearch && e.target.value !== activeSearchQuery) setActiveSearch(null);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'Escape' && q) {
                     e.preventDefault();
                     setQ('');
+                    setActiveSearch(null);
                   } else if (e.key === 'ArrowDown') {
                     e.preventDefault();
                     itemsRef.current?.querySelector<HTMLButtonElement>('.notes-item')?.focus();
@@ -869,6 +1409,17 @@ export default function NotesApp({
                 </kbd>
               )}
             </label>
+            {q.trim() && !activeSearch && !offline && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm btn-icon"
+                onClick={() => setPrompt({ kind: 'saveSearch' })}
+                aria-label={t('searches.save')}
+                title={t('searches.save')}
+              >
+                <NotesIcon name="saved" size={14} />
+              </button>
+            )}
             <div className="note-share-wrap" ref={searchHelp.wrapRef}>
               <button
                 ref={searchHelp.buttonRef}
@@ -923,7 +1474,96 @@ export default function NotesApp({
               <option value="title">{t('list.sort.title')}</option>
             </select>
           </div>
-          {filter.kind === 'trash' && notes.length > 0 && (
+          {selectMode && (
+            <div className="notes-bulk" role="toolbar" aria-label={t('select.label')}>
+              <div className="notes-bulk-row">
+                <label className="notes-bulk-all">
+                  <input
+                    type="checkbox"
+                    checked={notes.length > 0 && selected.length === notes.length}
+                    ref={(el) => {
+                      if (el) el.indeterminate = selected.length > 0 && selected.length < notes.length;
+                    }}
+                    onChange={(e) => setSelected(e.target.checked ? notes.map((n) => n.id) : [])}
+                  />
+                  {t('select.all')}
+                </label>
+                <span className="notes-bulk-count num" aria-live="polite">
+                  {t('select.count', { count: selected.length })}
+                </span>
+              </div>
+              {selected.length > 0 && (
+                <div className="notes-bulk-row notes-bulk-actions">
+                  {inTrash ? (
+                    <>
+                      <button type="button" className="btn btn-sm" disabled={bulkBusy} onClick={() => void runBulk('restore')}>
+                        {t('select.restore')}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-danger"
+                        disabled={bulkBusy}
+                        onClick={() => setConfirmState({ kind: 'bulkDelete', ids: selected })}
+                      >
+                        {t('select.deleteForever')}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <select
+                        className="select"
+                        aria-label={t('select.move')}
+                        value=""
+                        disabled={bulkBusy}
+                        onChange={(e) => {
+                          if (e.target.value === '') return;
+                          void runBulk('move', { notebook_id: e.target.value === '__none' ? null : e.target.value });
+                        }}
+                      >
+                        <option value="">{t('select.move')}</option>
+                        <option value="__none">{t('select.noNotebook')}</option>
+                        {notebooks.map((nb) => (
+                          <option key={nb.id} value={nb.id}>
+                            {nb.stack ? `${nb.stack} / ${nb.name}` : nb.name}
+                          </option>
+                        ))}
+                      </select>
+                      <form
+                        className="notes-bulk-tag"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          if (!bulkTag.trim()) return;
+                          void runBulk('tag', { tag: bulkTag.trim() }).then(() => setBulkTag(''));
+                        }}
+                      >
+                        <input
+                          className="input"
+                          value={bulkTag}
+                          onChange={(e) => setBulkTag(e.target.value)}
+                          placeholder={t('select.tagPlaceholder')}
+                          aria-label={t('select.tag')}
+                          maxLength={60}
+                        />
+                        <button type="submit" className="btn btn-sm" disabled={bulkBusy || !bulkTag.trim()}>
+                          {t('select.tagApply')}
+                        </button>
+                      </form>
+                      <button type="button" className="btn btn-sm" disabled={bulkBusy} onClick={() => void runBulk('pin')}>
+                        {t('select.pin')}
+                      </button>
+                      <button type="button" className="btn btn-sm" disabled={bulkBusy} onClick={exportSelected}>
+                        {t('select.export')}
+                      </button>
+                      <button type="button" className="btn btn-sm btn-danger" disabled={bulkBusy} onClick={() => void runBulk('trash')}>
+                        {t('select.trash')}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          {filter.kind === 'trash' && notes.length > 0 && !selectMode && (
             <button type="button" className="btn btn-sm btn-danger notes-empty-trash" onClick={() => void emptyTrash()}>
               {t('trash.empty')}
             </button>
@@ -960,6 +1600,7 @@ export default function NotesApp({
                   className="btn btn-sm"
                   onClick={() => {
                     setQ('');
+                    setActiveSearch(null);
                     searchRef.current?.focus();
                   }}
                 >
@@ -996,40 +1637,65 @@ export default function NotesApp({
                     </button>
                   )
                 }
-                secondary={empty === 'all' ? <Link href="/app/notes/clip">{t('list.emptyClip')}</Link> : undefined}
+                secondary={
+                  empty === 'all' ? (
+                    <span className="notes-empty-links">
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setTemplatesOpen(true)}>
+                        {t('actions.newFromTemplate')}
+                      </button>
+                      <Link href="/app/notes/clip">{t('list.emptyClip')}</Link>
+                    </span>
+                  ) : undefined
+                }
               />
             )
           ) : (
-            notes.map((n) => (
-              <button
-                key={n.id}
-                type="button"
-                data-id={n.id}
-                className="notes-item"
-                aria-current={note?.id === n.id ? 'true' : undefined}
-                onClick={() => void openNote(n.id)}
-              >
-                <span className="notes-item-title">
-                  {n.pinned && !n.trashed && (
-                    <span className="notes-pin" title={t('editor.pinned')}>
-                      <NotesIcon name="pin" size={12} />
-                      <span className="sr-only">{t('editor.pinned')}</span>
+            notes.map((n) => {
+              const isSel = selected.includes(n.id);
+              return (
+                <button
+                  key={n.id}
+                  type="button"
+                  data-id={n.id}
+                  className={`notes-item${selectMode ? ' is-selecting' : ''}${isSel ? ' is-selected' : ''}`}
+                  aria-current={!selectMode && note?.id === n.id ? 'true' : undefined}
+                  aria-pressed={selectMode ? isSel : undefined}
+                  aria-label={selectMode ? t('select.checkbox', { title: n.title || t('untitled') }) : undefined}
+                  onClick={(e) => onItemClick(e, n.id)}
+                >
+                  {selectMode && (
+                    <span className={`notes-item-check${isSel ? ' is-on' : ''}`} aria-hidden="true">
+                      {isSel && <NotesIcon name="check" size={12} />}
                     </span>
                   )}
-                  {n.title || <span className="notes-untitled">{t('untitled')}</span>}
-                </span>
-                {n.snippet && <span className="notes-item-snippet">{n.snippet}</span>}
-                <span className="notes-item-meta">
-                  <time dateTime={n.updated_at}>{relTime(n.updated_at)}</time>
-                  {n.shared_by && <span className="notes-item-owner">{t('list.sharedBy', { name: n.shared_by })}</span>}
-                  {n.tags.slice(0, 3).map((tg) => (
-                    <span key={tg} className="notes-item-tag">
-                      #{tg}
-                    </span>
-                  ))}
-                </span>
-              </button>
-            ))
+                  <span className="notes-item-title">
+                    {n.pinned && !n.trashed && (
+                      <span className="notes-pin" title={t('editor.pinned')}>
+                        <NotesIcon name="pin" size={12} />
+                        <span className="sr-only">{t('editor.pinned')}</span>
+                      </span>
+                    )}
+                    {n.locked && (
+                      <span className="notes-pin" title={t('lock.itemLabel')}>
+                        <NotesIcon name="lock" size={12} />
+                        <span className="sr-only">{t('lock.itemLabel')}</span>
+                      </span>
+                    )}
+                    {n.title || <span className="notes-untitled">{t('untitled')}</span>}
+                  </span>
+                  {n.snippet && <span className="notes-item-snippet">{n.snippet}</span>}
+                  <span className="notes-item-meta">
+                    <time dateTime={n.updated_at}>{relTime(n.updated_at)}</time>
+                    {n.shared_by && <span className="notes-item-owner">{t('list.sharedBy', { name: n.shared_by })}</span>}
+                    {n.tags.slice(0, 3).map((tg) => (
+                      <span key={tg} className="notes-item-tag">
+                        #{tg}
+                      </span>
+                    ))}
+                  </span>
+                </button>
+              );
+            })
           )}
         </div>
       </div>
@@ -1056,7 +1722,10 @@ export default function NotesApp({
             notebooks={notebooks}
             focusTitle={focusTitle}
             status={status}
-            onBack={() => setPane('list')}
+            onBack={() => {
+              setFocusMode(false);
+              setPane('list');
+            }}
             onSaveContent={saveContent}
             onPatch={patchNote}
             onTrash={trash}
@@ -1065,17 +1734,23 @@ export default function NotesApp({
             onShareChange={(token) => {
               setNote((cur) => (cur ? { ...cur, share_token: token, shared: token != null } : cur));
             }}
-            onError={() => {
-              setToast(t('editor.actionError'));
+            onError={(msg) => {
+              setToast(msg ?? t('editor.actionError'));
             }}
+            onNotice={setOkToast}
             onOpenNote={openLinkedNote}
             onCreated={addLinkedNote}
             onReload={(id) => void reloadNote(id)}
+            onReplace={replaceNote}
             onSync={syncNote}
             onTracked={(id, issues) => {
               setOkToast(t('track.done', { count: issues.length, list: issues.map((i) => i.identifier).join(', ') }));
               void reloadNote(id);
             }}
+            offline={offline}
+            focusMode={focusMode}
+            onToggleFocus={() => setFocusMode((v) => !v)}
+            highlight={highlight}
           />
         ) : (
           <div className="notes-editor-empty">
@@ -1105,6 +1780,104 @@ export default function NotesApp({
           }}
         />
       )}
+
+      {templatesOpen && (
+        <NotesTemplatesDialog
+          onClose={() => setTemplatesOpen(false)}
+          onError={setToast}
+          onPick={(tpl) => {
+            setTemplatesOpen(false);
+            void createNote(tpl);
+          }}
+        />
+      )}
+
+      {prompt?.kind === 'saveSearch' && (
+        <PromptDialog
+          title={t('searches.save')}
+          label={t('searches.nameLabel')}
+          initial={q.trim().slice(0, 80)}
+          confirmLabel={t('templates.save')}
+          cancelLabel={t('templates.cancel')}
+          hint={<code>{q.trim()}</code>}
+          onSubmit={saveSearch}
+          onClose={() => setPrompt(null)}
+        />
+      )}
+      {prompt?.kind === 'renameSearch' && (
+        <PromptDialog
+          title={t('searches.rename')}
+          label={t('searches.nameLabel')}
+          initial={prompt.search.name}
+          confirmLabel={t('templates.save')}
+          cancelLabel={t('templates.cancel')}
+          onSubmit={(name) => patchSearch(prompt.search, { name })}
+          onClose={() => setPrompt(null)}
+        />
+      )}
+      {prompt?.kind === 'stack' && (
+        <PromptDialog
+          title={t('stacks.moveTo')}
+          label={t('stacks.nameLabel')}
+          initial={prompt.notebook.stack ?? ''}
+          placeholder={t('stacks.namePlaceholder')}
+          hint={t('stacks.hint')}
+          suggestions={stacks}
+          confirmLabel={t('stacks.save')}
+          cancelLabel={t('stacks.cancel')}
+          onSubmit={(stack) => patchNotebook(prompt.notebook, { stack })}
+          onClose={() => setPrompt(null)}
+        />
+      )}
+      {prompt?.kind === 'renameStack' && (
+        <PromptDialog
+          title={t('stacks.renameTitle')}
+          label={t('stacks.nameLabel')}
+          initial={prompt.stack}
+          confirmLabel={t('templates.save')}
+          cancelLabel={t('stacks.cancel')}
+          onSubmit={(to) => renameStack(prompt.stack, to)}
+          onClose={() => setPrompt(null)}
+        />
+      )}
+      {prompt?.kind === 'renameTag' && (
+        <PromptDialog
+          title={t('tags.renameTitle', { tag: prompt.tag })}
+          label={t('tags.renameLabel')}
+          initial={prompt.tag}
+          hint={t('tags.renameHint')}
+          maxLength={60}
+          confirmLabel={t('tags.save')}
+          cancelLabel={t('tags.cancel')}
+          onSubmit={(to) => renameTag(prompt.tag, to)}
+          onClose={() => setPrompt(null)}
+        />
+      )}
+      <ConfirmDialog
+        open={confirmState !== null}
+        title={
+          confirmState?.kind === 'deleteSearch'
+            ? t('searches.confirmDelete', { name: confirmState.search.name })
+            : confirmState?.kind === 'deleteTag'
+              ? t('tags.confirmDelete', { tag: confirmState.tag })
+              : confirmState?.kind === 'bulkDelete'
+                ? t('select.confirmDelete', { count: confirmState.ids.length })
+                : ''
+        }
+        confirmLabel={
+          confirmState?.kind === 'bulkDelete' ? t('select.deleteForever') : confirmState?.kind === 'deleteTag' ? t('tags.delete') : t('searches.delete')
+        }
+        cancelLabel={t('templates.cancel')}
+        danger
+        onConfirm={() => {
+          const c = confirmState;
+          setConfirmState(null);
+          if (c?.kind === 'deleteSearch') void deleteSearch(c.search);
+          else if (c?.kind === 'deleteTag') void deleteTag(c.tag);
+          else if (c?.kind === 'bulkDelete') void runBulk('delete');
+        }}
+        onCancel={() => setConfirmState(null)}
+      />
 
       <div className="ui-toasts" role="status" aria-live="polite">
         {toast && (

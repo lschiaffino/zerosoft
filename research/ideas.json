@@ -1259,7 +1259,9 @@
     "description": "Evernote, Apple Notes, Keep, Bear and Obsidian all work offline on mobile, and Evernote documents which search operators still work offline (https://help.evernote.com/hc/articles/208313828). Our app has no web manifest or service worker (no app/manifest, nothing in public/), every list and note load is a network fetch (components/notes/NotesApp.tsx refreshList, openNote), and a failed save only shows an error status. On a phone with weak signal, capture fails exactly when it is needed. First scope: a web manifest so Notes can be added to the home screen, caching of recently opened notes in IndexedDB, and an offline save queue that replays PATCHes when back online.\n\nPriority: low. Effort: L. Compared with Evernote.",
     "product": "notes",
     "kind": "idea",
-    "parity": "offline-notes"
+    "parity": "offline-notes",
+    "status": "done",
+    "changelog": "2026-10-27-notes"
   },
   {
     "title": "Notes: Show column headers for database blocks on shared and trashed notes",
@@ -1870,35 +1872,45 @@
     "description": "Evernote has saved searches and Apple Notes has Smart Folders filtered by tags, checklists and dates (https://support.apple.com/guide/notes/use-smart-folders-apd58edc7964/mac). Notes already parses tag:, notebook:, intitle:, created:, updated: and todo: (lib/notes-query.ts) but a query is lost when you clear the box. First scope: a 'Save search' action next to the search field that stores name + query per user, lists saved searches in the sidebar under Tags, keeps them in sync with renames of tags and notebooks, and opens them with Cmd+K.\n\nPriority: medium. Effort: S. Compared with Evernote.",
     "product": "notes",
     "kind": "idea",
-    "parity": "saved-searches"
+    "parity": "saved-searches",
+    "status": "done",
+    "changelog": "2026-10-27-notes"
   },
   {
     "title": "Notes: Export a notebook or all notes as a Markdown or ENEX zip",
     "description": "Evernote exports notebooks as ENEX or HTML from desktop, Apple Notes exports PDF and Markdown, and Bear exports many formats (https://bear.app/faq/export-your-notes/). Notes exports one note at a time to Markdown (app/api/notes/[id]/export). People moving years of notes in want to know they can get them out the same way. First scope: 'Export notebook' in the notebook menu and 'Export all notes' in Notes settings, returning a zip with one .md per note (front matter with tags, created, updated, source_url), attachments in a folder, and an optional .enex file so the export round-trips into Evernote.\n\nPriority: medium. Effort: S. Compared with Evernote.",
     "product": "notes",
     "kind": "idea",
-    "parity": "export-all"
+    "parity": "export-all",
+    "status": "done",
+    "changelog": "2026-10-27-notes"
   },
   {
     "title": "Notes: Group notebooks into stacks",
     "description": "Evernote groups notebooks into stacks, and an ENEX import of a long-time user brings dozens of notebooks. Notes has a flat notebook list in the sidebar (components/notes/NotesApp.tsx), so after importing 30 notebooks the sidebar is a long scroll. First scope: a stack (or one level of parent notebook) that notebooks can be dragged into, collapsible in the sidebar, with 'notebook:' search matching a stack name to include all its notebooks, and keep the stack name when importing ENEX files that carry it.\n\nPriority: medium. Effort: S. Compared with Evernote.",
     "product": "notes",
     "kind": "idea",
-    "parity": "notebook-stacks"
+    "parity": "notebook-stacks",
+    "status": "done",
+    "changelog": "2026-10-27-notes"
   },
   {
     "title": "Notes: Create notes from templates",
     "description": "Evernote offers templates when you create a note (meeting, journal, trip) and made template creation easier in 11.31 (https://releasebot.io/updates/evernote). Docs already has built-in and workspace templates (lib/docs-templates.ts), but Notes always starts empty. First scope: a template picker on the 'New note' split button with a few personal templates (meeting, daily log, reading notes), 'Save as template' from any note, and templates that preset tags and notebook.\n\nPriority: medium. Effort: S. Compared with Evernote.",
     "product": "notes",
     "kind": "idea",
-    "parity": "note-templates"
+    "parity": "note-templates",
+    "status": "done",
+    "changelog": "2026-10-27-notes"
   },
   {
     "title": "Notes: Select several notes to move, tag, pin or trash them at once",
     "description": "Evernote added multi-select bulk actions on mobile in 2025 (https://evernote.com/blog/2025-recap) and has them on desktop. The Notes list only acts on one note at a time (row menu in components/notes/RowMenu.tsx), which makes cleaning up an ENEX import slow. First scope: Shift/Cmd-click and checkbox selection in the list, a bar with Move to notebook, Add tag, Pin, Trash and Export, keyboard support (Shift+Arrow to extend, Esc to clear) and one undo toast for the batch.\n\nPriority: medium. Effort: S. Compared with Evernote.",
     "product": "notes",
     "kind": "idea",
-    "parity": "bulk-actions"
+    "parity": "bulk-actions",
+    "status": "done",
+    "changelog": "2026-10-27-notes"
   },
   {
     "title": "Notes: Record audio in a note and transcribe it",

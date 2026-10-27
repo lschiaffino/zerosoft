@@ -39,6 +39,8 @@ interface Request {
 
 export interface DocsAiMenuProps {
   pageId: string;
+  /** Ruta que responde (Notes usa /api/notes/ai). */
+  endpoint?: string;
   pageTitle: string;
   /** Texto de la página como está en el editor. */
   pageText: () => string;
@@ -61,7 +63,7 @@ export interface DocsAiMenuProps {
  * resultado se ve primero y se reemplaza, se inserta debajo, se vuelve a
  * intentar o se descarta: nada toca la página hasta aceptar.
  */
-export default function DocsAiMenu({ pageId, pageTitle, pageText, selection, before, anchor, onReplace, onInsert, onClose }: DocsAiMenuProps) {
+export default function DocsAiMenu({ pageId, endpoint = '/api/docs/ai', pageTitle, pageText, selection, before, anchor, onReplace, onInsert, onClose }: DocsAiMenuProps) {
   const t = useTranslations('docs.ai');
   const [prompt, setPrompt] = useState('');
   const [view, setView] = useState<'menu' | 'tone' | 'translate' | 'loading' | 'result' | 'error'>('menu');
@@ -105,7 +107,7 @@ export default function DocsAiMenu({ pageId, pageTitle, pageText, selection, bef
     setView('loading');
     setError(null);
     try {
-      const res = await fetch('/api/docs/ai', {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: ctrl.signal,

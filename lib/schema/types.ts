@@ -1745,6 +1745,8 @@ export interface NoteNotebookRow {
   workspace_id: string; // dueño del workspace
   person_id: string; // persona real (las notas son personales)
   name: string;
+  /** Pila (stack) de libretas, como Evernote: solo un nivel. */
+  stack: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1762,6 +1764,12 @@ export interface NoteRow {
   source_url: string | null;
   share_token: string | null;
   trashed_at: string | null;
+  /**
+   * Nota bloqueada: sobre JSON cifrado en el navegador (AES-GCM con clave
+   * PBKDF2 de la contraseña). Con esto, content guarda solo los bloques de
+   * archivos (para servirlos) y body_text queda vacío.
+   */
+  locked: string | null;
   created_at: string;
   updated_at: string;
 }

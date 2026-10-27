@@ -24,12 +24,17 @@ export default async function NotesClipPage(props: {
   setRequestLocale(locale);
   // Sin sesión, el clip (URL, título y selección) sobrevive al login.
   await requireUser(locale, pathWithQuery(`/${locale}/app/notes/clip`, sp));
-  const url = typeof sp.url === 'string' && /^https?:\/\//i.test(sp.url) ? sp.url.slice(0, 2000) : '';
+  // Compartir desde el teléfono (share_target de app/manifest.ts): muchas
+  // apps mandan el link dentro del texto, no en `url`.
+  const sharedText = typeof sp.selection === 'string' ? sp.selection : '';
+  const fromText = sharedText.match(/https?:\/\/[^\s<>"]+/i)?.[0] ?? '';
+  const rawUrl = typeof sp.url === 'string' && /^https?:\/\//i.test(sp.url) ? sp.url : fromText;
+  const url = rawUrl.slice(0, 2000);
   return (
     <NotesClipForm
       url={url}
       title={typeof sp.title === 'string' ? sp.title.slice(0, 300) : ''}
-      selection={typeof sp.selection === 'string' ? sp.selection.slice(0, 8000) : ''}
+      selection={(fromText && rawUrl === fromText ? sharedText.replace(fromText, '').trim() : sharedText).slice(0, 8000)}
     />
   );
 }

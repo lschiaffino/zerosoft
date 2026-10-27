@@ -26,6 +26,8 @@ export interface NoteSummary {
   shared_by?: string | null;
   /** Acceso de quien la abre: propia, o compartida para ver o editar. */
   access?: 'owner' | 'edit' | 'view';
+  /** Bloqueada con contraseña (el texto viaja cifrado; ver lib/notes-crypto.ts). */
+  locked?: boolean;
 }
 
 export interface NoteLinkRef {
@@ -42,6 +44,26 @@ export interface NoteDetail extends NoteSummary {
   reminder?: { at: string; sent_at: string | null } | null;
   /** Nota compartida por otra persona: su nombre (para el aviso del editor). */
   owner_name?: string | null;
+  /** Nota bloqueada: el sobre cifrado (el contenido real está adentro). */
+  lock?: NoteLockEnvelope | null;
+}
+
+/**
+ * Sobre de una nota bloqueada. Se arma y se abre en el navegador
+ * (lib/notes-crypto.ts): AES-GCM 256 con una clave derivada de la contraseña
+ * con PBKDF2-SHA256. El servidor solo guarda esto; nunca la contraseña ni el
+ * texto. `hint` es la pista opcional, en claro.
+ */
+export interface NoteLockEnvelope {
+  v: 1;
+  /** Iteraciones de PBKDF2. */
+  iter: number;
+  /** Sal (16 bytes) e IV (12 bytes), en base64. */
+  salt: string;
+  iv: string;
+  /** JSON { title, content } cifrado, en base64. */
+  ct: string;
+  hint?: string;
 }
 
 /**
@@ -87,6 +109,24 @@ export interface NotebookInfo {
   id: string;
   name: string;
   count: number;
+  /** Pila (stack) a la que pertenece, o null. */
+  stack?: string | null;
+}
+
+/** Plantilla propia de la persona (las de fábrica salen de lib/docs-templates.ts). */
+export interface NoteTemplateInfo {
+  id: string;
+  name: string;
+  title: string;
+  content: DocsBlock[];
+  updated_at: string;
+}
+
+/** Búsqueda guardada (como los Smart Folders de Apple Notes). */
+export interface SavedSearchInfo {
+  id: string;
+  name: string;
+  query: string;
 }
 
 export interface TagInfo {
@@ -94,18 +134,96 @@ export interface TagInfo {
   count: number;
 }
 
-export const NOTE_TAG_MAX = 40;
+export const NOTE_TAG_MAX = 60;
 export const NOTE_TAGS_PER_NOTE = 20;
 
-/** Normaliza un tag: minúsculas, sin '#', espacios colapsados a '-'. */
+/**
+ * Normaliza un tag: minúsculas, sin '#', espacios colapsados a '-'. La barra
+ * arma etiquetas anidadas como en Bear ("trabajo/clientes"): sin barras
+ * repetidas ni en los extremos.
+ */
 export function normalizeTag(raw: string): string {
   return raw
     .trim()
     .replace(/^#+/, '')
     .toLowerCase()
+    .replace(/\s*\/\s*/g, '/')
     .replace(/\s+/g, '-')
-    .replace(/[^\p{L}\p{N}_-]/gu, '')
-    .slice(0, NOTE_TAG_MAX);
+    .replace(/[^\p{L}\p{N}_/-]/gu, '')
+    .replace(/\/{2,}/g, '/')
+    .replace(/^\/+|\/+$/g, '')
+    .slice(0, NOTE_TAG_MAX)
+    .replace(/\/+$/, '');
+}
+
+/** Nodo del árbol de etiquetas del sidebar. */
+export interface TagNode {
+  /** Etiqueta completa ("trabajo/clientes"). */
+  tag: string;
+  /** Último tramo ("clientes"). */
+  label: string;
+  depth: number;
+  /** Notas con esta etiqueta o una de sus hijas. */
+  count: number;
+  hasChildren: boolean;
+}
+
+/**
+ * Árbol de etiquetas en orden de recorrido (padre antes que hijas). Un padre
+ * que nadie usa solo (p. ej. "trabajo" si solo existe "trabajo/clientes")
+ * aparece igual, como en Bear. `count` de cada etiqueta ya cuenta las notas
+ * de sus hijas (lo arma listTags); un padre que no vino suma sus hijas.
+ */
+export function buildTagTree(tags: ReadonlyArray<{ tag: string; count: number }>): TagNode[] {
+  const counts = new Map(tags.map((t) => [t.tag, t.count]));
+  const all = new Set<string>();
+  for (const { tag } of tags) {
+    const parts = tag.split('/');
+    for (let i = 1; i <= parts.length; i++) all.add(parts.slice(0, i).join('/'));
+  }
+  // Orden por tramos: "a", "a/b", "a-c" (no "a-c" entre "a" y "a/b").
+  const sorted = [...all].sort((a, b) => {
+    const pa = a.split('/');
+    const pb = b.split('/');
+    for (let i = 0; i < Math.min(pa.length, pb.length); i++) {
+      const c = pa[i].localeCompare(pb[i]);
+      if (c) return c;
+    }
+    return pa.length - pb.length;
+  });
+  const countOf = (tag: string): number => {
+    const known = counts.get(tag);
+    if (known !== undefined) return known;
+    const depth = tag.split('/').length;
+    let sum = 0;
+    for (const o of sorted) if (o.startsWith(`${tag}/`) && o.split('/').length === depth + 1) sum += countOf(o);
+    return sum;
+  };
+  return sorted.map((tag) => {
+    const parts = tag.split('/');
+    return {
+      tag,
+      label: parts[parts.length - 1],
+      depth: parts.length - 1,
+      count: countOf(tag),
+      hasChildren: sorted.some((o) => o.startsWith(`${tag}/`)),
+    };
+  });
+}
+
+/** Renombra una etiqueta (y sus hijas) dentro de una lista de etiquetas. */
+export function renameTagIn(tags: readonly string[], from: string, to: string): string[] {
+  const out: string[] = [];
+  for (const t of tags) {
+    const next = t === from ? to : t.startsWith(`${from}/`) ? `${to}${t.slice(from.length)}` : t;
+    if (next && !out.includes(next)) out.push(next);
+  }
+  return out;
+}
+
+/** Saca una etiqueta (y sus hijas) de una lista. */
+export function removeTagFrom(tags: readonly string[], tag: string): string[] {
+  return tags.filter((t) => t !== tag && !t.startsWith(`${tag}/`));
 }
 
 const ENTITIES: Record<string, string> = {

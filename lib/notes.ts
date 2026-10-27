@@ -20,6 +20,8 @@ import { getNoteReminder } from './notes-reminders';
 import {
   NOTE_TAGS_PER_NOTE,
   blocksToText,
+  removeTagFrom,
+  renameTagIn,
   makeSnippet,
   noteHref,
   normalizeTag,
@@ -27,6 +29,7 @@ import {
   snippetAround,
   type NoteDetail,
   type NoteLinkRef,
+  type NoteLockEnvelope,
   type NoteSummary,
   type NotebookInfo,
   type NotesSort,
@@ -65,11 +68,13 @@ function cleanTags(tags: string[]): string[] {
 }
 
 function toSummary(row: NoteRow, snippet?: string): NoteSummary {
+  const locked = row.locked != null;
   return {
     id: row.id,
     notebook_id: row.notebook_id,
     title: row.title,
-    snippet: snippet ?? makeSnippet(row.body_text),
+    // Bloqueada: body_text está vacío (el texto va cifrado); nunca un snippet.
+    snippet: locked ? '' : (snippet ?? makeSnippet(row.body_text)),
     tags: parseJson<string[]>(row.tags, []),
     pinned: Number(row.pinned) === 1,
     trashed: row.trashed_at != null,
@@ -77,6 +82,7 @@ function toSummary(row: NoteRow, snippet?: string): NoteSummary {
     shared: row.share_token != null,
     created_at: row.created_at,
     updated_at: row.updated_at,
+    locked,
   };
 }
 
@@ -85,7 +91,19 @@ function toDetail(row: NoteRow): NoteDetail {
     ...toSummary(row),
     content: parseJson<DocsBlock[]>(row.content, []),
     share_token: row.share_token,
+    lock: row.locked ? parseJson<NoteLockEnvelope | null>(row.locked, null) : null,
   };
+}
+
+/**
+ * Bloques que el servidor guarda de una nota bloqueada: solo los de archivos
+ * (id, tipo, URL, nombre, tamaño y MIME), para poder servir los adjuntos con
+ * el chequeo de siempre. El texto va entero dentro del sobre cifrado.
+ */
+export function lockedFileBlocks(blocks: DocsBlock[]): DocsBlock[] {
+  return sanitizeBlocks(blocks)
+    .filter((b) => isFileBlockType(b.type))
+    .map((b) => ({ id: b.id, type: b.type, content: '', url: b.url, name: b.name, size: b.size, mime: b.mime }));
 }
 
 const OWNER_WHERE = 'workspace_id = ? AND person_id = ?';
@@ -96,13 +114,13 @@ const ownerArgs = (o: NoteOwner) => [o.workspaceId, o.personId];
 export async function listNotebooks(owner: NoteOwner): Promise<NotebookInfo[]> {
   const rows = (await getDb()
     .prepare(
-      `SELECT nb.id, nb.name,
+      `SELECT nb.id, nb.name, nb.stack,
          (SELECT COUNT(*) FROM notes n WHERE n.notebook_id = nb.id AND n.trashed_at IS NULL) AS count
        FROM note_notebooks nb WHERE nb.workspace_id = ? AND nb.person_id = ?
        ORDER BY nb.name COLLATE NOCASE`,
     )
-    .all(...ownerArgs(owner))) as Array<{ id: string; name: string; count: number }>;
-  return rows.map((r) => ({ id: r.id, name: r.name, count: Number(r.count) }));
+    .all(...ownerArgs(owner))) as Array<{ id: string; name: string; count: number; stack: string | null }>;
+  return rows.map((r) => ({ id: r.id, name: r.name, count: Number(r.count), stack: r.stack || null }));
 }
 
 async function getNotebookRow(owner: NoteOwner, id: string): Promise<NoteNotebookRow | undefined> {
@@ -111,15 +129,32 @@ async function getNotebookRow(owner: NoteOwner, id: string): Promise<NoteNoteboo
     .get(id, ...ownerArgs(owner))) as NoteNotebookRow | undefined;
 }
 
-export async function createNotebook(owner: NoteOwner, name: string): Promise<NotebookInfo> {
+export async function createNotebook(owner: NoteOwner, name: string, stack: string | null = null): Promise<NotebookInfo> {
   const id = crypto.randomUUID();
   const now = nowIso();
+  const cleanStack = stack?.trim() || null;
   await getDb()
     .prepare(
-      'INSERT INTO note_notebooks (id, workspace_id, person_id, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO note_notebooks (id, workspace_id, person_id, name, stack, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
     )
-    .run(id, owner.workspaceId, owner.personId, name.trim() || 'Notebook', now, now);
-  return { id, name: name.trim() || 'Notebook', count: 0 };
+    .run(id, owner.workspaceId, owner.personId, name.trim() || 'Notebook', cleanStack, now, now);
+  return { id, name: name.trim() || 'Notebook', count: 0, stack: cleanStack };
+}
+
+/** Pone la libreta en una pila (o la saca con null). Evernote: un solo nivel. */
+export async function setNotebookStack(owner: NoteOwner, id: string, stack: string | null): Promise<boolean> {
+  const res = await getDb()
+    .prepare(`UPDATE note_notebooks SET stack = ?, updated_at = ? WHERE id = ? AND ${OWNER_WHERE}`)
+    .run(stack?.trim() || null, nowIso(), id, ...ownerArgs(owner));
+  return res.changes > 0;
+}
+
+/** Renombra una pila (todas sus libretas). Con `to` vacío, la deshace. */
+export async function renameStack(owner: NoteOwner, from: string, to: string | null): Promise<number> {
+  const res = await getDb()
+    .prepare(`UPDATE note_notebooks SET stack = ?, updated_at = ? WHERE stack = ? AND ${OWNER_WHERE}`)
+    .run(to?.trim() || null, nowIso(), from, ...ownerArgs(owner));
+  return res.changes;
 }
 
 export async function renameNotebook(owner: NoteOwner, id: string, name: string): Promise<boolean> {
@@ -145,16 +180,66 @@ export async function deleteNotebook(owner: NoteOwner, id: string): Promise<bool
 
 // ---------- Tags ----------
 
+/**
+ * Etiquetas de la persona con cuántas notas tiene cada una. Las anidadas
+ * ("trabajo/clientes") suman también a sus padres ("trabajo"), contando cada
+ * nota una vez aunque tenga dos hijas.
+ */
 export async function listTags(owner: NoteOwner): Promise<TagInfo[]> {
   const rows = (await getDb()
     .prepare(
-      `SELECT j.value AS tag, COUNT(*) AS count
+      `SELECT n.id AS note_id, j.value AS tag
        FROM notes n, json_each(n.tags) j
-       WHERE n.workspace_id = ? AND n.person_id = ? AND n.trashed_at IS NULL
-       GROUP BY j.value ORDER BY j.value`,
+       WHERE n.workspace_id = ? AND n.person_id = ? AND n.trashed_at IS NULL`,
     )
-    .all(...ownerArgs(owner))) as Array<{ tag: string; count: number }>;
-  return rows.map((r) => ({ tag: String(r.tag), count: Number(r.count) }));
+    .all(...ownerArgs(owner))) as Array<{ note_id: string; tag: string }>;
+  const byTag = new Map<string, Set<string>>();
+  for (const r of rows) {
+    const parts = String(r.tag).split('/');
+    for (let i = 1; i <= parts.length; i++) {
+      const prefix = parts.slice(0, i).join('/');
+      if (!prefix) continue;
+      let set = byTag.get(prefix);
+      if (!set) byTag.set(prefix, (set = new Set()));
+      set.add(r.note_id);
+    }
+  }
+  return [...byTag.entries()]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([tag, set]) => ({ tag, count: set.size }));
+}
+
+/** Renombra una etiqueta (y sus hijas) en todas las notas de la persona. Devuelve cuántas cambió. */
+export async function renameTag(owner: NoteOwner, from: string, to: string): Promise<number> {
+  const src = normalizeTag(from);
+  const dst = normalizeTag(to);
+  if (!src || !dst || src === dst) return 0;
+  return rewriteTags(owner, src, (tags) => renameTagIn(tags, src, dst));
+}
+
+/** Saca una etiqueta (y sus hijas) de todas las notas. Devuelve cuántas cambió. */
+export async function deleteTag(owner: NoteOwner, tag: string): Promise<number> {
+  const src = normalizeTag(tag);
+  if (!src) return 0;
+  return rewriteTags(owner, src, (tags) => removeTagFrom(tags, src));
+}
+
+async function rewriteTags(owner: NoteOwner, tag: string, fn: (tags: string[]) => string[]): Promise<number> {
+  const db = getDb();
+  const rows = (await db
+    .prepare(
+      `SELECT id, tags FROM notes WHERE ${OWNER_WHERE}
+       AND EXISTS (SELECT 1 FROM json_each(notes.tags) WHERE value = ? OR value LIKE ? ESCAPE '\\')`,
+    )
+    .all(...ownerArgs(owner), tag, `${likeArg(tag).slice(1, -1)}/%`)) as Array<{ id: string; tags: string }>;
+  let changed = 0;
+  for (const r of rows) {
+    const next = cleanTags(fn(parseJson<string[]>(r.tags, [])));
+    // Sin tocar updated_at: renombrar una etiqueta no es editar la nota.
+    await db.prepare(`UPDATE notes SET tags = ? WHERE id = ? AND ${OWNER_WHERE}`).run(JSON.stringify(next), r.id, ...ownerArgs(owner));
+    changed++;
+  }
+  return changed;
 }
 
 // ---------- Notas ----------
@@ -162,6 +247,9 @@ export async function listTags(owner: NoteOwner): Promise<TagInfo[]> {
 export interface ListNotesOptions {
   view?: 'all' | 'pinned' | 'trash';
   notebookId?: string | null;
+  /** Pila de libretas: notas de todas sus libretas. */
+  stack?: string | null;
+  /** Etiqueta, con sus hijas ("trabajo" incluye "trabajo/clientes"). */
   tag?: string | null;
   q?: string | null;
   sort?: NotesSort;
@@ -176,7 +264,7 @@ export interface ListNotesOptions {
  * entero, porque el snippet se arma alrededor del término encontrado.
  */
 const SUMMARY_COLUMNS = (fullBody: boolean) =>
-  `n.id, n.notebook_id, n.title, ${fullBody ? 'n.body_text' : 'substr(n.body_text, 1, 2000) AS body_text'}, n.tags, n.pinned, n.trashed_at, n.source_url, n.share_token, n.created_at, n.updated_at`;
+  `n.id, n.notebook_id, n.title, ${fullBody ? 'n.body_text' : 'substr(n.body_text, 1, 2000) AS body_text'}, n.tags, n.pinned, n.trashed_at, n.source_url, n.share_token, n.created_at, n.updated_at, CASE WHEN n.locked IS NULL THEN NULL ELSE '1' END AS locked`;
 
 let ftsAvailable: boolean | null = null;
 
@@ -262,9 +350,14 @@ export async function listNotes(owner: NoteOwner, opts: ListNotesOptions = {}): 
     where.push('n.notebook_id = ?');
     args.push(opts.notebookId);
   }
+  if (opts.stack) {
+    where.push('n.notebook_id IN (SELECT id FROM note_notebooks WHERE workspace_id = n.workspace_id AND person_id = n.person_id AND stack = ?)');
+    args.push(opts.stack);
+  }
   if (opts.tag) {
-    where.push('EXISTS (SELECT 1 FROM json_each(n.tags) WHERE value = ?)');
-    args.push(normalizeTag(opts.tag));
+    const tag = normalizeTag(opts.tag);
+    where.push("EXISTS (SELECT 1 FROM json_each(n.tags) WHERE value = ? OR value LIKE ? ESCAPE '\\')");
+    args.push(tag, `${likeArg(tag).slice(1, -1)}/%`);
   }
 
   // Operadores (tag:, notebook:, intitle:, created:, updated:, todo:) y texto libre.
@@ -389,10 +482,16 @@ export interface NoteInput {
    * dispositivo), se rechaza con NotesConflictError en vez de pisarla.
    */
   base_updated_at?: string;
+  /**
+   * Nota bloqueada: el sobre nuevo (el navegador volvió a cifrar). Va junto
+   * con `content`, que en una nota bloqueada solo lleva los bloques de
+   * archivos (ver lockedFileBlocks).
+   */
+  lock?: NoteLockEnvelope;
 }
 
 export class NotesError extends Error {
-  constructor(public code: 'notebook_not_found' | 'note_trashed') {
+  constructor(public code: 'notebook_not_found' | 'note_trashed' | 'note_locked' | 'not_locked') {
     super(code);
   }
 }
@@ -465,6 +564,11 @@ export async function updateNote(owner: NoteOwner, id: string, patch: NoteInput)
   const base = patch.base_updated_at;
   if (base !== undefined && editsSomething && row.updated_at !== base) throw new NotesConflictError(toDetail(row));
   if (patch.notebook_id !== undefined) await assertNotebook(owner, patch.notebook_id);
+  const isLocked = row.locked != null;
+  // Bloqueada: el contenido solo cambia junto con el sobre cifrado nuevo, y
+  // un sobre suelto no sirve en una nota sin bloquear.
+  if (isLocked && patch.content !== undefined && !patch.lock) throw new NotesError('note_locked');
+  if (!isLocked && patch.lock) throw new NotesError('not_locked');
   const sets: string[] = [];
   const args: Array<string | number | null> = [];
   if (patch.title !== undefined) {
@@ -472,9 +576,13 @@ export async function updateNote(owner: NoteOwner, id: string, patch: NoteInput)
     args.push(patch.title.trim());
   }
   if (patch.content !== undefined) {
-    const content = sanitizeBlocks(patch.content);
+    const content = isLocked ? lockedFileBlocks(patch.content) : sanitizeBlocks(patch.content);
     sets.push('content = ?', 'body_text = ?');
-    args.push(JSON.stringify(content), blocksToText(content));
+    args.push(JSON.stringify(content), isLocked ? '' : blocksToText(content));
+  }
+  if (patch.lock) {
+    sets.push('locked = ?');
+    args.push(JSON.stringify(patch.lock));
   }
   if (patch.notebook_id !== undefined) {
     sets.push('notebook_id = ?');
@@ -494,7 +602,7 @@ export async function updateNote(owner: NoteOwner, id: string, patch: NoteInput)
   }
   if (sets.length) {
     // Fijar/desfijar no cuenta como edición (no reordena la lista por fecha).
-    const touches = patch.title !== undefined || patch.content !== undefined || patch.tags !== undefined;
+    const touches = patch.title !== undefined || patch.content !== undefined || patch.tags !== undefined || patch.lock !== undefined;
     if (touches) {
       sets.push('updated_at = ?');
       args.push(nextUpdatedAt(row.updated_at));
@@ -511,7 +619,8 @@ export async function updateNote(owner: NoteOwner, id: string, patch: NoteInput)
       throw new NotesConflictError(toDetail(now));
     }
     // Historial: como mucho un snapshot cada 5 min (lib/notes-versions.ts).
-    if (patch.title !== undefined || patch.content !== undefined) {
+    // Una nota bloqueada no guarda versiones: serían el texto en claro.
+    if (!isLocked && (patch.title !== undefined || patch.content !== undefined)) {
       await maybeAutoSnapshotNote(owner, id, row).catch(() => false);
     }
   }
@@ -527,10 +636,77 @@ export async function restoreNoteVersion(owner: NoteOwner, id: string, versionId
   const row = await getNoteRow(owner, id);
   if (!row) return null;
   if (row.trashed_at) throw new NotesError('note_trashed');
+  if (row.locked != null) throw new NotesError('note_locked');
   const version = await getNoteVersion(owner, id, versionId);
   if (!version) return null;
   await snapshotBeforeRestore(row);
   return updateNote(owner, id, { title: version.title, content: version.content });
+}
+
+/**
+ * Bloquea la nota con el sobre que cifró el navegador. El servidor se queda
+ * solo con los bloques de archivos (para servirlos), borra el texto en claro
+ * (contenido, texto de búsqueda y versiones viejas) y apaga el link público.
+ */
+export async function lockNote(
+  owner: NoteOwner,
+  id: string,
+  input: { lock: NoteLockEnvelope; content: DocsBlock[]; base_updated_at?: string },
+): Promise<NoteDetail | null> {
+  const row = await getNoteRow(owner, id);
+  if (!row) return null;
+  if (row.trashed_at) throw new NotesError('note_trashed');
+  if (input.base_updated_at !== undefined && row.updated_at !== input.base_updated_at) throw new NotesConflictError(toDetail(row));
+  const files = lockedFileBlocks(input.content);
+  const db = getDb();
+  const res = await db
+    .prepare(
+      `UPDATE notes SET locked = ?, content = ?, body_text = '', share_token = NULL, updated_at = ?
+       WHERE id = ? AND ${OWNER_WHERE} AND updated_at = ? AND trashed_at IS NULL`,
+    )
+    .run(JSON.stringify(input.lock), JSON.stringify(files), nextUpdatedAt(row.updated_at), id, ...ownerArgs(owner), row.updated_at);
+  if (res.changes === 0) {
+    const now = await getNoteRow(owner, id);
+    throw new NotesConflictError(now ? toDetail(now) : null);
+  }
+  await db.prepare('DELETE FROM note_versions WHERE note_id = ?').run(id);
+  return getNote(owner, id);
+}
+
+/**
+ * Saca el bloqueo: el navegador descifró y manda el contenido en claro, que
+ * vuelve a guardarse normal (búsqueda, historial).
+ */
+export async function unlockNote(
+  owner: NoteOwner,
+  id: string,
+  input: { title?: string; content: DocsBlock[]; base_updated_at?: string },
+): Promise<NoteDetail | null> {
+  const row = await getNoteRow(owner, id);
+  if (!row) return null;
+  if (row.locked == null) throw new NotesError('not_locked');
+  if (row.trashed_at) throw new NotesError('note_trashed');
+  if (input.base_updated_at !== undefined && row.updated_at !== input.base_updated_at) throw new NotesConflictError(toDetail(row));
+  const content = sanitizeBlocks(input.content.length ? input.content : [{ id: crypto.randomUUID(), type: 'paragraph', content: '' }]);
+  const res = await getDb()
+    .prepare(
+      `UPDATE notes SET locked = NULL, title = ?, content = ?, body_text = ?, updated_at = ?
+       WHERE id = ? AND ${OWNER_WHERE} AND updated_at = ?`,
+    )
+    .run(
+      (input.title ?? row.title).trim(),
+      JSON.stringify(content),
+      blocksToText(content),
+      nextUpdatedAt(row.updated_at),
+      id,
+      ...ownerArgs(owner),
+      row.updated_at,
+    );
+  if (res.changes === 0) {
+    const now = await getNoteRow(owner, id);
+    throw new NotesConflictError(now ? toDetail(now) : null);
+  }
+  return getNote(owner, id);
 }
 
 export async function trashNote(owner: NoteOwner, id: string): Promise<boolean> {
@@ -590,11 +766,71 @@ export async function emptyNotesTrash(owner: NoteOwner): Promise<number> {
   return res.changes;
 }
 
+// ---------- Varias notas a la vez ----------
+
+export type NotesBulkAction = 'move' | 'tag' | 'untag' | 'pin' | 'unpin' | 'trash' | 'restore' | 'delete';
+
+/**
+ * Acción sobre varias notas de la persona (selección de la lista). Las que
+ * no son suyas o no aplican se saltean. Devuelve las que cambiaron.
+ */
+export async function bulkNotes(
+  owner: NoteOwner,
+  ids: string[],
+  action: NotesBulkAction,
+  opts: { notebookId?: string | null; tag?: string } = {},
+): Promise<string[]> {
+  const unique = [...new Set(ids)].slice(0, 500);
+  if (!unique.length) return [];
+  const db = getDb();
+  const rows = (await db
+    .prepare(`SELECT id, tags, trashed_at FROM notes WHERE ${OWNER_WHERE} AND id IN (${unique.map(() => '?').join(', ')})`)
+    .all(...ownerArgs(owner), ...unique)) as Array<{ id: string; tags: string; trashed_at: string | null }>;
+  const changed: string[] = [];
+  if (action === 'move') {
+    await assertNotebook(owner, opts.notebookId ?? null);
+    for (const r of rows) {
+      if (r.trashed_at) continue;
+      await db.prepare(`UPDATE notes SET notebook_id = ? WHERE id = ? AND ${OWNER_WHERE}`).run(opts.notebookId ?? null, r.id, ...ownerArgs(owner));
+      changed.push(r.id);
+    }
+    return changed;
+  }
+  if (action === 'tag' || action === 'untag') {
+    const tag = normalizeTag(opts.tag ?? '');
+    if (!tag) return [];
+    for (const r of rows) {
+      if (r.trashed_at) continue;
+      const before = parseJson<string[]>(r.tags, []);
+      const next = action === 'tag' ? cleanTags([...before, tag]) : removeTagFrom(before, tag);
+      if (JSON.stringify(next) === JSON.stringify(before)) continue;
+      await db.prepare(`UPDATE notes SET tags = ? WHERE id = ? AND ${OWNER_WHERE}`).run(JSON.stringify(next), r.id, ...ownerArgs(owner));
+      changed.push(r.id);
+    }
+    return changed;
+  }
+  if (action === 'pin' || action === 'unpin') {
+    for (const r of rows) {
+      if (r.trashed_at) continue;
+      await db.prepare(`UPDATE notes SET pinned = ? WHERE id = ? AND ${OWNER_WHERE}`).run(action === 'pin' ? 1 : 0, r.id, ...ownerArgs(owner));
+      changed.push(r.id);
+    }
+    return changed;
+  }
+  for (const r of rows) {
+    const ok =
+      action === 'trash' ? await trashNote(owner, r.id) : action === 'restore' ? await restoreNote(owner, r.id) : await deleteNoteForever(owner, r.id);
+    if (ok) changed.push(r.id);
+  }
+  return changed;
+}
+
 // ---------- Link público ----------
 
 export async function setNoteShared(owner: NoteOwner, id: string, shared: boolean): Promise<string | null | false> {
   const row = await getNoteRow(owner, id);
-  if (!row || row.trashed_at) return false;
+  // Una nota bloqueada no se publica por link: quien lo abra no tiene la contraseña.
+  if (!row || row.trashed_at || (shared && row.locked != null)) return false;
   if (!shared) {
     await getDb().prepare(`UPDATE notes SET share_token = NULL WHERE id = ? AND ${OWNER_WHERE}`).run(id, ...ownerArgs(owner));
     return null;
@@ -608,7 +844,7 @@ export async function setNoteShared(owner: NoteOwner, id: string, shared: boolea
 export async function getSharedNote(token: string): Promise<NoteDetail | null> {
   if (!/^[A-Za-z0-9_-]{10,64}$/.test(token)) return null;
   const row = (await getDb()
-    .prepare('SELECT * FROM notes WHERE share_token = ? AND trashed_at IS NULL')
+    .prepare('SELECT * FROM notes WHERE share_token = ? AND trashed_at IS NULL AND locked IS NULL')
     .get(token)) as NoteRow | undefined;
   if (!row) return null;
   const detail = toDetail(row);
@@ -641,6 +877,38 @@ export async function noteEditable(owner: NoteOwner, id: string): Promise<'ok' |
   const row = await getNoteRow(owner, id);
   if (!row) return 'not_found';
   return row.trashed_at ? 'trashed' : 'ok';
+}
+
+// ---------- Sincronización offline ----------
+
+export const NOTES_SYNC_PAGE = 100;
+export const NOTES_SYNC_MAX = 2000;
+
+/**
+ * Notas completas (con bloques) cambiadas desde `since`, para la copia
+ * offline del navegador. Sin `since`, todas (de a NOTES_SYNC_PAGE). Las
+ * bloqueadas van con su sobre: se abren offline con la contraseña.
+ */
+export async function listNotesForSync(
+  owner: NoteOwner,
+  opts: { since?: string | null; offset?: number } = {},
+): Promise<{ notes: NoteDetail[]; index: NoteSummary[] }> {
+  const db = getDb();
+  const since = opts.since && Number.isFinite(Date.parse(opts.since)) ? opts.since : null;
+  const offset = Math.max(0, Math.floor(opts.offset ?? 0));
+  const rows = (await db
+    .prepare(
+      `SELECT * FROM notes WHERE ${OWNER_WHERE}${since ? ' AND updated_at > ?' : ''}
+       ORDER BY updated_at DESC, id LIMIT ${NOTES_SYNC_PAGE} OFFSET ${offset}`,
+    )
+    .all(...ownerArgs(owner), ...(since ? [since] : []))) as NoteRow[];
+  // Índice de todas las notas (con papelera): fijar, mover o mandar a la
+  // papelera no cambia updated_at, y el navegador borra de su copia las que
+  // ya no están.
+  const index = (await db
+    .prepare(`SELECT ${SUMMARY_COLUMNS(false)} FROM notes n WHERE n.workspace_id = ? AND n.person_id = ? ORDER BY n.updated_at DESC LIMIT ${NOTES_SYNC_MAX}`)
+    .all(...ownerArgs(owner))) as NoteRow[];
+  return { notes: rows.map(toDetail), index: index.map((r) => toSummary(r)) };
 }
 
 // ---------- Ask AI ----------

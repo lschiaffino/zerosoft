@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-export type NotesIconName = 'pin' | 'share' | 'trash' | 'pencil' | 'close' | 'plus' | 'back' | 'search' | 'clip' | 'ask' | 'grip' | 'more' | 'bell' | 'history' | 'import' | 'link' | 'sticky' | 'timer' | 'vote' | 'track' | 'lock' | 'users';
+export type NotesIconName = 'pin' | 'share' | 'trash' | 'pencil' | 'close' | 'plus' | 'back' | 'search' | 'clip' | 'ask' | 'grip' | 'more' | 'bell' | 'history' | 'import' | 'link' | 'sticky' | 'timer' | 'vote' | 'track' | 'lock' | 'users' | 'template' | 'focus' | 'mic' | 'scan' | 'check' | 'chevron' | 'export' | 'saved' | 'cloudOff';
 
 /**
  * Íconos de Notes y Board: mismo trazo que components/app/icons (1.5px,
@@ -33,6 +33,15 @@ const PATHS: Record<NotesIconName, ReactNode> = {
   vote: <path d="M4 4h16v16H4zM8 12l3 3 5-6" />,
   track: <path d="M4 5h16M4 12h10M4 19h6M17 15l2 2 3-4" />,
   lock: <path d="M6 11h12v9H6zM9 11V8a3 3 0 0 1 6 0v3" />,
+  template: <path d="M5 4h14v16H5zM5 9h14M10 9v11" />,
+  focus: <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" />,
+  mic: <path d="M12 4a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V7a3 3 0 0 0-3-3zM6 11a6 6 0 0 0 12 0M12 17v3" />,
+  scan: <path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M8 12h8" />,
+  check: <path d="M5 12l5 5 9-10" />,
+  chevron: <path d="M9 6l6 6-6 6" />,
+  export: <path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M5 19h14" />,
+  saved: <path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4M8 11h6" />,
+  cloudOff: <path d="M3 3l18 18M8 7.5A6 6 0 0 1 17.7 10H18a4 4 0 0 1 2 7.5M16 18H7a4 4 0 0 1-1.5-7.7" />,
   users: <path d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20a6 6 0 0 1 12 0M16 5a3 3 0 0 1 0 6M18 14a5 5 0 0 1 3 6" />,
 };
 

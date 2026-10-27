@@ -21,5 +21,5 @@ export async function POST(req: NextRequest) {
   if (limited) return limited;
   const parsed = notebookSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return invalidInput(parsed.error);
-  return NextResponse.json(await createNotebook(owner, parsed.data.name), { status: 201 });
+  return NextResponse.json(await createNotebook(owner, parsed.data.name, parsed.data.stack ?? null), { status: 201 });
 }

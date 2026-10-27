@@ -7,7 +7,8 @@
     "all": "Todas as notas"
   },
   "actions": {
-    "newNote": "Nova nota"
+    "newNote": "Nova nota",
+    "newFromTemplate": "Nova a partir de modelo"
   },
   "nav": {
     "label": "Cadernos",
@@ -16,7 +17,9 @@
     "notebooks": "Cadernos",
     "tags": "Etiquetas",
     "trash": "Lixeira",
-    "shared": "Compartilhadas comigo"
+    "shared": "Compartilhadas comigo",
+    "savedSearches": "Buscas salvas",
+    "exportAll": "Exportar todas as notas"
   },
   "notebooks": {
     "new": "Novo caderno",
@@ -179,7 +182,14 @@
     "close": "Fechar"
   },
   "export": {
-    "markdown": "Exportar como Markdown"
+    "markdown": "Exportar como Markdown",
+    "enex": "Exportar como Evernote (.enex)",
+    "html": "Exportar como HTML",
+    "print": "Imprimir ou salvar como PDF",
+    "notebook": "Exportar caderno (.enex)",
+    "allFile": "Todas as notas",
+    "selectionFile": "Notas selecionadas",
+    "menu": "Exportar"
   },
   "import": {
     "button": "Importar notas",
@@ -274,5 +284,154 @@
     "someone": "Alguém da equipe",
     "editBanner": "{name} compartilhou com você. Você pode editar.",
     "viewBanner": "{name} compartilhou com você. Somente leitura."
+  },
+  "templates": {
+    "title": "Modelos",
+    "yours": "Seus modelos",
+    "builtIn": "Prontos",
+    "empty": "Salve qualquer nota como modelo pelo menu de mais ações.",
+    "rename": "Renomear",
+    "delete": "Excluir",
+    "confirmDelete": "Excluir o modelo “{name}”?",
+    "actions": "Ações do modelo: {name}",
+    "saveAs": "Salvar como modelo",
+    "nameLabel": "Nome do modelo",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "saved": "Salva como modelo “{name}”.",
+    "loadError": "Não foi possível carregar seus modelos.",
+    "retry": "Tentar de novo",
+    "limit": "Você tem 100 modelos. Exclua um para salvar outro.",
+    "close": "Fechar",
+    "filter": "Filtrar modelos",
+    "noMatch": "Nenhum modelo corresponde.",
+    "loading": "Carregando modelos",
+    "blank": "Nota em branco",
+    "blankDesc": "Comece do zero."
+  },
+  "searches": {
+    "save": "Salvar busca",
+    "nameLabel": "Nome desta busca",
+    "saved": "Busca salva na barra lateral.",
+    "rename": "Renomear",
+    "update": "Atualizar com a busca atual",
+    "delete": "Excluir",
+    "confirmDelete": "Excluir a busca salva “{name}”?",
+    "actions": "Ações da busca: {name}",
+    "limit": "Você tem 50 buscas salvas. Exclua uma para salvar outra."
+  },
+  "stacks": {
+    "moveTo": "Mover para uma pilha…",
+    "remove": "Tirar da pilha",
+    "nameLabel": "Nome da pilha",
+    "namePlaceholder": "Trabalho, Pessoal…",
+    "rename": "Renomear pilha",
+    "ungroup": "Desfazer pilha",
+    "actions": "Ações da pilha: {name}",
+    "toggle": "Mostrar ou ocultar {name}",
+    "save": "Mover",
+    "cancel": "Cancelar",
+    "hint": "Os cadernos da mesma pilha ficam agrupados na barra lateral. Escolha uma pilha ou digite um nome novo.",
+    "renameTitle": "Renomear pilha",
+    "export": "Exportar pilha"
+  },
+  "tags": {
+    "actions": "Ações da etiqueta: {tag}",
+    "rename": "Renomear etiqueta",
+    "delete": "Excluir etiqueta",
+    "confirmDelete": "Tirar #{tag} de todas as notas? As etiquetas aninhadas embaixo também saem.",
+    "renameTitle": "Renomear #{tag}",
+    "renameLabel": "Nome novo",
+    "renameHint": "Use / para aninhar embaixo de outra, como trabalho/clientes.",
+    "save": "Renomear",
+    "cancel": "Cancelar",
+    "toggle": "Mostrar ou ocultar as etiquetas embaixo de #{tag}"
+  },
+  "select": {
+    "start": "Selecionar",
+    "done": "Pronto",
+    "count": "{count, plural, one {# selecionada} other {# selecionadas}}",
+    "all": "Selecionar todas",
+    "checkbox": "Selecionar “{title}”",
+    "move": "Mover para caderno",
+    "noNotebook": "Sem caderno",
+    "tag": "Adicionar etiqueta",
+    "tagPlaceholder": "Etiqueta",
+    "tagApply": "Adicionar",
+    "pin": "Fixar",
+    "unpin": "Desafixar",
+    "trash": "Mover para a lixeira",
+    "restore": "Restaurar",
+    "deleteForever": "Excluir para sempre",
+    "confirmDelete": "{count, plural, one {Excluir # nota para sempre?} other {Excluir # notas para sempre?}} Não dá para desfazer.",
+    "export": "Exportar",
+    "updated": "{count, plural, one {# nota atualizada.} other {# notas atualizadas.}}",
+    "error": "Não foi possível atualizar as notas. Tente de novo.",
+    "label": "Ações das notas selecionadas"
+  },
+  "lock": {
+    "lock": "Bloquear nota",
+    "locked": "Bloqueada",
+    "lockedTitle": "Esta nota está bloqueada",
+    "lockedBody": "Digite a senha para ler e editar. A senha nunca sai deste dispositivo.",
+    "password": "Senha",
+    "confirm": "Repetir senha",
+    "hint": "Dica (opcional)",
+    "hintShown": "Dica: {hint}",
+    "setTitle": "Bloquear esta nota",
+    "setBody": "O texto é criptografado neste dispositivo antes de ser salvo. Se você esquecer a senha, ninguém consegue recuperar a nota, nem nós.",
+    "setWarn": "O histórico de versões e o link público são removidos. O título continua visível na lista e os anexos não são criptografados.",
+    "mismatch": "As senhas não coincidem.",
+    "tooShort": "Use pelo menos 4 caracteres.",
+    "wrong": "Senha incorreta. Tente de novo.",
+    "submit": "Bloquear nota",
+    "open": "Desbloquear",
+    "cancel": "Cancelar",
+    "removeLock": "Remover bloqueio",
+    "lockNow": "Bloquear agora",
+    "busy": "Criptografando…",
+    "opening": "Desbloqueando…",
+    "unsupported": "Este navegador não consegue criptografar notas (precisa de uma conexão segura).",
+    "exportedLocked": "Esta nota está bloqueada. Desbloqueie no zerosoft Notes para exportar o texto.",
+    "error": "Não foi possível bloquear a nota. Tente de novo.",
+    "removeError": "Não foi possível remover o bloqueio. Tente de novo.",
+    "sharedReadOnly": "As notas bloqueadas compartilhadas com você são somente leitura.",
+    "itemLabel": "Nota bloqueada"
+  },
+  "offline": {
+    "banner": "Você está sem conexão. As notas salvas neste dispositivo estão aqui e suas mudanças sincronizam quando você voltar.",
+    "savedLocal": "Salvo neste dispositivo",
+    "syncing": "Sincronizando suas mudanças…",
+    "synced": "{count, plural, one {# mudança sincronizada.} other {# mudanças sincronizadas.}}",
+    "copies": "{count, plural, one {# nota mudou em outro lugar enquanto você estava sem conexão. Sua versão foi salva como cópia.} other {# notas mudaram em outro lugar enquanto você estava sem conexão. Suas versões foram salvas como cópias.}}",
+    "copyTitle": "{title} (cópia offline)",
+    "notCached": "Esta nota ainda não está neste dispositivo. Abra uma vez com conexão.",
+    "unavailable": "Indisponível sem conexão"
+  },
+  "focus": {
+    "enter": "Modo foco",
+    "exit": "Sair do modo foco"
+  },
+  "capture": {
+    "record": "Gravar áudio",
+    "stop": "Parar e adicionar",
+    "cancel": "Descartar",
+    "recording": "Gravando {time}",
+    "micDenied": "O acesso ao microfone foi negado. Permita no navegador para gravar.",
+    "unsupported": "Este navegador não consegue gravar áudio.",
+    "uploading": "Adicionando à nota…",
+    "uploadError": "Não foi possível adicionar o arquivo. Tente de novo.",
+    "recordingName": "Gravação {date}",
+    "scan": "Digitalizar documento",
+    "scanTitle": "Digitalizar um documento",
+    "scanHint": "Tire uma foto de uma folha, recibo ou quadro. Ela é recortada nas bordas que você marcar e limpa para leitura.",
+    "takePhoto": "Tirar ou escolher uma foto",
+    "enhance": "Limpar para leitura",
+    "add": "Adicionar à nota",
+    "retake": "Escolher outra",
+    "close": "Fechar",
+    "scanName": "Digitalização {date}",
+    "cropHint": "Arraste os cantos até as bordas da folha.",
+    "corner": "Canto {n} da folha"
   }
 }

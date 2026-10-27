@@ -29,6 +29,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-27-notes',
+    date: '2026-10-27',
+    title: {
+      en: 'Notes: offline, locked notes, templates, stacks, saved searches and bulk actions',
+      es: 'Notes: sin conexión, notas bloqueadas, plantillas, pilas, búsquedas guardadas y acciones en lote',
+      pt: 'Notes: sem conexão, notas bloqueadas, modelos, pilhas, buscas salvas e ações em lote',
+    },
+    items: [
+      { product: 'notes', en: 'Notes work without a connection: every note stays on your device, you can open, search, edit and create notes offline, and changes sync when you are back. An edit that collides with one made elsewhere is kept as a copy. The copy is erased when you sign out.', es: 'Notes funciona sin conexión: todas las notas quedan en tu dispositivo, las abrís, buscás, editás y creás offline, y los cambios se sincronizan al volver. Un cambio que choca con otro hecho en otro lado queda como copia. La copia se borra al cerrar sesión.', pt: 'O Notes funciona sem conexão: todas as notas ficam no seu dispositivo, você abre, busca, edita e cria notas offline, e as mudanças sincronizam ao voltar. Uma edição que conflita com outra feita em outro lugar fica como cópia. A cópia é apagada ao sair.' },
+      { product: 'notes', en: 'Lock a note with a password. The text is encrypted in your browser before it is saved and the password never leaves your device.', es: 'Bloqueá una nota con contraseña. El texto se cifra en tu navegador antes de guardarse y la contraseña nunca sale de tu dispositivo.', pt: 'Bloqueie uma nota com senha. O texto é criptografado no seu navegador antes de ser salvo e a senha nunca sai do seu dispositivo.' },
+      { product: 'notes', en: 'New from template with nine built-in templates or your own, notebook stacks, nested tags with rename and delete, and saved searches in the sidebar and in Cmd+K.', es: 'Nueva desde plantilla con nueve plantillas de fábrica o las tuyas, pilas de libretas, etiquetas anidadas que se renombran y borran, y búsquedas guardadas en el sidebar y en Cmd+K.', pt: 'Nova a partir de modelo com nove modelos prontos ou os seus, pilhas de cadernos, etiquetas aninhadas que se renomeiam e excluem, e buscas salvas na barra lateral e no Cmd+K.' },
+      { product: 'notes', en: 'Select several notes to move, tag, pin, export or trash them. Export a note, a notebook or everything to Evernote ENEX with attachments, a note to HTML, or print it to PDF.', es: 'Seleccioná varias notas para moverlas, etiquetarlas, fijarlas, exportarlas o mandarlas a la papelera. Exportá una nota, una libreta o todo a ENEX de Evernote con adjuntos, una nota a HTML, o imprimila a PDF.', pt: 'Selecione várias notas para mover, etiquetar, fixar, exportar ou mandar para a lixeira. Exporte uma nota, um caderno ou tudo para ENEX do Evernote com anexos, uma nota para HTML, ou imprima em PDF.' },
+      { product: 'notes', en: 'Record audio and scan documents with the camera right into a note, the Docs AI menu inside notes, focus mode, and search matches highlighted when you open a note.', es: 'Grabá audio y escaneá documentos con la cámara directo en la nota, el menú de IA de Docs dentro de las notas, modo foco y las coincidencias de la búsqueda resaltadas al abrir una nota.', pt: 'Grave áudio e digitalize documentos com a câmera direto na nota, o menu de IA do Docs dentro das notas, modo foco e as correspondências da busca destacadas ao abrir uma nota.' },
+    ],
+  },
+  {
     id: '2026-10-27-agents',
     date: '2026-10-27',
     title: {

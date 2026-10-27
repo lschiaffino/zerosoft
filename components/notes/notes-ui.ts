@@ -9,6 +9,8 @@ export type NotesFilter =
   /** Notas de compañeros compartidas conmigo (directas o por libreta). */
   | { kind: 'shared' }
   | { kind: 'notebook'; id: string }
+  /** Pila de libretas: las notas de todas sus libretas. */
+  | { kind: 'stack'; stack: string }
   | { kind: 'tag'; tag: string };
 
 /** Query string de /api/notes para un filtro, una búsqueda y un orden. */
@@ -16,6 +18,7 @@ export function filterQuery(f: NotesFilter, q: string, sort: string): string {
   const sp = new URLSearchParams();
   if (f.kind === 'pinned' || f.kind === 'trash' || f.kind === 'shared') sp.set('view', f.kind);
   if (f.kind === 'notebook') sp.set('notebook', f.id);
+  if (f.kind === 'stack') sp.set('stack', f.stack);
   if (f.kind === 'tag') sp.set('tag', f.tag);
   if (q.trim()) sp.set('q', q.trim());
   sp.set('sort', sort);
@@ -35,6 +38,7 @@ export function sameFilter(a: NotesFilter, b: NotesFilter): boolean {
   if (a.kind !== b.kind) return false;
   if (a.kind === 'notebook' && b.kind === 'notebook') return a.id === b.id;
   if (a.kind === 'tag' && b.kind === 'tag') return a.tag === b.tag;
+  if (a.kind === 'stack' && b.kind === 'stack') return a.stack === b.stack;
   return true;
 }
 
@@ -46,7 +50,7 @@ export function emptyKind(f: NotesFilter, q: string): EmptyKind {
   if (f.kind === 'trash') return 'trash';
   if (f.kind === 'pinned') return 'pinned';
   if (f.kind === 'shared') return 'shared';
-  if (f.kind === 'notebook') return 'notebook';
+  if (f.kind === 'notebook' || f.kind === 'stack') return 'notebook';
   return 'all';
 }
 
@@ -98,3 +102,46 @@ export function reminderPresets(now: Date): Array<{ key: ReminderPresetKey; at: 
 
 /** Operadores de la ayuda de búsqueda (sintaxis y descripción en messages: notes.searchHelp.items.<key>). */
 export const SEARCH_OPERATORS = ['tag', 'notTag', 'notebook', 'intitle', 'created', 'updated', 'todo'] as const;
+
+/** Libretas agrupadas por pila (como Evernote): primero las sueltas, después cada pila por nombre. */
+export function groupNotebooks<T extends { name: string; stack?: string | null }>(notebooks: T[]): { loose: T[]; stacks: Array<{ stack: string; notebooks: T[] }> } {
+  const loose: T[] = [];
+  const map = new Map<string, T[]>();
+  for (const nb of notebooks) {
+    if (!nb.stack) loose.push(nb);
+    else map.set(nb.stack, [...(map.get(nb.stack) ?? []), nb]);
+  }
+  const stacks = [...map.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([stack, list]) => ({ stack, notebooks: list }));
+  return { loose, stacks };
+}
+
+/**
+ * Selección en la lista (como Finder): clic con ⌘/Ctrl suma o saca una,
+ * Shift suma el rango desde la última elegida.
+ */
+export function nextSelection(
+  current: readonly string[],
+  ids: readonly string[],
+  id: string,
+  mode: 'toggle' | 'range',
+  anchor: string | null,
+): string[] {
+  if (mode === 'range' && anchor && ids.includes(anchor)) {
+    const a = ids.indexOf(anchor);
+    const b = ids.indexOf(id);
+    const [from, to] = a < b ? [a, b] : [b, a];
+    const range = ids.slice(from, to + 1);
+    return [...new Set([...current, ...range])];
+  }
+  return current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
+}
+
+/** Términos a resaltar en la nota abierta desde una búsqueda (sin operadores). */
+export function highlightTerms(q: string): string[] {
+  return q
+    .replace(/-?[a-z]+:("[^"]*"|\S+)/gi, ' ')
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((t) => t.length > 1)
+    .slice(0, 8);
+}

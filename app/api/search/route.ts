@@ -6,7 +6,8 @@ import { searchDocPagesContent, searchSharedDocPages } from '@/lib/docs';
 import { docsHidden } from '@/lib/docs-guard';
 import { listTeamspaces } from '@/lib/docs-access';
 import { listLinks, toLinkDto } from '@/lib/links';
-import { searchNotesForPalette } from '@/lib/notes';
+import { noteOwner, searchNotesForPalette } from '@/lib/notes';
+import { searchNoteTemplates, searchSavedSearches } from '@/lib/notes-library';
 import { searchApps } from '@/lib/app-search';
 import { searchRuns } from '@/lib/crm-ai-agents';
 import { searchLeads } from '@/lib/crm-leads';
@@ -184,6 +185,18 @@ export async function GET(req: NextRequest) {
       meta: n.title ? n.snippet : '',
       href: `/app/notes?note=${encodeURIComponent(n.id)}`,
     });
+  }
+
+  // Notes: búsquedas guardadas y plantillas propias, por nombre.
+  const [noteSearches, noteTemplates] = await Promise.all([
+    searchSavedSearches(noteOwner(user), q).catch(() => []),
+    searchNoteTemplates(noteOwner(user), q).catch(() => []),
+  ]);
+  for (const s of noteSearches) {
+    items.push({ id: `ns:${s.id}`, group: 'notes', label: s.name, meta: s.query, href: `/app/notes?search=${encodeURIComponent(s.id)}` });
+  }
+  for (const tpl of noteTemplates) {
+    items.push({ id: `nt:${tpl.id}`, group: 'notes', label: tpl.name, meta: 'Template', href: `/app/notes?template=${encodeURIComponent(tpl.id)}` });
   }
 
   for (const t of tasks) {

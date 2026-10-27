@@ -5893,6 +5893,39 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Paridad de Notes con Evernote: pilas de libretas (stack), notas
+    // bloqueadas con contraseña (locked: sobre cifrado en el navegador, el
+    // servidor nunca ve la contraseña ni el texto), plantillas propias y
+    // búsquedas guardadas por persona.
+    id: '122_notes_parity',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE note_notebooks ADD COLUMN stack TEXT');
+      await addColumn(client, 'ALTER TABLE notes ADD COLUMN locked TEXT');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS note_templates (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          person_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          title TEXT NOT NULL DEFAULT '',
+          content TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_note_templates_owner ON note_templates(workspace_id, person_id, name);
+        CREATE TABLE IF NOT EXISTS note_saved_searches (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          person_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          query TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_note_saved_searches_owner ON note_saved_searches(workspace_id, person_id, name);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

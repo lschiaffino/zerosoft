@@ -32,6 +32,13 @@ export default function manifest(): MetadataRoute.Manifest {
       { name: 'Tasks', url: '/app/crm/tasks' },
       { name: 'Groups inbox', url: '/app/groups/inbox' },
       { name: 'Groups tickets', url: '/app/groups/tickets' },
+      { name: 'New note', url: '/app/notes?new=1' },
     ],
+    // Compartir un link o un texto desde otra app del teléfono lo guarda en Notes.
+    share_target: {
+      action: '/app/notes/clip',
+      method: 'GET',
+      params: { title: 'title', text: 'selection', url: 'url' },
+    },
   };
 }

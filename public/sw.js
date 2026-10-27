@@ -1,7 +1,7 @@
 /* zerosoft service worker: el único de la suite (scope /, lo registra
  * lib/sw-client.ts desde el CRM y desde Groups).
  *
- * CRM offline:
+ * CRM y Notes offline:
  * - /_next/static/**: cache-first (los archivos tienen hash).
  * - Navegaciones a /<locale>/app/crm/** y GET /api/crm/**: network-first con
  *   fallback a la caché, así lo ya visitado abre sin red.
@@ -69,9 +69,11 @@ async function replayQueue(store, doFetch) {
   return { done, failed, remaining: 0 };
 }
 
-// El CRM entero y el inicio de la app (/app, sin subruta).
-const CRM_PAGE = /^\/(en|es|pt)\/app(\/crm(\/|$)|\/?$)/;
-const CRM_ROOT = /^\/app(\/crm(\/|$)|\/?$)/;
+// El CRM entero, Notes y el inicio de la app (/app, sin subruta). Notes
+// guarda sus notas en IndexedDB (components/notes/notesOffline.ts); acá
+// solo se guarda la página para poder abrirla sin red.
+const CRM_PAGE = /^\/(en|es|pt)\/app(\/crm(\/|$)|\/notes\/?$|\/?$)/;
+const CRM_ROOT = /^\/app(\/crm(\/|$)|\/notes\/?$|\/?$)/;
 
 function isCrmNavigation(url) {
   return CRM_PAGE.test(url.pathname) || CRM_ROOT.test(url.pathname);
