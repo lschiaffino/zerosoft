@@ -20,7 +20,7 @@ import {
   type ScheduleTask,
 } from './chat-bot-ai';
 import { AgentError, assertAgentLimits, conversationForChat, getAgentRowById, runAgent } from './agents';
-import type { AgentRow } from './db';
+import { getDb, type AgentRow } from './db';
 
 export type AgentChatStatus = 'replied' | 'handoff' | 'skipped' | 'fallback' | 'rate_limited';
 
@@ -72,7 +72,11 @@ export async function runAgentChatReply(
     try {
       const messages = toModelMessages(rows);
       if (messages.length === 0) return { status: 'skipped', message: null };
-      result = await runAgent({ agent, conversation: agentConv, messages, channel: 'chat' });
+      // Email firmado por el sitio (lib/chat-identity.ts): solo con él el agente lee el contacto del CRM.
+      const verified = (await getDb()
+        .prepare('SELECT v.email FROM chat_conversations c JOIN chat_visitors v ON v.id = c.visitor_id WHERE c.id = ? AND v.email_verified = 1')
+        .get(conversationId)) as { email: string | null } | undefined;
+      result = await runAgent({ agent, conversation: agentConv, messages, channel: 'chat', identifiedEmail: verified?.email ?? null });
     } catch (err) {
       console.error('[agents-chat] run failed', err);
       const message = await maybeRunChatBot(widget, conversation, describeMessage(lastVisitor));
