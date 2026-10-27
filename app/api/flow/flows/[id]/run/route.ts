@@ -15,7 +15,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if (!canEditFlows(user)) return forbidden();
   const parsed = flowRunSchema.safeParse((await req.json().catch(() => ({}))) ?? {});
   if (!parsed.success) return flowError(400, 'invalid_input');
-  const res = await runFlowNow(user.id, id, parsed.data.input, runViewer(user));
-  if (!res.ok) return res.error === 'not_found' ? notFound() : flowError(429, res.error);
+  const res = await runFlowNow(user.id, id, parsed.data.input, runViewer(user), { draft: parsed.data.draft });
+  if (!res.ok) return res.error === 'not_found' ? notFound() : flowError(res.error === 'forbidden' ? 403 : 429, res.error);
   return NextResponse.json({ run: res.run });
 }

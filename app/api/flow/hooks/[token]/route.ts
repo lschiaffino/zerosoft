@@ -71,6 +71,7 @@ async function handle(req: NextRequest, props: { params: Promise<{ token: string
     if (res.error === 'rate_limited') return NextResponse.json({ error: 'rate_limited' }, { status: 429 });
     if (res.error === 'invalid_signature') return NextResponse.json({ error: 'invalid_signature' }, { status: 400 });
     if (res.error === 'method_not_allowed') return NextResponse.json({ error: 'method_not_allowed' }, { status: 405 });
+    if (res.error === 'invalid_form') return NextResponse.json({ error: 'invalid_form', fields: res.fields ?? {} }, { status: 400 });
     if (res.error === 'unauthorized') {
       // Cuenta como intento fallido de la IP: frena a quien prueba contraseñas.
       if (limits) await rateLimit(missKey, MISSES_PER_IP, 60);

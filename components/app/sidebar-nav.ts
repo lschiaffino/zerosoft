@@ -132,7 +132,9 @@ export interface SidebarLabels {
   };
   flow: {
     flows: string;
+    runs: string;
     tables: string;
+    variables: string;
     credentials: string;
   };
   notes: { all: string; newNote: string; clip: string };
@@ -512,10 +514,18 @@ export function buildNav(
             {
               href: '/app/flow',
               label: labels.flow.flows,
-              active: at('/app/flow') && !at('/app/flow/credentials') && !at('/app/flow/tables') && !at('/app/flow/settings'),
+              active:
+                at('/app/flow') &&
+                !at('/app/flow/credentials') &&
+                !at('/app/flow/tables') &&
+                !at('/app/flow/settings') &&
+                !at('/app/flow/runs') &&
+                !at('/app/flow/variables'),
               icon: 'flow',
             },
+            { href: '/app/flow/runs', label: labels.flow.runs, active: at('/app/flow/runs'), icon: 'reports' },
             { href: '/app/flow/tables', label: labels.flow.tables, active: at('/app/flow/tables'), icon: 'lists' },
+            { href: '/app/flow/variables', label: labels.flow.variables, active: at('/app/flow/variables'), icon: 'objects' },
             { href: '/app/flow/credentials', label: labels.flow.credentials, active: at('/app/flow/credentials'), icon: 'workflows' },
           ],
         },

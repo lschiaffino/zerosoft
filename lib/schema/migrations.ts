@@ -5893,6 +5893,54 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Paridad de Flow: borrador y publicado (draft_graph; lo que corre sigue
+    // siendo graph), carpetas, variables por persona, protección ante
+    // avalanchas (corridas retenidas: held), concurrencia por flow y
+    // disparadores por polling (RSS, HTTP, filas nuevas de Sheets).
+    id: '121_flow_parity',
+    up: async (client) => {
+      for (const col of [
+        'folder_id TEXT',
+        'draft_graph TEXT',
+        'draft_by TEXT',
+        'draft_rev INTEGER NOT NULL DEFAULT 0',
+        'draft_updated_at TEXT',
+        'flood_limit INTEGER NOT NULL DEFAULT 0',
+        'max_concurrency INTEGER NOT NULL DEFAULT 0',
+        'poll_state TEXT',
+        'next_poll_at TEXT',
+      ]) {
+        await addColumn(client, `ALTER TABLE flow_flows ADD COLUMN ${col}`);
+      }
+      await addColumn(client, 'ALTER TABLE flow_runs ADD COLUMN held INTEGER NOT NULL DEFAULT 0');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS flow_folders (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_flow_folders_user ON flow_folders(user_id, name);
+        CREATE TABLE IF NOT EXISTS flow_variables (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          key TEXT NOT NULL,
+          value TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE (user_id, person_id, key)
+        );
+        CREATE INDEX IF NOT EXISTS idx_flow_flows_poll ON flow_flows(trigger_type, enabled, next_poll_at);
+        CREATE INDEX IF NOT EXISTS idx_flow_flows_folder ON flow_flows(user_id, folder_id);
+        CREATE INDEX IF NOT EXISTS idx_flow_runs_user_status ON flow_runs(user_id, status, created_at);
+        CREATE INDEX IF NOT EXISTS idx_flow_runs_held ON flow_runs(flow_id, held) WHERE held = 1;
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

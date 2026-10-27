@@ -545,3 +545,89 @@
 .flow-groups-results button { display: block; width: 100%; padding: 6px 10px; text-align: left; font-size: 0.875rem; color: var(--ink); background: transparent; border: 0; cursor: pointer; }
 .flow-groups-results button:hover,
 .flow-groups-results button:focus-visible { background: var(--ui-hover); }
+
+/* ---------- Paridad: carpetas, filtros, historial global, borrador, notas ---------- */
+
+/* Carpetas (botones con estado) y filtros de la lista. */
+.flow-folders { display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; border-bottom: 1px solid var(--line); }
+.flow-folders .ui-tab[aria-pressed='true'] { color: var(--ink); font-weight: 600; }
+.flow-folders .ui-tab[aria-pressed='true']::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 4px; background: var(--accent); }
+.flow-folder-new { margin-left: 4px; }
+.flow-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.flow-filters > .select { flex: 0 1 200px; min-width: 0; }
+.flow-filter-q { flex: 1 1 240px; min-width: 0; }
+.flow-name-cell .badge { margin-left: 8px; flex-shrink: 0; }
+.flow-last-run .badge-warn { margin-left: 4px; }
+.flow-inline-field { display: inline-flex; }
+.flow-error-cell { color: var(--bad-ink); font-family: var(--font-data); font-size: 0.75rem; }
+
+/* Tablero de uso. */
+.flow-usage-head { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.flow-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; margin: 0; border: 1px solid var(--line); border-radius: var(--radius-1); }
+.flow-kpi { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-left: 1px solid var(--line); min-width: 0; }
+.flow-kpi:first-child { border-left: 0; }
+.flow-kpi dt { font-size: 0.75rem; color: var(--brand-gray-2); }
+.flow-kpi dd { margin: 0; font-family: var(--font-data); font-size: 1.25rem; color: var(--ink); overflow-wrap: anywhere; }
+.flow-kpi dd.is-bad, .flow-mini-table .is-bad { color: var(--bad-ink); }
+.flow-chart { display: flex; align-items: flex-end; gap: 3px; height: 96px; padding: 8px 0 0; border-bottom: 1px solid var(--line); }
+.flow-chart-col { flex: 1 1 0; min-width: 0; height: 100%; display: flex; align-items: flex-end; }
+.flow-chart-bar { width: 100%; display: flex; flex-direction: column; min-height: 0; }
+.flow-chart-bar > span { display: block; min-height: 2px; }
+.flow-dot.is-success, .flow-chart-bar > .is-success { background: var(--ok); }
+.flow-dot.is-failed, .flow-chart-bar > .is-failed { background: var(--bad); }
+.flow-dot.is-other, .flow-chart-bar > .is-other { background: var(--brand-gray-2); }
+.flow-chart-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.flow-dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-left: 6px; }
+.flow-dot:first-child { margin-left: 0; }
+.flow-usage-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 16px 32px; }
+.flow-usage-sub { margin: 8px 0 6px; font-size: 0.875rem; font-weight: 600; color: var(--ink); }
+.flow-queue, .flow-errors-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.flow-errors-list { flex-direction: column; }
+.flow-mini-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; table-layout: fixed; }
+.flow-mini-table th { text-align: left; font-weight: 500; color: var(--brand-gray-2); font-size: 0.75rem; padding: 4px 0; }
+.flow-mini-table td { padding: 6px 0; border-top: 1px solid var(--line); }
+.flow-mini-table .num { text-align: right; width: 72px; font-family: var(--font-data); }
+.flow-mini-table td .flow-link { max-width: 100%; text-align: left; }
+
+/* Corridas retenidas y diagnóstico con IA. */
+.flow-held { display: flex; flex-direction: column; gap: 8px; margin: 0 12px 8px; padding: 10px 12px; background: var(--warn-soft); border: 1px solid var(--line); border-radius: var(--radius-1); font-size: 0.8125rem; color: var(--ink); }
+.flow-held p { margin: 0; }
+.flow-explain { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1px solid var(--line); border-left: 2px solid var(--c-flow-ink, var(--ink)); border-radius: var(--radius-1); font-size: 0.875rem; color: var(--ink); }
+.flow-explain p, .flow-explain ol { margin: 0; }
+.flow-explain ol { padding-left: 20px; }
+
+/* Borrador sin publicar. */
+.flow-draft-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 6px 0; font-size: 0.8125rem; color: var(--warn-ink); }
+
+/* Nota del canvas. */
+.flow-note-card {
+  width: 220px;
+  padding: 10px 12px;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  background: var(--warn-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+.flow-note-card[data-color='blue'] { background: var(--bg-soft); }
+.flow-note-card[data-color='green'] { background: var(--ok-soft); }
+.flow-note-card[data-color='pink'] { background: var(--bad-soft); }
+.flow-note-card.is-selected { box-shadow: inset 0 0 0 1px var(--ink); border-color: var(--ink); }
+.flow-note-text { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.45; max-height: 240px; overflow: hidden; }
+.flow-note-text.is-empty { color: var(--brand-gray-2); }
+
+/* Campos de un formulario hospedado. */
+.flow-form-field { display: grid; grid-template-columns: minmax(0, 1fr) 112px auto auto; align-items: center; gap: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.flow-form-options, .flow-form-key { grid-column: 1 / -1; }
+.flow-form-key { font-size: 0.75rem; overflow-wrap: anywhere; }
+
+@media (max-width: 720px) {
+  .flow-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .flow-kpi { border-left: 0; border-top: 1px solid var(--line); }
+  .flow-kpi:nth-child(-n + 2) { border-top: 0; }
+  .flow-kpi:nth-child(even) { border-left: 1px solid var(--line); }
+  .flow-usage-grid { grid-template-columns: minmax(0, 1fr); }
+  .flow-filters > .select { flex: 1 1 140px; }
+  .flow-form-field { grid-template-columns: minmax(0, 1fr) auto; }
+  .flow-form-field > .select { grid-column: 1 / -1; grid-row: 2; }
+}

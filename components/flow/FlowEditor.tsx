@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   Background,
   BackgroundVariant,
@@ -17,6 +17,7 @@ import {
   type IsValidConnection,
 } from '@xyflow/react';
 import { Link, useRouter } from '@/i18n/navigation';
+import RowMenu from '@/components/notes/RowMenu';
 import AdvancedSection from '@/components/ui/AdvancedSection';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import ProductGlyph from '@/components/brand/ProductGlyph';
@@ -27,7 +28,9 @@ import {
   NODE_DEFS,
   NODE_TYPES,
   defaultConfig,
+  formFields,
   isHookTrigger,
+  isNoteType,
   isTriggerType,
   nodeOutputs,
   type FlowEventType,
@@ -40,6 +43,7 @@ import RunsPanel, { type RunDetail } from './RunsPanel';
 import StepTest from './StepTest';
 import VersionsPanel from './VersionsPanel';
 import { autoConnectHandle, CATEGORY_ORDER, flattenPaths, i18nKey, nodeApp } from './flow-ui';
+import { copyNodes, exportFileName, exportFlowJson, parseClipboard, pasteNodes } from '@/lib/flow-transfer';
 import { parseDbUtc } from '@/lib/utils';
 
 interface Props {
@@ -50,6 +54,20 @@ interface Props {
   refs: Omit<EditorRefs, 'flowId'>;
   /** Corrida a abrir al entrar (?run=<id>, p. ej. desde el email de falla). */
   initialRunId?: string | null;
+  /** Carpetas del workspace (ajustes del flow). */
+  folders?: Array<{ id: string; name: string }>;
+  /** Claves de las variables de quien edita ({{vars.x}} en el selector). */
+  variableKeys?: string[];
+}
+
+/** Respaldo del portapapeles (sin permiso de lectura del navegador): copiar y pegar entre pestañas. */
+const CLIPBOARD_KEY = 'flow.clipboard';
+/** Espera del autoguardado después del último cambio. */
+const AUTOSAVE_MS = 1200;
+
+function isTypingTarget(el: EventTarget | null): boolean {
+  if (!(el instanceof HTMLElement)) return false;
+  return el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName);
 }
 
 const nodeTypes = { flow: FlowNodeCard };
@@ -176,6 +194,12 @@ function summaryOf(type: FlowNodeType, cfg: Record<string, unknown>, t: ReturnTy
       return s(cfg.url);
     case 'app.talk_message':
       return s(cfg.channel) ? `#${s(cfg.channel).replace(/^#/, '')}` : '';
+    case 'trigger.poll':
+      return `${t(`options.${s(cfg.source) || 'rss'}`)} · ${s(cfg.url) || s(cfg.spreadsheetId)}`.slice(0, 80);
+    case 'trigger.form':
+      return s(cfg.title);
+    case 'ai.extract':
+      return t(`options.${s(cfg.mode) || 'extract'}`);
     default:
       return '';
   }
@@ -230,16 +254,36 @@ function triggerSample(type: FlowNodeType, cfg: Record<string, unknown>): unknow
       } catch {
         return {};
       }
+    case 'trigger.poll':
+      if (cfg.source === 'google_sheets') return { rowNumber: 2 };
+      if (cfg.source === 'json') return { id: '' };
+      return { id: '', title: '', link: '', published: '', summary: '', author: '', feed: { url: '' } };
+    case 'trigger.form': {
+      const fields: Record<string, unknown> = {};
+      for (const f of formFields(cfg)) fields[f.key] = f.type === 'checkbox' ? false : f.type === 'number' ? 0 : '';
+      return { fields, submittedAt: '', form: { title: String(cfg.title ?? '') } };
+    }
     default:
       return {};
   }
 }
 
-function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdit, refs: baseRefs, initialRunId }: Props) {
+function Editor({
+  flow: initialFlow,
+  webhooks: initialHooks,
+  lastOutputs,
+  canEdit,
+  refs: baseRefs,
+  initialRunId,
+  folders = [],
+  variableKeys = [],
+}: Props) {
   const t = useTranslations('flow');
+  const locale = useLocale();
   const rf = useReactFlow();
   const router = useRouter();
-  const initial = useMemo(() => toCanvas(initialFlow.graph), [initialFlow.graph]);
+  // El canvas muestra el borrador si hay uno (lo que corre sigue siendo lo publicado).
+  const initial = useMemo(() => toCanvas(initialFlow.draft?.graph ?? initialFlow.graph), [initialFlow.draft, initialFlow.graph]);
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowCanvasNode>(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initial.edges);
   const [flow, setFlow] = useState(initialFlow);
@@ -254,6 +298,16 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
   const [errorFlowId, setErrorFlowId] = useState<string>(initialFlow.errorFlowId ?? '');
   const [failureAlerts, setFailureAlerts] = useState(initialFlow.failureAlerts);
   const [autoReplay, setAutoReplay] = useState(initialFlow.autoReplay);
+  const [folderId, setFolderId] = useState(initialFlow.folderId ?? '');
+  const [floodLimit, setFloodLimit] = useState(initialFlow.floodLimit);
+  const [maxConcurrency, setMaxConcurrency] = useState(initialFlow.maxConcurrency);
+  const [draftRev, setDraftRev] = useState(initialFlow.draftRev);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  /** Cambios hechos después de empezar a guardar (el autoguardado no los da por guardados). */
+  const changeSeq = useRef(0);
+  const savingRef = useRef<Promise<boolean> | null>(null);
   // Credenciales creadas desde el editor (modal del nodo) se suman a las del server.
   const [newCreds, setNewCreds] = useState<EditorRefs['credentials']>([]);
   const refs = useMemo<EditorRefs>(
@@ -262,6 +316,7 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
   );
   const [paletteOpen, setPaletteOpen] = useState(false);
   const testRef = useRef<HTMLDialogElement>(null);
+  const hasDraftRef = useRef(Boolean(initialFlow.draft));
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
@@ -280,6 +335,10 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
   const readOnly = !canEdit;
 
   const graph = useMemo(() => toGraph(nodes, edges), [nodes, edges]);
+  const hasDraft = Boolean(flow.draft);
+  useEffect(() => {
+    hasDraftRef.current = hasDraft;
+  }, [hasDraft]);
   const selected = nodes.find((n) => n.id === selectedId) ?? null;
   const trigger = nodes.find((n) => isTriggerType(n.data.type)) ?? null;
 
@@ -309,6 +368,7 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
   );
 
   const markDirty = useCallback(() => {
+    changeSeq.current += 1;
     setDirty(true);
     setMessage(null);
   }, []);
@@ -349,7 +409,14 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
       const ids = new Set(nodes.map((n) => n.id));
       const id = newNodeId(type, ids);
       const anchor = selected ?? nodes[nodes.length - 1];
-      const pos = position ?? (anchor ? { x: anchor.position.x, y: anchor.position.y + 140 } : { x: 0, y: 0 });
+      // Una nota va al costado (no se conecta); un paso, debajo del elegido.
+      const pos =
+        position ??
+        (anchor
+          ? isNoteType(type)
+            ? { x: anchor.position.x + NODE_W + 60, y: anchor.position.y }
+            : { x: anchor.position.x, y: anchor.position.y + 140 }
+          : { x: 0, y: 0 });
       // El nodo nuevo queda seleccionado (también para React Flow, que si no
       // emite un cambio de selección vacío y cerraría el panel).
       setNodes((list) => [
@@ -358,7 +425,7 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
       ]);
       // Conecta automáticamente desde el nodo seleccionado: con una sola salida,
       // por esa; con varias (Si, Switch, Aprobación), por la primera libre.
-      if (!position && anchor) {
+      if (!position && anchor && !isNoteType(type)) {
         const handle = autoConnectHandle(
           nodeOutputs({ type: anchor.data.type, config: anchor.data.config }),
           edges.filter((e) => e.source === anchor.id).map((e) => e.sourceHandle ?? 'out'),
@@ -410,7 +477,7 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
     (c) => {
       if (c.source === c.target) return false;
       const target = nodes.find((n) => n.id === c.target);
-      if (!target || isTriggerType(target.data.type)) return false;
+      if (!target || isTriggerType(target.data.type) || isNoteType(target.data.type)) return false;
       // Sin ciclos: el destino no puede llegar al origen.
       const stack = [c.target];
       const seen = new Set<string>();
@@ -436,40 +503,118 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
     [setNodes, setEdges, markDirty],
   );
 
+  /**
+   * Guarda el borrador y los ajustes (autoguardado y ⌘S). El grafo va como
+   * borrador: lo que corre no cambia hasta publicar. Si hubo cambios mientras
+   * guardaba, sigue marcado como sin guardar (el autoguardado vuelve a correr).
+   */
   const save = useCallback(async (): Promise<boolean> => {
     if (readOnly) return false;
-    setSaving(true);
+    if (savingRef.current) await savingRef.current;
+    const seq = changeSeq.current;
+    const run = (async () => {
+      setSaving(true);
+      const res = await fetch(`/api/flow/flows/${flow.id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          description,
+          draft: graph,
+          draftRev,
+          version: flow.version,
+          errorFlowId: errorFlowId || null,
+          failureAlerts,
+          autoReplay,
+          folderId: folderId || null,
+          floodLimit: Math.max(0, Math.floor(Number(floodLimit) || 0)),
+          maxConcurrency: Math.max(0, Math.floor(Number(maxConcurrency) || 0)),
+        }),
+      }).catch(() => null);
+      const data = (await res?.json().catch(() => null)) as
+        | { flow?: FlowDto; webhooks?: Props['webhooks']; error?: string; nodeId?: string }
+        | null;
+      setSaving(false);
+      if (!res?.ok || !data?.flow) {
+        const code = data?.error ?? 'generic';
+        const text = t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic');
+        setMessage({ kind: 'error', text: data?.nodeId ? `${text} (${data.nodeId})` : text });
+        if (data?.nodeId) setSelectedId(data.nodeId);
+        return false;
+      }
+      setFlow(data.flow);
+      setDraftRev(data.flow.draftRev);
+      hasDraftRef.current = Boolean(data.flow.draft);
+      setWebhooks(data.webhooks ?? []);
+      if (changeSeq.current === seq) setDirty(false);
+      setMessage({ kind: 'ok', text: data.flow.draft ? t('draft.saved') : t('editor.saved') });
+      return true;
+    })();
+    savingRef.current = run;
+    const ok = await run;
+    savingRef.current = null;
+    return ok;
+  }, [readOnly, flow.id, flow.version, name, description, graph, draftRev, errorFlowId, failureAlerts, autoReplay, folderId, floodLimit, maxConcurrency, t]);
+
+  // Autoguardado: un rato después del último cambio (solo el borrador; publicar es aparte).
+  useEffect(() => {
+    if (!dirty || readOnly) return;
+    const timer = window.setTimeout(() => void save(), AUTOSAVE_MS);
+    return () => window.clearTimeout(timer);
+  }, [dirty, readOnly, save]);
+
+  /** Publica el borrador: pasa a ser lo que corre (versión nueva). */
+  const publish = useCallback(async () => {
+    if (readOnly) return;
+    if (dirty && !(await save())) return;
+    setPublishing(true);
     setMessage(null);
     const res = await fetch(`/api/flow/flows/${flow.id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        name,
-        description,
-        graph,
-        version: flow.version,
-        errorFlowId: errorFlowId || null,
-        failureAlerts,
-        autoReplay,
-      }),
+      body: JSON.stringify({ publish: true }),
     }).catch(() => null);
     const data = (await res?.json().catch(() => null)) as
       | { flow?: FlowDto; webhooks?: Props['webhooks']; error?: string; nodeId?: string }
       | null;
-    setSaving(false);
+    setPublishing(false);
     if (!res?.ok || !data?.flow) {
       const code = data?.error ?? 'generic';
       const text = t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic');
       setMessage({ kind: 'error', text: data?.nodeId ? `${text} (${data.nodeId})` : text });
       if (data?.nodeId) setSelectedId(data.nodeId);
-      return false;
+      return;
     }
     setFlow(data.flow);
+    setDraftRev(data.flow.draftRev);
     setWebhooks(data.webhooks ?? []);
+    setMessage({ kind: 'ok', text: t('draft.published', { n: data.flow.version }) });
+  }, [readOnly, dirty, save, flow.id, t]);
+
+  /** Descarta el borrador: el canvas vuelve a lo publicado. */
+  const discardDraft = useCallback(async () => {
+    setConfirmDiscard(false);
+    const res = await fetch(`/api/flow/flows/${flow.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ draft: null }),
+    }).catch(() => null);
+    const data = (await res?.json().catch(() => null)) as { flow?: FlowDto; webhooks?: Props['webhooks'] } | null;
+    if (!res?.ok || !data?.flow) {
+      setMessage({ kind: 'error', text: t('errors.generic') });
+      return;
+    }
+    const canvas = toCanvas(data.flow.graph);
+    setNodes(canvas.nodes);
+    setEdges(canvas.edges);
+    setFlow(data.flow);
+    setDraftRev(data.flow.draftRev);
+    setWebhooks(data.webhooks ?? []);
+    setSelectedId(null);
+    changeSeq.current += 1;
     setDirty(false);
-    setMessage({ kind: 'ok', text: t('editor.saved') });
-    return true;
-  }, [readOnly, flow.id, flow.version, name, description, graph, errorFlowId, failureAlerts, autoReplay, t]);
+    setMessage({ kind: 'ok', text: t('draft.discarded') });
+  }, [flow.id, setNodes, setEdges, t]);
 
   /** Restaurar una versión: el canvas toma el grafo restaurado. */
   const onRestored = useCallback(
@@ -478,8 +623,10 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
       setNodes(canvas.nodes);
       setEdges(canvas.edges);
       setFlow(next);
+      setDraftRev(next.draftRev);
       setWebhooks(hooks);
       setSelectedId(null);
+      changeSeq.current += 1;
       setDirty(false);
       setTab('editor');
       setMessage({ kind: 'ok', text: t('versions.restored', { n: next.version }) });
@@ -487,9 +634,9 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
     [setNodes, setEdges, t],
   );
 
+  // Prender o apagar no publica el borrador: corre lo publicado.
   const setEnabled = useCallback(
     async (enabled: boolean) => {
-      if (dirty && !(await save())) return;
       const res = await fetch(`/api/flow/flows/${flow.id}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
@@ -499,7 +646,7 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
       if (data?.flow) setFlow(data.flow);
       else setMessage({ kind: 'error', text: t('errors.generic') });
     },
-    [dirty, save, flow.id, t],
+    [flow.id, t],
   );
 
   // ⌘S guarda.
@@ -513,6 +660,96 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [save]);
+
+  /** Copia los pasos elegidos (al portapapeles y, de respaldo, a localStorage). */
+  const copySelection = useCallback(async (): Promise<number> => {
+    const ids = nodes.filter((n) => n.selected).map((n) => n.id);
+    if (selectedId && !ids.includes(selectedId)) ids.push(selectedId);
+    if (!ids.length) return 0;
+    const text = JSON.stringify(copyNodes(graph, ids));
+    try {
+      window.localStorage.setItem(CLIPBOARD_KEY, text);
+    } catch {
+      // Sin almacenamiento: queda solo el portapapeles.
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Sin permiso de portapapeles: queda el respaldo.
+    }
+    setMessage({ kind: 'ok', text: t('clipboard.copied', { n: ids.length }) });
+    return ids.length;
+  }, [nodes, selectedId, graph, t]);
+
+  /** Pega pasos copiados (de este u otro flow): ids nuevos, conexiones internas y referencias renombradas. */
+  const pasteFromClipboard = useCallback(async () => {
+    if (readOnly) return;
+    let text = '';
+    try {
+      text = await navigator.clipboard.readText();
+    } catch {
+      text = '';
+    }
+    let clip = parseClipboard(text);
+    if (!clip) {
+      try {
+        clip = parseClipboard(window.localStorage.getItem(CLIPBOARD_KEY) ?? '');
+      } catch {
+        clip = null;
+      }
+    }
+    if (!clip || clip.nodes.length === 0) {
+      setMessage({ kind: 'error', text: t('clipboard.empty') });
+      return;
+    }
+    const { graph: next, added } = pasteNodes(graph, clip);
+    if (!added.length) {
+      setMessage({ kind: 'error', text: t('clipboard.onlyTrigger') });
+      return;
+    }
+    const canvas = toCanvas(next);
+    const addedSet = new Set(added);
+    setNodes(canvas.nodes.map((n) => ({ ...n, selected: addedSet.has(n.id) })));
+    setEdges(canvas.edges);
+    setSelectedId(added.length === 1 ? added[0] : null);
+    markDirty();
+    setMessage({ kind: 'ok', text: t('clipboard.pasted', { n: added.length }) });
+  }, [readOnly, graph, setNodes, setEdges, markDirty, t]);
+
+  // ⌘C / ⌘V / ⌘D en el canvas (no mientras se escribe en un campo).
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (!(e.metaKey || e.ctrlKey) || isTypingTarget(e.target) || tab !== 'editor') return;
+      if (window.getSelection()?.toString()) return;
+      const k = e.key.toLowerCase();
+      if (k === 'c') {
+        void copySelection();
+      } else if (k === 'v' && !readOnly) {
+        e.preventDefault();
+        void pasteFromClipboard();
+      } else if (k === 'd' && !readOnly) {
+        e.preventDefault();
+        void copySelection().then((n) => {
+          if (n) void pasteFromClipboard();
+        });
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [copySelection, pasteFromClipboard, readOnly, tab]);
+
+  function exportJson() {
+    setMoreOpen(false);
+    const data = JSON.stringify(exportFlowJson({ name, description, graph }), null, 2);
+    const url = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = exportFileName(name);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
 
   // Aviso al salir con cambios sin guardar.
   useEffect(() => {
@@ -585,10 +822,11 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
     }
     if (dirty && !(await save())) return;
     setRunning(true);
+    // Con borrador, se prueba el borrador (con el acceso de quien prueba), no lo publicado.
     const res = await fetch(`/api/flow/flows/${flow.id}/run`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ input: input && typeof input === 'object' && !Array.isArray(input) ? input : {} }),
+      body: JSON.stringify({ input: input && typeof input === 'object' && !Array.isArray(input) ? input : {}, draft: hasDraftRef.current }),
     }).catch(() => null);
     const data = (await res?.json().catch(() => null)) as { run?: RunDetail; error?: string } | null;
     setRunning(false);
@@ -638,6 +876,7 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
           }
       }
     }
+    for (const k of variableKeys) out.push({ path: `vars.${k}`, sample: undefined });
     out.push(
       { path: 'flow.name', sample: name },
       { path: 'run.id', sample: undefined },
@@ -646,7 +885,7 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
       { path: 'now', sample: undefined },
     );
     return out;
-  }, [selected, graph, samples, name]);
+  }, [selected, graph, samples, name, variableKeys]);
 
   const paletteGroups = useMemo(() => {
     const q = paletteQ.trim().toLowerCase();
@@ -700,6 +939,50 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
 
   function triggerExtra() {
     if (!selected) return null;
+    if (selected.data.type === 'trigger.form') {
+      const token = webhooks.find((w) => w.nodeId === selected.id)?.token;
+      const formUrl = token ? `${typeof window === 'undefined' ? '' : window.location.origin}/${locale}/flow/form/${token}` : null;
+      return (
+        <div className="ui-field">
+          <p className="label">{t('form.url')}</p>
+          {formUrl && !dirty ? (
+            <>
+              <div className="ui-input-group">
+                <input className="input data" readOnly value={formUrl} aria-label={t('form.url')} onFocus={(e) => e.target.select()} />
+                <button type="button" className="btn btn-secondary" onClick={() => void copyHook(formUrl)}>
+                  {copied ? t('editor.copied') : t('editor.copy')}
+                </button>
+              </div>
+              <a className="flow-link" href={formUrl} target="_blank" rel="noreferrer">
+                {t('form.open')}
+              </a>
+            </>
+          ) : (
+            <p className="ui-help">{t('editor.webhookSaveFirst')}</p>
+          )}
+          <p className="ui-help">{flow.enabled ? t('form.hint') : t('form.offHint')}</p>
+        </div>
+      );
+    }
+    if (selected.data.type === 'trigger.poll') {
+      const p = flow.poll;
+      return (
+        <div className="ui-field">
+          <p className="ui-help">{t('poll.hint')}</p>
+          {p?.checkedAt && (
+            <p className="ui-help" suppressHydrationWarning>
+              {t('poll.checked', { time: parseDbUtc(p.checkedAt).toLocaleString(), n: p.seen })}
+            </p>
+          )}
+          {p?.error && (
+            <p className="ui-error" role="note">
+              {t('poll.error', { error: p.error })}
+            </p>
+          )}
+          {!flow.enabled && <p className="ui-help">{t('poll.offHint')}</p>}
+        </div>
+      );
+    }
     if (isHookTrigger(selected.data.type)) {
       const url = hookUrl(selected.id);
       return (
@@ -756,7 +1039,7 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
           />
           <div className="flow-bar-right">
             <span className={`flow-msg${message ? ` is-${message.kind}` : ''}`} role="status">
-              {message?.text ?? (dirty ? t('editor.unsaved') : '')}
+              {saving ? t('editor.saving') : (message?.text ?? (dirty ? t('editor.unsaved') : ''))}
               {message && shownRun && tab === 'editor' && (
                 <button type="button" className="flow-link" onClick={() => setTab('runs')}>
                   {t('editor.viewSteps')}
@@ -781,15 +1064,54 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
                 <button
                   type="button"
                   className="btn btn-primary"
-                  onClick={() => void save()}
-                  disabled={!dirty && !saving}
-                  aria-busy={saving || undefined}
-                  aria-keyshortcuts="Meta+S Control+S"
+                  onClick={() => void publish()}
+                  disabled={(!hasDraft && !dirty) || publishing}
+                  aria-busy={publishing || undefined}
+                  title={t('draft.publishHint')}
                 >
-                  {saving ? t('editor.saving') : t('editor.save')}
+                  {publishing ? t('draft.publishing') : t('draft.publish')}
                 </button>
               </>
             )}
+            <RowMenu
+              className="flow-row-menu"
+              open={moreOpen}
+              label={t('editor.more')}
+              onToggle={setMoreOpen}
+              items={[
+                { label: t('import.export'), onSelect: exportJson },
+                ...(canEdit
+                  ? [
+                      {
+                        label: t('clipboard.copy'),
+                        onSelect: () => {
+                          setMoreOpen(false);
+                          void copySelection();
+                        },
+                      },
+                      {
+                        label: t('clipboard.paste'),
+                        onSelect: () => {
+                          setMoreOpen(false);
+                          void pasteFromClipboard();
+                        },
+                      },
+                    ]
+                  : []),
+                ...(canEdit && hasDraft
+                  ? [
+                      {
+                        label: t('draft.discard'),
+                        danger: true,
+                        onSelect: () => {
+                          setMoreOpen(false);
+                          setConfirmDiscard(true);
+                        },
+                      },
+                    ]
+                  : []),
+              ]}
+            />
           </div>
         </div>
         <div className="ui-tabs flow-tabs" role="tablist" aria-label={t('editor.nameLabel')} onKeyDown={onTabKey}>
@@ -809,6 +1131,14 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
             </button>
           ))}
         </div>
+        {hasDraft && canEdit && (
+          <div className="flow-draft-bar" role="note">
+            <span>{t('draft.banner', { n: flow.version })}</span>
+            <button type="button" className="flow-link" onClick={() => setConfirmDiscard(true)}>
+              {t('draft.discard')}
+            </button>
+          </div>
+        )}
       </header>
 
       <div id="flow-tabpanel" role="tabpanel" aria-labelledby={`flow-tab-${tab}`} className="flow-tabpanel">
@@ -1005,7 +1335,76 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
                     </label>
                     <p className="ui-help">{t('editor.autoReplayHint')}</p>
                   </div>
-                  <AdvancedSection storageKey="flow.settings" hint={errorFlowId ? t('editor.advancedChanged', { n: 1 }) : undefined}>
+                  {folders.length > 0 && (
+                    <div className="ui-field">
+                      <label className="label" htmlFor="flow-folder">
+                        {t('folders.folder')}
+                      </label>
+                      <select
+                        id="flow-folder"
+                        className="select"
+                        value={folderId}
+                        disabled={readOnly}
+                        onChange={(e) => {
+                          setFolderId(e.target.value);
+                          markDirty();
+                        }}
+                      >
+                        <option value="">{t('folders.none')}</option>
+                        {folders.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  <AdvancedSection
+                    storageKey="flow.settings"
+                    hint={
+                      [errorFlowId, floodLimit, maxConcurrency].filter(Boolean).length
+                        ? t('editor.advancedChanged', { n: [errorFlowId, floodLimit, maxConcurrency].filter(Boolean).length })
+                        : undefined
+                    }
+                  >
+                    <div className="ui-field">
+                      <label className="label" htmlFor="flow-flood">
+                        {t('editor.floodLimit')}
+                      </label>
+                      <input
+                        id="flow-flood"
+                        className="input"
+                        type="number"
+                        min={0}
+                        max={10000}
+                        value={floodLimit}
+                        readOnly={readOnly}
+                        onChange={(e) => {
+                          setFloodLimit(Math.max(0, Math.floor(Number(e.target.value) || 0)));
+                          markDirty();
+                        }}
+                      />
+                      <p className="ui-help">{t('editor.floodLimitHint')}</p>
+                    </div>
+                    <div className="ui-field">
+                      <label className="label" htmlFor="flow-concurrency">
+                        {t('editor.maxConcurrency')}
+                      </label>
+                      <input
+                        id="flow-concurrency"
+                        className="input"
+                        type="number"
+                        min={0}
+                        max={20}
+                        value={maxConcurrency}
+                        readOnly={readOnly}
+                        onChange={(e) => {
+                          setMaxConcurrency(Math.min(20, Math.max(0, Math.floor(Number(e.target.value) || 0))));
+                          markDirty();
+                        }}
+                      />
+                      <p className="ui-help">{t('editor.maxConcurrencyHint')}</p>
+                    </div>
                     <div className="ui-field">
                       <label className="label" htmlFor="flow-error-flow">
                         {t('editor.errorFlow')}
@@ -1096,6 +1495,17 @@ function Editor({ flow: initialFlow, webhooks: initialHooks, lastOutputs, canEdi
           </div>
         </form>
       </dialog>
+
+      <ConfirmDialog
+        open={confirmDiscard}
+        danger
+        title={t('draft.discardTitle')}
+        body={t('draft.discardBody', { n: flow.version })}
+        confirmLabel={t('draft.discard')}
+        cancelLabel={t('editor.cancel')}
+        onConfirm={() => void discardDraft()}
+        onCancel={() => setConfirmDiscard(false)}
+      />
 
       <ConfirmDialog
         open={confirmDelete}

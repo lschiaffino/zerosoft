@@ -47,11 +47,11 @@ const session = vi.hoisted(() => ({ user: null as null | Record<string, unknown>
 vi.mock('@/lib/session', () => ({ getCurrentUser: async () => session.user }));
 
 const testStepRoute = await import('@/app/api/flow/flows/[id]/test-step/route');
-const pinsRoute = await import('@/app/api/flow/flows/[id]/pins/route');
+const pinsRoute = await import('@/lib/routes/flow/flows/[id]/pins/route');
 const resumeRoute = await import('@/app/api/flow/resume/[token]/route');
 const approvalRoute = await import('@/app/api/flow/approvals/[token]/route');
 const tablesRoute = await import('@/app/api/flow/tables/route');
-const rowsRoute = await import('@/app/api/flow/tables/[id]/rows/route');
+const rowsRoute = await import('@/lib/routes/flow/tables/[id]/rows/route');
 
 beforeEach(() => {
   vi.stubEnv('RATE_LIMIT_DISABLED', 'true');

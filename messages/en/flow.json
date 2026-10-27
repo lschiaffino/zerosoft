@@ -11,7 +11,9 @@
   "sidebar": {
     "flows": "Flows",
     "credentials": "Credentials",
-    "tables": "Tables"
+    "tables": "Tables",
+    "runs": "Run history",
+    "variables": "Variables"
   },
   "list": {
     "emptyTemplates": "See templates",
@@ -32,7 +34,19 @@
     "delete": "Delete",
     "copyName": "{name} (copy)",
     "deleteTitle": "Delete flow?",
-    "confirmDelete": "Delete \"{name}\" and all its runs? This can't be undone."
+    "confirmDelete": "Delete \"{name}\" and all its runs? This can't be undone.",
+    "search": "Search flows",
+    "statusFilter": "Filter flows",
+    "filters": {
+      "all": "All flows",
+      "on": "On",
+      "off": "Off",
+      "failing": "Last run failed",
+      "held": "With held runs",
+      "draft": "With unpublished changes"
+    },
+    "noMatchTitle": "No flows match",
+    "noMatchBody": "Try another search or clear the filter."
   },
   "templates": {
     "title": "Templates",
@@ -102,6 +116,22 @@
       "webhookAgentReply": {
         "name": "Webhook question → agent → Slack",
         "desc": "An agent answers questions sent to a webhook and posts the answer to Slack."
+      },
+      "formToCrm": {
+        "name": "Form answers to the CRM",
+        "desc": "Hosted form: each answer becomes a CRM contact and an email to you."
+      },
+      "rssToSlack": {
+        "name": "New posts from a feed to Slack",
+        "desc": "Checks an RSS feed every 15 minutes and posts each new item to a channel."
+      },
+      "sheetRowToCrm": {
+        "name": "New Google Sheets rows to the CRM",
+        "desc": "Each new row of a sheet becomes a CRM contact (columns Name and Email)."
+      },
+      "classifyInbound": {
+        "name": "Sort incoming messages with AI",
+        "desc": "AI classifies each message (sales, support, billing) and a Switch routes it."
       }
     }
   },
@@ -237,6 +267,19 @@
       "insert": "Adds one row with these values. Columns you leave out stay empty.",
       "upsert": "Updates the first row where the column equals the value, or adds one. Good for keeping state or skipping duplicates.",
       "delete": "Deletes every row where the column equals the value."
+    },
+    "more": "More actions",
+    "noteEmpty": "Empty note",
+    "noteHint": "Notes explain the flow to whoever opens it. They don't connect or run.",
+    "floodLimit": "Hold runs after (per 10 minutes)",
+    "floodLimitHint": "Automatic runs past this number in 10 minutes wait for you in Runs. 0 = no limit (the workspace cap of runs per hour still applies).",
+    "maxConcurrency": "Runs at the same time",
+    "maxConcurrencyHint": "1 runs queued runs one after another, in order. 0 = no limit. Tests and webhooks that reply right away are not queued.",
+    "extractHint": "Name each field and say what it is. The step returns them as '{{nodes.<id>.output.<field>}}', or empty when the text does not say it. Counts toward your AI quota.",
+    "classifyHint": "One category per line. The step returns '{{nodes.<id>.output.category}}', a confidence and the reason: use a Switch after it. Counts toward your AI quota.",
+    "sheetsHint": {
+      "lookup": "Finds the rows where the column (by header) equals the value. Returns the first one and its rowNumber.",
+      "update": "Finds the first row where the column equals the value and writes the values by header. If none matches, nothing changes."
     }
   },
   "categories": {
@@ -246,7 +289,8 @@
     "action": "Action",
     "app": "Apps",
     "ai": "AI",
-    "integration": "Integrations"
+    "integration": "Integrations",
+    "note": "Notes"
   },
   "nodes": {
     "trigger_event": {
@@ -522,6 +566,34 @@
         "template": "Row template (name)",
         "newTitle": "New title"
       }
+    },
+    "trigger_poll": {
+      "title": "New items (RSS, API, Sheets)",
+      "desc": "Checks a feed, a JSON URL or a Google Sheet every few minutes and runs once per new item."
+    },
+    "trigger_form": {
+      "title": "Form",
+      "desc": "A hosted form with its own link. Each answer starts the flow.",
+      "fields": {
+        "title": "Form title",
+        "description": "Intro text"
+      }
+    },
+    "ai_extract": {
+      "title": "AI: extract or classify",
+      "desc": "Pulls named fields out of text, or puts it in one of your categories. Returns structured data. Counts toward your AI quota.",
+      "fields": {
+        "mode": "Task",
+        "fields": "Fields (name and what it is)",
+        "instructions": "Extra instructions"
+      }
+    },
+    "note_sticky": {
+      "title": "Note",
+      "desc": "A note on the canvas to explain the flow. It does not run.",
+      "fields": {
+        "text": "Note"
+      }
     }
   },
   "fields": {
@@ -598,7 +670,23 @@
     "username": "Display name",
     "chatId": "Chat ID",
     "parseMode": "Format",
-    "onError": "If this step fails"
+    "onError": "If this step fails",
+    "itemsPath": "List in the response",
+    "idField": "Unique field of each item",
+    "googleCredentialId": "Google credential",
+    "everyMinutes": "Check every (minutes, 5 to 1440)",
+    "formFields": "Fields",
+    "submitLabel": "Button text",
+    "successMessage": "Message after sending",
+    "paginate": "Pagination",
+    "nextUrlPath": "Next page URL (field or header.link)",
+    "pageParam": "Page parameter",
+    "maxPages": "Max pages (up to 20)",
+    "lookupColumn": "Column to search",
+    "lookupValue": "Value to find",
+    "values": "Values to write (column → value)",
+    "categories": "Categories (one per line)",
+    "color": "Color"
   },
   "options": {
     "all": "All conditions",
@@ -660,7 +748,20 @@
     "page_rename": "Rename page",
     "page_archive": "Move page to trash",
     "row_create": "Add row",
-    "row_update": "Update row"
+    "row_update": "Update row",
+    "rss": "RSS or Atom feed",
+    "google_sheets": "New rows in Google Sheets",
+    "extract": "Extract fields",
+    "classify": "Classify",
+    "off": "Off",
+    "next_url": "Follow the next page URL",
+    "page": "Page number",
+    "lookup": "Look up rows",
+    "update": "Update a row",
+    "yellow": "Yellow",
+    "blue": "Blue",
+    "green": "Green",
+    "pink": "Pink"
   },
   "handles": {
     "out": "Next",
@@ -781,7 +882,9 @@
       "trigger_schedule": "Schedule",
       "trigger_stripe": "Stripe",
       "subflow": "Sub-flow",
-      "error": "Error flow"
+      "error": "Error flow",
+      "trigger_poll": "New items",
+      "trigger_form": "Form"
     },
     "rerun": "Re-run",
     "rerunOf": "Re-run of {id}. Earlier steps reuse their previous output.",
@@ -837,7 +940,9 @@
     "invalid_person": "That person is not in the workspace. Use their email.",
     "invalid_value": "A value does not match its property type (number or date).",
     "owner_changed": "This run used the access of the person who owned the flow back then. It can only run again while that person owns the flow.",
-    "subflow_other_owner": "Run flow only calls flows created by the same person as this one."
+    "subflow_other_owner": "Run flow only calls flows created by the same person as this one.",
+    "ai_disabled": "AI isn't set up in this workspace, so this AI step can't run.",
+    "quota_exceeded": "The AI quota for this month is used up. The step runs again when it renews."
   },
   "errors": {
     "not_flow_owner": "Only the person who created this flow can do this: it uses the data captured with their access.",
@@ -874,7 +979,17 @@
     "pin_too_large": "That data is too large to pin (max 64 KB per step).",
     "input_too_large": "The sample data is too large.",
     "subflow_other_owner": "Run flow only calls flows created by the same person as this one.",
-    "owner_changed": "This run used the access of the person who owned the flow back then. It can only run again while that person owns the flow."
+    "owner_changed": "This run used the access of the person who owned the flow back then. It can only run again while that person owns the flow.",
+    "invalid_folder": "That folder no longer exists.",
+    "no_draft": "There are no changes to publish.",
+    "note_connected": "Notes can't be connected to steps.",
+    "invalid_name": "Write a name.",
+    "too_many_folders": "You reached the limit of 200 folders.",
+    "ai_disabled": "AI isn't set up in this workspace.",
+    "quota_exceeded": "You used up the AI quota for this month.",
+    "ai_invalid_flow": "AI couldn't build a valid flow from that. Add more detail or start from a template.",
+    "ai_error": "AI didn't answer. Try again in a minute.",
+    "prompt_too_short": "Describe it in at least a sentence."
   },
   "onError": {
     "stop": "Stop the flow",
@@ -888,7 +1003,7 @@
     "loadError": "Couldn’t load the versions.",
     "emptyTitle": "No versions yet",
     "title": "Versions",
-    "subtitle": "A version is saved every time the flow's nodes change.",
+    "subtitle": "A version is saved every time a change to the nodes is published.",
     "loading": "Loading…",
     "current": "Current",
     "first": "First version",
@@ -904,7 +1019,8 @@
     "error": "Couldn't restore this version.",
     "restored": "Restored. Now at version {n}.",
     "edgesAdded": "{n, plural, one {One new connection} =2 {Two new connections} =3 {Three new connections} other {# new connections}}",
-    "edgesRemoved": "{n, plural, one {One connection removed} =2 {Two connections removed} =3 {Three connections removed} other {# connections removed}}"
+    "edgesRemoved": "{n, plural, one {One connection removed} =2 {Two connections removed} =3 {Three connections removed} other {# connections removed}}",
+    "by": "by {name}"
   },
   "credentials": {
     "emptyTitle": "No credentials yet",
@@ -1105,5 +1221,202 @@
     "workspaceTemplates": "Workspace templates",
     "builtinTemplates": "Built-in templates",
     "templateHelp": "Variables like {{page.title}} in the template are filled with the trigger data."
+  },
+  "folders": {
+    "title": "Folders",
+    "all": "All",
+    "new": "New folder",
+    "actions": "Folder actions",
+    "rename": "Rename folder",
+    "delete": "Delete folder",
+    "move": "Move to folder",
+    "moveTitle": "Move flow",
+    "folder": "Folder",
+    "none": "No folder",
+    "noneYet": "Create a folder from the list first.",
+    "newTitle": "New folder",
+    "renameTitle": "Rename folder",
+    "deleteTitle": "Delete folder?",
+    "confirmDelete": "Delete \"{name}\"? Its flows stay, without a folder.",
+    "emptyTitle": "This folder is empty",
+    "emptyBody": "Create a flow here or move one from the row menu."
+  },
+  "import": {
+    "button": "Import",
+    "export": "Export JSON",
+    "title": "Import a flow",
+    "submit": "Import",
+    "hint": "Use a JSON exported from Flow. It comes in off; credentials, tables and flows from another workspace are left empty to pick again.",
+    "file": "File",
+    "paste": "Or paste the JSON",
+    "invalid": "That isn't a flow JSON.",
+    "tooLarge": "The file is too large (max 1 MB)."
+  },
+  "ai": {
+    "build": "Build with AI",
+    "buildTitle": "Describe your flow",
+    "building": "Building…",
+    "buildSubmit": "Build flow",
+    "describe": "What should it do?",
+    "placeholder": "When someone fills the contact form, create the contact in the CRM and post it to #sales in Slack.",
+    "buildHint": "AI drafts the steps and opens the editor. The flow starts off: pick credentials, check each step and test it. Counts toward your AI quota.",
+    "explain": "Explain with AI",
+    "explaining": "Explaining…",
+    "explainTitle": "What went wrong",
+    "cause": "Likely cause:",
+    "explainHint": "Written by AI from the error and the step settings. Check it before changing anything."
+  },
+  "draft": {
+    "badge": "Draft",
+    "saved": "Draft saved",
+    "published": "Published. Now at version {n}.",
+    "discarded": "Changes discarded.",
+    "publish": "Publish",
+    "publishing": "Publishing…",
+    "publishHint": "Your edits save as a draft. Publish to make them run.",
+    "discard": "Discard changes",
+    "discardTitle": "Discard unpublished changes?",
+    "discardBody": "The editor goes back to version {n}, the one that runs.",
+    "banner": "Unpublished changes. Runs still use version {n} until you publish; \"Test run\" tries the draft."
+  },
+  "held": {
+    "count": "{n} held",
+    "banner": "{n, plural, one {One run is held} other {# runs are held}}: this flow went over its limit of runs per 10 minutes. Check them before letting them run.",
+    "release": "Run them",
+    "discard": "Discard",
+    "confirmDiscard": "Discard all held runs? They will not run."
+  },
+  "history": {
+    "title": "Run history",
+    "subtitle": "Every run of every flow, with usage, failures and the queue.",
+    "exportCsv": "Export CSV",
+    "exportJson": "Export JSON",
+    "usage": "Usage",
+    "range": "Range",
+    "lastDays": "{n, plural, one {Last 24 hours} other {Last # days}}",
+    "kpiRuns": "Runs",
+    "kpiSuccess": "Success rate",
+    "kpiFailed": "Failed",
+    "kpiSteps": "Steps run",
+    "kpiDuration": "Average time",
+    "chartLabel": "{n} runs in the last {days} days, per day",
+    "other": "Waiting or queued",
+    "queue": "Queue now",
+    "status": {
+      "success": "Succeeded",
+      "failed": "Failed",
+      "running": "Running",
+      "waiting": "Waiting",
+      "queued": "Queued",
+      "held": "Held"
+    },
+    "topErrors": "Most common errors",
+    "byFlow": "Runs per flow",
+    "noRunsRange": "No runs in this range.",
+    "runs": "Runs",
+    "search": "Search by run ID, error, flow or data",
+    "statusFilter": "Status",
+    "allStatuses": "Any status",
+    "flowFilter": "Flow",
+    "allFlows": "All flows",
+    "clear": "Clear filters",
+    "searchHint": "Search looks at the data of the runs captured with your access; other people's runs match by ID, error or flow name.",
+    "noMatchTitle": "No runs match",
+    "noMatchBody": "Try another search, status or range.",
+    "emptyTitle": "No runs yet",
+    "emptyBody": "Runs show up here when a flow is on and its trigger fires, or when you test one.",
+    "flow": "Flow",
+    "when": "Started",
+    "duration": "Time",
+    "error": "Error",
+    "more": "Load more",
+    "backToFlows": "Back to flows"
+  },
+  "variables": {
+    "title": "Variables",
+    "subtitle": "Values you reuse across your flows with '{{vars.name}}'.",
+    "scopeHint": "Your variables are yours: the flows that run with your access read them (the ones you created or last changed). For secrets use a credential.",
+    "create": "New variable",
+    "edit": "Edit variable",
+    "delete": "Delete",
+    "key": "Name",
+    "value": "Value",
+    "keyHint": "Letters, numbers and _ (starts with a letter or _).",
+    "valueHint": "Plain text, visible to you in the editor. Up to 10,000 characters.",
+    "emptyTitle": "No variables yet",
+    "emptyBody": "Save a value once (an API base URL, a team email) and use it in every flow with '{{vars.name}}'.",
+    "copyRef": "Copy reference",
+    "deleteTitle": "Delete variable?",
+    "confirmDelete": "Delete {key}? Flows that use it will get an empty value.",
+    "errors": {
+      "invalid_key": "Use letters, numbers and _ (start with a letter or _).",
+      "value_too_long": "The value is too long (max 10,000 characters).",
+      "duplicate_key": "You already have a variable with that name.",
+      "too_many_variables": "You reached the limit of 100 variables."
+    }
+  },
+  "clipboard": {
+    "copy": "Copy selected steps",
+    "paste": "Paste steps",
+    "copied": "{n, plural, one {One step copied} other {# steps copied}}. Paste it in this or another flow.",
+    "pasted": "{n, plural, one {One step pasted} other {# steps pasted}}.",
+    "empty": "Nothing to paste: copy steps first (select them and press Cmd+C).",
+    "onlyTrigger": "This flow already has a trigger: only the other steps can be pasted."
+  },
+  "form": {
+    "url": "Form link",
+    "open": "Open the form",
+    "hint": "Anyone with the link can fill it. Each answer runs the flow with '{{trigger.fields.<field>}}'.",
+    "offHint": "Turn the flow on and publish to open the form. While it is off, the link shows it as closed.",
+    "fieldLabel": "Field label",
+    "fieldType": "Type",
+    "required": "Required",
+    "options": "Options",
+    "optionsPlaceholder": "Options, separated by commas",
+    "addField": "Add field",
+    "types": {
+      "text": "Short text",
+      "email": "Email",
+      "number": "Number",
+      "textarea": "Long text",
+      "date": "Date",
+      "select": "Choice",
+      "checkbox": "Checkbox"
+    }
+  },
+  "poll": {
+    "hint": "Checks the source every few minutes and runs once per new item. The first check only marks what is already there.",
+    "checked": "Last check: {time} ({n} items seen).",
+    "error": "The last check failed: {error}",
+    "offHint": "Turn the flow on to start checking."
+  },
+  "curl": {
+    "import": "Import cURL",
+    "title": "Import a cURL command",
+    "label": "cURL command",
+    "submit": "Import",
+    "hint": "Paste the example from the API docs or \"Copy as cURL\" from the browser. It fills the method, URL, headers and body.",
+    "invalid": "That isn't a curl command with a URL.",
+    "authHint": "The command had a token in a header. Move it to a credential so it stays encrypted and out of the runs."
+  },
+  "formPage": {
+    "title": "Form",
+    "closed": "This form is closed.",
+    "sent": "Thanks! We got your answer.",
+    "again": "Send another answer",
+    "choose": "Choose…",
+    "submit": "Send",
+    "errors": {
+      "rate_limited": "Too many answers right now. Try again in a minute.",
+      "generic": "Couldn't send. Try again."
+    },
+    "fieldErrors": {
+      "required": "This field is required.",
+      "invalid_email": "Enter a valid email.",
+      "invalid_number": "Enter a number.",
+      "invalid_date": "Enter a date.",
+      "invalid_option": "Pick one of the options.",
+      "too_long": "This answer is too long."
+    }
   }
 }

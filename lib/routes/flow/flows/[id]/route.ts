@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { deleteFlow, getFlow, lastOutputs, listFlowWebhooks, rememberFlowLocale, updateFlow } from '@/lib/flow';
+import { deleteFlow, getFlow, lastOutputs, listFlowWebhooks, publishFlowDraft, rememberFlowLocale, saveFlowDraft, updateFlow } from '@/lib/flow';
 import { requestLocale } from '@/lib/request-locale';
 import { flowUpdateSchema } from '@/lib/flow-schema';
 import { canEditFlows, flowError, forbidden, notFound, realUserId, runViewer, unauthorized } from '@/lib/flow-http';
@@ -33,7 +33,33 @@ export async function PATCH(req: NextRequest, props: Ctx) {
   if (!canEditFlows(user)) return forbidden();
   const parsed = flowUpdateSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return flowError(400, 'invalid_input');
-  const res = await updateFlow(user.id, id, parsed.data, realUserId(user));
+  const { draft, draftRev, publish, ...patch } = parsed.data;
+  // Autoguardado: el borrador no cambia lo que corre ni de quién es el flow.
+  if (draft !== undefined) {
+    const d = await saveFlowDraft(user.id, id, draft, draftRev, realUserId(user));
+    if (!d.ok) {
+      if (d.error === 'not_found') return notFound();
+      if (d.error === 'conflict') return flowError(409, 'conflict');
+      return flowError(400, d.error, { nodeId: d.nodeId });
+    }
+  }
+  // Publicar: el borrador pasa a correr (quien publica queda como dueño si cambió el grafo).
+  if (publish) {
+    const p = await publishFlowDraft(user.id, id, realUserId(user), { rev: draft === undefined ? draftRev : undefined, version: patch.version });
+    if (!p.ok) {
+      if (p.error === 'not_found') return notFound();
+      if (p.error === 'conflict') return flowError(409, 'conflict');
+      return flowError(400, p.error, { nodeId: p.nodeId });
+    }
+    delete patch.version;
+  }
+  const hasPatch = Object.values(patch).some((v) => v !== undefined);
+  if (!hasPatch) {
+    const flow = await getFlow(user.id, id, realUserId(user));
+    if (!flow) return notFound();
+    return NextResponse.json({ flow, webhooks: await listFlowWebhooks(user.id, id) });
+  }
+  const res = await updateFlow(user.id, id, patch, realUserId(user));
   if (!res.ok) {
     if (res.error === 'not_found') return notFound();
     if (res.error === 'conflict') return flowError(409, 'conflict');

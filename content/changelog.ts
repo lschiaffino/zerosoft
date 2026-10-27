@@ -29,6 +29,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-27-flow-parity',
+    date: '2026-10-27',
+    title: {
+      en: 'Flow: drafts, run history, forms, polling triggers and AI that builds flows',
+      es: 'Flow: borradores, historial de corridas, formularios, triggers por polling e IA que arma flows',
+      pt: 'Flow: rascunhos, histórico de execuções, formulários, gatilhos por polling e IA que monta flows',
+    },
+    items: [
+      { product: 'flow', en: 'Edits autosave as a draft and only run once you publish. "Test run" tries the draft, and each version shows who published it.', es: 'Lo que editás se guarda solo como borrador y corre recién cuando publicás. "Probar" usa el borrador y cada versión muestra quién la publicó.', pt: 'O que você edita fica salvo sozinho como rascunho e só roda quando você publica. "Testar" usa o rascunho e cada versão mostra quem publicou.' },
+      { product: 'flow', en: 'New Run history: every run of every flow with search, filters, a usage and failures dashboard, the live queue and CSV or JSON export.', es: 'Nuevo Historial: todas las corridas de todos los flows con búsqueda, filtros, tablero de uso y fallas, la cola en vivo y exportación a CSV o JSON.', pt: 'Novo Histórico: todas as execuções de todos os flows com busca, filtros, painel de uso e falhas, a fila ao vivo e exportação em CSV ou JSON.' },
+      { product: 'flow', en: 'New triggers: a hosted form with its own link, and new items from RSS feeds, JSON URLs or Google Sheets rows. Google Sheets can also look up and update rows.', es: 'Triggers nuevos: un formulario hospedado con su propio link e ítems nuevos de feeds RSS, URLs JSON o filas de Google Sheets. Google Sheets además busca y actualiza filas.', pt: 'Novos gatilhos: um formulário hospedado com link próprio e itens novos de feeds RSS, URLs JSON ou linhas do Google Sheets. O Google Sheets também procura e atualiza linhas.' },
+      { product: 'flow', en: 'AI: describe a flow and it drafts the steps, an extract and classify step with structured output, and "Explain with AI" on failed runs.', es: 'IA: contá un flow y arma los pasos, un paso para extraer y clasificar con salida estructurada, y "Explicar con IA" en las corridas fallidas.', pt: 'IA: descreva um flow e ela monta os passos, um passo para extrair e classificar com saída estruturada, e "Explicar com IA" nas execuções com falha.' },
+      { product: 'flow', en: 'Folders, search and filters in the list, notes on the canvas, copy and paste steps between flows, JSON export and import, cURL import and pagination in HTTP, your own variables with {{vars.name}}, and per-flow limits that hold extra runs for review or run them one at a time.', es: 'Carpetas, búsqueda y filtros en la lista, notas en el canvas, copiar y pegar pasos entre flows, exportar e importar JSON, import de cURL y paginación en HTTP, variables propias con {{vars.nombre}} y límites por flow que retienen corridas para revisar o las corren de a una.', pt: 'Pastas, busca e filtros na lista, notas no canvas, copiar e colar passos entre flows, exportar e importar JSON, import de cURL e paginação no HTTP, variáveis próprias com {{vars.nome}} e limites por flow que retêm execuções para revisar ou rodam uma de cada vez.' },
+    ],
+  },
+  {
     id: '2026-10-27-agents',
     date: '2026-10-27',
     title: {
