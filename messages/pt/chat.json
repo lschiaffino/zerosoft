@@ -96,7 +96,8 @@
     "addAttribute": "Adicionar atributo",
     "fieldTypeSelect": "Lista",
     "fieldTypeBoolean": "Sim / não",
-    "attributeNeedsOptions": "Cada atributo de lista precisa de pelo menos uma opção."
+    "attributeNeedsOptions": "Cada atributo de lista precisa de pelo menos uma opção.",
+    "nameAdminOnly": "Só os admins do workspace renomeiam um widget: o nome é o remetente dos emails do Chat."
   },
   "embed": {
     "title": "Código de instalação",
@@ -377,7 +378,13 @@
     "upload": "Anexar arquivo",
     "remove": "Remover arquivo",
     "dragDrop": "Arraste e solte um arquivo aqui",
-    "maxSize": "Máx. 10 MB"
+    "maxSize": "Máx. 10 MB",
+    "skipped": "{count, plural, one {# anexo não foi salvo} other {# anexos não foram salvos}}: {reason}.",
+    "skipReason": {
+      "type": "tipo não permitido",
+      "size": "grande demais (máx. 10 MB, 5 por email)",
+      "download": "não foi possível baixar"
+    }
   },
   "typing": {
     "visitorTyping": "O visitante está digitando…",

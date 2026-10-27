@@ -9,6 +9,7 @@ import {
   readAuthentication,
   verifySvixSignature,
   type InboundAttachment,
+  type SkipReason,
 } from '@/lib/chat-email';
 
 export const dynamic = 'force-dynamic';
@@ -63,6 +64,7 @@ export async function POST(req: Request) {
   let authentication = null as ReturnType<typeof readAuthentication>;
   let messageId = typeof d.message_id === 'string' ? d.message_id : null;
   let attachments: InboundAttachment[] = [];
+  let skippedAttachments: SkipReason[] = [];
   if (fake && typeof d.text === 'string') {
     text = d.text;
     headers = Object.fromEntries(Object.entries((d.headers as Record<string, string>) ?? {}).map(([k, v]) => [k.toLowerCase(), String(v)]));
@@ -79,11 +81,11 @@ export async function POST(req: Request) {
     headers = content.headers;
     authentication = content.authentication;
     messageId = content.messageId ?? messageId;
-    if (content.attachments.length > 0) attachments = await fetchReceivedAttachments(emailId);
+    if (content.attachments.length > 0) ({ files: attachments, skipped: skippedAttachments } = await fetchReceivedAttachments(emailId));
   }
 
   const result = await processInboundEmail(
-    { emailId, from, to: recipients, subject: typeof d.subject === 'string' ? d.subject : '', text, messageId, headers, authentication, attachments },
+    { emailId, from, to: recipients, subject: typeof d.subject === 'string' ? d.subject : '', text, messageId, headers, authentication, attachments, skippedAttachments },
     after,
   );
   return NextResponse.json({ ok: true, ...result });

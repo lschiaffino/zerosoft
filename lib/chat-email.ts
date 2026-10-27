@@ -23,7 +23,19 @@
  * Se descartan: respuestas automáticas (Auto-Submitted, Precedence bulk o
  * auto_reply), rebotes (MAILER-DAEMON, postmaster, Return-Path vacío), los
  * que vienen de nuestro propio dominio y los que fallan DMARC (o SPF y DKIM a
- * la vez) según Resend. El visitante del canal email tiene una clave
+ * la vez) según Resend.
+ *
+ * Sin bloque `authentication` (emails anteriores a ese campo de Resend, o si
+ * la API no lo trae) no hay veredicto: el email se acepta. Lo que sigue
+ * protegiendo es (1) la dirección firmada con HMAC (nadie arma la reply+ de
+ * otra conversación) y (2) que reply+ solo acepta al remitente igual al email
+ * del visitante, y solo si ese email está verificado (firma del sitio) o es
+ * el de una conversación que entró por email. Un From falsificado hacia
+ * inbox+ abre como mucho una conversación nueva con ese remitente.
+ *
+ * Al visitante web con un email declarado sin verificar (formulario o
+ * identify sin firma) se le avisa por email como antes, pero sin Reply-To a
+ * la conversación: responder ese email no entra al inbox. El visitante del canal email tiene una clave
  * aleatoria reservada que ninguna ruta pública del widget acepta
  * (lib/chat-visitor-key.ts). Cada email se procesa una vez
  * (chat_inbound_emails). Con CHAT_INBOUND_FAKE=1 (tests, nunca en producción)
@@ -43,7 +55,7 @@ import {
   type ChatAttachment,
 } from './chat-data';
 import type { ChatVisitorRow } from './db';
-import { emailVisitorKey } from './chat-visitor-key';
+import { emailVisitorKey, isReservedVisitorKey } from './chat-visitor-key';
 import { MAX_UPLOAD_SIZE, isAllowedUpload, saveUpload } from './uploads';
 import { appSender } from './email';
 import { afterVisitorMessage } from './chat-visitor-message';
@@ -194,6 +206,20 @@ export interface InboundEmail {
   /** Veredicto del servidor receptor (null si Resend no lo trae). */
   authentication?: InboundAuth | null;
   attachments?: InboundAttachment[];
+  /** Adjuntos que no se pudieron traer (tipo no permitido, muy grandes o sin descargar). */
+  skippedAttachments?: SkipReason[];
+}
+
+export type SkipReason = 'type' | 'size' | 'download';
+
+/** Nota de sistema (solo la ve el equipo) con los adjuntos que no se guardaron; la UI la traduce (lib/chat-email-note.ts). */
+
+export function skippedNote(reasons: SkipReason[]): string | null {
+  if (reasons.length === 0) return null;
+  const counts = new Map<SkipReason, number>();
+  for (const r of reasons) counts.set(r, (counts.get(r) ?? 0) + 1);
+  const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+  return `Attachments not saved: ${reasons.length} (${top})`;
 }
 
 export interface ReceivedEmail {
@@ -267,26 +293,39 @@ export async function fetchReceivedEmail(emailId: string): Promise<ReceivedEmail
   };
 }
 
-/** Descarga los adjuntos (URLs firmadas de Resend) que entran en el límite de subida. */
-export async function fetchReceivedAttachments(emailId: string, max = 5): Promise<InboundAttachment[]> {
+/** Descarga los adjuntos (URLs firmadas de Resend) que entran en el límite de subida; cuenta los que no. */
+export async function fetchReceivedAttachments(emailId: string, max = 10): Promise<{ files: InboundAttachment[]; skipped: SkipReason[] }> {
   const list = (await resendGet(`/emails/receiving/${emailId}/attachments?limit=${max}`)) as { data?: Array<Record<string, unknown>> } | null;
-  const out: InboundAttachment[] = [];
+  const files: InboundAttachment[] = [];
+  const skipped: SkipReason[] = [];
   for (const a of list?.data ?? []) {
     const url = typeof a.download_url === 'string' ? a.download_url : '';
     const filename = String(a.filename ?? 'file').slice(0, 200);
     const contentType = String(a.content_type ?? 'application/octet-stream');
-    if (!/^https:\/\//.test(url) || Number(a.size ?? 0) > MAX_UPLOAD_SIZE || !isAllowedUpload(filename, contentType)) continue;
+    if (!isAllowedUpload(filename, contentType)) {
+      skipped.push('type');
+      continue;
+    }
+    if (Number(a.size ?? 0) > MAX_UPLOAD_SIZE || files.length >= 5) {
+      skipped.push('size');
+      continue;
+    }
     try {
+      if (!/^https:\/\//.test(url)) throw new Error('bad_url');
       const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
-      if (!res.ok) continue;
+      if (!res.ok) throw new Error('download');
       const buf = Buffer.from(await res.arrayBuffer());
-      if (buf.length > MAX_UPLOAD_SIZE) continue;
-      out.push({ filename, contentType, data: buf });
+      if (buf.length > MAX_UPLOAD_SIZE) {
+        skipped.push('size');
+        continue;
+      }
+      files.push({ filename, contentType, data: buf });
     } catch {
-      // Un adjunto que no baja no frena el mensaje.
+      // Un adjunto que no baja no frena el mensaje: queda en la nota para el equipo.
+      skipped.push('download');
     }
   }
-  return out;
+  return { files, skipped };
 }
 
 /** Por qué se descarta un email antes de tocar la base, o null si sigue. */
@@ -386,7 +425,8 @@ export async function processInboundEmail(email: InboundEmail, schedule: Schedul
   if (rejected) return { status: 'ignored', reason: rejected };
   const text = stripQuotedReply(email.text);
   const files = (email.attachments ?? []).slice(0, 5);
-  if (!text && files.length === 0) return { status: 'ignored', reason: 'empty' };
+  const skipped: SkipReason[] = [...(email.skippedAttachments ?? []), ...(email.attachments ?? []).slice(5).map(() => 'size' as const)];
+  if (!text && files.length === 0 && skipped.length === 0) return { status: 'ignored', reason: 'empty' };
   if (!(await claimEmail(email.emailId))) return { status: 'duplicate' };
 
   let widget: ChatWidgetRow | undefined;
@@ -399,6 +439,8 @@ export async function processInboundEmail(email: InboundEmail, schedule: Schedul
     const visitor = await getChatVisitor(conversation.visitor_id);
     // Solo el visitante de la conversación: un tercero en copia no escribe en nombre de él.
     if (!visitor?.email || visitor.email.toLowerCase() !== from.email) return { status: 'ignored', reason: 'sender_mismatch' };
+    // Y solo con un email confiable: verificado por el sitio o el de una conversación que entró por email.
+    if (Number(visitor.email_verified) !== 1 && !isReservedVisitorKey(visitor.external_id)) return { status: 'ignored', reason: 'unverified_email' };
     widget = await getChatWidget(conversation.widget_id);
     if (!widget) return { status: 'ignored', reason: 'not_found' };
   } else {
@@ -423,12 +465,15 @@ export async function processInboundEmail(email: InboundEmail, schedule: Schedul
     try {
       const url = await saveUpload('chat', f.filename, f.contentType, f.data);
       attachments.push({ name: f.filename, url, size: f.data.length, mime: f.contentType, type: chatAttachmentType(f.contentType) });
-    } catch {
-      // Un adjunto rechazado (tipo o tamaño) no frena el mensaje.
+    } catch (err) {
+      // Un adjunto rechazado (tipo o tamaño) no frena el mensaje: queda en la nota para el equipo.
+      skipped.push((err as { code?: string })?.code === 'file_type_not_allowed' ? 'type' : 'download');
     }
   }
   const visitor = (await getChatVisitor(conversation.visitor_id))!;
-  const message = await createChatMessage(conversation.id, 'visitor', { body: text, attachments });
+  const message = await createChatMessage(conversation.id, 'visitor', { body: text || (attachments.length ? '' : email.subject.trim().slice(0, 200)), attachments });
+  const note = skippedNote(skipped);
+  if (note) await createChatMessage(conversation.id, 'system', { body: note });
   await attachToClaim(email.emailId, conversation.id);
   await afterVisitorMessage({
     widget,

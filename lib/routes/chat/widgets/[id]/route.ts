@@ -36,6 +36,10 @@ export async function PATCH(req: Request, props: { params: Promise<{ id: string 
     return NextResponse.json({ error: nameIssue ? 'missing_name' : 'invalid_input' }, { status: 400 });
   }
 
+  // El nombre del widget es el remitente visible de los emails de Chat: lo cambian solo los admins.
+  if (parsed.data.name !== undefined && parsed.data.name.trim() !== widget!.name && !isWorkspaceAdmin(user)) {
+    return NextResponse.json({ error: 'rename_admin_only' }, { status: 403 });
+  }
   const updated = await updateChatWidget(params.id, parsed.data);
   if (!updated) return NextResponse.json({ error: 'generic' }, { status: 500 });
   return NextResponse.json(updated);

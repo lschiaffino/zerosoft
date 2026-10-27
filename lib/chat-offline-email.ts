@@ -18,6 +18,7 @@ import { escapeHtml, namedSender, renderBrandedHtml, sendEmail } from './email';
 import { pickWidgetLocale, type WidgetLocale } from './chat-widget-i18n';
 import { readVisitorPage } from './chat-visitor-context';
 import { inboundAddress, threadHeaders } from './chat-email';
+import { isReservedVisitorKey } from './chat-visitor-key';
 import en from '@/messages/en/chat.json';
 import es from '@/messages/es/chat.json';
 import pt from '@/messages/pt/chat.json';
@@ -50,6 +51,9 @@ export interface OfflineReplyCandidate {
   /** 'email' si la conversación entró por email: se responde por email enseguida. */
   channel?: string | null;
   subject?: string | null;
+  /** 1 si el email del visitante está verificado (firma del sitio). */
+  visitor_email_verified?: number | null;
+  visitor_external_id?: string | null;
 }
 
 export interface OfflineReplyGroup {
@@ -125,7 +129,9 @@ export function buildOfflineReplyEmail(group: OfflineReplyGroup): {
   const s = STRINGS[locale] ?? STRINGS.en;
   const agent = group.messages.find((m) => m.agent_name)?.agent_name ?? null;
   const vars = { widget: first.widget_name, agent: agent ?? first.widget_name, name: first.visitor_name ?? '' };
-  const replyTo = inboundAddress('reply', group.conversationId);
+  // Reply-To a la conversación solo con un email confiable: verificado o de una conversación que entró por email.
+  const trusted = Number(first.visitor_email_verified) === 1 || isReservedVisitorKey(first.visitor_external_id ?? '');
+  const replyTo = trusted ? inboundAddress('reply', group.conversationId) : null;
   const isEmail = first.channel === 'email';
   const subject = isEmail && first.subject ? `Re: ${first.subject}` : fill(agent ? s.subjectAgent : s.subject, vars);
   const footer = replyTo ? s.canReply : s.noReply;
@@ -176,7 +182,8 @@ async function loadCandidates(now: Date, limit: number): Promise<OfflineReplyCan
               v.email AS visitor_email, v.name AS visitor_name, v.metadata AS visitor_metadata,
               w.name AS widget_name, w.color AS widget_color, w.locale AS widget_locale,
               w.offline_email_minutes AS offline_email_minutes,
-              c.channel AS channel, c.subject AS subject
+              c.channel AS channel, c.subject AS subject,
+              v.email_verified AS visitor_email_verified, v.external_id AS visitor_external_id
        FROM chat_messages m
        JOIN chat_conversations c ON c.id = m.conversation_id
        JOIN chat_visitors v ON v.id = c.visitor_id
@@ -225,7 +232,7 @@ export async function sendOfflineReplyEmails(
       html: email.html,
       ...(email.replyTo ? { replyTo: email.replyTo } : {}),
       // Sale con el nombre del widget y en el mismo hilo que el email del visitante.
-      from: namedSender(claimed[0].widget_name),
+      from: namedSender(claimed[0].widget_name, email.locale === 'es' ? 'vía' : 'via'),
       headers: await threadHeaders(group.conversationId),
     }).catch(
       () => ({ ok: false }),

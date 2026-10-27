@@ -89,6 +89,7 @@ import { GET as typingGet } from '@/app/api/chat/typing/route';
 import { GET as exportGet } from '@/app/api/chat/export/route';
 import { listChatAudit } from '@/lib/chat-audit';
 import { emailChannelVisitor } from '@/lib/chat-email';
+import { PATCH as widgetPatch } from '@/lib/routes/chat/widgets/[id]/route';
 import { makeUser } from './helpers';
 
 const now = () => new Date().toISOString();
@@ -371,6 +372,10 @@ describe('Chat: canal email (Resend Inbound)', () => {
     const { conversation } = await setup('inbound1');
     await getDb().prepare("UPDATE chat_conversations SET status = 'resolved' WHERE id = ?").run(conversation.id);
     const to = [inboundAddress('reply', conversation.id)!];
+    // Con el email solo declarado (sin firma del sitio) la respuesta no entra.
+    const unverified = await processInboundEmail({ emailId: `e-${crypto.randomUUID()}`, from: 'inbound1@visitor.test', to, subject: 'Re', text: 'hola' }, schedule);
+    expect(unverified).toEqual({ status: 'ignored', reason: 'unverified_email' });
+    await getDb().prepare('UPDATE chat_visitors SET email_verified = 1 WHERE id = ?').run(conversation.visitor_id);
     const spoof = await processInboundEmail({ emailId: `e-${crypto.randomUUID()}`, from: 'otro@x.com', to, subject: 'Re', text: 'hola' }, schedule);
     expect(spoof).toEqual({ status: 'ignored', reason: 'sender_mismatch' });
     const emailId = `e-${crypto.randomUUID()}`;
@@ -418,7 +423,7 @@ describe('Chat: canal email (Resend Inbound)', () => {
     expect(mine[0].replyTo).toBe(inboundAddress('reply', convId));
     expect(mine[0].text).toContain('Probá restablecer la clave');
     expect(mine[0].text).toContain('answered your email');
-    expect(mine[0].from).toBe('"inbound2 widget" <notifications@zerosoft.ai>');
+    expect(mine[0].from).toBe('"inbound2 widget via zerosoft" <notifications@zerosoft.ai>');
     expect(mine[0].headers).toEqual({ 'In-Reply-To': '<abc-1@cliente.test>', References: '<abc-1@cliente.test>' });
     // El adjunto quedó en el mensaje del visitante.
     const first = (await getDb().prepare("SELECT attachments FROM chat_messages WHERE conversation_id = ? AND sender_type = 'visitor'").get(convId)) as { attachments: string };
@@ -426,6 +431,39 @@ describe('Chat: canal email (Resend Inbound)', () => {
     // El visitante del canal email tiene una clave reservada y aleatoria.
     const v = (await getDb().prepare('SELECT external_id FROM chat_visitors WHERE id = ?').get(conv!.visitor_id)) as { external_id: string };
     expect(v.external_id).toMatch(/^mail\.[0-9a-f-]{36}$/);
+  });
+
+  it('al email declarado sin verificar se le avisa sin Reply-To a la conversación', async () => {
+    process.env.CHAT_INBOUND_DOMAIN = 'in.zerosoft.test';
+    const { owner, conversation } = await setup('inbound5');
+    const m = await createChatMessage(conversation.id, 'user', { body: 'Respuesta', userId: owner.id });
+    await getDb().prepare('UPDATE chat_messages SET created_at = ? WHERE id = ?').run(new Date(Date.now() - 30 * 60_000).toISOString(), m.id);
+    sentEmails.length = 0;
+    await sendOfflineReplyEmails();
+    const mine = sentEmails.filter((e) => e.to === 'inbound5@visitor.test');
+    expect(mine).toHaveLength(1);
+    expect(mine[0].replyTo).toBeUndefined();
+    expect(mine[0].text).not.toContain('You can reply to this email');
+  });
+
+  it('los adjuntos que no se guardan dejan una nota para el equipo', async () => {
+    process.env.CHAT_INBOUND_DOMAIN = 'in.zerosoft.test';
+    const { widget } = await setup('inbound6');
+    const r = await processInboundEmail(
+      {
+        emailId: `e-${crypto.randomUUID()}`,
+        from: 'eva@c.test',
+        to: [inboundAddress('inbox', widget.id)!],
+        subject: 'Archivos',
+        text: 'van dos',
+        attachments: [{ filename: 'virus.exe', contentType: 'application/x-msdownload', data: Buffer.from('MZ') }],
+        skippedAttachments: ['type'],
+      },
+      schedule,
+    );
+    const convId = (r as { conversationId: string }).conversationId;
+    const notes = (await getDb().prepare("SELECT body FROM chat_messages WHERE conversation_id = ? AND sender_type = 'system'").all(convId)) as Array<{ body: string }>;
+    expect(notes.map((n) => n.body)).toEqual(['Attachments not saved: 2 (type)']);
   });
 
   it('descarta respuestas automáticas, rebotes, nuestro propio dominio y fallas de DMARC', async () => {
@@ -634,6 +672,21 @@ describe('Chat: export solo para admins, con auditoría', () => {
     const log = await listChatAudit(owner.id);
     expect(log.map((e) => e.action)).toEqual(['export.csv']);
     void widget;
+    session.user = null;
+  });
+});
+
+describe('Chat: el nombre del widget (remitente de los emails) lo cambian solo admins', () => {
+  it('un miembro no lo renombra; puede guardar otros campos con el mismo nombre', async () => {
+    const owner = await makeUser('rename1');
+    const widget = await createChatWidget(owner.id, null, { name: 'Soporte' });
+    const ctx = { params: Promise.resolve({ id: widget.id }) };
+    const patch = (body: unknown) => new Request('http://x', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    session.user = { id: owner.id, email: owner.email, role: 'member' };
+    expect((await widgetPatch(patch({ name: 'Banco Nación' }), ctx)).status).toBe(403);
+    expect((await widgetPatch(patch({ name: 'Soporte', color: '#112233' }), ctx)).status).toBe(200);
+    session.user = { id: owner.id, email: owner.email, role: 'owner' };
+    expect((await widgetPatch(patch({ name: 'Soporte Acme' }), ctx)).status).toBe(200);
     session.user = null;
   });
 });

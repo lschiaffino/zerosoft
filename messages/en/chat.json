@@ -96,7 +96,8 @@
     "addAttribute": "Add attribute",
     "fieldTypeSelect": "List",
     "fieldTypeBoolean": "Yes / no",
-    "attributeNeedsOptions": "Each list attribute needs at least one option."
+    "attributeNeedsOptions": "Each list attribute needs at least one option.",
+    "nameAdminOnly": "Only workspace admins can rename a widget: its name is the sender of Chat emails."
   },
   "embed": {
     "title": "Install code",
@@ -377,7 +378,13 @@
     "upload": "Attach file",
     "remove": "Remove file",
     "dragDrop": "Drag and drop a file here",
-    "maxSize": "Max 10 MB"
+    "maxSize": "Max 10 MB",
+    "skipped": "{count, plural, one {# attachment was} other {# attachments were}} not saved: {reason}.",
+    "skipReason": {
+      "type": "file type not allowed",
+      "size": "too large (max 10 MB, 5 per email)",
+      "download": "it could not be downloaded"
+    }
   },
   "typing": {
     "visitorTyping": "Visitor is typing…",

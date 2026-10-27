@@ -18,6 +18,7 @@ import { CHAT_MESSAGE_MAX, CHAT_UPLOAD_MAX, sendErrorKey } from '@/lib/chat-sche
 import VisitorPanel from './VisitorPanel';
 import { ConversationAttributes, MergeConversations, TranscriptActions, missingAttributeNames } from './ConversationTools';
 import { parseMergeNote } from '@/lib/chat-merge-note';
+import { SKIPPED_NOTE } from '@/lib/chat-email-note';
 import ChatIcon, { initials } from './icons';
 import SlaNote from './SlaNote';
 import { useInbox } from './InboxShell';
@@ -929,6 +930,13 @@ export default function ConversationClient({
                             </button>
                           </div>
                         </div>
+                      ) : m.sender_type === 'system' && SKIPPED_NOTE.test(m.body) ? (
+                        <p className="chat-message-text">
+                          {(() => {
+                            const [, count, reason] = SKIPPED_NOTE.exec(m.body)!;
+                            return t('attachments.skipped', { count: Number(count), reason: t(`attachments.skipReason.${reason}`) });
+                          })()}
+                        </p>
                       ) : m.sender_type === 'system' && parseMergeNote(m.body) ? (
                         <p className="chat-message-text" suppressHydrationWarning>
                           {(() => {
