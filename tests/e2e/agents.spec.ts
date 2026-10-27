@@ -48,8 +48,8 @@ test('pestañas: flechas mueven el foco y la pestaña activa', async ({ page }) 
   await expect(knowledge).toBeFocused();
   await expect(knowledge).toHaveAttribute('aria-selected', 'true');
   await page.keyboard.press('End');
-  await expect(page.getByRole('tab', { name: 'Analítica' })).toHaveAttribute('aria-selected', 'true');
-  await expect(page).toHaveURL(/tab=analytics/);
+  await expect(page.getByRole('tab', { name: 'Versiones' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page).toHaveURL(/tab=versions/);
 });
 
 test('herramientas: agrupadas por producto y Request HTTP en Avanzado', async ({ page }) => {

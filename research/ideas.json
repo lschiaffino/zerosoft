@@ -44,7 +44,9 @@
     "description": "updateAgent in lib/agents.ts writes instructions, tools and guardrails straight to the live row, so every save in the editor goes to production channels instantly and there is no record of what changed. Fin Releases keep changes in a space separate from the customer-facing version until you publish (https://fin.ai/testing), and AgentKit offers full versioning (https://openai.com/index/introducing-agentkit/). Without versions you cannot tie a drop in thumbs-up to an edit or undo a bad prompt quickly. First scope: an agent_versions snapshot on publish, playground and tests run on the draft, a Publish button with a short diff, and a version list with restore; store version id on agent_conversations for later analytics.\n\nPriority: high. Effort: M. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
     "product": "agents",
     "kind": "idea",
-    "parity": "draft-publish-rollback"
+    "parity": "draft-publish-rollback",
+    "status": "done",
+    "changelog": "2026-10-27-agents"
   },
   {
     "title": "Agents: Add an analytics tab with resolution, handoff, tool error and topic metrics",
@@ -518,14 +520,18 @@
     "description": "Fin reviews real conversations to recommend content updates and surface missing topics, approvable in one click from its Optimize dashboard (https://fin.ai/train, https://fin.ai/capabilities). We already log every search_knowledge call with its query and empty results in agent_tool_calls and have Docs in the same suite, but nothing connects them (lib/agent-tools.ts, lib/agents.ts). This is a suite advantage: the fix lands directly in the knowledge source the agent reads live. First scope: weekly job that clusters empty-result queries plus handoff reasons, drafts an answer from the teammate replies in handed-off Chat conversations, and creates an unpublished Docs page linked to the agent for review.\n\nPriority: medium. Effort: M. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
     "product": "agents",
     "kind": "idea",
-    "parity": "content-suggestions"
+    "parity": "content-suggestions",
+    "status": "done",
+    "changelog": "2026-10-27-agents"
   },
   {
     "title": "Agents: Give the agent the identified visitor's CRM, Cal and Track context",
     "description": "Fin personalizes answers using customer data and connectors (Stripe, Shopify, Salesforce) and can route by customer attributes (https://fin.ai/capabilities, https://fin.ai/train). Our prompt (buildAgentInstructions in lib/agents.ts) contains no visitor identity even when the Chat widget already knows the visitor's email, and the agent can only learn a contact's first name and lifecycle stage via crm_find_contact (lib/agent-tools.ts). Owning CRM, Cal and Track lets us do this without integrations: upcoming bookings, open issues the visitor reported, deal stage. First scope: when the Chat visitor has a verified email, inject a short read-only context block (name, company, lifecycle stage, next booking, open Track issues by that email) and add tools to list or cancel that visitor's own bookings.\n\nPriority: medium. Effort: M. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
     "product": "agents",
     "kind": "idea",
-    "parity": "identified-visitor-context"
+    "parity": "identified-visitor-context",
+    "status": "done",
+    "changelog": "2026-10-27-agents"
   },
   {
     "title": "Agents: Add semantic retrieval and show source links in answers",
@@ -1298,7 +1304,9 @@
     "description": "Chatbase trains on PDF, TXT, DOC and DOCX up to 20 MB each (https://www.chatbase.co/docs/user-guides/chatbot/data-sources.md) and Voiceflow imports PDF, DOCX and CSV/XLSX tables where each row becomes a chunk (https://www.voiceflow.com/docs/documentation/build/importing-data-sources.md). Our Knowledge tab only takes Docs pages, up to 20 URLs and Chat saved replies (knowledgeConfigSchema in lib/agents-config.ts); there is no file input (verified in the browser). Price lists and manuals usually live in PDFs. First scope: upload files to an agent (reuse the Docs upload storage), extract text server side, chunk and index them next to URLs for search_knowledge, show size, status and re-upload, with a per-workspace size cap.",
     "product": "agents",
     "kind": "idea",
-    "parity": "file-upload"
+    "parity": "file-upload",
+    "status": "done",
+    "changelog": "2026-10-27-agents"
   },
   {
     "title": "Agents: Crawl a whole site or sitemap with include and exclude patterns",
@@ -1318,14 +1326,18 @@
     "description": "Fin Simulations play a full conversation with an AI customer, mock connector outputs and judge the result; Batch Test replays real conversations (https://fin.ai/updates/simulations-for-procedures, https://fin.ai/updates). Voiceflow tests support AI-simulated users with success criteria and assertions on tool calls (https://www.voiceflow.com/docs/documentation/measure/tests.md). Our tests (lib/agents-tests.ts) are one question plus an expected behavior, which does not cover booking or qualification flows. First scope: a test can be a persona plus a goal; an LLM plays the customer for up to N turns in dry run and the judge checks the goal and which tools were called; plus 'Replay last 20 conversations' that reruns real visitor messages against the current instructions and highlights answers that changed.",
     "product": "agents",
     "kind": "idea",
-    "parity": "multi-turn-simulation"
+    "parity": "multi-turn-simulation",
+    "status": "done",
+    "changelog": "2026-10-27-agents"
   },
   {
     "title": "Agents: Score every conversation for sentiment and quality with AI",
     "description": "Fin rates every conversation with a CX Score without surveys and detects sentiment and urgency (https://community.intercom.com/product-updates/a-new-era-of-insights-has-arrived-10513); Chatbase shows sentiment and CSAT (https://www.chatbase.co/docs/user-guides/chatbot/analytics.md). Our Analytics tab (lib/agents-analytics.ts) has resolution, handoffs, tool errors, keyword topics and thumbs, which few visitors click. First scope: when a conversation goes idle, a cheap model call scores sentiment, whether the question was answered and a 1 to 5 quality score with a one-line reason; show averages and a worst-conversations list in Analytics and feed the existing alerts.",
     "product": "agents",
     "kind": "idea",
-    "parity": "csat-sentiment"
+    "parity": "csat-sentiment",
+    "status": "done",
+    "changelog": "2026-10-27-agents"
   },
   {
     "title": "Agents: Show buttons and short forms in the chat to capture leads",
@@ -1339,7 +1351,9 @@
     "description": "Fin added MCP connectors including a Zapier MCP that reaches thousands of apps (https://fin.ai/updates) and Voiceflow has an MCP tool (https://www.voiceflow.com/docs/documentation/build/tools/overview.md). Our tools are the suite tools plus http_request with secret headers (lib/agent-tools.ts), so calling a third-party system means hand-writing HTTP calls. First scope: add an MCP server URL with an optional secret header (reuse agent secrets), list its tools, enable specific tools per agent, run them through the existing logging, dry-run simulation and approval flow, and block private hosts with safeFetch.",
     "product": "agents",
     "kind": "idea",
-    "parity": "mcp"
+    "parity": "mcp",
+    "status": "done",
+    "changelog": "2026-10-27-agents"
   },
   {
     "title": "Agents: Add step-by-step procedures the agent follows for a specific task",

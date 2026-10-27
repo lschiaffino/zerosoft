@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
-import { AGENT_MAX_TESTS, type AgentTestCaseDto } from '@/lib/agents-config';
+import { AGENT_MAX_TESTS, AGENT_SIM_MAX_TURNS, type AgentTestCaseDto, type AgentTestKind } from '@/lib/agents-config';
 import FormSection from '@/components/ui/FormSection';
 import { api, errorText, toolName } from './agents-ui';
 
@@ -18,7 +18,9 @@ interface Props {
   prefill: { question: string; nonce: number } | null;
 }
 
-type FormState = { id: string | null; question: string; expected: string };
+type FormState = { id: string | null; question: string; expected: string; kind: AgentTestKind; persona: string; maxTurns: number };
+
+const emptyForm = (question = ''): FormState => ({ id: null, question, expected: '', kind: 'single', persona: '', maxTurns: 4 });
 
 /** Resumen de la última corrida: cuántos pasaron de los que corrieron. */
 export function testSummary(tests: AgentTestCaseDto[]): { passed: number; ran: number; total: number } {
@@ -45,7 +47,7 @@ export default function AgentTests({ agentId, tests, onTestsChange, canEdit, aiE
 
   useEffect(() => {
     if (!prefill || !canEdit) return;
-    setForm({ id: null, question: prefill.question, expected: '' });
+    setForm(emptyForm(prefill.question));
     window.setTimeout(() => {
       expectedRef.current?.focus();
       expectedRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -64,7 +66,7 @@ export default function AgentTests({ agentId, tests, onTestsChange, canEdit, aiE
     if (!form || saving) return;
     setSaving(true);
     setError(null);
-    const body = JSON.stringify({ question: form.question, expected: form.expected });
+    const body = JSON.stringify({ question: form.question, expected: form.expected, kind: form.kind, persona: form.persona, maxTurns: form.maxTurns });
     const res = form.id
       ? await api<{ test?: AgentTestCaseDto }>(`/api/agents/${agentId}/tests/${form.id}`, { method: 'PATCH', body })
       : await api<{ test?: AgentTestCaseDto }>(`/api/agents/${agentId}/tests`, { method: 'POST', body });
@@ -146,7 +148,7 @@ export default function AgentTests({ agentId, tests, onTestsChange, canEdit, aiE
               type="button"
               className="btn btn-ghost btn-sm"
               disabled={tests.length >= AGENT_MAX_TESTS}
-              onClick={() => setForm({ id: null, question: '', expected: '' })}
+              onClick={() => setForm(emptyForm())}
             >
               {t('tests.add')}
             </button>
@@ -170,10 +172,57 @@ export default function AgentTests({ agentId, tests, onTestsChange, canEdit, aiE
         </p>
       )}
       {form && (
-        <form className="ag-test-form" onSubmit={submit}>
+        <form
+          className="ag-test-form"
+          onSubmit={submit}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setForm(null);
+          }}
+        >
+          <fieldset className="ag-test-kind">
+            <legend className="label">{t('tests.kind')}</legend>
+            {(['single', 'simulation'] as const).map((k) => (
+              <label key={k} className="ui-check">
+                <input type="radio" name="ag-test-kind" checked={form.kind === k} onChange={() => setForm({ ...form, kind: k })} /> {t(`tests.kinds.${k}`)}
+              </label>
+            ))}
+            <p className="ui-help">{t(`tests.kindHint.${form.kind}`)}</p>
+          </fieldset>
+          {form.kind === 'simulation' && (
+            <div className="ag-field-row">
+              <div className="ui-field">
+                <label className="label" htmlFor="ag-test-persona">
+                  {t('tests.persona')}
+                </label>
+                <textarea
+                  id="ag-test-persona"
+                  className="textarea"
+                  rows={2}
+                  maxLength={1000}
+                  value={form.persona}
+                  placeholder={t('tests.personaPlaceholder')}
+                  onChange={(e) => setForm({ ...form, persona: e.target.value })}
+                />
+              </div>
+              <div className="ui-field ag-field-narrow">
+                <label className="label" htmlFor="ag-test-turns">
+                  {t('tests.maxTurns')}
+                </label>
+                <input
+                  id="ag-test-turns"
+                  className="input data"
+                  type="number"
+                  min={2}
+                  max={AGENT_SIM_MAX_TURNS}
+                  value={form.maxTurns}
+                  onChange={(e) => setForm({ ...form, maxTurns: Math.min(AGENT_SIM_MAX_TURNS, Math.max(2, Number(e.target.value) || 4)) })}
+                />
+              </div>
+            </div>
+          )}
           <div className="ui-field">
             <label className="label" htmlFor="ag-test-q">
-              {t('tests.question')}
+              {form.kind === 'simulation' ? t('tests.opening') : t('tests.question')}
             </label>
             <textarea
               id="ag-test-q"
@@ -188,7 +237,7 @@ export default function AgentTests({ agentId, tests, onTestsChange, canEdit, aiE
           </div>
           <div className="ui-field">
             <label className="label" htmlFor="ag-test-e">
-              {t('tests.expected')}
+              {form.kind === 'simulation' ? t('tests.criteria') : t('tests.expected')}
             </label>
             <textarea
               id="ag-test-e"
@@ -229,7 +278,9 @@ export default function AgentTests({ agentId, tests, onTestsChange, canEdit, aiE
             return (
               <li key={x.id} className="ag-test">
                 <div className="ag-test-main">
-                  <p className="ag-test-q">{x.question}</p>
+                  <p className="ag-test-q">
+                    {x.kind === 'simulation' && <span className="badge ag-test-kind-badge">{t('tests.kinds.simulation')}</span>} {x.question}
+                  </p>
                   <p className="ui-help">
                     {t('tests.expectedShort')}: {x.expected}
                   </p>
@@ -244,10 +295,20 @@ export default function AgentTests({ agentId, tests, onTestsChange, canEdit, aiE
                         <svg className="ag-tool-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                           <path d="M9 6l6 6-6 6" />
                         </svg>
-                        {t('tests.reply')}
+                        {x.kind === 'simulation' ? t('tests.transcript') : t('tests.reply')}
                       </summary>
                       <div className="ag-tool-body">
-                        <pre>{x.lastReply || '—'}</pre>
+                        {x.kind === 'simulation' && x.lastTranscript.length > 0 ? (
+                          <ol className="ag-sim-transcript">
+                            {x.lastTranscript.map((turn, i) => (
+                              <li key={i} className={`ag-sim-turn is-${turn.role}`}>
+                                <span className="label">{turn.role === 'user' ? t('tests.simCustomer') : t('tests.simAgent')}</span> {turn.content || '–'}
+                              </li>
+                            ))}
+                          </ol>
+                        ) : (
+                          <pre>{x.lastReply || '–'}</pre>
+                        )}
                         {x.lastTools.length > 0 && (
                           <p className="ui-help">
                             {t('tests.tools')}:{' '}
@@ -281,7 +342,7 @@ export default function AgentTests({ agentId, tests, onTestsChange, canEdit, aiE
                         type="button"
                         className="btn btn-ghost btn-sm"
                         disabled={busy}
-                        onClick={() => setForm({ id: x.id, question: x.question, expected: x.expected })}
+                        onClick={() => setForm({ id: x.id, question: x.question, expected: x.expected, kind: x.kind, persona: x.persona, maxTurns: x.maxTurns })}
                       >
                         {t('tests.edit')}
                       </button>

@@ -89,7 +89,8 @@
     "channels": "Canais",
     "playground": "Playground",
     "conversations": "Conversas",
-    "analytics": "Análises"
+    "analytics": "Análises",
+    "versions": "Versões"
   },
   "fields": {
     "name": "nome",
@@ -255,6 +256,10 @@
       "docs_write_row": {
         "name": "Adicionar e atualizar linhas",
         "desc": "Adiciona linhas aos bancos dessas páginas ou as altera. Bancos sincronizados continuam somente leitura."
+      },
+      "mcp_call": {
+        "name": "Servidores MCP",
+        "desc": "Usa as ferramentas dos servidores MCP que você conectar, como Zapier ou sua própria API. As que mudam dados são simuladas no playground e esperam a aprovação de um admin nos canais ao vivo."
       }
     },
     "groups": {
@@ -275,7 +280,9 @@
     "needsDocsPages": "Escolha pelo menos uma página do Docs.",
     "untitledPage": "Sem título",
     "docsPrivatePublic": "Algumas destas páginas estão em um teamspace fechado ou privado, e este agente tem página pública: qualquer pessoa que fale com ele pode receber respostas com o conteúdo delas.",
-    "docsHiddenPublic": "Este agente público tem páginas de teamspaces privados que você não pode ver. Qualquer pessoa que fale com ele pode receber respostas com o conteúdo delas."
+    "docsHiddenPublic": "Este agente público tem páginas de teamspaces privados que você não pode ver. Qualquer pessoa que fale com ele pode receber respostas com o conteúdo delas.",
+    "needsMcp": "Conecte um servidor aqui embaixo.",
+    "approvalMcp": "Pedir a aprovação de um admin em cada chamada, também nas que só leem"
   },
   "channels": {
     "chatTitle": "Widgets do Chat",
@@ -358,7 +365,24 @@
     "replyPlaceholder": "Escreva uma resposta para o visitante…",
     "replyHintPublic": "O visitante vê na página pública. O agente para de responder nesta conversa.",
     "replyHintApi": "Fica na conversa para sua integração ler. O agente para de responder aqui.",
-    "replySend": "Enviar resposta"
+    "replySend": "Enviar resposta",
+    "needsReview": "Para revisar",
+    "csatBadge": "CSAT {csat}/5",
+    "reviewed": "Revisada",
+    "visitor": "Visitante",
+    "score": "Nota de qualidade",
+    "resolved": "Resolvida",
+    "notResolved": "Não resolvida",
+    "pass": "Cumpre",
+    "fail": "Não cumpre",
+    "reviewNote": "Nota de revisão",
+    "markReviewed": "Marcar como revisada",
+    "unmarkReviewed": "Marcar como não revisada",
+    "memory": "O que o agente lembra",
+    "forget": "Esquecer",
+    "block": "Bloquear visitante",
+    "blockConfirm": "Bloquear este visitante? O agente deixa de responder a ele. Sua equipe ainda pode responder.",
+    "blocked": "Visitante bloqueado. Você o desbloqueia em Instruções › Contexto, memória e privacidade."
   },
   "errors": {
     "generic": "Algo deu errado. Tente de novo.",
@@ -390,7 +414,34 @@
     "ai_no_credits": "O provedor de AI recusou o pedido: a conta não tem créditos ou não tem acesso a este modelo. Adicione créditos no AI Gateway da Vercel ou escolha um modelo incluído no seu plano em Instruções > Modelo.",
     "ai_auth": "O provedor de AI recusou as credenciais do servidor. Verifique AI_GATEWAY_API_KEY nas configurações do servidor.",
     "unavailable": "O assistente não pode responder agora. Tente de novo em alguns minutos.",
-    "not_allowed": "Você precisa poder editar essa página do Docs para decidir esta ação."
+    "not_allowed": "Você precisa poder editar essa página do Docs para decidir esta ação.",
+    "unsupported_file": "Esse tipo de arquivo não é aceito. Use PDF, DOCX, TXT, Markdown ou CSV.",
+    "file_too_large": "O arquivo passa de 10 MB.",
+    "invalid_pdf": "Não foi possível ler esse PDF.",
+    "pdf_encrypted": "O PDF tem senha. Envie uma cópia sem senha.",
+    "pdf_no_text": "O PDF não tem texto (parece escaneado). Envie uma versão com texto selecionável.",
+    "invalid_docx": "Não foi possível ler esse arquivo do Word.",
+    "empty_file": "O arquivo não tem texto.",
+    "too_many_files": "Este agente já tem 25 arquivos.",
+    "too_many_qa": "Este agente já tem 500 pares de pergunta e resposta.",
+    "sitemap_not_found": "Nenhum sitemap encontrado nesse endereço.",
+    "sitemap_empty": "O sitemap não tem páginas desse site ou caminho.",
+    "too_many_mcp_servers": "Este agente já tem 5 servidores MCP.",
+    "mcp_duplicate": "Esse servidor já está conectado.",
+    "invalid_header": "Revise o nome e o valor do header.",
+    "mcp_unauthorized": "O servidor recusou as credenciais. Revise o token.",
+    "mcp_timeout": "O servidor demorou demais para responder.",
+    "mcp_unreachable": "Não foi possível chegar ao servidor.",
+    "mcp_bad_response": "O servidor não respondeu como um servidor MCP. Confira se a URL é o endpoint streamable HTTP.",
+    "mcp_error": "O servidor devolveu um erro.",
+    "mcp_tool_not_allowed": "Essa ferramenta MCP não está mais habilitada para este agente.",
+    "mcp_tool_error": "A ferramenta MCP devolveu um erro.",
+    "nothing_to_publish": "Não há mudanças não publicadas.",
+    "nothing_to_discard": "Não há rascunho para descartar.",
+    "conflict": "Alguém publicou ao mesmo tempo. Recarregue e tente de novo.",
+    "blocked": "Esta conversa não está disponível.",
+    "cannot_block": "Este visitante não pode ser bloqueado (não há navegador nem visitante do Chat para bloquear).",
+    "empty_conversation": "A conversa não tem mensagens do visitante."
   },
   "public": {
     "subtitle": "Assistente de AI",
@@ -438,7 +489,24 @@
       "fail": "Reprovado",
       "error": "Erro",
       "none": "Não rodado"
-    }
+    },
+    "kind": "Tipo",
+    "kinds": {
+      "single": "Uma pergunta",
+      "simulation": "Conversa simulada"
+    },
+    "kindHint": {
+      "single": "Uma mensagem do visitante e o que uma boa resposta faz.",
+      "simulation": "Um cliente de IA com esta persona conversa com o agente por vários turnos. O juiz avalia a conversa inteira."
+    },
+    "persona": "Persona e objetivo do cliente",
+    "personaPlaceholder": "Ana, dona de uma padaria pequena. Quer uma demo na semana que vem e passa o email quando pedem.",
+    "maxTurns": "Turnos máx.",
+    "opening": "Primeira mensagem do cliente",
+    "criteria": "Critério de sucesso",
+    "transcript": "Conversa",
+    "simCustomer": "Cliente",
+    "simAgent": "Agente"
   },
   "secrets": {
     "title": "Headers secretos",
@@ -515,5 +583,258 @@
       "failed": "Falhou"
     },
     "locked": "Só alguém que pode editar essa página do Docs vê e decide esta ação."
+  },
+  "mcp": {
+    "title": "Servidores MCP",
+    "empty": "Ainda não há servidores conectados.",
+    "name": "Nome",
+    "url": "URL do servidor (streamable HTTP)",
+    "headerName": "Header de autenticação",
+    "headerValue": "Valor do header",
+    "headerHint": "Fica salvo criptografado. Nem o agente nem o modelo de IA o veem, e ele não é mostrado de novo.",
+    "add": "Conectar servidor",
+    "adding": "Conectando…",
+    "tools": "Ferramentas que o agente pode usar",
+    "toolsCount": "{count, plural, =0 {Sem ferramentas} one {# ferramenta} other {# ferramentas}}",
+    "readOnly": "Lê",
+    "writes": "Muda dados",
+    "refresh": "Ler ferramentas de novo",
+    "changeToken": "Trocar token",
+    "tokenPlaceholder": "Valor novo (vazio para remover)",
+    "saveToken": "Salvar token",
+    "clearToken": "Remover token",
+    "remove": "Remover",
+    "removeConfirm": "Desconectar {name}? O agente deixa de usar as ferramentas dele.",
+    "authSet": "Envia {header}",
+    "noAuth": "Sem autenticação",
+    "status": {
+      "ok": "Conectado",
+      "error": "Erro"
+    },
+    "adminsOnly": "Só os admins veem e mudam os servidores conectados."
+  },
+  "versions": {
+    "hint": "Depois que você publica uma primeira versão, o que você salva fica como rascunho: o playground e os testes usam o rascunho e os canais ao vivo continuam com a versão publicada até você publicar de novo. Arquivos, pares de pergunta e resposta, servidores MCP e headers secretos valem assim que você os salva.",
+    "title": "Versões publicadas",
+    "loading": "Carregando versões…",
+    "emptyTitle": "Ainda não há versões",
+    "emptyBody": "Publique o agente para salvar a versão 1. A partir daí, o que você mudar fica como rascunho até ser publicado.",
+    "noNote": "Publicada",
+    "liveBadge": "Ao vivo",
+    "restore": "Voltar para esta versão",
+    "restoreConfirm": "Colocar a versão {number} ao vivo? Ela vira uma versão nova e seu rascunho é descartado.",
+    "restored": "A versão {number} voltou a ficar ao vivo.",
+    "saveFirst": "Primeiro salve ou descarte suas mudanças.",
+    "history": "Histórico de mudanças",
+    "historyEmpty": "Ainda não há mudanças registradas.",
+    "someone": "Alguém",
+    "statusOff": "As mudanças vão ao vivo ao salvar",
+    "statusLive": "Ao vivo: v{number}",
+    "statusDraft": "Ao vivo: v{number} · Mudanças não publicadas",
+    "publish": "Publicar",
+    "publishFirst": "Publicar v1",
+    "publishFirstHint": "Publicar ativa os rascunhos: a partir daí, salvar não muda o que os visitantes veem até você publicar.",
+    "publishing": "Publicando…",
+    "published": "A versão {number} está ao vivo.",
+    "discard": "Descartar rascunho",
+    "discardConfirm": "Descartar as mudanças não publicadas? O editor volta para a versão ao vivo.",
+    "discarded": "Rascunho descartado.",
+    "savedDraft": "Salvo como rascunho. Publique para colocar ao vivo.",
+    "fields": {
+      "name": "nome",
+      "emoji": "emoji",
+      "enabled": "ativo/pausado",
+      "publicHandle": "página pública",
+      "instructions": "instruções",
+      "welcomeMessage": "mensagem de boas-vindas",
+      "model": "modelo",
+      "temperature": "temperatura",
+      "knowledge": "conhecimento",
+      "tools": "ferramentas",
+      "handoff": "transferência",
+      "guardrails": "guardrails",
+      "settings": "canais, privacidade e scorecard"
+    },
+    "kinds": {
+      "create": "Criou o agente",
+      "save": "Mudou {fields}",
+      "saveDraft": "Mudou {fields} no rascunho",
+      "publish": "Publicou a versão {number}",
+      "restore": "Colocou a versão {from} ao vivo de novo como versão {number}",
+      "discard": "Descartou o rascunho",
+      "file_added": "Enviou o arquivo {name}",
+      "file_removed": "Removeu o arquivo {name}",
+      "qa_add": "Adicionou o par “{question}”",
+      "qa_edit": "Editou o par “{question}”",
+      "qa_remove": "Removeu o par “{question}”",
+      "mcp_add": "Conectou o servidor MCP {server}",
+      "mcp_edit": "Mudou o servidor MCP {server}",
+      "mcp_remove": "Desconectou o servidor MCP {server}",
+      "secret_changed": "Mudou um header secreto"
+    }
+  },
+  "files": {
+    "title": "Arquivos",
+    "hint": "Envie manuais, tabelas de preços ou políticas. O agente busca no texto deles assim que você os envia.",
+    "types": "PDF, Word (.docx), TXT, Markdown ou CSV, até 10 MB cada um e 25 arquivos.",
+    "upload": "Enviar arquivos",
+    "uploading": "Lendo…",
+    "empty": "Ainda não há arquivos.",
+    "remove": "Remover",
+    "removeConfirm": "Remover {name}? O agente deixa de usá-lo."
+  },
+  "qa": {
+    "title": "Perguntas e respostas",
+    "hint": "Respostas exatas para as perguntas mais frequentes. Adicione outras formas de perguntar a mesma coisa para o agente encontrá-las.",
+    "question": "Pergunta",
+    "answer": "Resposta",
+    "variants": "Outras formas de perguntar",
+    "variantsPlaceholder": "Quanto custa?\nQuais são os preços?",
+    "variantsHint": "Uma por linha, até 10.",
+    "variantsCount": "{count, plural, one {# outra forma de perguntar} other {# outras formas de perguntar}}",
+    "add": "Adicionar par",
+    "edit": "Editar",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "remove": "Remover",
+    "removeConfirm": "Remover esta pergunta e resposta?",
+    "required": "Escreva a pergunta e a resposta.",
+    "empty": "Ainda não há pares.",
+    "importCsv": "Importar CSV",
+    "importHint": "Colunas do CSV: pergunta, resposta e, opcional, variantes separadas por |.",
+    "imported": "{added, plural, one {# par adicionado} other {# pares adicionados}}, {skipped} ignorados."
+  },
+  "sitemaps": {
+    "title": "Sitemaps",
+    "hint": "Adicione um sitemap ou o endereço de um site e cada página que ele lista vira conhecimento, até 300 por sitemap. As páginas são lidas em segundo plano e atualizadas todo dia.",
+    "url": "URL do sitemap",
+    "prefix": "Só as páginas em",
+    "prefixPlaceholder": "/ajuda (opcional)",
+    "add": "Adicionar sitemap",
+    "empty": "Ainda não há sitemaps.",
+    "onlyPrefix": "Só {prefix}",
+    "progress": "{fetched} de {pages} páginas lidas",
+    "failed": "{count, plural, one {# com erro} other {# com erro}}",
+    "notRead": "Ainda não lido"
+  },
+  "suggestions": {
+    "title": "Perguntas sem resposta",
+    "hint": "O que os visitantes perguntaram nos últimos 30 dias e o agente não encontrou no conhecimento. Responda uma vez e o agente usa essa resposta a partir daí.",
+    "loading": "Carregando perguntas…",
+    "empty": "Nada pendente. Cada pergunta encontrou algo no conhecimento.",
+    "count": "{count, plural, one {Perguntada uma vez} other {Perguntada # vezes}}",
+    "addAnswer": "Adicionar resposta",
+    "dismiss": "Descartar"
+  },
+  "settings": {
+    "channelTitle": "Instruções por canal",
+    "channelHint": "Instruções que se somam às gerais só em um canal.",
+    "channelAdvanced": "Widget do Chat, página pública e API",
+    "channelPlaceholder": {
+      "chat": "Os visitantes estão navegando no site: respostas curtas e o link para a página certa.",
+      "public": "Os visitantes chegam por um link compartilhado: diga quem você é na primeira resposta.",
+      "api": "As respostas aparecem no nosso app: sem saudações, só a resposta."
+    },
+    "privacyTitle": "Contexto, memória e privacidade",
+    "privacyHint": "O que o agente sabe da pessoa com quem fala e o que fica salvo depois.",
+    "citations": "Citar as fontes",
+    "citationsHint": "As respostas que usam o conhecimento terminam com as fontes, com link quando a página é pública (central de ajuda ou site).",
+    "visitorContext": "Usar os dados do visitante identificado",
+    "visitorContextHint": "Quando o visitante está identificado (assinado no widget do Chat, ou enviado como user pelo seu servidor na API), o agente lê o contato dele no CRM, as próximas reservas do Cal e os pedidos abertos no Track.",
+    "memory": "Lembrar dos visitantes entre conversas",
+    "memoryHint": "Ao terminar uma conversa, o agente guarda fatos curtos do visitante identificado (ou do mesmo navegador na página pública) e os usa na próxima vez. Você os vê e apaga em Conversas.",
+    "redactPii": "Ocultar dados pessoais nas transcrições",
+    "redactPiiHint": "Uma hora depois que a conversa para, emails, telefones, cartões e números de documento são substituídos no que fica salvo.",
+    "blockingHint": "Países e visitantes bloqueados",
+    "blockedCountries": "Países bloqueados",
+    "blockedCountriesHint": "Códigos de duas letras separados por vírgulas. A página pública não responde a visitantes desses países.",
+    "blockedWords": "Palavras de spam",
+    "blockedWordsPlaceholder": "cassino, sorteio cripto",
+    "blockedWordsHint": "Uma mensagem com alguma dessas palavras não recebe resposta e o agente não roda.",
+    "blockedVisitors": "Visitantes bloqueados",
+    "blockedVisitorsEmpty": "Ninguém bloqueado. Bloqueie um visitante na conversa dele.",
+    "blockKinds": {
+      "chat": "Visitante do Chat",
+      "public": "Visitante da página pública"
+    },
+    "unblock": "Desbloquear",
+    "scorecardTitle": "Scorecard de qualidade",
+    "scorecardHint": "Cada conversa recebe uma nota com IA (satisfação, sentimento, tema e se foi resolvida) e é revisada contra estes critérios.",
+    "scorecard": "Critérios",
+    "scorecardPlaceholder": "Cumprimenta o visitante pelo nome\nOferece uma reunião quando perguntam sobre preços",
+    "scorecardHelp": "Um por linha, até 10."
+  },
+  "rules": {
+    "check": "Revisar regras",
+    "checking": "Revisando…",
+    "hint": "Procura instruções que se contradizem ou batem com os guardrails.",
+    "saveFirst": "Primeiro salve suas mudanças para revisá-las.",
+    "none": "Nada se choca.",
+    "noneStatic": "As checagens fixas não encontraram nada.",
+    "suggestion": "Sugestão",
+    "aiError": "A revisão com IA não rodou: {error}",
+    "codes": {
+      "avoid_in_instructions": "“{subject}” é um tema a evitar, mas as instruções falam dele.",
+      "keyword_is_avoided": "A palavra de transferência “{subject}” também é um tema a evitar.",
+      "long_answers_short_limit": "As instruções pedem respostas detalhadas, mas o tamanho máximo é {subject} caracteres.",
+      "handoff_tool_off": "Há regras de transferência, mas a ferramenta “Transferir para uma pessoa” está desligada.",
+      "knowledge_tool_off": "As instruções mencionam o conhecimento, mas “Pesquisar conhecimento” está desligada.",
+      "generic": "Possível conflito."
+    }
+  },
+  "quality": {
+    "title": "Qualidade",
+    "hint": "Nota com IA de cada conversa meia hora depois que ela para: satisfação (1 a 5), sentimento, tema, resolução e o seu scorecard.",
+    "scoreNow": "Pontuar agora",
+    "scoring": "Pontuando…",
+    "scored": "{count, plural, =0 {Nada novo para pontuar.} one {# conversa pontuada.} other {# conversas pontuadas.}}",
+    "scoredHint": "{count, plural, one {# conversa pontuada} other {# conversas pontuadas}}",
+    "none": "Ainda não há conversas pontuadas neste período.",
+    "avgCsat": "Satisfação",
+    "csatRate": "Satisfeitos (4 ou 5)",
+    "sentiment": "Sentimento",
+    "sentimentHint": "Positivo / neutro / negativo",
+    "sentiments": {
+      "positive": "Positivo",
+      "neutral": "Neutro",
+      "negative": "Negativo"
+    },
+    "needsReview": "Para revisar",
+    "openQueue": "Abrir a fila",
+    "aiTopics": "Temas (IA)",
+    "criteria": "Scorecard",
+    "criterion": "Critério",
+    "passRate": "Cumpridos",
+    "channels": "Por canal",
+    "channel": "Canal",
+    "handoffReasons": "Por que transferiu",
+    "noHandoffs": "Não houve transferências neste período.",
+    "reasonKinds": {
+      "keyword": "Palavra-chave",
+      "model_failure": "O modelo falhou",
+      "agent": "Agente"
+    },
+    "reasonEmpty": {
+      "keyword": "Palavra-chave",
+      "model_failure": "O modelo de IA não respondeu",
+      "agent": "Sem motivo"
+    },
+    "export": "Exportar CSV"
+  },
+  "replay": {
+    "title": "Repetir conversas reais",
+    "hint": "Envia as primeiras mensagens das últimas 10 conversas reais para o rascunho salvo (simulado, nada é executado) e compara o que ele respondeu antes com o que responde agora.",
+    "run": "Repetir as últimas 10",
+    "running": "Repetindo {done} de {total}…",
+    "empty": "Ainda não há conversas reais para repetir.",
+    "visitor": "Visitante:",
+    "before": "Antes",
+    "after": "Agora",
+    "noReply": "(sem resposta)",
+    "verdict": {
+      "better": "Melhor",
+      "same": "Igual",
+      "worse": "Pior"
+    }
   }
 }

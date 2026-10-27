@@ -52,6 +52,20 @@ export interface AgentRunContext {
   dryRun?: boolean;
   /** Headers secretos de http_request ya descifrados. Nunca van al modelo ni al registro. */
   secretHeaders?: Array<{ name: string; domain: string; value: string }>;
+  /** Email del visitante identificado (firma del widget o la API key): cuenta como dado por él. */
+  identifiedEmail?: string | null;
+  /** Fuentes que devolvió search_knowledge en esta corrida, por número de cita. */
+  citations?: Map<number, KnowledgeCitation>;
+  /** Búsquedas en el conocimiento de esta corrida y cuántas no encontraron nada. */
+  searches?: { calls: number; empty: number };
+  /** agents.mcp_servers (JSON con el header cifrado): servidores MCP del agente. */
+  mcpServers?: string;
+}
+
+export interface KnowledgeCitation {
+  title: string;
+  url: string | null;
+  kind: string;
 }
 
 type ToolOutput = Record<string, unknown>;
@@ -93,7 +107,9 @@ function emailsInText(text: string): Set<string> {
  */
 function visitorGaveEmail(ctx: AgentRunContext, email: string): boolean {
   if (ctx.channel === 'playground') return true;
-  return emailsInText(ctx.visitorText ?? '').has(email.trim().toLowerCase());
+  const e = email.trim().toLowerCase();
+  if (ctx.identifiedEmail && ctx.identifiedEmail.trim().toLowerCase() === e) return true;
+  return emailsInText(ctx.visitorText ?? '').has(e);
 }
 
 /** Resultado de una herramienta de escritura en modo simulación. */
@@ -168,7 +184,23 @@ function logged<I>(ctx: AgentRunContext, name: AgentToolKey, fn: (input: I) => P
 
 // ---------- Conocimiento ----------
 
-type KnowledgeKind = 'doc' | 'url' | 'canned';
+type KnowledgeKind = 'doc' | 'url' | 'canned' | 'file' | 'qa';
+
+/** Link público de una página de Docs publicada en el centro de ayuda (/h/<handle>/<slug>), o null. */
+async function helpCenterLinks(workspaceId: string, pageIds: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (pageIds.length === 0) return out;
+  const db = getDb();
+  const owner = (await db.prepare('SELECT handle FROM users WHERE id = ?').get(workspaceId)) as { handle: string | null } | undefined;
+  if (!owner?.handle) return out;
+  const ph = pageIds.map(() => '?').join(', ');
+  const rows = (await db
+    .prepare(`SELECT id, slug FROM docs_pages WHERE user_id = ? AND published = 1 AND slug IS NOT NULL AND slug != '' AND id IN (${ph})`)
+    .all(workspaceId, ...pageIds)) as Array<{ id: string; slug: string }>;
+  const { siteUrl } = await import('./board-urls');
+  for (const r of rows) out.set(r.id, `${siteUrl()}/h/${owner.handle}/${r.slug}`);
+  return out;
+}
 
 export async function searchAgentKnowledge(
   agent: AgentDto,
@@ -196,14 +228,23 @@ export async function searchAgentKnowledge(
       .all(workspaceId, ...cfg.docsPageIds)) as Array<{ id: string; title: string; content: string }>;
     for (const r of rows) pages.set(r.id, r);
   }
+  const links = await helpCenterLinks(workspaceId, [...pages.keys()]);
   // Sincronizados: solo si su origen también es conocimiento del agente (lib/docs-visible.ts).
   for (const p of await withVisibleContent(workspaceId, [...pages.values()], { knowledge: cfg.docsPageIds })) {
-    docs.push({ kind: 'doc', title: p.title || 'Untitled', text: extractDocsText(p.content, 12_000) });
+    docs.push({ kind: 'doc', title: p.title || 'Untitled', text: extractDocsText(p.content, 12_000), source: links.get(p.id) });
   }
+  // URLs: las de esta configuración (las agregadas a mano y las de sus sitemaps), ya descargadas.
   const urls = (await db
-    .prepare("SELECT url, title, content FROM agent_knowledge_urls WHERE agent_id = ? AND user_id = ? AND status = 'ok'")
-    .all(agent.id, workspaceId)) as Array<{ url: string; title: string; content: string }>;
-  for (const u of urls) docs.push({ kind: 'url', title: u.title || u.url, text: u.content, source: u.url });
+    .prepare("SELECT url, title, content, origin FROM agent_knowledge_urls WHERE agent_id = ? AND user_id = ? AND status = 'ok'")
+    .all(agent.id, workspaceId)) as Array<{ url: string; title: string; content: string; origin: string | null }>;
+  const manual = new Set(cfg.urls);
+  const sitemaps = new Set((cfg.sitemaps ?? []).map((sm) => sm.url));
+  for (const u of urls) {
+    if (u.origin ? !sitemaps.has(u.origin) : !manual.has(u.url)) continue;
+    docs.push({ kind: 'url', title: u.title || u.url, text: u.content, source: u.url });
+  }
+  const { ownKnowledgeDocs } = await import('./agents-knowledge');
+  for (const d of await ownKnowledgeDocs(agent.id, workspaceId)) docs.push(d);
   if (cfg.cannedFromWidgetId) {
     const widget = await db
       .prepare('SELECT id FROM chat_widgets WHERE id = ? AND user_id = ?')
@@ -215,6 +256,44 @@ export async function searchAgentKnowledge(
     }
   }
   return rankKnowledge(docs, query, k);
+}
+
+/** "Fuentes" en el idioma más probable del visitante. */
+function sourcesLabel(visitorText: string): string {
+  const t = visitorText.normalize('NFD').replace(/\p{M}+/gu, '').toLowerCase();
+  if (/\b(ola|obrigad|preciso|voce|nao|quero|tenho)\b/.test(t)) return 'Fontes';
+  if (/\b(hola|gracias|quiero|necesito|tengo|como|cuanto|donde|por favor)\b/.test(t)) return 'Fuentes';
+  return 'Sources';
+}
+
+/**
+ * Citas: el modelo marca con [n] el pasaje que usó (el número viene de
+ * search_knowledge). Se sacan las marcas que no corresponden y, si quedó
+ * alguna, se agrega la lista de fuentes con su link (texto plano: se ve igual
+ * en Chat, la página pública, la API y Groups). Los pares de pregunta y
+ * respuesta y las respuestas guardadas no se citan.
+ */
+export function applyCitations(
+  text: string,
+  citations: Map<number, KnowledgeCitation> | undefined,
+  opts: { enabled: boolean; visitorText?: string },
+): string {
+  const strip = (t: string) => t.replace(/ ?\[(\d{1,2})\]/g, '').replace(/[ \t]+\n/g, '\n').trim();
+  if (!opts.enabled || !citations || citations.size === 0) return strip(text);
+  const used: number[] = [];
+  const out = text.replace(/ ?\[(\d{1,2})\]/g, (m, n: string) => {
+    const ref = Number(n);
+    const c = citations.get(ref);
+    if (!c || c.kind === 'qa' || c.kind === 'canned') return '';
+    if (!used.includes(ref)) used.push(ref);
+    return ` [${used.indexOf(ref) + 1}]`;
+  });
+  if (used.length === 0) return strip(text);
+  const lines = used.map((ref, i) => {
+    const c = citations.get(ref)!;
+    return c.url ? `[${i + 1}] ${c.title}: ${c.url}` : `[${i + 1}] ${c.title}`;
+  });
+  return `${out.trim()}\n\n${sourcesLabel(opts.visitorText ?? '')}:\n${lines.join('\n')}`;
 }
 
 // ---------- Herramientas ----------
@@ -257,12 +336,25 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
       'search_knowledge',
       tool({
         description:
-          "Search this business's knowledge base (docs pages, saved web pages and canned answers). Returns the most relevant passages. Use it before answering questions about the business.",
+          "Search this business's knowledge base (docs pages, saved web pages, files, Q&A pairs and canned answers). Returns the most relevant passages, each with a ref number to cite. Use it before answering questions about the business.",
         inputSchema: z.object({ query: z.string().trim().min(2).max(300).describe('What to look for, in a few keywords') }),
         execute: logged(ctx, 'search_knowledge', async ({ query }: { query: string }) => {
           const results = await searchAgentKnowledge(agent, workspaceId, query);
+          ctx.citations ??= new Map();
+          ctx.searches ??= { calls: 0, empty: 0 };
+          ctx.searches.calls++;
+          if (results.length === 0) ctx.searches.empty++;
+          const out = results.map((r) => {
+            // El mismo pasaje en dos búsquedas conserva su número.
+            let ref = [...ctx.citations!.entries()].find(([, c]) => c.title === r.title && c.url === (r.source ?? null))?.[0];
+            if (ref === undefined) {
+              ref = ctx.citations!.size + 1;
+              ctx.citations!.set(ref, { title: r.title, url: r.source ?? null, kind: r.kind });
+            }
+            return { ref, title: r.title, kind: r.kind, source: r.source ?? null, text: r.text };
+          });
           return {
-            results: results.map((r) => ({ title: r.title, kind: r.kind, source: r.source ?? null, text: r.text })),
+            results: out,
             ...(results.length === 0 ? { note: 'no relevant knowledge found' } : {}),
           };
         }),
@@ -744,6 +836,24 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
     );
   }
 
+  if (on.has('mcp_call') && ctx.mcpServers) {
+    const { mcpModelTools, mcpToolIsReadOnly } = await import('./agents-mcp');
+    const servers = { mcp_servers: ctx.mcpServers };
+    const run = logged(ctx, 'mcp_call', async (input: Record<string, unknown>) => {
+      const readOnly = mcpToolIsReadOnly(servers, String(input.serverId ?? ''), String(input.tool ?? ''));
+      // Una herramienta que cambia datos no corre en simulación.
+      if (ctx.dryRun && !readOnly) return simulated({ action: 'mcp_call', server: input.server, tool: input.tool, arguments: input.arguments ?? {} });
+      // Fuera del playground, las que escriben siempre esperan a un admin (como Docs).
+      const queued = ctx.dryRun ? null : await queueIfRequired(ctx, 'mcp_call', input, !readOnly && ctx.channel !== 'playground');
+      return queued ?? performAgentAction(actionContext(ctx), 'mcp_call', input);
+    });
+    const mcp = mcpModelTools(servers, (input) => run(input));
+    if (Object.keys(mcp).length) {
+      Object.assign(tools, mcp);
+      enabled.push('mcp_call');
+    }
+  }
+
   return { tools, enabled, handoff };
 }
 
@@ -758,6 +868,8 @@ export interface AgentActionContext {
   secretHeaders: Array<{ name: string; domain: string; value: string }>;
   /** Persona que inició la conversación (si está identificada): con su acceso trabaja en Docs. */
   conversationCreatedBy?: string | null;
+  /** agents.mcp_servers actual (se revalida el servidor y la herramienta al correr). */
+  mcpServers?: string;
 }
 
 function actionContext(ctx: AgentRunContext): AgentActionContext {
@@ -768,13 +880,14 @@ function actionContext(ctx: AgentRunContext): AgentActionContext {
     channel: ctx.channel,
     secretHeaders: ctx.secretHeaders ?? [],
     conversationCreatedBy: ctx.conversation.created_by ?? null,
+    mcpServers: ctx.mcpServers,
   };
 }
 
 /** Si la herramienta pide aprobación, la encola y devuelve lo que el modelo le dice al visitante. */
-async function queueIfRequired(ctx: AgentRunContext, tool: ApprovableAgentTool, input: Record<string, unknown>): Promise<ToolOutput | null> {
-    // Escribir en Docs sin una persona identificada (Chat, página pública, API, Groups, Flow) siempre espera aprobación.
-  const forced = (tool === 'docs_write_page' || tool === 'docs_write_row') && ctx.channel !== 'playground';
+async function queueIfRequired(ctx: AgentRunContext, tool: ApprovableAgentTool, input: Record<string, unknown>, force = false): Promise<ToolOutput | null> {
+  // Escribir en Docs sin una persona identificada (Chat, página pública, API, Groups, Flow) siempre espera aprobación.
+  const forced = force || ((tool === 'docs_write_page' || tool === 'docs_write_row') && ctx.channel !== 'playground');
   if (ctx.dryRun || (!forced && !(ctx.agent.tools.requireApproval ?? []).includes(tool))) return null;
   const { queueAgentAction } = await import('./agents-approvals');
   const id = await queueAgentAction(actionContext(ctx), tool, input);
@@ -915,6 +1028,10 @@ export async function performAgentAction(actx: AgentActionContext, tool: Approva
         properties: props,
         markdown: str(input.markdown) || undefined,
       }, docsActor);
+    }
+    case 'mcp_call': {
+      const { performMcpCall } = await import('./agents-mcp');
+      return performMcpCall({ mcp_servers: actx.mcpServers ?? '[]' }, input);
     }
     case 'http_request': {
       let url: URL;

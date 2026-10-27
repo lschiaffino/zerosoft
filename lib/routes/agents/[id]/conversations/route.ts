@@ -16,5 +16,6 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   if (!(await getAgentRow(user.id, id))) return notFound();
   const raw = req.nextUrl.searchParams.get('channel');
   const channel = CHANNELS.includes(raw as AgentChannel) ? (raw as AgentChannel) : undefined;
-  return NextResponse.json({ conversations: await listConversations(user.id, id, { channel, limit: 100 }) });
+  const needsReview = req.nextUrl.searchParams.get('review') === '1';
+  return NextResponse.json({ conversations: await listConversations(user.id, id, { channel, limit: 100, needsReview }) });
 }

@@ -68,11 +68,23 @@ export async function runAgentChatReply(
       throw err;
     }
 
+    // Visitante bloqueado desde Conversaciones: el agente no le contesta (el equipo sí puede).
+    const { isChatVisitorBlocked } = await import('./agents-privacy');
+    if (await isChatVisitorBlocked(agent.id, conversation.visitor_id)) return { status: 'skipped', message: null };
+    // Identidad firmada por el sitio (lib/chat-identity.ts): contexto y memoria del visitante.
+    const { chatVisitorIdentity, memoryRefFor, setConversationIdentity } = await import('./agents-context');
+    const identity = await chatVisitorIdentity(conversationId);
+    if (identity && !agentConv.visitor_ref) {
+      await setConversationIdentity(agentConv.id, identity, memoryRefFor('chat', { identity }));
+      agentConv.visitor_email = identity.email;
+      agentConv.visitor_ref = memoryRefFor('chat', { identity });
+    }
+
     let result;
     try {
       const messages = toModelMessages(rows);
       if (messages.length === 0) return { status: 'skipped', message: null };
-      result = await runAgent({ agent, conversation: agentConv, messages, channel: 'chat' });
+      result = await runAgent({ agent, conversation: agentConv, messages, channel: 'chat', identity });
     } catch (err) {
       console.error('[agents-chat] run failed', err);
       const message = await maybeRunChatBot(widget, conversation, describeMessage(lastVisitor));

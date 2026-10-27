@@ -5767,6 +5767,118 @@ export const MIGRATIONS: Migration[] = [
         UPDATE webhook_deliveries SET captured_by = (SELECT created_by FROM webhooks w WHERE w.id = webhook_deliveries.webhook_id) WHERE captured_by IS NULL;
       `);
     },
+  },  {
+    // Paridad de Agents: versiones (borrador/publicada y rollback), registro
+    // de cambios, archivos y pares de pregunta-respuesta como conocimiento,
+    // sitemaps, simulaciones de varios turnos, puntaje con AI de cada
+    // conversación (CSAT, sentimiento, tema, scorecard) y cola de revisión,
+    // identidad y memoria del visitante, redacción de datos personales,
+    // bloqueos y conexiones MCP.
+    id: '120_agents_parity',
+    up: async (client) => {
+      await addColumn(client, "ALTER TABLE agents ADD COLUMN settings TEXT NOT NULL DEFAULT '{}'");
+      await addColumn(client, 'ALTER TABLE agents ADD COLUMN draft TEXT');
+      await addColumn(client, 'ALTER TABLE agents ADD COLUMN published_version_id TEXT');
+      await addColumn(client, "ALTER TABLE agents ADD COLUMN mcp_servers TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(client, 'ALTER TABLE agent_knowledge_urls ADD COLUMN origin TEXT');
+      await addColumn(client, "ALTER TABLE agent_test_cases ADD COLUMN kind TEXT NOT NULL DEFAULT 'single'");
+      await addColumn(client, "ALTER TABLE agent_test_cases ADD COLUMN persona TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, 'ALTER TABLE agent_test_cases ADD COLUMN max_turns INTEGER NOT NULL DEFAULT 4');
+      await addColumn(client, "ALTER TABLE agent_test_cases ADD COLUMN last_transcript TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(client, 'ALTER TABLE agent_runs ADD COLUMN handoff_reason TEXT');
+      await addColumn(client, 'ALTER TABLE agent_runs ADD COLUMN question TEXT');
+      await addColumn(client, 'ALTER TABLE agent_runs ADD COLUMN unanswered INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE agent_runs ADD COLUMN suggestion_dismissed INTEGER NOT NULL DEFAULT 0');
+      for (const col of [
+        'visitor_email TEXT',
+        'visitor_name TEXT',
+        'visitor_ref TEXT',
+        'country TEXT',
+        'score TEXT',
+        'csat INTEGER',
+        'sentiment TEXT',
+        'topic TEXT',
+        'scored_at TEXT',
+        'score_claimed_until TEXT',
+        'reviewed_at TEXT',
+        'reviewed_by TEXT',
+        "review_note TEXT NOT NULL DEFAULT ''",
+        'redacted_at TEXT',
+        'memory_at TEXT',
+      ]) {
+        await addColumn(client, `ALTER TABLE agent_conversations ADD COLUMN ${col}`);
+      }
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS agent_versions (
+          id TEXT PRIMARY KEY,
+          agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          number INTEGER NOT NULL,
+          snapshot TEXT NOT NULL,
+          note TEXT NOT NULL DEFAULT '',
+          created_by TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_versions_number ON agent_versions(agent_id, number);
+        CREATE TABLE IF NOT EXISTS agent_changes (
+          id TEXT PRIMARY KEY,
+          agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          person_id TEXT,
+          kind TEXT NOT NULL,
+          detail TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_agent_changes_agent ON agent_changes(agent_id, created_at);
+        CREATE TABLE IF NOT EXISTS agent_knowledge_files (
+          id TEXT PRIMARY KEY,
+          agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          size INTEGER NOT NULL DEFAULT 0,
+          content TEXT NOT NULL DEFAULT '',
+          created_by TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_agent_knowledge_files_agent ON agent_knowledge_files(agent_id, created_at);
+        CREATE TABLE IF NOT EXISTS agent_qa (
+          id TEXT PRIMARY KEY,
+          agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          question TEXT NOT NULL,
+          variants TEXT NOT NULL DEFAULT '[]',
+          answer TEXT NOT NULL,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_agent_qa_agent ON agent_qa(agent_id, created_at);
+        CREATE TABLE IF NOT EXISTS agent_memories (
+          id TEXT PRIMARY KEY,
+          agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          visitor_ref TEXT NOT NULL,
+          fact TEXT NOT NULL,
+          conversation_id TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_agent_memories_visitor ON agent_memories(agent_id, visitor_ref, created_at);
+        CREATE TABLE IF NOT EXISTS agent_blocked_visitors (
+          id TEXT PRIMARY KEY,
+          agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          value_hash TEXT NOT NULL,
+          label TEXT NOT NULL DEFAULT '',
+          created_by TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_blocked_value ON agent_blocked_visitors(agent_id, kind, value_hash);
+        CREATE INDEX IF NOT EXISTS idx_agent_conversations_score ON agent_conversations(agent_id, scored_at);
+        CREATE INDEX IF NOT EXISTS idx_agent_conversations_visitor ON agent_conversations(agent_id, visitor_ref);
+      `);
+    },
   },
 ];
 
