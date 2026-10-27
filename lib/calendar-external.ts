@@ -14,7 +14,7 @@
 import { getDb, getUserById, type CalendarBookingRow } from './db';
 import type { EventTypeWithRules } from './calendar';
 import { parseLocations } from './calendar-locations';
-import { getPersonCalendars, writeTarget } from './calendar-calendars';
+import { getPersonCalendars, recordWriteResult, writeTarget } from './calendar-calendars';
 import { createZoomMeeting, deleteZoomMeeting, updateZoomMeeting } from './crm-apps';
 import {
   createGoogleEventForBooking,
@@ -75,15 +75,20 @@ export async function createExternalForBooking(booking: CalendarBookingRow, even
   const { target, outlook } = await targetFor(hostId);
   const teams = outlook && needsGeneratedMeeting(b, eventType, 'teams');
   if (teams) {
-    return createOutlookEventForBooking(b, eventType, {
+    const out = await createOutlookEventForBooking(b, eventType, {
       teams: true,
       calendarId: target?.provider === 'outlook' ? target.calendarId || undefined : undefined,
     });
+    await recordWriteResult(hostId, 'outlook', !!out.outlook_event_id);
+    return out;
   }
   if (!target) return b;
   if (target.provider === 'google') b = await createGoogleEventForBooking(b, eventType, target.calendarId || 'primary');
   else if (target.provider === 'icloud') b = await createICloudEventForBooking(b, eventType, target.calendarId);
   else b = await createOutlookEventForBooking(b, eventType, { calendarId: target.calendarId || undefined });
+  // Si el calendario no aceptó el evento, Conexiones lo avisa (la reserva sigue igual).
+  const written = target.provider === 'google' ? !!b.google_event_id : target.provider === 'icloud' ? !!b.icloud_event_url : !!b.outlook_event_id;
+  await recordWriteResult(hostId, target.provider, written);
   return b;
 }
 

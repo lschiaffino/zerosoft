@@ -19,6 +19,9 @@ const schema = z.object({
   accountSid: z.string().trim().max(64),
   authToken: z.string().trim().max(64).optional(),
   fromNumber: z.string().trim().max(64),
+  /** Países permitidos (códigos como "+54, +1"). Vacío = el del número que envía. */
+  allowedCodes: z.string().trim().max(400).optional(),
+  dailyLimit: z.number().int().min(1).max(5000).optional(),
 });
 
 export async function POST(req: NextRequest) {

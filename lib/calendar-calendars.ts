@@ -19,6 +19,8 @@ export interface PersonCalendars {
   outlook?: { check?: string[] };
   icloud?: { check?: string[] };
   write?: { provider: CalendarProvider; calendarId: string };
+  /** Última vez que no se pudo crear el evento de una reserva (se limpia al volver a andar). */
+  writeError?: { provider: CalendarProvider; at: string };
 }
 
 const MAX_CHECK = 20;
@@ -48,7 +50,11 @@ export function parsePersonCalendars(json: string | null | undefined): PersonCal
   if (iCheck) out.icloud = { check: iCheck };
   const w = r.write;
   if (w && (w.provider === 'google' || w.provider === 'outlook' || w.provider === 'icloud') && typeof w.calendarId === 'string' && w.calendarId) {
-    out.write = { provider: w.provider, calendarId: w.calendarId.slice(0, 300) };
+    out.write = { provider: w.provider, calendarId: w.calendarId.slice(0, 500) };
+  }
+  const we = r.writeError as { provider?: unknown; at?: unknown } | undefined;
+  if (we && (we.provider === 'google' || we.provider === 'outlook' || we.provider === 'icloud') && typeof we.at === 'string') {
+    out.writeError = { provider: we.provider, at: we.at.slice(0, 40) };
   }
   return out;
 }
@@ -84,6 +90,21 @@ export async function setPersonCalendars(personId: string, patch: PersonCalendar
       .run(crypto.randomUUID(), personId, ts, ts, JSON.stringify(clean));
   }
   return clean;
+}
+
+/** Anota si escribir el evento de una reserva anduvo (para avisar en Conexiones). */
+export async function recordWriteResult(personId: string, provider: CalendarProvider, ok: boolean): Promise<void> {
+  const cfg = await getPersonCalendars(personId);
+  if (ok && !cfg.writeError) return;
+  if (ok) {
+    const next = { ...cfg };
+    delete next.writeError;
+    await getDb().prepare('UPDATE calendar_users SET calendars = ? WHERE user_id = ?').run(JSON.stringify(next), personId);
+    return;
+  }
+  await getDb()
+    .prepare('UPDATE calendar_users SET calendars = ? WHERE user_id = ?')
+    .run(JSON.stringify({ ...cfg, writeError: { provider, at: new Date().toISOString() } }), personId);
 }
 
 /** Calendarios a revisar de un proveedor ('primary' / '' = el principal). */

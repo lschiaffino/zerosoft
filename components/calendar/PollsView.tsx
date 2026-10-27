@@ -217,7 +217,8 @@ export function PollsList({ items, pollBase, openNew }: { items: PollListView[];
 }
 
 /** Detalle de una encuesta para quien la organiza: grilla de votos, reservar, renombrar, cerrar y borrar. */
-export function PollDetail({ poll: initial, pollUrl }: { poll: PollDetailView; pollUrl: string }) {
+/** canManage: quien la creó o un admin (renombrar, cerrar, reservar y borrar). */
+export function PollDetail({ poll: initial, pollUrl, canManage = true }: { poll: PollDetailView; pollUrl: string; canManage?: boolean }) {
   const t = useTranslations('calendar');
   const locale = useLocale();
   const router = useRouter();
@@ -339,20 +340,22 @@ export function PollDetail({ poll: initial, pollUrl }: { poll: PollDetailView; p
         actions={
           <>
             {poll.status === 'open' && <CalCopyButton text={pollUrl} />}
-            {!editing && (
+            {!editing && canManage && (
               <button type="button" className="btn btn-sm" onClick={() => setEditing(true)}>
                 {t('polls.rename')}
               </button>
             )}
-            {poll.status !== 'booked' && (
+            {poll.status !== 'booked' && canManage && (
               <button type="button" className="btn btn-sm" onClick={() => void patch({ status: poll.status === 'open' ? 'closed' : 'open' })}>
                 {poll.status === 'open' ? t('polls.close') : t('polls.reopen')}
               </button>
             )}
-            <button type="button" className="btn btn-sm btn-danger" onClick={() => setConfirmDelete(true)}>
-              <CalIcon name="trash" />
-              {t('common.delete')}
-            </button>
+            {canManage && (
+              <button type="button" className="btn btn-sm btn-danger" onClick={() => setConfirmDelete(true)}>
+                <CalIcon name="trash" />
+                {t('common.delete')}
+              </button>
+            )}
           </>
         }
       />
@@ -396,7 +399,7 @@ export function PollDetail({ poll: initial, pollUrl }: { poll: PollDetailView; p
                     {t('polls.votes')}
                   </th>
                   <th scope="col">{t('polls.who')}</th>
-                  {poll.status === 'open' && (
+                  {poll.status === 'open' && canManage && (
                     <th scope="col">
                       <span className="sr-only">{t('polls.book')}</span>
                     </th>
@@ -420,7 +423,7 @@ export function PollDetail({ poll: initial, pollUrl }: { poll: PollDetailView; p
                       <td className="cal-wrap" data-label={t('polls.who')}>
                         {names.join(', ') || <span className="cal-muted">–</span>}
                       </td>
-                      {poll.status === 'open' && (
+                      {poll.status === 'open' && canManage && (
                         <td>
                           <button
                             type="button"

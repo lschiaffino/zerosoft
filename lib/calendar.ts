@@ -318,9 +318,17 @@ export async function getPublicProfile(
       byPerson.set(h.user_id, m);
     }
   }
+  // Página del equipo: el nombre visible del workspace o, si no tiene, el del equipo.
+  const own = (await getDb()
+    .prepare(
+      `SELECT c.display_name, (SELECT t.name FROM teams t WHERE t.owner_id = ? ORDER BY t.created_at LIMIT 1) AS team_name
+       FROM users u LEFT JOIN calendar_users c ON c.user_id = u.id WHERE u.id = ?`,
+    )
+    .get(user.id, user.id)) as { display_name: string | null; team_name: string | null } | undefined;
+  const teamName = !own?.display_name?.trim() && byPerson.size > 1 ? own?.team_name?.trim() : '';
   return {
     userId: user.id,
-    name: brand.name || user.handle,
+    name: teamName || brand.name || user.handle,
     handle: user.handle,
     brand,
     eventTypes,
@@ -1051,7 +1059,7 @@ export function seatsLeftAt(start: Date, groups: SeatGroup[], seats: number): nu
  * atómico con la asignación: el guard del INSERT/UPDATE (hostsFreeGuard)
  * corta a la segunda de dos reservas simultáneas. `onlyHost` (reservar con
  * una persona puntual del pool: su página o el owner del CRM) deja el
- * round-robin en ese host; si no es del pool, no hay asignación.
+ * round-robin en ese host; si no es del pool se ignora (reparto de siempre).
  */
 async function pickFreeHost(
   eventType: EventTypeWithRules,
@@ -1062,8 +1070,8 @@ async function pickFreeHost(
 ): Promise<HostAssignment | null> {
   const fullPool = await candidateHosts(eventType);
   const collectiveAll = isCollective(eventType) && fullPool.length > 1;
-  if (onlyHost && !collectiveAll && !fullPool.includes(onlyHost)) return null;
-  const pool = onlyHost && !collectiveAll ? [onlyHost] : fullPool;
+  // Fuera del pool (o colectivo): se ignora, igual que en los horarios ofrecidos.
+  const pool = onlyHost && !collectiveAll && fullPool.includes(onlyHost) ? [onlyHost] : fullPool;
   const collective = isCollective(eventType) && pool.length > 1;
   const rotated =
     !collective && pool.length > 1 ? roundRobinOrder(pool, eventType.rr_cursor, await lastAssignedByHost(eventType.id)) : pool;
@@ -1892,10 +1900,11 @@ export async function reassignBookingsOfRemovedHost(ownerId: string, userId: str
  * si recién quedó reconfirmada, null si ya lo estaba o no está confirmada.
  */
 export async function reconfirmBooking(id: string): Promise<string | null> {
-  const at = now();
+  // ISO (con zona) para la API y los webhooks.
+  const at = new Date().toISOString();
   const res = await getDb()
     .prepare("UPDATE calendar_bookings SET reconfirmed_at = ?, updated_at = ? WHERE id = ? AND status = 'confirmed' AND reconfirmed_at IS NULL")
-    .run(at, at, id);
+    .run(at, now(), id);
   return res.changes === 1 ? at : null;
 }
 
@@ -1937,7 +1946,7 @@ export async function rescheduleBooking(id: string, newStart: Date): Promise<Cal
       await getDb()
         .prepare(
           `UPDATE calendar_bookings SET starts_at = ?, ends_at = ?, host_user_id = ?, co_host_ids = ?, location = ?, rescheduled_from = ?,
-             buffer_before_min = ?, buffer_after_min = ?, updated_at = ?
+             buffer_before_min = ?, buffer_after_min = ?, updated_at = ?, reconfirmed_at = NULL
            WHERE id = ? AND status = 'confirmed' AND ${free.sql}${guard.sql}`,
         )
         .run(
@@ -2144,10 +2153,16 @@ export async function listUserBookings(
     limit?: number;
     /** Por inicio; por defecto la más nueva primero. */
     order?: 'asc' | 'desc';
+    /** Solo las que atiende esa persona (anfitriona o co-anfitriona). */
+    hostId?: string;
   } = {},
 ): Promise<CalendarBookingRowWithEvent[]> {
   const conditions: string[] = ['e.user_id = ?'];
   const values: (string | number)[] = [userId];
+  if (opts.hostId) {
+    conditions.push("(b.host_user_id = ? OR (b.co_host_ids != '[]' AND EXISTS (SELECT 1 FROM json_each(b.co_host_ids) j WHERE j.value = ?)))");
+    values.push(opts.hostId, opts.hostId);
+  }
 
   if (opts.status) {
     conditions.push('b.status = ?');

@@ -1,6 +1,6 @@
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
-import { requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { getPoll } from '@/lib/calendar-polls';
 import { PollDetail } from '@/components/calendar/PollsView';
 import { publicOrigin } from '@/components/calendar/event-type-items';
@@ -16,6 +16,7 @@ export default async function PollDetailPage(props: { params: Promise<{ locale: 
   return (
     <PollDetail
       pollUrl={`${origin}/${locale}/book/poll/${poll.token}`}
+      canManage={poll.created_by === realUserId(user) || isWorkspaceAdmin(user)}
       poll={{
         id: poll.id,
         title: poll.title,

@@ -33,16 +33,27 @@ export function parseTracking(json: string | null | undefined): CalTracking {
   return out;
 }
 
+/**
+ * Antes de cargar un píxel, la URL que ven Google y Meta queda solo con los
+ * utm_*: el email, el nombre, las respuestas, rsid o host del link nunca
+ * salen a un tercero (la página ya los leyó en el server). Devuelve la URL limpia.
+ */
+const CLEAN_URL =
+  "var __zsU=(function(){try{var u=new URL(location.href),k=[];u.searchParams.forEach(function(v,n){if(!/^utm_/.test(n))k.push(n)});" +
+  "k.forEach(function(n){u.searchParams.delete(n)});var c=u.origin+u.pathname+(u.searchParams.toString()?'?'+u.searchParams.toString():'');" +
+  "if(c!==location.href)history.replaceState(history.state,'',c);return c}catch(e){return location.origin+location.pathname}})();";
+
 /** Script inline de GA4 (gtag) para un id ya validado. */
 export function ga4Snippet(id: string): string {
   if (!GA4_ID.test(id)) return '';
-  return `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${id}');`;
+  return `${CLEAN_URL}window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${id}',{page_location:__zsU});`;
 }
 
 /** Script inline de Meta Pixel para un id ya validado. */
 export function metaPixelSnippet(id: string): string {
   if (!META_PIXEL_ID.test(id)) return '';
   return (
+    CLEAN_URL +
     "!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};" +
     "if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;" +
     "s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');" +

@@ -30,6 +30,8 @@ interface Props {
   defaultFrom: string;
   /** Tipos de evento activos para "Nueva reserva" (agendar en nombre de un invitado). */
   eventTypes?: OnBehalfEventType[];
+  /** Un admin elige el anfitrión; un member agenda consigo. */
+  canChooseHost?: boolean;
 }
 
 type Panel = { id: string; kind: 'reschedule' | 'cancel' | 'decline' } | null;
@@ -111,7 +113,7 @@ function localDay(d = new Date()): string {
  * hora, invitado, tipo de evento, estado y acciones en una fila densa. Ver,
  * reprogramar y cancelar se abren en línea debajo de la fila.
  */
-export default function BookingsList({ bookings, locale, timezone, initialFilters, defaultFrom, eventTypes = [] }: Props) {
+export default function BookingsList({ bookings, locale, timezone, initialFilters, defaultFrom, eventTypes = [], canChooseHost = true }: Props) {
   const [onBehalfOpen, setOnBehalfOpen] = useState(false);
   const t = useTranslations('calendar');
   const [filters, setFilters] = useState<Filters>(initialFilters);
@@ -288,6 +290,7 @@ export default function BookingsList({ bookings, locale, timezone, initialFilter
         open={onBehalfOpen}
         onClose={() => setOnBehalfOpen(false)}
         eventTypes={eventTypes}
+        canChooseHost={canChooseHost}
         onBooked={(name) => {
           setNotice(t('onBehalf.done', { name }));
           setReload((n) => n + 1);

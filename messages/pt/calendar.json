@@ -319,7 +319,10 @@
     "poll_closed": "Esta enquete não recebe mais votos.",
     "poll_full": "Esta enquete já tem o máximo de participantes.",
     "poll_no_votes": "Ninguém votou ainda.",
-    "payment_required": "Este tipo de evento cobra: reserve pela página dele."
+    "payment_required": "Este tipo de evento cobra: reserve pela página dele.",
+    "poll_email_taken": "Alguém já votou com este e-mail. Para mudar esse voto, use o navegador de onde você votou.",
+    "invalid_calendar": "Essa agenda não está na sua conta conectada.",
+    "invalid_host": "Essa pessoa não atende este tipo de evento."
   },
   "settings": {
     "title": "Configurações",
@@ -532,14 +535,17 @@
     "when_rescheduled": "depois de remarcada",
     "when_no_show": "depois de um no-show",
     "webhookUrl": "URL do webhook",
-    "webhookHelp": "Enviamos um POST com a reserva em JSON (evento workflow.<gatilho>).",
+    "webhookHelp": "Enviamos um POST com JSON: event (workflow.<gatilho>), sentAt e booking (id, status, startsAt, endsAt, timezone, nome, e-mail e telefone do convidado, meetingUrl, location, cancelReason e o id, slug e título do tipo de evento). É assinado como os webhooks do workspace: header Zerosoft-Signature t=<unix>,v1=HMAC-SHA256 de “t.body” com este segredo.",
     "webhookInvalid": "O webhook precisa de uma URL http ou https.",
     "bodyRequired": "Cada etapa por e-mail ou SMS precisa de uma mensagem.",
     "subjectRequired": "Cada etapa por e-mail precisa de um assunto.",
     "smsText": "Texto",
-    "smsGuestHelp": "Vai para o telefone que o convidado deixa (uma pergunta de telefone ou “o anfitrião liga”), em formato internacional com +.",
+    "smsGuestHelp": "Vai para o telefone que o convidado deixa (uma pergunta de telefone ou “o anfitrião liga”), em formato internacional com +, só para os países permitidos. A mesma etapa não é enviada duas vezes para uma reserva em 24 horas, mesmo se for remarcada.",
     "smsHostHelp": "Vai para o telefone do anfitrião em Ajustes › Conexões.",
-    "smsSetup": "Conecte o Twilio para enviar SMS"
+    "smsSetup": "Conecte o Twilio para enviar SMS",
+    "adminOnly": "Só admins mudam os workflows: eles enviam SMS e webhooks pela conta do workspace.",
+    "copySecret": "Copiar segredo de assinatura",
+    "secretOnSave": "Ao salvar, é criado um segredo de assinatura (whsec_…)."
   },
   "payments": {
     "title": "Cobrança",
@@ -737,7 +743,8 @@
     "allHosts": "Todos",
     "allEventTypes": "Todos os tipos de evento",
     "byHost": "Por pessoa",
-    "unknownHost": "Sem anfitrião"
+    "unknownHost": "Sem anfitrião",
+    "pollPrefix": "Enquete: {title}"
   },
   "location": {
     "title": "Local",
@@ -841,7 +848,13 @@
     "email": "E-mail do convidado",
     "help": "O convidado recebe a confirmação com o link para remarcar ou cancelar, como se tivesse reservado.",
     "noEventTypes": "Primeiro ative um tipo de evento.",
-    "done": "Reservado para {name}."
+    "done": "Reservado para {name}.",
+    "host": "Anfitrião",
+    "anyHost": "Distribuição de sempre",
+    "timezone": "Fuso do convidado",
+    "location": "Local",
+    "phone": "Telefone do convidado",
+    "guests": "Convidados extras"
   },
   "funnel": {
     "title": "Funil do formulário",
@@ -890,7 +903,10 @@
       "poll": "Enquetes",
       "settings": "Ajustes",
       "integration": "Conexões",
-      "privacy": "Privacidade"
+      "privacy": "Privacidade",
+      "workflow": "Workflows",
+      "routing": "Formulários de roteamento",
+      "api": "API e webhooks"
     },
     "empty": "Ainda não há atividade",
     "emptyLead": "As mudanças em tipos de evento, reservas e ajustes aparecem aqui.",
@@ -914,8 +930,20 @@
       "poll_created": "criou a enquete",
       "poll_updated": "mudou a enquete",
       "poll_deleted": "excluiu a enquete",
-      "poll_booked": "reservou a enquete"
-    }
+      "poll_booked": "reservou a enquete",
+      "booking_guest_cancelled": "cancelou a reserva",
+      "booking_guest_rescheduled": "remarcou a reserva",
+      "booking_guest_reconfirmed": "reconfirmou presença",
+      "workflow_updated": "mudou as etapas do workflow",
+      "routing_created": "criou o formulário",
+      "routing_updated": "mudou o formulário",
+      "routing_deleted": "excluiu o formulário",
+      "api_webhook_created": "criou um webhook com eventos de reservas",
+      "api_webhook_deleted": "excluiu um webhook",
+      "api_key_created": "criou uma API key com acesso ao Cal",
+      "api_key_revoked": "revogou uma API key"
+    },
+    "guest": "O convidado"
   },
   "connections": {
     "calendarsTitle": "Agendas",
@@ -962,7 +990,14 @@
     "appPassword": "Senha de app",
     "connectICloud": "Conectar iCloud",
     "icloudAuthFailed": "A Apple não aceitou esse Apple ID e senha de app.",
-    "icloudInvalid": "Confira o Apple ID e a senha (quatro grupos de quatro letras)."
+    "icloudInvalid": "Confira o Apple ID e a senha (quatro grupos de quatro letras).",
+    "smsCountries": "Países permitidos",
+    "smsCountriesHelp": "Códigos de país, p. ex. +55, +1. Vazio: só o país do número que envia.",
+    "smsCountriesRequired": "Com um Messaging Service, indique os países permitidos.",
+    "smsDailyLimit": "Limite diário",
+    "smsSentToday": "{n, plural, one {# SMS} other {# SMS}} nas últimas 24 horas.",
+    "smsCost": "O Twilio cobra cada SMS na sua conta. O limite diário e a lista de países mantêm o custo sob controle.",
+    "writeError": "A última reserva não pôde ser adicionada ao {provider}. Confira a conexão ou escolha outra agenda."
   },
   "polls": {
     "title": "Enquetes de horário",

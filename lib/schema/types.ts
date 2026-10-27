@@ -1017,6 +1017,8 @@ export interface CalendarWorkflowStepRow {
   channel: string;
   /** URL del paso webhook (118). */
   target: string;
+  /** Secreto whsec_ cifrado con el que se firma el paso webhook (118). */
+  secret: string;
 }
 
 export interface CalendarWorkflowRunRow {
@@ -1100,6 +1102,8 @@ export interface CalendarBookingRow {
   routing_submission_id: string | null;
   /** Persona del workspace que la agendó en nombre del invitado (118). */
   booked_by: string | null;
+  /** Zona horaria de cada invitado extra, JSON { email: tz } (118). */
+  guest_timezones: string;
 }
 
 export interface CalendarEventHostRow {

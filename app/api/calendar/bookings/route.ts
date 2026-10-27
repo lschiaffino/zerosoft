@@ -13,6 +13,7 @@ import {
 import { bookingCreateSchema, bookingListQuerySchema, validateBookingAnswers, validateGuests } from '@/lib/calendar-schema';
 import { invalidBody, crmError, unauthorized } from '@/lib/crm-http';
 import { afterBookingCreated } from '@/lib/calendar-lifecycle';
+import { parseHostToken } from '@/lib/calendar-host-token';
 import { getCurrentUser } from '@/lib/session';
 import { appBaseUrl } from '@/lib/calendar-notify';
 import { createCheckoutForBooking, HOLD_MINUTES, paymentsEnabled, PaymentError } from '@/lib/calendar-payments';
@@ -90,7 +91,8 @@ export async function POST(req: NextRequest) {
     if (Number.isNaN(startDate.getTime())) return crmError(400, 'invalid_input');
 
     const guestTz = timezone ?? 'UTC';
-    const hostId = parsed.data.hostId ?? null;
+    // Token opaco de "reservar con esta persona"; inválido o fuera del pool: el reparto de siempre.
+    const hostId = parseHostToken(parsed.data.hostId);
     const matching = await findOfferedSlot(eventTypeId, startDate, guestTz, { hostId });
     if (!matching) return crmError(409, 'slot_unavailable');
 

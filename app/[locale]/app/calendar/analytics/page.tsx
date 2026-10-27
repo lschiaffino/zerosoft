@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { bookingDateBounds, getCalendarUser, listEventTypes, localDate } from '@/lib/calendar';
 import { analyticsHosts, computeBookingAnalytics, loadAnalyticsRows, parseAnalyticsRange } from '@/lib/calendar-analytics';
 import { chartDateLabel, spansYears } from '@/lib/chart-dates';
@@ -44,13 +44,17 @@ export default async function CalendarAnalyticsPage(props: {
   const today = localDate(new Date(), timezone);
   const range = parseAnalyticsRange(sp.from, sp.to, today);
   const bounds = await bookingDateBounds(user.id, range.fromDate, range.toDate);
-  const [hosts, eventTypes] = await Promise.all([analyticsHosts(user.id), listEventTypes(user.id)]);
+  const [allHosts, eventTypes] = await Promise.all([analyticsHosts(user.id), listEventTypes(user.id, { includePolls: true })]);
+  // Un member ve solo lo suyo (como en Calendly); un admin, a cualquiera del equipo.
+  const admin = isWorkspaceAdmin(user);
+  const me = realUserId(user);
+  const hosts = admin ? allHosts : [];
   // Filtros por persona y por tipo de evento: solo valores del workspace.
-  const hostId = hosts.some((h) => h.id === sp.host) ? (sp.host as string) : '';
+  const hostId = admin ? (hosts.some((h) => h.id === sp.host) ? (sp.host as string) : '') : me;
   const eventTypeId = eventTypes.some((e) => e.id === sp.et) ? (sp.et as string) : '';
   const rows =
     bounds.from && bounds.to ? await loadAnalyticsRows(user.id, bounds.from, bounds.to, { hostId, eventTypeId }) : [];
-  const filterQs = `${hostId ? `&host=${encodeURIComponent(hostId)}` : ''}${eventTypeId ? `&et=${encodeURIComponent(eventTypeId)}` : ''}`;
+  const filterQs = `${admin && hostId ? `&host=${encodeURIComponent(hostId)}` : ''}${eventTypeId ? `&et=${encodeURIComponent(eventTypeId)}` : ''}`;
   const a = computeBookingAnalytics(rows, { ...range, timezone });
 
   const presetFrom = (days: number) =>
@@ -144,7 +148,7 @@ export default async function CalendarAnalyticsPage(props: {
               <option value="">{t('analytics.allEventTypes')}</option>
               {eventTypes.map((e) => (
                 <option key={e.id} value={e.id}>
-                  {e.title}
+                  {e.kind === 'poll' ? t('analytics.pollPrefix', { title: e.title }) : e.title}
                 </option>
               ))}
             </select>
@@ -285,7 +289,7 @@ export default async function CalendarAnalyticsPage(props: {
             <p className="ui-help">{t('analytics.note')}</p>
           </section>
 
-          {a.byHost.length > 0 && (
+          {admin && a.byHost.length > 0 && (
             <section className="cal-block" aria-labelledby="cal-an-hosts">
               <div className="cal-block-head">
                 <h2 id="cal-an-hosts" className="cal-block-title">

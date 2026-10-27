@@ -270,8 +270,8 @@ export const bookingCreateSchema = z.object({
   guests: z.array(email).max(MAX_GUESTS).optional(),
   /** Envío del routing form que trajo al invitado (embudo de routing forms). */
   routingSubmissionId: id.optional(),
-  /** Reservar con una persona puntual del pool (su página o el owner del CRM). */
-  hostId: id.optional(),
+  /** Reservar con una persona puntual del pool: token opaco (lib/calendar-host-token.ts). */
+  hostId: z.string().trim().max(400).optional(),
   /** Ubicación elegida (clave de lib/calendar-locations.ts) y teléfono si el anfitrión llama. */
   location: z
     .object({ key: z.string().trim().max(40).optional(), phone: z.string().trim().max(40).optional() })
@@ -534,6 +534,8 @@ export const workflowStepSchema = z
     subject: z.string().trim().max(200).optional().default(''),
     body: z.string().trim().max(5000).optional().default(''),
     target: z.string().trim().max(2000).optional(),
+    /** Secreto whsec_ que ya tenía el paso webhook (se conserva al guardar). */
+    secret: z.string().trim().max(100).optional(),
   })
   .superRefine((s, ctx) => {
     const channel = s.channel ?? 'email';
@@ -594,4 +596,7 @@ export const pollVoteSchema = z.object({
   name: personName.refine((v) => v.length > 0, { message: 'invalid_name' }),
   email,
   optionIds: z.array(id).min(1).max(20),
+  timezone: ianaTimezone.optional(),
+  /** Token propio del votante (lo devuelve su primer voto) para cambiar su voto. */
+  editToken: z.string().trim().max(64).optional(),
 });

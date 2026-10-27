@@ -37,8 +37,8 @@ export async function POST(req: NextRequest, props: Ctx) {
   const parsed = pollVoteSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return invalidBody(parsed.error);
   try {
-    const poll = await votePoll((await props.params).token, parsed.data);
-    return NextResponse.json(publicView(poll));
+    const { poll, editToken } = await votePoll((await props.params).token, parsed.data);
+    return NextResponse.json({ ...publicView(poll), editToken });
   } catch (err) {
     if (err instanceof CalendarError) return crmError(err.status, err.code);
     return crmError(500, 'generic');

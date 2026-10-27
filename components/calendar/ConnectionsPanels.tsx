@@ -29,6 +29,7 @@ interface CalendarsState {
     outlook?: { check?: string[] };
     icloud?: { check?: string[] };
     write?: { provider: Provider; calendarId: string };
+    writeError?: { provider: Provider; at: string };
   };
 }
 
@@ -173,6 +174,11 @@ export function CalendarConnectionsPanel({
       {noticeText && (
         <p className={notice?.result === 'connected' ? 'cal-callout cal-callout-ok' : 'cal-callout'} role="status">
           {noticeText}
+        </p>
+      )}
+      {data?.settings.writeError && (
+        <p className="cal-callout" role="status">
+          {t('connections.writeError', { provider: PROVIDER_SHORT[data.settings.writeError.provider] })}
         </p>
       )}
       {loadError ? (
@@ -421,6 +427,9 @@ interface SmsView {
   accountSid: string;
   fromNumber: string;
   tokenHint: string | null;
+  allowedCodes: string[];
+  dailyLimit: number;
+  sentToday: number;
 }
 
 /** Twilio del workspace para los pasos de workflow por SMS. */
@@ -438,6 +447,8 @@ export function SmsPanel({ initial, canEdit }: { initial: SmsView; canEdit: bool
         accountSid: String(fd.get('accountSid') ?? ''),
         authToken: String(fd.get('authToken') ?? '') || undefined,
         fromNumber: String(fd.get('fromNumber') ?? ''),
+        allowedCodes: String(fd.get('allowedCodes') ?? ''),
+        dailyLimit: Math.max(1, Math.round(Number(fd.get('dailyLimit')) || 200)),
       }),
     }).catch(() => null);
     if (res?.ok) {
@@ -446,7 +457,11 @@ export function SmsPanel({ initial, canEdit }: { initial: SmsView; canEdit: bool
     }
     const data = res ? ((await res.json().catch(() => null)) as { error?: string | { code?: string } } | null) : null;
     const code = typeof data?.error === 'string' ? data.error : data?.error?.code;
-    return code === 'sms_auth_failed' ? t('connections.smsAuthFailed') : t('connections.smsInvalid');
+    return code === 'sms_auth_failed'
+      ? t('connections.smsAuthFailed')
+      : code === 'sms_countries_required'
+        ? t('connections.smsCountriesRequired')
+        : t('connections.smsInvalid');
   }
 
   async function remove() {
@@ -493,7 +508,32 @@ export function SmsPanel({ initial, canEdit }: { initial: SmsView; canEdit: bool
           <input id={`${id}-from`} name="fromNumber" className="input data" defaultValue={view.fromNumber} placeholder="+15551234567" autoComplete="off" required disabled={!canEdit} />
           <p className="ui-help">{t('connections.smsFromHelp')}</p>
         </div>
+        <div className="ui-field">
+          <label className="label" htmlFor={`${id}-codes`}>
+            {t('connections.smsCountries')}
+          </label>
+          <input
+            id={`${id}-codes`}
+            name="allowedCodes"
+            className="input data"
+            defaultValue={view.allowedCodes.map((c) => `+${c}`).join(', ')}
+            placeholder="+54, +1"
+            autoComplete="off"
+            disabled={!canEdit}
+          />
+          <p className="ui-help">{t('connections.smsCountriesHelp')}</p>
+        </div>
+        <div className="ui-field">
+          <label className="label" htmlFor={`${id}-limit`}>
+            {t('connections.smsDailyLimit')}
+          </label>
+          <input id={`${id}-limit`} name="dailyLimit" type="number" min={1} max={5000} className="input cal-num" defaultValue={view.dailyLimit} disabled={!canEdit} />
+          <p className="ui-help">{t('connections.smsSentToday', { n: view.sentToday })}</p>
+        </div>
       </div>
+      <p className="cal-callout" role="note">
+        {t('connections.smsCost')}
+      </p>
       {view.configured && canEdit && (
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => void remove()} aria-busy={busy || undefined}>
           {t('connections.smsRemove')}

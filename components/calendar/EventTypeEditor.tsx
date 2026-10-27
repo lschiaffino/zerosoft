@@ -48,6 +48,8 @@ export interface WorkflowStepView {
   subject: string;
   body: string;
   target?: string;
+  /** Secreto whsec_ del paso webhook ('' para quien no es admin). */
+  secret?: string;
 }
 
 interface TeamMemberOption {
@@ -96,6 +98,8 @@ export interface EventTypeEditorProps {
   workflowSteps: WorkflowStepView[];
   /** El workspace tiene Twilio para los pasos por SMS. */
   smsConfigured?: boolean;
+  /** Los workflows los cambia un admin (mandan SMS y webhooks a cuenta del workspace). */
+  canEditWorkflows?: boolean;
   teamMembers?: TeamMemberOption[];
   teamId?: string | null;
   hostIds: string[];
@@ -141,6 +145,7 @@ interface StepDraft {
   subject: string;
   body: string;
   target: string;
+  secret: string;
 }
 const VARIABLES = [
   '{{guest.name}}',
@@ -170,6 +175,7 @@ function fromOffset(s: WorkflowStepView): StepDraft {
     subject: s.subject,
     body: s.body,
     target: s.target ?? '',
+    secret: s.secret ?? '',
   };
 }
 function toOffset(d: StepDraft): number {
@@ -184,7 +190,7 @@ function stepPayload(d: StepDraft) {
     offsetMin: toOffset(d),
     subject: d.channel === 'email' ? d.subject : '',
     body: d.channel === 'webhook' ? '' : d.body,
-    ...(d.channel === 'webhook' ? { target: d.target.trim() } : {}),
+    ...(d.channel === 'webhook' ? { target: d.target.trim(), ...(d.secret ? { secret: d.secret } : {}) } : {}),
   };
 }
 
@@ -501,7 +507,8 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
       if (!r || !r.ok) return fail('availability', t(`errors.${await readCode(r)}`));
     }
 
-    if (JSON.stringify(d.steps) !== JSON.stringify(baseline.steps)) {
+    let savedSteps: StepDraft[] | null = null;
+    if (props.canEditWorkflows !== false && JSON.stringify(d.steps) !== JSON.stringify(baseline.steps)) {
       const r = await fetch(`/api/calendar/event-types/${et.id}/workflows`, {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
@@ -510,9 +517,18 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
         }),
       }).catch(() => null);
       if (!r || !r.ok) return fail('advanced', t('editor.remindersError'));
+      // Los pasos webhook nuevos vuelven con su secreto de firma: queda en el borrador.
+      const saved = ((await r.json().catch(() => null)) as { steps?: WorkflowStepView[] } | null)?.steps;
+      if (saved && saved.length === d.steps.length) savedSteps = saved.map(fromOffset);
     }
 
-    const savedDraft = { ...d, fields: fields.map((f) => ({ ...f })), locations, seats: seats > 0 ? String(seats) : '' };
+    const savedDraft = {
+      ...d,
+      steps: savedSteps ?? d.steps,
+      fields: fields.map((f) => ({ ...f })),
+      locations,
+      seats: seats > 0 ? String(seats) : '',
+    };
     setD(savedDraft);
     setBaseline(savedDraft);
     setState('saved');
@@ -1176,6 +1192,8 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
             </SubSection>
 
             <SubSection title={t('workflows.title')} description={t('workflows.sub')}>
+              {props.canEditWorkflows === false && <p className="ui-help">{t('workflows.adminOnly')}</p>}
+              <fieldset className="cal-steps-fieldset" disabled={props.canEditWorkflows === false}>
               {d.steps.length === 0 ? (
                 <p className="cal-muted">{t('workflows.empty')}</p>
               ) : (
@@ -1261,6 +1279,14 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
                               onChange={(e) => upd({ target: e.target.value })}
                             />
                             <p className="ui-help">{t('workflows.webhookHelp')}</p>
+                            {s.secret ? (
+                              <div className="cal-share-url">
+                                <span className="data">{s.secret}</span>
+                                <CalCopyButton text={s.secret} label={t('workflows.copySecret')} />
+                              </div>
+                            ) : (
+                              <p className="ui-help">{t('workflows.secretOnSave')}</p>
+                            )}
                           </div>
                         ) : (
                           <>
@@ -1320,6 +1346,7 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
                         unit: 'hours',
                         when: 'before',
                         target: '',
+                        secret: '',
                         // Las plantillas llevan {{…}}: se leen crudas para que el formateo de mensajes no las toque.
                         subject: String(t.raw('workflows.defaultSubject')),
                         body: String(t.raw('workflows.defaultBody')),
@@ -1331,6 +1358,7 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
                   {t('workflows.add')}
                 </button>
               </div>
+              </fieldset>
               <p className="ui-help">
                 {t('editor.variables')} <span className="data">{VARIABLES.join(' ')}</span>
               </p>

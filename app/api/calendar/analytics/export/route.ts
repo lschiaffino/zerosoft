@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
 import { bookingDateBounds, getCalendarUser, localDate } from '@/lib/calendar';
 import { computeBookingAnalytics, loadAnalyticsRows, parseAnalyticsRange } from '@/lib/calendar-analytics';
 import { analyticsCsv } from '@/lib/calendar-export';
@@ -19,7 +19,8 @@ export async function GET(req: NextRequest) {
   const rows =
     bounds.from && bounds.to
       ? await loadAnalyticsRows(user.id, bounds.from, bounds.to, {
-          hostId: sp.get('host')?.slice(0, 64) || null,
+          // Un member exporta solo lo suyo.
+          hostId: isWorkspaceAdmin(user) ? sp.get('host')?.slice(0, 64) || null : realUserId(user),
           eventTypeId: sp.get('et')?.slice(0, 64) || null,
         })
       : [];

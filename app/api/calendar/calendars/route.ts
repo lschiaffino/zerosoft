@@ -6,7 +6,7 @@ import { GOOGLE_CALENDAR_PROVIDER, GOOGLE_CALENDARLIST_SCOPE, invalidateBusyCach
 import { OUTLOOK_CALENDAR_PROVIDER, invalidateOutlookBusyCache, listOutlookCalendars } from '@/lib/outlook-calendar';
 import { ICLOUD_CALENDAR_PROVIDER, invalidateICloudBusyCache, listICloudCalendars } from '@/lib/icloud-calendar';
 import { getPersonCalendars, setPersonCalendars } from '@/lib/calendar-calendars';
-import { invalidBody, unauthorized } from '@/lib/crm-http';
+import { crmError, invalidBody, unauthorized } from '@/lib/crm-http';
 import { fakeGoogleCalendarAllowed } from '@/lib/google-calendar-fake';
 
 export const runtime = 'nodejs';
@@ -59,6 +59,25 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return invalidBody(parsed.error);
   const me = realUserId(user);
   const { write, ...rest } = parsed.data;
+  // Solo calendarios que el proveedor de la persona devuelve (y se puede escribir en el destino).
+  const lists = {
+    google: rest.google || write?.provider === 'google' ? await listGoogleCalendars(me) : null,
+    outlook: rest.outlook || write?.provider === 'outlook' ? await listOutlookCalendars(me) : null,
+    icloud: rest.icloud || write?.provider === 'icloud' ? await listICloudCalendars(me) : null,
+  };
+  const idsOf = (provider: 'google' | 'outlook' | 'icloud', writable = false) =>
+    new Set(
+      (lists[provider] ?? [])
+        .filter((c) => !writable || c.canWrite)
+        .flatMap((c) => [c.id, ...(c.primary ? [provider === 'google' ? 'primary' : provider === 'outlook' ? '' : c.id] : [])]),
+    );
+  for (const provider of ['google', 'outlook', 'icloud'] as const) {
+    const check = rest[provider]?.check;
+    if (!check) continue;
+    const allowed = idsOf(provider);
+    if (check.some((c) => !allowed.has(c))) return crmError(400, 'invalid_calendar');
+  }
+  if (write && !idsOf(write.provider, true).has(write.calendarId)) return crmError(400, 'invalid_calendar');
   const saved = await setPersonCalendars(me, {
     ...rest,
     ...(write ? { write: { provider: write.provider, calendarId: write.calendarId } } : {}),

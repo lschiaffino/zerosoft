@@ -23,6 +23,10 @@ export async function PATCH(req: NextRequest, props: Ctx) {
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
+  const current = await getPoll(user.id, id);
+  if (!current) return notFound();
+  // La cambia quien la creó o un admin.
+  if (current.created_by !== realUserId(user) && !isWorkspaceAdmin(user)) return crmError(403, 'forbidden');
   const parsed = pollUpdateSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return invalidBody(parsed.error);
   const poll = await updatePoll(user.id, id, parsed.data);

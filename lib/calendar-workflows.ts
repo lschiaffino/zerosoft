@@ -18,7 +18,10 @@
  * sent_at, así dos crons a la vez no la mandan dos veces. Este módulo solo
  * importa db/email/sms para no crear ciclos con lib/calendar.ts.
  */
+import { randomBytes } from 'crypto';
 import { getDb, getUserById, type CalendarWorkflowStepRow } from './db';
+import { open, seal } from './secret-box';
+import { signPayload } from './webhooks';
 import { escapeHtml, formatWhen, renderBrandedHtml, sendEmail } from './email';
 import { safeFetch } from './safe-fetch';
 import { sendCalSms } from './calendar-sms';
@@ -42,6 +45,15 @@ export interface WorkflowStep {
   body: string;
   /** URL del webhook ('' en email y SMS). */
   target: string;
+  /** Secreto whsec_ con el que se firma el paso webhook ('' en email y SMS). */
+  secret: string;
+}
+
+const WHSEC = /^whsec_[A-Za-z0-9_-]{20,64}$/;
+
+/** Secreto nuevo para un paso webhook (mismo formato que los webhooks del workspace). */
+export function newStepSecret(): string {
+  return `whsec_${randomBytes(24).toString('base64url')}`;
 }
 
 function asTrigger(v: string | null | undefined): WorkflowTrigger {
@@ -62,6 +74,7 @@ function toStep(r: CalendarWorkflowStepRow): WorkflowStep {
     subject: r.subject,
     body: r.body,
     target: r.target ?? '',
+    secret: r.channel === 'webhook' ? open(r.secret) : '',
   };
 }
 
@@ -110,6 +123,8 @@ export function normalizeSteps(steps: WorkflowStepPayload[]): Array<Omit<Workflo
       subject: channel === 'email' ? s.subject : '',
       body: channel === 'webhook' ? '' : s.body,
       target: channel === 'webhook' ? (s.target ?? '') : '',
+      // El secreto que ya tenía el paso se conserva (si no, se genera uno nuevo).
+      secret: channel === 'webhook' ? (s.secret && WHSEC.test(s.secret) ? s.secret : newStepSecret()) : '',
     };
   });
 }
@@ -137,13 +152,13 @@ export async function setWorkflowSteps(
     .run(eventTypeId);
   await db.prepare('DELETE FROM calendar_workflow_steps WHERE event_type_id = ?').run(eventTypeId);
   const ins = db.prepare(
-    `INSERT INTO calendar_workflow_steps (id, event_type_id, position, recipient, offset_min, subject, body, trigger, channel, target)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO calendar_workflow_steps (id, event_type_id, position, recipient, offset_min, subject, body, trigger, channel, target, secret)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   const clean = normalizeSteps(steps);
   for (let i = 0; i < clean.length; i++) {
     const s = clean[i];
-    await ins.run(crypto.randomUUID(), eventTypeId, i, s.recipient, s.offsetMin, s.subject, s.body, s.trigger, s.channel, s.target);
+    await ins.run(crypto.randomUUID(), eventTypeId, i, s.recipient, s.offsetMin, s.subject, s.body, s.trigger, s.channel, s.target, s.secret ? seal(s.secret) : '');
   }
   if (await hasWorkflowSteps(eventTypeId)) {
     // El recordatorio fijo de 24h queda reemplazado por los pasos.
@@ -297,6 +312,8 @@ interface DueRunRow {
   id: string;
   booking_id: string;
   send_at: string;
+  step_id: string;
+  secret: string;
   trigger: string;
   channel: string;
   target: string;
@@ -360,7 +377,7 @@ export async function processDueWorkflowRuns(
 ): Promise<{ total: number; sent: number; failed: number; skipped: number }> {
   const due = (await getDb()
     .prepare(
-      `SELECT r.id, r.booking_id, r.send_at, s.trigger, s.channel, s.target, s.recipient, s.subject, s.body,
+      `SELECT r.id, r.booking_id, r.send_at, s.id AS step_id, s.trigger, s.channel, s.target, s.secret, s.recipient, s.subject, s.body,
               b.invitee_name, b.invitee_email, b.starts_at, b.ends_at, b.timezone, b.locale, b.status, b.cancel_reason,
               b.manage_token, b.meeting_url, b.host_user_id, b.location_kind, b.location, b.answers,
               e.user_id AS owner_id, e.id AS event_type_id, e.slug AS event_slug, e.title AS event_title,
@@ -433,7 +450,7 @@ async function dispatchRun(run: DueRunRow): Promise<SendOutcome> {
     }
     // Sin teléfono (o sin Twilio) no hay a quién mandarlo: se saltea sin reintentar.
     if (!to) return 'skipped';
-    const res = await sendCalSms(run.owner_id, to, renderWorkflowTemplate(run.body, vars));
+    const res = await sendCalSms(run.owner_id, to, renderWorkflowTemplate(run.body, vars), { bookingId: run.booking_id, stepId: run.step_id });
     if (res.ok) return 'sent';
     return res.retry ? 'failed' : 'skipped';
   }
@@ -460,9 +477,18 @@ async function dispatchRun(run: DueRunRow): Promise<SendOutcome> {
   return res.ok ? 'sent' : 'failed';
 }
 
-/** Paso webhook: POST JSON con la reserva a una URL pública (sin seguir redirects a otra parte). */
+/**
+ * Paso webhook: POST JSON con la reserva a una URL pública (sin seguir
+ * redirects a otra parte), firmado como los webhooks del workspace:
+ * `Zerosoft-Signature: t=<unix>,v1=<hex>` con v1 = HMAC-SHA256(whsec_…,
+ * `${t}.${body}`). Cuerpo (ver WORKFLOW_WEBHOOK_PAYLOAD_DOC):
+ * { event: 'workflow.<disparador>', sentAt, booking: { id, status, startsAt,
+ * endsAt, timezone, invitee: { name, email, phone }, meetingUrl, location,
+ * cancelReason, eventType: { id, slug, title } } }.
+ */
 async function dispatchWebhook(run: DueRunRow, vars: Record<string, string>): Promise<SendOutcome> {
   if (!/^https?:\/\//i.test(run.target)) return 'skipped';
+  const secret = open(run.secret);
   const payload = {
     event: `workflow.${run.trigger}`,
     sentAt: new Date().toISOString(),
@@ -479,12 +505,19 @@ async function dispatchWebhook(run: DueRunRow, vars: Record<string, string>): Pr
       eventType: { id: run.event_type_id, slug: run.event_slug, title: run.event_title },
     },
   };
+  const body = JSON.stringify(payload);
   const res = await safeFetch(
     run.target,
     {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'user-agent': 'zerosoft-cal-workflows/1.0', 'x-zerosoft-event': payload.event },
-      body: JSON.stringify(payload),
+      headers: {
+        'content-type': 'application/json',
+        'user-agent': 'Zerosoft-Webhooks/1',
+        'zerosoft-event': payload.event,
+        'zerosoft-delivery': run.id,
+        ...(secret ? { 'zerosoft-signature': signPayload(secret, body) } : {}),
+      },
+      body,
     },
     8000,
   ).catch(() => null);

@@ -12,7 +12,7 @@ import {
   updateCalendarUser,
 } from '@/lib/calendar';
 import { createSchedule } from '@/lib/calendar-schedules';
-import { processDueWorkflowRuns, scheduleTriggeredRuns, setWorkflowSteps, computeRunTimes, guestPhone } from '@/lib/calendar-workflows';
+import { listWorkflowSteps, processDueWorkflowRuns, scheduleTriggeredRuns, setWorkflowSteps, computeRunTimes, guestPhone } from '@/lib/calendar-workflows';
 import { afterBookingCancelled, afterBookingCreated } from '@/lib/calendar-lifecycle';
 import { bookPoll, createPoll, getPoll, listPolls, votePoll } from '@/lib/calendar-polls';
 import { deleteInviteeData, previewInviteeData } from '@/lib/calendar-privacy';
@@ -21,7 +21,9 @@ import { computeBookingAnalytics, loadAnalyticsRows } from '@/lib/calendar-analy
 import { computeRoutingFunnel, findCrmContact } from '@/lib/calendar-routing';
 import { parseTracking, ga4Snippet, metaPixelSnippet } from '@/lib/calendar-tracking';
 import { parsePersonCalendars, setPersonCalendars, writeTarget, checkedCalendars } from '@/lib/calendar-calendars';
-import { fakeSmsOutbox, saveSmsSettings, toE164 } from '@/lib/calendar-sms';
+import { callingCode, fakeSmsOutbox, getSmsSettings, saveSmsSettings, sendCalSms, toE164 } from '@/lib/calendar-sms';
+import { signPayload } from '@/lib/webhooks';
+import { hostToken, parseHostToken } from '@/lib/calendar-host-token';
 import { listCalActivity, logCalActivity, maskEmail } from '@/lib/calendar-activity';
 import { handleCalRpc } from '@/lib/calendar-mcp';
 import { upsertIntegration } from '@/lib/integrations';
@@ -113,7 +115,7 @@ describe('workflows con disparadores, SMS y webhook', () => {
 
   it('al reservar y al cancelar: email, SMS y webhook', async () => {
     const { u, et } = await setup('wf');
-    await saveSmsSettings(u.id, { accountSid: `AC${'a'.repeat(32)}`, authToken: 'b'.repeat(32), fromNumber: '+15550001111' });
+    await saveSmsSettings(u.id, { accountSid: `AC${'a'.repeat(32)}`, authToken: 'b'.repeat(32), fromNumber: '+15550001111', allowedCodes: '+54' });
     await setWorkflowSteps(u.id, et.id, [
       { trigger: 'booked', channel: 'sms', recipient: 'guest', offsetMin: 0, subject: '', body: 'Hola {{guest.name}}, {{start}}' },
       { trigger: 'cancelled', channel: 'webhook', recipient: 'host', offsetMin: 0, subject: '', body: '', target: 'http://127.0.0.1:9/hook' },
@@ -147,6 +149,35 @@ describe('workflows con disparadores, SMS y webhook', () => {
     await processDueWorkflowRuns(new Date(Date.now() + 1000));
     const hook = calls.find((c) => c.startsWith('http://127.0.0.1:9/hook'));
     expect(hook).toContain('"event":"workflow.cancelled"');
+    // Firmado con el secreto del paso, como los webhooks del workspace.
+    const steps = await listWorkflowSteps(u.id, et.id);
+    const secret = steps!.find((s) => s.channel === 'webhook')!.secret;
+    expect(secret).toMatch(/^whsec_/);
+    const init = (vi.mocked(fetch).mock.calls.find((c) => String(c[0]).startsWith('http://127.0.0.1:9/hook'))?.[1] ?? {}) as RequestInit;
+    const headers = new Headers(init.headers);
+    const sig = headers.get('zerosoft-signature') ?? '';
+    const [, ts] = /t=(\d+)/.exec(sig) ?? [];
+    expect(sig).toBe(signPayload(secret, String(init.body), Number(ts)));
+    // Guardar de nuevo con el secreto conserva el mismo.
+    const again = await setWorkflowSteps(u.id, et.id, steps!.map((s) => ({ ...s })));
+    expect(again!.find((s) => s.channel === 'webhook')!.secret).toBe(secret);
+  });
+
+  it('SMS: países permitidos, sin repetir el paso y con tope diario', async () => {
+    const { u, et } = await setup('smsg');
+    await saveSmsSettings(u.id, { accountSid: `AC${'c'.repeat(32)}`, authToken: 'd'.repeat(32), fromNumber: '+5491100000000', dailyLimit: 2 });
+    expect((await getSmsSettings(u.id)).allowedCodes).toEqual(['54']);
+    expect(callingCode('+5491155550000')).toBe('54');
+    expect(callingCode('+15551234567')).toBe('1');
+    expect(callingCode('+59899123456')).toBe('598');
+    expect((await sendCalSms(u.id, '+15551234567', 'hi')).ok).toBe(false);
+    const ok = await sendCalSms(u.id, '+5491155550000', 'hi', { bookingId: 'b1', stepId: 's1' });
+    expect(ok.ok).toBe(true);
+    const dup = await sendCalSms(u.id, '+5491155550000', 'hi', { bookingId: 'b1', stepId: 's1' });
+    expect(dup).toMatchObject({ ok: false, code: 'duplicate' });
+    expect((await sendCalSms(u.id, '+5491155550001', 'hi')).ok).toBe(true);
+    expect(await sendCalSms(u.id, '+5491155550002', 'hi')).toMatchObject({ ok: false, code: 'daily_limit' });
+    void et;
   });
 
   it('el teléfono del invitado sale de la ubicación o de una respuesta internacional', () => {
@@ -173,15 +204,20 @@ describe('encuestas de horario', () => {
     const poll = await createPoll(u.id, u.id, { title: 'Kickoff', durationMin: 30, times: [t1, t2, '2001-01-01T00:00:00Z'] });
     expect(poll.options.map((o) => o.startsAt)).toEqual([t1, t2]);
     const [o1, o2] = poll.options;
-    await votePoll(poll.token, { name: 'Ana', email: 'ana@x.com', optionIds: [o1.id] });
-    await votePoll(poll.token, { name: 'Beto', email: 'beto@x.com', optionIds: [o1.id, o2.id] });
-    await votePoll(poll.token, { name: 'Ana', email: 'ANA@x.com', optionIds: [o2.id] });
+    const ana = await votePoll(poll.token, { name: 'Ana', email: 'ana@x.com', optionIds: [o1.id], timezone: 'America/Argentina/Buenos_Aires' });
+    await votePoll(poll.token, { name: 'Beto', email: 'beto@x.com', optionIds: [o1.id, o2.id], timezone: 'Europe/Madrid' });
+    // Otro no puede pisar el voto de Ana con su email; Ana sí, con su token.
+    await expect(votePoll(poll.token, { name: 'Impostor', email: 'ana@x.com', optionIds: [o1.id] })).rejects.toThrow('poll_email_taken');
+    await votePoll(poll.token, { name: 'Ana', email: 'ANA@x.com', optionIds: [o2.id], timezone: 'America/Argentina/Buenos_Aires', editToken: ana.editToken });
     const voted = await getPoll(u.id, poll.id);
     expect(voted?.votes).toHaveLength(2);
+    expect(voted?.votes.find((v) => v.email === 'ana@x.com')?.name).toBe('Ana');
     const { booking } = await bookPoll(u.id, poll.id, o2.id);
     expect(booking.starts_at).toBe(t2);
     expect(booking.invitee_email).toBe('ana@x.com');
+    expect(booking.timezone).toBe('America/Argentina/Buenos_Aires');
     expect(JSON.parse(booking.guests)).toEqual(['beto@x.com']);
+    expect(JSON.parse((await row(booking.id)).guest_timezones)).toEqual({ 'beto@x.com': 'Europe/Madrid' });
     expect((await getPoll(u.id, poll.id))?.status).toBe('booked');
     await expect(votePoll(poll.token, { name: 'C', email: 'c@x.com', optionIds: [o1.id] })).rejects.toThrow('poll_closed');
     // El tipo oculto que crea la encuesta no sale en la lista.
@@ -403,5 +439,62 @@ describe('iCloud por CalDAV (fake)', () => {
     const allDay = icsRange('BEGIN:VEVENT\r\nDTSTART;VALUE=DATE:20261028\r\nEND:VEVENT');
     expect(allDay!.end.getTime() - allDay!.start.getTime()).toBe(86_400_000);
     expect(icsRange('BEGIN:VEVENT\r\nDTSTART:20261028T100000Z\r\nTRANSP:TRANSPARENT\r\nEND:VEVENT')).toBeNull();
+  });
+});
+
+describe('borrado de datos del invitado: no queda nada en la base', () => {
+  it('ni el email ni el nombre aparecen en ninguna tabla del workspace (salvo el CRM)', async () => {
+    const { u, et } = await setup('scan');
+    const email = 'Zelda.Scan@Example.com';
+    const name = 'Zelda Scanwright';
+    await getDb()
+      .prepare("INSERT INTO webhooks (id, user_id, url, events, secret) VALUES (?, ?, 'https://example.com/h', '[\"booking.created\"]', 'whsec_x')")
+      .run(crypto.randomUUID(), u.id);
+    const b = await createBooking({ eventTypeId: et.id, email, name, start: `${dayAhead(12)}T10:00:00.000Z`, answers: {} });
+    await afterBookingCreated(b);
+    await logCalActivity(u.id, u.id, 'booking.cancelled', { type: 'booking', id: b.id, summary: name });
+    await getDb()
+      .prepare("INSERT INTO crm_app_log (id, user_id, app, event, status, detail) VALUES (?, ?, 'zoom', 'meeting', 'ok', ?)")
+      .run(crypto.randomUUID(), u.id, `Intro — ${name}`);
+    const poll = await createPoll(u.id, u.id, { title: 'Scan', durationMin: 30, times: [`${dayAhead(13)}T10:00:00.000Z`, `${dayAhead(13)}T11:00:00.000Z`] });
+    await votePoll(poll.token, { name, email, optionIds: [poll.options[0].id] });
+    const other = await createBooking({
+      eventTypeId: et.id,
+      email: 'keep@x.com',
+      name: 'Keeper',
+      start: `${dayAhead(12)}T12:00:00.000Z`,
+      answers: {},
+      guests: [email.toLowerCase()],
+    });
+    await getDb().prepare('UPDATE calendar_bookings SET guest_timezones = ? WHERE id = ?').run(JSON.stringify({ [email.toLowerCase()]: 'UTC' }), other.id);
+
+    await deleteInviteeData(u.id, email, u.id);
+
+    const tables = (await getDb().prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").all()) as Array<{ name: string }>;
+    const hits: string[] = [];
+    for (const { name: table } of tables) {
+      // El contacto del CRM es otra app (se borra desde el CRM); las apps de otros tests no son de este workspace.
+      if (table.startsWith('crm_') && table !== 'crm_app_log') continue;
+      const cols = (await getDb().prepare(`PRAGMA table_info("${table}")`).all()) as Array<{ name: string; type: string }>;
+      const text = cols.filter((c) => /TEXT/i.test(c.type) || c.type === '');
+      if (text.length === 0) continue;
+      const where = text.map((c) => `lower(COALESCE("${c.name}", '')) LIKE ? OR lower(COALESCE("${c.name}", '')) LIKE ?`).join(' OR ');
+      const n = (await getDb()
+        .prepare(`SELECT COUNT(*) AS n FROM "${table}" WHERE ${where}`)
+        .get(...text.flatMap(() => [`%${email.toLowerCase()}%`, `%${name.toLowerCase()}%`]))) as { n: number };
+      if (Number(n.n) > 0) hits.push(`${table}: ${n.n}`);
+    }
+    expect(hits).toEqual([]);
+  });
+});
+
+describe('host opaco', () => {
+  it('el token no expone el id y no se puede falsificar', () => {
+    const tok = hostToken('user-123');
+    expect(tok).not.toContain('user-123');
+    expect(parseHostToken(tok)).toBe('user-123');
+    expect(parseHostToken('h1:user-123')).toBeNull();
+    expect(parseHostToken('user-123')).toBeNull();
+    expect(parseHostToken(`${tok.slice(0, -2)}xx`)).toBeNull();
   });
 });

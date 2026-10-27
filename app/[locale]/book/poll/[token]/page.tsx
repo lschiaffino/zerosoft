@@ -20,7 +20,8 @@ export default async function PublicPollPage(props: { params: Promise<{ token: s
   const brand = resolveBrand(await getWorkspaceBrand(poll.user_id));
   return (
     <>
-      <PublicPageExtras workspaceId={poll.user_id} />
+      {/* Sin píxeles: el link de la encuesta es una invitación privada. */}
+      <PublicPageExtras workspaceId={poll.user_id} pixels={false} />
       <PublicPoll
         token={token}
         brand={{ color: brand.color, on: brand.on, name: brand.name }}

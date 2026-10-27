@@ -319,7 +319,10 @@
     "poll_closed": "This poll no longer takes votes.",
     "poll_full": "This poll already has the maximum of participants.",
     "poll_no_votes": "Nobody voted yet.",
-    "payment_required": "This event type charges a price: book it from its page."
+    "payment_required": "This event type charges a price: book it from its page.",
+    "poll_email_taken": "Someone already voted with this email. To change that vote, use the browser you voted from.",
+    "invalid_calendar": "That calendar is not in your connected account.",
+    "invalid_host": "That person does not host this event type."
   },
   "settings": {
     "title": "Settings",
@@ -532,14 +535,17 @@
     "when_rescheduled": "after a reschedule",
     "when_no_show": "after a no-show",
     "webhookUrl": "Webhook URL",
-    "webhookHelp": "We send a POST with the booking as JSON (event workflow.<trigger>).",
+    "webhookHelp": "We send a POST with JSON: event (workflow.<trigger>), sentAt and booking (id, status, startsAt, endsAt, timezone, invitee name, email and phone, meetingUrl, location, cancelReason and eventType id, slug and title). It is signed like workspace webhooks: header Zerosoft-Signature t=<unix>,v1=HMAC-SHA256 of “t.body” with this secret.",
     "webhookInvalid": "The webhook needs an http or https URL.",
     "bodyRequired": "Every email and SMS step needs a message.",
     "subjectRequired": "Every email step needs a subject.",
     "smsText": "Text",
-    "smsGuestHelp": "Goes to the phone the guest leaves (a phone question or “host calls”), in international format with +.",
+    "smsGuestHelp": "Goes to the phone the guest leaves (a phone question or “host calls”), in international format with +, only to the allowed countries. The same step is not sent twice to a booking within 24 hours, even if it is rescheduled.",
     "smsHostHelp": "Goes to the host’s phone in Settings › Connections.",
-    "smsSetup": "Connect Twilio to send SMS"
+    "smsSetup": "Connect Twilio to send SMS",
+    "adminOnly": "Only admins change workflows: they send texts and webhooks on the workspace’s account.",
+    "copySecret": "Copy signing secret",
+    "secretOnSave": "A signing secret (whsec_…) is created when you save."
   },
   "payments": {
     "title": "Payment",
@@ -737,7 +743,8 @@
     "allHosts": "Everyone",
     "allEventTypes": "All event types",
     "byHost": "By person",
-    "unknownHost": "No host"
+    "unknownHost": "No host",
+    "pollPrefix": "Poll: {title}"
   },
   "location": {
     "title": "Location",
@@ -841,7 +848,13 @@
     "email": "Invitee email",
     "help": "The invitee gets the confirmation with the link to reschedule or cancel, as if they had booked it.",
     "noEventTypes": "Activate an event type first.",
-    "done": "Booked for {name}."
+    "done": "Booked for {name}.",
+    "host": "Host",
+    "anyHost": "Usual distribution",
+    "timezone": "Invitee time zone",
+    "location": "Location",
+    "phone": "Invitee phone",
+    "guests": "Extra guests"
   },
   "funnel": {
     "title": "Routing funnel",
@@ -890,7 +903,10 @@
       "poll": "Meeting polls",
       "settings": "Settings",
       "integration": "Connections",
-      "privacy": "Privacy"
+      "privacy": "Privacy",
+      "workflow": "Workflows",
+      "routing": "Routing forms",
+      "api": "API and webhooks"
     },
     "empty": "No activity yet",
     "emptyLead": "Changes to event types, bookings and settings show up here.",
@@ -914,8 +930,20 @@
       "poll_created": "created the poll",
       "poll_updated": "changed the poll",
       "poll_deleted": "deleted the poll",
-      "poll_booked": "booked the poll"
-    }
+      "poll_booked": "booked the poll",
+      "booking_guest_cancelled": "cancelled the booking",
+      "booking_guest_rescheduled": "rescheduled the booking",
+      "booking_guest_reconfirmed": "reconfirmed attendance",
+      "workflow_updated": "changed the workflow steps",
+      "routing_created": "created the routing form",
+      "routing_updated": "changed the routing form",
+      "routing_deleted": "deleted the routing form",
+      "api_webhook_created": "created a webhook with booking events",
+      "api_webhook_deleted": "deleted a webhook",
+      "api_key_created": "created an API key with Cal access",
+      "api_key_revoked": "revoked an API key"
+    },
+    "guest": "The invitee"
   },
   "connections": {
     "calendarsTitle": "Calendars",
@@ -962,7 +990,14 @@
     "appPassword": "App-specific password",
     "connectICloud": "Connect iCloud",
     "icloudAuthFailed": "Apple didn’t accept that Apple ID and app-specific password.",
-    "icloudInvalid": "Check the Apple ID and the password (four groups of four letters)."
+    "icloudInvalid": "Check the Apple ID and the password (four groups of four letters).",
+    "smsCountries": "Allowed countries",
+    "smsCountriesHelp": "Country codes, e.g. +54, +1. Empty: only the country of the sender number.",
+    "smsCountriesRequired": "With a Messaging Service, list the allowed countries.",
+    "smsDailyLimit": "Daily limit",
+    "smsSentToday": "{n, plural, one {# text} other {# texts}} in the last 24 hours.",
+    "smsCost": "Twilio bills every text to your account. The daily limit and the country list keep the cost under control.",
+    "writeError": "The last booking could not be added to {provider}. Check the connection or pick another calendar."
   },
   "polls": {
     "title": "Meeting polls",

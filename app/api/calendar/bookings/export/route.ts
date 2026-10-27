@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
 import { bookingDateBounds, listUserBookings } from '@/lib/calendar';
 import { bookingListQuerySchema } from '@/lib/calendar-schema';
 import { bookingsCsv } from '@/lib/calendar-export';
@@ -16,7 +16,16 @@ export async function GET(req: NextRequest) {
   if (!parsed.success) return invalidBody(parsed.error);
   const { q, status, from, to } = parsed.data;
   const bounds = await bookingDateBounds(user.id, from, to);
-  const rows = await listUserBookings(user.id, { q, status, from: bounds.from, to: bounds.to, limit: 10_000, order: 'asc' });
+  // Un member exporta solo las reservas que atiende; un admin, las del workspace.
+  const rows = await listUserBookings(user.id, {
+    q,
+    status,
+    from: bounds.from,
+    to: bounds.to,
+    limit: 10_000,
+    order: 'asc',
+    hostId: isWorkspaceAdmin(user) ? undefined : realUserId(user),
+  });
   const day = new Date().toISOString().slice(0, 10);
   return new NextResponse(`﻿${bookingsCsv(rows, bounds.timezone)}`, {
     headers: {

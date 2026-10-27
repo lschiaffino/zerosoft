@@ -11,7 +11,7 @@ import { getDb, getUserById } from './db';
 
 export const MAX_ACTIVITY = 5000;
 
-export const ACTIVITY_GROUPS = ['event_type', 'booking', 'poll', 'schedule', 'settings', 'integration', 'privacy'] as const;
+export const ACTIVITY_GROUPS = ['event_type', 'booking', 'poll', 'workflow', 'routing', 'schedule', 'settings', 'integration', 'api', 'privacy'] as const;
 export type ActivityGroup = (typeof ACTIVITY_GROUPS)[number];
 
 export interface ActivityTarget {

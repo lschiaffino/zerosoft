@@ -5,6 +5,7 @@ import { getPublicProfile, legacyBookPath } from '@/lib/calendar';
 import CalIcon from '@/components/calendar/cal-icons';
 import { resolveBrand } from '@/components/calendar/cal-utils';
 import PublicPageExtras from '@/components/calendar/PublicPageExtras';
+import { hostToken, parseHostToken } from '@/lib/calendar-host-token';
 import '@/styles/calendar.css';
 
 export const dynamic = 'force-dynamic';
@@ -34,9 +35,10 @@ export default async function BookHandlePage(props: {
   const brand = resolveBrand(profile.brand);
   // Página de una persona del equipo (?host=): sus tipos de evento, y la reserva va con ella.
   const hostParam = typeof searchParams.host === 'string' ? searchParams.host : '';
-  const member = profile.members.find((m) => m.id === hostParam) ?? null;
+  const hostId = parseHostToken(hostParam);
+  const member = profile.members.find((m) => m.id === hostId) ?? null;
   const eventTypes = member ? profile.eventTypes.filter((et) => member.eventTypeIds.includes(et.id)) : profile.eventTypes;
-  const hostQs = member ? `?host=${encodeURIComponent(member.id)}` : '';
+  const hostQs = member ? `?host=${encodeURIComponent(hostParam)}` : '';
 
   return (
     <main className="bk bk-profile" style={{ '--bk': brand.color, '--bk-on': brand.on } as React.CSSProperties}>
@@ -89,7 +91,7 @@ export default async function BookHandlePage(props: {
             <ul className="bk-team-list">
               {profile.members.map((m) => (
                 <li key={m.id}>
-                  <Link href={`/book/${profile.handle}?host=${encodeURIComponent(m.id)}`} className="bk-team-member">
+                  <Link href={`/book/${profile.handle}?host=${encodeURIComponent(hostToken(m.id))}`} className="bk-team-member">
                     <span className="bk-monogram" aria-hidden="true">
                       {m.name.slice(0, 1).toUpperCase()}
                     </span>

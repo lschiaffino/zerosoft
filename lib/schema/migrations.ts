@@ -5793,6 +5793,10 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, "ALTER TABLE calendar_workflow_steps ADD COLUMN trigger TEXT NOT NULL DEFAULT 'start'");
       await addColumn(client, "ALTER TABLE calendar_workflow_steps ADD COLUMN channel TEXT NOT NULL DEFAULT 'email'");
       await addColumn(client, "ALTER TABLE calendar_workflow_steps ADD COLUMN target TEXT NOT NULL DEFAULT ''");
+      // Secreto whsec_ (cifrado) para firmar los pasos webhook como los webhooks del workspace.
+      await addColumn(client, "ALTER TABLE calendar_workflow_steps ADD COLUMN secret TEXT NOT NULL DEFAULT ''");
+      // Zona horaria de cada invitado extra (encuestas: cada uno ve la hora en la suya).
+      await addColumn(client, "ALTER TABLE calendar_bookings ADD COLUMN guest_timezones TEXT NOT NULL DEFAULT '{}'");
       // Routing por consulta al CRM: la regla mira si el email es un contacto y puede reservar con su owner.
       await addColumn(client, "ALTER TABLE calendar_routing_rules ADD COLUMN crm_match TEXT NOT NULL DEFAULT ''");
       await addColumn(client, 'ALTER TABLE calendar_routing_rules ADD COLUMN route_to_owner INTEGER NOT NULL DEFAULT 0');
@@ -5805,8 +5809,20 @@ export const MIGRATIONS: Migration[] = [
           account_sid TEXT NOT NULL DEFAULT '',
           auth_token TEXT NOT NULL DEFAULT '',
           from_number TEXT NOT NULL DEFAULT '',
+          allowed_codes TEXT NOT NULL DEFAULT '',
+          daily_limit INTEGER NOT NULL DEFAULT 200,
           updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
+
+        CREATE TABLE IF NOT EXISTS calendar_sms_sends (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          booking_id TEXT,
+          step_id TEXT,
+          sent_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_calendar_sms_sends_user ON calendar_sms_sends(user_id, sent_at);
+        CREATE INDEX IF NOT EXISTS idx_calendar_sms_sends_step ON calendar_sms_sends(step_id, booking_id);
 
         CREATE TABLE IF NOT EXISTS calendar_activity (
           id TEXT PRIMARY KEY,
@@ -5851,6 +5867,8 @@ export const MIGRATIONS: Migration[] = [
           voter_name TEXT NOT NULL,
           voter_email TEXT NOT NULL,
           option_ids TEXT NOT NULL DEFAULT '[]',
+          timezone TEXT NOT NULL DEFAULT '',
+          edit_token TEXT NOT NULL DEFAULT '',
           created_at TEXT NOT NULL DEFAULT (datetime('now')),
           updated_at TEXT NOT NULL DEFAULT (datetime('now')),
           UNIQUE (poll_id, voter_email)

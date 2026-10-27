@@ -32,7 +32,27 @@ export default function PublicPoll({ token, initial, brand }: { token: string; i
   const [voted, setVoted] = useState(false);
   const tz = typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC';
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const storeKey = `zs-poll-${token}`;
+  useEffect(() => {
+    setMounted(true);
+    // El voto anterior de este navegador: se puede cambiar con su token.
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(storeKey) || 'null') as { name?: string; email?: string } | null;
+      if (saved?.email) setEmail(saved.email);
+      if (saved?.name) setName(saved.name);
+    } catch {
+      // Sin localStorage: se vota de cero.
+    }
+  }, [storeKey]);
+
+  function savedToken(forEmail: string): string | undefined {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(storeKey) || 'null') as { email?: string; editToken?: string } | null;
+      return saved?.email?.toLowerCase() === forEmail.toLowerCase() ? saved.editToken : undefined;
+    } catch {
+      return undefined;
+    }
+  }
   const day = new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', timeZone: mounted ? tz : 'UTC' });
   const time = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone: mounted ? tz : 'UTC' });
   const count = (optionId: string) => poll.votes.filter((v) => v.optionIds.includes(optionId)).length;
@@ -46,11 +66,23 @@ export default function PublicPoll({ token, initial, brand }: { token: string; i
     const res = await fetch(`/api/calendar/poll-votes/${encodeURIComponent(token)}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name: name.trim(), email: email.trim(), optionIds: picked }),
+      body: JSON.stringify({
+        name: name.trim(),
+        email: email.trim(),
+        optionIds: picked,
+        timezone: tz,
+        editToken: savedToken(email.trim()),
+      }),
     }).catch(() => null);
     setBusy(false);
     if (res?.ok) {
-      setPoll((await res.json()) as PublicPollData);
+      const data = (await res.json()) as PublicPollData & { editToken?: string };
+      setPoll(data);
+      try {
+        window.localStorage.setItem(storeKey, JSON.stringify({ name: name.trim(), email: email.trim(), editToken: data.editToken }));
+      } catch {
+        // Sin localStorage: el voto queda igual.
+      }
       setVoted(true);
       return;
     }

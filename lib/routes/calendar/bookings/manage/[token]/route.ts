@@ -4,6 +4,7 @@ import {
   CalendarError,
   findOfferedSlot,
   getBookingByManageToken,
+  getEventTypeById,
   reconfirmBooking,
   rescheduleBooking,
   updateBooking,
@@ -12,6 +13,14 @@ import { bookingManageSchema } from '@/lib/calendar-schema';
 import { afterBookingCancelled, afterBookingReconfirmed, afterBookingRescheduled } from '@/lib/calendar-lifecycle';
 import { refundCancelledBooking } from '@/lib/calendar-payments';
 import { crmError, invalidBody, notFound } from '@/lib/crm-http';
+import { logCalActivity } from '@/lib/calendar-activity';
+import type { CalendarBookingRow } from '@/lib/db';
+
+/** Lo que hace el invitado desde su link queda en la actividad del workspace (sin persona del equipo). */
+async function logGuest(booking: CalendarBookingRow, action: string): Promise<void> {
+  const et = await getEventTypeById(booking.event_type_id);
+  if (et) await logCalActivity(et.user_id, null, action, { type: 'booking', id: booking.id, summary: booking.invitee_name });
+}
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -47,6 +56,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ token: s
       );
       // Cancelar antes del inicio reembolsa el pago completo (si lo hubo).
       if (updated) await afterBookingCancelled(await refundCancelledBooking(updated), parsed.data.reason ?? null);
+      if (updated) await logGuest(booking, 'booking.guest_cancelled');
       return NextResponse.json({ status: 'cancelled' });
     }
 
@@ -54,6 +64,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ token: s
     if (parsed.data.action === 'reconfirm') {
       const at = await reconfirmBooking(booking.id);
       if (at) await afterBookingReconfirmed({ ...booking, reconfirmed_at: at });
+      if (at) await logGuest(booking, 'booking.guest_reconfirmed');
       return NextResponse.json({ status: 'confirmed', reconfirmedAt: at ?? booking.reconfirmed_at });
     }
     const tz = parsed.data.timezone ?? booking.timezone;
@@ -63,6 +74,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ token: s
     if (!offered) return crmError(409, 'slot_unavailable');
     const moved = await rescheduleBooking(booking.id, offered.start);
     await afterBookingRescheduled(moved, booking.host_user_id, parsed.data.locale);
+    await logGuest(booking, 'booking.guest_rescheduled');
     return NextResponse.json({ status: 'confirmed', startsAt: moved.starts_at, endsAt: moved.ends_at });
   } catch (err) {
     if (err instanceof CalendarError) return crmError(err.status, err.code);

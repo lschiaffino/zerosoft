@@ -3,6 +3,7 @@ import { limitByIp } from '@/lib/rate-limit';
 import { getAvailableDays, getBookingByManageToken, getEventTypeById, getAvailableSlots } from '@/lib/calendar';
 import { ianaTimezone } from '@/lib/calendar-schema';
 import { notFound, crmError } from '@/lib/crm-http';
+import { parseHostToken } from '@/lib/calendar-host-token';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,8 +28,8 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
     const excludeBookingId =
       own && own.event_type_id === params.id && own.status === 'confirmed' ? own.id : undefined;
     if (eventType.active !== 1 && !excludeBookingId) return notFound();
-    // ?host=<user id>: reservar con una persona puntual del pool (si no es del pool, se ignora).
-    const hostId = searchParams.get('host')?.slice(0, 64) || null;
+    // ?host=<token opaco>: reservar con una persona puntual del pool (inválido o fuera del pool: se ignora).
+    const hostId = parseHostToken(searchParams.get('host'));
 
     // ?month=YYYY-MM → días del mes con lugar (para deshabilitar el resto en el calendario).
     const month = searchParams.get('month');

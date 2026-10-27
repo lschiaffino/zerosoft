@@ -13,7 +13,8 @@
  */
 import { randomBytes } from 'crypto';
 import { getDb, type CalendarBookingRow } from './db';
-import { CalendarError, createBooking, createEventType, getOrCreateCalendarUser } from './calendar';
+import { timingSafeEqual } from 'crypto';
+import { CalendarError, createBooking, createEventType, getCalendarUser, getOrCreateCalendarUser } from './calendar';
 import { MAX_GUESTS } from './calendar-questions';
 
 export const POLL_MIN_OPTIONS = 2;
@@ -46,6 +47,8 @@ export interface PollVote {
   name: string;
   email: string;
   optionIds: string[];
+  /** Zona horaria del votante (la invitación le llega en esa hora). */
+  timezone: string;
   createdAt: string;
 }
 
@@ -108,12 +111,19 @@ async function detail(row: PollRow | undefined): Promise<PollDetail | null> {
     .prepare('SELECT id, starts_at FROM calendar_poll_options WHERE poll_id = ? ORDER BY position, starts_at')
     .all(row.id)) as Array<{ id: string; starts_at: string }>;
   const votes = (await getDb()
-    .prepare('SELECT id, voter_name, voter_email, option_ids, created_at FROM calendar_poll_votes WHERE poll_id = ? ORDER BY created_at')
-    .all(row.id)) as Array<{ id: string; voter_name: string; voter_email: string; option_ids: string; created_at: string }>;
+    .prepare('SELECT id, voter_name, voter_email, option_ids, timezone, created_at FROM calendar_poll_votes WHERE poll_id = ? ORDER BY created_at')
+    .all(row.id)) as Array<{ id: string; voter_name: string; voter_email: string; option_ids: string; timezone: string; created_at: string }>;
   return {
     ...row,
     options: options.map((o) => ({ id: o.id, startsAt: o.starts_at })),
-    votes: votes.map((v) => ({ id: v.id, name: v.voter_name, email: v.voter_email, optionIds: parseIds(v.option_ids), createdAt: v.created_at })),
+    votes: votes.map((v) => ({
+      id: v.id,
+      name: v.voter_name,
+      email: v.voter_email,
+      optionIds: parseIds(v.option_ids),
+      timezone: v.timezone,
+      createdAt: v.created_at,
+    })),
   };
 }
 
@@ -187,11 +197,22 @@ export async function deletePoll(workspaceId: string, id: string): Promise<boole
   return res.changes > 0;
 }
 
-/** Voto (o cambio de voto) de un participante: los horarios que le sirven. */
+function sameToken(a: string, b: string): boolean {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && x.length > 0 && timingSafeEqual(x, y);
+}
+
+/**
+ * Voto (o cambio de voto) de un participante: los horarios que le sirven y
+ * su zona horaria. El primer voto devuelve un `editToken` (queda en su
+ * navegador): para cambiar el voto de un email ya usado hace falta ese token,
+ * así nadie pisa el voto de otra persona escribiendo su email.
+ */
 export async function votePoll(
   token: string,
-  input: { name: string; email: string; optionIds: string[] },
-): Promise<PollDetail> {
+  input: { name: string; email: string; optionIds: string[]; timezone?: string; editToken?: string },
+): Promise<{ poll: PollDetail; editToken: string }> {
   const poll = await getPollByToken(token);
   if (!poll) throw new CalendarError('not_found', 404);
   if (poll.status !== 'open') throw new CalendarError('poll_closed', 409);
@@ -199,22 +220,39 @@ export async function votePoll(
   const chosen = [...new Set(input.optionIds)].filter((id) => valid.has(id));
   if (chosen.length === 0) throw new CalendarError('invalid_input', 400);
   const email = input.email.trim().toLowerCase();
-  const existing = poll.votes.find((v) => v.email.toLowerCase() === email);
+  const timezone = validTimezone(input.timezone);
+  const existing = (await getDb()
+    .prepare('SELECT id, edit_token FROM calendar_poll_votes WHERE poll_id = ? AND lower(voter_email) = ?')
+    .get(poll.id, email)) as { id: string; edit_token: string } | undefined;
   if (!existing && poll.votes.length >= POLL_MAX_VOTES) throw new CalendarError('poll_full', 409);
   const ts = now();
+  let editToken: string;
   if (existing) {
+    if (!sameToken(input.editToken ?? '', existing.edit_token)) throw new CalendarError('poll_email_taken', 409);
+    editToken = existing.edit_token;
     await getDb()
-      .prepare('UPDATE calendar_poll_votes SET voter_name = ?, option_ids = ?, updated_at = ? WHERE id = ?')
-      .run(input.name.trim(), JSON.stringify(chosen), ts, existing.id);
+      .prepare('UPDATE calendar_poll_votes SET voter_name = ?, option_ids = ?, timezone = ?, updated_at = ? WHERE id = ?')
+      .run(input.name.trim(), JSON.stringify(chosen), timezone, ts, existing.id);
   } else {
+    editToken = randomBytes(18).toString('base64url');
     await getDb()
       .prepare(
-        `INSERT INTO calendar_poll_votes (id, poll_id, voter_name, voter_email, option_ids, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO calendar_poll_votes (id, poll_id, voter_name, voter_email, option_ids, timezone, edit_token, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(crypto.randomUUID(), poll.id, input.name.trim(), email, JSON.stringify(chosen), ts, ts);
+      .run(crypto.randomUUID(), poll.id, input.name.trim(), email, JSON.stringify(chosen), timezone, editToken, ts, ts);
   }
-  return (await getPollByToken(token)) as PollDetail;
+  return { poll: (await getPollByToken(token)) as PollDetail, editToken };
+}
+
+function validTimezone(tz: string | undefined): string {
+  if (!tz) return '';
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: tz });
+    return tz.slice(0, 64);
+  } catch {
+    return '';
+  }
 }
 
 /**
@@ -264,19 +302,28 @@ export async function bookPoll(
       { kind: 'poll' },
     );
     createdEventTypeId = eventType.id;
-    const booking = await createBooking(
+    // Cada uno recibe la hora en su zona (la que tenía al votar); si no la dejó, la del organizador.
+    const organizerTz =
+      (poll.created_by ? (await getCalendarUser(poll.created_by))?.timezone : undefined) ||
+      (await getCalendarUser(workspaceId))?.timezone ||
+      'UTC';
+    const guestVotes = rest.slice(0, MAX_GUESTS);
+    const created = await createBooking(
       {
         eventTypeId: eventType.id,
         email: main.email,
         name: main.name,
         start: option.startsAt,
-        timezone: 'UTC',
+        timezone: main.timezone || organizerTz,
         answers: {},
-        guests: rest.map((v) => v.email).slice(0, MAX_GUESTS),
+        guests: guestVotes.map((v) => v.email),
         locale: locale === 'es' || locale === 'pt' ? locale : 'en',
       },
       { bookedBy: poll.created_by, skipApproval: true },
     );
+    const guestTimezones = Object.fromEntries(guestVotes.map((v) => [v.email.toLowerCase(), v.timezone || organizerTz]));
+    await getDb().prepare('UPDATE calendar_bookings SET guest_timezones = ? WHERE id = ?').run(JSON.stringify(guestTimezones), created.id);
+    const booking = { ...created, guest_timezones: JSON.stringify(guestTimezones) };
     await getDb()
       .prepare('UPDATE calendar_polls SET event_type_id = ?, booking_id = ?, updated_at = ? WHERE id = ?')
       .run(eventType.id, booking.id, now(), id);

@@ -9,6 +9,7 @@ import {
   withParams,
 } from '@/lib/calendar-routing';
 import { getUserById } from '@/lib/db';
+import { hostToken } from '@/lib/calendar-host-token';
 import { routingEvaluateSchema } from '@/lib/calendar-schema';
 import { invalidBody, notFound, crmError } from '@/lib/crm-http';
 
@@ -74,7 +75,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     bookPath: withParams(`/book/${owner!.handle}/${usable.slug}`, [
       ...passed,
       ['rsid', submissionId],
-      ...(usable.hostId ? ([['host', usable.hostId]] as Array<[string, string]>) : []),
+      ...(usable.hostId ? ([['host', hostToken(usable.hostId)]] as Array<[string, string]>) : []),
     ]),
   });
 }

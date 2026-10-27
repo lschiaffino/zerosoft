@@ -15,7 +15,7 @@ interface Entry {
   actor: { id: string | null; name: string };
 }
 
-const GROUPS = ['', 'event_type', 'booking', 'poll', 'settings', 'integration', 'privacy'] as const;
+const GROUPS = ['', 'event_type', 'booking', 'poll', 'workflow', 'routing', 'settings', 'integration', 'api', 'privacy'] as const;
 
 /** Registro de actividad de Cal: quién hizo qué y cuándo, con filtro por tipo. */
 export default function ActivityLogPanel({ initial, locale }: { initial: Entry[]; locale: string }) {
@@ -85,7 +85,7 @@ export default function ActivityLogPanel({ initial, locale }: { initial: Entry[]
           {entries.map((e) => (
             <li key={e.id} className="cal-activity-row">
               <span className="cal-activity-what">
-                <strong>{e.actor.name || t('activity.system')}</strong> {label(e.action)}
+                <strong>{e.actor.name || (e.action.includes('.guest_') ? t('activity.guest') : t('activity.system'))}</strong> {label(e.action)}
                 {e.summary && <span className="cal-activity-target"> · {e.summary}</span>}
               </span>
               <time className="cal-muted data" dateTime={e.createdAt}>

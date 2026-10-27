@@ -72,7 +72,7 @@ function xml(body: string, status = 207): Response {
 async function fakeDav(url: string, init: RequestInit): Promise<Response> {
   const auth = new Headers(init.headers).get('authorization') ?? '';
   const [user, pass] = Buffer.from(auth.replace(/^Basic /, ''), 'base64').toString().split(':');
-  if (!user?.includes('@') || !/^[a-z]{4}-[a-z]{4}-[a-z]{4}-[a-z]{4}$/.test(pass ?? '')) return new Response('', { status: 401 });
+  if (!user?.includes('@') || !/^[a-z]{4}-[a-z]{4}-[a-z]{4}-[a-z]{4}$/.test(pass ?? '')) return new Response(null, { status: 401 });
   const u = new URL(url);
   const method = (init.method ?? 'GET').toUpperCase();
   const body = String(init.body ?? '');
@@ -107,14 +107,14 @@ async function fakeDav(url: string, init: RequestInit): Promise<Response> {
     const i = s.events.findIndex((e) => e.href === u.pathname);
     if (i >= 0) s.events[i].ics = body;
     else s.events.push({ href: u.pathname, ics: body });
-    return new Response('', { status: i >= 0 ? 204 : 201 });
+    return new Response(null, { status: i >= 0 ? 204 : 201 });
   }
   if (method === 'DELETE') {
     const i = s.events.findIndex((e) => e.href === u.pathname);
     if (i >= 0) s.events.splice(i, 1);
-    return new Response('', { status: i >= 0 ? 204 : 404 });
+    return new Response(null, { status: i >= 0 ? 204 : 404 });
   }
-  return new Response('', { status: 405 });
+  return new Response(null, { status: 405 });
 }
 
 // ---------- ICS ----------

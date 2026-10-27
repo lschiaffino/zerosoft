@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getCurrentUser, realUserId } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
 import { CalendarError } from '@/lib/calendar';
-import { bookPoll } from '@/lib/calendar-polls';
+import { bookPoll, getPoll } from '@/lib/calendar-polls';
 import { afterBookingCreated } from '@/lib/calendar-lifecycle';
-import { crmError, invalidBody, unauthorized } from '@/lib/crm-http';
+import { crmError, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
 import { logCalActivity } from '@/lib/calendar-activity';
 
 export const runtime = 'nodejs';
@@ -17,6 +17,10 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
+  const current = await getPoll(user.id, id);
+  if (!current) return notFound();
+  // Reserva quien la creó (es el anfitrión) o un admin.
+  if (current.created_by !== realUserId(user) && !isWorkspaceAdmin(user)) return crmError(403, 'forbidden');
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return invalidBody(parsed.error);
   try {
