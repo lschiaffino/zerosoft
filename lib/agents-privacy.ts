@@ -140,6 +140,7 @@ export function agentBusinessContacts(agent: Pick<AgentRow, 'instructions' | 'we
 export async function redactConversation(
   conv: Pick<AgentConversationRow, 'id' | 'title' | 'chat_conversation_id'> & { score?: string | null; review_note?: string },
   keep: PiiKeep = EMPTY_KEEP,
+  now = new Date(),
 ): Promise<void> {
   const db = getDb();
   const messages = (await db.prepare('SELECT id, content FROM agent_messages WHERE conversation_id = ?').all(conv.id)) as Array<{ id: string; content: string }>;
@@ -179,7 +180,7 @@ export async function redactConversation(
   }
   // Chat: los mensajes del hilo del inbox que ya tienen más de una hora.
   if (conv.chat_conversation_id) {
-    const cutoff = new Date(Date.now() - PII_IDLE_MS).toISOString();
+    const cutoff = new Date(now.getTime() - PII_IDLE_MS).toISOString();
     const rows = (await db
       .prepare("SELECT id, body FROM chat_messages WHERE conversation_id = ? AND sender_type IN ('visitor', 'bot') AND datetime(created_at) < datetime(?)")
       .all(conv.chat_conversation_id, cutoff)) as Array<{ id: string; body: string }>;
@@ -196,9 +197,13 @@ export async function redactConversation(
 }
 
 /**
- * Cron: conversaciones de agentes con redacción activa, inactivas hace más de
- * una hora y sin redactar, o con mensajes nuevos después de la última
- * redacción (se retomó la charla). Claim por fila; devuelve cuántas tapó.
+ * Cron: conversaciones de agentes con redacción activa que tienen algo nuevo
+ * sin tapar: inactivas hace más de una hora y sin redactar o con mensajes
+ * después de la última redacción (se retomó la charla), o, en Chat, con
+ * mensajes del hilo del inbox de hace más de una hora posteriores a la última
+ * redacción (después de derivar, la charla sigue con el equipo y el agente no
+ * se entera). Claim por fila (compare-and-set sobre redacted_at); devuelve
+ * cuántas tapó.
  */
 export async function redactIdleConversations(opts: { now?: Date; limit?: number } = {}): Promise<number> {
   const now = opts.now ?? new Date();
@@ -206,25 +211,35 @@ export async function redactIdleConversations(opts: { now?: Date; limit?: number
   const db = getDb();
   const rows = (await db
     .prepare(
-      `SELECT c.id, c.title, c.chat_conversation_id, c.score, c.review_note, c.updated_at,
+      `SELECT c.id, c.title, c.chat_conversation_id, c.score, c.review_note, c.updated_at, c.redacted_at,
               a.settings, a.instructions, a.welcome_message, a.handoff
        FROM agent_conversations c JOIN agents a ON a.id = c.agent_id
-       WHERE (c.redacted_at IS NULL OR c.redacted_at < c.updated_at) AND c.updated_at < ? AND c.channel != 'playground'
-         AND a.settings LIKE '%"redactPii":true%'
+       WHERE c.channel != 'playground' AND a.settings LIKE '%"redactPii":true%'
+         AND (
+           ((c.redacted_at IS NULL OR c.redacted_at < c.updated_at) AND c.updated_at < ?)
+           OR (c.chat_conversation_id IS NOT NULL AND EXISTS (
+             SELECT 1 FROM chat_messages m WHERE m.conversation_id = c.chat_conversation_id
+               AND m.sender_type IN ('visitor', 'bot')
+               AND datetime(m.created_at) < datetime(?)
+               AND (c.redacted_at IS NULL OR datetime(m.created_at) > datetime(c.redacted_at))
+           ))
+         )
        ORDER BY c.updated_at ASC LIMIT ?`,
     )
-    .all(cutoff, Math.min(Math.max(opts.limit ?? 50, 1), 500))) as Array<
-    Pick<AgentConversationRow, 'id' | 'title' | 'chat_conversation_id' | 'score' | 'updated_at'> &
+    .all(cutoff, cutoff, Math.min(Math.max(opts.limit ?? 50, 1), 500))) as Array<
+    Pick<AgentConversationRow, 'id' | 'title' | 'chat_conversation_id' | 'score' | 'updated_at' | 'redacted_at'> &
       Pick<AgentRow, 'settings' | 'instructions' | 'welcome_message' | 'handoff'> & { review_note: string }
   >;
   let done = 0;
   for (const r of rows) {
     if (!parseSettings(r.settings).redactPii) continue;
+    // Claim: solo si nadie la redactó desde que la leímos. La marca es el corte
+    // (hace una hora): los mensajes del inbox más nuevos se tapan en otro pase.
     const claimed = await db
-      .prepare('UPDATE agent_conversations SET redacted_at = ? WHERE id = ? AND (redacted_at IS NULL OR redacted_at < updated_at)')
-      .run(now.toISOString(), r.id);
+      .prepare('UPDATE agent_conversations SET redacted_at = ? WHERE id = ? AND redacted_at IS ?')
+      .run(cutoff, r.id, r.redacted_at ?? null);
     if (!claimed.changes) continue;
-    await redactConversation(r, agentBusinessContacts(r));
+    await redactConversation(r, agentBusinessContacts(r), now);
     done++;
   }
   return done;

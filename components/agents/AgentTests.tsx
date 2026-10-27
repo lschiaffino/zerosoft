@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useFormatter, useNow, useTranslations } from 'next-intl';
 import { AGENT_MAX_TESTS, AGENT_SIM_MAX_TURNS, type AgentTestCaseDto, type AgentTestKind } from '@/lib/agents-config';
 import FormSection from '@/components/ui/FormSection';
 import { useConfirm } from './useConfirm';
@@ -38,6 +38,8 @@ export default function AgentTests({ agentId, tests, onTestsChange, canEdit, aiE
   const t = useTranslations('agents');
   const [confirmNode, ask] = useConfirm();
   const format = useFormatter();
+  // Con `now` explícito next-intl no avisa ENVIRONMENT_FALLBACK (y no hay saltos entre servidor y cliente).
+  const now = useNow({ updateInterval: 60_000 });
   const [form, setForm] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState<string | null>(null);
@@ -138,7 +140,7 @@ export default function AgentTests({ agentId, tests, onTestsChange, canEdit, aiE
                         <>
                           {' · '}
                           <time dateTime={lastRun} suppressHydrationWarning>
-                            {t('tests.lastRun', { when: format.relativeTime(new Date(lastRun)) })}
+                            {t('tests.lastRun', { when: format.relativeTime(new Date(lastRun), now) })}
                           </time>
                         </>
                       )}

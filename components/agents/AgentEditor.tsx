@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useFormatter, useNow, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import {
   AGENT_MAX_SITEMAPS,
@@ -99,6 +99,8 @@ export default function AgentEditor(props: Props) {
   const t = useTranslations('agents');
   const [confirmNode, ask] = useConfirm();
   const format = useFormatter();
+  // Con `now` explícito next-intl no avisa ENVIRONMENT_FALLBACK (y no hay saltos entre servidor y cliente).
+  const now = useNow({ updateInterval: 60_000 });
   const router = useRouter();
   const [agent, setAgent] = useState(props.agent);
   const [draft, setDraft] = useState<Draft>(() => toDraft(props.agent));
@@ -1345,7 +1347,7 @@ export default function AgentEditor(props: Props) {
                               <>
                                 {' · '}
                                 <time dateTime={row.fetchedAt} suppressHydrationWarning>
-                                  {t('knowledge.syncedAt', { when: format.relativeTime(parseDbUtc(row.fetchedAt)) })}
+                                  {t('knowledge.syncedAt', { when: format.relativeTime(parseDbUtc(row.fetchedAt), now) })}
                                 </time>
                               </>
                             )}

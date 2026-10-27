@@ -10,7 +10,7 @@
  */
 
 const SCHEMES = new Set(['bearer', 'basic', 'token', 'apikey', 'api-key', 'digest', 'bot']);
-const MIN_PART = 8;
+const MIN_PART = 6;
 
 /** El valor y sus partes que, solas, también sirven como credencial. */
 export function secretVariants(value: string): string[] {
@@ -37,9 +37,17 @@ export function secretVariants(value: string): string[] {
       }
     }
   }
+  // Partes de un token con separadores ("sk_live_abc123", "id.secret"): el tramo largo también.
+  for (const p of parts) for (const piece of p.split(/[._:-]/)) if (piece.length >= 10) add(piece);
   for (const v of [...out]) {
     const enc = encodeURIComponent(v);
     if (enc !== v) out.add(enc);
+    // El valor en base64 (con y sin relleno): algunos servicios lo devuelven así.
+    if (v.length >= 6) {
+      const b64 = Buffer.from(v, 'utf8').toString('base64');
+      out.add(b64);
+      out.add(b64.replace(/=+$/, ''));
+    }
   }
   // Los más largos primero: "Bearer abc…" antes que "abc…".
   return [...out].sort((a, b) => b.length - a.length);
@@ -49,9 +57,18 @@ export function allSecretVariants(values: string[]): string[] {
   return [...new Set(values.flatMap(secretVariants))].sort((a, b) => b.length - a.length);
 }
 
+function escapeRe(v: string): string {
+  return v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Tapa cada secreto sin importar mayúsculas (un eco puede cambiar el caso). */
 export function redactText(text: string, secrets: string[]): string {
   let out = text;
-  for (const v of secrets) if (v && out.includes(v)) out = out.split(v).join('[redacted]');
+  const lower = text.toLowerCase();
+  for (const v of secrets) {
+    if (!v || !lower.includes(v.toLowerCase())) continue;
+    out = out.replace(new RegExp(escapeRe(v), 'gi'), '[redacted]');
+  }
   return out;
 }
 

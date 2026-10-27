@@ -420,15 +420,34 @@ export async function syncSitemaps(workspaceId: string, agentId: string, sitemap
   }
 }
 
-/** Lista un sitemap y deja sus páginas pendientes de descarga. */
-async function listSitemap(row: { agent_id: string; user_id: string; url: string; prefix: string }): Promise<void> {
+type SitemapJob = { agent_id: string; user_id: string; url: string; prefix: string };
+
+/** ¿Sigue siendo nuestro el claim y es el mismo filtro? (si guardaron otro prefijo, se vuelve a listar). */
+async function stillOurs(job: SitemapJob, token: string): Promise<boolean> {
+  const row = await getDb()
+    .prepare('SELECT 1 AS x FROM agent_sitemaps WHERE agent_id = ? AND url = ? AND claimed_until = ? AND prefix = ?')
+    .get(job.agent_id, job.url, token, job.prefix);
+  return Boolean(row);
+}
+
+/**
+ * Lista un sitemap y deja sus páginas pendientes de descarga. Cada escritura
+ * exige que el claim (`token`) y el prefijo sigan iguales: si alguien cambió
+ * el filtro mientras se listaba, la fila quedó pendiente y se vuelve a listar.
+ * El claim no se limpia al terminar: con status 'ok' y listed_at fresco ningún
+ * otro cron la vuelve a tomar.
+ */
+async function listSitemap(job: SitemapJob, token: string): Promise<void> {
   const db = getDb();
-  const res = await expandSitemap(row.url, row.prefix);
+  const res = await expandSitemap(job.url, job.prefix);
   if (!res.ok) {
-    await db.prepare("UPDATE agent_sitemaps SET status = 'error', error = ?, listed_at = ?, claimed_until = NULL WHERE agent_id = ? AND url = ?").run(res.error, nowIso(), row.agent_id, row.url);
+    await db
+      .prepare("UPDATE agent_sitemaps SET status = 'error', error = ?, listed_at = ? WHERE agent_id = ? AND url = ? AND claimed_until = ? AND prefix = ?")
+      .run(res.error, nowIso(), job.agent_id, job.url, token, job.prefix);
     return;
   }
-  const existing = (await db.prepare('SELECT id, url FROM agent_knowledge_urls WHERE agent_id = ? AND origin = ?').all(row.agent_id, row.url)) as Array<{ id: string; url: string }>;
+  if (!(await stillOurs(job, token))) return;
+  const existing = (await db.prepare('SELECT id, url FROM agent_knowledge_urls WHERE agent_id = ? AND origin = ?').all(job.agent_id, job.url)) as Array<{ id: string; url: string }>;
   const keep = new Set(res.urls);
   for (const r of existing) if (!keep.has(r.url)) await db.prepare('DELETE FROM agent_knowledge_urls WHERE id = ?').run(r.id);
   const have = new Set(existing.map((r) => r.url));
@@ -436,36 +455,37 @@ async function listSitemap(row: { agent_id: string; user_id: string; url: string
     if (have.has(url)) continue;
     await db
       .prepare("INSERT OR IGNORE INTO agent_knowledge_urls (id, agent_id, user_id, url, status, origin, created_at) VALUES (?, ?, ?, ?, 'pending', ?, ?)")
-      .run(crypto.randomUUID(), row.agent_id, row.user_id, url, row.url, nowIso());
+      .run(crypto.randomUUID(), job.agent_id, job.user_id, url, job.url, nowIso());
   }
   await db
-    .prepare("UPDATE agent_sitemaps SET status = 'ok', error = NULL, pages = ?, listed_at = ?, claimed_until = NULL WHERE agent_id = ? AND url = ?")
-    .run(res.urls.length, nowIso(), row.agent_id, row.url);
+    .prepare("UPDATE agent_sitemaps SET status = 'ok', error = NULL, pages = ?, listed_at = ? WHERE agent_id = ? AND url = ? AND claimed_until = ? AND prefix = ?")
+    .run(res.urls.length, nowIso(), job.agent_id, job.url, token, job.prefix);
 }
 
 /**
  * Cron de cada minuto: lee los sitemaps pendientes (y los listados hace más
- * de un día, para sumar páginas nuevas). Claim por fila con claimed_until.
+ * de un día, para sumar páginas nuevas). Claim por fila (compare-and-set con
+ * las mismas condiciones del SELECT): dos corridas a la vez no listan dos veces.
  */
 export async function processPendingSitemaps(opts: { limit?: number; now?: Date } = {}): Promise<number> {
   const db = getDb();
   const now = opts.now ?? new Date();
   const stale = new Date(now.getTime() - 24 * 3_600_000).toISOString();
+  const due = `(status = 'pending' OR listed_at IS NULL OR listed_at < ?) AND (claimed_until IS NULL OR claimed_until < ?)`;
   const rows = (await db
-    .prepare(
-      `SELECT agent_id, user_id, url, prefix FROM agent_sitemaps
-       WHERE (status = 'pending' OR listed_at IS NULL OR listed_at < ?) AND (claimed_until IS NULL OR claimed_until < ?)
-       ORDER BY COALESCE(listed_at, '') ASC LIMIT ?`,
-    )
-    .all(stale, now.toISOString(), Math.min(Math.max(opts.limit ?? 3, 1), 20))) as Array<{ agent_id: string; user_id: string; url: string; prefix: string }>;
+    .prepare(`SELECT agent_id, user_id, url, prefix FROM agent_sitemaps WHERE ${due} ORDER BY COALESCE(listed_at, '') ASC LIMIT ?`)
+    .all(stale, now.toISOString(), Math.min(Math.max(opts.limit ?? 3, 1), 20))) as SitemapJob[];
   let done = 0;
   for (const r of rows) {
+    const token = `${new Date(now.getTime() + 5 * 60_000).toISOString()}|${crypto.randomUUID().slice(0, 8)}`;
     const claimed = await db
-      .prepare('UPDATE agent_sitemaps SET claimed_until = ? WHERE agent_id = ? AND url = ? AND (claimed_until IS NULL OR claimed_until < ?)')
-      .run(new Date(now.getTime() + 5 * 60_000).toISOString(), r.agent_id, r.url, now.toISOString());
+      .prepare(`UPDATE agent_sitemaps SET claimed_until = ? WHERE agent_id = ? AND url = ? AND prefix = ? AND ${due}`)
+      .run(token, r.agent_id, r.url, r.prefix, stale, now.toISOString());
     if (!claimed.changes) continue;
-    await listSitemap(r).catch(async () => {
-      await db.prepare("UPDATE agent_sitemaps SET status = 'error', error = 'sitemap_not_found', claimed_until = NULL WHERE agent_id = ? AND url = ?").run(r.agent_id, r.url);
+    await listSitemap(r, token).catch(async () => {
+      await db
+        .prepare("UPDATE agent_sitemaps SET status = 'error', error = 'sitemap_not_found', listed_at = ? WHERE agent_id = ? AND url = ? AND claimed_until = ?")
+        .run(nowIso(), r.agent_id, r.url, token);
     });
     done++;
   }
