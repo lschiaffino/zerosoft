@@ -21,7 +21,7 @@ import type { DbEffect } from '@/lib/docs-db-save';
 import { notFound, unauthorized, invalidBody, forbidden, docsError } from '@/lib/docs-http';
 import { getUserTimeZone } from '@/lib/user-tz';
 import { canShareAccess, canWriteAccess } from '@/lib/docs-access';
-import { docsAllowed, editorBlocks, syncedLocks } from '@/lib/docs-guard';
+import { docsAllowed, editorBlocks, restoreForActor, syncedLocks } from '@/lib/docs-guard';
 import { checkMarksOnlyChange, newSuggestionIds } from '@/lib/docs-marks';
 import { auditTargetLabel, logDocsAudit, requestIp, type DocsAuditAction } from '@/lib/docs-audit';
 import { notifyDocsSuggestions } from '@/lib/docs-live';
@@ -133,6 +133,8 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   try {
     // Sincronizados de páginas que esta persona no puede abrir: llegan sin hijos y no se tocan.
     // Y los que puede ver pero no editar en su origen: tampoco se tocan.
+    // Links a páginas que no puede abrir: le llegaron como "Página privada"; vuelve el texto guardado.
+    if (patch.content !== undefined) patch.content = await restoreForActor(user, row, patch.content);
     const locks = patch.content !== undefined ? await syncedLocks(user, row, patch.content) : undefined;
     page = await updateDocPage(row.user_id, params.id, patch, { actorId, locale, timezone, effects, outcome, lockedSynced: locks?.locked, deniedSynced: locks?.denied });
   } catch (err) {

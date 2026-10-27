@@ -4,6 +4,7 @@ import { getDocAccess, getDocPageRow, parseBlocks } from '@/lib/docs';
 import { findFileBlock, pageImageBlock } from '@/lib/docs-files';
 import { fileBlockResponse } from '@/lib/upload-serve';
 import { notFound } from '@/lib/docs-http';
+import { visibleBlocks } from '@/lib/docs-visible';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,10 +25,17 @@ export async function GET(req: NextRequest, props: { params: Promise<{ pageId: s
   if (!access && !published) return notFound();
 
   // "icon" y "cover": el ícono o la portada subidos de la página.
-  const block =
+  let block =
     blockId === 'icon' || blockId === 'cover'
       ? pageImageBlock(blockId === 'icon' ? row.icon : row.cover_url, blockId)
       : findFileBlock(parseBlocks(row.content), blockId);
+  // Un archivo adentro de un bloque sincronizado: la página guarda solo la
+  // referencia; el archivo sale del contenido sincronizado, y solo si quien
+  // mira puede ver ese origen (el público, solo si el origen está publicado).
+  if (!block && blockId !== 'icon' && blockId !== 'cover' && row.content.includes('"synced"')) {
+    const visible = await visibleBlocks(row, row.content, user && access ? { actor: user } : { public: true });
+    block = findFileBlock(visible, blockId);
+  }
   if (!block) return notFound();
   return (
     (await fileBlockResponse(block, {
