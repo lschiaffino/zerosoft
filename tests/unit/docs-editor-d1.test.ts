@@ -199,7 +199,8 @@ describe('Docs D1: fechas y recordatorios', () => {
   it('el HTML de la mención sobrevive al saneado del servidor y se leen los recordatorios', () => {
     const html = dateMentionHtml({ date: '2026-10-25', time: '09:00', remindAt: '2026-10-25T12:00:00.000Z', rid: 'r1234567', label: 'Oct 25, 2026 9:00' });
     expect(sanitizeDocsHtml(`hola ${html}`)).toBe(`hola ${html}`);
-    expect(sanitizeDocsHtml('<span data-date="nope" onclick="x">a</span>')).toBe('<span>a</span>');
+    // Un span sin atributos válidos no marca nada: queda solo el texto.
+    expect(sanitizeDocsHtml('<span data-date="nope" onclick="x">a</span>')).toBe('a');
     expect(remindersInHtml(html)).toEqual([{ rid: 'r1234567', remindAt: '2026-10-25T12:00:00.000Z', date: '2026-10-25', label: 'Oct 25, 2026 9:00' }]);
   });
 

@@ -597,7 +597,7 @@
       "file_too_large": "O arquivo é grande demais.",
       "invalid_zip": "Não é um arquivo .zip válido.",
       "invalid_upload": "O arquivo enviado não foi encontrado. Envie de novo.",
-      "notion_empty": "O .zip não tem páginas em Markdown nem CSV. Exporte do Notion como Markdown & CSV.",
+      "notion_empty": "O arquivo não tem páginas que possamos ler (Markdown, CSV, HTML, .docx, .txt ou .enex).",
       "storage_unavailable": "Este servidor não tem armazenamento de arquivos configurado.",
       "upload_failed": "O envio falhou. Tente de novo.",
       "upload_incomplete": "O envio não terminou. Tente de novo.",
@@ -608,7 +608,8 @@
       "internal_error": "Algo falhou do nosso lado. Nada mais foi alterado.",
       "generic": "Não foi possível importar. Tente de novo.",
       "invalid_site": "Use o endereço do seu Jira Cloud, como https://acme.atlassian.net.",
-      "invalid_project": "Cole a URL do projeto do Asana ou o id numérico."
+      "invalid_project": "Cole a URL do projeto do Asana ou o id numérico.",
+      "file_type_not_allowed": "Envie um arquivo .zip, .docx, .enex, .html, .md ou .txt."
     },
     "readFailed": "Não conseguimos ler {source}: {reason}"
   },

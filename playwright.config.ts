@@ -70,6 +70,10 @@ export default defineConfig({
       // Autocompletar de las bases de Docs contra el modelo falso (lib/docs-db-ai.ts);
       // con la cookie docs_ai_fake=off se ve el error ai_disabled.
       DOCS_AI_FAKE: '1',
+      // Dominio propio del sitio de Docs: un .test se verifica sin DNS y el
+      // middleware pregunta por el host a este servidor (lib/docs-site.ts).
+      DOCS_DOMAIN_FAKE: '1',
+      DOCS_SITE_LOOKUP_ORIGIN: `http://localhost:${PORT}`,
       // Transcripción, título y resumen de Rec contra el modelo falso (lib/rec-ai.ts);
       // con la cookie rec_ai_fake=off se ve el error ai_disabled.
       REC_AI_FAKE: '1',

@@ -19,13 +19,15 @@ import * as m13 from '@/lib/routes/docs/pages/[id]/live/route';
 import * as m14 from '@/lib/routes/docs/pages/[id]/mentions/route';
 import * as m15 from '@/lib/routes/docs/pages/[id]/share/route';
 import * as m16 from '@/lib/routes/docs/pages/[id]/share/[shareId]/route';
-import * as m17 from '@/lib/routes/docs/pages/[id]/verify/route';
-import * as m18 from '@/lib/routes/docs/pages/[id]/versions/route';
-import * as m19 from '@/lib/routes/docs/pages/[id]/versions/[versionId]/route';
-import * as m20 from '@/lib/routes/docs/pages/[id]/versions/[versionId]/restore/route';
-import * as m21 from '@/lib/routes/docs/synced/[id]/route';
-import * as m22 from '@/lib/routes/docs/teamspaces/[id]/route';
-import * as m23 from '@/lib/routes/docs/teamspaces/[id]/members/route';
+import * as m17 from '@/lib/routes/docs/pages/[id]/site/route';
+import * as m18 from '@/lib/routes/docs/pages/[id]/verify/route';
+import * as m19 from '@/lib/routes/docs/pages/[id]/versions/route';
+import * as m20 from '@/lib/routes/docs/pages/[id]/versions/[versionId]/route';
+import * as m21 from '@/lib/routes/docs/pages/[id]/versions/[versionId]/restore/route';
+import * as m22 from '@/lib/routes/docs/pages/[id]/views/route';
+import * as m23 from '@/lib/routes/docs/synced/[id]/route';
+import * as m24 from '@/lib/routes/docs/teamspaces/[id]/route';
+import * as m25 from '@/lib/routes/docs/teamspaces/[id]/members/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -48,13 +50,15 @@ const d = createDispatcher('zsPath', [
   { pattern: 'pages/[id]/mentions', mod: m14 }, // lib/routes/docs/pages/[id]/mentions
   { pattern: 'pages/[id]/share', mod: m15 }, // lib/routes/docs/pages/[id]/share
   { pattern: 'pages/[id]/share/[shareId]', mod: m16 }, // lib/routes/docs/pages/[id]/share/[shareId]
-  { pattern: 'pages/[id]/verify', mod: m17 }, // lib/routes/docs/pages/[id]/verify
-  { pattern: 'pages/[id]/versions', mod: m18 }, // lib/routes/docs/pages/[id]/versions
-  { pattern: 'pages/[id]/versions/[versionId]', mod: m19 }, // lib/routes/docs/pages/[id]/versions/[versionId]
-  { pattern: 'pages/[id]/versions/[versionId]/restore', mod: m20 }, // lib/routes/docs/pages/[id]/versions/[versionId]/restore
-  { pattern: 'synced/[id]', mod: m21 }, // lib/routes/docs/synced/[id]
-  { pattern: 'teamspaces/[id]', mod: m22 }, // lib/routes/docs/teamspaces/[id]
-  { pattern: 'teamspaces/[id]/members', mod: m23 }, // lib/routes/docs/teamspaces/[id]/members
+  { pattern: 'pages/[id]/site', mod: m17 }, // lib/routes/docs/pages/[id]/site
+  { pattern: 'pages/[id]/verify', mod: m18 }, // lib/routes/docs/pages/[id]/verify
+  { pattern: 'pages/[id]/versions', mod: m19 }, // lib/routes/docs/pages/[id]/versions
+  { pattern: 'pages/[id]/versions/[versionId]', mod: m20 }, // lib/routes/docs/pages/[id]/versions/[versionId]
+  { pattern: 'pages/[id]/versions/[versionId]/restore', mod: m21 }, // lib/routes/docs/pages/[id]/versions/[versionId]/restore
+  { pattern: 'pages/[id]/views', mod: m22 }, // lib/routes/docs/pages/[id]/views
+  { pattern: 'synced/[id]', mod: m23 }, // lib/routes/docs/synced/[id]
+  { pattern: 'teamspaces/[id]', mod: m24 }, // lib/routes/docs/teamspaces/[id]
+  { pattern: 'teamspaces/[id]/members', mod: m25 }, // lib/routes/docs/teamspaces/[id]/members
 ]);
 
 export const GET = d.GET;

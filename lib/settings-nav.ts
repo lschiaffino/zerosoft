@@ -107,6 +107,7 @@ export const SETTINGS_ELSEWHERE: Partial<Record<SettingsSectionKey, Array<{ href
   security: [
     { href: '/app/settings/api', label: 'apiKeys' },
     { href: '/app/links/settings?tab=domains', label: 'domains' },
+    { href: '/app/docs/settings?tab=site', label: 'docsSite' },
   ],
   notifications: [{ href: '/app/track/settings?tab=notifications', label: 'track' }],
 };

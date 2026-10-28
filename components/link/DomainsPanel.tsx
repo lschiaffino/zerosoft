@@ -40,7 +40,12 @@ export default function DomainsPanel({ initial, canManage }: { initial: DomainVi
       setHostname('');
       return;
     }
-    return errorText(res ? ((await res.json().catch(() => null)) as { error?: string } | null)?.error : undefined);
+    const data = res ? ((await res.json().catch(() => null)) as { error?: string; dns?: Array<{ name: string; value: string }> } | null) : null;
+    // Pendiente en otro workspace: el TXT que prueba que es tuyo va en el mensaje.
+    if (data?.error === 'domain_pending_elsewhere' && data.dns?.[0]) {
+      return t('domains.errors.domain_pending_elsewhere', { name: data.dns[0].name, value: data.dns[0].value });
+    }
+    return errorText(data?.error);
   }
 
   async function verify(id: string) {

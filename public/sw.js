@@ -15,6 +15,19 @@
  * - El inicio de la app instalada (/app, start_url de app/manifest.ts) también
  *   es network-first con la última versión guardada.
  *
+ * Docs sin conexión (D5):
+ * - Navegaciones a /<locale>/app/docs/**: network-first con la última versión
+ *   guardada, así una página ya abierta (o marcada "Disponible sin conexión",
+ *   que la página manda a guardar con zs-warm junto con sus subpáginas) se lee
+ *   sin red. Lo que se escribe sin red lo guarda el editor en el dispositivo
+ *   (lib/docs-offline.ts) y lo manda al volver: acá no se encola nada de Docs.
+ *
+ * Por persona (re-QA D5): las vistas guardadas son de quien estaba en la
+ * sesión. La app avisa quién es ({type:'zs-user', id: '<persona>:<workspace>'},
+ * components/app/OfflineIdentity.tsx); cada persona tiene su caché
+ * (zs-app-<v>-pages-<id>), sin persona no se guarda ni se sirve nada, y si
+ * cambia (o cierra sesión: id null) se borran todas las vistas guardadas.
+ *
  * Push de Groups y Chat (lib/groups-push.ts):
  * - push: el servidor manda un push vacío (firma VAPID). Acá se piden los
  *   avisos pendientes con la sesión (/api/groups/push/pending) y se muestran.
@@ -22,8 +35,10 @@
  * - notificationclick: abre (o enfoca) el chat del aviso.
  * - La bandeja de Groups no se cachea: siempre se ve al día.
  */
-const VERSION = 'zs-app-v2';
+const VERSION = 'zs-app-v4';
 const PAGES = `${VERSION}-pages`;
+const META = `${VERSION}-meta`;
+const USER_KEY = '/__zs-user';
 const STATIC = `${VERSION}-static`;
 const DB_NAME = 'zs-offline';
 const STORE = 'queue';
@@ -73,8 +88,17 @@ async function replayQueue(store, doFetch) {
 const CRM_PAGE = /^\/(en|es|pt)\/app(\/crm(\/|$)|\/?$)/;
 const CRM_ROOT = /^\/app(\/crm(\/|$)|\/?$)/;
 
+// Docs: el editor y la lista (D5).
+const DOCS_PAGE = /^\/(en|es|pt)\/app\/docs(\/|$)/;
+const DOCS_ROOT = /^\/app\/docs(\/|$)/;
+
 function isCrmNavigation(url) {
   return CRM_PAGE.test(url.pathname) || CRM_ROOT.test(url.pathname);
+}
+
+/** Navegaciones que se guardan para abrir sin red: el CRM, el inicio y Docs. */
+function isOfflineNavigation(url) {
+  return isCrmNavigation(url) || DOCS_PAGE.test(url.pathname) || DOCS_ROOT.test(url.pathname);
 }
 
 // ---------- IndexedDB ----------
@@ -172,8 +196,93 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-async function networkFirst(request, cacheName) {
-  const cache = await caches.open(cacheName);
+// ---------- Persona de la sesión ----------
+
+// La sesión dura 30 días (NextAuth): una persona confirmada hace más que eso no cuenta.
+const IDENTITY_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+// Cookie no httpOnly que el middleware pone con la sesión (hash de la persona) y que
+// se va con ella: si no está o es de otra persona, no se sirve nada guardado.
+const WHO_COOKIE = 'zs_who';
+
+let currentMeta;
+
+async function getMeta() {
+  if (currentMeta !== undefined) return currentMeta;
+  try {
+    const hit = await (await caches.open(META)).match(USER_KEY);
+    const data = hit ? await hit.json() : null;
+    currentMeta = data && data.id ? { id: data.id, who: data.who || null, at: Number(data.at) || 0 } : null;
+  } catch {
+    currentMeta = null;
+  }
+  return currentMeta;
+}
+
+async function getUser() {
+  const meta = await getMeta();
+  return meta ? meta.id : null;
+}
+
+async function dropPages() {
+  const keys = await caches.keys();
+  await Promise.all(keys.filter((k) => k.startsWith(PAGES)).map((k) => caches.delete(k)));
+}
+
+/**
+ * La app (con red) dice quién es: persona:workspace y el valor de zs_who.
+ * Si cambió la persona (otra cuenta, otro workspace o cerró sesión: id null),
+ * fuera todas las vistas guardadas. Cada aviso renueva la confirmación.
+ */
+async function setUser(id, who) {
+  const next = typeof id === 'string' && id ? id.slice(0, 200) : null;
+  const prevMeta = await getMeta();
+  const prev = prevMeta ? prevMeta.id : null;
+  if (prev !== next) await dropPages();
+  const meta = await caches.open(META);
+  if (!next) {
+    currentMeta = null;
+    await meta.delete(USER_KEY);
+    return;
+  }
+  // Sin `who` en el aviso (mensajes viejos): se mantiene el de la misma persona.
+  const nextWho = typeof who === 'string' && who ? who.slice(0, 100) : prev === next && prevMeta ? prevMeta.who : null;
+  currentMeta = { id: next, who: nextWho, at: Date.now() };
+  await meta.put(USER_KEY, new Response(JSON.stringify(currentMeta), { headers: { 'content-type': 'application/json' } }));
+}
+
+/**
+ * ¿La sesión actual es la de quien guardó las vistas? Con Cookie Store
+ * (Chromium) se compara zs_who: sin la cookie (sesión vencida o cerrada) o con
+ * la de otra persona, no. Sin Cookie Store, alcanza con que la persona se haya
+ * confirmado con red dentro de los 30 días de la sesión.
+ */
+async function sessionMatches() {
+  const meta = await getMeta();
+  if (!meta) return false;
+  if (!meta.at || Date.now() - meta.at > IDENTITY_MAX_AGE_MS) return false;
+  const store = self.cookieStore;
+  if (store && typeof store.get === 'function') {
+    let cookie = null;
+    try {
+      cookie = await store.get(WHO_COOKIE);
+    } catch {
+      cookie = null;
+    }
+    if (!cookie || !cookie.value || !meta.who || cookie.value !== meta.who) return false;
+  }
+  return true;
+}
+
+/** Caché de vistas de la persona actual, solo si la sesión es la suya (null: no se guarda ni se sirve nada). */
+async function pagesCache() {
+  const meta = await getMeta();
+  if (!meta || !(await sessionMatches())) return null;
+  return caches.open(`${PAGES}-${encodeURIComponent(meta.id)}`);
+}
+
+async function networkFirst(request) {
+  const cache = await pagesCache();
+  if (!cache) return fetch(request);
   try {
     const res = await fetch(request);
     if (res && res.ok && res.status === 200 && res.type === 'basic' && !res.redirected) await cache.put(request, res.clone()).catch(() => undefined);
@@ -188,11 +297,11 @@ async function networkFirst(request, cacheName) {
 async function crmNavigation(request) {
   const url = new URL(request.url);
   try {
-    return await networkFirst(request, PAGES);
+    return await networkFirst(request);
   } catch {
-    const cache = await caches.open(PAGES);
-    // /app o /app/crm sin locale (como abre la app instalada): la versión cacheada en cualquier idioma.
-    if (CRM_ROOT.test(url.pathname)) {
+    const cache = (await pagesCache()) || (await caches.open(`${PAGES}-none`));
+    // /app, /app/crm o /app/docs sin locale (como abre la app instalada): la versión cacheada en cualquier idioma.
+    if (CRM_ROOT.test(url.pathname) || DOCS_ROOT.test(url.pathname)) {
       for (const l of ['en', 'es', 'pt']) {
         const hit = await cache.match(`${url.origin}/${l}${url.pathname}`, { ignoreSearch: true });
         if (hit) return hit;
@@ -200,7 +309,7 @@ async function crmNavigation(request) {
     }
     const loose = await cache.match(request, { ignoreSearch: true, ignoreVary: true });
     if (loose) return loose;
-    const locale = (CRM_PAGE.exec(url.pathname) || [])[1] || 'en';
+    const locale = (CRM_PAGE.exec(url.pathname) || DOCS_PAGE.exec(url.pathname) || [])[1] || 'en';
     return new Response(offlineHtml(locale), { status: 503, headers: { 'content-type': 'text/html; charset=utf-8' } });
   }
 }
@@ -246,7 +355,7 @@ self.addEventListener('fetch', (event) => {
       event.respondWith(cacheFirst(request));
       return;
     }
-    if (request.mode === 'navigate' && isCrmNavigation(url)) {
+    if (request.mode === 'navigate' && isOfflineNavigation(url)) {
       event.respondWith(crmNavigation(request));
       return;
     }
@@ -260,7 +369,7 @@ self.addEventListener('fetch', (event) => {
       !/\/file$/.test(url.pathname) &&
       !request.headers.has('range')
     ) {
-      event.respondWith(networkFirst(request, PAGES));
+      event.respondWith(networkFirst(request));
     }
     return;
   }
@@ -276,21 +385,24 @@ self.addEventListener('sync', (event) => {
 
 self.addEventListener('message', (event) => {
   const data = event.data || {};
-  if (data.type === 'zs-sync') event.waitUntil(replay());
+  if (data.type === 'zs-user') event.waitUntil(setUser(data.id, data.who));
+  else if (data.type === 'zs-sync') event.waitUntil(replay());
   else if (data.type === 'zs-count') event.waitUntil(broadcastCount());
   else if (data.type === 'zs-warm' && Array.isArray(data.urls)) {
     // La página ya cargó su JS y CSS antes de que el worker la controlara: se guardan ahora.
     event.waitUntil(
       (async () => {
+        // La página manda quién es junto con lo que hay que guardar.
+        if ('user' in data) await setUser(data.user, data.who);
         const statics = await caches.open(STATIC);
-        const pages = await caches.open(PAGES);
+        const pages = await pagesCache();
         for (const raw of data.urls.slice(0, 200)) {
           try {
             const u = new URL(raw, self.location.origin);
             if (u.origin !== self.location.origin) continue;
             if (u.pathname.startsWith('/_next/static/')) {
               if (!(await statics.match(u.href))) await statics.add(u.href);
-            } else if (isCrmNavigation(u)) {
+            } else if (pages && isOfflineNavigation(u)) {
               const res = await fetch(u.href, { credentials: 'same-origin' });
               if (res.ok && !res.redirected) await pages.put(u.href, res);
             }
@@ -356,4 +468,4 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 // Para tests/unit/offline-queue.test.ts (en el navegador no molesta).
-self.__zsOffline = { shouldQueue, replayQueue, NEVER_QUEUE };
+self.__zsOffline = { shouldQueue, replayQueue, NEVER_QUEUE, isOfflineNavigation, setUser, getUser, pagesCache, sessionMatches };

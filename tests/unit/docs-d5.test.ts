@@ -1,0 +1,659 @@
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import os from 'os';
+import path from 'path';
+import { deflateSync, inflateSync } from 'zlib';
+import { mkdtemp, rm } from 'fs/promises';
+import { getDb, getUserById } from '@/lib/db';
+import { createDocPage, getDocPageRow, updateDocPage } from '@/lib/docs';
+import { createTeamspace } from '@/lib/docs-access';
+import { addMember, createTeam } from '@/lib/teams';
+import { createImportJob, getImportJob, type ImportJobView } from '@/lib/import-jobs';
+import { runImportJob, startImportJob } from '@/lib/import-runner';
+import { appendLocalChunk, localZipRef, planNotionPages } from '@/lib/docs-notion-import';
+import {
+  confluenceTree,
+  enexNoteRanges,
+  enmlToHtml,
+  isConfluenceIndex,
+  parseEnexNote,
+  parseHtmlPage,
+  rewriteHtmlRefs,
+  xmlText,
+} from '@/lib/docs-import-formats';
+import { docxToBlocks, DOCX_IMAGE_MARKER, readDocxMedia } from '@/lib/docs-docx';
+import { bufferSource, buildZip as buildTestZip, listZipEntries, readZipEntry } from '@/lib/zip-reader';
+import { buildZip } from '@/lib/zip-writer';
+import { blocksToPdf, htmlToRuns, layoutRuns, pdfImage, toWinAnsi } from '@/lib/docs-pdf';
+import { blocksToHtmlDocument } from '@/lib/docs-html-export';
+import { sanitizeDocsHtml } from '@/lib/docs-sanitize';
+import { collectExportPages, exportName, exportTree, relativePath } from '@/lib/docs-export';
+import { detachSynced, duplicableSource, duplicatePublished } from '@/lib/docs-public-duplicate';
+import {
+  addSiteDomain,
+  claimToken,
+  purgeExpiredSiteDomains,
+  getDocsSite,
+  pageAnalytics,
+  recordPageView,
+  recordSiteView,
+  referrerHost,
+  removeSiteDomain,
+  siteAnalytics,
+  siteForHost,
+  siteSitemap,
+  updateDocsSite,
+  updatePagePublishSettings,
+  verifySiteDomain,
+  visitorHash,
+} from '@/lib/docs-site';
+import { addDomain } from '@/lib/link-domains';
+import { descendantIds } from '@/lib/docs-offline';
+import type { DocsBlock } from '@/lib/docs-types';
+import { makeUser } from './helpers';
+
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+const para = (id: string, content: string, indent = 0): DocsBlock => ({ id, type: 'paragraph', content, ...(indent ? { indent } : {}) });
+const SECRET = 'zafiro-d5';
+
+let dir = '';
+beforeAll(async () => {
+  dir = await mkdtemp(path.join(os.tmpdir(), 'zs-d5-'));
+  process.env.IMPORTS_DIR = dir;
+  process.env.UPLOADS_DIR = path.join(dir, 'uploads');
+});
+afterAll(async () => {
+  delete process.env.IMPORTS_DIR;
+  delete process.env.UPLOADS_DIR;
+  await rm(dir, { recursive: true, force: true });
+});
+
+async function runToEnd(id: string): Promise<ImportJobView> {
+  for (let i = 0; i < 40; i++) {
+    const v = (await runImportJob(id, 5_000))!;
+    if (!['fetching', 'importing'].includes(v.status)) return v;
+  }
+  throw new Error('stuck');
+}
+
+/** Import completo de un zip (fuente, destino) hasta terminar. */
+async function importZip(workspaceId: string, source: string, zip: Buffer, options: Record<string, unknown> = {}) {
+  const job = await createImportJob({ workspaceId, teamId: null, userId: workspaceId, app: 'docs', source: source as 'notion', status: 'fetching', options });
+  await getDb().prepare('UPDATE import_jobs SET payload = ? WHERE id = ?').run(localZipRef(job.id), job.id);
+  await appendLocalChunk(job.id, 0, zip);
+  const prev = await runToEnd(job.id);
+  expect(prev.status).toBe('preview');
+  await startImportJob((await getImportJob(job.id))!);
+  return { prev, done: await runToEnd(job.id) };
+}
+
+async function pagesOf(ws: string) {
+  return (await getDb().prepare('SELECT * FROM docs_pages WHERE user_id = ? ORDER BY created_at').all(ws)) as Array<{
+    id: string;
+    title: string;
+    parent_id: string | null;
+    teamspace_id: string | null;
+    content: string;
+    created_at: string;
+  }>;
+}
+
+// ---------- Zip ----------
+
+describe('zip-writer con deflate', () => {
+  it('lo lee el lector por rangos', async () => {
+    const zip = buildZip([
+      { name: 'a.md', data: 'hola '.repeat(200), deflate: true },
+      { name: 'b.png', data: PNG },
+    ]);
+    const src = bufferSource(zip);
+    const entries = await listZipEntries(src);
+    expect(entries.map((e) => [e.name, e.method])).toEqual([
+      ['a.md', 8],
+      ['b.png', 0],
+    ]);
+    expect((await readZipEntry(src, entries[0], 10_000)).toString()).toBe('hola '.repeat(200));
+    expect(() => buildZip([{ name: '../evil', data: 'x' }])).toThrow();
+  });
+});
+
+// ---------- Formatos de import ----------
+
+const CONFLUENCE_INDEX = `<html><head><title>Ingeniería</title></head><body><div id="main-content" class="pageSection"><h2>Space Details</h2></div>
+<div class="pageSection group"><h2>Available Pages:</h2>
+<ul><li><a href="Manual_100.html">Manual</a><ul><li><a href="Setup_101.html">Setup</a></li><li><a href="Deploy_102.html">Deploy</a></li></ul></li><li><a href="FAQ_200.html">FAQ</a></li></ul></div>
+<div id="footer">Generated by Atlassian Confluence</div></body></html>`;
+
+const CONFLUENCE_PAGE = `<html><head><title>Ingeniería : Setup</title></head><body>
+<div id="main-header"><h1 id="title-heading" class="pagetitle"><span id="title-text"> Ingeniería : Setup </span></h1></div>
+<div id="content" class="view"><div id="main-content" class="wiki-content group"><h2>Pasos</h2><p>Ver <a href="Deploy_102.html">Deploy</a> y <a href="../../etc/passwd">esto</a>.</p>
+<p><img class="confluence-embedded-image" src="attachments/101/9001.png" alt="diagrama"><img src="https://example.com/x.png"></p><div><div>adentro</div></div><script>alert(1)</script></div></div></body></html>`;
+
+describe('HTML: Confluence, Notion y suelto', () => {
+  it('detecta el index de Confluence y su árbol', () => {
+    expect(isConfluenceIndex(CONFLUENCE_INDEX)).toBe(true);
+    const tree = confluenceTree(CONFLUENCE_INDEX, 'ING');
+    expect(Object.fromEntries(tree)).toEqual({
+      'ING/Manual_100.html': null,
+      'ING/Setup_101.html': 'ING/Manual_100.html',
+      'ING/Deploy_102.html': 'ING/Manual_100.html',
+      'ING/FAQ_200.html': null,
+    });
+  });
+
+  it('página de Confluence: título sin el espacio, cuerpo de #main-content, links, imágenes y zip-slip', () => {
+    const page = parseHtmlPage(CONFLUENCE_PAGE);
+    expect(page.flavor).toBe('confluence');
+    expect(page.title).toBe('Setup');
+    expect(page.body).toContain('<div>adentro</div>');
+    expect(page.body).not.toContain('main-header');
+    const { html, attachments } = rewriteHtmlRefs(page.body, {
+      path: 'ING/Setup_101.html',
+      pageFor: (p) => (p === 'ING/Deploy_102.html' ? 'deploy-id' : null),
+      hasFile: (p) => p === 'ING/attachments/101/9001.png',
+    });
+    expect(html).toContain('<a href="zspage:deploy-id">Deploy</a>');
+    // Fuera del zip ("../../etc/passwd"): queda el texto, sin link.
+    expect(html).not.toContain('passwd');
+    expect(attachments).toEqual([expect.objectContaining({ zipPath: 'ING/attachments/101/9001.png', image: true, label: 'diagrama' })]);
+    // La imagen externa no se descarga: queda como link.
+    expect(html).toContain('<a href="https://example.com/x.png">');
+  });
+
+  it('Notion HTML y un .html suelto', () => {
+    const notion = parseHtmlPage('<html><body><article id="x" class="page sans"><header><h1 class="page-title">🚀 Plan</h1></header><div class="page-body"><p>Hola</p></div></article></body></html>');
+    expect(notion).toMatchObject({ flavor: 'notion', title: '🚀 Plan', body: '<p>Hola</p>' });
+    const plain = parseHtmlPage('<html><head><title>Doc</title><style>p{}</style></head><body><h1>Doc</h1><p>Texto</p></body></html>');
+    expect(plain.flavor).toBe('generic');
+    expect(plain.title).toBe('Doc');
+    expect(plain.body).toContain('<p>Texto</p>');
+  });
+});
+
+const ENEX = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE en-export SYSTEM "http://xml.evernote.com/pub/evernote-export3.dtd" [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
+<en-export application="Evernote" version="10">
+<note><title>Lista &amp; ideas</title><created>20240131T120000Z</created><updated>20240201T080000Z</updated><tag>viaje</tag>
+<content><![CDATA[<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd"><en-note><div>Hola &xxe;</div><div><en-todo checked="true"/>Pasaje</div><div><en-todo checked="false"/>Hotel</div><en-media hash="${'HASH'}" type="image/png"/><en-crypt>secreto</en-crypt></en-note>]]></content>
+<resource><data encoding="base64">${PNG.toString('base64')}</data><mime>image/png</mime><resource-attributes><file-name>foto.png</file-name></resource-attributes></resource>
+</note>
+<note><title>Segunda</title><content><![CDATA[<en-note><p>Dos</p></en-note>]]></content></note>
+</en-export>`;
+
+describe('Evernote (.enex)', () => {
+  it('ubica las notas, sin expandir entidades del DTD', () => {
+    const buf = Buffer.from(ENEX);
+    const ranges = enexNoteRanges(buf);
+    expect(ranges).toHaveLength(2);
+    const note = parseEnexNote(buf.toString('utf8', ranges[0].start, ranges[0].end));
+    expect(note.title).toBe('Lista & ideas');
+    expect(note.created).toBe('2024-01-31T12:00:00.000Z');
+    expect(note.tags).toEqual(['viaje']);
+    expect(note.resources).toHaveLength(1);
+    expect(note.content).toContain('&xxe;');
+    expect(xmlText('a &xxe; &lt;b&gt; &#65;')).toBe('a &xxe; <b> A');
+    const html = enmlToHtml(note.content, (hash) => (hash === 'hash'.padEnd(32, '0') ? 'MARK' : null));
+    expect(html).toContain('<ul><li><input type="checkbox" checked>Pasaje</li></ul>');
+    expect(html).toContain('<ul><li><input type="checkbox">Hotel</li></ul>');
+    expect(html).not.toContain('secreto');
+  });
+});
+
+/** .docx mínimo con una imagen. */
+function docxWithImage(): Buffer {
+  const doc = `<?xml version="1.0"?><w:document xmlns:w="w" xmlns:a="a" xmlns:r="r"><w:body>
+<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Informe</w:t></w:r></w:p>
+<w:p><w:r><w:t>Texto con foto</w:t></w:r><w:r><w:drawing><a:graphic><a:blip r:embed="rId5"/></a:graphic></w:drawing></w:r></w:p>
+</w:body></w:document>`;
+  const rels = `<?xml version="1.0"?><Relationships><Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image1.png"/></Relationships>`;
+  const styles = `<w:styles><w:style w:styleId="Heading1"><w:name w:val="heading 1"/></w:style></w:styles>`;
+  return buildTestZip([
+    { name: 'word/document.xml', data: doc, deflate: true },
+    { name: 'word/_rels/document.xml.rels', data: rels },
+    { name: 'word/styles.xml', data: styles },
+    { name: 'word/media/image1.png', data: PNG },
+  ]);
+}
+
+describe('Word (.docx) con imágenes', () => {
+  it('marca la imagen y la lee del .docx', () => {
+    const buf = docxWithImage();
+    const blocks = docxToBlocks(buf, undefined, { imageMarkers: true });
+    expect(blocks.map((b) => [b.type, b.content])).toEqual([
+      ['heading', 'Informe'],
+      ['paragraph', 'Texto con foto'],
+      ['paragraph', `${DOCX_IMAGE_MARKER}word/media/image1.png`],
+    ]);
+    expect(readDocxMedia(buf, 'word/media/image1.png', 1_000_000)?.equals(PNG)).toBe(true);
+    // Solo word/media: nada de paths arbitrarios.
+    expect(readDocxMedia(buf, 'word/document.xml', 1_000_000)).toBeNull();
+    // Sin la opción, como antes: sin marcadores.
+    expect(docxToBlocks(buf).some((b) => b.content.startsWith(DOCX_IMAGE_MARKER))).toBe(false);
+  });
+});
+
+describe('Planificación: carpetas, envoltorios y Confluence', () => {
+  it('Takeout: la carpeta envoltorio no suma; cada carpeta con archivos es una página', () => {
+    let n = 0;
+    const plan = planNotionPages(
+      ['Takeout/Drive/Proyectos/Plan.docx', 'Takeout/Drive/Proyectos/Notas.html', 'Takeout/Drive/Leeme.txt'].map((p) => ({ path: p, part: 0 })),
+      new Map(),
+      () => `id${++n}`,
+    );
+    const byTitle = Object.fromEntries(plan.map((p) => [p.title, p]));
+    expect(Object.keys(byTitle).sort()).toEqual(['Leeme', 'Notas', 'Plan', 'Proyectos']);
+    expect(byTitle.Proyectos.format).toBe('folder');
+    expect(byTitle.Proyectos.parentPath).toBeNull();
+    expect(byTitle.Plan.parentPath).toBe('Takeout/Drive/Proyectos/');
+    expect(byTitle.Leeme.parentPath).toBeNull();
+    // Madres antes que hijas.
+    expect(plan.findIndex((p) => p.title === 'Proyectos')).toBeLessThan(plan.findIndex((p) => p.title === 'Plan'));
+  });
+
+  it('Confluence: el árbol del index y el espacio como raíz', () => {
+    const tree = confluenceTree(CONFLUENCE_INDEX, 'ING');
+    const plan = planNotionPages(
+      ['ING/index.html', 'ING/Manual_100.html', 'ING/Setup_101.html', 'ING/Deploy_102.html', 'ING/FAQ_200.html'].map((p) => ({ path: p, part: 0 })),
+      new Map(),
+      undefined,
+      { confluence: tree, confluenceIndex: 'ING/index.html' },
+    );
+    const parent = Object.fromEntries(plan.map((p) => [p.path, p.parentPath]));
+    expect(parent['ING/index.html']).toBeNull();
+    expect(parent['ING/Manual_100.html']).toBe('ING/index.html');
+    expect(parent['ING/Setup_101.html']).toBe('ING/Manual_100.html');
+    expect(plan[0].path).toBe('ING/index.html');
+    expect(plan.findIndex((p) => p.path === 'ING/Manual_100.html')).toBeLessThan(plan.findIndex((p) => p.path === 'ING/Setup_101.html'));
+  });
+});
+
+describe('Import de punta a punta (Confluence, Evernote, Word y teamspace)', () => {
+  it('Confluence: árbol, links entre páginas e imágenes; sin script', async () => {
+    const u = await makeUser('conf');
+    const zip = buildTestZip([
+      { name: 'ING/index.html', data: CONFLUENCE_INDEX },
+      { name: 'ING/Manual_100.html', data: '<html><title>Ingeniería : Manual</title><div id="main-content" class="wiki-content"><p>Inicio</p></div></html>' },
+      { name: 'ING/Setup_101.html', data: CONFLUENCE_PAGE, deflate: true },
+      { name: 'ING/Deploy_102.html', data: '<html><title>Ingeniería : Deploy</title><div id="main-content"><p>Deploy</p></div></html>' },
+      { name: 'ING/FAQ_200.html', data: '<html><title>Ingeniería : FAQ</title><div id="main-content"><p>FAQ</p></div></html>' },
+      { name: 'ING/attachments/101/9001.png', data: PNG },
+      { name: 'ING/styles/site.css', data: 'body{}' },
+    ]);
+    const { prev, done } = await importZip(u.id, 'confluence', zip);
+    expect(prev.preview).toMatchObject({ pages: 5 });
+    expect(done.report).toMatchObject({ pages: 5, files: 1 });
+    const pages = await pagesOf(u.id);
+    const byTitle = Object.fromEntries(pages.map((p) => [p.title, p]));
+    expect(byTitle.Setup.parent_id).toBe(byTitle.Manual.id);
+    expect(byTitle.Manual.parent_id).toBe(byTitle['Ingeniería'].id);
+    expect(byTitle.Setup.content).toContain(`data-page=\\"${byTitle.Deploy.id}\\"`);
+    expect(byTitle.Setup.content).toContain('"type":"image"');
+    expect(byTitle.Setup.content).not.toContain('alert(1)');
+    expect(byTitle.Setup.content).not.toContain('passwd');
+  });
+
+  it('Evernote: cuaderno con sus notas, tareas, recurso subido y fechas', async () => {
+    const u = await makeUser('enex');
+    const md5 = (await import('crypto')).createHash('md5').update(PNG).digest('hex');
+    const zip = buildZip([{ name: 'Viajes.enex', data: ENEX.replace('HASH', md5) }]);
+    const { prev, done } = await importZip(u.id, 'evernote', zip);
+    expect(prev.preview).toMatchObject({ pages: 3 });
+    expect(done.report).toMatchObject({ pages: 3, files: 1 });
+    const pages = await pagesOf(u.id);
+    const nb = pages.find((p) => p.title === 'Viajes')!;
+    const note = pages.find((p) => p.title === 'Lista & ideas')!;
+    expect(note.parent_id).toBe(nb.id);
+    expect(note.created_at).toBe('2024-01-31T12:00:00.000Z');
+    const blocks = JSON.parse(note.content) as DocsBlock[];
+    expect(blocks.filter((b) => b.type === 'todo').map((b) => [b.content, b.checked])).toEqual([
+      ['Pasaje', true],
+      ['Hotel', false],
+    ]);
+    expect(blocks.some((b) => b.type === 'image')).toBe(true);
+    expect(note.content).not.toContain('secreto');
+    // Reimportar no duplica.
+    const again = await importZip(u.id, 'evernote', zip);
+    expect(again.done.report).toMatchObject({ skipped: 3 });
+  });
+
+  it('Word suelto (como lo arma el navegador) en un teamspace privado', async () => {
+    const owner = await makeUser('word');
+    const ts = await createTeamspace(owner.id, owner.id, { name: 'Legal', access: 'private' });
+    const zip = buildZip([{ name: 'Informe.docx', data: docxWithImage() }]);
+    const { done } = await importZip(owner.id, 'word', zip, { teamspace_id: ts.id });
+    expect(done.report).toMatchObject({ pages: 1, files: 1 });
+    const [page] = await pagesOf(owner.id);
+    expect(page.title).toBe('Informe');
+    expect(page.teamspace_id).toBe(ts.id);
+    expect(page.content).toContain('"type":"image"');
+  });
+});
+
+// ---------- Export ----------
+
+describe('PDF generado en el servidor', () => {
+  it('texto, links, tablas, imágenes PNG y varias páginas', async () => {
+    const blocks: DocsBlock[] = [
+      { id: 'h', type: 'heading', level: 1, content: 'Título <strong>uno</strong>' },
+      para('p', 'Hola <a href="https://zerosoft.ai">link</a> con ñ y — raya 🚀'),
+      { id: 't', type: 'todo', content: 'Tarea', checked: true },
+      { id: 'c', type: 'code', content: 'const a = 1;\nconsole.log(a)', language: 'js' },
+      { id: 'tb', type: 'table', content: '', rows: [['A', 'B'], ['1', '2']] },
+      { id: 'i', type: 'image', content: '', name: 'x.png', mime: 'image/png', url: '/uploads/docs/x.png' },
+      ...Array.from({ length: 120 }, (_, i) => para(`l${i}`, `Línea ${i} con bastante texto para que ocupe espacio en la página y obligue a cortar`)),
+    ];
+    const pdf = await blocksToPdf(blocks, 'Prueba', { imageFor: async () => ({ bytes: PNG, mime: 'image/png' }) });
+    const text = pdf.toString('latin1');
+    expect(text.startsWith('%PDF-1.4')).toBe(true);
+    expect(text).toContain('/URI (https://zerosoft.ai)');
+    expect(text).toContain('/Subtype /Image');
+    const count = Number(/\/Type \/Pages \/Kids \[[^\]]*\] \/Count (\d+)/.exec(text)?.[1]);
+    expect(count).toBeGreaterThan(1);
+    expect(text.trimEnd().endsWith('%%EOF')).toBe(true);
+    // El texto de las páginas va comprimido: el contenido sale al inflarlo.
+    const streams = [...text.matchAll(/\/Filter \/FlateDecode \/Length (\d+) >>\nstream\n/g)];
+    const raws = streams.map((m) => {
+      const start = m.index! + m[0].length;
+      return inflateSync(Buffer.from(text.slice(start, start + Number(m[1])), 'latin1')).toString('latin1');
+    });
+    expect(raws.some((r) => r.includes('(Prueba) Tj'))).toBe(true);
+  });
+
+  it('WinAnsi, corte de líneas y runs', () => {
+    expect(toWinAnsi('ñandú — “hola” 🚀')).toBe('ñandú \x97 \x93hola\x94 ');
+    expect(toWinAnsi('日本')).toBe('??');
+    const runs = htmlToRuns('a <strong>b</strong> <em>c</em> <a href="https://x.y">d</a><br>e');
+    expect(runs.find((r) => r.text === 'b')?.bold).toBe(true);
+    expect(runs.find((r) => r.text === 'd')?.href).toBe('https://x.y');
+    const lines = layoutRuns([{ text: 'palabra '.repeat(60) }], 10, 200);
+    expect(lines.length).toBeGreaterThan(5);
+    for (const l of lines) expect(l.width).toBeLessThanOrEqual(200.01);
+  });
+
+  it('PNG con alfa va con SMask; un formato que no entra, null', () => {
+    // 1x1 RGBA.
+    const ihdr = Buffer.alloc(13);
+    ihdr.writeUInt32BE(1, 0);
+    ihdr.writeUInt32BE(1, 4);
+    ihdr[8] = 8;
+    ihdr[9] = 6;
+    const chunk = (type: string, data: Buffer) => {
+      const len = Buffer.alloc(4);
+      len.writeUInt32BE(data.length);
+      return Buffer.concat([len, Buffer.from(type, 'latin1'), data, Buffer.alloc(4)]);
+    };
+    const png = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      chunk('IHDR', ihdr),
+      chunk('IDAT', deflateSync(Buffer.from([0, 255, 0, 0, 128]))),
+      chunk('IEND', Buffer.alloc(0)),
+    ]);
+    const img = pdfImage(png, 'image/png');
+    expect(img?.smask).toBeDefined();
+    expect(pdfImage(Buffer.from('GIF89a'), 'image/gif')).toBeNull();
+  });
+});
+
+describe('HTML exportado', () => {
+  it('documento autónomo, escapado y sin scripts', () => {
+    const html = blocksToHtmlDocument(
+      [
+        { id: 'h', type: 'heading', level: 1, content: 'Uno' },
+        para('p', 'Hola <script>alert(1)</script><a href="javascript:alert(1)">x</a>'),
+        { id: 'b', type: 'bulleted_list_item', content: 'a' },
+        { id: 'b2', type: 'bulleted_list_item', content: 'b' },
+        { id: 'toc', type: 'toc', content: '' },
+      ],
+      'Título <x>',
+      { sanitize: sanitizeDocsHtml, lang: 'es' },
+    );
+    expect(html).toContain('<title>Título &lt;x&gt;</title>');
+    expect(html).not.toContain('<script>');
+    expect(html).not.toContain('javascript:');
+    expect(html.match(/<ul>/g)).toHaveLength(1);
+    expect(html).toContain('<a href="#uno">Uno</a>');
+  });
+
+  it('nombres y rutas relativas del zip', () => {
+    expect(exportName('a/b: c?', '12345678-aaaa')).toBe('a b c 12345678');
+    expect(relativePath('A 1/B 2.md', 'C 3.md')).toBe('..%2FC%203.md'.replace('%2F', '/'));
+  });
+});
+
+// ---------- Permisos: export y duplicar ----------
+
+type FakeUser = { id: string; email: string; name?: string | null; actingUser?: { id: string; email: string; name?: string | null }; role?: string; team?: { id: string } | null };
+
+async function workspace() {
+  const owner = await makeUser('d5own');
+  const bob = await makeUser('d5bob');
+  const team = await createTeam(owner.id, 'Equipo');
+  await addMember(team.id, bob.id, 'member');
+  const asBob: FakeUser = { id: owner.id, email: owner.email, actingUser: { id: bob.id, email: bob.email, name: bob.name }, role: 'member', team };
+  const priv = await createTeamspace(owner.id, owner.id, { name: 'Dirección', access: 'private' });
+  const secret = await createDocPage(owner.id, { title: 'Sueldos', teamspace_id: priv.id });
+  const syncedId = `sync-${crypto.randomUUID().slice(0, 12)}`;
+  const synced: DocsBlock[] = [{ id: 's', type: 'synced', content: '', synced_id: syncedId }, para('c', `Cifra ${SECRET}`, 1)];
+  await updateDocPage(owner.id, secret.id, { content: synced }, { actorId: owner.id });
+  const root = await createDocPage(owner.id, { title: 'Manual' });
+  await updateDocPage(owner.id, root.id, { content: [para('a', 'Hola'), ...synced], published: true }, { actorId: owner.id });
+  const child = await createDocPage(owner.id, { title: 'Hija publicada', parent_id: root.id });
+  await updateDocPage(owner.id, child.id, { content: [para('h', 'Hija')], published: true }, { actorId: owner.id });
+  const hidden = await createDocPage(owner.id, { title: 'Borrador sin publicar', parent_id: root.id });
+  await updateDocPage(owner.id, hidden.id, { content: [para('x', 'borrador interno')] }, { actorId: owner.id });
+  return { owner, bob, asBob, priv, secret, root, child, hidden };
+}
+
+describe('Export del workspace con teamspaces privados y sincronizados', () => {
+  it('Bob no exporta el teamspace privado ni el contenido sincronizado de ahí', async () => {
+    const w = await workspace();
+    const pages = await collectExportPages(w.asBob as never, null, true);
+    const titles = pages.map((p) => p.row.title);
+    expect(titles).toContain('Manual');
+    expect(titles).not.toContain('Sueldos');
+    const out = await exportTree(pages, { actor: w.asBob as never, origin: 'https://app', format: 'md', locale: 'es', footer: '' }, 'ws');
+    const src = bufferSource(out.body);
+    const entries = await listZipEntries(src);
+    let all = '';
+    for (const e of entries) all += (await readZipEntry(src, e, 5_000_000)).toString('utf8');
+    expect(all).toContain('Hola');
+    expect(all).not.toContain(SECRET);
+    // La dueña sí.
+    const mine = await collectExportPages({ id: w.owner.id, email: w.owner.email } as never, null, true);
+    expect(mine.map((p) => p.row.title)).toContain('Sueldos');
+  });
+
+  it('una página con subpáginas: zip con el árbol y links relativos', async () => {
+    const w = await workspace();
+    await updateDocPage(w.owner.id, w.root.id, { content: [para('a', `Ver <a href="/app/docs/${w.child.id}" data-page="${w.child.id}">Hija</a>`)] }, { actorId: w.owner.id });
+    const pages = await collectExportPages({ id: w.owner.id, email: w.owner.email } as never, w.root.id, true);
+    expect(pages.map((p) => p.row.title).sort()).toEqual(['Borrador sin publicar', 'Hija publicada', 'Manual']);
+    const out = await exportTree(pages, { actor: { id: w.owner.id, email: w.owner.email } as never, origin: 'https://app', format: 'html', locale: 'es', footer: '' }, 'Manual');
+    const src = bufferSource(out.body);
+    const names = (await listZipEntries(src)).map((e) => e.name);
+    const rootFile = names.find((n) => n.startsWith('Manual ') && n.endsWith('.html'))!;
+    expect(names.some((n) => n.startsWith(`${rootFile.replace(/\.html$/, '')}/Hija publicada `))).toBe(true);
+    expect(names).toContain('index.html');
+    const entry = (await listZipEntries(src)).find((e) => e.name === rootFile)!;
+    const html = (await readZipEntry(src, entry, 5_000_000)).toString('utf8');
+    expect(html).toMatch(/href="Manual%20[0-9a-f]{8}\/Hija%20publicada%20[0-9a-f]{8}\.html"/);
+  });
+});
+
+describe('Duplicar una página publicada', () => {
+  it('solo con "Permitir duplicar"; copia lo publicado, sin sincronizados privados ni subpáginas sin publicar', async () => {
+    const w = await workspace();
+    const row = (await getDocPageRow(w.root.id))!;
+    expect(await duplicableSource(w.owner.id, row.slug!)).toBeNull();
+    await updatePagePublishSettings(w.root.id, { allow_duplicate: true });
+    const source = (await duplicableSource(w.owner.id, row.slug!))!;
+    const other = await makeUser('d5other');
+    const res = await duplicatePublished(source, other.id, null);
+    expect(res.pages).toBe(2);
+    const copies = await pagesOf(other.id);
+    expect(copies.map((p) => p.title).sort()).toEqual(['Hija publicada', 'Manual']);
+    const all = copies.map((p) => p.content).join('\n');
+    expect(all).toContain('Hola');
+    expect(all).not.toContain(SECRET);
+    expect(all).not.toContain('borrador interno');
+    expect(all).not.toContain('"synced"');
+    const copyRoot = copies.find((p) => p.title === 'Manual')!;
+    expect(copies.find((p) => p.title === 'Hija publicada')!.parent_id).toBe(copyRoot.id);
+  });
+
+  it('un sincronizado de una página publicada sí se copia, como bloques propios', () => {
+    const out = detachSynced([para('a', 'x'), { id: 's', type: 'synced', content: '', synced_id: 'abc' }, para('b', 'y', 1), para('c', 'z', 2), para('d', 'w')]);
+    expect(out.map((b) => [b.id, b.indent ?? 0])).toEqual([
+      ['a', 0],
+      ['b', 0],
+      ['c', 1],
+      ['d', 0],
+    ]);
+  });
+});
+
+// ---------- Sitio: dominio, analítica, vistas ----------
+
+describe('Sitio publicado', () => {
+  beforeEach(() => {
+    process.env.DOCS_DOMAIN_FAKE = '1';
+  });
+
+  it('dominio propio: alta, no compartido con Link, verificación de prueba y host', async () => {
+    const u = await makeUser('site');
+    const handle = (await getUserById(u.id))!.handle!;
+    const host = `docs-${u.id.slice(-8)}.acme.test`;
+    const add = await addSiteDomain(u.id, `https://${host}/algo`);
+    expect(add).toMatchObject({ ok: true });
+    if (add.ok) {
+      expect(add.site.hostname).toBe(host);
+      expect(add.site.dns.map((d) => d.type)).toEqual(['CNAME', 'TXT']);
+    }
+    expect(await addSiteDomain(u.id, 'otro.acme.test')).toEqual({ ok: false, code: 'domain_exists' });
+    const other = await makeUser('site2');
+    // Sin verificar en otro workspace: se lo queda quien prueba el TXT de su token.
+    const pending = await addSiteDomain(other.id, host);
+    expect(pending).toMatchObject({ ok: false, code: 'domain_pending_elsewhere' });
+    expect(!pending.ok && pending.dns?.[0]).toMatchObject({ type: 'TXT', value: `zerosoft-verify=${claimToken(other.id, host)}` });
+    process.env.DOCS_DOMAIN_FAKE_TXT = claimToken(other.id, host);
+    try {
+      expect(await addSiteDomain(other.id, host)).toMatchObject({ ok: true });
+    } finally {
+      delete process.env.DOCS_DOMAIN_FAKE_TXT;
+    }
+    expect((await getDocsSite(u.id)).hostname).toBeNull();
+    expect(await removeSiteDomain(other.id)).toBe(true);
+    // Simétrico con Link (los 5 pasos de la re-QA):
+    const third = await makeUser('site3');
+    const linkHost = `l-${host}`;
+    // 1. Docs lo agrega (pendiente).
+    expect(await addSiteDomain(u.id, linkHost)).toMatchObject({ ok: true });
+    // 2. Link de otro workspace no se lo saca sin el TXT: recibe el registro a crear.
+    const squat = await addDomain(third.id, linkHost);
+    expect(squat).toMatchObject({ ok: false, code: 'domain_pending_elsewhere' });
+    expect(!squat.ok && squat.dns?.[0]?.value).toBe(`zerosoft-verify=${claimToken(third.id, linkHost)}`);
+    expect((await getDocsSite(u.id)).hostname).toBe(linkHost);
+    // 3. Con el TXT, Link se lo queda y el pendiente de Docs se libera.
+    process.env.DOCS_DOMAIN_FAKE_TXT = claimToken(third.id, linkHost);
+    try {
+      expect(await addDomain(third.id, linkHost)).toMatchObject({ ok: true });
+    } finally {
+      delete process.env.DOCS_DOMAIN_FAKE_TXT;
+    }
+    expect((await getDocsSite(u.id)).hostname).toBeNull();
+    // 4. Docs tampoco se lo saca al pendiente de Link sin el TXT.
+    expect(await addSiteDomain(u.id, linkHost)).toMatchObject({ ok: false, code: 'domain_pending_elsewhere' });
+    // 5. Vencido el pendiente de Link (7 días), Docs lo puede agregar.
+    await getDb().prepare("UPDATE link_domains SET created_at = datetime('now', '-8 days') WHERE hostname = ?").run(linkHost);
+    expect(await addSiteDomain(u.id, linkHost)).toMatchObject({ ok: true });
+    expect(await getDb().prepare('SELECT 1 AS x FROM link_domains WHERE hostname = ?').get(linkHost)).toBeUndefined();
+    // Uno verificado de Link sí bloquea a Docs.
+    await removeSiteDomain(u.id);
+    const four = await makeUser('site4');
+    const verifiedLink = `v-${host}`;
+    expect(await addDomain(four.id, verifiedLink)).toMatchObject({ ok: true });
+    await getDb().prepare('UPDATE link_domains SET verified = 1 WHERE hostname = ?').run(verifiedLink);
+    expect(await addSiteDomain(u.id, verifiedLink)).toEqual({ ok: false, code: 'domain_taken' });
+    // Vencido (7 días sin verificar): se libera solo.
+    expect(await addSiteDomain(u.id, host)).toMatchObject({ ok: true });
+    await getDb().prepare("UPDATE docs_sites SET domain_added_at = datetime('now', '-8 days') WHERE workspace_id = ?").run(u.id);
+    expect(await purgeExpiredSiteDomains()).toBeGreaterThanOrEqual(1);
+    expect((await getDocsSite(u.id)).hostname).toBeNull();
+    expect(await addSiteDomain(u.id, host)).toMatchObject({ ok: true });
+    expect(await siteForHost(host)).toBeNull();
+    expect(await verifySiteDomain(u.id)).toEqual({ verified: true });
+    expect(await siteForHost(`${host.toUpperCase()}:443`)).toMatchObject({ workspaceId: u.id, handle });
+    expect(await removeSiteDomain(u.id)).toBe(true);
+    expect(await siteForHost(host)).toBeNull();
+    expect(await addSiteDomain(u.id, 'preview-abc.vercel.app')).toEqual({ ok: false, code: 'app_host' });
+  });
+
+  it('indexación, sitemap del dominio y SEO por página', async () => {
+    const u = await makeUser('seo');
+    const a = await createDocPage(u.id, { title: 'Guía' });
+    await updateDocPage(u.id, a.id, { published: true }, { actorId: u.id });
+    const b = await createDocPage(u.id, { title: 'Oculta' });
+    await updateDocPage(u.id, b.id, { published: true }, { actorId: u.id });
+    await updatePagePublishSettings(b.id, { seo_noindex: true, seo_description: '  Una   descripción  ' });
+    const urls = (await siteSitemap(u.id, 'https://docs.x.test')).map((x) => x.url);
+    expect(urls).toContain('https://docs.x.test/');
+    expect(urls).toContain(`https://docs.x.test/${(await getDocPageRow(a.id))!.slug}`);
+    const hiddenSlug = (await getDocPageRow(b.id))!.slug!;
+    expect(urls.some((x) => x.includes(hiddenSlug))).toBe(false);
+    await updateDocsSite(u.id, { indexing: false, locale: 'es' });
+    expect(await getDocsSite(u.id)).toMatchObject({ indexing: false, locale: 'es' });
+    expect(await siteSitemap(u.id, 'https://docs.x.test')).toEqual([]);
+    const row = (await getDb().prepare('SELECT seo_description FROM docs_pages WHERE id = ?').get(b.id)) as { seo_description: string };
+    expect(row.seo_description).toBe('Una descripción');
+  });
+
+  it('visitas del sitio: una por visitante, página y día; bots y no publicadas no cuentan', async () => {
+    const u = await makeUser('visits');
+    const a = await createDocPage(u.id, { title: 'Pública' });
+    await updateDocPage(u.id, a.id, { published: true }, { actorId: u.id });
+    const draft = await createDocPage(u.id, { title: 'Privada' });
+    const h = (ua: string) => new Headers({ 'user-agent': ua });
+    const human = 'Mozilla/5.0 (Macintosh) Safari/605';
+    const base = { workspaceId: u.id, ip: '1.2.3.4', ownHosts: ['zerosoft.ai'] };
+    expect(await recordSiteView({ ...base, pageId: a.id, headers: h(human), referrer: 'https://www.google.com/search?q=x' })).toBe(true);
+    expect(await recordSiteView({ ...base, pageId: a.id, headers: h(human), referrer: 'https://zerosoft.ai/en/h/x' })).toBe(true);
+    expect(await recordSiteView({ ...base, ip: '5.6.7.8', pageId: a.id, headers: h(human), referrer: null })).toBe(true);
+    expect(await recordSiteView({ ...base, pageId: a.id, headers: h('Googlebot/2.1'), referrer: null })).toBe(false);
+    expect(await recordSiteView({ ...base, pageId: draft.id, headers: h(human), referrer: null })).toBe(false);
+    const stats = await siteAnalytics(u.id, 30);
+    expect(stats).toMatchObject({ views: 3, visitors: 2 });
+    expect(stats.pages[0]).toMatchObject({ id: a.id, views: 3, visitors: 2 });
+    expect(stats.referrers).toEqual([{ host: 'google.com', visitors: 1 }]);
+    expect(stats.series).toHaveLength(30);
+    // El hash cambia con el día y no guarda la IP.
+    expect(visitorHash('1.2.3.4', 'ua', '2026-01-01')).not.toBe(visitorHash('1.2.3.4', 'ua', '2026-01-02'));
+    expect(visitorHash('1.2.3.4', 'ua', '2026-01-01')).not.toContain('1.2.3.4');
+    expect(referrerHost('https://www.zerosoft.ai/x', ['zerosoft.ai'])).toBeNull();
+  });
+
+  it('vistas de la página dentro del workspace: totales, personas y quién', async () => {
+    const owner = await makeUser('pv');
+    const bob = await makeUser('pvbob');
+    const page = await createDocPage(owner.id, { title: 'Leída' });
+    await recordPageView(page.id, owner.id);
+    await recordPageView(page.id, owner.id);
+    await recordPageView(page.id, bob.id);
+    const a = await pageAnalytics(page.id);
+    expect(a).toMatchObject({ views: 3, viewers: 2 });
+    expect(a.people.map((p) => p.id).sort()).toEqual([bob.id, owner.id].sort());
+    expect(a.series.at(-1)?.views).toBe(3);
+  });
+});
+
+describe('Sin conexión', () => {
+  it('subpáginas en orden de árbol para guardar', () => {
+    const pages = [
+      { id: 'a', parent_id: null },
+      { id: 'b', parent_id: 'a' },
+      { id: 'c', parent_id: 'b' },
+      { id: 'd', parent_id: 'a' },
+      { id: 'x', parent_id: null },
+    ];
+    expect(descendantIds('a', pages)).toEqual(['b', 'd', 'c']);
+    expect(descendantIds('a', pages, 1)).toEqual(['b']);
+  });
+});

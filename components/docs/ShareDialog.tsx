@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Icon from '@/components/app/icons';
 import AdvancedSection from '@/components/ui/AdvancedSection';
+import DocsPublishSettings from './DocsPublishSettings';
 import { Link } from '@/i18n/navigation';
 import type { DocsMentionableUser, DocsPage, DocsPageShare, DocsShareRole } from '@/lib/docs-types';
 import type { DocsGuestInvite } from '@/lib/docs-guests';
@@ -493,13 +494,13 @@ export default function ShareDialog({
                   id={`${uid}-url`}
                   className="input data"
                   readOnly
-                  value={`${origin}${publicPath}`}
+                  value={/^https?:/.test(publicPath) ? publicPath : `${origin}${publicPath}`}
                   onFocus={(e) => e.currentTarget.select()}
                 />
                 <button
                   type="button"
                   className="btn btn-secondary docs-public-copy"
-                  onClick={() => copy(`${window.location.origin}${publicPath}`)}
+                  onClick={() => copy(/^https?:/.test(publicPath) ? publicPath : `${window.location.origin}${publicPath}`)}
                 >
                   {copied ? t('share.copied') : t('share.copyPublic')}
                 </button>
@@ -512,6 +513,7 @@ export default function ShareDialog({
               </span>
             </div>
           )}
+          {page.published && <DocsPublishSettings pageId={page.id} />}
 
           <AdvancedSection storageKey="docs.share" hint={page.is_public ? t('share.aiHintOn') : t('share.aiHintOff')}>
             <label className="ui-switch docs-switch-row">

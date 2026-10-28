@@ -1729,7 +1729,9 @@
     "description": "Notion exports PDF, HTML (zip, optional comments), Markdown and CSV, with subpages, and a full workspace export (https://www.notion.com/help/export-your-content). Our export is one page at a time (GET /api/docs/pages/:id/export?format=md only; PDF goes through the print dialog). Teams ask for a way out before they move in. First scope: an 'Include subpages' option that returns a zip with one .md per page in folders matching the tree, attachments next to them and [[ links rewritten as relative links; a 'Export all pages' action in Docs settings; database blocks exported as CSV.\n\nPriority: medium. Effort: S. Compared with Notion.",
     "product": "docs",
     "kind": "idea",
-    "parity": "export-workspace"
+    "parity": "export-workspace",
+    "status": "done",
+    "changelog": "2026-10-27-docs-d5"
   },
   {
     "title": "Docs: Add favorites to the sidebar and a lock that stops accidental edits",
@@ -1754,7 +1756,9 @@
     "description": "Notion shows owners and editors total and unique views over time plus who created, edited or viewed a page (https://www.notion.com/help/page-analytics); Confluence Standard includes page insights (https://support.atlassian.com/confluence-cloud/docs/confluence-standard/). Docs records nothing on view, so whoever writes the onboarding or policy page can't tell if anyone read it. Help center articles only collect 'Was this helpful?' votes. First scope: count views per page per day (one per user per day, no tracking of anonymous help center visitors beyond a daily counter), show a small 'Views' popover in the page header with the last 30 days and the members who opened it, with a per-user opt-out.\n\nPriority: low. Effort: S. Compared with Notion.",
     "product": "docs",
     "kind": "idea",
-    "parity": "page-analytics"
+    "parity": "page-analytics",
+    "status": "done",
+    "changelog": "2026-10-27-docs-d5"
   },
   {
     "title": "Docs: Add Docs actions to Flow (create a page from a template, append blocks)",

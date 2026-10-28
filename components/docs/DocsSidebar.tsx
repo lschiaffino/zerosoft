@@ -94,7 +94,32 @@ export default function DocsSidebar({
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [mobileOpen, setMobileOpen] = useState(mobileOpenByDefault);
   const menuRef = useRef<HTMLSpanElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
   const branch = useShellBranch();
+
+  // Celular y tablet (<1024 px): el árbol es un cajón lateral. Esc o el telón lo
+  // cierran, el foco entra al abrir y vuelve al botón al cerrar, el fondo no
+  // scrollea y deslizar a la izquierda lo cierra.
+  useEffect(() => {
+    if (!mobileOpen || typeof window === 'undefined' || !window.matchMedia('(max-width: 1023px)').matches) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !e.defaultPrevented) {
+        setMobileOpen(false);
+        toggleRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    const first = drawerRef.current?.querySelector<HTMLElement>('a[href], button:not([disabled])');
+    first?.focus({ preventScroll: true });
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [mobileOpen]);
+  const swipe = useRef<{ x: number; y: number } | null>(null);
   // Favoritos: la estrella de la página los cambia al instante (evento), el server los trae al navegar.
   const [favorites, setFavorites] = useState<DocsFavoriteRow[]>(initialFavorites);
   const [favDrag, setFavDrag] = useState<string | null>(null);
@@ -622,10 +647,12 @@ export default function DocsSidebar({
       <div className="docs-sidebar-head">
         <button
           type="button"
+          ref={toggleRef}
           className="docs-sidebar-toggle"
           onClick={() => setMobileOpen((v) => !v)}
           aria-expanded={mobileOpen}
           aria-controls="docs-sidebar-body"
+          data-testid="docs-drawer-toggle"
         >
           <span className="docs-sidebar-title">{t('sidebar.pages')}</span>
           <span className="docs-sidebar-count">{count}</span>
@@ -651,7 +678,47 @@ export default function DocsSidebar({
         )}
       </div>
 
-      <div className="docs-sidebar-body" id="docs-sidebar-body">
+      {mobileOpen && (
+        <button
+          type="button"
+          className="docs-drawer-backdrop"
+          aria-label={t('sidebar.closeDrawer')}
+          tabIndex={-1}
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+      <div
+        className="docs-sidebar-body"
+        id="docs-sidebar-body"
+        ref={drawerRef}
+        data-testid="docs-drawer"
+        onTouchStart={(e) => {
+          const p = e.touches[0];
+          swipe.current = p ? { x: p.clientX, y: p.clientY } : null;
+        }}
+        onTouchEnd={(e) => {
+          const start = swipe.current;
+          const p = e.changedTouches[0];
+          swipe.current = null;
+          if (start && p && start.x - p.clientX > 60 && Math.abs(p.clientY - start.y) < 50) setMobileOpen(false);
+        }}
+      >
+        <div className="docs-drawer-head">
+          <span className="docs-sidebar-title">{t('sidebar.pages')}</span>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm btn-icon"
+            onClick={() => {
+              setMobileOpen(false);
+              toggleRef.current?.focus();
+            }}
+            aria-label={t('sidebar.closeDrawer')}
+            title={t('sidebar.closeDrawer')}
+            data-testid="docs-drawer-close"
+          >
+            <Icon name="close" size={16} />
+          </button>
+        </div>
         {body(false)}
       </div>
     </div>

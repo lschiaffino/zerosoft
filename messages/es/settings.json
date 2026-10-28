@@ -403,7 +403,8 @@
       "desc": "Quién y qué accede al workspace.",
       "empty": "Todavía no hay ajustes de seguridad del workspace. Las API keys se revocan en API y webhooks, y los dominios propios se verifican en Link.",
       "apiKeys": "API keys",
-      "domains": "Dominios propios de Link"
+      "domains": "Dominios propios de Link",
+      "docsSite": "Dominio del sitio de Docs"
     },
     "notifications": {
       "title": "Avisos",

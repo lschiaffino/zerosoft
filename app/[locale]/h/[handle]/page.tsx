@@ -8,6 +8,9 @@ import Icon from '@/components/app/icons';
 import EmptyState from '@/components/ui/EmptyState';
 import HelpHeader from '@/components/docs/HelpHeader';
 import DocsPageIcon from '@/components/docs/DocsPageIcon';
+import HelpView from '@/components/docs/HelpView';
+import { getDocsSite, verifiedSiteHost } from '@/lib/docs-site';
+import { helpBase } from '@/lib/docs-site-base';
 import '@/styles/help.css';
 
 export const dynamic = 'force-dynamic';
@@ -22,10 +25,15 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   const ws = await getHelpWorkspace(handle);
   const t = await getTranslations({ locale, namespace: 'docs.help' });
   if (!ws) return { title: t('notFound') };
+  const [site, domain] = await Promise.all([getDocsSite(ws.id), verifiedSiteHost(ws.id)]);
+  // Con dominio propio, la URL canónica es la del dominio (no se indexan dos copias).
+  const canonical = domain ? `https://${domain}/` : `/${locale}/h/${ws.handle}`;
   return {
     title: { absolute: t('metaTitle', { name: ws.name }) },
     description: t('metaDescription', { name: ws.name }),
-    alternates: { canonical: `/${locale}/h/${ws.handle}` },
+    alternates: { canonical },
+    openGraph: { title: t('metaTitle', { name: ws.name }), description: t('metaDescription', { name: ws.name }), type: 'website', url: canonical },
+    ...(site.indexing ? {} : { robots: { index: false, follow: false } }),
   };
 }
 
@@ -45,18 +53,20 @@ export default async function HelpCenterHome(props: Props) {
     listHelpCollections(ws.id),
     q ? searchHelpArticles(ws.id, q, 10) : Promise.resolve(null),
   ]);
-  const base = `/${locale}/h/${ws.handle}`;
+  const base = await helpBase(locale, ws.handle);
+  const home = base || '/';
   const style = helpAccentStyle(ws.accent) as CSSProperties;
 
   return (
     <main className="help" style={style}>
-      <HelpHeader locale={locale} name={ws.name} base={base} />
+      <HelpView handle={ws.handle} />
+      <HelpHeader locale={locale} name={ws.name} base={home} />
 
       <section className="help-hero">
         <div className="help-wrap">
           {/* El nombre del workspace ya está en el header: el título es la tarea. */}
           <h1 className="help-title">{t('heroTitle')}</h1>
-          <form action={base} method="get" className="help-search" role="search">
+          <form action={home} method="get" className="help-search" role="search">
             <span className="help-search-icon" aria-hidden="true">
               <Icon name="search" size={18} />
             </span>

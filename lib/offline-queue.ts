@@ -130,4 +130,16 @@ export async function clearOfflineData(owner?: { userId: string; ws: string }): 
   } catch {
     /* almacenamiento bloqueado: no hay nada que borrar */
   }
+  // El worker olvida a la persona (no guarda ni sirve vistas hasta la próxima sesión).
+  if (typeof navigator !== 'undefined') navigator.serviceWorker?.controller?.postMessage({ type: 'zs-user', id: null });
+  // La cookie con la que el worker reconoce la sesión (middleware.ts): sin ella no sirve nada guardado.
+  if (typeof document !== 'undefined') document.cookie = 'zs_who=; Max-Age=0; path=/';
+  // Docs: borradores sin conexión y páginas "disponibles sin conexión" (lib/docs-offline.ts).
+  const { forgetOtherOfflineData, OFFLINE_IDENTITY_KEY } = await import('./docs-offline');
+  forgetOtherOfflineData(null);
+  try {
+    localStorage.removeItem(OFFLINE_IDENTITY_KEY);
+  } catch {
+    /* sin storage */
+  }
 }

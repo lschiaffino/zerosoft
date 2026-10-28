@@ -33,7 +33,10 @@ const OPTIONS: sanitizeHtml.IOptions = {
         if (isPageLinkId(row)) return { tagName, attribs: { href: pageLinkHref(page, row), 'data-page': page, 'data-row': row } };
         return { tagName, attribs: { href: pageLinkHref(page), 'data-page': page } };
       }
-      return { tagName, attribs: { href: attribs.href ?? '', target: '_blank', rel: 'noopener noreferrer' } };
+      const href = (attribs.href ?? '').trim();
+      // Esquema no permitido (data:, javascript:, vbscript:…): sin link, queda el texto.
+      if (!href || (/^[a-z][a-z0-9+.-]*:/i.test(href) && !/^(https?|mailto|tel):/i.test(href))) return { tagName: 'span', attribs: {} };
+      return { tagName, attribs: { href, target: '_blank', rel: 'noopener noreferrer' } };
     },
     // Solo spans con forma válida: fecha (con recordatorio) o ecuación. El resto queda sin atributos.
     span: (tagName, attribs): sanitizeHtml.Tag => {
@@ -68,7 +71,23 @@ const OPTIONS: sanitizeHtml.IOptions = {
 
 export function sanitizeDocsHtml(html: string): string {
   if (!html || !/[<&]/.test(html)) return html;
-  return sanitizeHtml(html, OPTIONS);
+  return unwrapBareSpans(sanitizeHtml(html, OPTIONS));
+}
+
+/**
+ * Saca los <span> sin atributos (no marcan nada; quedan, por ejemplo, de un
+ * link data: o javascript: que se bajó a texto) y deja su contenido. Respeta
+ * el anidado: solo se cierra el </span> que corresponde a uno sacado.
+ */
+export function unwrapBareSpans(html: string): string {
+  if (!html.includes('<span>')) return html;
+  const stack: boolean[] = [];
+  return html.replace(/<span\b[^>]*>|<\/span>/g, (tag) => {
+    if (tag === '</span>') return stack.pop() ? '' : tag;
+    const bare = tag === '<span>';
+    stack.push(bare);
+    return bare ? '' : tag;
+  });
 }
 
 function plainCell(cell: unknown): string {
