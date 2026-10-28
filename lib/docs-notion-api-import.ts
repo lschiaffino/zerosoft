@@ -26,8 +26,10 @@
  * escribir. Se borra al terminar, fallar o cancelar. Reimportar actualiza lo
  * ya importado (ids externos) en vez de duplicarlo.
  */
+import { createHash } from 'crypto';
 import { getDb } from './db';
 import {
+  getExternalId,
   getExternalIds,
   ImportError,
   ImportRetryError,
@@ -86,9 +88,11 @@ export interface NotionApiInclude {
   pages: boolean;
   databases: boolean;
   files: boolean;
+  /** Reemplazar con lo de Notion también las páginas editadas en zerosoft después del último import. */
+  overwrite: boolean;
 }
 
-export const DEFAULT_INCLUDE: NotionApiInclude = { pages: true, databases: true, files: true };
+export const DEFAULT_INCLUDE: NotionApiInclude = { pages: true, databases: true, files: true, overwrite: false };
 
 /** Página, base o fila leída (lo que queda en import_job_items). */
 export interface StagedNotion {
@@ -106,6 +110,8 @@ export interface StagedNotion {
   rowId?: string;
   /** Ya importada antes (la página local sigue existiendo): se actualiza. */
   existing: boolean;
+  /** Ya importada y editada en zerosoft después del último import (vista previa). */
+  localEdited?: boolean;
   /** Filas: valores de las propiedades. */
   properties?: Record<string, NPropValue>;
   /** Bases: esquema y descripción. */
@@ -127,10 +133,14 @@ export interface NotionApiReport {
   errors: string[];
   errorCount: number;
   roots: Array<{ id: string; title: string }>;
+  /** Editadas en zerosoft después del último import: no se pisaron. */
+  kept: number;
+  /** Ya importadas en otro lugar que el destino elegido: quedaron donde estaban. */
+  notMoved: number;
 }
 
 export function emptyNotionApiReport(): NotionApiReport {
-  return { created: 0, updated: 0, skipped: 0, failed: 0, pages: 0, databases: 0, rows: 0, files: 0, filesSkipped: 0, errors: [], errorCount: 0, roots: [] };
+  return { created: 0, updated: 0, skipped: 0, failed: 0, pages: 0, databases: 0, rows: 0, files: 0, filesSkipped: 0, errors: [], errorCount: 0, roots: [], kept: 0, notMoved: 0 };
 }
 
 // ---------- Cliente ----------
@@ -214,18 +224,34 @@ async function resolveParent(client: NotionClient, parent: NParent): Promise<Sta
   return { type: 'workspace', id: null };
 }
 
-/** Páginas locales que siguen existiendo (no borradas) del workspace. */
-async function livePages(workspaceId: string, ids: string[]): Promise<Set<string>> {
-  const out = new Set<string>();
+/** Páginas locales que siguen existiendo (no borradas) del workspace → si se editaron después del último import. */
+async function livePages(workspaceId: string, ids: string[]): Promise<Map<string, boolean>> {
+  const out = new Map<string, boolean>();
   for (let i = 0; i < ids.length; i += 200) {
     const chunk = ids.slice(i, i + 200);
     if (!chunk.length) continue;
     const rows = (await getDb()
-      .prepare(`SELECT id FROM docs_pages WHERE user_id = ? AND archived = 0 AND id IN (${chunk.map(() => '?').join(', ')})`)
-      .all(workspaceId, ...chunk)) as Array<{ id: string }>;
-    for (const r of rows) out.add(r.id);
+      .prepare(
+        `SELECT p.id, p.updated_at > COALESCE(e.imported_at, replace(e.created_at, ' ', 'T')) AS edited FROM docs_pages p
+         LEFT JOIN import_external_ids e ON e.workspace_id = p.user_id AND e.source = '${'notion_api'}' AND e.kind = 'page' AND e.local_id = p.id
+         WHERE p.user_id = ? AND p.archived = 0 AND p.id IN (${chunk.map(() => '?').join(', ')})`,
+      )
+      .all(workspaceId, ...chunk)) as Array<{ id: string; edited: number | null }>;
+    for (const r of rows) out.set(r.id, Boolean(r.edited));
   }
   return out;
+}
+
+/** ¿La página importada se editó en zerosoft después del último import que la escribió? */
+async function pageEditedLocally(workspaceId: string, notionId: string, localId: string): Promise<boolean> {
+  const row = (await getDb()
+    .prepare(
+      `SELECT p.updated_at > COALESCE(e.imported_at, replace(e.created_at, ' ', 'T')) AS edited FROM docs_pages p
+       JOIN import_external_ids e ON e.workspace_id = p.user_id AND e.source = ? AND e.kind = 'page' AND e.external_id = ? AND e.local_id = p.id
+       WHERE p.id = ? AND p.user_id = ?`,
+    )
+    .get(NOTION_API_SOURCE, notionId, localId, workspaceId)) as { edited: number } | undefined;
+  return Boolean(row?.edited);
 }
 
 async function stageObjects(job: ImportJob, client: NotionClient, objs: Array<NPage | NDatabase>): Promise<Array<{ kind: string; data: StagedNotion }>> {
@@ -241,6 +267,7 @@ async function stageObjects(job: ImportJob, client: NotionClient, objs: Array<NP
     const parent = await resolveParent(client, o.parent);
     const prev = mapped.get(id);
     const existing = Boolean(prev && alive.has(prev));
+    const localEdited = existing && alive.get(prev!) === true;
     const base: StagedNotion = {
       id,
       kind: o.object === 'database' ? 'database' : 'page',
@@ -251,6 +278,7 @@ async function stageObjects(job: ImportJob, client: NotionClient, objs: Array<NP
       edited: o.last_edited_time,
       localId: existing ? prev! : crypto.randomUUID(),
       existing,
+      ...(localEdited ? { localEdited: true } : {}),
     };
     if (o.object === 'database') {
       base.schema = {
@@ -406,6 +434,9 @@ export async function notionApiPreview(job: ImportJob, items: StagedItem[]): Pro
     people: users.length,
     peopleWithEmail: users.filter((u) => u.email).length,
     alreadyImported: staged.filter((s) => s.existing).length,
+    localEdited: staged.filter((s) => s.localEdited).length,
+    // Al menos un pedido por página, fila y base, a 3 por segundo (con algo de margen por los hijos).
+    estimateMinutes: Math.round(((pages.length + rows.length + dbs.length) * 1.5) / 3 / 60),
     maxItems: NOTION_API_MAX_ITEMS,
     roots: ordered
       .filter((s) => !(s.kind === 'page' && s.parent.type === 'database') && (!s.parent.id || !ids.has(s.parent.id)))
@@ -561,11 +592,61 @@ async function readCapped(res: Response, max: number): Promise<Buffer | null> {
   return Buffer.concat(chunks);
 }
 
-/** Baja un archivo de Notion al storage propio. null si es muy grande, de un tipo no permitido o falla. */
-async function downloadFile(client: NotionClient, url: string, name: string): Promise<{ url: string; name: string; size: number; mime: string } | null> {
-  if (!isNotionFileHost(url)) return null;
+/** GET de un archivo de Notion siguiendo redirects solo a hosts de Notion (y su S3). */
+async function fetchNotionFile(client: NotionClient, url: string): Promise<Response | null> {
+  if (client.fake) return client.fetchFile(url);
+  let current = url;
+  for (let hop = 0; hop < 4; hop++) {
+    if (!isNotionFileHost(current)) return null;
+    const res = await safeFetch(current, {}, 30_000, { maxRedirects: 0 });
+    const location = res.headers.get('location');
+    if (res.status >= 300 && res.status < 400 && location) {
+      await res.body?.cancel().catch(() => undefined);
+      current = new URL(location, current).toString();
+      continue;
+    }
+    return res;
+  }
+  return null;
+}
+
+type StoredFile = { url: string; name: string; size: number; mime: string };
+
+/** Clave estable de un archivo de Notion: la URL sin la firma (cambia en cada pedido). */
+function fileKey(url: string): string {
   try {
-    const res = client.fake ? await client.fetchFile(url) : await safeFetch(url, {}, 30_000, { maxRedirects: 2 });
+    const u = new URL(url);
+    return createHash('sha1').update(`${u.host}${u.pathname}`).digest('hex');
+  } catch {
+    return createHash('sha1').update(url).digest('hex');
+  }
+}
+
+/**
+ * Baja un archivo de Notion al storage propio (o reusa el que ya bajó un
+ * import anterior). null si es muy grande, de un tipo no permitido o falla.
+ */
+async function downloadFile(client: NotionClient, job: ImportJob, url: string, name: string): Promise<StoredFile | null> {
+  if (!isNotionFileHost(url)) return null;
+  const key = fileKey(url);
+  const prev = await getExternalId(job.workspace_id, NOTION_API_SOURCE, 'file', key);
+  if (prev) {
+    try {
+      // Mismo archivo de Notion ya copiado: se reusa (con el nombre que trae este bloque).
+      return { ...(JSON.parse(prev) as StoredFile), name: (name || 'file').replace(/[\\/]/g, '_').slice(0, 200) };
+    } catch {
+      // Se vuelve a bajar.
+    }
+  }
+  const saved = await downloadFresh(client, url, name);
+  if (saved) await setExternalId(job.workspace_id, NOTION_API_SOURCE, 'file', key, JSON.stringify(saved));
+  return saved;
+}
+
+async function downloadFresh(client: NotionClient, url: string, name: string): Promise<StoredFile | null> {
+  try {
+    const res = await fetchNotionFile(client, url);
+    if (!res) return null;
     if (!res.ok) {
       await res.body?.cancel().catch(() => undefined);
       return null;
@@ -594,6 +675,7 @@ function includeOf(job: ImportJob): NotionApiInclude {
     pages: inc.pages !== false,
     databases: inc.databases !== false,
     files: inc.files !== false,
+    overwrite: inc.overwrite === true,
   };
 }
 
@@ -616,7 +698,7 @@ async function pageBlocks(client: NotionClient, job: ImportJob, idx: WriteIndex,
       out.push({ ...externalMediaBlock(ref), ...keep });
       continue;
     }
-    const saved = include.files ? await downloadFile(client, ref.url, ref.name) : null;
+    const saved = include.files ? await downloadFile(client, job, ref.url, ref.name) : null;
     if (!saved) {
       report.filesSkipped += 1;
       out.push({ id: b.id, type: 'paragraph', content: ref.name.replace(/[<&>]/g, ''), ...keep });
@@ -669,8 +751,12 @@ async function savePage(
   const { cleanContent } = await import('./docs');
   const body = stringifyBlocks(cleanContent(content.length ? content : [{ id: crypto.randomUUID(), type: 'paragraph', content: '' }]));
   const now = new Date().toISOString();
-  const exists = (await db.prepare('SELECT 1 AS one FROM docs_pages WHERE id = ? AND user_id = ?').get(n.localId, job.workspace_id)) as { one: number } | undefined;
+  const exists = (await db.prepare('SELECT parent_id, teamspace_id FROM docs_pages WHERE id = ? AND user_id = ?').get(n.localId, job.workspace_id)) as
+    | { parent_id: string | null; teamspace_id: string | null }
+    | undefined;
   if (exists) {
+    // Reimportar con otro destino: lo ya importado queda donde está (se avisa en el informe).
+    if (!exists.parent_id && !where.parentId && (exists.teamspace_id ?? null) !== (where.teamspaceId ?? null)) report.notMoved += 1;
     await db
       .prepare('UPDATE docs_pages SET title = ?, icon = ?, content = ?, archived = 0, updated_at = ? WHERE id = ? AND user_id = ?')
       .run(title, n.icon, body, now, n.localId, job.workspace_id);
@@ -695,6 +781,12 @@ async function stagedRowsOf(jobId: string, dbNotionId: string): Promise<StagedNo
   return rows.map((r) => JSON.parse(r.data) as StagedNotion);
 }
 
+/** Página ya importada y editada en zerosoft: sin "Reemplazar" no se pisa. */
+async function keptLocally(job: ImportJob, n: StagedNotion): Promise<boolean> {
+  if (!n.existing || includeOf(job).overwrite) return false;
+  return pageEditedLocally(job.workspace_id, n.id, n.localId);
+}
+
 async function writeDatabase(client: NotionClient, job: ImportJob, idx: WriteIndex, n: StagedNotion, report: NotionApiReport): Promise<void> {
   if (!n.schema) return;
   const rows = await stagedRowsOf(job.id, n.id);
@@ -716,7 +808,7 @@ async function writeDatabase(client: NotionClient, job: ImportJob, idx: WriteInd
   for (const f of conv.files) {
     const row = byRow.get(f.rowId);
     if (!row) continue;
-    const saved = include.files && f.hosted ? await downloadFile(client, f.url, f.name) : null;
+    const saved = include.files && f.hosted ? await downloadFile(client, job, f.url, f.name) : null;
     if (!saved) {
       report.filesSkipped += 1;
       continue;
@@ -742,30 +834,56 @@ async function writeDatabase(client: NotionClient, job: ImportJob, idx: WriteInd
   report.databases += 1;
 }
 
-async function writeRow(client: NotionClient, job: ImportJob, idx: WriteIndex, n: StagedNotion, report: NotionApiReport): Promise<void> {
-  const dbEntry = n.parent.id ? idx.entries.get(n.parent.id) : undefined;
-  if (!dbEntry || !n.rowId) {
-    report.skipped += 1;
+/**
+ * Cuerpos de filas de una misma base, en una sola escritura de la página de
+ * la base (una base grande no reescribe su contenido una vez por fila).
+ */
+async function writeRows(client: NotionClient, job: ImportJob, idx: WriteIndex, rows: StagedNotion[], report: NotionApiReport): Promise<void> {
+  const dbNotionId = rows[0]?.parent.id;
+  const dbEntry = dbNotionId ? idx.entries.get(dbNotionId) : undefined;
+  if (!dbEntry || !dbNotionId) {
+    report.skipped += rows.length;
     return;
   }
-  const body = (await pageBlocks(client, job, idx, n, report)).filter((b) => !(b.type === 'paragraph' && !b.content));
   const db = getDb();
+  // La base se editó acá después de importarla (y no se pidió reemplazar): sus filas tampoco se pisan.
+  if (!includeOf(job).overwrite && (await pageEditedLocally(job.workspace_id, dbNotionId, dbEntry.localId))) {
+    report.kept += rows.length;
+    return;
+  }
+  const bodies = new Map<string, DocsBlock[]>();
+  for (const n of rows) {
+    if (!n.rowId) continue;
+    try {
+      bodies.set(n.rowId, (await pageBlocks(client, job, idx, n, report)).filter((b) => !(b.type === 'paragraph' && !b.content)));
+    } catch (e) {
+      if (e instanceof ImportRetryError || (e instanceof ImportError && e.code === 'unauthorized')) throw e;
+      report.failed += 1;
+      pushError(report, `${n.title || 'Untitled'}: ${e instanceof ImportError ? e.code : 'internal_error'}`);
+    }
+  }
   const page = (await db.prepare('SELECT content FROM docs_pages WHERE id = ? AND user_id = ?').get(dbEntry.localId, job.workspace_id)) as { content: string } | undefined;
   if (!page) {
-    report.skipped += 1;
+    report.skipped += rows.length;
     return;
   }
   const blocks = JSON.parse(page.content) as DocsBlock[];
-  const dbBlock = blocks.find((b) => b.id === databaseBlockId(n.parent.id!));
-  const row = dbBlock?.db?.rows.find((r) => r.id === n.rowId);
-  if (row) {
-    const { cleanContent } = await import('./docs');
-    if (body.length) row.body = cleanContent(body).slice(0, DOCS_IMPORT_MAX_BLOCKS);
-    else delete row.body;
-    await db.prepare('UPDATE docs_pages SET content = ?, updated_at = ? WHERE id = ? AND user_id = ?').run(stringifyBlocks(blocks), new Date().toISOString(), dbEntry.localId, job.workspace_id);
+  const dbBlock = blocks.find((b) => b.id === databaseBlockId(dbNotionId));
+  const { cleanContent } = await import('./docs');
+  for (const r of dbBlock?.db?.rows ?? []) {
+    const body = bodies.get(r.id);
+    if (!body) continue;
+    if (body.length) r.body = cleanContent(body).slice(0, DOCS_IMPORT_MAX_BLOCKS);
+    else delete r.body;
   }
-  await setExternalId(job.workspace_id, NOTION_API_SOURCE, 'row', n.id, n.rowId);
-  report.rows += 1;
+  await db.prepare('UPDATE docs_pages SET content = ?, updated_at = ? WHERE id = ? AND user_id = ?').run(stringifyBlocks(blocks), new Date().toISOString(), dbEntry.localId, job.workspace_id);
+  // Escribirla no es "editarla acá": se renueva la fecha del último import de la base.
+  await setExternalId(job.workspace_id, NOTION_API_SOURCE, 'page', dbNotionId, dbEntry.localId);
+  for (const n of rows) {
+    if (!n.rowId || !bodies.has(n.rowId)) continue;
+    await setExternalId(job.workspace_id, NOTION_API_SOURCE, 'row', n.id, n.rowId);
+    report.rows += 1;
+  }
 }
 
 export async function notionApiWriteStep(job: ImportJob, items: StagedItem[], report: NotionApiReport): Promise<void> {
@@ -773,6 +891,15 @@ export async function notionApiWriteStep(job: ImportJob, items: StagedItem[], re
   if (!(await canStillWrite(job, dest))) throw new ImportError('forbidden');
   const include = includeOf(job);
   let client: NotionClient | null = null;
+  // Filas seguidas de la misma base: se escriben juntas.
+  let rowBatch: StagedNotion[] = [];
+  const flushRows = async () => {
+    if (!rowBatch.length) return;
+    const batch = rowBatch;
+    rowBatch = [];
+    client ??= clientFor(job);
+    await writeRows(client, job, await writeIndex(job), batch, report);
+  };
   for (const item of items) {
     if (item.kind !== 'page' && item.kind !== 'database') continue;
     const n = item.data as unknown as StagedNotion;
@@ -785,11 +912,20 @@ export async function notionApiWriteStep(job: ImportJob, items: StagedItem[], re
       report.skipped += 1;
       continue;
     }
+    if (isRow) {
+      if (rowBatch.length && rowBatch[0].parent.id !== n.parent.id) await flushRows();
+      rowBatch.push(n);
+      continue;
+    }
+    await flushRows();
     client ??= clientFor(job);
     const idx = await writeIndex(job);
+    if (await keptLocally(job, n)) {
+      report.kept += 1;
+      continue;
+    }
     try {
       if (n.kind === 'database') await writeDatabase(client, job, idx, n, report);
-      else if (isRow) await writeRow(client, job, idx, n, report);
       else {
         const content = await pageBlocks(client, job, idx, n, report);
         await savePage(job, n, await placement(job, idx, n), (n.title || 'Untitled').slice(0, 500), content, report);
@@ -802,6 +938,7 @@ export async function notionApiWriteStep(job: ImportJob, items: StagedItem[], re
       pushError(report, `${n.title || 'Untitled'}: ${e instanceof ImportError ? e.code : 'internal_error'}`);
     }
   }
+  await flushRows();
 }
 
 /** Al cerrar el job: suelta el índice en memoria. */

@@ -2357,7 +2357,11 @@
     "invitedNote": "{count, plural, one {Invitation ready} other {# invitations ready}}. For now, share each link (they are valid for 14 days): they go out by email once invitation emails are set up.",
     "inviteLinkFor": "Invitation link for {email}",
     "inviteFailed": "Could not create the invitations. Try again.",
-    "invitedEmailed": "{count, plural, one {Invitation sent by email} other {# invitations sent by email}}. You can also share the links below."
+    "invitedEmailed": "{count, plural, one {Invitation sent by email} other {# invitations sent by email}}. You can also share the links below.",
+    "locallyEdited": "{count, plural, one {# record that came from {provider} was edited in zerosoft} other {# records that came from {provider} were edited in zerosoft}} after the last import. They are not overwritten: only their empty fields are filled.",
+    "overwriteLocal": "Replace with {provider} (overwrites the changes made in zerosoft)",
+    "keptNote": "{count, plural, one {# with local changes, not overwritten} other {# with local changes, not overwritten}}.",
+    "openContacts": "Open contacts"
   },
   "ai": {
     "updatedAt": "Updated {when}",

@@ -56,8 +56,9 @@ export const HUBSPOT_SCOPES = [
 
 const PHASES: ImportPhase[] = ['companies', 'contacts', 'deals', 'notes', 'calls', 'meetings', 'tasks', 'emails', 'lists'];
 
-/** Listas por página y miembros por lista (las más grandes se cortan y se avisa). */
+/** Listas por página, páginas de miembros por tramo y miembros por lista (las más grandes se cortan). */
 const LISTS_PER_PAGE = 10;
+const MEMBER_PAGES_PER_STEP = 8;
 export const LIST_MAX_MEMBERS = 10_000;
 
 /** objectTypeId de HubSpot de cada lista que se importa. */
@@ -455,28 +456,52 @@ export function createHubspotSource(token: string, opts: HubspotOptions = {}): C
 
     async page(phase, cursor, fields, limit = 100): Promise<SourcePage> {
       if (phase === 'lists') {
-        const offset = Number(cursor ?? 0) || 0;
+        // Cursor: página de listas (offset), lista dentro de esa página y página de miembros.
+        // Cada tramo trae hasta 2.000 miembros de una lista: una lista enorme no pasa el tope de la función.
+        let c = { o: 0, i: 0, a: null as string | null, n: 0 };
+        try {
+          if (cursor) c = { ...c, ...(JSON.parse(cursor) as Partial<typeof c>) };
+        } catch {
+          c.o = Number(cursor) || 0;
+        }
         const res = await request<{ lists?: HsListDef[]; hasMore?: boolean; offset?: number }>(`${base}/crm/v3/lists/search`, {
           method: 'POST',
-          body: { count: LISTS_PER_PAGE, offset },
+          body: { count: LISTS_PER_PAGE, offset: c.o },
         });
-        const items: SrcList[] = [];
-        for (const l of res.lists ?? []) {
-          const entity = LIST_OBJECTS[String(l.objectTypeId ?? '')];
-          if (!entity) continue;
-          const memberIds: string[] = [];
-          let after: string | undefined;
-          do {
-            const m = await request<{ results?: Array<{ recordId: string | number }>; paging?: { next?: { after?: string } } }>(
-              `${base}/crm/v3/lists/${encodeURIComponent(String(l.listId))}/memberships?limit=250${after ? `&after=${encodeURIComponent(after)}` : ''}`,
-            );
-            for (const r of m.results ?? []) memberIds.push(String(r.recordId));
-            after = m.paging?.next?.after;
-          } while (after && memberIds.length < LIST_MAX_MEMBERS);
-          items.push({ kind: 'list', id: String(l.listId), name: (l.name ?? '').trim().slice(0, 80) || `List ${l.listId}`, entity, memberIds: memberIds.slice(0, LIST_MAX_MEMBERS) });
+        const lists = res.lists ?? [];
+        const nextPage = res.hasMore ? JSON.stringify({ o: typeof res.offset === 'number' ? res.offset : c.o + LISTS_PER_PAGE, i: 0, a: null, n: 0 }) : null;
+        let i = c.i;
+        while (i < lists.length && !LIST_OBJECTS[String(lists[i].objectTypeId ?? '')]) i++;
+        const l = lists[i];
+        if (!l) return { items: [], next: nextPage };
+        const entity = LIST_OBJECTS[String(l.objectTypeId ?? '')];
+        const memberIds: string[] = [];
+        let after: string | undefined = (i === c.i ? c.a : null) ?? undefined;
+        const seen = i === c.i ? c.n : 0;
+        for (let p = 0; p < MEMBER_PAGES_PER_STEP; p++) {
+          const m = await request<{ results?: Array<{ recordId: string | number }>; paging?: { next?: { after?: string } } }>(
+            `${base}/crm/v3/lists/${encodeURIComponent(String(l.listId))}/memberships?limit=250${after ? `&after=${encodeURIComponent(after)}` : ''}`,
+          );
+          for (const r of m.results ?? []) memberIds.push(String(r.recordId));
+          after = m.paging?.next?.after;
+          if (!after || seen + memberIds.length >= LIST_MAX_MEMBERS) break;
         }
-        const next = res.hasMore ? String(typeof res.offset === 'number' ? res.offset : offset + LISTS_PER_PAGE) : null;
-        return { items, next };
+        const ids = memberIds.slice(0, Math.max(0, LIST_MAX_MEMBERS - seen));
+        const item: SrcList = {
+          kind: 'list',
+          id: String(l.listId),
+          name: (l.name ?? '').trim().slice(0, 80) || `List ${l.listId}`,
+          entity,
+          memberIds: ids,
+          first: seen === 0 && (i !== c.i || !c.a),
+        };
+        const more = after && seen + ids.length < LIST_MAX_MEMBERS;
+        const next = more
+          ? JSON.stringify({ o: c.o, i, a: after, n: seen + ids.length })
+          : i + 1 < lists.length
+            ? JSON.stringify({ o: c.o, i: i + 1, a: null, n: 0 })
+            : nextPage;
+        return { items: [item], next };
       }
       const object = OBJECT[phase];
       const entityFields = fields.filter((f) => f.entity === phase).map((f) => f.key);

@@ -2357,7 +2357,11 @@
     "invitedNote": "{count, plural, one {Convite pronto} other {# convites prontos}}. Por enquanto compartilhe cada link (valem por 14 dias): eles saem por email quando o envio de convites estiver configurado.",
     "inviteLinkFor": "Link de convite para {email}",
     "inviteFailed": "Não foi possível criar os convites. Tente de novo.",
-    "invitedEmailed": "{count, plural, one {Convite enviado por email} other {# convites enviados por email}}. Você também pode compartilhar os links abaixo."
+    "invitedEmailed": "{count, plural, one {Convite enviado por email} other {# convites enviados por email}}. Você também pode compartilhar os links abaixo.",
+    "locallyEdited": "{count, plural, one {# registro que veio da {provider} foi editado no zerosoft} other {# registros que vieram da {provider} foram editados no zerosoft}} depois da última importação. Não são sobrescritos: só os campos vazios são preenchidos.",
+    "overwriteLocal": "Substituir pelo que está na {provider} (sobrescreve as mudanças feitas no zerosoft)",
+    "keptNote": "{count, plural, one {# com mudanças locais, não foi sobrescrito} other {# com mudanças locais, não foram sobrescritos}}.",
+    "openContacts": "Ver contatos"
   },
   "ai": {
     "updatedAt": "Atualizado {when}",

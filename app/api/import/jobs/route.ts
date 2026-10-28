@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { realUserId } from '@/lib/session';
+import { isWorkspaceAdmin, realUserId } from '@/lib/session';
 import { limitByIp } from '@/lib/rate-limit';
 import { requestLocale } from '@/lib/request-locale';
 import { createImportJob, jobView, listImportJobs, updateImportJob, type ImportApp } from '@/lib/import-jobs';
 import { runImportJob } from '@/lib/import-runner';
-import { importCreateSchema, importError, importUser, importZodCode } from '@/lib/import-http';
+import { importCreateSchema, importError, importUser, importZodCode, viewFor } from '@/lib/import-http';
 import { isImportBlobUrl, localZipRef } from '@/lib/docs-notion-import';
 import { canAccessTrackProject, getProject } from '@/lib/track-data';
 import { canCreateDocPage } from '@/lib/docs-guard';
@@ -21,7 +21,11 @@ export async function GET(req: NextRequest) {
   if (!APPS.includes(app)) return importError(400, 'invalid_input');
   const user = await importUser(app);
   if (user instanceof NextResponse) return user;
-  return NextResponse.json({ jobs: await listImportJobs(user.id, app) });
+  // Un miembro ve solo sus imports; los links del informe, solo a páginas que puede abrir.
+  const jobs = await listImportJobs(user.id, app, 10, isWorkspaceAdmin(user) ? null : realUserId(user));
+  const out = [];
+  for (const j of jobs) out.push(await viewFor(user, j));
+  return NextResponse.json({ jobs: out });
 }
 
 /**
@@ -104,5 +108,5 @@ export async function POST(req: NextRequest) {
   }
 
   const view = await runImportJob(job.id, 8_000);
-  return NextResponse.json({ job: view }, { status: 201 });
+  return NextResponse.json({ job: await viewFor(user, view) }, { status: 201 });
 }

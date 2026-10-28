@@ -267,8 +267,6 @@ export default function CommandSearch() {
       { group, label: t('openQuotes'), meta: '', href: '/app/crm/quotes' },
       { group, label: t('openScoring'), meta: '', href: '/app/crm/settings?tab=automation' },
       { group, label: t('openPlaybooks'), meta: '', href: '/app/crm/playbooks' },
-      { group, label: t('importFromHubspot'), meta: '', href: importHubHref({ source: 'crm:hubspot' }) },
-      { group, label: t('importFromPipedrive'), meta: '', href: importHubHref({ source: 'crm:pipedrive' }) },
       {
         group,
         label: t('askCrmAssistant'),

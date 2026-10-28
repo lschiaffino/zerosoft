@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useRouter } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import type { ImportJobView } from '@/lib/crm-import-jobs';
 import type { ImportGroup, ImportProvider } from '@/lib/crm-import-source';
 import { parseDbUtc } from '@/lib/utils';
@@ -98,12 +98,15 @@ export default function CrmMigrationPanel({
     );
   }
 
+  // En el hub, Volver lleva a las fuentes del CRM del hub (no a las tarjetas de este panel).
+  const toPick = () => (embedded ? router.push('/app/settings/import?app=crm') : setView({ kind: 'pick' }));
+
   if (view.kind === 'connect') {
     return (
       <ConnectStep
         provider={view.provider}
         embedded={embedded}
-        onBack={() => setView({ kind: 'pick' })}
+        onBack={toPick}
         onPreview={(job) => setView({ kind: 'job', job })}
       />
     );
@@ -130,7 +133,12 @@ export default function CrmMigrationPanel({
           if (!ACTIVE.has(next.status)) router.refresh();
         }}
         onDone={(provider) => {
-          void load().then(() => setView(provider ? { kind: 'connect', provider } : { kind: 'pick' }));
+          if (!provider) {
+            if (embedded) toPick();
+            else void load().then(() => setView({ kind: 'pick' }));
+            return;
+          }
+          void load().then(() => setView({ kind: 'connect', provider }));
         }}
       />
     );
@@ -300,6 +308,7 @@ function PreviewStep({
   const [defaultOwner, setDefaultOwner] = useState(job.options.defaultOwnerId || people[0]?.id || '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [overwriteLocal, setOverwriteLocal] = useState(false);
 
   const phaseCount = (g: ImportGroup): number | null => {
     const phases = Object.entries(p.counts).filter(([ph]) => (g === 'activities' ? ACTIVITY_PHASES.has(ph) : ph === g));
@@ -318,7 +327,7 @@ function PreviewStep({
     const res = await fetch(`/api/crm/import/jobs/${job.id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ groups, ownerMap, defaultOwnerId: defaultOwner }),
+      body: JSON.stringify({ groups, ownerMap, defaultOwnerId: defaultOwner, overwriteLocal }),
     }).catch(() => null);
     setBusy(false);
     if (res && res.ok) {
@@ -373,6 +382,15 @@ function PreviewStep({
         <p className="mig-note" role="status">
           {t('previouslyImported', { count: p.previouslyImported })}
         </p>
+      )}
+      {(p.locallyEdited ?? 0) > 0 && (
+        <div className="mig-section" data-testid="migrate-local-edits">
+          <p className="mig-note">{t('locallyEdited', { count: p.locallyEdited ?? 0, provider: NAMES[job.provider] })}</p>
+          <label className="mig-inline">
+            <input type="checkbox" checked={overwriteLocal} onChange={(e) => setOverwriteLocal(e.target.checked)} />
+            <span>{t('overwriteLocal', { provider: NAMES[job.provider] })}</span>
+          </label>
+        </div>
       )}
 
       <div className="mig-samples">
@@ -664,6 +682,7 @@ function ProgressStep({
 
   const pct = job.progress === null ? null : Math.round(job.progress * 100);
   const groups = PROVIDER_GROUPS[job.provider].filter((g) => job.options.groups.includes(g));
+  const kept = groups.reduce((n, g) => n + (job.counts[g]?.kept ?? 0), 0);
 
   return (
     <div className="mig-body" data-testid="migrate-progress" data-status={job.status}>
@@ -729,6 +748,11 @@ function ProgressStep({
           </tbody>
         </table>
       </div>
+      {kept > 0 && (
+        <p className="mig-note" role="status" data-testid="migrate-kept">
+          {t('keptNote', { count: kept })}
+        </p>
+      )}
 
       {job.errorCount > 0 && (
         <div className="imp-errors">
@@ -764,6 +788,11 @@ function ProgressStep({
           )
         ) : (
           <>
+            {job.status === 'done' && (
+              <Link className="btn btn-solid btn-small" href="/app/crm/contacts">
+                {t('openContacts')}
+              </Link>
+            )}
             <button type="button" className="btn btn-small" onClick={() => onDone(null)}>
               {t('backToImport')}
             </button>

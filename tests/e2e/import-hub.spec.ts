@@ -54,6 +54,7 @@ test('Notion por API: token rechazado, vista previa, import y reimport', async (
   await expect(preview.locator('.ximp-stat').filter({ hasText: 'Pages' }).locator('.ximp-stat-value')).toHaveText('2');
   await expect(preview.locator('.ximp-stat').filter({ hasText: 'Database rows' }).locator('.ximp-stat-value')).toHaveText('2');
   await expect(preview.getByText('Handbook')).toBeVisible();
+  await expect(preview.getByTestId('notion-api-destination')).toContainText('Goes to: Workspace (top level)');
   await expect(preview.getByLabel(/Databases \(1\) with their rows \(2\)/)).toBeChecked();
   await page.setViewportSize({ width: 390, height: 844 });
   await noHorizontalScroll(page);

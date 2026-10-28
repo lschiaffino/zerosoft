@@ -453,6 +453,53 @@ describe('Notion API: job de punta a punta (workspace falso)', () => {
     expect(ws.db?.rows.find((r) => r.id === website.id)?.body?.[0].content).toContain('Kickoff notes');
   });
 
+  it('reimportar no pisa lo editado en zerosoft (salvo "Reemplazar") ni vuelve a subir archivos', async () => {
+    const u = await makeUser('notionlocal');
+    const importOnce = async (include: Record<string, boolean>) => {
+      const job = await createImportJob({ workspaceId: u.id, teamId: null, userId: u.id, app: 'docs', source: 'notion_api', secret: NOTION_FAKE_TOKEN });
+      const preview = await runToEnd(job.id);
+      await updateImportJob(job.id, { options: { ...((await getImportJob(job.id))!.options), include } });
+      expect(await startImportJob((await getImportJob(job.id))!)).toBe(true);
+      return { preview, done: await runToEnd(job.id) };
+    };
+    await importOnce({ pages: true, databases: true, files: true });
+    const { readdir } = await import('fs/promises');
+    const filesAfterFirst = (await readdir(path.join(dir, 'docs'))).length;
+    // Alguien edita Onboarding en zerosoft después del import.
+    const onb = (await pages(u.id)).find((p) => p.title === 'Onboarding')!;
+    await getDb().prepare('UPDATE docs_pages SET title = ?, updated_at = ? WHERE id = ?').run('Onboarding (ours)', '2999-01-01T00:00:00.000Z', onb.id);
+
+    const second = await importOnce({ pages: true, databases: true, files: true });
+    expect(second.preview.preview).toMatchObject({ alreadyImported: 3, localEdited: 1 });
+    expect(second.done.report).toMatchObject({ kept: 1, updated: 2, created: 0 });
+    expect((await pages(u.id)).find((p) => p.id === onb.id)?.title).toBe('Onboarding (ours)');
+    // Los archivos ya copiados se reusan.
+    expect((await readdir(path.join(dir, 'docs'))).length).toBe(filesAfterFirst);
+
+    const third = await importOnce({ pages: true, databases: true, files: true, overwrite: true });
+    expect(third.done.report).toMatchObject({ kept: 0, updated: 3 });
+    expect((await pages(u.id)).find((p) => p.id === onb.id)?.title).toBe('Onboarding');
+  });
+
+  it('un miembro no ve los imports de otros ni links a páginas que no puede abrir', async () => {
+    const owner = await makeUser('nvisowner');
+    const member = await makeUser('nvismember');
+    const team = await createTeam(owner.id, 'Acme');
+    await addMember(team.id, member.id, 'member');
+    await createImportJob({ workspaceId: owner.id, teamId: team.id, userId: owner.id, app: 'docs', source: 'notion', status: 'fetching' });
+    const { listImportJobs } = await import('@/lib/import-jobs');
+    expect(await listImportJobs(owner.id, 'docs', 10, member.id)).toHaveLength(0);
+    expect((await listImportJobs(owner.id, 'docs', 10, null)).length).toBeGreaterThan(0);
+    const { viewFor } = await import('@/lib/import-http');
+    const view = {
+      id: 'x', app: 'docs' as const, source: 'notion_api', status: 'done' as const, stage: '', total: 0, processed: 0, preview: null, error: null,
+      options: {}, created_at: '', updated_at: '', finished_at: null,
+      report: { roots: [{ id: 'no-such-page', title: 'Secret plans' }] },
+    };
+    const filtered = await viewFor({ ...owner, role: 'owner' } as never, view);
+    expect((filtered!.report as { roots: unknown[] }).roots).toEqual([]);
+  });
+
   it('token rechazado: falla leyendo, antes de escribir nada', async () => {
     const u = await makeUser('notionbad');
     const job = await createImportJob({ workspaceId: u.id, teamId: null, userId: u.id, app: 'docs', source: 'notion_api', secret: 'secret_wrong' });

@@ -34,12 +34,12 @@ describe('HubSpot: listas', () => {
     });
     expect(src.phases()).toContain('lists');
     expect(await src.count('lists')).toBe(2);
+    // Una lista por tramo (con sus miembros paginados dentro del cursor).
     const page = await src.page('lists', null, []);
-    expect(page.items).toEqual([
-      { kind: 'list', id: '71', name: 'Newsletter', entity: 'contact', memberIds: ['5000', '5001', '5002'] },
-      { kind: 'list', id: '72', name: 'Key accounts', entity: 'company', memberIds: ['1000'] },
-    ]);
-    expect(page.next).toBeNull();
+    expect(page.items).toEqual([{ kind: 'list', id: '71', name: 'Newsletter', entity: 'contact', memberIds: ['5000', '5001', '5002'], first: true }]);
+    const page2 = await src.page('lists', page.next, []);
+    expect(page2.items).toEqual([{ kind: 'list', id: '72', name: 'Key accounts', entity: 'company', memberIds: ['1000'], first: true }]);
+    expect(page2.next).toBeNull();
   });
 
   it('el import las pasa a etiquetas en los registros importados, y reimportar no duplica', async () => {
@@ -132,5 +132,32 @@ describe('HubSpot: listas', () => {
     expect(left.n).toBe(0);
     const mine = (await db.prepare('SELECT COUNT(*) AS n FROM crm_contacts WHERE user_id = ? AND owner_id = ?').get(u.id, u.id)) as { n: number };
     expect(mine.n).toBeGreaterThan(0);
+  });
+
+  it('reimportar no pisa registros editados en zerosoft, salvo con "Reemplazar"', async () => {
+    const u = await makeUser('hslocal');
+    const run = async (overwriteLocal: boolean) => {
+      const res = await createImportPreview(u.id, u.id, 'hubspot', 'fake');
+      if (!res.ok) throw new Error(res.code);
+      const s = await startImportJob(u.id, res.job.id, { groups: ['companies', 'contacts'], ownerMap: res.job.options.ownerMap, defaultOwnerId: u.id, overwriteLocal });
+      if (!s.ok) throw new Error(s.code);
+      expect(await runToEnd(res.job.id)).toBe('done');
+      return { preview: res.job.preview, job: (await getImportJob(u.id, res.job.id))! };
+    };
+    await run(false);
+    const db = getDb();
+    const c = (await db.prepare(`SELECT id FROM crm_contacts WHERE user_id = ? AND email = 'person1@company1.example'`).get(u.id)) as { id: string };
+    await db.prepare(`UPDATE crm_contacts SET first_name = 'Mine', job_title = '', updated_at = '2999-01-01 00:00:00' WHERE id = ?`).run(c.id);
+
+    const second = await run(false);
+    expect(second.preview.locallyEdited).toBe(1);
+    expect(second.job.counts.contacts.kept).toBe(1);
+    expect(second.job.counts.contacts.updated).toBe(23);
+    const row = (await db.prepare('SELECT first_name FROM crm_contacts WHERE id = ?').get(c.id)) as { first_name: string };
+    expect(row.first_name).toBe('Mine');
+
+    const third = await run(true);
+    expect(third.job.counts.contacts.kept ?? 0).toBe(0);
+    expect(((await db.prepare('SELECT first_name FROM crm_contacts WHERE id = ?').get(c.id)) as { first_name: string }).first_name).toBe('Person1');
   });
 });

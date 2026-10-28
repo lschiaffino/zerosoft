@@ -6496,6 +6496,10 @@ export const MIGRATIONS: Migration[] = [
         }
       }
       await client.execute('CREATE INDEX IF NOT EXISTS idx_import_job_items_kind ON import_job_items(job_id, kind, seq)');
+      // Cuándo se escribió por última vez cada registro importado: si después
+      // se editó en zerosoft, reimportar no lo pisa (salvo que se pida).
+      await addColumn(client, 'ALTER TABLE crm_external_ids ADD COLUMN imported_at TEXT');
+      await addColumn(client, 'ALTER TABLE import_external_ids ADD COLUMN imported_at TEXT');
       // CRM: registros importados que quedaron con el owner por defecto porque
       // su owner del otro CRM todavía no era miembro. Cuando esa persona se
       // une (lib/crm-import-owners.ts), pasan a ser suyos si nadie los tocó.

@@ -199,21 +199,27 @@ export async function getWorkspaceImportJob(workspaceId: string, id: string): Pr
   return job && job.workspace_id === workspaceId ? job : undefined;
 }
 
-export async function listImportJobs(workspaceId: string, app: ImportApp, limit = 10): Promise<ImportJobView[]> {
+/** `onlyUser`: solo los que creó esa persona (un miembro no ve los imports de los demás). */
+export async function listImportJobs(workspaceId: string, app: ImportApp, limit = 10, onlyUser: string | null = null): Promise<ImportJobView[]> {
   const rows = (await getDb()
-    .prepare('SELECT * FROM import_jobs WHERE workspace_id = ? AND app = ? ORDER BY created_at DESC LIMIT ?')
-    .all(workspaceId, app, limit)) as ImportJobRow[];
+    .prepare(`SELECT * FROM import_jobs WHERE workspace_id = ? AND app = ?${onlyUser ? ' AND user_id = ?' : ''} ORDER BY created_at DESC LIMIT ?`)
+    .all(...[workspaceId, app, ...(onlyUser ? [onlyUser] : []), limit])) as ImportJobRow[];
   return rows.map((r) => jobView(r));
 }
 
 /** Imports del workspace en todas las apps (el hub de importación). */
-export async function listWorkspaceImportJobs(workspaceId: string, limit = 20): Promise<ImportJobView[]> {
+/**
+ * Imports del workspace en todas las apps (el hub). Sin los que nunca
+ * llegaron a importar nada (cancelados o fallados leyendo: un token mal
+ * pegado no deja fila). `onlyUser`: solo los de esa persona.
+ */
+export async function listWorkspaceImportJobs(workspaceId: string, limit = 20, onlyUser: string | null = null): Promise<ImportJobView[]> {
   const rows = (await getDb()
     .prepare(
-      `SELECT * FROM import_jobs WHERE workspace_id = ? AND NOT (status = 'cancelled' AND report IS NULL)
+      `SELECT * FROM import_jobs WHERE workspace_id = ? AND NOT (status IN ('cancelled', 'failed') AND report IS NULL)${onlyUser ? ' AND user_id = ?' : ''}
        ORDER BY created_at DESC LIMIT ?`,
     )
-    .all(workspaceId, limit)) as ImportJobRow[];
+    .all(...[workspaceId, ...(onlyUser ? [onlyUser] : []), limit])) as ImportJobRow[];
   return rows.map((r) => jobView(r));
 }
 
@@ -364,12 +370,13 @@ export async function setExternalId(
   externalId: string,
   localId: string,
 ): Promise<void> {
+  // imported_at: cuándo se escribió por última vez (lo editado después en zerosoft no se pisa al reimportar).
   await getDb()
     .prepare(
-      `INSERT INTO import_external_ids (workspace_id, source, kind, external_id, local_id) VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT (workspace_id, source, kind, external_id) DO UPDATE SET local_id = excluded.local_id`,
+      `INSERT INTO import_external_ids (workspace_id, source, kind, external_id, local_id, imported_at) VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT (workspace_id, source, kind, external_id) DO UPDATE SET local_id = excluded.local_id, imported_at = excluded.imported_at`,
     )
-    .run(workspaceId, source, kind, externalId, localId);
+    .run(workspaceId, source, kind, externalId, localId, new Date().toISOString());
 }
 
 // ---------- fetch a terceros ----------

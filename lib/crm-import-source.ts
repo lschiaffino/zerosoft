@@ -150,6 +150,8 @@ export interface SrcList {
   name: string;
   entity: 'contact' | 'company';
   memberIds: string[];
+  /** false: otro tramo de miembros de una lista ya contada (las listas grandes vienen en partes). */
+  first?: boolean;
 }
 
 export type SrcRecord = SrcCompany | SrcContact | SrcDeal | SrcActivity | SrcList;

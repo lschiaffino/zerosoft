@@ -30,6 +30,8 @@ interface Preview {
   people: number;
   peopleWithEmail: number;
   alreadyImported: number;
+  localEdited?: number;
+  estimateMinutes?: number;
   truncated?: boolean;
   maxItems: number;
   roots: Array<{ title: string; kind: 'page' | 'database' }>;
@@ -48,6 +50,8 @@ interface Report {
   errors: string[];
   errorCount: number;
   roots: Array<{ id: string; title: string }>;
+  kept?: number;
+  notMoved?: number;
 }
 
 const SOURCES = ['notion_api'] as const;
@@ -145,7 +149,7 @@ export default function NotionApiImportPanel({
   } else if (job.status === 'fetching' || job.status === 'importing') {
     body = <ImportProgress job={job} onCancel={cancel} />;
   } else if (job.status === 'preview') {
-    body = <PreviewView job={job} onConfirm={(include) => start({ include })} onCancel={cancel} />;
+    body = <PreviewView job={job} teamspaces={teamspaces} onConfirm={(include) => start({ include })} onCancel={cancel} />;
   } else if (job.status === 'done') {
     body = <DoneView job={job} onAgain={reset} />;
   } else {
@@ -181,16 +185,20 @@ export default function NotionApiImportPanel({
 
 function PreviewView({
   job,
+  teamspaces,
   onConfirm,
   onCancel,
 }: {
   job: ImportJobView;
-  onConfirm: (include: { pages: boolean; databases: boolean; files: boolean }) => Promise<void>;
+  teamspaces: Array<{ id: string; name: string }>;
+  onConfirm: (include: { pages: boolean; databases: boolean; files: boolean; overwrite: boolean }) => Promise<void>;
   onCancel: () => void;
 }) {
   const t = useTranslations('settings.importHub.notion');
   const p = job.preview as unknown as Preview;
-  const [include, setInclude] = useState({ pages: p.pages > 0, databases: p.databases > 0, files: true });
+  const [include, setInclude] = useState({ pages: p.pages > 0, databases: p.databases > 0, files: true, overwrite: false });
+  const destId = typeof job.options.teamspace_id === 'string' ? job.options.teamspace_id : null;
+  const destName = destId ? (teamspaces.find((ts) => ts.id === destId)?.name ?? t('destTeamspace')) : t('destWorkspace');
   const empty = p.pages + p.databases === 0;
   const toggle = (k: keyof typeof include) => setInclude((prev) => ({ ...prev, [k]: !prev[k] }));
   return (
@@ -214,7 +222,22 @@ function PreviewView({
           {t('truncated', { max: p.maxItems })}
         </p>
       )}
+      <p className="ui-help" data-testid="notion-api-destination">
+        {t('destinationIs', { dest: destName })}
+        {typeof p.estimateMinutes === 'number' && <> · {t('estimate', { minutes: p.estimateMinutes })}</>}
+      </p>
       {p.alreadyImported > 0 && <p className="ximp-note">{t('alreadyImported', { count: p.alreadyImported })}</p>}
+      {(p.localEdited ?? 0) > 0 && (
+        <div className="ximp-section" data-testid="notion-api-local-edits">
+          <p className="ximp-note" data-tone="warn">
+            {t('localEdited', { count: p.localEdited ?? 0 })}
+          </p>
+          <label className="ui-check">
+            <input type="checkbox" checked={include.overwrite} onChange={() => toggle('overwrite')} />
+            <span>{t('overwrite')}</span>
+          </label>
+        </div>
+      )}
       {p.people > 0 && p.peopleWithEmail === 0 && <p className="ui-help">{t('noEmails')}</p>}
 
       {p.roots.length > 0 && (
@@ -270,6 +293,12 @@ function ReportTable({ report: r }: { report: Report }) {
         <ImportStat value={r.files} label={t('stat.files')} />
       </div>
       {r.filesSkipped > 0 && <p className="ui-help">{t('filesSkipped', { count: r.filesSkipped })}</p>}
+      {(r.kept ?? 0) > 0 && (
+        <p className="ximp-note" data-testid="notion-api-kept">
+          {t('keptNote', { count: r.kept ?? 0 })}
+        </p>
+      )}
+      {(r.notMoved ?? 0) > 0 && <p className="ximp-note">{t('notMovedNote', { count: r.notMoved ?? 0 })}</p>}
       {r.errorCount > 0 && (
         <section className="ximp-section">
           <h3>{t('errorsTitle', { count: r.errorCount })}</h3>

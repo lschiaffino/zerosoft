@@ -74,6 +74,8 @@ export interface GroupCounts {
   updated: number;
   skipped: number;
   failed: number;
+  /** Ya importados que se editaron en zerosoft después: no se pisaron (solo se completó lo vacío). */
+  kept?: number;
 }
 
 export type JobCounts = Record<ImportGroup, GroupCounts>;
@@ -83,6 +85,8 @@ export interface ImportJobOptions {
   /** id de owner ajeno → id de persona del workspace ('' = el owner por defecto). */
   ownerMap: Record<string, string>;
   defaultOwnerId: string;
+  /** Reemplazar con lo del otro CRM también lo que se editó en zerosoft después del último import. */
+  overwriteLocal?: boolean;
 }
 
 export interface PreviewOwner {
@@ -123,6 +127,8 @@ export interface ImportPreview {
   pipelines: PreviewPipeline[];
   /** Registros que ya vinieron de esta cuenta en un import anterior (se actualizan). */
   previouslyImported: number;
+  /** De esos, los que se editaron en zerosoft después del último import (no se pisan salvo que se pida). */
+  locallyEdited?: number;
 }
 
 interface PlanField extends SrcField {
@@ -140,6 +146,7 @@ interface Plan {
   pendingParents: Array<[string, string]>;
   /** Owners ajenos sin persona en el workspace (id → email): sus registros esperan a que se unan. */
   pendingOwners?: Record<string, string>;
+  overwriteLocal?: boolean;
 }
 
 interface Cursor {
@@ -387,6 +394,7 @@ export async function createImportPreview(
       stages: p.stages.map((s) => ({ name: s.name, probability: s.probability, isWon: s.isWon, isLost: s.isLost })),
     })),
     previouslyImported: prev.c,
+    locallyEdited: await countEditedLocally(db, userId, provider),
   };
 
   const id = crypto.randomUUID();
@@ -502,7 +510,13 @@ export async function startImportJob(userId: string, id: string, options: Import
       `UPDATE crm_import_jobs SET status = 'queued', options = ?, counts = ?, cursor = '{"phase":0,"after":null}', updated_at = ?
        WHERE id = ? AND user_id = ? AND status = 'preview'`,
     )
-    .run(JSON.stringify({ groups, ownerMap, defaultOwnerId: options.defaultOwnerId }), JSON.stringify(counts), nowDb(), id, userId);
+    .run(
+      JSON.stringify({ groups, ownerMap, defaultOwnerId: options.defaultOwnerId, overwriteLocal: options.overwriteLocal === true }),
+      JSON.stringify(counts),
+      nowDb(),
+      id,
+      userId,
+    );
   if (!res.changes) return { ok: false, code: 'not_found' };
   return { ok: true, job: (await getImportJob(userId, id))! };
 }
@@ -543,13 +557,48 @@ async function extLookup(db: Db, userId: string, provider: string, object: strin
   return out;
 }
 
-async function extSet(db: Db, userId: string, provider: string, object: string, externalId: string, recordId: string) {
+/** `touch: false` deja la fecha del último import como estaba (el registro no se reescribió). */
+async function extSet(db: Db, userId: string, provider: string, object: string, externalId: string, recordId: string, touch = true) {
   await db
     .prepare(
-      `INSERT INTO crm_external_ids (user_id, provider, object, external_id, record_id) VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(user_id, provider, object, external_id) DO UPDATE SET record_id = excluded.record_id`,
+      `INSERT INTO crm_external_ids (user_id, provider, object, external_id, record_id, imported_at) VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(user_id, provider, object, external_id) DO UPDATE SET record_id = excluded.record_id${touch ? ', imported_at = excluded.imported_at' : ''}`,
     )
-    .run(userId, provider, object, externalId, recordId);
+    .run(userId, provider, object, externalId, recordId, nowDb());
+}
+
+const RECORD_TABLES: Record<string, string> = { company: 'crm_companies', contact: 'crm_contacts', deal: 'crm_deals', activity: 'crm_activities' };
+
+/** ¿El registro se editó en zerosoft después del último import que lo escribió? */
+async function editedLocally(db: Db, userId: string, provider: string, object: string, externalId: string): Promise<boolean> {
+  const row = (await db
+    .prepare(
+      `SELECT r.updated_at > COALESCE(e.imported_at, e.created_at) AS edited FROM crm_external_ids e
+       JOIN ${RECORD_TABLES[object]} r ON r.id = e.record_id
+       WHERE e.user_id = ? AND e.provider = ? AND e.object = ? AND e.external_id = ?`,
+    )
+    .get(userId, provider, object, externalId)) as { edited: number } | undefined;
+  return Boolean(row?.edited);
+}
+
+/** Cuántos registros ya importados de este proveedor se editaron en zerosoft después del último import. */
+async function countEditedLocally(db: Db, userId: string, provider: string): Promise<number> {
+  let n = 0;
+  for (const [object, table] of Object.entries(RECORD_TABLES)) {
+    const row = (await db
+      .prepare(
+        `SELECT COUNT(*) AS c FROM crm_external_ids e JOIN ${table} r ON r.id = e.record_id
+         WHERE e.user_id = ? AND e.provider = ? AND e.object = ? AND r.updated_at > COALESCE(e.imported_at, e.created_at)`,
+      )
+      .get(userId, provider, object)) as { c: number };
+    n += Number(row.c);
+  }
+  return n;
+}
+
+/** Registro editado acá: no se pisa; cuenta como conservado. */
+function keep(ctx: WriteCtx): void {
+  ctx.counts.kept = (ctx.counts.kept ?? 0) + 1;
 }
 
 async function buildPlan(job: JobRow, source: CrmSource, options: ImportJobOptions): Promise<Plan> {
@@ -563,6 +612,7 @@ async function buildPlan(job: JobRow, source: CrmSource, options: ImportJobOptio
     owners: options.ownerMap,
     defaultOwnerId: options.defaultOwnerId,
     pendingParents: [],
+    overwriteLocal: options.overwriteLocal === true,
     pendingOwners: Object.fromEntries(
       parseJson<ImportPreview>(job.preview, { owners: [] } as unknown as ImportPreview)
         .owners.filter((o) => o.email && !options.ownerMap[o.id])
@@ -741,7 +791,15 @@ async function writeCompany(ctx: WriteCtx, src: SrcCompany, extMap: Map<string, 
     ? ((await db.prepare('SELECT * FROM crm_companies WHERE id = ? AND user_id = ?').get(byExt, userId)) as CrmCompanyRow | undefined)
     : undefined;
   let id: string;
-  if (existing) {
+  let touch = true;
+  if (existing && !ctx.plan.overwriteLocal && (await editedLocally(db, userId, ctx.provider, 'company', src.id))) {
+    // Editada en zerosoft después del último import: solo se completa lo vacío.
+    const drop = { ...existing, ...Object.fromEntries(cols), custom: JSON.stringify({ ...custom, ...parseCustom(existing.custom) }), parent_company_id: null } as CrmCompanyRow;
+    await updateRow(db, 'crm_companies', existing.id, companyMergeFillPatch(existing, drop));
+    id = existing.id;
+    touch = false;
+    keep(ctx);
+  } else if (existing) {
     // Re-import: lo que viene del otro CRM actualiza; los custom se suman.
     const merged = { ...parseCustom(existing.custom), ...custom };
     await updateRow(db, 'crm_companies', existing.id, [...nonEmpty(cols), ['custom', JSON.stringify(merged)]]);
@@ -771,7 +829,7 @@ async function writeCompany(ctx: WriteCtx, src: SrcCompany, extMap: Map<string, 
       ctx.counts.created++;
     }
   }
-  await extSet(db, userId, ctx.provider, 'company', src.id, id);
+  await extSet(db, userId, ctx.provider, 'company', src.id, id, touch);
   extMap.set(src.id, id);
   if (src.parentId) {
     const parent = extMap.get(src.parentId) ?? (await extLookup(db, userId, ctx.provider, 'company', [src.parentId])).get(src.parentId);
@@ -818,7 +876,15 @@ async function writeContact(ctx: WriteCtx, src: SrcContact, extMap: Map<string, 
     : undefined;
   let id: string;
   let deduped = false;
-  if (existing) {
+  let touch = true;
+  if (existing && !ctx.plan.overwriteLocal && (await editedLocally(db, userId, ctx.provider, 'contact', src.id))) {
+    const drop = { ...existing, ...Object.fromEntries(cols), custom: JSON.stringify({ ...custom, ...parseCustom(existing.custom) }) } as CrmContactRow;
+    await updateRow(db, 'crm_contacts', existing.id, mergeFillPatch(existing, drop));
+    id = existing.id;
+    deduped = true;
+    touch = false;
+    keep(ctx);
+  } else if (existing) {
     const merged = { ...parseCustom(existing.custom), ...custom };
     await updateRow(db, 'crm_contacts', existing.id, [...nonEmpty(cols), ['custom', JSON.stringify(merged)]]);
     id = existing.id;
@@ -849,7 +915,7 @@ async function writeContact(ctx: WriteCtx, src: SrcContact, extMap: Map<string, 
       ctx.counts.created++;
     }
   }
-  await extSet(db, userId, ctx.provider, 'contact', src.id, id);
+  await extSet(db, userId, ctx.provider, 'contact', src.id, id, touch);
   extMap.set(src.id, id);
 
   // Empresas: la primaria del otro CRM queda primaria (salvo en un contacto que
@@ -909,7 +975,15 @@ async function writeDeal(
         | undefined)
     : undefined;
   let id: string;
-  if (existing) {
+  let touch = true;
+  if (existing && !ctx.plan.overwriteLocal && (await editedLocally(db, userId, ctx.provider, 'deal', src.id))) {
+    // Editado acá: etapa, monto y owner quedan como están; solo se suman los campos propios nuevos.
+    const merged = { ...custom, ...parseCustom(existing.custom) };
+    await updateRow(db, 'crm_deals', existing.id, [['custom', JSON.stringify(merged)]]);
+    id = existing.id;
+    touch = false;
+    keep(ctx);
+  } else if (existing) {
     const merged = { ...parseCustom(existing.custom), ...custom };
     const stageCols: Array<[string, string | number | null]> =
       existing.stage_id !== target.id
@@ -939,7 +1013,7 @@ async function writeDeal(
     ]);
     ctx.counts.created++;
   }
-  await extSet(db, userId, ctx.provider, 'deal', src.id, id);
+  await extSet(db, userId, ctx.provider, 'deal', src.id, id, touch);
   extMap.set(src.id, id);
 
   for (const cid of src.contactIds) {
@@ -998,7 +1072,12 @@ async function writeActivity(
     ? ((await db.prepare('SELECT id FROM crm_activities WHERE id = ? AND user_id = ?').get(byExt, userId)) as { id: string } | undefined)
     : undefined;
   let id: string;
-  if (existing) {
+  let touch = true;
+  if (existing && !ctx.plan.overwriteLocal && (await editedLocally(db, userId, ctx.provider, 'activity', src.id))) {
+    id = existing.id;
+    touch = false;
+    keep(ctx);
+  } else if (existing) {
     await updateRow(db, 'crm_activities', existing.id, cols);
     id = existing.id;
     ctx.counts.updated++;
@@ -1016,7 +1095,7 @@ async function writeActivity(
     ]);
     ctx.counts.created++;
   }
-  await extSet(db, userId, ctx.provider, 'activity', src.id, id);
+  await extSet(db, userId, ctx.provider, 'activity', src.id, id, touch);
 }
 
 /** Escribe una página en una transacción. Devuelve la cantidad procesada. */
@@ -1083,14 +1162,18 @@ async function writePage(
  */
 async function writeList(ctx: WriteCtx, src: SrcList, extMap: Map<string, string>, members: Map<string, string>): Promise<void> {
   const { db, userId } = ctx;
+  // Otro tramo de miembros de la misma lista: la lista ya se contó.
+  const continuation = src.first === false;
+  if (continuation) ctx.counts.processed--;
   let tagId = extMap.get(src.id) ?? null;
   if (tagId && !(await db.prepare('SELECT 1 AS one FROM crm_tags WHERE id = ? AND user_id = ?').get(tagId, userId))) tagId = null;
   tagId ??= ((await db.prepare('SELECT id FROM crm_tags WHERE user_id = ? AND name = ? COLLATE NOCASE').get(userId, src.name)) as { id: string } | undefined)?.id ?? null;
-  if (tagId) ctx.counts.updated++;
-  else {
+  if (tagId) {
+    if (!continuation) ctx.counts.updated++;
+  } else {
     tagId = crypto.randomUUID();
     await db.prepare(`INSERT INTO crm_tags (id, user_id, name, color) VALUES (?, ?, ?, 'crm')`).run(tagId, userId, src.name);
-    ctx.counts.created++;
+    if (!continuation) ctx.counts.created++;
   }
   await extSet(db, userId, ctx.provider, 'list', src.id, tagId);
   let missing = 0;

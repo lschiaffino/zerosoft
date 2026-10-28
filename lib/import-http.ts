@@ -5,8 +5,8 @@
  */
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getCurrentUser, isWorkspaceAdmin, type SessionUser } from './session';
-import { getWorkspaceImportJob, type ImportApp, type ImportJob } from './import-jobs';
+import { getCurrentUser, isWorkspaceAdmin, realUserId, type SessionUser } from './session';
+import { getWorkspaceImportJob, type ImportApp, type ImportJob, type ImportJobView } from './import-jobs';
 import { CSV_FIELDS, TRACK_IMPORT_MAX_CSV_BYTES } from './track-import-map';
 import { GITHUB_REPO_RE } from './track-import-sources';
 import { asanaProjectGid, normalizeJiraSite } from './track-import-sources-more';
@@ -134,6 +134,22 @@ export async function importJobFor(id: string): Promise<{ user: SessionUser; job
   if (!user) return importError(401, 'unauthorized');
   const job = await getWorkspaceImportJob(user.id, id);
   if (!job) return importError(404, 'not_found');
+  // Un import lo ven quien lo creó y los admins (los demás, como si no existiera).
+  if (!isWorkspaceAdmin(user) && job.user_id !== realUserId(user)) return importError(404, 'not_found');
   if (needsAdmin(job.app, job.source) && !isWorkspaceAdmin(user)) return importError(403, 'forbidden');
   return { user, job };
+}
+
+/**
+ * La vista del job para quien mira: los links del informe (páginas de Docs
+ * creadas) solo los que esa persona puede abrir.
+ */
+export async function viewFor(user: SessionUser, view: ImportJobView | null): Promise<ImportJobView | null> {
+  if (!view || view.app !== 'docs' || !view.report) return view;
+  const roots = (view.report.roots ?? []) as Array<{ id: string; title: string }>;
+  if (!roots.length) return view;
+  const { resolveDocAccess, DOC_INTERNAL_READ } = await import('./docs');
+  const visible: typeof roots = [];
+  for (const r of roots) if (await resolveDocAccess(user, r.id, DOC_INTERNAL_READ).catch(() => null)) visible.push(r);
+  return { ...view, report: { ...view.report, roots: visible } };
 }

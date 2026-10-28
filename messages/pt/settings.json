@@ -457,7 +457,7 @@
       "importing": "Importando",
       "uploading": "Enviando",
       "done": "Pronto",
-      "failed": "Parado",
+      "failed": "Com erro",
       "cancelled": "Cancelado"
     },
     "appTitle": "Para o {app}",
@@ -626,7 +626,7 @@
       "dedupe": "Links e menções entre páginas apontam para as páginas importadas. Fórmulas e rollups entram com o valor atual.",
       "confirm": "Importar",
       "doneTitle": "Importação concluída.",
-      "doneSummary": "{pages, number} páginas, {databases, number} bancos de dados e {rows, number} linhas.",
+      "doneSummary": "{pages, plural, one {# página} other {# páginas}}, {databases, plural, one {# banco de dados} other {# bancos de dados}} e {rows, plural, one {# linha} other {# linhas}}.",
       "filesSkipped": "{count, plural, one {# arquivo não foi copiado} other {# arquivos não foram copiados}} (grande demais, tipo não permitido ou indisponível): o nome fica na página.",
       "errorsTitle": "{count, plural, one {# problema} other {# problemas}}",
       "contentTruncated": "página muito longa, entrou a primeira parte",
@@ -635,7 +635,15 @@
       "again": "Importar de novo",
       "failedTitle": "A importação parou.",
       "retry": "Tentar de novo",
-      "dismiss": "Fechar"
-    }
+      "dismiss": "Fechar",
+      "destinationIs": "Vai para: {dest}",
+      "destTeamspace": "um teamspace",
+      "estimate": "{minutes, plural, =0 {leva menos de um minuto} one {leva cerca de # minuto} other {leva cerca de # minutos}} (o Notion permite 3 pedidos por segundo)",
+      "localEdited": "{count, plural, one {# página importada foi editada no zerosoft} other {# páginas importadas foram editadas no zerosoft}} depois da última importação. Não são sobrescritas, a não ser que você escolha substituí-las.",
+      "overwrite": "Substituir pelo que está no Notion (sobrescreve as mudanças feitas no zerosoft)",
+      "keptNote": "{count, plural, one {# com mudanças locais, não foi sobrescrito} other {# com mudanças locais, não foram sobrescritos}}.",
+      "notMovedNote": "{count, plural, one {# página importada antes ficou onde estava} other {# páginas importadas antes ficaram onde estavam}}: importar de novo não as move para o novo destino. Se quiser, mova pelo Docs."
+    },
+    "adminOnlySource": "Só quem administra o workspace pode importar do {source} para o {app}. Peça a um admin."
   }
 }

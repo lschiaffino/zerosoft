@@ -57,8 +57,9 @@ export async function POST(req: NextRequest) {
   if (!emails.length) return NextResponse.json({ invites: [] });
 
   // El workspace es del owner: su equipo (se crea si todavía no tiene).
-  const teams = await listOwnedTeams(user.id);
-  const team = teams[0] ?? (user.id === realUserId(user) ? await createTeam(user.id, '') : null);
+  // El equipo del workspace en el que se está trabajando (si no hay ninguno y es el dueño, se crea).
+  const owned = user.team && user.team.owner_id === user.id ? null : await listOwnedTeams(user.id);
+  const team = (user.team && user.team.owner_id === user.id ? user.team : owned?.[0]) ?? (user.id === realUserId(user) ? await createTeam(user.id, '') : null);
   if (!team) return crmError(409, 'no_team');
   const pending = new Map((await listPendingInvites(team.id)).map((i) => [i.email.toLowerCase(), i]));
   const base = (process.env.NEXTAUTH_URL ?? req.nextUrl.origin).replace(/\/$/, '');

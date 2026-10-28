@@ -124,8 +124,8 @@ const ADAPTERS: Record<string, ImportAdapter> = {
     fetchStep: (job) => notionApiFetchStep(job),
     preview: (job, items) => notionApiPreview(job, items),
     writeStages: ['write'],
-    // Cada página pide sus bloques a Notion (3 pedidos por segundo): de a una.
-    chunkSize: 1,
+    // Cada página pide sus bloques a Notion (3 pedidos por segundo): de a pocas; las filas de una base van juntas.
+    chunkSize: 5,
     emptyReport: emptyNotionApiReport,
     writeStep: (job, _stage, items, report) => notionApiWriteStep(job, items, report as NotionApiReport),
     // + el item de personas.

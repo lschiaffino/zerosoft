@@ -457,7 +457,7 @@
       "importing": "Importing",
       "uploading": "Uploading",
       "done": "Done",
-      "failed": "Stopped",
+      "failed": "Failed",
       "cancelled": "Cancelled"
     },
     "appTitle": "Into {app}",
@@ -626,7 +626,7 @@
       "dedupe": "Links and mentions between pages point to the imported pages. Formulas and rollups come in with their current value.",
       "confirm": "Import",
       "doneTitle": "Import finished.",
-      "doneSummary": "{pages, number} pages, {databases, number} databases and {rows, number} rows.",
+      "doneSummary": "{pages, plural, one {# page} other {# pages}}, {databases, plural, one {# database} other {# databases}} and {rows, plural, one {# row} other {# rows}}.",
       "filesSkipped": "{count, plural, one {# file was} other {# files were}} not copied (too large, not allowed or unavailable): the name stays in the page.",
       "errorsTitle": "{count, plural, one {# problem} other {# problems}}",
       "contentTruncated": "very long page, the first part came in",
@@ -635,7 +635,15 @@
       "again": "Import again",
       "failedTitle": "The import stopped.",
       "retry": "Try again",
-      "dismiss": "Dismiss"
-    }
+      "dismiss": "Dismiss",
+      "destinationIs": "Goes to: {dest}",
+      "destTeamspace": "a teamspace",
+      "estimate": "{minutes, plural, =0 {takes less than a minute} one {takes about # minute} other {takes about # minutes}} (Notion allows 3 requests per second)",
+      "localEdited": "{count, plural, one {# imported page was edited in zerosoft} other {# imported pages were edited in zerosoft}} after the last import. They are not overwritten unless you choose to replace them.",
+      "overwrite": "Replace with Notion (overwrites the changes made in zerosoft)",
+      "keptNote": "{count, plural, one {# with local changes, not overwritten} other {# with local changes, not overwritten}}.",
+      "notMovedNote": "{count, plural, one {# page imported before stayed where it was} other {# pages imported before stayed where they were}}: importing again does not move them to the new destination. Move them from Docs if you want."
+    },
+    "adminOnlySource": "Only workspace admins can import from {source} into {app}. Ask an admin."
   }
 }
