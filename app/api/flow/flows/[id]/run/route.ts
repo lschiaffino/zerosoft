@@ -16,6 +16,9 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const parsed = flowRunSchema.safeParse((await req.json().catch(() => ({}))) ?? {});
   if (!parsed.success) return flowError(400, 'invalid_input');
   const res = await runFlowNow(user.id, id, parsed.data.input, runViewer(user));
-  if (!res.ok) return res.error === 'not_found' ? notFound() : flowError(429, res.error);
+  if (!res.ok) {
+    if (res.error === 'not_found') return notFound();
+    return flowError(res.error === 'not_flow_owner' ? 403 : 429, res.error);
+  }
   return NextResponse.json({ run: res.run });
 }

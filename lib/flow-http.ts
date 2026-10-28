@@ -96,6 +96,10 @@ export function testInput(graph: FlowGraph, input: Record<string, unknown> | und
 export async function runFlowNow(workspaceId: string, flowId: string, input: Record<string, unknown> | undefined, viewer?: FlowRunViewer) {
   const row = await getFlowRow(workspaceId, flowId);
   if (!row) return { ok: false as const, error: 'not_found' };
+  // Una corrida manual corre con el acceso de quien creó el flow y con datos que
+  // elige quien la lanza: solo esa persona puede lanzarla (si no, otra haría que
+  // el flow escriba en Docs, CRM o Gmail con el acceso ajeno).
+  if (viewer && (!row.created_by || viewer.personId !== row.created_by)) return { ok: false as const, error: 'not_flow_owner' };
   const graph = parseJson<FlowGraph>(row.graph, { nodes: [], edges: [] });
   const runId = await enqueueRun(row, 'manual', testInput(graph, input), { status: 'running', lockMs: 5 * 60_000 });
   if (!runId) return { ok: false as const, error: 'rate_limited' };
