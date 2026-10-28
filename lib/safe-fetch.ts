@@ -74,15 +74,21 @@ export async function assertPublicUrl(raw: string, opts: { allowHttp?: boolean }
 }
 
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
-/** Headers con credenciales: no se reenvían a otro origen al seguir una redirección. */
-const CREDENTIAL_HEADERS = ['authorization', 'proxy-authorization', 'cookie'];
+/**
+ * Headers que se reenvían al seguir una redirección a OTRO origen. Todo lo
+ * demás se saca: además de Authorization y Cookie, una credencial puede ir en
+ * un header propio (X-Api-Key de una credencial api_key, headers secretos de
+ * una herramienta HTTP de un agente) y no puede terminar en otro host.
+ */
+const CROSS_ORIGIN_SAFE_HEADERS = new Set(['accept', 'accept-language', 'content-type', 'content-length', 'user-agent']);
 
 /**
  * fetch a una URL pública. Por defecto no sigue redirecciones (devuelve el
  * 3xx). Con `maxRedirects` las sigue a mano, validando cada Location con
  * assertPublicUrl (un salto a la red interna falla igual que la URL inicial):
- * 301/302/303 pasan a GET sin body (307/308 conservan método y body) y las
- * credenciales se sacan si cambia el origen. El timeout cubre todos los saltos.
+ * 301/302/303 pasan a GET sin body (307/308 conservan método y body) y si
+ * cambia el origen solo quedan los headers sin secretos
+ * (CROSS_ORIGIN_SAFE_HEADERS). El timeout cubre todos los saltos.
  */
 export async function safeFetch(
   raw: string,
@@ -107,7 +113,9 @@ export async function safeFetch(
     }
     next = await assertPublicUrl(next.toString());
     const headers = new Headers(req.headers);
-    if (next.origin !== url.origin) for (const h of CREDENTIAL_HEADERS) headers.delete(h);
+    if (next.origin !== url.origin) {
+      for (const h of [...headers.keys()]) if (!CROSS_ORIGIN_SAFE_HEADERS.has(h.toLowerCase())) headers.delete(h);
+    }
     const method = (req.method ?? 'GET').toUpperCase();
     if (res.status === 303 || ((res.status === 301 || res.status === 302) && method !== 'GET' && method !== 'HEAD')) {
       headers.delete('content-type');
