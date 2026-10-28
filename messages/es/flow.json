@@ -272,7 +272,7 @@
     "noteEmpty": "Nota vacía",
     "noteHint": "Las notas explican el flow a quien lo abra. No se conectan ni corren.",
     "floodLimit": "Retener corridas después de (cada 10 minutos)",
-    "floodLimitHint": "Las corridas automáticas que pasen este número en 10 minutos te esperan en Corridas. 0 = sin límite (igual aplica el tope del workspace por hora).",
+    "floodLimitHint": "Cuenta las corridas automáticas creadas en los últimos 10 minutos (ventana móvil). Pasado este número, las nuevas te esperan en Corridas. 0 = sin límite (igual aplica el tope del workspace por hora).",
     "maxConcurrency": "Corridas a la vez",
     "maxConcurrencyHint": "1 corre las corridas en cola de a una, en orden. 0 = sin límite. Las pruebas y los webhooks que responden al instante no pasan por la cola.",
     "extractHint": "Nombrá cada campo y decí qué es. El paso los devuelve como '{{nodes.<id>.output.<campo>}}', o vacíos si el texto no lo dice. Cuenta para tu cuota de IA.",
@@ -1274,11 +1274,12 @@
     "discarded": "Cambios descartados.",
     "publish": "Publicar",
     "publishing": "Publicando…",
-    "publishHint": "Lo que editás se guarda como borrador. Publicá para que corra.",
+    "publishHint": "Lo que editás se guarda como tu borrador. Publicá para que corra; desde ahí el flow corre con tu acceso.",
     "discard": "Descartar cambios",
     "discardTitle": "¿Descartar los cambios sin publicar?",
     "discardBody": "El editor vuelve a la versión {n}, la que corre.",
-    "banner": "Cambios sin publicar. Las corridas siguen usando la versión {n} hasta que publiques; \"Probar\" usa el borrador."
+    "banner": "Tus cambios sin publicar. Este borrador lo ves solo vos; las corridas siguen usando la versión {n} hasta que publiques, y \"Probar\" lo corre con tu acceso.",
+    "stale": "Alguien publicó después de que empezaste (tu borrador sale de la versión {n}); publicar lo reemplaza con el tuyo."
   },
   "held": {
     "count": "{n} retenidas",
@@ -1383,7 +1384,8 @@
       "date": "Fecha",
       "select": "Opción",
       "checkbox": "Casilla"
-    }
+    },
+    "publishFirst": "El link funciona cuando publicás este formulario."
   },
   "poll": {
     "hint": "Revisa la fuente cada algunos minutos y corre una vez por cada ítem nuevo. La primera revisión solo marca lo que ya está.",
@@ -1409,7 +1411,8 @@
     "submit": "Enviar",
     "errors": {
       "rate_limited": "Demasiadas respuestas en este momento. Probá en un minuto.",
-      "generic": "No se pudo enviar. Probá de nuevo."
+      "generic": "No se pudo enviar. Probá de nuevo.",
+      "form_check": "No pudimos verificar la respuesta. Recargá la página y probá de nuevo."
     },
     "fieldErrors": {
       "required": "Este campo es obligatorio.",
@@ -1418,6 +1421,7 @@
       "invalid_date": "Elegí una fecha.",
       "invalid_option": "Elegí una de las opciones.",
       "too_long": "Esta respuesta es muy larga."
-    }
+    },
+    "captcha": "No soy un robot"
   }
 }

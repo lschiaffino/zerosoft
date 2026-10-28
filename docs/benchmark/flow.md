@@ -229,3 +229,34 @@ Ninguno bloqueante en Flow. Dos detalles de UX que no llegan a bug:
 - n8n MCP: https://docs.n8n.io/build/ways-of-building-workflows/connect-to-n8n-mcp-server.md
 - n8n autosave: https://blog.n8n.io/announcing-autosave/
 - n8n plantillas: https://n8n.io/workflows/
+
+## Actualización 2026-10-27 (tanda de paridad)
+
+Lo que cambió desde la revisión del 22/10 (las tablas de arriba quedan como estaban ese día; el
+estado vigente por fila está en `content/feature-parity/flow.ts`):
+
+| Capacidad | Antes | Ahora | Nota |
+|---|---|---|---|
+| Borrador vs publicado | falta | **tiene** | borrador por persona con autoguardado; publicar crea versión y pasa el flow a quien publica; "Probar" corre el borrador propio con el acceso propio |
+| Autoguardado | falta | **tiene** | un segundo después del último cambio, como borrador |
+| Dueño y quién lo cambió | parcial | **tiene** | cada versión muestra quién la publicó |
+| Variables globales | falta | **tiene** | `{{vars.x}}` por persona (un flow lee las de quien lo publicó), a propósito: compartidas permitirían desviar el flow de otro |
+| Carpetas | falta | **tiene** | con conteo, mover, renombrar, borrar y Cmd+K |
+| Notas en el canvas | falta | **tiene** | cuatro colores, no se conectan |
+| Triggers por polling | falta | **tiene** | RSS/Atom, URL JSON y filas nuevas de Sheets, cada 5 a 1.440 min, con línea de base |
+| Formularios hospedados | parcial | **tiene** | página propia, validación, límite por IP, tiempo mínimo, trampa y Turnstile opcional, cupo propio |
+| Protección ante avalanchas | parcial | **tiene** | límite por flow en 10 min móviles, retenidas para revisar |
+| Google Sheets | parcial | **tiene** | buscar y actualizar filas, trigger de fila nueva |
+| Request HTTP | parcial | **tiene** | import de cURL y paginación del mismo origen |
+| Historial global, búsqueda, tablero, export | falta | **tiene** | `/app/flow/runs`; la búsqueda por dato solo en lo capturado por quien busca |
+| IA: armar, extraer, diagnosticar | falta | **tiene** | por `lib/ai.ts`; el diagnóstico tapa valores con forma de secreto |
+| Export/import JSON, copiar y pegar nodos | falta | **tiene** | referencias de otro workspace se vacían al importar |
+| Colas y concurrencia | parcial | **tiene** | tope por flow y reparto por turnos entre flows |
+| Buscar en la lista | parcial | **tiene** | buscador y filtros |
+
+Siguen faltando: catálogo grande y OAuth en un clic, servidor MCP y API pública de flows, SSO,
+audit log, restricciones de apps y roles por flow.
+
+Puntajes estimados después de la tanda (mismo criterio que la tabla de arriba): Edición 9,
+Colaboración 5, Automatización 10, Integraciones 4, Admin 3, Analítica 9, Móvil 6, IA 9,
+Importar y plantillas 7, Rendimiento 8, UX 9.

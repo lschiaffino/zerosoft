@@ -6,6 +6,7 @@ import {
   enqueueEventRuns,
   enqueueRun,
   enqueueWebhookRun,
+  getFlow,
   getFlowRow,
   listFlowVersions,
   listFlowWebhooks,
@@ -16,6 +17,8 @@ import {
   saveFlowDraft,
   updateFlow,
   validateFormSubmission,
+  formStamp,
+  checkFormStamp,
 } from '@/lib/flow';
 import { runFlowNow } from '@/lib/flow-http';
 import { createFolder, deleteFolder, listFolders } from '@/lib/flow-folders';
@@ -23,7 +26,7 @@ import { createVariable, deleteVariable, listVariables, updateVariable } from '@
 import { exportRuns, flowStats, searchRuns } from '@/lib/flow-monitor';
 import { enqueueDuePolls, parseFeed } from '@/lib/flow-poll';
 import { claimQueuedRun, processFlowQueue } from '@/lib/flow-worker';
-import { builtToGraph, fakeBuild, aiExtractNode, redactConfig, extractFields } from '@/lib/flow-ai';
+import { builtToGraph, fakeBuild, aiExtractNode, redactConfig, redactSecretsInText, extractFields } from '@/lib/flow-ai';
 import { copyNodes, parseClipboard, parseCurl, parseFlowImport, pasteNodes, shellWords } from '@/lib/flow-transfer';
 import { formFields, validateGraph, type FlowGraph } from '@/lib/flow-schema';
 import { columnLetter, lookupSheetRows, sheetName } from '@/lib/flow-integrations';
@@ -59,55 +62,87 @@ async function newFlow(ws: string, actor: string, graph: unknown) {
   return res.flow;
 }
 
-describe('Flow: borrador y publicado', () => {
-  it('el borrador no cambia lo que corre ni de quién es; publicar sí', async () => {
+describe('Flow: borrador por persona', () => {
+  it('cada persona edita su borrador; no cambia lo que corre; publicar el propio pasa el flow a quien publica', async () => {
     const { ws, ana, bob } = await team();
     const g1: FlowGraph = { nodes: [T, node('a', 'data.set', { fields: [{ key: 'v', value: '1' }] })] as FlowGraph['nodes'], edges: [edge('t', 'a')] };
     const flow = await newFlow(ws, ana, g1);
     const g2 = { ...g1, nodes: [T, node('a', 'data.set', { fields: [{ key: 'v', value: '2' }] })] };
-    const saved = await saveFlowDraft(ws, flow.id, g2, flow.draftRev, bob);
-    expect(saved.ok).toBe(true);
+    const saved = await saveFlowDraft(ws, flow.id, g2, 0, bob);
+    expect(saved.ok && saved.flow.draftRev).toBe(1);
+    // Ana no ve el borrador de Bob y lo publicado no cambió.
+    expect((await getFlow(ws, flow.id, ana))?.draft).toBeNull();
     let row = await getFlowRow(ws, flow.id);
     expect(row?.created_by).toBe(ana);
     expect(JSON.parse(row!.graph).nodes[1].config.fields[0].value).toBe('1');
-    expect(row?.draft_by).toBe(bob);
-    // Revisión vieja: conflicto (dos pestañas).
-    expect(await saveFlowDraft(ws, flow.id, g2, flow.draftRev, bob)).toMatchObject({ ok: false, error: 'conflict' });
-    // Igual a lo publicado: se descarta el borrador.
-    const back = await saveFlowDraft(ws, flow.id, g1, row!.draft_rev, bob);
+    // Revisión vieja: conflicto (dos pestañas de Bob).
+    expect(await saveFlowDraft(ws, flow.id, g2, 0, bob)).toMatchObject({ ok: false, error: 'conflict' });
+    // Igual a lo publicado: se descarta.
+    const back = await saveFlowDraft(ws, flow.id, g1, 1, bob);
     expect(back.ok && back.flow.draft).toBeNull();
-    row = await getFlowRow(ws, flow.id);
-    await saveFlowDraft(ws, flow.id, g2, row!.draft_rev, bob);
-    const pub = await publishFlowDraft(ws, flow.id, bob);
+    await saveFlowDraft(ws, flow.id, g2, 0, bob);
+    // Publicar sin la revisión que se ve, o con otra: 409.
+    expect(await publishFlowDraft(ws, flow.id, bob)).toMatchObject({ ok: false, error: 'conflict' });
+    expect(await publishFlowDraft(ws, flow.id, bob, { rev: 7 })).toMatchObject({ ok: false, error: 'conflict' });
+    // Ana no tiene borrador: no puede publicar el de Bob.
+    expect(await publishFlowDraft(ws, flow.id, ana, { rev: 1 })).toMatchObject({ ok: false, error: 'no_draft' });
+    const pub = await publishFlowDraft(ws, flow.id, bob, { rev: 1 });
     expect(pub.ok).toBe(true);
     row = await getFlowRow(ws, flow.id);
     expect(row?.created_by).toBe(bob);
-    expect(row?.draft_graph).toBeNull();
     expect(JSON.parse(row!.graph).nodes[1].config.fields[0].value).toBe('2');
+    expect(await getFlow(ws, flow.id, bob).then((f) => f?.draft)).toBeNull();
     const versions = await listFlowVersions(ws, flow.id);
     expect(versions[0].authorName).toBe('fp-bob');
-    expect(await publishFlowDraft(ws, flow.id, bob)).toMatchObject({ ok: false, error: 'no_draft' });
   });
 
-  it('probar el borrador corre con el acceso de quien prueba, no del dueño', async () => {
+  it('escenario t1: el nodo que Bob mete en su borrador nunca corre ni se publica con el acceso de Ana', async () => {
+    const { ws, ana, bob } = await team();
+    await createVariable(ws, ana, 'secret', 'A-SECRET-123');
+    await createVariable(ws, bob, 'secret', 'B-value');
+    const g: FlowGraph = { nodes: [T, node('set', 'data.set', { fields: [{ key: 'hello', value: 'world' }] })] as FlowGraph['nodes'], edges: [edge('t', 'set')] };
+    const flow = await newFlow(ws, ana, g);
+    // Ana edita su borrador.
+    const aDraft = { ...g, nodes: [T, node('set', 'data.set', { fields: [{ key: 'hello', value: 'world2' }] })] };
+    const a1 = await saveFlowDraft(ws, flow.id, aDraft, 0, ana);
+    const aRev = a1.ok ? a1.flow.draftRev : -1;
+    // Bob arma un borrador con un paso que leería la variable secreta.
+    const evil = {
+      nodes: [...aDraft.nodes, node('leak', 'data.set', { fields: [{ key: 'v', value: '{{vars.secret}}' }] })],
+      edges: [...aDraft.edges, edge('set', 'leak')],
+    };
+    expect((await saveFlowDraft(ws, flow.id, evil, 0, bob)).ok).toBe(true);
+    // "Probar" de Ana corre SU borrador, con su acceso: el paso de Bob no está.
+    const test = await runFlowNow(ws, flow.id, {}, { personId: ana, admin: true }, { draft: true, draftRev: aRev });
+    expect(test.ok && test.run?.steps.map((s) => s.nodeId)).toEqual(['t', 'set']);
+    // Probar con una revisión que no es la que se ve: 409.
+    expect(await runFlowNow(ws, flow.id, {}, { personId: ana, admin: true }, { draft: true, draftRev: aRev + 5 })).toMatchObject({ ok: false, error: 'conflict' });
+    // Publicar de Ana publica lo suyo.
+    expect((await publishFlowDraft(ws, flow.id, ana, { rev: aRev })).ok).toBe(true);
+    const graph = JSON.parse((await getFlowRow(ws, flow.id))!.graph) as FlowGraph;
+    expect(graph.nodes.map((n) => n.id)).toEqual(['t', 'set']);
+    // El borrador de Bob corre como Bob (sus variables), nunca como Ana.
+    const bRun = await runFlowNow(ws, flow.id, {}, { personId: bob, admin: true }, { draft: true });
+    expect(bRun.ok && bRun.run?.steps.find((s) => s.nodeId === 'leak')?.output).toEqual({ v: 'B-value' });
+    const leaked = (await getDb().prepare("SELECT COUNT(*) AS n FROM flow_steps WHERE output LIKE '%A-SECRET-123%'").get()) as { n: number };
+    expect(Number(leaked.n)).toBe(0);
+  });
+
+  it('probar el borrador propio corre con el acceso de quien prueba, no del dueño', async () => {
     const { ws, ana, bob } = await team();
     await createVariable(ws, ana, 'who', 'ana');
     await createVariable(ws, bob, 'who', 'bob');
     const g: FlowGraph = { nodes: [T, node('a', 'data.set', { fields: [{ key: 'who', value: '{{vars.who}}' }] })] as FlowGraph['nodes'], edges: [edge('t', 'a')] };
     const flow = await newFlow(ws, ana, g);
-    // Publicado: corre como ana.
     const pubRun = await runFlowNow(ws, flow.id, {}, { personId: ana, admin: true });
     expect(pubRun.ok && pubRun.run?.steps.find((s) => s.nodeId === 'a')?.output).toEqual({ who: 'ana' });
     const g2 = { ...g, nodes: [T, node('a', 'data.set', { fields: [{ key: 'who', value: 'draft {{vars.who}}' }] })] };
-    await saveFlowDraft(ws, flow.id, g2, undefined, bob);
-    const res = await runFlowNow(ws, flow.id, {}, { personId: bob, admin: true }, { draft: true });
-    expect(res.ok).toBe(true);
+    await saveFlowDraft(ws, flow.id, g2, 0, bob);
+    const res = await runFlowNow(ws, flow.id, {}, { personId: bob, admin: true }, { draft: true, draftRev: 1 });
     const run = res.ok ? res.run : null;
-    expect(run?.status).toBe('success');
     expect(run?.steps.find((s) => s.nodeId === 'a')?.output).toEqual({ who: 'draft bob' });
     const row = (await getDb().prepare('SELECT captured_by FROM flow_runs WHERE id = ?').get(run!.id)) as Pick<FlowRunRow, 'captured_by'>;
     expect(row.captured_by).toBe(bob);
-    // El flow sigue siendo de ana y lo publicado no cambió.
     expect((await getFlowRow(ws, flow.id))?.created_by).toBe(ana);
   });
 });
@@ -170,6 +205,21 @@ describe('Flow: avalanchas y concurrencia', () => {
     expect(Number(after.n)).toBe(2);
   });
 
+  it('un flow con cientos en cola y concurrencia 1 no frena a los demás', async () => {
+    const ws = (await makeUser('fp-fair')).id;
+    const busy = await newFlow(ws, ws, { nodes: [T], edges: [] });
+    await updateFlow(ws, busy.id, { maxConcurrency: 1 }, ws);
+    await enqueueRun({ id: busy.id, user_id: ws }, 'manual', {}, { status: 'running', lockMs: 60_000 });
+    for (let i = 0; i < 250; i++) await enqueueRun({ id: busy.id, user_id: ws }, 'manual', {});
+    const other = await newFlow(ws, ws, { nodes: [T], edges: [] });
+    const otherRun = await enqueueRun({ id: other.id, user_id: ws }, 'manual', {});
+    await processFlowQueue({ limit: 200 });
+    const row = (await getDb().prepare('SELECT status FROM flow_runs WHERE id = ?').get(otherRun)) as { status: string };
+    expect(row.status).toBe('success');
+    const stillQueued = (await getDb().prepare("SELECT COUNT(*) AS n FROM flow_runs WHERE flow_id = ? AND status = 'queued'").get(busy.id)) as { n: number };
+    expect(Number(stillQueued.n)).toBe(250);
+  });
+
   it('con concurrencia 1 no toma una corrida mientras otra del flow corre', async () => {
     const ws = (await makeUser('fp-conc')).id;
     const flow = await newFlow(ws, ws, { nodes: [T], edges: [] });
@@ -187,6 +237,15 @@ describe('Flow: polling', () => {
     `<?xml version="1.0"?><rss><channel>${items
       .map((id) => `<item><title><![CDATA[Post ${id}]]></title><link>https://blog.test/${id}</link><guid>${id}</guid></item>`)
       .join('')}</channel></rss>`;
+
+  it('parsea en tiempo lineal un feed hostil de 2 MB', () => {
+    const t0 = Date.now();
+    parseFeed('<item>'.repeat(350_000));
+    parseFeed(`<rss><item><title>${'<title'.repeat(300_000)}</item></rss>`);
+    parseFeed('<entry><link '.repeat(150_000));
+    expect(Date.now() - t0).toBeLessThan(1000);
+    expect(parseFeed('<rss><item><guid>1</guid><title><![CDATA[a]]></title></item><items>x</items></rss>')).toHaveLength(1);
+  });
 
   it('parsea RSS y Atom', () => {
     expect(parseFeed(RSS(['a']))[0]).toMatchObject({ id: 'a', title: 'Post a', link: 'https://blog.test/a' });
@@ -261,11 +320,39 @@ describe('Flow: formulario hospedado', () => {
     expect(form?.fields.map((f) => f.key)).toEqual(['nombre_completo', 'email', 'plan']);
     const bad = await enqueueWebhookRun(token, { method: 'POST', body: { email: 'nope', plan: 'Gold' }, query: {}, headers: {} });
     expect(bad).toMatchObject({ ok: false, error: 'invalid_form', fields: { nombre_completo: 'required', email: 'invalid_email', plan: 'invalid_option' } });
-    const ok = await enqueueWebhookRun(token, { method: 'POST', body: { nombre_completo: 'Ada', email: 'ada@x.test', plan: 'Pro', extra: 'x' }, query: {}, headers: {} });
+    // Sin sello, o enviado al instante: no corre (bots).
+    const valid = { nombre_completo: 'Ada', email: 'ada@x.test', plan: 'Pro', extra: 'x' };
+    expect(await enqueueWebhookRun(token, { method: 'POST', body: valid, query: {}, headers: {} })).toMatchObject({ ok: false, error: 'form_check' });
+    expect(await enqueueWebhookRun(token, { method: 'POST', body: { ...valid, _ts: formStamp(token) }, query: {}, headers: {} })).toMatchObject({
+      ok: false,
+      error: 'form_check',
+    });
+    expect(checkFormStamp(token, formStamp('fh_other_token_xxxxxxxxxxxxxxx', Date.now() - 5000))).toBe('invalid');
+    const ok = await enqueueWebhookRun(token, { method: 'POST', body: { ...valid, _ts: formStamp(token, Date.now() - 5000) }, query: {}, headers: {} });
     expect(ok.ok && ok.runId).toBeTruthy();
     const run = (await getDb().prepare('SELECT input FROM flow_runs WHERE id = ?').get(ok.ok ? ok.runId : '')) as { input: string };
     expect(JSON.parse(run.input).fields).toEqual({ nombre_completo: 'Ada', email: 'ada@x.test', plan: 'Pro' });
     expect(await enqueueWebhookRun(token, { method: 'POST', body: { _hp: 'bot' }, query: {}, headers: {} })).toMatchObject({ ok: true, ignored: true });
+  });
+
+  it('limita los envíos por IP y usa su propio cupo, no el tope del workspace', async () => {
+    vi.stubEnv('RATE_LIMIT_DISABLED', 'false');
+    vi.stubEnv('FLOW_RUNS_PER_HOUR', '1');
+    const ws = (await makeUser('fp-form-ip')).id;
+    const flow = await newFlow(ws, ws, {
+      nodes: [{ id: 't', type: 'trigger.form', position: { x: 0, y: 0 }, config: { formFields: [{ label: 'Email', type: 'email', required: true }] } }],
+      edges: [],
+    });
+    await updateFlow(ws, flow.id, { enabled: true }, ws);
+    const token = (await listFlowWebhooks(ws, flow.id))[0].token;
+    const send = (ip: string) =>
+      enqueueWebhookRun(token, { method: 'POST', body: { email: 'a@x.test', _ts: formStamp(token, Date.now() - 5000) }, query: {}, headers: {} }, { body: '', signature: null, ip });
+    const ip = `198.51.100.${Math.floor(Math.random() * 200)}`;
+    const results = [];
+    for (let i = 0; i < 12; i++) results.push(await send(ip));
+    // Con FLOW_RUNS_PER_HOUR=1 igual entran 10 (cupo de formularios), y la IP se frena después.
+    expect(results.filter((r) => r.ok)).toHaveLength(10);
+    expect(results[11]).toMatchObject({ ok: false, error: 'rate_limited' });
   });
 
   it('validateFormSubmission normaliza checkbox y número', () => {
@@ -371,6 +458,10 @@ describe('Flow: IA (sin modelo real)', () => {
       headers: [{ key: 'Authorization', value: '[redacted]' }],
       apiKey: '[redacted]',
     });
+    const r = redactSecretsInText('https://api.test/x?token=abc123&q=1 Bearer sk_live_51HxYzAbCdEfGhIj key: AKIAABCDEFGHIJKLMNOP x9Fk2LmQ8rTz7VwYp3Nc5Hb1Jd hello world');
+    expect(r).not.toMatch(/abc123|sk_live|AKIAABCD|x9Fk2LmQ/);
+    expect(r).toContain('q=1');
+    expect(r).toContain('hello world');
   });
 });
 

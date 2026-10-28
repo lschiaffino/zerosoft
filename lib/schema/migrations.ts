@@ -6158,7 +6158,7 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
-    // Paridad de Flow: borrador y publicado (draft_graph; lo que corre sigue
+    // Paridad de Flow: borrador por persona (flow_drafts; lo que corre sigue
     // siendo graph), carpetas, variables por persona, protección ante
     // avalanchas (corridas retenidas: held), concurrencia por flow y
     // disparadores por polling (RSS, HTTP, filas nuevas de Sheets).
@@ -6166,10 +6166,6 @@ export const MIGRATIONS: Migration[] = [
     up: async (client) => {
       for (const col of [
         'folder_id TEXT',
-        'draft_graph TEXT',
-        'draft_by TEXT',
-        'draft_rev INTEGER NOT NULL DEFAULT 0',
-        'draft_updated_at TEXT',
         'flood_limit INTEGER NOT NULL DEFAULT 0',
         'max_concurrency INTEGER NOT NULL DEFAULT 0',
         'poll_state TEXT',
@@ -6188,6 +6184,16 @@ export const MIGRATIONS: Migration[] = [
           updated_at TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_flow_folders_user ON flow_folders(user_id, name);
+        CREATE TABLE IF NOT EXISTS flow_drafts (
+          flow_id TEXT NOT NULL REFERENCES flow_flows(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          graph TEXT NOT NULL,
+          rev INTEGER NOT NULL DEFAULT 1,
+          base_version INTEGER NOT NULL DEFAULT 1,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (flow_id, person_id)
+        );
         CREATE TABLE IF NOT EXISTS flow_variables (
           id TEXT PRIMARY KEY,
           user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

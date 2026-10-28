@@ -9,7 +9,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import type { FlowStats, GlobalRunDto } from '@/lib/flow-monitor';
 import { RUN_FILTER_STATUSES, RUN_RANGES } from '@/lib/flow-monitor-shared';
 import { parseDbUtc } from '@/lib/utils';
-import { i18nKey, RUN_BADGE } from './flow-ui';
+import { i18nKey, RUN_BADGE, stepErrorInfo } from './flow-ui';
 
 interface Props {
   flows: Array<{ id: string; name: string }>;
@@ -104,6 +104,14 @@ export default function RunsHistory({ flows, initialStats, initial }: Props) {
   const maxDay = Math.max(1, ...stats.perDay.map((d) => d.success + d.failed + d.other));
   const exportHref = (fmt: 'csv' | 'json') => `/api/flow/runs/export?format=${fmt}&${query.toString()}`;
   const filtered = Boolean(status || flowId || q.trim());
+  /** Error legible ("classify: ai_disabled" → el texto de stepErrors); el código queda en el title. */
+  const errorLabel = (raw: string | null) => {
+    if (!raw) return '';
+    const code = raw.replace(/^[A-Za-z0-9_-]+: /, '');
+    const info = stepErrorInfo(code);
+    if (info) return t(`stepErrors.${info.key}`, info.values ?? {});
+    return t.has(`errors.${code}`) ? t(`errors.${code}`) : code;
+  };
 
   return (
     <div className="ui-page flow-page">
@@ -191,7 +199,7 @@ export default function RunsHistory({ flows, initialStats, initial }: Props) {
                     onClick={() => setStatus(k)}
                     aria-label={`${t(`history.status.${k}`)}: ${stats.queue[k]}`}
                   >
-                    <span className={`badge ${RUN_BADGE[k] ?? ''}`}>{t(`history.status.${k}`)}</span> {stats.queue[k]}
+                    <span className={`flow-dot is-q-${k}`} aria-hidden="true" /> {t(`history.status.${k}`)} <strong className="data">{stats.queue[k]}</strong>
                   </button>
                 </li>
               ))}
@@ -202,8 +210,8 @@ export default function RunsHistory({ flows, initialStats, initial }: Props) {
                 <ul className="flow-errors-list">
                   {stats.topErrors.map((e) => (
                     <li key={e.error}>
-                      <button type="button" className="flow-link data" onClick={() => setQ(e.error)}>
-                        {e.error}
+                      <button type="button" className="flow-link" title={e.error} onClick={() => setQ(e.error)}>
+                        {errorLabel(e.error)}
                       </button>{' '}
                       <span className="flow-muted">× {e.count}</span>
                     </li>
@@ -358,7 +366,11 @@ export default function RunsHistory({ flows, initialStats, initial }: Props) {
                   key: 'error',
                   header: t('history.error'),
                   data: true,
-                  cell: (r) => <span className="flow-ellipsis flow-error-cell">{r.error ?? ''}</span>,
+                  cell: (r) => (
+                    <span className="flow-ellipsis flow-error-cell" title={r.error ?? undefined}>
+                      {errorLabel(r.error)}
+                    </span>
+                  ),
                 },
               ]}
             />

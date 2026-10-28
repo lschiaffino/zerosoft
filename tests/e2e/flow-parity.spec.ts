@@ -93,7 +93,7 @@ test('Flow: autoguardado como borrador, notas, copiar y pegar, publicar con auto
   await expect(page.locator('.flow-note-card')).toContainText('Explains the flow');
   // Se guarda solo como borrador.
   await expect(page.getByRole('status').filter({ hasText: 'Draft saved' })).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText(/Unpublished changes/)).toBeVisible();
+  await expect(page.getByText(/unpublished changes/i)).toBeVisible();
 
   // Copiar y pegar un paso (Cmd/Ctrl+C, Cmd/Ctrl+V).
   await page.locator('.react-flow__node').filter({ hasText: 'Explains the flow' }).click();
@@ -113,7 +113,7 @@ test('Flow: autoguardado como borrador, notas, copiar y pegar, publicar con auto
   // Publicar: versión nueva con autor, sin borrador.
   await page.getByRole('button', { name: 'Publish' }).click();
   await expect(page.getByRole('status').filter({ hasText: /Published\. Now at version/ })).toBeVisible();
-  await expect(page.getByText(/Unpublished changes/)).toBeHidden();
+  await expect(page.getByText(/unpublished changes/i)).toBeHidden();
   await page.getByRole('tab', { name: 'Versions' }).click();
   await expect(page.locator('.flow-version').first()).toContainText(/by /);
 });
@@ -163,11 +163,17 @@ test('Flow: formulario hospedado valida y corre el flow', async ({ page }) => {
   const { webhooks } = (await (await page.request.get(`/api/flow/flows/${id}`)).json()) as { webhooks: Array<{ token: string }> };
   await page.goto(`/en/flow/form/${webhooks[0].token}`);
   await expect(page.getByRole('heading', { name: 'Contact us' })).toBeVisible();
+  // Página sola: sin el header del sitio.
+  await expect(page.getByRole('link', { name: 'zerosoft home' })).toHaveCount(0);
+  // CAPTCHA_FAKE: el widget de prueba (sin marcarlo no se puede enviar).
+  await expect(page.getByRole('button', { name: 'Send' })).toBeDisabled();
+  await page.getByLabel("I'm not a robot").check();
   await page.getByRole('button', { name: 'Send' }).click();
   await expect(page.getByText('This field is required.').first()).toBeVisible();
   await expect(page.getByLabel('Name *')).toBeFocused();
   await page.getByLabel('Name *').fill('Ada');
   await page.getByLabel('Email *').fill('ada@example.com');
+  await page.waitForTimeout(2100);
   await page.getByRole('button', { name: 'Send' }).click();
   await expect(page.getByText('Thanks! We got your answer.')).toBeVisible();
   const runs = (await (await page.request.get(`/api/flow/flows/${id}/runs`)).json()) as { runs: Array<{ triggerType: string }> };

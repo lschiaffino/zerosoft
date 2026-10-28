@@ -16,7 +16,7 @@ import {
   type FlowGraph,
   type FlowNode,
 } from './flow-schema';
-import { allowRun, enqueueRun, getFlowRow, getRunWithSteps, lastOutputs, parseJson, toFlowDto, type FlowRunViewer } from './flow';
+import { allowRun, enqueueRun, getFlowDraft, getFlowRow, getRunWithSteps, lastOutputs, parseJson, toFlowDto, type FlowRunViewer } from './flow';
 import { executeRun, testFlowStep, type StepTestResult } from './flow-engine';
 
 export function flowError(status: number, error: string, extra: Record<string, unknown> = {}): NextResponse {
@@ -102,12 +102,15 @@ export async function runFlowNow(
   flowId: string,
   input: Record<string, unknown> | undefined,
   viewer?: FlowRunViewer,
-  opts: { draft?: boolean } = {},
+  opts: { draft?: boolean; draftRev?: number } = {},
 ) {
   const row = await getFlowRow(workspaceId, flowId);
   if (!row) return { ok: false as const, error: 'not_found' };
-  const draft = opts.draft && row.draft_graph ? parseJson<FlowGraph>(row.draft_graph, { nodes: [], edges: [] }) : null;
-  if (draft && !viewer) return { ok: false as const, error: 'forbidden' };
+  if (opts.draft && !viewer) return { ok: false as const, error: 'forbidden' };
+  // Solo el borrador propio, y el que se ve en el editor (revisión igual).
+  const own = opts.draft && viewer ? await getFlowDraft(flowId, viewer.personId) : null;
+  if (opts.draft && (!own || (opts.draftRev !== undefined && opts.draftRev !== own.rev))) return { ok: false as const, error: 'conflict' };
+  const draft = own?.graph ?? null;
   const graph = draft ?? parseJson<FlowGraph>(row.graph, { nodes: [], edges: [] });
   const runInput = testInput(graph, input);
   const runId = await enqueueRun(row, 'manual', runInput, {

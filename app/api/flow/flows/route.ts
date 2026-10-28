@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  return NextResponse.json({ flows: await listFlows(user.id), canEdit: canEditFlows(user) });
+  return NextResponse.json({ flows: await listFlows(user.id, realUserId(user)), canEdit: canEditFlows(user) });
 }
 
 /** Crea un flow (vacío, con grafo propio o desde una plantilla). Solo admins. */
@@ -24,8 +24,9 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return flowError(400, 'invalid_input');
   let graph = parsed.data.graph ?? templateGraph(parsed.data.template);
   if (parsed.data.template && !graph) return flowError(400, 'unknown_template');
-  // Importado: las referencias de otro workspace (credenciales, tablas, flows…) quedan vacías.
-  if (parsed.data.imported && graph !== undefined) {
+  // Grafo que viene del cliente (importado, duplicado, armado a mano): las
+  // referencias que no existen en este workspace (credenciales, tablas, flows…) quedan vacías.
+  if (parsed.data.graph !== undefined) {
     const v = validateGraph(graph);
     if (!v.ok) return flowError(400, v.error, { nodeId: v.nodeId });
     graph = await sanitizeImportedGraph(user.id, v.graph);

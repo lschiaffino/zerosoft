@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
+import { Captcha } from '@/components/ui/TurnstileCaptcha';
 import type { FormFieldDef } from '@/lib/flow-schema';
 
 interface Props {
@@ -9,16 +10,21 @@ interface Props {
   fields: FormFieldDef[];
   submitLabel: string;
   successMessage: string;
+  /** Sello firmado de cuándo se abrió (tiempo mínimo de llenado). */
+  stamp: string;
+  /** Turnstile si la instancia lo tiene ("fake" en tests). */
+  captchaSiteKey: string | null;
 }
 
 /** Formulario público de un flow: valida en el server y muestra el error de cada campo. */
-export default function HostedForm({ token, fields, submitLabel, successMessage }: Props) {
+export default function HostedForm({ token, fields, submitLabel, successMessage, stamp, captchaSiteKey }: Props) {
   const t = useTranslations('flow.formPage');
   const [values, setValues] = useState<Record<string, string | boolean>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const [captcha, setCaptcha] = useState('');
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -29,7 +35,7 @@ export default function HostedForm({ token, fields, submitLabel, successMessage 
     const res = await fetch(`/api/flow/hooks/${encodeURIComponent(token)}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ ...values, _hp: hp }),
+      body: JSON.stringify({ ...values, _hp: hp, _ts: stamp, ...(captchaSiteKey ? { _captcha: captcha } : {}) }),
     }).catch(() => null);
     setBusy(false);
     if (res?.ok) {
@@ -43,7 +49,15 @@ export default function HostedForm({ token, fields, submitLabel, successMessage 
       if (first) document.getElementById(`ff-${first}`)?.focus();
       return;
     }
-    setError(data?.error === 'rate_limited' ? t('errors.rate_limited') : data?.error === 'not_found' ? t('closed') : t('errors.generic'));
+    setError(
+      data?.error === 'rate_limited'
+        ? t('errors.rate_limited')
+        : data?.error === 'form_check'
+          ? t('errors.form_check')
+          : data?.error === 'not_found'
+            ? t('closed')
+            : t('errors.generic'),
+    );
   }
 
   if (sent) {
@@ -126,13 +140,14 @@ export default function HostedForm({ token, fields, submitLabel, successMessage 
       })}
       {/* Campo trampa para bots: fuera de la vista y del teclado. */}
       <input type="text" name="_hp" tabIndex={-1} autoComplete="off" aria-hidden="true" className="sr-only" defaultValue="" />
+      {captchaSiteKey && <Captcha siteKey={captchaSiteKey} label={t('captcha')} onToken={setCaptcha} />}
       {error && (
         <p className="ui-error" role="alert">
           {error}
         </p>
       )}
       <div className="fa-actions">
-        <button type="submit" className="btn btn-primary" aria-busy={busy || undefined} disabled={busy}>
+        <button type="submit" className="btn btn-primary" aria-busy={busy || undefined} disabled={busy || (Boolean(captchaSiteKey) && !captcha)}>
           {submitLabel || t('submit')}
         </button>
       </div>

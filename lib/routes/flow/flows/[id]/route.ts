@@ -34,7 +34,8 @@ export async function PATCH(req: NextRequest, props: Ctx) {
   const parsed = flowUpdateSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return flowError(400, 'invalid_input');
   const { draft, draftRev, publish, ...patch } = parsed.data;
-  // Autoguardado: el borrador no cambia lo que corre ni de quién es el flow.
+  // Autoguardado: el borrador (de quien edita) no cambia lo que corre ni de quién es el flow.
+  let rev = draftRev;
   if (draft !== undefined) {
     const d = await saveFlowDraft(user.id, id, draft, draftRev, realUserId(user));
     if (!d.ok) {
@@ -42,10 +43,12 @@ export async function PATCH(req: NextRequest, props: Ctx) {
       if (d.error === 'conflict') return flowError(409, 'conflict');
       return flowError(400, d.error, { nodeId: d.nodeId });
     }
+    rev = d.flow.draftRev;
   }
   // Publicar: el borrador pasa a correr (quien publica queda como dueño si cambió el grafo).
   if (publish) {
-    const p = await publishFlowDraft(user.id, id, realUserId(user), { rev: draft === undefined ? draftRev : undefined, version: patch.version });
+    // Se publica el borrador propio y solo si es la revisión que se ve en el editor.
+    const p = await publishFlowDraft(user.id, id, realUserId(user), { rev, version: patch.version });
     if (!p.ok) {
       if (p.error === 'not_found') return notFound();
       if (p.error === 'conflict') return flowError(409, 'conflict');

@@ -1671,10 +1671,6 @@ export interface FlowFlowRow {
   failure_email_at?: string | null; // último aviso de falla (tope: uno por hora)
   pinned_data?: string; // JSON { nodeId: salida fijada } para probar un paso solo
   folder_id?: string | null; // carpeta (flow_folders)
-  draft_graph?: string | null; // borrador sin publicar (JSON FlowGraph); lo que corre es graph
-  draft_by?: string | null; // última persona que editó el borrador
-  draft_rev?: number; // bloqueo optimista del borrador (autoguardado)
-  draft_updated_at?: string | null;
   flood_limit?: number; // corridas automáticas por 10 minutos antes de retener (0 = sin límite propio)
   max_concurrency?: number; // corridas a la vez (0 = sin límite)
   poll_state?: string | null; // JSON { seen: string[], initialized, count, lastError } del trigger.poll

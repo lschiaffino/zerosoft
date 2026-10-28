@@ -301,7 +301,13 @@ function Editor({
   const [folderId, setFolderId] = useState(initialFlow.folderId ?? '');
   const [floodLimit, setFloodLimit] = useState(initialFlow.floodLimit);
   const [maxConcurrency, setMaxConcurrency] = useState(initialFlow.maxConcurrency);
-  const [draftRev, setDraftRev] = useState(initialFlow.draftRev);
+  const [, setDraftRev] = useState(initialFlow.draftRev);
+  // Revisión del borrador propio que se ve: Publicar y Probar la mandan (409 si en la base hay otra).
+  const draftRevRef = useRef(initialFlow.draftRev);
+  const setRev = useCallback((n: number) => {
+    draftRevRef.current = n;
+    setDraftRev(n);
+  }, []);
   const [moreOpen, setMoreOpen] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
@@ -521,7 +527,7 @@ function Editor({
           name,
           description,
           draft: graph,
-          draftRev,
+          draftRev: draftRevRef.current,
           version: flow.version,
           errorFlowId: errorFlowId || null,
           failureAlerts,
@@ -543,7 +549,7 @@ function Editor({
         return false;
       }
       setFlow(data.flow);
-      setDraftRev(data.flow.draftRev);
+      setRev(data.flow.draftRev);
       hasDraftRef.current = Boolean(data.flow.draft);
       setWebhooks(data.webhooks ?? []);
       if (changeSeq.current === seq) setDirty(false);
@@ -554,7 +560,7 @@ function Editor({
     const ok = await run;
     savingRef.current = null;
     return ok;
-  }, [readOnly, flow.id, flow.version, name, description, graph, draftRev, errorFlowId, failureAlerts, autoReplay, folderId, floodLimit, maxConcurrency, t]);
+  }, [readOnly, flow.id, flow.version, name, description, graph, errorFlowId, failureAlerts, autoReplay, folderId, floodLimit, maxConcurrency, setRev, t]);
 
   // Autoguardado: un rato después del último cambio (solo el borrador; publicar es aparte).
   useEffect(() => {
@@ -572,7 +578,7 @@ function Editor({
     const res = await fetch(`/api/flow/flows/${flow.id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ publish: true }),
+      body: JSON.stringify({ publish: true, draftRev: draftRevRef.current }),
     }).catch(() => null);
     const data = (await res?.json().catch(() => null)) as
       | { flow?: FlowDto; webhooks?: Props['webhooks']; error?: string; nodeId?: string }
@@ -586,10 +592,10 @@ function Editor({
       return;
     }
     setFlow(data.flow);
-    setDraftRev(data.flow.draftRev);
+    setRev(data.flow.draftRev);
     setWebhooks(data.webhooks ?? []);
     setMessage({ kind: 'ok', text: t('draft.published', { n: data.flow.version }) });
-  }, [readOnly, dirty, save, flow.id, t]);
+  }, [readOnly, dirty, save, flow.id, setRev, t]);
 
   /** Descarta el borrador: el canvas vuelve a lo publicado. */
   const discardDraft = useCallback(async () => {
@@ -608,13 +614,13 @@ function Editor({
     setNodes(canvas.nodes);
     setEdges(canvas.edges);
     setFlow(data.flow);
-    setDraftRev(data.flow.draftRev);
+    setRev(data.flow.draftRev);
     setWebhooks(data.webhooks ?? []);
     setSelectedId(null);
     changeSeq.current += 1;
     setDirty(false);
     setMessage({ kind: 'ok', text: t('draft.discarded') });
-  }, [flow.id, setNodes, setEdges, t]);
+  }, [flow.id, setNodes, setEdges, setRev, t]);
 
   /** Restaurar una versión: el canvas toma el grafo restaurado. */
   const onRestored = useCallback(
@@ -623,7 +629,7 @@ function Editor({
       setNodes(canvas.nodes);
       setEdges(canvas.edges);
       setFlow(next);
-      setDraftRev(next.draftRev);
+      setRev(next.draftRev);
       setWebhooks(hooks);
       setSelectedId(null);
       changeSeq.current += 1;
@@ -631,7 +637,7 @@ function Editor({
       setTab('editor');
       setMessage({ kind: 'ok', text: t('versions.restored', { n: next.version }) });
     },
-    [setNodes, setEdges, t],
+    [setNodes, setEdges, setRev, t],
   );
 
   // Prender o apagar no publica el borrador: corre lo publicado.
@@ -826,7 +832,7 @@ function Editor({
     const res = await fetch(`/api/flow/flows/${flow.id}/run`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ input: input && typeof input === 'object' && !Array.isArray(input) ? input : {}, draft: hasDraftRef.current }),
+      body: JSON.stringify({ input: input && typeof input === 'object' && !Array.isArray(input) ? input : {}, draft: hasDraftRef.current, draftRev: draftRevRef.current }),
     }).catch(() => null);
     const data = (await res?.json().catch(() => null)) as { run?: RunDetail; error?: string } | null;
     setRunning(false);
@@ -959,6 +965,11 @@ function Editor({
             </>
           ) : (
             <p className="ui-help">{t('editor.webhookSaveFirst')}</p>
+          )}
+          {hasDraft && (
+            <p className="flow-note" role="note">
+              {t('form.publishFirst')}
+            </p>
           )}
           <p className="ui-help">{flow.enabled ? t('form.hint') : t('form.offHint')}</p>
         </div>
@@ -1133,7 +1144,10 @@ function Editor({
         </div>
         {hasDraft && canEdit && (
           <div className="flow-draft-bar" role="note">
-            <span>{t('draft.banner', { n: flow.version })}</span>
+            <span>
+              {t('draft.banner', { n: flow.version })}
+              {flow.draft && flow.draft.baseVersion !== flow.version ? ` ${t('draft.stale', { n: flow.draft.baseVersion })}` : ''}
+            </span>
             <button type="button" className="flow-link" onClick={() => setConfirmDiscard(true)}>
               {t('draft.discard')}
             </button>

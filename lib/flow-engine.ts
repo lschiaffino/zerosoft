@@ -71,7 +71,7 @@ import {
   resumeUrl,
 } from './flow-waits';
 import { rateLimit } from './rate-limit';
-import { safeFetch, UnsafeUrlError } from './safe-fetch';
+import { readTextCapped, safeFetch, UnsafeUrlError } from './safe-fetch';
 
 export const MAX_STEPS = 200;
 export const MAX_LOOP_ITEMS = 100;
@@ -300,7 +300,7 @@ async function httpNode(state: RunState, cfg: Record<string, unknown>, tctx: Rec
       if (err instanceof UnsafeUrlError) throw new StepError(err.message);
       throw new StepError(err instanceof Error && err.name === 'TimeoutError' ? 'timeout' : 'network_error', true);
     }
-    const text = (await res.text().catch(() => '')).slice(0, HTTP_BODY_LIMIT);
+    const text = await readTextCapped(res, HTTP_BODY_LIMIT).catch(() => '');
     let parsed: unknown = text;
     if (cfg.parseJson !== false && text) {
       try {

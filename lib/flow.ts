@@ -55,9 +55,9 @@ export interface FlowDto {
   pins: Record<string, unknown>;
   /** Carpeta del flow (null = sin carpeta). */
   folderId: string | null;
-  /** Cambios sin publicar: lo que corre sigue siendo `graph` hasta publicar. */
+  /** Borrador de quien mira (cada persona tiene el suyo): lo que corre sigue siendo `graph` hasta publicar. */
   draft: FlowDraftDto | null;
-  /** Revisión del borrador (bloqueo optimista del autoguardado), aunque no haya borrador. */
+  /** Revisión del borrador de quien mira (bloqueo optimista del autoguardado); 0 sin borrador. */
   draftRev: number;
   /** Corridas automáticas por 10 minutos antes de retenerlas (0 = sin límite propio). */
   floodLimit: number;
@@ -70,11 +70,13 @@ export interface FlowDto {
   updatedAt: string;
 }
 
+/** Borrador de UNA persona (cada quien edita el suyo; ver saveFlowDraft). */
 export interface FlowDraftDto {
   graph: FlowGraph;
   rev: number;
   updatedAt: string | null;
-  updatedBy: string | null;
+  /** Versión publicada sobre la que se empezó (si cambió, otra persona publicó mientras tanto). */
+  baseVersion: number;
 }
 
 export interface FlowListItem extends FlowDto {
@@ -159,10 +161,8 @@ export function toFlowDto(row: FlowFlowRow, viewerId?: string | null): FlowDto {
     autoReplay: row.auto_replay === 1,
     pins: viewerId === undefined || (viewerId !== null && viewerId === row.created_by) ? parsePins(row.pinned_data) : {},
     folderId: row.folder_id ?? null,
-    draft: row.draft_graph
-      ? { graph: parseGraph(row.draft_graph), rev: row.draft_rev ?? 0, updatedAt: row.draft_updated_at ?? null, updatedBy: row.draft_by ?? null }
-      : null,
-    draftRev: row.draft_rev ?? 0,
+    draft: null,
+    draftRev: 0,
     floodLimit: row.flood_limit ?? 0,
     maxConcurrency: row.max_concurrency ?? 0,
     poll: row.trigger_type === 'trigger.poll' ? pollStatus(row.poll_state) : null,
@@ -271,9 +271,11 @@ function triggerFields(graph: FlowGraph, enabled: boolean, from = new Date()) {
  * los de nodos que siguen. Una URL de un nodo que solo está en el borrador no
  * corre nada: enqueueWebhookRun exige que sea el trigger publicado.
  */
-async function syncWebhooks(workspaceId: string, flowId: string, graph: FlowGraph, draft?: FlowGraph | null): Promise<void> {
+async function syncWebhooks(workspaceId: string, flowId: string, graph: FlowGraph): Promise<void> {
   const db = getDb();
-  const nodeIds = [...new Set([...graph.nodes, ...(draft?.nodes ?? [])].filter((n) => isHookTrigger(n.type)).map((n) => n.id))];
+  const drafts = (await db.prepare('SELECT graph FROM flow_drafts WHERE flow_id = ?').all(flowId)) as Array<{ graph: string }>;
+  const all = [...graph.nodes, ...drafts.flatMap((d) => parseGraph(d.graph).nodes)];
+  const nodeIds = [...new Set(all.filter((n) => isHookTrigger(n.type)).map((n) => n.id))];
   const existing = (await db
     .prepare('SELECT node_id FROM flow_webhooks WHERE flow_id = ?')
     .all(flowId)) as Array<{ node_id: string }>;
@@ -302,7 +304,28 @@ export async function listFlowWebhooks(
   return rows.map((r) => ({ nodeId: r.node_id, token: r.token }));
 }
 
-export async function listFlows(workspaceId: string): Promise<FlowListItem[]> {
+interface FlowDraftRow {
+  flow_id: string;
+  person_id: string;
+  graph: string;
+  rev: number;
+  base_version: number;
+  updated_at: string;
+}
+
+function toDraftDto(r: FlowDraftRow): FlowDraftDto {
+  return { graph: parseGraph(r.graph), rev: r.rev, updatedAt: r.updated_at, baseVersion: r.base_version };
+}
+
+/** Borrador de una persona en un flow (null si no tiene). */
+export async function getFlowDraft(flowId: string, personId: string): Promise<FlowDraftDto | null> {
+  const r = (await getDb().prepare('SELECT * FROM flow_drafts WHERE flow_id = ? AND person_id = ?').get(flowId, personId)) as
+    | FlowDraftRow
+    | undefined;
+  return r ? toDraftDto(r) : null;
+}
+
+export async function listFlows(workspaceId: string, viewerId?: string | null): Promise<FlowListItem[]> {
   const rows = (await getDb()
     .prepare('SELECT * FROM flow_flows WHERE user_id = ? ORDER BY updated_at DESC')
     .all(workspaceId)) as FlowFlowRow[];
@@ -321,10 +344,18 @@ export async function listFlows(workspaceId: string): Promise<FlowListItem[]> {
     )
     .all(workspaceId)) as Array<{ flow_id: string; n: number }>;
   const heldBy = new Map(held.map((h) => [h.flow_id, Number(h.n)]));
+  const drafts = viewerId
+    ? ((await getDb()
+        .prepare('SELECT d.* FROM flow_drafts d JOIN flow_flows f ON f.id = d.flow_id WHERE f.user_id = ? AND d.person_id = ?')
+        .all(workspaceId, viewerId)) as FlowDraftRow[])
+    : [];
+  const draftBy = new Map(drafts.map((d) => [d.flow_id, d]));
   return rows.map((row) => {
     const last = lastBy.get(row.id);
+    const d = draftBy.get(row.id);
     return {
       ...toFlowDto(row, null),
+      ...(d ? { draft: toDraftDto(d), draftRev: d.rev } : {}),
       lastRun: last ? { id: last.id, status: last.status, createdAt: last.created_at } : null,
       heldCount: heldBy.get(row.id) ?? 0,
     };
@@ -339,7 +370,10 @@ export async function getFlowRow(workspaceId: string, id: string): Promise<FlowF
 
 export async function getFlow(workspaceId: string, id: string, viewerId?: string | null): Promise<FlowDto | null> {
   const row = await getFlowRow(workspaceId, id);
-  return row ? toFlowDto(row, viewerId) : null;
+  if (!row) return null;
+  const dto = toFlowDto(row, viewerId);
+  const draft = viewerId ? await getFlowDraft(id, viewerId) : null;
+  return draft ? { ...dto, draft, draftRev: draft.rev } : dto;
 }
 
 export type FlowWriteResult =
@@ -547,14 +581,12 @@ export async function updateFlow(
     tf.type === 'trigger.poll' && oldTrigger?.type === 'trigger.poll' && sameJson(oldTrigger.config ?? {}, newTrigger?.config ?? {});
   const nextPoll = tf.type !== 'trigger.poll' || !enabled ? null : samePoll && row.next_poll_at ? row.next_poll_at : tf.nextPoll;
   const pollState = samePoll ? (row.poll_state ?? null) : null;
-  // Publicar un grafo (o restaurar una versión) descarta el borrador.
-  const clearDraft = patch.graph !== undefined;
   const res = await getDb()
     .prepare(
       `UPDATE flow_flows SET name = ?, description = ?, enabled = ?, graph = ?, version = version + 1,
          trigger_type = ?, trigger_event = ?, next_run_at = ?, error_flow_id = ?, failure_alerts = ?, auto_replay = ?,
          created_by = ?, pinned_data = ?, updated_at = ?, folder_id = ?, flood_limit = ?, max_concurrency = ?,
-         next_poll_at = ?, poll_state = ?${clearDraft ? ', draft_graph = NULL, draft_by = NULL, draft_updated_at = NULL, draft_rev = draft_rev + 1' : ''}
+         next_poll_at = ?, poll_state = ?
        WHERE id = ? AND user_id = ? AND version = ?`,
     )
     .run(
@@ -581,6 +613,10 @@ export async function updateFlow(
       row.version,
     );
   if (res.changes === 0) return { ok: false, error: 'conflict' };
+  // Publicar un grafo (o restaurar una versión) descarta el borrador de quien lo hizo.
+  if (patch.graph !== undefined && actorId) {
+    await getDb().prepare('DELETE FROM flow_drafts WHERE flow_id = ? AND person_id = ?').run(id, actorId);
+  }
   if (patch.graph !== undefined) await syncWebhooks(workspaceId, id, graph);
   if (graphChanged) {
     await snapshotVersion(workspaceId, id, row.version + 1, patch.name?.trim() || row.name, graph, actorId);
@@ -595,54 +631,74 @@ export type DraftResult =
   | { ok: false; error: GraphErrorCode | 'not_found' | 'conflict' | 'no_draft'; nodeId?: string };
 
 /**
- * Guarda el borrador (autoguardado del editor). Lo que corre sigue siendo el
- * grafo publicado: el borrador no cambia de quién es el flow (eso pasa al
- * publicar). `rev` es el bloqueo optimista (dos pestañas no se pisan). Un
- * borrador igual a lo publicado, o null, lo descarta.
+ * Guarda el borrador de UNA persona (autoguardado del editor). Cada quien
+ * edita el suyo, como en Zapier: lo que otra persona escribe nunca termina
+ * publicado ni probado con tu acceso. Lo que corre sigue siendo el grafo
+ * publicado. `rev` es el bloqueo optimista de ese borrador (dos pestañas de
+ * la misma persona no se pisan; 0 = todavía no tiene). Un borrador igual a lo
+ * publicado, o null, lo descarta.
  */
 export async function saveFlowDraft(
   workspaceId: string,
   id: string,
   graphInput: unknown | null,
   rev: number | undefined,
-  actorId: string | null,
+  personId: string,
 ): Promise<DraftResult> {
   const row = await getFlowRow(workspaceId, id);
   if (!row) return { ok: false, error: 'not_found' };
-  if (rev !== undefined && rev !== (row.draft_rev ?? 0)) return { ok: false, error: 'conflict' };
+  const db = getDb();
+  const current = (await db.prepare('SELECT * FROM flow_drafts WHERE flow_id = ? AND person_id = ?').get(id, personId)) as
+    | FlowDraftRow
+    | undefined;
+  const have = current?.rev ?? 0;
+  if (rev !== undefined && rev !== have) return { ok: false, error: 'conflict' };
   let draft: FlowGraph | null = null;
   if (graphInput !== null) {
     const v = validateGraph(graphInput);
     if (!v.ok) return v;
     draft = sameJson(v.graph, parseGraph(row.graph)) ? null : v.graph;
   }
-  const res = await getDb()
-    .prepare(
-      `UPDATE flow_flows SET draft_graph = ?, draft_by = ?, draft_updated_at = ?, draft_rev = draft_rev + 1
-       WHERE id = ? AND user_id = ? AND draft_rev = ?`,
-    )
-    .run(draft ? JSON.stringify(draft) : null, draft ? actorId : null, draft ? nowIso() : null, id, workspaceId, row.draft_rev ?? 0);
-  if (res.changes === 0) return { ok: false, error: 'conflict' };
-  await syncWebhooks(workspaceId, id, parseGraph(row.graph), draft);
-  return { ok: true, flow: (await getFlow(workspaceId, id, actorId ?? undefined))! };
+  if (!draft) {
+    if (current) {
+      const del = await db.prepare('DELETE FROM flow_drafts WHERE flow_id = ? AND person_id = ? AND rev = ?').run(id, personId, have);
+      if (del.changes === 0) return { ok: false, error: 'conflict' };
+    }
+  } else if (!current) {
+    const ins = await db
+      .prepare(
+        `INSERT OR IGNORE INTO flow_drafts (flow_id, person_id, user_id, graph, rev, base_version, updated_at)
+         VALUES (?, ?, ?, ?, 1, ?, ?)`,
+      )
+      .run(id, personId, workspaceId, JSON.stringify(draft), row.version, nowIso());
+    if (ins.changes === 0) return { ok: false, error: 'conflict' };
+  } else {
+    const up = await db
+      .prepare('UPDATE flow_drafts SET graph = ?, rev = rev + 1, updated_at = ? WHERE flow_id = ? AND person_id = ? AND rev = ?')
+      .run(JSON.stringify(draft), nowIso(), id, personId, have);
+    if (up.changes === 0) return { ok: false, error: 'conflict' };
+  }
+  await syncWebhooks(workspaceId, id, parseGraph(row.graph));
+  return { ok: true, flow: (await getFlow(workspaceId, id, personId))! };
 }
 
 /**
- * Publica el borrador: pasa a ser el grafo que corre (versión nueva). Como
- * cualquier cambio de grafo, quien publica pasa a ser el dueño del flow si
- * los nodos cambiaron (ver updateFlow).
+ * Publica el borrador PROPIO: pasa a ser el grafo que corre (versión nueva) y
+ * quien publica queda como dueño (ver updateFlow). `rev` tiene que ser la
+ * revisión que se ve en el editor (si no, 409: se publicaría otra cosa).
  */
 export async function publishFlowDraft(
   workspaceId: string,
   id: string,
-  actorId: string | null,
+  personId: string,
   opts: { rev?: number; version?: number } = {},
 ): Promise<FlowWriteResult> {
   const row = await getFlowRow(workspaceId, id);
   if (!row) return { ok: false, error: 'not_found' };
-  if (!row.draft_graph) return { ok: false, error: 'no_draft' };
-  if (opts.rev !== undefined && opts.rev !== (row.draft_rev ?? 0)) return { ok: false, error: 'conflict' };
-  return updateFlow(workspaceId, id, { graph: parseGraph(row.draft_graph), version: opts.version ?? row.version }, actorId);
+  const draft = await getFlowDraft(id, personId);
+  if (!draft) return { ok: false, error: 'no_draft' };
+  if (opts.rev === undefined || opts.rev !== draft.rev) return { ok: false, error: 'conflict' };
+  return updateFlow(workspaceId, id, { graph: draft.graph, version: opts.version ?? row.version }, personId);
 }
 
 // ---------- Datos de prueba fijados ----------
@@ -821,6 +877,47 @@ export interface EnqueueOptions {
    * el flow: "Probar flow" sobre un borrador corre como quien lo prueba.
    */
   capturedBy?: string;
+  /** Cupo propio en lugar del tope de corridas del workspace (formularios públicos). */
+  quota?: { key: string; limit: number };
+}
+
+/** Techo de corridas retenidas por flow (no consumen el tope del workspace). */
+export const MAX_HELD_RUNS = 1_000;
+
+/** Corridas por hora que pueden arrancar los formularios públicos de un workspace (aparte del tope general). */
+export function formRunsPerHour(): number {
+  const n = Number(process.env.FLOW_FORM_RUNS_PER_HOUR);
+  return Number.isFinite(n) && n > 0 ? n : 500;
+}
+
+/** Envíos por minuto de una misma IP a un formulario, y a todos. */
+const FORM_PER_IP_PER_TOKEN = 10;
+const FORM_PER_IP = 30;
+
+/** Tiempo mínimo entre abrir el formulario y enviarlo (un bot lo manda al instante). */
+export function formMinFillMs(): number {
+  const n = Number(process.env.FLOW_FORM_MIN_FILL_MS);
+  return Number.isFinite(n) && n >= 0 ? n : 2000;
+}
+
+function formSecret(): string {
+  return process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || 'zerosoft-dev-form-secret';
+}
+
+/** Sello del formulario: cuándo se abrió, firmado (el envío lo devuelve en _ts). */
+export function formStamp(token: string, now = Date.now()): string {
+  const sig = createHash('sha256').update(`${formSecret()}.${token}.${now}`).digest('base64url').slice(0, 32);
+  return `${now}.${sig}`;
+}
+
+/** ¿El sello es de este formulario, tiene al menos el tiempo mínimo y menos de un día? */
+export function checkFormStamp(token: string, stamp: unknown, now = Date.now()): 'ok' | 'too_fast' | 'invalid' {
+  const m = /^(\d{10,16})\.([A-Za-z0-9_-]{32})$/.exec(typeof stamp === 'string' ? stamp : '');
+  if (!m) return 'invalid';
+  const at = Number(m[1]);
+  if (!sameSecret(formStamp(token, at), stamp as string)) return 'invalid';
+  if (now - at > 86_400_000 || at > now + 60_000) return 'invalid';
+  return now - at < formMinFillMs() ? 'too_fast' : 'ok';
 }
 
 /** Ventana de la protección ante avalanchas (Zapier: 10 minutos). */
@@ -865,11 +962,20 @@ export async function enqueueRun(
   input: unknown,
   opts: EnqueueOptions = {},
 ): Promise<string | null> {
-  if (!(await allowRun(flow.user_id))) return null;
+  const held = opts.automatic ? await overFloodLimit(flow.id) : false;
+  if (held) {
+    // Retenida: no consume el tope del workspace (no corre), pero hay un techo por flow.
+    const n = (await getDb()
+      .prepare("SELECT COUNT(*) AS n FROM flow_runs WHERE flow_id = ? AND held = 1 AND status = 'queued'")
+      .get(flow.id)) as { n: number };
+    if (Number(n.n) >= MAX_HELD_RUNS) return null;
+  } else if (opts.quota) {
+    // Cupo propio (formularios públicos): no se come el tope del workspace.
+    if (process.env.RATE_LIMIT_DISABLED !== 'true' && !(await rateLimit(opts.quota.key, opts.quota.limit, 3600)).ok) return null;
+  } else if (!(await allowRun(flow.user_id))) return null;
   const id = crypto.randomUUID();
   const ts = nowIso();
   const chain = opts.chain ?? { depth: 0, seen: [] };
-  const held = opts.automatic ? await overFloodLimit(flow.id) : false;
   // Retenida: queda en cola sin correr (y sin tomar la corrida en el momento).
   const status = held ? 'queued' : (opts.status ?? 'queued');
   await getDb()
@@ -1074,7 +1180,7 @@ export type WebhookRunResult =
   | { ok: true; runId: string | null; ignored?: boolean; respond?: 'immediately' | 'reply_node' }
   | {
       ok: false;
-      error: 'not_found' | 'disabled' | 'rate_limited' | 'invalid_signature' | 'method_not_allowed' | 'unauthorized' | 'invalid_form';
+      error: 'not_found' | 'disabled' | 'rate_limited' | 'invalid_signature' | 'method_not_allowed' | 'unauthorized' | 'invalid_form' | 'form_check';
       /** unauthorized con usuario y contraseña: el route pide credenciales (WWW-Authenticate). */
       basic?: boolean;
       /** invalid_form: qué campo falló y por qué (required, invalid_email, invalid_number, invalid_option, too_long). */
@@ -1129,6 +1235,10 @@ export interface PublicFormDto {
   successMessage: string;
   /** false = el flow está apagado (el formulario se muestra cerrado). */
   open: boolean;
+  /** Sello de cuándo se abrió (vuelve en _ts al enviar). */
+  stamp: string;
+  /** Turnstile, si la instancia lo tiene configurado. */
+  captchaSiteKey: string | null;
 }
 
 /**
@@ -1154,6 +1264,8 @@ export async function publicForm(token: string): Promise<PublicFormDto | null> {
     submitLabel: String(c.submitLabel ?? '').slice(0, 60),
     successMessage: String(c.successMessage ?? '').slice(0, 1000),
     open: hook.enabled === 1,
+    stamp: formStamp(token),
+    captchaSiteKey: (await import('./crm-forms')).captchaSiteKey(),
   };
 }
 
@@ -1168,7 +1280,7 @@ export async function publicForm(token: string): Promise<PublicFormDto | null> {
 export async function enqueueWebhookRun(
   token: string,
   data: { method: string; body: unknown; query: Record<string, string>; headers: Record<string, string> },
-  raw: { body: string; signature: string | null; header?: (name: string) => string | null } = { body: '', signature: null },
+  raw: { body: string; signature: string | null; header?: (name: string) => string | null; ip?: string } = { body: '', signature: null },
 ): Promise<WebhookRunResult> {
   const hook = (await getDb()
     .prepare(
@@ -1211,13 +1323,22 @@ export async function enqueueWebhookRun(
     const body = (data.body && typeof data.body === 'object' ? data.body : {}) as Record<string, unknown>;
     // Campo trampa: los bots lo llenan, una persona no lo ve.
     if (typeof body._hp === 'string' && body._hp.trim()) return { ok: true, runId: null, ignored: true };
+    const ip = raw.ip ?? 'unknown';
+    if (process.env.RATE_LIMIT_DISABLED !== 'true') {
+      if (!(await rateLimit(`flow-form-ip:${token}:${ip}`, FORM_PER_IP_PER_TOKEN, 60)).ok) return { ok: false, error: 'rate_limited' };
+      if (!(await rateLimit(`flow-form-ip:${ip}`, FORM_PER_IP, 60)).ok) return { ok: false, error: 'rate_limited' };
+    }
     const check = validateFormSubmission(formFields(trigger.config), body);
     if (!check.ok) return { ok: false, error: 'invalid_form', fields: check.errors };
+    // Tiempo mínimo de llenado (sello firmado de la página) y, si está configurado, Turnstile.
+    if (checkFormStamp(token, body._ts) !== 'ok') return { ok: false, error: 'form_check' };
+    const { verifyCaptcha } = await import('./crm-forms');
+    if (!(await verifyCaptcha(typeof body._captcha === 'string' ? body._captcha : undefined, ip))) return { ok: false, error: 'form_check' };
     const runId = await enqueueRun(
       { id: hook.id, user_id: hook.user_id },
       'trigger.form',
       { fields: check.values, submittedAt: nowIso(), form: { title: String(trigger.config.title ?? '') } },
-      { automatic: true },
+      { automatic: true, quota: { key: `flow-form-runs:${hook.user_id}`, limit: formRunsPerHour() } },
     );
     if (!runId) return { ok: false, error: 'rate_limited' };
     kickFlowWorker();

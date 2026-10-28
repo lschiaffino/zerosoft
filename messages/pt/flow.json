@@ -272,7 +272,7 @@
     "noteEmpty": "Nota vazia",
     "noteHint": "As notas explicam o flow para quem abrir. Não se conectam nem rodam.",
     "floodLimit": "Reter execuções depois de (a cada 10 minutos)",
-    "floodLimitHint": "As execuções automáticas acima deste número em 10 minutos esperam por você em Execuções. 0 = sem limite (o teto do workspace por hora continua valendo).",
+    "floodLimitHint": "Conta as execuções automáticas criadas nos últimos 10 minutos (janela móvel). Acima deste número, as novas esperam por você em Execuções. 0 = sem limite (o teto do workspace por hora continua valendo).",
     "maxConcurrency": "Execuções ao mesmo tempo",
     "maxConcurrencyHint": "1 roda as execuções da fila uma de cada vez, em ordem. 0 = sem limite. Testes e webhooks que respondem na hora não passam pela fila.",
     "extractHint": "Nomeie cada campo e diga o que é. O passo devolve como '{{nodes.<id>.output.<campo>}}', ou vazio se o texto não disser. Conta para a sua cota de IA.",
@@ -1274,11 +1274,12 @@
     "discarded": "Mudanças descartadas.",
     "publish": "Publicar",
     "publishing": "Publicando…",
-    "publishHint": "O que você edita fica salvo como rascunho. Publique para que rode.",
+    "publishHint": "O que você edita fica como seu rascunho. Publique para que rode; a partir daí o flow roda com o seu acesso.",
     "discard": "Descartar mudanças",
     "discardTitle": "Descartar as mudanças não publicadas?",
     "discardBody": "O editor volta para a versão {n}, a que roda.",
-    "banner": "Mudanças não publicadas. As execuções seguem usando a versão {n} até você publicar; \"Testar\" usa o rascunho."
+    "banner": "Suas mudanças não publicadas. Só você vê este rascunho; as execuções seguem usando a versão {n} até você publicar, e \"Testar\" roda com o seu acesso.",
+    "stale": "Alguém publicou depois que você começou (seu rascunho parte da versão {n}); publicar substitui pelo seu."
   },
   "held": {
     "count": "{n} retidas",
@@ -1383,7 +1384,8 @@
       "date": "Data",
       "select": "Opção",
       "checkbox": "Caixa de seleção"
-    }
+    },
+    "publishFirst": "O link funciona quando você publica este formulário."
   },
   "poll": {
     "hint": "Verifica a fonte a cada poucos minutos e roda uma vez por item novo. A primeira verificação só marca o que já existe.",
@@ -1409,7 +1411,8 @@
     "submit": "Enviar",
     "errors": {
       "rate_limited": "Respostas demais agora. Tente de novo em um minuto.",
-      "generic": "Não foi possível enviar. Tente de novo."
+      "generic": "Não foi possível enviar. Tente de novo.",
+      "form_check": "Não foi possível verificar a resposta. Recarregue a página e tente de novo."
     },
     "fieldErrors": {
       "required": "Este campo é obrigatório.",
@@ -1418,6 +1421,7 @@
       "invalid_date": "Escolha uma data.",
       "invalid_option": "Escolha uma das opções.",
       "too_long": "Esta resposta é longa demais."
-    }
+    },
+    "captcha": "Não sou um robô"
   }
 }

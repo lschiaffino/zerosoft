@@ -19,7 +19,7 @@ import { StepError } from './flow-errors';
 import { authHeaders, googleSheetsNode } from './flow-integrations';
 import { POLL_MAX_MINUTES, POLL_MIN_MINUTES, triggerNode, type FlowGraph } from './flow-schema';
 import { getPath } from './flow-template';
-import { safeFetch, UnsafeUrlError } from './safe-fetch';
+import { readTextCapped, safeFetch, UnsafeUrlError } from './safe-fetch';
 
 /** Claves recordadas por flow (lo visto). */
 const SEEN_LIMIT = 500;
@@ -60,17 +60,56 @@ function decodeEntities(s: string): string {
     .replace(/&amp;/g, '&');
 }
 
+/**
+ * Posición de la próxima etiqueta de apertura `<name` (seguida de espacio, `>`
+ * o `/`) desde `from`, sin distinguir mayúsculas. Con indexOf: lineal (un
+ * feed hostil de 2 MB no dispara backtracking de regex).
+ */
+function openTag(lower: string, name: string, from: number): number {
+  const needle = `<${name}`;
+  for (let i = lower.indexOf(needle, from); i >= 0; i = lower.indexOf(needle, i + 1)) {
+    const c = lower[i + needle.length];
+    if (c === '>' || c === '/' || c === ' ' || c === '\t' || c === '\n' || c === '\r') return i;
+  }
+  return -1;
+}
+
 function tagText(block: string, name: string): string {
-  const re = new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)</${name}>`, 'i');
-  const m = re.exec(block);
-  if (!m) return '';
-  const inner = m[1].trim();
-  const cdata = /^<!\[CDATA\[([\s\S]*?)\]\]>$/.exec(inner);
-  return (cdata ? cdata[1] : decodeEntities(inner)).trim();
+  const lower = block.toLowerCase();
+  const start = openTag(lower, name, 0);
+  if (start < 0) return '';
+  const gt = lower.indexOf('>', start);
+  if (gt < 0 || lower[gt - 1] === '/') return '';
+  const end = lower.indexOf(`</${name}>`, gt);
+  if (end < 0) return '';
+  const inner = block.slice(gt + 1, end).trim();
+  if (inner.startsWith('<![CDATA[') && inner.endsWith(']]>')) return inner.slice(9, -3).trim();
+  return decodeEntities(inner).trim();
+}
+
+/** Bloques `<item>…</item>` (o `<entry>`), recorridos con indexOf. */
+function blocksOf(xml: string, lower: string, name: string, max: number): string[] {
+  const out: string[] = [];
+  let pos = 0;
+  while (out.length < max) {
+    const start = openTag(lower, name, pos);
+    if (start < 0) break;
+    const end = lower.indexOf(`</${name}>`, start);
+    if (end < 0) break;
+    out.push(xml.slice(start, end + name.length + 3));
+    pos = end + name.length + 3;
+  }
+  return out;
 }
 
 function atomLink(block: string): string {
-  const links = block.match(/<link\b[^>]*>/gi) ?? [];
+  const links: string[] = [];
+  const lower = block.toLowerCase();
+  for (let i = openTag(lower, 'link', 0); i >= 0 && links.length < 20; i = openTag(lower, 'link', i + 1)) {
+    const gt = lower.indexOf('>', i);
+    if (gt < 0) break;
+    links.push(block.slice(i, gt + 1));
+  }
   for (const l of links) {
     const href = /href\s*=\s*"([^"]*)"/i.exec(l)?.[1];
     const rel = /rel\s*=\s*"([^"]*)"/i.exec(l)?.[1] ?? 'alternate';
@@ -81,9 +120,11 @@ function atomLink(block: string): string {
 
 /** Ítems de un feed RSS 2.0 o Atom (el orden del feed: suele ser el más nuevo primero). */
 export function parseFeed(xml: string): Array<Record<string, string>> {
-  const rss = xml.match(/<item[\s>][\s\S]*?<\/item>/gi);
-  const blocks = rss ?? xml.match(/<entry[\s>][\s\S]*?<\/entry>/gi) ?? [];
-  return blocks.slice(0, 200).map((b) => {
+  const lower = xml.toLowerCase();
+  const items = blocksOf(xml, lower, 'item', 200);
+  const rss = items.length > 0;
+  const blocks = rss ? items : blocksOf(xml, lower, 'entry', 200);
+  return blocks.map((b) => {
     const link = rss ? tagText(b, 'link') : atomLink(b);
     const id = tagText(b, 'guid') || tagText(b, 'id') || link || tagText(b, 'title');
     return {
@@ -109,7 +150,8 @@ async function fetchText(url: string, headers: Record<string, string>): Promise<
     if (err instanceof UnsafeUrlError) throw new StepError(err.message);
     throw new StepError(err instanceof Error && err.name === 'TimeoutError' ? 'timeout' : 'network_error', true);
   }
-  const text = (await res.text().catch(() => '')).slice(0, POLL_BODY_LIMIT);
+  // Leído en streaming con tope: un servidor no puede mandar un cuerpo infinito.
+  const text = await readTextCapped(res, POLL_BODY_LIMIT).catch(() => '');
   if (!res.ok) throw new StepError(`http_${res.status}`, res.status >= 500 || res.status === 429);
   return text;
 }

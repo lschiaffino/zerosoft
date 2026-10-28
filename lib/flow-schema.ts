@@ -1317,8 +1317,10 @@ export const flowUpdateSchema = z.object({
 
 export const flowRunSchema = z.object({
   input: z.record(z.unknown()).optional(),
-  /** Corre el borrador sin publicar (con el acceso de quien lo prueba). */
+  /** Corre el borrador propio sin publicar (con el acceso de quien lo prueba). */
   draft: z.boolean().optional(),
+  /** Revisión del borrador que se ve en el editor (409 si no coincide). */
+  draftRev: z.number().int().min(0).optional(),
 });
 
 /** Probar un paso solo: el nodo (con la config del editor, aunque no esté guardada) y los datos de prueba. */

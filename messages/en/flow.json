@@ -272,7 +272,7 @@
     "noteEmpty": "Empty note",
     "noteHint": "Notes explain the flow to whoever opens it. They don't connect or run.",
     "floodLimit": "Hold runs after (per 10 minutes)",
-    "floodLimitHint": "Automatic runs past this number in 10 minutes wait for you in Runs. 0 = no limit (the workspace cap of runs per hour still applies).",
+    "floodLimitHint": "Counts the automatic runs created in the last 10 minutes (a rolling window). Past this number, new ones wait for you in Runs. 0 = no limit (the workspace cap per hour still applies).",
     "maxConcurrency": "Runs at the same time",
     "maxConcurrencyHint": "1 runs queued runs one after another, in order. 0 = no limit. Tests and webhooks that reply right away are not queued.",
     "extractHint": "Name each field and say what it is. The step returns them as '{{nodes.<id>.output.<field>}}', or empty when the text does not say it. Counts toward your AI quota.",
@@ -1274,11 +1274,12 @@
     "discarded": "Changes discarded.",
     "publish": "Publish",
     "publishing": "Publishing…",
-    "publishHint": "Your edits save as a draft. Publish to make them run.",
+    "publishHint": "Your edits save as your own draft. Publish to make them run; the flow then runs with your access.",
     "discard": "Discard changes",
     "discardTitle": "Discard unpublished changes?",
     "discardBody": "The editor goes back to version {n}, the one that runs.",
-    "banner": "Unpublished changes. Runs still use version {n} until you publish; \"Test run\" tries the draft."
+    "banner": "Your unpublished changes. Only you see this draft; runs still use version {n} until you publish, and \"Test run\" tries it with your access.",
+    "stale": "Someone published version {n} or later after you started; publishing replaces it with yours."
   },
   "held": {
     "count": "{n} held",
@@ -1383,7 +1384,8 @@
       "date": "Date",
       "select": "Choice",
       "checkbox": "Checkbox"
-    }
+    },
+    "publishFirst": "The link works once this form is published."
   },
   "poll": {
     "hint": "Checks the source every few minutes and runs once per new item. The first check only marks what is already there.",
@@ -1409,7 +1411,8 @@
     "submit": "Send",
     "errors": {
       "rate_limited": "Too many answers right now. Try again in a minute.",
-      "generic": "Couldn't send. Try again."
+      "generic": "Couldn't send. Try again.",
+      "form_check": "We couldn't check this answer. Reload the page and try again."
     },
     "fieldErrors": {
       "required": "This field is required.",
@@ -1418,6 +1421,7 @@
       "invalid_date": "Enter a date.",
       "invalid_option": "Pick one of the options.",
       "too_long": "This answer is too long."
-    }
+    },
+    "captcha": "I'm not a robot"
   }
 }

@@ -37,7 +37,14 @@ export default async function FlowFormPage(props: Props) {
         <h1 className="fa-title">{form.title || t('formPage.title')}</h1>
         {form.description && <p className="fa-message">{form.description}</p>}
         {form.open ? (
-          <HostedForm token={token} fields={form.fields} submitLabel={form.submitLabel} successMessage={form.successMessage} />
+          <HostedForm
+            token={token}
+            fields={form.fields}
+            submitLabel={form.submitLabel}
+            successMessage={form.successMessage}
+            stamp={form.stamp}
+            captchaSiteKey={form.captchaSiteKey}
+          />
         ) : (
           <p className="fa-state-title" role="status">
             {t('formPage.closed')}

@@ -183,7 +183,32 @@ export function redactConfig(value: unknown, depth = 0): unknown {
       Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, SENSITIVE_KEY.test(k) ? '[redacted]' : redactConfig(v, depth + 1)]),
     );
   }
-  return typeof value === 'string' ? value.slice(0, 2000) : value;
+  return typeof value === 'string' ? redactSecretsInText(value.slice(0, 2000)) : value;
+}
+
+/** Prefijos de tokens conocidos (Stripe, Slack, GitHub, AWS, Google, JWT, OpenAI/Anthropic). */
+const KNOWN_TOKEN = /\b(?:[sprw]k_(?:live|test)_[A-Za-z0-9]{8,}|xox[abeoprs]-[A-Za-z0-9-]{8,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|ya29\.[A-Za-z0-9_-]{10,}|eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}|sk-[A-Za-z0-9_-]{16,}|AIza[0-9A-Za-z_-]{30,})/g;
+/** Parámetros de URL o asignaciones con nombre de secreto. */
+const NAMED_SECRET = /((?:[?&]|\b)(?:token|access_token|api[_-]?key|apikey|key|secret|password|passwd|auth|signature|sig)\s*[=:]\s*["']?)[^&\s"']+/gi;
+
+function entropy(s: string): number {
+  const counts = new Map<string, number>();
+  for (const c of s) counts.set(c, (counts.get(c) ?? 0) + 1);
+  let h = 0;
+  for (const n of counts.values()) h -= (n / s.length) * Math.log2(n / s.length);
+  return h;
+}
+
+/**
+ * Tapa en un texto (URL, código, cuerpo) lo que parece un secreto: tokens con
+ * prefijos conocidos, valores de parámetros con nombre de secreto y cadenas
+ * largas de alta entropía con letras y números mezclados.
+ */
+export function redactSecretsInText(text: string): string {
+  return text
+    .replace(KNOWN_TOKEN, '[redacted]')
+    .replace(NAMED_SECRET, '$1[redacted]')
+    .replace(/[A-Za-z0-9_\-+/=]{24,}/g, (m) => (/[A-Za-z]/.test(m) && /\d/.test(m) && entropy(m) >= 3.5 ? '[redacted]' : m));
 }
 
 export const troubleshootSchema = z.object({
@@ -230,7 +255,9 @@ export async function troubleshootRun(ws: string, input: TroubleshootInput, loca
       `Error code: ${input.error}`,
       input.errorText ? `Error message shown to the user: ${input.errorText}` : '',
       node ? `Failed step: ${node.id} (${node.type})\nStep settings: ${clip(redactConfig(node.config), 4000)}` : 'The run failed before any step.',
-      input.stepData ? `Step input: ${clip(input.stepData.input, 3000)}\nStep output: ${clip(input.stepData.output, 3000)}` : '',
+      input.stepData
+        ? `Step input: ${redactSecretsInText(clip(input.stepData.input, 3000))}\nStep output: ${redactSecretsInText(clip(input.stepData.output, 3000))}`
+        : '',
     ]
       .filter(Boolean)
       .join('\n'),

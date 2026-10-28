@@ -559,7 +559,10 @@
 .flow-name-cell .badge { margin-left: 8px; flex-shrink: 0; }
 .flow-last-run .badge-warn { margin-left: 4px; }
 .flow-inline-field { display: inline-flex; }
-.flow-error-cell { color: var(--bad-ink); font-family: var(--font-data); font-size: 0.75rem; }
+.flow-error-cell { color: var(--bad-ink); font-size: 0.8125rem; }
+.flow-dot.is-q-queued, .flow-dot.is-q-held, .flow-dot.is-q-waiting { background: var(--warn); }
+.flow-dot.is-q-running { background: var(--info); }
+.flow-queue .flow-link { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); }
 
 /* Tablero de uso. */
 .flow-usage-head { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
