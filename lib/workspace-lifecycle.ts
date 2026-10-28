@@ -81,6 +81,14 @@ const STEPS: Step[] = [
     },
   },
   {
+    // Webhooks, flows, robots y agentes con salida HTTP que armó: se pausan y el owner recibe aviso.
+    name: 'automations',
+    run: async (e) => {
+      const { pauseRemovedPersonAutomations } = await import('./removed-automations');
+      await pauseRemovedPersonAutomations(e.ownerId, e.userId);
+    },
+  },
+  {
     // Track: accesos a proyectos privados del workspace.
     name: 'track',
     run: (e) =>
