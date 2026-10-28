@@ -68,8 +68,8 @@ export default function HostedForm({ token, fields, submitLabel, successMessage,
           type="button"
           className="btn btn-secondary btn-sm"
           onClick={() => {
-            setValues({});
-            setSent(false);
+            // Cada envío necesita un sello nuevo (de un solo uso): se vuelve a abrir la página.
+            window.location.reload();
           }}
         >
           {t('again')}

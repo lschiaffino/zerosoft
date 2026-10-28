@@ -1,14 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDb } from '@/lib/db';
 import { addMember, createTeam } from '@/lib/teams';
-import { createFlow } from '@/lib/flow';
+import { createFlow, updateFlow } from '@/lib/flow';
+import { createVariable } from '@/lib/flow-variables';
 import { runFlowNow } from '@/lib/flow-http';
 import { makeUser } from './helpers';
 
 beforeEach(() => vi.stubEnv('RATE_LIMIT_DISABLED', 'true'));
 
 describe('Flow: una corrida manual no corre con el acceso de otra persona', () => {
-  it('solo quien creó el flow lo corre a mano; otra persona recibe not_flow_owner y no se crea la corrida', async () => {
+  it('si la lanza otra persona, corre con el acceso (y las variables) de esa persona, no del dueño', async () => {
     const owner = await makeUser('mro-o');
     const ana = await makeUser('mro-ana');
     const bob = await makeUser('mro-bob');
@@ -26,9 +27,21 @@ describe('Flow: una corrida manual no corre con el acceso de otra persona', () =
       },
     });
     if (!f.ok) throw new Error('flow');
-    expect(await runFlowNow(owner.id, f.flow.id, { x: 'bob-picked' }, { personId: bob.id, admin: true })).toEqual({ ok: false, error: 'not_flow_owner' });
-    const n = (await getDb().prepare('SELECT COUNT(*) AS n FROM flow_runs WHERE flow_id = ?').get(f.flow.id)) as { n: number };
-    expect(Number(n.n)).toBe(0);
+    await createVariable(owner.id, ana.id, 'who', 'ana');
+    await createVariable(owner.id, bob.id, 'who', 'bob');
+    await updateFlow(owner.id, f.flow.id, {
+      graph: {
+        nodes: [
+          { id: 't', type: 'trigger.manual', position: { x: 0, y: 0 }, config: { sample: '{}' } },
+          { id: 's', type: 'data.set', position: { x: 0, y: 100 }, config: { fields: [{ key: 'v', value: '{{trigger.x}} {{vars.who}}' }] } },
+        ],
+        edges: [{ id: 'e', source: 't', target: 's' }],
+      },
+    }, ana.id);
+    const bobRun = await runFlowNow(owner.id, f.flow.id, { x: 'bob-picked' }, { personId: bob.id, admin: true });
+    expect(bobRun.ok && bobRun.run?.steps.find((s) => s.nodeId === 's')?.output).toEqual({ v: 'bob-picked bob' });
+    const cap = (await getDb().prepare('SELECT captured_by FROM flow_runs WHERE id = ?').get(bobRun.ok ? bobRun.run!.id : '')) as { captured_by: string };
+    expect(cap.captured_by).toBe(bob.id);
     const own = await runFlowNow(owner.id, f.flow.id, { x: 'ana' }, { personId: ana.id, admin: true });
     expect(own.ok && own.run?.status).toBe('success');
   });

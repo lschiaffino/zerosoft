@@ -1361,6 +1361,8 @@ export async function enqueueWebhookRun(
     if (!check.ok) return { ok: false, error: 'invalid_form', fields: check.errors };
     // Tiempo mínimo de llenado (sello firmado de la página) y, si está configurado, Turnstile.
     if (checkFormStamp(token, body._ts) !== 'ok') return { ok: false, error: 'form_check' };
+    // El sello es de un solo uso (vale un día): reenviar el mismo envío no vuelve a correr el flow.
+    if (!(await rateLimit(`flow-form-stamp:${token}:${String(body._ts)}`, 1, 86_400)).ok) return { ok: false, error: 'form_check' };
     const { verifyCaptcha } = await import('./crm-forms');
     if (!(await verifyCaptcha(typeof body._captcha === 'string' ? body._captcha : undefined, ip))) return { ok: false, error: 'form_check' };
     const runId = await enqueueRun(

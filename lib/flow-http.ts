@@ -113,20 +113,23 @@ export async function runFlowNow(
   const draft = own?.graph ?? null;
   const graph = draft ?? parseJson<FlowGraph>(row.graph, { nodes: [], edges: [] });
   const runInput = testInput(graph, input);
+  // Una corrida manual lleva datos que elige quien la lanza: corre con SU acceso
+  // (su borrador, o lo publicado si no es quien creó el flow), nunca con el del
+  // dueño. Solo el dueño corre lo publicado con el acceso del flow.
+  const actAs = viewer && (draft || viewer.personId !== row.created_by) ? viewer.personId : null;
   const runId = await enqueueRun(row, 'manual', runInput, {
     status: 'running',
     lockMs: 5 * 60_000,
-    ...(draft && viewer ? { capturedBy: viewer.personId } : {}),
+    ...(actAs ? { capturedBy: actAs } : {}),
   });
   if (!runId) return { ok: false as const, error: 'rate_limited' };
-  if (draft && viewer) {
+  if (actAs) {
     const { getDb } = await import('./db');
     await getDb()
       .prepare('UPDATE flow_runs SET context = ? WHERE id = ?')
-      .run(JSON.stringify({ graph: draft, trigger: runInput, nodes: {}, actor: viewer.personId }), runId);
+      .run(JSON.stringify({ graph, trigger: runInput, nodes: {}, actor: actAs }), runId);
   }
   await executeRun(runId);
-  // Corre con el acceso de quien creó el flow: si lo corre otra persona, ve el estado sin los datos.
   return { ok: true as const, run: await getRunWithSteps(workspaceId, runId, viewer) };
 }
 

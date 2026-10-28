@@ -990,7 +990,8 @@
     "quota_exceeded": "Se terminó la cuota de IA de este mes.",
     "ai_invalid_flow": "La IA no pudo armar un flow válido con eso. Sumá más detalle o empezá desde una plantilla.",
     "ai_error": "La IA no respondió. Probá en un minuto.",
-    "prompt_too_short": "Describilo en al menos una oración."
+    "prompt_too_short": "Describilo en al menos una oración.",
+    "stale_draft": "Alguien publicó una versión más nueva. Revisá sus cambios antes de publicar el tuyo."
   },
   "onError": {
     "stop": "Detener el flow",
@@ -1279,7 +1280,10 @@
     "discardTitle": "¿Descartar los cambios sin publicar?",
     "discardBody": "El editor vuelve a la versión {n}, la que corre.",
     "banner": "Tus cambios sin publicar. Este borrador lo ves solo vos; las corridas siguen usando la versión {n} hasta que publiques, y \"Probar\" lo corre con tu acceso.",
-    "stale": "Alguien publicó después de que empezaste (tu borrador sale de la versión {n}); publicar lo reemplaza con el tuyo."
+    "stale": "Después de que empezaste este borrador se publicó otra versión (el tuyo sale de la {n}).",
+    "staleTitle": "Se publicó la versión {n} después de que empezaste",
+    "staleBody": "Tu borrador sale de la versión {base}. Desde entonces alguien publicó la versión {n} con estos cambios, y publicar el tuyo los reemplaza:",
+    "publishAnyway": "Publicar igual"
   },
   "held": {
     "count": "{n} retenidas",

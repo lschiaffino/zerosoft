@@ -128,6 +128,41 @@ describe('Flow: borrador por persona', () => {
     expect(Number(leaked.n)).toBe(0);
   });
 
+  it('guardar borrador y ajustes no sube la versión; dos editores no se trancan; publicar sobre una base vieja pide confirmación', async () => {
+    const { ws, ana, bob } = await team();
+    const g1: FlowGraph = { nodes: [T, node('a', 'data.set', { fields: [] })] as FlowGraph['nodes'], edges: [edge('t', 'a')] };
+    const flow = await newFlow(ws, ana, g1);
+    const gA = { ...g1, nodes: [T, node('a', 'data.set', { fields: [{ key: 'by', value: 'ana' }] })] };
+    const gB = { ...g1, nodes: [T, node('a', 'data.set', { fields: [{ key: 'by', value: 'bob' }] })] };
+    // Autoguardados alternados de los dos (borrador + ajustes, como el editor).
+    let ra = 0;
+    let rb = 0;
+    for (let i = 0; i < 3; i++) {
+      const a = await saveFlowDraft(ws, flow.id, gA, ra, ana);
+      expect(a.ok).toBe(true);
+      if (a.ok) ra = a.flow.draftRev;
+      expect((await updateFlow(ws, flow.id, { name: `F ana ${i}`, description: 'x' }, ana)).ok).toBe(true);
+      const b = await saveFlowDraft(ws, flow.id, gB, rb, bob);
+      expect(b.ok).toBe(true);
+      if (b.ok) rb = b.flow.draftRev;
+      expect((await updateFlow(ws, flow.id, { failureAlerts: false }, bob)).ok).toBe(true);
+    }
+    let row = await getFlowRow(ws, flow.id);
+    expect(row?.version).toBe(1);
+    // Cada uno escribió su campo: no se pisaron.
+    expect(row?.name).toBe('F ana 2');
+    expect(row?.failure_alerts).toBe(0);
+    // Ana publica; el borrador de Bob queda sobre una base vieja.
+    expect((await publishFlowDraft(ws, flow.id, ana, { rev: ra })).ok).toBe(true);
+    const stale = await publishFlowDraft(ws, flow.id, bob, { rev: rb });
+    expect(stale).toMatchObject({ ok: false, error: 'stale_draft', stale: { baseVersion: 1, publishedVersion: 2 } });
+    if (!stale.ok) expect(stale.stale?.diff.changed).toEqual(['a']);
+    expect((await publishFlowDraft(ws, flow.id, bob, { rev: rb, force: true })).ok).toBe(true);
+    row = await getFlowRow(ws, flow.id);
+    expect(row?.version).toBe(3);
+    expect(row?.created_by).toBe(bob);
+  });
+
   it('probar el borrador propio corre con el acceso de quien prueba, no del dueño', async () => {
     const { ws, ana, bob } = await team();
     await createVariable(ws, ana, 'who', 'ana');
@@ -328,7 +363,10 @@ describe('Flow: formulario hospedado', () => {
       error: 'form_check',
     });
     expect(checkFormStamp(token, formStamp('fh_other_token_xxxxxxxxxxxxxxx', Date.now() - 5000))).toBe('invalid');
-    const ok = await enqueueWebhookRun(token, { method: 'POST', body: { ...valid, _ts: formStamp(token, Date.now() - 5000) }, query: {}, headers: {} });
+    const stamp = formStamp(token, Date.now() - 5000);
+    const ok = await enqueueWebhookRun(token, { method: 'POST', body: { ...valid, _ts: stamp }, query: {}, headers: {} });
+    // El mismo sello no sirve dos veces.
+    expect(await enqueueWebhookRun(token, { method: 'POST', body: { ...valid, _ts: stamp }, query: {}, headers: {} })).toMatchObject({ ok: false, error: 'form_check' });
     expect(ok.ok && ok.runId).toBeTruthy();
     const run = (await getDb().prepare('SELECT input FROM flow_runs WHERE id = ?').get(ok.ok ? ok.runId : '')) as { input: string };
     expect(JSON.parse(run.input).fields).toEqual({ nombre_completo: 'Ada', email: 'ada@x.test', plan: 'Pro' });
@@ -345,8 +383,10 @@ describe('Flow: formulario hospedado', () => {
     });
     await updateFlow(ws, flow.id, { enabled: true }, ws);
     const token = (await listFlowWebhooks(ws, flow.id))[0].token;
+    let k = 0;
+    const base = Date.now() - 5000;
     const send = (ip: string) =>
-      enqueueWebhookRun(token, { method: 'POST', body: { email: 'a@x.test', _ts: formStamp(token, Date.now() - 5000) }, query: {}, headers: {} }, { body: '', signature: null, ip });
+      enqueueWebhookRun(token, { method: 'POST', body: { email: 'a@x.test', _ts: formStamp(token, base - k++) }, query: {}, headers: {} }, { body: '', signature: null, ip });
     const ip = `198.51.100.${Math.floor(Math.random() * 200)}`;
     const results = [];
     for (let i = 0; i < 12; i++) results.push(await send(ip));

@@ -990,7 +990,8 @@
     "quota_exceeded": "A cota de IA deste mês acabou.",
     "ai_invalid_flow": "A IA não conseguiu montar um flow válido com isso. Dê mais detalhes ou comece de um modelo.",
     "ai_error": "A IA não respondeu. Tente em um minuto.",
-    "prompt_too_short": "Descreva em pelo menos uma frase."
+    "prompt_too_short": "Descreva em pelo menos uma frase.",
+    "stale_draft": "Alguém publicou uma versão mais nova. Revise as mudanças antes de publicar a sua."
   },
   "onError": {
     "stop": "Parar o flow",
@@ -1279,7 +1280,10 @@
     "discardTitle": "Descartar as mudanças não publicadas?",
     "discardBody": "O editor volta para a versão {n}, a que roda.",
     "banner": "Suas mudanças não publicadas. Só você vê este rascunho; as execuções seguem usando a versão {n} até você publicar, e \"Testar\" roda com o seu acesso.",
-    "stale": "Alguém publicou depois que você começou (seu rascunho parte da versão {n}); publicar substitui pelo seu."
+    "stale": "Depois que você começou este rascunho outra versão foi publicada (o seu parte da {n}).",
+    "staleTitle": "A versão {n} foi publicada depois que você começou",
+    "staleBody": "Seu rascunho parte da versão {base}. Desde então alguém publicou a versão {n} com estas mudanças, e publicar o seu as substitui:",
+    "publishAnyway": "Publicar mesmo assim"
   },
   "held": {
     "count": "{n} retidas",

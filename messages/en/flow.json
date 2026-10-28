@@ -990,7 +990,8 @@
     "quota_exceeded": "You used up the AI quota for this month.",
     "ai_invalid_flow": "AI couldn't build a valid flow from that. Add more detail or start from a template.",
     "ai_error": "AI didn't answer. Try again in a minute.",
-    "prompt_too_short": "Describe it in at least a sentence."
+    "prompt_too_short": "Describe it in at least a sentence.",
+    "stale_draft": "Someone published a newer version. Review their changes before publishing yours."
   },
   "onError": {
     "stop": "Stop the flow",
@@ -1279,7 +1280,10 @@
     "discardTitle": "Discard unpublished changes?",
     "discardBody": "The editor goes back to version {n}, the one that runs.",
     "banner": "Your unpublished changes. Only you see this draft; runs still use version {n} until you publish, and \"Test run\" tries it with your access.",
-    "stale": "Someone published version {n} or later after you started; publishing replaces it with yours."
+    "stale": "Another version was published after you started this draft (yours starts from version {n}).",
+    "staleTitle": "Version {n} was published after you started",
+    "staleBody": "Your draft starts from version {base}. Since then someone published version {n} with these changes, and publishing yours replaces them:",
+    "publishAnyway": "Publish anyway"
   },
   "held": {
     "count": "{n} held",
