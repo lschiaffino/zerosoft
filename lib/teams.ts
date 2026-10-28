@@ -38,6 +38,9 @@ export async function getMemberRole(teamId: string, userId: string): Promise<Tea
 
 /** Cambia el rol de una persona (nunca al owner, ni a 'owner'). */
 export async function setMemberRole(teamId: string, userId: string, role: 'admin' | 'member' | 'guest'): Promise<boolean> {
+  const before = (await getDb().prepare('SELECT role FROM team_members WHERE team_id = ? AND user_id = ?').get(teamId, userId)) as
+    | { role: string }
+    | undefined;
   const res = await getDb()
     .prepare("UPDATE team_members SET role = ? WHERE team_id = ? AND user_id = ? AND role != 'owner'")
     .run(role, teamId, userId);
@@ -49,8 +52,17 @@ export async function setMemberRole(teamId: string, userId: string, role: 'admin
       await personRemoved({ ownerId: team.owner_id, teamId, userId, keepShares: true });
     }
   }
+  if (res.changes > 0 && before?.role === 'guest' && role !== 'guest') await promotedToMember(teamId, userId, role);
   if (res.changes > 0) await boardAccessChanged(teamId);
   return res.changes > 0;
+}
+
+/** Un guest que pasa a member o admin entra al workspace: corren los pasos de "persona se unió". */
+async function promotedToMember(teamId: string, userId: string, role: string): Promise<void> {
+  const team = await getTeamById(teamId);
+  if (!team || team.owner_id === userId) return;
+  const { personJoined } = await import('./workspace-lifecycle');
+  await personJoined({ ownerId: team.owner_id, teamId, userId, role });
 }
 
 /**
@@ -82,6 +94,9 @@ export async function setMemberApps(teamId: string, userId: string, apps: AppAcc
     if (team) {
       const { emitTalkEvent } = await import('./talk');
       await emitTalkEvent(team.owner_id, 'access', { userId, payload: { change: 'apps' } }).catch(() => undefined);
+      // Si ahora tiene el CRM, reclama los registros importados que lo esperaban.
+      const { personAppsChanged } = await import('./workspace-lifecycle');
+      await personAppsChanged({ ownerId: team.owner_id, teamId, userId });
     }
   }
   return res.changes > 0;
@@ -428,6 +443,7 @@ export async function acceptInvite(invite: TeamInviteRow, userId: string): Promi
   } else if (existing.role === 'guest' && role !== 'guest') {
     // Un guest invitado como miembro pasa a miembro (una invitación nunca baja el rol).
     await db.prepare('UPDATE team_members SET role = ?, apps = ? WHERE team_id = ? AND user_id = ?').run(role, apps, team.id, userId);
+    await promotedToMember(team.id, userId, role);
   } else if (existing.role === 'member' && role === 'admin') {
     await db.prepare("UPDATE team_members SET role = 'admin' WHERE team_id = ? AND user_id = ?").run(team.id, userId);
   }

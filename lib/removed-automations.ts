@@ -4,6 +4,7 @@
  * datos afuera (webhooks, flows, robots, agentes con HTTP o MCP). Al sacarla:
  * - webhooks que creó: se apagan y sus entregas pendientes se cancelan;
  * - flows que creó o publicó por última vez, y robots que creó: se apagan;
+ * - workflows del CRM con webhooks que creó o editó por última vez: se apagan;
  * - agentes que creó con salida HTTP o MCP: se apagan; los demás (sin salida
  *   afuera) pasan al owner para no cortar la atención de Chat.
  * El owner recibe un aviso con lo que quedó apagado, para revisarlo y volver
@@ -18,12 +19,13 @@ export interface RemovedAutomations {
   robots: number;
   agents: number;
   agentsReassigned: number;
+  workflows: number;
 }
 
 const COPY = {
-  en: { title: 'Automations paused', body: '{name} left the workspace. Paused what they created: {list}. Review and turn back on what you need.', w: 'webhooks', f: 'flows', r: 'robots', a: 'agents' },
-  es: { title: 'Automatizaciones pausadas', body: '{name} salió del workspace. Pausamos lo que había creado: {list}. Revisalo y volvé a prender lo que necesites.', w: 'webhooks', f: 'flows', r: 'robots', a: 'agentes' },
-  pt: { title: 'Automações pausadas', body: '{name} saiu do workspace. Pausamos o que a pessoa criou: {list}. Revise e ligue de novo o que precisar.', w: 'webhooks', f: 'flows', r: 'robots', a: 'agentes' },
+  en: { title: 'Automations paused', body: '{name} left the workspace. Paused what they created: {list}. Review and turn back on what you need.', w: 'webhooks', f: 'flows', r: 'robots', a: 'agents', cw: 'CRM workflows' },
+  es: { title: 'Automatizaciones pausadas', body: '{name} salió del workspace. Pausamos lo que había creado: {list}. Revisalo y volvé a prender lo que necesites.', w: 'webhooks', f: 'flows', r: 'robots', a: 'agentes', cw: 'workflows del CRM' },
+  pt: { title: 'Automações pausadas', body: '{name} saiu do workspace. Pausamos o que a pessoa criou: {list}. Revise e ligue de novo o que precisar.', w: 'webhooks', f: 'flows', r: 'robots', a: 'agentes', cw: 'workflows do CRM' },
 };
 
 async function count(sql: string, args: string[]): Promise<number> {
@@ -36,7 +38,7 @@ async function count(sql: string, args: string[]): Promise<number> {
 }
 
 export async function pauseRemovedPersonAutomations(ownerId: string, userId: string): Promise<RemovedAutomations> {
-  const out: RemovedAutomations = { webhooks: 0, deliveries: 0, flows: 0, robots: 0, agents: 0, agentsReassigned: 0 };
+  const out: RemovedAutomations = { webhooks: 0, deliveries: 0, flows: 0, robots: 0, agents: 0, agentsReassigned: 0, workflows: 0 };
   if (!userId || userId === ownerId) return out;
   try {
     out.deliveries = await count(
@@ -58,8 +60,14 @@ export async function pauseRemovedPersonAutomations(ownerId: string, userId: str
        AND (instr(tools, 'http') > 0 OR instr(tools, 'mcp') > 0)`,
       [ownerId, userId],
     );
+    // Workflows del CRM con webhooks que creó o editó por última vez.
+    out.workflows = await count(
+      `UPDATE crm_workflows SET enabled = 0 WHERE user_id = ? AND enabled = 1 AND (created_by = ? OR updated_by = ?)
+       AND EXISTS (SELECT 1 FROM crm_workflow_actions a WHERE a.workflow_id = crm_workflows.id AND a.type = 'webhook')`,
+      [ownerId, userId, userId],
+    );
     out.agentsReassigned = await count('UPDATE agents SET created_by = ? WHERE user_id = ? AND created_by = ?', [ownerId, ownerId, userId]);
-    const paused = out.webhooks + out.flows + out.robots + out.agents;
+    const paused = out.webhooks + out.flows + out.robots + out.agents + out.workflows;
     if (paused > 0) {
       const db = getDb();
       const owner = (await db.prepare('SELECT locale FROM users WHERE id = ?').get(ownerId).catch(() => undefined)) as { locale?: string | null } | undefined;
@@ -70,6 +78,7 @@ export async function pauseRemovedPersonAutomations(ownerId: string, userId: str
         out.flows ? `${out.flows} ${c.f}` : '',
         out.robots ? `${out.robots} ${c.r}` : '',
         out.agents ? `${out.agents} ${c.a}` : '',
+        out.workflows ? `${out.workflows} ${c.cw}` : '',
       ]
         .filter(Boolean)
         .join(', ');
@@ -79,7 +88,7 @@ export async function pauseRemovedPersonAutomations(ownerId: string, userId: str
         type: 'workspace_access',
         title: c.title,
         body: c.body.replace('{name}', person?.name || person?.email || '').replace('{list}', list),
-        href: out.webhooks ? '/app/settings/api#webhooks' : out.flows ? '/app/flow' : out.robots ? '/app/robots' : '/app/agents',
+        href: out.webhooks ? '/app/settings/api#webhooks' : out.flows ? '/app/flow' : out.robots ? '/app/robots' : out.agents ? '/app/agents' : '/app/crm/workflows',
         sourceType: 'workspace_member',
         sourceId: userId,
       });

@@ -49,7 +49,7 @@ describe('128_workspace_teams: migración aditiva sobre datos de antes', () => {
   it('conserva equipos, ids y datos; agrega fichas, onboarding y subequipos espejados', async () => {
     const client = freshClient();
     const idx = MIGRATIONS.findIndex((m) => m.id === '128_workspace_teams');
-    expect(idx).toBe(MIGRATIONS.length - 1);
+    expect(idx).toBeGreaterThan(0);
     await runMigrations(client, MIGRATIONS.slice(0, idx));
     const exec = (sql: string, args: Array<string | null> = []) => client.execute({ sql, args });
     for (const [id, created] of [

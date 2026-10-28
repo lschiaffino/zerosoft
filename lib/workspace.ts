@@ -273,13 +273,15 @@ export async function updateWorkspace(teamId: string, patch: WorkspacePatch, db:
     args.push(patch.size && (WORKSPACE_SIZES as readonly string[]).includes(patch.size) ? patch.size : null);
   }
   if (patch.allowedDomains !== undefined) {
+    // Cada admin habilita el dominio de su propio email; los que ya estaban (de otros admins) se conservan.
+    const current = parseDomains(((await db.prepare('SELECT allowed_domains FROM teams WHERE id = ?').get(teamId)) as { allowed_domains?: string } | undefined)?.allowed_domains);
     const out: string[] = [];
     for (const raw of patch.allowedDomains.slice(0, 10)) {
       const d = normalizeDomain(raw);
       if (!d) return 'invalid_domain';
       if (isPublicDomain(d)) return 'public_domain';
       // Solo el dominio del email con el que entra quien lo carga (Google lo verificó).
-      if (patch.editorEmail !== undefined && emailDomain(patch.editorEmail) !== d) return 'domain_not_yours';
+      if (patch.editorEmail !== undefined && !current.includes(d) && emailDomain(patch.editorEmail) !== d) return 'domain_not_yours';
       if (!out.includes(d)) out.push(d);
     }
     sets.push('allowed_domains = ?');

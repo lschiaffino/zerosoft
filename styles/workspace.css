@@ -306,5 +306,10 @@ body:has(.wl-page) .zs-support-launcher { display: none; }
 .ws-members .st-row-actions,
 .ws-invites .st-row-actions { flex-wrap: nowrap; white-space: nowrap; }
 .ws-invites .ws-cell-muted,
-.ws-invites .ws-status-bad { display: inline-block; min-width: 150px; }
+.ws-invites .ws-status-bad { white-space: nowrap; }
+.ws-invite-email { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+.ws-invite-email .data { overflow-wrap: anywhere; }
+.ws-link-btn { padding: 0; border: 0; background: none; color: var(--ink-3); font: inherit; font-size: 12px; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.ws-link-btn:hover { color: var(--ink); }
+.ws-link-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .ws-role-select { min-width: 0; width: auto; }
