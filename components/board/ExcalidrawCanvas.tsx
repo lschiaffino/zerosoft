@@ -6,7 +6,19 @@
  * importarse. Su CSS se importa acá, así viaja en el mismo chunk.
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CaptureUpdateAction, Excalidraw, MainMenu, convertToExcalidrawElements, exportToSvg, reconcileElements, useHandleLibrary } from '@excalidraw/excalidraw';
+import {
+  CaptureUpdateAction,
+  DiagramToCodePlugin,
+  Excalidraw,
+  MainMenu,
+  TTDDialog,
+  convertToExcalidrawElements,
+  exportToBlob,
+  exportToSvg,
+  reconcileElements,
+  useHandleLibrary,
+  zoomToFitBounds,
+} from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
 import { isAllowedLibraryUrl, type BoardScene } from '@/lib/boards-types';
 import { excalidrawLang } from '@/lib/board-view';
@@ -14,7 +26,7 @@ import { useResolvedTheme } from '@/components/theme/ThemeProvider';
 
 // Tipos laxos: los .d.ts de Excalidraw arrastran paquetes internos.
 export interface CanvasApi {
-  updateScene: (scene: { elements?: readonly unknown[]; appState?: Record<string, unknown>; captureUpdate?: unknown }) => void;
+  updateScene: (scene: { elements?: readonly unknown[]; appState?: Record<string, unknown>; collaborators?: Map<string, unknown>; captureUpdate?: unknown }) => void;
   onChange: (cb: (elements: readonly unknown[], appState: Record<string, unknown>) => void) => () => void;
   scrollToContent: (target?: unknown, opts?: { fitToContent?: boolean; animate?: boolean }) => void;
   addFiles: (files: unknown[]) => void;
@@ -23,6 +35,18 @@ export interface CanvasApi {
   getAppState: () => Record<string, unknown>;
   getFiles: () => Record<string, unknown>;
   onScrollChange: (cb: (scrollX: number, scrollY: number, zoom: { value: number }) => void) => () => void;
+  onUserFollow: (cb: (payload: { userToFollow: { socketId: string; username: string }; action: 'FOLLOW' | 'UNFOLLOW' }) => void) => () => void;
+}
+
+/** Puntero de esta pestaña (Excalidraw lo avisa en cada movimiento). */
+export type PointerUpdate = (payload: { pointer: { x: number; y: number; tool: 'pointer' | 'laser' }; button: 'down' | 'up' }) => void;
+
+/** Ítem propio del menú principal del lienzo (Presentar, Exportar a PDF…). */
+export interface CanvasMenuItem {
+  key: string;
+  label: string;
+  onSelect: () => void;
+  shortcut?: string;
 }
 
 /**
@@ -104,6 +128,12 @@ function ExcalidrawCanvas({
   library = true,
   onChange,
   onApi,
+  onPointerUpdate,
+  collaborating = false,
+  menuItems,
+  onTextToDiagram,
+  onWireframeToCode,
+  canOpenFile = false,
 }: {
   scene: BoardScene;
   locale: string;
@@ -112,6 +142,18 @@ function ExcalidrawCanvas({
   library?: boolean;
   onChange?: CanvasChange;
   onApi?: (api: CanvasApi) => void;
+  /** Cursor de esta pestaña, para mandarlo a los demás. */
+  onPointerUpdate?: PointerUpdate;
+  /** Hay tiempo real: Excalidraw muestra a los demás arriba a la derecha. */
+  collaborating?: boolean;
+  /** Ítems propios del menú principal (estables: el lienzo está memoizado). */
+  menuItems?: CanvasMenuItem[];
+  /** Texto a diagrama con IA: devuelve Mermaid o tira un Error con el mensaje para la persona. */
+  onTextToDiagram?: (prompt: string) => Promise<string>;
+  /** Wireframe a código con IA (frame "wireframe"). */
+  onWireframeToCode?: (frame: unknown, children: readonly unknown[]) => Promise<string>;
+  /** Abrir un archivo .excalidraw desde el menú (reemplaza lo que hay). */
+  canOpenFile?: boolean;
 }) {
   // El lienzo sigue el modo de color del sitio (selector sistema/claro/oscuro).
   const theme = useResolvedTheme();
@@ -133,13 +175,13 @@ function ExcalidrawCanvas({
   const uiOptions = useMemo(
     () => ({
       canvasActions: {
-        loadScene: false,
+        loadScene: !viewMode && canOpenFile,
         saveToActiveFile: false,
         toggleTheme: false,
         export: viewMode ? (false as const) : { saveFileToDisk: true },
       },
     }),
-    [viewMode],
+    [viewMode, canOpenFile],
   );
   // Los callbacks leen la última versión de las props por ref: identidad estable.
   // Se asignan en el render (no en un efecto): Excalidraw llama a onChange en su
@@ -152,6 +194,31 @@ function ExcalidrawCanvas({
   const handleChange = useCallback(
     (els: readonly unknown[], appState: unknown, files: unknown) =>
       onChangeRef.current?.(els, appState as Record<string, unknown>, files as Record<string, unknown>),
+    [],
+  );
+  const pointerRef = useRef(onPointerUpdate);
+  pointerRef.current = onPointerUpdate;
+  const hasPointer = Boolean(onPointerUpdate);
+  const handlePointer = useCallback(
+    (payload: { pointer: { x: number; y: number; tool: 'pointer' | 'laser' }; button: 'down' | 'up' }) =>
+      pointerRef.current?.({ pointer: payload.pointer, button: payload.button }),
+    [],
+  );
+  const ttdRef = useRef(onTextToDiagram);
+  ttdRef.current = onTextToDiagram;
+  const codeRef = useRef(onWireframeToCode);
+  codeRef.current = onWireframeToCode;
+  const hasAi = Boolean(onTextToDiagram) && !viewMode;
+  const onTextSubmit = useCallback(async (input: string) => {
+    try {
+      const mermaid = await ttdRef.current!(input);
+      return { generatedResponse: mermaid };
+    } catch (err) {
+      return { error: err instanceof Error ? err : new Error(String(err)) };
+    }
+  }, []);
+  const generateCode = useCallback(
+    async ({ frame, children }: { frame: unknown; children: readonly unknown[] }) => ({ html: await codeRef.current!(frame, children) }),
     [],
   );
   const handleApi = useCallback((instance: unknown) => {
@@ -181,9 +248,16 @@ function ExcalidrawCanvas({
         <MainMenu.DefaultItems.ClearCanvas />
         {!viewMode && <MainMenu.Separator />}
         <MainMenu.DefaultItems.ChangeCanvasBackground />
+        {menuItems && menuItems.length > 0 && <MainMenu.Separator />}
+        {menuItems?.map((item) => (
+          <MainMenu.Item key={item.key} onSelect={item.onSelect} shortcut={item.shortcut} data-testid={`board-menu-${item.key}`}>
+            {item.label}
+          </MainMenu.Item>
+        ))}
+        {!viewMode && canOpenFile && <MainMenu.DefaultItems.LoadScene />}
       </MainMenu>
     ),
-    [viewMode],
+    [viewMode, menuItems, canOpenFile],
   );
   return (
     // display: contents: no cambia el layout; solo sirve para medir el panel.
@@ -196,9 +270,14 @@ function ExcalidrawCanvas({
         excalidrawAPI={handleApi}
         libraryReturnUrl={withLibrary ? returnUrl : undefined}
         onChange={hasOnChange ? handleChange : undefined}
+        onPointerUpdate={hasPointer ? handlePointer : undefined}
+        isCollaborating={collaborating}
+        aiEnabled={hasAi}
         UIOptions={uiOptions}
       >
         {menu}
+        {hasAi && <TTDDialog onTextSubmit={onTextSubmit} />}
+        {hasAi && onWireframeToCode && <DiagramToCodePlugin generate={generateCode as never} />}
       </Excalidraw>
     </div>
   );
@@ -216,6 +295,50 @@ export function skeletonsToElements(skeletons: Array<Record<string, unknown>>): 
 
 /** Opción de updateScene para que el cambio entre al deshacer/rehacer. */
 export const UNDOABLE = CaptureUpdateAction.IMMEDIATELY;
+/** Cambios de otra persona: no entran al deshacer de esta pestaña. */
+export const REMOTE = CaptureUpdateAction.NEVER;
+
+/** Lleva la vista a `bounds` ([x1, y1, x2, y2] de la escena), como "seguir" a alguien. */
+export function fitBounds(api: CanvasApi, bounds: [number, number, number, number]) {
+  const { appState } = zoomToFitBounds({ bounds: bounds as never, appState: api.getAppState() as never, fitToViewport: true, viewportZoomFactor: 1 });
+  const next = appState as unknown as { scrollX: number; scrollY: number; zoom: { value: number } };
+  api.updateScene({ appState: { scrollX: next.scrollX, scrollY: next.scrollY, zoom: next.zoom }, captureUpdate: REMOTE });
+}
+
+/** JPEG de un frame (con todo lo que tiene adentro), para el PDF de slides. */
+export async function exportFrameJpeg(api: CanvasApi, frame: unknown, maxSide = 2000): Promise<Uint8Array> {
+  const elements = api.getSceneElements();
+  const appState = api.getAppState();
+  const blob = await exportToBlob({
+    elements: elements as never,
+    appState: { exportBackground: true, viewBackgroundColor: (appState.viewBackgroundColor as string) ?? '#ffffff', exportWithDarkMode: false } as never,
+    files: api.getFiles() as never,
+    exportingFrame: frame as never,
+    maxWidthOrHeight: maxSide,
+    mimeType: 'image/jpeg',
+    quality: 0.9,
+    exportPadding: 0,
+  });
+  return new Uint8Array(await blob.arrayBuffer());
+}
+
+/** PNG de un frame en data URL (lo que ve la IA en wireframe a código). */
+export async function exportFramePngDataUrl(api: CanvasApi, frame: unknown, maxSide = 1200): Promise<string> {
+  const blob = await exportToBlob({
+    elements: api.getSceneElements() as never,
+    appState: { exportBackground: true, viewBackgroundColor: '#ffffff', exportWithDarkMode: false } as never,
+    files: api.getFiles() as never,
+    exportingFrame: frame as never,
+    maxWidthOrHeight: maxSide,
+    mimeType: 'image/png',
+  });
+  return await new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(blob);
+  });
+}
 
 /** Miniatura SVG de la escena (sin imágenes, para que sea chica). */
 export async function sceneThumbnail(elements: readonly unknown[], viewBackgroundColor: string): Promise<string | null> {

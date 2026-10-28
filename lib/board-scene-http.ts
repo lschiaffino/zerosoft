@@ -3,6 +3,8 @@ import { saveBoardScene } from './boards';
 import { boardSceneSchema } from './boards-schema';
 import { BOARD_MAX_SCENE_BYTES } from './boards-types';
 import { invalidInput, jsonError } from './write-limit';
+import { publishBoardEvent, validSocketId } from './board-live';
+import { getDb } from './db';
 
 /** Margen para la miniatura y el sobre JSON por encima del tope de la escena. */
 const BODY_SLACK = 512 * 1024;
@@ -38,7 +40,22 @@ export async function handleScenePut(
   if (!parsed.success) return invalidInput(parsed.error);
 
   const res = await saveBoardScene(workspaceId, personId, boardId, parsed.data.scene, parsed.data.version, parsed.data.thumbnail);
-  if (res.ok) return NextResponse.json({ version: res.version, updated_at: res.updated_at });
+  if (res.ok) {
+    // Aviso en vivo: las demás pestañas traen la versión guardada (la que guardó lo ignora por su socket).
+    const socket = req.headers.get('x-board-socket');
+    const person = personId
+      ? ((await getDb().prepare('SELECT name, email FROM users WHERE id = ?').get(personId)) as { name: string | null; email: string | null } | undefined)
+      : undefined;
+    await publishBoardEvent({
+      boardId,
+      workspaceId,
+      socketId: validSocketId(socket) ? socket : 'server',
+      kind: 'saved',
+      user: { id: personId, name: person?.name ?? person?.email ?? null, guest: personId === null },
+      payload: { version: res.version },
+    }).catch(() => undefined);
+    return NextResponse.json({ version: res.version, updated_at: res.updated_at });
+  }
   if (res.code === 'not_found') return jsonError(404, 'not_found');
   if (res.code === 'too_large') return tooLarge(res.bytes);
   return NextResponse.json(

@@ -11,7 +11,6 @@
     "new": "Novo quadro",
     "untitled": "Quadro sem título",
     "copyName": "{name} (cópia)",
-    "confirmDelete": "Excluir “{name}”? Não dá para desfazer.",
     "emptyTitle": "Ainda não há quadros",
     "emptyHint": "Desenhe, planeje e compartilhe uma ideia em uma tela infinita.",
     "rename": "Renomear",
@@ -23,7 +22,6 @@
     "actionError": "Não foi possível concluir. Tente de novo.",
     "creating": "Criando…",
     "templatesTitle": "Começar com um modelo",
-    "deleteTitle": "Apagar quadro",
     "cancel": "Cancelar"
   },
   "share": {
@@ -123,6 +121,63 @@
       "engineering": "Engenharia",
       "initiative": "Iniciativa",
       "milestone": "Marco"
+    },
+    "swot": {
+      "name": "SWOT",
+      "description": "Forças, fraquezas, oportunidades e ameaças.",
+      "title": "Análise SWOT",
+      "strengths": "Forças",
+      "weaknesses": "Fraquezas",
+      "opportunities": "Oportunidades",
+      "threats": "Ameaças",
+      "note": "Adicione um ponto"
+    },
+    "mindMap": {
+      "name": "Mapa mental",
+      "description": "Uma ideia central com ramos e subideias.",
+      "title": "Mapa mental",
+      "center": "Ideia central",
+      "branch": "Ramo",
+      "idea": "Subideia"
+    },
+    "priorityMatrix": {
+      "name": "Matriz de prioridades",
+      "description": "Impacto contra esforço para decidir o que fazer primeiro.",
+      "title": "Impacto / esforço",
+      "axes": "Em cima: mais impacto. À esquerda: menos esforço.",
+      "quickWins": "Ganhos rápidos",
+      "bigBets": "Grandes apostas",
+      "fillIns": "Complementos",
+      "moneyPits": "Poços sem fundo",
+      "note": "Uma iniciativa"
+    },
+    "journey": {
+      "name": "Jornada do cliente",
+      "description": "O que o cliente faz, sente e precisa em cada etapa.",
+      "title": "Jornada do cliente",
+      "discover": "Descobre",
+      "consider": "Avalia",
+      "buy": "Compra",
+      "use": "Usa",
+      "recommend": "Recomenda",
+      "actions": "Ações",
+      "feelings": "Emoções",
+      "opportunities": "Oportunidades",
+      "note": "Escreva aqui"
+    },
+    "leanCanvas": {
+      "name": "Lean canvas",
+      "description": "O modelo de negócio de um produto novo em uma página.",
+      "title": "Lean canvas",
+      "problem": "Problema",
+      "solution": "Solução",
+      "metrics": "Métricas-chave",
+      "value": "Proposta de valor única",
+      "advantage": "Vantagem injusta",
+      "channels": "Canais",
+      "segments": "Segmentos de clientes",
+      "costs": "Estrutura de custos",
+      "revenue": "Fontes de receita"
     }
   },
   "history": {
@@ -163,7 +218,9 @@
     "mentionList": "Pessoas para mencionar"
   },
   "branch": {
-    "empty": "Ainda não há quadros."
+    "empty": "Ainda não há quadros.",
+    "collapse": "Recolher",
+    "expand": "Expandir"
   },
   "stickies": {
     "button": "Stickies",
@@ -276,5 +333,136 @@
   },
   "guest": {
     "badge": "Convidado"
+  },
+  "live": {
+    "guest": "Convidado",
+    "here": "{count, plural, one {# pessoa a mais aqui} other {# pessoas a mais aqui}}",
+    "alone": "Só você aqui",
+    "aloneHint": "Compartilhe o quadro e você verá aqui os outros e os cursores deles na tela.",
+    "offline": "Sem conexão ao vivo. Suas mudanças continuam sendo salvas.",
+    "connecting": "Conectando…",
+    "title": "Neste quadro",
+    "away": "ausente",
+    "follow": "Seguir",
+    "unfollow": "Parar de seguir",
+    "summon": "Trazer todos para minha visão",
+    "summoned": "Agora todos seguem sua visão.",
+    "summonError": "Não foi possível trazer os outros. Tente de novo.",
+    "revoked": "Você não tem mais acesso a este quadro, ou ele foi para a lixeira.",
+    "following": "Seguindo {name}. Mova a tela ou aperte Esc para parar.",
+    "presenting": "{name} está apresentando. Você segue os slides."
+  },
+  "present": {
+    "button": "Apresentar",
+    "title": "Apresentação",
+    "empty": "Adicione frames para apresentá-los como slides (ferramenta Frame, F).",
+    "exit": "Sair",
+    "prev": "Slide anterior",
+    "next": "Próximo slide",
+    "count": "{n} / {total}",
+    "share": "Todos me seguem",
+    "sharing": "Todos seguem você",
+    "pdf": "Exportar frames para PDF",
+    "pdfDone": "{count, plural, one {PDF com # página baixado} other {PDF com # páginas baixado}}",
+    "noFrames": "Não há frames para exportar. Adicione um primeiro.",
+    "pdfError": "Não foi possível exportar o PDF. Tente de novo."
+  },
+  "ai": {
+    "disabled": "A IA não está configurada neste workspace.",
+    "quota": "Você usou a cota de IA deste mês.",
+    "rate": "Pedidos demais à IA. Espere um minuto e tente de novo.",
+    "badOutput": "A resposta da IA não pôde virar diagrama. Tente dizer de outro jeito.",
+    "noNotes": "Selecione pelo menos dois post-its com texto (ou não selecione nada para usar todos).",
+    "tooManyNotes": "Até 200 post-its por vez. Selecione menos.",
+    "failed": "A IA não conseguiu terminar. Tente de novo.",
+    "clustering": "Agrupando post-its…",
+    "clustered": "{count, plural, one {Post-its agrupados em # tema} other {Post-its agrupados em # temas}}",
+    "other": "Outros",
+    "summary": "Resumo",
+    "cluster": "Agrupar post-its com IA"
+  },
+  "import": {
+    "button": "Importar",
+    "importing": "Importando…",
+    "partial": "{ok} importados; {failed} não puderam ser lidos como arquivos .excalidraw.",
+    "done": "{count, plural, one {# quadro importado} other {# quadros importados}}"
+  },
+  "search": {
+    "label": "Buscar quadros",
+    "placeholder": "Buscar por nome ou conteúdo",
+    "error": "Não foi possível buscar. Tente de novo.",
+    "searching": "Buscando…",
+    "emptyTitle": "Nada corresponde a “{q}”",
+    "emptyHint": "A busca olha o nome e o texto de dentro: post-its, rótulos e frames."
+  },
+  "folders": {
+    "title": "Pastas",
+    "all": "Todos",
+    "new": "Nova pasta",
+    "actions": "Ações da pasta",
+    "rename": "Renomear pasta",
+    "delete": "Apagar pasta",
+    "moveTo": "Mover para pasta",
+    "movedTo": "“{name}” foi para {folder}",
+    "movedOut": "“{name}” não está mais em uma pasta",
+    "emptyTitle": "Esta pasta está vazia",
+    "emptyHint": "Crie um quadro aqui ou mova um pelo menu dele.",
+    "deleteTitle": "Apagar pasta",
+    "confirmDelete": "Apagar a pasta “{name}”? Os quadros ficam, sem pasta.",
+    "moveLabel": "Pasta de “{name}”",
+    "nameLabel": "Nome",
+    "none": "Sem pasta",
+    "move": "Mover",
+    "save": "Salvar"
+  },
+  "trash": {
+    "title": "Lixeira",
+    "hint": "Quadros apagados ficam aqui por 30 dias; depois são apagados de vez.",
+    "retry": "Tentar de novo",
+    "emptyTitle": "A lixeira está vazia",
+    "emptyHint": "Os quadros que você apagar aparecem aqui e podem ser restaurados.",
+    "deletedAt": "Apagado {when}",
+    "restore": "Restaurar",
+    "purge": "Apagar de vez",
+    "restored": "“{name}” voltou para seus quadros",
+    "moved": "“{name}” foi para a lixeira",
+    "purgeTitle": "Apagar de vez",
+    "confirmPurge": "Apagar “{name}” de vez, com comentários e histórico? Não dá para desfazer.",
+    "undo": "Desfazer"
+  },
+  "audit": {
+    "tab": "Registro de atividade",
+    "title": "Registro de atividade",
+    "help": "Quem criou, renomeou, moveu, apagou ou restaurou quadros e quem mudou o acesso ou os links. Visível para o owner e os admins.",
+    "csv": "Exportar CSV",
+    "action": "Ação",
+    "all": "Todas as ações",
+    "error": "Não foi possível carregar o registro.",
+    "retry": "Tentar de novo",
+    "loading": "Carregando atividade",
+    "empty": "Ainda não há atividade",
+    "when": "Quando",
+    "who": "Quem",
+    "board": "Quadro",
+    "system": "Sistema",
+    "more": "Carregar mais antigos",
+    "actions": {
+      "board_created": "Criou um quadro",
+      "board_imported": "Importou um quadro",
+      "board_renamed": "Renomeou um quadro",
+      "board_duplicated": "Duplicou um quadro",
+      "board_moved": "Moveu um quadro",
+      "board_trashed": "Mandou um quadro para a lixeira",
+      "board_restored": "Restaurou um quadro",
+      "board_purged": "Apagou um quadro de vez",
+      "board_version_restored": "Restaurou uma versão como cópia",
+      "access_mode": "Mudou quem pode abrir",
+      "access_member": "Convidou ou removeu alguém",
+      "access_guest_link": "Ligou ou desligou o link de convidado",
+      "share_link": "Ligou ou desligou o link somente leitura",
+      "folder_created": "Criou uma pasta",
+      "folder_renamed": "Renomeou uma pasta",
+      "folder_deleted": "Apagou uma pasta"
+    }
   }
 }

@@ -27,6 +27,20 @@ export interface BoardSummary {
   created_at: string;
   updated_at: string;
   updated_by: string | null;
+  /** Carpeta del workspace (null = sin carpeta). */
+  folder_id?: string | null;
+  /** En la papelera desde (solo en la lista de la papelera). */
+  deleted_at?: string;
+  /** Línea del contenido que coincidió con la búsqueda (si no fue por el nombre). */
+  match?: string;
+}
+
+export interface BoardFolder {
+  id: string;
+  name: string;
+  /** Pizarras vivas adentro (que la persona puede ver). */
+  count: number;
+  created_at: string;
 }
 
 /**

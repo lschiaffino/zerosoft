@@ -29,6 +29,47 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-28-board-parity',
+    date: '2026-10-28',
+    title: {
+      en: 'Board: live multiplayer with cursors, presenting frames, AI diagrams, folders, trash and an API',
+      es: 'Board: multiplayer en vivo con cursores, presentar frames, diagramas con IA, carpetas, papelera y API',
+      pt: 'Board: multiplayer ao vivo com cursores, apresentar frames, diagramas com IA, pastas, lixeira e API',
+    },
+    items: [
+      {
+        product: 'board',
+        en: 'Everyone on a board sees the others’ cursors, selections and strokes as they happen. Click someone to follow their view, or bring everyone to yours.',
+        es: 'Todos en una pizarra ven los cursores, la selección y los trazos de los demás mientras pasan. Tocá a alguien para seguir su vista, o traé a todos a la tuya.',
+        pt: 'Todos num quadro veem os cursores, a seleção e os traços dos outros na hora. Clique em alguém para seguir a visão, ou traga todos para a sua.',
+      },
+      {
+        product: 'board',
+        en: 'Present frames as full-screen slides with the keyboard, have everyone follow along, and export the frames as a PDF.',
+        es: 'Presentá los frames como slides a pantalla completa con el teclado, con todos siguiéndote, y exportalos como PDF.',
+        pt: 'Apresente os frames como slides em tela cheia pelo teclado, com todos acompanhando, e exporte os frames como PDF.',
+      },
+      {
+        product: 'board',
+        en: 'AI turns a description into an editable diagram, groups stickies by theme with a summary, and turns a drawn wireframe into a web page.',
+        es: 'La IA convierte una descripción en un diagrama editable, agrupa stickies por tema con un resumen y pasa un wireframe dibujado a una página web.',
+        pt: 'A IA transforma uma descrição em diagrama editável, agrupa post-its por tema com um resumo e transforma um wireframe desenhado numa página web.',
+      },
+      {
+        product: 'board',
+        en: 'Folders, search inside boards (from the list and Cmd+K), a 30-day trash, importing .excalidraw files and five new templates: SWOT, mind map, priority matrix, customer journey and lean canvas.',
+        es: 'Carpetas, búsqueda dentro de las pizarras (en la lista y con Cmd+K), papelera de 30 días, importar archivos .excalidraw y cinco plantillas nuevas: FODA, mapa mental, matriz de prioridades, customer journey y lean canvas.',
+        pt: 'Pastas, busca dentro dos quadros (na lista e com Cmd+K), lixeira de 30 dias, importar arquivos .excalidraw e cinco modelos novos: SWOT, mapa mental, matriz de prioridades, jornada do cliente e lean canvas.',
+      },
+      {
+        product: 'board',
+        en: 'A REST API and an MCP server to list, read, create and draw on boards, plus an activity log for admins with CSV export.',
+        es: 'API REST y servidor MCP para listar, leer, crear y dibujar en pizarras, y un registro de actividad para admins con export a CSV.',
+        pt: 'API REST e servidor MCP para listar, ler, criar e desenhar em quadros, e um registro de atividade para admins com exportação em CSV.',
+      },
+    ],
+  },
+  {
     id: '2026-10-27-link-parity',
     date: '2026-10-27',
     title: {

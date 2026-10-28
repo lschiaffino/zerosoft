@@ -1845,6 +1845,12 @@ export interface BoardRow {
   timer_ends_at?: string | null;
   timer_seconds?: number | null;
   timer_paused_left?: number | null;
+  /** Papelera: cuándo y quién la borró (null = viva). */
+  deleted_at?: string | null;
+  deleted_by?: string | null;
+  folder_id?: string | null;
+  /** Textos de la escena (texto, etiquetas, frames) para buscar adentro. */
+  search_text?: string;
   created_at: string;
   updated_at: string;
 }

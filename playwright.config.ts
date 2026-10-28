@@ -121,6 +121,9 @@ export default defineConfig({
       LINK_IMPORT_FAKE: '1',
       LINK_INTEGRATIONS_FAKE: '1',
       LINK_AI_FAKE: '1',
+      // Board: texto a diagrama, agrupar stickies y wireframe a código con el modelo
+      // falso de lib/board-ai.ts (cookie board_ai_fake=off → ai_disabled).
+      BOARD_AI_FAKE: '1',
       AI_GATEWAY_API_KEY: '',
       VERCEL_OIDC_TOKEN: '',
     },

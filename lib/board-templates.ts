@@ -6,7 +6,18 @@
  */
 import type { BoardScene } from './boards-types';
 
-export const BOARD_TEMPLATES = ['retro', 'brainstorm', 'userFlow', 'kanban', 'roadmap'] as const;
+export const BOARD_TEMPLATES = [
+  'retro',
+  'brainstorm',
+  'userFlow',
+  'kanban',
+  'roadmap',
+  'swot',
+  'mindMap',
+  'priorityMatrix',
+  'journey',
+  'leanCanvas',
+] as const;
 export type BoardTemplateKey = (typeof BOARD_TEMPLATES)[number];
 
 export function isBoardTemplate(key: unknown): key is BoardTemplateKey {
@@ -219,7 +230,7 @@ function noteColor(tint: string): string {
   return YELLOW;
 }
 
-const BUILDERS: Record<BoardTemplateKey, (b: Builder, t: TemplateText) => void> = {
+const BUILDERS: Record<'retro' | 'brainstorm' | 'userFlow' | 'kanban' | 'roadmap', (b: Builder, t: TemplateText) => void> = {
   retro(b, t) {
     b.text(0, -90, t('retro.title'), 36);
     b.text(0, -40, t('retro.hint'), 18, { strokeColor: '#495057' });
@@ -294,11 +305,140 @@ const BUILDERS: Record<BoardTemplateKey, (b: Builder, t: TemplateText) => void> 
   },
 };
 
+/** Cuadrantes 2×2 con título y una nota de ejemplo cada uno (SWOT, matriz de prioridades). */
+function quadrants(b: Builder, t: TemplateText, prefix: string, keys: string[], tints: string[], note: string) {
+  const W = 420;
+  const H = 320;
+  keys.forEach((k, i) => {
+    const x = (i % 2) * (W + 20);
+    const y = Math.floor(i / 2) * (H + 20);
+    b.shape('rectangle', x, y, W, H, { fill: tints[i], rounded: false });
+    b.text(x + 20, y + 16, t(`${prefix}.${k}`), 24);
+    b.sticky(x + 20, y + 70, t(`${prefix}.${note}`), noteColor(tints[i]), 160, 110);
+  });
+}
+
+const MORE_BUILDERS: Record<'swot' | 'mindMap' | 'priorityMatrix' | 'journey' | 'leanCanvas', (b: Builder, t: TemplateText) => void> = {
+  swot(b, t) {
+    b.text(0, -70, t('swot.title'), 36);
+    quadrants(b, t, 'swot', ['strengths', 'weaknesses', 'opportunities', 'threats'], [TINT_GREEN, TINT_RED, TINT_BLUE, TINT_GRAY], 'note');
+  },
+  mindMap(b, t) {
+    b.text(-420, -330, t('mindMap.title'), 36);
+    const root = b.shape('rectangle', -120, -40, 240, 80, { fill: VIOLET, label: t('mindMap.center'), fontSize: 24 });
+    const branches: Array<[number, number, string]> = [
+      [-460, -200, BLUE],
+      [-460, 120, GREEN],
+      [260, -200, YELLOW],
+      [260, 120, RED],
+    ];
+    branches.forEach(([x, y, fill], i) => {
+      const node = b.shape('rectangle', x, y, 200, 70, { fill, label: t('mindMap.branch'), fontSize: 20 });
+      b.arrow(root, node, { head: false });
+      for (let k = 0; k < 2; k++) {
+        const leafX = x < 0 ? x - 230 : x + 230;
+        const leaf = b.shape('rectangle', leafX, y - 40 + k * 110, 180, 56, { fill: TINT_GRAY, label: t('mindMap.idea'), fontSize: 16 });
+        b.arrow(node, leaf, { head: false });
+      }
+      void i;
+    });
+  },
+  priorityMatrix(b, t) {
+    b.text(0, -110, t('priorityMatrix.title'), 36);
+    b.text(0, -60, t('priorityMatrix.axes'), 18, { strokeColor: '#495057' });
+    quadrants(b, t, 'priorityMatrix', ['quickWins', 'bigBets', 'fillIns', 'moneyPits'], [TINT_GREEN, TINT_BLUE, TINT_GRAY, TINT_RED], 'note');
+  },
+  journey(b, t) {
+    b.text(0, -110, t('journey.title'), 36);
+    const stages = ['discover', 'consider', 'buy', 'use', 'recommend'];
+    const rows = ['actions', 'feelings', 'opportunities'];
+    const COL = 260;
+    const ROW = 170;
+    const LABEL = 180;
+    stages.forEach((st, i) => {
+      b.shape('rectangle', LABEL + i * COL, -50, COL - 12, 44, { fill: BLUE, label: t(`journey.${st}`), rounded: false, fontSize: 18 });
+    });
+    rows.forEach((r, j) => {
+      const y = j * ROW + 10;
+      b.text(0, y + 20, t(`journey.${r}`), 20);
+      stages.forEach((_, i) => {
+        b.sticky(LABEL + i * COL + 20, y, t('journey.note'), j === 1 ? RED : j === 2 ? GREEN : YELLOW, 200, 130);
+      });
+    });
+  },
+  leanCanvas(b, t) {
+    b.text(0, -70, t('leanCanvas.title'), 36);
+    // Las nueve cajas del Lean Canvas: cinco columnas arriba y dos filas abajo.
+    const W = 260;
+    const H = 420;
+    const cells: Array<[string, number, number, number, number]> = [
+      ['problem', 0, 0, W, H],
+      ['solution', W, 0, W, H / 2],
+      ['metrics', W, H / 2, W, H / 2],
+      ['value', 2 * W, 0, W, H],
+      ['advantage', 3 * W, 0, W, H / 2],
+      ['channels', 3 * W, H / 2, W, H / 2],
+      ['segments', 4 * W, 0, W, H],
+      ['costs', 0, H, (5 * W) / 2, 200],
+      ['revenue', (5 * W) / 2, H, (5 * W) / 2, 200],
+    ];
+    for (const [key, x, y, w, h] of cells) {
+      b.shape('rectangle', x, y, w, h, { fill: key === 'value' ? TINT_BLUE : TINT_GRAY, rounded: false });
+      b.text(x + 16, y + 14, t(`leanCanvas.${key}`), 20);
+    }
+  },
+};
+
 /** Escena de Excalidraw de la plantilla con los textos de `t`. `newId` se inyecta en los tests. */
 export function buildTemplateScene(key: BoardTemplateKey, t: TemplateText, newId: () => string = randomId): BoardScene {
   const b = new Builder(newId);
-  BUILDERS[key](b, t);
+  if (key in BUILDERS) BUILDERS[key as keyof typeof BUILDERS](b, t);
+  else MORE_BUILDERS[key as keyof typeof MORE_BUILDERS](b, t);
   return { elements: b.elements, appState: { viewBackgroundColor: '#ffffff' }, files: {} };
+}
+
+// ---------- Elementos desde la API / MCP ----------
+
+/** Lo que una integración puede agregar: stickies, textos y formas, y flechas entre ellos (por índice). */
+export interface ElementSpec {
+  kind: 'sticky' | 'text' | 'rectangle' | 'ellipse' | 'diamond';
+  text?: string;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  /** Relleno (#rrggbb) o, en stickies, una clave de color ya resuelta. */
+  fill?: string;
+  tags?: string[];
+  fontSize?: number;
+}
+
+/**
+ * Elementos de Excalidraw de verdad (con texto ligado y flechas pegadas a sus
+ * formas) a partir de especificaciones simples. `connect` une specs por índice.
+ */
+export function buildSpecElements(
+  specs: ElementSpec[],
+  connect: Array<{ from: number; to: number }> = [],
+  newId: () => string = randomId,
+): Array<Record<string, unknown>> {
+  const b = new Builder(newId);
+  const made: El[] = specs.map((s) => {
+    const text = (s.text ?? '').slice(0, 2000);
+    if (s.kind === 'text') return b.text(s.x, s.y, text || ' ', s.fontSize ?? 20);
+    if (s.kind === 'sticky') {
+      const el = b.sticky(s.x, s.y, text || ' ', s.fill ?? YELLOW, s.width ?? 200, s.height ?? 150);
+      el.customData = { sticky: true, tags: s.tags ?? [] };
+      return el;
+    }
+    return b.shape(s.kind, s.x, s.y, s.width ?? 200, s.height ?? 100, { fill: s.fill, label: text || undefined, fontSize: s.fontSize });
+  });
+  for (const c of connect) {
+    const from = made[c.from];
+    const to = made[c.to];
+    if (from && to && from !== to && from.type !== 'text' && to.type !== 'text') b.arrow(from, to);
+  }
+  return b.elements;
 }
 
 // ---------- Vista previa de la galería ----------

@@ -6270,6 +6270,57 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Board: paridad con Excalidraw+ y Miro. Feed de tiempo real (cursores,
+    // cambios en vivo, seguir y traer a todos), papelera, carpetas, texto
+    // para buscar dentro de las pizarras y registro de actividad.
+    id: '125_board_parity',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE boards ADD COLUMN deleted_at TEXT');
+      await addColumn(client, 'ALTER TABLE boards ADD COLUMN deleted_by TEXT');
+      await addColumn(client, 'ALTER TABLE boards ADD COLUMN folder_id TEXT');
+      await addColumn(client, "ALTER TABLE boards ADD COLUMN search_text TEXT NOT NULL DEFAULT ''");
+      await client.executeMultiple(`
+        CREATE INDEX IF NOT EXISTS idx_boards_deleted ON boards(workspace_id, deleted_at) WHERE deleted_at IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_boards_folder ON boards(workspace_id, folder_id) WHERE folder_id IS NOT NULL;
+
+        CREATE TABLE IF NOT EXISTS board_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          board_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          socket_id TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          payload TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_board_events_board ON board_events(board_id, id);
+        CREATE INDEX IF NOT EXISTS idx_board_events_created ON board_events(created_at);
+
+        CREATE TABLE IF NOT EXISTS board_folders (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_board_folders_ws ON board_folders(workspace_id, name);
+
+        CREATE TABLE IF NOT EXISTS board_audit (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          board_id TEXT,
+          board_name TEXT,
+          actor_id TEXT,
+          via TEXT NOT NULL DEFAULT 'app',
+          action TEXT NOT NULL,
+          data TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_board_audit_ws ON board_audit(workspace_id, created_at DESC);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
