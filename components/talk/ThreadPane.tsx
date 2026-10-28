@@ -121,6 +121,11 @@ export default function ThreadPane({ rootId, channel, onClose }: { rootId: strin
         </div>
         <div className="talk-head-actions">
           {state === 'ready' && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => ctx.dialog({ kind: 'summary', rootId })}>
+              {t('ai.summarize')}
+            </button>
+          )}
+          {state === 'ready' && (
             <button type="button" className="btn btn-ghost btn-sm" aria-pressed={following} onClick={() => void toggleFollow()}>
               {following ? t('thread.following') : t('thread.follow')}
             </button>

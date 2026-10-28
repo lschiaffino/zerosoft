@@ -2,19 +2,28 @@ import { setRequestLocale } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { pathWithQuery } from '@/lib/return-path';
 import { redirect } from 'next/navigation';
-import { openDm, talkActor, TalkError } from '@/lib/talk';
+import { getChannelRow, openDm, TalkError } from '@/lib/talk';
+import { resolveTalkActor } from '@/lib/talk-guests';
+import { getDb } from '@/lib/db';
 import { loadTalkBootstrap } from '@/lib/talk-boot';
 import TalkApp from '@/components/talk/TalkApp';
 import type { TalkView } from '@/components/talk/talk-context';
 
-const VIEWS: TalkView[] = ['threads', 'activity', 'later', 'drafts', 'files', 'search', 'browse'];
+const VIEWS: TalkView[] = ['threads', 'activity', 'later', 'drafts', 'files', 'search', 'browse', 'recap'];
 
 /** Página de Talk (con o sin canal en la ruta). Todo lo demás pasa en el cliente. */
 export async function renderTalk(locale: string, channelId: string | null, sp: Record<string, string | string[] | undefined>) {
   setRequestLocale(locale);
   const path = channelId ? `/${locale}/app/talk/${channelId}` : `/${locale}/app/talk`;
   const user = await requireUser(locale, pathWithQuery(path, sp as Record<string, string>));
-  const actor = talkActor(user);
+  const actor = await resolveTalkActor(user);
+  // Link a un canal de otro workspace de Talk de la persona (el suyo o uno donde es invitada): se cambia ahí.
+  if (channelId && !(await getChannelRow(actor.workspaceId, channelId))) {
+    const row = (await getDb().prepare('SELECT workspace_id FROM talk_channels WHERE id = ?').get(channelId)) as { workspace_id: string } | undefined;
+    if (row && row.workspace_id !== actor.workspaceId && (await resolveTalkActor(user, { workspaceId: row.workspace_id })).workspaceId === row.workspace_id) {
+      redirect(`/api/talk/workspace?ws=${encodeURIComponent(row.workspace_id)}&next=${encodeURIComponent(pathWithQuery(path, sp as Record<string, string>))}`);
+    }
+  }
   const one0 = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? null;
   // ⌘K "escribirle a alguien": ?dm=<id> abre el DM (o el propio) y entra ahí.
   const dmWith = one0(sp.dm);
@@ -27,7 +36,7 @@ export async function renderTalk(locale: string, channelId: string | null, sp: R
     }
     if (target) redirect(`/${locale}/app/talk/${target}`);
   }
-  const boot = await loadTalkBootstrap(actor, { locale, heartbeat: true });
+  const boot = await loadTalkBootstrap(actor, { locale, heartbeat: true, user });
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? null;
   const view = one(sp.view) as TalkView | null;
   return (
@@ -39,6 +48,8 @@ export async function renderTalk(locale: string, channelId: string | null, sp: R
       initialMessageId={one(sp.m)}
       initialThreadId={one(sp.thread)}
       initialQuery={one(sp.q) ?? ''}
+      initialTab={(['canvas', 'lists'] as const).find((x) => x === one(sp.tab)) ?? null}
+      initialListId={one(sp.list)}
       realtimeMode={process.env.TALK_REALTIME === 'poll' ? 'poll' : 'sse'}
     />
   );

@@ -6357,6 +6357,202 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Paridad de Talk, ronda 2: huddles (WebRTC con señalización por el feed),
+    // canvas del canal (bloques del editor de Docs), listas con campos e hilo
+    // por ítem, secciones propias del sidebar, perfiles (cargo, zona horaria y
+    // campos del workspace), horario de no molestar y push, invitados con
+    // acceso a canales puntuales, slash commands de apps, retención y resúmenes
+    // de IA guardados.
+    id: '127_talk_parity_2',
+    up: async (client) => {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS talk_guests (
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          invited_by TEXT,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (workspace_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_talk_guests_user ON talk_guests(user_id);
+        CREATE TABLE IF NOT EXISTS talk_guest_invites (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          email TEXT NOT NULL,
+          channel_ids TEXT NOT NULL DEFAULT '[]',
+          token_hash TEXT NOT NULL,
+          invited_by TEXT,
+          created_at TEXT NOT NULL,
+          expires_at TEXT NOT NULL,
+          accepted_at TEXT,
+          accepted_user_id TEXT,
+          UNIQUE (workspace_id, email)
+        );
+        CREATE INDEX IF NOT EXISTS idx_talk_guest_invites_token ON talk_guest_invites(token_hash);
+
+        CREATE TABLE IF NOT EXISTS talk_sections (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          position INTEGER NOT NULL DEFAULT 0,
+          sort TEXT NOT NULL DEFAULT 'alpha' CHECK (sort IN ('alpha', 'recent')),
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_talk_sections_user ON talk_sections(workspace_id, user_id, position);
+        CREATE TABLE IF NOT EXISTS talk_section_items (
+          user_id TEXT NOT NULL,
+          channel_id TEXT NOT NULL REFERENCES talk_channels(id) ON DELETE CASCADE,
+          section_id TEXT NOT NULL REFERENCES talk_sections(id) ON DELETE CASCADE,
+          PRIMARY KEY (user_id, channel_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS talk_profiles (
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          title TEXT NOT NULL DEFAULT '',
+          pronouns TEXT NOT NULL DEFAULT '',
+          phone TEXT NOT NULL DEFAULT '',
+          timezone TEXT NOT NULL DEFAULT '',
+          fields TEXT NOT NULL DEFAULT '{}',
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (workspace_id, user_id)
+        );
+        CREATE TABLE IF NOT EXISTS talk_profile_fields (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          label TEXT NOT NULL,
+          position INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_talk_profile_fields_ws ON talk_profile_fields(workspace_id, position);
+
+        CREATE TABLE IF NOT EXISTS talk_huddles (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          channel_id TEXT NOT NULL REFERENCES talk_channels(id) ON DELETE CASCADE,
+          started_by TEXT NOT NULL,
+          message_id TEXT,
+          started_at TEXT NOT NULL,
+          ended_at TEXT
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_talk_huddles_live ON talk_huddles(channel_id) WHERE ended_at IS NULL;
+        CREATE TABLE IF NOT EXISTS talk_huddle_peers (
+          huddle_id TEXT NOT NULL REFERENCES talk_huddles(id) ON DELETE CASCADE,
+          peer_id TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          muted INTEGER NOT NULL DEFAULT 0,
+          sharing INTEGER NOT NULL DEFAULT 0,
+          video INTEGER NOT NULL DEFAULT 0,
+          joined_at TEXT NOT NULL,
+          seen_at TEXT NOT NULL,
+          PRIMARY KEY (huddle_id, peer_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_talk_huddle_peers_seen ON talk_huddle_peers(seen_at);
+
+        CREATE TABLE IF NOT EXISTS talk_canvases (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          channel_id TEXT NOT NULL REFERENCES talk_channels(id) ON DELETE CASCADE,
+          title TEXT NOT NULL DEFAULT '',
+          content TEXT NOT NULL DEFAULT '[]',
+          body_text TEXT NOT NULL DEFAULT '',
+          rev INTEGER NOT NULL DEFAULT 1,
+          created_by TEXT,
+          updated_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_talk_canvases_channel ON talk_canvases(channel_id);
+
+        CREATE TABLE IF NOT EXISTS talk_lists (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          channel_id TEXT NOT NULL REFERENCES talk_channels(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          fields TEXT NOT NULL DEFAULT '[]',
+          views TEXT NOT NULL DEFAULT '[]',
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_talk_lists_channel ON talk_lists(channel_id, created_at);
+        CREATE TABLE IF NOT EXISTS talk_list_items (
+          id TEXT PRIMARY KEY,
+          list_id TEXT NOT NULL REFERENCES talk_lists(id) ON DELETE CASCADE,
+          title TEXT NOT NULL DEFAULT '',
+          data TEXT NOT NULL DEFAULT '{}',
+          position REAL NOT NULL DEFAULT 0,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_talk_list_items_list ON talk_list_items(list_id, position);
+        CREATE TABLE IF NOT EXISTS talk_list_comments (
+          id TEXT PRIMARY KEY,
+          item_id TEXT NOT NULL REFERENCES talk_list_items(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          body TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_talk_list_comments_item ON talk_list_comments(item_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS talk_commands (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          command TEXT NOT NULL,
+          url TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          usage_hint TEXT NOT NULL DEFAULT '',
+          secret_enc TEXT NOT NULL,
+          created_by TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          UNIQUE (workspace_id, command)
+        );
+        CREATE TABLE IF NOT EXISTS talk_command_responses (
+          token_hash TEXT PRIMARY KEY,
+          command_id TEXT NOT NULL REFERENCES talk_commands(id) ON DELETE CASCADE,
+          workspace_id TEXT NOT NULL,
+          channel_id TEXT NOT NULL REFERENCES talk_channels(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          parent_id TEXT,
+          uses INTEGER NOT NULL DEFAULT 0,
+          expires_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS talk_settings (
+          workspace_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          retention_days INTEGER,
+          edit_window_minutes INTEGER,
+          updated_by TEXT,
+          updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS talk_ai_summaries (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          ref TEXT NOT NULL DEFAULT '',
+          text TEXT NOT NULL,
+          sources TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_talk_ai_summaries_user ON talk_ai_summaries(workspace_id, user_id, kind, created_at);
+      `);
+      // No molestar con horario y push del navegador (preferencias por persona).
+      for (const col of [
+        'dnd_schedule INTEGER NOT NULL DEFAULT 0',
+        "dnd_start TEXT NOT NULL DEFAULT '22:00'",
+        "dnd_end TEXT NOT NULL DEFAULT '08:00'",
+        "dnd_days TEXT NOT NULL DEFAULT '0,1,2,3,4,5,6'",
+        "push TEXT NOT NULL DEFAULT 'mentions'",
+        "recap_channels TEXT NOT NULL DEFAULT ''",
+      ]) {
+        await addColumn(client, `ALTER TABLE talk_prefs ADD COLUMN ${col}`);
+      }
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

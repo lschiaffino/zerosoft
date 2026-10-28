@@ -7,7 +7,14 @@ import { dayKey } from '@/lib/talk-time';
 import { talkPlainText } from '@/lib/talk-markdown';
 import Composer, { errorText } from './Composer';
 import Message, { fmtFull } from './Message';
+import MessageBody from './MessageBody';
 import { draftKey, useTalk, type TalkBusEvent } from './talk-context';
+import { HuddleButton } from './Huddle';
+
+// El editor de Docs pesa: el canvas se carga recién cuando se abre la pestaña.
+const CanvasPane = dynamic(() => import('./CanvasPane'), { ssr: false });
+import dynamic from 'next/dynamic';
+import ListsPane from './ListsPane';
 
 const GROUP_MS = 5 * 60_000;
 /** Marcar leído espera un poco: con mensajes seguidos se manda uno solo. */
@@ -59,9 +66,13 @@ interface Props {
   channel: TalkChannelDto;
   highlightId: string | null;
   onBack: () => void;
+  initialTab?: 'canvas' | 'lists' | null;
+  initialListId?: string | null;
 }
 
-export default function ChannelPane({ channel, highlightId, onBack }: Props) {
+type Ephemeral = { id: string; botName: string; text: string };
+
+export default function ChannelPane({ channel, highlightId, onBack, initialTab, initialListId }: Props) {
   const t = useTranslations('talk');
   const ctx = useTalk();
   const { api, locale, toast, dialog, channelTitle, openThread, subscribe, drafts, setDraft, refreshBoot } = ctx;
@@ -78,6 +89,28 @@ export default function ChannelPane({ channel, highlightId, onBack }: Props) {
   const loadingOlder = useRef(false);
   const readTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMember = channel.isMember;
+  // Pestañas del canal (como Slack): mensajes, canvas y listas.
+  const [tab, setTab] = useState<'messages' | 'canvas' | 'lists'>(initialTab ?? 'messages');
+  const tabChannel = useRef(channel.id);
+  if (tabChannel.current !== channel.id) {
+    tabChannel.current = channel.id;
+    if (tab !== 'messages') setTab('messages');
+  }
+  // Respuestas de apps que solo veo yo (no quedan guardadas).
+  const [ephemeral, setEphemeral] = useState<Ephemeral[]>([]);
+  const addEphemeral = useCallback((e: Ephemeral) => setEphemeral((prev) => (prev.some((x) => x.id === e.id) ? prev : [...prev.slice(-4), e])), []);
+  useEffect(() => setEphemeral([]), [channel.id]);
+  useEffect(
+    () =>
+      subscribe((ev) => {
+        if (ev.type !== 'events') return;
+        for (const e of ev.events) {
+          const p = e.payload as { id?: string; botName?: string; text?: string; parentId?: string | null };
+          if (e.kind === 'ephemeral' && e.channelId === channel.id && !p.parentId && p.id && p.text) addEphemeral({ id: p.id, botName: p.botName ?? '', text: p.text });
+        }
+      }),
+    [subscribe, channel.id, addEphemeral],
+  );
   const title = channel.kind === 'public' || channel.kind === 'private' ? channel.name : channelTitle(channel);
 
   // Read pendiente (con debounce): si se cambia de canal o se cierra la pestaña antes, se manda igual.
@@ -366,6 +399,29 @@ export default function ChannelPane({ channel, highlightId, onBack }: Props) {
           </button>
         </div>
       </header>
+      <div className="talk-tabs" role="tablist" aria-label={t('tabs.label')}>
+        {(['messages', 'canvas', 'lists'] as const).map((k) => (
+          <button key={k} type="button" role="tab" id={`talk-tab-${k}`} aria-selected={tab === k} aria-controls={`talk-panel-${k}`} className="talk-tab" onClick={() => setTab(k)}>
+            {t(`tabs.${k}`)}
+          </button>
+        ))}
+        <span className="talk-tabs-spacer" />
+        <HuddleButton channelId={channel.id} disabled={!isMember || channel.archived || channel.deactivated} />
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => dialog({ kind: 'summary', channelId: channel.id })} data-testid="talk-summarize">
+          {t('ai.summarize')}
+        </button>
+      </div>
+      {tab === 'canvas' && (
+        <div className="talk-tab-panel" role="tabpanel" id="talk-panel-canvas" aria-labelledby="talk-tab-canvas">
+          <CanvasPane channel={channel} />
+        </div>
+      )}
+      {tab === 'lists' && (
+        <div className="talk-tab-panel" role="tabpanel" id="talk-panel-lists" aria-labelledby="talk-tab-lists">
+          <ListsPane channel={channel} initialListId={initialListId ?? null} />
+        </div>
+      )}
+      <div className="talk-tab-panel" role="tabpanel" id="talk-panel-messages" aria-labelledby="talk-tab-messages" hidden={tab !== 'messages'}>
       {pinsOpen && (
         <div className="talk-pins" role="region" aria-label={t('channel.pins')}>
           {pins === null ? (
@@ -425,7 +481,7 @@ export default function ChannelPane({ channel, highlightId, onBack }: Props) {
               {isChannel ? t('channel.introTitle', { name: channel.name }) : t('channel.introDm', { name: title })}
             </h2>
             <p className="talk-muted">{isChannel ? channel.description || t('channel.introBody') : t('channel.introDmBody')}</p>
-            {isChannel && isMember && !channel.archived && (
+            {isChannel && isMember && !channel.archived && !ctx.boot.guest && (
               <button type="button" className="btn btn-sm" onClick={() => dialog({ kind: 'details', channelId: channel.id, tab: 'members' })}>
                 {t('channel.addPeople')}
               </button>
@@ -460,6 +516,18 @@ export default function ChannelPane({ channel, highlightId, onBack }: Props) {
               </Fragment>
             );
           })}
+        {ephemeral.map((e) => (
+          <div key={e.id} className="talk-ephemeral" role="status" data-testid="talk-ephemeral">
+            <p className="talk-ephemeral-head">
+              <span className="talk-msg-author">{e.botName}</span>
+              <span className="talk-muted">{t('commands.onlyYou')}</span>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEphemeral((prev) => prev.filter((x) => x.id !== e.id))}>
+                {t('commands.dismiss')}
+              </button>
+            </p>
+            <MessageBody body={e.text} />
+          </div>
+        ))}
       </div>
       <TypingLine channelId={channel.id} parentId={null} />
       {channel.archived ? (
@@ -476,6 +544,7 @@ export default function ChannelPane({ channel, highlightId, onBack }: Props) {
           onDraftChange={(b) => setDraft(channel.id, null, b)}
           onSent={onSent}
           onEditLast={editLast}
+          onEphemeral={addEphemeral}
         />
       ) : (
         <div className="talk-banner talk-join">
@@ -485,6 +554,7 @@ export default function ChannelPane({ channel, highlightId, onBack }: Props) {
           </button>
         </div>
       )}
+      </div>
     </section>
   );
 }

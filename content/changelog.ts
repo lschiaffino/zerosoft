@@ -29,6 +29,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-28-talk',
+    date: '2026-10-28',
+    title: {
+      en: 'Talk: huddles, canvases, lists, guests and AI summaries',
+      es: 'Talk: huddles, canvases, listas, invitados y resúmenes con IA',
+      pt: 'Talk: huddles, canvases, listas, convidados e resumos com IA',
+    },
+    items: [
+      { product: 'talk', en: 'Audio huddles in channels and DMs with screen sharing, who is talking and mute, peer to peer in the browser. Each huddle leaves a message whose thread holds notes and links.', es: 'Huddles de audio en canales y DMs con pantalla compartida, quién habla y silencio, de persona a persona en el navegador. Cada huddle deja un mensaje cuyo hilo junta notas y links.', pt: 'Huddles de áudio em canais e DMs com compartilhamento de tela, quem está falando e silenciar, ponto a ponto no navegador. Cada huddle deixa uma mensagem cujo fio junta notas e links.' },
+      { product: 'talk', en: 'Each channel and DM has Canvas and Lists tabs: a shared document with the Docs editor, and lists as a table or board with typed fields, saved views and comments per item.', es: 'Cada canal y DM tiene pestañas de Canvas y Listas: un documento compartido con el editor de Docs, y listas en tabla o tablero con campos con tipo, vistas guardadas y comentarios por ítem.', pt: 'Cada canal e DM tem abas de Canvas e Listas: um documento compartilhado com o editor do Docs, e listas em tabela ou quadro com campos tipados, visões salvas e comentários por item.' },
+      { product: 'talk', en: 'Your own sidebar sections, profiles with title, time zone and workspace fields, browser push and a do not disturb schedule.', es: 'Secciones propias en el sidebar, perfiles con cargo, zona horaria y campos del workspace, push del navegador y horario de no molestar.', pt: 'Seções próprias na barra lateral, perfis com cargo, fuso e campos do workspace, push do navegador e horário de não perturbe.' },
+      { product: 'talk', en: 'Guests invited by email to specific channels, slash commands for your apps, message retention, an edit time limit and JSON export. AI summarizes channels and threads, makes a recap of your day, answers from search with sources and translates messages, always from what you can read.', es: 'Invitados por email a canales puntuales, slash commands para tus apps, retención de mensajes, límite para editar y export en JSON. La IA resume canales e hilos, arma el recap del día, responde desde la búsqueda con fuentes y traduce mensajes, siempre con lo que podés leer.', pt: 'Convidados por e-mail para canais específicos, slash commands para seus apps, retenção de mensagens, limite para editar e exportação em JSON. A IA resume canais e fios, faz o resumo do dia, responde na busca com fontes e traduz mensagens, sempre com o que você pode ler.' },
+    ],
+  },
+  {
     id: '2026-10-27-notes',
     date: '2026-10-27',
     title: {

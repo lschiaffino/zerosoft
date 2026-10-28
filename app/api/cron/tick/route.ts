@@ -1,4 +1,5 @@
 import { runVoiceCron } from '@/lib/voice-jobs';
+import { applyRetention } from '@/lib/talk-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { retryDueWebhooks } from '@/lib/webhooks';
 import { fireDueTasks } from '@/lib/crm';
@@ -76,6 +77,8 @@ export async function GET(req: NextRequest) {
   const chatEmails = await sendOfflineReplyEmails({ limit: 200 }).catch(() => null);
   // Recordatorios de Notes (también cada minuto en Vercel; claim por fila).
   const noteReminders = await fireNoteReminders({ limit: 500 }).catch(() => null);
+  // Talk: retención de mensajes por workspace (borrado por tandas; idempotente).
+  const talkRetention = await applyRetention().catch(() => null);
   // Recordatorios de las menciones de fecha de Docs (también cada minuto; claim por fila).
   const docReminders = await fireDocReminders({ limit: 500 }).catch(() => null);
   // Wiki de Docs: avisa a los dueños de las páginas cuya verificación venció
@@ -134,6 +137,6 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, linkHistory, trashPurged,
+  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, linkHistory, trashPurged,
     docsDomainsPurged, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, agentQuality, agentRedacted, robots, ideas });
 }

@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { getCurrentUser } from '@/lib/session';
-import { getChannelDto, talkActor } from '@/lib/talk';
+import { getChannelDto } from '@/lib/talk';
+import { resolveTalkActor } from '@/lib/talk-guests';
 import { renderTalk } from '../talk-page';
 
 export const dynamic = 'force-dynamic';
@@ -9,7 +10,7 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
   const { locale, id } = await props.params;
   const t = await getTranslations({ locale, namespace: 'talk' });
   const user = await getCurrentUser();
-  const channel = user ? await getChannelDto(talkActor(user), id).catch(() => null) : null;
+  const channel = user ? await getChannelDto(await resolveTalkActor(user), id).catch(() => null) : null;
   const name = channel && (channel.kind === 'public' || channel.kind === 'private') ? `#${channel.name}` : null;
   return { title: name ? `${name} · ${t('meta.title')}` : t('meta.title') };
 }

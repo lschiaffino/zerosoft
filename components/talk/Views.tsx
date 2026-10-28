@@ -8,6 +8,7 @@ import { talkPlainText } from '@/lib/talk-markdown';
 import MessageBody, { Avatar } from './MessageBody';
 import { errorText } from './Composer';
 import { fmtFull, fmtSize } from './Message';
+import { AskPanel } from './AiViews';
 import { useTalk, type TalkView } from './talk-context';
 
 type ChannelRef = { id: string; name: string; kind: TalkChannelKind };
@@ -41,7 +42,7 @@ function useLoader<T>(url: string | null, deps: unknown[] = []) {
   return { data, error, reload: load, setData };
 }
 
-function ViewShell({ title, desc, onBack, children, actions }: { title: string; desc?: string; onBack: () => void; children: React.ReactNode; actions?: React.ReactNode }) {
+export function ViewShell({ title, desc, onBack, children, actions }: { title: string; desc?: string; onBack: () => void; children: React.ReactNode; actions?: React.ReactNode }) {
   const t = useTranslations('talk');
   return (
     <section className="talk-pane talk-view" aria-label={title}>
@@ -401,6 +402,7 @@ export function SearchView({ query, onBack }: { query: string; onBack: () => voi
         </button>
       </form>
       <p className="talk-hint">{t('search.help')}</p>
+      {query && <AskPanel question={query} />}
       {!query ? null : error ? (
         <ErrorBox retry={() => void reload()} />
       ) : !data ? (

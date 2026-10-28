@@ -8,7 +8,7 @@ import { parseRemindCommand } from '@/lib/talk-time';
 import type { TalkChannelDto, TalkFileDto, TalkMessageDto } from '@/lib/talk';
 import { TalkApiError, useTalk } from './talk-context';
 
-type Suggest = { kind: 'user' | 'group' | 'special' | 'channel' | 'emoji'; id: string; label: string; detail?: string; insert: string };
+type Suggest = { kind: 'user' | 'group' | 'special' | 'channel' | 'emoji' | 'command'; id: string; label: string; detail?: string; insert: string };
 
 interface Props {
   channel: TalkChannelDto;
@@ -19,12 +19,14 @@ interface Props {
   onSent?: (m: TalkMessageDto) => void;
   onEditLast?: () => void;
   onDraftChange?: (body: string) => void;
+  /** Respuesta de una app que solo ve esta persona (slash commands). */
+  onEphemeral?: (e: { id: string; botName: string; text: string }) => void;
   compact?: boolean;
 }
 
 const MAX_FILES = 10;
 
-export default function Composer({ channel, parentId, initialDraft = '', focusKey, onSent, onEditLast, onDraftChange, compact }: Props) {
+export default function Composer({ channel, parentId, initialDraft = '', focusKey, onSent, onEditLast, onDraftChange, onEphemeral, compact }: Props) {
   const t = useTranslations('talk');
   const ctx = useTalk();
   const { boot, channels, people, api, toast, dialog, channelTitle } = ctx;
@@ -89,6 +91,28 @@ export default function Composer({ channel, parentId, initialDraft = '', focusKe
 
   function computeSuggest(value: string, caret: number) {
     const before = value.slice(0, caret);
+    // "/" al principio: comandos de Talk y de las apps del workspace (como Slack).
+    const cmd = /^\/([\w-]*)$/.exec(before);
+    if (cmd) {
+      const q = cmd[1].toLowerCase();
+      const builtIn: Suggest[] = [
+        { kind: 'command', id: 'remind', label: '/remind', detail: t('composer.cmdRemind'), insert: '/remind' },
+        { kind: 'command', id: 'topic', label: '/topic', detail: t('composer.cmdTopic'), insert: '/topic' },
+        { kind: 'command', id: 'status', label: '/status', detail: t('composer.cmdStatus'), insert: '/status' },
+        { kind: 'command', id: 'summarize', label: '/summarize', detail: t('composer.cmdSummarize'), insert: '/summarize' },
+        { kind: 'command', id: 'huddle', label: '/huddle', detail: t('composer.cmdHuddle'), insert: '/huddle' },
+        { kind: 'command', id: 'leave', label: '/leave', detail: t('composer.cmdLeave'), insert: '/leave' },
+      ];
+      const apps: Suggest[] = (boot.commands ?? []).map((c) => ({
+        kind: 'command',
+        id: c.id,
+        label: c.usageHint ? `${c.command} ${c.usageHint}` : c.command,
+        detail: c.description || t('composer.cmdApp'),
+        insert: c.command,
+      }));
+      const items = [...apps, ...builtIn].filter((x) => x.insert.slice(1).startsWith(q)).slice(0, 8);
+      return setSuggest(items.length ? { items, sel: 0, start: 0 } : null);
+    }
     const m = /(^|[\s(])([@#:])([\p{L}\p{N}_.+-]*)$/u.exec(before);
     if (!m) return setSuggest(null);
     const trigger = m[2];
@@ -231,6 +255,28 @@ export default function Composer({ channel, parentId, initialDraft = '', focusKe
     }
     if (lower === '/status' || lower === '/estado') {
       dialog({ kind: 'status' });
+      return true;
+    }
+    if (lower === '/summarize' || lower === '/resumir') {
+      dialog(parentId ? { kind: 'summary', rootId: parentId } : { kind: 'summary', channelId: channel.id });
+      return true;
+    }
+    if (lower === '/huddle') {
+      ctx.huddle.join(channel.id);
+      return true;
+    }
+    // Slash commands de las apps del workspace.
+    const app = (boot.commands ?? []).find((c) => c.command === lower);
+    if (app) {
+      const res = await api<{ ephemeral: string | null; ephemeralId?: string | null }>('/api/talk/commands/run', {
+        method: 'POST',
+        json: { channelId: channel.id, parentId, command: lower, text: arg },
+      });
+      if (res.ephemeral) onEphemeral?.({ id: res.ephemeralId ?? crypto.randomUUID(), botName: lower, text: res.ephemeral });
+      return true;
+    }
+    if (/^\/[\w-]+$/.test(lower)) {
+      toast(t('composer.unknownCommand', { command: lower }), 'error');
       return true;
     }
     return false;
@@ -464,9 +510,9 @@ export default function Composer({ channel, parentId, initialDraft = '', focusKe
           <button type="button" className="btn btn-ghost btn-sm btn-icon" aria-label={t('composer.mention')} title={t('composer.mention')} onClick={() => insertAtCaret('@')}>
             <span aria-hidden="true">@</span>
           </button>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => dialog({ kind: 'share', onPick: (url) => insertAtCaret(`${text && !text.endsWith(' ') ? ' ' : ''}${url} `) })}>
+          {!boot.guest && <button type="button" className="btn btn-ghost btn-sm" onClick={() => dialog({ kind: 'share', onPick: (url) => insertAtCaret(`${text && !text.endsWith(' ') ? ' ' : ''}${url} `) })}>
             {t('composer.share')}
-          </button>
+          </button>}
           {parentId && channel.kind !== 'dm' && (
             <label className="ui-check talk-also">
               <input type="checkbox" checked={also} onChange={(e) => setAlso(e.target.checked)} />

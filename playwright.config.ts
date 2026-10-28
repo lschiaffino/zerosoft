@@ -110,6 +110,10 @@ export default defineConfig({
       DOCS_EVENT_WINDOW_SEC: '0',
       // Talk con polling corto en vez de SSE: con el stream abierto la página nunca llega a networkidle.
       TALK_REALTIME: 'poll',
+      // IA de Talk (resúmenes, recap, preguntas, traducción) contra el modelo falso;
+      // con la cookie talk_ai_fake=off se ve ai_disabled. Huddles sin STUN externo (candidatos locales).
+      TALK_AI_FAKE: '1',
+      TALK_STUN_URLS: 'none',
       // Chat: AI del agente contra el modelo falso (lib/chat-copilot.ts; con la cookie
       // chat_ai_fake=off se ve ai_disabled) y el canal email entrante sin firma de Resend
       // (lib/chat-email.ts, el texto viene en el payload del webhook).

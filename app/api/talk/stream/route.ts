@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { talkActor } from '@/lib/talk';
+import { resolveTalkActor } from '@/lib/talk-guests';
 import { talkStream } from '@/lib/talk-realtime';
 import { requestCursor } from '@/lib/realtime';
 import { jsonError } from '@/lib/write-limit';
@@ -17,5 +17,5 @@ export const maxDuration = 300;
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return jsonError(401, 'unauthorized');
-  return talkStream(talkActor(user), requestCursor(req), req.signal);
+  return talkStream(await resolveTalkActor(user), requestCursor(req), req.signal);
 }

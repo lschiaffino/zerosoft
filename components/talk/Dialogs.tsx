@@ -12,6 +12,9 @@ import { Avatar } from './MessageBody';
 import { errorText } from './Composer';
 import { fmtFull } from './Message';
 import { useTalk, type TalkDialog } from './talk-context';
+import { AdminDialog, EditProfileDialog, InviteGuestDialog, ProfileDialog, SectionDialog } from './MoreDialogs';
+import { SummaryDialog, TranslateDialog } from './AiViews';
+import { PushSettings } from './PushSettings';
 
 /** <dialog class="ui-modal"> con foco atrapado; Esc y clic afuera cierran. */
 export function Modal({ title, onClose, children, foot, wide }: { title: string; onClose: () => void; children: ReactNode; foot?: ReactNode; wide?: boolean }) {
@@ -84,6 +87,20 @@ export default function TalkDialogs({ dialog }: { dialog: TalkDialog | null }) {
       return <DeleteMessage messageId={dialog.messageId} onClose={close} />;
     case 'shortcuts':
       return <Shortcuts onClose={close} />;
+    case 'profile':
+      return <ProfileDialog userId={dialog.userId} onClose={close} />;
+    case 'edit-profile':
+      return <EditProfileDialog onClose={close} />;
+    case 'summary':
+      return <SummaryDialog channelId={dialog.channelId} rootId={dialog.rootId} onClose={close} />;
+    case 'translate':
+      return <TranslateDialog messageId={dialog.messageId} onClose={close} />;
+    case 'admin':
+      return <AdminDialog initialTab={dialog.tab} onClose={close} />;
+    case 'section':
+      return <SectionDialog sectionId={dialog.sectionId} channelId={dialog.channelId} name={dialog.name} onClose={close} />;
+    case 'invite-guest':
+      return <InviteGuestDialog channelId={dialog.channelId} onClose={close} />;
   }
 }
 
@@ -419,7 +436,14 @@ function Details({ channelId, initialTab, onClose }: { channelId: string; initia
       )}
       {tab === 'members' && (
         <div className="talk-details">
-          {isChannel && writable && (
+          {isChannel && writable && ctx.boot.isAdmin && (
+            <div>
+              <button type="button" className="btn btn-sm" onClick={() => ctx.dialog({ kind: 'invite-guest', channelId: channel.id })}>
+                {t('guests.inviteToChannel')}
+              </button>
+            </div>
+          )}
+          {isChannel && writable && !ctx.boot.guest && (
             <div className="ui-field">
               <span className="label">{t('dialogs.addPeople')}</span>
               <PeoplePicker selected={adding} onChange={setAdding} exclude={memberIds} label={t('dialogs.addPeople')} />
@@ -437,7 +461,10 @@ function Details({ channelId, initialTab, onClose }: { channelId: string; initia
               {members.map((m) => (
                 <li key={m.userId} className="talk-member">
                   <Avatar id={m.userId} size={24} presence />
-                  <span>{ctx.personName(m.userId)}</span>
+                  <button type="button" className="talk-member-name" onClick={() => ctx.dialog({ kind: 'profile', userId: m.userId })}>
+                    {ctx.personName(m.userId)}
+                  </button>
+                  {ctx.people.get(m.userId)?.guest && <span className="badge badge-outline">{t('guests.badge')}</span>}
                   {m.role === 'admin' && <span className="badge badge-outline">{t('details.admin')}</span>}
                   {m.userId === ctx.boot.me && <span className="talk-muted">{t('details.you')}</span>}
                   {isChannel && channel.canManage && m.userId !== ctx.boot.me && channel.name !== 'general' && (
@@ -668,6 +695,12 @@ function PrefsDialog({ onClose }: { onClose: () => void }) {
           <button type="button" className="btn btn-sm" onClick={() => ctx.dialog({ kind: 'shortcuts' })}>
             {t('prefs.shortcuts')}
           </button>
+          <button type="button" className="btn btn-sm" onClick={() => ctx.dialog({ kind: 'profile', userId: ctx.boot.me })}>
+            {t('profile.mine')}
+          </button>
+          <a className="btn btn-sm" href="/api/talk/export?scope=mine" download>
+            {t('admin.exportMine')}
+          </a>
           <button type="button" className="btn btn-primary btn-sm" onClick={() => void save()}>
             {t('common.save')}
           </button>
@@ -689,6 +722,41 @@ function PrefsDialog({ onClose }: { onClose: () => void }) {
           <input className="input" value={prefs.keywords} onChange={(e) => setPrefs({ ...prefs, keywords: e.target.value })} placeholder={t('prefs.keywordsPh')} />
           <span className="ui-help">{t('prefs.keywordsHelp')}</span>
         </label>
+        <PushSettings value={prefs.push} onChange={(push) => setPrefs({ ...prefs, push })} />
+        <fieldset className="ui-field">
+          <legend className="label">{t('prefs.dndSchedule')}</legend>
+          <label className="ui-switch">
+            <input type="checkbox" role="switch" checked={prefs.dnd.enabled} onChange={(e) => setPrefs({ ...prefs, dnd: { ...prefs.dnd, enabled: e.target.checked } })} data-testid="talk-dnd-schedule" />
+            {t('prefs.dndScheduleOn')}
+          </label>
+          {prefs.dnd.enabled && (
+            <>
+              <div className="talk-inline-form">
+                <label className="ui-field">
+                  <span className="label">{t('prefs.dndFrom')}</span>
+                  <input className="input" type="time" value={prefs.dnd.start} onChange={(e) => setPrefs({ ...prefs, dnd: { ...prefs.dnd, start: e.target.value } })} />
+                </label>
+                <label className="ui-field">
+                  <span className="label">{t('prefs.dndTo')}</span>
+                  <input className="input" type="time" value={prefs.dnd.end} onChange={(e) => setPrefs({ ...prefs, dnd: { ...prefs.dnd, end: e.target.value } })} />
+                </label>
+              </div>
+              <div className="talk-days" role="group" aria-label={t('prefs.dndDays')}>
+                {[1, 2, 3, 4, 5, 6, 0].map((d) => (
+                  <label key={d} className="ui-check">
+                    <input
+                      type="checkbox"
+                      checked={prefs.dnd.days.includes(d)}
+                      onChange={(e) => setPrefs({ ...prefs, dnd: { ...prefs.dnd, days: e.target.checked ? [...prefs.dnd.days, d] : prefs.dnd.days.filter((x) => x !== d) } })}
+                    />
+                    <span>{t(`prefs.day${d}`)}</span>
+                  </label>
+                ))}
+              </div>
+              <span className="ui-help">{t('prefs.dndHelp')}</span>
+            </>
+          )}
+        </fieldset>
         <fieldset className="ui-field talk-radios">
           <legend className="label">{t('prefs.email')}</legend>
           <label className="ui-check">

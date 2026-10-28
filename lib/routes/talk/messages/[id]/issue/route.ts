@@ -25,6 +25,8 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   return withTalk(
     async ({ actor }) => {
+      // Un invitado de Talk no entra a Track del workspace.
+      if (actor.guest) return jsonError(403, 'forbidden');
       const body = await readBody(req, schema);
       if (!body) return jsonError(400, 'invalid_input');
       const found = await readableMessage(actor, id);

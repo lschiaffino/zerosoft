@@ -4,8 +4,9 @@ import { createContext, useContext } from 'react';
 import type { TalkBootstrap } from '@/lib/talk-boot';
 import type { TalkChannelDto, TalkMessageDto, TalkPerson } from '@/lib/talk';
 import type { TalkPresenceDto } from '@/lib/talk-extras';
+import type { HuddleControls } from './Huddle';
 
-export type TalkView = 'channel' | 'threads' | 'activity' | 'later' | 'drafts' | 'files' | 'search' | 'browse';
+export type TalkView = 'channel' | 'threads' | 'activity' | 'later' | 'drafts' | 'files' | 'search' | 'browse' | 'recap';
 
 export interface TalkCtx {
   boot: TalkBootstrap;
@@ -31,6 +32,8 @@ export interface TalkCtx {
   subscribe: (fn: (e: TalkBusEvent) => void) => () => void;
   drafts: Map<string, string>;
   setDraft: (channelId: string, parentId: string | null, body: string) => void;
+  /** Huddle en curso de esta pestaña. */
+  huddle: HuddleControls;
 }
 
 export type TalkBusEvent =
@@ -52,7 +55,14 @@ export type TalkDialog =
   | { kind: 'share'; onPick: (url: string) => void }
   | { kind: 'emoji'; onPick: (emoji: string) => void; anchor?: DOMRect | null }
   | { kind: 'confirm-delete-message'; messageId: string }
-  | { kind: 'shortcuts' };
+  | { kind: 'shortcuts' }
+  | { kind: 'profile'; userId: string }
+  | { kind: 'edit-profile' }
+  | { kind: 'summary'; channelId?: string; rootId?: string }
+  | { kind: 'translate'; messageId: string }
+  | { kind: 'admin'; tab?: 'guests' | 'apps' | 'fields' | 'data' }
+  | { kind: 'section'; sectionId?: string; channelId?: string; name?: string }
+  | { kind: 'invite-guest'; channelId?: string };
 
 export const TalkContext = createContext<TalkCtx | null>(null);
 

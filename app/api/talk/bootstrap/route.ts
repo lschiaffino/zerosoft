@@ -7,5 +7,5 @@ export const dynamic = 'force-dynamic';
 
 /** Sidebar y estado general (al volver a la pestaña o cuando cambia un canal). */
 export async function GET(_req: NextRequest) {
-  return withTalk(async ({ actor }) => NextResponse.json(await loadTalkBootstrap(actor)));
+  return withTalk(async ({ actor, user }) => NextResponse.json(await loadTalkBootstrap(actor, { user })));
 }

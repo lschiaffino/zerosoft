@@ -83,6 +83,8 @@ async function docCard(actor: TalkActor, id: string, url: string): Promise<TalkR
 export async function resolveRefs(actor: TalkActor, messages: Array<{ id: string; body: string }>): Promise<Map<string, TalkRefCard[]>> {
   const out = new Map<string, TalkRefCard[]>();
   const cache = new Map<string, TalkRefCard | null>();
+  // Un invitado no ve nada de las otras apps del workspace (Track, CRM, Docs): sin tarjetas.
+  if (actor.guest) return out;
   for (const m of messages) {
     if (!m.body.includes('/app/')) continue;
     const cards: TalkRefCard[] = [];

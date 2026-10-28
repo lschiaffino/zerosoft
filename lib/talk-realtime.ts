@@ -7,7 +7,7 @@
  */
 import { getDb } from './db';
 import { sharedFeed, sseLiveResponse, type SharedFeed } from './realtime';
-import { isWorkspacePerson, latestEventId, listEventsSince, type TalkActor, type TalkEvent, type TalkEventKind } from './talk';
+import { isWorkspacePerson, workspacePersonKind, latestEventId, listEventsSince, type TalkActor, type TalkEvent, type TalkEventKind } from './talk';
 import { heartbeat } from './talk-extras';
 
 export const TALK_FEED_INTERVAL_MS = 700;
@@ -57,10 +57,13 @@ export function talkFeed(): SharedFeed<RawEvent> {
 
 /** Canales cuyos eventos ve esta persona: donde es miembro y los públicos del workspace. */
 export async function visibleChannels(actor: TalkActor): Promise<Set<string>> {
-  if (!(await isWorkspacePerson(actor.workspaceId, actor.personId))) return new Set();
+  const kind = await workspacePersonKind(actor.workspaceId, actor.personId);
+  if (!kind) return new Set();
+  // Un invitado solo recibe lo de sus canales (ni los públicos).
+  const pub = kind === 'guest' ? '0' : "kind = 'public'";
   const rows = (await getDb()
     .prepare(
-      `SELECT id FROM talk_channels WHERE workspace_id = ? AND (kind = 'public' OR id IN (SELECT channel_id FROM talk_members WHERE user_id = ?))`,
+      `SELECT id FROM talk_channels WHERE workspace_id = ? AND (${pub} OR id IN (SELECT channel_id FROM talk_members WHERE user_id = ?))`,
     )
     .all(actor.workspaceId, actor.personId)) as Array<{ id: string }>;
   return new Set(rows.map((r) => r.id));

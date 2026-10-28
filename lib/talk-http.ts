@@ -5,7 +5,9 @@
 import { NextResponse } from 'next/server';
 import type { z, ZodTypeAny } from 'zod';
 import { getCurrentUser, type SessionUser } from './session';
-import { TalkError, talkActor, type TalkActor } from './talk';
+import { TalkError, type TalkActor } from './talk';
+import { resolveTalkActor } from './talk-guests';
+import { AiError } from './ai';
 import { jsonError, limitWrites } from './write-limit';
 
 export type TalkHandlerCtx = { actor: TalkActor; user: SessionUser };
@@ -14,7 +16,7 @@ export type TalkHandlerCtx = { actor: TalkActor; user: SessionUser };
 export async function talkSession(opts: { write?: string; limit?: number } = {}): Promise<TalkHandlerCtx | NextResponse> {
   const user = await getCurrentUser();
   if (!user) return jsonError(401, 'unauthorized');
-  const actor = talkActor(user);
+  const actor = await resolveTalkActor(user);
   if (opts.write) {
     const limited = await limitWrites(`talk:${opts.write}`, actor.personId, opts.limit ?? 240);
     if (limited) return limited;
@@ -24,6 +26,7 @@ export async function talkSession(opts: { write?: string; limit?: number } = {})
 
 export function talkError(err: unknown): NextResponse {
   if (err instanceof TalkError) return jsonError(err.status, err.code);
+  if (err instanceof AiError) return jsonError(err.code === 'ai_disabled' ? 503 : 429, err.code);
   if (/UNIQUE|constraint/i.test(String(err))) return jsonError(409, 'conflict');
   console.error('[talk]', err);
   return jsonError(500, 'server_error');

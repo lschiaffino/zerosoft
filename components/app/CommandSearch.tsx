@@ -164,6 +164,8 @@ function useGroupOrder() {
         'talkChannels',
         'talkDms',
         'talkPeople',
+        'talkCanvases',
+        'talkLists',
       ], []);
 }
 

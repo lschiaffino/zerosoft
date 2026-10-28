@@ -14,7 +14,21 @@ const schema = z.object({
   away: z.boolean().optional(),
   dndUntil: z.string().max(40).nullable().optional(),
   prefs: z
-    .object({ notify: z.enum(['all', 'mentions', 'none']).optional(), email: z.enum(['mentions', 'off']).optional(), keywords: z.string().max(500).optional() })
+    .object({
+      notify: z.enum(['all', 'mentions', 'none']).optional(),
+      email: z.enum(['mentions', 'off']).optional(),
+      keywords: z.string().max(500).optional(),
+      push: z.enum(['all', 'mentions', 'off']).optional(),
+      dnd: z
+        .object({
+          enabled: z.boolean().optional(),
+          start: z.string().max(5).optional(),
+          end: z.string().max(5).optional(),
+          days: z.array(z.number().int().min(0).max(6)).max(7).optional(),
+        })
+        .optional(),
+      recapChannels: z.array(z.string().max(64)).max(50).optional(),
+    })
     .optional(),
 });
 

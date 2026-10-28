@@ -139,7 +139,13 @@ export default function Message({ message: m, channel, grouped, inThread, highli
         {m.pinned && <p className="talk-msg-flag">{t('message.pinned')}</p>}
         {!grouped && (
           <div className="talk-msg-head">
-            <span className="talk-msg-author">{author}</span>
+            {m.userId && !m.botName ? (
+              <button type="button" className="talk-msg-author talk-msg-author-btn" onClick={() => dialog({ kind: 'profile', userId: m.userId! })}>
+                {author}
+              </button>
+            ) : (
+              <span className="talk-msg-author">{author}</span>
+            )}
             {m.botName && <span className="badge badge-outline">{t('message.app')}</span>}
             {status?.statusEmoji && (
               <span className="talk-msg-status" title={status.statusText}>
@@ -270,13 +276,33 @@ export default function Message({ message: m, channel, grouped, inThread, highli
                   }}
                 />
               )}
-              <MenuItem
-                label={t('message.createIssue')}
-                onClick={() => {
-                  setMenu(false);
-                  dialog({ kind: 'issue', message: m });
-                }}
-              />
+              {m.body && (
+                <MenuItem
+                  label={t('ai.translate')}
+                  onClick={() => {
+                    setMenu(false);
+                    dialog({ kind: 'translate', messageId: m.id });
+                  }}
+                />
+              )}
+              {!m.parentId && m.replyCount > 0 && (
+                <MenuItem
+                  label={t('ai.summarizeThread')}
+                  onClick={() => {
+                    setMenu(false);
+                    dialog({ kind: 'summary', rootId: m.id });
+                  }}
+                />
+              )}
+              {!boot.guest && (
+                <MenuItem
+                  label={t('message.createIssue')}
+                  onClick={() => {
+                    setMenu(false);
+                    dialog({ kind: 'issue', message: m });
+                  }}
+                />
+              )}
               {(mine || boot.isAdmin) && (
                 <MenuItem
                   danger

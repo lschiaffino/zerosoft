@@ -28,7 +28,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Slack',
-  lastReviewed: '2026-10-25',
+  lastReviewed: '2026-10-28',
   areas: [
     { id: 'channels', label: loc(['Channels', 'Canales', 'Canais']) },
     { id: 'dms', label: loc(['Direct messages', 'Mensajes directos', 'Mensagens diretas']) },
@@ -279,18 +279,26 @@ const parity: ProductParity = {
 
 type Built = { status: ParityStatus; detail?: L };
 
-/** Lo que Talk ya hace (tanda 4d, 2026-10-25). Lo que no está acá sigue en missing. */
+/** Lo que Talk ya hace (tanda 4d, 2026-10-25; ronda 2, 2026-10-28). Lo que no está acá sigue en missing. */
 const BUILT: Record<string, Built> = {
   'public-channels': { status: 'have' },
   'private-channels': { status: 'have', detail: ['Only members read them; webhooks and flows only get their messages if the person who created them is a member', 'Solo los leen sus miembros; webhooks y flows reciben sus mensajes solo si quien los creó es miembro', 'Só os membros leem; webhooks e flows recebem as mensagens só se quem os criou for membro'] },
   'channel-manage': { status: 'have', detail: ['Rename, topic, description, archive and restore, change to private and delete', 'Renombrar, tema, descripción, archivar y restaurar, pasar a privado y borrar', 'Renomear, tema, descrição, arquivar e restaurar, tornar privado e apagar'] },
   'channel-header': {
     status: 'partial',
-    detail: ['Header with topic, members and pinned messages. No bookmarks or tabs yet', 'Encabezado con tema, miembros y mensajes fijados. Todavía sin marcadores ni pestañas', 'Cabeçalho com tema, membros e mensagens fixadas. Ainda sem marcadores nem abas'],
+    detail: [
+      'Header with topic, members, pinned messages and Messages, Canvas and Lists tabs. No bookmarks yet',
+      'Encabezado con tema, miembros, mensajes fijados y pestañas de Mensajes, Canvas y Listas. Todavía sin marcadores',
+      'Cabeçalho com tema, membros, mensagens fixadas e abas de Mensagens, Canvas e Listas. Ainda sem marcadores',
+    ],
   },
   'sidebar-sections': {
-    status: 'partial',
-    detail: ['Fixed Starred, Channels and Direct messages sections that collapse. You cannot create your own sections yet', 'Secciones fijas de Destacados, Canales y Mensajes directos, que se colapsan. Todavía no se crean secciones propias', 'Seções fixas de Favoritos, Canais e Mensagens diretas, que recolhem. Ainda não dá para criar seções próprias'],
+    status: 'have',
+    detail: [
+      'Starred, your own sections (create, rename, reorder, sort A to Z or by activity, delete) and moving channels or DMs from their menu',
+      'Destacados, secciones propias (crear, renombrar, ordenar, A a Z o por actividad, borrar) y mover canales o DMs desde su menú',
+      'Favoritos, seções próprias (criar, renomear, reordenar, A a Z ou por atividade, apagar) e mover canais ou DMs pelo menu',
+    ],
   },
   'direct-messages': { status: 'have', detail: ['Including a DM with yourself', 'También el DM con vos mismo', 'Também a DM com você mesmo'] },
   'group-dms': { status: 'have', detail: ['Up to 9 people plus you. Converting a group into a private channel is not there yet', 'Hasta 9 personas más vos. Todavía no se convierte un grupo en canal privado', 'Até 9 pessoas mais você. Ainda não dá para converter um grupo em canal privado'] },
@@ -306,7 +314,14 @@ const BUILT: Record<string, Built> = {
   threads: { status: 'have', detail: ['Side panel with "also send to the channel" and a Threads view', 'Panel lateral con "también enviar al canal" y vista de Hilos', 'Painel lateral com "também enviar ao canal" e visão de Fios'] },
   mentions: { status: 'have', detail: ['People, @channel, @here and workspace teams (the CRM sales teams for now)', 'Personas, @canal, @aquí y equipos del workspace (por ahora los equipos de ventas del CRM)', 'Pessoas, @canal, @aqui e equipes do workspace (por enquanto as equipes de vendas do CRM)'] },
   reactions: { status: 'have', detail: ['No custom workspace emoji yet', 'Todavía sin emoji propios del workspace', 'Ainda sem emoji próprios do workspace'] },
-  'edit-delete': { status: 'have', detail: ['Authors edit and delete; workspace admins delete. No admin time limit for edits yet', 'El autor edita y borra; los admins del workspace borran. Todavía sin límite de tiempo para editar', 'O autor edita e apaga; os admins do workspace apagam. Ainda sem limite de tempo para editar'] },
+  'edit-delete': {
+    status: 'have',
+    detail: [
+      'Authors edit and delete; workspace admins delete and can set how long edits are allowed',
+      'El autor edita y borra; los admins del workspace borran y definen por cuánto tiempo se puede editar',
+      'O autor edita e apaga; os admins do workspace apagam e definem por quanto tempo dá para editar',
+    ],
+  },
   'scheduled-messages': { status: 'have' },
   'pinned-messages': { status: 'have' },
   'file-sharing': { status: 'have', detail: ['Images shown inline and files up to 10 MB, served only to people who can read the channel', 'Imágenes en línea y archivos de hasta 10 MB, que solo ve quien puede leer el canal', 'Imagens em linha e arquivos de até 10 MB, que só vê quem pode ler o canal'] },
@@ -315,14 +330,22 @@ const BUILT: Record<string, Built> = {
   unreads: { status: 'have', detail: ['Unread and mention counts per channel, a New line and a Mentions view', 'Sin leer y menciones por canal, línea de Nuevos y vista de Menciones', 'Não lidas e menções por canal, linha de Novas e visão de Menções'] },
   'save-later': { status: 'have', detail: ['Later with saved messages, reminders on a message and /remind', 'Más tarde con guardados, recordatorios en un mensaje y /recordar', 'Mais tarde com salvas, lembretes em uma mensagem e /lembrar'] },
   notifications: {
-    status: 'partial',
-    detail: ['Bell and email for unread mentions and DMs, per channel and general levels, keywords and pausing for an hour. No browser push or do not disturb schedule yet', 'Campana y email de menciones y DMs sin leer, niveles por canal y generales, palabras clave y pausa de una hora. Todavía sin push del navegador ni horario de no molestar', 'Sino e e-mail de menções e DMs não lidas, níveis por canal e gerais, palavras-chave e pausa de uma hora. Ainda sem push do navegador nem horário de não perturbe'],
+    status: 'have',
+    detail: [
+      'Bell, email and browser push (needs VAPID keys on the server) by channel and general level, keywords, pause for an hour and a do not disturb schedule by day in your time zone',
+      'Campana, email y push del navegador (necesita claves VAPID en el servidor) con niveles por canal y generales, palabras clave, pausa de una hora y horario de no molestar por día en tu zona horaria',
+      'Sino, e-mail e push do navegador (precisa de chaves VAPID no servidor) com níveis por canal e gerais, palavras-chave, pausa de uma hora e horário de não perturbe por dia no seu fuso',
+    ],
   },
   status: { status: 'have' },
   presence: { status: 'have', detail: ['Active or away by activity, and manual away', 'Activo o ausente por actividad, y ausente a mano', 'Ativo ou ausente pela atividade, e ausente manual'] },
   profiles: {
-    status: 'partial',
-    detail: ['Name, photo, status and presence. No title, time zone or custom fields yet', 'Nombre, foto, estado y presencia. Todavía sin cargo, zona horaria ni campos propios', 'Nome, foto, status e presença. Ainda sem cargo, fuso horário nem campos próprios'],
+    status: 'have',
+    detail: [
+      'Name, photo, title, pronouns, phone, time zone with local time, status, presence and fields the admin defines',
+      'Nombre, foto, cargo, pronombres, teléfono, zona horaria con hora local, estado, presencia y campos que define el admin',
+      'Nome, foto, cargo, pronomes, telefone, fuso com hora local, status, presença e campos definidos pelo admin',
+    ],
   },
   'workflow-builder': {
     status: 'partial',
@@ -335,14 +358,86 @@ const BUILT: Record<string, Built> = {
   'api-bots': {
     status: 'partial',
     detail: [
-      'API v1 for channels and their messages (talk:read, talk:write; direct messages are not exposed), incoming webhooks per channel and outgoing workspace webhooks. No slash commands or interactive bots yet',
-      'API v1 de canales y sus mensajes (talk:read, talk:write; los mensajes directos no se exponen), webhooks entrantes por canal y webhooks salientes del workspace. Todavía sin slash commands ni bots interactivos',
-      'API v1 de canais e suas mensagens (talk:read, talk:write; as mensagens diretas não são expostas), webhooks de entrada por canal e webhooks de saída do workspace. Ainda sem slash commands nem bots interativos',
+      'API v1 for channels and messages (talk:read, talk:write; DMs are not exposed), incoming and outgoing webhooks, and slash commands for apps (signed POST, reply in the channel or only to you, response_url). No interactive buttons or modals yet',
+      'API v1 de canales y mensajes (talk:read, talk:write; los DMs no se exponen), webhooks entrantes y salientes, y slash commands de apps (POST firmado, respuesta en el canal o solo para vos, response_url). Todavía sin botones ni modales interactivos',
+      'API v1 de canais e mensagens (talk:read, talk:write; as DMs não são expostas), webhooks de entrada e saída, e slash commands de apps (POST assinado, resposta no canal ou só para você, response_url). Ainda sem botões nem modais interativos',
     ],
   },
   roles: {
     status: 'partial',
     detail: ['Workspace owner, admin and member, plus channel admins. No finer roles', 'Owner, admin y miembro del workspace, más admins de canal. Sin roles más finos', 'Owner, admin e membro do workspace, mais admins de canal. Sem papéis mais finos'],
+  },
+  huddles: {
+    status: 'partial',
+    detail: [
+      'Audio huddles in channels and DMs, peer to peer (WebRTC) for up to 15 people, with who is talking and mute. No camera video yet. STUN by default; strict networks need a TURN server (TALK_TURN_URLS and TALK_TURN_SECRET)',
+      'Huddles de audio en canales y DMs, de persona a persona (WebRTC) hasta 15, con quién habla y silencio. Todavía sin cámara. STUN por defecto; las redes estrictas necesitan un servidor TURN (TALK_TURN_URLS y TALK_TURN_SECRET)',
+      'Huddles de áudio em canais e DMs, ponto a ponto (WebRTC) até 15 pessoas, com quem está falando e silenciar. Ainda sem câmera. STUN por padrão; redes restritas precisam de um servidor TURN (TALK_TURN_URLS e TALK_TURN_SECRET)',
+    ],
+  },
+  'screen-share': {
+    status: 'partial',
+    detail: [
+      'Anyone in the huddle shares a screen (several at once). No drawing on the screen',
+      'Cualquiera del huddle comparte pantalla (varias a la vez). Sin dibujar sobre la pantalla',
+      'Qualquer pessoa do huddle compartilha a tela (várias ao mesmo tempo). Sem desenhar na tela',
+    ],
+  },
+  'huddle-notes': {
+    status: 'partial',
+    detail: [
+      'Each huddle posts a message whose thread holds notes and links. No AI notes (there is no recording or transcript)',
+      'Cada huddle deja un mensaje cuyo hilo junta notas y links. Sin notas de IA (no hay grabación ni transcripción)',
+      'Cada huddle deixa uma mensagem cujo fio junta notas e links. Sem notas de IA (não há gravação nem transcrição)',
+    ],
+  },
+  canvases: {
+    status: 'partial',
+    detail: [
+      'One canvas per channel or DM as a tab, with the Docs block editor, live updates and Cmd+K search. No standalone canvases or comments yet',
+      'Un canvas por canal o DM como pestaña, con el editor de bloques de Docs, cambios en vivo y búsqueda con Cmd+K. Todavía sin canvases sueltos ni comentarios',
+      'Um canvas por canal ou DM como aba, com o editor de blocos do Docs, mudanças ao vivo e busca com Cmd+K. Ainda sem canvases avulsos nem comentários',
+    ],
+  },
+  lists: {
+    status: 'have',
+    detail: [
+      'Table or board with typed fields, saved views (filter, sort, group), a comment thread per item and up to 1,000 items',
+      'Tabla o tablero con campos con tipo, vistas guardadas (filtro, orden, agrupar), hilo de comentarios por ítem y hasta 1.000 ítems',
+      'Tabela ou quadro com campos tipados, visões salvas (filtro, ordem, agrupar), fio de comentários por item e até 1.000 itens',
+    ],
+  },
+  guests: {
+    status: 'have',
+    detail: [
+      'Invite by email to specific channels; guests do not see other channels, the directory or other apps, and lose everything the moment they are removed',
+      'Invitación por email a canales puntuales; los invitados no ven otros canales, el directorio ni otras apps, y pierden todo en el momento en que se los saca',
+      'Convite por e-mail para canais específicos; convidados não veem outros canais, o diretório nem outros apps, e perdem tudo na hora em que são removidos',
+    ],
+  },
+  'ai-summaries': {
+    status: 'have',
+    detail: [
+      'Summaries of a channel or DM (unread, a day or a week) and of a thread, only from what you can read',
+      'Resúmenes de un canal o DM (lo no leído, el día o la semana) y de un hilo, solo con lo que podés leer',
+      'Resumos de um canal ou DM (não lido, um dia ou uma semana) e de um fio, só com o que você pode ler',
+    ],
+  },
+  'ai-search-recaps': {
+    status: 'partial',
+    detail: [
+      'Answers with cited sources in search, message translation and a recap of the last 24 hours of the channels you pick. The recap is made when you ask for it, not sent daily',
+      'Respuestas con fuentes en la búsqueda, traducción de mensajes y recap de las últimas 24 horas de los canales que elijas. El recap se arma cuando lo pedís, no llega solo cada día',
+      'Respostas com fontes na busca, tradução de mensagens e resumo das últimas 24 horas dos canais que você escolher. O resumo é feito quando você pede, não chega sozinho todo dia',
+    ],
+  },
+  'retention-export': {
+    status: 'have',
+    detail: [
+      'Admins set message retention (deleted hourly with their files) and export public channels as JSON; anyone exports their own conversations',
+      'El admin define la retención de mensajes (se borran cada hora con sus archivos) y exporta los canales públicos en JSON; cualquiera exporta sus conversaciones',
+      'O admin define a retenção de mensagens (apagadas a cada hora com os arquivos) e exporta os canais públicos em JSON; qualquer pessoa exporta suas conversas',
+    ],
   },
 };
 

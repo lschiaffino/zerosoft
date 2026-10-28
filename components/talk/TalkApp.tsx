@@ -12,10 +12,12 @@ import ThreadPane from './ThreadPane';
 import Sidebar, { sidebarOrder } from './Sidebar';
 import TalkDialogs from './Dialogs';
 import { ActivityView, BrowseView, DraftsView, FilesView, LaterView, SearchView, ThreadsView } from './Views';
+import { RecapView } from './AiViews';
+import { useHuddleManager } from './Huddle';
 import { TalkContext, draftKey, talkFetch, type TalkBusEvent, type TalkCtx, type TalkDialog, type TalkView } from './talk-context';
 
 const LAST_KEY = 'talk.lastChannel';
-const VIEWS: TalkView[] = ['threads', 'activity', 'later', 'drafts', 'files', 'search', 'browse'];
+const VIEWS: TalkView[] = ['threads', 'activity', 'later', 'drafts', 'files', 'search', 'browse', 'recap'];
 
 interface Props {
   locale: string;
@@ -25,6 +27,8 @@ interface Props {
   initialMessageId: string | null;
   initialThreadId: string | null;
   initialQuery: string;
+  initialTab?: 'canvas' | 'lists' | null;
+  initialListId?: string | null;
   realtimeMode: RealtimeMode;
 }
 
@@ -47,6 +51,25 @@ export default function TalkApp(props: Props) {
   const [revoked, setRevoked] = useState(false);
   const [mobilePane, setMobilePane] = useState<'side' | 'main' | 'thread'>(props.initialChannelId || props.initialView ? (props.initialThreadId ? 'thread' : 'main') : 'side');
   const listeners = useRef(new Set<(e: TalkBusEvent) => void>());
+  // Huddles: sus pedidos aceleran el polling (la señalización WebRTC viaja por el feed).
+  const nudgeRef = useRef<() => void>(() => undefined);
+  const huddleApi = useCallback(async <T,>(url: string, init?: RequestInit & { json?: unknown }) => {
+    const res = await talkFetch<T>(url, init);
+    if (init?.method && init.method !== 'GET') nudgeRef.current();
+    return res;
+  }, []);
+  const huddleError = useCallback((code: string) => toastRef.current(t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic'), 'error'), [t]);
+  const toastRef = useRef<(text: string, kind?: 'ok' | 'error') => void>(() => undefined);
+  const huddle = useHuddleManager(huddleApi, huddleError);
+  const huddleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refreshHuddles = useCallback(() => {
+    if (huddleTimer.current) clearTimeout(huddleTimer.current);
+    huddleTimer.current = setTimeout(() => {
+      void talkFetch<{ huddles: TalkBootstrap['huddles'] }>('/api/talk/huddles')
+        .then((r) => setBoot((b) => ({ ...b, huddles: r.huddles })))
+        .catch(() => undefined);
+    }, 300);
+  }, []);
   const bootTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const people = useMemo(() => new Map([...(boot.formerPeople ?? []), ...boot.people].map((p) => [p.id, p])), [boot.people, boot.formerPeople]);
@@ -84,6 +107,7 @@ export default function TalkApp(props: Props) {
     setToasts((prev) => [...prev.slice(-2), { id, text, kind }]);
     setTimeout(() => setToasts((prev) => prev.filter((x) => x.id !== id)), kind === 'error' ? 6000 : 3500);
   }, []);
+  toastRef.current = toast;
 
   const publish = useCallback((e: TalkBusEvent) => {
     for (const fn of listeners.current) fn(e);
@@ -173,7 +197,7 @@ export default function TalkApp(props: Props) {
       const v = target.view ?? 'channel';
       if (v === 'channel') {
         // Sin canal: el último abierto o #general.
-        const fallback = boot.channels.find((c) => c.kind === 'public' && c.name === 'general') ?? sidebarOrder(boot.channels)[0];
+        const fallback = boot.channels.find((c) => c.kind === 'public' && c.name === 'general') ?? sidebarOrder(boot.channels, boot.sections)[0];
         if (fallback) {
           setView('channel');
           setChannelId(fallback.id);
@@ -190,7 +214,7 @@ export default function TalkApp(props: Props) {
       setMobilePane('main');
       syncUrl({ view: v, channelId: null, query: target.query });
     },
-    [boot.channels, syncUrl],
+    [boot.channels, boot.sections, syncUrl],
   );
 
   const openThread = useCallback(
@@ -231,7 +255,7 @@ export default function TalkApp(props: Props) {
     } catch {
       /* sin storage */
     }
-    const target = (last && boot.channels.find((c) => c.id === last)) || boot.channels.find((c) => c.kind === 'public' && c.name === 'general') || sidebarOrder(boot.channels)[0];
+    const target = (last && boot.channels.find((c) => c.id === last)) || boot.channels.find((c) => c.kind === 'public' && c.name === 'general') || sidebarOrder(boot.channels, boot.sections)[0];
     if (target) {
       setChannelId(target.id);
       syncUrl({ view: 'channel', channelId: target.id }, true);
@@ -322,7 +346,8 @@ export default function TalkApp(props: Props) {
           return next;
         });
       }
-      const meaningful = events.filter((e) => e.kind !== 'typing');
+      if (events.some((e) => e.kind === 'signal' || e.kind === 'huddle')) huddle.onEvents(events);
+      const meaningful = events.filter((e) => e.kind !== 'typing' && e.kind !== 'signal');
       if (!meaningful.length) return;
       publish({ type: 'events', events: meaningful });
       applyEvents(meaningful);
@@ -389,8 +414,10 @@ export default function TalkApp(props: Props) {
         } else if (e.kind === 'presence' && p.presence) {
           const dto = p.presence as (typeof presenceList)[number];
           presenceList = [...presenceList.filter((x) => x.userId !== dto.userId), dto];
-        } else if (e.kind === 'saved') {
+        } else if (e.kind === 'saved' || e.kind === 'profile' || e.kind === 'section') {
           fullRefresh = true;
+        } else if (e.kind === 'huddle') {
+          refreshHuddles();
         }
       }
       return { ...b, channels, presence: presenceList, unreadThreadIds, unreadThreads: unreadThreadIds.length, counts };
@@ -411,6 +438,7 @@ export default function TalkApp(props: Props) {
     onRevoked: () => setRevoked(true),
   });
   liveRef.current = status === 'live';
+  nudgeRef.current = nudge;
 
   const api = useCallback<TalkCtx['api']>(
     async <T,>(url: string, init?: RequestInit & { json?: unknown }) => {
@@ -433,7 +461,7 @@ export default function TalkApp(props: Props) {
     function onKey(e: KeyboardEvent) {
       const mod = e.metaKey || e.ctrlKey;
       if (e.altKey && !mod && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-        const order = sidebarOrder(boot.channels);
+        const order = sidebarOrder(boot.channels, boot.sections);
         const list = e.shiftKey ? order.filter((c) => c.unread || c.id === channelId) : order;
         if (!list.length) return;
         e.preventDefault();
@@ -474,7 +502,7 @@ export default function TalkApp(props: Props) {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [boot.channels, channelId, open, api, refreshBoot, toast, t]);
+  }, [boot.channels, boot.sections, channelId, open, api, refreshBoot, toast, t]);
 
   const ctx: TalkCtx = {
     boot: { ...boot, counts: { ...boot.counts, drafts: draftsLoaded ? drafts.size : boot.counts.drafts } },
@@ -497,6 +525,7 @@ export default function TalkApp(props: Props) {
     subscribe,
     drafts,
     setDraft,
+    huddle,
   };
 
   const channel = channelId ? (channelById.get(channelId) ?? null) : null;
@@ -519,7 +548,17 @@ export default function TalkApp(props: Props) {
   else if (view === 'files') main = <FilesView onBack={back} />;
   else if (view === 'search') main = <SearchView query={query} onBack={back} />;
   else if (view === 'browse') main = <BrowseView onBack={back} archivedOnly={query === 'archived'} />;
-  else if (channel) main = <ChannelPane channel={channel} highlightId={highlightId} onBack={back} />;
+  else if (view === 'recap') main = <RecapView onBack={back} />;
+  else if (channel)
+    main = (
+      <ChannelPane
+        channel={channel}
+        highlightId={highlightId}
+        onBack={back}
+        initialTab={channel.id === props.initialChannelId ? props.initialTab ?? null : null}
+        initialListId={channel.id === props.initialChannelId ? props.initialListId ?? null : null}
+      />
+    );
   else if (missing)
     main = (
       <section className="talk-pane talk-view">

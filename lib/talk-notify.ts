@@ -37,6 +37,8 @@ import {
   type TalkMessageRow,
 } from './talk';
 import { ACTIVE_MS } from './talk-extras';
+import { inDndSchedule, parseDays } from './talk-quiet';
+import { talkPush } from './talk-push';
 import en from '@/messages/en/talk.json';
 import es from '@/messages/es/talk.json';
 import pt from '@/messages/pt/talk.json';
@@ -103,8 +105,24 @@ export async function notifyForMessage(actor: TalkActor, row: TalkMessageRow, ch
   if (!ids.length) return 0;
   const prefs = new Map(
     ((await db
-      .prepare(`SELECT user_id, notify, email, keywords, locale FROM talk_prefs WHERE workspace_id = ? AND user_id IN (${inList(ids.length)})`)
-      .all(actor.workspaceId, ...ids)) as Array<{ user_id: string; notify: string; email: string; keywords: string; locale: string | null }>).map((p) => [p.user_id, p]),
+      .prepare(
+        `SELECT p.user_id, p.notify, p.email, p.keywords, p.locale, p.push, p.dnd_schedule, p.dnd_start, p.dnd_end, p.dnd_days, COALESCE(pr.timezone, '') AS tz
+         FROM talk_prefs p LEFT JOIN talk_profiles pr ON pr.workspace_id = p.workspace_id AND pr.user_id = p.user_id
+         WHERE p.workspace_id = ? AND p.user_id IN (${inList(ids.length)})`,
+      )
+      .all(actor.workspaceId, ...ids)) as Array<{
+      user_id: string;
+      notify: string;
+      email: string;
+      keywords: string;
+      locale: string | null;
+      push: string;
+      dnd_schedule: number;
+      dnd_start: string;
+      dnd_end: string;
+      dnd_days: string;
+      tz: string;
+    }>).map((p) => [p.user_id, p]),
   );
   const presence = new Map(
     ((await db
@@ -132,7 +150,8 @@ export async function notifyForMessage(actor: TalkActor, row: TalkMessageRow, ch
     const memberNotify = memberSet.get(uid);
     const isMember = memberNotify !== undefined;
     // Solo quien puede leer el canal: miembros, o cualquiera del workspace si es público.
-    if (!isMember && !(channel.kind === 'public' && byId.has(uid))) continue;
+    // Un invitado no lee los públicos donde no está: ni una mención le llega.
+    if (!isMember && !(channel.kind === 'public' && byId.has(uid) && !byId.get(uid)?.guest)) continue;
     if (mentioned.has(uid)) {
       recipients.set(uid, 'mention');
       continue;
@@ -176,9 +195,16 @@ export async function notifyForMessage(actor: TalkActor, row: TalkMessageRow, ch
     });
     const p = prefs.get(uid);
     const dnd = presence.get(uid)?.dnd_until;
-    const inDnd = !!dnd && new Date(dnd).getTime() > now;
+    // No molestar a mano o por horario: la campana se llena igual, pero no sale push ni email.
+    const inDnd =
+      (!!dnd && new Date(dnd).getTime() > now) ||
+      (!!p && !!Number(p.dnd_schedule) && inDndSchedule({ enabled: true, start: p.dnd_start, end: p.dnd_end, days: parseDays(p.dnd_days) }, p.tz || 'UTC', new Date(now)));
     if ((reason === 'dm' || reason === 'mention') && (p?.email ?? 'mentions') === 'mentions' && !inDnd) {
       await db.prepare('INSERT OR IGNORE INTO talk_email_queue (notification_id, user_id, due_at) VALUES (?, ?, ?)').run(n.id, uid, new Date(now + TALK_EMAIL_DELAY_MS).toISOString());
+    }
+    const push = p?.push ?? 'mentions';
+    if (!inDnd && (push === 'all' || (push === 'mentions' && reason !== 'all'))) {
+      await talkPush(actor.workspaceId, uid, { title: where ? `${actorName} · ${where}` : actorName, body: text.slice(0, 200), href, messageId: row.id });
     }
   }
   return recipients.size;
@@ -368,5 +394,14 @@ export async function runTalkCron(): Promise<Record<string, unknown>> {
     .prepare("DELETE FROM talk_events WHERE kind = 'typing' AND created_at < ?")
     .run(new Date(Date.now() - 10 * 60_000).toISOString())
     .catch(() => undefined);
-  return { scheduled, reminders, emails, at: nowIso() };
+  // La señalización de huddles (SDP con direcciones IP) no queda guardada más que unos minutos.
+  await getDb()
+    .prepare("DELETE FROM talk_events WHERE kind IN ('signal', 'ephemeral') AND created_at < ?")
+    .run(new Date(Date.now() - 5 * 60_000).toISOString())
+    .catch(() => undefined);
+  const { sweepHuddles } = await import('./talk-huddles');
+  const huddles = await sweepHuddles().catch(() => null);
+  const { pruneCommandResponses } = await import('./talk-commands');
+  await pruneCommandResponses().catch(() => undefined);
+  return { scheduled, reminders, emails, huddles, at: nowIso() };
 }

@@ -8,9 +8,11 @@ import { sha256 } from './api-auth';
 import { likeContains } from './track-views';
 import { emojiFromName } from './talk-emoji';
 import { parseTalkSearch, hasSearchCriteria } from './talk-search';
+import { DEFAULT_DND, inDndSchedule, parseDays, validTime, type DndSchedule } from './talk-quiet';
 import {
   TalkError,
   canManageChannel,
+  publicClause,
   emitTalkEvent,
   isWorkspacePerson,
   listTalkPeople,
@@ -108,7 +110,7 @@ export async function listLater(actor: TalkActor, view: 'open' | 'done' = 'open'
          (SELECT r.id FROM talk_reminders r WHERE r.user_id = s.user_id AND r.message_id = m.id ORDER BY r.remind_at DESC LIMIT 1) AS r_id
        FROM talk_saved s JOIN talk_messages m ON m.id = s.message_id JOIN talk_channels c ON c.id = m.channel_id
        WHERE s.user_id = ? AND s.workspace_id = ? AND ${view === 'done' ? 's.done_at IS NOT NULL' : 's.done_at IS NULL'}
-         AND (c.kind = 'public' OR EXISTS (SELECT 1 FROM talk_members tm WHERE tm.channel_id = c.id AND tm.user_id = s.user_id))
+         AND (${publicClause(actor)} OR EXISTS (SELECT 1 FROM talk_members tm WHERE tm.channel_id = c.id AND tm.user_id = s.user_id))
        ORDER BY s.created_at DESC LIMIT 200`,
     )
     .all(actor.personId, actor.workspaceId)) as Array<TalkMessageRow & { s_at: string; s_done: string | null; c_name: string; c_kind: TalkChannelKind; r_id: string | null }>;
@@ -247,6 +249,8 @@ export interface TalkPresenceDto {
   statusExpiresAt: string | null;
   dndUntil: string | null;
   lastSeenAt: string | null;
+  /** Dentro de su horario de no molestar. */
+  snoozed?: boolean;
 }
 
 function toPresence(r: { user_id: string; last_seen_at: string | null; away: number; status_emoji: string; status_text: string; status_expires_at: string | null; dnd_until: string | null }, now = Date.now()): TalkPresenceDto {
@@ -266,7 +270,23 @@ function toPresence(r: { user_id: string; last_seen_at: string | null; away: num
 
 export async function listPresence(workspaceId: string): Promise<TalkPresenceDto[]> {
   const rows = (await getDb().prepare('SELECT * FROM talk_presence WHERE workspace_id = ?').all(workspaceId)) as Parameters<typeof toPresence>[0][];
-  return rows.map((r) => toPresence(r));
+  return withSnooze(workspaceId, rows.map((r) => toPresence(r)));
+}
+
+/** Marca quién está dentro de su horario de no molestar (zona horaria del perfil). */
+export async function withSnooze(workspaceId: string, list: TalkPresenceDto[], now = new Date()): Promise<TalkPresenceDto[]> {
+  if (!list.length) return list;
+  const rows = (await getDb()
+    .prepare(
+      `SELECT p.user_id, p.dnd_start, p.dnd_end, p.dnd_days, COALESCE(pr.timezone, '') AS tz
+       FROM talk_prefs p LEFT JOIN talk_profiles pr ON pr.workspace_id = p.workspace_id AND pr.user_id = p.user_id
+       WHERE p.workspace_id = ? AND p.dnd_schedule = 1`,
+    )
+    .all(workspaceId)) as Array<{ user_id: string; dnd_start: string; dnd_end: string; dnd_days: string; tz: string }>;
+  const quiet = new Set(
+    rows.filter((r) => inDndSchedule({ enabled: true, start: r.dnd_start, end: r.dnd_end, days: parseDays(r.dnd_days) }, r.tz || 'UTC', now)).map((r) => r.user_id),
+  );
+  return list.map((p) => (quiet.has(p.userId) ? { ...p, snoozed: true } : p));
 }
 
 /** Latido de la pestaña abierta. Avisa el cambio de ausente → activo. */
@@ -328,16 +348,69 @@ export interface TalkPrefs {
   notify: 'all' | 'mentions' | 'none';
   email: 'mentions' | 'off';
   keywords: string;
+  /** Push del navegador: lo que suena en la campana, solo DMs y menciones, o nada. */
+  push: 'all' | 'mentions' | 'off';
+  /** Horario de no molestar (en la zona horaria del perfil). */
+  dnd: DndSchedule;
+  /** Canales del recap diario (vacío = todos los míos). */
+  recapChannels: string[];
+}
+
+type PrefsRow = { notify: TalkPrefs['notify']; email: TalkPrefs['email']; keywords: string; push: string; dnd_schedule: number; dnd_start: string; dnd_end: string; dnd_days: string; recap_channels: string };
+
+export function prefsFromRow(row: PrefsRow | undefined): TalkPrefs {
+  if (!row) return { notify: 'mentions', email: 'mentions', keywords: '', push: 'mentions', dnd: { ...DEFAULT_DND }, recapChannels: [] };
+  return {
+    notify: row.notify,
+    email: row.email,
+    keywords: row.keywords,
+    push: row.push === 'all' || row.push === 'off' ? row.push : 'mentions',
+    dnd: { enabled: !!Number(row.dnd_schedule), start: validTime(row.dnd_start) ? row.dnd_start : '22:00', end: validTime(row.dnd_end) ? row.dnd_end : '08:00', days: parseDays(row.dnd_days) },
+    recapChannels: row.recap_channels ? row.recap_channels.split(',').filter(Boolean) : [],
+  };
 }
 
 export async function getPrefs(workspaceId: string, userId: string): Promise<TalkPrefs> {
-  const row = (await getDb().prepare('SELECT notify, email, keywords FROM talk_prefs WHERE workspace_id = ? AND user_id = ?').get(workspaceId, userId)) as TalkPrefs | undefined;
-  return row ?? { notify: 'mentions', email: 'mentions', keywords: '' };
+  const row = (await getDb()
+    .prepare('SELECT notify, email, keywords, push, dnd_schedule, dnd_start, dnd_end, dnd_days, recap_channels FROM talk_prefs WHERE workspace_id = ? AND user_id = ?')
+    .get(workspaceId, userId)) as PrefsRow | undefined;
+  return prefsFromRow(row);
 }
 
-export async function setPrefs(actor: TalkActor, input: Partial<TalkPrefs>): Promise<TalkPrefs> {
+export interface PrefsInput {
+  notify?: TalkPrefs['notify'];
+  email?: TalkPrefs['email'];
+  keywords?: string;
+  push?: TalkPrefs['push'];
+  dnd?: Partial<DndSchedule>;
+  recapChannels?: string[];
+}
+
+export async function setPrefs(actor: TalkActor, input: PrefsInput): Promise<TalkPrefs> {
   const db = getDb();
   await db.prepare('INSERT OR IGNORE INTO talk_prefs (workspace_id, user_id) VALUES (?, ?)').run(actor.workspaceId, actor.personId);
+  if (input.push) await db.prepare('UPDATE talk_prefs SET push = ? WHERE workspace_id = ? AND user_id = ?').run(input.push, actor.workspaceId, actor.personId);
+  if (input.dnd) {
+    const d = input.dnd;
+    if ((d.start !== undefined && !validTime(d.start)) || (d.end !== undefined && !validTime(d.end))) throw new TalkError('invalid_time');
+    if (d.enabled !== undefined) await db.prepare('UPDATE talk_prefs SET dnd_schedule = ? WHERE workspace_id = ? AND user_id = ?').run(d.enabled ? 1 : 0, actor.workspaceId, actor.personId);
+    if (d.start) await db.prepare('UPDATE talk_prefs SET dnd_start = ? WHERE workspace_id = ? AND user_id = ?').run(d.start, actor.workspaceId, actor.personId);
+    if (d.end) await db.prepare('UPDATE talk_prefs SET dnd_end = ? WHERE workspace_id = ? AND user_id = ?').run(d.end, actor.workspaceId, actor.personId);
+    if (d.days) {
+      const days = parseDays(d.days.join(','));
+      await db.prepare('UPDATE talk_prefs SET dnd_days = ? WHERE workspace_id = ? AND user_id = ?').run(days.join(','), actor.workspaceId, actor.personId);
+    }
+    // La presencia de los demás muestra el "no molestar" según el horario.
+    const row = (await db.prepare('SELECT * FROM talk_presence WHERE workspace_id = ? AND user_id = ?').get(actor.workspaceId, actor.personId)) as Parameters<typeof toPresence>[0] | undefined;
+    if (row) {
+      const [dto] = await withSnooze(actor.workspaceId, [toPresence(row)]);
+      await emitTalkEvent(actor.workspaceId, 'presence', { actorId: actor.personId, payload: { userId: actor.personId, presence: dto } });
+    }
+  }
+  if (input.recapChannels) {
+    const ids = [...new Set(input.recapChannels)].slice(0, 50).filter((id) => /^[\w-]{1,64}$/.test(id));
+    await db.prepare('UPDATE talk_prefs SET recap_channels = ? WHERE workspace_id = ? AND user_id = ?').run(ids.join(','), actor.workspaceId, actor.personId);
+  }
   if (input.notify) await db.prepare('UPDATE talk_prefs SET notify = ? WHERE workspace_id = ? AND user_id = ?').run(input.notify, actor.workspaceId, actor.personId);
   if (input.email) await db.prepare('UPDATE talk_prefs SET email = ? WHERE workspace_id = ? AND user_id = ?').run(input.email, actor.workspaceId, actor.personId);
   if (input.keywords !== undefined) {
@@ -398,7 +471,7 @@ export async function listFiles(actor: TalkActor, opts: { channelId?: string | n
   const where = [
     'f.workspace_id = ?',
     'f.message_id IS NOT NULL',
-    "(c.kind = 'public' OR EXISTS (SELECT 1 FROM talk_members tm WHERE tm.channel_id = c.id AND tm.user_id = ?))",
+    `(${publicClause(actor)} OR EXISTS (SELECT 1 FROM talk_members tm WHERE tm.channel_id = c.id AND tm.user_id = ?))`,
   ];
   const args: Array<string | number> = [actor.workspaceId, actor.personId];
   if (opts.channelId) {
@@ -461,7 +534,7 @@ export async function searchMessages(actor: TalkActor, raw: string, limit = 50):
   const where = [
     'm.workspace_id = ?',
     'm.deleted_at IS NULL',
-    "(c.kind = 'public' OR EXISTS (SELECT 1 FROM talk_members tm WHERE tm.channel_id = c.id AND tm.user_id = ?))",
+    `(${publicClause(actor)} OR EXISTS (SELECT 1 FROM talk_members tm WHERE tm.channel_id = c.id AND tm.user_id = ?))`,
   ];
   const args: Array<string | number> = [actor.workspaceId, actor.personId];
   const impossible = () => where.push('0');
@@ -580,7 +653,7 @@ export async function searchMessages(actor: TalkActor, raw: string, limit = 50):
     channels = (await db
       .prepare(
         `SELECT c.id, c.name, c.kind FROM talk_channels c WHERE c.workspace_id = ? AND c.kind IN ('public', 'private') AND c.archived_at IS NULL
-         AND (c.kind = 'public' OR EXISTS (SELECT 1 FROM talk_members tm WHERE tm.channel_id = c.id AND tm.user_id = ?))
+         AND (${publicClause(actor)} OR EXISTS (SELECT 1 FROM talk_members tm WHERE tm.channel_id = c.id AND tm.user_id = ?))
          AND c.name LIKE ? ESCAPE '\\' ORDER BY c.name LIMIT 5`,
       )
       .all(actor.workspaceId, actor.personId, likeContains(text.toLowerCase().replace(/\s+/g, '-')))) as Array<{ id: string; name: string; kind: TalkChannelKind }>;
@@ -600,6 +673,7 @@ export interface TalkHookDto {
 
 /** Crea un webhook entrante para el canal. El token se devuelve una sola vez (se guarda su hash). */
 export async function createHook(actor: TalkActor, channelId: string, name: string): Promise<{ hook: TalkHookDto; token: string }> {
+  if (actor.guest) throw new TalkError('forbidden', 403);
   const { channel } = await writableChannel(actor, channelId);
   if (channel.kind === 'dm' || channel.kind === 'group') throw new TalkError('forbidden', 403);
   const id = crypto.randomUUID();
