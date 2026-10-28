@@ -322,6 +322,125 @@ describe('Robots: el arnés filtra WebSocket y WebRTC', () => {
   });
 });
 
+// ---------- [5b] Robots locales: redirecciones de página entera (SSRF) ----------
+
+describe('Robots: el arnés valida cada salto de las redirecciones', () => {
+  /** Arnés con un route() que simula route.fetch siguiendo redirecciones a mano. */
+  async function captureRouteHandler(checkUrl: (url: string) => Promise<string | null>) {
+    let handler: ((route: unknown) => Promise<void>) | null = null;
+    const chromium = {
+      async launch() {
+        return {
+          async newContext() {
+            return {
+              async route(_p: string, h: (route: unknown) => Promise<void>) {
+                handler = h;
+              },
+              on() {},
+              async newPage() {
+                return {};
+              },
+              async storageState() {
+                return {};
+              },
+            };
+          },
+          async close() {},
+        };
+      },
+    };
+    await robotHarness(
+      chromium as unknown as HarnessChromium,
+      { steps: [], inputs: {}, robotName: 'R', deadline: Date.now() + 10_000, maxPages: 3, maxScreenshots: 1 } as never,
+      (async () => ({ status: 'success', error: null, vars: {}, logs: [], screenshots: [], pages: 1 })) as never,
+      checkUrl,
+    );
+    return handler!;
+  }
+
+  /** route falso: `chain` es la cadena de respuestas (status + location) que devuelve route.fetch por salto. */
+  function fakeRoute(initialUrl: string, chain: Array<{ status: number; location?: string }>, opts: { noFetch?: boolean } = {}) {
+    const log: { aborted?: string; fulfilled?: boolean; continued?: boolean; fetched: string[] } = { fetched: [] };
+    let hop = 0;
+    const route = {
+      request: () => ({ url: () => initialUrl, method: () => 'GET', headers: () => ({}) }),
+      abort: async (code?: string) => {
+        log.aborted = code ?? 'aborted';
+      },
+      continue: async () => {
+        log.continued = true;
+      },
+      fulfill: async () => {
+        log.fulfilled = true;
+      },
+      fetch: opts.noFetch
+        ? undefined
+        : async (o?: { url?: string }) => {
+            log.fetched.push(o?.url ?? initialUrl);
+            const step = chain[Math.min(hop++, chain.length - 1)];
+            return { status: () => step.status, headers: () => (step.location ? { location: step.location } : {}), body: async () => Buffer.from('') };
+          },
+    };
+    return { route, log };
+  }
+
+  const checkUrl = async (url: string) => (/127\.0\.0\.1|169\.254|localhost|10\.0\.0/.test(url) ? 'private_host' : null);
+
+  it('bloquea una redirección 302 de una página pública hacia la metadata interna', async () => {
+    const handler = await captureRouteHandler(checkUrl);
+    const { route, log } = fakeRoute('https://site.example/go', [{ status: 302, location: 'http://169.254.169.254/latest/meta-data/' }]);
+    await handler(route);
+    expect(log.aborted).toBe('blockedbyclient');
+    expect(log.fulfilled).toBeUndefined();
+  });
+
+  it('una cadena que termina en un host privado: cada salto es un pedido nuevo y el prohibido se corta', async () => {
+    const handler = await captureRouteHandler(checkUrl);
+    // Salto 1: público → público. Se le devuelve el 30x al navegador (que lo sigue como pedido nuevo).
+    const first = fakeRoute('https://site.example/a', [{ status: 301, location: 'https://site.example/b' }]);
+    await handler(first.route);
+    expect(first.log.fulfilled).toBe(true);
+    expect(first.log.aborted).toBeUndefined();
+    // Salto 2: el navegador pide /b, que redirige a la red interna: se corta.
+    const second = fakeRoute('https://site.example/b', [{ status: 302, location: 'http://127.0.0.1:9222/json' }]);
+    await handler(second.route);
+    expect(second.log.aborted).toBe('blockedbyclient');
+    expect(second.log.fulfilled).toBeUndefined();
+  });
+
+  it('deja pasar una redirección pública: el 30x vuelve al navegador para que la URL del documento quede bien', async () => {
+    const handler = await captureRouteHandler(checkUrl);
+    const { route, log } = fakeRoute('https://site.example/a', [{ status: 302, location: 'https://site.example/final' }]);
+    await handler(route);
+    expect(log.fulfilled).toBe(true);
+    expect(log.aborted).toBeUndefined();
+    expect(log.fetched).toEqual(['https://site.example/a']);
+  });
+
+  it('bloquea una redirección a un esquema que no es http(s)', async () => {
+    const handler = await captureRouteHandler(checkUrl);
+    const { route, log } = fakeRoute('https://site.example/a', [{ status: 302, location: 'file:///etc/passwd' }]);
+    await handler(route);
+    expect(log.aborted).toBe('blockedbyclient');
+  });
+
+  it('bloquea el pedido inicial a un host privado sin fetch', async () => {
+    const handler = await captureRouteHandler(checkUrl);
+    const { route, log } = fakeRoute('http://127.0.0.1:3871/x', [{ status: 200 }]);
+    await handler(route);
+    expect(log.aborted).toBe('blockedbyclient');
+    expect(log.fetched).toEqual([]);
+  });
+
+  it('sin route.fetch (Playwright viejo) continúa tras validar el salto inicial', async () => {
+    const handler = await captureRouteHandler(checkUrl);
+    const { route, log } = fakeRoute('https://site.example/a', [], { noFetch: true });
+    await handler(route);
+    expect(log.continued).toBe(true);
+    expect(log.aborted).toBeUndefined();
+  });
+});
+
 // ---------- [6] Cancelar mientras se retoma ----------
 
 describe('Flow: cancelar una corrida mientras se retoma', () => {
