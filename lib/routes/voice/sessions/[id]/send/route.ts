@@ -5,6 +5,7 @@ import { meetingLabels, voiceErrorResponse, voiceJsonError, voiceMessages } from
 import { getSessionDetail, saveEnhanced, saveVoiceSettings } from '@/lib/voice';
 import { logMeetingToContact, meetingMarkdown, sendToDocs, sendToNotes, tasksToCrm, tasksToTrack } from '@/lib/voice-integrations';
 import { sessionScope } from '@/lib/crm-visibility';
+import { isWorkspaceAdmin } from '@/lib/session';
 import { notionPageId, sendToNotion, sendToSlack, shareLinkFor, VoiceSendError } from '@/lib/voice-send';
 
 export const runtime = 'nodejs';
@@ -58,6 +59,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       return NextResponse.json({ ok: true, ...res }, { status: 201 });
     }
     if (target === 'notion') {
+      // La credencial de Flow escribe con el acceso a Notion de quien la cargó: solo admins.
+      if (!isWorkspaceAdmin(auth.user)) return voiceJsonError(403, 'forbidden');
       const res = await sendToNotion({
         workspaceId: auth.owner.workspaceId,
         credentialId: parsed.data.credentialId ?? '',

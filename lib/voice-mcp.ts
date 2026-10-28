@@ -11,7 +11,7 @@ import { getSessionDetail, listSessions, type VoiceOwner } from './voice';
 import { askAcross } from './voice-service';
 import { meetingLabels } from './voice-http';
 import { meetingMarkdown } from './voice-integrations';
-import { listFolders } from './voice-library';
+import { listFolders, ownsFolder } from './voice-library';
 import { AiError } from './ai';
 
 const MCP_PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05'] as const;
@@ -52,7 +52,9 @@ const TOOLS: ToolDef[] = [
       properties: { query: { type: 'string' }, folderId: { type: 'string' }, limit: { type: 'integer', minimum: 1, maximum: 100 } },
     },
     run: async (ctx, a) => {
-      const sessions = await listSessions(ctx.owner, { kind: 'meeting', q: str(a.query, 200) ?? null, folderId: str(a.folderId, 64) ?? null, limit: int(a.limit, 25, 100) });
+      const folderId = str(a.folderId, 64) || null;
+      if (folderId && folderId !== 'none' && !(await ownsFolder(ctx.owner, folderId))) throw new McpToolError('folder_not_found');
+      const sessions = await listSessions(ctx.owner, { kind: 'meeting', q: str(a.query, 200) ?? null, folderId, limit: int(a.limit, 25, 100) });
       return {
         meetings: sessions.map((s) => ({ id: s.id, title: s.title, startedAt: s.startedAt, durationMs: s.durationMs, folderId: s.folderId, match: s.match ?? null })),
       };

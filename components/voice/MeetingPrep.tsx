@@ -448,6 +448,7 @@ export function ShareModal({ sessionId, onClose, onChange }: { sessionId: string
 interface Targets {
   slack: { connected: boolean; channels: Array<{ id: string; name: string }> };
   notion: Array<{ id: string; name: string }>;
+  notionAdminOnly?: boolean;
   last: { slackChannel: string; notionParent: string; notionCredentialId: string };
 }
 
@@ -531,7 +532,9 @@ export function SendModal({ sessionId, onClose }: { sessionId: string; onClose: 
           </section>
           <section>
             <h3 className="vc-h3">Notion</h3>
-            {targets.notion.length === 0 ? (
+            {targets.notionAdminOnly ? (
+              <p className="vc-muted">{t('notionAdminOnly')}</p>
+            ) : targets.notion.length === 0 ? (
               <p className="vc-muted">
                 {t('notionMissing')} <Link href="/app/flow/credentials">{t('notionLink')}</Link>
               </p>

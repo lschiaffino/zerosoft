@@ -9,6 +9,7 @@
  * la transcripción.
  */
 import { getDb } from './db';
+import { isWorkspacePerson } from './crm-refs';
 import { parseAttendees, type VoiceSessionRow } from './voice';
 import type { VoiceEnhanced } from './voice-types';
 
@@ -43,4 +44,18 @@ export async function emitVoiceEvent(sessionId: string, type: 'voice.meeting.com
   } catch (err) {
     console.error('[voice] event failed', err instanceof Error ? err.message : 'error');
   }
+}
+
+/**
+ * ¿Se puede entregar (o reintentar) este evento al webhook de `creatorId`?
+ * Solo si la reunión sigue existiendo, es de esa misma persona y la persona
+ * sigue en el workspace.
+ */
+export async function voiceDeliveryAllowed(workspaceId: string, creatorId: string | null, data: unknown): Promise<boolean> {
+  if (!creatorId) return false;
+  const id = String((data as { meeting?: { id?: unknown } } | null)?.meeting?.id ?? '');
+  if (!id) return false;
+  const row = (await getDb().prepare('SELECT person_id FROM voice_sessions WHERE id = ? AND workspace_id = ?').get(id, workspaceId)) as { person_id: string } | undefined;
+  if (!row || row.person_id !== creatorId) return false;
+  return isWorkspacePerson(workspaceId, creatorId);
 }

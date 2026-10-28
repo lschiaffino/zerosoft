@@ -202,9 +202,9 @@ const parity: ProductParity = {
     row('calendar-sync', 'capture', ['Calendar sync and meeting reminders', 'Calendario y aviso al empezar la reunión', 'Calendário e aviso no início da reunião'], 'have', {
       weight: 2,
       detail: [
-        'Cal bookings plus the Google Calendar and Outlook events connected in Cal, with attendees and the call link; take notes from an event and get a reminder a few minutes before (in the page and as a browser notification) while zerosoft is open in a tab',
-        'Las reservas de Cal más los eventos de Google Calendar y Outlook conectados en Cal, con asistentes y link de la llamada; se toman notas desde el evento y llega un aviso unos minutos antes (en la página y como notificación del navegador) mientras zerosoft está abierto en una pestaña',
-        'As reservas do Cal mais os eventos do Google Calendar e do Outlook conectados no Cal, com participantes e link da chamada; dá para fazer notas a partir do evento e chega um aviso minutos antes (na página e como notificação do navegador) enquanto o zerosoft está aberto em uma aba',
+        'The Cal bookings you host or co-host plus the Google Calendar and Outlook events connected in Cal, with attendees and the call link; take notes from an event and get a reminder a few minutes before (in the page and as a browser notification) while zerosoft is open in a tab. Admins only see their own meetings, not the whole workspace',
+        'Las reservas de Cal que atendés o coatendés más los eventos de Google Calendar y Outlook conectados en Cal, con asistentes y link de la llamada; se toman notas desde el evento y llega un aviso unos minutos antes (en la página y como notificación del navegador) mientras zerosoft está abierto en una pestaña. Los admins ven solo sus reuniones, no las de todo el workspace',
+        'As reservas do Cal que você atende ou coatende mais os eventos do Google Calendar e do Outlook conectados no Cal, com participantes e link da chamada; dá para fazer notas a partir do evento e chega um aviso minutos antes (na página e como notificação do navegador) enquanto o zerosoft está aberto em uma aba. Admins veem só as próprias reuniões, não as do workspace todo',
       ],
     }),
     row('speaker-names', 'capture', ['Speaker names', 'Nombres de quién habla', 'Nomes de quem fala'], 'partial', {
@@ -316,9 +316,9 @@ const parity: ProductParity = {
     // Integraciones y API
     row('slack-notion', 'integrations', ['Send notes to Slack and Notion', 'Mandar notas a Slack y Notion', 'Enviar notas para Slack e Notion'], 'have', {
       detail: [
-        'Post the notes to a public Slack channel with the workspace Slack app (installed from Track) or create a Notion page under the page you pick with a Notion credential saved in Flow',
-        'Publicar la nota en un canal público de Slack con la app de Slack del workspace (se instala desde Track) o crear una página de Notion debajo de la que elijas con una credencial de Notion guardada en Flow',
-        'Publicar a nota em um canal público do Slack com o app do Slack do workspace (instalado pelo Track) ou criar uma página do Notion abaixo da que você escolher com uma credencial do Notion salva no Flow',
+        'Post the notes to a public Slack channel with the workspace Slack app (installed from Track). Admins also create a Notion page under the page they pick, with a Notion credential saved in Flow; members copy the Markdown instead',
+        'Publicar la nota en un canal público de Slack con la app de Slack del workspace (se instala desde Track). Los admins además crean una página de Notion debajo de la que elijan, con una credencial de Notion guardada en Flow; los members copian el Markdown',
+        'Publicar a nota em um canal público do Slack com o app do Slack do workspace (instalado pelo Track). Admins também criam uma página do Notion abaixo da que escolherem, com uma credencial do Notion salva no Flow; members copiam o Markdown',
       ],
     }),
     row('crm-sync', 'integrations', ['Send notes to the CRM', 'Mandar notas al CRM', 'Enviar notas para o CRM'], 'have', {
@@ -342,11 +342,11 @@ const parity: ProductParity = {
         'Servidor MCP em /api/v1/voice/mcp com uma key voice:read: listar e ler suas reuniões (nota e transcrição), perguntar sobre elas e listar ditados. Só vê as reuniões de quem criou a key',
       ],
     }),
-    row('api-webhooks', 'integrations', ['API and webhooks', 'API y webhooks', 'API e webhooks'], 'have', {
+    row('api-webhooks', 'integrations', ['API and webhooks', 'API y webhooks', 'API e webhooks'], 'partial', {
       detail: [
-        'API v1 with voice:read and voice:write (dictate, sessions, audio chunks, dictionary) and the voice.meeting.completed and voice.notes.ready webhooks, which only reach webhooks created by the person who recorded',
-        'API v1 con voice:read y voice:write (dictado, sesiones, trozos de audio, diccionario) y los webhooks voice.meeting.completed y voice.notes.ready, que solo llegan a los webhooks de quien grabó',
-        'API v1 com voice:read e voice:write (ditado, sessões, trechos de áudio, dicionário) e os webhooks voice.meeting.completed e voice.notes.ready, que só chegam aos webhooks de quem gravou',
+        'API v1 with voice:read and voice:write (dictate, sessions, audio chunks, dictionary). The voice.meeting.completed and voice.notes.ready webhooks only reach webhooks created by the person who recorded; creating webhooks is for admins, so a member’s meetings do not reach any webhook yet',
+        'API v1 con voice:read y voice:write (dictado, sesiones, trozos de audio, diccionario). Los webhooks voice.meeting.completed y voice.notes.ready solo llegan a los webhooks que creó quien grabó; crear webhooks es de los admins, así que las reuniones de un member todavía no llegan a ningún webhook',
+        'API v1 com voice:read e voice:write (ditado, sessões, trechos de áudio, dicionário). Os webhooks voice.meeting.completed e voice.notes.ready só chegam aos webhooks criados por quem gravou; criar webhooks é para admins, então as reuniões de um member ainda não chegam a nenhum webhook',
       ],
     }),
 
@@ -367,9 +367,9 @@ const parity: ProductParity = {
     }),
     row('retention', 'admin', ['Retention and auto-deletion', 'Retención y borrado automático', 'Retenção e exclusão automática'], 'have', {
       detail: [
-        'The audio is never stored. Transcripts are deleted automatically after the days each person picks, with a maximum the admin can set for the workspace; the notes stay',
-        'El audio nunca se guarda. Las transcripciones se borran solas a los días que elige cada persona, con un tope que el admin puede fijar para el workspace; las notas quedan',
-        'O áudio nunca é guardado. As transcrições são apagadas sozinhas depois dos dias que cada pessoa escolhe, com um limite que o admin pode definir para o workspace; as notas ficam',
+        'The audio is never stored. Meeting transcripts and the raw transcription of dictations are deleted automatically after the days each person picks, with a maximum the admin can set for the workspace; meeting notes and the final text of each dictation stay',
+        'El audio nunca se guarda. Las transcripciones de las reuniones y la transcripción cruda de los dictados se borran solas a los días que elige cada persona, con un tope que el admin puede fijar para el workspace; las notas de la reunión y el texto final de cada dictado quedan',
+        'O áudio nunca é guardado. As transcrições das reuniões e a transcrição bruta dos ditados são apagadas sozinhas depois dos dias que cada pessoa escolhe, com um limite que o admin pode definir para o workspace; as notas da reunião e o texto final de cada ditado ficam',
       ],
     }),
     row('sso-scim', 'admin', ['SSO and SCIM', 'SSO y SCIM', 'SSO e SCIM'], 'missing', {

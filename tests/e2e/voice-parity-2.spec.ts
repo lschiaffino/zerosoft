@@ -1,3 +1,5 @@
+import http from 'http';
+import { createClient } from '@libsql/client';
 import { expect, test, type Page } from '@playwright/test';
 
 /**
@@ -290,4 +292,97 @@ test('ajustes: reuniones (avisos y retención), equipo, MCP; 390px y oscuro', as
 test('API: MCP solo con voice:read y solo las reuniones propias', async ({ request }) => {
   const res = await request.post('/api/v1/voice/mcp', { data: { jsonrpc: '2.0', id: 1, method: 'tools/list' } });
   expect(res.status()).toBe(401);
+});
+
+// ---------- Webhooks voice.* (entrega real) ----------
+
+async function sql(statement: string, args: Array<string | number | null> = []) {
+  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  try {
+    return (await db.execute({ sql: statement, args })).rows as unknown as Array<Record<string, unknown>>;
+  } finally {
+    db.close();
+  }
+}
+
+/** Una persona más en el workspace demo, con el rol pedido. */
+async function teammate(role: 'admin' | 'member'): Promise<string> {
+  const id = `voice-${uid()}`;
+  await sql('INSERT INTO users (id, email, name, handle) VALUES (?, ?, ?, ?)', [id, `${id}@example.com`, `Voice ${role}`, id]);
+  let team = (await sql("SELECT id FROM teams WHERE owner_id = 'demo' ORDER BY created_at LIMIT 1"))[0]?.id as string | undefined;
+  if (!team) {
+    team = `team-${uid()}`;
+    await sql("INSERT INTO teams (id, name, owner_id) VALUES (?, 'Demo team', 'demo')", [team]);
+  }
+  await sql('INSERT INTO team_members (team_id, user_id, role) VALUES (?, ?, ?)', [team, id, role]);
+  return id;
+}
+
+/** Un receptor de webhooks local que guarda lo que le llega. */
+function receiver() {
+  const got: Array<{ event: string; body: string }> = [];
+  const server = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (c) => (body += c));
+    req.on('end', () => {
+      got.push({ event: String(req.headers['zerosoft-event'] ?? ''), body });
+      res.writeHead(200).end('ok');
+    });
+  });
+  return new Promise<{ url: string; got: typeof got; close: () => void }>((resolve) =>
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address() as { port: number };
+      resolve({ url: `http://127.0.0.1:${port}/hook`, got, close: () => server.close() });
+    }),
+  );
+}
+
+test('webhooks: voice.* llega al webhook de quien grabó y no al de otra persona (admin) del workspace', async ({ request }) => {
+  const mine = await receiver();
+  const theirs = await receiver();
+  try {
+    const events = ['voice.meeting.completed', 'voice.notes.ready'];
+    const a = (await (await request.post('/api/webhooks', { data: { url: mine.url, events } })).json()) as { id: string };
+    const b = (await (await request.post('/api/webhooks', { data: { url: theirs.url, events } })).json()) as { id: string };
+    // El segundo webhook pasa a ser de un admin del mismo workspace.
+    const admin = await teammate('admin');
+    await sql('UPDATE webhooks SET created_by = ? WHERE id = ?', [admin, b.id]);
+
+    // Reunión de la persona demo: grabar y cortar.
+    const title = `Webhook call ${uid()}`;
+    const { id } = (await (await request.post('/api/voice/sessions', { data: { title } })).json()) as { id: string };
+    await request.patch(`/api/voice/sessions/${id}`, { data: { myNotes: 'Annual billing agreed' } });
+    expect((await request.patch(`/api/voice/sessions/${id}`, { data: { status: 'recording', recorderId: `tab-${uid()}abcdef` } })).ok()).toBe(true);
+    expect((await request.patch(`/api/voice/sessions/${id}`, { data: { status: 'done' } })).ok()).toBe(true);
+
+    await expect.poll(() => mine.got.filter((g) => g.event === 'voice.meeting.completed' && g.body.includes(title)).length, { timeout: 20_000 }).toBe(1);
+    // La nota con IA se arma sola al cortar: también llega voice.notes.ready.
+    await expect.poll(() => mine.got.filter((g) => g.event === 'voice.notes.ready' && g.body.includes(title)).length, { timeout: 30_000 }).toBe(1);
+    const deliveries = (await (await request.get(`/api/webhooks/${a.id}/deliveries`)).json()) as { rows: Array<{ status: string; event: string }> };
+    expect(deliveries.rows.filter((r) => r.event.startsWith('voice.')).every((r) => r.status === 'delivered')).toBe(true);
+
+    // Reunión del admin (cerrada por el cron como grabación colgada): llega a su webhook, no al de la persona demo.
+    const adminMeeting = `vs-${uid()}`;
+    const old = new Date(Date.now() - 30 * 60_000).toISOString();
+    await sql(
+      `INSERT INTO voice_sessions (id, workspace_id, person_id, kind, title, status, started_at, created_at, updated_at, recorder_seen_at, last_chunk_at)
+       VALUES (?, 'demo', ?, 'meeting', ?, 'recording', ?, ?, ?, ?, ?)`,
+      [adminMeeting, admin, `Admin call ${uid()}`, old, old, old, old, old],
+    );
+    expect((await request.get('/api/cron/minute', { headers: { authorization: 'Bearer e2e-cron' } })).ok()).toBe(true);
+    await expect.poll(() => theirs.got.filter((g) => g.body.includes(adminMeeting)).length, { timeout: 20_000 }).toBeGreaterThan(0);
+
+    // Nada de la reunión demo llegó al webhook del admin, ni la del admin al de demo.
+    expect(theirs.got.some((g) => g.body.includes(title))).toBe(false);
+    expect(mine.got.some((g) => g.body.includes(adminMeeting))).toBe(false);
+  } finally {
+    mine.close();
+    theirs.close();
+  }
+});
+
+test('carpetas ajenas: filtrar por una carpeta que no es tuya da 404', async ({ request }) => {
+  expect((await request.get('/api/voice/sessions?kind=meeting&folderId=not-mine')).status()).toBe(404);
+  expect((await request.get('/api/voice/sessions?kind=meeting&folder=not-mine')).status()).toBe(404);
+  expect((await request.get('/api/voice/sessions?kind=meeting&folder=none')).ok()).toBe(true);
 });

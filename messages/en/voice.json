@@ -466,7 +466,7 @@
       "mcpStep2": "Add this server to your MCP client:",
       "mcpTools": "Tools: list_meetings, get_meeting (notes and, if asked, the transcript), ask_meetings, list_dictations and list_folders.",
       "webhooksTitle": "Webhooks and Flow",
-      "webhooksDesc": "voice.meeting.completed and voice.notes.ready reach the webhooks and flows you created yourself, never someone else’s.",
+      "webhooksDesc": "voice.meeting.completed and voice.notes.ready reach only the webhooks and flows created by the person who recorded the meeting. Creating webhooks and flows is for admins, so a member’s meetings do not reach any webhook yet.",
       "webhooksLink": "Set up webhooks"
     },
     "prompts": {
@@ -509,7 +509,7 @@
       "notifyOn": "Browser notifications are on.",
       "notifyBlocked": "The browser blocks notifications for this site. Allow them in the site settings.",
       "retentionTitle": "Transcript retention",
-      "retentionDesc": "Delete meeting transcripts automatically after some days. The notes, the chat and what you sent to other apps stay. The audio is never stored.",
+      "retentionDesc": "Delete meeting transcripts automatically after some days, and the raw transcription of your dictations. The meeting notes, the chat, the final text of each dictation and what you sent to other apps stay. The audio is never stored.",
       "retention": "Delete transcripts after",
       "never": "Never",
       "daysN": "{n, plural, one {# day} other {# days}}",
@@ -646,7 +646,8 @@
     "openNotion": "Open in Notion",
     "notionMissing": "Save a Notion credential in Flow to send notes to Notion.",
     "notionLink": "Open Flow credentials",
-    "noTranscript": "Only the notes are sent, never the transcript."
+    "noTranscript": "Only the notes are sent, never the transcript.",
+    "notionAdminOnly": "Sending to Notion uses a Notion credential an admin saved in Flow, with that admin’s Notion access, so only admins can use it. Copy the Markdown to paste it in Notion yourself."
   },
   "recipes": {
     "label": "Recipes",

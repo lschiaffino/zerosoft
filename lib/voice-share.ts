@@ -9,8 +9,8 @@
  * El link muestra la nota (la de IA o, si no hay, la propia); la
  * transcripción solo si quien comparte la incluye (como Granola, por defecto
  * no). Siempre de solo lectura. Dejar de compartir borra el link: el token
- * viejo no vuelve a andar. Si quien compartió sale del workspace, el link de
- * workspace o personas deja de andar.
+ * viejo no vuelve a andar. Si quien compartió sale del workspace, ningún link
+ * suyo anda (tampoco los de "cualquiera").
  */
 import { randomBytes } from 'crypto';
 import { getDb, getUserById } from './db';
@@ -146,10 +146,11 @@ export async function resolveShare(token: string, viewerId: string | null): Prom
   const row = (await db.prepare('SELECT * FROM voice_shares WHERE token = ?').get(token)) as ShareRow | undefined;
   if (!row) return { state: 'not_found' };
   const isOwner = viewerId === row.person_id;
+  // Si quien compartió ya no está en el workspace, el link deja de andar para todos (también "cualquiera").
+  if (!(await isWorkspacePerson(row.workspace_id, row.person_id))) return { state: 'not_found' };
   if (row.access !== 'anyone' && !isOwner) {
     if (!viewerId) return { state: 'signin' };
-    // Quien compartió tiene que seguir en el workspace, y quien mira también.
-    if (!(await isWorkspacePerson(row.workspace_id, row.person_id))) return { state: 'not_found' };
+    // Quien mira tiene que estar en el workspace.
     if (!(await isWorkspacePerson(row.workspace_id, viewerId))) return { state: 'forbidden' };
     if (row.access === 'people') {
       const allowed = await db.prepare('SELECT 1 AS x FROM voice_share_people WHERE share_id = ? AND person_id = ?').get(row.id, viewerId);

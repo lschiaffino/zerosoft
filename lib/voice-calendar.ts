@@ -18,6 +18,21 @@ import type { VoiceCalendarEvent } from './voice-types';
 const cache = new Map<string, { at: number; events: VoiceCalendarEvent[] }>();
 const TTL_MS = 60_000;
 
+/**
+ * ¿La persona atiende la reserva? Anfitriona (sin anfitrión explícito, el dueño
+ * del tipo de evento, que es el workspace) o co-anfitriona.
+ */
+export function attendsBooking(b: { host_user_id: string | null; co_host_ids: string; event_type_user_id?: string }, owner: Pick<VoiceOwner, 'workspaceId' | 'personId'>): boolean {
+  const host = b.host_user_id ?? b.event_type_user_id ?? owner.workspaceId;
+  if (host === owner.personId) return true;
+  try {
+    const co: unknown = JSON.parse(b.co_host_ids || '[]');
+    return Array.isArray(co) && co.includes(owner.personId);
+  } catch {
+    return false;
+  }
+}
+
 /** Ventana por defecto: desde hace 1 hora hasta dentro de 7 días. */
 export function defaultWindow(now = new Date()): { from: Date; to: Date } {
   return { from: new Date(now.getTime() - 3_600_000), to: new Date(now.getTime() + 7 * 86_400_000) };
@@ -59,7 +74,11 @@ export async function listCalendarEvents(owner: VoiceOwner, opts: { now?: Date; 
   if (!events) {
     const { from, to } = defaultWindow(now);
     const [bookings, google, outlook] = await Promise.all([
-      listUserBookings(owner.workspaceId, { status: 'confirmed', from, to, limit: 100, order: 'asc', hostId: owner.bookingScope ?? undefined }).catch(() => []),
+      // Siempre las que atiende la persona (anfitriona o co-anfitriona), sea cual sea su rol: a un
+      // admin no le aparecen ni le avisan las reservas de los demás.
+      listUserBookings(owner.workspaceId, { status: 'confirmed', from, to, limit: 200, order: 'asc' })
+        .then((rows) => rows.filter((b) => attendsBooking(b, owner)))
+        .catch(() => []),
       g ? listGoogleEvents(owner.personId, from, to).catch(() => []) : Promise.resolve([]),
       o ? listOutlookEvents(owner.personId, from, to).catch(() => []) : Promise.resolve([]),
     ]);

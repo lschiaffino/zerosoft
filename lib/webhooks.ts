@@ -345,6 +345,10 @@ async function attempt(deliveryId: string, opts: { force?: boolean } = {}): Prom
     if (allowed && row.event.startsWith('talk.')) {
       const { talkDeliveryAllowed } = await import('./talk');
       allowed = await talkDeliveryAllowed(row.w_user, row.w_creator, data);
+    } else if (allowed && row.event.startsWith('voice.')) {
+      // Voice: la reunión es de quien la grabó; solo su propio webhook la recibe.
+      const { voiceDeliveryAllowed } = await import('./voice-events');
+      allowed = await voiceDeliveryAllowed(row.w_user, row.w_creator, data);
     } else if (allowed) {
       const pageId = String((data as { page?: { id?: string } } | null)?.page?.id ?? '');
       const { docsDeliveryAllowed } = await import('./docs-events');

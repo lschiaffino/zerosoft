@@ -466,7 +466,7 @@
       "mcpStep2": "Adicione este servidor ao seu cliente MCP:",
       "mcpTools": "Ferramentas: list_meetings, get_meeting (a nota e, se pedido, a transcrição), ask_meetings, list_dictations e list_folders.",
       "webhooksTitle": "Webhooks e Flow",
-      "webhooksDesc": "voice.meeting.completed e voice.notes.ready chegam aos webhooks e flows que você mesmo criou, nunca aos de outra pessoa.",
+      "webhooksDesc": "voice.meeting.completed e voice.notes.ready chegam só aos webhooks e flows criados por quem gravou a reunião. Criar webhooks e flows é para admins, então as reuniões de um member ainda não chegam a nenhum webhook.",
       "webhooksLink": "Configurar webhooks"
     },
     "prompts": {
@@ -509,7 +509,7 @@
       "notifyOn": "As notificações do navegador estão ligadas.",
       "notifyBlocked": "O navegador bloqueia as notificações deste site. Permita nos ajustes do site.",
       "retentionTitle": "Retenção de transcrições",
-      "retentionDesc": "Apagar automaticamente as transcrições das reuniões depois de alguns dias. As notas, o chat e o que você enviou para outros apps ficam. O áudio nunca é guardado.",
+      "retentionDesc": "Apagar automaticamente as transcrições das reuniões depois de alguns dias, e a transcrição bruta dos seus ditados. As notas da reunião, o chat, o texto final de cada ditado e o que você enviou para outros apps ficam. O áudio nunca é guardado.",
       "retention": "Apagar as transcrições depois de",
       "never": "Nunca",
       "daysN": "{n, plural, one {# dia} other {# dias}}",
@@ -646,7 +646,8 @@
     "openNotion": "Abrir no Notion",
     "notionMissing": "Salve uma credencial do Notion no Flow para enviar notas ao Notion.",
     "notionLink": "Abrir credenciais do Flow",
-    "noTranscript": "Só a nota é enviada, nunca a transcrição."
+    "noTranscript": "Só a nota é enviada, nunca a transcrição.",
+    "notionAdminOnly": "Enviar para o Notion usa uma credencial que um admin salvou no Flow, com o acesso ao Notion desse admin, então só admins podem usar. Copie o Markdown para colar você mesmo no Notion."
   },
   "recipes": {
     "label": "Recipes",

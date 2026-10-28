@@ -19,10 +19,13 @@ export async function GET(req: NextRequest) {
   if (auth.res) return auth.res;
   const sp = new URL(req.url).searchParams;
   const kind = sp.get('kind');
+  // ?folder= (o ?folderId=): 'none' o una carpeta propia; una ajena o borrada da 404.
+  const folder = (sp.get('folder') || sp.get('folderId') || '').slice(0, 64) || null;
+  if (folder && folder !== 'none' && !(await ownsFolder(auth.owner, folder))) return voiceJsonError(404, 'folder_not_found');
   const sessions = await listSessions(auth.owner, {
     kind: kind === 'meeting' || kind === 'dictation' ? kind : undefined,
     q: sp.get('q')?.slice(0, 200) ?? null,
-    folderId: sp.get('folder')?.slice(0, 64) || null,
+    folderId: folder,
     limit: Number(sp.get('limit')) || 200,
     offset: Number(sp.get('offset')) || 0,
   });

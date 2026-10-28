@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDb } from '@/lib/db';
-import { addMember, createTeam } from '@/lib/teams';
+import { addMember, createTeam, removeMember } from '@/lib/teams';
+import { attendsBooking } from '@/lib/voice-calendar';
+import { voiceDeliveryAllowed } from '@/lib/voice-events';
 import { createApiKey } from '@/lib/api-auth';
 import { createSession, getSessionDetail, listSessions, saveChunkSegments, saveEnhanced, addDictionaryEntry, listDictionary, saveVoiceSettings, type VoiceOwner } from '@/lib/voice';
 import { createFolder, createPrompt, deleteFolder, getUsablePrompt, listFolders, listPrompts, saveWorkspaceSettings, teamUsage, updatePrompt, appOf } from '@/lib/voice-library';
@@ -33,7 +35,7 @@ async function workspace(label: string) {
   await addMember(team.id, a.id, 'member');
   await addMember(team.id, b.id, 'member');
   const as = (personId: string): VoiceOwner => ({ workspaceId: owner.id, personId });
-  return { owner, a, b, as };
+  return { owner, a, b, team, as };
 }
 
 async function meetingWithTranscript(o: VoiceOwner, title: string, opts: { attendees?: Array<{ name: string; email: string }>; endedDaysAgo?: number } = {}) {
@@ -119,6 +121,12 @@ describe('share by link', () => {
     const anyone = await setShare(me, id, { access: 'anyone', regenerate: true });
     if (!anyone.ok) throw new Error('share');
     expect((await resolveShare(token, null)).state).toBe('not_found');
+    expect((await resolveShare(anyone.share.token, null)).state).toBe('ok');
+
+    // Si quien compartió sale del workspace, ni el link de "cualquiera" anda.
+    await removeMember(ws.team.id, ws.a.id);
+    expect((await resolveShare(anyone.share.token, null)).state).toBe('not_found');
+    await addMember(ws.team.id, ws.a.id, 'member');
     expect((await resolveShare(anyone.share.token, null)).state).toBe('ok');
 
     expect(await revokeShare(ws.as(ws.b.id), id)).toBe(false);
@@ -269,9 +277,36 @@ describe('webhooks', () => {
     const row = await createSession(ws.as(ws.a.id), { kind: 'meeting', title: 'Secret plan', status: 'recording' });
     const { closeRecording } = await import('@/lib/voice');
     await closeRecording(row.id, { queueNotes: false });
-    const deliveries = (await db.prepare("SELECT webhook_id, payload FROM webhook_deliveries WHERE webhook_id IN ('wh-a', 'wh-b')").all()) as Array<{ webhook_id: string; payload: string }>;
+    const deliveries = (await db
+      .prepare("SELECT webhook_id, payload, last_error FROM webhook_deliveries WHERE webhook_id IN ('wh-a', 'wh-b')")
+      .all()) as Array<{ webhook_id: string; payload: string; last_error: string | null }>;
     expect(deliveries.map((d) => d.webhook_id)).toEqual(['wh-a']);
     expect(JSON.parse(deliveries[0].payload).data.meeting.title).toBe('Secret plan');
+    // La entrega se intenta de verdad (no queda bloqueada por el chequeo de acceso).
+    expect(deliveries[0].last_error).not.toBe('audience_revoked');
+    const data = JSON.parse(deliveries[0].payload).data;
+    expect(await voiceDeliveryAllowed(ws.owner.id, ws.a.id, data)).toBe(true);
+    // El webhook de otra persona (aunque sea admin o el dueño) no la recibe, y tampoco desde otro workspace.
+    expect(await voiceDeliveryAllowed(ws.owner.id, ws.owner.id, data)).toBe(false);
+    expect(await voiceDeliveryAllowed(ws.owner.id, ws.b.id, data)).toBe(false);
+    expect(await voiceDeliveryAllowed(ws.a.id, ws.a.id, data)).toBe(false);
+    await removeMember(ws.team.id, ws.a.id);
+    expect(await voiceDeliveryAllowed(ws.owner.id, ws.a.id, data)).toBe(false);
+  });
+});
+
+describe('calendar scope', () => {
+  it('the Voice calendar only has bookings the person hosts or co-hosts, whatever the role', () => {
+    const ws = 'ws-owner';
+    const admin = { workspaceId: ws, personId: 'admin-1' };
+    const owner = { workspaceId: ws, personId: ws };
+    expect(attendsBooking({ host_user_id: 'admin-1', co_host_ids: '[]' }, admin)).toBe(true);
+    expect(attendsBooking({ host_user_id: 'someone', co_host_ids: '["admin-1"]' }, admin)).toBe(true);
+    expect(attendsBooking({ host_user_id: 'someone', co_host_ids: '[]' }, admin)).toBe(false);
+    // Sin anfitrión explícito atiende el dueño del tipo de evento (el workspace).
+    expect(attendsBooking({ host_user_id: null, co_host_ids: '[]' }, admin)).toBe(false);
+    expect(attendsBooking({ host_user_id: null, co_host_ids: '[]' }, owner)).toBe(true);
+    expect(attendsBooking({ host_user_id: 'someone', co_host_ids: 'bad' }, owner)).toBe(false);
   });
 });
 
