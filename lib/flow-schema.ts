@@ -1313,6 +1313,8 @@ export const flowUpdateSchema = z.object({
   draftRev: z.number().int().min(0).optional(),
   /** Publica el borrador guardado. */
   publish: z.boolean().optional(),
+  /** Publicar aunque otra persona haya publicado desde que empezó el borrador. */
+  force: z.boolean().optional(),
 });
 
 export const flowRunSchema = z.object({

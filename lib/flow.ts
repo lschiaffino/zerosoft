@@ -378,7 +378,13 @@ export async function getFlow(workspaceId: string, id: string, viewerId?: string
 
 export type FlowWriteResult =
   | { ok: true; flow: FlowDto }
-  | { ok: false; error: GraphErrorCode | 'not_found' | 'conflict' | 'invalid_error_flow' | 'invalid_folder' | 'no_draft'; nodeId?: string };
+  | {
+      ok: false;
+      error: GraphErrorCode | 'not_found' | 'conflict' | 'invalid_error_flow' | 'invalid_folder' | 'no_draft' | 'stale_draft';
+      nodeId?: string;
+      /** stale_draft: lo que otra persona publicó desde que empezó el borrador. */
+      stale?: { baseVersion: number; publishedVersion: number; diff: GraphDiff; nodeTypes: Record<string, string> };
+    };
 
 /** Tope de corridas automáticas por 10 minutos que se puede fijar por flow. */
 export const MAX_FLOOD_LIMIT = 10_000;
@@ -581,37 +587,40 @@ export async function updateFlow(
     tf.type === 'trigger.poll' && oldTrigger?.type === 'trigger.poll' && sameJson(oldTrigger.config ?? {}, newTrigger?.config ?? {});
   const nextPoll = tf.type !== 'trigger.poll' || !enabled ? null : samePoll && row.next_poll_at ? row.next_poll_at : tf.nextPoll;
   const pollState = samePoll ? (row.poll_state ?? null) : null;
+  // Solo se escriben los campos del patch (dos editores que cambian ajustes
+  // distintos no se pisan). El grafo y el encendido van juntos con sus campos
+  // derivados y con compare-and-set sobre version; version sube solo cuando el
+  // grafo publicado cambia (es el número de versión que ve la gente).
+  const sets: string[] = ['updated_at = ?'];
+  const args: unknown[] = [nowIso()];
+  const put = (col: string, v: unknown) => {
+    sets.push(`${col} = ?`);
+    args.push(v);
+  };
+  if (patch.name !== undefined) put('name', patch.name.trim() || row.name);
+  if (patch.description !== undefined) put('description', patch.description);
+  if (patch.errorFlowId !== undefined) put('error_flow_id', errorFlowId);
+  if (patch.failureAlerts !== undefined) put('failure_alerts', patch.failureAlerts ? 1 : 0);
+  if (patch.autoReplay !== undefined) put('auto_replay', patch.autoReplay ? 1 : 0);
+  if (patch.folderId !== undefined) put('folder_id', folderId);
+  if (patch.floodLimit !== undefined) put('flood_limit', floodLimit);
+  if (patch.maxConcurrency !== undefined) put('max_concurrency', maxConcurrency);
+  const structural = patch.graph !== undefined || patch.enabled !== undefined;
+  if (structural) {
+    put('enabled', enabled ? 1 : 0);
+    put('graph', JSON.stringify(graph));
+    put('trigger_type', tf.type);
+    put('trigger_event', tf.event);
+    put('next_run_at', keepNext ? row.next_run_at : tf.next);
+    put('created_by', createdBy);
+    put('pinned_data', pinnedData);
+    put('next_poll_at', nextPoll);
+    put('poll_state', pollState);
+  }
+  if (graphChanged) sets.push('version = version + 1');
   const res = await getDb()
-    .prepare(
-      `UPDATE flow_flows SET name = ?, description = ?, enabled = ?, graph = ?, version = version + 1,
-         trigger_type = ?, trigger_event = ?, next_run_at = ?, error_flow_id = ?, failure_alerts = ?, auto_replay = ?,
-         created_by = ?, pinned_data = ?, updated_at = ?, folder_id = ?, flood_limit = ?, max_concurrency = ?,
-         next_poll_at = ?, poll_state = ?
-       WHERE id = ? AND user_id = ? AND version = ?`,
-    )
-    .run(
-      patch.name?.trim() || row.name,
-      patch.description ?? row.description,
-      enabled ? 1 : 0,
-      JSON.stringify(graph),
-      tf.type,
-      tf.event,
-      keepNext ? row.next_run_at : tf.next,
-      errorFlowId,
-      patch.failureAlerts === undefined ? (row.failure_alerts === 0 ? 0 : 1) : patch.failureAlerts ? 1 : 0,
-      patch.autoReplay === undefined ? (row.auto_replay === 1 ? 1 : 0) : patch.autoReplay ? 1 : 0,
-      createdBy,
-      pinnedData,
-      nowIso(),
-      folderId,
-      floodLimit,
-      maxConcurrency,
-      nextPoll,
-      pollState,
-      id,
-      workspaceId,
-      row.version,
-    );
+    .prepare(`UPDATE flow_flows SET ${sets.join(', ')} WHERE id = ? AND user_id = ?${structural ? ' AND version = ?' : ''}`)
+    .run(...(args as never[]), id, workspaceId, ...(structural ? [row.version] : []));
   if (res.changes === 0) return { ok: false, error: 'conflict' };
   // Publicar un grafo (o restaurar una versión) descarta el borrador de quien lo hizo.
   if (patch.graph !== undefined && actorId) {
@@ -691,14 +700,34 @@ export async function publishFlowDraft(
   workspaceId: string,
   id: string,
   personId: string,
-  opts: { rev?: number; version?: number } = {},
+  opts: { rev?: number; version?: number; force?: boolean } = {},
 ): Promise<FlowWriteResult> {
   const row = await getFlowRow(workspaceId, id);
   if (!row) return { ok: false, error: 'not_found' };
   const draft = await getFlowDraft(id, personId);
   if (!draft) return { ok: false, error: 'no_draft' };
   if (opts.rev === undefined || opts.rev !== draft.rev) return { ok: false, error: 'conflict' };
-  return updateFlow(workspaceId, id, { graph: draft.graph, version: opts.version ?? row.version }, personId);
+  // Otra persona publicó desde que empezó este borrador: publicarlo borraría lo
+  // suyo. Se devuelve qué cambió y solo se publica igual si lo confirman (force).
+  if (draft.baseVersion !== row.version && !opts.force) {
+    const base = (await getDb()
+      .prepare('SELECT graph FROM flow_versions WHERE flow_id = ? AND user_id = ? AND version = ? ORDER BY created_at DESC LIMIT 1')
+      .get(id, workspaceId, draft.baseVersion)) as { graph: string } | undefined;
+    const before = base ? parseGraph(base.graph) : null;
+    const now = parseGraph(row.graph);
+    return {
+      ok: false,
+      error: 'stale_draft',
+      stale: {
+        baseVersion: draft.baseVersion,
+        publishedVersion: row.version,
+        diff: diffGraphs(before, now),
+        nodeTypes: Object.fromEntries([...(before?.nodes ?? []), ...now.nodes].map((n) => [n.id, n.type])),
+      },
+    };
+  }
+  // Compare-and-set sobre la versión publicada que se vio (dos publicaciones a la vez: entra una).
+  return updateFlow(workspaceId, id, { graph: draft.graph, version: row.version }, personId);
 }
 
 // ---------- Datos de prueba fijados ----------

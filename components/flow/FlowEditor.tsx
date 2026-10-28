@@ -46,6 +46,13 @@ import { autoConnectHandle, CATEGORY_ORDER, flattenPaths, i18nKey, nodeApp } fro
 import { copyNodes, exportFileName, exportFlowJson, parseClipboard, pasteNodes } from '@/lib/flow-transfer';
 import { parseDbUtc } from '@/lib/utils';
 
+interface StaleInfo {
+  baseVersion: number;
+  publishedVersion: number;
+  diff: { added: string[]; removed: string[]; changed: string[]; edgesAdded: number; edgesRemoved: number };
+  nodeTypes: Record<string, string>;
+}
+
 interface Props {
   flow: FlowDto;
   webhooks: Array<{ nodeId: string; token: string }>;
@@ -311,6 +318,8 @@ function Editor({
   const [moreOpen, setMoreOpen] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  /** Publicar chocó con una publicación de otra persona (409 stale_draft). */
+  const [stale, setStale] = useState<StaleInfo | null>(null);
   /** Cambios hechos después de empezar a guardar (el autoguardado no los da por guardados). */
   const changeSeq = useRef(0);
   const savingRef = useRef<Promise<boolean> | null>(null);
@@ -520,26 +529,32 @@ function Editor({
     const seq = changeSeq.current;
     const run = (async () => {
       setSaving(true);
-      const res = await fetch(`/api/flow/flows/${flow.id}`, {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          description,
-          draft: graph,
-          draftRev: draftRevRef.current,
-          version: flow.version,
-          errorFlowId: errorFlowId || null,
+      const send = () =>
+        fetch(`/api/flow/flows/${flow.id}`, {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            description,
+            draft: graph,
+            draftRev: draftRevRef.current,
+            errorFlowId: errorFlowId || null,
           failureAlerts,
           autoReplay,
           folderId: folderId || null,
-          floodLimit: Math.max(0, Math.floor(Number(floodLimit) || 0)),
-          maxConcurrency: Math.max(0, Math.floor(Number(maxConcurrency) || 0)),
-        }),
-      }).catch(() => null);
-      const data = (await res?.json().catch(() => null)) as
-        | { flow?: FlowDto; webhooks?: Props['webhooks']; error?: string; nodeId?: string }
-        | null;
+            floodLimit: Math.max(0, Math.floor(Number(floodLimit) || 0)),
+            maxConcurrency: Math.max(0, Math.floor(Number(maxConcurrency) || 0)),
+          }),
+        }).catch(() => null);
+      type SaveReply = { flow?: FlowDto; webhooks?: Props['webhooks']; error?: string; nodeId?: string } | null;
+      let res = await send();
+      let data = (await res?.json().catch(() => null)) as SaveReply;
+      // Otra pestaña guardó el borrador: se adopta su revisión y se guarda lo que se ve.
+      if (res?.status === 409 && data?.flow) {
+        setRev(data.flow.draftRev);
+        res = await send();
+        data = (await res?.json().catch(() => null)) as SaveReply;
+      }
       setSaving(false);
       if (!res?.ok || !data?.flow) {
         const code = data?.error ?? 'generic';
@@ -560,7 +575,7 @@ function Editor({
     const ok = await run;
     savingRef.current = null;
     return ok;
-  }, [readOnly, flow.id, flow.version, name, description, graph, errorFlowId, failureAlerts, autoReplay, folderId, floodLimit, maxConcurrency, setRev, t]);
+  }, [readOnly, flow.id, name, description, graph, errorFlowId, failureAlerts, autoReplay, folderId, floodLimit, maxConcurrency, setRev, t]);
 
   // Autoguardado: un rato después del último cambio (solo el borrador; publicar es aparte).
   useEffect(() => {
@@ -569,21 +584,31 @@ function Editor({
     return () => window.clearTimeout(timer);
   }, [dirty, readOnly, save]);
 
-  /** Publica el borrador: pasa a ser lo que corre (versión nueva). */
-  const publish = useCallback(async () => {
+  /** Publica el borrador: pasa a ser lo que corre (versión nueva). `force`: aunque otra persona haya publicado después. */
+  const publish = useCallback(async (force = false) => {
     if (readOnly) return;
+    setStale(null);
     if (dirty && !(await save())) return;
     setPublishing(true);
     setMessage(null);
     const res = await fetch(`/api/flow/flows/${flow.id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ publish: true, draftRev: draftRevRef.current }),
+      body: JSON.stringify({ publish: true, draftRev: draftRevRef.current, ...(force ? { force: true } : {}) }),
     }).catch(() => null);
     const data = (await res?.json().catch(() => null)) as
-      | { flow?: FlowDto; webhooks?: Props['webhooks']; error?: string; nodeId?: string }
+      | { flow?: FlowDto; webhooks?: Props['webhooks']; error?: string; nodeId?: string; stale?: StaleInfo }
       | null;
     setPublishing(false);
+    if (res?.status === 409 && data?.flow) {
+      setFlow(data.flow);
+      setRev(data.flow.draftRev);
+    }
+    // Otra persona publicó desde que empezó el borrador: qué cambió y "publicar igual".
+    if (data?.error === 'stale_draft' && data.stale) {
+      setStale(data.stale);
+      return;
+    }
     if (!res?.ok || !data?.flow) {
       const code = data?.error ?? 'generic';
       const text = t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic');
@@ -1075,7 +1100,7 @@ function Editor({
                 <button
                   type="button"
                   className="btn btn-primary"
-                  onClick={() => void publish()}
+                  onClick={() => void publish(false)}
                   disabled={(!hasDraft && !dirty) || publishing}
                   aria-busy={publishing || undefined}
                   title={t('draft.publishHint')}
@@ -1509,6 +1534,40 @@ function Editor({
           </div>
         </form>
       </dialog>
+
+      <ConfirmDialog
+        open={stale !== null}
+        title={t('draft.staleTitle', { n: stale?.publishedVersion ?? 0 })}
+        body={
+          stale ? (
+            <>
+              <p>{t('draft.staleBody', { base: stale.baseVersion, n: stale.publishedVersion })}</p>
+              <ul>
+                {(() => {
+                  const names = (ids: string[]) =>
+                    ids
+                      .map((id) => {
+                        const key = stale.nodeTypes[id] ? `nodes.${i18nKey(stale.nodeTypes[id])}.title` : '';
+                        return key && t.has(key) ? `${t(key)} (${id})` : id;
+                      })
+                      .join(', ');
+                  const items: string[] = [];
+                  if (stale.diff.added.length) items.push(t('versions.added', { names: names(stale.diff.added) }));
+                  if (stale.diff.removed.length) items.push(t('versions.removed', { names: names(stale.diff.removed) }));
+                  if (stale.diff.changed.length) items.push(t('versions.changed', { names: names(stale.diff.changed) }));
+                  if (stale.diff.edgesAdded) items.push(t('versions.edgesAdded', { n: stale.diff.edgesAdded }));
+                  if (stale.diff.edgesRemoved) items.push(t('versions.edgesRemoved', { n: stale.diff.edgesRemoved }));
+                  return (items.length ? items : [t('versions.noChanges')]).map((x) => <li key={x}>{x}</li>);
+                })()}
+              </ul>
+            </>
+          ) : null
+        }
+        confirmLabel={t('draft.publishAnyway')}
+        cancelLabel={t('editor.cancel')}
+        onConfirm={() => void publish(true)}
+        onCancel={() => setStale(null)}
+      />
 
       <ConfirmDialog
         open={confirmDiscard}

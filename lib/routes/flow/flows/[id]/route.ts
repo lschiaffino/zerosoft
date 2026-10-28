@@ -33,14 +33,17 @@ export async function PATCH(req: NextRequest, props: Ctx) {
   if (!canEditFlows(user)) return forbidden();
   const parsed = flowUpdateSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return flowError(400, 'invalid_input');
-  const { draft, draftRev, publish, ...patch } = parsed.data;
+  const { draft, draftRev, publish, force, ...patch } = parsed.data;
+  // Autoguardado (borrador y ajustes): sin chequear version, cada campo se escribe solo.
+  if (!publish) delete patch.version;
   // Autoguardado: el borrador (de quien edita) no cambia lo que corre ni de quién es el flow.
   let rev = draftRev;
   if (draft !== undefined) {
     const d = await saveFlowDraft(user.id, id, draft, draftRev, realUserId(user));
     if (!d.ok) {
       if (d.error === 'not_found') return notFound();
-      if (d.error === 'conflict') return flowError(409, 'conflict');
+      // Con la revisión actual, el editor la adopta y vuelve a guardar.
+      if (d.error === 'conflict') return flowError(409, 'conflict', { flow: await getFlow(user.id, id, realUserId(user)) });
       return flowError(400, d.error, { nodeId: d.nodeId });
     }
     rev = d.flow.draftRev;
@@ -48,10 +51,11 @@ export async function PATCH(req: NextRequest, props: Ctx) {
   // Publicar: el borrador pasa a correr (quien publica queda como dueño si cambió el grafo).
   if (publish) {
     // Se publica el borrador propio y solo si es la revisión que se ve en el editor.
-    const p = await publishFlowDraft(user.id, id, realUserId(user), { rev, version: patch.version });
+    const p = await publishFlowDraft(user.id, id, realUserId(user), { rev, force });
     if (!p.ok) {
       if (p.error === 'not_found') return notFound();
-      if (p.error === 'conflict') return flowError(409, 'conflict');
+      if (p.error === 'stale_draft') return flowError(409, 'stale_draft', { stale: p.stale, flow: await getFlow(user.id, id, realUserId(user)) });
+      if (p.error === 'conflict') return flowError(409, 'conflict', { flow: await getFlow(user.id, id, realUserId(user)) });
       return flowError(400, p.error, { nodeId: p.nodeId });
     }
     delete patch.version;
