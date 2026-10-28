@@ -14,6 +14,7 @@ import { getVerifiedDomainByHost } from '@/lib/link-domains';
 import { contextFromHeaders, isBotRequest, recordClick } from '@/lib/track';
 import { hasCustomPreview, linkPreviewHtml } from '@/lib/link-preview';
 import {
+  cloakHtml,
   deepLinkHtml,
   newVisitorId,
   parseTargeting,
@@ -22,6 +23,8 @@ import {
 } from '@/lib/link-targeting';
 import { requestLocale } from '@/lib/request-locale';
 import { forwardQueryParams, gateQueryString } from '@/lib/link-url';
+import { newClickId, withClickId } from '@/lib/link-click-id';
+import { clientIp } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -68,6 +71,12 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
   if (!link || link.archived === 1) return gone('notfound');
   if (isExpired(link)) return gone('expired', link.expired_url);
   if (link.max_clicks !== null && link.clicks >= link.max_clicks) return gone('limit', link.expired_url);
+  // Destino reportado como phishing o malware: aviso, nunca el redirect (tampoco a los bots).
+  if (link.safety === 'blocked') {
+    const res = NextResponse.redirect(new URL(`/${locale}/gone?reason=blocked`, origin), 302);
+    res.headers.set('cache-control', 'no-store');
+    return res;
+  }
 
   // Los params del link corto (?utm_source=mail) viajan al destino, salvo que el link lo apague.
   const incoming = req.nextUrl.searchParams;
@@ -128,9 +137,12 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
     }
   }
   const dest = resolveDestination(link.url, targeting, ctx, `${visitorId ?? ''}:${link.id}`);
+  // Conversiones: un click id aleatorio por visita (sin cookies nuestras) que viaja al destino.
+  const clickId = link.track_conversion === 1 ? newClickId() : null;
+  const finalUrl = (url: string) => (clickId ? withClickId(withParams(url), clickId) : withParams(url));
 
   // Incremento atómico: si otra request se llevó el último click, no hay redirect.
-  const clicks = await recordClick(link.id, ctx, { source, variant: dest.variant });
+  const clicks = await recordClick(link.id, ctx, { source, variant: dest.variant, clickId });
   if (clicks === null) return gone('limit', link.expired_url);
   // El webhook sale después de responder: el redirect no espera a nadie.
   after(() =>
@@ -153,13 +165,30 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
       { extra: { clicks } },
     ),
   );
+  // Deep linking diferido: si la visita fue a la app (iOS/Android), la app recién
+  // instalada la puede reclamar en /api/v1/links/track/open (hash de IP, 1 hora).
+  if (dest.variant === 'app:ios' || dest.variant === 'app:android') {
+    const ip = clientIp(req);
+    const platform = dest.variant === 'app:ios' ? 'ios' : 'android';
+    after(async () => {
+      const { recordDeferredClick } = await import('@/lib/link-deferred');
+      await recordDeferredClick({ ip, platform, linkId: link.id, clickId });
+    });
+  }
 
+  const html = (body: string, extra: Record<string, string> = {}) =>
+    new NextResponse(body, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', ...extra } });
   const res =
     dest.kind === 'deeplink'
-      ? new NextResponse(deepLinkHtml(dest.appUrl, withParams(dest.fallbackUrl)), {
-          headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
-        })
-      : NextResponse.redirect(withParams(dest.url), targeting ? 302 : link.redirect_type === 301 ? 301 : 302);
+      ? html(deepLinkHtml(clickId ? withClickId(dest.appUrl, clickId) : dest.appUrl, finalUrl(dest.fallbackUrl)))
+      : link.cloak === 1 && !isAppHost(host)
+        ? // Cloaking: la URL corta queda en la barra; nuestra página no se deja enmarcar.
+          html(cloakHtml(finalUrl(dest.url), link.og_title || link.title || dest.url.replace(/^https?:\/\//, '').replace(/[?#].*$/, '')), {
+            'x-frame-options': 'DENY',
+            'content-security-policy': "frame-ancestors 'none'",
+            'referrer-policy': 'strict-origin-when-cross-origin',
+          })
+        : NextResponse.redirect(finalUrl(dest.url), targeting ? 302 : link.redirect_type === 301 ? 301 : 302);
   // Sin esto el navegador cachea el 301 para siempre: archivar, vencer,
   // max_clicks, cambiar el destino y contar el click dejarían de aplicar.
   res.headers.set('cache-control', 'no-store');

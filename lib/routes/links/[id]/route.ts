@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
 import { applyLinkPatch, deleteLink, getLinkForViewer, getUserLink, linkPatchSchema, toLinkDto } from '@/lib/links';
 import { viewerOf } from '@/lib/link-folders';
 import { todayClicksForLink } from '@/lib/track';
@@ -58,6 +58,6 @@ export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: s
     return NextResponse.json({ error: found.status === 403 ? 'forbidden' : 'not_found' }, { status: found.status });
   }
   const { link } = found;
-  await deleteLink(link);
+  await deleteLink(link, { actorId: realUserId(user) });
   return new NextResponse(null, { status: 204 });
 }

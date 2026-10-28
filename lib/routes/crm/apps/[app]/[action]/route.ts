@@ -14,7 +14,8 @@ export async function POST(_req: NextRequest, props: { params: Promise<{ app: st
   if (!isWorkspaceAdmin(user)) return crmError(403, 'forbidden');
   try {
     if (app === 'slack' && action === 'test') {
-      if (!(await sendSlackTest(user.id))) return notFound();
+      const source = new URL(_req.url).searchParams.get('source') === 'link' ? 'link' : 'crm';
+      if (!(await sendSlackTest(user.id, source))) return notFound();
       return NextResponse.json({ ok: true });
     }
     if (app === 'stripe' && action === 'sync') {

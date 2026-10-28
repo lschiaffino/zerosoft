@@ -77,6 +77,8 @@ export async function importLinks(userId: string, items: ImportItem[], createdBy
       title: item.title ?? undefined,
       tags: (item.tags ?? []).slice(0, 5),
       createdBy,
+      via: 'import',
+      deferSafety: true,
     });
     if (!res.ok) {
       report.skipped.push({ from: item.shortUrl || item.url, reason: res.code });

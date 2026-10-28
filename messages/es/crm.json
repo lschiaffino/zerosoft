@@ -3345,7 +3345,10 @@
       "task_created": "Tarea creada",
       "form_submitted": "Formulario enviado",
       "quote_accepted": "Cotización firmada",
-      "quote_paid": "Cotización pagada"
+      "quote_paid": "Cotización pagada",
+      "link_created": "Link corto creado",
+      "link_lead": "Lead desde un link corto",
+      "link_sale": "Venta desde un link corto"
     },
     "slack": {
       "name": "Slack",

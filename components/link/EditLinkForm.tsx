@@ -59,6 +59,8 @@ export default function EditLinkForm({
   const [ogTitle, setOgTitle] = useState(link.og.title ?? '');
   const [ogDescription, setOgDescription] = useState(link.og.description ?? '');
   const [ogImage, setOgImage] = useState(link.og.image ?? '');
+  const [trackConversion, setTrackConversion] = useState(link.track_conversion);
+  const [cloak, setCloak] = useState(link.cloak);
 
   const slugInvalid = slug.trim() !== '' && !SLUG_RE.test(slug.trim());
 
@@ -93,6 +95,8 @@ export default function EditLinkForm({
       forwardParams,
       expiredUrl: expiredUrl.trim() || null,
     };
+    if (trackConversion !== link.track_conversion) payload.trackConversion = trackConversion;
+    if (cloak !== link.cloak) payload.cloak = cloak;
     if (slug.trim() && slug.trim() !== link.slug) payload.slug = slug.trim();
     if ((folderId || null) !== link.folder_id) payload.folderId = folderId || null;
     if (clearPassword) payload.password = '';
@@ -170,6 +174,44 @@ export default function EditLinkForm({
       </div>
 
       {folders.length > 0 && <FolderSelect id="el-folder" value={folderId} onChange={setFolderId} folders={folders} />}
+
+      <div className="ui-field">
+        <label className="ui-check">
+          <input
+            type="checkbox"
+            checked={trackConversion}
+            onChange={(e) => setTrackConversion(e.target.checked)}
+            aria-describedby="el-conv-help"
+            data-testid="el-track-conversion"
+          />
+          {t('conversions.toggle')}
+        </label>
+        <p id="el-conv-help" className="ui-help">
+          {t('conversions.toggleHelp')}
+        </p>
+      </div>
+
+      <div className="ui-field">
+        <label className="ui-check">
+          <input
+            type="checkbox"
+            checked={cloak}
+            disabled={!link.domain && !cloak}
+            onChange={(e) => setCloak(e.target.checked)}
+            aria-describedby="el-cloak-help"
+            data-testid="el-cloak"
+          />
+          {t('cloak.toggle')}
+        </label>
+        <p id="el-cloak-help" className="ui-help">
+          {link.domain ? t('cloak.help') : t('cloak.needsDomain')}
+        </p>
+        {cloak && trackConversion && (
+          <p className="ui-error" role="status" data-testid="el-cloak-conv-warning">
+            {t('cloak.conversionsWarning')}
+          </p>
+        )}
+      </div>
 
       <AdvancedSection storageKey="link.edit" hint={t('detail.advancedHint')}>
         <fieldset className="lk-fieldset">

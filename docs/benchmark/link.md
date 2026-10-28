@@ -2,6 +2,29 @@
 
 Fecha: 2026-10-22. Incumbente principal: Dub. Referencia secundaria: Bitly.
 
+## Actualización 2026-10-27 (tanda de paridad 123)
+
+Lo que cambió desde el relevamiento de abajo. La fuente de verdad del estado por fila es `content/feature-parity/link.ts`.
+
+| Capacidad | Antes | Ahora | Cómo |
+|---|---|---|---|
+| Leads y ventas por click | falta | tiene | `?zs_id=` en el destino, script `/link-tracking.js`, `/api/v1/links/track/lead` y `/track/sale`, embudo, ingresos y CSV |
+| Stripe y Shopify | falta | tiene | Conexión de Stripe del workspace (Checkout y facturas recurrentes) y webhook de pago de Shopify firmado |
+| Stream de eventos | parcial | tiene | Vista Eventos que se refresca cada 3 s, filtro por link y páginas anteriores |
+| Registro de actividad | falta | tiene | Antes y después por link y para todo el workspace (admins) |
+| Protección contra phishing | sin fila | tiene | Safe Browsing en destino, variantes, redirección al vencer y redirecciones del dominio; homógrafos IDN; revisión semanal |
+| Deep linking diferido | parcial | tiene | `/api/v1/links/track/open` con la publishable key del workspace, mismas puertas que el redirect |
+| Link cloaking | falta | tiene | Solo dominios propios; sin atribución de conversiones (cookies del iframe) |
+| QR con marcos y plantillas | parcial | tiene | Marco con texto, plantillas compartidas renombrables, PNG por API con marco (sharp) |
+| Atajos por fila | parcial | tiene | j/k, Enter, e, q, d, a, s, x y `?` |
+| Slack | falta | tiene | Desde Link se conecta con los eventos de Link activados |
+| Zapier, Make, Segment | falta | parcial | Segment nativo; Zapier y Make por catch hook, sin app publicada |
+| Servidor MCP | falta | tiene | `/api/v1/links/mcp` con scopes y carpetas |
+| IA | falta | parcial | Preguntas sobre analytics en la app; crear links con IA solo por MCP |
+| Rebrandly y Short.io | falta | tiene | Por API key de cada uno |
+
+Siguen faltando: Domain Connect, SSO SAML, SCIM, programa de partners, SDKs, CLI y extensión de Raycast. Redirect medido con curl contra `next start`: p50 3 ms con y sin conversiones.
+
 ## Cómo se hizo
 
 - **Competidor:** precios, centro de ayuda, docs, integraciones y changelog de Dub; precios y anuncios de Bitly (ver Fuentes). El centro de soporte de Bitly devolvió 403, así que lo de Bitly sale de su página de precios y prensa. Lo no confirmado en una página oficial está marcado "sin verificar".

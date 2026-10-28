@@ -4,6 +4,7 @@ import type { LinkStatus } from '@/lib/links';
 const TONE: Record<LinkStatus, string> = {
   active: 'badge-ok',
   archived: '',
+  blocked: 'badge-bad',
   expired: 'badge-warn',
   limit: 'badge-warn',
   protected: 'badge-info',
@@ -12,6 +13,7 @@ const TONE: Record<LinkStatus, string> = {
 const KEY: Record<LinkStatus, string> = {
   active: 'statusActive',
   archived: 'statusArchived',
+  blocked: 'statusBlocked',
   expired: 'statusExpired',
   limit: 'statusLimit',
   protected: 'statusProtected',

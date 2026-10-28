@@ -2,14 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
 import { limitByIp } from '@/lib/rate-limit';
 import { fetchBitlyLinks, importLinks, itemsFromCsv } from '@/lib/bitly-import';
+import { fetchRebrandlyLinks, fetchShortioLinks, IMPORT_SOURCES, type ImportSource } from '@/lib/link-import-sources';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
 /**
- * Importa links: JSON { source: 'bitly', token } (API de Bitly) o multipart con
- * un archivo CSV (export de Bitly u otro acortador). Devuelve un reporte.
+ * Importa links: JSON { source: 'bitly' | 'rebrandly' | 'shortio', token } (API
+ * del acortador) o multipart con un archivo CSV (export de Bitly u otro
+ * acortador). Devuelve un reporte.
  */
 export async function POST(req: NextRequest) {
   const limited = await limitByIp(req, 'links-import', 5, 600);
@@ -29,11 +31,20 @@ export async function POST(req: NextRequest) {
     if (items.length === 0) return NextResponse.json({ error: 'csv_no_url_column' }, { status: 400 });
   } else {
     const body = (await req.json().catch(() => null)) as { source?: string; token?: string } | null;
-    if (body?.source !== 'bitly' || !body.token?.trim()) return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
+    const source = body?.source as ImportSource | undefined;
+    if (!source || !(IMPORT_SOURCES as readonly string[]).includes(source) || !body?.token?.trim()) {
+      return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
+    }
+    const token = body.token.trim().slice(0, 500);
     try {
-      items = await fetchBitlyLinks(body.token.trim());
+      items =
+        source === 'rebrandly'
+          ? await fetchRebrandlyLinks(token)
+          : source === 'shortio'
+            ? await fetchShortioLinks(token)
+            : await fetchBitlyLinks(token);
     } catch (err) {
-      const code = err instanceof Error && err.message.startsWith('bitly_') ? err.message : 'bitly_error';
+      const code = err instanceof Error && err.message.startsWith(`${source}_`) ? err.message : `${source}_error`;
       return NextResponse.json({ error: code }, { status: 400 });
     }
   }

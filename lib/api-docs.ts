@@ -27,6 +27,8 @@ export interface ApiEndpoint {
   responseStatus?: number;
   /** Scope que exige la ruta (si no, se deduce de path + método: endpointScope). */
   scope?: ApiScope;
+  /** Sin API key (lo llama una app desde el teléfono, por ejemplo). */
+  public?: boolean;
 }
 
 export interface ApiSection {
@@ -467,6 +469,82 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
       devices: [{ name: 'mobile', count: 1210 }],
       browsers: [{ name: 'Chrome', count: 990 }],
     },
+    responseStatus: 200,
+  },
+  {
+    id: 'links-track-lead',
+    sectionId: 'links',
+    method: 'POST',
+    path: '/api/v1/links/track/lead',
+    titleKey: 'linksTrackLeadTitle',
+    descKey: 'linksTrackLeadDesc',
+    params: [
+      { name: 'clickId', type: 'string', required: true, descriptionKey: 'paramClickId' },
+      { name: 'customerExternalId', type: 'string', required: true, descriptionKey: 'paramCustomerExternalId' },
+      { name: 'eventName', type: 'string', descriptionKey: 'paramEventName' },
+      { name: 'customerName', type: 'string', descriptionKey: 'paramCustomerName' },
+      { name: 'customerEmail', type: 'string', descriptionKey: 'paramCustomerEmail' },
+    ],
+    request: { clickId: 'Xk3mPq8ZrT2vLw9nB4cD', eventName: 'Sign up', customerExternalId: 'user_123' },
+    response: {
+      lead: { id: 41, type: 'lead', eventName: 'Sign up', linkId: 'lnk_9f3ka2', clickId: 'Xk3mPq8ZrT2vLw9nB4cD', customerExternalId: 'user_123', amount: 0, currency: null, source: 'api' },
+      duplicate: false,
+    },
+    responseStatus: 201,
+  },
+  {
+    id: 'links-track-sale',
+    sectionId: 'links',
+    method: 'POST',
+    path: '/api/v1/links/track/sale',
+    titleKey: 'linksTrackSaleTitle',
+    descKey: 'linksTrackSaleDesc',
+    params: [
+      { name: 'customerExternalId', type: 'string', descriptionKey: 'paramCustomerExternalId' },
+      { name: 'clickId', type: 'string', descriptionKey: 'paramClickId' },
+      { name: 'amount', type: 'integer', required: true, descriptionKey: 'paramSaleAmount' },
+      { name: 'currency', type: 'string', descriptionKey: 'paramSaleCurrency' },
+      { name: 'invoiceId', type: 'string', descriptionKey: 'paramInvoiceId' },
+      { name: 'eventName', type: 'string', descriptionKey: 'paramEventName' },
+    ],
+    request: { customerExternalId: 'user_123', amount: 4900, currency: 'USD', invoiceId: 'inv_1' },
+    response: {
+      sale: { id: 42, type: 'sale', eventName: 'Purchase', linkId: 'lnk_9f3ka2', customerExternalId: 'user_123', amount: 4900, currency: 'USD', invoiceId: 'inv_1', source: 'api' },
+      duplicate: false,
+    },
+    responseStatus: 201,
+  },
+  {
+    id: 'links-track-open',
+    sectionId: 'links',
+    method: 'POST',
+    path: '/api/v1/links/track/open',
+    titleKey: 'linksTrackOpenTitle',
+    descKey: 'linksTrackOpenDesc',
+    public: true,
+    params: [
+      { name: 'platform', type: 'string', required: true, descriptionKey: 'paramPlatform' },
+      { name: 'domain', type: 'string', descriptionKey: 'paramDeferredDomain' },
+      { name: 'deepLink', type: 'string', descriptionKey: 'paramDeepLink' },
+    ],
+    request: { platform: 'ios', domain: 'go.acme.com' },
+    response: {
+      matched: 'deferred',
+      clickId: null,
+      link: { id: 'lnk_9f3ka2', shortLink: 'https://go.acme.com/app', url: 'https://acme.com/app', deepLink: 'acme://promo/42' },
+    },
+    responseStatus: 200,
+  },
+  {
+    id: 'links-mcp',
+    sectionId: 'links',
+    method: 'POST',
+    path: '/api/v1/links/mcp',
+    titleKey: 'linksMcpTitle',
+    descKey: 'linksMcpDesc',
+    scope: 'links:read',
+    request: { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'create_link', arguments: { url: 'https://acme.com/launch' } } },
+    response: { jsonrpc: '2.0', id: 1, result: { content: [{ type: 'text', text: '{"id":"lnk_…","short_url":"https://zs.ai/x7k2p9q"}' }], isError: false } },
     responseStatus: 200,
   },
 
@@ -2902,7 +2980,8 @@ export const API_SCOPE_DOCS: Array<{ scope: ApiScope; descKey: string }> = API_S
  * calendar → cal, agents, robots) y del método (GET = :read, el resto = :write).
  * null para ejemplos que no son rutas v1 (webhooks).
  */
-export function endpointScope(e: Pick<ApiEndpoint, 'path' | 'method' | 'scope'>): ApiScope | null {
+export function endpointScope(e: Pick<ApiEndpoint, 'path' | 'method' | 'scope'> & { public?: boolean }): ApiScope | null {
+  if (e.public) return null;
   if (e.scope) return e.scope;
   const m = /^\/api\/v1\/(crm|links|calendar|agents|robots|chat|groups|track|docs|talk|voice)\b/.exec(e.path);
   if (!m) return null;

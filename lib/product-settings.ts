@@ -47,7 +47,7 @@ export const PRODUCT_SETTINGS_SHORTCUTS: Record<MinimalSettingsApp, Array<{ href
 };
 
 /** Pestañas de los ajustes de Link (?tab=), la primera es la de entrada. */
-export const LINK_SETTINGS_TABS = ['domains', 'import', 'export'] as const;
+export const LINK_SETTINGS_TABS = ['domains', 'conversions', 'integrations', 'import', 'export', 'activity'] as const;
 export type LinkSettingsTab = (typeof LINK_SETTINGS_TABS)[number];
 
 export function linkSettingsTab(value: string | undefined): LinkSettingsTab {

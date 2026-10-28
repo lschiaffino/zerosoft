@@ -131,6 +131,8 @@ export interface ClickOptions {
   source?: 'link' | 'qr';
   /** Destino servido por la segmentación (rule:1, ab:B, app:ios). */
   variant?: string | null;
+  /** Click id (links con conversiones): viaja al destino como ?zs_id= y atribuye leads y ventas. */
+  clickId?: string | null;
 }
 
 /**
@@ -153,8 +155,8 @@ export async function recordClick(linkId: string, ctx: ClickContext, opts: Click
         args: [source === 'qr' ? 1 : 0, linkId],
       },
       {
-        sql: `INSERT INTO clicks (link_id, referrer, country, device, browser, os, source, variant, city, region, referrer_url)
-              SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE changes() = 1`,
+        sql: `INSERT INTO clicks (link_id, referrer, country, device, browser, os, source, variant, city, region, referrer_url, click_id)
+              SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE changes() = 1`,
         args: [
           linkId,
           ctx.referrer,
@@ -167,6 +169,7 @@ export async function recordClick(linkId: string, ctx: ClickContext, opts: Click
           ctx.city ?? null,
           ctx.region ?? null,
           ctx.referrerUrl ?? null,
+          opts.clickId ?? null,
         ],
       },
       { sql: 'SELECT clicks FROM links WHERE id = ?', args: [linkId] },

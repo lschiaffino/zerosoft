@@ -26,7 +26,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const body: unknown = await req.json().catch(() => null);
   const parsed = linkPatchSchema.safeParse(body);
   if (!parsed.success) return apiError(400, 'invalid_input', 'The request body is not valid.');
-  const failed = await applyLinkPatch(link, parsed.data);
+  const failed = await applyLinkPatch(link, parsed.data, undefined, { actorId: auth.personId, via: 'api' });
   if (failed) return apiError(failed.status, failed.error, 'The link could not be updated.');
   return NextResponse.json(toLinkDto((await getUserLink(auth.user.id, link.id))!));
 }
@@ -41,6 +41,6 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   }
   const link = await getUserLinkByRef(auth.user.id, params.id);
   if (!link) return apiError(404, 'not_found', 'Link not found.');
-  await deleteLink(link);
+  await deleteLink(link, { actorId: auth.personId, via: 'api' });
   return new NextResponse(null, { status: 204 });
 }

@@ -362,6 +362,154 @@ export async function getWorkspaceAnalytics(
   };
 }
 
+// ---------- Conversiones (leads y ventas) ----------
+
+export interface WorkspaceConversionDay {
+  date: string;
+  leads: number;
+  sales: number;
+}
+
+export interface WorkspaceConversionLink {
+  id: string;
+  slug: string;
+  short_url: string;
+  leads: number;
+  sales: number;
+  /** Ingresos en la moneda principal (unidades menores). */
+  revenue: number;
+}
+
+export interface WorkspaceConversions {
+  leads: number;
+  sales: number;
+  /** Ingresos por moneda (unidades menores), la mayor primero. */
+  revenue: Array<{ currency: string; amount: number }>;
+  previous: { leads: number; sales: number };
+  byDay: WorkspaceConversionDay[];
+  topLinks: WorkspaceConversionLink[];
+}
+
+const CONV_FROM = 'FROM link_conversions c JOIN links l ON l.id = c.link_id';
+
+/**
+ * Leads, ventas e ingresos del workspace en el rango, con los mismos filtros
+ * y visibilidad que los clicks (país y dispositivo son los del click que
+ * convirtió).
+ */
+export async function getWorkspaceConversions(
+  userId: string,
+  range: WorkspaceRange,
+  opts: WorkspaceAnalyticsOptions = {},
+): Promise<WorkspaceConversions> {
+  const db = getDb();
+  const timezone = parseTimezone(opts.timezone);
+  const len = dayList(range.from, range.to).length;
+  const cur = rangeBounds(range, timezone);
+  const prev = rangeBounds({ from: addDays(range.from, -len), to: addDays(range.from, -1) }, timezone);
+  const scope = scopeSql(userId, cur.lo, cur.hi, opts);
+  const prevScope = scopeSql(userId, prev.lo, prev.hi, opts);
+  const day = localDaySql(timezone, cur.loMs, cur.hiMs);
+  const [totals, prevRows, dayRows, top] = await Promise.all([
+    db
+      .prepare(`SELECT c.type AS type, c.currency AS currency, COUNT(*) AS n, SUM(c.amount) AS amount ${CONV_FROM} WHERE ${scope.sql} GROUP BY c.type, c.currency`)
+      .all(...scope.args) as Promise<Array<{ type: string; currency: string | null; n: number; amount: number }>>,
+    db
+      .prepare(`SELECT c.type AS type, COUNT(*) AS n ${CONV_FROM} WHERE ${prevScope.sql} GROUP BY c.type`)
+      .all(...prevScope.args) as Promise<Array<{ type: string; n: number }>>,
+    db
+      .prepare(`SELECT ${day.sql} AS d, SUM(c.type = 'lead') AS leads, SUM(c.type = 'sale') AS sales ${CONV_FROM} WHERE ${scope.sql} GROUP BY d`)
+      .all(...day.args, ...scope.args) as Promise<Array<{ d: string; leads: number; sales: number }>>,
+    db
+      .prepare(
+        `SELECT l.id, l.slug, d.hostname AS host, SUM(c.type = 'lead') AS leads, SUM(c.type = 'sale') AS sales,
+                SUM(CASE WHEN c.type = 'sale' THEN c.amount ELSE 0 END) AS revenue
+         ${CONV_FROM} LEFT JOIN link_domains d ON d.id = l.domain_id
+         WHERE ${scope.sql} GROUP BY l.id ORDER BY revenue DESC, leads DESC, l.slug LIMIT 10`,
+      )
+      .all(...scope.args) as Promise<Array<{ id: string; slug: string; host: string | null; leads: number; sales: number; revenue: number }>>,
+  ]);
+  const revenue = new Map<string, number>();
+  let leads = 0;
+  let sales = 0;
+  for (const r of totals) {
+    if (r.type === 'lead') leads += Number(r.n);
+    else {
+      sales += Number(r.n);
+      const c = r.currency ?? 'USD';
+      revenue.set(c, (revenue.get(c) ?? 0) + Number(r.amount ?? 0));
+    }
+  }
+  const map = new Map(dayRows.map((r) => [r.d, r]));
+  return {
+    leads,
+    sales,
+    revenue: [...revenue.entries()].map(([currency, amount]) => ({ currency, amount })).sort((a, b) => b.amount - a.amount),
+    previous: {
+      leads: Number(prevRows.find((r) => r.type === 'lead')?.n ?? 0),
+      sales: Number(prevRows.find((r) => r.type === 'sale')?.n ?? 0),
+    },
+    byDay: dayList(range.from, range.to).map((date) => ({
+      date,
+      leads: Number(map.get(date)?.leads ?? 0),
+      sales: Number(map.get(date)?.sales ?? 0),
+    })),
+    topLinks: top.map((r) => ({
+      id: r.id,
+      slug: r.slug,
+      short_url: shortUrl(r.slug, r.host),
+      leads: Number(r.leads ?? 0),
+      sales: Number(r.sales ?? 0),
+      revenue: Number(r.revenue ?? 0),
+    })),
+  };
+}
+
+export interface WorkspaceConversionRow {
+  ts: string;
+  type: string;
+  event_name: string;
+  short_url: string;
+  customer_external_id: string | null;
+  amount: number;
+  currency: string | null;
+  invoice_id: string | null;
+  source: string;
+  country: string | null;
+  device: string | null;
+}
+
+/** Conversiones del rango para el CSV (sin nombre ni email del cliente). */
+export async function exportWorkspaceConversions(
+  userId: string,
+  range: WorkspaceRange,
+  opts: WorkspaceAnalyticsOptions = {},
+): Promise<WorkspaceConversionRow[]> {
+  const b = rangeBounds(range, parseTimezone(opts.timezone));
+  const scope = scopeSql(userId, b.lo, b.hi, opts);
+  const rows = (await getDb()
+    .prepare(
+      `SELECT c.ts, c.type, c.event_name, l.slug, d.hostname AS host, c.customer_external_id, c.amount, c.currency,
+              c.invoice_id, c.source, c.country, c.device
+       ${CONV_FROM} LEFT JOIN link_domains d ON d.id = l.domain_id
+       WHERE ${scope.sql} ORDER BY c.ts DESC LIMIT ${EXPORT_LIMIT}`,
+    )
+    .all(...scope.args)) as Array<Omit<WorkspaceConversionRow, 'short_url'> & { slug: string; host: string | null }>;
+  return rows.map(({ slug, host, ...r }) => ({ ...r, short_url: shortUrl(slug, host) }));
+}
+
+export function workspaceConversionsToCsv(rows: WorkspaceConversionRow[]): string {
+  const lines = ['timestamp,type,event,short_url,customer_id,amount_minor,currency,invoice_id,source,country,device'];
+  for (const r of rows) {
+    lines.push(
+      [r.ts, r.type, r.event_name, r.short_url, r.customer_external_id, String(r.amount ?? 0), r.currency, r.invoice_id, r.source, r.country, r.device]
+        .map(cell)
+        .join(','),
+    );
+  }
+  return lines.join('\n');
+}
+
 export interface AnalyticsFacets {
   tags: string[];
   domains: Array<{ id: string; hostname: string }>;

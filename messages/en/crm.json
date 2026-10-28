@@ -3345,7 +3345,10 @@
       "task_created": "Task created",
       "form_submitted": "Form submitted",
       "quote_accepted": "Quote signed",
-      "quote_paid": "Quote paid"
+      "quote_paid": "Quote paid",
+      "link_created": "Short link created",
+      "link_lead": "Lead from a short link",
+      "link_sale": "Sale from a short link"
     },
     "slack": {
       "name": "Slack",
