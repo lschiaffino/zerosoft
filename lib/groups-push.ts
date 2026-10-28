@@ -191,6 +191,40 @@ export async function notifyPerson(ws: string, personId: string, n: Notification
   }
 }
 
+/**
+ * Aviso push de otra app de la suite (Chat): mismo service worker y mismas
+ * suscripciones de la persona, con su propio link. Nunca lanza.
+ */
+export async function notifyPersonLink(ws: string, personId: string, n: { title: string; body: string; url: string }): Promise<number> {
+  try {
+    const db = getDb();
+    const subs = (await db.prepare('SELECT id, endpoint FROM groups_push_subscriptions WHERE user_id = ? AND person_id = ?').all(ws, personId)) as Array<{
+      id: string;
+      endpoint: string;
+    }>;
+    if (subs.length === 0) return 0;
+    const keys = vapidKeys();
+    if (!keys) return 0;
+    // Solo links internos de la app (el service worker abre esta URL).
+    const url = n.url.startsWith('/') && !n.url.startsWith('//') ? n.url : '/app';
+    await db
+      .prepare('INSERT INTO groups_notifications (id, user_id, person_id, chat_id, title, body, url, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(randomUUID(), ws, personId, null, n.title.slice(0, 120), n.body.slice(0, 240), url, new Date().toISOString());
+    let sent = 0;
+    for (const s of subs) {
+      const r = await sendPush(s.endpoint, keys);
+      if (r === 'gone') await db.prepare('DELETE FROM groups_push_subscriptions WHERE id = ?').run(s.id);
+      else if (r === 'error') await db.prepare("UPDATE groups_push_subscriptions SET last_error = 'push_failed' WHERE id = ?").run(s.id);
+      else sent++;
+    }
+    return sent;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[push] failed', (err as Error)?.name ?? 'error');
+    return 0;
+  }
+}
+
 export interface PendingNotification {
   id: string;
   title: string;

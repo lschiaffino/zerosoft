@@ -8,6 +8,8 @@ import { parseUtm } from '@/lib/calendar-redirect';
 import { answerText } from '@/lib/calendar-questions';
 import { isLocationKind } from '@/lib/calendar-locations';
 import { parseDbUtc } from '@/lib/utils';
+import ScheduleOnBehalfModal, { type OnBehalfEventType } from './ScheduleOnBehalfModal';
+import CalIcon from './cal-icons';
 
 type Status = '' | 'confirmed' | 'pending' | 'cancelled' | 'no_show';
 
@@ -26,6 +28,10 @@ interface Props {
   initialFilters: Filters;
   /** Filtro por defecto (sin parámetros en la URL): desde hoy. Limpiar vuelve a este. */
   defaultFrom: string;
+  /** Tipos de evento activos para "Nueva reserva" (agendar en nombre de un invitado). */
+  eventTypes?: OnBehalfEventType[];
+  /** Un admin elige el anfitrión; un member agenda consigo. */
+  canChooseHost?: boolean;
 }
 
 type Panel = { id: string; kind: 'reschedule' | 'cancel' | 'decline' } | null;
@@ -107,7 +113,8 @@ function localDay(d = new Date()): string {
  * hora, invitado, tipo de evento, estado y acciones en una fila densa. Ver,
  * reprogramar y cancelar se abren en línea debajo de la fila.
  */
-export default function BookingsList({ bookings, locale, timezone, initialFilters, defaultFrom }: Props) {
+export default function BookingsList({ bookings, locale, timezone, initialFilters, defaultFrom, eventTypes = [], canChooseHost = true }: Props) {
+  const [onBehalfOpen, setOnBehalfOpen] = useState(false);
   const t = useTranslations('calendar');
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const [rows, setRows] = useState(bookings);
@@ -263,7 +270,32 @@ export default function BookingsList({ bookings, locale, timezone, initialFilter
         <p className="cal-toolbar-count" aria-live="polite">
           {loading ? t('admin.loading') : t('admin.count', { n: rows.length })}
         </p>
+        <div className="cal-toolbar-actions">
+          <a
+            className="btn btn-sm"
+            href={`/api/calendar/bookings/export?${new URLSearchParams(
+              Object.entries(filters).filter(([, v]) => v) as Array<[string, string]>,
+            ).toString()}`}
+            download
+          >
+            {t('export.csv')}
+          </a>
+          <button type="button" className="btn btn-sm btn-primary" onClick={() => setOnBehalfOpen(true)}>
+            <CalIcon name="plus" />
+            {t('onBehalf.open')}
+          </button>
+        </div>
       </div>
+      <ScheduleOnBehalfModal
+        open={onBehalfOpen}
+        onClose={() => setOnBehalfOpen(false)}
+        eventTypes={eventTypes}
+        canChooseHost={canChooseHost}
+        onBooked={(name) => {
+          setNotice(t('onBehalf.done', { name }));
+          setReload((n) => n + 1);
+        }}
+      />
 
       {notice && (
         <div className="ui-toasts" role="status" aria-live="polite">
@@ -347,6 +379,8 @@ export default function BookingsList({ bookings, locale, timezone, initialFilter
                             <span className="badge badge-outline">{t('admin.declinedBadge')}</span>
                           )}
                           {b.payment_status === 'paid' && <span className="badge badge-outline">{t('admin.paid')}</span>}
+                          {b.reconfirmed_at && b.status === 'confirmed' && <span className="badge badge-outline">{t('admin.reconfirmed')}</span>}
+                          {b.booked_by && <span className="badge badge-outline">{t('admin.bookedByTeam')}</span>}
                           {b.payment_status === 'refunded' && <span className="badge badge-outline">{t('admin.refunded')}</span>}
                         </span>
                         <span className="cal-bk-actions">

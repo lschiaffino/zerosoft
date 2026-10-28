@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { canCreateDocPage } from '@/lib/docs-guard';
 import { getTranslations } from 'next-intl/server';
 import { DEMO_MODE, requireUser } from '@/lib/session';
+import OfflineIdentity from '@/components/app/OfflineIdentity';
 import { countDueTasks } from '@/lib/crm';
 import { getWorkspaceMode } from '@/lib/home';
 import AppSidebar from '@/components/app/AppSidebar';
@@ -90,6 +91,7 @@ export default async function AppLayout(
       {/* El script pone sidebar-collapsed antes del primer paint; React no toca la clase al hidratar. */}
       <div className="app-frame" suppressHydrationWarning>
         <script dangerouslySetInnerHTML={{ __html: SIDEBAR_COLLAPSED_SCRIPT }} />
+        <OfflineIdentity id={`${user.actingUser?.id ?? user.id}:${user.id}`} />
         <AppSidebar
           docsCanCreate={await canCreateDocPage(user, {}).catch(() => true)}
           demo={DEMO_MODE}
@@ -157,9 +159,11 @@ export default async function AppLayout(
                 { href: '/app/crm/trash', label: tCrm('tabs.trash') },
                 { href: '/app/docs', label: tDocs('sidebar.pages') },
                 { href: '/app/docs/import', label: tDocs('notionImport.title') },
+                { href: '/app/docs/duplicate', label: tDocs('duplicatePublic.title') },
                 { href: '/app/calendar', label: tCalendar('sidebar.overview') },
                 { href: '/app/calendar/event-types', label: tCalendar('sidebar.eventTypes') },
                 { href: '/app/calendar/routing', label: tCalendar('sidebar.routing') },
+                { href: '/app/calendar/polls', label: tCalendar('sidebar.polls') },
                 { href: '/app/calendar/bookings', label: tCalendar('sidebar.bookings') },
                 { href: '/app/calendar/availability', label: tCalendar('sidebar.availability') },
                 { href: '/app/calendar/settings', label: tCalendar('sidebar.settings') },
@@ -184,6 +188,8 @@ export default async function AppLayout(
                 { href: '/app/chat/people', label: tChat('sidebar.people') },
                 { href: '/app/chat/reports', label: tChat('sidebar.reports') },
                 { href: '/app/chat/widgets', label: tChat('sidebar.widgets') },
+                { href: '/app/chat/teams', label: tChat('sidebar.teams') },
+                { href: '/app/chat/views', label: tChat('sidebar.views') },
                 { href: '/app/flow', label: tFlow('sidebar.flows') },
                 { href: '/app/flow/runs', label: tFlow('sidebar.runs') },
                 { href: '/app/flow/tables', label: tFlow('sidebar.tables') },
@@ -304,6 +310,7 @@ export default async function AppLayout(
               availability: tCalendar('sidebar.availability'),
               analytics: tCalendar('sidebar.analytics'),
               settings: tCalendar('sidebar.settings'),
+              polls: tCalendar('sidebar.polls'),
             },
             track: {
               overview: tTrack('sidebar.overview'),
@@ -331,6 +338,8 @@ export default async function AppLayout(
               people: tChat('sidebar.people'),
               reports: tChat('sidebar.reports'),
               settings: tChat('sidebar.settings'),
+              teams: tChat('sidebar.teams'),
+              views: tChat('sidebar.views'),
             },
             flow: {
               flows: tFlow('sidebar.flows'),

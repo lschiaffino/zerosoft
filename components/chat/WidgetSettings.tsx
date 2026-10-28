@@ -122,6 +122,7 @@ export default function WidgetSettings({
     }
     const data = res ? ((await res.json().catch(() => null)) as { error?: string } | null) : null;
     const code = data?.error;
+    if (code === 'rename_admin_only') return t('widgetForm.nameAdminOnly');
     return code === 'missing_name' || code === 'invalid_input' ? t(`errors.${code}`) : t('errors.generic');
   }
 
@@ -163,8 +164,15 @@ export default function WidgetSettings({
                 value={values.name}
                 maxLength={200}
                 required
+                readOnly={!canManageIdentity}
+                aria-describedby={canManageIdentity ? undefined : `${uid}-name-help`}
                 onChange={(e) => set('name', e.target.value)}
               />
+              {!canManageIdentity && (
+                <p id={`${uid}-name-help`} className="ui-help">
+                  {t('widgetForm.nameAdminOnly')}
+                </p>
+              )}
             </div>
             <div className="ui-field">
               <span className="label" id={`${uid}-color`}>

@@ -6,6 +6,20 @@ import { Link, useRouter } from '@/i18n/navigation';
 import FormSection from '@/components/ui/FormSection';
 import { ImportConfirm, ImportProgress, ImportStat, useImportErrorText, useImportJob, type ImportJobView } from '@/components/app/ImportJob';
 import { formatFileSize } from '@/lib/docs-files';
+import { wrapFileInZip } from '@/lib/zip-wrap-client';
+
+import { IMPORT_SOURCES, type ImportSource } from '@/lib/docs-import-sources';
+
+/** Qué archivos acepta cada fuente (el servidor lee todos los formatos igual). */
+const ACCEPT: Record<ImportSource, string> = {
+  notion: '.zip,application/zip',
+  confluence: '.zip,application/zip',
+  gdocs: '.zip,.docx,.html,.htm,application/zip',
+  word: '.docx,.zip',
+  evernote: '.enex,.zip',
+  files: '.zip,.md,.markdown,.txt,.html,.htm,.docx,.enex',
+};
+const SINGLE = /\.(docx|enex|html?|md|markdown|txt)$/i;
 
 /** Partes de la subida sin Blob (bajo los 4.5 MB de body de Vercel). */
 const CHUNK = 4 * 1024 * 1024;
@@ -19,6 +33,9 @@ interface Preview {
   attachments: number;
   bytes: number;
   alreadyImported: number;
+  skippedFiles?: string[];
+  capped?: boolean;
+  maxPages?: number;
   tree: Array<{ title: string; kind: 'page' | 'database'; depth: number }>;
 }
 
@@ -30,6 +47,7 @@ interface Report {
   filesSkipped: number;
   skipped: number;
   roots: Array<{ id: string; title: string }>;
+  tooLarge?: number;
 }
 
 /**
@@ -37,8 +55,21 @@ interface Report {
  * /api/import/upload) o, sin Blob, en partes de 4 MB; después el servidor lo
  * lee por rangos y escribe de a tandas.
  */
-export default function NotionImportPanel({ blobUpload }: { blobUpload: boolean }) {
+export default function NotionImportPanel({
+  blobUpload,
+  teamspaces = [],
+  canWorkspace = true,
+  initialSource = 'notion',
+}: {
+  blobUpload: boolean;
+  /** Teamspaces donde la persona puede crear páginas (destino del import). */
+  teamspaces?: Array<{ id: string; name: string }>;
+  canWorkspace?: boolean;
+  initialSource?: ImportSource;
+}) {
   const t = useTranslations('docs.notionImport');
+  const [source, setSource] = useState<ImportSource>(initialSource);
+  const [dest, setDest] = useState<string>(canWorkspace ? '' : (teamspaces[0]?.id ?? ''));
   const errorText = useImportErrorText();
   const router = useRouter();
   const { job, setJob, error, setError, loading, create, start, cancel, reset, finishUpload } = useImportJob('docs');
@@ -47,15 +78,19 @@ export default function NotionImportPanel({ blobUpload }: { blobUpload: boolean 
 
   async function upload() {
     if (!file) return;
-    if (!/\.zip$/i.test(file.name)) return setError('invalid_zip');
+    const isZip = /\.zip$/i.test(file.name);
+    if (!isZip && !SINGLE.test(file.name)) return setError('file_type_not_allowed');
     if (file.size > MAX_BYTES) return setError('file_too_large');
     setError(null);
     setPercent(0);
+    const target = { teamspace_id: dest || null };
     try {
+      // Un archivo suelto viaja como un zip de un archivo (el servidor lee zips por rangos).
+      const zip: Blob = isZip ? file : await wrapFileInZip(file);
       if (blobUpload) {
         const { upload: blobPut } = await import('@vercel/blob/client');
         const safe = file.name.replace(/[^A-Za-z0-9._-]/g, '_').replace(/\.zip$/i, '').slice(0, 80) || 'notion';
-        const blob = await blobPut(`imports/${safe}.zip`, file, {
+        const blob = await blobPut(`imports/${safe}.zip`, zip, {
           access: 'public',
           handleUploadUrl: '/api/import/upload',
           multipart: file.size > 50 * 1024 * 1024,
@@ -63,13 +98,13 @@ export default function NotionImportPanel({ blobUpload }: { blobUpload: boolean 
           onUploadProgress: (e) => setPercent(Math.round(e.percentage)),
         });
         setPercent(null);
-        await create({ source: 'notion', blobUrl: blob.url });
+        await create({ source, blobUrl: blob.url, ...target });
         return;
       }
-      const created = await create({ source: 'notion', size: file.size });
+      const created = await create({ source, size: zip.size, ...target });
       if (!created) return setPercent(null);
-      for (let offset = 0; offset < file.size; offset += CHUNK) {
-        const part = file.slice(offset, offset + CHUNK);
+      for (let offset = 0; offset < zip.size; offset += CHUNK) {
+        const part = zip.slice(offset, offset + CHUNK);
         let ok = false;
         for (let attempt = 0; attempt < 3 && !ok; attempt++) {
           const res = await fetch(`/api/import/jobs/${created.id}/chunk?offset=${offset}`, { method: 'PUT', body: part }).catch(() => null);
@@ -80,7 +115,7 @@ export default function NotionImportPanel({ blobUpload }: { blobUpload: boolean 
           setError('upload_failed');
           return;
         }
-        setPercent(Math.min(100, Math.round(((offset + part.size) / file.size) * 100)));
+        setPercent(Math.min(100, Math.round(((offset + part.size) / zip.size) * 100)));
       }
       setPercent(null);
       await finishUpload(created.id);
@@ -113,20 +148,42 @@ export default function NotionImportPanel({ blobUpload }: { blobUpload: boolean 
           void upload();
         }}
       >
-        <ol className="ximp-links">
-          <li>{t('step1')}</li>
-          <li>{t('step2')}</li>
-          <li>{t('step3')}</li>
+        <div className="ui-field">
+          <label className="label" htmlFor="import-source">
+            {t('source')}
+          </label>
+          <select
+            id="import-source"
+            className="select"
+            value={source}
+            data-testid="docs-import-source"
+            onChange={(e) => {
+              setSource(e.target.value as ImportSource);
+              setFile(null);
+            }}
+          >
+            {IMPORT_SOURCES.map((s) => (
+              <option key={s} value={s}>
+                {t(`sources.${s}.name`)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <ol className="ximp-links" data-testid="docs-import-steps">
+          <li>{t(`sources.${source}.step1`)}</li>
+          <li>{t(`sources.${source}.step2`)}</li>
+          <li>{t(`sources.${source}.step3`)}</li>
         </ol>
         <div className="ui-field">
           <label className="label" htmlFor="notion-file">
-            {t('file')}
+            {t(`sources.${source}.file`)}
           </label>
           <input
+            key={source}
             id="notion-file"
             className="input ximp-file-input"
             type="file"
-            accept=".zip,application/zip"
+            accept={ACCEPT[source]}
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             aria-describedby="notion-file-help"
           />
@@ -134,6 +191,22 @@ export default function NotionImportPanel({ blobUpload }: { blobUpload: boolean 
             {t('fileHelp')}
           </p>
         </div>
+        {(teamspaces.length > 0 || !canWorkspace) && (
+          <div className="ui-field">
+            <label className="label" htmlFor="import-dest">
+              {t('destination')}
+            </label>
+            <select id="import-dest" className="select" value={dest} onChange={(e) => setDest(e.target.value)} data-testid="docs-import-dest">
+              {canWorkspace && <option value="">{t('destinationWorkspace')}</option>}
+              {teamspaces.map((ts) => (
+                <option key={ts.id} value={ts.id}>
+                  {ts.name}
+                </option>
+              ))}
+            </select>
+            <p className="ui-help">{t('destinationHelp')}</p>
+          </div>
+        )}
         <div className="ximp-actions">
           <button type="submit" className="btn btn-primary" disabled={!file}>
             {t('preview')}
@@ -203,6 +276,16 @@ function PreviewView({ job, onConfirm, onCancel }: { job: ImportJobView; onConfi
       </div>
       {(p.rows ?? 0) > 0 && <p className="ui-help">{t('rowsNote')}</p>}
       {p.alreadyImported > 0 && <p className="ximp-note">{t('already', { count: p.alreadyImported })}</p>}
+      {p.capped && (
+        <p className="ximp-note" data-tone="warn">
+          {t('capped', { max: p.maxPages ?? 5000 })}
+        </p>
+      )}
+      {(p.skippedFiles?.length ?? 0) > 0 && (
+        <p className="ximp-note" data-tone="warn">
+          {t('skippedFiles', { files: (p.skippedFiles ?? []).join(', ') })}
+        </p>
+      )}
       <section className="ximp-section">
         <h3>{t('treeTitle')}</h3>
         <ul className="ximp-tree">
@@ -229,6 +312,12 @@ function DoneView({ job, onAgain }: { job: ImportJobView; onAgain: () => void })
         <strong>{t('doneTitle')}</strong> {t('doneSummary', { pages: r.pages, databases: r.databases, files: r.files, skipped: r.skipped })}
       </p>
       {(r.rows ?? 0) > 0 && <p className="ui-help">{t('doneRows', { count: r.rows ?? 0 })}</p>}
+      {r.skipped > 0 && <p className="ui-help">{t('skippedNote', { count: r.skipped })}</p>}
+      {(r.tooLarge ?? 0) > 0 && (
+        <p className="ximp-note" data-tone="warn">
+          {t('tooLarge', { count: r.tooLarge ?? 0 })}
+        </p>
+      )}
       {r.filesSkipped > 0 && (
         <p className="ximp-note" data-tone="warn">
           {t('filesSkipped', { count: r.filesSkipped })}

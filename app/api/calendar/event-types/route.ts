@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
+import { actorIdOf, logCalActivity } from '@/lib/calendar-activity';
 import { listEventTypes, createEventType, CalendarError } from '@/lib/calendar';
 import { eventTypeCreateSchema } from '@/lib/calendar-schema';
 import { invalidBody, unauthorized, crmError } from '@/lib/crm-http';
@@ -24,6 +25,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const eventType = await createEventType(user.id, parsed.data);
+    await logCalActivity(user.id, actorIdOf(user), 'event_type.created', { type: 'event_type', id: eventType.id, summary: eventType.title });
     return NextResponse.json(eventType, { status: 201 });
   } catch (err) {
     if (err instanceof CalendarError) return crmError(err.status, err.code);

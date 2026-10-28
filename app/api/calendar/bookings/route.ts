@@ -13,7 +13,9 @@ import {
 import { bookingCreateSchema, bookingListQuerySchema, validateBookingAnswers, validateGuests } from '@/lib/calendar-schema';
 import { invalidBody, crmError, unauthorized } from '@/lib/crm-http';
 import { afterBookingCreated } from '@/lib/calendar-lifecycle';
+import { parseHostToken } from '@/lib/calendar-host-token';
 import { getCurrentUser } from '@/lib/session';
+import { viewerScope } from '@/lib/calendar-access';
 import { appBaseUrl } from '@/lib/calendar-notify';
 import { createCheckoutForBooking, HOLD_MINUTES, paymentsEnabled, PaymentError } from '@/lib/calendar-payments';
 import { buildRedirectUrl, parseUtm, sanitizeUtm } from '@/lib/calendar-redirect';
@@ -41,6 +43,8 @@ export async function GET(req: NextRequest) {
     to: bounds.to,
     limit,
     order: from ? 'asc' : 'desc',
+    // Un member ve solo las reservas que atiende (owner y admins, todas).
+    hostId: viewerScope(user) ?? undefined,
   });
   return NextResponse.json({ bookings: rows });
 }
@@ -90,7 +94,9 @@ export async function POST(req: NextRequest) {
     if (Number.isNaN(startDate.getTime())) return crmError(400, 'invalid_input');
 
     const guestTz = timezone ?? 'UTC';
-    const matching = await findOfferedSlot(eventTypeId, startDate, guestTz);
+    // Token opaco de "reservar con esta persona"; inválido o fuera del pool: el reparto de siempre.
+    const hostId = parseHostToken(parsed.data.hostId);
+    const matching = await findOfferedSlot(eventTypeId, startDate, guestTz, { hostId });
     if (!matching) return crmError(409, 'slot_unavailable');
 
     const paid = eventType.price_cents > 0;
@@ -108,16 +114,18 @@ export async function POST(req: NextRequest) {
         location: parsed.data.location,
         locale: parsed.data.locale,
         utm: sanitizeUtm(parsed.data.utm),
+        routingSubmissionId: parsed.data.routingSubmissionId,
       },
       paid
         ? {
+            hostId,
             hold: {
               expiresAt: new Date(Date.now() + HOLD_MINUTES * 60_000),
               amountCents: eventType.price_cents,
               currency: eventType.currency,
             },
           }
-        : {},
+        : { hostId },
     );
 
     // Con precio: la reserva queda retenida hasta que Stripe confirme el pago.

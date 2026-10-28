@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { getEventTypeByHandle, getCalendarUser, getWorkspaceBrand, effectiveMaxFutureDays, parseOneOffTimes } from '@/lib/calendar';
@@ -7,9 +8,20 @@ import { paymentsEnabled } from '@/lib/calendar-payments';
 import { sanitizeUtm } from '@/lib/calendar-redirect';
 import { parseQuestions, prefillAnswers } from '@/lib/calendar-questions';
 import { publicLocationsJson } from '@/lib/calendar-locations';
+import PublicPageExtras from '@/components/calendar/PublicPageExtras';
+import { parseHostToken } from '@/lib/calendar-host-token';
 import '@/styles/calendar.css';
 
 export const dynamic = 'force-dynamic';
+
+/** Los tipos secretos, de un solo uso o de encuestas se reservan por link: no se indexan. */
+export async function generateMetadata(props: { params: Promise<{ handle: string; slug: string }> }): Promise<Metadata> {
+  const { handle, slug } = await props.params;
+  const eventType = await getEventTypeByHandle(handle, slug);
+  if (!eventType) return {};
+  const privateLink = eventType.hidden === 1 || eventType.single_use === 1 || eventType.kind === 'poll';
+  return privateLink ? { robots: { index: false, follow: false } } : {};
+}
 
 export default async function BookPage(props: {
   params: Promise<{ handle: string; slug: string; locale: string }>;
@@ -43,6 +55,7 @@ export default async function BookPage(props: {
     const t = await getTranslations({ locale, namespace: 'calendar' });
     return (
       <div className="bk" style={{ '--bk': brand.color, '--bk-on': brand.on } as React.CSSProperties}>
+        <PublicPageExtras workspaceId={eventType.user_id} />
         <div className="bk-card">
           <BookingInfo
             hostName={brand.name}
@@ -68,16 +81,21 @@ export default async function BookPage(props: {
     : null;
 
   return (
-    <PublicBookingPage
-      eventType={{ ...eventType, locations: publicLocationsJson(eventType.locations) }}
-      locale={locale}
-      brand={brand}
-      weekStart={calendarUser?.week_start ?? 1}
-      maxFutureDays={oneOffDays ?? effectiveMaxFutureDays(eventType, calendarUser)}
-      prefillName={prefillName}
-      prefillEmail={prefillEmail}
-      prefillAnswers={prefilled}
-      utm={utm}
-    />
+    <>
+      <PublicPageExtras workspaceId={eventType.user_id} />
+      <PublicBookingPage
+        eventType={{ ...eventType, locations: publicLocationsJson(eventType.locations) }}
+        locale={locale}
+        brand={brand}
+        weekStart={calendarUser?.week_start ?? 1}
+        maxFutureDays={oneOffDays ?? effectiveMaxFutureDays(eventType, calendarUser)}
+        prefillName={prefillName}
+        prefillEmail={prefillEmail}
+        prefillAnswers={prefilled}
+        utm={utm}
+        routingSubmissionId={typeof searchParams.rsid === 'string' ? searchParams.rsid.slice(0, 64) : undefined}
+        hostId={typeof searchParams.host === 'string' && parseHostToken(searchParams.host) ? searchParams.host : undefined}
+      />
+    </>
   );
 }

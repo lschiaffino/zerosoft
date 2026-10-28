@@ -47,11 +47,17 @@ export async function PATCH(req: Request, props: { params: Promise<{ id: string 
     return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   }
 
-  const updated = await updateCannedResponse(params.id, {
-    shortcut: typeof body.shortcut === 'string' ? body.shortcut : undefined,
-    title: typeof body.title === 'string' ? body.title : undefined,
-    body: typeof body.body === 'string' ? body.body : undefined,
-  });
+  let updated;
+  try {
+    updated = await updateCannedResponse(params.id, {
+      shortcut: typeof body.shortcut === 'string' ? body.shortcut : undefined,
+      title: typeof body.title === 'string' ? body.title : undefined,
+      body: typeof body.body === 'string' ? body.body : undefined,
+    });
+  } catch (err) {
+    if (/UNIQUE/i.test(String((err as Error)?.message ?? ''))) return NextResponse.json({ error: 'duplicate_shortcut' }, { status: 409 });
+    throw err;
+  }
 
   if (!updated) return NextResponse.json({ error: 'generic' }, { status: 500 });
   if (body.actions && typeof body.actions === 'object') {

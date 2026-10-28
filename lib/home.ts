@@ -14,6 +14,7 @@ import { dayRangeUtc, getUserTimeZone } from '@/lib/user-tz';
 import { normalizeWorkspaceMode, type WorkspaceMode } from '@/lib/workspace-mode';
 import type { TeamRole } from '@/lib/teams';
 import type { ProductKey } from '@/lib/products';
+import { bookingScopeFor } from './calendar-access';
 
 /**
  * Inicio de la plataforma (/app): agregados de todas las apps. Cada bloque de
@@ -154,7 +155,14 @@ export interface HomeBooking {
 export async function homeCalBookings(user: HomeUser, limit = 5): Promise<{ total: number; items: HomeBooking[] }> {
   const { start, end } = dayRangeUtc(await getUserTimeZone());
   const rows = (
-    await listUserBookings(user.id, { from: sqlDate(start), to: sqlDate(end), order: 'asc', limit: 100 })
+    await listUserBookings(user.id, {
+      from: sqlDate(start),
+      to: sqlDate(end),
+      order: 'asc',
+      limit: 100,
+      // Un member ve solo las reservas que atiende (como en Cal).
+      hostId: bookingScopeFor(user.role, user.actingUser?.id ?? user.id) ?? undefined,
+    })
   ).filter((b) => b.status === 'confirmed' || b.status === 'pending');
   return {
     total: rows.length,

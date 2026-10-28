@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
+import { actorIdOf, logCalActivity } from '@/lib/calendar-activity';
 import { updateBooking, hostSlotFree, ownedBooking, declineBooking, CalendarError } from '@/lib/calendar';
+import { bookingInScope, viewerScope } from '@/lib/calendar-access';
 import { bookingUpdateSchema } from '@/lib/calendar-schema';
 import { invalidBody, notFound, unauthorized, crmError } from '@/lib/crm-http';
 import { getDb, type CalendarBookingRow } from '@/lib/db';
@@ -11,8 +13,10 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /** Dueño del event type o host asignado (mientras siga en el team). */
-async function ownsBooking(userId: string, bookingId: string): Promise<boolean> {
-  return (await ownedBooking(userId, bookingId)) !== null;
+async function ownsBooking(user: Parameters<typeof viewerScope>[0], bookingId: string): Promise<boolean> {
+  const booking = await ownedBooking(user.id, bookingId);
+  // Un member gestiona solo las reservas que atiende.
+  return booking !== null && bookingInScope(booking, viewerScope(user));
 }
 
 /**
@@ -35,7 +39,7 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  if (!(await ownsBooking(user.id, params.id))) return notFound();
+  if (!(await ownsBooking(user, params.id))) return notFound();
   const row = (await getDb()
     .prepare(
       `SELECT b.*, e.title as event_type_title, e.duration_min as event_type_duration_min
@@ -53,7 +57,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
-  if (!(await ownsBooking(user.id, params.id))) return notFound();
+  if (!(await ownsBooking(user, params.id))) return notFound();
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = bookingUpdateSchema.safeParse(body);
@@ -69,6 +73,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     if (before.status === 'pending' && before.approval === 'pending' && parsed.data.status === 'cancelled') {
       const declined = await declineBooking(params.id, parsed.data.cancelReason ?? null);
       await afterBookingDeclined(declined, parsed.data.cancelReason ?? null);
+      await logCalActivity(user.id, actorIdOf(user), 'booking.declined', { type: 'booking', id: declined.id, summary: declined.invitee_name });
       return NextResponse.json(declined);
     }
     // Antes del inicio no hay no-show: marcarlo liberaría el horario sin avisar a nadie.
@@ -92,6 +97,9 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     }
     // No-show recién marcado: webhook booking.no_show y trigger de Flow.
     if (before.status !== 'no_show' && booking.status === 'no_show') await afterBookingNoShow(booking);
+    if (before.status !== booking.status) {
+      await logCalActivity(user.id, actorIdOf(user), `booking.${booking.status}`, { type: 'booking', id: booking.id, summary: booking.invitee_name });
+    }
     // Hold cancelado por el anfitrión: la sesión de Checkout deja de aceptar el pago.
     if (before.status === 'pending' && booking.status === 'cancelled') await expireCheckoutForBooking(before);
     return NextResponse.json(booking);

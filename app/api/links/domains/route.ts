@@ -26,8 +26,9 @@ export async function POST(req: NextRequest) {
   const res = await addDomain(user.id, parsed.data.hostname);
   if (!res.ok) {
     const status =
-      res.code === 'domain_taken' || res.code === 'too_many_pending' ? 409 : res.code === 'provider_error' ? 502 : 400;
-    return NextResponse.json({ error: res.code }, { status });
+      res.code === 'domain_taken' || res.code === 'too_many_pending' || res.code === 'domain_pending_elsewhere' ? 409 : res.code === 'provider_error' ? 502 : 400;
+    // Pendiente en otro workspace: el TXT con el que se lo puede quedar quien lo pide.
+    return NextResponse.json({ error: res.code, ...(res.dns ? { dns: res.dns } : {}) }, { status });
   }
   return NextResponse.json({ ...res.domain, dns: dnsInstructions(res.domain.hostname, res.domain.verify_token) }, { status: 201 });
 }

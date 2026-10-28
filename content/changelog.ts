@@ -45,6 +45,71 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-10-27-docs-d5',
+    date: '2026-10-27',
+    title: {
+      en: 'Docs: import from Confluence, Evernote and Google Docs, PDF export, your own domain and offline',
+      es: 'Docs: importar desde Confluence, Evernote y Google Docs, exportar a PDF, dominio propio y sin conexión',
+      pt: 'Docs: importar do Confluence, Evernote e Google Docs, exportar em PDF, domínio próprio e offline',
+    },
+    items: [
+      { product: 'docs', en: 'Import from Notion (Markdown or HTML), Confluence spaces, Google Docs, Word with its images, Evernote notebooks and loose Markdown or HTML files, with the page tree, links between pages and files, into the workspace or a teamspace.', es: 'Importá desde Notion (Markdown o HTML), espacios de Confluence, Google Docs, Word con sus imágenes, libretas de Evernote y archivos Markdown o HTML sueltos, con el árbol, los links entre páginas y los archivos, al workspace o a un teamspace.', pt: 'Importe do Notion (Markdown ou HTML), espaços do Confluence, Google Docs, Word com suas imagens, cadernos do Evernote e arquivos Markdown ou HTML soltos, com a árvore, os links entre páginas e os arquivos, no workspace ou em um teamspace.' },
+      { product: 'docs', en: 'Export a page, a page with its subpages or the whole workspace as Markdown, HTML or a PDF made on the server. Each export only carries what the person can open.', es: 'Exportá una página, una página con sus subpáginas o el workspace entero en Markdown, HTML o un PDF hecho en el servidor. Cada export lleva solo lo que la persona puede abrir.', pt: 'Exporte uma página, uma página com suas subpáginas ou o workspace inteiro em Markdown, HTML ou um PDF feito no servidor. Cada export leva só o que a pessoa pode abrir.' },
+      { product: 'docs', en: 'The published site gets a custom domain, its own sitemap and robots.txt, a search description per page, visit analytics without cookies and a Duplicate button for pages you share as templates.', es: 'El sitio publicado suma dominio propio, su sitemap y robots.txt, descripción para buscadores por página, analítica de visitas sin cookies y un botón Duplicar para las páginas que compartís como plantilla.', pt: 'O site publicado ganha domínio próprio, seu sitemap e robots.txt, descrição para buscadores por página, análise de visitas sem cookies e um botão Duplicar para as páginas que você compartilha como modelo.' },
+      { product: 'docs', en: 'Each page shows its views and who viewed it. On the phone the page tree is a side drawer and a touch bar above the keyboard formats, and pages open and take edits without a connection.', es: 'Cada página muestra sus vistas y quién la vio. En el celular el árbol es un cajón lateral y una barra táctil arriba del teclado da formato, y las páginas abren y se editan sin conexión.', pt: 'Cada página mostra suas visualizações e quem viu. No celular a árvore é uma gaveta lateral e uma barra de toque acima do teclado formata, e as páginas abrem e aceitam edições sem conexão.' },
+    ],
+  },
+  {
+    id: '2026-10-27-cal-parity',
+    date: '2026-10-27',
+    title: {
+      en: 'Cal: Outlook and several calendars, Zoom and Teams per booking, SMS and meeting polls',
+      es: 'Cal: Outlook y varios calendarios, Zoom y Teams por reserva, SMS y encuestas de horario',
+      pt: 'Cal: Outlook e várias agendas, Zoom e Teams por reserva, SMS e enquetes de horário',
+    },
+    items: [
+      {
+        product: 'cal',
+        en: 'Connect Outlook / Microsoft 365 next to Google Calendar, pick which calendars block your availability and which one gets new bookings. Zoom (with the workspace Zoom app) and Teams (with Outlook) now create a meeting per booking and move or delete it when the booking changes.',
+        es: 'Conectá Outlook / Microsoft 365 además de Google Calendar, elegí qué calendarios bloquean tu disponibilidad y en cuál entran las reservas nuevas. Zoom (con la app de Zoom del workspace) y Teams (con Outlook) ahora crean una reunión por reserva y la mueven o borran cuando la reserva cambia.',
+        pt: 'Conecte o Outlook / Microsoft 365 além do Google Calendar, escolha quais agendas bloqueiam sua disponibilidade e em qual entram as novas reservas. Zoom (com o app do Zoom do workspace) e Teams (com o Outlook) agora criam uma reunião por reserva e a movem ou excluem quando a reserva muda.',
+      },
+      {
+        product: 'cal',
+        en: 'Workflows fire when a meeting is booked, cancelled, rescheduled, marked as a no-show or ends, and each step can be an email, an SMS from your Twilio account or a webhook. A {{reconfirm}} link lets invitees confirm they will attend.',
+        es: 'Los workflows se disparan al reservar, cancelar, reprogramar, marcar no-show o terminar la reunión, y cada paso puede ser un email, un SMS desde tu cuenta de Twilio o un webhook. Un link {{reconfirm}} deja que el invitado confirme que va.',
+        pt: 'Os workflows disparam ao reservar, cancelar, remarcar, marcar no-show ou terminar a reunião, e cada etapa pode ser um e-mail, um SMS da sua conta do Twilio ou um webhook. Um link {{reconfirm}} deixa o convidado confirmar que vai.',
+      },
+      {
+        product: 'cal',
+        en: 'Meeting polls: propose times, share a link, let people vote without an account and book the winner with everyone invited. Also new: book on behalf of an invitee, secret event types, a team page with a page per person, and routing rules that check the CRM and book with the contact owner.',
+        es: 'Encuestas de horario: proponé horarios, compartí un link, que voten sin cuenta y reservá el ganador con todos invitados. También: agendar en nombre de un invitado, tipos de evento secretos, página del equipo con una página por persona y reglas de routing que consultan el CRM y reservan con el owner del contacto.',
+        pt: 'Enquetes de horário: proponha horários, compartilhe um link, deixe votarem sem conta e reserve o vencedor com todos convidados. Também: agendar em nome de um convidado, tipos de evento secretos, página da equipe com uma página por pessoa e regras de roteamento que consultam o CRM e reservam com o dono do contato.',
+      },
+      {
+        product: 'cal',
+        en: 'CSV export of bookings and analytics, analytics by person, a funnel per routing form, an activity log, invitee data deletion, Google Analytics and Meta Pixel on your pages, hiding “Powered by zerosoft” and an MCP server for AI assistants.',
+        es: 'Export CSV de reservas y analytics, analytics por persona, embudo por routing form, registro de actividad, borrado de datos de invitados, Google Analytics y Meta Pixel en tus páginas, ocultar “Powered by zerosoft” y un servidor MCP para asistentes de IA.',
+        pt: 'Exportação CSV de reservas e analytics, analytics por pessoa, funil por formulário, registro de atividades, exclusão de dados de convidados, Google Analytics e Meta Pixel nas suas páginas, ocultar “Powered by zerosoft” e um servidor MCP para assistentes de IA.',
+      },
+    ],
+  },
+  {
+    id: '2026-10-27-chat-intercom',
+    date: '2026-10-27',
+    title: {
+      en: 'Chat: team inboxes, saved views, AI for agents, email and outbound messages',
+      es: 'Chat: bandejas por equipo, vistas guardadas, AI para agentes, email y mensajes salientes',
+      pt: 'Chat: caixas por time, visualizações salvas, IA para agentes, email e mensagens de saída',
+    },
+    items: [
+      { product: 'chat', en: 'Teams with their own inbox in the sidebar, rules that send conversations to a team and spread them among its members, saved views (private or shared) with counts, Follow on any conversation, and a notice when a teammate is viewing or replying to the same conversation.', es: 'Equipos con su bandeja en el sidebar, reglas que mandan conversaciones a un equipo y las reparten entre sus miembros, vistas guardadas (propias o compartidas) con su cantidad, Seguir en cualquier conversación y un aviso cuando otra persona del equipo está mirando o respondiendo la misma conversación.', pt: 'Times com caixa própria no menu lateral, regras que mandam conversas para um time e distribuem entre os membros, visualizações salvas (próprias ou compartilhadas) com contagem, Seguir em qualquer conversa e um aviso quando outra pessoa do time está vendo ou respondendo a mesma conversa.' },
+      { product: 'chat', en: 'In the composer: saved replies fill {{first_name}}, {{agent_name}} and conversation attributes, and the AI menu drafts a reply from your published Docs, summarizes the thread as a note, rephrases, shortens or translates to the visitor language. Ctrl or Cmd + Shift + Y resolves.', es: 'En el compositor: las respuestas guardadas completan {{first_name}}, {{agent_name}} y los atributos de la conversación, y el menú AI redacta con tus Docs publicados, resume el hilo como nota, reformula, acorta o traduce al idioma del visitante. Ctrl o Cmd + Shift + Y resuelve.', pt: 'No compositor: as respostas salvas preenchem {{first_name}}, {{agent_name}} e os atributos da conversa, e o menu IA redige com seus Docs publicados, resume a conversa como nota, reformula, encurta ou traduz para o idioma do visitante. Ctrl ou Cmd + Shift + Y resolve.' },
+      { product: 'chat', en: 'Email channel: forward your support address to the widget and answer from the inbox; replies to our emails return to the conversation when the visitor email is verified. Create or link a Track issue from a conversation, and get push notifications on your phone or a sound in the inbox.', es: 'Canal email: reenviá tu dirección de soporte al widget y respondé desde la bandeja; las respuestas a nuestros emails vuelven a la conversación si el email del visitante está verificado. Creá o vinculá un issue de Track desde una conversación, y recibí push en el celular o un sonido en la bandeja.', pt: 'Canal email: encaminhe seu endereço de suporte para o widget e responda pela caixa; as respostas aos nossos emails voltam para a conversa se o email do visitante estiver verificado. Crie ou vincule uma issue do Track pela conversa, e receba push no celular ou um som na caixa.' },
+      { product: 'chat', en: 'On your site: visitors see their past conversations (across devices with a verified identity), and outbound messages or 1 to 5 surveys show up by page, time on page and audience. Reports add bot resolution, tags, widgets, teams, channels, busiest hours and SLA compliance, plus a CSV or JSON export of conversations. Cmd+K finds conversations and people.', es: 'En tu sitio: los visitantes ven sus conversaciones anteriores (en todos sus dispositivos con identidad verificada), y los mensajes salientes o encuestas de 1 a 5 aparecen por página, tiempo en la página y audiencia. Reportes suma la resolución del bot, tags, widgets, equipos, canales, horas pico y cumplimiento de SLA, y un export de conversaciones en CSV o JSON. Cmd+K encuentra conversaciones y personas.', pt: 'No seu site: os visitantes veem suas conversas anteriores (em todos os dispositivos com identidade verificada), e mensagens de saída ou pesquisas de 1 a 5 aparecem por página, tempo na página e público. Relatórios ganha resolução do bot, tags, widgets, times, canais, horários de pico e cumprimento de SLA, além de exportar conversas em CSV ou JSON. Cmd+K encontra conversas e pessoas.' },
+    ],
+  },
+  {
     id: '2026-10-27-agents',
     date: '2026-10-27',
     title: {

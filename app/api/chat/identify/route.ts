@@ -1,3 +1,4 @@
+import { cleanPublicVisitorKey } from '@/lib/chat-visitor-key';
 import { NextResponse } from 'next/server';
 import { limitByIp } from '@/lib/rate-limit';
 import { getChatVisitorByExternalId, getChatWidget, toPublicVisitor } from '@/lib/chat-data';
@@ -9,7 +10,7 @@ export async function GET(req: Request) {
   if (limited) return limited;
   const { searchParams } = new URL(req.url);
   const widgetId = searchParams.get('widgetId');
-  const externalId = searchParams.get('externalId');
+  const externalId = cleanPublicVisitorKey(searchParams.get('externalId'));
   if (!widgetId || !externalId) {
     return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   }

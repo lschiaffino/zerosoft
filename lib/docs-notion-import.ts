@@ -21,6 +21,7 @@
  * Reimportar el mismo export saltea las páginas ya importadas (id de Notion).
  */
 import os from 'os';
+import { createHash } from 'crypto';
 import path from 'path';
 import { appendFile, mkdir, stat, truncate, unlink, writeFile } from 'fs/promises';
 import { del, put } from '@vercel/blob';
@@ -35,7 +36,19 @@ import {
 } from './import-jobs';
 import type { FetchStepResult } from './track-import-sources';
 import { fileSource, listZipEntries, readZipEntry, sliceSource, urlSource, zipEntryDataOffset, ZipError, type ZipEntry, type ZipSource } from './zip-reader';
-import { markdownToBlocks, DOCS_IMPORT_MAX_BLOCKS } from './docs-import';
+import { markdownToBlocks, plainTextToBlocks, DOCS_IMPORT_MAX_BLOCKS } from './docs-import';
+import { htmlToBlocks } from './docs-paste';
+import { docxToBlocks, readDocxMedia, DOCX_IMAGE_MARKER } from './docs-docx';
+import {
+  confluenceTree,
+  enexNoteRanges,
+  enexNoteTitle,
+  enmlToHtml,
+  isConfluenceIndex,
+  parseEnexNote,
+  parseHtmlPage,
+  rewriteHtmlRefs,
+} from './docs-import-formats';
 import { sanitizeBlocks, sanitizeDocsHtml } from './docs-sanitize';
 import { stringifyBlocks, type DbProperty, type DbRow, type DbValue, type DocsBlock } from './docs-types';
 import { guessStatusGroup, newDbId } from './docs-database';
@@ -137,14 +150,30 @@ const NOTION_ID = /\s?([0-9a-f]{32})$/i;
 
 /** "Notas 1a2b…(32 hex).md" → { title: 'Notas', notionId }. */
 export function notionName(file: string): { title: string; notionId: string | null } {
-  const base = path.posix.basename(file).replace(/(_all)?\.(md|csv)$/i, '');
+  const base = path.posix.basename(file).replace(/(_all)?\.(md|csv|html?|docx|txt|enex)$/i, '');
   const m = NOTION_ID.exec(base);
   return { title: (m ? base.slice(0, m.index) : base).trim() || 'Untitled', notionId: m ? m[1].toLowerCase() : null };
 }
 
 /** Clave de la carpeta que "es" de una página: el path sin extensión (y sin _all). */
 function ownerKey(file: string): string {
-  return file.replace(/(_all)?\.(md|csv)$/i, '');
+  return file.replace(/(_all)?\.(md|csv|html?|docx|txt)$/i, '');
+}
+
+/** Archivos que pasan a ser una página (además del .csv de una base). */
+const PAGE_FILE = /\.(md|html?|docx|txt)$/i;
+
+export type ImportFormat = 'md' | 'csv' | 'html' | 'docx' | 'txt' | 'folder' | 'enex' | 'enex-note';
+
+export function importFormat(file: string): ImportFormat | null {
+  const ext = file.toLowerCase().split('.').pop() ?? '';
+  if (ext === 'md') return 'md';
+  if (ext === 'csv') return 'csv';
+  if (ext === 'html' || ext === 'htm') return 'html';
+  if (ext === 'docx') return 'docx';
+  if (ext === 'txt') return 'txt';
+  if (ext === 'enex') return 'enex';
+  return null;
 }
 
 function isJunk(name: string): boolean {
@@ -163,6 +192,10 @@ export interface NotionPageItem {
   existing: boolean;
   /** Página de una fila de base: path del CSV. Su contenido va al cuerpo de la fila. */
   rowOf?: string | null;
+  /** Formato del archivo (sin el campo: Markdown o CSV de Notion, imports viejos). */
+  format?: ImportFormat;
+  /** Nota de Evernote: bytes de su <note> dentro del .enex. */
+  range?: { start: number; end: number };
 }
 
 /**
@@ -173,8 +206,9 @@ export function planNotionPages(
   files: Array<{ path: string; part: number }>,
   imported: Map<string, string>,
   newId: () => string = () => crypto.randomUUID(),
+  opts: { confluence?: Map<string, string | null>; confluenceIndex?: string | null } = {},
 ): NotionPageItem[] {
-  const md = files.filter((f) => /\.md$/i.test(f.path));
+  const md = files.filter((f) => PAGE_FILE.test(f.path));
   const csv = files.filter((f) => /\.csv$/i.test(f.path));
   // De "Base <id>.csv" y "Base <id>_all.csv" queda una (la _all trae todas las filas).
   const dbByKey = new Map<string, { path: string; part: number }>();
@@ -188,9 +222,13 @@ export function planNotionPages(
     ...[...dbByKey.values()].map((f) => ({ ...f, kind: 'database' as const })),
   ];
   const byOwner = new Map<string, string>();
-  for (const f of all) byOwner.set(ownerKey(f.path), f.path);
+  for (const f of all) {
+    const key = ownerKey(f.path);
+    // Si hay "Pagina.md" y "Pagina.html" (raro), la carpeta es de la primera.
+    if (!byOwner.has(key)) byOwner.set(key, f.path);
+  }
 
-  const items = all.map((f) => {
+  const items: NotionPageItem[] = all.map((f) => {
     const { title, notionId } = notionName(f.path);
     const key = notionId ?? f.path;
     let dir = path.posix.dirname(f.path);
@@ -212,16 +250,95 @@ export function planNotionPages(
       notionId,
       localId: mapped ?? newId(),
       parentPath,
-      depth: f.path.split('/').length,
+      depth: 0,
       existing: Boolean(mapped),
-    } as NotionPageItem;
+      format: importFormat(f.path) ?? 'md',
+    };
   });
-  // Un .md cuya carpeta es la de un CSV es una fila de esa base.
+
+  // Confluence: el árbol del index.html manda; lo que no figura cuelga del espacio.
+  if (opts.confluence) {
+    const known = new Set(items.map((i) => i.path));
+    for (const i of items) {
+      if (i.path === opts.confluenceIndex) {
+        i.parentPath = null;
+        continue;
+      }
+      const parent = opts.confluence.get(i.path);
+      i.parentPath = parent && known.has(parent) ? parent : opts.confluenceIndex && known.has(opts.confluenceIndex) ? opts.confluenceIndex : null;
+    }
+  }
+
+  // Carpetas sin página (Google Takeout, un zip de archivos sueltos): una página por carpeta.
+  const orphanDirs = new Set<string>();
+  if (!opts.confluence) {
+    for (const i of items) {
+      if (i.parentPath) continue;
+      let dir = path.posix.dirname(i.path);
+      while (dir && dir !== '.') {
+        orphanDirs.add(dir);
+        dir = path.posix.dirname(dir);
+      }
+    }
+    // Carpetas envoltorio de arriba (una sola subcarpeta y ningún archivo): no suman nada.
+    const directFiles = (dir: string) => items.some((i) => !i.parentPath && path.posix.dirname(i.path) === dir);
+    const subdirs = (dir: string) => [...orphanDirs].filter((d) => path.posix.dirname(d) === dir);
+    let top = '.';
+    for (;;) {
+      const kids = subdirs(top);
+      if (kids.length !== 1 || directFiles(top)) break;
+      orphanDirs.delete(kids[0]);
+      top = kids[0];
+    }
+  }
+  for (const dir of [...orphanDirs].sort()) {
+    const folderPath = `${dir}/`;
+    const key = `folder:${dir}`;
+    const mapped = imported.get(key);
+    const parentDir = path.posix.dirname(dir);
+    items.push({
+      path: folderPath,
+      part: 0,
+      kind: 'page',
+      title: path.posix.basename(dir).slice(0, 200) || 'Folder',
+      notionId: null,
+      localId: mapped ?? newId(),
+      parentPath: orphanDirs.has(parentDir) ? `${parentDir}/` : null,
+      depth: 0,
+      existing: Boolean(mapped),
+      format: 'folder',
+    });
+  }
+  for (const i of items) {
+    if (i.parentPath || i.format === 'folder') continue;
+    const dir = path.posix.dirname(i.path);
+    if (orphanDirs.has(dir)) i.parentPath = `${dir}/`;
+  }
+
+  // Un archivo cuya carpeta es la de un CSV es una fila de esa base.
   const kindByPath = new Map(items.map((i) => [i.path, i.kind]));
   for (const i of items) {
     if (i.kind === 'page' && i.parentPath && kindByPath.get(i.parentPath) === 'database') i.rowOf = i.parentPath;
   }
-  return items.sort((a, b) => a.depth - b.depth || a.path.localeCompare(b.path)).slice(0, NOTION_MAX_PAGES);
+  return sortTree(items).slice(0, NOTION_MAX_PAGES);
+}
+
+/** Profundidad en el árbol (madres antes que hijas al escribir) y orden por path. */
+export function sortTree(items: NotionPageItem[]): NotionPageItem[] {
+  const byPath = new Map(items.map((i) => [i.path, i]));
+  const depthOf = (i: NotionPageItem): number => {
+    let d = 1;
+    const seen = new Set([i.path]);
+    let cur = i.parentPath ? byPath.get(i.parentPath) : undefined;
+    while (cur && !seen.has(cur.path) && d < 200) {
+      seen.add(cur.path);
+      d++;
+      cur = cur.parentPath ? byPath.get(cur.parentPath) : undefined;
+    }
+    return d;
+  };
+  for (const i of items) i.depth = depthOf(i);
+  return items.sort((a, b) => a.depth - b.depth || a.path.localeCompare(b.path));
 }
 
 // ---------- Lectura ----------
@@ -251,6 +368,55 @@ async function resolveParts(job: ImportJob, outer: ZipSource, entries: ZipEntry[
   return parts;
 }
 
+/** Tope de un .enex (se lee entero una vez para ubicar sus notas). */
+const ENEX_MAX_BYTES = 200 * 1024 * 1024;
+/** Tope de un .docx o .html que se convierte. */
+const DOC_MAX_BYTES = 50 * 1024 * 1024;
+
+/** Un .enex del zip: un cuaderno (página) y una página por nota. */
+async function enexItems(
+  src: ZipSource,
+  entry: ZipEntry,
+  part: number,
+  imported: Map<string, string>,
+  parentPath: string | null,
+): Promise<NotionPageItem[]> {
+  const buf = await readZipEntry(src, entry, ENEX_MAX_BYTES);
+  const ranges = enexNoteRanges(buf, NOTION_MAX_PAGES);
+  const notebookKey = `enex:${entry.name}`;
+  const nb = imported.get(notebookKey);
+  const notebook: NotionPageItem = {
+    path: entry.name,
+    part,
+    kind: 'page',
+    title: notionName(entry.name).title,
+    notionId: null,
+    localId: nb ?? crypto.randomUUID(),
+    parentPath,
+    depth: 0,
+    existing: Boolean(nb),
+    format: 'enex',
+  };
+  const notes = ranges.map((r, i): NotionPageItem => {
+    const key = `${entry.name}#${i}`;
+    const mapped = imported.get(key);
+    return {
+      path: key,
+      part,
+      kind: 'page',
+      title: enexNoteTitle(buf.toString('utf8', r.start, Math.min(r.end, r.start + 64 * 1024))),
+      notionId: null,
+      localId: mapped ?? crypto.randomUUID(),
+      parentPath: entry.name,
+      depth: 0,
+      existing: Boolean(mapped),
+      format: 'enex-note',
+      range: r,
+    };
+  });
+  return [notebook, ...notes];
+}
+
 /** Un solo paso: lista el zip (y sus partes) y arma el árbol. */
 export async function notionFetchStep(job: ImportJob): Promise<FetchStepResult> {
   if (!job.payload) throw new ImportError('invalid_upload');
@@ -259,37 +425,102 @@ export async function notionFetchStep(job: ImportJob): Promise<FetchStepResult> 
     const outerEntries = await listZipEntries(outer);
     const parts = await resolveParts(job, outer, outerEntries);
     const files: Array<{ path: string; part: number; size: number }> = [];
+    const enex: Array<{ entry: ZipEntry; part: number; src: ZipSource }> = [];
+    const indexes: Array<{ entry: ZipEntry; part: number; src: ZipSource }> = [];
     let attachments = 0;
     let bytes = 0;
     for (const [part, p] of parts.entries()) {
-      const entries = p.ref === job.payload && p.base === undefined ? outerEntries : await listZipEntries(partSource(p));
+      const src = p.ref === job.payload && p.base === undefined ? outer : partSource(p);
+      const entries = src === outer ? outerEntries : await listZipEntries(src);
       for (const e of entries) {
-        if (isJunk(e.name)) continue;
+        if (isJunk(e.name) || e.name.endsWith('/')) continue;
+        // Zip-slip: nada se escribe a disco con estos nombres, pero un path absoluto o con ".." se descarta igual.
+        if (e.name.startsWith('/') || e.name.split('/').includes('..') || e.name.includes('\\')) continue;
         bytes += e.size;
-        if (/\.(md|csv)$/i.test(e.name)) files.push({ path: e.name, part, size: e.size });
-        else attachments += 1;
+        const format = importFormat(e.name);
+        if (format === 'enex') enex.push({ entry: e, part, src });
+        else if (format) {
+          files.push({ path: e.name, part, size: e.size });
+          if (/(^|\/)index\.html$/i.test(e.name) && e.size <= TEXT_MAX_BYTES) indexes.push({ entry: e, part, src });
+        } else attachments += 1;
       }
     }
-    if (files.length === 0) throw new ImportError('notion_empty');
-    const keys = files.map((f) => notionName(f.path).notionId ?? f.path);
-    const imported = await getExternalIds(job.workspace_id, 'notion', 'page', keys);
-    const pages = planNotionPages(files, imported);
+    if (files.length === 0 && enex.length === 0) throw new ImportError('notion_empty');
+    const provider = importProvider(job);
+    // Confluence: el index.html del espacio trae el árbol de páginas.
+    let confluence: Map<string, string | null> | undefined;
+    let confluenceIndex: string | null = null;
+    for (const ix of indexes) {
+      const html = (await readZipEntry(ix.src, ix.entry, TEXT_MAX_BYTES)).toString('utf8');
+      if (!isConfluenceIndex(html)) continue;
+      confluence = confluenceTree(html, path.posix.dirname(ix.entry.name));
+      confluenceIndex = ix.entry.name;
+      break;
+    }
+    const keys = [
+      ...files.map((f) => notionName(f.path).notionId ?? f.path),
+      ...files.map((f) => `folder:${path.posix.dirname(f.path)}`),
+    ];
+    const imported = await getExternalIds(job.workspace_id, provider, 'page', keys);
+    const pages = planNotionPages(files, imported, undefined, { confluence, confluenceIndex });
+    /** Archivos que no se pudieron leer (un .enex enorme): se avisan y el resto sigue. */
+    const skippedFiles: string[] = [];
+    for (const x of enex) {
+      if (pages.length >= NOTION_MAX_PAGES) break;
+      const ids = await getExternalIds(job.workspace_id, provider, 'page', [`enex:${x.entry.name}`]);
+      // Los ids de las notas se piden juntos (pueden ser miles).
+      let noteItems: NotionPageItem[];
+      try {
+        noteItems = await enexItems(x.src, x.entry, x.part, ids, null);
+      } catch (err) {
+        if (!(err instanceof ZipError)) throw err;
+        skippedFiles.push(path.posix.basename(x.entry.name).slice(0, 200));
+        continue;
+      }
+      const noteIds = await getExternalIds(job.workspace_id, provider, 'page', noteItems.slice(1).map((n) => n.path));
+      for (const n of noteItems.slice(1)) {
+        const mapped = noteIds.get(n.path);
+        if (mapped) {
+          n.localId = mapped;
+          n.existing = true;
+        }
+      }
+      const dir = path.posix.dirname(x.entry.name);
+      const folder = pages.find((pg) => pg.format === 'folder' && pg.path === `${dir}/`);
+      noteItems[0].parentPath = folder ? folder.path : null;
+      pages.push(...noteItems.slice(0, NOTION_MAX_PAGES - pages.length));
+    }
+    if (pages.length === 0) throw new ImportError(skippedFiles.length ? 'file_too_large' : 'notion_empty');
+    const ordered = sortTree(pages);
+    // Tope de páginas por import: lo que sobra no entra y se avisa en la vista previa.
+    const capped = files.length + enex.length > NOTION_MAX_PAGES || pages.length >= NOTION_MAX_PAGES;
     return {
       items: [
-        { kind: 'parts', data: { parts, attachments, bytes } },
-        ...pages.map((p) => ({ kind: p.kind, data: p })),
+        { kind: 'parts', data: { parts, attachments, bytes, skippedFiles, capped } },
+        ...ordered.map((p) => ({ kind: p.kind, data: p })),
       ],
       cursor: {},
       done: true,
     };
   } catch (err) {
-    if (err instanceof ZipError) throw new ImportError('invalid_zip');
+    if (err instanceof ZipError) throw new ImportError(err.code === 'zip_entry_too_large' ? 'file_too_large' : 'invalid_zip');
     throw err;
   }
 }
 
+/** Proveedor de los ids externos (reimportar el mismo archivo no duplica). */
+function importProvider(job: ImportJob): string {
+  return job.source === 'notion' ? 'notion' : `docs-${job.source}`;
+}
+
 export async function notionPreview(_job: ImportJob, items: StagedItem[]): Promise<Record<string, unknown>> {
-  const meta = (items.find((i) => i.kind === 'parts')?.data ?? {}) as { parts?: PartRef[]; attachments?: number; bytes?: number };
+  const meta = (items.find((i) => i.kind === 'parts')?.data ?? {}) as {
+    parts?: PartRef[];
+    attachments?: number;
+    bytes?: number;
+    skippedFiles?: string[];
+    capped?: boolean;
+  };
   const pages = items.filter((i) => i.kind === 'page' || i.kind === 'database').map((i) => i.data as unknown as NotionPageItem);
   // Muestra del árbol: profundidad relativa a la página de más arriba.
   const rows = pages.filter((p) => p.rowOf);
@@ -303,6 +534,9 @@ export async function notionPreview(_job: ImportJob, items: StagedItem[]): Promi
     bytes: meta.bytes ?? 0,
     parts: meta.parts?.length ?? 1,
     alreadyImported: own.filter((p) => p.existing).length,
+    skippedFiles: meta.skippedFiles ?? [],
+    capped: meta.capped === true,
+    maxPages: NOTION_MAX_PAGES,
     tree: orderTree(own)
       .slice(0, 40)
       .map((p) => ({ title: p.title, kind: p.kind, depth: p.depth - minDepth })),
@@ -610,10 +844,12 @@ export interface NotionImportReport {
   filesSkipped: number;
   skipped: number;
   roots: Array<{ id: string; title: string }>;
+  /** Páginas con un archivo de texto más grande que el tope: quedaron vacías. */
+  tooLarge?: number;
 }
 
 export function emptyNotionReport(): NotionImportReport {
-  return { pages: 0, databases: 0, rows: 0, files: 0, filesSkipped: 0, skipped: 0, roots: [] };
+  return { pages: 0, databases: 0, rows: 0, files: 0, filesSkipped: 0, skipped: 0, roots: [], tooLarge: 0 };
 }
 
 interface PartIndex {
@@ -636,24 +872,40 @@ async function readText(idx: PartIndex, zipPath: string): Promise<string> {
   return (await readZipEntry(idx.sources[hit.part], hit.entry, TEXT_MAX_BYTES)).toString('utf8');
 }
 
-async function uploadAttachment(idx: PartIndex, a: Attachment, report: NotionImportReport): Promise<DocsBlock> {
-  const hit = idx.entries.get(a.zipPath);
-  const name = path.posix.basename(a.zipPath).slice(0, 200);
-  const mime = mimeFor(name);
-  const fallback: DocsBlock = { id: crypto.randomUUID(), type: 'paragraph', content: a.label.replace(/[<&>]/g, '') };
-  if (!hit || hit.entry.size > MAX_UPLOAD_SIZE || !isAllowedUpload(name, mime)) {
+async function uploadBytes(name: string, mime: string, buf: Buffer | null, image: boolean, label: string, report: NotionImportReport): Promise<DocsBlock> {
+  const fallback: DocsBlock = { id: crypto.randomUUID(), type: 'paragraph', content: label.replace(/[<&>]/g, '') };
+  const safeName = (name || 'file').slice(0, 200);
+  if (!buf || buf.length > MAX_UPLOAD_SIZE || !isAllowedUpload(safeName, mime)) {
     report.filesSkipped += 1;
     return fallback;
   }
   try {
-    const buf = await readZipEntry(idx.sources[hit.part], hit.entry, MAX_UPLOAD_SIZE);
-    const url = await saveUpload('docs', name, mime, buf);
+    const url = await saveUpload('docs', safeName, mime, buf);
     report.files += 1;
-    return { id: crypto.randomUUID(), type: a.image ? fileKindFor(mime) : 'file', content: '', url, name, size: buf.length, mime };
+    return { id: crypto.randomUUID(), type: image ? fileKindFor(mime) : 'file', content: '', url, name: safeName, size: buf.length, mime };
   } catch {
     report.filesSkipped += 1;
     return fallback;
   }
+}
+
+async function uploadAttachment(idx: PartIndex, a: Attachment, report: NotionImportReport): Promise<DocsBlock> {
+  const hit = idx.entries.get(a.zipPath);
+  const name = path.posix.basename(a.zipPath).slice(0, 200);
+  const mime = mimeFor(name);
+  if (!hit || hit.entry.size > MAX_UPLOAD_SIZE) return uploadBytes(name, mime, null, a.image, a.label, report);
+  const buf = await readZipEntry(idx.sources[hit.part], hit.entry, MAX_UPLOAD_SIZE).catch(() => null);
+  return uploadBytes(name, mime, buf, a.image, a.label, report);
+}
+
+/** Cambia cada párrafo que es solo un marcador por el bloque que devuelve `make`. */
+async function replaceMarkers(blocks: DocsBlock[], make: (marker: string) => (() => Promise<DocsBlock>) | null): Promise<DocsBlock[]> {
+  const out: DocsBlock[] = [];
+  for (const b of blocks) {
+    const fn = b.type === 'paragraph' ? make(b.content.trim()) : null;
+    out.push(fn ? { ...(await fn()), ...(b.indent ? { indent: b.indent } : {}) } : b);
+  }
+  return out;
 }
 
 /** Callout que empieza con un emoji: el emoji pasa a ser el ícono del recuadro. */
@@ -663,6 +915,30 @@ function calloutIcons(blocks: DocsBlock[]): DocsBlock[] {
     const m = /^(\p{Extended_Pictographic}️?)\s*/u.exec(b.content);
     return m ? { ...b, icon: m[1], content: b.content.slice(m[0].length) } : b;
   });
+}
+
+async function readBytes(idx: PartIndex, zipPath: string, max: number): Promise<Buffer | null> {
+  const hit = idx.entries.get(zipPath);
+  if (!hit || hit.entry.size > max) return null;
+  return readZipEntry(idx.sources[hit.part], hit.entry, max).catch(() => null);
+}
+
+/** Bytes de una nota de un .enex: por rango si el .enex va sin comprimir; si no, se infla entero. */
+async function readEnexNote(idx: PartIndex, cache: Map<string, Buffer>, enexPath: string, range: { start: number; end: number }): Promise<string> {
+  const hit = idx.entries.get(enexPath);
+  if (!hit) return '';
+  const len = Math.min(range.end - range.start, ENEX_MAX_BYTES);
+  if (hit.entry.method === 0) {
+    const base = await zipEntryDataOffset(idx.sources[hit.part], hit.entry);
+    return (await idx.sources[hit.part].read(base + range.start, len)).toString('utf8');
+  }
+  let buf = cache.get(enexPath);
+  if (!buf) {
+    buf = await readZipEntry(idx.sources[hit.part], hit.entry, ENEX_MAX_BYTES);
+    cache.clear();
+    cache.set(enexPath, buf);
+  }
+  return buf.toString('utf8', range.start, range.start + len);
 }
 
 export async function notionWriteStep(job: ImportJob, items: StagedItem[], report: NotionImportReport): Promise<void> {
@@ -677,30 +953,57 @@ export async function notionWriteStep(job: ImportJob, items: StagedItem[], repor
     if (err instanceof ZipError) throw new ImportError('invalid_zip');
     throw err;
   }
+  const provider = importProvider(job);
   const byPath = new Map(all.map((p) => [p.path, p]));
   // Un link a una fila lleva a la página de su base.
   const localFor = (p: NotionPageItem) => (p.rowOf ? (byPath.get(p.rowOf)?.localId ?? p.localId) : p.localId);
+  const pageByPath = new Map(all.map((p) => [p.path, localFor(p)]));
+  const pageByNotionId = new Map(all.filter((p) => p.notionId).map((p) => [p.notionId!, localFor(p)]));
   const ctxBase = {
-    pageByPath: new Map(all.map((p) => [p.path, localFor(p)])),
-    pageByNotionId: new Map(all.filter((p) => p.notionId).map((p) => [p.notionId!, localFor(p)])),
+    pageByPath,
+    pageByNotionId,
     hasFile: (p: string) => idx.entries.has(p),
   };
   const db = getDb();
+  // Teamspace de destino (lo validó quien creó el job); las subpáginas toman el de su madre.
+  const destTeamspace = typeof job.options.teamspace_id === 'string' ? job.options.teamspace_id : null;
+  // El acceso al teamspace se revalida al escribir (pudo salir de él o borrarse desde que armó el import).
+  if (destTeamspace && !(await canWriteTeamspace(job.workspace_id, job.user_id, destTeamspace))) throw new ImportError('forbidden');
+  const enexCache = new Map<string, Buffer>();
 
   /** .md de Notion → bloques, con links internos, callouts y adjuntos subidos. */
-  const convert = async (zipPath: string, body: string): Promise<DocsBlock[]> => {
+  const convertMd = async (zipPath: string, body: string): Promise<DocsBlock[]> => {
     const { md, attachments } = rewriteNotionMarkdown(body, { ...ctxBase, path: zipPath });
-    let blocks = calloutIcons(markdownToBlocks(md, { sanitize: sanitizeNotionHtml }));
+    const blocks = calloutIcons(markdownToBlocks(md, { sanitize: sanitizeNotionHtml }));
+    if (!attachments.length) return blocks;
+    const byMarker = new Map(attachments.map((a) => [a.marker, a]));
+    return replaceMarkers(blocks, (m) => {
+      const a = byMarker.get(m);
+      return a ? () => uploadAttachment(idx, a, report) : null;
+    });
+  };
+
+  /** HTML (Notion, Confluence, Google Docs o suelto) → título y bloques. */
+  const convertHtml = async (zipPath: string, text: string, fallback: string): Promise<{ title: string; blocks: DocsBlock[] }> => {
+    const page = parseHtmlPage(text);
+    const { html, attachments } = rewriteHtmlRefs(page.body, {
+      path: zipPath,
+      pageFor: (p) => pageByPath.get(p) ?? pageByPath.get(p.replace(/\.csv$/i, '_all.csv')) ?? null,
+      pageByNotionId: (id) => pageByNotionId.get(id) ?? null,
+      hasFile: ctxBase.hasFile,
+    });
+    let blocks = calloutIcons(htmlToBlocks(html, { sanitize: sanitizeNotionHtml }));
+    // El <h1> del título repetido como primer bloque.
+    const t = page.title ?? fallback;
+    if (blocks[0]?.type === 'heading' && blocks[0].content.replace(/<[^>]*>/g, '').trim() === t.trim()) blocks = blocks.slice(1);
     if (attachments.length) {
       const byMarker = new Map(attachments.map((a) => [a.marker, a]));
-      const out: DocsBlock[] = [];
-      for (const b of blocks) {
-        const a = b.type === 'paragraph' ? byMarker.get(b.content.trim()) : undefined;
-        out.push(a ? { ...(await uploadAttachment(idx, a, report)), ...(b.indent ? { indent: b.indent } : {}) } : b);
-      }
-      blocks = out;
+      blocks = await replaceMarkers(blocks, (m) => {
+        const a = byMarker.get(m);
+        return a ? () => uploadAttachment(idx, a, report) : null;
+      });
     }
-    return blocks;
+    return { title: t, blocks };
   };
 
   for (const page of pages) {
@@ -713,39 +1016,130 @@ export async function notionWriteStep(job: ImportJob, items: StagedItem[], repor
     const direct = page.parentPath ? byPath.get(page.parentPath) : undefined;
     // Subpágina de una fila: queda debajo de la página de la base.
     const parent = direct?.rowOf ? byPath.get(direct.rowOf) : direct;
-    const parentId =
-      parent && (await db.prepare('SELECT 1 AS one FROM docs_pages WHERE id = ? AND user_id = ?').get(parent.localId, job.workspace_id))
-        ? parent.localId
-        : null;
+    const parentRow = parent
+      ? ((await db.prepare('SELECT teamspace_id FROM docs_pages WHERE id = ? AND user_id = ?').get(parent.localId, job.workspace_id)) as
+          | { teamspace_id: string | null }
+          | undefined)
+      : undefined;
+    const parentId = parentRow && parent ? parent.localId : null;
+    const teamspaceId = parentRow ? (parentRow.teamspace_id ?? null) : destTeamspace;
 
     let title = page.title;
-    let blocks: DocsBlock[];
-    const text = await readText(idx, page.path).catch(() => '');
-    if (page.kind === 'database') {
+    let blocks: DocsBlock[] = [];
+    let created: string | null = null;
+    let updated: string | null = null;
+    const format = page.kind === 'database' ? 'csv' : (page.format ?? 'md');
+    // Un .md/.html/.csv más grande que el tope: la página entra vacía y se avisa.
+    const textHit = format === 'md' || format === 'html' || format === 'txt' || format === 'csv' ? idx.entries.get(page.path) : undefined;
+    const tooLarge = Boolean(textHit && textHit.entry.size > TEXT_MAX_BYTES);
+    if (tooLarge) report.tooLarge = (report.tooLarge ?? 0) + 1;
+    if (tooLarge) {
+      blocks = [];
+    } else if (format === 'csv') {
+      const text = await readText(idx, page.path).catch(() => '');
       const block = csvToDatabaseBlock(text, newDbId, splitIcon(page.title).title);
       const columns = block.db?.properties.map((p) => p.name) ?? [];
       const bodies: Array<{ title: string; blocks: DocsBlock[] }> = [];
       for (const row of all.filter((p) => p.rowOf === page.path)) {
         const rowText = await readText(idx, row.path).catch(() => '');
-        const split = splitTitle(rowText, row.title);
-        bodies.push({ title: split.title, blocks: await convert(row.path, stripRowProperties(split.body, columns)) });
+        if (row.format === 'html') {
+          // Notion HTML: las propiedades de la fila (ya en el CSV) van en <table class="properties">.
+          const conv = await convertHtml(row.path, rowText.replace(/<table\b[^>]*class="properties"[\s\S]*?<\/table>/i, ''), row.title);
+          bodies.push({ title: conv.title, blocks: conv.blocks });
+        } else {
+          const split = splitTitle(rowText, row.title);
+          bodies.push({ title: split.title, blocks: await convertMd(row.path, stripRowProperties(split.body, columns)) });
+        }
       }
       report.rows = (report.rows ?? 0) + attachRowBodies(block, bodies);
       blocks = [block];
-    } else {
-      const split = splitTitle(text, page.title);
+    } else if (format === 'md') {
+      const split = splitTitle(await readText(idx, page.path).catch(() => ''), page.title);
       title = split.title;
-      blocks = await convert(page.path, split.body);
+      blocks = await convertMd(page.path, split.body);
+    } else if (format === 'html') {
+      const conv = await convertHtml(page.path, await readText(idx, page.path).catch(() => ''), page.title);
+      title = conv.title;
+      blocks = conv.blocks;
+    } else if (format === 'txt') {
+      blocks = plainTextToBlocks(await readText(idx, page.path).catch(() => ''));
+    } else if (format === 'docx') {
+      const buf = await readBytes(idx, page.path, DOC_MAX_BYTES);
+      if (buf) {
+        try {
+          const raw = docxToBlocks(buf, undefined, { imageMarkers: true });
+          blocks = await replaceMarkers(raw, (m) => {
+            if (!m.startsWith(DOCX_IMAGE_MARKER)) return null;
+            const target = m.slice(DOCX_IMAGE_MARKER.length);
+            const name = path.posix.basename(target);
+            return () => uploadBytes(name, mimeFor(name), readDocxMedia(buf, target, MAX_UPLOAD_SIZE), true, name, report);
+          });
+        } catch {
+          report.filesSkipped += 1;
+        }
+      } else report.filesSkipped += 1;
+    } else if (format === 'enex-note' && page.range) {
+      const enexPath = page.path.slice(0, page.path.lastIndexOf('#'));
+      const note = parseEnexNote(await readEnexNote(idx, enexCache, enexPath, page.range).catch(() => ''));
+      title = note.title;
+      created = note.created;
+      updated = note.updated;
+      // Recursos por md5 de sus bytes (así los nombra <en-media hash>).
+      const byHash = new Map<string, { buf: Buffer; mime: string; name: string }>();
+      for (const r of note.resources) {
+        if (r.data.length > (MAX_UPLOAD_SIZE * 4) / 3 + 16) {
+          report.filesSkipped += 1;
+          continue;
+        }
+        const buf = Buffer.from(r.data, 'base64');
+        byHash.set(createHash('md5').update(buf).digest('hex'), { buf, mime: r.mime, name: r.name });
+      }
+      const markers = new Map<string, string>();
+      const html = enmlToHtml(note.content, (hash) => {
+        if (!byHash.has(hash)) return null;
+        const m = `zsenex${markers.size}x${hash.slice(0, 8)}`;
+        markers.set(m, hash);
+        return m;
+      });
+      blocks = await replaceMarkers(htmlToBlocks(html, { sanitize: sanitizeNotionHtml }), (m) => {
+        const hash = markers.get(m);
+        const res = hash ? byHash.get(hash) : undefined;
+        if (!res || !hash) return null;
+        const ext = res.mime.split('/')[1]?.replace('jpeg', 'jpg').replace(/[^a-z0-9]/gi, '') || 'bin';
+        const name = res.name || `${hash.slice(0, 8)}.${ext}`;
+        return () => uploadBytes(name, res.mime, res.buf, /^image\//.test(res.mime), name, report);
+      });
+      if (note.tags.length) blocks.push({ id: crypto.randomUUID(), type: 'paragraph', content: `<em>${note.tags.map((x) => x.replace(/[<&>]/g, '')).join(', ')}</em>` });
     }
+    // 'folder' y 'enex' (cuaderno): página vacía que agrupa a sus hijas.
     const { icon, title: cleanTitle } = splitIcon(title);
     const content = blocks.length ? blocks.slice(0, DOCS_IMPORT_MAX_BLOCKS) : [{ id: crypto.randomUUID(), type: 'paragraph' as const, content: '' }];
     const now = new Date().toISOString();
     await db
-      .prepare('INSERT INTO docs_pages (id, user_id, parent_id, title, icon, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(page.localId, job.workspace_id, parentId, cleanTitle.slice(0, 500), icon, stringifyBlocks(sanitizeBlocks(content)), now, now);
-    await setExternalId(job.workspace_id, 'notion', 'page', page.notionId ?? page.path, page.localId);
+      .prepare('INSERT INTO docs_pages (id, user_id, parent_id, title, icon, content, teamspace_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(page.localId, job.workspace_id, parentId, cleanTitle.slice(0, 500), icon, stringifyBlocks(sanitizeBlocks(content)), teamspaceId, created ?? now, updated ?? now);
+    const key = page.format === 'folder' ? `folder:${page.path.replace(/\/$/, '')}` : page.format === 'enex' ? `enex:${page.path}` : (page.notionId ?? page.path);
+    await setExternalId(job.workspace_id, provider, 'page', key, page.localId);
     if (page.kind === 'database') report.databases += 1;
     else report.pages += 1;
     if (!parentId && report.roots.length < 10) report.roots.push({ id: page.localId, title: cleanTitle.slice(0, 200) });
   }
+}
+
+/** ¿Puede `userId` seguir creando páginas en ese teamspace del workspace? (lo mismo que canCreateDocPage, sin sesión). */
+async function canWriteTeamspace(workspaceId: string, userId: string, teamspaceId: string): Promise<boolean> {
+  const { getTeamspace, teamspaceRoleOf, roleRank } = await import('./docs-access');
+  const ts = await getTeamspace(teamspaceId);
+  if (!ts || ts.workspace_id !== workspaceId || ts.deleted_at) return false;
+  const role = await teamspaceRoleOf(ts.id, userId);
+  if (role === 'owner') return true;
+  if (!role && ts.access !== 'open') return false;
+  // Dueño del workspace o admin: como en canCreateDocPage.
+  if (userId === workspaceId) return true;
+  const { isWorkspacePerson } = await import('./crm-refs');
+  if (!(await isWorkspacePerson(workspaceId, userId))) return false;
+  const { workspaceRole } = await import('./api-auth');
+  const wr = await workspaceRole(workspaceId, userId);
+  if (wr === 'owner' || wr === 'admin') return true;
+  return roleRank(ts.member_role) >= roleRank('edit');
 }

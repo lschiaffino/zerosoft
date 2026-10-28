@@ -10,6 +10,9 @@ import { applyAssignmentRules, listChatAgents } from './chat-data';
 import { dispatchChatBot, type ScheduleTask } from './chat-bot-ai';
 import { createNotification } from './notifications';
 import { emitEvent } from './events';
+import { emitChatEvent } from './chat-api';
+import { listFollowers } from './chat-collab';
+import { notifyPersonLink } from './groups-push';
 
 export async function afterVisitorMessage(input: {
   widget: ChatWidgetRow;
@@ -20,6 +23,8 @@ export async function afterVisitorMessage(input: {
   /** Texto para reglas por keyword y para el bot (el body o el nombre del archivo). */
   text: string;
   schedule: ScheduleTask;
+  /** Sin bot (el canal email: la respuesta del bot no saldría por email). */
+  skipBot?: boolean;
 }): Promise<{ conversation: ChatConversationRow; botMessage: ChatMessageRow | null }> {
   const { widget, visitor, message, isNewConversation, text, schedule } = input;
   let conversation = input.conversation;
@@ -32,7 +37,10 @@ export async function afterVisitorMessage(input: {
       widget: { id: widget.id, name: widget.name },
     };
     schedule(async () => {
-      if (isNewConversation) await emitEvent(widget.user_id, 'conversation.created', eventBase);
+      if (isNewConversation) {
+        await emitEvent(widget.user_id, 'conversation.created', eventBase);
+        await emitChatEvent(conv.id, 'chat.conversation.created');
+      }
       await emitEvent(widget.user_id, 'message.received', {
         ...eventBase,
         message: { id: message.id, body: message.body, createdAt: message.created_at },
@@ -49,7 +57,7 @@ export async function afterVisitorMessage(input: {
 
   // Bot: keywords responde al instante (una vez); el bot AI responde en
   // segundo plano (after) y el widget recibe la respuesta en su polling.
-  const botMessage = await dispatchChatBot(widget, conversation, { id: message.id, body: text }, schedule);
+  const botMessage = input.skipBot ? null : await dispatchChatBot(widget, conversation, { id: message.id, body: text }, schedule);
 
   // Notify widget owner and assigned agent.
   const recipients = new Set<string>();
@@ -61,6 +69,10 @@ export async function afterVisitorMessage(input: {
     agents.some((a) => a.id === conversation.assigned_to)
   ) {
     recipients.add(conversation.assigned_to);
+  }
+  // Quienes siguen la conversación sin estar asignados (como en Intercom).
+  for (const id of await listFollowers(conversation.id)) {
+    if (agents.some((a) => a.id === id)) recipients.add(id);
   }
 
   const senderName = visitor.name || visitor.email || visitor.external_id;
@@ -79,6 +91,12 @@ export async function afterVisitorMessage(input: {
       meta: { visitorName: visitor.name, visitorEmail: visitor.email },
     });
   }
+  // Push al celular o al navegador (PWA de la suite): en segundo plano.
+  schedule(async () => {
+    for (const userId of recipients) {
+      await notifyPersonLink(widget.user_id, userId, { title, body: (message.body || text).slice(0, 140), url: href });
+    }
+  });
 
   return { conversation, botMessage };
 }

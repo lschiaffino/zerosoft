@@ -88,3 +88,25 @@ hace), `@vercel/next` dejaría de escribir las rutas `/_next/data/…` y el
 conteo bajaría un tercio. En Next 15 se puede forzar con un paso después de
 `next build`, pero depende de un detalle interno del builder: queda como
 plan B.
+
+## Middleware y dominios propios (Docs D5)
+
+El middleware no tiene DB. Para un host que no es de la app (dominios de Link
+y del sitio de Docs) pregunta a `/api/docs/site/host` si es el dominio propio
+de un sitio de Docs y guarda la respuesta por instancia (LRU de 500 hosts):
+60 s con o sin sitio. Si el lookup falla o tarda más de 1 s, un host que ya se
+sabía de Docs sigue de Docs 5 min (último valor bueno) y uno desconocido va
+10 s como dominio de Link. Los pedidos a la app (zerosoft.ai, previews, localhost) nunca hacen el
+lookup.
+
+Medido en local con `next start` (2026-10-27, mediana de 10 a 20 pedidos):
+
+| Pedido | Tiempo |
+|---|---|
+| `/api/docs/site/host` | 3,7 ms |
+| Primer pedido a un dominio propio (con lookup) | 59 ms |
+| Siguientes al mismo dominio (cacheado) | 4,9 ms |
+| Pedido a la app (sin lookup) | 5,7 ms |
+
+En Vercel el lookup es otra invocación de función: se paga una vez por host,
+instancia y minuto.

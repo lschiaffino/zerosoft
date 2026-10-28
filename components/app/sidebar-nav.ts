@@ -99,6 +99,8 @@ export interface SidebarLabels {
     availability: string;
     analytics: string;
     settings: string;
+    /** Encuestas de horario (opcional: los tests viejos arman labels sin esta clave). */
+    polls?: string;
   };
   track: {
     overview: string;
@@ -129,6 +131,8 @@ export interface SidebarLabels {
     people: string;
     reports: string;
     settings: string;
+    teams?: string;
+    views?: string;
   };
   flow: {
     flows: string;
@@ -397,6 +401,9 @@ export function buildNav(
           items: [
             { href: '/app/calendar/event-types', label: labels.calendar.eventTypes, active: at('/app/calendar/event-types'), icon: 'tasks' },
             { href: '/app/calendar/routing', label: labels.calendar.routing, active: at('/app/calendar/routing'), icon: 'lists' },
+            ...(labels.calendar.polls
+              ? [{ href: '/app/calendar/polls', label: labels.calendar.polls, active: at('/app/calendar/polls'), icon: 'insights' as const }]
+              : []),
             { href: '/app/calendar/bookings', label: labels.calendar.bookings, active: at('/app/calendar/bookings'), icon: 'contacts' },
             { href: '/app/calendar/availability', label: labels.calendar.availability, active: at('/app/calendar/availability'), icon: 'myTasks' },
           ],
@@ -485,7 +492,8 @@ export function buildNav(
         {
           section: labels.records,
           items: [
-            { href: '/app/chat/inbox', label: labels.chat.inbox, active: at('/app/chat/inbox'), icon: 'inbox' },
+            // Siguiendo, bandejas de equipo y vistas guardadas (ChatInboxBranch en el hueco #side-branch).
+            { href: '/app/chat/inbox', label: labels.chat.inbox, active: at('/app/chat/inbox'), icon: 'inbox', branch: true },
             { href: '/app/chat/people', label: labels.chat.people, active: at('/app/chat/people'), icon: 'contacts' },
           ],
         },
@@ -503,6 +511,8 @@ export function buildNav(
               active: at('/app/chat/widgets') || at('/app/chat/settings'),
               icon: 'settings',
             },
+            ...(labels.chat.teams ? [{ href: '/app/chat/teams', label: labels.chat.teams, active: at('/app/chat/teams'), icon: 'groups' as const }] : []),
+            ...(labels.chat.views ? [{ href: '/app/chat/views', label: labels.chat.views, active: at('/app/chat/views'), icon: 'lists' as const }] : []),
           ],
         },
       ];

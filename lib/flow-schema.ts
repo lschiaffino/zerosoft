@@ -16,6 +16,7 @@ export const FLOW_EVENT_TYPES = [
   'booking.requested',
   'booking.declined',
   'booking.refunded',
+  'booking.reconfirmed',
   'link.created',
   'link.clicked',
   'link.updated',
@@ -101,6 +102,7 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
     invitee: { name: '', email: '' },
     eventType: { title: '' },
   },
+  'booking.reconfirmed': { id: 'bk_1', status: 'confirmed', reconfirmedAt: '', startsAt: '', invitee: { name: '', email: '' }, eventType: { title: '' } },
   'booking.refunded': {
     id: 'bk_1',
     status: 'cancelled',

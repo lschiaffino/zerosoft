@@ -1,10 +1,11 @@
 'use client';
 
+import ClientTime from './ClientTime';
 import { useState } from 'react';
 import { Link } from '@/i18n/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import type { ChatVisitorWithStats } from '@/lib/chat-data';
-import { formatDateTime, formatTimeAgo } from '@/lib/datetime';
+import { formatDateTime } from '@/lib/datetime';
 import EmptyState from '@/components/ui/EmptyState';
 
 interface VisitorDetailClientProps {
@@ -79,9 +80,7 @@ export default function VisitorDetailClient({ initialVisitor }: VisitorDetailCli
                     <td>{t(`conversation.${c.status}`)}</td>
                     <td className="num data">{c.message_count}</td>
                     <td>
-                      <time suppressHydrationWarning dateTime={c.updated_at} title={formatDateTime(c.updated_at, locale)}>
-                        {formatTimeAgo(c.updated_at, locale)}
-                      </time>
+                      <ClientTime iso={c.updated_at} />
                     </td>
                   </tr>
                 ))}

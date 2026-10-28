@@ -69,6 +69,33 @@ export interface MsTokenResponse {
   error?: string;
 }
 
+/** Pedido al endpoint de tokens de Microsoft (lo usan el CRM y el calendario de Cal, con sus scopes). */
+export async function microsoftTokenRequest(params: Record<string, string>): Promise<MsTokenResponse> {
+  return tokenRequest(params);
+}
+
+/** URL de autorización de Microsoft para otra app (redirect y scopes propios). */
+export function microsoftAuthUrl(opts: { redirectUri: string; scopes: string[]; state: string }): string {
+  if (fakeMicrosoftAllowed()) {
+    return `${opts.redirectUri}?${new URLSearchParams({ code: 'fake-code', state: opts.state }).toString()}`;
+  }
+  const params = new URLSearchParams({
+    client_id: process.env.MS_CLIENT_ID ?? '',
+    response_type: 'code',
+    redirect_uri: opts.redirectUri,
+    response_mode: 'query',
+    scope: opts.scopes.join(' '),
+    state: opts.state,
+    prompt: 'select_account',
+  });
+  return `https://login.microsoftonline.com/${tenant()}/oauth2/v2.0/authorize?${params.toString()}`;
+}
+
+/** Base pública de la app (para armar redirect URIs). */
+export function microsoftAppBase(): string {
+  return appBase();
+}
+
 async function tokenRequest(params: Record<string, string>): Promise<MsTokenResponse> {
   if (fakeMicrosoftAllowed()) return fakeTokenResponse(params);
   const res = await fetch(`https://login.microsoftonline.com/${tenant()}/oauth2/v2.0/token`, {
@@ -114,7 +141,7 @@ export class GraphApiError extends Error {
   }
 }
 
-async function graphRequest<T>(token: string, pathOrUrl: string, init: RequestInit = {}): Promise<T> {
+export async function graphRequest<T>(token: string, pathOrUrl: string, init: RequestInit = {}): Promise<T> {
   const url = pathOrUrl.startsWith('https://') ? pathOrUrl : `${GRAPH}${pathOrUrl}`;
   // Solo se siguen links de Graph (nextLink/deltaLink): nunca otra URL con el token.
   if (!url.startsWith(`${GRAPH}/`)) throw new GraphApiError(0, 'invalid_url');

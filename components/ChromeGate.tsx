@@ -25,6 +25,7 @@ export default function ChromeGate({
   support = null,
   launcher = null,
   surface = null,
+  docsSite = false,
   children,
 }: {
   header: ReactNode;
@@ -35,10 +36,27 @@ export default function ChromeGate({
   launcher?: ReactNode;
   /** Superficie del host (board, brand) o null para el sitio normal. */
   surface?: HostSurface | null;
+  /**
+   * Sitio de Docs en el dominio propio de un cliente (docs.empresa.com): el
+   * path que ve el navegador es /<slug>, no /h/…; va sin chrome de marketing.
+   */
+  docsSite?: boolean;
   children: ReactNode;
 }) {
   const pathname = usePathname();
   const t = useTranslations('common.publicPage');
+  if (docsSite) {
+    return (
+      <>
+        {children}
+        <p className="powered-by">
+          <a href="https://zerosoft.ai" target="_blank" rel="noreferrer">
+            {t('poweredBy')}
+          </a>
+        </p>
+      </>
+    );
+  }
   if (
     surface ||
     pathname.startsWith('/feedback-board') ||

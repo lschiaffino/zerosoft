@@ -210,6 +210,27 @@ describe('API v1: reprogramar y no-show', () => {
     ]);
   });
 
+  it('la key de un member solo ve y gestiona las reservas que atiende (como en la app de Cal.com)', async () => {
+    const { u, bruno, pastId } = await setup('adm6');
+    const member = await makeUser('adm6m');
+    const teamId = crypto.randomUUID();
+    await getDb().prepare('INSERT INTO teams (id, name, owner_id) VALUES (?, ?, ?)').run(teamId, 'Equipo', u.id);
+    await getDb().prepare("INSERT INTO team_members (team_id, user_id, role) VALUES (?, ?, 'member')").run(teamId, member.id);
+    // Una reserva atendida por el member.
+    await getDb().prepare('UPDATE calendar_bookings SET host_user_id = ? WHERE id = ?').run(member.id, bruno.id);
+    const { key: memberKey } = await createApiKey(u.id, 'member', member.id);
+    const { key: ownerKey } = await createApiKey(u.id, 'owner');
+    const auth = (k: string) => ({ authorization: `Bearer ${k}` });
+
+    const mine = await v1List.GET(req('http://x/api/v1/calendar/bookings', 'GET', undefined, auth(memberKey)));
+    expect(((await mine.json()) as { bookings: Array<{ id: string }> }).bookings.map((b) => b.id)).toEqual([bruno.id]);
+    const all = await v1List.GET(req('http://x/api/v1/calendar/bookings', 'GET', undefined, auth(ownerKey)));
+    expect(((await all.json()) as { bookings: unknown[] }).bookings.length).toBe(3);
+    // La reserva pasada es del owner: el member no la ve ni la marca.
+    expect((await v1NoShow.POST(req('http://x', 'POST', {}, auth(memberKey)), ctx(pastId))).status).toBe(404);
+    expect((await v1NoShow.POST(req('http://x', 'POST', {}, auth(ownerKey)), ctx(pastId))).status).toBe(200);
+  });
+
   it('el spec OpenAPI incluye los endpoints nuevos', async () => {
     const { buildOpenApiSpec } = await import('@/lib/openapi');
     const spec = buildOpenApiSpec() as { paths: Record<string, Record<string, unknown>> };

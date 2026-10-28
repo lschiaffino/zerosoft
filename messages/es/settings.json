@@ -186,7 +186,10 @@
       "page_archived": "Página a la papelera (Docs)",
       "page_comment_created": "Comentario nuevo (Docs)",
       "database_row_created": "Fila nueva en una base (Docs)",
-      "database_property_changed": "Cambió una propiedad de una base (Docs)"
+      "database_property_changed": "Cambió una propiedad de una base (Docs)",
+      "chat_conversation_created": "Conversación creada",
+      "chat_conversation_tagged": "Tag en una conversación",
+      "chat_csat_submitted": "CSAT recibido"
     },
     "errors": {
       "https_required": "La URL tiene que usar https.",
@@ -398,7 +401,8 @@
       "desc": "Quién y qué accede al workspace.",
       "empty": "Todavía no hay ajustes de seguridad del workspace. Las API keys se revocan en API y webhooks, y los dominios propios se verifican en Link.",
       "apiKeys": "API keys",
-      "domains": "Dominios propios de Link"
+      "domains": "Dominios propios de Link",
+      "docsSite": "Dominio del sitio de Docs"
     },
     "notifications": {
       "title": "Avisos",

@@ -14,6 +14,9 @@ import DocsPageIcon from '@/components/docs/DocsPageIcon';
 import { DocsStaticCover } from '@/components/docs/DocsStaticCover';
 import HelpHeader from '@/components/docs/HelpHeader';
 import HelpFeedback from '@/components/docs/HelpFeedback';
+import HelpView from '@/components/docs/HelpView';
+import { getDocsSite, getPagePublishSettings, verifiedSiteHost } from '@/lib/docs-site';
+import { appOrigin, helpBase } from '@/lib/docs-site-base';
 import '@/styles/help.css';
 import { parseDbUtc } from '@/lib/utils';
 
@@ -31,11 +34,17 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   const article = ws ? await getHelpArticle(ws.id, slug) : null;
   const t = await getTranslations({ locale, namespace: 'docs.help' });
   if (!ws || !article) return { title: t('notFound') };
+  const [site, domain, seo] = await Promise.all([getDocsSite(ws.id), verifiedSiteHost(ws.id), getPagePublishSettings(article.id)]);
+  const canonical = domain ? `https://${domain}/${article.slug}` : `/${locale}/h/${ws.handle}/${article.slug}`;
+  const description = seo?.seo_description || article.excerpt || undefined;
+  const noindex = !site.indexing || seo?.seo_noindex;
   return {
     title: { absolute: `${article.title || t('untitled')} · ${ws.name}` },
-    description: article.excerpt || undefined,
-    alternates: { canonical: `/${locale}/h/${ws.handle}/${article.slug}` },
-    openGraph: { title: article.title, description: article.excerpt || undefined, type: 'article' },
+    description,
+    alternates: { canonical },
+    openGraph: { title: article.title, description, type: 'article', url: canonical, siteName: ws.name, modifiedTime: article.updated_at },
+    twitter: { card: 'summary', title: article.title, description },
+    ...(noindex ? { robots: { index: false, follow: false } } : {}),
   };
 }
 
@@ -48,9 +57,10 @@ export default async function HelpArticlePage(props: Props) {
   const article = await getHelpArticle(ws.id, slug);
   if (!article) notFound();
   const t = await getTranslations({ locale, namespace: 'docs.help' });
-  const tEditor = await getTranslations({ locale, namespace: 'docs.editor' });
   const format = await getFormatter({ locale });
-  const base = `/${locale}/h/${ws.handle}`;
+  const base = await helpBase(locale, ws.handle);
+  const home = base || '/';
+  const seo = await getPagePublishSettings(article.id);
   // Sincronizados: getHelpArticle ya trae solo los de origen publicado.
   // Defensa en profundidad: se re-sanitiza al servir una página pública. Los
   // links `[[` van al artículo publicado; a una página sin publicar quedan
@@ -66,13 +76,28 @@ export default async function HelpArticlePage(props: Props) {
 
   return (
     <main className="help help-article-page" style={style}>
-      <HelpHeader locale={locale} name={ws.name} base={base} search />
+      <HelpView handle={ws.handle} pageId={article.id} />
+      <HelpHeader locale={locale} name={ws.name} base={home} search />
+      <script
+        type="application/ld+json"
+        // Datos estructurados del artículo (JSON escapado: sin </script> posible).
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'Article',
+            headline: article.title || t('untitled'),
+            dateModified: article.updated_at,
+            publisher: { '@type': 'Organization', name: ws.name },
+            ...(seo?.seo_description || article.excerpt ? { description: seo?.seo_description || article.excerpt } : {}),
+          }).replace(/</g, '\\u003c'),
+        }}
+      />
 
       <div className="help-wrap">
         <nav className="help-crumbs" aria-label={t('breadcrumb')}>
           <ol>
             <li>
-              <a href={base}>{t('title')}</a>
+              <a href={home}>{t('title')}</a>
             </li>
             {article.collection && (
               <li>
@@ -94,9 +119,18 @@ export default async function HelpArticlePage(props: Props) {
               <h1 className="help-article-title">{article.title || t('untitled')}</h1>
               <p className="help-article-meta">
                 {t('updated', { date: format.dateTime(parseDbUtc(article.updated_at), { dateStyle: 'medium' }) })}
+                {seo?.allow_duplicate && (
+                  <a
+                    className="btn btn-secondary btn-sm help-duplicate"
+                    href={`${appOrigin()}/${locale}/app/docs/duplicate?handle=${encodeURIComponent(ws.handle)}&slug=${encodeURIComponent(article.slug)}`}
+                    data-testid="help-duplicate"
+                  >
+                    {t('duplicate')}
+                  </a>
+                )}
               </p>
             </header>
-            <DocsBlocksView blocks={blocks} pageId={article.id} className="docs-prose help-body" boards={false} syncedNoAccess={tEditor('synced.noAccess')} dbForeign={dbForeign} dbDefaultView />
+            <DocsBlocksView blocks={blocks} pageId={article.id} className="docs-prose help-body" boards={false} syncedNoAccess={t('syncedPrivate')} dbForeign={dbForeign} dbDefaultView />
 
             {/* Portada de colección: la lista de sus artículos. */}
             {article.children.length > 0 ? (

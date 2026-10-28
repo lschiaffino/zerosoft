@@ -150,7 +150,7 @@ interface DocsEditorProps {
   onSave: (patch: Partial<DocsPage>) => void;
   saving?: boolean;
   /** El último guardado falló: se muestra en lugar de "Guardado", con reintento. */
-  saveError?: 'tooLong' | 'failed' | 'conflict' | null;
+  saveError?: 'tooLong' | 'failed' | 'conflict' | 'offline' | null;
   onDuplicate?: () => void;
   onDelete?: () => void;
   onAddComment?: () => void;
@@ -3918,10 +3918,13 @@ export default function DocsEditor({
 
         <div className="docs-page-actions">
           <span
-            className={`docs-save-status${saveError && !saving && !dirty ? ' is-error' : ''}`}
+            className={`docs-save-status${saveError && saveError !== 'offline' && !saving && !dirty ? ' is-error' : ''}`}
             aria-live="polite"
+            data-testid="docs-save-status"
           >
-            {saving || dirty
+            {saveError === 'offline' && !saving
+              ? t('editor.savedOffline')
+              : saving || dirty
               ? t('editor.saving')
               : saveError === 'conflict'
                 ? t('editor.saveConflict')

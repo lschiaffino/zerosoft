@@ -12,7 +12,7 @@ import { getDb } from '@/lib/db';
 import { makeUser } from './helpers';
 
 const session = vi.hoisted(() => ({ user: null as null | { id: string; email: string } }));
-vi.mock('@/lib/session', () => ({ getCurrentUser: async () => session.user }));
+vi.mock('@/lib/session', () => ({ getCurrentUser: async () => session.user, isWorkspaceAdmin: () => true }));
 const workflowsRoute = await import('@/lib/routes/calendar/event-types/[id]/workflows/route');
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });

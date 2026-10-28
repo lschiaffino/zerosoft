@@ -5894,6 +5894,270 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Chat contra Intercom: equipos con su bandeja (y reglas que asignan a un
+    // equipo), vistas guardadas, seguir una conversación, presencia de agentes
+    // (quién mira o responde), canal email (entrante por Resend), mensajes
+    // salientes y encuestas en el widget. workspace_id = dueño del workspace.
+    id: '119_chat_parity',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE chat_conversations ADD COLUMN team_id TEXT');
+      await addColumn(client, "ALTER TABLE chat_conversations ADD COLUMN channel TEXT NOT NULL DEFAULT 'web'");
+      await addColumn(client, 'ALTER TABLE chat_conversations ADD COLUMN outbound_id TEXT');
+      // Message-IDs del hilo de email (JSON), para In-Reply-To y References.
+      await addColumn(client, 'ALTER TABLE chat_conversations ADD COLUMN email_thread TEXT');
+      await addColumn(client, 'ALTER TABLE chat_assignment_rules ADD COLUMN assign_team_id TEXT');
+      await addColumn(client, 'ALTER TABLE chat_assignment_rules ADD COLUMN team_round_robin INTEGER NOT NULL DEFAULT 0');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS chat_teams (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_teams_ws ON chat_teams(workspace_id);
+        CREATE TABLE IF NOT EXISTS chat_team_members (
+          team_id TEXT NOT NULL REFERENCES chat_teams(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (team_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_conversations_team ON chat_conversations(team_id) WHERE team_id IS NOT NULL;
+
+        CREATE TABLE IF NOT EXISTS chat_views (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          filters TEXT NOT NULL DEFAULT '{}',
+          shared INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_views_ws ON chat_views(workspace_id, user_id);
+
+        CREATE TABLE IF NOT EXISTS chat_conversation_followers (
+          conversation_id TEXT NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (conversation_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_followers_user ON chat_conversation_followers(user_id);
+
+        CREATE TABLE IF NOT EXISTS chat_presence (
+          conversation_id TEXT NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          typing INTEGER NOT NULL DEFAULT 0,
+          expires_at TEXT NOT NULL,
+          PRIMARY KEY (conversation_id, user_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS chat_outbound (
+          id TEXT PRIMARY KEY,
+          widget_id TEXT NOT NULL REFERENCES chat_widgets(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          kind TEXT NOT NULL DEFAULT 'chat' CHECK (kind IN ('chat', 'survey')),
+          body TEXT NOT NULL DEFAULT '',
+          url_match TEXT NOT NULL DEFAULT 'any' CHECK (url_match IN ('any', 'contains', 'equals')),
+          url_value TEXT NOT NULL DEFAULT '',
+          delay_seconds INTEGER NOT NULL DEFAULT 0,
+          audience TEXT NOT NULL DEFAULT 'all' CHECK (audience IN ('all', 'new', 'returning', 'identified')),
+          active INTEGER NOT NULL DEFAULT 0,
+          created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+          shown_count INTEGER NOT NULL DEFAULT 0,
+          reply_count INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_outbound_widget ON chat_outbound(widget_id, active);
+        CREATE TABLE IF NOT EXISTS chat_outbound_seen (
+          outbound_id TEXT NOT NULL REFERENCES chat_outbound(id) ON DELETE CASCADE,
+          visitor_key TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (outbound_id, visitor_key)
+        );
+        CREATE TABLE IF NOT EXISTS chat_outbound_responses (
+          id TEXT PRIMARY KEY,
+          outbound_id TEXT NOT NULL REFERENCES chat_outbound(id) ON DELETE CASCADE,
+          visitor_key TEXT NOT NULL,
+          score INTEGER NOT NULL,
+          comment TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (outbound_id, visitor_key)
+        );
+
+        CREATE TABLE IF NOT EXISTS chat_audit_log (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          actor_id TEXT,
+          action TEXT NOT NULL,
+          detail TEXT NOT NULL DEFAULT '{}',
+          ip TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_audit_ws ON chat_audit_log(workspace_id, created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS chat_inbound_emails (
+          email_id TEXT PRIMARY KEY,
+          conversation_id TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+    },
+  },
+  {
+    // Cal: paridad con Calendly / Cal.com. Tipos de evento secretos y de
+    // encuesta (meeting polls), marca sin "Powered by" y píxeles de
+    // seguimiento, calendarios elegidos por persona (Google y Outlook),
+    // reuniones de Zoom / Teams generadas por reserva, workflows con
+    // disparadores (reservar, cancelar, reprogramar, no-show, fin), SMS y
+    // webhook como pasos, reconfirmación, agendar en nombre de otro, embudo de
+    // routing forms, registro de actividad y encuestas de horario.
+    id: '118_cal_parity',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE calendar_event_types ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, "ALTER TABLE calendar_event_types ADD COLUMN kind TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, 'ALTER TABLE calendar_users ADD COLUMN hide_branding INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, "ALTER TABLE calendar_users ADD COLUMN tracking TEXT NOT NULL DEFAULT '{}'");
+      await addColumn(client, "ALTER TABLE calendar_users ADD COLUMN calendars TEXT NOT NULL DEFAULT '{}'");
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN google_calendar_id TEXT');
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN outlook_event_id TEXT');
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN zoom_meeting_id TEXT');
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN icloud_event_url TEXT');
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN reconfirmed_at TEXT');
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN routing_submission_id TEXT');
+      await addColumn(client, 'ALTER TABLE calendar_bookings ADD COLUMN booked_by TEXT');
+      await addColumn(client, "ALTER TABLE calendar_workflow_steps ADD COLUMN trigger TEXT NOT NULL DEFAULT 'start'");
+      await addColumn(client, "ALTER TABLE calendar_workflow_steps ADD COLUMN channel TEXT NOT NULL DEFAULT 'email'");
+      await addColumn(client, "ALTER TABLE calendar_workflow_steps ADD COLUMN target TEXT NOT NULL DEFAULT ''");
+      // Secreto whsec_ (cifrado) para firmar los pasos webhook como los webhooks del workspace.
+      await addColumn(client, "ALTER TABLE calendar_workflow_steps ADD COLUMN secret TEXT NOT NULL DEFAULT ''");
+      // Zona horaria de cada invitado extra (encuestas: cada uno ve la hora en la suya).
+      await addColumn(client, "ALTER TABLE calendar_bookings ADD COLUMN guest_timezones TEXT NOT NULL DEFAULT '{}'");
+      // Routing por consulta al CRM: la regla mira si el email es un contacto y puede reservar con su owner.
+      await addColumn(client, "ALTER TABLE calendar_routing_rules ADD COLUMN crm_match TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, 'ALTER TABLE calendar_routing_rules ADD COLUMN route_to_owner INTEGER NOT NULL DEFAULT 0');
+      await client.executeMultiple(`
+        CREATE INDEX IF NOT EXISTS idx_calendar_bookings_routing ON calendar_bookings(routing_submission_id);
+        CREATE INDEX IF NOT EXISTS idx_calendar_bookings_email ON calendar_bookings(invitee_email);
+
+        CREATE TABLE IF NOT EXISTS calendar_sms_settings (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          account_sid TEXT NOT NULL DEFAULT '',
+          auth_token TEXT NOT NULL DEFAULT '',
+          from_number TEXT NOT NULL DEFAULT '',
+          allowed_codes TEXT NOT NULL DEFAULT '',
+          daily_limit INTEGER NOT NULL DEFAULT 200,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS calendar_sms_sends (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          booking_id TEXT,
+          step_id TEXT,
+          starts_at TEXT,
+          sent_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_calendar_sms_sends_user ON calendar_sms_sends(user_id, sent_at);
+        CREATE INDEX IF NOT EXISTS idx_calendar_sms_sends_step ON calendar_sms_sends(step_id, booking_id);
+
+        CREATE TABLE IF NOT EXISTS calendar_activity (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          actor_id TEXT,
+          action TEXT NOT NULL,
+          target_type TEXT NOT NULL DEFAULT '',
+          target_id TEXT NOT NULL DEFAULT '',
+          summary TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_calendar_activity_user ON calendar_activity(user_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS calendar_polls (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_by TEXT,
+          title TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          duration_min INTEGER NOT NULL DEFAULT 30,
+          location TEXT NOT NULL DEFAULT '',
+          token TEXT NOT NULL UNIQUE,
+          status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'booked', 'closed')),
+          event_type_id TEXT REFERENCES calendar_event_types(id) ON DELETE SET NULL,
+          booking_id TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_calendar_polls_user ON calendar_polls(user_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS calendar_poll_options (
+          id TEXT PRIMARY KEY,
+          poll_id TEXT NOT NULL REFERENCES calendar_polls(id) ON DELETE CASCADE,
+          starts_at TEXT NOT NULL,
+          position INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE INDEX IF NOT EXISTS idx_calendar_poll_options_poll ON calendar_poll_options(poll_id, position);
+
+        CREATE TABLE IF NOT EXISTS calendar_poll_votes (
+          id TEXT PRIMARY KEY,
+          poll_id TEXT NOT NULL REFERENCES calendar_polls(id) ON DELETE CASCADE,
+          voter_name TEXT NOT NULL,
+          voter_email TEXT NOT NULL,
+          option_ids TEXT NOT NULL DEFAULT '[]',
+          timezone TEXT NOT NULL DEFAULT '',
+          edit_token TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (poll_id, voter_email)
+        );
+      `);
+    },
+  },
+  {
+    // Docs D5: sitio publicado (dominio propio, indexación, analítica de
+    // visitas), vistas por página dentro del workspace y, por página
+    // publicada, "duplicar como plantilla" y SEO propio.
+    id: '117_docs_d5',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN allow_duplicate INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN seo_description TEXT');
+      await addColumn(client, 'ALTER TABLE docs_pages ADD COLUMN seo_noindex INTEGER NOT NULL DEFAULT 0');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS docs_sites (
+          workspace_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          indexing INTEGER NOT NULL DEFAULT 1,
+          locale TEXT,
+          hostname TEXT UNIQUE,
+          verified INTEGER NOT NULL DEFAULT 0,
+          verified_at TEXT,
+          verify_token TEXT,
+          domain_added_at TEXT,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS docs_page_views (
+          page_id TEXT NOT NULL REFERENCES docs_pages(id) ON DELETE CASCADE,
+          viewer_id TEXT NOT NULL,
+          day TEXT NOT NULL,
+          views INTEGER NOT NULL DEFAULT 1,
+          last_at TEXT NOT NULL,
+          PRIMARY KEY (page_id, viewer_id, day)
+        );
+        CREATE INDEX IF NOT EXISTS idx_docs_page_views_page ON docs_page_views(page_id, day);
+        CREATE TABLE IF NOT EXISTS docs_site_views (
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          page_id TEXT NOT NULL,
+          day TEXT NOT NULL,
+          visitor TEXT NOT NULL,
+          views INTEGER NOT NULL DEFAULT 1,
+          referrer TEXT,
+          PRIMARY KEY (workspace_id, page_id, day, visitor)
+        );
+        CREATE INDEX IF NOT EXISTS idx_docs_site_views_day ON docs_site_views(workspace_id, day);
+      `);
+    },
+  },
+  {
     // Paridad de Flow: borrador y publicado (draft_graph; lo que corre sigue
     // siendo graph), carpetas, variables por persona, protección ante
     // avalanchas (corridas retenidas: held), concurrencia por flow y

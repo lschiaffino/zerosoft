@@ -8,6 +8,9 @@ import { PRODUCT_SETTINGS_SHORTCUTS } from '@/lib/product-settings';
 import { getDocsSettings, listTeamspaces } from '@/lib/docs-access';
 import { listPageMentionables } from '@/lib/docs';
 import { DocsAccessSettings, DocsAuditLog, DocsTeamspacesSettings } from '@/components/docs/DocsAdminSettings';
+import { DocsSiteSettings, DocsWorkspaceExport } from '@/components/docs/DocsSiteSettings';
+import { docsAllowed } from '@/lib/docs-guard';
+import { verifiedSiteHost } from '@/lib/docs-site';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,6 +37,7 @@ export default async function DocsSettingsPage(props: {
   const tabs = [
     { key: 'general', label: ts('general') },
     { key: 'teamspaces', label: t('teamspacesTab') },
+    ...(admin ? [{ key: 'site', label: t('siteTab') }] : []),
     ...(admin ? [{ key: 'audit', label: t('auditTab') }] : []),
   ];
   const tab = tabs.some((x) => x.key === rawTab) ? rawTab : 'general';
@@ -43,6 +47,8 @@ export default async function DocsSettingsPage(props: {
     listPageMentionables({ user_id: user.id }),
   ]);
   const shortcuts = PRODUCT_SETTINGS_SHORTCUTS.docs;
+  const siteHost = tab === 'site' ? await verifiedSiteHost(user.id) : null;
+  const canExport = await docsAllowed(user, user.id, 'allow_export');
 
   return (
     <ProductSettingsShell locale={locale} product="docs" tabs={tabs}>
@@ -50,6 +56,7 @@ export default async function DocsSettingsPage(props: {
         {tab === 'general' && (
           <>
             <DocsAccessSettings initial={settings} canManage={admin} />
+            <DocsWorkspaceExport allowed={canExport} />
             <FormSection title={ts('shortcuts')}>
               <ul className="st-links">
                 {shortcuts.map((s) => (
@@ -70,6 +77,12 @@ export default async function DocsSettingsPage(props: {
             meId={realUserId(user)}
             isAdmin={admin}
             canCreate={admin || settings.member_role === 'edit' || settings.member_role === 'full'}
+          />
+        )}
+        {tab === 'site' && admin && (
+          <DocsSiteSettings
+            handle={user.handle ?? null}
+            publicBase={user.handle ? (siteHost ? `https://${siteHost}` : `${(process.env.NEXTAUTH_URL ?? '').replace(/\/$/, '')}/${locale}/h/${user.handle}`) : null}
           />
         )}
         {tab === 'audit' && admin && (

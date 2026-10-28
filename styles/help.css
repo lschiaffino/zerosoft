@@ -189,7 +189,8 @@
   letter-spacing: -0.005em;
   text-wrap: balance;
 }
-.help-article-meta { margin: 12px 0 0; font-size: 0.875rem; color: var(--brand-gray-2); }
+.help-article-meta { margin: 12px 0 0; font-size: 0.875rem; color: var(--brand-gray-2); display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.help-duplicate { margin-left: auto; }
 
 .help-toc { position: sticky; top: 32px; align-self: start; padding-top: 4px; }
 .help-toc-label { margin: 0 0 10px; font-size: 0.8125rem; font-weight: 700; color: var(--ink); }

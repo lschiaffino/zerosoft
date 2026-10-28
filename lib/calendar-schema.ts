@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { MAX_PERIOD_LIMIT, SLOT_INTERVAL_MAX, SLOT_INTERVAL_MIN } from './calendar-limits';
 import { isValidRedirectUrl } from './calendar-redirect';
 import { LOCATION_KINDS, MAX_LOCATIONS, locationProblem } from './calendar-locations';
+import { GA4_ID, META_PIXEL_ID } from './calendar-tracking';
 import { guestLimit, isValidPhone, MAX_GUESTS, MAX_QUESTION_OPTIONS, OPTION_QUESTION_TYPES, QUESTION_TYPES } from './calendar-questions';
 
 // ---------- Primitivas ----------
@@ -135,6 +136,15 @@ export const calendarConfigUpdateSchema = z.object({
   brandColor: hexColor.nullish(),
   logoUrl: logoUrl.nullish(),
   displayName: z.string().trim().max(80).nullish(),
+  /** Sin "Powered by zerosoft" en las páginas públicas (admins). */
+  hideBranding: z.boolean().optional(),
+  /** Píxeles de las páginas públicas ('' = sacarlo). */
+  tracking: z
+    .object({
+      ga4: z.string().trim().max(24).refine((v) => v === '' || GA4_ID.test(v), { message: 'invalid_tracking' }).optional(),
+      metaPixel: z.string().trim().max(24).refine((v) => v === '' || META_PIXEL_ID.test(v), { message: 'invalid_tracking' }).optional(),
+    })
+    .optional(),
   /** Links fijos del anfitrión para las ubicaciones Zoom, Teams y teléfono. */
   conferencing: z
     .object({
@@ -166,6 +176,8 @@ export const eventTypeCreateSchema = z.object({
   description: longText.optional(),
   color: hexColor.optional(),
   active: z.boolean().optional(),
+  /** Secreto: se reserva con el link, no sale en el perfil público. */
+  hidden: z.boolean().optional(),
   bookingRules,
   fields: z.array(customField).max(20).optional(),
   teamId: id.nullish(),
@@ -256,6 +268,10 @@ export const bookingCreateSchema = z.object({
   utm: z.record(z.unknown()).optional(),
   /** Invitados extra (emails): solo si el evento los permite (validateGuests). */
   guests: z.array(email).max(MAX_GUESTS).optional(),
+  /** Envío del routing form que trajo al invitado (embudo de routing forms). */
+  routingSubmissionId: id.optional(),
+  /** Reservar con una persona puntual del pool: token opaco (lib/calendar-host-token.ts). */
+  hostId: z.string().trim().max(400).optional(),
   /** Ubicación elegida (clave de lib/calendar-locations.ts) y teléfono si el anfitrión llama. */
   location: z
     .object({ key: z.string().trim().max(40).optional(), phone: z.string().trim().max(40).optional() })
@@ -351,6 +367,8 @@ export function validateGuests(
 /** Acciones del invitado desde su link de gestión. */
 export const bookingManageSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('cancel'), reason: z.string().trim().max(500).optional() }),
+  /** El invitado confirma que va (link {{reconfirm}} de un workflow). */
+  z.object({ action: z.literal('reconfirm') }),
   z.object({
     action: z.literal('reschedule'),
     start: isoDate,
@@ -423,6 +441,10 @@ const routingRuleFields = z.object({
   targetUrl: routingUrl.optional(),
   message: longText.optional(),
   position: z.number().int().min(0).optional(),
+  /** Consulta al CRM: la respuesta (un email) es o no un contacto del workspace. */
+  crmMatch: z.enum(['', 'contact', 'no_contact']).optional(),
+  /** Con un contacto del CRM, reservar con su owner (si es anfitrión del evento). */
+  routeToOwner: z.boolean().optional(),
 });
 
 /** Cada destino trae lo suyo: el evento, la URL o el texto del mensaje. */
@@ -500,13 +522,33 @@ export const hostRescheduleSchema = z.object({
 
 export const WORKFLOW_MAX_OFFSET_MIN = 60 * 24 * 30;
 
-export const workflowStepSchema = z.object({
-  recipient: z.enum(['guest', 'host']),
-  /** Minutos relativos al inicio: negativo = antes, positivo = después. */
-  offsetMin: z.number().int().min(-WORKFLOW_MAX_OFFSET_MIN).max(WORKFLOW_MAX_OFFSET_MIN),
-  subject: z.string().trim().min(1).max(200),
-  body: z.string().trim().min(1).max(5000),
-});
+export const workflowStepSchema = z
+  .object({
+    /** start (relativo al inicio), end (después del fin) o un hecho: booked, cancelled, rescheduled, no_show. */
+    trigger: z.enum(['start', 'end', 'booked', 'cancelled', 'rescheduled', 'no_show']).optional(),
+    /** email, sms (Twilio del workspace) o webhook (POST a una URL). */
+    channel: z.enum(['email', 'sms', 'webhook']).optional(),
+    recipient: z.enum(['guest', 'host']),
+    /** Minutos: relativos al inicio (negativo = antes) o demora después del fin o del hecho (≥ 0). */
+    offsetMin: z.number().int().min(-WORKFLOW_MAX_OFFSET_MIN).max(WORKFLOW_MAX_OFFSET_MIN),
+    subject: z.string().trim().max(200).optional().default(''),
+    body: z.string().trim().max(5000).optional().default(''),
+    target: z.string().trim().max(2000).optional(),
+    /** Secreto whsec_ que ya tenía el paso webhook (se conserva al guardar). */
+    secret: z.string().trim().max(100).optional(),
+  })
+  .superRefine((s, ctx) => {
+    const channel = s.channel ?? 'email';
+    if (channel === 'email' && !s.subject) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'missing_subject', path: ['subject'] });
+    if (channel !== 'webhook' && !s.body) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'missing_body', path: ['body'] });
+    if (channel === 'sms' && s.body.length > 612) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'sms_too_long', path: ['body'] });
+    if (channel === 'webhook' && !(s.target && isValidRedirectUrl(s.target))) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'invalid_url', path: ['target'] });
+    }
+    if ((s.trigger ?? 'start') !== 'start' && s.offsetMin < 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'invalid_offset', path: ['offsetMin'] });
+    }
+  });
 
 export const workflowStepsSchema = z.object({ steps: z.array(workflowStepSchema).max(10) });
 
@@ -530,4 +572,31 @@ export const paymentSettingsSchema = z.object({
     .max(300)
     .regex(/^$|^whsec_[A-Za-z0-9+/=]+$/, { message: 'invalid_key' })
     .optional(),
+});
+
+// ---------- Encuestas de horario (meeting polls) ----------
+
+export const pollCreateSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  description: longText.optional(),
+  durationMin: z.number().int().min(5).max(720),
+  location: z.string().trim().max(500).optional(),
+  /** Horarios propuestos (ISO); se descartan los pasados y repetidos. */
+  times: z.array(z.string().trim().min(1).max(40)).min(2).max(20),
+});
+
+export const pollUpdateSchema = z.object({
+  title: z.string().trim().min(1).max(200).optional(),
+  description: longText.optional(),
+  location: z.string().trim().max(500).optional(),
+  status: z.enum(['open', 'closed']).optional(),
+});
+
+export const pollVoteSchema = z.object({
+  name: personName.refine((v) => v.length > 0, { message: 'invalid_name' }),
+  email,
+  optionIds: z.array(id).min(1).max(20),
+  timezone: ianaTimezone.optional(),
+  /** Token propio del votante (lo devuelve su primer voto) para cambiar su voto. */
+  editToken: z.string().trim().max(64).optional(),
 });

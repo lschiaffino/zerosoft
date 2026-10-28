@@ -809,6 +809,7 @@
     "robot_run_failed": "Robots: corrida fallida",
     "robot_output_changed": "Robots: cambiaron los datos",
     "booking_declined": "Cal: solicitud de reserva rechazada",
+    "booking_reconfirmed": "Cal: el invitado reconfirmó",
     "booking_refunded": "Cal: pago reembolsado",
     "conversation_assigned": "Chat: conversación asignada",
     "conversation_resolved": "Chat: conversación resuelta",

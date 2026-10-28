@@ -1,11 +1,12 @@
 import { notFound } from 'next/navigation';
-import { requireUser } from '@/lib/session';
+import { realUserId, requireUser } from '@/lib/session';
 import {
   getChatConversationWithVisitor,
   listChatMessagesWithUsers,
   listChatAgents,
 } from '@/lib/chat-data';
 import ConversationClient from '@/components/chat/ConversationClient';
+import { isFollowing, listChatTeams } from '@/lib/chat-collab';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +31,8 @@ export default async function ChatConversationPage(
   const messages = await listChatMessagesWithUsers(id);
   const agents = await listChatAgents(conversation.widget_user_id, conversation.widget_team_id);
   const me = user.actingUser ?? user;
+  const teams = (await listChatTeams(conversation.widget_user_id)).map((x) => ({ id: x.id, name: x.name }));
+  const following = await isFollowing(id, realUserId(user));
 
   return (
     <ConversationClient
@@ -38,6 +41,8 @@ export default async function ChatConversationPage(
       initialConversation={conversation}
       initialMessages={messages}
       agents={agents}
+      teams={teams}
+      initialFollowing={following}
       currentUser={{
         id: me.id,
         email: me.email,
