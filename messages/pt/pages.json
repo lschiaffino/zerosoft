@@ -2474,7 +2474,7 @@
     "linksTrackSaleTitle": "Registrar uma venda",
     "linksTrackSaleDesc": "Soma receita ao link que trouxe o cliente: por customerExternalId (um lead registrado antes) ou por clickId em uma venda direta. Os valores vão em unidades menores. Um invoiceId repetido devolve duplicate: true e não conta duas vezes.",
     "linksTrackOpenTitle": "Deep link diferido (abertura do app)",
-    "linksTrackOpenDesc": "O seu app chama ao abrir pela primeira vez, sem API key. Devolve o link que a pessoa tocou na última hora a partir da mesma rede e plataforma (correspondência por um hash com sal, de uso único), ou resolve deepLink se o app abriu com um link curto. 404 se não houver correspondência.",
+    "linksTrackOpenDesc": "O seu app chama ao abrir pela primeira vez com a publishable key do workspace (Authorization: Bearer zs_pk_…, em Configurações do Link › Conversões), nunca com uma API key. Devolve o link deste workspace tocado na última hora a partir da mesma rede e plataforma (correspondência por um hash com sal, de uso único), ou resolve deepLink se o app abriu com um dos seus links curtos. Links com senha voltam sem destino; arquivados, expirados, bloqueados ou sem cliques dão 404.",
     "linksMcpTitle": "Servidor MCP",
     "linksMcpDesc": "Servidor Model Context Protocol (streamable HTTP, respostas JSON) para agentes de IA. Ferramentas: list_links, get_link, create_link, update_link, delete_link, get_link_analytics, get_analytics, list_conversions e list_activity. links:read lê, links:write cria e edita. A key age como a pessoa que a criou, com as permissões de pastas dela.",
     "paramClickId": "Click id que chegou ao seu site como ?zs_id= (20 letras e números).",

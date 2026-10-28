@@ -17,6 +17,7 @@ import { getDb } from './db';
 import { emitEventSoon } from './events';
 import { linkShortUrl, parseTags, type LinkWithDomain } from './links';
 import { CLICK_ID_RE } from './link-click-id';
+import { linkAccess, type LinkViewer } from './link-folders';
 
 export { CLICK_ID_PARAM, CLICK_ID_RE, newClickId, withClickId } from './link-click-id';
 
@@ -144,6 +145,15 @@ export interface TrackLeadInput {
   customer: CustomerInput;
   metadata?: Record<string, unknown> | null;
   source?: ConversionSource;
+  /** API v1: quien creó la key; un link de una carpeta que no ve cuenta como inexistente. */
+  viewer?: LinkViewer;
+}
+
+/** El link del click está en una carpeta que `viewer` no ve: se trata como inexistente. */
+async function assertVisible(ws: string, linkId: string, viewer?: LinkViewer): Promise<void> {
+  if (!viewer) return;
+  const link = await linkFor(ws, linkId);
+  if (!link || (await linkAccess(link, viewer)) === 'none') throw new ConversionError('click_not_found', 404);
 }
 
 /**
@@ -153,6 +163,7 @@ export interface TrackLeadInput {
 export async function trackLead(ws: string, input: TrackLeadInput): Promise<{ conversion: ConversionDto; duplicate: boolean }> {
   const click = await clickOf(ws, input.clickId);
   if (!click) throw new ConversionError('click_not_found', 404);
+  await assertVisible(ws, click.link_id, input.viewer);
   const externalId = clean(input.customer.externalId, 255);
   if (!externalId) throw new ConversionError('invalid_customer', 400);
   const eventName = clean(input.eventName, 100) ?? 'Sign up';
@@ -205,6 +216,7 @@ export interface TrackSaleInput {
   /** Para atribuir cobros recurrentes de Stripe al mismo cliente. */
   stripeCustomerId?: string | null;
   customer?: Omit<CustomerInput, 'externalId'>;
+  viewer?: LinkViewer;
 }
 
 /** A qué click se atribuye una venta: el del cliente (lead) o el click id directo. */
@@ -238,6 +250,7 @@ export async function trackSale(ws: string, input: TrackSaleInput): Promise<{ co
   const resolved = await resolveSaleClick(ws, input);
   if (!resolved) throw new ConversionError(input.customerExternalId ? 'customer_not_found' : 'click_not_found', 404);
   const { click, customer } = resolved;
+  await assertVisible(ws, click.link_id, input.viewer);
   const db = getDb();
   // Venta directa con click id y cliente nuevo: el cliente queda atribuido (para las próximas).
   if (customer) {
@@ -391,6 +404,7 @@ export async function attributeStripeEvent(
 
   if (event.type === 'checkout.session.completed') {
     if (obj.payment_status !== 'paid' && obj.payment_status !== 'no_payment_required') return 'ignored';
+    // Un Checkout de 0 (prueba gratis, cupón del 100 %) cuenta como venta de 0, igual que por la API.
     amount = Number(obj.amount_total ?? 0);
     // La primera factura de una suscripción llega también como invoice.paid: misma clave.
     invoiceId = `stripe:${String(obj.invoice ?? obj.payment_intent ?? obj.id ?? event.id)}`;
@@ -409,7 +423,7 @@ export async function attributeStripeEvent(
     return 'ignored';
   }
   if (!clickId && !customerExternalId) return 'ignored';
-  if (!Number.isFinite(amount) || amount <= 0) return 'ignored';
+  if (!Number.isFinite(amount) || amount < 0) return 'ignored';
   // Sin id de cliente propio, el cliente de Stripe hace de id (para las facturas siguientes).
   if (!customerExternalId && stripeCustomer) customerExternalId = `stripe:${stripeCustomer}`;
   try {

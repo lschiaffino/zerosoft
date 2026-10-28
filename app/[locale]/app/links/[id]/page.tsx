@@ -247,7 +247,7 @@ export default async function LinkDetailPage(props: DetailPageProps) {
               </div>
               <div className="lk-stat">
                 <dt>{t('analytics.revenue')}</dt>
-                <dd className="lk-stat-text data" data-testid="detail-revenue">
+                <dd className="lk-revenue data" data-testid="detail-revenue">
                   {convTotals.revenue.length
                     ? convTotals.revenue.map((r) => formatMoney(r.amount, r.currency, locale)).join(' · ')
                     : t('analytics.noRevenue')}

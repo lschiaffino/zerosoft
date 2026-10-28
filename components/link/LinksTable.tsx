@@ -149,8 +149,13 @@ export default function LinksTable({
         focusRow(Math.max(0, cur < 0 ? 0 : cur - 1));
         return;
       }
-      if (key === 'Escape' && (cur >= 0 || confirming)) {
+      if (key === 'Escape' && confirming) {
         setConfirmingId(null);
+        const i = list.findIndex((r) => r.id === confirming);
+        if (i >= 0) focusRow(i);
+        return;
+      }
+      if (key === 'Escape' && cur >= 0) {
         setActive(-1);
         (document.activeElement as HTMLElement | null)?.blur?.();
         return;
@@ -410,12 +415,6 @@ export default function LinksTable({
                           className="btn btn-sm btn-primary btn-danger"
                           data-confirm-delete={row.id}
                           onClick={() => remove(row.id)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Escape') {
-                              setConfirmingId(null);
-                              rowRefs.current[index]?.focus();
-                            }
-                          }}
                         >
                           {t('common.delete')}
                         </button>

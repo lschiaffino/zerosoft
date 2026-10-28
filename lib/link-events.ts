@@ -34,6 +34,8 @@ export interface LinkEventsCursor {
 export interface LinkEventsPage {
   events: LinkEvent[];
   cursor: LinkEventsCursor;
+  /** Para pedir lo anterior (?beforeClick=&beforeConv=); null = no hay más viejos. */
+  older: LinkEventsCursor | null;
 }
 
 export interface LinkEventsOptions {
@@ -41,6 +43,8 @@ export interface LinkEventsOptions {
   linkId?: string;
   /** Sin cursor: los últimos `limit`. Con cursor: lo posterior (hasta `limit`). */
   after?: LinkEventsCursor | null;
+  /** Página de eventos más viejos que este cursor (ids menores). */
+  before?: LinkEventsCursor | null;
   limit?: number;
 }
 
@@ -57,7 +61,7 @@ export async function listLinkEvents(userId: string, opts: LinkEventsOptions = {
   const vis = visibleLinksSql(opts.viewer);
   // Sin cursor: el punto de partida son los ids máximos de ahora (también con la lista vacía);
   // se leen antes, así nada de lo que entre después queda debajo del cursor sin mostrarse.
-  const maxRow = opts.after
+  const maxRow = opts.after || opts.before
     ? null
     : ((await db
         .prepare('SELECT (SELECT COALESCE(MAX(id), 0) FROM clicks) AS c, (SELECT COALESCE(MAX(id), 0) FROM link_conversions) AS v')
@@ -76,6 +80,9 @@ export async function listLinkEvents(userId: string, opts: LinkEventsOptions = {
     if (opts.after) {
       parts.push(`${alias}.id > ?`);
       args.push(alias === 'c' ? opts.after.click : opts.after.conv);
+    } else if (opts.before) {
+      parts.push(`${alias}.id < ?`);
+      args.push(alias === 'c' ? opts.before.click : opts.before.conv);
     } else if (maxRow) {
       parts.push(`${alias}.id <= ?`);
       args.push(alias === 'c' ? Number(maxRow.c) : Number(maxRow.v));
@@ -168,6 +175,21 @@ export async function listLinkEvents(userId: string, opts: LinkEventsOptions = {
         click: clicks.length ? Math.max(...clicks.map((r) => Number(r.id))) : opts.after.click,
         conv: convs.length ? Math.max(...convs.map((r) => Number(r.id))) : opts.after.conv,
       }
-    : { click: Number(maxRow?.c ?? 0), conv: Number(maxRow?.v ?? 0) };
-  return { events: events.slice(0, opts.after ? limit * 2 : limit), cursor };
+    : { click: Number(maxRow?.c ?? opts.before?.click ?? 0), conv: Number(maxRow?.v ?? opts.before?.conv ?? 0) };
+  if (opts.after) return { events: events.slice(0, limit * 2), cursor, older: null };
+  // Hacia atrás: la página son los `limit` más nuevos de lo pedido; el cursor viejo sale de lo
+  // que entró (lo que quedó afuera vuelve en la próxima página).
+  const page = events.slice(0, limit);
+  const minId = (prefix: 'c' | 'v', fallback: number, hadRows: boolean) => {
+    const ids = page.filter((e) => e.key[0] === prefix).map((e) => Number(e.key.slice(1)));
+    if (ids.length) return Math.min(...ids);
+    return hadRows ? fallback : 0;
+  };
+  const start = opts.before ?? { click: cursor.click + 1, conv: cursor.conv + 1 };
+  const older = {
+    click: minId('c', start.click, clicks.length > 0),
+    conv: minId('v', start.conv, convs.length > 0),
+  };
+  const more = clicks.length >= limit || convs.length >= limit || events.length > page.length;
+  return { events: page, cursor, older: more ? older : null };
 }

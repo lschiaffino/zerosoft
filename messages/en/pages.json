@@ -2474,7 +2474,7 @@
     "linksTrackSaleTitle": "Track a sale",
     "linksTrackSaleDesc": "Records revenue for the link that brought the customer: by customerExternalId (a lead tracked before) or by clickId for a direct sale. Amounts go in minor units. A repeated invoiceId returns duplicate: true and does not count twice.",
     "linksTrackOpenTitle": "Deferred deep link (app open)",
-    "linksTrackOpenDesc": "Called by your mobile app on its first open, without an API key. It returns the link the person tapped in the last hour from the same network and platform (matched by a salted hash, used once), or resolves deepLink if the app was opened with a short link. 404 when there is no match.",
+    "linksTrackOpenDesc": "Called by your mobile app on its first open with the workspace publishable key (Authorization: Bearer zs_pk_…, in Link settings › Conversions), never with an API key. It returns the link of this workspace tapped in the last hour from the same network and platform (matched by a salted hash, used once), or resolves deepLink if the app was opened with one of your short links. Password-protected links come back without destination; archived, expired, blocked or exhausted links are a 404.",
     "linksMcpTitle": "MCP server",
     "linksMcpDesc": "Model Context Protocol server (streamable HTTP, JSON responses) for AI agents. Tools: list_links, get_link, create_link, update_link, delete_link, get_link_analytics, get_analytics, list_conversions and list_activity. links:read reads, links:write creates and edits. The key acts as the person who created it, folder permissions included.",
     "paramClickId": "Click id that reached your site as ?zs_id= (20 letters and numbers).",

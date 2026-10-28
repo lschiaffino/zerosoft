@@ -27,6 +27,8 @@ export const SLACK_EVENTS = [
 ] as const;
 export type SlackEvent = (typeof SLACK_EVENTS)[number];
 export const DEFAULT_SLACK_EVENTS: SlackEvent[] = ['deal.won', 'form.submitted', 'quote.accepted', 'quote.paid'];
+/** Lo que Slack anuncia por defecto si se conecta desde Link. */
+export const DEFAULT_LINK_SLACK_EVENTS: SlackEvent[] = ['link.created', 'link.lead', 'link.sale'];
 
 /** Eventos que Zapier/Make reciben por defecto al conectar (el resto se suma desde Webhooks). */
 export const AUTOMATION_DEFAULT_EVENTS = [

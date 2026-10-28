@@ -64,6 +64,11 @@ export default function QrSection({ id, slug }: QrSectionProps) {
   async function saveTemplate() {
     const name = templateName.trim();
     if (!name) return;
+    // Una plantilla con poco contraste haría QRs que no se leen.
+    if (!hasEnoughContrast(style.fg, style.bg)) {
+      setTemplateMsg({ kind: 'error', text: t('qr.lowContrast') });
+      return;
+    }
     setSavingTemplate(true);
     setTemplateMsg(null);
     const res = await fetch('/api/links/qr-templates', {
@@ -80,6 +85,23 @@ export default function QrSection({ id, slug }: QrSectionProps) {
     } else {
       setTemplateMsg({ kind: 'error', text: data?.error === 'template_limit' ? t('qr.templateLimit') : t('errors.generic') });
     }
+  }
+
+  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
+
+  async function renameTemplate() {
+    if (!renaming) return;
+    const name = renaming.name.trim();
+    const current = templates?.find((x) => x.id === renaming.id);
+    setRenaming(null);
+    if (!name || !current || name === current.name) return;
+    const res = await fetch(`/api/links/qr-templates/${current.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name }),
+    }).catch(() => null);
+    if (res?.ok) setTemplates((prev) => (prev ?? []).map((x) => (x.id === current.id ? { ...x, name } : x)));
+    else setTemplateMsg({ kind: 'error', text: t(res?.status === 403 ? 'errors.forbidden' : 'errors.generic') });
   }
 
   async function removeTemplate(tpl: QrTemplate) {
@@ -198,16 +220,47 @@ export default function QrSection({ id, slug }: QrSectionProps) {
             <ul className="lk-qr-templates" aria-labelledby="qr-templates-label" data-testid="qr-templates">
               {templates.map((tpl) => (
                 <li key={tpl.id} className="lk-qr-template">
+                  {renaming?.id === tpl.id ? (
+                    <input
+                      className="input lk-qr-rename"
+                      autoFocus
+                      maxLength={60}
+                      value={renaming.name}
+                      aria-label={t('qr.templateRename', { name: tpl.name })}
+                      onChange={(e) => setRenaming({ id: tpl.id, name: e.target.value })}
+                      onBlur={() => void renameTemplate()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          void renameTemplate();
+                        }
+                        if (e.key === 'Escape') {
+                          e.preventDefault();
+                          setRenaming(null);
+                        }
+                      }}
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      onClick={() => {
+                        setStyle({ ...DEFAULT_QR_STYLE, ...tpl.style });
+                        setTemplateMsg({ kind: 'info', text: t('qr.templateApplied', { name: tpl.name }) });
+                      }}
+                    >
+                      <span className="lk-qr-swatch" style={{ background: tpl.style.fg, borderColor: tpl.style.bg }} aria-hidden="true" />
+                      {tpl.name}
+                    </button>
+                  )}
                   <button
                     type="button"
-                    className="btn btn-sm"
-                    onClick={() => {
-                      setStyle({ ...DEFAULT_QR_STYLE, ...tpl.style });
-                      setTemplateMsg({ kind: 'info', text: t('qr.templateApplied', { name: tpl.name }) });
-                    }}
+                    className="btn btn-sm btn-ghost btn-icon"
+                    aria-label={t('qr.templateRename', { name: tpl.name })}
+                    title={t('qr.templateRename', { name: tpl.name })}
+                    onClick={() => setRenaming({ id: tpl.id, name: tpl.name })}
                   >
-                    <span className="lk-qr-swatch" style={{ background: tpl.style.fg, borderColor: tpl.style.bg }} aria-hidden="true" />
-                    {tpl.name}
+                    <LinkIcon name="edit" size={13} />
                   </button>
                   <button
                     type="button"

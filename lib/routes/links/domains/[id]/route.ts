@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { deleteDomain, setDomainUrls } from '@/lib/link-domains';
 import { isShortLinkUrl } from '@/lib/links';
+import { firstUnsafe } from '@/lib/link-safety';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,6 +28,11 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   // Ninguno puede apuntar a un link corto ni a la raíz de un dominio propio (loop).
   for (const url of [rootUrl, notFoundUrl, expiredUrl]) {
     if (url && (await isShortLinkUrl(url))) return NextResponse.json({ error: 'self_link' }, { status: 400 });
+  }
+  // Anti-phishing: las redirecciones del dominio son destinos como cualquier link.
+  const fresh = [rootUrl, notFoundUrl, expiredUrl].filter((u): u is string => Boolean(u));
+  if (fresh.length && (await firstUnsafe(fresh)).reason) {
+    return NextResponse.json({ error: 'unsafe_url' }, { status: 400 });
   }
   const ok = await setDomainUrls(user.id, id, {
     root_url: rootUrl,

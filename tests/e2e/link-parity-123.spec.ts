@@ -239,15 +239,19 @@ test('Link: deep linking diferido y cloaking en dominio propio', async ({ reques
   const id = (await created.json()).links[0].id as string;
   await request.patch(`/api/links/${id}`, { data: { targeting: { ios: { app: 'acme://promo/42', fallback: 'https://apps.apple.com/app/id1' } } } });
   const ip = `198.51.100.${Math.floor(Math.random() * 200) + 1}`;
+  const pk = ((await (await request.get('/api/links/publishable-key')).json()) as { key: string }).key;
+  // Sin la publishable key no hay nada.
+  expect((await request.post('/api/v1/links/track/open', { headers: { 'x-forwarded-for': ip }, data: { platform: 'ios' } })).status()).toBe(401);
+  const openHeaders = { 'x-forwarded-for': ip, authorization: `Bearer ${pk}` };
   const tap = await request.get(`/${slug}`, { headers: { 'user-agent': IPHONE_UA, 'x-forwarded-for': ip }, maxRedirects: 0 });
   expect(await tap.text()).toContain('acme://promo/42');
   await expect
-    .poll(async () => (await request.post('/api/v1/links/track/open', { headers: { 'x-forwarded-for': ip }, data: { platform: 'ios' } })).status(), {
+    .poll(async () => (await request.post('/api/v1/links/track/open', { headers: openHeaders, data: { platform: 'ios' } })).status(), {
       timeout: 10_000,
     })
     .toBe(200);
   // Ya se usó: la segunda apertura no coincide.
-  const again = await request.post('/api/v1/links/track/open', { headers: { 'x-forwarded-for': ip }, data: { platform: 'ios' } });
+  const again = await request.post('/api/v1/links/track/open', { headers: openHeaders, data: { platform: 'ios' } });
   expect(again.status()).toBe(404);
 
   // Cloaking: solo con dominio propio verificado.

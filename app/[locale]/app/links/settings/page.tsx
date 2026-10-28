@@ -15,6 +15,9 @@ import ImportLinksPanel from '@/components/link/ImportLinksPanel';
 import LinkIntegrationsPanel from '@/components/link/LinkIntegrationsPanel';
 import LinkActivityList from '@/components/link/LinkActivityList';
 import CopyButton from '@/components/link/CopyButton';
+import PublishableKeyPanel from '@/components/link/PublishableKeyPanel';
+import { getPublishableKey } from '@/lib/link-publishable';
+import { realUserId } from '@/lib/session';
 import EmptyState from '@/components/ui/EmptyState';
 import FormSection from '@/components/ui/FormSection';
 
@@ -85,8 +88,15 @@ export default async function LinkSettingsPage(props: {
         <DomainsPanel initial={domains} canManage={admin} />
       </div>
     );
+  } else if ((tab === 'conversions' || tab === 'integrations') && !admin) {
+    // Secretos, endpoints y la publishable key: solo admins.
+    body = <EmptyState title={labels[tab]} body={tl('errors.forbidden')} product="link" />;
   } else if (tab === 'conversions') {
-    const [integrations, apps] = await Promise.all([listLinkIntegrations(user.id), listApps(user.id)]);
+    const [integrations, apps, publishable] = await Promise.all([
+      listLinkIntegrations(user.id),
+      listApps(user.id),
+      getPublishableKey(user.id, realUserId(user)),
+    ]);
     const stripe = apps.find((a) => a.key === 'stripe');
     const snippet = `<script src="${base}/link-tracking.js" defer></script>`;
     const lead = `curl -X POST ${base}/api/v1/links/track/lead \\
@@ -125,6 +135,15 @@ export default async function LinkSettingsPage(props: {
         <FormSection id="conv-shopify" title={tl('integrations.shopify.name')} description={tl('integrations.shopify.desc')}>
           <LinkIntegrationsPanel initial={integrations} canEdit={admin} only={['shopify']} />
         </FormSection>
+        <FormSection id="conv-deferred" title={tl('conversions.deferredTitle')} description={tl('conversions.deferredDesc')}>
+          <PublishableKeyPanel initial={publishable} />
+          <CodeBlock
+            code={`curl -X POST ${base}/api/v1/links/track/open \\
+  -H "Authorization: Bearer ${publishable}" -H "Content-Type: application/json" \\
+  -d '{"platform":"ios","domain":"go.example.com"}'`}
+            label={tl('conversions.deferredTitle')}
+          />
+        </FormSection>
       </div>
     );
   } else if (tab === 'integrations') {
@@ -134,7 +153,18 @@ export default async function LinkSettingsPage(props: {
       <>
         <FormSection id="int-apps" title={tl('integrations.title')} description={tl('integrations.desc')}>
           <ClientMessages locale={locale} namespaces={['crm']}>
-            <AppsPanel initial={apps} canEdit={admin} only={['slack', 'stripe', 'zapier', 'make']} />
+            <AppsPanel
+              initial={apps.map((a) => ({ ...a, hint: '' }))}
+              canEdit={admin}
+              only={['slack', 'stripe', 'zapier', 'make']}
+              source="link"
+              descriptions={{
+                slack: tl('integrations.cards.slack'),
+                stripe: tl('integrations.cards.stripe'),
+                zapier: tl('integrations.cards.zapier'),
+                make: tl('integrations.cards.make'),
+              }}
+            />
           </ClientMessages>
         </FormSection>
         <FormSection id="int-segment" title={tl('integrations.segment.name')} description={tl('integrations.segment.desc')}>

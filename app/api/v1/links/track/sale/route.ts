@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { apiError, requireApiUser } from '@/lib/api-auth';
 import { ConversionError, trackSale } from '@/lib/link-conversions';
+import { roleAtLeast } from '@/lib/teams';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,7 +18,13 @@ const schema = z
     currency: z.string().length(3).optional(),
     eventName: z.string().min(1).max(100).optional(),
     /** Id del pago o factura: la misma venta no se cuenta dos veces. */
-    invoiceId: z.string().min(1).max(255).optional(),
+    invoiceId: z
+      .string()
+      .min(1)
+      .max(255)
+      // stripe: y shopify: son de las integraciones: la API no puede pisar (ni adelantar) esas ventas.
+      .refine((v) => !/^(stripe|shopify):/i.test(v), 'the stripe: and shopify: prefixes are reserved')
+      .optional(),
     metadata: z.record(z.string(), z.unknown()).nullish(),
   })
   .refine((b) => b.customerExternalId || b.clickId, { message: 'customerExternalId or clickId is required', path: ['customerExternalId'] });
@@ -33,6 +40,7 @@ const MESSAGES: Record<string, string> = {
 export async function POST(req: NextRequest) {
   const auth = await requireApiUser(req, 'links:write');
   if ('res' in auth) return auth.res;
+  const viewer = { id: auth.personId, admin: roleAtLeast(auth.role, 'admin') };
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
@@ -48,6 +56,7 @@ export async function POST(req: NextRequest) {
       eventName: b.eventName,
       invoiceId: b.invoiceId ?? null,
       metadata: b.metadata ?? null,
+      viewer,
     });
     return NextResponse.json({ sale: conversion, duplicate }, { status: duplicate ? 200 : 201 });
   } catch (err) {

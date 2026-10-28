@@ -25,7 +25,17 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   if (format === 'json') return NextResponse.json({ style, target });
 
   if (format === 'png') {
-    // PNG plano con los colores (el PNG con logo y forma lo arma el navegador).
+    // Con sharp (lo trae Next para optimizar imágenes) el PNG es el mismo SVG: marco, forma y logo.
+    // Si no está, PNG plano con los colores.
+    try {
+      const sharp = (await import('sharp')).default;
+      const png = await sharp(Buffer.from(renderQrSvg(target, style)), { density: 300 }).resize({ width: 1024 }).png().toBuffer();
+      return new NextResponse(new Uint8Array(png), {
+        headers: { 'content-type': 'image/png', 'content-disposition': `attachment; filename="${link.slug}.png"` },
+      });
+    } catch {
+      /* sin sharp: abajo */
+    }
     const buf = await QRCode.toBuffer(target, {
       type: 'png',
       width: 1024,

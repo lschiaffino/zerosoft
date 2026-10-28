@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Link } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import type { LinkEvent, LinkEventsCursor, LinkEventsPage } from '@/lib/link-events';
 import { parseDbUtc } from '@/lib/utils';
 
@@ -23,10 +23,13 @@ function money(amount: number, currency: string, locale: string): string {
  * mientras la pestaña está visible y no está en pausa. Lo recién llegado se
  * marca un momento. Sin recargar la página.
  */
-export default function LinkEvents({ linkId }: { linkId?: string }) {
+export default function LinkEvents({ linkId, links = [] }: { linkId?: string; links?: Array<{ id: string; label: string }> }) {
   const t = useTranslations('link');
   const locale = useLocale();
+  const router = useRouter();
   const [events, setEvents] = useState<LinkEvent[] | null>(null);
+  const [older, setOlder] = useState<LinkEventsCursor | null>(null);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   const [paused, setPaused] = useState(false);
   const [error, setError] = useState(false);
@@ -48,6 +51,7 @@ export default function LinkEvents({ linkId }: { linkId?: string }) {
       setError(false);
       if (!c) {
         setEvents(page.events);
+        setOlder(page.older);
       } else if (page.events.length) {
         setEvents((prev) => [...page.events, ...(prev ?? [])].slice(0, MAX_ROWS));
         setFresh(new Set(page.events.map((e) => e.key)));
@@ -64,6 +68,22 @@ export default function LinkEvents({ linkId }: { linkId?: string }) {
     void load();
   }, [load]);
 
+  async function loadOlder() {
+    if (!older || loadingOlder) return;
+    setLoadingOlder(true);
+    const res = await fetch(`${base}${base.endsWith('?') ? '' : '&'}beforeClick=${older.click}&beforeConv=${older.conv}`, { cache: 'no-store' }).catch(
+      () => null,
+    );
+    setLoadingOlder(false);
+    const page = res?.ok ? ((await res.json().catch(() => null)) as LinkEventsPage | null) : null;
+    if (!page) return setError(true);
+    setEvents((prev) => {
+      const seen = new Set((prev ?? []).map((e) => e.key));
+      return [...(prev ?? []), ...page.events.filter((e) => !seen.has(e.key))];
+    });
+    setOlder(page.older);
+  }
+
   useEffect(() => {
     if (paused) return;
     const id = setInterval(() => {
@@ -79,15 +99,21 @@ export default function LinkEvents({ linkId }: { linkId?: string }) {
   }, [fresh]);
 
   const typeLabel = (e: LinkEvent) => t(`events.type.${e.type}`);
-  const time = (iso: string) =>
-    new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit', month: 'short', day: 'numeric' }).format(parseDbUtc(iso));
+  const time = (iso: string) => {
+    const d = parseDbUtc(iso);
+    const today = new Date().toDateString() === d.toDateString();
+    return new Intl.DateTimeFormat(
+      locale,
+      today ? { hour: '2-digit', minute: '2-digit', second: '2-digit' } : { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' },
+    ).format(d);
+  };
   let regions: Intl.DisplayNames | null = null;
   try {
     regions = new Intl.DisplayNames([locale], { type: 'region' });
   } catch {
     regions = null;
   }
-  const country = (c: string | null) => (c && /^[A-Z]{2}$/.test(c) ? (regions?.of(c) ?? c) : t('detail.none'));
+  const country = (c: string | null) => (c && /^[A-Z]{2}$/.test(c) ? (regions?.of(c) ?? c) : '—');
 
   return (
     <section className="lk-block lk-events" aria-labelledby="lk-events-title" data-testid="link-events">
@@ -96,6 +122,24 @@ export default function LinkEvents({ linkId }: { linkId?: string }) {
           {t('events.title')}
         </h2>
         <div className="lk-events-actions">
+          {links.length > 0 && (
+            <select
+              className="select lk-select-auto"
+              aria-label={t('events.filterLink')}
+              value={linkId ?? ''}
+              onChange={(e) => {
+                const v = e.target.value;
+                router.push(v ? `/app/links/analytics?view=events&link=${encodeURIComponent(v)}` : '/app/links/analytics?view=events');
+              }}
+            >
+              <option value="">{t('events.allLinks')}</option>
+              {links.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          )}
           <span className={`lk-live${paused ? ' is-paused' : ''}`} role="status" aria-live="polite">
             <span className="lk-live-dot" aria-hidden="true" />
             {paused ? t('events.paused') : t('events.live')}
@@ -139,7 +183,9 @@ export default function LinkEvents({ linkId }: { linkId?: string }) {
             <tbody>
               {events.map((e) => (
                 <tr key={e.key} className={fresh.has(e.key) ? 'lk-event-new' : undefined} data-type={e.type}>
-                  <td className="data">{time(e.ts)}</td>
+                  <td className="data lk-ev-time" title={parseDbUtc(e.ts).toLocaleString(locale)}>
+                    {time(e.ts)}
+                  </td>
                   <td>
                     <span className={`badge lk-ev-${e.type}`}>{typeLabel(e)}</span>
                   </td>
@@ -149,7 +195,7 @@ export default function LinkEvents({ linkId }: { linkId?: string }) {
                     </Link>
                   </td>
                   <td>{country(e.country)}</td>
-                  <td className="lk-col-hide-sm">{e.device ? t(`labels.${e.device}`) : t('detail.none')}</td>
+                  <td className="lk-col-hide-sm">{e.device ? t(`labels.${e.device}`) : '—'}</td>
                   <td className="lk-col-hide-sm lk-cell-trunc">
                     {e.type === 'sale' && e.amount !== null && e.currency
                       ? `${e.eventName ?? ''} · ${money(e.amount, e.currency, locale)}`
@@ -162,6 +208,13 @@ export default function LinkEvents({ linkId }: { linkId?: string }) {
             </tbody>
           </table>
         </div>
+      )}
+      {events && events.length > 0 && older && (
+        <p>
+          <button type="button" className="btn btn-sm" onClick={() => void loadOlder()} disabled={loadingOlder} aria-busy={loadingOlder || undefined}>
+            {t('events.loadOlder')}
+          </button>
+        </p>
       )}
     </section>
   );

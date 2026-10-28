@@ -778,3 +778,8 @@ section.lk-block { padding-bottom: 0; }
   .lk-activity-when { margin-left: 0; flex-basis: 100%; }
   .lk-ai-form, .lk-inline-row { flex-direction: column; }
 }
+.lk-revenue { margin: 0; font-size: 1rem; font-weight: 600; white-space: normal; overflow-wrap: anywhere; }
+.lk-stat-sub.lk-revenue { font-size: 0.8125rem; font-weight: 400; }
+.lk-ev-time { white-space: nowrap; }
+.lk-qr-rename { width: 160px; }
+@media (max-width: 640px) { .lk-events-actions { flex-wrap: wrap; justify-content: flex-end; } .lk-events-actions .select { max-width: 100%; } }

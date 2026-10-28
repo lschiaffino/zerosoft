@@ -29,11 +29,13 @@ interface SearchLink {
   expires_at: string | null;
   max_clicks: number | null;
   clicks: number;
+  safety?: { status: 'blocked' } | null;
 }
 
 /** Mismo criterio que linkStatus() del server, sobre el DTO de /api/links. */
 function searchStatus(l: SearchLink): LinkStatus {
   if (l.archived) return 'archived';
+  if (l.safety) return 'blocked';
   if (l.expires_at && parseDbUtc(l.expires_at).getTime() <= Date.now()) return 'expired';
   if (l.max_clicks !== null && l.clicks >= l.max_clicks) return 'limit';
   if (l.has_password) return 'protected';

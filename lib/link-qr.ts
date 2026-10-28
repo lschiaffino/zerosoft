@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { getDb } from './db';
 import { shortUrl } from './utils';
-import { DEFAULT_QR_STYLE, QR_DOTS, QR_FRAMES, QR_LABEL_MAX, type QrStyle } from './link-qr-render';
+import { DEFAULT_QR_STYLE, hasEnoughContrast, QR_DOTS, QR_FRAMES, QR_LABEL_MAX, type QrStyle } from './link-qr-render';
 
 export { renderQrSvg, DEFAULT_QR_STYLE, QR_DOTS, QR_FRAMES, hasEnoughContrast, type QrStyle } from './link-qr-render';
 
@@ -97,7 +97,8 @@ export async function createQrTemplate(
   userId: string,
   input: z.infer<typeof qrTemplateSchema>,
   createdBy: string | null,
-): Promise<QrTemplate | 'limit'> {
+): Promise<QrTemplate | 'limit' | 'low_contrast'> {
+  if (!hasEnoughContrast(input.style.fg, input.style.bg)) return 'low_contrast';
   const count = (
     (await getDb().prepare('SELECT COUNT(*) AS c FROM link_qr_templates WHERE user_id = ?').get(userId)) as { c: number }
   ).c;

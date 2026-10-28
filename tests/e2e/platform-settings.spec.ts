@@ -58,7 +58,9 @@ test('la nav tiene dos grupos y marca la sección abierta en cada ruta', async (
   await products.getByRole('link', { name: 'Docs', exact: true }).click();
   await expect(page).toHaveURL(/\/en\/app\/docs\/settings$/);
   await expect(page.getByRole('heading', { name: 'Docs settings', level: 1 })).toBeVisible();
-  await expect(page.getByText('Docs has no settings of its own yet')).toBeVisible();
+  // Docs ya tiene ajustes propios: General, Teamspaces y, para admins, Site y Audit log.
+  const docsTabs = page.getByRole('navigation', { name: 'Docs settings' });
+  for (const name of ['General', 'Teamspaces', 'Site', 'Audit log']) await expect(docsTabs.getByRole('link', { name, exact: true })).toBeVisible();
   await page.getByTestId('platform-settings-link').click();
   await expect(page).toHaveURL(/\/en\/app\/settings$/);
 });

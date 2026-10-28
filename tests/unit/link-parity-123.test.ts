@@ -242,12 +242,78 @@ describe('Link 123: Shopify y Segment', () => {
 
 describe('Link 123: deep linking diferido', () => {
   it('la app reclama la visita de su IP y plataforma una sola vez', async () => {
-    const { link, clickId } = await linkWithClick('deferred');
+    const { u, link, clickId } = await linkWithClick('deferred');
+    const other = await makeUser('deferredother');
     const ip = `203.0.113.${Math.floor(Math.random() * 200) + 1}`;
     await recordDeferredClick({ ip, platform: 'ios', linkId: link.id, clickId });
-    expect(await matchDeferredClick({ ip, platform: 'android' })).toBeNull();
-    expect(await matchDeferredClick({ ip, platform: 'ios' })).toEqual({ linkId: link.id, clickId });
-    expect(await matchDeferredClick({ ip, platform: 'ios' })).toBeNull();
+    expect(await matchDeferredClick({ ws: u.id, ip, platform: 'android' })).toBeNull();
+    // Otro workspace (otra publishable key) no recibe la visita.
+    expect(await matchDeferredClick({ ws: other.id, ip, platform: 'ios' })).toBeNull();
+    // Un dominio propio que no es el del link tampoco; el de zerosoft sí (links sin dominio propio).
+    expect(await matchDeferredClick({ ws: u.id, ip, platform: 'ios', domain: 'go.other.example' })).toBeNull();
+    expect(await matchDeferredClick({ ws: u.id, ip, platform: 'ios', domain: 'localhost:3000' })).toEqual({ linkId: link.id, clickId });
+    expect(await matchDeferredClick({ ws: u.id, ip, platform: 'ios' })).toBeNull();
+  });
+
+  it('track/open exige la publishable key y aplica las puertas del redirect', async () => {
+    const route = await import('@/app/api/v1/links/track/open/route');
+    const { getPublishableKey } = await import('@/lib/link-publishable');
+    const u = await makeUser('openkey');
+    const key = await getPublishableKey(u.id);
+    const pw = await createLink(u.id, { url: 'https://secret.example.com/', slug: slug('pw'), password: 'x' });
+    const old = await createLink(u.id, { url: 'https://old.example.com/', slug: slug('old'), expiresAt: '2020-01-01T00:00:00Z' });
+    if (!pw.ok || !old.ok) throw new Error('setup');
+    const call = (body: unknown, auth?: string) =>
+      route.POST(
+        new NextRequest('http://localhost:3000/api/v1/links/track/open', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', ...(auth ? { authorization: `Bearer ${auth}` } : {}) },
+          body: JSON.stringify(body),
+        }),
+      );
+    expect((await call({ platform: 'ios', deepLink: `http://localhost:3000/${pw.link.slug}` })).status).toBe(401);
+    const res = await call({ platform: 'ios', deepLink: `http://localhost:3000/${pw.link.slug}` }, key);
+    const data = (await res.json()) as { link: { url: string | null; protected: boolean } };
+    expect(data.link).toMatchObject({ url: null, protected: true });
+    expect((await call({ platform: 'ios', deepLink: `http://localhost:3000/${old.link.slug}` }, key)).status).toBe(404);
+    // La key de otro workspace no resuelve links ajenos.
+    const other = await makeUser('openother');
+    const otherKey = await getPublishableKey(other.id);
+    expect((await call({ platform: 'ios', deepLink: `http://localhost:3000/${pw.link.slug}` }, otherKey)).status).toBe(404);
+  });
+});
+
+describe('Link 123: anti-phishing en todos los destinos', () => {
+  it('la redirección al vencer también se revisa (alta, edición y cron)', async () => {
+    vi.stubEnv('LINK_SAFETY_FAKE', '1');
+    const u = await makeUser('expsafe');
+    const bad = 'https://testsafebrowsing.appspot.com/s/phishing.html';
+    expect(await createLink(u.id, { url: 'https://example.com/', expiredUrl: bad })).toEqual({ ok: false, code: 'unsafe_url' });
+    const ok = await createLink(u.id, { url: 'https://example.com/', slug: slug('ex') });
+    if (!ok.ok) throw new Error('setup');
+    const link = (await getUserLink(u.id, ok.link.id))!;
+    expect(await applyLinkPatch(link, linkPatchSchema.parse({ expiredUrl: bad }))).toEqual({ error: 'unsafe_url', status: 400 });
+    await getDb().prepare('UPDATE links SET expired_url = ?, safety_checked_at = NULL WHERE id = ?').run(bad, link.id);
+    await recheckLinkSafety({ limit: 2000 });
+    expect((await getUserLink(u.id, link.id))!.safety).toBe('blocked');
+  });
+
+  it('homógrafos IDN: mezcla de alfabetos o cirílico que imita al latino', () => {
+    expect(localSafetyCheck(`https://${new URL('https://pаypal.com').hostname}/`, [])).toBe('mixed_script');
+    expect(localSafetyCheck(`https://${new URL('https://раураl.com').hostname}/`, [])).toBe('mixed_script');
+    expect(localSafetyCheck('https://münchen.de/', [])).toBeNull();
+    expect(localSafetyCheck('https://пример.рф/', [])).toBeNull();
+  });
+
+  it('una API key no registra leads de links de carpetas que su creador no ve', async () => {
+    const { u, clickId, link } = await linkWithClick('folderlead');
+    const folder = crypto.randomUUID();
+    await getDb().prepare("INSERT INTO link_folders (id, user_id, name, default_access) VALUES (?, ?, 'Privada', 'none')").run(folder, u.id);
+    await getDb().prepare('UPDATE links SET folder_id = ? WHERE id = ?').run(folder, link.id);
+    await expect(
+      trackLead(u.id, { clickId, customer: { externalId: 'x1' }, viewer: { id: 'someone-else', admin: false } }),
+    ).rejects.toMatchObject({ code: 'click_not_found' });
+    expect((await trackLead(u.id, { clickId, customer: { externalId: 'x1' }, viewer: { id: u.id, admin: true } })).duplicate).toBe(false);
   });
 });
 
@@ -282,7 +348,7 @@ describe('Link 123: QR con marco y plantillas', () => {
     const u = await makeUser('qrtpl');
     const style = qrStyleSchema.parse({ fg: '#112233', frame: 'border' });
     const tpl = await createQrTemplate(u.id, { name: 'Marca', style }, u.id);
-    if (tpl === 'limit') throw new Error('limit');
+    if (typeof tpl === 'string') throw new Error(tpl);
     expect((await listQrTemplates(u.id)).map((t) => t.name)).toEqual(['Marca']);
     expect(await deleteQrTemplate(u.id, tpl.id)).toBe(true);
     expect(await listQrTemplates(u.id)).toEqual([]);

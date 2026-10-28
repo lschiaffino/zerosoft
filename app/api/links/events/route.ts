@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
     viewer: viewerOf(user),
     linkId: link && link.length <= 64 ? link : undefined,
     after: parseEventsCursor(sp.get('click'), sp.get('conv')),
+    before: parseEventsCursor(sp.get('beforeClick'), sp.get('beforeConv')),
     limit: 50,
   });
   return NextResponse.json(page, { headers: { 'cache-control': 'no-store' } });

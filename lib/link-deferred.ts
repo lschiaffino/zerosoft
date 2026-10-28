@@ -11,6 +11,8 @@
  */
 import { createHmac } from 'crypto';
 import { getDb } from './db';
+import { isAppHost, normalizeHost } from './hosts';
+import { shortDomain } from './utils';
 
 export const DEFERRED_TTL_MINUTES = 60;
 
@@ -59,6 +61,8 @@ export interface DeferredMatch {
  * dominio pedido, si viene). Se consume: la próxima apertura no la recibe.
  */
 export async function matchDeferredClick(input: {
+  /** Workspace de la publishable key: solo sus links. */
+  ws: string;
   ip: string;
   platform: DeferredPlatform;
   /** Hostname del dominio propio, o null para cualquier dominio. */
@@ -67,16 +71,21 @@ export async function matchDeferredClick(input: {
   if (!input.ip || input.ip === 'unknown') return null;
   const db = getDb();
   const fp = deferredFingerprint(input.ip, input.platform);
-  const domain = input.domain?.trim().toLowerCase() || null;
+  const domain = input.domain?.trim().toLowerCase().replace(/^www\./, '') || null;
+  // El dominio de zerosoft (SHORT_DOMAIN o el de la app) son los links sin dominio propio.
+  const isDefault = !!domain && (isAppHost(domain) || normalizeHost(shortDomain()).replace(/:\d+$/, '') === domain.replace(/:\d+$/, ''));
+  const domainSql = !domain ? '' : isDefault ? 'AND l.domain_id IS NULL' : 'AND d.hostname = ?';
+  const args: string[] = [fp, `-${DEFERRED_TTL_MINUTES} minutes`, input.ws];
+  if (domain && !isDefault) args.push(domain);
   const row = (await db
     .prepare(
       `SELECT f.id, f.link_id, f.click_id FROM link_deferred f
        JOIN links l ON l.id = f.link_id LEFT JOIN link_domains d ON d.id = l.domain_id
-       WHERE f.fingerprint = ? AND f.created_at >= datetime('now', ?)
-         ${domain ? 'AND d.hostname = ?' : ''}
+       WHERE f.fingerprint = ? AND f.created_at >= datetime('now', ?) AND l.user_id = ?
+         ${domainSql}
        ORDER BY f.id DESC LIMIT 1`,
     )
-    .get(...(domain ? [fp, `-${DEFERRED_TTL_MINUTES} minutes`, domain] : [fp, `-${DEFERRED_TTL_MINUTES} minutes`]))) as
+    .get(...args)) as
     | { id: number; link_id: string; click_id: string | null }
     | undefined;
   if (!row) return null;

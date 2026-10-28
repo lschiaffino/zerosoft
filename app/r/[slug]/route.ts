@@ -183,7 +183,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
       ? html(deepLinkHtml(clickId ? withClickId(dest.appUrl, clickId) : dest.appUrl, finalUrl(dest.fallbackUrl)))
       : link.cloak === 1 && !isAppHost(host)
         ? // Cloaking: la URL corta queda en la barra; nuestra página no se deja enmarcar.
-          html(cloakHtml(finalUrl(dest.url), link.og_title || link.title), {
+          html(cloakHtml(finalUrl(dest.url), link.og_title || link.title || dest.url.replace(/^https?:\/\//, '').replace(/[?#].*$/, '')), {
             'x-frame-options': 'DENY',
             'content-security-policy': "frame-ancestors 'none'",
             'referrer-policy': 'strict-origin-when-cross-origin',

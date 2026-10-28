@@ -206,6 +206,11 @@ export default function EditLinkForm({
         <p id="el-cloak-help" className="ui-help">
           {link.domain ? t('cloak.help') : t('cloak.needsDomain')}
         </p>
+        {cloak && trackConversion && (
+          <p className="ui-error" role="status" data-testid="el-cloak-conv-warning">
+            {t('cloak.conversionsWarning')}
+          </p>
+        )}
       </div>
 
       <AdvancedSection storageKey="link.edit" hint={t('detail.advancedHint')}>

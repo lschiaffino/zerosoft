@@ -316,7 +316,7 @@ export default async function LinkAnalyticsPage(props: Props) {
           <dd className="data num" data-testid="analytics-sales">
             {formatNumber(conv.sales, locale)}
           </dd>
-          <dd className="lk-stat-sub" data-testid="analytics-revenue">
+          <dd className="lk-stat-sub lk-revenue" data-testid="analytics-revenue">
             {conv.revenue.length
               ? conv.revenue.map((r) => formatMoney(r.amount, r.currency, locale)).join(' · ')
               : t('analytics.noRevenue')}

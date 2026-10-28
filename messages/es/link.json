@@ -87,7 +87,8 @@
     "clicksN": "{n, plural, one {# clic} other {# clics}}",
     "creatorLabel": "Creado por",
     "allCreators": "Cualquiera",
-    "byCreator": "por {name}"
+    "byCreator": "por {name}",
+    "statusBlocked": "Bloqueado"
   },
   "new": {
     "title": "Nuevo link",
@@ -435,7 +436,8 @@
       "too_many_pending": "Tenés 5 dominios esperando verificación. Verificá o borrá alguno primero.",
       "rate_limited": "Agregaste demasiados dominios. Esperá un rato y probá de nuevo.",
       "invalid_url": "La URL no es válida.",
-      "domain_pending_elsewhere": "Otro workspace agregó este dominio y no lo verificó. Para tomarlo, creá un registro TXT con nombre {name} y valor {value} y agregalo de nuevo."
+      "domain_pending_elsewhere": "Otro workspace agregó este dominio y no lo verificó. Para tomarlo, creá un registro TXT con nombre {name} y valor {value} y agregalo de nuevo.",
+      "unsafe_url": "Esa URL está reportada como phishing o malware, o su dominio está bloqueado."
     },
     "txtMissing": "Todavía no vemos el registro TXT. Revisá el nombre y el valor; el DNS puede tardar unos minutos.",
     "pageDesc": "Links cortos con tu marca: go.tuempresa.com/promo.",
@@ -512,7 +514,7 @@
   },
   "bio": {
     "title": "Página bio",
-    "sub": "Una página con tus links en zerosoft.ai/@{handle}. Cada botón pasa por el link corto, así que los clics aparecen en tus analytics.",
+    "sub": "Una página con tus links en {host}/@{handle}. Cada botón pasa por el link corto, así que los clics aparecen en tus analytics.",
     "pageTitle": "Título",
     "bioText": "Bio",
     "avatar": "URL del avatar (https)",
@@ -705,7 +707,8 @@
     "saveTemplate": "Guardar este diseño como plantilla",
     "templateNamePlaceholder": "Colores de la marca",
     "saveTemplateButton": "Guardar plantilla",
-    "templateHelp": "Las plantillas se comparten con el workspace y sirven para el QR de cualquier link."
+    "templateHelp": "Las plantillas se comparten con el workspace y sirven para el QR de cualquier link.",
+    "templateRename": "Renombrar la plantilla {name}"
   },
   "labels": {
     "unknown": "Desconocido",
@@ -852,12 +855,20 @@
     "stripeTitle": "Stripe",
     "stripeDesc": "Los Checkout y las facturas pagadas se cuentan como ventas del link que trajo al cliente.",
     "stripeConnect": "Usá la conexión de Stripe del workspace en <a>Integraciones</a> y pasá el click id al crear la sesión de Checkout (o metadata.zs_customer_id con el id que usaste en el lead). Las facturas siguientes de ese cliente también cuentan.",
-    "stripeLabel": "Stripe Checkout"
+    "stripeLabel": "Stripe Checkout",
+    "publishableKey": "Publishable key",
+    "publishableHelp": "Va dentro de tu app móvil. Solo identifica a este workspace para los deep links diferidos y no es una API key.",
+    "rotateKey": "Rotar key",
+    "rotateTitle": "¿Rotar la publishable key?",
+    "rotateBody": "La key actual deja de funcionar al instante. Actualizá tu app con la nueva.",
+    "deferredTitle": "Deep links diferidos",
+    "deferredDesc": "Si alguien toca un link a tu app sin tenerla, la instala y la app pregunta qué link la trajo al abrirse por primera vez."
   },
   "cloak": {
     "toggle": "Mantener el link corto en la barra de direcciones",
     "help": "El destino se abre dentro de tu dominio (link cloaking). Algunos sitios no se dejan mostrar así: probalo después de guardar.",
-    "needsDomain": "Disponible en links de un dominio propio."
+    "needsDomain": "Disponible en links de un dominio propio.",
+    "conversionsWarning": "Con cloaking el destino corre dentro de un iframe, donde los navegadores bloquean sus cookies: los leads y las ventas de este link no se van a atribuir."
   },
   "safety": {
     "blockedBanner": "Este link está bloqueado: su destino fue reportado como {reason}. Quien lo abre ve un aviso en lugar del destino. Cambiá el destino para desbloquearlo.",
@@ -866,7 +877,8 @@
       "malware": "malware",
       "unwanted": "software no deseado",
       "blocked_domain": "un dominio bloqueado",
-      "credentials": "una URL que esconde su dominio real"
+      "credentials": "una URL que esconde su dominio real",
+      "mixed_script": "un dominio que imita a otro con letras parecidas"
     }
   },
   "events": {
@@ -889,7 +901,10 @@
       "scan": "Escaneo QR",
       "lead": "Lead",
       "sale": "Venta"
-    }
+    },
+    "filterLink": "Ver eventos de",
+    "allLinks": "Todos los links",
+    "loadOlder": "Ver eventos anteriores"
   },
   "ai": {
     "title": "Preguntá sobre tus links",
@@ -960,7 +975,8 @@
       "malware": "malware",
       "unwanted": "software no deseado",
       "blocked_domain": "dominio bloqueado",
-      "credentials": "URL que esconde su dominio"
+      "credentials": "URL que esconde su dominio",
+      "mixed_script": "dominio con letras parecidas"
     }
   },
   "integrations": {
@@ -1003,6 +1019,12 @@
       "title": "Servidor MCP para agentes de IA",
       "desc": "Claude, ChatGPT o Cursor pueden crear links y responder preguntas sobre tus analytics.",
       "help": "Sumá esta URL como servidor MCP remoto con una API key de <a>API keys</a> (links:read para leer, links:write para crear y editar)."
+    },
+    "cards": {
+      "slack": "Avisá en un canal los links cortos nuevos, los leads y las ventas.",
+      "stripe": "Contá los Checkout y las facturas pagadas como ventas del link que trajo al cliente.",
+      "zapier": "Mandá los eventos de links, leads y ventas a un catch hook de Zapier.",
+      "make": "Mandá los eventos de links, leads y ventas a un webhook de Make."
     }
   }
 }

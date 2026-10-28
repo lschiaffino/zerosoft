@@ -190,14 +190,19 @@ export async function handleShopifyWebhook(
   if (!row) throw new IntegrationError('not_found', 404);
   const secret = secretsOf(row).webhookSecret ?? '';
   if (!verifyShopifySignature(rawBody, headers.hmac, secret)) throw new IntegrationError('invalid_signature', 401);
-  if (headers.topic && headers.topic !== 'orders/paid' && headers.topic !== 'orders/create') return 'ignored';
+  // Solo pedidos pagados: sin topic (no es un webhook de Shopify) o con otro, no cuenta.
+  if (headers.topic !== 'orders/paid' && headers.topic !== 'orders/create') return 'ignored';
   let order: Record<string, unknown>;
   try {
     order = JSON.parse(rawBody) as Record<string, unknown>;
   } catch {
     throw new IntegrationError('invalid_input', 400);
   }
-  if (headers.topic === 'orders/create' && order.financial_status !== 'paid') return 'ignored';
+  if (order.id === undefined || order.id === null || String(order.id).trim() === '') throw new IntegrationError('invalid_input', 400);
+  const status = typeof order.financial_status === 'string' ? order.financial_status : null;
+  if (headers.topic === 'orders/create' ? status !== 'paid' : status !== null && status !== 'paid' && status !== 'partially_paid') {
+    return 'ignored';
+  }
   const clickId = shopifyClickId(order);
   const customer = (order.customer ?? {}) as Record<string, unknown>;
   const customerExternalId = customer.id ? `shopify:${String(customer.id)}` : null;
@@ -209,7 +214,7 @@ export async function handleShopifyWebhook(
       customerExternalId,
       amount: toMinorUnits(String(order.total_price ?? order.current_total_price ?? '0'), currency),
       currency,
-      invoiceId: `shopify:${String(order.id ?? order.order_number ?? '')}`,
+      invoiceId: `shopify:${String(order.id)}`,
       source: 'shopify',
       eventName: 'Order paid',
     });

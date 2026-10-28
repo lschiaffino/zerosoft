@@ -141,3 +141,36 @@ export async function listLinkActivity(
     nextBefore: rows.length > limit ? page[page.length - 1].id : null,
   };
 }
+
+/** Días de retención (env, entero >= 0; 0 = sin límite). */
+function retentionDays(name: string, fallback: number): number {
+  const raw = Number(process.env[name] ?? fallback);
+  return Number.isFinite(raw) && raw >= 0 ? Math.floor(raw) : fallback;
+}
+
+/**
+ * Poda (cron, en lotes): la actividad de más de LINK_ACTIVITY_RETENTION_DAYS
+ * (365 por defecto) y, si se configura LINK_CONVERSIONS_RETENTION_DAYS, las
+ * conversiones más viejas (por defecto se guardan siempre, como los clicks).
+ */
+export async function pruneLinkHistory(batch = 5000): Promise<{ activity: number; conversions: number }> {
+  const db = getDb();
+  const out = { activity: 0, conversions: 0 };
+  const act = retentionDays('LINK_ACTIVITY_RETENTION_DAYS', 365);
+  if (act > 0) {
+    out.activity = (
+      await db
+        .prepare(`DELETE FROM link_activity WHERE id IN (SELECT id FROM link_activity WHERE created_at < datetime('now', ?) LIMIT ?)`)
+        .run(`-${act} days`, batch)
+    ).changes;
+  }
+  const conv = retentionDays('LINK_CONVERSIONS_RETENTION_DAYS', 0);
+  if (conv > 0) {
+    out.conversions = (
+      await db
+        .prepare(`DELETE FROM link_conversions WHERE id IN (SELECT id FROM link_conversions WHERE ts < datetime('now', ?) LIMIT ?)`)
+        .run(`-${conv} days`, batch)
+    ).changes;
+  }
+  return out;
+}

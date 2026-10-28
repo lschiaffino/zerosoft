@@ -14,11 +14,12 @@
  * Si la API no responde, el link se crea igual y el cron lo revisa después.
  * Server-only.
  */
+import { domainToUnicode } from 'node:url';
 import { getDb } from './db';
 
-export type SafetyReason = 'phishing' | 'malware' | 'unwanted' | 'blocked_domain' | 'credentials';
+export type SafetyReason = 'phishing' | 'malware' | 'unwanted' | 'blocked_domain' | 'credentials' | 'mixed_script';
 
-export const SAFETY_REASONS: readonly SafetyReason[] = ['phishing', 'malware', 'unwanted', 'blocked_domain', 'credentials'];
+export const SAFETY_REASONS: readonly SafetyReason[] = ['phishing', 'malware', 'unwanted', 'blocked_domain', 'credentials', 'mixed_script'];
 
 /** Resultado por URL: null = limpia, una razón = bloqueada, 'unknown' = no se pudo revisar. */
 export type SafetyResult = SafetyReason | null | 'unknown';
@@ -44,7 +45,38 @@ function blockedDomains(): string[] {
     .filter(Boolean);
 }
 
-/** Reglas locales (puras): credenciales en la URL o dominio bloqueado por la instancia. */
+// Letras cirílicas que se ven como latinas (а е о р с у х і ј ѕ ԁ ԛ ԝ ү һ): "раураl.com".
+const CYRILLIC_LOOKALIKE = /^[аеорсухіјѕԁԛԝүһ]+$/u;
+const SCRIPTS: Array<[string, RegExp]> = [
+  ['latin', /\p{Script=Latin}/u],
+  ['cyrillic', /\p{Script=Cyrillic}/u],
+  ['greek', /\p{Script=Greek}/u],
+  ['armenian', /\p{Script=Armenian}/u],
+  ['cherokee', /\p{Script=Cherokee}/u],
+];
+
+/**
+ * Homógrafos IDN, con el mismo criterio que los navegadores para mostrar el
+ * punycode: una etiqueta que mezcla alfabetos que se confunden (latino con
+ * cirílico, griego, armenio o cherokee) o que es toda cirílica con letras
+ * idénticas a las latinas bajo un TLD no cirílico. `host` viene en punycode.
+ */
+export function isConfusableHost(host: string): boolean {
+  if (!host.includes('xn--')) return false;
+  const unicode = domainToUnicode(host);
+  if (!unicode) return true;
+  const labels = unicode.split('.');
+  const tld = labels[labels.length - 1] ?? '';
+  const cyrillicTld = /\p{Script=Cyrillic}/u.test(tld);
+  return labels.slice(0, -1).some((label) => {
+    const letters = label.replace(/[\d-]/g, '');
+    const present = SCRIPTS.filter(([, re]) => re.test(letters)).map(([name]) => name);
+    if (present.length > 1) return true;
+    return !cyrillicTld && present[0] === 'cyrillic' && CYRILLIC_LOOKALIKE.test(letters);
+  });
+}
+
+/** Reglas locales (puras): credenciales en la URL, homógrafos IDN o dominio bloqueado por la instancia. */
 export function localSafetyCheck(raw: string, blocked: string[] = blockedDomains()): SafetyReason | null {
   let u: URL;
   try {
@@ -54,6 +86,7 @@ export function localSafetyCheck(raw: string, blocked: string[] = blockedDomains
   }
   if (u.username || u.password) return 'credentials';
   const host = u.hostname.toLowerCase().replace(/\.$/, '');
+  if (isConfusableHost(host)) return 'mixed_script';
   if (blocked.some((d) => host === d || host.endsWith(`.${d}`))) return 'blocked_domain';
   return null;
 }
@@ -170,7 +203,7 @@ export async function recheckLinkSafety(opts: { limit?: number } = {}): Promise<
   const limit = Math.min(Math.max(opts.limit ?? 500, 1), 2000);
   const due = (await db
     .prepare(
-      `SELECT id, user_id, slug, url, targeting, safety_checked_at FROM links
+      `SELECT id, user_id, slug, url, targeting, expired_url, safety_checked_at FROM links
        WHERE archived = 0 AND safety IS NULL
          AND (safety_checked_at IS NULL OR safety_checked_at < datetime('now', ?))
        ORDER BY safety_checked_at IS NOT NULL, safety_checked_at ASC LIMIT ?`,
@@ -181,6 +214,7 @@ export async function recheckLinkSafety(opts: { limit?: number } = {}): Promise<
     slug: string;
     url: string;
     targeting: string | null;
+    expired_url: string | null;
     safety_checked_at: string | null;
   }>;
   const claimed: typeof due = [];
@@ -197,7 +231,7 @@ export async function recheckLinkSafety(opts: { limit?: number } = {}): Promise<
   const { parseTargeting, targetingDestinations } = await import('./link-targeting');
   const urlsOf = (row: (typeof claimed)[number]) => {
     const t = parseTargeting(row.targeting);
-    return [row.url, ...(t ? targetingDestinations(t) : [])];
+    return [row.url, ...(t ? targetingDestinations(t) : []), ...(row.expired_url ? [row.expired_url] : [])];
   };
   const results = await checkUrlsSafety(claimed.flatMap(urlsOf));
   let blocked = 0;
@@ -215,5 +249,57 @@ export async function recheckLinkSafety(opts: { limit?: number } = {}): Promise<
     await logLinkActivity({ userId: row.user_id, linkId: row.id, slug: row.slug, actorId: null, via: 'system', action: 'blocked', changes: { reason } });
     blocked++;
   }
-  return { checked: claimed.length, blocked };
+  return { checked: claimed.length, blocked: blocked + (await recheckDomainSafety()) };
+}
+
+/**
+ * Redirecciones de los dominios propios (raíz, slug inexistente, link
+ * vencido): una URL que pasó a ser peligrosa se saca (vuelve la página de
+ * zerosoft) y queda en la actividad. Claim por fila con safety_checked_at.
+ */
+async function recheckDomainSafety(limit = 200): Promise<number> {
+  const db = getDb();
+  const due = (await db
+    .prepare(
+      `SELECT id, user_id, hostname, root_url, not_found_url, expired_url, safety_checked_at FROM link_domains
+       WHERE verified = 1 AND (root_url IS NOT NULL OR not_found_url IS NOT NULL OR expired_url IS NOT NULL)
+         AND (safety_checked_at IS NULL OR safety_checked_at < datetime('now', ?))
+       ORDER BY safety_checked_at IS NOT NULL, safety_checked_at ASC LIMIT ?`,
+    )
+    .all(`-${RECHECK_DAYS} days`, limit)) as Array<{
+    id: string;
+    user_id: string;
+    hostname: string;
+    root_url: string | null;
+    not_found_url: string | null;
+    expired_url: string | null;
+    safety_checked_at: string | null;
+  }>;
+  const claimed: typeof due = [];
+  for (const d of due) {
+    const r = await db
+      .prepare(`UPDATE link_domains SET safety_checked_at = datetime('now') WHERE id = ? AND COALESCE(safety_checked_at, '') = COALESCE(?, '')`)
+      .run(d.id, d.safety_checked_at);
+    if (r.changes === 1) claimed.push(d);
+  }
+  if (!claimed.length) return 0;
+  const cols = ['root_url', 'not_found_url', 'expired_url'] as const;
+  const results = await checkUrlsSafety(claimed.flatMap((d) => cols.map((c) => d[c]).filter((u): u is string => Boolean(u))));
+  const { logLinkActivity } = await import('./link-activity');
+  let removed = 0;
+  for (const d of claimed) {
+    if (cols.some((c) => d[c] && results.get(d[c]!) === 'unknown')) {
+      await db.prepare('UPDATE link_domains SET safety_checked_at = NULL WHERE id = ?').run(d.id);
+      continue;
+    }
+    for (const c of cols) {
+      const url = d[c];
+      const reason = url ? results.get(url) : null;
+      if (!url || !reason || reason === 'unknown') continue;
+      await db.prepare(`UPDATE link_domains SET ${c} = NULL WHERE id = ?`).run(d.id);
+      await logLinkActivity({ userId: d.user_id, linkId: null, slug: d.hostname, actorId: null, via: 'system', action: 'blocked', changes: { reason, url } });
+      removed++;
+    }
+  }
+  return removed;
 }

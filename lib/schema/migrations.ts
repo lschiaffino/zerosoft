@@ -6173,6 +6173,7 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, 'ALTER TABLE link_qr_styles ADD COLUMN label TEXT');
       await addColumn(client, "ALTER TABLE link_bio ADD COLUMN theme TEXT NOT NULL DEFAULT 'auto'");
       await addColumn(client, 'ALTER TABLE link_bio ADD COLUMN accent TEXT');
+      await addColumn(client, 'ALTER TABLE link_domains ADD COLUMN safety_checked_at TEXT');
       await client.executeMultiple(`
         CREATE UNIQUE INDEX IF NOT EXISTS idx_clicks_click_id ON clicks(click_id) WHERE click_id IS NOT NULL;
         CREATE INDEX IF NOT EXISTS idx_links_safety ON links(safety) WHERE safety IS NOT NULL;
@@ -6246,6 +6247,13 @@ export const MIGRATIONS: Migration[] = [
           created_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
         CREATE INDEX IF NOT EXISTS idx_link_qr_templates_user ON link_qr_templates(user_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS link_publishable_keys (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          key TEXT NOT NULL UNIQUE,
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
 
         CREATE TABLE IF NOT EXISTS link_integrations (
           user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

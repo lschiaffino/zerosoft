@@ -260,10 +260,11 @@ export function isLimitReached(link: Pick<LinkRow, 'max_clicks' | 'clicks'>): bo
   return link.max_clicks !== null && link.clicks >= link.max_clicks;
 }
 
-export type LinkStatus = 'active' | 'archived' | 'expired' | 'limit' | 'protected';
+export type LinkStatus = 'active' | 'archived' | 'blocked' | 'expired' | 'limit' | 'protected';
 
 export function linkStatus(link: LinkRow): LinkStatus {
   if (link.archived === 1) return 'archived';
+  if (link.safety === 'blocked') return 'blocked';
   if (isExpired(link)) return 'expired';
   if (isLimitReached(link)) return 'limit';
   if (link.password_hash) return 'protected';
@@ -659,7 +660,8 @@ export async function createLink(
   if (input.cloak && !domainId) return { ok: false, code: 'cloak_needs_domain' };
 
   // Anti-phishing: destino y variantes contra las reglas locales y Safe Browsing.
-  const destinations = [utm.url, ...(targeting ? targetingDestinations(targeting) : [])];
+  // Todo lo que el link puede servir: destino, variantes y la redirección al vencer.
+  const destinations = [utm.url, ...(targeting ? targetingDestinations(targeting) : []), ...(expired.value ? [expired.value] : [])];
   const safety = input.deferSafety
     ? { reason: firstLocalUnsafe(destinations), checked: false }
     : await firstUnsafe(destinations);
@@ -860,6 +862,7 @@ export async function applyLinkPatch(
   const newDestinations: string[] = [];
   let finalUrl = link.url;
   let finalTargeting: LinkTargeting | null = parseTargeting(link.targeting);
+  let finalExpired: string | null = link.expired_url ?? null;
 
   if (p.folderId !== undefined && p.folderId !== (link.folder_id ?? null)) {
     // Mover a una carpeta pide poder editarla (el link de origen ya se validó).
@@ -994,6 +997,8 @@ export async function applyLinkPatch(
     if (!expired.ok) return { error: expired.code === 'self_link' ? 'self_link' : 'invalid_expired_url', status: 400 };
     sets.push('expired_url = ?');
     args.push(expired.value);
+    if (expired.value && expired.value !== (link.expired_url ?? null)) newDestinations.push(expired.value);
+    finalExpired = expired.value;
   }
   if (p.targeting !== undefined) {
     if (p.targeting === null) {
@@ -1031,13 +1036,18 @@ export async function applyLinkPatch(
     if (safety.reason) return { error: 'unsafe_url', status: 400 };
     // Un destino nuevo y limpio levanta el bloqueo: se revisa todo lo que queda servido.
     if (link.safety === 'blocked' && safety.checked) {
-      const all = await firstUnsafe([finalUrl, ...(finalTargeting ? targetingDestinations(finalTargeting) : [])]);
+      const all = await firstUnsafe([
+        finalUrl,
+        ...(finalTargeting ? targetingDestinations(finalTargeting) : []),
+        ...(finalExpired ? [finalExpired] : []),
+      ]);
       if (!all.reason && all.checked) {
         sets.push('safety = NULL', 'safety_reason = NULL');
         unblocked = true;
       }
     }
-    if (safety.checked) sets.push(`safety_checked_at = datetime('now')`);
+    // Sin respuesta de Safe Browsing: queda sin revisar y el próximo cron lo revisa.
+    sets.push(safety.checked ? `safety_checked_at = datetime('now')` : 'safety_checked_at = NULL');
   }
 
   if (sets.length > 0) {

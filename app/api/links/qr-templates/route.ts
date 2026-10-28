@@ -19,5 +19,6 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: 'bad_request' }, { status: 400 });
   const created = await createQrTemplate(user.id, parsed.data, realUserId(user));
   if (created === 'limit') return NextResponse.json({ error: 'template_limit' }, { status: 409 });
+  if (created === 'low_contrast') return NextResponse.json({ error: 'low_contrast' }, { status: 400 });
   return NextResponse.json({ template: created }, { status: 201 });
 }

@@ -87,7 +87,8 @@
     "clicksN": "{n, plural, one {# click} other {# clicks}}",
     "creatorLabel": "Created by",
     "allCreators": "Anyone",
-    "byCreator": "by {name}"
+    "byCreator": "by {name}",
+    "statusBlocked": "Blocked"
   },
   "new": {
     "title": "New link",
@@ -435,7 +436,8 @@
       "too_many_pending": "You have 5 domains waiting for verification. Verify or remove one first.",
       "rate_limited": "Too many domains added. Wait a while and try again.",
       "invalid_url": "That URL isn't valid.",
-      "domain_pending_elsewhere": "Another workspace added this domain and has not verified it. To take it, create a TXT record named {name} with the value {value} and add it again."
+      "domain_pending_elsewhere": "Another workspace added this domain and has not verified it. To take it, create a TXT record named {name} with the value {value} and add it again.",
+      "unsafe_url": "That URL is reported as phishing or malware, or its domain is blocked."
     },
     "txtMissing": "We can't see the TXT record yet. Check its name and value; DNS can take a few minutes.",
     "pageDesc": "Branded short links: go.yourcompany.com/promo.",
@@ -512,7 +514,7 @@
   },
   "bio": {
     "title": "Bio page",
-    "sub": "One page with your links at zerosoft.ai/@{handle}. Each button goes through the short link, so clicks show up in your analytics.",
+    "sub": "One page with your links at {host}/@{handle}. Each button goes through the short link, so clicks show up in your analytics.",
     "pageTitle": "Title",
     "bioText": "Bio",
     "avatar": "Avatar URL (https)",
@@ -705,7 +707,8 @@
     "saveTemplate": "Save this design as a template",
     "templateNamePlaceholder": "Brand colors",
     "saveTemplateButton": "Save template",
-    "templateHelp": "Templates are shared with your workspace and apply to any link's QR."
+    "templateHelp": "Templates are shared with your workspace and apply to any link's QR.",
+    "templateRename": "Rename template {name}"
   },
   "labels": {
     "unknown": "Unknown",
@@ -852,12 +855,20 @@
     "stripeTitle": "Stripe",
     "stripeDesc": "Paid Checkout sessions and invoices become sales of the link that brought the customer.",
     "stripeConnect": "Use the workspace Stripe connection in <a>Integrations</a>, and pass the click id when you create the Checkout session (or metadata.zs_customer_id with the id you used for the lead). Later invoices of that customer count too.",
-    "stripeLabel": "Stripe Checkout"
+    "stripeLabel": "Stripe Checkout",
+    "publishableKey": "Publishable key",
+    "publishableHelp": "It goes inside your mobile app. It only identifies this workspace for deferred deep links and is not an API key.",
+    "rotateKey": "Rotate key",
+    "rotateTitle": "Rotate the publishable key?",
+    "rotateBody": "The current key stops working right away. Update your app with the new one.",
+    "deferredTitle": "Deferred deep links",
+    "deferredDesc": "When someone taps a link to your app without having it, they install it and the app asks which link brought them on its first launch."
   },
   "cloak": {
     "toggle": "Keep the short link in the address bar",
     "help": "The destination opens inside your domain (link cloaking). Some sites block being shown this way; test it after saving.",
-    "needsDomain": "Available on links of a custom domain."
+    "needsDomain": "Available on links of a custom domain.",
+    "conversionsWarning": "With cloaking the destination runs inside an iframe, where browsers block its cookies: leads and sales from this link will not be attributed."
   },
   "safety": {
     "blockedBanner": "This link is blocked: its destination was reported as {reason}. Visitors see a warning instead of the destination. Change the destination to unblock it.",
@@ -866,7 +877,8 @@
       "malware": "malware",
       "unwanted": "unwanted software",
       "blocked_domain": "a blocked domain",
-      "credentials": "a URL that hides its real domain"
+      "credentials": "a URL that hides its real domain",
+      "mixed_script": "a domain that imitates another one with look-alike letters"
     }
   },
   "events": {
@@ -889,7 +901,10 @@
       "scan": "QR scan",
       "lead": "Lead",
       "sale": "Sale"
-    }
+    },
+    "filterLink": "Show events of",
+    "allLinks": "All links",
+    "loadOlder": "Load older events"
   },
   "ai": {
     "title": "Ask about your links",
@@ -960,7 +975,8 @@
       "malware": "malware",
       "unwanted": "unwanted software",
       "blocked_domain": "blocked domain",
-      "credentials": "URL that hides its domain"
+      "credentials": "URL that hides its domain",
+      "mixed_script": "domain with look-alike letters"
     }
   },
   "integrations": {
@@ -1003,6 +1019,12 @@
       "title": "MCP server for AI agents",
       "desc": "Claude, ChatGPT or Cursor can create links and answer questions about your analytics.",
       "help": "Add this URL as a remote MCP server with an API key from <a>API keys</a> (links:read to read, links:write to create and edit)."
+    },
+    "cards": {
+      "slack": "Post new short links, leads and sales to a channel.",
+      "stripe": "Count paid Checkout sessions and invoices as sales of the link that brought the customer.",
+      "zapier": "Send link, lead and sale events to a Zapier catch hook.",
+      "make": "Send link, lead and sale events to a Make webhook."
     }
   }
 }
