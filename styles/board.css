@@ -782,3 +782,129 @@ section.board-templates { padding: 0; }
 @media (max-width: 600px) {
   .board-name.is-static { max-width: 60vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
+
+/* ---------- Tiempo real: quién está, seguir, presentar ---------- */
+.board-presence-btn { position: relative; gap: 6px; }
+.board-avatars { display: inline-flex; align-items: center; }
+.board-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-1);
+  background: hsl(var(--avatar-h, 210) 45% 42%);
+  color: #fff;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  flex: none;
+}
+.board-avatars .board-avatar + .board-avatar { margin-left: -4px; box-shadow: 0 0 0 2px var(--bg); }
+.board-avatar.is-idle { opacity: 0.55; }
+.board-avatar.is-more { background: var(--ui-hover); color: var(--ink); }
+.board-live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--brand-gray-2); flex: none; }
+.board-live-dot.is-on { background: var(--ok-ink); }
+.board-presence-btn.is-offline .board-live-dot { background: var(--warn-ink); }
+.board-presence-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 260px; overflow: auto; }
+.board-presence-item { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.board-presence-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-presence-meta { color: var(--brand-gray-2); }
+.board-summon { align-self: flex-start; }
+/* El aviso "Following" de Excalidraw está en inglés fijo: usamos el nuestro (board-follow-notice). */
+.board-editor .follow-mode__badge { display: none; }
+
+.board-editor.is-presenting .board-bar,
+.board-editor.is-presenting .board-notice,
+.board-editor.is-presenting .layer-ui__wrapper,
+.board-editor.is-presenting .board-overlays,
+.board-editor.is-presenting .board-comments-layer { display: none !important; }
+.board-editor.is-presenting { background: var(--bg); }
+.board-present { position: absolute; inset: 0; z-index: 60; display: flex; align-items: flex-end; justify-content: center; pointer-events: none; padding: 0 16px 16px; overflow: hidden; }
+/* Lo de afuera del frame queda tapado con el fondo: la slide es solo el frame. */
+.board-present-mask { position: absolute; pointer-events: none; box-shadow: 0 0 0 200vmax var(--bg); }
+.board-present-bar, .board-present-empty { position: relative; }
+.board-present-bar,
+.board-present-empty {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.12);
+}
+.board-present-empty p { margin: 0; }
+.board-present-count { min-width: 5ch; text-align: center; white-space: nowrap; }
+.board-present-name { color: var(--brand-gray-2); }
+@media (max-width: 599px) {
+  .board-present-name { display: none; }
+}
+
+/* ---------- Lista: búsqueda, carpetas, papelera ---------- */
+.board-list-tools { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+.board-search { display: flex; align-items: center; gap: 8px; max-width: 420px; position: relative; }
+.board-search > svg { position: absolute; left: 10px; color: var(--brand-gray-2); pointer-events: none; }
+.board-search .input { width: 100%; padding-left: 32px; }
+.board-folders { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); }
+.board-folder-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--brand-gray-1);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: -1px;
+}
+.board-folder-tab:hover { color: var(--ink); }
+.board-folder-tab[aria-current='page'] { color: var(--ink); border-bottom-color: var(--ink); }
+.board-folder-tab:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.board-folder-count { color: var(--brand-gray-2); font-variant-numeric: tabular-nums; font-size: 0.75rem; }
+.board-folder-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; position: relative; }
+.board-folder-title { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 1rem; }
+.board-folder-head .board-folder-title { margin: 0; }
+.board-card-match {
+  margin: 2px 0 0;
+  font-size: 0.8125rem;
+  color: var(--brand-gray-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.board-trash-list { list-style: none; margin: 12px 0 0; padding: 0; border-top: 1px solid var(--line); }
+.board-trash-item { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.board-trash-body { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 2px; }
+.board-trash-name { font-weight: 500; overflow-wrap: anywhere; }
+.board-branch-children { padding-left: 16px; }
+
+/* ---------- Registro de actividad ---------- */
+.board-audit-filters { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+.board-audit-wrap { overflow-x: auto; max-width: 100%; }
+.board-audit { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.board-audit th,
+.board-audit td { text-align: left; padding: 8px 10px 8px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.board-audit th { font-weight: 500; color: var(--brand-gray-1); }
+.board-audit td.num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.board-audit-link { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+/* Teléfono: sin nadie más, la presencia no ocupa lugar en la barra (el nombre manda). */
+@container board-editor (max-width: 599px) {
+  .board-presence.is-alone { display: none; }
+  .board-presence .board-live-dot { display: none; }
+  .board-avatars .board-avatar + .board-avatar:not(.is-more) { display: none; }
+}
+.board-audit-detail { display: block; }
+.board-search-count { margin: 0 0 12px; font-size: 0.875rem; color: var(--brand-gray-1); }
+.board-search-empty .board-search-count { font-size: 1rem; color: var(--ink); margin-bottom: 4px; }

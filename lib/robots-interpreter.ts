@@ -128,7 +128,7 @@ export interface InterpreterOptions {
   maxFiles?: number;
   maxFileBytes?: number;
   /** Último pedido bloqueado por el arnés (salto de redirección a un host privado, etc.). */
-  lastBlocked?: () => string | null;
+  lastBlocked?: (sinceMs: number) => string | null;
   /** Reloj (epoch ms) para los códigos TOTP; tests. */
   now?: () => number;
 }
@@ -492,12 +492,18 @@ export async function robotInterpreter(
         if (blocked) fail(blocked);
         pages += 1;
         if (pages > maxPages) fail('page_limit');
+        // El proxy guardián corta un salto a la red interna: puede devolver un
+        // 403 (la navegación "termina" ahí) o cortar el túnel (goto tira). En
+        // los dos casos, si hubo un bloqueo durante este goto, es private_host.
+        // Si el proxy cortó un salto de ESTA navegación, page.goto falla; ahí el
+        // código real es private_host. (Un subrecurso bloqueado no frena el goto,
+        // así que no se marca el paso como fallido por eso.)
+        const mark = Date.now();
         try {
           await page.goto(url, { timeout: Math.max(timeout(), Math.min(30_000, remaining())), waitUntil: 'domcontentloaded' });
         } catch (err) {
-          // El arnés cortó un salto (p. ej. una redirección a la red interna): el código real, no action_failed.
-          const why = opts.lastBlocked ? opts.lastBlocked() : null;
-          if (why && err instanceof Error && /ERR_BLOCKED_BY_CLIENT|blocked/i.test(err.message)) fail(why);
+          const why = opts.lastBlocked ? opts.lastBlocked(mark) : null;
+          if (why) fail(why);
           throw err;
         }
         return { detail: url };
@@ -1035,6 +1041,222 @@ export function isPrivateAddress(ip: string): boolean {
   );
 }
 
+// ---------- Proxy de salida guardián (SSRF) ----------
+
+/** Lo que devuelve guardProxy. */
+export interface GuardProxy {
+  /** Puerto en 127.0.0.1 para launch({ proxy }). */
+  port: number;
+  close(): Promise<void>;
+  /** Código del último bloqueo ocurrido en/ después de `ms` (null si no hubo). */
+  blockedSince(ms: number): string | null;
+}
+
+/**
+ * Proxy de salida local (HTTP + CONNECT) que Chromium usa para TODO el
+ * tráfico (launch({ proxy })). Resuelve el DNS del destino y, si cualquiera de
+ * sus IPs es privada, loopback, link-local, CGNAT o metadata, corta la
+ * conexión; si no, se conecta a la IP ya resuelta.
+ *
+ * Por qué cierra el SSRF de fondo: cada salto de una redirección y cada
+ * subrecurso es una conexión NUEVA por el proxy, así que todos se validan (no
+ * solo el primer pedido). Y como la conexión va a la IP que se validó (no se
+ * vuelve a resolver el nombre), cierra el DNS rebinding. El navegador sigue
+ * las redirecciones como siempre, así que la URL del documento queda bien.
+ *
+ * Autocontenida (se serializa al sandbox): recibe los módulos de Node y la
+ * función isPriv; no usa imports ni variables del módulo.
+ */
+export function guardProxy(
+  http: typeof import('http'),
+  net: typeof import('net'),
+  dnsPromises: typeof import('dns/promises'),
+  isPriv: (ip: string) => boolean,
+  upstreamRaw?: { server: string; username?: string; password?: string } | null,
+  allowPrivate?: { any: boolean; hosts: string[] } | null,
+): Promise<GuardProxy> {
+  let lastAt = 0;
+  const block = () => {
+    lastAt = Date.now();
+  };
+  // Proxy de país (ROBOTS_PROXY_URL): el guardián valida el destino y después
+  // sale por él (así las corridas con país usan su IP). Sin upstream, se
+  // conecta directo a la IP ya validada.
+  let upstream: { host: string; port: number; auth: string } | null = null;
+  if (upstreamRaw && upstreamRaw.server) {
+    try {
+      const uu = new URL(upstreamRaw.server);
+      const user = upstreamRaw.username || decodeURIComponent(uu.username || '');
+      const pass = upstreamRaw.password || decodeURIComponent(uu.password || '');
+      upstream = {
+        host: uu.hostname,
+        port: Number(uu.port) || (uu.protocol === 'https:' ? 443 : 80),
+        auth: user ? `Basic ${Buffer.from(`${user}:${pass}`).toString('base64')}` : '',
+      };
+    } catch {
+      upstream = null;
+    }
+  }
+  const resolveSafe = async (rawHost: string, port: number): Promise<{ ip: string; port: number } | null> => {
+    const host = String(rawHost || '').replace(/^\[|\]$/g, '').toLowerCase();
+    if (!host || !(port >= 1 && port <= 65535)) return null;
+    // Hosts privados que el operador habilitó a propósito (self-host, e2e): se saltan los chequeos.
+    const allowed =
+      !!allowPrivate && (allowPrivate.any || allowPrivate.hosts.indexOf(host) >= 0 || allowPrivate.hosts.indexOf(`${host}:${port}`) >= 0);
+    if (!allowed && (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.internal'))) return null;
+    let addrs: string[];
+    if (net.isIP(host)) addrs = [host];
+    else {
+      try {
+        addrs = (await dnsPromises.lookup(host, { all: true })).map((a) => a.address);
+      } catch {
+        return null;
+      }
+    }
+    if (!addrs.length) return null;
+    if (!allowed && addrs.some((a) => isPriv(a))) return null;
+    return { ip: addrs[0], port };
+  };
+  const server = http.createServer((req, res) => {
+    let u: URL;
+    try {
+      u = new URL(req.url || '');
+    } catch {
+      res.writeHead(400);
+      return res.end();
+    }
+    if (u.protocol !== 'http:') {
+      res.writeHead(400);
+      return res.end();
+    }
+    void resolveSafe(u.hostname, Number(u.port) || 80).then((t) => {
+      if (!t) {
+        // Corta la conexión (no un 403 con cuerpo): así una navegación a un
+        // host interno FALLA (y el paso da private_host) en vez de "cargar" una
+        // página "blocked" que podría terminar extraída, en la tabla o en un email.
+        block();
+        try {
+          res.destroy();
+        } catch {
+          // ya cerrado
+        }
+        return;
+      }
+      const headers = { ...req.headers, host: u.host } as Record<string, string | string[] | undefined>;
+      // Con upstream: pedido de proxy (URL absoluta) hacia el proxy de país.
+      const opts = upstream
+        ? { host: upstream.host, port: upstream.port, method: req.method, path: u.href, headers }
+        : { host: t.ip, port: t.port, method: req.method, path: (u.pathname || '/') + (u.search || ''), headers };
+      if (upstream && upstream.auth) headers['proxy-authorization'] = upstream.auth;
+      const preq = http.request(opts, (pres) => {
+        res.writeHead(pres.statusCode || 502, pres.headers);
+        pres.pipe(res);
+      });
+      preq.on('error', () => {
+        try {
+          if (!res.headersSent) res.writeHead(502);
+          res.end();
+        } catch {
+          // ya cerrado
+        }
+      });
+      req.pipe(preq);
+    });
+  });
+  server.on('connect', (req, socket, head) => {
+    const target = String(req.url || '');
+    const idx = target.lastIndexOf(':');
+    const host = idx > 0 ? target.slice(0, idx) : target;
+    const port = idx > 0 ? Number(target.slice(idx + 1)) : 443;
+    void resolveSafe(host, port).then((t) => {
+      if (!t) {
+        block();
+        try {
+          socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+          socket.destroy();
+        } catch {
+          // ya cerrado
+        }
+        return;
+      }
+      const onError = () => {
+        try {
+          socket.destroy();
+        } catch {
+          // ya cerrado
+        }
+      };
+      if (upstream) {
+        // Túnel hacia el proxy de país: CONNECT host:port por el upstream.
+        const up = net.connect(upstream.port, upstream.host, () => {
+          let line = `CONNECT ${host}:${port} HTTP/1.1\r\nHost: ${host}:${port}\r\n`;
+          if (upstream!.auth) line += `Proxy-Authorization: ${upstream!.auth}\r\n`;
+          up.write(`${line}\r\n`);
+        });
+        let established = false;
+        let buf = Buffer.alloc(0);
+        up.on('data', (d: Buffer) => {
+          if (established) return;
+          buf = Buffer.concat([buf, d]);
+          const i = buf.indexOf('\r\n\r\n');
+          if (i < 0) return;
+          if (!/^HTTP\/1\.[01] 2\d\d/.test(buf.toString('latin1'))) {
+            onError();
+            return;
+          }
+          established = true;
+          socket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
+          const rest = buf.subarray(i + 4);
+          if (head && head.length) up.write(head);
+          if (rest.length) socket.write(rest);
+          up.pipe(socket);
+          socket.pipe(up);
+        });
+        up.on('error', onError);
+        socket.on('error', () => {
+          try {
+            up.destroy();
+          } catch {
+            // ya cerrado
+          }
+        });
+        return;
+      }
+      const up = net.connect(t.port, t.ip, () => {
+        socket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
+        if (head && head.length) up.write(head);
+        up.pipe(socket);
+        socket.pipe(up);
+      });
+      up.on('error', onError);
+      socket.on('error', () => {
+        try {
+          up.destroy();
+        } catch {
+          // ya cerrado
+        }
+      });
+    });
+  });
+  server.on('clientError', (_e, sock) => {
+    try {
+      (sock as { destroy(): void }).destroy();
+    } catch {
+      // ya cerrado
+    }
+  });
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => {
+      const a = server.address() as { port: number };
+      resolve({
+        port: a.port,
+        close: () => new Promise<void>((r) => server.close(() => r())),
+        blockedSince: (ms: number) => (lastAt >= ms ? 'private_host' : null),
+      });
+    });
+  });
+}
+
 // ---------- Arnés (navegador real) ----------
 
 export interface HarnessJob {
@@ -1064,6 +1286,8 @@ export interface HarnessJob {
   timezoneId?: string;
   /** Solo e2e (certificados autofirmados locales); nunca en producción. */
   ignoreHTTPSErrors?: boolean;
+  /** Hosts privados habilitados a propósito (ALLOW_PRIVATE_WEBHOOKS / ROBOTS_ALLOWED_PRIVATE_HOSTS). */
+  allowPrivate?: { any: boolean; hosts: string[] };
 }
 
 /** Subconjunto de playwright-core que usa el arnés. */
@@ -1073,19 +1297,13 @@ export interface HarnessChromium {
     executablePath?: string;
     args?: string[];
     timeout?: number;
-    proxy?: { server: string; username?: string; password?: string };
+    proxy?: { server: string };
   }): Promise<{
     newContext(opts: Record<string, unknown>): Promise<{
       route(pattern: string, handler: (route: {
-        request(): { url(): string; method(): string; headers(): Record<string, string> };
+        request(): { url(): string };
         abort(code?: string): Promise<void>;
         continue(): Promise<void>;
-        fetch(opts?: { maxRedirects?: number; url?: string; method?: string }): Promise<{
-          status(): number;
-          headers(): Record<string, string>;
-          body(): Promise<Buffer>;
-        }>;
-        fulfill(opts: { response?: unknown; status?: number; body?: string }): Promise<void>;
       }) => Promise<void>): Promise<void>;
       /** Playwright ≥ 1.48: los WebSocket no pasan por route(). */
       routeWebSocket?(
@@ -1110,15 +1328,26 @@ export async function robotHarness(
   job: HarnessJob,
   interpret: typeof robotInterpreter,
   checkUrl: (url: string) => Promise<string | null>,
+  startGuard?: () => Promise<GuardProxy | null>,
 ): Promise<InterpreterResult> {
   const started = Date.now();
   let browser: Awaited<ReturnType<HarnessChromium['launch']>> | null = null;
   let killer: ReturnType<typeof setTimeout> | null = null;
+  let guard: GuardProxy | null = null;
   try {
+    // Proxy de salida guardián: Chromium manda TODO el tráfico por él y él
+    // valida la IP de cada conexión (redirecciones y subrecursos incluidos).
+    if (startGuard) {
+      try {
+        guard = await startGuard();
+      } catch {
+        guard = null;
+      }
+    }
     browser = await chromium.launch({
       headless: true,
       executablePath: job.executablePath || undefined,
-      // WebRTC sin UDP directo: no abre conexiones a la red interna por fuera de route().
+      // WebRTC sin UDP directo: no abre conexiones a la red interna por fuera del proxy.
       // Topes de memoria y procesos: un sitio hostil no se come el runner.
       args: [
         ...(job.args ?? []),
@@ -1128,7 +1357,9 @@ export async function robotHarness(
         '--disable-gpu',
       ],
       timeout: 30_000,
-      ...(job.proxy && job.proxy.server ? { proxy: job.proxy } : {}),
+      // Todo el tráfico sale por el proxy guardián; si hay un proxy de país
+      // (ROBOTS_PROXY_URL), el guardián lo usa de salida después de validar.
+      ...(guard ? { proxy: { server: `http://127.0.0.1:${guard.port}` } } : {}),
     });
     const b = browser;
     killer = setTimeout(() => {
@@ -1149,63 +1380,23 @@ export async function robotHarness(
       userAgent:
         'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36 ZerosoftRobots/1',
     });
-    // SSRF: cada pedido se valida por la IP a la que resuelve su host (sin
-    // caché por origen: así un re-bind de DNS no reusa un veredicto viejo).
-    // Las redirecciones (30x) no las sigue Chromium por su cuenta: pedimos con
-    // route.fetch({ maxRedirects: 0 }), validamos el Location y le devolvemos
-    // al navegador el 30x tal cual. Así el navegador sigue la redirección como
-    // un pedido nuevo (la URL del documento queda bien) y ese pedido vuelve a
-    // pasar por este handler. Un redirector a la red interna (location.href,
-    // window.open o un 30x del propio servidor) se corta en el salto prohibido.
-    //
-    // DNS rebinding: la IP se valida con un lookup justo antes de cada pedido,
-    // pero route.fetch vuelve a resolver el nombre por su cuenta (Playwright no
-    // deja fijar la IP ni mandar a una IP con otro Host sin romper TLS). Queda
-    // una ventana chica entre el chequeo y la conexión. En la nube la cierra la
-    // red de la microVM (Vercel Sandbox con subnets.deny de los rangos
-    // privados: ni con DNS cambiado se llega a la red interna). En el runner
-    // local (self-host) esa ventana sigue abierta: correr el runner local en
-    // una máquina sin acceso a servicios internos sensibles.
-    let lastBlocked: string | null = null;
-    const block = (why: string | null) => {
-      lastBlocked = why || 'private_host';
-    };
+    // Con el proxy guardián, route() solo filtra esquemas (file:, ftp:, etc.):
+    // todo http(s) sale por el proxy, que valida cada conexión. Sin proxy
+    // (tests o Playwright que no lo soporta), se cae a validar por host acá,
+    // que no cubre las redirecciones: por eso el proxy es el camino normal.
     await context.route('**/*', async (route) => {
       const raw = route.request().url();
       if (/^(data|blob|about):/i.test(raw)) return route.continue();
-      const first = await checkUrl(raw).catch(() => 'unresolvable_host');
-      if (first) {
-        block(first);
+      let u: URL;
+      try {
+        u = new URL(raw);
+      } catch {
         return route.abort('blockedbyclient');
       }
-      // route.fetch no existe en Playwright viejos: ahí se continúa (el salto
-      // inicial ya se validó; sin seguir redirects a mano no hay protección extra).
-      if (typeof route.fetch !== 'function' || typeof route.fulfill !== 'function') return route.continue();
-      try {
-        const res = await route.fetch({ maxRedirects: 0 });
-        const status = res.status();
-        const loc = res.headers()['location'];
-        if (status >= 300 && status < 400 && loc) {
-          let next: string;
-          try {
-            next = new URL(loc, raw).toString();
-          } catch {
-            return route.abort('blockedbyclient');
-          }
-          if (!/^https?:\/\//i.test(next)) {
-            block('invalid_url');
-            return route.abort('blockedbyclient');
-          }
-          const hop = await checkUrl(next).catch(() => 'unresolvable_host');
-          if (hop) {
-            block(hop);
-            return route.abort('blockedbyclient');
-          }
-        }
-        return route.fulfill({ response: res });
-      } catch {
-        return route.abort('blockedbyclient').catch(() => {});
-      }
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return route.abort('blockedbyclient');
+      if (guard) return route.continue();
+      if (await checkUrl(`${u.protocol}//${u.host}/`).catch(() => 'unresolvable_host')) return route.abort('blockedbyclient');
+      return route.continue();
     });
     // Los WebSocket (ws/wss) no pasan por route(): misma verificación de host.
     if (typeof context.routeWebSocket === 'function') {
@@ -1240,7 +1431,7 @@ export async function robotHarness(
       credentials: job.credentials,
       maxFiles: job.maxFiles,
       maxFileBytes: job.maxFileBytes,
-      lastBlocked: () => lastBlocked,
+      lastBlocked: (since: number) => (guard ? guard.blockedSince(since) : null),
     });
     if (job.saveSession) {
       try {
@@ -1270,5 +1461,6 @@ export async function robotHarness(
   } finally {
     if (killer) clearTimeout(killer);
     if (browser) await browser.close().catch(() => {});
+    if (guard) await guard.close().catch(() => {});
   }
 }

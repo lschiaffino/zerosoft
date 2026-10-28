@@ -183,8 +183,9 @@ describe('robots: arnés con país, proxy y sin descargas', () => {
     };
   }
 
-  it('pasa el proxy al lanzar y el idioma y la zona horaria al contexto', async () => {
+  it('lanza con el proxy guardián local y pasa idioma y zona horaria al contexto', async () => {
     const seen: { launch?: Record<string, unknown>; context?: Record<string, unknown> } = {};
+    let closed = false;
     await robotHarness(
       fakeChromium(seen),
       {
@@ -199,14 +200,17 @@ describe('robots: arnés con país, proxy y sin descargas', () => {
         proxy: { server: 'http://proxy.test:7000', username: 'u-cc-ar', password: 'p' },
         locale: 'es-AR',
         timezoneId: 'America/Argentina/Buenos_Aires',
-      },
+      } as never,
       robotInterpreter,
       async () => null,
+      async () => ({ port: 54321, close: async () => { closed = true; }, blockedSince: () => null }),
     );
-    expect(seen.launch?.proxy).toEqual({ server: 'http://proxy.test:7000', username: 'u-cc-ar', password: 'p' });
+    // El navegador sale por el proxy guardián local (que a su vez encadena al de país).
+    expect(seen.launch?.proxy).toEqual({ server: 'http://127.0.0.1:54321' });
     expect(seen.launch?.args).toEqual(expect.arrayContaining(['--js-flags=--max-old-space-size=512']));
     expect(seen.context).toMatchObject({ locale: 'es-AR', timezoneId: 'America/Argentina/Buenos_Aires', acceptDownloads: false });
     expect((seen.context?.extraHTTPHeaders as Record<string, string>)['accept-language']).toMatch(/^es-AR/);
+    expect(closed).toBe(true);
   });
 
   it('acepta descargas solo si el robot tiene un paso download', async () => {

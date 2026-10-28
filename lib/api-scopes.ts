@@ -24,6 +24,8 @@ export const API_SCOPES = [
   'docs:write',
   'talk:read',
   'talk:write',
+  'boards:read',
+  'boards:write',
 ] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 

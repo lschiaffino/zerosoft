@@ -14,6 +14,7 @@ import { referencedFileIds, retargetFiles, withShareToken } from './board-file-r
 import { boardFileUrls, copyBoardFiles, deleteOrphanUploads, externalizeSceneFiles } from './board-files';
 import { getSnapshot, maybeSnapshot } from './board-history';
 import { boardVisibleSql, normalizeAccessMode, type BoardViewer } from './board-access';
+import { sanitizeElements } from './board-import';
 
 const nowIso = () => new Date().toISOString();
 
@@ -22,7 +23,8 @@ function parseScene(raw: string): BoardScene {
   try {
     const s = JSON.parse(raw) as Partial<BoardScene>;
     return {
-      elements: Array.isArray(s.elements) ? s.elements : [],
+      // Lo leído también pasa por el limpiador (links y HTML de IA de escenas viejas o importadas).
+      elements: Array.isArray(s.elements) ? sanitizeElements(s.elements as Array<Record<string, unknown>>) : [],
       appState: s.appState && typeof s.appState === 'object' ? s.appState : {},
       files: s.files && typeof s.files === 'object' ? s.files : {},
     };
@@ -44,16 +46,17 @@ function toSummary(row: BoardListRow | BoardRow & { updated_by_name?: string | n
     updated_at: row.updated_at,
     created_at: row.created_at,
     updated_by: row.updated_by_name ?? row.updated_by_email ?? null,
+    folder_id: row.folder_id ?? null,
+    ...(row.deleted_at ? { deleted_at: row.deleted_at } : {}),
   };
 }
 
 /** Pizarras del workspace; con `viewer`, solo las que esa persona puede ver. */
 export async function listBoards(workspaceId: string, viewer?: BoardViewer): Promise<BoardSummary[]> {
-  const visible = viewer ? boardVisibleSql(viewer) : { sql: '1 = 1', args: [] };
+  const visible = viewer ? boardVisibleSql(viewer) : { sql: 'b.deleted_at IS NULL', args: [] };
   const rows = (await getDb()
     .prepare(
-      `SELECT b.id, b.workspace_id, b.created_by, b.updated_by, b.name, b.scene_bytes, b.thumbnail, b.version,
-              b.share_token, b.access, b.created_at, b.updated_at, u.name AS updated_by_name, u.email AS updated_by_email
+      `SELECT ${LIST_COLUMNS}
        FROM boards b LEFT JOIN users u ON u.id = b.updated_by
        WHERE b.workspace_id = ? AND ${visible.sql} ORDER BY b.updated_at DESC LIMIT 500`,
     )
@@ -61,9 +64,71 @@ export async function listBoards(workspaceId: string, viewer?: BoardViewer): Pro
   return rows.map(toSummary);
 }
 
+const LIST_COLUMNS = `b.id, b.workspace_id, b.created_by, b.updated_by, b.name, b.scene_bytes, b.thumbnail, b.version,
+              b.share_token, b.access, b.folder_id, b.deleted_at, b.created_at, b.updated_at,
+              u.name AS updated_by_name, u.email AS updated_by_email`;
+
+/** Término para LIKE con ESCAPE '\\' (escapa %, _ y \). */
+function likeTerm(q: string): string {
+  return `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+}
+
+/**
+ * Busca por nombre y por el texto de adentro (stickies, textos, etiquetas de
+ * formas, nombres de frames). Si coincidió por el contenido, cada resultado
+ * trae la línea que coincidió (`match`).
+ */
+export async function searchBoards(workspaceId: string, viewer: BoardViewer, q: string, limit = 50): Promise<BoardSummary[]> {
+  const term = q.trim().slice(0, 100);
+  if (!term) return listBoards(workspaceId, viewer);
+  const visible = boardVisibleSql(viewer);
+  const like = likeTerm(term);
+  const rows = (await getDb()
+    .prepare(
+      `SELECT ${LIST_COLUMNS}, b.search_text
+       FROM boards b LEFT JOIN users u ON u.id = b.updated_by
+       WHERE b.workspace_id = ? AND ${visible.sql} AND (b.name LIKE ? ESCAPE '\\' OR b.search_text LIKE ? ESCAPE '\\')
+       ORDER BY (b.name LIKE ? ESCAPE '\\') DESC, b.updated_at DESC LIMIT ?`,
+    )
+    .all(workspaceId, ...visible.args, like, like, like, Math.min(Math.max(limit, 1), 200))) as Array<BoardListRow & { search_text: string }>;
+  return rows.map((r) => {
+    const summary = toSummary(r);
+    const match = r.name.toLowerCase().includes(term.toLowerCase()) ? null : snippet(r.search_text ?? '', term);
+    return match ? { ...summary, match } : summary;
+  });
+}
+
+/** La línea del texto de la pizarra donde aparece `term`, recortada. */
+export function snippet(text: string, term: string): string | null {
+  const lower = term.toLowerCase();
+  const line = text.split('\n').find((l) => l.toLowerCase().includes(lower));
+  if (!line) return null;
+  if (line.length <= 90) return line;
+  const at = line.toLowerCase().indexOf(lower);
+  const start = Math.max(0, at - 30);
+  return `${start > 0 ? '…' : ''}${line.slice(start, start + 90)}${start + 90 < line.length ? '…' : ''}`;
+}
+
+/** Texto buscable de una escena: textos, etiquetas y nombres de frames, una línea cada uno. */
+export function sceneSearchText(elements: readonly unknown[]): string {
+  const out: string[] = [];
+  let size = 0;
+  for (const raw of elements as Array<Record<string, unknown>>) {
+    if (!raw || raw.isDeleted) continue;
+    const text = raw.type === 'text' ? (raw.originalText ?? raw.text) : raw.type === 'frame' || raw.type === 'magicframe' ? raw.name : null;
+    if (typeof text !== 'string') continue;
+    const clean = text.replace(/\s+/g, ' ').trim();
+    if (!clean) continue;
+    out.push(clean);
+    size += clean.length + 1;
+    if (size > 20_000) break;
+  }
+  return out.join('\n').slice(0, 20_000);
+}
+
 async function getBoardRow(workspaceId: string, id: string): Promise<BoardRow | undefined> {
   return (await getDb()
-    .prepare('SELECT * FROM boards WHERE id = ? AND workspace_id = ?')
+    .prepare('SELECT * FROM boards WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL')
     .get(id, workspaceId)) as BoardRow | undefined;
 }
 
@@ -84,23 +149,36 @@ export async function createBoard(
   workspaceId: string,
   personId: string,
   name: string,
-  opts: { scene?: BoardScene; thumbnail?: string | null; id?: string } = {},
+  opts: { scene?: BoardScene; thumbnail?: string | null; id?: string; folderId?: string | null } = {},
 ): Promise<BoardDetail> {
   const id = opts.id ?? crypto.randomUUID();
   const now = nowIso();
   const json = opts.scene ? serializeScene(opts.scene) : '';
   await getDb()
     .prepare(
-      `INSERT INTO boards (id, workspace_id, created_by, updated_by, name, scene, scene_bytes, thumbnail, version, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+      `INSERT INTO boards (id, workspace_id, created_by, updated_by, name, scene, scene_bytes, thumbnail, version, folder_id, search_text, search_indexed, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 1, ?, ?)`,
     )
-    .run(id, workspaceId, personId, personId, name.trim().slice(0, 120) || 'Untitled board', json, sceneBytes(json), cleanThumbnail(opts.thumbnail), now, now);
+    .run(
+      id,
+      workspaceId,
+      personId,
+      personId,
+      name.trim().slice(0, 120) || 'Untitled board',
+      json,
+      sceneBytes(json),
+      cleanThumbnail(opts.thumbnail),
+      opts.folderId ?? null,
+      sceneSearchText(opts.scene?.elements ?? []),
+      now,
+      now,
+    );
   return (await getBoard(workspaceId, id))!;
 }
 
 function serializeScene(scene: BoardScene): string {
   return JSON.stringify({
-    elements: scene.elements,
+    elements: sanitizeElements(scene.elements as Array<Record<string, unknown>>),
     appState: pickAppState(scene.appState ?? {}),
     files: scene.files ?? {},
   });
@@ -120,13 +198,102 @@ export async function renameBoard(
   const res = await getDb()
     .prepare(
       `UPDATE boards SET name = ?, updated_at = ?, updated_by = COALESCE(?, updated_by)
-       WHERE id = ? AND workspace_id = ?`,
+       WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL`,
     )
     .run(name.trim() || 'Untitled board', nowIso(), personId ?? null, id, workspaceId);
   return res.changes > 0;
 }
 
-export async function deleteBoard(workspaceId: string, id: string): Promise<boolean> {
+/**
+ * Llena search_text de las pizarras de antes de la búsqueda por contenido
+ * (cron, por lotes). Cada fila se toma con compare-and-set (0 → 2) para que dos
+ * corridas no hagan la misma. Si una corrida se corta a la mitad, esa fila
+ * queda tomada hasta su próximo guardado (que deja el texto al día).
+ */
+export async function backfillSearchText(opts: { limit?: number } = {}): Promise<number> {
+  const limit = Math.min(Math.max(opts.limit ?? 100, 1), 500);
+  const candidates = (await getDb()
+    .prepare('SELECT id FROM boards WHERE search_indexed = 0 LIMIT ?')
+    .all(limit)) as Array<{ id: string }>;
+  let done = 0;
+  for (const { id } of candidates) {
+    const claim = await getDb().prepare('UPDATE boards SET search_indexed = 2 WHERE id = ? AND search_indexed = 0').run(id);
+    if (claim.changes === 0) continue;
+    const row = (await getDb().prepare('SELECT scene FROM boards WHERE id = ?').get(id)) as { scene: string } | undefined;
+    const text = row ? sceneSearchText(parseScene(row.scene).elements) : '';
+    // Solo si nadie guardó en el medio (un guardado ya deja search_indexed = 1 con su texto).
+    await getDb().prepare('UPDATE boards SET search_text = ?, search_indexed = 1 WHERE id = ? AND search_indexed = 2').run(text, id);
+    done++;
+  }
+  return done;
+}
+
+/** Cuántos días queda una pizarra en la papelera antes de borrarse sola. */
+export const BOARD_TRASH_DAYS = 30;
+
+/** Manda la pizarra a la papelera: deja de aparecer y sus links dejan de andar, pero se puede restaurar. */
+export async function trashBoard(workspaceId: string, id: string, personId: string | null): Promise<boolean> {
+  const res = await getDb()
+    .prepare('UPDATE boards SET deleted_at = ?, deleted_by = ? WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL')
+    .run(nowIso(), personId, id, workspaceId);
+  return res.changes > 0;
+}
+
+/** Saca la pizarra de la papelera (vuelve con su escena, comentarios, historial y links). */
+export async function restoreBoard(workspaceId: string, id: string): Promise<boolean> {
+  const res = await getDb()
+    .prepare('UPDATE boards SET deleted_at = NULL, deleted_by = NULL WHERE id = ? AND workspace_id = ? AND deleted_at IS NOT NULL')
+    .run(id, workspaceId);
+  return res.changes > 0;
+}
+
+export type TrashedBoard = BoardSummary & { deleted_at: string; deleted_by: string | null };
+
+/** Papelera: las pizarras borradas que la persona puede ver, la más reciente primero. */
+export async function listTrash(workspaceId: string, viewer: BoardViewer): Promise<TrashedBoard[]> {
+  const visible = boardVisibleSql(viewer, { trash: true });
+  const rows = (await getDb()
+    .prepare(
+      `SELECT ${LIST_COLUMNS}, d.name AS deleted_by_name, d.email AS deleted_by_email
+       FROM boards b LEFT JOIN users u ON u.id = b.updated_by LEFT JOIN users d ON d.id = b.deleted_by
+       WHERE b.workspace_id = ? AND ${visible.sql} ORDER BY b.deleted_at DESC LIMIT 500`,
+    )
+    .all(workspaceId, ...visible.args)) as Array<BoardListRow & { deleted_by_name: string | null; deleted_by_email: string | null }>;
+  return rows.map((r) => ({ ...toSummary(r), deleted_at: r.deleted_at as string, deleted_by: r.deleted_by_name ?? r.deleted_by_email ?? null }));
+}
+
+/** Borra del todo lo que lleva más de BOARD_TRASH_DAYS en la papelera (cron). */
+export async function purgeExpiredTrash(now = Date.now()): Promise<number> {
+  const cutoff = new Date(now - BOARD_TRASH_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const rows = (await getDb()
+    .prepare('SELECT id, workspace_id FROM boards WHERE deleted_at IS NOT NULL AND deleted_at < ? LIMIT 200')
+    .all(cutoff)) as Array<{ id: string; workspace_id: string }>;
+  let n = 0;
+  for (const r of rows) if (await deleteBoard(r.workspace_id, r.id, { trashed: true })) n++;
+  return n;
+}
+
+/** Mueve la pizarra a una carpeta del workspace (null = sin carpeta). */
+export async function moveBoardToFolder(workspaceId: string, id: string, folderId: string | null): Promise<'ok' | 'not_found' | 'no_folder'> {
+  if (folderId) {
+    const folder = await getDb().prepare('SELECT 1 AS x FROM board_folders WHERE id = ? AND workspace_id = ?').get(folderId, workspaceId);
+    if (!folder) return 'no_folder';
+  }
+  const res = await getDb()
+    .prepare('UPDATE boards SET folder_id = ? WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL')
+    .run(folderId, id, workspaceId);
+  return res.changes > 0 ? 'ok' : 'not_found';
+}
+
+/**
+ * Borra la pizarra del todo (escena, imágenes, comentarios, historial).
+ * `trashed`: solo si está en la papelera (borrar para siempre, poda).
+ */
+export async function deleteBoard(workspaceId: string, id: string, opts: { trashed?: boolean } = {}): Promise<boolean> {
+  if (opts.trashed) {
+    const inTrash = await getDb().prepare('SELECT 1 AS x FROM boards WHERE id = ? AND workspace_id = ? AND deleted_at IS NOT NULL').get(id, workspaceId);
+    if (!inTrash) return false;
+  }
   const urls = await boardFileUrls(id);
   const res = await getDb().prepare('DELETE FROM boards WHERE id = ? AND workspace_id = ?').run(id, workspaceId);
   if (res.changes === 0) return false;
@@ -144,7 +311,7 @@ export async function duplicateBoard(
 ): Promise<BoardDetail | null> {
   const src = await getBoardRow(workspaceId, id);
   if (!src) return null;
-  return copySceneToNewBoard(workspaceId, personId, id, src.scene, copyName(src.name), src.thumbnail);
+  return copySceneToNewBoard(workspaceId, personId, id, src.scene, copyName(src.name), src.thumbnail, src.folder_id ?? null);
 }
 
 /** Pizarra nueva con la escena (JSON guardado) de otra: copia las imágenes y apunta las URLs a la nueva. */
@@ -155,6 +322,7 @@ async function copySceneToNewBoard(
   sceneJson: string,
   name: string,
   thumbnail: string | null,
+  folderId: string | null = null,
 ): Promise<BoardDetail> {
   const newId = crypto.randomUUID();
   const scene = parseScene(sceneJson);
@@ -162,6 +330,7 @@ async function copySceneToNewBoard(
     id: newId,
     scene: { ...scene, files: retargetFiles(scene.files, newId) },
     thumbnail,
+    folderId,
   });
   await copyBoardFiles(fromBoardId, newId, referencedFileIds(scene.files));
   return board;
@@ -222,7 +391,7 @@ export async function saveBoardScene(
   baseVersion: number,
   thumbnail?: string | null,
 ): Promise<SaveSceneResult> {
-  const exists = await getDb().prepare('SELECT 1 AS x FROM boards WHERE id = ? AND workspace_id = ?').get(id, workspaceId);
+  const exists = await getDb().prepare('SELECT 1 AS x FROM boards WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL').get(id, workspaceId);
   if (!exists) return { ok: false, code: 'not_found' };
   // Las imágenes en base64 salen al storage (migra de a poco las escenas viejas).
   const files = await externalizeSceneFiles(workspaceId, id, scene.files ?? {});
@@ -238,12 +407,12 @@ export async function saveBoardScene(
     thumbnail === undefined ? undefined : thumbnail === null ? null : (cleanThumbnail(thumbnail) ?? undefined);
   const res = await getDb()
     .prepare(
-      `UPDATE boards SET scene = ?, scene_bytes = ?, version = version + 1, updated_at = ?, updated_by = ?
+      `UPDATE boards SET scene = ?, scene_bytes = ?, search_text = ?, search_indexed = 1, version = version + 1, updated_at = ?, updated_by = ?
          ${thumb !== undefined ? ', thumbnail = ?' : ''}
-       WHERE id = ? AND workspace_id = ? AND version = ?`,
+       WHERE id = ? AND workspace_id = ? AND version = ? AND deleted_at IS NULL`,
     )
     .run(
-      ...([json, bytes, now, personId] as Array<string | number | null>),
+      ...([json, bytes, sceneSearchText(scene.elements), now, personId] as Array<string | number | null>),
       ...(thumb !== undefined ? [thumb] : []),
       id,
       workspaceId,
@@ -328,7 +497,7 @@ export async function setBoardShared(workspaceId: string, id: string, shared: bo
 
 export async function getSharedBoard(token: string): Promise<BoardDetail | null> {
   if (!/^[A-Za-z0-9_-]{10,64}$/.test(token)) return null;
-  const row = (await getDb().prepare('SELECT * FROM boards WHERE share_token = ?').get(token)) as BoardRow | undefined;
+  const row = (await getDb().prepare('SELECT * FROM boards WHERE share_token = ? AND deleted_at IS NULL').get(token)) as BoardRow | undefined;
   if (!row) return null;
   const detail = toDetail(row);
   // Las imágenes se piden con el token: el proxy no tiene sesión que chequear.
@@ -346,7 +515,7 @@ export async function getGuestBoardVersion(token: string): Promise<BoardVersionI
   const row = (await getDb()
     .prepare(
       `SELECT b.version, u.name AS name, u.email AS email
-       FROM boards b LEFT JOIN users u ON u.id = b.updated_by WHERE b.edit_token = ?`,
+       FROM boards b LEFT JOIN users u ON u.id = b.updated_by WHERE b.edit_token = ? AND b.deleted_at IS NULL`,
     )
     .get(token)) as VersionRow | undefined;
   return row ? toVersionInfo(row) : null;
@@ -354,7 +523,7 @@ export async function getGuestBoardVersion(token: string): Promise<BoardVersionI
 
 export async function getGuestBoard(token: string): Promise<{ board: BoardDetail; workspaceId: string } | null> {
   if (!TOKEN_RE.test(token)) return null;
-  const row = (await getDb().prepare('SELECT * FROM boards WHERE edit_token = ?').get(token)) as BoardRow | undefined;
+  const row = (await getDb().prepare('SELECT * FROM boards WHERE edit_token = ? AND deleted_at IS NULL').get(token)) as BoardRow | undefined;
   if (!row) return null;
   const detail = toDetail(row);
   // El invitado no ve el link público de solo lectura (no lo gestiona).

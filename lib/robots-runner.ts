@@ -87,9 +87,31 @@ export function getRobotBackend(): RobotBackend | null {
   return null;
 }
 
-/** SSRF: misma regla que safeFetch (solo http(s) a hosts públicos). */
+/**
+ * Hosts privados que el operador habilitó a propósito para los robots
+ * (self-host que automatiza sitios internos, y los e2e con 127.0.0.1):
+ * ALLOW_PRIVATE_WEBHOOKS=true (cualquier host privado) o una lista en
+ * ROBOTS_ALLOWED_PRIVATE_HOSTS (host o host:puerto, separados por comas).
+ */
+export function allowedPrivate(): { any: boolean; hosts: string[] } {
+  return {
+    any: process.env.ALLOW_PRIVATE_WEBHOOKS === 'true',
+    hosts: (process.env.ROBOTS_ALLOWED_PRIVATE_HOSTS ?? '')
+      .split(',')
+      .map((h) => h.trim().toLowerCase())
+      .filter(Boolean),
+  };
+}
+
+/** SSRF: misma regla que safeFetch (solo http(s) a hosts públicos), más la lista habilitada. */
 export async function checkRobotUrl(url: string): Promise<string | null> {
   try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+    const allow = allowedPrivate();
+    if (allow.hosts.includes(host) || allow.hosts.includes(`${host}:${u.port || (u.protocol === 'https:' ? '443' : '80')}`)) {
+      return u.protocol === 'http:' || u.protocol === 'https:' ? null : 'invalid_url';
+    }
     await assertPublicUrl(url, { allowHttp: true });
     return null;
   } catch (err) {
@@ -115,6 +137,7 @@ export function harnessJob(job: RobotJob, extra: Partial<HarnessJob> = {}): Harn
     ...(job.proxy ? { proxy: job.proxy } : {}),
     ...(job.locale ? { locale: job.locale } : {}),
     ...(job.timezoneId ? { timezoneId: job.timezoneId } : {}),
+    allowPrivate: allowedPrivate(),
     ...extra,
   };
 }
@@ -136,17 +159,28 @@ const localBackend: RobotBackend = {
     } catch {
       return failed('runner_unavailable: playwright-core is not installed');
     }
+    const [{ guardProxy, isPrivateAddress }, http, net, dnsPromises] = await Promise.all([
+      import('./robots-interpreter'),
+      import('node:http'),
+      import('node:net'),
+      import('node:dns/promises'),
+    ]);
     return robotHarness(
       chromium,
       harnessJob(job, {
         executablePath: process.env.ROBOTS_CHROMIUM_PATH || undefined,
-        // e2e con un https local autofirmado: nunca en un deploy de producción.
-        ...(process.env.ROBOTS_TEST_IGNORE_HTTPS_ERRORS === '1' && process.env.VERCEL_ENV !== 'production'
+        // Solo e2e: un https local autofirmado. Hace falta el modo demo o CI
+        // (y nunca un deploy de producción de Vercel): fuera de ahí se ignora,
+        // para que nadie lo prenda por accidente en un self-host real.
+        ...(process.env.ROBOTS_TEST_IGNORE_HTTPS_ERRORS === '1' &&
+        process.env.VERCEL_ENV !== 'production' &&
+        (process.env.DEMO_MODE === 'true' || process.env.CI === '1' || process.env.CI === 'true')
           ? { ignoreHTTPSErrors: true }
           : {}),
       }),
       robotInterpreter,
       checkRobotUrl,
+      () => guardProxy(http, net, dnsPromises, isPrivateAddress, job.proxy ?? null, allowedPrivate()),
     );
   },
 };

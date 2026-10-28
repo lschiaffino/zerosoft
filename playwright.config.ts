@@ -129,6 +129,9 @@ export default defineConfig({
       ROBOTS_DESTINATIONS_FAKE: '1',
       // e2e de Robots con un https local autofirmado (redirección http → https).
       ROBOTS_TEST_IGNORE_HTTPS_ERRORS: '1',
+      // Board: texto a diagrama, agrupar stickies y wireframe a código con el modelo
+      // falso de lib/board-ai.ts (cookie board_ai_fake=off → ai_disabled).
+      BOARD_AI_FAKE: '1',
       AI_GATEWAY_API_KEY: '',
       VERCEL_OIDC_TOKEN: '',
     },

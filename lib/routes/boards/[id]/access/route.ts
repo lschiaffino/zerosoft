@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { isDenied, requireBoardAccess } from '@/lib/board-access-http';
+import { publishBoardAccessChanged } from '@/lib/board-live';
+import { logBoardAudit } from '@/lib/board-audit';
 import { getBoardAccessInfo, setBoardAccessMode, setBoardGuestLink, setBoardMember, type BoardAccessLevel } from '@/lib/board-access';
 import { boardAccessPatchSchema } from '@/lib/boards-schema';
 import { invalidInput, jsonError, limitWrites } from '@/lib/write-limit';
@@ -54,6 +56,11 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (res === 'not_member') return jsonError(400, 'not_member');
   }
   if (guest !== undefined && (await setBoardGuestLink(workspaceId, id, guest)) === false) return jsonError(404, 'not_found');
+  // Las conexiones en vivo de la pizarra revalidan su acceso ya (quien lo perdió deja de recibir).
+  await publishBoardAccessChanged(workspaceId, id);
+  if (mode) await logBoardAudit({ workspaceId, actorId: personId, action: 'access.mode', boardId: id, data: { mode } });
+  if (member) await logBoardAudit({ workspaceId, actorId: personId, action: 'access.member', boardId: id, data: { userId: member.userId, role: member.role } });
+  if (guest !== undefined) await logBoardAudit({ workspaceId, actorId: personId, action: 'access.guest_link', boardId: id, data: { on: guest } });
   const body = await payload(workspaceId, id, access.level);
   return body ? NextResponse.json(body) : jsonError(404, 'not_found');
 }

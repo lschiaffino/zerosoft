@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { isDenied, requireBoardAccess } from '@/lib/board-access-http';
 import { restoreSnapshotAsCopy } from '@/lib/boards';
+import { logBoardAudit } from '@/lib/board-audit';
 import { boardRestoreSchema } from '@/lib/boards-schema';
 import { invalidInput, jsonError, limitWrites } from '@/lib/write-limit';
 
@@ -25,5 +26,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (!parsed.success) return invalidInput(parsed.error);
   const board = await restoreSnapshotAsCopy(user.id, personId, id, snapshotId, parsed.data.name);
   if (!board) return jsonError(404, 'not_found');
+  await logBoardAudit({ workspaceId: user.id, actorId: personId, action: 'board.version_restored', boardId: board.id, boardName: board.name, data: { from: id, snapshotId } });
   return NextResponse.json(board, { status: 201 });
 }

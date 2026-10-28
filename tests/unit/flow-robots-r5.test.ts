@@ -322,27 +322,172 @@ describe('Robots: el arnés filtra WebSocket y WebRTC', () => {
   });
 });
 
-// ---------- [5b] Robots locales: redirecciones de página entera (SSRF) ----------
+// ---------- [5b] Robots locales: proxy de salida guardián (SSRF) ----------
 
-describe('Robots: el arnés valida cada salto de las redirecciones', () => {
-  /** Arnés con un route() que simula route.fetch siguiendo redirecciones a mano. */
-  async function captureRouteHandler(checkUrl: (url: string) => Promise<string | null>) {
-    let handler: ((route: unknown) => Promise<void>) | null = null;
+describe('Robots: el proxy guardián valida cada conexión', () => {
+  const dnsp = {
+    async lookup(host: string) {
+      const map: Record<string, Array<{ address: string }>> = {
+        'site.example': [{ address: '93.184.216.34' }],
+        'rebind.example': [{ address: '93.184.216.34' }, { address: '169.254.169.254' }],
+        'intranet.example': [{ address: '10.0.0.5' }],
+      };
+      if (map[host]) return map[host];
+      throw new Error('ENOTFOUND');
+    },
+  };
+
+  async function startGuard() {
+    const { guardProxy } = await import('@/lib/robots-interpreter');
+    const { isPrivateAddress } = await import('@/lib/robots-interpreter');
+    const http = await import('node:http');
+    const net = await import('node:net');
+    return guardProxy(http, net, dnsp as unknown as typeof import('dns/promises'), isPrivateAddress);
+  }
+
+  /** Pide por el proxy (http) a `url` con el Host del nombre y devuelve el status o el error. */
+  function throughProxy(port: number, url: string): Promise<{ status?: number; error?: string }> {
+    return new Promise((resolve) => {
+      const http = require('node:http') as typeof import('http');
+      const u = new URL(url);
+      const req = http.request(
+        { host: '127.0.0.1', port, method: 'GET', path: url, headers: { host: u.host }, timeout: 4000 },
+        (res) => {
+          res.resume();
+          resolve({ status: res.statusCode });
+        },
+      );
+      req.on('error', (e) => resolve({ error: (e as Error).message }));
+      req.on('timeout', () => { req.destroy(); resolve({ error: 'timeout' }); });
+      req.end();
+    });
+  }
+
+  /** Bloqueado = el proxy corta la conexión (sin status), no un 403 con cuerpo. */
+  const blocked = (r: { status?: number; error?: string }) => r.status === undefined && !!r.error;
+
+  it('corta la conexión a un destino que resuelve a una IP privada o a metadata', async () => {
+    const g = await startGuard();
+    try {
+      expect(blocked(await throughProxy(g.port, 'http://169.254.169.254/latest/meta-data/'))).toBe(true);
+      expect(blocked(await throughProxy(g.port, 'http://127.0.0.1:9222/json'))).toBe(true);
+      expect(blocked(await throughProxy(g.port, 'http://intranet.example/'))).toBe(true);
+      expect(blocked(await throughProxy(g.port, 'http://localhost:3871/x'))).toBe(true);
+      // blockedSince marca que hubo un corte.
+      expect(g.blockedSince(0)).toBe('private_host');
+    } finally {
+      await g.close();
+    }
+  });
+
+  it('bloquea si cualquiera de las IPs del nombre es privada (DNS rebinding)', async () => {
+    const g = await startGuard();
+    try {
+      expect(blocked(await throughProxy(g.port, 'http://rebind.example/'))).toBe(true);
+    } finally {
+      await g.close();
+    }
+  });
+
+  it('un nombre que no resuelve se corta', async () => {
+    const g = await startGuard();
+    try {
+      expect(blocked(await throughProxy(g.port, 'http://nope.example/'))).toBe(true);
+    } finally {
+      await g.close();
+    }
+  });
+
+  it('ALLOW_PRIVATE_WEBHOOKS / ROBOTS_ALLOWED_PRIVATE_HOSTS habilitan hosts privados a propósito', async () => {
+    const { guardProxy, isPrivateAddress } = await import('@/lib/robots-interpreter');
+    const http = await import('node:http');
+    const net = await import('node:net');
+    // Un sitio en loopback que, habilitado, el proxy debe dejar pasar.
+    const site = http.createServer((_req, res) => { res.writeHead(200); res.end('ok'); });
+    await new Promise<void>((r) => site.listen(0, '127.0.0.1', () => r()));
+    const port = (site.address() as { port: number }).port;
+    try {
+      const any = await guardProxy(http, net, dnsp as unknown as typeof import('dns/promises'), isPrivateAddress, null, { any: true, hosts: [] });
+      expect((await throughProxy(any.port, `http://127.0.0.1:${port}/`)).status).toBe(200);
+      await any.close();
+      const listed = await guardProxy(http, net, dnsp as unknown as typeof import('dns/promises'), isPrivateAddress, null, { any: false, hosts: [`127.0.0.1:${port}`] });
+      expect((await throughProxy(listed.port, `http://127.0.0.1:${port}/`)).status).toBe(200);
+      // Otro host privado no listado sigue cortado.
+      expect(blocked(await throughProxy(listed.port, 'http://169.254.169.254/'))).toBe(true);
+      await listed.close();
+    } finally {
+      await new Promise<void>((r) => site.close(() => r()));
+    }
+  });
+
+  it('con un proxy de país encadena por él tras validar, y sigue bloqueando lo privado', async () => {
+    const http = await import('node:http');
+    // "Sitio" real al que el upstream debe llegar.
+    let gotPath = '';
+    const site = http.createServer((req, res) => {
+      gotPath = req.url ?? '';
+      res.writeHead(200, { 'content-type': 'text/plain' });
+      res.end('from-upstream');
+    });
+    await new Promise<void>((r) => site.listen(0, '127.0.0.1', () => r()));
+    const sitePort = (site.address() as { port: number }).port;
+    // Upstream falso: reenvía el pedido HTTP absoluto al destino (como un proxy).
+    let upstreamSawConnect = false;
+    const upstreamSrv = http.createServer((req, res) => {
+      const u = new URL(req.url ?? '');
+      const preq = http.request({ host: u.hostname, port: Number(u.port) || 80, method: req.method, path: u.pathname + u.search, headers: { host: u.host } }, (pres) => {
+        res.writeHead(pres.statusCode || 502, pres.headers);
+        pres.pipe(res);
+      });
+      preq.on('error', () => { res.writeHead(502); res.end(); });
+      req.pipe(preq);
+    });
+    upstreamSrv.on('connect', (_req, socket) => {
+      upstreamSawConnect = true;
+      socket.end('HTTP/1.1 200 OK\r\n\r\n');
+    });
+    await new Promise<void>((r) => upstreamSrv.listen(0, '127.0.0.1', () => r()));
+    const upstreamPort = (upstreamSrv.address() as { port: number }).port;
+
+    const { guardProxy, isPrivateAddress } = await import('@/lib/robots-interpreter');
+    const net = await import('node:net');
+    // Guard que trata 127.0.0.1 como público (para que el sitio/upstream locales anden),
+    // pero bloquea metadata y 10.x. En producción isPrivateAddress bloquea loopback.
+    const isPrivForTest = (ip: string) => (ip === '127.0.0.1' ? false : isPrivateAddress(ip));
+    const g = await guardProxy(http, net, dnsp as unknown as typeof import('dns/promises'), isPrivForTest, {
+      server: `http://127.0.0.1:${upstreamPort}`,
+    });
+    try {
+      // Un pedido público sale por el upstream y llega al sitio.
+      const r = await throughProxy(g.port, `http://127.0.0.1:${sitePort}/hola`);
+      expect(r.status).toBe(200);
+      expect(gotPath).toBe('/hola');
+      void upstreamSawConnect;
+      // Un destino que resuelve a metadata se corta ANTES de salir por el upstream.
+      expect(blocked(await throughProxy(g.port, 'http://169.254.169.254/latest/meta-data/'))).toBe(true);
+    } finally {
+      await g.close();
+      await new Promise<void>((r) => site.close(() => r()));
+      await new Promise<void>((r) => upstreamSrv.close(() => r()));
+    }
+  });
+
+  it('el arnés lanza Chromium con el proxy guardián y route() solo filtra esquemas', async () => {
+    const { guardProxy, isPrivateAddress } = await import('@/lib/robots-interpreter');
+    const http = await import('node:http');
+    const net = await import('node:net');
+    let launchedProxy: { server: string } | undefined;
+    let routeHandler: ((route: unknown) => Promise<void>) | null = null;
     const chromium = {
-      async launch() {
+      async launch(opts: { proxy?: { server: string } }) {
+        launchedProxy = opts.proxy;
         return {
           async newContext() {
             return {
-              async route(_p: string, h: (route: unknown) => Promise<void>) {
-                handler = h;
-              },
+              async route(_p: string, h: (route: unknown) => Promise<void>) { routeHandler = h; },
               on() {},
-              async newPage() {
-                return {};
-              },
-              async storageState() {
-                return {};
-              },
+              async newPage() { return {}; },
+              async storageState() { return {}; },
             };
           },
           async close() {},
@@ -353,91 +498,18 @@ describe('Robots: el arnés valida cada salto de las redirecciones', () => {
       chromium as unknown as HarnessChromium,
       { steps: [], inputs: {}, robotName: 'R', deadline: Date.now() + 10_000, maxPages: 3, maxScreenshots: 1 } as never,
       (async () => ({ status: 'success', error: null, vars: {}, logs: [], screenshots: [], pages: 1 })) as never,
-      checkUrl,
+      async () => null,
+      () => guardProxy(http, net, dnsp as unknown as typeof import('dns/promises'), isPrivateAddress),
     );
-    return handler!;
-  }
-
-  /** route falso: `chain` es la cadena de respuestas (status + location) que devuelve route.fetch por salto. */
-  function fakeRoute(initialUrl: string, chain: Array<{ status: number; location?: string }>, opts: { noFetch?: boolean } = {}) {
-    const log: { aborted?: string; fulfilled?: boolean; continued?: boolean; fetched: string[] } = { fetched: [] };
-    let hop = 0;
-    const route = {
-      request: () => ({ url: () => initialUrl, method: () => 'GET', headers: () => ({}) }),
-      abort: async (code?: string) => {
-        log.aborted = code ?? 'aborted';
-      },
-      continue: async () => {
-        log.continued = true;
-      },
-      fulfill: async () => {
-        log.fulfilled = true;
-      },
-      fetch: opts.noFetch
-        ? undefined
-        : async (o?: { url?: string }) => {
-            log.fetched.push(o?.url ?? initialUrl);
-            const step = chain[Math.min(hop++, chain.length - 1)];
-            return { status: () => step.status, headers: () => (step.location ? { location: step.location } : {}), body: async () => Buffer.from('') };
-          },
+    expect(launchedProxy?.server).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+    // route(): http(s) pasa (lo valida el proxy), otros esquemas se cortan.
+    const mk = (url: string) => {
+      const log: { aborted?: string; continued?: boolean } = {};
+      return { log, route: { request: () => ({ url: () => url }), abort: async (c?: string) => { log.aborted = c ?? 'aborted'; }, continue: async () => { log.continued = true; } } };
     };
-    return { route, log };
-  }
-
-  const checkUrl = async (url: string) => (/127\.0\.0\.1|169\.254|localhost|10\.0\.0/.test(url) ? 'private_host' : null);
-
-  it('bloquea una redirección 302 de una página pública hacia la metadata interna', async () => {
-    const handler = await captureRouteHandler(checkUrl);
-    const { route, log } = fakeRoute('https://site.example/go', [{ status: 302, location: 'http://169.254.169.254/latest/meta-data/' }]);
-    await handler(route);
-    expect(log.aborted).toBe('blockedbyclient');
-    expect(log.fulfilled).toBeUndefined();
-  });
-
-  it('una cadena que termina en un host privado: cada salto es un pedido nuevo y el prohibido se corta', async () => {
-    const handler = await captureRouteHandler(checkUrl);
-    // Salto 1: público → público. Se le devuelve el 30x al navegador (que lo sigue como pedido nuevo).
-    const first = fakeRoute('https://site.example/a', [{ status: 301, location: 'https://site.example/b' }]);
-    await handler(first.route);
-    expect(first.log.fulfilled).toBe(true);
-    expect(first.log.aborted).toBeUndefined();
-    // Salto 2: el navegador pide /b, que redirige a la red interna: se corta.
-    const second = fakeRoute('https://site.example/b', [{ status: 302, location: 'http://127.0.0.1:9222/json' }]);
-    await handler(second.route);
-    expect(second.log.aborted).toBe('blockedbyclient');
-    expect(second.log.fulfilled).toBeUndefined();
-  });
-
-  it('deja pasar una redirección pública: el 30x vuelve al navegador para que la URL del documento quede bien', async () => {
-    const handler = await captureRouteHandler(checkUrl);
-    const { route, log } = fakeRoute('https://site.example/a', [{ status: 302, location: 'https://site.example/final' }]);
-    await handler(route);
-    expect(log.fulfilled).toBe(true);
-    expect(log.aborted).toBeUndefined();
-    expect(log.fetched).toEqual(['https://site.example/a']);
-  });
-
-  it('bloquea una redirección a un esquema que no es http(s)', async () => {
-    const handler = await captureRouteHandler(checkUrl);
-    const { route, log } = fakeRoute('https://site.example/a', [{ status: 302, location: 'file:///etc/passwd' }]);
-    await handler(route);
-    expect(log.aborted).toBe('blockedbyclient');
-  });
-
-  it('bloquea el pedido inicial a un host privado sin fetch', async () => {
-    const handler = await captureRouteHandler(checkUrl);
-    const { route, log } = fakeRoute('http://127.0.0.1:3871/x', [{ status: 200 }]);
-    await handler(route);
-    expect(log.aborted).toBe('blockedbyclient');
-    expect(log.fetched).toEqual([]);
-  });
-
-  it('sin route.fetch (Playwright viejo) continúa tras validar el salto inicial', async () => {
-    const handler = await captureRouteHandler(checkUrl);
-    const { route, log } = fakeRoute('https://site.example/a', [], { noFetch: true });
-    await handler(route);
-    expect(log.continued).toBe(true);
-    expect(log.aborted).toBeUndefined();
+    const https = mk('https://site.example/x'); await routeHandler!(https.route); expect(https.log.continued).toBe(true);
+    const file = mk('file:///etc/passwd'); await routeHandler!(file.route); expect(file.log.aborted).toBe('blockedbyclient');
+    const data = mk('data:text/html,<h1>x</h1>'); await routeHandler!(data.route); expect(data.log.continued).toBe(true);
   });
 });
 
