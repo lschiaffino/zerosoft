@@ -547,6 +547,7 @@ function InviteOwners({ jobId, owners }: { jobId: string; owners: Array<{ id: st
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [invites, setInvites] = useState<Array<{ email: string; url: string; existing: boolean; emailed: boolean }> | null>(null);
+  const [skipped, setSkipped] = useState<string[]>([]);
   if (!owners.length) return null;
 
   async function invite() {
@@ -559,7 +560,9 @@ function InviteOwners({ jobId, owners }: { jobId: string; owners: Array<{ id: st
     }).catch(() => null);
     setBusy(false);
     if (res && res.ok) {
-      setInvites(((await res.json()) as { invites: Array<{ email: string; url: string; existing: boolean; emailed: boolean }> }).invites);
+      const body = (await res.json()) as { invites: Array<{ email: string; url: string; existing: boolean; emailed: boolean }>; skipped?: Array<{ email: string }> };
+      setInvites(body.invites);
+      setSkipped((body.skipped ?? []).map((s) => s.email));
       return;
     }
     setError(t('inviteFailed'));
@@ -572,6 +575,11 @@ function InviteOwners({ jobId, owners }: { jobId: string; owners: Array<{ id: st
           <p className="mig-note" role="status">
             {invites.every((i) => i.emailed) ? t('invitedEmailed', { count: invites.length }) : t('invitedNote', { count: invites.length })}
           </p>
+          {skipped.length > 0 && (
+            <p className="mig-note" role="status" data-testid="migrate-invite-skipped">
+              {t('inviteSkipped', { count: skipped.length, emails: skipped.join(', ') })}
+            </p>
+          )}
           <ul className="mig-invite-list">
             {invites.map((i) => (
               <li key={i.email}>

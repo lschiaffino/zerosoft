@@ -12,6 +12,9 @@ import { inviteMany } from '@/lib/workspace-invites';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+// Un email por owner, sin espacios ni separadores: inviteMany parte la lista por espacios.
+const EMAIL_RE = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/;
+
 const schema = z.object({
   jobId: z.string().min(1).max(64),
   ownerIds: z.array(z.string().min(1).max(64)).min(1).max(200),
@@ -42,7 +45,7 @@ export async function POST(req: NextRequest) {
   const emails = [
     ...new Set(
       job.preview.owners
-        .filter((o) => wanted.has(o.id) && o.email && !members.has(o.email.toLowerCase()))
+        .filter((o) => wanted.has(o.id) && o.email && EMAIL_RE.test(o.email) && !members.has(o.email.toLowerCase()))
         .map((o) => o.email.toLowerCase()),
     ),
   ];
@@ -66,5 +69,7 @@ export async function POST(req: NextRequest) {
   const invites = results
     .filter((r) => r.url)
     .map((r) => ({ email: r.email, url: r.url as string, existing: pending.has(r.email), emailed: r.status === 'sent', status: r.status }));
-  return NextResponse.json({ invites }, { status: 201 });
+  // Los que cortó el tope de invitaciones: se devuelven aparte para avisarlo.
+  const skipped = results.filter((r) => !r.url).map((r) => ({ email: r.email, status: r.status }));
+  return NextResponse.json({ invites, skipped }, { status: 201 });
 }
