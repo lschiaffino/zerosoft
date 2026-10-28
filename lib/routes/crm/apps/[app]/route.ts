@@ -23,7 +23,7 @@ type Ctx = { params: Promise<{ app: string }> };
 
 const events = z.array(z.string().max(60)).max(60).optional();
 const connectSchemas = {
-  slack: z.object({ webhookUrl: z.string().trim().url().max(500), events }),
+  slack: z.object({ webhookUrl: z.string().trim().url().max(500), events, source: z.enum(['crm', 'link']).optional() }),
   zoom: z.object({
     accountId: z.string().trim().min(1).max(200),
     clientId: z.string().trim().min(1).max(200),
@@ -60,7 +60,9 @@ export async function POST(req: NextRequest, props: Ctx) {
   try {
     const data = parsed.data as unknown as Record<string, string | undefined> & { events?: string[] };
     const str = (k: string) => String(data[k] ?? '');
-    if (app === 'slack') await connectSlack(auth.user.id, { webhookUrl: str('webhookUrl'), events: data.events }, actor);
+    if (app === 'slack') {
+      await connectSlack(auth.user.id, { webhookUrl: str('webhookUrl'), events: data.events, source: data.source === 'link' ? 'link' : 'crm' }, actor);
+    }
     if (app === 'zoom') {
       await connectZoom(auth.user.id, { accountId: str('accountId'), clientId: str('clientId'), clientSecret: str('clientSecret') }, actor);
     }

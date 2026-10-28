@@ -9,6 +9,8 @@ export const WEBHOOK_EVENTS = [
   'link.clicked',
   'link.updated',
   'link.deleted',
+  'link.lead',
+  'link.sale',
   'contact.created',
   'contact.updated',
   'contact.property_changed',

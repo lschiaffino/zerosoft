@@ -6158,6 +6158,119 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Link: paridad con Dub/Bitly (conversiones, cloaking, seguridad del
+    // destino, registro de actividad, deep linking diferido, plantillas y
+    // marcos de QR, integraciones Shopify/Segment y temas de la bio).
+    id: '123_link_parity',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE links ADD COLUMN track_conversion INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE links ADD COLUMN cloak INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE links ADD COLUMN safety TEXT');
+      await addColumn(client, 'ALTER TABLE links ADD COLUMN safety_reason TEXT');
+      await addColumn(client, 'ALTER TABLE links ADD COLUMN safety_checked_at TEXT');
+      await addColumn(client, 'ALTER TABLE clicks ADD COLUMN click_id TEXT');
+      await addColumn(client, "ALTER TABLE link_qr_styles ADD COLUMN frame TEXT NOT NULL DEFAULT 'none'");
+      await addColumn(client, 'ALTER TABLE link_qr_styles ADD COLUMN label TEXT');
+      await addColumn(client, "ALTER TABLE link_bio ADD COLUMN theme TEXT NOT NULL DEFAULT 'auto'");
+      await addColumn(client, 'ALTER TABLE link_bio ADD COLUMN accent TEXT');
+      await addColumn(client, 'ALTER TABLE link_domains ADD COLUMN safety_checked_at TEXT');
+      await client.executeMultiple(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_clicks_click_id ON clicks(click_id) WHERE click_id IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_links_safety ON links(safety) WHERE safety IS NOT NULL;
+
+        CREATE TABLE IF NOT EXISTS link_customers (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          external_id TEXT NOT NULL,
+          link_id TEXT REFERENCES links(id) ON DELETE SET NULL,
+          click_id TEXT,
+          name TEXT,
+          email TEXT,
+          stripe_customer_id TEXT,
+          country TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, external_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_link_customers_stripe ON link_customers(user_id, stripe_customer_id) WHERE stripe_customer_id IS NOT NULL;
+
+        CREATE TABLE IF NOT EXISTS link_conversions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          link_id TEXT NOT NULL REFERENCES links(id) ON DELETE CASCADE,
+          click_id TEXT,
+          type TEXT NOT NULL,
+          event_name TEXT NOT NULL,
+          customer_external_id TEXT,
+          amount INTEGER NOT NULL DEFAULT 0,
+          currency TEXT,
+          invoice_id TEXT,
+          source TEXT NOT NULL DEFAULT 'api',
+          country TEXT,
+          device TEXT,
+          metadata TEXT,
+          ts TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_link_conv_link_ts ON link_conversions(link_id, ts);
+        CREATE INDEX IF NOT EXISTS idx_link_conv_user_ts ON link_conversions(user_id, ts);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_link_conv_invoice ON link_conversions(user_id, invoice_id) WHERE invoice_id IS NOT NULL;
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_link_conv_lead ON link_conversions(user_id, customer_external_id, event_name)
+          WHERE type = 'lead' AND customer_external_id IS NOT NULL;
+
+        CREATE TABLE IF NOT EXISTS link_activity (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          link_id TEXT,
+          slug TEXT NOT NULL,
+          actor_id TEXT,
+          via TEXT NOT NULL DEFAULT 'app',
+          action TEXT NOT NULL,
+          changes TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_link_activity_user ON link_activity(user_id, id);
+        CREATE INDEX IF NOT EXISTS idx_link_activity_link ON link_activity(link_id, id);
+
+        CREATE TABLE IF NOT EXISTS link_deferred (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          fingerprint TEXT NOT NULL,
+          link_id TEXT NOT NULL REFERENCES links(id) ON DELETE CASCADE,
+          click_id TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_link_deferred_fp ON link_deferred(fingerprint, created_at);
+
+        CREATE TABLE IF NOT EXISTS link_qr_templates (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          style TEXT NOT NULL,
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_link_qr_templates_user ON link_qr_templates(user_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS link_publishable_keys (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          key TEXT NOT NULL UNIQUE,
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS link_integrations (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          kind TEXT NOT NULL,
+          token TEXT UNIQUE,
+          secrets TEXT NOT NULL DEFAULT '',
+          settings TEXT NOT NULL DEFAULT '{}',
+          last_used_at TEXT,
+          last_error TEXT,
+          connected_by TEXT,
+          connected_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, kind)
+        );
+      `);
+    },
+  },
+  {
     // Paridad de Flow: borrador por persona (flow_drafts; lo que corre sigue
     // siendo graph), carpetas, variables por persona, protección ante
     // avalanchas (corridas retenidas: held), concurrencia por flow y

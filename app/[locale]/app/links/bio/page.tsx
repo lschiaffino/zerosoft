@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { bioEditorLinks, getBioSettings } from '@/lib/link-bio';
 import PageHeader from '@/components/ui/PageHeader';
+import { shortDomain } from '@/lib/utils';
 import EmptyState from '@/components/ui/EmptyState';
 import BioEditor from '@/components/link/BioEditor';
 
@@ -15,10 +16,10 @@ export default async function BioSettingsPage(props: { params: Promise<{ locale:
   const handle = user.handle ?? '';
 
   return (
-    <div className="ui-page ui-page-narrow link-bio">
+    <div className="ui-page link-bio">
       <PageHeader
         title={t('bio.title')}
-        description={t('bio.sub', { handle })}
+        description={t('bio.sub', { handle, host: shortDomain() })}
         actions={
           settings.published && handle ? (
             <a className="btn" href={`/@${handle}`} target="_blank" rel="noreferrer">

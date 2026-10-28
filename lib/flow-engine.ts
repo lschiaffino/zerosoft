@@ -471,6 +471,7 @@ async function linkNode(ws: string, cfg: Record<string, unknown>, tctx: Record<s
     url,
     slug: renderString(cfg.slug ?? '', tctx).trim() || undefined,
     title: renderString(cfg.title ?? '', tctx).trim() || undefined,
+    via: 'system',
   });
   if (!res.ok) throw new StepError(res.code);
   const full = await getUserLink(ws, res.link.id);

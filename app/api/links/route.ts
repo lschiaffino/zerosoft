@@ -33,6 +33,8 @@ const createSchema = z.object({
   forwardParams: z.boolean().optional(),
   expiredUrl: z.string().max(2000).nullish(),
   folderId: z.string().max(64).nullish(),
+  trackConversion: z.boolean().optional(),
+  cloak: z.boolean().optional(),
 });
 
 export async function GET(req: NextRequest) {

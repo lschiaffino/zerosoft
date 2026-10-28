@@ -99,7 +99,7 @@ export default function DomainsPanel({ initial, canManage }: { initial: DomainVi
     const code = res ? ((await res.json().catch(() => null)) as { error?: string } | null)?.error : undefined;
     setNotice((n) => ({
       ...n,
-      [id]: { text: code === 'self_link' ? errorText(code) : t('domains.errors.invalid_url'), tone: 'error' },
+      [id]: { text: code === 'self_link' || code === 'unsafe_url' ? errorText(code) : t('domains.errors.invalid_url'), tone: 'error' },
     }));
   }
 

@@ -39,6 +39,10 @@ const createSchema = z.object({
   externalId: z.string().max(255).nullish(),
   /** Carpeta del workspace (id). */
   folderId: z.string().max(64).nullish(),
+  /** Click id en cada visita (?zs_id=) para medir leads y ventas. */
+  trackConversion: z.boolean().optional(),
+  /** URL corta en la barra (solo dominios propios). */
+  cloak: z.boolean().optional(),
 });
 
 const MESSAGES: Record<CreateLinkError, string> = {
@@ -58,6 +62,8 @@ const MESSAGES: Record<CreateLinkError, string> = {
   ab_needs_two: 'An A/B test needs at least two variants.',
   ab_zero_weight: 'A/B weights must add up to more than zero.',
   quota_exceeded: 'Daily link creation quota reached. Try again later.',
+  unsafe_url: 'The destination was flagged as phishing, malware or a blocked domain.',
+  cloak_needs_domain: 'Link cloaking needs a custom domain.',
 };
 
 export async function POST(req: NextRequest) {
@@ -88,6 +94,7 @@ export async function POST(req: NextRequest) {
     maxClicks: input.maxClicks ?? null,
     domainId,
     createdBy: auth.personId,
+    via: 'api',
   });
   if (!result.ok) {
     const status =

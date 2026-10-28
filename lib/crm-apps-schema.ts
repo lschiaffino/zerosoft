@@ -21,9 +21,14 @@ export const SLACK_EVENTS = [
   'form.submitted',
   'quote.accepted',
   'quote.paid',
+  'link.created',
+  'link.lead',
+  'link.sale',
 ] as const;
 export type SlackEvent = (typeof SLACK_EVENTS)[number];
 export const DEFAULT_SLACK_EVENTS: SlackEvent[] = ['deal.won', 'form.submitted', 'quote.accepted', 'quote.paid'];
+/** Lo que Slack anuncia por defecto si se conecta desde Link. */
+export const DEFAULT_LINK_SLACK_EVENTS: SlackEvent[] = ['link.created', 'link.lead', 'link.sale'];
 
 /** Eventos que Zapier/Make reciben por defecto al conectar (el resto se suma desde Webhooks). */
 export const AUTOMATION_DEFAULT_EVENTS = [
@@ -117,6 +122,23 @@ export function slackText(event: string, data: unknown, baseUrl: string): string
       return `:memo: Quote ${esc(d.number)} signed by ${esc(d.signerName || 'the customer')}: ${link(`/app/crm/quotes/${d.id}`, String(d.title || d.number || 'Quote'))} ${money(d.total, d.currency)}`.trim();
     case 'quote.paid':
       return `:moneybag: Quote ${esc(d.number)} paid: ${link(`/app/crm/quotes/${d.id}`, String(d.title || d.number || 'Quote'))} ${money(d.amount ?? d.total, d.currency)}`.trim();
+    case 'link.created':
+    case 'link.lead':
+    case 'link.sale': {
+      const l = (d.link ?? {}) as Record<string, unknown>;
+      const short = String(l.short_url ?? l.slug ?? 'link').replace(/^https?:\/\//, '');
+      const target = l.id ? link(`/app/links/${l.id}`, short) : esc(short);
+      if (event === 'link.created') return `New short link ${target} → ${esc(l.url ?? '')}`;
+      if (event === 'link.lead') {
+        const lead = (d.lead ?? {}) as Record<string, unknown>;
+        return `:wave: New lead from ${target}: ${esc(lead.eventName || 'Sign up')}`;
+      }
+      const sale = (d.sale ?? {}) as Record<string, unknown>;
+      const cur = String(sale.currency || 'USD').toUpperCase();
+      const zeroDecimal = ['JPY', 'KRW', 'CLP', 'VND', 'PYG', 'UGX', 'XAF', 'XOF'].includes(cur);
+      const amount = Number(sale.amount ?? 0) / (zeroDecimal ? 1 : 100);
+      return `:moneybag: New sale from ${target}: ${money(amount, cur)}`.trim();
+    }
     default:
       return null;
   }

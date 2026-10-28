@@ -21,6 +21,8 @@ export const FLOW_EVENT_TYPES = [
   'link.clicked',
   'link.updated',
   'link.deleted',
+  'link.lead',
+  'link.sale',
   'contact.created',
   'contact.updated',
   'deal.created',
@@ -136,6 +138,14 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
   },
   'link.deleted': {
     link: { id: 'lnk_1', slug: 'abc', domain: null, short_url: 'https://zerosoft.ai/abc', url: 'https://example.com', title: '', tags: [] },
+  },
+  'link.lead': {
+    link: { id: 'lnk_1', slug: 'abc', domain: null, short_url: 'https://zerosoft.ai/abc', url: 'https://example.com', tags: [] },
+    lead: { id: 1, eventName: 'Sign up', clickId: 'AbCdEfGhIjKlMnOpQrSt', customer: { externalId: 'user_123' }, at: '' },
+  },
+  'link.sale': {
+    link: { id: 'lnk_1', slug: 'abc', domain: null, short_url: 'https://zerosoft.ai/abc', url: 'https://example.com', tags: [] },
+    sale: { id: 2, eventName: 'Purchase', amount: 4900, currency: 'USD', invoiceId: 'inv_1', source: 'api', clickId: null, customer: { externalId: 'user_123' }, at: '' },
   },
   'contact.created': { id: 'c_1', first_name: 'Ada', last_name: 'Lovelace', email: 'ada@example.com' },
   'contact.updated': { id: 'c_1', first_name: '', email: '', change: {} },

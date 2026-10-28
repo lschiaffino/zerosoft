@@ -1,11 +1,23 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
+import { Link } from '@/i18n/navigation';
 import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { dnsInstructions, listDomains } from '@/lib/link-domains';
 import { LINK_SETTINGS_TABS, linkSettingsTab } from '@/lib/product-settings';
+import { listApps } from '@/lib/crm-apps';
+import { listLinkIntegrations } from '@/lib/link-integrations';
+import { listLinkActivity } from '@/lib/link-activity';
 import { ProductSettingsShell } from '@/components/app/ProductSettingsShell';
+import ClientMessages from '@/components/i18n/ClientMessages';
+import AppsPanel from '@/components/crm/AppsPanel';
 import DomainsPanel from '@/components/link/DomainsPanel';
 import ImportLinksPanel from '@/components/link/ImportLinksPanel';
+import LinkIntegrationsPanel from '@/components/link/LinkIntegrationsPanel';
+import LinkActivityList from '@/components/link/LinkActivityList';
+import CopyButton from '@/components/link/CopyButton';
+import PublishableKeyPanel from '@/components/link/PublishableKeyPanel';
+import { getPublishableKey } from '@/lib/link-publishable';
+import { realUserId } from '@/lib/session';
 import EmptyState from '@/components/ui/EmptyState';
 import FormSection from '@/components/ui/FormSection';
 
@@ -17,17 +29,33 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
   return { title: t('title', { app: 'Link' }) };
 }
 
+function appBase(): string {
+  return (process.env.NEXTAUTH_URL ?? 'https://zerosoft.ai').replace(/\/$/, '');
+}
+
+function CodeBlock({ code, label }: { code: string; label: string }) {
+  return (
+    <div className="lk-code">
+      <pre className="data" aria-label={label}>
+        <code>{code}</code>
+      </pre>
+      <CopyButton text={code} className="btn btn-secondary btn-sm" />
+    </div>
+  );
+}
+
 /**
- * Ajustes de Link: dominios propios (antes /app/links/domains, que redirige
- * acá), importar desde Bitly (también es pestaña de "Nuevo") y exportar
- * (antes en /app/settings/workspace).
+ * Ajustes de Link: dominios, conversiones (script, API, Stripe y Shopify),
+ * integraciones (Slack, Stripe, Zapier, Make, Segment y MCP), importar,
+ * exportar y el registro de actividad del workspace.
  */
 export default async function LinkSettingsPage(props: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; before?: string }>;
 }) {
   const { locale } = await props.params;
-  const tab = linkSettingsTab((await props.searchParams).tab);
+  const sp = await props.searchParams;
+  const tab = linkSettingsTab(sp.tab);
   const user = await requireUser(locale);
   const admin = isWorkspaceAdmin(user);
   const [t, tl] = await Promise.all([
@@ -36,9 +64,13 @@ export default async function LinkSettingsPage(props: {
   ]);
   const labels: Record<(typeof LINK_SETTINGS_TABS)[number], string> = {
     domains: tl('domains.title'),
-    import: tl('import.title'),
+    conversions: tl('conversions.title'),
+    integrations: tl('integrations.title'),
+    import: tl('import.tab'),
     export: t('link.exportTitle'),
+    activity: tl('activity.title'),
   };
+  const base = appBase();
 
   let body;
   if (tab === 'domains') {
@@ -56,8 +88,115 @@ export default async function LinkSettingsPage(props: {
         <DomainsPanel initial={domains} canManage={admin} />
       </div>
     );
+  } else if ((tab === 'conversions' || tab === 'integrations') && !admin) {
+    // Secretos, endpoints y la publishable key: solo admins.
+    body = <EmptyState title={labels[tab]} body={tl('errors.forbidden')} product="link" />;
+  } else if (tab === 'conversions') {
+    const [integrations, apps, publishable] = await Promise.all([
+      listLinkIntegrations(user.id),
+      listApps(user.id),
+      getPublishableKey(user.id, realUserId(user)),
+    ]);
+    const stripe = apps.find((a) => a.key === 'stripe');
+    const snippet = `<script src="${base}/link-tracking.js" defer></script>`;
+    const lead = `curl -X POST ${base}/api/v1/links/track/lead \\
+  -H "Authorization: Bearer zs_…" -H "Content-Type: application/json" \\
+  -d '{"clickId":"<zs_id cookie>","eventName":"Sign up","customerExternalId":"user_123"}'`;
+    const sale = `curl -X POST ${base}/api/v1/links/track/sale \\
+  -H "Authorization: Bearer zs_…" -H "Content-Type: application/json" \\
+  -d '{"customerExternalId":"user_123","amount":4900,"currency":"USD","invoiceId":"inv_1"}'`;
+    body = (
+      <div className="lk-conv-setup" data-testid="link-conversions-setup">
+        <FormSection id="conv-how" title={tl('conversions.howTitle')} description={tl('conversions.howDesc')}>
+          <ol className="lk-steps">
+            <li>{tl('conversions.step1')}</li>
+            <li>{tl('conversions.step2')}</li>
+            <li>{tl('conversions.step3')}</li>
+          </ol>
+          <CodeBlock code={snippet} label={tl('conversions.snippetLabel')} />
+          <p className="ui-help">{tl('conversions.snippetHelp')}</p>
+        </FormSection>
+        <FormSection id="conv-api" title={tl('conversions.apiTitle')} description={tl('conversions.apiDesc')}>
+          <CodeBlock code={lead} label={tl('conversions.leadLabel')} />
+          <CodeBlock code={sale} label={tl('conversions.saleLabel')} />
+          <p className="ui-help">
+            {tl.rich('conversions.apiKeys', { a: (chunks) => <Link href="/app/settings/api#api-keys">{chunks}</Link> })}
+          </p>
+        </FormSection>
+        <FormSection id="conv-stripe" title={tl('conversions.stripeTitle')} description={tl('conversions.stripeDesc')}>
+          <p className="ui-help">
+            <span className={`badge ${stripe?.connected ? 'badge-ok' : ''}`}>
+              {stripe?.connected ? tl('integrations.status.connected') : tl('integrations.status.off')}
+            </span>{' '}
+            {tl.rich('conversions.stripeConnect', { a: (chunks) => <Link href="/app/links/settings?tab=integrations">{chunks}</Link> })}
+          </p>
+          <CodeBlock code={`client_reference_id: "zs_id_" + clickId`} label={tl('conversions.stripeLabel')} />
+        </FormSection>
+        <FormSection id="conv-shopify" title={tl('integrations.shopify.name')} description={tl('integrations.shopify.desc')}>
+          <LinkIntegrationsPanel initial={integrations} canEdit={admin} only={['shopify']} />
+        </FormSection>
+        <FormSection id="conv-deferred" title={tl('conversions.deferredTitle')} description={tl('conversions.deferredDesc')}>
+          <PublishableKeyPanel initial={publishable} />
+          <CodeBlock
+            code={`curl -X POST ${base}/api/v1/links/track/open \\
+  -H "Authorization: Bearer ${publishable}" -H "Content-Type: application/json" \\
+  -d '{"platform":"ios","domain":"go.example.com"}'`}
+            label={tl('conversions.deferredTitle')}
+          />
+        </FormSection>
+      </div>
+    );
+  } else if (tab === 'integrations') {
+    const [apps, integrations] = await Promise.all([listApps(user.id), listLinkIntegrations(user.id)]);
+    const mcpUrl = `${base}/api/v1/links/mcp`;
+    body = (
+      <>
+        <FormSection id="int-apps" title={tl('integrations.title')} description={tl('integrations.desc')}>
+          <ClientMessages locale={locale} namespaces={['crm']}>
+            <AppsPanel
+              initial={apps.map((a) => ({ ...a, hint: '' }))}
+              canEdit={admin}
+              only={['slack', 'stripe', 'zapier', 'make']}
+              source="link"
+              descriptions={{
+                slack: tl('integrations.cards.slack'),
+                stripe: tl('integrations.cards.stripe'),
+                zapier: tl('integrations.cards.zapier'),
+                make: tl('integrations.cards.make'),
+              }}
+            />
+          </ClientMessages>
+        </FormSection>
+        <FormSection id="int-segment" title={tl('integrations.segment.name')} description={tl('integrations.segment.desc')}>
+          <LinkIntegrationsPanel initial={integrations} canEdit={admin} only={['segment']} />
+        </FormSection>
+        <FormSection id="int-mcp" title={tl('integrations.mcp.title')} description={tl('integrations.mcp.desc')}>
+          <CodeBlock code={mcpUrl} label={tl('integrations.mcp.title')} />
+          <p className="ui-help">
+            {tl.rich('integrations.mcp.help', { a: (chunks) => <Link href="/app/settings/api#api-keys">{chunks}</Link> })}
+          </p>
+        </FormSection>
+      </>
+    );
   } else if (tab === 'import') {
     body = admin ? <ImportLinksPanel /> : <EmptyState title={tl('import.title')} body={tl('errors.forbidden')} product="link" />;
+  } else if (tab === 'activity') {
+    if (!admin) {
+      body = <EmptyState title={tl('activity.title')} body={tl('errors.forbidden')} product="link" />;
+    } else {
+      const before = Number(sp.before) || undefined;
+      const activity = await listLinkActivity(user.id, { before, limit: 50 });
+      body = (
+        <FormSection id="activity" title={tl('activity.title')} description={tl('activity.desc')}>
+          <LinkActivityList
+            locale={locale}
+            rows={activity.rows}
+            showLink
+            moreHref={activity.nextBefore ? `/app/links/settings?tab=activity&before=${activity.nextBefore}` : null}
+          />
+        </FormSection>
+      );
+    }
   } else {
     body = (
       <FormSection id="export" title={t('link.exportTitle')} description={t('link.exportDesc')}>

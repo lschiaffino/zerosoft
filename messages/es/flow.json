@@ -785,6 +785,8 @@
     "link_clicked": "Link: click en un link",
     "link_updated": "Link: link editado",
     "link_deleted": "Link: link borrado",
+    "link_lead": "Link: lead nuevo desde un link",
+    "link_sale": "Link: venta nueva desde un link",
     "contact_created": "CRM: contacto creado",
     "contact_updated": "CRM: contacto actualizado",
     "deal_created": "CRM: deal creado",

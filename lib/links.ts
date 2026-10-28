@@ -28,6 +28,8 @@ import {
   visibleLinksSql,
   type LinkViewer,
 } from './link-folders';
+import { checkUrlsSafety, firstLocalUnsafe, firstUnsafe } from './link-safety';
+import { diffLink, logLinkActivity, type LinkActivityVia } from './link-activity';
 
 /** LinkRow + el hostname de su dominio propio (null = dominio por defecto). */
 export type LinkWithDomain = LinkRow & { domain_hostname?: string | null };
@@ -258,10 +260,11 @@ export function isLimitReached(link: Pick<LinkRow, 'max_clicks' | 'clicks'>): bo
   return link.max_clicks !== null && link.clicks >= link.max_clicks;
 }
 
-export type LinkStatus = 'active' | 'archived' | 'expired' | 'limit' | 'protected';
+export type LinkStatus = 'active' | 'archived' | 'blocked' | 'expired' | 'limit' | 'protected';
 
 export function linkStatus(link: LinkRow): LinkStatus {
   if (link.archived === 1) return 'archived';
+  if (link.safety === 'blocked') return 'blocked';
   if (isExpired(link)) return 'expired';
   if (isLimitReached(link)) return 'limit';
   if (link.password_hash) return 'protected';
@@ -307,6 +310,12 @@ export interface LinkDto {
   external_id: string | null;
   /** Carpeta (null = sin carpeta). */
   folder_id: string | null;
+  /** Cada click lleva un click id (?zs_id=) para atribuir leads y ventas. */
+  track_conversion: boolean;
+  /** La URL corta queda en la barra del navegador (solo dominios propios). */
+  cloak: boolean;
+  /** 'blocked' = el destino figura como phishing o malware; no redirige. */
+  safety: { status: 'blocked'; reason: string | null } | null;
   created_at: string;
   updated_at: string;
 }
@@ -341,6 +350,9 @@ export function toLinkDto(link: LinkWithDomain): LinkDto {
     created_by: link.created_by ?? null,
     external_id: link.external_id ?? null,
     folder_id: link.folder_id ?? null,
+    track_conversion: link.track_conversion === 1,
+    cloak: link.cloak === 1,
+    safety: link.safety === 'blocked' ? { status: 'blocked', reason: link.safety_reason ?? null } : null,
     created_at: link.created_at,
     updated_at: link.updated_at,
   };
@@ -529,6 +541,14 @@ export interface CreateLinkInput {
   folderId?: string | null;
   /** Quién crea (para validar el acceso a la carpeta); sin él, acceso total (API v1). */
   viewer?: LinkViewer;
+  /** Click id en cada visita (?zs_id=) para medir leads y ventas. */
+  trackConversion?: boolean;
+  /** Mantener la URL corta en la barra (iframe); solo con dominio propio. */
+  cloak?: boolean;
+  /** Por dónde llega el alta (registro de actividad). */
+  via?: LinkActivityVia;
+  /** Altas masivas: solo reglas locales ahora; Safe Browsing lo revisa el cron en lotes. */
+  deferSafety?: boolean;
 }
 
 /** Id externo: 1-255 caracteres sin espacios ni barras (va en la URL como ext_<id>). */
@@ -550,7 +570,9 @@ export type CreateLinkError =
   | 'ab_needs_two'
   | 'ab_zero_weight'
   | 'invalid_folder'
-  | 'quota_exceeded';
+  | 'quota_exceeded'
+  | 'unsafe_url'
+  | 'cloak_needs_domain';
 
 export type CreateLinkResult =
   | { ok: true; link: LinkRow }
@@ -635,6 +657,16 @@ export async function createLink(
     if (await getUserLinkByExternalId(userId, externalId)) return { ok: false, code: 'external_id_taken' };
   }
 
+  if (input.cloak && !domainId) return { ok: false, code: 'cloak_needs_domain' };
+
+  // Anti-phishing: destino y variantes contra las reglas locales y Safe Browsing.
+  // Todo lo que el link puede servir: destino, variantes y la redirección al vencer.
+  const destinations = [utm.url, ...(targeting ? targetingDestinations(targeting) : []), ...(expired.value ? [expired.value] : [])];
+  const safety = input.deferSafety
+    ? { reason: firstLocalUnsafe(destinations), checked: false }
+    : await firstUnsafe(destinations);
+  if (safety.reason) return { ok: false, code: 'unsafe_url' };
+
   const tags = (input.tags ?? [])
     .map((t) => t.trim())
     .filter(Boolean)
@@ -647,8 +679,8 @@ export async function createLink(
     try {
       await db
         .prepare(
-          `INSERT INTO links (id, user_id, domain_id, slug, url, title, tags, password_hash, expires_at, max_clicks, redirect_type, utm_source, utm_medium, utm_campaign, utm_term, utm_content, og_title, og_description, og_image, forward_params, expired_url, targeting, external_id, created_by, folder_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO links (id, user_id, domain_id, slug, url, title, tags, password_hash, expires_at, max_clicks, redirect_type, utm_source, utm_medium, utm_campaign, utm_term, utm_content, og_title, og_description, og_image, forward_params, expired_url, targeting, external_id, created_by, folder_id, track_conversion, cloak, safety_checked_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           id,
@@ -676,6 +708,10 @@ export async function createLink(
           externalId,
           input.createdBy || null,
           folderId,
+          input.trackConversion ? 1 : 0,
+          input.cloak ? 1 : 0,
+          // Sin respuesta de Safe Browsing queda sin revisar: el cron lo revisa después.
+          safety.checked ? new Date().toISOString().slice(0, 19).replace('T', ' ') : null,
         );
       break;
     } catch (e) {
@@ -689,6 +725,15 @@ export async function createLink(
   }
 
   const created = (await getUserLink(userId, id))!;
+  await logLinkActivity({
+    userId,
+    linkId: id,
+    slug: created.slug,
+    actorId: input.createdBy || input.viewer?.id || null,
+    via: input.via ?? 'app',
+    action: 'created',
+    changes: { url: [null, created.url] },
+  });
   await emitEvent(userId, 'link.created', { link: toLinkDto(created) });
   return { ok: true, link: created };
 }
@@ -729,6 +774,9 @@ export async function createLinksBulk(
     host = domain.hostname;
   }
 
+  // Anti-phishing del lote en una sola consulta (Safe Browsing acepta 500 URLs).
+  const verdicts = await checkUrlsSafety(rows.map((r) => normalizeUrl(r.url.trim())).filter((u) => isValidUrl(u)));
+
   for (const row of rows) {
     const url = row.url.trim();
     const echo = { ...(row.slug ? { slug: row.slug } : {}), ...(row.title ? { title: row.title } : {}) };
@@ -736,7 +784,13 @@ export async function createLinksBulk(
       results.push({ url, short_url: '', status: 'error', error: 'empty', ...echo });
       continue;
     }
+    const verdict = verdicts.get(normalizeUrl(url));
+    if (verdict && verdict !== 'unknown') {
+      results.push({ url, short_url: '', status: 'error', error: 'unsafe_url', ...echo });
+      continue;
+    }
     const result = await createLink(userId, {
+      deferSafety: true,
       url,
       slug: row.slug,
       title: row.title,
@@ -787,6 +841,10 @@ export const linkPatchSchema = z.object({
   externalId: z.string().max(255).nullable().optional(),
   /** Carpeta; null lo saca de la carpeta. */
   folderId: z.string().max(64).nullable().optional(),
+  /** Click id en cada visita para medir leads y ventas. */
+  trackConversion: z.boolean().optional(),
+  /** URL corta en la barra (solo dominios propios). */
+  cloak: z.boolean().optional(),
 });
 
 export type LinkPatch = z.infer<typeof linkPatchSchema>;
@@ -796,9 +854,15 @@ export async function applyLinkPatch(
   link: LinkWithDomain,
   p: LinkPatch,
   viewer?: LinkViewer,
+  meta: { actorId?: string | null; via?: LinkActivityVia } = {},
 ): Promise<{ error: string; status: number } | null> {
   const sets: string[] = [];
   const args: Array<string | number | null> = [];
+  /** Destinos nuevos a revisar (anti-phishing) antes de guardar. */
+  const newDestinations: string[] = [];
+  let finalUrl = link.url;
+  let finalTargeting: LinkTargeting | null = parseTargeting(link.targeting);
+  let finalExpired: string | null = link.expired_url ?? null;
 
   if (p.folderId !== undefined && p.folderId !== (link.folder_id ?? null)) {
     // Mover a una carpeta pide poder editarla (el link de origen ya se validó).
@@ -830,6 +894,8 @@ export async function applyLinkPatch(
     });
     const normalized = synced.url;
     if (await isShortLinkUrl(normalized)) return { error: 'self_link', status: 400 };
+    if (normalized !== link.url) newDestinations.push(normalized);
+    finalUrl = normalized;
     sets.push('url = ?', 'utm_source = ?', 'utm_medium = ?', 'utm_campaign = ?', 'utm_term = ?', 'utm_content = ?');
     args.push(
       normalized,
@@ -931,9 +997,12 @@ export async function applyLinkPatch(
     if (!expired.ok) return { error: expired.code === 'self_link' ? 'self_link' : 'invalid_expired_url', status: 400 };
     sets.push('expired_url = ?');
     args.push(expired.value);
+    if (expired.value && expired.value !== (link.expired_url ?? null)) newDestinations.push(expired.value);
+    finalExpired = expired.value;
   }
   if (p.targeting !== undefined) {
     if (p.targeting === null) {
+      finalTargeting = null;
       sets.push('targeting = ?');
       args.push(null);
     } else {
@@ -943,9 +1012,42 @@ export async function applyLinkPatch(
       for (const url of t.value ? targetingDestinations(t.value) : []) {
         if (await isShortLinkUrl(url)) return { error: 'self_link', status: 400 };
       }
+      const before = parseTargeting(link.targeting);
+      const old = new Set(before ? targetingDestinations(before) : []);
+      newDestinations.push(...(t.value ? targetingDestinations(t.value) : []).filter((u) => !old.has(u)));
+      finalTargeting = t.value;
       sets.push('targeting = ?');
       args.push(t.value ? JSON.stringify(t.value) : null);
     }
+  }
+
+  if (p.trackConversion !== undefined) {
+    sets.push('track_conversion = ?');
+    args.push(p.trackConversion ? 1 : 0);
+  }
+  if (p.cloak !== undefined) {
+    if (p.cloak && !link.domain_id) return { error: 'cloak_needs_domain', status: 400 };
+    sets.push('cloak = ?');
+    args.push(p.cloak ? 1 : 0);
+  }
+  let unblocked = false;
+  if (newDestinations.length > 0) {
+    const safety = await firstUnsafe(newDestinations);
+    if (safety.reason) return { error: 'unsafe_url', status: 400 };
+    // Un destino nuevo y limpio levanta el bloqueo: se revisa todo lo que queda servido.
+    if (link.safety === 'blocked' && safety.checked) {
+      const all = await firstUnsafe([
+        finalUrl,
+        ...(finalTargeting ? targetingDestinations(finalTargeting) : []),
+        ...(finalExpired ? [finalExpired] : []),
+      ]);
+      if (!all.reason && all.checked) {
+        sets.push('safety = NULL', 'safety_reason = NULL');
+        unblocked = true;
+      }
+    }
+    // Sin respuesta de Safe Browsing: queda sin revisar y el próximo cron lo revisa.
+    sets.push(safety.checked ? `safety_checked_at = datetime('now')` : 'safety_checked_at = NULL');
   }
 
   if (sets.length > 0) {
@@ -963,6 +1065,26 @@ export async function applyLinkPatch(
     }
     const updated = await getUserLink(link.user_id, link.id);
     if (updated) {
+      const diff = diffLink(link as unknown as Record<string, unknown>, updated as unknown as Record<string, unknown>);
+      const archivedChanged = link.archived !== updated.archived;
+      if (archivedChanged || Object.keys(diff).length > 0 || unblocked) {
+        const action = unblocked
+          ? 'unblocked'
+          : archivedChanged && Object.keys(diff).length === 0
+            ? updated.archived
+              ? 'archived'
+              : 'unarchived'
+            : 'updated';
+        await logLinkActivity({
+          userId: link.user_id,
+          linkId: link.id,
+          slug: updated.slug,
+          actorId: meta.actorId ?? viewer?.id ?? null,
+          via: meta.via ?? 'app',
+          action,
+          changes: diff,
+        });
+      }
       const changes = Object.keys(p).filter((k) => p[k as keyof LinkPatch] !== undefined);
       await emitEvent(link.user_id, 'link.updated', { link: toLinkDto(updated), changes });
     }
@@ -974,9 +1096,21 @@ export async function applyLinkPatch(
 // ---------- Borrar y duplicar ----------
 
 /** Borra el link (y sus clicks, en cascada) y emite link.deleted con su último estado. */
-export async function deleteLink(link: LinkWithDomain): Promise<void> {
+export async function deleteLink(
+  link: LinkWithDomain,
+  meta: { actorId?: string | null; via?: LinkActivityVia } = {},
+): Promise<void> {
   const dto = toLinkDto(link);
   await getDb().prepare('DELETE FROM links WHERE id = ? AND user_id = ?').run(link.id, link.user_id);
+  await logLinkActivity({
+    userId: link.user_id,
+    linkId: link.id,
+    slug: link.slug,
+    actorId: meta.actorId ?? null,
+    via: meta.via ?? 'app',
+    action: 'deleted',
+    changes: { url: [link.url, null] },
+  });
   await emitEvent(link.user_id, 'link.deleted', { link: dto });
 }
 
@@ -1009,6 +1143,8 @@ export async function duplicateLink(
     createdBy,
     folderId: link.folder_id ?? null,
     viewer,
+    trackConversion: link.track_conversion === 1,
+    cloak: link.cloak === 1,
   });
 }
 
@@ -1066,6 +1202,7 @@ export async function bulkLinkAction(userId: string, input: LinkBulkAction, view
       .prepare(`UPDATE links SET archived = ?, updated_at = datetime('now') WHERE user_id = ? AND id IN (${ph})`)
       .run(archived, userId, ...ids);
     for (const l of await linksByIds(changing)) {
+      await logLinkActivity({ userId, linkId: l.id, slug: l.slug, actorId: viewer?.id ?? null, action: archived ? 'archived' : 'unarchived' });
       await emitEvent(userId, 'link.updated', { link: toLinkDto(l), changes: ['archived'] });
     }
     return res.changes;
@@ -1073,20 +1210,34 @@ export async function bulkLinkAction(userId: string, input: LinkBulkAction, view
   if (input.action === 'delete') {
     const before = await linksByIds(ids);
     const res = await db.prepare(`DELETE FROM links WHERE user_id = ? AND id IN (${ph})`).run(userId, ...ids);
-    for (const l of before) await emitEvent(userId, 'link.deleted', { link: toLinkDto(l) });
+    for (const l of before) {
+      await logLinkActivity({ userId, linkId: l.id, slug: l.slug, actorId: viewer?.id ?? null, action: 'deleted', changes: { url: [l.url, null] } });
+      await emitEvent(userId, 'link.deleted', { link: toLinkDto(l) });
+    }
     return res.changes;
   }
   if (input.action === 'move') {
     if (input.folderId && (await folderAccess(userId, input.folderId, viewer ?? { id: userId, admin: true })) !== 'edit') {
       return 0;
     }
-    const changing = (await linksByIds(ids)).filter((l) => (l.folder_id ?? null) !== input.folderId).map((l) => l.id);
+    const moving = (await linksByIds(ids)).filter((l) => (l.folder_id ?? null) !== input.folderId);
+    const changing = moving.map((l) => l.id);
     if (changing.length === 0) return 0;
     const res = await db
       .prepare(
         `UPDATE links SET folder_id = ?, updated_at = datetime('now') WHERE user_id = ? AND id IN (${changing.map(() => '?').join(',')})`,
       )
       .run(input.folderId, userId, ...changing);
+    for (const l of moving) {
+      await logLinkActivity({
+        userId,
+        linkId: l.id,
+        slug: l.slug,
+        actorId: viewer?.id ?? null,
+        action: 'updated',
+        changes: { folderId: [l.folder_id ?? null, input.folderId] },
+      });
+    }
     return res.changes;
   }
   // tag: se agrega a los tags existentes (máx. 5 por link, sin duplicar).
@@ -1103,6 +1254,7 @@ export async function bulkLinkAction(userId: string, input: LinkBulkAction, view
     tagged.push(row.id);
   }
   for (const l of await linksByIds(tagged)) {
+    await logLinkActivity({ userId, linkId: l.id, slug: l.slug, actorId: viewer?.id ?? null, action: 'updated', changes: { tags: [null, input.tag] } });
     await emitEvent(userId, 'link.updated', { link: toLinkDto(l), changes: ['tags'] });
   }
   return tagged.length;

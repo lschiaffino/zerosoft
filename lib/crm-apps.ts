@@ -22,6 +22,7 @@ import { verifyStripeSignature } from './calendar-payments';
 import {
   AUTOMATION_DEFAULT_EVENTS,
   CRM_APPS,
+  DEFAULT_LINK_SLACK_EVENTS,
   DEFAULT_SLACK_EVENTS,
   isAutomationHookUrl,
   isSlackWebhookUrl,
@@ -218,13 +219,19 @@ async function postSlack(url: string, text: string): Promise<void> {
 
 export async function connectSlack(
   userId: string,
-  input: { webhookUrl: string; events?: string[] },
+  input: { webhookUrl: string; events?: string[]; source?: 'crm' | 'link' },
   actor: string,
 ): Promise<void> {
   if (!isSlackWebhookUrl(input.webhookUrl)) throw new AppError('invalid_slack_url');
-  const events = (input.events ?? DEFAULT_SLACK_EVENTS).filter((e): e is SlackEvent => (SLACK_EVENTS as readonly string[]).includes(e));
+  const defaults: readonly string[] = input.source === 'link' ? DEFAULT_LINK_SLACK_EVENTS : DEFAULT_SLACK_EVENTS;
+  const events = (input.events ?? defaults).filter((e): e is SlackEvent => (SLACK_EVENTS as readonly string[]).includes(e));
   try {
-    await postSlack(input.webhookUrl, 'Zerosoft CRM is connected. CRM updates will show up in this channel.');
+    await postSlack(
+      input.webhookUrl,
+      input.source === 'link'
+        ? 'Zerosoft Link is connected. New short links, leads and sales will show up in this channel.'
+        : 'Zerosoft CRM is connected. CRM updates will show up in this channel.',
+    );
   } catch {
     throw new AppError('slack_unreachable', 502);
   }
@@ -240,12 +247,12 @@ export async function setSlackEvents(userId: string, events: string[]): Promise<
   return true;
 }
 
-export async function sendSlackTest(userId: string): Promise<boolean> {
+export async function sendSlackTest(userId: string, source: 'crm' | 'link' = 'crm'): Promise<boolean> {
   const row = await getRow(userId, 'slack');
   const url = secretsOf(row).webhookUrl;
   if (!row || !url) return false;
   try {
-    await postSlack(url, 'Test message from Zerosoft CRM.');
+    await postSlack(url, source === 'link' ? 'Test message from Zerosoft Link.' : 'Test message from Zerosoft CRM.');
     await logApp(userId, 'slack', 'test', 'ok');
   } catch (err) {
     await logApp(userId, 'slack', 'test', 'error', err instanceof Error ? err.message : 'error');
@@ -582,6 +589,18 @@ export async function handleStripeAppWebhook(token: string, rawBody: string, sig
   if (fresh.changes === 0) return 'duplicate';
   const obj = event.data?.object ?? {};
   const meta = (obj.metadata ?? {}) as Record<string, string>;
+
+  // Link: venta atribuida al click que trajo al cliente (zs_id o zs_customer_id).
+  if (event.type === 'checkout.session.completed' || event.type === 'invoice.paid') {
+    try {
+      const { attributeStripeEvent } = await import('./link-conversions');
+      if ((await attributeStripeEvent(userId, event)) === 'sale') {
+        await logApp(userId, 'stripe', 'link.sale', 'ok', String(obj.id ?? ''));
+      }
+    } catch {
+      /* la atribución no corta el resto del webhook */
+    }
+  }
 
   if (event.type === 'checkout.session.completed' && meta.source === 'zerosoft_crm_quote') {
     if (obj.payment_status !== 'paid') return 'ignored';

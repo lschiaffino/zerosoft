@@ -8,14 +8,23 @@ import QRCode from 'qrcode';
 export const QR_DOTS = ['square', 'rounded', 'dots'] as const;
 export type QrDots = (typeof QR_DOTS)[number];
 
+/** Marco alrededor del QR: ninguno, un borde, o borde con un texto abajo ("Escaneame"). */
+export const QR_FRAMES = ['none', 'border', 'label'] as const;
+export type QrFrame = (typeof QR_FRAMES)[number];
+
+export const QR_LABEL_MAX = 24;
+
 export interface QrStyle {
   fg: string;
   bg: string;
   dots: QrDots;
   logo: string | null;
+  frame?: QrFrame;
+  /** Texto del marco 'label' (máx. 24 caracteres). */
+  label?: string | null;
 }
 
-export const DEFAULT_QR_STYLE: QrStyle = { fg: '#000000', bg: '#ffffff', dots: 'square', logo: null };
+export const DEFAULT_QR_STYLE: QrStyle = { fg: '#000000', bg: '#ffffff', dots: 'square', logo: null, frame: 'none', label: null };
 
 /** Luminancia relativa (WCAG) de un color #rrggbb. */
 export function luminance(hex: string): number {
@@ -33,6 +42,16 @@ export function hasEnoughContrast(fg: string, bg: string): boolean {
 
 function escapeAttr(v: string): string {
   return v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+function escapeText(v: string): string {
+  return v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** Ancho y alto del viewBox (en módulos) de un SVG de renderQrSvg: para rasterizar sin deformar. */
+export function qrSvgSize(svg: string): { width: number; height: number } {
+  const m = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(svg);
+  return m ? { width: Number(m[1]), height: Number(m[2]) } : { width: 1, height: 1 };
 }
 
 const MARGIN = 2;
@@ -96,10 +115,31 @@ export function renderQrSvg(text: string, style: QrStyle): string {
       `<image href="${escapeAttr(style.logo)}" x="${p}" y="${p}" width="${logoBox.size}" height="${logoBox.size}" preserveAspectRatio="xMidYMid meet"/>`;
   }
 
+  const code = `<g fill="${style.fg}">${parts.join('')}</g>${logo}`;
+  const frame = style.frame ?? 'none';
+  const rendering = style.dots === 'square' ? 'crispEdges' : 'geometricPrecision';
+  if (frame === 'none') {
+    return (
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${full} ${full}" shape-rendering="${rendering}">` +
+      `<rect width="${full}" height="${full}" fill="${style.bg}"/>${code}</svg>`
+    );
+  }
+  // Marco: borde de 1 módulo a 1 módulo del código; con texto, una banda abajo en el color de los módulos.
+  const pad = 2;
+  const band = frame === 'label' ? 6 : 0;
+  const w = full + pad * 2;
+  const h = full + pad * 2 + band;
+  const label = escapeText((style.label?.trim() || 'Scan me').slice(0, QR_LABEL_MAX));
+  const fontSize = Math.min(3.2, (full * 1.6) / Math.max(label.length, 6));
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${full} ${full}" shape-rendering="${style.dots === 'square' ? 'crispEdges' : 'geometricPrecision'}">` +
-    `<rect width="${full}" height="${full}" fill="${style.bg}"/>` +
-    `<g fill="${style.fg}">${parts.join('')}</g>${logo}</svg>`
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" shape-rendering="${rendering}">` +
+    `<rect width="${w}" height="${h}" rx="2" fill="${style.bg}"/>` +
+    `<rect x="0.6" y="0.6" width="${w - 1.2}" height="${h - 1.2}" rx="1.6" fill="none" stroke="${style.fg}" stroke-width="1.2"/>` +
+    (band
+      ? `<path d="M0.6 ${full + pad * 2}H${w - 0.6}V${h - 2.2}a1.6 1.6 0 0 1 -1.6 1.6H2.2a1.6 1.6 0 0 1 -1.6 -1.6Z" fill="${style.fg}"/>` +
+        `<text x="${w / 2}" y="${full + pad * 2 + band / 2}" fill="${style.bg}" font-family="system-ui,-apple-system,Segoe UI,Helvetica,Arial,sans-serif" font-weight="700" font-size="${fontSize.toFixed(2)}" text-anchor="middle" dominant-baseline="central">${label}</text>`
+      : '') +
+    `<g transform="translate(${pad} ${pad})">${code}</g></svg>`
   );
 }
 

@@ -63,6 +63,7 @@ export default function NewLinkForm({
   const [ogImage, setOgImage] = useState('');
   const [expiredUrl, setExpiredUrl] = useState('');
   const [forwardParams, setForwardParams] = useState(true);
+  const [trackConversion, setTrackConversion] = useState(false);
   const slugState = useSlugCheck(slug, domainId);
 
   // Con ?url= el foco va al slug (la URL ya está); si no, a la URL.
@@ -101,6 +102,7 @@ export default function NewLinkForm({
     if (ogImage.trim()) payload.ogImage = ogImage.trim();
     if (expiredUrl.trim()) payload.expiredUrl = expiredUrl.trim();
     if (!forwardParams) payload.forwardParams = false;
+    if (trackConversion) payload.trackConversion = true;
 
     try {
       const res = await fetch('/api/links', {
@@ -315,6 +317,22 @@ export default function NewLinkForm({
           </label>
           <p id="nl-forward-help" className="ui-help">
             {t('new.forwardParamsHelp')}
+          </p>
+        </div>
+
+        <div className="ui-field">
+          <label className="ui-check">
+            <input
+              type="checkbox"
+              checked={trackConversion}
+              onChange={(e) => setTrackConversion(e.target.checked)}
+              aria-describedby="nl-conv-help"
+              data-testid="nl-track-conversion"
+            />
+            {t('conversions.toggle')}
+          </label>
+          <p id="nl-conv-help" className="ui-help">
+            {t('conversions.toggleHelp')}
           </p>
         </div>
 
