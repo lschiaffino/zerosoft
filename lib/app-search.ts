@@ -321,15 +321,30 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       like,
       like,
     ),
-    // Voice: reuniones propias (son privadas de quien las grabó) por título o por lo que se dijo.
+    // Voice: reuniones propias (son privadas de quien las grabó) por título o por lo que se dijo,
+    // carpetas propias y recipes o transforms (propios o compartidos con el equipo).
     all(
-      `SELECT s.id, CASE WHEN s.title != '' THEN s.title ELSE substr(s.started_at, 1, 10) END AS label, substr(s.started_at, 1, 10) AS meta
-       FROM voice_sessions s WHERE s.workspace_id = ? AND s.person_id = ? AND s.kind = 'meeting'
-         AND (s.title LIKE ? ESCAPE '\\' OR EXISTS (SELECT 1 FROM voice_segments g WHERE g.session_id = s.id AND g.text LIKE ? ESCAPE '\\'))
-       ORDER BY s.started_at DESC LIMIT ?`,
+      `SELECT * FROM (
+         SELECT s.id, CASE WHEN s.title != '' THEN s.title ELSE substr(s.started_at, 1, 10) END AS label, substr(s.started_at, 1, 10) AS meta
+         FROM voice_sessions s WHERE s.workspace_id = ? AND s.person_id = ? AND s.kind = 'meeting'
+           AND (s.title LIKE ? ESCAPE '\\' OR EXISTS (SELECT 1 FROM voice_segments g WHERE g.session_id = s.id AND g.text LIKE ? ESCAPE '\\'))
+         ORDER BY s.started_at DESC LIMIT 8)
+       UNION ALL SELECT * FROM (
+         SELECT 'vf:' || f.id AS id, f.name AS label, '' AS meta FROM voice_folders f
+         WHERE f.workspace_id = ? AND f.person_id = ? AND f.name LIKE ? ESCAPE '\\' ORDER BY f.name LIMIT 4)
+       UNION ALL SELECT * FROM (
+         SELECT 'vp:' || p.id AS id, CASE WHEN p.kind = 'recipe' THEN '/' || p.name ELSE p.name END AS label, '' AS meta FROM voice_prompts p
+         WHERE p.workspace_id = ? AND (p.person_id = ? OR p.shared = 1) AND p.name LIKE ? ESCAPE '\\' ORDER BY p.name LIMIT 4)
+       LIMIT ?`,
       user.id,
       person,
       like,
+      like,
+      user.id,
+      person,
+      like,
+      user.id,
+      person,
       like,
     ),
   ]);
@@ -471,7 +486,9 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     }),
     ...map(groupLists, 'groupsLists', (id) => `/app/groups/inbox?list=${id}`),
     ...map(groupTemplates, 'groupsTemplates', (id) => `/app/groups/templates?use=${id}`),
-    ...map(voiceSessions, 'voiceSessions', (id) => `/app/voice/meetings/${id}`),
+    ...map(voiceSessions, 'voiceSessions', (id) =>
+      id.startsWith('vf:') ? `/app/voice?folder=${id.slice(3)}` : id.startsWith('vp:') ? `/app/voice/settings?tab=prompts&prompt=${id.slice(3)}` : `/app/voice/meetings/${id}`,
+    ),
     ...map(talkChannels, 'talkChannels', (id) => `/app/talk/${id}`),
     ...map(talkDms, 'talkDms', (id) => `/app/talk/${id}`),
     ...map(talkPeople, 'talkPeople', (id) => `/app/talk?dm=${encodeURIComponent(id)}`),

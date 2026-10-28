@@ -3,6 +3,8 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { getSessionDetail, listCustomTemplates, voiceOwner } from '@/lib/voice';
 import { contactLabel } from '@/lib/voice-integrations';
+import { listFolders } from '@/lib/voice-library';
+import { getShare } from '@/lib/voice-share';
 import { transcribeProvider, transcriptionConfigured } from '@/lib/voice-transcribe';
 import { voiceAiAvailable } from '@/lib/voice-ai';
 import { voiceBlobAccess, voiceBlobEnabled, voiceBlobPrefix, voiceImportMaxBytes } from '@/lib/voice-blob';
@@ -23,16 +25,19 @@ export default async function VoiceMeetingPage(props: { params: Promise<{ locale
   const owner = voiceOwner(user);
   const detail = await getSessionDetail(owner, id);
   if (!detail || detail.kind !== 'meeting') notFound();
-  const [templates, contact, ai] = await Promise.all([
+  const [templates, contact, ai, folders, share] = await Promise.all([
     listCustomTemplates(owner),
     contactLabel(owner.workspaceId, detail.contactId),
     voiceAiAvailable(),
+    listFolders(owner),
+    getShare(owner, id),
   ]);
   return (
     <MeetingView
       key={detail.id}
-      initial={{ ...detail, contact }}
+      initial={{ ...detail, contact, share }}
       templates={templates}
+      folders={folders}
       transcription={transcriptionConfigured()}
       ai={ai}
       blobPrefix={voiceBlobEnabled() ? voiceBlobPrefix(owner.personId) : null}

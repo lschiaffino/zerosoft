@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
 import { deleteWorkflow, getWorkflow, updateWorkflow } from '@/lib/crm-workflows';
 import { workflowUpdateSchema } from '@/lib/crm-workflows-schema';
 import { invalidBody, notFound, unauthorized, forbidden } from '@/lib/crm-http';
@@ -26,7 +26,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const parsed = workflowUpdateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const workflow = await updateWorkflow(user.id, params.id, parsed.data);
+  const workflow = await updateWorkflow(user.id, params.id, parsed.data, realUserId(user));
   if (!workflow) return notFound();
   return NextResponse.json(workflow);
 }

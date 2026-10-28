@@ -93,6 +93,7 @@ export async function dictate(args: {
         templateKey: 'general',
         calBookingId: null,
         contactId: null,
+        folderId: null,
         startedAt: now,
         endedAt: now,
         updatedAt: now,
@@ -130,6 +131,7 @@ export async function dictate(args: {
       templateKey: row.template_key,
       calBookingId: null,
       contactId: null,
+      folderId: null,
       startedAt: row.started_at,
       endedAt: row.ended_at,
       updatedAt: row.updated_at,
@@ -235,6 +237,9 @@ export async function enhance(args: {
     attendees: contact?.name ?? '',
   });
   const enhancedAt = await saveEnhanced(d.id, enhanced);
+  // Webhooks y Flow de quien grabó (voice.notes.ready).
+  const { emitVoiceEvent } = await import('./voice-events');
+  await emitVoiceEvent(d.id, 'voice.notes.ready', enhanced);
   let crmActivityId = d.crmActivityId;
   // Con contacto vinculado, la nota queda en su timeline (y se actualiza al regenerar).
   if (d.contactId && args.scope !== undefined) {
@@ -253,6 +258,8 @@ export async function chat(args: {
   owner: VoiceOwner;
   sessionId: string;
   question: string;
+  /** Lo que queda en el chat como pregunta (un recipe se ve como "/Nombre"). */
+  shownQuestion?: string;
   locale: string;
   labels: MeetingLabels;
 }): Promise<VoiceChatMessage[]> {
@@ -275,7 +282,7 @@ export async function chat(args: {
     across: false,
   });
   const now = new Date().toISOString();
-  const next: VoiceChatMessage[] = [...d.chat, { role: 'user', text: args.question, at: now }, { role: 'assistant', text: answer, at: now }];
+  const next: VoiceChatMessage[] = [...d.chat, { role: 'user', text: args.shownQuestion ?? args.question, at: now }, { role: 'assistant', text: answer, at: now }];
   await saveChat(d.id, next);
   return next;
 }
@@ -290,11 +297,13 @@ export function questionKeywords(q: string): string[] {
 export async function askAcross(args: {
   owner: VoiceOwner;
   question: string;
+  /** Texto para buscar las reuniones (por defecto, la pregunta). Un recipe busca por el tema, no por su prompt. */
+  searchText?: string;
   locale: string;
   labels: MeetingLabels;
 }): Promise<{ answer: string; meetings: Array<{ id: string; title: string; startedAt: string }> }> {
   const found = new Map<string, VoiceSessionSummary>();
-  for (const w of questionKeywords(args.question)) {
+  for (const w of questionKeywords(args.searchText ?? args.question)) {
     for (const s of await listSessions(args.owner, { kind: 'meeting', q: w, limit: 5 })) found.set(s.id, s);
     if (found.size >= 6) break;
   }

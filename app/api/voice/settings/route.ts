@@ -5,7 +5,7 @@ import { voiceJsonError } from '@/lib/voice-http';
 import { getVoiceSettings, saveVoiceSettings } from '@/lib/voice';
 import { transcriptionConfigured } from '@/lib/voice-transcribe';
 import { voiceAiAvailable } from '@/lib/voice-ai';
-import { VOICE_CONTEXTS, VOICE_SHORTCUTS, VOICE_TONES } from '@/lib/voice-types';
+import { VOICE_CONTEXTS, VOICE_REMINDER_MINUTES, VOICE_RETENTION_DAYS, VOICE_SHORTCUTS, VOICE_TONES } from '@/lib/voice-types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -28,6 +28,19 @@ const schema = z.object({
   shortcut: z.enum(VOICE_SHORTCUTS).optional(),
   showBar: z.boolean().optional(),
   aiCleanup: z.boolean().optional(),
+  commandMode: z.boolean().optional(),
+  learnCorrections: z.boolean().optional(),
+  reminders: z.boolean().optional(),
+  reminderMinutes: z
+    .number()
+    .int()
+    .refine((n) => (VOICE_REMINDER_MINUTES as readonly number[]).includes(n))
+    .optional(),
+  retentionDays: z
+    .number()
+    .int()
+    .refine((n) => (VOICE_RETENTION_DAYS as readonly number[]).includes(n))
+    .optional(),
 });
 
 export async function PATCH(req: NextRequest) {

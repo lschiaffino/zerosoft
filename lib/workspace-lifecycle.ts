@@ -175,13 +175,32 @@ const JOIN_STEPS: Array<{ name: string; run: (e: PersonJoined) => Promise<unknow
   {
     // Migración del CRM: los registros que esperaban a esta persona (owner del otro CRM) pasan a ser suyos.
     name: 'crm_import_owners',
-    run: async (e) => {
-      if (e.role === 'guest') return;
-      const { claimImportedRecords } = await import('./crm-import-owners');
-      await claimImportedRecords(e.ownerId, e.userId);
-    },
+    run: (e) => claimIfCrm(e),
   },
 ];
+
+/**
+ * Los registros importados que esperaban a esta persona pasan a ser suyos
+ * solo si tiene el CRM en este workspace. Si no, el pedido queda anotado y se
+ * reclama cuando le habiliten el CRM (personAppsChanged).
+ */
+async function claimIfCrm(e: { ownerId: string; userId: string; role?: string }): Promise<void> {
+  if (e.role === 'guest') return;
+  const { personAppAccess } = await import('./api-auth');
+  const access = await personAppAccess(e.ownerId, e.userId);
+  if (!access || (access.apps !== '*' && !access.apps.includes('crm'))) return;
+  const { claimImportedRecords } = await import('./crm-import-owners');
+  await claimImportedRecords(e.ownerId, e.userId);
+}
+
+/** Cambiaron las apps de una persona (Ajustes › Miembros): lo que dependía de tener una app. */
+export async function personAppsChanged(event: { ownerId: string; teamId: string; userId: string }): Promise<void> {
+  try {
+    await claimIfCrm(event);
+  } catch (err) {
+    console.error('[workspace] apps changed: crm_import_owners', err);
+  }
+}
 
 export async function personJoined(event: PersonJoined): Promise<{ failed: string[] }> {
   const failed: string[] = [];

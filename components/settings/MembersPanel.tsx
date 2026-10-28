@@ -439,13 +439,38 @@ export default function MembersPanel({
             className="st-table-stack ws-invites"
             empty={<EmptyState quiet compact title={t('pendingEmpty')} body={t('pendingEmptyBody')} />}
             columns={[
-              { key: 'email', header: t('colEmail'), cell: (i) => <span className="data" data-testid="invite-row">{i.email}</span> },
+              {
+                key: 'email',
+                header: t('colEmail'),
+                cell: (i) => (
+                  <span className="ws-invite-email">
+                    <span className="data" data-testid="invite-row">
+                      {i.email}
+                    </span>
+                    {/* Permitir otro email: un link chico debajo, así la fila no se sale a 1280. */}
+                    {i.kind !== 'request' && !i.anyEmail && i.role !== 'admin' && (
+                      <button type="button" className="ws-link-btn" onClick={() => void resend(i, true)} disabled={busy} title={t('allowAnyEmailHelp')}>
+                        {t('allowAnyEmail')}
+                      </button>
+                    )}
+                  </span>
+                ),
+              },
               { key: 'role', header: t('colRole'), cell: (i) => t(`roles.${i.role}`) },
               {
                 key: 'status',
                 header: t('colStatus'),
+                // Una línea corta; el detalle (sin proveedor, vencimiento) va en el title.
                 cell: (i) => (
-                  <span className={i.expired || i.emailStatus === 'failed' ? 'ws-status-bad' : 'ws-cell-muted'}>
+                  <span
+                    className={i.expired || i.emailStatus === 'failed' ? 'ws-status-bad' : 'ws-cell-muted'}
+                    title={[
+                      i.kind !== 'request' && !i.expired && i.emailStatus !== 'sent' && i.emailStatus !== 'failed' ? t('status.notSentHelp') : '',
+                      i.expiresAt && !i.expired ? t('status.expiresOn', { date: fmt(i.expiresAt) }) : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                  >
                     {i.kind === 'request'
                       ? t('status.request')
                       : i.expired
@@ -454,12 +479,11 @@ export default function MembersPanel({
                           ? t('status.sent', { date: fmt(i.sentAt) })
                           : i.emailStatus === 'failed'
                             ? t('status.failed')
-                            : t('status.notSent')}
+                            : t('status.linkOnly')}
                     {i.anyEmail && <span className="ws-status-note"> {t('status.anyEmail')}</span>}
                   </span>
                 ),
               },
-              { key: 'expires', header: t('colExpires'), cell: (i) => (i.expired ? '' : fmt(i.expiresAt)), data: true },
               {
                 key: 'actions',
                 header: <span className="sr-only">{t('colActions')}</span>,
@@ -475,17 +499,6 @@ export default function MembersPanel({
                         <button type="button" className="btn btn-ghost btn-sm" onClick={() => void resend(i)} disabled={busy}>
                           {t('resend')}
                         </button>
-                        {!i.anyEmail && i.role !== 'admin' && (
-                          <button
-                            type="button"
-                            className="btn btn-ghost btn-sm"
-                            onClick={() => void resend(i, true)}
-                            disabled={busy}
-                            title={t('allowAnyEmailHelp')}
-                          >
-                            {t('allowAnyEmail')}
-                          </button>
-                        )}
                       </>
                     )}
                     <button

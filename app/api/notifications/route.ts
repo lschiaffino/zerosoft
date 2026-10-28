@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import { appFromPath, userCanUseApp } from '@/lib/workspace';
+import { PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
 import {
   countUnreadNotifications,
   listNotifications,
@@ -11,6 +12,12 @@ import { unauthorized } from '@/lib/track-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+/** Paths de las apps que la persona no tiene en el workspace activo: sus avisos no cuentan como sin leer. */
+function hiddenAppPaths(user: Parameters<typeof userCanUseApp>[0] & { actingUser?: unknown }): string[] {
+  if (!user.actingUser) return [];
+  return (Object.keys(PRODUCT_CONFIG) as ProductKey[]).filter((k) => !userCanUseApp(user, k)).map((k) => PRODUCT_CONFIG[k].launch);
+}
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
@@ -31,7 +38,7 @@ export async function GET(req: NextRequest) {
       type: types.length ? (types as NotificationType[]) : undefined,
       snoozed,
     }),
-    countUnreadNotifications(realUserId(user)),
+    countUnreadNotifications(realUserId(user), { hidePaths: hiddenAppPaths(user) }),
   ]);
 
   // Acceso por app: en un workspace ajeno no se muestran avisos de apps que la persona no tiene.
@@ -51,6 +58,6 @@ export async function PATCH(req: NextRequest) {
     await markAllNotificationsRead(realUserId(user));
   }
 
-  const unreadCount = await countUnreadNotifications(realUserId(user));
+  const unreadCount = await countUnreadNotifications(realUserId(user), { hidePaths: hiddenAppPaths(user) });
   return NextResponse.json({ ok: true, unreadCount });
 }

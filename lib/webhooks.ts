@@ -213,10 +213,10 @@ export interface WebhookDeliveryDto {
 /** Últimas entregas de un webhook del workspace (más nueva primero). null si el webhook no es suyo. */
 /**
  * Eventos cuyo contenido se arma con el acceso de quien creó el webhook
- * (Docs con teamspaces privados, canales privados): su cuerpo solo lo ve esa persona.
+ * (Docs con teamspaces privados, canales privados, reuniones de Voice): su cuerpo solo lo ve esa persona.
  */
 export function isRestrictedEvent(event: string): boolean {
-  return event.startsWith('page.') || event.startsWith('database.') || event.startsWith('talk.');
+  return event.startsWith('page.') || event.startsWith('database.') || event.startsWith('talk.') || event.startsWith('voice.');
 }
 
 export async function listDeliveries(userId: string, webhookId: string, limit = 50, viewerId?: string): Promise<WebhookDeliveryDto[] | null> {
@@ -345,6 +345,10 @@ async function attempt(deliveryId: string, opts: { force?: boolean } = {}): Prom
     if (allowed && row.event.startsWith('talk.')) {
       const { talkDeliveryAllowed } = await import('./talk');
       allowed = await talkDeliveryAllowed(row.w_user, row.w_creator, data);
+    } else if (allowed && row.event.startsWith('voice.')) {
+      // Voice: la reunión es de quien la grabó; solo su propio webhook la recibe.
+      const { voiceDeliveryAllowed } = await import('./voice-events');
+      allowed = await voiceDeliveryAllowed(row.w_user, row.w_creator, data);
     } else if (allowed) {
       const pageId = String((data as { page?: { id?: string } } | null)?.page?.id ?? '');
       const { docsDeliveryAllowed } = await import('./docs-events');

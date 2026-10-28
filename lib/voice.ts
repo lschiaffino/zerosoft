@@ -21,7 +21,12 @@ import {
   speakerKey,
   VOICE_CONTEXTS,
   VOICE_DICTIONARY_MAX,
+  VOICE_REMINDER_MINUTES,
+  VOICE_RETENTION_DAYS,
   VOICE_TEMPLATES_MAX,
+  type VoiceAttendee,
+  type VoiceBrief,
+  type VoiceFollowup,
   VOICE_TONES,
   type VoiceChatMessage,
   type VoiceDictionaryEntry,
@@ -95,13 +100,17 @@ export interface VoiceSessionRow {
   last_chunk_at: string | null;
   recorder_id: string | null;
   recorder_seen_at: string | null;
+  folder_id: string | null;
+  attendees: string;
+  event_key: string | null;
+  transcript_deleted_at: string | null;
   started_at: string;
   ended_at: string | null;
   created_at: string;
   updated_at: string;
 }
 
-function toSummary(r: VoiceSessionRow & { match?: string | null }): VoiceSessionSummary {
+function toSummary(r: VoiceSessionRow & { match?: string | null; shared?: number | null }): VoiceSessionSummary {
   return {
     id: r.id,
     kind: r.kind,
@@ -116,10 +125,12 @@ function toSummary(r: VoiceSessionRow & { match?: string | null }): VoiceSession
     templateKey: r.template_key,
     calBookingId: r.cal_booking_id,
     contactId: r.contact_id,
+    folderId: r.folder_id ?? null,
     startedAt: r.started_at,
     endedAt: r.ended_at,
     updatedAt: r.updated_at,
     ...(r.match ? { match: r.match } : {}),
+    ...(r.shared ? { shared: true } : {}),
   };
 }
 
@@ -140,6 +151,18 @@ export function normalizeSettings(raw: unknown): VoiceSettings {
     shortcut: typeof v.shortcut === 'string' && /^[A-Za-z+ ]{3,30}$/.test(v.shortcut) ? v.shortcut : DEFAULT_VOICE_SETTINGS.shortcut,
     showBar: typeof v.showBar === 'boolean' ? v.showBar : DEFAULT_VOICE_SETTINGS.showBar,
     aiCleanup: typeof v.aiCleanup === 'boolean' ? v.aiCleanup : DEFAULT_VOICE_SETTINGS.aiCleanup,
+    commandMode: typeof v.commandMode === 'boolean' ? v.commandMode : DEFAULT_VOICE_SETTINGS.commandMode,
+    learnCorrections: typeof v.learnCorrections === 'boolean' ? v.learnCorrections : DEFAULT_VOICE_SETTINGS.learnCorrections,
+    reminders: typeof v.reminders === 'boolean' ? v.reminders : DEFAULT_VOICE_SETTINGS.reminders,
+    reminderMinutes: (VOICE_REMINDER_MINUTES as readonly number[]).includes(Number(v.reminderMinutes))
+      ? Number(v.reminderMinutes)
+      : DEFAULT_VOICE_SETTINGS.reminderMinutes,
+    retentionDays: (VOICE_RETENTION_DAYS as readonly number[]).includes(Number(v.retentionDays))
+      ? Number(v.retentionDays)
+      : DEFAULT_VOICE_SETTINGS.retentionDays,
+    slackChannel: typeof v.slackChannel === 'string' && /^[A-Z0-9_]{1,40}$/.test(v.slackChannel) ? v.slackChannel : '',
+    notionParent: typeof v.notionParent === 'string' && /^[0-9a-f-]{32,36}$/i.test(v.notionParent) ? v.notionParent : '',
+    notionCredentialId: typeof v.notionCredentialId === 'string' && /^[\w-]{1,64}$/.test(v.notionCredentialId) ? v.notionCredentialId : '',
   };
 }
 
@@ -175,6 +198,8 @@ export const UNTOUCHED_SQL = `s.kind = 'meeting' AND s.title = '' AND s.status !
 export interface ListSessionsOptions {
   kind?: 'dictation' | 'meeting';
   q?: string | null;
+  /** Carpeta (con sus subcarpetas); 'none' = sin carpeta. */
+  folderId?: string | null;
   limit?: number;
   offset?: number;
 }
@@ -186,6 +211,13 @@ export async function listSessions(owner: VoiceOwner, opts: ListSessionsOptions 
   if (opts.kind) {
     where.push('s.kind = ?');
     args.push(opts.kind);
+  }
+  if (opts.folderId === 'none') where.push('s.folder_id IS NULL');
+  else if (opts.folderId) {
+    where.push(
+      '(s.folder_id = ? OR s.folder_id IN (SELECT f.id FROM voice_folders f WHERE f.parent_id = ? AND f.workspace_id = s.workspace_id AND f.person_id = s.person_id))',
+    );
+    args.push(opts.folderId, opts.folderId);
   }
   const q = opts.q?.trim();
   let matchSql = 'NULL';
@@ -203,7 +235,8 @@ export async function listSessions(owner: VoiceOwner, opts: ListSessionsOptions 
   const offset = Math.max(opts.offset ?? 0, 0);
   const rows = (await getDb()
     .prepare(
-      `SELECT s.*, ${matchSql} AS match FROM voice_sessions s WHERE ${where.join(' AND ')}
+      `SELECT s.*, ${matchSql} AS match, (SELECT 1 FROM voice_shares sh WHERE sh.session_id = s.id) AS shared
+       FROM voice_sessions s WHERE ${where.join(' AND ')}
        ORDER BY s.started_at DESC LIMIT ? OFFSET ?`,
     )
     .all(...matchArgs, ...args, limit, offset)) as Array<VoiceSessionRow & { match: string | null }>;
@@ -238,7 +271,7 @@ export async function getSessionDetail(owner: VoiceOwner, id: string): Promise<V
   const [segments, notes] = await Promise.all([
     listSegments(id),
     getDb().prepare('SELECT * FROM voice_notes WHERE session_id = ?').get(id) as Promise<
-      { my_notes: string; enhanced: string | null; enhanced_at: string | null; chat: string } | undefined
+      { my_notes: string; enhanced: string | null; enhanced_at: string | null; chat: string; brief: string | null; followup: string | null } | undefined
     >,
   ]);
   return {
@@ -259,7 +292,40 @@ export async function getSessionDetail(owner: VoiceOwner, id: string): Promise<V
     enhanced: parseJson<VoiceEnhanced | null>(notes?.enhanced, null),
     enhancedAt: notes?.enhanced_at ?? null,
     chat: parseJson<VoiceChatMessage[]>(notes?.chat, []),
+    attendees: parseAttendees(row.attendees),
+    eventKey: row.event_key ?? null,
+    transcriptDeletedAt: row.transcript_deleted_at ?? null,
+    brief: parseJson<VoiceBrief | null>(notes?.brief, null),
+    followup: parseJson<VoiceFollowup | null>(notes?.followup, null),
   };
+}
+
+/** Asistentes guardados (JSON) → lista limpia, sin repetidos por email. */
+export function parseAttendees(raw: string | null | undefined): VoiceAttendee[] {
+  return normalizeAttendees(parseJson<unknown>(raw, []));
+}
+
+export function normalizeAttendees(raw: unknown): VoiceAttendee[] {
+  if (!Array.isArray(raw)) return [];
+  const out: VoiceAttendee[] = [];
+  const seen = new Set<string>();
+  for (const a of raw) {
+    if (!a || typeof a !== 'object') continue;
+    const email = String((a as { email?: unknown }).email ?? '')
+      .trim()
+      .toLowerCase()
+      .slice(0, 254);
+    const name = String((a as { name?: unknown }).name ?? '')
+      .trim()
+      .slice(0, 120);
+    if (!email && !name) continue;
+    const key = email || name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ name, email });
+    if (out.length >= 50) break;
+  }
+  return out;
 }
 
 export interface CreateSessionInput {
@@ -277,6 +343,9 @@ export interface CreateSessionInput {
   calBookingId?: string | null;
   contactId?: string | null;
   locale?: string;
+  folderId?: string | null;
+  attendees?: VoiceAttendee[];
+  eventKey?: string | null;
 }
 
 export async function createSession(owner: VoiceOwner, input: CreateSessionInput): Promise<VoiceSessionRow> {
@@ -287,8 +356,9 @@ export async function createSession(owner: VoiceOwner, input: CreateSessionInput
   await getDb()
     .prepare(
       `INSERT INTO voice_sessions (id, workspace_id, person_id, kind, title, status, capture, context, source_app, raw_text, text,
-         language, duration_ms, words, template_key, cal_booking_id, contact_id, locale, started_at, ended_at, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         language, duration_ms, words, template_key, cal_booking_id, contact_id, locale, folder_id, attendees, event_key,
+         started_at, ended_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -309,6 +379,9 @@ export async function createSession(owner: VoiceOwner, input: CreateSessionInput
       input.calBookingId ?? null,
       input.contactId ?? null,
       ['en', 'es', 'pt'].includes(input.locale ?? '') ? (input.locale as string) : 'en',
+      input.folderId ?? null,
+      JSON.stringify(normalizeAttendees(input.attendees ?? [])),
+      input.eventKey ?? null,
       now,
       done ? now : null,
       now,
@@ -334,6 +407,9 @@ export interface UpdateSessionInput {
   durationMs?: number;
   language?: string;
   error?: string;
+  folderId?: string | null;
+  attendees?: VoiceAttendee[];
+  eventKey?: string | null;
 }
 
 export async function updateSession(owner: VoiceOwner, id: string, patch: UpdateSessionInput): Promise<VoiceSessionRow | null> {
@@ -364,6 +440,9 @@ export async function updateSession(owner: VoiceOwner, id: string, patch: Update
   if (patch.durationMs !== undefined) set('duration_ms', Math.max(0, Math.round(patch.durationMs)));
   if (patch.language !== undefined) set('language', patch.language);
   if (patch.error !== undefined) set('error', patch.error.slice(0, 200));
+  if (patch.folderId !== undefined) set('folder_id', patch.folderId);
+  if (patch.attendees !== undefined) set('attendees', JSON.stringify(normalizeAttendees(patch.attendees)));
+  if (patch.eventKey !== undefined) set('event_key', patch.eventKey);
   if (!sets.length) return row;
   set('updated_at', nowIso());
   await getDb()
@@ -432,7 +511,7 @@ export async function saveChunkSegments(args: {
     .run(Math.round(args.durationMs), args.sessionId, args.source, args.seq);
   // La duración de la reunión es el final del último trozo recibido.
   await db
-    .prepare('UPDATE voice_sessions SET duration_ms = MAX(duration_ms, ?), last_chunk_at = ?, updated_at = ? WHERE id = ?')
+    .prepare('UPDATE voice_sessions SET duration_ms = MAX(duration_ms, ?), last_chunk_at = ?, transcript_deleted_at = NULL, updated_at = ? WHERE id = ?')
     .run(Math.round(args.offsetMs + args.durationMs), now, now, args.sessionId);
   return out;
 }
@@ -508,37 +587,69 @@ export async function saveChat(sessionId: string, chat: VoiceChatMessage[]): Pro
 
 // ---------- Diccionario ----------
 
+/**
+ * Diccionario que usa la persona: el propio más el del equipo (entradas
+ * compartidas del workspace, las carga un admin). `shared` marca las del
+ * equipo; si una frase está en los dos, gana la propia.
+ */
 export async function listDictionary(owner: VoiceOwner): Promise<VoiceDictionaryEntry[]> {
   const rows = (await getDb()
-    .prepare('SELECT id, kind, phrase, replacement FROM voice_dictionary WHERE workspace_id = ? AND person_id = ? ORDER BY kind, phrase COLLATE NOCASE')
-    .all(owner.workspaceId, owner.personId)) as VoiceDictionaryEntry[];
-  return rows;
+    .prepare(
+      `SELECT id, kind, phrase, replacement, shared FROM voice_dictionary
+       WHERE workspace_id = ? AND ((person_id = ? AND shared = 0) OR shared = 1) ORDER BY kind, phrase COLLATE NOCASE`,
+    )
+    .all(owner.workspaceId, owner.personId)) as Array<Omit<VoiceDictionaryEntry, 'shared'> & { shared: number }>;
+  const own = new Set(rows.filter((r) => !Number(r.shared)).map((r) => `${r.kind}:${r.phrase.toLowerCase()}`));
+  return rows
+    .filter((r) => !Number(r.shared) || !own.has(`${r.kind}:${r.phrase.toLowerCase()}`))
+    .map((r) => ({ id: r.id, kind: r.kind, phrase: r.phrase, replacement: r.replacement, ...(Number(r.shared) ? { shared: true } : {}) }));
 }
 
 export async function addDictionaryEntry(
   owner: VoiceOwner,
-  input: { kind: VoiceDictionaryKind; phrase: string; replacement?: string },
+  input: { kind: VoiceDictionaryKind; phrase: string; replacement?: string; shared?: boolean },
 ): Promise<VoiceDictionaryEntry> {
   const db = getDb();
-  const count = (await db
-    .prepare('SELECT COUNT(*) AS n FROM voice_dictionary WHERE workspace_id = ? AND person_id = ?')
-    .get(owner.workspaceId, owner.personId)) as { n: number };
+  const shared = input.shared ? 1 : 0;
+  const count = (await (shared
+    ? db.prepare('SELECT COUNT(*) AS n FROM voice_dictionary WHERE workspace_id = ? AND shared = 1').get(owner.workspaceId)
+    : db
+        .prepare('SELECT COUNT(*) AS n FROM voice_dictionary WHERE workspace_id = ? AND person_id = ? AND shared = 0')
+        .get(owner.workspaceId, owner.personId))) as { n: number };
   if (Number(count.n) >= VOICE_DICTIONARY_MAX) throw new VoiceError('limit_reached');
   const id = crypto.randomUUID();
   const phrase = input.phrase.trim().slice(0, 100);
   const replacement = input.kind === 'word' ? '' : (input.replacement ?? '').trim().slice(0, 2000);
+  if (shared) {
+    const dup = await db
+      .prepare('SELECT 1 AS x FROM voice_dictionary WHERE workspace_id = ? AND shared = 1 AND kind = ? AND phrase = ? COLLATE NOCASE')
+      .get(owner.workspaceId, input.kind, phrase);
+    if (dup) throw new VoiceError('duplicate');
+  } else {
+    const dup = await db
+      .prepare('SELECT 1 AS x FROM voice_dictionary WHERE workspace_id = ? AND person_id = ? AND shared = 0 AND kind = ? AND phrase = ? COLLATE NOCASE')
+      .get(owner.workspaceId, owner.personId, input.kind, phrase);
+    if (dup) throw new VoiceError('duplicate');
+  }
+  // Las del equipo van con person_id "team:<quien la cargó>": el índice único (workspace, persona,
+  // tipo, frase) no choca con la misma frase en el diccionario propio de esa persona.
   const res = await db
     .prepare(
-      'INSERT OR IGNORE INTO voice_dictionary (id, workspace_id, person_id, kind, phrase, replacement, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      'INSERT OR IGNORE INTO voice_dictionary (id, workspace_id, person_id, kind, phrase, replacement, shared, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     )
-    .run(id, owner.workspaceId, owner.personId, input.kind, phrase, replacement, nowIso());
+    .run(id, owner.workspaceId, shared ? `team:${owner.personId}` : owner.personId, input.kind, phrase, replacement, shared, nowIso());
   if (!res.changes) throw new VoiceError('duplicate');
-  return { id, kind: input.kind, phrase, replacement };
+  return { id, kind: input.kind, phrase, replacement, ...(shared ? { shared: true } : {}) };
 }
 
-export async function deleteDictionaryEntry(owner: VoiceOwner, id: string): Promise<boolean> {
+/** Borra una entrada propia o, con `admin`, una del equipo. */
+export async function deleteDictionaryEntry(owner: VoiceOwner, id: string, opts: { admin?: boolean } = {}): Promise<boolean> {
   const res = await getDb()
-    .prepare('DELETE FROM voice_dictionary WHERE id = ? AND workspace_id = ? AND person_id = ?')
+    .prepare(
+      opts.admin
+        ? 'DELETE FROM voice_dictionary WHERE id = ? AND workspace_id = ? AND ((person_id = ? AND shared = 0) OR shared = 1)'
+        : 'DELETE FROM voice_dictionary WHERE id = ? AND workspace_id = ? AND person_id = ? AND shared = 0',
+    )
     .run(id, owner.workspaceId, owner.personId);
   return res.changes > 0;
 }
@@ -687,6 +798,11 @@ export async function closeRecording(sessionId: string, opts: { queueNotes: bool
   const res = await db
     .prepare("UPDATE voice_sessions SET status = 'done', ended_at = COALESCE(ended_at, ?), updated_at = ? WHERE id = ? AND status IN ('recording', 'processing')")
     .run(now, now, sessionId);
+  if (res.changes > 0) {
+    // Webhooks y Flow de quien grabó (voice.meeting.completed).
+    const { emitVoiceEvent } = await import('./voice-events');
+    await emitVoiceEvent(sessionId, 'voice.meeting.completed');
+  }
   if (!opts.queueNotes) return { closed: res.changes > 0, queued: false };
   const queued = await queueNotes(sessionId);
   return { closed: res.changes > 0, queued };

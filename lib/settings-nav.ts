@@ -135,6 +135,7 @@ export function legacySettingsTarget(pathname: string, hash: string): string | n
 }
 
 export type WebhookGroupKey =
+  | 'voice'
   | 'booking'
   | 'link'
   | 'contact'

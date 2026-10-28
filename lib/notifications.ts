@@ -103,13 +103,25 @@ export async function listNotifications(
     .all(...args, limit, offset)) as NotificationRow[];
 }
 
-export async function countUnreadNotifications(userId: string): Promise<number> {
+/**
+ * Sin leer. `hidePaths`: paths de apps (/app/crm, /app/track…) cuyos avisos no
+ * cuentan (las apps que la persona no tiene en el workspace activo).
+ */
+export async function countUnreadNotifications(userId: string, opts: { hidePaths?: readonly string[] } = {}): Promise<number> {
   const db = getDb();
+  const hide = (opts.hidePaths ?? []).filter((p) => /^\/app\/[a-z]+$/.test(p));
+  // Con o sin locale delante (/app/crm/…, /es/app/crm/…), y la raíz de la app exacta.
+  const hideSql = hide
+    .map(() => "(href = ? OR href LIKE ? OR href LIKE ? OR href LIKE ? OR href LIKE ?)")
+    .join(' OR ');
+  const hideArgs = hide.flatMap((p) => [p, `${p}/%`, `${p}?%`, `/__${p}`, `/__${p}/%`]);
   const row = (await db
     .prepare(
-      'SELECT COUNT(*) AS c FROM notifications WHERE user_id = ? AND read_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?)',
+      `SELECT COUNT(*) AS c FROM notifications WHERE user_id = ? AND read_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?)${
+        hide.length ? ` AND NOT (href IS NOT NULL AND (${hideSql}))` : ''
+      }`,
     )
-    .get(userId, nowIso())) as { c: number } | undefined;
+    .get(userId, nowIso(), ...hideArgs)) as { c: number } | undefined;
   return row?.c ?? 0;
 }
 

@@ -69,6 +69,20 @@ export interface VoiceSettings {
   showBar: boolean;
   /** Limpieza con IA (si está apagada, solo reglas: diccionario, muletillas y puntuación). */
   aiCleanup: boolean;
+  /** Command Mode: con texto seleccionado, lo que se dice es una instrucción para reescribirlo (apagado por defecto, como Wispr Flow). */
+  commandMode: boolean;
+  /** Aprender del historial: al corregir un dictado, las palabras cambiadas pasan al diccionario. */
+  learnCorrections: boolean;
+  /** Aviso antes de cada reunión del calendario (mientras zerosoft está abierto). */
+  reminders: boolean;
+  /** Minutos antes de la reunión para el aviso. */
+  reminderMinutes: number;
+  /** Borrar las transcripciones de las reuniones a los N días (0 = nunca). Las notas quedan. */
+  retentionDays: number;
+  /** Último destino al mandar una nota a Slack (id del canal) y a Notion (página padre y credencial de Flow). */
+  slackChannel: string;
+  notionParent: string;
+  notionCredentialId: string;
 }
 
 export const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
@@ -77,7 +91,33 @@ export const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
   shortcut: 'Alt+Space',
   showBar: true,
   aiCleanup: true,
+  commandMode: false,
+  learnCorrections: true,
+  reminders: true,
+  reminderMinutes: 2,
+  retentionDays: 0,
+  slackChannel: '',
+  notionParent: '',
+  notionCredentialId: '',
 };
+
+export const VOICE_REMINDER_MINUTES = [1, 2, 5, 10] as const;
+/** Opciones de borrado automático de transcripciones (0 = nunca). */
+export const VOICE_RETENTION_DAYS = [0, 1, 7, 30, 90, 365] as const;
+
+/** Ajustes del workspace (los administra un admin). */
+export interface VoiceWorkspaceSettings {
+  /** Tope de días para las transcripciones de todo el workspace (0 = sin tope; cada persona puede elegir menos). */
+  retentionDays: number;
+}
+
+export const DEFAULT_VOICE_WORKSPACE_SETTINGS: VoiceWorkspaceSettings = { retentionDays: 0 };
+
+/** Días efectivos: el menor entre la persona y el workspace (0 = sin borrado). */
+export function effectiveRetentionDays(personDays: number, workspaceDays: number): number {
+  const vals = [personDays, workspaceDays].filter((d) => d > 0);
+  return vals.length ? Math.min(...vals) : 0;
+}
 
 export const VOICE_SHORTCUTS = ['Alt+Space', 'Ctrl+Space', 'Alt+D', 'Ctrl+Shift+Space'] as const;
 
@@ -95,11 +135,14 @@ export interface VoiceSessionSummary {
   templateKey: string;
   calBookingId: string | null;
   contactId: string | null;
+  folderId: string | null;
   startedAt: string;
   endedAt: string | null;
   updatedAt: string;
   /** Fragmento que coincidió con la búsqueda (transcripción o notas). */
   match?: string;
+  /** Tiene un link para compartir activo. */
+  shared?: boolean;
 }
 
 export interface VoiceSegment {
@@ -151,6 +194,85 @@ export interface VoiceSessionDetail extends VoiceSessionSummary {
   enhanced: VoiceEnhanced | null;
   enhancedAt: string | null;
   chat: VoiceChatMessage[];
+  attendees: VoiceAttendee[];
+  /** Evento del calendario de donde salió ("cal:<id>", "google:<id>", "outlook:<id>"). */
+  eventKey: string | null;
+  /** La transcripción se borró sola por la retención (las notas quedan). */
+  transcriptDeletedAt: string | null;
+  brief: VoiceBrief | null;
+  followup: VoiceFollowup | null;
+}
+
+export interface VoiceAttendee {
+  name: string;
+  email: string;
+}
+
+/** Brief antes de la reunión: lo hablado antes con las mismas personas. */
+export interface VoiceBrief {
+  summary: string;
+  openItems: string[];
+  meetings: Array<{ id: string; title: string; startedAt: string }>;
+  at: string;
+}
+
+/** Borrador del email de seguimiento. */
+export interface VoiceFollowup {
+  to: string[];
+  subject: string;
+  body: string;
+  at: string;
+}
+
+export interface VoiceFolder {
+  id: string;
+  name: string;
+  parentId: string | null;
+  count: number;
+}
+
+export const VOICE_FOLDERS_MAX = 200;
+export const VOICE_PROMPTS_MAX = 100;
+
+export type VoicePromptKind = 'recipe' | 'transform';
+
+/** Recipe (prompt guardado para una o varias reuniones) o transform (reescritura guardada para el dictado). */
+export interface VoicePrompt {
+  id: string;
+  kind: VoicePromptKind;
+  name: string;
+  prompt: string;
+  shared: boolean;
+  /** De otra persona del workspace (compartido con el equipo): se usa pero no se edita. */
+  mine: boolean;
+  builtin: boolean;
+}
+
+/** Recipes y transforms de fábrica (el texto vive en messages/<locale>/voice.json › prompts). */
+export const VOICE_BUILTIN_RECIPES = ['action_items', 'follow_up', 'my_commitments', 'objections', 'coach'] as const;
+export const VOICE_BUILTIN_TRANSFORMS = ['shorter', 'formal', 'friendly', 'bullets', 'translate_en'] as const;
+
+export type VoiceShareAccess = 'workspace' | 'people' | 'anyone';
+
+export interface VoiceShareInfo {
+  token: string;
+  access: VoiceShareAccess;
+  includeTranscript: boolean;
+  people: Array<{ id: string; name: string | null; email: string }>;
+  createdAt: string;
+}
+
+/** Evento del calendario (Cal, Google u Outlook) para tomar notas. */
+export interface VoiceCalendarEvent {
+  key: string;
+  provider: 'cal' | 'google' | 'outlook';
+  title: string;
+  startsAt: string;
+  endsAt: string;
+  attendees: VoiceAttendee[];
+  meetingUrl: string | null;
+  /** Reunión de Voice ya creada para este evento. */
+  sessionId: string | null;
 }
 
 export interface VoiceDictionaryEntry {
@@ -158,6 +280,8 @@ export interface VoiceDictionaryEntry {
   kind: VoiceDictionaryKind;
   phrase: string;
   replacement: string;
+  /** Del diccionario del equipo (lo carga un admin; lo usa todo el workspace). */
+  shared?: boolean;
 }
 
 export interface VoiceTemplate {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
 import { createWorkflow, listWorkflows } from '@/lib/crm-workflows';
 import { workflowCreateSchema } from '@/lib/crm-workflows-schema';
 import { invalidBody, unauthorized, forbidden } from '@/lib/crm-http';
@@ -22,6 +22,6 @@ export async function POST(req: NextRequest) {
   const parsed = workflowCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const workflow = await createWorkflow(user.id, parsed.data);
+  const workflow = await createWorkflow(user.id, parsed.data, realUserId(user));
   return NextResponse.json(workflow, { status: 201 });
 }

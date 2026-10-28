@@ -29,7 +29,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Wispr Flow + Granola',
-  lastReviewed: '2026-10-25',
+  lastReviewed: '2026-10-28',
   areas: [
     { id: 'dictation', label: loc(['Dictation in any app', 'Dictado en cualquier app', 'Ditado em qualquer app']) },
     { id: 'cleanup', label: loc(['AI cleanup and formatting', 'Limpieza y formato con IA', 'Limpeza e formatação com IA']) },
@@ -104,12 +104,12 @@ const parity: ProductParity = {
     }),
 
     // Diccionario, snippets y estilos
-    row('dictionary', 'personalization', ['Personal dictionary', 'Diccionario personal', 'Dicionário pessoal'], 'partial', {
+    row('dictionary', 'personalization', ['Personal dictionary', 'Diccionario personal', 'Dicionário pessoal'], 'have', {
       weight: 2,
       detail: [
-        "Words to spell right (they also bias the transcription) and replacements, added by hand. It does not learn from your corrections yet",
-        "Palabras para escribir bien (también orientan la transcripción) y reemplazos, cargados a mano. Todavía no aprende de tus correcciones",
-        "Palavras para escrever certo (também orientam a transcrição) e substituições, cadastradas à mão. Ainda não aprende com suas correções",
+        'Words to spell right (they also bias the transcription) and replacements; fixing a dictation in the history adds the corrected names and terms by itself, with undo. Fixes made in other apps after pasting are not seen',
+        'Palabras para escribir bien (también orientan la transcripción) y reemplazos; corregir un dictado en el historial suma solo los nombres y términos corregidos, con deshacer. No ve lo que se corrige en otras apps después de pegar',
+        'Palavras para escrever certo (também orientam a transcrição) e substituições; corrigir um ditado no histórico adiciona sozinho os nomes e termos corrigidos, com desfazer. Não vê o que se corrige em outros apps depois de colar',
       ],
     }),
     row('snippets', 'personalization', ['Voice snippets', 'Snippets por voz', 'Snippets por voz'], 'have', {
@@ -136,15 +136,19 @@ const parity: ProductParity = {
     }),
 
     // Comandos
-    row('command-mode', 'commands', ['Edit selected text by voice', 'Editar el texto seleccionado por voz', 'Editar o texto selecionado por voz'], 'missing', {
+    row('command-mode', 'commands', ['Edit selected text by voice', 'Editar el texto seleccionado por voz', 'Editar o texto selecionado por voz'], 'have', {
       detail: [
-        'Wispr Flow Command Mode: select text and say "make it shorter" or "translate it"; off by default, paid plans',
-        'Command Mode de Wispr Flow: seleccionar texto y decir "hacelo más corto" o "traducilo"; apagado por defecto, en planes pagos',
-        'Command Mode do Wispr Flow: selecionar texto e dizer "deixa mais curto" ou "traduz"; desligado por padrão, em planos pagos',
+        'Turn on Command Mode, select text in any zerosoft field, hold the shortcut and say "make it shorter" or "translate it": the selection is replaced. Off by default. Other apps need the desktop app',
+        'Con Command Mode prendido, seleccionás texto en cualquier campo de zerosoft, mantenés el atajo y decís "hacelo más corto" o "traducilo": se reemplaza la selección. Apagado por defecto. Las otras apps necesitan la app de escritorio',
+        'Com o Command Mode ligado, você seleciona texto em qualquer campo do zerosoft, segura o atalho e diz "deixa mais curto" ou "traduz": a seleção é substituída. Desligado por padrão. Os outros apps precisam do app desktop',
       ],
     }),
-    row('transforms', 'commands', ['Saved rewrite prompts', 'Prompts de reescritura guardados', 'Prompts de reescrita salvos'], 'missing', {
-      detail: ['Wispr Flow Transforms (beta)', 'Transforms de Wispr Flow (beta)', 'Transforms do Wispr Flow (beta)'],
+    row('transforms', 'commands', ['Saved rewrite prompts', 'Prompts de reescritura guardados', 'Prompts de reescrita salvos'], 'have', {
+      detail: [
+        'Built-in and saved rewrites (your own or shared with the workspace): select text and pick one from the pencil next to the dictate button, or say its name in Command Mode',
+        'Reescrituras de fábrica y guardadas (propias o compartidas con el workspace): seleccionás texto y elegís una desde el lápiz junto al botón de dictar, o decís su nombre en Command Mode',
+        'Reescritas de fábrica e salvas (próprias ou compartilhadas com o workspace): selecione texto e escolha uma no lápis ao lado do botão de ditar, ou diga o nome no Command Mode',
+      ],
     }),
 
     // Escritorio, móvil y uso
@@ -170,11 +174,11 @@ const parity: ProductParity = {
         "O dicionário, os estilos e o histórico ficam no servidor e qualquer navegador usa os mesmos; o app desktop usaria pela API, mas ainda não está compilado",
       ],
     }),
-    row('usage-stats', 'apps', ['Usage stats', 'Estadísticas de uso', 'Estatísticas de uso'], 'partial', {
+    row('usage-stats', 'apps', ['Usage stats', 'Estadísticas de uso', 'Estatísticas de uso'], 'have', {
       detail: [
-        "Words this week, dictations and minutes for each person; no team dashboard",
-        "Palabras de la semana, dictados y minutos por persona; sin panel de equipo",
-        "Palavras da semana, ditados e minutos por pessoa; sem painel de equipe",
+        'Words this week, dictations, minutes and the apps where you dictate most; admins see a team panel per person (numbers only, never the text)',
+        'Palabras de la semana, dictados, minutos y las apps donde más dictás; los admins ven un panel del equipo por persona (solo números, nunca el texto)',
+        'Palavras da semana, ditados, minutos e os apps onde você mais dita; admins veem um painel da equipe por pessoa (só números, nunca o texto)',
       ],
     }),
 
@@ -195,12 +199,12 @@ const parity: ProductParity = {
         "Transcrição com busca separada em Eu (microfone) e Eles (aba), que chega em partes de uns 20 segundos",
       ],
     }),
-    row('calendar-sync', 'capture', ['Calendar sync and meeting reminders', 'Calendario y aviso al empezar la reunión', 'Calendário e aviso no início da reunião'], 'partial', {
+    row('calendar-sync', 'capture', ['Calendar sync and meeting reminders', 'Calendario y aviso al empezar la reunión', 'Calendário e aviso no início da reunião'], 'have', {
       weight: 2,
       detail: [
-        "Upcoming Cal bookings show up to take notes and a meeting can be linked to one; no Google Calendar or Outlook and no reminder when it starts",
-        "Las próximas reservas de Cal aparecen para tomar notas y se puede vincular una reunión; sin Google Calendar ni Outlook y sin aviso al empezar",
-        "As próximas reservas do Cal aparecem para fazer notas e dá para vincular uma reunião; sem Google Calendar nem Outlook e sem aviso no início",
+        'The Cal bookings you host or co-host plus the Google Calendar and Outlook events connected in Cal, with attendees and the call link; take notes from an event and get a reminder a few minutes before (in the page and as a browser notification) while zerosoft is open in a tab. Admins only see their own meetings, not the whole workspace',
+        'Las reservas de Cal que atendés o coatendés más los eventos de Google Calendar y Outlook conectados en Cal, con asistentes y link de la llamada; se toman notas desde el evento y llega un aviso unos minutos antes (en la página y como notificación del navegador) mientras zerosoft está abierto en una pestaña. Los admins ven solo sus reuniones, no las de todo el workspace',
+        'As reservas do Cal que você atende ou coatende mais os eventos do Google Calendar e do Outlook conectados no Cal, com participantes e link da chamada; dá para fazer notas a partir do evento e chega um aviso minutos antes (na página e como notificação do navegador) enquanto o zerosoft está aberto em uma aba. Admins veem só as próprias reuniões, não as do workspace todo',
       ],
     }),
     row('speaker-names', 'capture', ['Speaker names', 'Nombres de quién habla', 'Nomes de quem fala'], 'partial', {
@@ -242,11 +246,19 @@ const parity: ProductParity = {
         "Cada ponto diz se veio das suas notas ou da transcrição",
       ],
     }),
-    row('pre-meeting-brief', 'notes', ['Pre-meeting brief', 'Brief antes de la reunión', 'Brief antes da reunião'], 'missing', {
-      detail: ['Granola Business', 'Granola Business', 'Granola Business'],
+    row('pre-meeting-brief', 'notes', ['Pre-meeting brief', 'Brief antes de la reunión', 'Brief antes da reunião'], 'have', {
+      detail: [
+        'Before a meeting, AI sums up what you discussed with the same attendees and what is still open, only from your own meetings, with links to each',
+        'Antes de una reunión, la IA resume lo hablado con los mismos asistentes y lo que sigue pendiente, solo con tus reuniones, con links a cada una',
+        'Antes de uma reunião, a IA resume o que foi conversado com os mesmos participantes e o que segue pendente, só com as suas reuniões, com links para cada uma',
+      ],
     }),
-    row('follow-up-email', 'notes', ['Follow-up email draft', 'Borrador de email de seguimiento', 'Rascunho de email de follow-up'], 'missing', {
-      detail: ['Granola Business, in Gmail or Outlook', 'Granola Business, en Gmail u Outlook', 'Granola Business, no Gmail ou Outlook'],
+    row('follow-up-email', 'notes', ['Follow-up email draft', 'Borrador de email de seguimiento', 'Rascunho de email de follow-up'], 'have', {
+      detail: [
+        'AI drafts the follow-up from the notes, addressed to the attendees; you edit it and open it as a draft in Gmail, Outlook or your email app',
+        'La IA redacta el seguimiento con la nota, dirigido a los asistentes; lo editás y lo abrís como borrador en Gmail, Outlook o tu app de correo',
+        'A IA escreve o follow-up com a nota, endereçado aos participantes; você edita e abre como rascunho no Gmail, no Outlook ou no seu app de email',
+      ],
     }),
 
     // Chat
@@ -262,11 +274,11 @@ const parity: ProductParity = {
         "Perguntas sobre suas reuniões, respondidas com as que citam o assunto e links para cada uma",
       ],
     }),
-    row('recipes', 'chat', ['Saved prompts (recipes)', 'Prompts guardados (recipes)', 'Prompts salvos (recipes)'], 'missing', {
+    row('recipes', 'chat', ['Saved prompts (recipes)', 'Prompts guardados (recipes)', 'Prompts salvos (recipes)'], 'have', {
       detail: [
-        'Granola: run with /, for one or many meetings, shareable by link',
-        'Granola: se corren con /, para una o varias reuniones, compartibles por link',
-        'Granola: rodam com /, para uma ou várias reuniões, compartilháveis por link',
+        'Built-in and saved prompts run with / on one meeting or across meetings; share them with the workspace (not by a public link)',
+        'Prompts de fábrica y guardados que se corren con / sobre una reunión o sobre varias; se comparten con el workspace (no por link público)',
+        'Prompts de fábrica e salvos que rodam com / em uma reunião ou em várias; são compartilhados com o workspace (não por link público)',
       ],
     }),
     row('people-companies', 'chat', ['People and companies from meetings', 'Personas y empresas de las reuniones', 'Pessoas e empresas das reuniões'], 'partial', {
@@ -278,32 +290,36 @@ const parity: ProductParity = {
     }),
 
     // Organizar y compartir
-    row('share-link', 'organize', ['Share notes by link', 'Compartir notas por link', 'Compartilhar notas por link'], 'partial', {
+    row('share-link', 'organize', ['Share notes by link', 'Compartir notas por link', 'Compartilhar notas por link'], 'have', {
       weight: 2,
       detail: [
-        "Meetings are private; you share them by sending the notes to Docs or Notes, which have their own sharing",
-        "Las reuniones son privadas; se comparten mandando la nota a Docs o Notes, que tienen sus propios permisos",
-        "As reuniões são privadas; são compartilhadas enviando a nota para Docs ou Notes, que têm suas próprias permissões",
+        'A read-only link with access for the workspace, for the people you pick or for anyone; the transcript only if you include it; change or revoke it anytime. No collaborator role yet',
+        'Un link de solo lectura con acceso para el workspace, para las personas que elijas o para cualquiera; la transcripción solo si la incluís; se cambia o se revoca cuando quieras. Todavía sin rol de colaborador',
+        'Um link só de leitura com acesso para o workspace, para as pessoas que você escolher ou para qualquer pessoa; a transcrição só se você incluir; dá para trocar ou revogar quando quiser. Ainda sem papel de colaborador',
       ],
     }),
-    row('folders-spaces', 'organize', ['Spaces and folders', 'Espacios y carpetas', 'Espaços e pastas'], 'missing', {
+    row('folders-spaces', 'organize', ['Spaces and folders', 'Espacios y carpetas', 'Espaços e pastas'], 'partial', {
       detail: [
-        'Granola: private notes, a team space, custom spaces and folders one level deep',
-        'Granola: notas privadas, espacio del equipo, espacios propios y carpetas con un nivel de subcarpetas',
-        'Granola: notas privadas, espaço da equipe, espaços próprios e pastas com um nível de subpastas',
+        'Your own folders with one level of subfolders and a "Shared with me" view with what the team shared; no custom spaces with their own members',
+        'Carpetas propias con un nivel de subcarpetas y la vista "Compartidas conmigo" con lo que compartió el equipo; sin espacios propios con sus miembros',
+        'Pastas próprias com um nível de subpastas e a visão "Compartilhadas comigo" com o que a equipe compartilhou; sem espaços próprios com seus membros',
       ],
     }),
-    row('copy-export', 'organize', ['Copy as Markdown and send by email', 'Copiar en Markdown y mandar por email', 'Copiar em Markdown e enviar por email'], 'partial', {
+    row('copy-export', 'organize', ['Copy as Markdown and send by email', 'Copiar en Markdown y mandar por email', 'Copiar em Markdown e enviar por email'], 'have', {
       detail: [
-        "Copy as Markdown and send to Docs or Notes; no email sending",
-        "Copiar en Markdown y mandar a Docs o Notes; sin envío por email",
-        "Copiar em Markdown e enviar para Docs ou Notes; sem envio por email",
+        'Copy as Markdown, send to Docs or Notes, and open the follow-up email in Gmail, Outlook or your email app',
+        'Copiar en Markdown, mandar a Docs o Notes y abrir el email de seguimiento en Gmail, Outlook o tu app de correo',
+        'Copiar em Markdown, enviar para Docs ou Notes e abrir o email de follow-up no Gmail, no Outlook ou no seu app de email',
       ],
     }),
 
     // Integraciones y API
-    row('slack-notion', 'integrations', ['Send notes to Slack and Notion', 'Mandar notas a Slack y Notion', 'Enviar notas para Slack e Notion'], 'missing', {
-      detail: ['Granola: Slack on the free plan, Notion on Business', 'Granola: Slack en el plan gratis, Notion en Business', 'Granola: Slack no plano grátis, Notion no Business'],
+    row('slack-notion', 'integrations', ['Send notes to Slack and Notion', 'Mandar notas a Slack y Notion', 'Enviar notas para Slack e Notion'], 'have', {
+      detail: [
+        'Post the notes to a public Slack channel with the workspace Slack app (installed from Track). Admins also create a Notion page under the page they pick, with a Notion credential saved in Flow; members copy the Markdown instead',
+        'Publicar la nota en un canal público de Slack con la app de Slack del workspace (se instala desde Track). Los admins además crean una página de Notion debajo de la que elijan, con una credencial de Notion guardada en Flow; los members copian el Markdown',
+        'Publicar a nota em um canal público do Slack com o app do Slack do workspace (instalado pelo Track). Admins também criam uma página do Notion abaixo da que escolherem, com uma credencial do Notion salva no Flow; members copiam o Markdown',
+      ],
     }),
     row('crm-sync', 'integrations', ['Send notes to the CRM', 'Mandar notas al CRM', 'Enviar notas para o CRM'], 'have', {
       detail: [
@@ -312,27 +328,35 @@ const parity: ProductParity = {
         "A nota fica na linha do tempo do contato do CRM do zerosoft e os próximos passos viram tarefas do CRM",
       ],
     }),
-    row('zapier', 'integrations', ['Zapier', 'Zapier', 'Zapier'], 'missing', {
-      detail: ['Granola Business', 'Granola Business', 'Granola Business'],
-    }),
-    row('mcp-server', 'integrations', ['MCP server for AI assistants', 'Servidor MCP para asistentes de IA', 'Servidor MCP para assistentes de IA'], 'missing', {
+    row('zapier', 'integrations', ['Zapier', 'Zapier', 'Zapier'], 'partial', {
       detail: [
-        'Granola and Wispr Flow expose notes to Claude, ChatGPT and other MCP clients',
-        'Granola y Wispr Flow exponen las notas a Claude, ChatGPT y otros clientes MCP',
-        'Granola e Wispr Flow expõem as notas para Claude, ChatGPT e outros clientes MCP',
+        'No Zapier app; the voice.meeting.completed and voice.notes.ready webhooks work with Zapier "Catch Hook", and Flow covers the same automations',
+        'Sin app de Zapier; los webhooks voice.meeting.completed y voice.notes.ready andan con "Catch Hook" de Zapier, y Flow cubre las mismas automatizaciones',
+        'Sem app do Zapier; os webhooks voice.meeting.completed e voice.notes.ready funcionam com o "Catch Hook" do Zapier, e o Flow cobre as mesmas automações',
+      ],
+    }),
+    row('mcp-server', 'integrations', ['MCP server for AI assistants', 'Servidor MCP para asistentes de IA', 'Servidor MCP para assistentes de IA'], 'have', {
+      detail: [
+        'MCP server at /api/v1/voice/mcp with a voice:read key: list and read your meetings (notes and transcript), ask across them and list dictations. It only sees the key owner’s meetings',
+        'Servidor MCP en /api/v1/voice/mcp con una key voice:read: listar y leer tus reuniones (nota y transcripción), preguntar sobre ellas y listar dictados. Solo ve las reuniones de quien creó la key',
+        'Servidor MCP em /api/v1/voice/mcp com uma key voice:read: listar e ler suas reuniões (nota e transcrição), perguntar sobre elas e listar ditados. Só vê as reuniões de quem criou a key',
       ],
     }),
     row('api-webhooks', 'integrations', ['API and webhooks', 'API y webhooks', 'API e webhooks'], 'partial', {
       detail: [
-        "API v1 with voice:read and voice:write (dictate, sessions, audio chunks, dictionary); no webhooks yet",
-        "API v1 con voice:read y voice:write (dictado, sesiones, trozos de audio, diccionario); sin webhooks todavía",
-        "API v1 com voice:read e voice:write (ditado, sessões, trechos de áudio, dicionário); sem webhooks por enquanto",
+        'API v1 with voice:read and voice:write (dictate, sessions, audio chunks, dictionary). The voice.meeting.completed and voice.notes.ready webhooks only reach webhooks created by the person who recorded; creating webhooks is for admins, so a member’s meetings do not reach any webhook yet',
+        'API v1 con voice:read y voice:write (dictado, sesiones, trozos de audio, diccionario). Los webhooks voice.meeting.completed y voice.notes.ready solo llegan a los webhooks que creó quien grabó; crear webhooks es de los admins, así que las reuniones de un member todavía no llegan a ningún webhook',
+        'API v1 com voice:read e voice:write (ditado, sessões, trechos de áudio, dicionário). Os webhooks voice.meeting.completed e voice.notes.ready só chegam aos webhooks criados por quem gravou; criar webhooks é para admins, então as reuniões de um member ainda não chegam a nenhum webhook',
       ],
     }),
 
     // Equipos, privacidad y admin
-    row('team-dictionary', 'admin', ['Team dictionary and snippets', 'Diccionario y snippets del equipo', 'Dicionário e snippets da equipe'], 'missing', {
-      detail: ['Wispr Flow Pro and Granola Business', 'Wispr Flow Pro y Granola Business', 'Wispr Flow Pro e Granola Business'],
+    row('team-dictionary', 'admin', ['Team dictionary and snippets', 'Diccionario y snippets del equipo', 'Dicionário e snippets da equipe'], 'have', {
+      detail: [
+        'Admins add words, replacements and snippets for the whole workspace; everyone uses them next to their own',
+        'Los admins suman palabras, reemplazos y snippets para todo el workspace; cada persona los usa junto a los propios',
+        'Admins adicionam palavras, substituições e snippets para todo o workspace; cada pessoa usa junto com os próprios',
+      ],
     }),
     row('recording-notice', 'admin', ['Recording notice for attendees', 'Aviso de grabación a los asistentes', 'Aviso de gravação aos participantes'], 'partial', {
       detail: [
@@ -341,11 +365,11 @@ const parity: ProductParity = {
         "O gravador lembra você de avisar os participantes; nada é publicado na chamada",
       ],
     }),
-    row('retention', 'admin', ['Retention and auto-deletion', 'Retención y borrado automático', 'Retenção e exclusão automática'], 'partial', {
+    row('retention', 'admin', ['Retention and auto-deletion', 'Retención y borrado automático', 'Retenção e exclusão automática'], 'have', {
       detail: [
-        "The audio is never stored: it is transcribed in parts and discarded. Transcripts are kept until you delete them; no automatic deletion",
-        "El audio nunca se guarda: se transcribe por partes y se descarta. Las transcripciones quedan hasta que las borrás; sin borrado automático",
-        "O áudio nunca é guardado: é transcrito em partes e descartado. As transcrições ficam até você apagar; sem exclusão automática",
+        'The audio is never stored. Meeting transcripts and the raw transcription of dictations are deleted automatically after the days each person picks, with a maximum the admin can set for the workspace; meeting notes and the final text of each dictation stay',
+        'El audio nunca se guarda. Las transcripciones de las reuniones y la transcripción cruda de los dictados se borran solas a los días que elige cada persona, con un tope que el admin puede fijar para el workspace; las notas de la reunión y el texto final de cada dictado quedan',
+        'O áudio nunca é guardado. As transcrições das reuniões e a transcrição bruta dos ditados são apagadas sozinhas depois dos dias que cada pessoa escolhe, com um limite que o admin pode definir para o workspace; as notas da reunião e o texto final de cada ditado ficam',
       ],
     }),
     row('sso-scim', 'admin', ['SSO and SCIM', 'SSO y SCIM', 'SSO e SCIM'], 'missing', {

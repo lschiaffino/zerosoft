@@ -4,7 +4,7 @@ import { voiceAuth } from '@/lib/voice-route';
 import { readAudio, voiceErrorResponse, voiceJsonError } from '@/lib/voice-http';
 import { ingestChunk } from '@/lib/voice-service';
 import { getDb } from '@/lib/db';
-import { getSessionRow, queueNotes, updateSession } from '@/lib/voice';
+import { closeRecording, getSessionRow, queueNotes, updateSession } from '@/lib/voice';
 import { queueNoteAfterResponse } from '@/lib/voice-jobs';
 import { transcribeProvider, VoiceTranscribeError } from '@/lib/voice-transcribe';
 import { isVoiceAudioType } from '@/lib/voice-types';
@@ -56,7 +56,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     await getDb().prepare('DELETE FROM voice_segments WHERE session_id = ?').run(id);
     await getDb().prepare('DELETE FROM voice_chunks WHERE session_id = ?').run(id);
     const res = await ingestChunk({ owner: auth.owner, sessionId: id, source: 'mixed', seq: 0, offsetMs: 0, durationMs: 0, audio: bytes, type });
-    await updateSession(auth.owner, id, { status: 'done' });
+    // processing → done (y voice.meeting.completed para los webhooks de quien la importó).
+    await closeRecording(id, { queueNotes: false });
     // La nota con IA se arma sola al terminar de transcribir.
     if (await queueNotes(id)) await queueNoteAfterResponse(id);
     return NextResponse.json(res, { status: 201 });

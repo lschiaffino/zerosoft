@@ -27,7 +27,13 @@
     "done": "Insert",
     "cancel": "Cancel",
     "barLabel": "Dictate into this field (or hold {shortcut})",
-    "barText": "Dictate · {shortcut}"
+    "barText": "Dictate · {shortcut}",
+    "commandListening": "Say what to do with the selection. Release to apply.",
+    "commandWorking": "Rewriting…",
+    "commandDone": "Rewrote the selection: {instruction}",
+    "transformsLabel": "Rewrite the selected text",
+    "transformsTitle": "Rewrite with",
+    "transformDone": "Rewrote with “{name}”."
   },
   "errors": {
     "ai_disabled": "AI is not set up on this server. Ask the admin to configure it.",
@@ -62,7 +68,18 @@
     "backToList": "Back to meetings",
     "chunks_failed": "Some parts could not be transcribed. You can retry them from the meeting.",
     "recording_elsewhere": "This meeting is being recorded in another tab or device.",
-    "not_recorder": "Another tab or device took over this recording."
+    "not_recorder": "Another tab or device took over this recording.",
+    "event_not_found": "That calendar event is no longer available.",
+    "folder_not_found": "That folder does not exist anymore.",
+    "recipe_not_found": "That recipe does not exist anymore.",
+    "command_off": "Turn on Command Mode in Voice settings › Dictation.",
+    "forbidden": "Only workspace admins can do this.",
+    "not_member": "That person is not in this workspace.",
+    "slack_not_connected": "The Slack app is not installed in this workspace.",
+    "slack_failed": "Slack did not accept the message. Check that the app is in the channel.",
+    "notion_not_connected": "That Notion connection is not available.",
+    "notion_failed": "Notion did not respond. Try again.",
+    "notion_parent": "Notion cannot find that page. Paste its link and share it with the integration."
   },
   "meetings": {
     "title": "Meetings",
@@ -73,7 +90,7 @@
     "importing": "Uploading…",
     "noTranscription": "Recording needs a transcription provider. Set VOICE_TRANSCRIBE_PROVIDER and its key on the server.",
     "noAi": "AI is off: you get the transcript, while AI notes and chat stay unavailable.",
-    "upcoming": "Coming up in Cal",
+    "upcoming": "Coming up",
     "takeNotes": "Take notes",
     "askTitle": "Ask your meetings",
     "askPlaceholder": "What did Ana say about pricing?",
@@ -96,7 +113,36 @@
     "statusRecording": "recording",
     "statusProcessing": "transcribing",
     "deleteTitle": "Delete this meeting?",
-    "deleteBody": "“{title}” and its transcript and notes will be deleted. Pages already sent to Docs or Notes stay."
+    "deleteBody": "“{title}” and its transcript and notes will be deleted. Pages already sent to Docs or Notes stay.",
+    "upcomingEmpty": "No meetings coming up in your calendar.",
+    "connectCalendar": "Connect Google Calendar or Outlook in Cal",
+    "openNotes": "Open notes",
+    "prep": "Brief",
+    "provider": {
+      "cal": "Cal",
+      "google": "Google Calendar",
+      "outlook": "Outlook"
+    },
+    "recipesHint": "Type / to run a recipe across your meetings.",
+    "foldersLabel": "Meeting folders",
+    "allMeetings": "All meetings",
+    "sharedWithMe": "Shared with me",
+    "folders": "Folders",
+    "foldersEmpty": "No folders yet.",
+    "newFolder": "New folder",
+    "newSubfolder": "New subfolder",
+    "folderName": "Folder name",
+    "renameFolder": "Rename folder",
+    "deleteFolder": "Delete folder",
+    "deleteFolderTitle": "Delete this folder?",
+    "deleteFolderBody": "“{name}” and its subfolders are deleted. Their meetings stay, without a folder.",
+    "folderEmpty": "No meetings in this folder yet.",
+    "sharedEmpty": "Nobody has shared a meeting with you yet.",
+    "sharedBy": "Shared by {name}",
+    "sharedBadge": "shared",
+    "searchShared": "Search shared meetings",
+    "moveTo": "Folder of “{title}”",
+    "noFolder": "No folder"
   },
   "notes": {
     "summary": "Summary",
@@ -123,7 +169,8 @@
     "waiting": "Listening. The first lines show up in about 20 seconds.",
     "empty": "Start recording to see the transcript here.",
     "noMatches": "No lines match.",
-    "renameSpeaker": "Rename speaker"
+    "renameSpeaker": "Rename speaker",
+    "deleted": "The transcript was deleted automatically on {date} (retention setting). The notes stay."
   },
   "chat": {
     "empty": "Ask anything about this meeting, like \"What did we decide about the launch?\"",
@@ -131,7 +178,8 @@
     "assistant": "Voice",
     "thinking": "Reading the meeting…",
     "placeholder": "Ask about this meeting",
-    "send": "Ask"
+    "send": "Ask",
+    "recipesHint": "Type / for recipes like action items or a follow-up."
   },
   "details": {
     "calTitle": "Cal booking",
@@ -150,7 +198,13 @@
     "crmHelp": "Linking a Cal booking finds the contact by the guest email.",
     "sentTitle": "Sent to",
     "openDocs": "Open the Docs page",
-    "openNotes": "Open the note"
+    "openNotes": "Open the note",
+    "attendees": "Attendees",
+    "attendeesEmpty": "No attendees. Add their emails to prepare briefs and follow-up emails.",
+    "attendeesAdd": "Add an attendee email",
+    "attendeesAddBtn": "Add",
+    "attendeesRemove": "Remove {email}",
+    "remove": "Remove"
   },
   "meeting": {
     "back": "Meetings",
@@ -215,7 +269,13 @@
     "failedParts": "{count, plural, one {# part could not be transcribed.} other {# parts could not be transcribed.}}",
     "retryParts": "Retry",
     "recoveredParts": "{count, plural, one {# more part was transcribed. Regenerate the note to include it.} other {# more parts were transcribed. Regenerate the note to include them.}}",
-    "docsPrivateBody": "The page goes to your private teamspace “{space}” in Docs: only you can see it until you share it."
+    "docsPrivateBody": "The page goes to your private teamspace “{space}” in Docs: only you can see it until you share it.",
+    "share": "Share",
+    "followup": "Follow-up email",
+    "sendSlackNotion": "Slack or Notion",
+    "sharedBadge": "Shared by link",
+    "folder": "Folder",
+    "noFolder": "No folder"
   },
   "templates": {
     "builtin": {
@@ -254,7 +314,28 @@
     "delete": "Delete",
     "fromDesktop": "desktop app",
     "deleteTitle": "Delete this dictation?",
-    "deleteBody": "It is removed from your history. Text you already pasted stays where it is."
+    "deleteBody": "It is removed from your history. Text you already pasted stays where it is.",
+    "topApps": "Where you dictate most (30 days)",
+    "wordsN": "{count, plural, one {# word} other {# words}}",
+    "apps": {
+      "docs": "Docs",
+      "notes": "Notes",
+      "crm": "CRM",
+      "track": "Track",
+      "chat": "Chat",
+      "talk": "Talk",
+      "voice": "Voice",
+      "calendar": "Cal",
+      "board": "Board",
+      "groups": "Groups",
+      "flow": "Flow",
+      "desktop": "Desktop app",
+      "other": "Other"
+    },
+    "learningOn": "Fixing a dictation teaches your dictionary the corrected names and terms.",
+    "learningOff": "Learning from corrections is off (Voice settings › Dictation).",
+    "learned": "Added to your dictionary: {items}.",
+    "undo": "Undo"
   },
   "contexts": {
     "email": "Email",
@@ -292,7 +373,10 @@
       "dictation": "Dictation",
       "dictionary": "Dictionary",
       "templates": "Templates",
-      "desktop": "Desktop app"
+      "desktop": "Desktop app",
+      "prompts": "Recipes and transforms",
+      "meetings": "Meetings",
+      "team": "Team"
     },
     "dictation": {
       "saveError": "Could not save. Try again.",
@@ -304,7 +388,10 @@
       "showBar": "Show a small dictate button when a text field is focused",
       "aiCleanup": "Clean up with AI (punctuation, filler words, corrections and lists)",
       "stylesTitle": "Style by context",
-      "stylesDesc": "The same dictation reads differently in an email and in a chat. Voice picks the context from the app and the field."
+      "stylesDesc": "The same dictation reads differently in an email and in a chat. Voice picks the context from the app and the field.",
+      "commandMode": "Command Mode: with text selected, say what to do with it",
+      "commandModeHelp": "Select text in a field, hold {shortcut} and say \"make it shorter\" or \"translate it to English\". The selection is replaced. Off by default.",
+      "learnCorrections": "Learn from my corrections: fixing a dictation in the history adds the corrected names and terms to the dictionary"
     },
     "dictionary": {
       "title": "Dictionary",
@@ -334,7 +421,10 @@
       "delete": "Delete",
       "cancel": "Cancel",
       "deleteTitle": "Delete this entry?",
-      "deleteBody": "“{phrase}” is removed from your dictionary."
+      "deleteBody": "“{phrase}” is removed from your dictionary.",
+      "teamCheck": "Add for the whole team",
+      "teamBadge": "Team",
+      "teamHelp": "Team entries apply to everyone in the workspace; only admins add or remove them."
     },
     "templates": {
       "customTitle": "Your templates",
@@ -369,7 +459,84 @@
       "what1": "Global shortcut: dictates and pastes the text into the active app.",
       "what2": "Meetings with system audio: ScreenCaptureKit on macOS and WASAPI loopback on Windows, plus the microphone.",
       "what3": "Your dictionary and styles apply there too, because the cleanup runs on the server, and its dictations land in your history here.",
-      "provider": "Transcription on this server: {provider}."
+      "provider": "Transcription on this server: {provider}.",
+      "mcpTitle": "MCP server",
+      "mcpDesc": "Connect Claude, ChatGPT, Cursor or any MCP client to your meetings. The key acts as you: it only sees your own meetings and dictations.",
+      "mcpStep1": "Create an API key with the voice:read scope in",
+      "mcpStep2": "Add this server to your MCP client:",
+      "mcpTools": "Tools: list_meetings, get_meeting (notes and, if asked, the transcript), ask_meetings, list_dictations and list_folders.",
+      "webhooksTitle": "Webhooks and Flow",
+      "webhooksDesc": "voice.meeting.completed and voice.notes.ready reach only the webhooks and flows created by the person who recorded the meeting. Creating webhooks and flows is for admins, so a member’s meetings do not reach any webhook yet.",
+      "webhooksLink": "Set up webhooks"
+    },
+    "prompts": {
+      "recipes": {
+        "title": "Recipes",
+        "desc": "Saved prompts for your meetings. Run them with / in a meeting’s Ask tab, or across meetings from the Meetings page.",
+        "new": "New recipe",
+        "placeholder": "List every objection the customer raised and how we answered.",
+        "empty": "No recipes of your own yet."
+      },
+      "transforms": {
+        "title": "Transforms",
+        "desc": "Saved rewrites for dictation. Select text in any field and pick one from the pencil next to the dictate button, or say its name in Command Mode.",
+        "new": "New transform",
+        "placeholder": "Rewrite it as a short, friendly Slack message.",
+        "empty": "No transforms of your own yet."
+      },
+      "name": "Name",
+      "prompt": "Prompt",
+      "shared": "Share with the workspace",
+      "sharedBadge": "Shared",
+      "fromTeam": "From the team",
+      "save": "Save",
+      "cancel": "Cancel",
+      "edit": "Edit",
+      "delete": "Delete",
+      "builtinTitle": "Built-in",
+      "deleteTitle": "Delete “{name}”?",
+      "deleteBody": "It is deleted for you and, if you shared it, for the team."
+    },
+    "meetings": {
+      "remindersTitle": "Meeting reminders",
+      "remindersDesc": "A notice before each meeting in your calendar (Cal bookings, and Google Calendar or Outlook connected in Cal) while zerosoft is open in a tab.",
+      "reminders": "Remind me before meetings",
+      "minutes": "How long before",
+      "minutesN": "{n, plural, one {# minute} other {# minutes}}",
+      "calendarsHelp": "Calendars are connected once, in Cal.",
+      "calendarsLink": "Connect calendars",
+      "notifyBtn": "Also notify me when the tab is in the background",
+      "notifyOn": "Browser notifications are on.",
+      "notifyBlocked": "The browser blocks notifications for this site. Allow them in the site settings.",
+      "retentionTitle": "Transcript retention",
+      "retentionDesc": "Delete meeting transcripts automatically after some days, and the raw transcription of your dictations. The meeting notes, the chat, the final text of each dictation and what you sent to other apps stay. The audio is never stored.",
+      "retention": "Delete transcripts after",
+      "never": "Never",
+      "daysN": "{n, plural, one {# day} other {# days}}",
+      "workspaceCurrent": "Workspace limit: {value}. The shorter one applies.",
+      "workspaceTitle": "Workspace limit",
+      "workspaceDesc": "A maximum for everyone in the workspace. Each person can choose less.",
+      "workspaceLimit": "Delete transcripts of everyone after",
+      "noLimit": "No limit",
+      "saveError": "Could not save. Try again."
+    },
+    "team": {
+      "title": "Team usage",
+      "desc": "Dictation and meetings per person. Only numbers: dictations and meetings stay private.",
+      "period": "Period",
+      "lastN": "Last {n} days",
+      "person": "Person",
+      "dictations": "Dictations",
+      "words": "Words",
+      "meetings": "Meetings",
+      "meetingMinutes": "Meeting minutes",
+      "topApps": "Top apps",
+      "lastActive": "Last used",
+      "never": "Never",
+      "activePeople": "People using Voice",
+      "empty": "Nobody used Voice in this period.",
+      "loading": "Loading…",
+      "error": "Could not load the usage. Try again."
     }
   },
   "cmdk": {
@@ -395,5 +562,173 @@
     "transcript": "Transcript",
     "fromVoice": "Meeting",
     "fromMeeting": "From the Voice meeting"
+  },
+  "brief": {
+    "title": "Before the meeting",
+    "titleFor": "Before {title}",
+    "untitled": "Untitled meeting",
+    "generate": "Prepare a brief",
+    "refresh": "Update brief",
+    "loading": "Reading your past meetings…",
+    "empty": "You have no previous meetings with these people.",
+    "openItems": "Open items",
+    "from": "Based on",
+    "close": "Close",
+    "help": "A summary of what you talked about before with these people and what is still open."
+  },
+  "followup": {
+    "title": "Follow-up email",
+    "close": "Close",
+    "help": "AI drafts the email from the meeting notes. You can edit it and open it in Gmail, Outlook or your email app.",
+    "generate": "Write the draft",
+    "regenerate": "Write it again",
+    "writing": "Writing…",
+    "to": "To",
+    "toHelp": "Emails separated by commas.",
+    "toInvalid": "One of the emails is not valid.",
+    "subject": "Subject",
+    "body": "Message",
+    "save": "Save draft",
+    "saved": "Draft saved.",
+    "copy": "Copy",
+    "copied": "Copied.",
+    "copyFailed": "The browser did not allow copying.",
+    "mail": "Email app",
+    "outlook": "Open in Outlook",
+    "gmail": "Open in Gmail"
+  },
+  "share": {
+    "title": "Share this meeting",
+    "close": "Close",
+    "loading": "Loading…",
+    "access": "Who can open the link",
+    "accessKinds": {
+      "workspace": "People in this workspace",
+      "people": "Only people I pick",
+      "anyone": "Anyone with the link"
+    },
+    "accessHelp": {
+      "workspace": "they sign in to open it",
+      "people": "from this workspace, signed in",
+      "anyone": "no sign in needed"
+    },
+    "people": "People",
+    "peopleEmpty": "There is nobody else in this workspace.",
+    "includeTranscript": "Include the transcript",
+    "privacy": "The link shows the notes, read only. The transcript only if you include it. Your own meeting stays private.",
+    "create": "Create link",
+    "save": "Save",
+    "created": "Link created.",
+    "saved": "Saved.",
+    "link": "Link to the meeting",
+    "copy": "Copy link",
+    "copied": "Link copied.",
+    "copyFailed": "The browser did not allow copying.",
+    "regenerate": "Change link",
+    "regenerated": "New link ready. The old one no longer works.",
+    "revoke": "Stop sharing",
+    "revoked": "Stopped sharing. The link no longer works."
+  },
+  "send": {
+    "title": "Send the notes",
+    "close": "Close",
+    "loading": "Loading…",
+    "slackChannel": "Slack channel",
+    "slackSend": "Post to Slack",
+    "slackSent": "Posted to #{channel}.",
+    "slackMissing": "Install the Slack app from Track to post notes to a channel.",
+    "slackLink": "Open Track integrations",
+    "notionCredential": "Notion connection",
+    "notionParent": "Parent page (link or id)",
+    "notionHelp": "The page has to be shared with the Notion integration.",
+    "notionSend": "Create Notion page",
+    "notionSent": "Created a page in Notion.",
+    "openNotion": "Open in Notion",
+    "notionMissing": "Save a Notion credential in Flow to send notes to Notion.",
+    "notionLink": "Open Flow credentials",
+    "noTranscript": "Only the notes are sent, never the transcript.",
+    "notionAdminOnly": "Sending to Notion uses a Notion credential an admin saved in Flow, with that admin’s Notion access, so only admins can use it. Copy the Markdown to paste it in Notion yourself."
+  },
+  "recipes": {
+    "label": "Recipes",
+    "noMatch": "No recipe matches.",
+    "hint": "Type / to see your recipes.",
+    "origin": {
+      "mine": "yours",
+      "team": "team",
+      "builtin": "built-in"
+    }
+  },
+  "reminders": {
+    "untitled": "Meeting",
+    "startsIn": "{minutes, plural, one {Starts in # minute} other {Starts in # minutes}}",
+    "startsNow": "Starting now",
+    "takeNotes": "Take notes",
+    "open": "Open notes",
+    "join": "Join",
+    "dismiss": "Dismiss",
+    "notifyBody": "Starts soon. Take notes in Voice."
+  },
+  "sharedPage": {
+    "meta": "Shared meeting",
+    "sharedBy": "Shared by {name}",
+    "readOnly": "read only",
+    "untitled": "Untitled meeting",
+    "empty": "This meeting has no notes yet.",
+    "signIn": "Sign in",
+    "signin": {
+      "title": "Sign in to open this meeting",
+      "body": "It was shared with people in a zerosoft workspace."
+    },
+    "forbidden": {
+      "title": "You do not have access",
+      "body": "Ask the person who shared it to add you."
+    }
+  },
+  "prompts": {
+    "recipes": {
+      "action_items": {
+        "name": "Action items",
+        "prompt": "List every action item with its owner and due date, grouped by person. Say clearly when no owner or date was mentioned."
+      },
+      "follow_up": {
+        "name": "Follow-up",
+        "prompt": "Write a short follow-up message for the other attendees: thanks, the key points, the decisions and the next steps with owners."
+      },
+      "my_commitments": {
+        "name": "My commitments",
+        "prompt": "What did I (Me) promise or agree to do? List each commitment with the date if one was said."
+      },
+      "objections": {
+        "name": "Objections",
+        "prompt": "List the concerns or objections the other side raised and how each one was answered. Mark the ones left open."
+      },
+      "coach": {
+        "name": "Coach me",
+        "prompt": "Give me honest feedback on how I ran this conversation: what went well, what to improve, and one thing to try next time. Quote short moments."
+      }
+    },
+    "transforms": {
+      "shorter": {
+        "name": "Shorter",
+        "prompt": "Make it shorter and clearer. Keep every fact."
+      },
+      "formal": {
+        "name": "More formal",
+        "prompt": "Rewrite it in a formal, polished tone for a work email."
+      },
+      "friendly": {
+        "name": "Friendlier",
+        "prompt": "Rewrite it in a warm, friendly tone, like a message to a colleague."
+      },
+      "bullets": {
+        "name": "Bullet list",
+        "prompt": "Turn it into a short bullet list, one idea per bullet."
+      },
+      "translate_en": {
+        "name": "Translate to English",
+        "prompt": "Translate it to natural English."
+      }
+    }
   }
 }

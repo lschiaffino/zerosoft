@@ -19,7 +19,7 @@ import { getDb } from './db';
 import { transcriptAsText, updateSession, VoiceError, type VoiceOwner } from './voice';
 import { createTeamspace, TeamspaceLimitError } from './docs-access';
 import type { VoiceSessionDetail } from './voice-types';
-import { bookingInScope } from './calendar-access';
+import { attendsBooking } from './voice-calendar';
 
 export interface MeetingLabels {
   me: string;
@@ -270,12 +270,11 @@ export async function listLinkableBookings(owner: VoiceOwner, now = new Date()):
     status: 'confirmed',
     from: new Date(now.getTime() - 14 * 86_400_000),
     to: new Date(now.getTime() + 7 * 86_400_000),
-    limit: 100,
+    limit: 200,
     order: 'desc',
-    // Un member vincula solo reservas que atiende (como en Cal).
-    hostId: owner.bookingScope ?? undefined,
   });
-  return rows.map((b) => ({
+  // Solo reservas que la persona atiende (anfitriona o co-anfitriona), sea cual sea su rol, como el calendario de Voice.
+  return rows.filter((b) => attendsBooking(b, owner)).slice(0, 100).map((b) => ({
     id: b.id,
     title: b.event_type_title,
     inviteeName: b.invitee_name,
@@ -309,7 +308,7 @@ export async function linkBooking(args: {
       .get(args.bookingId, args.owner.workspaceId)) as
       | { id: string; invitee_name: string; invitee_email: string; host_user_id: string | null; co_host_ids: string; title: string }
       | undefined;
-    if (row && !bookingInScope(row, args.owner.bookingScope ?? null)) return { ok: false };
+    if (row && !attendsBooking(row, args.owner)) return { ok: false };
     if (!row) return { ok: false };
     return finishLink(args, `${row.title} · ${row.invitee_name}`, row.invitee_email);
   }

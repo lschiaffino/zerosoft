@@ -843,7 +843,9 @@
     "page_archived": "Docs: página na lixeira",
     "page_comment_created": "Docs: novo comentário",
     "database_row_created": "Docs: nova linha em um banco",
-    "database_property_changed": "Docs: propriedade de um banco mudou"
+    "database_property_changed": "Docs: propriedade de um banco mudou",
+    "voice_meeting_completed": "Voice: reunião gravada",
+    "voice_notes_ready": "Voice: nota da reunião pronta"
   },
   "ops": {
     "equals": "é igual a",

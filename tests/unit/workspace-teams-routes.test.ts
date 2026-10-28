@@ -150,6 +150,13 @@ describe('rutas de /api/teams', () => {
     expect(await bad.json()).toMatchObject({ error: 'domain_not_yours' });
     const ok = await ws.PATCH(send('http://localhost/api/teams/workspace', 'PATCH', { allowedDomains: ['darwin-unit.io'], joinApproval: true, joinApps: ['docs'] }));
     expect(await ok.json()).toMatchObject({ allowedDomains: ['darwin-unit.io'], joinApproval: true, joinApps: ['docs'] });
+    // Otra admin con otro dominio suma el suyo sin sacar el del owner (solo se valida el nuevo).
+    const other = await upsertUser({ email: `adm-${crypto.randomUUID().slice(0, 6)}@otra-unit.io`, name: 'Adm' });
+    await addMember(team.id, other.id, 'admin');
+    await actAs(owner, other, 'admin');
+    const both = await ws.PATCH(send('http://localhost/api/teams/workspace', 'PATCH', { allowedDomains: ['darwin-unit.io', 'otra-unit.io'] }));
+    expect(await both.json()).toMatchObject({ allowedDomains: ['darwin-unit.io', 'otra-unit.io'] });
+    expect(await (await ws.PATCH(send('http://localhost/api/teams/workspace', 'PATCH', { allowedDomains: ['darwin-unit.io', 'otra-unit.io', 'ajena-unit.io'] }))).json()).toMatchObject({ error: 'domain_not_yours' });
     const col = await upsertUser({ email: `col-${crypto.randomUUID().slice(0, 6)}@darwin-unit.io`, name: 'Col' });
     await actAs(col, col, 'owner');
     const joined = await join.POST(send('http://localhost/api/teams/join', 'POST', { teamId: team.id }));

@@ -125,7 +125,8 @@
       "comment": "Comentarios de Track",
       "project": "Equipos de Track",
       "page": "Páginas de Docs",
-      "database": "Bases de Docs"
+      "database": "Bases de Docs",
+      "voice": "Reuniones de Voice"
     },
     "eventLabels": {
       "booking_created": "Reserva creada",
@@ -192,7 +193,9 @@
       "database_property_changed": "Cambió una propiedad de una base (Docs)",
       "chat_conversation_created": "Conversación creada",
       "chat_conversation_tagged": "Tag en una conversación",
-      "chat_csat_submitted": "CSAT recibido"
+      "chat_csat_submitted": "CSAT recibido",
+      "voice_meeting_completed": "Reunión grabada (Voice)",
+      "voice_notes_ready": "Nota de la reunión lista (Voice)"
     },
     "errors": {
       "https_required": "La URL tiene que usar https.",
@@ -514,7 +517,10 @@
       "notSent": "Acá no hay proveedor de email: compartí el link",
       "expired": "Vencida",
       "request": "Pidió entrar",
-      "anyEmail": "(cualquier email)"
+      "anyEmail": "(cualquier email)",
+      "linkOnly": "Solo link",
+      "notSentHelp": "Acá no hay proveedor de email: copiá el link y mandalo vos.",
+      "expiresOn": "Vence el {date}."
     },
     "resend": "Reenviar",
     "revoke": "Revocar",
@@ -622,7 +628,7 @@
     "domainsDesc": "Quien entre con un email de estos dominios se puede sumar como miembro sin invitación.",
     "domains": "Dominios",
     "domainsPlaceholder": "empresa.com",
-    "domainsHelp": "Solo el dominio de tu propio email ({domain}). No se permiten dominios públicos como gmail.com.",
+    "domainsHelp": "Podés sumar el dominio de tu propio email ({domain}). Los que sumaron otros admins quedan. No se permiten dominios públicos como gmail.com.",
     "errors": {
       "network": "Sin conexión. Probá de nuevo.",
       "save": "No se pudo guardar. Probá de nuevo.",

@@ -33,6 +33,12 @@ export function meetingLabels(locale: string | null | undefined): MeetingLabels 
   };
 }
 
+/** Recipes o transforms de fábrica en el idioma pedido (messages/<locale>/voice.json › prompts). */
+export function builtinPrompts(locale: string | null | undefined, kind: 'recipe' | 'transform'): Record<string, { name: string; prompt: string }> {
+  const p = voiceMessages(locale).prompts;
+  return (kind === 'recipe' ? p.recipes : p.transforms) as Record<string, { name: string; prompt: string }>;
+}
+
 export function voiceJsonError(status: number, code: string): NextResponse {
   return NextResponse.json({ error: code }, { status });
 }

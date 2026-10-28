@@ -90,11 +90,11 @@ describe('settings: secciones de la plataforma', () => {
 });
 
 describe('settings: eventos de webhooks agrupados', () => {
-  it('los 65 eventos quedan en 17 grupos por recurso, sin perder ni repetir', () => {
+  it('los 67 eventos quedan en 18 grupos por recurso, sin perder ni repetir', () => {
     const groups = webhookEventGroups();
-    expect(groups.map((g) => g.key)).toEqual(['booking', 'link', 'contact', 'company', 'deal', 'task', 'quote', 'form', 'robot', 'chat', 'groups', 'issue', 'comment', 'project', 'page', 'database', 'talk']);
+    expect(groups.map((g) => g.key)).toEqual(['booking', 'link', 'contact', 'company', 'deal', 'task', 'quote', 'form', 'robot', 'chat', 'groups', 'issue', 'comment', 'project', 'page', 'database', 'talk', 'voice']);
     expect(groups.flatMap((g) => g.events)).toEqual([...WEBHOOK_EVENTS]);
-    expect(WEBHOOK_EVENTS).toHaveLength(65);
+    expect(WEBHOOK_EVENTS).toHaveLength(67);
   });
 
   it('el checkbox del grupo es todos, ninguno o indeterminado', () => {

@@ -27,7 +27,13 @@
     "done": "Inserir",
     "cancel": "Cancelar",
     "barLabel": "Ditar neste campo (ou segure {shortcut})",
-    "barText": "Ditar · {shortcut}"
+    "barText": "Ditar · {shortcut}",
+    "commandListening": "Diga o que fazer com a seleção. Solte para aplicar.",
+    "commandWorking": "Reescrevendo…",
+    "commandDone": "Seleção reescrita: {instruction}",
+    "transformsLabel": "Reescrever o texto selecionado",
+    "transformsTitle": "Reescrever com",
+    "transformDone": "Reescrito com “{name}”."
   },
   "errors": {
     "ai_disabled": "A IA não está configurada neste servidor. Peça para quem administra configurar.",
@@ -62,7 +68,18 @@
     "backToList": "Voltar para as reuniões",
     "chunks_failed": "Algumas partes não puderam ser transcritas. Dá para tentar de novo na reunião.",
     "recording_elsewhere": "Esta reunião está sendo gravada em outra aba ou dispositivo.",
-    "not_recorder": "Outra aba ou dispositivo assumiu esta gravação."
+    "not_recorder": "Outra aba ou dispositivo assumiu esta gravação.",
+    "event_not_found": "Esse evento do calendário não está mais disponível.",
+    "folder_not_found": "Essa pasta não existe mais.",
+    "recipe_not_found": "Esse recipe não existe mais.",
+    "command_off": "Ligue o Command Mode em Ajustes do Voice › Ditado.",
+    "forbidden": "Só admins do workspace podem fazer isso.",
+    "not_member": "Essa pessoa não está neste workspace.",
+    "slack_not_connected": "O app do Slack não está instalado neste workspace.",
+    "slack_failed": "O Slack não aceitou a mensagem. Confira se o app está no canal.",
+    "notion_not_connected": "Essa conexão do Notion não está disponível.",
+    "notion_failed": "O Notion não respondeu. Tente de novo.",
+    "notion_parent": "O Notion não encontra essa página. Cole o link e compartilhe com a integração."
   },
   "meetings": {
     "title": "Reuniões",
@@ -73,7 +90,7 @@
     "importing": "Enviando…",
     "noTranscription": "Para gravar é preciso um provedor de transcrição. Defina VOICE_TRANSCRIBE_PROVIDER e a chave no servidor.",
     "noAi": "A IA está desligada: você tem a transcrição, mas as notas com IA e o chat não estão disponíveis.",
-    "upcoming": "Próximas no Cal",
+    "upcoming": "Próximas reuniões",
     "takeNotes": "Fazer notas",
     "askTitle": "Pergunte às suas reuniões",
     "askPlaceholder": "O que a Ana disse sobre o preço?",
@@ -96,7 +113,36 @@
     "statusRecording": "gravando",
     "statusProcessing": "transcrevendo",
     "deleteTitle": "Apagar esta reunião?",
-    "deleteBody": "“{title}”, a transcrição e as notas serão apagadas. O que já foi enviado para Docs ou Notes fica."
+    "deleteBody": "“{title}”, a transcrição e as notas serão apagadas. O que já foi enviado para Docs ou Notes fica.",
+    "upcomingEmpty": "Não há reuniões próximas no seu calendário.",
+    "connectCalendar": "Conecte o Google Calendar ou o Outlook no Cal",
+    "openNotes": "Abrir notas",
+    "prep": "Brief",
+    "provider": {
+      "cal": "Cal",
+      "google": "Google Calendar",
+      "outlook": "Outlook"
+    },
+    "recipesHint": "Digite / para rodar um recipe nas suas reuniões.",
+    "foldersLabel": "Pastas de reuniões",
+    "allMeetings": "Todas as reuniões",
+    "sharedWithMe": "Compartilhadas comigo",
+    "folders": "Pastas",
+    "foldersEmpty": "Ainda não há pastas.",
+    "newFolder": "Nova pasta",
+    "newSubfolder": "Nova subpasta",
+    "folderName": "Nome da pasta",
+    "renameFolder": "Renomear pasta",
+    "deleteFolder": "Apagar pasta",
+    "deleteFolderTitle": "Apagar esta pasta?",
+    "deleteFolderBody": "“{name}” e suas subpastas são apagadas. As reuniões ficam, sem pasta.",
+    "folderEmpty": "Ainda não há reuniões nesta pasta.",
+    "sharedEmpty": "Ninguém compartilhou uma reunião com você ainda.",
+    "sharedBy": "Compartilhada por {name}",
+    "sharedBadge": "compartilhada",
+    "searchShared": "Buscar nas compartilhadas",
+    "moveTo": "Pasta de “{title}”",
+    "noFolder": "Sem pasta"
   },
   "notes": {
     "summary": "Resumo",
@@ -123,7 +169,8 @@
     "waiting": "Ouvindo. As primeiras linhas aparecem em uns 20 segundos.",
     "empty": "Comece a gravar e a transcrição aparece aqui.",
     "noMatches": "Nenhuma linha corresponde.",
-    "renameSpeaker": "Mudar o nome"
+    "renameSpeaker": "Mudar o nome",
+    "deleted": "A transcrição foi apagada automaticamente em {date} (ajuste de retenção). As notas ficam."
   },
   "chat": {
     "empty": "Pergunte o que quiser sobre esta reunião, por exemplo \"O que decidimos sobre o lançamento?\"",
@@ -131,7 +178,8 @@
     "assistant": "Voice",
     "thinking": "Lendo a reunião…",
     "placeholder": "Pergunte sobre esta reunião",
-    "send": "Perguntar"
+    "send": "Perguntar",
+    "recipesHint": "Digite / para recipes como próximos passos ou um follow-up."
   },
   "details": {
     "calTitle": "Reserva do Cal",
@@ -150,7 +198,13 @@
     "crmHelp": "Ao vincular uma reserva do Cal, o contato é buscado pelo email do convidado.",
     "sentTitle": "Enviada para",
     "openDocs": "Abrir a página do Docs",
-    "openNotes": "Abrir a nota"
+    "openNotes": "Abrir a nota",
+    "attendees": "Participantes",
+    "attendeesEmpty": "Sem participantes. Adicione os emails para preparar briefs e emails de follow-up.",
+    "attendeesAdd": "Adicionar o email de um participante",
+    "attendeesAddBtn": "Adicionar",
+    "attendeesRemove": "Remover {email}",
+    "remove": "Remover"
   },
   "meeting": {
     "back": "Reuniões",
@@ -215,7 +269,13 @@
     "failedParts": "{count, plural, one {# parte não pôde ser transcrita.} other {# partes não puderam ser transcritas.}}",
     "retryParts": "Tentar de novo",
     "recoveredParts": "{count, plural, one {Mais # parte foi transcrita. Gere a nota de novo para incluí-la.} other {Mais # partes foram transcritas. Gere a nota de novo para incluí-las.}}",
-    "docsPrivateBody": "A página vai para o seu teamspace privado “{space}” no Docs: só você vê até compartilhar."
+    "docsPrivateBody": "A página vai para o seu teamspace privado “{space}” no Docs: só você vê até compartilhar.",
+    "share": "Compartilhar",
+    "followup": "Email de follow-up",
+    "sendSlackNotion": "Slack ou Notion",
+    "sharedBadge": "Compartilhada por link",
+    "folder": "Pasta",
+    "noFolder": "Sem pasta"
   },
   "templates": {
     "builtin": {
@@ -254,7 +314,28 @@
     "delete": "Apagar",
     "fromDesktop": "app desktop",
     "deleteTitle": "Apagar este ditado?",
-    "deleteBody": "Ele sai do seu histórico. O que você já colou continua onde está."
+    "deleteBody": "Ele sai do seu histórico. O que você já colou continua onde está.",
+    "topApps": "Onde você mais dita (30 dias)",
+    "wordsN": "{count, plural, one {# palavra} other {# palavras}}",
+    "apps": {
+      "docs": "Docs",
+      "notes": "Notes",
+      "crm": "CRM",
+      "track": "Track",
+      "chat": "Chat",
+      "talk": "Talk",
+      "voice": "Voice",
+      "calendar": "Cal",
+      "board": "Board",
+      "groups": "Groups",
+      "flow": "Flow",
+      "desktop": "App desktop",
+      "other": "Outros"
+    },
+    "learningOn": "Corrigir um ditado ensina ao seu dicionário os nomes e termos corrigidos.",
+    "learningOff": "Aprender com as correções está desligado (Ajustes do Voice › Ditado).",
+    "learned": "Adicionado ao seu dicionário: {items}.",
+    "undo": "Desfazer"
   },
   "contexts": {
     "email": "Email",
@@ -292,7 +373,10 @@
       "dictation": "Ditado",
       "dictionary": "Dicionário",
       "templates": "Modelos",
-      "desktop": "App desktop"
+      "desktop": "App desktop",
+      "prompts": "Recipes e transforms",
+      "meetings": "Reuniões",
+      "team": "Equipe"
     },
     "dictation": {
       "saveError": "Não foi possível salvar. Tente de novo.",
@@ -304,7 +388,10 @@
       "showBar": "Mostrar um botão pequeno de ditar ao focar um campo de texto",
       "aiCleanup": "Limpar com IA (pontuação, vícios, correções e listas)",
       "stylesTitle": "Estilo conforme o contexto",
-      "stylesDesc": "O mesmo ditado se escreve diferente num email e num chat. O Voice pega o contexto do app e do campo."
+      "stylesDesc": "O mesmo ditado se escreve diferente num email e num chat. O Voice pega o contexto do app e do campo.",
+      "commandMode": "Command Mode: com texto selecionado, diga o que fazer com ele",
+      "commandModeHelp": "Selecione texto em um campo, segure {shortcut} e diga \"deixa mais curto\" ou \"traduz para o inglês\". A seleção é substituída. Desligado por padrão.",
+      "learnCorrections": "Aprender com minhas correções: corrigir um ditado no histórico adiciona os nomes e termos corrigidos ao dicionário"
     },
     "dictionary": {
       "title": "Dicionário",
@@ -334,7 +421,10 @@
       "delete": "Apagar",
       "cancel": "Cancelar",
       "deleteTitle": "Apagar esta entrada?",
-      "deleteBody": "“{phrase}” sai do seu dicionário."
+      "deleteBody": "“{phrase}” sai do seu dicionário.",
+      "teamCheck": "Adicionar para toda a equipe",
+      "teamBadge": "Equipe",
+      "teamHelp": "As da equipe valem para todo o workspace; só admins adicionam ou removem."
     },
     "templates": {
       "customTitle": "Seus modelos",
@@ -369,7 +459,84 @@
       "what1": "Atalho global: dita e cola o texto no app ativo.",
       "what2": "Reuniões com o áudio do sistema: ScreenCaptureKit no macOS e WASAPI loopback no Windows, mais o microfone.",
       "what3": "Seu dicionário e seus estilos valem lá também, porque a limpeza roda no servidor, e os ditados de lá caem no seu histórico daqui.",
-      "provider": "Transcrição neste servidor: {provider}."
+      "provider": "Transcrição neste servidor: {provider}.",
+      "mcpTitle": "Servidor MCP",
+      "mcpDesc": "Conecte o Claude, o ChatGPT, o Cursor ou qualquer cliente MCP às suas reuniões. A key age como você: só vê suas reuniões e seus ditados.",
+      "mcpStep1": "Crie uma API key com o scope voice:read em",
+      "mcpStep2": "Adicione este servidor ao seu cliente MCP:",
+      "mcpTools": "Ferramentas: list_meetings, get_meeting (a nota e, se pedido, a transcrição), ask_meetings, list_dictations e list_folders.",
+      "webhooksTitle": "Webhooks e Flow",
+      "webhooksDesc": "voice.meeting.completed e voice.notes.ready chegam só aos webhooks e flows criados por quem gravou a reunião. Criar webhooks e flows é para admins, então as reuniões de um member ainda não chegam a nenhum webhook.",
+      "webhooksLink": "Configurar webhooks"
+    },
+    "prompts": {
+      "recipes": {
+        "title": "Recipes",
+        "desc": "Prompts salvos para suas reuniões. Rodam com / na aba Perguntar de uma reunião, ou em várias pela página de Reuniões.",
+        "new": "Novo recipe",
+        "placeholder": "Liste cada objeção do cliente e como respondemos.",
+        "empty": "Você ainda não tem recipes próprios."
+      },
+      "transforms": {
+        "title": "Transforms",
+        "desc": "Reescritas salvas para o ditado. Selecione texto em qualquer campo e escolha uma no lápis ao lado do botão de ditar, ou diga o nome no Command Mode.",
+        "new": "Novo transform",
+        "placeholder": "Reescreva como uma mensagem curta e simpática de Slack.",
+        "empty": "Você ainda não tem transforms próprios."
+      },
+      "name": "Nome",
+      "prompt": "Prompt",
+      "shared": "Compartilhar com o workspace",
+      "sharedBadge": "Compartilhado",
+      "fromTeam": "Da equipe",
+      "save": "Salvar",
+      "cancel": "Cancelar",
+      "edit": "Editar",
+      "delete": "Apagar",
+      "builtinTitle": "De fábrica",
+      "deleteTitle": "Apagar “{name}”?",
+      "deleteBody": "É apagado para você e, se você compartilhou, para a equipe."
+    },
+    "meetings": {
+      "remindersTitle": "Avisos de reunião",
+      "remindersDesc": "Um aviso antes de cada reunião do seu calendário (reservas do Cal, e Google Calendar ou Outlook conectados no Cal) enquanto o zerosoft está aberto em uma aba.",
+      "reminders": "Avisar antes das reuniões",
+      "minutes": "Quanto antes",
+      "minutesN": "{n, plural, one {# minuto} other {# minutos}}",
+      "calendarsHelp": "Os calendários são conectados uma vez, no Cal.",
+      "calendarsLink": "Conectar calendários",
+      "notifyBtn": "Avisar também com a aba em segundo plano",
+      "notifyOn": "As notificações do navegador estão ligadas.",
+      "notifyBlocked": "O navegador bloqueia as notificações deste site. Permita nos ajustes do site.",
+      "retentionTitle": "Retenção de transcrições",
+      "retentionDesc": "Apagar automaticamente as transcrições das reuniões depois de alguns dias, e a transcrição bruta dos seus ditados. As notas da reunião, o chat, o texto final de cada ditado e o que você enviou para outros apps ficam. O áudio nunca é guardado.",
+      "retention": "Apagar as transcrições depois de",
+      "never": "Nunca",
+      "daysN": "{n, plural, one {# dia} other {# dias}}",
+      "workspaceCurrent": "Limite do workspace: {value}. Vale o mais curto.",
+      "workspaceTitle": "Limite do workspace",
+      "workspaceDesc": "Um máximo para todas as pessoas do workspace. Cada uma pode escolher menos.",
+      "workspaceLimit": "Apagar as transcrições de todos depois de",
+      "noLimit": "Sem limite",
+      "saveError": "Não foi possível salvar. Tente de novo."
+    },
+    "team": {
+      "title": "Uso da equipe",
+      "desc": "Ditado e reuniões por pessoa. Só números: ditados e reuniões continuam privados.",
+      "period": "Período",
+      "lastN": "Últimos {n} dias",
+      "person": "Pessoa",
+      "dictations": "Ditados",
+      "words": "Palavras",
+      "meetings": "Reuniões",
+      "meetingMinutes": "Minutos de reunião",
+      "topApps": "Apps",
+      "lastActive": "Último uso",
+      "never": "Nunca",
+      "activePeople": "Pessoas usando o Voice",
+      "empty": "Ninguém usou o Voice neste período.",
+      "loading": "Carregando…",
+      "error": "Não foi possível carregar o uso. Tente de novo."
     }
   },
   "cmdk": {
@@ -395,5 +562,173 @@
     "transcript": "Transcrição",
     "fromVoice": "Reunião",
     "fromMeeting": "Da reunião do Voice"
+  },
+  "brief": {
+    "title": "Antes da reunião",
+    "titleFor": "Antes de {title}",
+    "untitled": "Reunião sem título",
+    "generate": "Preparar um brief",
+    "refresh": "Atualizar o brief",
+    "loading": "Lendo suas reuniões anteriores…",
+    "empty": "Você não tem reuniões anteriores com essas pessoas.",
+    "openItems": "Pendências",
+    "from": "Com base em",
+    "close": "Fechar",
+    "help": "Um resumo do que você conversou antes com essas pessoas e do que segue pendente."
+  },
+  "followup": {
+    "title": "Email de follow-up",
+    "close": "Fechar",
+    "help": "A IA escreve o email com a nota da reunião. Você pode editar e abrir no Gmail, no Outlook ou no seu app de email.",
+    "generate": "Escrever o rascunho",
+    "regenerate": "Escrever de novo",
+    "writing": "Escrevendo…",
+    "to": "Para",
+    "toHelp": "Emails separados por vírgula.",
+    "toInvalid": "Um dos emails não é válido.",
+    "subject": "Assunto",
+    "body": "Mensagem",
+    "save": "Salvar rascunho",
+    "saved": "Rascunho salvo.",
+    "copy": "Copiar",
+    "copied": "Copiado.",
+    "copyFailed": "O navegador não deixou copiar.",
+    "mail": "App de email",
+    "outlook": "Abrir no Outlook",
+    "gmail": "Abrir no Gmail"
+  },
+  "share": {
+    "title": "Compartilhar esta reunião",
+    "close": "Fechar",
+    "loading": "Carregando…",
+    "access": "Quem pode abrir o link",
+    "accessKinds": {
+      "workspace": "As pessoas deste workspace",
+      "people": "Só as pessoas que eu escolher",
+      "anyone": "Qualquer pessoa com o link"
+    },
+    "accessHelp": {
+      "workspace": "entram na conta para abrir",
+      "people": "do workspace, com a conta aberta",
+      "anyone": "sem entrar na conta"
+    },
+    "people": "Pessoas",
+    "peopleEmpty": "Não há mais ninguém neste workspace.",
+    "includeTranscript": "Incluir a transcrição",
+    "privacy": "O link mostra a nota, só leitura. A transcrição, só se você incluir. Sua reunião continua privada.",
+    "create": "Criar link",
+    "save": "Salvar",
+    "created": "Link criado.",
+    "saved": "Salvo.",
+    "link": "Link da reunião",
+    "copy": "Copiar link",
+    "copied": "Link copiado.",
+    "copyFailed": "O navegador não deixou copiar.",
+    "regenerate": "Trocar o link",
+    "regenerated": "Link novo pronto. O anterior não funciona mais.",
+    "revoke": "Parar de compartilhar",
+    "revoked": "Não é mais compartilhada. O link parou de funcionar."
+  },
+  "send": {
+    "title": "Enviar a nota",
+    "close": "Fechar",
+    "loading": "Carregando…",
+    "slackChannel": "Canal do Slack",
+    "slackSend": "Publicar no Slack",
+    "slackSent": "Publicada em #{channel}.",
+    "slackMissing": "Instale o app do Slack pelo Track para publicar notas em um canal.",
+    "slackLink": "Abrir integrações do Track",
+    "notionCredential": "Conexão do Notion",
+    "notionParent": "Página pai (link ou id)",
+    "notionHelp": "A página precisa estar compartilhada com a integração do Notion.",
+    "notionSend": "Criar página no Notion",
+    "notionSent": "Uma página foi criada no Notion.",
+    "openNotion": "Abrir no Notion",
+    "notionMissing": "Salve uma credencial do Notion no Flow para enviar notas ao Notion.",
+    "notionLink": "Abrir credenciais do Flow",
+    "noTranscript": "Só a nota é enviada, nunca a transcrição.",
+    "notionAdminOnly": "Enviar para o Notion usa uma credencial que um admin salvou no Flow, com o acesso ao Notion desse admin, então só admins podem usar. Copie o Markdown para colar você mesmo no Notion."
+  },
+  "recipes": {
+    "label": "Recipes",
+    "noMatch": "Nenhum recipe corresponde.",
+    "hint": "Digite / para ver seus recipes.",
+    "origin": {
+      "mine": "seu",
+      "team": "da equipe",
+      "builtin": "de fábrica"
+    }
+  },
+  "reminders": {
+    "untitled": "Reunião",
+    "startsIn": "{minutes, plural, one {Começa em # minuto} other {Começa em # minutos}}",
+    "startsNow": "Está começando",
+    "takeNotes": "Fazer notas",
+    "open": "Abrir notas",
+    "join": "Entrar",
+    "dismiss": "Fechar",
+    "notifyBody": "Começa em breve. Faça notas no Voice."
+  },
+  "sharedPage": {
+    "meta": "Reunião compartilhada",
+    "sharedBy": "Compartilhada por {name}",
+    "readOnly": "só leitura",
+    "untitled": "Reunião sem título",
+    "empty": "Esta reunião ainda não tem notas.",
+    "signIn": "Entrar",
+    "signin": {
+      "title": "Entre para abrir esta reunião",
+      "body": "Ela foi compartilhada com pessoas de um workspace do zerosoft."
+    },
+    "forbidden": {
+      "title": "Você não tem acesso",
+      "body": "Peça para quem compartilhou incluir você."
+    }
+  },
+  "prompts": {
+    "recipes": {
+      "action_items": {
+        "name": "Próximos passos",
+        "prompt": "Liste cada próximo passo com responsável e prazo, agrupados por pessoa. Diga claramente quando não foi dito responsável ou prazo."
+      },
+      "follow_up": {
+        "name": "Follow-up",
+        "prompt": "Escreva uma mensagem curta de follow-up para os outros participantes: agradecimento, os pontos-chave, as decisões e os próximos passos com responsáveis."
+      },
+      "my_commitments": {
+        "name": "Meus compromissos",
+        "prompt": "O que eu (Eu) prometi ou combinei fazer? Liste cada compromisso com a data se foi dita."
+      },
+      "objections": {
+        "name": "Objeções",
+        "prompt": "Liste as dúvidas ou objeções que o outro lado levantou e como cada uma foi respondida. Marque as que ficaram abertas."
+      },
+      "coach": {
+        "name": "Coaching",
+        "prompt": "Me dê um retorno honesto de como conduzi esta conversa: o que foi bem, o que melhorar e uma coisa para testar da próxima vez. Cite momentos curtos."
+      }
+    },
+    "transforms": {
+      "shorter": {
+        "name": "Mais curto",
+        "prompt": "Deixe mais curto e claro. Mantenha todos os dados."
+      },
+      "formal": {
+        "name": "Mais formal",
+        "prompt": "Reescreva com um tom formal e cuidadoso para um email de trabalho."
+      },
+      "friendly": {
+        "name": "Mais próximo",
+        "prompt": "Reescreva com um tom caloroso e próximo, como uma mensagem para um colega."
+      },
+      "bullets": {
+        "name": "Lista",
+        "prompt": "Transforme em uma lista curta, uma ideia por item."
+      },
+      "translate_en": {
+        "name": "Traduzir para o inglês",
+        "prompt": "Traduza para um inglês natural."
+      }
+    }
   }
 }

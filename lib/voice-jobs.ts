@@ -65,6 +65,56 @@ export interface VoiceCronResult {
   notes: number;
   emptyDeleted: number;
   blobsDeleted: number;
+  transcriptsDeleted: number;
+}
+
+/**
+ * Borrado automático de transcripciones (como Granola): a los N días de
+ * terminada, la reunión se queda sin transcripción (las notas, el chat y lo
+ * mandado a otras apps quedan) y el dictado sin el texto crudo. N es el menor
+ * entre lo que eligió la persona y el tope del workspace. Cada reunión se
+ * marca con compare-and-set (transcript_deleted_at IS NULL), así dos
+ * corridas no la procesan dos veces.
+ */
+export async function purgeTranscripts(now = new Date(), limit = 500): Promise<number> {
+  const db = getDb();
+  const people = (await db
+    .prepare("SELECT workspace_id, person_id, CAST(json_extract(settings, '$.retentionDays') AS INTEGER) AS d FROM voice_settings WHERE CAST(json_extract(settings, '$.retentionDays') AS INTEGER) > 0")
+    .all()) as Array<{ workspace_id: string; person_id: string; d: number }>;
+  const workspaces = (await db
+    .prepare("SELECT workspace_id, CAST(json_extract(settings, '$.retentionDays') AS INTEGER) AS d FROM voice_workspace_settings WHERE CAST(json_extract(settings, '$.retentionDays') AS INTEGER) > 0")
+    .all()) as Array<{ workspace_id: string; d: number }>;
+  const rules: Array<{ sql: string; args: string[] }> = [];
+  for (const p of people) rules.push({ sql: 's.workspace_id = ? AND s.person_id = ? AND COALESCE(s.ended_at, s.started_at) < ?', args: [p.workspace_id, p.person_id, cutoff(now, p.d)] });
+  for (const w of workspaces) rules.push({ sql: 's.workspace_id = ? AND COALESCE(s.ended_at, s.started_at) < ?', args: [w.workspace_id, cutoff(now, w.d)] });
+  let total = 0;
+  const iso = now.toISOString();
+  for (const r of rules) {
+    if (total >= limit) break;
+    const due = (await db
+      .prepare(
+        `SELECT s.id, s.kind FROM voice_sessions s WHERE ${r.sql} AND s.status != 'recording' AND s.transcript_deleted_at IS NULL
+         AND (s.kind = 'dictation' AND s.raw_text != '' OR s.kind = 'meeting' AND EXISTS (SELECT 1 FROM voice_segments g WHERE g.session_id = s.id))
+         LIMIT ?`,
+      )
+      .all(...r.args, limit - total)) as Array<{ id: string; kind: string }>;
+    for (const s of due) {
+      const claim = await db.prepare('UPDATE voice_sessions SET transcript_deleted_at = ? WHERE id = ? AND transcript_deleted_at IS NULL').run(iso, s.id);
+      if (!claim.changes) continue;
+      if (s.kind === 'meeting') {
+        await db.prepare('DELETE FROM voice_segments WHERE session_id = ?').run(s.id);
+        await db.prepare('DELETE FROM voice_chunks WHERE session_id = ?').run(s.id);
+      } else {
+        await db.prepare("UPDATE voice_sessions SET raw_text = '' WHERE id = ?").run(s.id);
+      }
+      total += 1;
+    }
+  }
+  return total;
+}
+
+function cutoff(now: Date, days: number): string {
+  return new Date(now.getTime() - days * 86_400_000).toISOString();
 }
 
 export async function runVoiceCron(opts: { budgetMs?: number; now?: Date; cleanup?: boolean } = {}): Promise<VoiceCronResult> {
@@ -72,7 +122,7 @@ export async function runVoiceCron(opts: { budgetMs?: number; now?: Date; cleanu
   const now = opts.now ?? new Date();
   const budget = opts.budgetMs ?? 30_000;
   const db = getDb();
-  const out: VoiceCronResult = { closed: 0, notes: 0, emptyDeleted: 0, blobsDeleted: 0 };
+  const out: VoiceCronResult = { closed: 0, notes: 0, emptyDeleted: 0, blobsDeleted: 0, transcriptsDeleted: 0 };
 
   // 1. Grabaciones colgadas.
   const staleBefore = new Date(now.getTime() - STALE_RECORDING_MS).toISOString();
@@ -102,7 +152,13 @@ export async function runVoiceCron(opts: { budgetMs?: number; now?: Date; cleanu
   const del1 = await db.prepare(`DELETE FROM voice_sessions WHERE id IN (SELECT s.id FROM voice_sessions s WHERE ${UNTOUCHED_SQL} AND s.created_at < ? LIMIT 500)`).run(emptyBefore);
   out.emptyDeleted = del1.changes;
 
-  // 4. Grabaciones importadas a Blob que no se procesaron (se borran al transcribir).
+  // 4. Transcripciones vencidas según la retención de cada persona y workspace.
+  out.transcriptsDeleted = await purgeTranscripts(now).catch((err) => {
+    console.error('[voice] transcript purge failed', err instanceof Error ? err.message : 'error');
+    return 0;
+  });
+
+  // 5. Grabaciones importadas a Blob que no se procesaron (se borran al transcribir).
   if (voiceBlobEnabled()) {
     try {
       const cutoff = now.getTime() - ORPHAN_BLOB_MS;

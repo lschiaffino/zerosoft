@@ -15,7 +15,11 @@ import { makeUser } from './helpers';
 const session = vi.hoisted(() => ({
   user: null as null | { id: string; email: string; role: string; actingUser?: { id: string } | null; team?: null },
 }));
-vi.mock('@/lib/session', () => ({ getCurrentUser: async () => session.user }));
+vi.mock('@/lib/session', () => ({
+  getCurrentUser: async () => session.user,
+  isWorkspaceAdmin: (u: { role?: string }) => u?.role === 'owner' || u?.role === 'admin',
+  realUserId: (u: { id: string; actingUser?: { id: string } }) => u.actingUser?.id ?? u.id,
+}));
 
 const dictateRoute = await import('@/app/api/voice/dictate/route');
 const sessionsRoute = await import('@/app/api/voice/sessions/route');

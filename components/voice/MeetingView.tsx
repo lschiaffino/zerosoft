@@ -4,7 +4,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { formatDuration, VOICE_BUILTIN_TEMPLATES, type VoiceSegment, type VoiceSessionDetail, type VoiceTemplate } from '@/lib/voice-types';
+import {
+  formatDuration,
+  VOICE_BUILTIN_TEMPLATES,
+  type VoiceFolder,
+  type VoiceSegment,
+  type VoiceSessionDetail,
+  type VoiceShareInfo,
+  type VoiceTemplate,
+} from '@/lib/voice-types';
 import { LevelBars, MicIcon, voiceErrorKey } from './voice-ui';
 import { useRecorder, type CaptureMode } from './RecorderProvider';
 import { recordingSupported, tabAudioSupported } from './audio';
@@ -12,12 +20,14 @@ import EnhancedNotes from './EnhancedNotes';
 import { ChatPanel, DetailsPanel, TranscriptPanel } from './MeetingSide';
 import { copyText } from './insert';
 import { checkRecordingFile, importRecording } from './importRecording';
+import { BriefPanel, FollowupModal, SendModal, ShareModal } from './MeetingPrep';
 
-type Detail = VoiceSessionDetail & { contact: { id: string; name: string; email: string } | null };
+type Detail = VoiceSessionDetail & { contact: { id: string; name: string; email: string } | null; share: VoiceShareInfo | null };
 
 interface Props {
   initial: Detail;
   templates: VoiceTemplate[];
+  folders: VoiceFolder[];
   transcription: boolean;
   ai: boolean;
   blobPrefix: string | null;
@@ -31,7 +41,7 @@ interface Props {
  * A la derecha, la transcripción en vivo, el chat sobre la reunión y los
  * vínculos (Cal, CRM, Docs, Notes).
  */
-export default function MeetingView({ initial, templates, transcription, ai, blobPrefix, blobAccess, importMaxBytes }: Props) {
+export default function MeetingView({ initial, templates, folders, transcription, ai, blobPrefix, blobAccess, importMaxBytes }: Props) {
   const t = useTranslations('voice.meeting');
   const tTpl = useTranslations('voice.templates.builtin');
   const tErr = useTranslations('voice.errors');
@@ -55,6 +65,7 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
   const [docsTranscript, setDocsTranscript] = useState(false);
   // Sin teamspace privado posible, el diálogo pasa a avisar que la ve todo el workspace.
   const [docsWorkspace, setDocsWorkspace] = useState(false);
+  const [modal, setModal] = useState<'share' | 'followup' | 'send' | null>(null);
   const notesTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Lo que soporta el navegador se mira después de hidratar (en el servidor no hay MediaRecorder).
   const [support, setSupport] = useState({ rec: true, tab: true });
@@ -292,10 +303,21 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
     router.push('/app/voice');
   }
 
+  async function moveTo(folderId: string | null) {
+    const prev = d.folderId;
+    setD((p) => ({ ...p, folderId }));
+    if (!(await patch({ folderId }))) {
+      setD((p) => ({ ...p, folderId: prev }));
+      setError('generic');
+    }
+  }
+
   const recording = rec.state === 'recording' || rec.state === 'stopping';
   const canRecord = transcription && support.rec;
   const recError = rec.error;
   const hasContent = d.segments.length > 0 || notes.trim().length > 0;
+  const hasNotes = !!d.enhanced || notes.trim().length > 0;
+  const topFolders = folders.filter((f) => !f.parentId);
 
   return (
     <div className="app-page ui-page vc-page vc-meeting">
@@ -328,8 +350,18 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
           {format.dateTime(new Date(d.startedAt), { dateStyle: 'full', timeStyle: 'short' })}
           {(rec.state === 'recording' ? rec.elapsed : d.durationMs) > 0 && ` · ${formatDuration(rec.state === 'recording' ? rec.elapsed : d.durationMs)}`}
           {d.contact && ` · ${d.contact.name}`}
+          {d.share && ` · ${t('sharedBadge')}`}
         </p>
         <div className="vc-head-actions">
+          <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null} onClick={() => setModal('share')}>
+            {t('share')}
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null || !hasNotes} onClick={() => setModal('followup')}>
+            {t('followup')}
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null || !hasNotes} onClick={() => setModal('send')}>
+            {t('sendSlackNotion')}
+          </button>
           <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null || !hasContent} onClick={() => void send('markdown')}>
             {t('copyMarkdown')}
           </button>
@@ -342,6 +374,23 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
           <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null || recording} onClick={() => setConfirmDelete(true)}>
             {t('delete')}
           </button>
+          {folders.length > 0 && (
+            <select className="select select-sm vc-move" value={d.folderId ?? ''} aria-label={t('folder')} onChange={(e) => void moveTo(e.target.value || null)}>
+              <option value="">{t('noFolder')}</option>
+              {topFolders.map((f) => [
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>,
+                ...folders
+                  .filter((x) => x.parentId === f.id)
+                  .map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {`${f.name} / ${x.name}`}
+                    </option>
+                  )),
+              ])}
+            </select>
+          )}
         </div>
       </header>
 
@@ -458,6 +507,10 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
         )}
       </section>
 
+      {(d.brief || ((d.attendees.length > 0 || !!d.contactId) && d.segments.length === 0)) && (
+        <BriefPanel key={`${d.attendees.length}:${d.contactId ?? ''}`} sessionId={d.id} initial={d.brief} canBrief={d.attendees.length > 0 || !!d.contactId} />
+      )}
+
       <div className="vc-meeting-grid">
         <section className="vc-notes" aria-labelledby="vc-notes-title">
           <div className="vc-notes-head">
@@ -560,7 +613,15 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
             ))}
           </div>
           <div role="tabpanel" id={`vc-panel-${tab}`} aria-labelledby={`vc-tab-${tab}`} className="vc-panel">
-            {tab === 'transcript' && <TranscriptPanel segments={d.segments} speakers={d.speakers} onRenameSpeaker={(k, n) => void renameSpeaker(k, n)} recording={recording} />}
+            {tab === 'transcript' && (
+              <TranscriptPanel
+                segments={d.segments}
+                speakers={d.speakers}
+                onRenameSpeaker={(k, n) => void renameSpeaker(k, n)}
+                recording={recording}
+                deletedAt={d.transcriptDeletedAt}
+              />
+            )}
             {tab === 'chat' && <ChatPanel sessionId={d.id} initial={d.chat} ai={ai} />}
             {tab === 'details' && (
               <DetailsPanel
@@ -570,6 +631,15 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
                 crmActivityId={d.crmActivityId}
                 docsPageId={d.docsPageId}
                 noteId={d.noteId}
+                attendees={d.attendees}
+                onAttendees={async (attendees) => {
+                  const prev = d.attendees;
+                  setD((p) => ({ ...p, attendees }));
+                  if (!(await patch({ attendees }))) {
+                    setD((p) => ({ ...p, attendees: prev }));
+                    setError('generic');
+                  }
+                }}
                 onLinked={(p) => {
                   if (p.title !== undefined) setTitle(p.title);
                   setD((prev) => ({
@@ -605,6 +675,17 @@ export default function MeetingView({ initial, templates, transcription, ai, blo
         onConfirm={() => void send('docs', { includeTranscript: docsTranscript, allowWorkspace: docsWorkspace })}
         onCancel={() => setDocsDialog(false)}
       />
+      {modal === 'share' && <ShareModal sessionId={d.id} onClose={() => setModal(null)} onChange={(share) => setD((p) => ({ ...p, share }))} />}
+      {modal === 'followup' && (
+        <FollowupModal
+          sessionId={d.id}
+          initial={d.followup}
+          defaultTo={[...d.attendees.map((a) => a.email), ...(d.contact?.email ? [d.contact.email] : [])].filter(Boolean)}
+          onClose={() => setModal(null)}
+          onSaved={(followup) => setD((p) => ({ ...p, followup }))}
+        />
+      )}
+      {modal === 'send' && <SendModal sessionId={d.id} onClose={() => setModal(null)} />}
       <ConfirmDialog
         open={confirmDelete}
         title={t('deleteTitle')}

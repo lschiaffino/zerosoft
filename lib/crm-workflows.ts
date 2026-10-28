@@ -235,7 +235,7 @@ export async function getWorkflow(userId: string, id: string): Promise<Workflow 
   };
 }
 
-export async function createWorkflow(userId: string, data: WorkflowInput): Promise<Workflow> {
+export async function createWorkflow(userId: string, data: WorkflowInput, actorId?: string): Promise<Workflow> {
   const db = getDb();
   const id = crypto.randomUUID();
   const ts = now();
@@ -279,6 +279,10 @@ export async function createWorkflow(userId: string, data: WorkflowInput): Promi
     await tx.rollback();
     throw e;
   }
+  if (actorId) {
+    // Autores (130): sirven para pausar sus workflows con webhooks si sale del workspace.
+    await getDb().prepare('UPDATE crm_workflows SET created_by = ?, updated_by = ? WHERE id = ?').run(actorId, actorId, id).catch(() => undefined);
+  }
   return (await getWorkflow(userId, id))!;
 }
 
@@ -286,6 +290,7 @@ export async function updateWorkflow(
   userId: string,
   id: string,
   data: Partial<WorkflowInput>,
+  actorId?: string,
 ): Promise<Workflow | null> {
   const db = getDb();
   const existing = (await db
@@ -342,6 +347,10 @@ export async function updateWorkflow(
   } catch (e) {
     await tx.rollback();
     throw e;
+  }
+  if (actorId) {
+    // Autores (130): sirven para pausar sus workflows con webhooks si sale del workspace.
+    await getDb().prepare('UPDATE crm_workflows SET updated_by = ?, created_by = COALESCE(created_by, ?) WHERE id = ?').run(actorId, actorId, id).catch(() => undefined);
   }
   return getWorkflow(userId, id);
 }

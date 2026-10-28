@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
-import { speakerKey, type VoiceChatMessage, type VoiceSegment } from '@/lib/voice-types';
+import { speakerKey, type VoiceAttendee, type VoiceChatMessage, type VoiceSegment } from '@/lib/voice-types';
 import type { LinkableBooking } from '@/lib/voice-integrations';
 import { voiceErrorKey } from './voice-ui';
+import RecipeInput, { type RecipeOption } from './RecipeInput';
 
 function mmss(ms: number): string {
   const t = Math.floor(ms / 1000);
@@ -18,13 +19,17 @@ export function TranscriptPanel({
   speakers,
   onRenameSpeaker,
   recording,
+  deletedAt,
 }: {
   segments: VoiceSegment[];
   speakers: Record<string, string>;
   onRenameSpeaker: (key: string, name: string) => void;
   recording: boolean;
+  /** La transcripción se borró sola por la retención. */
+  deletedAt?: string | null;
 }) {
   const t = useTranslations('voice.transcript');
+  const format = useFormatter();
   const [filter, setFilter] = useState('');
   const [editing, setEditing] = useState<{ segId: string; key: string; name: string } | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -50,6 +55,11 @@ export function TranscriptPanel({
 
   return (
     <div className="vc-transcript">
+      {deletedAt && segments.length === 0 && (
+        <p className="vc-notice" role="note" suppressHydrationWarning>
+          {t('deleted', { date: format.dateTime(new Date(deletedAt), { dateStyle: 'medium' }) })}
+        </p>
+      )}
       <input
         type="search"
         className="input"
@@ -112,24 +122,22 @@ export function ChatPanel({ sessionId, initial, ai }: { sessionId: string; initi
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function send(e: React.FormEvent) {
-    e.preventDefault();
-    const question = q.trim();
-    if (!question || busy) return;
+  async function send(question: string, recipe?: RecipeOption) {
+    if ((!question && !recipe) || busy) return;
     setBusy(true);
     setError(null);
-    setMessages((m) => [...m, { role: 'user', text: question, at: new Date().toISOString() }]);
+    setMessages((m) => [...m, { role: 'user', text: recipe ? `/${recipe.name}` : question, at: new Date().toISOString() }]);
     setQ('');
     const res = await fetch(`/api/voice/sessions/${sessionId}/chat`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ question, locale }),
+      body: JSON.stringify(recipe ? { recipeId: recipe.id, locale } : { question, locale }),
     }).catch(() => null);
     const data = (await res?.json().catch(() => null)) as { chat?: VoiceChatMessage[]; error?: string } | null;
     setBusy(false);
     if (!res?.ok || !data?.chat) {
       setMessages((m) => m.slice(0, -1));
-      setQ(question);
+      setQ(recipe ? `/${recipe.name}` : question);
       setError(data?.error ?? 'network');
       return;
     }
@@ -161,21 +169,62 @@ export function ChatPanel({ sessionId, initial, ai }: { sessionId: string; initi
           {tErr(voiceErrorKey(error))}
         </p>
       )}
-      <form className="vc-ask" onSubmit={send}>
-        <input
-          className="input"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder={t('placeholder')}
-          aria-label={t('placeholder')}
-          maxLength={2000}
-          data-voice-context="other"
-        />
-        <button type="submit" className="btn btn-secondary" disabled={!q.trim() || busy}>
-          {t('send')}
+      <RecipeInput
+        value={q}
+        onChange={setQ}
+        onAsk={(question) => void send(question)}
+        onRecipe={(r) => void send('', r)}
+        placeholder={t('placeholder')}
+        label={t('placeholder')}
+        busy={busy}
+        submitLabel={t('send')}
+      />
+      <p className="vc-muted vc-hint">{t('recipesHint')}</p>
+    </div>
+  );
+}
+
+/** Asistentes de la reunión (salen del calendario o se cargan a mano): con ellos se arman el brief y el email. */
+function AttendeesSection({ attendees, onChange }: { attendees: VoiceAttendee[]; onChange: (next: VoiceAttendee[]) => void }) {
+  const t = useTranslations('voice.details');
+  const [email, setEmail] = useState('');
+  const valid = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+  return (
+    <section>
+      <h3 className="vc-h3">{t('attendees')}</h3>
+      {attendees.length === 0 ? (
+        <p className="vc-muted">{t('attendeesEmpty')}</p>
+      ) : (
+        <ul className="vc-attendees">
+          {attendees.map((a) => (
+            <li key={a.email || a.name}>
+              <span>
+                {a.name || a.email}
+                {a.name && a.email && <span className="vc-muted"> · {a.email}</span>}
+              </span>
+              <button type="button" className="btn btn-ghost btn-sm" aria-label={t('attendeesRemove', { email: a.email || a.name })} onClick={() => onChange(attendees.filter((x) => x !== a))}>
+                {t('remove')}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <form
+        className="vc-send-row"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!valid) return;
+          const clean = email.trim().toLowerCase();
+          if (!attendees.some((a) => a.email === clean)) onChange([...attendees, { name: '', email: clean }]);
+          setEmail('');
+        }}
+      >
+        <input type="email" className="input" value={email} maxLength={254} placeholder={t('attendeesAdd')} aria-label={t('attendeesAdd')} onChange={(e) => setEmail(e.target.value)} />
+        <button type="submit" className="btn btn-secondary btn-sm" disabled={!valid}>
+          {t('attendeesAddBtn')}
         </button>
       </form>
-    </div>
+    </section>
   );
 }
 
@@ -193,6 +242,8 @@ export function DetailsPanel({
   crmActivityId,
   docsPageId,
   noteId,
+  attendees,
+  onAttendees,
   onLinked,
 }: {
   sessionId: string;
@@ -201,6 +252,8 @@ export function DetailsPanel({
   crmActivityId: string | null;
   docsPageId: string | null;
   noteId: string | null;
+  attendees: VoiceAttendee[];
+  onAttendees: (next: VoiceAttendee[]) => void;
   onLinked: (patch: { title?: string; contact?: ContactOption | null; calBookingId?: string | null; crmActivityId?: string | null }) => void;
 }) {
   const t = useTranslations('voice.details');
@@ -304,6 +357,7 @@ export function DetailsPanel({
 
   return (
     <div className="vc-details">
+      <AttendeesSection attendees={attendees} onChange={onAttendees} />
       <section>
         <h3 className="vc-h3">{t('calTitle')}</h3>
         {calBookingId && (

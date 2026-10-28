@@ -7,7 +7,15 @@
  *
  * Calendarios: el principal (vacío), "Team" (un evento ocupado mañana de 13 a
  * 14 UTC) y "Holidays" (solo lectura).
+ *
+ * Para Voice, la lista de eventos del principal (GET /calendars/primary/events)
+ * suma una invitación de otra persona que no bloquea horarios
+ * (transparency: transparent, como un evento "disponible"): "Pricing review"
+ * con Ana, que siempre empieza 4 minutos después del pedido. No está en
+ * freeBusy, así que no cambia los horarios de Cal.
  */
+export const FAKE_GOOGLE_VOICE_EVENT_ID = 'fake-gcal-voice-1';
+export const FAKE_GOOGLE_VOICE_GUEST = 'ana@fake-guest.test';
 
 export const FAKE_GOOGLE_EMAIL = 'demo.google@fake-google.test';
 export const FAKE_GOOGLE_TEAM_CALENDAR = 'team@group.fake-google.test';
@@ -26,6 +34,23 @@ interface FakeEvent {
   end: string;
   summary: string;
   hangoutLink?: string;
+  attendees?: Array<{ email: string; displayName?: string; self?: boolean; responseStatus?: string }>;
+}
+
+function voiceDemoEvent(): FakeEvent {
+  const start = new Date(Math.floor(Date.now() / 60_000) * 60_000 + 4 * 60_000);
+  return {
+    id: FAKE_GOOGLE_VOICE_EVENT_ID,
+    calendarId: FAKE_GOOGLE_EMAIL,
+    start: start.toISOString(),
+    end: new Date(start.getTime() + 30 * 60_000).toISOString(),
+    summary: 'Pricing review',
+    hangoutLink: 'https://meet.google.com/fak-voic-xyz',
+    attendees: [
+      { email: FAKE_GOOGLE_EMAIL, self: true, responseStatus: 'accepted' },
+      { email: FAKE_GOOGLE_VOICE_GUEST, displayName: 'Ana Guest', responseStatus: 'accepted' },
+    ],
+  };
 }
 
 const g = globalThis as unknown as { __zsFakeGcal?: { seq: number; events: FakeEvent[] } };
@@ -103,6 +128,25 @@ export async function fakeGoogleFetch(input: string | URL | Request, init: Reque
     return json({ calendars });
   }
   const create = /^\/calendars\/([^/]+)\/events$/.exec(path);
+  if (create && method === 'GET') {
+    const calendarId = decodeURIComponent(create[1]) === 'primary' ? FAKE_GOOGLE_EMAIL : decodeURIComponent(create[1]);
+    const from = Date.parse(url.searchParams.get('timeMin') ?? '');
+    const to = Date.parse(url.searchParams.get('timeMax') ?? '');
+    const list = [...s.events, ...(calendarId === FAKE_GOOGLE_EMAIL ? [voiceDemoEvent()] : [])]
+      .filter((e) => e.calendarId === calendarId && Date.parse(e.start) < to && Date.parse(e.end) > from)
+      .sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
+    return json({
+      items: list.map((e) => ({
+        id: e.id,
+        status: 'confirmed',
+        summary: e.summary,
+        start: { dateTime: e.start },
+        end: { dateTime: e.end },
+        ...(e.hangoutLink ? { hangoutLink: e.hangoutLink } : {}),
+        ...(e.attendees ? { attendees: e.attendees } : {}),
+      })),
+    });
+  }
   if (create && method === 'POST') {
     const body = JSON.parse(String(init.body ?? '{}')) as {
       summary?: string;

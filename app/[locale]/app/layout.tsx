@@ -5,7 +5,7 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { DEMO_EMAIL, DEMO_MODE, requireUser } from '@/lib/session';
 import { RETURN_PATH_HEADER } from '@/lib/return-path';
-import { listMyWorkspaces } from '@/lib/workspace';
+import { listMyWorkspaces, userCanUseApp } from '@/lib/workspace';
 import type { SwitcherEntry } from '@/components/app/WorkspaceSwitcher';
 import OfflineIdentity from '@/components/app/OfflineIdentity';
 import { countDueTasks } from '@/lib/crm';
@@ -14,6 +14,7 @@ import AppSidebar from '@/components/app/AppSidebar';
 import AppTopbar from '@/components/app/AppTopbar';
 import CommandSearch from '@/components/app/CommandSearch';
 import DictationHost from '@/components/voice/DictationHost';
+import MeetingReminders from '@/components/voice/MeetingReminders';
 import RecorderProvider from '@/components/voice/RecorderProvider';
 import TimezoneCookie from '@/components/app/TimezoneCookie';
 import { SupportIdentify } from '@/components/SupportWidget';
@@ -116,7 +117,7 @@ export default async function AppLayout(
   return (
     // Cliente: lo que usan el sidebar y Cmd+K de otras apps; cada app suma su
     // namespace en su layout.
-    <ClientMessages locale={locale} namespaces={['settings.switcher', 'board.list', 'notes.actions', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder', 'rec.signout', 'notes.signOut']}>
+    <ClientMessages locale={locale} namespaces={['settings.switcher', 'board.list', 'notes.actions', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder', 'voice.reminders', 'voice.prompts', 'rec.signout', 'notes.signOut']}>
       <RecorderProvider owner={`${user.actingUser?.id ?? user.id}:${user.id}`}>
       {/* El script pone sidebar-collapsed antes del primer paint; React no toca la clase al hidratar. */}
       <div className="app-frame" suppressHydrationWarning>
@@ -448,7 +449,13 @@ export default async function AppLayout(
           <main className="app-content">{children}</main>
         </div>
         <CommandSearch />
-        <DictationHost />
+        {/* Dictado en toda la app y avisos de reunión: solo para quien tiene Voice en este workspace. */}
+        {userCanUseApp(user, 'voice') && (
+          <>
+            <DictationHost />
+            <MeetingReminders owner={`${user.actingUser?.id ?? user.id}:${user.id}`} />
+          </>
+        )}
         <TimezoneCookie serverTz={serverTz} />
         {supportId && (
           <SupportIdentify

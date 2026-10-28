@@ -3,6 +3,7 @@ import { requireUser } from '@/lib/session';
 import { dictationStats, getVoiceSettings, listSessions, voiceOwner } from '@/lib/voice';
 import { transcriptionConfigured } from '@/lib/voice-transcribe';
 import { voiceAiAvailable } from '@/lib/voice-ai';
+import { myTopApps } from '@/lib/voice-library';
 import DictationPage from '@/components/voice/DictationPage';
 
 export const dynamic = 'force-dynamic';
@@ -18,11 +19,22 @@ export default async function VoiceDictationPage(props: { params: Promise<{ loca
   setRequestLocale(locale);
   const user = await requireUser(locale, `/${locale}/app/voice/dictation`);
   const owner = voiceOwner(user);
-  const [history, stats, settings, ai] = await Promise.all([
+  const [history, stats, settings, ai, topApps] = await Promise.all([
     listSessions(owner, { kind: 'dictation', limit: 100 }),
     dictationStats(owner),
     getVoiceSettings(owner),
     voiceAiAvailable(),
+    myTopApps(owner),
   ]);
-  return <DictationPage initialHistory={history} stats={stats} shortcut={settings.shortcut} transcription={transcriptionConfigured()} ai={ai && settings.aiCleanup} />;
+  return (
+    <DictationPage
+      initialHistory={history}
+      stats={stats}
+      shortcut={settings.shortcut}
+      transcription={transcriptionConfigured()}
+      ai={ai && settings.aiCleanup}
+      topApps={topApps}
+      learning={settings.learnCorrections}
+    />
+  );
 }
