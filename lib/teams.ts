@@ -44,7 +44,25 @@ export async function setMemberRole(teamId: string, userId: string, role: 'admin
   const res = await getDb()
     .prepare("UPDATE team_members SET role = ? WHERE team_id = ? AND user_id = ? AND role != 'owner'")
     .run(role, teamId, userId);
+  if (res.changes > 0) await boardAccessChanged(teamId);
   return res.changes > 0;
+}
+
+/**
+ * Aviso a las conexiones en vivo de Board del workspace (board_id '*'): cada
+ * una revalida su acceso ya, así quien salió del team o perdió el rol deja de
+ * recibir al instante. Directo a la tabla para no importar Board desde acá.
+ */
+async function boardAccessChanged(teamId: string): Promise<void> {
+  try {
+    const team = await getTeamById(teamId);
+    if (!team) return;
+    await getDb()
+      .prepare("INSERT INTO board_events (board_id, workspace_id, socket_id, kind, payload, created_at) VALUES ('*', ?, 'server', 'access', '{}', ?)")
+      .run(team.owner_id, new Date().toISOString());
+  } catch {
+    /* sin Board: nada que avisar */
+  }
 }
 
 export async function getTeamById(id: string): Promise<TeamRow | null> {
@@ -119,6 +137,12 @@ export async function addMember(teamId: string, userId: string, role = 'member')
   await getDb()
     .prepare('INSERT OR IGNORE INTO team_members (team_id, user_id, role) VALUES (?, ?, ?)')
     .run(teamId, userId, role);
+  // Migración del CRM: los registros que esperaban a esta persona (owner del otro CRM) pasan a ser suyos.
+  const team = await getTeamById(teamId);
+  if (team) {
+    const { claimImportedRecords } = await import('./crm-import-owners');
+    await claimImportedRecords(team.owner_id, userId).catch(() => undefined);
+  }
 }
 
 export async function removeMember(teamId: string, userId: string): Promise<void> {
@@ -126,6 +150,7 @@ export async function removeMember(teamId: string, userId: string): Promise<void
   await getDb()
     .prepare("DELETE FROM team_members WHERE team_id = ? AND user_id = ? AND role != 'owner'")
     .run(teamId, userId);
+  await boardAccessChanged(teamId);
   // Las API keys que creó en el workspace del owner dejan de funcionar.
   if (team) {
     await getDb()
@@ -155,6 +180,11 @@ export async function removeMember(teamId: string, userId: string): Promise<void
   if (team) {
     const { talkPersonRemoved } = await import('./talk');
     await talkPersonRemoved(team.owner_id, userId).catch((err) => console.error('[teams] talk cleanup', err));
+  }
+  // Webhooks, flows, robots y agentes con salida HTTP que armó: se pausan (el owner recibe aviso).
+  if (team) {
+    const { pauseRemovedPersonAutomations } = await import('./removed-automations');
+    await pauseRemovedPersonAutomations(team.owner_id, userId);
   }
   // Si el usuario tenía este team como activo, vuelve a su workspace personal.
   await getDb()

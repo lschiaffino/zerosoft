@@ -33,7 +33,7 @@ export async function PATCH(req: NextRequest, props: Ctx) {
     if (res.error === 'not_found') return notFound();
     return robotError(400, res.error, { index: res.index });
   }
-  return NextResponse.json({ robot: res.robot });
+  return NextResponse.json({ robot: res.robot, ...(res.droppedRecipients ? { droppedRecipients: res.droppedRecipients } : {}) });
 }
 
 export async function DELETE(_req: NextRequest, props: Ctx) {

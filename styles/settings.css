@@ -452,3 +452,56 @@ dialog.st-kb-drawer { width: min(560px, 100vw); }
   border: 1px solid var(--line);
   border-radius: var(--radius-1);
 }
+
+/* ---------- Importar: hub de fuentes (/app/settings/import) ---------- */
+.st-imp-app-title { display: inline-flex; align-items: center; gap: 8px; }
+.st-imp-sources { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.st-imp-source {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr) auto;
+  gap: 4px 16px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.st-imp-source-main { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; min-width: 0; }
+.st-imp-source-name { font-weight: 600; }
+.st-imp-auth { font-size: 0.75rem; color: var(--ink-2); padding: 1px 6px; border: 1px solid var(--line); border-radius: var(--radius-1); }
+.st-imp-source-what { margin: 0; overflow-wrap: anywhere; }
+.st-imp-source-cta { justify-self: end; }
+.st-imp-recent { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.st-imp-recent-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.8fr) minmax(0, 1.4fr) auto;
+  gap: 4px 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.875rem;
+}
+.st-imp-recent-name { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.st-imp-recent-row[data-status='failed'] .st-imp-recent-status { color: var(--bad-ink); }
+.st-imp-recent-row[data-status='done'] .st-imp-recent-status { color: var(--ok-ink); }
+.st-imp-back { font-size: 0.875rem; }
+.st-imp-howto { display: grid; gap: 12px; min-width: 0; }
+.st-imp-h { margin: 0; font-size: 0.9375rem; font-weight: 600; }
+.st-imp-steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 0.875rem; line-height: 1.5; }
+.st-imp-scopes ul {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 10px 12px;
+  display: grid;
+  gap: 4px;
+  font-size: 0.8125rem;
+  background: var(--brand-enamel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  overflow-wrap: anywhere;
+}
+.st-imp-links { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; font-size: 0.875rem; }
+.st-imp-flow { min-width: 0; }
+@media (max-width: 720px) {
+  .st-imp-source { grid-template-columns: minmax(0, 1fr); }
+  .st-imp-source-cta { justify-self: start; }
+  .st-imp-recent-row { grid-template-columns: minmax(0, 1fr); }
+}

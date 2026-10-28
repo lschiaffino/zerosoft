@@ -1880,6 +1880,12 @@ export interface BoardRow {
   timer_ends_at?: string | null;
   timer_seconds?: number | null;
   timer_paused_left?: number | null;
+  /** Papelera: cuándo y quién la borró (null = viva). */
+  deleted_at?: string | null;
+  deleted_by?: string | null;
+  folder_id?: string | null;
+  /** Textos de la escena (texto, etiquetas, frames) para buscar adentro. */
+  search_text?: string;
   created_at: string;
   updated_at: string;
 }
@@ -2101,6 +2107,7 @@ export interface RobotRow {
   paused_at: string | null; // pausado solo por fallas seguidas
   alert_locale: string;
   retention_days: number; // 0 = ROBOTS_RUN_RETENTION_DAYS
+  settings?: string; // JSON RobotSettings (tabla acumulada, IA, envíos, país)
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -2130,6 +2137,26 @@ export interface RobotRunRow {
   batch_id?: string | null;
   /** La salida cambió contra la corrida exitosa anterior (1/0; NULL sin comparar). */
   changed?: number | null;
+  /** Con el acceso de quién se capturó (login o sesión guardada); NULL = datos públicos. */
+  captured_by?: string | null;
+  /** JSON RobotRunExports: IA, tabla acumulada, email y envíos de la corrida. */
+  exports?: string | null;
+}
+
+export interface RobotRowRow {
+  id: string;
+  robot_id: string;
+  user_id: string;
+  row_key: string;
+  data: string; // JSON de la fila
+  status: 'active' | 'removed';
+  first_run_id: string | null;
+  last_run_id: string | null;
+  first_seen_at: string;
+  last_seen_at: string;
+  changed_at: string | null;
+  removed_at: string | null;
+  captured_by: string | null;
 }
 
 // ---------- CRM: formularios, scoring, equipos, cuotas ----------

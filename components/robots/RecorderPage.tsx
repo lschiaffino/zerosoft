@@ -20,6 +20,14 @@ export default function RecorderPage() {
       clear: t('panel.clear'),
       close: t('panel.close'),
       hint: t('panel.hint'),
+      text: t('panel.text'),
+      list: t('panel.list'),
+      next: t('panel.next'),
+      done: t('panel.done'),
+      pickText: t('panel.pickText'),
+      pickList: t('panel.pickList'),
+      pickNext: t('panel.pickNext'),
+      listCount: t('panel.listCount', { count: '{count}' }),
     }),
     [t],
   );
@@ -63,6 +71,13 @@ export default function RecorderPage() {
             </li>
           ))}
         </ol>
+      </section>
+
+      <section className="robots-block" aria-labelledby="recorder-extract">
+        <h2 className="ui-section-title" id="recorder-extract">
+          {t('extractTitle')}
+        </h2>
+        <p className="robots-lead">{t('extractBody')}</p>
       </section>
 
       <section className="robots-block" aria-labelledby="recorder-selectors">

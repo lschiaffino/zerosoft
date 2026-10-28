@@ -36,12 +36,14 @@ async function api<T>(url: string, init?: RequestInit): Promise<{ ok: boolean; s
   return { ok: res.ok, status: res.status, data };
 }
 
-export function useImportJob(app: ImportJobView['app']) {
+/** `sources`: solo retoma jobs de esas fuentes (Docs tiene dos paneles: por archivo y Notion por API). */
+export function useImportJob(app: ImportJobView['app'], sources?: readonly string[]) {
   const [job, setJob] = useState<ImportJobView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const alive = useRef(true);
   const looping = useRef<string | null>(null);
+  const sourcesKey = sources?.join(',') ?? '';
 
   /** Avanza el job pidiendo tramos hasta que deje de trabajar (o se desmonte). */
   const drive = useCallback(async (id: string) => {
@@ -78,7 +80,9 @@ export function useImportJob(app: ImportJobView['app']) {
       if (!alive.current) return;
       setLoading(false);
       // Retoma el último si sigue abierto (lectura, vista previa o escritura).
-      const open = res?.ok ? res.data.jobs.find((j) => ['fetching', 'preview', 'importing'].includes(j.status)) : undefined;
+      const open = res?.ok
+        ? res.data.jobs.find((j) => ['fetching', 'preview', 'importing'].includes(j.status) && (!sourcesKey || sourcesKey.split(',').includes(j.source)))
+        : undefined;
       if (open) {
         setJob(open);
         if (RUNNING.includes(open.status)) void drive(open.id);
@@ -88,7 +92,7 @@ export function useImportJob(app: ImportJobView['app']) {
       alive.current = false;
       looping.current = null;
     };
-  }, [app, drive]);
+  }, [app, drive, sourcesKey]);
 
   const create = useCallback(
     async (body: Record<string, unknown>): Promise<ImportJobView | null> => {
@@ -119,10 +123,10 @@ export function useImportJob(app: ImportJobView['app']) {
     [drive],
   );
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (body: Record<string, unknown> = {}) => {
     if (!job) return;
     setError(null);
-    const res = await api<{ job: ImportJobView }>(`/api/import/jobs/${job.id}/start`, { method: 'POST', body: '{}' }).catch(() => null);
+    const res = await api<{ job: ImportJobView }>(`/api/import/jobs/${job.id}/start`, { method: 'POST', body: JSON.stringify(body) }).catch(() => null);
     if (!res?.ok) {
       setError(res?.data.error ?? 'source_unreachable');
       return;

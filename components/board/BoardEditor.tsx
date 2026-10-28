@@ -1,13 +1,17 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { BOARD_MAX_SCENE_BYTES, type BoardDetail, type BoardScene } from '@/lib/boards-types';
 import { isDataUrl, swapUploadedFiles } from '@/lib/board-file-refs';
 import type { BoardSnapshotSummary } from '@/lib/board-history';
-import type { CanvasApi } from './ExcalidrawCanvas';
+import type { CanvasApi, CanvasMenuItem, TtdTexts } from './ExcalidrawCanvas';
+import BoardPresence from './BoardPresence';
+import BoardPresent from './BoardPresent';
+import { useBoardCollab } from './useBoardCollab';
+import { clusterStickies, exportFramesPdf, textToDiagram, wireframeToCode } from './boardActions';
 import { sceneSignature } from '@/lib/board-signature';
 import CanvasComments from './CanvasComments';
 import BoardAccessPanel from './BoardAccessPanel';
@@ -73,7 +77,8 @@ const signature = sceneSignature;
 
 /** Escena a guardar: sin elementos borrados y solo los archivos que usa alguna imagen. */
 function buildScene(elements: readonly unknown[], appState: Record<string, unknown>, files: Record<string, unknown>): BoardScene {
-  const live = (elements as El[]).filter((e) => !e.isDeleted);
+  // El iframe de "wireframe a código" queda solo en esta pestaña (su HTML no se guarda).
+  const live = (elements as El[]).filter((e) => !e.isDeleted && e.type !== 'iframe');
   const used = new Set(live.filter((e) => e.type === 'image' && e.fileId).map((e) => e.fileId as string));
   const keptFiles: Record<string, unknown> = {};
   for (const id of used) if (files[id]) keptFiles[id] = files[id];
@@ -171,6 +176,17 @@ export default function BoardEditor({
   /** Menú "Más opciones" (barra angosta) y qué herramienta pidió abrir. */
   const [moreOpen, setMoreOpen] = useState(false);
   const [openTool, setOpenTool] = useState<{ tool: 'track' | 'workshop'; n: number } | null>(null);
+  /** Presentando los frames como slides. */
+  const [presenting, setPresenting] = useState(false);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  /** Pestaña en el tiempo real: el guardado la manda para no recibir su propio aviso. */
+  const socketIdRef = useRef('');
+  /** Aviso corto abajo (PDF exportado, agrupado con IA, errores). */
+  const [toast, setToast] = useState<{ text: string; tone: 'error' | 'info' } | null>(null);
+  const [aiBusy, setAiBusy] = useState(false);
+  /** Se perdió el acceso en vivo (la sacaron, la borraron o se apagó el link). */
+  const [revoked, setRevoked] = useState(false);
   /** Imágenes ya subidas: la escena las manda como URL y el base64 viaja una sola vez. */
   const uploadedRef = useRef<Map<string, string>>(uploadedFrom(board.scene.files));
   const versionRef = useRef(board.version);
@@ -295,7 +311,7 @@ export default function BoardEditor({
       }
       const res = await fetch(`${apiBase}/scene`, {
         method: 'PUT',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', 'x-board-socket': socketIdRef.current },
         body,
       });
       if (res.ok) {
@@ -464,26 +480,62 @@ export default function BoardEditor({
     setRemoteApplied({ by });
   }
 
-  // Sin tiempo real: con la pestaña visible se pregunta la versión cada tanto.
-  usePoll(
-    async () => {
-      if (!apiRef.current || unmountedRef.current) return;
-      const res = await fetch(`${apiBase}/version`).catch(() => null);
-      if (!res?.ok) return;
-      const remote = (await res.json()) as { version: number; updated_by: string | null };
-      const action = remoteAction({
-        remoteVersion: remote.version,
-        localVersion: versionRef.current,
-        pending: pendingRef.current !== null,
-        inFlight: inFlightRef.current,
-        blocked: blockedRef.current,
-      });
-      setRemoteNotice(action === 'notify' ? { by: remote.updated_by } : null);
-      if (action === 'apply') await pullRemote(remote.updated_by);
+  /** Otro guardó la versión `remoteVersion`: se trae (si no hay nada local pendiente) o se avisa. */
+  async function onRemoteVersion(remoteVersion: number, by: string | null) {
+    if (!apiRef.current || unmountedRef.current) return;
+    const action = remoteAction({
+      remoteVersion,
+      localVersion: versionRef.current,
+      pending: pendingRef.current !== null,
+      inFlight: inFlightRef.current,
+      blocked: blockedRef.current,
+    });
+    setRemoteNotice(action === 'notify' ? { by } : null);
+    if (action === 'apply') await pullRemote(by);
+  }
+
+  async function checkVersion() {
+    if (!apiRef.current || unmountedRef.current) return;
+    const res = await fetch(`${apiBase}/version`).catch(() => null);
+    if (!res?.ok) return;
+    const remote = (await res.json()) as { version: number; updated_by: string | null };
+    await onRemoteVersion(remote.version, remote.updated_by);
+  }
+
+  // Tiempo real: cursores, cambios en vivo, seguir y traer a todos. El guardado de
+  // otro llega como evento y se trae la versión guardada.
+  const collab = useBoardCollab({
+    boardId: board.id,
+    guestToken,
+    api: canvasApi,
+    canEdit: !readOnly,
+    guestLabel: t('live.guest'),
+    onRemoteApplied: () => {
+      const api = apiRef.current;
+      if (!api) return;
+      // Lo que llegó de otro no es una edición de acá: no dispara un guardado.
+      sigRef.current = signature(api.getSceneElementsIncludingDeleted(), api.getAppState().viewBackgroundColor, Object.keys(api.getFiles()).length);
     },
-    REMOTE_POLL_MS,
-    true,
-  );
+    onSaved: (version, by) => void onRemoteVersion(version, by),
+    onResync: () => void checkVersion(),
+    onRevoked: () => setRevoked(true),
+  });
+  socketIdRef.current = collab.socketId;
+
+  // Siguiendo a alguien, Esc deja de seguir (como dice el aviso).
+  const following = collab.following;
+  const stopFollowing = collab.stopFollowing;
+  useEffect(() => {
+    if (!following) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') stopFollowing();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [following, stopFollowing]);
+
+  // Red de seguridad: si el tiempo real no está conectado, se pregunta la versión cada tanto.
+  usePoll(checkVersion, collab.status === 'live' ? 60_000 : REMOTE_POLL_MS, true);
 
   useEffect(() => {
     if (!remoteApplied) return;
@@ -500,8 +552,14 @@ export default function BoardEditor({
     void resolveConflict(by);
   }
 
+  const collabChangeRef = useRef(collab.onCanvasChange);
+  collabChangeRef.current = collab.onCanvasChange;
   const onChange = useCallback(
     (elements: readonly unknown[], appState: Record<string, unknown>, files: Record<string, unknown>) => {
+      // Selección y elementos editados viajan en vivo (también con rol de lectura, solo la selección).
+      collabChangeRef.current(appState);
+      // Cuántos elementos vivos hay (sin re-render): lo leen los e2e del tiempo real.
+      if (canvasRef.current) canvasRef.current.dataset.elements = String((elements as Array<{ isDeleted?: boolean }>).filter((e) => !e.isDeleted).length);
       if (readOnly) return;
       const sig = signature(elements, appState.viewBackgroundColor, Object.keys(files).length);
       if (baselineRef.current) {
@@ -576,7 +634,7 @@ export default function BoardEditor({
           const body = JSON.stringify({ version, scene: { ...scene, files: swapUploadedFiles(scene.files, uploaded) } });
           const res = await fetch(`${base}/scene`, {
             method: 'PUT',
-            headers: { 'content-type': 'application/json' },
+            headers: { 'content-type': 'application/json', 'x-board-socket': socketIdRef.current },
             body,
             keepalive: body.length < 60_000,
           });
@@ -771,6 +829,113 @@ export default function BoardEditor({
     }
   }
 
+  const showToast = useCallback((text: string, tone: 'error' | 'info' = 'info') => setToast({ text, tone }), []);
+  useEffect(() => {
+    if (!toast) return;
+    const h = setTimeout(() => setToast(null), 6000);
+    return () => clearTimeout(h);
+  }, [toast]);
+
+  /** Mensaje para la persona según el código de error de la IA. */
+  const aiMessage = useCallback(
+    (code: string) =>
+      code === 'ai_disabled'
+        ? t('ai.disabled')
+        : code === 'quota_exceeded'
+          ? t('ai.quota')
+          : code === 'rate_limited'
+            ? t('ai.rate')
+            : code === 'ai_bad_output'
+              ? t('ai.badOutput')
+              : code === 'no_notes'
+                ? t('ai.noNotes')
+                : code === 'too_many_notes'
+                  ? t('ai.tooManyNotes')
+                  : t('ai.failed'),
+    [t],
+  );
+
+  const exportPdf = useCallback(async () => {
+    const api = apiRef.current;
+    if (!api) return;
+    const res = await exportFramesPdf(api, name.trim() || board.name);
+    if (res.ok) showToast(t('present.pdfDone', { count: res.count ?? 0 }));
+    else showToast(res.error === 'no_frames' ? t('present.noFrames') : t('present.pdfError'), 'error');
+  }, [name, board.name, showToast, t]);
+
+  const cluster = useCallback(async () => {
+    const api = apiRef.current;
+    if (!api || aiBusy) return;
+    setAiBusy(true);
+    showToast(t('ai.clustering'));
+    const res = await clusterStickies(api, board.id, { other: t('ai.other'), summary: t('ai.summary') });
+    setAiBusy(false);
+    if (res.ok) showToast(t('ai.clustered', { count: res.count ?? 0 }));
+    else showToast(aiMessage(res.error), 'error');
+  }, [aiBusy, board.id, showToast, t, aiMessage]);
+
+  const startPresenting = useCallback(() => {
+    const api = apiRef.current;
+    if (!api) return;
+    setPresenting(true);
+  }, []);
+
+  // Texto a diagrama y wireframe a código (con sesión y permiso de edición).
+  const onTextToDiagram = useCallback(
+    async (prompt: string) => {
+      const res = await textToDiagram(board.id, prompt);
+      if (!res.ok) throw new Error(aiMessage(res.error));
+      return res.mermaid;
+    },
+    [board.id, aiMessage],
+  );
+  const onWireframeToCode = useCallback(
+    async (frame: unknown, children: readonly unknown[]) => {
+      const api = apiRef.current;
+      if (!api) throw new Error(t('ai.failed'));
+      const res = await wireframeToCode(api, board.id, frame, children);
+      if (!res.ok) throw new Error(aiMessage(res.error));
+      // La vista previa no se guarda ni la ven los demás: se avisa (y se puede copiar el HTML).
+      showToast(t('ai.codeLocal'));
+      return res.html;
+    },
+    [board.id, aiMessage, t, showToast],
+  );
+
+  // Textos propios para el diálogo de texto a diagrama de Excalidraw (viene en inglés fijo).
+  const ttdTexts = useMemo<TtdTexts>(
+    () => ({
+      tabAi: t('ttd.tabAi'),
+      beta: t('ttd.beta'),
+      descAi: t('ttd.descAi'),
+      generate: t('ttd.generate'),
+      placeholderAi: t('ttd.placeholderAi'),
+      viewMermaid: t('ttd.viewMermaid'),
+      length: t('ttd.length'),
+      descMermaid: t('ttd.descMermaid'),
+      syntax: t('ttd.syntax'),
+      preview: t('ttd.preview'),
+      insert: t('ttd.insert'),
+      placeholderMermaid: t('ttd.placeholderMermaid'),
+      mermaidTitle: t('ttd.mermaidTitle'),
+      prompt: t('ttd.prompt'),
+      frameTool: t('ttd.frameTool'),
+    }),
+    [t],
+  );
+
+  // Ítems del menú del lienzo: estables (el lienzo está memoizado).
+  const actionsRef = useRef({ startPresenting, exportPdf, cluster });
+  actionsRef.current = { startPresenting, exportPdf, cluster };
+  const menuItems = useMemo<CanvasMenuItem[]>(
+    () => [
+      { key: 'present', label: t('present.button'), onSelect: () => actionsRef.current.startPresenting() },
+      { key: 'pdf', label: t('present.pdf'), onSelect: () => void actionsRef.current.exportPdf() },
+      ...(!guest && !readOnly ? [{ key: 'cluster', label: t('ai.cluster'), onSelect: () => void actionsRef.current.cluster() }] : []),
+    ],
+    [t, guest, readOnly],
+  );
+
   const shareUrl = shareToken && typeof window !== 'undefined' ? `${window.location.origin}/b/${shareToken}` : '';
   const statusText = nameError
     ? t('editor.renameError')
@@ -789,7 +954,7 @@ export default function BoardEditor({
             : '';
 
   return (
-    <div className="board-editor">
+    <div className={`board-editor${presenting ? ' is-presenting' : ''}`} ref={editorRef}>
       <div className="board-bar">
         {guest ? (
           <span className="board-guest-tag mono">{t('guest.badge')}</span>
@@ -824,6 +989,19 @@ export default function BoardEditor({
         </span>
         {!guest && <TimerChip timer={workshop.timer} skew={workshop.skew} />}
         <span className="board-bar-first" aria-hidden="true" />
+        <BoardPresence
+          people={collab.people}
+          status={collab.status}
+          canSummon={!readOnly}
+          following={collab.following}
+          onFollow={collab.follow}
+          onStopFollowing={collab.stopFollowing}
+          onSummon={() => collab.summonAll(false)}
+        />
+        <button type="button" className="btn btn-sm board-bar-extra" onClick={startPresenting} title={t('present.button')} data-testid="board-present">
+          <NotesIcon name="play" size={14} />
+          <span className="board-bar-label">{t('present.button')}</span>
+        </button>
         {!readOnly && <BoardStickyTool api={canvasApi} />}
         {!guest && !readOnly && (
           <BoardTrackTool
@@ -948,6 +1126,7 @@ export default function BoardEditor({
             label={t('editor.more')}
             onToggle={setMoreOpen}
             items={[
+              { label: t('present.button'), onSelect: () => { setMoreOpen(false); startPresenting(); } },
               ...(!readOnly
                 ? [{ label: t('track.button'), onSelect: () => { setMoreOpen(false); setOpenTool((o) => ({ tool: 'track', n: (o?.n ?? 0) + 1 })); } }]
                 : []),
@@ -1024,6 +1203,30 @@ export default function BoardEditor({
         )}
       </div>
 
+      {revoked && (
+        <div className="board-notice" role="alert">
+          <span>{t('live.revoked')}</span>
+          <div className="board-notice-actions">
+            <button type="button" className="btn btn-sm btn-primary" onClick={() => window.location.reload()}>
+              {t('editor.reload')}
+            </button>
+          </div>
+        </div>
+      )}
+      {collab.following && !presenting && (
+        <div className="board-notice board-follow-notice" role="status">
+          <span>
+            {collab.summon?.presenting && collab.summon.socketId === collab.following.socketId
+              ? t('live.presenting', { name: collab.following.name })
+              : t('live.following', { name: collab.following.name })}
+          </span>
+          <div className="board-notice-actions">
+            <button type="button" className="btn btn-sm" onClick={collab.stopFollowing}>
+              {t('live.unfollow')}
+            </button>
+          </div>
+        </div>
+      )}
       {state === 'conflict' && (
         <div className="board-notice" role="alert">
           <span>
@@ -1079,7 +1282,7 @@ export default function BoardEditor({
         </div>
       )}
 
-      <div className="board-canvas">
+      <div className="board-canvas" ref={canvasRef}>
         <ExcalidrawCanvas
           scene={board.scene}
           locale={locale}
@@ -1087,7 +1290,24 @@ export default function BoardEditor({
           library={!guest}
           onChange={onChange}
           onApi={onCanvasApi}
+          onPointerUpdate={collab.onPointer}
+          collaborating
+          menuItems={menuItems}
+          onTextToDiagram={guest || readOnly ? undefined : onTextToDiagram}
+          onWireframeToCode={guest || readOnly ? undefined : onWireframeToCode}
+          canOpenFile={!readOnly}
+          ttdTexts={ttdTexts}
         />
+        {presenting && canvasApi && (
+          <BoardPresent
+            api={canvasApi}
+            hostRef={editorRef}
+            canSummon={!readOnly && collab.people.length > 0}
+            onSummon={() => collab.summonAll(true)}
+            onExit={() => setPresenting(false)}
+            onExportPdf={() => void exportPdf()}
+          />
+        )}
         {!guest && (
           <BoardOverlays
             api={canvasApi}
@@ -1108,6 +1328,16 @@ export default function BoardEditor({
             initialThreadId={commentId}
             onCountChange={setOpenThreads}
           />
+        )}
+      </div>
+      <div className="ui-toasts" role="status" aria-live="polite">
+        {toast && (
+          <div className="ui-toast" data-tone={toast.tone}>
+            {toast.text}
+            <button type="button" className="ui-toast-action" onClick={() => setToast(null)}>
+              {t('editor.dismiss')}
+            </button>
+          </div>
         )}
       </div>
     </div>

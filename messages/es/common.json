@@ -84,6 +84,7 @@
     "groupTrackInitiatives": "Iniciativas",
     "groupTrackDashboards": "Dashboards de Track",
     "groupBoards": "Pizarras",
+    "groupBoardFolders": "Carpetas de pizarras",
     "groupEventTypes": "Tipos de evento",
     "groupCalPolls": "Encuestas de horario",
     "groupBookings": "Reservas",
@@ -158,7 +159,8 @@
     "groupTrackCycles": "Cycles",
     "groupTrackMilestones": "Milestones",
     "groupTrackLabels": "Labels",
-    "askDocs": "Preguntarle a la IA sobre tus docs"
+    "askDocs": "Preguntarle a la IA sobre tus docs",
+    "import": "Importar"
   },
   "manifesto": {
     "p1": "Un equipo de diez personas paga <strong>$6.000 al año</strong> por un CRM, $1.440 por agendar reuniones y $420 por acortar links. Esos precios se calculan por cabeza o por plan.",
@@ -430,7 +432,7 @@
       "q4": "¿Qué necesito para hostearlo?",
       "a4": "Docker y un servidor chico. Cloná el repo, completá el .env y corré docker compose up -d. Los datos viven en dos volúmenes: un archivo SQLite y tus adjuntos. Sin Docker: npm ci, npm run build, npm start.",
       "q5": "¿Puedo migrar desde lo que uso hoy?",
-      "a5": "Link importa desde Bitly (API o CSV). El CRM importa contactos, empresas y deals desde CSV, con un preset para el export de HubSpot. Para Notion, Linear, Calendly y Evernote todavía no hay importador.",
+      "a5": "Sí. Ajustes › Importar trae HubSpot y Pipedrive al CRM, Notion a Docs (con un token o un archivo exportado), Linear, Jira, GitHub, Asana y Shortcut a Track, Calendly a Cal, Bitly a Link y Evernote a Notes. Revisás qué entra antes de importar, y importar de nuevo actualiza en vez de duplicar.",
       "q6": "¿Qué implica AGPLv3 para mi empresa?",
       "a6": "Podés usarlo, hostearlo y modificarlo gratis. Si ofrecés una versión modificada como servicio a terceros, tenés que publicar tus cambios. La carpeta /ee tiene una licencia comercial aparte.",
       "q7": "¿Tienen SSO y logs de auditoría?",
@@ -609,7 +611,11 @@
       "generic": "No se pudo importar. Probá de nuevo.",
       "invalid_site": "Usá la dirección de tu Jira Cloud, como https://acme.atlassian.net.",
       "invalid_project": "Pegá la URL del proyecto de Asana o su id numérico.",
-      "file_type_not_allowed": "Subí un archivo .zip, .docx, .enex, .html, .md o .txt."
+      "file_type_not_allowed": "Subí un archivo .zip, .docx, .enex, .html, .md o .txt.",
+      "restricted": "La integración no puede leer eso. Revisá sus capacidades y que la página esté compartida con ella.",
+      "import_running": "Ya hay un import de esta fuente en curso. Abrilo o cancelalo primero.",
+      "nothing_selected": "Elegí al menos páginas o bases.",
+      "invalid_request": "El servicio rechazó el pedido. Probá de nuevo y, si sigue pasando, empezá un import nuevo."
     },
     "readFailed": "No pudimos leer {source}: {reason}"
   },

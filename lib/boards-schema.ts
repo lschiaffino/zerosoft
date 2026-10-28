@@ -5,6 +5,7 @@ export const boardCreateSchema = z.object({
   name: z.string().trim().max(120).optional(),
   template: z.enum(BOARD_TEMPLATES).optional(),
   locale: z.string().max(8).optional(),
+  folderId: z.string().max(64).nullish(),
 });
 
 export const boardRenameSchema = z.object({

@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useStableKeys } from './useStableKeys';
 import {
   defaultStep,
+  MAX_FALLBACKS,
   MAX_LIST_FIELDS,
   MAX_PAGINATE_PAGES,
   STEP_TYPES,
@@ -205,6 +206,7 @@ function StepItem({
       </div>
       <div className="robots-step-body">
         <TypeFields step={step} readOnly={readOnly} onChange={onChange} prefix={`${num}.`} />
+        {HEAL_TYPES.has(step.type) && <Fallbacks step={step} readOnly={readOnly} onChange={onChange} />}
         {showRetry && (
           <div className="robots-retry">
             <div className="ui-field">
@@ -243,6 +245,55 @@ function StepItem({
         )}
       </div>
     </li>
+  );
+}
+
+/** Pasos con selector que admiten selectores alternativos (autorreparación). */
+const HEAL_TYPES = new Set(['click', 'fill', 'select', 'press', 'wait', 'extract', 'extract_table', 'extract_list', 'download', 'scroll']);
+
+/** Selectores alternativos: plegados salvo que el paso ya tenga alguno. */
+function Fallbacks({ step, readOnly, onChange }: { step: AnyStep; readOnly: boolean; onChange: (s: AnyStep) => void }) {
+  const t = useTranslations('robots.steps');
+  const id = useId();
+  const list = ((step as Record<string, unknown>).fallbacks as string[] | undefined) ?? [];
+  const [text, setText] = useState(list.join('\n'));
+  if (readOnly && !list.length) return null;
+  return (
+    <details className="robots-fallbacks" open={list.length > 0 || undefined}>
+      <summary>
+        {t('fallbacksShow')}
+        {list.length > 0 && <span className="robots-muted"> · {list.length}</span>}
+      </summary>
+      <div className="ui-field">
+        <label className="label" htmlFor={id}>
+          {t('fields.fallbacks')}
+        </label>
+        <textarea
+          id={id}
+          className="textarea data"
+          rows={2}
+          value={text}
+          readOnly={readOnly}
+          spellCheck={false}
+          aria-describedby={`${id}-h`}
+          onChange={(e) => {
+            setText(e.target.value);
+            const next = { ...(step as Record<string, unknown>) };
+            const lines = e.target.value
+              .split(/\r?\n/)
+              .map((x) => x.trim())
+              .filter(Boolean)
+              .slice(0, MAX_FALLBACKS);
+            if (lines.length) next.fallbacks = lines;
+            else delete next.fallbacks;
+            onChange(next as AnyStep);
+          }}
+        />
+        <p className="ui-help" id={`${id}-h`}>
+          {t('fallbacksHint')}
+        </p>
+      </div>
+    </details>
   );
 }
 
@@ -531,6 +582,7 @@ function TypeFields({
   // Paginación (extract_list / extract_table): apagada = una sola página.
   const rec = step as Record<string, unknown>;
   const paginated = Number(rec.maxPages ?? 1) > 1;
+  const pmode = String(rec.paginateMode ?? 'next') as 'next' | 'load_more' | 'scroll';
   const pagination = (
     <>
       <label className="ui-check robots-wide">
@@ -556,9 +608,34 @@ function TypeFields({
       </label>
       {paginated && (
         <>
-          {text('nextSelector', t('fields.nextSelector'), 'a[rel="next"]')}
-          {text('nextText', t('fields.nextText'), t('nextTextDefault'))}
-          {num('maxPages', t('fields.maxPages'), 2, MAX_PAGINATE_PAGES)}
+          <Field label={t('fields.paginateMode')}>
+            {(id) => (
+              <select
+                id={id}
+                className="select"
+                value={pmode}
+                disabled={readOnly}
+                onChange={(e) => {
+                  const next = { ...rec } as Record<string, unknown>;
+                  const v = e.target.value;
+                  if (v === 'next') delete next.paginateMode;
+                  else next.paginateMode = v;
+                  if (v === 'load_more' && (!next.nextText || next.nextText === t('nextTextDefault'))) next.nextText = t('loadMoreDefault');
+                  if (v === 'next' && next.nextText === t('loadMoreDefault')) next.nextText = t('nextTextDefault');
+                  onChange(next as AnyStep);
+                }}
+              >
+                {(['next', 'load_more', 'scroll'] as const).map((m) => (
+                  <option key={m} value={m}>
+                    {t(`paginateModes.${m}`)}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+          {pmode !== 'scroll' && text('nextSelector', pmode === 'load_more' ? t('fields.moreSelector') : t('fields.nextSelector'), pmode === 'load_more' ? 'button.load-more' : 'a[rel="next"]')}
+          {pmode !== 'scroll' && text('nextText', pmode === 'load_more' ? t('fields.moreText') : t('fields.nextText'), pmode === 'load_more' ? t('loadMoreDefault') : t('nextTextDefault'))}
+          {num('maxPages', pmode === 'scroll' ? t('fields.scrollTimes') : t('fields.maxPages'), 2, MAX_PAGINATE_PAGES)}
           <Field label={t('fields.pageWaitMs')}>
             {(id) => (
               <input
@@ -574,7 +651,13 @@ function TypeFields({
               />
             )}
           </Field>
-          <p className="ui-help robots-wide">{t('paginateHint', { max: MAX_PAGINATE_PAGES })}</p>
+          <p className="ui-help robots-wide">
+            {pmode === 'scroll'
+              ? t('scrollHint', { max: Number(rec.maxPages ?? 5) })
+              : pmode === 'load_more'
+                ? t('moreHint', { max: Number(rec.maxPages ?? 5) })
+                : t('paginateHint', { max: MAX_PAGINATE_PAGES })}
+          </p>
         </>
       )}
     </>
@@ -699,6 +782,62 @@ function TypeFields({
             )}
           </Field>
           {text('name', t('fields.name'), 'result')}
+        </div>
+      );
+    case 'ai_extract':
+      return (
+        <div className="robots-fields">
+          <Field label={t('fields.instruction')} wide>
+            {(id) => (
+              <textarea
+                id={id}
+                className="textarea"
+                rows={2}
+                value={step.instruction}
+                placeholder={t('instructionPlaceholder')}
+                readOnly={readOnly}
+                maxLength={2000}
+                onChange={(e) => set({ instruction: e.target.value })}
+              />
+            )}
+          </Field>
+          {text('name', t('fields.name'), 'items')}
+          {text('selector', t('fields.aiScope'), 'main')}
+          <fieldset className="robots-list-fields robots-wide">
+            <legend className="label">{t('fields.aiFields')}</legend>
+            {step.fields.map((f, i) => (
+              <div key={i} className="robots-ai-col">
+                <input
+                  className="input data"
+                  value={f.name}
+                  readOnly={readOnly}
+                  aria-label={`${t('fields.aiFieldName')} ${i + 1}`}
+                  placeholder={t('fields.aiFieldName')}
+                  onChange={(e) => set({ fields: step.fields.map((x, k) => (k === i ? { ...x, name: e.target.value.replace(/[^A-Za-z0-9_]/g, '_').slice(0, 40) } : x)) })}
+                />
+                <input
+                  className="input"
+                  value={f.description}
+                  readOnly={readOnly}
+                  aria-label={`${t('fields.aiFieldDesc')} ${i + 1}`}
+                  placeholder={t('fields.aiFieldDesc')}
+                  maxLength={200}
+                  onChange={(e) => set({ fields: step.fields.map((x, k) => (k === i ? { ...x, description: e.target.value } : x)) })}
+                />
+                {!readOnly && step.fields.length > 1 && (
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ fields: step.fields.filter((_, k) => k !== i) })}>
+                    {t('removeField')}
+                  </button>
+                )}
+              </div>
+            ))}
+            {!readOnly && step.fields.length < MAX_LIST_FIELDS && (
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => set({ fields: [...step.fields, { name: `field${step.fields.length + 1}`, description: '' }] })}>
+                {t('addField')}
+              </button>
+            )}
+          </fieldset>
+          <p className="ui-help robots-wide">{t('aiHint')}</p>
         </div>
       );
     case 'loop_over':

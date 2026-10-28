@@ -61,11 +61,15 @@ export function resolveBoardAccess(
   return null;
 }
 
-/** Condición SQL para listar solo las pizarras que la persona puede ver (alias `b`). */
-export function boardVisibleSql(viewer: BoardViewer): { sql: string; args: string[] } {
-  if (viewer.isAdmin) return { sql: '1 = 1', args: [] };
+/**
+ * Condición SQL para listar solo las pizarras que la persona puede ver (alias
+ * `b`). Las de la papelera no cuentan, salvo con `trash: true` (solo ellas).
+ */
+export function boardVisibleSql(viewer: BoardViewer, opts: { trash?: boolean } = {}): { sql: string; args: string[] } {
+  const alive = opts.trash ? 'b.deleted_at IS NOT NULL' : 'b.deleted_at IS NULL';
+  if (viewer.isAdmin) return { sql: alive, args: [] };
   return {
-    sql: `(b.access IS NULL OR b.access != 'restricted' OR b.created_by = ?
+    sql: `${alive} AND (b.access IS NULL OR b.access != 'restricted' OR b.created_by = ?
            OR EXISTS (SELECT 1 FROM board_members m WHERE m.board_id = b.id AND m.user_id = ?))`,
     args: [viewer.personId, viewer.personId],
   };
@@ -80,7 +84,16 @@ interface AccessRow {
 /** Acceso de la persona a la pizarra del workspace activo (null = no existe o no la puede ver). */
 export async function getBoardAccess(viewer: BoardViewer, boardId: string): Promise<BoardAccessLevel | null> {
   const row = (await getDb()
-    .prepare('SELECT workspace_id, created_by, access FROM boards WHERE id = ? AND workspace_id = ?')
+    .prepare('SELECT workspace_id, created_by, access FROM boards WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL')
+    .get(boardId, viewer.workspaceId)) as AccessRow | undefined;
+  if (!row) return null;
+  return resolveBoardAccess(row, viewer, await memberRole(boardId, viewer.personId));
+}
+
+/** Acceso a una pizarra de la papelera (para restaurarla o borrarla del todo). */
+export async function getTrashedBoardAccess(viewer: BoardViewer, boardId: string): Promise<BoardAccessLevel | null> {
+  const row = (await getDb()
+    .prepare('SELECT workspace_id, created_by, access FROM boards WHERE id = ? AND workspace_id = ? AND deleted_at IS NOT NULL')
     .get(boardId, viewer.workspaceId)) as AccessRow | undefined;
   if (!row) return null;
   return resolveBoardAccess(row, viewer, await memberRole(boardId, viewer.personId));
@@ -100,13 +113,30 @@ async function memberRole(boardId: string, personId: string): Promise<BoardMembe
  */
 export async function personCanViewBoard(personId: string, boardId: string): Promise<boolean> {
   const row = (await getDb()
-    .prepare('SELECT workspace_id, created_by, access FROM boards WHERE id = ?')
+    .prepare('SELECT workspace_id, created_by, access FROM boards WHERE id = ? AND deleted_at IS NULL')
     .get(boardId)) as AccessRow | undefined;
   if (!row) return false;
   const members = await listBoardMembers(row.workspace_id);
   if (!members.some((m) => m.id === personId)) return false;
   const isAdmin = personId === row.workspace_id || (await isWorkspaceAdmin(row.workspace_id, personId));
   return resolveBoardAccess(row, { personId, isAdmin }, await memberRole(boardId, personId)) !== null;
+}
+
+/**
+ * Viewer recalculado desde la base (no desde una sesión vieja): null si la
+ * persona ya no es del workspace. Lo usa el tiempo real para revalidar una
+ * conexión abierta (la sacaron del team, le bajaron el rol).
+ */
+export async function freshBoardViewer(workspaceId: string, personId: string): Promise<BoardViewer | null> {
+  if (personId === workspaceId) return { workspaceId, personId, isAdmin: true };
+  const row = (await getDb()
+    .prepare(
+      `SELECT m.role AS role FROM team_members m JOIN teams t ON t.id = m.team_id
+       WHERE t.owner_id = ? AND m.user_id = ? ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 ELSE 2 END LIMIT 1`,
+    )
+    .get(workspaceId, personId)) as { role: string } | undefined;
+  if (!row) return null;
+  return { workspaceId, personId, isAdmin: row.role === 'owner' || row.role === 'admin' };
 }
 
 async function isWorkspaceAdmin(workspaceId: string, personId: string): Promise<boolean> {

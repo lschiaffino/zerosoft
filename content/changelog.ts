@@ -41,7 +41,85 @@ export const CHANGELOG: ChangelogEntry[] = [
       { product: 'voice', en: 'Share a meeting by link with your workspace, with the people you pick or with anyone, read only and with the transcript only if you include it. Change or revoke the link anytime. Meetings shared with you show up in "Shared with me".', es: 'Compartí una reunión por link con tu workspace, con las personas que elijas o con cualquiera, de solo lectura y con la transcripción solo si la incluís. El link se cambia o se revoca cuando quieras. Lo que te compartieron aparece en "Compartidas conmigo".', pt: 'Compartilhe uma reunião por link com o seu workspace, com as pessoas que escolher ou com qualquer pessoa, só leitura e com a transcrição só se você incluir. Dá para trocar ou revogar o link quando quiser. O que compartilharam com você aparece em "Compartilhadas comigo".' },
       { product: 'voice', en: 'Folders with one level of subfolders, recipes you run with / on one meeting or across meetings, a follow-up email drafted by AI that opens in Gmail or Outlook, and sending the notes to Slack or Notion.', es: 'Carpetas con un nivel de subcarpetas, recipes que se corren con / sobre una reunión o sobre varias, un email de seguimiento que redacta la IA y se abre en Gmail u Outlook, y mandar la nota a Slack o Notion.', pt: 'Pastas com um nível de subpastas, recipes que rodam com / em uma reunião ou em várias, um email de follow-up escrito pela IA que abre no Gmail ou no Outlook, e enviar a nota para o Slack ou o Notion.' },
       { product: 'voice', en: 'Dictation: Command Mode rewrites the selected text with what you say, saved transforms rewrite it with one click, and fixing a dictation in the history teaches your dictionary. Admins get a team dictionary and a usage panel.', es: 'Dictado: Command Mode reescribe el texto seleccionado con lo que decís, los transforms guardados lo reescriben con un clic y corregir un dictado en el historial le enseña a tu diccionario. Los admins tienen diccionario del equipo y un panel de uso.', pt: 'Ditado: o Command Mode reescreve o texto selecionado com o que você diz, os transforms salvos reescrevem com um clique e corrigir um ditado no histórico ensina o seu dicionário. Admins têm dicionário da equipe e um painel de uso.' },
-      { product: 'voice', en: 'Transcripts can delete themselves after the days you pick (admins can set a maximum), the new MCP server lets Claude or ChatGPT read your meetings, and the voice.meeting.completed and voice.notes.ready webhooks reach only the webhooks you created.', es: 'Las transcripciones se pueden borrar solas a los días que elijas (los admins pueden fijar un tope), el nuevo servidor MCP deja que Claude o ChatGPT lean tus reuniones, y los webhooks voice.meeting.completed y voice.notes.ready llegan solo a los webhooks que creaste vos.', pt: 'As transcrições podem se apagar sozinhas depois dos dias que você escolher (admins podem definir um limite), o novo servidor MCP deixa o Claude ou o ChatGPT lerem suas reuniões, e os webhooks voice.meeting.completed e voice.notes.ready chegam só aos webhooks que você criou.' },
+      { product: 'voice', en: 'Transcripts can delete themselves after the days you pick (admins can set a maximum), the new MCP server lets Claude or ChatGPT read your meetings, and the voice.meeting.completed and voice.notes.ready webhooks reach only the webhooks created by the person who recorded.', es: 'Las transcripciones se pueden borrar solas a los días que elijas (los admins pueden fijar un tope), el nuevo servidor MCP deja que Claude o ChatGPT lean tus reuniones, y los webhooks voice.meeting.completed y voice.notes.ready llegan solo a los webhooks de quien grabó.', pt: 'As transcrições podem se apagar sozinhas depois dos dias que você escolher (admins podem definir um limite), o novo servidor MCP deixa o Claude ou o ChatGPT lerem suas reuniões, e os webhooks voice.meeting.completed e voice.notes.ready chegam só aos webhooks de quem gravou.' },
+    ],
+  },
+  {
+    id: '2026-10-28-import-hub',
+    date: '2026-10-28',
+    title: {
+      en: 'Import hub: bring HubSpot and Notion with a token',
+      es: 'Hub de importación: traé HubSpot y Notion con un token',
+      pt: 'Hub de importação: traga HubSpot e Notion com um token',
+    },
+    items: [
+      { product: 'docs', en: 'Settings › Import lists every source per app, with the steps to get each token and the exact scopes it needs. Every import checks the token first, shows a preview with counts, lets you pick what comes in, runs in the background and ends with a report of what was created, updated, skipped or failed. Importing again updates instead of duplicating. Each app has an Import shortcut in the sidebar.', es: 'Ajustes › Importar lista todas las fuentes por app, con los pasos para sacar cada token y los permisos exactos que necesita. Cada import prueba el token primero, muestra una vista previa con cantidades, deja elegir qué entra, corre en segundo plano y termina con un informe de lo creado, actualizado, saltado o con error. Importar de nuevo actualiza en vez de duplicar. Cada app tiene un atajo Importar en el sidebar.', pt: 'Configurações › Importar lista todas as fontes por app, com os passos para conseguir cada token e as permissões exatas que ele precisa. Cada importação testa o token primeiro, mostra uma prévia com quantidades, deixa escolher o que entra, roda em segundo plano e termina com um relatório do que foi criado, atualizado, pulado ou deu erro. Importar de novo atualiza em vez de duplicar. Cada app tem um atalho Importar na barra lateral.' },
+      { product: 'docs', en: 'Notion by API: paste an internal integration token and pages come in with their tree, blocks, images and files copied to your storage, databases with their properties and rows, and links and mentions pointing to the imported pages. Pick the teamspace they go to.', es: 'Notion por API: pegá el token de una integración interna y entran las páginas con su árbol, sus bloques, imágenes y archivos copiados a tu almacenamiento, las bases con sus propiedades y filas, y los links y menciones apuntando a las páginas importadas. Elegís a qué teamspace van.', pt: 'Notion por API: cole o token de uma integração interna e entram as páginas com sua árvore, blocos, imagens e arquivos copiados para o seu armazenamento, os bancos de dados com propriedades e linhas, e os links e menções apontando para as páginas importadas. Você escolhe o teamspace.' },
+      { product: 'crm', en: 'HubSpot import also brings lists (as tags on the imported contacts and companies) and lets you invite the HubSpot owners who are not in the workspace yet.', es: 'El import de HubSpot también trae las listas (como etiquetas en los contactos y empresas importados) y te deja invitar a los owners de HubSpot que todavía no están en el workspace.', pt: 'A importação da HubSpot também traz as listas (como etiquetas nos contatos e empresas importados) e permite convidar os owners da HubSpot que ainda não estão no workspace.' },
+    ],
+  },
+  {
+    id: '2026-10-28-robots-parity',
+    date: '2026-10-28',
+    title: {
+      en: 'Robots: build with AI, capture lists while recording, a table across runs and rows sent to your CRM, Sheets and Airtable',
+      es: 'Robots: armado con IA, captura de listas al grabar, tabla entre corridas y filas enviadas al CRM, Sheets y Airtable',
+      pt: 'Robots: montagem com IA, captura de listas ao gravar, tabela entre execuções e linhas enviadas ao CRM, Sheets e Airtable',
+    },
+    items: [
+      {
+        product: 'robots',
+        en: 'Build with AI opens a page, finds the list and proposes the columns with a preview. Write with AI turns a description into steps, and the new Extract with AI step pulls rows described in words. The recorder now captures text, lists with their columns and the next page button, and saves alternative selectors that the robot tries when a page changes; when a step still fails, AI suggests a new selector from the captured page.',
+        es: 'Armar con IA abre una página, encuentra la lista y propone las columnas con una vista previa. Escribir con IA convierte una descripción en pasos, y el nuevo paso Extraer con IA saca filas descritas con palabras. El grabador ahora captura texto, listas con sus columnas y el botón de página siguiente, y guarda selectores alternativos que el robot prueba cuando la página cambia; si un paso igual falla, la IA sugiere un selector nuevo desde la página capturada.',
+        pt: 'Montar com IA abre uma página, encontra a lista e propõe as colunas com uma prévia. Escrever com IA transforma uma descrição em passos, e o novo passo Extrair com IA tira linhas descritas em palavras. O gravador agora captura texto, listas com suas colunas e o botão de próxima página, e salva seletores alternativos que o robô testa quando a página muda; se um passo ainda falhar, a IA sugere um seletor novo a partir da página capturada.',
+      },
+      {
+        product: 'robots',
+        en: 'The Data tab keeps a table of rows across runs, with new, changed and gone rows, search, CSV and AI columns. Change emails show the new and removed rows. The Integrations tab sends new rows to CRM contacts or companies, a Google Sheet or an Airtable table. Lists continue with Load more buttons and infinite scroll, schedules go down to every 5 minutes, bulk runs take a CSV of up to 1,000 rows, robots export and import as files, the gallery has 15 templates for common sites and tasks, and runs can use the language, time zone and (with a proxy provider) the IP of a country.',
+        es: 'La pestaña Datos guarda una tabla de filas entre corridas, con filas nuevas, cambiadas y que ya no están, búsqueda, CSV y columnas con IA. Los emails de cambios muestran las filas nuevas y las quitadas. La pestaña Integraciones manda las filas nuevas a contactos o empresas del CRM, a una hoja de Google o a una tabla de Airtable. Las listas siguen con botones Cargar más y scroll infinito, los horarios bajan a cada 5 minutos, las corridas en lote toman un CSV de hasta 1.000 filas, los robots se exportan e importan como archivo, la galería tiene 15 plantillas para sitios y tareas comunes, y las corridas pueden usar el idioma, la zona horaria y (con un proveedor de proxies) la IP de un país.',
+        pt: 'A aba Dados guarda uma tabela de linhas entre execuções, com linhas novas, alteradas e que não estão mais, busca, CSV e colunas com IA. Os emails de mudanças mostram as linhas novas e as removidas. A aba Integrações envia as linhas novas para contatos ou empresas do CRM, uma planilha do Google ou uma tabela do Airtable. As listas continuam com botões Carregar mais e scroll infinito, os agendamentos descem para cada 5 minutos, as execuções em lote aceitam um CSV de até 1.000 linhas, os robôs são exportados e importados como arquivo, a galeria tem 15 modelos para sites e tarefas comuns, e as execuções podem usar o idioma, o fuso horário e (com um provedor de proxies) o IP de um país.',
+      },
+    ],
+  },
+  {
+    id: '2026-10-28-board-parity',
+    date: '2026-10-28',
+    title: {
+      en: 'Board: live multiplayer with cursors, presenting frames, AI diagrams, folders, trash and an API',
+      es: 'Board: multiplayer en vivo con cursores, presentar frames, diagramas con IA, carpetas, papelera y API',
+      pt: 'Board: multiplayer ao vivo com cursores, apresentar frames, diagramas com IA, pastas, lixeira e API',
+    },
+    items: [
+      {
+        product: 'board',
+        en: 'Everyone on a board sees the others’ cursors, selections and strokes as they happen. Click someone to follow their view, or bring everyone to yours.',
+        es: 'Todos en una pizarra ven los cursores, la selección y los trazos de los demás mientras pasan. Tocá a alguien para seguir su vista, o traé a todos a la tuya.',
+        pt: 'Todos num quadro veem os cursores, a seleção e os traços dos outros na hora. Clique em alguém para seguir a visão, ou traga todos para a sua.',
+      },
+      {
+        product: 'board',
+        en: 'Present frames as full-screen slides with the keyboard, have everyone follow along, and export the frames as a PDF.',
+        es: 'Presentá los frames como slides a pantalla completa con el teclado, con todos siguiéndote, y exportalos como PDF.',
+        pt: 'Apresente os frames como slides em tela cheia pelo teclado, com todos acompanhando, e exporte os frames como PDF.',
+      },
+      {
+        product: 'board',
+        en: 'AI turns a description into an editable diagram, groups stickies by theme with a summary, and turns a drawn wireframe into a web page.',
+        es: 'La IA convierte una descripción en un diagrama editable, agrupa stickies por tema con un resumen y pasa un wireframe dibujado a una página web.',
+        pt: 'A IA transforma uma descrição em diagrama editável, agrupa post-its por tema com um resumo e transforma um wireframe desenhado numa página web.',
+      },
+      {
+        product: 'board',
+        en: 'Folders, search inside boards (from the list and Cmd+K), a 30-day trash, importing .excalidraw files and five new templates: SWOT, mind map, priority matrix, customer journey and lean canvas.',
+        es: 'Carpetas, búsqueda dentro de las pizarras (en la lista y con Cmd+K), papelera de 30 días, importar archivos .excalidraw y cinco plantillas nuevas: FODA, mapa mental, matriz de prioridades, customer journey y lean canvas.',
+        pt: 'Pastas, busca dentro dos quadros (na lista e com Cmd+K), lixeira de 30 dias, importar arquivos .excalidraw e cinco modelos novos: SWOT, mapa mental, matriz de prioridades, jornada do cliente e lean canvas.',
+      },
+      {
+        product: 'board',
+        en: 'A REST API and an MCP server to list, read, create and draw on boards, plus an activity log for admins with CSV export.',
+        es: 'API REST y servidor MCP para listar, leer, crear y dibujar en pizarras, y un registro de actividad para admins con export a CSV.',
+        pt: 'API REST e servidor MCP para listar, ler, criar e desenhar em quadros, e um registro de atividade para admins com exportação em CSV.',
+      },
     ],
   },
   {

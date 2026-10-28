@@ -2,6 +2,7 @@ import { getDb } from '@/lib/db';
 import { likeContains } from '@/lib/track-views';
 import { trackVisibleSql } from '@/lib/track-access';
 import { boardViewer, boardVisibleSql } from '@/lib/board-access';
+import { snippet as boardSnippet } from '@/lib/boards';
 import type { TeamRole } from '@/lib/teams';
 import { chatAccessSql, groupsViewer } from '@/lib/groups-access';
 import { maskPhoneText } from '@/lib/groups-mask';
@@ -24,6 +25,7 @@ export interface AppSearchItem {
     | 'crmApprovals'
     | 'crmScores'
     | 'boards'
+    | 'boardFolders'
     | 'projects'
     | 'teams'
     | 'issues'
@@ -95,6 +97,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
   const widgetWhere = teamId ? 'team_id = ?' : 'user_id = ?';
   // Pizarras: las restringidas solo para quien tiene acceso, como la lista.
   const boardsVisible = boardVisibleSql(boardViewer(user));
+  const boardFolders = await all(`SELECT id, name AS label FROM board_folders WHERE workspace_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT ?`, user.id, like);
 
   const waGroup = WA_GROUP[locale] ?? WA_GROUP.en;
   // Groups: acceso por etiqueta y teléfonos ocultos, como la bandeja.
@@ -139,10 +142,13 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     all(`SELECT id, name AS label FROM track_labels WHERE workspace_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT ?`, ws, like),
   ]);
   const [boards, projects, issues, eventTypes, bookings, calPolls, widgets, flows, agents, robots, groupChats, groupTickets, groupMessages, groupRecurring, playbooks, forms, quotes, approvals, scores, groupLists, groupTemplates, talkChannels, talkDms, talkPeople, voiceSessions] = await Promise.all([
+    // Por nombre o por lo que dice adentro (stickies, textos, frames): la línea que coincidió va de meta.
     all(
-      `SELECT b.id, b.name AS label FROM boards b WHERE b.workspace_id = ? AND ${boardsVisible.sql} AND b.name LIKE ? ESCAPE '\\' ORDER BY b.updated_at DESC LIMIT ?`,
+      `SELECT b.id, b.name AS label, b.search_text AS meta FROM boards b WHERE b.workspace_id = ? AND ${boardsVisible.sql} AND (b.name LIKE ? ESCAPE '\\' OR b.search_text LIKE ? ESCAPE '\\') ORDER BY (b.name LIKE ? ESCAPE '\\') DESC, b.updated_at DESC LIMIT ?`,
       user.id,
       ...boardsVisible.args,
+      like,
+      like,
       like,
     ),
     all(
@@ -401,7 +407,14 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       href: `/app/track/issues?filter=${encodeURIComponent(JSON.stringify({ match: 'and', rules: [{ field: 'label', op: 'is', values: [r.id] }] }))}`,
     })),
     ...map(issues, 'issues', (id) => `/app/track/issues/${id}`),
-    ...map(boards, 'boards', (id) => `/app/board/${id}`),
+    ...boards.map((r) => ({
+      id: r.id,
+      group: 'boards' as const,
+      label: r.label,
+      meta: r.label.toLowerCase().includes(q.trim().toLowerCase()) ? '' : (boardSnippet(String(r.meta ?? ''), q.trim()) ?? ''),
+      href: `/app/board/${r.id}`,
+    })),
+    ...boardFolders.map((r) => ({ id: r.id, group: 'boardFolders' as const, label: r.label, meta: '', href: `/app/board?folder=${encodeURIComponent(r.id)}` })),
     ...map(eventTypes, 'eventTypes', (id) => `/app/calendar/event-types/${id}`),
     ...map(calPolls, 'calPolls', (id) => `/app/calendar/polls/${id}`),
     // La reserva se abre en Bookings filtrada por el email del invitado (todas las fechas).

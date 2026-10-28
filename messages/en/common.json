@@ -84,6 +84,7 @@
     "groupTrackInitiatives": "Initiatives",
     "groupTrackDashboards": "Track dashboards",
     "groupBoards": "Boards",
+    "groupBoardFolders": "Board folders",
     "groupEventTypes": "Event types",
     "groupCalPolls": "Meeting polls",
     "groupBookings": "Bookings",
@@ -158,7 +159,8 @@
     "groupTrackCycles": "Cycles",
     "groupTrackMilestones": "Milestones",
     "groupTrackLabels": "Labels",
-    "askDocs": "Ask AI about your docs"
+    "askDocs": "Ask AI about your docs",
+    "import": "Import"
   },
   "manifesto": {
     "p1": "A team of ten pays <strong>$6,000 a year</strong> for a CRM, $1,440 to book meetings and $420 to shorten links. Those prices are set per head or per plan.",
@@ -430,7 +432,7 @@
       "q4": "What do I need to self-host?",
       "a4": "Docker and a small server. Clone the repo, fill in .env and run docker compose up -d. Data lives in two volumes: a SQLite file and your uploads. Without Docker: npm ci, npm run build, npm start.",
       "q5": "Can I migrate from what I use today?",
-      "a5": "Link imports from Bitly (API or CSV). CRM imports contacts, companies and deals from CSV, with a preset for the HubSpot export. There is no importer yet for Notion, Linear, Calendly or Evernote.",
+      "a5": "Yes. Settings › Import brings HubSpot and Pipedrive to CRM, Notion to Docs (with a token or an export file), Linear, Jira, GitHub, Asana and Shortcut to Track, Calendly to Cal, Bitly to Link and Evernote to Notes. You review what comes in before importing, and importing again updates instead of duplicating.",
       "q6": "What does AGPLv3 mean for my company?",
       "a6": "You can use, host and modify it at no cost. If you offer a modified version as a service to others, you have to publish your changes. The /ee folder has a separate commercial license.",
       "q7": "Do you have SSO and audit logs?",
@@ -609,7 +611,11 @@
       "generic": "Could not import. Try again.",
       "invalid_site": "Use your Jira Cloud address, like https://acme.atlassian.net.",
       "invalid_project": "Paste the Asana project URL or its numeric id.",
-      "file_type_not_allowed": "Upload a .zip, .docx, .enex, .html, .md or .txt file."
+      "file_type_not_allowed": "Upload a .zip, .docx, .enex, .html, .md or .txt file.",
+      "restricted": "The integration can’t read that. Check its capabilities and that the page is shared with it.",
+      "import_running": "There is already an import from this source in progress. Open it or cancel it first.",
+      "nothing_selected": "Choose at least pages or databases.",
+      "invalid_request": "The service rejected the request. Try again, and if it keeps happening, start a new import."
     },
     "readFailed": "We couldn't read {source}: {reason}"
   },

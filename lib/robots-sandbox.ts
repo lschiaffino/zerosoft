@@ -16,7 +16,7 @@
  * privada, igual que safeFetch.
  */
 import { getDb } from './db';
-import { isPrivateAddress, robotHarness, robotInterpreter } from './robots-interpreter';
+import { guardProxy, isPrivateAddress, robotHarness, robotInterpreter } from './robots-interpreter';
 import { failed, harnessJob, type RobotJob, type RobotRunnerResult } from './robots-runner';
 
 const PLAYWRIGHT_VERSION = '1.64.0';
@@ -49,16 +49,24 @@ export function buildRunnerScript(): string {
   return `'use strict';
 const __name = (fn) => fn;
 const fs = require('fs');
+const http = require('http');
+const net = require('net');
 const dns = require('dns').promises;
 const { chromium } = require('playwright-core');
 const isPrivateAddress = ${isPrivateAddress.toString()};
+const guardProxy = ${guardProxy.toString()};
 const robotInterpreter = ${robotInterpreter.toString()};
 const robotHarness = ${robotHarness.toString()};
+let __allowPrivate = { any: false, hosts: [] };
 async function checkUrl(raw) {
   let u;
   try { u = new URL(raw); } catch { return 'invalid_url'; }
   if (u.protocol !== 'http:' && u.protocol !== 'https:') return 'invalid_url';
-  const host = u.hostname.replace(/^\\[|\\]$/g, '');
+  const host = u.hostname.replace(/^\\[|\\]$/g, '').toLowerCase();
+  const port = u.port || (u.protocol === 'https:' ? '443' : '80');
+  const ap = __allowPrivate;
+  const allowed = ap.any || ap.hosts.indexOf(host) >= 0 || ap.hosts.indexOf(host + ':' + port) >= 0;
+  if (allowed) return null;
   if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.internal')) return 'private_host';
   let addrs;
   if (/^[0-9.]+$/.test(host) || host.includes(':')) addrs = [host];
@@ -72,7 +80,8 @@ async function checkUrl(raw) {
 (async () => {
   const job = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
   job.deadline = Date.now() + job.timeoutMs;
-  const result = await robotHarness(chromium, job, robotInterpreter, checkUrl);
+  __allowPrivate = job.allowPrivate || { any: false, hosts: [] };
+  const result = await robotHarness(chromium, job, robotInterpreter, checkUrl, () => guardProxy(http, net, dns, isPrivateAddress, job.proxy || null, job.allowPrivate || null));
   fs.writeFileSync(process.argv[3], JSON.stringify(result));
 })().catch((e) => {
   fs.writeFileSync(process.argv[3], JSON.stringify({ status: 'failed', error: 'runner_crash: ' + String((e && e.message) || e).slice(0, 200), vars: {}, logs: [], screenshots: [], pages: 0 }));

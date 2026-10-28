@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import ClientMessages from '@/components/i18n/ClientMessages';
 import BoardBranch from '@/components/board/BoardBranch';
 import '@/styles/board.css';
@@ -9,7 +9,9 @@ export default async function BoardLayout(props: { children: ReactNode; params: 
   return (
     <ClientMessages locale={locale} namespaces={['board']}>
       {props.children}
-      <BoardBranch />
+      <Suspense fallback={null}>
+        <BoardBranch />
+      </Suspense>
     </ClientMessages>
   );
 }

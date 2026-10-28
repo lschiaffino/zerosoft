@@ -751,6 +751,17 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
             });
             if (!res.ok) return { error: `robot_${res.error}` };
             const run = res.run;
+            // Un robot que usó un login o una sesión guardada (captured_by) trae
+            // datos de la persona que lo armó: no se devuelven a la conversación.
+            if (run.capturedBy) {
+              return {
+                runId: run.id,
+                status: run.status,
+                ...(run.error ? { error: run.error } : {}),
+                warnings: run.warnings,
+                note: 'robot_uses_login: its data is private and is not shared into this conversation',
+              };
+            }
             return {
               runId: run.id,
               status: run.status,

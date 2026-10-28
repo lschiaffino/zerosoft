@@ -5,6 +5,7 @@ import CrmObjectsBranch from '@/components/crm/CrmObjectsBranch';
 import OfflineSync from '@/components/crm/OfflineSync';
 import CallDock from '@/components/crm/CallDock';
 import '@/styles/crm.css';
+import '@/styles/import-shared.css';
 import '@/styles/crm-records.css';
 import '@/styles/crm-ai.css';
 import '@/styles/track-triage.css';

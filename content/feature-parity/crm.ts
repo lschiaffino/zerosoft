@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'HubSpot',
   alsoCompared: ['Pipedrive', 'Attio'],
-  lastReviewed: '2026-10-25',
+  lastReviewed: '2026-10-28',
   areas: [
     { id: 'records', label: { en: 'Data model and records', es: 'Modelo de datos y registros', pt: 'Modelo de dados e registros' } },
     { id: 'pipeline', label: { en: 'Pipeline and deals', es: 'Pipeline y deals', pt: 'Pipeline e negócios' } },
@@ -627,7 +627,11 @@ const parity: ProductParity = {
       id: 'api-migration',
       area: 'import-export',
       label: { en: 'Direct migration from HubSpot or Pipedrive by API', es: 'Migración directa por API desde HubSpot o Pipedrive', pt: 'Migração direta por API da HubSpot ou Pipedrive' },
-      detail: { en: 'HubSpot and Pipedrive by API, with a preview first and re-imports that skip what already came over; HubSpot tags, lists and attachments are not imported', es: 'HubSpot y Pipedrive por API, con vista previa y reimport que saltea lo ya traído; no trae tags, listas ni adjuntos de HubSpot', pt: 'HubSpot e Pipedrive por API, com prévia e reimportação que pula o que já veio; não traz tags, listas nem anexos da HubSpot' },
+      detail: {
+        en: 'From Settings › Import with a private app token: contacts, companies, deals with pipelines and stages, owners matched by email (the missing ones get an invitation), notes, calls, meetings, tasks and emails, associations, custom properties and lists (as tags). Preview first, respects HubSpot rate limits, resumes if it stops, and importing again updates instead of duplicating. File attachments are not imported',
+        es: 'Desde Ajustes › Importar con el token de una app privada: contactos, empresas, deals con pipelines y etapas, owners por email (a los que faltan se los invita), notas, llamadas, reuniones, tareas y emails, asociaciones, propiedades propias y listas (como etiquetas). Con vista previa, respeta los límites de HubSpot, sigue si se corta y reimportar actualiza en vez de duplicar. No trae los archivos adjuntos',
+        pt: 'Em Configurações › Importar com o token de um app privado: contatos, empresas, negócios com pipelines e etapas, owners pelo email (quem falta recebe convite), notas, ligações, reuniões, tarefas e emails, associações, propriedades personalizadas e listas (como etiquetas). Com prévia, respeita os limites da HubSpot, continua se parar e reimportar atualiza em vez de duplicar. Não traz os anexos',
+      },
       status: 'have',
       competitorHas: true,
     },

@@ -114,3 +114,15 @@ export function deriveInputName(label: string): string {
 export function nameFollowsLabel(name: string, label: string): boolean {
   return name === '' || /^input\d+$/.test(name) || name === deriveInputName(label);
 }
+
+/**
+ * Paso del log ("3", o "3.2.1" = paso 1 del loop del paso 3, elemento 2) →
+ * índice en el robot: { index, child }.
+ */
+export function stepPath(label: string): { index: number; child: number | null } | null {
+  const parts = label.split('.').map((p) => Number(p));
+  if (!parts.length || parts.some((n) => !Number.isInteger(n) || n < 1)) return null;
+  if (parts.length === 1) return { index: parts[0] - 1, child: null };
+  if (parts.length === 3) return { index: parts[0] - 1, child: parts[2] - 1 };
+  return null;
+}

@@ -399,3 +399,31 @@
   .robots-home .table th:nth-child(n + 3),
   .robots-home .table td:nth-child(n + 3) { display: none; }
 }
+
+/* ---------- Paridad: datos, integraciones, IA y lote ---------- */
+.robots-data { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.robots-data-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; min-width: 0; }
+.robots-data-bar .btn-group { flex-wrap: wrap; }
+.robots-data-search { flex: 1 1 200px; min-width: 0; max-width: 320px; }
+.robots-data-table td { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.robots-data-table tr[data-status='removed'] td { color: var(--brand-gray-2); }
+.robots-ai-col { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr) minmax(200px, 2fr) auto; gap: 8px 12px; align-items: end; }
+.robots-ai-col .robots-wide { grid-column: auto; }
+.robots-fallbacks { margin-top: 10px; font-size: 0.8125rem; }
+.robots-fallbacks > summary { cursor: pointer; color: var(--brand-gray-1); width: fit-content; }
+.robots-fallbacks > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.robots-fallbacks[open] > summary { margin-bottom: 8px; }
+.robots-mapping { border: 0; padding: 0; margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.robots-preview-steps { margin: 0; padding-left: 20px; font-size: 0.8125rem; display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
+.robots-run-extras { margin: 0; padding-left: 18px; font-size: 0.8125rem; display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
+.robots-log-warn { color: var(--warn-ink); }
+.robots-fix { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.robots-fix .robots-note-action { width: 100%; }
+.robots-usage-detail { font-size: 0.875rem; }
+.robots-usage-detail > summary { cursor: pointer; color: var(--brand-gray-1); width: fit-content; margin-bottom: 8px; }
+.robots-usage-detail > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.robots-template .data { color: var(--brand-gray-1); overflow-wrap: anywhere; }
+@media (max-width: 720px) {
+  .robots-ai-col { grid-template-columns: 1fr; }
+  .robots-data-search { max-width: none; }
+}

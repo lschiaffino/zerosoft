@@ -90,7 +90,16 @@ interface Report {
  * con mapeo de columnas.
  * Primero una vista previa con conteos y mapeo; después se confirma.
  */
-export default function TrackImportPanel({ isAdmin }: { isAdmin: boolean }) {
+/** `initialSource`: fuente ya elegida (el hub de importación); `showExport`: la sección de exportar (en Ajustes de Track). */
+export default function TrackImportPanel({
+  isAdmin,
+  initialSource,
+  showExport = true,
+}: {
+  isAdmin: boolean;
+  initialSource?: string;
+  showExport?: boolean;
+}) {
   const t = useTranslations('track.importer');
   const errorText = useImportErrorText();
   const readFailedText = useReadFailedText();
@@ -160,11 +169,11 @@ export default function TrackImportPanel({ isAdmin }: { isAdmin: boolean }) {
         {body}
         {!loading && (
           <div hidden={!showForm}>
-            <ImportForm projects={projects} onCreate={create} jobStatus={job?.status ?? null} />
+            <ImportForm projects={projects} onCreate={create} jobStatus={job?.status ?? null} initialSource={initialSource} />
           </div>
         )}
       </FormSection>
-      <ExportSection projects={projects} />
+      {showExport && <ExportSection projects={projects} />}
     </div>
   );
 }
@@ -173,13 +182,15 @@ function ImportForm({
   projects,
   onCreate,
   jobStatus,
+  initialSource,
 }: {
   projects: ProjectOption[];
   onCreate: (body: Record<string, unknown>) => Promise<ImportJobView | null>;
   jobStatus: ImportJobView['status'] | null;
+  initialSource?: string;
 }) {
   const t = useTranslations('track.importer');
-  const [source, setSource] = useState<Source>('linear');
+  const [source, setSource] = useState<Source>(SOURCES.includes(initialSource as Source) ? (initialSource as Source) : 'linear');
   const [token, setToken] = useState('');
   const [repo, setRepo] = useState('');
   const [site, setSite] = useState('');

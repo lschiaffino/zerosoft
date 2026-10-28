@@ -347,8 +347,10 @@
     "domains": "Domínios",
     "keywords": {
       "billing": "faturamento, faturas, assinatura, pagamento, billing, plano",
-      "domains": "domínio próprio, dns, links curtos, domains"
-    }
+      "domains": "domínio próprio, dns, links curtos, domains",
+      "import": "importar migrar trazer token"
+    },
+    "importFrom": "Importar de {source} para o {app}"
   },
   "workspace": {
     "title": "Dados do workspace",
@@ -438,5 +440,213 @@
       "aiUsage": "Uso de IA do workspace",
       "recorder": "Gravador de robôs"
     }
+  },
+  "importHub": {
+    "title": "Importar",
+    "desc": "Traga seus dados das ferramentas que você usa hoje. Conecte com um token ou envie uma exportação, revise o que entra e comece. Importar de novo atualiza o que já está aqui em vez de duplicar.",
+    "safety": "Os tokens ficam guardados criptografados só enquanto a importação roda e são apagados quando ela termina, falha ou é cancelada. Nunca são mostrados de novo nem ficam nos logs.",
+    "memberNote": "Só quem administra o workspace pode importar para o CRM, Track, Cal, Link e Notion por API. Qualquer membro pode importar arquivos para o Docs e o Notes.",
+    "recentTitle": "Importações recentes",
+    "recentDesc": "As importações deste workspace em todos os apps. Abra uma para ver o progresso ou o relatório.",
+    "recentEmpty": "Ainda não há importações. Escolha uma fonte abaixo para começar.",
+    "recentCrm": "{contacts, number} contatos, {companies, number} empresas, {deals, number} negócios",
+    "recentCreatedUpdated": "{created, number} criados, {updated, number} atualizados",
+    "recentItems": "{count, plural, one {# item lido} other {# itens lidos}}",
+    "status": {
+      "preview": "Aguardando revisão",
+      "queued": "Na fila",
+      "running": "Rodando",
+      "fetching": "Lendo",
+      "importing": "Importando",
+      "uploading": "Enviando",
+      "done": "Pronto",
+      "failed": "Com erro",
+      "cancelled": "Cancelado"
+    },
+    "appTitle": "Para o {app}",
+    "appDesc": {
+      "crm": "Contatos, empresas e negócios com pipelines, owners, atividade, propriedades personalizadas e listas.",
+      "docs": "Páginas com sua árvore, bancos de dados com suas linhas e arquivos.",
+      "track": "Issues com projetos, status, etiquetas e comentários.",
+      "cal": "Tipos de evento, disponibilidade e próximas reservas.",
+      "link": "Links curtos com suas etiquetas.",
+      "notes": "Notas com seus anexos."
+    },
+    "auth": {
+      "token": "Token de API",
+      "file": "Arquivo exportado"
+    },
+    "adminOnly": "Só admins",
+    "adminOnlyLong": "Só quem administra o workspace pode importar do Notion por API. Peça a um admin, ou importe um arquivo exportado do Notion.",
+    "noDestination": "Você não pode criar páginas no Docs nem em nenhum teamspace. Peça acesso a um admin.",
+    "importCta": "Importar",
+    "importFromLabel": "Importar de {source} para o {app}",
+    "entities": {
+      "contacts": "contatos",
+      "companies": "empresas",
+      "deals": "negócios",
+      "pipelines": "pipelines e etapas",
+      "owners": "owners",
+      "activities": "notas, ligações, reuniões, tarefas e emails",
+      "customFields": "propriedades personalizadas",
+      "lists": "listas (como etiquetas)",
+      "pages": "páginas e subpáginas",
+      "databases": "bancos de dados com suas linhas",
+      "files": "imagens e arquivos",
+      "links": "links e menções entre páginas",
+      "issues": "issues",
+      "projects": "projetos",
+      "states": "status",
+      "labels": "etiquetas",
+      "comments": "comentários",
+      "eventTypes": "tipos de evento",
+      "availability": "disponibilidade",
+      "bookings": "reservas",
+      "tags": "etiquetas",
+      "notes": "notas",
+      "shortLinks": "links curtos"
+    },
+    "backAll": "Todas as fontes",
+    "detailTitle": "{source} para o {app}",
+    "detailDesc": {
+      "token": "Crie um token só de leitura no {source}, cole abaixo e revise o que entra antes de importar.",
+      "file": "Exporte seu conteúdo do {source} e envie o arquivo abaixo. Você revisa o que entra antes de importar."
+    },
+    "howtoToken": "Como conseguir o token do {source}",
+    "howtoFile": "Como exportar do {source}",
+    "scopesTitle": "Permissões que o token precisa (só leitura)",
+    "capabilitiesTitle": "Capacidades que a integração precisa",
+    "openTokenPage": "Abrir o {source} para criar o token",
+    "openExportPage": "Abrir o {source}",
+    "officialDocs": "Documentação do {source}",
+    "openImporter": "Abrir o importador do {app}",
+    "steps": {
+      "hubspot": {
+        "1": "No HubSpot, abra Configurações › Integrações › Apps privados (em contas novas: Desenvolvimento › Apps legados) e crie um app privado.",
+        "2": "Dê um nome (por exemplo, importação zerosoft). Em Escopos, adicione as permissões de leitura abaixo. Nada é escrito no HubSpot.",
+        "3": "Crie o app e copie o token de acesso (começa com pat-).",
+        "4": "Cole abaixo e conecte. Testamos o token e mostramos o que vai entrar: quantidades, owners, pipelines e propriedades personalizadas.",
+        "5": "Associe cada owner do HubSpot a uma pessoa do workspace (batem pelo email) ou convide quem falta, e comece."
+      },
+      "pipedrive": {
+        "1": "No Pipedrive, abra seu avatar › Preferências pessoais › API.",
+        "2": "Copie seu token pessoal de API. Use uma conta admin para trazer os registros de todas as pessoas.",
+        "3": "Cole abaixo, revise a prévia e comece."
+      },
+      "notionApi": {
+        "1": "Abra notion.so/profile/integrations e crie uma nova integração interna para o seu workspace.",
+        "2": "Em Capacidades, deixe Ler conteúdo ativado e ative Ler informações do usuário, incluindo endereços de email, para as pessoas baterem com os membros. Não precisa inserir nem atualizar.",
+        "3": "Copie o Segredo de integração interna (começa com ntn_ ou secret_).",
+        "4": "No Notion, em cada página de primeiro nível que quiser trazer: ••• › Conexões › adicione sua integração. As subpáginas e bancos de dados vêm junto.",
+        "5": "Cole o segredo abaixo, escolha para onde vão as páginas, revise as quantidades e comece."
+      },
+      "notionZip": {
+        "1": "No Notion, abra Configurações › Geral › Exportar todo o conteúdo do espaço de trabalho (ou ••• › Exportar em uma página).",
+        "2": "Escolha Markdown e CSV, inclua subpáginas e arquivos, e baixe o .zip.",
+        "3": "Envie o .zip abaixo. Exportações grandes são enviadas em partes."
+      },
+      "confluence": {
+        "1": "No Confluence, abra Configurações do espaço › Exportar espaço e escolha HTML.",
+        "2": "Baixe o .zip e envie abaixo."
+      },
+      "gdocs": {
+        "1": "No Google Drive, selecione os documentos (ou uma pasta) e baixe: o Drive compacta como .docx.",
+        "2": "Envie o .zip ou os .docx abaixo."
+      },
+      "linear": {
+        "1": "No Linear, abra Settings › Account › Security & access › Personal API keys e crie uma key nova.",
+        "2": "Dê acesso de leitura (nada é escrito no Linear) e copie.",
+        "3": "Cole abaixo e escolha o projeto de destino."
+      },
+      "jira": {
+        "1": "Abra id.atlassian.com › Segurança › Tokens de API e crie um token de API.",
+        "2": "Copie. Você também precisa do email dessa conta Atlassian e do endereço do seu site (https://acme.atlassian.net).",
+        "3": "Cole abaixo com uma chave de projeto (ENG) ou uma consulta JQL."
+      },
+      "github": {
+        "1": "No GitHub, abra Settings › Developer settings › Personal access tokens › Fine-grained tokens e gere um token novo.",
+        "2": "Dê acesso ao repositório e as permissões só de leitura abaixo.",
+        "3": "Cole abaixo com o repositório no formato dono/repo."
+      },
+      "asana": {
+        "1": "No Asana, abra seu perfil › Configurações › Apps › Console do desenvolvedor e crie um token de acesso pessoal.",
+        "2": "Cole abaixo com a URL do projeto."
+      },
+      "shortcut": {
+        "1": "No Shortcut, abra Settings › API Tokens e gere um token.",
+        "2": "Cole abaixo. Deixe a busca vazia para trazer todas as stories que não estão arquivadas."
+      },
+      "trackCsv": {
+        "1": "Exporte suas issues em CSV pela sua ferramenta (Linear e Jira têm presets).",
+        "2": "Envie o arquivo abaixo e mapeie as colunas."
+      },
+      "calendly": {
+        "1": "No Calendly, abra Integrações e apps › API e webhooks.",
+        "2": "Em Tokens de acesso pessoal, gere um token e copie.",
+        "3": "Cole abaixo. As próximas reservas são opcionais."
+      },
+      "bitly": {
+        "1": "No Bitly, abra Settings › API e gere um token de acesso.",
+        "2": "Abra o importador do Link e cole lá."
+      },
+      "evernote": {
+        "1": "No Evernote, exporte um caderno como .enex (clique direito no caderno › Exportar caderno).",
+        "2": "No Notes, use Importar na barra lateral e escolha o arquivo .enex."
+      }
+    },
+    "notion": {
+      "loading": "Procurando uma importação em andamento…",
+      "token": "Segredo de integração interna",
+      "tokenHelp": "Testamos com um pedido de leitura antes de importar qualquer coisa.",
+      "destination": "Para onde vão as páginas",
+      "destWorkspace": "Workspace (primeiro nível)",
+      "connect": "Conectar e ver o que há",
+      "checking": "Testando o token…",
+      "connectedTo": "Conectado a {account}.",
+      "connected": "Conectado.",
+      "stat": {
+        "pages": "Páginas",
+        "databases": "Bancos de dados",
+        "rows": "Linhas de bancos",
+        "people": "Pessoas",
+        "created": "Criadas",
+        "updated": "Atualizadas",
+        "skipped": "Puladas",
+        "failed": "Com erro",
+        "files": "Arquivos"
+      },
+      "emptyShare": "A integração ainda não vê nenhuma página. No Notion, abra uma página › ••• › Conexões, adicione a integração e conecte de novo.",
+      "truncated": "Há mais de {max, number} itens: entram os primeiros {max, number}. Compartilhe menos páginas de primeiro nível e importe o resto depois.",
+      "alreadyImported": "{count, plural, one {# item já foi importado} other {# itens já foram importados}} antes: são atualizados, não duplicados.",
+      "noEmails": "A integração não consegue ler emails, então as pessoas entram como nomes. Ative Ler informações do usuário, incluindo endereços de email, para bater com os membros.",
+      "rootsTitle": "Primeiro nível",
+      "kindDatabase": "banco de dados",
+      "whatToImport": "O que importar",
+      "includePages": "Páginas e subpáginas ({count, number})",
+      "includeDatabases": "Bancos de dados ({count, number}) com suas linhas ({rows, number})",
+      "includeFiles": "Imagens e arquivos",
+      "includeFilesHelp": "São copiados para o seu armazenamento, até 10 MB cada. Sem eles, o nome do arquivo fica na página.",
+      "dedupe": "Links e menções entre páginas apontam para as páginas importadas. Fórmulas e rollups entram com o valor atual.",
+      "confirm": "Importar",
+      "doneTitle": "Importação concluída.",
+      "doneSummary": "{pages, plural, one {# página} other {# páginas}}, {databases, plural, one {# banco de dados} other {# bancos de dados}} e {rows, plural, one {# linha} other {# linhas}}.",
+      "filesSkipped": "{count, plural, one {# arquivo não foi copiado} other {# arquivos não foram copiados}} (grande demais, tipo não permitido ou indisponível): o nome fica na página.",
+      "errorsTitle": "{count, plural, one {# problema} other {# problemas}}",
+      "contentTruncated": "página muito longa, entrou a primeira parte",
+      "untitled": "Sem título",
+      "openDocs": "Abrir o Docs",
+      "again": "Importar de novo",
+      "failedTitle": "A importação parou.",
+      "retry": "Tentar de novo",
+      "dismiss": "Fechar",
+      "destinationIs": "Vai para: {dest}",
+      "destTeamspace": "um teamspace",
+      "estimate": "{minutes, plural, =0 {leva menos de um minuto} one {leva cerca de # minuto} other {leva cerca de # minutos}} (o Notion permite 3 pedidos por segundo)",
+      "localEdited": "{count, plural, one {# página importada foi editada no zerosoft} other {# páginas importadas foram editadas no zerosoft}} depois da última importação. Não são sobrescritas, a não ser que você escolha substituí-las.",
+      "overwrite": "Substituir pelo que está no Notion (sobrescreve as mudanças feitas no zerosoft)",
+      "keptNote": "{count, plural, one {# com mudanças locais, não foi sobrescrito} other {# com mudanças locais, não foram sobrescritos}}.",
+      "notMovedNote": "{count, plural, one {# página importada antes ficou onde estava} other {# páginas importadas antes ficaram onde estavam}}: importar de novo não as move para o novo destino. Se quiser, mova pelo Docs."
+    },
+    "adminOnlySource": "Só quem administra o workspace pode importar do {source} para o {app}. Peça a um admin."
   }
 }

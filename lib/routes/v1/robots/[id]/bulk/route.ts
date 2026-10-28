@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 /**
  * Un robot sobre muchas entradas: una corrida en cola por entrada (máximo
- * 100), que corren de a una. Responde 202 con el lote; el avance se consulta
+ * 1.000), que corren de a una. Responde 202 con el lote; el avance se consulta
  * en GET /api/v1/robots/batches/:id.
  */
 export async function POST(req: Request, props: { params: Promise<{ id: string }> }) {
