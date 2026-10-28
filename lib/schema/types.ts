@@ -8,6 +8,12 @@ export interface UserRow {
   handle?: string | null;
   active_team_id?: string | null;
   seeded_at?: string | null;
+  /** Terminó el onboarding (/app/welcome). Los usuarios de antes de 128 lo tienen = created_at. */
+  onboarded_at?: string | null;
+  /** JSON: { role, sourceTool, goals, entryApp, nameEdited } (lib/onboarding.ts). */
+  profile?: string | null;
+  locale?: string | null;
+  time_zone?: string | null;
   created_at: string;
 }
 
@@ -809,18 +815,33 @@ export interface CrmImportPresetRow {
   created_at: string;
 }
 
+/**
+ * Equipo / ficha del workspace (lib/workspace.ts). `keyed_by`: 'team' para los
+ * equipos de antes de 128 (Track y Chat guardan sus datos bajo el id del
+ * equipo), 'owner' para las fichas nuevas (todo bajo el id del owner).
+ */
 export interface TeamRow {
   id: string;
   name: string;
   owner_id: string;
   created_at: string;
+  keyed_by?: 'owner' | 'team' | string;
+  slug?: string | null;
+  logo_url?: string | null;
+  use_mode?: string | null;
+  size?: string | null;
+  settings?: string;
+  allowed_domains?: string;
+  updated_at?: string | null;
 }
 
 export interface TeamMemberRow {
   team_id: string;
   user_id: string;
-  role: 'owner' | 'member';
+  role: 'owner' | 'admin' | 'member' | 'guest';
   created_at: string;
+  apps?: string;
+  title?: string;
 }
 
 export interface TeamInviteRow {
@@ -828,11 +849,20 @@ export interface TeamInviteRow {
   team_id: string;
   email: string;
   token: string;
-  role: 'owner' | 'member';
+  role: 'owner' | 'admin' | 'member' | 'guest' | string;
   status: 'pending' | 'accepted' | 'revoked';
   invited_by: string;
   created_at: string;
   expires_at: string | null;
+  apps?: string;
+  group_ids?: string;
+  locale?: string;
+  send_count?: number;
+  last_sent_at?: string | null;
+  email_status?: string;
+  email_error?: string;
+  accepted_by?: string | null;
+  accepted_at?: string | null;
 }
 
 // ---------- Docs ----------

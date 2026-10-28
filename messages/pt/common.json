@@ -158,7 +158,8 @@
     "groupTrackCycles": "Cycles",
     "groupTrackMilestones": "Milestones",
     "groupTrackLabels": "Labels",
-    "askDocs": "Perguntar à IA sobre seus docs"
+    "askDocs": "Perguntar à IA sobre seus docs",
+    "groupWorkspaceTeams": "Equipes do workspace"
   },
   "manifesto": {
     "p1": "Um time de dez pessoas paga <strong>US$ 6.000 por ano</strong> por um CRM, US$ 1.440 para agendar reuniões e US$ 420 para encurtar links. Esses preços são calculados por pessoa ou por plano.",

@@ -16,6 +16,7 @@
  * Inserta directo (sin notificaciones ni webhooks: es una mudanza, no
  * actividad nueva).
  */
+import { listOwnerSpacePeople } from './workspace';
 import { getDb, type TrackStatusRow } from './db';
 import {
   getExternalId,
@@ -66,7 +67,7 @@ async function listMembers(job: Pick<ImportJob, 'team_id' | 'workspace_id'>): Pr
       .prepare('SELECT u.id, u.email, u.name FROM team_members m JOIN users u ON u.id = m.user_id WHERE m.team_id = ?')
       .all(job.team_id)) as Member[];
   }
-  return (await db.prepare('SELECT id, email, name FROM users WHERE id = ?').all(job.workspace_id)) as Member[];
+  return (await listOwnerSpacePeople(job.workspace_id, {}, db)).map((p) => ({ id: p.id, email: p.email, name: p.name })) as Member[];
 }
 
 /** Persona de la fuente → miembro: email, nombre, o login igual a la parte local del email. */

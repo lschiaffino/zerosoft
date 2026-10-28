@@ -146,7 +146,8 @@ describe('builder de formularios', () => {
 describe('ajustes del CRM en pestañas', () => {
   it('elige la pestaña: válida, la de Gmail al volver del OAuth, o la primera', () => {
     expect(crmSettingsTab('sales')).toBe('sales');
-    expect(crmSettingsTab('nope')).toBe('team');
+    expect(crmSettingsTab('nope')).toBe('sales');
+    expect(crmSettingsTab('team')).toBe('sales');
     expect(crmSettingsTab(undefined, 'connected')).toBe('integrations');
     expect(crmSettingsTab('data', 'connected')).toBe('data');
   });

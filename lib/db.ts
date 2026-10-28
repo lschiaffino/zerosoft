@@ -192,7 +192,10 @@ export async function upsertUser(u: {
     | undefined;
   if (existing) {
     await db
-      .prepare('UPDATE users SET name = COALESCE(?, name), image = COALESCE(?, image) WHERE id = ?')
+      // El nombre que la persona cambió en zerosoft (onboarding, Ajustes) no lo pisa el de Google.
+      .prepare(
+        "UPDATE users SET name = CASE WHEN json_extract(COALESCE(profile, '{}'), '$.nameEdited') = 1 THEN name ELSE COALESCE(?, name) END, image = COALESCE(?, image) WHERE id = ?",
+      )
       .run(u.name ?? null, u.image ?? null, existing.id);
     return (await db.prepare('SELECT * FROM users WHERE id = ?').get(existing.id)) as UserRow;
   }

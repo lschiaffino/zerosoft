@@ -10,6 +10,12 @@
 /** Header interno con el path + query de la request (lo pone el middleware). */
 export const RETURN_PATH_HEADER = 'x-zs-return-path';
 
+/**
+ * Header interno con el path de una request a la API de una app (lo pone el
+ * middleware, siempre pisado): lib/session.ts lo usa para el acceso por app.
+ */
+export const API_PATH_HEADER = 'x-zs-api-path';
+
 /** Tope del path de vuelta (la cookie de next-auth tiene ~4 KB en total). */
 export const RETURN_PATH_MAX = 1500;
 

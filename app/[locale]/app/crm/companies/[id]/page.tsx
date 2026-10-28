@@ -6,6 +6,7 @@ import ActivityDateFacts from '@/components/crm/ActivityDateFacts';
 import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import { realUserId, requireUser } from '@/lib/session';
+import { workspaceTeamId } from '@/lib/workspace';
 import { canSeeOwner, scopeCompanyDetail, sessionScope, scopeAnd } from '@/lib/crm-visibility';
 import { getDb } from '@/lib/db';
 import { listEmailThreads, mergeTimelineWithThreads } from '@/lib/crm-email';
@@ -77,8 +78,8 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
   const [allTags, recordTags, teamMembers, stageRows] = await Promise.all([
     listTags(user.id),
     tagsForRecords(user.id, 'company', [id]),
-    user.team?.id
-      ? listMembers(user.team.id)
+    workspaceTeamId(user)
+      ? listMembers(workspaceTeamId(user)!)
       : Promise.resolve([{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }]),
     // Nombres de stage para los deals relacionados.
     getDb().prepare('SELECT id, name FROM crm_stages').all() as Promise<Array<{ id: string; name: string }>>,

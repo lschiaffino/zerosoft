@@ -1,0 +1,289 @@
+/*
+ * Workspace: switcher del sidebar, Ajustes › Workspace / Miembros / Equipos,
+ * la página de invitación y el onboarding (/app/welcome). Solo tokens de la
+ * marca (styles/themes/*.css): sin radios grandes ni pills, filetes de 1px.
+ */
+
+/* ---------- Marca del workspace (logo o inicial) ---------- */
+.ws-mark {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+}
+.ws-mark-initial {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+  font-family: var(--font-data);
+  font-size: 11px;
+  line-height: 1;
+}
+.ws-mark-sm { width: 18px; height: 18px; font-size: 10px; }
+img.ws-mark.ws-mark-sm { width: 18px; height: 18px; }
+
+/* ---------- Switcher del sidebar ---------- */
+.ws-switcher { position: relative; flex: 1; min-width: 0; }
+.ws-switcher-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 34px;
+  padding: 2px 4px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-1);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+.ws-switcher-btn:hover { background: var(--ui-hover, var(--brand-enamel)); }
+.ws-switcher-btn[aria-expanded='true'] { border-color: var(--line); background: var(--bg); }
+.ws-switcher-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.ws-switcher-btn > svg { margin-left: auto; color: var(--ink-3); flex-shrink: 0; }
+.ws-switcher-lines { display: flex; flex-direction: column; min-width: 0; flex: 1; line-height: 1.3; }
+.ws-switcher-name { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* En el pie del sidebar el menú abre hacia arriba. */
+.ws-switcher-menu { top: auto; bottom: calc(100% + 6px); left: -46px; right: auto; width: calc(var(--side-w, 240px) - 16px); min-width: 0; max-height: min(70vh, 480px); overflow-y: auto; }
+.ws-switcher-heading { padding: 6px 10px 4px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; font-family: var(--font-data); }
+.ws-switcher-item {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+.ws-switcher-item:disabled { cursor: progress; opacity: 0.7; }
+.ws-switcher-item-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-switcher-item-meta { flex-shrink: 0; font-size: 12px; color: var(--ink-3); }
+.ws-switcher-item.is-current { font-weight: 500; }
+.ws-switcher-item .ws-check { color: var(--ink); }
+.ws-switcher-sep { height: 1px; margin: 4px 6px; background: var(--line); }
+.ws-switcher-error { margin: 6px 10px; }
+
+/* ---------- Ajustes: miembros, invitaciones, equipos ---------- */
+.ws-invite { display: flex; flex-direction: column; gap: 14px; }
+.ws-invite-emails { min-height: 44px; resize: vertical; font-family: var(--font-data); font-size: 13px; }
+.ws-apps { display: flex; flex-direction: column; gap: 8px; }
+.ws-apps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 6px 14px;
+}
+.ws-results { display: flex; flex-direction: column; gap: 0; margin-top: 14px; border-top: 1px solid var(--line); }
+.ws-result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.875rem;
+}
+.ws-result-email { min-width: 0; overflow-wrap: anywhere; }
+.ws-result-status { color: var(--ink-3); }
+.ws-result-sent .ws-result-status { color: var(--ok-ink); }
+.ws-result-failed .ws-result-status,
+.ws-result-limited .ws-result-status,
+.ws-result-invalid .ws-result-status { color: var(--bad-ink); }
+.ws-result .btn { margin-left: auto; }
+.ws-person { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ws-person-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.ws-person-email { font-size: 12px; overflow-wrap: anywhere; }
+.ws-avatar { width: 24px; height: 24px; flex-shrink: 0; border-radius: var(--radius-1); object-fit: cover; }
+.ws-avatar-initial {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-enamel);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  font-size: 11px;
+  font-family: var(--font-data);
+}
+.ws-role-select { min-width: 110px; height: 30px; padding-top: 0; padding-bottom: 0; }
+.ws-cell-muted { color: var(--ink-2); font-size: 0.8125rem; }
+.ws-status-bad { color: var(--bad-ink); font-size: 0.8125rem; }
+.ws-search { max-width: 320px; margin-bottom: 10px; }
+.ws-alone { margin-top: 10px; }
+.ws-owner { margin: 6px 0 0; font-size: 13px; overflow-wrap: anywhere; }
+.ws-logo-row { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 16px; }
+.ws-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+.ws-logo-initial { background: var(--ink); color: var(--bg); font-family: var(--font-data); font-size: 20px; border-color: var(--ink); }
+.ws-logo-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ws-logo-actions .ui-help,
+.ws-logo-actions .ui-error { flex-basis: 100%; margin: 0; }
+.ws-choice-list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--radius-1); }
+.ws-choice { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; cursor: pointer; }
+.ws-choice + .ws-choice { border-top: 1px solid var(--line); }
+.ws-choice input { margin-top: 3px; }
+.ws-choice-text { display: flex; flex-direction: column; gap: 2px; }
+.ws-choice:has(input:checked) { background: var(--bg-soft); }
+.ws-groups { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.ws-group {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.ws-group-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ws-group-name { margin: 0; }
+.ws-group-main .ui-help,
+.ws-group-main .ws-cell-muted { margin: 0; overflow-wrap: anywhere; }
+.ws-groups-uses { margin-top: 12px; }
+.ws-people-list { display: flex; flex-direction: column; max-height: 280px; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius-1); }
+.ws-people-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 10px; }
+.ws-people-row + .ws-people-row { border-top: 1px solid var(--line); }
+.ws-people-row .ui-check span { overflow-wrap: anywhere; }
+.ws-lead { flex-shrink: 0; font-size: 12px; }
+
+/* ---------- Invitación (/invite/[token]) ---------- */
+.ws-invite-card { text-align: center; }
+.ws-invite-logo { width: 44px; height: 44px; margin: 0 auto 6px; font-size: 18px; }
+.ws-accept { display: flex; flex-direction: column; gap: 10px; text-align: left; }
+.ws-accept-warn {
+  margin: 0 0 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--ink);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Onboarding (/app/welcome) ---------- */
+.wl-page {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: 48px 16px;
+  background: var(--bg-soft);
+}
+.wl-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 600px;
+  padding: 28px 28px 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+}
+.wl-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.wl-progress { margin: 0; font-family: var(--font-data); font-size: 12px; color: var(--ink-3); }
+.wl-bar { height: 2px; background: var(--line); }
+.wl-bar span { display: block; height: 100%; background: var(--ink); transition: width 200ms var(--ease, ease); }
+.wl-title { margin: 6px 0 0; font-size: 1.5rem; line-height: 1.2; letter-spacing: -0.01em; outline: none; }
+.wl-sub { margin: -6px 0 0; color: var(--ink-2); font-size: 0.9375rem; line-height: 1.5; }
+.wl-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--ink);
+}
+.wl-notice p { margin: 0; font-size: 0.875rem; }
+.wl-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.wl-option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+.wl-option input,
+.wl-tile input,
+.wl-app input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.wl-option:hover,
+.wl-tile:hover,
+.wl-app:hover { border-color: var(--ink-3); }
+.wl-option.is-on,
+.wl-tile.is-on,
+.wl-app.is-on { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.wl-option:has(input:focus-visible),
+.wl-tile:has(input:focus-visible),
+.wl-app:has(input:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
+.wl-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px; }
+.wl-tiles-sizes { grid-template-columns: repeat(4, 1fr); }
+.wl-tile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.wl-apps { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; }
+.wl-app {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.wl-emails { font-family: var(--font-data); font-size: 13px; resize: vertical; }
+.wl-sample { margin-top: -4px; }
+.wl-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
+.wl-actions-main { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.wl-foot { margin: 0; font-size: 12px; color: var(--ink-3); overflow-wrap: anywhere; }
+
+@media (max-width: 560px) {
+  .wl-page { padding: 16px; }
+  .wl-card { padding: 20px 16px; }
+  .wl-options { grid-template-columns: 1fr; }
+  .wl-tiles-sizes { grid-template-columns: 1fr 1fr; }
+  .wl-actions { flex-wrap: wrap; }
+  .wl-actions-main { flex: 1 1 100%; }
+  .wl-actions-main .btn { flex: 1 1 auto; }
+  .ws-group { flex-direction: column; }
+}
+
+/* Cal: sumar un subequipo entero al pool de hosts (EventTypeEditor). */
+.cal-host-groups { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+
+/* Grupos de opciones fuera de Ajustes (onboarding, modales): sin el borde del fieldset del navegador. */
+.wl-card .st-fieldset,
+.ui-modal .st-fieldset,
+.qm .st-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.wl-card .st-fieldset > legend,
+.qm .st-fieldset > legend { padding: 0; margin-bottom: 8px; }

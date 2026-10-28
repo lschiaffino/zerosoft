@@ -287,7 +287,7 @@ export async function workspacePeople(userId: string, db: Db = getDb()): Promise
     .prepare(
       `SELECT id, email, COALESCE(name, '') AS name FROM users
        WHERE id = ? OR id IN (
-         SELECT m.user_id FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ?)`,
+         SELECT m.user_id FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ? AND m.role != 'guest')`,
     )
     .all(userId, userId)) as Person[];
 }

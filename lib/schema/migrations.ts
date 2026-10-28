@@ -3,6 +3,7 @@ import { baseline } from './baseline';
 import { pickHandle } from './handles';
 import { stripSyncedChildren, syncedChildren } from '../docs-synced-refs';
 import type { DocsBlock } from '../docs-types';
+import { workspaceTeamsUp } from './workspace-migrations';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -6356,6 +6357,13 @@ export const MIGRATIONS: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_flow_runs_held ON flow_runs(flow_id, held) WHERE held = 1;
       `);
     },
+  },
+  {
+    // Workspace como equipo de todas las apps: ficha por owner, roles con
+    // guest y acceso por app, invitaciones por email, onboarding y subequipos
+    // del workspace. Aditiva (ver lib/schema/workspace-migrations.ts).
+    id: '128_workspace_teams',
+    up: workspaceTeamsUp,
   },
 ];
 

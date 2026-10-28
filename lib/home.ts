@@ -32,23 +32,25 @@ export interface HomeUser {
 }
 
 /**
- * Modo del workspace (personal o equipo) desde teams.use_mode. La columna
- * llega con la migración 100: sin ella (o sin fila) la consulta falla o viene
- * vacía y el modo es 'team'.
+ * Modo del workspace (personal o equipo) desde teams.use_mode de la ficha
+ * del workspace activo (lib/workspace.ts). Sin dato, 'team'.
  */
-export const getWorkspaceMode = cache(async (user: { id: string; team?: { id: string } | null }): Promise<WorkspaceMode> => {
-  try {
-    const db = getDb();
-    const row = (user.team
-      ? await db.prepare('SELECT use_mode FROM teams WHERE id = ?').get(user.team.id)
-      : await db.prepare('SELECT use_mode FROM teams WHERE owner_id = ? ORDER BY created_at ASC LIMIT 1').get(user.id)) as
-      | { use_mode?: string | null }
-      | undefined;
-    return normalizeWorkspaceMode(row?.use_mode);
-  } catch {
-    return normalizeWorkspaceMode(null);
-  }
-});
+export const getWorkspaceMode = cache(
+  async (user: { id: string; team?: { id: string } | null; workspace?: { use_mode?: string | null } | null }): Promise<WorkspaceMode> => {
+    if (user.workspace) return normalizeWorkspaceMode(user.workspace.use_mode);
+    try {
+      const db = getDb();
+      const row = (user.team
+        ? await db.prepare('SELECT use_mode FROM teams WHERE id = ?').get(user.team.id)
+        : await db.prepare('SELECT use_mode FROM teams WHERE owner_id = ? ORDER BY created_at ASC, id ASC LIMIT 1').get(user.id)) as
+        | { use_mode?: string | null }
+        | undefined;
+      return normalizeWorkspaceMode(row?.use_mode);
+    } catch {
+      return normalizeWorkspaceMode(null);
+    }
+  },
+);
 
 /** Momento del día en la zona de la persona: para el saludo. */
 export function dayPart(timeZone: string, at: Date = new Date()): 'morning' | 'afternoon' | 'evening' {

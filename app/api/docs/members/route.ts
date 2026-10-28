@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
+import { workspaceTeamId } from '@/lib/workspace';
 import { listMembers } from '@/lib/teams';
 import { canReadPage, DOC_INTERNAL_WRITE, getDocPageRow, listPageMentionables } from '@/lib/docs';
 import type { DocsMentionableUser } from '@/lib/docs-types';
@@ -25,8 +26,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ rows: await listPageMentionables(page) });
   }
 
-  const rows: DocsMentionableUser[] = user.team
-    ? (await listMembers(user.team.id)).map((m) => ({
+  const rows: DocsMentionableUser[] = workspaceTeamId(user)
+    ? (await listMembers(workspaceTeamId(user)!)).map((m) => ({
         id: m.user_id,
         name: m.name,
         email: m.email,

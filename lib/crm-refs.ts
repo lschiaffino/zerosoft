@@ -24,7 +24,7 @@ export async function isWorkspacePerson(userId: string, personId: string, db: Db
   return !!(await db
     .prepare(
       `SELECT 1 FROM team_members m JOIN teams t ON t.id = m.team_id
-       WHERE t.owner_id = ? AND m.user_id = ? LIMIT 1`,
+       WHERE t.owner_id = ? AND m.user_id = ? AND m.role != 'guest' LIMIT 1`,
     )
     .get(userId, personId));
 }

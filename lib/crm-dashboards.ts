@@ -21,6 +21,7 @@ import {
 import { listMembers } from './teams';
 import { getCustomReport, runReport, ReportError } from './crm-custom-reports';
 import type { SessionUser } from './session';
+import { workspaceTeamId } from './workspace';
 import {
   WIDGET_DEFAULT_SIZE,
   type DashboardDataRequest,
@@ -300,8 +301,8 @@ export interface DashboardOwner {
 
 /** Owners del workspace (team members o el propio usuario) para reportes por owner. */
 export async function listReportOwners(user: SessionUser, scope?: OwnerScope): Promise<DashboardOwner[]> {
-  const members = user.team?.id
-    ? await listMembers(user.team.id)
+  const members = workspaceTeamId(user)
+    ? await listMembers(workspaceTeamId(user)!)
     : [{ user_id: user.id, email: user.email, name: user.name ?? null }];
   return members
     .filter((m) => !scope || scope.includes(m.user_id))

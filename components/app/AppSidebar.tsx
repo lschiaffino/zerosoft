@@ -23,6 +23,7 @@ import {
 import { PRODUCT_CONFIG, isBuildingProduct, type ProductKey } from '@/lib/products';
 import { DEFAULT_WORKSPACE_MODE, featuredApps, moreAppsByCategory, type WorkspaceMode } from '@/lib/workspace-mode';
 import NotificationBell from './NotificationBell';
+import WorkspaceSwitcher, { type SwitcherEntry } from './WorkspaceSwitcher';
 import Logo from '@/components/brand/Logo';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import ThemeSwitcher from '@/components/theme/ThemeSwitcher';
@@ -115,6 +116,7 @@ export default function AppSidebar({
   demo,
   tasksDue = 0,
   teamName = null,
+  workspaces = [],
   crumb = null,
   mode = DEFAULT_WORKSPACE_MODE,
   docsCanCreate = true,
@@ -128,6 +130,8 @@ export default function AppSidebar({
   demo: boolean;
   tasksDue?: number;
   teamName?: string | null;
+  /** Workspaces de la persona (el propio y los ajenos), para el switcher de arriba del sidebar. */
+  workspaces?: SwitcherEntry[];
   /** Sección actual (AppTopbar), se muestra en la banda. */
   crumb?: ReactNode;
 }) {
@@ -629,18 +633,15 @@ export default function AppSidebar({
                 {(user.name ?? user.email).slice(0, 1).toUpperCase()}
               </span>
             )}
-            {/* Con un equipo activo, el equipo va en lugar del mail (que queda en el title):
-                arriba de la lista empujaba las últimas apps bajo el pliegue. */}
-            <div className="side-user-meta side-label" title={teamName ? `${user.email} · ${labels.team}: ${teamName}` : undefined}>
-              <p className="side-user-name">{user.name ?? user.email}</p>
-              {teamName ? (
-                <p className="side-user-mail side-team" data-testid="side-team">
-                  {labels.team}: {teamName}
-                </p>
-              ) : (
+            {/* El pie es el switcher de workspace (no suma alto: las apps siguen entrando en 900px). */}
+            {workspaces.length > 0 ? (
+              <WorkspaceSwitcher entries={workspaces} collapsed={collapsed} person={user.name ?? user.email} />
+            ) : (
+              <div className="side-user-meta side-label" title={teamName ? `${user.email} · ${labels.team}: ${teamName}` : undefined}>
+                <p className="side-user-name">{user.name ?? user.email}</p>
                 <p className="side-user-mail">{user.email}</p>
-              )}
-            </div>
+              </div>
+            )}
             {demo ? (
               <Link href="/" className="side-signout side-label">
                 {labels.signOut}

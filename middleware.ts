@@ -5,7 +5,7 @@ import { routing } from './i18n/routing';
 import { isAppHost } from './lib/hosts';
 import { surfaceForHost, surfaceRewritePath } from './lib/host-rewrite';
 import { requestLocale } from './lib/request-locale';
-import { RETURN_PATH_HEADER } from './lib/return-path';
+import { API_PATH_HEADER, RETURN_PATH_HEADER } from './lib/return-path';
 import { quickCreateRedirect } from './lib/quick-create-redirect';
 import { DOCS_SITE_HEADER } from './lib/docs-site-header';
 import { BRAND_COOKIE, BRAND_HEADER, BRAND_PARAM, DEFAULT_BRAND, forcedBrandForPath, isBrandTheme } from './lib/brand-theme';
@@ -145,6 +145,13 @@ function docsSiteRewrite(req: NextRequest, site: { handle: string; locale: strin
 }
 
 export default async function middleware(incoming: NextRequest) {
+  // APIs de las apps: solo el path en un header interno (siempre pisado), para
+  // el acceso por app de un workspace ajeno (lib/session.ts).
+  if (incoming.nextUrl.pathname.startsWith('/api/')) {
+    const headers = new Headers(incoming.headers);
+    headers.set(API_PATH_HEADER, incoming.nextUrl.pathname);
+    return NextResponse.next({ request: { headers } });
+  }
   const switched = brandSwitch(incoming);
   if (switched) return switched;
   const req = withForcedBrand(incoming);
@@ -259,5 +266,9 @@ function withReturnPath(req: NextRequest): NextRequest {
 
 export const config = {
   // Todo excepto: api/, r/ (handler de redirects), s/ (social preview), internos de Next y archivos estáticos.
-  matcher: ['/((?!api/|r/|s/|_next/|_vercel/|apple-icon|.*\\..*).*)'],
+  // Las APIs de las apps entran solo para el header de acceso por app (arriba).
+  matcher: [
+    '/((?!api/|r/|s/|_next/|_vercel/|apple-icon|.*\\..*).*)',
+    '/api/:family(crm|track|docs|notes|board|boards|links|calendar|chat|groups|agents|flow|robots|voice|rec|talk)/:path*',
+  ],
 };

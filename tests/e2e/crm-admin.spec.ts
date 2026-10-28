@@ -11,10 +11,8 @@ test('ajustes: seis pestañas, cada una con lo suyo; la moneda ya no trae la reg
   await page.goto('/en/app/crm/settings', { waitUntil: 'networkidle' });
   const nav = page.getByRole('navigation', { name: 'Settings' });
   await expect(nav.getByRole('link')).toHaveCount(6);
-  await expect(nav.getByRole('link', { name: 'Team' })).toHaveAttribute('aria-current', 'page');
-
-  await nav.getByRole('link', { name: 'Sales' }).click();
-  await expect(page).toHaveURL(/tab=sales/);
+  await expect(nav.getByRole('link', { name: 'Sales' })).toHaveAttribute('aria-current', 'page');
+  await expect(nav.getByRole('link', { name: 'Team' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Pipelines' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Quotes' })).toBeVisible();
   await expect(page.getByTestId('quote-moves-deal')).toBeVisible();
@@ -29,6 +27,13 @@ test('ajustes: seis pestañas, cada una con lo suyo; la moneda ya no trae la reg
 test('ajustes: un link viejo con ancla abre la pestaña nueva', async ({ page }) => {
   await page.goto('/en/app/crm/settings#quotas', { waitUntil: 'networkidle' });
   await expect(page).toHaveURL(/tab=sales/);
+});
+
+test('ajustes: la pestaña vieja de Equipo lleva a Ajustes › Miembros', async ({ page }) => {
+  await page.goto('/en/app/crm/settings?tab=team', { waitUntil: 'networkidle' });
+  await expect(page).toHaveURL(/\/en\/app\/settings\/members/);
+  await page.goto('/en/app/crm/settings?tab=access', { waitUntil: 'networkidle' });
+  await expect(page.getByRole('link', { name: 'Settings › Members' })).toBeVisible();
 });
 
 test('formularios: pestañas sin perder cambios, URL propia en Avanzado y un solo Guardar', async ({ page, request }) => {

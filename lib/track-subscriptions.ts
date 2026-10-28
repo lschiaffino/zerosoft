@@ -10,6 +10,7 @@
  * Los avisos (comentarios, cambios de status y del issue) van a la bandeja de
  * Track de los suscriptos, nunca a quien hizo el cambio.
  */
+import { ownerSpaceSql } from './workspace';
 import { getDb } from './db';
 import { trackVisibleExpr } from './track-access';
 
@@ -70,7 +71,9 @@ export async function listIssueSubscriberIds(issueId: string): Promise<string[]>
            SELECT user_id FROM track_issue_subscriptions WHERE issue_id = issue.id AND subscribed = 0
          )
          AND (
-           (issue.team_id IS NULL AND c.user_id = issue.owner_id)
+           (issue.team_id IS NULL AND ${ownerSpaceSql('issue.owner_id', 'c.user_id')} AND EXISTS (
+             SELECT 1 FROM track_projects op WHERE op.id = issue.project_id AND ${trackVisibleExpr('op', 'c.user_id')}
+           ))
            OR (issue.team_id IS NOT NULL AND EXISTS (
              SELECT 1 FROM team_members m WHERE m.team_id = issue.team_id AND m.user_id = c.user_id
            ) AND EXISTS (

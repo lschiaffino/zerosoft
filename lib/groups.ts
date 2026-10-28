@@ -2023,7 +2023,7 @@ export async function listPeople(ws: string): Promise<GroupsPerson[]> {
   const rows = (await db
     .prepare(
       `SELECT DISTINCT u.id, u.name, u.email FROM team_members m JOIN teams t ON t.id = m.team_id JOIN users u ON u.id = m.user_id
-       WHERE t.owner_id = ? ORDER BY COALESCE(u.name, u.email)`,
+       WHERE t.owner_id = ? AND m.role != 'guest' ORDER BY COALESCE(u.name, u.email)`,
     )
     .all(ws)) as GroupsPerson[];
   const people: GroupsPerson[] = owner ? [{ ...owner, name: owner.name ?? '' }] : [];

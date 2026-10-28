@@ -679,7 +679,8 @@
     "schedulingLabel": "Cómo se asignan",
     "schedulingRoundRobin": "Round-robin",
     "schedulingCollective": "Colectivo",
-    "schedulingCollectiveHelp": "Participan todos los anfitriones elegidos: solo se ofrece un horario si todos están libres."
+    "schedulingCollectiveHelp": "Participan todos los anfitriones elegidos: solo se ofrece un horario si todos están libres.",
+    "hostsFromTeam": "Sumar un equipo entero:"
   },
   "errorPage": {
     "title": "No se pudo cargar esta pantalla",

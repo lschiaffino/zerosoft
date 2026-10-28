@@ -7,6 +7,7 @@ import ActivityDateFacts from '@/components/crm/ActivityDateFacts';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { realUserId, requireUser } from '@/lib/session';
+import { workspaceTeamId } from '@/lib/workspace';
 import { canSeeOwner, ownerScopeSql, scopeContactDetail, sessionScope } from '@/lib/crm-visibility';
 import { scoreTier } from '@/lib/crm-scoring-schema';
 import { contactScores, listScores } from '@/lib/crm-scoring';
@@ -98,8 +99,8 @@ export default async function ContactDetailPage(props: {
   const [allTags, recordTags, teamMembers, eventTypes] = await Promise.all([
     listTags(user.id),
     tagsForRecords(user.id, 'contact', [id]),
-    user.team?.id
-      ? listMembers(user.team.id)
+    workspaceTeamId(user)
+      ? listMembers(workspaceTeamId(user)!)
       : Promise.resolve([{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }]),
     listEventTypes(user.id, { activeOnly: true }),
   ]);

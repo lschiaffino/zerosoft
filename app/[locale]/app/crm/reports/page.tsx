@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
+import { workspaceTeamId } from '@/lib/workspace';
 import { sessionScope } from '@/lib/crm-visibility';
 import { quotaProgress } from '@/lib/crm-quotas';
 import QuotaProgressList from '@/components/crm/QuotaProgressList';
@@ -102,8 +103,8 @@ export default async function CrmReportsPage(
       ? await reportForecast(user.id, selectedPipelineId, scope ?? undefined)
       : reports.forecastByStage;
 
-  const teamMembers = user.team?.id
-    ? await listMembers(user.team.id)
+  const teamMembers = workspaceTeamId(user)
+    ? await listMembers(workspaceTeamId(user)!)
     : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
   const owners = teamMembers
     .filter((m) => !scope || scope.includes(m.user_id))

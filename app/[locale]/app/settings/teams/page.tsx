@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
-import { requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { settingsSectionMetadata } from '@/lib/settings-meta';
-import SettingsSoonSection from '@/components/app/SettingsSoonSection';
+import { ensureWorkspace } from '@/lib/workspace';
+import { loadDirectory } from '@/lib/workspace-directory';
+import TeamsPanel from '@/components/settings/TeamsPanel';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,9 +12,11 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
   return settingsSectionMetadata(locale, 'teams');
 }
 
-/** Ajustes › Equipos (subequipos del workspace). Hoy existen solo los equipos de venta del CRM. */
+/** Ajustes › Equipos: los subequipos del workspace, compartidos por todas las apps. */
 export default async function TeamsSettingsPage(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
-  await requireUser(locale);
-  return <SettingsSoonSection locale={locale} section="teams" />;
+  const user = await requireUser(locale);
+  const team = user.workspace ?? (await ensureWorkspace(user.id));
+  const dir = await loadDirectory(team, user.role, '');
+  return <TeamsPanel initial={dir.groups} people={dir.members} canEdit={isWorkspaceAdmin(user)} />;
 }

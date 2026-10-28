@@ -63,7 +63,7 @@ export async function listTalkPeople(workspaceId: string, db: Db = getDb()): Pro
   const rows = (await db
     .prepare(
       `SELECT u.id, u.name, u.email, u.image FROM users u
-       WHERE u.id = ? OR u.id IN (SELECT m.user_id FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ?)
+       WHERE u.id = ? OR u.id IN (SELECT m.user_id FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ? AND m.role != 'guest')
        ORDER BY COALESCE(u.name, u.email) LIMIT 1000`,
     )
     .all(workspaceId, workspaceId)) as Array<{ id: string; name: string | null; email: string; image: string | null }>;
@@ -73,23 +73,23 @@ export async function listTalkPeople(workspaceId: string, db: Db = getDb()): Pro
 export async function isWorkspacePerson(workspaceId: string, personId: string, db: Db = getDb()): Promise<boolean> {
   if (personId === workspaceId) return true;
   return !!(await db
-    .prepare('SELECT 1 AS x FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ? AND m.user_id = ? LIMIT 1')
+    .prepare("SELECT 1 AS x FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ? AND m.user_id = ? AND m.role != 'guest' LIMIT 1")
     .get(workspaceId, personId));
 }
 
-/** Grupos del workspace para @menciones (los equipos de ventas del CRM, que son los subequipos de hoy). */
+/** Subequipos del workspace para @menciones (Ajustes › Equipos): @ventas avisa a todo el equipo. */
 export async function listTalkGroups(workspaceId: string): Promise<Array<{ id: string; name: string; handle: string; members: string[] }>> {
   const rows = (await getDb()
     .prepare(
-      `SELECT t.id, t.name, (SELECT group_concat(m.person_id) FROM crm_sales_team_members m WHERE m.team_id = t.id) AS members
-       FROM crm_sales_teams t WHERE t.user_id = ? ORDER BY t.name`,
+      `SELECT g.id, g.name, g.slug, (SELECT group_concat(m.user_id) FROM workspace_group_members m WHERE m.group_id = g.id) AS members
+       FROM workspace_groups g WHERE g.workspace_id = ? ORDER BY g.name`,
     )
     .all(workspaceId)
-    .catch(() => [])) as Array<{ id: string; name: string; members: string | null }>;
+    .catch(() => [])) as Array<{ id: string; name: string; slug: string; members: string | null }>;
   return rows.map((r) => ({
     id: r.id,
     name: r.name,
-    handle: normalizeChannelName(r.name) || r.id,
+    handle: r.slug || normalizeChannelName(r.name) || r.id,
     members: r.members ? r.members.split(',') : [],
   }));
 }

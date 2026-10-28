@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { realUserId, requireUser } from '@/lib/session';
+import { workspaceTeamId } from '@/lib/workspace';
 import { sessionScope } from '@/lib/crm-visibility';
 import { listQueueTasks, parseQueueScope, QUEUE_SCOPES } from '@/lib/crm-work-queue';
 import { listMembers } from '@/lib/teams';
@@ -30,7 +31,7 @@ export default async function WorkQueuePage(props: QueuePageProps) {
   const timeZone = await getUserTimeZone();
   const [tasks, members] = await Promise.all([
     listQueueTasks(user.id, { ownerId, scope, timeZone, ownerScope: await sessionScope(user) }),
-    user.team?.id ? listMembers(user.team.id) : Promise.resolve([{ user_id: user.id, email: user.email, name: user.name ?? null }]),
+    workspaceTeamId(user) ? listMembers(workspaceTeamId(user)!) : Promise.resolve([{ user_id: user.id, email: user.email, name: user.name ?? null }]),
   ]);
   // La cola se re-monta si cambian los filtros (vuelve a la primera tarea).
   const key = `${scope}:${ownerId ?? 'all'}:${tasks.map((x) => x.id).join(',').slice(0, 200)}`;

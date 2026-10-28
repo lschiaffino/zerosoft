@@ -1013,9 +1013,9 @@
     "currency": "Moeda",
     "currencyDesc": "A moeda base do workspace e as taxas de câmbio manuais.",
     "tabs": {
-      "team": "Equipe",
       "sales": "Vendas",
       "data": "Dados",
+      "access": "Acesso",
       "automation": "Automação",
       "integrations": "Integrações",
       "import": "Importar e exportar"
@@ -1953,7 +1953,8 @@
     "teamName": "Nome da equipe",
     "teamNamePh": "ex. Enterprise",
     "createTeam": "Criar equipe de vendas",
-    "deleteTeamConfirm": "Excluir esta equipe? Os membros mantêm os seus registros."
+    "deleteTeamConfirm": "Excluir esta equipe? Os membros mantêm os seus registros.",
+    "platformNote": "Os membros e os convites ficam em <members>Configurações › Membros</members>. As equipes de vendas são as equipes do workspace em <teams>Configurações › Equipes</teams>."
   },
   "assignment": {
     "title": "Distribuição de leads",

@@ -156,7 +156,7 @@ export async function bindOutboundCall(callId: string, fromIdentity: string, cal
 export async function workspacePersonIds(userId: string): Promise<string[]> {
   const rows = (await getDb()
     .prepare(
-      `SELECT ? AS id UNION SELECT m.user_id AS id FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ?`,
+      `SELECT ? AS id UNION SELECT m.user_id AS id FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ? AND m.role != 'guest'`,
     )
     .all(userId, userId)) as Array<{ id: string }>;
   return [...new Set(rows.map((r) => r.id))];

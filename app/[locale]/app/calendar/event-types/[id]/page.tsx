@@ -9,6 +9,8 @@ import { getPaymentSettings } from '@/lib/calendar-payments';
 import { listWorkflowSteps } from '@/lib/calendar-workflows';
 import { getSmsSettings } from '@/lib/calendar-sms';
 import { listMembers } from '@/lib/teams';
+import { workspaceTeamId } from '@/lib/workspace';
+import { listGroups } from '@/lib/workspace-groups';
 import EventTypeEditor from '@/components/calendar/EventTypeEditor';
 import { parseQuestions } from '@/lib/calendar-questions';
 import { parseOneOffTimes } from '@/lib/calendar';
@@ -53,9 +55,11 @@ export default async function EventTypeDetailPage(props: {
     getWorkspaceBrand(user.id),
   ]);
 
-  // Pool de hosts: members del team del event type o del team activo.
-  const hostTeamId = eventType.team_id ?? user.team?.id ?? null;
-  const teamMembers = hostTeamId ? await listMembers(hostTeamId) : undefined;
+  // Pool de hosts: members del team del event type o del workspace activo.
+  const hostTeamId = eventType.team_id ?? workspaceTeamId(user);
+  const pool = hostTeamId ? await listMembers(hostTeamId) : [];
+  // Sin nadie más en el workspace no hay pool que armar (salvo un evento que ya era de equipo).
+  const teamMembers = eventType.team_id || pool.length > 1 ? pool : undefined;
   const origin = publicOrigin((await headers()).get('host'));
 
   return (
@@ -105,6 +109,7 @@ export default async function EventTypeDetailPage(props: {
       canEditWorkflows={isWorkspaceAdmin(user)}
       smsConfigured={(await getSmsSettings(user.id)).configured}
       teamMembers={teamMembers}
+      hostGroups={teamMembers ? (await listGroups(user.id)).map((g) => ({ id: g.id, name: g.name, memberIds: g.members.map((m) => m.user_id) })) : undefined}
       teamId={hostTeamId}
       hostIds={hosts.map((h) => h.user_id)}
       handle={user.handle ?? ''}

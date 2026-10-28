@@ -1,7 +1,14 @@
 import type { ReactNode } from 'react';
 import { canCreateDocPage } from '@/lib/docs-guard';
 import { getTranslations } from 'next-intl/server';
-import { DEMO_MODE, requireUser } from '@/lib/session';
+import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { DEMO_EMAIL, DEMO_MODE, requireUser, userCanUseApp } from '@/lib/session';
+import { RETURN_PATH_HEADER } from '@/lib/return-path';
+import { appFromPath, listMyWorkspaces } from '@/lib/workspace';
+import { PRODUCT_CONFIG } from '@/lib/products';
+import EmptyState from '@/components/ui/EmptyState';
+import type { SwitcherEntry } from '@/components/app/WorkspaceSwitcher';
 import OfflineIdentity from '@/components/app/OfflineIdentity';
 import { countDueTasks } from '@/lib/crm';
 import { getWorkspaceMode } from '@/lib/home';
@@ -26,6 +33,7 @@ import '@/styles/app-shared.css';
 import '@/styles/app.css';
 import '@/styles/color.css';
 import '@/styles/voice-host.css';
+import '@/styles/workspace.css';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,6 +54,31 @@ export default async function AppLayout(
   } = props;
 
   const user = await requireUser(locale);
+  const real = user.actingUser ?? user;
+  const path = (await headers()).get(RETURN_PATH_HEADER) ?? '';
+  const welcome = /^\/(?:en|es|pt)\/app\/welcome(?:[/?]|$)/.test(path);
+  // Primer ingreso: el onboarding (salvo el usuario demo compartido).
+  const skipOnboarding = DEMO_MODE && real.email === DEMO_EMAIL;
+  if (!real.onboarded_at && !skipOnboarding && !welcome) {
+    redirect(`/${locale}/app/welcome${user.actingUser ? '?invited=1' : ''}`);
+  }
+  if (welcome) {
+    // El onboarding va sin el chrome de la app.
+    return (
+      <ClientMessages locale={locale} namespaces={['settings.welcome', 'settings.switcher', 'link.common']}>
+        <main className="wl-page">{children}</main>
+      </ClientMessages>
+    );
+  }
+  // Acceso por app (team_members.apps): en un workspace ajeno, una app que la
+  // persona no tiene muestra un aviso en vez de la página.
+  const pageApp = user.actingUser ? appFromPath(path) : null;
+  const blockedApp = pageApp && !userCanUseApp(user, pageApp) ? pageApp : null;
+  const tAccess = blockedApp ? await getTranslations({ locale, namespace: 'settings.access' }) : null;
+  // Entrada activa del switcher: el workspace ajeno, un equipo propio de antes de 128, o el propio (null).
+  const effective = user.actingUser ? (user.workspace?.id ?? null) : user.team ? (real.active_team_id ?? null) : null;
+  const workspaces: SwitcherEntry[] = (await listMyWorkspaces(real).catch(() => [])).map((w) => ({ ...w, current: w.teamId === effective }));
+  if (workspaces.length && !workspaces.some((w) => w.current)) workspaces[0].current = true;
   const tTriage = await getTranslations({ locale, namespace: 'trackTriage' });
   // Lecturas independientes en paralelo (en Turso cada query es un RTT).
   const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tasksDue, serverTz, tPlanning, mode, tCat] =
@@ -86,7 +119,7 @@ export default async function AppLayout(
   return (
     // Cliente: lo que usan el sidebar y Cmd+K de otras apps; cada app suma su
     // namespace en su layout.
-    <ClientMessages locale={locale} namespaces={['board.list', 'notes.actions', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder', 'rec.signout', 'notes.signOut']}>
+    <ClientMessages locale={locale} namespaces={['settings.switcher', 'board.list', 'notes.actions', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder', 'rec.signout', 'notes.signOut']}>
       <RecorderProvider owner={`${user.actingUser?.id ?? user.id}:${user.id}`}>
       {/* El script pone sidebar-collapsed antes del primer paint; React no toca la clase al hidratar. */}
       <div className="app-frame" suppressHydrationWarning>
@@ -104,7 +137,8 @@ export default async function AppLayout(
             id: user.actingUser?.id ?? user.id,
             ws: user.id,
           }}
-          teamName={user.actingUser && user.team ? user.team.name : null}
+          teamName={user.actingUser ? (user.workspace?.name ?? user.team?.name ?? null) : null}
+          workspaces={workspaces}
           crumb={
             <AppTopbar
               sections={[
@@ -412,7 +446,18 @@ export default async function AppLayout(
           }}
         />
         <div className="app-main-scroll">
-          <main className="app-content">{children}</main>
+          <main className="app-content">
+            {blockedApp && tAccess ? (
+              <EmptyState
+                product={blockedApp}
+                title={tAccess('title', { app: PRODUCT_CONFIG[blockedApp].name })}
+                body={tAccess('body', { app: PRODUCT_CONFIG[blockedApp].name, workspace: user.workspace?.name ?? '' })}
+                action={{ label: tAccess('back'), href: '/app' }}
+              />
+            ) : (
+              children
+            )}
+          </main>
         </div>
         <CommandSearch />
         <DictationHost />

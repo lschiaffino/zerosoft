@@ -52,7 +52,8 @@ export interface AppSearchItem {
     | 'voiceSessions'
     | 'talkChannels'
     | 'talkDms'
-    | 'talkPeople';
+    | 'talkPeople'
+    | 'workspaceTeams';
   label: string;
   meta: string;
   href: string;
@@ -89,9 +90,10 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     (db.prepare(sql).all(...args, limit) as Promise<Row[]>).catch(() => [] as Row[]);
   // Mismo alcance que la lista de proyectos de Track (lib/track-data projectScope).
   // En un team, solo los proyectos que ve la persona (privados e invitados).
-  const visible = teamId ? trackVisibleSql('p', user.actingUser?.id ?? user.id) : null;
-  const projectWhere = visible ? `p.team_id = ? AND ${visible.sql}` : '(p.team_id IS NULL AND p.owner_id = ?)';
-  const projectArgs = [teamId ?? user.id, ...(visible?.args ?? [])];
+  // El espacio del owner (sin team) también lo comparte su equipo: filtra privados e invitados igual.
+  const visible = trackVisibleSql('p', user.actingUser?.id ?? user.id);
+  const projectWhere = teamId ? `p.team_id = ? AND ${visible.sql}` : `(p.team_id IS NULL AND p.owner_id = ? AND ${visible.sql})`;
+  const projectArgs = [teamId ?? user.id, ...visible.args];
   const widgetWhere = teamId ? 'team_id = ?' : 'user_id = ?';
   // Pizarras: las restringidas solo para quien tiene acceso, como la lista.
   const boardsVisible = boardVisibleSql(boardViewer(user));
@@ -304,7 +306,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     // Personas del workspace: abrir (o empezar) un DM con ellas.
     all(
       `SELECT u.id, COALESCE(u.name, u.email) AS label, u.email AS meta FROM users u
-       WHERE (u.id = ? OR u.id IN (SELECT m.user_id FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ?))
+       WHERE (u.id = ? OR u.id IN (SELECT m.user_id FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ? AND m.role != 'guest'))
          AND (u.name LIKE ? ESCAPE '\\' OR u.email LIKE ? ESCAPE '\\') ORDER BY COALESCE(u.name, u.email) LIMIT ?`,
       user.id,
       user.id,
@@ -323,6 +325,15 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       like,
     ),
   ]);
+
+  // Subequipos del workspace (Ajustes › Equipos), por nombre o @handle.
+  const workspaceTeams = await all(
+    `SELECT g.id, g.name AS label, g.slug AS meta FROM workspace_groups g
+     WHERE g.workspace_id = ? AND (g.name LIKE ? ESCAPE '\\' OR g.slug LIKE ? ESCAPE '\\') ORDER BY g.name LIMIT ?`,
+    user.id,
+    like,
+    like,
+  ).catch(() => [] as Row[]);
 
   // Chat: conversaciones (asunto, visitante o texto), personas, vistas guardadas y equipos.
   const chatWidgets = `SELECT id FROM chat_widgets WHERE ${widgetWhere}`;
@@ -426,5 +437,6 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ...map(talkChannels, 'talkChannels', (id) => `/app/talk/${id}`),
     ...map(talkDms, 'talkDms', (id) => `/app/talk/${id}`),
     ...map(talkPeople, 'talkPeople', (id) => `/app/talk?dm=${encodeURIComponent(id)}`),
+    ...workspaceTeams.map((r) => ({ id: r.id, group: 'workspaceTeams' as const, label: r.label, meta: `@${r.meta}`, href: '/app/settings/teams' })),
   ];
 }

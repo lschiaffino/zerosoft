@@ -164,6 +164,7 @@ function useGroupOrder() {
         'talkChannels',
         'talkDms',
         'talkPeople',
+        'workspaceTeams',
       ], []);
 }
 

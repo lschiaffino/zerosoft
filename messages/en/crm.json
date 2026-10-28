@@ -1013,9 +1013,9 @@
     "currency": "Currency",
     "currencyDesc": "The workspace base currency and manual exchange rates.",
     "tabs": {
-      "team": "Team",
       "sales": "Sales",
       "data": "Data",
+      "access": "Access",
       "automation": "Automation",
       "integrations": "Integrations",
       "import": "Import and export"
@@ -1953,7 +1953,8 @@
     "teamName": "Team name",
     "teamNamePh": "e.g. Enterprise",
     "createTeam": "Create sales team",
-    "deleteTeamConfirm": "Delete this team? Its members keep their records."
+    "deleteTeamConfirm": "Delete this team? Its members keep their records.",
+    "platformNote": "Members and invitations are managed in <members>Settings › Members</members>. Sales teams are the workspace teams in <teams>Settings › Teams</teams>."
   },
   "assignment": {
     "title": "Lead assignment",

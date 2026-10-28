@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
+import { workspaceTeamId } from '@/lib/workspace';
 import { getDb, type CrmStageRow } from '@/lib/db';
 import { dealMissingForStage, getDeal } from '@/lib/crm';
 import { describeMissing, moveDealWithFields } from '@/lib/crm-stage-move';
@@ -15,8 +16,8 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 async function peopleOptions(user: SessionUser): Promise<Array<{ value: string; label: string }>> {
-  const members = user.team?.id
-    ? await listMembers(user.team.id)
+  const members = workspaceTeamId(user)
+    ? await listMembers(workspaceTeamId(user)!)
     : [{ user_id: user.id, email: user.email, name: user.name ?? null }];
   return members.map((m) => ({ value: m.user_id, label: m.name || m.email }));
 }

@@ -8,6 +8,7 @@
  * Alcance: los proyectos del dueño de la key (su workspace personal, si la
  * persona es el dueño, y los teams que tiene donde la persona es miembro).
  */
+import { ownerSpaceSql } from './workspace';
 import { z } from 'zod';
 import type { ApiKeyAuth } from './api-auth';
 import { getDb, type TrackProjectRow } from './db';
@@ -63,11 +64,11 @@ function scopeSql(ctx: TrackApiCtx): { sql: string; args: string[] } {
   const v = trackVisibleSql('p', person);
   return {
     sql: `p.owner_id = ? AND (
-      (p.team_id IS NULL AND ? = ?)
+      (p.team_id IS NULL AND ${ownerSpaceSql('?', '?')} AND ${v.sql})
       OR (p.team_id IS NOT NULL
-          AND EXISTS (SELECT 1 FROM team_members m WHERE m.team_id = p.team_id AND m.user_id = ?)
+          AND EXISTS (SELECT 1 FROM team_members m WHERE m.team_id = p.team_id AND m.user_id = ? AND m.role != 'guest')
           AND ${v.sql}))`,
-    args: [owner, person, owner, person, ...v.args],
+    args: [owner, person, owner, owner, person, ...v.args, person, ...v.args],
   };
 }
 
@@ -421,11 +422,17 @@ export async function apiCreateProject(ctx: TrackApiCtx, input: z.infer<typeof a
       teamId = team.id;
     } else if (ctx.auth.personId !== ctx.auth.user.id) {
       // Una key de un miembro crea en el team del dueño donde está (el primero).
-      const team = (await getDb()
-        .prepare('SELECT t.id FROM teams t JOIN team_members m ON m.team_id = t.id WHERE t.owner_id = ? AND m.user_id = ? ORDER BY t.created_at LIMIT 1')
-        .get(ctx.auth.user.id, ctx.auth.personId)) as { id: string } | undefined;
-      if (!team) throw new TrackApiError(403, 'forbidden', 'No team for this key.');
-      teamId = team.id;
+      // En un workspace nuevo (keyed_by 'owner') los proyectos cuelgan del owner: sin team.
+      const inSpace = await getDb()
+        .prepare(`SELECT 1 AS x WHERE ${ownerSpaceSql('?', '?')}`)
+        .get(ctx.auth.personId, ctx.auth.user.id, ctx.auth.user.id, ctx.auth.personId);
+      const team = inSpace
+        ? undefined
+        : ((await getDb()
+            .prepare("SELECT t.id FROM teams t JOIN team_members m ON m.team_id = t.id WHERE t.owner_id = ? AND m.user_id = ? AND m.role != 'guest' ORDER BY t.created_at LIMIT 1")
+            .get(ctx.auth.user.id, ctx.auth.personId)) as { id: string } | undefined);
+      if (!inSpace && !team) throw new TrackApiError(403, 'forbidden', 'No team for this key.');
+      teamId = team?.id ?? null;
     }
     const project = await createProject(ctx.auth.user.id, teamId, {
       name: input.name,

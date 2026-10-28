@@ -29,6 +29,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-28-workspace-teams',
+    date: '2026-10-28',
+    title: {
+      en: 'Teams: invite people by email and work together in every app',
+      es: 'Equipos: invitá gente por email y trabajen juntos en todas las apps',
+      pt: 'Equipes: convide pessoas por email e trabalhem juntos em todos os apps',
+    },
+    items: [
+      { product: 'platform', en: 'Name your workspace, add a logo and invite people by email from Settings › Members. Each invitation is a link that works once and expires in 14 days; if the email does not go out, you can copy the link. Pending invitations can be resent or revoked.', es: 'Ponele nombre y logo a tu workspace e invitá gente por email desde Ajustes › Miembros. Cada invitación es un link que sirve una sola vez y vence a los 14 días; si el email no sale, copiás el link. Las pendientes se reenvían o se revocan.', pt: 'Dê nome e logo ao seu workspace e convide pessoas por email em Configurações › Membros. Cada convite é um link que funciona uma vez e vence em 14 dias; se o email não sair, você copia o link. Os pendentes podem ser reenviados ou revogados.' },
+      { product: 'platform', en: 'Whoever accepts sees the same CRM, Docs, Track, Talk, Cal, Chat and the rest of the apps. Roles are owner, admin, member and guest (guests only see what you share with them), and you choose which apps each person can use.', es: 'Quien acepta ve el mismo CRM, Docs, Track, Talk, Cal, Chat y el resto de las apps. Los roles son owner, admin, miembro e invitado (el invitado solo ve lo que le compartís), y elegís qué apps usa cada persona.', pt: 'Quem aceita vê o mesmo CRM, Docs, Track, Talk, Cal, Chat e o resto dos apps. Os papéis são owner, admin, membro e convidado (o convidado só vê o que você compartilha), e você escolhe quais apps cada pessoa usa.' },
+      { product: 'platform', en: 'Removing someone cuts their access to every app right away: sessions, API keys, calendar slots, assigned conversations and open Talk connections.', es: 'Sacar a alguien le corta el acceso a todas las apps al instante: sesiones, API keys, horarios de Cal, conversaciones asignadas y conexiones abiertas de Talk.', pt: 'Remover alguém corta o acesso a todos os apps na hora: sessões, chaves de API, horários do Cal, conversas atribuídas e conexões abertas do Talk.' },
+      { product: 'platform', en: 'Teams inside the workspace (Sales, Support) live in one place, Settings › Teams, and every app uses them: CRM visibility and round-robin, Chat team inboxes, Groups assignment, Cal host pools and @mentions in Talk.', es: 'Los equipos dentro del workspace (Ventas, Soporte) viven en un solo lugar, Ajustes › Equipos, y los usan todas las apps: visibilidad y round-robin del CRM, inbox por equipo de Chat, asignación de Groups, pools de hosts de Cal y @menciones en Talk.', pt: 'As equipes dentro do workspace (Vendas, Suporte) ficam em um só lugar, Configurações › Equipes, e todos os apps as usam: visibilidade e round-robin do CRM, caixas por equipe do Chat, atribuição do Groups, pools de hosts do Cal e @menções no Talk.' },
+      { product: 'platform', en: 'A workspace switcher at the top of the sidebar, a first-run setup (just you or a team, team name and size, your role, who to invite, the tool you come from and the app to open first) and a short welcome for people who join by invitation. Companies can let anyone with their email domain join without an invitation.', es: 'Un switcher de workspace arriba del sidebar, una configuración inicial (solo vos o un equipo, nombre y tamaño del equipo, tu rol, a quién invitar, la herramienta de la que venís y la app para abrir primero) y una bienvenida corta para quien entra por invitación. Una empresa puede dejar entrar sin invitación a quien tenga el email de su dominio.', pt: 'Um seletor de workspace no topo da barra lateral, uma configuração inicial (só você ou uma equipe, nome e tamanho da equipe, seu papel, quem convidar, a ferramenta de onde você vem e o app para abrir primeiro) e uma boas-vindas curta para quem entra por convite. Uma empresa pode deixar entrar sem convite quem tiver o email do seu domínio.' },
+    ],
+  },
+  {
     id: '2026-10-27-notes',
     date: '2026-10-27',
     title: {

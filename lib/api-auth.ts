@@ -35,7 +35,7 @@ export async function workspaceRole(ownerId: string, personId: string): Promise<
     .prepare(
       `SELECT m.role FROM team_members m JOIN teams t ON t.id = m.team_id
        WHERE t.owner_id = ? AND m.user_id = ?
-       ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 ELSE 2 END LIMIT 1`,
+       ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 WHEN 'member' THEN 2 ELSE 3 END LIMIT 1`,
     )
     .get(ownerId, personId)) as { role: string } | undefined;
   return normalizeRole(row?.role);

@@ -679,7 +679,8 @@
     "schedulingLabel": "How hosts are assigned",
     "schedulingRoundRobin": "Round-robin",
     "schedulingCollective": "Collective",
-    "schedulingCollectiveHelp": "Every selected host joins: a time is offered only when all of them are free."
+    "schedulingCollectiveHelp": "Every selected host joins: a time is offered only when all of them are free.",
+    "hostsFromTeam": "Add a whole team:"
   },
   "errorPage": {
     "title": "This screen didn't load",
