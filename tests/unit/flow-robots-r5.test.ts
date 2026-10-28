@@ -394,31 +394,32 @@ describe('Robots: el arnés valida cada salto de las redirecciones', () => {
     expect(log.fulfilled).toBeUndefined();
   });
 
-  it('bloquea una redirección relativa que termina en un host privado', async () => {
+  it('una cadena que termina en un host privado: cada salto es un pedido nuevo y el prohibido se corta', async () => {
     const handler = await captureRouteHandler(checkUrl);
-    const { route, log } = fakeRoute('https://site.example/a', [
-      { status: 301, location: 'https://site.example/b' },
-      { status: 302, location: 'http://127.0.0.1:9222/json' },
-    ]);
-    await handler(route);
-    expect(log.aborted).toBe('blockedbyclient');
-    expect(log.fetched).toEqual(['https://site.example/a', 'https://site.example/b']);
+    // Salto 1: público → público. Se le devuelve el 30x al navegador (que lo sigue como pedido nuevo).
+    const first = fakeRoute('https://site.example/a', [{ status: 301, location: 'https://site.example/b' }]);
+    await handler(first.route);
+    expect(first.log.fulfilled).toBe(true);
+    expect(first.log.aborted).toBeUndefined();
+    // Salto 2: el navegador pide /b, que redirige a la red interna: se corta.
+    const second = fakeRoute('https://site.example/b', [{ status: 302, location: 'http://127.0.0.1:9222/json' }]);
+    await handler(second.route);
+    expect(second.log.aborted).toBe('blockedbyclient');
+    expect(second.log.fulfilled).toBeUndefined();
   });
 
-  it('deja pasar una redirección pública y entrega la respuesta final', async () => {
+  it('deja pasar una redirección pública: el 30x vuelve al navegador para que la URL del documento quede bien', async () => {
     const handler = await captureRouteHandler(checkUrl);
-    const { route, log } = fakeRoute('https://site.example/a', [
-      { status: 302, location: 'https://site.example/final' },
-      { status: 200 },
-    ]);
+    const { route, log } = fakeRoute('https://site.example/a', [{ status: 302, location: 'https://site.example/final' }]);
     await handler(route);
     expect(log.fulfilled).toBe(true);
     expect(log.aborted).toBeUndefined();
+    expect(log.fetched).toEqual(['https://site.example/a']);
   });
 
-  it('corta una cadena de redirecciones infinita', async () => {
+  it('bloquea una redirección a un esquema que no es http(s)', async () => {
     const handler = await captureRouteHandler(checkUrl);
-    const { route, log } = fakeRoute('https://site.example/a', [{ status: 302, location: 'https://site.example/a?loop' }]);
+    const { route, log } = fakeRoute('https://site.example/a', [{ status: 302, location: 'file:///etc/passwd' }]);
     await handler(route);
     expect(log.aborted).toBe('blockedbyclient');
   });
