@@ -410,6 +410,18 @@ self.addEventListener('message', (event) => {
           const cache = await caches.open(k);
           for (const req of await cache.keys()) if (NOTES_PAGE.test(new URL(req.url).pathname)) await cache.delete(req);
         }
+        // Y se vuelve a guardar la lista actual (ya sin el texto), si la sesión es la de quien guarda.
+        const pages = await pagesCache();
+        for (const raw of (Array.isArray(data.refetch) ? data.refetch : []).slice(0, 3)) {
+          try {
+            const u = new URL(raw, self.location.origin);
+            if (u.origin !== self.location.origin || !NOTES_PAGE.test(u.pathname) || !pages) continue;
+            const res = await fetch(u.href, { credentials: 'same-origin' });
+            if (res.ok && !res.redirected) await pages.put(u.href, res);
+          } catch {
+            /* sin red: queda sin guardar hasta la próxima visita */
+          }
+        }
       })(),
     );
   }

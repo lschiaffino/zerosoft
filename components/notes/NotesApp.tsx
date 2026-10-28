@@ -48,6 +48,7 @@ import {
   offlineList,
   replayOutbox,
   retryDelay,
+  withFlushLock,
   type CachedNote,
   type IdentityRecord,
   type OfflineOwner,
@@ -393,6 +394,51 @@ export default function NotesApp({
     }
   }, [filter, q, sort, listFromDevice]);
 
+  /**
+   * Cambios rechazados → notas nuevas: el texto en claro, o la bloqueada con
+   * su mismo sobre (se abre con la misma contraseña).
+   */
+  async function recoverStuck() {
+    const store = storeRef.current;
+    if (!store) return;
+    let saved = 0;
+    for (const x of stuck) {
+      const id = crypto.randomUUID();
+      const title = t('offline.copyTitle', { title: x.title || t('untitled') });
+      try {
+        const created = await fetch('/api/notes', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ id, title, content: x.lock ? [] : (x.content ?? [{ id: crypto.randomUUID(), type: 'paragraph', content: x.text }]) }),
+        });
+        if (!created.ok) continue;
+        if (x.lock) {
+          const locked = await fetch(`/api/notes/${id}/lock`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ action: 'lock', lock: x.lock, content: x.content ?? [] }),
+          });
+          if (!locked.ok) {
+            await fetch(`/api/notes/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ trashed: true }) });
+            await fetch(`/api/notes/${id}`, { method: 'DELETE' });
+            continue;
+          }
+        }
+        await store.dropStuck(x.opId);
+        saved++;
+      } catch {
+        break;
+      }
+    }
+    setStuck(await store.stuckOps().catch(() => []));
+    if (saved) setOkToast(t('offline.recovered', { count: saved }));
+    else setToast(t('editor.actionError'));
+    void refreshList();
+  }
+
+  const refreshListRef = useRef<() => Promise<void>>(async () => undefined);
+  refreshListRef.current = refreshList;
+
   const refreshSide = useCallback(async () => {
     if (offlineRef.current) return;
     const [nb, tg] = await Promise.all([
@@ -451,7 +497,9 @@ export default function NotesApp({
     if (flushing.current) {
       await flushing.current;
     }
-    const run = flushOnce();
+    const store = storeRef.current;
+    // Una sola pestaña reenvía: la que no tiene el turno no manda nada (la otra ya lo está haciendo).
+    const run = store ? withFlushLock(store, flushOnce).then(() => undefined) : Promise.resolve();
     flushing.current = run;
     try {
       await run;
@@ -489,11 +537,17 @@ export default function NotesApp({
       if (r.copies) setToast(t('offline.copies', { count: r.copies }));
       else if (r.stuck) setToast(t('offline.stuck', { count: r.stuck }));
       else if (r.done) setOkToast(t('offline.synced', { count: r.done }));
-      // La nota abierta: la versión del servidor (con su base nueva).
+      // Snippets y orden de la lista: los del servidor después del reenvío.
+      void refreshListRef.current();
+      // La nota abierta: la versión del servidor (con su base nueva), o avisar si ya no existe.
       const open = note?.id;
       if (open && ops.some((o) => o.id === open)) {
         const res = await fetch(`/api/notes/${open}`).catch(() => null);
-        if (res?.ok) {
+        if (res?.status === 404) {
+          setNote((cur) => (cur && cur.id === open ? null : cur));
+          setPane('list');
+          setToast(t('offline.deletedElsewhere'));
+        } else if (res?.ok) {
           const fresh = (await res.json()) as NoteDetail;
           bases.current.set(fresh.id, fresh.updated_at);
           if (r.copies) {
@@ -658,13 +712,16 @@ export default function NotesApp({
       if (fresh.locked) {
         // Recién bloqueada: fuera el texto en claro del dispositivo (copia, cola y páginas guardadas).
         void storeRef.current?.scrubNote(fresh).catch(() => undefined);
-        navigator.serviceWorker?.controller?.postMessage({ type: 'zs-drop-notes' });
+        // La página de Notes guardada para abrir sin red se borra y se vuelve a guardar ya sin el texto.
+        const sw = navigator.serviceWorker?.controller;
+        if (sw) sw.postMessage({ type: 'zs-drop-notes', refetch: [`${window.location.pathname}`] });
+        else if ('serviceWorker' in navigator) setOkToast(t('offline.lockedNotCached'));
       } else {
         void storeRef.current?.putDetails([fresh]).catch(() => undefined);
       }
       void refreshList();
     },
-    [refreshList],
+    [refreshList, t],
   );
 
   /**
@@ -1495,6 +1552,9 @@ export default function NotesApp({
             <div className="notes-offline-banner notes-stuck" role="alert">
               <span>{t('offline.stuckBanner', { count: stuck.length })}</span>
               <span className="notes-stuck-actions">
+                <button type="button" className="btn btn-sm" onClick={() => void recoverStuck()}>
+                  {t('offline.saveAsNew')}
+                </button>
                 <button
                   type="button"
                   className="btn btn-sm"

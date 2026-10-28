@@ -55,7 +55,8 @@ export interface NoteDetail extends NoteSummary {
  * texto. `hint` es la pista opcional, en claro.
  */
 export interface NoteLockEnvelope {
-  v: 1;
+  /** 2: PBKDF2 + HKDF (clave y prueba separadas). 1: PBKDF2 de 64 bytes partido (se sigue abriendo). */
+  v: 1 | 2;
   /** Iteraciones de PBKDF2. */
   iter: number;
   /** Sal (16 bytes) e IV (12 bytes), en base64. */

@@ -413,7 +413,11 @@
     "copyText": "Copy text",
     "copied": "Copied. Paste it into a new note.",
     "discard": "Discard",
-    "confirmDiscard": "Discard these changes from this device? Their text will be gone."
+    "confirmDiscard": "Discard these changes from this device? Their text will be gone.",
+    "saveAsNew": "Save as new notes",
+    "recovered": "{count, plural, one {Saved as # new note.} other {Saved as # new notes.}}",
+    "deletedElsewhere": "This note was deleted on another device. Your changes are shown above the list so you can save them.",
+    "lockedNotCached": "Note locked. Open Notes once more with a connection so it’s ready offline again."
   },
   "focus": {
     "enter": "Focus mode",

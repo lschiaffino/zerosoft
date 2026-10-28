@@ -35,7 +35,7 @@ import {
   updateSavedSearch,
 } from '@/lib/notes-library';
 import { buildTagTree, normalizeTag, removeTagFrom, renameTagIn, type NoteDetail } from '@/lib/notes-types';
-import { fileBlocksOnly, newNoteKey, openNote, openNoteWithKey, sealNote, WrongPasswordError } from '@/lib/notes-crypto';
+import { deriveNoteKey, fileBlocksOnly, newNoteKey, openNote, openNoteWithKey, sealNote, toBase64, WrongPasswordError } from '@/lib/notes-crypto';
 import { blocksToEnml, inlineToEnml, noteToEnex, noteToHtml, ENEX_HEAD, ENEX_TAIL, enexResource } from '@/lib/notes-export';
 import { enmlToBlocks, parseEnex } from '@/lib/notes-import';
 import { applyHomography, enhanceDocument, homography, warpQuad } from '@/lib/notes-scan';
@@ -250,6 +250,23 @@ describe('notes: notas bloqueadas con contraseña', () => {
     expect((await openNoteWithKey(key, again)).title).toBe('Claves');
   });
 
+  it('sobre v2 (PBKDF2 + HKDF): clave y prueba separadas; los sobres v1 se siguen abriendo', async () => {
+    const salt = toBase64(new Uint8Array(16).fill(7));
+    const v2 = await deriveNoteKey('misma', salt, 100_000);
+    const v1 = await deriveNoteKey('misma', salt, 100_000, 1);
+    expect(v2.v).toBe(2);
+    expect(v2.proof).not.toBe(v1.proof);
+    const env2 = await sealNote(v2, { title: 't', content: [para('dos')] });
+    expect(env2.v).toBe(2);
+    expect((await openNote('misma', env2)).payload.content[0].content).toBe('dos');
+    const env1 = await sealNote(v1, { title: 't', content: [para('uno')] });
+    expect(env1.v).toBe(1);
+    const opened = await openNote('misma', env1);
+    expect(opened.payload.content[0].content).toBe('uno');
+    // Reabrir un v1 da la clave v1: lo que se guarde sigue en v1 con el mismo verificador.
+    expect(opened.key.vh).toBe(env1.vh);
+  });
+
   it('el servidor nunca guarda el texto: ni contenido, ni búsqueda, ni versiones, ni link público', async () => {
     const { user, o } = await owner();
     const n = await createNote(o, { title: 'Banco', content: [para('pin 4455'), { id: 'img1', type: 'image', content: '', url: '/uploads/docs/a.png', name: 'a.png', mime: 'image/png' }] });
@@ -412,7 +429,7 @@ describe('notes: offline', () => {
     let ops: OutboxOp[] = [];
     ops = mergeIntoOutbox(ops, makeOp({ kind: 'patch', id: 'a', patch: { title: '1' }, base: 'b0' }, 1));
     const first = ops[0].opId;
-    ops = mergeIntoOutbox(ops, makeOp({ kind: 'patch', id: 'a', patch: { content: [] }, base: 'b1' }, 2));
+    ops = mergeIntoOutbox(ops, makeOp({ kind: 'patch', id: 'a', patch: { content: [] }, base: 'b0' }, 2));
     expect(ops).toHaveLength(1);
     expect(ops[0]).toMatchObject({ opId: first, rev: 1, base: 'b0', patch: { title: '1', content: [] } });
     ops = mergeIntoOutbox(ops, makeOp({ kind: 'create', id: 'n', body: { title: '' } }, 3));
@@ -462,6 +479,34 @@ describe('notes: offline', () => {
       [ops[0].opId, 'u1'],
       [ops[1].opId, null],
     ]);
+  });
+
+  it('dos pestañas: no se fusionan entre sí ni con otra base, así lo de una no borra lo de la otra', () => {
+    let ops: OutboxOp[] = [];
+    ops = mergeIntoOutbox(ops, { ...makeOp({ kind: 'patch', id: 'a', patch: { content: [para('tab1')] }, base: 'b0' }, 1), tab: 'T1' });
+    ops = mergeIntoOutbox(ops, { ...makeOp({ kind: 'patch', id: 'a', patch: { content: [para('tab2')] }, base: 'b0' }, 2), tab: 'T2' });
+    expect(ops).toHaveLength(2);
+    // Misma pestaña pero otra base: tampoco.
+    ops = mergeIntoOutbox(ops, { ...makeOp({ kind: 'patch', id: 'a', patch: { title: 'x' }, base: 'b9' }, 3), tab: 'T1' });
+    expect(ops).toHaveLength(3);
+    // Misma pestaña y base: sí.
+    ops = mergeIntoOutbox(ops, { ...makeOp({ kind: 'patch', id: 'a', patch: { title: 'y' }, base: 'b9' }, 4), tab: 'T1' });
+    expect(ops).toHaveLength(3);
+    // El alta offline de otra pestaña no recibe cambios de esta.
+    let c: OutboxOp[] = [{ ...makeOp({ kind: 'create', id: 'n', body: { title: '' } }), tab: 'T1' }];
+    c = mergeIntoOutbox(c, { ...makeOp({ kind: 'patch', id: 'n', patch: { title: 'otra' }, base: null }), tab: 'T2' });
+    expect(c).toHaveLength(2);
+    expect(c[0]).toMatchObject({ kind: 'create', body: { title: '' } });
+  });
+
+  it('si la copia bloqueada no se puede bloquear, se borra y el cambio queda apartado con su sobre', async () => {
+    const lock = { v: 2, iter: 100000, salt: 's', iv: 'i', ct: 'c', vh: 'v' };
+    const op = makeOp({ kind: 'patch', id: 'n', patch: { content: [], lock, lock_proof: 'p' }, base: 'old' });
+    const t = deps((url, init) => (init.method === 'PATCH' && !url.includes('trash') && JSON.parse(String(init.body)).lock ? res(409, { note: { title: 'T' } }) : url.endsWith('/lock') ? res(500) : res(201)));
+    const r = await replayOutbox([op], t.d);
+    expect(r.stuck).toBe(1);
+    expect(t.calls.some((c) => c.method === 'DELETE')).toBe(true);
+    expect(stuckFrom(op, 409)).toMatchObject({ lock, text: '' });
   });
 
   it('sin versión conocida no pisa: el texto queda como copia (nunca un PATCH a ciegas)', async () => {

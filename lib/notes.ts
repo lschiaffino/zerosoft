@@ -594,7 +594,9 @@ export async function updateNote(owner: NoteOwner, id: string, patch: NoteInput)
   if (patch.lock) {
     if (!lockProofMatches(row.locked, patch.lock_proof)) throw new NotesError('wrong_password');
     const current = parseJson<NoteLockEnvelope | null>(row.locked, null);
-    if (!current || current.vh !== patch.lock.vh || current.salt !== patch.lock.salt) throw new NotesError('wrong_password');
+    if (!current || current.vh !== patch.lock.vh || current.salt !== patch.lock.salt || (current.v ?? 1) !== patch.lock.v) {
+      throw new NotesError('wrong_password');
+    }
   }
   const sets: string[] = [];
   const args: Array<string | number | null> = [];

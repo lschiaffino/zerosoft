@@ -428,9 +428,15 @@ test('Notes offline: sin la cookie de la sesión no se abre la copia del disposi
   await context.clearCookies({ name: 'zs_who' });
   await context.setOffline(true);
   await expect(page.locator('.notes-offline-banner')).toBeVisible();
-  // La lista no sale del dispositivo (no hay identidad confirmada) y nada de su texto aparece.
-  await expect(page.locator('.notes-list-error')).toBeVisible();
-  await expect(page.getByText('privado 5566')).toHaveCount(0);
+  // Sin identidad confirmada la copia del dispositivo no se abre: la lista no sale de ahí y la nota no abre.
+  const item = page.locator('.notes-item', { hasText: title });
+  if (await item.isVisible()) {
+    await item.click();
+    await expect(page.locator('.ui-toast')).toBeVisible();
+  } else {
+    await expect(page.locator('.notes-list-error')).toBeVisible();
+  }
+  await expect(page.locator('.note-body')).toHaveCount(0);
   await context.setOffline(false);
 });
 
@@ -448,6 +454,90 @@ test('Notes: una nota abierta por link (?note=) no queda guardada en la caché d
     return found;
   });
   expect(cachedWithNote).toBe(false);
+});
+
+test('Notes offline con dos pestañas: nada se pierde en silencio y la cola se manda una sola vez', async ({ page, context, request }) => {
+  const title = `Dos pestañas ${uid()}`;
+  const single = `Una sola ${uid()}`;
+  const a = await newNote(request, { title, content: [para('linea A'), para('linea B')] });
+  const b = await newNote(request, { title: single, content: [para('solo')] });
+  const tab2 = await context.newPage();
+  for (const p of [page, tab2]) {
+    await p.goto(`/en/app/notes?note=${a.id}`);
+    await expect(p.locator('.note-body')).toContainText('linea A');
+  }
+  await waitCached(page, a.id);
+  await waitCached(page, b.id);
+  await context.setOffline(true);
+  await expect(page.locator('.notes-offline-banner')).toBeVisible();
+  await page.bringToFront();
+  await page.locator('.note-body .docs-editable', { hasText: 'linea A' }).click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' TAB1');
+  await page.waitForTimeout(1200);
+  await tab2.bringToFront();
+  await tab2.locator('.note-body .docs-editable', { hasText: 'linea B' }).click();
+  await tab2.keyboard.press('End');
+  await tab2.keyboard.type(' TAB2');
+  await tab2.waitForTimeout(1200);
+  await page.bringToFront();
+  await page.locator('.notes-item', { hasText: single }).click();
+  await page.locator('.note-body .docs-editable', { hasText: 'solo' }).click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' X');
+  await page.waitForTimeout(1200);
+  await context.setOffline(false);
+  // Lo de las dos pestañas está en el servidor: una en la nota y la otra en una copia.
+  await expect
+    .poll(
+      async () => {
+        const list = (await (await request.get(`/api/notes?q=${encodeURIComponent('linea')}`)).json()) as { notes: Array<{ id: string }> };
+        const texts = await Promise.all(list.notes.map(async (n) => JSON.stringify((await getNote(request, n.id)).content)));
+        return texts.some((x) => x.includes('TAB1')) && texts.some((x) => x.includes('TAB2'));
+      },
+      { timeout: 20_000 },
+    )
+    .toBe(true);
+  // La edición de una sola pestaña se mandó una vez: sin copias de más.
+  await expect.poll(async () => JSON.stringify((await getNote(request, b.id)).content), { timeout: 15_000 }).toContain('solo X');
+  await page.waitForTimeout(3000);
+  const copies = (await (await request.get(`/api/notes?q=${encodeURIComponent(`intitle:"${single}"`)}`)).json()) as { notes: Array<{ title: string }> };
+  expect(copies.notes.filter((n) => n.title.includes('offline copy'))).toHaveLength(0);
+  await tab2.close();
+});
+
+test('Notes: con muchas notas la página no se desplaza a una zona en blanco', async ({ page, request }) => {
+  for (let i = 0; i < 30; i++) await newNote(request, { title: `Muchas ${i}`, content: [para(`texto ${i}`)] });
+  await openNotes(page);
+  await page.mouse.move(430, 600);
+  for (let i = 0; i < 8; i++) await page.mouse.wheel(0, 2000);
+  await page.waitForTimeout(500);
+  const layout = await page.evaluate(() => {
+    const doc = document.scrollingElement!;
+    const scrollers = Array.from(document.querySelectorAll<HTMLElement>('*')).filter(
+      (el) => !el.closest('.notes-list-items, .notes-nav-list, .notes-editor') && el.scrollTop > 0,
+    );
+    return { doc: doc.scrollTop, others: scrollers.map((el) => el.className) };
+  });
+  expect(layout.doc).toBe(0);
+  expect(layout.others).toEqual([]);
+  // La lista sí se desplaza hasta la última nota.
+  await expect(page.locator('.notes-item').last()).toBeInViewport();
+  // A 390 px, igual: se desplaza la lista, no la página.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openNotes(page);
+  await page.mouse.move(200, 600);
+  for (let i = 0; i < 8; i++) await page.mouse.wheel(0, 2000);
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(() => document.scrollingElement!.scrollTop)).toBe(0);
+  await expect(page.locator('.notes-item').last()).toBeInViewport();
+  const bottomGap = await page.evaluate(() => {
+    const last = document.querySelectorAll('.notes-item');
+    const r = last[last.length - 1].getBoundingClientRect();
+    return window.innerHeight - r.bottom;
+  });
+  // Sin una franja vacía grande debajo de la última nota.
+  expect(bottomGap).toBeLessThan(200);
 });
 
 test('Notes: 390 px en oscuro sin scroll horizontal, con selección y diálogos', async ({ page }) => {

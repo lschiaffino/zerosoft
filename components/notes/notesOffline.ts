@@ -18,11 +18,17 @@
  *   403/404 queda apartado (stuck) para copiar o descartar.
  * - `files`: grabaciones de audio que todavía no se subieron.
  *
+ * - Varias pestañas: cada operación lleva el id de su pestaña (TAB_ID) y
+ *   solo se fusiona con otra de la misma pestaña y la misma base; lo de otra
+ *   pestaña queda aparte (y termina en copia si choca). El reenvío lo hace
+ *   una sola pestaña por vez (withFlushLock: Web Locks, o un turno guardado
+ *   en la base si el navegador no los tiene).
+ *
  * La lógica pura se testea en tests/unit/notes-parity.test.ts. Solo cliente.
  */
 import { parseNoteQuery } from '@/lib/notes-query';
 import type { DocsBlock } from '@/lib/docs-types';
-import type { NoteDetail, NoteSummary, NotebookInfo, NotesSort, TagInfo } from '@/lib/notes-types';
+import type { NoteDetail, NoteLockEnvelope, NoteSummary, NotebookInfo, NotesSort, TagInfo } from '@/lib/notes-types';
 import type { NotesFilter } from './notes-ui';
 
 export const NOTES_DB_PREFIX = 'zs-notes';
@@ -47,9 +53,16 @@ export type CachedNote = NoteSummary &
     server_updated_at?: string;
   };
 
+const newOpId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+
+/** Id de esta pestaña: sus cambios no se fusionan con los de otra. */
+export const TAB_ID = newOpId();
+
 interface OpBase {
   /** Id propio de la operación (estable aunque se fusionen cambios). */
   opId: string;
+  /** Pestaña que la hizo. */
+  tab: string;
   /** Sube cada vez que la operación cambia: si cambió mientras se mandaba, no se borra. */
   rev: number;
   id: string;
@@ -67,6 +80,9 @@ export interface StuckOp {
   text: string;
   status: number;
   at: number;
+  /** Para guardarlo como nota nueva: los bloques (en claro) o, si era bloqueada, el sobre y los adjuntos. */
+  content?: DocsBlock[];
+  lock?: NoteLockEnvelope;
 }
 
 /** Grabación que espera a subirse a su nota. */
@@ -78,8 +94,6 @@ export interface PendingFile {
   blob: Blob;
   at: number;
 }
-
-const newOpId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
 
 // ---------- Identidad ----------
 
@@ -161,7 +175,7 @@ export function makeOp(
   op: { kind: 'create'; id: string; body: Record<string, unknown> } | { kind: 'patch'; id: string; patch: Record<string, unknown>; base: string | null },
   at = Date.now(),
 ): OutboxOp {
-  return { ...op, opId: newOpId(), rev: 0, at } as OutboxOp;
+  return { ...op, opId: newOpId(), tab: TAB_ID, rev: 0, at } as OutboxOp;
 }
 
 /**
@@ -172,7 +186,8 @@ export function makeOp(
  */
 export function mergeIntoOutbox(ops: OutboxOp[], next: OutboxOp): OutboxOp[] {
   if (next.kind === 'create') return [...ops.filter((o) => o.id !== next.id || o.kind !== 'create'), next];
-  const create = ops.find((o) => o.kind === 'create' && o.id === next.id);
+  // Solo con lo de la misma pestaña: otra pestaña tiene su propia copia de la nota.
+  const create = ops.find((o) => o.kind === 'create' && o.id === next.id && o.tab === next.tab);
   if (create && create.kind === 'create') {
     const { trashed, ...rest } = next.patch;
     const merged: OutboxOp = { ...create, body: { ...create.body, ...rest }, rev: create.rev + 1 };
@@ -183,6 +198,8 @@ export function mergeIntoOutbox(ops: OutboxOp[], next: OutboxOp): OutboxOp[] {
   const prev = [...ops]
     .reverse()
     .find((o) => o.kind === 'patch' && o.id === next.id && !('trashed' in o.patch) && !('trashed' in next.patch));
+  // Otra pestaña o otra base: queda aparte (si choca, termina en copia; nunca pisa lo de la otra).
+  if (prev && (prev.tab !== next.tab || (prev.kind === 'patch' && prev.base !== next.base))) return [...ops, next];
   if (prev && prev.kind === 'patch') {
     const merged: OutboxOp = { ...prev, patch: { ...prev.patch, ...next.patch }, at: next.at, rev: prev.rev + 1 };
     return ops.map((o) => (o === prev ? merged : o));
@@ -252,7 +269,11 @@ export async function replayOutbox(ops: OutboxOp[], deps: ReplayDeps): Promise<R
       method: 'POST',
       ...json({ action: 'lock', lock, content: op.patch.content ?? [] }),
     });
-    return locked.ok;
+    if (locked.ok) return true;
+    // No quedó bloqueada: la copia vacía se borra y el cambio queda apartado (con su sobre).
+    await deps.fetch(`/api/notes/${encodeURIComponent(id)}`, { method: 'PATCH', ...json({ trashed: true }) }).catch(() => null);
+    await deps.fetch(`/api/notes/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => null);
+    return false;
   }
 
   for (let i = 0; i < ops.length; i++) {
@@ -357,9 +378,12 @@ export function stuckFrom(op: OutboxOp, status: number): StuckOp {
     opId: op.opId,
     id: op.id,
     title: String(data.title ?? ''),
+    // Bloqueada: el texto no está en claro, pero el sobre queda para recuperarla como nota bloqueada.
     text: locked ? '' : blocksPlain(data.content),
     status,
     at: Date.now(),
+    content: Array.isArray(data.content) ? (data.content as DocsBlock[]) : undefined,
+    lock: locked ? (data.lock as NoteLockEnvelope) : undefined,
   };
 }
 
@@ -545,6 +569,31 @@ export class NotesOfflineStore {
     await done(tx);
   }
 
+  /**
+   * Turno para reenviar la cola sin Web Locks: se toma si está libre o vencido
+   * (en una sola transacción, así dos pestañas no lo toman a la vez).
+   */
+  async tryLease(tab: string, ms = 30_000): Promise<boolean> {
+    const d = await this.open();
+    const tx = d.transaction('meta', 'readwrite');
+    const meta = tx.objectStore('meta');
+    const cur = (await req(meta.get('flushLease'))) as { tab: string; until: number } | undefined;
+    const now = Date.now();
+    const free = !cur || cur.until < now || cur.tab === tab;
+    if (free) meta.put({ tab, until: now + ms }, 'flushLease');
+    await done(tx);
+    return free;
+  }
+
+  async releaseLease(tab: string): Promise<void> {
+    const d = await this.open();
+    const tx = d.transaction('meta', 'readwrite');
+    const meta = tx.objectStore('meta');
+    const cur = (await req(meta.get('flushLease'))) as { tab: string } | undefined;
+    if (cur?.tab === tab) meta.delete('flushLease');
+    await done(tx);
+  }
+
   async dropStuck(opId: string | null): Promise<void> {
     const list = await this.stuckOps();
     await this.setMeta('stuck', opId ? list.filter((s) => s.opId !== opId) : []);
@@ -578,6 +627,30 @@ export class NotesOfflineStore {
     const tx = d.transaction('files', 'readwrite');
     tx.objectStore('files').delete(fileId);
     await done(tx);
+  }
+}
+
+/**
+ * Reenvía con un turno exclusivo entre pestañas: Web Locks si existen (sin
+ * esperar: si otra pestaña lo tiene, esta no reenvía), o el turno guardado en
+ * la base. Devuelve false si no le tocó.
+ */
+export async function withFlushLock(store: NotesOfflineStore, run: () => Promise<void>): Promise<boolean> {
+  const name = `zs-notes-flush:${notesDbName(store.owner)}`;
+  const locks = typeof navigator !== 'undefined' ? (navigator as Navigator & { locks?: LockManager }).locks : undefined;
+  if (locks?.request) {
+    return locks.request(name, { ifAvailable: true }, async (lock) => {
+      if (!lock) return false;
+      await run();
+      return true;
+    });
+  }
+  if (!(await store.tryLease(TAB_ID).catch(() => false))) return false;
+  try {
+    await run();
+    return true;
+  } finally {
+    await store.releaseLease(TAB_ID).catch(() => undefined);
   }
 }
 

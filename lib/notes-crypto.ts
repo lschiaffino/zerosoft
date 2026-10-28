@@ -8,10 +8,15 @@
  * - Cada guardado cifra { title, content } con un IV nuevo de 12 bytes.
  * - Una contraseña equivocada falla en la verificación de AES-GCM
  *   (WrongPasswordError): no hay forma de recuperarla.
- * - PBKDF2 da 64 bytes: los primeros 32 son la clave AES y los otros 32 la
- *   "prueba" de que se sabe la contraseña. El sobre guarda solo el SHA-256 de
- *   la prueba (vh); para reemplazar el sobre o sacar el bloqueo el servidor
- *   pide la prueba y compara. La prueba no sirve para descifrar.
+ * - Sobre v2: PBKDF2 da 32 bytes (una sola pasada, el costo de siempre) y
+ *   HKDF-SHA256 saca de ahí dos valores independientes: la clave AES
+ *   ("zs-notes/aes") y la "prueba" de que se sabe la contraseña
+ *   ("zs-notes/proof"). El sobre guarda solo el SHA-256 de la prueba (vh);
+ *   para reemplazar el sobre o sacar el bloqueo el servidor pide la prueba y
+ *   compara. La prueba no sirve para descifrar.
+ * - Sobre v1 (de antes): PBKDF2 de 64 bytes partido en clave y prueba. Se
+ *   sigue abriendo; los guardados nuevos de esa nota siguen en v1 (misma
+ *   clave, mismo verificador) hasta que se le saque y vuelva a poner el bloqueo.
  *
  * Client-safe (también corre en Node para los tests: globalThis.crypto).
  */
@@ -35,7 +40,11 @@ export interface NoteKey {
   proof: string;
   /** SHA-256 de la prueba (base64): va en el sobre. */
   vh: string;
+  /** Versión del sobre que se arma con esta clave. */
+  v: 1 | 2;
 }
+
+export const NOTE_LOCK_VERSION = 2 as const;
 
 export class WrongPasswordError extends Error {
   constructor() {
@@ -79,15 +88,32 @@ export async function sha256b64(bytes: Uint8Array): Promise<string> {
   return toBase64(new Uint8Array(await subtle().digest('SHA-256', bytes as BufferSource)));
 }
 
-/** Deriva la clave AES-GCM y la prueba de la contraseña con la sal. */
-export async function deriveNoteKey(password: string, salt: string, iter = NOTE_LOCK_ITERATIONS): Promise<NoteKey> {
+/** Deriva la clave AES-GCM y la prueba de la contraseña con la sal (según la versión del sobre). */
+export async function deriveNoteKey(password: string, salt: string, iter = NOTE_LOCK_ITERATIONS, v: 1 | 2 = NOTE_LOCK_VERSION): Promise<NoteKey> {
   const base = await subtle().importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
-  const bits = new Uint8Array(
-    await subtle().deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: fromBase64(salt) as BufferSource, iterations: iter }, base, 512),
-  );
-  const key = await subtle().importKey('raw', bits.slice(0, 32) as BufferSource, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
-  const proofBytes = bits.slice(32);
-  return { key, salt, iter, proof: toBase64(proofBytes), vh: await sha256b64(proofBytes) };
+  const pbkdf2 = { name: 'PBKDF2', hash: 'SHA-256', salt: fromBase64(salt) as BufferSource, iterations: iter };
+  let keyBytes: Uint8Array;
+  let proofBytes: Uint8Array;
+  if (v === 1) {
+    const bits = new Uint8Array(await subtle().deriveBits(pbkdf2, base, 512));
+    keyBytes = bits.slice(0, 32);
+    proofBytes = bits.slice(32);
+  } else {
+    const master = new Uint8Array(await subtle().deriveBits(pbkdf2, base, 256));
+    const hk = await subtle().importKey('raw', master as BufferSource, 'HKDF', false, ['deriveBits']);
+    const expand = async (info: string) =>
+      new Uint8Array(
+        await subtle().deriveBits(
+          { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(0) as BufferSource, info: new TextEncoder().encode(info) as BufferSource },
+          hk,
+          256,
+        ),
+      );
+    keyBytes = await expand('zs-notes/aes');
+    proofBytes = await expand('zs-notes/proof');
+  }
+  const key = await subtle().importKey('raw', keyBytes as BufferSource, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  return { key, salt, iter, v, proof: toBase64(proofBytes), vh: await sha256b64(proofBytes) };
 }
 
 /** Clave nueva (sal aleatoria) para bloquear una nota. */
@@ -100,7 +126,7 @@ export async function sealNote(k: NoteKey, payload: LockedPayload, hint?: string
   const iv = randomBytes(12);
   const data = new TextEncoder().encode(JSON.stringify(payload));
   const ct = new Uint8Array(await subtle().encrypt({ name: 'AES-GCM', iv: iv as BufferSource }, k.key, data));
-  const env: NoteLockEnvelope = { v: 1, iter: k.iter, salt: k.salt, iv: toBase64(iv), ct: toBase64(ct), vh: k.vh };
+  const env: NoteLockEnvelope = { v: k.v, iter: k.iter, salt: k.salt, iv: toBase64(iv), ct: toBase64(ct), vh: k.vh };
   if (hint?.trim()) env.hint = hint.trim().slice(0, 120);
   return env;
 }
@@ -130,6 +156,6 @@ export function fileBlocksOnly(blocks: DocsBlock[]): DocsBlock[] {
 
 /** Abre el sobre con la contraseña: devuelve el contenido y la clave para volver a cifrar. */
 export async function openNote(password: string, env: NoteLockEnvelope): Promise<{ payload: LockedPayload; key: NoteKey }> {
-  const key = await deriveNoteKey(password, env.salt, env.iter);
+  const key = await deriveNoteKey(password, env.salt, env.iter, env.v === 1 ? 1 : 2);
   return { payload: await openNoteWithKey(key, env), key };
 }

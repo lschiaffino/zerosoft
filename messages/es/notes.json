@@ -413,7 +413,11 @@
     "copyText": "Copiar texto",
     "copied": "Copiado. Pegalo en una nota nueva.",
     "discard": "Descartar",
-    "confirmDiscard": "¿Descartar estos cambios del dispositivo? Su texto se pierde."
+    "confirmDiscard": "¿Descartar estos cambios del dispositivo? Su texto se pierde.",
+    "saveAsNew": "Guardar como notas nuevas",
+    "recovered": "{count, plural, one {Guardado como # nota nueva.} other {Guardado como # notas nuevas.}}",
+    "deletedElsewhere": "Esta nota se borró en otro dispositivo. Tus cambios quedan arriba de la lista para que los guardes.",
+    "lockedNotCached": "Nota bloqueada. Abrí Notes otra vez con conexión para que vuelva a estar disponible sin red."
   },
   "focus": {
     "enter": "Modo foco",

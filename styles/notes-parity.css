@@ -4,6 +4,11 @@
    offline, modo foco e impresión. Mismos tokens que notes.css.
    ============================================ */
 
+/* Con muchas notas se desplaza cada panel, nunca la página (no queda una franja en blanco abajo). */
+.notes-app { overflow: hidden; }
+.app-content:has(> .notes-app) { overflow: hidden; }
+.notes-list-items { overscroll-behavior: contain; }
+
 .notes-nav-top { display: flex; flex-direction: column; gap: 6px; }
 .notes-new-template { justify-content: flex-start; }
 

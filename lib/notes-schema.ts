@@ -16,7 +16,7 @@ const b64Bytes = (n: number) => z.string().length(Math.ceil(n / 3) * 4).regex(/^
  * prueba de la contraseña. Cualquier otra forma se rechaza.
  */
 export const noteLockEnvelopeSchema = z.object({
-  v: z.literal(1),
+  v: z.union([z.literal(1), z.literal(2)]),
   iter: z.number().int().min(100_000).max(5_000_000),
   salt: b64Bytes(16),
   iv: b64Bytes(12),
