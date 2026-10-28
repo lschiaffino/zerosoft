@@ -13,7 +13,8 @@ const schema = z.object({
   /** Nombre del evento ("Sign up", "Demo request"…). Default "Sign up". */
   eventName: z.string().min(1).max(100).optional(),
   /** Id del cliente en tu sistema: con él se atribuyen después las ventas. */
-  customerExternalId: z.string().min(1).max(255),
+  // stripe: y shopify: son los clientes que crean las integraciones.
+  customerExternalId: z.string().trim().min(1).max(255).refine((v) => !/^(stripe|shopify):/i.test(v), 'the stripe: and shopify: prefixes are reserved'),
   customerName: z.string().max(200).nullish(),
   customerEmail: z.string().email().max(254).nullish(),
   metadata: z.record(z.string(), z.unknown()).nullish(),

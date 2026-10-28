@@ -45,9 +45,31 @@ function blockedDomains(): string[] {
     .filter(Boolean);
 }
 
-// Letras cirílicas que se ven como latinas (а е о р с у х і ј ѕ ԁ ԛ ԝ ү һ): "раураl.com".
-const CYRILLIC_LOOKALIKE = /^[аеорсухіјѕԁԛԝүһ]+$/u;
+// Letras cirílicas que se ven como latinas (а е о р с у х і ј ѕ ԁ ԛ ԝ ү һ ӏ): "раураl.com".
+const CYRILLIC_LOOKALIKE = /^[аеорсухіјѕԁԛԝүһӏ]+$/u;
+
+/**
+ * Esqueleto de confusión (subconjunto de los confusables de Unicode TR39):
+ * cada letra que se confunde con una latina pasa a esa latina. Sirve para
+ * homógrafos de un solo alfabeto ("ɡооɡlе" o "аррlе" todo cirílico) contra
+ * marcas que se suplantan seguido.
+ */
+const SKELETON: Record<string, string> = {
+  а: 'a', е: 'e', о: 'o', р: 'p', с: 'c', у: 'y', х: 'x', і: 'i', ј: 'j', ѕ: 's', ԁ: 'd', ԛ: 'q', ԝ: 'w', ү: 'y', һ: 'h', ӏ: 'l',
+  ɡ: 'g', ɩ: 'i', ı: 'i', ο: 'o', α: 'a', ν: 'v', ρ: 'p', τ: 't', κ: 'k', ι: 'i', υ: 'u', ε: 'e', ս: 'u', օ: 'o', ց: 'g', հ: 'h', ո: 'n',
+  '0': 'o', '1': 'l',
+};
+const IMPERSONATED = [
+  'paypal', 'apple', 'icloud', 'google', 'gmail', 'microsoft', 'outlook', 'office', 'amazon', 'facebook', 'instagram', 'whatsapp',
+  'netflix', 'mercadopago', 'mercadolibre', 'santander', 'bbva', 'itau', 'bradesco', 'nubank', 'galicia', 'hsbc', 'citibank', 'chase',
+  'wellsfargo', 'bankofamerica', 'binance', 'coinbase',
+];
+
+function skeleton(label: string): string {
+  return [...label.toLowerCase()].map((ch) => SKELETON[ch] ?? ch).join('').replace(/-/g, '');
+}
 const SCRIPTS: Array<[string, RegExp]> = [
+  // ɡ (U+0261) es latina pero no ASCII: la cuenta el esqueleto de marcas.
   ['latin', /\p{Script=Latin}/u],
   ['cyrillic', /\p{Script=Cyrillic}/u],
   ['greek', /\p{Script=Greek}/u],
@@ -72,7 +94,10 @@ export function isConfusableHost(host: string): boolean {
     const letters = label.replace(/[\d-]/g, '');
     const present = SCRIPTS.filter(([, re]) => re.test(letters)).map(([name]) => name);
     if (present.length > 1) return true;
-    return !cyrillicTld && present[0] === 'cyrillic' && CYRILLIC_LOOKALIKE.test(letters);
+    if (!cyrillicTld && present[0] === 'cyrillic' && CYRILLIC_LOOKALIKE.test(letters)) return true;
+    // Un solo alfabeto pero con letras no ASCII que, pasadas a latinas, dan una marca muy suplantada.
+    const sk = skeleton(label);
+    return sk !== label.toLowerCase().replace(/-/g, '') && IMPERSONATED.includes(sk);
   });
 }
 

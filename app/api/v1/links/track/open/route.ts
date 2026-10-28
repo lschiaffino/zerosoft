@@ -54,9 +54,15 @@ const noMatch = () => NextResponse.json({ matched: null, link: null }, { status:
  */
 export async function POST(req: NextRequest) {
   const raw = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim() || req.headers.get('x-publishable-key');
-  const ws = await workspaceOfPublishableKey(raw);
-  if (!ws) return apiError(401, 'invalid_key', 'Send the workspace publishable key: Authorization: Bearer zs_pk_…');
   const ip = clientIp(req);
+  const ws = await workspaceOfPublishableKey(raw);
+  if (!ws) {
+    // Keys inválidas: tope por IP para que no se puedan probar a fuerza bruta.
+    if (process.env.RATE_LIMIT_DISABLED !== 'true' && !(await rateLimit(`links-open-invalid:${ip}`, 20, 60)).ok) {
+      return apiError(429, 'rate_limited', 'Too many invalid keys.');
+    }
+    return apiError(401, 'invalid_key', 'Send the workspace publishable key: Authorization: Bearer zs_pk_…');
+  }
   // Por key (todas las instalaciones de la app) y por key + IP.
   if (process.env.RATE_LIMIT_DISABLED !== 'true') {
     const [perKey, perIp] = await Promise.all([

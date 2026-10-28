@@ -24,9 +24,9 @@ async function admin() {
 
 /** Shopify y Segment de Link (sin secretos: solo pistas enmascaradas). */
 export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  return NextResponse.json({ integrations: await listLinkIntegrations(user.id) });
+  const a = await admin();
+  if ('res' in a) return a.res;
+  return NextResponse.json({ integrations: await listLinkIntegrations(a.user.id) });
 }
 
 export async function POST(req: NextRequest) {

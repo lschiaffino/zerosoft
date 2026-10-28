@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 const schema = z
   .object({
     /** Cliente registrado antes con /track/lead. */
-    customerExternalId: z.string().min(1).max(255).optional(),
+    customerExternalId: z.string().trim().min(1).max(255).refine((v) => !/^(stripe|shopify):/i.test(v), 'the stripe: and shopify: prefixes are reserved').optional(),
     /** O el click directo (venta sin lead previo). */
     clickId: z.string().min(1).max(64).optional(),
     /** En unidades menores (centavos): 4900 = 49,00. */
@@ -20,6 +20,7 @@ const schema = z
     /** Id del pago o factura: la misma venta no se cuenta dos veces. */
     invoiceId: z
       .string()
+      .trim()
       .min(1)
       .max(255)
       // stripe: y shopify: son de las integraciones: la API no puede pisar (ni adelantar) esas ventas.

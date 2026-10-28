@@ -71,11 +71,6 @@ function secretsOf(row: Row | null): Record<string, string> {
   }
 }
 
-function mask(v: string): string {
-  if (!v) return '';
-  return v.length <= 8 ? `${v.slice(0, 2)}…` : `${v.slice(0, 4)}…${v.slice(-4)}`;
-}
-
 async function getRow(userId: string, kind: LinkIntegrationKey): Promise<Row | null> {
   return ((await getDb().prepare('SELECT * FROM link_integrations WHERE user_id = ? AND kind = ?').get(userId, kind)) as Row | undefined) ?? null;
 }
@@ -84,14 +79,14 @@ export async function listLinkIntegrations(userId: string): Promise<LinkIntegrat
   const rows = (await getDb().prepare('SELECT * FROM link_integrations WHERE user_id = ?').all(userId)) as Row[];
   return LINK_INTEGRATIONS.map((key) => {
     const row = rows.find((r) => r.kind === key) ?? null;
-    const s = secretsOf(row);
     return {
       key,
       connected: !!row,
       connectedAt: row?.connected_at ?? null,
       lastUsedAt: row?.last_used_at ?? null,
       lastError: row?.last_error ?? null,
-      hint: key === 'shopify' ? mask(s.webhookSecret ?? '') : mask(s.writeKey ?? ''),
+      // Sin pista del secreto: solo si está conectado.
+      hint: '',
       webhookUrl: key === 'shopify' && row?.token ? `${baseUrl()}/api/links/shopify-webhook?token=${row.token}` : null,
     };
   });

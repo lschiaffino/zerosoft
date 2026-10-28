@@ -302,6 +302,10 @@ describe('Link 123: anti-phishing en todos los destinos', () => {
     expect(localSafetyCheck(`https://${new URL('https://pаypal.com').hostname}/`, [])).toBe('mixed_script');
     expect(localSafetyCheck(`https://${new URL('https://раураl.com').hostname}/`, [])).toBe('mixed_script');
     expect(localSafetyCheck('https://münchen.de/', [])).toBeNull();
+    // ӏ (U+04CF) cirílica y ɡ (U+0261) latina no ASCII: homógrafos de un solo alfabeto contra marcas.
+    expect(localSafetyCheck(`https://${new URL('https://аррӏе.com').hostname}/`, [])).toBe('mixed_script');
+    expect(localSafetyCheck(`https://${new URL('https://ɡoogle.com').hostname}/`, [])).toBe('mixed_script');
+    expect(localSafetyCheck(`https://${new URL('https://ɡato.com').hostname}/`, [])).toBeNull();
     expect(localSafetyCheck('https://пример.рф/', [])).toBeNull();
   });
 
