@@ -181,6 +181,11 @@ export async function removeMember(teamId: string, userId: string): Promise<void
     const { talkPersonRemoved } = await import('./talk');
     await talkPersonRemoved(team.owner_id, userId).catch((err) => console.error('[teams] talk cleanup', err));
   }
+  // Webhooks, flows, robots y agentes con salida HTTP que armó: se pausan (el owner recibe aviso).
+  if (team) {
+    const { pauseRemovedPersonAutomations } = await import('./removed-automations');
+    await pauseRemovedPersonAutomations(team.owner_id, userId);
+  }
   // Si el usuario tenía este team como activo, vuelve a su workspace personal.
   await getDb()
     .prepare('UPDATE users SET active_team_id = NULL WHERE id = ? AND active_team_id = ?')
