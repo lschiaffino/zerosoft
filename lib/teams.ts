@@ -119,6 +119,12 @@ export async function addMember(teamId: string, userId: string, role = 'member')
   await getDb()
     .prepare('INSERT OR IGNORE INTO team_members (team_id, user_id, role) VALUES (?, ?, ?)')
     .run(teamId, userId, role);
+  // Migración del CRM: los registros que esperaban a esta persona (owner del otro CRM) pasan a ser suyos.
+  const team = await getTeamById(teamId);
+  if (team) {
+    const { claimImportedRecords } = await import('./crm-import-owners');
+    await claimImportedRecords(team.owner_id, userId).catch(() => undefined);
+  }
 }
 
 export async function removeMember(teamId: string, userId: string): Promise<void> {

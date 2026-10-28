@@ -5,6 +5,7 @@ import { fakeDatasetFromToken, fakeHubspotFetch } from '@/lib/crm-import-fake';
 import { RateLimiter } from '@/lib/crm-import-source';
 import { createImportPreview, getImportJob, runImportStep, startImportJob } from '@/lib/crm-import-jobs';
 import { addMember, createTeam } from '@/lib/teams';
+import { upsertUser } from '@/lib/db';
 import { makeUser } from './helpers';
 
 /**
@@ -93,5 +94,43 @@ describe('HubSpot: listas', () => {
     await getDb().prepare('UPDATE team_members SET role = ? WHERE team_id = ? AND user_id = ?').run('member', team.id, admin.id);
     expect(await runToEnd(res.job.id)).toBe('failed');
     expect((await getImportJob(owner.id, res.job.id))!.failure).toBe('forbidden');
+  });
+
+  it('owners que no eran miembros: al unirse reciben sus registros (salvo los reasignados a mano)', async () => {
+    const u = await makeUser('hsclaim');
+    const team = await createTeam(u.id, 'Acme');
+    const other = await makeUser('hsother');
+    await addMember(team.id, other.id, 'member');
+    const res = await createImportPreview(u.id, u.id, 'hubspot', 'fake');
+    if (!res.ok) throw new Error(res.code);
+    // El owner "2" (sam@fake-crm.test) no está en el workspace: va al owner por defecto.
+    expect(res.job.preview.owners.find((o) => o.id === '2')?.matchId).toBeNull();
+    const started = await startImportJob(u.id, res.job.id, { groups: ['companies', 'contacts', 'deals', 'activities'], ownerMap: res.job.options.ownerMap, defaultOwnerId: u.id });
+    if (!started.ok) throw new Error(started.code);
+    expect(await runToEnd(res.job.id)).toBe('done');
+    const db = getDb();
+    const pending = (await db
+      .prepare(`SELECT entity, record_id FROM crm_import_pending_owners WHERE workspace_id = ? AND email = 'sam@fake-crm.test' ORDER BY entity`)
+      .all(u.id)) as Array<{ entity: string; record_id: string }>;
+    const contacts = pending.filter((p) => p.entity === 'contact');
+    expect(contacts.length).toBeGreaterThan(1);
+    expect(pending.some((p) => p.entity === 'company')).toBe(true);
+    expect(pending.some((p) => p.entity === 'deal')).toBe(true);
+    // Alguien reasignó a mano un contacto mientras tanto: ese no se toca.
+    await db.prepare('UPDATE crm_contacts SET owner_id = ? WHERE id = ?').run(other.id, contacts[0].record_id);
+
+    // Sam se une al workspace (aceptar la invitación termina en addMember).
+    const sam = await upsertUser({ id: `sam-${crypto.randomUUID().slice(0, 8)}`, email: 'sam@fake-crm.test', name: 'Sam', image: null });
+    await addMember(team.id, sam.id, 'member');
+    const owner = async (id: string) => ((await db.prepare('SELECT owner_id FROM crm_contacts WHERE id = ?').get(id)) as { owner_id: string }).owner_id;
+    expect(await owner(contacts[0].record_id)).toBe(other.id);
+    expect(await owner(contacts[1].record_id)).toBe(sam.id);
+    const deal = pending.find((p) => p.entity === 'deal')!;
+    expect(((await db.prepare('SELECT owner_id FROM crm_deals WHERE id = ?').get(deal.record_id)) as { owner_id: string }).owner_id).toBe(sam.id);
+    // Los del owner "1" (mapeado por email a quien importa) no esperaban a nadie.
+    const left = (await db.prepare('SELECT COUNT(*) AS n FROM crm_import_pending_owners WHERE workspace_id = ?').get(u.id)) as { n: number };
+    expect(left.n).toBe(0);
+    const mine = (await db.prepare('SELECT COUNT(*) AS n FROM crm_contacts WHERE user_id = ? AND owner_id = ?').get(u.id, u.id)) as { n: number };
+    expect(mine.n).toBeGreaterThan(0);
   });
 });

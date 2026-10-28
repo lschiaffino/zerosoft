@@ -2353,10 +2353,11 @@
       "forbidden": "Só admins do workspace podem importar."
     },
     "inviteOwners": "{count, plural, one {Convidar # pessoa} other {Convidar # pessoas}} para o workspace",
-    "inviteHelp": "Owners do outro CRM que ainda não são membros. Por enquanto os registros deles vão para o owner padrão: quando entrarem, rode a importação de novo para atribuí-los.",
-    "invitedNote": "{count, plural, one {Convite pronto} other {# convites prontos}}. Compartilhe cada link (valem por 14 dias) ou gerencie em Configurações › Membros.",
+    "inviteHelp": "Owners do outro CRM que ainda não são membros. Os registros deles ficam com o owner padrão. Quando cada pessoa aceita o convite com esse mesmo email, passam a ser dela os registros que ninguém reatribuiu enquanto isso.",
+    "invitedNote": "{count, plural, one {Convite pronto} other {# convites prontos}}. Por enquanto compartilhe cada link (valem por 14 dias): eles saem por email quando o envio de convites estiver configurado.",
     "inviteLinkFor": "Link de convite para {email}",
-    "inviteFailed": "Não foi possível criar os convites. Tente de novo."
+    "inviteFailed": "Não foi possível criar os convites. Tente de novo.",
+    "invitedEmailed": "{count, plural, one {Convite enviado por email} other {# convites enviados por email}}. Você também pode compartilhar os links abaixo."
   },
   "ai": {
     "updatedAt": "Atualizado {when}",

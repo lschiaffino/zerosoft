@@ -2353,10 +2353,11 @@
       "forbidden": "Solo los admins del workspace pueden importar."
     },
     "inviteOwners": "{count, plural, one {Invitar a # persona} other {Invitar a # personas}} al workspace",
-    "inviteHelp": "Owners del otro CRM que todavía no son miembros. Por ahora sus registros van al owner por defecto: cuando se sumen, corré el import de nuevo para asignárselos.",
-    "invitedNote": "{count, plural, one {Invitación lista} other {# invitaciones listas}}. Compartí cada link (duran 14 días) o gestionalas en Ajustes › Miembros.",
+    "inviteHelp": "Owners del otro CRM que todavía no son miembros. Sus registros quedan con el owner por defecto. Cuando cada persona acepta la invitación con ese mismo email, pasan a ser suyos los registros que nadie reasignó mientras tanto.",
+    "invitedNote": "{count, plural, one {Invitación lista} other {# invitaciones listas}}. Por ahora compartí cada link (duran 14 días): se mandan por email cuando el envío de invitaciones esté configurado.",
     "inviteLinkFor": "Link de invitación para {email}",
-    "inviteFailed": "No se pudieron crear las invitaciones. Probá de nuevo."
+    "inviteFailed": "No se pudieron crear las invitaciones. Probá de nuevo.",
+    "invitedEmailed": "{count, plural, one {Invitación enviada por email} other {# invitaciones enviadas por email}}. También podés compartir los links de abajo."
   },
   "ai": {
     "updatedAt": "Actualizado {when}",

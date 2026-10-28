@@ -2353,10 +2353,11 @@
       "forbidden": "Only workspace admins can import."
     },
     "inviteOwners": "{count, plural, one {Invite # person} other {Invite # people}} to the workspace",
-    "inviteHelp": "Owners from the other CRM who are not members yet. Their records go to the default owner for now: after they join, run the import again to assign them.",
-    "invitedNote": "{count, plural, one {Invitation ready} other {# invitations ready}}. Share each link (they are valid for 14 days) or manage them in Settings › Members.",
+    "inviteHelp": "Owners from the other CRM who are not members yet. Their records stay with the default owner. When each person accepts the invitation with that same email, the records nobody reassigned in the meantime become theirs.",
+    "invitedNote": "{count, plural, one {Invitation ready} other {# invitations ready}}. For now, share each link (they are valid for 14 days): they go out by email once invitation emails are set up.",
     "inviteLinkFor": "Invitation link for {email}",
-    "inviteFailed": "Could not create the invitations. Try again."
+    "inviteFailed": "Could not create the invitations. Try again.",
+    "invitedEmailed": "{count, plural, one {Invitation sent by email} other {# invitations sent by email}}. You can also share the links below."
   },
   "ai": {
     "updatedAt": "Updated {when}",

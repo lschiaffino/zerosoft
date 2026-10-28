@@ -528,7 +528,7 @@ function InviteOwners({ jobId, owners }: { jobId: string; owners: Array<{ id: st
   const locale = useLocale();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [invites, setInvites] = useState<Array<{ email: string; url: string; existing: boolean }> | null>(null);
+  const [invites, setInvites] = useState<Array<{ email: string; url: string; existing: boolean; emailed: boolean }> | null>(null);
   if (!owners.length) return null;
 
   async function invite() {
@@ -541,7 +541,7 @@ function InviteOwners({ jobId, owners }: { jobId: string; owners: Array<{ id: st
     }).catch(() => null);
     setBusy(false);
     if (res && res.ok) {
-      setInvites(((await res.json()) as { invites: Array<{ email: string; url: string; existing: boolean }> }).invites);
+      setInvites(((await res.json()) as { invites: Array<{ email: string; url: string; existing: boolean; emailed: boolean }> }).invites);
       return;
     }
     setError(t('inviteFailed'));
@@ -552,7 +552,7 @@ function InviteOwners({ jobId, owners }: { jobId: string; owners: Array<{ id: st
       {invites ? (
         <>
           <p className="mig-note" role="status">
-            {t('invitedNote', { count: invites.length })}
+            {invites.every((i) => i.emailed) ? t('invitedEmailed', { count: invites.length }) : t('invitedNote', { count: invites.length })}
           </p>
           <ul className="mig-invite-list">
             {invites.map((i) => (

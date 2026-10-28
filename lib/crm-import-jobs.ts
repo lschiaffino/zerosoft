@@ -138,6 +138,8 @@ interface Plan {
   defaultOwnerId: string;
   /** [empresa nuestra, id ajeno de la madre]: madres que todavía no se importaron. */
   pendingParents: Array<[string, string]>;
+  /** Owners ajenos sin persona en el workspace (id → email): sus registros esperan a que se unan. */
+  pendingOwners?: Record<string, string>;
 }
 
 interface Cursor {
@@ -561,6 +563,11 @@ async function buildPlan(job: JobRow, source: CrmSource, options: ImportJobOptio
     owners: options.ownerMap,
     defaultOwnerId: options.defaultOwnerId,
     pendingParents: [],
+    pendingOwners: Object.fromEntries(
+      parseJson<ImportPreview>(job.preview, { owners: [] } as unknown as ImportPreview)
+        .owners.filter((o) => o.email && !options.ownerMap[o.id])
+        .map((o) => [o.id, o.email.toLowerCase()]),
+    ),
   };
   const entities = new Set<string>(options.groups.filter((g) => g !== 'activities'));
 
@@ -1062,6 +1069,7 @@ async function writePage(
         pushError(ctx, `${obj} ${item.id}: ${e instanceof CrmRefError ? e.code : 'write_failed'}`);
       }
     }
+    await recordPendingOwners(ctx, obj, items, extMap);
     await tx.commit();
   } catch (e) {
     await tx.rollback();
@@ -1097,6 +1105,31 @@ async function writeList(ctx: WriteCtx, src: SrcList, extMap: Map<string, string
       .run(tagId, userId, src.entity, recordId);
   }
   if (missing) pushError(ctx, `list ${src.name}: ${missing} members were not imported, skipped`);
+}
+
+/**
+ * Registros de esta tanda cuyo owner ajeno no es miembro todavía: quedan
+ * anotados (crm_import_pending_owners) para pasárselos cuando se una.
+ */
+async function recordPendingOwners(ctx: WriteCtx, obj: string, items: SrcRecord[], before: Map<string, string>): Promise<void> {
+  const pending = ctx.plan.pendingOwners ?? {};
+  if (obj === 'list' || !Object.keys(pending).length) return;
+  const mine = items.filter((i) => i.kind !== 'list' && pending[(i as { ownerId: string }).ownerId]);
+  if (!mine.length) return;
+  const ext = await extLookup(ctx.db, ctx.userId, ctx.provider, obj, mine.map((i) => i.id));
+  for (const i of mine) {
+    const recordId = ext.get(i.id) ?? before.get(i.id);
+    if (!recordId) continue;
+    const ownerId = (i as { ownerId: string }).ownerId;
+    await ctx.db
+      .prepare(
+        `INSERT INTO crm_import_pending_owners (workspace_id, email, provider, external_owner_id, entity, record_id, default_owner_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (workspace_id, entity, record_id) DO UPDATE SET email = excluded.email, external_owner_id = excluded.external_owner_id,
+           default_owner_id = excluded.default_owner_id`,
+      )
+      .run(ctx.userId, pending[ownerId], ctx.provider, ownerId.slice(0, 64), obj, recordId, ctx.plan.defaultOwnerId);
+  }
 }
 
 async function resolvePendingParents(job: JobRow, plan: Plan, errors: string[]): Promise<void> {

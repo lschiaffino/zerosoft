@@ -6391,6 +6391,23 @@ export const MIGRATIONS: Migration[] = [
         }
       }
       await client.execute('CREATE INDEX IF NOT EXISTS idx_import_job_items_kind ON import_job_items(job_id, kind, seq)');
+      // CRM: registros importados que quedaron con el owner por defecto porque
+      // su owner del otro CRM todavía no era miembro. Cuando esa persona se
+      // une (lib/crm-import-owners.ts), pasan a ser suyos si nadie los tocó.
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS crm_import_pending_owners (
+          workspace_id TEXT NOT NULL,
+          email TEXT NOT NULL,
+          provider TEXT NOT NULL,
+          external_owner_id TEXT NOT NULL,
+          entity TEXT NOT NULL CHECK (entity IN ('company', 'contact', 'deal', 'activity')),
+          record_id TEXT NOT NULL,
+          default_owner_id TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (workspace_id, entity, record_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_import_pending_owners_email ON crm_import_pending_owners(workspace_id, email);
+      `);
     },
   },
 ];

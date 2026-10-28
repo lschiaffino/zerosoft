@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
 import { getImportJob } from '@/lib/crm-import-jobs';
+import * as teams from '@/lib/teams';
 import { createInvite, createTeam, listOwnedTeams, listPendingInvites } from '@/lib/teams';
+import type { TeamInviteRow } from '@/lib/db';
 import { workspacePeople } from '@/lib/crm-import';
 import { crmError, forbidden, limitAction, notFound, unauthorized } from '@/lib/crm-http';
 
@@ -14,6 +16,17 @@ const schema = z.object({
   ownerIds: z.array(z.string().min(1).max(64)).min(1).max(200),
   locale: z.enum(['en', 'es', 'pt']).default('en'),
 });
+
+type InviteSender = (invite: TeamInviteRow, opts: { url: string; locale: string; invitedBy: string }) => Promise<boolean | void>;
+
+/**
+ * El envío de invitaciones por email del workspace (lib/teams.ts ›
+ * sendInviteEmail) cuando exista; hasta entonces, null y se comparte el link.
+ */
+function inviteSender(): InviteSender | null {
+  const fn = (teams as unknown as { sendInviteEmail?: unknown }).sendInviteEmail;
+  return typeof fn === 'function' ? (fn as InviteSender) : null;
+}
 
 /**
  * Migración del CRM: invita al workspace a los owners del otro CRM que todavía
@@ -49,11 +62,15 @@ export async function POST(req: NextRequest) {
   if (!team) return crmError(409, 'no_team');
   const pending = new Map((await listPendingInvites(team.id)).map((i) => [i.email.toLowerCase(), i]));
   const base = (process.env.NEXTAUTH_URL ?? req.nextUrl.origin).replace(/\/$/, '');
-  const invites: Array<{ email: string; url: string; existing: boolean }> = [];
+  const send = inviteSender();
+  const invites: Array<{ email: string; url: string; existing: boolean; emailed: boolean }> = [];
   for (const email of emails) {
     const prev = pending.get(email);
     const invite = prev ?? (await createInvite(team.id, email, realUserId(user)));
-    invites.push({ email, url: `${base}/${parsed.data.locale}/invite/${invite.token}`, existing: Boolean(prev) });
+    const url = `${base}/${parsed.data.locale}/invite/${invite.token}`;
+    // Con el envío por email del workspace configurado, la invitación sale sola; si no, queda el link para compartir.
+    const emailed = send ? await send(invite, { url, locale: parsed.data.locale, invitedBy: realUserId(user) }).then((r) => r !== false).catch(() => false) : false;
+    invites.push({ email, url, existing: Boolean(prev), emailed });
   }
   return NextResponse.json({ invites }, { status: 201 });
 }
