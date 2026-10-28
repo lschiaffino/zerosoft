@@ -18,7 +18,7 @@ type Kind = RobotDestination['kind'];
 
 function newDestination(kind: Kind): RobotDestination {
   const id = Math.random().toString(36).slice(2, 10);
-  if (kind === 'crm') return { id, kind, enabled: true, variable: '', object: 'contacts', mapping: {} };
+  if (kind === 'crm') return { id, kind, enabled: true, variable: '', object: 'contacts', mapping: {}, onExisting: 'fill' };
   if (kind === 'sheets') return { id, kind, enabled: true, variable: '', credential: '', spreadsheetId: '', sheet: 'Sheet1', mode: 'sync' };
   return { id, kind, enabled: true, variable: '', credential: '', baseId: '', table: '', mergeField: '' };
 }
@@ -31,6 +31,7 @@ export default function IntegrationsPanel({
   readOnly,
   columns,
   changesPerDay,
+  usesLogin,
   flowSection,
 }: {
   steps: RobotStep[];
@@ -40,6 +41,8 @@ export default function IntegrationsPanel({
   /** Columnas conocidas (de la última corrida) para los mapeos. */
   columns: string[];
   changesPerDay: number;
+  /** El robot inicia sesión (credenciales o sesión guardada): aviso al enviar datos. */
+  usesLogin: boolean;
   /** Sección "Flow, webhooks y API". */
   flowSection: React.ReactNode;
 }) {
@@ -97,6 +100,7 @@ export default function IntegrationsPanel({
       </FormSection>
 
       <FormSection title={t('destTitle')} description={t('destDesc')}>
+        {usesLogin && <p className="robots-note-warn">{t('loginWarning')}</p>}
         {dests.length === 0 && <p className="robots-muted robots-small">{t('empty')}</p>}
         <ol className="robots-steplist">
           {dests.map((d, i) => (
@@ -234,6 +238,22 @@ function CrmFields({
         >
           <option value="contacts">{t('objects.contacts')}</option>
           <option value="companies">{t('objects.companies')}</option>
+        </select>
+      </div>
+      <div className="ui-field">
+        <label className="label" htmlFor={`${uid}-onex`}>
+          {t('onExisting')}
+        </label>
+        <select
+          id={`${uid}-onex`}
+          className="select"
+          value={dest.onExisting ?? 'fill'}
+          disabled={readOnly}
+          onChange={(e) => onChange({ ...dest, onExisting: e.target.value as 'fill' | 'skip' | 'overwrite' })}
+        >
+          <option value="fill">{t('onExistingOptions.fill')}</option>
+          <option value="skip">{t('onExistingOptions.skip')}</option>
+          <option value="overwrite">{t('onExistingOptions.overwrite')}</option>
         </select>
       </div>
       <fieldset className="robots-wide robots-mapping">

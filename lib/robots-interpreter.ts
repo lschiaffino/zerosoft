@@ -1218,9 +1218,16 @@ export async function robotHarness(
     return result;
   } catch (err) {
     const msg = err instanceof Error ? err.message.split('\n')[0].slice(0, 300) : 'browser_error';
+    // El renderer se cayó (p. ej. una página pesada que se come la memoria): mensaje claro.
+    const crashed = /Target crashed|Target closed|crashed|out of memory|Session closed/i.test(msg);
     return {
       status: 'failed',
-      error: Date.now() - started > 5000 && job.deadline <= Date.now() ? 'timeout' : `browser_error: ${msg}`,
+      error:
+        Date.now() - started > 5000 && job.deadline <= Date.now()
+          ? 'timeout'
+          : crashed
+            ? 'page_crashed: the page used too much memory or closed the browser'
+            : `browser_error: ${msg}`,
       vars: {},
       logs: [],
       screenshots: [],

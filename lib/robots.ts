@@ -13,7 +13,7 @@ import { after } from 'next/server';
 import { getDb, type RobotRow, type RobotRunRow, type RobotRunStatus, type RobotRunTrigger } from './db';
 import { emitEvent } from './events';
 import { computeNextRun, sameJson } from './flow';
-import { referencedCredentialNames, resolveCredential, secretValues } from './flow-credentials';
+import { expandedSecrets, referencedCredentialNames, resolveCredential, secretValues } from './flow-credentials';
 import { redact } from './flow-credentials-schema';
 import { rateLimit } from './rate-limit';
 import { getRobotBackend, robotBackendName, type RobotBackendName } from './robots-runner';
@@ -393,7 +393,13 @@ export async function createRobot(
     inputs = iv.inputs;
     schedule = file.data.schedule ?? null;
     // Los envíos apuntan a credenciales de otro workspace: se importan apagados.
-    settings = { ...st.data, destinations: (st.data.destinations ?? []).map((d) => ({ ...d, enabled: false })) };
+    // Los destinatarios del email de cambios pueden ser de otro workspace: se
+    // vacían (el email, si queda prendido, va a quien importa el robot).
+    settings = {
+      ...st.data,
+      destinations: (st.data.destinations ?? []).map((d) => ({ ...d, enabled: false })),
+      ...(st.data.changeEmail ? { changeEmail: { enabled: st.data.changeEmail.enabled, to: [] } } : {}),
+    };
     timeoutSec = Math.min(Math.max(file.data.timeoutSec ?? DEFAULT_TIMEOUT_SEC, 10), MAX_TIMEOUT_SEC);
     name = name || file.data.name;
     description = description || file.data.description;
@@ -931,7 +937,9 @@ async function executeClaimedRun(
   // Con un login o una sesión guardada, los datos son de quien armó el robot (captured_by).
   const authenticated = Object.keys(creds.credentials).length > 0 || session !== undefined;
   const capturedBy = authenticated ? (row.created_by ?? workspaceId) : null;
-  const secrets = [...creds.secrets, ...(geo.proxy?.password ? [geo.proxy.password] : [])];
+  // Los secretos se redactan también en sus formas codificadas (URL, form, base64, HTML):
+  // una página podría devolverlos en un query string o en un atributo.
+  const secrets = expandedSecrets([...creds.secrets, ...(geo.proxy?.password ? [geo.proxy.password] : [])]);
   let result: Awaited<ReturnType<typeof backend.run>>;
   try {
     result = await backend.run({
@@ -1432,7 +1440,7 @@ export interface RobotBatchDto {
   runs: RobotRunDto[];
 }
 
-export async function getRobotBatch(workspaceId: string, batchId: string): Promise<RobotBatchDto | null> {
+export async function getRobotBatch(workspaceId: string, batchId: string, viewer?: RobotViewer): Promise<RobotBatchDto | null> {
   const rows = (await getDb()
     .prepare('SELECT * FROM robot_runs WHERE batch_id = ? AND user_id = ? ORDER BY created_at, rowid')
     .all(batchId, workspaceId)) as RobotRunRow[];
@@ -1445,7 +1453,7 @@ export async function getRobotBatch(workspaceId: string, batchId: string): Promi
     total: rows.length,
     counts,
     done: counts.queued === 0 && counts.running === 0,
-    runs: rows.map(toRunDto),
+    runs: rows.map((r) => (canSeeRobotData(viewer, r) ? toRunDto(r) : redactRunDto(toRunDto(r)))),
   };
 }
 
@@ -1524,7 +1532,7 @@ export function exportRobot(robot: RobotDto): Record<string, unknown> {
 
 export type SnapshotResult =
   | { ok: true; snapshot: import('./robots-detect').PageSnapshot }
-  | { ok: false; error: 'runner_unavailable' | 'quota_exceeded' | 'rate_limited' | 'invalid_url' | 'private_host' | 'snapshot_failed'; detail?: string };
+  | { ok: false; error: 'runner_unavailable' | 'quota_exceeded' | 'rate_limited' | 'busy' | 'invalid_url' | 'private_host' | 'snapshot_failed'; detail?: string };
 
 /** Lecturas de página por workspace y hora (ROBOTS_SNAPSHOTS_PER_HOUR, 30). */
 export function snapshotsPerHour(): number {
@@ -1548,6 +1556,13 @@ export async function snapshotPage(workspaceId: string, url: string, country?: s
     const rl = await rateLimit(`robot-snapshot:${workspaceId}`, snapshotsPerHour(), 3600);
     if (!rl.ok) return { ok: false, error: 'rate_limited' };
   }
+  // Un navegador a la vez por workspace, igual que las corridas: si hay una
+  // corrida viva, la lectura del constructor espera (no abre otro Chromium).
+  await failStaleRobotRuns(workspaceId);
+  const live = (await getDb()
+    .prepare("SELECT 1 AS x FROM robot_runs WHERE user_id = ? AND status = 'running' LIMIT 1")
+    .get(workspaceId)) as { x: number } | undefined;
+  if (live) return { ok: false, error: 'busy' };
   const { PAGE_SNAPSHOT_SCRIPT, normalizeSnapshot } = await import('./robots-detect');
   const t0 = Date.now();
   const res = await backend

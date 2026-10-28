@@ -14,7 +14,7 @@
  * con el que se guardó el robot por última vez (alert_locale).
  */
 import { getDb, type RobotRow, type RobotRunTrigger } from './db';
-import { escapeHtml, renderBrandedHtml, sendEmail } from './email';
+import { appSender, escapeHtml, renderBrandedHtml, sendEmail } from './email';
 import { siteUrl } from './board-urls';
 import type { RobotOutputChange } from './robots-diff';
 import en from '@/messages/en/robots.json';
@@ -264,26 +264,49 @@ export function renderChangeEmail(
   };
 }
 
+/** Emails (lowercase) de las personas del workspace: dueño y miembros del equipo. */
+async function workspaceMemberEmails(workspaceId: string): Promise<Set<string>> {
+  const rows = (await getDb()
+    .prepare(
+      `SELECT lower(u.email) AS email FROM users u
+       WHERE u.id = ?
+          OR u.id IN (SELECT m.user_id FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ?)`,
+    )
+    .all(workspaceId, workspaceId)) as Array<{ email: string | null }>;
+  return new Set(rows.map((r) => r.email).filter((e): e is string => !!e));
+}
+
 /**
- * Manda el email de cambios (a los destinatarios elegidos o a quien creó el
- * robot), con tope diario por robot. Devuelve a cuántos salió. Nunca tira.
+ * Manda el email de cambios, SOLO a personas del workspace (los destinatarios
+ * elegidos que no son del workspace se descartan; sin ninguno, a quien creó el
+ * robot). Tope diario por robot y por workspace. Remitente de la app
+ * (appSender). Devuelve a cuántos salió. Nunca tira.
  */
 export async function sendChangeEmail(row: RobotRow, changes: readonly RobotOutputChange[], to: readonly string[]): Promise<number> {
   try {
     if (!changes.length) return 0;
-    const own = to.length ? null : await recipient(row);
-    const recipients = to.length ? [...to] : own ? [own] : [];
+    let recipients: string[];
+    if (to.length) {
+      const members = await workspaceMemberEmails(row.user_id);
+      recipients = [...new Set(to.map((a) => a.trim()).filter((a) => members.has(a.toLowerCase())))];
+    } else {
+      const own = await recipient(row);
+      recipients = own ? [own] : [];
+    }
     if (!recipients.length) return 0;
     if (process.env.RATE_LIMIT_DISABLED !== 'true') {
       const { rateLimit } = await import('./rate-limit');
-      const rl = await rateLimit(`robot-change-email:${row.id}`, changeEmailsPerDay(), 86_400);
-      if (!rl.ok) return 0;
+      const perRobot = await rateLimit(`robot-change-email:${row.id}`, changeEmailsPerDay(), 86_400);
+      if (!perRobot.ok) return 0;
+      // Tope por workspace: un workspace con muchos robots no inunda casillas.
+      const perWs = await rateLimit(`robot-change-email-ws:${row.user_id}`, changeEmailsPerDay() * 10, 86_400);
+      if (!perWs.ok) return 0;
     }
     const locale: MailLocale = row.alert_locale === 'es' || row.alert_locale === 'pt' ? row.alert_locale : 'en';
     const mail = renderChangeEmail(locale, row.name, changes, `${siteUrl()}/${locale}/app/robots/${row.id}?tab=data`);
     let sent = 0;
     for (const addr of recipients.slice(0, 10)) {
-      const ok = await sendEmail({ to: addr, subject: mail.subject, text: mail.text, html: mail.html })
+      const ok = await sendEmail({ to: addr, from: appSender(), subject: mail.subject, text: mail.text, html: mail.html })
         .then(() => true)
         .catch(() => false);
       if (ok) sent += 1;

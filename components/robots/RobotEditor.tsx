@@ -577,6 +577,7 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
             readOnly={readOnly}
             columns={knownColumns(runs, listVariables(steps))}
             changesPerDay={usage.changeEmailsPerDay ?? 24}
+            usesLogin={persistSession || JSON.stringify(steps).includes('{{credentials')}
             flowSection={
               <FormSection title={t('settings.flowTitle')} description={t('settings.flowHint')}>
                 <CopyId id={robot.id} />

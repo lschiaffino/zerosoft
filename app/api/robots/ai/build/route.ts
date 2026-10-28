@@ -32,7 +32,11 @@ export async function POST(req: NextRequest) {
   let url = parsed.data.url;
   if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
   const snap = await snapshotPage(user.id, url, parsed.data.country);
-  if (!snap.ok) return robotError(snap.error === 'rate_limited' || snap.error === 'quota_exceeded' ? 429 : snap.error === 'runner_unavailable' ? 503 : 400, snap.error);
+  if (!snap.ok)
+    return robotError(
+      snap.error === 'rate_limited' || snap.error === 'quota_exceeded' ? 429 : snap.error === 'runner_unavailable' ? 503 : snap.error === 'busy' ? 409 : 400,
+      snap.error,
+    );
   const detected = robotFromDetection(url, snap.snapshot);
   const locale = requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language'));
   try {

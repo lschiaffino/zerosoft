@@ -258,10 +258,21 @@ const nlOut = z.object({ steps: z.array(nlStep).max(30) });
 const NL_TYPES = new Set(['goto', 'click', 'fill', 'select', 'press', 'wait', 'extract', 'extract_list', 'extract_table', 'screenshot', 'scroll', 'pdf']);
 
 /** Pasos de la IA → pasos válidos del robot (solo los tipos permitidos, con los campos que usa cada uno). */
+/** Saca referencias a credenciales ({{credentials.*}}) de un campo que no es el valor de un fill/select. */
+const noCreds = (v: string): string => v.replace(/\{\{\s*credentials\.[^}]*\}\}/gi, '');
+
 export function normalizeNlSteps(raw: Array<z.infer<typeof nlStep>>): RobotStep[] {
   const out: Record<string, unknown>[] = [];
   for (const s of raw) {
     if (!NL_TYPES.has(s.type)) continue;
+    // La IA no puede meter una credencial en una URL, selector, texto o nombre:
+    // sólo el valor de un fill/select referencia {{credentials.*}} (el login real).
+    s.url = noCreds(s.url);
+    s.selector = noCreds(s.selector);
+    s.text = noCreds(s.text);
+    s.name = noCreds(s.name);
+    s.attribute = noCreds(s.attribute);
+    s.key = noCreds(s.key);
     switch (s.type) {
       case 'goto':
         if (/^https?:\/\//i.test(s.url) || s.url.includes('{{')) out.push({ type: 'goto', url: s.url });

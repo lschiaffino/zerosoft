@@ -5,8 +5,20 @@
  */
 import type { NextResponse } from 'next/server';
 import { apiError } from './api-auth';
-import type { RobotDto, RobotRunDto } from './robots';
+import type { RobotDto, RobotRunDto, RobotViewer } from './robots';
 import { runErrorStatus } from './robots-http';
+import { roleAtLeast, type TeamRole } from './teams';
+
+/**
+ * Quién mira, para una key de la API v1: la key actúa con la identidad y el
+ * rol de quien la creó. Las corridas con un login guardado (captured_by) solo
+ * las ve esa persona o un admin; una key de un member ve el estado pero no los
+ * datos. La v1 siempre pasa este viewer (sin viewer, canSeeRobotData deja ver
+ * todo: es para los llamados internos de confianza, Flow y el cron).
+ */
+export function apiRobotViewer(auth: { personId: string; role: TeamRole }): RobotViewer {
+  return { personId: auth.personId, admin: roleAtLeast(auth.role, 'admin') };
+}
 
 export function toApiRobot(r: RobotDto) {
   return {

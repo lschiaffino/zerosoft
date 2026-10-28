@@ -495,6 +495,12 @@ export const robotDestinationSchema = z.discriminatedUnion('kind', [
     kind: z.literal('crm'),
     object: z.enum(['contacts', 'companies']),
     mapping: z.record(columnName).default({}),
+    /**
+     * Qué hacer con un registro que ya existe (mismo email o dominio):
+     * 'fill' (default) solo completa los campos vacíos, 'skip' no lo toca,
+     * 'overwrite' pisa con lo del robot. Nunca pisa por defecto.
+     */
+    onExisting: z.enum(['fill', 'skip', 'overwrite']).optional().default('fill'),
   }),
   z.object({
     ...destBase,

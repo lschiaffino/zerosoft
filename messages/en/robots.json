@@ -756,7 +756,14 @@
       "industry": "Industry"
     },
     "empty": "No destinations yet.",
-    "columnPlaceholder": "column"
+    "columnPlaceholder": "column",
+    "onExisting": "If the record already exists",
+    "onExistingOptions": {
+      "fill": "Only fill empty fields",
+      "skip": "Leave it unchanged",
+      "overwrite": "Overwrite with the robot's data"
+    },
+    "loginWarning": "This robot signs in with a saved login, so the rows it sends can include private data. Only send them where that is allowed."
   },
   "geo": {
     "title": "Country",

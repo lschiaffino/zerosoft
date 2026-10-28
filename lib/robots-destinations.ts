@@ -110,6 +110,19 @@ async function sendToCrm(
     const col = dest.mapping[field];
     return col ? cellText(row[col]).trim() : '';
   };
+  const mode = dest.onExisting ?? 'fill';
+  // Campos del robot que, en un registro existente, quedan sin tocar según el modo:
+  // 'fill' solo completa lo vacío, 'overwrite' pisa todo. 'skip' no actualiza nada.
+  const forExisting = (data: Record<string, string>, current: Record<string, unknown>, cols: Record<string, string>): Record<string, string> => {
+    if (mode === 'overwrite') return data;
+    const out: Record<string, string> = {};
+    for (const [field, v] of Object.entries(data)) {
+      const col = cols[field];
+      const cur = col ? current[col] : undefined;
+      if (cur === undefined || cur === null || String(cur).trim() === '') out[field] = v;
+    }
+    return out;
+  };
   let created = 0;
   let updated = 0;
   let skipped = 0;
@@ -128,7 +141,20 @@ async function sendToCrm(
       const { findContactByEmail } = await import('./crm-integrations');
       const existing = await findContactByEmail(workspaceId, email);
       if (existing) {
-        if (Object.keys(data).length) await crm.updateContact(workspaceId, existing.id, data);
+        if (mode === 'skip') {
+          skipped += 1;
+          continue;
+        }
+        const patch = forExisting(data, existing as unknown as Record<string, unknown>, {
+          firstName: 'first_name',
+          lastName: 'last_name',
+          phone: 'phone',
+          jobTitle: 'job_title',
+          website: 'website',
+          city: 'city',
+          country: 'country',
+        });
+        if (Object.keys(patch).length) await crm.updateContact(workspaceId, existing.id, patch);
         updated += 1;
       } else {
         await crm.createContact(workspaceId, { ...data, email, source: `robot:${robot.name}`.slice(0, 100) });
@@ -150,12 +176,17 @@ async function sendToCrm(
       const existing = (await getDb()
         .prepare(
           domain
-            ? 'SELECT id FROM crm_companies WHERE user_id = ? AND lower(domain) = ? LIMIT 1'
-            : 'SELECT id FROM crm_companies WHERE user_id = ? AND lower(name) = lower(?) LIMIT 1',
+            ? 'SELECT * FROM crm_companies WHERE user_id = ? AND lower(domain) = ? LIMIT 1'
+            : 'SELECT * FROM crm_companies WHERE user_id = ? AND lower(name) = lower(?) LIMIT 1',
         )
-        .get(workspaceId, domain || name)) as { id: string } | undefined;
+        .get(workspaceId, domain || name)) as Record<string, unknown> | undefined;
       if (existing) {
-        await crm.updateCompany(workspaceId, existing.id, data);
+        if (mode === 'skip') {
+          skipped += 1;
+          continue;
+        }
+        const patch = forExisting(data, existing, { name: 'name', website: 'website', phone: 'phone', industry: 'industry', city: 'city', country: 'country', domain: 'domain' });
+        if (Object.keys(patch).length) await crm.updateCompany(workspaceId, String(existing.id), patch);
         updated += 1;
       } else {
         await crm.createCompany(workspaceId, data);

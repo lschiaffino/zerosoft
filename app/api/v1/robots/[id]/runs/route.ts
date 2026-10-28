@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { apiError, requireApiUser } from '@/lib/api-auth';
 import { getRobotRow, listRobotRuns, startRobotRun } from '@/lib/robots';
-import { robotApiError, toApiRobotRun } from '@/lib/robots-api';
+import { apiRobotViewer, robotApiError, toApiRobotRun } from '@/lib/robots-api';
 import { robotApiRunSchema } from '@/lib/robots-schema';
 import { roleAtLeast } from '@/lib/teams';
 
@@ -19,7 +19,7 @@ export async function GET(req: Request, props: Ctx) {
   const { id } = await props.params;
   if (!(await getRobotRow(auth.user.id, id))) return apiError(404, 'not_found', 'Robot not found.');
   const limit = Number(new URL(req.url).searchParams.get('limit') ?? 30);
-  const runs = await listRobotRuns(auth.user.id, id, Number.isFinite(limit) ? limit : 30);
+  const runs = await listRobotRuns(auth.user.id, id, Number.isFinite(limit) ? limit : 30, apiRobotViewer(auth));
   return NextResponse.json({ runs: runs.map(toApiRobotRun) });
 }
 

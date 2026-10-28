@@ -419,6 +419,28 @@ describe('robots: corrida completa con tabla, columna con IA, CRM y datos con lo
   });
 });
 
+describe('robots: envío al CRM sin pisar lo existente', () => {
+  it('fill solo completa vacíos, overwrite pisa y skip no toca', async () => {
+    const { runDestinations } = await import('@/lib/robots-destinations');
+    const { createContact } = await import('@/lib/crm');
+    const { findContactByEmail } = await import('@/lib/crm-integrations');
+    const ws = (await makeUser('rcrm')).id;
+    const robot = { id: crypto.randomUUID(), created_by: ws, name: 'Leads' };
+    const row = (email: string, name: string) => ({ email, name });
+    const base = { workspaceId: ws, robot, vars: { items: [row('ana@x.test', 'Ana Nueva')] }, datasetVariable: null, dataset: null, secrets: [] as string[] };
+    const dest = (onExisting: 'fill' | 'skip' | 'overwrite') => [
+      { id: 'c', kind: 'crm' as const, enabled: true, variable: 'items', object: 'contacts' as const, mapping: { email: 'email', firstName: 'name' }, onExisting },
+    ];
+    // Contacto existente con nombre: fill no lo pisa.
+    await createContact(ws, { email: 'ana@x.test', firstName: 'Ana' });
+    await runDestinations({ ...base, destinations: dest('fill') });
+    expect((await findContactByEmail(ws, 'ana@x.test'))!.first_name).toBe('Ana');
+    // overwrite sí pisa.
+    await runDestinations({ ...base, vars: { items: [row('ana@x.test', 'Pisada')] }, destinations: dest('overwrite') });
+    expect((await findContactByEmail(ws, 'ana@x.test'))!.first_name).toBe('Pisada');
+  });
+});
+
 describe('robots: IA y helpers', () => {
   it('normaliza pasos de la IA y descarta los inválidos', () => {
     const empty = { url: '', selector: '', text: '', value: '', key: '', name: '', ms: 0, mode: '', attribute: '', fields: [] };
@@ -434,6 +456,19 @@ describe('robots: IA y helpers', () => {
       { type: 'click', selector: '', text: 'Sign in' },
       { type: 'extract', selector: 'h1', name: 'Titulo_del_1', mode: 'text', attribute: '' },
     ]);
+  });
+
+  it('no deja que la IA meta credenciales en una URL, selector o texto (solo en el value de un fill)', () => {
+    const empty = { url: '', selector: '', text: '', value: '', key: '', name: '', ms: 0, mode: '', attribute: '', fields: [] };
+    const out = normalizeNlSteps([
+      { ...empty, type: 'goto', url: 'https://x.test/?p={{credentials.LOGIN.password}}' },
+      { ...empty, type: 'click', text: 'Open {{credentials.LOGIN.password}}' },
+      { ...empty, type: 'fill', selector: '#p', value: '{{credentials.LOGIN.password}}' },
+    ]);
+    expect(out[0]).toEqual({ type: 'goto', url: 'https://x.test/?p=' });
+    expect(out[1]).toEqual({ type: 'click', selector: '', text: 'Open ' });
+    // En el value de un fill sí vale (es el login real).
+    expect(out[2]).toEqual({ type: 'fill', selector: '#p', value: '{{credentials.LOGIN.password}}' });
   });
 
   it('arma un robot desde la lista detectada (con paginación)', () => {
@@ -474,6 +509,23 @@ describe('robots: IA y helpers', () => {
     expect(mail.html).toContain('#e7f6ec');
     expect(mail.html).toContain('#fdecec');
     expect(mail.html).not.toContain('Precios <b>');
+  });
+
+  it('redacta los secretos también URL-encoded, form-encoded, base64 y HTML-escaped', async () => {
+    const { expandedSecrets } = await import('@/lib/flow-credentials');
+    const { redact } = await import('@/lib/flow-credentials-schema');
+    const pw = 'p@ss w<rd';
+    const secrets = expandedSecrets([pw]);
+    const leak = {
+      raw: pw,
+      url: `https://x.test/?t=${encodeURIComponent(pw)}`,
+      form: `t=${encodeURIComponent(pw).replace(/%20/g, '+')}`,
+      b64: Buffer.from(pw).toString('base64'),
+      html: 'p@ss w&lt;rd',
+    };
+    const red = redact(leak, secrets) as Record<string, string>;
+    for (const v of Object.values(red)) expect(v).not.toContain('p@ss');
+    expect(red.b64).not.toContain(Buffer.from(pw).toString('base64'));
   });
 
   it('stepPath traduce la etiqueta del log al paso del robot', () => {

@@ -756,7 +756,14 @@
       "industry": "Setor"
     },
     "empty": "Ainda não há destinos.",
-    "columnPlaceholder": "coluna"
+    "columnPlaceholder": "coluna",
+    "onExisting": "Se o registro já existe",
+    "onExistingOptions": {
+      "fill": "Só preencher os campos vazios",
+      "skip": "Deixar como está",
+      "overwrite": "Sobrescrever com os dados do robô"
+    },
+    "loginWarning": "Este robô faz login com um login salvo, então as linhas que envia podem incluir dados privados. Envie-as só para onde for permitido."
   },
   "geo": {
     "title": "País",

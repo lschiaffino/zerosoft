@@ -756,7 +756,14 @@
       "industry": "Industria"
     },
     "empty": "Todavía no hay destinos.",
-    "columnPlaceholder": "columna"
+    "columnPlaceholder": "columna",
+    "onExisting": "Si el registro ya existe",
+    "onExistingOptions": {
+      "fill": "Solo completar los campos vacíos",
+      "skip": "Dejarlo como está",
+      "overwrite": "Pisar con los datos del robot"
+    },
+    "loginWarning": "Este robot inicia sesión con un login guardado, así que las filas que envía pueden incluir datos privados. Mandalas solo a donde esté permitido."
   },
   "geo": {
     "title": "País",
