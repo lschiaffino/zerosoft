@@ -152,6 +152,42 @@ export function secretValues(type: CredentialType, data: Record<string, string>)
   return out.filter((s) => s.length >= 4);
 }
 
+/**
+ * Un secreto y sus formas codificadas, para redactarlo aunque la página lo
+ * haya metido en una URL, un form, base64 o HTML (p. ej. una contraseña que
+ * viaja en el query string de un goto, o en un atributo). Para los logs,
+ * errores y datos extraídos de Robots.
+ */
+export function secretEncodings(secret: string): string[] {
+  const out = new Set<string>([secret]);
+  try {
+    const uri = encodeURIComponent(secret);
+    // URLSearchParams (lo que usa un form o un fetch con body de form): además
+    // de los espacios como +, codifica ! ' ( ) * ~.
+    const form = new URLSearchParams({ x: secret }).toString().slice(2);
+    for (const enc of [uri, uri.replace(/%20/g, '+'), form]) {
+      out.add(enc);
+      // Mismo texto con el hex en minúscula (%2f en vez de %2F).
+      out.add(enc.replace(/%[0-9A-F]{2}/g, (m) => m.toLowerCase()));
+    }
+    out.add(Buffer.from(secret, 'utf8').toString('base64'));
+    out.add(Buffer.from(secret, 'utf8').toString('base64url'));
+    out.add(
+      secret.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'),
+    );
+  } catch {
+    // un secreto raro: queda al menos el crudo
+  }
+  return [...out].filter((s) => s.length >= 4);
+}
+
+/** Todos los valores secretos de una lista, con sus formas codificadas (sin repetir). */
+export function expandedSecrets(secrets: readonly string[]): string[] {
+  const out = new Set<string>();
+  for (const s of secrets) for (const e of secretEncodings(s)) out.add(e);
+  return [...out];
+}
+
 // ---------- CRUD ----------
 
 export async function listCredentials(workspaceId: string): Promise<CredentialDto[]> {

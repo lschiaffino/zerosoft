@@ -171,7 +171,7 @@ export async function slackApprovalMessage(
 // ---------- Google (Sheets) ----------
 
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
-const SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
+export const SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
 
 function b64url(input: string | Buffer): string {
   return Buffer.from(input).toString('base64url');
@@ -187,7 +187,7 @@ export function serviceAccountAssertion(sa: { client_email: string; private_key:
   return `${header}.${claims}.${signer.sign(sa.private_key).toString('base64url')}`;
 }
 
-async function googleToken(ctx: IntegrationContext, cred: ResolvedCredential, scope: string): Promise<string> {
+export async function googleToken(ctx: Pick<IntegrationContext, 'addSecret'>, cred: ResolvedCredential, scope: string): Promise<string> {
   if (cred.data.accessToken) return cred.data.accessToken;
   let sa: { client_email?: string; private_key?: string };
   try {

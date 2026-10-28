@@ -10,6 +10,32 @@ producción local (`next start` con DEMO_MODE sobre `main`, runner local con Chr
 
 Leyenda: **tiene** · **parcial** · **falta** · **mejor** (lo hacemos mejor que el incumbente).
 
+## Actualización 2026-10-28 (tanda de paridad, migración 124)
+
+Las tablas de abajo son la foto del 22-10. Desde esta tanda (estado vivo en
+`content/feature-parity/robots.ts`):
+
+- **Armado:** el grabador captura texto, listas con columnas y el botón de página siguiente, y
+  guarda hasta 4 selectores alternativos por paso; "Armar con IA" abre la URL en el mismo
+  navegador aislado, detecta las listas (`lib/robots-detect.ts`) y la IA elige lista y columnas
+  con vista previa; "Escribir con IA" pasa una descripción a pasos; paso nuevo "Extraer con IA".
+  Paginación con Siguiente, Cargar más y scroll infinito. → grabar, marcar en pantalla, IA y
+  paginación pasan a **tiene**.
+- **Monitoreo:** horarios desde 5 minutos; email de cambios con filas nuevas/quitadas y valores
+  antes → después. → **tiene**.
+- **Datos:** tabla acumulada por robot (`robot_rows`) con clave única, filtros, búsqueda, CSV y
+  columnas con IA cacheadas. Filas capturadas con un login: `captured_by`, solo las ven quien armó
+  el robot y los admins (igual para los datos de cada corrida). → **tiene**.
+- **Integraciones:** envíos a CRM (upsert de contactos por email o empresas por dominio), Google
+  Sheets (sync o append) y Airtable (upsert). Lote desde CSV de hasta 1.000 filas. Export/import
+  del robot. Uso del mes por robot. → **tiene**.
+- **Confiabilidad:** autorreparación con selectores alternativos + arreglo sugerido por IA desde
+  el DOM de la falla (**tiene**). País por robot (idioma y zona horaria) y proxies del proveedor
+  que configure el operador (`ROBOTS_PROXY_URL`, IP nueva por corrida): **parcial**, no viene un
+  proveedor incluido. 8 robots para sitios populares en una galería de 15 plantillas: **parcial**
+  contra los 250+ de Browse AI. Siguen faltando captchas y storage externo, y la concurrencia sigue
+  en una corrida a la vez por workspace.
+
 ## Resumen
 
 Robots es un intérprete de pasos sobre un Chromium real: ir a URL, clic, completar, elegir,

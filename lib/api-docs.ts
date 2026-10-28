@@ -67,6 +67,7 @@ export const API_SECTIONS: ApiSection[] = [
   { id: 'track-mcp', titleKey: 'trackMcpTitle', descKey: 'trackMcpDesc' },
   { id: 'docs', titleKey: 'docsApiTitle', descKey: 'docsApiDesc' },
   { id: 'talk', titleKey: 'talkTitle', descKey: 'talkDesc' },
+  { id: 'boards', titleKey: 'boardsApiTitle', descKey: 'boardsApiDesc' },
   { id: 'webhooks', titleKey: 'webhooksTitle', descKey: 'webhooksDesc' },
 ];
 
@@ -2967,6 +2968,102 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     response: { ok: true, id: 'tm_3' },
     responseStatus: 200,
   },
+
+  // Board (pizarras)
+  {
+    id: 'boards-list',
+    sectionId: 'boards',
+    method: 'GET',
+    path: '/api/v1/boards',
+    titleKey: 'boardsListTitle',
+    descKey: 'boardsListDesc',
+    params: [
+      { name: 'q', type: 'string', descriptionKey: 'paramBoardsQuery' },
+      { name: 'folder', type: 'string', descriptionKey: 'paramBoardsFolder' },
+      { name: 'limit', type: 'number', descriptionKey: 'paramLimit' },
+    ],
+    response: { data: [{ id: 'b_1', name: 'Q4 retro', folderId: null, access: 'workspace', version: 12, updatedAt: '2026-10-28T12:00:00.000Z', createdAt: '2026-10-20T09:00:00.000Z', updatedBy: 'Ana' }] },
+    responseStatus: 200,
+  },
+  {
+    id: 'boards-create',
+    sectionId: 'boards',
+    method: 'POST',
+    path: '/api/v1/boards',
+    titleKey: 'boardsCreateTitle',
+    descKey: 'boardsCreateDesc',
+    params: [
+      { name: 'name', type: 'string', descriptionKey: 'paramBoardsName' },
+      { name: 'template', type: 'string', descriptionKey: 'paramBoardsTemplate' },
+      { name: 'folderId', type: 'string', descriptionKey: 'paramBoardsFolder' },
+    ],
+    request: { name: 'Q4 retro', template: 'retro', locale: 'en' },
+    response: { data: { id: 'b_1', name: 'Q4 retro', folderId: null, access: 'workspace', version: 12, updatedAt: '2026-10-28T12:00:00.000Z', createdAt: '2026-10-20T09:00:00.000Z', updatedBy: 'Ana' } },
+    responseStatus: 201,
+  },
+  {
+    id: 'boards-get',
+    sectionId: 'boards',
+    method: 'GET',
+    path: '/api/v1/boards/:id',
+    titleKey: 'boardsGetTitle',
+    descKey: 'boardsGetDesc',
+    params: [{ name: 'scene', type: 'string', descriptionKey: 'paramBoardsScene' }],
+    response: { data: { ...{ id: 'b_1', name: 'Q4 retro', folderId: null, access: 'workspace', version: 12, updatedAt: '2026-10-28T12:00:00.000Z', createdAt: '2026-10-20T09:00:00.000Z', updatedBy: 'Ana' }, myAccess: 'edit', outline: { frames: [{ id: 'f_1', name: 'Agenda' }], stickies: [{ id: 's_1', text: 'Ship the beta', tags: ['launch'], frameId: null }], texts: [], elementCount: 14 } } },
+    responseStatus: 200,
+  },
+  {
+    id: 'boards-update',
+    sectionId: 'boards',
+    method: 'PATCH',
+    path: '/api/v1/boards/:id',
+    titleKey: 'boardsUpdateTitle',
+    descKey: 'boardsUpdateDesc',
+    params: [
+      { name: 'name', type: 'string', descriptionKey: 'paramBoardsName' },
+      { name: 'folderId', type: 'string', descriptionKey: 'paramBoardsFolder' },
+    ],
+    request: { name: 'Q4 retro (final)' },
+    response: { data: { ...{ id: 'b_1', name: 'Q4 retro', folderId: null, access: 'workspace', version: 12, updatedAt: '2026-10-28T12:00:00.000Z', createdAt: '2026-10-20T09:00:00.000Z', updatedBy: 'Ana' }, name: 'Q4 retro (final)' } },
+    responseStatus: 200,
+  },
+  {
+    id: 'boards-delete',
+    sectionId: 'boards',
+    method: 'DELETE',
+    path: '/api/v1/boards/:id',
+    titleKey: 'boardsDeleteTitle',
+    descKey: 'boardsDeleteDesc',
+    responseStatus: 204,
+  },
+  {
+    id: 'boards-elements',
+    sectionId: 'boards',
+    method: 'POST',
+    path: '/api/v1/boards/:id/elements',
+    titleKey: 'boardsElementsTitle',
+    descKey: 'boardsElementsDesc',
+    params: [
+      { name: 'stickies', type: 'array', descriptionKey: 'paramBoardsStickies' },
+      { name: 'elements', type: 'array', descriptionKey: 'paramBoardsElements' },
+      { name: 'connect', type: 'array', descriptionKey: 'paramBoardsConnect' },
+    ],
+    request: { elements: [{ kind: 'ellipse', text: 'Start' }, { kind: 'rectangle', text: 'Sign up' }], connect: [{ from: 0, to: 1 }] },
+    response: { data: { version: 13, added: [{ id: 'e_1', type: 'ellipse' }, { id: 'e_2', type: 'rectangle' }, { id: 'e_3', type: 'arrow' }] } },
+    responseStatus: 201,
+  },
+  {
+    id: 'boards-mcp',
+    sectionId: 'boards',
+    method: 'POST',
+    path: '/api/v1/boards/mcp',
+    titleKey: 'boardsMcpTitle',
+    descKey: 'boardsMcpDesc',
+    scope: 'boards:read',
+    request: { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'add_stickies', arguments: { board_id: 'b_1', stickies: [{ text: 'Ship the beta', color: 'green' }] } } },
+    response: { jsonrpc: '2.0', id: 1, result: { content: [{ type: 'text', text: '{"version":13,"added":[...]}' }], isError: false } },
+    responseStatus: 200,
+  },
 ];
 
 /** Qué permite cada scope de API key (se muestra en la doc y en la UI de keys). */
@@ -2983,7 +3080,7 @@ export const API_SCOPE_DOCS: Array<{ scope: ApiScope; descKey: string }> = API_S
 export function endpointScope(e: Pick<ApiEndpoint, 'path' | 'method' | 'scope'> & { public?: boolean }): ApiScope | null {
   if (e.public) return null;
   if (e.scope) return e.scope;
-  const m = /^\/api\/v1\/(crm|links|calendar|agents|robots|chat|groups|track|docs|talk|voice)\b/.exec(e.path);
+  const m = /^\/api\/v1\/(crm|links|calendar|agents|robots|chat|groups|track|docs|talk|voice|boards)\b/.exec(e.path);
   if (!m) return null;
   if (m[1] === 'agents') return 'agents:run';
   if (m[1] === 'robots') return 'robots:run';

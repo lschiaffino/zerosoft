@@ -47,6 +47,7 @@ export type IconName =
   | 'close'
   | 'chevronDown'
   | 'chevronRight'
+  | 'folder'
   | 'themeSystem'
   | 'themeLight'
   | 'themeDark'
@@ -337,6 +338,7 @@ const PATHS: Record<IconName, ReactNode> = {
   close: <path d="M6 6l12 12M18 6L6 18" />,
   chevronDown: <path d="M6 9l6 6 6-6" />,
   chevronRight: <path d="M9 6l6 6-6 6" />,
+  folder: <path d="M3 6h7l2 2h9v11H3z" />,
   // Modo de color: pantalla (sistema), sol (claro), luna (oscuro).
   themeSystem: (
     <>

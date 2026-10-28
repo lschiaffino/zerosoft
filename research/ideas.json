@@ -61,7 +61,9 @@
     "description": "Miro, FigJam and tldraw all treat simultaneous editing with live cursors as the baseline; tldraw ships an open sync layer (https://tldraw.dev/docs/sync) and Excalidraw exposes isCollaborating, collaborators and reconcileElements so hosts can wire it. Today lib/boards.ts states 'Sin multiplayer en tiempo real' and saves replace the whole scene: a second editor gets a 409 and must choose 'keep mine' (overwrites the teammate) or 'reload' (discards own work) in components/board/BoardEditor.tsx. For a small team running a retro or planning session this is the single biggest blocker to using Board instead of Miro. First scope: per-board presence channel (SSE or websocket) broadcasting element deltas and pointer positions, merged client-side with Excalidraw's reconcileElements, keeping the versioned PUT as the persistence path.\n\nPriority: high. Effort: L. Compared with Miro.",
     "product": "board",
     "kind": "idea",
-    "parity": "live-multiplayer"
+    "parity": "live-multiplayer",
+    "status": "done",
+    "changelog": "2026-10-28-board-parity"
   },
   {
     "title": "Board: Merge concurrent edits per element instead of whole-scene 'keep mine' overwrite",
@@ -454,7 +456,9 @@
     "description": "UiPath Unified Target keeps several targeting strategies and the Healing Agent votes on a candidate selector when one is not found, recommending or applying fixes (https://docs.uipath.com/agents/automation-cloud/latest/user-guide-ha/what-is-healing-agent); Browse AI says it detects layout changes and adapts the robot, notifying the user (https://help.browse.ai/en/articles/10486935-how-browse-ai-uses-ai); Stagehand re-infers a selector when a cached one stops resolving (https://docs.stagehand.dev/v4/best-practices/caching). Our recorder computes candidates but keeps only the first unique one (generateSelector in lib/robots-recorder.ts), and resolveTarget tries one selector and then visible text (lib/robots-interpreter.ts). Selector rot is the main maintenance cost of browser robots. First scope: store a fallbacks array (testid, aria-label, name, text, CSS path) per step from the recorder, try them in order at runtime, log 'healed via fallback N', and offer a one-click 'promote fallback' in the run view.\n\nPriority: high. Effort: M. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
     "product": "robots",
     "kind": "idea",
-    "parity": "self-healing"
+    "parity": "self-healing",
+    "status": "done",
+    "changelog": "2026-10-28-robots-parity"
   },
   {
     "title": "Robots: Add an extract_list step that turns repeating cards into rows with named fields",
@@ -1034,7 +1038,9 @@
     "title": "Robots: Upsert extracted rows into CRM contacts and companies with mapping and dedupe",
     "description": "Bardeen positions scraping straight into GTM tools (scrape, enrich, export to CRM) with credits per scraped row (https://www.bardeen.ai/pricing), and Axiom.ai writes scrape results directly to Google Sheets (https://axiom.ai/guides/scrape-links-from-a-website/). Today a robot table reaches our CRM only by building a Flow with app.crm_contact per row, and the only robot template in Flow is robotToSheets (lib/flow-schema.ts). Robot output landing as deduplicated CRM records is something no standalone scraper can do natively and exploits our suite. First scope: a robot 'Destinations' panel that maps one table variable to CRM contacts or companies (column to field, dedupe by email or domain, source tag = robot name), applied after each successful run, with counts created/updated in the run view.\n\nPriority: medium. Effort: M. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
     "product": "robots",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-28-robots-parity"
   },
   {
     "title": "Robots: Add a TOTP secret to credentials so robots can log in behind 2FA",
@@ -1057,7 +1063,9 @@
     "description": "Stagehand exposes act(), extract() with a schema and observe(), caches resolved actions keyed by instruction and page content, and self-heals when a cached selector stops resolving (https://docs.stagehand.dev/v4/basics/act, https://docs.stagehand.dev/v4/best-practices/caching); UiPath Autopilot generates StudioX workflows from a plain-language description (https://docs.uipath.com/studiox/standalone/2024.10/release-notes/2024-10-1). Our steps all require CSS selectors or exact visible text and there is no AI step type (lib/robots-schema.ts STEP_TYPES). AI steps lower the skill bar for non-technical members and fix brittle selectors. First scope: an 'ai_extract' step (instruction plus field list, returns rows) and an 'ai_click' step that resolves an element from an accessibility snapshot once, caches the chosen selector on the robot, and re-resolves only on failure.\n\nPriority: medium. Effort: L. Compared with UiPath (StudioX, Autopilot, Orchestrator, Healing Agent), Browse AI, Axiom.ai, Bardeen, Browserbase/Stagehand, Skyvern.",
     "product": "robots",
     "kind": "idea",
-    "parity": "natural-language-steps"
+    "parity": "natural-language-steps",
+    "status": "done",
+    "changelog": "2026-10-28-robots-parity"
   },
   {
     "title": "Robots: Expose a public API to run robots and bulk-run one robot over many inputs",
@@ -1151,7 +1159,9 @@
     "description": "Miro reads frame order from the board, shows them in a sidebar outline and presents them as slides, and exports high-resolution PDF/JPG on Starter (https://miro.com/pricing/, https://miro.com/blog/what-we-launched-october-2022/). Excalidraw gives us frames, but components/board/ExcalidrawCanvas.tsx only enables the stock export dialog (single PNG/SVG of the canvas or selection) and there is no presentation mode or frame list. Teams reuse board content in reviews and client calls, which today means screenshots. First scope: a frames panel listing frames in order with click-to-zoom, a fullscreen 'Present' mode stepping through frames with arrow keys, and 'Export frames as PDF' using exportToBlob per frame.\n\nPriority: low. Effort: M. Compared with Miro.",
     "product": "board",
     "kind": "idea",
-    "parity": "present-frames"
+    "parity": "present-frames",
+    "status": "done",
+    "changelog": "2026-10-28-board-parity"
   },
   {
     "title": "Board: Fix editor rename that skips saves, shows no errors and keeps stale updated_at",
@@ -1394,14 +1404,18 @@
     "description": "Excalidraw+ has chat-based text to diagram that streams onto the canvas (https://plus.excalidraw.com/changelog) and Miro's Create with AI builds diagrams and mind maps from a prompt (https://help.miro.com/hc/articles/28782102127890). Board only offers Mermaid to Excalidraw, which needs the user to write Mermaid. The AI gateway already powers Agents and Flow. First scope: a 'Generate' item next to Mermaid that sends the prompt to the AI gateway, asks for Mermaid flowchart, sequence or ER syntax, and inserts the converted elements at the viewport center as one undoable change.\n\nPriority: high. Effort: M. Compared with Excalidraw+ / Miro.",
     "product": "board",
     "kind": "idea",
-    "parity": "text-to-diagram"
+    "parity": "text-to-diagram",
+    "status": "done",
+    "changelog": "2026-10-28-board-parity"
   },
   {
     "title": "Board: Open .excalidraw files and drop them on the canvas",
     "description": "Excalidraw and Excalidraw+ open .excalidraw files and PNGs with an embedded scene (https://github.com/excalidraw/excalidraw). Board can save a .excalidraw file but cannot open one: the canvas menu sets loadScene: false (components/board/ExcalidrawCanvas.tsx) and the list has no import. A team switching from Excalidraw has its diagrams in those files. First scope: 'Import .excalidraw' on the board list that creates one board per file (images moved to Blob storage), plus dropping a file on an open board to merge its elements.\n\nPriority: high. Effort: S. Compared with Excalidraw+.",
     "product": "board",
     "kind": "idea",
-    "parity": "open-excalidraw-file"
+    "parity": "open-excalidraw-file",
+    "status": "done",
+    "changelog": "2026-10-28-board-parity"
   },
   {
     "title": "Board: Group and summarize stickies with AI into a Docs page",
@@ -1414,34 +1428,44 @@
     "description": "Excalidraw+ has unlimited folders and private collections, and full-text search across scenes is in progress (https://plus.excalidraw.com/pricing, https://plus.excalidraw.com/roadmap); Miro has spaces and search. The Board list and sidebar are flat and Cmd+K matches board names only. First scope: folders with the Link folders model shown in the list and sidebar, and Cmd+K results that match the text of stickies, shapes and frame names (indexed on save).\n\nPriority: medium. Effort: M. Compared with Excalidraw+ / Miro.",
     "product": "board",
     "kind": "idea",
-    "parity": "folders"
+    "parity": "folders",
+    "status": "done",
+    "changelog": "2026-10-28-board-parity"
   },
   {
     "title": "Board: Expose boards through the public v1 API and MCP",
     "description": "Excalidraw+ launched a public REST API for scenes, collections and logs (May 2026) and an MCP server with create_diagram and search_scene_content tools (https://plus.excalidraw.com/llms-full.txt); Miro has a REST API and MCP (https://miro.com/pricing/). app/api/v1 has no boards. First scope: GET and POST /api/v1/boards, GET /api/v1/boards/{id} with the scene, and POST /api/v1/boards/{id}/elements that accepts Excalidraw skeletons or Mermaid, behind boards:read and boards:write scopes, then the same as MCP tools.\n\nPriority: medium. Effort: M. Compared with Excalidraw+ / Miro.",
     "product": "board",
     "kind": "idea",
-    "parity": "rest-api"
+    "parity": "rest-api",
+    "status": "done",
+    "changelog": "2026-10-28-board-parity"
   },
   {
     "title": "Board: Show a 'board changed' notice and refresh remote edits while the editor is open",
     "description": "In Excalidraw+ every change appears for the other people at once (https://plus.excalidraw.com/pricing). In Board, two people on the same board do not see each other's edits until one of them saves or reloads: in testing, the second browser did not show a new shape for 15 seconds and the first never saw the second's shape. Full multiplayer is already in the backlog; this is the step before it. First scope: poll the board version every 5 seconds while the tab is visible and merge remote elements with the existing per-element merge (lib/board-sync.ts), plus avatars of who else has the board open.\n\nPriority: high. Effort: S. Compared with Excalidraw+.",
     "product": "board",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-28-board-parity"
   },
   {
     "title": "Board: Add follow mode and 'bring everyone to my view' for workshops",
     "description": "Excalidraw+ has follow mode and Spotlight Me, which syncs everyone's view to the presenter (https://plus.excalidraw.com/changelog); Miro has Bring everyone to me. Board already runs workshop sessions with a shared timer and dot voting (lib/board-workshop.ts) polled every 4 seconds, but a facilitator cannot move the group to the next column. First scope: a 'Bring everyone here' button in Workshop that stores the facilitator's scroll and zoom in the workshop state, and other viewers jump there on the next poll with a 'Following Ada' bar to stop.\n\nPriority: medium. Effort: S. Compared with Excalidraw+ / Miro.",
     "product": "board",
     "kind": "idea",
-    "parity": "follow-mode"
+    "parity": "follow-mode",
+    "status": "done",
+    "changelog": "2026-10-28-board-parity"
   },
   {
     "title": "Board: Move deleted boards to a trash with restore",
     "description": "Excalidraw+ added a trash with restore in March 2026 (https://plus.excalidraw.com/changelog) and Miro keeps deleted boards in a trash. Deleting a Board is permanent after one confirm, together with its comments, history snapshots and guest links. First scope: a deleted_at column, a Trash view in the board list for 30 days with Restore and Delete forever, and board.deleted fired only on the final delete.\n\nPriority: medium. Effort: S. Compared with Excalidraw+ / Miro.",
     "product": "board",
     "kind": "idea",
-    "parity": "trash"
+    "parity": "trash",
+    "status": "done",
+    "changelog": "2026-10-28-board-parity"
   },
   {
     "title": "Board: Add a mind map tool with Tab and Enter to grow branches",
@@ -2009,14 +2033,18 @@
     "description": "Browse AI builds robots by pointing at the page: Capture List and Capture Text in its Chrome extension (https://help.browse.ai/en/articles/10492719-how-to-build-a-robot-using-the-chrome-extension). Robots asks for CSS selectors typed by hand, and the bookmarklet recorder only captures clicks, fills, selects and keys, not extractions (lib/robots-recorder.ts). A user who does not know CSS cannot build the first robot. First scope: a 'Pick on page' button in Extract and Extract list that opens a sandbox screenshot with element boxes; clicking a card proposes the card selector and its fields with generateSelector, then the same mode inside the bookmarklet.\n\nPriority: high. Effort: L. Compared with Browse AI.",
     "product": "robots",
     "kind": "idea",
-    "parity": "point-and-click-extract"
+    "parity": "point-and-click-extract",
+    "status": "done",
+    "changelog": "2026-10-28-robots-parity"
   },
   {
     "title": "Robots: Generate a robot from a URL and a description of the columns",
     "description": "Browse AI Table Studio takes a URL, proposes tables and columns with sample rows and lets you approve each column before saving (https://help.browse.ai/en/articles/10486935-how-browse-ai-uses-ai). Robots has no AI in the builder; the backlog idea for natural-language act and extract steps is about runtime steps. First scope: a 'Start from a URL' dialog that loads the page in the runner, sends a trimmed DOM to the AI gateway and returns goto + extract_list (with fields and Next pagination) as unsaved steps the user can run and edit.\n\nPriority: high. Effort: M. Compared with Browse AI.",
     "product": "robots",
     "kind": "idea",
-    "parity": "ai-builder"
+    "parity": "ai-builder",
+    "status": "done",
+    "changelog": "2026-10-28-robots-parity"
   },
   {
     "title": "Robots: Route runs through residential proxies by country and handle captchas",
@@ -2029,33 +2057,43 @@
     "title": "Robots: Send extracted rows to Google Sheets or Airtable from the robot",
     "description": "Browse AI keeps Google Sheets and Airtable in live sync with a robot's table (https://www.browse.ai/pricing). In Robots the only path is building a flow from the 'Robot data to Google Sheets' template, which needs a service account and only appends. First scope: a Destination section in the robot's Advanced tab that picks a Sheets credential and range and appends (or replaces) the rows of a chosen list variable after each successful run, reusing the Flow Sheets client.\n\nPriority: medium. Effort: S. Compared with Browse AI.",
     "product": "robots",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-28-robots-parity"
   },
   {
     "title": "Robots: Email a highlighted diff when a monitored robot's output changes",
     "description": "Browse AI monitors send a color-coded email with added, changed and removed rows (https://help.browse.ai/en/articles/10524268-how-to-set-up-monitoring-notifications). Robots already computes the diff and emits robot.output.changed (lib/robots-diff.ts), but nobody hears about it unless they build a flow on that event. First scope: an 'Email me when the data changes' checkbox next to the schedule that sends the diff (before and after per key, rows added and removed) to the robot owner, throttled to one email per run.\n\nPriority: medium. Effort: S. Compared with Browse AI.",
     "product": "robots",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-28-robots-parity"
   },
   {
     "title": "Robots: Keep an accumulated table of rows across runs with a dedupe key",
     "description": "Browse AI stores every run's rows in a per-robot Table with tabs, filters and export (https://help.browse.ai/en/articles/10477537-how-to-view-manage-and-export-your-scraped-data); Apify appends to named datasets (https://docs.apify.com/platform/storage/dataset). In Robots each run keeps its own output and CSV, so a price history or a growing lead list has to be assembled by hand. First scope: a Data tab that merges a list variable across runs by a chosen key column, with first seen, last seen and changed columns, filters and CSV export.\n\nPriority: medium. Effort: M. Compared with Browse AI / Apify.",
     "product": "robots",
     "kind": "idea",
-    "parity": "cumulative-table"
+    "parity": "cumulative-table",
+    "status": "done",
+    "changelog": "2026-10-28-robots-parity"
   },
   {
     "title": "Robots: Bulk run from a CSV upload in the UI and raise the batch limit",
     "description": "Browse AI bulk runs take thousands of inputs uploaded from a sheet or CSV (https://www.browse.ai/docs/api/v2). Robots bulk runs exist only in the v1 API and cap at 100 inputs per batch (MAX_BULK_INPUTS in lib/robots-schema.ts). Running a robot over a list of 1,000 product URLs is the common case. First scope: a 'Run for many' dialog that accepts a CSV, maps columns to inputs, shows batch progress and lets you download all results as one CSV, with the batch limit raised to 1,000 and runs queued.\n\nPriority: medium. Effort: S. Compared with Browse AI.",
     "product": "robots",
     "kind": "idea",
-    "parity": "bulk-csv-upload"
+    "parity": "bulk-csv-upload",
+    "status": "done",
+    "changelog": "2026-10-28-robots-parity"
   },
   {
     "title": "Robots: Paginate with Load more buttons and infinite scroll in Extract list",
     "description": "Browse AI paginates numbered pages, 'load more' buttons and infinite scroll (https://www.browse.ai/features). Extract list and Extract table only follow a Next button (lib/robots-schema.ts pagination), so feeds and modern catalogs need a hand-built loop of scroll and click steps that does not dedupe rows. First scope: a pagination mode select (Next, Load more, Scroll) where Load more clicks until the button is gone and Scroll scrolls until no new cards appear, both deduping rows by card text.\n\nPriority: medium. Effort: S. Compared with Browse AI.",
     "product": "robots",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-28-robots-parity"
   },
   {
     "title": "Robots: Allow longer runs and more pages for catalog crawls",

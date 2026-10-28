@@ -20,7 +20,7 @@ import { makeUser } from './helpers';
 const session = vi.hoisted(() => ({ user: null as null | Record<string, unknown> }));
 vi.mock('@/lib/session', () => ({ getCurrentUser: async () => session.user }));
 
-const sessionRoute = await import('@/app/api/robots/[id]/session/route');
+const sessionRoute = await import('@/lib/routes/robots/[id]/session/route');
 
 beforeEach(() => {
   vi.stubEnv('RATE_LIMIT_DISABLED', 'true');
@@ -316,8 +316,9 @@ describe('robots: sesiones guardadas', () => {
 // ---------- Schedules y runner ----------
 
 describe('robots: schedules y runner', () => {
-  it('intervalos en minutos (mínimo 15) y cron', async () => {
-    expect(robotScheduleSchema.safeParse({ mode: 'interval', every: 10, unit: 'minutes' }).success).toBe(false);
+  it('intervalos en minutos (mínimo 5) y cron', async () => {
+    expect(robotScheduleSchema.safeParse({ mode: 'interval', every: 4, unit: 'minutes' }).success).toBe(false);
+    expect(robotScheduleSchema.safeParse({ mode: 'interval', every: 5, unit: 'minutes' }).success).toBe(true);
     expect(robotScheduleSchema.safeParse({ mode: 'interval', every: 15, unit: 'minutes' }).success).toBe(true);
     expect(robotScheduleSchema.safeParse({ mode: 'interval', every: 200, unit: 'hours' }).success).toBe(false);
     const ws = (await makeUser('rsched')).id;

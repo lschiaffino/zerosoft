@@ -136,6 +136,7 @@ function useGroupOrder() {
         'docs',
         'notes',
         'boards',
+        'boardFolders',
         'tasks',
         'playbooks',
         'crmForms',
