@@ -5,20 +5,22 @@
  */
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getCurrentUser, isWorkspaceAdmin, type SessionUser } from './session';
+import { getCurrentUser, isWorkspaceAdmin, realUserId, type SessionUser } from './session';
 import { userCanUseApp } from './workspace';
-import { getWorkspaceImportJob, type ImportApp, type ImportJob } from './import-jobs';
+import { getWorkspaceImportJob, type ImportApp, type ImportJob, type ImportJobView } from './import-jobs';
 import { CSV_FIELDS, TRACK_IMPORT_MAX_CSV_BYTES } from './track-import-map';
 import { GITHUB_REPO_RE } from './track-import-sources';
 import { asanaProjectGid, normalizeJiraSite } from './track-import-sources-more';
 import { NOTION_MAX_ZIP_BYTES } from './docs-notion-import';
+import { importNeedsAdmin } from './import-registry';
 
 export function importError(status: number, code: string): NextResponse {
   return NextResponse.json({ error: code }, { status });
 }
 
-export function needsAdmin(app: ImportApp): boolean {
-  return app !== 'docs';
+/** Track, Cal y Notion por API: admins; Docs por archivo: cualquier miembro (ver lib/import-registry.ts). */
+export function needsAdmin(app: ImportApp, source = ''): boolean {
+  return importNeedsAdmin(app, source);
 }
 
 const token = z.string().trim().min(8).max(500);
@@ -91,6 +93,13 @@ export const importCreateSchema = z.discriminatedUnion('source', [
   z.object({ app: z.literal('cal'), source: z.literal('calendly'), token, includeBookings: z.boolean().optional() }),
   z.object({
     app: z.literal('docs'),
+    /** Notion por API: token de una integración interna (se guarda cifrado hasta terminar). */
+    source: z.literal('notion_api'),
+    token,
+    teamspace_id: z.string().min(1).max(64).nullable().optional(),
+  }),
+  z.object({
+    app: z.literal('docs'),
     /** De dónde viene el zip (todos usan el mismo lector: Markdown, CSV, HTML, .docx, .txt y .enex). */
     source: z.enum(['notion', 'confluence', 'gdocs', 'word', 'evernote', 'files']),
     /** Teamspace de destino (null o ausente: el workspace). */
@@ -113,11 +122,11 @@ export function importZodCode(error: z.ZodError): string {
 }
 
 /** Usuario con acceso a la app del import (o la respuesta de error). */
-export async function importUser(app: ImportApp): Promise<SessionUser | NextResponse> {
+export async function importUser(app: ImportApp, source = ''): Promise<SessionUser | NextResponse> {
   const user = await getCurrentUser();
   if (!user) return importError(401, 'unauthorized');
-  if (needsAdmin(app) && !isWorkspaceAdmin(user)) return importError(403, 'forbidden');
-  // Acceso por app del workspace (Track, Cal, Docs).
+  if (needsAdmin(app, source) && !isWorkspaceAdmin(user)) return importError(403, 'forbidden');
+  // Acceso por app del workspace.
   if (!userCanUseApp(user, app)) return importError(403, 'forbidden');
   return user;
 }
@@ -128,7 +137,23 @@ export async function importJobFor(id: string): Promise<{ user: SessionUser; job
   if (!user) return importError(401, 'unauthorized');
   const job = await getWorkspaceImportJob(user.id, id);
   if (!job) return importError(404, 'not_found');
-  if (needsAdmin(job.app) && !isWorkspaceAdmin(user)) return importError(403, 'forbidden');
+  // Un import lo ven quien lo creó y los admins (los demás, como si no existiera).
+  if (!isWorkspaceAdmin(user) && job.user_id !== realUserId(user)) return importError(404, 'not_found');
+  if (needsAdmin(job.app, job.source) && !isWorkspaceAdmin(user)) return importError(403, 'forbidden');
   if (!userCanUseApp(user, job.app)) return importError(403, 'forbidden');
   return { user, job };
+}
+
+/**
+ * La vista del job para quien mira: los links del informe (páginas de Docs
+ * creadas) solo los que esa persona puede abrir.
+ */
+export async function viewFor(user: SessionUser, view: ImportJobView | null): Promise<ImportJobView | null> {
+  if (!view || view.app !== 'docs' || !view.report) return view;
+  const roots = (view.report.roots ?? []) as Array<{ id: string; title: string }>;
+  if (!roots.length) return view;
+  const { resolveDocAccess, DOC_INTERNAL_READ } = await import('./docs');
+  const visible: typeof roots = [];
+  for (const r of roots) if (await resolveDocAccess(user, r.id, DOC_INTERNAL_READ).catch(() => null)) visible.push(r);
+  return { ...view, report: { ...view.report, roots: visible } };
 }

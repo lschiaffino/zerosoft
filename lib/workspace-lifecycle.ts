@@ -171,7 +171,17 @@ export interface PersonJoined {
  * de HubSpot le pasa los registros que eran de esa persona). Nunca tira: un
  * paso que falla no deja a nadie afuera.
  */
-const JOIN_STEPS: Array<{ name: string; run: (e: PersonJoined) => Promise<unknown> }> = [];
+const JOIN_STEPS: Array<{ name: string; run: (e: PersonJoined) => Promise<unknown> }> = [
+  {
+    // Migración del CRM: los registros que esperaban a esta persona (owner del otro CRM) pasan a ser suyos.
+    name: 'crm_import_owners',
+    run: async (e) => {
+      if (e.role === 'guest') return;
+      const { claimImportedRecords } = await import('./crm-import-owners');
+      await claimImportedRecords(e.ownerId, e.userId);
+    },
+  },
+];
 
 export async function personJoined(event: PersonJoined): Promise<{ failed: string[] }> {
   const failed: string[] = [];

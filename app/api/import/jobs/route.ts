@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { realUserId } from '@/lib/session';
+import { isWorkspaceAdmin, realUserId } from '@/lib/session';
 import { limitByIp } from '@/lib/rate-limit';
 import { requestLocale } from '@/lib/request-locale';
 import { createImportJob, jobView, listImportJobs, updateImportJob, type ImportApp } from '@/lib/import-jobs';
 import { runImportJob } from '@/lib/import-runner';
-import { importCreateSchema, importError, importUser, importZodCode } from '@/lib/import-http';
+import { importCreateSchema, importError, importUser, importZodCode, viewFor } from '@/lib/import-http';
 import { isImportBlobUrl, localZipRef } from '@/lib/docs-notion-import';
 import { canAccessTrackProject, getProject } from '@/lib/track-data';
 import { canCreateDocPage } from '@/lib/docs-guard';
@@ -21,7 +21,11 @@ export async function GET(req: NextRequest) {
   if (!APPS.includes(app)) return importError(400, 'invalid_input');
   const user = await importUser(app);
   if (user instanceof NextResponse) return user;
-  return NextResponse.json({ jobs: await listImportJobs(user.id, app) });
+  // Un miembro ve solo sus imports; los links del informe, solo a páginas que puede abrir.
+  const jobs = await listImportJobs(user.id, app, 10, isWorkspaceAdmin(user) ? null : realUserId(user));
+  const out = [];
+  for (const j of jobs) out.push(await viewFor(user, j));
+  return NextResponse.json({ jobs: out });
 }
 
 /**
@@ -32,9 +36,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const limited = await limitByIp(req, 'import-jobs', 30, 600);
   if (limited) return limited;
-  const body = (await req.json().catch(() => null)) as { app?: ImportApp } | null;
+  const body = (await req.json().catch(() => null)) as { app?: ImportApp; source?: string } | null;
   if (!body || !APPS.includes(body.app as ImportApp)) return importError(400, 'invalid_input');
-  const user = await importUser(body.app as ImportApp);
+  const user = await importUser(body.app as ImportApp, typeof body.source === 'string' ? body.source : '');
   if (user instanceof NextResponse) return user;
 
   const parsed = importCreateSchema.safeParse(body);
@@ -84,7 +88,12 @@ export async function POST(req: NextRequest) {
     const teamspaceId = input.teamspace_id ?? null;
     if (!(await canCreateDocPage(user, { teamspace_id: teamspaceId }))) return importError(403, 'forbidden');
     const options = { teamspace_id: teamspaceId };
-    if (input.blobUrl) {
+    if (input.source === 'notion_api') {
+      // Un solo import de Notion por API a la vez en el workspace (cada uno pide bloques a 3 por segundo).
+      const open = (await listImportJobs(user.id, 'docs', 20)).find((j) => j.source === 'notion_api' && ['fetching', 'preview', 'importing'].includes(j.status));
+      if (open) return importError(409, 'import_running');
+      job = await createImportJob({ ...base, secret: input.token, options });
+    } else if (input.blobUrl) {
       if (!isImportBlobUrl(input.blobUrl)) return importError(400, 'invalid_upload');
       job = await createImportJob({ ...base, payload: `blob:${input.blobUrl}`, options });
     } else if (input.size) {
@@ -99,5 +108,5 @@ export async function POST(req: NextRequest) {
   }
 
   const view = await runImportJob(job.id, 8_000);
-  return NextResponse.json({ job: view }, { status: 201 });
+  return NextResponse.json({ job: await viewFor(user, view) }, { status: 201 });
 }

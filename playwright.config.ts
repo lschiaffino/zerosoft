@@ -42,6 +42,8 @@ export default defineConfig({
       // dependería de la máquina (y de los créditos del Gateway).
       // Import de CRM contra el proveedor falso (lib/crm-import-fake.ts, token "fake").
       CRM_IMPORT_FAKE: '1',
+      // Notion por API contra el workspace falso (token "fake-notion"): hub de importación.
+      NOTION_IMPORT_FAKE: '1',
       // Datos de empresa desde el dominio sin salir a internet (lib/crm-enrich.ts).
       CRM_ENRICH_FAKE: '1',
       // Groups contra el proveedor de WhatsApp falso (lib/groups-provider-fake.ts): nada sale a WhatsApp.

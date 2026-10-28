@@ -102,7 +102,8 @@ test('Cmd+K abre el import de HubSpot', async ({ page }) => {
   await expect(dialog).toBeVisible();
   await dialog.getByRole('combobox').fill('Import from HubSpot');
   await dialog.getByRole('option', { name: /Import from HubSpot/ }).first().click();
-  await expect(page).toHaveURL(/tab=import&from=hubspot/);
+  // Lleva al hub de importación con HubSpot elegido.
+  await expect(page).toHaveURL(/settings\/import\?source=crm(%3A|:)hubspot/);
   await expect(page.getByRole('heading', { name: 'Connect HubSpot' })).toBeVisible({ timeout: 20_000 });
 });
 

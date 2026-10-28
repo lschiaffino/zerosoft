@@ -45,6 +45,20 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-10-28-import-hub',
+    date: '2026-10-28',
+    title: {
+      en: 'Import hub: bring HubSpot and Notion with a token',
+      es: 'Hub de importación: traé HubSpot y Notion con un token',
+      pt: 'Hub de importação: traga HubSpot e Notion com um token',
+    },
+    items: [
+      { product: 'docs', en: 'Settings › Import lists every source per app, with the steps to get each token and the exact scopes it needs. Every import checks the token first, shows a preview with counts, lets you pick what comes in, runs in the background and ends with a report of what was created, updated, skipped or failed. Importing again updates instead of duplicating. Each app has an Import shortcut in the sidebar.', es: 'Ajustes › Importar lista todas las fuentes por app, con los pasos para sacar cada token y los permisos exactos que necesita. Cada import prueba el token primero, muestra una vista previa con cantidades, deja elegir qué entra, corre en segundo plano y termina con un informe de lo creado, actualizado, saltado o con error. Importar de nuevo actualiza en vez de duplicar. Cada app tiene un atajo Importar en el sidebar.', pt: 'Configurações › Importar lista todas as fontes por app, com os passos para conseguir cada token e as permissões exatas que ele precisa. Cada importação testa o token primeiro, mostra uma prévia com quantidades, deixa escolher o que entra, roda em segundo plano e termina com um relatório do que foi criado, atualizado, pulado ou deu erro. Importar de novo atualiza em vez de duplicar. Cada app tem um atalho Importar na barra lateral.' },
+      { product: 'docs', en: 'Notion by API: paste an internal integration token and pages come in with their tree, blocks, images and files copied to your storage, databases with their properties and rows, and links and mentions pointing to the imported pages. Pick the teamspace they go to.', es: 'Notion por API: pegá el token de una integración interna y entran las páginas con su árbol, sus bloques, imágenes y archivos copiados a tu almacenamiento, las bases con sus propiedades y filas, y los links y menciones apuntando a las páginas importadas. Elegís a qué teamspace van.', pt: 'Notion por API: cole o token de uma integração interna e entram as páginas com sua árvore, blocos, imagens e arquivos copiados para o seu armazenamento, os bancos de dados com propriedades e linhas, e os links e menções apontando para as páginas importadas. Você escolhe o teamspace.' },
+      { product: 'crm', en: 'HubSpot import also brings lists (as tags on the imported contacts and companies) and lets you invite the HubSpot owners who are not in the workspace yet.', es: 'El import de HubSpot también trae las listas (como etiquetas en los contactos y empresas importados) y te deja invitar a los owners de HubSpot que todavía no están en el workspace.', pt: 'A importação da HubSpot também traz as listas (como etiquetas nos contatos e empresas importados) e permite convidar os owners da HubSpot que ainda não estão no workspace.' },
+    ],
+  },
+  {
     id: '2026-10-28-robots-parity',
     date: '2026-10-28',
     title: {

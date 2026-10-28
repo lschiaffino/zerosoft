@@ -2262,7 +2262,8 @@
       "companies": "Companies",
       "contacts": "Contacts",
       "deals": "Deals",
-      "activities": "Activities"
+      "activities": "Activities",
+      "lists": "Lists"
     },
     "unknownCount": "All",
     "unavailable": "The token can't read {phases}. Those are skipped.",
@@ -2322,7 +2323,8 @@
       "meetings": "meetings",
       "tasks": "tasks",
       "emails": "emails",
-      "activities": "activities"
+      "activities": "activities",
+      "lists": "lists"
     },
     "backgroundNote": "You can leave this page. The import keeps going in the background and this screen picks it up again.",
     "failure": {
@@ -2330,7 +2332,8 @@
       "scope": "The token is missing a scope. Check the list and run the import again.",
       "token_missing": "The token is gone. Run the import again.",
       "rate_limited": "The provider kept limiting requests. Run the import again later.",
-      "generic": "Something went wrong talking to the provider. Run the import again: records already imported are updated, not duplicated."
+      "generic": "Something went wrong talking to the provider. Run the import again: records already imported are updated, not duplicated.",
+      "forbidden": "Whoever started the import is no longer a workspace admin. An admin can run it again."
     },
     "cancelledNote": "Records imported before cancelling stay in the CRM. The token was deleted.",
     "warnings": "Warnings",
@@ -2349,7 +2352,17 @@
       "invalid_input": "Check the token and try again.",
       "not_found": "That import no longer exists.",
       "forbidden": "Only workspace admins can import."
-    }
+    },
+    "inviteOwners": "{count, plural, one {Invite # person} other {Invite # people}} to the workspace",
+    "inviteHelp": "Owners from the other CRM who are not members yet. Their records stay with the default owner. When each person accepts the invitation with that same email, the records nobody reassigned in the meantime become theirs.",
+    "invitedNote": "{count, plural, one {Invitation ready} other {# invitations ready}}. For now, share each link (they are valid for 14 days): they go out by email once invitation emails are set up.",
+    "inviteLinkFor": "Invitation link for {email}",
+    "inviteFailed": "Could not create the invitations. Try again.",
+    "invitedEmailed": "{count, plural, one {Invitation sent by email} other {# invitations sent by email}}. You can also share the links below.",
+    "locallyEdited": "{count, plural, one {# record that came from {provider} was edited in zerosoft} other {# records that came from {provider} were edited in zerosoft}} after the last import. They are not overwritten: only their empty fields are filled.",
+    "overwriteLocal": "Replace with {provider} (overwrites the changes made in zerosoft)",
+    "keptNote": "{count, plural, one {# with local changes, not overwritten} other {# with local changes, not overwritten}}.",
+    "openContacts": "Open contacts"
   },
   "ai": {
     "updatedAt": "Updated {when}",

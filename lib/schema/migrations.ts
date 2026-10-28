@@ -6464,6 +6464,63 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Hub de importación (/app/settings/import): import_jobs deja de limitar
+    // `app` con un CHECK (el registro de fuentes de lib/import-registry.ts
+    // decide qué app y fuente existen) y los items se buscan por tipo (Notion
+    // por API lee páginas y bases por separado).
+    id: '129_import_hub',
+    up: async (client) => {
+      const tableSql = async () =>
+        String((await client.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'import_jobs'")).rows[0]?.sql ?? '');
+      const sql = await tableSql();
+      if (sql && /CHECK\s*\(\s*app\s+IN/i.test(sql)) {
+        const createNew = sql
+          .replace(/^CREATE TABLE\s+(IF NOT EXISTS\s+)?["`]?import_jobs["`]?/i, 'CREATE TABLE import_jobs_new')
+          .replace(/\s*CHECK\s*\(\s*app\s+IN\s*\([^)]*\)\s*\)/i, '');
+        const indexes = (
+          await client.execute("SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'import_jobs' AND sql IS NOT NULL")
+        ).rows.map((r) =>
+          String(r.sql).replace(/^CREATE (UNIQUE )?INDEX\s+(IF NOT EXISTS\s+)?/i, (_m, u?: string) => `CREATE ${u ?? ''}INDEX IF NOT EXISTS `),
+        );
+        try {
+          await client.migrate([
+            'DROP TABLE IF EXISTS import_jobs_new',
+            createNew,
+            'INSERT INTO import_jobs_new SELECT * FROM import_jobs',
+            'DROP TABLE import_jobs',
+            'ALTER TABLE import_jobs_new RENAME TO import_jobs',
+            ...indexes,
+          ]);
+        } catch (err) {
+          // Otra instancia ya reconstruyó la tabla (carrera al arrancar).
+          if (/CHECK\s*\(\s*app\s+IN/i.test(await tableSql())) throw err;
+        }
+      }
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_import_job_items_kind ON import_job_items(job_id, kind, seq)');
+      // Cuándo se escribió por última vez cada registro importado: si después
+      // se editó en zerosoft, reimportar no lo pisa (salvo que se pida).
+      await addColumn(client, 'ALTER TABLE crm_external_ids ADD COLUMN imported_at TEXT');
+      await addColumn(client, 'ALTER TABLE import_external_ids ADD COLUMN imported_at TEXT');
+      // CRM: registros importados que quedaron con el owner por defecto porque
+      // su owner del otro CRM todavía no era miembro. Cuando esa persona se
+      // une (lib/crm-import-owners.ts), pasan a ser suyos si nadie los tocó.
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS crm_import_pending_owners (
+          workspace_id TEXT NOT NULL,
+          email TEXT NOT NULL,
+          provider TEXT NOT NULL,
+          external_owner_id TEXT NOT NULL,
+          entity TEXT NOT NULL CHECK (entity IN ('company', 'contact', 'deal', 'activity')),
+          record_id TEXT NOT NULL,
+          default_owner_id TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (workspace_id, entity, record_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_crm_import_pending_owners_email ON crm_import_pending_owners(workspace_id, email);
+      `);
+    },
+  },
+  {
     // Workspace como equipo de todas las apps: ficha por owner, roles con
     // guest y acceso por app, invitaciones por email, onboarding y subequipos
     // del workspace. Aditiva (ver lib/schema/workspace-migrations.ts).

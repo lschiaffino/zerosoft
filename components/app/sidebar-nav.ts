@@ -1,3 +1,4 @@
+import { importHubHref } from '@/lib/import-registry';
 import type { IconName } from './icons';
 import { isNewLinkPath } from '@/lib/link-detail-tabs';
 import type { NotificationTextLabels } from '@/lib/notification-text';
@@ -27,6 +28,8 @@ export interface SidebarLabels {
   workspace: string;
   /** Ajustes globales de la cuenta (pie del sidebar, todos los productos). */
   settings: string;
+  /** Atajo al hub de importación (pie del sidebar, con la app abierta ya elegida). */
+  importData?: string;
   /** Ajustes propios de la app (ítem del sidebar que lleva a /app/<app>/settings). */
   appSettings: string;
   /** Shell neutro (Ajustes de la plataforma): inicio y lista de apps. */
@@ -290,6 +293,20 @@ export function settingsNavItem(pathname: string, labels: SidebarLabels): NavIte
     label: labels.settings,
     active: pathname.startsWith('/app/settings'),
     icon: 'settings',
+  };
+}
+
+/** Pie del sidebar: "Importar" lleva al hub con la app abierta primero. */
+export function importNavItem(product: AppProduct, labels: SidebarLabels): NavItem | null {
+  // En el inicio y en Ajustes (shell neutro) no va: la lista de apps necesita el alto y el inicio ya tiene su tarjeta de importar.
+  if (!labels.importData || product === 'home') return null;
+  const app = product === 'calendar' ? 'cal' : product;
+  return {
+    href: importHubHref({ app }),
+    label: labels.importData,
+    // En el hub queda marcado Ajustes (Importar es una sección de Ajustes).
+    active: false,
+    icon: 'bulk',
   };
 }
 

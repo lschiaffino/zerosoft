@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { updateImportJob } from '@/lib/import-jobs';
 import { REQUEST_IMPORT_BUDGET_MS, runImportJob } from '@/lib/import-runner';
-import { importError, importJobFor } from '@/lib/import-http';
+import { importError, importJobFor, viewFor } from '@/lib/import-http';
 import { localUploadedBytes } from '@/lib/docs-notion-import';
 
 export const runtime = 'nodejs';
@@ -25,5 +25,5 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     if (size === 0 || size !== Number(job.options.size)) return importError(409, 'upload_incomplete');
     await updateImportJob(job.id, { status: 'fetching' });
   }
-  return NextResponse.json({ job: await runImportJob(job.id, REQUEST_IMPORT_BUDGET_MS) });
+  return NextResponse.json({ job: await viewFor(res.user, await runImportJob(job.id, REQUEST_IMPORT_BUDGET_MS)) });
 }
