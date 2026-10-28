@@ -29,6 +29,7 @@ import {
   WEBHOOK_REPLY_LIMIT,
   type WebhookReply,
 } from './flow';
+import { aiExtractNode } from './flow-ai';
 import { crmTaskNode, crmUpdateNode, docsPageFlowNode, docsRowFlowNode, trackUpdateNode } from './flow-app-nodes';
 import { CODE_MAX_TIMEOUT_SEC, runFlowCode } from './flow-code';
 import { resolveCredential, secretValues, type ResolvedCredential } from './flow-credentials';
@@ -57,7 +58,8 @@ import {
   type FlowGraph,
   type FlowNode,
 } from './flow-schema';
-import { evalConditions, renderDeep, renderString, renderValue, stringify, type Condition } from './flow-template';
+import { evalConditions, getPath, renderDeep, renderString, renderValue, stringify, type Condition } from './flow-template';
+import { variablesFor } from './flow-variables';
 import {
   APPROVAL_TIMEOUT,
   approvalStrings,
@@ -69,7 +71,7 @@ import {
   resumeUrl,
 } from './flow-waits';
 import { rateLimit } from './rate-limit';
-import { safeFetch, UnsafeUrlError } from './safe-fetch';
+import { readTextCapped, safeFetch, UnsafeUrlError } from './safe-fetch';
 
 export const MAX_STEPS = 200;
 export const MAX_LOOP_ITEMS = 100;
@@ -111,6 +113,12 @@ interface RunContext {
   pending?: string[];
   /** Tope de pasos de la corrida (MAX_STEPS más lo que reservaron los Loops). */
   stepLimit?: number;
+  /**
+   * Persona con cuyo acceso corre, cuando no es quien creó el flow: "Probar
+   * flow" sobre un borrador corre como quien lo prueba (igual que "Probar
+   * paso"), nunca con el acceso del dueño sobre un grafo que no publicó.
+   */
+  actor?: string;
 }
 
 type FlowInfo = Pick<
@@ -134,6 +142,8 @@ interface RunState {
   pending: Set<string>;
   /** Milisegundos ya esperados en reintentos en línea dentro de Loops (presupuesto). */
   loopRetryMs: number;
+  /** Variables de la persona con cuyo acceso corre ({{vars.x}}). */
+  vars: Record<string, string>;
 }
 
 interface LoopScope {
@@ -173,6 +183,7 @@ function templateCtx(state: RunState, loop?: LoopScope): Record<string, unknown>
     flow: { id: state.flow.id, name: state.flow.name },
     // resumeUrl: retoma un Esperar en modo "hasta una llamada" de esta corrida.
     run: { id: state.run.id, resumeUrl: resumeUrl(state.run.id) },
+    vars: state.vars,
     ...(loop ? { loop } : {}),
   };
 }
@@ -279,31 +290,106 @@ async function httpNode(state: RunState, cfg: Record<string, unknown>, tctx: Rec
     Object.assign(headers, authHeaders(await takeCredential(state, cfg.credentialId, ['api_key', 'basic', 'oauth_token'])));
   }
   const timeoutMs = Math.min(Math.max(Number(cfg.timeoutMs) || 8000, 1000), 30_000);
-  let res: Response;
-  try {
-    // Sigue redirecciones (p. ej. Apps Script responde 302) salvo que el nodo lo apague.
-    const maxRedirects = cfg.followRedirects === false ? 0 : 5;
-    res = await safeFetch(url, { method, headers, body: body || undefined }, timeoutMs, { maxRedirects });
-  } catch (err) {
-    if (err instanceof UnsafeUrlError) throw new StepError(err.message);
-    throw new StepError(err instanceof Error && err.name === 'TimeoutError' ? 'timeout' : 'network_error', true);
-  }
-  const text = (await res.text().catch(() => '')).slice(0, HTTP_BODY_LIMIT);
-  let parsed: unknown = text;
-  if (cfg.parseJson !== false && text) {
+  const request = async (target: string) => {
+    let res: Response;
     try {
-      parsed = JSON.parse(text);
+      // Sigue redirecciones (p. ej. Apps Script responde 302) salvo que el nodo lo apague.
+      const maxRedirects = cfg.followRedirects === false ? 0 : 5;
+      res = await safeFetch(target, { method, headers, body: body || undefined }, timeoutMs, { maxRedirects });
+    } catch (err) {
+      if (err instanceof UnsafeUrlError) throw new StepError(err.message);
+      throw new StepError(err instanceof Error && err.name === 'TimeoutError' ? 'timeout' : 'network_error', true);
+    }
+    const text = await readTextCapped(res, HTTP_BODY_LIMIT).catch(() => '');
+    let parsed: unknown = text;
+    if (cfg.parseJson !== false && text) {
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = text;
+      }
+    }
+    const outHeaders: Record<string, string> = {};
+    res.headers.forEach((v, k) => {
+      if (Object.keys(outHeaders).length < 30) outHeaders[k] = v;
+    });
+    const output = { status: res.status, ok: res.ok, headers: outHeaders, body: parsed };
+    if (!res.ok) throw new StepError(`http_${res.status}`, res.status >= 500 || res.status === 429, output);
+    return output;
+  };
+  const paginate = String(cfg.paginate ?? 'off');
+  if (paginate !== 'next_url' && paginate !== 'page') return request(url);
+  return paginateHttp(request, url, paginate, cfg);
+}
+
+/** Tope de ítems juntados entre todas las páginas. */
+const HTTP_MAX_ITEMS = 5_000;
+
+/** Siguiente página de un header Link (RFC 8288): <url>; rel="next". */
+export function nextFromLinkHeader(link: string | undefined): string | null {
+  if (!link) return null;
+  for (const part of link.split(',')) {
+    const m = /<([^>]+)>\s*;[^,]*rel\s*=\s*"?next"?/i.exec(part);
+    if (m) return m[1].trim();
+  }
+  return null;
+}
+
+/**
+ * Paginación del request HTTP: 'next_url' sigue una URL de la respuesta (un
+ * campo del cuerpo o el header Link) y 'page' suma 1 al parámetro de página.
+ * Junta los ítems (itemsPath, o el cuerpo si es una lista) hasta maxPages o
+ * hasta una página vacía. Cada página pasa por safeFetch (la URL siguiente
+ * puede venir de afuera: la guardia SSRF se aplica a cada una).
+ */
+async function paginateHttp(
+  request: (url: string) => Promise<{ status: number; ok: boolean; headers: Record<string, string>; body: unknown }>,
+  firstUrl: string,
+  mode: 'next_url' | 'page',
+  cfg: Record<string, unknown>,
+) {
+  const maxPages = Math.min(Math.max(Math.floor(Number(cfg.maxPages)) || 5, 1), 20);
+  const itemsPath = String(cfg.itemsPath ?? '').trim();
+  const pageParam = String(cfg.pageParam ?? 'page').trim() || 'page';
+  const nextPath = String(cfg.nextUrlPath ?? '').trim();
+  const items: unknown[] = [];
+  let pages = 0;
+  let last: Awaited<ReturnType<typeof request>> | null = null;
+  let target: string | null = firstUrl;
+  let startPage = 1;
+  if (mode === 'page') {
+    try {
+      const n = Number(new URL(firstUrl).searchParams.get(pageParam));
+      if (Number.isFinite(n) && n > 0) startPage = Math.floor(n);
     } catch {
-      parsed = text;
+      throw new StepError('invalid_url');
     }
   }
-  const outHeaders: Record<string, string> = {};
-  res.headers.forEach((v, k) => {
-    if (Object.keys(outHeaders).length < 30) outHeaders[k] = v;
-  });
-  const output = { status: res.status, ok: res.ok, headers: outHeaders, body: parsed };
-  if (!res.ok) throw new StepError(`http_${res.status}`, res.status >= 500 || res.status === 429, output);
-  return output;
+  while (target && pages < maxPages) {
+    last = await request(target);
+    pages += 1;
+    const list = itemsPath ? getPath(last.body, itemsPath) : last.body;
+    if (!Array.isArray(list) || list.length === 0) break;
+    items.push(...list.slice(0, HTTP_MAX_ITEMS - items.length));
+    if (items.length >= HTTP_MAX_ITEMS) break;
+    if (mode === 'page') {
+      const u = new URL(firstUrl);
+      u.searchParams.set(pageParam, String(startPage + pages));
+      target = u.toString();
+    } else {
+      const raw = !nextPath || nextPath === 'header.link' ? nextFromLinkHeader(last.headers.link) : getPath(last.body, nextPath);
+      const next = typeof raw === 'string' && raw.trim() ? raw.trim() : null;
+      try {
+        const u: URL | null = next ? new URL(next, target) : null;
+        // Solo el mismo origen: el request lleva la credencial del nodo y la URL
+        // siguiente la elige la respuesta (otro host se quedaría con el token).
+        target = u && u.origin === new URL(firstUrl).origin ? u.toString() : null;
+      } catch {
+        target = null;
+      }
+    }
+  }
+  return { status: last?.status ?? 0, ok: last?.ok ?? false, headers: last?.headers ?? {}, body: last?.body ?? null, items, pages };
 }
 
 async function crmContactNode(ws: string, cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
@@ -975,6 +1061,21 @@ async function runNodeLogic(state: RunState, node: FlowNode, loop?: LoopScope): 
       return { kind: 'ok', output: await robotNode(state, cfg, tctx), handles: ['out'] };
     case 'ai.text':
       return { kind: 'ok', output: await aiNode(ws, cfg, tctx), handles: ['out'] };
+    case 'ai.extract':
+      return {
+        kind: 'ok',
+        output: await aiExtractNode(ws, {
+          mode: String(cfg.mode ?? 'extract'),
+          text: renderString(cfg.text ?? '', tctx),
+          fields: cfg.fields,
+          categories: cfg.categories,
+          instructions: renderString(cfg.instructions ?? '', tctx).trim(),
+        }),
+        handles: ['out'],
+      };
+    // Las notas del canvas no se conectan: nunca llegan acá (por si acaso, no hacen nada).
+    case 'note.sticky':
+      return { kind: 'stop', output: null };
     case 'ai.agent':
       return { kind: 'ok', output: await agentNode(ws, cfg, tctx, state.flow.created_by ?? null), handles: ['out'] };
     case 'data.code':
@@ -1347,11 +1448,15 @@ async function loadState(run: FlowRunRow): Promise<RunState | null> {
     trigger: saved.trigger ?? parseJson(run.input, {}),
     nodes: saved.nodes ?? {},
     stepLimit: saved.stepLimit,
+    ...(saved.actor ? { actor: saved.actor } : {}),
   };
+  // Prueba de un borrador: corre con el acceso de quien la lanzó (y solo si es quien la capturó).
+  const actingFlow = saved.actor ? { ...flow, created_by: saved.actor === run.captured_by ? saved.actor : null } : flow;
   return {
     run,
-    flow,
+    flow: actingFlow,
     ctx,
+    vars: await variablesFor(flow.user_id, actingFlow.created_by ?? null),
     steps: run.step_count,
     error: null,
     failedNode: null,
@@ -1363,7 +1468,7 @@ async function loadState(run: FlowRunRow): Promise<RunState | null> {
 }
 
 /** Disparadores automáticos: si el flow se apagó, sus corridas pendientes no siguen. */
-const AUTOMATIC_TRIGGERS = new Set(['trigger.event', 'trigger.webhook', 'trigger.stripe', 'trigger.schedule']);
+const AUTOMATIC_TRIGGERS = new Set(['trigger.event', 'trigger.webhook', 'trigger.stripe', 'trigger.schedule', 'trigger.poll', 'trigger.form']);
 
 /**
  * Corrida automática de un flow apagado: se cancela (falla con flow_disabled y
@@ -1612,6 +1717,7 @@ export async function testFlowStep(
     merged: new Set(),
     pending: new Set(),
     loopRetryMs: 0,
+    vars: await variablesFor(flow.user_id, flow.created_by ?? null),
   };
   const started = Date.now();
   const done = (r: Omit<StepTestResult, 'durationMs'>): StepTestResult => ({

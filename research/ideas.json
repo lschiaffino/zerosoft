@@ -864,14 +864,18 @@
     "title": "Flow: Add Google Sheets lookup, update and upsert rows plus a new row trigger",
     "description": "n8n's Google Sheets node supports append or update row, update row, get rows with filters, clear and delete (https://docs.n8n.io/integrations/builtin/app-nodes/n8n-nodes-base.googlesheets/sheet-operations/), and Zapier's most used Sheets trigger is 'New or Updated Spreadsheet Row'. Our Sheets node only appends a row or reads a whole range (lib/flow-integrations.ts sheetsConfigSchema operation append|read) and there is no Sheets trigger. Sheets is the default database of small teams, so 'update the row for this deal when it is won' and 'when a row is added, create a contact' are everyday cases. First scope: lookup by column, update and upsert by key column, and a polling trigger for new rows using the schedule infrastructure.\n\nPriority: medium. Effort: M. Compared with Zapier / n8n.",
     "product": "flow",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-27-flow-parity"
   },
   {
     "title": "Flow: Add AI extract and classify steps that return structured fields",
     "description": "n8n has an Information Extractor node that returns fields from a JSON schema, a JSON example or attribute descriptions, and a Text Classifier that routes to one output per category (https://docs.n8n.io/integrations/builtin/cluster-nodes/root-nodes/n8n-nodes-langchain.information-extractor/); Zapier's AI by Zapier returns named output fields. Our ai.text node returns free text only (lib/flow-engine.ts aiNode), so using the answer in an If or a CRM field needs a JSON parse step and luck. Typical small-team flows are 'classify this inbound email or chat as sales, support or spam' and 'extract name, company and budget from this form'. First scope: an output mode on ai.text with a field list (name, type, description) using structured output, and an ai.classify node with one output handle per category.\n\nPriority: medium. Effort: M. Compared with Zapier / n8n.",
     "product": "flow",
     "kind": "idea",
-    "parity": "ai-extract"
+    "parity": "ai-extract",
+    "status": "done",
+    "changelog": "2026-10-27-flow-parity"
   },
   {
     "title": "Flow: Email the flow owner when runs fail and offer automatic replay",
@@ -1273,7 +1277,9 @@
     "description": "Evernote, Apple Notes, Keep, Bear and Obsidian all work offline on mobile, and Evernote documents which search operators still work offline (https://help.evernote.com/hc/articles/208313828). Our app has no web manifest or service worker (no app/manifest, nothing in public/), every list and note load is a network fetch (components/notes/NotesApp.tsx refreshList, openNote), and a failed save only shows an error status. On a phone with weak signal, capture fails exactly when it is needed. First scope: a web manifest so Notes can be added to the home screen, caching of recently opened notes in IndexedDB, and an offline save queue that replays PATCHes when back online.\n\nPriority: low. Effort: L. Compared with Evernote.",
     "product": "notes",
     "kind": "idea",
-    "parity": "offline-notes"
+    "parity": "offline-notes",
+    "status": "done",
+    "changelog": "2026-10-27-notes"
   },
   {
     "title": "Notes: Show column headers for database blocks on shared and trashed notes",
@@ -1792,48 +1798,62 @@
     "description": "Zapier Copilot and the n8n AI Workflow Builder turn a sentence like 'when a deal is won, create the Stripe customer and post in #sales' into a working draft (https://docs.n8n.io/release-notes/, https://zapier.com/pricing). Flow has ai.text and ai.agent nodes but nothing that writes the graph: every flow starts from one of 16 templates or an empty canvas. The node catalog, event samples and validateGraph in lib/flow-schema.ts are already a typed spec an LLM can target through the AI gateway. First scope: a 'Describe your flow' box on /app/flow that returns a validated graph opened in the editor as unsaved changes, with missing credentials flagged on each node.\n\nPriority: high. Effort: M. Compared with Zapier / n8n.",
     "product": "flow",
     "kind": "idea",
-    "parity": "ai-builder"
+    "parity": "ai-builder",
+    "status": "done",
+    "changelog": "2026-10-27-flow-parity"
   },
   {
     "title": "Flow: Keep a draft separate from the published version that runs",
     "description": "n8n 2.0 split Save from Publish and production runs the published version (https://docs.n8n.io/workflows/publish/); Zapier keeps drafts apart from the live Zap (https://help.zapier.com/hc/en-us/articles/9693520498445-Create-Zap-versions). In Flow, Save writes flow_flows.graph and bumps the version, so an enabled flow starts running the half-edited graph the moment you press Cmd+S (lib/flow.ts updateFlow). Versions and diffGraphs already exist. First scope: a draft_graph column the editor saves to, a Publish button that copies it to graph and creates the version, and a 'Draft differs from published' note in the header.\n\nPriority: high. Effort: M. Compared with Zapier / n8n.",
     "product": "flow",
     "kind": "idea",
-    "parity": "draft-publish"
+    "parity": "draft-publish",
+    "status": "done",
+    "changelog": "2026-10-27-flow-parity"
   },
   {
     "title": "Flow: Export and import flows as JSON and copy nodes between flows",
     "description": "n8n workflows are plain JSON on every plan: download, import, or paste onto the canvas (https://docs.n8n.io/workflows/export-import/). Zapier offers Zap import/export on Team and Enterprise (https://help.zapier.com/hc/en-us/articles/8496308481933-Import-and-export-Zaps-in-your-Team-or-Enterprise-account). Flow has no export, no import and no node clipboard, so a flow cannot move between workspaces, be kept in git or be shared in a support thread. First scope: Export JSON in flow settings (credentials replaced by their type), Import on /app/flow that validates with validateGraph, and Cmd+C / Cmd+V of selected nodes in the editor.\n\nPriority: high. Effort: S. Compared with n8n.",
     "product": "flow",
     "kind": "idea",
-    "parity": "json-import-export"
+    "parity": "json-import-export",
+    "status": "done",
+    "changelog": "2026-10-27-flow-parity"
   },
   {
     "title": "Flow: Add polling triggers for RSS feeds, IMAP inboxes and changed HTTP responses",
     "description": "Most Zapier triggers are polling triggers (every 1 to 15 minutes by plan, https://zapier.com/pricing) and n8n ships RSS Feed Trigger, Email Trigger (IMAP) and generic polling. Flow triggers are internal events, webhook, schedule, Stripe and manual (lib/flow-schema.ts), so any service without webhooks needs a schedule plus HTTP plus a data table to dedupe by hand. The minute cron and flow tables already give polling and dedupe state. First scope: trigger.rss and trigger.http_poll (fires when a JSON path changes), deduped by item id in a hidden table, then IMAP.\n\nPriority: medium. Effort: M. Compared with Zapier / n8n.",
     "product": "flow",
     "kind": "idea",
-    "parity": "polling-triggers"
+    "parity": "polling-triggers",
+    "status": "done",
+    "changelog": "2026-10-27-flow-parity"
   },
   {
     "title": "Flow: Show a workspace run history with search by data and a usage dashboard",
     "description": "Zapier Zap History lists every run across Zaps with filters and CSV export (https://help.zapier.com/hc/en-us/articles/8496294549005-Export-your-Zap-history); n8n has an executions list searchable by data and an Insights dashboard with failure rate and time saved (https://n8n.io/pricing/). Flow runs are only visible inside each flow's Runs tab, so 'what failed last night' means opening flows one by one. First scope: /app/flow/runs with all runs, filters for flow, status and date, search inside trigger data, and a header with runs, failures and failure rate for the last 7 and 30 days.\n\nPriority: medium. Effort: M. Compared with Zapier / n8n.",
     "product": "flow",
     "kind": "idea",
-    "parity": "global-run-history"
+    "parity": "global-run-history",
+    "status": "done",
+    "changelog": "2026-10-27-flow-parity"
   },
   {
     "title": "Flow: Add hosted forms that start a flow and approval forms that collect data",
     "description": "Zapier Forms (formerly Interfaces) and the n8n Form Trigger give a public page whose submissions start a workflow, and n8n's Wait node can resume on a second form (https://help.zapier.com/hc/en-us/articles/15927500577037-Use-forms-in-Zapier-Interfaces, https://docs.n8n.io/build/flow-logic/wait.md). Flow only reacts to CRM form.submitted, which also creates a contact. Internal requests (refunds, access, purchase approvals) need a plain form. First scope: trigger.form with fields defined in the node and a public URL like the webhook token, then a 'collect fields' option on the Approval step.\n\nPriority: medium. Effort: M. Compared with Zapier / n8n.",
     "product": "flow",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-27-flow-parity"
   },
   {
     "title": "Flow: Add folders, list search and row actions to the flows list",
     "description": "Zapier groups Zaps in shared folders (https://zapier.com/pricing) and n8n uses projects with search and tags. The Flow list is flat with no search, and renaming, duplicating or deleting requires opening the editor (there is no duplicate at all). Past 20 or 30 flows the list stops scaling. First scope: a row menu with Rename, Duplicate and Delete (using the app's confirm dialog instead of window.confirm), a search box, then folders with the same model as Link folders.\n\nPriority: medium. Effort: S. Compared with Zapier / n8n.",
     "product": "flow",
     "kind": "idea",
-    "parity": "folders"
+    "parity": "folders",
+    "status": "done",
+    "changelog": "2026-10-27-flow-parity"
   },
   {
     "title": "Flow: Expose flows over MCP and the public v1 API",
@@ -1846,7 +1866,9 @@
     "title": "Flow: Cap runs per flow and hold the excess for review",
     "description": "Zapier flood protection holds runs when a trigger fires more than 100 times at once (configurable up to 1,500) and lets you replay or discard them (https://help.zapier.com/hc/en-us/articles/32466537676685-Adjust-flood-protection-limits-in-Zap-workflows). In Flow a bulk CRM import or a webhook loop starts one run per event with no limit, which can send hundreds of Slack messages or emails. First scope: a per-flow 'max runs per 10 minutes' setting (default 100), held runs listed in the Runs tab with Run all and Discard, and an email to the owner when it trips.\n\nPriority: medium. Effort: S. Compared with Zapier.",
     "product": "flow",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-27-flow-parity"
   },
   {
     "title": "Link: Ship Zapier and Make apps plus Slack alerts for links",
@@ -1946,35 +1968,45 @@
     "description": "Evernote has saved searches and Apple Notes has Smart Folders filtered by tags, checklists and dates (https://support.apple.com/guide/notes/use-smart-folders-apd58edc7964/mac). Notes already parses tag:, notebook:, intitle:, created:, updated: and todo: (lib/notes-query.ts) but a query is lost when you clear the box. First scope: a 'Save search' action next to the search field that stores name + query per user, lists saved searches in the sidebar under Tags, keeps them in sync with renames of tags and notebooks, and opens them with Cmd+K.\n\nPriority: medium. Effort: S. Compared with Evernote.",
     "product": "notes",
     "kind": "idea",
-    "parity": "saved-searches"
+    "parity": "saved-searches",
+    "status": "done",
+    "changelog": "2026-10-27-notes"
   },
   {
     "title": "Notes: Export a notebook or all notes as a Markdown or ENEX zip",
     "description": "Evernote exports notebooks as ENEX or HTML from desktop, Apple Notes exports PDF and Markdown, and Bear exports many formats (https://bear.app/faq/export-your-notes/). Notes exports one note at a time to Markdown (app/api/notes/[id]/export). People moving years of notes in want to know they can get them out the same way. First scope: 'Export notebook' in the notebook menu and 'Export all notes' in Notes settings, returning a zip with one .md per note (front matter with tags, created, updated, source_url), attachments in a folder, and an optional .enex file so the export round-trips into Evernote.\n\nPriority: medium. Effort: S. Compared with Evernote.",
     "product": "notes",
     "kind": "idea",
-    "parity": "export-all"
+    "parity": "export-all",
+    "status": "done",
+    "changelog": "2026-10-27-notes"
   },
   {
     "title": "Notes: Group notebooks into stacks",
     "description": "Evernote groups notebooks into stacks, and an ENEX import of a long-time user brings dozens of notebooks. Notes has a flat notebook list in the sidebar (components/notes/NotesApp.tsx), so after importing 30 notebooks the sidebar is a long scroll. First scope: a stack (or one level of parent notebook) that notebooks can be dragged into, collapsible in the sidebar, with 'notebook:' search matching a stack name to include all its notebooks, and keep the stack name when importing ENEX files that carry it.\n\nPriority: medium. Effort: S. Compared with Evernote.",
     "product": "notes",
     "kind": "idea",
-    "parity": "notebook-stacks"
+    "parity": "notebook-stacks",
+    "status": "done",
+    "changelog": "2026-10-27-notes"
   },
   {
     "title": "Notes: Create notes from templates",
     "description": "Evernote offers templates when you create a note (meeting, journal, trip) and made template creation easier in 11.31 (https://releasebot.io/updates/evernote). Docs already has built-in and workspace templates (lib/docs-templates.ts), but Notes always starts empty. First scope: a template picker on the 'New note' split button with a few personal templates (meeting, daily log, reading notes), 'Save as template' from any note, and templates that preset tags and notebook.\n\nPriority: medium. Effort: S. Compared with Evernote.",
     "product": "notes",
     "kind": "idea",
-    "parity": "note-templates"
+    "parity": "note-templates",
+    "status": "done",
+    "changelog": "2026-10-27-notes"
   },
   {
     "title": "Notes: Select several notes to move, tag, pin or trash them at once",
     "description": "Evernote added multi-select bulk actions on mobile in 2025 (https://evernote.com/blog/2025-recap) and has them on desktop. The Notes list only acts on one note at a time (row menu in components/notes/RowMenu.tsx), which makes cleaning up an ENEX import slow. First scope: Shift/Cmd-click and checkbox selection in the list, a bar with Move to notebook, Add tag, Pin, Trash and Export, keyboard support (Shift+Arrow to extend, Esc to clear) and one undo toast for the batch.\n\nPriority: medium. Effort: S. Compared with Evernote.",
     "product": "notes",
     "kind": "idea",
-    "parity": "bulk-actions"
+    "parity": "bulk-actions",
+    "status": "done",
+    "changelog": "2026-10-27-notes"
   },
   {
     "title": "Notes: Record audio in a note and transcribe it",

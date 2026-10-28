@@ -38,7 +38,7 @@ const session = vi.hoisted(() => ({ user: null as null | Record<string, unknown>
 vi.mock('@/lib/session', () => ({ getCurrentUser: async () => session.user }));
 
 const credsRoute = await import('@/app/api/flow/credentials/route');
-const credRoute = await import('@/app/api/flow/credentials/[id]/route');
+const credRoute = await import('@/lib/routes/flow/credentials/[id]/route');
 const hookRoute = await import('@/app/api/flow/hooks/[token]/route');
 const rerunRoute = await import('@/app/api/flow/runs/[id]/rerun/route');
 

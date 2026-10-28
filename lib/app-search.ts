@@ -77,6 +77,9 @@ type Row = { id: string; label: string; meta?: string | null; email?: string | n
 const WA_GROUP: Record<string, string> = { en: 'WhatsApp group', es: 'Grupo de WhatsApp', pt: 'Grupo de WhatsApp' };
 /** "Mensaje directo" (Talk) en el idioma de la paleta. */
 const TALK_DM: Record<string, string> = { en: 'Direct message', es: 'Mensaje directo', pt: 'Mensagem direta' };
+/** Carpetas y variables de Flow en la paleta (van en el grupo de flows). */
+const FLOW_FOLDER: Record<string, string> = { en: 'Flow folder', es: 'Carpeta de Flow', pt: 'Pasta do Flow' };
+const FLOW_VARIABLE: Record<string, string> = { en: 'Flow variable', es: 'Variable de Flow', pt: 'Variável do Flow' };
 
 export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT, locale = 'en'): Promise<AppSearchItem[]> {
   const needle = q.trim();
@@ -188,7 +191,23 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     // Encuestas de horario de Cal por título.
     all(`SELECT id, title AS label FROM calendar_polls WHERE user_id = ? AND title LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?`, user.id, like),
     all(`SELECT id, name AS label FROM chat_widgets WHERE ${widgetWhere} AND name LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?`, teamId ?? user.id, like),
-    all(`SELECT id, name AS label FROM flow_flows WHERE user_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY updated_at DESC LIMIT ?`, user.id, like),
+    // Flows, carpetas de Flow y las variables propias (las de cada persona son suyas).
+    all(
+      `SELECT id, label, meta FROM (
+         SELECT id, name AS label, '' AS meta, 0 AS k, updated_at AS ts FROM flow_flows WHERE user_id = ? AND name LIKE ? ESCAPE '\\'
+         UNION ALL SELECT 'folder:' || id, name, ?, 1, updated_at FROM flow_folders WHERE user_id = ? AND name LIKE ? ESCAPE '\\'
+         UNION ALL SELECT 'var:' || id, key, ?, 2, updated_at FROM flow_variables WHERE user_id = ? AND person_id = ? AND key LIKE ? ESCAPE '\\'
+       ) ORDER BY k, ts DESC LIMIT ?`,
+      user.id,
+      like,
+      FLOW_FOLDER[locale] ?? FLOW_FOLDER.en,
+      user.id,
+      like,
+      FLOW_VARIABLE[locale] ?? FLOW_VARIABLE.en,
+      user.id,
+      user.actingUser?.id ?? user.id,
+      like,
+    ),
     all(`SELECT id, name AS label FROM agents WHERE user_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?`, user.id, like),
     all(`SELECT id, name AS label FROM robots WHERE user_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY updated_at DESC LIMIT ?`, user.id, like),
     // Groups: chats y grupos de WhatsApp por nombre o teléfono.
@@ -397,7 +416,9 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ...map(chatViews, 'chatViews', (id) => `/app/chat/inbox?view=${id}`),
     ...map(chatTeams, 'chatTeams', (id) => `/app/chat/inbox?team=${id}`),
     ...chatOutbound.map((r) => ({ id: r.id, group: 'chatOutbound' as const, label: r.label, meta: '', href: `/app/chat/widgets/${r.meta}/outbound?open=${r.id}` })),
-    ...map(flows, 'flows', (id) => `/app/flow/${id}`),
+    ...map(flows, 'flows', (id) =>
+      id.startsWith('folder:') ? `/app/flow?folder=${id.slice(7)}` : id.startsWith('var:') ? '/app/flow/variables' : `/app/flow/${id}`,
+    ),
     ...map(agents, 'agents', (id) => `/app/agents/${id}`),
     ...map(robots, 'robots', (id) => `/app/robots/${id}`),
     ...map(groupChats.map(gMask), 'groupsChats', (id) => `/app/groups/inbox/${id}`),

@@ -55,6 +55,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
         return NextResponse.json({ error: 'conflict', note: await getNoteForViewer(owner, id) }, { status: 409 });
       }
       if (err instanceof NotesError && err.code === 'note_trashed') return jsonError(404, 'not_found');
+      if (err instanceof NotesError && err.code === 'note_locked') return jsonError(409, 'note_locked');
       throw err;
     }
   }
@@ -88,6 +89,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       if (err.code === 'note_trashed') {
         return NextResponse.json({ error: 'note_trashed', note: await getNote(owner, id) }, { status: 409 });
       }
+      // Bloqueada: el contenido solo se guarda con el sobre cifrado (y al revés).
+      if (err.code === 'note_locked' || err.code === 'not_locked') return jsonError(409, err.code);
+      if (err.code === 'wrong_password') return jsonError(403, err.code);
       return jsonError(400, err.code);
     }
     throw err;

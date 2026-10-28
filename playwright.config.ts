@@ -105,6 +105,8 @@ export default defineConfig({
       // Agents contra el modelo falso (lib/agents-ai.ts) solo en los requests con la
       // cookie agents_ai_fake=on: el resto de la suite sigue viendo el agente sin AI.
       AGENTS_AI_FAKE: '1',
+      // Flow con el modelo falso (lib/flow-ai.ts) solo con la cookie flow_ai_fake=on.
+      FLOW_AI_FAKE: '1',
       DOCS_EVENT_WINDOW_SEC: '0',
       // Talk con polling corto en vez de SSE: con el stream abierto la página nunca llega a networkidle.
       TALK_REALTIME: 'poll',

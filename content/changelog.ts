@@ -70,6 +70,38 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-10-27-notes',
+    date: '2026-10-27',
+    title: {
+      en: 'Notes: offline, locked notes, templates, stacks, saved searches and bulk actions',
+      es: 'Notes: sin conexión, notas bloqueadas, plantillas, pilas, búsquedas guardadas y acciones en lote',
+      pt: 'Notes: sem conexão, notas bloqueadas, modelos, pilhas, buscas salvas e ações em lote',
+    },
+    items: [
+      { product: 'notes', en: 'Notes work without a connection: every note stays on your device, you can open, search, edit and create notes offline, and changes sync when you are back. An edit that collides with one made elsewhere is kept as a copy. The copy is erased when you sign out.', es: 'Notes funciona sin conexión: todas las notas quedan en tu dispositivo, las abrís, buscás, editás y creás offline, y los cambios se sincronizan al volver. Un cambio que choca con otro hecho en otro lado queda como copia. La copia se borra al cerrar sesión.', pt: 'O Notes funciona sem conexão: todas as notas ficam no seu dispositivo, você abre, busca, edita e cria notas offline, e as mudanças sincronizam ao voltar. Uma edição que conflita com outra feita em outro lugar fica como cópia. A cópia é apagada ao sair.' },
+      { product: 'notes', en: 'Lock a note with a password. The text is encrypted in your browser before it is saved and the password never leaves your device.', es: 'Bloqueá una nota con contraseña. El texto se cifra en tu navegador antes de guardarse y la contraseña nunca sale de tu dispositivo.', pt: 'Bloqueie uma nota com senha. O texto é criptografado no seu navegador antes de ser salvo e a senha nunca sai do seu dispositivo.' },
+      { product: 'notes', en: 'New from template with nine built-in templates or your own, notebook stacks, nested tags with rename and delete, and saved searches in the sidebar and in Cmd+K.', es: 'Nueva desde plantilla con nueve plantillas de fábrica o las tuyas, pilas de libretas, etiquetas anidadas que se renombran y borran, y búsquedas guardadas en el sidebar y en Cmd+K.', pt: 'Nova a partir de modelo com nove modelos prontos ou os seus, pilhas de cadernos, etiquetas aninhadas que se renomeiam e excluem, e buscas salvas na barra lateral e no Cmd+K.' },
+      { product: 'notes', en: 'Select several notes to move, tag, pin, export or trash them. Export a note, a notebook or everything to Evernote ENEX with attachments, a note to HTML, or print it to PDF.', es: 'Seleccioná varias notas para moverlas, etiquetarlas, fijarlas, exportarlas o mandarlas a la papelera. Exportá una nota, una libreta o todo a ENEX de Evernote con adjuntos, una nota a HTML, o imprimila a PDF.', pt: 'Selecione várias notas para mover, etiquetar, fixar, exportar ou mandar para a lixeira. Exporte uma nota, um caderno ou tudo para ENEX do Evernote com anexos, uma nota para HTML, ou imprima em PDF.' },
+      { product: 'notes', en: 'Record audio and scan documents with the camera right into a note, the Docs AI menu inside notes, focus mode, and search matches highlighted when you open a note.', es: 'Grabá audio y escaneá documentos con la cámara directo en la nota, el menú de IA de Docs dentro de las notas, modo foco y las coincidencias de la búsqueda resaltadas al abrir una nota.', pt: 'Grave áudio e digitalize documentos com a câmera direto na nota, o menu de IA do Docs dentro das notas, modo foco e as correspondências da busca destacadas ao abrir uma nota.' },
+    ],
+  },
+  {
+    id: '2026-10-27-flow-parity',
+    date: '2026-10-27',
+    title: {
+      en: 'Flow: drafts, run history, forms, polling triggers and AI that builds flows',
+      es: 'Flow: borradores, historial de corridas, formularios, triggers por polling e IA que arma flows',
+      pt: 'Flow: rascunhos, histórico de execuções, formulários, gatilhos por polling e IA que monta flows',
+    },
+    items: [
+      { product: 'flow', en: 'Each person edits their own draft, saved automatically, and it only runs once they publish. "Test run" tries your draft with your access, and each version shows who published it.', es: 'Cada persona edita su propio borrador, que se guarda solo, y corre recién cuando lo publica. "Probar" usa tu borrador con tu acceso y cada versión muestra quién la publicó.', pt: 'Cada pessoa edita o próprio rascunho, salvo sozinho, e ele só roda quando ela publica. "Testar" usa o seu rascunho com o seu acesso e cada versão mostra quem publicou.' },
+      { product: 'flow', en: 'New Run history: every run of every flow with search, filters, a usage and failures dashboard, the live queue and CSV or JSON export.', es: 'Nuevo Historial: todas las corridas de todos los flows con búsqueda, filtros, tablero de uso y fallas, la cola en vivo y exportación a CSV o JSON.', pt: 'Novo Histórico: todas as execuções de todos os flows com busca, filtros, painel de uso e falhas, a fila ao vivo e exportação em CSV ou JSON.' },
+      { product: 'flow', en: 'New triggers: a hosted form with its own link, and new items from RSS feeds, JSON URLs or Google Sheets rows. Google Sheets can also look up and update rows.', es: 'Triggers nuevos: un formulario hospedado con su propio link e ítems nuevos de feeds RSS, URLs JSON o filas de Google Sheets. Google Sheets además busca y actualiza filas.', pt: 'Novos gatilhos: um formulário hospedado com link próprio e itens novos de feeds RSS, URLs JSON ou linhas do Google Sheets. O Google Sheets também procura e atualiza linhas.' },
+      { product: 'flow', en: 'AI: describe a flow and it drafts the steps, an extract and classify step with structured output, and "Explain with AI" on failed runs.', es: 'IA: contá un flow y arma los pasos, un paso para extraer y clasificar con salida estructurada, y "Explicar con IA" en las corridas fallidas.', pt: 'IA: descreva um flow e ela monta os passos, um passo para extrair e classificar com saída estruturada, e "Explicar com IA" nas execuções com falha.' },
+      { product: 'flow', en: 'Folders, search and filters in the list, notes on the canvas, copy and paste steps between flows, JSON export and import, cURL import and pagination in HTTP, your own variables with {{vars.name}}, and per-flow limits that hold extra runs for review or run them one at a time.', es: 'Carpetas, búsqueda y filtros en la lista, notas en el canvas, copiar y pegar pasos entre flows, exportar e importar JSON, import de cURL y paginación en HTTP, variables propias con {{vars.nombre}} y límites por flow que retienen corridas para revisar o las corren de a una.', pt: 'Pastas, busca e filtros na lista, notas no canvas, copiar e colar passos entre flows, exportar e importar JSON, import de cURL e paginação no HTTP, variáveis próprias com {{vars.nome}} e limites por flow que retêm execuções para revisar ou rodam uma de cada vez.' },
+    ],
+  },
+  {
     id: '2026-10-27-link-parity',
     date: '2026-10-27',
     title: {

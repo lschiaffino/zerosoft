@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import ClientMessages from '@/components/i18n/ClientMessages';
 import '@/styles/docs.css';
 import '@/styles/notes.css';
+import '@/styles/notes-parity.css';
 
 /** Notes usa el editor de bloques de Docs: trae su hoja y sus textos además de los propios. */
 export default async function NotesLayout(props: { children: ReactNode; params: Promise<{ locale: string }> }) {

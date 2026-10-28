@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
   const rows = await listNotes(noteOwner(user), {
     view,
     notebookId: sp.get('notebook'),
+    stack: sp.get('stack')?.slice(0, 80) ?? null,
     tag: sp.get('tag'),
     q: sp.get('q')?.slice(0, 200) ?? null,
     sort: sortParam && NOTES_SORTS.includes(sortParam) ? sortParam : 'updated',

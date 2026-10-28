@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useRef, useState, type KeyboardEvent,
 import { signOut } from 'next-auth/react';
 import { clearOfflineData } from '@/lib/offline-queue';
 import RecSignOutDialog from '@/components/rec/RecSignOutDialog';
+import NotesSignOutDialog from '@/components/notes/NotesSignOutDialog';
 import { useTranslations } from 'next-intl';
 import { TZ_CHANGED_EVENT } from '@/lib/tz-client';
 import { collapsedFrom, denseRoute, storageKey } from '@/lib/sidebar-collapsed';
@@ -144,6 +145,8 @@ export default function AppSidebar({
   // Cerrar sesión: si quedaron grabaciones de Rec sin subir en este navegador, primero se avisa.
   const recOwner = user.id && user.ws ? { userId: user.id, ws: user.ws } : null;
   const [recPending, setRecPending] = useState(0);
+  // Notes: cambios sin subir (o sin red) se avisan antes de borrar la copia del dispositivo.
+  const [notesWarn, setNotesWarn] = useState<{ count: number; offline: boolean; text: string } | null>(null);
   const doSignOut = () => void clearOfflineData(recOwner ?? undefined).finally(() => signOut({ callbackUrl: '/' }));
   async function requestSignOut() {
     if (recOwner) {
@@ -151,6 +154,14 @@ export default function AppSidebar({
       const pending = await pendingFor(recOwner.userId, recOwner.ws).catch(() => []);
       if (pending.length) {
         setRecPending(pending.length);
+        return;
+      }
+      const { pendingNotesChanges, pendingAsText } = await import('@/components/notes/notesOffline');
+      const notes = await pendingNotesChanges(recOwner).catch(() => ({ ops: [], stuck: [], files: 0 }));
+      const count = notes.ops.length + notes.stuck.length + notes.files;
+      const offline = typeof navigator !== 'undefined' && !navigator.onLine;
+      if (count || offline) {
+        setNotesWarn({ count, offline, text: pendingAsText(notes) });
         return;
       }
     }
@@ -640,6 +651,17 @@ export default function AppSidebar({
                   {labels.signOut}
                 </button>
                 <RecSignOutDialog open={recPending > 0} count={recPending} owner={recOwner} onClose={() => setRecPending(0)} onSignOut={doSignOut} />
+                <NotesSignOutDialog
+                  open={notesWarn !== null}
+                  count={notesWarn?.count ?? 0}
+                  offline={notesWarn?.offline ?? false}
+                  text={notesWarn?.text ?? ''}
+                  onClose={() => setNotesWarn(null)}
+                  onSignOut={() => {
+                    setNotesWarn(null);
+                    doSignOut();
+                  }}
+                />
               </>
             )}
           </div>

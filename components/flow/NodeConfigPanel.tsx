@@ -8,8 +8,12 @@ import { Link } from '@/i18n/navigation';
 import AdvancedSection from '@/components/ui/AdvancedSection';
 import { nextCronRuns } from '@/lib/cron';
 import type { CredentialType } from '@/lib/flow-credentials-schema';
+import QuickModal from '@/components/app/QuickModal';
+import { isAuthHeader, parseCurl } from '@/lib/flow-transfer';
 import {
   FLOW_EVENT_TYPES,
+  FORM_FIELD_TYPES,
+  formFieldKey,
   NODE_DEFS,
   ON_ERROR_MODES,
   onErrorMode,
@@ -264,6 +268,11 @@ export default function NodeConfigPanel({
   const [jsonError, setJsonError] = useState<string | null>(null);
   /** Campo de credencial que abrió el modal "Crear credencial". */
   const [credFor, setCredFor] = useState<FieldDef | null>(null);
+  const [curlOpen, setCurlOpen] = useState(false);
+  const [curlText, setCurlText] = useState('');
+  const [curlError, setCurlError] = useState<string | null>(null);
+  /** El cURL importado traía un secreto en un header: sugerir pasarlo a una credencial. */
+  const [curlAuth, setCurlAuth] = useState(false);
 
   /** Etiqueta del campo: la del nodo si la tiene (nodes.<tipo>.fields.x), si no la general. */
   function fieldLabel(key: string): string {
@@ -744,9 +753,95 @@ export default function NodeConfigPanel({
           </div>
         );
       }
+      case 'formFields': {
+        const rows = Array.isArray(value) ? (value as Array<{ label?: string; type?: string; required?: boolean; options?: string }>) : [];
+        const update = (next: typeof rows) => set(field.key, next);
+        return (
+          <div className="flow-rows flow-form-fields">
+            {rows.map((r, i) => (
+              <div className="flow-form-field" key={i}>
+                <input
+                  className="input"
+                  value={r.label ?? ''}
+                  placeholder={t('form.fieldLabel')}
+                  aria-label={`${t('form.fieldLabel')} ${i + 1}`}
+                  readOnly={readOnly}
+                  onChange={(e) => update(rows.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))}
+                />
+                <select
+                  className="select"
+                  value={r.type ?? 'text'}
+                  aria-label={`${t('form.fieldType')} ${i + 1}`}
+                  disabled={readOnly}
+                  onChange={(e) => update(rows.map((x, j) => (j === i ? { ...x, type: e.target.value } : x)))}
+                >
+                  {FORM_FIELD_TYPES.map((ft) => (
+                    <option key={ft} value={ft}>
+                      {t(`form.types.${ft}`)}
+                    </option>
+                  ))}
+                </select>
+                <label className="ui-check">
+                  <input
+                    type="checkbox"
+                    checked={r.required === true}
+                    disabled={readOnly}
+                    onChange={(e) => update(rows.map((x, j) => (j === i ? { ...x, required: e.target.checked } : x)))}
+                  />
+                  <span>{t('form.required')}</span>
+                </label>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon"
+                    aria-label={`${t('editor.remove')} ${r.label ?? ''}`}
+                    title={t('editor.remove')}
+                    onClick={() => update(rows.filter((_, j) => j !== i))}
+                  >
+                    <IconX />
+                  </button>
+                )}
+                {r.type === 'select' && (
+                  <input
+                    className="input flow-form-options"
+                    value={r.options ?? ''}
+                    placeholder={t('form.optionsPlaceholder')}
+                    aria-label={`${t('form.options')} ${i + 1}`}
+                    readOnly={readOnly}
+                    onChange={(e) => update(rows.map((x, j) => (j === i ? { ...x, options: e.target.value } : x)))}
+                  />
+                )}
+                {r.label?.trim() && <span className="flow-muted data flow-form-key">{`{{trigger.fields.${formFieldKey(r.label, i)}}}`}</span>}
+              </div>
+            ))}
+            {!readOnly && rows.length < 30 && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm flow-add"
+                onClick={() => update([...rows, { label: '', type: 'text', required: false }])}
+              >
+                <IconPlus />
+                {t('form.addField')}
+              </button>
+            )}
+          </div>
+        );
+      }
       default:
         return null;
     }
+  }
+
+  /** Importa un comando cURL al nodo HTTP (método, URL, headers y cuerpo). */
+  function importCurl() {
+    const parsed = parseCurl(curlText);
+    if (!parsed) {
+      setCurlError(t('curl.invalid'));
+      return;
+    }
+    onChange({ ...config, method: parsed.method, url: parsed.url, headers: parsed.headers, body: parsed.body });
+    setCurlAuth(parsed.headers.some((h) => isAuthHeader(h.key)));
+    setCurlOpen(false);
   }
 
   const { basic, advanced } = splitFields(type, def.fields as readonly FieldDef[], config);
@@ -791,6 +886,31 @@ export default function NodeConfigPanel({
       {type === 'trigger.stripe' && <p className="ui-help">{t('editor.stripeHint')}</p>}
       {type === 'trigger.webhook' && <p className="ui-help">{t('editor.webhookAuthHint')}</p>}
       {type === 'trigger.webhook' && config.respond === 'reply_node' && <p className="ui-help">{t('editor.webhookReplyHint')}</p>}
+      {type === 'ai.extract' && <p className="ui-help">{t(config.mode === 'classify' ? 'editor.classifyHint' : 'editor.extractHint')}</p>}
+      {type === 'note.sticky' && <p className="ui-help">{t('editor.noteHint')}</p>}
+      {type === 'app.google_sheets' && (config.operation === 'lookup' || config.operation === 'update') && (
+        <p className="ui-help">{t(`editor.sheetsHint.${String(config.operation)}`)}</p>
+      )}
+      {type === 'action.http' && !readOnly && (
+        <div className="ui-field">
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              setCurlText('');
+              setCurlError(null);
+              setCurlOpen(true);
+            }}
+          >
+            {t('curl.import')}
+          </button>
+          {curlAuth && (
+            <p className="flow-note" role="note">
+              {t('curl.authHint')}
+            </p>
+          )}
+        </div>
+      )}
       {extra}
       {basic.map(fieldBlock)}
       {hasAdvanced && (
@@ -831,6 +951,33 @@ export default function NodeConfigPanel({
           </button>
         </div>
       )}
+      <QuickModal
+        open={curlOpen}
+        onClose={() => setCurlOpen(false)}
+        title={t('curl.title')}
+        onSubmit={importCurl}
+        submitLabel={t('curl.submit')}
+        cancelLabel={t('editor.cancel')}
+        submitDisabled={!curlText.trim()}
+        error={curlError}
+        width={560}
+      >
+        <div className="ui-field">
+          <label className="label" htmlFor={`f-${nodeId}-curl`}>
+            {t('curl.label')}
+          </label>
+          <textarea
+            id={`f-${nodeId}-curl`}
+            className="textarea data"
+            rows={8}
+            spellCheck={false}
+            placeholder={"curl -X POST https://api.example.com/items -H 'Content-Type: application/json' -d '{\"name\":\"Ada\"}'"}
+            value={curlText}
+            onChange={(e) => setCurlText(e.target.value)}
+          />
+          <p className="ui-help">{t('curl.hint')}</p>
+        </div>
+      </QuickModal>
       <CredentialDialog
         open={credFor !== null}
         types={(credFor?.options ?? []) as readonly CredentialType[]}

@@ -12,6 +12,8 @@ import DocsSyncDialog from './DocsSyncDialog';
  */
 export interface DocsPluginApi {
   pageId: string;
+  /** Ruta de la IA (Notes: /api/notes/ai); sin ella, la de Docs. */
+  aiUrl?: string;
   getTitle: () => string;
   getBlocks: () => DocsBlock[];
   /** Inserta bloques debajo del bloque `index` (o en su lugar si es una línea vacía). */
@@ -79,6 +81,7 @@ const DocsEditorPlugins = forwardRef<DocsPluginHandle, { api: DocsPluginApi }>((
       {ai && (
         <DocsAiMenu
           pageId={api.pageId}
+          endpoint={api.aiUrl}
           pageTitle={api.getTitle()}
           pageText={pageText}
           selection={ai.selection}

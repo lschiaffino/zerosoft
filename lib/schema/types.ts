@@ -1680,6 +1680,11 @@ export interface FlowFlowRow {
   auto_replay?: number; // 0 | 1: replay automático de corridas fallidas
   failure_email_at?: string | null; // último aviso de falla (tope: uno por hora)
   pinned_data?: string; // JSON { nodeId: salida fijada } para probar un paso solo
+  folder_id?: string | null; // carpeta (flow_folders)
+  flood_limit?: number; // corridas automáticas por 10 minutos antes de retener (0 = sin límite propio)
+  max_concurrency?: number; // corridas a la vez (0 = sin límite)
+  poll_state?: string | null; // JSON { seen: string[], initialized, count, lastError } del trigger.poll
+  next_poll_at?: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -1749,6 +1754,8 @@ export interface FlowRunRow {
   replay_at?: string | null; // replay automático agendado (corrida fallida)
   /** Persona con cuyo acceso se armó la corrida (quien creó el flow en ese momento): solo ella ve sus datos. */
   captured_by?: string | null;
+  /** 1 = retenida por la protección ante avalanchas (queued sin correr hasta que alguien la libere). */
+  held?: number;
   created_at: string;
   started_at: string | null;
   finished_at: string | null;
@@ -1787,6 +1794,26 @@ export interface FlowSettingsRow {
   updated_at: string;
 }
 
+export interface FlowFolderRow {
+  id: string;
+  user_id: string; // workspace
+  name: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Variable de Flow ({{vars.clave}}): de una persona; la leen los flows que corren con su acceso. */
+export interface FlowVariableRow {
+  id: string;
+  user_id: string; // workspace
+  person_id: string;
+  key: string;
+  value: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface FlowWebhookRow {
   id: string;
   flow_id: string;
@@ -1803,6 +1830,8 @@ export interface NoteNotebookRow {
   workspace_id: string; // dueño del workspace
   person_id: string; // persona real (las notas son personales)
   name: string;
+  /** Pila (stack) de libretas, como Evernote: solo un nivel. */
+  stack: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1820,6 +1849,12 @@ export interface NoteRow {
   source_url: string | null;
   share_token: string | null;
   trashed_at: string | null;
+  /**
+   * Nota bloqueada: sobre JSON cifrado en el navegador (AES-GCM con clave
+   * PBKDF2 de la contraseña). Con esto, content guarda solo los bloques de
+   * archivos (para servirlos) y body_text queda vacío.
+   */
+  locked: string | null;
   created_at: string;
   updated_at: string;
 }

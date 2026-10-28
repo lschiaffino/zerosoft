@@ -6,6 +6,8 @@ import { getFlow, lastOutputs, listFlows, listFlowWebhooks } from '@/lib/flow';
 import { flowCodeAvailable } from '@/lib/flow-code';
 import { listCredentials } from '@/lib/flow-credentials';
 import { listTables } from '@/lib/flow-tables';
+import { listFolders } from '@/lib/flow-folders';
+import { listVariables } from '@/lib/flow-variables';
 import { listRobots } from '@/lib/robots';
 import { canEditFlows, runViewer } from '@/lib/flow-http';
 import FlowEditor from '@/components/flow/FlowEditor';
@@ -24,12 +26,14 @@ export default async function FlowEditorPage(props: {
   const flow = await getFlow(user.id, id, user.actingUser?.id ?? user.id);
   if (!flow) notFound();
   const canEdit = canEditFlows(user);
-  const [credentials, flows, agents, robots, tables] = await Promise.all([
+  const [credentials, flows, agents, robots, tables, folders, variables] = await Promise.all([
     listCredentials(user.id),
     listFlows(user.id),
     listAgentOptions(user.id),
     listRobots(user.id),
     listTables(user.id),
+    listFolders(user.id),
+    listVariables(user.id, user.actingUser?.id ?? user.id),
   ]);
   return (
     <FlowEditor
@@ -38,6 +42,8 @@ export default async function FlowEditorPage(props: {
       canEdit={canEdit}
       webhooks={canEdit ? await listFlowWebhooks(user.id, id) : []}
       lastOutputs={await lastOutputs(user.id, id, runViewer(user))}
+      folders={folders.map((d) => ({ id: d.id, name: d.name }))}
+      variableKeys={variables.map((v) => v.key)}
       initialRunId={typeof run === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(run) ? run : null}
       refs={{
         credentials: credentials.map((c) => ({ id: c.id, name: c.name, type: c.type })),
