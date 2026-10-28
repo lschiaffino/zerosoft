@@ -6528,6 +6528,15 @@ export const MIGRATIONS: Migration[] = [
     up: workspaceTeamsUp,
   },
   {
+    // CRM: quién creó y quién editó por última vez cada workflow, para pausar
+    // los que tienen webhooks cuando esa persona sale del workspace.
+    id: '130_crm_workflow_authors',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE crm_workflows ADD COLUMN created_by TEXT');
+      await addColumn(client, 'ALTER TABLE crm_workflows ADD COLUMN updated_by TEXT');
+    },
+  },
+  {
     // Voice, ronda 2 de paridad (Wispr Flow + Granola): carpetas de reuniones,
     // compartir una reunión por link con permisos (workspace, personas o
     // cualquiera) y revocable, recipes y transforms (prompts guardados),

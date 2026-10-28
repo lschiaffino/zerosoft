@@ -517,7 +517,10 @@
       "notSent": "Aqui não há provedor de email: compartilhe o link",
       "expired": "Vencido",
       "request": "Pediu para entrar",
-      "anyEmail": "(qualquer email)"
+      "anyEmail": "(qualquer email)",
+      "linkOnly": "Só link",
+      "notSentHelp": "Aqui não há provedor de email: copie o link e envie você.",
+      "expiresOn": "Vence em {date}."
     },
     "resend": "Reenviar",
     "revoke": "Revogar",
@@ -625,7 +628,7 @@
     "domainsDesc": "Quem entrar com um email destes domínios pode entrar como membro sem convite.",
     "domains": "Domínios",
     "domainsPlaceholder": "empresa.com",
-    "domainsHelp": "Só o domínio do seu próprio email ({domain}). Domínios públicos como gmail.com não são permitidos.",
+    "domainsHelp": "Você pode adicionar o domínio do seu próprio email ({domain}). Os que outros admins adicionaram continuam. Domínios públicos como gmail.com não são permitidos.",
     "errors": {
       "network": "Sem conexão. Tente de novo.",
       "save": "Não foi possível salvar. Tente de novo.",

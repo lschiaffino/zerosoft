@@ -517,7 +517,10 @@
       "notSent": "No email provider here: share the link",
       "expired": "Expired",
       "request": "Asked to join",
-      "anyEmail": "(any email)"
+      "anyEmail": "(any email)",
+      "linkOnly": "Link only",
+      "notSentHelp": "There is no email provider here: copy the link and send it yourself.",
+      "expiresOn": "Expires on {date}."
     },
     "resend": "Resend",
     "revoke": "Revoke",
@@ -625,7 +628,7 @@
     "domainsDesc": "Anyone who signs in with an email at these domains can join as a member without an invitation.",
     "domains": "Domains",
     "domainsPlaceholder": "company.com",
-    "domainsHelp": "Only your own email domain ({domain}). Public domains like gmail.com are not allowed.",
+    "domainsHelp": "You can add your own email domain ({domain}). Domains other admins added stay. Public domains like gmail.com are not allowed.",
     "errors": {
       "network": "No connection. Try again.",
       "save": "Couldn't save. Try again.",

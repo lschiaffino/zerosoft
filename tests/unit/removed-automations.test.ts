@@ -36,6 +36,14 @@ describe('sacar a alguien pausa sus automatizaciones', () => {
       .prepare("INSERT INTO agents (id, user_id, name, tools, enabled, created_by, created_at, updated_at) VALUES (?, ?, 'b', '{}', 1, ?, ?, ?)")
       .run(agPlain, owner.id, admin.id, now(), now());
 
+    // Workflows del CRM: uno con webhook que armó (se pausa) y otro sin webhook (queda).
+    const wfHook = id();
+    const wfPlain = id();
+    await db.prepare("INSERT INTO crm_workflows (id, user_id, name, enabled, created_by, updated_by) VALUES (?, ?, 'hook', 1, ?, ?)").run(wfHook, owner.id, owner.id, admin.id);
+    await db.prepare("INSERT INTO crm_workflow_actions (id, workflow_id, type, config) VALUES (?, ?, 'webhook', '{}')").run(id(), wfHook);
+    await db.prepare("INSERT INTO crm_workflows (id, user_id, name, enabled, created_by) VALUES (?, ?, 'plain', 1, ?)").run(wfPlain, owner.id, admin.id);
+    await db.prepare("INSERT INTO crm_workflow_actions (id, workflow_id, type, config) VALUES (?, ?, 'create_task', '{}')").run(id(), wfPlain);
+
     await removeMember(team.id, admin.id);
 
     const one = async (sql: string, ...args: string[]) => (await db.prepare(sql).get(...args)) as Record<string, unknown>;
@@ -46,8 +54,10 @@ describe('sacar a alguien pausa sus automatizaciones', () => {
     expect((await one('SELECT enabled FROM robots WHERE id = ?', rb)).enabled).toBe(0);
     expect(await one('SELECT enabled, created_by FROM agents WHERE id = ?', agHttp)).toEqual({ enabled: 0, created_by: owner.id });
     expect(await one('SELECT enabled, created_by FROM agents WHERE id = ?', agPlain)).toEqual({ enabled: 1, created_by: owner.id });
+    expect((await one('SELECT enabled FROM crm_workflows WHERE id = ?', wfHook)).enabled).toBe(0);
+    expect((await one('SELECT enabled FROM crm_workflows WHERE id = ?', wfPlain)).enabled).toBe(1);
     const note = await one("SELECT title, body FROM notifications WHERE user_id = ? AND source_type = 'workspace_member'", owner.id);
     expect(note.title).toBe('Automations paused');
-    expect(String(note.body)).toContain('1 webhooks, 1 flows, 1 robots, 1 agents');
+    expect(String(note.body)).toContain('1 webhooks, 1 flows, 1 robots, 1 agents, 1 CRM workflows');
   });
 });
