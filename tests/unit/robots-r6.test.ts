@@ -480,7 +480,7 @@ describe('API v1 de robots', () => {
     expect((await bad.json()).error.message).toContain('inputs[1]');
     expect(await listRobotRuns(user.id, id)).toHaveLength(0);
 
-    const tooMany = await bulkRoute.POST(req(`/api/v1/robots/${id}/bulk`, key, { inputs: Array.from({ length: 101 }, () => ({ url: 'x' })) }), params(id));
+    const tooMany = await bulkRoute.POST(req(`/api/v1/robots/${id}/bulk`, key, { inputs: Array.from({ length: 1001 }, () => ({ url: 'x' })) }), params(id));
     expect(tooMany.status).toBe(400);
 
     const ok = await bulkRoute.POST(req(`/api/v1/robots/${id}/bulk`, key, { inputs: [{ url: 'a' }, { url: 'b' }, { url: 'c' }] }), params(id));

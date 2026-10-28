@@ -107,6 +107,8 @@ export interface InterpreterResult {
   files?: RobotFile[];
   /** Cookies + localStorage al terminar (solo si se pidió guardar la sesión). */
   storageState?: unknown;
+  /** Pasos que usaron un selector alternativo (autorreparación). */
+  healed?: Array<{ step: string; from: string; to: string }>;
 }
 
 export interface InterpreterOptions {
@@ -282,6 +284,42 @@ export async function robotInterpreter(
 
   const clip = (v: string, n = 5000) => (v.length > n ? v.slice(0, n) : v);
 
+  /** Último selector alternativo que usó un paso (autorreparación); lo lee runList. */
+  let lastHeal: { from: string; to: string } | null = null;
+  const healed: Array<{ step: string; from: string; to: string }> = [];
+
+  /**
+   * Autorreparación: si el paso tiene selectores alternativos y el principal
+   * no aparece, espera (hasta 10 s) a que aparezca cualquiera y usa el
+   * primero que esté, prefiriendo siempre el principal. Si no aparece
+   * ninguno, sigue con el principal (y el paso falla como siempre).
+   */
+  const heal = async (s: InterpreterStep, ctx: Record<string, unknown>, selector: string): Promise<string> => {
+    const alts = (Array.isArray(s.fallbacks) ? (s.fallbacks as unknown[]) : [])
+      .map((f) => render(str(f), ctx).trim())
+      .filter((f) => f && f !== selector)
+      .slice(0, 4);
+    if (!selector || !alts.length) return selector;
+    const candidates = [selector, ...alts];
+    const until = Date.now() + Math.min(timeout(), 10_000);
+    for (;;) {
+      for (const c of candidates) {
+        let n = 0;
+        try {
+          n = await page.locator(c).count();
+        } catch {
+          n = 0;
+        }
+        if (n > 0) {
+          if (c !== selector) lastHeal = { from: selector, to: c };
+          return c;
+        }
+      }
+      if (Date.now() >= until || remaining() <= 1000) return selector;
+      await page.waitForTimeout(250);
+    }
+  };
+
   type Outcome = { jump?: number; skip?: number; stop?: boolean; detail?: string };
 
   /**
@@ -303,6 +341,45 @@ export async function robotInterpreter(
     const rows: unknown[] = [];
     let previous = '';
     let pagesRead = 0;
+    const mode = str(s.paginateMode) || 'next';
+    if (mode === 'load_more' || mode === 'scroll') {
+      // Todo queda en la misma página: se carga más (clic o scroll) hasta que
+      // no aparecen filas nuevas, el botón falta o se llega al tope, y se lee una vez.
+      const countRows = async () => page.locator(rowsSelector).count().catch(() => 0);
+      let loaded = 1;
+      while (loaded < limit) {
+        const before = await countRows();
+        if (before >= 1000) break;
+        if (mode === 'load_more') {
+          if (!nextSel && !nextText) break;
+          if (!(await exists(nextSel, nextText))) break;
+          const more = await resolveTarget(nextSel, nextText);
+          const disabled = await more
+            .evaluate(
+              (el: Element) => (el as HTMLButtonElement).disabled === true || el.getAttribute('aria-disabled') === 'true',
+              undefined,
+              { timeout: timeout() },
+            )
+            .catch(() => false);
+          if (disabled === true) break;
+          await more.click({ timeout: timeout() });
+        } else {
+          await page.evaluate(() => {
+            window.scrollTo(0, document.body.scrollHeight);
+            return true;
+          });
+        }
+        if (waitMs > remaining()) fail('timeout');
+        await page.waitForTimeout(Math.max(waitMs, 200));
+        if ((await countRows()) <= before) break;
+        loaded += 1;
+      }
+      for (const r of await read()) {
+        if (rows.length >= 1000) break;
+        rows.push(r);
+      }
+      return { rows, pagesRead: loaded };
+    }
     for (;;) {
       const batch = await read();
       const key = JSON.stringify(batch);
@@ -403,7 +480,8 @@ export async function robotInterpreter(
   };
 
   const runLeaf = async (s: InterpreterStep, ctx: Record<string, unknown>): Promise<Outcome> => {
-    const selector = render(str(s.selector), ctx).trim();
+    lastHeal = null;
+    const selector = await heal(s, ctx, render(str(s.selector), ctx).trim());
     switch (s.type) {
       case 'goto': {
         const url = render(s.url, ctx).trim();
@@ -673,6 +751,35 @@ export async function robotInterpreter(
         vars[name] = JSON.parse(json) as unknown;
         return { detail: `${name} = ${clip(json, 120)}` };
       }
+      case 'ai_extract': {
+        // Lee el texto (y los links) de la página o del selector; la IA arma las
+        // filas en el servidor al terminar la corrida (lib/robots-ai.ts).
+        const name = str(s.name);
+        const root = page.locator(selector || 'body').first();
+        const text = clip(String(await root.innerText({ timeout: timeout() })).trim(), 30_000);
+        const links = await root
+          .evaluate(
+            (el: Element) =>
+              Array.from(el.querySelectorAll('a[href]'))
+                .slice(0, 300)
+                .map((a) => [((a as HTMLElement).innerText || '').trim().slice(0, 120), (a as HTMLAnchorElement).href]),
+            undefined,
+            { timeout: timeout() },
+          )
+          .catch(() => [] as string[][]);
+        let url = '';
+        try {
+          url = String(page.url() || '').slice(0, 2000);
+        } catch {
+          url = '';
+        }
+        const fields = (Array.isArray(s.fields) ? (s.fields as Array<Record<string, unknown>>) : [])
+          .slice(0, 20)
+          .map((f) => ({ name: str(f.name), description: str(f.description) }))
+          .filter((f) => f.name);
+        vars[name] = { __aiExtract: 1, instruction: render(str(s.instruction), ctx).slice(0, 2000), fields, url, text, links };
+        return { detail: `${name}: ${text.length} chars` };
+      }
       default:
         return fail('unknown_step');
     }
@@ -821,6 +928,12 @@ export async function robotInterpreter(
         if (!tolerant && !failure) await captureFailure(label, s.type, code, render(str(s.selector), { ...ctx, vars }).trim());
         throw new RobotError(`${label}: ${code}`);
       }
+      if (lastHeal) {
+        const h: { from: string; to: string } = lastHeal;
+        healed.push({ step: label, from: h.from, to: h.to });
+        out.detail = `${out.detail ?? ''} · healed: ${h.to}`.trim();
+        lastHeal = null;
+      }
       logs.push({ step: label, type: s.type, status: 'success', ms: Date.now() - started, detail: out.detail });
       if (out.stop) return true;
       if (out.skip) {
@@ -872,6 +985,7 @@ export async function robotInterpreter(
     pages,
     files,
     warnings,
+    ...(healed.length ? { healed } : {}),
     ...(error && failure ? { failure } : {}),
   };
 }
@@ -932,11 +1046,22 @@ export interface HarnessJob {
   storageState?: unknown;
   /** Devolver la sesión al terminar (para guardarla). */
   saveSession?: boolean;
+  /** Proxy de salida (proveedor configurado por env, p. ej. residencial por país). */
+  proxy?: { server: string; username?: string; password?: string };
+  /** Idioma y zona horaria del país elegido. */
+  locale?: string;
+  timezoneId?: string;
 }
 
 /** Subconjunto de playwright-core que usa el arnés. */
 export interface HarnessChromium {
-  launch(opts: { headless: boolean; executablePath?: string; args?: string[]; timeout?: number }): Promise<{
+  launch(opts: {
+    headless: boolean;
+    executablePath?: string;
+    args?: string[];
+    timeout?: number;
+    proxy?: { server: string; username?: string; password?: string };
+  }): Promise<{
     newContext(opts: Record<string, unknown>): Promise<{
       route(pattern: string, handler: (route: {
         request(): { url(): string };
@@ -975,20 +1100,32 @@ export async function robotHarness(
       headless: true,
       executablePath: job.executablePath || undefined,
       // WebRTC sin UDP directo: no abre conexiones a la red interna por fuera de route().
-      args: [...(job.args ?? []), '--force-webrtc-ip-handling-policy=disable_non_proxied_udp'],
+      // Topes de memoria y procesos: un sitio hostil no se come el runner.
+      args: [
+        ...(job.args ?? []),
+        '--force-webrtc-ip-handling-policy=disable_non_proxied_udp',
+        '--js-flags=--max-old-space-size=512',
+        '--renderer-process-limit=4',
+        '--disable-gpu',
+      ],
       timeout: 30_000,
+      ...(job.proxy && job.proxy.server ? { proxy: job.proxy } : {}),
     });
     const b = browser;
     killer = setTimeout(() => {
       void b.close().catch(() => {});
     }, Math.max(1000, job.deadline - Date.now() + 5000));
+    // Descargas: solo si el robot tiene un paso download (lo lee ese paso; van a
+    // un temporal que se borra al cerrar). Sin ese paso, el sitio no puede bajar nada.
+    const wantsDownloads = JSON.stringify(job.steps).includes('"download"');
     const context = await browser.newContext({
-      // Descargas: solo las lee el paso download (van a un temporal que se borra al cerrar).
-      acceptDownloads: true,
+      acceptDownloads: wantsDownloads,
       ...(job.storageState ? { storageState: job.storageState } : {}),
       serviceWorkers: 'block',
       viewport: { width: 1280, height: 800 },
-      locale: 'en-US',
+      locale: job.locale || 'en-US',
+      ...(job.timezoneId ? { timezoneId: job.timezoneId } : {}),
+      ...(job.locale ? { extraHTTPHeaders: { 'accept-language': `${job.locale},${job.locale.split('-')[0]};q=0.9,en;q=0.5` } } : {}),
       userAgent:
         'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36 ZerosoftRobots/1',
     });

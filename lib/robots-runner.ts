@@ -36,6 +36,10 @@ export interface RobotJob {
   credentials?: Record<string, Record<string, string>>;
   storageState?: unknown;
   saveSession?: boolean;
+  /** País de la corrida: idioma, zona horaria y proxy (lib/robots-geo.ts). */
+  proxy?: { server: string; username?: string; password?: string };
+  locale?: string;
+  timezoneId?: string;
 }
 
 let playwrightResolvable: boolean | null = null;
@@ -108,6 +112,9 @@ export function harnessJob(job: RobotJob, extra: Partial<HarnessJob> = {}): Harn
     credentials: job.credentials,
     storageState: job.storageState,
     saveSession: job.saveSession,
+    ...(job.proxy ? { proxy: job.proxy } : {}),
+    ...(job.locale ? { locale: job.locale } : {}),
+    ...(job.timezoneId ? { timezoneId: job.timezoneId } : {}),
     ...extra,
   };
 }

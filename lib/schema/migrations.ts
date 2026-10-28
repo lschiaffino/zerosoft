@@ -6270,6 +6270,47 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Paridad de Robots: ajustes por robot (tabla acumulada, columnas con IA,
+    // email de cambios, envíos a CRM / Sheets / Airtable, país), la tabla
+    // acumulada de filas entre corridas (robot_rows, con captured_by: las filas
+    // capturadas con un login solo las ven quien armó el robot y los admins),
+    // caché de las columnas con IA y, por corrida, con el acceso de quién se
+    // capturó (captured_by) y el resultado de los envíos (exports).
+    id: '124_robots_parity',
+    up: async (client) => {
+      await addColumn(client, "ALTER TABLE robots ADD COLUMN settings TEXT NOT NULL DEFAULT '{}'");
+      await addColumn(client, 'ALTER TABLE robot_runs ADD COLUMN captured_by TEXT');
+      await addColumn(client, 'ALTER TABLE robot_runs ADD COLUMN exports TEXT');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS robot_rows (
+          id TEXT PRIMARY KEY,
+          robot_id TEXT NOT NULL REFERENCES robots(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          row_key TEXT NOT NULL,
+          data TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'active',
+          first_run_id TEXT,
+          last_run_id TEXT,
+          first_seen_at TEXT NOT NULL,
+          last_seen_at TEXT NOT NULL,
+          changed_at TEXT,
+          removed_at TEXT,
+          captured_by TEXT,
+          UNIQUE (robot_id, row_key)
+        );
+        CREATE INDEX IF NOT EXISTS idx_robot_rows_robot ON robot_rows(robot_id, status, first_seen_at);
+        CREATE TABLE IF NOT EXISTS robot_ai_cache (
+          robot_id TEXT NOT NULL REFERENCES robots(id) ON DELETE CASCADE,
+          col TEXT NOT NULL,
+          row_hash TEXT NOT NULL,
+          value TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (robot_id, col, row_hash)
+        );
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

@@ -20,14 +20,22 @@
     "creating": "Creando robot…",
     "emptyTitle": "Todavía no hay robots",
     "emptyAlt": "o usá una plantilla",
-    "paused": "pausado"
+    "paused": "pausado",
+    "buildAi": "Armar con IA",
+    "import": "Importar robot",
+    "importing": "Importando…"
   },
   "usage": {
     "title": "Este mes",
     "minutes": "{used} de {limit} min",
     "minutesUnlimited": "{used} min",
     "runs": "{count, plural, one {# corrida} other {# corridas}}",
-    "perHour": "Hasta {count} corridas por hora · una corrida a la vez"
+    "perHour": "Hasta {count} corridas por hora · una corrida a la vez por workspace",
+    "byRobotTitle": "Por robot este mes",
+    "byRobotName": "Robot",
+    "byRobotRuns": "Corridas",
+    "byRobotMinutes": "Minutos",
+    "byRobotEmpty": "Todavía no hay corridas este mes."
   },
   "runner": {
     "none": "Los robots no pueden correr en este servidor.",
@@ -39,7 +47,7 @@
   },
   "templates": {
     "title": "Plantillas",
-    "subtitle": "Robots listos para adaptar.",
+    "subtitle": "Robots listos para sitios y tareas comunes. Elegí uno y ajustalo.",
     "use": "Usar plantilla",
     "items": {
       "scrapeTable": {
@@ -57,9 +65,63 @@
       "screenshot": {
         "name": "Sacar una captura de una página",
         "desc": "Abre una URL, lee el título y guarda una captura."
+      },
+      "monitorPage": {
+        "name": "Vigilar cambios en una página",
+        "desc": "Lee una parte de la página cada hora y te manda por email la diferencia cuando cambia."
+      },
+      "listAndDetails": {
+        "name": "Lista y cada página de detalle",
+        "desc": "Extrae una lista, después abre cada elemento y lee más campos de su página."
+      },
+      "loginExtract": {
+        "name": "Iniciar sesión y extraer",
+        "desc": "Entra con una credencial guardada, se saltea el login si la sesión sigue abierta y extrae una lista."
+      },
+      "hackerNews": {
+        "name": "Portada de Hacker News",
+        "desc": "Historias con puesto, título, link y sitio, dos páginas, cada hora."
+      },
+      "githubTrending": {
+        "name": "Repositorios en tendencia de GitHub",
+        "desc": "Repositorios en tendencia con descripción, estrellas y estrellas ganadas en el período."
+      },
+      "githubReleases": {
+        "name": "Nuevas versiones de un repositorio de GitHub",
+        "desc": "Revisa las versiones de un repositorio cada día y te avisa por email cuando sale una nueva."
+      },
+      "lobsters": {
+        "name": "Portada de Lobsters",
+        "desc": "Historias con etiquetas, puntaje y comentarios."
+      },
+      "devTo": {
+        "name": "Posts de DEV por etiqueta",
+        "desc": "Últimos posts de una etiqueta con fecha y reacciones."
+      },
+      "remoteJobs": {
+        "name": "Trabajos remotos de We Work Remotely",
+        "desc": "Avisos de una categoría con empresa y región, cada día, con email cuando aparecen nuevos."
+      },
+      "booksCatalog": {
+        "name": "Catálogo con páginas (sitio de práctica)",
+        "desc": "Libros con precio y stock en tres páginas usando el botón Siguiente."
+      },
+      "infiniteScroll": {
+        "name": "Lista con scroll infinito (sitio de práctica)",
+        "desc": "Baja hasta que no cargan más frases y las extrae todas."
       }
     },
-    "stepsLabel": "{count, plural, one {# paso} other {# pasos}}"
+    "stepsLabel": "{count, plural, one {# paso} other {# pasos}}",
+    "categories": {
+      "all": "Todas",
+      "start": "Para empezar",
+      "monitor": "Monitoreo",
+      "sites": "Sitios populares"
+    },
+    "search": "Buscar plantillas",
+    "searchEmpty": "Ninguna plantilla coincide con “{q}”.",
+    "site": "Para {site}",
+    "categoriesLabel": "Categoría de plantilla"
   },
   "editor": {
     "untitled": "Robot sin título",
@@ -80,7 +142,9 @@
       "inputs": "Entradas",
       "runs": "Corridas",
       "schedule": "Horario",
-      "advanced": "Avanzado"
+      "advanced": "Avanzado",
+      "data": "Datos",
+      "integrations": "Integraciones"
     },
     "record": "Grabar pasos",
     "paste": "Pegar pasos",
@@ -89,7 +153,8 @@
     "deleteTitle": "Borrar robot",
     "deleteDesc": "Se borran el robot y todo su historial de corridas. No se puede deshacer.",
     "deleteDialogTitle": "¿Borrar {name}?",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "writeAi": "Escribir con IA"
   },
   "steps": {
     "empty": "Elegí el tipo abajo y agregá el primero, normalmente Ir a URL.",
@@ -117,7 +182,8 @@
       "upload": "Subir archivo",
       "pdf": "Guardar como PDF",
       "evaluate": "Ejecutar JavaScript",
-      "loop_item": "Elemento del loop"
+      "loop_item": "Elemento del loop",
+      "ai_extract": "Extraer con IA"
     },
     "fields": {
       "url": "URL",
@@ -151,11 +217,21 @@
       "fieldSelector": "Selector dentro de la tarjeta",
       "fieldAttribute": "Atributo",
       "fieldText": "texto",
-      "paginate": "Recorrer páginas: hacer clic en Siguiente y seguir sumando filas",
+      "paginate": "Más filas en otras páginas o más abajo",
       "nextSelector": "Selector del botón Siguiente",
       "nextText": "O texto del botón Siguiente",
       "maxPages": "Máximo de páginas",
-      "pageWaitMs": "Espera después de cada página (ms)"
+      "pageWaitMs": "Espera después de cada página (ms)",
+      "fallbacks": "Selectores alternativos, uno por línea",
+      "paginateMode": "Cómo sigue la lista",
+      "moreSelector": "Selector del botón Cargar más",
+      "moreText": "O texto del botón Cargar más",
+      "scrollTimes": "Máximo de bajadas",
+      "instruction": "Qué extraer",
+      "aiFields": "Campos de cada fila",
+      "aiFieldName": "Columna",
+      "aiFieldDesc": "Descripción (opcional)",
+      "aiScope": "Solo dentro de este selector (opcional)"
     },
     "modes": {
       "text": "Texto del primer resultado",
@@ -198,7 +274,19 @@
     "removeField": "Quitar campo",
     "nextTextDefault": "Siguiente",
     "paginateHint": "Para cuando Siguiente no está o está deshabilitado, cuando una página se repite o después de {max} páginas. Cada página cuenta para el límite de páginas de la corrida.",
-    "totpTip": "Login con código 2FA: guardá el secreto en una credencial de Usuario y contraseña y completá el campo del código con {example}."
+    "totpTip": "Login con código 2FA: guardá el secreto en una credencial de Usuario y contraseña y completá el campo del código con {example}.",
+    "paginateModes": {
+      "next": "Botón Siguiente",
+      "load_more": "Botón Cargar más",
+      "scroll": "Scroll infinito"
+    },
+    "fallbacksHint": "Se prueban en orden cuando el selector principal no está en la página. El log de la corrida dice cuál sirvió.",
+    "fallbacksShow": "Selectores alternativos",
+    "instructionPlaceholder": "Cada producto con su nombre, precio y link",
+    "aiHint": "La IA lee el texto de la página al terminar la corrida y completa la variable como filas. Los pasos siguientes de la misma corrida todavía no la ven.",
+    "scrollHint": "Baja hasta el final y espera, hasta que no cargan filas nuevas o después de {max} bajadas.",
+    "moreHint": "Hace clic en el botón hasta que desaparece, no cargan filas nuevas o después de {max} clics, y lee todas las filas.",
+    "loadMoreDefault": "Cargar más"
   },
   "inputs": {
     "title": "Entradas",
@@ -286,8 +374,32 @@
       "screenshot": "La página cuando falló el paso",
       "screenshotAlt": "Captura de la página cuando falló el paso {step}",
       "domElement": "HTML del elemento",
-      "domPage": "HTML de la página (sin scripts ni estilos)"
-    }
+      "domPage": "HTML de la página (sin scripts ni estilos)",
+      "fix": "Sugerir un arreglo con IA",
+      "fixing": "Leyendo la página capturada…",
+      "fixSelector": "Selector nuevo: {selector}",
+      "fixText": "Clic por texto: {text}",
+      "fixApply": "Usarlo en el paso {step}",
+      "fixApplied": "Paso {step} actualizado. Guardá para conservarlo.",
+      "fixNone": "No se encontró un selector mejor en la página capturada."
+    },
+    "healedTitle": "Autorreparación",
+    "healed": "El paso {step} usó un selector alternativo: {selector}",
+    "promote": "Usarlo como selector principal",
+    "promoted": "Paso {step} actualizado. Guardá para conservarlo.",
+    "aiError": "La IA no pudo completar {variable}: {error}",
+    "dataset": "Tabla: {added} nuevas · {changed} cambiadas · {removed} no estaban · {total} en total",
+    "emailSent": "Email de cambios enviado a {count, plural, one {# persona} other {# personas}}.",
+    "destinations": "Enviado a",
+    "destOk": "{kind}: {count, plural, one {# fila} other {# filas}}",
+    "destFail": "{kind}: falló ({error})",
+    "destFake": "modo de prueba",
+    "dataHidden": "Esta corrida usó un login guardado. Solo quien armó el robot y los admins ven sus datos.",
+    "geo": "País: {country}",
+    "geoProxy": "País: {country} · por proxy",
+    "refresh": "Actualizar",
+    "autoRefresh": "Se actualiza mientras haya corridas en cola.",
+    "batch": "Lote"
   },
   "settings": {
     "enabled": "Permitir corridas automáticas",
@@ -315,7 +427,7 @@
       "minutes": "Minutos"
     },
     "everyN": "Cada",
-    "minMinutes": "Mínimo 15 minutos.",
+    "minMinutes": "Mínimo 5 minutos.",
     "cron": "Expresión cron",
     "cronHint": "5 campos: minuto hora día mes día-de-semana. Ej.: 0 9 * * 1-5",
     "cronInvalid": "Expresión cron inválida.",
@@ -393,7 +505,17 @@
     "pageTitle": "No se pudo cargar Robots",
     "pageBody": "Probá de nuevo. Si sigue fallando, revisá que el servidor esté en línea.",
     "retry": "Reintentar",
-    "backToList": "Volver a Robots"
+    "backToList": "Volver a Robots",
+    "invalid_settings": "Revisá las pestañas Datos e Integraciones: hay un ajuste incompleto.",
+    "invalid_import": "Este archivo no es un robot exportado.",
+    "ai_disabled": "La IA está apagada en este workspace. Prendela en Ajustes, IA.",
+    "ai_quota_exceeded": "El workspace usó sus tokens de IA de este mes.",
+    "private_host": "Esa dirección está en una red privada. Los robots solo abren sitios públicos.",
+    "invalid_url": "Escribí una dirección completa que empiece con https://",
+    "snapshot_failed": "No se pudo abrir la página. Revisá la dirección y probá de nuevo.",
+    "no_failure": "Esta corrida no tiene una falla capturada.",
+    "step_not_found": "Ese paso ya no está en el robot.",
+    "too_many_inputs": "Mandá entre 1 y 1.000 filas."
   },
   "paste": {
     "title": "Pegar pasos grabados",
@@ -418,7 +540,7 @@
     "howTitle": "Cómo se usa",
     "step1": "Arrastrá el botón a tu barra de favoritos.",
     "step2": "Abrí el sitio que querés automatizar y hacé clic en el favorito.",
-    "step3": "Hacé la tarea: clics, campos, selects y Enter quedan grabados. Si la página cambia, volvé a hacer clic en el favorito para seguir.",
+    "step3": "Hacé la tarea: se graban clics, campos, opciones y Enter. Para extraer datos, usá Capturar texto o Capturar lista en el panel. Si la página cambia, volvé a tocar el favorito para seguir.",
     "step4": "Tocá Copiar pasos en el panel y en el robot usá Pegar pasos grabados.",
     "bookmarklet": "Grabar robot",
     "dragHint": "Arrastralo a la barra de favoritos (no hagas clic acá).",
@@ -426,7 +548,7 @@
     "copyCodeHint": "¿No podés arrastrar? Pegá el código en la consola del navegador del sitio.",
     "copied": "Copiado",
     "selectorsTitle": "Selectores",
-    "selectors": "Se usa el primero estable: data-testid, id, name, aria-label, placeholder, texto visible (clics) y por último un camino CSS corto.",
+    "selectors": "Gana el primero estable: data-testid, id, name, aria-label, placeholder, texto visible (clics) y por último un camino CSS corto. Hasta 4 más quedan como alternativos, que el robot prueba si la página cambia.",
     "passwords": "Las contraseñas nunca se graban: quedan como {placeholder} para que uses una credencial guardada.",
     "panel": {
       "recording": "Grabando",
@@ -435,9 +557,19 @@
       "copied": "Copiado",
       "clear": "Limpiar",
       "close": "Cerrar",
-      "hint": "Hacé la tarea normalmente. Al terminar, copiá los pasos."
+      "hint": "Hacé la tarea normalmente. Al terminar, copiá los pasos.",
+      "text": "Capturar texto",
+      "list": "Capturar lista",
+      "next": "Página siguiente",
+      "done": "Listo",
+      "pickText": "Tocá el texto a extraer. Esc cancela.",
+      "pickList": "Tocá un elemento de la lista y después las partes que querés como columnas. Tocá Listo al terminar.",
+      "pickNext": "Tocá el botón Siguiente o Cargar más.",
+      "listCount": "Lista: {count} elementos"
     },
-    "codeTitle": "Sin barra de favoritos"
+    "codeTitle": "Sin barra de favoritos",
+    "extractTitle": "Extraer mientras grabás",
+    "extractBody": "Capturar texto guarda un valor. Capturar lista marca un elemento que se repite (un producto, una fila, un resultado): cada elemento parecido es una fila y cada parte que tocás adentro es una columna. Página siguiente marca el botón que carga más filas."
   },
   "loading": "Cargando robots…",
   "alertEmail": {
@@ -459,5 +591,193 @@
       "api": "API",
       "agent": "agente"
     }
+  },
+  "builder": {
+    "title": "Armar un robot con IA",
+    "desc": "Pegá una página y decí qué querés sacar. El robot abre la página, encuentra la lista y propone las columnas.",
+    "url": "URL de la página",
+    "goal": "¿Qué querés de la página?",
+    "goalPlaceholder": "Ej.: nombre, precio y link de cada producto",
+    "read": "Leer la página",
+    "reading": "Abriendo la página…",
+    "found": "{count, plural, one {# columna} other {# columnas}} · primeras filas de la página",
+    "none": "No se encontró una lista que se repita en esta página. Describí qué extraer y probá de nuevo, o empezá con un robot vacío.",
+    "create": "Crear robot",
+    "creating": "Creando robot…",
+    "back": "Cambiar",
+    "aiOff": "La IA está apagada en este workspace, así que estas columnas salen de la página sin IA.",
+    "useDetected": "Crear con esta lista",
+    "cancel": "Cancelar",
+    "steps": "Pasos: {list}",
+    "noSample": "Las columnas salen del HTML de la página. Corré el robot para ver las filas."
+  },
+  "nl": {
+    "title": "Escribir pasos con IA",
+    "desc": "Describí la tarea con tus palabras. La IA la convierte en pasos que revisás antes de agregarlos.",
+    "label": "¿Qué tiene que hacer el robot?",
+    "placeholder": "Ir a https://… buscar {example}, abrir el primer resultado y extraer el título y el precio",
+    "url": "Página para leer (opcional)",
+    "urlHint": "Con una página, la IA elige selectores que existen en ella.",
+    "generate": "Escribir pasos",
+    "generating": "Escribiendo pasos…",
+    "preview": "{count, plural, one {# paso listo} other {# pasos listos}} para agregar",
+    "empty": "La IA no pudo convertir eso en pasos. Nombrá la página y qué clicar o extraer.",
+    "append": "Agregar al final",
+    "replace": "Reemplazar los pasos",
+    "added": "{count, plural, one {# paso agregado} other {# pasos agregados}}. Guardá para conservarlos.",
+    "cancel": "Cancelar"
+  },
+  "bulk": {
+    "button": "Correr en lote",
+    "title": "Correr con muchas entradas",
+    "desc": "Subí un CSV con una fila por corrida. Cada fila queda como una corrida en la cola, hasta {max}.",
+    "file": "Archivo CSV",
+    "paste": "O pegá el CSV",
+    "map": "Columna para cada entrada",
+    "mapHint": "Vacío usa el valor por defecto de la entrada.",
+    "useDefault": "Valor por defecto",
+    "rows": "{count, plural, one {# fila encontrada} other {# filas encontradas}}",
+    "tooMany": "Solo se usan las primeras {max} filas.",
+    "start": "Poner {count, plural, one {# corrida} other {# corridas}} en cola",
+    "queued": "{count, plural, one {# corrida en cola} other {# corridas en cola}}. Corren una detrás de otra.",
+    "noInputs": "Este robot no tiene entradas. Agregá entradas para correrlo sobre una lista.",
+    "parseError": "No se pudo leer el CSV: la primera fila tiene que tener los nombres de las columnas.",
+    "cancel": "Cancelar",
+    "preview": "Primeras filas"
+  },
+  "data": {
+    "title": "Datos entre corridas",
+    "desc": "Cada corrida exitosa suma sus filas acá: filas nuevas, filas que cambiaron y filas que ya no están en la página.",
+    "enabled": "Guardar una tabla de filas entre corridas",
+    "variable": "Lista a guardar",
+    "variableAuto": "Primera lista de los pasos ({name})",
+    "noLists": "Agregá un paso Extraer lista, Extraer tabla o Extraer con IA para guardar una tabla.",
+    "key": "Clave única",
+    "keyHint": "Columnas que identifican una fila, como el link. Sin ninguna, la fila entera es la clave.",
+    "keyPlaceholder": "link",
+    "filters": {
+      "active": "En la última corrida",
+      "new": "Nuevas",
+      "changed": "Cambiadas",
+      "removed": "Ya no están",
+      "all": "Todas"
+    },
+    "filtersLabel": "Filas a mostrar",
+    "search": "Buscar filas",
+    "empty": "Todavía no hay filas. Corré el robot para llenar la tabla.",
+    "emptyFilter": "Ninguna fila coincide.",
+    "csv": "Descargar CSV",
+    "clear": "Vaciar tabla",
+    "clearTitle": "¿Vaciar la tabla?",
+    "clearDesc": "Borra todas las filas guardadas entre corridas. Las corridas y sus datos quedan.",
+    "cleared": "Tabla vaciada.",
+    "count": "{shown} de {total} filas",
+    "firstSeen": "Vista por primera vez",
+    "status": "Estado",
+    "badgeNew": "Nueva",
+    "badgeChanged": "Cambió",
+    "badgeRemoved": "Ya no está",
+    "hidden": "{count, plural, one {# fila se capturó} other {# filas se capturaron}} con un login guardado y solo las ven quien armó el robot y los admins.",
+    "aiTitle": "Columnas con IA",
+    "aiDesc": "Una columna que la IA completa para cada fila, como una categoría o un sí o no. Hasta {rows} filas por corrida; las filas que no cambiaron conservan su valor.",
+    "aiAdd": "Agregar columna con IA",
+    "aiList": "Lista",
+    "aiName": "Columna",
+    "aiPrompt": "Qué calcular",
+    "aiPromptPlaceholder": "Categoría del producto, en una palabra",
+    "aiRemove": "Quitar columna con IA",
+    "loading": "Cargando filas…",
+    "error": "No se pudieron cargar las filas.",
+    "retry": "Reintentar",
+    "unsaved": "Guardá el robot para que estos ajustes valgan desde la próxima corrida.",
+    "tableTitle": "Filas",
+    "settingsTitle": "Ajustes de la tabla",
+    "cancel": "Cancelar"
+  },
+  "integrations": {
+    "changeTitle": "Email cuando cambian los datos",
+    "changeDesc": "Un email con las filas nuevas, las que se fueron y los valores que cambiaron, cada vez que una corrida difiere de la anterior.",
+    "changeOn": "Mandar los cambios por email",
+    "changeTo": "Enviar a",
+    "changeToHint": "Emails separados por comas. Vacío: quien armó el robot. Hasta {max} emails por día y robot.",
+    "destTitle": "Mandar filas a otras apps",
+    "destDesc": "Después de cada corrida exitosa, las filas nuevas y cambiadas van a estos destinos.",
+    "add": "Agregar destino",
+    "addLabel": "Tipo de destino",
+    "kinds": {
+      "crm": "CRM",
+      "sheets": "Google Sheets",
+      "airtable": "Airtable"
+    },
+    "kindHints": {
+      "crm": "Crea o actualiza contactos por email, o empresas por dominio.",
+      "sheets": "Mantiene una hoja igual a la tabla, o agrega las filas nuevas.",
+      "airtable": "Crea o actualiza registros en una tabla."
+    },
+    "remove": "Quitar destino",
+    "enabled": "Activo",
+    "variable": "Filas de",
+    "variableDataset": "La tabla entre corridas",
+    "object": "Registros",
+    "objects": {
+      "contacts": "Contactos (por email)",
+      "companies": "Empresas (por dominio o nombre)"
+    },
+    "mapping": "Campos",
+    "mappingHint": "Elegí la columna para cada campo del CRM. Los contactos necesitan email; las empresas, nombre o dominio.",
+    "none": "Sin usar",
+    "credential": "Credencial",
+    "credentialHint": "Nombre de una credencial guardada: Google (cuenta de servicio o token) para Sheets, un token personal para Airtable.",
+    "credentialsLink": "Abrir Credenciales",
+    "spreadsheetId": "ID de la planilla",
+    "spreadsheetHint": "El id largo de la URL, entre /d/ y /edit. Compartí la planilla con la cuenta de servicio.",
+    "sheet": "Nombre de la hoja",
+    "mode": "Modo",
+    "modes": {
+      "sync": "Sincronizar: la hoja queda igual a la tabla",
+      "append": "Agregar filas nuevas y cambiadas"
+    },
+    "baseId": "ID de la base",
+    "baseHint": "Empieza con app, de la página de API de la base.",
+    "table": "Tabla",
+    "mergeField": "Campo clave (opcional)",
+    "mergeHint": "Con campo clave, los registros existentes se actualizan en vez de duplicarse.",
+    "fields": {
+      "email": "Email",
+      "firstName": "Nombre",
+      "lastName": "Apellido",
+      "phone": "Teléfono",
+      "jobTitle": "Cargo",
+      "website": "Sitio web",
+      "city": "Ciudad",
+      "country": "País",
+      "name": "Nombre",
+      "domain": "Dominio",
+      "industry": "Industria"
+    },
+    "empty": "Todavía no hay destinos.",
+    "columnPlaceholder": "columna"
+  },
+  "geo": {
+    "title": "País",
+    "desc": "Las páginas se abren con el idioma y la zona horaria de este país.",
+    "label": "País de las corridas",
+    "default": "El del servidor",
+    "proxy": "El tráfico sale por un proxy en ese país, con una IP nueva en cada corrida.",
+    "noProxy": "La IP es la del servidor, así que los sitios que cambian según la IP ven el país del servidor. Con un proveedor de proxies configurado en el servidor, se usan IPs del país."
+  },
+  "export": {
+    "title": "Exportar",
+    "desc": "Descargá el robot como archivo .json para importarlo en otro workspace. No incluye credenciales, sesiones guardadas ni corridas.",
+    "button": "Exportar robot"
+  },
+  "changeEmail": {
+    "subject": "Cambiaron los datos: {robot}",
+    "heading": "Un robot encontró cambios",
+    "body": "El robot \"{robot}\" trajo datos distintos a los de su corrida anterior.",
+    "rows": "{added} nuevas, {removed} ya no están",
+    "more": "Hay más cambios en la app.",
+    "cta": "Ver los datos",
+    "footer": "Recibís este email porque los emails de cambios están prendidos para este robot, en su pestaña Integraciones."
   }
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { RobotDto, RobotRunDto, RobotUsage } from '@/lib/robots';
@@ -18,8 +18,11 @@ import {
   stableJson,
   type SchedulePreset,
 } from '@/lib/robots-editor';
+import { COUNTRIES } from '@/lib/robots-geo';
 import {
   countSteps,
+  listVariables,
+  type RobotSettings,
   MAX_ROBOT_STEPS,
   MAX_PAUSE_AFTER,
   MAX_TIMEOUT_SEC,
@@ -33,11 +36,14 @@ import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import FormSection from '@/components/ui/FormSection';
 import StepList from './StepList';
-import RunsPanel from './RunsPanel';
+import RunsPanel, { type StepFix } from './RunsPanel';
+import DataPanel from './DataPanel';
+import IntegrationsPanel from './IntegrationsPanel';
+import { BulkRunDialog, NlStepsDialog } from './RobotDialogs';
 import { errorText, RobotDialog, RunnerNote, UsageMeter } from './robots-ui';
 import { useStableKeys } from './useStableKeys';
 
-const TABS = ['steps', 'inputs', 'schedule', 'runs', 'advanced'] as const;
+const TABS = ['steps', 'inputs', 'schedule', 'runs', 'data', 'integrations', 'advanced'] as const;
 type Tab = (typeof TABS)[number];
 
 /** ?tab= de la URL; "settings" era la pestaña vieja de ajustes. */
@@ -56,6 +62,7 @@ interface Props {
 /** Editor de un robot: pasos, entradas, programación, corridas y avanzado. Un solo Guardar. */
 export default function RobotEditor({ robot: initial, runs: initialRuns, usage: initialUsage, canEdit }: Props) {
   const t = useTranslations('robots');
+  const locale = useLocale();
   const router = useRouter();
   const params = useSearchParams();
   const uid = useId();
@@ -72,6 +79,10 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
   const [failureAlerts, setFailureAlerts] = useState(initial.failureAlerts);
   const [pauseAfter, setPauseAfter] = useState(initial.pauseAfter);
   const [retentionDays, setRetentionDays] = useState(initial.retentionDays);
+  const [settings, setSettings] = useState<RobotSettings>(initial.settings ?? {});
+  const [nlOpen, setNlOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [dataKey, setDataKey] = useState(0);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const [pasteMode, setPasteMode] = useState<'append' | 'replace'>('append');
@@ -94,8 +105,8 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
   const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({});
 
   const payload = useMemo(
-    () => ({ name, description, steps, inputs, enabled, schedule, timeoutSec, persistSession, failureAlerts, pauseAfter, retentionDays }),
-    [name, description, steps, inputs, enabled, schedule, timeoutSec, persistSession, failureAlerts, pauseAfter, retentionDays],
+    () => ({ name, description, steps, inputs, enabled, schedule, timeoutSec, persistSession, failureAlerts, pauseAfter, retentionDays, settings }),
+    [name, description, steps, inputs, enabled, schedule, timeoutSec, persistSession, failureAlerts, pauseAfter, retentionDays, settings],
   );
   const dirty =
     stableJson(payload) !==
@@ -111,6 +122,7 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
       failureAlerts: robot.failureAlerts,
       pauseAfter: robot.pauseAfter,
       retentionDays: robot.retentionDays,
+      settings: robot.settings ?? {},
     });
 
   /** Cambia de pestaña y la deja en la URL (?tab=) sin recargar la página. */
@@ -161,6 +173,7 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
       setInvalidIndex(idx);
       if (idx !== null) setTab('steps');
       else if (data?.error === 'invalid_inputs' || data?.error === 'duplicate_input') setTab('inputs');
+      else if (data?.error === 'invalid_settings' && tab !== 'data') setTab('integrations');
       setError(errorText(t, data?.error, { index: (idx ?? 0) + 1 }));
       return false;
     }
@@ -178,6 +191,7 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
     setFailureAlerts(data.robot.failureAlerts);
     setPauseAfter(data.robot.pauseAfter);
     setRetentionDays(data.robot.retentionDays);
+    setSettings(data.robot.settings ?? {});
     setSavedAt(Date.now());
     return true;
   }
@@ -217,7 +231,7 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
     setRunning(true);
     setError(null);
     setTab('runs');
-    const res = await fetch(`/api/robots/${robot.id}/run`, {
+    const res = await fetch(`/api/robots/run/${robot.id}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ inputs: values }),
@@ -232,10 +246,56 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
     const newRun = data.run;
     setRuns((list) => [newRun, ...list]);
     setSelectedRun(newRun.id);
+    setDataKey((k) => k + 1);
     const u = await fetch('/api/robots')
       .then((r) => r.json() as Promise<{ usage?: RobotUsage }>)
       .catch(() => null);
     if (u?.usage) setUsage(u.usage);
+  }
+
+  const refreshRuns = useCallback(async () => {
+    const res = await fetch(`/api/robots/${robot.id}/runs`).catch(() => null);
+    const data = (await res?.json().catch(() => null)) as { runs?: RobotRunDto[] } | null;
+    if (data?.runs) {
+      setRuns(data.runs);
+      setDataKey((k) => k + 1);
+    }
+  }, [robot.id]);
+
+  // Con corridas en cola o corriendo (lotes, schedule), la lista se actualiza sola.
+  const pending = runs.some((r) => r.status === 'queued' || r.status === 'running');
+  useEffect(() => {
+    if (!pending || tab !== 'runs') return;
+    const timer = window.setInterval(() => void refreshRuns(), 5000);
+    return () => window.clearInterval(timer);
+  }, [pending, tab, refreshRuns]);
+
+  /** Arreglo de la IA o selector alternativo → el paso del editor (hay que guardar). */
+  function applyFix(fix: StepFix) {
+    const patch = (s: RobotStep): RobotStep => {
+      const r = { ...(s as Record<string, unknown>) };
+      const old = typeof r.selector === 'string' ? r.selector : '';
+      if (fix.selector) {
+        r.selector = fix.selector;
+        // El selector viejo queda como alternativo (por si la página vuelve atrás).
+        const alts = (Array.isArray(r.fallbacks) ? (r.fallbacks as string[]) : []).filter((x) => x !== fix.selector);
+        if (old && old !== fix.selector) alts.unshift(old);
+        if (alts.length) r.fallbacks = alts.slice(0, 4);
+        else delete r.fallbacks;
+      } else if (fix.text && 'text' in r) {
+        r.text = fix.text;
+        r.selector = '';
+      }
+      return r as RobotStep;
+    };
+    const next = steps.map((s, i) => {
+      if (i !== fix.index) return s;
+      if (fix.child === null) return patch(s);
+      if (s.type !== 'loop_over') return s;
+      return { ...s, steps: s.steps.map((c, k) => (k === fix.child ? (patch(c as RobotStep) as typeof c) : c)) };
+    });
+    setSteps(next);
+    setToast(t('runs.failure.fixApplied', { step: fix.step }));
   }
 
   function importPasted() {
@@ -395,6 +455,11 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
               <div className="robots-toolbar">
                 <p className="robots-muted">{t('steps.count', { count: stepCount, max: MAX_ROBOT_STEPS })}</p>
                 <span className="robots-toolbar-actions">
+                  {!readOnly && (
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setNlOpen(true)}>
+                      {t('editor.writeAi')}
+                    </button>
+                  )}
                   <Link href="/app/robots/recorder" className="btn btn-ghost btn-sm">
                     {t('editor.record')}
                   </Link>
@@ -472,6 +537,52 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
             running={running}
             emptyAction={runButton}
             robotName={robot.name}
+            onApplyFix={canEdit ? applyFix : undefined}
+            toolbar={
+              <>
+                <p className="robots-muted robots-small">{pending ? t('runs.autoRefresh') : ''}</p>
+                <span className="robots-toolbar-actions">
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => void refreshRuns()}>
+                    {t('runs.refresh')}
+                  </button>
+                  {canEdit && (
+                    <button type="button" className="btn btn-secondary btn-sm" disabled={noRunner || stepCount === 0} onClick={() => setBulkOpen(true)}>
+                      {t('bulk.button')}
+                    </button>
+                  )}
+                </span>
+              </>
+            }
+          />
+        )}
+
+        {tab === 'data' && (
+          <DataPanel
+            robotId={robot.id}
+            steps={steps}
+            settings={settings}
+            onSettings={setSettings}
+            readOnly={readOnly}
+            dirty={dirty}
+            refreshKey={dataKey}
+            onToast={setToast}
+          />
+        )}
+
+        {tab === 'integrations' && (
+          <IntegrationsPanel
+            steps={steps}
+            settings={settings}
+            onSettings={setSettings}
+            readOnly={readOnly}
+            columns={knownColumns(runs, listVariables(steps))}
+            changesPerDay={usage.changeEmailsPerDay ?? 24}
+            flowSection={
+              <FormSection title={t('settings.flowTitle')} description={t('settings.flowHint')}>
+                <CopyId id={robot.id} />
+                <p className="ui-help">{t('settings.apiHint')}</p>
+              </FormSection>
+            }
           />
         )}
 
@@ -570,10 +681,43 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
               </div>
             </FormSection>
 
-            <FormSection title={t('settings.flowTitle')} description={t('settings.flowHint')}>
-              <CopyId id={robot.id} />
-              <p className="ui-help">{t('settings.apiHint')}</p>
+            <FormSection title={t('geo.title')} description={t('geo.desc')}>
+              <div className="ui-field robots-narrow">
+                <label className="label" htmlFor={`${uid}-country`}>
+                  {t('geo.label')}
+                </label>
+                <select
+                  id={`${uid}-country`}
+                  className="select"
+                  value={settings.country ?? ''}
+                  disabled={readOnly}
+                  onChange={(e) => {
+                    const next = { ...settings };
+                    if (e.target.value) next.country = e.target.value;
+                    else delete next.country;
+                    setSettings(next);
+                  }}
+                >
+                  <option value="">{t('geo.default')}</option>
+                  {COUNTRIES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {countryName(c.code, locale)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <p className="robots-muted robots-small">{usage.proxies ? t('geo.proxy') : t('geo.noProxy')}</p>
             </FormSection>
+
+            {canEdit && (
+              <FormSection title={t('export.title')} description={t('export.desc')}>
+                <div>
+                  <a className="btn btn-secondary btn-sm" href={`/api/robots/${robot.id}/export`} download>
+                    {t('export.button')}
+                  </a>
+                </div>
+              </FormSection>
+            )}
 
             <FormSection title={t('settings.usageTitle')}>
               <UsageMeter usage={usage} />
@@ -727,11 +871,73 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
         <p>{t('editor.deleteDesc')}</p>
       </RobotDialog>
 
+      {canEdit && nlOpen && (
+        <NlStepsDialog
+          open={nlOpen}
+          onClose={() => setNlOpen(false)}
+          defaultUrl={String((steps.find((s) => s.type === 'goto') as { url?: string } | undefined)?.url ?? '')}
+          inputs={inputs}
+          onAdd={(added, mode) => {
+            const next = mode === 'replace' ? added : [...steps, ...added];
+            if (countSteps(next) > MAX_ROBOT_STEPS) {
+              setError(t('errors.too_many_steps'));
+              return;
+            }
+            setSteps(next);
+            setNlOpen(false);
+            setTab('steps');
+            setToast(t('nl.added', { count: added.length }));
+          }}
+        />
+      )}
+
+      {canEdit && (
+        <BulkRunDialog
+          open={bulkOpen}
+          onClose={() => setBulkOpen(false)}
+          robotId={robot.id}
+          inputs={inputs}
+          onQueued={(count) => {
+            setBulkOpen(false);
+            setToast(t('bulk.queued', { count }));
+            setTab('runs');
+            void refreshRuns();
+          }}
+        />
+      )}
+
       <div className="ui-toasts" role="status" aria-live="polite">
         {toast && <div className="ui-toast">{toast}</div>}
       </div>
     </div>
   );
+}
+
+/** Columnas vistas en la última corrida con datos (para los mapeos de Integraciones). */
+function knownColumns(runs: RobotRunDto[], lists: string[]): string[] {
+  const out: string[] = [];
+  for (const r of runs) {
+    for (const name of lists) {
+      const v = (r.output ?? {})[name];
+      if (!Array.isArray(v)) continue;
+      for (const row of v.slice(0, 20)) {
+        if (!row || typeof row !== 'object' || Array.isArray(row)) continue;
+        for (const k of Object.keys(row)) if (!out.includes(k)) out.push(k);
+      }
+    }
+    if (out.length) break;
+  }
+  return out.slice(0, 50);
+}
+
+/** Nombre del país en el idioma del navegador. */
+function countryName(code: string, locale: string): string {
+  try {
+    const dn = new Intl.DisplayNames([locale], { type: 'region' });
+    return dn.of(code.toUpperCase()) ?? code.toUpperCase();
+  } catch {
+    return code.toUpperCase();
+  }
 }
 
 function CopyId({ id }: { id: string }) {

@@ -20,14 +20,22 @@
     "creating": "Criando robô…",
     "emptyTitle": "Ainda não há robôs",
     "emptyAlt": "ou use um modelo",
-    "paused": "pausado"
+    "paused": "pausado",
+    "buildAi": "Montar com IA",
+    "import": "Importar robô",
+    "importing": "Importando…"
   },
   "usage": {
     "title": "Este mês",
     "minutes": "{used} de {limit} min",
     "minutesUnlimited": "{used} min",
     "runs": "{count, plural, one {# execução} other {# execuções}}",
-    "perHour": "Até {count} execuções por hora · uma execução por vez"
+    "perHour": "Até {count} execuções por hora · uma execução por vez por workspace",
+    "byRobotTitle": "Por robô neste mês",
+    "byRobotName": "Robô",
+    "byRobotRuns": "Execuções",
+    "byRobotMinutes": "Minutos",
+    "byRobotEmpty": "Ainda não há execuções neste mês."
   },
   "runner": {
     "none": "Os robôs não podem ser executados neste servidor.",
@@ -39,7 +47,7 @@
   },
   "templates": {
     "title": "Modelos",
-    "subtitle": "Robôs prontos para adaptar.",
+    "subtitle": "Robôs prontos para sites e tarefas comuns. Escolha um e ajuste.",
     "use": "Usar modelo",
     "items": {
       "scrapeTable": {
@@ -57,9 +65,63 @@
       "screenshot": {
         "name": "Tirar uma captura de uma página",
         "desc": "Abre uma URL, lê o título e salva uma captura de tela."
+      },
+      "monitorPage": {
+        "name": "Vigiar mudanças em uma página",
+        "desc": "Lê uma parte da página a cada hora e manda a diferença por email quando ela muda."
+      },
+      "listAndDetails": {
+        "name": "Lista e cada página de detalhe",
+        "desc": "Extrai uma lista, depois abre cada item e lê mais campos da sua página."
+      },
+      "loginExtract": {
+        "name": "Fazer login e extrair",
+        "desc": "Entra com uma credencial salva, pula o login se a sessão continua aberta e extrai uma lista."
+      },
+      "hackerNews": {
+        "name": "Capa do Hacker News",
+        "desc": "Histórias com posição, título, link e site, duas páginas, a cada hora."
+      },
+      "githubTrending": {
+        "name": "Repositórios em alta no GitHub",
+        "desc": "Repositórios em alta com descrição, estrelas e estrelas ganhas no período."
+      },
+      "githubReleases": {
+        "name": "Novas versões de um repositório do GitHub",
+        "desc": "Confere as versões de um repositório todo dia e avisa por email quando sai uma nova."
+      },
+      "lobsters": {
+        "name": "Capa do Lobsters",
+        "desc": "Histórias com tags, pontuação e comentários."
+      },
+      "devTo": {
+        "name": "Posts do DEV por tag",
+        "desc": "Últimos posts de uma tag com data e reações."
+      },
+      "remoteJobs": {
+        "name": "Vagas remotas do We Work Remotely",
+        "desc": "Vagas de uma categoria com empresa e região, todo dia, com email quando aparecem novas."
+      },
+      "booksCatalog": {
+        "name": "Catálogo com páginas (site de prática)",
+        "desc": "Livros com preço e estoque em três páginas usando o botão Próximo."
+      },
+      "infiniteScroll": {
+        "name": "Lista com scroll infinito (site de prática)",
+        "desc": "Desce até não carregarem mais frases e extrai todas."
       }
     },
-    "stepsLabel": "{count, plural, one {# passo} other {# passos}}"
+    "stepsLabel": "{count, plural, one {# passo} other {# passos}}",
+    "categories": {
+      "all": "Todos",
+      "start": "Para começar",
+      "monitor": "Monitoramento",
+      "sites": "Sites populares"
+    },
+    "search": "Buscar modelos",
+    "searchEmpty": "Nenhum modelo corresponde a “{q}”.",
+    "site": "Para {site}",
+    "categoriesLabel": "Categoria do modelo"
   },
   "editor": {
     "untitled": "Robô sem título",
@@ -80,7 +142,9 @@
       "inputs": "Entradas",
       "runs": "Execuções",
       "schedule": "Horário",
-      "advanced": "Avançado"
+      "advanced": "Avançado",
+      "data": "Dados",
+      "integrations": "Integrações"
     },
     "record": "Gravar passos",
     "paste": "Colar passos",
@@ -89,7 +153,8 @@
     "deleteTitle": "Excluir robô",
     "deleteDesc": "Exclui o robô e todo o histórico de execuções. Não dá para desfazer.",
     "deleteDialogTitle": "Excluir {name}?",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "writeAi": "Escrever com IA"
   },
   "steps": {
     "empty": "Escolha o tipo abaixo e adicione o primeiro, normalmente Ir para URL.",
@@ -117,7 +182,8 @@
       "upload": "Enviar arquivo",
       "pdf": "Salvar como PDF",
       "evaluate": "Executar JavaScript",
-      "loop_item": "Item do loop"
+      "loop_item": "Item do loop",
+      "ai_extract": "Extrair com IA"
     },
     "fields": {
       "url": "URL",
@@ -151,11 +217,21 @@
       "fieldSelector": "Seletor dentro do cartão",
       "fieldAttribute": "Atributo",
       "fieldText": "texto",
-      "paginate": "Percorrer páginas: clicar em Próxima e continuar somando linhas",
+      "paginate": "Mais linhas em outras páginas ou mais abaixo",
       "nextSelector": "Seletor do botão Próxima",
       "nextText": "Ou texto do botão Próxima",
       "maxPages": "Máximo de páginas",
-      "pageWaitMs": "Espera depois de cada página (ms)"
+      "pageWaitMs": "Espera depois de cada página (ms)",
+      "fallbacks": "Seletores alternativos, um por linha",
+      "paginateMode": "Como a lista continua",
+      "moreSelector": "Seletor do botão Carregar mais",
+      "moreText": "Ou texto do botão Carregar mais",
+      "scrollTimes": "Máximo de rolagens",
+      "instruction": "O que extrair",
+      "aiFields": "Campos de cada linha",
+      "aiFieldName": "Coluna",
+      "aiFieldDesc": "Descrição (opcional)",
+      "aiScope": "Só dentro deste seletor (opcional)"
     },
     "modes": {
       "text": "Texto do primeiro resultado",
@@ -198,7 +274,19 @@
     "removeField": "Remover campo",
     "nextTextDefault": "Próxima",
     "paginateHint": "Para quando Próxima não existe ou está desativado, quando uma página se repete ou depois de {max} páginas. Cada página conta para o limite de páginas da execução.",
-    "totpTip": "Login com código 2FA: salve o segredo numa credencial de Usuário e senha e preencha o campo do código com {example}."
+    "totpTip": "Login com código 2FA: salve o segredo numa credencial de Usuário e senha e preencha o campo do código com {example}.",
+    "paginateModes": {
+      "next": "Botão Próximo",
+      "load_more": "Botão Carregar mais",
+      "scroll": "Scroll infinito"
+    },
+    "fallbacksHint": "São testados em ordem quando o seletor principal não está na página. O log da execução diz qual funcionou.",
+    "fallbacksShow": "Seletores alternativos",
+    "instructionPlaceholder": "Cada produto com nome, preço e link",
+    "aiHint": "A IA lê o texto da página ao terminar a execução e preenche a variável como linhas. Os passos seguintes da mesma execução ainda não a veem.",
+    "scrollHint": "Desce até o final e espera, até não carregarem linhas novas ou depois de {max} rolagens.",
+    "moreHint": "Clica no botão até ele sumir, não carregarem linhas novas ou depois de {max} cliques, e lê todas as linhas.",
+    "loadMoreDefault": "Carregar mais"
   },
   "inputs": {
     "title": "Entradas",
@@ -286,8 +374,32 @@
       "screenshot": "A página quando o passo falhou",
       "screenshotAlt": "Captura da página quando o passo {step} falhou",
       "domElement": "HTML do elemento",
-      "domPage": "HTML da página (sem scripts nem estilos)"
-    }
+      "domPage": "HTML da página (sem scripts nem estilos)",
+      "fix": "Sugerir um conserto com IA",
+      "fixing": "Lendo a página capturada…",
+      "fixSelector": "Seletor novo: {selector}",
+      "fixText": "Clicar pelo texto: {text}",
+      "fixApply": "Usar no passo {step}",
+      "fixApplied": "Passo {step} atualizado. Salve para manter.",
+      "fixNone": "Nenhum seletor melhor na página capturada."
+    },
+    "healedTitle": "Autorreparo",
+    "healed": "O passo {step} usou um seletor alternativo: {selector}",
+    "promote": "Usar como seletor principal",
+    "promoted": "Passo {step} atualizado. Salve para manter.",
+    "aiError": "A IA não conseguiu preencher {variable}: {error}",
+    "dataset": "Tabela: {added} novas · {changed} alteradas · {removed} não estavam · {total} no total",
+    "emailSent": "Email de mudanças enviado para {count, plural, one {# pessoa} other {# pessoas}}.",
+    "destinations": "Enviado para",
+    "destOk": "{kind}: {count, plural, one {# linha} other {# linhas}}",
+    "destFail": "{kind}: falhou ({error})",
+    "destFake": "modo de teste",
+    "dataHidden": "Esta execução usou um login salvo. Só quem montou o robô e os admins veem os dados.",
+    "geo": "País: {country}",
+    "geoProxy": "País: {country} · via proxy",
+    "refresh": "Atualizar",
+    "autoRefresh": "Atualiza enquanto houver execuções na fila.",
+    "batch": "Lote"
   },
   "settings": {
     "enabled": "Permitir execuções automáticas",
@@ -315,7 +427,7 @@
       "minutes": "Minutos"
     },
     "everyN": "A cada",
-    "minMinutes": "Mínimo de 15 minutos.",
+    "minMinutes": "Mínimo 5 minutos.",
     "cron": "Expressão cron",
     "cronHint": "5 campos: minuto hora dia mês dia-da-semana. Ex.: 0 9 * * 1-5",
     "cronInvalid": "Expressão cron inválida.",
@@ -393,7 +505,17 @@
     "pageTitle": "Não foi possível carregar o Robots",
     "pageBody": "Tente de novo. Se continuar falhando, confira se o servidor está online.",
     "retry": "Tentar de novo",
-    "backToList": "Voltar para Robots"
+    "backToList": "Voltar para Robots",
+    "invalid_settings": "Revise as abas Dados e Integrações: há um ajuste incompleto.",
+    "invalid_import": "Este arquivo não é um robô exportado.",
+    "ai_disabled": "A IA está desligada neste workspace. Ligue em Ajustes, IA.",
+    "ai_quota_exceeded": "O workspace usou seus tokens de IA deste mês.",
+    "private_host": "Esse endereço está em uma rede privada. Os robôs só abrem sites públicos.",
+    "invalid_url": "Digite um endereço completo que comece com https://",
+    "snapshot_failed": "Não foi possível abrir a página. Confira o endereço e tente de novo.",
+    "no_failure": "Esta execução não tem uma falha capturada.",
+    "step_not_found": "Esse passo não está mais no robô.",
+    "too_many_inputs": "Envie entre 1 e 1.000 linhas."
   },
   "paste": {
     "title": "Colar passos gravados",
@@ -418,7 +540,7 @@
     "howTitle": "Como usar",
     "step1": "Arraste o botão para a barra de favoritos.",
     "step2": "Abra o site que quer automatizar e clique no favorito.",
-    "step3": "Faça a tarefa: cliques, campos, selects e Enter ficam gravados. Se a página mudar, clique no favorito de novo para continuar.",
+    "step3": "Faça a tarefa: cliques, campos, opções e Enter são gravados. Para extrair dados, use Capturar texto ou Capturar lista no painel. Se a página mudar, clique no favorito de novo para continuar.",
     "step4": "Clique em Copiar passos no painel e use Colar passos gravados no robô.",
     "bookmarklet": "Gravar robô",
     "dragHint": "Arraste para a barra de favoritos (não clique aqui).",
@@ -426,7 +548,7 @@
     "copyCodeHint": "Não consegue arrastar? Cole o código no console do navegador no site.",
     "copied": "Copiado",
     "selectorsTitle": "Seletores",
-    "selectors": "Vale o primeiro estável: data-testid, id, name, aria-label, placeholder, texto visível (cliques) e por último um caminho CSS curto.",
+    "selectors": "Vence o primeiro estável: data-testid, id, name, aria-label, placeholder, texto visível (cliques) e por último um caminho CSS curto. Até 4 outros ficam como alternativos, que o robô testa se a página mudar.",
     "passwords": "As senhas nunca são gravadas: viram {placeholder} para você usar uma credencial salva.",
     "panel": {
       "recording": "Gravando",
@@ -435,9 +557,19 @@
       "copied": "Copiado",
       "clear": "Limpar",
       "close": "Fechar",
-      "hint": "Faça a tarefa normalmente. Ao terminar, copie os passos."
+      "hint": "Faça a tarefa normalmente. Ao terminar, copie os passos.",
+      "text": "Capturar texto",
+      "list": "Capturar lista",
+      "next": "Próxima página",
+      "done": "Pronto",
+      "pickText": "Clique no texto a extrair. Esc cancela.",
+      "pickList": "Clique em um item da lista e depois nas partes que quer como colunas. Clique em Pronto ao terminar.",
+      "pickNext": "Clique no botão Próximo ou Carregar mais.",
+      "listCount": "Lista: {count} itens"
     },
-    "codeTitle": "Sem barra de favoritos"
+    "codeTitle": "Sem barra de favoritos",
+    "extractTitle": "Extrair enquanto grava",
+    "extractBody": "Capturar texto guarda um valor. Capturar lista marca um item que se repete (um produto, uma linha, um resultado): cada item parecido vira uma linha e cada parte que você clica dentro dele vira uma coluna. Próxima página marca o botão que carrega mais linhas."
   },
   "loading": "Carregando robôs…",
   "alertEmail": {
@@ -459,5 +591,193 @@
       "api": "API",
       "agent": "agente"
     }
+  },
+  "builder": {
+    "title": "Montar um robô com IA",
+    "desc": "Cole uma página e diga o que quer dela. O robô abre a página, encontra a lista e propõe as colunas.",
+    "url": "URL da página",
+    "goal": "O que você quer da página?",
+    "goalPlaceholder": "Ex.: nome, preço e link de cada produto",
+    "read": "Ler a página",
+    "reading": "Abrindo a página…",
+    "found": "{count, plural, one {# coluna} other {# colunas}} · primeiras linhas da página",
+    "none": "Nenhuma lista repetida nesta página. Descreva o que extrair e tente de novo, ou comece com um robô vazio.",
+    "create": "Criar robô",
+    "creating": "Criando robô…",
+    "back": "Mudar",
+    "aiOff": "A IA está desligada neste workspace, então estas colunas vêm da página sem IA.",
+    "useDetected": "Criar com esta lista",
+    "cancel": "Cancelar",
+    "steps": "Passos: {list}",
+    "noSample": "As colunas vêm do HTML da página. Execute o robô para ver as linhas."
+  },
+  "nl": {
+    "title": "Escrever passos com IA",
+    "desc": "Descreva a tarefa com suas palavras. A IA transforma em passos que você revisa antes de adicionar.",
+    "label": "O que o robô deve fazer?",
+    "placeholder": "Ir para https://… buscar {example}, abrir o primeiro resultado e extrair o título e o preço",
+    "url": "Página para ler (opcional)",
+    "urlHint": "Com uma página, a IA escolhe seletores que existem nela.",
+    "generate": "Escrever passos",
+    "generating": "Escrevendo passos…",
+    "preview": "{count, plural, one {# passo pronto} other {# passos prontos}} para adicionar",
+    "empty": "A IA não conseguiu transformar isso em passos. Diga a página e o que clicar ou extrair.",
+    "append": "Adicionar no final",
+    "replace": "Substituir os passos",
+    "added": "{count, plural, one {# passo adicionado} other {# passos adicionados}}. Salve para manter.",
+    "cancel": "Cancelar"
+  },
+  "bulk": {
+    "button": "Executar em lote",
+    "title": "Executar com muitas entradas",
+    "desc": "Envie um CSV com uma linha por execução. Cada linha vira uma execução na fila, até {max}.",
+    "file": "Arquivo CSV",
+    "paste": "Ou cole o CSV",
+    "map": "Coluna para cada entrada",
+    "mapHint": "Vazio usa o valor padrão da entrada.",
+    "useDefault": "Valor padrão",
+    "rows": "{count, plural, one {# linha encontrada} other {# linhas encontradas}}",
+    "tooMany": "Só as primeiras {max} linhas são usadas.",
+    "start": "Colocar {count, plural, one {# execução} other {# execuções}} na fila",
+    "queued": "{count, plural, one {# execução na fila} other {# execuções na fila}}. Elas rodam uma depois da outra.",
+    "noInputs": "Este robô não tem entradas. Adicione entradas para executá-lo sobre uma lista.",
+    "parseError": "Não foi possível ler o CSV: a primeira linha precisa ter os nomes das colunas.",
+    "cancel": "Cancelar",
+    "preview": "Primeiras linhas"
+  },
+  "data": {
+    "title": "Dados entre execuções",
+    "desc": "Cada execução com sucesso soma suas linhas aqui: linhas novas, linhas que mudaram e linhas que não estão mais na página.",
+    "enabled": "Guardar uma tabela de linhas entre execuções",
+    "variable": "Lista a guardar",
+    "variableAuto": "Primeira lista dos passos ({name})",
+    "noLists": "Adicione um passo Extrair lista, Extrair tabela ou Extrair com IA para guardar uma tabela.",
+    "key": "Chave única",
+    "keyHint": "Colunas que identificam uma linha, como o link. Sem nenhuma, a linha inteira é a chave.",
+    "keyPlaceholder": "link",
+    "filters": {
+      "active": "Na última execução",
+      "new": "Novas",
+      "changed": "Alteradas",
+      "removed": "Não estão mais",
+      "all": "Todas"
+    },
+    "filtersLabel": "Linhas a mostrar",
+    "search": "Buscar linhas",
+    "empty": "Ainda não há linhas. Execute o robô para preencher a tabela.",
+    "emptyFilter": "Nenhuma linha corresponde.",
+    "csv": "Baixar CSV",
+    "clear": "Esvaziar tabela",
+    "clearTitle": "Esvaziar a tabela?",
+    "clearDesc": "Apaga todas as linhas guardadas entre execuções. As execuções e seus dados continuam.",
+    "cleared": "Tabela esvaziada.",
+    "count": "{shown} de {total} linhas",
+    "firstSeen": "Vista pela primeira vez",
+    "status": "Estado",
+    "badgeNew": "Nova",
+    "badgeChanged": "Mudou",
+    "badgeRemoved": "Não está mais",
+    "hidden": "{count, plural, one {# linha foi capturada} other {# linhas foram capturadas}} com um login salvo e só aparecem para quem montou o robô e os admins.",
+    "aiTitle": "Colunas com IA",
+    "aiDesc": "Uma coluna que a IA preenche para cada linha, como uma categoria ou um sim ou não. Até {rows} linhas por execução; linhas que não mudaram mantêm o valor.",
+    "aiAdd": "Adicionar coluna com IA",
+    "aiList": "Lista",
+    "aiName": "Coluna",
+    "aiPrompt": "O que calcular",
+    "aiPromptPlaceholder": "Categoria do produto, em uma palavra",
+    "aiRemove": "Remover coluna com IA",
+    "loading": "Carregando linhas…",
+    "error": "Não foi possível carregar as linhas.",
+    "retry": "Tentar de novo",
+    "unsaved": "Salve o robô para que estes ajustes valham a partir da próxima execução.",
+    "tableTitle": "Linhas",
+    "settingsTitle": "Ajustes da tabela",
+    "cancel": "Cancelar"
+  },
+  "integrations": {
+    "changeTitle": "Email quando os dados mudam",
+    "changeDesc": "Um email com as linhas novas, as que saíram e os valores que mudaram, cada vez que uma execução difere da anterior.",
+    "changeOn": "Mandar as mudanças por email",
+    "changeTo": "Enviar para",
+    "changeToHint": "Emails separados por vírgulas. Vazio: quem montou o robô. Até {max} emails por dia e robô.",
+    "destTitle": "Enviar linhas para outros apps",
+    "destDesc": "Depois de cada execução com sucesso, as linhas novas e alteradas vão para estes destinos.",
+    "add": "Adicionar destino",
+    "addLabel": "Tipo de destino",
+    "kinds": {
+      "crm": "CRM",
+      "sheets": "Google Sheets",
+      "airtable": "Airtable"
+    },
+    "kindHints": {
+      "crm": "Cria ou atualiza contatos por email, ou empresas por domínio.",
+      "sheets": "Mantém uma planilha igual à tabela, ou adiciona as linhas novas.",
+      "airtable": "Cria ou atualiza registros em uma tabela."
+    },
+    "remove": "Remover destino",
+    "enabled": "Ativo",
+    "variable": "Linhas de",
+    "variableDataset": "A tabela entre execuções",
+    "object": "Registros",
+    "objects": {
+      "contacts": "Contatos (por email)",
+      "companies": "Empresas (por domínio ou nome)"
+    },
+    "mapping": "Campos",
+    "mappingHint": "Escolha a coluna para cada campo do CRM. Contatos precisam de email; empresas, de nome ou domínio.",
+    "none": "Não usar",
+    "credential": "Credencial",
+    "credentialHint": "Nome de uma credencial salva: Google (conta de serviço ou token) para Sheets, um token pessoal para Airtable.",
+    "credentialsLink": "Abrir Credenciais",
+    "spreadsheetId": "ID da planilha",
+    "spreadsheetHint": "O id longo da URL, entre /d/ e /edit. Compartilhe a planilha com a conta de serviço.",
+    "sheet": "Nome da aba",
+    "mode": "Modo",
+    "modes": {
+      "sync": "Sincronizar: a aba fica igual à tabela",
+      "append": "Adicionar linhas novas e alteradas"
+    },
+    "baseId": "ID da base",
+    "baseHint": "Começa com app, da página de API da base.",
+    "table": "Tabela",
+    "mergeField": "Campo chave (opcional)",
+    "mergeHint": "Com campo chave, os registros existentes são atualizados em vez de duplicados.",
+    "fields": {
+      "email": "Email",
+      "firstName": "Nome",
+      "lastName": "Sobrenome",
+      "phone": "Telefone",
+      "jobTitle": "Cargo",
+      "website": "Site",
+      "city": "Cidade",
+      "country": "País",
+      "name": "Nome",
+      "domain": "Domínio",
+      "industry": "Setor"
+    },
+    "empty": "Ainda não há destinos.",
+    "columnPlaceholder": "coluna"
+  },
+  "geo": {
+    "title": "País",
+    "desc": "As páginas abrem com o idioma e o fuso horário deste país.",
+    "label": "País das execuções",
+    "default": "O do servidor",
+    "proxy": "O tráfego sai por um proxy nesse país, com um IP novo em cada execução.",
+    "noProxy": "O IP é o do servidor, então sites que mudam pelo IP veem o país do servidor. Com um provedor de proxies configurado no servidor, usam-se IPs do país."
+  },
+  "export": {
+    "title": "Exportar",
+    "desc": "Baixe o robô como arquivo .json para importá-lo em outro workspace. Não inclui credenciais, sessões salvas nem execuções.",
+    "button": "Exportar robô"
+  },
+  "changeEmail": {
+    "subject": "Os dados mudaram: {robot}",
+    "heading": "Um robô encontrou mudanças",
+    "body": "O robô \"{robot}\" trouxe dados diferentes dos da execução anterior.",
+    "rows": "{added} novas, {removed} não estão mais",
+    "more": "Há mais mudanças no app.",
+    "cta": "Ver os dados",
+    "footer": "Você recebe este email porque os emails de mudanças estão ligados para este robô, na aba Integrações."
   }
 }

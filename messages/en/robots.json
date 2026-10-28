@@ -20,14 +20,22 @@
     "creating": "Creating robot…",
     "emptyTitle": "No robots yet",
     "emptyAlt": "or use a template",
-    "paused": "paused"
+    "paused": "paused",
+    "buildAi": "Build with AI",
+    "import": "Import robot",
+    "importing": "Importing…"
   },
   "usage": {
     "title": "This month",
     "minutes": "{used} of {limit} min",
     "minutesUnlimited": "{used} min",
     "runs": "{count, plural, one {# run} other {# runs}}",
-    "perHour": "Up to {count} runs per hour · one run at a time"
+    "perHour": "Up to {count} runs per hour · one run at a time per workspace",
+    "byRobotTitle": "By robot this month",
+    "byRobotName": "Robot",
+    "byRobotRuns": "Runs",
+    "byRobotMinutes": "Minutes",
+    "byRobotEmpty": "No runs this month yet."
   },
   "runner": {
     "none": "Robots can't run on this server.",
@@ -39,7 +47,7 @@
   },
   "templates": {
     "title": "Templates",
-    "subtitle": "Ready-made robots you can adapt.",
+    "subtitle": "Ready-made robots for common sites and tasks. Pick one and adjust it.",
     "use": "Use template",
     "items": {
       "scrapeTable": {
@@ -57,9 +65,63 @@
       "screenshot": {
         "name": "Take a screenshot of a page",
         "desc": "Opens a URL, reads the heading and saves a screenshot."
+      },
+      "monitorPage": {
+        "name": "Watch a page for changes",
+        "desc": "Reads a part of a page every hour and emails you the difference when it changes."
+      },
+      "listAndDetails": {
+        "name": "List and each detail page",
+        "desc": "Extracts a list, then opens every item and reads more fields from its page."
+      },
+      "loginExtract": {
+        "name": "Log in and extract",
+        "desc": "Signs in with a saved credential, skips the login if the session is still open, and extracts a list."
+      },
+      "hackerNews": {
+        "name": "Hacker News front page",
+        "desc": "Stories with rank, title, link and site, two pages, every hour."
+      },
+      "githubTrending": {
+        "name": "GitHub trending repositories",
+        "desc": "Trending repositories with description, stars and stars gained in the period."
+      },
+      "githubReleases": {
+        "name": "New releases of a GitHub repository",
+        "desc": "Checks the releases of a repository daily and emails you when a new one shows up."
+      },
+      "lobsters": {
+        "name": "Lobsters front page",
+        "desc": "Stories with tags, score and comments."
+      },
+      "devTo": {
+        "name": "DEV posts by tag",
+        "desc": "Latest posts of a tag with date and reactions."
+      },
+      "remoteJobs": {
+        "name": "Remote jobs from We Work Remotely",
+        "desc": "Job posts of a category with company and region, daily, with an email when new ones appear."
+      },
+      "booksCatalog": {
+        "name": "Catalog with pages (practice site)",
+        "desc": "Books with price and stock across three pages using the Next button."
+      },
+      "infiniteScroll": {
+        "name": "Infinite scroll list (practice site)",
+        "desc": "Scrolls down until no new quotes load and extracts them all."
       }
     },
-    "stepsLabel": "{count, plural, one {# step} other {# steps}}"
+    "stepsLabel": "{count, plural, one {# step} other {# steps}}",
+    "categories": {
+      "all": "All",
+      "start": "Get started",
+      "monitor": "Monitor",
+      "sites": "Popular sites"
+    },
+    "search": "Search templates",
+    "searchEmpty": "No templates match “{q}”.",
+    "site": "For {site}",
+    "categoriesLabel": "Template category"
   },
   "editor": {
     "untitled": "Untitled robot",
@@ -80,7 +142,9 @@
       "inputs": "Inputs",
       "runs": "Runs",
       "schedule": "Schedule",
-      "advanced": "Advanced"
+      "advanced": "Advanced",
+      "data": "Data",
+      "integrations": "Integrations"
     },
     "record": "Record steps",
     "paste": "Paste steps",
@@ -89,7 +153,8 @@
     "deleteTitle": "Delete robot",
     "deleteDesc": "Deletes the robot and its whole run history. This cannot be undone.",
     "deleteDialogTitle": "Delete {name}?",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "writeAi": "Write with AI"
   },
   "steps": {
     "empty": "Pick a type below and add the first one, usually Go to URL.",
@@ -117,7 +182,8 @@
       "upload": "Upload file",
       "pdf": "Save as PDF",
       "evaluate": "Run JavaScript",
-      "loop_item": "Loop item"
+      "loop_item": "Loop item",
+      "ai_extract": "Extract with AI"
     },
     "fields": {
       "url": "URL",
@@ -151,11 +217,21 @@
       "fieldSelector": "Selector inside the card",
       "fieldAttribute": "Attribute",
       "fieldText": "text",
-      "paginate": "Go through pages: click Next and keep adding rows",
+      "paginate": "More rows on other pages or further down",
       "nextSelector": "Next button selector",
       "nextText": "Or Next button text",
       "maxPages": "Max pages",
-      "pageWaitMs": "Wait after each page (ms)"
+      "pageWaitMs": "Wait after each page (ms)",
+      "fallbacks": "Alternative selectors, one per line",
+      "paginateMode": "How the list continues",
+      "moreSelector": "Load more button selector",
+      "moreText": "Or Load more button text",
+      "scrollTimes": "Max scrolls",
+      "instruction": "What to extract",
+      "aiFields": "Fields of each row",
+      "aiFieldName": "Column",
+      "aiFieldDesc": "Description (optional)",
+      "aiScope": "Only inside this selector (optional)"
     },
     "modes": {
       "text": "Text of the first match",
@@ -198,7 +274,19 @@
     "removeField": "Remove field",
     "nextTextDefault": "Next",
     "paginateHint": "Stops when Next is missing or disabled, when a page repeats or after {max} pages. Each page counts toward the run page limit.",
-    "totpTip": "Login with a 2FA code: save the secret in a Username and password credential and fill the code field with {example}."
+    "totpTip": "Login with a 2FA code: save the secret in a Username and password credential and fill the code field with {example}.",
+    "paginateModes": {
+      "next": "Next button",
+      "load_more": "Load more button",
+      "scroll": "Infinite scroll"
+    },
+    "fallbacksHint": "Tried in order when the main selector is not on the page. The run log says which one worked.",
+    "fallbacksShow": "Alternative selectors",
+    "instructionPlaceholder": "Every product with its name, price and link",
+    "aiHint": "AI reads the page text when the run ends and fills the variable as rows. Later steps of the same run don't see it yet.",
+    "scrollHint": "Scrolls to the bottom and waits, until no new rows load or after {max} scrolls.",
+    "moreHint": "Clicks the button until it disappears, no new rows load or after {max} clicks, then reads every row.",
+    "loadMoreDefault": "Load more"
   },
   "inputs": {
     "title": "Inputs",
@@ -286,8 +374,32 @@
       "screenshot": "The page when the step failed",
       "screenshotAlt": "Screenshot of the page when step {step} failed",
       "domElement": "HTML of the element",
-      "domPage": "HTML of the page (scripts and styles removed)"
-    }
+      "domPage": "HTML of the page (scripts and styles removed)",
+      "fix": "Suggest a fix with AI",
+      "fixing": "Reading the captured page…",
+      "fixSelector": "New selector: {selector}",
+      "fixText": "Click by text: {text}",
+      "fixApply": "Use it in step {step}",
+      "fixApplied": "Step {step} updated. Save to keep it.",
+      "fixNone": "No better selector found on the captured page."
+    },
+    "healedTitle": "Self-healing",
+    "healed": "Step {step} used an alternative selector: {selector}",
+    "promote": "Make it the main selector",
+    "promoted": "Step {step} updated. Save to keep it.",
+    "aiError": "AI could not fill {variable}: {error}",
+    "dataset": "Table: {added} new · {changed} changed · {removed} not in this run · {total} total",
+    "emailSent": "Change email sent to {count, plural, one {# person} other {# people}}.",
+    "destinations": "Sent to",
+    "destOk": "{kind}: {count, plural, one {# row} other {# rows}}",
+    "destFail": "{kind}: failed ({error})",
+    "destFake": "test mode",
+    "dataHidden": "This run used a saved login. Only the person who built the robot and admins can see its data.",
+    "geo": "Country: {country}",
+    "geoProxy": "Country: {country} · via proxy",
+    "refresh": "Refresh",
+    "autoRefresh": "Updating while runs wait in the queue.",
+    "batch": "Bulk"
   },
   "settings": {
     "enabled": "Allow automatic runs",
@@ -315,7 +427,7 @@
       "minutes": "Minutes"
     },
     "everyN": "Every",
-    "minMinutes": "Minimum 15 minutes.",
+    "minMinutes": "Minimum 5 minutes.",
     "cron": "Cron expression",
     "cronHint": "5 fields: minute hour day month weekday. E.g. 0 9 * * 1-5",
     "cronInvalid": "Invalid cron expression.",
@@ -393,7 +505,17 @@
     "pageTitle": "Robots could not load",
     "pageBody": "Try again. If it keeps failing, check that the server is online.",
     "retry": "Try again",
-    "backToList": "Back to Robots"
+    "backToList": "Back to Robots",
+    "invalid_settings": "Check the Data and Integrations tabs: a setting is incomplete.",
+    "invalid_import": "This file is not an exported robot.",
+    "ai_disabled": "AI is off for this workspace. Turn it on in Settings, AI.",
+    "ai_quota_exceeded": "The workspace used its AI tokens for this month.",
+    "private_host": "That address is on a private network. Robots only open public sites.",
+    "invalid_url": "Enter a full address that starts with https://",
+    "snapshot_failed": "Could not open the page. Check the address and try again.",
+    "no_failure": "This run has no captured failure.",
+    "step_not_found": "That step is no longer in the robot.",
+    "too_many_inputs": "Send between 1 and 1,000 rows."
   },
   "paste": {
     "title": "Paste recorded steps",
@@ -418,7 +540,7 @@
     "howTitle": "How it works",
     "step1": "Drag the button to your bookmarks bar.",
     "step2": "Open the site you want to automate and click the bookmark.",
-    "step3": "Do the task: clicks, fields, selects and Enter are recorded. If the page changes, click the bookmark again to keep going.",
+    "step3": "Do the task: clicks, fields, selects and Enter are recorded. To extract data, use Capture text or Capture list in the panel. If the page changes, click the bookmark again to keep going.",
     "step4": "Click Copy steps in the panel, then use Paste recorded steps in your robot.",
     "bookmarklet": "Record robot",
     "dragHint": "Drag it to the bookmarks bar (don’t click it here).",
@@ -426,7 +548,7 @@
     "copyCodeHint": "Can’t drag? Paste the code into the browser console on the site.",
     "copied": "Copied",
     "selectorsTitle": "Selectors",
-    "selectors": "The first stable one wins: data-testid, id, name, aria-label, placeholder, visible text (clicks) and finally a short CSS path.",
+    "selectors": "The first stable one wins: data-testid, id, name, aria-label, placeholder, visible text (clicks) and finally a short CSS path. Up to 4 other ones are saved as alternatives, which the robot tries if the page changes.",
     "passwords": "Passwords are never recorded: they become {placeholder} so you can use a saved credential.",
     "panel": {
       "recording": "Recording",
@@ -435,9 +557,19 @@
       "copied": "Copied",
       "clear": "Clear",
       "close": "Close",
-      "hint": "Do the task as usual. When done, copy the steps."
+      "hint": "Do the task as usual. When done, copy the steps.",
+      "text": "Capture text",
+      "list": "Capture list",
+      "next": "Next page",
+      "done": "Done",
+      "pickText": "Click the text to extract. Esc cancels.",
+      "pickList": "Click an item of the list, then the parts of it you want as columns. Click Done when finished.",
+      "pickNext": "Click the Next or Load more button.",
+      "listCount": "List: {count} items"
     },
-    "codeTitle": "No bookmarks bar"
+    "codeTitle": "No bookmarks bar",
+    "extractTitle": "Extract while you record",
+    "extractBody": "Capture text saves one value. Capture list marks an item that repeats (a product, a row, a result): every similar item becomes a row and each part you click inside it becomes a column. Next page marks the button that loads more rows."
   },
   "loading": "Loading robots…",
   "alertEmail": {
@@ -459,5 +591,193 @@
       "api": "API",
       "agent": "agent"
     }
+  },
+  "builder": {
+    "title": "Build a robot with AI",
+    "desc": "Paste a page and say what you want from it. The robot opens the page, finds the list and proposes the columns.",
+    "url": "Page URL",
+    "goal": "What do you want from the page?",
+    "goalPlaceholder": "E.g. name, price and link of every product",
+    "read": "Read the page",
+    "reading": "Opening the page…",
+    "found": "{count, plural, one {# column} other {# columns}} · first rows of the page",
+    "none": "No repeated list found on this page. Describe what to extract and try again, or start from an empty robot.",
+    "create": "Create robot",
+    "creating": "Creating robot…",
+    "back": "Change",
+    "aiOff": "AI is off for this workspace, so these columns were found on the page without AI.",
+    "useDetected": "Create with this list",
+    "cancel": "Cancel",
+    "steps": "Steps: {list}",
+    "noSample": "The columns come from the page HTML. Run the robot to see the rows."
+  },
+  "nl": {
+    "title": "Write steps with AI",
+    "desc": "Describe the task in your own words. AI turns it into steps you can review before adding them.",
+    "label": "What should the robot do?",
+    "placeholder": "Go to https://… search for {example}, open the first result and extract the title and the price",
+    "url": "Page to read (optional)",
+    "urlHint": "With a page, AI picks selectors that exist on it.",
+    "generate": "Write steps",
+    "generating": "Writing steps…",
+    "preview": "{count, plural, one {# step} other {# steps}} ready to add",
+    "empty": "AI could not turn that into steps. Name the page and what to click or extract.",
+    "append": "Add at the end",
+    "replace": "Replace the steps",
+    "added": "{count, plural, one {# step added} other {# steps added}}. Save to keep them.",
+    "cancel": "Cancel"
+  },
+  "bulk": {
+    "button": "Bulk run",
+    "title": "Run with many inputs",
+    "desc": "Upload a CSV with one row per run. Each row becomes a run in the queue, up to {max}.",
+    "file": "CSV file",
+    "paste": "Or paste the CSV",
+    "map": "Column for each input",
+    "mapHint": "Empty uses the input's default value.",
+    "useDefault": "Default value",
+    "rows": "{count, plural, one {# row} other {# rows}} found",
+    "tooMany": "Only the first {max} rows are used.",
+    "start": "Queue {count, plural, one {# run} other {# runs}}",
+    "queued": "{count, plural, one {# run queued} other {# runs queued}}. They run one after another.",
+    "noInputs": "This robot has no inputs. Add inputs first to run it over a list.",
+    "parseError": "Could not read the CSV: the first row must have the column names.",
+    "cancel": "Cancel",
+    "preview": "First rows"
+  },
+  "data": {
+    "title": "Data across runs",
+    "desc": "Each successful run adds its rows here: new rows, rows that changed and rows that are no longer on the page.",
+    "enabled": "Keep a table of rows across runs",
+    "variable": "List to keep",
+    "variableAuto": "First list of the steps ({name})",
+    "noLists": "Add an Extract list, Extract table or Extract with AI step to keep a table.",
+    "key": "Unique key",
+    "keyHint": "Columns that identify a row, like the link. With none, the whole row is the key.",
+    "keyPlaceholder": "link",
+    "filters": {
+      "active": "In last run",
+      "new": "New",
+      "changed": "Changed",
+      "removed": "Not in last run",
+      "all": "All"
+    },
+    "filtersLabel": "Rows to show",
+    "search": "Search rows",
+    "empty": "No rows yet. Run the robot to fill the table.",
+    "emptyFilter": "No rows match.",
+    "csv": "Download CSV",
+    "clear": "Clear table",
+    "clearTitle": "Clear the table?",
+    "clearDesc": "Deletes every row kept across runs. The runs and their data stay.",
+    "cleared": "Table cleared.",
+    "count": "{shown} of {total} rows",
+    "firstSeen": "First seen",
+    "status": "Status",
+    "badgeNew": "New",
+    "badgeChanged": "Changed",
+    "badgeRemoved": "Gone",
+    "hidden": "{count, plural, one {# row was captured} other {# rows were captured}} with a saved login and only show to the robot's builder and admins.",
+    "aiTitle": "AI columns",
+    "aiDesc": "A column AI fills for each row, like a category or a yes or no. Up to {rows} rows per run; rows that did not change keep their value.",
+    "aiAdd": "Add AI column",
+    "aiList": "List",
+    "aiName": "Column",
+    "aiPrompt": "What to compute",
+    "aiPromptPlaceholder": "Category of the product, in one word",
+    "aiRemove": "Remove AI column",
+    "loading": "Loading rows…",
+    "error": "Could not load the rows.",
+    "retry": "Try again",
+    "unsaved": "Save the robot to apply these settings to the next run.",
+    "tableTitle": "Rows",
+    "settingsTitle": "Table settings",
+    "cancel": "Cancel"
+  },
+  "integrations": {
+    "changeTitle": "Email when the data changes",
+    "changeDesc": "An email with the new rows, the rows that left and the values that changed, each time a run differs from the previous one.",
+    "changeOn": "Email the changes",
+    "changeTo": "Send to",
+    "changeToHint": "Emails separated by commas. Empty: the person who built the robot. Up to {max} emails a day per robot.",
+    "destTitle": "Send rows to other apps",
+    "destDesc": "After each successful run, the new and changed rows go to these destinations.",
+    "add": "Add destination",
+    "addLabel": "Destination type",
+    "kinds": {
+      "crm": "CRM",
+      "sheets": "Google Sheets",
+      "airtable": "Airtable"
+    },
+    "kindHints": {
+      "crm": "Creates or updates contacts by email, or companies by domain.",
+      "sheets": "Keeps a sheet equal to the table, or appends the new rows.",
+      "airtable": "Creates or updates records in a table."
+    },
+    "remove": "Remove destination",
+    "enabled": "On",
+    "variable": "Rows from",
+    "variableDataset": "The table across runs",
+    "object": "Records",
+    "objects": {
+      "contacts": "Contacts (by email)",
+      "companies": "Companies (by domain or name)"
+    },
+    "mapping": "Fields",
+    "mappingHint": "Pick the column for each CRM field. Contacts need an email; companies need a name or a domain.",
+    "none": "Not used",
+    "credential": "Credential",
+    "credentialHint": "Name of a saved credential: Google (service account or token) for Sheets, a personal access token for Airtable.",
+    "credentialsLink": "Open Credentials",
+    "spreadsheetId": "Spreadsheet ID",
+    "spreadsheetHint": "The long id in the sheet URL, between /d/ and /edit. Share the sheet with the service account.",
+    "sheet": "Sheet name",
+    "mode": "Mode",
+    "modes": {
+      "sync": "Sync: the sheet matches the table",
+      "append": "Append new and changed rows"
+    },
+    "baseId": "Base ID",
+    "baseHint": "Starts with app, from the API page of the base.",
+    "table": "Table",
+    "mergeField": "Key field (optional)",
+    "mergeHint": "With a key field, existing records update instead of duplicating.",
+    "fields": {
+      "email": "Email",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "phone": "Phone",
+      "jobTitle": "Job title",
+      "website": "Website",
+      "city": "City",
+      "country": "Country",
+      "name": "Name",
+      "domain": "Domain",
+      "industry": "Industry"
+    },
+    "empty": "No destinations yet.",
+    "columnPlaceholder": "column"
+  },
+  "geo": {
+    "title": "Country",
+    "desc": "Pages open with the language and time zone of this country.",
+    "label": "Country of the runs",
+    "default": "Server default",
+    "proxy": "Traffic goes through a proxy in that country, with a new IP on each run.",
+    "noProxy": "The IP is the server's, so sites that change by IP still see the server's country. A proxy provider set up on the server gives IPs of the country."
+  },
+  "export": {
+    "title": "Export",
+    "desc": "Download the robot as a .json file to import it in another workspace. Credentials, saved sessions and runs are not included.",
+    "button": "Export robot"
+  },
+  "changeEmail": {
+    "subject": "Data changed: {robot}",
+    "heading": "A robot found changes",
+    "body": "The robot \"{robot}\" got different data than on its previous run.",
+    "rows": "{added} new, {removed} gone",
+    "more": "More changes in the app.",
+    "cta": "Open the data",
+    "footer": "You get this email because change emails are on for this robot, in its Integrations tab."
   }
 }

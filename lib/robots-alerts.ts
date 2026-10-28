@@ -16,6 +16,7 @@
 import { getDb, type RobotRow, type RobotRunTrigger } from './db';
 import { escapeHtml, renderBrandedHtml, sendEmail } from './email';
 import { siteUrl } from './board-urls';
+import type { RobotOutputChange } from './robots-diff';
 import en from '@/messages/en/robots.json';
 import es from '@/messages/es/robots.json';
 import pt from '@/messages/pt/robots.json';
@@ -170,4 +171,125 @@ async function sendRobotAlert(
       paragraphs: [...lines.map(escapeHtml), `<a href="${escapeHtml(url)}">${escapeHtml(s.cta)}</a>`],
     }),
   }).catch(() => undefined);
+}
+
+// ---------- Email de cambios ----------
+
+type ChangeStrings = typeof en.changeEmail;
+const CHANGE_STRINGS: Record<MailLocale, ChangeStrings> = {
+  en: en.changeEmail,
+  es: { ...en.changeEmail, ...es.changeEmail },
+  pt: { ...en.changeEmail, ...pt.changeEmail },
+};
+
+/** Emails de cambios por robot y día (ROBOTS_CHANGE_EMAILS_PER_DAY, 24). */
+export function changeEmailsPerDay(): number {
+  const n = Number(process.env.ROBOTS_CHANGE_EMAILS_PER_DAY);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 24;
+}
+
+const cellText = (v: unknown): string => {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'string') return v;
+  try {
+    return JSON.stringify(v);
+  } catch {
+    return String(v);
+  }
+};
+
+/** Una fila como "col: valor · col: valor" (recortada). */
+function rowLine(v: unknown): string {
+  if (v && typeof v === 'object' && !Array.isArray(v)) {
+    return Object.entries(v as Record<string, unknown>)
+      .slice(0, 6)
+      .map(([k, x]) => `${k}: ${cellText(x).slice(0, 80)}`)
+      .join(' · ')
+      .slice(0, 400);
+  }
+  return cellText(v).slice(0, 400);
+}
+
+/**
+ * Texto y HTML del email de cambios: filas nuevas (verde), filas que ya no
+ * están (rojo) y valores que cambiaron (antes → después). Puro: lo testean
+ * los unit tests.
+ */
+export function renderChangeEmail(
+  locale: MailLocale,
+  robotName: string,
+  changes: readonly RobotOutputChange[],
+  url: string,
+): { subject: string; text: string; html: string } {
+  const s = CHANGE_STRINGS[locale];
+  const intro = fill(s.body, { robot: robotName });
+  const text: string[] = [intro];
+  const html: string[] = [escapeHtml(intro)];
+  const line = (color: string, sign: string, body: string) =>
+    `<span style="display:block;padding:2px 6px;margin:2px 0;background:${color};">${sign} ${escapeHtml(body)}</span>`;
+  for (const c of changes.slice(0, 20)) {
+    if (c.kind === 'rows') {
+      const summary = fill(s.rows, { added: String(c.addedCount), removed: String(c.removedCount) });
+      text.push(`${c.key}: ${summary}`);
+      const parts = [`<strong>${escapeHtml(c.key)}</strong> · ${escapeHtml(summary)}`];
+      for (const r of c.added.slice(0, 10)) {
+        text.push(`  + ${rowLine(r)}`);
+        parts.push(line('#e7f6ec', '+', rowLine(r)));
+      }
+      for (const r of c.removed.slice(0, 10)) {
+        text.push(`  - ${rowLine(r)}`);
+        parts.push(line('#fdecec', '−', rowLine(r)));
+      }
+      if (c.added.length > 10 || c.removed.length > 10 || c.addedCount > c.added.length || c.removedCount > c.removed.length) {
+        parts.push(escapeHtml(s.more));
+      }
+      html.push(parts.join(''));
+    } else if (c.kind === 'changed') {
+      text.push(`${c.key}: ${rowLine(c.before)} → ${rowLine(c.after)}`);
+      html.push(`<strong>${escapeHtml(c.key)}</strong>${line('#fdecec', '−', rowLine(c.before))}${line('#e7f6ec', '+', rowLine(c.after))}`);
+    } else if (c.kind === 'added') {
+      text.push(`${c.key}: + ${rowLine(c.after)}`);
+      html.push(`<strong>${escapeHtml(c.key)}</strong>${line('#e7f6ec', '+', rowLine(c.after))}`);
+    } else {
+      text.push(`${c.key}: - ${rowLine(c.before)}`);
+      html.push(`<strong>${escapeHtml(c.key)}</strong>${line('#fdecec', '−', rowLine(c.before))}`);
+    }
+  }
+  text.push('', `${s.cta}: ${url}`, '', s.footer);
+  html.push(`<a href="${escapeHtml(url)}">${escapeHtml(s.cta)}</a>`, escapeHtml(s.footer));
+  return {
+    subject: fill(s.subject, { robot: robotName }),
+    text: text.join('\n'),
+    html: renderBrandedHtml({ heading: s.heading, eyebrow: 'zerosoft · robots', paragraphs: html }),
+  };
+}
+
+/**
+ * Manda el email de cambios (a los destinatarios elegidos o a quien creó el
+ * robot), con tope diario por robot. Devuelve a cuántos salió. Nunca tira.
+ */
+export async function sendChangeEmail(row: RobotRow, changes: readonly RobotOutputChange[], to: readonly string[]): Promise<number> {
+  try {
+    if (!changes.length) return 0;
+    const own = to.length ? null : await recipient(row);
+    const recipients = to.length ? [...to] : own ? [own] : [];
+    if (!recipients.length) return 0;
+    if (process.env.RATE_LIMIT_DISABLED !== 'true') {
+      const { rateLimit } = await import('./rate-limit');
+      const rl = await rateLimit(`robot-change-email:${row.id}`, changeEmailsPerDay(), 86_400);
+      if (!rl.ok) return 0;
+    }
+    const locale: MailLocale = row.alert_locale === 'es' || row.alert_locale === 'pt' ? row.alert_locale : 'en';
+    const mail = renderChangeEmail(locale, row.name, changes, `${siteUrl()}/${locale}/app/robots/${row.id}?tab=data`);
+    let sent = 0;
+    for (const addr of recipients.slice(0, 10)) {
+      const ok = await sendEmail({ to: addr, subject: mail.subject, text: mail.text, html: mail.html })
+        .then(() => true)
+        .catch(() => false);
+      if (ok) sent += 1;
+    }
+    return sent;
+  } catch {
+    return 0;
+  }
 }
