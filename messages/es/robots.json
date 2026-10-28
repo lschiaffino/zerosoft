@@ -625,7 +625,9 @@
     "append": "Agregar al final",
     "replace": "Reemplazar los pasos",
     "added": "{count, plural, one {# paso agregado} other {# pasos agregados}}. Guardá para conservarlos.",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "review": "Usa un login guardado: revisalo antes de guardar",
+    "reviewConfirm": "Revisé los pasos que usan un login guardado"
   },
   "bulk": {
     "button": "Correr en lote",
@@ -699,7 +701,7 @@
     "changeDesc": "Un email con las filas nuevas, las que se fueron y los valores que cambiaron, cada vez que una corrida difiere de la anterior.",
     "changeOn": "Mandar los cambios por email",
     "changeTo": "Enviar a",
-    "changeToHint": "Emails separados por comas. Vacío: quien armó el robot. Hasta {max} emails por día y robot.",
+    "changeToHint": "Solo personas del workspace. Emails separados por comas. Vacío: quien armó el robot. Hasta {max} emails por día y robot.",
     "destTitle": "Mandar filas a otras apps",
     "destDesc": "Después de cada corrida exitosa, las filas nuevas y cambiadas van a estos destinos.",
     "add": "Agregar destino",
@@ -763,7 +765,8 @@
       "skip": "Dejarlo como está",
       "overwrite": "Pisar con los datos del robot"
     },
-    "loginWarning": "Este robot inicia sesión con un login guardado, así que las filas que envía pueden incluir datos privados. Mandalas solo a donde esté permitido."
+    "loginWarning": "Este robot inicia sesión con un login guardado, así que las filas que envía pueden incluir datos privados. Mandalas solo a donde esté permitido.",
+    "droppedRecipients": "Guardado. Estas direcciones no son personas del workspace y se quitaron del email de cambios: {list}"
   },
   "geo": {
     "title": "País",

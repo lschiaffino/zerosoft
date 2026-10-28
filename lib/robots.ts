@@ -352,7 +352,7 @@ export async function listRobots(workspaceId: string): Promise<RobotListItem[]> 
 }
 
 export type RobotWriteResult =
-  | { ok: true; robot: RobotDto }
+  | { ok: true; robot: RobotDto; /** Destinatarios del email de cambios que no son del workspace (se descartaron). */ droppedRecipients?: string[] }
   | { ok: false; error: RobotErrorCode | 'not_found' | 'unknown_template' | 'invalid_settings' | 'invalid_import'; index?: number };
 
 function nextRun(schedule: RobotSchedule, enabled: boolean, from = new Date()): string | null {
@@ -469,9 +469,18 @@ export async function updateRobot(
   const row = await getRobotRow(workspaceId, id);
   if (!row) return { ok: false, error: 'not_found' };
   let settings = row.settings ?? '{}';
+  let droppedRecipients: string[] = [];
   if (patch.settings !== undefined) {
     const v = robotSettingsSchema.safeParse(patch.settings);
     if (!v.success) return { ok: false, error: 'invalid_settings' };
+    // El email de cambios solo va a personas del workspace: las demás direcciones se descartan al guardar.
+    const to = v.data.changeEmail?.to ?? [];
+    if (to.length) {
+      const { workspaceMemberEmails } = await import('./robots-alerts');
+      const members = await workspaceMemberEmails(workspaceId);
+      droppedRecipients = to.filter((a) => !members.has(a.toLowerCase()));
+      if (droppedRecipients.length && v.data.changeEmail) v.data.changeEmail.to = to.filter((a) => members.has(a.toLowerCase()));
+    }
     settings = JSON.stringify(v.data);
   }
   let steps = row.steps;
@@ -528,7 +537,7 @@ export async function updateRobot(
     );
   // Apagar "guardar sesión" borra la sesión guardada.
   if (patch.persistSession === false) await clearRobotSession(workspaceId, id);
-  return { ok: true, robot: (await getRobot(workspaceId, id))! };
+  return { ok: true, robot: (await getRobot(workspaceId, id))!, ...(droppedRecipients.length ? { droppedRecipients } : {}) };
 }
 
 export async function deleteRobot(workspaceId: string, id: string): Promise<boolean> {
@@ -760,10 +769,50 @@ async function claimQueuedRun(workspaceId: string, runId: string, timeoutMs: num
       `UPDATE robot_runs SET status = 'running', started_at = ?, locked_until = ?, backend = ?
        WHERE id = ? AND status = 'queued'
          AND NOT EXISTS (SELECT 1 FROM robot_runs WHERE user_id = ? AND status = 'running')
+         AND NOT EXISTS (SELECT 1 FROM robot_runtime WHERE key = ? AND value > ?)
          AND id = (SELECT id FROM robot_runs WHERE user_id = ? AND status = 'queued' ORDER BY created_at, rowid LIMIT 1)`,
     )
-    .run(ts, lock, backend, runId, workspaceId, workspaceId);
+    .run(ts, lock, backend, runId, workspaceId, snapshotLockKey(workspaceId), ts, workspaceId);
   return res.changes === 1;
+}
+
+// ---------- Cupo de navegador compartido (corridas + lecturas del constructor) ----------
+
+/** Clave del candado de la lectura de página del constructor con IA (robot_runtime). */
+function snapshotLockKey(workspaceId: string): string {
+  return `snapshot_lock:${workspaceId}`;
+}
+
+/**
+ * Toma el cupo de navegador del workspace para una lectura de página: una a la
+ * vez, y nunca junto a una corrida (las corridas, a su vez, no arrancan
+ * mientras haya una lectura: claimQueuedRun). El valor es "vence|token":
+ * compare-and-set con vencimiento, así una función que se cae no lo deja tomado.
+ * Devuelve el token para soltarlo, o null si está ocupado.
+ */
+async function acquireSnapshotLock(workspaceId: string, ttlMs: number): Promise<string | null> {
+  const db = getDb();
+  const now = nowIso();
+  const value = `${new Date(Date.now() + ttlMs).toISOString()}|${crypto.randomUUID()}`;
+  const res = await db
+    .prepare(
+      `INSERT INTO robot_runtime (key, value, updated_at) VALUES (?, ?, ?)
+       ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at WHERE robot_runtime.value < ?`,
+    )
+    .run(snapshotLockKey(workspaceId), value, now, now);
+  if (res.changes !== 1) return null;
+  const live = (await db
+    .prepare("SELECT 1 AS x FROM robot_runs WHERE user_id = ? AND status = 'running' LIMIT 1")
+    .get(workspaceId)) as { x: number } | undefined;
+  if (live) {
+    await releaseSnapshotLock(workspaceId, value);
+    return null;
+  }
+  return value;
+}
+
+async function releaseSnapshotLock(workspaceId: string, token: string): Promise<void> {
+  await getDb().prepare('DELETE FROM robot_runtime WHERE key = ? AND value = ?').run(snapshotLockKey(workspaceId), token);
 }
 
 /** Cierra una corrida (en cola o recién reclamada) como fallida y avisa a Flow. */
@@ -1556,13 +1605,23 @@ export async function snapshotPage(workspaceId: string, url: string, country?: s
     const rl = await rateLimit(`robot-snapshot:${workspaceId}`, snapshotsPerHour(), 3600);
     if (!rl.ok) return { ok: false, error: 'rate_limited' };
   }
-  // Un navegador a la vez por workspace, igual que las corridas: si hay una
-  // corrida viva, la lectura del constructor espera (no abre otro Chromium).
+  // Un navegador a la vez por workspace: la lectura toma el mismo cupo que las
+  // corridas (una lectura a la vez y nunca junto a una corrida).
   await failStaleRobotRuns(workspaceId);
-  const live = (await getDb()
-    .prepare("SELECT 1 AS x FROM robot_runs WHERE user_id = ? AND status = 'running' LIMIT 1")
-    .get(workspaceId)) as { x: number } | undefined;
-  if (live) return { ok: false, error: 'busy' };
+  const token = await acquireSnapshotLock(workspaceId, 90_000);
+  if (!token) return { ok: false, error: 'busy' };
+  try {
+    return await runSnapshot(workspaceId, url, country);
+  } finally {
+    await releaseSnapshotLock(workspaceId, token).catch(() => {});
+    // Si quedaron corridas esperando el cupo, que arranquen.
+    kickRobotQueue(workspaceId);
+  }
+}
+
+async function runSnapshot(workspaceId: string, url: string, country?: string): Promise<SnapshotResult> {
+  const backend = getRobotBackend();
+  if (!backend) return { ok: false, error: 'runner_unavailable' };
   const { PAGE_SNAPSHOT_SCRIPT, normalizeSnapshot } = await import('./robots-detect');
   const t0 = Date.now();
   const res = await backend

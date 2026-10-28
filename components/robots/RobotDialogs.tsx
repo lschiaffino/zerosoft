@@ -23,12 +23,15 @@ export function NlStepsDialog({
   onClose,
   defaultUrl,
   inputs,
+  robotId,
   onAdd,
 }: {
   open: boolean;
   onClose: () => void;
   defaultUrl: string;
   inputs: RobotInputDef[];
+  /** Robot que se edita: sus logins no piden revisión. */
+  robotId: string;
   onAdd: (steps: RobotStep[], mode: 'append' | 'replace') => void;
 }) {
   const t = useTranslations('robots.nl');
@@ -40,18 +43,22 @@ export function NlStepsDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [steps, setSteps] = useState<RobotStep[] | null>(null);
+  const [review, setReview] = useState<number[]>([]);
+  const [reviewed, setReviewed] = useState(false);
   const [mode, setMode] = useState<'append' | 'replace'>('append');
 
   async function generate() {
     setBusy(true);
     setError(null);
     setSteps(null);
+    setReview([]);
+    setReviewed(false);
     const res = await fetch('/api/robots/ai/steps', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ description, url: url.startsWith('http') ? url : '', inputs: inputs.map((i) => i.name) }),
+      body: JSON.stringify({ description, url: url.startsWith('http') ? url : '', inputs: inputs.map((i) => i.name), robotId }),
     }).catch(() => null);
-    const data = (await res?.json().catch(() => null)) as { steps?: RobotStep[]; error?: string } | null;
+    const data = (await res?.json().catch(() => null)) as { steps?: RobotStep[]; review?: number[]; error?: string } | null;
     setBusy(false);
     if (!res?.ok || !data?.steps) {
       setError(errorText(tr, data?.error));
@@ -59,6 +66,7 @@ export function NlStepsDialog({
     }
     if (!data.steps.length) setError(t('empty'));
     setSteps(data.steps);
+    setReview(data.review ?? []);
   }
 
   return (
@@ -73,7 +81,7 @@ export function NlStepsDialog({
             {t('cancel')}
           </button>
           {steps && steps.length > 0 ? (
-            <button type="button" className="btn btn-primary" onClick={() => onAdd(steps, mode)}>
+            <button type="button" className="btn btn-primary" disabled={review.length > 0 && !reviewed} onClick={() => onAdd(steps, mode)}>
               {mode === 'replace' ? t('replace') : t('append')}
             </button>
           ) : (
@@ -133,9 +141,16 @@ export function NlStepsDialog({
             {steps.map((s, i) => (
               <li key={i} className="data">
                 {summary(s)}
+                {review.includes(i) && <span className="badge badge-warn"> {t('review')}</span>}
               </li>
             ))}
           </ol>
+          {review.length > 0 && (
+            <label className="ui-check">
+              <input type="checkbox" checked={reviewed} onChange={(e) => setReviewed(e.target.checked)} />
+              <span>{t('reviewConfirm')}</span>
+            </label>
+          )}
           <fieldset className="robots-radios">
             <legend className="sr-only">{t('append')}</legend>
             {(['append', 'replace'] as const).map((m) => (

@@ -166,7 +166,7 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload),
     }).catch(() => null);
-    const data = (await res?.json().catch(() => null)) as { robot?: RobotDto; error?: string; index?: number } | null;
+    const data = (await res?.json().catch(() => null)) as { robot?: RobotDto; error?: string; index?: number; droppedRecipients?: string[] } | null;
     setSaving(false);
     if (!res?.ok || !data?.robot) {
       const idx = typeof data?.index === 'number' ? data.index : null;
@@ -193,6 +193,8 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
     setRetentionDays(data.robot.retentionDays);
     setSettings(data.robot.settings ?? {});
     setSavedAt(Date.now());
+    // Emails de cambios a direcciones que no son del workspace: se descartaron al guardar.
+    if (data.droppedRecipients?.length) setError(t('integrations.droppedRecipients', { list: data.droppedRecipients.join(', ') }));
     return true;
   }
 
@@ -878,6 +880,7 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
           onClose={() => setNlOpen(false)}
           defaultUrl={String((steps.find((s) => s.type === 'goto') as { url?: string } | undefined)?.url ?? '')}
           inputs={inputs}
+          robotId={robot.id}
           onAdd={(added, mode) => {
             const next = mode === 'replace' ? added : [...steps, ...added];
             if (countSteps(next) > MAX_ROBOT_STEPS) {

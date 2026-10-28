@@ -127,6 +127,8 @@ export default defineConfig({
       // con la cookie robots_ai_fake=off se ve ai_disabled) y envíos a Sheets/Airtable sin salir a internet.
       ROBOTS_AI_FAKE: '1',
       ROBOTS_DESTINATIONS_FAKE: '1',
+      // e2e de Robots con un https local autofirmado (redirección http → https).
+      ROBOTS_TEST_IGNORE_HTTPS_ERRORS: '1',
       AI_GATEWAY_API_KEY: '',
       VERCEL_OIDC_TOKEN: '',
     },

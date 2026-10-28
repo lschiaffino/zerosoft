@@ -127,6 +127,8 @@ export interface InterpreterOptions {
   credentials?: Record<string, Record<string, string>>;
   maxFiles?: number;
   maxFileBytes?: number;
+  /** Último pedido bloqueado por el arnés (salto de redirección a un host privado, etc.). */
+  lastBlocked?: () => string | null;
   /** Reloj (epoch ms) para los códigos TOTP; tests. */
   now?: () => number;
 }
@@ -490,7 +492,14 @@ export async function robotInterpreter(
         if (blocked) fail(blocked);
         pages += 1;
         if (pages > maxPages) fail('page_limit');
-        await page.goto(url, { timeout: Math.max(timeout(), Math.min(30_000, remaining())), waitUntil: 'domcontentloaded' });
+        try {
+          await page.goto(url, { timeout: Math.max(timeout(), Math.min(30_000, remaining())), waitUntil: 'domcontentloaded' });
+        } catch (err) {
+          // El arnés cortó un salto (p. ej. una redirección a la red interna): el código real, no action_failed.
+          const why = opts.lastBlocked ? opts.lastBlocked() : null;
+          if (why && err instanceof Error && /ERR_BLOCKED_BY_CLIENT|blocked/i.test(err.message)) fail(why);
+          throw err;
+        }
         return { detail: url };
       }
       case 'click': {
@@ -836,10 +845,10 @@ export async function robotInterpreter(
   };
 
   /** Errores que cortan la corrida aunque el paso tenga continueOnError. */
-  const FATAL = /^(timeout|step_limit)$/;
+  const FATAL = /^(timeout|step_limit|page_crashed)$/;
 
   /** Errores que no se arreglan reintentando el paso. */
-  const NO_RETRY = /^(timeout|page_limit|step_limit|invalid_url|private_host|https_required|unresolvable_host|missing_selector|missing_attribute|missing_fields|missing_totp_secret|invalid_key|unknown_step|file_limit|file_too_large|unsupported|result_too_large)$/;
+  const NO_RETRY = /^(timeout|page_crashed|page_limit|step_limit|invalid_url|private_host|https_required|unresolvable_host|missing_selector|missing_attribute|missing_fields|missing_totp_secret|invalid_key|unknown_step|file_limit|file_too_large|unsupported|result_too_large)$/;
 
   /** Ejecuta un paso con sus reintentos (retries + retryDelayMs). */
   const runWithRetries = async (s: InterpreterStep, ctx: Record<string, unknown>): Promise<Outcome & { attempts: number }> => {
@@ -914,9 +923,11 @@ export async function robotInterpreter(
         const code =
           err instanceof RobotError
             ? err.message
-            : err instanceof Error && /timeout/i.test(err.name + err.message)
-              ? 'action_timeout'
-              : 'action_failed';
+            : err instanceof Error && /Target crashed|Page crashed|crashed/i.test(err.message)
+              ? 'page_crashed'
+              : err instanceof Error && /timeout/i.test(err.name + err.message)
+                ? 'action_timeout'
+                : 'action_failed';
         const msg = err instanceof Error && !(err instanceof RobotError) ? err.message.split('\n')[0].slice(0, 300) : undefined;
         if (s.continueOnError === true && !FATAL.test(code)) {
           warnings += 1;
@@ -1051,6 +1062,8 @@ export interface HarnessJob {
   /** Idioma y zona horaria del país elegido. */
   locale?: string;
   timezoneId?: string;
+  /** Solo e2e (certificados autofirmados locales); nunca en producción. */
+  ignoreHTTPSErrors?: boolean;
 }
 
 /** Subconjunto de playwright-core que usa el arnés. */
@@ -1128,6 +1141,7 @@ export async function robotHarness(
       acceptDownloads: wantsDownloads,
       ...(job.storageState ? { storageState: job.storageState } : {}),
       serviceWorkers: 'block',
+      ...(job.ignoreHTTPSErrors ? { ignoreHTTPSErrors: true } : {}),
       viewport: { width: 1280, height: 800 },
       locale: job.locale || 'en-US',
       ...(job.timezoneId ? { timezoneId: job.timezoneId } : {}),
@@ -1143,10 +1157,27 @@ export async function robotHarness(
     // un pedido nuevo (la URL del documento queda bien) y ese pedido vuelve a
     // pasar por este handler. Un redirector a la red interna (location.href,
     // window.open o un 30x del propio servidor) se corta en el salto prohibido.
+    //
+    // DNS rebinding: la IP se valida con un lookup justo antes de cada pedido,
+    // pero route.fetch vuelve a resolver el nombre por su cuenta (Playwright no
+    // deja fijar la IP ni mandar a una IP con otro Host sin romper TLS). Queda
+    // una ventana chica entre el chequeo y la conexión. En la nube la cierra la
+    // red de la microVM (Vercel Sandbox con subnets.deny de los rangos
+    // privados: ni con DNS cambiado se llega a la red interna). En el runner
+    // local (self-host) esa ventana sigue abierta: correr el runner local en
+    // una máquina sin acceso a servicios internos sensibles.
+    let lastBlocked: string | null = null;
+    const block = (why: string | null) => {
+      lastBlocked = why || 'private_host';
+    };
     await context.route('**/*', async (route) => {
       const raw = route.request().url();
       if (/^(data|blob|about):/i.test(raw)) return route.continue();
-      if (await checkUrl(raw).catch(() => 'unresolvable_host')) return route.abort('blockedbyclient');
+      const first = await checkUrl(raw).catch(() => 'unresolvable_host');
+      if (first) {
+        block(first);
+        return route.abort('blockedbyclient');
+      }
       // route.fetch no existe en Playwright viejos: ahí se continúa (el salto
       // inicial ya se validó; sin seguir redirects a mano no hay protección extra).
       if (typeof route.fetch !== 'function' || typeof route.fulfill !== 'function') return route.continue();
@@ -1161,8 +1192,15 @@ export async function robotHarness(
           } catch {
             return route.abort('blockedbyclient');
           }
-          if (!/^https?:\/\//i.test(next)) return route.abort('blockedbyclient');
-          if (await checkUrl(next).catch(() => 'unresolvable_host')) return route.abort('blockedbyclient');
+          if (!/^https?:\/\//i.test(next)) {
+            block('invalid_url');
+            return route.abort('blockedbyclient');
+          }
+          const hop = await checkUrl(next).catch(() => 'unresolvable_host');
+          if (hop) {
+            block(hop);
+            return route.abort('blockedbyclient');
+          }
         }
         return route.fulfill({ response: res });
       } catch {
@@ -1202,6 +1240,7 @@ export async function robotHarness(
       credentials: job.credentials,
       maxFiles: job.maxFiles,
       maxFileBytes: job.maxFileBytes,
+      lastBlocked: () => lastBlocked,
     });
     if (job.saveSession) {
       try {

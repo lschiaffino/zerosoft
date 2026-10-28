@@ -325,6 +325,25 @@ export function normalizeNlSteps(raw: Array<z.infer<typeof nlStep>>): RobotStep[
   return valid;
 }
 
+/** Referencias a credenciales ({{credentials.x.y}}) de un texto, normalizadas. */
+export function credentialRefs(text: string): string[] {
+  return [...text.matchAll(/\{\{\s*credentials\.([A-Za-z0-9_-]{1,60})\.([A-Za-z0-9_]{1,40})[^}]*\}\}/g)].map((m) => `${m[1]}.${m[2]}`);
+}
+
+/**
+ * Pasos que la IA armó y que usan un login que el robot original no usaba:
+ * se devuelven marcados para revisión explícita (la persona confirma antes de
+ * agregarlos). `allowed` = referencias que ya estaban en el robot.
+ */
+export function stepsNeedingReview(steps: readonly RobotStep[], allowed: ReadonlySet<string>): number[] {
+  const out: number[] = [];
+  steps.forEach((s, i) => {
+    const refs = credentialRefs(JSON.stringify(s));
+    if (refs.some((r) => !allowed.has(r))) out.push(i);
+  });
+  return out;
+}
+
 export async function stepsFromDescription(ws: string, description: string, snap: PageSnapshot | null, inputs: string[]): Promise<RobotStep[]> {
   const out = await robotsObject({
     ws,

@@ -441,6 +441,75 @@ describe('robots: envío al CRM sin pisar lo existente', () => {
   });
 });
 
+describe('robots: re-QA (redacción, cupo de navegador, errores claros, revisión de logins)', () => {
+  it('redacta la forma de URLSearchParams (! \' ( ) * ~) y el hex en minúscula', async () => {
+    const { expandedSecrets } = await import('@/lib/flow-credentials');
+    const { redact } = await import('@/lib/flow-credentials-schema');
+    const pw = "a!b'c(d)e*f~g/h é";
+    const form = new URLSearchParams({ x: pw }).toString().slice(2);
+    const lower = encodeURIComponent(pw).replace(/%[0-9A-F]{2}/g, (m) => m.toLowerCase());
+    const out = redact({ form, lower, lowerForm: form.replace(/%[0-9A-F]{2}/g, (m) => m.toLowerCase()) }, expandedSecrets([pw])) as Record<string, string>;
+    for (const v of Object.values(out)) expect(v).toBe('[redacted]');
+  });
+
+  it('redacta el base64 de usuario:contraseña (Basic)', async () => {
+    const { secretValues, expandedSecrets } = await import('@/lib/flow-credentials');
+    const { redact } = await import('@/lib/flow-credentials-schema');
+    const secrets = expandedSecrets(secretValues('basic', { username: 'ada', password: 'hunter2-x' }));
+    const header = `Basic ${Buffer.from('ada:hunter2-x').toString('base64')}`;
+    expect(redact(header, secrets)).toBe('Basic [redacted]');
+  });
+
+  it('un salto bloqueado por el arnés falla con private_host, no action_failed', async () => {
+    const { page } = countPage({});
+    page.goto = async () => {
+      throw new Error('page.goto: net::ERR_BLOCKED_BY_CLIENT at https://x.test/');
+    };
+    const res = await robotInterpreter(page, steps([{ type: 'goto', url: 'https://x.test/' }]), {}, { ...opts, lastBlocked: () => 'private_host' });
+    expect(res.error).toBe('1: private_host');
+  });
+
+  it('el renderer caído en un paso da page_crashed y corta la corrida', async () => {
+    const { page } = countPage({ '#a': 1 });
+    const loc = page.locator('#a');
+    page.locator = () => ({ ...loc, first: () => ({ ...loc, click: async () => { throw new Error('locator.click: Target crashed'); } }) }) as never;
+    const res = await robotInterpreter(page, steps([{ type: 'click', selector: '#a', continueOnError: true }, { type: 'click', selector: '#a' }]), {}, opts);
+    expect(res.error).toBe('1: page_crashed');
+  });
+
+  it('marca para revisión los pasos de IA con un login que el robot no usaba', async () => {
+    const { credentialRefs, stepsNeedingReview } = await import('@/lib/robots-ai');
+    const original = JSON.stringify([{ type: 'fill', selector: '#u', value: '{{credentials.SHOP.username}}' }]);
+    const allowed = new Set(credentialRefs(original));
+    const proposed = steps([
+      { type: 'fill', selector: '#u', value: '{{credentials.SHOP.username}}' },
+      { type: 'fill', selector: '#p', value: '{{credentials.BANK.password}}' },
+      { type: 'click', selector: 'button', text: '' },
+    ]) as never;
+    expect(stepsNeedingReview(proposed, allowed)).toEqual([1]);
+  });
+
+  it('corridas y lecturas del constructor comparten un navegador por workspace', async () => {
+    const { snapshotPage } = await import('@/lib/robots');
+    const ws = (await makeUser('rsem')).id;
+    const r = await createRobot(ws, ws, { name: 'Sem', steps: [{ type: 'goto', url: 'https://x.test' }] });
+    if (!r.ok) throw new Error(r.error);
+    setRobotBackendForTests({ name: 'local', run: async () => ({ status: 'success', error: null, vars: {}, logs: [], screenshots: [], pages: 1 }) });
+    // Con una lectura en curso (candado tomado), una corrida queda en cola.
+    await getDb()
+      .prepare('INSERT INTO robot_runtime (key, value, updated_at) VALUES (?, ?, ?)')
+      .run(`snapshot_lock:${ws}`, `${new Date(Date.now() + 60_000).toISOString()}|t`, new Date().toISOString());
+    const queued = await startRobotRun(ws, r.robot.id, {}, { trigger: 'manual' });
+    expect(queued.ok && queued.queued).toBe(true);
+    // Y otra lectura no entra mientras el candado está tomado.
+    expect(await snapshotPage(ws, 'https://example.com/')).toMatchObject({ ok: false, error: 'busy' });
+    await getDb().prepare('DELETE FROM robot_runtime WHERE key = ?').run(`snapshot_lock:${ws}`);
+    // Con una corrida viva, la lectura tampoco entra.
+    await getDb().prepare("UPDATE robot_runs SET status = 'running', locked_until = ? WHERE user_id = ?").run(new Date(Date.now() + 60_000).toISOString(), ws);
+    expect(await snapshotPage(ws, 'https://example.com/')).toMatchObject({ ok: false, error: 'busy' });
+  });
+});
+
 describe('robots: IA y helpers', () => {
   it('normaliza pasos de la IA y descarta los inválidos', () => {
     const empty = { url: '', selector: '', text: '', value: '', key: '', name: '', ms: 0, mode: '', attribute: '', fields: [] };

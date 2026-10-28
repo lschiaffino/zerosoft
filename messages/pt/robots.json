@@ -625,7 +625,9 @@
     "append": "Adicionar no final",
     "replace": "Substituir os passos",
     "added": "{count, plural, one {# passo adicionado} other {# passos adicionados}}. Salve para manter.",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "review": "Usa um login salvo: revise antes de salvar",
+    "reviewConfirm": "Revisei os passos que usam um login salvo"
   },
   "bulk": {
     "button": "Executar em lote",
@@ -699,7 +701,7 @@
     "changeDesc": "Um email com as linhas novas, as que saíram e os valores que mudaram, cada vez que uma execução difere da anterior.",
     "changeOn": "Mandar as mudanças por email",
     "changeTo": "Enviar para",
-    "changeToHint": "Emails separados por vírgulas. Vazio: quem montou o robô. Até {max} emails por dia e robô.",
+    "changeToHint": "Só pessoas do workspace. Emails separados por vírgulas. Vazio: quem montou o robô. Até {max} emails por dia e robô.",
     "destTitle": "Enviar linhas para outros apps",
     "destDesc": "Depois de cada execução com sucesso, as linhas novas e alteradas vão para estes destinos.",
     "add": "Adicionar destino",
@@ -763,7 +765,8 @@
       "skip": "Deixar como está",
       "overwrite": "Sobrescrever com os dados do robô"
     },
-    "loginWarning": "Este robô faz login com um login salvo, então as linhas que envia podem incluir dados privados. Envie-as só para onde for permitido."
+    "loginWarning": "Este robô faz login com um login salvo, então as linhas que envia podem incluir dados privados. Envie-as só para onde for permitido.",
+    "droppedRecipients": "Salvo. Estes endereços não são pessoas do workspace e foram removidos do email de mudanças: {list}"
   },
   "geo": {
     "title": "País",

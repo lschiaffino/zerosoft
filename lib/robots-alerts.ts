@@ -265,7 +265,7 @@ export function renderChangeEmail(
 }
 
 /** Emails (lowercase) de las personas del workspace: dueño y miembros del equipo. */
-async function workspaceMemberEmails(workspaceId: string): Promise<Set<string>> {
+export async function workspaceMemberEmails(workspaceId: string): Promise<Set<string>> {
   const rows = (await getDb()
     .prepare(
       `SELECT lower(u.email) AS email FROM users u

@@ -138,7 +138,13 @@ const localBackend: RobotBackend = {
     }
     return robotHarness(
       chromium,
-      harnessJob(job, { executablePath: process.env.ROBOTS_CHROMIUM_PATH || undefined }),
+      harnessJob(job, {
+        executablePath: process.env.ROBOTS_CHROMIUM_PATH || undefined,
+        // e2e con un https local autofirmado: nunca en un deploy de producción.
+        ...(process.env.ROBOTS_TEST_IGNORE_HTTPS_ERRORS === '1' && process.env.VERCEL_ENV !== 'production'
+          ? { ignoreHTTPSErrors: true }
+          : {}),
+      }),
       robotInterpreter,
       checkRobotUrl,
     );

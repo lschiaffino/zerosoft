@@ -625,7 +625,9 @@
     "append": "Add at the end",
     "replace": "Replace the steps",
     "added": "{count, plural, one {# step added} other {# steps added}}. Save to keep them.",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "review": "Uses a saved login: check it before saving",
+    "reviewConfirm": "I checked the steps that use a saved login"
   },
   "bulk": {
     "button": "Bulk run",
@@ -699,7 +701,7 @@
     "changeDesc": "An email with the new rows, the rows that left and the values that changed, each time a run differs from the previous one.",
     "changeOn": "Email the changes",
     "changeTo": "Send to",
-    "changeToHint": "Emails separated by commas. Empty: the person who built the robot. Up to {max} emails a day per robot.",
+    "changeToHint": "Only people in the workspace. Emails separated by commas. Empty: the person who built the robot. Up to {max} emails a day per robot.",
     "destTitle": "Send rows to other apps",
     "destDesc": "After each successful run, the new and changed rows go to these destinations.",
     "add": "Add destination",
@@ -763,7 +765,8 @@
       "skip": "Leave it unchanged",
       "overwrite": "Overwrite with the robot's data"
     },
-    "loginWarning": "This robot signs in with a saved login, so the rows it sends can include private data. Only send them where that is allowed."
+    "loginWarning": "This robot signs in with a saved login, so the rows it sends can include private data. Only send them where that is allowed.",
+    "droppedRecipients": "Saved. These addresses are not people in the workspace and were removed from the change email: {list}"
   },
   "geo": {
     "title": "Country",

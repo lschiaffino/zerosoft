@@ -161,8 +161,15 @@ export function secretValues(type: CredentialType, data: Record<string, string>)
 export function secretEncodings(secret: string): string[] {
   const out = new Set<string>([secret]);
   try {
-    out.add(encodeURIComponent(secret));
-    out.add(encodeURIComponent(secret).replace(/%20/g, '+')); // form-encoded
+    const uri = encodeURIComponent(secret);
+    // URLSearchParams (lo que usa un form o un fetch con body de form): además
+    // de los espacios como +, codifica ! ' ( ) * ~.
+    const form = new URLSearchParams({ x: secret }).toString().slice(2);
+    for (const enc of [uri, uri.replace(/%20/g, '+'), form]) {
+      out.add(enc);
+      // Mismo texto con el hex en minúscula (%2f en vez de %2F).
+      out.add(enc.replace(/%[0-9A-F]{2}/g, (m) => m.toLowerCase()));
+    }
     out.add(Buffer.from(secret, 'utf8').toString('base64'));
     out.add(Buffer.from(secret, 'utf8').toString('base64url'));
     out.add(
