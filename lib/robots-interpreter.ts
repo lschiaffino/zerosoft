@@ -1000,12 +1000,11 @@ export async function robotHarness(
     });
     // SSRF: cada pedido se valida por la IP a la que resuelve su host (sin
     // caché por origen: así un re-bind de DNS no reusa un veredicto viejo).
-    // Las redirecciones (30x) no las sigue Chromium por su cuenta: pedimos con
-    // route.fetch({ maxRedirects: 0 }), validamos el Location y le devolvemos
-    // al navegador el 30x tal cual. Así el navegador sigue la redirección como
-    // un pedido nuevo (la URL del documento queda bien) y ese pedido vuelve a
-    // pasar por este handler. Un redirector a la red interna (location.href,
-    // window.open o un 30x del propio servidor) se corta en el salto prohibido.
+    // Las redirecciones (30x) NO las sigue Chromium: las resolvemos acá con
+    // route.fetch({ maxRedirects: 0 }) y validamos cada Location antes de
+    // seguirla, igual que una navegación nueva. Un redirector a la red interna
+    // (location.href, window.open o un 30x del propio servidor) se corta.
+    const MAX_HOPS = 8;
     await context.route('**/*', async (route) => {
       const raw = route.request().url();
       if (/^(data|blob|about):/i.test(raw)) return route.continue();
@@ -1014,20 +1013,26 @@ export async function robotHarness(
       // inicial ya se validó; sin seguir redirects a mano no hay protección extra).
       if (typeof route.fetch !== 'function' || typeof route.fulfill !== 'function') return route.continue();
       try {
-        const res = await route.fetch({ maxRedirects: 0 });
-        const status = res.status();
-        const loc = res.headers()['location'];
-        if (status >= 300 && status < 400 && loc) {
+        let current = raw;
+        let method = route.request().method();
+        for (let hop = 0; ; hop++) {
+          const res = await route.fetch(hop === 0 ? { maxRedirects: 0 } : { maxRedirects: 0, url: current, method });
+          const status = res.status();
+          const loc = res.headers()['location'];
+          if (status < 300 || status >= 400 || !loc) return route.fulfill({ response: res });
+          if (hop >= MAX_HOPS) return route.abort('blockedbyclient');
           let next: string;
           try {
-            next = new URL(loc, raw).toString();
+            next = new URL(loc, current).toString();
           } catch {
             return route.abort('blockedbyclient');
           }
           if (!/^https?:\/\//i.test(next)) return route.abort('blockedbyclient');
           if (await checkUrl(next).catch(() => 'unresolvable_host')) return route.abort('blockedbyclient');
+          // 301/302/303: el siguiente salto es GET sin cuerpo (307/308 conservan el método).
+          if (status === 301 || status === 302 || status === 303) method = 'GET';
+          current = next;
         }
-        return route.fulfill({ response: res });
       } catch {
         return route.abort('blockedbyclient').catch(() => {});
       }
