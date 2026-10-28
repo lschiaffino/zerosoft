@@ -599,7 +599,8 @@
 .flow-explain p, .flow-explain ol { margin: 0; }
 .flow-explain ol { padding-left: 20px; }
 
-/* Borrador sin publicar. */
+/* Borrador sin publicar (y el aviso de que otra persona publicó). */
+.flow-stale-list { margin: 8px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
 .flow-draft-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 6px 0; font-size: 0.8125rem; color: var(--warn-ink); }
 
 /* Nota del canvas. */

@@ -182,6 +182,27 @@ describe('Flow: borrador por persona', () => {
   });
 });
 
+describe('Flow: páginas de Docs creadas por un flow', () => {
+  it('quedan a nombre de la persona con cuyo acceso corrió (page_owner_id y content_by)', async () => {
+    const { ws, ana, bob } = await team();
+    const flow = await newFlow(ws, ana, {
+      nodes: [T, node('d', 'app.docs_page', { operation: 'page_create', title: 'Desde Flow {{trigger.n}}', content: 'Hola' })],
+      edges: [edge('t', 'd')],
+    });
+    const byAna = await runFlowNow(ws, flow.id, { n: 'ana' }, { personId: ana, admin: true });
+    const byBob = await runFlowNow(ws, flow.id, { n: 'bob' }, { personId: bob, admin: true });
+    expect(byAna.ok && byAna.run?.status).toBe('success');
+    expect(byBob.ok && byBob.run?.status).toBe('success');
+    const rows = (await getDb()
+      .prepare("SELECT title, page_owner_id, content_by FROM docs_pages WHERE user_id = ? AND title LIKE 'Desde Flow %' ORDER BY title")
+      .all(ws)) as Array<{ title: string; page_owner_id: string; content_by: string }>;
+    expect(rows).toEqual([
+      { title: 'Desde Flow ana', page_owner_id: ana, content_by: ana },
+      { title: 'Desde Flow bob', page_owner_id: bob, content_by: bob },
+    ]);
+  });
+});
+
 describe('Flow: variables por persona', () => {
   it('cada persona ve y cambia solo las suyas', async () => {
     const { ws, ana, bob } = await team();

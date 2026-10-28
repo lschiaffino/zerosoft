@@ -390,6 +390,7 @@ export async function docsPageFlowNode(ws: string, actorId: string, cfg: Cfg, tc
         markdown: content,
         templateId: templateId || null,
         vars: templateId ? templateVars(tctx) : undefined,
+        ownedByActor: true,
       }),
     );
     return out(page);

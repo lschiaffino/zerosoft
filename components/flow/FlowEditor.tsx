@@ -1542,7 +1542,7 @@ function Editor({
           stale ? (
             <>
               <p>{t('draft.staleBody', { base: stale.baseVersion, n: stale.publishedVersion })}</p>
-              <ul>
+              <ul className="flow-stale-list">
                 {(() => {
                   const names = (ids: string[]) =>
                     ids
