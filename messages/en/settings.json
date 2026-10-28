@@ -146,6 +146,8 @@
       "robot_output_changed": "Robot data changed",
       "link_updated": "Link updated",
       "link_deleted": "Link deleted",
+      "link_lead": "Link: new lead",
+      "link_sale": "Link: new sale",
       "chat_message_created": "Chat message",
       "chat_conversation_assigned": "Conversation assigned",
       "chat_conversation_resolved": "Conversation resolved",

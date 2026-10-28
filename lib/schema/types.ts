@@ -47,6 +47,14 @@ export interface LinkRow {
   external_id?: string | null;
   /** Carpeta (link_folders); null = sin carpeta. */
   folder_id?: string | null;
+  /** 1 = cada click lleva un click id (?zs_id=) para atribuir leads y ventas. */
+  track_conversion?: number;
+  /** 1 = la URL corta queda en la barra (iframe del destino); solo en dominios propios. */
+  cloak?: number;
+  /** 'blocked' = destino reportado como phishing o malware (lib/link-safety.ts). */
+  safety?: string | null;
+  safety_reason?: string | null;
+  safety_checked_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -97,6 +105,8 @@ export interface ClickRow {
   region?: string | null;
   /** URL del referrer sin query (salvo utm_*) ni hash. */
   referrer_url?: string | null;
+  /** Click id de los links con conversiones (?zs_id=). */
+  click_id?: string | null;
 }
 
 export interface ApiKeyRow {

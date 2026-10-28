@@ -13,8 +13,9 @@ import * as m7 from '@/lib/routes/links/[id]/qr/route';
 import * as m8 from '@/lib/routes/links/domains/[id]/route';
 import * as m9 from '@/lib/routes/links/domains/[id]/verify/route';
 import * as m10 from '@/lib/routes/links/folders/[id]/route';
-import * as m11 from '@/lib/routes/links/shares/[id]/route';
-import * as m12 from '@/lib/routes/links/utm-templates/[id]/route';
+import * as m11 from '@/lib/routes/links/qr-templates/[id]/route';
+import * as m12 from '@/lib/routes/links/shares/[id]/route';
+import * as m13 from '@/lib/routes/links/utm-templates/[id]/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -31,8 +32,9 @@ const d = createDispatcher('zsPath', [
   { pattern: 'domains/[id]', mod: m8 }, // lib/routes/links/domains/[id]
   { pattern: 'domains/[id]/verify', mod: m9 }, // lib/routes/links/domains/[id]/verify
   { pattern: 'folders/[id]', mod: m10 }, // lib/routes/links/folders/[id]
-  { pattern: 'shares/[id]', mod: m11 }, // lib/routes/links/shares/[id]
-  { pattern: 'utm-templates/[id]', mod: m12 }, // lib/routes/links/utm-templates/[id]
+  { pattern: 'qr-templates/[id]', mod: m11 }, // lib/routes/links/qr-templates/[id]
+  { pattern: 'shares/[id]', mod: m12 }, // lib/routes/links/shares/[id]
+  { pattern: 'utm-templates/[id]', mod: m13 }, // lib/routes/links/utm-templates/[id]
 ]);
 
 export const GET = d.GET;

@@ -3,7 +3,7 @@
  * catorce bloques en una sola página; ahora cada tarea tiene su pestaña.
  * `?edit=1` (links viejos desde la tabla) abre Ajustes.
  */
-export const LINK_TABS = ['overview', 'analytics', 'qr', 'routing', 'comments', 'settings'] as const;
+export const LINK_TABS = ['overview', 'analytics', 'qr', 'routing', 'comments', 'activity', 'settings'] as const;
 
 export type LinkTab = (typeof LINK_TABS)[number];
 

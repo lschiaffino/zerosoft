@@ -35,6 +35,9 @@ import { parseTargeting } from '@/lib/link-targeting';
 import { breakdownLabelers } from '@/lib/link-labels';
 import { linkTabHref, parseLinkTab, type LinkTab } from '@/lib/link-detail-tabs';
 import { periodDelta } from '@/lib/period-delta';
+import { listLinkActivity } from '@/lib/link-activity';
+import { formatMoney, linkConversionTotals, listLinkConversions } from '@/lib/link-conversions';
+import LinkActivityList from '@/components/link/LinkActivityList';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,7 +76,8 @@ export default async function LinkDetailPage(props: DetailPageProps) {
 
   // Cada pestaña pide solo lo que muestra.
   const needsStats = tab === 'overview' || tab === 'analytics';
-  const [a, clickResult, countries, comments, commentCount, creatorName, shares, folders] = await Promise.all([
+  const before = Number(searchParams.before) || undefined;
+  const [a, clickResult, countries, comments, commentCount, creatorName, shares, folders, activity, convTotals, convRecent] = await Promise.all([
     needsStats ? getAnalytics(link.id, link.created_at, range) : null,
     tab === 'analytics'
       ? listClicks(link.id, link.created_at, { range, country, page: clickPage, pageSize: clickPageSize })
@@ -84,7 +88,11 @@ export default async function LinkDetailPage(props: DetailPageProps) {
     linkCreatorName(link.created_by),
     tab === 'analytics' ? listShares(user.id, { linkId: link.id }) : null,
     tab === 'settings' ? listFolders(user.id, viewer) : null,
+    tab === 'activity' ? listLinkActivity(user.id, { linkId: link.id, before, limit: 50 }) : null,
+    needsStats ? linkConversionTotals(link.id) : null,
+    tab === 'overview' && link.track_conversion === 1 ? listLinkConversions(link.id, 10) : null,
   ]);
+  const showConversions = !!convTotals && (link.track_conversion === 1 || convTotals.leads + convTotals.sales > 0);
 
   const short = shortUrl(link.slug, link.domain_hostname ?? null);
   const shortText = short.replace(/^https?:\/\//, '');
@@ -139,6 +147,7 @@ export default async function LinkDetailPage(props: DetailPageProps) {
       key: 'comments',
       label: commentCount > 0 ? t('detail.tabs.commentsN', { n: commentCount }) : t('detail.tabs.comments'),
     },
+    { key: 'activity', label: t('detail.tabs.activity') },
     ...(canEdit ? [{ key: 'settings', label: t('detail.tabs.settings') }] : []),
   ];
 
@@ -218,6 +227,53 @@ export default async function LinkDetailPage(props: DetailPageProps) {
             <BreakdownBars items={a.countries.slice(0, 6)} emptyLabel={noData} labelFor={labels.country} />
           </section>
         </div>
+        {showConversions && convTotals && (
+          <section className="lk-block" aria-labelledby="lk-conv-title" data-testid="detail-conversions">
+            <h2 className="lk-h" id="lk-conv-title">
+              {t('conversions.title')}
+            </h2>
+            <dl className="lk-stats">
+              <div className="lk-stat">
+                <dt>{t('analytics.leads')}</dt>
+                <dd className="data num" data-testid="detail-leads">
+                  {formatNumber(convTotals.leads, locale)}
+                </dd>
+              </div>
+              <div className="lk-stat">
+                <dt>{t('analytics.sales')}</dt>
+                <dd className="data num" data-testid="detail-sales">
+                  {formatNumber(convTotals.sales, locale)}
+                </dd>
+              </div>
+              <div className="lk-stat">
+                <dt>{t('analytics.revenue')}</dt>
+                <dd className="lk-stat-text data" data-testid="detail-revenue">
+                  {convTotals.revenue.length
+                    ? convTotals.revenue.map((r) => formatMoney(r.amount, r.currency, locale)).join(' · ')
+                    : t('analytics.noRevenue')}
+                </dd>
+              </div>
+              <div className="lk-stat">
+                <dt>{t('conversions.rate')}</dt>
+                <dd className="data num">{a.total > 0 ? `${Math.round((convTotals.leads / a.total) * 1000) / 10}%` : t('detail.none')}</dd>
+              </div>
+            </dl>
+            {convRecent && convRecent.length > 0 ? (
+              <ul className="lk-conv-list">
+                {convRecent.map((c) => (
+                  <li key={c.id}>
+                    <span className={`badge lk-ev-${c.type}`}>{t(`events.type.${c.type}`)}</span>
+                    <span>{c.eventName}</span>
+                    {c.type === 'sale' && c.currency && <span className="data">{formatMoney(c.amount, c.currency, locale)}</span>}
+                    <span className="lk-cell-sub data">{formatDateTime(c.createdAt, locale)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : link.track_conversion === 1 ? (
+              <p className="ui-help">{t.rich('conversions.waiting', { a: (chunks) => <Link href="/app/links/settings?tab=conversions">{chunks}</Link> })}</p>
+            ) : null}
+          </section>
+        )}
         <p>
           <Link href={linkTabHref(link.id, 'analytics', { range: range === '30d' ? undefined : range })} className="lk-more">
             {t('detail.seeAnalytics')}
@@ -244,6 +300,9 @@ export default async function LinkDetailPage(props: DetailPageProps) {
             <LinkIcon name="download" size={14} />
             {t('detail.exportCsv')}
           </a>
+          <Link href={`/app/links/analytics?view=events&link=${link.id}`} className="btn btn-sm" data-testid="detail-live-events">
+            {t('events.openLive')}
+          </Link>
         </div>
 
         <section className="lk-block" aria-labelledby="lk-chart-title">
@@ -406,6 +465,19 @@ export default async function LinkDetailPage(props: DetailPageProps) {
     body = <QrSection id={link.id} slug={link.slug} />;
   } else if (tab === 'routing') {
     body = <TargetingPanel key={link.url} linkId={link.id} defaultUrl={link.url} initial={targeting} />;
+  } else if (tab === 'activity' && activity) {
+    body = (
+      <section className="lk-block" aria-labelledby="lk-activity-title">
+        <h2 className="lk-h" id="lk-activity-title">
+          {t('activity.title')}
+        </h2>
+        <LinkActivityList
+          locale={locale}
+          rows={activity.rows}
+          moreHref={activity.nextBefore ? `/app/links/${link.id}?tab=activity&before=${activity.nextBefore}` : null}
+        />
+      </section>
+    );
   } else if (tab === 'comments' && comments) {
     body = <LinkComments linkId={link.id} initial={comments} viewerId={realUserId(user)} isAdmin={isWorkspaceAdmin(user)} />;
   } else if (tab === 'settings') {
@@ -447,6 +519,12 @@ export default async function LinkDetailPage(props: DetailPageProps) {
           </>
         }
       />
+
+      {link.safety === 'blocked' && (
+        <p className="ui-error lk-blocked" role="alert" data-testid="link-blocked">
+          {t('safety.blockedBanner', { reason: t(`safety.reason.${link.safety_reason ?? 'malware'}`) })}
+        </p>
+      )}
 
       <LinkRoute
         short={short}

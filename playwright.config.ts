@@ -110,6 +110,13 @@ export default defineConfig({
       CHAT_AI_FAKE: '1',
       CHAT_INBOUND_FAKE: '1',
       CHAT_INBOUND_DOMAIN: 'inbound.zerosoft.test',
+      // Link: Safe Browsing marca solo las URLs de prueba de Google (lib/link-safety.ts),
+      // Rebrandly/Short.io devuelven links de prueba, Segment no sale a internet y la IA
+      // de analytics usa el modelo falso (cookie link_ai_fake=off → ai_disabled).
+      LINK_SAFETY_FAKE: '1',
+      LINK_IMPORT_FAKE: '1',
+      LINK_INTEGRATIONS_FAKE: '1',
+      LINK_AI_FAKE: '1',
       AI_GATEWAY_API_KEY: '',
       VERCEL_OIDC_TOKEN: '',
     },

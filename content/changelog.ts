@@ -29,6 +29,41 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-27-link-parity',
+    date: '2026-10-27',
+    title: {
+      en: 'Link: leads and sales per link, live events, phishing protection and an MCP server',
+      es: 'Link: leads y ventas por link, eventos en vivo, protección contra phishing y servidor MCP',
+      pt: 'Link: leads e vendas por link, eventos ao vivo, proteção contra phishing e servidor MCP',
+    },
+    items: [
+      {
+        product: 'link',
+        en: 'Conversions: turn on lead and sale tracking on a link, add a small script to your site and report sign-ups and payments through the API, the workspace Stripe connection or a Shopify webhook. Analytics now show leads, sales, revenue and the funnel from clicks to sales, with a CSV export.',
+        es: 'Conversiones: activá la medición de leads y ventas en un link, sumá un script chico a tu sitio y avisá registros y pagos por la API, la conexión de Stripe del workspace o un webhook de Shopify. Las analytics ahora muestran leads, ventas, ingresos y el embudo de clicks a ventas, con export CSV.',
+        pt: 'Conversões: ative a medição de leads e vendas em um link, adicione um script pequeno ao seu site e informe cadastros e pagamentos pela API, pela conexão do Stripe do workspace ou por um webhook do Shopify. As analytics agora mostram leads, vendas, receita e o funil de cliques a vendas, com exportação CSV.',
+      },
+      {
+        product: 'link',
+        en: 'A live Events view with clicks, QR scans, leads and sales as they happen, an activity log of who changed each link, and questions about your analytics answered by AI.',
+        es: 'Una vista de Eventos en vivo con clicks, escaneos de QR, leads y ventas a medida que pasan, un registro de quién cambió cada link y preguntas sobre tus analytics respondidas con IA.',
+        pt: 'Uma visão de Eventos ao vivo com cliques, leituras de QR, leads e vendas à medida que acontecem, um registro de quem mudou cada link e perguntas sobre suas analytics respondidas por IA.',
+      },
+      {
+        product: 'link',
+        en: 'Destinations are checked against Google Safe Browsing when you create or edit a link and again every week; links that turn malicious stop redirecting and show a warning.',
+        es: 'Los destinos se revisan contra Google Safe Browsing al crear o editar un link y de nuevo cada semana; si un destino pasa a ser peligroso, el link deja de redirigir y muestra un aviso.',
+        pt: 'Os destinos são verificados no Google Safe Browsing ao criar ou editar um link e de novo toda semana; se um destino passa a ser perigoso, o link para de redirecionar e mostra um aviso.',
+      },
+      {
+        product: 'link',
+        en: 'Also new: link cloaking on custom domains, deferred deep linking for apps, QR frames and shared templates, bio themes with a live preview and any URL as a button, keyboard shortcuts per row (e, q, d, a, x), Slack, Zapier, Make and Segment events, imports from Rebrandly and Short.io, and an MCP server for AI agents.',
+        es: 'También: link cloaking en dominios propios, deep linking diferido para apps, marcos y plantillas compartidas para el QR, temas de la bio con vista previa en vivo y cualquier URL como botón, atajos por fila (e, q, d, a, x), eventos en Slack, Zapier, Make y Segment, importación desde Rebrandly y Short.io, y un servidor MCP para agentes de IA.',
+        pt: 'Também: link cloaking em domínios próprios, deep linking diferido para apps, molduras e modelos compartilhados para o QR, temas da bio com prévia ao vivo e qualquer URL como botão, atalhos por linha (e, q, d, a, x), eventos no Slack, Zapier, Make e Segment, importação do Rebrandly e do Short.io, e um servidor MCP para agentes de IA.',
+      },
+    ],
+  },
+  {
     id: '2026-10-27-cal-parity',
     date: '2026-10-27',
     title: {

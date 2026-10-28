@@ -13,9 +13,13 @@ interface Report {
   truncated: boolean;
 }
 
-/** Importar desde Bitly (token de API o CSV exportado). El token no se guarda. */
+const SOURCES = ['bitly', 'rebrandly', 'shortio'] as const;
+type Source = (typeof SOURCES)[number];
+
+/** Importar desde Bitly, Rebrandly o Short.io (token de API) o un CSV. El token no se guarda. */
 export default function ImportLinksPanel() {
   const t = useTranslations('link');
+  const [source, setSource] = useState<Source>('bitly');
   const [mode, setMode] = useState<'token' | 'csv'>('token');
   const [token, setToken] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -28,7 +32,7 @@ export default function ImportLinksPanel() {
       res = await fetch('/api/links/import', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ source: 'bitly', token: token.trim() }),
+        body: JSON.stringify({ source, token: token.trim() }),
       }).catch(() => null);
     } else {
       const form = new FormData();
@@ -47,13 +51,35 @@ export default function ImportLinksPanel() {
   return (
     <>
       <FormSection
-        title={t('import.title')}
+        title={t(`import.titles.${source}`)}
         description={t('import.desc')}
         onSubmit={run}
         submitLabel={t('import.run')}
         disabled={mode === 'token' ? !token.trim() : !file}
         className="lk-form"
       >
+        <div className="ui-field">
+          <label className="label" htmlFor="import-source">
+            {t('import.source')}
+          </label>
+          <select
+            id="import-source"
+            className="select lk-select-auto"
+            value={source}
+            onChange={(e) => {
+              setSource(e.target.value as Source);
+              setToken('');
+              setReport(null);
+            }}
+          >
+            {SOURCES.map((s) => (
+              <option key={s} value={s}>
+                {t(`import.sources.${s}`)}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div className="ui-field">
           <span className="label" id="import-mode-label">
             {t('import.from')}
@@ -70,7 +96,7 @@ export default function ImportLinksPanel() {
         {mode === 'token' ? (
           <div className="ui-field">
             <label className="label" htmlFor="import-token">
-              {t('import.token')}
+              {t(`import.tokens.${source}`)}
             </label>
             <input
               id="import-token"
@@ -78,12 +104,12 @@ export default function ImportLinksPanel() {
               type="password"
               value={token}
               onChange={(e) => setToken(e.target.value)}
-              placeholder={t('import.tokenPlaceholder')}
+              placeholder={t(`import.tokens.${source}`)}
               autoComplete="off"
               aria-describedby="import-help"
             />
             <p id="import-help" className="ui-help">
-              {t('import.tokenHelp')}
+              {t(`import.tokenHelps.${source}`)}
             </p>
           </div>
         ) : (

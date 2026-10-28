@@ -57,6 +57,8 @@ function operation(e: ApiEndpoint): Record<string, unknown> {
     op['x-required-scope'] = scope;
     op.security = [{ bearerAuth: [scope] }];
   }
+  // Rutas sin API key (deep linking diferido): sin seguridad.
+  if (e.public) op.security = [];
   if (hasBody) {
     const bodyParams = params.filter((p) => !pathParams.includes(p.name));
     op.requestBody = {

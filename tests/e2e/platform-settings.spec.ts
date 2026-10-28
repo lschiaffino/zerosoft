@@ -126,7 +126,7 @@ test('Link: dominios, importar y exportar son pestañas de sus ajustes', async (
   await expect(page.getByLabel('Domain', { exact: true })).toBeVisible();
   await tabs.getByRole('link', { name: 'Export links' }).click();
   await expect(page.getByRole('link', { name: 'Download CSV' })).toBeVisible();
-  await tabs.getByRole('link', { name: 'Import from Bitly' }).click();
+  await tabs.getByRole('link', { name: 'Import links' }).click();
   await expect(page).toHaveURL(/tab=import/);
   // El sidebar de Link marca Ajustes de la app.
   await expect(page.locator('.side-line [aria-current="page"]')).toHaveAttribute('href', /\/en\/app\/links\/settings$/);

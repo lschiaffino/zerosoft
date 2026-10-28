@@ -493,3 +493,55 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
 .gr-crm-chat-head a { font-weight: 600; color: var(--ink); text-underline-offset: 3px; }
 .gr-crm-timeline { list-style: none; margin: 6px 0 0; padding: 0 0 0 10px; border-left: 2px solid color-mix(in srgb, var(--c-groups) 45%, var(--bg)); display: flex; flex-direction: column; gap: 4px; }
 .gr-crm-timeline li { font-size: 0.8125rem; line-height: 1.4; overflow-wrap: anywhere; }
+
+/* ---------- Integraciones: apps (Slack, Zoom, Stripe, Zapier, Make). Las usan CRM y Link. ---------- */
+.crm-apps-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: 12px;
+}
+.crm-app-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+}
+.crm-app-head { display: flex; align-items: flex-start; gap: 12px; }
+.crm-app-mark {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-data);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--brand-enamel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+.crm-app-title { flex: 1; min-width: 0; }
+.crm-app-title h3 { margin: 0; font-size: 1rem; font-weight: 600; }
+.crm-app-title .ui-help { margin: 2px 0 0; }
+.crm-app-meta, .crm-app-hint { margin: 0; font-size: 0.8125rem; overflow-wrap: anywhere; }
+.crm-app-form, .crm-app-connected { display: flex; flex-direction: column; gap: 10px; }
+.crm-app-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+.crm-app-events { border: 0; margin: 0; padding: 0; }
+.crm-app-events ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px 12px; }
+.crm-app-copy { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.crm-app-copy code { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 0.75rem; padding: 6px 8px; background: var(--brand-enamel); border: 1px solid var(--line); border-radius: var(--radius-1); }
+.crm-app-inline { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; }
+.crm-app-inline .ui-field { flex: 1; min-width: 180px; margin: 0; }
+.crm-app-log summary { cursor: pointer; font-size: 0.8125rem; }
+.crm-app-log ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; font-size: 0.8125rem; }
+.crm-app-log li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+.crm-app-log-detail { flex-basis: 100%; overflow-wrap: anywhere; }
+.crm-app-notice { margin: 0; }

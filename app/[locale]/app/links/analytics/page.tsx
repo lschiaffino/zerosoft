@@ -6,6 +6,7 @@ import {
   filtersQuery,
   getAnalyticsFacets,
   getWorkspaceAnalytics,
+  getWorkspaceConversions,
   parseTimezone,
   parseWorkspaceFilters,
   parseWorkspaceRange,
@@ -23,6 +24,10 @@ import { breakdownLabelers } from '@/lib/link-labels';
 import BreakdownBars from '@/components/link/BreakdownBars';
 import { periodDelta, type PeriodDelta } from '@/lib/period-delta';
 import SharePanel from '@/components/link/SharePanel';
+import SettingsTabs from '@/components/ui/SettingsTabs';
+import LinkEvents from '@/components/link/LinkEvents';
+import LinkAskAi from '@/components/link/LinkAskAi';
+import { formatMoney } from '@/lib/link-conversions';
 
 /** Zonas para el selector: la del navegador primero, después todas las IANA. */
 function timezoneOptions(current: string): string[] {
@@ -62,14 +67,33 @@ export default async function LinkAnalyticsPage(props: Props) {
   const sp = await props.searchParams;
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'link' });
+  const view = one(sp.view) === 'events' ? 'events' : 'overview';
+  const viewTabs = [
+    { key: 'overview', label: t('analytics.viewOverview') },
+    { key: 'events', label: t('analytics.viewEvents') },
+  ];
+
+  if (view === 'events') {
+    // Eventos en vivo: sin las consultas pesadas del resumen.
+    const link = one(sp.link);
+    return (
+      <div className="ui-page link-analytics">
+        <PageHeader title={t('analytics.title')} description={t('events.sub')} />
+        <SettingsTabs mode="query" param="view" layout="top" items={viewTabs} label={t('analytics.viewsLabel')}>
+          <LinkEvents linkId={link && link.length <= 64 ? link : undefined} />
+        </SettingsTabs>
+      </div>
+    );
+  }
 
   const range = parseWorkspaceRange(one(sp.from), one(sp.to));
   const filters = parseWorkspaceFilters(sp);
   // Sin ?tz= se usa la zona del navegador (cookie); UTC si no hay.
   const timezone = parseTimezone(one(sp.tz) ?? (await getUserTimeZone()));
   const viewer = viewerOf(user);
-  const [a, facets, folders, tagShares] = await Promise.all([
+  const [a, conv, facets, folders, tagShares] = await Promise.all([
     getWorkspaceAnalytics(user.id, range, { filters, timezone, viewer }),
+    getWorkspaceConversions(user.id, range, { filters, timezone, viewer }),
     getAnalyticsFacets(user.id, viewer),
     listFolders(user.id, viewer),
     // Compartir un tag es de admins (puede juntar links de carpetas que otros no ven).
@@ -113,12 +137,19 @@ export default async function LinkAnalyticsPage(props: Props) {
         title={t('analytics.title')}
         description={t('analytics.sub', { tz: timezone })}
         actions={
-          <a href={`/api/links/analytics/export.csv?${q}`} className="btn" data-testid="analytics-export">
-            <LinkIcon name="download" size={15} />
-            {t('analytics.exportCsv')}
-          </a>
+          <>
+            <a href={`/api/links/analytics/export.csv?${q}`} className="btn" data-testid="analytics-export">
+              <LinkIcon name="download" size={15} />
+              {t('analytics.exportCsv')}
+            </a>
+            <a href={`/api/links/analytics/export.csv?${q}&kind=conversions`} className="btn btn-ghost" data-testid="analytics-export-conversions">
+              <LinkIcon name="download" size={15} />
+              {t('analytics.exportConversions')}
+            </a>
+          </>
         }
       />
+      <SettingsTabs mode="query" param="view" layout="top" items={viewTabs} label={t('analytics.viewsLabel')} />
 
       {/* Un solo form (con un solo Aplicar) para fechas y filtros: las fechas viven arriba y se enlazan con form=. */}
       <div className="lk-toolbar">
@@ -258,7 +289,7 @@ export default async function LinkAnalyticsPage(props: Props) {
         )}
       </form>
 
-      <dl className="lk-stats lk-stats-2">
+      <dl className="lk-stats">
         <div className="lk-stat">
           <dt>{t('analytics.clicks')}</dt>
           <dd className="data num" data-testid="analytics-clicks">
@@ -272,6 +303,24 @@ export default async function LinkAnalyticsPage(props: Props) {
             {formatNumber(a.scans, locale)}
           </dd>
           {deltaLine(periodDelta(a.scans, a.previous.scans))}
+        </div>
+        <div className="lk-stat">
+          <dt>{t('analytics.leads')}</dt>
+          <dd className="data num" data-testid="analytics-leads">
+            {formatNumber(conv.leads, locale)}
+          </dd>
+          {deltaLine(periodDelta(conv.leads, conv.previous.leads))}
+        </div>
+        <div className="lk-stat">
+          <dt>{t('analytics.sales')}</dt>
+          <dd className="data num" data-testid="analytics-sales">
+            {formatNumber(conv.sales, locale)}
+          </dd>
+          <dd className="lk-stat-sub" data-testid="analytics-revenue">
+            {conv.revenue.length
+              ? conv.revenue.map((r) => formatMoney(r.amount, r.currency, locale)).join(' · ')
+              : t('analytics.noRevenue')}
+          </dd>
         </div>
       </dl>
 
@@ -319,6 +368,60 @@ export default async function LinkAnalyticsPage(props: Props) {
           ]}
         />
       </section>
+
+      <section className="lk-block" aria-labelledby="la-conv-title" data-testid="analytics-conversions">
+        <h2 className="lk-h" id="la-conv-title">
+          {t('analytics.conversions')}
+        </h2>
+        {conv.leads + conv.sales === 0 ? (
+          <p className="lk-empty-line">{t('analytics.conversionsEmpty')}</p>
+        ) : (
+          <>
+            <ol className="lk-funnel" aria-label={t('analytics.funnel')}>
+              {[
+                [t('analytics.clicks'), a.clicks + a.scans],
+                [t('analytics.leads'), conv.leads],
+                [t('analytics.sales'), conv.sales],
+              ].map(([label, n], i, all) => {
+                const top = Number(all[0][1]) || 1;
+                return (
+                  <li key={String(label)} className="lk-funnel-step">
+                    <span className="lk-funnel-label">{label}</span>
+                    <span className="lk-funnel-bar" style={{ width: `${Math.max(2, Math.round((Number(n) / top) * 100))}%` }} aria-hidden="true" />
+                    <span className="data num">
+                      {formatNumber(Number(n), locale)}
+                      {i > 0 && Number(all[i - 1][1]) > 0 && (
+                        <span className="lk-funnel-rate"> · {Math.round((Number(n) / Number(all[i - 1][1])) * 1000) / 10}%</span>
+                      )}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+            <DataTable
+              caption={t('analytics.topConverting')}
+              rows={conv.topLinks}
+              rowKey={(l) => l.id}
+              rowHref={(l) => `/app/links/${l.id}`}
+              compact
+              columns={[
+                { key: 'link', header: t('analytics.colLink'), data: true, cell: (l) => l.short_url.replace(/^https?:\/\//, '') },
+                { key: 'leads', header: t('analytics.leads'), numeric: true, data: true, cell: (l) => formatNumber(l.leads, locale) },
+                { key: 'sales', header: t('analytics.sales'), numeric: true, data: true, cell: (l) => formatNumber(l.sales, locale) },
+                {
+                  key: 'revenue',
+                  header: t('analytics.revenue'),
+                  numeric: true,
+                  data: true,
+                  cell: (l) => (conv.revenue[0] ? formatMoney(l.revenue, conv.revenue[0].currency, locale) : '0'),
+                },
+              ]}
+            />
+          </>
+        )}
+      </section>
+
+      <LinkAskAi params={{ from: range.from, to: range.to, ...filterQuery }} />
 
       <div className="lk-grid-2">
         {(

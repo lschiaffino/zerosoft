@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 /** Foco en un campo editable o en un diálogo abierto: los atajos de una tecla no corren. */
-function isTypingTarget(el: EventTarget | null): boolean {
+export function isTypingTarget(el: EventTarget | null): boolean {
   const node = el as HTMLElement | null;
   if (!node || typeof node.closest !== 'function') return false;
   return (
@@ -16,7 +16,7 @@ function isTypingTarget(el: EventTarget | null): boolean {
 /**
  * Atajos de la lista de links (como Dub y Linear): "/" enfoca la búsqueda y
  * "?" abre la ayuda con todos los atajos. "C" (nuevo link) lo maneja
- * LinksQuickCreate; acá solo se lista.
+ * LinksQuickCreate y los de fila (j/k, e, q, d, a, s, x) LinksTable; acá solo se listan.
  */
 export default function LinkListShortcuts() {
   const t = useTranslations('link');
@@ -55,6 +55,14 @@ export default function LinkListShortcuts() {
     { keys: 'c', label: t('shortcuts.newLink') },
     { keys: '/', label: t('shortcuts.search') },
     { keys: 'esc', label: t('shortcuts.clearSearch') },
+    { keys: 'j / k', label: t('shortcuts.move') },
+    { keys: 'enter', label: t('shortcuts.open') },
+    { keys: 'e', label: t('shortcuts.edit') },
+    { keys: 'q', label: t('shortcuts.qr') },
+    { keys: 'd', label: t('shortcuts.duplicate') },
+    { keys: 'a', label: t('shortcuts.archive') },
+    { keys: 's', label: t('shortcuts.select') },
+    { keys: 'x', label: t('shortcuts.delete') },
     { keys: '?', label: t('shortcuts.help') },
     { keys: '⌘k', label: t('shortcuts.commandMenu') },
   ];

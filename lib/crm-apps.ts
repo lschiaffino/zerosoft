@@ -583,6 +583,18 @@ export async function handleStripeAppWebhook(token: string, rawBody: string, sig
   const obj = event.data?.object ?? {};
   const meta = (obj.metadata ?? {}) as Record<string, string>;
 
+  // Link: venta atribuida al click que trajo al cliente (zs_id o zs_customer_id).
+  if (event.type === 'checkout.session.completed' || event.type === 'invoice.paid') {
+    try {
+      const { attributeStripeEvent } = await import('./link-conversions');
+      if ((await attributeStripeEvent(userId, event)) === 'sale') {
+        await logApp(userId, 'stripe', 'link.sale', 'ok', String(obj.id ?? ''));
+      }
+    } catch {
+      /* la atribución no corta el resto del webhook */
+    }
+  }
+
   if (event.type === 'checkout.session.completed' && meta.source === 'zerosoft_crm_quote') {
     if (obj.payment_status !== 'paid') return 'ignored';
     const { markQuotePaidFromSession } = await import('./crm-quote-pay');

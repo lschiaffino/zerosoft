@@ -146,6 +146,8 @@
       "robot_output_changed": "Dados de um robô mudaram",
       "link_updated": "Link editado",
       "link_deleted": "Link excluído",
+      "link_lead": "Link: novo lead",
+      "link_sale": "Link: nova venda",
       "chat_message_created": "Mensagem de chat",
       "chat_conversation_assigned": "Conversa atribuída",
       "chat_conversation_resolved": "Conversa resolvida",

@@ -16,7 +16,16 @@ const eventKey = (ev: string) => ev.replace(/\./g, '_');
  * Zapier y Make, cada una con conectar, estado, ajustes, actividad reciente y
  * desconectar. Más la tarjeta de webhooks y API para el resto.
  */
-export default function AppsPanel({ initial, canEdit }: { initial: CrmAppView[]; canEdit: boolean }) {
+export default function AppsPanel({
+  initial,
+  canEdit,
+  only,
+}: {
+  initial: CrmAppView[];
+  canEdit: boolean;
+  /** Solo estas apps (Link muestra Slack, Stripe, Zapier y Make). */
+  only?: CrmAppKey[];
+}) {
   const t = useTranslations('crm.apps');
   const locale = useLocale();
   const [apps, setApps] = useState(initial);
@@ -322,7 +331,7 @@ export default function AppsPanel({ initial, canEdit }: { initial: CrmAppView[];
     <div className="crm-apps" data-testid="crm-apps">
       {!canEdit && <p className="ui-help">{t('adminOnly')}</p>}
       <ul className="crm-apps-grid">
-        {apps.map((app) => {
+        {apps.filter((app) => !only || only.includes(app.key)).map((app) => {
           const status = app.connected ? (app.lastError ? 'error' : 'connected') : 'off';
           return (
             <li key={app.key} className="crm-app-card" data-app={app.key} data-testid={`crm-app-${app.key}`}>

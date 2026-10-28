@@ -2,7 +2,16 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { DEFAULT_QR_STYLE, hasEnoughContrast, QR_DOTS, renderQrSvg, type QrStyle } from '@/lib/link-qr-render';
+import {
+  DEFAULT_QR_STYLE,
+  hasEnoughContrast,
+  QR_DOTS,
+  QR_FRAMES,
+  QR_LABEL_MAX,
+  qrSvgSize,
+  renderQrSvg,
+  type QrStyle,
+} from '@/lib/link-qr-render';
 import FormSection from '@/components/ui/FormSection';
 import LinkIcon from './LinkIcon';
 
@@ -23,13 +32,62 @@ function download(href: string, filename: string) {
   a.remove();
 }
 
-/** QR con marca: colores, módulos, logo. Vista previa en vivo y descarga SVG/PNG. */
+interface QrTemplate {
+  id: string;
+  name: string;
+  style: QrStyle;
+}
+
+/** QR con marca: colores, módulos, logo, marco y plantillas del workspace. Vista previa en vivo y descarga SVG/PNG. */
 export default function QrSection({ id, slug }: QrSectionProps) {
   const t = useTranslations('link');
   const [target, setTarget] = useState<string | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [style, setStyle] = useState<QrStyle>(DEFAULT_QR_STYLE);
   const [logoError, setLogoError] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<QrTemplate[] | null>(null);
+  const [templateName, setTemplateName] = useState('');
+  const [templateMsg, setTemplateMsg] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/links/qr-templates')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { templates: QrTemplate[] } | null) => !cancelled && setTemplates(d?.templates ?? []))
+      .catch(() => !cancelled && setTemplates([]));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function saveTemplate() {
+    const name = templateName.trim();
+    if (!name) return;
+    setSavingTemplate(true);
+    setTemplateMsg(null);
+    const res = await fetch('/api/links/qr-templates', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name, style }),
+    }).catch(() => null);
+    setSavingTemplate(false);
+    const data = (await res?.json().catch(() => null)) as { template?: QrTemplate; error?: string } | null;
+    if (res?.ok && data?.template) {
+      setTemplates((prev) => [...(prev ?? []), data.template!]);
+      setTemplateName('');
+      setTemplateMsg({ kind: 'info', text: t('qr.templateSaved', { name }) });
+    } else {
+      setTemplateMsg({ kind: 'error', text: data?.error === 'template_limit' ? t('qr.templateLimit') : t('errors.generic') });
+    }
+  }
+
+  async function removeTemplate(tpl: QrTemplate) {
+    setTemplateMsg(null);
+    const res = await fetch(`/api/links/qr-templates/${tpl.id}`, { method: 'DELETE' }).catch(() => null);
+    if (res?.ok) setTemplates((prev) => (prev ?? []).filter((x) => x.id !== tpl.id));
+    else setTemplateMsg({ kind: 'error', text: t(res?.status === 403 ? 'errors.forbidden' : 'errors.generic') });
+  }
 
   // El estilo se carga una vez por link; el destino se vuelve a pedir cuando
   // cambia el slug (renombrar y guardar hace router.refresh con el mismo id):
@@ -88,13 +146,16 @@ export default function QrSection({ id, slug }: QrSectionProps) {
     if (!svgUrl) return;
     const img = new Image();
     img.onload = () => {
-      const size = 1024;
+      // Con marco y texto el QR es más alto que ancho: se respeta la proporción.
+      const dims = svg ? qrSvgSize(svg) : { width: 1, height: 1 };
+      const width = 1024;
+      const height = Math.round((width * dims.height) / dims.width);
       const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
+      canvas.width = width;
+      canvas.height = height;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
-      ctx.drawImage(img, 0, 0, size, size);
+      ctx.drawImage(img, 0, 0, width, height);
       download(canvas.toDataURL('image/png'), `${slug}-qr.png`);
     };
     img.src = svgUrl;
@@ -129,6 +190,45 @@ export default function QrSection({ id, slug }: QrSectionProps) {
       </div>
 
       <FormSection title={t('qr.design')} description={t('qr.designDesc')} onSubmit={save} submitLabel={t('qr.save')} className="lk-form">
+        {templates && templates.length > 0 && (
+          <div className="ui-field">
+            <span className="label" id="qr-templates-label">
+              {t('qr.templates')}
+            </span>
+            <ul className="lk-qr-templates" aria-labelledby="qr-templates-label" data-testid="qr-templates">
+              {templates.map((tpl) => (
+                <li key={tpl.id} className="lk-qr-template">
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    onClick={() => {
+                      setStyle({ ...DEFAULT_QR_STYLE, ...tpl.style });
+                      setTemplateMsg({ kind: 'info', text: t('qr.templateApplied', { name: tpl.name }) });
+                    }}
+                  >
+                    <span className="lk-qr-swatch" style={{ background: tpl.style.fg, borderColor: tpl.style.bg }} aria-hidden="true" />
+                    {tpl.name}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-ghost btn-icon"
+                    aria-label={t('qr.templateDelete', { name: tpl.name })}
+                    title={t('qr.templateDelete', { name: tpl.name })}
+                    onClick={() => removeTemplate(tpl)}
+                  >
+                    <LinkIcon name="trash" size={13} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {templateMsg && (
+          <p className={templateMsg.kind === 'error' ? 'ui-error' : 'ui-help'} role={templateMsg.kind === 'error' ? 'alert' : 'status'}>
+            {templateMsg.text}
+          </p>
+        )}
+
         <div className="ui-fields-2">
           <div className="ui-field">
             <label className="label" htmlFor="qr-fg">
@@ -180,6 +280,67 @@ export default function QrSection({ id, slug }: QrSectionProps) {
           <p className={logoError ? 'ui-error' : 'ui-help'} role={logoError ? 'alert' : undefined}>
             {logoError ?? t('qr.logoHint')}
           </p>
+        </div>
+
+        <div className="ui-fields-2">
+          <div className="ui-field">
+            <label className="label" htmlFor="qr-frame">
+              {t('qr.frame')}
+            </label>
+            <select
+              id="qr-frame"
+              className="select lk-select-auto"
+              value={style.frame ?? 'none'}
+              onChange={(e) => update({ frame: e.target.value as QrStyle['frame'] })}
+            >
+              {QR_FRAMES.map((f) => (
+                <option key={f} value={f}>
+                  {t(`qr.frames.${f}`)}
+                </option>
+              ))}
+            </select>
+          </div>
+          {style.frame === 'label' && (
+            <div className="ui-field">
+              <label className="label" htmlFor="qr-label">
+                {t('qr.label')}
+              </label>
+              <input
+                id="qr-label"
+                className="input"
+                maxLength={QR_LABEL_MAX}
+                value={style.label ?? ''}
+                placeholder={t('qr.labelPlaceholder')}
+                onChange={(e) => update({ label: e.target.value })}
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="ui-field">
+          <label className="label" htmlFor="qr-template-name">
+            {t('qr.saveTemplate')}
+          </label>
+          <div className="lk-inline-row">
+            <input
+              id="qr-template-name"
+              className="input"
+              maxLength={60}
+              value={templateName}
+              placeholder={t('qr.templateNamePlaceholder')}
+              onChange={(e) => setTemplateName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  void saveTemplate();
+                }
+              }}
+            />
+            <button type="button" className="btn btn-sm" disabled={!templateName.trim() || savingTemplate} onClick={() => void saveTemplate()}>
+              {t('qr.saveTemplateButton')}
+            </button>
+          </div>
+          <p className="ui-help">{t('qr.templateHelp')}</p>
         </div>
       </FormSection>
     </div>

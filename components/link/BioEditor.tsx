@@ -9,6 +9,8 @@ import StatusBadge from './StatusBadge';
 import EmptyState from '@/components/ui/EmptyState';
 import { NEW_LINK_ROUTES } from '@/lib/link-detail-tabs';
 import { parseDbUtc } from '@/lib/utils';
+import { BIO_THEMES, type BioTheme } from '@/lib/link-bio-theme';
+import BioView from './BioView';
 
 interface Props {
   initial: BioSettings;
@@ -46,6 +48,34 @@ export default function BioEditor({ initial, handle, links: initialLinks }: Prop
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [searchMiss, setSearchMiss] = useState(false);
+  const [newUrl, setNewUrl] = useState('');
+  const [newTitle, setNewTitle] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+
+  // Un link externo: se crea como link corto (así sus clicks también cuentan) y queda elegido al final.
+  async function addExternal() {
+    const url = newUrl.trim();
+    if (!url || adding) return;
+    setAdding(true);
+    setAddError(null);
+    const res = await fetch('/api/links', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ url, ...(newTitle.trim() ? { title: newTitle.trim() } : {}) }),
+    }).catch(() => null);
+    setAdding(false);
+    const data = (await res?.json().catch(() => null)) as (SearchLink & { error?: string }) | null;
+    if (!res?.ok || !data?.id) {
+      const code = data?.error ?? 'generic';
+      setAddError(t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic'));
+      return;
+    }
+    setLinks((prev) => [...prev, { id: data.id, label: data.title || data.url, short: data.short_url, archived: false, status: 'active' }]);
+    setValues((v) => ({ ...v, linkIds: [...v.linkIds, data.id] }));
+    setNewUrl('');
+    setNewTitle('');
+  }
 
   // Orden: primero los elegidos (en su orden), después el resto.
   const ordered = [
@@ -100,8 +130,13 @@ export default function BioEditor({ initial, handle, links: initialLinks }: Prop
   }
 
   const chosen = values.linkIds.length;
+  const previewLinks = values.linkIds
+    .map((id) => links.find((l) => l.id === id))
+    .filter((l): l is BioEditorLink => Boolean(l) && l!.status === 'active')
+    .map((l) => ({ id: l.id, title: l.label.replace(/^https?:\/\//, ''), href: l.short }));
 
   return (
+    <div className="lk-bio-layout">
     <FormSection
       title={t('bio.formTitle')}
       description={handle ? t('bio.formDesc', { handle }) : undefined}
@@ -149,6 +184,46 @@ export default function BioEditor({ initial, handle, links: initialLinks }: Prop
         <textarea id="bio-text" className="textarea" maxLength={300} rows={3} value={values.bio} onChange={(e) => setValues((v) => ({ ...v, bio: e.target.value }))} />
       </div>
 
+      <div className="ui-fields-2">
+        <div className="ui-field">
+          <label className="label" htmlFor="bio-theme">
+            {t('bio.theme')}
+          </label>
+          <select
+            id="bio-theme"
+            className="select"
+            value={values.theme}
+            onChange={(e) => setValues((v) => ({ ...v, theme: e.target.value as BioTheme }))}
+          >
+            {BIO_THEMES.map((th) => (
+              <option key={th} value={th}>
+                {t(`bio.themes.${th}`)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="ui-field">
+          <span className="label" id="bio-accent-label">
+            {t('bio.accent')}
+          </span>
+          <span className="lk-color">
+            <input
+              type="color"
+              aria-labelledby="bio-accent-label"
+              value={values.accent ?? '#0d0d0d'}
+              onChange={(e) => setValues((v) => ({ ...v, accent: e.target.value }))}
+            />
+            {values.accent ? (
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setValues((v) => ({ ...v, accent: null }))}>
+                {t('bio.accentClear')}
+              </button>
+            ) : (
+              <span className="ui-help">{t('bio.accentNone')}</span>
+            )}
+          </span>
+        </div>
+      </div>
+
       <fieldset className="lk-fieldset">
         <legend className="label">{t('bio.links')}</legend>
         <p className="ui-help">{t('bio.linksHint')}</p>
@@ -172,6 +247,47 @@ export default function BioEditor({ initial, handle, links: initialLinks }: Prop
           </button>
         </div>
         {searchMiss && <p className="ui-help" role="status">{t('bio.searchEmpty')}</p>}
+        <div className="lk-inline-form lk-bio-add">
+          <input
+            className="input"
+            type="text"
+            inputMode="url"
+            value={newUrl}
+            onChange={(e) => setNewUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                void addExternal();
+              }
+            }}
+            placeholder={t('bio.addUrlPlaceholder')}
+            aria-label={t('bio.addUrlPlaceholder')}
+            data-testid="bio-add-url"
+          />
+          <input
+            className="input"
+            type="text"
+            maxLength={200}
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                void addExternal();
+              }
+            }}
+            placeholder={t('bio.addTitlePlaceholder')}
+            aria-label={t('bio.addTitlePlaceholder')}
+          />
+          <button type="button" className="btn" onClick={() => void addExternal()} disabled={!newUrl.trim() || adding} aria-busy={adding || undefined}>
+            {t('bio.addUrl')}
+          </button>
+        </div>
+        {addError && (
+          <p className="ui-error" role="alert">
+            {addError}
+          </p>
+        )}
         {links.length === 0 ? (
           <EmptyState
             title={t('bio.empty')}
@@ -240,5 +356,20 @@ export default function BioEditor({ initial, handle, links: initialLinks }: Prop
         )}
       </fieldset>
     </FormSection>
+    <aside className="lk-bio-preview" aria-label={t('bio.preview')} data-testid="bio-preview">
+      <p className="label">{t('bio.preview')}</p>
+      <BioView
+        preview
+        title={values.title || handle}
+        handle={handle}
+        bio={values.bio}
+        avatarUrl={values.avatarUrl && /^https:\/\//.test(values.avatarUrl) ? values.avatarUrl : null}
+        links={previewLinks}
+        theme={values.theme}
+        accent={values.accent}
+        emptyLabel={t('bio.previewEmpty')}
+      />
+    </aside>
+    </div>
   );
 }

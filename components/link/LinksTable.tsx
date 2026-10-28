@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { isTypingTarget } from './LinkListShortcuts';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { LinkStatus } from '@/lib/links';
 import CopyButton from './CopyButton';
@@ -46,6 +47,9 @@ export default function LinksTable({
   const [tagOpen, setTagOpen] = useState(false);
   const [tag, setTag] = useState('');
   const [notice, setNotice] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
+  // Fila activa del teclado (j/k o flechas), como en Dub y Linear.
+  const [active, setActive] = useState<number>(-1);
+  const rowRefs = useRef<Array<HTMLTableRowElement | null>>([]);
 
   // Si la lista cambia (filtros, refresh), solo quedan seleccionadas las filas visibles.
   const visibleSelected = rows.filter((r) => selected.has(r.id)).map((r) => r.id);
@@ -110,6 +114,85 @@ export default function LinksTable({
     if (!res?.ok) setNotice({ kind: 'error', text: t('errors.generic') });
     router.refresh();
   }
+
+  async function duplicate(id: string) {
+    setBusyId(id);
+    setNotice(null);
+    const res = await fetch(`/api/links/${id}/duplicate`, { method: 'POST' }).catch(() => null);
+    setBusyId(null);
+    const data = (await res?.json().catch(() => null)) as { id?: string } | null;
+    if (res?.ok && data?.id) router.push(`/app/links/${data.id}?tab=settings`);
+    else setNotice({ kind: 'error', text: t(res?.status === 403 ? 'errors.forbidden' : 'errors.generic') });
+  }
+
+  // Atajos por fila: j/k (o flechas) mueven, Enter abre, e edita, q QR, d duplica, a archiva, x borra, s selecciona.
+  const keyState = useRef({ rows, active, confirmingId });
+  keyState.current = { rows, active, confirmingId };
+  useEffect(() => {
+    const focusRow = (i: number) => {
+      setActive(i);
+      rowRefs.current[i]?.focus();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented) return;
+      if (isTypingTarget(e.target) || document.querySelector('dialog[open], [role="dialog"][aria-modal="true"]')) return;
+      const { rows: list, active: cur, confirmingId: confirming } = keyState.current;
+      if (list.length === 0) return;
+      const key = e.key;
+      if (key === 'j' || key === 'ArrowDown') {
+        e.preventDefault();
+        focusRow(Math.min(list.length - 1, cur + 1));
+        return;
+      }
+      if (key === 'k' || key === 'ArrowUp') {
+        e.preventDefault();
+        focusRow(Math.max(0, cur < 0 ? 0 : cur - 1));
+        return;
+      }
+      if (key === 'Escape' && (cur >= 0 || confirming)) {
+        setConfirmingId(null);
+        setActive(-1);
+        (document.activeElement as HTMLElement | null)?.blur?.();
+        return;
+      }
+      // Las demás teclas actúan sobre la fila activa (y solo si el foco está en la tabla o en la página).
+      const row = cur >= 0 ? list[cur] : null;
+      if (!row || e.repeat) return;
+      const inOtherControl = (e.target as HTMLElement | null)?.closest?.('button, a, input, select');
+      if (key === 'Enter' || key === 'o') {
+        if (inOtherControl && key === 'Enter') return;
+        e.preventDefault();
+        router.push(`/app/links/${row.id}`);
+      } else if (key === 'e' && !row.readOnly) {
+        e.preventDefault();
+        router.push(`/app/links/${row.id}?tab=settings`);
+      } else if (key === 'q') {
+        e.preventDefault();
+        router.push(`/app/links/${row.id}?tab=qr`);
+      } else if (key === 'd' && !row.readOnly) {
+        e.preventDefault();
+        void duplicate(row.id);
+      } else if (key === 'a' && !row.readOnly) {
+        e.preventDefault();
+        void patch(row.id, { archived: row.status !== 'archived' });
+      } else if (key === 'x' && !row.readOnly) {
+        e.preventDefault();
+        setConfirmingId(row.id);
+      } else if (key === 's') {
+        e.preventDefault();
+        toggle(row.id);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Al abrir la confirmación por teclado, el foco va al botón de borrar (Enter confirma, Esc cancela).
+  useEffect(() => {
+    if (!confirmingId) return;
+    document.querySelector<HTMLButtonElement>(`[data-confirm-delete="${confirmingId}"]`)?.focus();
+  }, [confirmingId]);
 
   async function remove(id: string) {
     setBusyId(id);
@@ -254,11 +337,19 @@ export default function LinksTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => {
+            {rows.map((row, index) => {
               const shortText = row.short.replace(/^https?:\/\//, '');
               return (
                 <tr
                   key={row.id}
+                  ref={(el) => {
+                    rowRefs.current[index] = el;
+                  }}
+                  tabIndex={-1}
+                  data-active={active === index || undefined}
+                  onFocus={(e) => {
+                    if (e.target === e.currentTarget) setActive(index);
+                  }}
                   className={`lk-row${busyId === row.id ? ' lk-row-busy' : ''}`}
                   aria-selected={selected.has(row.id) || undefined}
                 >
@@ -314,7 +405,18 @@ export default function LinksTable({
                     {confirmingId === row.id ? (
                       <div className="lk-row-actions lk-row-confirm">
                         <span>{t('table.confirmDelete')}</span>
-                        <button type="button" className="btn btn-sm btn-primary btn-danger" onClick={() => remove(row.id)}>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-primary btn-danger"
+                          data-confirm-delete={row.id}
+                          onClick={() => remove(row.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                              setConfirmingId(null);
+                              rowRefs.current[index]?.focus();
+                            }
+                          }}
+                        >
                           {t('common.delete')}
                         </button>
                         <button type="button" className="btn btn-sm btn-ghost" onClick={() => setConfirmingId(null)}>
