@@ -15,6 +15,17 @@ export interface DocsRevision {
 
 const KEEP = 12;
 
+/**
+ * `updated_at` nuevo para un guardado sobre `prev`: la hora actual, pero
+ * siempre posterior a `prev`. Es el token de versión de la página (bases del
+ * editor, fusión, revisiones): dos guardados en el mismo milisegundo no pueden
+ * quedar con el mismo valor, si no el segundo no ve el cambio del primero.
+ */
+export function nextUpdatedAt(prev: string | null | undefined, now = new Date()): string {
+  const before = prev ? Date.parse(prev) : NaN;
+  return new Date(Number.isFinite(before) && before >= now.getTime() ? before + 1 : now.getTime()).toISOString();
+}
+
 export async function getRevision(pageId: string, updatedAt: string): Promise<DocsRevision | null> {
   return (
     ((await getDb()

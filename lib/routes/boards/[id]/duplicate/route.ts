@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { isDenied, requireBoardAccess } from '@/lib/board-access-http';
 import { duplicateBoard } from '@/lib/boards';
+import { logBoardAudit } from '@/lib/board-audit';
 import { boardCreateSchema } from '@/lib/boards-schema';
 import { invalidInput, jsonError, limitWrites } from '@/lib/write-limit';
 
@@ -23,5 +24,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const name = parsed.data.name;
   const board = await duplicateBoard(user.id, personId, id, name ? () => name : undefined);
   if (!board) return jsonError(404, 'not_found');
+  await logBoardAudit({ workspaceId: user.id, actorId: personId, action: 'board.duplicated', boardId: board.id, boardName: board.name, data: { from: id } });
   return NextResponse.json(board, { status: 201 });
 }

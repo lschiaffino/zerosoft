@@ -6359,6 +6359,111 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Board: paridad con Excalidraw+ y Miro. Feed de tiempo real (cursores,
+    // cambios en vivo, seguir y traer a todos), papelera, carpetas, texto
+    // para buscar dentro de las pizarras y registro de actividad.
+    id: '125_board_parity',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE boards ADD COLUMN deleted_at TEXT');
+      await addColumn(client, 'ALTER TABLE boards ADD COLUMN deleted_by TEXT');
+      await addColumn(client, 'ALTER TABLE boards ADD COLUMN folder_id TEXT');
+      await addColumn(client, "ALTER TABLE boards ADD COLUMN search_text TEXT NOT NULL DEFAULT ''");
+      // 0 = falta llenar search_text (pizarras de antes); el cron lo llena por lotes con claim (2 = tomada).
+      await addColumn(client, 'ALTER TABLE boards ADD COLUMN search_indexed INTEGER NOT NULL DEFAULT 0');
+      await client.executeMultiple(`
+        CREATE INDEX IF NOT EXISTS idx_boards_deleted ON boards(workspace_id, deleted_at) WHERE deleted_at IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_boards_folder ON boards(workspace_id, folder_id) WHERE folder_id IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_boards_search_pending ON boards(search_indexed) WHERE search_indexed != 1;
+
+        CREATE TABLE IF NOT EXISTS board_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          board_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          socket_id TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          payload TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_board_events_board ON board_events(board_id, id);
+        CREATE INDEX IF NOT EXISTS idx_board_events_created ON board_events(created_at);
+
+        CREATE TABLE IF NOT EXISTS board_folders (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_board_folders_ws ON board_folders(workspace_id, name);
+
+        CREATE TABLE IF NOT EXISTS board_audit (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          board_id TEXT,
+          board_name TEXT,
+          actor_id TEXT,
+          via TEXT NOT NULL DEFAULT 'app',
+          action TEXT NOT NULL,
+          data TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_board_audit_ws ON board_audit(workspace_id, created_at DESC);
+
+        -- Presencia efímera: una fila por pizarra y por instancia del servidor (upsert ≤ 4 Hz).
+        CREATE TABLE IF NOT EXISTS board_presence (
+          board_id TEXT NOT NULL,
+          instance_id TEXT NOT NULL,
+          payload TEXT NOT NULL DEFAULT '[]',
+          seq INTEGER NOT NULL DEFAULT 1,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (board_id, instance_id)
+        );
+      `);
+    },
+  },
+  {
+    // Paridad de Robots: ajustes por robot (tabla acumulada, columnas con IA,
+    // email de cambios, envíos a CRM / Sheets / Airtable, país), la tabla
+    // acumulada de filas entre corridas (robot_rows, con captured_by: las filas
+    // capturadas con un login solo las ven quien armó el robot y los admins),
+    // caché de las columnas con IA y, por corrida, con el acceso de quién se
+    // capturó (captured_by) y el resultado de los envíos (exports).
+    id: '124_robots_parity',
+    up: async (client) => {
+      await addColumn(client, "ALTER TABLE robots ADD COLUMN settings TEXT NOT NULL DEFAULT '{}'");
+      await addColumn(client, 'ALTER TABLE robot_runs ADD COLUMN captured_by TEXT');
+      await addColumn(client, 'ALTER TABLE robot_runs ADD COLUMN exports TEXT');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS robot_rows (
+          id TEXT PRIMARY KEY,
+          robot_id TEXT NOT NULL REFERENCES robots(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          row_key TEXT NOT NULL,
+          data TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'active',
+          first_run_id TEXT,
+          last_run_id TEXT,
+          first_seen_at TEXT NOT NULL,
+          last_seen_at TEXT NOT NULL,
+          changed_at TEXT,
+          removed_at TEXT,
+          captured_by TEXT,
+          UNIQUE (robot_id, row_key)
+        );
+        CREATE INDEX IF NOT EXISTS idx_robot_rows_robot ON robot_rows(robot_id, status, first_seen_at);
+        CREATE TABLE IF NOT EXISTS robot_ai_cache (
+          robot_id TEXT NOT NULL REFERENCES robots(id) ON DELETE CASCADE,
+          col TEXT NOT NULL,
+          row_hash TEXT NOT NULL,
+          value TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (robot_id, col, row_hash)
+        );
+      `);
+    },
+  },
+  {
     // Workspace como equipo de todas las apps: ficha por owner, roles con
     // guest y acceso por app, invitaciones por email, onboarding y subequipos
     // del workspace. Aditiva (ver lib/schema/workspace-migrations.ts).

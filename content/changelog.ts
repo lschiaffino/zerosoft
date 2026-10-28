@@ -41,7 +41,71 @@ export const CHANGELOG: ChangelogEntry[] = [
       { product: 'platform', en: 'Whoever accepts sees the same CRM, Docs, Track, Talk, Cal, Chat and the rest of the apps. Roles are owner, admin, member and guest (guests only see what you share with them), and you choose which apps each person can use.', es: 'Quien acepta ve el mismo CRM, Docs, Track, Talk, Cal, Chat y el resto de las apps. Los roles son owner, admin, miembro e invitado (el invitado solo ve lo que le compartís), y elegís qué apps usa cada persona.', pt: 'Quem aceita vê o mesmo CRM, Docs, Track, Talk, Cal, Chat e o resto dos apps. Os papéis são owner, admin, membro e convidado (o convidado só vê o que você compartilha), e você escolhe quais apps cada pessoa usa.' },
       { product: 'platform', en: 'Removing someone cuts their access to every app right away: sessions, API keys, calendar slots, assigned conversations and open Talk connections.', es: 'Sacar a alguien le corta el acceso a todas las apps al instante: sesiones, API keys, horarios de Cal, conversaciones asignadas y conexiones abiertas de Talk.', pt: 'Remover alguém corta o acesso a todos os apps na hora: sessões, chaves de API, horários do Cal, conversas atribuídas e conexões abertas do Talk.' },
       { product: 'platform', en: 'Teams inside the workspace (Sales, Support) live in one place, Settings › Teams, and every app uses them: CRM visibility and round-robin, Chat team inboxes, Groups assignment, Cal host pools and @mentions in Talk.', es: 'Los equipos dentro del workspace (Ventas, Soporte) viven en un solo lugar, Ajustes › Equipos, y los usan todas las apps: visibilidad y round-robin del CRM, inbox por equipo de Chat, asignación de Groups, pools de hosts de Cal y @menciones en Talk.', pt: 'As equipes dentro do workspace (Vendas, Suporte) ficam em um só lugar, Configurações › Equipes, e todos os apps as usam: visibilidade e round-robin do CRM, caixas por equipe do Chat, atribuição do Groups, pools de hosts do Cal e @menções no Talk.' },
-      { product: 'platform', en: 'A workspace switcher at the top of the sidebar, a first-run setup (just you or a team, team name and size, your role, who to invite, the tool you come from and the app to open first) and a short welcome for people who join by invitation. Companies can let anyone with their email domain join without an invitation.', es: 'Un switcher de workspace arriba del sidebar, una configuración inicial (solo vos o un equipo, nombre y tamaño del equipo, tu rol, a quién invitar, la herramienta de la que venís y la app para abrir primero) y una bienvenida corta para quien entra por invitación. Una empresa puede dejar entrar sin invitación a quien tenga el email de su dominio.', pt: 'Um seletor de workspace no topo da barra lateral, uma configuração inicial (só você ou uma equipe, nome e tamanho da equipe, seu papel, quem convidar, a ferramenta de onde você vem e o app para abrir primeiro) e uma boas-vindas curta para quem entra por convite. Uma empresa pode deixar entrar sem convite quem tiver o email do seu domínio.' },
+      { product: 'platform', en: 'A workspace switcher in the sidebar, a first-run setup (just you or a team, team name and size, your role, who to invite, the tool you come from and the app to open first) and a short welcome for people who join by invitation. Companies can let anyone with their email domain join without an invitation.', es: 'Un switcher de workspace en el sidebar, una configuración inicial (solo vos o un equipo, nombre y tamaño del equipo, tu rol, a quién invitar, la herramienta de la que venís y la app para abrir primero) y una bienvenida corta para quien entra por invitación. Una empresa puede dejar entrar sin invitación a quien tenga el email de su dominio.', pt: 'Um seletor de workspace na barra lateral, uma configuração inicial (só você ou uma equipe, nome e tamanho da equipe, seu papel, quem convidar, a ferramenta de onde você vem e o app para abrir primeiro) e uma boas-vindas curta para quem entra por convite. Uma empresa pode deixar entrar sem convite quem tiver o email do seu domínio.' },
+    ],
+  },
+  {
+    id: '2026-10-28-robots-parity',
+    date: '2026-10-28',
+    title: {
+      en: 'Robots: build with AI, capture lists while recording, a table across runs and rows sent to your CRM, Sheets and Airtable',
+      es: 'Robots: armado con IA, captura de listas al grabar, tabla entre corridas y filas enviadas al CRM, Sheets y Airtable',
+      pt: 'Robots: montagem com IA, captura de listas ao gravar, tabela entre execuções e linhas enviadas ao CRM, Sheets e Airtable',
+    },
+    items: [
+      {
+        product: 'robots',
+        en: 'Build with AI opens a page, finds the list and proposes the columns with a preview. Write with AI turns a description into steps, and the new Extract with AI step pulls rows described in words. The recorder now captures text, lists with their columns and the next page button, and saves alternative selectors that the robot tries when a page changes; when a step still fails, AI suggests a new selector from the captured page.',
+        es: 'Armar con IA abre una página, encuentra la lista y propone las columnas con una vista previa. Escribir con IA convierte una descripción en pasos, y el nuevo paso Extraer con IA saca filas descritas con palabras. El grabador ahora captura texto, listas con sus columnas y el botón de página siguiente, y guarda selectores alternativos que el robot prueba cuando la página cambia; si un paso igual falla, la IA sugiere un selector nuevo desde la página capturada.',
+        pt: 'Montar com IA abre uma página, encontra a lista e propõe as colunas com uma prévia. Escrever com IA transforma uma descrição em passos, e o novo passo Extrair com IA tira linhas descritas em palavras. O gravador agora captura texto, listas com suas colunas e o botão de próxima página, e salva seletores alternativos que o robô testa quando a página muda; se um passo ainda falhar, a IA sugere um seletor novo a partir da página capturada.',
+      },
+      {
+        product: 'robots',
+        en: 'The Data tab keeps a table of rows across runs, with new, changed and gone rows, search, CSV and AI columns. Change emails show the new and removed rows. The Integrations tab sends new rows to CRM contacts or companies, a Google Sheet or an Airtable table. Lists continue with Load more buttons and infinite scroll, schedules go down to every 5 minutes, bulk runs take a CSV of up to 1,000 rows, robots export and import as files, the gallery has 15 templates for common sites and tasks, and runs can use the language, time zone and (with a proxy provider) the IP of a country.',
+        es: 'La pestaña Datos guarda una tabla de filas entre corridas, con filas nuevas, cambiadas y que ya no están, búsqueda, CSV y columnas con IA. Los emails de cambios muestran las filas nuevas y las quitadas. La pestaña Integraciones manda las filas nuevas a contactos o empresas del CRM, a una hoja de Google o a una tabla de Airtable. Las listas siguen con botones Cargar más y scroll infinito, los horarios bajan a cada 5 minutos, las corridas en lote toman un CSV de hasta 1.000 filas, los robots se exportan e importan como archivo, la galería tiene 15 plantillas para sitios y tareas comunes, y las corridas pueden usar el idioma, la zona horaria y (con un proveedor de proxies) la IP de un país.',
+        pt: 'A aba Dados guarda uma tabela de linhas entre execuções, com linhas novas, alteradas e que não estão mais, busca, CSV e colunas com IA. Os emails de mudanças mostram as linhas novas e as removidas. A aba Integrações envia as linhas novas para contatos ou empresas do CRM, uma planilha do Google ou uma tabela do Airtable. As listas continuam com botões Carregar mais e scroll infinito, os agendamentos descem para cada 5 minutos, as execuções em lote aceitam um CSV de até 1.000 linhas, os robôs são exportados e importados como arquivo, a galeria tem 15 modelos para sites e tarefas comuns, e as execuções podem usar o idioma, o fuso horário e (com um provedor de proxies) o IP de um país.',
+      },
+    ],
+  },
+  {
+    id: '2026-10-28-board-parity',
+    date: '2026-10-28',
+    title: {
+      en: 'Board: live multiplayer with cursors, presenting frames, AI diagrams, folders, trash and an API',
+      es: 'Board: multiplayer en vivo con cursores, presentar frames, diagramas con IA, carpetas, papelera y API',
+      pt: 'Board: multiplayer ao vivo com cursores, apresentar frames, diagramas com IA, pastas, lixeira e API',
+    },
+    items: [
+      {
+        product: 'board',
+        en: 'Everyone on a board sees the others’ cursors, selections and strokes as they happen. Click someone to follow their view, or bring everyone to yours.',
+        es: 'Todos en una pizarra ven los cursores, la selección y los trazos de los demás mientras pasan. Tocá a alguien para seguir su vista, o traé a todos a la tuya.',
+        pt: 'Todos num quadro veem os cursores, a seleção e os traços dos outros na hora. Clique em alguém para seguir a visão, ou traga todos para a sua.',
+      },
+      {
+        product: 'board',
+        en: 'Present frames as full-screen slides with the keyboard, have everyone follow along, and export the frames as a PDF.',
+        es: 'Presentá los frames como slides a pantalla completa con el teclado, con todos siguiéndote, y exportalos como PDF.',
+        pt: 'Apresente os frames como slides em tela cheia pelo teclado, com todos acompanhando, e exporte os frames como PDF.',
+      },
+      {
+        product: 'board',
+        en: 'AI turns a description into an editable diagram, groups stickies by theme with a summary, and turns a drawn wireframe into a web page.',
+        es: 'La IA convierte una descripción en un diagrama editable, agrupa stickies por tema con un resumen y pasa un wireframe dibujado a una página web.',
+        pt: 'A IA transforma uma descrição em diagrama editável, agrupa post-its por tema com um resumo e transforma um wireframe desenhado numa página web.',
+      },
+      {
+        product: 'board',
+        en: 'Folders, search inside boards (from the list and Cmd+K), a 30-day trash, importing .excalidraw files and five new templates: SWOT, mind map, priority matrix, customer journey and lean canvas.',
+        es: 'Carpetas, búsqueda dentro de las pizarras (en la lista y con Cmd+K), papelera de 30 días, importar archivos .excalidraw y cinco plantillas nuevas: FODA, mapa mental, matriz de prioridades, customer journey y lean canvas.',
+        pt: 'Pastas, busca dentro dos quadros (na lista e com Cmd+K), lixeira de 30 dias, importar arquivos .excalidraw e cinco modelos novos: SWOT, mapa mental, matriz de prioridades, jornada do cliente e lean canvas.',
+      },
+      {
+        product: 'board',
+        en: 'A REST API and an MCP server to list, read, create and draw on boards, plus an activity log for admins with CSV export.',
+        es: 'API REST y servidor MCP para listar, leer, crear y dibujar en pizarras, y un registro de actividad para admins con export a CSV.',
+        pt: 'API REST e servidor MCP para listar, ler, criar e desenhar em quadros, e um registro de atividade para admins com exportação em CSV.',
+      },
     ],
   },
   {

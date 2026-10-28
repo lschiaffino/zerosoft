@@ -18,7 +18,7 @@ import { pageLinkIds, type PageLinkCandidate } from './docs-page-links';
 import { databaseRowEntries } from './docs-database';
 import { applySamePageRows, prepareDatabaseSave, type DbEffect } from './docs-db-save';
 import { mergeBlocksDetailed, mergeField } from './docs-merge';
-import { getRevision, recordRevisions } from './docs-revisions';
+import { getRevision, nextUpdatedAt, recordRevisions } from './docs-revisions';
 import {
   buildSnippet,
   matchesAll,
@@ -755,7 +755,7 @@ export async function updateDocPage(
 
   if (updates.length === 0) return toDocPage(row);
 
-  const updatedAt = new Date().toISOString();
+  const updatedAt = nextUpdatedAt(row.updated_at);
   updates.push('updated_at = ?');
   args.push(updatedAt);
   args.push(pageId);

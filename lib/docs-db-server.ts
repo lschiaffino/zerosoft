@@ -18,7 +18,7 @@ import { sanitizeBlocks } from './docs-sanitize';
 import { stripFileUrls } from './docs-files';
 import { safeFetch } from './safe-fetch';
 import { createNotification } from './notifications';
-import { recordRevisions } from './docs-revisions';
+import { nextUpdatedAt, recordRevisions } from './docs-revisions';
 
 export class DbServerError extends Error {
   constructor(
@@ -92,7 +92,7 @@ export async function applyRemoteOps(
     const loaded = await loadDatabase(actor, pageId, blockId, { edit: true });
     // Página bloqueada: nadie la edita desde la API de bases (igual que el PATCH de la página).
     if (opts.respectLock && loaded.page.locked === 1) throw new DbServerError('locked', 423);
-    const now = new Date().toISOString();
+    const now = nextUpdatedAt(loaded.page.updated_at);
     const next = applyDbOps(loaded.db, ops, now);
     const blocks = loaded.blocks.map((b, i) => (i === loaded.index ? { ...b, db: next, columns: undefined, rows: undefined, view: undefined } : b));
     const sanitized = sanitizeBlocks(blocks);

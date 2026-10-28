@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { apiError, requireApiUser } from '@/lib/api-auth';
 import { getRobotBatch } from '@/lib/robots';
+import { apiRobotViewer } from '@/lib/robots-api';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -10,7 +11,7 @@ export async function GET(req: Request, props: { params: Promise<{ id: string }>
   const auth = await requireApiUser(req, 'robots:run');
   if ('res' in auth) return auth.res;
   const { id } = await props.params;
-  const batch = await getRobotBatch(auth.user.id, id);
+  const batch = await getRobotBatch(auth.user.id, id, apiRobotViewer(auth));
   if (!batch) return apiError(404, 'not_found', 'Batch not found.');
   return NextResponse.json({
     batchId: batch.id,

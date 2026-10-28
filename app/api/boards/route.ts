@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { createBoard, listBoards } from '@/lib/boards';
+import { createBoard, listBoards, listTrash, searchBoards } from '@/lib/boards';
+import { getBoardFolder } from '@/lib/board-folders';
+import { logBoardAudit } from '@/lib/board-audit';
 import { emitEventSoon } from '@/lib/events';
 import { boardViewer } from '@/lib/board-access';
 import { boardCreateSchema } from '@/lib/boards-schema';
@@ -26,10 +28,16 @@ function templateText(locale: string): TemplateText {
   };
 }
 
-export async function GET() {
+/** Pizarras que la persona ve. ?q= busca por nombre y contenido; ?trash=1 trae la papelera. */
+export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return jsonError(401, 'unauthorized');
-  return NextResponse.json({ boards: await listBoards(user.id, boardViewer(user)) });
+  const p = new URL(req.url).searchParams;
+  const viewer = boardViewer(user);
+  if (p.get('trash') === '1') return NextResponse.json({ boards: await listTrash(user.id, viewer) });
+  const q = p.get('q')?.trim();
+  if (q) return NextResponse.json({ boards: await searchBoards(user.id, viewer, q) });
+  return NextResponse.json({ boards: await listBoards(user.id, viewer) });
 }
 
 /** Crea una pizarra. Body: { name?, template?, locale? } (la plantilla sale con los textos de `locale`). */
@@ -42,12 +50,14 @@ export async function POST(req: NextRequest) {
   const parsed = boardCreateSchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return invalidInput(parsed.error);
   const { name, template } = parsed.data;
+  const folderId = parsed.data.folderId && (await getBoardFolder(user.id, parsed.data.folderId)) ? parsed.data.folderId : null;
   let scene;
   if (template) {
     const locale = (routing.locales as readonly string[]).includes(parsed.data.locale ?? '') ? parsed.data.locale! : routing.defaultLocale;
     scene = buildTemplateScene(template, templateText(locale));
   }
-  const board = await createBoard(user.id, personId, name ?? '', { scene });
+  const board = await createBoard(user.id, personId, name ?? '', { scene, folderId });
+  await logBoardAudit({ workspaceId: user.id, actorId: personId, action: 'board.created', boardId: board.id, boardName: board.name, data: template ? { template } : {} });
   await emitEventSoon(user.id, 'board.created', { board: { id: board.id, name: board.name }, createdBy: personId });
   return NextResponse.json(board, { status: 201 });
 }

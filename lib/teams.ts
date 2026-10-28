@@ -49,7 +49,25 @@ export async function setMemberRole(teamId: string, userId: string, role: 'admin
       await personRemoved({ ownerId: team.owner_id, teamId, userId, keepShares: true });
     }
   }
+  if (res.changes > 0) await boardAccessChanged(teamId);
   return res.changes > 0;
+}
+
+/**
+ * Aviso a las conexiones en vivo de Board del workspace (board_id '*'): cada
+ * una revalida su acceso ya, así quien salió del team o perdió el rol deja de
+ * recibir al instante. Directo a la tabla para no importar Board desde acá.
+ */
+async function boardAccessChanged(teamId: string): Promise<void> {
+  try {
+    const team = await getTeamById(teamId);
+    if (!team) return;
+    await getDb()
+      .prepare("INSERT INTO board_events (board_id, workspace_id, socket_id, kind, payload, created_at) VALUES ('*', ?, 'server', 'access', '{}', ?)")
+      .run(team.owner_id, new Date().toISOString());
+  } catch {
+    /* sin Board: nada que avisar */
+  }
 }
 
 /** Acceso por app de una persona ('*' o lista). */
@@ -57,6 +75,7 @@ export async function setMemberApps(teamId: string, userId: string, apps: AppAcc
   const res = await getDb()
     .prepare("UPDATE team_members SET apps = ? WHERE team_id = ? AND user_id = ? AND role != 'owner'")
     .run(serializeApps(apps), teamId, userId);
+  if (res.changes > 0) await boardAccessChanged(teamId);
   return res.changes > 0;
 }
 
@@ -164,6 +183,7 @@ export async function removeMember(teamId: string, userId: string): Promise<void
   const team = await getTeamById(teamId);
   if (!team || team.owner_id === userId) return;
   await getDb().prepare("DELETE FROM team_members WHERE team_id = ? AND user_id = ? AND role != 'owner'").run(teamId, userId);
+  await boardAccessChanged(teamId);
   const { personRemoved } = await import('./workspace-lifecycle');
   await personRemoved({ ownerId: team.owner_id, teamId, userId });
 }

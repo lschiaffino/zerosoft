@@ -24,7 +24,7 @@ import { stringifyBlocks } from './docs-types';
 import { newDbId, normalizeDatabase } from './docs-database';
 import { sanitizeBlocks, sanitizeDatabase } from './docs-sanitize';
 import { mdToBlocks } from './docs-platform-text';
-import { recordRevisions } from './docs-revisions';
+import { nextUpdatedAt, recordRevisions } from './docs-revisions';
 
 export const SYNC_PROVIDERS: DbSyncProvider[] = ['github', 'jira', 'salesforce', 'crm'];
 export const SALESFORCE_OBJECTS = ['Opportunity', 'Account', 'Contact', 'Lead', 'Case'] as const;
@@ -691,7 +691,7 @@ async function writeDatabase(source: SyncSourceRow, items: SyncItem[]): Promise<
     if (index === -1) return false;
     const prev = normalizeDatabase(blocks[index]);
     if (prev.sync && prev.sync.source_id !== source.id) return false;
-    const now = new Date().toISOString();
+    const now = nextUpdatedAt(page.updated_at);
     const db = sanitizeDatabase(buildSyncedDatabase(prev, source, items, now));
     const next: DocsBlock[] = blocks.map((b, i) => (i === index ? { ...b, db, columns: undefined, rows: undefined, view: undefined } : b));
     const content = stringifyBlocks(sanitizeBlocks(next));
@@ -923,7 +923,7 @@ export async function unlinkSource(id: string): Promise<boolean> {
       return { ...b, db: rest };
     });
     if (!changed) return true;
-    const now = new Date().toISOString();
+    const now = nextUpdatedAt(page.updated_at);
     const content = stringifyBlocks(next);
     const res = await getDb().prepare('UPDATE docs_pages SET content = ?, updated_at = ? WHERE id = ? AND updated_at = ?').run(content, now, page.id, page.updated_at);
     if (res.changes > 0) {

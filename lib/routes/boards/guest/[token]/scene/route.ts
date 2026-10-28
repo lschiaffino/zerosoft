@@ -13,5 +13,5 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ token: stri
   if (limited) return limited;
   const guest = await getGuestBoard(token);
   if (!guest) return jsonError(404, 'not_found');
-  return handleScenePut(req, guest.workspaceId, null, guest.board.id);
+  return handleScenePut(req, guest.workspaceId, null, guest.board.id, token);
 }
