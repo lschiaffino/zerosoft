@@ -910,6 +910,152 @@ export function isPrivateAddress(ip: string): boolean {
   );
 }
 
+// ---------- Proxy de salida guardián (SSRF) ----------
+
+/** Lo que devuelve guardProxy. */
+export interface GuardProxy {
+  /** Puerto en 127.0.0.1 para launch({ proxy }). */
+  port: number;
+  close(): Promise<void>;
+  /** Código del último bloqueo ocurrido en/ después de `ms` (null si no hubo). */
+  blockedSince(ms: number): string | null;
+}
+
+/**
+ * Proxy de salida local (HTTP + CONNECT) que Chromium usa para TODO el
+ * tráfico (launch({ proxy })). Resuelve el DNS del destino y, si cualquiera de
+ * sus IPs es privada, loopback, link-local, CGNAT o metadata, corta la
+ * conexión; si no, se conecta a la IP ya resuelta.
+ *
+ * Por qué cierra el SSRF de fondo: cada salto de una redirección y cada
+ * subrecurso es una conexión NUEVA por el proxy, así que todos se validan (no
+ * solo el primer pedido). Y como la conexión va a la IP que se validó (no se
+ * vuelve a resolver el nombre), cierra el DNS rebinding. El navegador sigue
+ * las redirecciones como siempre, así que la URL del documento queda bien.
+ *
+ * Autocontenida (se serializa al sandbox): recibe los módulos de Node y la
+ * función isPriv; no usa imports ni variables del módulo.
+ */
+export function guardProxy(
+  http: typeof import('http'),
+  net: typeof import('net'),
+  dnsPromises: typeof import('dns/promises'),
+  isPriv: (ip: string) => boolean,
+): Promise<GuardProxy> {
+  let lastAt = 0;
+  const block = () => {
+    lastAt = Date.now();
+  };
+  const resolveSafe = async (rawHost: string, port: number): Promise<{ ip: string; port: number } | null> => {
+    const host = String(rawHost || '').replace(/^\[|\]$/g, '').toLowerCase();
+    if (!host || host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.internal')) return null;
+    if (!(port >= 1 && port <= 65535)) return null;
+    let addrs: string[];
+    if (net.isIP(host)) addrs = [host];
+    else {
+      try {
+        addrs = (await dnsPromises.lookup(host, { all: true })).map((a) => a.address);
+      } catch {
+        return null;
+      }
+    }
+    if (!addrs.length || addrs.some((a) => isPriv(a))) return null;
+    return { ip: addrs[0], port };
+  };
+  const server = http.createServer((req, res) => {
+    let u: URL;
+    try {
+      u = new URL(req.url || '');
+    } catch {
+      res.writeHead(400);
+      return res.end();
+    }
+    if (u.protocol !== 'http:') {
+      res.writeHead(400);
+      return res.end();
+    }
+    void resolveSafe(u.hostname, Number(u.port) || 80).then((t) => {
+      if (!t) {
+        block();
+        res.writeHead(403);
+        return res.end('blocked');
+      }
+      const headers = { ...req.headers, host: u.host };
+      const preq = http.request(
+        { host: t.ip, port: t.port, method: req.method, path: (u.pathname || '/') + (u.search || ''), headers },
+        (pres) => {
+          res.writeHead(pres.statusCode || 502, pres.headers);
+          pres.pipe(res);
+        },
+      );
+      preq.on('error', () => {
+        try {
+          if (!res.headersSent) res.writeHead(502);
+          res.end();
+        } catch {
+          // ya cerrado
+        }
+      });
+      req.pipe(preq);
+    });
+  });
+  server.on('connect', (req, socket, head) => {
+    const target = String(req.url || '');
+    const idx = target.lastIndexOf(':');
+    const host = idx > 0 ? target.slice(0, idx) : target;
+    const port = idx > 0 ? Number(target.slice(idx + 1)) : 443;
+    void resolveSafe(host, port).then((t) => {
+      if (!t) {
+        block();
+        try {
+          socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+          socket.destroy();
+        } catch {
+          // ya cerrado
+        }
+        return;
+      }
+      const up = net.connect(t.port, t.ip, () => {
+        socket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
+        if (head && head.length) up.write(head);
+        up.pipe(socket);
+        socket.pipe(up);
+      });
+      up.on('error', () => {
+        try {
+          socket.destroy();
+        } catch {
+          // ya cerrado
+        }
+      });
+      socket.on('error', () => {
+        try {
+          up.destroy();
+        } catch {
+          // ya cerrado
+        }
+      });
+    });
+  });
+  server.on('clientError', (_e, sock) => {
+    try {
+      (sock as { destroy(): void }).destroy();
+    } catch {
+      // ya cerrado
+    }
+  });
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => {
+      const a = server.address() as { port: number };
+      resolve({
+        port: a.port,
+        close: () => new Promise<void>((r) => server.close(() => r())),
+        blockedSince: (ms: number) => (lastAt >= ms ? 'private_host' : null),
+      });
+    });
+  });
+}
+
 // ---------- Arnés (navegador real) ----------
 
 export interface HarnessJob {
@@ -936,18 +1082,18 @@ export interface HarnessJob {
 
 /** Subconjunto de playwright-core que usa el arnés. */
 export interface HarnessChromium {
-  launch(opts: { headless: boolean; executablePath?: string; args?: string[]; timeout?: number }): Promise<{
+  launch(opts: {
+    headless: boolean;
+    executablePath?: string;
+    args?: string[];
+    timeout?: number;
+    proxy?: { server: string };
+  }): Promise<{
     newContext(opts: Record<string, unknown>): Promise<{
       route(pattern: string, handler: (route: {
-        request(): { url(): string; method(): string; headers(): Record<string, string> };
+        request(): { url(): string };
         abort(code?: string): Promise<void>;
         continue(): Promise<void>;
-        fetch(opts?: { maxRedirects?: number; url?: string; method?: string }): Promise<{
-          status(): number;
-          headers(): Record<string, string>;
-          body(): Promise<Buffer>;
-        }>;
-        fulfill(opts: { response?: unknown; status?: number; body?: string }): Promise<void>;
       }) => Promise<void>): Promise<void>;
       /** Playwright ≥ 1.48: los WebSocket no pasan por route(). */
       routeWebSocket?(
@@ -972,17 +1118,29 @@ export async function robotHarness(
   job: HarnessJob,
   interpret: typeof robotInterpreter,
   checkUrl: (url: string) => Promise<string | null>,
+  startGuard?: () => Promise<GuardProxy | null>,
 ): Promise<InterpreterResult> {
   const started = Date.now();
   let browser: Awaited<ReturnType<HarnessChromium['launch']>> | null = null;
   let killer: ReturnType<typeof setTimeout> | null = null;
+  let guard: GuardProxy | null = null;
   try {
+    // Proxy de salida guardián: Chromium manda TODO el tráfico por él y él
+    // valida la IP de cada conexión (redirecciones y subrecursos incluidos).
+    if (startGuard) {
+      try {
+        guard = await startGuard();
+      } catch {
+        guard = null;
+      }
+    }
     browser = await chromium.launch({
       headless: true,
       executablePath: job.executablePath || undefined,
-      // WebRTC sin UDP directo: no abre conexiones a la red interna por fuera de route().
+      // WebRTC sin UDP directo: no abre conexiones a la red interna por fuera del proxy.
       args: [...(job.args ?? []), '--force-webrtc-ip-handling-policy=disable_non_proxied_udp'],
       timeout: 30_000,
+      ...(guard ? { proxy: { server: `http://127.0.0.1:${guard.port}` } } : {}),
     });
     const b = browser;
     killer = setTimeout(() => {
@@ -998,44 +1156,23 @@ export async function robotHarness(
       userAgent:
         'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36 ZerosoftRobots/1',
     });
-    // SSRF: cada pedido se valida por la IP a la que resuelve su host (sin
-    // caché por origen: así un re-bind de DNS no reusa un veredicto viejo).
-    // Las redirecciones (30x) NO las sigue Chromium: las resolvemos acá con
-    // route.fetch({ maxRedirects: 0 }) y validamos cada Location antes de
-    // seguirla, igual que una navegación nueva. Un redirector a la red interna
-    // (location.href, window.open o un 30x del propio servidor) se corta.
-    const MAX_HOPS = 8;
+    // Con el proxy guardián, route() solo filtra esquemas (file:, ftp:, etc.):
+    // todo http(s) sale por el proxy, que valida cada conexión. Sin proxy
+    // (tests o Playwright que no lo soporta), se cae a validar por host acá,
+    // que no cubre las redirecciones: por eso el proxy es el camino normal.
     await context.route('**/*', async (route) => {
       const raw = route.request().url();
       if (/^(data|blob|about):/i.test(raw)) return route.continue();
-      if (await checkUrl(raw).catch(() => 'unresolvable_host')) return route.abort('blockedbyclient');
-      // route.fetch no existe en Playwright viejos: ahí se continúa (el salto
-      // inicial ya se validó; sin seguir redirects a mano no hay protección extra).
-      if (typeof route.fetch !== 'function' || typeof route.fulfill !== 'function') return route.continue();
+      let u: URL;
       try {
-        let current = raw;
-        let method = route.request().method();
-        for (let hop = 0; ; hop++) {
-          const res = await route.fetch(hop === 0 ? { maxRedirects: 0 } : { maxRedirects: 0, url: current, method });
-          const status = res.status();
-          const loc = res.headers()['location'];
-          if (status < 300 || status >= 400 || !loc) return route.fulfill({ response: res });
-          if (hop >= MAX_HOPS) return route.abort('blockedbyclient');
-          let next: string;
-          try {
-            next = new URL(loc, current).toString();
-          } catch {
-            return route.abort('blockedbyclient');
-          }
-          if (!/^https?:\/\//i.test(next)) return route.abort('blockedbyclient');
-          if (await checkUrl(next).catch(() => 'unresolvable_host')) return route.abort('blockedbyclient');
-          // 301/302/303: el siguiente salto es GET sin cuerpo (307/308 conservan el método).
-          if (status === 301 || status === 302 || status === 303) method = 'GET';
-          current = next;
-        }
+        u = new URL(raw);
       } catch {
-        return route.abort('blockedbyclient').catch(() => {});
+        return route.abort('blockedbyclient');
       }
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return route.abort('blockedbyclient');
+      if (guard) return route.continue();
+      if (await checkUrl(`${u.protocol}//${u.host}/`).catch(() => 'unresolvable_host')) return route.abort('blockedbyclient');
+      return route.continue();
     });
     // Los WebSocket (ws/wss) no pasan por route(): misma verificación de host.
     if (typeof context.routeWebSocket === 'function') {
@@ -1092,5 +1229,6 @@ export async function robotHarness(
   } finally {
     if (killer) clearTimeout(killer);
     if (browser) await browser.close().catch(() => {});
+    if (guard) await guard.close().catch(() => {});
   }
 }

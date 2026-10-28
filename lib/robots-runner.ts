@@ -129,11 +129,18 @@ const localBackend: RobotBackend = {
     } catch {
       return failed('runner_unavailable: playwright-core is not installed');
     }
+    const [{ guardProxy, isPrivateAddress }, http, net, dnsPromises] = await Promise.all([
+      import('./robots-interpreter'),
+      import('node:http'),
+      import('node:net'),
+      import('node:dns/promises'),
+    ]);
     return robotHarness(
       chromium,
       harnessJob(job, { executablePath: process.env.ROBOTS_CHROMIUM_PATH || undefined }),
       robotInterpreter,
       checkRobotUrl,
+      () => guardProxy(http, net, dnsPromises, isPrivateAddress),
     );
   },
 };
