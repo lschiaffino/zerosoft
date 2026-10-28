@@ -11,7 +11,7 @@
  *   lo trae al directorio y lo vuelve a copiar a las demás.
  */
 import { getDb, type Db } from './db';
-import { mirrorGroups, unmirrorGroup } from './workspace-groups-mirror';
+import { MIRROR_APPS, mirrorGroups, unmirrorGroup, type MirrorApp } from './workspace-groups-mirror';
 import { slugifyName } from './schema/workspace-migrations';
 import { workspaceMemberSql } from './workspace';
 
@@ -22,6 +22,8 @@ export interface WorkspaceGroup {
   slug: string;
   color: string;
   description: string;
+  /** Apps que lo usan (opt-in): crm, chat, groups. Talk y Cal los ven siempre. */
+  apps: MirrorApp[];
   created_at: string;
   updated_at: string;
   members: Array<{ user_id: string; role: 'lead' | 'member'; name: string | null; email: string }>;
@@ -55,10 +57,24 @@ export async function listGroups(workspaceId: string, db: Db = getDb()): Promise
     .all(workspaceId)) as Array<{ group_id: string; user_id: string; role: string; name: string | null; email: string }>;
   return groups.map((g) => ({
     ...g,
+    apps: parseGroupApps((g as unknown as { apps: unknown }).apps),
     members: members
       .filter((m) => m.group_id === g.id)
       .map((m) => ({ user_id: m.user_id, role: m.role === 'lead' ? 'lead' : 'member', name: m.name, email: m.email })),
   }));
+}
+
+export function parseGroupApps(raw: unknown): MirrorApp[] {
+  try {
+    const v = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    return Array.isArray(v) ? MIRROR_APPS.filter((a) => v.includes(a)) : [];
+  } catch {
+    return [];
+  }
+}
+
+function cleanApps(raw: unknown): string {
+  return JSON.stringify(parseGroupApps(Array.isArray(raw) ? raw : []));
 }
 
 export async function getGroup(workspaceId: string, id: string, db: Db = getDb()): Promise<WorkspaceGroup | null> {
@@ -110,7 +126,7 @@ async function writeMembers(groupId: string, members: string[], leads: string[],
 
 export async function createGroup(
   workspaceId: string,
-  input: { name: unknown; description?: unknown; color?: unknown; memberIds?: unknown; leadIds?: unknown },
+  input: { name: unknown; description?: unknown; color?: unknown; memberIds?: unknown; leadIds?: unknown; apps?: unknown },
   db: Db = getDb(),
 ): Promise<WorkspaceGroup> {
   const name = cleanName(input.name);
@@ -120,8 +136,8 @@ export async function createGroup(
   const id = crypto.randomUUID();
   const color = typeof input.color === 'string' && COLOR_RE.test(input.color) ? input.color : '';
   await db
-    .prepare('INSERT INTO workspace_groups (id, workspace_id, name, slug, color, description) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(id, workspaceId, name, await uniqueSlug(workspaceId, name, null, db), color, String(input.description ?? '').trim().slice(0, 280));
+    .prepare('INSERT INTO workspace_groups (id, workspace_id, name, slug, color, description, apps) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(id, workspaceId, name, await uniqueSlug(workspaceId, name, null, db), color, String(input.description ?? '').trim().slice(0, 280), cleanApps(input.apps));
   const members = await validPeople(workspaceId, input.memberIds, db);
   const leads = await validPeople(workspaceId, input.leadIds, db);
   await writeMembers(id, members, leads, db);
@@ -132,11 +148,14 @@ export async function createGroup(
 export async function updateGroup(
   workspaceId: string,
   id: string,
-  input: { name?: unknown; description?: unknown; color?: unknown; memberIds?: unknown; leadIds?: unknown },
+  input: { name?: unknown; description?: unknown; color?: unknown; memberIds?: unknown; leadIds?: unknown; apps?: unknown },
   db: Db = getDb(),
 ): Promise<WorkspaceGroup | null> {
   const existing = await getGroup(workspaceId, id, db);
   if (!existing) return null;
+  if (input.apps !== undefined) {
+    await db.prepare("UPDATE workspace_groups SET apps = ?, updated_at = datetime('now') WHERE id = ?").run(cleanApps(input.apps), id);
+  }
   if (input.name !== undefined) {
     const name = cleanName(input.name);
     if (await nameTaken(workspaceId, name, id, db)) throw new WorkspaceGroupError('duplicate_name', 409);
@@ -260,11 +279,16 @@ export async function syncGroupFromApp(source: AppSource, workspaceId: string, t
       if (had) await deleteGroup(workspaceId, teamId, db);
       return;
     }
-    const existing = await db.prepare('SELECT id, name FROM workspace_groups WHERE id = ?').get(teamId) as { id: string; name: string } | undefined;
+    const existing = (await db.prepare('SELECT id, name, apps FROM workspace_groups WHERE id = ?').get(teamId)) as
+      | { id: string; name: string; apps: string }
+      | undefined;
+    if (existing && !parseGroupApps(existing.apps).includes(source)) {
+      await db.prepare('UPDATE workspace_groups SET apps = ? WHERE id = ?').run(JSON.stringify([...parseGroupApps(existing.apps), source]), teamId);
+    }
     if (!existing) {
       await db
-        .prepare('INSERT OR IGNORE INTO workspace_groups (id, workspace_id, name, slug, source, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
-        .run(row.id, workspaceId, row.name, await uniqueSlug(workspaceId, row.name, row.id, db), source, row.created_at, row.created_at);
+        .prepare('INSERT OR IGNORE INTO workspace_groups (id, workspace_id, name, slug, source, apps, created_at, updated_at) VALUES (?, ?, ?, ?, ?, json_array(?), ?, ?)')
+        .run(row.id, workspaceId, row.name, await uniqueSlug(workspaceId, row.name, row.id, db), source, source, row.created_at, row.created_at);
     } else if (existing.name !== row.name) {
       await db
         .prepare("UPDATE workspace_groups SET name = ?, slug = ?, updated_at = datetime('now') WHERE id = ?")

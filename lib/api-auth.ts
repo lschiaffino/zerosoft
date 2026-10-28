@@ -3,8 +3,9 @@ import { nanoid } from 'nanoid';
 import { NextResponse } from 'next/server';
 import { getDb, type ApiKeyRow, type UserRow } from './db';
 import { clientIp, rateLimit } from './rate-limit';
-import { hasScope, parseScopes, serializeScopes, type ApiScope } from './api-scopes';
+import { hasScope, parseScopes, serializeScopes, type ApiScope, scopesForApps } from './api-scopes';
 import { normalizeRole, type TeamRole } from './teams';
+import { parseApps } from './workspace';
 
 export function sha256(input: string): string {
   return createHash('sha256').update(input).digest('hex');
@@ -52,7 +53,32 @@ export async function validateApiKeyAuth(rawKey: string): Promise<ApiKeyAuth | n
   const user = (await db.prepare('SELECT * FROM users WHERE id = ?').get(row.user_id)) as UserRow | undefined;
   if (!user) return null;
   const personId = row.created_by ?? row.user_id;
-  return { user, personId, role: await workspaceRole(row.user_id, personId), scopes: parseScopes(row.scopes) };
+  const scopes = parseScopes(row.scopes);
+  if (personId === row.user_id) return { user, personId, role: 'owner', scopes };
+  // La key de un miembro vale lo que hoy vale esa persona en el workspace: si
+  // salió (o es guest) no sirve, y solo conserva los scopes de sus apps.
+  const access = await personAppAccess(row.user_id, personId);
+  if (!access) return null;
+  return { user, personId, role: access.role, scopes: scopesForApps(scopes, access.apps) };
+}
+
+/**
+ * Rol y apps actuales de una persona en el workspace del owner (unión de sus
+ * equipos, sin guest). null = no es parte. Lo usan las API keys y v1/MCP.
+ */
+export async function personAppAccess(ownerId: string, personId: string): Promise<{ role: TeamRole; apps: '*' | string[] } | null> {
+  if (personId === ownerId) return { role: 'owner', apps: '*' };
+  const rows = (await getDb()
+    .prepare(
+      `SELECT m.role, m.apps FROM team_members m JOIN teams t ON t.id = m.team_id
+       WHERE t.owner_id = ? AND m.user_id = ? AND m.role != 'guest'`,
+    )
+    .all(ownerId, personId)) as Array<{ role: string; apps: string | null }>;
+  if (!rows.length) return null;
+  const role: TeamRole = rows.some((r) => r.role === 'admin' || r.role === 'owner') ? 'admin' : 'member';
+  const lists = rows.map((r) => parseApps(r.apps));
+  if (lists.includes('*')) return { role, apps: '*' };
+  return { role, apps: [...new Set(lists.flatMap((l) => (l === '*' ? [] : l)))] };
 }
 
 /** Compat: solo el dueño del workspace. */

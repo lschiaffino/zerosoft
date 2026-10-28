@@ -1,5 +1,5 @@
 import { getDb, type TeamInviteRow, type TeamRow, type UserRow } from './db';
-import { ensureWorkspace, getMembership, parseApps, serializeApps, teamKeyed, type AppAccess } from './workspace';
+import { cleanLine, ensureWorkspace, getMembership, parseApps, serializeApps, teamKeyed, type AppAccess } from './workspace';
 
 /**
  * Teams: el workspace de un owner compartido con su gente (ver lib/workspace.ts).
@@ -75,7 +75,15 @@ export async function setMemberApps(teamId: string, userId: string, apps: AppAcc
   const res = await getDb()
     .prepare("UPDATE team_members SET apps = ? WHERE team_id = ? AND user_id = ? AND role != 'owner'")
     .run(serializeApps(apps), teamId, userId);
-  if (res.changes > 0) await boardAccessChanged(teamId);
+  if (res.changes > 0) {
+    await boardAccessChanged(teamId);
+    // Las conexiones abiertas de Talk revalidan ya (si perdió Talk, se cortan).
+    const team = await getTeamById(teamId);
+    if (team) {
+      const { emitTalkEvent } = await import('./talk');
+      await emitTalkEvent(team.owner_id, 'access', { userId, payload: { change: 'apps' } }).catch(() => undefined);
+    }
+  }
   return res.changes > 0;
 }
 
@@ -112,7 +120,7 @@ export async function listMemberTeams(userId: string): Promise<Array<TeamRow & {
  */
 export async function createTeam(ownerId: string, name: string): Promise<TeamRow> {
   const id = crypto.randomUUID();
-  const trimmed = name.trim().slice(0, 80) || 'My team';
+  const trimmed = cleanLine(name) || 'My team';
   await getDb()
     .prepare("INSERT INTO teams (id, name, owner_id, keyed_by, use_mode) VALUES (?, ?, ?, 'team', 'team')")
     .run(id, trimmed, ownerId);
@@ -211,7 +219,7 @@ export async function createInvite(
   teamId: string,
   email: string,
   invitedBy: string,
-  opts: { role?: InviteRole; apps?: AppAccess | readonly string[]; groupIds?: string[]; locale?: string } = {},
+  opts: { role?: InviteRole; apps?: AppAccess | readonly string[]; groupIds?: string[]; locale?: string; anyEmail?: boolean } = {},
 ): Promise<TeamInviteRow> {
   const db = getDb();
   const clean = email.trim().toLowerCase().slice(0, 254);
@@ -221,22 +229,24 @@ export async function createInvite(
   const locale = opts.locale === 'es' || opts.locale === 'pt' ? opts.locale : 'en';
   const expires = new Date(Date.now() + INVITE_TTL_DAYS * 86_400_000).toISOString();
   const pending = (await db
-    .prepare("SELECT * FROM team_invites WHERE team_id = ? AND email = ? AND status = 'pending' ORDER BY created_at DESC LIMIT 1")
+    .prepare("SELECT * FROM team_invites WHERE team_id = ? AND email = ? AND status = 'pending' AND kind = 'invite' ORDER BY created_at DESC LIMIT 1")
     .get(teamId, clean)) as TeamInviteRow | undefined;
+  // Una invitación de admin solo se acepta con el email invitado.
+  const anyEmail = opts.anyEmail && role !== 'admin' ? 1 : 0;
   if (pending && inviteUsable(pending)) {
     await db
-      .prepare('UPDATE team_invites SET role = ?, apps = ?, group_ids = ?, locale = ?, invited_by = ?, expires_at = ? WHERE id = ?')
-      .run(role, apps, groups, locale, invitedBy, expires, pending.id);
+      .prepare('UPDATE team_invites SET role = ?, apps = ?, group_ids = ?, locale = ?, invited_by = ?, expires_at = ?, any_email = ? WHERE id = ?')
+      .run(role, apps, groups, locale, invitedBy, expires, anyEmail, pending.id);
     return (await db.prepare('SELECT * FROM team_invites WHERE id = ?').get(pending.id)) as TeamInviteRow;
   }
   if (pending) await db.prepare("UPDATE team_invites SET status = 'revoked' WHERE id = ?").run(pending.id);
   const id = crypto.randomUUID();
   await db
     .prepare(
-      `INSERT INTO team_invites (id, team_id, email, token, role, invited_by, expires_at, apps, group_ids, locale)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO team_invites (id, team_id, email, token, role, invited_by, expires_at, apps, group_ids, locale, any_email)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, teamId, clean, newToken(), role, invitedBy, expires, apps, groups, locale);
+    .run(id, teamId, clean, newToken(), role, invitedBy, expires, apps, groups, locale, anyEmail);
   return (await db.prepare('SELECT * FROM team_invites WHERE id = ?').get(id)) as TeamInviteRow;
 }
 
@@ -341,13 +351,62 @@ function inviteGroupIds(invite: TeamInviteRow): string[] {
   }
 }
 
+/** ¿Se puede aceptar con este email? Por defecto solo el invitado; admin siempre estricto. */
+export function inviteAcceptsEmail(invite: TeamInviteRow, email: string): boolean {
+  if (!invite.email || invite.email.toLowerCase() === email.trim().toLowerCase()) return true;
+  return Number(invite.any_email ?? 0) === 1 && normalizeInviteRole(invite.role) !== 'admin';
+}
+
+/** Permite (o no) aceptar la invitación con otro email (al reenviarla). Nunca para admins. */
+export async function setInviteAnyEmail(inviteId: string, teamId: string, any: boolean): Promise<void> {
+  await getDb()
+    .prepare("UPDATE team_invites SET any_email = ? WHERE id = ? AND team_id = ? AND role != 'admin'")
+    .run(any ? 1 : 0, inviteId, teamId);
+}
+
+/**
+ * Pedido de ingreso por dominio (cuando el workspace pide aprobación): queda
+ * pendiente en Ajustes › Miembros hasta que un admin lo apruebe.
+ */
+export async function requestToJoin(team: TeamRow, userId: string, email: string, apps: AppAccess): Promise<TeamInviteRow> {
+  const db = getDb();
+  const existing = (await db
+    .prepare("SELECT * FROM team_invites WHERE team_id = ? AND requested_by = ? AND kind = 'request' AND status = 'pending' LIMIT 1")
+    .get(team.id, userId)) as TeamInviteRow | undefined;
+  if (existing) return existing;
+  const id = crypto.randomUUID();
+  const expires = new Date(Date.now() + 30 * 86_400_000).toISOString();
+  await db
+    .prepare(
+      `INSERT INTO team_invites (id, team_id, email, token, role, invited_by, expires_at, apps, kind, requested_by)
+       VALUES (?, ?, ?, ?, 'member', '', ?, ?, 'request', ?)`,
+    )
+    .run(id, team.id, email.trim().toLowerCase(), newToken(), expires, serializeApps(apps), userId);
+  return (await db.prepare('SELECT * FROM team_invites WHERE id = ?').get(id)) as TeamInviteRow;
+}
+
+/** Un admin aprueba un pedido de ingreso: la persona entra como member con las apps del pedido. */
+export async function approveJoinRequest(inviteId: string, teamId: string, approverId: string): Promise<boolean> {
+  const db = getDb();
+  const req = (await db
+    .prepare("SELECT * FROM team_invites WHERE id = ? AND team_id = ? AND kind = 'request' AND status = 'pending'")
+    .get(inviteId, teamId)) as TeamInviteRow | undefined;
+  if (!req?.requested_by) return false;
+  const claim = await db
+    .prepare("UPDATE team_invites SET status = 'accepted', accepted_by = ?, accepted_at = ? WHERE id = ? AND status = 'pending'")
+    .run(req.requested_by, new Date().toISOString(), inviteId);
+  if (claim.changes === 0) return false;
+  await addMember(teamId, req.requested_by, 'member', { apps: parseApps(req.apps), invitedBy: approverId });
+  return true;
+}
+
 /**
  * Acepta una invite: la marca usada (compare-and-set, así un link no sirve dos
  * veces aunque lleguen dos pedidos a la vez), suma a la persona con el rol,
  * las apps y los subequipos de la invitación y devuelve el equipo.
  */
 export async function acceptInvite(invite: TeamInviteRow, userId: string): Promise<TeamRow | null> {
-  if (!inviteUsable(invite)) return null;
+  if (!inviteUsable(invite) || invite.kind === 'request') return null;
   const db = getDb();
   const now = new Date().toISOString();
   const claim = await db
@@ -361,6 +420,7 @@ export async function acceptInvite(invite: TeamInviteRow, userId: string): Promi
   if (!team) return null;
   if (team.owner_id === userId) return team;
   const role = normalizeInviteRole(invite.role);
+  await personalizeOwnWorkspace(userId);
   const apps = serializeApps(parseApps(invite.apps));
   const existing = await getMembership(team, userId);
   if (!existing) {
@@ -377,6 +437,20 @@ export async function acceptInvite(invite: TeamInviteRow, userId: string): Promi
     await addPersonToGroups(team.owner_id, userId, groupIds);
   }
   return team;
+}
+
+/**
+ * La cuenta propia de quien entra por invitación arranca como "Personal" (uso
+ * personal): no aparece como otro equipo con su nombre. Solo si es nueva y
+ * no la configuró.
+ */
+async function personalizeOwnWorkspace(userId: string): Promise<void> {
+  await getDb()
+    .prepare(
+      `UPDATE teams SET name = 'Personal', use_mode = 'personal' WHERE id = ? AND owner_id = ? AND keyed_by = 'owner' AND use_mode IS NULL
+       AND EXISTS (SELECT 1 FROM users u WHERE u.id = ? AND u.onboarded_at IS NULL)`,
+    )
+    .run(`ws_${userId}`, userId, userId);
 }
 
 export async function revokeInvite(inviteId: string, teamId: string): Promise<boolean> {

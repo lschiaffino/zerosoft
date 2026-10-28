@@ -14,6 +14,8 @@ import { dayRangeUtc, getUserTimeZone } from '@/lib/user-tz';
 import { normalizeWorkspaceMode, type WorkspaceMode } from '@/lib/workspace-mode';
 import type { TeamRole } from '@/lib/teams';
 import type { ProductKey } from '@/lib/products';
+import { canUseApp, type AppAccess } from '@/lib/workspace';
+import { trackVisibleSql } from '@/lib/track-access';
 import { bookingScopeFor } from './calendar-access';
 
 /**
@@ -29,6 +31,13 @@ export interface HomeUser {
   team?: { id: string } | null;
   actingUser?: { id: string; name?: string | null } | null;
   role: TeamRole;
+  /** Apps permitidas en el workspace activo ('*' = todas). */
+  apps?: AppAccess;
+}
+
+/** ¿La persona usa esta app en el workspace activo? (bloques y recientes del inicio). */
+export function homeCanUse(user: Pick<HomeUser, 'role' | 'apps'>, app: ProductKey): boolean {
+  return canUseApp({ role: user.role, apps: user.apps ?? '*' }, app);
 }
 
 /**
@@ -266,7 +275,9 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
   };
   const all = (sql: string, ...args: Array<string | number>) => (db.prepare(sql).all(...args) as Promise<Row[]>).catch(fail);
   const teamId = user.team?.id ?? null;
-  const projectWhere = teamId ? 'p.team_id = ?' : '(p.team_id IS NULL AND p.owner_id = ?)';
+  // Mismo alcance que la lista de Track: privados e invitados también en el espacio del owner.
+  const visible = trackVisibleSql('p', user.actingUser?.id ?? user.id);
+  const projectWhere = `${teamId ? 'p.team_id = ?' : '(p.team_id IS NULL AND p.owner_id = ?)'} AND ${visible.sql}`;
   const boardsVisible = boardVisibleSql(boardViewer(user));
   const scope = await sessionScope(user);
   const contactScope = ownerScopeSql('c', scope);
@@ -288,6 +299,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
       `SELECT i.id, i.identifier || ' ' || i.title AS label, i.updated_at FROM track_issues i JOIN track_projects p ON p.id = i.project_id
        WHERE ${projectWhere} ORDER BY i.updated_at DESC LIMIT ?`,
       teamId ?? user.id,
+      ...visible.args,
       per,
     ),
     listLinks(user.id, { archived: '0', viewer: viewerOf({ id: user.id, actingUser: user.actingUser ?? undefined, role: user.role }), pageSize: per })
@@ -341,6 +353,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
         updatedAt: r.updated_at,
       })),
     )
+    .filter((item) => homeCanUse(user, item.product))
     .sort((a, b) => sortKey(b.updatedAt).localeCompare(sortKey(a.updatedAt)))
     .slice(0, limit);
   return { items, failed };

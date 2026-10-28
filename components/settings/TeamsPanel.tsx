@@ -8,6 +8,32 @@ import FormSection from '@/components/ui/FormSection';
 import QuickModal from '@/components/app/QuickModal';
 import type { GroupDto, MemberDto } from '@/lib/workspace-directory';
 
+const GROUP_APPS = ['crm', 'chat', 'groups'] as const;
+
+/** En qué apps se usa el subequipo (opt-in: por defecto ninguna, así no cambia la visibilidad del CRM). */
+function AppsUse({ value, onChange, idPrefix }: { value: string[]; onChange: (v: string[]) => void; idPrefix: string }) {
+  const t = useTranslations('settings.teamsForm');
+  return (
+    <fieldset className="st-fieldset">
+      <legend className="label">{t('useIn')}</legend>
+      {GROUP_APPS.map((a) => (
+        <label key={a} className="ui-check" htmlFor={`${idPrefix}-${a}`}>
+          <input
+            id={`${idPrefix}-${a}`}
+            type="checkbox"
+            checked={value.includes(a)}
+            onChange={(e) => onChange(e.target.checked ? [...value, a] : value.filter((x) => x !== a))}
+          />
+          <span>
+            {t(`useApps.${a}.title`)} <span className="st-muted">{t(`useApps.${a}.desc`)}</span>
+          </span>
+        </label>
+      ))}
+      <p className="ui-help">{t('useHelp')}</p>
+    </fieldset>
+  );
+}
+
 interface Person {
   userId: string;
   name: string | null;
@@ -85,14 +111,16 @@ export default function TeamsPanel({
   const [groups, setGroups] = useState<GroupDto[]>(initial);
   const [name, setName] = useState('');
   const [members, setMembers] = useState<string[]>([]);
+  const [apps, setApps] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<GroupDto | null>(null);
-  const [edit, setEdit] = useState<{ name: string; description: string; memberIds: string[]; leadIds: string[] }>({
+  const [edit, setEdit] = useState<{ name: string; description: string; memberIds: string[]; leadIds: string[]; apps: string[] }>({
     name: '',
     description: '',
     memberIds: [],
     leadIds: [],
+    apps: [],
   });
   const [deleting, setDeleting] = useState<GroupDto | null>(null);
   const roster = people.filter((p) => p.role !== 'guest');
@@ -122,16 +150,17 @@ export default function TeamsPanel({
   async function onCreate(e: FormEvent) {
     e.preventDefault();
     if (!name.trim() || busy) return;
-    if (await call('/api/teams/groups', { method: 'POST', body: JSON.stringify({ name: name.trim(), memberIds: members }) })) {
+    if (await call('/api/teams/groups', { method: 'POST', body: JSON.stringify({ name: name.trim(), memberIds: members, apps }) })) {
       setName('');
       setMembers([]);
+      setApps([]);
       await refresh();
     }
   }
 
   function openEdit(g: GroupDto) {
     setEditing(g);
-    setEdit({ name: g.name, description: g.description, memberIds: g.memberIds, leadIds: g.leadIds });
+    setEdit({ name: g.name, description: g.description, memberIds: g.memberIds, leadIds: g.leadIds, apps: g.apps });
   }
 
   async function saveEdit() {
@@ -169,6 +198,7 @@ export default function TeamsPanel({
               />
             </div>
             {roster.length > 1 && <PeoplePicker people={roster} value={members} onChange={setMembers} idPrefix="ws-new-grp" />}
+            <AppsUse value={apps} onChange={setApps} idPrefix="ws-new-use" />
             <div className="st-form-foot">
               <button type="submit" className="btn btn-primary" disabled={!name.trim() || busy} aria-busy={busy || undefined}>
                 {t('create')}
@@ -195,6 +225,9 @@ export default function TeamsPanel({
                     <span className="st-strong">{g.name}</span> <span className="data st-muted">@{g.slug}</span>
                   </p>
                   {g.description && <p className="ui-help">{g.description}</p>}
+                  <p className="ws-cell-muted">
+                    {g.apps.length ? t('usedIn', { apps: g.apps.map((a) => t(`useApps.${a}.title`)).join(', ') }) : t('usedInNone')}
+                  </p>
                   <p className="ws-cell-muted">
                     {g.memberIds.length
                       ? t('membersList', {
@@ -277,6 +310,7 @@ export default function TeamsPanel({
           onLeads={(leadIds) => setEdit((p) => ({ ...p, leadIds }))}
           idPrefix="ws-edit-grp"
         />
+        <AppsUse value={edit.apps} onChange={(a) => setEdit((p) => ({ ...p, apps: a }))} idPrefix="ws-edit-use" />
       </QuickModal>
 
       <ConfirmDialog

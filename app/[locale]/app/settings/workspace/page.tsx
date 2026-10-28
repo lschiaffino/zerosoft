@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { getDb } from '@/lib/db';
 import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { settingsSectionMetadata } from '@/lib/settings-meta';
-import { ensureWorkspace, parseDomains, workspaceModeOf } from '@/lib/workspace';
+import { emailDomain, ensureWorkspace, joinSettings, parseDomains, workspaceModeOf } from '@/lib/workspace';
 import WorkspacePanel from '@/components/settings/WorkspacePanel';
 
 export const dynamic = 'force-dynamic';
@@ -35,6 +35,9 @@ export default async function WorkspaceSettingsPage(props: { params: Promise<{ l
         size: team.size ?? null,
         allowedDomains: parseDomains(team.allowed_domains),
         ownerEmail: owner?.email ?? '',
+        joinApps: joinSettings(team).apps,
+        joinApproval: joinSettings(team).approval,
+        editorDomain: emailDomain((user.actingUser ?? user).email),
       }}
     />
   );

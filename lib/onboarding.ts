@@ -13,7 +13,7 @@
 import { getDb, type UserRow } from './db';
 import { PRODUCT_CONFIG, isProductKey, type ProductKey } from './products';
 import { isValidTimeZone } from './user-tz';
-import { ensureWorkspace, updateWorkspace, WORKSPACE_SIZES } from './workspace';
+import { cleanLine, ensureWorkspace, updateWorkspace, WORKSPACE_SIZES } from './workspace';
 import type { WorkspaceMode } from './workspace-mode';
 
 export const ONBOARDING_ROLES = ['founder', 'sales', 'support', 'marketing', 'engineering', 'product', 'operations', 'design', 'other'] as const;
@@ -118,7 +118,7 @@ export async function saveBasicProfile(
   userId: string,
   input: { name?: unknown; locale?: unknown; timeZone?: unknown; finish?: boolean },
 ): Promise<void> {
-  const name = typeof input.name === 'string' ? input.name.trim().slice(0, 80) : '';
+  const name = typeof input.name === 'string' ? cleanLine(input.name) : '';
   await saveProfileRow(userId, {
     name: name || null,
     locale: cleanLocale(input.locale),
@@ -151,7 +151,7 @@ export async function saveOnboarding(user: Pick<UserRow, 'id' | 'name' | 'email'
   const team = await ensureWorkspace(user.id);
   const mode: WorkspaceMode = input.mode === 'team' ? 'team' : 'personal';
   const size = input.size && (WORKSPACE_SIZES as readonly string[]).includes(input.size) ? input.size : undefined;
-  const teamName = input.teamName?.trim().slice(0, 80);
+  const teamName = input.teamName ? cleanLine(input.teamName) : undefined;
   await updateWorkspace(team.id, {
     mode,
     ...(mode === 'team' && teamName ? { name: teamName } : {}),
@@ -164,7 +164,7 @@ export async function saveOnboarding(user: Pick<UserRow, 'id' | 'name' | 'email'
     goals: Array.isArray(input.goals) ? input.goals.filter((g) => typeof g === 'string').slice(0, 10).map((g) => g.slice(0, 40)) : undefined,
     sampleData: Boolean(input.sampleData),
   };
-  const name = input.name?.trim().slice(0, 80);
+  const name = input.name ? cleanLine(input.name) : undefined;
   await saveProfileRow(user.id, {
     name: name || null,
     locale: cleanLocale(input.locale),

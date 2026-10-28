@@ -3,7 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { getDb } from '@/lib/db';
 import { DEMO_MODE, getCurrentUser } from '@/lib/session';
-import { getInviteByToken, getTeamById, inviteExpired, inviteUsable, normalizeInviteRole } from '@/lib/teams';
+import { getInviteByToken, getTeamById, inviteAcceptsEmail, inviteExpired, inviteUsable, normalizeInviteRole } from '@/lib/teams';
 import { getMembership } from '@/lib/workspace';
 import GoogleButton from '@/components/auth/GoogleButton';
 import InviteAccept from '@/components/settings/InviteAccept';
@@ -44,7 +44,7 @@ export default async function InvitePage(props: { params: Promise<{ locale: stri
   const role = invite ? normalizeInviteRole(invite.role) : 'member';
 
   let body;
-  if (!invite || !team || (!usable && !(already && already.role !== 'guest'))) {
+  if (!invite || !team || invite.kind === 'request' || (!usable && !(already && already.role !== 'guest'))) {
     const expired = invite ? inviteExpired(invite) : false;
     body = (
       <>
@@ -78,6 +78,7 @@ export default async function InvitePage(props: { params: Promise<{ locale: stri
             token={token}
             workspace={team.name}
             mismatch={Boolean(invite.email) && invite.email.toLowerCase() !== real.email.toLowerCase()}
+            strict={!inviteAcceptsEmail(invite, real.email)}
             inviteEmail={invite.email}
             email={real.email}
             locale={locale}

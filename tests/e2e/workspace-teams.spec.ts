@@ -121,7 +121,9 @@ test('crear equipo, invitar a dos, aceptar con otra sesión, ver los datos en to
     await dialog.getByRole('button', { name: 'Save' }).click();
     await expect(anaRow).toContainText('Docs');
     await anaPage.goto('/en/app/crm', { waitUntil: 'networkidle' });
-    await expect(anaPage.getByRole('heading', { name: "You don't have access to CRM here" })).toBeVisible();
+    await expect(anaPage).toHaveURL(/\/en\/app\?blocked=crm/);
+    await expect(anaPage.getByTestId('home-blocked')).toContainText("You don't have access to CRM here");
+    expect(await anaPage.content()).not.toContain(contact);
     expect((await anaCtx.request.get('/api/crm/contacts')).status()).toBe(401);
     await anaPage.goto('/en/app/docs', { waitUntil: 'networkidle' });
     await expect(anaPage.getByText(docTitle).first()).toBeVisible();
@@ -154,6 +156,70 @@ test('crear equipo, invitar a dos, aceptar con otra sesión, ver los datos en to
   }
 });
 
+test('acceso por app: Carla con CRM y Docs no ve nada de Track ni Link (HTML, RSC, búsqueda, inicio, v1 y MCP)', async ({ request, browser }) => {
+  test.setTimeout(120_000);
+  const demoTeam = String((await sql("SELECT id FROM teams WHERE owner_id = 'demo' ORDER BY created_at, id LIMIT 1"))[0].id);
+  const carla = `carla-${uid()}@darwin-e2e.io`;
+  const secret = `Secreto${uid()}`;
+  // Lo del owner: un proyecto e issue de Track y un link.
+  const project = await ok<{ id: string }>(request.post('/api/track/projects', { data: { name: `${secret} proyecto` } }));
+  await ok(request.post(`/api/track/projects/${project.id}/issues`, { data: { title: `${secret} issue` } }));
+  await ok(request.post('/api/links', { data: { url: 'https://example.com/secreto', title: `${secret} link` } }));
+  const crmMark = `Visible${uid()}`;
+  await ok(request.post('/api/crm/contacts', { data: { firstName: crmMark, lastName: 'Crm' } }));
+  const ctx = await sessionAs(browser, carla);
+  const p = await ctx.newPage();
+  try {
+    await p.goto('/en/app', { waitUntil: 'networkidle' }); // crea su usuario
+    const me = String((await sql('SELECT id FROM users WHERE email = ?', [carla]))[0].id);
+    await sql("UPDATE users SET onboarded_at = datetime('now') WHERE id = ?", [me]);
+    await sql(`INSERT INTO team_members (team_id, user_id, role, apps) VALUES (?, ?, 'member', '["crm","docs"]')`, [demoTeam, me]);
+    await sql('UPDATE users SET active_team_id = ? WHERE id = ?', [demoTeam, me]);
+
+    // HTML: la página de Track redirige al inicio con el aviso, sin nada del proyecto.
+    await p.goto('/en/app/track/teams', { waitUntil: 'networkidle' });
+    await expect(p).toHaveURL(/\/en\/app\?blocked=track/);
+    await expect(p.getByTestId('home-blocked')).toContainText("You don't have access to Track here");
+    expect(await p.content()).not.toContain(secret);
+    // RSC: ni el payload de la navegación del cliente trae datos de Track o Link.
+    for (const path of ['/en/app/track/teams', `/en/app/track/issues`, '/en/app/links']) {
+      const raw = await ctx.request.get(path, { headers: { RSC: '1' }, maxRedirects: 0 });
+      expect(await raw.text(), path).not.toContain(secret);
+    }
+    // Inicio: sin Track ni Link en recientes ni en las apps; el CRM sí.
+    await p.goto('/en/app', { waitUntil: 'networkidle' });
+    const home = await p.content();
+    expect(home).not.toContain(`${secret} issue`);
+    expect(home).not.toContain(`${secret} link`);
+    await expect(p.getByTestId('home-featured').getByRole('link', { name: /Track/ })).toHaveCount(0);
+    await expect(p.locator('.side-line').getByRole('link', { name: 'Link', exact: true })).toHaveCount(0);
+    // Búsqueda (Cmd+K).
+    const search = await ok<{ items: Array<{ href: string; label: string }> }>(ctx.request.get(`/api/search?q=${secret}`));
+    expect(search.items.filter((i) => /\/app\/(track|links)/.test(i.href))).toEqual([]);
+    const crmSearch = await ok<{ items: Array<{ href: string }> }>(ctx.request.get(`/api/search?q=${crmMark}`));
+    expect(crmSearch.items.some((i) => i.href.startsWith('/app/crm'))).toBe(true);
+    // APIs de la app.
+    expect((await ctx.request.get('/api/track/projects')).status()).toBe(401);
+    expect((await ctx.request.get('/api/links')).status()).toBe(401);
+    // API key: no puede pedir scopes de Track; la que crea solo tiene CRM y Docs, y v1/MCP de Track y Link responden 403.
+    expect((await ctx.request.post('/api/keys', { data: { name: 'nope', scopes: ['track:read'] } })).status()).toBe(403);
+    const key = await ok<{ key: string; scopes: string[] }>(ctx.request.post('/api/keys', { data: { name: 'carla' } }));
+    expect(key.scopes.sort()).toEqual(['crm:read', 'crm:write', 'docs:read', 'docs:write']);
+    const auth = { authorization: `Bearer ${key.key}` };
+    expect((await request.get('/api/v1/track/issues', { headers: auth })).status()).toBe(403);
+    expect((await request.get('/api/v1/links', { headers: auth })).status()).toBe(403);
+    const mcp = await request.post('/api/mcp/track', {
+      headers: { ...auth, 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
+      data: { jsonrpc: '2.0', id: 1, method: 'tools/list' },
+    });
+    expect(mcp.status()).toBe(403);
+    expect((await request.get('/api/v1/crm/contacts', { headers: auth })).status()).toBe(200);
+  } finally {
+    await ctx.close();
+    await sql("DELETE FROM team_members WHERE team_id = ? AND user_id = (SELECT id FROM users WHERE email = ?)", [demoTeam, carla]);
+  }
+});
+
 test('invitación: link usado, vencido y de otro email; 390px y oscuro', async ({ page, browser }) => {
   const demoTeam = String((await sql("SELECT id FROM teams WHERE owner_id = 'demo' ORDER BY created_at, id LIMIT 1"))[0].id);
   const email = `mia-${uid()}@darwin-e2e.io`;
@@ -169,6 +235,12 @@ test('invitación: link usado, vencido y de otro email; 390px y oscuro', async (
     await p.goto('/en/invite/nope-not-a-token', { waitUntil: 'networkidle' });
     await expect(p.getByRole('heading', { name: 'This invitation no longer works' })).toBeVisible();
     await p.goto(`/en/invite/${tokOther}`, { waitUntil: 'networkidle' });
+    // Por defecto solo se acepta con el email invitado.
+    await expect(p.getByText('This invitation is for')).toBeVisible();
+    await expect(p.getByRole('button', { name: `Join as ${email}` })).toHaveCount(0);
+    // Si el admin permitió otro email, se puede, confirmándolo.
+    await sql('UPDATE team_invites SET any_email = 1 WHERE token = ?', [tokOther]);
+    await p.reload({ waitUntil: 'networkidle' });
     await expect(p.getByText('This invitation was sent to')).toBeVisible();
     await expect(p.getByRole('button', { name: `Join as ${email}` })).toBeVisible();
     // 390px y oscuro, sin scroll horizontal.
@@ -233,7 +305,10 @@ test('onboarding de una cuenta nueva: equipo, invitaciones, rol y app de entrada
     await p.goto('/en/app/settings/teams', { waitUntil: 'networkidle' });
     await expect(p.getByText('No teams yet')).toBeVisible();
     await p.getByLabel('Name', { exact: true }).fill('Ventas');
+    // Opt-in: solo se usa en el CRM si se marca.
+    await p.getByLabel(/^CRM record visibility/).check();
     await p.getByRole('button', { name: 'Create team' }).click();
+    await expect(p.getByTestId('group-row')).toContainText('Used in CRM, Talk and Cal');
     await expect(p.getByTestId('group-row').filter({ hasText: 'Ventas' })).toBeVisible();
     await expect(p.getByTestId('group-row')).toContainText('@ventas');
     await p.keyboard.press('ControlOrMeta+k');

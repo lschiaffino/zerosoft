@@ -95,6 +95,10 @@ export async function inviteMany(opts: {
   const results: InviteOutcome[] = [];
   // Invitar a alguien pasa el workspace a modo equipo.
   if (valid.length && workspaceModeOf(opts.team) === 'personal') await updateWorkspace(opts.team.id, { mode: 'team' });
+  // Cuentas nuevas (menos de 7 días): como mucho 20 invitaciones por día, para frenar el envío masivo.
+  const inviterRow = (await getDb().prepare('SELECT created_at FROM users WHERE id = ?').get(opts.inviter.id)) as { created_at?: string } | undefined;
+  const createdMs = inviterRow?.created_at ? Date.parse(inviterRow.created_at.replace(' ', 'T') + (inviterRow.created_at.includes('Z') ? '' : 'Z')) : 0;
+  const newAccount = Number.isFinite(createdMs) && Date.now() - createdMs < 7 * 86_400_000;
   for (const email of valid.slice(0, MAX_INVITES_PER_REQUEST)) {
     const existing = (await getDb().prepare('SELECT id FROM users WHERE lower(email) = ?').get(email)) as { id: string } | undefined;
     if (existing) {
@@ -104,7 +108,9 @@ export async function inviteMany(opts: {
         continue;
       }
     }
-    const limit = await rateLimit(`invite:send:${opts.team.id}`, 200, 86_400);
+    const limit = newAccount
+      ? await rateLimit(`invite:new-account:${opts.inviter.id}`, 20, 86_400)
+      : await rateLimit(`invite:send:${opts.team.id}`, 200, 86_400);
     if (!limit.ok) {
       results.push({ email, status: 'limited' });
       continue;

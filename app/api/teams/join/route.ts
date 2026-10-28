@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { rateLimit } from '@/lib/rate-limit';
 import { getCurrentUser, realUserId } from '@/lib/session';
-import { addMember, setActiveTeam } from '@/lib/teams';
-import { domainWorkspaces } from '@/lib/workspace';
+import { addMember, requestToJoin, setActiveTeam } from '@/lib/teams';
+import { domainWorkspaces, joinSettings } from '@/lib/workspace';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,7 +26,13 @@ export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => null)) as { teamId?: string } | null;
   const team = (await domainWorkspaces(real)).find((t) => t.id === body?.teamId);
   if (!team) return NextResponse.json({ error: 'not_allowed' }, { status: 403 });
-  await addMember(team.id, realId, 'member', { apps: '*', invitedBy: null });
+  const join = joinSettings(team);
+  if (join.approval) {
+    // Queda pendiente hasta que un admin lo apruebe en Ajustes › Miembros.
+    await requestToJoin(team, realId, real.email, join.apps);
+    return NextResponse.json({ ok: true, pending: true, team: { id: team.id, name: team.name } });
+  }
+  await addMember(team.id, realId, 'member', { apps: join.apps, invitedBy: null });
   await setActiveTeam(realId, team.id);
   return NextResponse.json({ ok: true, team: { id: team.id, name: team.name }, next: real.onboarded_at ? '/app' : '/app/welcome?invited=1' });
 }

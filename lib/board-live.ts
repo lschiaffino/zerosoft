@@ -18,6 +18,7 @@
  * conexión revalida desde la base (membresía, rol, acceso a la pizarra)
  * cuando cambia el acceso y cada 10 s. Server-only.
  */
+import { personAppAccess } from './api-auth';
 import { createHash } from 'node:crypto';
 import { getDb } from './db';
 import { sharedFeed, sseLiveResponse, type SharedFeed } from './realtime';
@@ -453,6 +454,12 @@ export async function stillAllowed(actor: BoardLiveActor): Promise<boolean> {
   }
   const viewer = await freshBoardViewer(actor.workspaceId, actor.viewer.personId);
   if (!viewer) return false;
+  // Sin Board entre sus apps, solo sigue si la pizarra se le compartió a ella.
+  const access = await personAppAccess(actor.workspaceId, actor.viewer.personId);
+  if (access && access.apps !== '*' && !access.apps.includes('board')) {
+    const shared = await getDb().prepare('SELECT 1 AS x FROM board_members WHERE board_id = ? AND user_id = ?').get(actor.boardId, actor.viewer.personId);
+    if (!shared) return false;
+  }
   const level = await getBoardAccess(viewer, actor.boardId);
   if (!level) return false;
   actor.viewer = viewer;

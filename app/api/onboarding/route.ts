@@ -55,11 +55,16 @@ export async function POST(req: NextRequest) {
   }
   const parsed = fullSchema.safeParse(raw);
   if (!parsed.success) return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
+  // El onboarding completo es una sola vez (después, todo se cambia desde Ajustes).
+  if (real.onboarded_at || user.actingUser) return NextResponse.json({ error: 'already_onboarded' }, { status: 409 });
   const input = parsed.data;
   const profile = await saveOnboarding(real, input);
   let results: InviteOutcome[] = [];
+  let invalid: string[] = [];
   if (input.mode === 'team' && input.invites && (Array.isArray(input.invites) ? input.invites.length : input.invites.trim())) {
     const team = await ensureWorkspace(real.id);
+    const invLimit = await rateLimit(`teams:invite:${real.id}`, 30, 3600);
+    if (!invLimit.ok) return NextResponse.json({ ok: true, next: onboardingDestination(profile, Boolean(input.importNow)), invites: [], invitesLimited: true });
     const sent = await inviteMany({
       team,
       inviter: { id: real.id, name: input.name?.trim() || real.name, email: real.email },
@@ -68,6 +73,7 @@ export async function POST(req: NextRequest) {
       base: publicBase(req),
     });
     results = sent.results;
+    invalid = sent.invalid;
   }
-  return NextResponse.json({ ok: true, next: onboardingDestination(profile, Boolean(input.importNow)), invites: results });
+  return NextResponse.json({ ok: true, next: onboardingDestination(profile, Boolean(input.importNow)), invites: results, invalid });
 }

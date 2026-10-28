@@ -19,6 +19,9 @@ const member = await import('@/lib/routes/teams/members/[userId]/route');
 const accept = await import('@/app/api/teams/accept/route');
 const ws = await import('@/app/api/teams/workspace/route');
 const groups = await import('@/app/api/teams/groups/route');
+const join = await import('@/app/api/teams/join/route');
+const keys = await import('@/app/api/keys/route');
+import { validateApiKeyAuth } from '@/lib/api-auth';
 
 beforeEach(() => {
   session.user = null;
@@ -73,13 +76,23 @@ describe('rutas de /api/teams', () => {
     expect((await accept.POST(send('http://localhost/api/teams/accept', 'POST', { token }))).status).toBe(400);
   });
 
-  it('aceptar con otro email pide confirmación; el link es de un solo uso', async () => {
+  it('otro email: por defecto no se acepta; si el admin lo permite, pide confirmación; un solo uso', async () => {
     const owner = await makeUser('ao');
     const team = await ensureWorkspace(owner.id);
     const inv = await createInvite(team.id, 'otra@acme.io', owner.id, { role: 'member' });
     const someone = await makeUser('as');
     await actAs(someone, someone, 'owner');
     const url = 'http://localhost/api/teams/accept';
+    const strict = await accept.POST(send(url, 'POST', { token: inv.token, confirm: true }));
+    expect(strict.status).toBe(403);
+    expect(await strict.json()).toMatchObject({ error: 'email_required' });
+    // Una de admin nunca se acepta con otro email, aunque se pida.
+    const adm = await createInvite(team.id, 'jefa@acme.io', owner.id, { role: 'admin', anyEmail: true });
+    expect((await accept.POST(send(url, 'POST', { token: adm.token, confirm: true }))).status).toBe(403);
+    // El admin la reenvía permitiendo otro email.
+    await actAs(owner, owner, 'owner');
+    expect((await invite.POST(send(`http://localhost/api/teams/invites/${inv.id}`, 'POST', { allowAnyEmail: true }), params({ id: inv.id }))).status).toBe(200);
+    await actAs(someone, someone, 'owner');
     const res = await accept.POST(send(url, 'POST', { token: inv.token }));
     expect(res.status).toBe(409);
     expect(await res.json()).toMatchObject({ error: 'email_mismatch', inviteEmail: 'otra@acme.io' });
@@ -122,10 +135,49 @@ describe('rutas de /api/teams', () => {
     expect((await ws.PATCH(send('http://localhost/api/teams/workspace', 'PATCH', { name: 'X' }))).status).toBe(403);
     expect((await groups.POST(send('http://localhost/api/teams/groups', 'POST', { name: 'Ventas' }))).status).toBe(403);
     await actAs(owner, owner, 'owner');
-    const res = await ws.PATCH(send('http://localhost/api/teams/workspace', 'PATCH', { name: 'Darwin AI', mode: 'team', allowedDomains: ['darwin.ai'] }));
-    expect(await res.json()).toMatchObject({ name: 'Darwin AI', mode: 'team', allowedDomains: ['darwin.ai'] });
+    const res = await ws.PATCH(send('http://localhost/api/teams/workspace', 'PATCH', { name: 'Darwin AI', mode: 'team' }));
+    expect(await res.json()).toMatchObject({ name: 'Darwin AI', mode: 'team' });
     expect((await groups.POST(send('http://localhost/api/teams/groups', 'POST', { name: 'Ventas', memberIds: [m.id, 'stranger'] }))).status).toBe(201);
     const g = (await getDb().prepare('SELECT m.user_id FROM workspace_group_members m JOIN workspace_groups g ON g.id = m.group_id WHERE g.workspace_id = ?').all(owner.id)) as Array<{ user_id: string }>;
     expect(g.map((r) => r.user_id)).toEqual([m.id]);
+  });
+
+  it('dominios: solo el propio; con aprobación queda pedido hasta que un admin lo aprueba', async () => {
+    const owner = await upsertUser({ email: `own-${crypto.randomUUID().slice(0, 6)}@darwin-unit.io`, name: 'Own' });
+    const team = await ensureWorkspace(owner.id);
+    await actAs(owner, owner, 'owner');
+    const bad = await ws.PATCH(send('http://localhost/api/teams/workspace', 'PATCH', { allowedDomains: ['otra-empresa.io'] }));
+    expect(await bad.json()).toMatchObject({ error: 'domain_not_yours' });
+    const ok = await ws.PATCH(send('http://localhost/api/teams/workspace', 'PATCH', { allowedDomains: ['darwin-unit.io'], joinApproval: true, joinApps: ['docs'] }));
+    expect(await ok.json()).toMatchObject({ allowedDomains: ['darwin-unit.io'], joinApproval: true, joinApps: ['docs'] });
+    const col = await upsertUser({ email: `col-${crypto.randomUUID().slice(0, 6)}@darwin-unit.io`, name: 'Col' });
+    await actAs(col, col, 'owner');
+    const joined = await join.POST(send('http://localhost/api/teams/join', 'POST', { teamId: team.id }));
+    expect(await joined.json()).toMatchObject({ ok: true, pending: true });
+    expect(await getMemberRole(team.id, col.id)).toBeNull();
+    const req = (await getDb().prepare("SELECT id FROM team_invites WHERE team_id = ? AND kind = 'request'").get(team.id)) as { id: string };
+    await actAs(owner, owner, 'owner');
+    expect((await invite.POST(send('http://localhost/api/teams/invites/x', 'POST', { action: 'approve' }), params({ id: req.id }))).status).toBe(200);
+    expect(await getMemberRole(team.id, col.id)).toBe('member');
+    expect(((await getDb().prepare('SELECT apps FROM team_members WHERE team_id = ? AND user_id = ?').get(team.id, col.id)) as { apps: string }).apps).toBe('["docs"]');
+  });
+
+  it('API keys: un miembro no crea keys de apps que no tiene y la key se recorta si le sacan apps', async () => {
+    const owner = await makeUser('ko');
+    const team = await ensureWorkspace(owner.id);
+    const m = await makeUser('km');
+    await addMember(team.id, m.id, 'member', { apps: ['crm', 'docs'] });
+    await actAs(owner, m, 'member');
+    (session.user as Record<string, unknown>).apps = ['crm', 'docs'];
+    const deny = await keys.POST(send('http://localhost/api/keys', 'POST', { name: 'k', scopes: ['track:read'] }));
+    expect(deny.status).toBe(403);
+    const res = await keys.POST(send('http://localhost/api/keys', 'POST', { name: 'k' }));
+    expect(res.status).toBe(201);
+    const { key, scopes } = (await res.json()) as { key: string; scopes: string[] };
+    expect(scopes.sort()).toEqual(['crm:read', 'crm:write', 'docs:read', 'docs:write']);
+    await getDb().prepare("UPDATE team_members SET apps = '[\"docs\"]' WHERE team_id = ? AND user_id = ?").run(team.id, m.id);
+    expect((await validateApiKeyAuth(key))?.scopes.sort()).toEqual(['docs:read', 'docs:write']);
+    await getDb().prepare('DELETE FROM team_members WHERE team_id = ? AND user_id = ?').run(team.id, m.id);
+    expect(await validateApiKeyAuth(key)).toBeNull();
   });
 });

@@ -6,7 +6,7 @@ import { API_PATH_HEADER, RETURN_PATH_HEADER, signInPath } from './return-path';
 import { authOptions } from './auth';
 import { getUserByEmail, upsertUser, type TeamRow, type UserRow } from './db';
 import { resolveWorkspace, roleAtLeast, type TeamRole } from './teams';
-import { appFromPath, canUseApp, workspaceTeamId, type AppAccess } from './workspace';
+import { appFromPath, ensureWorkspace, hasAllApps, userCanUseApp, workspaceTeamId, type AppAccess } from './workspace';
 import type { ProductKey } from './products';
 import { seedUserIfNeeded } from './seed';
 
@@ -27,7 +27,13 @@ export const DEMO_EMAIL = 'demo@zerosoft.ai';
  * existe fuera de los tests.
  */
 export const E2E_IDENTITY_COOKIE = 'zs_e2e_as';
-const E2E_IDENTITY = DEMO_MODE && process.env.E2E_IDENTITY_COOKIE === '1';
+// Falla cerrado: además de la variable, solo en CI o tests y nunca en Vercel.
+const E2E_IDENTITY =
+  DEMO_MODE &&
+  process.env.E2E_IDENTITY_COOKIE === '1' &&
+  (Boolean(process.env.CI) || process.env.NODE_ENV === 'test') &&
+  !process.env.VERCEL_ENV &&
+  !process.env.VERCEL;
 
 /**
  * Usuario efectivo de la request: el dueño del workspace activo.
@@ -46,12 +52,14 @@ export interface SessionUser extends UserRow {
   role: TeamRole;
   /** Apps a las que accede en el workspace activo ('*' = todas). */
   apps?: AppAccess;
+  /**
+   * La página pedida es de una app que la persona no tiene en el workspace
+   * activo: la sesión cae a su workspace propio (ninguna página carga datos
+   * del ajeno) y el layout de la app redirige con un aviso.
+   */
+  blockedApp?: ProductKey;
 }
 
-/** ¿La persona puede usar la app en el workspace activo? */
-export function userCanUseApp(user: Pick<SessionUser, 'role' | 'apps'>, app: ProductKey): boolean {
-  return canUseApp({ role: user.role, apps: user.apps ?? '*' }, app);
-}
 
 /** Puede gestionar miembros y borrar configuración del workspace. */
 export function isWorkspaceAdmin(user: SessionUser): boolean {
@@ -63,7 +71,7 @@ export function realUserId(user: SessionUser): string {
   return user.actingUser?.id ?? user.id;
 }
 
-export { workspaceTeamId };
+export { hasAllApps, userCanUseApp, workspaceTeamId };
 
 // Usuario demo ya sembrado en este proceso: evita el UPDATE de reclamo de
 // seedUserIfNeeded en cada request (después de la primera siempre es no-op).
@@ -121,6 +129,11 @@ async function loadCurrentUser(): Promise<SessionUser | null> {
   if (user.actingUser) {
     const app = appFromPath(await requestHeader(API_PATH_HEADER));
     if (app && !userCanUseApp(user, app)) return null;
+    const page = appFromPath(await requestHeader(RETURN_PATH_HEADER));
+    if (page && !userCanUseApp(user, page)) {
+      // Las páginas (y su payload RSC) se arman con el workspace propio: nada del ajeno viaja.
+      return { ...real, team: null, workspace: await ensureWorkspace(real.id), role: 'owner', apps: '*', blockedApp: page };
+    }
   }
   return user;
 }

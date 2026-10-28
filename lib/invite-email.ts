@@ -8,6 +8,7 @@
  * quien invita, así la respuesta le llega a una persona.
  */
 import { appSender, escapeHtml, namedSender, sendEmail } from './email';
+import { cleanLine } from './workspace';
 
 type Lang = 'en' | 'es' | 'pt';
 
@@ -106,7 +107,8 @@ export function renderInviteEmail(input: InviteEmailInput): { subject: string; t
   const date = input.expiresAt
     ? new Intl.DateTimeFormat(tag, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(input.expiresAt))
     : '';
-  const vars = { inviter: input.inviterName, workspace: input.workspaceName, date };
+  // Sin caracteres de control: el nombre va al asunto (ninguna inyección de headers).
+  const vars = { inviter: cleanLine(input.inviterName), workspace: cleanLine(input.workspaceName), date };
   const esc = (s: string) => escapeHtml(s);
   const subject = fill(c.subject, vars);
   const lines = [fill(c.line, vars), c.role[input.role], date ? fill(c.expires, vars) : '', c.ignore].filter(Boolean);
@@ -124,7 +126,7 @@ export function renderInviteEmail(input: InviteEmailInput): { subject: string; t
     ${logo}
     <p style="margin:0 0 4px;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#888888;">zerosoft</p>
     <h1 style="margin:0 0 24px;font-size:20px;font-weight:500;letter-spacing:-0.01em;color:#000000;border-bottom:2px solid #000000;display:inline-block;padding-bottom:6px;">${esc(fill(c.heading, vars))}</h1>
-    ${p(esc(fill(c.line, vars)).replace(esc(input.inviterName), `<strong>${esc(input.inviterName)}</strong>`))}
+    ${p(esc(fill(c.line, vars)).replace(esc(vars.inviter), `<strong>${esc(vars.inviter)}</strong>`))}
     ${p(esc(c.role[input.role]), 'color:#444444;')}
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0;"><tr><td style="background:#000000;">
       <a href="${esc(input.url)}" style="display:inline-block;padding:12px 20px;font-family:${MONO};font-size:14px;color:#ffffff;text-decoration:none;">${esc(c.button)} &rarr;</a>

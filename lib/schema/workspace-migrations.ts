@@ -1,5 +1,4 @@
 import type { Client, InValue } from '@libsql/client';
-import { mirrorGroups } from '../workspace-groups-mirror';
 
 /**
  * Migración 128_workspace_teams: el workspace como equipo de todas las apps
@@ -13,6 +12,8 @@ import { mirrorGroups } from '../workspace-groups-mirror';
  * - Los equipos que ya existían quedan `keyed_by = 'team'`: sus datos de
  *   Track y Chat siguen colgando del id del equipo, como hasta ahora. Las
  *   fichas nuevas son `keyed_by = 'owner'`: todo cuelga del id del owner.
+ * - Los equipos de cada app (CRM, Chat, Groups) se listan en el directorio
+ *   del workspace con el mismo id y solo para su app: no se copian a otras.
  * - Para volver atrás alcanza con ignorar las columnas y tablas nuevas: el
  *   código viejo no las lee.
  *
@@ -87,6 +88,11 @@ export async function workspaceTeamsUp(client: Client): Promise<void> {
   await addColumn(client, "ALTER TABLE team_invites ADD COLUMN email_error TEXT NOT NULL DEFAULT ''");
   await addColumn(client, 'ALTER TABLE team_invites ADD COLUMN accepted_by TEXT');
   await addColumn(client, 'ALTER TABLE team_invites ADD COLUMN accepted_at TEXT');
+  // 'invite' (la manda un admin) o 'request' (alguien pidió entrar por dominio y espera aprobación).
+  await addColumn(client, "ALTER TABLE team_invites ADD COLUMN kind TEXT NOT NULL DEFAULT 'invite'");
+  await addColumn(client, 'ALTER TABLE team_invites ADD COLUMN requested_by TEXT');
+  // Por defecto una invitación solo se acepta con el email invitado; 1 = el admin permitió otro.
+  await addColumn(client, 'ALTER TABLE team_invites ADD COLUMN any_email INTEGER NOT NULL DEFAULT 0');
   await run(client, 'CREATE INDEX IF NOT EXISTS idx_team_invites_email ON team_invites(email, status)');
 
   // ---------- Perfil y onboarding ----------
@@ -126,6 +132,8 @@ export async function workspaceTeamsUp(client: Client): Promise<void> {
       color TEXT NOT NULL DEFAULT '',
       description TEXT NOT NULL DEFAULT '',
       source TEXT NOT NULL DEFAULT 'platform',
+      -- Apps que usan el subequipo (opt-in): ["crm"], ["chat","groups"]…
+      apps TEXT NOT NULL DEFAULT '[]',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -152,10 +160,10 @@ export async function workspaceTeamsUp(client: Client): Promise<void> {
     if (!(await tableExists(client, s.table))) continue;
     await run(
       client,
-      `INSERT OR IGNORE INTO workspace_groups (id, workspace_id, name, source, created_at, updated_at)
-       SELECT id, ${s.ws}, name, ?, created_at, created_at FROM ${s.table}
+      `INSERT OR IGNORE INTO workspace_groups (id, workspace_id, name, source, apps, created_at, updated_at)
+       SELECT id, ${s.ws}, name, ?, json_array(?), created_at, created_at FROM ${s.table}
        WHERE EXISTS (SELECT 1 FROM users u WHERE u.id = ${s.table}.${s.ws})`,
-      [s.source],
+      [s.source, s.source],
     );
     if (await tableExists(client, s.members)) {
       await run(
@@ -187,6 +195,7 @@ export async function workspaceTeamsUp(client: Client): Promise<void> {
     await run(client, "UPDATE workspace_groups SET slug = ? WHERE id = ? AND slug = ''", [slug, String(g.id)]);
   }
 
-  // Cada subequipo queda disponible en todas las apps que usan equipos (sin podar nada).
-  await mirrorGroups((sql, args = []) => client.execute({ sql, args }), { prune: false });
+  // Nada se copia entre apps: cada equipo sigue solo en la app de donde vino
+  // (la visibilidad del CRM de cada cliente no cambia). Usarlo en otra app es
+  // opt-in desde Ajustes › Equipos.
 }

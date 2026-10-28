@@ -117,6 +117,7 @@ export default function AppSidebar({
   tasksDue = 0,
   teamName = null,
   workspaces = [],
+  allowedApps = '*',
   crumb = null,
   mode = DEFAULT_WORKSPACE_MODE,
   docsCanCreate = true,
@@ -132,6 +133,8 @@ export default function AppSidebar({
   teamName?: string | null;
   /** Workspaces de la persona (el propio y los ajenos), para el switcher de arriba del sidebar. */
   workspaces?: SwitcherEntry[];
+  /** Apps que la persona tiene en el workspace activo ('*' = todas): las demás no se listan. */
+  allowedApps?: '*' | ProductKey[];
   /** Sección actual (AppTopbar), se muestra en la banda. */
   crumb?: ReactNode;
 }) {
@@ -314,7 +317,7 @@ export default function AppSidebar({
     asideRef.current?.closest('.app-frame')?.classList.toggle('sidebar-collapsed', next);
   }
 
-  const nav = buildNav(product, pathname, labels, { tasksDue: dueCount, unread: unreadCount });
+  const nav = buildNav(product, pathname, labels, { tasksDue: dueCount, unread: unreadCount, allowed: allowedApps });
   const newItems = buildNewItems(product, labels, { docsCanCreate });
   const settingsItem = settingsNavItem(pathname, labels);
 
@@ -323,8 +326,11 @@ export default function AppSidebar({
   }
 
   // Switcher: destacadas según el modo del workspace y el resto por categoría.
-  const featured = featuredApps({ mode });
-  const more = moreAppsByCategory({ mode });
+  const allowed = (k: ProductKey) => allowedApps === '*' || allowedApps.includes(k);
+  const featured = featuredApps({ mode }).filter(allowed);
+  const more = moreAppsByCategory({ mode })
+    .map((g) => ({ ...g, apps: g.apps.filter(allowed) }))
+    .filter((g) => g.apps.length > 0);
   const switcherItem = (line: ProductKey, small = false) => {
     const key = appProductOf(line);
     return (
@@ -635,7 +641,7 @@ export default function AppSidebar({
             )}
             {/* El pie es el switcher de workspace (no suma alto: las apps siguen entrando en 900px). */}
             {workspaces.length > 0 ? (
-              <WorkspaceSwitcher entries={workspaces} collapsed={collapsed} person={user.name ?? user.email} />
+              <WorkspaceSwitcher entries={workspaces} collapsed={collapsed} person={user.name ?? user.email} email={user.email} />
             ) : (
               <div className="side-user-meta side-label" title={teamName ? `${user.email} · ${labels.team}: ${teamName}` : undefined}>
                 <p className="side-user-name">{user.name ?? user.email}</p>

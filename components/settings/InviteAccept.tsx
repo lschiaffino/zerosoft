@@ -13,6 +13,7 @@ export default function InviteAccept({
   token,
   workspace,
   mismatch,
+  strict = false,
   inviteEmail,
   email,
   locale,
@@ -21,6 +22,8 @@ export default function InviteAccept({
   token: string;
   workspace: string;
   mismatch: boolean;
+  /** Solo se acepta con el email invitado (por defecto, y siempre para admins). */
+  strict?: boolean;
   inviteEmail: string;
   email: string;
   locale: string;
@@ -50,6 +53,28 @@ export default function InviteAccept({
     router.refresh();
   }
 
+  const other = !demo && (
+    <button
+      type="button"
+      className={`btn ${strict ? 'btn-primary' : 'btn-secondary'} btn-block`}
+      disabled={busy}
+      onClick={() => void signOut({ callbackUrl: `/${locale}/auth/signin?callbackUrl=${encodeURIComponent(`/${locale}/invite/${token}`)}` })}
+    >
+      {t('otherAccount')}
+    </button>
+  );
+
+  if (mismatch && strict) {
+    return (
+      <div className="ws-accept">
+        <p className="ws-accept-warn" role="note">
+          {t.rich('mismatchStrict', { invited: inviteEmail, current: email, b: (c) => <strong className="data">{c}</strong> })}
+        </p>
+        {other}
+      </div>
+    );
+  }
+
   if (mismatch) {
     return (
       <div className="ws-accept">
@@ -59,16 +84,7 @@ export default function InviteAccept({
         <button type="button" className="btn btn-primary btn-block" disabled={busy} aria-busy={busy || undefined} onClick={() => void join(true)}>
           {t('joinAs', { email })}
         </button>
-        {!demo && (
-          <button
-            type="button"
-            className="btn btn-secondary btn-block"
-            disabled={busy}
-            onClick={() => void signOut({ callbackUrl: `/${locale}/auth/signin?callbackUrl=${encodeURIComponent(`/${locale}/invite/${token}`)}` })}
-          >
-            {t('otherAccount')}
-          </button>
-        )}
+        {other}
         {error && (
           <p className="ui-error" role="alert">
             {error}

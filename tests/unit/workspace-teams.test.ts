@@ -98,17 +98,19 @@ describe('128_workspace_teams: migración aditiva sobre datos de antes', () => {
     }
     // Los de antes no ven el onboarding.
     expect((await exec("SELECT onboarded_at FROM users WHERE id = 'c'")).rows[0].onboarded_at).toBe('2026-01-03 10:00:00');
-    // Subequipos de las tres apps con el mismo id, y espejados en las demás.
+    // Subequipos de las tres apps con el mismo id, cada uno solo en su app (no se copian entre apps).
     const groups = (await exec("SELECT id, source, slug FROM workspace_groups WHERE workspace_id = 'a' ORDER BY id")).rows.map((r) => [r.id, r.source, r.slug]);
     expect(groups).toEqual([
       ['c1', 'chat', 'soporte'],
       ['g1', 'groups', 'guardia'],
       ['s1', 'crm', 'ventas'],
     ]);
-    expect((await exec("SELECT COUNT(*) AS n FROM crm_sales_teams WHERE user_id = 'a'")).rows[0].n).toBe(3);
-    expect((await exec("SELECT COUNT(*) AS n FROM chat_teams WHERE workspace_id = 'a'")).rows[0].n).toBe(3);
-    expect((await exec("SELECT COUNT(*) AS n FROM groups_teams WHERE user_id = 'a'")).rows[0].n).toBe(3);
-    expect((await exec("SELECT COUNT(*) AS n FROM chat_team_members WHERE user_id = 'b'")).rows[0].n).toBe(3);
+    expect((await exec("SELECT COUNT(*) AS n FROM crm_sales_teams WHERE user_id = 'a'")).rows[0].n).toBe(1);
+    expect((await exec("SELECT COUNT(*) AS n FROM chat_teams WHERE workspace_id = 'a'")).rows[0].n).toBe(1);
+    expect((await exec("SELECT COUNT(*) AS n FROM groups_teams WHERE user_id = 'a'")).rows[0].n).toBe(1);
+    expect((await exec("SELECT COUNT(*) AS n FROM chat_team_members WHERE user_id = 'b'")).rows[0].n).toBe(1);
+    expect((await exec("SELECT COUNT(*) AS n FROM crm_sales_team_members WHERE user_id = 'a'")).rows[0].n).toBe(1);
+    expect((await exec("SELECT apps FROM workspace_groups WHERE id = 's1'")).rows[0].apps).toBe('["crm"]');
     // Idempotente: correrla de nuevo no cambia nada.
     const count = async () => (await exec('SELECT (SELECT COUNT(*) FROM teams) + (SELECT COUNT(*) FROM workspace_groups) + (SELECT COUNT(*) FROM team_members) AS n')).rows[0].n;
     const n = await count();
@@ -175,7 +177,7 @@ describe('workspace: crear equipo, invitar, aceptar y sacar', () => {
     ]);
 
     // Sacarla corta todo: workspace activo, API keys, subequipos.
-    const group = await createGroup(owner.id, { name: `Ventas ${uid()}`, memberIds: [mate.id] });
+    const group = await createGroup(owner.id, { name: `Ventas ${uid()}`, memberIds: [mate.id], apps: ['crm'] });
     const key = await createApiKey(owner.id, 'mate key', mate.id);
     await removeMember(ws.id, mate.id);
     const after = await resolveWorkspace((await getDb().prepare('SELECT * FROM users WHERE id = ?').get(mate.id)) as never);
@@ -231,7 +233,12 @@ describe('workspace: subequipos en todas las apps', () => {
     const ws = await ensureWorkspace(owner.id);
     const a = await makeUser('ga');
     await addMember(ws.id, a.id);
-    const g = await createGroup(owner.id, { name: 'Soporte Norte', memberIds: [a.id], leadIds: [a.id] });
+    // Sin elegir apps, un subequipo nuevo no toca la visibilidad del CRM ni Chat ni Groups.
+    const plain = await createGroup(owner.id, { name: `Solo Talk ${crypto.randomUUID().slice(0, 4)}`, memberIds: [a.id] });
+    expect(plain.apps).toEqual([]);
+    expect(await getDb().prepare('SELECT 1 AS x FROM crm_sales_teams WHERE id = ?').get(plain.id)).toBeUndefined();
+    expect(await getDb().prepare('SELECT 1 AS x FROM chat_teams WHERE id = ?').get(plain.id)).toBeUndefined();
+    const g = await createGroup(owner.id, { name: 'Soporte Norte', memberIds: [a.id], leadIds: [a.id], apps: ['crm', 'chat', 'groups'] });
     expect(g.slug).toBe('soporte-norte');
     const db = getDb();
     expect(await db.prepare('SELECT name FROM crm_sales_teams WHERE id = ?').get(g.id)).toEqual({ name: 'Soporte Norte' });
@@ -249,6 +256,10 @@ describe('workspace: subequipos en todas las apps', () => {
     expect(await db.prepare('SELECT name FROM groups_teams WHERE id = ?').get(g.id)).toEqual({ name: 'Soporte' });
     expect(((await db.prepare('SELECT COUNT(*) AS n FROM crm_sales_team_members WHERE team_id = ?').get(g.id)) as { n: number }).n).toBe(2);
     expect((await updateGroup(owner.id, g.id, { memberIds: [a.id] }))?.members.map((m) => m.role)).toEqual(['lead']);
+    // Dejar de usarlo en el CRM lo saca del CRM (y sigue en las demás).
+    await updateGroup(owner.id, g.id, { apps: ['chat', 'groups'] });
+    expect(await db.prepare('SELECT 1 AS x FROM crm_sales_teams WHERE id = ?').get(g.id)).toBeUndefined();
+    expect(await db.prepare('SELECT 1 AS x FROM chat_teams WHERE id = ?').get(g.id)).toBeTruthy();
     expect(await deleteGroup(owner.id, g.id)).toBe(true);
     expect(await db.prepare('SELECT 1 AS x FROM chat_teams WHERE id = ?').get(g.id)).toBeUndefined();
     expect(await db.prepare('SELECT 1 AS x FROM crm_sales_teams WHERE id = ?').get(g.id)).toBeUndefined();

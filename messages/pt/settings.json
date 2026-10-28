@@ -26,7 +26,7 @@
     "demoBadge": "Modo demo",
     "demoNote": "Modo demo: todos entram como o mesmo usuário. Em produção você entra com Google.",
     "roles": {
-      "owner": "Owner",
+      "owner": "Proprietário",
       "admin": "Admin",
       "member": "Membro",
       "guest": "Convidado"
@@ -445,7 +445,7 @@
     "emailsHelp": "Cole um ou vários, separados por vírgulas ou espaços. Enter envia.",
     "role": "Papel",
     "roles": {
-      "owner": "Owner",
+      "owner": "Proprietário",
       "admin": "Admin",
       "member": "Membro",
       "guest": "Convidado"
@@ -508,9 +508,11 @@
     "pendingEmptyBody": "Quando você convida alguém, o convite aparece aqui até ser aceito.",
     "status": {
       "sent": "Enviado em {date}",
-      "failed": "O email não saiu",
-      "notSent": "Só link, sem email",
-      "expired": "Vencido"
+      "failed": "O email falhou",
+      "notSent": "Aqui não há provedor de email: compartilhe o link",
+      "expired": "Vencido",
+      "request": "Pediu para entrar",
+      "anyEmail": "(qualquer email)"
     },
     "resend": "Reenviar",
     "revoke": "Revogar",
@@ -524,7 +526,11 @@
       "owner_cant_leave": "O dono não pode sair do workspace.",
       "cant_change_own_role": "Você não pode mudar o seu próprio papel.",
       "not_found": "Essa pessoa ou convite não existe mais. Recarregue a página."
-    }
+    },
+    "approve": "Aprovar",
+    "allowAnyEmail": "Permitir outro email",
+    "allowAnyEmailHelp": "Reenvia o convite e deixa aceitá-lo com outro email. Nunca para admins.",
+    "legacyNotice": "Atenção: quem entrar vai ver o que até hoje era só seu neste workspace, incluindo os projetos do Track e os widgets do Chat. Marque como privado o que deve continuar seu antes de convidar."
   },
   "teamsForm": {
     "createTitle": "Criar uma equipe",
@@ -549,13 +555,31 @@
     "deleteBody": "Ela some de todos os apps. As conversas e regras do Chat que a usavam ficam sem equipe. As pessoas continuam no workspace.",
     "save": "Salvar",
     "cancel": "Cancelar",
-    "uses": "O CRM as usa para a visibilidade dos registros e o round-robin, o Chat para as caixas de entrada por equipe, o Groups para atribuir chats e o Talk para as @menções (@vendas avisa a equipe toda).",
+    "uses": "Cada equipe é usada no Talk para as @menções (@vendas avisa a equipe toda) e no Cal para adicionar uma equipe inteira a um pool de hosts. No CRM, Chat e Groups só é usada se você ativar.",
     "errors": {
       "save": "Não foi possível salvar a equipe. Tente de novo.",
       "duplicate_name": "Já existe uma equipe com esse nome.",
       "invalid_name": "Dê um nome à equipe.",
       "too_many_groups": "Você chegou ao limite de 100 equipes.",
       "forbidden": "Para isso você precisa ser admin deste workspace."
+    },
+    "useIn": "Usar em",
+    "useHelp": "O Talk (@menções) e o Cal (pools de hosts) sempre podem usar. CRM, Chat e Groups só se você marcar aqui.",
+    "usedIn": "Usada em {apps}, Talk e Cal",
+    "usedInNone": "Usada em Talk e Cal",
+    "useApps": {
+      "crm": {
+        "title": "CRM",
+        "desc": "visibilidade dos registros e round-robin"
+      },
+      "chat": {
+        "title": "Chat",
+        "desc": "caixa de entrada por equipe"
+      },
+      "groups": {
+        "title": "Groups",
+        "desc": "atribuição de chats"
+      }
     }
   },
   "workspaceForm": {
@@ -574,7 +598,7 @@
       "51-200": "51 a 200",
       "200+": "Mais de 200"
     },
-    "owner": "Owner",
+    "owner": "Proprietário",
     "uploadLogo": "Enviar logo",
     "changeLogo": "Trocar logo",
     "removeLogo": "Remover",
@@ -596,7 +620,7 @@
     "domainsDesc": "Quem entrar com um email destes domínios pode entrar como membro sem convite.",
     "domains": "Domínios",
     "domainsPlaceholder": "empresa.com",
-    "domainsHelp": "Separados por vírgulas. Domínios públicos como gmail.com não são permitidos.",
+    "domainsHelp": "Só o domínio do seu próprio email ({domain}). Domínios públicos como gmail.com não são permitidos.",
     "errors": {
       "network": "Sem conexão. Tente de novo.",
       "save": "Não foi possível salvar. Tente de novo.",
@@ -609,8 +633,11 @@
       "file_type_not_allowed": "Use uma imagem PNG, JPG, WebP ou GIF.",
       "file_too_large": "A imagem tem mais de 2 MB.",
       "storage_unavailable": "Aqui não há armazenamento de arquivos configurado.",
-      "forbidden": "Só o dono e os admins podem mudar isto."
-    }
+      "forbidden": "Só o dono e os admins podem mudar isto.",
+      "domain_not_yours": "Você só pode ativar o domínio do seu próprio email."
+    },
+    "joinApproval": "Um admin aprova cada pessoa antes de ela entrar",
+    "joinRole": "Entram como membros com estes apps:"
   },
   "switcher": {
     "label": "Workspace: {name}. Trocar de workspace",
@@ -619,7 +646,7 @@
     "personal": "Pessoal",
     "yours": "Seu",
     "roles": {
-      "owner": "Owner",
+      "owner": "Proprietário",
       "admin": "Admin",
       "member": "Membro",
       "guest": "Convidado"
@@ -671,8 +698,10 @@
       "invite_invalid": "Este convite não funciona mais.",
       "invite_expired": "Este convite venceu. Peça um novo.",
       "rate_limited": "Tentativas demais. Espere alguns minutos.",
-      "not_found": "Este convite não existe."
-    }
+      "not_found": "Este convite não existe.",
+      "email_required": "Este convite só pode ser aceito com o email para o qual foi enviado."
+    },
+    "mismatchStrict": "Este convite é para <b>{invited}</b> e você entrou como <b>{current}</b>. Entre com essa conta para aceitar, ou peça um convite para o seu email."
   },
   "welcome": {
     "metaTitle": "Boas-vindas",
@@ -685,7 +714,7 @@
     "timeZone": "Fuso horário",
     "signedInAs": "Você entrou como {email}",
     "roles": {
-      "founder": "Fundador ou CEO",
+      "founder": "Fundação ou direção",
       "sales": "Vendas",
       "support": "Suporte",
       "marketing": "Marketing",
@@ -709,7 +738,8 @@
       "pending": "{inviter} convidou você para {team}.",
       "openInvite": "Ver convite",
       "domain": "{team} já usa o zerosoft com o email da sua empresa.",
-      "join": "Entrar em {team}"
+      "join": "Entrar em {team}",
+      "requested": "Pedimos a {team} para deixar você entrar. Um admin precisa aprovar; enquanto isso você pode montar o seu próprio workspace."
     },
     "team": {
       "title": "Sua equipe",
@@ -763,8 +793,11 @@
       "status": {
         "sent": "Convite enviado",
         "member": "Já está no workspace",
-        "notSent": "O email não saiu"
-      }
+        "notSent": "O email não saiu",
+        "skipped": "Aqui não há provedor de email: copie o link"
+      },
+      "invalid": "Estes não são emails válidos: {list}",
+      "limited": "Você chegou ao limite de convites por agora. Convide o resto mais tarde em Configurações › Membros."
     }
   },
   "profileForm": {

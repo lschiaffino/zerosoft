@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { rateLimit } from '@/lib/rate-limit';
 import { getCurrentUser, realUserId } from '@/lib/session';
-import { acceptInvite, getInviteByToken, inviteExpired, inviteUsable, normalizeInviteRole, setActiveTeam } from '@/lib/teams';
+import { acceptInvite, getInviteByToken, inviteAcceptsEmail, inviteExpired, inviteUsable, normalizeInviteRole, setActiveTeam } from '@/lib/teams';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -9,7 +9,8 @@ export const dynamic = 'force-dynamic';
 /**
  * Aceptar una invitación por token. El link es de un solo uso: la segunda
  * vez responde invite_invalid. Si la sesión es de otro email que el
- * invitado, pide confirmación (`confirm: true`) antes de sumarla.
+ * invitado: por defecto no se puede (email_required); si el admin permitió
+ * otro email al reenviarla, pide confirmación (`confirm: true`).
  * Miembros y admins entran directo al workspace; un guest sigue en el suyo
  * y ve lo que le compartan.
  */
@@ -27,7 +28,12 @@ export async function POST(req: NextRequest) {
   if (!inviteUsable(invite)) {
     return NextResponse.json({ error: inviteExpired(invite) ? 'invite_expired' : 'invite_invalid' }, { status: 400 });
   }
-  if (invite.email && invite.email.toLowerCase() !== real.email.toLowerCase() && body.confirm !== true) {
+  const sameEmail = !invite.email || invite.email.toLowerCase() === real.email.toLowerCase();
+  if (!sameEmail && !inviteAcceptsEmail(invite, real.email)) {
+    // Por defecto (y siempre para admins) solo se acepta con el email invitado.
+    return NextResponse.json({ error: 'email_required', inviteEmail: invite.email, email: real.email }, { status: 403 });
+  }
+  if (!sameEmail && body.confirm !== true) {
     return NextResponse.json({ error: 'email_mismatch', inviteEmail: invite.email, email: real.email }, { status: 409 });
   }
   const team = await acceptInvite(invite, realId);

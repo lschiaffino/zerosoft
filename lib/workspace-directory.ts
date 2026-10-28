@@ -34,6 +34,10 @@ export interface InviteDto {
   createdAt: string;
   /** Link de la invitación (solo para quien puede gestionar). */
   url?: string;
+  /** 'request' = alguien pidió entrar por dominio y espera aprobación. */
+  kind: 'invite' | 'request';
+  /** Se puede aceptar con otro email (el admin lo permitió al reenviar). */
+  anyEmail: boolean;
 }
 
 export interface GroupDto {
@@ -44,6 +48,8 @@ export interface GroupDto {
   description: string;
   memberIds: string[];
   leadIds: string[];
+  /** Apps que lo usan (opt-in): crm, chat, groups. */
+  apps: string[];
 }
 
 export interface DirectoryDto {
@@ -95,7 +101,9 @@ export async function loadDirectory(team: TeamRow, viewerRole: TeamRole, base: s
         expiresAt: i.expires_at,
         expired: inviteExpired(i),
         createdAt: i.created_at,
-        url: inviteUrl(base, i.token, i.locale ?? 'en'),
+        url: i.kind === 'request' ? undefined : inviteUrl(base, i.token, i.locale ?? 'en'),
+        kind: i.kind === 'request' ? 'request' : 'invite',
+        anyEmail: Number(i.any_email ?? 0) === 1,
       };
     }),
     groups: groups.map((g) => ({
@@ -106,6 +114,7 @@ export async function loadDirectory(team: TeamRow, viewerRole: TeamRole, base: s
       description: g.description,
       memberIds: g.members.map((m) => m.user_id),
       leadIds: g.members.filter((m) => m.role === 'lead').map((m) => m.user_id),
+      apps: g.apps,
     })),
   };
 }

@@ -45,7 +45,17 @@ function appRoot(pathname: string): string {
  * workspace elegido). Desde acá también se crea el equipo, se invita y se
  * llega a los ajustes del workspace.
  */
-export default function WorkspaceSwitcher({ entries, collapsed, person }: { entries: SwitcherEntry[]; collapsed: boolean; person: string }) {
+export default function WorkspaceSwitcher({
+  entries,
+  collapsed,
+  person,
+  email,
+}: {
+  entries: SwitcherEntry[];
+  collapsed: boolean;
+  person: string;
+  email: string;
+}) {
   const t = useTranslations('settings.switcher');
   const locale = useLocale();
   const pathname = usePathname();
@@ -148,7 +158,8 @@ export default function WorkspaceSwitcher({ entries, collapsed, person }: { entr
             {current.logoUrl && <Mark name={label(current)} logoUrl={current.logoUrl} small />}
             {label(current)}
           </span>
-          <span className="side-user-mail">{person}</span>
+          {/* Si el workspace se llama como la persona, abajo va el email (no "Pablo / Pablo"). */}
+          <span className="side-user-mail">{person.trim().toLowerCase() === label(current).trim().toLowerCase() ? email : person}</span>
         </span>
         <Icon name="chevronDown" size={13} />
       </button>

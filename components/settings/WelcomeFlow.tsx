@@ -162,7 +162,8 @@ export default function WelcomeFlow(props: {
   const [sample, setSample] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [results, setResults] = useState<{ next: string; invites: InviteResult[] } | null>(null);
+  const [results, setResults] = useState<{ next: string; invites: InviteResult[]; invalid: string[]; limited: boolean } | null>(null);
+  const [requested, setRequested] = useState<string | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
 
   const steps: Step[] = mode === 'team' ? ['use', 'team', 'you', 'invite', 'start'] : ['use', 'you', 'start'];
@@ -223,17 +224,19 @@ export default function WelcomeFlow(props: {
         timeZone: tz,
       }),
     }).catch(() => null);
-    const data = res ? ((await res.json().catch(() => ({}))) as { next?: string; invites?: InviteResult[] }) : {};
+    const data = res
+      ? ((await res.json().catch(() => ({}))) as { next?: string; invites?: InviteResult[]; invalid?: string[]; invitesLimited?: boolean })
+      : {};
     if (!res?.ok) {
       setBusy(false);
       setError(t('error'));
       return;
     }
-    const failed = (data.invites ?? []).filter((r) => r.status === 'failed' || r.status === 'skipped');
-    if (failed.length) {
-      // Algún email no salió: se muestran los links para copiarlos antes de seguir.
+    const failed = (data.invites ?? []).filter((r) => r.status !== 'sent' && r.status !== 'member');
+    if (failed.length || data.invalid?.length || data.invitesLimited) {
+      // Algún email no salió (o no era un email): se muestra antes de seguir, con los links para copiar.
       setBusy(false);
-      setResults({ next: data.next ?? '/app', invites: data.invites ?? [] });
+      setResults({ next: data.next ?? '/app', invites: data.invites ?? [], invalid: data.invalid ?? [], limited: Boolean(data.invitesLimited) });
       return;
     }
     window.location.assign(`/${locale}${data.next ?? '/app'}`);
@@ -246,10 +249,16 @@ export default function WelcomeFlow(props: {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ teamId: id }),
     }).catch(() => null);
-    const data = res ? ((await res.json().catch(() => ({}))) as { next?: string }) : {};
+    const data = res ? ((await res.json().catch(() => ({}))) as { next?: string; pending?: boolean; team?: { name: string } }) : {};
     if (!res?.ok) {
       setBusy(false);
       setError(t('error'));
+      return;
+    }
+    if (data.pending) {
+      // El workspace pide aprobación: queda pedido y la persona sigue con su onboarding.
+      setBusy(false);
+      setRequested(data.team?.name ?? '');
       return;
     }
     window.location.assign(`/${locale}${data.next ?? '/app'}`);
@@ -264,10 +273,14 @@ export default function WelcomeFlow(props: {
         </h1>
         <p className="wl-sub">{t('results.sub')}</p>
         <div className="ws-results" role="status">
+          {results.invalid.length > 0 && <p className="ui-error">{t('results.invalid', { list: results.invalid.join(', ') })}</p>}
+          {results.limited && <p className="ui-error">{t('results.limited')}</p>}
           {results.invites.map((r) => (
             <div key={r.email} className={`ws-result ws-result-${r.status}`}>
               <span className="data ws-result-email">{r.email}</span>
-              <span className="ws-result-status">{t(`results.status.${r.status === 'sent' || r.status === 'member' ? r.status : 'notSent'}`)}</span>
+              <span className="ws-result-status">
+                {t(`results.status.${r.status === 'sent' || r.status === 'member' || r.status === 'skipped' ? r.status : 'notSent'}`)}
+              </span>
               {r.url && r.status !== 'sent' && <CopyButton text={r.url} label={t('results.copy')} className="btn btn-secondary btn-sm" />}
             </div>
           ))}
@@ -312,7 +325,12 @@ export default function WelcomeFlow(props: {
               </Link>
             </div>
           ))}
-          {props.domainWorkspaces.map((d) => (
+          {requested !== null && (
+            <p className="wl-notice" role="status">
+              {t('use.requested', { team: requested })}
+            </p>
+          )}
+          {requested === null && props.domainWorkspaces.map((d) => (
             <div key={d.id} className="wl-notice">
               <p>{t('use.domain', { team: d.name })}</p>
               <button type="button" className="btn btn-secondary btn-sm" onClick={() => void joinDomain(d.id)} disabled={busy}>

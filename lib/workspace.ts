@@ -56,6 +56,16 @@ export function canUseApp(access: { role?: string | null; apps?: AppAccess | str
   return apps === '*' || apps.includes(app);
 }
 
+/** ¿La sesión puede usar la app en el workspace activo? (rol y apps de la sesión). */
+export function userCanUseApp(user: { role?: string | null; apps?: AppAccess | string | null }, app: ProductKey): boolean {
+  return canUseApp({ role: user.role ?? 'owner', apps: user.apps ?? '*' }, app);
+}
+
+/** Tiene todas las apps (owner o '*'): lo piden los ajustes que cruzan apps, como los webhooks. */
+export function hasAllApps(user: { role?: string | null; apps?: AppAccess | string | null }): boolean {
+  return user.role === 'owner' || user.apps == null || user.apps === '*';
+}
+
 /** Segmento de ruta (/app/<x> o /api/<x>) → app. */
 const PATH_APPS: Record<string, ProductKey> = (() => {
   const out: Record<string, ProductKey> = {};
@@ -187,6 +197,27 @@ export function normalizeSlug(raw: string): string | null {
   return s.length >= 2 ? s : null;
 }
 
+/** Sin caracteres de control ni saltos de línea (nombres que van a asuntos de email y títulos). */
+export function cleanLine(raw: string, max = 80): string {
+  // eslint-disable-next-line no-control-regex
+  return raw.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
+/** Ingreso por dominio: rol member, apps elegidas y, si se pide, aprobación de un admin. */
+export interface JoinSettings {
+  apps: AppAccess;
+  approval: boolean;
+}
+
+export function joinSettings(team: Pick<TeamRow, 'settings'> | null | undefined): JoinSettings {
+  try {
+    const s = JSON.parse(team?.settings ?? '{}') as { joinApps?: unknown; joinApproval?: unknown };
+    return { apps: parseApps(s.joinApps ?? '*'), approval: s.joinApproval === true };
+  } catch {
+    return { apps: '*', approval: false };
+  }
+}
+
 export interface WorkspacePatch {
   name?: string;
   logoUrl?: string | null;
@@ -194,6 +225,10 @@ export interface WorkspacePatch {
   mode?: WorkspaceMode;
   size?: string | null;
   allowedDomains?: string[];
+  /** Quien carga los dominios: solo puede habilitar el de su propio email (verificado por Google). */
+  editorEmail?: string;
+  joinApps?: AppAccess | string[];
+  joinApproval?: boolean;
 }
 
 export const WORKSPACE_SIZES = WORKSPACE_SIZES_LIST;
@@ -206,7 +241,7 @@ export async function updateWorkspace(teamId: string, patch: WorkspacePatch, db:
   const sets: string[] = [];
   const args: Array<string | null> = [];
   if (patch.name !== undefined) {
-    const name = patch.name.trim().slice(0, 80);
+    const name = cleanLine(patch.name);
     if (!name) return 'invalid_name';
     sets.push('name = ?');
     args.push(name);
@@ -243,10 +278,25 @@ export async function updateWorkspace(teamId: string, patch: WorkspacePatch, db:
       const d = normalizeDomain(raw);
       if (!d) return 'invalid_domain';
       if (isPublicDomain(d)) return 'public_domain';
+      // Solo el dominio del email con el que entra quien lo carga (Google lo verificó).
+      if (patch.editorEmail !== undefined && emailDomain(patch.editorEmail) !== d) return 'domain_not_yours';
       if (!out.includes(d)) out.push(d);
     }
     sets.push('allowed_domains = ?');
     args.push(JSON.stringify(out));
+  }
+  if (patch.joinApps !== undefined || patch.joinApproval !== undefined) {
+    const row = (await db.prepare('SELECT settings FROM teams WHERE id = ?').get(teamId)) as { settings?: string } | undefined;
+    let cur: Record<string, unknown> = {};
+    try {
+      cur = JSON.parse(row?.settings ?? '{}') as Record<string, unknown>;
+    } catch {
+      cur = {};
+    }
+    if (patch.joinApps !== undefined) cur.joinApps = serializeApps(patch.joinApps as AppAccess);
+    if (patch.joinApproval !== undefined) cur.joinApproval = patch.joinApproval === true;
+    sets.push('settings = ?');
+    args.push(JSON.stringify(cur));
   }
   if (!sets.length) return null;
   sets.push("updated_at = datetime('now')");

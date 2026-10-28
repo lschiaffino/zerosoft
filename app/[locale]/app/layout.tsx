@@ -3,11 +3,9 @@ import { canCreateDocPage } from '@/lib/docs-guard';
 import { getTranslations } from 'next-intl/server';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { DEMO_EMAIL, DEMO_MODE, requireUser, userCanUseApp } from '@/lib/session';
+import { DEMO_EMAIL, DEMO_MODE, requireUser } from '@/lib/session';
 import { RETURN_PATH_HEADER } from '@/lib/return-path';
-import { appFromPath, listMyWorkspaces } from '@/lib/workspace';
-import { PRODUCT_CONFIG } from '@/lib/products';
-import EmptyState from '@/components/ui/EmptyState';
+import { listMyWorkspaces } from '@/lib/workspace';
 import type { SwitcherEntry } from '@/components/app/WorkspaceSwitcher';
 import OfflineIdentity from '@/components/app/OfflineIdentity';
 import { countDueTasks } from '@/lib/crm';
@@ -70,11 +68,10 @@ export default async function AppLayout(
       </ClientMessages>
     );
   }
-  // Acceso por app (team_members.apps): en un workspace ajeno, una app que la
-  // persona no tiene muestra un aviso en vez de la página.
-  const pageApp = user.actingUser ? appFromPath(path) : null;
-  const blockedApp = pageApp && !userCanUseApp(user, pageApp) ? pageApp : null;
-  const tAccess = blockedApp ? await getTranslations({ locale, namespace: 'settings.access' }) : null;
+  // Acceso por app (team_members.apps): una página de una app que la persona no
+  // tiene en el workspace activo ya se armó con su workspace propio (lib/session):
+  // se la manda al inicio con el aviso.
+  if (user.blockedApp) redirect(`/${locale}/app?blocked=${user.blockedApp}`);
   // Entrada activa del switcher: el workspace ajeno, un equipo propio de antes de 128, o el propio (null).
   const effective = user.actingUser ? (user.workspace?.id ?? null) : user.team ? (real.active_team_id ?? null) : null;
   const workspaces: SwitcherEntry[] = (await listMyWorkspaces(real).catch(() => [])).map((w) => ({ ...w, current: w.teamId === effective }));
@@ -139,6 +136,7 @@ export default async function AppLayout(
           }}
           teamName={user.actingUser ? (user.workspace?.name ?? user.team?.name ?? null) : null}
           workspaces={workspaces}
+          allowedApps={user.role === 'owner' ? '*' : (user.apps ?? '*')}
           crumb={
             <AppTopbar
               sections={[
@@ -446,18 +444,7 @@ export default async function AppLayout(
           }}
         />
         <div className="app-main-scroll">
-          <main className="app-content">
-            {blockedApp && tAccess ? (
-              <EmptyState
-                product={blockedApp}
-                title={tAccess('title', { app: PRODUCT_CONFIG[blockedApp].name })}
-                body={tAccess('body', { app: PRODUCT_CONFIG[blockedApp].name, workspace: user.workspace?.name ?? '' })}
-                action={{ label: tAccess('back'), href: '/app' }}
-              />
-            ) : (
-              children
-            )}
-          </main>
+          <main className="app-content">{children}</main>
         </div>
         <CommandSearch />
         <DictationHost />

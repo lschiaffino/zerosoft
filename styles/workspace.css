@@ -287,3 +287,24 @@ img.ws-mark.ws-mark-sm { width: 18px; height: 18px; }
 .qm .st-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 .wl-card .st-fieldset > legend,
 .qm .st-fieldset > legend { padding: 0; margin-bottom: 8px; }
+
+/* Inicio: aviso al volver de una app que la persona no tiene en este workspace. */
+.home-blocked { margin: 0 0 20px; padding: 12px 14px; border: 1px solid var(--line); border-left: 2px solid var(--ink); }
+.home-blocked-title { margin: 0 0 4px; font-weight: 500; }
+.home-blocked-body { margin: 0; color: var(--ink-2); font-size: 0.875rem; }
+
+/* El onboarding va sin el botón de feedback ni el widget de soporte encima. */
+body:has(.wl-page) .fl-root,
+body:has(.wl-page) .zs-support-launcher { display: none; }
+
+.ws-notice { margin: 0 0 14px; padding: 10px 12px; border: 1px solid var(--line); border-left: 2px solid var(--ink); font-size: 0.875rem; line-height: 1.5; }
+.ws-status-note { color: var(--ink-3); }
+
+/* Tabla de miembros a 1280: la persona no se corta y las acciones no se salen. */
+.ws-members .ws-person { min-width: 210px; }
+.ws-members .ws-person-email { display: block; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-members .st-row-actions,
+.ws-invites .st-row-actions { flex-wrap: nowrap; white-space: nowrap; }
+.ws-invites .ws-cell-muted,
+.ws-invites .ws-status-bad { display: inline-block; min-width: 150px; }
+.ws-role-select { min-width: 0; width: auto; }

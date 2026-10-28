@@ -28,7 +28,7 @@ function initial(name: string | null, email: string): string {
 }
 
 /** Selector de apps: "Todas" o una lista. */
-function AppsPicker({ value, onChange, idPrefix }: { value: Apps; onChange: (v: Apps) => void; idPrefix: string }) {
+export function AppsPicker({ value, onChange, idPrefix }: { value: Apps; onChange: (v: Apps) => void; idPrefix: string }) {
   const t = useTranslations('settings.members');
   const all = value === '*';
   const list = all ? [] : value;
@@ -101,10 +101,13 @@ export default function MembersPanel({
   initial: initialDir,
   me,
   role,
+  legacyNotice = false,
 }: {
   initial: DirectoryDto;
   me: string;
   role: Role;
+  /** Owner de antes de 128 con datos propios: quien entre va a ver lo que hasta hoy era solo suyo. */
+  legacyNotice?: boolean;
 }) {
   const t = useTranslations('settings.members');
   const locale = useLocale();
@@ -205,8 +208,17 @@ export default function MembersPanel({
     }
   }
 
-  async function resend(inv: InviteDto) {
-    const res = await call(`/api/teams/invites/${encodeURIComponent(inv.id)}`, { method: 'POST' }, 'resendError');
+  async function approve(inv: InviteDto) {
+    const res = await call(`/api/teams/invites/${encodeURIComponent(inv.id)}`, { method: 'POST', body: JSON.stringify({ action: 'approve' }) });
+    if (res) await refresh();
+  }
+
+  async function resend(inv: InviteDto, allowAnyEmail?: boolean) {
+    const res = await call(
+      `/api/teams/invites/${encodeURIComponent(inv.id)}`,
+      { method: 'POST', body: JSON.stringify(allowAnyEmail ? { allowAnyEmail: true } : {}) },
+      'resendError',
+    );
     if (!res) return;
     const out = (await res.json()) as InviteOutcome;
     setResults([out]);
@@ -229,6 +241,11 @@ export default function MembersPanel({
     <>
       {admin && (
         <FormSection title={t('inviteTitle', { workspace: dir.team.name })} description={t('inviteDesc')}>
+          {legacyNotice && (
+            <p className="ws-notice" role="note" data-testid="legacy-notice">
+              {t('legacyNotice')}
+            </p>
+          )}
           <form className="ws-invite" onSubmit={onInvite}>
             <div className="ui-field">
               <label className="label" htmlFor="ws-invite-emails">
@@ -341,12 +358,14 @@ export default function MembersPanel({
                       {initial(m.name, m.email)}
                     </span>
                   )}
-                  <span className="ws-person-text">
+                  <span className="ws-person-text" title={`${t('colJoined')}: ${fmt(m.joinedAt)}`}>
                     <span className="st-strong">
                       {m.name || m.email.split('@')[0]}
                       {m.userId === me && <span className="st-muted"> {t('you')}</span>}
                     </span>
-                    <span className="data st-muted ws-person-email">{m.email}</span>
+                    <span className="data st-muted ws-person-email" title={m.email}>
+                      {m.email}
+                    </span>
                   </span>
                 </div>
               ),
@@ -382,7 +401,6 @@ export default function MembersPanel({
                   <span className="st-muted">{t('none')}</span>
                 ),
             },
-            { key: 'joined', header: t('colJoined'), cell: (m) => fmt(m.joinedAt), data: true },
             {
               key: 'actions',
               header: <span className="sr-only">{t('colActions')}</span>,
@@ -428,13 +446,16 @@ export default function MembersPanel({
                 header: t('colStatus'),
                 cell: (i) => (
                   <span className={i.expired || i.emailStatus === 'failed' ? 'ws-status-bad' : 'ws-cell-muted'}>
-                    {i.expired
-                      ? t('status.expired')
-                      : i.emailStatus === 'sent'
-                        ? t('status.sent', { date: fmt(i.sentAt) })
-                        : i.emailStatus === 'failed'
-                          ? t('status.failed')
-                          : t('status.notSent')}
+                    {i.kind === 'request'
+                      ? t('status.request')
+                      : i.expired
+                        ? t('status.expired')
+                        : i.emailStatus === 'sent'
+                          ? t('status.sent', { date: fmt(i.sentAt) })
+                          : i.emailStatus === 'failed'
+                            ? t('status.failed')
+                            : t('status.notSent')}
+                    {i.anyEmail && <span className="ws-status-note"> {t('status.anyEmail')}</span>}
                   </span>
                 ),
               },
@@ -444,10 +465,29 @@ export default function MembersPanel({
                 header: <span className="sr-only">{t('colActions')}</span>,
                 cell: (i) => (
                   <div className="st-row-actions">
-                    {i.url && !i.expired && <CopyButton text={i.url} label={t('copyLink')} className="btn btn-ghost btn-sm" />}
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => void resend(i)} disabled={busy}>
-                      {t('resend')}
-                    </button>
+                    {i.kind === 'request' ? (
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => void approve(i)} disabled={busy}>
+                        {t('approve')}
+                      </button>
+                    ) : (
+                      <>
+                        {i.url && !i.expired && <CopyButton text={i.url} label={t('copyLink')} className="btn btn-ghost btn-sm" />}
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => void resend(i)} disabled={busy}>
+                          {t('resend')}
+                        </button>
+                        {!i.anyEmail && i.role !== 'admin' && (
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => void resend(i, true)}
+                            disabled={busy}
+                            title={t('allowAnyEmailHelp')}
+                          >
+                            {t('allowAnyEmail')}
+                          </button>
+                        )}
+                      </>
+                    )}
                     <button
                       type="button"
                       className="btn btn-ghost btn-danger btn-sm"

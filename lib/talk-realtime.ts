@@ -7,6 +7,7 @@
  */
 import { getDb } from './db';
 import { sharedFeed, sseLiveResponse, type SharedFeed } from './realtime';
+import { personAppAccess } from './api-auth';
 import { isWorkspacePerson, latestEventId, listEventsSince, type TalkActor, type TalkEvent, type TalkEventKind } from './talk';
 import { heartbeat } from './talk-extras';
 
@@ -55,9 +56,16 @@ export function talkFeed(): SharedFeed<RawEvent> {
   return feed;
 }
 
+/** Sigue en el workspace y con Talk entre sus apps (lo que cambia al sacarla o al quitarle la app). */
+export async function talkAllowed(workspaceId: string, personId: string): Promise<boolean> {
+  if (!(await isWorkspacePerson(workspaceId, personId))) return false;
+  const access = await personAppAccess(workspaceId, personId);
+  return Boolean(access && (access.apps === '*' || access.apps.includes('talk')));
+}
+
 /** Canales cuyos eventos ve esta persona: donde es miembro y los públicos del workspace. */
 export async function visibleChannels(actor: TalkActor): Promise<Set<string>> {
-  if (!(await isWorkspacePerson(actor.workspaceId, actor.personId))) return new Set();
+  if (!(await talkAllowed(actor.workspaceId, actor.personId))) return new Set();
   const rows = (await getDb()
     .prepare(
       `SELECT id FROM talk_channels WHERE workspace_id = ? AND (kind = 'public' OR id IN (SELECT channel_id FROM talk_members WHERE user_id = ?))`,
@@ -75,7 +83,7 @@ export function connectionFilter(actor: TalkActor, onRevoked?: () => void) {
     const mine = events.filter((e) => e.workspaceId === actor.workspaceId);
     if (!mine.length) return [];
     // La persona salió del workspace: no pasa nada más por esta conexión y se corta.
-    if (mine.some((e) => e.kind === 'access' && e.userId === actor.personId) && !(await isWorkspacePerson(actor.workspaceId, actor.personId))) {
+    if (mine.some((e) => e.kind === 'access' && e.userId === actor.personId) && !(await talkAllowed(actor.workspaceId, actor.personId))) {
       revoked = true;
       onRevoked?.();
       return [];
@@ -112,7 +120,7 @@ export function talkStream(actor: TalkActor, cursor: number, signal?: AbortSigna
       });
     },
     // Red de seguridad: cada 15 s se revalida que siga en el workspace.
-    check: () => isWorkspacePerson(actor.workspaceId, actor.personId),
+    check: () => talkAllowed(actor.workspaceId, actor.personId),
     checkMs: 15_000,
     heartbeatMs: 15_000,
     maxMs: 240_000,

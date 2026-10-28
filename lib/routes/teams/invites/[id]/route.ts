@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { revokeInvite } from '@/lib/teams';
+import { approveJoinRequest, revokeInvite, setInviteAnyEmail } from '@/lib/teams';
 import { isResponse, publicBase, teamsCtx, teamsError } from '@/lib/teams-http';
 import { resendInvite } from '@/lib/workspace-invites';
 
@@ -15,11 +15,21 @@ export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: s
   return NextResponse.json({ ok: true });
 }
 
-/** POST: reenviar el email (renueva el vencimiento). Una vez por minuto y cinco por día. */
+/**
+ * POST: reenviar el email (renueva el vencimiento; una vez por minuto y cinco
+ * por día). `{ allowAnyEmail }` deja aceptarla con otro email (nunca a un
+ * admin). `{ action: 'approve' }` aprueba un pedido de ingreso por dominio.
+ */
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const ctx = await teamsCtx('admin');
   if (isResponse(ctx)) return ctx;
+  const body = (await req.json().catch(() => ({}))) as { action?: string; allowAnyEmail?: boolean };
+  if (body.action === 'approve') {
+    if (!(await approveJoinRequest(params.id, ctx.team.id, ctx.realId))) return teamsError('not_found', 404);
+    return NextResponse.json({ ok: true });
+  }
+  if (typeof body.allowAnyEmail === 'boolean') await setInviteAnyEmail(params.id, ctx.team.id, body.allowAnyEmail);
   const res = await resendInvite({
     team: ctx.team,
     inviteId: params.id,

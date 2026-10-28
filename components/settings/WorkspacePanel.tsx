@@ -5,6 +5,8 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import FormSection from '@/components/ui/FormSection';
 import { WORKSPACE_SIZES_LIST } from '@/lib/workspace-mode';
+import type { ProductKey } from '@/lib/products';
+import { AppsPicker } from './MembersPanel';
 
 export interface WorkspaceFormDto {
   id: string;
@@ -15,6 +17,10 @@ export interface WorkspaceFormDto {
   size: string | null;
   allowedDomains: string[];
   ownerEmail: string;
+  joinApps: '*' | ProductKey[];
+  joinApproval: boolean;
+  /** Dominio del email de quien mira: el único que puede habilitar. */
+  editorDomain: string;
 }
 
 function initial(name: string): string {
@@ -30,6 +36,7 @@ export default function WorkspacePanel({ initial: init, canEdit }: { initial: Wo
   const t = useTranslations('settings.workspaceForm');
   const router = useRouter();
   const [ws, setWs] = useState(init);
+  const [joinApps, setJoinApps] = useState<'*' | ProductKey[]>(init.joinApps);
   const [logoBusy, setLogoBusy] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -196,6 +203,8 @@ export default function WorkspacePanel({ initial: init, canEdit }: { initial: Wo
                     .split(/[\s,;]+/)
                     .map((d) => d.trim())
                     .filter(Boolean),
+                  joinApps,
+                  joinApproval: fd.get('approval') === 'on',
                 })
             : undefined
         }
@@ -213,8 +222,14 @@ export default function WorkspacePanel({ initial: init, canEdit }: { initial: Wo
             placeholder={t('domainsPlaceholder')}
             disabled={!canEdit}
           />
-          <p className="ui-help">{t('domainsHelp')}</p>
+          <p className="ui-help">{t('domainsHelp', { domain: ws.editorDomain || '-' })}</p>
         </div>
+        <label className="ui-check">
+          <input type="checkbox" name="approval" defaultChecked={ws.joinApproval} disabled={!canEdit} />
+          <span>{t('joinApproval')}</span>
+        </label>
+        <p className="ui-help">{t('joinRole')}</p>
+        <AppsPicker value={joinApps} onChange={setJoinApps} idPrefix="ws-join-app" />
       </FormSection>
     </>
   );

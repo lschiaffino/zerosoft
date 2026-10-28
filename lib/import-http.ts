@@ -6,6 +6,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser, isWorkspaceAdmin, type SessionUser } from './session';
+import { userCanUseApp } from './workspace';
 import { getWorkspaceImportJob, type ImportApp, type ImportJob } from './import-jobs';
 import { CSV_FIELDS, TRACK_IMPORT_MAX_CSV_BYTES } from './track-import-map';
 import { GITHUB_REPO_RE } from './track-import-sources';
@@ -116,6 +117,8 @@ export async function importUser(app: ImportApp): Promise<SessionUser | NextResp
   const user = await getCurrentUser();
   if (!user) return importError(401, 'unauthorized');
   if (needsAdmin(app) && !isWorkspaceAdmin(user)) return importError(403, 'forbidden');
+  // Acceso por app del workspace (Track, Cal, Docs).
+  if (!userCanUseApp(user, app)) return importError(403, 'forbidden');
   return user;
 }
 
@@ -126,5 +129,6 @@ export async function importJobFor(id: string): Promise<{ user: SessionUser; job
   const job = await getWorkspaceImportJob(user.id, id);
   if (!job) return importError(404, 'not_found');
   if (needsAdmin(job.app) && !isWorkspaceAdmin(user)) return importError(403, 'forbidden');
+  if (!userCanUseApp(user, job.app)) return importError(403, 'forbidden');
   return { user, job };
 }

@@ -863,6 +863,9 @@ export interface TeamInviteRow {
   email_error?: string;
   accepted_by?: string | null;
   accepted_at?: string | null;
+  kind?: 'invite' | 'request' | string;
+  requested_by?: string | null;
+  any_email?: number;
 }
 
 // ---------- Docs ----------

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
+import { hasAllApps } from '@/lib/workspace';
 import { createWebhook, listWebhooks, WEBHOOK_EVENTS } from '@/lib/webhooks';
 import { MAX_FILTER_VALUES, normalizeCrmFilter, normalizeLinkFilter } from '@/lib/webhooks-events';
 import { getDb } from '@/lib/db';
@@ -42,7 +43,7 @@ async function resolveLinkIds(userId: string, refs: string[]): Promise<string[] 
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  if (!isWorkspaceAdmin(user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  if (!isWorkspaceAdmin(user) || !hasAllApps(user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   return NextResponse.json({ rows: await listWebhooks(user.id) });
 }
 
@@ -50,7 +51,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  if (!isWorkspaceAdmin(user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  if (!isWorkspaceAdmin(user) || !hasAllApps(user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const parsed = createSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   const raw = parsed.data.linkFilter;
