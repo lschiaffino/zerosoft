@@ -843,7 +843,9 @@
     "page_archived": "Docs: página a la papelera",
     "page_comment_created": "Docs: comentario nuevo",
     "database_row_created": "Docs: fila nueva en una base",
-    "database_property_changed": "Docs: cambió una propiedad de una base"
+    "database_property_changed": "Docs: cambió una propiedad de una base",
+    "voice_meeting_completed": "Voice: reunión grabada",
+    "voice_notes_ready": "Voice: nota de la reunión lista"
   },
   "ops": {
     "equals": "es igual a",

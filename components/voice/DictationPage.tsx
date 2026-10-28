@@ -5,7 +5,7 @@ import { useFormatter, useTranslations } from 'next-intl';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { VOICE_CONTEXTS, type VoiceContext, type VoiceSessionSummary } from '@/lib/voice-types';
+import { VOICE_CONTEXTS, type VoiceContext, type VoiceDictionaryEntry, type VoiceSessionSummary } from '@/lib/voice-types';
 import type { DictationStats } from '@/lib/voice';
 import { useDictation, type DictationResult } from './useDictation';
 import { copyText } from './insert';
@@ -17,10 +17,14 @@ interface Props {
   shortcut: string;
   transcription: boolean;
   ai: boolean;
+  topApps: Array<{ app: string; words: number }>;
+  learning: boolean;
 }
 
+const APP_KEYS = new Set(['docs', 'notes', 'crm', 'track', 'chat', 'talk', 'voice', 'calendar', 'board', 'groups', 'flow', 'desktop', 'other']);
+
 /** /app/voice/dictation: dictar, el último resultado, historial y uso (como Wispr Flow). */
-export default function DictationPage({ initialHistory, stats, shortcut, transcription, ai }: Props) {
+export default function DictationPage({ initialHistory, stats, shortcut, transcription, ai, topApps, learning }: Props) {
   const t = useTranslations('voice.dictation');
   const tCtx = useTranslations('voice.contexts');
   const tErr = useTranslations('voice.errors');
@@ -34,6 +38,7 @@ export default function DictationPage({ initialHistory, stats, shortcut, transcr
   const [deleting, setDeleting] = useState<VoiceSessionSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [words, setWords] = useState(stats.wordsWeek);
+  const [learned, setLearned] = useState<VoiceDictionaryEntry[] | null>(null);
   const holding = useRef(false);
 
   useEffect(() => {
@@ -79,7 +84,18 @@ export default function DictationPage({ initialHistory, stats, shortcut, transcr
     if (!res?.ok) {
       setHistory(prev);
       setError('generic');
+      return;
     }
+    // Lo que se corrigió pasa al diccionario (con deshacer).
+    const data = (await res.json().catch(() => null)) as { learned?: VoiceDictionaryEntry[] } | null;
+    setLearned(data?.learned?.length ? data.learned : null);
+  }
+
+  async function undoLearned() {
+    const list = learned ?? [];
+    setLearned(null);
+    const results = await Promise.all(list.map((e) => fetch(`/api/voice/dictionary/${e.id}`, { method: 'DELETE' }).then((r) => r.ok).catch(() => false)));
+    if (results.some((ok) => !ok)) setError('generic');
   }
 
   async function remove() {
@@ -191,10 +207,35 @@ export default function DictationPage({ initialHistory, stats, shortcut, transcr
         </dl>
       </section>
 
+      {topApps.length > 0 && (
+        <section className="vc-block" aria-labelledby="vc-apps">
+          <h2 id="vc-apps" className="ui-section-title">
+            {t('topApps')}
+          </h2>
+          <ul className="vc-apps">
+            {topApps.map((a) => (
+              <li key={a.app}>
+                <span>{t(`apps.${APP_KEYS.has(a.app) ? a.app : 'other'}`)}</span>
+                <span className="vc-muted num">{t('wordsN', { count: a.words })}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <section className="vc-block" aria-labelledby="vc-history">
         <h2 id="vc-history" className="ui-section-title">
           {t('historyTitle')}
         </h2>
+        <p className="vc-muted">{learning ? t('learningOn') : t('learningOff')}</p>
+        {learned && (
+          <p className="vc-ok" role="status" data-testid="voice-learned">
+            {t('learned', { items: learned.map((e) => (e.kind === 'word' ? e.phrase : `${e.phrase} → ${e.replacement}`)).join(', ') })}{' '}
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => void undoLearned()}>
+              {t('undo')}
+            </button>
+          </p>
+        )}
         {history.length === 0 ? (
           <EmptyState compact title={t('emptyTitle')} body={t('emptyBody', { shortcut })} />
         ) : (

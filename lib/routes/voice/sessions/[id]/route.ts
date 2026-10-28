@@ -8,6 +8,9 @@ import { voiceErrorResponse, voiceJsonError } from '@/lib/voice-http';
 import { canSeeEntity, sessionScope } from '@/lib/crm-visibility';
 import { contactLabel } from '@/lib/voice-integrations';
 import { VOICE_NOTES_MAX, VOICE_TITLE_MAX } from '@/lib/voice-types';
+import { ownsFolder } from '@/lib/voice-library';
+import { getShare } from '@/lib/voice-share';
+import { learnFromEdit } from '@/lib/voice-prep';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -20,7 +23,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
   if (auth.res) return auth.res;
   const detail = await getSessionDetail(auth.owner, id);
   if (!detail) return voiceJsonError(404, 'not_found');
-  return NextResponse.json({ ...detail, contact: await contactLabel(auth.owner.workspaceId, detail.contactId) });
+  return NextResponse.json({ ...detail, contact: await contactLabel(auth.owner.workspaceId, detail.contactId), share: await getShare(auth.owner, id) });
 }
 
 const patchSchema = z.object({
@@ -33,6 +36,12 @@ const patchSchema = z.object({
   contactId: z.string().max(64).nullable().optional(),
   calBookingId: z.null().optional(),
   speakers: z.record(z.string().max(40), z.string().max(80)).optional(),
+  /** Carpeta propia (null = sin carpeta). */
+  folderId: z.string().max(64).nullable().optional(),
+  attendees: z
+    .array(z.object({ name: z.string().max(120), email: z.string().max(254) }))
+    .max(50)
+    .optional(),
   /** Con status "done": armar la nota con IA en segundo plano (default sí). */
   queueNotes: z.boolean().optional(),
   /** Con status "recording": id de la pestaña que graba (claim de la grabación). */
@@ -54,6 +63,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
         return voiceJsonError(404, 'contact_not_found');
       }
     }
+    if (p.folderId && !(await ownsFolder(auth.owner, p.folderId))) return voiceJsonError(404, 'folder_not_found');
     if (p.myNotes !== undefined) {
       if (row.kind !== 'meeting') return voiceJsonError(400, 'invalid_input');
       await saveMyNotes(id, p.myNotes);
@@ -77,6 +87,8 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       contactId: p.contactId,
       calBookingId: p.calBookingId,
       speakers: p.speakers,
+      folderId: p.folderId,
+      attendees: p.attendees,
       // Si cambia el contacto, la próxima nota crea una actividad nueva en su timeline.
       crmActivityId: p.contactId !== undefined && p.contactId !== row.contact_id ? null : undefined,
     });
@@ -89,8 +101,10 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       const res = await closeRecording(id, { queueNotes: p.queueNotes !== false });
       if (res.queued) await queueNoteAfterResponse(id);
     }
+    // Corregir un dictado del historial enseña al diccionario (si la persona no lo apagó).
+    const learned = row.kind === 'dictation' && p.text !== undefined && p.text !== row.text ? await learnFromEdit(auth.owner, row.text, p.text) : [];
     const detail = await getSessionDetail(auth.owner, id);
-    return NextResponse.json({ ...detail, contact: await contactLabel(auth.owner.workspaceId, detail?.contactId ?? null) });
+    return NextResponse.json({ ...detail, contact: await contactLabel(auth.owner.workspaceId, detail?.contactId ?? null), learned });
   } catch (err) {
     return voiceErrorResponse(err);
   }

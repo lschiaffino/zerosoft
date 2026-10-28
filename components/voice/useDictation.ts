@@ -131,5 +131,43 @@ export function useDictation() {
     [cleanup],
   );
 
-  return { state, error, setError, level, elapsed, start, stop, cancel, autoStopRef };
+  /**
+   * Command Mode: corta la grabación y manda lo dicho como instrucción para
+   * reescribir `text` (la selección). No queda en el historial.
+   */
+  const command = useCallback(
+    async (opts: { text: string; locale: string }): Promise<{ text: string; instruction: string; transform: string | null } | null> => {
+      if (stateRef.current === 'starting') {
+        set('idle');
+        return null;
+      }
+      if (stateRef.current !== 'recording' || !recRef.current) return null;
+      const rec = recRef.current;
+      recRef.current = null;
+      set('transcribing');
+      const { blob, durationMs } = await rec.stop();
+      cleanup();
+      if (durationMs < 300 || !blob.size) {
+        set('idle');
+        setError('too_short');
+        return null;
+      }
+      const form = new FormData();
+      form.append('audio', blob, `command.${blob.type.includes('mp4') ? 'm4a' : 'webm'}`);
+      form.append('text', opts.text);
+      form.append('locale', opts.locale);
+      form.append('durationMs', String(durationMs));
+      const res = await fetch('/api/voice/command', { method: 'POST', body: form }).catch(() => null);
+      const data = (await res?.json().catch(() => null)) as { text?: string; instruction?: string; transform?: string | null; error?: string } | null;
+      set('idle');
+      if (!res?.ok || !data?.text) {
+        setError(data?.error ?? 'network');
+        return null;
+      }
+      return { text: data.text, instruction: data.instruction ?? '', transform: data.transform ?? null };
+    },
+    [cleanup],
+  );
+
+  return { state, error, setError, level, elapsed, start, stop, cancel, command, autoStopRef };
 }

@@ -273,3 +273,154 @@ export async function askMeetings(opts: {
   await record(opts.workspaceId, 'voice_chat', modelId, res.totalUsage);
   return res.text.trim();
 }
+
+// ---------- Brief antes de la reunión ----------
+
+const briefSchema = z.object({ summary: z.string(), openItems: z.array(z.string()) });
+
+export interface PastMeeting {
+  title: string;
+  date: string;
+  summary: string;
+  actionItems: string[];
+  notes: string;
+}
+
+/** Respuesta del modelo falso: los resúmenes y los pendientes de las reuniones anteriores. */
+export function fakeBrief(past: PastMeeting[]): { summary: string; openItems: string[] } {
+  return {
+    summary: past
+      .map((p) => `${p.title || 'Meeting'} (${p.date}): ${p.summary || p.notes.split('\n')[0] || ''}`.trim())
+      .join(' ')
+      .slice(0, 1500),
+    openItems: [...new Set(past.flatMap((p) => p.actionItems))].slice(0, 10),
+  };
+}
+
+/**
+ * Brief antes de una reunión (Granola Business): qué se habló antes con las
+ * mismas personas y qué quedó pendiente, solo con las reuniones de la persona.
+ */
+export async function meetingBrief(opts: {
+  workspaceId: string;
+  title: string;
+  attendees: string[];
+  past: PastMeeting[];
+  locale: string;
+}): Promise<{ summary: string; openItems: string[] }> {
+  const { model, modelId } = await voiceModel(opts.workspaceId, () => ({ text: JSON.stringify(fakeBrief(opts.past)) }));
+  const context = opts.past
+    .map((p) =>
+      [`# ${p.title || 'Untitled'} (${p.date})`, p.summary, p.actionItems.length ? `Action items:\n${p.actionItems.map((a) => `- ${a}`).join('\n')}` : '', p.notes.slice(0, 4000)]
+        .filter(Boolean)
+        .join('\n'),
+    )
+    .join('\n\n');
+  const res = await generateText({
+    model,
+    instructions: [
+      'You prepare the user for an upcoming meeting, like a great chief of staff.',
+      `Upcoming meeting: ${opts.title || 'untitled'}${opts.attendees.length ? `, with ${opts.attendees.join(', ')}` : ''}.`,
+      'Using only the previous meetings below, write a short summary (three to five sentences) of what was discussed with these people and what was agreed, and list the open items that are still pending or worth following up.',
+      'Never invent facts. If the previous meetings say little, say so briefly.',
+      `Write in ${LANG_NAME[opts.locale] ?? 'English'}.`,
+    ].join('\n'),
+    prompt: `<previous_meetings>\n${context.slice(0, 60_000)}\n</previous_meetings>`,
+    output: Output.object({ schema: briefSchema }),
+    temperature: 0.2,
+    maxOutputTokens: 2000,
+    timeout: 60_000,
+    maxRetries: 1,
+  });
+  await record(opts.workspaceId, 'voice_brief', modelId, res.totalUsage);
+  const out = res.output as { summary: string; openItems: string[] };
+  return { summary: out.summary.slice(0, 3000), openItems: out.openItems.slice(0, 20).map((s) => s.slice(0, 400)) };
+}
+
+// ---------- Email de seguimiento ----------
+
+const followupSchema = z.object({ subject: z.string(), body: z.string() });
+
+/** Respuesta del modelo falso: saludo, el resumen y los próximos pasos. */
+export function fakeFollowup(title: string, notes: string, firstName: string): { subject: string; body: string } {
+  const lines = notes
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+  return {
+    subject: `Follow-up: ${title || 'our meeting'}`,
+    body: [`Hi ${firstName || 'there'},`, '', 'Thanks for your time today. A quick recap:', '', ...lines.slice(0, 12), '', 'Talk soon.'].join('\n'),
+  };
+}
+
+/** Borrador del email de seguimiento (Granola Business): asunto y cuerpo en texto plano. */
+export async function followupEmail(opts: {
+  workspaceId: string;
+  title: string;
+  notes: string;
+  attendees: Array<{ name: string; email: string }>;
+  senderName: string;
+  locale: string;
+}): Promise<{ subject: string; body: string }> {
+  const first = (opts.attendees[0]?.name || '').split(/\s+/)[0] ?? '';
+  const { model, modelId } = await voiceModel(opts.workspaceId, () => ({ text: JSON.stringify(fakeFollowup(opts.title, opts.notes, first)) }));
+  const res = await generateText({
+    model,
+    instructions: [
+      'You draft the follow-up email the user sends after a meeting.',
+      'Short and warm: thank them, recap the key points and decisions, list the next steps with owners and dates when they were said, and close.',
+      'Plain text, no Markdown headings. Only facts from the notes below; never invent prices, dates or promises.',
+      `From: ${opts.senderName || 'the user'}. To: ${opts.attendees.map((a) => a.name || a.email).join(', ') || 'the other attendees'}.`,
+      `Write in the language of the notes; if unclear, ${LANG_NAME[opts.locale] ?? 'English'}.`,
+    ].join('\n'),
+    prompt: `<meeting title="${opts.title.replace(/"/g, "'")}">\n${opts.notes.slice(0, 30_000)}\n</meeting>`,
+    output: Output.object({ schema: followupSchema }),
+    temperature: 0.3,
+    maxOutputTokens: 2000,
+    timeout: 60_000,
+    maxRetries: 1,
+  });
+  await record(opts.workspaceId, 'voice_followup', modelId, res.totalUsage);
+  const out = res.output as { subject: string; body: string };
+  return { subject: out.subject.slice(0, 200), body: out.body.slice(0, 10_000) };
+}
+
+// ---------- Command Mode y transforms ----------
+
+/** Respuesta del modelo falso: reescrituras simples y deterministas según la instrucción. */
+export function fakeRewrite(text: string, instruction: string): string {
+  const i = instruction.toLowerCase();
+  const sentences = text.match(/[^.!?\n]+[.!?]?/g)?.map((s) => s.trim()).filter(Boolean) ?? [text];
+  if (/bullet|list|lista|viñeta|tópico/.test(i)) return sentences.map((s) => `- ${s.replace(/[.!?]$/, '')}`).join('\n');
+  if (/short|corto|curto|resum/.test(i)) return sentences[0] ?? text;
+  if (/formal/.test(i)) return sentences.map((s) => s.charAt(0).toUpperCase() + s.slice(1).replace(/[^.!?]$/, (c) => `${c}.`)).join(' ');
+  if (/upper|mayúscula|maiúscula/.test(i)) return text.toUpperCase();
+  if (/translat|traduc/.test(i)) return `[translated] ${text}`;
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+}
+
+/**
+ * Reescribe un texto con una instrucción (Command Mode de Wispr Flow: lo que
+ * se dijo con el texto seleccionado; o un transform guardado). Devuelve solo
+ * el texto nuevo, listo para reemplazar la selección.
+ */
+export async function rewriteText(opts: { workspaceId: string; text: string; instruction: string; locale: string }): Promise<string> {
+  const text = opts.text.slice(0, 20_000);
+  const { model, modelId } = await voiceModel(opts.workspaceId, () => ({ text: fakeRewrite(text, opts.instruction) }));
+  const res = await generateText({
+    model,
+    instructions: [
+      'You edit a piece of text following the user\'s instruction (for example "make it shorter", "make it more formal", "translate it to English", "turn it into a list").',
+      'Reply with the edited text only: no quotes, no explanations, no preamble. Keep the meaning and the facts; keep the language unless the instruction asks to translate.',
+      `If the instruction is not about editing the text, return the text unchanged.`,
+      `Instruction: ${opts.instruction.slice(0, 2000)}`,
+    ].join('\n'),
+    prompt: text,
+    temperature: 0.2,
+    maxOutputTokens: 4000,
+    timeout: 30_000,
+    maxRetries: 1,
+  });
+  await record(opts.workspaceId, 'voice_command', modelId, res.totalUsage);
+  return res.text.trim();
+}

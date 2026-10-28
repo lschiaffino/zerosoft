@@ -148,6 +148,11 @@ export async function clearOfflineData(owner?: { userId: string; ws: string }): 
   forgetOtherOfflineData(null);
   try {
     localStorage.removeItem(OFFLINE_IDENTITY_KEY);
+    // Voice: los avisos de reunión ya mostrados (components/voice/MeetingReminders.tsx), de cualquier persona.
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('zs-voice-reminded')) localStorage.removeItem(key);
+    }
   } catch {
     /* sin storage */
   }

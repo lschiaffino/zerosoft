@@ -843,7 +843,9 @@
     "page_archived": "Docs: page moved to trash",
     "page_comment_created": "Docs: new comment",
     "database_row_created": "Docs: database row added",
-    "database_property_changed": "Docs: database property changed"
+    "database_property_changed": "Docs: database property changed",
+    "voice_meeting_completed": "Voice: meeting recorded",
+    "voice_notes_ready": "Voice: meeting notes ready"
   },
   "ops": {
     "equals": "equals",

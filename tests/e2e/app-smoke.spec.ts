@@ -489,6 +489,25 @@ const APPS: AppCase[] = [
     rename: async (request, i, name) => void (await ok(request.patch(`/api/voice/sessions/${i.id}`, { data: { title: name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/voice/sessions/${i.id}`))),
   },
+  {
+    app: 'Voice folders',
+    list: '/en/app/voice',
+    create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/voice/folders', { data: { name } }))).id, name }),
+    detail: (i) => `/en/app/voice?folder=${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/voice/folders/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/voice/folders/${i.id}`))),
+  },
+  {
+    app: 'Voice recipes',
+    list: '/en/app/voice/settings?tab=prompts',
+    create: async (request, name) => ({
+      id: (await ok<{ id: string }>(request.post('/api/voice/prompts', { data: { kind: 'recipe', name, prompt: 'List the risks.' } }))).id,
+      name,
+    }),
+    detail: (i) => `/en/app/voice/settings?tab=prompts&prompt=${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/voice/prompts/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/voice/prompts/${i.id}`))),
+  },
 ];
 
 /** Errores de JS, de consola y respuestas 5xx mientras corre el test. */

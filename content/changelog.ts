@@ -29,6 +29,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-28-voice-parity-2',
+    date: '2026-10-28',
+    title: {
+      en: 'Voice: your calendar with briefs and reminders, sharing by link, recipes, follow-up emails and Command Mode',
+      es: 'Voice: tu calendario con brief y avisos, compartir por link, recipes, emails de seguimiento y Command Mode',
+      pt: 'Voice: seu calendário com brief e avisos, compartilhar por link, recipes, emails de follow-up e Command Mode',
+    },
+    items: [
+      { product: 'voice', en: 'Meetings now come from Cal bookings and the Google Calendar or Outlook you connected in Cal, with their attendees. Take notes from an event, get a reminder a few minutes before, and read a brief of what you discussed before with the same people.', es: 'Las reuniones salen de las reservas de Cal y del Google Calendar u Outlook que conectaste en Cal, con sus asistentes. Tomás notas desde el evento, te llega un aviso unos minutos antes y leés un brief de lo que hablaste antes con las mismas personas.', pt: 'As reuniões vêm das reservas do Cal e do Google Calendar ou Outlook que você conectou no Cal, com os participantes. Você faz notas a partir do evento, recebe um aviso minutos antes e lê um brief do que conversou antes com as mesmas pessoas.' },
+      { product: 'voice', en: 'Share a meeting by link with your workspace, with the people you pick or with anyone, read only and with the transcript only if you include it. Change or revoke the link anytime. Meetings shared with you show up in "Shared with me".', es: 'Compartí una reunión por link con tu workspace, con las personas que elijas o con cualquiera, de solo lectura y con la transcripción solo si la incluís. El link se cambia o se revoca cuando quieras. Lo que te compartieron aparece en "Compartidas conmigo".', pt: 'Compartilhe uma reunião por link com o seu workspace, com as pessoas que escolher ou com qualquer pessoa, só leitura e com a transcrição só se você incluir. Dá para trocar ou revogar o link quando quiser. O que compartilharam com você aparece em "Compartilhadas comigo".' },
+      { product: 'voice', en: 'Folders with one level of subfolders, recipes you run with / on one meeting or across meetings, a follow-up email drafted by AI that opens in Gmail or Outlook, and sending the notes to Slack or Notion.', es: 'Carpetas con un nivel de subcarpetas, recipes que se corren con / sobre una reunión o sobre varias, un email de seguimiento que redacta la IA y se abre en Gmail u Outlook, y mandar la nota a Slack o Notion.', pt: 'Pastas com um nível de subpastas, recipes que rodam com / em uma reunião ou em várias, um email de follow-up escrito pela IA que abre no Gmail ou no Outlook, e enviar a nota para o Slack ou o Notion.' },
+      { product: 'voice', en: 'Dictation: Command Mode rewrites the selected text with what you say, saved transforms rewrite it with one click, and fixing a dictation in the history teaches your dictionary. Admins get a team dictionary and a usage panel.', es: 'Dictado: Command Mode reescribe el texto seleccionado con lo que decís, los transforms guardados lo reescriben con un clic y corregir un dictado en el historial le enseña a tu diccionario. Los admins tienen diccionario del equipo y un panel de uso.', pt: 'Ditado: o Command Mode reescreve o texto selecionado com o que você diz, os transforms salvos reescrevem com um clique e corrigir um ditado no histórico ensina o seu dicionário. Admins têm dicionário da equipe e um painel de uso.' },
+      { product: 'voice', en: 'Transcripts can delete themselves after the days you pick (admins can set a maximum), the new MCP server lets Claude or ChatGPT read your meetings, and the voice.meeting.completed and voice.notes.ready webhooks reach only the webhooks you created.', es: 'Las transcripciones se pueden borrar solas a los días que elijas (los admins pueden fijar un tope), el nuevo servidor MCP deja que Claude o ChatGPT lean tus reuniones, y los webhooks voice.meeting.completed y voice.notes.ready llegan solo a los webhooks que creaste vos.', pt: 'As transcrições podem se apagar sozinhas depois dos dias que você escolher (admins podem definir um limite), o novo servidor MCP deixa o Claude ou o ChatGPT lerem suas reuniões, e os webhooks voice.meeting.completed e voice.notes.ready chegam só aos webhooks que você criou.' },
+    ],
+  },
+  {
     id: '2026-10-27-notes',
     date: '2026-10-27',
     title: {

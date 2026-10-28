@@ -77,6 +77,8 @@ export const FLOW_EVENT_TYPES = [
   'groups.member.left',
   'groups.poll.voted',
   'talk.message.posted',
+  'voice.meeting.completed',
+  'voice.notes.ready',
 ] as const;
 export type FlowEventType = (typeof FLOW_EVENT_TYPES)[number];
 
@@ -358,6 +360,38 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
     botName: null,
     threadId: null,
     createdAt: '2026-01-01T15:00:00Z',
+  },
+  'voice.meeting.completed': {
+    meeting: {
+      id: 'vs_1',
+      title: 'Pricing review',
+      startedAt: '2026-01-01T15:00:00Z',
+      endedAt: '2026-01-01T15:30:00Z',
+      durationMs: 1_800_000,
+      attendees: [{ name: 'Ana', email: 'ana@acme.com' }],
+      contactId: null,
+      calBookingId: null,
+      url: 'https://zerosoftware.ai/en/app/voice/meetings/vs_1',
+    },
+  },
+  'voice.notes.ready': {
+    meeting: {
+      id: 'vs_1',
+      title: 'Pricing review',
+      startedAt: '2026-01-01T15:00:00Z',
+      endedAt: '2026-01-01T15:30:00Z',
+      durationMs: 1_800_000,
+      attendees: [{ name: 'Ana', email: 'ana@acme.com' }],
+      contactId: null,
+      calBookingId: null,
+      url: 'https://zerosoftware.ai/en/app/voice/meetings/vs_1',
+    },
+    notes: {
+      summary: 'Ana agreed to the annual plan.',
+      sections: [{ heading: 'Pricing', points: [{ text: 'Annual plan at USD 12 per seat', source: 'transcript' }] }],
+      decisions: ['Annual plan'],
+      actionItems: [{ text: 'Send the proposal', owner: 'Me', due: 'Friday' }],
+    },
   },
 };
 

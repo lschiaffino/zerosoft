@@ -124,7 +124,8 @@
       "comment": "Comentários do Track",
       "project": "Equipes do Track",
       "page": "Páginas do Docs",
-      "database": "Bancos do Docs"
+      "database": "Bancos do Docs",
+      "voice": "Reuniões do Voice"
     },
     "eventLabels": {
       "booking_created": "Reserva criada",
@@ -191,7 +192,9 @@
       "database_property_changed": "Propriedade de um banco mudou (Docs)",
       "chat_conversation_created": "Conversa criada",
       "chat_conversation_tagged": "Tag em uma conversa",
-      "chat_csat_submitted": "CSAT recebido"
+      "chat_csat_submitted": "CSAT recebido",
+      "voice_meeting_completed": "Reunião gravada (Voice)",
+      "voice_notes_ready": "Nota da reunião pronta (Voice)"
     },
     "errors": {
       "https_required": "A URL precisa usar https.",

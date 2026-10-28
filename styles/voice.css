@@ -228,3 +228,114 @@ a.vc-row-main:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px
 
 .vc-confirm-text { display: block; margin-bottom: 12px; }
 .vc-confirm-check { margin-top: 4px; }
+
+/* ---------- Ronda 2: carpetas, recipes, brief, compartir, envíos ---------- */
+.vc-upcoming-actions { display: flex; gap: 4px; flex: none; }
+.vc-hint { margin: -4px 0 0; font-size: 0.8125rem; }
+
+.vc-library { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 20px; align-items: start; }
+.vc-library-main { min-width: 0; }
+.vc-folders { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.vc-folders ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.vc-folders-title { margin: 8px 0 0; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); }
+.vc-folders-empty { margin: 0; font-size: 0.8125rem; }
+.vc-folders > .btn { align-self: flex-start; }
+.vc-folder.is-sub { padding-left: 14px; }
+.vc-folder-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  color: var(--ink-2);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-1);
+  text-align: left;
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.vc-folder-btn:hover { background: var(--ui-hover); color: var(--ink); }
+.vc-folder-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.vc-folder-btn[aria-current='page'] { background: var(--ui-press); color: var(--ink); font-weight: 600; }
+.vc-folder-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vc-folder-input { height: 30px; font-size: 0.875rem; }
+.vc-folder-actions { margin-top: -4px; }
+.vc-move { max-width: 160px; }
+
+.vc-recipe-input { position: relative; }
+.vc-recipe-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  width: min(360px, 100%);
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--bg);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
+}
+.vc-recipe-option { display: flex; justify-content: space-between; gap: 12px; padding: 6px 8px; border-radius: var(--radius-1); cursor: pointer; font-size: 0.875rem; }
+.vc-recipe-option.is-active { background: var(--ui-hover); }
+.vc-recipe-empty { padding: 6px 8px; }
+
+.vc-brief { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-1); }
+.vc-brief p { margin: 0; }
+.vc-brief-body { display: flex; flex-direction: column; gap: 8px; line-height: 1.55; }
+.vc-brief-body p { margin: 0; }
+
+.vc-modal .ui-modal-body { display: flex; flex-direction: column; gap: 12px; }
+.vc-modal .ui-modal-body p { margin: 0; }
+.vc-foot-left { margin-right: auto; }
+.vc-share, .vc-send, .vc-followup-form, .vc-followup-start { display: flex; flex-direction: column; gap: 12px; }
+.vc-followup-start { align-items: flex-start; }
+.vc-share fieldset { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.vc-share-link { display: flex; flex-direction: column; gap: 8px; }
+.vc-share-link .input { font-size: 0.8125rem; }
+.vc-send section { display: flex; flex-direction: column; gap: 8px; }
+.vc-send-notion { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.vc-send-notion .vc-inline-field { width: 100%; }
+.vc-followup-form .textarea { min-height: 220px; line-height: 1.5; }
+.vc-modal .ui-modal-foot { flex-wrap: wrap; }
+
+.vc-attendees { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.vc-attendees li { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
+.vc-details form .input { flex: 1 1 160px; min-width: 0; }
+
+.vc-apps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.vc-apps li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+
+.vc-row.is-highlight { background: var(--ui-hover); }
+.vc-builtin-title { margin-top: 16px; }
+.vc-team-check { margin-top: 4px; }
+.vc-team-days { max-width: 220px; }
+.vc-table-wrap { overflow-x: auto; max-width: 100%; }
+.vc-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.vc-table th, .vc-table td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; white-space: nowrap; }
+.vc-table thead th { font-weight: 600; color: var(--ink-3); font-size: 0.8125rem; }
+.vc-table .num { text-align: right; font-family: var(--font-data); }
+.vc-table-sub { display: block; font-weight: 400; }
+.vc-code { margin: 0; padding: 10px 12px; overflow-x: auto; max-width: 100%; font-size: 0.8125rem; background: var(--bg-soft); border: 1px solid var(--line); border-radius: var(--radius-1); }
+
+/* Reunión compartida por link (/m/<token>) */
+.vc-public { max-width: 760px; margin: 0 auto; padding: 56px 16px 96px; display: flex; flex-direction: column; gap: 16px; color: var(--ink); }
+.vc-public-meta { margin: 0; font-size: 0.75rem; color: var(--ink-3); }
+.vc-public-title { margin: 0; font-family: var(--font-signage); font-size: var(--t-h1); line-height: 1.1; overflow-wrap: anywhere; }
+.vc-public-notes { white-space: pre-wrap; }
+.vc-public-transcript { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.vc-speaker-static { font-size: 0.8125rem; font-weight: 600; }
+
+@media (max-width: 760px) {
+  .vc-library { grid-template-columns: minmax(0, 1fr); }
+  .vc-folders ul { flex-direction: row; flex-wrap: wrap; gap: 4px; }
+  .vc-folder.is-sub { padding-left: 0; }
+  .vc-folder-btn { width: auto; border: 1px solid var(--line); }
+}
+@media (max-width: 520px) {
+  .vc-upcoming li { flex-wrap: wrap; }
+  .vc-move { max-width: 100%; flex: 1 1 100%; }
+}

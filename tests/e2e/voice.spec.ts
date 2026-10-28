@@ -120,7 +120,7 @@ test('reunión: grabar, transcripción en vivo, nota con IA, tareas, chat, busca
 
   // Chat sobre la reunión.
   await page.getByRole('tab', { name: 'Ask' }).click();
-  await page.getByRole('textbox', { name: 'Ask about this meeting' }).fill('What did they say about billing?');
+  await page.getByRole('combobox', { name: 'Ask about this meeting' }).fill('What did they say about billing?');
   await page.getByRole('button', { name: 'Ask', exact: true }).click();
   await expect(page.locator('.vc-msg.is-assistant').first()).toContainText(/annual billing/i);
 
@@ -145,7 +145,7 @@ test('reunión: grabar, transcripción en vivo, nota con IA, tareas, chat, busca
   await expect(page.getByTestId('voice-meeting-row').filter({ hasText: title })).toBeVisible();
 
   // Preguntas entre reuniones.
-  await page.getByRole('textbox', { name: 'Ask your meetings' }).fill('Who wants annual billing?');
+  await page.getByRole('combobox', { name: 'Ask your meetings' }).fill('Who wants annual billing?');
   await page.getByRole('button', { name: 'Ask', exact: true }).click();
   await expect(page.locator('.vc-answer')).toContainText(title);
 

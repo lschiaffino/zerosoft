@@ -1,11 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { usePathname } from '@/i18n/navigation';
-import { parseShortcut, DEFAULT_VOICE_SETTINGS, type VoiceSettings } from '@/lib/voice-types';
+import { parseShortcut, DEFAULT_VOICE_SETTINGS, type VoicePrompt, type VoiceSettings } from '@/lib/voice-types';
 import { useDictation } from './useDictation';
-import { contextFor, copyText, editableTarget, insertIntoField } from './insert';
+import { contextFor, copyText, editableTarget, insertIntoField, replaceSelection, selectionIn, type FieldSelection } from './insert';
 import { LevelBars, MicIcon, voiceErrorKey } from './voice-icons';
 
 /** Mantener el atajo al menos esto empieza a dictar; un toque más corto deja pasar la tecla. */
@@ -136,11 +136,114 @@ function useBarPosition(field: HTMLElement | null, barRef: RefObject<HTMLButtonE
   return pos;
 }
 
+/**
+ * Transforms (Wispr Flow): con texto seleccionado en un campo, un menú de
+ * reescrituras guardadas (las de fábrica, las propias y las del equipo).
+ */
+function TransformsMenu({
+  target,
+  selection,
+  pos,
+  onDone,
+  onClose,
+}: {
+  target: HTMLElement;
+  selection: FieldSelection;
+  pos: { top: number; left: number };
+  onDone: (msg: string) => void;
+  onClose: () => void;
+}) {
+  const t = useTranslations('voice.host');
+  const tErr = useTranslations('voice.errors');
+  const locale = useLocale();
+  const tPrompts = useTranslations('voice.prompts');
+  const builtin = Object.entries(tPrompts.raw('transforms') as Record<string, { name: string }>).map(([k, v]) => ({ id: `builtin:${k}`, name: v.name }));
+  const [own, setOwn] = useState<Array<{ id: string; name: string }>>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    let alive = true;
+    void fetch('/api/voice/prompts?kind=transform')
+      .then((r) => (r.ok ? (r.json() as Promise<{ prompts: VoicePrompt[] }>) : { prompts: [] }))
+      .then((d) => alive && setOwn(d.prompts.map((p) => ({ id: p.id, name: p.name }))))
+      .catch(() => undefined);
+    menuRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    // Clic afuera cierra.
+    const onDown = (e: PointerEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) closeRef.current();
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    return () => {
+      alive = false;
+      document.removeEventListener('pointerdown', onDown, true);
+    };
+  }, []);
+  async function run(item: { id: string; name: string }) {
+    setBusy(item.id);
+    const res = await fetch('/api/voice/command', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: selection.text, transformId: item.id, locale }),
+    }).catch(() => null);
+    const data = (await res?.json().catch(() => null)) as { text?: string; error?: string } | null;
+    setBusy(null);
+    if (!res?.ok || !data?.text) {
+      onDone(tErr(voiceErrorKey(data?.error ?? 'network')));
+      onClose();
+      return;
+    }
+    replaceSelection(target, selection, data.text);
+    onDone(t('transformDone', { name: item.name }));
+    onClose();
+  }
+  const items = [...own, ...builtin];
+  return (
+    <div
+      ref={menuRef}
+      className="vc-transforms"
+      role="menu"
+      aria-label={t('transformsLabel')}
+      style={{ top: pos.top + 28, left: Math.max(8, Math.min(pos.left - 180, window.innerWidth - 228)) }}
+      onKeyDown={(e) => {
+        const buttons = [...(menuRef.current?.querySelectorAll<HTMLButtonElement>('button') ?? [])];
+        const i = buttons.indexOf(document.activeElement as HTMLButtonElement);
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation();
+          onClose();
+          target.focus();
+        } else if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          buttons[(i + 1) % buttons.length]?.focus();
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          buttons[(i - 1 + buttons.length) % buttons.length]?.focus();
+        }
+      }}
+    >
+      <p className="vc-transforms-title">{t('transformsTitle')}</p>
+      {items.map((it) => (
+        <button key={it.id} type="button" role="menuitem" className="vc-transforms-item" disabled={busy !== null} aria-busy={busy === it.id || undefined} onClick={() => void run(it)}>
+          {busy === it.id ? t('commandWorking') : it.name}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function DictationHost() {
   const t = useTranslations('voice.host');
   const tErr = useTranslations('voice.errors');
+  const locale = useLocale();
   const pathname = usePathname();
   const d = useDictation();
+  /** Command Mode: la selección que se va a reescribir con lo que se diga. */
+  const commandRef = useRef<FieldSelection | null>(null);
+  const [commanding, setCommanding] = useState(false);
+  const [selection, setSelection] = useState<FieldSelection | null>(null);
+  const [transformsOpen, setTransformsOpen] = useState<{ target: HTMLElement; selection: FieldSelection; pos: { top: number; left: number } } | null>(null);
   const [settings, setSettings] = useState<VoiceSettings | null>(null);
   const [focused, setFocused] = useState<HTMLElement | null>(null);
   const [handsFree, setHandsFree] = useState(false);
@@ -188,6 +291,15 @@ export default function DictationHost() {
     handsFreeRef.current = false;
     setHandsFree(false);
     const target = targetRef.current;
+    const sel = commandRef.current;
+    if (sel && target) {
+      commandRef.current = null;
+      const out = await d.command({ text: sel.text, locale });
+      setCommanding(false);
+      if (!out) return;
+      if (replaceSelection(target, sel, out.text)) showToast(t('commandDone', { instruction: out.transform ?? out.instruction }));
+      return;
+    }
     const res = await d.stop({ context: contextFor(target), sourceApp: window.location.pathname });
     if (!res) return;
     lastTextRef.current = res.text;
@@ -197,16 +309,21 @@ export default function DictationHost() {
       return;
     }
     showToast((await copyText(res.text)) ? t('copied') : t('copyFailed'));
-  }, [d, showToast, t]);
+  }, [d, showToast, t, locale]);
 
   const begin = useCallback(
     async (opts: { handsFree: boolean }) => {
-      targetRef.current = editableTarget(document.activeElement);
+      const target = editableTarget(document.activeElement);
+      targetRef.current = target;
+      // Con Command Mode prendido y texto seleccionado, lo que se diga es una instrucción para reescribirlo.
+      const sel = settings?.commandMode ? selectionIn(target) : null;
+      commandRef.current = sel;
+      setCommanding(!!sel);
       handsFreeRef.current = opts.handsFree;
       setHandsFree(opts.handsFree);
       await d.start();
     },
-    [d],
+    [d, settings?.commandMode],
   );
 
   d.autoStopRef.current = () => void finish();
@@ -234,6 +351,8 @@ export default function DictationHost() {
         e.stopPropagation();
         holdingRef.current = false;
         handsFreeRef.current = false;
+        commandRef.current = null;
+        setCommanding(false);
         clearHold();
         setHandsFree(false);
         d.cancel();
@@ -316,6 +435,16 @@ export default function DictationHost() {
     };
 
     const onFocus = () => setFocused(editableTarget(document.activeElement));
+    // Selección en el campo enfocado: muestra el botón de transforms.
+    const onSelection = () => {
+      const el = editableTarget(document.activeElement);
+      setSelection(el ? selectionIn(el) : null);
+    };
+    document.addEventListener('selectionchange', onSelection);
+    // En inputs y textareas algunos navegadores solo avisan con "select" o al soltar la tecla o el mouse.
+    document.addEventListener('select', onSelection, true);
+    document.addEventListener('keyup', onSelection, true);
+    document.addEventListener('mouseup', onSelection, true);
     const onToggle = () => {
       if (d.state === 'recording') void finish();
       else if (d.state === 'idle') void begin({ handsFree: true });
@@ -331,6 +460,10 @@ export default function DictationHost() {
       window.removeEventListener('keyup', onUp, true);
       document.removeEventListener('focusin', onFocus);
       document.removeEventListener('focusout', onFocus);
+      document.removeEventListener('selectionchange', onSelection);
+      document.removeEventListener('select', onSelection, true);
+      document.removeEventListener('keyup', onSelection, true);
+      document.removeEventListener('mouseup', onSelection, true);
       window.removeEventListener('zs:voice-dictate', onToggle);
     };
   }, [settings, d, begin, finish, showToast, t]);
@@ -349,7 +482,11 @@ export default function DictationHost() {
           <MicIcon />
           {d.state === 'recording' ? <LevelBars level={d.level} /> : <span className="vc-spinner" aria-hidden="true" />}
           <span className="vc-host-label">
-            {d.state === 'transcribing'
+            {commanding && d.state === 'transcribing'
+              ? t('commandWorking')
+              : commanding && d.state === 'recording'
+                ? t('commandListening')
+                : d.state === 'transcribing'
               ? t('transcribing')
               : d.state === 'starting'
                 ? t('starting')
@@ -368,6 +505,8 @@ export default function DictationHost() {
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   handsFreeRef.current = false;
+                  commandRef.current = null;
+                  setCommanding(false);
                   setHandsFree(false);
                   d.cancel();
                 }}
@@ -392,6 +531,30 @@ export default function DictationHost() {
         >
           <MicIcon size={14} />
         </button>
+      )}
+      {showBar && selection && focused && !transformsOpen && (
+        <button
+          type="button"
+          className="vc-bar vc-bar-transform"
+          style={{ top: barPos!.top, left: barPos!.left - BAR - 4 }}
+          aria-label={t('transformsLabel')}
+          title={t('transformsLabel')}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => setTransformsOpen({ target: focused, selection, pos: barPos! })}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4" />
+          </svg>
+        </button>
+      )}
+      {transformsOpen && (
+        <TransformsMenu
+          target={transformsOpen.target}
+          selection={transformsOpen.selection}
+          pos={transformsOpen.pos}
+          onDone={showToast}
+          onClose={() => setTransformsOpen(null)}
+        />
       )}
       {toast && (
         <div className="vc-toast" role="status">

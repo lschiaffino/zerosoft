@@ -264,3 +264,73 @@ export async function deleteGoogleEventForBooking(
     { method: 'DELETE', headers: { authorization: `Bearer ${token}` } },
   ).catch(() => null);
 }
+
+// ---------- Eventos para Voice (reuniones con sus asistentes) ----------
+
+export interface ExternalMeetingEvent {
+  id: string;
+  title: string;
+  startsAt: string;
+  endsAt: string;
+  attendees: Array<{ name: string; email: string }>;
+  meetingUrl: string | null;
+}
+
+/**
+ * Próximos eventos de los calendarios elegidos de la persona (los mismos que
+ * revisa Cal), con sus asistentes y el link de la videollamada. Sin eventos
+ * de todo el día, cancelados o rechazados. [] si no hay Google conectado o
+ * no responde. Usa el scope calendar.events que ya pide Cal.
+ */
+export async function listGoogleEvents(userId: string, from: Date, to: Date): Promise<ExternalMeetingEvent[]> {
+  const token = await tokenFor(userId);
+  if (!token) return [];
+  const calendars = checkedCalendars(await getPersonCalendars(userId), 'google');
+  const out: ExternalMeetingEvent[] = [];
+  for (const cal of calendars.slice(0, 10)) {
+    const qs = new URLSearchParams({
+      timeMin: from.toISOString(),
+      timeMax: to.toISOString(),
+      singleEvents: 'true',
+      orderBy: 'startTime',
+      maxResults: '50',
+    });
+    const res = await gfetch(`${API}/calendars/${calendarPath(cal)}/events?${qs.toString()}`, {
+      headers: { authorization: `Bearer ${token}` },
+    }).catch(() => null);
+    if (!res?.ok) continue;
+    const data = (await res.json().catch(() => null)) as {
+      items?: Array<{
+        id: string;
+        status?: string;
+        summary?: string;
+        start?: { dateTime?: string; date?: string };
+        end?: { dateTime?: string; date?: string };
+        hangoutLink?: string;
+        location?: string;
+        conferenceData?: { entryPoints?: Array<{ entryPointType?: string; uri?: string }> };
+        attendees?: Array<{ email?: string; displayName?: string; self?: boolean; responseStatus?: string; resource?: boolean }>;
+      }>;
+    } | null;
+    for (const e of data?.items ?? []) {
+      if (e.status === 'cancelled' || !e.start?.dateTime || !e.end?.dateTime) continue;
+      const me = e.attendees?.find((a) => a.self);
+      if (me?.responseStatus === 'declined') continue;
+      const url =
+        e.hangoutLink ??
+        e.conferenceData?.entryPoints?.find((p) => p.entryPointType === 'video')?.uri ??
+        (e.location && /^https:\/\//.test(e.location) ? e.location : null);
+      out.push({
+        id: e.id,
+        title: e.summary ?? '',
+        startsAt: new Date(e.start.dateTime).toISOString(),
+        endsAt: new Date(e.end.dateTime).toISOString(),
+        attendees: (e.attendees ?? [])
+          .filter((a) => !a.self && !a.resource && a.email)
+          .map((a) => ({ name: a.displayName ?? '', email: String(a.email).toLowerCase() })),
+        meetingUrl: url ?? null,
+      });
+    }
+  }
+  return out;
+}

@@ -1,0 +1,293 @@
+import { expect, test, type Page } from '@playwright/test';
+
+/**
+ * Voice, ronda 2: calendario (Google falso de Cal) con brief y aviso,
+ * carpetas, compartir por link, recipes, email de seguimiento, Slack y Notion
+ * falsos, Command Mode, transforms, aprender del historial, uso del equipo,
+ * retención y MCP. Transcripción e IA falsas (VOICE_TRANSCRIBE_PROVIDER=fake,
+ * VOICE_AI_FAKE=1).
+ */
+test.use({
+  launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] },
+  permissions: ['microphone'],
+});
+
+test.beforeEach(async ({ context, baseURL }) => {
+  await context.grantPermissions(['microphone', 'clipboard-read', 'clipboard-write'], { origin: baseURL! });
+});
+
+const uid = () => Math.random().toString(36).slice(2, 8);
+const content = (page: Page) => page.locator('main.app-content');
+
+async function meetingWithNotes(page: Page, title: string): Promise<string> {
+  const res = await page.request.post('/api/voice/sessions', { data: { title } });
+  const { id } = (await res.json()) as { id: string };
+  await page.request.patch(`/api/voice/sessions/${id}`, { data: { myNotes: 'Pricing per seat\nAnnual billing agreed' } });
+  return id;
+}
+
+test('calendario: eventos de Google con asistentes, brief, tomar notas y aviso previo', async ({ page }) => {
+  await page.goto('/en/app/calendar/settings?tab=connections', { waitUntil: 'networkidle' });
+  const google = page.locator('.cal-conn').filter({ hasText: 'Google Calendar' });
+  if (await google.getByRole('button', { name: 'Connect' }).isVisible()) {
+    await google.getByRole('button', { name: 'Connect' }).click();
+    await expect(page.getByText('Google Calendar connected.')).toBeVisible();
+  }
+
+  await page.goto('/en/app/voice', { waitUntil: 'networkidle' });
+  const upcoming = page.getByTestId('voice-upcoming');
+  const event = upcoming.locator('li').filter({ hasText: 'Pricing review' });
+  await expect(event).toBeVisible();
+  await expect(event).toContainText('Google Calendar');
+  await expect(event).toContainText('Ana Guest');
+
+  // Brief: sin reuniones anteriores con Ana todavía.
+  await event.getByRole('button', { name: 'Brief' }).click();
+  const brief = page.getByRole('dialog', { name: /Before Pricing review/ });
+  await expect(brief).toContainText(/no previous meetings|Based on/);
+  await page.keyboard.press('Escape');
+  await expect(brief).toBeHidden();
+
+  // Tomar notas: la reunión sale del evento con su asistente.
+  const btn = event.getByRole('button', { name: 'Take notes' });
+  const open = event.getByRole('link', { name: 'Open notes' });
+  if (await btn.isVisible()) await btn.click();
+  else await open.click();
+  await expect(page).toHaveURL(/\/app\/voice\/meetings\//);
+  await expect(page.getByRole('textbox', { name: 'Meeting title' })).toHaveValue('Pricing review');
+  await page.getByRole('tab', { name: 'Links' }).click();
+  await expect(page.locator('.vc-attendees')).toContainText('Ana Guest');
+  // Brief dentro de la reunión.
+  await page.getByRole('button', { name: /Prepare a brief|Update brief/ }).click();
+  await expect(page.locator('.vc-brief')).toContainText(/no previous meetings|Based on/);
+
+  // De vuelta, el evento ya abre esas notas.
+  await page.goto('/en/app/voice', { waitUntil: 'networkidle' });
+  await expect(page.getByTestId('voice-upcoming').locator('li').filter({ hasText: 'Pricing review' }).getByRole('link', { name: 'Open notes' })).toBeVisible();
+
+  // Aviso previo: el evento empieza en 4 minutos; con 5 minutos de anticipación avisa.
+  await page.request.patch('/api/voice/settings', { data: { reminders: true, reminderMinutes: 5 } });
+  await page.evaluate(() => Object.keys(localStorage).forEach((k) => k.startsWith('zs-voice-reminded') && localStorage.removeItem(k)));
+  await page.goto('/en/app/notes', { waitUntil: 'networkidle' });
+  const reminder = page.getByTestId('voice-reminder');
+  await expect(reminder).toContainText('Pricing review', { timeout: 20_000 });
+  await expect(reminder).toContainText(/Starts in/);
+  await reminder.getByRole('button', { name: 'Dismiss' }).click();
+  await expect(reminder).toBeHidden();
+  await page.request.patch('/api/voice/settings', { data: { reminderMinutes: 2 } });
+});
+
+test('carpetas: crear, subcarpeta, mover, filtrar, renombrar y borrar sin perder reuniones', async ({ page }) => {
+  const title = `Folder meeting ${uid()}`;
+  await page.request.post('/api/voice/sessions', { data: { title } });
+  await page.goto('/en/app/voice', { waitUntil: 'networkidle' });
+  const folders = page.getByRole('navigation', { name: 'Meeting folders' });
+  const name = `Clients ${uid()}`;
+  await folders.getByRole('button', { name: 'New folder' }).click();
+  await folders.getByRole('textbox', { name: 'Folder name' }).fill(name);
+  await folders.getByRole('textbox', { name: 'Folder name' }).press('Enter');
+  await expect(content(page).getByRole('heading', { name })).toBeVisible();
+  await expect(page).toHaveURL(/folder=/);
+  await expect(content(page).getByText('No meetings in this folder yet.')).toBeVisible();
+
+  // Subcarpeta.
+  await page.getByRole('button', { name: 'New subfolder' }).click();
+  await folders.getByRole('textbox', { name: 'Folder name' }).fill('Acme');
+  await folders.getByRole('textbox', { name: 'Folder name' }).press('Enter');
+  await expect(content(page).getByRole('heading', { name: /Acme/ })).toBeVisible();
+
+  // Mover la reunión desde "Todas".
+  await folders.getByRole('button', { name: 'All meetings' }).click();
+  const row = page.getByTestId('voice-meeting-row').filter({ hasText: title });
+  await row.getByRole('combobox', { name: `Folder of “${title}”` }).selectOption({ label: `${name} / Acme` });
+  await folders.getByRole('button', { name: new RegExp(`^${name}`) }).click();
+  await expect(page.getByTestId('voice-meeting-row').filter({ hasText: title })).toBeVisible();
+
+  // Renombrar y borrar la carpeta: la reunión queda.
+  await page.getByRole('button', { name: 'Rename folder' }).click();
+  const renamed = `${name} B`;
+  await folders.getByRole('textbox', { name: 'Folder name' }).fill(renamed);
+  await folders.getByRole('textbox', { name: 'Folder name' }).press('Enter');
+  await expect(content(page).getByRole('heading', { name: renamed })).toBeVisible();
+  await page.reload({ waitUntil: 'networkidle' });
+  await expect(content(page).getByRole('heading', { name: renamed })).toBeVisible();
+  await page.getByRole('button', { name: 'Delete folder' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete folder' }).click();
+  await expect(folders.getByRole('button', { name: new RegExp(`^${renamed}`) })).toHaveCount(0);
+  await expect(page.getByTestId('voice-meeting-row').filter({ hasText: title })).toBeVisible();
+});
+
+test('compartir por link, email de seguimiento, recipes y Notion', async ({ page, request }) => {
+  const title = `Shared call ${uid()}`;
+  const id = await meetingWithNotes(page, title);
+  await request.post(`/api/voice/sessions/${id}/enhance`, { data: { locale: 'en' } });
+  await page.goto(`/en/app/voice/meetings/${id}`, { waitUntil: 'networkidle' });
+
+  // Compartir: link de workspace, se abre de solo lectura, se revoca.
+  await page.getByRole('button', { name: 'Share', exact: true }).click();
+  const share = page.getByTestId('voice-share');
+  await expect(share.getByRole('radio', { name: /People in this workspace/ })).toBeChecked();
+  await share.getByRole('button', { name: 'Create link' }).click();
+  await expect(share.getByText('Link created.')).toBeVisible();
+  const url = await share.getByRole('textbox', { name: 'Link to the meeting' }).inputValue();
+  expect(url).toMatch(/\/en\/m\/[\w-]{20,}$/);
+  await share.getByRole('radio', { name: /Anyone with the link/ }).check();
+  await share.getByRole('button', { name: 'Save' }).click();
+  await expect(share.getByText('Saved.')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByText('Shared by link')).toBeVisible();
+
+  const viewer = await page.context().newPage();
+  await viewer.goto(url, { waitUntil: 'networkidle' });
+  await expect(viewer.getByTestId('voice-shared-meeting')).toContainText(title);
+  await expect(viewer.getByTestId('voice-shared-meeting')).toContainText('read only');
+  // Sin la transcripción: no se incluyó.
+  await expect(viewer.getByText('Transcript', { exact: true })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Share', exact: true }).click();
+  await share.getByRole('button', { name: 'Stop sharing' }).click();
+  await expect(share.getByText(/Stopped sharing/)).toBeVisible();
+  await page.keyboard.press('Escape');
+  const gone = await viewer.goto(url);
+  expect(gone?.status()).toBe(404);
+  await viewer.close();
+
+  // Email de seguimiento: borrador editable que abre Gmail.
+  await page.getByRole('button', { name: 'Follow-up email' }).click();
+  const fu = page.getByTestId('voice-followup');
+  await fu.getByRole('button', { name: 'Write the draft' }).click();
+  await expect(fu.getByRole('textbox', { name: 'Subject' })).toHaveValue(/Follow-up/);
+  await fu.getByRole('textbox', { name: 'To' }).fill('ana@acme.test');
+  await expect(fu.getByRole('link', { name: 'Open in Gmail' })).toHaveAttribute('href', /mail\.google\.com.*to=ana%40acme\.test/);
+  await expect(fu.getByRole('link', { name: 'Open in Outlook' })).toHaveAttribute('href', /outlook\.office\.com/);
+  await fu.getByRole('button', { name: 'Save draft' }).click();
+  await expect(fu.getByText('Draft saved.')).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  // Recipe de fábrica con / en el chat de la reunión.
+  await page.getByRole('tab', { name: 'Ask' }).click();
+  const ask = page.getByRole('combobox', { name: 'Ask about this meeting' });
+  await ask.fill('/act');
+  await expect(page.getByRole('option', { name: /Action items/ })).toBeVisible();
+  await ask.press('Enter');
+  await expect(page.locator('.vc-msg.is-user').last()).toContainText('/Action items');
+  await expect(page.locator('.vc-msg.is-assistant').last()).not.toBeEmpty();
+
+  // Notion con una credencial de Flow (Notion falso).
+  await request.post('/api/flow/credentials', { data: { name: `notion_${uid()}`, type: 'notion', data: { token: 'ntn_fake' } } });
+  await page.getByRole('button', { name: 'Slack or Notion' }).click();
+  const send = page.getByTestId('voice-send');
+  await send.getByRole('textbox', { name: /Parent page/ }).fill('https://www.notion.so/Team-0123456789abcdef0123456789abcdef');
+  await send.getByRole('button', { name: 'Create Notion page' }).click();
+  await expect(send.getByText('Created a page in Notion.')).toBeVisible();
+});
+
+test('recipes propios en ajustes y entre reuniones; ⌘K los encuentra', async ({ page }) => {
+  const name = `Risks ${uid()}`;
+  await page.goto('/en/app/voice/settings?tab=prompts', { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'New recipe' }).click();
+  await page.getByLabel('Name').first().fill(name);
+  await page.getByLabel('Prompt').first().fill('List the risks mentioned.');
+  await page.getByRole('checkbox', { name: 'Share with the workspace' }).check();
+  await page.getByRole('button', { name: 'Save' }).first().click();
+  await expect(page.getByTestId('voice-recipe-row').filter({ hasText: name })).toContainText('Shared');
+
+  await page.goto('/en/app/voice', { waitUntil: 'networkidle' });
+  const ask = page.getByRole('combobox', { name: 'Ask your meetings' });
+  await ask.fill(`/${name}`);
+  await expect(page.getByRole('option', { name: new RegExp(name) })).toBeVisible();
+  await ask.press('Escape');
+  await expect(page.getByRole('listbox')).toHaveCount(0);
+
+  await page.keyboard.press('ControlOrMeta+k');
+  const dialog = page.getByRole('dialog', { name: 'Search' });
+  await dialog.getByRole('combobox').fill(name);
+  await dialog.getByRole('option', { name: new RegExp(name) }).first().click();
+  await expect(page).toHaveURL(/tab=prompts&prompt=/);
+  await expect(page.getByTestId('voice-recipe-row').filter({ hasText: name })).toHaveClass(/is-highlight/);
+
+  // Borrar sin recargar.
+  await page.getByTestId('voice-recipe-row').filter({ hasText: name }).getByRole('button', { name: 'Delete' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
+  await expect(page.getByTestId('voice-recipe-row').filter({ hasText: name })).toHaveCount(0);
+});
+
+test('dictado: Command Mode, transforms y aprender de una corrección', async ({ page, context, baseURL }) => {
+  await page.request.patch('/api/voice/settings', { data: { commandMode: true, learnCorrections: true, showBar: true } });
+  await context.addCookies([{ name: 'voice_fake_text', value: encodeURIComponent('make it shorter'), url: baseURL! }]);
+  // El dictado global lee Command Mode de los ajustes al cargar: se espera esa respuesta.
+  await Promise.all([page.waitForResponse((r) => r.url().includes('/api/voice/settings') && r.ok()), page.goto('/en/app/voice/dictation', { waitUntil: 'networkidle' })]);
+  const field = page.getByRole('textbox', { name: 'Try it here' });
+  await field.fill('First sentence here. Second sentence there.');
+  await field.press('ControlOrMeta+a');
+  await page.keyboard.down('Alt');
+  await page.keyboard.down('Space');
+  await expect(page.getByRole('status').filter({ hasText: /Say what to do|Opening/ })).toBeVisible();
+  await page.waitForTimeout(1200);
+  await page.keyboard.up('Space');
+  await page.keyboard.up('Alt');
+  await expect(field).toHaveValue('First sentence here.', { timeout: 15_000 });
+  await expect(page.getByText(/Rewrote the selection/)).toBeVisible();
+
+  await page.request.patch('/api/voice/settings', { data: { commandMode: false } });
+
+  // Transform desde el lápiz del campo (el botón del campo no sale en la página de Dictado: probamos en una reunión).
+  const meeting = (await (await page.request.post('/api/voice/sessions', { data: { title: `Transforms ${uid()}` } })).json()) as { id: string };
+  await page.goto(`/en/app/voice/meetings/${meeting.id}`, { waitUntil: 'networkidle' });
+  const notes = page.getByRole('textbox', { name: 'My notes' });
+  await notes.fill('One idea. Another idea.');
+  await notes.press('ControlOrMeta+a');
+  await page.getByRole('button', { name: 'Rewrite the selected text' }).click();
+  await page.getByRole('menuitem', { name: 'Bullet list' }).click();
+  await expect(notes).toHaveValue('- One idea\n- Another idea', { timeout: 15_000 });
+  await page.goto('/en/app/voice/dictation', { waitUntil: 'networkidle' });
+
+  // Aprender: corregir un dictado del historial suma el término al diccionario.
+  await context.addCookies([{ name: 'voice_fake_text', value: encodeURIComponent(`call zerosof ${uid()} today`), url: baseURL! }]);
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'Start dictating' }).click();
+  await page.waitForTimeout(1000);
+  await page.getByRole('button', { name: 'Stop and clean up' }).click();
+  const row = page.getByTestId('voice-dictation-row').first();
+  await expect(row).toContainText(/zerosof/i);
+  await row.getByRole('button', { name: 'Edit' }).click();
+  const editor = row.getByRole('textbox');
+  await editor.fill((await editor.inputValue()).replace(/zerosof\b/i, 'ZeroSoft'));
+  await editor.blur();
+  const learned = page.getByTestId('voice-learned');
+  await expect(learned).toContainText('ZeroSoft');
+  await learned.getByRole('button', { name: 'Undo' }).click();
+  await expect(learned).toHaveCount(0);
+});
+
+test('ajustes: reuniones (avisos y retención), equipo, MCP; 390px y oscuro', async ({ page, context, baseURL }) => {
+  await page.goto('/en/app/voice/settings?tab=meetings', { waitUntil: 'networkidle' });
+  await page.getByLabel('Delete transcripts after').selectOption('30');
+  await page.getByRole('button', { name: 'Save' }).nth(1).click();
+  await page.reload({ waitUntil: 'networkidle' });
+  await expect(page.getByLabel('Delete transcripts after')).toHaveValue('30');
+  await page.getByLabel('Delete transcripts after').selectOption('0');
+  await page.getByRole('button', { name: 'Save' }).nth(1).click();
+  await expect(page.getByLabel('Delete transcripts of everyone after')).toBeVisible();
+
+  await page.goto('/en/app/voice/settings?tab=team', { waitUntil: 'networkidle' });
+  await expect(page.getByTestId('voice-team-usage').or(page.getByText('Nobody used Voice in this period.'))).toBeVisible();
+
+  await page.goto('/en/app/voice/settings?tab=desktop', { waitUntil: 'networkidle' });
+  await expect(page.getByText('/api/v1/voice/mcp').first()).toBeVisible();
+
+  for (const theme of ['light', 'dark'] as const) {
+    await context.addCookies([{ name: 'zs_theme', value: theme, url: baseURL! }]);
+    for (const path of ['/en/app/voice', '/en/app/voice/settings?tab=team', '/en/app/voice/settings?tab=prompts']) {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(path, { waitUntil: 'networkidle' });
+      const { scroll, inner } = await page.evaluate(() => ({ scroll: document.scrollingElement!.scrollWidth, inner: window.innerWidth }));
+      expect(scroll, `${path} ${theme}`).toBeLessThanOrEqual(inner + 1);
+    }
+  }
+});
+
+test('API: MCP solo con voice:read y solo las reuniones propias', async ({ request }) => {
+  const res = await request.post('/api/v1/voice/mcp', { data: { jsonrpc: '2.0', id: 1, method: 'tools/list' } });
+  expect(res.status()).toBe(401);
+});

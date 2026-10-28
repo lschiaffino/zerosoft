@@ -6357,6 +6357,80 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Voice, ronda 2 de paridad (Wispr Flow + Granola): carpetas de reuniones,
+    // compartir una reunión por link con permisos (workspace, personas o
+    // cualquiera) y revocable, recipes y transforms (prompts guardados),
+    // asistentes y evento del calendario de cada reunión, brief previo y email
+    // de seguimiento, diccionario del equipo y ajustes del workspace (borrado
+    // automático de transcripciones).
+    id: '126_voice_parity_2',
+    up: async (client) => {
+      for (const col of ['folder_id TEXT', "attendees TEXT NOT NULL DEFAULT '[]'", 'event_key TEXT', 'transcript_deleted_at TEXT']) {
+        await addColumn(client, `ALTER TABLE voice_sessions ADD COLUMN ${col}`);
+      }
+      await addColumn(client, 'ALTER TABLE voice_notes ADD COLUMN brief TEXT');
+      await addColumn(client, 'ALTER TABLE voice_notes ADD COLUMN followup TEXT');
+      await addColumn(client, 'ALTER TABLE voice_dictionary ADD COLUMN shared INTEGER NOT NULL DEFAULT 0');
+      await client.executeMultiple(`
+        CREATE INDEX IF NOT EXISTS idx_voice_sessions_folder ON voice_sessions(workspace_id, person_id, folder_id);
+        CREATE INDEX IF NOT EXISTS idx_voice_sessions_event ON voice_sessions(workspace_id, person_id, event_key);
+        CREATE INDEX IF NOT EXISTS idx_voice_dictionary_shared ON voice_dictionary(workspace_id, shared);
+
+        CREATE TABLE IF NOT EXISTS voice_folders (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          parent_id TEXT,
+          name TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_voice_folders_person ON voice_folders(workspace_id, person_id, parent_id);
+
+        CREATE TABLE IF NOT EXISTS voice_shares (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL UNIQUE REFERENCES voice_sessions(id) ON DELETE CASCADE,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          token TEXT NOT NULL UNIQUE,
+          access TEXT NOT NULL DEFAULT 'workspace' CHECK (access IN ('workspace', 'people', 'anyone')),
+          include_transcript INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_voice_shares_ws ON voice_shares(workspace_id, access);
+
+        CREATE TABLE IF NOT EXISTS voice_share_people (
+          share_id TEXT NOT NULL REFERENCES voice_shares(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (share_id, person_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_voice_share_people_person ON voice_share_people(person_id);
+
+        CREATE TABLE IF NOT EXISTS voice_prompts (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK (kind IN ('recipe', 'transform')),
+          name TEXT NOT NULL,
+          prompt TEXT NOT NULL,
+          shared INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_voice_prompts_person ON voice_prompts(workspace_id, kind, person_id);
+
+        CREATE TABLE IF NOT EXISTS voice_workspace_settings (
+          workspace_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          settings TEXT NOT NULL DEFAULT '{}',
+          updated_by TEXT,
+          updated_at TEXT NOT NULL
+        );
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

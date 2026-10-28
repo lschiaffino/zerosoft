@@ -65,6 +65,8 @@ export const WEBHOOK_EVENTS = [
   'database.row_created',
   'database.property_changed',
   'talk.message.posted',
+  'voice.meeting.completed',
+  'voice.notes.ready',
 ] as const;
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 

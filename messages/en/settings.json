@@ -124,7 +124,8 @@
       "comment": "Track comments",
       "project": "Track teams",
       "page": "Docs pages",
-      "database": "Docs databases"
+      "database": "Docs databases",
+      "voice": "Voice meetings"
     },
     "eventLabels": {
       "booking_created": "Booking created",
@@ -191,7 +192,9 @@
       "database_property_changed": "Database property changed (Docs)",
       "chat_conversation_created": "Conversation created",
       "chat_conversation_tagged": "Conversation tagged",
-      "chat_csat_submitted": "CSAT received"
+      "chat_csat_submitted": "CSAT received",
+      "voice_meeting_completed": "Meeting recorded (Voice)",
+      "voice_notes_ready": "Meeting notes ready (Voice)"
     },
     "errors": {
       "https_required": "The URL must use https.",

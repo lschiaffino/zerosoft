@@ -99,6 +99,8 @@ export default defineConfig({
       // e IA falsa (lib/voice-ai.ts; con la cookie voice_ai_fake=off se ve ai_disabled).
       VOICE_TRANSCRIBE_PROVIDER: 'fake',
       VOICE_AI_FAKE: '1',
+      // Voice → Notion sin salir a internet (lib/voice-send.ts).
+      VOICE_NOTION_FAKE: '1',
       // Bases sincronizadas de Docs (GitHub, Jira, Salesforce) con datos fijos (lib/docs-sync.ts) y
       // page.updated sin espera (el cron de cada minuto lo emite en la próxima corrida).
       DOCS_SYNC_FAKE: '1',

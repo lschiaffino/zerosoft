@@ -19,7 +19,7 @@ import { getIntegration } from './integrations';
 import { seal } from './secret-box';
 import { graphDate, graphRequest, microsoftAppBase, microsoftTokenRequest } from './microsoft';
 import { checkedCalendars, getPersonCalendars } from './calendar-calendars';
-import { guestEmails, type ExternalCalendar } from './google-calendar';
+import { guestEmails, type ExternalCalendar, type ExternalMeetingEvent } from './google-calendar';
 
 export const OUTLOOK_CALENDAR_PROVIDER = 'outlook_calendar';
 export const OUTLOOK_CALENDAR_SCOPES = ['openid', 'email', 'offline_access', 'User.Read', 'Calendars.ReadWrite'];
@@ -231,4 +231,57 @@ export async function deleteOutlookEventForBooking(booking: CalendarBookingRow, 
   if (!token) return;
   invalidateOutlookBusyCache(hostId);
   await graphRequest(token, `/me/events/${encodeURIComponent(booking.outlook_event_id)}`, { method: 'DELETE' }).catch(() => null);
+}
+
+// ---------- Eventos para Voice (reuniones con sus asistentes) ----------
+
+/**
+ * Próximos eventos de los calendarios elegidos (los mismos que revisa Cal),
+ * con asistentes y el link de Teams. Sin eventos de todo el día ni
+ * cancelados. [] si no hay Outlook conectado o Microsoft no responde.
+ */
+export async function listOutlookEvents(userId: string, from: Date, to: Date): Promise<ExternalMeetingEvent[]> {
+  const token = await tokenFor(userId);
+  if (!token) return [];
+  const calendars = checkedCalendars(await getPersonCalendars(userId), 'outlook');
+  const qs = new URLSearchParams({
+    startDateTime: from.toISOString(),
+    endDateTime: to.toISOString(),
+    $select: 'id,subject,start,end,attendees,onlineMeeting,isCancelled,isAllDay,location,responseStatus',
+    $top: '50',
+  }).toString();
+  const out: ExternalMeetingEvent[] = [];
+  for (const cal of calendars.slice(0, 10)) {
+    const path = cal ? `/me/calendars/${encodeURIComponent(cal)}/calendarView?${qs}` : `/me/calendarView?${qs}`;
+    const data = await graphRequest<{
+      value?: Array<{
+        id: string;
+        subject?: string;
+        start?: { dateTime?: string };
+        end?: { dateTime?: string };
+        isCancelled?: boolean;
+        isAllDay?: boolean;
+        onlineMeeting?: { joinUrl?: string } | null;
+        responseStatus?: { response?: string };
+        attendees?: Array<{ type?: string; emailAddress?: { address?: string; name?: string } }>;
+      }>;
+    }>(token, path).catch(() => null);
+    for (const e of data?.value ?? []) {
+      if (e.isCancelled || e.isAllDay || e.responseStatus?.response === 'declined') continue;
+      const start = graphDate(e.start);
+      const end = graphDate(e.end);
+      if (!start || !end) continue;
+      out.push({
+        id: e.id,
+        title: e.subject ?? '',
+        startsAt: start.toISOString(),
+        endsAt: end.toISOString(),
+        attendees: (e.attendees ?? [])
+          .filter((a) => a.type !== 'resource' && a.emailAddress?.address)
+          .map((a) => ({ name: a.emailAddress?.name ?? '', email: String(a.emailAddress?.address).toLowerCase() })),
+        meetingUrl: e.onlineMeeting?.joinUrl ?? null,
+      });
+    }
+  }
+  return out;
 }

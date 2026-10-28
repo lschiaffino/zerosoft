@@ -17,35 +17,56 @@ import {
   VOICE_TONES,
   type VoiceDictionaryEntry,
   type VoiceDictionaryKind,
+  type VoicePrompt,
   type VoiceSettings,
   type VoiceTemplate,
+  type VoiceWorkspaceSettings,
 } from '@/lib/voice-types';
 import { voiceErrorKey } from './voice-ui';
+import { McpSection, MeetingsSettings, PromptsSettings, TeamUsage } from './VoiceSettingsMore';
 
 interface Props {
   settings: VoiceSettings;
   dictionary: VoiceDictionaryEntry[];
   templates: VoiceTemplate[];
+  recipes: VoicePrompt[];
+  transforms: VoicePrompt[];
+  workspace: VoiceWorkspaceSettings;
+  isAdmin: boolean;
   builtinSections: Record<string, string[]>;
   provider: string;
   apiBase: string;
 }
 
-const TABS = ['dictation', 'dictionary', 'templates', 'desktop'] as const;
+const TABS = ['dictation', 'dictionary', 'templates', 'prompts', 'meetings', 'team', 'desktop'] as const;
 
-/** /app/voice/settings: dictado (atajo, idioma, estilos), diccionario, plantillas y app de escritorio. */
+/**
+ * /app/voice/settings: dictado (atajo, idioma, estilos, Command Mode),
+ * diccionario (propio y del equipo), plantillas, recipes y transforms,
+ * reuniones (avisos y retención), uso del equipo (admins) y escritorio,
+ * MCP y webhooks.
+ */
 export default function VoiceSettingsView(props: Props) {
   const t = useTranslations('voice.settings');
   const search = useSearchParams();
-  const tab = (TABS as readonly string[]).includes(search.get('tab') ?? '') ? (search.get('tab') as (typeof TABS)[number]) : 'dictation';
+  const tabs = TABS.filter((k) => k !== 'team' || props.isAdmin);
+  const tab = (tabs as readonly string[]).includes(search.get('tab') ?? '') ? (search.get('tab') as (typeof TABS)[number]) : 'dictation';
   return (
     <div className="app-page ui-page vc-page">
       <PageHeader title={t('title')} description={t('subtitle')} />
-      <SettingsTabs mode="query" param="tab" layout="top" label={t('title')} items={TABS.map((k) => ({ key: k, label: t(`tabs.${k}`) }))}>
+      <SettingsTabs mode="query" param="tab" layout="top" label={t('title')} items={tabs.map((k) => ({ key: k, label: t(`tabs.${k}`) }))}>
         {tab === 'dictation' && <DictationSettings initial={props.settings} />}
-        {tab === 'dictionary' && <DictionarySettings initial={props.dictionary} />}
+        {tab === 'dictionary' && <DictionarySettings initial={props.dictionary} isAdmin={props.isAdmin} />}
         {tab === 'templates' && <TemplatesSettings initial={props.templates} builtinSections={props.builtinSections} />}
-        {tab === 'desktop' && <DesktopSettings provider={props.provider} apiBase={props.apiBase} />}
+        {tab === 'prompts' && <PromptsSettings recipes={props.recipes} transforms={props.transforms} />}
+        {tab === 'meetings' && <MeetingsSettings initial={props.settings} workspace={props.workspace} canEditWorkspace={props.isAdmin} />}
+        {tab === 'team' && props.isAdmin && <TeamUsage />}
+        {tab === 'desktop' && (
+          <>
+            <DesktopSettings provider={props.provider} apiBase={props.apiBase} />
+            <McpSection apiBase={props.apiBase} />
+          </>
+        )}
       </SettingsTabs>
     </div>
   );
@@ -82,6 +103,8 @@ function DictationSettings({ initial }: { initial: VoiceSettings }) {
             language: String(fd.get('language')),
             showBar: fd.get('showBar') === 'on',
             aiCleanup: fd.get('aiCleanup') === 'on',
+            commandMode: fd.get('commandMode') === 'on',
+            learnCorrections: fd.get('learnCorrections') === 'on',
           })
         }
       >
@@ -120,6 +143,15 @@ function DictationSettings({ initial }: { initial: VoiceSettings }) {
           <input type="checkbox" name="aiCleanup" defaultChecked={s.aiCleanup} />
           <span>{t('aiCleanup')}</span>
         </label>
+        <label className="ui-switch">
+          <input type="checkbox" name="commandMode" defaultChecked={s.commandMode} />
+          <span>{t('commandMode')}</span>
+        </label>
+        <p className="ui-help">{t('commandModeHelp', { shortcut: s.shortcut })}</p>
+        <label className="ui-switch">
+          <input type="checkbox" name="learnCorrections" defaultChecked={s.learnCorrections} />
+          <span>{t('learnCorrections')}</span>
+        </label>
       </FormSection>
       <FormSection
         title={t('stylesTitle')}
@@ -147,13 +179,14 @@ function DictationSettings({ initial }: { initial: VoiceSettings }) {
   );
 }
 
-function DictionarySettings({ initial }: { initial: VoiceDictionaryEntry[] }) {
+function DictionarySettings({ initial, isAdmin }: { initial: VoiceDictionaryEntry[]; isAdmin: boolean }) {
   const t = useTranslations('voice.settings.dictionary');
   const tErr = useTranslations('voice.errors');
   const [entries, setEntries] = useState(initial);
   const [kind, setKind] = useState<VoiceDictionaryKind>('word');
   const [phrase, setPhrase] = useState('');
   const [replacement, setReplacement] = useState('');
+  const [team, setTeam] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<VoiceDictionaryEntry | null>(null);
@@ -166,7 +199,7 @@ function DictionarySettings({ initial }: { initial: VoiceDictionaryEntry[] }) {
     const res = await fetch('/api/voice/dictionary', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ kind, phrase, replacement: kind === 'word' ? undefined : replacement }),
+      body: JSON.stringify({ kind, phrase, replacement: kind === 'word' ? undefined : replacement, shared: team || undefined }),
     }).catch(() => null);
     const data = (await res?.json().catch(() => null)) as (VoiceDictionaryEntry & { error?: string }) | null;
     setBusy(false);
@@ -215,7 +248,15 @@ function DictionarySettings({ initial }: { initial: VoiceDictionaryEntry[] }) {
           {t('add')}
         </button>
       </form>
-      <p className="ui-help">{t(`help.${kind}`)}</p>
+      {isAdmin && (
+        <label className="ui-check vc-team-check">
+          <input type="checkbox" checked={team} onChange={(e) => setTeam(e.target.checked)} />
+          <span>{t('teamCheck')}</span>
+        </label>
+      )}
+      <p className="ui-help">
+        {t(`help.${kind}`)} {t('teamHelp')}
+      </p>
       {error && (
         <p className="ui-error" role="alert">
           {tErr(voiceErrorKey(error))}
@@ -230,15 +271,18 @@ function DictionarySettings({ initial }: { initial: VoiceDictionaryEntry[] }) {
               <span className="vc-row-main">
                 <span className="vc-row-title">{e.phrase}</span>
                 <span className="vc-muted vc-row-meta">
+                  {e.shared && `${t('teamBadge')} · `}
                   {t(`kinds.${e.kind}`)}
                   {e.replacement && ` → ${e.replacement}`}
                 </span>
               </span>
-              <span className="vc-row-actions">
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDeleting(e)}>
-                  {t('delete')}
-                </button>
-              </span>
+              {(!e.shared || isAdmin) && (
+                <span className="vc-row-actions">
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDeleting(e)}>
+                    {t('delete')}
+                  </button>
+                </span>
+              )}
             </li>
           ))}
         </ul>

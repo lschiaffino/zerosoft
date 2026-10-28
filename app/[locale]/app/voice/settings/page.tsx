@@ -1,9 +1,10 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { getVoiceSettings, listCustomTemplates, listDictionary, voiceOwner } from '@/lib/voice';
 import { transcribeModel, transcribeProvider } from '@/lib/voice-transcribe';
 import { BUILTIN_TEMPLATE_SECTIONS } from '@/lib/voice-templates';
 import { API_BASE_URL } from '@/lib/api-docs';
+import { getWorkspaceSettings, listPrompts } from '@/lib/voice-library';
 import VoiceSettingsView from '@/components/voice/VoiceSettingsView';
 
 export const dynamic = 'force-dynamic';
@@ -19,13 +20,24 @@ export default async function VoiceSettingsPage(props: { params: Promise<{ local
   setRequestLocale(locale);
   const user = await requireUser(locale, `/${locale}/app/voice/settings`);
   const owner = voiceOwner(user);
-  const [settings, dictionary, templates] = await Promise.all([getVoiceSettings(owner), listDictionary(owner), listCustomTemplates(owner)]);
+  const [settings, dictionary, templates, recipes, transforms, workspace] = await Promise.all([
+    getVoiceSettings(owner),
+    listDictionary(owner),
+    listCustomTemplates(owner),
+    listPrompts(owner, 'recipe'),
+    listPrompts(owner, 'transform'),
+    getWorkspaceSettings(owner.workspaceId),
+  ]);
   const provider = transcribeProvider();
   return (
     <VoiceSettingsView
       settings={settings}
       dictionary={dictionary}
       templates={templates}
+      recipes={recipes}
+      transforms={transforms}
+      workspace={workspace}
+      isAdmin={isWorkspaceAdmin(user)}
       builtinSections={BUILTIN_TEMPLATE_SECTIONS}
       provider={`${provider} (${transcribeModel(provider)})`}
       apiBase={process.env.NEXTAUTH_URL ? `${process.env.NEXTAUTH_URL.replace(/\/$/, '')}/api/v1` : API_BASE_URL}
