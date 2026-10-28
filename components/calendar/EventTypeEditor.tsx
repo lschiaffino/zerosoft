@@ -101,6 +101,8 @@ export interface EventTypeEditorProps {
   /** Los workflows los cambia un admin (mandan SMS y webhooks a cuenta del workspace). */
   canEditWorkflows?: boolean;
   teamMembers?: TeamMemberOption[];
+  /** Subequipos del workspace (Ajustes › Equipos): suman a todo el equipo al pool de una vez. */
+  hostGroups?: Array<{ id: string; name: string; memberIds: string[] }>;
   teamId?: string | null;
   hostIds: string[];
   handle: string;
@@ -1078,6 +1080,25 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
                     </label>
                   ))}
                 </div>
+                {(props.hostGroups ?? []).length > 0 && (
+                  <div className="cal-host-groups" role="group" aria-label={t('editor.hostsFromTeam')}>
+                    <span className="cal-muted">{t('editor.hostsFromTeam')}</span>
+                    {(props.hostGroups ?? []).map((g) => {
+                      const ids = g.memberIds.filter((id) => teamMembers.some((m) => m.user_id === id));
+                      return (
+                        <button
+                          key={g.id}
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          disabled={ids.length === 0 || ids.every((id) => d.hostIds.includes(id))}
+                          onClick={() => set('hostIds', [...d.hostIds, ...ids.filter((id) => !d.hostIds.includes(id))])}
+                        >
+                          {g.name} ({ids.length})
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </SubSection>
             )}
 

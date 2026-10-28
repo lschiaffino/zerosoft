@@ -1013,9 +1013,9 @@
     "currency": "Moneda",
     "currencyDesc": "La moneda base del workspace y los tipos de cambio manuales.",
     "tabs": {
-      "team": "Equipo",
       "sales": "Ventas",
       "data": "Datos",
+      "access": "Acceso",
       "automation": "Automatización",
       "integrations": "Integraciones",
       "import": "Importar y exportar"
@@ -1953,7 +1953,8 @@
     "teamName": "Nombre del equipo",
     "teamNamePh": "ej. Enterprise",
     "createTeam": "Crear equipo de venta",
-    "deleteTeamConfirm": "¿Borrar este equipo? Sus members conservan sus registros."
+    "deleteTeamConfirm": "¿Borrar este equipo? Sus members conservan sus registros.",
+    "platformNote": "Los miembros y las invitaciones se gestionan en <members>Ajustes › Miembros</members>. Los equipos de venta son los equipos del workspace de <teams>Ajustes › Equipos</teams>."
   },
   "assignment": {
     "title": "Asignación de leads",
@@ -2355,6 +2356,7 @@
     "inviteOwners": "{count, plural, one {Invitar a # persona} other {Invitar a # personas}} al workspace",
     "inviteHelp": "Owners del otro CRM que todavía no son miembros. Sus registros quedan con el owner por defecto. Cuando cada persona acepta la invitación con ese mismo email, pasan a ser suyos los registros que nadie reasignó mientras tanto.",
     "invitedNote": "{count, plural, one {Invitación lista} other {# invitaciones listas}}. Por ahora compartí cada link (duran 14 días): se mandan por email cuando el envío de invitaciones esté configurado.",
+    "inviteSkipped": "{count, plural, one {# persona quedó sin invitar} other {# personas quedaron sin invitar}} porque se llegó al tope diario de invitaciones: {emails}. Probá de nuevo mañana.",
     "inviteLinkFor": "Link de invitación para {email}",
     "inviteFailed": "No se pudieron crear las invitaciones. Probá de nuevo.",
     "invitedEmailed": "{count, plural, one {Invitación enviada por email} other {# invitaciones enviadas por email}}. También podés compartir los links de abajo.",

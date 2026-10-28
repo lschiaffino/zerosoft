@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
-import { createApiKey, listApiKeys } from '@/lib/api-auth';
-import { API_SCOPES } from '@/lib/api-scopes';
+import { createApiKey, listApiKeys, personAppAccess } from '@/lib/api-auth';
+import { API_SCOPES, scopesForApps } from '@/lib/api-scopes';
 import { logCalActivity } from '@/lib/calendar-activity';
 
 export const runtime = 'nodejs';
@@ -30,12 +30,21 @@ export async function POST(req: NextRequest) {
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: 'bad_request' }, { status: 400 });
 
+  // Acceso por app: una key no puede tener scopes de apps que su creador no tiene.
+  const access = await personAppAccess(user.id, realUserId(user));
+  if (!access) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  const requested = parsed.data.scopes ?? [...API_SCOPES];
+  const allowed = scopesForApps(requested, access.apps);
+  if (parsed.data.scopes && allowed.length < requested.length) {
+    return NextResponse.json({ error: 'scope_not_allowed', allowed }, { status: 403 });
+  }
+  if (!allowed.length) return NextResponse.json({ error: 'scope_not_allowed', allowed }, { status: 403 });
   // The full key is returned only in this response; we store its sha256.
   const { id, key, scopes } = await createApiKey(
     user.id,
     parsed.data.name.trim(),
     realUserId(user),
-    parsed.data.scopes ?? '*',
+    allowed.length === API_SCOPES.length ? '*' : allowed,
   );
   // Keys que pueden usar Cal (API v1 y servidor MCP): quedan en su registro de actividad.
   const calScopes = parsed.data.scopes === undefined || parsed.data.scopes.some((s) => s.startsWith('cal:'));

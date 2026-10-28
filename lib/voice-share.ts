@@ -15,6 +15,7 @@
 import { randomBytes } from 'crypto';
 import { getDb, getUserById } from './db';
 import { isWorkspacePerson } from './crm-refs';
+import { personUsesVoice } from './voice-events';
 import { getSessionDetail, type VoiceOwner } from './voice';
 import type { VoiceEnhanced, VoiceSegment, VoiceShareAccess, VoiceShareInfo } from './voice-types';
 
@@ -146,12 +147,12 @@ export async function resolveShare(token: string, viewerId: string | null): Prom
   const row = (await db.prepare('SELECT * FROM voice_shares WHERE token = ?').get(token)) as ShareRow | undefined;
   if (!row) return { state: 'not_found' };
   const isOwner = viewerId === row.person_id;
-  // Si quien compartió ya no está en el workspace, el link deja de andar para todos (también "cualquiera").
-  if (!(await isWorkspacePerson(row.workspace_id, row.person_id))) return { state: 'not_found' };
+  // Si quien compartió ya no está en el workspace (o perdió la app Voice), el link deja de andar para todos.
+  if (!(await personUsesVoice(row.workspace_id, row.person_id))) return { state: 'not_found' };
   if (row.access !== 'anyone' && !isOwner) {
     if (!viewerId) return { state: 'signin' };
-    // Quien mira tiene que estar en el workspace.
-    if (!(await isWorkspacePerson(row.workspace_id, viewerId))) return { state: 'forbidden' };
+    // Quien mira tiene que estar en el workspace y tener Voice.
+    if (!(await isWorkspacePerson(row.workspace_id, viewerId)) || !(await personUsesVoice(row.workspace_id, viewerId))) return { state: 'forbidden' };
     if (row.access === 'people') {
       const allowed = await db.prepare('SELECT 1 AS x FROM voice_share_people WHERE share_id = ? AND person_id = ?').get(row.id, viewerId);
       if (!allowed) return { state: 'forbidden' };

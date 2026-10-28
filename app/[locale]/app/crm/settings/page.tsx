@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
+import { workspaceTeamId } from '@/lib/workspace';
 import { getEmailSettings } from '@/lib/crm-email';
 import { getMailboxSync } from '@/lib/crm-email-sync';
 import { scopeAllowsSend } from '@/lib/gmail';
@@ -9,7 +10,9 @@ import { microsoftConfigured, OUTLOOK_PROVIDER, outlookRedirectUri } from '@/lib
 import { getOutlookSync } from '@/lib/crm-outlook-sync';
 import { defaultConsentText, getVoiceSettings, VOICE_LANGUAGES } from '@/lib/crm-voice';
 import { appBase, missingVoiceEnv } from '@/lib/twilio-voice';
-import { listMemberTeams, listMembers, listOwnedTeams, listPendingInvites } from '@/lib/teams';
+import { listMembers } from '@/lib/teams';
+import { redirect } from 'next/navigation';
+import { Link } from '@/i18n/navigation';
 import { listTags } from '@/lib/crm-tags';
 import { getCrmSettings, listExchangeRates, missingRates } from '@/lib/crm-currency';
 import { getMemberVisibility, listSalesTeams, sessionScope } from '@/lib/crm-visibility';
@@ -30,7 +33,6 @@ import ExportPanel from '@/components/crm/ExportPanel';
 import GmailPanel from '@/components/crm/GmailPanel';
 import OutlookPanel from '@/components/crm/OutlookPanel';
 import VoicePanel from '@/components/crm/VoicePanel';
-import TeamPanel from '@/components/crm/TeamPanel';
 import EmailTrackingSetting from '@/components/crm/EmailTrackingSetting';
 import ExtensionPanel from '@/components/crm/ExtensionPanel';
 import TagsManager from '@/components/crm/TagsManager';
@@ -58,8 +60,8 @@ type SessionUser = Awaited<ReturnType<typeof requireUser>>;
 
 /** Personas del workspace activo (owner + miembros): equipos, round-robin y cuotas. */
 async function workspacePeople(user: SessionUser) {
-  const members = user.team?.id
-    ? await listMembers(user.team.id)
+  const members = workspaceTeamId(user)
+    ? await listMembers(workspaceTeamId(user)!)
     : [{ user_id: user.id, email: user.email, name: user.name ?? null }];
   return members.map((m) => ({ id: m.user_id, label: m.name || m.email }));
 }
@@ -79,47 +81,34 @@ export default async function CrmSettingsPage(props: {
   const t = await getTranslations({ locale, namespace: 'crm' });
   const admin = isWorkspaceAdmin(user);
   // El callback de Gmail vuelve con ?gmail=…: abre Integraciones.
+  // Miembros e invitaciones viven en Ajustes › Miembros (un solo lugar para todas las apps).
+  if (sp.tab === 'team') redirect(`/${locale}/app/settings/members`);
   const tab = crmSettingsTab(sp.tab, sp.gmail ?? sp.outlook);
 
   let body: React.ReactNode = null;
 
-  if (tab === 'team') {
-    const realUser = user.actingUser ?? user;
-    const ownedTeams = await listOwnedTeams(realUser.id);
-    // El team que podés gestionar: el tuyo, o el activo si sos admin ahí.
-    const ownedTeam = ownedTeams[0] ?? (user.team && admin ? user.team : null);
-    const [members, pendingInvites, memberTeams, people, visibility, salesTeams] = await Promise.all([
-      ownedTeam ? listMembers(ownedTeam.id) : Promise.resolve([]),
-      ownedTeam ? listPendingInvites(ownedTeam.id) : Promise.resolve([]),
-      listMemberTeams(realUser.id),
-      workspacePeople(user),
-      getMemberVisibility(user.id),
-      listSalesTeams(user.id),
-    ]);
-    const baseUrl = (process.env.NEXTAUTH_URL ?? 'https://zerosoft.ai').replace(/\/$/, '');
+  if (tab === 'access') {
+    const [people, visibility, salesTeams] = await Promise.all([workspacePeople(user), getMemberVisibility(user.id), listSalesTeams(user.id)]);
     body = (
-      <>
-        <FormSection title={t('settings.team')} description={t('settings.teamDesc')}>
-          <TeamPanel
-            realEmail={realUser.email}
-            ownedTeam={ownedTeam ? { id: ownedTeam.id, name: ownedTeam.name } : null}
-            members={members.map((m) => ({ user_id: m.user_id, role: m.role, email: m.email, name: m.name }))}
-            invites={pendingInvites.map((i) => ({ id: i.id, email: i.email, url: `${baseUrl}/en/invite/${i.token}` }))}
-            memberTeams={memberTeams.map((m) => ({ id: m.id, name: m.name, owner_email: m.owner_email }))}
-            canChangeRoles={ownedTeam !== null && ownedTeam.owner_id === realUser.id}
-            activeTeamId={realUser.active_team_id ?? null}
-            actingTeamName={user.actingUser && user.team ? user.team.name : null}
-          />
-        </FormSection>
-        <FormSection title={t('access.title')} description={t('access.desc')}>
-          <AccessPanel
-            visibility={visibility}
-            teams={salesTeams.map((x) => ({ id: x.id, name: x.name, members: x.members }))}
-            people={people}
-            canEdit={admin}
-          />
-        </FormSection>
-      </>
+      <FormSection
+        title={t('access.title')}
+        description={t('access.desc')}
+        footer={
+          <p className="ui-section-note">
+            {t.rich('access.platformNote', {
+              members: (chunks) => <Link href="/app/settings/members">{chunks}</Link>,
+              teams: (chunks) => <Link href="/app/settings/teams">{chunks}</Link>,
+            })}
+          </p>
+        }
+      >
+        <AccessPanel
+          visibility={visibility}
+          teams={salesTeams.map((x) => ({ id: x.id, name: x.name, members: x.members }))}
+          people={people}
+          canEdit={admin}
+        />
+      </FormSection>
     );
   } else if (tab === 'sales') {
     const people = await workspacePeople(user);

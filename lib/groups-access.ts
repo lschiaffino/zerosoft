@@ -98,8 +98,8 @@ export function viewerFrom(ws: string, me: string, role: TeamRole, settings: Pla
     ws,
     me,
     role,
-    restricted: settings.labelAccess && role === 'member',
-    mask: role !== 'owner' && settings.maskRoles.includes(role),
+    restricted: (settings.labelAccess && role === 'member') || role === 'guest',
+    mask: role === 'guest' || (role !== 'owner' && settings.maskRoles.includes(role)),
   };
 }
 

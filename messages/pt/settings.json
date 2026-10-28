@@ -22,13 +22,14 @@
     "role": "Papel",
     "workspace": "Workspace",
     "noName": "Sem nome",
-    "note": "Nome e foto se mudam na sua conta Google.",
+    "note": "A foto vem da sua conta do Google.",
     "demoBadge": "Modo demo",
     "demoNote": "Modo demo: todos entram como o mesmo usuário. Em produção você entra com Google.",
     "roles": {
-      "owner": "Owner",
+      "owner": "Proprietário",
       "admin": "Admin",
-      "member": "Membro"
+      "member": "Membro",
+      "guest": "Convidado"
     }
   },
   "ai": {
@@ -440,6 +441,377 @@
       "aiUsage": "Uso de IA do workspace",
       "recorder": "Gravador de robôs"
     }
+  },
+  "members": {
+    "inviteTitle": "Convide pessoas para {workspace}",
+    "inviteDesc": "Cada pessoa recebe um email com um link que funciona uma vez e vence em 14 dias. Ela entra com o Google e cai neste workspace.",
+    "emails": "Emails",
+    "emailsPlaceholder": "ana@empresa.com, leo@empresa.com",
+    "emailsHelp": "Cole um ou vários, separados por vírgulas ou espaços. Enter envia.",
+    "role": "Papel",
+    "roles": {
+      "owner": "Proprietário",
+      "admin": "Admin",
+      "member": "Membro",
+      "guest": "Convidado"
+    },
+    "roleHelp": {
+      "member": "Usa os apps que você ativar para ele, com os mesmos dados que o resto da equipe.",
+      "admin": "Como um membro, e também convida pessoas, muda papéis e edita as configurações.",
+      "guest": "Não entra no workspace: só vê o que você compartilhar, página por página."
+    },
+    "apps": "Apps",
+    "allApps": "Todos os apps",
+    "noApps": "Nenhum app",
+    "noAppsHelp": "Sem apps, a pessoa só vê o que for compartilhado com ela.",
+    "guestAccess": "Só o compartilhado",
+    "teams": "Equipes",
+    "send": "Enviar convites",
+    "invalidEmails": "Estes não são emails válidos: {list}",
+    "copyLink": "Copiar link",
+    "result": {
+      "sent": "Convite enviado",
+      "failed": "O email não saiu. Copie o link e envie você.",
+      "skipped": "Aqui não há emails configurados. Copie o link e envie você.",
+      "member": "Já está no workspace",
+      "invalid": "Não é um email válido",
+      "limited": "Convites demais hoje. Tente amanhã."
+    },
+    "listTitle": "Membros ({count})",
+    "listDesc": "As pessoas que trabalham neste workspace.",
+    "listDescAdmin": "Mude papéis e apps aqui. Remover alguém corta o acesso a todos os apps na hora.",
+    "search": "Buscar pessoas",
+    "noMatches": "Ninguém corresponde a essa busca",
+    "colPerson": "Pessoa",
+    "colRole": "Papel",
+    "colApps": "Apps",
+    "colTeams": "Equipes",
+    "colJoined": "Desde",
+    "colActions": "Ações",
+    "colEmail": "Email",
+    "colStatus": "Status",
+    "colExpires": "Vence",
+    "you": "(você)",
+    "none": "Nenhuma",
+    "roleOf": "Papel de {name}",
+    "editAccess": "Editar acesso",
+    "remove": "Remover",
+    "removeOf": "Remover {name}",
+    "editTitle": "Acesso de {name}",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "removeTitle": "Remover {name} de {workspace}?",
+    "removeBody": "A pessoa perde o acesso a todos os apps na hora: sessões, chaves de API e horários do Cal param de funcionar e as conversas abertas voltam para a fila. O que ela criou fica no workspace.",
+    "leave": "Sair do workspace",
+    "leaveNote": "Você é membro de {workspace}.",
+    "leaveTitle": "Sair de {workspace}?",
+    "leaveBody": "Você perde o acesso aos apps e dados. Para voltar, alguém precisa convidar você de novo.",
+    "alone": "Por enquanto é só você. Convide sua equipe acima e eles vão ver o mesmo CRM, Docs, Track e o resto.",
+    "pendingTitle": "Convites pendentes ({count})",
+    "pendingDesc": "Convites que ninguém aceitou ainda. Reenviar renova os 14 dias.",
+    "pendingEmpty": "Nenhum convite pendente",
+    "pendingEmptyBody": "Quando você convida alguém, o convite aparece aqui até ser aceito.",
+    "status": {
+      "sent": "Enviado em {date}",
+      "failed": "O email falhou",
+      "notSent": "Aqui não há provedor de email: compartilhe o link",
+      "expired": "Vencido",
+      "request": "Pediu para entrar",
+      "anyEmail": "(qualquer email)"
+    },
+    "resend": "Reenviar",
+    "revoke": "Revogar",
+    "revokeOf": "Revogar o convite de {email}",
+    "error": "Algo deu errado. Tente de novo.",
+    "resendError": "Não foi possível reenviar o convite. Tente em um minuto.",
+    "errors": {
+      "forbidden": "Para isso você precisa ser admin deste workspace.",
+      "rate_limited": "Tentativas demais. Espere um minuto e tente de novo.",
+      "invalid_emails": "Nenhum é um email válido.",
+      "owner_cant_leave": "O dono não pode sair do workspace.",
+      "cant_change_own_role": "Você não pode mudar o seu próprio papel.",
+      "not_found": "Essa pessoa ou convite não existe mais. Recarregue a página."
+    },
+    "approve": "Aprovar",
+    "allowAnyEmail": "Permitir outro email",
+    "allowAnyEmailHelp": "Reenvia o convite e deixa aceitá-lo com outro email. Nunca para admins.",
+    "legacyNotice": "Atenção: quem entrar vai ver o que até hoje era só seu neste workspace, incluindo os projetos do Track e os widgets do Chat. Marque como privado o que deve continuar seu antes de convidar."
+  },
+  "teamsForm": {
+    "createTitle": "Criar uma equipe",
+    "createDesc": "As equipes agrupam pessoas dentro do workspace: Vendas, Suporte, Produto.",
+    "name": "Nome",
+    "namePlaceholder": "Vendas",
+    "description": "Descrição",
+    "members": "Membros",
+    "lead": "Líder",
+    "create": "Criar equipe",
+    "listTitle": "Equipes ({count})",
+    "listDesc": "Uma só lista de equipes para todos os apps.",
+    "emptyTitle": "Ainda não há equipes",
+    "emptyBody": "Crie uma para atribuir trabalho a um grupo e mencioná-lo no Talk.",
+    "membersList": "{count, plural, one {# pessoa} other {# pessoas}}: {names}",
+    "noMembers": "Ninguém ainda",
+    "edit": "Editar",
+    "editTitle": "Editar equipe",
+    "delete": "Excluir",
+    "deleteOf": "Excluir {name}",
+    "deleteTitle": "Excluir {name}?",
+    "deleteBody": "Ela some de todos os apps. As conversas e regras do Chat que a usavam ficam sem equipe. As pessoas continuam no workspace.",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "uses": "Cada equipe é usada no Talk para as @menções (@vendas avisa a equipe toda) e no Cal para adicionar uma equipe inteira a um pool de hosts. No CRM, Chat e Groups só é usada se você ativar.",
+    "errors": {
+      "save": "Não foi possível salvar a equipe. Tente de novo.",
+      "duplicate_name": "Já existe uma equipe com esse nome.",
+      "invalid_name": "Dê um nome à equipe.",
+      "too_many_groups": "Você chegou ao limite de 100 equipes.",
+      "forbidden": "Para isso você precisa ser admin deste workspace."
+    },
+    "useIn": "Usar em",
+    "useHelp": "O Talk (@menções) e o Cal (pools de hosts) sempre podem usar. CRM, Chat e Groups só se você marcar aqui.",
+    "usedIn": "Usada em {apps}, Talk e Cal",
+    "usedInNone": "Usada em Talk e Cal",
+    "useApps": {
+      "crm": {
+        "title": "CRM",
+        "desc": "visibilidade dos registros e round-robin"
+      },
+      "chat": {
+        "title": "Chat",
+        "desc": "caixa de entrada por equipe"
+      },
+      "groups": {
+        "title": "Groups",
+        "desc": "atribuição de chats"
+      }
+    }
+  },
+  "workspaceForm": {
+    "detailsTitle": "Workspace",
+    "detailsDesc": "O nome e o logo que todos veem na barra lateral e nos convites.",
+    "name": "Nome",
+    "slug": "Identificador",
+    "slugPlaceholder": "darwin-ai",
+    "slugHelp": "Minúsculas, números e hífens. Único no zerosoft.",
+    "size": "Tamanho da equipe",
+    "sizeUnset": "Não definido",
+    "sizes": {
+      "1": "Só eu",
+      "2-10": "2 a 10",
+      "11-50": "11 a 50",
+      "51-200": "51 a 200",
+      "200+": "Mais de 200"
+    },
+    "owner": "Proprietário",
+    "uploadLogo": "Enviar logo",
+    "changeLogo": "Trocar logo",
+    "removeLogo": "Remover",
+    "logoHelp": "PNG, JPG, WebP ou GIF, até 2 MB. Quadrado fica melhor.",
+    "readOnly": "Só o dono e os admins podem mudar isto.",
+    "modeTitle": "Como você usa o zerosoft",
+    "modeDesc": "Muda quais apps aparecem primeiro e se as ferramentas de equipe ficam visíveis.",
+    "modes": {
+      "team": {
+        "title": "Com uma equipe",
+        "desc": "Convidar pessoas, atribuir trabalho, compartilhar caixas de entrada. Primeiro CRM, Chat e Track."
+      },
+      "personal": {
+        "title": "Só eu",
+        "desc": "Sem convites nem atribuições. Primeiro Notes, Docs e Cal."
+      }
+    },
+    "domainsTitle": "Entrar pelo domínio do email",
+    "domainsDesc": "Quem entrar com um email destes domínios pode entrar como membro sem convite.",
+    "domains": "Domínios",
+    "domainsPlaceholder": "empresa.com",
+    "domainsHelp": "Só o domínio do seu próprio email ({domain}). Domínios públicos como gmail.com não são permitidos.",
+    "errors": {
+      "network": "Sem conexão. Tente de novo.",
+      "save": "Não foi possível salvar. Tente de novo.",
+      "slug_taken": "Outro workspace usa esse identificador.",
+      "invalid_slug": "Use pelo menos 2 minúsculas, números ou hífens.",
+      "invalid_domain": "Um dos domínios não é válido.",
+      "public_domain": "Domínios públicos como gmail.com não são permitidos.",
+      "invalid_name": "O workspace precisa de um nome.",
+      "logo": "Não foi possível enviar o logo. Tente de novo.",
+      "file_type_not_allowed": "Use uma imagem PNG, JPG, WebP ou GIF.",
+      "file_too_large": "A imagem tem mais de 2 MB.",
+      "storage_unavailable": "Aqui não há armazenamento de arquivos configurado.",
+      "forbidden": "Só o dono e os admins podem mudar isto.",
+      "domain_not_yours": "Você só pode ativar o domínio do seu próprio email."
+    },
+    "joinApproval": "Um admin aprova cada pessoa antes de ela entrar",
+    "joinRole": "Entram como membros com estes apps:"
+  },
+  "switcher": {
+    "label": "Workspace: {name}. Trocar de workspace",
+    "menu": "Workspaces",
+    "workspaces": "Workspaces",
+    "personal": "Pessoal",
+    "yours": "Seu",
+    "roles": {
+      "owner": "Proprietário",
+      "admin": "Admin",
+      "member": "Membro",
+      "guest": "Convidado"
+    },
+    "createTeam": "Criar uma equipe",
+    "invite": "Convidar pessoas",
+    "settings": "Configurações do workspace",
+    "switchError": "Não foi possível trocar de workspace. Tente de novo.",
+    "createError": "Não foi possível criar a equipe. Tente de novo.",
+    "createTitle": "Criar uma equipe",
+    "createSubmit": "Criar e convidar",
+    "cancel": "Cancelar",
+    "teamName": "Nome da equipe",
+    "teamNamePlaceholder": "Darwin AI",
+    "createHelp": "Seu workspace passa a ser de equipe com este nome. Seus dados ficam onde estão. Depois você convida as pessoas."
+  },
+  "access": {
+    "title": "Você não tem acesso ao {app} aqui",
+    "body": "Um admin de {workspace} pode ativar o acesso para você em Configurações › Membros.",
+    "back": "Voltar aos apps"
+  },
+  "invite": {
+    "metaTitle": "Convite",
+    "title": "Entre em {workspace}",
+    "sub": "{inviter} convidou você para o zerosoft.",
+    "roleLine": {
+      "member": "Você vai usar os mesmos apps e dados que o resto da equipe.",
+      "admin": "Você entra como admin: pode convidar pessoas e mudar as configurações.",
+      "guest": "Você entra como convidado: só vê o que compartilharem com você."
+    },
+    "join": "Entrar em {workspace}",
+    "joining": "Entrando…",
+    "joinAs": "Entrar como {email}",
+    "otherAccount": "Usar outra conta",
+    "mismatch": "Este convite foi enviado para <b>{invited}</b> e você entrou como <b>{current}</b>.",
+    "signinGoogle": "Continuar com o Google",
+    "useAccount": "Use a conta do Google de {email}.",
+    "expires": "O link vence em {date}.",
+    "invalidTitle": "Este convite não funciona mais",
+    "invalidDesc": "Já foi usado ou revogado. Peça um novo a quem convidou você.",
+    "expiredTitle": "Este convite venceu",
+    "expiredDesc": "Os convites duram 14 dias. Peça a quem convidou você para reenviar.",
+    "alreadyTitle": "Você já está em {workspace}",
+    "alreadyDesc": "Troque para ele no menu do topo da barra lateral.",
+    "openApp": "Abrir o zerosoft",
+    "backHome": "Voltar ao início",
+    "errors": {
+      "generic": "Não foi possível entrar. Tente de novo.",
+      "invite_invalid": "Este convite não funciona mais.",
+      "invite_expired": "Este convite venceu. Peça um novo.",
+      "rate_limited": "Tentativas demais. Espere alguns minutos.",
+      "not_found": "Este convite não existe.",
+      "email_required": "Este convite só pode ser aceito com o email para o qual foi enviado."
+    },
+    "mismatchStrict": "Este convite é para <b>{invited}</b> e você entrou como <b>{current}</b>. Entre com essa conta para aceitar, ou peça um convite para o seu email."
+  },
+  "welcome": {
+    "metaTitle": "Boas-vindas",
+    "stepOf": "Passo {step} de {total}",
+    "continue": "Continuar",
+    "back": "Voltar",
+    "error": "Não foi possível salvar. Tente de novo.",
+    "yourName": "Seu nome",
+    "language": "Idioma",
+    "timeZone": "Fuso horário",
+    "signedInAs": "Você entrou como {email}",
+    "roles": {
+      "founder": "Fundação ou direção",
+      "sales": "Vendas",
+      "support": "Suporte",
+      "marketing": "Marketing",
+      "engineering": "Engenharia",
+      "product": "Produto",
+      "operations": "Operações",
+      "design": "Design",
+      "other": "Outro"
+    },
+    "use": {
+      "title": "Como você vai usar o zerosoft?",
+      "sub": "Você pode mudar isto depois em Configurações › Workspace.",
+      "team": {
+        "title": "Com a minha equipe",
+        "desc": "Crie uma equipe, convide pessoas e compartilhem CRM, Docs, Track e o resto."
+      },
+      "personal": {
+        "title": "Só eu",
+        "desc": "Notes, Docs, Cal e Link para o seu trabalho. Você pode convidar pessoas depois."
+      },
+      "pending": "{inviter} convidou você para {team}.",
+      "openInvite": "Ver convite",
+      "domain": "{team} já usa o zerosoft com o email da sua empresa.",
+      "join": "Entrar em {team}",
+      "requested": "Pedimos a {team} para deixar você entrar. Um admin precisa aprovar; enquanto isso você pode montar o seu próprio workspace."
+    },
+    "team": {
+      "title": "Sua equipe",
+      "sub": "Este é o workspace que a sua equipe vai compartilhar.",
+      "name": "Nome da equipe",
+      "namePlaceholder": "Darwin AI",
+      "size": "Quantas pessoas são?",
+      "sizes": {
+        "1": "Só eu",
+        "2-10": "2 a 10",
+        "11-50": "11 a 50",
+        "51-200": "51 a 200",
+        "200+": "Mais de 200"
+      }
+    },
+    "you": {
+      "title": "Sobre você",
+      "sub": "Para a sua equipe saber quem você é.",
+      "role": "O que você faz?"
+    },
+    "invite": {
+      "title": "Convide pessoas para {team}",
+      "sub": "Elas recebem um email com um link para entrar. Você também pode fazer isso depois em Configurações › Membros.",
+      "emails": "Emails",
+      "placeholder": "ana@empresa.com, leo@empresa.com",
+      "help": "Separados por vírgulas, espaços ou um por linha.",
+      "skip": "Pular por agora",
+      "send": "Continuar"
+    },
+    "start": {
+      "title": "Por onde você começa?",
+      "sub": "Escolha a ferramenta de onde você vem e o app que quer abrir primeiro.",
+      "tool": "Você vem de",
+      "noTool": "De nenhuma, começo do zero",
+      "app": "Abrir primeiro",
+      "sample": "Adicionar dados de exemplo para explorar (contatos, um doc, um projeto e um tipo de evento)",
+      "importFrom": "Importar do {tool}",
+      "go": "Ir para o {app}",
+      "finish": "Concluir"
+    },
+    "invited": {
+      "title": "Boas-vindas a {workspace}",
+      "titleNoName": "Boas-vindas ao zerosoft",
+      "sub": "Dois detalhes e você entra.",
+      "go": "Ir para {workspace}"
+    },
+    "results": {
+      "title": "Quase pronto",
+      "sub": "Alguns emails não saíram. Copie os links e envie você.",
+      "copy": "Copiar link",
+      "status": {
+        "sent": "Convite enviado",
+        "member": "Já está no workspace",
+        "notSent": "O email não saiu",
+        "skipped": "Aqui não há provedor de email: copie o link"
+      },
+      "invalid": "Estes não são emails válidos: {list}",
+      "limited": "Você chegou ao limite de convites por agora. Convide o resto mais tarde em Configurações › Membros."
+    }
+  },
+  "profileForm": {
+    "title": "Seus dados",
+    "desc": "Como a sua equipe vê você e o idioma e o fuso horário dos seus apps.",
+    "name": "Nome",
+    "language": "Idioma",
+    "timeZone": "Fuso horário",
+    "error": "Não foi possível salvar. Tente de novo."
   },
   "importHub": {
     "title": "Importar",

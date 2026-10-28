@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
+import { workspaceTeamId } from '@/lib/workspace';
 import { canSeeActivity, sessionScope, scopeAnd } from '@/lib/crm-visibility';
 import { getDb } from '@/lib/db';
 import { getActivity, listCompanies, listContacts, listTaskFiles, listTaskProjects, type ActivityListRow } from '@/lib/crm';
@@ -72,8 +73,8 @@ export default async function TaskDetailPage(props: TaskDetailPageProps) {
     .prepare(`SELECT id, name FROM crm_deals WHERE user_id = ?${scopeAnd('crm_deals', scope).sql} ORDER BY created_at DESC LIMIT 200`)
     .all(user.id, ...scopeAnd('crm_deals', scope).args)) as Array<{ id: string; name: string }>;
 
-  const teamMembers = user.team?.id
-    ? await listMembers(user.team.id)
+  const teamMembers = workspaceTeamId(user)
+    ? await listMembers(workspaceTeamId(user)!)
     : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
 
   const ownerOptions = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));

@@ -93,9 +93,6 @@ export function settingsSections(isAdmin: boolean): SettingsNavGroup[] {
  * Las tandas que llenan cada sección sacan su fila de acá.
  */
 export const SETTINGS_ELSEWHERE: Partial<Record<SettingsSectionKey, Array<{ href: string; label: string }>>> = {
-  workspace: [{ href: '/app/crm/settings?tab=team', label: 'members' }],
-  members: [{ href: '/app/crm/settings?tab=team', label: 'crmTeam' }],
-  teams: [{ href: '/app/crm/settings?tab=team', label: 'crmSalesTeams' }],
   import: [
     { href: '/app/crm/settings?tab=import', label: 'crm' },
     { href: '/app/track/settings?tab=import', label: 'track' },

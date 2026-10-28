@@ -314,7 +314,7 @@ export function buildNav(
   product: AppProduct,
   pathname: string,
   labels: SidebarLabels,
-  counts: { tasksDue?: number; unread?: number } = {},
+  counts: { tasksDue?: number; unread?: number; allowed?: '*' | readonly string[] } = {},
 ): NavGroup[] {
   const at = (prefix: string) => pathname.startsWith(prefix);
   const tasksDue = counts.tasksDue ?? 0;
@@ -330,7 +330,10 @@ export function buildNav(
       // Inicio y, debajo, las apps agrupadas por categoría (vender, atender…).
       return [
         { items: [{ href: '/app', label: labels.platformHome, active: pathname === '/app', icon: 'overview' }] },
-        ...appsByCategory().map(({ category, apps }) => ({
+        ...appsByCategory()
+          .map(({ category, apps }) => ({ category, apps: apps.filter((k) => !counts.allowed || counts.allowed === '*' || counts.allowed.includes(k)) }))
+          .filter(({ apps }) => apps.length > 0)
+          .map(({ category, apps }) => ({
           section: labels.categories[category],
           items: apps.map((line) => ({
             href: switcherHref(line),

@@ -3,6 +3,7 @@ import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { getTranslations } from 'next-intl/server';
 import PageHeader from '@/components/ui/PageHeader';
 import { requireUser } from '@/lib/session';
+import { workspaceTeamId } from '@/lib/workspace';
 import { sessionScope } from '@/lib/crm-visibility';
 import {
   LEAD_STATUSES,
@@ -49,8 +50,8 @@ export default async function NewContactPage(
     name: c.name,
   }));
 
-  const members = user.team?.id
-    ? await listMembers(user.team.id)
+  const members = workspaceTeamId(user)
+    ? await listMembers(workspaceTeamId(user)!)
     : [{ user_id: user.id, email: user.email, name: user.name ?? null }];
   const people = members.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
   const customFields: CustomFieldDef[] = (await fieldAccessFor(sessionFieldViewer(user), 'contacts')).visible.filter((f) => f.access === 'edit').map((f) => ({

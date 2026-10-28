@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import TzDependent from '@/components/app/TzDependent';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
+import { workspaceTeamId } from '@/lib/workspace';
 import { sessionScope } from '@/lib/crm-visibility';
 import { getCrmOverview, type ActivityListRow } from '@/lib/crm';
 import { getCrmSettings } from '@/lib/crm-currency';
@@ -57,8 +58,8 @@ export default async function CrmOverviewPage(
   const o = await getCrmOverview(user.id, scope);
   // Totales en la moneda base (los deals en otras monedas se convierten).
   const base = (await getCrmSettings(user.id)).baseCurrency;
-  const members = user.team?.id
-    ? await listMembers(user.team.id)
+  const members = workspaceTeamId(user)
+    ? await listMembers(workspaceTeamId(user)!)
     : [{ user_id: user.id, email: user.email, name: user.name ?? null }];
   const quotas = await quotaProgress(user.id, {
     ownerIds: scope,

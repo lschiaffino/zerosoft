@@ -4,7 +4,7 @@
  * Al importar, los registros de un owner de HubSpot/Pipedrive que todavía no
  * era miembro quedan con el owner por defecto y anotados en
  * crm_import_pending_owners (con el email de ese owner). Cuando una persona
- * con ese email se une al workspace (lib/teams.ts › addMember, que corre al
+ * con ese email se une al workspace (lib/workspace-lifecycle.ts › personJoined, que corre al
  * aceptar la invitación), sus registros pasan a ser suyos: solo los que
  * siguen con el owner por defecto. Los que alguien reasignó a mano no se
  * tocan. Después la anotación se borra.

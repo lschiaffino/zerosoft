@@ -386,3 +386,52 @@ test('carpetas ajenas: filtrar por una carpeta que no es tuya da 404', async ({ 
   expect((await request.get('/api/voice/sessions?kind=meeting&folder=not-mine')).status()).toBe(404);
   expect((await request.get('/api/voice/sessions?kind=meeting&folder=none')).ok()).toBe(true);
 });
+
+test('acceso por app: una persona sin Voice no ve páginas, APIs, MCP, links compartidos ni el dictado', async ({ request, browser, baseURL }) => {
+  test.setTimeout(120_000);
+  // Una reunión del owner compartida con todo el workspace.
+  const title = `Sin Voice ${uid()}`;
+  const { id } = (await (await request.post('/api/voice/sessions', { data: { title } })).json()) as { id: string };
+  const share = (await (await request.put(`/api/voice/sessions/${id}/share`, { data: { access: 'workspace' } })).json()) as { share: { token: string } };
+
+  const demoTeam = String((await sql("SELECT id FROM teams WHERE owner_id = 'demo' ORDER BY created_at, id LIMIT 1"))[0].id);
+  const email = `novoice-${uid()}@darwin-e2e.io`;
+  const ctx = await browser.newContext({ baseURL });
+  await ctx.addCookies([{ name: 'zs_e2e_as', value: email, url: baseURL! }]);
+  const p = await ctx.newPage();
+  try {
+    await p.goto('/en/app', { waitUntil: 'networkidle' }); // crea su usuario
+    const me = String((await sql('SELECT id FROM users WHERE email = ?', [email]))[0].id);
+    await sql("UPDATE users SET onboarded_at = datetime('now') WHERE id = ?", [me]);
+    await sql(`INSERT INTO team_members (team_id, user_id, role, apps) VALUES (?, ?, 'member', '["crm"]')`, [demoTeam, me]);
+    await sql('UPDATE users SET active_team_id = ? WHERE id = ?', [demoTeam, me]);
+
+    // Páginas: redirigen al inicio con el aviso, sin datos de Voice.
+    await p.goto('/en/app/voice', { waitUntil: 'networkidle' });
+    await expect(p).toHaveURL(/\/en\/app\?blocked=voice/);
+    expect(await p.content()).not.toContain(title);
+    // Sin dictado global ni avisos de reunión en el resto de la app.
+    await p.goto('/en/app/crm', { waitUntil: 'networkidle' });
+    await expect(p.locator('.vc-bar')).toHaveCount(0);
+    await expect(p.getByTestId('voice-reminder')).toHaveCount(0);
+    // APIs, búsqueda y MCP.
+    for (const path of ['/api/voice/sessions?kind=meeting', '/api/voice/events', '/api/voice/settings', '/api/voice/shared', `/api/voice/sessions/${id}`]) {
+      expect((await ctx.request.get(path)).status(), path).toBe(401);
+    }
+    const search = (await (await ctx.request.get(`/api/search?q=${encodeURIComponent(title)}`)).json()) as { items: Array<{ href: string }> };
+    expect(search.items.filter((i) => i.href.startsWith('/app/voice'))).toEqual([]);
+    expect((await ctx.request.post('/api/keys', { data: { name: 'nope', scopes: ['voice:read'] } })).status()).toBe(403);
+    const key = (await (await ctx.request.post('/api/keys', { data: { name: 'crm only' } })).json()) as { key: string };
+    const mcp = await request.post('/api/v1/voice/mcp', {
+      headers: { authorization: `Bearer ${key.key}`, 'content-type': 'application/json' },
+      data: { jsonrpc: '2.0', id: 1, method: 'tools/list' },
+    });
+    expect(mcp.status()).toBe(403);
+    // El link "para el workspace" no le abre la reunión.
+    await p.goto(`/en/m/${share.share.token}`, { waitUntil: 'networkidle' });
+    await expect(p.getByTestId('voice-share-gate')).toHaveAttribute('data-state', 'forbidden');
+    expect(await p.content()).not.toContain(title);
+  } finally {
+    await ctx.close();
+  }
+});

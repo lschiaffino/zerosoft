@@ -1,3 +1,4 @@
+import { listOwnerSpacePeople } from './workspace';
 import { getDb, getUserById } from './db';
 import { withVisibleContent } from './docs-visible';
 import { emitChatEvent, emitConversationChanges, toApiMessage } from './chat-api';
@@ -1291,8 +1292,14 @@ export async function listChatAgents(
 ): Promise<ChatAgent[]> {
   const db = getDb();
   if (!teamId) {
-    const u = await getUserById(userId);
-    return u ? [{ id: u.id, email: u.email, name: u.name, image: u.image, away: await isChatAgentAway(u.id) }] : [];
+    // Espacio del owner: el owner y su equipo con acceso a Chat.
+    const people = await listOwnerSpacePeople(userId, { app: 'chat' });
+    const out: ChatAgent[] = [];
+    for (const p of people) {
+      const u = await getUserById(p.id);
+      if (u) out.push({ id: u.id, email: u.email, name: u.name, image: u.image, away: await isChatAgentAway(u.id) });
+    }
+    return out;
   }
   const rows = (await db
     .prepare(
@@ -1300,7 +1307,7 @@ export async function listChatAgents(
        FROM team_members m
        JOIN users u ON u.id = m.user_id
        LEFT JOIN chat_agent_status s ON s.user_id = u.id
-       WHERE m.team_id = ?
+       WHERE m.team_id = ? AND m.role != 'guest'
        ORDER BY m.role = 'owner' DESC, m.created_at ASC`,
     )
     .all(teamId)) as Array<Omit<ChatAgent, 'away'> & { away: number }>;

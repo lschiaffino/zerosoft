@@ -1013,9 +1013,9 @@
     "currency": "Currency",
     "currencyDesc": "The workspace base currency and manual exchange rates.",
     "tabs": {
-      "team": "Team",
       "sales": "Sales",
       "data": "Data",
+      "access": "Access",
       "automation": "Automation",
       "integrations": "Integrations",
       "import": "Import and export"
@@ -1953,7 +1953,8 @@
     "teamName": "Team name",
     "teamNamePh": "e.g. Enterprise",
     "createTeam": "Create sales team",
-    "deleteTeamConfirm": "Delete this team? Its members keep their records."
+    "deleteTeamConfirm": "Delete this team? Its members keep their records.",
+    "platformNote": "Members and invitations are managed in <members>Settings › Members</members>. Sales teams are the workspace teams in <teams>Settings › Teams</teams>."
   },
   "assignment": {
     "title": "Lead assignment",
@@ -2355,6 +2356,7 @@
     "inviteOwners": "{count, plural, one {Invite # person} other {Invite # people}} to the workspace",
     "inviteHelp": "Owners from the other CRM who are not members yet. Their records stay with the default owner. When each person accepts the invitation with that same email, the records nobody reassigned in the meantime become theirs.",
     "invitedNote": "{count, plural, one {Invitation ready} other {# invitations ready}}. For now, share each link (they are valid for 14 days): they go out by email once invitation emails are set up.",
+    "inviteSkipped": "{count, plural, one {# person was not invited} other {# people were not invited}} because the daily invitation limit was reached: {emails}. Try again tomorrow.",
     "inviteLinkFor": "Invitation link for {email}",
     "inviteFailed": "Could not create the invitations. Try again.",
     "invitedEmailed": "{count, plural, one {Invitation sent by email} other {# invitations sent by email}}. You can also share the links below.",

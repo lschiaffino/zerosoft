@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { realUserId, requireUser } from '@/lib/session';
+import { workspaceTeamId } from '@/lib/workspace';
 import { countQueueTasks } from '@/lib/crm-work-queue';
 import { sessionScope } from '@/lib/crm-visibility';
 import { listTasks, listTaskProjects, type TaskBucket } from '@/lib/crm';
@@ -37,8 +38,8 @@ export default async function TasksPage(props: TasksPageProps) {
   const ownerId = typeof searchParams.owner === 'string' ? searchParams.owner : undefined;
   const projectId = typeof searchParams.project === 'string' ? searchParams.project : undefined;
 
-  const teamMembers = user.team?.id
-    ? await listMembers(user.team.id)
+  const teamMembers = workspaceTeamId(user)
+    ? await listMembers(workspaceTeamId(user)!)
     : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
 
   const projects = await listTaskProjects(user.id, true);

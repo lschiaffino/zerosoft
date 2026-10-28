@@ -93,7 +93,7 @@ test('los anchors viejos de /app/settings/workspace caen en la sección nueva', 
 
   // Sin anchor, Workspace es su propia sección.
   await page.goto('/en/app/settings/workspace', { waitUntil: 'load' });
-  await expect(page.getByRole('heading', { name: 'Workspace details' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Workspace', exact: true })).toBeVisible();
 });
 
 test('⌘K encuentra las secciones de Ajustes y los ajustes de cada app', async ({ page }) => {
@@ -110,7 +110,7 @@ test('⌘K encuentra las secciones de Ajustes y los ajustes de cada app', async 
   await expect(option).toHaveAttribute('aria-selected', 'true');
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/en\/app\/settings\/members$/);
-  await expect(page.getByRole('link', { name: 'Members and invites in CRM › Team' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^Members \(/ })).toBeVisible();
 
   await expect(async () => {
     await page.keyboard.press('ControlOrMeta+k');

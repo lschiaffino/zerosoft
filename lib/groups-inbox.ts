@@ -427,6 +427,7 @@ export async function createTeam(ws: string, input: { name?: unknown; memberIds?
   if (r.changes === 0) throw new GroupsError('duplicate_team', 409);
   const memberIds = await cleanMemberIds(ws, input.memberIds);
   await setTeamMembers(id, memberIds);
+  await syncWorkspaceGroup(ws, id);
   return { id, name, memberIds };
 }
 
@@ -443,6 +444,7 @@ export async function updateTeam(ws: string, id: string, input: { name?: unknown
     }
   }
   if (input.memberIds !== undefined) await setTeamMembers(id, await cleanMemberIds(ws, input.memberIds));
+  await syncWorkspaceGroup(ws, id);
   return (await listTeams(ws)).find((t) => t.id === id) as TeamDto;
 }
 
@@ -453,7 +455,14 @@ export async function deleteTeam(ws: string, id: string): Promise<boolean> {
   if (r.changes === 0) return false;
   await db.prepare('UPDATE groups_chats SET assigned_team_id = NULL WHERE user_id = ? AND assigned_team_id = ?').run(ws, id);
   await db.prepare('UPDATE groups_assign_rules SET team_id = NULL, enabled = 0 WHERE user_id = ? AND team_id = ?').run(ws, id);
+  await syncWorkspaceGroup(ws, id);
   return true;
+}
+
+/** El equipo es un subequipo del workspace: el directorio de Ajustes › Equipos y las demás apps se enteran. */
+async function syncWorkspaceGroup(ws: string, id: string): Promise<void> {
+  const { syncGroupFromApp } = await import('./workspace-groups');
+  await syncGroupFromApp('groups', ws, id);
 }
 
 /** Disponibilidad por persona. Sin fila = disponible. */

@@ -22,13 +22,14 @@
     "role": "Role",
     "workspace": "Workspace",
     "noName": "No name",
-    "note": "Change your name and photo in your Google account.",
+    "note": "Your photo comes from your Google account.",
     "demoBadge": "Demo mode",
     "demoNote": "Demo mode: everyone signs in as the same user. In production you sign in with Google.",
     "roles": {
       "owner": "Owner",
       "admin": "Admin",
-      "member": "Member"
+      "member": "Member",
+      "guest": "Guest"
     }
   },
   "ai": {
@@ -440,6 +441,377 @@
       "aiUsage": "Workspace AI usage",
       "recorder": "Robot recorder"
     }
+  },
+  "members": {
+    "inviteTitle": "Invite people to {workspace}",
+    "inviteDesc": "Each person gets an email with a link that works once and expires in 14 days. They sign in with Google and land in this workspace.",
+    "emails": "Emails",
+    "emailsPlaceholder": "ana@company.com, leo@company.com",
+    "emailsHelp": "Paste one or many, separated by commas or spaces. Enter sends.",
+    "role": "Role",
+    "roles": {
+      "owner": "Owner",
+      "admin": "Admin",
+      "member": "Member",
+      "guest": "Guest"
+    },
+    "roleHelp": {
+      "member": "Uses the apps you allow, with the same data as the rest of the team.",
+      "admin": "Like a member, and can also invite people, change roles and edit settings.",
+      "guest": "Does not enter the workspace: only sees what you share with them, page by page."
+    },
+    "apps": "Apps",
+    "allApps": "All apps",
+    "noApps": "No apps",
+    "noAppsHelp": "Without apps the person only sees what is shared with them.",
+    "guestAccess": "Only what is shared",
+    "teams": "Teams",
+    "send": "Send invitations",
+    "invalidEmails": "These are not valid emails: {list}",
+    "copyLink": "Copy link",
+    "result": {
+      "sent": "Invitation sent",
+      "failed": "The email couldn't be sent. Copy the link and send it yourself.",
+      "skipped": "Emails are not set up here. Copy the link and send it yourself.",
+      "member": "Already in the workspace",
+      "invalid": "Not a valid email",
+      "limited": "Too many invitations today. Try again tomorrow."
+    },
+    "listTitle": "Members ({count})",
+    "listDesc": "People who work in this workspace.",
+    "listDescAdmin": "Change roles and apps here. Removing someone cuts their access to every app right away.",
+    "search": "Search people",
+    "noMatches": "Nobody matches that search",
+    "colPerson": "Person",
+    "colRole": "Role",
+    "colApps": "Apps",
+    "colTeams": "Teams",
+    "colJoined": "Joined",
+    "colActions": "Actions",
+    "colEmail": "Email",
+    "colStatus": "Status",
+    "colExpires": "Expires",
+    "you": "(you)",
+    "none": "None",
+    "roleOf": "Role of {name}",
+    "editAccess": "Edit access",
+    "remove": "Remove",
+    "removeOf": "Remove {name}",
+    "editTitle": "Access for {name}",
+    "save": "Save",
+    "cancel": "Cancel",
+    "removeTitle": "Remove {name} from {workspace}?",
+    "removeBody": "They lose access to every app right away: their sessions, API keys and calendar slots stop working and their open conversations go back to the queue. What they created stays in the workspace.",
+    "leave": "Leave workspace",
+    "leaveNote": "You are a member of {workspace}.",
+    "leaveTitle": "Leave {workspace}?",
+    "leaveBody": "You lose access to its apps and data. To come back, someone has to invite you again.",
+    "alone": "It's just you for now. Invite your team above and they'll see the same CRM, Docs, Track and the rest.",
+    "pendingTitle": "Pending invitations ({count})",
+    "pendingDesc": "Invitations nobody accepted yet. Resending renews the 14 days.",
+    "pendingEmpty": "No pending invitations",
+    "pendingEmptyBody": "When you invite someone, the invitation shows up here until they accept it.",
+    "status": {
+      "sent": "Sent {date}",
+      "failed": "The email failed to send",
+      "notSent": "No email provider here: share the link",
+      "expired": "Expired",
+      "request": "Asked to join",
+      "anyEmail": "(any email)"
+    },
+    "resend": "Resend",
+    "revoke": "Revoke",
+    "revokeOf": "Revoke the invitation for {email}",
+    "error": "Something went wrong. Try again.",
+    "resendError": "Couldn't resend the invitation. Try again in a minute.",
+    "errors": {
+      "forbidden": "You need to be an admin of this workspace to do that.",
+      "rate_limited": "Too many attempts. Wait a minute and try again.",
+      "invalid_emails": "None of those are valid emails.",
+      "owner_cant_leave": "The owner can't leave the workspace.",
+      "cant_change_own_role": "You can't change your own role.",
+      "not_found": "That person or invitation no longer exists. Reload the page."
+    },
+    "approve": "Approve",
+    "allowAnyEmail": "Allow another email",
+    "allowAnyEmailHelp": "Resends the invitation and lets them accept it with a different email. Never for admins.",
+    "legacyNotice": "Heads up: whoever joins will see what so far was only yours in this workspace, including Track projects and Chat widgets. Mark as private what should stay yours before inviting."
+  },
+  "teamsForm": {
+    "createTitle": "Create a team",
+    "createDesc": "Teams group people inside the workspace: Sales, Support, Product.",
+    "name": "Name",
+    "namePlaceholder": "Sales",
+    "description": "Description",
+    "members": "Members",
+    "lead": "Lead",
+    "create": "Create team",
+    "listTitle": "Teams ({count})",
+    "listDesc": "One list of teams for every app.",
+    "emptyTitle": "No teams yet",
+    "emptyBody": "Create one to assign work to a group and mention it in Talk.",
+    "membersList": "{count, plural, one {# person} other {# people}}: {names}",
+    "noMembers": "Nobody yet",
+    "edit": "Edit",
+    "editTitle": "Edit team",
+    "delete": "Delete",
+    "deleteOf": "Delete {name}",
+    "deleteTitle": "Delete {name}?",
+    "deleteBody": "It disappears from every app. Chat conversations and rules that used it stay without a team. People stay in the workspace.",
+    "save": "Save",
+    "cancel": "Cancel",
+    "uses": "Each team is used in Talk for @mentions (@sales notifies the whole team) and in Cal to add a whole team to a host pool. In the CRM, Chat and Groups it is used only if you turn it on.",
+    "errors": {
+      "save": "Couldn't save the team. Try again.",
+      "duplicate_name": "There is already a team with that name.",
+      "invalid_name": "Give the team a name.",
+      "too_many_groups": "You reached the limit of 100 teams.",
+      "forbidden": "You need to be an admin of this workspace to do that."
+    },
+    "useIn": "Use in",
+    "useHelp": "Talk (@mentions) and Cal (host pools) can always use it. CRM, Chat and Groups only if you check them here.",
+    "usedIn": "Used in {apps}, Talk and Cal",
+    "usedInNone": "Used in Talk and Cal",
+    "useApps": {
+      "crm": {
+        "title": "CRM",
+        "desc": "record visibility and round-robin"
+      },
+      "chat": {
+        "title": "Chat",
+        "desc": "team inbox"
+      },
+      "groups": {
+        "title": "Groups",
+        "desc": "chat assignment"
+      }
+    }
+  },
+  "workspaceForm": {
+    "detailsTitle": "Workspace",
+    "detailsDesc": "The name and logo everyone sees in the sidebar and in invitations.",
+    "name": "Name",
+    "slug": "Identifier",
+    "slugPlaceholder": "darwin-ai",
+    "slugHelp": "Lowercase letters, numbers and hyphens. Unique across zerosoft.",
+    "size": "Team size",
+    "sizeUnset": "Not set",
+    "sizes": {
+      "1": "Just me",
+      "2-10": "2 to 10",
+      "11-50": "11 to 50",
+      "51-200": "51 to 200",
+      "200+": "More than 200"
+    },
+    "owner": "Owner",
+    "uploadLogo": "Upload logo",
+    "changeLogo": "Change logo",
+    "removeLogo": "Remove",
+    "logoHelp": "PNG, JPG, WebP or GIF, up to 2 MB. Square works best.",
+    "readOnly": "Only the owner and admins can change this.",
+    "modeTitle": "How you use zerosoft",
+    "modeDesc": "It changes which apps show up first and whether team tools are visible.",
+    "modes": {
+      "team": {
+        "title": "With a team",
+        "desc": "Invite people, assign work, share inboxes. CRM, Chat and Track come first."
+      },
+      "personal": {
+        "title": "Just me",
+        "desc": "No invitations or assignment. Notes, Docs and Cal come first."
+      }
+    },
+    "domainsTitle": "Join by email domain",
+    "domainsDesc": "Anyone who signs in with an email at these domains can join as a member without an invitation.",
+    "domains": "Domains",
+    "domainsPlaceholder": "company.com",
+    "domainsHelp": "Only your own email domain ({domain}). Public domains like gmail.com are not allowed.",
+    "errors": {
+      "network": "No connection. Try again.",
+      "save": "Couldn't save. Try again.",
+      "slug_taken": "Another workspace uses that identifier.",
+      "invalid_slug": "Use at least 2 lowercase letters, numbers or hyphens.",
+      "invalid_domain": "One of the domains is not valid.",
+      "public_domain": "Public email domains like gmail.com are not allowed.",
+      "invalid_name": "The workspace needs a name.",
+      "logo": "Couldn't upload the logo. Try again.",
+      "file_type_not_allowed": "Use a PNG, JPG, WebP or GIF image.",
+      "file_too_large": "The image is over 2 MB.",
+      "storage_unavailable": "File storage is not set up here.",
+      "forbidden": "Only the owner and admins can change this.",
+      "domain_not_yours": "You can only allow the domain of your own email."
+    },
+    "joinApproval": "An admin approves each person before they join",
+    "joinRole": "They join as members with these apps:"
+  },
+  "switcher": {
+    "label": "Workspace: {name}. Switch workspace",
+    "menu": "Workspaces",
+    "workspaces": "Workspaces",
+    "personal": "Personal",
+    "yours": "Yours",
+    "roles": {
+      "owner": "Owner",
+      "admin": "Admin",
+      "member": "Member",
+      "guest": "Guest"
+    },
+    "createTeam": "Create a team",
+    "invite": "Invite people",
+    "settings": "Workspace settings",
+    "switchError": "Couldn't switch workspace. Try again.",
+    "createError": "Couldn't create the team. Try again.",
+    "createTitle": "Create a team",
+    "createSubmit": "Create and invite",
+    "cancel": "Cancel",
+    "teamName": "Team name",
+    "teamNamePlaceholder": "Darwin AI",
+    "createHelp": "Your workspace becomes a team workspace with this name. Your data stays where it is. Next you invite people."
+  },
+  "access": {
+    "title": "You don't have access to {app} here",
+    "body": "An admin of {workspace} can turn {app} on for you in Settings › Members.",
+    "back": "Back to apps"
+  },
+  "invite": {
+    "metaTitle": "Invitation",
+    "title": "Join {workspace}",
+    "sub": "{inviter} invited you to zerosoft.",
+    "roleLine": {
+      "member": "You'll use the same apps and data as the rest of the team.",
+      "admin": "You'll join as an admin: you can invite people and change settings.",
+      "guest": "You'll join as a guest: you only see what they share with you."
+    },
+    "join": "Join {workspace}",
+    "joining": "Joining…",
+    "joinAs": "Join as {email}",
+    "otherAccount": "Use another account",
+    "mismatch": "This invitation was sent to <b>{invited}</b> and you are signed in as <b>{current}</b>.",
+    "signinGoogle": "Continue with Google",
+    "useAccount": "Use the Google account for {email}.",
+    "expires": "The link expires on {date}.",
+    "invalidTitle": "This invitation no longer works",
+    "invalidDesc": "It was already used or revoked. Ask whoever invited you for a new one.",
+    "expiredTitle": "This invitation expired",
+    "expiredDesc": "Invitations last 14 days. Ask whoever invited you to resend it.",
+    "alreadyTitle": "You're already in {workspace}",
+    "alreadyDesc": "Switch to it from the workspace menu at the top of the sidebar.",
+    "openApp": "Open zerosoft",
+    "backHome": "Back to home",
+    "errors": {
+      "generic": "Couldn't join. Try again.",
+      "invite_invalid": "This invitation no longer works.",
+      "invite_expired": "This invitation expired. Ask for a new one.",
+      "rate_limited": "Too many attempts. Wait a few minutes.",
+      "not_found": "This invitation does not exist.",
+      "email_required": "This invitation can only be accepted with the email it was sent to."
+    },
+    "mismatchStrict": "This invitation is for <b>{invited}</b> and you are signed in as <b>{current}</b>. Sign in with that account to accept it, or ask for an invitation to your email."
+  },
+  "welcome": {
+    "metaTitle": "Welcome",
+    "stepOf": "Step {step} of {total}",
+    "continue": "Continue",
+    "back": "Back",
+    "error": "Couldn't save. Try again.",
+    "yourName": "Your name",
+    "language": "Language",
+    "timeZone": "Time zone",
+    "signedInAs": "Signed in as {email}",
+    "roles": {
+      "founder": "Founder or leadership",
+      "sales": "Sales",
+      "support": "Support",
+      "marketing": "Marketing",
+      "engineering": "Engineering",
+      "product": "Product",
+      "operations": "Operations",
+      "design": "Design",
+      "other": "Other"
+    },
+    "use": {
+      "title": "How will you use zerosoft?",
+      "sub": "You can change this later in Settings › Workspace.",
+      "team": {
+        "title": "With my team",
+        "desc": "Create a team, invite people and share CRM, Docs, Track and the rest."
+      },
+      "personal": {
+        "title": "Just me",
+        "desc": "Notes, Docs, Cal and Link for your own work. You can invite people later."
+      },
+      "pending": "{inviter} invited you to {team}.",
+      "openInvite": "See invitation",
+      "domain": "{team} already uses zerosoft with your company email.",
+      "join": "Join {team}",
+      "requested": "We asked {team} to let you in. An admin has to approve it; meanwhile you can set up your own workspace."
+    },
+    "team": {
+      "title": "Your team",
+      "sub": "This is the workspace your team will share.",
+      "name": "Team name",
+      "namePlaceholder": "Darwin AI",
+      "size": "How many people?",
+      "sizes": {
+        "1": "Just me",
+        "2-10": "2 to 10",
+        "11-50": "11 to 50",
+        "51-200": "51 to 200",
+        "200+": "More than 200"
+      }
+    },
+    "you": {
+      "title": "About you",
+      "sub": "So your team knows who you are.",
+      "role": "What do you do?"
+    },
+    "invite": {
+      "title": "Invite people to {team}",
+      "sub": "They get an email with a link to join. You can also do it later from Settings › Members.",
+      "emails": "Emails",
+      "placeholder": "ana@company.com, leo@company.com",
+      "help": "Separated by commas, spaces or one per line.",
+      "skip": "Skip for now",
+      "send": "Continue"
+    },
+    "start": {
+      "title": "Where do you start?",
+      "sub": "Pick the tool you come from and the app you want to open first.",
+      "tool": "You come from",
+      "noTool": "Nothing, starting fresh",
+      "app": "Open first",
+      "sample": "Add sample data to explore (contacts, a doc, a project and an event type)",
+      "importFrom": "Import from {tool}",
+      "go": "Go to {app}",
+      "finish": "Finish"
+    },
+    "invited": {
+      "title": "Welcome to {workspace}",
+      "titleNoName": "Welcome to zerosoft",
+      "sub": "Two details and you are in.",
+      "go": "Go to {workspace}"
+    },
+    "results": {
+      "title": "Almost there",
+      "sub": "Some emails didn't go out. Copy their links and send them yourself.",
+      "copy": "Copy link",
+      "status": {
+        "sent": "Invitation sent",
+        "member": "Already in the workspace",
+        "notSent": "Email not sent",
+        "skipped": "No email provider here: copy the link"
+      },
+      "invalid": "These are not valid emails: {list}",
+      "limited": "You reached the invitation limit for now. Invite the rest later from Settings › Members."
+    }
+  },
+  "profileForm": {
+    "title": "Your details",
+    "desc": "How your team sees you and the language and time zone of your apps.",
+    "name": "Name",
+    "language": "Language",
+    "timeZone": "Time zone",
+    "error": "Couldn't save. Try again."
   },
   "importHub": {
     "title": "Import",

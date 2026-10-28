@@ -295,6 +295,27 @@ describe('webhooks', () => {
   });
 });
 
+describe('per-app access (128_workspace_teams)', () => {
+  it('without the voice app: no webhook delivery, no shared links', async () => {
+    const ws = await workspace('vapp');
+    const id = await meetingWithTranscript(ws.as(ws.a.id), 'App gated');
+    const res = await setShare(ws.as(ws.a.id), id, { access: 'workspace' });
+    if (!res.ok) throw new Error('share');
+    const data = { meeting: { id } };
+    expect(await voiceDeliveryAllowed(ws.owner.id, ws.a.id, data)).toBe(true);
+    expect((await resolveShare(res.share.token, ws.b.id)).state).toBe('ok');
+    // Quien mira sin Voice no abre el link del workspace.
+    await getDb().prepare(`UPDATE team_members SET apps = '["crm"]' WHERE user_id = ?`).run(ws.b.id);
+    expect((await resolveShare(res.share.token, ws.b.id)).state).toBe('forbidden');
+    // Quien grabó sin Voice: ni sus webhooks ni sus links.
+    await getDb().prepare(`UPDATE team_members SET apps = '["crm","docs"]' WHERE user_id = ?`).run(ws.a.id);
+    expect(await voiceDeliveryAllowed(ws.owner.id, ws.a.id, data)).toBe(false);
+    expect((await resolveShare(res.share.token, ws.owner.id)).state).toBe('not_found');
+    await getDb().prepare(`UPDATE team_members SET apps = '["voice"]' WHERE user_id = ?`).run(ws.a.id);
+    expect(await voiceDeliveryAllowed(ws.owner.id, ws.a.id, data)).toBe(true);
+  });
+});
+
 describe('calendar scope', () => {
   it('the Voice calendar only has bookings the person hosts or co-hosts, whatever the role', () => {
     const ws = 'ws-owner';

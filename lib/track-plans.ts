@@ -7,6 +7,7 @@
  * Alcance: como los proyectos de Track, un plan es del team activo o, sin
  * team, del dueño del workspace (owner_id = SessionUser.id).
  */
+import { listOwnerSpacePeople } from './workspace';
 import { currentVisibleSql } from './track-access';
 import { getDb } from './db';
 import { trackWorkspaceId } from './track-labels';
@@ -142,10 +143,7 @@ export async function listWorkspaceMembers(scope: WorkspaceScope): Promise<PlanM
       )
       .all(scope.teamId)) as PlanMember[];
   }
-  const owner = (await db.prepare('SELECT id, name, email FROM users WHERE id = ?').get(scope.ownerId)) as
-    | UserRow
-    | undefined;
-  return owner ? [{ id: owner.id, name: owner.name, email: owner.email }] : [];
+  return (await listOwnerSpacePeople(scope.ownerId, {}, db)).map((p) => ({ id: p.id, name: p.name, email: p.email }));
 }
 
 /** Proyectos de Track (equipos) del workspace, activos. */

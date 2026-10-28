@@ -6,6 +6,7 @@
  * se avisa a quienes se suman como mencionados. Best effort: un email que
  * falla no corta el guardado.
  */
+import { getWorkspace, workspaceTeamId } from './workspace';
 import { getDb, type CrmActivityRow } from './db';
 import { escapeHtml, renderBrandedHtml, sendEmail } from './email';
 import { createNotification } from './notifications';
@@ -60,10 +61,12 @@ function baseUrl(): string {
 
 /** Personas que se pueden mencionar: los miembros del team activo, o solo el dueño en un workspace personal. */
 export async function mentionablePeople(
-  workspace: { id: string; email: string; name: string | null; team?: { id: string } | null },
+  workspace: { id: string; email: string; name: string | null; team?: { id: string } | null; workspace?: { id: string } | null },
 ): Promise<MentionablePerson[]> {
-  if (!workspace.team?.id) return [{ id: workspace.id, name: workspace.name, email: workspace.email, role: 'owner' }];
-  return (await listMembers(workspace.team.id)).map((m) => ({ id: m.user_id, name: m.name, email: m.email, role: m.role as TeamRole }));
+  // Sin sesión (cron, Flow): la ficha del workspace del owner.
+  const teamId = workspaceTeamId(workspace) ?? (await getWorkspace(workspace.id))?.id ?? null;
+  if (!teamId) return [{ id: workspace.id, name: workspace.name, email: workspace.email, role: 'owner' }];
+  return (await listMembers(teamId)).map((m) => ({ id: m.user_id, name: m.name, email: m.email, role: m.role as TeamRole }));
 }
 
 /** Path de la actividad en la app: la tarea, o el registro donde está la nota. */

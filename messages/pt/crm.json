@@ -1013,9 +1013,9 @@
     "currency": "Moeda",
     "currencyDesc": "A moeda base do workspace e as taxas de câmbio manuais.",
     "tabs": {
-      "team": "Equipe",
       "sales": "Vendas",
       "data": "Dados",
+      "access": "Acesso",
       "automation": "Automação",
       "integrations": "Integrações",
       "import": "Importar e exportar"
@@ -1953,7 +1953,8 @@
     "teamName": "Nome da equipe",
     "teamNamePh": "ex. Enterprise",
     "createTeam": "Criar equipe de vendas",
-    "deleteTeamConfirm": "Excluir esta equipe? Os membros mantêm os seus registros."
+    "deleteTeamConfirm": "Excluir esta equipe? Os membros mantêm os seus registros.",
+    "platformNote": "Os membros e os convites ficam em <members>Configurações › Membros</members>. As equipes de vendas são as equipes do workspace em <teams>Configurações › Equipes</teams>."
   },
   "assignment": {
     "title": "Distribuição de leads",
@@ -2355,6 +2356,7 @@
     "inviteOwners": "{count, plural, one {Convidar # pessoa} other {Convidar # pessoas}} para o workspace",
     "inviteHelp": "Owners do outro CRM que ainda não são membros. Os registros deles ficam com o owner padrão. Quando cada pessoa aceita o convite com esse mesmo email, passam a ser dela os registros que ninguém reatribuiu enquanto isso.",
     "invitedNote": "{count, plural, one {Convite pronto} other {# convites prontos}}. Por enquanto compartilhe cada link (valem por 14 dias): eles saem por email quando o envio de convites estiver configurado.",
+    "inviteSkipped": "{count, plural, one {# pessoa ficou sem convite} other {# pessoas ficaram sem convite}} porque o limite diário de convites foi atingido: {emails}. Tente de novo amanhã.",
     "inviteLinkFor": "Link de convite para {email}",
     "inviteFailed": "Não foi possível criar os convites. Tente de novo.",
     "invitedEmailed": "{count, plural, one {Convite enviado por email} other {# convites enviados por email}}. Você também pode compartilhar os links abaixo.",
