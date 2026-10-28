@@ -260,6 +260,22 @@ export function fakeHubspotFetch(ds: FakeDataset, log: string[] = []): FetchLike
         ],
       });
     }
+    // Listas: una de contactos (los primeros 3) y una de empresas (la primera).
+    if (path === '/crm/v3/lists/search' && method === 'POST') {
+      const lists = [
+        { listId: '71', name: 'Newsletter', objectTypeId: '0-1', processingType: 'MANUAL', size: Math.min(3, d.contacts.length) },
+        { listId: '72', name: 'Key accounts', objectTypeId: '0-2', processingType: 'DYNAMIC', size: 1 },
+      ];
+      const body = JSON.parse(String(init?.body ?? '{}')) as { count?: number; offset?: number };
+      const start = body.offset ?? 0;
+      const count = body.count ?? 20;
+      return json({ lists: lists.slice(start, start + count), hasMore: start + count < lists.length, offset: start + count, total: lists.length });
+    }
+    m = /^\/crm\/v3\/lists\/(\w+)\/memberships$/.exec(path);
+    if (m) {
+      const members = m[1] === '71' ? d.contacts.slice(0, 3).map((c) => c.id) : m[1] === '72' ? [d.companies[0].id] : [];
+      return paged(members.map((recordId) => ({ recordId, membershipTimestamp: '2026-01-01T00:00:00.000Z' })));
+    }
     m = /^\/crm\/v3\/objects\/(\w+)\/search$/.exec(path);
     if (m) return json({ total: objects[m[1]]?.length ?? 0, results: [] });
     m = /^\/crm\/v3\/objects\/(\w+)$/.exec(path);

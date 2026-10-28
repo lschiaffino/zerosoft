@@ -174,7 +174,7 @@ export default function BoardAccessPanel({ boardId, onModeChange }: { boardId: s
               ) : (
                 <>
                   {t('aloneHint')}{' '}
-                  <Link href="/app/crm/settings?tab=team" className="board-access-link">
+                  <Link href="/app/settings/members" className="board-access-link">
                     {t('inviteWorkspace')}
                   </Link>
                 </>

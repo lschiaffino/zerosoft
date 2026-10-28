@@ -24,6 +24,8 @@ export const API_SCOPES = [
   'docs:write',
   'talk:read',
   'talk:write',
+  'boards:read',
+  'boards:write',
 ] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 
@@ -53,4 +55,26 @@ export function hasScope(granted: readonly ApiScope[], required: ApiScope): bool
     return granted.includes(write);
   }
   return false;
+}
+
+/** App de cada scope (prefijo antes de ':'), para el acceso por app del workspace. */
+export const SCOPE_APP: Record<string, string> = {
+  crm: 'crm',
+  links: 'link',
+  cal: 'cal',
+  agents: 'agents',
+  robots: 'robots',
+  chat: 'chat',
+  groups: 'groups',
+  voice: 'voice',
+  track: 'track',
+  docs: 'docs',
+  talk: 'talk',
+  boards: 'board',
+};
+
+/** Solo los scopes de apps permitidas ('*' = todas). */
+export function scopesForApps(scopes: readonly ApiScope[], apps: '*' | readonly string[]): ApiScope[] {
+  if (apps === '*') return [...scopes];
+  return scopes.filter((s) => apps.includes(SCOPE_APP[s.split(':')[0]] ?? ''));
 }

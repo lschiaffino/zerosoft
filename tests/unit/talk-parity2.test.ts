@@ -2,10 +2,12 @@ import { createServer, type Server } from 'http';
 import type { AddressInfo } from 'net';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDb } from '@/lib/db';
-import { addMember, createTeam, removeMember as removeTeamMember } from '@/lib/teams';
+import { addMember, createTeam, removeMember as removeTeamMember, setMemberApps } from '@/lib/teams';
+import { HUDDLE_STARTED_BODY } from '@/lib/talk-markdown';
 import {
   browseChannels,
   createChannel,
+  deleteMessage,
   inviteMembers,
   listEventsSince,
   openDm,
@@ -337,5 +339,64 @@ describe('retención y export', () => {
     const pubExport = await exportTalk(w.o, 'public');
     expect(pubExport.channels.some((c) => c.id === priv.id)).toBe(false);
     expect(pubExport.channels.find((c) => c.id === ch.id)?.messages.map((m) => m.text)).toEqual(['nuevo']);
+  });
+});
+
+describe('acceso por app y guests de workspace', () => {
+  it('sin la app Talk no lee, no recibe avisos; un guest de workspace puede ser invitado de Talk', async () => {
+    const w = await workspace('apps');
+    const ch = await createChannel(w.a, { name: 'abierto', kind: 'public', memberIds: [w.bob.id] });
+    await setMemberApps(w.team.id, w.bob.id, ['crm']);
+    expect(await readableChannel(w.b, ch.id)).toBeNull();
+    expect((await visibleChannels(w.b)).size).toBe(0);
+    const r = await postMessage(w.a, { channelId: ch.id, body: `hola <@${w.bob.id}>` });
+    await notifyForMessage(w.a, r.row, r.channel);
+    expect(await notes(w.bob.id, r.row.id)).toHaveLength(0);
+    await expect(inviteGuest(w.o, { email: w.bob.email, channelIds: [ch.id] })).rejects.toMatchObject({ code: 'already_member' });
+    await setMemberApps(w.team.id, w.bob.id, '*');
+    expect(await readableChannel(w.b, ch.id)).not.toBeNull();
+    // Guest de workspace (rol guest del team): no es miembro de Talk, pero se lo puede invitar a canales.
+    const vera = await makeUser('vera');
+    await addMember(w.team.id, vera.id, 'guest');
+    const v: TalkActor = { workspaceId: w.owner.id, personId: vera.id, role: 'member', teamId: null };
+    expect(await readableChannel(v, ch.id)).toBeNull();
+    const inv = await inviteGuest(w.o, { email: vera.email, channelIds: [ch.id] });
+    if (inv.kind !== 'invited') throw new Error('expected invite');
+    expect((await acceptGuestInvite(inv.token, vera)).ok).toBe(true);
+    expect(await readableChannel(v, ch.id)).not.toBeNull();
+  });
+});
+
+describe('arreglos de la QA', () => {
+  it('borrar, editar o vencer un mensaje invalida los resúmenes guardados que lo cubren', async () => {
+    const w = await workspace('inv');
+    const ch = await createChannel(w.a, { name: 'resumen', kind: 'public' });
+    const m = await postMessage(w.a, { channelId: ch.id, body: 'dato sensible' });
+    await summarizeChannel(w.a, ch.id, 'week');
+    const count = async () => Number(((await getDb().prepare("SELECT COUNT(*) AS n FROM talk_ai_summaries WHERE ref = ? AND kind = 'channel'").get(ch.id)) as { n: number }).n);
+    expect(await count()).toBe(1);
+    await deleteMessage(w.a, m.row.id);
+    expect(await count()).toBe(0);
+    const m2 = await postMessage(w.a, { channelId: ch.id, body: 'otro dato' });
+    await summarizeChannel(w.a, ch.id, 'week');
+    await getDb().prepare('UPDATE talk_messages SET created_at = ? WHERE id = ?').run(new Date(Date.now() - 40 * 86_400_000).toISOString(), m2.row.id);
+    await setTalkSettings(w.o, { retentionDays: 30 });
+    await applyRetention();
+    expect(await count()).toBe(0);
+  });
+
+  it('un peerId ajeno da 409', async () => {
+    const w = await workspace('peer');
+    const ch = await createChannel(w.a, { name: 'voz', kind: 'public', memberIds: [w.bob.id] });
+    await joinHuddle(w.a, ch.id, 'peer-ana-abcdef');
+    await expect(joinHuddle(w.b, ch.id, 'peer-ana-abcdef')).rejects.toMatchObject({ code: 'peer_taken', status: 409 });
+  });
+
+  it('el mensaje del huddle es un marcador que cada uno lee en su idioma', async () => {
+    const w = await workspace('hloc');
+    const ch = await createChannel(w.a, { name: 'voz2', kind: 'public' });
+    const h = await joinHuddle(w.a, ch.id, 'peer-ana-loc001');
+    const row = (await getDb().prepare('SELECT body FROM talk_messages WHERE id = ?').get(h.huddle.messageId)) as { body: string };
+    expect(row.body).toBe(HUDDLE_STARTED_BODY);
   });
 });

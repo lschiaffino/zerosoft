@@ -5,6 +5,7 @@ import ActivityDateFacts from '@/components/crm/ActivityDateFacts';
 import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import { realUserId, requireUser } from '@/lib/session';
+import { workspaceTeamId } from '@/lib/workspace';
 import { listApprovals } from '@/lib/crm-approvals';
 import { getSplits } from '@/lib/crm-splits';
 import ApprovalBanner, { type ApprovalBannerItem } from '@/components/crm/ApprovalBanner';
@@ -76,8 +77,8 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
     getCurrencyContext(user.id),
     listTags(user.id),
     tagsForRecords(user.id, 'deal', [id]),
-    user.team?.id
-      ? listMembers(user.team.id)
+    workspaceTeamId(user)
+      ? listMembers(workspaceTeamId(user)!)
       : Promise.resolve([{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }]),
     listEventTypes(user.id, { activeOnly: true }),
     getDb()

@@ -31,6 +31,8 @@ import { processPendingAgentSessions } from '@/lib/track-agents';
 import { recheckLinkSafety } from '@/lib/link-safety';
 import { pruneDeferredClicks } from '@/lib/link-deferred';
 import { pruneLinkHistory } from '@/lib/link-activity';
+import { backfillSearchText, purgeExpiredTrash as purgeBoardTrash } from '@/lib/boards';
+import { pruneBoardEvents } from '@/lib/board-live';
 import { importResearchIdeas, researchIdeaSchema } from '@/lib/roadmap';
 import researchIdeas from '@/research/ideas.json';
 import { GET as remindersCron } from '../../calendar/reminders/due/route';
@@ -102,6 +104,11 @@ export async function GET(req: NextRequest) {
   const linkHistory = await pruneLinkHistory().catch(() => null);
   // Papelera del CRM: lo borrado hace más de 90 días se descarta para siempre.
   const trashPurged = await purgeExpiredTrash().catch(() => null);
+  // Board: papelera de más de 30 días y eventos de tiempo real viejos (son efímeros).
+  const boardTrashPurged = await purgeBoardTrash().catch(() => null);
+  const boardEventsPruned = await pruneBoardEvents().catch(() => null);
+  // Board: texto buscable de las pizarras de antes (por lotes, con claim por fila).
+  const boardSearchBackfill = await backfillSearchText({ limit: 200 }).catch(() => null);
   // Docs: dominios del sitio publicado que nadie verificó en UNVERIFIED_TTL_DAYS se liberan.
   const docsDomainsPurged = await purgeExpiredSiteDomains().catch(() => null);
   // Flow: corridas y pasos más viejos que la retención del workspace (lotes acotados).
@@ -137,6 +144,6 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, linkHistory, trashPurged,
+  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, linkHistory, trashPurged, boardTrashPurged, boardEventsPruned, boardSearchBackfill,
     docsDomainsPurged, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, agentQuality, agentRedacted, robots, ideas });
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jobView } from '@/lib/import-jobs';
 import { cancelImportJob } from '@/lib/import-runner';
-import { importJobFor } from '@/lib/import-http';
+import { importJobFor, viewFor } from '@/lib/import-http';
 import { localUploadedBytes } from '@/lib/docs-notion-import';
 
 export const runtime = 'nodejs';
@@ -12,7 +12,7 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   const res = await importJobFor((await props.params).id);
   if (res instanceof NextResponse) return res;
   const uploaded = res.job.status === 'uploading' ? await localUploadedBytes(res.job.id) : undefined;
-  return NextResponse.json({ job: jobView(res.job), uploaded });
+  return NextResponse.json({ job: await viewFor(res.user, jobView(res.job)), uploaded });
 }
 
 /** Cancelar: borra el token y lo subido. Lo que ya se escribió queda. */

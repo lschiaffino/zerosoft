@@ -10,6 +10,9 @@ export type WorkspaceMode = 'personal' | 'team';
 
 export const DEFAULT_WORKSPACE_MODE: WorkspaceMode = 'team';
 
+/** Tamaños del equipo (onboarding y Ajustes › Workspace). */
+export const WORKSPACE_SIZES_LIST = ['1', '2-10', '11-50', '51-200', '200+'] as const;
+
 export function normalizeWorkspaceMode(value: unknown): WorkspaceMode {
   return value === 'personal' ? 'personal' : DEFAULT_WORKSPACE_MODE;
 }

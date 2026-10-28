@@ -2,6 +2,7 @@ import { getDb } from '@/lib/db';
 import { likeContains } from '@/lib/track-views';
 import { trackVisibleSql } from '@/lib/track-access';
 import { boardViewer, boardVisibleSql } from '@/lib/board-access';
+import { snippet as boardSnippet } from '@/lib/boards';
 import type { TeamRole } from '@/lib/teams';
 import { chatAccessSql, groupsViewer } from '@/lib/groups-access';
 import { maskPhoneText } from '@/lib/groups-mask';
@@ -24,6 +25,7 @@ export interface AppSearchItem {
     | 'crmApprovals'
     | 'crmScores'
     | 'boards'
+    | 'boardFolders'
     | 'projects'
     | 'teams'
     | 'issues'
@@ -54,7 +56,8 @@ export interface AppSearchItem {
     | 'talkDms'
     | 'talkPeople'
     | 'talkCanvases'
-    | 'talkLists';
+    | 'talkLists'
+    | 'workspaceTeams';
   label: string;
   meta: string;
   href: string;
@@ -91,12 +94,14 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     (db.prepare(sql).all(...args, limit) as Promise<Row[]>).catch(() => [] as Row[]);
   // Mismo alcance que la lista de proyectos de Track (lib/track-data projectScope).
   // En un team, solo los proyectos que ve la persona (privados e invitados).
-  const visible = teamId ? trackVisibleSql('p', user.actingUser?.id ?? user.id) : null;
-  const projectWhere = visible ? `p.team_id = ? AND ${visible.sql}` : '(p.team_id IS NULL AND p.owner_id = ?)';
-  const projectArgs = [teamId ?? user.id, ...(visible?.args ?? [])];
+  // El espacio del owner (sin team) también lo comparte su equipo: filtra privados e invitados igual.
+  const visible = trackVisibleSql('p', user.actingUser?.id ?? user.id);
+  const projectWhere = teamId ? `p.team_id = ? AND ${visible.sql}` : `(p.team_id IS NULL AND p.owner_id = ? AND ${visible.sql})`;
+  const projectArgs = [teamId ?? user.id, ...visible.args];
   const widgetWhere = teamId ? 'team_id = ?' : 'user_id = ?';
   // Pizarras: las restringidas solo para quien tiene acceso, como la lista.
   const boardsVisible = boardVisibleSql(boardViewer(user));
+  const boardFolders = await all(`SELECT id, name AS label FROM board_folders WHERE workspace_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT ?`, user.id, like);
 
   const waGroup = WA_GROUP[locale] ?? WA_GROUP.en;
   // Groups: acceso por etiqueta y teléfonos ocultos, como la bandeja.
@@ -141,10 +146,13 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     all(`SELECT id, name AS label FROM track_labels WHERE workspace_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT ?`, ws, like),
   ]);
   const [boards, projects, issues, eventTypes, bookings, calPolls, widgets, flows, agents, robots, groupChats, groupTickets, groupMessages, groupRecurring, playbooks, forms, quotes, approvals, scores, groupLists, groupTemplates, talkChannels, talkDms, talkPeople, voiceSessions] = await Promise.all([
+    // Por nombre o por lo que dice adentro (stickies, textos, frames): la línea que coincidió va de meta.
     all(
-      `SELECT b.id, b.name AS label FROM boards b WHERE b.workspace_id = ? AND ${boardsVisible.sql} AND b.name LIKE ? ESCAPE '\\' ORDER BY b.updated_at DESC LIMIT ?`,
+      `SELECT b.id, b.name AS label, b.search_text AS meta FROM boards b WHERE b.workspace_id = ? AND ${boardsVisible.sql} AND (b.name LIKE ? ESCAPE '\\' OR b.search_text LIKE ? ESCAPE '\\') ORDER BY (b.name LIKE ? ESCAPE '\\') DESC, b.updated_at DESC LIMIT ?`,
       user.id,
       ...boardsVisible.args,
+      like,
+      like,
       like,
     ),
     all(
@@ -306,7 +314,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     // Personas del workspace: abrir (o empezar) un DM con ellas.
     all(
       `SELECT u.id, COALESCE(u.name, u.email) AS label, u.email AS meta FROM users u
-       WHERE (u.id = ? OR u.id IN (SELECT m.user_id FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ?))
+       WHERE (u.id = ? OR u.id IN (SELECT m.user_id FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ? AND m.role != 'guest'))
          AND (u.name LIKE ? ESCAPE '\\' OR u.email LIKE ? ESCAPE '\\') ORDER BY COALESCE(u.name, u.email) LIMIT ?`,
       user.id,
       user.id,
@@ -349,6 +357,14 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       like,
     ),
   ]);
+  // Subequipos del workspace (Ajustes › Equipos), por nombre o @handle.
+  const workspaceTeams = await all(
+    `SELECT g.id, g.name AS label, g.slug AS meta FROM workspace_groups g
+     WHERE g.workspace_id = ? AND (g.name LIKE ? ESCAPE '\\' OR g.slug LIKE ? ESCAPE '\\') ORDER BY g.name LIMIT ?`,
+    user.id,
+    like,
+    like,
+  ).catch(() => [] as Row[]);
 
   // Chat: conversaciones (asunto, visitante o texto), personas, vistas guardadas y equipos.
   const chatWidgets = `SELECT id FROM chat_widgets WHERE ${widgetWhere}`;
@@ -412,7 +428,14 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       href: `/app/track/issues?filter=${encodeURIComponent(JSON.stringify({ match: 'and', rules: [{ field: 'label', op: 'is', values: [r.id] }] }))}`,
     })),
     ...map(issues, 'issues', (id) => `/app/track/issues/${id}`),
-    ...map(boards, 'boards', (id) => `/app/board/${id}`),
+    ...boards.map((r) => ({
+      id: r.id,
+      group: 'boards' as const,
+      label: r.label,
+      meta: r.label.toLowerCase().includes(q.trim().toLowerCase()) ? '' : (boardSnippet(String(r.meta ?? ''), q.trim()) ?? ''),
+      href: `/app/board/${r.id}`,
+    })),
+    ...boardFolders.map((r) => ({ id: r.id, group: 'boardFolders' as const, label: r.label, meta: '', href: `/app/board?folder=${encodeURIComponent(r.id)}` })),
     ...map(eventTypes, 'eventTypes', (id) => `/app/calendar/event-types/${id}`),
     ...map(calPolls, 'calPolls', (id) => `/app/calendar/polls/${id}`),
     // La reserva se abre en Bookings filtrada por el email del invitado (todas las fechas).
@@ -457,5 +480,6 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       const [channelId, listId] = id.split('|');
       return `/app/talk/${channelId}?tab=lists&list=${listId}`;
     }),
+    ...workspaceTeams.map((r) => ({ id: r.id, group: 'workspaceTeams' as const, label: r.label, meta: `@${r.meta}`, href: '/app/settings/teams' })),
   ];
 }

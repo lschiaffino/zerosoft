@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, realUserId } from '@/lib/session';
+import { appFromPath, userCanUseApp } from '@/lib/workspace';
 import {
   countUnreadNotifications,
   listNotifications,
@@ -33,7 +34,12 @@ export async function GET(req: NextRequest) {
     countUnreadNotifications(realUserId(user)),
   ]);
 
-  return NextResponse.json({ rows, unreadCount });
+  // Acceso por app: en un workspace ajeno no se muestran avisos de apps que la persona no tiene.
+  const visible = user.actingUser ? rows.filter((n) => {
+    const app = appFromPath(n.href);
+    return !app || userCanUseApp(user, app);
+  }) : rows;
+  return NextResponse.json({ rows: visible, unreadCount });
 }
 
 export async function PATCH(req: NextRequest) {

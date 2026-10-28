@@ -96,7 +96,7 @@ describe('boards: CRUD y aislamiento por workspace', () => {
     session.user = { id: stranger.id, email: stranger.email };
     expect((await boardRoute.GET(jsonReq('http://x', 'GET'), ctx(b.id))).status).toBe(404);
     expect((await boardRoute.DELETE(jsonReq('http://x', 'DELETE'), ctx(b.id))).status).toBe(404);
-    const list = await (await boardsRoute.GET()).json();
+    const list = await (await boardsRoute.GET(jsonReq('http://x/api/boards', 'GET'))).json();
     expect(list.boards.map((x: { id: string }) => x.id)).not.toContain(b.id);
     expect(await renameBoard(stranger.id, b.id, 'x')).toBe(false);
     expect(await setBoardShared(stranger.id, b.id, true)).toBe(false);

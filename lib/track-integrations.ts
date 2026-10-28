@@ -11,6 +11,7 @@
  * - track_integration_events: log corto que se ve en Ajustes (qué entró, qué
  *   salió, si falló). Nunca guarda tokens.
  */
+import { ownerSpaceSql } from './workspace';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { getDb } from './db';
 import { open, seal } from './secret-box';
@@ -402,10 +403,10 @@ export async function workspacePersonByEmail(
     .prepare(
       `SELECT u.id, u.name, u.email FROM users u
        WHERE lower(u.email) = lower(?) AND (
-         u.id = ? OR EXISTS (SELECT 1 FROM team_members m WHERE m.team_id = ? AND m.user_id = u.id)
+         ${ownerSpaceSql('?', 'u.id')} OR EXISTS (SELECT 1 FROM team_members m WHERE m.team_id = ? AND m.user_id = u.id AND m.role != 'guest')
        ) LIMIT 1`,
     )
-    .get(email.trim(), workspaceId, workspaceId)) as { id: string; name: string | null; email: string } | undefined;
+    .get(email.trim(), workspaceId, workspaceId, workspaceId)) as { id: string; name: string | null; email: string } | undefined;
   return row ?? null;
 }
 

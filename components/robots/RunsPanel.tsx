@@ -5,7 +5,17 @@ import { useFormatter, useTranslations } from 'next-intl';
 import type { RobotRunDto } from '@/lib/robots';
 import { csvFilename, valueToCsv } from '@/lib/robots-csv';
 import EmptyState from '@/components/ui/EmptyState';
-import { StatusBadge } from './robots-ui';
+import { errorText, StatusBadge } from './robots-ui';
+
+/** Arreglo propuesto para un paso: índice en el robot (y en el loop) y el selector o texto nuevo. */
+export interface StepFix {
+  index: number;
+  child: number | null;
+  /** Etiqueta del paso en el log ("3" o "3.2.1"). */
+  step: string;
+  selector: string;
+  text: string;
+}
 import { parseDbUtc } from '@/lib/utils';
 
 function duration(ms: number | null): string {
@@ -65,6 +75,8 @@ export default function RunsPanel({
   running = false,
   emptyAction,
   robotName = 'robot',
+  onApplyFix,
+  toolbar,
 }: {
   runs: RobotRunDto[];
   selectedId: string | null;
@@ -75,16 +87,27 @@ export default function RunsPanel({
   emptyAction?: React.ReactNode;
   /** Para el nombre de los CSV descargados. */
   robotName?: string;
+  /** Admins: aplicar un arreglo (IA o selector alternativo) al paso en el editor. */
+  onApplyFix?: (fix: StepFix) => void;
+  /** Botones de arriba (Correr en lote, Actualizar). */
+  toolbar?: React.ReactNode;
 }) {
   const t = useTranslations('robots.runs');
   const format = useFormatter();
   const run = runs.find((r) => r.id === selectedId) ?? null;
 
   if (runs.length === 0 && !running) {
-    return <EmptyState title={t('emptyTitle')} body={t('emptyBody')} action={emptyAction} />;
+    return (
+      <>
+        {toolbar && <div className="robots-toolbar">{toolbar}</div>}
+        <EmptyState title={t('emptyTitle')} body={t('emptyBody')} action={emptyAction} />
+      </>
+    );
   }
 
   return (
+    <>
+    {toolbar && <div className="robots-toolbar">{toolbar}</div>}
     <div className="robots-runs">
       <ul className="robots-run-list" aria-label={t('history')}>
         {running && (
@@ -110,6 +133,7 @@ export default function RunsPanel({
               <span className="robots-run-sub">
                 {t(`trigger.${r.trigger}`)} · <span className="num">{duration(r.durationMs)}</span>
                 {r.changed === true && <> · {t('changed')}</>}
+                {r.batchId && <> · {t('batch')}</>}
               </span>
             </button>
           </li>
@@ -125,16 +149,17 @@ export default function RunsPanel({
             <span className="ui-skeleton ui-skeleton-row" />
           </div>
         ) : run ? (
-          <RunDetail run={run} robotName={robotName} />
+          <RunDetail run={run} robotName={robotName} onApplyFix={onApplyFix} />
         ) : (
           <p className="robots-run-body robots-muted">{t('select')}</p>
         )}
       </div>
     </div>
+    </>
   );
 }
 
-function RunDetail({ run, robotName }: { run: RobotRunDto; robotName: string }) {
+function RunDetail({ run, robotName, onApplyFix }: { run: RobotRunDto; robotName: string; onApplyFix?: (fix: StepFix) => void }) {
   const t = useTranslations('robots.runs');
   const tTypes = useTranslations('robots.steps.types');
   const [view, setView] = useState<'table' | 'json'>('table');
@@ -163,7 +188,9 @@ function RunDetail({ run, robotName }: { run: RobotRunDto; robotName: string }) 
       {run.status === 'success' && run.warnings > 0 && (
         <p className="robots-note-warn">{t('warningsNotice', { count: run.warnings })}</p>
       )}
-      {run.failure && <FailureCapture failure={run.failure} runId={run.id} />}
+      {run.dataHidden && <p className="robots-note-warn">{t('dataHidden')}</p>}
+      {run.failure && <FailureCapture failure={run.failure} runId={run.id} onApplyFix={onApplyFix} />}
+      <RunExtras run={run} onApplyFix={onApplyFix} />
 
       <section className="robots-block" aria-labelledby={`log-${run.id}`}>
         <h3 className="robots-h3" id={`log-${run.id}`}>
@@ -326,9 +353,86 @@ function RunDetail({ run, robotName }: { run: RobotRunDto; robotName: string }) 
   );
 }
 
+/** Autorreparación, IA, tabla acumulada, email de cambios, envíos y país de la corrida. */
+function RunExtras({ run, onApplyFix }: { run: RobotRunDto; onApplyFix?: (fix: StepFix) => void }) {
+  const t = useTranslations('robots.runs');
+  const ti = useTranslations('robots.integrations');
+  const x = run.exports ?? {};
+  const healed = x.healed ?? [];
+  const lines: React.ReactNode[] = [];
+  if (x.geo) lines.push(<li key="geo">{x.geo.proxy ? t('geoProxy', { country: (x.geo.country || '–').toUpperCase() }) : t('geo', { country: (x.geo.country || '–').toUpperCase() })}</li>);
+  if (x.dataset) lines.push(<li key="ds">{t('dataset', { added: x.dataset.added, changed: x.dataset.changed, removed: x.dataset.removed, total: x.dataset.total })}</li>);
+  if (x.email && x.email.sent > 0) lines.push(<li key="mail">{t('emailSent', { count: x.email.sent })}</li>);
+  for (const e of x.ai?.errors ?? []) lines.push(<li key={`ai-${e.variable}`} className="robots-log-warn">{t('aiError', { variable: e.variable, error: e.error })}</li>);
+  for (const d of x.destinations ?? []) {
+    const kind = ti(`kinds.${d.kind}`);
+    lines.push(
+      <li key={`d-${d.id}`} className={d.ok ? undefined : 'robots-log-warn'}>
+        {d.ok ? t('destOk', { kind, count: d.count }) : t('destFail', { kind, error: d.error ?? '' })}
+        {d.fake && <span className="robots-muted"> · {t('destFake')}</span>}
+      </li>,
+    );
+  }
+  if (!lines.length && !healed.length) return null;
+  return (
+    <>
+      {lines.length > 0 && <ul className="robots-run-extras">{lines}</ul>}
+      {healed.length > 0 && (
+        <section className="robots-block" aria-labelledby={`heal-${run.id}`}>
+          <h3 className="robots-h3" id={`heal-${run.id}`}>
+            {t('healedTitle')}
+          </h3>
+          <ul className="robots-run-extras">
+            {healed.map((h) => {
+              const parts = h.step.split('.').map(Number);
+              const path = parts.length === 1 ? { index: parts[0] - 1, child: null } : parts.length === 3 ? { index: parts[0] - 1, child: parts[2] - 1 } : null;
+              return (
+                <li key={h.step}>
+                  <span>{t('healed', { step: h.step, selector: h.to })}</span>{' '}
+                  {onApplyFix && path && (
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => onApplyFix({ ...path, step: h.step, selector: h.to, text: '' })}>
+                      {t('promote')}
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+    </>
+  );
+}
+
 /** Lo que había en la página cuando falló el paso: captura, URL y recorte del DOM. */
-function FailureCapture({ failure, runId }: { failure: NonNullable<RobotRunDto['failure']>; runId: string }) {
+function FailureCapture({
+  failure,
+  runId,
+  onApplyFix,
+}: {
+  failure: NonNullable<RobotRunDto['failure']>;
+  runId: string;
+  onApplyFix?: (fix: StepFix) => void;
+}) {
   const t = useTranslations('robots.runs.failure');
+  const tr = useTranslations('robots');
+  const [fixing, setFixing] = useState(false);
+  const [fix, setFix] = useState<(StepFix & { reason: string }) | null>(null);
+  const [fixError, setFixError] = useState<string | null>(null);
+  async function suggest() {
+    setFixing(true);
+    setFixError(null);
+    setFix(null);
+    const res = await fetch(`/api/robots/runs/${runId}/fix`, { method: 'POST' }).catch(() => null);
+    const data = (await res?.json().catch(() => null)) as (StepFix & { reason: string; error?: string }) | null;
+    setFixing(false);
+    if (!res?.ok || !data) {
+      setFixError(errorText(tr, data?.error));
+      return;
+    }
+    if (!data.selector && !data.text) setFixError(t('fixNone'));
+    else setFix(data);
+  }
   const tTypes = useTranslations('robots.steps.types');
   const shot = failure.screenshot;
   return (
@@ -365,6 +469,38 @@ function FailureCapture({ failure, runId }: { failure: NonNullable<RobotRunDto['
         )}
       </dl>
       {failure.matched === false && <p className="ui-help">{t('notMatched')}</p>}
+      {onApplyFix && failure.dom && (
+        <div className="robots-fix" aria-live="polite">
+          {!fix && (
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void suggest()} disabled={fixing} aria-busy={fixing || undefined}>
+              {fixing ? t('fixing') : t('fix')}
+            </button>
+          )}
+          {fixError && (
+            <p className="ui-error" role="alert">
+              {fixError}
+            </p>
+          )}
+          {fix && (
+            <div className="robots-note-action">
+              <p>
+                <span className="data">{fix.selector ? t('fixSelector', { selector: fix.selector }) : t('fixText', { text: fix.text })}</span>
+                {fix.reason && fix.reason !== 'fake' && <span className="robots-muted"> · {fix.reason}</span>}
+              </p>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => {
+                  onApplyFix(fix);
+                  setFix(null);
+                }}
+              >
+                {t('fixApply', { step: fix.step })}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
       {shot && (
         <figure className="robots-shot robots-failure-shot">
           {!shot.startsWith('data:') ? (

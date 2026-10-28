@@ -679,7 +679,8 @@
     "schedulingLabel": "Como são atribuídos",
     "schedulingRoundRobin": "Round-robin",
     "schedulingCollective": "Coletivo",
-    "schedulingCollectiveHelp": "Todos os anfitriões escolhidos participam: um horário só aparece se todos estiverem livres."
+    "schedulingCollectiveHelp": "Todos os anfitriões escolhidos participam: um horário só aparece se todos estiverem livres.",
+    "hostsFromTeam": "Adicionar uma equipe inteira:"
   },
   "errorPage": {
     "title": "Esta tela não carregou",

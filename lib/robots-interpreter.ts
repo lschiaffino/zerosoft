@@ -107,6 +107,8 @@ export interface InterpreterResult {
   files?: RobotFile[];
   /** Cookies + localStorage al terminar (solo si se pidió guardar la sesión). */
   storageState?: unknown;
+  /** Pasos que usaron un selector alternativo (autorreparación). */
+  healed?: Array<{ step: string; from: string; to: string }>;
 }
 
 export interface InterpreterOptions {
@@ -125,6 +127,8 @@ export interface InterpreterOptions {
   credentials?: Record<string, Record<string, string>>;
   maxFiles?: number;
   maxFileBytes?: number;
+  /** Último pedido bloqueado por el arnés (salto de redirección a un host privado, etc.). */
+  lastBlocked?: (sinceMs: number) => string | null;
   /** Reloj (epoch ms) para los códigos TOTP; tests. */
   now?: () => number;
 }
@@ -282,6 +286,42 @@ export async function robotInterpreter(
 
   const clip = (v: string, n = 5000) => (v.length > n ? v.slice(0, n) : v);
 
+  /** Último selector alternativo que usó un paso (autorreparación); lo lee runList. */
+  let lastHeal: { from: string; to: string } | null = null;
+  const healed: Array<{ step: string; from: string; to: string }> = [];
+
+  /**
+   * Autorreparación: si el paso tiene selectores alternativos y el principal
+   * no aparece, espera (hasta 10 s) a que aparezca cualquiera y usa el
+   * primero que esté, prefiriendo siempre el principal. Si no aparece
+   * ninguno, sigue con el principal (y el paso falla como siempre).
+   */
+  const heal = async (s: InterpreterStep, ctx: Record<string, unknown>, selector: string): Promise<string> => {
+    const alts = (Array.isArray(s.fallbacks) ? (s.fallbacks as unknown[]) : [])
+      .map((f) => render(str(f), ctx).trim())
+      .filter((f) => f && f !== selector)
+      .slice(0, 4);
+    if (!selector || !alts.length) return selector;
+    const candidates = [selector, ...alts];
+    const until = Date.now() + Math.min(timeout(), 10_000);
+    for (;;) {
+      for (const c of candidates) {
+        let n = 0;
+        try {
+          n = await page.locator(c).count();
+        } catch {
+          n = 0;
+        }
+        if (n > 0) {
+          if (c !== selector) lastHeal = { from: selector, to: c };
+          return c;
+        }
+      }
+      if (Date.now() >= until || remaining() <= 1000) return selector;
+      await page.waitForTimeout(250);
+    }
+  };
+
   type Outcome = { jump?: number; skip?: number; stop?: boolean; detail?: string };
 
   /**
@@ -303,6 +343,45 @@ export async function robotInterpreter(
     const rows: unknown[] = [];
     let previous = '';
     let pagesRead = 0;
+    const mode = str(s.paginateMode) || 'next';
+    if (mode === 'load_more' || mode === 'scroll') {
+      // Todo queda en la misma página: se carga más (clic o scroll) hasta que
+      // no aparecen filas nuevas, el botón falta o se llega al tope, y se lee una vez.
+      const countRows = async () => page.locator(rowsSelector).count().catch(() => 0);
+      let loaded = 1;
+      while (loaded < limit) {
+        const before = await countRows();
+        if (before >= 1000) break;
+        if (mode === 'load_more') {
+          if (!nextSel && !nextText) break;
+          if (!(await exists(nextSel, nextText))) break;
+          const more = await resolveTarget(nextSel, nextText);
+          const disabled = await more
+            .evaluate(
+              (el: Element) => (el as HTMLButtonElement).disabled === true || el.getAttribute('aria-disabled') === 'true',
+              undefined,
+              { timeout: timeout() },
+            )
+            .catch(() => false);
+          if (disabled === true) break;
+          await more.click({ timeout: timeout() });
+        } else {
+          await page.evaluate(() => {
+            window.scrollTo(0, document.body.scrollHeight);
+            return true;
+          });
+        }
+        if (waitMs > remaining()) fail('timeout');
+        await page.waitForTimeout(Math.max(waitMs, 200));
+        if ((await countRows()) <= before) break;
+        loaded += 1;
+      }
+      for (const r of await read()) {
+        if (rows.length >= 1000) break;
+        rows.push(r);
+      }
+      return { rows, pagesRead: loaded };
+    }
     for (;;) {
       const batch = await read();
       const key = JSON.stringify(batch);
@@ -403,7 +482,8 @@ export async function robotInterpreter(
   };
 
   const runLeaf = async (s: InterpreterStep, ctx: Record<string, unknown>): Promise<Outcome> => {
-    const selector = render(str(s.selector), ctx).trim();
+    lastHeal = null;
+    const selector = await heal(s, ctx, render(str(s.selector), ctx).trim());
     switch (s.type) {
       case 'goto': {
         const url = render(s.url, ctx).trim();
@@ -412,7 +492,20 @@ export async function robotInterpreter(
         if (blocked) fail(blocked);
         pages += 1;
         if (pages > maxPages) fail('page_limit');
-        await page.goto(url, { timeout: Math.max(timeout(), Math.min(30_000, remaining())), waitUntil: 'domcontentloaded' });
+        // El proxy guardián corta un salto a la red interna: puede devolver un
+        // 403 (la navegación "termina" ahí) o cortar el túnel (goto tira). En
+        // los dos casos, si hubo un bloqueo durante este goto, es private_host.
+        // Si el proxy cortó un salto de ESTA navegación, page.goto falla; ahí el
+        // código real es private_host. (Un subrecurso bloqueado no frena el goto,
+        // así que no se marca el paso como fallido por eso.)
+        const mark = Date.now();
+        try {
+          await page.goto(url, { timeout: Math.max(timeout(), Math.min(30_000, remaining())), waitUntil: 'domcontentloaded' });
+        } catch (err) {
+          const why = opts.lastBlocked ? opts.lastBlocked(mark) : null;
+          if (why) fail(why);
+          throw err;
+        }
         return { detail: url };
       }
       case 'click': {
@@ -673,6 +766,35 @@ export async function robotInterpreter(
         vars[name] = JSON.parse(json) as unknown;
         return { detail: `${name} = ${clip(json, 120)}` };
       }
+      case 'ai_extract': {
+        // Lee el texto (y los links) de la página o del selector; la IA arma las
+        // filas en el servidor al terminar la corrida (lib/robots-ai.ts).
+        const name = str(s.name);
+        const root = page.locator(selector || 'body').first();
+        const text = clip(String(await root.innerText({ timeout: timeout() })).trim(), 30_000);
+        const links = await root
+          .evaluate(
+            (el: Element) =>
+              Array.from(el.querySelectorAll('a[href]'))
+                .slice(0, 300)
+                .map((a) => [((a as HTMLElement).innerText || '').trim().slice(0, 120), (a as HTMLAnchorElement).href]),
+            undefined,
+            { timeout: timeout() },
+          )
+          .catch(() => [] as string[][]);
+        let url = '';
+        try {
+          url = String(page.url() || '').slice(0, 2000);
+        } catch {
+          url = '';
+        }
+        const fields = (Array.isArray(s.fields) ? (s.fields as Array<Record<string, unknown>>) : [])
+          .slice(0, 20)
+          .map((f) => ({ name: str(f.name), description: str(f.description) }))
+          .filter((f) => f.name);
+        vars[name] = { __aiExtract: 1, instruction: render(str(s.instruction), ctx).slice(0, 2000), fields, url, text, links };
+        return { detail: `${name}: ${text.length} chars` };
+      }
       default:
         return fail('unknown_step');
     }
@@ -729,10 +851,10 @@ export async function robotInterpreter(
   };
 
   /** Errores que cortan la corrida aunque el paso tenga continueOnError. */
-  const FATAL = /^(timeout|step_limit)$/;
+  const FATAL = /^(timeout|step_limit|page_crashed)$/;
 
   /** Errores que no se arreglan reintentando el paso. */
-  const NO_RETRY = /^(timeout|page_limit|step_limit|invalid_url|private_host|https_required|unresolvable_host|missing_selector|missing_attribute|missing_fields|missing_totp_secret|invalid_key|unknown_step|file_limit|file_too_large|unsupported|result_too_large)$/;
+  const NO_RETRY = /^(timeout|page_crashed|page_limit|step_limit|invalid_url|private_host|https_required|unresolvable_host|missing_selector|missing_attribute|missing_fields|missing_totp_secret|invalid_key|unknown_step|file_limit|file_too_large|unsupported|result_too_large)$/;
 
   /** Ejecuta un paso con sus reintentos (retries + retryDelayMs). */
   const runWithRetries = async (s: InterpreterStep, ctx: Record<string, unknown>): Promise<Outcome & { attempts: number }> => {
@@ -807,9 +929,11 @@ export async function robotInterpreter(
         const code =
           err instanceof RobotError
             ? err.message
-            : err instanceof Error && /timeout/i.test(err.name + err.message)
-              ? 'action_timeout'
-              : 'action_failed';
+            : err instanceof Error && /Target crashed|Page crashed|crashed/i.test(err.message)
+              ? 'page_crashed'
+              : err instanceof Error && /timeout/i.test(err.name + err.message)
+                ? 'action_timeout'
+                : 'action_failed';
         const msg = err instanceof Error && !(err instanceof RobotError) ? err.message.split('\n')[0].slice(0, 300) : undefined;
         if (s.continueOnError === true && !FATAL.test(code)) {
           warnings += 1;
@@ -820,6 +944,12 @@ export async function robotInterpreter(
         logs.push({ step: label, type: s.type, status: 'failed', ms: Date.now() - started, error: code, detail: msg });
         if (!tolerant && !failure) await captureFailure(label, s.type, code, render(str(s.selector), { ...ctx, vars }).trim());
         throw new RobotError(`${label}: ${code}`);
+      }
+      if (lastHeal) {
+        const h: { from: string; to: string } = lastHeal;
+        healed.push({ step: label, from: h.from, to: h.to });
+        out.detail = `${out.detail ?? ''} · healed: ${h.to}`.trim();
+        lastHeal = null;
       }
       logs.push({ step: label, type: s.type, status: 'success', ms: Date.now() - started, detail: out.detail });
       if (out.stop) return true;
@@ -872,6 +1002,7 @@ export async function robotInterpreter(
     pages,
     files,
     warnings,
+    ...(healed.length ? { healed } : {}),
     ...(error && failure ? { failure } : {}),
   };
 }
@@ -910,6 +1041,222 @@ export function isPrivateAddress(ip: string): boolean {
   );
 }
 
+// ---------- Proxy de salida guardián (SSRF) ----------
+
+/** Lo que devuelve guardProxy. */
+export interface GuardProxy {
+  /** Puerto en 127.0.0.1 para launch({ proxy }). */
+  port: number;
+  close(): Promise<void>;
+  /** Código del último bloqueo ocurrido en/ después de `ms` (null si no hubo). */
+  blockedSince(ms: number): string | null;
+}
+
+/**
+ * Proxy de salida local (HTTP + CONNECT) que Chromium usa para TODO el
+ * tráfico (launch({ proxy })). Resuelve el DNS del destino y, si cualquiera de
+ * sus IPs es privada, loopback, link-local, CGNAT o metadata, corta la
+ * conexión; si no, se conecta a la IP ya resuelta.
+ *
+ * Por qué cierra el SSRF de fondo: cada salto de una redirección y cada
+ * subrecurso es una conexión NUEVA por el proxy, así que todos se validan (no
+ * solo el primer pedido). Y como la conexión va a la IP que se validó (no se
+ * vuelve a resolver el nombre), cierra el DNS rebinding. El navegador sigue
+ * las redirecciones como siempre, así que la URL del documento queda bien.
+ *
+ * Autocontenida (se serializa al sandbox): recibe los módulos de Node y la
+ * función isPriv; no usa imports ni variables del módulo.
+ */
+export function guardProxy(
+  http: typeof import('http'),
+  net: typeof import('net'),
+  dnsPromises: typeof import('dns/promises'),
+  isPriv: (ip: string) => boolean,
+  upstreamRaw?: { server: string; username?: string; password?: string } | null,
+  allowPrivate?: { any: boolean; hosts: string[] } | null,
+): Promise<GuardProxy> {
+  let lastAt = 0;
+  const block = () => {
+    lastAt = Date.now();
+  };
+  // Proxy de país (ROBOTS_PROXY_URL): el guardián valida el destino y después
+  // sale por él (así las corridas con país usan su IP). Sin upstream, se
+  // conecta directo a la IP ya validada.
+  let upstream: { host: string; port: number; auth: string } | null = null;
+  if (upstreamRaw && upstreamRaw.server) {
+    try {
+      const uu = new URL(upstreamRaw.server);
+      const user = upstreamRaw.username || decodeURIComponent(uu.username || '');
+      const pass = upstreamRaw.password || decodeURIComponent(uu.password || '');
+      upstream = {
+        host: uu.hostname,
+        port: Number(uu.port) || (uu.protocol === 'https:' ? 443 : 80),
+        auth: user ? `Basic ${Buffer.from(`${user}:${pass}`).toString('base64')}` : '',
+      };
+    } catch {
+      upstream = null;
+    }
+  }
+  const resolveSafe = async (rawHost: string, port: number): Promise<{ ip: string; port: number } | null> => {
+    const host = String(rawHost || '').replace(/^\[|\]$/g, '').toLowerCase();
+    if (!host || !(port >= 1 && port <= 65535)) return null;
+    // Hosts privados que el operador habilitó a propósito (self-host, e2e): se saltan los chequeos.
+    const allowed =
+      !!allowPrivate && (allowPrivate.any || allowPrivate.hosts.indexOf(host) >= 0 || allowPrivate.hosts.indexOf(`${host}:${port}`) >= 0);
+    if (!allowed && (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.internal'))) return null;
+    let addrs: string[];
+    if (net.isIP(host)) addrs = [host];
+    else {
+      try {
+        addrs = (await dnsPromises.lookup(host, { all: true })).map((a) => a.address);
+      } catch {
+        return null;
+      }
+    }
+    if (!addrs.length) return null;
+    if (!allowed && addrs.some((a) => isPriv(a))) return null;
+    return { ip: addrs[0], port };
+  };
+  const server = http.createServer((req, res) => {
+    let u: URL;
+    try {
+      u = new URL(req.url || '');
+    } catch {
+      res.writeHead(400);
+      return res.end();
+    }
+    if (u.protocol !== 'http:') {
+      res.writeHead(400);
+      return res.end();
+    }
+    void resolveSafe(u.hostname, Number(u.port) || 80).then((t) => {
+      if (!t) {
+        // Corta la conexión (no un 403 con cuerpo): así una navegación a un
+        // host interno FALLA (y el paso da private_host) en vez de "cargar" una
+        // página "blocked" que podría terminar extraída, en la tabla o en un email.
+        block();
+        try {
+          res.destroy();
+        } catch {
+          // ya cerrado
+        }
+        return;
+      }
+      const headers = { ...req.headers, host: u.host } as Record<string, string | string[] | undefined>;
+      // Con upstream: pedido de proxy (URL absoluta) hacia el proxy de país.
+      const opts = upstream
+        ? { host: upstream.host, port: upstream.port, method: req.method, path: u.href, headers }
+        : { host: t.ip, port: t.port, method: req.method, path: (u.pathname || '/') + (u.search || ''), headers };
+      if (upstream && upstream.auth) headers['proxy-authorization'] = upstream.auth;
+      const preq = http.request(opts, (pres) => {
+        res.writeHead(pres.statusCode || 502, pres.headers);
+        pres.pipe(res);
+      });
+      preq.on('error', () => {
+        try {
+          if (!res.headersSent) res.writeHead(502);
+          res.end();
+        } catch {
+          // ya cerrado
+        }
+      });
+      req.pipe(preq);
+    });
+  });
+  server.on('connect', (req, socket, head) => {
+    const target = String(req.url || '');
+    const idx = target.lastIndexOf(':');
+    const host = idx > 0 ? target.slice(0, idx) : target;
+    const port = idx > 0 ? Number(target.slice(idx + 1)) : 443;
+    void resolveSafe(host, port).then((t) => {
+      if (!t) {
+        block();
+        try {
+          socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+          socket.destroy();
+        } catch {
+          // ya cerrado
+        }
+        return;
+      }
+      const onError = () => {
+        try {
+          socket.destroy();
+        } catch {
+          // ya cerrado
+        }
+      };
+      if (upstream) {
+        // Túnel hacia el proxy de país: CONNECT host:port por el upstream.
+        const up = net.connect(upstream.port, upstream.host, () => {
+          let line = `CONNECT ${host}:${port} HTTP/1.1\r\nHost: ${host}:${port}\r\n`;
+          if (upstream!.auth) line += `Proxy-Authorization: ${upstream!.auth}\r\n`;
+          up.write(`${line}\r\n`);
+        });
+        let established = false;
+        let buf = Buffer.alloc(0);
+        up.on('data', (d: Buffer) => {
+          if (established) return;
+          buf = Buffer.concat([buf, d]);
+          const i = buf.indexOf('\r\n\r\n');
+          if (i < 0) return;
+          if (!/^HTTP\/1\.[01] 2\d\d/.test(buf.toString('latin1'))) {
+            onError();
+            return;
+          }
+          established = true;
+          socket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
+          const rest = buf.subarray(i + 4);
+          if (head && head.length) up.write(head);
+          if (rest.length) socket.write(rest);
+          up.pipe(socket);
+          socket.pipe(up);
+        });
+        up.on('error', onError);
+        socket.on('error', () => {
+          try {
+            up.destroy();
+          } catch {
+            // ya cerrado
+          }
+        });
+        return;
+      }
+      const up = net.connect(t.port, t.ip, () => {
+        socket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
+        if (head && head.length) up.write(head);
+        up.pipe(socket);
+        socket.pipe(up);
+      });
+      up.on('error', onError);
+      socket.on('error', () => {
+        try {
+          up.destroy();
+        } catch {
+          // ya cerrado
+        }
+      });
+    });
+  });
+  server.on('clientError', (_e, sock) => {
+    try {
+      (sock as { destroy(): void }).destroy();
+    } catch {
+      // ya cerrado
+    }
+  });
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => {
+      const a = server.address() as { port: number };
+      resolve({
+        port: a.port,
+        close: () => new Promise<void>((r) => server.close(() => r())),
+        blockedSince: (ms: number) => (lastAt >= ms ? 'private_host' : null),
+      });
+    });
+  });
+}
+
 // ---------- Arnés (navegador real) ----------
 
 export interface HarnessJob {
@@ -932,11 +1279,26 @@ export interface HarnessJob {
   storageState?: unknown;
   /** Devolver la sesión al terminar (para guardarla). */
   saveSession?: boolean;
+  /** Proxy de salida (proveedor configurado por env, p. ej. residencial por país). */
+  proxy?: { server: string; username?: string; password?: string };
+  /** Idioma y zona horaria del país elegido. */
+  locale?: string;
+  timezoneId?: string;
+  /** Solo e2e (certificados autofirmados locales); nunca en producción. */
+  ignoreHTTPSErrors?: boolean;
+  /** Hosts privados habilitados a propósito (ALLOW_PRIVATE_WEBHOOKS / ROBOTS_ALLOWED_PRIVATE_HOSTS). */
+  allowPrivate?: { any: boolean; hosts: string[] };
 }
 
 /** Subconjunto de playwright-core que usa el arnés. */
 export interface HarnessChromium {
-  launch(opts: { headless: boolean; executablePath?: string; args?: string[]; timeout?: number }): Promise<{
+  launch(opts: {
+    headless: boolean;
+    executablePath?: string;
+    args?: string[];
+    timeout?: number;
+    proxy?: { server: string };
+  }): Promise<{
     newContext(opts: Record<string, unknown>): Promise<{
       route(pattern: string, handler: (route: {
         request(): { url(): string };
@@ -966,50 +1328,74 @@ export async function robotHarness(
   job: HarnessJob,
   interpret: typeof robotInterpreter,
   checkUrl: (url: string) => Promise<string | null>,
+  startGuard?: () => Promise<GuardProxy | null>,
 ): Promise<InterpreterResult> {
   const started = Date.now();
   let browser: Awaited<ReturnType<HarnessChromium['launch']>> | null = null;
   let killer: ReturnType<typeof setTimeout> | null = null;
+  let guard: GuardProxy | null = null;
   try {
+    // Proxy de salida guardián: Chromium manda TODO el tráfico por él y él
+    // valida la IP de cada conexión (redirecciones y subrecursos incluidos).
+    if (startGuard) {
+      try {
+        guard = await startGuard();
+      } catch {
+        guard = null;
+      }
+    }
     browser = await chromium.launch({
       headless: true,
       executablePath: job.executablePath || undefined,
-      // WebRTC sin UDP directo: no abre conexiones a la red interna por fuera de route().
-      args: [...(job.args ?? []), '--force-webrtc-ip-handling-policy=disable_non_proxied_udp'],
+      // WebRTC sin UDP directo: no abre conexiones a la red interna por fuera del proxy.
+      // Topes de memoria y procesos: un sitio hostil no se come el runner.
+      args: [
+        ...(job.args ?? []),
+        '--force-webrtc-ip-handling-policy=disable_non_proxied_udp',
+        '--js-flags=--max-old-space-size=512',
+        '--renderer-process-limit=4',
+        '--disable-gpu',
+      ],
       timeout: 30_000,
+      // Todo el tráfico sale por el proxy guardián; si hay un proxy de país
+      // (ROBOTS_PROXY_URL), el guardián lo usa de salida después de validar.
+      ...(guard ? { proxy: { server: `http://127.0.0.1:${guard.port}` } } : {}),
     });
     const b = browser;
     killer = setTimeout(() => {
       void b.close().catch(() => {});
     }, Math.max(1000, job.deadline - Date.now() + 5000));
+    // Descargas: solo si el robot tiene un paso download (lo lee ese paso; van a
+    // un temporal que se borra al cerrar). Sin ese paso, el sitio no puede bajar nada.
+    const wantsDownloads = JSON.stringify(job.steps).includes('"download"');
     const context = await browser.newContext({
-      // Descargas: solo las lee el paso download (van a un temporal que se borra al cerrar).
-      acceptDownloads: true,
+      acceptDownloads: wantsDownloads,
       ...(job.storageState ? { storageState: job.storageState } : {}),
       serviceWorkers: 'block',
+      ...(job.ignoreHTTPSErrors ? { ignoreHTTPSErrors: true } : {}),
       viewport: { width: 1280, height: 800 },
-      locale: 'en-US',
+      locale: job.locale || 'en-US',
+      ...(job.timezoneId ? { timezoneId: job.timezoneId } : {}),
+      ...(job.locale ? { extraHTTPHeaders: { 'accept-language': `${job.locale},${job.locale.split('-')[0]};q=0.9,en;q=0.5` } } : {}),
       userAgent:
         'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36 ZerosoftRobots/1',
     });
-    const verdicts = new Map<string, Promise<string | null>>();
+    // Con el proxy guardián, route() solo filtra esquemas (file:, ftp:, etc.):
+    // todo http(s) sale por el proxy, que valida cada conexión. Sin proxy
+    // (tests o Playwright que no lo soporta), se cae a validar por host acá,
+    // que no cubre las redirecciones: por eso el proxy es el camino normal.
     await context.route('**/*', async (route) => {
       const raw = route.request().url();
       if (/^(data|blob|about):/i.test(raw)) return route.continue();
-      let origin = '';
+      let u: URL;
       try {
-        const u = new URL(raw);
-        if (u.protocol !== 'http:' && u.protocol !== 'https:') return route.abort('blockedbyclient');
-        origin = `${u.protocol}//${u.host}`;
+        u = new URL(raw);
       } catch {
         return route.abort('blockedbyclient');
       }
-      let verdict = verdicts.get(origin);
-      if (!verdict) {
-        verdict = checkUrl(`${origin}/`).catch(() => 'unresolvable_host');
-        verdicts.set(origin, verdict);
-      }
-      if (await verdict) return route.abort('blockedbyclient');
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return route.abort('blockedbyclient');
+      if (guard) return route.continue();
+      if (await checkUrl(`${u.protocol}//${u.host}/`).catch(() => 'unresolvable_host')) return route.abort('blockedbyclient');
       return route.continue();
     });
     // Los WebSocket (ws/wss) no pasan por route(): misma verificación de host.
@@ -1023,12 +1409,7 @@ export async function robotHarness(
         } catch {
           return ws.close({ code: 1008, reason: 'blocked' });
         }
-        let verdict = verdicts.get(origin);
-        if (!verdict) {
-          verdict = checkUrl(`${origin}/`).catch(() => 'unresolvable_host');
-          verdicts.set(origin, verdict);
-        }
-        if (await verdict) return ws.close({ code: 1008, reason: 'blocked' });
+        if (await checkUrl(`${origin}/`).catch(() => 'unresolvable_host')) return ws.close({ code: 1008, reason: 'blocked' });
         ws.connectToServer();
       });
     }
@@ -1050,6 +1431,7 @@ export async function robotHarness(
       credentials: job.credentials,
       maxFiles: job.maxFiles,
       maxFileBytes: job.maxFileBytes,
+      lastBlocked: (since: number) => (guard ? guard.blockedSince(since) : null),
     });
     if (job.saveSession) {
       try {
@@ -1061,9 +1443,16 @@ export async function robotHarness(
     return result;
   } catch (err) {
     const msg = err instanceof Error ? err.message.split('\n')[0].slice(0, 300) : 'browser_error';
+    // El renderer se cayó (p. ej. una página pesada que se come la memoria): mensaje claro.
+    const crashed = /Target crashed|Target closed|crashed|out of memory|Session closed/i.test(msg);
     return {
       status: 'failed',
-      error: Date.now() - started > 5000 && job.deadline <= Date.now() ? 'timeout' : `browser_error: ${msg}`,
+      error:
+        Date.now() - started > 5000 && job.deadline <= Date.now()
+          ? 'timeout'
+          : crashed
+            ? 'page_crashed: the page used too much memory or closed the browser'
+            : `browser_error: ${msg}`,
       vars: {},
       logs: [],
       screenshots: [],
@@ -1072,5 +1461,6 @@ export async function robotHarness(
   } finally {
     if (killer) clearTimeout(killer);
     if (browser) await browser.close().catch(() => {});
+    if (guard) await guard.close().catch(() => {});
   }
 }

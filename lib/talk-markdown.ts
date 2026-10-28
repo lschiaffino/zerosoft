@@ -341,6 +341,12 @@ function inlineText(nodes: TalkInline[], names: PlainTextNames): string {
 }
 
 /** Texto plano del mensaje (avisos, emails, vista previa del sidebar). */
+/**
+ * Cuerpo del mensaje que deja un huddle al empezar. Se guarda como marcador y
+ * cada persona lo ve en su idioma (MessageBody, avisos, IA).
+ */
+export const HUDDLE_STARTED_BODY = ':headphones: [[huddle:started]]';
+
 export function talkPlainText(body: string, names: PlainTextNames = {}): string {
   return parseTalkMarkdown(body)
     .map((b) => {

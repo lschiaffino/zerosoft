@@ -60,6 +60,7 @@ export function useHuddleManager(api: Api, onError: (code: string) => void): Hud
   }, []);
 
   useEffect(() => {
+    // Al cerrar o recargar la pestaña sale ya (sendBeacon), sin esperar al barrido de 45 s.
     const bye = () => session.current?.leaveBeacon();
     window.addEventListener('pagehide', bye);
     return () => {

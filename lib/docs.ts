@@ -18,7 +18,7 @@ import { pageLinkIds, type PageLinkCandidate } from './docs-page-links';
 import { databaseRowEntries } from './docs-database';
 import { applySamePageRows, prepareDatabaseSave, type DbEffect } from './docs-db-save';
 import { mergeBlocksDetailed, mergeField } from './docs-merge';
-import { getRevision, recordRevisions } from './docs-revisions';
+import { getRevision, nextUpdatedAt, recordRevisions } from './docs-revisions';
 import {
   buildSnippet,
   matchesAll,
@@ -28,7 +28,7 @@ import {
   searchTokens,
   type DocsSearchHit,
 } from './docs-search';
-import { isMember, listMembers, listOwnedTeams, type TeamRole } from './teams';
+import { isActiveMember, listMembers, listOwnedTeams, type TeamRole } from './teams';
 import {
   canWriteAccess,
   getDocsSettings,
@@ -184,7 +184,7 @@ export async function getDocAccess(
     let match = false;
     if (share.kind === 'public') match = includePublicLink;
     else if (share.kind === 'user' && share.target_id === userId) match = true;
-    else if (share.kind === 'team' && share.target_id) match = await isMember(share.target_id, userId);
+    else if (share.kind === 'team' && share.target_id) match = await isActiveMember(share.target_id, userId);
     if (!match) continue;
     // El link público solo da lectura.
     const role: DocsAccess = share.kind === 'public' ? 'view' : share.role;
@@ -755,7 +755,7 @@ export async function updateDocPage(
 
   if (updates.length === 0) return toDocPage(row);
 
-  const updatedAt = new Date().toISOString();
+  const updatedAt = nextUpdatedAt(row.updated_at);
   updates.push('updated_at = ?');
   args.push(updatedAt);
   args.push(pageId);
@@ -1276,7 +1276,7 @@ export async function listSharedWithMe(realUserId: string, workspaceId: string):
        WHERE p.archived = 0 AND p.user_id != ?
          AND ((s.kind = 'user' AND s.target_id = ?)
            OR (s.kind = 'team' AND s.target_id IN (
-                 SELECT team_id FROM team_members WHERE user_id = ?
+                 SELECT team_id FROM team_members WHERE user_id = ? AND role != 'guest'
                  UNION SELECT id FROM teams WHERE owner_id = ?)))
        ORDER BY p.updated_at DESC
        LIMIT 200`,

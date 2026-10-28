@@ -52,6 +52,9 @@ export function namedSender(name: string, via = 'via'): string {
 export function appSender(): string {
   const env = process.env.EMAIL_FROM?.trim();
   if (env && !/(^|<)\s*calendar@/i.test(env)) return env;
+  // El dominio verificado en Resend (p. ej. mail.zerosoft.ai), si está configurado.
+  const domain = process.env.RESEND_EMAIL_DOMAIN?.trim().replace(/^@/, '').toLowerCase();
+  if (domain && /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(domain)) return `zerosoft <notifications@${domain}>`;
   return 'zerosoft <notifications@zerosoft.ai>';
 }
 

@@ -22,6 +22,7 @@ import TrackIcon, { type TrackIconName } from '@/components/track/TrackIcon';
 import { SETTINGS_SECTION_KEYS, settingsSectionHref } from '@/lib/settings-nav';
 import { PRODUCT_CONFIG, PRODUCT_KEYS, productSettingsHref } from '@/lib/products';
 import { RIVALS } from '@/components/site/catalog';
+import { IMPORT_SOURCES, importHubHref } from '@/lib/import-registry';
 
 interface ResultItem {
   group: string;
@@ -135,6 +136,7 @@ function useGroupOrder() {
         'docs',
         'notes',
         'boards',
+        'boardFolders',
         'tasks',
         'playbooks',
         'crmForms',
@@ -166,6 +168,7 @@ function useGroupOrder() {
         'talkPeople',
         'talkCanvases',
         'talkLists',
+        'workspaceTeams',
       ], []);
 }
 
@@ -267,8 +270,6 @@ export default function CommandSearch() {
       { group, label: t('openQuotes'), meta: '', href: '/app/crm/quotes' },
       { group, label: t('openScoring'), meta: '', href: '/app/crm/settings?tab=automation' },
       { group, label: t('openPlaybooks'), meta: '', href: '/app/crm/playbooks' },
-      { group, label: t('importFromHubspot'), meta: '', href: '/app/crm/settings?tab=import&from=hubspot' },
-      { group, label: t('importFromPipedrive'), meta: '', href: '/app/crm/settings?tab=import&from=pipedrive' },
       {
         group,
         label: t('askCrmAssistant'),
@@ -335,6 +336,14 @@ export default function CommandSearch() {
         label: tSettingsCmdk('product', { app: PRODUCT_CONFIG[key].name }),
         meta: '',
         href: productSettingsHref(key),
+      })),
+      // Hub de importación: una entrada por herramienta y app ("Importar de Notion a Docs").
+      ...IMPORT_SOURCES.filter((s, i, all) => all.findIndex((x) => x.name === s.name && x.app === s.app) === i).map((s) => ({
+        group: 'settings',
+        label: tSettingsCmdk('importFrom', { source: s.name, app: PRODUCT_CONFIG[s.app].name }),
+        meta: '',
+        href: importHubHref({ source: s.id }),
+        keywords: tSettingsCmdk('keywords.import'),
       })),
     ],
     [tSections, tSettingsCmdk],

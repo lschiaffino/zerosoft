@@ -55,11 +55,17 @@ export function talkFeed(): SharedFeed<RawEvent> {
   return feed;
 }
 
+/** Sigue en el workspace y con Talk entre sus apps (lo que cambia al sacarla o al quitarle la app). */
+export async function talkAllowed(workspaceId: string, personId: string): Promise<boolean> {
+  // workspacePersonKind ya mira el acceso por app (lib/talk.ts).
+  return isWorkspacePerson(workspaceId, personId);
+}
+
 /** Canales cuyos eventos ve esta persona: donde es miembro y los públicos del workspace. */
 export async function visibleChannels(actor: TalkActor): Promise<Set<string>> {
+  // Miembro con la app Talk, o invitado de Talk (que solo recibe lo de sus canales, ni los públicos).
   const kind = await workspacePersonKind(actor.workspaceId, actor.personId);
   if (!kind) return new Set();
-  // Un invitado solo recibe lo de sus canales (ni los públicos).
   const pub = kind === 'guest' ? '0' : "kind = 'public'";
   const rows = (await getDb()
     .prepare(
@@ -78,7 +84,7 @@ export function connectionFilter(actor: TalkActor, onRevoked?: () => void) {
     const mine = events.filter((e) => e.workspaceId === actor.workspaceId);
     if (!mine.length) return [];
     // La persona salió del workspace: no pasa nada más por esta conexión y se corta.
-    if (mine.some((e) => e.kind === 'access' && e.userId === actor.personId) && !(await isWorkspacePerson(actor.workspaceId, actor.personId))) {
+    if (mine.some((e) => e.kind === 'access' && e.userId === actor.personId) && !(await talkAllowed(actor.workspaceId, actor.personId))) {
       revoked = true;
       onRevoked?.();
       return [];
@@ -115,7 +121,7 @@ export function talkStream(actor: TalkActor, cursor: number, signal?: AbortSigna
       });
     },
     // Red de seguridad: cada 15 s se revalida que siga en el workspace.
-    check: () => isWorkspacePerson(actor.workspaceId, actor.personId),
+    check: () => talkAllowed(actor.workspaceId, actor.personId),
     checkMs: 15_000,
     heartbeatMs: 15_000,
     maxMs: 240_000,

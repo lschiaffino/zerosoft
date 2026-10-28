@@ -7,6 +7,7 @@
  * issue que entra a la cola, venga de la API, Chat, Flow, GitHub o Agents.
  * Server-only.
  */
+import { listOwnerSpacePeople } from './workspace';
 import { after } from 'next/server';
 import { getDb } from './db';
 import type { TrackIssueWithStatus } from './track-data';
@@ -102,7 +103,10 @@ export async function projectMemberIds(projectId: string): Promise<Set<string>> 
     | { team_id: string | null; owner_id: string | null }
     | undefined;
   if (!project) return new Set();
-  if (!project.team_id) return new Set(project.owner_id ? [project.owner_id] : []);
+  if (!project.team_id) {
+    if (!project.owner_id) return new Set();
+    return new Set((await listOwnerSpacePeople(project.owner_id)).map((p) => p.id));
+  }
   const rows = (await getDb()
     .prepare(
       `SELECT user_id FROM team_members WHERE team_id = ?

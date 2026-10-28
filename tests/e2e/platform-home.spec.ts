@@ -193,7 +193,7 @@ test('pie del sidebar: la ayuda se llama Ayuda (no Docs, que es una app)', async
   await expect(help).toHaveAttribute('href', '/es/docs');
 });
 
-test('con un equipo activo, el sidebar del inicio a 1280×900 deja ver Notes y el equipo va en el pie', async ({ page }) => {
+test('con un equipo activo, el sidebar del inicio a 1280×900 deja ver Notes y el equipo va en el switcher', async ({ page }) => {
   const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
   const demo = String((await db.execute("SELECT id FROM users WHERE email = 'demo@zerosoft.ai'")).rows[0].id);
   const suffix = Math.random().toString(36).slice(2, 8);
@@ -206,7 +206,7 @@ test('con un equipo activo, el sidebar del inicio a 1280×900 deja ver Notes y e
   await db.execute({ sql: 'UPDATE users SET active_team_id = ? WHERE id = ?', args: [team, demo] });
   try {
     await page.goto('/es/app', { waitUntil: 'networkidle' });
-    await expect(page.getByTestId('side-team')).toHaveText('Equipo: Ventas Norte');
+    await expect(page.getByTestId('workspace-switcher')).toContainText('Ventas Norte');
     const line = page.locator('.side-line');
     for (const name of ['Docs', 'Notes', 'Cal']) {
       await expect(line.getByRole('link', { name, exact: true })).toBeInViewport({ ratio: 1 });

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
+import { appFromPath, userCanUseApp } from '@/lib/workspace';
 import { sessionScope } from '@/lib/crm-visibility';
 import { searchAll, searchTasks } from '@/lib/crm';
 import { searchDocPagesContent, searchSharedDocPages } from '@/lib/docs';
@@ -233,5 +234,10 @@ export async function GET(req: NextRequest) {
     items.push({ id: r.id, group: 'reports', label: r.name, meta: '', href: `/app/crm/reports/custom/${r.id}` });
   }
 
-  return NextResponse.json<SearchResponse>({ q, items });
+  // Acceso por app: nada de las apps que la persona no tiene en este workspace.
+  const allowed = items.filter((item) => {
+    const app = appFromPath(item.href);
+    return !app || userCanUseApp(user, app);
+  });
+  return NextResponse.json<SearchResponse>({ q, items: allowed });
 }

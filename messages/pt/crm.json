@@ -1013,9 +1013,9 @@
     "currency": "Moeda",
     "currencyDesc": "A moeda base do workspace e as taxas de câmbio manuais.",
     "tabs": {
-      "team": "Equipe",
       "sales": "Vendas",
       "data": "Dados",
+      "access": "Acesso",
       "automation": "Automação",
       "integrations": "Integrações",
       "import": "Importar e exportar"
@@ -1953,7 +1953,8 @@
     "teamName": "Nome da equipe",
     "teamNamePh": "ex. Enterprise",
     "createTeam": "Criar equipe de vendas",
-    "deleteTeamConfirm": "Excluir esta equipe? Os membros mantêm os seus registros."
+    "deleteTeamConfirm": "Excluir esta equipe? Os membros mantêm os seus registros.",
+    "platformNote": "Os membros e os convites ficam em <members>Configurações › Membros</members>. As equipes de vendas são as equipes do workspace em <teams>Configurações › Equipes</teams>."
   },
   "assignment": {
     "title": "Distribuição de leads",
@@ -2261,7 +2262,8 @@
       "companies": "Empresas",
       "contacts": "Contatos",
       "deals": "Deals",
-      "activities": "Atividades"
+      "activities": "Atividades",
+      "lists": "Listas"
     },
     "unknownCount": "Tudo",
     "unavailable": "O token não consegue ler {phases}. Isso é pulado.",
@@ -2321,7 +2323,8 @@
       "meetings": "reuniões",
       "tasks": "tarefas",
       "emails": "emails",
-      "activities": "atividades"
+      "activities": "atividades",
+      "lists": "listas"
     },
     "backgroundNote": "Você pode sair desta página. O import continua em segundo plano e esta tela retoma.",
     "failure": {
@@ -2329,7 +2332,8 @@
       "scope": "Falta um escopo no token. Confira a lista e rode o import de novo.",
       "token_missing": "O token não está mais aqui. Rode o import de novo.",
       "rate_limited": "O provedor continuou limitando as requisições. Rode o import mais tarde.",
-      "generic": "Algo falhou ao falar com o provedor. Rode o import de novo: o que já foi importado é atualizado, não duplicado."
+      "generic": "Algo falhou ao falar com o provedor. Rode o import de novo: o que já foi importado é atualizado, não duplicado.",
+      "forbidden": "Quem iniciou a importação não administra mais o workspace. Um admin pode rodar de novo."
     },
     "cancelledNote": "O que foi importado antes de cancelar fica no CRM. O token foi apagado.",
     "warnings": "Avisos",
@@ -2348,7 +2352,18 @@
       "invalid_input": "Confira o token e tente de novo.",
       "not_found": "Esse import não existe mais.",
       "forbidden": "Só admins do workspace podem importar."
-    }
+    },
+    "inviteOwners": "{count, plural, one {Convidar # pessoa} other {Convidar # pessoas}} para o workspace",
+    "inviteHelp": "Owners do outro CRM que ainda não são membros. Os registros deles ficam com o owner padrão. Quando cada pessoa aceita o convite com esse mesmo email, passam a ser dela os registros que ninguém reatribuiu enquanto isso.",
+    "invitedNote": "{count, plural, one {Convite pronto} other {# convites prontos}}. Por enquanto compartilhe cada link (valem por 14 dias): eles saem por email quando o envio de convites estiver configurado.",
+    "inviteSkipped": "{count, plural, one {# pessoa ficou sem convite} other {# pessoas ficaram sem convite}} porque o limite diário de convites foi atingido: {emails}. Tente de novo amanhã.",
+    "inviteLinkFor": "Link de convite para {email}",
+    "inviteFailed": "Não foi possível criar os convites. Tente de novo.",
+    "invitedEmailed": "{count, plural, one {Convite enviado por email} other {# convites enviados por email}}. Você também pode compartilhar os links abaixo.",
+    "locallyEdited": "{count, plural, one {# registro que veio da {provider} foi editado no zerosoft} other {# registros que vieram da {provider} foram editados no zerosoft}} depois da última importação. Não são sobrescritos: só os campos vazios são preenchidos.",
+    "overwriteLocal": "Substituir pelo que está na {provider} (sobrescreve as mudanças feitas no zerosoft)",
+    "keptNote": "{count, plural, one {# com mudanças locais, não foi sobrescrito} other {# com mudanças locais, não foram sobrescritos}}.",
+    "openContacts": "Ver contatos"
   },
   "ai": {
     "updatedAt": "Atualizado {when}",

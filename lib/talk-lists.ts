@@ -9,6 +9,17 @@
  */
 import { getDb } from './db';
 import { TalkError, canManageChannel, emitTalkEvent, nowIso, readableChannel, writableChannel, type TalkActor } from './talk';
+import en from '@/messages/en/talk.json';
+import es from '@/messages/es/talk.json';
+import pt from '@/messages/pt/talk.json';
+
+/** Nombres de los campos y vistas de las plantillas, en el idioma de quien crea la lista. */
+async function defaultsFor(actor: TalkActor) {
+  const row = (await getDb().prepare('SELECT locale FROM talk_prefs WHERE workspace_id = ? AND user_id = ?').get(actor.workspaceId, actor.personId)) as
+    | { locale: string | null }
+    | undefined;
+  return (row?.locale === 'es' ? es : row?.locale === 'pt' ? pt : en).lists.defaults;
+}
 
 export const LIST_MAX_ITEMS = 1000;
 export const LIST_MAX_FIELDS = 20;
@@ -200,17 +211,18 @@ export async function createList(actor: TalkActor, channelId: string, input: { n
   const db = getDb();
   const count = (await db.prepare('SELECT COUNT(*) AS n FROM talk_lists WHERE channel_id = ?').get(channelId)) as { n: number };
   if (Number(count.n) >= LISTS_PER_CHANNEL) throw new TalkError('too_many_lists', 409);
+  const d = await defaultsFor(actor);
   const fields: ListField[] =
     input.template === 'blank'
-      ? [{ id: 'notes', name: 'Notes', type: 'text' }]
+      ? [{ id: 'notes', name: d.notes, type: 'text' }]
       : [
-          { id: 'status', name: 'Status', type: 'select', options: ['To do', 'In progress', 'Done'] },
-          { id: 'owner', name: 'Owner', type: 'person' },
-          { id: 'due', name: 'Due', type: 'date' },
+          { id: 'status', name: d.status, type: 'select', options: [d.todo, d.doing, d.done] },
+          { id: 'owner', name: d.owner, type: 'person' },
+          { id: 'due', name: d.due, type: 'date' },
         ];
   const views: ListView[] = [
-    { id: 'table', name: 'Table', kind: 'table', groupBy: null, sortBy: null, sortDir: 'asc', filter: '' },
-    ...(input.template === 'blank' ? [] : [{ id: 'board', name: 'Board', kind: 'board' as const, groupBy: 'status', sortBy: null, sortDir: 'asc' as const, filter: '' }]),
+    { id: 'table', name: d.table, kind: 'table', groupBy: null, sortBy: null, sortDir: 'asc', filter: '' },
+    ...(input.template === 'blank' ? [] : [{ id: 'board', name: d.board, kind: 'board' as const, groupBy: 'status', sortBy: null, sortDir: 'asc' as const, filter: '' }]),
   ];
   const id = crypto.randomUUID();
   const now = nowIso();

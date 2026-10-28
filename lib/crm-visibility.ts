@@ -347,6 +347,7 @@ export async function createSalesTeam(
     .prepare('INSERT INTO crm_sales_teams (id, user_id, name) VALUES (?, ?, ?)')
     .run(id, workspaceId, input.name.trim().slice(0, 80));
   if (input.members) await setSalesTeamMembers(workspaceId, id, input.members, db);
+  await syncWorkspaceGroup(workspaceId, id, db);
   return (await getSalesTeam(workspaceId, id, db))!;
 }
 
@@ -364,6 +365,7 @@ export async function updateSalesTeam(
       .run(input.name.trim().slice(0, 80), id, workspaceId);
   }
   if (input.members) await setSalesTeamMembers(workspaceId, id, input.members, db);
+  await syncWorkspaceGroup(workspaceId, id, db);
   return getSalesTeam(workspaceId, id, db);
 }
 
@@ -384,7 +386,15 @@ export async function setSalesTeamMembers(
 }
 
 export async function deleteSalesTeam(workspaceId: string, id: string, db: Db = getDb()): Promise<boolean> {
-  return (await db.prepare('DELETE FROM crm_sales_teams WHERE id = ? AND user_id = ?').run(id, workspaceId)).changes > 0;
+  const ok = (await db.prepare('DELETE FROM crm_sales_teams WHERE id = ? AND user_id = ?').run(id, workspaceId)).changes > 0;
+  if (ok) await syncWorkspaceGroup(workspaceId, id, db);
+  return ok;
+}
+
+/** El equipo de venta es un subequipo del workspace: el directorio de Ajustes › Equipos y las demás apps se enteran. */
+async function syncWorkspaceGroup(workspaceId: string, id: string, db: Db): Promise<void> {
+  const { syncGroupFromApp } = await import('./workspace-groups');
+  await syncGroupFromApp('crm', workspaceId, id, db);
 }
 
 // ---------- Fichas: registros asociados que el viewer no ve ----------

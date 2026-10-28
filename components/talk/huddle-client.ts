@@ -16,7 +16,7 @@
 import type { HuddleDto, IceServer } from '@/lib/talk-huddles';
 
 const ICE_WAIT_MS = 2500;
-const BEAT_MS = 10_000;
+const BEAT_MS = 15_000;
 
 type Api = <T>(url: string, init?: RequestInit & { json?: unknown }) => Promise<T>;
 
@@ -303,6 +303,9 @@ export class HuddleSession {
     const screens = [...this.peers.values()]
       .filter((c) => c.screen && c.screen.getVideoTracks().some((t) => t.readyState === 'live' && !t.muted) && (sharingPeers.size === 0 || sharingPeers.has(c.peerId)))
       .map((c) => ({ peerId: c.peerId, userId: c.userId, stream: c.screen! }));
+    // Solo si cambió (el medidor de voz llama cada 300 ms: no re-renderiza de más).
+    const key = screens.map((x) => `${x.peerId}:${x.stream.id}`).join();
+    if (key === this.view.screens.map((x) => `${x.peerId}:${x.stream.id}`).join()) return;
     this.emit({ screens });
   }
 

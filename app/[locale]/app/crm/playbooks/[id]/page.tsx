@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { isWorkspaceAdmin, requireUser } from '@/lib/session';
+import { workspaceTeamId } from '@/lib/workspace';
 import { getDb } from '@/lib/db';
 import { listCustomFields } from '@/lib/crm';
 import { getPlaybook, listPlaybookRuns } from '@/lib/crm-playbooks';
@@ -36,7 +37,7 @@ export default async function PlaybookPage(props: { params: Promise<{ locale: st
     listCustomFields(user.id, 'companies'),
     listCustomFields(user.id, 'deals'),
     listPlaybookRuns(user.id, { playbookId: id, limit: 20 }),
-    user.team?.id ? listMembers(user.team.id) : Promise.resolve([{ user_id: user.id, email: user.email, name: user.name ?? null }]),
+    workspaceTeamId(user) ? listMembers(workspaceTeamId(user)!) : Promise.resolve([{ user_id: user.id, email: user.email, name: user.name ?? null }]),
   ]);
   // Nombre de cada registro donde se usó (si todavía existe).
   const db = getDb();

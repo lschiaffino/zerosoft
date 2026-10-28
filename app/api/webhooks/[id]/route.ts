@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
+import { hasAllApps } from '@/lib/workspace';
 import { deleteWebhook, updateWebhook, WEBHOOK_EVENTS } from '@/lib/webhooks';
 import { MAX_FILTER_VALUES, normalizeCrmFilter } from '@/lib/webhooks-events';
 import { UnsafeUrlError } from '@/lib/safe-fetch';
@@ -22,7 +23,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  if (!isWorkspaceAdmin(user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  if (!isWorkspaceAdmin(user) || !hasAllApps(user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const parsed = patchSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   const { properties, ...rest } = parsed.data;
@@ -48,7 +49,7 @@ export async function DELETE(_req: Request, props: { params: Promise<{ id: strin
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  if (!isWorkspaceAdmin(user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  if (!isWorkspaceAdmin(user) || !hasAllApps(user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   if (!(await deleteWebhook(user.id, id))) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   await logCalActivity(user.id, user.actingUser?.id ?? user.id, 'api.webhook_deleted', { type: 'webhook', id });
   return new NextResponse(null, { status: 204 });

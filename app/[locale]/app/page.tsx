@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { isWorkspaceAdmin, requireUser } from '@/lib/session';
-import { dayPart, getWorkspaceMode, normalizeTaskScope } from '@/lib/home';
+import { dayPart, getWorkspaceMode, homeCanUse, normalizeTaskScope } from '@/lib/home';
 import { getUserTimeZone } from '@/lib/user-tz';
 import { featuredApps, moreAppsByCategory, showTeamUi } from '@/lib/workspace-mode';
 import { PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
@@ -50,8 +50,15 @@ export default async function PlatformHomePage(props: {
   const team = showTeamUi(mode);
   // Invitar e importar son de quien administra el workspace.
   const admin = isWorkspaceAdmin(user);
-  const featured = featuredApps({ mode });
-  const more = moreAppsByCategory({ mode });
+  // Solo las apps que la persona tiene en este workspace.
+  const can = (k: ProductKey) => homeCanUse(user, k);
+  const featured = featuredApps({ mode }).filter(can);
+  const more = moreAppsByCategory({ mode })
+    .map((g) => ({ ...g, apps: g.apps.filter(can) }))
+    .filter((g) => g.apps.length > 0);
+  const blockedKey = (await props.searchParams).blocked;
+  const blocked = typeof blockedKey === 'string' && blockedKey in PRODUCT_CONFIG ? (blockedKey as ProductKey) : null;
+  const tAccess = blocked ? await getTranslations({ locale, namespace: 'settings.access' }) : null;
 
   const appCard = (k: ProductKey) => (
     <li key={k}>
@@ -66,6 +73,12 @@ export default async function PlatformHomePage(props: {
   return (
     <div className="app-page app-home" data-mode={mode}>
       <PageHeader title={greeting} description={t('homeLead')} />
+      {blocked && tAccess && (
+        <div className="home-blocked" role="status" data-testid="home-blocked">
+          <p className="home-blocked-title">{tAccess('title', { app: PRODUCT_CONFIG[blocked].name })}</p>
+          <p className="home-blocked-body">{tAccess('body', { app: PRODUCT_CONFIG[blocked].name, workspace: user.workspace?.name ?? '' })}</p>
+        </div>
+      )}
 
       <section className="home-section" aria-labelledby="home-today">
         <h2 id="home-today" className="home-h">
@@ -76,28 +89,28 @@ export default async function PlatformHomePage(props: {
             fallback={<HomeBlockLoading locale={locale} product="crm" titleKey="today.crm" href="/app/crm/tasks" testId="home-crm-tasks" />}
           >
             {/* En uso personal el CRM no está destacado: el bloque aparece solo si hay tareas. */}
-            <CrmTasksBlock user={user} locale={locale} hideWhenEmpty={!team} scope={taskScope} />
+            {can('crm') && <CrmTasksBlock user={user} locale={locale} hideWhenEmpty={!team} scope={taskScope} />}
           </Suspense>
           <Suspense
             fallback={
               <HomeBlockLoading locale={locale} product="track" titleKey="today.track" href="/app/track/my-tasks" testId="home-track" />
             }
           >
-            <TrackIssuesBlock user={user} locale={locale} />
+            {can('track') && <TrackIssuesBlock user={user} locale={locale} />}
           </Suspense>
           <Suspense
             fallback={
               <HomeBlockLoading locale={locale} product="cal" titleKey="today.cal" href="/app/calendar/bookings" testId="home-cal" />
             }
           >
-            <CalBookingsBlock user={user} locale={locale} timeZone={timeZone} />
+            {can('cal') && <CalBookingsBlock user={user} locale={locale} timeZone={timeZone} />}
           </Suspense>
           <Suspense
             fallback={
               <HomeBlockLoading locale={locale} product="chat" titleKey="today.inbox" href="/app/chat/inbox" testId="home-unread" />
             }
           >
-            <UnreadBlock user={user} locale={locale} hideWhenEmpty={!team} />
+            {can('chat') && can('groups') && <UnreadBlock user={user} locale={locale} hideWhenEmpty={!team} />}
           </Suspense>
         </div>
       </section>

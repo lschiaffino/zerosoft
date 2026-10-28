@@ -54,7 +54,7 @@ test('Board: con timer y comentarios, el título y el estado se leen y lo demás
     await expect(page.getByRole('button', { name: 'Historial' })).toBeHidden();
     await page.getByRole('button', { name: 'Más opciones de la pizarra' }).click();
     const menu = page.getByRole('menu', { name: 'Más opciones de la pizarra' });
-    await expect(menu.getByRole('menuitem')).toHaveText(['Track', 'Taller', 'Comentar', 'Historial']);
+    await expect(menu.getByRole('menuitem')).toHaveText(['Presentar', 'Track', 'Taller', 'Comentar', 'Historial']);
     await menu.getByRole('menuitem', { name: 'Taller' }).click();
     const pop = page.getByRole('dialog', { name: 'Herramientas de taller' });
     await expect(pop).toBeVisible();
@@ -163,7 +163,7 @@ test('Board: la lista muestra primero las pizarras, las plantillas se pliegan y 
   const tplBox = await templates.boundingBox();
   expect(cardBox!.y).toBeLessThan(tplBox!.y);
   // Sin huecos grandes entre el encabezado y las pizarras.
-  const header = await page.locator('.ui-page-header').boundingBox();
+  const header = await page.locator('.board-list-tools').boundingBox();
   expect(cardBox!.y - (header!.y + header!.height)).toBeLessThan(48);
   await page.screenshot({ path: shot('board-list.png'), fullPage: true });
 
@@ -176,24 +176,34 @@ test('Board: la lista muestra primero las pizarras, las plantillas se pliegan y 
   await expect(page.locator('.board-templates-grid')).toBeVisible();
 
   await page.getByRole('button', { name: `Acciones de la pizarra: ${name}` }).click();
+  // Borrar manda a la papelera sin preguntar, con Deshacer en el aviso.
   await page.getByRole('menuitem', { name: 'Borrar' }).click();
-  const confirm = page.getByRole('alertdialog', { name: 'Borrar pizarra' });
+  await expect(card).toHaveCount(0);
+  await page.locator('.ui-toast').getByRole('button', { name: 'Deshacer' }).click();
+  await expect(card).toBeVisible();
+  await page.getByRole('button', { name: `Acciones de la pizarra: ${name}` }).click();
+  await page.getByRole('menuitem', { name: 'Borrar' }).click();
+  await expect(card).toHaveCount(0);
+  // En la papelera: borrar para siempre pide confirmación con el modal de la app.
+  await page.getByTestId('board-trash-tab').click();
+  const row = page.locator('.board-trash-item').filter({ hasText: name });
+  await expect(row).toBeVisible();
+  await row.getByRole('button', { name: 'Borrar para siempre' }).click();
+  const confirm = page.getByRole('alertdialog', { name: 'Borrar para siempre' });
   await expect(confirm).toBeVisible();
   await expect(confirm).toContainText(name);
-  // Después de la animación de entrada del modal.
   await page.waitForTimeout(300);
   await page.screenshot({ path: shot('board-delete-confirm.png') });
   // Esc cancela; el foco arranca en Cancelar (es destructivo) y Enter sobre Borrar confirma.
   await page.keyboard.press('Escape');
   await expect(confirm).toBeHidden();
-  await expect(card).toBeVisible();
-  await page.getByRole('button', { name: `Acciones de la pizarra: ${name}` }).click();
-  await page.getByRole('menuitem', { name: 'Borrar' }).click();
+  await expect(row).toBeVisible();
+  await row.getByRole('button', { name: 'Borrar para siempre' }).click();
   await expect(confirm.getByRole('button', { name: 'Cancelar' })).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(confirm.getByRole('button', { name: 'Borrar' })).toBeFocused();
+  await expect(confirm.getByRole('button', { name: 'Borrar para siempre' })).toBeFocused();
   await page.keyboard.press('Enter');
-  await expect(card).toHaveCount(0);
+  await expect(row).toHaveCount(0);
   expect(dialogs).toEqual([]);
 });
 

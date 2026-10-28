@@ -65,6 +65,28 @@ describe('Docs D3 QA: guardados', () => {
     expect(notes.some((n) => JSON.parse(n.meta).conflict === true)).toBe(true);
   });
 
+  it('dos guardados en el mismo milisegundo no comparten updated_at: el segundo ve el choque', async () => {
+    const owner = await makeUser('own');
+    const bob = await makeUser('bob');
+    // Reloj quieto: crear y los dos guardados caen en el mismo milisegundo.
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-10-28T12:00:00.000Z') });
+    try {
+      const page = await createDocPage(owner.id, { title: 'Mismo ms', content: [para('a', 'Base')] });
+      const base = (await getDocPageRow(page.id))!.updated_at;
+      await updateDocPage(owner.id, page.id, { content: [para('a', 'De Bob')], base_updated_at: base }, { actorId: bob.id });
+      const afterBob = (await getDocPageRow(page.id))!.updated_at;
+      expect(afterBob > base).toBe(true);
+      await updateDocPage(owner.id, page.id, { content: [para('a', 'De la dueña')], base_updated_at: base }, { actorId: owner.id });
+      expect((await getDocPageRow(page.id))!.updated_at > afterBob).toBe(true);
+      const versions = await listDocVersions(owner.id, page.id);
+      expect(versions[0]?.author_id).toBe(bob.id);
+      const notes = (await getDb().prepare('SELECT meta FROM notifications WHERE user_id = ? AND source_id = ?').all(bob.id, page.id)) as Array<{ meta: string }>;
+      expect(notes.some((n) => JSON.parse(n.meta).conflict === true)).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('la API de bases no acepta cambios en una página bloqueada (423)', async () => {
     const owner = await makeUser('own');
     session.user = { id: owner.id, email: owner.email, role: 'owner' };

@@ -58,7 +58,9 @@
     "notFound": "Canal não encontrado",
     "notFoundBody": "Foi apagado, é privado ou você não tem acesso.",
     "deactivated": "{name} não está mais no workspace. Dá para ler esta conversa, mas não responder.",
-    "deactivatedShort": "Desativado"
+    "deactivatedShort": "Desativado",
+    "deactivatedGuest": "{name} era convidado e não tem mais acesso. Dá para ler esta conversa, mas não responder.",
+    "deactivatedGuestShort": "Ex-convidado"
   },
   "composer": {
     "formatting": "Formatação",
@@ -738,7 +740,18 @@
     "type_checkbox": "Caixa de seleção",
     "optionsPh": "Opções, separadas por vírgulas",
     "options": "Opções",
-    "removeField": "Tirar {name}"
+    "removeField": "Tirar {name}",
+    "defaults": {
+      "status": "Status",
+      "owner": "Responsável",
+      "due": "Prazo",
+      "notes": "Notas",
+      "todo": "A fazer",
+      "doing": "Em andamento",
+      "done": "Feito",
+      "table": "Tabela",
+      "board": "Quadro"
+    }
   },
   "push": {
     "title": "Notificações do navegador",

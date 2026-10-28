@@ -225,6 +225,11 @@ test.describe('huddle', () => {
     await b.getByTestId('talk-huddle').getByRole('button', { name: 'Leave' }).click();
     await expect(b.getByTestId('talk-huddle')).toHaveCount(0);
     await expect(a.getByTestId('talk-huddle')).toContainText("You're the only one here", { timeout: 30_000 });
+    // Cerrar la pestaña en medio del huddle avisa la salida (sendBeacon), sin esperar los 45 s del barrido.
+    await b.getByTestId('talk-huddle-button').click();
+    await expect(a.getByTestId('talk-huddle')).toContainText('2 people in the huddle', { timeout: 30_000 });
+    await b.close({ runBeforeUnload: true });
+    await expect(a.getByTestId('talk-huddle')).toContainText("You're the only one here", { timeout: 15_000 });
     // El hilo del huddle quedó en el canal.
     await expect(a.locator('[data-testid="talk-message"]', { hasText: 'started a huddle' })).toBeVisible();
     await ctxA.close();

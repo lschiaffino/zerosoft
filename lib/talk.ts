@@ -15,6 +15,7 @@ import type { TeamRole } from './teams';
 import { roleAtLeast } from './teams';
 import { extractMentions, normalizeChannelName, extractUrls } from './talk-markdown';
 import { isValidReaction } from './talk-emoji';
+import { parseApps } from './workspace';
 
 export class TalkError extends Error {
   constructor(
@@ -64,38 +65,65 @@ export interface TalkPerson {
   image: string | null;
   /** Invitado de Talk: solo está en algunos canales. */
   guest?: boolean;
+  /** Ya no está, y había entrado como invitado (DMs con alguien que se sacó). */
+  formerGuest?: boolean;
 }
 
-const TEAM_MEMBER_SQL = 'SELECT m.user_id FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ?';
+/** Lista de apps de team_members.apps: ¿incluye Talk? (null / '*' = todas, como lib/workspace.ts). */
+function appsIncludeTalk(lists: Array<string | null>): boolean {
+  return lists.some((raw) => {
+    const apps = parseApps(raw);
+    return apps === '*' || apps.includes('talk');
+  });
+}
 
-/** Personas del workspace: el owner, los miembros de sus teams y los invitados de Talk (marcados). */
+/**
+ * Personas de Talk del workspace: el owner, los miembros del team (no los
+ * guests de workspace) que tienen Talk entre sus apps, y los invitados de
+ * Talk (marcados).
+ */
 export async function listTalkPeople(workspaceId: string, db: Db = getDb()): Promise<TalkPerson[]> {
   const rows = (await db
     .prepare(
       `SELECT u.id, u.name, u.email, u.image,
-         CASE WHEN u.id = ? OR u.id IN (${TEAM_MEMBER_SQL}) THEN 0 ELSE 1 END AS guest
+         (SELECT group_concat(COALESCE(m.apps, '*'), '|') FROM team_members m JOIN teams t ON t.id = m.team_id
+           WHERE t.owner_id = ? AND m.user_id = u.id AND m.role != 'guest') AS apps,
+         EXISTS (SELECT 1 FROM talk_guests g WHERE g.workspace_id = ? AND g.user_id = u.id) AS talk_guest
        FROM users u
-       WHERE u.id = ? OR u.id IN (${TEAM_MEMBER_SQL}) OR u.id IN (SELECT g.user_id FROM talk_guests g WHERE g.workspace_id = ?)
+       WHERE u.id = ?
+          OR u.id IN (SELECT m.user_id FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ? AND m.role != 'guest')
+          OR u.id IN (SELECT g.user_id FROM talk_guests g WHERE g.workspace_id = ?)
        ORDER BY COALESCE(u.name, u.email) LIMIT 1000`,
     )
-    .all(workspaceId, workspaceId, workspaceId, workspaceId, workspaceId)) as Array<{ id: string; name: string | null; email: string; image: string | null; guest: number }>;
-  return rows.map((r) => ({ id: r.id, name: r.name?.trim() || r.email.split('@')[0], email: r.email, image: r.image, ...(Number(r.guest) ? { guest: true } : {}) }));
+    .all(workspaceId, workspaceId, workspaceId, workspaceId, workspaceId)) as Array<{ id: string; name: string | null; email: string; image: string | null; apps: string | null; talk_guest: number }>;
+  const out: TalkPerson[] = [];
+  for (const r of rows) {
+    const member = r.id === workspaceId || (r.apps !== null && appsIncludeTalk(r.apps.split('|').map((a) => (a === '*' ? null : a))));
+    if (!member && !Number(r.talk_guest)) continue;
+    out.push({ id: r.id, name: r.name?.trim() || r.email.split('@')[0], email: r.email, image: r.image, ...(member ? {} : { guest: true }) });
+  }
+  return out;
 }
 
 export type TalkPersonKind = 'member' | 'guest';
 
-/** Qué es esta persona en el workspace: miembro (owner o team), invitado de Talk, o nada. */
+/**
+ * Qué es esta persona en Talk de este workspace: miembro (owner, o del team
+ * con Talk entre sus apps), invitado de Talk, o nada. Un guest de workspace
+ * o un miembro sin la app Talk no es nada acá (salvo que lo hayan invitado a
+ * canales de Talk).
+ */
 export async function workspacePersonKind(workspaceId: string, personId: string, db: Db = getDb()): Promise<TalkPersonKind | null> {
   if (personId === workspaceId) return 'member';
-  const member = await db
-    .prepare('SELECT 1 AS x FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ? AND m.user_id = ? LIMIT 1')
-    .get(workspaceId, personId);
-  if (member) return 'member';
+  const rows = (await db
+    .prepare("SELECT m.apps FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ? AND m.user_id = ? AND m.role != 'guest'")
+    .all(workspaceId, personId)) as Array<{ apps: string | null }>;
+  if (rows.length && appsIncludeTalk(rows.map((r) => r.apps))) return 'member';
   const guest = await db.prepare('SELECT 1 AS x FROM talk_guests WHERE workspace_id = ? AND user_id = ?').get(workspaceId, personId);
   return guest ? 'guest' : null;
 }
 
-/** Sigue en el workspace (miembro o invitado). */
+/** Sigue en Talk de este workspace (miembro con la app, o invitado). */
 export async function isWorkspacePerson(workspaceId: string, personId: string, db: Db = getDb()): Promise<boolean> {
   return !!(await workspacePersonKind(workspaceId, personId, db));
 }
@@ -105,19 +133,19 @@ export function publicClause(actor: TalkActor, alias = 'c'): string {
   return actor.guest ? '0' : `${alias}.kind = 'public'`;
 }
 
-/** Grupos del workspace para @menciones (los equipos de ventas del CRM, que son los subequipos de hoy). */
+/** Subequipos del workspace para @menciones (Ajustes › Equipos): @ventas avisa a todo el equipo. */
 export async function listTalkGroups(workspaceId: string): Promise<Array<{ id: string; name: string; handle: string; members: string[] }>> {
   const rows = (await getDb()
     .prepare(
-      `SELECT t.id, t.name, (SELECT group_concat(m.person_id) FROM crm_sales_team_members m WHERE m.team_id = t.id) AS members
-       FROM crm_sales_teams t WHERE t.user_id = ? ORDER BY t.name`,
+      `SELECT g.id, g.name, g.slug, (SELECT group_concat(m.user_id) FROM workspace_group_members m WHERE m.group_id = g.id) AS members
+       FROM workspace_groups g WHERE g.workspace_id = ? ORDER BY g.name`,
     )
     .all(workspaceId)
-    .catch(() => [])) as Array<{ id: string; name: string; members: string | null }>;
+    .catch(() => [])) as Array<{ id: string; name: string; slug: string; members: string | null }>;
   return rows.map((r) => ({
     id: r.id,
     name: r.name,
-    handle: normalizeChannelName(r.name) || r.id,
+    handle: r.slug || normalizeChannelName(r.name) || r.id,
     members: r.members ? r.members.split(',') : [],
   }));
 }
@@ -216,6 +244,7 @@ export async function listEventsSince(actor: TalkActor, cursor: number, limit = 
 /** Borra los avisos (campana y emails en cola) de estos mensajes, para todas las personas o una. */
 export async function purgeMessageNotifications(messageIds: string[], userId?: string): Promise<void> {
   if (!messageIds.length) return;
+  await invalidateSummaries(messageIds, userId);
   const db = getDb();
   for (let i = 0; i < messageIds.length; i += 200) {
     const ids = messageIds.slice(i, i + 200);
@@ -241,6 +270,30 @@ export async function purgeMessageNotifications(messageIds: string[], userId?: s
       .run(...ids, ...(userId ? [userId] : []))
       .catch(() => undefined);
     if (reminderIds.length) await db.prepare(`DELETE FROM talk_reminders WHERE id IN (${inList(reminderIds.length)})`).run(...reminderIds);
+  }
+}
+
+/**
+ * Resúmenes de IA guardados (talk_ai_summaries) que cubren estos mensajes: se
+ * borran cuando un mensaje se borra, se edita o vence por retención, así un
+ * resumen nunca muestra texto que ya no existe. Recaps: por canal.
+ */
+export async function invalidateSummaries(messageIds: string[], userId?: string): Promise<void> {
+  if (!messageIds.length) return;
+  const db = getDb();
+  for (let i = 0; i < messageIds.length; i += 200) {
+    const ids = messageIds.slice(i, i + 200);
+    const rows = (await db
+      .prepare(`SELECT DISTINCT channel_id, COALESCE(parent_id, id) AS root FROM talk_messages WHERE id IN (${inList(ids.length)})`)
+      .all(...ids)) as Array<{ channel_id: string; root: string }>;
+    const chans = [...new Set(rows.map((r) => r.channel_id))];
+    const roots = [...new Set(rows.map((r) => r.root))];
+    if (!chans.length) continue;
+    const who = userId ? ' AND user_id = ?' : '';
+    const extra = userId ? [userId] : [];
+    await db.prepare(`DELETE FROM talk_ai_summaries WHERE kind = 'channel' AND ref IN (${inList(chans.length)})${who}`).run(...chans, ...extra);
+    await db.prepare(`DELETE FROM talk_ai_summaries WHERE kind = 'thread' AND ref IN (${inList(roots.length)})${who}`).run(...roots, ...extra);
+    for (const c of chans) await db.prepare(`DELETE FROM talk_ai_summaries WHERE kind = 'recap' AND sources LIKE ?${who}`).run(`%"channelId":"${c}"%`, ...extra);
   }
 }
 
@@ -414,7 +467,8 @@ const CHANNEL_DTO_SQL = `
     (SELECT COUNT(*) FROM talk_members mm WHERE mm.channel_id = c.id) AS member_count,
     (SELECT group_concat(mm.user_id) FROM talk_members mm WHERE mm.channel_id = c.id AND c.kind IN ('dm', 'group') AND mm.user_id != ?) AS others,
     (SELECT group_concat(mm.user_id) FROM talk_members mm WHERE mm.channel_id = c.id AND c.kind IN ('dm', 'group') AND mm.user_id != c.workspace_id
-       AND mm.user_id NOT IN (SELECT tm.user_id FROM team_members tm JOIN teams tt ON tt.id = tm.team_id WHERE tt.owner_id = c.workspace_id)) AS gone,
+       AND mm.user_id NOT IN (SELECT tm.user_id FROM team_members tm JOIN teams tt ON tt.id = tm.team_id WHERE tt.owner_id = c.workspace_id AND tm.role != 'guest')
+       AND mm.user_id NOT IN (SELECT g.user_id FROM talk_guests g WHERE g.workspace_id = c.workspace_id)) AS gone,
     CASE WHEN m.user_id IS NULL THEN 0 ELSE EXISTS (
       SELECT 1 FROM talk_messages x WHERE x.channel_id = c.id AND (x.parent_id IS NULL OR x.also_in_channel = 1)
         AND x.deleted_at IS NULL AND (x.user_id IS NULL OR x.user_id != ?) AND x.created_at > COALESCE(m.last_read_at, '')
@@ -474,6 +528,8 @@ function toChannelDto(actor: TalkActor, r: ChannelJoinRow): TalkChannelDto {
 
 /** Canales del sidebar: donde soy miembro (sin los DMs que cerré, salvo que tengan algo nuevo). */
 export async function listMyChannels(actor: TalkActor): Promise<TalkChannelDto[]> {
+  // Sin Talk en este workspace (salió, o le sacaron la app): nada.
+  if (!(await workspacePersonKind(actor.workspaceId, actor.personId))) return [];
   const rows = (await getDb()
     .prepare(`${CHANNEL_DTO_SQL} WHERE c.workspace_id = ? AND m.user_id IS NOT NULL AND c.archived_at IS NULL ORDER BY c.kind IN ('dm', 'group'), c.name, c.last_message_at DESC`)
     .all(...channelArgs(actor), actor.workspaceId)) as ChannelJoinRow[];
@@ -493,6 +549,7 @@ export async function getChannelDto(actor: TalkActor, id: string): Promise<TalkC
 
 /** Directorio de canales: los públicos (y los privados donde estoy), con búsqueda. */
 export async function browseChannels(actor: TalkActor, opts: { q?: string; archived?: boolean } = {}): Promise<TalkChannelDto[]> {
+  if (!(await workspacePersonKind(actor.workspaceId, actor.personId))) return [];
   const where = [
     'c.workspace_id = ?',
     actor.guest ? "(c.kind IN ('public', 'private') AND m.user_id IS NOT NULL)" : "(c.kind = 'public' OR (c.kind = 'private' AND m.user_id IS NOT NULL))",
@@ -1265,6 +1322,7 @@ export async function editMessage(actor: TalkActor, id: string, body: string): P
   const mentions = extractMentions(text);
   const broadcast = mentions.channel ? 'channel' : mentions.here ? 'here' : null;
   const prev = parseJson<string[]>(found.message.mentions, []);
+  await invalidateSummaries([id]);
   await getDb()
     .prepare('UPDATE talk_messages SET body = ?, mentions = ?, broadcast = ?, edited_at = ?, unfurls = ? WHERE id = ?')
     .run(text, JSON.stringify([...new Set([...mentions.users])]), broadcast, nowIso(), found.message.unfurls, id);

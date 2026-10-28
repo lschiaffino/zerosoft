@@ -17,6 +17,7 @@
  * hora (track_issue_reminders, claim por sent_at); el email sigue la
  * preferencia de la persona como cualquier otro aviso.
  */
+import { ownerSpaceSql } from './workspace';
 import { getDb } from './db';
 import { escapeHtml, renderBrandedHtml, sendEmail } from './email';
 import { createNotification } from './notifications';
@@ -392,7 +393,7 @@ export async function fireIssueReminders(opts: { now?: Date; limit?: number } = 
        JOIN track_projects p ON p.id = i.project_id
        WHERE r.sent_at IS NULL AND r.remind_at <= ?
          AND (
-           (p.team_id IS NULL AND p.owner_id = r.user_id)
+           (p.team_id IS NULL AND ${ownerSpaceSql('p.owner_id', 'r.user_id')})
            OR (p.team_id IS NOT NULL AND EXISTS (
              SELECT 1 FROM team_members m WHERE m.team_id = p.team_id AND m.user_id = r.user_id
            ))

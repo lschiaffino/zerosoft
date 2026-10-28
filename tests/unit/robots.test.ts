@@ -32,9 +32,9 @@ const session = vi.hoisted(() => ({ user: null as null | Record<string, unknown>
 vi.mock('@/lib/session', () => ({ getCurrentUser: async () => session.user }));
 
 const robotsRoute = await import('@/app/api/robots/route');
-const robotRoute = await import('@/app/api/robots/[id]/route');
-const runRoute = await import('@/app/api/robots/[id]/run/route');
-const runsRoute = await import('@/app/api/robots/[id]/runs/route');
+const robotRoute = await import('@/lib/routes/robots/[id]/route');
+const runRoute = await import('@/app/api/robots/run/[id]/route');
+const runsRoute = await import('@/lib/routes/robots/[id]/runs/route');
 
 beforeEach(() => {
   vi.stubEnv('RATE_LIMIT_DISABLED', 'true');
@@ -685,7 +685,7 @@ describe('robots API', () => {
     expect((await robotsRoute.POST(req('/api/robots', { method: 'POST', body: { name: 'x' } }))).status).toBe(403);
     expect((await robotRoute.PATCH(req(`/api/robots/${id}`, { method: 'PATCH', body: { name: 'y' } }), ctx(id))).status).toBe(403);
     expect((await robotRoute.DELETE(req(`/api/robots/${id}`, { method: 'DELETE' }), ctx(id))).status).toBe(403);
-    expect((await runRoute.POST(req(`/api/robots/${id}/run`, { method: 'POST', body: {} }), ctx(id))).status).toBe(403);
+    expect((await runRoute.POST(req(`/api/robots/run/${id}`, { method: 'POST', body: {} }), ctx(id))).status).toBe(403);
     expect((await runsRoute.GET(req(`/api/robots/${id}/runs`), ctx(id))).status).toBe(200);
   });
 
@@ -703,10 +703,10 @@ describe('robots API', () => {
     expect((await robotsRoute.POST(req('/api/robots', { method: 'POST', body: { name: 'x', template: 'nope' } }))).status).toBe(400);
 
     setRobotBackendForTests(null);
-    const unavailable = await runRoute.POST(req(`/api/robots/${robot.id}/run`, { method: 'POST', body: {} }), ctx(robot.id));
+    const unavailable = await runRoute.POST(req(`/api/robots/run/${robot.id}`, { method: 'POST', body: {} }), ctx(robot.id));
     expect(unavailable.status).toBe(503);
     setRobotBackendForTests(stubBackend());
-    const ran = await runRoute.POST(req(`/api/robots/${robot.id}/run`, { method: 'POST', body: { inputs: { url: 'https://example.com' } } }), ctx(robot.id));
+    const ran = await runRoute.POST(req(`/api/robots/run/${robot.id}`, { method: 'POST', body: { inputs: { url: 'https://example.com' } } }), ctx(robot.id));
     expect(ran.status).toBe(200);
     expect(await ran.json()).toMatchObject({ run: { status: 'success', input: { url: 'https://example.com' } } });
   });
@@ -720,7 +720,7 @@ describe('robots API', () => {
     expect((await robotRoute.PATCH(req(`/api/robots/${id}`, { method: 'PATCH', body: { name: 'x' } }), ctx(id))).status).toBe(404);
     expect((await robotRoute.DELETE(req(`/api/robots/${id}`, { method: 'DELETE' }), ctx(id))).status).toBe(404);
     setRobotBackendForTests(stubBackend());
-    expect((await runRoute.POST(req(`/api/robots/${id}/run`, { method: 'POST', body: {} }), ctx(id))).status).toBe(404);
+    expect((await runRoute.POST(req(`/api/robots/run/${id}`, { method: 'POST', body: {} }), ctx(id))).status).toBe(404);
     expect((await runsRoute.GET(req(`/api/robots/${id}/runs`), ctx(id))).status).toBe(404);
     expect(await listRobots(b.id)).toEqual([]);
     expect(await getRobot(a.id, id)).not.toBeNull();

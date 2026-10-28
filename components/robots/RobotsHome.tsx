@@ -1,16 +1,17 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFormatter, useNow, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { RobotListItem, RobotUsage } from '@/lib/robots';
-import { ROBOT_TEMPLATES } from '@/lib/robots-schema';
+import { ROBOT_TEMPLATES, TEMPLATE_CATEGORIES, type RobotStep, type RobotTemplateCategory } from '@/lib/robots-schema';
 import { presetUsesTime, schedulePreset, scheduleTime } from '@/lib/robots-editor';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import DataTable from '@/components/ui/DataTable';
 import { errorText, RunnerNote, StatusBadge, UsageMeter } from './robots-ui';
+import { AiBuilderDialog } from './RobotDialogs';
 import { parseDbUtc } from '@/lib/utils';
 
 interface Props {
@@ -29,8 +30,34 @@ export default function RobotsHome({ robots, usage, canEdit }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const autoCreated = useRef(false);
+  const importRef = useRef<HTMLInputElement>(null);
+  const [builderOpen, setBuilderOpen] = useState(false);
+  const [category, setCategory] = useState<'all' | RobotTemplateCategory>('all');
+  const [tq, setTq] = useState('');
+  const templates = useMemo(() => {
+    const q = tq.trim().toLowerCase();
+    return ROBOT_TEMPLATES.filter((tpl) => {
+      if (category !== 'all' && tpl.category !== category) return false;
+      if (!q) return true;
+      const text = `${t(`templates.items.${tpl.key}.name`)} ${t(`templates.items.${tpl.key}.desc`)} ${tpl.site ?? ''}`.toLowerCase();
+      return text.includes(q);
+    });
+  }, [category, tq, t]);
 
-  async function create(body: Record<string, unknown>, key: string) {
+  async function importFile(file: File) {
+    setError(null);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(await file.text());
+    } catch {
+      setError(t('errors.invalid_import'));
+      return;
+    }
+    const name = parsed && typeof parsed === 'object' && typeof (parsed as { name?: unknown }).name === 'string' ? (parsed as { name: string }).name : t('editor.untitled');
+    await create({ name: name.slice(0, 120) || t('editor.untitled'), import: parsed }, 'import');
+  }
+
+  async function create(body: Record<string, unknown>, key: string): Promise<boolean> {
     setBusy(key);
     setError(null);
     const res = await fetch('/api/robots', {
@@ -42,9 +69,10 @@ export default function RobotsHome({ robots, usage, canEdit }: Props) {
     if (!res?.ok || !data?.id) {
       setBusy(null);
       setError(errorText(t, data?.error));
-      return;
+      return false;
     }
     router.push(`/app/robots/${data.id}`);
+    return true;
   }
 
   // ?new=1 (sidebar / ⌘K): crea un robot vacío y abre el editor.
@@ -93,6 +121,28 @@ export default function RobotsHome({ robots, usage, canEdit }: Props) {
             <Link href="/app/robots/recorder" className="btn btn-ghost">
               {t('list.record')}
             </Link>
+            {canEdit && (
+              <>
+                <button type="button" className="btn btn-ghost" disabled={busy !== null} aria-busy={busy === 'import' || undefined} onClick={() => importRef.current?.click()}>
+                  {busy === 'import' ? t('list.importing') : t('list.import')}
+                </button>
+                <input
+                  ref={importRef}
+                  type="file"
+                  accept=".json,application/json"
+                  hidden
+                  aria-label={t('list.import')}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = '';
+                    if (f) void importFile(f);
+                  }}
+                />
+                <button type="button" className="btn btn-secondary" onClick={() => setBuilderOpen(true)}>
+                  {t('list.buildAi')}
+                </button>
+              </>
+            )}
             {/* Sin robots, la acción principal vive en el estado vacío: una sola. */}
             {robots.length > 0 && createButton}
           </>
@@ -101,6 +151,39 @@ export default function RobotsHome({ robots, usage, canEdit }: Props) {
 
       {/* Dónde corre vive en Avanzado; acá solo aparece si falta el runner. */}
       {usage.backend === 'none' ? <RunnerNote backend="none" /> : robots.length > 0 && <UsageMeter usage={usage} />}
+      {robots.length > 0 && usage.byRobot.length > 0 && (
+        <details className="robots-usage-detail">
+          <summary>{t('usage.byRobotTitle')}</summary>
+          <div className="table-wrap">
+            <table className="table table-compact">
+              <thead>
+                <tr>
+                  <th scope="col">{t('usage.byRobotName')}</th>
+                  <th scope="col" className="num">
+                    {t('usage.byRobotRuns')}
+                  </th>
+                  <th scope="col" className="num">
+                    {t('usage.byRobotMinutes')}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {usage.byRobot.map((u) => (
+                  <tr key={u.robotId}>
+                    <td>
+                      <Link href={`/app/robots/${u.robotId}`} className="cell-link">
+                        {u.name}
+                      </Link>
+                    </td>
+                    <td className="num">{u.runs}</td>
+                    <td className="num">{u.minutes}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      )}
 
       {!canEdit && <p className="robots-muted">{t('list.adminOnly')}</p>}
       {error && (
@@ -172,11 +255,30 @@ export default function RobotsHome({ robots, usage, canEdit }: Props) {
           </h2>
           <p className="robots-muted">{t('templates.subtitle')}</p>
         </div>
+        <div className="robots-data-bar">
+          <div className="btn-group" role="group" aria-label={t('templates.categoriesLabel')}>
+            {(['all', ...TEMPLATE_CATEGORIES] as const).map((c) => (
+              <button key={c} type="button" className="btn btn-sm" aria-pressed={category === c} onClick={() => setCategory(c)}>
+                {t(`templates.categories.${c}`)}
+              </button>
+            ))}
+          </div>
+          <input
+            className="input robots-data-search"
+            type="search"
+            value={tq}
+            placeholder={t('templates.search')}
+            aria-label={t('templates.search')}
+            onChange={(e) => setTq(e.target.value)}
+          />
+        </div>
+        {templates.length === 0 && <p className="robots-muted">{t('templates.searchEmpty', { q: tq })}</p>}
         <ul className="robots-templates">
-          {ROBOT_TEMPLATES.map((tpl) => (
+          {templates.map((tpl) => (
             <li className="robots-template" key={tpl.key}>
               <div className="robots-template-text">
                 <h3 className="robots-template-name">{t(`templates.items.${tpl.key}.name`)}</h3>
+                {tpl.site && <p className="robots-small data">{t('templates.site', { site: tpl.site })}</p>}
                 <p className="robots-muted">{t(`templates.items.${tpl.key}.desc`)}</p>
               </div>
               <ol className="robots-template-steps" aria-label={t('templates.stepsLabel', { count: tpl.steps.length })}>
@@ -199,6 +301,14 @@ export default function RobotsHome({ robots, usage, canEdit }: Props) {
           ))}
         </ul>
       </section>
+
+      {canEdit && (
+        <AiBuilderDialog
+          open={builderOpen}
+          onClose={() => setBuilderOpen(false)}
+          onCreate={(b: { name: string; description: string; steps: RobotStep[] }) => create({ name: b.name || t('editor.untitled'), description: b.description, steps: b.steps }, 'ai')}
+        />
+      )}
     </div>
   );
 }

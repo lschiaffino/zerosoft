@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
+import { workspaceTeamId } from '@/lib/workspace';
 import { sessionScope } from '@/lib/crm-visibility';
 import { getDb } from '@/lib/db';
 import {
@@ -155,8 +156,8 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
 
   const lifecycles = LIFECYCLE_STAGES.map((value) => ({ value, label: t(`enums.lifecycle.${value}`) }));
 
-  const teamMembers = user.team?.id
-    ? await listMembers(user.team.id)
+  const teamMembers = workspaceTeamId(user)
+    ? await listMembers(workspaceTeamId(user)!)
     : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
   const owners = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
 

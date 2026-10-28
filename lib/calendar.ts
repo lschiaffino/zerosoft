@@ -715,7 +715,7 @@ async function assertTeamAndHosts(
     const member = await db
       .prepare(
         `SELECT 1 AS one FROM team_members m JOIN teams t ON t.id = m.team_id
-         WHERE t.owner_id = ? AND m.user_id = ?`,
+         WHERE t.owner_id = ? AND m.user_id = ? AND m.role != 'guest'`,
       )
       .get(userId, hostId);
     if (!member) throw new CalendarError('invalid_input', 400);
@@ -1787,7 +1787,7 @@ export async function expirePendingBooking(id: string): Promise<boolean> {
  */
 export const HOST_STILL_MEMBER_SQL = `EXISTS (
   SELECT 1 FROM team_members m JOIN teams t ON t.id = m.team_id
-  WHERE t.owner_id = e.user_id AND m.user_id = b.host_user_id
+  WHERE t.owner_id = e.user_id AND m.user_id = b.host_user_id AND m.role != 'guest'
 )`;
 
 /**
@@ -1800,7 +1800,7 @@ export async function ownedBooking(userId: string, id: string): Promise<Calendar
       `SELECT b.* FROM calendar_bookings b JOIN calendar_event_types e ON e.id = b.event_type_id
        WHERE b.id = ? AND (e.user_id = ? OR (b.host_user_id = ? AND ${HOST_STILL_MEMBER_SQL})
          OR (EXISTS (SELECT 1 FROM json_each(b.co_host_ids) j WHERE j.value = ?) AND EXISTS (
-           SELECT 1 FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = e.user_id AND m.user_id = ?)))`,
+           SELECT 1 FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = e.user_id AND m.user_id = ? AND m.role != 'guest')))`,
     )
     .get(id, userId, userId, userId, userId)) as CalendarBookingRow | undefined;
   return row ?? null;

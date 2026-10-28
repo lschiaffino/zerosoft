@@ -22,7 +22,7 @@ import { getDb } from './db';
 import { appSender, escapeHtml, renderBrandedHtml, sendEmail } from './email';
 import { createNotification, type NotificationType } from './notifications';
 import { siteUrl } from './board-urls';
-import { talkPlainText } from './talk-markdown';
+import { HUDDLE_STARTED_BODY, talkPlainText } from './talk-markdown';
 import {
   afterPost,
   emitTalkEvent,
@@ -138,6 +138,9 @@ export async function notifyForMessage(actor: TalkActor, row: TalkMessageRow, ch
     ? new Set(((await db.prepare('SELECT user_id FROM talk_thread_follows WHERE message_id = ?').all(row.parent_id)) as Array<{ user_id: string }>).map((f) => f.user_id))
     : new Set<string>();
   const text = talkPlainText(row.body, names);
+  // El mensaje del huddle (marcador) se avisa en el idioma de cada persona.
+  const huddleText = (loc: string | null | undefined) => `🎧 ${(loc === 'es' ? es : loc === 'pt' ? pt : en).huddle.startedMessage}`;
+  const bodyFor = (uid: string) => (row.body === HUDDLE_STARTED_BODY ? huddleText(prefs.get(uid)?.locale) : text);
   const lower = text.toLowerCase();
   const mentioned = new Set(parseJson<string[]>(row.mentions, []));
   const isDm = channel.kind === 'dm' || channel.kind === 'group';
@@ -187,7 +190,7 @@ export async function notifyForMessage(actor: TalkActor, row: TalkMessageRow, ch
       userId: uid,
       type: TYPE[reason],
       title: where ? `${actorName} · ${where}` : actorName,
-      body: text.slice(0, 280),
+      body: bodyFor(uid).slice(0, 280),
       href,
       sourceType: 'talk_message',
       sourceId: row.id,
@@ -204,7 +207,7 @@ export async function notifyForMessage(actor: TalkActor, row: TalkMessageRow, ch
     }
     const push = p?.push ?? 'mentions';
     if (!inDnd && (push === 'all' || (push === 'mentions' && reason !== 'all'))) {
-      await talkPush(actor.workspaceId, uid, { title: where ? `${actorName} · ${where}` : actorName, body: text.slice(0, 200), href, messageId: row.id });
+      await talkPush(actor.workspaceId, uid, { title: where ? `${actorName} · ${where}` : actorName, body: bodyFor(uid).slice(0, 200), href, messageId: row.id });
     }
   }
   return recipients.size;

@@ -533,7 +533,9 @@ export default function ChannelPane({ channel, highlightId, onBack, initialTab, 
       {channel.archived ? (
         <div className="talk-banner">{t('channel.archivedBanner')}</div>
       ) : channel.deactivated ? (
-        <div className="talk-banner">{t('channel.deactivated', { name: title })}</div>
+        <div className="talk-banner">
+          {channel.memberIds.some((id) => ctx.people.get(id)?.formerGuest) ? t('channel.deactivatedGuest', { name: title }) : t('channel.deactivated', { name: title })}
+        </div>
       ) : isMember ? (
         <Composer
           key={channel.id}
@@ -562,9 +564,10 @@ export default function ChannelPane({ channel, highlightId, onBack, initialTab, 
 /** Encabezado de un DM: estado y presencia de la otra persona (no hay tema que agregar). */
 function DmStatus({ channel }: { channel: TalkChannelDto }) {
   const t = useTranslations('talk');
-  const { presence, boot } = useTalk();
+  const { presence, boot, people } = useTalk();
   const other = channel.memberIds[0] ?? boot.me;
-  if (channel.deactivated) return <span className="talk-head-topic is-static">{t('channel.deactivatedShort')}</span>;
+  if (channel.deactivated)
+    return <span className="talk-head-topic is-static">{people.get(other)?.formerGuest ? t('channel.deactivatedGuestShort') : t('channel.deactivatedShort')}</span>;
   const p = presence.get(other);
   const state = p?.away ? t('status.away') : p?.active ? t('status.active') : t('status.away');
   return (

@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
+import { workspaceTeamId } from '@/lib/workspace';
 import { getForm, listSubmissions } from '@/lib/crm-forms';
 import { listCustomFields, listLists, listPipelinesWithStages } from '@/lib/crm';
 import { captchaConfigured } from '@/lib/crm-forms';
@@ -48,8 +49,8 @@ export default async function FormDetailPage(props: {
       listSequences(user.id),
       listPipelinesWithStages(user.id),
     ]);
-    const members = user.team?.id
-      ? await listMembers(user.team.id)
+    const members = workspaceTeamId(user)
+      ? await listMembers(workspaceTeamId(user)!)
       : [{ user_id: user.id, email: user.email, name: user.name ?? null }];
     body = (
       <FormBuilder

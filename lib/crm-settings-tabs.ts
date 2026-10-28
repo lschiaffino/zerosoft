@@ -1,5 +1,9 @@
-/** Pestañas de Ajustes del CRM (?tab=). La primera es la de entrada. */
-export const CRM_SETTINGS_TABS = ['team', 'sales', 'data', 'automation', 'integrations', 'import'] as const;
+/**
+ * Pestañas de Ajustes del CRM (?tab=). La primera es la de entrada. Los
+ * miembros e invitaciones ya no viven acá: ?tab=team lleva a Ajustes ›
+ * Miembros (un solo lugar para todas las apps).
+ */
+export const CRM_SETTINGS_TABS = ['sales', 'data', 'access', 'automation', 'integrations', 'import'] as const;
 export type CrmSettingsTab = (typeof CRM_SETTINGS_TABS)[number];
 
 /**
@@ -9,13 +13,13 @@ export type CrmSettingsTab = (typeof CRM_SETTINGS_TABS)[number];
 export function crmSettingsTab(tab: string | undefined, gmailNotice?: string): CrmSettingsTab {
   if (tab && (CRM_SETTINGS_TABS as readonly string[]).includes(tab)) return tab as CrmSettingsTab;
   if (gmailNotice) return 'integrations';
-  return 'team';
+  return 'sales';
 }
 
 /** Anclas viejas (#quotas, #pipelines…) → pestaña nueva, para links guardados. */
 export const LEGACY_ANCHORS: Record<string, CrmSettingsTab> = {
-  team: 'team',
-  access: 'team',
+  team: 'access',
+  access: 'access',
   assignment: 'automation',
   scoring: 'automation',
   quotas: 'sales',

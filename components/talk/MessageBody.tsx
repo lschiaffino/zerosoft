@@ -1,11 +1,15 @@
 'use client';
 
 import { Fragment, useMemo, type ReactNode } from 'react';
-import { parseTalkMarkdown, type TalkInline } from '@/lib/talk-markdown';
+import { useTranslations } from 'next-intl';
+import { HUDDLE_STARTED_BODY, parseTalkMarkdown, type TalkInline } from '@/lib/talk-markdown';
 import { useTalk } from './talk-context';
 
 /** Pinta el texto de un mensaje (lib/talk-markdown.ts) con React: nunca HTML crudo. */
-export default function MessageBody({ body }: { body: string }) {
+export default function MessageBody({ body: raw }: { body: string }) {
+  const t = useTranslations('talk');
+  // El mensaje del huddle se guarda como marcador: cada persona lo lee en su idioma.
+  const body = raw === HUDDLE_STARTED_BODY ? `:headphones: ${t('huddle.startedMessage')}` : raw;
   const blocks = useMemo(() => parseTalkMarkdown(body), [body]);
   return (
     <div className="talk-body">

@@ -4,6 +4,7 @@
  * Nota: el módulo `lib/track.ts` ya existe para el tracking de clicks de
  * links, por lo que este feature vive en `lib/track-data.ts`.
  */
+import { ownerSpaceSql } from './workspace';
 import { teamKeyCandidates } from './track-team-key';
 import { after } from 'next/server';
 import { getDb, getClient, txDb, getUserById } from './db';
@@ -238,8 +239,8 @@ export async function canAccessTrackProject(
   teamId: string | null,
   ownerId: string,
 ): Promise<boolean> {
-  if (!teamId) return project.team_id === null && project.owner_id === ownerId;
-  if (project.team_id !== teamId) return false;
+  // Espacio del owner (team_id NULL): desde 128 lo comparte su equipo, así que también filtra privados e invitados.
+  if (!teamId ? !(project.team_id === null && project.owner_id === ownerId) : project.team_id !== teamId) return false;
   // Proyectos privados e invitados (lib/track-access): sin persona es el sistema.
   const viewer = await currentTrackViewer();
   if (!viewer || !project.id) return true;
@@ -255,11 +256,11 @@ async function projectScope(
   ownerId: string,
   alias = 'p',
 ): Promise<{ where: string; args: string[] }> {
-  if (!teamId) return { where: `(${alias}.team_id IS NULL AND ${alias}.owner_id = ?)`, args: [ownerId] };
   const viewer = await currentTrackViewer();
-  if (!viewer) return { where: `${alias}.team_id = ?`, args: [teamId] };
+  const base = teamId ? `${alias}.team_id = ?` : `(${alias}.team_id IS NULL AND ${alias}.owner_id = ?)`;
+  if (!viewer) return { where: base, args: [teamId ?? ownerId] };
   const v = trackVisibleSql(alias, viewer);
-  return { where: `(${alias}.team_id = ? AND ${v.sql})`, args: [teamId, ...v.args] };
+  return { where: `(${base} AND ${v.sql})`, args: [teamId ?? ownerId, ...v.args] };
 }
 
 /** Slug único globalmente: si está tomado, agrega un sufijo corto. */
@@ -1963,11 +1964,15 @@ export async function listProjectMembers(projectId: string, userId: string): Pro
       .all(projectId, project.team_id)) as ProjectMember[];
   }
 
-  const owner = (await db.prepare('SELECT id, email, name FROM users WHERE id = ?').get(userId)) as
-    | UserRow
-    | undefined;
-  if (!owner) return [];
-  return [{ id: owner.id, email: owner.email, name: owner.name, role: 'owner' }];
+  // Proyecto del espacio del owner: el owner y su equipo (ficha nueva), solo quienes lo ven.
+  return (await db
+    .prepare(
+      `SELECT u.id, u.email, u.name, CASE WHEN u.id = p.owner_id THEN 'owner' ELSE 'member' END AS role
+       FROM users u JOIN track_projects p ON p.id = ?
+       WHERE ${ownerSpaceSql('COALESCE(p.owner_id, ?)', 'u.id')} AND ${trackVisibleExpr('p', 'u.id')}
+       ORDER BY u.id = COALESCE(p.owner_id, ?) DESC, u.name ASC, u.email ASC`,
+    )
+    .all(projectId, userId, userId, userId)) as ProjectMember[];
 }
 
 /** Proyecto con lo necesario para crear/editar issues inline desde vistas cruzadas. */

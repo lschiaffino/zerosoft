@@ -16,7 +16,7 @@ import { generateText, type LanguageModel } from 'ai';
 import { AiError, assertAiAvailable, assertAiQuota, recordAiUsage, resolveAiModel } from './ai';
 import { fakeModel } from './crm-ai-fake';
 import { getDb } from './db';
-import { talkPlainText } from './talk-markdown';
+import { HUDDLE_STARTED_BODY, talkPlainText } from './talk-markdown';
 import {
   TalkError,
   getThread,
@@ -90,7 +90,7 @@ type Names = Awaited<ReturnType<typeof plainNames>>;
 function line(r: TalkMessageRow, names: Names): string {
   const who = r.bot_name || (r.user_id ? (names.user(r.user_id) ?? 'Someone') : 'App');
   const when = r.created_at.slice(11, 16);
-  const text = talkPlainText(r.body, names).replace(/\s+/g, ' ').trim();
+  const text = r.body === HUDDLE_STARTED_BODY ? '(started a huddle)' : talkPlainText(r.body, names).replace(/\s+/g, ' ').trim();
   return `[${when}] ${who}${r.parent_id ? ' (thread reply)' : ''}: ${text || '(file)'}`;
 }
 

@@ -160,7 +160,7 @@ export async function workspacePeople(ownerId: string): Promise<Array<{ id: stri
   return (await getDb()
     .prepare(
       `SELECT u.id, u.name, u.email FROM users u
-       WHERE u.id = ? OR u.id IN (SELECT m.user_id FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ?)
+       WHERE u.id = ? OR u.id IN (SELECT m.user_id FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ? AND m.role != 'guest')
        ORDER BY COALESCE(u.name, u.email) LIMIT 500`,
     )
     .all(ownerId, ownerId)) as Array<{ id: string; name: string | null; email: string }>;

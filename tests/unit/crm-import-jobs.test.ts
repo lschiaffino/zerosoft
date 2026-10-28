@@ -235,10 +235,10 @@ describe('Import por API: mapeo', () => {
 
   it('progreso y totales por grupo', () => {
     const totals = groupTotals({ companies: 10, contacts: 20, notes: 3, calls: null }, ['companies', 'contacts', 'notes', 'calls']);
-    expect(totals).toEqual({ companies: 10, contacts: 20, deals: 0, activities: null });
+    expect(totals).toEqual({ companies: 10, contacts: 20, deals: 0, activities: null, lists: 0 });
     const c = (total: number | null, processed: number) => ({ total, processed, created: 0, updated: 0, skipped: 0, failed: 0 });
-    expect(jobProgress({ companies: c(10, 5), contacts: c(10, 0), deals: c(0, 0), activities: c(0, 0) }, ['companies', 'contacts'])).toBe(0.25);
-    expect(jobProgress({ companies: c(null, 5), contacts: c(10, 0), deals: c(0, 0), activities: c(0, 0) }, ['companies'])).toBeNull();
+    expect(jobProgress({ companies: c(10, 5), contacts: c(10, 0), deals: c(0, 0), activities: c(0, 0), lists: c(0, 0) }, ['companies', 'contacts'])).toBe(0.25);
+    expect(jobProgress({ companies: c(null, 5), contacts: c(10, 0), deals: c(0, 0), activities: c(0, 0), lists: c(0, 0) }, ['companies'])).toBeNull();
   });
 });
 

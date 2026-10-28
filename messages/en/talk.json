@@ -58,7 +58,9 @@
     "notFound": "Channel not found",
     "notFoundBody": "It was deleted, it is private, or you don't have access.",
     "deactivated": "{name} is no longer in the workspace. You can read this conversation but not reply.",
-    "deactivatedShort": "Deactivated"
+    "deactivatedShort": "Deactivated",
+    "deactivatedGuest": "{name} was a guest and no longer has access. You can read this conversation but not reply.",
+    "deactivatedGuestShort": "Former guest"
   },
   "composer": {
     "formatting": "Formatting",
@@ -738,7 +740,18 @@
     "type_checkbox": "Checkbox",
     "optionsPh": "Options, separated by commas",
     "options": "Options",
-    "removeField": "Remove {name}"
+    "removeField": "Remove {name}",
+    "defaults": {
+      "status": "Status",
+      "owner": "Owner",
+      "due": "Due",
+      "notes": "Notes",
+      "todo": "To do",
+      "doing": "In progress",
+      "done": "Done",
+      "table": "Table",
+      "board": "Board"
+    }
   },
   "push": {
     "title": "Browser notifications",

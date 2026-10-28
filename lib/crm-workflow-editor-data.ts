@@ -5,6 +5,7 @@ import { listScores } from './crm-scoring';
 import { listFlows } from './flow';
 import { listMembers } from './teams';
 import type { SessionUser } from './session';
+import { workspaceTeamId } from './workspace';
 
 /** Todo lo que el editor de workflows necesita para sus selects, en paralelo. */
 export async function loadWorkflowEditorData(user: SessionUser) {
@@ -14,7 +15,7 @@ export async function loadWorkflowEditorData(user: SessionUser) {
     listForms(user.id),
     listFlows(user.id),
     listPipelinesWithStages(user.id),
-    user.team?.id ? listMembers(user.team.id) : Promise.resolve([{ user_id: user.id, email: user.email, name: user.name ?? null }]),
+    workspaceTeamId(user) ? listMembers(workspaceTeamId(user)!) : Promise.resolve([{ user_id: user.id, email: user.email, name: user.name ?? null }]),
     listScores(user.id),
   ]);
   return {

@@ -31,9 +31,7 @@ import {
   writableChannel,
   type TalkActor,
 } from './talk';
-import en from '@/messages/en/talk.json';
-import es from '@/messages/es/talk.json';
-import pt from '@/messages/pt/talk.json';
+import { HUDDLE_STARTED_BODY } from './talk-markdown';
 
 export const HUDDLE_MAX = 15;
 export const HUDDLE_STALE_MS = 45_000;
@@ -180,10 +178,6 @@ export async function listLiveHuddles(actor: TalkActor): Promise<Array<{ channel
   return rows.filter((r) => r.users).map((r) => ({ channelId: r.channel_id, huddleId: r.id, userIds: r.users!.split(',') }));
 }
 
-function huddleLocale(raw: string | null | undefined) {
-  return raw === 'es' ? es.huddle : raw === 'pt' ? pt.huddle : en.huddle;
-}
-
 /** Empieza el huddle del canal o se suma al que está en vivo. */
 export async function joinHuddle(actor: TalkActor, channelId: string, peerId: string): Promise<{ huddle: HuddleDto; iceServers: IceServer[]; turn: boolean }> {
   if (!validPeer(peerId)) throw new TalkError('invalid_input');
@@ -203,19 +197,20 @@ export async function joinHuddle(actor: TalkActor, channelId: string, peerId: st
     if (!h) throw new TalkError('server_error', 500);
   }
   const peers = await peersOf(h.id);
+  // El id de pestaña es de quien lo creó: nadie se hace pasar por otra pestaña.
+  if (peers.some((p) => p.peerId === peerId && p.userId !== actor.personId)) throw new TalkError('peer_taken', 409);
   if (!peers.some((p) => p.peerId === peerId) && new Set([...peers.map((p) => p.userId), actor.personId]).size > HUDDLE_MAX) throw new TalkError('huddle_full', 409);
   const now = nowIso();
   await db
     .prepare(
       `INSERT INTO talk_huddle_peers (huddle_id, peer_id, user_id, joined_at, seen_at) VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(huddle_id, peer_id) DO UPDATE SET seen_at = excluded.seen_at`,
+       ON CONFLICT(huddle_id, peer_id) DO UPDATE SET seen_at = excluded.seen_at WHERE talk_huddle_peers.user_id = excluded.user_id`,
     )
     .run(h.id, peerId, actor.personId, now, now);
   if (started) {
     // El mensaje del huddle en el canal: su hilo es el lugar para notas y links (como en Slack).
-    const loc = (await db.prepare('SELECT locale FROM talk_prefs WHERE workspace_id = ? AND user_id = ?').get(actor.workspaceId, actor.personId)) as { locale: string | null } | undefined;
     try {
-      const posted = await postMessage(actor, { channelId: channel.id, body: `:headphones: ${huddleLocale(loc?.locale).startedMessage}` });
+      const posted = await postMessage(actor, { channelId: channel.id, body: HUDDLE_STARTED_BODY });
       await db.prepare('UPDATE talk_huddles SET message_id = ? WHERE id = ?').run(posted.row.id, h.id);
       h = { ...h, message_id: posted.row.id };
       void afterPost(actor, posted).catch(() => undefined);

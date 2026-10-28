@@ -4,6 +4,8 @@ import { DEMO_MODE, requireUser } from '@/lib/session';
 import { formatDate } from '@/lib/utils';
 import FormSection from '@/components/ui/FormSection';
 import { settingsSectionMetadata } from '@/lib/settings-meta';
+import { getUserTimeZone } from '@/lib/user-tz';
+import ProfileForm from '@/components/settings/ProfileForm';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +22,9 @@ export default async function AccountSettingsPage(props: { params: Promise<{ loc
   const me = user.actingUser ?? user;
   const initial = (me.name ?? me.email).trim().charAt(0).toUpperCase() || 'Z';
 
+  const tz = me.time_zone ?? (await getUserTimeZone());
   return (
+    <>
     <FormSection
       title={t('title')}
       description={t('desc')}
@@ -51,10 +55,10 @@ export default async function AccountSettingsPage(props: { params: Promise<{ loc
               {DEMO_MODE && <span className="badge badge-ink st-inline-badge">{t('demoBadge')}</span>}
             </dd>
           </div>
-          {user.team && (
+          {(user.workspace ?? user.team) && (
             <div>
               <dt>{t('workspace')}</dt>
-              <dd>{user.team.name}</dd>
+              <dd>{(user.workspace ?? user.team)!.name}</dd>
             </div>
           )}
           <div>
@@ -64,5 +68,7 @@ export default async function AccountSettingsPage(props: { params: Promise<{ loc
         </dl>
       </div>
     </FormSection>
+    <ProfileForm name={me.name ?? ''} locale={me.locale ?? locale} timeZone={tz} />
+    </>
   );
 }

@@ -112,16 +112,20 @@ export async function loadTalkBootstrap(actor: TalkActor, opts: { locale?: strin
     cursor,
     unreadThreads: unreadThreadIds.length,
     unreadThreadIds,
-    formerPeople: await formerPeople(channels.flatMap((c) => c.inactiveIds)),
+    formerPeople: await formerPeople(actor.workspaceId, channels.flatMap((c) => c.inactiveIds)),
     counts: { drafts: Number(counts.drafts), scheduled: Number(counts.scheduled), later: Number(counts.later) },
   };
 }
 
-async function formerPeople(ids: string[]): Promise<TalkPerson[]> {
+async function formerPeople(workspaceId: string, ids: string[]): Promise<TalkPerson[]> {
   const unique = [...new Set(ids)].slice(0, 200);
   if (!unique.length) return [];
   const rows = (await getDb()
-    .prepare(`SELECT id, name, email, image FROM users WHERE id IN (${unique.map(() => '?').join(', ')})`)
-    .all(...unique)) as Array<{ id: string; name: string | null; email: string; image: string | null }>;
-  return rows.map((r) => ({ id: r.id, name: r.name?.trim() || r.email.split('@')[0], email: r.email, image: r.image }));
+    .prepare(
+      `SELECT u.id, u.name, u.email, u.image,
+         EXISTS (SELECT 1 FROM talk_guest_invites i WHERE i.workspace_id = ? AND i.accepted_user_id = u.id) AS was_guest
+       FROM users u WHERE u.id IN (${unique.map(() => '?').join(', ')})`,
+    )
+    .all(workspaceId, ...unique)) as Array<{ id: string; name: string | null; email: string; image: string | null; was_guest: number }>;
+  return rows.map((r) => ({ id: r.id, name: r.name?.trim() || r.email.split('@')[0], email: r.email, image: r.image, ...(Number(r.was_guest) ? { formerGuest: true } : {}) }));
 }

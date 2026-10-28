@@ -114,6 +114,7 @@ export async function createChatTeam(
     .prepare('INSERT INTO chat_teams (id, workspace_id, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)')
     .run(id, workspaceId, name, now, now);
   await setMembers(id, members);
+  await syncWorkspaceGroup(workspaceId, id);
   return (await getChatTeam(workspaceId, id))!;
 }
 
@@ -132,7 +133,14 @@ export async function updateChatTeam(
     await setMembers(id, cleanMembers(input.memberIds, agentIds));
     await getDb().prepare('UPDATE chat_teams SET updated_at = ? WHERE id = ?').run(nowIso(), id);
   }
+  await syncWorkspaceGroup(workspaceId, id);
   return getChatTeam(workspaceId, id);
+}
+
+/** El equipo es un subequipo del workspace: el directorio de Ajustes › Equipos y las demás apps se enteran. */
+async function syncWorkspaceGroup(workspaceId: string, id: string): Promise<void> {
+  const { syncGroupFromApp } = await import('./workspace-groups');
+  await syncGroupFromApp('chat', workspaceId, id);
 }
 
 /** Borra el equipo: sus conversaciones quedan sin equipo y las reglas que asignaban a él, sin destino de equipo. */
@@ -143,6 +151,7 @@ export async function deleteChatTeam(workspaceId: string, id: string): Promise<b
   await db.prepare('UPDATE chat_conversations SET team_id = NULL WHERE team_id = ?').run(id);
   await db.prepare('UPDATE chat_assignment_rules SET assign_team_id = NULL WHERE assign_team_id = ?').run(id);
   await db.prepare('DELETE FROM chat_views WHERE workspace_id = ? AND filters LIKE ?').run(workspaceId, `%"teamId":"${id}"%`);
+  await syncWorkspaceGroup(workspaceId, id);
   return true;
 }
 

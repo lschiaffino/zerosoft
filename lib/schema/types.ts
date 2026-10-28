@@ -8,6 +8,12 @@ export interface UserRow {
   handle?: string | null;
   active_team_id?: string | null;
   seeded_at?: string | null;
+  /** Terminó el onboarding (/app/welcome). Los usuarios de antes de 128 lo tienen = created_at. */
+  onboarded_at?: string | null;
+  /** JSON: { role, sourceTool, goals, entryApp, nameEdited } (lib/onboarding.ts). */
+  profile?: string | null;
+  locale?: string | null;
+  time_zone?: string | null;
   created_at: string;
 }
 
@@ -809,18 +815,33 @@ export interface CrmImportPresetRow {
   created_at: string;
 }
 
+/**
+ * Equipo / ficha del workspace (lib/workspace.ts). `keyed_by`: 'team' para los
+ * equipos de antes de 128 (Track y Chat guardan sus datos bajo el id del
+ * equipo), 'owner' para las fichas nuevas (todo bajo el id del owner).
+ */
 export interface TeamRow {
   id: string;
   name: string;
   owner_id: string;
   created_at: string;
+  keyed_by?: 'owner' | 'team' | string;
+  slug?: string | null;
+  logo_url?: string | null;
+  use_mode?: string | null;
+  size?: string | null;
+  settings?: string;
+  allowed_domains?: string;
+  updated_at?: string | null;
 }
 
 export interface TeamMemberRow {
   team_id: string;
   user_id: string;
-  role: 'owner' | 'member';
+  role: 'owner' | 'admin' | 'member' | 'guest';
   created_at: string;
+  apps?: string;
+  title?: string;
 }
 
 export interface TeamInviteRow {
@@ -828,11 +849,23 @@ export interface TeamInviteRow {
   team_id: string;
   email: string;
   token: string;
-  role: 'owner' | 'member';
+  role: 'owner' | 'admin' | 'member' | 'guest' | string;
   status: 'pending' | 'accepted' | 'revoked';
   invited_by: string;
   created_at: string;
   expires_at: string | null;
+  apps?: string;
+  group_ids?: string;
+  locale?: string;
+  send_count?: number;
+  last_sent_at?: string | null;
+  email_status?: string;
+  email_error?: string;
+  accepted_by?: string | null;
+  accepted_at?: string | null;
+  kind?: 'invite' | 'request' | string;
+  requested_by?: string | null;
+  any_email?: number;
 }
 
 // ---------- Docs ----------
@@ -1880,6 +1913,12 @@ export interface BoardRow {
   timer_ends_at?: string | null;
   timer_seconds?: number | null;
   timer_paused_left?: number | null;
+  /** Papelera: cuándo y quién la borró (null = viva). */
+  deleted_at?: string | null;
+  deleted_by?: string | null;
+  folder_id?: string | null;
+  /** Textos de la escena (texto, etiquetas, frames) para buscar adentro. */
+  search_text?: string;
   created_at: string;
   updated_at: string;
 }
@@ -2101,6 +2140,7 @@ export interface RobotRow {
   paused_at: string | null; // pausado solo por fallas seguidas
   alert_locale: string;
   retention_days: number; // 0 = ROBOTS_RUN_RETENTION_DAYS
+  settings?: string; // JSON RobotSettings (tabla acumulada, IA, envíos, país)
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -2130,6 +2170,26 @@ export interface RobotRunRow {
   batch_id?: string | null;
   /** La salida cambió contra la corrida exitosa anterior (1/0; NULL sin comparar). */
   changed?: number | null;
+  /** Con el acceso de quién se capturó (login o sesión guardada); NULL = datos públicos. */
+  captured_by?: string | null;
+  /** JSON RobotRunExports: IA, tabla acumulada, email y envíos de la corrida. */
+  exports?: string | null;
+}
+
+export interface RobotRowRow {
+  id: string;
+  robot_id: string;
+  user_id: string;
+  row_key: string;
+  data: string; // JSON de la fila
+  status: 'active' | 'removed';
+  first_run_id: string | null;
+  last_run_id: string | null;
+  first_seen_at: string;
+  last_seen_at: string;
+  changed_at: string | null;
+  removed_at: string | null;
+  captured_by: string | null;
 }
 
 // ---------- CRM: formularios, scoring, equipos, cuotas ----------

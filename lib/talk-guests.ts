@@ -19,6 +19,7 @@ import { appSender, escapeHtml, renderBrandedHtml, sendEmail } from './email';
 import { siteUrl } from './board-urls';
 import type { SessionUser } from './session';
 import { roleAtLeast } from './teams';
+import { personAppAccess } from './api-auth';
 import {
   TalkError,
   addMembers,
@@ -174,7 +175,8 @@ export async function inviteGuest(actor: TalkActor, input: { email: string; chan
   const existing = await getUserByEmail(email);
   if (existing) {
     const kind = await workspacePersonKind(actor.workspaceId, existing.id);
-    if (kind === 'member') throw new TalkError('already_member', 409);
+    // Ya es del team (aunque sin la app Talk): se le da la app desde Equipos, no se la invita.
+    if (kind === 'member' || (await personAppAccess(actor.workspaceId, existing.id))) throw new TalkError('already_member', 409);
     if (kind === 'guest') {
       await addMembers(channels[0].id, [existing.id]);
       for (const c of channels.slice(1)) await addMembers(c.id, [existing.id]);
@@ -253,7 +255,7 @@ export async function acceptGuestInvite(token: string, user: { id: string; email
   if (Date.parse(row.expires_at) < now.getTime()) return { ok: false, reason: 'expired' };
   if (user.email.trim().toLowerCase() !== row.email) return { ok: false, reason: 'email_mismatch' };
   const kind = await workspacePersonKind(row.workspace_id, user.id);
-  if (kind === 'member') return { ok: false, reason: 'already_member' };
+  if (kind === 'member' || (await personAppAccess(row.workspace_id, user.id))) return { ok: false, reason: 'already_member' };
   const claim = await db.prepare('UPDATE talk_guest_invites SET accepted_at = ?, accepted_user_id = ? WHERE id = ? AND accepted_at IS NULL').run(now.toISOString(), user.id, row.id);
   if (!claim.changes) return { ok: false, reason: 'invalid' };
   await db.prepare('INSERT OR IGNORE INTO talk_guests (workspace_id, user_id, invited_by, created_at) VALUES (?, ?, ?, ?)').run(row.workspace_id, user.id, row.invited_by, now.toISOString());

@@ -3,6 +3,7 @@ import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
+import { workspaceTeamId } from '@/lib/workspace';
 import { sessionScope } from '@/lib/crm-visibility';
 import {
   ACTIVITY_DATE_SORTS,
@@ -148,8 +149,8 @@ export default async function ContactsPage(props: ContactsPageProps) {
     label: c.name,
   }));
 
-  const teamMembers = user.team?.id
-    ? await listMembers(user.team.id)
+  const teamMembers = workspaceTeamId(user)
+    ? await listMembers(workspaceTeamId(user)!)
     : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
   const owners = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
 

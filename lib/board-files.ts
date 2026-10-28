@@ -149,10 +149,12 @@ export async function deleteOrphanUploads(urls: string[]): Promise<void> {
  */
 export async function canReadBoardFiles(boardId: string, workspaceId: string | null, token: string | null): Promise<boolean> {
   const row = (await getDb()
-    .prepare('SELECT workspace_id, share_token, edit_token FROM boards WHERE id = ?')
-    .get(boardId)) as { workspace_id: string; share_token: string | null; edit_token: string | null } | undefined;
+    .prepare('SELECT workspace_id, share_token, edit_token, deleted_at FROM boards WHERE id = ?')
+    .get(boardId)) as { workspace_id: string; share_token: string | null; edit_token: string | null; deleted_at: string | null } | undefined;
   if (!row) return false;
   if (workspaceId && row.workspace_id === workspaceId) return true;
+  // En la papelera los links no sirven (ni para las imágenes).
+  if (row.deleted_at) return false;
   // Link público de solo lectura o link de invitado con edición.
   return Boolean(token && ((row.share_token && token === row.share_token) || (row.edit_token && token === row.edit_token)));
 }

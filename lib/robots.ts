@@ -13,15 +13,24 @@ import { after } from 'next/server';
 import { getDb, type RobotRow, type RobotRunRow, type RobotRunStatus, type RobotRunTrigger } from './db';
 import { emitEvent } from './events';
 import { computeNextRun, sameJson } from './flow';
-import { referencedCredentialNames, resolveCredential, secretValues } from './flow-credentials';
+import { expandedSecrets, referencedCredentialNames, resolveCredential, secretValues } from './flow-credentials';
 import { redact } from './flow-credentials-schema';
 import { rateLimit } from './rate-limit';
 import { getRobotBackend, robotBackendName, type RobotBackendName } from './robots-runner';
 import { open, seal } from './secret-box';
 import { recordRobotOutcome } from './robots-alerts';
-import { diffRobotOutputs } from './robots-diff';
+import { diffRobotOutputs, stableJson } from './robots-diff';
+import { geoOptions } from './robots-geo';
+import { mergeDataset, rowsOf, toRowObject, type DatasetMergeResult } from './robots-dataset';
+import type { DestinationResult } from './robots-destinations';
 import {
   DEFAULT_PAUSE_AFTER,
+  MAX_AI_COLUMN_ROWS,
+  datasetVariable,
+  parseRobotSettings,
+  robotExportSchema,
+  robotSettingsSchema,
+  type RobotSettings,
   DEFAULT_TIMEOUT_SEC,
   MAX_BULK_INPUTS,
   MAX_PAUSE_AFTER,
@@ -60,6 +69,8 @@ export interface RobotDto {
   pausedAt: string | null;
   /** Días que se guardan las corridas (0 = default del servidor). */
   retentionDays: number;
+  /** Tabla acumulada, columnas con IA, email de cambios, envíos y país. */
+  settings: RobotSettings;
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
@@ -100,10 +111,64 @@ export interface RobotRunDto {
   batchId: string | null;
   /** La salida cambió contra la corrida exitosa anterior (null: no se comparó). */
   changed: boolean | null;
+  /** La corrida usó un login o una sesión guardada: sus datos son de quien armó el robot. */
+  capturedBy: string | null;
+  /** Quien mira no puede ver los datos (corrida con login de otra persona). */
+  dataHidden?: boolean;
+  /** IA, tabla acumulada, email de cambios, envíos y autorreparación de la corrida. */
+  exports: RobotRunExports;
   createdAt: string;
   startedAt: string | null;
   finishedAt: string | null;
   durationMs: number | null;
+}
+
+export interface RobotRunExports {
+  /** Pasos que usaron un selector alternativo. */
+  healed?: Array<{ step: string; from: string; to: string }>;
+  ai?: { errors: Array<{ variable: string; error: string }> };
+  dataset?: Omit<DatasetMergeResult, 'fresh'>;
+  email?: { sent: number };
+  destinations?: DestinationResult[];
+  geo?: { country: string; proxy: boolean };
+}
+
+/** Quién mira las corridas y la tabla (los datos capturados con un login no son para todo el workspace). */
+export interface RobotViewer {
+  /** Persona real. */
+  personId: string;
+  /** Owner o admin del workspace (puede correr el robot con ese login). */
+  admin: boolean;
+}
+
+/**
+ * ¿Puede ver los datos de la corrida? Las corridas sin login ni sesión
+ * guardada traen datos públicos: todo el workspace. Las que usaron un login
+ * (captured_by): quien armó el robot y los admins, que igual pueden correrlo
+ * con ese login. Sin viewer (Flow, API, sistema): sí.
+ */
+export function canSeeRobotData(viewer: RobotViewer | undefined, run: { captured_by?: string | null }): boolean {
+  if (!viewer || !run.captured_by) return true;
+  return viewer.admin || run.captured_by === viewer.personId;
+}
+
+function redactRunDto(run: RobotRunDto): RobotRunDto {
+  return {
+    ...run,
+    output: {},
+    logs: run.logs.map((l) => ({ ...l, detail: undefined })),
+    screenshots: [],
+    failure: run.failure ? { step: run.failure.step, type: run.failure.type, error: run.failure.error, url: '', screenshot: null } : null,
+    exports: { ...run.exports, healed: undefined },
+    dataHidden: true,
+  };
+}
+
+export interface RobotUsageByRobot {
+  robotId: string;
+  name: string;
+  runs: number;
+  minutes: number;
 }
 
 export interface RobotUsage {
@@ -116,6 +181,12 @@ export interface RobotUsage {
   backend: RobotBackendName;
   /** Días que se guardan las corridas por defecto (los robots pueden elegir otro). */
   runRetentionDays: number;
+  /** Corridas y minutos del mes por robot (más usados primero). */
+  byRobot: RobotUsageByRobot[];
+  /** Hay un proveedor de proxies configurado (país con IP del país). */
+  proxies: boolean;
+  /** Tope diario de emails de cambios por robot. */
+  changeEmailsPerDay: number;
 }
 
 function nowIso(): string {
@@ -151,6 +222,7 @@ export function toRobotDto(row: RobotRow, hasSession = false): RobotDto {
     consecutiveFailures: Number(row.consecutive_failures ?? 0),
     pausedAt: row.paused_at ?? null,
     retentionDays: Number(row.retention_days ?? 0),
+    settings: parseRobotSettings(parseJson<unknown>(row.settings, {})),
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -173,6 +245,8 @@ export function toRunDto(row: RobotRunRow): RobotRunDto {
     backend: row.backend,
     batchId: row.batch_id ?? null,
     changed: row.changed === null || row.changed === undefined ? null : row.changed === 1,
+    capturedBy: row.captured_by ?? null,
+    exports: parseJson<RobotRunExports>(row.exports, {}),
     createdAt: row.created_at,
     startedAt: row.started_at,
     finishedAt: row.finished_at,
@@ -278,8 +352,8 @@ export async function listRobots(workspaceId: string): Promise<RobotListItem[]> 
 }
 
 export type RobotWriteResult =
-  | { ok: true; robot: RobotDto }
-  | { ok: false; error: RobotErrorCode | 'not_found' | 'unknown_template'; index?: number };
+  | { ok: true; robot: RobotDto; /** Destinatarios del email de cambios que no son del workspace (se descartaron). */ droppedRecipients?: string[] }
+  | { ok: false; error: RobotErrorCode | 'not_found' | 'unknown_template' | 'invalid_settings' | 'invalid_import'; index?: number };
 
 function nextRun(schedule: RobotSchedule, enabled: boolean, from = new Date()): string | null {
   if (!schedule || !enabled) return null;
@@ -289,17 +363,59 @@ function nextRun(schedule: RobotSchedule, enabled: boolean, from = new Date()): 
 export async function createRobot(
   workspaceId: string,
   actorId: string,
-  input: { name: string; description?: string; template?: string },
+  input: { name: string; description?: string; template?: string; steps?: unknown; inputs?: unknown; import?: unknown },
 ): Promise<RobotWriteResult> {
   let steps: RobotStep[] = [{ type: 'goto', url: 'https://example.com' }];
   let inputs: RobotInputDef[] = [];
   let schedule: RobotSchedule = null;
+  let settings: RobotSettings = {};
+  let timeoutSec = DEFAULT_TIMEOUT_SEC;
+  let name = input.name.trim();
+  let description = input.description ?? '';
   if (input.template) {
     const tpl = ROBOT_TEMPLATES.find((t) => t.key === input.template);
     if (!tpl) return { ok: false, error: 'unknown_template' };
     steps = JSON.parse(JSON.stringify(tpl.steps)) as RobotStep[];
     inputs = JSON.parse(JSON.stringify(tpl.inputs)) as RobotInputDef[];
     schedule = tpl.schedule;
+    settings = tpl.settings ? (JSON.parse(JSON.stringify(tpl.settings)) as RobotSettings) : {};
+  } else if (input.import !== undefined) {
+    // Robot exportado: se valida todo como si se guardara desde el editor.
+    const file = robotExportSchema.safeParse(input.import);
+    if (!file.success) return { ok: false, error: 'invalid_import' };
+    const v = validateSteps(file.data.steps);
+    if (!v.ok) return v;
+    const iv = validateInputDefs(file.data.inputs ?? []);
+    if (!iv.ok) return iv;
+    const st = robotSettingsSchema.safeParse(file.data.settings ?? {});
+    if (!st.success) return { ok: false, error: 'invalid_settings' };
+    steps = v.steps;
+    inputs = iv.inputs;
+    schedule = file.data.schedule ?? null;
+    // Los envíos apuntan a credenciales de otro workspace: se importan apagados.
+    // Los destinatarios del email de cambios pueden ser de otro workspace: se
+    // vacían (el email, si queda prendido, va a quien importa el robot).
+    settings = {
+      ...st.data,
+      destinations: (st.data.destinations ?? []).map((d) => ({ ...d, enabled: false })),
+      ...(st.data.changeEmail ? { changeEmail: { enabled: st.data.changeEmail.enabled, to: [] } } : {}),
+    };
+    timeoutSec = Math.min(Math.max(file.data.timeoutSec ?? DEFAULT_TIMEOUT_SEC, 10), MAX_TIMEOUT_SEC);
+    name = name || file.data.name;
+    description = description || file.data.description;
+  } else if (input.steps !== undefined) {
+    const v = validateSteps(input.steps);
+    if (!v.ok) return v;
+    steps = v.steps;
+    // Robot armado con IA: la tabla acumulada usa el link de cada fila como clave (si hay).
+    const list = steps.find((s) => s.type === 'extract_list');
+    const link = list?.type === 'extract_list' ? list.fields.find((f) => f.attribute === 'href') : undefined;
+    if (list?.type === 'extract_list' && link) settings = { dataset: { enabled: true, variable: list.name, keyFields: [link.name] } };
+    if (input.inputs !== undefined) {
+      const iv = validateInputDefs(input.inputs);
+      if (!iv.ok) return iv;
+      inputs = iv.inputs;
+    }
   }
   const id = crypto.randomUUID();
   const ts = nowIso();
@@ -309,19 +425,20 @@ export async function createRobot(
   await getDb()
     .prepare(
       `INSERT INTO robots (id, user_id, name, description, steps, inputs, enabled, schedule, next_run_at, timeout_sec,
-         created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)`,
+         settings, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
       workspaceId,
-      input.name.trim(),
-      input.description ?? '',
+      name,
+      description,
       JSON.stringify(steps),
       JSON.stringify(inputs),
       enabled,
       schedule ? JSON.stringify(schedule) : null,
-      DEFAULT_TIMEOUT_SEC,
+      timeoutSec,
+      JSON.stringify(settings),
       actorId,
       ts,
       ts,
@@ -344,12 +461,28 @@ export async function updateRobot(
     failureAlerts?: boolean;
     pauseAfter?: number;
     retentionDays?: number;
+    settings?: unknown;
     /** Idioma de los emails de aviso (el de quien guarda). */
     locale?: string;
   },
 ): Promise<RobotWriteResult> {
   const row = await getRobotRow(workspaceId, id);
   if (!row) return { ok: false, error: 'not_found' };
+  let settings = row.settings ?? '{}';
+  let droppedRecipients: string[] = [];
+  if (patch.settings !== undefined) {
+    const v = robotSettingsSchema.safeParse(patch.settings);
+    if (!v.success) return { ok: false, error: 'invalid_settings' };
+    // El email de cambios solo va a personas del workspace: las demás direcciones se descartan al guardar.
+    const to = v.data.changeEmail?.to ?? [];
+    if (to.length) {
+      const { workspaceMemberEmails } = await import('./robots-alerts');
+      const members = await workspaceMemberEmails(workspaceId);
+      droppedRecipients = to.filter((a) => !members.has(a.toLowerCase()));
+      if (droppedRecipients.length && v.data.changeEmail) v.data.changeEmail.to = to.filter((a) => members.has(a.toLowerCase()));
+    }
+    settings = JSON.stringify(v.data);
+  }
   let steps = row.steps;
   if (patch.steps !== undefined) {
     const v = validateSteps(patch.steps);
@@ -379,7 +512,7 @@ export async function updateRobot(
     .prepare(
       `UPDATE robots SET name = ?, description = ?, steps = ?, inputs = ?, enabled = ?, schedule = ?, next_run_at = ?,
          timeout_sec = ?, persist_session = ?, failure_alerts = ?, pause_after = ?, retention_days = ?, alert_locale = ?,
-         consecutive_failures = ?, paused_at = ?, updated_at = ? WHERE id = ? AND user_id = ?`,
+         consecutive_failures = ?, paused_at = ?, settings = ?, updated_at = ? WHERE id = ? AND user_id = ?`,
     )
     .run(
       patch.name?.trim() || row.name,
@@ -397,13 +530,14 @@ export async function updateRobot(
       locale,
       resumed ? 0 : Number(row.consecutive_failures ?? 0),
       resumed ? null : row.paused_at,
+      settings,
       nowIso(),
       id,
       workspaceId,
     );
   // Apagar "guardar sesión" borra la sesión guardada.
   if (patch.persistSession === false) await clearRobotSession(workspaceId, id);
-  return { ok: true, robot: (await getRobot(workspaceId, id))! };
+  return { ok: true, robot: (await getRobot(workspaceId, id))!, ...(droppedRecipients.length ? { droppedRecipients } : {}) };
 }
 
 export async function deleteRobot(workspaceId: string, id: string): Promise<boolean> {
@@ -413,18 +547,19 @@ export async function deleteRobot(workspaceId: string, id: string): Promise<bool
 
 // ---------- Corridas ----------
 
-export async function listRobotRuns(workspaceId: string, robotId: string, limit = 30): Promise<RobotRunDto[]> {
+export async function listRobotRuns(workspaceId: string, robotId: string, limit = 30, viewer?: RobotViewer): Promise<RobotRunDto[]> {
   const rows = (await getDb()
     .prepare('SELECT * FROM robot_runs WHERE robot_id = ? AND user_id = ? ORDER BY created_at DESC LIMIT ?')
     .all(robotId, workspaceId, Math.min(Math.max(limit, 1), 100))) as RobotRunRow[];
-  return rows.map(toRunDto);
+  return rows.map((r) => (canSeeRobotData(viewer, r) ? toRunDto(r) : redactRunDto(toRunDto(r))));
 }
 
-export async function getRobotRun(workspaceId: string, runId: string): Promise<RobotRunDto | null> {
+export async function getRobotRun(workspaceId: string, runId: string, viewer?: RobotViewer): Promise<RobotRunDto | null> {
   const row = (await getDb().prepare('SELECT * FROM robot_runs WHERE id = ? AND user_id = ?').get(runId, workspaceId)) as
     | RobotRunRow
     | undefined;
-  return row ? toRunDto(row) : null;
+  if (!row) return null;
+  return canSeeRobotData(viewer, row) ? toRunDto(row) : redactRunDto(toRunDto(row));
 }
 
 export async function getUsage(workspaceId: string): Promise<RobotUsage> {
@@ -440,7 +575,29 @@ export async function getUsage(workspaceId: string): Promise<RobotUsage> {
     runsPerHour: runsPerHour(),
     backend: robotBackendName(),
     runRetentionDays: defaultRetentionDays(),
+    byRobot: await usageByRobot(workspaceId),
+    proxies: !!(process.env.ROBOTS_PROXY_URL ?? '').trim(),
+    changeEmailsPerDay: envInt('ROBOTS_CHANGE_EMAILS_PER_DAY', 24),
   };
+}
+
+/** Corridas y minutos del mes por robot (de las corridas guardadas: las ya borradas por la retención no cuentan). */
+export async function usageByRobot(workspaceId: string, now = new Date()): Promise<RobotUsageByRobot[]> {
+  const since = `${currentMonth(now)}-01T00:00:00.000Z`;
+  const rows = (await getDb()
+    .prepare(
+      `SELECT r.robot_id, b.name, COUNT(*) AS runs, COALESCE(SUM(r.duration_ms), 0) AS ms
+       FROM robot_runs r JOIN robots b ON b.id = r.robot_id
+       WHERE r.user_id = ? AND r.created_at >= ? AND r.status IN ('success', 'failed')
+       GROUP BY r.robot_id, b.name ORDER BY ms DESC, runs DESC LIMIT 50`,
+    )
+    .all(workspaceId, since)) as Array<{ robot_id: string; name: string; runs: number; ms: number }>;
+  return rows.map((r) => ({
+    robotId: r.robot_id,
+    name: r.name,
+    runs: Number(r.runs) || 0,
+    minutes: Math.round((Number(r.ms) / 60_000) * 10) / 10,
+  }));
 }
 
 async function usedMs(workspaceId: string): Promise<number> {
@@ -450,13 +607,15 @@ async function usedMs(workspaceId: string): Promise<number> {
   return Number(row?.ms ?? 0);
 }
 
-async function meter(workspaceId: string, ms: number): Promise<void> {
+/** Suma minutos (y una corrida, salvo las lecturas de página del constructor). */
+async function meter(workspaceId: string, ms: number, countRun = true): Promise<void> {
+  const runs = countRun ? 1 : 0;
   await getDb()
     .prepare(
-      `INSERT INTO robot_usage (user_id, month, runs, ms) VALUES (?, ?, 1, ?)
-       ON CONFLICT (user_id, month) DO UPDATE SET runs = runs + 1, ms = ms + excluded.ms`,
+      `INSERT INTO robot_usage (user_id, month, runs, ms) VALUES (?, ?, ?, ?)
+       ON CONFLICT (user_id, month) DO UPDATE SET runs = runs + excluded.runs, ms = ms + excluded.ms`,
     )
-    .run(workspaceId, currentMonth(), Math.max(0, Math.round(ms)));
+    .run(workspaceId, currentMonth(), runs, Math.max(0, Math.round(ms)));
 }
 
 /** Corridas colgadas (proceso caído a mitad): se marcan como fallidas. */
@@ -610,10 +769,50 @@ async function claimQueuedRun(workspaceId: string, runId: string, timeoutMs: num
       `UPDATE robot_runs SET status = 'running', started_at = ?, locked_until = ?, backend = ?
        WHERE id = ? AND status = 'queued'
          AND NOT EXISTS (SELECT 1 FROM robot_runs WHERE user_id = ? AND status = 'running')
+         AND NOT EXISTS (SELECT 1 FROM robot_runtime WHERE key = ? AND value > ?)
          AND id = (SELECT id FROM robot_runs WHERE user_id = ? AND status = 'queued' ORDER BY created_at, rowid LIMIT 1)`,
     )
-    .run(ts, lock, backend, runId, workspaceId, workspaceId);
+    .run(ts, lock, backend, runId, workspaceId, snapshotLockKey(workspaceId), ts, workspaceId);
   return res.changes === 1;
+}
+
+// ---------- Cupo de navegador compartido (corridas + lecturas del constructor) ----------
+
+/** Clave del candado de la lectura de página del constructor con IA (robot_runtime). */
+function snapshotLockKey(workspaceId: string): string {
+  return `snapshot_lock:${workspaceId}`;
+}
+
+/**
+ * Toma el cupo de navegador del workspace para una lectura de página: una a la
+ * vez, y nunca junto a una corrida (las corridas, a su vez, no arrancan
+ * mientras haya una lectura: claimQueuedRun). El valor es "vence|token":
+ * compare-and-set con vencimiento, así una función que se cae no lo deja tomado.
+ * Devuelve el token para soltarlo, o null si está ocupado.
+ */
+async function acquireSnapshotLock(workspaceId: string, ttlMs: number): Promise<string | null> {
+  const db = getDb();
+  const now = nowIso();
+  const value = `${new Date(Date.now() + ttlMs).toISOString()}|${crypto.randomUUID()}`;
+  const res = await db
+    .prepare(
+      `INSERT INTO robot_runtime (key, value, updated_at) VALUES (?, ?, ?)
+       ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at WHERE robot_runtime.value < ?`,
+    )
+    .run(snapshotLockKey(workspaceId), value, now, now);
+  if (res.changes !== 1) return null;
+  const live = (await db
+    .prepare("SELECT 1 AS x FROM robot_runs WHERE user_id = ? AND status = 'running' LIMIT 1")
+    .get(workspaceId)) as { x: number } | undefined;
+  if (live) {
+    await releaseSnapshotLock(workspaceId, value);
+    return null;
+  }
+  return value;
+}
+
+async function releaseSnapshotLock(workspaceId: string, token: string): Promise<void> {
+  await getDb().prepare('DELETE FROM robot_runtime WHERE key = ? AND value = ?').run(snapshotLockKey(workspaceId), token);
 }
 
 /** Cierra una corrida (en cola o recién reclamada) como fallida y avisa a Flow. */
@@ -781,6 +980,15 @@ async function executeClaimedRun(
   const robot = toRobotDto(row);
   const t0 = Date.now();
   const persist = row.persist_session === 1;
+  const settings = robot.settings;
+  const geo = geoOptions(settings.country);
+  const session = persist ? await loadSession(workspaceId, robot.id) : undefined;
+  // Con un login o una sesión guardada, los datos son de quien armó el robot (captured_by).
+  const authenticated = Object.keys(creds.credentials).length > 0 || session !== undefined;
+  const capturedBy = authenticated ? (row.created_by ?? workspaceId) : null;
+  // Los secretos se redactan también en sus formas codificadas (URL, form, base64, HTML):
+  // una página podría devolverlos en un query string o en un atributo.
+  const secrets = expandedSecrets([...creds.secrets, ...(geo.proxy?.password ? [geo.proxy.password] : [])]);
   let result: Awaited<ReturnType<typeof backend.run>>;
   try {
     result = await backend.run({
@@ -789,8 +997,9 @@ async function executeClaimedRun(
       inputs,
       timeoutMs,
       credentials: creds.credentials,
-      storageState: persist ? await loadSession(workspaceId, robot.id) : undefined,
+      storageState: session,
       saveSession: persist,
+      ...geo,
     });
   } catch (err) {
     result = {
@@ -807,26 +1016,77 @@ async function executeClaimedRun(
   const vars: Record<string, unknown> = { ...(result.vars ?? {}) };
   if (Array.isArray(result.files) && result.files.length) await storeFiles(result.files, vars);
   // Credenciales: nunca quedan en logs, variables, errores ni nombres de capturas.
-  if (creds.secrets.length) {
+  if (secrets.length) {
     result = {
       ...result,
-      error: result.error ? redact(result.error, creds.secrets) : result.error,
-      logs: redact(result.logs ?? [], creds.secrets),
-      screenshots: (result.screenshots ?? []).map((s) => ({ ...s, name: redact(s.name, creds.secrets) })),
+      error: result.error ? redact(result.error, secrets) : result.error,
+      logs: redact(result.logs ?? [], secrets),
+      screenshots: (result.screenshots ?? []).map((s) => ({ ...s, name: redact(s.name, secrets) })),
     };
-    Object.assign(vars, redact(vars, creds.secrets));
+    Object.assign(vars, redact(vars, secrets));
+  }
+  const status: RobotRunStatus = result.status === 'success' ? 'success' : 'failed';
+  let warnings = Math.max(0, Math.floor(Number(result.warnings) || 0));
+  const exports: RobotRunExports = {};
+  if (Array.isArray(result.healed) && result.healed.length) exports.healed = result.healed.slice(0, 50);
+  if (settings.country || geo.proxy) exports.geo = { country: settings.country ?? '', proxy: !!geo.proxy };
+  // IA: pasos ai_extract (texto de la página → filas) y columnas calculadas.
+  const aiErrors = await resolveAiExtracts(workspaceId, vars, status === 'success');
+  if (status === 'success' && settings.aiColumns?.length) aiErrors.push(...(await applyAiColumns(workspaceId, robot.id, settings, vars)));
+  if (aiErrors.length) {
+    exports.ai = { errors: aiErrors };
+    warnings += aiErrors.length;
   }
   const shots = await storeScreenshots(Array.isArray(result.screenshots) ? result.screenshots : []);
   let output = JSON.stringify(vars);
-  if (output.length > 200_000) output = JSON.stringify({ truncated: true, preview: output.slice(0, 2000) });
-  const status: RobotRunStatus = result.status === 'success' ? 'success' : 'failed';
-  const failure = status === 'failed' ? await storeFailure(result.failure, creds.secrets) : null;
-  const warnings = Math.max(0, Math.floor(Number(result.warnings) || 0));
+  const truncated = output.length > 200_000;
+  if (truncated) output = JSON.stringify({ truncated: true, preview: output.slice(0, 2000) });
+  const failure = status === 'failed' ? await storeFailure(result.failure, secrets) : null;
   const change = status === 'success' ? await compareWithPrevious(workspaceId, robot.id, id, output) : null;
+  // Tabla acumulada: las filas de la lista del robot se juntan con las de corridas anteriores.
+  const dsVar = datasetVariable(robot.steps, settings);
+  let dataset: DatasetMergeResult | null = null;
+  if (status === 'success' && dsVar && Array.isArray(vars[dsVar])) {
+    const runInput = (await getDb().prepare('SELECT input FROM robot_runs WHERE id = ?').get(id)) as { input: string } | undefined;
+    dataset = await mergeDataset({
+      workspaceId,
+      robotId: robot.id,
+      runId: id,
+      variable: dsVar,
+      rows: rowsOf(vars[dsVar]),
+      keyFields: settings.dataset?.keyFields ?? [],
+      capturedBy,
+      input: runInput?.input ?? '{}',
+    }).catch(() => null);
+    if (dataset) {
+      const { fresh, ...summary } = dataset;
+      void fresh;
+      exports.dataset = summary;
+    }
+  }
+  if (change?.diff.changed && settings.changeEmail?.enabled) {
+    const { sendChangeEmail } = await import('./robots-alerts');
+    exports.email = { sent: await sendChangeEmail(row, change.diff.changes, settings.changeEmail.to ?? []) };
+  }
+  if (status === 'success' && settings.destinations?.some((d) => d.enabled !== false)) {
+    const { runDestinations } = await import('./robots-destinations');
+    exports.destinations = (
+      await runDestinations({
+        workspaceId,
+        robot: row,
+        destinations: settings.destinations,
+        vars,
+        datasetVariable: dsVar,
+        dataset,
+        secrets,
+      }).catch(() => [])
+    ).map((d) => (d.error ? { ...d, error: redact(d.error, secrets) } : d));
+    warnings += exports.destinations.filter((d) => !d.ok).length;
+  }
   await getDb()
     .prepare(
       `UPDATE robot_runs SET status = ?, output = ?, error = ?, logs = ?, screenshots = ?, warnings = ?, failure = ?,
-         changed = ?, locked_until = NULL, finished_at = ?, duration_ms = ? WHERE id = ?`,
+         changed = ?, captured_by = ?, exports = ?, locked_until = NULL, finished_at = ?, duration_ms = ? WHERE id = ?`,
     )
     .run(
       status,
@@ -837,6 +1097,8 @@ async function executeClaimedRun(
       warnings,
       failure ? JSON.stringify(failure) : null,
       change ? (change.diff.changed ? 1 : 0) : null,
+      capturedBy,
+      JSON.stringify(exports),
       nowIso(),
       duration,
       id,
@@ -860,6 +1122,90 @@ async function executeClaimedRun(
   await recordRobotOutcome(workspaceId, robot.id, { id: run.id, trigger: run.trigger, status, error: run.error });
   kickRobotQueue(workspaceId);
   return run;
+}
+
+/**
+ * Pasos ai_extract: la variable trae el texto de la página; la IA la
+ * convierte en filas. Si la corrida falló (o la IA no está), la variable
+ * queda como lista vacía: el texto crudo nunca se guarda.
+ */
+async function resolveAiExtracts(workspaceId: string, vars: Record<string, unknown>, run: boolean): Promise<Array<{ variable: string; error: string }>> {
+  const { isAiExtractCapture, extractWithAi, AiError } = await import('./robots-ai');
+  const errors: Array<{ variable: string; error: string }> = [];
+  for (const [name, value] of Object.entries(vars)) {
+    if (!isAiExtractCapture(value)) continue;
+    if (!run) {
+      vars[name] = [];
+      continue;
+    }
+    try {
+      vars[name] = await extractWithAi(workspaceId, value);
+    } catch (err) {
+      vars[name] = [];
+      errors.push({ variable: name, error: err instanceof AiError ? err.code : 'ai_error' });
+    }
+  }
+  return errors;
+}
+
+/**
+ * Columnas con IA: un valor por fila (hasta MAX_AI_COLUMN_ROWS por corrida).
+ * Las filas que no cambiaron reusan el valor guardado (robot_ai_cache): la
+ * columna no cambia sola entre corridas y no se paga dos veces.
+ */
+async function applyAiColumns(
+  workspaceId: string,
+  robotId: string,
+  settings: RobotSettings,
+  vars: Record<string, unknown>,
+): Promise<Array<{ variable: string; error: string }>> {
+  const { aiColumnValues, AiError } = await import('./robots-ai');
+  const { createHash } = await import('crypto');
+  const sha = (v: string) => createHash('sha256').update(v).digest('hex').slice(0, 32);
+  const db = getDb();
+  const errors: Array<{ variable: string; error: string }> = [];
+  const aiNames = new Set((settings.aiColumns ?? []).map((c) => c.name));
+  for (const col of settings.aiColumns ?? []) {
+    const list = vars[col.variable];
+    if (!Array.isArray(list)) continue;
+    const rows = list.map((r) => toRowObject(r) ?? {});
+    vars[col.variable] = rows;
+    const colKey = sha(`${col.name}\n${col.prompt}`);
+    const base = rows.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !aiNames.has(k))));
+    const hashes = base.map((r) => sha(stableJson(r)));
+    const head = hashes.slice(0, MAX_AI_COLUMN_ROWS);
+    const cached = new Map<string, string>();
+    for (let i = 0; i < head.length; i += 200) {
+      const chunk = [...new Set(head.slice(i, i + 200))];
+      const found = (await db
+        .prepare(`SELECT row_hash, value FROM robot_ai_cache WHERE robot_id = ? AND col = ? AND row_hash IN (${chunk.map(() => '?').join(',')})`)
+        .all(robotId, colKey, ...chunk)) as Array<{ row_hash: string; value: string }>;
+      for (const f of found) cached.set(f.row_hash, f.value);
+    }
+    const missing = head.map((h, i) => (cached.has(h) ? -1 : i)).filter((i) => i >= 0);
+    if (missing.length) {
+      try {
+        const values = await aiColumnValues(workspaceId, col.prompt, missing.map((i) => base[i]));
+        const ts = nowIso();
+        for (let k = 0; k < missing.length; k++) {
+          const h = hashes[missing[k]];
+          cached.set(h, values[k] ?? '');
+          await db
+            .prepare(
+              `INSERT INTO robot_ai_cache (robot_id, col, row_hash, value, created_at) VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT (robot_id, col, row_hash) DO UPDATE SET value = excluded.value`,
+            )
+            .run(robotId, colKey, h, String(values[k] ?? '').slice(0, 500), ts);
+        }
+      } catch (err) {
+        errors.push({ variable: col.variable, error: err instanceof AiError ? err.code : 'ai_error' });
+      }
+    }
+    rows.forEach((r, i) => {
+      r[col.name] = i < MAX_AI_COLUMN_ROWS ? (cached.get(hashes[i]) ?? '') : '';
+    });
+  }
+  return errors;
 }
 
 /**
@@ -1058,9 +1404,9 @@ async function recordSkippedRun(row: RobotRow, error: RunErrorCode): Promise<voi
 
 // ---------- Lotes (API v1) ----------
 
-/** Corridas en cola que acepta un workspace contando las de lotes (ROBOTS_MAX_BULK_QUEUED, 200). */
+/** Corridas en cola que acepta un workspace contando las de lotes (ROBOTS_MAX_BULK_QUEUED, 1200). */
 export function maxBulkQueued(): number {
-  return envInt('ROBOTS_MAX_BULK_QUEUED', 200);
+  return envInt('ROBOTS_MAX_BULK_QUEUED', 1200);
 }
 
 /** Lotes por workspace y hora (ROBOTS_BULK_PER_HOUR, 10). */
@@ -1143,7 +1489,7 @@ export interface RobotBatchDto {
   runs: RobotRunDto[];
 }
 
-export async function getRobotBatch(workspaceId: string, batchId: string): Promise<RobotBatchDto | null> {
+export async function getRobotBatch(workspaceId: string, batchId: string, viewer?: RobotViewer): Promise<RobotBatchDto | null> {
   const rows = (await getDb()
     .prepare('SELECT * FROM robot_runs WHERE batch_id = ? AND user_id = ? ORDER BY created_at, rowid')
     .all(batchId, workspaceId)) as RobotRunRow[];
@@ -1156,7 +1502,7 @@ export async function getRobotBatch(workspaceId: string, batchId: string): Promi
     total: rows.length,
     counts,
     done: counts.queued === 0 && counts.running === 0,
-    runs: rows.map(toRunDto),
+    runs: rows.map((r) => (canSeeRobotData(viewer, r) ? toRunDto(r) : redactRunDto(toRunDto(r)))),
   };
 }
 
@@ -1211,4 +1557,88 @@ export async function pruneRobotRuns(now = Date.now(), batch = 500): Promise<num
     n += res.changes;
   }
   return n;
+}
+
+
+// ---------- Exportar ----------
+
+/** Robot como archivo .json (sin credenciales, sesiones, corridas ni ids de envíos ajenos). */
+export function exportRobot(robot: RobotDto): Record<string, unknown> {
+  return {
+    zerosoftRobot: 1,
+    name: robot.name,
+    description: robot.description,
+    steps: robot.steps,
+    inputs: robot.inputs,
+    schedule: robot.schedule,
+    timeoutSec: robot.timeoutSec,
+    settings: robot.settings,
+    exportedAt: nowIso(),
+  };
+}
+
+// ---------- Lectura de una página (constructor con IA) ----------
+
+export type SnapshotResult =
+  | { ok: true; snapshot: import('./robots-detect').PageSnapshot }
+  | { ok: false; error: 'runner_unavailable' | 'quota_exceeded' | 'rate_limited' | 'busy' | 'invalid_url' | 'private_host' | 'snapshot_failed'; detail?: string };
+
+/** Lecturas de página por workspace y hora (ROBOTS_SNAPSHOTS_PER_HOUR, 30). */
+export function snapshotsPerHour(): number {
+  return envInt('ROBOTS_SNAPSHOTS_PER_HOUR', 30);
+}
+
+/**
+ * Abre la URL en el mismo navegador aislado de las corridas (mismas reglas:
+ * hosts privados bloqueados en cada pedido), detecta listas y devuelve el HTML
+ * simplificado. Cuenta minutos del mes como una corrida corta.
+ */
+export async function snapshotPage(workspaceId: string, url: string, country?: string): Promise<SnapshotResult> {
+  const { checkRobotUrl } = await import('./robots-runner');
+  const blocked = await checkRobotUrl(url);
+  if (blocked) return { ok: false, error: blocked === 'private_host' ? 'private_host' : 'invalid_url' };
+  const backend = getRobotBackend();
+  if (!backend) return { ok: false, error: 'runner_unavailable' };
+  const limitMin = freeMinutesPerMonth();
+  if (limitMin !== null && limitMin * 60_000 - (await usedMs(workspaceId)) <= 0) return { ok: false, error: 'quota_exceeded' };
+  if (process.env.RATE_LIMIT_DISABLED !== 'true') {
+    const rl = await rateLimit(`robot-snapshot:${workspaceId}`, snapshotsPerHour(), 3600);
+    if (!rl.ok) return { ok: false, error: 'rate_limited' };
+  }
+  // Un navegador a la vez por workspace: la lectura toma el mismo cupo que las
+  // corridas (una lectura a la vez y nunca junto a una corrida).
+  await failStaleRobotRuns(workspaceId);
+  const token = await acquireSnapshotLock(workspaceId, 90_000);
+  if (!token) return { ok: false, error: 'busy' };
+  try {
+    return await runSnapshot(workspaceId, url, country);
+  } finally {
+    await releaseSnapshotLock(workspaceId, token).catch(() => {});
+    // Si quedaron corridas esperando el cupo, que arranquen.
+    kickRobotQueue(workspaceId);
+  }
+}
+
+async function runSnapshot(workspaceId: string, url: string, country?: string): Promise<SnapshotResult> {
+  const backend = getRobotBackend();
+  if (!backend) return { ok: false, error: 'runner_unavailable' };
+  const { PAGE_SNAPSHOT_SCRIPT, normalizeSnapshot } = await import('./robots-detect');
+  const t0 = Date.now();
+  const res = await backend
+    .run({
+      robotName: 'snapshot',
+      steps: [
+        { type: 'goto', url },
+        { type: 'wait', ms: 1500 },
+        { type: 'evaluate', script: PAGE_SNAPSHOT_SCRIPT, name: 'snapshot' },
+      ],
+      inputs: {},
+      timeoutMs: 45_000,
+      ...geoOptions(country),
+    })
+    .catch(() => null);
+  await meter(workspaceId, Date.now() - t0, false);
+  const snap = res?.status === 'success' ? normalizeSnapshot(res.vars?.snapshot) : null;
+  if (!snap) return { ok: false, error: 'snapshot_failed', detail: res?.error?.slice(0, 200) ?? undefined };
+  return { ok: true, snapshot: snap };
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser } from '@/lib/session';
+import { workspaceTeamId } from '@/lib/workspace';
 import { sessionScope } from '@/lib/crm-visibility';
 import { getSplits, MAX_SPLITS, setSplits } from '@/lib/crm-splits';
 import { listMembers } from '@/lib/teams';
@@ -35,7 +36,7 @@ export async function PUT(req: NextRequest, props: Ctx) {
   if (hidden) return hidden;
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return invalidBody(parsed.error);
-  const members = user.team?.id ? await listMembers(user.team.id) : [{ user_id: user.id, email: user.email, name: user.name ?? null }];
+  const members = workspaceTeamId(user) ? await listMembers(workspaceTeamId(user)!) : [{ user_id: user.id, email: user.email, name: user.name ?? null }];
   const names = new Map(members.map((m) => [m.user_id, m.name || m.email]));
   const res = await setSplits(user.id, id, parsed.data.splits, user.actingUser?.email ?? user.email, (pid) => names.get(pid) ?? pid);
   if (!res.ok) return res.reason === 'not_found' ? notFound() : crmError(400, res.reason);

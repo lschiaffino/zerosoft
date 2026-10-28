@@ -1,7 +1,6 @@
 import type { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import { upsertUser, getUserByEmail } from './db';
-import { seedUserIfNeeded } from './seed';
 import { isTrustedReturnUrl } from './hosts';
 
 function hostOfUrl(value: string | undefined): string | null {
@@ -88,8 +87,8 @@ export const authOptions: NextAuthOptions = {
     },
     async signIn({ user }) {
       if (!user.email) return false;
-      const dbUser = await upsertUser({ email: user.email, name: user.name, image: user.image });
-      await seedUserIfNeeded(dbUser.id);
+      // Los datos de ejemplo ya no se siembran solos: se ofrecen en el onboarding (/app/welcome).
+      await upsertUser({ email: user.email, name: user.name, image: user.image });
       return true;
     },
     async jwt({ token, user }) {
