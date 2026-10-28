@@ -368,6 +368,88 @@ test('Notes: sin conexión se leen y editan las notas del dispositivo, y se sinc
   await expect(page.locator('.note-status')).toHaveText('Saved', { timeout: 10_000 });
 });
 
+/** Espera a que la nota esté entera en la copia del dispositivo. */
+async function waitCached(page: Page, id: string) {
+  await expect
+    .poll(() =>
+      page.evaluate(async (noteId) => {
+        const dbs = await indexedDB.databases();
+        const name = dbs.find((d) => d.name?.startsWith('zs-notes:'))?.name;
+        if (!name) return false;
+        return new Promise<boolean>((resolve) => {
+          const r = indexedDB.open(name);
+          r.onsuccess = () => {
+            try {
+              const g = r.result.transaction('notes').objectStore('notes').get(noteId);
+              g.onsuccess = () => resolve(Boolean(g.result?.full && g.result?.server_updated_at));
+              g.onerror = () => resolve(false);
+            } catch {
+              resolve(false);
+            }
+          };
+          r.onerror = () => resolve(false);
+        });
+      }, id),
+    )
+    .toBe(true);
+}
+
+test('Notes offline: lo editado sin red no pisa un cambio hecho en otro dispositivo (queda como copia)', async ({ page, context, request }) => {
+  const title = `Choque ${uid()}`;
+  const n = await newNote(request, { title, content: [para('original')] });
+  await openNotes(page);
+  await waitCached(page, n.id);
+  await context.setOffline(true);
+  await expect(page.locator('.notes-offline-banner')).toBeVisible();
+  await page.locator('.notes-item', { hasText: title }).click();
+  await page.locator('.note-body .docs-editable').first().click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' desde la laptop');
+  await page.waitForTimeout(1000);
+  await expect(page.locator('.note-status')).toHaveText('Saved on this device');
+  // Mientras tanto, otro dispositivo (con red) cambia la nota.
+  const server = await getNote(request, n.id);
+  const other = await request.patch(`/api/notes/${n.id}`, { data: { content: [para('desde el teléfono')], base_updated_at: server.updated_at } });
+  expect(other.ok()).toBeTruthy();
+  await context.setOffline(false);
+  await expect(page.locator('.ui-toast')).toContainText('saved as a copy', { timeout: 15_000 });
+  // La del servidor sigue con lo del teléfono; lo de la laptop está en una copia.
+  expect(JSON.stringify((await getNote(request, n.id)).content)).toContain('desde el teléfono');
+  const list = (await (await request.get(`/api/notes?q=${encodeURIComponent('laptop')}`)).json()) as { notes: Array<{ title: string }> };
+  expect(list.notes.some((x) => x.title === `${title} (offline copy)`)).toBe(true);
+});
+
+test('Notes offline: sin la cookie de la sesión no se abre la copia del dispositivo', async ({ page, context, request }) => {
+  const title = `Sin cookie ${uid()}`;
+  const n = await newNote(request, { title, content: [para('privado 5566')] });
+  await openNotes(page);
+  await waitCached(page, n.id);
+  // Sesión vencida o de otra persona: sin zs_who.
+  await context.clearCookies({ name: 'zs_who' });
+  await context.setOffline(true);
+  await expect(page.locator('.notes-offline-banner')).toBeVisible();
+  // La lista no sale del dispositivo (no hay identidad confirmada) y nada de su texto aparece.
+  await expect(page.locator('.notes-list-error')).toBeVisible();
+  await expect(page.getByText('privado 5566')).toHaveCount(0);
+  await context.setOffline(false);
+});
+
+test('Notes: una nota abierta por link (?note=) no queda guardada en la caché del navegador', async ({ page, request }) => {
+  const n = await newNote(request, { title: `Link ${uid()}`, content: [para('no guardar')] });
+  await openNotes(page);
+  await page.waitForTimeout(500);
+  await page.goto(`/en/app/notes?note=${n.id}`);
+  await expect(page.locator('.note-body')).toContainText('no guardar');
+  const cachedWithNote = await page.evaluate(async () => {
+    let found = false;
+    for (const k of await caches.keys()) {
+      for (const r of await (await caches.open(k)).keys()) if (/\/app\/notes\?/.test(r.url)) found = true;
+    }
+    return found;
+  });
+  expect(cachedWithNote).toBe(false);
+});
+
 test('Notes: 390 px en oscuro sin scroll horizontal, con selección y diálogos', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ colorScheme: 'dark' });

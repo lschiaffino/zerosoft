@@ -307,7 +307,8 @@
     "noMatch": "Ninguna plantilla coincide.",
     "loading": "Cargando plantillas",
     "blank": "Nota en blanco",
-    "blankDesc": "Empezá desde cero."
+    "blankDesc": "Empezá desde cero.",
+    "cmdkMeta": "Plantilla"
   },
   "searches": {
     "save": "Guardar búsqueda",
@@ -406,7 +407,13 @@
     "copies": "{count, plural, one {# nota cambió en otro lado mientras estabas sin conexión. Tu versión quedó guardada como copia.} other {# notas cambiaron en otro lado mientras estabas sin conexión. Tus versiones quedaron guardadas como copias.}}",
     "copyTitle": "{title} (copia offline)",
     "notCached": "Esta nota todavía no está en este dispositivo. Abrila una vez con conexión.",
-    "unavailable": "No disponible sin conexión"
+    "unavailable": "No disponible sin conexión",
+    "stuck": "{count, plural, one {# cambio no se pudo guardar. Copiá su texto o descartalo.} other {# cambios no se pudieron guardar. Copiá su texto o descartalos.}}",
+    "stuckBanner": "{count, plural, one {Se rechazó # cambio de este dispositivo (la nota se borró o perdiste el acceso).} other {Se rechazaron # cambios de este dispositivo (la nota se borró o perdiste el acceso).}}",
+    "copyText": "Copiar texto",
+    "copied": "Copiado. Pegalo en una nota nueva.",
+    "discard": "Descartar",
+    "confirmDiscard": "¿Descartar estos cambios del dispositivo? Su texto se pierde."
   },
   "focus": {
     "enter": "Modo foco",
@@ -416,7 +423,7 @@
     "record": "Grabar audio",
     "stop": "Parar y agregar",
     "cancel": "Descartar",
-    "recording": "Grabando {time}",
+    "recording": "Grabando {time} de {max}",
     "micDenied": "Se negó el acceso al micrófono. Permitilo en el navegador para grabar.",
     "unsupported": "Este navegador no puede grabar audio.",
     "uploading": "Agregando a la nota…",
@@ -432,6 +439,21 @@
     "close": "Cerrar",
     "scanName": "Escaneo {date}",
     "cropHint": "Arrastrá las esquinas hasta los bordes de la hoja.",
-    "corner": "Esquina {n} de la hoja"
+    "corner": "Esquina {n} de la hoja",
+    "confirmLeave": "Hay una grabación en curso. Si abrís otra nota se corta y se agrega a esta. ¿Seguir?",
+    "confirmDiscard": "¿Descartar esta grabación?",
+    "tooBig": "La grabación pasa los 10 MB y no se puede agregar.",
+    "savedLocal": "Grabación guardada en este dispositivo. Se agrega a la nota cuando vuelva la conexión.",
+    "addedLater": "Grabación agregada a la nota."
+  },
+  "signOut": {
+    "title": "{count, plural, one {# cambio de Notes todavía no se subió} other {# cambios de Notes todavía no se subieron}}",
+    "body": "Al cerrar sesión se borra la copia de tus notas en este dispositivo, también lo que no se sincronizó. Bajalo antes si lo querés conservar.",
+    "offlineTitle": "Estás sin conexión",
+    "offlineBody": "Al cerrar sesión se borran las notas guardadas en este dispositivo: no las vas a poder abrir sin conexión hasta que vuelvas a entrar.",
+    "offlineNote": "Estás sin conexión, así que estos cambios no se pueden subir ahora.",
+    "download": "Bajar los cambios pendientes",
+    "confirm": "Cerrar sesión igual",
+    "cancel": "Cancelar"
   }
 }

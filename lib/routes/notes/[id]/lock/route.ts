@@ -26,12 +26,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const note =
       body.action === 'lock'
         ? await lockNote(owner, id, { lock: body.lock, content: body.content, base_updated_at: body.base_updated_at })
-        : await unlockNote(owner, id, { title: body.title, content: body.content, base_updated_at: body.base_updated_at });
+        : await unlockNote(owner, id, { title: body.title, content: body.content, base_updated_at: body.base_updated_at, proof: body.proof });
     if (!note) return jsonError(404, 'not_found');
     return NextResponse.json(note);
   } catch (err) {
     if (err instanceof NotesConflictError) return NextResponse.json({ error: 'conflict', note: err.current }, { status: 409 });
-    if (err instanceof NotesError) return jsonError(409, err.code);
+    if (err instanceof NotesError) return jsonError(err.code === 'wrong_password' ? 403 : 409, err.code);
     throw err;
   }
 }

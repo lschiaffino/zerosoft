@@ -16,6 +16,11 @@ export async function GET(req: NextRequest) {
   if (!user) return jsonError(401, 'unauthorized');
   const owner = noteOwner(user);
   const sp = req.nextUrl.searchParams;
+  // ?probe=1: solo quién es la sesión. La app lo pide antes de abrir la copia
+  // del dispositivo, reenviar cambios o sincronizar (que sea la misma persona).
+  if (sp.get('probe') === '1') {
+    return NextResponse.json({ owner: { userId: owner.personId, ws: owner.workspaceId } }, { headers: { 'cache-control': 'no-store' } });
+  }
   const offset = Math.max(0, Math.floor(Number(sp.get('offset')) || 0));
   const [{ notes, index }, notebooks, tags] = await Promise.all([
     listNotesForSync(owner, { since: sp.get('since'), offset }),
@@ -24,6 +29,7 @@ export async function GET(req: NextRequest) {
   ]);
   return NextResponse.json(
     {
+      owner: { userId: owner.personId, ws: owner.workspaceId },
       notes,
       index,
       notebooks,

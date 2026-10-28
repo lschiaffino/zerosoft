@@ -6,6 +6,7 @@
  * miembros del mismo team no se ven las notas entre sí; el único modo de
  * compartir es el link público de solo lectura (/n/<token>).
  */
+import { createHash, timingSafeEqual } from 'crypto';
 import { nanoid } from 'nanoid';
 import { getDb, type NoteNotebookRow, type NoteRow } from './db';
 import type { DocsBlock } from './docs-types';
@@ -488,10 +489,30 @@ export interface NoteInput {
    * archivos (ver lockedFileBlocks).
    */
   lock?: NoteLockEnvelope;
+  /** Prueba de la contraseña (para cambiar el sobre). */
+  lock_proof?: string;
+}
+
+/**
+ * ¿La prueba corresponde al sobre guardado? SHA-256(prueba) = vh. La prueba
+ * sale de la contraseña (lib/notes-crypto.ts) y no sirve para descifrar.
+ */
+export function lockProofMatches(stored: string | null, proof: string | undefined): boolean {
+  if (!stored || !proof) return false;
+  let vh: unknown;
+  try {
+    vh = (JSON.parse(stored) as { vh?: unknown }).vh;
+  } catch {
+    return false;
+  }
+  if (typeof vh !== 'string') return false;
+  const want = Buffer.from(vh, 'base64');
+  const got = createHash('sha256').update(Buffer.from(proof, 'base64')).digest();
+  return want.length === got.length && timingSafeEqual(want, got);
 }
 
 export class NotesError extends Error {
-  constructor(public code: 'notebook_not_found' | 'note_trashed' | 'note_locked' | 'not_locked') {
+  constructor(public code: 'notebook_not_found' | 'note_trashed' | 'note_locked' | 'not_locked' | 'wrong_password') {
     super(code);
   }
 }
@@ -569,6 +590,12 @@ export async function updateNote(owner: NoteOwner, id: string, patch: NoteInput)
   // un sobre suelto no sirve en una nota sin bloquear.
   if (isLocked && patch.content !== undefined && !patch.lock) throw new NotesError('note_locked');
   if (!isLocked && patch.lock) throw new NotesError('not_locked');
+  // Otro sobre: con la prueba de la contraseña y la misma clave (mismo verificador).
+  if (patch.lock) {
+    if (!lockProofMatches(row.locked, patch.lock_proof)) throw new NotesError('wrong_password');
+    const current = parseJson<NoteLockEnvelope | null>(row.locked, null);
+    if (!current || current.vh !== patch.lock.vh || current.salt !== patch.lock.salt) throw new NotesError('wrong_password');
+  }
   const sets: string[] = [];
   const args: Array<string | number | null> = [];
   if (patch.title !== undefined) {
@@ -656,6 +683,8 @@ export async function lockNote(
   const row = await getNoteRow(owner, id);
   if (!row) return null;
   if (row.trashed_at) throw new NotesError('note_trashed');
+  // Ya bloqueada: cambiar el sobre va por updateNote (con la prueba).
+  if (row.locked != null) throw new NotesError('note_locked');
   if (input.base_updated_at !== undefined && row.updated_at !== input.base_updated_at) throw new NotesConflictError(toDetail(row));
   const files = lockedFileBlocks(input.content);
   const db = getDb();
@@ -680,11 +709,12 @@ export async function lockNote(
 export async function unlockNote(
   owner: NoteOwner,
   id: string,
-  input: { title?: string; content: DocsBlock[]; base_updated_at?: string },
+  input: { title?: string; content: DocsBlock[]; base_updated_at?: string; proof: string },
 ): Promise<NoteDetail | null> {
   const row = await getNoteRow(owner, id);
   if (!row) return null;
   if (row.locked == null) throw new NotesError('not_locked');
+  if (!lockProofMatches(row.locked, input.proof)) throw new NotesError('wrong_password');
   if (row.trashed_at) throw new NotesError('note_trashed');
   if (input.base_updated_at !== undefined && row.updated_at !== input.base_updated_at) throw new NotesConflictError(toDetail(row));
   const content = sanitizeBlocks(input.content.length ? input.content : [{ id: crypto.randomUUID(), type: 'paragraph', content: '' }]);

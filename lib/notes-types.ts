@@ -63,6 +63,8 @@ export interface NoteLockEnvelope {
   iv: string;
   /** JSON { title, content } cifrado, en base64. */
   ct: string;
+  /** SHA-256 (base64) de la prueba de la contraseña: el servidor la compara antes de aceptar otro sobre. */
+  vh: string;
   hint?: string;
 }
 

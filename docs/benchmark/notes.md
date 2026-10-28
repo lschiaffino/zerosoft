@@ -22,19 +22,19 @@ Escala: **tiene**, **parcial**, **falta**, **mejor** (igual que en `docs.md`).
 
 | Área | Puntaje (0-10) | Comentario corto |
 |---|---|---|
-| Edición y modelo de datos | 6 | Mismo editor de bloques que Docs, libretas, etiquetas, fijadas. Sin pilas, sin PDF anotable, sin audio. |
+| Edición y modelo de datos | 8 | Editor de bloques de Docs, libretas con pilas, etiquetas anidadas, plantillas, audio, notas bloqueadas y modo foco. Sin PDF anotable; escaneo con esquinas a mano. |
 | Colaboración | 6 | Compartir nota o libreta con compañeros (ver/editar) y link público de lectura. Sin tiempo real. |
 | Automatización | 4 | Recordatorio por nota (in-app y mail), eventos de Flow, enviar a Track. Sin tareas con fecha, sin email-a-nota. |
 | Integraciones y API | 3 | Bookmarklet de recorte de selección, Track, Flow. Sin extensión, sin API pública, sin calendario. |
 | Admin y permisos | 4 | Notas privadas por persona, permisos por nota y libreta. Sin consola de admin propia de Notes. |
 | Analítica | n/a | Evernote tampoco ofrece analítica de notas. No pesa. |
-| Móvil y offline | 2 | Web adaptada a 390px. Sin app, sin offline, sin widgets ni captura rápida del sistema. |
-| IA | 4 | "Ask your notes" responde con citas. Sin transcripción, sin búsqueda semántica, sin edición con IA. |
-| Importar y exportar | 6 | Importa ENEX y Markdown (hasta 20 archivos de 4 MB). Exporta una nota a Markdown. |
-| Búsqueda | 7 | Operadores tag:, notebook:, intitle:, created:, updated:, todo: y ⌘K global. Sin búsquedas guardadas ni OCR. |
-| Pulido de UX | 7 | `N` crea, `/` busca, orden por fecha o título, estados vacíos claros, conflictos detectados. |
+| Móvil y offline | 6 | Web instalable que anda a 390px y sin conexión (copia por persona, cola con reintento, copias ante choques). Sin app nativa ni widgets. |
+| IA | 5 | "Ask your notes" con citas y el menú de IA del editor dentro de la nota. Sin transcripción ni búsqueda semántica. |
+| Importar y exportar | 9 | Importa ENEX y Markdown; exporta nota (Markdown, ENEX, HTML, PDF por impresión), libreta, selección o todo a ENEX con adjuntos. |
+| Búsqueda | 9 | Operadores, búsquedas guardadas en sidebar y ⌘K, resaltado al abrir. Sin OCR. |
+| Pulido de UX | 8 | Atajos, orden, selección múltiple con ⌘/Shift, estados vacíos, conflictos detectados. Sin inicio con widgets. |
 
-**Paridad global: 50%** (ponderado para una persona o equipo chico que usa Evernote como
+**Paridad global: 50% el 22/10** (el porcentaje actual sale de `content/feature-parity/notes.ts` y se ve en la página de producto) (ponderado para una persona o equipo chico que usa Evernote como
 segundo cerebro: edición 20%, búsqueda 15%, móvil/offline 15%, captura e integraciones 10%,
 automatización 10%, colaboración 8%, import/export 8%, IA 6%, UX 6%, permisos 2%).
 
@@ -50,6 +50,20 @@ Dónde estamos **mejor** que Evernote:
   muestra backlinks.
 - **El editor es el de Docs**: toggles, callouts, tablas, bases de datos simples, código.
 
+
+## Actualización 2026-10-27 (tanda de paridad)
+
+Lo que cambió desde la pasada del 22/10, revisado en el navegador sobre un
+build de producción: offline real (copia por persona y workspace que solo se
+abre con la sesión que la guardó, edición y altas sin red, cola con reintento
+y copia ante choques), notas bloqueadas con contraseña (cifrado en el
+navegador, cambios y quitar el bloqueo con la contraseña), plantillas, pilas,
+etiquetas anidadas, búsquedas guardadas, acciones en lote, export ENEX (nota,
+libreta, selección o todo) y HTML/PDF, grabar audio, escanear (con esquinas a
+mano), IA del editor, modo foco y resaltado. Siguen faltando: búsqueda
+semántica, OCR, transcripción, anotar PDF, calendario, API pública, mail a
+nota, consola de admin, inicio con widgets, pedir acceso y coedición en vivo.
+
 ## Capacidades
 
 ### Edición y modelo de datos
@@ -57,18 +71,18 @@ Dónde estamos **mejor** que Evernote:
 | Capacidad | Evernote | Notes | Estado |
 |---|---|---|---|
 | Libretas | Sí (1 en Free, 20 en Starter) | Sí, sin tope | mejor |
-| Pilas (stacks) de libretas | Sí | No | falta |
-| Etiquetas | Sí (20 en Free) | Sí, hasta 20 por nota; sin etiquetas anidadas como Bear | parcial |
+| Pilas (stacks) de libretas | Sí | Sí, plegables, con renombrar y deshacer | tiene |
+| Etiquetas | Sí (20 en Free) | Sí, hasta 20 por nota, anidadas con / como Bear, renombrar y borrar en todas | tiene |
 | Fijar notas | Sí | Sí, vista "Pinned" | tiene |
 | Texto enriquecido, listas, checklist, tablas, código | Sí | Sí | tiene |
 | Tablas con orden, filtro y cálculos | Sí ([11.36](https://evernote.com/release-notes/11.36.3), [recap 2025](https://evernote.com/blog/2025-recap)) | Tabla simple; base de datos con 4 tipos sin filtro | parcial |
-| Plantillas de nota | Sí | No en Notes (Docs sí tiene) | falta |
+| Plantillas de nota | Sí | 9 de fábrica y propias (guardar nota como plantilla), en ⌘K | tiene |
 | Adjuntos (imagen, archivo) con arrastrar y pegar | Sí | Sí, hasta 10 MB por archivo | tiene |
 | Anotar PDF e imágenes, unir y partir PDF | Sí ([release notes](https://releasebot.io/updates/evernote)) | No | falta |
-| Grabar audio en la nota | Sí | No | falta |
-| Escanear documentos con la cámara | Sí (móvil) | No | falta |
-| Cifrar texto o bloquear nota | Sí (Mac/Windows) | No | falta |
-| Modo foco | Sí (nov 2025) | No | falta |
+| Grabar audio en la nota | Sí | Sí, hasta 15 min; sin red queda en el dispositivo | tiene |
+| Escanear documentos con la cámara | Sí (móvil) | Foto, esquinas a mano, enderezado y limpieza; sin bordes automáticos ni varias hojas | parcial |
+| Cifrar texto o bloquear nota | Sí (Mac/Windows) | Nota entera con contraseña, cifrada en el navegador; título visible y adjuntos sin cifrar | tiene |
+| Modo foco | Sí (nov 2025) | Sí | tiene |
 
 ### Colaboración
 
@@ -105,9 +119,9 @@ Dónde estamos **mejor** que Evernote:
 | Capacidad | Evernote | Notes | Estado |
 |---|---|---|---|
 | Apps nativas iOS, Android, escritorio | Sí | No; web adaptada | parcial |
-| Notas offline | Sí | No | falta (en ideas.json) |
-| Widgets y captura rápida del sistema (Quick Note de Apple) | Sí | No | falta |
-| Acciones en lote sobre varias notas | Sí (móvil, ago 2025) | No | falta |
+| Notas offline | Sí | Sí: copia por persona atada a la sesión, edición y altas sin red, cola con reintento y copia ante choques | tiene |
+| Widgets y captura rápida del sistema (Quick Note de Apple) | Sí | Atajo "Nueva nota" y compartir a Notes desde el teléfono; sin widgets | parcial |
+| Acciones en lote sobre varias notas | Sí (móvil, ago 2025) | Sí: mover, etiquetar, fijar, exportar, papelera | tiene |
 
 ### IA
 
@@ -116,7 +130,7 @@ Dónde estamos **mejor** que Evernote:
 | Preguntar a tus notas con fuentes | AI Assistant (v11, ene 2026) | "Ask your notes" con las notas citadas | tiene |
 | Búsqueda semántica | Sí | No (la pregunta usa búsqueda por palabras) | falta |
 | Transcribir audio con hablantes | Sí | No | falta |
-| Limpiar y editar texto con IA | AI Edit, AI Cleanup | No | falta |
+| Limpiar y editar texto con IA | AI Edit, AI Cleanup | Menú de IA de Docs dentro de la nota, con vista previa | tiene |
 | Buscar texto dentro de imágenes y PDF | Sí (OCR y captions automáticos) | No | falta |
 
 ### Importar y exportar
@@ -125,8 +139,8 @@ Dónde estamos **mejor** que Evernote:
 |---|---|---|---|
 | Importar ENEX | Sí | Sí, hasta 20 archivos de 4 MB y 500 notas por carga | tiene |
 | Importar Markdown | Pegar Markdown | Archivos .md | mejor |
-| Exportar nota | ENEX, HTML, PDF | Markdown | parcial |
-| Exportar libreta o todo | ENEX/HTML desde escritorio | No | falta |
+| Exportar nota | ENEX, HTML, PDF | Markdown, ENEX con adjuntos, HTML, imprimir a PDF | tiene |
+| Exportar libreta o todo | ENEX/HTML desde escritorio | ENEX de todo, una libreta o una selección | tiene |
 | Historial de versiones con restaurar | Sí | Sí | tiene |
 
 ### Búsqueda
@@ -135,9 +149,9 @@ Dónde estamos **mejor** que Evernote:
 |---|---|---|---|
 | Búsqueda de texto | Sí | Sí, con contador de resultados | tiene |
 | Operadores (tag:, notebook:, intitle:, created:, updated:, todo:, `-`) | Sí ([ayuda](https://help.evernote.com/hc/articles/208313828)) | Sí, con ayuda en pantalla | tiene |
-| Búsquedas guardadas (Smart Folders en Apple Notes) | Sí | No | falta |
+| Búsquedas guardadas (Smart Folders en Apple Notes) | Sí | Sí, en el sidebar y en ⌘K | tiene |
 | Notas en la búsqueda global ⌘K | n/a | Sí | tiene |
-| Resaltar la coincidencia en la nota | Sí (mejorado en 11.31) | No se resalta al abrir el resultado | falta |
+| Resaltar la coincidencia en la nota | Sí (mejorado en 11.31) | Sí, al abrir desde la búsqueda | tiene |
 
 ### Pulido de UX
 

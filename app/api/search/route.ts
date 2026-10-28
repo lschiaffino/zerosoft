@@ -8,6 +8,15 @@ import { listTeamspaces } from '@/lib/docs-access';
 import { listLinks, toLinkDto } from '@/lib/links';
 import { noteOwner, searchNotesForPalette } from '@/lib/notes';
 import { searchNoteTemplates, searchSavedSearches } from '@/lib/notes-library';
+import notesEn from '@/messages/en/notes.json';
+import notesEs from '@/messages/es/notes.json';
+import notesPt from '@/messages/pt/notes.json';
+
+const NOTES_TEMPLATE_META = {
+  en: notesEn.templates.cmdkMeta,
+  es: notesEs.templates.cmdkMeta,
+  pt: notesPt.templates.cmdkMeta,
+};
 import { searchApps } from '@/lib/app-search';
 import { searchRuns } from '@/lib/crm-ai-agents';
 import { searchLeads } from '@/lib/crm-leads';
@@ -192,11 +201,14 @@ export async function GET(req: NextRequest) {
     searchSavedSearches(noteOwner(user), q).catch(() => []),
     searchNoteTemplates(noteOwner(user), q).catch(() => []),
   ]);
+  // Etiqueta de las plantillas en el idioma de ⌘K (messages/*/notes.json › templates.cmdkMeta).
+  const paletteLocale = req.nextUrl.searchParams.get('locale') ?? 'en';
+  const tplMeta = (NOTES_TEMPLATE_META as Record<string, string>)[paletteLocale] ?? NOTES_TEMPLATE_META.en;
   for (const s of noteSearches) {
     items.push({ id: `ns:${s.id}`, group: 'notes', label: s.name, meta: s.query, href: `/app/notes?search=${encodeURIComponent(s.id)}` });
   }
   for (const tpl of noteTemplates) {
-    items.push({ id: `nt:${tpl.id}`, group: 'notes', label: tpl.name, meta: 'Template', href: `/app/notes?template=${encodeURIComponent(tpl.id)}` });
+    items.push({ id: `nt:${tpl.id}`, group: 'notes', label: tpl.name, meta: tplMeta, href: `/app/notes?template=${encodeURIComponent(tpl.id)}` });
   }
 
   for (const t of tasks) {

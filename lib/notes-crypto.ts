@@ -8,6 +8,10 @@
  * - Cada guardado cifra { title, content } con un IV nuevo de 12 bytes.
  * - Una contraseña equivocada falla en la verificación de AES-GCM
  *   (WrongPasswordError): no hay forma de recuperarla.
+ * - PBKDF2 da 64 bytes: los primeros 32 son la clave AES y los otros 32 la
+ *   "prueba" de que se sabe la contraseña. El sobre guarda solo el SHA-256 de
+ *   la prueba (vh); para reemplazar el sobre o sacar el bloqueo el servidor
+ *   pide la prueba y compara. La prueba no sirve para descifrar.
  *
  * Client-safe (también corre en Node para los tests: globalThis.crypto).
  */
@@ -27,6 +31,10 @@ export interface NoteKey {
   key: CryptoKey;
   salt: string;
   iter: number;
+  /** Prueba de la contraseña (base64 de 32 bytes): la pide el servidor para cambiar el sobre. */
+  proof: string;
+  /** SHA-256 de la prueba (base64): va en el sobre. */
+  vh: string;
 }
 
 export class WrongPasswordError extends Error {
@@ -66,17 +74,20 @@ function randomBytes(n: number): Uint8Array {
   return out;
 }
 
-/** Deriva la clave AES-GCM de la contraseña y la sal. */
+/** SHA-256 en base64 (el verificador de la prueba). */
+export async function sha256b64(bytes: Uint8Array): Promise<string> {
+  return toBase64(new Uint8Array(await subtle().digest('SHA-256', bytes as BufferSource)));
+}
+
+/** Deriva la clave AES-GCM y la prueba de la contraseña con la sal. */
 export async function deriveNoteKey(password: string, salt: string, iter = NOTE_LOCK_ITERATIONS): Promise<NoteKey> {
-  const base = await subtle().importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
-  const key = await subtle().deriveKey(
-    { name: 'PBKDF2', hash: 'SHA-256', salt: fromBase64(salt) as BufferSource, iterations: iter },
-    base,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['encrypt', 'decrypt'],
+  const base = await subtle().importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = new Uint8Array(
+    await subtle().deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: fromBase64(salt) as BufferSource, iterations: iter }, base, 512),
   );
-  return { key, salt, iter };
+  const key = await subtle().importKey('raw', bits.slice(0, 32) as BufferSource, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  const proofBytes = bits.slice(32);
+  return { key, salt, iter, proof: toBase64(proofBytes), vh: await sha256b64(proofBytes) };
 }
 
 /** Clave nueva (sal aleatoria) para bloquear una nota. */
@@ -89,7 +100,7 @@ export async function sealNote(k: NoteKey, payload: LockedPayload, hint?: string
   const iv = randomBytes(12);
   const data = new TextEncoder().encode(JSON.stringify(payload));
   const ct = new Uint8Array(await subtle().encrypt({ name: 'AES-GCM', iv: iv as BufferSource }, k.key, data));
-  const env: NoteLockEnvelope = { v: 1, iter: k.iter, salt: k.salt, iv: toBase64(iv), ct: toBase64(ct) };
+  const env: NoteLockEnvelope = { v: 1, iter: k.iter, salt: k.salt, iv: toBase64(iv), ct: toBase64(ct), vh: k.vh };
   if (hint?.trim()) env.hint = hint.trim().slice(0, 120);
   return env;
 }

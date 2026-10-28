@@ -86,7 +86,7 @@ export default async function AppLayout(
   return (
     // Cliente: lo que usan el sidebar y Cmd+K de otras apps; cada app suma su
     // namespace en su layout.
-    <ClientMessages locale={locale} namespaces={['board.list', 'notes.actions', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder', 'rec.signout']}>
+    <ClientMessages locale={locale} namespaces={['board.list', 'notes.actions', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder', 'rec.signout', 'notes.signOut']}>
       <RecorderProvider owner={`${user.actingUser?.id ?? user.id}:${user.id}`}>
       {/* El script pone sidebar-collapsed antes del primer paint; React no toca la clase al hidratar. */}
       <div className="app-frame" suppressHydrationWarning>

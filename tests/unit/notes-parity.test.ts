@@ -40,7 +40,18 @@ import { blocksToEnml, inlineToEnml, noteToEnex, noteToHtml, ENEX_HEAD, ENEX_TAI
 import { enmlToBlocks, parseEnex } from '@/lib/notes-import';
 import { applyHomography, enhanceDocument, homography, warpQuad } from '@/lib/notes-scan';
 import { getNoteBuiltinTemplates } from '@/lib/notes-templates-builtin';
-import { applyPatchLocally, mergeIntoOutbox, offlineList, replayOutbox, type CachedNote, type OutboxOp } from '@/components/notes/notesOffline';
+import {
+  applyPatchLocally,
+  identityMatches,
+  makeOp,
+  mergeIntoOutbox,
+  offlineList,
+  replayOutbox,
+  retryDelay,
+  stuckFrom,
+  type CachedNote,
+  type OutboxOp,
+} from '@/components/notes/notesOffline';
 import { groupNotebooks, highlightTerms, nextSelection } from '@/components/notes/notes-ui';
 import type { DocsBlock } from '@/lib/docs-types';
 import { makeUser } from './helpers';
@@ -271,13 +282,32 @@ describe('notes: notas bloqueadas con contraseña', () => {
     expect(patchRes.status).toBe(409);
     // Editar bloqueada: sobre nuevo + solo los adjuntos.
     const edited = await sealNote(key, { title: 'Banco', content: [para('pin 1111')] });
-    const saved = await updateNote(o, n.id, { content: fileBlocksOnly([para('pin 1111')]), lock: edited, base_updated_at: (await getNote(o, n.id))!.updated_at });
+    // Sin la prueba de la contraseña (o con otra clave) no se acepta otro sobre.
+    await expect(updateNote(o, n.id, { content: [], lock: edited })).rejects.toMatchObject({ code: 'wrong_password' });
+    const otherKey = await newNoteKey('otra', 100_000);
+    await expect(updateNote(o, n.id, { content: [], lock: await sealNote(otherKey, { title: 'x', content: [] }), lock_proof: otherKey.proof })).rejects.toMatchObject({
+      code: 'wrong_password',
+    });
+    const badRes = await noteRoute.PATCH(jsonReq('http://x', 'PATCH', { content: [], lock: edited, lock_proof: otherKey.proof }), ctx(n.id));
+    expect(badRes.status).toBe(403);
+    // Sobre con otra forma (sin verificador, IV corto): 400.
+    const malformed = await noteRoute.PATCH(jsonReq('http://x', 'PATCH', { content: [], lock: { ...edited, vh: undefined, iv: 'AAAA' }, lock_proof: key.proof }), ctx(n.id));
+    expect(malformed.status).toBe(400);
+    // Volver a bloquear una bloqueada (pisar el sobre sin prueba) tampoco.
+    await expect(lockNote(o, n.id, { lock: edited, content: [] })).rejects.toMatchObject({ code: 'note_locked' });
+    const saved = await updateNote(o, n.id, {
+      content: fileBlocksOnly([para('pin 1111')]),
+      lock: edited,
+      lock_proof: key.proof,
+      base_updated_at: (await getNote(o, n.id))!.updated_at,
+    });
     expect(saved!.lock?.iv).toBe(edited.iv);
     // El export no saca el texto.
     expect((await exportRoute.GET(jsonReq('http://x/api/notes/x/export?format=md', 'GET') as never, ctx(n.id))).status).toBe(409);
     // Sacar el bloqueo vuelve a guardar en claro.
     const opened = await openNoteWithKey(key, saved!.lock!);
-    const plain = await unlockNote(o, n.id, { title: opened.title, content: opened.content });
+    await expect(unlockNote(o, n.id, { title: opened.title, content: opened.content, proof: otherKey.proof })).rejects.toMatchObject({ code: 'wrong_password' });
+    const plain = await unlockNote(o, n.id, { title: opened.title, content: opened.content, proof: key.proof });
     expect(plain!.locked).toBe(false);
     expect((await listNotes(o, { q: '1111' })).map((x) => x.id)).toEqual([n.id]);
   });
@@ -378,53 +408,120 @@ describe('notes: offline', () => {
     expect(offlineList(all, { kind: 'all' }, 'tag:casa', 'updated', []).map((n) => n.title)).toEqual(['Compras']);
   });
 
-  it('la cola fusiona guardados y mete los cambios en el alta offline', () => {
+  it('la cola fusiona guardados (mismo opId, rev nueva) y mete los cambios en el alta offline', () => {
     let ops: OutboxOp[] = [];
-    ops = mergeIntoOutbox(ops, { kind: 'patch', id: 'a', patch: { title: '1' }, base: 'b0', at: 1 });
-    ops = mergeIntoOutbox(ops, { kind: 'patch', id: 'a', patch: { content: [] }, base: 'b1', at: 2 });
+    ops = mergeIntoOutbox(ops, makeOp({ kind: 'patch', id: 'a', patch: { title: '1' }, base: 'b0' }, 1));
+    const first = ops[0].opId;
+    ops = mergeIntoOutbox(ops, makeOp({ kind: 'patch', id: 'a', patch: { content: [] }, base: 'b1' }, 2));
     expect(ops).toHaveLength(1);
-    expect(ops[0]).toMatchObject({ base: 'b0', patch: { title: '1', content: [] } });
-    ops = mergeIntoOutbox(ops, { kind: 'create', id: 'n', body: { title: '' }, at: 3 });
-    ops = mergeIntoOutbox(ops, { kind: 'patch', id: 'n', patch: { title: 'nueva' }, base: null, at: 4 });
+    expect(ops[0]).toMatchObject({ opId: first, rev: 1, base: 'b0', patch: { title: '1', content: [] } });
+    ops = mergeIntoOutbox(ops, makeOp({ kind: 'create', id: 'n', body: { title: '' } }, 3));
+    ops = mergeIntoOutbox(ops, makeOp({ kind: 'patch', id: 'n', patch: { title: 'nueva' }, base: null }, 4));
     expect(ops).toHaveLength(2);
-    expect(ops[1]).toMatchObject({ kind: 'create', body: { title: 'nueva' } });
-    ops = mergeIntoOutbox(ops, { kind: 'patch', id: 'n', patch: { trashed: true }, base: null, at: 5 });
+    expect(ops[1]).toMatchObject({ kind: 'create', body: { title: 'nueva' }, rev: 1 });
+    ops = mergeIntoOutbox(ops, makeOp({ kind: 'patch', id: 'n', patch: { trashed: true }, base: null }, 5));
     expect(ops[2]).toMatchObject({ kind: 'patch', patch: { trashed: true } });
+    expect(new Set(ops.map((o) => o.opId)).size).toBe(3);
   });
 
-  it('al volver la red reenvía en orden y un choque queda como copia, sin pisar', async () => {
-    const calls: Array<{ url: string; body: Record<string, unknown> }> = [];
-    const removed: OutboxOp[] = [];
-    const ops: OutboxOp[] = [
-      { seq: 1, kind: 'create', id: 'n1', body: { title: 'offline' }, at: 1 },
-      { seq: 2, kind: 'patch', id: 'n2', patch: { title: 'mía', content: [para('x')] }, base: 'old', at: 2 },
-    ];
-    const r = await replayOutbox(ops, {
-      fetch: async (url, init) => {
-        const body = JSON.parse(String(init.body)) as Record<string, unknown>;
-        calls.push({ url, body });
-        if (init.method === 'PATCH') return { ok: false, status: 409, json: async () => ({ note: { title: 'servidor', notebook_id: 'nb', tags: ['t'] } }) };
-        return { ok: true, status: 201, json: async () => ({}) };
+  type FakeRes = { ok: boolean; status: number; json: () => Promise<unknown> };
+  const res = (status: number, body: unknown = {}): FakeRes => ({ ok: status < 300, status, json: async () => body });
+  function deps(handler: (url: string, init: RequestInit) => FakeRes) {
+    const calls: Array<{ url: string; method: string; body: Record<string, unknown> | null }> = [];
+    const completed: Array<[string, string | null]> = [];
+    const stuck: Array<[string, number]> = [];
+    return {
+      calls,
+      completed,
+      stuck,
+      d: {
+        fetch: async (url: string, init: RequestInit) => {
+          calls.push({ url, method: String(init.method), body: init.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : null });
+          return handler(url, init);
+        },
+        complete: async (op: OutboxOp, at: string | null) => void completed.push([op.opId, at]),
+        stuck: async (op: OutboxOp, status: number) => void stuck.push([op.opId, status]),
+        copyTitle: (t: string) => `${t} (copia offline)`,
       },
-      remove: async (op) => void removed.push(op),
-      copyTitle: (t) => `${t} (copia offline)`,
+    };
+  }
+
+  it('al volver la red reenvía en orden y un choque queda como copia, sin pisar', async () => {
+    const ops: OutboxOp[] = [
+      makeOp({ kind: 'create', id: 'n1', body: { title: 'offline' } }, 1),
+      makeOp({ kind: 'patch', id: 'n2', patch: { title: 'mía', content: [para('x')] }, base: 'old' }, 2),
+    ];
+    const t = deps((url, init) =>
+      init.method === 'PATCH' ? res(409, { note: { title: 'servidor', notebook_id: 'nb', tags: ['t'] } }) : res(201, { updated_at: 'u1' }),
+    );
+    const r = await replayOutbox(ops, t.d);
+    expect(r).toMatchObject({ done: 1, copies: 1, stuck: 0, remaining: 0 });
+    expect(t.calls[1].body).toMatchObject({ base_updated_at: 'old' });
+    expect(t.calls[2]).toMatchObject({ url: '/api/notes', body: { title: 'mía (copia offline)', notebook_id: 'nb', tags: ['t'] } });
+    expect(t.completed).toEqual([
+      [ops[0].opId, 'u1'],
+      [ops[1].opId, null],
+    ]);
+  });
+
+  it('sin versión conocida no pisa: el texto queda como copia (nunca un PATCH a ciegas)', async () => {
+    const ops: OutboxOp[] = [makeOp({ kind: 'patch', id: 'n', patch: { content: [para('mío')] }, base: null })];
+    const t = deps((url, init) => (init.method === 'GET' ? res(200, { title: 'del servidor', tags: [] }) : res(201)));
+    const r = await replayOutbox(ops, t.d);
+    expect(r.copies).toBe(1);
+    expect(t.calls.some((c) => c.method === 'PATCH')).toBe(false);
+    expect(t.calls[1].body).toMatchObject({ title: 'del servidor (copia offline)' });
+  });
+
+  it('una bloqueada que choca queda como copia bloqueada con el mismo sobre', async () => {
+    const lock = { v: 1, iter: 100000, salt: 's', iv: 'i', ct: 'c', vh: 'v' };
+    const ops: OutboxOp[] = [makeOp({ kind: 'patch', id: 'n', patch: { content: [], lock, lock_proof: 'p' }, base: 'old' })];
+    const t = deps((url, init) => (init.method === 'PATCH' ? res(409, { note: { title: 'T' } }) : res(201)));
+    const r = await replayOutbox(ops, t.d);
+    expect(r.copies).toBe(1);
+    const lockCall = t.calls.find((c) => c.url.endsWith('/lock'));
+    expect(lockCall?.body).toMatchObject({ action: 'lock', lock });
+    expect(JSON.stringify(t.calls[1].body)).not.toContain('"lock"');
+  });
+
+  it('5xx y 429 se reintentan (no se descarta nada); 403/404 quedan apartados', async () => {
+    const ops: OutboxOp[] = [
+      makeOp({ kind: 'patch', id: 'a', patch: { title: 'x' }, base: 'b' }, 1),
+      makeOp({ kind: 'patch', id: 'b', patch: { title: 'y' }, base: 'b' }, 2),
+    ];
+    const down = deps(() => res(503));
+    const r1 = await replayOutbox(ops, down.d);
+    expect(r1).toMatchObject({ remaining: 2, retry: true });
+    expect(down.completed).toEqual([]);
+    const gone = deps((url) => (url.endsWith('/a') ? res(404) : res(200, { updated_at: 'u' })));
+    const r2 = await replayOutbox(ops, gone.d);
+    expect(r2).toMatchObject({ done: 1, stuck: 1, remaining: 0 });
+    expect(gone.stuck).toEqual([[ops[0].opId, 404]]);
+    expect(stuckFrom(makeOp({ kind: 'patch', id: 'a', patch: { title: 'T', content: [para('texto <b>x</b>')] }, base: 'b' }), 404)).toMatchObject({
+      title: 'T',
+      text: 'texto x',
     });
-    expect(r).toEqual({ done: 1, copies: 1, failed: 0, remaining: 0 });
-    expect(calls[1].body).toMatchObject({ base_updated_at: 'old' });
-    expect(calls[2]).toMatchObject({ url: '/api/notes', body: { title: 'mía (copia offline)', notebook_id: 'nb', tags: ['t'] } });
-    expect(removed).toHaveLength(2);
+    expect(retryDelay(0)).toBe(5000);
+    expect(retryDelay(10)).toBe(300000);
   });
 
   it('sin red se detiene y deja lo que falta', async () => {
-    const ops: OutboxOp[] = [{ seq: 1, kind: 'create', id: 'a', body: {}, at: 1 }];
-    const r = await replayOutbox(ops, {
-      fetch: async () => {
-        throw new TypeError('offline');
-      },
-      remove: async () => undefined,
-      copyTitle: (t) => t,
+    const ops: OutboxOp[] = [makeOp({ kind: 'create', id: 'a', body: {} })];
+    const t = deps(() => {
+      throw new TypeError('offline');
     });
+    const r = await replayOutbox(ops, t.d);
     expect(r.remaining).toBe(1);
+    expect(r.retry).toBe(false);
+  });
+
+  it('la copia del dispositivo solo se abre con la cookie de la persona confirmada', () => {
+    const rec = { who: 'abc', at: Date.now() };
+    expect(identityMatches(rec, 'abc')).toBe(true);
+    expect(identityMatches(rec, 'otra')).toBe(false);
+    expect(identityMatches(rec, null)).toBe(false);
+    expect(identityMatches(null, 'abc')).toBe(false);
+    expect(identityMatches({ who: 'abc', at: Date.now() - 31 * 86_400_000 }, 'abc')).toBe(false);
   });
 
   it('aplica un cambio local a la copia', () => {

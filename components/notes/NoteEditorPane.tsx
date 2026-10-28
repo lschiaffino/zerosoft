@@ -29,7 +29,9 @@ interface Props {
   focusTitle: number;
   status: SaveStatus;
   onBack: () => void;
-  onSaveContent: (id: string, patch: { title: string; content: DocsBlock[]; lock?: NoteLockEnvelope }) => Promise<void>;
+  onSaveContent: (id: string, patch: { title: string; content: DocsBlock[]; lock?: NoteLockEnvelope; lock_proof?: string }) => Promise<void>;
+  /** Grabación que no se pudo agregar en el editor (cambio de nota o sin red): el padre la sube y la agrega. */
+  onRecording?: (noteId: string, file: File) => Promise<'added' | 'saved' | 'failed'>;
   onPatch: (id: string, patch: Record<string, unknown>) => Promise<NoteDetail | null>;
   onTrash: (id: string) => Promise<void>;
   onRestore: (id: string) => Promise<void>;
@@ -108,6 +110,7 @@ export default function NoteEditorPane({
   onTracked,
   onCreated,
   offline = false,
+  onRecording,
   focusMode = false,
   onToggleFocus,
   highlight = [],
@@ -214,7 +217,7 @@ export default function NoteEditorPane({
       id: note.id,
       user_id: '',
       parent_id: null,
-      title: unlocked ? unlocked.payload.title || note.title : note.title,
+      title: note.title,
       icon: null,
       cover_url: null,
       content: unlocked ? unlocked.payload.content : note.content,
@@ -245,7 +248,7 @@ export default function NoteEditorPane({
         .catch(() => undefined)
         .then(async () => {
           const lock = await sealNote(unlockedKey, { title, content }, lockHint);
-          await onSaveContent(noteId, { title, content: fileBlocksOnly(content), lock });
+          await onSaveContent(noteId, { title, content: fileBlocksOnly(content), lock, lock_proof: unlockedKey.proof });
         });
     },
     [noteId, onSaveContent, unlockedKey, lockHint],
@@ -342,7 +345,8 @@ export default function NoteEditorPane({
       const res = await fetch(`/api/notes/${encodeURIComponent(note.id)}/lock`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ action: 'unlock', title: payload.title || fresh.title, content: payload.content, base_updated_at: fresh.updated_at }),
+        // El título visible (el del servidor) manda; la prueba demuestra que se sabe la contraseña.
+        body: JSON.stringify({ action: 'unlock', proof: unlocked.key.proof, title: fresh.title, content: payload.content, base_updated_at: fresh.updated_at }),
       });
       if (!res.ok) throw new Error(String(res.status));
       openNoteKeys.delete(note.id);
@@ -475,7 +479,7 @@ export default function NoteEditorPane({
             </div>
           ) : (
             <div className="note-body note-body-readonly">
-              <h1 className="note-view-title">{(unlocked?.payload.title || note.title) || t('untitled')}</h1>
+              <h1 className="note-view-title">{note.title || t('untitled')}</h1>
               <NoteBlocksView blocks={unlocked ? unlocked.payload.content : note.content} fileHref={files.href} />
             </div>
           ))}
@@ -500,7 +504,7 @@ export default function NoteEditorPane({
         </div>
         {gate || (
           <div className="note-body note-body-readonly">
-            <h1 className="note-view-title">{(unlocked?.payload.title || note.title) || t('untitled')}</h1>
+            <h1 className="note-view-title">{note.title || t('untitled')}</h1>
             <NoteBlocksView blocks={unlocked ? unlocked.payload.content : note.content} fileHref={files.href} />
           </div>
         )}
@@ -561,9 +565,18 @@ export default function NoteEditorPane({
           {statusLabel}
         </span>
         <div className="note-bar-actions">
+          {canWrite && (!offline || !locked) && (
+            <AudioRecordButton
+              noteId={note.id}
+              offline={offline}
+              onInsert={(b) => insertRef.current?.(b)}
+              onPending={onRecording}
+              onNotice={(m) => onNotice?.(m)}
+              onError={(m) => onError?.(m)}
+            />
+          )}
           {canWrite && !offline && (
             <>
-              <AudioRecordButton noteId={note.id} onInsert={(b) => insertRef.current?.(b)} onError={(m) => onError?.(m)} />
               <button
                 type="button"
                 className="btn btn-ghost btn-sm btn-icon"

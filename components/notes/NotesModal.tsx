@@ -89,6 +89,15 @@ export function PromptDialog({
   const [busy, setBusy] = useState(false);
   const listId = useId();
   const inputId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
+  // El modal se abre (showModal) después de montar el campo y movería el foco: se vuelve a poner acá.
+  useEffect(() => {
+    const h = requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    });
+    return () => cancelAnimationFrame(h);
+  }, []);
   async function submit() {
     if (!value.trim() || busy) return;
     setBusy(true);
@@ -116,6 +125,7 @@ export function PromptDialog({
         <span>{label}</span>
         <input
           id={inputId}
+          ref={inputRef}
           className="input"
           autoFocus
           value={value}

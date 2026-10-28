@@ -94,6 +94,16 @@ const CRM_ROOT = /^\/app(\/crm(\/|$)|\/notes\/?$|\/?$)/;
 const DOCS_PAGE = /^\/(en|es|pt)\/app\/docs(\/|$)/;
 const DOCS_ROOT = /^\/app\/docs(\/|$)/;
 
+// Notes: solo la lista (/app/notes) se guarda; nunca una nota abierta por
+// link (?note=), y al bloquear una nota la página la pide borrar (zs-drop-notes).
+const NOTES_PAGE = /^\/(en|es|pt)?\/?app\/notes\/?$/;
+
+/** ¿Se puede guardar esta respuesta? Notes con ?note= (u otros parámetros) no. */
+function storable(url) {
+  if (NOTES_PAGE.test(url.pathname) && url.search) return false;
+  return true;
+}
+
 function isCrmNavigation(url) {
   return CRM_PAGE.test(url.pathname) || CRM_ROOT.test(url.pathname);
 }
@@ -287,7 +297,9 @@ async function networkFirst(request) {
   if (!cache) return fetch(request);
   try {
     const res = await fetch(request);
-    if (res && res.ok && res.status === 200 && res.type === 'basic' && !res.redirected) await cache.put(request, res.clone()).catch(() => undefined);
+    if (res && res.ok && res.status === 200 && res.type === 'basic' && !res.redirected && storable(new URL(request.url))) {
+      await cache.put(request, res.clone()).catch(() => undefined);
+    }
     return res;
   } catch (err) {
     const hit = await cache.match(request, { ignoreVary: true });
@@ -389,6 +401,18 @@ self.addEventListener('message', (event) => {
   const data = event.data || {};
   if (data.type === 'zs-user') event.waitUntil(setUser(data.id, data.who));
   else if (data.type === 'zs-sync') event.waitUntil(replay());
+  else if (data.type === 'zs-drop-notes') {
+    // Una nota se bloqueó: fuera las páginas de Notes guardadas (podían tener su texto).
+    event.waitUntil(
+      (async () => {
+        const keys = await caches.keys();
+        for (const k of keys.filter((name) => name.startsWith(PAGES))) {
+          const cache = await caches.open(k);
+          for (const req of await cache.keys()) if (NOTES_PAGE.test(new URL(req.url).pathname)) await cache.delete(req);
+        }
+      })(),
+    );
+  }
   else if (data.type === 'zs-count') event.waitUntil(broadcastCount());
   else if (data.type === 'zs-warm' && Array.isArray(data.urls)) {
     // La página ya cargó su JS y CSS antes de que el worker la controlara: se guardan ahora.
@@ -404,7 +428,7 @@ self.addEventListener('message', (event) => {
             if (u.origin !== self.location.origin) continue;
             if (u.pathname.startsWith('/_next/static/')) {
               if (!(await statics.match(u.href))) await statics.add(u.href);
-            } else if (pages && isOfflineNavigation(u)) {
+            } else if (pages && isOfflineNavigation(u) && storable(u)) {
               const res = await fetch(u.href, { credentials: 'same-origin' });
               if (res.ok && !res.redirected) await pages.put(u.href, res);
             }

@@ -32,18 +32,37 @@ function pickMime(): { mime: string; ext: string } | null {
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
+/** Tope de una grabación: 15 minutos a 48 kbps (unos 5,4 MB, por debajo de los 10 MB por archivo). */
+export const RECORDING_MAX_SECONDS = 15 * 60;
+const RECORDING_BITS = 48_000;
+const UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
+
+let recordingActive = false;
+/** ¿Hay una grabación en curso? (Notes pregunta antes de cambiar de nota.) */
+export function isRecordingActive(): boolean {
+  return recordingActive;
+}
+
 /**
  * Grabar audio en la nota (como Evernote): el botón empieza a grabar con el
- * micrófono, "Parar y agregar" sube la grabación y la deja como bloque de
- * audio al final de la nota.
+ * micrófono, con el tiempo y el tope a la vista (se corta solo a los 15 min).
+ * "Parar y agregar" sube la grabación y la deja como bloque de audio. Sin red,
+ * o si se cambia de nota mientras se graba, la grabación no se pierde: queda
+ * en el dispositivo y se agrega a su nota cuando se puede (onPending).
  */
 export function AudioRecordButton({
   noteId,
+  offline = false,
   onInsert,
+  onPending,
+  onNotice,
   onError,
 }: {
   noteId: string;
+  offline?: boolean;
   onInsert: (blocks: DocsBlock[]) => void;
+  onPending?: (noteId: string, file: File) => Promise<'added' | 'saved' | 'failed'>;
+  onNotice?: (msg: string) => void;
   onError: (msg: string) => void;
 }) {
   const t = useTranslations('notes.capture');
@@ -53,7 +72,13 @@ export function AudioRecordButton({
   const recRef = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
   const discard = useRef(false);
+  /** Se desmontó (cambio de nota) con la grabación en curso: va por onPending. */
+  const unmounted = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
+  const offlineRef = useRef(offline);
+  offlineRef.current = offline;
+  const pendingRef = useRef(onPending);
+  pendingRef.current = onPending;
 
   useEffect(() => {
     if (state !== 'recording') return;
@@ -61,11 +86,16 @@ export function AudioRecordButton({
     return () => clearInterval(h);
   }, [state]);
 
+  // Tope: se corta sola y se agrega.
+  useEffect(() => {
+    if (state === 'recording' && secs >= RECORDING_MAX_SECONDS) recRef.current?.stop();
+  }, [state, secs]);
+
   useEffect(
     () => () => {
-      discard.current = true;
-      recRef.current?.state === 'recording' && recRef.current.stop();
-      streamRef.current?.getTracks().forEach((tr) => tr.stop());
+      unmounted.current = true;
+      if (recRef.current?.state === 'recording') recRef.current.stop();
+      else streamRef.current?.getTracks().forEach((tr) => tr.stop());
     },
     [],
   );
@@ -80,27 +110,51 @@ export function AudioRecordButton({
       return onError(t('micDenied'));
     }
     streamRef.current = stream;
-    const rec = new MediaRecorder(stream, kind.mime ? { mimeType: kind.mime } : undefined);
+    const rec = new MediaRecorder(stream, { ...(kind.mime ? { mimeType: kind.mime } : {}), audioBitsPerSecond: RECORDING_BITS });
     chunks.current = [];
     discard.current = false;
     rec.ondataavailable = (e) => e.data.size && chunks.current.push(e.data);
     rec.onstop = async () => {
+      recordingActive = false;
       stream.getTracks().forEach((tr) => tr.stop());
       if (discard.current) {
-        setState('idle');
+        if (!unmounted.current) setState('idle');
         return;
       }
-      setState('uploading');
       const type = rec.mimeType || kind.mime || 'audio/webm';
       const ext = type.includes('mp4') ? 'm4a' : type.includes('ogg') ? 'ogg' : kind.ext;
       const name = `${t('recordingName', { date: format.dateTime(new Date(), { dateStyle: 'medium', timeStyle: 'short' }) }).replace(/[/:\\]/g, '-')}.${ext}`;
-      const block = await uploadToNote(noteId, new File(chunks.current, name, { type: type.split(';')[0] }), 'audio');
+      const file = new File(chunks.current, name, { type: type.split(';')[0] });
+      if (file.size > UPLOAD_MAX_BYTES) {
+        if (!unmounted.current) setState('idle');
+        return onError(t('tooBig'));
+      }
+      // Cambió de nota o no hay red: la sube el padre (o queda en el dispositivo).
+      if (unmounted.current || offlineRef.current) {
+        const res = await pendingRef.current?.(noteId, file);
+        if (!unmounted.current) setState('idle');
+        if (res === 'saved') onNotice?.(t('savedLocal'));
+        else if (res === 'added') onNotice?.(t('addedLater'));
+        else onError(t('uploadError'));
+        return;
+      }
+      setState('uploading');
+      const block = await uploadToNote(noteId, file, 'audio');
+      if (block) {
+        setState('idle');
+        onInsert([block, { id: crypto.randomUUID(), type: 'paragraph', content: '' }]);
+        return;
+      }
+      // Falló la subida (red caída en el medio): no se pierde.
+      const res = await pendingRef.current?.(noteId, file);
       setState('idle');
-      if (block) onInsert([block, { id: crypto.randomUUID(), type: 'paragraph', content: '' }]);
+      if (res === 'saved') onNotice?.(t('savedLocal'));
+      else if (res === 'added') onNotice?.(t('addedLater'));
       else onError(t('uploadError'));
     };
     recRef.current = rec;
     rec.start(1000);
+    recordingActive = true;
     setSecs(0);
     setState('recording');
   }
@@ -109,7 +163,7 @@ export function AudioRecordButton({
     return (
       <span className="note-recording" role="status">
         <span className="note-recording-dot" aria-hidden="true" />
-        <span className="note-recording-time num">{t('recording', { time: fmt(secs) })}</span>
+        <span className="note-recording-time num">{t('recording', { time: fmt(secs), max: fmt(RECORDING_MAX_SECONDS) })}</span>
         <button type="button" className="btn btn-sm btn-primary" onClick={() => recRef.current?.stop()}>
           {t('stop')}
         </button>
@@ -117,6 +171,7 @@ export function AudioRecordButton({
           type="button"
           className="btn btn-sm btn-ghost"
           onClick={() => {
+            if (!confirm(t('confirmDiscard'))) return;
             discard.current = true;
             recRef.current?.stop();
           }}

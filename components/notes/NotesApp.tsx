@@ -7,6 +7,8 @@ import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { DocsBlock } from '@/lib/docs-types';
 import { registerAppServiceWorker } from '@/lib/sw-client';
+import { whoCookie } from '@/lib/docs-offline';
+import { fileBlockFromUpload, type DocsUploadResult } from '@/lib/docs-files';
 import {
   blocksToText,
   makeSnippet,
@@ -41,11 +43,17 @@ import {
 import {
   NotesOfflineStore,
   applyPatchLocally,
+  identityMatches,
+  makeOp,
   offlineList,
   replayOutbox,
+  retryDelay,
   type CachedNote,
+  type IdentityRecord,
   type OfflineOwner,
+  type StuckOp,
 } from './notesOffline';
+import { isRecordingActive } from './NoteCapture';
 import { parseDbUtc } from '@/lib/utils';
 
 export type { NotesFilter } from './notes-ui';
@@ -187,14 +195,58 @@ export default function NotesApp({
 
   const ownerUser = offlineOwner?.userId ?? '';
   const ownerWs = offlineOwner?.ws ?? '';
+  /** La base del dispositivo, antes de confirmar de quién es (storeRef recién con la identidad confirmada). */
+  const candidateStore = useRef<NotesOfflineStore | null>(null);
+  /** Cambios que el servidor rechazó (para copiar o descartar). */
+  const [stuck, setStuck] = useState<StuckOp[]>([]);
+  const retryAttempt = useRef(0);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!ownerUser || !NotesOfflineStore.available()) return;
     const store = new NotesOfflineStore({ userId: ownerUser, ws: ownerWs });
-    storeRef.current = store;
+    candidateStore.current = store;
     return () => {
       store.close();
+      if (candidateStore.current === store) candidateStore.current = null;
       if (storeRef.current === store) storeRef.current = null;
     };
+  }, [ownerUser, ownerWs]);
+
+  /**
+   * ¿La copia del dispositivo es de quien está en la sesión? Con red lo dice
+   * el servidor (y se guarda la cookie zs_who de ese momento); sin red, la
+   * cookie actual tiene que ser esa. Hasta confirmar no se abre la copia, no
+   * se reenvía la cola ni se sincroniza: una página guardada de otra persona
+   * o una sesión vencida no ven ni mandan nada.
+   */
+  const confirmIdentity = useCallback(async (): Promise<boolean> => {
+    const store = candidateStore.current;
+    if (!store) return false;
+    const who = whoCookie();
+    const deny = () => {
+      storeRef.current = null;
+      return false;
+    };
+    if (!offlineRef.current) {
+      try {
+        const res = await fetch('/api/notes/sync?probe=1', { cache: 'no-store' });
+        if (!res.ok) return deny();
+        const data = (await res.json()) as { owner?: { userId: string; ws: string } };
+        if (data.owner?.userId !== ownerUser || data.owner?.ws !== ownerWs || !who) return deny();
+        await store.setMeta('identity', { who, at: Date.now() } satisfies IdentityRecord);
+        storeRef.current = store;
+        setStuck(await store.stuckOps().catch(() => []));
+        return true;
+      } catch (err) {
+        if (!isNetworkError(err)) return deny();
+        setOffline(true);
+      }
+    }
+    const rec = await store.getMeta<IdentityRecord>('identity').catch(() => null);
+    if (!identityMatches(rec, who)) return deny();
+    storeRef.current = store;
+    setStuck(await store.stuckOps().catch(() => []));
+    return true;
   }, [ownerUser, ownerWs]);
 
   /** Encola un PATCH de la nota detrás de los anteriores. */
@@ -217,7 +269,9 @@ export default function NotesApp({
       if (!store) return null;
       const cached = await store.get(id).catch(() => null);
       if (!cached) return null;
-      await store.enqueue({ kind: 'patch', id, patch, base, at: Date.now() });
+      // La versión del servidor sobre la que se edita: la que conoce esta pestaña o la guardada con la nota.
+      // Sin ninguna, el reenvío no pisa nada (queda como copia).
+      await store.enqueue(makeOp({ kind: 'patch', id, patch, base: base ?? cached.server_updated_at ?? null }));
       const next = applyPatchLocally(cached, patch, new Date().toISOString());
       await store.putNote(next);
       if (markOffline) setOffline(true);
@@ -243,7 +297,7 @@ export default function NotesApp({
       if (store && !offlineRef.current) {
         const pending = await store.outbox().catch(() => []);
         if (pending.some((o) => o.id === id)) {
-          const local = await saveLocally(id, patch, force ? null : (base ?? null), false);
+          const local = await saveLocally(id, patch, force ? (bases.current.get(id) ?? null) : (base ?? null), false);
           if (local) {
             void flushRef.current();
             return { updated: local, local: true };
@@ -260,7 +314,7 @@ export default function NotesApp({
         });
       } catch (err) {
         if (!isNetworkError(err)) throw err;
-        const local = await saveLocally(id, patch, force ? null : (base ?? null));
+        const local = await saveLocally(id, patch, base ?? null);
         if (!local) throw err;
         return { updated: local, local: true };
       }
@@ -381,7 +435,7 @@ export default function NotesApp({
           await store.setMeta('notebooks', data.notebooks);
           await store.setMeta('tags', data.tags);
         }
-        await store.putDetails(data.notes);
+        await store.putDetails(data.notes, { keep });
         if (data.nextOffset == null) break;
         offset = data.nextOffset;
       }
@@ -417,15 +471,23 @@ export default function NotesApp({
     try {
       const r = await replayOutbox(ops, {
         fetch: (url, init) => fetch(url, init),
-        remove: (op) => store.removeOp(op),
+        complete: (op, serverUpdatedAt) => store.completeOp(op, serverUpdatedAt),
+        stuck: (op, status) => store.stickOp(op, status),
         copyTitle: (title) => t('offline.copyTitle', { title: title || t('untitled') }),
       });
+      if (r.stuck) setStuck(await store.stuckOps().catch(() => []));
       if (r.remaining) {
-        setOffline(true);
+        // Sin red, o el servidor falló: se reintenta con espera creciente.
+        if (r.retry) {
+          if (retryTimer.current) clearTimeout(retryTimer.current);
+          retryTimer.current = setTimeout(() => void flushRef.current(), retryDelay(retryAttempt.current++));
+        } else setOffline(true);
         return;
       }
+      retryAttempt.current = 0;
       for (const op of ops) bases.current.delete(op.id);
       if (r.copies) setToast(t('offline.copies', { count: r.copies }));
+      else if (r.stuck) setToast(t('offline.stuck', { count: r.stuck }));
       else if (r.done) setOkToast(t('offline.synced', { count: r.done }));
       // La nota abierta: la versión del servidor (con su base nueva).
       const open = note?.id;
@@ -468,12 +530,17 @@ export default function NotesApp({
     const prev = wasOffline.current;
     wasOffline.current = offline;
     if (offline) {
-      if (prev === false) void refreshList();
+      void (async () => {
+        await confirmIdentity();
+        if (prev === false || storeRef.current) void refreshList();
+      })();
       return;
     }
-    // Primera carga con red, o volvió la red.
+    // Primera carga con red, o volvió la red: primero quién es la sesión.
     void (async () => {
+      if (!(await confirmIdentity())) return;
       await flushOutbox();
+      await uploadPendingFiles();
       if (prev === true) {
         void refreshList();
         void refreshSide();
@@ -508,6 +575,11 @@ export default function NotesApp({
     return () => clearTimeout(h);
   }, [refreshList, q]);
 
+  // Borrar la búsqueda borra también el resaltado de la nota abierta.
+  useEffect(() => {
+    if (!q.trim()) setHighlight([]);
+  }, [q]);
+
   // URL compartible (?note=<id>) sin navegar.
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -524,6 +596,8 @@ export default function NotesApp({
 
   const openNote = useCallback(
     async (id: string) => {
+      // Grabando: la grabación no se pierde (se agrega a su nota), pero se avisa antes de cambiar.
+      if (isRecordingActive() && !confirm(t('capture.confirmLeave'))) return;
       setHighlight(q.trim() ? highlightTerms(q) : []);
       try {
         if (offlineRef.current) throw new TypeError('offline');
@@ -581,12 +655,79 @@ export default function NotesApp({
       setNote((cur) => (cur && cur.id === fresh.id ? fresh : cur));
       setEditorKey((k) => k + 1);
       setStatus('idle');
-      void storeRef.current?.putDetails([fresh]).catch(() => undefined);
+      if (fresh.locked) {
+        // Recién bloqueada: fuera el texto en claro del dispositivo (copia, cola y páginas guardadas).
+        void storeRef.current?.scrubNote(fresh).catch(() => undefined);
+        navigator.serviceWorker?.controller?.postMessage({ type: 'zs-drop-notes' });
+      } else {
+        void storeRef.current?.putDetails([fresh]).catch(() => undefined);
+      }
       void refreshList();
     },
     [refreshList],
   );
 
+  /**
+   * Grabación para una nota (al cambiar de nota mientras se grababa, o sin
+   * red): se sube y se agrega al final de la nota en el servidor. Sin red
+   * queda en el dispositivo y se sube al volver.
+   */
+  const addRecording = useCallback(
+    async (noteId: string, file: File): Promise<'added' | 'saved' | 'failed'> => {
+      const attach = async (): Promise<boolean> => {
+        const form = new FormData();
+        form.append('file', file);
+        const up = await fetch(`/api/notes/${encodeURIComponent(noteId)}/files`, { method: 'POST', body: form });
+        if (!up.ok) return false;
+        const block = fileBlockFromUpload((await up.json()) as DocsUploadResult, 'audio');
+        await saveChains.current.get(noteId)?.catch(() => {});
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const cur = await fetch(`/api/notes/${encodeURIComponent(noteId)}`);
+          if (!cur.ok) return false;
+          const n = (await cur.json()) as NoteDetail;
+          if (n.locked) return false;
+          const res = await fetch(`/api/notes/${encodeURIComponent(noteId)}`, {
+            method: 'PATCH',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ content: [...n.content, block], base_updated_at: n.updated_at }),
+          });
+          if (res.ok) {
+            const updated = (await res.json()) as NoteDetail;
+            bases.current.set(noteId, updated.updated_at);
+            return true;
+          }
+          if (res.status !== 409) return false;
+        }
+        return false;
+      };
+      try {
+        if (offlineRef.current) throw new TypeError('offline');
+        return (await attach()) ? 'added' : 'failed';
+      } catch (err) {
+        if (!isNetworkError(err) || !storeRef.current) return 'failed';
+        await storeRef.current.addFile({ fileId: crypto.randomUUID(), noteId, name: file.name, type: file.type, blob: file, at: Date.now() });
+        return 'saved';
+      }
+    },
+    [],
+  );
+
+  /** Sube las grabaciones que quedaron en el dispositivo. */
+  async function uploadPendingFiles(): Promise<void> {
+    const store = storeRef.current;
+    if (!store) return;
+    const files = await store.files().catch(() => []);
+    for (const f of files) {
+      const res = await addRecording(f.noteId, new File([f.blob], f.name, { type: f.type })).catch(() => 'failed' as const);
+      if (res === 'added') {
+        await store.removeFile(f.fileId).catch(() => undefined);
+        if (note?.id === f.noteId) void reloadNoteRef.current(f.noteId);
+      }
+      if (res === 'saved') break;
+    }
+  }
+
+  const reloadNoteRef = useRef<(id: string) => Promise<void>>(async () => undefined);
   /** Recarga la nota abierta (después de restaurar una versión): el editor se monta de nuevo. */
   const reloadNote = useCallback(
     async (id: string) => {
@@ -600,6 +741,7 @@ export default function NotesApp({
     },
     [replaceNote, t],
   );
+  reloadNoteRef.current = reloadNote;
 
   /**
    * Espera el autoguardado (debounce del editor + PATCH en vuelo) y trae la
@@ -666,6 +808,7 @@ export default function NotesApp({
    */
   const createNote = useCallback(
     async (init?: { title: string; content: DocsBlock[] }) => {
+      if (isRecordingActive() && !confirm(t('capture.confirmLeave'))) return;
       const id = crypto.randomUUID();
       const nowIso = new Date().toISOString();
       const content = init?.content.length ? init.content : [{ id: crypto.randomUUID(), type: 'paragraph' as const, content: '' }];
@@ -696,7 +839,7 @@ export default function NotesApp({
         const store = storeRef.current;
         if (!store) return false;
         try {
-          await store.enqueue({ kind: 'create', id, body, at: Date.now() });
+          await store.enqueue(makeOp({ kind: 'create', id, body }));
           await store.putNote({ ...created, full: true });
           setOffline(true);
           return true;
@@ -736,7 +879,7 @@ export default function NotesApp({
         setNotebooks((prev) => prev.map((nb) => (nb.id === filter.id ? { ...nb, count: nb.count + 1 } : nb)));
       }
     },
-    [filter],
+    [filter, t],
   );
 
   // Atajos: N = nueva nota, / = buscar (fuera de campos de texto); Esc sale del modo foco o de la selección.
@@ -784,7 +927,7 @@ export default function NotesApp({
 
   /** Autosave del editor (DocsEditor ya hace debounce de 600 ms). */
   const saveContent = useCallback(
-    async (id: string, patch: { title: string; content: DocsBlock[]; lock?: NoteLockEnvelope }) => {
+    async (id: string, patch: { title: string; content: DocsBlock[]; lock?: NoteLockEnvelope; lock_proof?: string }) => {
       setStatus('saving');
       const creating = pendingCreates.current.get(id);
       if (creating && !(await creating)) {
@@ -1348,6 +1491,36 @@ export default function NotesApp({
               {t('offline.banner')}
             </p>
           )}
+          {stuck.length > 0 && (
+            <div className="notes-offline-banner notes-stuck" role="alert">
+              <span>{t('offline.stuckBanner', { count: stuck.length })}</span>
+              <span className="notes-stuck-actions">
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={() => {
+                    const text = stuck.map((x) => `# ${x.title}\n\n${x.text}`).join('\n\n---\n\n');
+                    void navigator.clipboard?.writeText(text).then(
+                      () => setOkToast(t('offline.copied')),
+                      () => setToast(t('editor.actionError')),
+                    );
+                  }}
+                >
+                  {t('offline.copyText')}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-ghost btn-danger"
+                  onClick={() => {
+                    if (!confirm(t('offline.confirmDiscard'))) return;
+                    void storeRef.current?.dropStuck(null).then(() => setStuck([]));
+                  }}
+                >
+                  {t('offline.discard')}
+                </button>
+              </span>
+            </div>
+          )}
           {syncing && !offline && (
             <p className="notes-offline-banner" role="status">
               {t('offline.syncing')}
@@ -1748,6 +1921,7 @@ export default function NotesApp({
               void reloadNote(id);
             }}
             offline={offline}
+            onRecording={addRecording}
             focusMode={focusMode}
             onToggleFocus={() => setFocusMode((v) => !v)}
             highlight={highlight}

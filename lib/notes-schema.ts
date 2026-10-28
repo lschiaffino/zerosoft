@@ -6,17 +6,27 @@ import { docsBlockSchema } from './docs-schema';
 
 const id = z.string().min(1).max(64);
 const tag = z.string().trim().min(1).max(60);
-const b64 = (max: number) => z.string().min(4).max(max).regex(/^[A-Za-z0-9+/]+=*$/);
+const b64 = (min: number, max: number) => z.string().min(min).max(max).regex(/^[A-Za-z0-9+/]+=*$/);
+/** Base64 de exactamente n bytes. */
+const b64Bytes = (n: number) => z.string().length(Math.ceil(n / 3) * 4).regex(/^[A-Za-z0-9+/]+=*$/);
 
-/** Sobre de una nota bloqueada (lo arma el navegador, ver lib/notes-crypto.ts). */
+/**
+ * Sobre de una nota bloqueada (lo arma el navegador, ver lib/notes-crypto.ts):
+ * sal de 16 bytes, IV de 12, texto cifrado con su tag de 16 y el SHA-256 de la
+ * prueba de la contraseña. Cualquier otra forma se rechaza.
+ */
 export const noteLockEnvelopeSchema = z.object({
   v: z.literal(1),
   iter: z.number().int().min(100_000).max(5_000_000),
-  salt: b64(64),
-  iv: b64(32),
-  ct: b64(8_000_000),
+  salt: b64Bytes(16),
+  iv: b64Bytes(12),
+  ct: b64(24, 8_000_000),
+  vh: b64Bytes(32),
   hint: z.string().trim().max(120).optional(),
 });
+
+/** Prueba de la contraseña (32 bytes en base64): el servidor compara su SHA-256 con el vh del sobre. */
+export const noteLockProofSchema = b64Bytes(32);
 const url = z
   .string()
   .trim()
@@ -43,8 +53,9 @@ export const noteUpdateSchema = z.object({
   trashed: z.boolean().optional(),
   /** `updated_at` que conoce el cliente: si la nota cambió desde entonces, 409. */
   base_updated_at: z.string().max(40).optional(),
-  /** Nota bloqueada: el sobre cifrado de nuevo con los cambios. */
+  /** Nota bloqueada: el sobre cifrado de nuevo con los cambios, y la prueba de la contraseña. */
   lock: noteLockEnvelopeSchema.optional(),
+  lock_proof: noteLockProofSchema.optional(),
 });
 
 /** Bloquear (lock) o sacar el bloqueo (unlock, con el contenido ya descifrado). */
@@ -58,6 +69,7 @@ export const noteLockSchema = z.discriminatedUnion('action', [
   }),
   z.object({
     action: z.literal('unlock'),
+    proof: noteLockProofSchema,
     title: z.string().max(300).optional(),
     content: z.array(docsBlockSchema).max(2000),
     base_updated_at: z.string().max(40).optional(),

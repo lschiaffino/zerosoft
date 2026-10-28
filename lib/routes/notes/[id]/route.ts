@@ -91,6 +91,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       }
       // Bloqueada: el contenido solo se guarda con el sobre cifrado (y al revés).
       if (err.code === 'note_locked' || err.code === 'not_locked') return jsonError(409, err.code);
+      if (err.code === 'wrong_password') return jsonError(403, err.code);
       return jsonError(400, err.code);
     }
     throw err;

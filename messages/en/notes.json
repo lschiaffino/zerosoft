@@ -307,7 +307,8 @@
     "noMatch": "No templates match.",
     "loading": "Loading templates",
     "blank": "Blank note",
-    "blankDesc": "Start from scratch."
+    "blankDesc": "Start from scratch.",
+    "cmdkMeta": "Template"
   },
   "searches": {
     "save": "Save search",
@@ -406,7 +407,13 @@
     "copies": "{count, plural, one {# note changed somewhere else while you were offline. Your version was saved as a copy.} other {# notes changed somewhere else while you were offline. Your versions were saved as copies.}}",
     "copyTitle": "{title} (offline copy)",
     "notCached": "This note isn’t on this device yet. Open it once while online.",
-    "unavailable": "Not available offline"
+    "unavailable": "Not available offline",
+    "stuck": "{count, plural, one {# change could not be saved. Copy its text or discard it.} other {# changes could not be saved. Copy their text or discard them.}}",
+    "stuckBanner": "{count, plural, one {# change from this device was rejected (the note was deleted or you lost access).} other {# changes from this device were rejected (the note was deleted or you lost access).}}",
+    "copyText": "Copy text",
+    "copied": "Copied. Paste it into a new note.",
+    "discard": "Discard",
+    "confirmDiscard": "Discard these changes from this device? Their text will be gone."
   },
   "focus": {
     "enter": "Focus mode",
@@ -416,7 +423,7 @@
     "record": "Record audio",
     "stop": "Stop and add",
     "cancel": "Discard",
-    "recording": "Recording {time}",
+    "recording": "Recording {time} of {max}",
     "micDenied": "Microphone access was denied. Allow it in the browser to record.",
     "unsupported": "This browser can’t record audio.",
     "uploading": "Adding to the note…",
@@ -432,6 +439,21 @@
     "close": "Close",
     "scanName": "Scan {date}",
     "cropHint": "Drag the corners to the edges of the page.",
-    "corner": "Page corner {n}"
+    "corner": "Page corner {n}",
+    "confirmLeave": "A recording is in progress. If you open another note it stops and is added to this one. Continue?",
+    "confirmDiscard": "Discard this recording?",
+    "tooBig": "The recording is over 10 MB and can’t be added.",
+    "savedLocal": "Recording saved on this device. It’s added to the note when you’re back online.",
+    "addedLater": "Recording added to the note."
+  },
+  "signOut": {
+    "title": "{count, plural, one {# change in Notes isn’t uploaded yet} other {# changes in Notes aren’t uploaded yet}}",
+    "body": "Signing out erases the copy of your notes on this device, including what hasn’t synced. Download it first if you want to keep it.",
+    "offlineTitle": "You’re offline",
+    "offlineBody": "Signing out erases the notes saved on this device, so you won’t be able to open them without a connection until you sign in again.",
+    "offlineNote": "You’re offline, so these changes can’t be uploaded now.",
+    "download": "Download pending changes",
+    "confirm": "Sign out anyway",
+    "cancel": "Cancel"
   }
 }
