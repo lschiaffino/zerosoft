@@ -1141,7 +1141,14 @@ export async function postMessage(actor: TalkActor, input: PostMessageInput, opt
   const id = crypto.randomUUID();
   // Orden estable: dos mensajes en el mismo milisegundo no empatan.
   let now = nowIso();
-  const last = (await db.prepare('SELECT MAX(created_at) AS at FROM talk_messages WHERE channel_id = ?').get(channel.id)) as { at: string | null } | undefined;
+  // También después de quien se sumó en este mismo milisegundo (su "leído hasta" no tapa el mensaje).
+  const last = (await db
+    .prepare(
+      `SELECT MAX(at) AS at FROM (
+         SELECT MAX(created_at) AS at FROM talk_messages WHERE channel_id = ?
+         UNION ALL SELECT MAX(joined_at) FROM talk_members WHERE channel_id = ? AND user_id != ?)`,
+    )
+    .get(channel.id, channel.id, actor.personId)) as { at: string | null } | undefined;
   if (last?.at && last.at >= now) now = new Date(new Date(last.at).getTime() + 1).toISOString();
   await db
     .prepare(
