@@ -385,7 +385,8 @@
     "button": "Importar",
     "importing": "Importando…",
     "partial": "Se importaron {ok}; {failed} no se pudieron leer como archivos .excalidraw.",
-    "done": "{count, plural, one {Se importó # pizarra} other {Se importaron # pizarras}}"
+    "done": "{count, plural, one {Se importó # pizarra} other {Se importaron # pizarras}}",
+    "tooMany": "El archivo tiene demasiados elementos (hasta 50.000) o pasa el tamaño máximo."
   },
   "search": {
     "label": "Buscar pizarras",
@@ -393,7 +394,8 @@
     "error": "No se pudo buscar. Probá de nuevo.",
     "searching": "Buscando…",
     "emptyTitle": "Nada coincide con “{q}”",
-    "emptyHint": "La búsqueda mira el nombre y el texto de adentro: stickies, etiquetas y frames."
+    "emptyHint": "La búsqueda mira el nombre y el texto de adentro: stickies, etiquetas y frames.",
+    "count": "{count, plural, one {# pizarra} other {# pizarras}}"
   },
   "folders": {
     "title": "Carpetas",
@@ -428,7 +430,8 @@
     "moved": "“{name}” pasó a la papelera",
     "purgeTitle": "Borrar para siempre",
     "confirmPurge": "¿Borrar “{name}” para siempre, con sus comentarios e historial? No se puede deshacer.",
-    "undo": "Deshacer"
+    "undo": "Deshacer",
+    "hintMember": "Las pizarras borradas quedan acá 30 días. Las podés restaurar; borrarlas para siempre es del owner y los admins."
   },
   "audit": {
     "tab": "Registro de actividad",
@@ -463,6 +466,36 @@
       "folder_created": "Creó una carpeta",
       "folder_renamed": "Renombró una carpeta",
       "folder_deleted": "Borró una carpeta"
+    },
+    "detail": {
+      "renamed": "{from} → {to}",
+      "movedTo": "A {folder}",
+      "movedOut": "Fuera de su carpeta",
+      "restricted": "Solo invitados",
+      "workspace": "Todo el workspace",
+      "member": "{name}: {role}",
+      "memberRemoved": "{name}: sin acceso",
+      "view": "puede ver",
+      "edit": "puede editar",
+      "on": "Prendido",
+      "off": "Apagado",
+      "template": "Plantilla {template}"
     }
+  },
+  "ttd": {
+    "tabAi": "Texto a diagrama",
+    "beta": "IA",
+    "descAi": "Describí un flujo, un proceso o una estructura y la IA lo dibuja como un diagrama que podés editar. Funciona mejor con flowcharts, secuencias y diagramas de clases.",
+    "generate": "Generar",
+    "placeholderAi": "Por ejemplo: registrarse, verificar el email, elegir un plan, pagar, ver el tablero",
+    "viewMermaid": "Ver como Mermaid",
+    "length": "Largo:",
+    "descMermaid": "Los flowcharts y los diagramas de secuencia y de clases pasan a formas editables. Los demás tipos de Mermaid entran como imagen.",
+    "syntax": "Sintaxis de Mermaid",
+    "preview": "Vista previa",
+    "insert": "Insertar",
+    "placeholderMermaid": "Escribí acá el diagrama de Mermaid…",
+    "mermaidTitle": "Mermaid a diagrama",
+    "prompt": "Descripción"
   }
 }

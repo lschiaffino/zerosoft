@@ -23,7 +23,8 @@ function parseScene(raw: string): BoardScene {
   try {
     const s = JSON.parse(raw) as Partial<BoardScene>;
     return {
-      elements: Array.isArray(s.elements) ? s.elements : [],
+      // Lo leído también pasa por el limpiador (links y HTML de IA de escenas viejas o importadas).
+      elements: Array.isArray(s.elements) ? sanitizeElements(s.elements as Array<Record<string, unknown>>) : [],
       appState: s.appState && typeof s.appState === 'object' ? s.appState : {},
       files: s.files && typeof s.files === 'object' ? s.files : {},
     };

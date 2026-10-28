@@ -2,10 +2,31 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createBoard, getBoard, getGuestBoard, getSharedBoard, listBoards, listTrash, purgeExpiredTrash, saveBoardScene, searchBoards, sceneSearchText, setBoardShared, snippet } from '@/lib/boards';
 import { boardViewer, getBoardAccess, setBoardAccessMode, setBoardGuestLink, setBoardMember } from '@/lib/board-access';
 import { createBoardFolder, deleteBoardFolder, listBoardFolders } from '@/lib/board-folders';
-import { boardEventsSince, cleanElements, cleanPresence, guestLiveActor, handleLiveSend, liveAllowed, liveConnectionFilter, memberLiveActor, pruneBoardEvents, publishBoardEvent } from '@/lib/board-live';
+import {
+  BOARD_LIVE_MAX_BYTES,
+  actorKey,
+  bindSocket,
+  boardEventsSince,
+  cleanElements,
+  cleanPresence,
+  flushPresence,
+  guestLiveActor,
+  handleLiveSend,
+  liveAllowed,
+  liveConnectionFilter,
+  memberLiveActor,
+  presenceSnapshot,
+  presenceWrites,
+  pruneBoardEvents,
+  publishBoardEvent,
+  stillAllowed,
+  subscribePresence,
+  takeTokens,
+} from '@/lib/board-live';
 import { listBoardAudit, boardAuditCsv, csvCell } from '@/lib/board-audit';
-import { parseExcalidrawFile, sanitizeElements } from '@/lib/board-import';
-import { cleanHtml, cleanMermaid, fakeClusters, fakeDiagram, normalizeClusters } from '@/lib/board-ai';
+import { parseExcalidrawFile, readExcalidrawFile, sanitizeElements } from '@/lib/board-import';
+import { apiCreateBoard } from '@/lib/board-platform';
+import { GENERATED_HTML_CSP, cleanHtml, cleanMermaid, fakeClusters, fakeDiagram, normalizeClusters } from '@/lib/board-ai';
 import { markReceived, newSocketId, prunePeers, takeChanged, toCollaborator, uniquePeople, visibleBounds, type Peer } from '@/lib/board-collab';
 import { nextSlide, orderFrames, slideKey } from '@/lib/board-present';
 import { buildImagePdf, jpegSize } from '@/lib/pdf-images';
@@ -27,6 +48,7 @@ const importRoute = await import('@/app/api/boards/import/route');
 const auditRoute = await import('@/app/api/boards/audit/route');
 const aiRoute = await import('@/lib/routes/boards/[id]/ai/route');
 const foldersRoute = await import('@/app/api/boards/folders/route');
+const folderRoute = await import('@/lib/routes/boards/folders/[folderId]/route');
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 function req(url: string, method = 'GET', body?: unknown) {
@@ -84,6 +106,9 @@ describe('board: papelera', () => {
     // Borrar para siempre solo desde la papelera.
     expect((await trashRoute.DELETE(req('http://x', 'DELETE'), ctx(b.id))).status).toBe(404);
     await boardRoute.DELETE(req('http://x', 'DELETE'), ctx(b.id));
+    // Borrar para siempre es del owner y los admins: un miembro no puede.
+    expect((await trashRoute.DELETE(req('http://x', 'DELETE'), ctx(b.id))).status).toBe(403);
+    session.user = as(ws, ws.owner);
     expect((await trashRoute.DELETE(req('http://x', 'DELETE'), ctx(b.id))).status).toBe(204);
     expect((await getDb().prepare('SELECT 1 AS x FROM boards WHERE id = ?').get(b.id)) ?? null).toBeNull();
     const audit = (await listBoardAudit(ws.owner.id)).map((e) => e.action);
@@ -164,7 +189,7 @@ describe('board: tiempo real (feed por pizarra y permisos por evento)', () => {
     await setBoardMember(ws.owner.id, b.id, ws.b.id, 'view', ws.a.id);
     const viewerB = await memberLiveActor(as(ws, ws.b), b.id);
     expect(viewerB?.level).toBe('view');
-    expect(await handleLiveSend(viewerB!, { socketId: 'sockB12345', presence: { pointer: { x: 1, y: 2, tool: 'pointer' } } })).toEqual({ ok: true });
+    expect(await handleLiveSend(viewerB!, { socketId: 'sockB12345', presence: { pointer: { x: 1, y: 2, tool: 'pointer' } } })).toMatchObject({ ok: true });
     expect(await handleLiveSend(viewerB!, { socketId: 'sockB12345', elements: [{ id: 'e', type: 'rectangle' }] })).toMatchObject({ ok: false, status: 403 });
     expect(await handleLiveSend(viewerB!, { socketId: 'sockB12345', summon: true, presence: { bounds: [0, 0, 10, 10] } })).toMatchObject({ ok: false, status: 403 });
     const editorA = await memberLiveActor(as(ws, ws.a), b.id);
@@ -200,7 +225,8 @@ describe('board: tiempo real (feed por pizarra y permisos por evento)', () => {
     const token = (await setBoardGuestLink(u.id, b.id, true)) as string;
     expect((await guestLiveActor(token))?.boardId).toBe(b.id);
     const post = await liveRoute.POST(req(`http://x/api/boards/live?guest=${token}`, 'POST', { socketId: 'guest12345', presence: { pointer: { x: 0, y: 0 } } }));
-    expect(post.status).toBe(204);
+    expect(post.status).toBe(200);
+    expect(((await post.json()) as { socketId: string }).socketId).toMatch(/^[a-f0-9]{10}-guest12345$/);
     const poll = await liveRoute.GET(req(`http://x/api/boards/live?guest=${token}&poll=1&cursor=1`));
     expect(poll.status).toBe(200);
     expect(((await poll.json()) as { events: Array<{ user: { guest: boolean } }> }).events.some((e) => e.user.guest)).toBe(true);
@@ -215,12 +241,129 @@ describe('board: tiempo real (feed por pizarra y permisos por evento)', () => {
     expect(cleanElements([{ id: 'a' }])).toBeNull();
     expect(cleanElements([])).toBeNull();
     expect(cleanPresence({ pointer: { x: Infinity, y: 1 }, bounds: [0, 0, -1, 5], selected: ['a', 3] })).toEqual({ selected: ['a'] });
-    expect(liveAllowed('k', 0, 1, 2)).toBe(true);
-    expect(liveAllowed('k', 0, 1, 2)).toBe(true);
-    expect(liveAllowed('k', 0, 1, 2)).toBe(false);
+    expect(takeTokens('k', 1, 1, 2, 0)).toBe(true);
+    expect(takeTokens('k', 1, 1, 2, 0)).toBe(true);
+    expect(takeTokens('k', 1, 1, 2, 0)).toBe(false);
+    expect(takeTokens('k', 1, 1, 2, 1000)).toBe(true);
     await publishBoardEvent({ boardId: 'b', workspaceId: 'w', socketId: 'server', kind: 'access' });
     await getDb().prepare("UPDATE board_events SET created_at = '2000-01-01T00:00:00.000Z' WHERE board_id = 'b'").run();
     expect(await pruneBoardEvents()).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('board: arreglos del QA (abuso, suplantación, revalidación, presencia efímera)', () => {
+  it('un invitado no puede inundar el feed: tope por actor e IP, 32 KB por evento y bytes por minuto', async () => {
+    const u = await makeUser('fl');
+    const b = await createBoard(u.id, u.id, 'Flood');
+    const token = (await setBoardGuestLink(u.id, b.id, true)) as string;
+    const guest = (await guestLiveActor(token))!;
+    const key = actorKey(guest);
+    // Por actor, aunque cambie de pestaña (socketId) en cada pedido.
+    let allowed = 0;
+    for (let i = 0; i < 100; i++) if (liveAllowed(key, '9.9.9.9', 5_000_000)) allowed++;
+    expect(allowed).toBeLessThanOrEqual(40);
+    // Un evento de más de 32 KB no entra (lo lleva el guardado).
+    const big = [{ id: 'big', type: 'freedraw', points: Array.from({ length: 4000 }, (_, i) => [i, i]) }];
+    expect(JSON.stringify(big).length).toBeGreaterThan(BOARD_LIVE_MAX_BYTES);
+    expect(await handleLiveSend(guest, { socketId: 'flood00001', elements: big }, 6_000_000)).toMatchObject({ ok: false, status: 413 });
+    // Bytes por minuto: tras ~512 KB seguidos, corta con 429.
+    const chunk = [{ id: 'c', type: 'freedraw', points: Array.from({ length: 1500 }, (_, i) => [i, i]) }];
+    let codes: number[] = [];
+    for (let i = 0; i < 40; i++) {
+      const r = await handleLiveSend(guest, { socketId: `flood${String(i).padStart(5, '0')}`, elements: chunk }, 7_000_000);
+      codes = [...codes, r.ok ? 200 : r.status];
+    }
+    expect(codes).toContain(429);
+    const rows = (await getDb().prepare('SELECT COALESCE(SUM(LENGTH(payload)), 0) AS n FROM board_events WHERE board_id = ?').get(b.id)) as { n: number };
+    expect(Number(rows.n)).toBeLessThan(700 * 1024);
+  });
+
+  it('el id de pestaña queda atado a quien lo usa: otro no puede hablar, irse ni moverse en su nombre', async () => {
+    const ws = await workspace('sp');
+    const b = await createBoard(ws.owner.id, ws.a.id, 'Spoof');
+    const a = (await memberLiveActor(as(ws, ws.a), b.id))!;
+    const m = (await memberLiveActor(as(ws, ws.b), b.id))!;
+    const seen: Array<{ kind: string; socketId: string }> = [];
+    const off = subscribePresence(b.id, (evs) => seen.push(...evs.map((e) => ({ kind: e.kind, socketId: e.socketId }))));
+    const ra = await handleLiveSend(a, { socketId: 'victim0001', presence: { bounds: [0, 0, 10, 10] } });
+    const rm = await handleLiveSend(m, { socketId: 'victim0001', presence: { bounds: [500, 500, 600, 600] } });
+    expect(ra.ok && rm.ok).toBe(true);
+    const sa = (ra as { socketId: string }).socketId;
+    const sm = (rm as { socketId: string }).socketId;
+    expect(sa).not.toBe(sm);
+    expect(sa).toBe(bindSocket(actorKey(a), 'victim0001'));
+    // "Irse" con el id de otro solo saca la pestaña propia.
+    await handleLiveSend(m, { socketId: 'victim0001', leave: true });
+    expect(seen.filter((e) => e.kind === 'leave').map((e) => e.socketId)).toEqual([sm]);
+    expect(presenceSnapshot(b.id).map((e) => e.socketId)).toEqual([sa]);
+    off();
+  });
+
+  it('la presencia no va a board_events y se escribe coalescida (una fila por pizarra e instancia)', async () => {
+    const u = await makeUser('pr');
+    const b = await createBoard(u.id, u.id, 'Presence');
+    const actor = (await memberLiveActor({ id: u.id }, b.id))!;
+    const before = (await getDb().prepare('SELECT COUNT(*) AS n FROM board_events WHERE board_id = ?').get(b.id)) as { n: number };
+    for (let i = 0; i < 50; i++) await handleLiveSend(actor, { socketId: `tab${i % 5}abcdef`, presence: { pointer: { x: i, y: i, tool: 'pointer' } } });
+    await flushPresence();
+    const after = (await getDb().prepare('SELECT COUNT(*) AS n FROM board_events WHERE board_id = ?').get(b.id)) as { n: number };
+    expect(Number(after.n)).toBe(Number(before.n));
+    // 50 movimientos de 5 pestañas: una fila, escrita una vez (o dos si justo pasó el ciclo de 250 ms).
+    const rows = (await getDb().prepare('SELECT COUNT(*) AS n, MAX(seq) AS seq FROM board_presence WHERE board_id = ?').get(b.id)) as { n: number; seq: number };
+    expect(Number(rows.n)).toBe(1);
+    expect(Number(rows.seq)).toBeLessThanOrEqual(2);
+    expect(presenceSnapshot(b.id)).toHaveLength(5);
+    expect(presenceWrites()).toBeGreaterThan(0);
+  });
+
+  it('una conexión abierta se revalida desde la base: sacar a alguien del team la corta', async () => {
+    const ws = await workspace('rv');
+    const b = await createBoard(ws.owner.id, ws.owner.id, 'Reval');
+    const actor = (await memberLiveActor(as(ws, ws.b), b.id))!;
+    expect(await stillAllowed(actor)).toBe(true);
+    await getDb().prepare('DELETE FROM team_members WHERE team_id = ? AND user_id = ?').run(ws.team.id, ws.b.id);
+    expect(await stillAllowed(actor)).toBe(false);
+  });
+
+  it('el cursor del atraso es de la pizarra, no del feed entero', async () => {
+    const u = await makeUser('cu');
+    const b1 = await createBoard(u.id, u.id, 'C1');
+    const b2 = await createBoard(u.id, u.id, 'C2');
+    await publishBoardEvent({ boardId: b1.id, workspaceId: u.id, socketId: 'server', kind: 'access' });
+    const c1 = (await boardEventsSince(b1.id, 0)).cursor;
+    await publishBoardEvent({ boardId: b2.id, workspaceId: u.id, socketId: 'server', kind: 'access' });
+    expect((await boardEventsSince(b1.id, 0)).cursor).toBe(c1);
+  });
+
+  it('links con tabs o entidades, HTML de IA y CSP; carpetas ajenas y carpetas inventadas por la API', async () => {
+    expect(sanitizeElements([{ link: 'java\tscript:alert(1)' }])[0].link).toBeNull();
+    expect(sanitizeElements([{ link: '&#106;avascript:alert(1)' }])[0].link).toBeNull();
+    expect(sanitizeElements([{ link: '%6Aavascript:x' }])[0].link).toBeNull();
+    expect(sanitizeElements([{ link: 'https://ok.example/a b' }])[0].link).toBe('https://ok.example/a b');
+    const gen = sanitizeElements([{ id: 'i', type: 'iframe', customData: { generationData: { status: 'done', html: '<script>x</script>' }, keep: 1 } }]);
+    expect(gen[0].customData).toEqual({ keep: 1 });
+    expect(cleanHtml('<!DOCTYPE html><html><head><title>x</title></head><body></body></html>')).toContain(`<head><meta http-equiv="Content-Security-Policy" content="${GENERATED_HTML_CSP}">`);
+    expect(GENERATED_HTML_CSP).toContain("default-src 'none'");
+
+    const ws = await workspace('fp');
+    session.user = as(ws, ws.a);
+    const folder = await (await foldersRoute.POST(req('http://x', 'POST', { name: 'De A' }))).json();
+    session.user = as(ws, ws.b);
+    expect((await folderRoute.PATCH!(req('http://x', 'PATCH', { name: 'x' }), { params: Promise.resolve({ folderId: folder.id }) })).status).toBe(403);
+    expect((await folderRoute.DELETE!(req('http://x', 'DELETE'), { params: Promise.resolve({ folderId: folder.id }) })).status).toBe(403);
+    session.user = as(ws, ws.owner);
+    expect((await folderRoute.PATCH!(req('http://x', 'PATCH', { name: 'Del owner' }), { params: Promise.resolve({ folderId: folder.id }) })).status).toBe(200);
+
+    const before = (await listBoards(ws.owner.id)).length;
+    await expect(apiCreateBoard({ ws: ws.owner.id, personId: ws.owner.id, role: 'owner', via: 'api' }, { name: 'x', folderId: 'nope' })).rejects.toThrow();
+    expect((await listBoards(ws.owner.id)).length).toBe(before);
+  });
+
+  it('frames de presentación sin magicframes, import con demasiados elementos y título del PDF', async () => {
+    expect(orderFrames([{ id: 'm', type: 'magicframe', x: 0, y: 0, width: 10, height: 10 }, { id: 'f', type: 'frame', x: 0, y: 0, width: 10, height: 10 }]).map((f) => (f as { id: string }).id)).toEqual(['f']);
+    expect(readExcalidrawFile({ type: 'excalidraw', elements: Array.from({ length: 50_001 }, (_, i) => ({ id: `e${i}`, type: 'rectangle' })) })).toEqual({ ok: false, error: 'too_many_elements' });
+    const pdf = new TextDecoder('latin1').decode(buildImagePdf([], `${'a'.repeat(119)}(`));
+    expect(pdf).toContain(`/Title (${'a'.repeat(119)}\\()`);
   });
 });
 
@@ -279,7 +422,7 @@ describe('board: audit log y IA', () => {
     expect(cleanMermaid('Here:\n```mermaid\nflowchart TD\nA-->B\n```')).toBe('flowchart TD\nA-->B');
     expect(cleanMermaid('no diagram')).toBeNull();
     expect(fakeDiagram('sign up, verify email, then dashboard')).toContain('N1 --> N2');
-    expect(cleanHtml('```html\n<!DOCTYPE html><html></html>\n```')).toBe('<!DOCTYPE html><html></html>');
+    expect(cleanHtml('```html\n<!DOCTYPE html><html></html>\n```')).toMatch(/^<!DOCTYPE html><html><head><meta http-equiv="Content-Security-Policy"/);
     expect(cleanHtml('just text')).toBeNull();
     const notes = [
       { id: 'a', text: 'Price high' },

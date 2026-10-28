@@ -21,7 +21,8 @@ export interface FrameLike {
  * si sus centros verticales quedan a menos de media altura del más bajo.
  */
 export function orderFrames<T extends FrameLike>(elements: readonly unknown[]): T[] {
-  const frames = (elements as T[]).filter((e) => e && !e.isDeleted && (e.type === 'frame' || e.type === 'magicframe'));
+  // Solo frames: un frame de wireframe a código (magicframe) no es una slide.
+  const frames = (elements as T[]).filter((e) => e && !e.isDeleted && e.type === 'frame');
   const byTop = [...frames].sort((a, b) => a.y + a.height / 2 - (b.y + b.height / 2));
   const rows: T[][] = [];
   for (const f of byTop) {

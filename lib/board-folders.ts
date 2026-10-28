@@ -16,19 +16,24 @@ export async function listBoardFolders(workspaceId: string, viewer: BoardViewer)
   const visible = boardVisibleSql(viewer);
   const rows = (await getDb()
     .prepare(
-      `SELECT f.id, f.name, f.created_at,
+      `SELECT f.id, f.name, f.created_at, f.created_by,
               (SELECT COUNT(*) FROM boards b WHERE b.workspace_id = f.workspace_id AND b.folder_id = f.id AND ${visible.sql}) AS count
        FROM board_folders f WHERE f.workspace_id = ? ORDER BY f.name COLLATE NOCASE LIMIT ?`,
     )
-    .all(...visible.args, workspaceId, BOARD_MAX_FOLDERS)) as Array<{ id: string; name: string; created_at: string; count: number }>;
-  return rows.map((r) => ({ id: r.id, name: r.name, created_at: r.created_at, count: Number(r.count) }));
+    .all(...visible.args, workspaceId, BOARD_MAX_FOLDERS)) as Array<{ id: string; name: string; created_at: string; created_by: string | null; count: number }>;
+  return rows.map((r) => ({ id: r.id, name: r.name, created_at: r.created_at, count: Number(r.count), can_manage: canManageFolder(r, viewer) }));
 }
 
-export async function getBoardFolder(workspaceId: string, id: string): Promise<{ id: string; name: string } | null> {
-  const row = (await getDb().prepare('SELECT id, name FROM board_folders WHERE id = ? AND workspace_id = ?').get(id, workspaceId)) as
-    | { id: string; name: string }
+export async function getBoardFolder(workspaceId: string, id: string): Promise<{ id: string; name: string; created_by: string | null } | null> {
+  const row = (await getDb().prepare('SELECT id, name, created_by FROM board_folders WHERE id = ? AND workspace_id = ?').get(id, workspaceId)) as
+    | { id: string; name: string; created_by: string | null }
     | undefined;
   return row ?? null;
+}
+
+/** Renombrar o borrar una carpeta: quien la creó, o el owner y los admins. */
+export function canManageFolder(folder: { created_by: string | null }, viewer: { personId: string; isAdmin: boolean }): boolean {
+  return viewer.isAdmin || (folder.created_by != null && folder.created_by === viewer.personId);
 }
 
 export type CreateFolderResult = { ok: true; folder: BoardFolder } | { ok: false; code: 'too_many' };
@@ -42,7 +47,7 @@ export async function createBoardFolder(workspaceId: string, personId: string, n
   await getDb()
     .prepare('INSERT INTO board_folders (id, workspace_id, name, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)')
     .run(id, workspaceId, clean, personId, now, now);
-  return { ok: true, folder: { id, name: clean, count: 0, created_at: now } };
+  return { ok: true, folder: { id, name: clean, count: 0, created_at: now, can_manage: true } };
 }
 
 export async function renameBoardFolder(workspaceId: string, id: string, name: string): Promise<string | null> {

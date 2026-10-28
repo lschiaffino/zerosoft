@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { requestCursor } from '@/lib/realtime';
+import { clientIp } from '@/lib/rate-limit';
 import {
+  actorKey,
   boardEventsSince,
+  pollPresence,
   boardLiveStream,
   guestLiveActor,
   handleLiveSend,
@@ -42,7 +45,9 @@ export async function GET(req: NextRequest) {
   const cursor = requestCursor(req);
   if (new URL(req.url).searchParams.get('poll') === '1') {
     const batch = await boardEventsSince(actor.boardId, cursor);
-    return NextResponse.json(batch, { headers: { 'cache-control': 'no-store' } });
+    // El polling trae también quién está ahora (la presencia no se guarda en el feed).
+    const presence = await pollPresence(actor.boardId);
+    return NextResponse.json({ ...batch, events: [...presence, ...batch.events] }, { headers: { 'cache-control': 'no-store' } });
   }
   return boardLiveStream(actor, cursor, req.signal);
 }
@@ -51,19 +56,20 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const actor = await actorFor(req);
   if (actor instanceof Response) return actor;
+  // Límite por quien manda (persona o token de invitado) y por IP, antes de leer el cuerpo.
+  if (!liveAllowed(actorKey(actor), clientIp(req))) return jsonError(429, 'rate_limited');
   const declared = Number(req.headers.get('content-length') ?? 0);
-  if (declared > 300 * 1024) return jsonError(413, 'too_large');
+  if (declared > 64 * 1024) return jsonError(413, 'too_large');
   const raw = await req.text();
-  if (raw.length > 300 * 1024) return jsonError(413, 'too_large');
+  if (raw.length > 64 * 1024) return jsonError(413, 'too_large');
   let body: unknown;
   try {
     body = JSON.parse(raw);
   } catch {
     return jsonError(400, 'invalid_input');
   }
-  const socket = (body as { socketId?: unknown })?.socketId;
-  if (!liveAllowed(`${actor.boardId}:${typeof socket === 'string' ? socket : ''}`)) return jsonError(429, 'rate_limited');
   const res = await handleLiveSend(actor, body);
   if (!res.ok) return jsonError(res.status, res.code);
-  return new NextResponse(null, { status: 204 });
+  // El id de pestaña atado a quien manda: el navegador lo usa para reconocer sus propios eventos.
+  return NextResponse.json({ socketId: res.socketId }, { headers: { 'cache-control': 'no-store' } });
 }

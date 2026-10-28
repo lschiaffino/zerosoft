@@ -19,6 +19,8 @@ import {
 import { BOARD_TEMPLATES, buildSpecElements, buildTemplateScene, type BoardTemplateKey, type ElementSpec, type TemplateText } from './board-templates';
 import { STICKY_H, STICKY_W, layoutStickiesInFreeSpace, stickyFill, elementText, isSticky, type SceneEl } from './board-stickies';
 import { logBoardAudit, type BoardAuditVia } from './board-audit';
+import { getBoardFolder } from './board-folders';
+import { sanitizeElements } from './board-import';
 import { publishBoardAccessChanged, publishBoardEvent } from './board-live';
 import { orderFrames, type FrameLike } from './board-present';
 import type { BoardSummary } from './boards-types';
@@ -109,21 +111,19 @@ export async function apiGetBoard(a: BoardActor, id: string, withScene = false) 
     ...publicBoard(board),
     myAccess: access,
     outline: boardOutline(board.scene.elements),
-    ...(withScene ? { scene: { elements: board.scene.elements, appState: board.scene.appState } } : {}),
+    ...(withScene ? { scene: { elements: sanitizeElements(board.scene.elements as Array<Record<string, unknown>>), appState: board.scene.appState } } : {}),
   };
 }
 
 export async function apiCreateBoard(a: BoardActor, input: { name?: string; template?: string; folderId?: string | null; locale?: string }) {
+  // La carpeta se valida antes de crear: un id ajeno o inventado no deja una pizarra a medias.
+  if (input.folderId && !(await getBoardFolder(a.ws, input.folderId))) throw new BoardApiError('invalid_input', 400);
   let scene;
   if (input.template) {
     if (!(BOARD_TEMPLATES as readonly string[]).includes(input.template)) throw new BoardApiError('invalid_input', 400);
     scene = buildTemplateScene(input.template as BoardTemplateKey, templateText(input.locale ?? 'en'));
   }
-  const board = await createBoard(a.ws, a.personId, input.name ?? '', { scene });
-  if (input.folderId) {
-    const moved = await moveBoardToFolder(a.ws, board.id, input.folderId);
-    if (moved === 'no_folder') throw new BoardApiError('invalid_input', 400);
-  }
+  const board = await createBoard(a.ws, a.personId, input.name ?? '', { scene, folderId: input.folderId ?? null });
   await logBoardAudit({ workspaceId: a.ws, actorId: a.personId, via: a.via, action: 'board.created', boardId: board.id, boardName: board.name, data: input.template ? { template: input.template } : {} });
   return publicBoard({ ...board, folder_id: input.folderId ?? null });
 }
@@ -133,8 +133,9 @@ export async function apiUpdateBoard(a: BoardActor, id: string, input: { name?: 
   if (input.name !== undefined) {
     const clean = input.name.trim();
     if (!clean) throw new BoardApiError('invalid_input', 400);
+    const before = await getBoardName(a.ws, id);
     await renameBoard(a.ws, id, clean.slice(0, 120), a.personId);
-    await logBoardAudit({ workspaceId: a.ws, actorId: a.personId, via: a.via, action: 'board.renamed', boardId: id, boardName: clean });
+    await logBoardAudit({ workspaceId: a.ws, actorId: a.personId, via: a.via, action: 'board.renamed', boardId: id, boardName: clean, data: { from: before } });
   }
   if (input.folderId !== undefined) {
     const res = await moveBoardToFolder(a.ws, id, input.folderId);

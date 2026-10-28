@@ -30,8 +30,14 @@ export default function BoardPresent({
   onExportPdf: () => void;
 }) {
   const t = useTranslations('board.present');
-  const [frames] = useState<FrameLike[]>(() => orderFrames<FrameLike>(api.getSceneElements()));
+  // Los frames se releen del lienzo: si alguien suma, mueve o borra uno mientras se presenta, entra.
+  const [frames, setFrames] = useState<FrameLike[]>(() => orderFrames<FrameLike>(api.getSceneElements()));
   const [index, setIndex] = useState(0);
+  /** Rectángulo del frame actual en la pantalla: lo de afuera se tapa (la slide es solo el frame). */
+  const [rect, setRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
+  const framesRef = useRef(frames);
+  framesRef.current = frames;
+  const currentId = frames[index]?.id ?? null;
   const [shared, setShared] = useState(false);
   const exitedRef = useRef(false);
   const prevState = useRef<Record<string, unknown> | null>(null);
@@ -63,14 +69,51 @@ export default function BoardPresent({
     return () => document.removeEventListener('fullscreenchange', onFs);
   }, [api, hostRef, exit]);
 
-  // Cada slide: el frame entero en la pantalla.
+  // Frames vivos: se recalculan con cada cambio del lienzo (barato: solo filtra y ordena).
   useEffect(() => {
-    const frame = frames[index];
+    const off = api.onChange(() => {
+      const next = orderFrames<FrameLike>(api.getSceneElements());
+      const prev = framesRef.current;
+      const same = next.length === prev.length && next.every((f, i) => f.id === prev[i].id && f.x === prev[i].x && f.y === prev[i].y && f.width === prev[i].width && f.height === prev[i].height && f.name === prev[i].name);
+      if (!same) setFrames(next);
+    });
+    return off;
+  }, [api]);
+  useEffect(() => {
+    if (index > 0 && index >= frames.length) setIndex(Math.max(0, frames.length - 1));
+  }, [frames.length, index]);
+
+  // Cada slide: el frame entero en la pantalla, y lo de afuera tapado.
+  const measure = useCallback(() => {
+    const frame = framesRef.current.find((f) => f.id === currentId);
+    if (!frame) return setRect(null);
+    const s = api.getAppState() as { scrollX: number; scrollY: number; zoom: { value: number } };
+    const z = s.zoom?.value ?? 1;
+    setRect({ left: (frame.x + s.scrollX) * z, top: (frame.y + s.scrollY) * z, width: frame.width * z, height: frame.height * z });
+  }, [api, currentId]);
+  useEffect(() => {
+    const frame = frames.find((f) => f.id === currentId);
     if (!frame) return;
-    // Releer el frame actual (pudo moverse mientras se presenta).
-    const live = (api.getSceneElements() as FrameLike[]).find((e) => e.id === frame.id) ?? frame;
-    api.scrollToContent(live, { fitToContent: true, animate: true });
-  }, [api, frames, index]);
+    // El frame llena la pantalla (agranda también los chicos), con un poco de aire. Al cambiar el
+    // tamaño (pantalla completa, rotar el teléfono) Excalidraw remide su lienzo y se vuelve a ajustar.
+    const fit = () => {
+      (api as CanvasApi & { refresh?: () => void }).refresh?.();
+      const live = (api.getSceneElements() as FrameLike[]).find((e) => e.id === frame.id) ?? frame;
+      api.scrollToContent(live, { fitToViewport: true, viewportZoomFactor: 0.9, animate: false });
+      measure();
+    };
+    fit();
+    const late = setTimeout(fit, 300);
+    const off = api.onScrollChange(() => measure());
+    window.addEventListener('resize', fit);
+    document.addEventListener('fullscreenchange', fit);
+    return () => {
+      off();
+      clearTimeout(late);
+      window.removeEventListener('resize', fit);
+      document.removeEventListener('fullscreenchange', fit);
+    };
+  }, [api, frames, currentId, measure]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -93,6 +136,13 @@ export default function BoardPresent({
   const frame = frames[index];
   return (
     <div className="board-present" role="region" aria-label={t('title')}>
+      {rect && (
+        <div
+          className="board-present-mask"
+          aria-hidden="true"
+          style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }}
+        />
+      )}
       {frames.length === 0 ? (
         <div className="board-present-empty" role="status">
           <p>{t('empty')}</p>

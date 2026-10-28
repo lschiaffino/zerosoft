@@ -42,11 +42,13 @@ export async function POST(_req: NextRequest, ctx: Ctx) {
   return NextResponse.json({ ok: true });
 }
 
-/** DELETE: la borra para siempre (escena, imágenes, comentarios e historial). */
+/** DELETE: la borra para siempre (escena, imágenes, comentarios e historial). Solo owner y admins. */
 export async function DELETE(_req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   const t = await trashed(id);
   if ('res' in t) return t.res;
+  // Borrar para siempre es del owner y los admins (restaurar lo puede cualquiera que la editaba).
+  if (!t.viewer.isAdmin) return jsonError(403, 'forbidden');
   if (!(await deleteBoard(t.viewer.workspaceId, id, { trashed: true }))) return jsonError(404, 'not_found');
   await logBoardAudit({ workspaceId: t.viewer.workspaceId, actorId: t.viewer.personId, action: 'board.purged', boardId: id, boardName: t.name });
   return new NextResponse(null, { status: 204 });

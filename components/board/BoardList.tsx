@@ -38,6 +38,7 @@ export default function BoardList({
   initialView = { kind: 'all' },
   startNew = false,
   serverNow,
+  canPurge = false,
 }: {
   initialBoards: BoardSummary[];
   initialFolders?: BoardFolder[];
@@ -45,6 +46,8 @@ export default function BoardList({
   startNew?: boolean;
   /** "Ahora" del render del servidor: el primer render del cliente usa el mismo (sin hydration mismatch). */
   serverNow: number;
+  /** Owner o admin: puede borrar para siempre desde la papelera. */
+  canPurge?: boolean;
 }) {
   const t = useTranslations('board');
   const tt = useTranslations('board.templates');
@@ -175,6 +178,7 @@ export default function BoardList({
   }, [query]);
 
   const currentFolderId = view.kind === 'folder' ? view.id : null;
+  const searchingNow = query.trim().length > 0;
 
   const create = useCallback(async () => {
     if (busy) return;
@@ -229,15 +233,20 @@ export default function BoardList({
     let ok = 0;
     let failed = 0;
     let last: BoardDetail | null = null;
+    let tooMany = 0;
     for (const file of Array.from(files).slice(0, 50)) {
       try {
-        const text = await file.text();
+        const text = await svgFilesToPng(await file.text());
         const res = await fetch('/api/boards/import', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ name: file.name, file: text, folderId: currentFolderId }),
         });
-        if (!res.ok) throw new Error(String(res.status));
+        if (!res.ok) {
+          const code = ((await res.json().catch(() => ({}))) as { error?: string }).error;
+          if (code === 'too_many_elements' || res.status === 413) tooMany++;
+          throw new Error(String(res.status));
+        }
         last = (await res.json()) as BoardDetail;
         const b = last;
         setBoards((list) => [toSummary(b), ...list]);
@@ -252,7 +261,8 @@ export default function BoardList({
       router.push(`/app/board/${last.id}`);
       return;
     }
-    if (failed) setToast({ text: t('import.partial', { ok, failed }), tone: 'error' });
+    if (tooMany && tooMany === failed && ok === 0) setToast({ text: t('import.tooMany'), tone: 'error' });
+    else if (failed) setToast({ text: t('import.partial', { ok, failed }), tone: 'error' });
     else setToast({ text: t('import.done', { count: ok }), tone: 'info' });
   }
 
@@ -423,7 +433,6 @@ export default function BoardList({
   );
 
   const folder = view.kind === 'folder' ? folders.find((f) => f.id === view.id) ?? null : null;
-  const searchingNow = query.trim().length > 0;
   const shown = searchingNow ? (results ?? []) : view.kind === 'folder' ? boards.filter((b) => b.folder_id === view.id) : boards;
   const folderName = (id: string | null | undefined) => (id ? folders.find((f) => f.id === id)?.name ?? null : null);
 
@@ -504,7 +513,7 @@ export default function BoardList({
           />
         </label>
         <nav className="board-folders" aria-label={t('folders.title')}>
-          <button type="button" className="board-folder-tab" aria-current={view.kind === 'all' ? 'page' : undefined} onClick={() => setViewAndUrl({ kind: 'all' })}>
+          <button type="button" className="board-folder-tab" aria-current={view.kind === 'all' && !searchingNow ? 'page' : undefined} onClick={() => setViewAndUrl({ kind: 'all' })}>
             {t('folders.all')}
             <span className="board-folder-count">{boards.length}</span>
           </button>
@@ -513,7 +522,7 @@ export default function BoardList({
               key={f.id}
               type="button"
               className="board-folder-tab"
-              aria-current={view.kind === 'folder' && view.id === f.id ? 'page' : undefined}
+              aria-current={view.kind === 'folder' && view.id === f.id && !searchingNow ? 'page' : undefined}
               onClick={() => setViewAndUrl({ kind: 'folder', id: f.id })}
             >
               <NotesIcon name="folder" size={13} />
@@ -525,7 +534,7 @@ export default function BoardList({
             <NotesIcon name="plus" size={13} />
             {t('folders.new')}
           </button>
-          <button type="button" className="board-folder-tab" aria-current={view.kind === 'trash' ? 'page' : undefined} onClick={() => setViewAndUrl({ kind: 'trash' })} data-testid="board-trash-tab">
+          <button type="button" className="board-folder-tab" aria-current={view.kind === 'trash' && !searchingNow ? 'page' : undefined} onClick={() => setViewAndUrl({ kind: 'trash' })} data-testid="board-trash-tab">
             <NotesIcon name="trash" size={13} />
             {t('trash.title')}
           </button>
@@ -538,6 +547,7 @@ export default function BoardList({
             <NotesIcon name="folder" size={16} />
             {folder.name}
           </h2>
+          {folder.can_manage !== false && (
           <RowMenu
             open={menu === `folder:${folder.id}`}
             label={`${t('folders.actions')}: ${folder.name}`}
@@ -547,6 +557,7 @@ export default function BoardList({
               { label: t('folders.delete'), danger: true, onSelect: () => { setMenu(null); setFolderDeleting(folder); } },
             ]}
           />
+          )}
         </div>
       )}
 
@@ -556,7 +567,7 @@ export default function BoardList({
             <NotesIcon name="trash" size={16} />
             {t('trash.title')}
           </h2>
-          <p className="board-pop-hint">{t('trash.hint')}</p>
+          <p className="board-pop-hint">{canPurge ? t('trash.hint') : t('trash.hintMember')}</p>
           {trash === null ? (
             <div className="ui-loading-stack" aria-busy="true" aria-label={t('editor.loading')}>
               <span className="ui-skeleton ui-skeleton-row" />
@@ -584,9 +595,11 @@ export default function BoardList({
                   <button type="button" className="btn btn-sm" onClick={() => void restore(b)}>
                     {t('trash.restore')}
                   </button>
-                  <button type="button" className="btn btn-sm btn-ghost btn-danger" onClick={() => setPurging(b)}>
-                    {t('trash.purge')}
-                  </button>
+                  {canPurge && (
+                    <button type="button" className="btn btn-sm btn-ghost btn-danger" onClick={() => setPurging(b)}>
+                      {t('trash.purge')}
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -603,9 +616,19 @@ export default function BoardList({
               <span className="ui-skeleton ui-skeleton-row" />
             </div>
           ) : results.length === 0 ? (
-            <EmptyState quiet product="board" title={t('search.emptyTitle', { q: query.trim() })} body={t('search.emptyHint')} />
+            <div className="board-search-empty">
+              <p className="board-search-count" role="status">
+                {t('search.emptyTitle', { q: query.trim() })}
+              </p>
+              <EmptyState compact body={t('search.emptyHint')} />
+            </div>
           ) : (
-            <ul className="board-grid">{shown.map(card)}</ul>
+            <>
+              <p className="board-search-count" role="status">
+                {t('search.count', { count: results.length })}
+              </p>
+              <ul className="board-grid">{shown.map(card)}</ul>
+            </>
           )}
         </section>
       ) : shown.length === 0 ? (
@@ -777,4 +800,52 @@ function toSummary(b: BoardDetail): BoardSummary {
     updated_by: b.updated_by,
     folder_id: b.folder_id ?? null,
   };
+}
+
+/**
+ * Las imágenes SVG de un .excalidraw se pasan a PNG en el navegador antes de
+ * importar: el storage no guarda SVG (puede llevar scripts) y así no quedan
+ * embebidas en la escena. Si algo falla, se deja el archivo como estaba (el
+ * servidor descarta lo que no puede guardar).
+ */
+async function svgFilesToPng(text: string): Promise<string> {
+  let data: { files?: Record<string, { mimeType?: string; dataURL?: string }> };
+  try {
+    data = JSON.parse(text) as typeof data;
+  } catch {
+    return text;
+  }
+  const files = data.files && typeof data.files === 'object' ? data.files : null;
+  if (!files) return text;
+  let changed = false;
+  for (const f of Object.values(files)) {
+    if (!f || typeof f.dataURL !== 'string' || !f.dataURL.startsWith('data:image/svg+xml')) continue;
+    const png = await rasterize(f.dataURL).catch(() => null);
+    if (!png) continue;
+    f.dataURL = png;
+    f.mimeType = 'image/png';
+    changed = true;
+  }
+  return changed ? JSON.stringify(data) : text;
+}
+
+function rasterize(dataUrl: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 2000;
+      const w = img.naturalWidth || 512;
+      const h = img.naturalHeight || 512;
+      const scale = Math.min(1, max / Math.max(w, h));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(w * scale));
+      canvas.height = Math.max(1, Math.round(h * scale));
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return reject(new Error('no_canvas'));
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => reject(new Error('svg_load'));
+    img.src = dataUrl;
+  });
 }

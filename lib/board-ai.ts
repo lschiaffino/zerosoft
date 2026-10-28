@@ -196,7 +196,24 @@ export function cleanHtml(raw: string): string | null {
   const at = s.search(/<!doctype html|<html/i);
   if (at < 0) return null;
   s = s.slice(at);
-  return s.length <= 200_000 ? s : null;
+  if (s.length > 200_000) return null;
+  return withCsp(s);
+}
+
+/**
+ * CSP propia al principio del documento: sin red (ni scripts, estilos,
+ * imágenes ni fuentes de afuera, ni formularios que salgan), solo lo que trae
+ * adentro. Se suma al sandbox del iframe, que además no tiene el origen de la app.
+ */
+export const GENERATED_HTML_CSP =
+  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-src 'none'";
+
+export function withCsp(html: string): string {
+  const meta = `<meta http-equiv="Content-Security-Policy" content="${GENERATED_HTML_CSP}">`;
+  // Va antes que cualquier otra cosa del <head> (una meta CSP solo cuenta para lo que viene después).
+  if (/<head[^>]*>/i.test(html)) return html.replace(/<head[^>]*>/i, (m) => `${m}${meta}`);
+  if (/<html[^>]*>/i.test(html)) return html.replace(/<html[^>]*>/i, (m) => `${m}<head>${meta}</head>`);
+  return `${meta}${html}`;
 }
 
 export async function aiWireframeToCode(ws: string, imageDataUrl: string, texts: string[]): Promise<string> {

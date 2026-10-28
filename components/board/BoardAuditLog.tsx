@@ -43,6 +43,33 @@ export default function BoardAuditLog() {
     void load();
   }, [load]);
 
+  /** Qué cambió, en palabras: de qué nombre a cuál, a quién, a qué carpeta, prendido o apagado. */
+  function detail(r: BoardAuditEntry): string {
+    const d = r.data;
+    const str = (v: unknown) => (typeof v === 'string' ? v : '');
+    switch (r.action) {
+      case 'board.renamed':
+      case 'folder.renamed':
+        return str(d.from) ? t('detail.renamed', { from: str(d.from), to: str(r.action === 'folder.renamed' ? d.name : r.boardName) }) : '';
+      case 'board.moved':
+        return d.folderId ? t('detail.movedTo', { folder: str(d.folderName) || '?' }) : t('detail.movedOut');
+      case 'access.mode':
+        return d.mode === 'restricted' ? t('detail.restricted') : t('detail.workspace');
+      case 'access.member':
+        return d.role ? t('detail.member', { name: str(d.userName) || '?', role: d.role === 'view' ? t('detail.view') : t('detail.edit') }) : t('detail.memberRemoved', { name: str(d.userName) || '?' });
+      case 'access.guest_link':
+      case 'share.link':
+        return d.on ? t('detail.on') : t('detail.off');
+      case 'folder.created':
+      case 'folder.deleted':
+        return str(d.name);
+      case 'board.created':
+        return str(d.template) ? t('detail.template', { template: str(d.template) }) : '';
+      default:
+        return '';
+    }
+  }
+
   const csvHref = `/api/boards/audit?format=csv${action ? `&action=${encodeURIComponent(action)}` : ''}`;
   return (
     <FormSection
@@ -103,9 +130,12 @@ export default function BoardAuditLog() {
                     {r.actorName ?? t('system')}
                     {r.via !== 'app' && <span className="ui-help"> · {r.via.toUpperCase()}</span>}
                   </td>
-                  <td>{t(`actions.${r.action.replace('.', '_')}`)}</td>
                   <td>
-                    {r.boardId && r.action !== 'board.purged' ? (
+                    {t(`actions.${r.action.replace('.', '_')}`)}
+                    {detail(r) && <span className="ui-help board-audit-detail">{detail(r)}</span>}
+                  </td>
+                  <td>
+                    {r.boardId && r.boardAlive ? (
                       <a href={`/${locale}/app/board/${r.boardId}`} className="board-audit-link">
                         {r.boardName || r.boardId}
                       </a>

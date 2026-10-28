@@ -21,6 +21,22 @@ export async function logBoardAudit(e: {
   data?: Record<string, unknown>;
 }): Promise<void> {
   try {
+    // Con nombres, no solo ids: de qué pizarra, a quién y a qué carpeta (se leen al anotar).
+    const data: Record<string, unknown> = { ...(e.data ?? {}) };
+    let boardName = e.boardName ?? null;
+    if (e.boardId && !boardName) {
+      const b = (await getDb().prepare('SELECT name FROM boards WHERE id = ? AND workspace_id = ?').get(e.boardId, e.workspaceId)) as { name: string } | undefined;
+      boardName = b?.name ?? null;
+    }
+    if (typeof data.userId === 'string' && data.userName === undefined) {
+      const u = (await getDb().prepare('SELECT name, email FROM users WHERE id = ?').get(data.userId)) as { name: string | null; email: string } | undefined;
+      data.userName = u?.name?.trim() || u?.email || null;
+    }
+    if (typeof data.folderId === 'string' && data.folderName === undefined) {
+      const f = (await getDb().prepare('SELECT name FROM board_folders WHERE id = ? AND workspace_id = ?').get(data.folderId, e.workspaceId)) as { name: string } | undefined;
+      data.folderName = f?.name ?? null;
+    }
+    e = { ...e, boardName, data };
     await getDb()
       .prepare(
         `INSERT INTO board_audit (id, workspace_id, board_id, board_name, actor_id, via, action, data, created_at)
@@ -63,7 +79,9 @@ export async function listBoardAudit(
   const limit = Math.min(Math.max(opts.limit ?? 100, 1), 1000);
   const rows = (await getDb()
     .prepare(
-      `SELECT a.*, u.name AS actor_name, u.email AS actor_email FROM board_audit a LEFT JOIN users u ON u.id = a.actor_id
+      `SELECT a.*, u.name AS actor_name, u.email AS actor_email,
+              (SELECT 1 FROM boards b WHERE b.id = a.board_id AND b.deleted_at IS NULL) AS board_alive
+       FROM board_audit a LEFT JOIN users u ON u.id = a.actor_id
        WHERE ${where.join(' AND ')} ORDER BY a.created_at DESC LIMIT ?`,
     )
     .all(...args, limit)) as Array<{
@@ -77,6 +95,7 @@ export async function listBoardAudit(
     action: string;
     data: string;
     created_at: string;
+    board_alive: number | null;
   }>;
   return rows.map((r) => {
     let data: Record<string, unknown> = {};
@@ -95,6 +114,7 @@ export async function listBoardAudit(
       action: r.action as BoardAuditAction,
       data,
       createdAt: r.created_at,
+      boardAlive: Boolean(r.board_alive),
     };
   });
 }

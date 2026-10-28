@@ -18,10 +18,11 @@ import {
   markReceived,
   newSocketId,
   prunePeers,
-  takeChanged,
+  takeChangedBytes,
   toCollaborator,
   uniquePeople,
   visibleBounds,
+  withoutGenerated,
   type Broadcasted,
   type CollabEl,
   type Peer,
@@ -34,7 +35,7 @@ const HEARTBEAT_MS = 10_000;
 
 interface LiveEvent {
   id: number;
-  kind: 'update' | 'summon' | 'leave' | 'saved' | 'access';
+  kind: 'update' | 'presence' | 'summon' | 'leave' | 'saved' | 'access';
   socketId: string;
   user: PeerUser | null;
   payload: {
@@ -69,7 +70,11 @@ export function useBoardCollab(opts: {
   const { boardId, guestToken, api, canEdit, guestLabel } = opts;
   const handlers = useRef(opts);
   handlers.current = opts;
+  /** Id de pestaña que elige el navegador; el servidor lo ata a quien lo manda y devuelve el definitivo. */
   const socketId = useMemo(() => newSocketId(), []);
+  const boundRef = useRef<string | null>(null);
+  /** ¿El evento es de esta pestaña? (antes de saber el id atado, por el sufijo). */
+  const isMine = useCallback((sid: string) => sid === boundRef.current || sid.endsWith(`-${socketId}`), [socketId]);
   const query = guestToken ? `guest=${encodeURIComponent(guestToken)}` : `board=${encodeURIComponent(boardId)}`;
   const url = `/api/boards/live?${query}`;
 
@@ -107,6 +112,10 @@ export function useBoardCollab(opts: {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ socketId, ...body }),
       }).catch(() => null);
+      if (res?.ok) {
+        const data = (await res.json().catch(() => null)) as { socketId?: string } | null;
+        if (data?.socketId) boundRef.current = data.socketId;
+      }
       return res?.ok ?? false;
     },
     [url, socketId],
@@ -124,10 +133,10 @@ export function useBoardCollab(opts: {
     const body: Record<string, unknown> = {};
     if (dirtyElements.current && a && handlers.current.canEdit) {
       dirtyElements.current = false;
-      const changed = takeChanged(a.getSceneElementsIncludingDeleted() as CollabEl[], sentRef.current);
-      if (changed.length) body.elements = changed;
-      // Si quedó algo (más de lo que entra en un tick), sale en el próximo.
-      if (changed.length >= 1500) dirtyElements.current = true;
+      // Hasta ~30 KB por tick (el servidor corta en 32 KB); lo que queda sale en el próximo.
+      const changed = takeChangedBytes(a.getSceneElementsIncludingDeleted() as CollabEl[], sentRef.current);
+      if (changed.elements.length) body.elements = changed.elements;
+      if (changed.rest) dirtyElements.current = true;
     }
     if (dirtyPresence.current || body.elements) {
       dirtyPresence.current = false;
@@ -138,7 +147,7 @@ export function useBoardCollab(opts: {
     lastSent.current = Date.now();
     const ok = await post(body);
     inFlight.current = false;
-    if (!ok && body.elements) {
+    if (!ok && body.elements && !stopped.current) {
       // No llegó: se vuelve a mandar (el guardado igual lo persiste).
       for (const el of body.elements as CollabEl[]) sentRef.current.delete(el.id);
       dirtyElements.current = true;
@@ -184,7 +193,7 @@ export function useBoardCollab(opts: {
     if (!a || !elements.length) return;
     const { reconcile, REMOTE } = await import('./ExcalidrawCanvas');
     markReceived(elements, sentRef.current);
-    const merged = reconcile(a.getSceneElementsIncludingDeleted(), elements, a.getAppState());
+    const merged = reconcile(a.getSceneElementsIncludingDeleted(), withoutGenerated(elements), a.getAppState());
     a.updateScene({ elements: merged, captureUpdate: REMOTE });
     handlers.current.onRemoteApplied();
   }, []);
@@ -201,7 +210,7 @@ export function useBoardCollab(opts: {
       let peersChanged = false;
       const now = Date.now();
       for (const e of events) {
-        if (e.socketId === socketId) continue;
+        if (isMine(e.socketId)) continue;
         if (e.kind === 'saved') {
           if (typeof e.payload.version === 'number') handlers.current.onSaved(e.payload.version, e.user?.name ?? null);
           continue;
@@ -212,6 +221,8 @@ export function useBoardCollab(opts: {
           continue;
         }
         const prev = peersRef.current.get(e.socketId);
+        // Un socket es siempre de la misma persona: si llega con otra, se descarta.
+        if (prev && (prev.user?.id ?? null) !== (e.user?.id ?? null)) continue;
         const presence = e.payload.presence ?? {};
         const peer: Peer = {
           socketId: e.socketId,
@@ -243,7 +254,7 @@ export function useBoardCollab(opts: {
       }
       if (peersChanged) renderPeers();
     },
-    [socketId, applyRemote, followBounds, renderPeers, schedule],
+    [isMine, applyRemote, followBounds, renderPeers, schedule],
   );
 
   const { status } = useRealtime<LiveEvent>({

@@ -122,6 +122,23 @@ export async function personCanViewBoard(personId: string, boardId: string): Pro
   return resolveBoardAccess(row, { personId, isAdmin }, await memberRole(boardId, personId)) !== null;
 }
 
+/**
+ * Viewer recalculado desde la base (no desde una sesión vieja): null si la
+ * persona ya no es del workspace. Lo usa el tiempo real para revalidar una
+ * conexión abierta (la sacaron del team, le bajaron el rol).
+ */
+export async function freshBoardViewer(workspaceId: string, personId: string): Promise<BoardViewer | null> {
+  if (personId === workspaceId) return { workspaceId, personId, isAdmin: true };
+  const row = (await getDb()
+    .prepare(
+      `SELECT m.role AS role FROM team_members m JOIN teams t ON t.id = m.team_id
+       WHERE t.owner_id = ? AND m.user_id = ? ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 ELSE 2 END LIMIT 1`,
+    )
+    .get(workspaceId, personId)) as { role: string } | undefined;
+  if (!row) return null;
+  return { workspaceId, personId, isAdmin: row.role === 'owner' || row.role === 'admin' };
+}
+
 async function isWorkspaceAdmin(workspaceId: string, personId: string): Promise<boolean> {
   const row = (await getDb()
     .prepare(

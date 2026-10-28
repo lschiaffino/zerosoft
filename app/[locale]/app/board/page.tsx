@@ -25,5 +25,5 @@ export default async function BoardsPage(props: {
   const [boards, folders] = await Promise.all([listBoards(user.id, viewer), listBoardFolders(user.id, viewer)]);
   const view: BoardView =
     sp.view === 'trash' ? { kind: 'trash' } : sp.folder && folders.some((f) => f.id === sp.folder) ? { kind: 'folder', id: sp.folder } : { kind: 'all' };
-  return <BoardList initialBoards={boards} initialFolders={folders} initialView={view} startNew={sp.new === '1'} serverNow={Date.now()} />;
+  return <BoardList initialBoards={boards} initialFolders={folders} initialView={view} startNew={sp.new === '1'} serverNow={Date.now()} canPurge={viewer.isAdmin} />;
 }

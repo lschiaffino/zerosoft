@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { createBoard, deleteBoard, saveBoardScene } from '@/lib/boards';
-import { parseExcalidrawFile } from '@/lib/board-import';
+import { readExcalidrawFile } from '@/lib/board-import';
 import { getBoardFolder } from '@/lib/board-folders';
 import { emitEventSoon } from '@/lib/events';
 import { logBoardAudit } from '@/lib/board-audit';
@@ -32,8 +32,9 @@ export async function POST(req: NextRequest) {
   } catch {
     return jsonError(400, 'invalid_input');
   }
-  const scene = parseExcalidrawFile(body.file);
-  if (!scene) return jsonError(400, 'invalid_file');
+  const read = readExcalidrawFile(body.file);
+  if (!read.ok) return jsonError(400, read.error);
+  const scene = read.scene;
   const folderId = typeof body.folderId === 'string' && (await getBoardFolder(user.id, body.folderId)) ? body.folderId : null;
   const name = typeof body.name === 'string' ? body.name.replace(/\.(excalidraw|json)$/i, '').trim().slice(0, 120) : '';
   const board = await createBoard(user.id, personId, name || 'Imported board', { folderId });

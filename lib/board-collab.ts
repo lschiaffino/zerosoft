@@ -28,6 +28,47 @@ export function takeChanged<T extends CollabEl>(elements: readonly T[], sent: Br
   return out;
 }
 
+/**
+ * Como takeChanged, pero con tope de bytes por tick (el servidor corta en
+ * 32 KB): lo que no entra sale en el próximo, y un elemento que solo ya pasa
+ * el tope (un trazo enorme, una imagen embebida) no viaja en vivo: se lo lleva
+ * el guardado y los demás lo traen al guardarse. `rest` dice si quedó algo.
+ */
+export function takeChangedBytes<T extends CollabEl>(elements: readonly T[], sent: Broadcasted, maxBytes = 30_000): { elements: T[]; rest: boolean } {
+  const out: T[] = [];
+  let bytes = 2;
+  let rest = false;
+  for (const el of elements) {
+    if (!el || typeof el.id !== 'string') continue;
+    const v = el.version ?? 0;
+    if ((sent.get(el.id) ?? -1) >= v) continue;
+    const size = JSON.stringify(el).length + 1;
+    if (size > maxBytes) {
+      sent.set(el.id, v);
+      continue;
+    }
+    if (bytes + size > maxBytes) {
+      rest = true;
+      break;
+    }
+    bytes += size;
+    out.push(el);
+    sent.set(el.id, v);
+  }
+  return { elements: out, rest };
+}
+
+/** Saca el HTML generado por IA de lo que llega de otro (solo lo ve quien lo generó). */
+export function withoutGenerated<T extends CollabEl & { customData?: unknown }>(elements: readonly T[]): T[] {
+  return elements.map((el) => {
+    const c = el.customData as Record<string, unknown> | null | undefined;
+    if (!c || typeof c !== 'object' || !('generationData' in c)) return el;
+    const { generationData: _g, ...rest } = c;
+    void _g;
+    return { ...el, customData: rest };
+  });
+}
+
 /** Marca como ya viajados los elementos que llegaron de otro (para no devolverlos). */
 export function markReceived(elements: readonly CollabEl[], sent: Broadcasted): void {
   for (const el of elements) {

@@ -385,7 +385,8 @@
     "button": "Import",
     "importing": "Importing…",
     "partial": "{ok} imported, {failed} could not be read as .excalidraw files.",
-    "done": "{count, plural, one {# board imported} other {# boards imported}}"
+    "done": "{count, plural, one {# board imported} other {# boards imported}}",
+    "tooMany": "The file has too many elements (up to 50,000) or is larger than the size limit."
   },
   "search": {
     "label": "Search boards",
@@ -393,7 +394,8 @@
     "error": "Couldn’t search. Try again.",
     "searching": "Searching…",
     "emptyTitle": "Nothing matches “{q}”",
-    "emptyHint": "The search looks at board names and the text inside: stickies, labels and frames."
+    "emptyHint": "The search looks at board names and the text inside: stickies, labels and frames.",
+    "count": "{count, plural, one {# board} other {# boards}}"
   },
   "folders": {
     "title": "Folders",
@@ -428,7 +430,8 @@
     "moved": "“{name}” moved to the trash",
     "purgeTitle": "Delete forever",
     "confirmPurge": "Delete “{name}” for good, with its comments and history? This can’t be undone.",
-    "undo": "Undo"
+    "undo": "Undo",
+    "hintMember": "Deleted boards stay here for 30 days. You can restore them; owners and admins can delete them for good."
   },
   "audit": {
     "tab": "Activity log",
@@ -463,6 +466,36 @@
       "folder_created": "Created a folder",
       "folder_renamed": "Renamed a folder",
       "folder_deleted": "Deleted a folder"
+    },
+    "detail": {
+      "renamed": "{from} → {to}",
+      "movedTo": "To {folder}",
+      "movedOut": "Out of its folder",
+      "restricted": "Only invited people",
+      "workspace": "Whole workspace",
+      "member": "{name}: {role}",
+      "memberRemoved": "{name}: removed",
+      "view": "can view",
+      "edit": "can edit",
+      "on": "On",
+      "off": "Off",
+      "template": "Template {template}"
     }
+  },
+  "ttd": {
+    "tabAi": "Text to diagram",
+    "beta": "AI",
+    "descAi": "Describe a flow, process or structure and AI draws it as a diagram you can edit. Flowcharts, sequences and class diagrams work best.",
+    "generate": "Generate",
+    "placeholderAi": "For example: sign up, verify the email, choose a plan, pay, see the dashboard",
+    "viewMermaid": "See as Mermaid",
+    "length": "Length:",
+    "descMermaid": "Flowcharts, sequence and class diagrams become editable shapes. Other Mermaid types come in as an image.",
+    "syntax": "Mermaid syntax",
+    "preview": "Preview",
+    "insert": "Insert",
+    "placeholderMermaid": "Write the Mermaid diagram here…",
+    "mermaidTitle": "Mermaid to diagram",
+    "prompt": "Description"
   }
 }

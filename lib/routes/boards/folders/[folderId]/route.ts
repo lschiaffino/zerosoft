@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser } from '@/lib/session';
-import { deleteBoardFolder, getBoardFolder, renameBoardFolder } from '@/lib/board-folders';
+import { canManageFolder, deleteBoardFolder, getBoardFolder, renameBoardFolder } from '@/lib/board-folders';
+import { boardViewer } from '@/lib/board-access';
 import { logBoardAudit } from '@/lib/board-audit';
 import { invalidInput, jsonError, limitWrites } from '@/lib/write-limit';
 
@@ -12,7 +13,7 @@ type Ctx = { params: Promise<{ folderId: string }> };
 
 const renameSchema = z.object({ name: z.string().trim().min(1).max(80) });
 
-/** Renombra la carpeta (cualquiera del workspace, como una pizarra del workspace). */
+/** Renombra la carpeta (quien la creó, o el owner y los admins). */
 export async function PATCH(req: NextRequest, ctx: Ctx) {
   const { folderId } = await ctx.params;
   const user = await getCurrentUser();
@@ -23,6 +24,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   const parsed = renameSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return invalidInput(parsed.error);
   const before = await getBoardFolder(user.id, folderId);
+  if (before && !canManageFolder(before, boardViewer(user))) return jsonError(403, 'forbidden');
   const name = before ? await renameBoardFolder(user.id, folderId, parsed.data.name) : null;
   if (!name) return jsonError(404, 'not_found');
   await logBoardAudit({ workspaceId: user.id, actorId: personId, action: 'folder.renamed', data: { id: folderId, name, from: before?.name } });
@@ -38,6 +40,7 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
   const limited = await limitWrites('boards:write', personId, 60);
   if (limited) return limited;
   const before = await getBoardFolder(user.id, folderId);
+  if (before && !canManageFolder(before, boardViewer(user))) return jsonError(403, 'forbidden');
   if (!before || !(await deleteBoardFolder(user.id, folderId))) return jsonError(404, 'not_found');
   await logBoardAudit({ workspaceId: user.id, actorId: personId, action: 'folder.deleted', data: { id: folderId, name: before.name } });
   return new NextResponse(null, { status: 204 });

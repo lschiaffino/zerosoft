@@ -385,7 +385,8 @@
     "button": "Importar",
     "importing": "Importando…",
     "partial": "{ok} importados; {failed} não puderam ser lidos como arquivos .excalidraw.",
-    "done": "{count, plural, one {# quadro importado} other {# quadros importados}}"
+    "done": "{count, plural, one {# quadro importado} other {# quadros importados}}",
+    "tooMany": "O arquivo tem elementos demais (até 50.000) ou passa do tamanho máximo."
   },
   "search": {
     "label": "Buscar quadros",
@@ -393,7 +394,8 @@
     "error": "Não foi possível buscar. Tente de novo.",
     "searching": "Buscando…",
     "emptyTitle": "Nada corresponde a “{q}”",
-    "emptyHint": "A busca olha o nome e o texto de dentro: post-its, rótulos e frames."
+    "emptyHint": "A busca olha o nome e o texto de dentro: post-its, rótulos e frames.",
+    "count": "{count, plural, one {# quadro} other {# quadros}}"
   },
   "folders": {
     "title": "Pastas",
@@ -428,7 +430,8 @@
     "moved": "“{name}” foi para a lixeira",
     "purgeTitle": "Apagar de vez",
     "confirmPurge": "Apagar “{name}” de vez, com comentários e histórico? Não dá para desfazer.",
-    "undo": "Desfazer"
+    "undo": "Desfazer",
+    "hintMember": "Quadros apagados ficam aqui por 30 dias. Você pode restaurar; apagar de vez é do owner e dos admins."
   },
   "audit": {
     "tab": "Registro de atividade",
@@ -463,6 +466,36 @@
       "folder_created": "Criou uma pasta",
       "folder_renamed": "Renomeou uma pasta",
       "folder_deleted": "Apagou uma pasta"
+    },
+    "detail": {
+      "renamed": "{from} → {to}",
+      "movedTo": "Para {folder}",
+      "movedOut": "Fora da pasta",
+      "restricted": "Só convidados",
+      "workspace": "Todo o workspace",
+      "member": "{name}: {role}",
+      "memberRemoved": "{name}: sem acesso",
+      "view": "pode ver",
+      "edit": "pode editar",
+      "on": "Ligado",
+      "off": "Desligado",
+      "template": "Modelo {template}"
     }
+  },
+  "ttd": {
+    "tabAi": "Texto para diagrama",
+    "beta": "IA",
+    "descAi": "Descreva um fluxo, processo ou estrutura e a IA desenha um diagrama que você pode editar. Funciona melhor com fluxogramas, sequências e diagramas de classes.",
+    "generate": "Gerar",
+    "placeholderAi": "Por exemplo: cadastrar, verificar o e-mail, escolher um plano, pagar, ver o painel",
+    "viewMermaid": "Ver como Mermaid",
+    "length": "Tamanho:",
+    "descMermaid": "Fluxogramas e diagramas de sequência e de classes viram formas editáveis. Os outros tipos de Mermaid entram como imagem.",
+    "syntax": "Sintaxe do Mermaid",
+    "preview": "Prévia",
+    "insert": "Inserir",
+    "placeholderMermaid": "Escreva aqui o diagrama Mermaid…",
+    "mermaidTitle": "Mermaid para diagrama",
+    "prompt": "Descrição"
   }
 }

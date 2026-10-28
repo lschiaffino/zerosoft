@@ -41,6 +41,8 @@ export interface BoardFolder {
   /** Pizarras vivas adentro (que la persona puede ver). */
   count: number;
   created_at: string;
+  /** La puede renombrar o borrar quien mira (la creó, o es owner/admin). */
+  can_manage?: boolean;
 }
 
 /**

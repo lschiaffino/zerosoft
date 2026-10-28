@@ -32,4 +32,6 @@ export interface BoardAuditEntry {
   action: BoardAuditAction;
   data: Record<string, unknown>;
   createdAt: string;
+  /** La pizarra sigue (no está en la papelera ni se borró): se puede abrir. */
+  boardAlive?: boolean;
 }

@@ -41,7 +41,8 @@ export function buildImagePdf(pages: PdfImagePage[], title = 'Board'): Uint8Arra
   const n = pages.length;
   // 1 catálogo, 2 páginas, 3 info; después por página: página, contenido, imagen.
   const pageObj = (i: number) => 4 + i * 3;
-  const safeTitle = title.replace(/[\\()]/g, (c) => `\\${c}`).replace(/[^\x20-\x7e]/g, '?').slice(0, 120);
+  // Se recorta antes de escapar: un corte después podía dejar una barra suelta que rompe el string.
+  const safeTitle = title.slice(0, 120).replace(/[^\x20-\x7e]/g, '?').replace(/[\\()]/g, (c) => `\\${c}`);
   obj(1, () => push('<< /Type /Catalog /Pages 2 0 R >>'));
   obj(2, () => push(`<< /Type /Pages /Count ${n} /Kids [${pages.map((_, i) => `${pageObj(i)} 0 R`).join(' ')}] >>`));
   obj(3, () => push(`<< /Title (${safeTitle}) /Producer (zerosoft Board) >>`));

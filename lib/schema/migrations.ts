@@ -6405,7 +6405,43 @@ export const MIGRATIONS: Migration[] = [
           created_at TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_board_audit_ws ON board_audit(workspace_id, created_at DESC);
+
+        -- Presencia efímera: una fila por pizarra y por instancia del servidor (upsert ≤ 4 Hz).
+        CREATE TABLE IF NOT EXISTS board_presence (
+          board_id TEXT NOT NULL,
+          instance_id TEXT NOT NULL,
+          payload TEXT NOT NULL DEFAULT '[]',
+          seq INTEGER NOT NULL DEFAULT 1,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (board_id, instance_id)
+        );
       `);
+      // Texto buscable de las pizarras que ya existían (textos, etiquetas y nombres de frames).
+      let after = '';
+      for (;;) {
+        const res = await client.execute({
+          sql: "SELECT id, scene FROM boards WHERE search_text = '' AND scene != '' AND id > ? ORDER BY id LIMIT 200",
+          args: [after],
+        });
+        if (!res.rows.length) break;
+        for (const r of res.rows) {
+          after = String(r.id);
+          let text = '';
+          try {
+            const scene = JSON.parse(String(r.scene)) as { elements?: Array<Record<string, unknown>> };
+            const lines: string[] = [];
+            for (const el of scene.elements ?? []) {
+              if (!el || el.isDeleted) continue;
+              const t = el.type === 'text' ? (el.originalText ?? el.text) : el.type === 'frame' || el.type === 'magicframe' ? el.name : null;
+              if (typeof t === 'string' && t.trim()) lines.push(t.replace(/\s+/g, ' ').trim());
+            }
+            text = lines.join('\n').slice(0, 20_000);
+          } catch {
+            text = '';
+          }
+          if (text) await client.execute({ sql: 'UPDATE boards SET search_text = ? WHERE id = ?', args: [text, after] });
+        }
+      }
     },
   },
 ];

@@ -7,7 +7,7 @@ import { Link, useRouter } from '@/i18n/navigation';
 import { BOARD_MAX_SCENE_BYTES, type BoardDetail, type BoardScene } from '@/lib/boards-types';
 import { isDataUrl, swapUploadedFiles } from '@/lib/board-file-refs';
 import type { BoardSnapshotSummary } from '@/lib/board-history';
-import type { CanvasApi, CanvasMenuItem } from './ExcalidrawCanvas';
+import type { CanvasApi, CanvasMenuItem, TtdTexts } from './ExcalidrawCanvas';
 import BoardPresence from './BoardPresence';
 import BoardPresent from './BoardPresent';
 import { useBoardCollab } from './useBoardCollab';
@@ -899,6 +899,27 @@ export default function BoardEditor({
     [board.id, aiMessage, t],
   );
 
+  // Textos propios para el diálogo de texto a diagrama de Excalidraw (viene en inglés fijo).
+  const ttdTexts = useMemo<TtdTexts>(
+    () => ({
+      tabAi: t('ttd.tabAi'),
+      beta: t('ttd.beta'),
+      descAi: t('ttd.descAi'),
+      generate: t('ttd.generate'),
+      placeholderAi: t('ttd.placeholderAi'),
+      viewMermaid: t('ttd.viewMermaid'),
+      length: t('ttd.length'),
+      descMermaid: t('ttd.descMermaid'),
+      syntax: t('ttd.syntax'),
+      preview: t('ttd.preview'),
+      insert: t('ttd.insert'),
+      placeholderMermaid: t('ttd.placeholderMermaid'),
+      mermaidTitle: t('ttd.mermaidTitle'),
+      prompt: t('ttd.prompt'),
+    }),
+    [t],
+  );
+
   // Ítems del menú del lienzo: estables (el lienzo está memoizado).
   const actionsRef = useRef({ startPresenting, exportPdf, cluster });
   actionsRef.current = { startPresenting, exportPdf, cluster };
@@ -1271,6 +1292,7 @@ export default function BoardEditor({
           onTextToDiagram={guest || readOnly ? undefined : onTextToDiagram}
           onWireframeToCode={guest || readOnly ? undefined : onWireframeToCode}
           canOpenFile={!readOnly}
+          ttdTexts={ttdTexts}
         />
         {presenting && canvasApi && (
           <BoardPresent

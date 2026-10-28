@@ -12,6 +12,7 @@ import {
   Excalidraw,
   MainMenu,
   TTDDialog,
+  TTDDialogTrigger,
   convertToExcalidrawElements,
   exportToBlob,
   exportToSvg,
@@ -28,7 +29,7 @@ import { useResolvedTheme } from '@/components/theme/ThemeProvider';
 export interface CanvasApi {
   updateScene: (scene: { elements?: readonly unknown[]; appState?: Record<string, unknown>; collaborators?: Map<string, unknown>; captureUpdate?: unknown }) => void;
   onChange: (cb: (elements: readonly unknown[], appState: Record<string, unknown>) => void) => () => void;
-  scrollToContent: (target?: unknown, opts?: { fitToContent?: boolean; animate?: boolean }) => void;
+  scrollToContent: (target?: unknown, opts?: { fitToContent?: boolean; fitToViewport?: boolean; viewportZoomFactor?: number; animate?: boolean }) => void;
   addFiles: (files: unknown[]) => void;
   getSceneElements: () => readonly unknown[];
   getSceneElementsIncludingDeleted: () => readonly unknown[];
@@ -113,6 +114,103 @@ function usePanelLimit(ref: React.RefObject<HTMLDivElement | null>) {
   }, [ref]);
 }
 
+/** Textos del diálogo de texto a diagrama de Excalidraw (vienen en inglés fijo). */
+export interface TtdTexts {
+  tabAi: string;
+  beta: string;
+  descAi: string;
+  generate: string;
+  placeholderAi: string;
+  viewMermaid: string;
+  length: string;
+  descMermaid: string;
+  syntax: string;
+  preview: string;
+  insert: string;
+  placeholderMermaid: string;
+  mermaidTitle: string;
+  prompt: string;
+}
+
+const TTD_SOURCE: Record<string, keyof TtdTexts> = {
+  'Text to diagram': 'tabAi',
+  'AI Beta': 'beta',
+  Generate: 'generate',
+  'View as Mermaid': 'viewMermaid',
+  'Length:': 'length',
+  'Mermaid Syntax': 'syntax',
+  Preview: 'preview',
+  Insert: 'insert',
+  'Mermaid to Excalidraw': 'mermaidTitle',
+  Prompt: 'prompt',
+};
+
+/**
+ * El diálogo de texto a diagrama y Mermaid de Excalidraw tiene textos en
+ * inglés fijo (no pasan por su i18n): se reemplazan en el DOM por los
+ * nuestros, solo los textos exactos que conocemos.
+ */
+function useTranslateTtd(texts: TtdTexts | undefined) {
+  useEffect(() => {
+    if (!texts) return;
+    let frame = 0;
+    const apply = () => {
+      frame = 0;
+      for (const root of document.querySelectorAll<HTMLElement>('.ttd-dialog, .App-toolbar .dropdown-menu, .dropdown-menu-container')) {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+          const raw = n.nodeValue ?? '';
+          const key = TTD_SOURCE[raw.trim()];
+          if (key && texts[key] && raw.trim() !== texts[key]) n.nodeValue = raw.replace(raw.trim(), texts[key]);
+        }
+        for (const desc of root.querySelectorAll<HTMLElement>('.ttd-dialog-desc')) {
+          const now = desc.textContent ?? '';
+          if (now.startsWith('Currently we use Mermaid')) desc.textContent = texts.descAi;
+          else if (now.startsWith('Currently only')) desc.textContent = texts.descMermaid;
+        }
+        for (const area of root.querySelectorAll<HTMLTextAreaElement>('textarea[placeholder]')) {
+          if (area.placeholder.startsWith('Describe what you want')) area.placeholder = texts.placeholderAi;
+          else if (area.placeholder.startsWith('Write Mermaid')) area.placeholder = texts.placeholderMermaid;
+        }
+      }
+    };
+    const mo = new MutationObserver(() => {
+      if (!frame) frame = requestAnimationFrame(apply);
+    });
+    mo.observe(document.body, { childList: true, subtree: true });
+    return () => {
+      mo.disconnect();
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [texts]);
+}
+
+/**
+ * Los iframes del HTML que genera la IA (srcdoc) vienen de Excalidraw con
+ * allow-forms y allow-popups-to-escape-sandbox: se dejan solo con
+ * allow-scripts (sin el origen de la app, sin formularios ni ventanas) y se
+ * recargan para que el sandbox nuevo cuente. Los embeds web (src) no se tocan.
+ */
+const GENERATED_SANDBOX = 'allow-scripts';
+function useLockGeneratedIframes(ref: React.RefObject<HTMLDivElement | null>) {
+  useEffect(() => {
+    const host = ref.current;
+    if (!host) return;
+    const lock = () => {
+      for (const f of host.querySelectorAll<HTMLIFrameElement>('iframe[srcdoc]')) {
+        if (f.getAttribute('sandbox') === GENERATED_SANDBOX) continue;
+        f.setAttribute('sandbox', GENERATED_SANDBOX);
+        const doc = f.srcdoc;
+        f.srcdoc = doc;
+      }
+    };
+    const mo = new MutationObserver(lock);
+    mo.observe(host, { childList: true, subtree: true, attributes: true, attributeFilter: ['sandbox', 'srcdoc'] });
+    lock();
+    return () => mo.disconnect();
+  }, [ref]);
+}
+
 /**
  * Memoizado y con props estables hacia <Excalidraw>: Excalidraw compara sus
  * props (children incluidos) por referencia y, si cambian, re-renderiza todo
@@ -134,6 +232,7 @@ function ExcalidrawCanvas({
   onTextToDiagram,
   onWireframeToCode,
   canOpenFile = false,
+  ttdTexts,
 }: {
   scene: BoardScene;
   locale: string;
@@ -154,12 +253,16 @@ function ExcalidrawCanvas({
   onWireframeToCode?: (frame: unknown, children: readonly unknown[]) => Promise<string>;
   /** Abrir un archivo .excalidraw desde el menú (reemplaza lo que hay). */
   canOpenFile?: boolean;
+  /** Textos propios para el diálogo de texto a diagrama (estables). */
+  ttdTexts?: TtdTexts;
 }) {
   // El lienzo sigue el modo de color del sitio (selector sistema/claro/oscuro).
   const theme = useResolvedTheme();
   const [api, setApi] = useState<unknown>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   usePanelLimit(hostRef);
+  useTranslateTtd(ttdTexts);
+  useLockGeneratedIframes(hostRef);
   // La biblioteca solo en el editor con sesión (la vista pública y el invitado no la tienen).
   const withLibrary = library && !viewMode;
   useHandleLibrary({
@@ -249,6 +352,14 @@ function ExcalidrawCanvas({
         {!viewMode && <MainMenu.Separator />}
         <MainMenu.DefaultItems.ChangeCanvasBackground />
         {menuItems && menuItems.length > 0 && <MainMenu.Separator />}
+        {hasAi && (
+          <MainMenu.Item
+            onSelect={() => (api as CanvasApi | null)?.updateScene({ appState: { openDialog: { name: 'ttd', tab: 'text-to-diagram' } } })}
+            data-testid="board-menu-ttd"
+          >
+            {ttdTexts?.tabAi ?? 'Text to diagram'}
+          </MainMenu.Item>
+        )}
         {menuItems?.map((item) => (
           <MainMenu.Item key={item.key} onSelect={item.onSelect} shortcut={item.shortcut} data-testid={`board-menu-${item.key}`}>
             {item.label}
@@ -257,7 +368,7 @@ function ExcalidrawCanvas({
         {!viewMode && canOpenFile && <MainMenu.DefaultItems.LoadScene />}
       </MainMenu>
     ),
-    [viewMode, menuItems, canOpenFile],
+    [viewMode, menuItems, canOpenFile, hasAi, ttdTexts, api],
   );
   return (
     // display: contents: no cambia el layout; solo sirve para medir el panel.
@@ -277,6 +388,7 @@ function ExcalidrawCanvas({
       >
         {menu}
         {hasAi && <TTDDialog onTextSubmit={onTextSubmit} />}
+        {hasAi && <TTDDialogTrigger>{ttdTexts?.tabAi}</TTDDialogTrigger>}
         {hasAi && onWireframeToCode && <DiagramToCodePlugin generate={generateCode as never} />}
       </Excalidraw>
     </div>
