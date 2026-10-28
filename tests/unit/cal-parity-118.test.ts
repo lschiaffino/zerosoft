@@ -605,8 +605,8 @@ describe('alcance de member en inicio de Cal, inicio de la plataforma y Voice', 
     const { u, member, ownerBooking, memberBooking } = await twoHosts('scopevoice');
     const owner = voiceOwner({ id: u.id, role: 'member', actingUser: { id: member.id } });
     expect((await listLinkableBookings(owner)).map((b) => b.id)).toEqual([memberBooking]);
-    expect((await listLinkableBookings(voiceOwner({ id: u.id, role: 'owner' }))).length).toBe(2);
+    // La dueña también ve solo las que atiende (como el calendario de Voice), no las de todo el workspace.
+    expect((await listLinkableBookings(voiceOwner({ id: u.id, role: 'owner' }))).map((b) => b.id)).toEqual([ownerBooking]);
     expect(bookingInScope({ host_user_id: u.id, co_host_ids: '[]' }, owner.bookingScope ?? null)).toBe(false);
-    void ownerBooking;
   });
 });
