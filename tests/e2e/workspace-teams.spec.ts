@@ -65,7 +65,9 @@ test('crear equipo, invitar a dos, aceptar con otra sesión, ver los datos en to
     // Sin RESEND_API_KEY el email no sale: lo dice y ofrece copiar el link.
     await expect(results.first()).toContainText('Emails are not set up here');
     await expect(results.first().getByRole('button', { name: 'Copy link' })).toBeVisible();
-    await expect(page.getByTestId('invite-row')).toHaveCount(2);
+    // Solo las de esta prueba (otras specs pueden dejar invitaciones pendientes en el workspace demo).
+    const ours = page.getByTestId('invite-row').filter({ hasText: /^(ana|leo)-/ });
+    await expect(ours).toHaveCount(2);
     const tokens = await sql("SELECT email, token FROM team_invites WHERE email IN (?, ?) AND status = 'pending'", [ana, leo]);
     const tokenOf = (email: string) => String(tokens.find((t) => t.email === email)?.token);
 
@@ -107,7 +109,7 @@ test('crear equipo, invitar a dos, aceptar con otra sesión, ver los datos en to
     await page.reload({ waitUntil: 'networkidle' });
     await expect(page.getByTestId('member-row').filter({ hasText: ana })).toBeVisible();
     await expect(page.getByTestId('member-row').filter({ hasText: leo })).toBeVisible();
-    await expect(page.getByTestId('invite-row')).toHaveCount(0);
+    await expect(page.getByTestId('invite-row').filter({ hasText: /^(ana|leo)-/ })).toHaveCount(0);
 
     // 5. Ana solo con Docs: el CRM muestra el aviso y su API corta.
     const anaRow = page.getByRole('row').filter({ hasText: ana });
