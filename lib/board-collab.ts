@@ -43,7 +43,8 @@ export function takeChangedBytes<T extends CollabEl>(elements: readonly T[], sen
     const v = el.version ?? 0;
     if ((sent.get(el.id) ?? -1) >= v) continue;
     const size = JSON.stringify(el).length + 1;
-    if (size > maxBytes) {
+    // El iframe de "wireframe a código" no viaja (su HTML es solo de quien lo generó).
+    if (size > maxBytes || (el as { type?: string }).type === 'iframe') {
       sent.set(el.id, v);
       continue;
     }

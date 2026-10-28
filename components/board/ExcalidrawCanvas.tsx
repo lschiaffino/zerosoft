@@ -130,6 +130,8 @@ export interface TtdTexts {
   placeholderMermaid: string;
   mermaidTitle: string;
   prompt: string;
+  /** "Frame tool" de "más herramientas" (sin traducir en es de Excalidraw). */
+  frameTool: string;
 }
 
 const TTD_SOURCE: Record<string, keyof TtdTexts> = {
@@ -143,6 +145,9 @@ const TTD_SOURCE: Record<string, keyof TtdTexts> = {
   Insert: 'insert',
   'Mermaid to Excalidraw': 'mermaidTitle',
   Prompt: 'prompt',
+  // Traducción de Excalidraw en es: se usa la nuestra.
+  Sugerencia: 'prompt',
+  'Frame tool': 'frameTool',
 };
 
 /**
@@ -196,11 +201,28 @@ function useLockGeneratedIframes(ref: React.RefObject<HTMLDivElement | null>) {
   useEffect(() => {
     const host = ref.current;
     if (!host) return;
+    // El HTML generado no puede llevar su iframe a otra página: cada carga que no sea la del
+    // srcdoc propio (un location.href, un link) se deshace volviendo a cargar el documento.
+    const state = new WeakMap<HTMLIFrameElement, { doc: string; expecting: boolean }>();
+    const onLoad = (e: Event) => {
+      const f = e.currentTarget as HTMLIFrameElement;
+      const st = state.get(f);
+      if (!st) return;
+      if (st.expecting) {
+        st.expecting = false;
+        return;
+      }
+      st.expecting = true;
+      f.srcdoc = st.doc;
+    };
     const lock = () => {
       for (const f of host.querySelectorAll<HTMLIFrameElement>('iframe[srcdoc]')) {
-        if (f.getAttribute('sandbox') === GENERATED_SANDBOX) continue;
+        const st = state.get(f);
+        if (f.getAttribute('sandbox') === GENERATED_SANDBOX && st && st.doc === f.srcdoc) continue;
         f.setAttribute('sandbox', GENERATED_SANDBOX);
         const doc = f.srcdoc;
+        if (!st) f.addEventListener('load', onLoad);
+        state.set(f, { doc, expecting: true });
         f.srcdoc = doc;
       }
     };

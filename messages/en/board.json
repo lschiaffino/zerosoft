@@ -379,7 +379,8 @@
     "clustered": "{count, plural, one {Stickies grouped in # theme} other {Stickies grouped in # themes}}",
     "other": "Other",
     "summary": "Summary",
-    "cluster": "Group stickies with AI"
+    "cluster": "Group stickies with AI",
+    "codeLocal": "The generated preview stays only in your session: it is not saved or shown to others. Copy the HTML to keep it."
   },
   "import": {
     "button": "Import",
@@ -496,6 +497,7 @@
     "insert": "Insert",
     "placeholderMermaid": "Write the Mermaid diagram here…",
     "mermaidTitle": "Mermaid to diagram",
-    "prompt": "Description"
+    "prompt": "Description",
+    "frameTool": "Frame tool"
   }
 }

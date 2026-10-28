@@ -77,7 +77,8 @@ const signature = sceneSignature;
 
 /** Escena a guardar: sin elementos borrados y solo los archivos que usa alguna imagen. */
 function buildScene(elements: readonly unknown[], appState: Record<string, unknown>, files: Record<string, unknown>): BoardScene {
-  const live = (elements as El[]).filter((e) => !e.isDeleted);
+  // El iframe de "wireframe a código" queda solo en esta pestaña (su HTML no se guarda).
+  const live = (elements as El[]).filter((e) => !e.isDeleted && e.type !== 'iframe');
   const used = new Set(live.filter((e) => e.type === 'image' && e.fileId).map((e) => e.fileId as string));
   const keptFiles: Record<string, unknown> = {};
   for (const id of used) if (files[id]) keptFiles[id] = files[id];
@@ -894,9 +895,11 @@ export default function BoardEditor({
       if (!api) throw new Error(t('ai.failed'));
       const res = await wireframeToCode(api, board.id, frame, children);
       if (!res.ok) throw new Error(aiMessage(res.error));
+      // La vista previa no se guarda ni la ven los demás: se avisa (y se puede copiar el HTML).
+      showToast(t('ai.codeLocal'));
       return res.html;
     },
-    [board.id, aiMessage, t],
+    [board.id, aiMessage, t, showToast],
   );
 
   // Textos propios para el diálogo de texto a diagrama de Excalidraw (viene en inglés fijo).
@@ -916,6 +919,7 @@ export default function BoardEditor({
       placeholderMermaid: t('ttd.placeholderMermaid'),
       mermaidTitle: t('ttd.mermaidTitle'),
       prompt: t('ttd.prompt'),
+      frameTool: t('ttd.frameTool'),
     }),
     [t],
   );

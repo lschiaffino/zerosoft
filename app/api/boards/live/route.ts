@@ -3,7 +3,6 @@ import { getCurrentUser } from '@/lib/session';
 import { requestCursor } from '@/lib/realtime';
 import { clientIp } from '@/lib/rate-limit';
 import {
-  actorKey,
   boardEventsSince,
   pollPresence,
   boardLiveStream,
@@ -56,8 +55,6 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const actor = await actorFor(req);
   if (actor instanceof Response) return actor;
-  // Límite por quien manda (persona o token de invitado) y por IP, antes de leer el cuerpo.
-  if (!liveAllowed(actorKey(actor), clientIp(req))) return jsonError(429, 'rate_limited');
   const declared = Number(req.headers.get('content-length') ?? 0);
   if (declared > 64 * 1024) return jsonError(413, 'too_large');
   const raw = await req.text();
@@ -68,6 +65,10 @@ export async function POST(req: NextRequest) {
   } catch {
     return jsonError(400, 'invalid_input');
   }
+  // Límite por quien manda (persona, o invitado por token y pestaña, con tope del link) y,
+  // para invitados, por IP.
+  const clientSocket = (body as { socketId?: unknown })?.socketId;
+  if (!liveAllowed(actor, typeof clientSocket === 'string' ? clientSocket : '', clientIp(req))) return jsonError(429, 'rate_limited');
   const res = await handleLiveSend(actor, body);
   if (!res.ok) return jsonError(res.status, res.code);
   // El id de pestaña atado a quien manda: el navegador lo usa para reconocer sus propios eventos.

@@ -73,8 +73,10 @@ export function useBoardCollab(opts: {
   /** Id de pestaña que elige el navegador; el servidor lo ata a quien lo manda y devuelve el definitivo. */
   const socketId = useMemo(() => newSocketId(), []);
   const boundRef = useRef<string | null>(null);
-  /** ¿El evento es de esta pestaña? (antes de saber el id atado, por el sufijo). */
-  const isMine = useCallback((sid: string) => sid === boundRef.current || sid.endsWith(`-${socketId}`), [socketId]);
+  /** El tiempo real arranca recién cuando se sabe el id atado (así ningún evento propio se toma como de otro). */
+  const [bound, setBound] = useState<string | null>(null);
+  /** ¿El evento es de esta pestaña? Solo contra el id que devolvió el servidor. */
+  const isMine = useCallback((sid: string) => sid === boundRef.current, []);
   const query = guestToken ? `guest=${encodeURIComponent(guestToken)}` : `board=${encodeURIComponent(boardId)}`;
   const url = `/api/boards/live?${query}`;
 
@@ -114,7 +116,10 @@ export function useBoardCollab(opts: {
       }).catch(() => null);
       if (res?.ok) {
         const data = (await res.json().catch(() => null)) as { socketId?: string } | null;
-        if (data?.socketId) boundRef.current = data.socketId;
+        if (data?.socketId) {
+          boundRef.current = data.socketId;
+          setBound(data.socketId);
+        }
       }
       return res?.ok ?? false;
     },
@@ -151,6 +156,12 @@ export function useBoardCollab(opts: {
       // No llegó: se vuelve a mandar (el guardado igual lo persiste).
       for (const el of body.elements as CollabEl[]) sentRef.current.delete(el.id);
       dirtyElements.current = true;
+    }
+    // Sin el id atado todavía (falló el primer envío): se reintenta en un rato.
+    if (!ok && !boundRef.current && !stopped.current) {
+      dirtyPresence.current = true;
+      setTimeout(() => schedule(), 2000);
+      return;
     }
     if (dirtyPresence.current || dirtyElements.current) schedule();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -267,7 +278,7 @@ export function useBoardCollab(opts: {
     onConnect: () => handlers.current.onResync(),
     onReset: () => handlers.current.onResync(),
     onRevoked: () => handlers.current.onRevoked(),
-    enabled: Boolean(api),
+    enabled: Boolean(api) && Boolean(bound),
   });
 
   // Vista (para quien me sigue), seguir a alguien y presencia al conectarse.

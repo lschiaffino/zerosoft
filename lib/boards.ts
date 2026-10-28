@@ -156,8 +156,8 @@ export async function createBoard(
   const json = opts.scene ? serializeScene(opts.scene) : '';
   await getDb()
     .prepare(
-      `INSERT INTO boards (id, workspace_id, created_by, updated_by, name, scene, scene_bytes, thumbnail, version, folder_id, search_text, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
+      `INSERT INTO boards (id, workspace_id, created_by, updated_by, name, scene, scene_bytes, thumbnail, version, folder_id, search_text, search_indexed, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 1, ?, ?)`,
     )
     .run(
       id,
@@ -202,6 +202,30 @@ export async function renameBoard(
     )
     .run(name.trim() || 'Untitled board', nowIso(), personId ?? null, id, workspaceId);
   return res.changes > 0;
+}
+
+/**
+ * Llena search_text de las pizarras de antes de la búsqueda por contenido
+ * (cron, por lotes). Cada fila se toma con compare-and-set (0 → 2) para que dos
+ * corridas no hagan la misma. Si una corrida se corta a la mitad, esa fila
+ * queda tomada hasta su próximo guardado (que deja el texto al día).
+ */
+export async function backfillSearchText(opts: { limit?: number } = {}): Promise<number> {
+  const limit = Math.min(Math.max(opts.limit ?? 100, 1), 500);
+  const candidates = (await getDb()
+    .prepare('SELECT id FROM boards WHERE search_indexed = 0 LIMIT ?')
+    .all(limit)) as Array<{ id: string }>;
+  let done = 0;
+  for (const { id } of candidates) {
+    const claim = await getDb().prepare('UPDATE boards SET search_indexed = 2 WHERE id = ? AND search_indexed = 0').run(id);
+    if (claim.changes === 0) continue;
+    const row = (await getDb().prepare('SELECT scene FROM boards WHERE id = ?').get(id)) as { scene: string } | undefined;
+    const text = row ? sceneSearchText(parseScene(row.scene).elements) : '';
+    // Solo si nadie guardó en el medio (un guardado ya deja search_indexed = 1 con su texto).
+    await getDb().prepare('UPDATE boards SET search_text = ?, search_indexed = 1 WHERE id = ? AND search_indexed = 2').run(text, id);
+    done++;
+  }
+  return done;
 }
 
 /** Cuántos días queda una pizarra en la papelera antes de borrarse sola. */
@@ -383,7 +407,7 @@ export async function saveBoardScene(
     thumbnail === undefined ? undefined : thumbnail === null ? null : (cleanThumbnail(thumbnail) ?? undefined);
   const res = await getDb()
     .prepare(
-      `UPDATE boards SET scene = ?, scene_bytes = ?, search_text = ?, version = version + 1, updated_at = ?, updated_by = ?
+      `UPDATE boards SET scene = ?, scene_bytes = ?, search_text = ?, search_indexed = 1, version = version + 1, updated_at = ?, updated_by = ?
          ${thumb !== undefined ? ', thumbnail = ?' : ''}
        WHERE id = ? AND workspace_id = ? AND version = ? AND deleted_at IS NULL`,
     )

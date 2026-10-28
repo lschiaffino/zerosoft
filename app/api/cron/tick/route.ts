@@ -30,7 +30,7 @@ import { processPendingAgentSessions } from '@/lib/track-agents';
 import { recheckLinkSafety } from '@/lib/link-safety';
 import { pruneDeferredClicks } from '@/lib/link-deferred';
 import { pruneLinkHistory } from '@/lib/link-activity';
-import { purgeExpiredTrash as purgeBoardTrash } from '@/lib/boards';
+import { backfillSearchText, purgeExpiredTrash as purgeBoardTrash } from '@/lib/boards';
 import { pruneBoardEvents } from '@/lib/board-live';
 import { importResearchIdeas, researchIdeaSchema } from '@/lib/roadmap';
 import researchIdeas from '@/research/ideas.json';
@@ -104,6 +104,8 @@ export async function GET(req: NextRequest) {
   // Board: papelera de más de 30 días y eventos de tiempo real viejos (son efímeros).
   const boardTrashPurged = await purgeBoardTrash().catch(() => null);
   const boardEventsPruned = await pruneBoardEvents().catch(() => null);
+  // Board: texto buscable de las pizarras de antes (por lotes, con claim por fila).
+  const boardSearchBackfill = await backfillSearchText({ limit: 200 }).catch(() => null);
   // Docs: dominios del sitio publicado que nadie verificó en UNVERIFIED_TTL_DAYS se liberan.
   const docsDomainsPurged = await purgeExpiredSiteDomains().catch(() => null);
   // Flow: corridas y pasos más viejos que la retención del workspace (lotes acotados).
@@ -139,6 +141,6 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, linkHistory, trashPurged, boardTrashPurged, boardEventsPruned,
+  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, linkHistory, trashPurged, boardTrashPurged, boardEventsPruned, boardSearchBackfill,
     docsDomainsPurged, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, agentQuality, agentRedacted, robots, ideas });
 }

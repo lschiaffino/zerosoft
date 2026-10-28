@@ -533,9 +533,29 @@ export function takeTokens(key: string, cost: number, perSecond: number, burst: 
   return ok;
 }
 
-/** Pedidos por actor (persona o token) y por IP: ~8 por segundo es lo normal de una pestaña. */
-export function liveAllowed(actor: string, ip: string, now = Date.now()): boolean {
-  return takeTokens(`a:${actor}`, 1, 20, 40, now) && takeTokens(`ip:${ip}`, 1, 60, 120, now);
+/** Cuánto más permite el cupo de un link de invitado entero que el de una pestaña (un taller con el link compartido). */
+export const GUEST_TOKEN_FACTOR = 10;
+
+/**
+ * Clave de límite de quien manda: la persona (con todas sus pestañas), o el
+ * invitado por token y pestaña (con el link compartido, cada uno tiene su cupo).
+ */
+export function limitKey(actor: BoardLiveActor, clientSocket: string): string {
+  const key = actorKey(actor);
+  return actor.kind === 'guest' ? `${key}:${clientSocket.slice(0, 40)}` : key;
+}
+
+/**
+ * Pedidos por segundo: ~8 es lo normal de una pestaña. Una persona tiene un
+ * cupo para todas sus pestañas; un invitado, uno por pestaña más uno global
+ * del link 10 veces más alto. La IP solo cuenta para los invitados (sin
+ * cuenta), con un cupo alto para que una oficina o un taller detrás de la
+ * misma IP no se trabe.
+ */
+export function liveAllowed(actor: BoardLiveActor, clientSocket: string, ip: string, now = Date.now()): boolean {
+  if (!takeTokens(`a:${limitKey(actor, clientSocket)}`, 1, 20, 40, now)) return false;
+  if (actor.kind !== 'guest') return true;
+  return takeTokens(`t:${actorKey(actor)}`, 1, 20 * GUEST_TOKEN_FACTOR, 40 * GUEST_TOKEN_FACTOR, now) && takeTokens(`ip:${ip}`, 1, 300, 600, now);
 }
 
 /** Lo que manda una pestaña: presencia y/o elementos, traer a todos, o salir. */
@@ -570,7 +590,11 @@ export async function handleLiveSend(actor: BoardLiveActor, body: unknown, now =
     const bytes = Buffer.byteLength(json, 'utf8');
     if (bytes > BOARD_LIVE_MAX_BYTES) return { ok: false, status: 413, code: 'too_large' };
     // Tope de bytes por minuto por actor (aunque cambie de pestaña o de IP).
-    if (!takeTokens(`bytes:${key}`, bytes, BOARD_LIVE_BYTES_PER_MIN / 60, BOARD_LIVE_BYTES_PER_MIN / 2, now)) {
+    const perMin = BOARD_LIVE_BYTES_PER_MIN;
+    const own = takeTokens(`bytes:${limitKey(actor, b.socketId)}`, bytes, perMin / 60, perMin / 2, now);
+    // Invitados: además, el link entero tiene un tope (10× el de una pestaña).
+    const shared = actor.kind !== 'guest' || takeTokens(`bytes-t:${key}`, bytes, (perMin * GUEST_TOKEN_FACTOR) / 60, (perMin * GUEST_TOKEN_FACTOR) / 2, now);
+    if (!own || !shared) {
       return { ok: false, status: 429, code: 'rate_limited' };
     }
     await publishBoardEvent({ boardId: actor.boardId, workspaceId: actor.workspaceId, socketId, kind: 'update', user: actor.user, payload: { elements } });
@@ -597,7 +621,8 @@ export function liveConnectionFilter(actor: BoardLiveActor, onRevoked: () => voi
   let revoked = false;
   return async (events: RawEvent[]): Promise<BoardLiveEvent[]> => {
     if (revoked) return [];
-    const mine = events.filter((e) => e.boardId === actor.boardId && e.workspaceId === actor.workspaceId);
+    // '*' = aviso para todo el workspace (alguien salió del team o cambió de rol).
+    const mine = events.filter((e) => e.workspaceId === actor.workspaceId && (e.boardId === actor.boardId || (e.boardId === '*' && e.kind === 'access')));
     if (!mine.length) return [];
     if (mine.some((e) => e.kind === 'access') && !(await stillAllowed(actor))) {
       revoked = true;

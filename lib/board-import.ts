@@ -34,15 +34,19 @@ export function unsafeLink(link: string): boolean {
  * Limpia los elementos que llegan de afuera (API, en vivo, archivos, guardado):
  * - links peligrosos (javascript:, data:, …) → sin link. Excalidraw ya los
  *   neutraliza al abrir y al exportar a SVG, pero no hay que confiar en eso;
- * - el HTML generado por IA (customData.generationData de un frame de
- *   wireframe) no se guarda ni viaja: solo lo ve quien lo generó, en su
+ * - el HTML generado por IA (customData.generationData y el elemento iframe
+ *   que lo muestra) no se guarda ni viaja: solo lo ve quien lo generó, en su
  *   pestaña (con dropGenerated: false se conserva, p. ej. para tests).
  * Devuelve el mismo array si no había nada que tocar.
  */
 export function sanitizeElements<T extends Record<string, unknown>>(elements: T[], opts: { dropGenerated?: boolean } = {}): T[] {
   const dropGenerated = opts.dropGenerated !== false;
   let changed = false;
-  const out = elements.map((el) => {
+  // El elemento iframe solo lo crea "wireframe a código" para mostrar el HTML generado: sin su
+  // HTML (que no se guarda ni viaja) sería una caja de error, así que tampoco se guarda ni viaja.
+  const kept = dropGenerated ? elements.filter((el) => el.type !== 'iframe') : elements;
+  if (kept.length !== elements.length) changed = true;
+  const out = kept.map((el) => {
     let next = el;
     if (typeof el.link === 'string' && unsafeLink(el.link)) next = { ...next, link: null };
     const custom = el.customData as Record<string, unknown> | null | undefined;

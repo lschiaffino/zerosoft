@@ -6367,9 +6367,12 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, 'ALTER TABLE boards ADD COLUMN deleted_by TEXT');
       await addColumn(client, 'ALTER TABLE boards ADD COLUMN folder_id TEXT');
       await addColumn(client, "ALTER TABLE boards ADD COLUMN search_text TEXT NOT NULL DEFAULT ''");
+      // 0 = falta llenar search_text (pizarras de antes); el cron lo llena por lotes con claim (2 = tomada).
+      await addColumn(client, 'ALTER TABLE boards ADD COLUMN search_indexed INTEGER NOT NULL DEFAULT 0');
       await client.executeMultiple(`
         CREATE INDEX IF NOT EXISTS idx_boards_deleted ON boards(workspace_id, deleted_at) WHERE deleted_at IS NOT NULL;
         CREATE INDEX IF NOT EXISTS idx_boards_folder ON boards(workspace_id, folder_id) WHERE folder_id IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_boards_search_pending ON boards(search_indexed) WHERE search_indexed != 1;
 
         CREATE TABLE IF NOT EXISTS board_events (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -6416,32 +6419,6 @@ export const MIGRATIONS: Migration[] = [
           PRIMARY KEY (board_id, instance_id)
         );
       `);
-      // Texto buscable de las pizarras que ya existían (textos, etiquetas y nombres de frames).
-      let after = '';
-      for (;;) {
-        const res = await client.execute({
-          sql: "SELECT id, scene FROM boards WHERE search_text = '' AND scene != '' AND id > ? ORDER BY id LIMIT 200",
-          args: [after],
-        });
-        if (!res.rows.length) break;
-        for (const r of res.rows) {
-          after = String(r.id);
-          let text = '';
-          try {
-            const scene = JSON.parse(String(r.scene)) as { elements?: Array<Record<string, unknown>> };
-            const lines: string[] = [];
-            for (const el of scene.elements ?? []) {
-              if (!el || el.isDeleted) continue;
-              const t = el.type === 'text' ? (el.originalText ?? el.text) : el.type === 'frame' || el.type === 'magicframe' ? el.name : null;
-              if (typeof t === 'string' && t.trim()) lines.push(t.replace(/\s+/g, ' ').trim());
-            }
-            text = lines.join('\n').slice(0, 20_000);
-          } catch {
-            text = '';
-          }
-          if (text) await client.execute({ sql: 'UPDATE boards SET search_text = ? WHERE id = ?', args: [text, after] });
-        }
-      }
     },
   },
 ];

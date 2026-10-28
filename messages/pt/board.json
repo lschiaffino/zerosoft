@@ -355,7 +355,7 @@
   "present": {
     "button": "Apresentar",
     "title": "Apresentação",
-    "empty": "Adicione frames para apresentá-los como slides (ferramenta Frame, F).",
+    "empty": "Adicione frames para apresentá-los como slides (Ferramenta de frame, F).",
     "exit": "Sair",
     "prev": "Slide anterior",
     "next": "Próximo slide",
@@ -379,7 +379,8 @@
     "clustered": "{count, plural, one {Post-its agrupados em # tema} other {Post-its agrupados em # temas}}",
     "other": "Outros",
     "summary": "Resumo",
-    "cluster": "Agrupar post-its com IA"
+    "cluster": "Agrupar post-its com IA",
+    "codeLocal": "A prévia gerada fica só na sua sessão: não é salva nem aparece para os outros. Copie o HTML para guardar."
   },
   "import": {
     "button": "Importar",
@@ -496,6 +497,7 @@
     "insert": "Inserir",
     "placeholderMermaid": "Escreva aqui o diagrama Mermaid…",
     "mermaidTitle": "Mermaid para diagrama",
-    "prompt": "Descrição"
+    "prompt": "Descrição",
+    "frameTool": "Ferramenta de frame"
   }
 }

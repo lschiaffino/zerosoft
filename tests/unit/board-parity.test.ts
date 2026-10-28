@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createBoard, getBoard, getGuestBoard, getSharedBoard, listBoards, listTrash, purgeExpiredTrash, saveBoardScene, searchBoards, sceneSearchText, setBoardShared, snippet } from '@/lib/boards';
+import { backfillSearchText, createBoard, getBoard, getGuestBoard, getSharedBoard, listBoards, listTrash, purgeExpiredTrash, saveBoardScene, searchBoards, sceneSearchText, setBoardShared, snippet } from '@/lib/boards';
 import { boardViewer, getBoardAccess, setBoardAccessMode, setBoardGuestLink, setBoardMember } from '@/lib/board-access';
 import { createBoardFolder, deleteBoardFolder, listBoardFolders } from '@/lib/board-folders';
 import {
@@ -7,6 +7,7 @@ import {
   actorKey,
   bindSocket,
   boardEventsSince,
+  fetchEventsSince,
   cleanElements,
   cleanPresence,
   flushPresence,
@@ -32,7 +33,7 @@ import { nextSlide, orderFrames, slideKey } from '@/lib/board-present';
 import { buildImagePdf, jpegSize } from '@/lib/pdf-images';
 import { clusterLayout } from '@/lib/board-cluster';
 import { getDb } from '@/lib/db';
-import { addMember, createTeam } from '@/lib/teams';
+import { addMember, createTeam, removeMember } from '@/lib/teams';
 import { makeUser } from './helpers';
 
 const session = vi.hoisted(() => ({
@@ -257,11 +258,16 @@ describe('board: arreglos del QA (abuso, suplantación, revalidación, presencia
     const b = await createBoard(u.id, u.id, 'Flood');
     const token = (await setBoardGuestLink(u.id, b.id, true)) as string;
     const guest = (await guestLiveActor(token))!;
-    const key = actorKey(guest);
-    // Por actor, aunque cambie de pestaña (socketId) en cada pedido.
-    let allowed = 0;
-    for (let i = 0; i < 100; i++) if (liveAllowed(key, '9.9.9.9', 5_000_000)) allowed++;
-    expect(allowed).toBeLessThanOrEqual(40);
+    // Una pestaña: ~40 de golpe. Cambiando de pestaña en cada pedido: el tope del link (10×).
+    let same = 0;
+    for (let i = 0; i < 100; i++) if (liveAllowed(guest, 'samesock01', '9.9.9.9', 5_000_000)) same++;
+    expect(same).toBeLessThanOrEqual(40);
+    let rotating = 0;
+    for (let i = 0; i < 1000; i++) if (liveAllowed(guest, `rot${String(i).padStart(7, '0')}`, `10.0.${i % 250}.1`, 5_000_000)) rotating++;
+    expect(rotating).toBeLessThanOrEqual(400);
+    // Una persona con sesión no cuenta por IP: una oficina detrás de la misma IP no se traba.
+    const own = (await memberLiveActor({ id: u.id }, b.id))!;
+    expect(liveAllowed(own, 'x0000001', '9.9.9.9', 5_000_000)).toBe(true);
     // Un evento de más de 32 KB no entra (lo lleva el guardado).
     const big = [{ id: 'big', type: 'freedraw', points: Array.from({ length: 4000 }, (_, i) => [i, i]) }];
     expect(JSON.stringify(big).length).toBeGreaterThan(BOARD_LIVE_MAX_BYTES);
@@ -270,7 +276,7 @@ describe('board: arreglos del QA (abuso, suplantación, revalidación, presencia
     const chunk = [{ id: 'c', type: 'freedraw', points: Array.from({ length: 1500 }, (_, i) => [i, i]) }];
     let codes: number[] = [];
     for (let i = 0; i < 40; i++) {
-      const r = await handleLiveSend(guest, { socketId: `flood${String(i).padStart(5, '0')}`, elements: chunk }, 7_000_000);
+      const r = await handleLiveSend(guest, { socketId: 'flood00001', elements: chunk }, 7_000_000);
       codes = [...codes, r.ok ? 200 : r.status];
     }
     expect(codes).toContain(429);
@@ -321,8 +327,27 @@ describe('board: arreglos del QA (abuso, suplantación, revalidación, presencia
     const b = await createBoard(ws.owner.id, ws.owner.id, 'Reval');
     const actor = (await memberLiveActor(as(ws, ws.b), b.id))!;
     expect(await stillAllowed(actor)).toBe(true);
-    await getDb().prepare('DELETE FROM team_members WHERE team_id = ? AND user_id = ?').run(ws.team.id, ws.b.id);
+    let revoked = false;
+    const filter = liveConnectionFilter(actor, () => (revoked = true));
+    const cursor = Number(((await getDb().prepare('SELECT MAX(id) AS id FROM board_events').get()) as { id: number | null }).id ?? 0);
+    // Sacarla del team publica un aviso para todo el workspace y la conexión se corta ya.
+    await removeMember(ws.team.id, ws.b.id);
+    const events = await fetchEventsSince(cursor);
+    expect(events.some((e) => e.boardId === '*' && e.kind === 'access')).toBe(true);
+    expect(await filter(events)).toEqual([]);
+    expect(revoked).toBe(true);
     expect(await stillAllowed(actor)).toBe(false);
+  });
+
+  it('el cron llena el texto buscable de las pizarras de antes (con claim por fila)', async () => {
+    const u = await makeUser('bf');
+    const b = await createBoard(u.id, u.id, 'Vieja');
+    const scene = JSON.stringify({ elements: [{ id: 't', type: 'text', text: 'Pendiente viejo', originalText: 'Pendiente viejo' }], appState: {}, files: {} });
+    await getDb().prepare("UPDATE boards SET scene = ?, search_text = '', search_indexed = 0 WHERE id = ?").run(scene, b.id);
+    expect(await backfillSearchText({ limit: 500 })).toBeGreaterThanOrEqual(1);
+    const row = (await getDb().prepare('SELECT search_text, search_indexed FROM boards WHERE id = ?').get(b.id)) as { search_text: string; search_indexed: number };
+    expect(row).toEqual({ search_text: 'Pendiente viejo', search_indexed: 1 });
+    expect((await searchBoards(u.id, boardViewer({ id: u.id }), 'pendiente'))[0]?.id).toBe(b.id);
   });
 
   it('el cursor del atraso es de la pizarra, no del feed entero', async () => {
@@ -341,7 +366,9 @@ describe('board: arreglos del QA (abuso, suplantación, revalidación, presencia
     expect(sanitizeElements([{ link: '%6Aavascript:x' }])[0].link).toBeNull();
     expect(sanitizeElements([{ link: 'https://ok.example/a b' }])[0].link).toBe('https://ok.example/a b');
     const gen = sanitizeElements([{ id: 'i', type: 'iframe', customData: { generationData: { status: 'done', html: '<script>x</script>' }, keep: 1 } }]);
-    expect(gen[0].customData).toEqual({ keep: 1 });
+    expect(gen).toEqual([]);
+    const gen2 = sanitizeElements([{ id: 'm', type: 'magicframe', customData: { generationData: { html: 'x' }, keep: 2 } }]);
+    expect(gen2[0].customData).toEqual({ keep: 2 });
     expect(cleanHtml('<!DOCTYPE html><html><head><title>x</title></head><body></body></html>')).toContain(`<head><meta http-equiv="Content-Security-Policy" content="${GENERATED_HTML_CSP}">`);
     expect(GENERATED_HTML_CSP).toContain("default-src 'none'");
 

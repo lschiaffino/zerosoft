@@ -355,7 +355,7 @@
   "present": {
     "button": "Presentar",
     "title": "Presentación",
-    "empty": "Agregá frames para presentarlos como slides (herramienta Frame, F).",
+    "empty": "Agregá frames para presentarlos como slides (Herramienta de frame, F).",
     "exit": "Salir",
     "prev": "Slide anterior",
     "next": "Slide siguiente",
@@ -379,7 +379,8 @@
     "clustered": "{count, plural, one {Stickies agrupados en # tema} other {Stickies agrupados en # temas}}",
     "other": "Otros",
     "summary": "Resumen",
-    "cluster": "Agrupar stickies con IA"
+    "cluster": "Agrupar stickies con IA",
+    "codeLocal": "La vista previa generada queda solo en tu sesión: no se guarda ni la ven los demás. Copiá el HTML para conservarla."
   },
   "import": {
     "button": "Importar",
@@ -496,6 +497,7 @@
     "insert": "Insertar",
     "placeholderMermaid": "Escribí acá el diagrama de Mermaid…",
     "mermaidTitle": "Mermaid a diagrama",
-    "prompt": "Descripción"
+    "prompt": "Descripción",
+    "frameTool": "Herramienta de frame"
   }
 }
