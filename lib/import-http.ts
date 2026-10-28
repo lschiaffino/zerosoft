@@ -11,13 +11,15 @@ import { CSV_FIELDS, TRACK_IMPORT_MAX_CSV_BYTES } from './track-import-map';
 import { GITHUB_REPO_RE } from './track-import-sources';
 import { asanaProjectGid, normalizeJiraSite } from './track-import-sources-more';
 import { NOTION_MAX_ZIP_BYTES } from './docs-notion-import';
+import { importNeedsAdmin } from './import-registry';
 
 export function importError(status: number, code: string): NextResponse {
   return NextResponse.json({ error: code }, { status });
 }
 
-export function needsAdmin(app: ImportApp): boolean {
-  return app !== 'docs';
+/** Track, Cal y Notion por API: admins; Docs por archivo: cualquier miembro (ver lib/import-registry.ts). */
+export function needsAdmin(app: ImportApp, source = ''): boolean {
+  return importNeedsAdmin(app, source);
 }
 
 const token = z.string().trim().min(8).max(500);
@@ -90,6 +92,13 @@ export const importCreateSchema = z.discriminatedUnion('source', [
   z.object({ app: z.literal('cal'), source: z.literal('calendly'), token, includeBookings: z.boolean().optional() }),
   z.object({
     app: z.literal('docs'),
+    /** Notion por API: token de una integración interna (se guarda cifrado hasta terminar). */
+    source: z.literal('notion_api'),
+    token,
+    teamspace_id: z.string().min(1).max(64).nullable().optional(),
+  }),
+  z.object({
+    app: z.literal('docs'),
     /** De dónde viene el zip (todos usan el mismo lector: Markdown, CSV, HTML, .docx, .txt y .enex). */
     source: z.enum(['notion', 'confluence', 'gdocs', 'word', 'evernote', 'files']),
     /** Teamspace de destino (null o ausente: el workspace). */
@@ -112,10 +121,10 @@ export function importZodCode(error: z.ZodError): string {
 }
 
 /** Usuario con acceso a la app del import (o la respuesta de error). */
-export async function importUser(app: ImportApp): Promise<SessionUser | NextResponse> {
+export async function importUser(app: ImportApp, source = ''): Promise<SessionUser | NextResponse> {
   const user = await getCurrentUser();
   if (!user) return importError(401, 'unauthorized');
-  if (needsAdmin(app) && !isWorkspaceAdmin(user)) return importError(403, 'forbidden');
+  if (needsAdmin(app, source) && !isWorkspaceAdmin(user)) return importError(403, 'forbidden');
   return user;
 }
 
@@ -125,6 +134,6 @@ export async function importJobFor(id: string): Promise<{ user: SessionUser; job
   if (!user) return importError(401, 'unauthorized');
   const job = await getWorkspaceImportJob(user.id, id);
   if (!job) return importError(404, 'not_found');
-  if (needsAdmin(job.app) && !isWorkspaceAdmin(user)) return importError(403, 'forbidden');
+  if (needsAdmin(job.app, job.source) && !isWorkspaceAdmin(user)) return importError(403, 'forbidden');
   return { user, job };
 }

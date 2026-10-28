@@ -344,8 +344,10 @@
     "domains": "Domains",
     "keywords": {
       "billing": "billing, invoices, subscription, payment, plan",
-      "domains": "custom domain, dns, short links"
-    }
+      "domains": "custom domain, dns, short links",
+      "import": "import migrate move token"
+    },
+    "importFrom": "Import from {source} to {app}"
   },
   "workspace": {
     "title": "Workspace details",
@@ -434,6 +436,206 @@
       "api": "API and webhooks",
       "aiUsage": "Workspace AI usage",
       "recorder": "Robot recorder"
+    }
+  },
+  "importHub": {
+    "title": "Import",
+    "desc": "Bring your data from the tools you use today. Connect with a token or upload an export, review what comes in and start. Importing again updates what is already here instead of duplicating it.",
+    "safety": "Tokens are stored encrypted only while the import runs and are deleted when it finishes, fails or is cancelled. They are never shown again or written to logs.",
+    "memberNote": "Only workspace admins can import into CRM, Track, Cal, Link and Notion by API. Any member can import files into Docs and Notes.",
+    "recentTitle": "Recent imports",
+    "recentDesc": "Imports of this workspace across all apps. Open one to see its progress or its report.",
+    "recentEmpty": "No imports yet. Pick a source below to start.",
+    "recentCrm": "{contacts, number} contacts, {companies, number} companies, {deals, number} deals",
+    "recentCreatedUpdated": "{created, number} created, {updated, number} updated",
+    "recentItems": "{count, plural, one {# item} other {# items}} read",
+    "status": {
+      "preview": "Waiting for review",
+      "queued": "Queued",
+      "running": "Running",
+      "fetching": "Reading",
+      "importing": "Importing",
+      "uploading": "Uploading",
+      "done": "Done",
+      "failed": "Stopped",
+      "cancelled": "Cancelled"
+    },
+    "appTitle": "Into {app}",
+    "appDesc": {
+      "crm": "Contacts, companies and deals with their pipelines, owners, activity, custom properties and lists.",
+      "docs": "Pages with their tree, databases with their rows, and files.",
+      "track": "Issues with their projects, states, labels and comments.",
+      "cal": "Event types, availability and upcoming bookings.",
+      "link": "Short links with their tags.",
+      "notes": "Notes with their attachments."
+    },
+    "auth": {
+      "token": "API token",
+      "file": "Export file"
+    },
+    "adminOnly": "Admins only",
+    "adminOnlyLong": "Only workspace admins can import from Notion by API. Ask an admin, or import a Notion export file instead.",
+    "noDestination": "You can’t create pages in Docs or in any teamspace. Ask an admin for access.",
+    "importCta": "Import",
+    "importFromLabel": "Import from {source} into {app}",
+    "entities": {
+      "contacts": "contacts",
+      "companies": "companies",
+      "deals": "deals",
+      "pipelines": "pipelines and stages",
+      "owners": "owners",
+      "activities": "notes, calls, meetings, tasks and emails",
+      "customFields": "custom properties",
+      "lists": "lists (as tags)",
+      "pages": "pages and subpages",
+      "databases": "databases with their rows",
+      "files": "images and files",
+      "links": "links and mentions between pages",
+      "issues": "issues",
+      "projects": "projects",
+      "states": "states",
+      "labels": "labels",
+      "comments": "comments",
+      "eventTypes": "event types",
+      "availability": "availability",
+      "bookings": "bookings",
+      "tags": "tags",
+      "notes": "notes",
+      "shortLinks": "short links"
+    },
+    "backAll": "All sources",
+    "detailTitle": "{source} to {app}",
+    "detailDesc": {
+      "token": "Create a read-only token in {source}, paste it below and review what comes in before importing.",
+      "file": "Export your content from {source} and upload the file below. You review what comes in before importing."
+    },
+    "howtoToken": "How to get the {source} token",
+    "howtoFile": "How to export from {source}",
+    "scopesTitle": "Scopes the token needs (read only)",
+    "capabilitiesTitle": "Capabilities the integration needs",
+    "openTokenPage": "Open {source} to create the token",
+    "openExportPage": "Open {source}",
+    "officialDocs": "{source} documentation",
+    "openImporter": "Open the {app} importer",
+    "steps": {
+      "hubspot": {
+        "1": "In HubSpot, open Settings › Integrations › Private Apps (in newer accounts: Development › Legacy apps) and create a private app.",
+        "2": "Name it (for example, zerosoft import). In Scopes, add the read scopes listed below. Nothing is written to HubSpot.",
+        "3": "Create the app and copy its access token (it starts with pat-).",
+        "4": "Paste it below and connect. We check the token and show what will come in: counts, owners, pipelines and custom properties.",
+        "5": "Map each HubSpot owner to a person in the workspace (they match by email) or invite the ones who are missing, then start."
+      },
+      "pipedrive": {
+        "1": "In Pipedrive, open your avatar › Personal preferences › API.",
+        "2": "Copy your personal API token. Use an admin account so the records of everyone come in.",
+        "3": "Paste it below, review the preview and start."
+      },
+      "notionApi": {
+        "1": "Open notion.so/profile/integrations and create a new internal integration for your workspace.",
+        "2": "In Capabilities, keep Read content on and turn on Read user information including email addresses, so people match workspace members. It doesn’t need insert or update.",
+        "3": "Copy the Internal Integration Secret (it starts with ntn_ or secret_).",
+        "4": "In Notion, on each top level page you want to bring: ••• › Connections › add your integration. Its subpages and databases come with it.",
+        "5": "Paste the secret below, choose where the pages go, review the counts and start."
+      },
+      "notionZip": {
+        "1": "In Notion, open Settings › General › Export all workspace content (or ••• › Export on a single page).",
+        "2": "Choose Markdown & CSV, include subpages and files, and download the .zip.",
+        "3": "Upload the .zip below. Large exports are uploaded in parts."
+      },
+      "confluence": {
+        "1": "In Confluence, open Space settings › Export space and choose HTML.",
+        "2": "Download the .zip and upload it below."
+      },
+      "gdocs": {
+        "1": "In Google Drive, select the documents (or a folder) and download them: Drive zips them as .docx.",
+        "2": "Upload the .zip or the .docx files below."
+      },
+      "linear": {
+        "1": "In Linear, open Settings › Account › Security & access › Personal API keys and create a new key.",
+        "2": "Give it Read access (nothing is written to Linear) and copy it.",
+        "3": "Paste it below and pick the target project."
+      },
+      "jira": {
+        "1": "Open id.atlassian.com › Security › API tokens and create an API token.",
+        "2": "Copy it. You also need the email of that Atlassian account and your site address (https://acme.atlassian.net).",
+        "3": "Paste them below with a project key (ENG) or a JQL query."
+      },
+      "github": {
+        "1": "In GitHub, open Settings › Developer settings › Personal access tokens › Fine-grained tokens and generate a new token.",
+        "2": "Give it access to the repository and the read-only permissions listed below.",
+        "3": "Paste it below with the repository as owner/repo."
+      },
+      "asana": {
+        "1": "In Asana, open your profile › Settings › Apps › Developer console and create a personal access token.",
+        "2": "Paste it below with the project URL."
+      },
+      "shortcut": {
+        "1": "In Shortcut, open Settings › API Tokens and generate a token.",
+        "2": "Paste it below. Leave the search empty to bring every story that is not archived."
+      },
+      "trackCsv": {
+        "1": "Export your issues as CSV from your tool (Linear and Jira have presets).",
+        "2": "Upload the file below and map its columns."
+      },
+      "calendly": {
+        "1": "In Calendly, open Integrations & apps › API and webhooks.",
+        "2": "Under Personal access tokens, generate a token and copy it.",
+        "3": "Paste it below. Upcoming bookings are optional."
+      },
+      "bitly": {
+        "1": "In Bitly, open Settings › API and generate an access token.",
+        "2": "Open the Link importer and paste it there."
+      },
+      "evernote": {
+        "1": "In Evernote, export a notebook as .enex (right click the notebook › Export notebook).",
+        "2": "In Notes, use Import in the sidebar and choose the .enex file."
+      }
+    },
+    "notion": {
+      "loading": "Looking for an import in progress…",
+      "token": "Internal Integration Secret",
+      "tokenHelp": "We check it with a read request before anything is imported.",
+      "destination": "Where the pages go",
+      "destWorkspace": "Workspace (top level)",
+      "connect": "Connect and preview",
+      "checking": "Checking the token…",
+      "connectedTo": "Connected to {account}.",
+      "connected": "Connected.",
+      "stat": {
+        "pages": "Pages",
+        "databases": "Databases",
+        "rows": "Database rows",
+        "people": "People",
+        "created": "Created",
+        "updated": "Updated",
+        "skipped": "Skipped",
+        "failed": "Failed",
+        "files": "Files"
+      },
+      "emptyShare": "The integration can’t see any page yet. In Notion, open a page › ••• › Connections and add the integration, then connect again.",
+      "truncated": "There are more than {max, number} items: the first {max, number} come in. Share fewer top level pages and import the rest after.",
+      "alreadyImported": "{count, plural, one {# item was} other {# items were}} imported before: they are updated, not duplicated.",
+      "noEmails": "The integration can’t read emails, so people come in as names. Turn on Read user information including email addresses to match members.",
+      "rootsTitle": "Top level",
+      "kindDatabase": "database",
+      "whatToImport": "What to import",
+      "includePages": "Pages and subpages ({count, number})",
+      "includeDatabases": "Databases ({count, number}) with their rows ({rows, number})",
+      "includeFiles": "Images and files",
+      "includeFilesHelp": "Copied to your storage, up to 10 MB each. Without them, the file name stays in the page.",
+      "dedupe": "Links and mentions between pages point to the imported pages. Formulas and rollups come in with their current value.",
+      "confirm": "Import",
+      "doneTitle": "Import finished.",
+      "doneSummary": "{pages, number} pages, {databases, number} databases and {rows, number} rows.",
+      "filesSkipped": "{count, plural, one {# file was} other {# files were}} not copied (too large, not allowed or unavailable): the name stays in the page.",
+      "errorsTitle": "{count, plural, one {# problem} other {# problems}}",
+      "contentTruncated": "very long page, the first part came in",
+      "untitled": "Untitled",
+      "openDocs": "Open Docs",
+      "again": "Import again",
+      "failedTitle": "The import stopped.",
+      "retry": "Try again",
+      "dismiss": "Dismiss"
     }
   }
 }

@@ -158,7 +158,8 @@
     "groupTrackCycles": "Cycles",
     "groupTrackMilestones": "Milestones",
     "groupTrackLabels": "Labels",
-    "askDocs": "Perguntar à IA sobre seus docs"
+    "askDocs": "Perguntar à IA sobre seus docs",
+    "import": "Importar"
   },
   "manifesto": {
     "p1": "Um time de dez pessoas paga <strong>US$ 6.000 por ano</strong> por um CRM, US$ 1.440 para agendar reuniões e US$ 420 para encurtar links. Esses preços são calculados por pessoa ou por plano.",
@@ -430,7 +431,7 @@
       "q4": "Do que eu preciso para hospedar?",
       "a4": "Docker e um servidor pequeno. Clone o repositório, preencha o .env e rode docker compose up -d. Os dados ficam em dois volumes: um arquivo SQLite e os seus anexos. Sem Docker: npm ci, npm run build, npm start.",
       "q5": "Dá para migrar do que eu uso hoje?",
-      "a5": "O Link importa do Bitly (API ou CSV). O CRM importa contatos, empresas e negócios de CSV, com um preset para o export do HubSpot. Para Notion, Linear, Calendly e Evernote ainda não existe importador.",
+      "a5": "Sim. Configurações › Importar traz HubSpot e Pipedrive para o CRM, Notion para o Docs (com um token ou um arquivo exportado), Linear, Jira, GitHub, Asana e Shortcut para o Track, Calendly para o Cal, Bitly para o Link e Evernote para o Notes. Você revisa o que entra antes de importar, e importar de novo atualiza em vez de duplicar.",
       "q6": "O que a AGPLv3 significa para a minha empresa?",
       "a6": "Você pode usar, hospedar e modificar sem pagar. Se oferecer uma versão modificada como serviço a terceiros, precisa publicar as suas mudanças. A pasta /ee tem uma licença comercial à parte.",
       "q7": "Vocês têm SSO e logs de auditoria?",
@@ -609,7 +610,11 @@
       "generic": "Não foi possível importar. Tente de novo.",
       "invalid_site": "Use o endereço do seu Jira Cloud, como https://acme.atlassian.net.",
       "invalid_project": "Cole a URL do projeto do Asana ou o id numérico.",
-      "file_type_not_allowed": "Envie um arquivo .zip, .docx, .enex, .html, .md ou .txt."
+      "file_type_not_allowed": "Envie um arquivo .zip, .docx, .enex, .html, .md ou .txt.",
+      "restricted": "A integração não consegue ler isso. Confira as capacidades dela e se a página está compartilhada com ela.",
+      "import_running": "Já existe uma importação desta fonte em andamento. Abra ou cancele primeiro.",
+      "nothing_selected": "Escolha pelo menos páginas ou bancos de dados.",
+      "invalid_request": "O serviço recusou o pedido. Tente de novo e, se continuar, comece uma nova importação."
     },
     "readFailed": "Não conseguimos ler {source}: {reason}"
   },

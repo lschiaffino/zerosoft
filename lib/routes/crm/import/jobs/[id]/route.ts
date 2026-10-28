@@ -8,7 +8,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const startSchema = z.object({
-  groups: z.array(z.enum(['companies', 'contacts', 'deals', 'activities'])).min(1).max(4),
+  groups: z.array(z.enum(['companies', 'contacts', 'deals', 'activities', 'lists'])).min(1).max(5),
   ownerMap: z.record(z.string().max(64), z.string().max(64)).default({}),
   defaultOwnerId: z.string().min(1).max(64),
 });

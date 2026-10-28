@@ -72,7 +72,7 @@ export default function NotionImportPanel({
   const [dest, setDest] = useState<string>(canWorkspace ? '' : (teamspaces[0]?.id ?? ''));
   const errorText = useImportErrorText();
   const router = useRouter();
-  const { job, setJob, error, setError, loading, create, start, cancel, reset, finishUpload } = useImportJob('docs');
+  const { job, setJob, error, setError, loading, create, start, cancel, reset, finishUpload } = useImportJob('docs', IMPORT_SOURCES);
   const [file, setFile] = useState<File | null>(null);
   const [percent, setPercent] = useState<number | null>(null);
 

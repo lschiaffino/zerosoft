@@ -6,20 +6,15 @@ import { useRouter } from '@/i18n/navigation';
 import type { ImportJobView } from '@/lib/crm-import-jobs';
 import type { ImportGroup, ImportProvider } from '@/lib/crm-import-source';
 import { parseDbUtc } from '@/lib/utils';
+import { HUBSPOT_PRIVATE_APP_SCOPES as HUBSPOT_SCOPES } from '@/lib/import-registry';
 
-/** Permisos de la Private App de HubSpot (lib/crm-import-hubspot.ts). Se repiten acá: el módulo es server-only. */
-const HUBSPOT_SCOPES = [
-  'crm.objects.contacts.read',
-  'crm.objects.companies.read',
-  'crm.objects.deals.read',
-  'crm.objects.owners.read',
-  'crm.schemas.contacts.read',
-  'crm.schemas.companies.read',
-  'crm.schemas.deals.read',
-  'sales-email-read',
-];
-
-const GROUPS: ImportGroup[] = ['companies', 'contacts', 'deals', 'activities'];
+const GROUPS: ImportGroup[] = ['companies', 'contacts', 'deals', 'activities', 'lists'];
+/** Grupos de cada fuente (Pipedrive no tiene listas). */
+const PROVIDER_GROUPS: Record<ImportProvider, ImportGroup[]> = {
+  hubspot: GROUPS,
+  pipedrive: ['companies', 'contacts', 'deals', 'activities'],
+};
+const ACTIVITY_PHASES = new Set(['notes', 'calls', 'meetings', 'tasks', 'emails', 'activities']);
 const PROVIDERS: ImportProvider[] = ['hubspot', 'pipedrive'];
 const NAMES: Record<ImportProvider, string> = { hubspot: 'HubSpot', pipedrive: 'Pipedrive' };
 
@@ -49,10 +44,13 @@ export default function CrmMigrationPanel({
   canAdmin,
   initialProvider = null,
   locale,
+  embedded = false,
 }: {
   canAdmin: boolean;
   initialProvider?: ImportProvider | null;
   locale: string;
+  /** Dentro del hub de importación: los pasos y permisos del token ya están arriba. */
+  embedded?: boolean;
 }) {
   const t = useTranslations('crm.migrate');
   const tc = useTranslations('crm');
@@ -104,6 +102,7 @@ export default function CrmMigrationPanel({
     return (
       <ConnectStep
         provider={view.provider}
+        embedded={embedded}
         onBack={() => setView({ kind: 'pick' })}
         onPreview={(job) => setView({ kind: 'job', job })}
       />
@@ -188,10 +187,12 @@ function errorText(t: ReturnType<typeof useTranslations>, code: string | undefin
 
 function ConnectStep({
   provider,
+  embedded,
   onBack,
   onPreview,
 }: {
   provider: ImportProvider;
+  embedded: boolean;
   onBack: () => void;
   onPreview: (job: ImportJobView) => void;
 }) {
@@ -226,12 +227,14 @@ function ConnectStep({
   return (
     <form className="mig-body" onSubmit={submit} onKeyDown={(e) => e.key === 'Escape' && onBack()}>
       <h3 className="mig-title">{t('connectTitle', { provider: NAMES[provider] })}</h3>
-      <ol className="mig-steps-list">
-        {(provider === 'hubspot' ? ['hs1', 'hs2', 'hs3'] : ['pd1', 'pd2']).map((k) => (
-          <li key={k}>{t(`howto.${k}`)}</li>
-        ))}
-      </ol>
-      {provider === 'hubspot' && (
+      {!embedded && (
+        <ol className="mig-steps-list">
+          {(provider === 'hubspot' ? ['hs1', 'hs2', 'hs3'] : ['pd1', 'pd2']).map((k) => (
+            <li key={k}>{t(`howto.${k}`)}</li>
+          ))}
+        </ol>
+      )}
+      {provider === 'hubspot' && !embedded && (
         <div>
           <p className="label">{t('scopes')}</p>
           <ul className="mig-scopes mono">
@@ -292,16 +295,14 @@ function PreviewStep({
   const tc = useTranslations('crm');
   const locale = useLocale();
   const p = job.preview;
-  const [groups, setGroups] = useState<ImportGroup[]>(job.options.groups);
+  const [groups, setGroups] = useState<ImportGroup[]>(job.options.groups.filter((g) => PROVIDER_GROUPS[job.provider].includes(g)));
   const [ownerMap, setOwnerMap] = useState<Record<string, string>>(job.options.ownerMap);
   const [defaultOwner, setDefaultOwner] = useState(job.options.defaultOwnerId || people[0]?.id || '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const phaseCount = (g: ImportGroup): number | null => {
-    const phases = Object.entries(p.counts).filter(([ph]) =>
-      g === 'activities' ? !['companies', 'contacts', 'deals'].includes(ph) : ph === g,
-    );
+    const phases = Object.entries(p.counts).filter(([ph]) => (g === 'activities' ? ACTIVITY_PHASES.has(ph) : ph === g));
     if (!phases.length) return 0;
     let sum = 0;
     for (const [, n] of phases) {
@@ -345,7 +346,7 @@ function PreviewStep({
       <fieldset className="mig-groups">
         <legend className="label">{t('whatToImport')}</legend>
         <div className="stat-cards mig-count-cards">
-          {GROUPS.map((g) => {
+          {PROVIDER_GROUPS[job.provider].map((g) => {
             const n = phaseCount(g);
             const on = groups.includes(g);
             return (
@@ -400,6 +401,7 @@ function PreviewStep({
         <p className="muted mig-note">
           {unmatched > 0 ? t('ownersUnmatched', { count: unmatched }) : t('ownersAllMatched')}
         </p>
+        <InviteOwners jobId={job.id} owners={p.owners.filter((o) => !o.matchId && o.email)} />
         {p.owners.length > 0 && (
           <div className="table-wrap">
             <table className="table mig-table" data-testid="migrate-owners">
@@ -520,6 +522,64 @@ function PreviewStep({
   );
 }
 
+/** Owners del otro CRM que no están en el workspace: invitarlos (links para compartir). */
+function InviteOwners({ jobId, owners }: { jobId: string; owners: Array<{ id: string; email: string; name: string }> }) {
+  const t = useTranslations('crm.migrate');
+  const locale = useLocale();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [invites, setInvites] = useState<Array<{ email: string; url: string; existing: boolean }> | null>(null);
+  if (!owners.length) return null;
+
+  async function invite() {
+    setBusy(true);
+    setError(null);
+    const res = await fetch('/api/crm/import/invite', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ jobId, ownerIds: owners.map((o) => o.id), locale }),
+    }).catch(() => null);
+    setBusy(false);
+    if (res && res.ok) {
+      setInvites(((await res.json()) as { invites: Array<{ email: string; url: string; existing: boolean }> }).invites);
+      return;
+    }
+    setError(t('inviteFailed'));
+  }
+
+  return (
+    <div className="mig-invite" data-testid="migrate-invite">
+      {invites ? (
+        <>
+          <p className="mig-note" role="status">
+            {t('invitedNote', { count: invites.length })}
+          </p>
+          <ul className="mig-invite-list">
+            {invites.map((i) => (
+              <li key={i.email}>
+                <span className="mono">{i.email}</span>
+                <input className="input mono" readOnly value={i.url} aria-label={t('inviteLinkFor', { email: i.email })} onFocus={(e) => e.currentTarget.select()} />
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <div className="form-actions">
+          <button type="button" className="btn btn-small" onClick={() => void invite()} disabled={busy} aria-busy={busy}>
+            {t('inviteOwners', { count: owners.length })}
+          </button>
+          <span className="muted mig-note">{t('inviteHelp')}</span>
+        </div>
+      )}
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function SampleTable({ title, heads, rows, empty }: { title: string; heads: string[]; rows: string[][]; empty: string }) {
   return (
     <div className="mig-sample">
@@ -603,7 +663,7 @@ function ProgressStep({
   }
 
   const pct = job.progress === null ? null : Math.round(job.progress * 100);
-  const groups = GROUPS.filter((g) => job.options.groups.includes(g));
+  const groups = PROVIDER_GROUPS[job.provider].filter((g) => job.options.groups.includes(g));
 
   return (
     <div className="mig-body" data-testid="migrate-progress" data-status={job.status}>

@@ -6357,6 +6357,42 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Hub de importación (/app/settings/import): import_jobs deja de limitar
+    // `app` con un CHECK (el registro de fuentes de lib/import-registry.ts
+    // decide qué app y fuente existen) y los items se buscan por tipo (Notion
+    // por API lee páginas y bases por separado).
+    id: '129_import_hub',
+    up: async (client) => {
+      const tableSql = async () =>
+        String((await client.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'import_jobs'")).rows[0]?.sql ?? '');
+      const sql = await tableSql();
+      if (sql && /CHECK\s*\(\s*app\s+IN/i.test(sql)) {
+        const createNew = sql
+          .replace(/^CREATE TABLE\s+(IF NOT EXISTS\s+)?["`]?import_jobs["`]?/i, 'CREATE TABLE import_jobs_new')
+          .replace(/\s*CHECK\s*\(\s*app\s+IN\s*\([^)]*\)\s*\)/i, '');
+        const indexes = (
+          await client.execute("SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'import_jobs' AND sql IS NOT NULL")
+        ).rows.map((r) =>
+          String(r.sql).replace(/^CREATE (UNIQUE )?INDEX\s+(IF NOT EXISTS\s+)?/i, (_m, u?: string) => `CREATE ${u ?? ''}INDEX IF NOT EXISTS `),
+        );
+        try {
+          await client.migrate([
+            'DROP TABLE IF EXISTS import_jobs_new',
+            createNew,
+            'INSERT INTO import_jobs_new SELECT * FROM import_jobs',
+            'DROP TABLE import_jobs',
+            'ALTER TABLE import_jobs_new RENAME TO import_jobs',
+            ...indexes,
+          ]);
+        } catch (err) {
+          // Otra instancia ya reconstruyó la tabla (carrera al arrancar).
+          if (/CHECK\s*\(\s*app\s+IN/i.test(await tableSql())) throw err;
+        }
+      }
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_import_job_items_kind ON import_job_items(job_id, kind, seq)');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

@@ -231,6 +231,7 @@ export default async function AppLayout(
             linksSection: tSide('linksSection'),
             workspace: tSide('workspace'),
             settings: tSide('settings'),
+            importData: tSide('import'),
             appSettings: tSide('appSettings'),
             platformHome: tSide('platformHome'),
             apps: tSide('apps'),

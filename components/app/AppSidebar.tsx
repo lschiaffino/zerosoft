@@ -16,6 +16,7 @@ import {
   buildNav,
   buildNewItems,
   settingsNavItem,
+  importNavItem,
   switcherHref,
   SWITCHER_PRODUCTS,
   type SidebarLabels,
@@ -313,6 +314,7 @@ export default function AppSidebar({
   const nav = buildNav(product, pathname, labels, { tasksDue: dueCount, unread: unreadCount });
   const newItems = buildNewItems(product, labels, { docsCanCreate });
   const settingsItem = settingsNavItem(pathname, labels);
+  const importItem = importNavItem(product, labels);
 
   function openSearch() {
     window.dispatchEvent(new CustomEvent('zs:open-search'));
@@ -611,6 +613,18 @@ export default function AppSidebar({
             <Icon name={settingsItem.icon} size={15} />
             <span className="side-label">{settingsItem.label}</span>
           </Link>
+          {importItem && (
+            <Link
+              href={importItem.href}
+              className={`side-link${importItem.active ? ' active' : ''}`}
+              aria-current={importItem.active ? 'page' : undefined}
+              title={collapsed ? importItem.label : undefined}
+              data-testid="side-import"
+            >
+              <Icon name={importItem.icon} size={15} />
+              <span className="side-label">{importItem.label}</span>
+            </Link>
+          )}
           <Link href="/docs" className="side-link" title={collapsed ? labels.docsSite : undefined} data-testid="side-help">
             <Icon name="help" size={15} />
             <span className="side-label">{labels.docsSite}</span>

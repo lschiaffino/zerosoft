@@ -2261,7 +2261,8 @@
       "companies": "Empresas",
       "contacts": "Contactos",
       "deals": "Deals",
-      "activities": "Actividades"
+      "activities": "Actividades",
+      "lists": "Listas"
     },
     "unknownCount": "Todo",
     "unavailable": "El token no puede leer {phases}. Eso se saltea.",
@@ -2321,7 +2322,8 @@
       "meetings": "reuniones",
       "tasks": "tareas",
       "emails": "emails",
-      "activities": "actividades"
+      "activities": "actividades",
+      "lists": "listas"
     },
     "backgroundNote": "Podés salir de esta página. El import sigue en segundo plano y esta pantalla lo retoma.",
     "failure": {
@@ -2329,7 +2331,8 @@
       "scope": "Al token le falta un permiso. Revisá la lista y corré el import de nuevo.",
       "token_missing": "El token ya no está. Corré el import de nuevo.",
       "rate_limited": "El proveedor siguió limitando los pedidos. Corré el import más tarde.",
-      "generic": "Algo falló al hablar con el proveedor. Corré el import de nuevo: lo ya importado se actualiza, no se duplica."
+      "generic": "Algo falló al hablar con el proveedor. Corré el import de nuevo: lo ya importado se actualiza, no se duplica.",
+      "forbidden": "Quien arrancó el import ya no administra el workspace. Alguien admin puede correrlo de nuevo."
     },
     "cancelledNote": "Lo importado antes de cancelar queda en el CRM. El token se borró.",
     "warnings": "Avisos",
@@ -2348,7 +2351,12 @@
       "invalid_input": "Revisá el token y probá de nuevo.",
       "not_found": "Ese import ya no existe.",
       "forbidden": "Solo los admins del workspace pueden importar."
-    }
+    },
+    "inviteOwners": "{count, plural, one {Invitar a # persona} other {Invitar a # personas}} al workspace",
+    "inviteHelp": "Owners del otro CRM que todavía no son miembros. Por ahora sus registros van al owner por defecto: cuando se sumen, corré el import de nuevo para asignárselos.",
+    "invitedNote": "{count, plural, one {Invitación lista} other {# invitaciones listas}}. Compartí cada link (duran 14 días) o gestionalas en Ajustes › Miembros.",
+    "inviteLinkFor": "Link de invitación para {email}",
+    "inviteFailed": "No se pudieron crear las invitaciones. Probá de nuevo."
   },
   "ai": {
     "updatedAt": "Actualizado {when}",

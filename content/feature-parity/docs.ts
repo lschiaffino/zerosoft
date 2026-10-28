@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'Notion',
   alsoCompared: ['Confluence'],
-  lastReviewed: '2026-10-27',
+  lastReviewed: '2026-10-28',
   areas: [
     { id: 'editing', label: { en: 'Editing', es: 'Edición', pt: 'Edição' } },
     { id: 'databases', label: { en: 'Databases', es: 'Bases de datos', pt: 'Bancos de dados' } },
@@ -415,6 +415,18 @@ const parity: ProductParity = {
       status: 'have',
       competitorHas: true,
       weight: 2,
+    },
+    {
+      id: 'import-notion-api',
+      area: 'import-export',
+      label: { en: 'Import from Notion by API, with a token', es: 'Importar desde Notion por API, con un token', pt: 'Importar do Notion por API, com um token' },
+      detail: {
+        en: 'From Settings › Import with an internal integration token: pages and subpages with their tree, every block type Docs has (lists, to-dos, toggles, columns, tables, callouts, code, quotes, equations, embeds), images and files copied to your storage, databases with their properties and rows (rows keep their page body), and mentions and links rewritten to the imported pages. Preview with counts first, pick pages, databases and files, choose the teamspace, respects Notion limits (3 requests per second), resumes if it stops, and importing again updates instead of duplicating. Up to 5,000 items per import; formulas and rollups come in with their current value',
+        es: 'Desde Ajustes › Importar con el token de una integración interna: páginas y subpáginas con su árbol, todos los tipos de bloque que tiene Docs (listas, to-dos, toggles, columnas, tablas, callouts, código, citas, ecuaciones, embeds), imágenes y archivos copiados a tu almacenamiento, bases con sus propiedades y filas (cada fila con su cuerpo) y menciones y links reescritos a las páginas importadas. Con vista previa y cantidades, elegís páginas, bases y archivos y el teamspace, respeta los límites de Notion (3 pedidos por segundo), sigue si se corta y reimportar actualiza en vez de duplicar. Hasta 5.000 elementos por import; fórmulas y rollups entran con su valor actual',
+        pt: 'Em Configurações › Importar com o token de uma integração interna: páginas e subpáginas com sua árvore, todos os tipos de bloco que o Docs tem (listas, to-dos, toggles, colunas, tabelas, callouts, código, citações, equações, embeds), imagens e arquivos copiados para o seu armazenamento, bancos de dados com propriedades e linhas (cada linha com seu corpo) e menções e links reescritos para as páginas importadas. Com prévia e quantidades, você escolhe páginas, bancos e arquivos e o teamspace, respeita os limites do Notion (3 pedidos por segundo), continua se parar e reimportar atualiza em vez de duplicar. Até 5.000 itens por importação; fórmulas e rollups entram com o valor atual',
+      },
+      status: 'have',
+      competitorHas: true,
     },
     {
       id: 'import-csv',

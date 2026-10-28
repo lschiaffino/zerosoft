@@ -15,15 +15,19 @@ import type { CrmCustomFieldType } from './schema/types';
 export type ImportProvider = 'hubspot' | 'pipedrive';
 export const IMPORT_PROVIDERS: readonly ImportProvider[] = ['hubspot', 'pipedrive'];
 
-/** Grupos que la persona elige importar. `activities` = notas, llamadas, reuniones, tareas y emails. */
-export type ImportGroup = 'companies' | 'contacts' | 'deals' | 'activities';
-export const IMPORT_GROUPS: readonly ImportGroup[] = ['companies', 'contacts', 'deals', 'activities'];
+/**
+ * Grupos que la persona elige importar. `activities` = notas, llamadas,
+ * reuniones, tareas y emails; `lists` = listas de HubSpot (pasan a etiquetas
+ * en los contactos y empresas que ya se importaron).
+ */
+export type ImportGroup = 'companies' | 'contacts' | 'deals' | 'activities' | 'lists';
+export const IMPORT_GROUPS: readonly ImportGroup[] = ['companies', 'contacts', 'deals', 'activities', 'lists'];
 
-/** Fases de lectura, en orden: las empresas antes que los contactos, los deals antes que la actividad. */
-export type ImportPhase = 'companies' | 'contacts' | 'deals' | 'notes' | 'calls' | 'meetings' | 'tasks' | 'emails' | 'activities';
+/** Fases de lectura, en orden: las empresas antes que los contactos, los deals antes que la actividad y las listas al final. */
+export type ImportPhase = 'companies' | 'contacts' | 'deals' | 'notes' | 'calls' | 'meetings' | 'tasks' | 'emails' | 'activities' | 'lists';
 
 export function phaseGroup(phase: ImportPhase): ImportGroup {
-  if (phase === 'companies' || phase === 'contacts' || phase === 'deals') return phase;
+  if (phase === 'companies' || phase === 'contacts' || phase === 'deals' || phase === 'lists') return phase;
   return 'activities';
 }
 
@@ -139,7 +143,16 @@ export interface SrcActivity {
   dealIds: string[];
 }
 
-export type SrcRecord = SrcCompany | SrcContact | SrcDeal | SrcActivity;
+/** Lista (estática o activa) de contactos o empresas, con sus miembros al momento del import. */
+export interface SrcList {
+  kind: 'list';
+  id: string;
+  name: string;
+  entity: 'contact' | 'company';
+  memberIds: string[];
+}
+
+export type SrcRecord = SrcCompany | SrcContact | SrcDeal | SrcActivity | SrcList;
 
 export interface SourcePage {
   items: SrcRecord[];

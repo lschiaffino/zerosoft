@@ -19,6 +19,7 @@
 import { getDb } from './db';
 import { open, seal } from './secret-box';
 
+/** Apps con jobs en import_jobs (el CRM tiene los suyos en crm_import_jobs). */
 export type ImportApp = 'track' | 'cal' | 'docs';
 export type ImportStatus = 'uploading' | 'fetching' | 'preview' | 'importing' | 'done' | 'failed' | 'cancelled';
 
@@ -202,6 +203,17 @@ export async function listImportJobs(workspaceId: string, app: ImportApp, limit 
   const rows = (await getDb()
     .prepare('SELECT * FROM import_jobs WHERE workspace_id = ? AND app = ? ORDER BY created_at DESC LIMIT ?')
     .all(workspaceId, app, limit)) as ImportJobRow[];
+  return rows.map((r) => jobView(r));
+}
+
+/** Imports del workspace en todas las apps (el hub de importación). */
+export async function listWorkspaceImportJobs(workspaceId: string, limit = 20): Promise<ImportJobView[]> {
+  const rows = (await getDb()
+    .prepare(
+      `SELECT * FROM import_jobs WHERE workspace_id = ? AND NOT (status = 'cancelled' AND report IS NULL)
+       ORDER BY created_at DESC LIMIT ?`,
+    )
+    .all(workspaceId, limit)) as ImportJobRow[];
   return rows.map((r) => jobView(r));
 }
 

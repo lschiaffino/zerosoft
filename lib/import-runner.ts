@@ -35,6 +35,17 @@ import { csvToIssues, TRACK_IMPORT_MAX_ISSUES, type CsvMapping } from './track-i
 import { emptyTrackReport, trackPreview, trackWriteStep, TRACK_WRITE_STAGES, type TrackImportReport } from './track-import';
 import { calFetchStep, calPreview, calWriteStep, emptyCalReport, type CalImportReport } from './cal-import';
 import { cleanupNotionPayload, emptyNotionReport, notionFetchStep, notionPreview, notionWriteStep, NOTION_MAX_PAGES, type NotionImportReport } from './docs-notion-import';
+import {
+  cleanupNotionApi,
+  emptyNotionApiReport,
+  notionApiFetchStep,
+  notionApiPreview,
+  notionApiWriteStep,
+  NOTION_API_MAX_ITEMS,
+  type NotionApiReport,
+} from './docs-notion-api-import';
+import { importNeedsAdmin } from './import-registry';
+import { workspaceRole } from './api-auth';
 
 export interface ImportAdapter {
   fetchStep(job: ImportJob): Promise<FetchStepResult>;
@@ -46,6 +57,11 @@ export interface ImportAdapter {
   maxItems?: number;
   /** El payload (zip) hace falta también al escribir. */
   keepPayload?: boolean;
+  /**
+   * El token hace falta también al escribir (Notion por API pide los bloques
+   * de cada página al escribirla: sus archivos son URLs que vencen en una hora).
+   */
+  keepSecret?: boolean;
   cleanup?(job: ImportJob): Promise<void>;
 }
 
@@ -104,6 +120,19 @@ const ADAPTERS: Record<string, ImportAdapter> = {
   'docs:word': docsAdapter,
   'docs:evernote': docsAdapter,
   'docs:files': docsAdapter,
+  'docs:notion_api': {
+    fetchStep: (job) => notionApiFetchStep(job),
+    preview: (job, items) => notionApiPreview(job, items),
+    writeStages: ['write'],
+    // Cada página pide sus bloques a Notion (3 pedidos por segundo): de a una.
+    chunkSize: 1,
+    emptyReport: emptyNotionApiReport,
+    writeStep: (job, _stage, items, report) => notionApiWriteStep(job, items, report as NotionApiReport),
+    // + el item de personas.
+    maxItems: NOTION_API_MAX_ITEMS + 1,
+    keepSecret: true,
+    cleanup: (job) => cleanupNotionApi(job),
+  },
 };
 
 export function importAdapter(app: string, source: string): ImportAdapter | null {
@@ -127,6 +156,15 @@ async function closeJob(job: ImportJob, status: 'done' | 'failed' | 'cancelled',
     ...(patch.report ? { report: patch.report } : {}),
     ...(patch.error ? { error: patch.error } : {}),
   });
+}
+
+/** ¿Quien creó el job todavía puede importar a ese workspace? */
+export async function creatorCanImport(job: Pick<ImportJob, 'app' | 'source' | 'workspace_id' | 'user_id'>): Promise<boolean> {
+  if (job.user_id === job.workspace_id || !importNeedsAdmin(job.app, job.source)) return true;
+  const { isWorkspacePerson } = await import('./crm-refs');
+  if (!(await isWorkspacePerson(job.workspace_id, job.user_id))) return false;
+  const role = await workspaceRole(job.workspace_id, job.user_id);
+  return role === 'owner' || role === 'admin';
 }
 
 /**
@@ -170,7 +208,7 @@ export async function runImportJob(id: string, budgetMs = REQUEST_IMPORT_BUDGET_
             total,
             processed: 0,
             preview,
-            secret: null,
+            ...(adapter.keepSecret ? {} : { secret: null }),
             ...(adapter.keepPayload ? {} : { payload: null }),
             onlyIf: 'fetching',
           });
@@ -181,6 +219,8 @@ export async function runImportJob(id: string, budgetMs = REQUEST_IMPORT_BUDGET_
       }
 
       if (job.status === 'importing') {
+        // El job escribe con el acceso de quien lo creó: si dejó de ser admin (o salió del workspace), se corta.
+        if (!(await creatorCanImport(job))) throw new ImportError('forbidden');
         const stage = job.stage || adapter.writeStages[0];
         const report = (job.report ?? adapter.emptyReport()) as Record<string, unknown>;
         const items = await listImportItems(id, job.processed, adapter.chunkSize);

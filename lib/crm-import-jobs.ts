@@ -46,6 +46,7 @@ import {
   type SrcContact,
   type SrcDeal,
   type SrcField,
+  type SrcList,
   type SrcRecord,
 } from './crm-import-source';
 import { createHubspotSource } from './crm-import-hubspot';
@@ -208,12 +209,12 @@ function parseJson<T>(raw: string | null | undefined, fallback: T): T {
 
 function emptyCounts(): JobCounts {
   const c = (): GroupCounts => ({ total: null, processed: 0, created: 0, updated: 0, skipped: 0, failed: 0 });
-  return { companies: c(), contacts: c(), deals: c(), activities: c() };
+  return { companies: c(), contacts: c(), deals: c(), activities: c(), lists: c() };
 }
 
 /** Totales por grupo desde los conteos por fase (null si alguna fase no tiene total). */
 export function groupTotals(counts: ImportPreview['counts'], phases: ImportPhase[]): Record<ImportGroup, number | null> {
-  const out: Record<ImportGroup, number | null> = { companies: 0, contacts: 0, deals: 0, activities: 0 };
+  const out: Record<ImportGroup, number | null> = { companies: 0, contacts: 0, deals: 0, activities: 0, lists: 0 };
   for (const g of IMPORT_GROUPS) {
     const ps = phases.filter((p) => phaseGroup(p) === g);
     let sum: number | null = 0;
@@ -403,6 +404,8 @@ export async function createImportPreview(
 
 function previewErrorCode(e: unknown): 'invalid_token' | 'missing_scope' | 'provider_error' {
   if (e instanceof SourceError && e.code === 'auth') return 'invalid_token';
+  // HubSpot responde 400 "Invalid request" a un token con forma inválida (no 401).
+  if (e instanceof SourceError && e.code === 'http' && e.status === 400 && e.path.endsWith('/owners')) return 'invalid_token';
   if (e instanceof SourceError && e.code === 'scope') return 'missing_scope';
   return 'provider_error';
 }
@@ -442,7 +445,7 @@ function toView(row: JobRow): ImportJobView {
 }
 
 const PROVIDER_PHASES: Record<ImportProvider, ImportPhase[]> = {
-  hubspot: ['companies', 'contacts', 'deals', 'notes', 'calls', 'meetings', 'tasks', 'emails'],
+  hubspot: ['companies', 'contacts', 'deals', 'notes', 'calls', 'meetings', 'tasks', 'emails', 'lists'],
   pipedrive: ['companies', 'contacts', 'deals', 'notes', 'activities'],
 };
 
@@ -1023,7 +1026,7 @@ async function writePage(
   const db0 = getDb();
   const defs = await listCustomFields(userId);
   const { baseCurrency } = await getCrmSettings(userId, db0);
-  const obj = phase === 'companies' ? 'company' : phase === 'contacts' ? 'contact' : phase === 'deals' ? 'deal' : 'activity';
+  const obj = phase === 'companies' ? 'company' : phase === 'contacts' ? 'contact' : phase === 'deals' ? 'deal' : phase === 'lists' ? 'list' : 'activity';
   await ensureMigrated();
   const tx = await getClient().transaction('write');
   const db = txDb(tx);
@@ -1031,9 +1034,17 @@ async function writePage(
     const ctx: WriteCtx = { db, userId, provider, plan, defs, baseCurrency, counts, errors };
     const extMap = await extLookup(db, userId, provider, obj, items.map((i) => i.id));
     const companyIds = items.flatMap((i) =>
-      i.kind === 'contact' || i.kind === 'deal' ? i.companies.map((c) => c.id) : i.kind === 'activity' ? i.companyIds : [],
+      i.kind === 'contact' || i.kind === 'deal'
+        ? i.companies.map((c) => c.id)
+        : i.kind === 'activity'
+          ? i.companyIds
+          : i.kind === 'list' && i.entity === 'company'
+            ? i.memberIds
+            : [],
     );
-    const contactIds = items.flatMap((i) => (i.kind === 'deal' || i.kind === 'activity' ? i.contactIds : []));
+    const contactIds = items.flatMap((i) =>
+      i.kind === 'deal' || i.kind === 'activity' ? i.contactIds : i.kind === 'list' && i.entity === 'contact' ? i.memberIds : [],
+    );
     const dealIds = items.flatMap((i) => (i.kind === 'activity' ? i.dealIds : []));
     const companyExt = await extLookup(db, userId, provider, 'company', companyIds);
     const contactExt = await extLookup(db, userId, provider, 'contact', contactIds);
@@ -1044,6 +1055,7 @@ async function writePage(
         if (item.kind === 'company') await writeCompany(ctx, item, extMap);
         else if (item.kind === 'contact') await writeContact(ctx, item, extMap, companyExt);
         else if (item.kind === 'deal') await writeDeal(ctx, item, extMap, contactExt, companyExt);
+        else if (item.kind === 'list') await writeList(ctx, item, extMap, item.entity === 'contact' ? contactExt : companyExt);
         else await writeActivity(ctx, item, extMap, { contacts: contactExt, companies: companyExt, deals: dealExt });
       } catch (e) {
         counts.failed++;
@@ -1055,6 +1067,36 @@ async function writePage(
     await tx.rollback();
     throw e;
   }
+}
+
+/**
+ * Lista de HubSpot → etiqueta (la misma de un import anterior o una con ese
+ * nombre) puesta en los contactos o empresas ya importados que son miembros.
+ */
+async function writeList(ctx: WriteCtx, src: SrcList, extMap: Map<string, string>, members: Map<string, string>): Promise<void> {
+  const { db, userId } = ctx;
+  let tagId = extMap.get(src.id) ?? null;
+  if (tagId && !(await db.prepare('SELECT 1 AS one FROM crm_tags WHERE id = ? AND user_id = ?').get(tagId, userId))) tagId = null;
+  tagId ??= ((await db.prepare('SELECT id FROM crm_tags WHERE user_id = ? AND name = ? COLLATE NOCASE').get(userId, src.name)) as { id: string } | undefined)?.id ?? null;
+  if (tagId) ctx.counts.updated++;
+  else {
+    tagId = crypto.randomUUID();
+    await db.prepare(`INSERT INTO crm_tags (id, user_id, name, color) VALUES (?, ?, ?, 'crm')`).run(tagId, userId, src.name);
+    ctx.counts.created++;
+  }
+  await extSet(db, userId, ctx.provider, 'list', src.id, tagId);
+  let missing = 0;
+  for (const m of src.memberIds) {
+    const recordId = members.get(m);
+    if (!recordId) {
+      missing++;
+      continue;
+    }
+    await db
+      .prepare('INSERT OR IGNORE INTO crm_record_tags (tag_id, user_id, entity, record_id) VALUES (?, ?, ?, ?)')
+      .run(tagId, userId, src.entity, recordId);
+  }
+  if (missing) pushError(ctx, `list ${src.name}: ${missing} members were not imported, skipped`);
 }
 
 async function resolvePendingParents(job: JobRow, plan: Plan, errors: string[]): Promise<void> {
@@ -1130,6 +1172,16 @@ export async function runImportStep(id: string, opts: RunStepOptions = {}): Prom
   if (!token) {
     await finish(id, 'failed', 'token_missing');
     return 'failed';
+  }
+  // Corre con el acceso de quien lo creó: si dejó de administrar el workspace, se corta.
+  if (job.created_by !== job.user_id) {
+    const { workspaceRole } = await import('./api-auth');
+    const { isWorkspacePerson } = await import('./crm-refs');
+    const role = (await isWorkspacePerson(job.user_id, job.created_by)) ? await workspaceRole(job.user_id, job.created_by) : null;
+    if (role !== 'owner' && role !== 'admin') {
+      await finish(id, 'failed', 'forbidden');
+      return 'failed';
+    }
   }
   const options = parseJson<ImportJobOptions>(job.options, { groups: [], ownerMap: {}, defaultOwnerId: job.created_by });
   const preview = parseJson<ImportPreview>(job.preview, { unavailable: [] } as unknown as ImportPreview);

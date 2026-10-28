@@ -8,6 +8,7 @@
  * - crm.schemas.contacts.read, crm.schemas.companies.read, crm.schemas.deals.read
  *   (propiedades propias y pipelines)
  * - sales-email-read (solo para traer los emails registrados)
+ * - crm.lists.read (listas de contactos y empresas → etiquetas)
  *
  * Lectura: listados con `after` (100 por página) y asociaciones por lote
  * (POST /crm/v4/associations/{de}/{a}/batch/read, 100 ids por pedido). El
@@ -31,6 +32,7 @@ import {
   type SrcContact,
   type SrcDeal,
   type SrcField,
+  type SrcList,
   type SrcOwner,
   type SrcPipeline,
   type SrcRecord,
@@ -48,10 +50,26 @@ export const HUBSPOT_SCOPES = [
   'crm.schemas.contacts.read',
   'crm.schemas.companies.read',
   'crm.schemas.deals.read',
+  'crm.lists.read',
   'sales-email-read',
 ] as const;
 
-const PHASES: ImportPhase[] = ['companies', 'contacts', 'deals', 'notes', 'calls', 'meetings', 'tasks', 'emails'];
+const PHASES: ImportPhase[] = ['companies', 'contacts', 'deals', 'notes', 'calls', 'meetings', 'tasks', 'emails', 'lists'];
+
+/** Listas por página y miembros por lista (las más grandes se cortan y se avisa). */
+const LISTS_PER_PAGE = 10;
+export const LIST_MAX_MEMBERS = 10_000;
+
+/** objectTypeId de HubSpot de cada lista que se importa. */
+const LIST_OBJECTS: Record<string, 'contact' | 'company'> = { '0-1': 'contact', '0-2': 'company' };
+
+interface HsListDef {
+  listId: string | number;
+  name: string;
+  objectTypeId?: string;
+  processingType?: string;
+  size?: number;
+}
 
 /** Objeto de HubSpot de cada fase. */
 const OBJECT: Record<string, string> = {
@@ -421,6 +439,13 @@ export function createHubspotSource(token: string, opts: HubspotOptions = {}): C
     },
 
     async count(phase) {
+      if (phase === 'lists') {
+        const res = await request<{ total?: number; lists?: HsListDef[] }>(`${base}/crm/v3/lists/search`, {
+          method: 'POST',
+          body: { count: 1, offset: 0 },
+        });
+        return typeof res.total === 'number' ? res.total : null;
+      }
       const res = await request<{ total?: number }>(`${base}/crm/v3/objects/${OBJECT[phase]}/search`, {
         method: 'POST',
         body: { limit: 1, properties: ['hs_object_id'] },
@@ -429,6 +454,30 @@ export function createHubspotSource(token: string, opts: HubspotOptions = {}): C
     },
 
     async page(phase, cursor, fields, limit = 100): Promise<SourcePage> {
+      if (phase === 'lists') {
+        const offset = Number(cursor ?? 0) || 0;
+        const res = await request<{ lists?: HsListDef[]; hasMore?: boolean; offset?: number }>(`${base}/crm/v3/lists/search`, {
+          method: 'POST',
+          body: { count: LISTS_PER_PAGE, offset },
+        });
+        const items: SrcList[] = [];
+        for (const l of res.lists ?? []) {
+          const entity = LIST_OBJECTS[String(l.objectTypeId ?? '')];
+          if (!entity) continue;
+          const memberIds: string[] = [];
+          let after: string | undefined;
+          do {
+            const m = await request<{ results?: Array<{ recordId: string | number }>; paging?: { next?: { after?: string } } }>(
+              `${base}/crm/v3/lists/${encodeURIComponent(String(l.listId))}/memberships?limit=250${after ? `&after=${encodeURIComponent(after)}` : ''}`,
+            );
+            for (const r of m.results ?? []) memberIds.push(String(r.recordId));
+            after = m.paging?.next?.after;
+          } while (after && memberIds.length < LIST_MAX_MEMBERS);
+          items.push({ kind: 'list', id: String(l.listId), name: (l.name ?? '').trim().slice(0, 80) || `List ${l.listId}`, entity, memberIds: memberIds.slice(0, LIST_MAX_MEMBERS) });
+        }
+        const next = res.hasMore ? String(typeof res.offset === 'number' ? res.offset : offset + LISTS_PER_PAGE) : null;
+        return { items, next };
+      }
       const object = OBJECT[phase];
       const entityFields = fields.filter((f) => f.entity === phase).map((f) => f.key);
       const props = [...BASE_PROPS[phase], ...entityFields.slice(0, 200)];
