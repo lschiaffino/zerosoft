@@ -45,6 +45,13 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
       { name: 'Groups inbox', url: '/app/groups/inbox' },
       { name: 'Groups tickets', url: '/app/groups/tickets' },
       { name: 'Docs', url: '/app/docs' },
+      { name: 'New note', url: '/app/notes?new=1' },
     ],
+    // Compartir un link o un texto desde otra app del teléfono lo guarda en Notes.
+    share_target: {
+      action: '/app/notes/clip',
+      method: 'GET',
+      params: { title: 'title', text: 'selection', url: 'url' },
+    },
   };
 }

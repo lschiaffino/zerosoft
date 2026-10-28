@@ -215,14 +215,52 @@ export async function googleToken(ctx: Pick<IntegrationContext, 'addSecret'>, cr
 
 export const sheetsConfigSchema = z.object({
   credentialId: required(100),
-  operation: z.enum(['append', 'read']).default('append'),
+  operation: z.enum(['append', 'read', 'lookup', 'update']).default('append'),
   spreadsheetId: z.preprocess(
     (v) => String(v ?? '').trim(),
     z.string().regex(/^[A-Za-z0-9_-]{10,200}$/),
   ),
   range: z.preprocess((v) => String(v ?? '').trim() || 'Sheet1', z.string().min(1).max(200)),
   row: z.array(z.unknown()).max(200).optional(),
+  lookupColumn: text(200).optional(),
+  lookupValue: text(2000).optional(),
+  values: z.array(z.unknown()).max(200).optional(),
 });
+
+/** Nombre de la hoja de un rango ("Hoja 1!A1:C9" → "Hoja 1"; sin "!" es la hoja entera). */
+export function sheetName(range: string): string {
+  const i = range.lastIndexOf('!');
+  return (i >= 0 ? range.slice(0, i) : range).replace(/^'|'$/g, '');
+}
+
+/** Letra de columna (0 → A, 26 → AA). */
+export function columnLetter(index: number): string {
+  let n = index + 1;
+  let s = '';
+  while (n > 0) {
+    const r = (n - 1) % 26;
+    s = String.fromCharCode(65 + r) + s;
+    n = Math.floor((n - 1) / 26);
+  }
+  return s;
+}
+
+/**
+ * Filas cuyo valor en la columna (por encabezado, sin distinguir mayúsculas)
+ * es igual al buscado. rowNumber es el número de fila en la hoja (1 = encabezado).
+ */
+export function lookupSheetRows(values: unknown[][], column: string, value: string): Array<{ rowNumber: number; row: Record<string, unknown> }> {
+  if (values.length < 2) return [];
+  const head = values[0].map((h) => String(h ?? '').trim().toLowerCase());
+  const col = head.indexOf(column.trim().toLowerCase());
+  if (col < 0) return [];
+  const objects = sheetRowsToObjects(values);
+  const out: Array<{ rowNumber: number; row: Record<string, unknown> }> = [];
+  values.slice(1).forEach((r, i) => {
+    if (String(r[col] ?? '').trim() === value.trim()) out.push({ rowNumber: i + 2, row: objects[i] });
+  });
+  return out;
+}
 
 /** Filas → objetos usando la primera como encabezado. */
 export function sheetRowsToObjects(values: unknown[][]): Array<Record<string, unknown>> {
@@ -248,6 +286,38 @@ export async function googleSheetsNode(ctx: IntegrationContext, cfg: Record<stri
     if (!res.ok) throw httpFailure('sheets', res);
     const values = (((res.body ?? {}) as { values?: unknown[][] }).values ?? []).slice(0, 5000);
     return { range: (res.body as { range?: string })?.range ?? c.range, count: Math.max(values.length - 1, 0), values, rows: sheetRowsToObjects(values) };
+  }
+  if (c.operation === 'lookup' || c.operation === 'update') {
+    if (!c.lookupColumn) throw new StepError('missing_lookupcolumn');
+    // Se lee la hoja entera (encabezado incluido) para ubicar la fila.
+    const sheet = sheetName(c.range);
+    const whole = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(c.spreadsheetId)}/values/${encodeURIComponent(sheet)}`;
+    const res = await call(whole, { method: 'GET', headers });
+    if (!res.ok) throw httpFailure('sheets', res);
+    const values = (((res.body ?? {}) as { values?: unknown[][] }).values ?? []).slice(0, 20_000);
+    const head = (values[0] ?? []).map((h) => String(h ?? '').trim());
+    if (!head.some((h) => h.toLowerCase() === c.lookupColumn!.toLowerCase())) throw new StepError('sheets_column_not_found', false, { column: c.lookupColumn });
+    const matches = lookupSheetRows(values, c.lookupColumn, c.lookupValue ?? '');
+    if (c.operation === 'lookup') {
+      return { found: matches.length > 0, count: matches.length, rowNumber: matches[0]?.rowNumber ?? null, row: matches[0]?.row ?? null, rows: matches.slice(0, 500) };
+    }
+    if (!matches.length) return { updated: false, found: false, rowNumber: null };
+    const updates = (Array.isArray(c.values) ? (c.values as Array<{ key?: unknown; value?: unknown }>) : [])
+      .map((r) => ({ col: head.findIndex((h) => h.toLowerCase() === String(r?.key ?? '').trim().toLowerCase()), value: r?.value }))
+      .filter((u) => u.col >= 0);
+    if (updates.length === 0) throw new StepError('missing_values');
+    const rowNumber = matches[0].rowNumber;
+    const data = updates.map((u) => ({
+      range: `'${sheet.replace(/'/g, "''")}'!${columnLetter(u.col)}${rowNumber}`,
+      values: [[u.value === undefined || u.value === null ? '' : typeof u.value === 'object' ? JSON.stringify(u.value) : u.value]],
+    }));
+    const put = await call(`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(c.spreadsheetId)}/values:batchUpdate`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data }),
+    });
+    if (!put.ok) throw httpFailure('sheets', put);
+    return { updated: true, found: true, rowNumber, columns: updates.map((u) => head[u.col]) };
   }
   const row = rowValues(c.row);
   if (row.length === 0) throw new StepError('missing_row');

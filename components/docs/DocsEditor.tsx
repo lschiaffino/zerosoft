@@ -183,6 +183,13 @@ interface DocsEditorProps {
   /** Ofrecer el bloque base de datos (no en el cuerpo de una fila: no se anidan bases). */
   allowDatabase?: boolean;
   /**
+   * Modo embebido: ruta de la IA del editor (Notes: /api/notes/ai). Sin
+   * ella, el menú "Ask AI" solo está en páginas de Docs.
+   */
+  aiUrl?: string;
+  /** Inserta bloques al final desde afuera (Notes: grabar audio, escanear). */
+  insertRef?: MutableRefObject<((blocks: DocsBlock[]) => void) | null>;
+  /**
    * Colaboración (Docs): 'suggest' = lo que se escribe queda como sugerencia;
    * 'readonly' = solo leer y comentar sobre el texto (página bloqueada o
    * permiso de comentar). Default 'edit'.
@@ -498,6 +505,8 @@ export default function DocsEditor({
   importUrl,
   titlePlaceholder,
   allowDatabase = true,
+  aiUrl,
+  insertRef,
   mode = 'edit',
   apiRef,
   currentUserId = null,
@@ -973,6 +982,7 @@ export default function DocsEditor({
   const pluginApi = useMemo<DocsPluginApi>(
     () => ({
       pageId: page.id,
+      aiUrl,
       getTitle: () => titleNow.current,
       getBlocks: () => blocksNow.current,
       insertBlocks: (index, created, opts) => {
@@ -1030,8 +1040,20 @@ export default function DocsEditor({
         setFocusTick((v) => v + 1);
       },
     }),
-    [page.id, setBlocks],
+    [page.id, setBlocks, aiUrl],
   );
+
+  // Insertar desde afuera (Notes): al final, en lugar de la última línea si está vacía.
+  useEffect(() => {
+    if (!insertRef) return;
+    insertRef.current = (created) => {
+      const last = blocksNow.current.length - 1;
+      pluginApi.insertBlocks(Math.max(last, 0), created, { replaceEmpty: true });
+    };
+    return () => {
+      insertRef.current = null;
+    };
+  }, [insertRef, pluginApi]);
 
   /**
    * Deshacer (dir -1) o rehacer (+1): vuelve a la foto, la guarda y deja el
@@ -1924,10 +1946,10 @@ export default function DocsEditor({
         // Pizarras, sincronizados, vistas vinculadas, breadcrumb y fechas con recordatorio: solo en Docs (no en Notes ni en filas).
         if (embedded && (c.type === 'board' || c.type === 'synced' || c.linked || c.type === 'breadcrumb' || c.special === 'date' || c.special === 'reminder')) return false;
         // IA, notas de reunión y bases sincronizadas: solo en páginas de Docs.
-        if (embedded && (c.special === 'ai' || c.type === 'meeting' || c.special === 'syncedDatabase')) return false;
+        if (embedded && ((c.special === 'ai' && !aiUrl) || c.type === 'meeting' || c.special === 'syncedDatabase')) return false;
         return commandMatches(c.label, COMMAND_KEYWORDS[c.key] ?? [], query);
       }),
-    [t, uploadsEnabled, embedded, allowDatabase],
+    [t, uploadsEnabled, embedded, allowDatabase, aiUrl],
   );
   const commandsForRef = useRef(commandsFor);
   commandsForRef.current = commandsFor;
@@ -2358,7 +2380,7 @@ export default function DocsEditor({
       }
 
       // Espacio en una línea vacía: abre la IA (como Notion).
-      if (e.key === ' ' && isEditable && collapsed && block.type === 'paragraph' && !embedded && !e.shiftKey && htmlToFlatText(block.content) === '') {
+      if (e.key === ' ' && isEditable && collapsed && block.type === 'paragraph' && (!embedded || Boolean(aiUrl)) && !e.shiftKey && htmlToFlatText(block.content) === '') {
         e.preventDefault();
         pluginRef.current?.openAi({ index });
         return;
@@ -2414,6 +2436,7 @@ export default function DocsEditor({
       }
     },
     [
+      aiUrl,
       blocks,
       embedded,
       cmdOpen,
@@ -4344,7 +4367,7 @@ export default function DocsEditor({
         document.body,
       )}
 
-      {!embedded && mode === 'edit' && <DocsEditorPlugins ref={pluginRef} api={pluginApi} />}
+      {(!embedded || Boolean(aiUrl)) && mode === 'edit' && <DocsEditorPlugins ref={pluginRef} api={pluginApi} />}
 
       {toolbar &&
         !linkDialog &&
@@ -4378,7 +4401,7 @@ export default function DocsEditor({
           )}
           {mode === 'edit' && (
           <>
-          {!embedded && (
+          {(!embedded || Boolean(aiUrl)) && (
             <>
               <button
                 type="button"

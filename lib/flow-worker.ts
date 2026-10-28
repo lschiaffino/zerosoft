@@ -9,6 +9,7 @@ import { getDb, type FlowJobRow } from './db';
 import { processDueReplays } from './flow-alerts';
 import { executeRun, resumeRun } from './flow-engine';
 import { enqueueDueSchedules, nowIso, parseJson } from './flow';
+import { enqueueDuePolls } from './flow-poll';
 
 /** Tiempo máximo que una corrida puede quedar tomada por un worker. */
 const LOCK_MS = 5 * 60_000;
@@ -17,13 +18,23 @@ function lockUntil(): string {
   return new Date(Date.now() + LOCK_MS).toISOString();
 }
 
-/** Reclama una corrida en cola. true = este worker la ejecuta. */
+/**
+ * Reclama una corrida en cola. true = este worker la ejecuta. Las retenidas
+ * por la protección ante avalanchas no se toman, y si el flow tiene un tope
+ * de corridas a la vez (max_concurrency), solo se toma mientras haya lugar:
+ * el conteo va en el mismo UPDATE (atómico), así dos workers no lo pasan.
+ */
 export async function claimQueuedRun(runId: string): Promise<boolean> {
   const ts = nowIso();
   const res = await getDb()
     .prepare(
       `UPDATE flow_runs SET status = 'running', locked_until = ?, started_at = COALESCE(started_at, ?)
-       WHERE id = ? AND status = 'queued' AND (locked_until IS NULL OR locked_until < ?)`,
+       WHERE id = ? AND status = 'queued' AND held = 0 AND (locked_until IS NULL OR locked_until < ?)
+         AND (
+           COALESCE((SELECT f.max_concurrency FROM flow_flows f WHERE f.id = flow_runs.flow_id), 0) <= 0
+           OR (SELECT COUNT(*) FROM flow_runs r2 WHERE r2.flow_id = flow_runs.flow_id AND r2.status = 'running')
+              < (SELECT f.max_concurrency FROM flow_flows f WHERE f.id = flow_runs.flow_id)
+         )`,
     )
     .run(lockUntil(), ts, runId, ts);
   return res.changes === 1;
@@ -71,6 +82,8 @@ export interface WorkerResult {
   stale: number;
   /** Replays automáticos de corridas fallidas (lib/flow-alerts.ts). */
   replays: number;
+  /** Corridas encoladas por disparadores de polling (lib/flow-poll.ts). */
+  polled: number;
 }
 
 /**
@@ -81,12 +94,33 @@ export interface WorkerResult {
 export async function processFlowQueue(opts: { limit?: number; now?: Date; budgetMs?: number } = {}): Promise<WorkerResult> {
   const limit = Math.min(Math.max(opts.limit ?? 50, 1), 500);
   const deadline = opts.budgetMs === undefined ? Infinity : Date.now() + Math.max(0, opts.budgetMs);
-  const result: WorkerResult = { runs: 0, jobs: 0, schedules: 0, stale: 0, replays: 0 };
+  const result: WorkerResult = { runs: 0, jobs: 0, schedules: 0, stale: 0, replays: 0, polled: 0 };
   result.stale = await failStaleRuns();
   result.schedules = (await enqueueDueSchedules(opts.now ?? new Date())).length;
+  result.polled = await enqueueDuePolls(opts.now ?? new Date(), { limit: 10, deadline: opts.budgetMs === undefined ? undefined : deadline }).catch(
+    (err) => {
+      // eslint-disable-next-line no-console
+      console.error('[flow] polling failed', err);
+      return 0;
+    },
+  );
 
+  // Reparto: de cada flow, en orden de llegada, una por vuelta (ROW_NUMBER por
+  // flow); los flows que ya están en su tope de corridas a la vez no entran,
+  // y de los que tienen tope se toman como mucho las que les caben. Así un flow
+  // con cientos en cola (o en su tope) no deja sin turno a los demás.
   const queued = (await getDb()
-    .prepare("SELECT id FROM flow_runs WHERE status = 'queued' ORDER BY created_at LIMIT ?")
+    .prepare(
+      `SELECT id FROM (
+         SELECT r.id, r.created_at, r.rowid AS rid, f.max_concurrency AS cap,
+           ROW_NUMBER() OVER (PARTITION BY r.flow_id ORDER BY r.created_at, r.rowid) AS rn,
+           (SELECT COUNT(*) FROM flow_runs x WHERE x.flow_id = r.flow_id AND x.status = 'running') AS busy
+         FROM flow_runs r JOIN flow_flows f ON f.id = r.flow_id
+         WHERE r.status = 'queued' AND r.held = 0
+       )
+       WHERE cap <= 0 OR rn <= cap - busy
+       ORDER BY rn, created_at, rid LIMIT ?`,
+    )
     .all(limit)) as Array<{ id: string }>;
   for (const r of queued) {
     if (Date.now() >= deadline) break;

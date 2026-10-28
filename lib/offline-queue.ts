@@ -10,6 +10,8 @@
  * Client-safe (sin imports de server).
  */
 
+import { NOTES_DB_PREFIX, notesDbName } from '@/components/notes/notesOffline';
+
 export const QUEUED_HEADER = 'x-zs-queued';
 /** Evento de window: un cambio quedó en la cola (detail: { url }). */
 export const QUEUED_EVENT = 'zs:offline-queued';
@@ -126,6 +128,13 @@ export async function clearOfflineData(owner?: { userId: string; ws: string }): 
       indexedDB.deleteDatabase('zs-voice');
       // Base vieja de Rec, de antes de separarla por persona.
       indexedDB.deleteDatabase('zs-rec');
+      // Copias offline de Notes (una por persona y workspace, con el texto de
+      // las notas): todas las de este navegador, no solo la de quien sale.
+      const names = new Set<string>();
+      if (owner) names.add(notesDbName({ userId: owner.userId, ws: owner.ws }));
+      const list = await indexedDB.databases?.().catch(() => []);
+      for (const db of list ?? []) if (db.name?.startsWith(`${NOTES_DB_PREFIX}:`)) names.add(db.name);
+      for (const name of names) indexedDB.deleteDatabase(name);
     }
   } catch {
     /* almacenamiento bloqueado: no hay nada que borrar */

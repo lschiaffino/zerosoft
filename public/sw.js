@@ -1,7 +1,7 @@
 /* zerosoft service worker: el único de la suite (scope /, lo registra
  * lib/sw-client.ts desde el CRM y desde Groups).
  *
- * CRM offline:
+ * CRM y Notes offline:
  * - /_next/static/**: cache-first (los archivos tienen hash).
  * - Navegaciones a /<locale>/app/crm/** y GET /api/crm/**: network-first con
  *   fallback a la caché, así lo ya visitado abre sin red.
@@ -84,13 +84,25 @@ async function replayQueue(store, doFetch) {
   return { done, failed, remaining: 0 };
 }
 
-// El CRM entero y el inicio de la app (/app, sin subruta).
-const CRM_PAGE = /^\/(en|es|pt)\/app(\/crm(\/|$)|\/?$)/;
-const CRM_ROOT = /^\/app(\/crm(\/|$)|\/?$)/;
+// El CRM entero, Notes y el inicio de la app (/app, sin subruta). Notes
+// guarda sus notas en IndexedDB (components/notes/notesOffline.ts); acá
+// solo se guarda la página para poder abrirla sin red.
+const CRM_PAGE = /^\/(en|es|pt)\/app(\/crm(\/|$)|\/notes\/?$|\/?$)/;
+const CRM_ROOT = /^\/app(\/crm(\/|$)|\/notes\/?$|\/?$)/;
 
 // Docs: el editor y la lista (D5).
 const DOCS_PAGE = /^\/(en|es|pt)\/app\/docs(\/|$)/;
 const DOCS_ROOT = /^\/app\/docs(\/|$)/;
+
+// Notes: solo la lista (/app/notes) se guarda; nunca una nota abierta por
+// link (?note=), y al bloquear una nota la página la pide borrar (zs-drop-notes).
+const NOTES_PAGE = /^\/(en|es|pt)?\/?app\/notes\/?$/;
+
+/** ¿Se puede guardar esta respuesta? Notes con ?note= (u otros parámetros) no. */
+function storable(url) {
+  if (NOTES_PAGE.test(url.pathname) && url.search) return false;
+  return true;
+}
 
 function isCrmNavigation(url) {
   return CRM_PAGE.test(url.pathname) || CRM_ROOT.test(url.pathname);
@@ -285,7 +297,9 @@ async function networkFirst(request) {
   if (!cache) return fetch(request);
   try {
     const res = await fetch(request);
-    if (res && res.ok && res.status === 200 && res.type === 'basic' && !res.redirected) await cache.put(request, res.clone()).catch(() => undefined);
+    if (res && res.ok && res.status === 200 && res.type === 'basic' && !res.redirected && storable(new URL(request.url))) {
+      await cache.put(request, res.clone()).catch(() => undefined);
+    }
     return res;
   } catch (err) {
     const hit = await cache.match(request, { ignoreVary: true });
@@ -387,6 +401,30 @@ self.addEventListener('message', (event) => {
   const data = event.data || {};
   if (data.type === 'zs-user') event.waitUntil(setUser(data.id, data.who));
   else if (data.type === 'zs-sync') event.waitUntil(replay());
+  else if (data.type === 'zs-drop-notes') {
+    // Una nota se bloqueó: fuera las páginas de Notes guardadas (podían tener su texto).
+    event.waitUntil(
+      (async () => {
+        const keys = await caches.keys();
+        for (const k of keys.filter((name) => name.startsWith(PAGES))) {
+          const cache = await caches.open(k);
+          for (const req of await cache.keys()) if (NOTES_PAGE.test(new URL(req.url).pathname)) await cache.delete(req);
+        }
+        // Y se vuelve a guardar la lista actual (ya sin el texto), si la sesión es la de quien guarda.
+        const pages = await pagesCache();
+        for (const raw of (Array.isArray(data.refetch) ? data.refetch : []).slice(0, 3)) {
+          try {
+            const u = new URL(raw, self.location.origin);
+            if (u.origin !== self.location.origin || !NOTES_PAGE.test(u.pathname) || !pages) continue;
+            const res = await fetch(u.href, { credentials: 'same-origin' });
+            if (res.ok && !res.redirected) await pages.put(u.href, res);
+          } catch {
+            /* sin red: queda sin guardar hasta la próxima visita */
+          }
+        }
+      })(),
+    );
+  }
   else if (data.type === 'zs-count') event.waitUntil(broadcastCount());
   else if (data.type === 'zs-warm' && Array.isArray(data.urls)) {
     // La página ya cargó su JS y CSS antes de que el worker la controlara: se guardan ahora.
@@ -402,7 +440,7 @@ self.addEventListener('message', (event) => {
             if (u.origin !== self.location.origin) continue;
             if (u.pathname.startsWith('/_next/static/')) {
               if (!(await statics.match(u.href))) await statics.add(u.href);
-            } else if (pages && isOfflineNavigation(u)) {
+            } else if (pages && isOfflineNavigation(u) && storable(u)) {
               const res = await fetch(u.href, { credentials: 'same-origin' });
               if (res.ok && !res.redirected) await pages.put(u.href, res);
             }

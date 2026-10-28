@@ -16,7 +16,7 @@ import {
   type FlowGraph,
   type FlowNode,
 } from './flow-schema';
-import { allowRun, enqueueRun, getFlowRow, getRunWithSteps, lastOutputs, parseJson, toFlowDto, type FlowRunViewer } from './flow';
+import { allowRun, enqueueRun, getFlowDraft, getFlowRow, getRunWithSteps, lastOutputs, parseJson, toFlowDto, type FlowRunViewer } from './flow';
 import { executeRun, testFlowStep, type StepTestResult } from './flow-engine';
 
 export function flowError(status: number, error: string, extra: Record<string, unknown> = {}): NextResponse {
@@ -92,15 +92,44 @@ export function testInput(graph: FlowGraph, input: Record<string, unknown> | und
   }
 }
 
-/** Corrida manual: se ejecuta en el momento (con lock) y devuelve los pasos. */
-export async function runFlowNow(workspaceId: string, flowId: string, input: Record<string, unknown> | undefined, viewer?: FlowRunViewer) {
+/**
+ * Corrida manual: se ejecuta en el momento (con lock) y devuelve los pasos.
+ * Con `draft` corre el borrador sin publicar con el acceso de quien la lanza
+ * (como "Probar paso"): nunca el acceso del dueño sobre un grafo que no publicó.
+ */
+export async function runFlowNow(
+  workspaceId: string,
+  flowId: string,
+  input: Record<string, unknown> | undefined,
+  viewer?: FlowRunViewer,
+  opts: { draft?: boolean; draftRev?: number } = {},
+) {
   const row = await getFlowRow(workspaceId, flowId);
   if (!row) return { ok: false as const, error: 'not_found' };
-  const graph = parseJson<FlowGraph>(row.graph, { nodes: [], edges: [] });
-  const runId = await enqueueRun(row, 'manual', testInput(graph, input), { status: 'running', lockMs: 5 * 60_000 });
+  if (opts.draft && !viewer) return { ok: false as const, error: 'forbidden' };
+  // Solo el borrador propio, y el que se ve en el editor (revisión igual).
+  const own = opts.draft && viewer ? await getFlowDraft(flowId, viewer.personId) : null;
+  if (opts.draft && (!own || (opts.draftRev !== undefined && opts.draftRev !== own.rev))) return { ok: false as const, error: 'conflict' };
+  const draft = own?.graph ?? null;
+  const graph = draft ?? parseJson<FlowGraph>(row.graph, { nodes: [], edges: [] });
+  const runInput = testInput(graph, input);
+  // Una corrida manual lleva datos que elige quien la lanza: corre con SU acceso
+  // (su borrador, o lo publicado si no es quien creó el flow), nunca con el del
+  // dueño. Solo el dueño corre lo publicado con el acceso del flow.
+  const actAs = viewer && (draft || viewer.personId !== row.created_by) ? viewer.personId : null;
+  const runId = await enqueueRun(row, 'manual', runInput, {
+    status: 'running',
+    lockMs: 5 * 60_000,
+    ...(actAs ? { capturedBy: actAs } : {}),
+  });
   if (!runId) return { ok: false as const, error: 'rate_limited' };
+  if (actAs) {
+    const { getDb } = await import('./db');
+    await getDb()
+      .prepare('UPDATE flow_runs SET context = ? WHERE id = ?')
+      .run(JSON.stringify({ graph, trigger: runInput, nodes: {}, actor: actAs }), runId);
+  }
   await executeRun(runId);
-  // Corre con el acceso de quien creó el flow: si lo corre otra persona, ve el estado sin los datos.
   return { ok: true as const, run: await getRunWithSteps(workspaceId, runId, viewer) };
 }
 

@@ -6,6 +6,27 @@ import { docsBlockSchema } from './docs-schema';
 
 const id = z.string().min(1).max(64);
 const tag = z.string().trim().min(1).max(60);
+const b64 = (min: number, max: number) => z.string().min(min).max(max).regex(/^[A-Za-z0-9+/]+=*$/);
+/** Base64 de exactamente n bytes. */
+const b64Bytes = (n: number) => z.string().length(Math.ceil(n / 3) * 4).regex(/^[A-Za-z0-9+/]+=*$/);
+
+/**
+ * Sobre de una nota bloqueada (lo arma el navegador, ver lib/notes-crypto.ts):
+ * sal de 16 bytes, IV de 12, texto cifrado con su tag de 16 y el SHA-256 de la
+ * prueba de la contraseña. Cualquier otra forma se rechaza.
+ */
+export const noteLockEnvelopeSchema = z.object({
+  v: z.union([z.literal(1), z.literal(2)]),
+  iter: z.number().int().min(100_000).max(5_000_000),
+  salt: b64Bytes(16),
+  iv: b64Bytes(12),
+  ct: b64(24, 8_000_000),
+  vh: b64Bytes(32),
+  hint: z.string().trim().max(120).optional(),
+});
+
+/** Prueba de la contraseña (32 bytes en base64): el servidor compara su SHA-256 con el vh del sobre. */
+export const noteLockProofSchema = b64Bytes(32);
 const url = z
   .string()
   .trim()
@@ -32,10 +53,87 @@ export const noteUpdateSchema = z.object({
   trashed: z.boolean().optional(),
   /** `updated_at` que conoce el cliente: si la nota cambió desde entonces, 409. */
   base_updated_at: z.string().max(40).optional(),
+  /** Nota bloqueada: el sobre cifrado de nuevo con los cambios, y la prueba de la contraseña. */
+  lock: noteLockEnvelopeSchema.optional(),
+  lock_proof: noteLockProofSchema.optional(),
 });
+
+/** Bloquear (lock) o sacar el bloqueo (unlock, con el contenido ya descifrado). */
+export const noteLockSchema = z.discriminatedUnion('action', [
+  z.object({
+    action: z.literal('lock'),
+    lock: noteLockEnvelopeSchema,
+    /** Bloques de la nota: el servidor se queda solo con los de archivos. */
+    content: z.array(docsBlockSchema).max(2000),
+    base_updated_at: z.string().max(40).optional(),
+  }),
+  z.object({
+    action: z.literal('unlock'),
+    proof: noteLockProofSchema,
+    title: z.string().max(300).optional(),
+    content: z.array(docsBlockSchema).max(2000),
+    base_updated_at: z.string().max(40).optional(),
+  }),
+]);
+
+const stackName = z.string().trim().max(80);
 
 export const notebookSchema = z.object({
   name: z.string().trim().min(1).max(80),
+  stack: stackName.nullish(),
+});
+
+/** PATCH de una libreta: nombre y/o pila (null o '' la saca de la pila). */
+export const notebookPatchSchema = z
+  .object({
+    name: z.string().trim().min(1).max(80).optional(),
+    stack: stackName.nullable().optional(),
+  })
+  .refine((v) => v.name !== undefined || v.stack !== undefined, 'empty');
+
+/** Renombrar una pila (to) o deshacerla (to null). */
+export const stackPatchSchema = z.object({
+  from: stackName.min(1),
+  to: stackName.nullable(),
+});
+
+/** Renombrar una etiqueta (con sus hijas) en todas las notas. */
+export const tagRenameSchema = z.object({
+  from: tag,
+  to: tag,
+});
+
+export const noteTemplateCreateSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  title: z.string().max(300).optional(),
+  content: z.array(docsBlockSchema).max(2000),
+});
+
+export const noteTemplatePatchSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+});
+
+export const savedSearchCreateSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  query: z.string().trim().min(1).max(200),
+});
+
+export const savedSearchPatchSchema = z
+  .object({
+    name: z.string().trim().min(1).max(80).optional(),
+    query: z.string().trim().min(1).max(200).optional(),
+  })
+  .refine((v) => v.name !== undefined || v.query !== undefined, 'empty');
+
+export const NOTES_BULK_MAX = 500;
+export const NOTES_BULK_ACTIONS = ['move', 'tag', 'untag', 'pin', 'unpin', 'trash', 'restore', 'delete'] as const;
+
+/** Acciones sobre varias notas a la vez (selección en la lista). */
+export const noteBulkSchema = z.object({
+  ids: z.array(id).min(1).max(NOTES_BULK_MAX),
+  action: z.enum(NOTES_BULK_ACTIONS),
+  notebook_id: id.nullable().optional(),
+  tag: tag.optional(),
 });
 
 export const noteShareSchema = z.object({

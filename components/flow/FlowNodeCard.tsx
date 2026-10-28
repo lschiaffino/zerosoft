@@ -4,7 +4,7 @@ import { memo } from 'react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import { useTranslations } from 'next-intl';
 import { PRODUCT_CONFIG } from '@/lib/products';
-import { NODE_DEFS, nodeOutputs, isTriggerType, type FlowNodeType } from '@/lib/flow-schema';
+import { NODE_DEFS, nodeOutputs, isNoteType, isTriggerType, type FlowNodeType } from '@/lib/flow-schema';
 import { i18nKey, nodeApp } from './flow-ui';
 
 export type FlowNodeData = {
@@ -33,6 +33,25 @@ function handleLabel(t: ReturnType<typeof useTranslations>, handle: string, conf
  */
 function FlowNodeCard({ data, selected, id }: NodeProps<FlowCanvasNode>) {
   const t = useTranslations('flow');
+  if (isNoteType(data.type)) {
+    // Nota del canvas: texto suelto, sin entradas ni salidas.
+    const text = String(data.config.text ?? '').trim();
+    return (
+      <div className={`flow-note-card${selected ? ' is-selected' : ''}`} data-color={String(data.config.color ?? 'yellow')}>
+        <span className="flow-node-cat">{t('nodes.note_sticky.title')}</span>
+        <p className={`flow-note-text${text ? '' : ' is-empty'}`}>{text || t('editor.noteEmpty')}</p>
+      </div>
+    );
+  }
+  return <StepCard data={data} selected={selected} id={id} t={t} />;
+}
+
+function StepCard({
+  data,
+  selected,
+  id,
+  t,
+}: Pick<NodeProps<FlowCanvasNode>, 'data' | 'selected' | 'id'> & { t: ReturnType<typeof useTranslations> }) {
   const def = NODE_DEFS[data.type];
   const outputs = nodeOutputs({ type: data.type, config: data.config });
   const named = outputs.length > 1 || outputs[0] !== 'out';

@@ -191,6 +191,11 @@ export interface CreatePageInput {
   /** Valores para {{variables}} del contenido de la plantilla. */
   vars?: Record<string, string>;
   locale?: string;
+  /**
+   * La persona con cuyo acceso se crea queda como dueña de la página
+   * (page_owner_id). Lo usa Flow: la página es de quien corrió el flow.
+   */
+  ownedByActor?: boolean;
 }
 
 function escapeHtml(text: string): string {
@@ -241,6 +246,11 @@ export async function createPage(actor: DocsActor, input: CreatePageInput): Prom
   const extra = input.blocks?.length ? input.blocks : input.markdown ? mdToBlocks(input.markdown) : [];
   if (extra.length) content = [...(content ?? []), ...extra.map((b) => ({ ...b, id: crypto.randomUUID() }))];
   const page = await createDocPage(actor.id, { title, parent_id: parentId, icon, content: content?.length ? cleanContent(content) : undefined });
+  // Quién escribió el contenido (y, si se pide, quién es dueño): la persona real, no el workspace.
+  const person = actorPersonId(actor);
+  await getDb()
+    .prepare(`UPDATE docs_pages SET content_by = ?${input.ownedByActor ? ', page_owner_id = ?' : ''} WHERE id = ?`)
+    .run(...(input.ownedByActor ? [person, person] : [person]), page.id);
   const row = (await getDb().prepare('SELECT * FROM docs_pages WHERE id = ?').get(page.id)) as DocsPageRow;
   await emitPageCreated(actor.id, row, actorPersonId(actor)).catch(() => {});
   return getPage(actor, page.id);

@@ -16,7 +16,7 @@ interface Props {
   onRestored: (flow: FlowDto, webhooks: Array<{ nodeId: string; token: string }>) => void;
 }
 
-/** Historial de versiones: una por guardado con cambios, con diff y restaurar. */
+/** Historial de versiones: una por publicación con cambios, con autor, diff y restaurar. */
 export default function VersionsPanel({ flowId, currentVersion, canEdit, dirty, onRestored }: Props) {
   const t = useTranslations('flow.versions');
   const te = useTranslations('flow.editor');
@@ -111,6 +111,7 @@ export default function VersionsPanel({ flowId, currentVersion, canEdit, dirty, 
                   <span className="flow-version-n data">v{v.version}</span>
                   <span suppressHydrationWarning>{format.relativeTime(parseDbUtc(v.createdAt), now)}</span>
                   <span className="flow-muted">{t('nodes', { n: v.nodeCount })}</span>
+                  {v.authorName && <span className="flow-muted flow-ellipsis">{t('by', { name: v.authorName })}</span>}
                   {current && <span className="badge badge-ink">{t('current')}</span>}
                 </div>
                 <p className="flow-version-diff">

@@ -1064,9 +1064,15 @@ export interface HarnessChromium {
   }): Promise<{
     newContext(opts: Record<string, unknown>): Promise<{
       route(pattern: string, handler: (route: {
-        request(): { url(): string };
+        request(): { url(): string; method(): string; headers(): Record<string, string> };
         abort(code?: string): Promise<void>;
         continue(): Promise<void>;
+        fetch(opts?: { maxRedirects?: number; url?: string; method?: string }): Promise<{
+          status(): number;
+          headers(): Record<string, string>;
+          body(): Promise<Buffer>;
+        }>;
+        fulfill(opts: { response?: unknown; status?: number; body?: string }): Promise<void>;
       }) => Promise<void>): Promise<void>;
       /** Playwright ≥ 1.48: los WebSocket no pasan por route(). */
       routeWebSocket?(
@@ -1129,25 +1135,44 @@ export async function robotHarness(
       userAgent:
         'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36 ZerosoftRobots/1',
     });
-    const verdicts = new Map<string, Promise<string | null>>();
+    // SSRF: cada pedido se valida por la IP a la que resuelve su host (sin
+    // caché por origen: así un re-bind de DNS no reusa un veredicto viejo).
+    // Las redirecciones (30x) NO las sigue Chromium: las resolvemos acá con
+    // route.fetch({ maxRedirects: 0 }) y validamos cada Location antes de
+    // seguirla, igual que una navegación nueva. Un redirector a la red interna
+    // (location.href, window.open o un 30x del propio servidor) se corta.
+    const MAX_HOPS = 8;
     await context.route('**/*', async (route) => {
       const raw = route.request().url();
       if (/^(data|blob|about):/i.test(raw)) return route.continue();
-      let origin = '';
+      if (await checkUrl(raw).catch(() => 'unresolvable_host')) return route.abort('blockedbyclient');
+      // route.fetch no existe en Playwright viejos: ahí se continúa (el salto
+      // inicial ya se validó; sin seguir redirects a mano no hay protección extra).
+      if (typeof route.fetch !== 'function' || typeof route.fulfill !== 'function') return route.continue();
       try {
-        const u = new URL(raw);
-        if (u.protocol !== 'http:' && u.protocol !== 'https:') return route.abort('blockedbyclient');
-        origin = `${u.protocol}//${u.host}`;
+        let current = raw;
+        let method = route.request().method();
+        for (let hop = 0; ; hop++) {
+          const res = await route.fetch(hop === 0 ? { maxRedirects: 0 } : { maxRedirects: 0, url: current, method });
+          const status = res.status();
+          const loc = res.headers()['location'];
+          if (status < 300 || status >= 400 || !loc) return route.fulfill({ response: res });
+          if (hop >= MAX_HOPS) return route.abort('blockedbyclient');
+          let next: string;
+          try {
+            next = new URL(loc, current).toString();
+          } catch {
+            return route.abort('blockedbyclient');
+          }
+          if (!/^https?:\/\//i.test(next)) return route.abort('blockedbyclient');
+          if (await checkUrl(next).catch(() => 'unresolvable_host')) return route.abort('blockedbyclient');
+          // 301/302/303: el siguiente salto es GET sin cuerpo (307/308 conservan el método).
+          if (status === 301 || status === 302 || status === 303) method = 'GET';
+          current = next;
+        }
       } catch {
-        return route.abort('blockedbyclient');
+        return route.abort('blockedbyclient').catch(() => {});
       }
-      let verdict = verdicts.get(origin);
-      if (!verdict) {
-        verdict = checkUrl(`${origin}/`).catch(() => 'unresolvable_host');
-        verdicts.set(origin, verdict);
-      }
-      if (await verdict) return route.abort('blockedbyclient');
-      return route.continue();
     });
     // Los WebSocket (ws/wss) no pasan por route(): misma verificación de host.
     if (typeof context.routeWebSocket === 'function') {
@@ -1160,12 +1185,7 @@ export async function robotHarness(
         } catch {
           return ws.close({ code: 1008, reason: 'blocked' });
         }
-        let verdict = verdicts.get(origin);
-        if (!verdict) {
-          verdict = checkUrl(`${origin}/`).catch(() => 'unresolvable_host');
-          verdicts.set(origin, verdict);
-        }
-        if (await verdict) return ws.close({ code: 1008, reason: 'blocked' });
+        if (await checkUrl(`${origin}/`).catch(() => 'unresolvable_host')) return ws.close({ code: 1008, reason: 'blocked' });
         ws.connectToServer();
       });
     }

@@ -87,6 +87,8 @@ export default function ChromeGate({
     pathname.startsWith('/q/') ||
     // Formularios del CRM (/f/<slug|token>): página del cliente, también embebida en un iframe.
     pathname.startsWith('/f/') ||
+    // Formularios hospedados de Flow (/flow/form/<token>): página sola del cliente.
+    pathname.startsWith('/flow/form/') ||
     // Documentos y videos compartidos desde el CRM (/view/<token>, /watch/<token>).
     pathname.startsWith('/view/') ||
     pathname.startsWith('/watch/') ||

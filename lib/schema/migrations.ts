@@ -6158,6 +6158,39 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Paridad de Notes con Evernote: pilas de libretas (stack), notas
+    // bloqueadas con contraseña (locked: sobre cifrado en el navegador, el
+    // servidor nunca ve la contraseña ni el texto), plantillas propias y
+    // búsquedas guardadas por persona.
+    id: '122_notes_parity',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE note_notebooks ADD COLUMN stack TEXT');
+      await addColumn(client, 'ALTER TABLE notes ADD COLUMN locked TEXT');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS note_templates (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          person_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          title TEXT NOT NULL DEFAULT '',
+          content TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_note_templates_owner ON note_templates(workspace_id, person_id, name);
+        CREATE TABLE IF NOT EXISTS note_saved_searches (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          person_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          query TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_note_saved_searches_owner ON note_saved_searches(workspace_id, person_id, name);
+      `);
+    },
+  },
+  {
     // Link: paridad con Dub/Bitly (conversiones, cloaking, seguridad del
     // destino, registro de actividad, deep linking diferido, plantillas y
     // marcos de QR, integraciones Shopify/Segment y temas de la bio).
@@ -6267,6 +6300,60 @@ export const MIGRATIONS: Migration[] = [
           connected_at TEXT NOT NULL DEFAULT (datetime('now')),
           PRIMARY KEY (user_id, kind)
         );
+      `);
+    },
+  },
+  {
+    // Paridad de Flow: borrador por persona (flow_drafts; lo que corre sigue
+    // siendo graph), carpetas, variables por persona, protección ante
+    // avalanchas (corridas retenidas: held), concurrencia por flow y
+    // disparadores por polling (RSS, HTTP, filas nuevas de Sheets).
+    id: '121_flow_parity',
+    up: async (client) => {
+      for (const col of [
+        'folder_id TEXT',
+        'flood_limit INTEGER NOT NULL DEFAULT 0',
+        'max_concurrency INTEGER NOT NULL DEFAULT 0',
+        'poll_state TEXT',
+        'next_poll_at TEXT',
+      ]) {
+        await addColumn(client, `ALTER TABLE flow_flows ADD COLUMN ${col}`);
+      }
+      await addColumn(client, 'ALTER TABLE flow_runs ADD COLUMN held INTEGER NOT NULL DEFAULT 0');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS flow_folders (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_flow_folders_user ON flow_folders(user_id, name);
+        CREATE TABLE IF NOT EXISTS flow_drafts (
+          flow_id TEXT NOT NULL REFERENCES flow_flows(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          graph TEXT NOT NULL,
+          rev INTEGER NOT NULL DEFAULT 1,
+          base_version INTEGER NOT NULL DEFAULT 1,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (flow_id, person_id)
+        );
+        CREATE TABLE IF NOT EXISTS flow_variables (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          key TEXT NOT NULL,
+          value TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE (user_id, person_id, key)
+        );
+        CREATE INDEX IF NOT EXISTS idx_flow_flows_poll ON flow_flows(trigger_type, enabled, next_poll_at);
+        CREATE INDEX IF NOT EXISTS idx_flow_flows_folder ON flow_flows(user_id, folder_id);
+        CREATE INDEX IF NOT EXISTS idx_flow_runs_user_status ON flow_runs(user_id, status, created_at);
+        CREATE INDEX IF NOT EXISTS idx_flow_runs_held ON flow_runs(flow_id, held) WHERE held = 1;
       `);
     },
   },

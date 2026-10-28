@@ -86,7 +86,7 @@ export default async function AppLayout(
   return (
     // Cliente: lo que usan el sidebar y Cmd+K de otras apps; cada app suma su
     // namespace en su layout.
-    <ClientMessages locale={locale} namespaces={['board.list', 'notes.actions', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder', 'rec.signout']}>
+    <ClientMessages locale={locale} namespaces={['board.list', 'notes.actions', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder', 'rec.signout', 'notes.signOut']}>
       <RecorderProvider owner={`${user.actingUser?.id ?? user.id}:${user.id}`}>
       {/* El script pone sidebar-collapsed antes del primer paint; React no toca la clase al hidratar. */}
       <div className="app-frame" suppressHydrationWarning>
@@ -191,7 +191,9 @@ export default async function AppLayout(
                 { href: '/app/chat/teams', label: tChat('sidebar.teams') },
                 { href: '/app/chat/views', label: tChat('sidebar.views') },
                 { href: '/app/flow', label: tFlow('sidebar.flows') },
+                { href: '/app/flow/runs', label: tFlow('sidebar.runs') },
                 { href: '/app/flow/tables', label: tFlow('sidebar.tables') },
+                { href: '/app/flow/variables', label: tFlow('sidebar.variables') },
                 { href: '/app/flow/credentials', label: tFlow('sidebar.credentials') },
                 { href: '/app/notes', label: tNotes('sidebar.all') },
                 { href: '/app/notes/clip', label: tNotes('clip.button') },
@@ -341,7 +343,9 @@ export default async function AppLayout(
             },
             flow: {
               flows: tFlow('sidebar.flows'),
+              runs: tFlow('sidebar.runs'),
               tables: tFlow('sidebar.tables'),
+              variables: tFlow('sidebar.variables'),
               credentials: tFlow('sidebar.credentials'),
             },
             notes: { all: tNotes('sidebar.all'), newNote: tNotes('actions.newNote'), clip: tNotes('clip.button') },
