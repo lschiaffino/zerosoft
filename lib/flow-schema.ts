@@ -21,6 +21,8 @@ export const FLOW_EVENT_TYPES = [
   'link.clicked',
   'link.updated',
   'link.deleted',
+  'link.lead',
+  'link.sale',
   'contact.created',
   'contact.updated',
   'deal.created',
@@ -136,6 +138,14 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
   },
   'link.deleted': {
     link: { id: 'lnk_1', slug: 'abc', domain: null, short_url: 'https://zerosoft.ai/abc', url: 'https://example.com', title: '', tags: [] },
+  },
+  'link.lead': {
+    link: { id: 'lnk_1', slug: 'abc', domain: null, short_url: 'https://zerosoft.ai/abc', url: 'https://example.com', tags: [] },
+    lead: { id: 1, eventName: 'Sign up', clickId: 'AbCdEfGhIjKlMnOpQrSt', customer: { externalId: 'user_123' }, at: '' },
+  },
+  'link.sale': {
+    link: { id: 'lnk_1', slug: 'abc', domain: null, short_url: 'https://zerosoft.ai/abc', url: 'https://example.com', tags: [] },
+    sale: { id: 2, eventName: 'Purchase', amount: 4900, currency: 'USD', invoiceId: 'inv_1', source: 'api', clickId: null, customer: { externalId: 'user_123' }, at: '' },
   },
   'contact.created': { id: 'c_1', first_name: 'Ada', last_name: 'Lovelace', email: 'ada@example.com' },
   'contact.updated': { id: 'c_1', first_name: '', email: '', change: {} },
@@ -353,7 +363,7 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
 
 // ---------- Catálogo de nodos ----------
 
-export type NodeCategory = 'trigger' | 'logic' | 'data' | 'action' | 'app' | 'integration' | 'ai';
+export type NodeCategory = 'trigger' | 'logic' | 'data' | 'action' | 'app' | 'integration' | 'ai' | 'note';
 
 export type FieldKind =
   | 'text'
@@ -385,7 +395,9 @@ export type FieldKind =
   /** Una base de Docs ("página/bloque"). */
   | 'docsDatabaseRef'
   /** Una plantilla de Docs (del workspace o integrada: builtin:<key>). */
-  | 'docsTemplateRef';
+  | 'docsTemplateRef'
+  /** Campos de un formulario hospedado (etiqueta, tipo, obligatorio). */
+  | 'formFields';
 
 export interface FieldDef {
   key: string;
@@ -417,6 +429,23 @@ export const DOCS_PAGE_OPERATIONS = ['page_create', 'page_append', 'page_replace
 export const DOCS_ROW_OPERATIONS = ['row_create', 'row_update'] as const;
 /** Operaciones del nodo Tabla de datos. */
 export const TABLE_OPERATIONS = ['find', 'insert', 'upsert', 'delete'] as const;
+
+/** Fuentes del disparador por polling. */
+export const POLL_SOURCES = ['rss', 'json', 'google_sheets'] as const;
+/** Cada cuánto se consulta una fuente (minutos): el cron corre cada minuto. */
+export const POLL_MIN_MINUTES = 5;
+export const POLL_MAX_MINUTES = 1440;
+/** Tipos de campo de un formulario hospedado. */
+export const FORM_FIELD_TYPES = ['text', 'email', 'number', 'textarea', 'date', 'select', 'checkbox'] as const;
+export type FormFieldType = (typeof FORM_FIELD_TYPES)[number];
+export const MAX_FORM_FIELDS = 30;
+/** Paginación del request HTTP. */
+export const HTTP_PAGINATE = ['off', 'next_url', 'page'] as const;
+export const HTTP_MAX_PAGES = 20;
+/** Operaciones de Google Sheets. */
+export const SHEETS_OPERATIONS = ['append', 'read', 'lookup', 'update'] as const;
+/** Colores de una nota del canvas. */
+export const NOTE_COLORS = ['yellow', 'blue', 'green', 'pink'] as const;
 
 /** Métodos que acepta un trigger.webhook. */
 export const WEBHOOK_ACCEPT = ['post_only', 'get_only', 'get_post'] as const;
@@ -486,6 +515,41 @@ export const NODE_DEFS = {
     category: 'trigger',
     outputs: ['out'],
     fields: [{ key: 'sample', kind: 'json', default: '{}' }],
+  },
+  'trigger.poll': {
+    type: 'trigger.poll',
+    category: 'trigger',
+    outputs: ['out'],
+    fields: [
+      { key: 'source', kind: 'select', options: POLL_SOURCES, default: 'rss' },
+      { key: 'url', kind: 'text', placeholder: 'https://example.com/feed.xml', showIf: { key: 'source', values: ['rss', 'json'] } },
+      { key: 'credentialId', kind: 'credential', options: ['api_key', 'basic', 'oauth_token'], showIf: { key: 'source', values: ['json'] } },
+      { key: 'itemsPath', kind: 'text', placeholder: 'data.items', showIf: { key: 'source', values: ['json'] } },
+      { key: 'idField', kind: 'text', placeholder: 'id', default: 'id', showIf: { key: 'source', values: ['json'] } },
+      { key: 'googleCredentialId', kind: 'credential', options: ['google', 'oauth_token'], showIf: { key: 'source', values: ['google_sheets'] } },
+      { key: 'spreadsheetId', kind: 'text', placeholder: '1AbC…', showIf: { key: 'source', values: ['google_sheets'] } },
+      { key: 'range', kind: 'text', placeholder: 'Sheet1', default: 'Sheet1', showIf: { key: 'source', values: ['google_sheets'] } },
+      { key: 'everyMinutes', kind: 'number', default: 15 },
+    ],
+  },
+  'trigger.form': {
+    type: 'trigger.form',
+    category: 'trigger',
+    outputs: ['out'],
+    fields: [
+      { key: 'title', kind: 'text', placeholder: 'Contact us', default: '' },
+      { key: 'description', kind: 'textarea', default: '' },
+      {
+        key: 'formFields',
+        kind: 'formFields',
+        default: [
+          { label: 'Name', type: 'text', required: true },
+          { label: 'Email', type: 'email', required: true },
+        ],
+      },
+      { key: 'submitLabel', kind: 'text', placeholder: 'Send', default: '', advanced: true },
+      { key: 'successMessage', kind: 'textarea', placeholder: 'Thanks! We got it.', default: '', advanced: true },
+    ],
   },
   'logic.if': { type: 'logic.if', category: 'logic', outputs: ['true', 'false'], fields: CONDITIONS_FIELDS },
   'logic.switch': {
@@ -589,6 +653,11 @@ export const NODE_DEFS = {
       { key: 'headers', kind: 'kv', template: true, default: [], advanced: true },
       { key: 'body', kind: 'textarea', template: true, placeholder: '{"text": {{nodes.ai.output.text | json}}}' },
       { key: 'parseJson', kind: 'bool', default: true, advanced: true },
+      { key: 'paginate', kind: 'select', options: HTTP_PAGINATE, default: 'off', advanced: true },
+      { key: 'nextUrlPath', kind: 'text', placeholder: 'next or header.link', showIf: { key: 'paginate', values: ['next_url'] }, advanced: true },
+      { key: 'pageParam', kind: 'text', placeholder: 'page', default: 'page', showIf: { key: 'paginate', values: ['page'] }, advanced: true },
+      { key: 'itemsPath', kind: 'text', placeholder: 'data', showIf: { key: 'paginate', values: ['next_url', 'page'] }, advanced: true },
+      { key: 'maxPages', kind: 'number', default: 5, showIf: { key: 'paginate', values: ['next_url', 'page'] }, advanced: true },
       { key: 'timeoutMs', kind: 'number', default: 8000, advanced: true },
       { key: 'retries', kind: 'number', default: 0, advanced: true },
     ],
@@ -857,10 +926,13 @@ export const NODE_DEFS = {
     outputs: ['out'],
     fields: [
       { key: 'credentialId', kind: 'credential', options: ['google', 'oauth_token'] },
-      { key: 'operation', kind: 'select', options: ['append', 'read'], default: 'append' },
+      { key: 'operation', kind: 'select', options: SHEETS_OPERATIONS, default: 'append' },
       { key: 'spreadsheetId', kind: 'text', template: true, placeholder: '1AbC…' },
       { key: 'range', kind: 'text', template: true, placeholder: 'Sheet1', default: 'Sheet1' },
       { key: 'row', kind: 'kv', template: true, default: [], showIf: { key: 'operation', values: ['append'] } },
+      { key: 'lookupColumn', kind: 'text', template: true, placeholder: 'Email', showIf: { key: 'operation', values: ['lookup', 'update'] } },
+      { key: 'lookupValue', kind: 'text', template: true, placeholder: '{{trigger.email}}', showIf: { key: 'operation', values: ['lookup', 'update'] } },
+      { key: 'values', kind: 'kv', template: true, default: [], showIf: { key: 'operation', values: ['update'] } },
       { key: 'retries', kind: 'number', default: 1, advanced: true },
     ],
   },
@@ -947,6 +1019,27 @@ export const NODE_DEFS = {
       { key: 'maxTokens', kind: 'number', default: 500, advanced: true },
     ],
   },
+  'ai.extract': {
+    type: 'ai.extract',
+    category: 'ai',
+    outputs: ['out'],
+    fields: [
+      { key: 'mode', kind: 'select', options: ['extract', 'classify'], default: 'extract' },
+      { key: 'text', kind: 'textarea', template: true, placeholder: '{{trigger.body.message}}' },
+      { key: 'fields', kind: 'kv', default: [], showIf: { key: 'mode', values: ['extract'] } },
+      { key: 'categories', kind: 'textarea', placeholder: 'Sales\nSupport\nBilling', showIf: { key: 'mode', values: ['classify'] } },
+      { key: 'instructions', kind: 'textarea', template: true, advanced: true },
+    ],
+  },
+  'note.sticky': {
+    type: 'note.sticky',
+    category: 'note',
+    outputs: [],
+    fields: [
+      { key: 'text', kind: 'textarea', default: '' },
+      { key: 'color', kind: 'select', options: NOTE_COLORS, default: 'yellow' },
+    ],
+  },
 } as const satisfies Record<string, NodeDef>;
 
 export type FlowNodeType = keyof typeof NODE_DEFS;
@@ -962,6 +1055,11 @@ export function nodeDef(type: string): NodeDef | null {
 
 export function isTriggerType(type: string): boolean {
   return type.startsWith('trigger.');
+}
+
+/** Notas del canvas: no se conectan ni corren. */
+export function isNoteType(type: string): boolean {
+  return type.startsWith('note.');
 }
 
 /** Config inicial de un nodo nuevo (defaults del catálogo). */
@@ -991,7 +1089,7 @@ export function onErrorMode(config: Record<string, unknown> | undefined): OnErro
 
 /** Nodos que no admiten manejo de errores (no fallan o no tiene sentido). */
 export function supportsErrorHandling(type: string): boolean {
-  return !isTriggerType(type) && type !== 'logic.loop' && type !== 'logic.delay';
+  return !isTriggerType(type) && !isNoteType(type) && type !== 'logic.loop' && type !== 'logic.delay';
 }
 
 /** Salidas de un nodo concreto (switch: una por caso + default; 'error' si tiene rama de error). */
@@ -1009,7 +1107,7 @@ export function nodeOutputs(node: { type: string; config?: Record<string, unknow
 
 /** Tipos de trigger que reciben HTTP en una URL secreta (/api/flow/hooks/<token>). */
 export function isHookTrigger(type: string): boolean {
-  return type === 'trigger.webhook' || type === 'trigger.stripe';
+  return type === 'trigger.webhook' || type === 'trigger.stripe' || type === 'trigger.form';
 }
 
 // ---------- Grafo ----------
@@ -1071,7 +1169,8 @@ export type GraphErrorCode =
   | 'delay_in_loop'
   | 'approval_in_loop'
   | 'invalid_cron'
-  | 'invalid_timezone';
+  | 'invalid_timezone'
+  | 'note_connected';
 
 export type GraphValidation =
   | { ok: true; graph: FlowGraph }
@@ -1130,6 +1229,7 @@ export function validateGraph(input: unknown): GraphValidation {
     const dst = byId.get(e.target);
     if (!src || !dst) return { ok: false, error: 'unknown_edge_node' };
     if (e.source === e.target) return { ok: false, error: 'self_loop', nodeId: e.source };
+    if (isNoteType(dst.type)) return { ok: false, error: 'note_connected', nodeId: dst.id };
     if (isTriggerType(dst.type)) return { ok: false, error: 'trigger_has_input', nodeId: dst.id };
     if (!nodeOutputs(src).includes(edgeHandle(e))) return { ok: false, error: 'invalid_handle', nodeId: src.id };
     const key = `${e.source}:${edgeHandle(e)}->${e.target}`;
@@ -1194,6 +1294,9 @@ export const flowCreateSchema = z.object({
   description: z.string().max(1000).optional(),
   graph: z.unknown().optional(),
   template: z.string().max(60).optional(),
+  folderId: z.string().max(100).nullable().optional(),
+  /** Flow importado de un JSON: se limpian las referencias que no son de este workspace. */
+  imported: z.boolean().optional(),
 });
 
 export const flowUpdateSchema = z.object({
@@ -1209,10 +1312,27 @@ export const flowUpdateSchema = z.object({
   autoReplay: z.boolean().optional(),
   /** Versión que se editó (bloqueo optimista). */
   version: z.number().int().positive().optional(),
+  folderId: z.string().max(100).nullable().optional(),
+  /** Corridas automáticas por 10 minutos antes de retenerlas (0 = sin límite propio). */
+  floodLimit: z.number().int().min(0).max(10_000).optional(),
+  /** Corridas en cola a la vez (0 = sin límite). */
+  maxConcurrency: z.number().int().min(0).max(20).optional(),
+  /** Borrador (autoguardado): no cambia lo que corre. null lo descarta. */
+  draft: z.unknown().optional(),
+  /** Revisión del borrador que se editó (bloqueo optimista del autoguardado). */
+  draftRev: z.number().int().min(0).optional(),
+  /** Publica el borrador guardado. */
+  publish: z.boolean().optional(),
+  /** Publicar aunque otra persona haya publicado desde que empezó el borrador. */
+  force: z.boolean().optional(),
 });
 
 export const flowRunSchema = z.object({
   input: z.record(z.unknown()).optional(),
+  /** Corre el borrador propio sin publicar (con el acceso de quien lo prueba). */
+  draft: z.boolean().optional(),
+  /** Revisión del borrador que se ve en el editor (409 si no coincide). */
+  draftRev: z.number().int().min(0).optional(),
 });
 
 /** Probar un paso solo: el nodo (con la config del editor, aunque no esté guardada) y los datos de prueba. */
@@ -1243,7 +1363,54 @@ export const flowPinSchema = z.object({
 export const UNTESTABLE_NODE_TYPES: readonly string[] = ['logic.loop', 'logic.delay', 'logic.approval', 'logic.run_flow'];
 
 export function isStepTestable(type: string): boolean {
-  return !isTriggerType(type) && !UNTESTABLE_NODE_TYPES.includes(type);
+  return !isTriggerType(type) && !isNoteType(type) && !UNTESTABLE_NODE_TYPES.includes(type);
+}
+
+/** Campo de un formulario hospedado ya normalizado (key = la que llega a {{trigger.fields.<key>}}). */
+export interface FormFieldDef {
+  key: string;
+  label: string;
+  type: FormFieldType;
+  required: boolean;
+  options: string[];
+}
+
+/** Clave de un campo a partir de su etiqueta: "Nombre completo" → nombre_completo. */
+export function formFieldKey(label: string, i: number): string {
+  const base = label
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 40);
+  return base || `field_${i + 1}`;
+}
+
+/** Campos del formulario (config.formFields), sin repetidos ni vacíos. */
+export function formFields(config: Record<string, unknown>): FormFieldDef[] {
+  const raw = Array.isArray(config.formFields) ? (config.formFields as Array<Record<string, unknown>>) : [];
+  const seen = new Set<string>();
+  const out: FormFieldDef[] = [];
+  raw.slice(0, MAX_FORM_FIELDS).forEach((f, i) => {
+    const label = String(f?.label ?? '').trim().slice(0, 120);
+    if (!label) return;
+    let key = String(f?.key ?? '').trim() || formFieldKey(label, i);
+    if (!/^[a-z0-9_]{1,40}$/.test(key)) key = formFieldKey(label, i);
+    while (seen.has(key)) key = `${key}_${i + 1}`;
+    seen.add(key);
+    const type = (FORM_FIELD_TYPES as readonly string[]).includes(String(f?.type)) ? (f.type as FormFieldType) : 'text';
+    const options =
+      type === 'select'
+        ? String(f?.options ?? '')
+            .split(/\n|,/)
+            .map((o) => o.trim())
+            .filter(Boolean)
+            .slice(0, 50)
+        : [];
+    out.push({ key, label, type, required: f?.required === true, options });
+  });
+  return out;
 }
 
 /** Tope de una salida fijada (JSON) y del total por flow. */
@@ -1757,6 +1924,99 @@ export const FLOW_TEMPLATES: readonly FlowTemplate[] = [
       edges: [
         { id: 'e1', source: 'trigger', target: 'agent' },
         { id: 'e2', source: 'agent', target: 'slack' },
+      ],
+    },
+  },
+  {
+    key: 'formToCrm',
+    graph: {
+      nodes: [
+        {
+          id: 'trigger',
+          type: 'trigger.form',
+          position: P(0, 0),
+          config: {
+            title: 'Contact us',
+            description: '',
+            formFields: [
+              { label: 'Name', type: 'text', required: true },
+              { label: 'Email', type: 'email', required: true },
+              { label: 'Message', type: 'textarea', required: false },
+            ],
+            submitLabel: '',
+            successMessage: '',
+          },
+        },
+        {
+          id: 'contact',
+          type: 'app.crm_contact',
+          position: P(0, 160),
+          config: { email: '{{trigger.fields.email}}', firstName: '{{trigger.fields.name}}', source: 'form' },
+        },
+        {
+          id: 'email',
+          type: 'action.email',
+          position: P(0, 320),
+          config: { to: '', subject: 'New form answer from {{trigger.fields.name}}', body: '{{trigger.fields.message}}\n\n{{trigger.fields.email}}' },
+        },
+      ],
+      edges: [
+        { id: 'e1', source: 'trigger', target: 'contact' },
+        { id: 'e2', source: 'contact', target: 'email' },
+      ],
+    },
+  },
+  {
+    key: 'rssToSlack',
+    graph: {
+      nodes: [
+        { id: 'trigger', type: 'trigger.poll', position: P(0, 0), config: { source: 'rss', url: '', everyMinutes: 15 } },
+        {
+          id: 'slack',
+          type: 'app.slack',
+          position: P(0, 160),
+          config: { channel: '#news', text: '{{trigger.title}}\n{{trigger.link}}', retries: 1 },
+        },
+      ],
+      edges: [{ id: 'e1', source: 'trigger', target: 'slack' }],
+    },
+  },
+  {
+    key: 'sheetRowToCrm',
+    graph: {
+      nodes: [
+        { id: 'trigger', type: 'trigger.poll', position: P(0, 0), config: { source: 'google_sheets', spreadsheetId: '', range: 'Sheet1', everyMinutes: 15 } },
+        { id: 'contact', type: 'app.crm_contact', position: P(0, 160), config: { email: '{{trigger.Email}}', firstName: '{{trigger.Name}}', source: 'sheets' } },
+      ],
+      edges: [{ id: 'e1', source: 'trigger', target: 'contact' }],
+    },
+  },
+  {
+    key: 'classifyInbound',
+    graph: {
+      nodes: [
+        { id: 'trigger', type: 'trigger.webhook', position: P(0, 0), config: { accept: 'post_only', respond: 'immediately' } },
+        {
+          id: 'classify',
+          type: 'ai.extract',
+          position: P(0, 160),
+          config: { mode: 'classify', text: '{{trigger.body.message}}', categories: 'Sales\nSupport\nBilling', fields: [] },
+        },
+        { id: 'route', type: 'logic.switch', position: P(0, 320), config: { value: '{{nodes.classify.output.category}}', cases: ['Sales', 'Support'] } },
+        { id: 'sales', type: 'action.email', position: P(-300, 480), config: { to: '', subject: 'Sales lead', body: '{{trigger.body.message}}' } },
+        { id: 'support', type: 'action.email', position: P(0, 480), config: { to: '', subject: 'Support request', body: '{{trigger.body.message}}' } },
+        {
+          id: 'note',
+          type: 'note.sticky',
+          position: P(320, 160),
+          config: { text: 'AI puts each message in a category; the Switch sends it to the right inbox. Billing goes to the default output.', color: 'yellow' },
+        },
+      ],
+      edges: [
+        { id: 'e1', source: 'trigger', target: 'classify' },
+        { id: 'e2', source: 'classify', target: 'route' },
+        { id: 'e3', source: 'route', target: 'sales', sourceHandle: 'case-0' },
+        { id: 'e4', source: 'route', target: 'support', sourceHandle: 'case-1' },
       ],
     },
   },

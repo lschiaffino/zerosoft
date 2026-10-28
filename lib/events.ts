@@ -75,6 +75,15 @@ export async function emitEvent(
       }
     }
   }
+  // Link: Segment (lib/link-integrations.ts; cachea la config por workspace).
+  if (type.startsWith('link.')) {
+    try {
+      const { dispatchLinkEvent } = await import('./link-integrations');
+      await dispatchLinkEvent(workspaceId, type, data);
+    } catch {
+      /* una integración caída no corta el evento */
+    }
+  }
   // Groups: Slack, Freshdesk y Zoho Desk (lib/groups-integrations.ts).
   if (type.startsWith('groups.')) {
     try {

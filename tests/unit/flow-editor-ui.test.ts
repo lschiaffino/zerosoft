@@ -35,7 +35,7 @@ describe('Flow editor: camino básico y Avanzado', () => {
   it('separa HTTP en básico y avanzado respetando el orden', () => {
     const { basic, advanced } = splitFields('action.http', fields('action.http'), defaultConfig('action.http'));
     expect(keys(basic)).toEqual(['method', 'url', 'credentialId', 'body']);
-    expect(keys(advanced)).toEqual(['headers', 'parseJson', 'timeoutMs', 'retries']);
+    expect(keys(advanced)).toEqual(['headers', 'parseJson', 'paginate', 'timeoutMs', 'retries']);
   });
 
   it('respeta showIf y el filtro de eventos sin campo', () => {

@@ -4,9 +4,9 @@ import '@/styles/link.css';
 
 export const dynamic = 'force-dynamic';
 
-type Reason = 'notfound' | 'expired' | 'limit' | 'password';
+type Reason = 'notfound' | 'expired' | 'limit' | 'password' | 'blocked';
 
-const REASONS: Reason[] = ['notfound', 'expired', 'limit', 'password'];
+const REASONS: Reason[] = ['notfound', 'expired', 'limit', 'password', 'blocked'];
 
 interface GonePageProps {
   params: Promise<{ locale: string }>;

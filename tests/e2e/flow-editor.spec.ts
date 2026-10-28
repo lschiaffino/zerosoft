@@ -60,7 +60,7 @@ test('Flow: crear una credencial sin salir del editor', async ({ page }) => {
   await expect(select).not.toHaveValue('');
   await expect(select.locator('option:checked')).toContainText(/slack/);
   createdCredentials.push(await select.inputValue());
-  await expect(page.getByText('Cambios sin guardar')).toBeVisible();
+  await expect(page.getByText(/Cambios sin guardar|Guardando|Borrador guardado/)).toBeVisible();
 });
 
 test('Flow: tabs con flechas y modal de prueba con Esc', async ({ page }) => {

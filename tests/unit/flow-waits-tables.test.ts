@@ -47,11 +47,11 @@ const session = vi.hoisted(() => ({ user: null as null | Record<string, unknown>
 vi.mock('@/lib/session', () => ({ getCurrentUser: async () => session.user }));
 
 const testStepRoute = await import('@/app/api/flow/flows/[id]/test-step/route');
-const pinsRoute = await import('@/app/api/flow/flows/[id]/pins/route');
+const pinsRoute = await import('@/lib/routes/flow/flows/[id]/pins/route');
 const resumeRoute = await import('@/app/api/flow/resume/[token]/route');
 const approvalRoute = await import('@/app/api/flow/approvals/[token]/route');
 const tablesRoute = await import('@/app/api/flow/tables/route');
-const rowsRoute = await import('@/app/api/flow/tables/[id]/rows/route');
+const rowsRoute = await import('@/lib/routes/flow/tables/[id]/rows/route');
 
 beforeEach(() => {
   vi.stubEnv('RATE_LIMIT_DISABLED', 'true');
@@ -525,8 +525,15 @@ describe('Disparadores de Notes, Board, Agents, tareas, Chat y Cal', () => {
 
   it('están en el catálogo, con ejemplo y nombre en los tres idiomas', () => {
     // 32 de antes, los nuevos de esta tanda y los 10 de Groups (mensajes, tickets, chats, miembros y votos).
-    // + booking.reconfirmed (Cal: reconfirmación del invitado).
-    expect(FLOW_EVENT_TYPES).toHaveLength(32 + NEW_EVENTS.length + 10 + 5 + 1 + 1);
+    // + booking.reconfirmed (Cal: reconfirmación del invitado) y link.lead / link.sale (conversiones de Link).
+    expect(FLOW_EVENT_TYPES).toHaveLength(32 + NEW_EVENTS.length + 10 + 5 + 1 + 1 + 2);
+    for (const ev of ['link.lead', 'link.sale'] as const) {
+      expect(EVENT_SAMPLES[ev], ev).toBeTruthy();
+      for (const l of ['en', 'es', 'pt']) {
+        const m = JSON.parse(readFileSync(join(__dirname, '..', '..', 'messages', l, 'flow.json'), 'utf8')) as { events: Record<string, string> };
+        expect(m.events[ev.replace(/\./g, '_')], `${l} ${ev}`).toBeTruthy();
+      }
+    }
     const root = join(__dirname, '..', '..');
     for (const ev of NEW_EVENTS) {
       expect(FLOW_EVENT_TYPES).toContain(ev);

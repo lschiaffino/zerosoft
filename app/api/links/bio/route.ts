@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { getBioSettings, saveBioSettings } from '@/lib/link-bio';
+import { ACCENT_RE, BIO_THEMES } from '@/lib/link-bio-theme';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -12,6 +13,8 @@ const schema = z.object({
   avatarUrl: z.string().trim().url().regex(/^https:\/\//).max(2000).nullable(),
   published: z.boolean(),
   linkIds: z.array(z.string().max(64)).max(50),
+  theme: z.enum(BIO_THEMES).default('auto'),
+  accent: z.string().regex(ACCENT_RE).nullable().default(null),
 });
 
 export async function GET() {

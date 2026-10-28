@@ -1,7 +1,7 @@
 import type { FieldDef, FlowNodeType } from '@/lib/flow-schema';
 import type { ProductKey } from '@/lib/products';
 
-export const CATEGORY_ORDER = ['trigger', 'logic', 'data', 'action', 'app', 'integration', 'ai'] as const;
+export const CATEGORY_ORDER = ['trigger', 'logic', 'data', 'action', 'app', 'integration', 'ai', 'note'] as const;
 
 /**
  * La app de zerosoft que toca un nodo (CRM, Cal, Track...), para nombrarla
@@ -107,6 +107,7 @@ export const RUN_BADGE: Record<string, string> = {
   failed: 'badge-bad',
   waiting: 'badge-warn',
   queued: 'badge-warn',
+  held: 'badge-warn',
   running: 'badge-info',
   skipped: 'badge-outline',
 };
@@ -205,6 +206,7 @@ export function stepErrorInfo(raw: string): { code: string; key: string; values?
   if (code === 'invalid_credential' || /^(google_invalid_credential|telegram_invalid_token|discord_invalid_webhook|slack_invalid_auth|slack_not_authed)$/.test(code)) {
     return { code, key: 'invalid_credential', inEditor: true };
   }
+  if (code === 'ai_disabled' || code === 'quota_exceeded') return { code, key: code, inEditor: false };
   if (code === 'missing_url') return { code, key: 'missing_url', inEditor: true };
   if (code === 'invalid_email' || code === 'missing_recipient') return { code, key: 'invalid_email', inEditor: true };
   if (code === 'invalid_json') return { code, key: 'invalid_json', inEditor: true };

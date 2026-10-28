@@ -47,6 +47,14 @@ export interface LinkRow {
   external_id?: string | null;
   /** Carpeta (link_folders); null = sin carpeta. */
   folder_id?: string | null;
+  /** 1 = cada click lleva un click id (?zs_id=) para atribuir leads y ventas. */
+  track_conversion?: number;
+  /** 1 = la URL corta queda en la barra (iframe del destino); solo en dominios propios. */
+  cloak?: number;
+  /** 'blocked' = destino reportado como phishing o malware (lib/link-safety.ts). */
+  safety?: string | null;
+  safety_reason?: string | null;
+  safety_checked_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -97,6 +105,8 @@ export interface ClickRow {
   region?: string | null;
   /** URL del referrer sin query (salvo utm_*) ni hash. */
   referrer_url?: string | null;
+  /** Click id de los links con conversiones (?zs_id=). */
+  click_id?: string | null;
 }
 
 export interface ApiKeyRow {
@@ -1670,6 +1680,11 @@ export interface FlowFlowRow {
   auto_replay?: number; // 0 | 1: replay automático de corridas fallidas
   failure_email_at?: string | null; // último aviso de falla (tope: uno por hora)
   pinned_data?: string; // JSON { nodeId: salida fijada } para probar un paso solo
+  folder_id?: string | null; // carpeta (flow_folders)
+  flood_limit?: number; // corridas automáticas por 10 minutos antes de retener (0 = sin límite propio)
+  max_concurrency?: number; // corridas a la vez (0 = sin límite)
+  poll_state?: string | null; // JSON { seen: string[], initialized, count, lastError } del trigger.poll
+  next_poll_at?: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -1739,6 +1754,8 @@ export interface FlowRunRow {
   replay_at?: string | null; // replay automático agendado (corrida fallida)
   /** Persona con cuyo acceso se armó la corrida (quien creó el flow en ese momento): solo ella ve sus datos. */
   captured_by?: string | null;
+  /** 1 = retenida por la protección ante avalanchas (queued sin correr hasta que alguien la libere). */
+  held?: number;
   created_at: string;
   started_at: string | null;
   finished_at: string | null;
@@ -1774,6 +1791,26 @@ export interface FlowSettingsRow {
   user_id: string; // workspace
   retention_days: number; // días que se guardan corridas y pasos
   locale: string; // idioma de los avisos por email
+  updated_at: string;
+}
+
+export interface FlowFolderRow {
+  id: string;
+  user_id: string; // workspace
+  name: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Variable de Flow ({{vars.clave}}): de una persona; la leen los flows que corren con su acceso. */
+export interface FlowVariableRow {
+  id: string;
+  user_id: string; // workspace
+  person_id: string;
+  key: string;
+  value: string;
+  created_at: string;
   updated_at: string;
 }
 

@@ -45,6 +45,57 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-10-27-flow-parity',
+    date: '2026-10-27',
+    title: {
+      en: 'Flow: drafts, run history, forms, polling triggers and AI that builds flows',
+      es: 'Flow: borradores, historial de corridas, formularios, triggers por polling e IA que arma flows',
+      pt: 'Flow: rascunhos, histórico de execuções, formulários, gatilhos por polling e IA que monta flows',
+    },
+    items: [
+      { product: 'flow', en: 'Each person edits their own draft, saved automatically, and it only runs once they publish. "Test run" tries your draft with your access, and each version shows who published it.', es: 'Cada persona edita su propio borrador, que se guarda solo, y corre recién cuando lo publica. "Probar" usa tu borrador con tu acceso y cada versión muestra quién la publicó.', pt: 'Cada pessoa edita o próprio rascunho, salvo sozinho, e ele só roda quando ela publica. "Testar" usa o seu rascunho com o seu acesso e cada versão mostra quem publicou.' },
+      { product: 'flow', en: 'New Run history: every run of every flow with search, filters, a usage and failures dashboard, the live queue and CSV or JSON export.', es: 'Nuevo Historial: todas las corridas de todos los flows con búsqueda, filtros, tablero de uso y fallas, la cola en vivo y exportación a CSV o JSON.', pt: 'Novo Histórico: todas as execuções de todos os flows com busca, filtros, painel de uso e falhas, a fila ao vivo e exportação em CSV ou JSON.' },
+      { product: 'flow', en: 'New triggers: a hosted form with its own link, and new items from RSS feeds, JSON URLs or Google Sheets rows. Google Sheets can also look up and update rows.', es: 'Triggers nuevos: un formulario hospedado con su propio link e ítems nuevos de feeds RSS, URLs JSON o filas de Google Sheets. Google Sheets además busca y actualiza filas.', pt: 'Novos gatilhos: um formulário hospedado com link próprio e itens novos de feeds RSS, URLs JSON ou linhas do Google Sheets. O Google Sheets também procura e atualiza linhas.' },
+      { product: 'flow', en: 'AI: describe a flow and it drafts the steps, an extract and classify step with structured output, and "Explain with AI" on failed runs.', es: 'IA: contá un flow y arma los pasos, un paso para extraer y clasificar con salida estructurada, y "Explicar con IA" en las corridas fallidas.', pt: 'IA: descreva um flow e ela monta os passos, um passo para extrair e classificar com saída estruturada, e "Explicar com IA" nas execuções com falha.' },
+      { product: 'flow', en: 'Folders, search and filters in the list, notes on the canvas, copy and paste steps between flows, JSON export and import, cURL import and pagination in HTTP, your own variables with {{vars.name}}, and per-flow limits that hold extra runs for review or run them one at a time.', es: 'Carpetas, búsqueda y filtros en la lista, notas en el canvas, copiar y pegar pasos entre flows, exportar e importar JSON, import de cURL y paginación en HTTP, variables propias con {{vars.nombre}} y límites por flow que retienen corridas para revisar o las corren de a una.', pt: 'Pastas, busca e filtros na lista, notas no canvas, copiar e colar passos entre flows, exportar e importar JSON, import de cURL e paginação no HTTP, variáveis próprias com {{vars.nome}} e limites por flow que retêm execuções para revisar ou rodam uma de cada vez.' },
+    ],
+  },
+  {
+    id: '2026-10-27-link-parity',
+    date: '2026-10-27',
+    title: {
+      en: 'Link: leads and sales per link, live events, phishing protection and an MCP server',
+      es: 'Link: leads y ventas por link, eventos en vivo, protección contra phishing y servidor MCP',
+      pt: 'Link: leads e vendas por link, eventos ao vivo, proteção contra phishing e servidor MCP',
+    },
+    items: [
+      {
+        product: 'link',
+        en: 'Conversions: turn on lead and sale tracking on a link, add a small script to your site and report sign-ups and payments through the API, the workspace Stripe connection or a Shopify webhook. Analytics now show leads, sales, revenue and the funnel from clicks to sales, with a CSV export.',
+        es: 'Conversiones: activá la medición de leads y ventas en un link, sumá un script chico a tu sitio y avisá registros y pagos por la API, la conexión de Stripe del workspace o un webhook de Shopify. Las analytics ahora muestran leads, ventas, ingresos y el embudo de clicks a ventas, con export CSV.',
+        pt: 'Conversões: ative a medição de leads e vendas em um link, adicione um script pequeno ao seu site e informe cadastros e pagamentos pela API, pela conexão do Stripe do workspace ou por um webhook do Shopify. As analytics agora mostram leads, vendas, receita e o funil de cliques a vendas, com exportação CSV.',
+      },
+      {
+        product: 'link',
+        en: 'A live Events view with clicks, QR scans, leads and sales as they happen, an activity log of who changed each link, and questions about your analytics answered by AI.',
+        es: 'Una vista de Eventos en vivo con clicks, escaneos de QR, leads y ventas a medida que pasan, un registro de quién cambió cada link y preguntas sobre tus analytics respondidas con IA.',
+        pt: 'Uma visão de Eventos ao vivo com cliques, leituras de QR, leads e vendas à medida que acontecem, um registro de quem mudou cada link e perguntas sobre suas analytics respondidas por IA.',
+      },
+      {
+        product: 'link',
+        en: 'Destinations are checked against Google Safe Browsing when you create or edit a link and again every week; links that turn malicious stop redirecting and show a warning.',
+        es: 'Los destinos se revisan contra Google Safe Browsing al crear o editar un link y de nuevo cada semana; si un destino pasa a ser peligroso, el link deja de redirigir y muestra un aviso.',
+        pt: 'Os destinos são verificados no Google Safe Browsing ao criar ou editar um link e de novo toda semana; se um destino passa a ser perigoso, o link para de redirecionar e mostra um aviso.',
+      },
+      {
+        product: 'link',
+        en: 'Also new: link cloaking on custom domains, deferred deep linking for apps, QR frames and shared templates, bio themes with a live preview and any URL as a button, keyboard shortcuts per row (e, q, d, a, x), Slack, Zapier, Make and Segment events, imports from Rebrandly and Short.io, and an MCP server for AI agents.',
+        es: 'También: link cloaking en dominios propios, deep linking diferido para apps, marcos y plantillas compartidas para el QR, temas de la bio con vista previa en vivo y cualquier URL como botón, atajos por fila (e, q, d, a, x), eventos en Slack, Zapier, Make y Segment, importación desde Rebrandly y Short.io, y un servidor MCP para agentes de IA.',
+        pt: 'Também: link cloaking em domínios próprios, deep linking diferido para apps, molduras e modelos compartilhados para o QR, temas da bio com prévia ao vivo e qualquer URL como botão, atalhos por linha (e, q, d, a, x), eventos no Slack, Zapier, Make e Segment, importação do Rebrandly e do Short.io, e um servidor MCP para agentes de IA.',
+      },
+    ],
+  },
+  {
     id: '2026-10-27-docs-d5',
     date: '2026-10-27',
     title: {

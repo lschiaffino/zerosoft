@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useFormatter, useNow, useTranslations } from 'next-intl';
+import { useFormatter, useLocale, useNow, useTranslations } from 'next-intl';
 import EmptyState from '@/components/ui/EmptyState';
 import Icon from '@/components/app/icons';
 import type { FlowRunDto, FlowStepDto } from '@/lib/flow';
@@ -37,6 +37,50 @@ export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey,
   const [cancelling, setCancelling] = useState(false);
   const [replaying, setReplaying] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const locale = useLocale();
+  const [heldBusy, setHeldBusy] = useState<'release' | 'discard' | null>(null);
+  // "Explicar con IA" de la corrida fallida mostrada.
+  const [explain, setExplain] = useState<{ runId: string; summary: string; cause: string; steps: string[] } | null>(null);
+  const [explaining, setExplaining] = useState(false);
+  const [explainError, setExplainError] = useState<string | null>(null);
+
+  async function explainRun() {
+    if (!detail) return;
+    setExplaining(true);
+    setExplainError(null);
+    const res = await fetch(`/api/flow/runs/${detail.id}/explain`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ locale }),
+    }).catch(() => null);
+    const data = (await res?.json().catch(() => null)) as
+      | { explanation?: { summary: string; cause: string; steps: string[] }; error?: string }
+      | null;
+    setExplaining(false);
+    if (!res?.ok || !data?.explanation) {
+      const code = data?.error ?? 'generic';
+      setExplainError(t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic'));
+      return;
+    }
+    setExplain({ runId: detail.id, ...data.explanation });
+  }
+
+  /** Corridas retenidas por la protección ante avalanchas: correrlas todas o descartarlas. */
+  async function resolveHeld(action: 'release' | 'discard') {
+    if (action === 'discard' && !window.confirm(t('held.confirmDiscard'))) return;
+    setHeldBusy(action);
+    const res = await fetch(`/api/flow/flows/${flowId}/held`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action }),
+    }).catch(() => null);
+    setHeldBusy(null);
+    if (!res?.ok) {
+      setRerunError(t('errors.generic'));
+      return;
+    }
+    void loadRuns();
+  }
 
   async function rerunFrom(nodeId: string) {
     if (!detail) return;
@@ -183,6 +227,8 @@ export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey,
     );
   }
 
+  const heldCount = runs.filter((r) => r.held && r.status === 'queued').length;
+
   return (
     <div className="flow-runs">
       <div className="flow-runs-list">
@@ -193,6 +239,33 @@ export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey,
           </button>
         </div>
         {loadError && retry}
+        {heldCount > 0 && (
+          <div className="flow-held" role="status">
+            <p>{t('held.banner', { n: heldCount })}</p>
+            {canEdit && (
+              <div className="flow-row-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  aria-busy={heldBusy === 'release' || undefined}
+                  disabled={heldBusy !== null}
+                  onClick={() => void resolveHeld('release')}
+                >
+                  {t('held.release')}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-danger btn-sm"
+                  aria-busy={heldBusy === 'discard' || undefined}
+                  disabled={heldBusy !== null}
+                  onClick={() => void resolveHeld('discard')}
+                >
+                  {t('held.discard')}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         <ul>
           {runs.map((r) => (
             <li key={r.id}>
@@ -203,7 +276,9 @@ export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey,
                 onClick={() => void loadRun(r.id)}
               >
                 <span className="flow-run-main">
-                  <span className={`badge ${RUN_BADGE[r.status] ?? ''}`}>{t(`runs.status.${r.status}`)}</span>
+                  <span className={`badge ${RUN_BADGE[r.held ? 'held' : r.status] ?? ''}`}>
+                    {r.held ? t('history.status.held') : t(`runs.status.${r.status}`)}
+                  </span>
                   <span className="flow-muted" suppressHydrationWarning>
                     {r.rerunOf
                       ? t('runs.rerun')
@@ -252,7 +327,42 @@ export default function RunsPanel({ flowId, selectedRunId, onSelect, refreshKey,
                   {t('runs.replay')}
                 </button>
               )}
+              {canEdit && detail.status === 'failed' && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  aria-busy={explaining || undefined}
+                  disabled={explaining}
+                  onClick={() => void explainRun()}
+                >
+                  {explaining ? t('ai.explaining') : t('ai.explain')}
+                </button>
+              )}
             </div>
+            {explainError && (
+              <p className="ui-error" role="alert">
+                {explainError}
+              </p>
+            )}
+            {explain && explain.runId === detail.id && (
+              <section className="flow-explain" aria-label={t('ai.explainTitle')}>
+                <p className="label">{t('ai.explainTitle')}</p>
+                <p>{explain.summary}</p>
+                {explain.cause && (
+                  <p>
+                    <strong>{t('ai.cause')}</strong> {explain.cause}
+                  </p>
+                )}
+                {explain.steps.length > 0 && (
+                  <ol>
+                    {explain.steps.map((s, i) => (
+                      <li key={i}>{s}</li>
+                    ))}
+                  </ol>
+                )}
+                <p className="ui-help">{t('ai.explainHint')}</p>
+              </section>
+            )}
             {detail.status === 'failed' && detail.replayAt && (
               <p className="ui-help" suppressHydrationWarning>
                 {t('runs.replayScheduled', { time: format.dateTime(parseDbUtc(detail.replayAt), { timeStyle: 'short' }) })}

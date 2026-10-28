@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getPublicBio } from '@/lib/link-bio';
+import BioView from '@/components/link/BioView';
 import '@/styles/link.css';
 
 export const dynamic = 'force-dynamic';
@@ -23,27 +24,14 @@ export default async function BioPage(props: { params: Promise<{ handle: string 
   if (!bio) notFound();
 
   return (
-    <main className="bio-page">
-      <div className="bio-card">
-        {bio.avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={bio.avatarUrl} alt="" className="bio-avatar" />
-        ) : (
-          <span className="bio-avatar bio-avatar-fallback mono">{bio.title.slice(0, 1).toUpperCase()}</span>
-        )}
-        <h1 className="bio-title">{bio.title}</h1>
-        <p className="bio-handle mono">@{bio.handle}</p>
-        {bio.bio && <p className="bio-text">{bio.bio}</p>}
-        <ul className="bio-links">
-          {bio.links.map((l) => (
-            <li key={l.id}>
-              <a className="bio-link" href={l.href} rel="noopener">
-                {l.title}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </main>
+    <BioView
+      title={bio.title}
+      handle={bio.handle}
+      bio={bio.bio}
+      avatarUrl={bio.avatarUrl}
+      links={bio.links}
+      theme={bio.theme}
+      accent={bio.accent}
+    />
   );
 }

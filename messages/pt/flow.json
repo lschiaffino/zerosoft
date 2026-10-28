@@ -11,7 +11,9 @@
   "sidebar": {
     "flows": "Flows",
     "credentials": "Credenciais",
-    "tables": "Tabelas"
+    "tables": "Tabelas",
+    "runs": "Histórico",
+    "variables": "Variáveis"
   },
   "list": {
     "emptyTemplates": "Ver modelos",
@@ -32,7 +34,19 @@
     "delete": "Excluir",
     "copyName": "{name} (cópia)",
     "deleteTitle": "Excluir o flow?",
-    "confirmDelete": "Excluir \"{name}\" e todas as execuções? Não é possível desfazer."
+    "confirmDelete": "Excluir \"{name}\" e todas as execuções? Não é possível desfazer.",
+    "search": "Buscar flows",
+    "statusFilter": "Filtrar flows",
+    "filters": {
+      "all": "Todos os flows",
+      "on": "Ativos",
+      "off": "Desligados",
+      "failing": "A última execução falhou",
+      "held": "Com execuções retidas",
+      "draft": "Com mudanças não publicadas"
+    },
+    "noMatchTitle": "Nenhum flow corresponde",
+    "noMatchBody": "Tente outra busca ou limpe o filtro."
   },
   "templates": {
     "title": "Modelos",
@@ -102,6 +116,22 @@
       "webhookAgentReply": {
         "name": "Pergunta por webhook → agente → Slack",
         "desc": "Um agente responde perguntas enviadas a um webhook e publica a resposta no Slack."
+      },
+      "formToCrm": {
+        "name": "Respostas de formulário no CRM",
+        "desc": "Formulário hospedado: cada resposta cria um contato no CRM e envia um email para você."
+      },
+      "rssToSlack": {
+        "name": "Posts novos de um feed no Slack",
+        "desc": "Verifica um feed RSS a cada 15 minutos e publica cada item novo em um canal."
+      },
+      "sheetRowToCrm": {
+        "name": "Linhas novas do Google Sheets no CRM",
+        "desc": "Cada linha nova de uma planilha cria um contato no CRM (colunas Name e Email)."
+      },
+      "classifyInbound": {
+        "name": "Organizar mensagens com IA",
+        "desc": "A IA classifica cada mensagem (vendas, suporte, cobrança) e um Switch encaminha."
       }
     }
   },
@@ -237,6 +267,19 @@
       "insert": "Adiciona uma linha com estes valores. As colunas que você não preencher ficam vazias.",
       "upsert": "Atualiza a primeira linha em que a coluna é igual ao valor, ou adiciona uma. Serve para guardar estado ou evitar duplicados.",
       "delete": "Apaga todas as linhas em que a coluna é igual ao valor."
+    },
+    "more": "Mais ações",
+    "noteEmpty": "Nota vazia",
+    "noteHint": "As notas explicam o flow para quem abrir. Não se conectam nem rodam.",
+    "floodLimit": "Reter execuções depois de (a cada 10 minutos)",
+    "floodLimitHint": "Conta as execuções automáticas criadas nos últimos 10 minutos (janela móvel). Acima deste número, as novas esperam por você em Execuções. 0 = sem limite (o teto do workspace por hora continua valendo).",
+    "maxConcurrency": "Execuções ao mesmo tempo",
+    "maxConcurrencyHint": "1 roda as execuções da fila uma de cada vez, em ordem. 0 = sem limite. Testes e webhooks que respondem na hora não passam pela fila.",
+    "extractHint": "Nomeie cada campo e diga o que é. O passo devolve como '{{nodes.<id>.output.<campo>}}', ou vazio se o texto não disser. Conta para a sua cota de IA.",
+    "classifyHint": "Uma categoria por linha. O passo devolve '{{nodes.<id>.output.category}}', uma confiança e o motivo: siga com um Switch. Conta para a sua cota de IA.",
+    "sheetsHint": {
+      "lookup": "Procura as linhas em que a coluna (pelo cabeçalho) é igual ao valor. Devolve a primeira e o rowNumber.",
+      "update": "Procura a primeira linha em que a coluna é igual ao valor e escreve os valores pelo cabeçalho. Se nenhuma corresponder, nada muda."
     }
   },
   "categories": {
@@ -246,7 +289,8 @@
     "action": "Ação",
     "app": "Apps",
     "ai": "AI",
-    "integration": "Integrações"
+    "integration": "Integrações",
+    "note": "Notas"
   },
   "nodes": {
     "trigger_event": {
@@ -522,6 +566,34 @@
         "template": "Modelo de linha (nome)",
         "newTitle": "Novo título"
       }
+    },
+    "trigger_poll": {
+      "title": "Itens novos (RSS, API, Sheets)",
+      "desc": "Verifica um feed, uma URL JSON ou uma planilha do Google a cada poucos minutos e roda uma vez por item novo."
+    },
+    "trigger_form": {
+      "title": "Formulário",
+      "desc": "Um formulário hospedado com link próprio. Cada resposta inicia o flow.",
+      "fields": {
+        "title": "Título do formulário",
+        "description": "Texto de apresentação"
+      }
+    },
+    "ai_extract": {
+      "title": "IA: extrair ou classificar",
+      "desc": "Extrai campos com nome de um texto, ou coloca em uma das suas categorias. Devolve dados estruturados. Conta para a sua cota de IA.",
+      "fields": {
+        "mode": "Tarefa",
+        "fields": "Campos (nome e o que é)",
+        "instructions": "Instruções extras"
+      }
+    },
+    "note_sticky": {
+      "title": "Nota",
+      "desc": "Uma nota no canvas para explicar o flow. Não roda.",
+      "fields": {
+        "text": "Nota"
+      }
     }
   },
   "fields": {
@@ -558,7 +630,7 @@
     "firstName": "Nome",
     "lastName": "Sobrenome",
     "phone": "Telefone",
-    "source": "Origem",
+    "source": "Fonte",
     "sequenceId": "ID da sequência",
     "sinceHours": "Criados nas últimas (horas)",
     "projectId": "ID do projeto",
@@ -598,7 +670,23 @@
     "username": "Nome exibido",
     "chatId": "ID do chat",
     "parseMode": "Formato",
-    "onError": "Se este passo falhar"
+    "onError": "Se este passo falhar",
+    "itemsPath": "Lista na resposta",
+    "idField": "Campo único de cada item",
+    "googleCredentialId": "Credencial do Google",
+    "everyMinutes": "Verificar a cada (minutos, 5 a 1440)",
+    "formFields": "Campos",
+    "submitLabel": "Texto do botão",
+    "successMessage": "Mensagem após enviar",
+    "paginate": "Paginação",
+    "nextUrlPath": "URL da próxima página (campo ou header.link)",
+    "pageParam": "Parâmetro de página",
+    "maxPages": "Máximo de páginas (até 20)",
+    "lookupColumn": "Coluna para buscar",
+    "lookupValue": "Valor a procurar",
+    "values": "Valores a escrever (coluna → valor)",
+    "categories": "Categorias (uma por linha)",
+    "color": "Cor"
   },
   "options": {
     "all": "Todas as condições",
@@ -660,7 +748,20 @@
     "page_rename": "Renomear página",
     "page_archive": "Mandar para a lixeira",
     "row_create": "Adicionar linha",
-    "row_update": "Atualizar linha"
+    "row_update": "Atualizar linha",
+    "rss": "Feed RSS ou Atom",
+    "google_sheets": "Linhas novas no Google Sheets",
+    "extract": "Extrair campos",
+    "classify": "Classificar",
+    "off": "Não",
+    "next_url": "Seguir a URL da próxima página",
+    "page": "Número de página",
+    "lookup": "Procurar linhas",
+    "update": "Atualizar uma linha",
+    "yellow": "Amarelo",
+    "blue": "Azul",
+    "green": "Verde",
+    "pink": "Rosa"
   },
   "handles": {
     "out": "Próximo",
@@ -684,6 +785,8 @@
     "link_clicked": "Link: clique num link",
     "link_updated": "Link: link editado",
     "link_deleted": "Link: link excluído",
+    "link_lead": "Link: novo lead de um link",
+    "link_sale": "Link: nova venda de um link",
     "contact_created": "CRM: contato criado",
     "contact_updated": "CRM: contato atualizado",
     "deal_created": "CRM: deal criado",
@@ -782,7 +885,9 @@
       "trigger_schedule": "Agendado",
       "trigger_stripe": "Stripe",
       "subflow": "Sub-flow",
-      "error": "Flow de erro"
+      "error": "Flow de erro",
+      "trigger_poll": "Itens novos",
+      "trigger_form": "Formulário"
     },
     "rerun": "Reexecução",
     "rerunOf": "Reexecução de {id}. Os passos anteriores reutilizam a saída.",
@@ -838,7 +943,9 @@
     "invalid_person": "Essa pessoa não está no workspace. Use o email dela.",
     "invalid_value": "Um valor não corresponde ao tipo da propriedade (número ou data).",
     "owner_changed": "Esta execução usou o acesso de quem era dono do flow naquele momento. Só pode ser executada de novo enquanto essa pessoa for a dona.",
-    "subflow_other_owner": "Executar flow só chama flows criados pela mesma pessoa que este."
+    "subflow_other_owner": "Executar flow só chama flows criados pela mesma pessoa que este.",
+    "ai_disabled": "A IA não está configurada neste workspace, então este passo de IA não pode rodar.",
+    "quota_exceeded": "A cota de IA deste mês acabou. O passo volta a rodar quando renovar."
   },
   "errors": {
     "not_flow_owner": "Só quem criou este flow pode fazer isso: usa os dados capturados com o acesso dessa pessoa.",
@@ -875,7 +982,18 @@
     "pin_too_large": "Esses dados são grandes demais para fixar (máximo 64 KB por passo).",
     "input_too_large": "Os dados de teste são grandes demais.",
     "subflow_other_owner": "Executar flow só chama flows criados pela mesma pessoa que este.",
-    "owner_changed": "Esta execução usou o acesso de quem era dono do flow naquele momento. Só pode ser executada de novo enquanto essa pessoa for a dona."
+    "owner_changed": "Esta execução usou o acesso de quem era dono do flow naquele momento. Só pode ser executada de novo enquanto essa pessoa for a dona.",
+    "invalid_folder": "Essa pasta não existe mais.",
+    "no_draft": "Não há mudanças para publicar.",
+    "note_connected": "As notas não se conectam a passos.",
+    "invalid_name": "Escreva um nome.",
+    "too_many_folders": "Você chegou ao limite de 200 pastas.",
+    "ai_disabled": "A IA não está configurada neste workspace.",
+    "quota_exceeded": "A cota de IA deste mês acabou.",
+    "ai_invalid_flow": "A IA não conseguiu montar um flow válido com isso. Dê mais detalhes ou comece de um modelo.",
+    "ai_error": "A IA não respondeu. Tente em um minuto.",
+    "prompt_too_short": "Descreva em pelo menos uma frase.",
+    "stale_draft": "Alguém publicou uma versão mais nova. Revise as mudanças antes de publicar a sua."
   },
   "onError": {
     "stop": "Parar o flow",
@@ -889,7 +1007,7 @@
     "loadError": "Não foi possível carregar as versões.",
     "emptyTitle": "Ainda não há versões",
     "title": "Versões",
-    "subtitle": "Uma versão é salva cada vez que os nós do flow mudam.",
+    "subtitle": "Uma versão é salva cada vez que uma mudança nos nós é publicada.",
     "loading": "Carregando…",
     "current": "Atual",
     "first": "Primeira versão",
@@ -905,7 +1023,8 @@
     "error": "Não foi possível restaurar esta versão.",
     "restored": "Restaurado. Agora na versão {n}.",
     "edgesAdded": "{n, plural, one {Uma conexão nova} =2 {Duas conexões novas} =3 {Três conexões novas} other {# conexões novas}}",
-    "edgesRemoved": "{n, plural, one {Uma conexão removida} =2 {Duas conexões removidas} =3 {Três conexões removidas} other {# conexões removidas}}"
+    "edgesRemoved": "{n, plural, one {Uma conexão removida} =2 {Duas conexões removidas} =3 {Três conexões removidas} other {# conexões removidas}}",
+    "by": "por {name}"
   },
   "credentials": {
     "emptyTitle": "Ainda não há credenciais",
@@ -1106,5 +1225,209 @@
     "workspaceTemplates": "Modelos do workspace",
     "builtinTemplates": "Modelos integrados",
     "templateHelp": "Variáveis como {{page.title}} no modelo são preenchidas com os dados do gatilho."
+  },
+  "folders": {
+    "title": "Pastas",
+    "all": "Todos",
+    "new": "Nova pasta",
+    "actions": "Ações da pasta",
+    "rename": "Renomear pasta",
+    "delete": "Excluir pasta",
+    "move": "Mover para pasta",
+    "moveTitle": "Mover flow",
+    "folder": "Pasta",
+    "none": "Sem pasta",
+    "noneYet": "Crie uma pasta na lista primeiro.",
+    "newTitle": "Nova pasta",
+    "renameTitle": "Renomear pasta",
+    "deleteTitle": "Excluir a pasta?",
+    "confirmDelete": "Excluir \"{name}\"? Os flows ficam, sem pasta.",
+    "emptyTitle": "Esta pasta está vazia",
+    "emptyBody": "Crie um flow aqui ou mova um pelo menu da linha."
+  },
+  "import": {
+    "button": "Importar",
+    "export": "Exportar JSON",
+    "title": "Importar um flow",
+    "submit": "Importar",
+    "hint": "Use um JSON exportado do Flow. Ele entra desligado; credenciais, tabelas e flows de outro workspace ficam vazios para escolher de novo.",
+    "file": "Arquivo",
+    "paste": "Ou cole o JSON",
+    "invalid": "Isso não é o JSON de um flow.",
+    "tooLarge": "O arquivo é grande demais (máximo 1 MB)."
+  },
+  "ai": {
+    "build": "Montar com IA",
+    "buildTitle": "Descreva o seu flow",
+    "building": "Montando…",
+    "buildSubmit": "Montar flow",
+    "describe": "O que ele deve fazer?",
+    "placeholder": "Quando alguém preencher o formulário de contato, criar o contato no CRM e avisar no #vendas do Slack.",
+    "buildHint": "A IA monta os passos e abre o editor. O flow começa desligado: escolha as credenciais, revise cada passo e teste. Conta para a sua cota de IA.",
+    "explain": "Explicar com IA",
+    "explaining": "Explicando…",
+    "explainTitle": "O que deu errado",
+    "cause": "Causa provável:",
+    "explainHint": "Escrito pela IA a partir do erro e da configuração do passo. Confira antes de mudar algo."
+  },
+  "draft": {
+    "badge": "Rascunho",
+    "saved": "Rascunho salvo",
+    "published": "Publicado. Agora na versão {n}.",
+    "discarded": "Mudanças descartadas.",
+    "publish": "Publicar",
+    "publishing": "Publicando…",
+    "publishHint": "O que você edita fica como seu rascunho. Publique para que rode; a partir daí o flow roda com o seu acesso.",
+    "discard": "Descartar mudanças",
+    "discardTitle": "Descartar as mudanças não publicadas?",
+    "discardBody": "O editor volta para a versão {n}, a que roda.",
+    "banner": "Suas mudanças não publicadas. Só você vê este rascunho; as execuções seguem usando a versão {n} até você publicar, e \"Testar\" roda com o seu acesso.",
+    "stale": "Depois que você começou este rascunho outra versão foi publicada (o seu parte da {n}).",
+    "staleTitle": "A versão {n} foi publicada depois que você começou",
+    "staleBody": "Seu rascunho parte da versão {base}. Desde então alguém publicou a versão {n} com estas mudanças, e publicar o seu as substitui:",
+    "publishAnyway": "Publicar mesmo assim"
+  },
+  "held": {
+    "count": "{n} retidas",
+    "banner": "{n, plural, one {Uma execução está retida} other {# execuções estão retidas}}: o flow passou do limite de execuções a cada 10 minutos. Confira antes de deixar rodar.",
+    "release": "Rodar",
+    "discard": "Descartar",
+    "confirmDiscard": "Descartar todas as execuções retidas? Elas não vão rodar."
+  },
+  "history": {
+    "title": "Histórico de execuções",
+    "subtitle": "Todas as execuções de todos os flows, com uso, falhas e a fila.",
+    "exportCsv": "Exportar CSV",
+    "exportJson": "Exportar JSON",
+    "usage": "Uso",
+    "range": "Período",
+    "lastDays": "{n, plural, one {Últimas 24 horas} other {Últimos # dias}}",
+    "kpiRuns": "Execuções",
+    "kpiSuccess": "Taxa de sucesso",
+    "kpiFailed": "Falhas",
+    "kpiSteps": "Passos executados",
+    "kpiDuration": "Tempo médio",
+    "chartLabel": "{n} execuções nos últimos {days} dias, por dia",
+    "other": "Esperando ou na fila",
+    "queue": "Fila agora",
+    "status": {
+      "success": "Com sucesso",
+      "failed": "Falhas",
+      "running": "Rodando",
+      "waiting": "Esperando",
+      "queued": "Na fila",
+      "held": "Retidas"
+    },
+    "topErrors": "Erros mais comuns",
+    "byFlow": "Execuções por flow",
+    "noRunsRange": "Nenhuma execução neste período.",
+    "runs": "Execuções",
+    "search": "Buscar por ID, erro, flow ou dado",
+    "statusFilter": "Status",
+    "allStatuses": "Qualquer status",
+    "flowFilter": "Flow",
+    "allFlows": "Todos os flows",
+    "clear": "Limpar filtros",
+    "searchHint": "A busca olha os dados das execuções capturadas com o seu acesso; as de outras pessoas coincidem por ID, erro ou nome do flow.",
+    "noMatchTitle": "Nenhuma execução corresponde",
+    "noMatchBody": "Tente outra busca, status ou período.",
+    "emptyTitle": "Ainda não há execuções",
+    "emptyBody": "As execuções aparecem aqui quando um flow está ligado e dispara, ou quando você testa um.",
+    "flow": "Flow",
+    "when": "Início",
+    "duration": "Tempo",
+    "error": "Erro",
+    "more": "Carregar mais",
+    "backToFlows": "Voltar aos flows"
+  },
+  "variables": {
+    "title": "Variáveis",
+    "subtitle": "Valores que você reutiliza nos seus flows com '{{vars.nome}}'.",
+    "scopeHint": "As suas variáveis são suas: os flows que rodam com o seu acesso as leem (os que você criou ou mudou por último). Para segredos use uma credencial.",
+    "create": "Nova variável",
+    "edit": "Editar variável",
+    "delete": "Excluir",
+    "key": "Nome",
+    "value": "Valor",
+    "keyHint": "Letras, números e _ (começa com letra ou _).",
+    "valueHint": "Texto visível para você no editor. Até 10.000 caracteres.",
+    "emptyTitle": "Ainda não há variáveis",
+    "emptyBody": "Salve um valor uma vez (a URL de uma API, um email do time) e use em todos os flows com '{{vars.nome}}'.",
+    "copyRef": "Copiar referência",
+    "deleteTitle": "Excluir a variável?",
+    "confirmDelete": "Excluir {key}? Os flows que a usam vão receber um valor vazio.",
+    "errors": {
+      "invalid_key": "Use letras, números e _ (começando com letra ou _).",
+      "value_too_long": "O valor é longo demais (máximo 10.000 caracteres).",
+      "duplicate_key": "Você já tem uma variável com esse nome.",
+      "too_many_variables": "Você chegou ao limite de 100 variáveis."
+    }
+  },
+  "clipboard": {
+    "copy": "Copiar passos selecionados",
+    "paste": "Colar passos",
+    "copied": "{n, plural, one {Passo copiado} other {# passos copiados}}. Cole neste ou em outro flow.",
+    "pasted": "{n, plural, one {Passo colado} other {# passos colados}}.",
+    "empty": "Nada para colar: copie passos primeiro (selecione e aperte Cmd+C).",
+    "onlyTrigger": "Este flow já tem um gatilho: só os outros passos podem ser colados."
+  },
+  "form": {
+    "url": "Link do formulário",
+    "open": "Abrir o formulário",
+    "hint": "Qualquer pessoa com o link pode preencher. Cada resposta roda o flow com '{{trigger.fields.<campo>}}'.",
+    "offHint": "Ligue o flow e publique para abrir o formulário. Enquanto estiver desligado, o link mostra fechado.",
+    "fieldLabel": "Rótulo do campo",
+    "fieldType": "Tipo",
+    "required": "Obrigatório",
+    "options": "Opções",
+    "optionsPlaceholder": "Opções, separadas por vírgulas",
+    "addField": "Adicionar campo",
+    "types": {
+      "text": "Texto curto",
+      "email": "Email",
+      "number": "Número",
+      "textarea": "Texto longo",
+      "date": "Data",
+      "select": "Opção",
+      "checkbox": "Caixa de seleção"
+    },
+    "publishFirst": "O link funciona quando você publica este formulário."
+  },
+  "poll": {
+    "hint": "Verifica a fonte a cada poucos minutos e roda uma vez por item novo. A primeira verificação só marca o que já existe.",
+    "checked": "Última verificação: {time} ({n} itens vistos).",
+    "error": "A última verificação falhou: {error}",
+    "offHint": "Ligue o flow para começar a verificar."
+  },
+  "curl": {
+    "import": "Importar cURL",
+    "title": "Importar um comando cURL",
+    "label": "Comando cURL",
+    "submit": "Importar",
+    "hint": "Cole o exemplo da documentação da API ou \"Copy as cURL\" do navegador. Preenche método, URL, headers e corpo.",
+    "invalid": "Isso não é um comando curl com uma URL.",
+    "authHint": "O comando tinha um token em um header. Passe para uma credencial para que fique cifrado e fora das execuções."
+  },
+  "formPage": {
+    "title": "Formulário",
+    "closed": "Este formulário está fechado.",
+    "sent": "Obrigado! Recebemos a sua resposta.",
+    "again": "Enviar outra resposta",
+    "choose": "Escolha…",
+    "submit": "Enviar",
+    "errors": {
+      "rate_limited": "Respostas demais agora. Tente de novo em um minuto.",
+      "generic": "Não foi possível enviar. Tente de novo.",
+      "form_check": "Não foi possível verificar a resposta. Recarregue a página e tente de novo."
+    },
+    "fieldErrors": {
+      "required": "Este campo é obrigatório.",
+      "invalid_email": "Digite um email válido.",
+      "invalid_number": "Digite um número.",
+      "invalid_date": "Escolha uma data.",
+      "invalid_option": "Escolha uma das opções.",
+      "too_long": "Esta resposta é longa demais."
+    },
+    "captcha": "Não sou um robô"
   }
 }

@@ -11,7 +11,9 @@
   "sidebar": {
     "flows": "Flows",
     "credentials": "Credenciales",
-    "tables": "Tablas"
+    "tables": "Tablas",
+    "runs": "Historial",
+    "variables": "Variables"
   },
   "list": {
     "emptyTemplates": "Ver plantillas",
@@ -32,7 +34,19 @@
     "delete": "Eliminar",
     "copyName": "{name} (copia)",
     "deleteTitle": "¿Eliminar el flow?",
-    "confirmDelete": "¿Eliminar \"{name}\" y todas sus ejecuciones? No se puede deshacer."
+    "confirmDelete": "¿Eliminar \"{name}\" y todas sus ejecuciones? No se puede deshacer.",
+    "search": "Buscar flows",
+    "statusFilter": "Filtrar flows",
+    "filters": {
+      "all": "Todos los flows",
+      "on": "Activos",
+      "off": "Apagados",
+      "failing": "Falló la última corrida",
+      "held": "Con corridas retenidas",
+      "draft": "Con cambios sin publicar"
+    },
+    "noMatchTitle": "Ningún flow coincide",
+    "noMatchBody": "Probá con otra búsqueda o sacá el filtro."
   },
   "templates": {
     "title": "Plantillas",
@@ -102,6 +116,22 @@
       "webhookAgentReply": {
         "name": "Pregunta por webhook → agente → Slack",
         "desc": "Un agente responde preguntas que llegan a un webhook y publica la respuesta en Slack."
+      },
+      "formToCrm": {
+        "name": "Respuestas de un formulario al CRM",
+        "desc": "Formulario hospedado: cada respuesta crea un contacto en el CRM y te manda un email."
+      },
+      "rssToSlack": {
+        "name": "Posts nuevos de un feed a Slack",
+        "desc": "Revisa un feed RSS cada 15 minutos y publica cada ítem nuevo en un canal."
+      },
+      "sheetRowToCrm": {
+        "name": "Filas nuevas de Google Sheets al CRM",
+        "desc": "Cada fila nueva de una hoja crea un contacto en el CRM (columnas Name y Email)."
+      },
+      "classifyInbound": {
+        "name": "Ordenar mensajes con IA",
+        "desc": "La IA clasifica cada mensaje (ventas, soporte, facturación) y un Switch lo deriva."
       }
     }
   },
@@ -237,6 +267,19 @@
       "insert": "Agrega una fila con estos valores. Las columnas que no pongas quedan vacías.",
       "upsert": "Actualiza la primera fila donde la columna es igual al valor, o agrega una. Sirve para guardar estado o evitar duplicados.",
       "delete": "Borra todas las filas donde la columna es igual al valor."
+    },
+    "more": "Más acciones",
+    "noteEmpty": "Nota vacía",
+    "noteHint": "Las notas explican el flow a quien lo abra. No se conectan ni corren.",
+    "floodLimit": "Retener corridas después de (cada 10 minutos)",
+    "floodLimitHint": "Cuenta las corridas automáticas creadas en los últimos 10 minutos (ventana móvil). Pasado este número, las nuevas te esperan en Corridas. 0 = sin límite (igual aplica el tope del workspace por hora).",
+    "maxConcurrency": "Corridas a la vez",
+    "maxConcurrencyHint": "1 corre las corridas en cola de a una, en orden. 0 = sin límite. Las pruebas y los webhooks que responden al instante no pasan por la cola.",
+    "extractHint": "Nombrá cada campo y decí qué es. El paso los devuelve como '{{nodes.<id>.output.<campo>}}', o vacíos si el texto no lo dice. Cuenta para tu cuota de IA.",
+    "classifyHint": "Una categoría por línea. El paso devuelve '{{nodes.<id>.output.category}}', una confianza y el motivo: seguí con un Switch. Cuenta para tu cuota de IA.",
+    "sheetsHint": {
+      "lookup": "Busca las filas donde la columna (por encabezado) es igual al valor. Devuelve la primera y su rowNumber.",
+      "update": "Busca la primera fila donde la columna es igual al valor y escribe los valores por encabezado. Si ninguna coincide, no cambia nada."
     }
   },
   "categories": {
@@ -246,7 +289,8 @@
     "action": "Acción",
     "app": "Apps",
     "ai": "AI",
-    "integration": "Integraciones"
+    "integration": "Integraciones",
+    "note": "Notas"
   },
   "nodes": {
     "trigger_event": {
@@ -522,6 +566,34 @@
         "template": "Plantilla de fila (nombre)",
         "newTitle": "Título nuevo"
       }
+    },
+    "trigger_poll": {
+      "title": "Ítems nuevos (RSS, API, Sheets)",
+      "desc": "Revisa un feed, una URL JSON o una hoja de Google cada algunos minutos y corre una vez por ítem nuevo."
+    },
+    "trigger_form": {
+      "title": "Formulario",
+      "desc": "Un formulario hospedado con su propio link. Cada respuesta arranca el flow.",
+      "fields": {
+        "title": "Título del formulario",
+        "description": "Texto de presentación"
+      }
+    },
+    "ai_extract": {
+      "title": "IA: extraer o clasificar",
+      "desc": "Saca campos con nombre de un texto, o lo pone en una de tus categorías. Devuelve datos con estructura. Cuenta para tu cuota de IA.",
+      "fields": {
+        "mode": "Tarea",
+        "fields": "Campos (nombre y qué es)",
+        "instructions": "Instrucciones extra"
+      }
+    },
+    "note_sticky": {
+      "title": "Nota",
+      "desc": "Una nota en el canvas para explicar el flow. No corre.",
+      "fields": {
+        "text": "Nota"
+      }
     }
   },
   "fields": {
@@ -558,7 +630,7 @@
     "firstName": "Nombre",
     "lastName": "Apellido",
     "phone": "Teléfono",
-    "source": "Origen",
+    "source": "Fuente",
     "sequenceId": "ID de la secuencia",
     "sinceHours": "Creados en las últimas (horas)",
     "projectId": "ID del proyecto",
@@ -598,7 +670,23 @@
     "username": "Nombre visible",
     "chatId": "ID del chat",
     "parseMode": "Formato",
-    "onError": "Si este paso falla"
+    "onError": "Si este paso falla",
+    "itemsPath": "Lista en la respuesta",
+    "idField": "Campo único de cada ítem",
+    "googleCredentialId": "Credencial de Google",
+    "everyMinutes": "Revisar cada (minutos, 5 a 1440)",
+    "formFields": "Campos",
+    "submitLabel": "Texto del botón",
+    "successMessage": "Mensaje al enviar",
+    "paginate": "Paginación",
+    "nextUrlPath": "URL de la página siguiente (campo o header.link)",
+    "pageParam": "Parámetro de página",
+    "maxPages": "Máximo de páginas (hasta 20)",
+    "lookupColumn": "Columna a buscar",
+    "lookupValue": "Valor a buscar",
+    "values": "Valores a escribir (columna → valor)",
+    "categories": "Categorías (una por línea)",
+    "color": "Color"
   },
   "options": {
     "all": "Todas las condiciones",
@@ -660,7 +748,20 @@
     "page_rename": "Renombrar página",
     "page_archive": "Mandar a la papelera",
     "row_create": "Agregar fila",
-    "row_update": "Actualizar fila"
+    "row_update": "Actualizar fila",
+    "rss": "Feed RSS o Atom",
+    "google_sheets": "Filas nuevas en Google Sheets",
+    "extract": "Extraer campos",
+    "classify": "Clasificar",
+    "off": "No",
+    "next_url": "Seguir la URL de la página siguiente",
+    "page": "Número de página",
+    "lookup": "Buscar filas",
+    "update": "Actualizar una fila",
+    "yellow": "Amarillo",
+    "blue": "Azul",
+    "green": "Verde",
+    "pink": "Rosa"
   },
   "handles": {
     "out": "Siguiente",
@@ -684,6 +785,8 @@
     "link_clicked": "Link: click en un link",
     "link_updated": "Link: link editado",
     "link_deleted": "Link: link borrado",
+    "link_lead": "Link: lead nuevo desde un link",
+    "link_sale": "Link: venta nueva desde un link",
     "contact_created": "CRM: contacto creado",
     "contact_updated": "CRM: contacto actualizado",
     "deal_created": "CRM: deal creado",
@@ -782,7 +885,9 @@
       "trigger_schedule": "Programado",
       "trigger_stripe": "Stripe",
       "subflow": "Sub-flow",
-      "error": "Flow de error"
+      "error": "Flow de error",
+      "trigger_poll": "Ítems nuevos",
+      "trigger_form": "Formulario"
     },
     "rerun": "Re-ejecución",
     "rerunOf": "Re-ejecución de {id}. Los pasos anteriores reusan su salida.",
@@ -838,7 +943,9 @@
     "invalid_person": "Esa persona no está en el workspace. Usá su email.",
     "invalid_value": "Un valor no coincide con el tipo de su propiedad (número o fecha).",
     "owner_changed": "Esta corrida usó el acceso de quien era dueño del flow en ese momento. Solo se puede volver a correr mientras esa persona sea la dueña.",
-    "subflow_other_owner": "Correr flow solo llama a flows creados por la misma persona que este."
+    "subflow_other_owner": "Correr flow solo llama a flows creados por la misma persona que este.",
+    "ai_disabled": "La IA no está configurada en este workspace, así que este paso de IA no puede correr.",
+    "quota_exceeded": "Se terminó la cuota de IA de este mes. El paso vuelve a correr cuando se renueve."
   },
   "errors": {
     "not_flow_owner": "Solo quien creó este flow puede hacer esto: usa los datos capturados con su acceso.",
@@ -875,7 +982,18 @@
     "pin_too_large": "Esos datos son demasiado grandes para fijarlos (máximo 64 KB por paso).",
     "input_too_large": "Los datos de prueba son demasiado grandes.",
     "subflow_other_owner": "Correr flow solo llama a flows creados por la misma persona que este.",
-    "owner_changed": "Esta corrida usó el acceso de quien era dueño del flow en ese momento. Solo se puede volver a correr mientras esa persona sea la dueña."
+    "owner_changed": "Esta corrida usó el acceso de quien era dueño del flow en ese momento. Solo se puede volver a correr mientras esa persona sea la dueña.",
+    "invalid_folder": "Esa carpeta ya no existe.",
+    "no_draft": "No hay cambios para publicar.",
+    "note_connected": "Las notas no se conectan a pasos.",
+    "invalid_name": "Escribí un nombre.",
+    "too_many_folders": "Llegaste al límite de 200 carpetas.",
+    "ai_disabled": "La IA no está configurada en este workspace.",
+    "quota_exceeded": "Se terminó la cuota de IA de este mes.",
+    "ai_invalid_flow": "La IA no pudo armar un flow válido con eso. Sumá más detalle o empezá desde una plantilla.",
+    "ai_error": "La IA no respondió. Probá en un minuto.",
+    "prompt_too_short": "Describilo en al menos una oración.",
+    "stale_draft": "Alguien publicó una versión más nueva. Revisá sus cambios antes de publicar el tuyo."
   },
   "onError": {
     "stop": "Detener el flow",
@@ -889,7 +1007,7 @@
     "loadError": "No se pudieron cargar las versiones.",
     "emptyTitle": "Todavía no hay versiones",
     "title": "Versiones",
-    "subtitle": "Se guarda una versión cada vez que cambian los nodos del flow.",
+    "subtitle": "Se guarda una versión cada vez que se publica un cambio en los nodos.",
     "loading": "Cargando…",
     "current": "Actual",
     "first": "Primera versión",
@@ -905,7 +1023,8 @@
     "error": "No se pudo restaurar esta versión.",
     "restored": "Restaurado. Ahora en la versión {n}.",
     "edgesAdded": "{n, plural, one {Una conexión nueva} =2 {Dos conexiones nuevas} =3 {Tres conexiones nuevas} other {# conexiones nuevas}}",
-    "edgesRemoved": "{n, plural, one {Una conexión quitada} =2 {Dos conexiones quitadas} =3 {Tres conexiones quitadas} other {# conexiones quitadas}}"
+    "edgesRemoved": "{n, plural, one {Una conexión quitada} =2 {Dos conexiones quitadas} =3 {Tres conexiones quitadas} other {# conexiones quitadas}}",
+    "by": "por {name}"
   },
   "credentials": {
     "emptyTitle": "Todavía no hay credenciales",
@@ -1106,5 +1225,209 @@
     "workspaceTemplates": "Plantillas del workspace",
     "builtinTemplates": "Plantillas integradas",
     "templateHelp": "Las variables como {{page.title}} de la plantilla se completan con los datos del disparador."
+  },
+  "folders": {
+    "title": "Carpetas",
+    "all": "Todos",
+    "new": "Carpeta nueva",
+    "actions": "Acciones de la carpeta",
+    "rename": "Renombrar carpeta",
+    "delete": "Borrar carpeta",
+    "move": "Mover a carpeta",
+    "moveTitle": "Mover flow",
+    "folder": "Carpeta",
+    "none": "Sin carpeta",
+    "noneYet": "Primero creá una carpeta desde la lista.",
+    "newTitle": "Carpeta nueva",
+    "renameTitle": "Renombrar carpeta",
+    "deleteTitle": "¿Borrar la carpeta?",
+    "confirmDelete": "¿Borrar \"{name}\"? Sus flows quedan, sin carpeta.",
+    "emptyTitle": "Esta carpeta está vacía",
+    "emptyBody": "Creá un flow acá o mové uno desde el menú de la fila."
+  },
+  "import": {
+    "button": "Importar",
+    "export": "Exportar JSON",
+    "title": "Importar un flow",
+    "submit": "Importar",
+    "hint": "Usá un JSON exportado de Flow. Entra apagado; las credenciales, tablas y flows de otro workspace quedan vacíos para elegirlos de nuevo.",
+    "file": "Archivo",
+    "paste": "O pegá el JSON",
+    "invalid": "Eso no es el JSON de un flow.",
+    "tooLarge": "El archivo es muy grande (máximo 1 MB)."
+  },
+  "ai": {
+    "build": "Armar con IA",
+    "buildTitle": "Contá qué tiene que hacer",
+    "building": "Armando…",
+    "buildSubmit": "Armar flow",
+    "describe": "¿Qué tiene que hacer?",
+    "placeholder": "Cuando alguien completa el formulario de contacto, crear el contacto en el CRM y avisar en #ventas de Slack.",
+    "buildHint": "La IA arma los pasos y abre el editor. El flow arranca apagado: elegí las credenciales, revisá cada paso y probalo. Cuenta para tu cuota de IA.",
+    "explain": "Explicar con IA",
+    "explaining": "Explicando…",
+    "explainTitle": "Qué falló",
+    "cause": "Causa probable:",
+    "explainHint": "Lo escribe la IA a partir del error y la configuración del paso. Revisalo antes de cambiar algo."
+  },
+  "draft": {
+    "badge": "Borrador",
+    "saved": "Borrador guardado",
+    "published": "Publicado. Ahora en la versión {n}.",
+    "discarded": "Cambios descartados.",
+    "publish": "Publicar",
+    "publishing": "Publicando…",
+    "publishHint": "Lo que editás se guarda como tu borrador. Publicá para que corra; desde ahí el flow corre con tu acceso.",
+    "discard": "Descartar cambios",
+    "discardTitle": "¿Descartar los cambios sin publicar?",
+    "discardBody": "El editor vuelve a la versión {n}, la que corre.",
+    "banner": "Tus cambios sin publicar. Este borrador lo ves solo vos; las corridas siguen usando la versión {n} hasta que publiques, y \"Probar\" lo corre con tu acceso.",
+    "stale": "Después de que empezaste este borrador se publicó otra versión (el tuyo sale de la {n}).",
+    "staleTitle": "Se publicó la versión {n} después de que empezaste",
+    "staleBody": "Tu borrador sale de la versión {base}. Desde entonces alguien publicó la versión {n} con estos cambios, y publicar el tuyo los reemplaza:",
+    "publishAnyway": "Publicar igual"
+  },
+  "held": {
+    "count": "{n} retenidas",
+    "banner": "{n, plural, one {Hay una corrida retenida} other {Hay # corridas retenidas}}: el flow pasó su límite de corridas cada 10 minutos. Revisalas antes de dejarlas correr.",
+    "release": "Correrlas",
+    "discard": "Descartar",
+    "confirmDiscard": "¿Descartar todas las corridas retenidas? No van a correr."
+  },
+  "history": {
+    "title": "Historial de corridas",
+    "subtitle": "Todas las corridas de todos los flows, con uso, fallas y la cola.",
+    "exportCsv": "Exportar CSV",
+    "exportJson": "Exportar JSON",
+    "usage": "Uso",
+    "range": "Rango",
+    "lastDays": "{n, plural, one {Últimas 24 horas} other {Últimos # días}}",
+    "kpiRuns": "Corridas",
+    "kpiSuccess": "Tasa de éxito",
+    "kpiFailed": "Fallidas",
+    "kpiSteps": "Pasos corridos",
+    "kpiDuration": "Tiempo promedio",
+    "chartLabel": "{n} corridas en los últimos {days} días, por día",
+    "other": "En espera o en cola",
+    "queue": "Cola ahora",
+    "status": {
+      "success": "Exitosas",
+      "failed": "Fallidas",
+      "running": "Corriendo",
+      "waiting": "En espera",
+      "queued": "En cola",
+      "held": "Retenidas"
+    },
+    "topErrors": "Errores más comunes",
+    "byFlow": "Corridas por flow",
+    "noRunsRange": "Sin corridas en este rango.",
+    "runs": "Corridas",
+    "search": "Buscar por ID, error, flow o dato",
+    "statusFilter": "Estado",
+    "allStatuses": "Cualquier estado",
+    "flowFilter": "Flow",
+    "allFlows": "Todos los flows",
+    "clear": "Sacar filtros",
+    "searchHint": "La búsqueda mira los datos de las corridas capturadas con tu acceso; las de otras personas coinciden por ID, error o nombre del flow.",
+    "noMatchTitle": "Ninguna corrida coincide",
+    "noMatchBody": "Probá con otra búsqueda, estado o rango.",
+    "emptyTitle": "Todavía no hay corridas",
+    "emptyBody": "Las corridas aparecen acá cuando un flow está activo y se dispara, o cuando probás uno.",
+    "flow": "Flow",
+    "when": "Inicio",
+    "duration": "Tiempo",
+    "error": "Error",
+    "more": "Cargar más",
+    "backToFlows": "Volver a los flows"
+  },
+  "variables": {
+    "title": "Variables",
+    "subtitle": "Valores que reusás en tus flows con '{{vars.nombre}}'.",
+    "scopeHint": "Tus variables son tuyas: las leen los flows que corren con tu acceso (los que creaste o cambiaste por última vez). Para secretos usá una credencial.",
+    "create": "Variable nueva",
+    "edit": "Editar variable",
+    "delete": "Borrar",
+    "key": "Nombre",
+    "value": "Valor",
+    "keyHint": "Letras, números y _ (empieza con letra o _).",
+    "valueHint": "Texto visible para vos en el editor. Hasta 10.000 caracteres.",
+    "emptyTitle": "Todavía no hay variables",
+    "emptyBody": "Guardá un valor una vez (la URL de una API, un email del equipo) y usalo en todos tus flows con '{{vars.nombre}}'.",
+    "copyRef": "Copiar referencia",
+    "deleteTitle": "¿Borrar la variable?",
+    "confirmDelete": "¿Borrar {key}? Los flows que la usan van a recibir un valor vacío.",
+    "errors": {
+      "invalid_key": "Usá letras, números y _ (empezando con letra o _).",
+      "value_too_long": "El valor es muy largo (máximo 10.000 caracteres).",
+      "duplicate_key": "Ya tenés una variable con ese nombre.",
+      "too_many_variables": "Llegaste al límite de 100 variables."
+    }
+  },
+  "clipboard": {
+    "copy": "Copiar pasos elegidos",
+    "paste": "Pegar pasos",
+    "copied": "{n, plural, one {Paso copiado} other {# pasos copiados}}. Pegalo en este u otro flow.",
+    "pasted": "{n, plural, one {Paso pegado} other {# pasos pegados}}.",
+    "empty": "No hay nada para pegar: primero copiá pasos (elegilos y apretá Cmd+C).",
+    "onlyTrigger": "Este flow ya tiene un disparador: solo se pueden pegar los otros pasos."
+  },
+  "form": {
+    "url": "Link del formulario",
+    "open": "Abrir el formulario",
+    "hint": "Cualquiera con el link lo puede completar. Cada respuesta corre el flow con '{{trigger.fields.<campo>}}'.",
+    "offHint": "Activá el flow y publicalo para abrir el formulario. Mientras esté apagado, el link lo muestra cerrado.",
+    "fieldLabel": "Etiqueta del campo",
+    "fieldType": "Tipo",
+    "required": "Obligatorio",
+    "options": "Opciones",
+    "optionsPlaceholder": "Opciones, separadas por comas",
+    "addField": "Agregar campo",
+    "types": {
+      "text": "Texto corto",
+      "email": "Email",
+      "number": "Número",
+      "textarea": "Texto largo",
+      "date": "Fecha",
+      "select": "Opción",
+      "checkbox": "Casilla"
+    },
+    "publishFirst": "El link funciona cuando publicás este formulario."
+  },
+  "poll": {
+    "hint": "Revisa la fuente cada algunos minutos y corre una vez por cada ítem nuevo. La primera revisión solo marca lo que ya está.",
+    "checked": "Última revisión: {time} ({n} ítems vistos).",
+    "error": "La última revisión falló: {error}",
+    "offHint": "Activá el flow para empezar a revisar."
+  },
+  "curl": {
+    "import": "Importar cURL",
+    "title": "Importar un comando cURL",
+    "label": "Comando cURL",
+    "submit": "Importar",
+    "hint": "Pegá el ejemplo de la documentación de la API o \"Copy as cURL\" del navegador. Completa método, URL, headers y cuerpo.",
+    "invalid": "Eso no es un comando curl con una URL.",
+    "authHint": "El comando traía un token en un header. Pasalo a una credencial así queda cifrado y fuera de las corridas."
+  },
+  "formPage": {
+    "title": "Formulario",
+    "closed": "Este formulario está cerrado.",
+    "sent": "¡Gracias! Recibimos tu respuesta.",
+    "again": "Mandar otra respuesta",
+    "choose": "Elegí…",
+    "submit": "Enviar",
+    "errors": {
+      "rate_limited": "Demasiadas respuestas en este momento. Probá en un minuto.",
+      "generic": "No se pudo enviar. Probá de nuevo.",
+      "form_check": "No pudimos verificar la respuesta. Recargá la página y probá de nuevo."
+    },
+    "fieldErrors": {
+      "required": "Este campo es obligatorio.",
+      "invalid_email": "Escribí un email válido.",
+      "invalid_number": "Escribí un número.",
+      "invalid_date": "Elegí una fecha.",
+      "invalid_option": "Elegí una de las opciones.",
+      "too_long": "Esta respuesta es muy larga."
+    },
+    "captcha": "No soy un robot"
   }
 }

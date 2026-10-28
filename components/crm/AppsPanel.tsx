@@ -4,7 +4,7 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import type { CrmAppView } from '@/lib/crm-apps';
-import { AUTOMATION_DEFAULT_EVENTS, SLACK_EVENTS, type CrmAppKey } from '@/lib/crm-apps-schema';
+import { AUTOMATION_DEFAULT_EVENTS, DEFAULT_LINK_SLACK_EVENTS, DEFAULT_SLACK_EVENTS, SLACK_EVENTS, type CrmAppKey } from '@/lib/crm-apps-schema';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import CopyButton from '@/components/link/CopyButton';
 import { parseDbUtc } from '@/lib/utils';
@@ -16,7 +16,22 @@ const eventKey = (ev: string) => ev.replace(/\./g, '_');
  * Zapier y Make, cada una con conectar, estado, ajustes, actividad reciente y
  * desconectar. Más la tarjeta de webhooks y API para el resto.
  */
-export default function AppsPanel({ initial, canEdit }: { initial: CrmAppView[]; canEdit: boolean }) {
+export default function AppsPanel({
+  initial,
+  canEdit,
+  only,
+  source = 'crm',
+  descriptions,
+}: {
+  initial: CrmAppView[];
+  canEdit: boolean;
+  /** Solo estas apps (Link muestra Slack, Stripe, Zapier y Make). */
+  only?: CrmAppKey[];
+  /** Desde qué app se conecta: Link prende sus eventos de Slack y no muestra pistas del secreto. */
+  source?: 'crm' | 'link';
+  /** Descripción propia de cada tarjeta (Link habla de links, no del CRM). */
+  descriptions?: Partial<Record<CrmAppKey, string>>;
+}) {
   const t = useTranslations('crm.apps');
   const locale = useLocale();
   const [apps, setApps] = useState(initial);
@@ -27,7 +42,8 @@ export default function AppsPanel({ initial, canEdit }: { initial: CrmAppView[];
   const [confirm, setConfirm] = useState<CrmAppKey | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
   const [slackEvents, setSlackEvents] = useState<string[]>(
-    () => initial.find((a) => a.key === 'slack')?.events ?? ['deal.won', 'form.submitted', 'quote.accepted', 'quote.paid'],
+    () =>
+      initial.find((a) => a.key === 'slack' && a.connected)?.events ?? [...(source === 'link' ? DEFAULT_LINK_SLACK_EVENTS : DEFAULT_SLACK_EVENTS)],
   );
 
   const field = (name: string) => form[name] ?? '';
@@ -35,6 +51,7 @@ export default function AppsPanel({ initial, canEdit }: { initial: CrmAppView[];
 
   function replace(view: CrmAppView | undefined) {
     if (!view) return;
+    if (source === 'link') view = { ...view, hint: '' };
     setApps((prev) => prev.map((a) => (a.key === view.key ? view : a)));
   }
 
@@ -50,7 +67,7 @@ export default function AppsPanel({ initial, canEdit }: { initial: CrmAppView[];
     setNotice(null);
     const body: Record<string, unknown> =
       key === 'slack'
-        ? { webhookUrl: field('slackUrl').trim(), events: slackEvents }
+        ? { webhookUrl: field('slackUrl').trim(), events: slackEvents, source }
         : key === 'zoom'
           ? { accountId: field('zoomAccount'), clientId: field('zoomClient'), clientSecret: field('zoomSecret') }
           : key === 'stripe'
@@ -89,7 +106,7 @@ export default function AppsPanel({ initial, canEdit }: { initial: CrmAppView[];
     setBusy(`${key}:${name}`);
     setError(null);
     setNotice(null);
-    const res = await fetch(`/api/crm/apps/${key}/${name}`, { method: 'POST' }).catch(() => null);
+    const res = await fetch(`/api/crm/apps/${key}/${name}${source === 'link' ? '?source=link' : ''}`, { method: 'POST' }).catch(() => null);
     setBusy(null);
     if (!res?.ok) return errorOf(res, key);
     if (name === 'sync') {
@@ -97,7 +114,10 @@ export default function AppsPanel({ initial, canEdit }: { initial: CrmAppView[];
       setNotice({ key, message: t('stripe.synced', { created: data.created, existing: data.existing }) });
     } else setNotice({ key, message: t('slack.testSent') });
     const list = await fetch('/api/crm/apps').catch(() => null);
-    if (list?.ok) setApps(((await list.json()) as { apps: CrmAppView[] }).apps);
+    if (list?.ok) {
+      const all = ((await list.json()) as { apps: CrmAppView[] }).apps;
+      setApps(source === 'link' ? all.map((a) => ({ ...a, hint: '' })) : all);
+    }
   }
 
   async function disconnect(key: CrmAppKey) {
@@ -322,7 +342,7 @@ export default function AppsPanel({ initial, canEdit }: { initial: CrmAppView[];
     <div className="crm-apps" data-testid="crm-apps">
       {!canEdit && <p className="ui-help">{t('adminOnly')}</p>}
       <ul className="crm-apps-grid">
-        {apps.map((app) => {
+        {apps.filter((app) => !only || only.includes(app.key)).map((app) => {
           const status = app.connected ? (app.lastError ? 'error' : 'connected') : 'off';
           return (
             <li key={app.key} className="crm-app-card" data-app={app.key} data-testid={`crm-app-${app.key}`}>
@@ -332,7 +352,7 @@ export default function AppsPanel({ initial, canEdit }: { initial: CrmAppView[];
                 </span>
                 <div className="crm-app-title">
                   <h3>{t(`${app.key}.name`)}</h3>
-                  <p className="ui-help">{t(`${app.key}.desc`)}</p>
+                  <p className="ui-help">{descriptions?.[app.key] ?? t(`${app.key}.desc`)}</p>
                 </div>
                 <span className={`badge ${status === 'connected' ? 'badge-ok' : status === 'error' ? 'badge-bad' : ''}`}>
                   {t(`status.${status}`)}

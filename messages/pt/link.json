@@ -87,7 +87,8 @@
     "clicksN": "{n, plural, one {# clique} other {# cliques}}",
     "creatorLabel": "Criado por",
     "allCreators": "Qualquer pessoa",
-    "byCreator": "por {name}"
+    "byCreator": "por {name}",
+    "statusBlocked": "Bloqueado"
   },
   "new": {
     "title": "Novo link",
@@ -229,7 +230,8 @@
       "routing": "Roteamento",
       "settings": "Ajustes",
       "comments": "Comentários",
-      "commentsN": "Comentários ({n})"
+      "commentsN": "Comentários ({n})",
+      "activity": "Atividade"
     },
     "tabsLabel": "Seções do link",
     "qrScansCount": "{n} via QR",
@@ -351,7 +353,9 @@
     "limitSub": "Este link já serviu todos os cliques permitidos.",
     "passwordTitle": "Link protegido",
     "passwordSub": "Você precisa da senha para passar.",
-    "home": "← Voltar ao início"
+    "home": "← Voltar ao início",
+    "blockedTitle": "Este link foi bloqueado",
+    "blockedSub": "O destino foi denunciado como phishing ou malware, então paramos o redirecionamento para proteger você."
   },
   "errors": {
     "invalid_url": "Essa URL não parece válida.",
@@ -379,7 +383,9 @@
     "invalid_external_id": "O id externo não é válido.",
     "external_id_taken": "Outro link já usa esse id externo.",
     "invalid_folder": "Você não pode adicionar links a essa pasta.",
-    "duplicate_slug": "Esse slug se repete no lote."
+    "duplicate_slug": "Esse slug se repete no lote.",
+    "unsafe_url": "Esse destino foi denunciado como phishing ou malware, ou o domínio dele está bloqueado.",
+    "cloak_needs_domain": "O link cloaking precisa de um domínio próprio."
   },
   "webhooks": {
     "desc": "Enviamos um JSON assinado (POST) para sua URL quando esses eventos acontecem. Verifique o header Zerosoft-Signature (t=…,v1=HMAC-SHA256 de \"t.body\") com seu secret. Entregas com falha são reenviadas com backoff.",
@@ -430,7 +436,8 @@
       "too_many_pending": "Você tem 5 domínios aguardando verificação. Verifique ou remova algum primeiro.",
       "rate_limited": "Domínios demais adicionados. Espere um pouco e tente de novo.",
       "invalid_url": "A URL não é válida.",
-      "domain_pending_elsewhere": "Outro workspace adicionou este domínio e não verificou. Para ficar com ele, crie um registro TXT com nome {name} e valor {value} e adicione de novo."
+      "domain_pending_elsewhere": "Outro workspace adicionou este domínio e não verificou. Para ficar com ele, crie um registro TXT com nome {name} e valor {value} e adicione de novo.",
+      "unsafe_url": "Essa URL foi denunciada como phishing ou malware, ou o domínio dela está bloqueado."
     },
     "txtMissing": "Ainda não vemos o registro TXT. Confira o nome e o valor; o DNS pode levar alguns minutos.",
     "pageDesc": "Links curtos com a sua marca: go.suaempresa.com/promo.",
@@ -472,16 +479,42 @@
       "empty": "Escolha um arquivo.",
       "file_too_large": "O arquivo tem mais de 5 MB.",
       "invalid_input": "Cole um token.",
-      "rate_limited": "Muitas importações. Espere alguns minutos."
+      "rate_limited": "Muitas importações. Espere alguns minutos.",
+      "rebrandly_unauthorized": "O Rebrandly recusou essa key.",
+      "rebrandly_error": "Não conseguimos falar com o Rebrandly. Tente de novo.",
+      "shortio_unauthorized": "O Short.io recusou essa key.",
+      "shortio_error": "Não conseguimos falar com o Short.io. Tente de novo."
     },
     "from": "De",
     "reportTitle": "Resultado",
     "renamedRow": "{from} virou {to}",
-    "seeLinks": "Ver os links"
+    "seeLinks": "Ver os links",
+    "tab": "Importar links",
+    "titles": {
+      "bitly": "Importar do Bitly",
+      "rebrandly": "Importar do Rebrandly",
+      "shortio": "Importar do Short.io"
+    },
+    "source": "Encurtador",
+    "sources": {
+      "bitly": "Bitly",
+      "rebrandly": "Rebrandly",
+      "shortio": "Short.io"
+    },
+    "tokens": {
+      "bitly": "Token da API do Bitly",
+      "rebrandly": "API key do Rebrandly",
+      "shortio": "API key secreta do Short.io"
+    },
+    "tokenHelps": {
+      "bitly": "No Bitly, vá em Settings > API > Generate token. Usamos uma vez e não guardamos.",
+      "rebrandly": "No Rebrandly, vá em Account > API keys e crie uma. Usamos uma vez e não guardamos.",
+      "shortio": "No Short.io, vá em Integrations & API e crie uma key secreta. Trazemos os links de todos os seus domínios. Usamos uma vez e não guardamos."
+    }
   },
   "bio": {
     "title": "Página bio",
-    "sub": "Uma página com seus links em zerosoft.ai/@{handle}. Cada botão passa pelo link curto, então os cliques aparecem nas suas análises.",
+    "sub": "Uma página com seus links em {host}/@{handle}. Cada botão passa pelo link curto, então os cliques aparecem nas suas análises.",
     "pageTitle": "Título",
     "bioText": "Bio",
     "avatar": "URL do avatar (https)",
@@ -503,7 +536,21 @@
     "emptyBody": "Crie um link e volte para adicioná-lo.",
     "emptyCta": "Criar link",
     "publish": "Publicar página",
-    "notShown": "Não aparece na página pública."
+    "notShown": "Não aparece na página pública.",
+    "theme": "Tema",
+    "themes": {
+      "auto": "Seguir o modo claro ou escuro de quem visita",
+      "light": "Claro",
+      "dark": "Escuro"
+    },
+    "accent": "Cor dos botões",
+    "accentClear": "Usar botões com contorno",
+    "accentNone": "Botões com contorno",
+    "addUrlPlaceholder": "Adicione qualquer URL (https://…)",
+    "addTitlePlaceholder": "Texto do botão (opcional)",
+    "addUrl": "Adicionar link",
+    "preview": "Prévia",
+    "previewEmpty": "Escolha links para vê-los aqui."
   },
   "quick": {
     "cancel": "Cancelar",
@@ -571,7 +618,19 @@
     "any": "Todos",
     "timezone": "Fuso horário",
     "clearFilters": "Limpar filtros",
-    "chartLabelTz": "Visitas por dia ({tz})"
+    "chartLabelTz": "Visitas por dia ({tz})",
+    "viewOverview": "Resumo",
+    "viewEvents": "Eventos",
+    "viewsLabel": "Visões de analytics",
+    "exportConversions": "Exportar conversões",
+    "leads": "Leads",
+    "sales": "Vendas",
+    "revenue": "Receita",
+    "noRevenue": "Sem receita ainda",
+    "conversions": "Conversões",
+    "conversionsEmpty": "Não há leads nem vendas neste período. Ative a medição de conversões em um link e informe-as pelo seu site.",
+    "funnel": "De cliques a vendas",
+    "topConverting": "Links que mais convertem"
   },
   "targeting": {
     "title": "Roteamento",
@@ -631,7 +690,25 @@
     "previewAria": "Código QR",
     "loadError": "Não foi possível carregar o QR. Recarregue a página.",
     "designDesc": "Cores, módulos e logo. Fica salvo para todos os downloads.",
-    "replaceLogo": "Trocar logo"
+    "replaceLogo": "Trocar logo",
+    "templates": "Modelos",
+    "templateSaved": "“{name}” foi salvo como modelo.",
+    "templateLimit": "Este workspace já tem 50 modelos. Exclua um primeiro.",
+    "templateApplied": "“{name}” foi aplicado. Salve para manter neste QR.",
+    "templateDelete": "Excluir o modelo {name}",
+    "frame": "Moldura",
+    "frames": {
+      "none": "Sem moldura",
+      "border": "Borda",
+      "label": "Borda com texto"
+    },
+    "label": "Texto da moldura",
+    "labelPlaceholder": "Escaneie",
+    "saveTemplate": "Salvar este design como modelo",
+    "templateNamePlaceholder": "Cores da marca",
+    "saveTemplateButton": "Salvar modelo",
+    "templateHelp": "Os modelos são compartilhados com o workspace e servem para o QR de qualquer link.",
+    "templateRename": "Renomear o modelo {name}"
   },
   "labels": {
     "unknown": "Desconhecido",
@@ -747,6 +824,207 @@
     "search": "Buscar links",
     "clearSearch": "Limpar a busca",
     "help": "Ver esta lista",
-    "commandMenu": "Buscar em tudo"
+    "commandMenu": "Buscar em tudo",
+    "move": "Mover entre links",
+    "open": "Abrir o link",
+    "edit": "Editar o link",
+    "qr": "Código QR",
+    "duplicate": "Duplicar",
+    "archive": "Arquivar ou restaurar",
+    "select": "Selecionar",
+    "delete": "Excluir"
+  },
+  "conversions": {
+    "title": "Conversões",
+    "toggle": "Medir leads e vendas",
+    "toggleHelp": "Cada visita chega ao destino com um click id (?zs_id=), assim o seu site pode informar cadastros e vendas deste link.",
+    "rate": "Taxa de leads",
+    "waiting": "Ainda não há conversões. Adicione o script de medição e informe os leads pelo seu servidor, como explicado em <a>Configurações de conversões</a>.",
+    "howTitle": "Como funciona",
+    "howDesc": "Meça quais links trazem cadastros e receita, como o Dub Conversions.",
+    "step1": "Ative “Medir leads e vendas” em um link. As visitas chegam ao seu site com ?zs_id=<click id>.",
+    "step2": "Cole este script no seu site. Ele guarda o click id por 90 dias em um cookie do seu próprio domínio.",
+    "step3": "Quando alguém se cadastra ou paga, envie o click id e o seu id de cliente para a API, ou conecte o Stripe ou o Shopify.",
+    "snippetLabel": "Script de medição",
+    "snippetHelp": "O script só lê ?zs_id e o guarda no seu domínio. Ele não envia nada para a zerosoft.",
+    "apiTitle": "Informar leads e vendas",
+    "apiDesc": "Pelo seu servidor, com uma API key com a permissão links:write. As vendas vão em centavos.",
+    "leadLabel": "Registrar um lead",
+    "saleLabel": "Registrar uma venda",
+    "apiKeys": "Crie a key em <a>API keys</a>. Repetir um lead do mesmo cliente, ou uma venda com o mesmo invoiceId, não conta duas vezes.",
+    "stripeTitle": "Stripe",
+    "stripeDesc": "Os Checkouts e as faturas pagas contam como vendas do link que trouxe o cliente.",
+    "stripeConnect": "Use a conexão do Stripe do workspace em <a>Integrações</a> e passe o click id ao criar a sessão de Checkout (ou metadata.zs_customer_id com o id que você usou no lead). As faturas seguintes desse cliente também contam.",
+    "stripeLabel": "Stripe Checkout",
+    "publishableKey": "Publishable key",
+    "publishableHelp": "Vai dentro do seu app móvel. Só identifica este workspace para os deep links diferidos e não é uma API key.",
+    "rotateKey": "Trocar key",
+    "rotateTitle": "Trocar a publishable key?",
+    "rotateBody": "A key atual para de funcionar na hora. Atualize o seu app com a nova.",
+    "deferredTitle": "Deep links diferidos",
+    "deferredDesc": "Se alguém toca um link para o seu app sem tê-lo, instala e o app pergunta qual link o trouxe ao abrir pela primeira vez."
+  },
+  "cloak": {
+    "toggle": "Manter o link curto na barra de endereço",
+    "help": "O destino abre dentro do seu domínio (link cloaking). Alguns sites não permitem ser exibidos assim: teste depois de salvar.",
+    "needsDomain": "Disponível em links de um domínio próprio.",
+    "conversionsWarning": "Com cloaking o destino roda dentro de um iframe, onde os navegadores bloqueiam os cookies dele: os leads e as vendas deste link não vão ser atribuídos."
+  },
+  "safety": {
+    "blockedBanner": "Este link está bloqueado: o destino foi denunciado como {reason}. Quem abre vê um aviso no lugar do destino. Mude o destino para desbloquear.",
+    "reason": {
+      "phishing": "phishing",
+      "malware": "malware",
+      "unwanted": "software indesejado",
+      "blocked_domain": "um domínio bloqueado",
+      "credentials": "uma URL que esconde o domínio real",
+      "mixed_script": "um domínio que imita outro com letras parecidas"
+    }
+  },
+  "events": {
+    "title": "Eventos",
+    "sub": "Cliques, leituras de QR, leads e vendas à medida que acontecem.",
+    "live": "Ao vivo",
+    "paused": "Pausado",
+    "pause": "Pausar",
+    "resume": "Continuar",
+    "error": "Não foi possível carregar eventos novos. Tentando de novo.",
+    "loading": "Carregando eventos",
+    "empty": "Ainda não há eventos. Abra um dos seus links curtos e ele aparece aqui.",
+    "colTime": "Hora",
+    "colEvent": "Evento",
+    "colLink": "Link",
+    "colDetail": "Detalhe",
+    "openLive": "Eventos ao vivo",
+    "type": {
+      "click": "Clique",
+      "scan": "Leitura QR",
+      "lead": "Lead",
+      "sale": "Venda"
+    },
+    "filterLink": "Ver eventos de",
+    "allLinks": "Todos os links",
+    "loadOlder": "Ver eventos anteriores"
+  },
+  "ai": {
+    "title": "Pergunte sobre seus links",
+    "label": "Pergunta sobre estas analytics",
+    "placeholder": "Qual link trouxe mais cliques do Brasil?",
+    "ask": "Perguntar",
+    "asking": "Pensando…",
+    "suggest1": "Qual link teve o melhor resultado?",
+    "suggest2": "Como este período se compara ao anterior?",
+    "suggest3": "De onde vem o meu tráfego?",
+    "errors": {
+      "ai_disabled": "A IA não está configurada neste workspace.",
+      "quota_exceeded": "Este workspace usou a cota de IA do mês.",
+      "rate_limited": "Perguntas demais. Espere um minuto e tente de novo.",
+      "ai_failed": "Não foi possível gerar a resposta. Tente de novo.",
+      "invalid_input": "Escreva uma pergunta de até 500 caracteres."
+    }
+  },
+  "activity": {
+    "title": "Atividade",
+    "desc": "Quem criou, mudou, arquivou ou excluiu cada link, e o que mudou.",
+    "empty": "Ainda não há atividade.",
+    "none": "(vazio)",
+    "system": "zerosoft",
+    "unknown": "Alguém",
+    "to": "mudou para",
+    "more": "Ver anteriores",
+    "action": {
+      "created": "Criado",
+      "updated": "Editado",
+      "archived": "Arquivado",
+      "unarchived": "Restaurado",
+      "deleted": "Excluído",
+      "blocked": "Bloqueado",
+      "unblocked": "Desbloqueado"
+    },
+    "via": {
+      "api": "API",
+      "mcp": "MCP",
+      "import": "importação"
+    },
+    "field": {
+      "url": "Destino",
+      "slug": "Slug",
+      "title": "Título",
+      "tags": "Tags",
+      "expiresAt": "Expira",
+      "maxClicks": "Limite de cliques",
+      "redirectType": "Tipo de redirecionamento",
+      "ogTitle": "Título da prévia",
+      "ogDescription": "Descrição da prévia",
+      "ogImage": "Imagem da prévia",
+      "forwardParams": "Repassar parâmetros",
+      "expiredUrl": "Redirecionar ao expirar",
+      "targeting": "Segmentação",
+      "externalId": "Id externo",
+      "folderId": "Pasta",
+      "trackConversion": "Conversões",
+      "cloak": "Cloaking",
+      "password": "Senha",
+      "reason": "Motivo"
+    },
+    "value": {
+      "set": "definida",
+      "changed": "alterada",
+      "removed": "removida",
+      "phishing": "phishing",
+      "malware": "malware",
+      "unwanted": "software indesejado",
+      "blocked_domain": "domínio bloqueado",
+      "credentials": "URL que esconde o domínio",
+      "mixed_script": "domínio com letras parecidas"
+    }
+  },
+  "integrations": {
+    "title": "Integrações",
+    "desc": "Receba os eventos do Link no Slack, envie para o Zapier ou o Make e atribua os pagamentos do Stripe aos seus links.",
+    "status": {
+      "connected": "Conectada",
+      "error": "Com erro",
+      "off": "Não conectada"
+    },
+    "connectedOn": "Conectada em {date}",
+    "lastUsed": "último uso {date}",
+    "lastError": "Último erro: {error}",
+    "connect": "Conectar",
+    "disconnect": "Desconectar",
+    "disconnectTitle": "Desconectar {app}?",
+    "disconnectBody": "O Link para de enviar ou receber eventos dela. Você pode conectar de novo depois.",
+    "errors": {
+      "invalid_shopify_secret": "Cole o segredo de assinatura que o Shopify mostra (16 caracteres ou mais).",
+      "invalid_segment_key": "Cole a write key de uma fonte do Segment (letras e números).",
+      "invalid_input": "Cole o segredo.",
+      "forbidden": "Só admins podem conectar integrações."
+    },
+    "shopify": {
+      "name": "Shopify",
+      "desc": "Os pedidos pagos contam como vendas do link que trouxe o comprador.",
+      "help": "No Shopify, vá em Configurações > Notificações > Webhooks, crie um webhook “Pagamento do pedido” em JSON e copie o segredo de assinatura que aparece abaixo da lista.",
+      "secret": "Segredo de assinatura do webhook",
+      "endpoint": "URL do webhook",
+      "endpointHelp": "Cole esta URL no webhook “Pagamento do pedido”. Os pedidos que chegaram com ?zs_id= contam como vendas."
+    },
+    "segment": {
+      "name": "Segment",
+      "desc": "Envie os eventos Link Clicked, Lead Created e Sale Created para uma fonte do Segment.",
+      "help": "No Segment, crie uma fonte HTTP API e copie a write key dela.",
+      "secret": "Write key",
+      "connectedHelp": "Cada clique, lead e venda vai para o Segment como evento track, com país e dispositivo mas sem endereço IP."
+    },
+    "mcp": {
+      "title": "Servidor MCP para agentes de IA",
+      "desc": "Claude, ChatGPT ou Cursor podem criar links e responder perguntas sobre suas analytics.",
+      "help": "Adicione esta URL como servidor MCP remoto com uma API key de <a>API keys</a> (links:read para ler, links:write para criar e editar)."
+    },
+    "cards": {
+      "slack": "Avise em um canal os links curtos novos, os leads e as vendas.",
+      "stripe": "Conte os Checkouts e as faturas pagas como vendas do link que trouxe o cliente.",
+      "zapier": "Envie os eventos de links, leads e vendas para um catch hook do Zapier.",
+      "make": "Envie os eventos de links, leads e vendas para um webhook do Make."
+    }
   }
 }

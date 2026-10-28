@@ -227,3 +227,15 @@ export function deepLinkHtml(appUrl: string, fallbackUrl: string): string {
   const js = JSON.stringify({ a: appUrl, f: fallbackUrl }).replace(/</g, '\\u003c');
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>…</title></head><body style="font-family:system-ui,sans-serif;padding:24px"><p><a href="${escapeHtml(fallbackUrl)}">${escapeHtml(fallbackUrl)}</a></p><script>(function(){var d=${js};var t=setTimeout(function(){location.replace(d.f)},1500);document.addEventListener('visibilitychange',function(){if(document.hidden)clearTimeout(t)});location.href=d.a})();</script></body></html>`;
 }
+
+/**
+ * Link cloaking: la URL corta queda en la barra y el destino se muestra en
+ * un iframe a pantalla completa (como Dub). Solo en dominios propios. Si el
+ * destino no se deja enmarcar (X-Frame-Options/CSP), el navegador muestra su
+ * propio aviso; por eso el editor avisa que no todos los sitios lo permiten.
+ */
+export function cloakHtml(url: string, title: string | null): string {
+  const safeTitle = escapeHtml(title || url.replace(/^https?:\/\//, ''));
+  const src = escapeHtml(url);
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${safeTitle}</title><style>html,body{margin:0;height:100%;overflow:hidden;background:#fff}iframe{border:0;width:100%;height:100%;display:block}</style></head><body><iframe src="${src}" title="${safeTitle}" allow="fullscreen; clipboard-write; payment; autoplay" referrerpolicy="strict-origin-when-cross-origin"></iframe><noscript><a href="${src}">${src}</a></noscript></body></html>`;
+}

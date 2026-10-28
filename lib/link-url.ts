@@ -4,7 +4,7 @@
  */
 
 /** Params que usa zerosoft en el link corto y que nunca viajan al destino. */
-export const RESERVED_LINK_PARAMS: ReadonlySet<string> = new Set(['qr']);
+export const RESERVED_LINK_PARAMS: ReadonlySet<string> = new Set(['qr', 'zs_id']);
 
 /**
  * Suma al destino los query params que trae el link corto (go.empresa.com/promo?utm_source=mail).

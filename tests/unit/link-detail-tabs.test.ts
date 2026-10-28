@@ -24,7 +24,7 @@ describe('pestañas del detalle de un link', () => {
     expect(linkTabHref('abc', 'analytics', { range: '7d', country: undefined })).toBe(
       '/app/links/abc?tab=analytics&range=7d',
     );
-    expect(LINK_TABS).toHaveLength(6);
+    expect(LINK_TABS).toHaveLength(7);
   });
 });
 
