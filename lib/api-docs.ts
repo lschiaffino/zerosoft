@@ -68,6 +68,7 @@ export const API_SECTIONS: ApiSection[] = [
   { id: 'docs', titleKey: 'docsApiTitle', descKey: 'docsApiDesc' },
   { id: 'talk', titleKey: 'talkTitle', descKey: 'talkDesc' },
   { id: 'boards', titleKey: 'boardsApiTitle', descKey: 'boardsApiDesc' },
+  { id: 'shop', titleKey: 'shopApiTitle', descKey: 'shopApiDesc' },
   { id: 'webhooks', titleKey: 'webhooksTitle', descKey: 'webhooksDesc' },
 ];
 
@@ -2881,6 +2882,42 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     scope: 'docs:read',
     request: { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'search', arguments: { query: 'launch plan' } } },
     response: { jsonrpc: '2.0', id: 1, result: { content: [{ type: 'text', text: '{"results":[...]}' }], isError: false } },
+    responseStatus: 200,
+  },
+
+  // Shop (tienda)
+  {
+    id: 'shop-products-list',
+    sectionId: 'shop',
+    method: 'GET',
+    path: '/api/v1/shop/products',
+    titleKey: 'shopProductsListTitle',
+    descKey: 'shopProductsListDesc',
+    params: [
+      { name: 'q', type: 'string', descriptionKey: 'paramSearch' },
+      { name: 'limit', type: 'number', descriptionKey: 'paramLimit' },
+    ],
+    response: {
+      data: [{ id: 'prod_1', handle: 'blue-mug', title: 'Blue mug', status: 'active', variants: 2, stock: 14, tracked: true, minPriceCents: 1900, maxPriceCents: 2100 }],
+      total: 1,
+    },
+    responseStatus: 200,
+  },
+  {
+    id: 'shop-orders-list',
+    sectionId: 'shop',
+    method: 'GET',
+    path: '/api/v1/shop/orders',
+    titleKey: 'shopOrdersListTitle',
+    descKey: 'shopOrdersListDesc',
+    params: [
+      { name: 'q', type: 'string', descriptionKey: 'paramSearch' },
+      { name: 'limit', type: 'number', descriptionKey: 'paramLimit' },
+    ],
+    response: {
+      data: [{ id: 'ord_1', number: 1001, status: 'paid', email: 'ana@example.com', name: 'Ana Pérez', totalCents: 4100, currency: 'USD', paymentMethod: 'stripe', items: 2, createdAt: '2026-10-29 15:00:00' }],
+      total: 1,
+    },
     responseStatus: 200,
   },
 

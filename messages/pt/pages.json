@@ -1357,6 +1357,92 @@
         "sub": "Teste com a sua equipe e vote no board público no que devemos fazer a seguir.",
         "button": "Propor uma ideia"
       }
+    },
+    "shop": {
+      "meta": {
+        "title": "Shop: loja online open source com Stripe e Mercado Pago",
+        "description": "Venda online com produtos, variantes, estoque por local, cupons de desconto, tarifas de frete e checkout com Stripe ou Mercado Pago. Uma alternativa open source ao Shopify e à Nuvemshop."
+      },
+      "hero": {
+        "sub": "Cadastre seu catálogo ou importe do Shopify ou da Nuvemshop, escolha um tema e publique. Seus clientes compram como convidados com cartão, Mercado Pago ou transferência, e cada pedido chega ao seu CRM."
+      },
+      "featuresTitle": "Sua loja.",
+      "featuresTitleDim": "Sem plano mensal.",
+      "f1": {
+        "t": "Produtos com variantes",
+        "d": "Tamanho, cor ou a opção que quiser, com preço, SKU, código de barras, peso e estoque para cada combinação. Coleções manuais ou por regras."
+      },
+      "f2": {
+        "t": "Estoque que fecha",
+        "d": "Estoque por local com o histórico de cada mudança. O checkout reserva as unidades e o pagamento as baixa: dois compradores nunca levam a última."
+      },
+      "f3": {
+        "t": "Stripe e Mercado Pago",
+        "d": "Pagamentos com cartão via Stripe Checkout e Mercado Pago Checkout Pro com suas contas, mais transferência. Webhooks assinados marcam os pedidos como pagos."
+      },
+      "f4": {
+        "t": "Frete, impostos e cupons",
+        "d": "Tarifas fixas ou por peso por país, grátis a partir de um valor, imposto por país e região (somado ou incluído) e cupons com limites e datas."
+      },
+      "f5": {
+        "t": "Pedidos de ponta a ponta",
+        "d": "Envio com rastreio, reembolso total ou parcial, notas internas, romaneio para imprimir e emails ao cliente no idioma da loja."
+      },
+      "f6": {
+        "t": "Conectada à suíte",
+        "d": "Os clientes viram contatos do CRM, o Flow reage a pedidos e estoque baixo, o Link cria links de campanha, o Agents responde \"cadê meu pedido?\" e o assistente lê suas vendas."
+      },
+      "steps": {
+        "s1": {
+          "t": "Cadastre o catálogo",
+          "d": "Crie produtos ou importe o CSV que você exportou do Shopify ou da Nuvemshop."
+        },
+        "s2": {
+          "t": "Conecte os pagamentos",
+          "d": "Cole suas chaves do Stripe ou do Mercado Pago e adicione suas tarifas de frete."
+        },
+        "s3": {
+          "t": "Publique",
+          "d": "Escolha um tema, envie seu logo e compartilhe /store/sua-loja."
+        }
+      },
+      "compare": {
+        "rival": "Shopify",
+        "price": "R$99",
+        "per": "/ mês (Basic)",
+        "team": "R$1.188",
+        "zero": "$0",
+        "teamLabel": "Uma loja, um ano",
+        "note": "O Shopify Basic custa R$99 por mês no plano mensal no Brasil (R$89 no anual), sem contar as taxas de pagamento, conforme shopify.com/pricing em 29 de outubro de 2026. O Shop custa $0 no seu servidor; Stripe e Mercado Pago cobram a taxa de sempre por venda."
+      },
+      "faq": {
+        "f1": {
+          "q": "Posso trazer meu catálogo do Shopify ou da Nuvemshop?",
+          "a": "Sim. Exporte os produtos em CSV lá e importe o arquivo no Shop: vêm variantes, preços, estoque, campos de SEO e as URLs de fotos do Shopify. Pedidos e clientes não são importados."
+        },
+        "f2": {
+          "q": "Quais formas de pagamento existem?",
+          "a": "Stripe Checkout (cartões e os meios que você ativar no Stripe), Mercado Pago Checkout Pro e transferência com suas instruções. Você usa suas próprias contas e as taxas delas."
+        },
+        "f3": {
+          "q": "Os clientes precisam de conta?",
+          "a": "Não. O checkout é sempre como convidado e o cliente consulta o pedido com o número e o email."
+        },
+        "f4": {
+          "q": "Posso usar meu domínio?",
+          "a": "Ainda não. A loja fica no endereço do zerosoft, em /store/sua-loja."
+        },
+        "f5": {
+          "q": "O que falta em relação ao Shopify?",
+          "a": "Domínio próprio, editor de temas, contas de clientes, emails de carrinho abandonado, tarifas e etiquetas de transportadoras, vale-presente, devoluções, ponto de venda e canais de marketplace. A tabela de paridade acima tem a lista completa."
+        }
+      },
+      "cta": {
+        "title1": "Abra sua loja.",
+        "title2": "Fique com a margem.",
+        "sub": "Abra o Shop, cadastre seu primeiro produto e publique sua loja.",
+        "button": "Abrir Shop"
+      }
     }
   },
   "product": {
@@ -1735,6 +1821,23 @@
       "m2": "Lucía: subi no Docs, está na pasta de vendas.",
       "m3": "Valeu! Vou olhar agora.",
       "replyHint": "Escreva em #geral"
+    },
+    "shop": {
+      "listTitle": "Pedidos",
+      "r1name": "#1042 · Ana Pérez",
+      "r1time": "R$ 184,00",
+      "r1meta": "Pago · 2 itens",
+      "r2name": "#1041 · Bruno Silva",
+      "r2time": "R$ 62,50",
+      "r2meta": "Enviado · rastreio enviado",
+      "r3name": "#1040 · Lucía Gómez",
+      "r3time": "R$ 220,00",
+      "r3meta": "Aguardando transferência",
+      "status": "Pago com Mercado Pago",
+      "i1": "Camisa de linho · M / Areia × 1",
+      "i2": "Bolsa de lona × 2",
+      "total": "Total R$ 184,00 · cupom BEMVINDO10",
+      "action": "Enviar com rastreio"
     }
   },
   "status": {
@@ -2408,6 +2511,14 @@
     "paramLimit": "Quantidade máxima de resultados.",
     "scope_talk_read": "Ler canais e mensagens do Talk dos quais você é membro.",
     "scope_talk_write": "Publicar mensagens e criar canais no Talk.",
+    "shopApiTitle": "Shop",
+    "shopApiDesc": "O catálogo e os pedidos da sua loja. Scopes shop:read e shop:write. Os dados de clientes só ficam disponíveis para keys de pessoas com o app Shop.",
+    "shopProductsListTitle": "Listar produtos",
+    "shopProductsListDesc": "Produtos com status, faixa de preço, número de variantes e estoque. Um POST no mesmo path cria um produto com o mesmo corpo que o app usa.",
+    "shopOrdersListTitle": "Listar pedidos",
+    "shopOrdersListDesc": "Pedidos do mais novo ao mais antigo, com status (pending, paid, fulfilled, cancelled, refunded) e total em centavos.",
+    "scope_shop_read": "Ler produtos e pedidos do Shop.",
+    "scope_shop_write": "Criar produtos do Shop.",
     "boardsApiTitle": "Board",
     "boardsApiDesc": "Quadros: listar e buscar (também pelo texto de dentro), ler um resumo, criar a partir de um modelo, adicionar post-its, formas e setas, renomear, mover para uma pasta ou mandar para a lixeira. A key age como a pessoa que a criou: vê e edita os quadros que essa pessoa pode abrir. Quem está com o quadro aberto vê as mudanças ao vivo. Scopes boards:read e boards:write.",
     "boardsListTitle": "Listar quadros",

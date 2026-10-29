@@ -35,7 +35,8 @@
       "board": "Shared infinite whiteboard",
       "voice": "Voice dictation and meeting notes",
       "rec": "Screen and camera videos shared with a link",
-      "talk": "In the works: team messaging"
+      "talk": "In the works: team messaging",
+      "shop": "Online store with checkout and orders"
     },
     "building": "In the works"
   },
@@ -124,6 +125,11 @@
     "groupCrmVideos": "Videos",
     "groupRecVideos": "Rec videos",
     "groupRecFolders": "Rec folders",
+    "groupShopOrders": "Shop orders",
+    "groupShopProducts": "Shop products",
+    "groupShopCollections": "Shop collections",
+    "groupShopDiscounts": "Discount codes",
+    "groupShopCustomers": "Shop customers",
     "groupCrmForms": "Forms",
     "groupCrmQuotes": "Quotes",
     "groupCrmApprovals": "Pending approvals",
@@ -221,6 +227,9 @@
     },
     "talk": {
       "desc": "Channels, direct messages and threads. In the works."
+    },
+    "shop": {
+      "desc": "An online store with variants, stock, checkout and orders."
     }
   },
   "model": {
@@ -381,6 +390,9 @@
       "talk": {
         "line": "Channels, direct messages and threads for your team."
       },
+      "shop": {
+        "line": "Online store with Stripe and Mercado Pago."
+      },
       "building": "In the works · like {rival}"
     },
     "stack": {
@@ -516,6 +528,7 @@
         "link": "Link",
         "contact": "Contact",
         "deal": "Deal",
+        "product": "Product",
         "flow": "Flow"
       },
       "untitled": "Untitled",

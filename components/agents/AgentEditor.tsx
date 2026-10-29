@@ -1601,7 +1601,7 @@ export default function AgentEditor(props: Props) {
             <AdvancedSection
               storageKey="agents.tools"
               hint={t('tools.advancedHint')}
-              defaultOpen={draft.tools.enabled.some((k) => ['http_request', 'mcp_call', 'run_code', 'stripe_customer', 'shopify_order', 'shopify_products'].includes(k))}
+              defaultOpen={draft.tools.enabled.some((k) => ['http_request', 'mcp_call', 'run_code', 'stripe_customer', 'shopify_order', 'shopify_products', 'shop_order'].includes(k))}
             >
               <ul className="ag-tool-list">
                 {renderTool('mcp_call')}
@@ -1613,6 +1613,7 @@ export default function AgentEditor(props: Props) {
                   {t('tools.groups.commerce')}
                 </h2>
                 <ul className="ag-tool-list">
+                  {renderTool('shop_order')}
                   {renderTool('stripe_customer')}
                   {renderTool('shopify_order')}
                   {renderTool('shopify_products')}

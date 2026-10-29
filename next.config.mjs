@@ -30,7 +30,11 @@ const nextConfig = {
   // public/, así que un archivo viejo en public/uploads nunca sale estático.
   async rewrites() {
     return {
-      beforeFiles: [{ source: '/uploads/:path*', destination: '/api/uploads/:path*' }],
+      beforeFiles: [
+        { source: '/uploads/:path*', destination: '/api/uploads/:path*' },
+        // sitemap.xml de cada tienda de Shop (lib/shop-storefront.ts).
+        { source: '/store/:handle/sitemap.xml', destination: '/api/shop/public/:handle/sitemap' },
+      ],
       afterFiles: [],
       fallback: [],
     };

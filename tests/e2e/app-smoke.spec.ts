@@ -422,6 +422,23 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await request.delete(`/api/rec/videos/${i.id}`)),
   },
   {
+    app: 'Shop products',
+    list: '/en/app/shop/products',
+    create: async (request, name) =>
+      ({ id: (await ok<{ product: { id: string } }>(request.post('/api/shop/products', { data: { title: name, status: 'active', variants: [{ options: [], priceCents: 1500, initialStock: 3 }] } }))).product.id, name }),
+    detail: (i) => `/en/app/shop/products/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/shop/products/${i.id}`, { data: { title: name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/shop/products/${i.id}`))),
+  },
+  {
+    app: 'Shop collections',
+    list: '/en/app/shop/collections',
+    create: async (request, name) => ({ id: (await ok<{ collection: { id: string } }>(request.post('/api/shop/collections', { data: { title: name } }))).collection.id, name }),
+    detail: (i) => `/en/app/shop/collections/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/shop/collections/${i.id}`, { data: { title: name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/shop/collections/${i.id}`))),
+  },
+  {
     app: 'Rec folders',
     list: '/en/app/rec',
     sidebar: true,

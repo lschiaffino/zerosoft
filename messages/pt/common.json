@@ -35,7 +35,8 @@
       "board": "Quadro branco infinito compartilhado",
       "voice": "Ditado por voz e notas de reunião",
       "rec": "Vídeos de tela e câmera compartilhados com um link",
-      "talk": "Em construção: mensagens de equipe"
+      "talk": "Em construção: mensagens de equipe",
+      "shop": "Loja online com checkout e pedidos"
     },
     "building": "Em construção"
   },
@@ -124,6 +125,11 @@
     "groupCrmVideos": "Vídeos",
     "groupRecVideos": "Vídeos do Rec",
     "groupRecFolders": "Pastas do Rec",
+    "groupShopOrders": "Pedidos do Shop",
+    "groupShopProducts": "Produtos do Shop",
+    "groupShopCollections": "Coleções do Shop",
+    "groupShopDiscounts": "Cupons de desconto",
+    "groupShopCustomers": "Clientes do Shop",
     "groupCrmForms": "Formulários",
     "groupCrmQuotes": "Orçamentos",
     "groupCrmApprovals": "Aprovações pendentes",
@@ -221,6 +227,9 @@
     },
     "talk": {
       "desc": "Canais, mensagens diretas e threads. Em construção."
+    },
+    "shop": {
+      "desc": "Uma loja online com variantes, estoque, checkout e pedidos."
     }
   },
   "model": {
@@ -381,6 +390,9 @@
       "talk": {
         "line": "Canais, mensagens diretas e threads para o seu time."
       },
+      "shop": {
+        "line": "Loja online com Stripe e Mercado Pago."
+      },
       "building": "Em construção · como {rival}"
     },
     "stack": {
@@ -516,6 +528,7 @@
         "link": "Link",
         "contact": "Contato",
         "deal": "Negócio",
+        "product": "Produto",
         "flow": "Flow"
       },
       "untitled": "Sem título",

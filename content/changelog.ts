@@ -29,6 +29,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-29-shop',
+    date: '2026-10-29',
+    title: {
+      en: 'Shop: an online store with Stripe and Mercado Pago',
+      es: 'Shop: una tienda online con Stripe y Mercado Pago',
+      pt: 'Shop: uma loja online com Stripe e Mercado Pago',
+    },
+    items: [
+      { product: 'shop', en: 'Products with up to 3 options and their variants (price, compare-at price, SKU, barcode, weight), photos, manual or rule-based collections, and stock per location with a history of every change. Import the product CSV from Shopify or Tiendanube and export it back in Shopify’s format.', es: 'Productos con hasta 3 opciones y sus variantes (precio, precio anterior, SKU, código de barras, peso), fotos, colecciones manuales o por reglas, y stock por ubicación con el historial de cada cambio. Importá el CSV de productos de Shopify o Tiendanube y exportalo en el formato de Shopify.', pt: 'Produtos com até 3 opções e suas variantes (preço, preço anterior, SKU, código de barras, peso), fotos, coleções manuais ou por regras, e estoque por local com o histórico de cada mudança. Importe o CSV de produtos do Shopify ou da Nuvemshop e exporte no formato do Shopify.' },
+      { product: 'shop', en: 'A public store at /store/<handle> with three themes, your logo and colors, search, cart and guest checkout. Shipping rates by country, weight or free over an amount, taxes per region, and discount codes with limits and dates. Pay with Stripe Checkout, Mercado Pago Checkout Pro or bank transfer.', es: 'Una tienda pública en /store/<handle> con tres temas, tu logo y colores, búsqueda, carrito y checkout como invitado. Envíos por país, por peso o gratis desde un monto, impuestos por región y códigos de descuento con topes y fechas. Cobros con Stripe Checkout, Mercado Pago Checkout Pro o transferencia.', pt: 'Uma loja pública em /store/<handle> com três temas, seu logo e cores, busca, carrinho e checkout como convidado. Frete por país, por peso ou grátis a partir de um valor, impostos por região e cupons com limites e datas. Pagamentos com Stripe Checkout, Mercado Pago Checkout Pro ou transferência.' },
+      { product: 'shop', en: 'Orders with fulfillment and tracking, full or partial refunds, notes, a packing slip and emails to the customer. Stock is reserved at checkout and taken out at payment, so the last unit is never sold twice. Customers become CRM contacts, Flow gets order and low-stock triggers, Agents can check an order by number and email, and the assistant reads your sales.', es: 'Pedidos con envío y seguimiento, reembolsos totales o parciales, notas, remito y emails al cliente. El stock se reserva en el checkout y se descuenta al pagar: la última unidad nunca se vende dos veces. Los clientes pasan a contactos del CRM, Flow suma disparadores de pedidos y stock bajo, Agents consulta un pedido por número y email, y el asistente lee tus ventas.', pt: 'Pedidos com envio e rastreio, reembolsos totais ou parciais, notas, romaneio e emails ao cliente. O estoque é reservado no checkout e baixado no pagamento: a última unidade nunca é vendida duas vezes. Os clientes viram contatos do CRM, o Flow ganha gatilhos de pedidos e estoque baixo, o Agents consulta um pedido por número e email, e o assistente lê suas vendas.' },
+    ],
+  },
+  {
     id: '2026-10-29-desktop',
     date: '2026-10-29',
     title: {

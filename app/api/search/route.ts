@@ -25,6 +25,7 @@ import { listObjects, searchRecords } from '@/lib/crm-objects';
 import { searchCustomReports } from '@/lib/crm-custom-reports';
 import { searchMedia } from '@/lib/crm-media';
 import { searchRec } from '@/lib/rec';
+import { searchShop } from '@/lib/shop';
 import { actorOf } from '@/lib/rec-http';
 import { searchPlanning } from '@/lib/track-planning-search';
 import { listConversations } from '@/lib/assistant/store';
@@ -53,7 +54,7 @@ export async function GET(req: NextRequest) {
   if (!q) return NextResponse.json<SearchResponse>({ q, items: [] });
 
   const scope = await sessionScope(user);
-  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec] = await Promise.all([
+  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec, shop] = await Promise.all([
     searchAll(user.id, q, scope),
     listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
     // Docs: título y texto de los bloques (el fragmento va como meta).
@@ -81,6 +82,8 @@ export async function GET(req: NextRequest) {
     searchPlanning({ teamId: user.team?.id ?? null, ownerId: user.id }, user.actingUser?.id ?? user.id, q).catch(() => []),
     // Rec: videos y carpetas, con el alcance de la biblioteca (míos y del workspace).
     searchRec(actorOf(user), q).catch(() => []),
+    // Shop: productos, pedidos, colecciones, descuentos y clientes (solo con la app).
+    userCanUseApp(user, 'shop') ? searchShop(user.id, q).catch(() => []) : Promise.resolve([]),
   ]);
 
   const items: SearchResultItem[] = [];
@@ -159,6 +162,12 @@ export async function GET(req: NextRequest) {
       meta: r.meta,
       href: r.kind === 'video' ? `/app/rec/${r.id}` : `/app/rec/f/${r.id}`,
     });
+  }
+
+  const SHOP_GROUP = { product: 'shopProducts', order: 'shopOrders', collection: 'shopCollections', discount: 'shopDiscounts', customer: 'shopCustomers' } as const;
+  const SHOP_PATH = { product: 'products', order: 'orders', collection: 'collections', discount: 'discounts', customer: 'customers' } as const;
+  for (const s of shop) {
+    items.push({ id: `${s.kind}:${s.id}`, group: SHOP_GROUP[s.kind], label: s.label, meta: s.meta, href: `/app/shop/${SHOP_PATH[s.kind]}/${s.id}` });
   }
 
   for (const l of links.links) {

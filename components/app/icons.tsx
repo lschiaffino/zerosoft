@@ -33,6 +33,8 @@ export type IconName =
   | 'voice'
   | 'rec'
   | 'talk'
+  | 'shop'
+  | 'discounts'
   | 'products'
   | 'quotes'
   | 'templates'
@@ -279,6 +281,18 @@ const PATHS: Record<IconName, ReactNode> = {
   talk: (
     <>
       <path d="M9 4L7 20M17 4l-2 16M4 9h16M3 15h16" />
+    </>
+  ),
+  shop: (
+    <>
+      <path d="M4 8h16l-1.5 12h-13z" />
+      <path d="M9 8a3 3 0 0 1 6 0" />
+    </>
+  ),
+  discounts: (
+    <>
+      <path d="M3 12V4h8l10 10-8 8z" />
+      <circle cx="7.5" cy="8.5" r="1.5" />
     </>
   ),
   products: (

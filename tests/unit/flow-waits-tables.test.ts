@@ -527,7 +527,8 @@ describe('Disparadores de Notes, Board, Agents, tareas, Chat y Cal', () => {
     // 32 de antes, los nuevos de esta tanda y los 10 de Groups (mensajes, tickets, chats, miembros y votos).
     // + booking.reconfirmed (Cal: reconfirmación del invitado) y link.lead / link.sale (conversiones de Link).
     // + voice.meeting.completed y voice.notes.ready (Voice, ronda 2).
-    expect(FLOW_EVENT_TYPES).toHaveLength(32 + NEW_EVENTS.length + 10 + 5 + 1 + 1 + 2 + 2);
+    // + shop.order.created, shop.order.paid, shop.order.fulfilled y shop.inventory.low (Shop).
+    expect(FLOW_EVENT_TYPES).toHaveLength(32 + NEW_EVENTS.length + 10 + 5 + 1 + 1 + 2 + 2 + 4);
     for (const ev of ['link.lead', 'link.sale'] as const) {
       expect(EVENT_SAMPLES[ev], ev).toBeTruthy();
       for (const l of ['en', 'es', 'pt']) {

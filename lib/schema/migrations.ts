@@ -4,6 +4,7 @@ import { pickHandle } from './handles';
 import { stripSyncedChildren, syncedChildren } from '../docs-synced-refs';
 import type { DocsBlock } from '../docs-types';
 import { workspaceTeamsUp } from './workspace-migrations';
+import { shopUp } from './shop-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -6940,6 +6941,11 @@ export const MIGRATIONS: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_desktop_login_codes_expires ON desktop_login_codes(expires_at);
       `);
     },
+  },
+  {
+    // Shop (Shopify / Tiendanube): ver lib/schema/shop-migration.ts.
+    id: '138_shop',
+    up: shopUp,
   },
 ];
 

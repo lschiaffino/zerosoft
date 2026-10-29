@@ -33,7 +33,7 @@ describe('grupos de herramientas', () => {
     const grouped = AGENT_TOOL_GROUP_ORDER.flatMap((g) => agentToolsInGroup(g.key));
     expect(new Set(grouped).size).toBe(grouped.length);
     const rest = AGENT_TOOL_KEYS.filter((k) => !grouped.includes(k));
-    expect(rest).toEqual(['http_request', 'mcp_call', 'run_code', 'stripe_customer', 'shopify_order', 'shopify_products']);
+    expect(rest).toEqual(['http_request', 'mcp_call', 'run_code', 'stripe_customer', 'shopify_order', 'shopify_products', 'shop_order']);
   });
 
   it('agrupa por producto en el orden de la lista', () => {

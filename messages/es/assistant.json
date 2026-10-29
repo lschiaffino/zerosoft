@@ -140,6 +140,11 @@
       "a": "Listá mis pizarras",
       "b": "Buscá una pizarra",
       "c": "¿Qué podés hacer acá?"
+    },
+    "shop": {
+      "a": "¿Qué pedidos esperan envío?",
+      "b": "¿Cómo fueron las ventas de los últimos 30 días?",
+      "c": "¿Qué tiene poco stock?"
     }
   },
   "page": {

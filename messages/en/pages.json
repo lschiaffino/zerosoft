@@ -1357,6 +1357,92 @@
         "sub": "Try it with your team and vote on the public board for what we should do next.",
         "button": "Propose an idea"
       }
+    },
+    "shop": {
+      "meta": {
+        "title": "Shop: open-source online store with Stripe and Mercado Pago",
+        "description": "Sell online with products, variants, stock per location, discount codes, shipping rates and checkout with Stripe or Mercado Pago. An open-source alternative to Shopify and Tiendanube."
+      },
+      "hero": {
+        "sub": "Load your catalog or import it from Shopify or Tiendanube, pick a theme and publish. Customers buy as guests with a card, Mercado Pago or a bank transfer, and every order lands in your CRM."
+      },
+      "featuresTitle": "Your store.",
+      "featuresTitleDim": "No monthly plan.",
+      "f1": {
+        "t": "Products with variants",
+        "d": "Size, color or any option, with a price, SKU, barcode, weight and stock for each combination. Manual or rule-based collections."
+      },
+      "f2": {
+        "t": "Stock that adds up",
+        "d": "Stock per location with a history of every change. Checkout reserves units and payment takes them out, so two buyers never get the last one."
+      },
+      "f3": {
+        "t": "Stripe and Mercado Pago",
+        "d": "Card payments with Stripe Checkout and Mercado Pago Checkout Pro with your own accounts, plus bank transfer. Signed webhooks mark orders paid."
+      },
+      "f4": {
+        "t": "Shipping, taxes and codes",
+        "d": "Flat or weight rates per country, free over an amount, tax per country and region (added or included) and discount codes with limits and dates."
+      },
+      "f5": {
+        "t": "Orders end to end",
+        "d": "Fulfill with tracking, refund in full or in part, internal notes, a printable packing slip and emails to the customer in the store language."
+      },
+      "f6": {
+        "t": "Connected to the suite",
+        "d": "Customers become CRM contacts, Flow reacts to orders and low stock, Link makes campaign links, Agents answers \"where is my order?\" and the assistant reads your sales."
+      },
+      "steps": {
+        "s1": {
+          "t": "Load the catalog",
+          "d": "Create products or import the CSV you exported from Shopify or Tiendanube."
+        },
+        "s2": {
+          "t": "Connect payments",
+          "d": "Paste your Stripe or Mercado Pago keys and add your shipping rates."
+        },
+        "s3": {
+          "t": "Publish",
+          "d": "Pick a theme, upload your logo and share /store/your-store."
+        }
+      },
+      "compare": {
+        "rival": "Shopify",
+        "price": "R$99",
+        "per": "/ month (Basic)",
+        "team": "R$1,188",
+        "zero": "$0",
+        "teamLabel": "One store, a year",
+        "note": "Shopify Basic costs R$99 a month billed monthly in Brazil (R$89 billed yearly), before payment fees, as shown on shopify.com/pricing on October 29, 2026. Shop costs $0 on your server; Stripe and Mercado Pago charge their usual fees on each sale."
+      },
+      "faq": {
+        "f1": {
+          "q": "Can I move my Shopify or Tiendanube catalog?",
+          "a": "Yes. Export products as CSV there and import the file in Shop: variants, prices, stock, SEO fields and Shopify photo URLs come along. Orders and customers are not imported."
+        },
+        "f2": {
+          "q": "Which payment methods are there?",
+          "a": "Stripe Checkout (cards and the methods you turn on in Stripe), Mercado Pago Checkout Pro and bank transfer with your own instructions. You use your own accounts and their fees."
+        },
+        "f3": {
+          "q": "Do customers need an account?",
+          "a": "No. Checkout is always as a guest and customers check their order with the order number and their email."
+        },
+        "f4": {
+          "q": "Can I use my own domain?",
+          "a": "Not yet. The store lives at the zerosoft address under /store/your-store."
+        },
+        "f5": {
+          "q": "What is missing compared to Shopify?",
+          "a": "Custom domains, a theme editor, customer accounts, abandoned cart emails, carrier rates and labels, gift cards, returns, point of sale and marketplace channels. The parity table above has the full list."
+        }
+      },
+      "cta": {
+        "title1": "Open your store.",
+        "title2": "Keep the margin.",
+        "sub": "Open Shop, add your first product and publish your store.",
+        "button": "Open Shop"
+      }
     }
   },
   "product": {
@@ -1735,6 +1821,23 @@
       "m2": "Lucía: I put it in Docs, it's in the sales folder.",
       "m3": "Thanks! I'll check it now.",
       "replyHint": "Message #general"
+    },
+    "shop": {
+      "listTitle": "Orders",
+      "r1name": "#1042 · Ana Pérez",
+      "r1time": "$84.00",
+      "r1meta": "Paid · 2 items",
+      "r2name": "#1041 · Bruno Silva",
+      "r2time": "$32.50",
+      "r2meta": "Fulfilled · tracking sent",
+      "r3name": "#1040 · Lucía Gómez",
+      "r3time": "$120.00",
+      "r3meta": "Waiting for transfer",
+      "status": "Paid with Mercado Pago",
+      "i1": "Linen shirt · M / Sand × 1",
+      "i2": "Canvas tote × 2",
+      "total": "Total $84.00 · discount WELCOME10",
+      "action": "Fulfill with tracking"
     }
   },
   "status": {
@@ -2408,6 +2511,14 @@
     "paramLimit": "Maximum number of results.",
     "scope_talk_read": "Read Talk channels and messages you are a member of.",
     "scope_talk_write": "Post Talk messages and create channels.",
+    "shopApiTitle": "Shop",
+    "shopApiDesc": "Your store’s catalog and orders. Scopes shop:read and shop:write. Customer data is only available to keys of people with the Shop app.",
+    "shopProductsListTitle": "List products",
+    "shopProductsListDesc": "Products with status, price range, variant count and stock. POST to the same path creates a product with the same body the app uses.",
+    "shopOrdersListTitle": "List orders",
+    "shopOrdersListDesc": "Orders newest first, with status (pending, paid, fulfilled, cancelled, refunded) and total in cents.",
+    "scope_shop_read": "Read Shop products and orders.",
+    "scope_shop_write": "Create Shop products.",
     "boardsApiTitle": "Board",
     "boardsApiDesc": "Whiteboards: list and search them (also by the text inside), read an outline, create them from a template, add stickies, shapes and arrows, rename, move to a folder or send to the trash. The key acts as the person who created it: it sees and edits the boards that person can open. People with the board open see the changes live. Scopes boards:read and boards:write.",
     "boardsListTitle": "List boards",

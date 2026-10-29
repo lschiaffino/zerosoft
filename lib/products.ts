@@ -43,6 +43,7 @@ export const PRODUCT_CONFIG = {
   voice: { name: 'Voice', launch: '/app/voice', path: 'voice', color: '#c026d3', category: 'daily', audience: 'personal' },
   rec: { name: 'Rec', launch: '/app/rec', path: 'rec', color: '#e11d48', category: 'daily', audience: 'team' },
   talk: { name: 'Talk', launch: '/app/talk', path: 'talk', color: '#8e3a80', category: 'daily', audience: 'team' },
+  shop: { name: 'Shop', launch: '/app/shop', path: 'shop', color: '#15803d', category: 'sell', audience: 'team' },
 } as const satisfies Record<string, ProductEntry>;
 
 /**
@@ -52,6 +53,7 @@ export const PRODUCT_CONFIG = {
 export const APP_SWITCHER_ORDER = [
   'link',
   'crm',
+  'shop',
   'docs',
   'cal',
   'track',

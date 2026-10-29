@@ -31,6 +31,7 @@ import BoardMockup from './mockups/BoardMockup';
 import VoiceMockup from './mockups/VoiceMockup';
 import RecMockup from './mockups/RecMockup';
 import TalkMockup from './mockups/TalkMockup';
+import ShopMockup from './mockups/ShopMockup';
 
 const MOCKUPS: Record<ProductKey, ComponentType> = {
   link: LinkMockup,
@@ -48,6 +49,7 @@ const MOCKUPS: Record<ProductKey, ComponentType> = {
   voice: VoiceMockup,
   rec: RecMockup,
   talk: TalkMockup,
+  shop: ShopMockup,
 };
 
 const STEP_IDS = ['s1', 's2', 's3'] as const;

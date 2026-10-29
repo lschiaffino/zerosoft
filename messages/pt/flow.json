@@ -845,7 +845,11 @@
     "database_row_created": "Docs: nova linha em um banco",
     "database_property_changed": "Docs: propriedade de um banco mudou",
     "voice_meeting_completed": "Voice: reunião gravada",
-    "voice_notes_ready": "Voice: nota da reunião pronta"
+    "voice_notes_ready": "Voice: nota da reunião pronta",
+    "shop_order_created": "Shop: pedido criado",
+    "shop_order_paid": "Shop: pedido pago",
+    "shop_order_fulfilled": "Shop: pedido enviado",
+    "shop_inventory_low": "Shop: estoque baixo"
   },
   "ops": {
     "equals": "é igual a",
