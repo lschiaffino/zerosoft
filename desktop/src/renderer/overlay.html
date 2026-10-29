@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; media-src 'self' blob: mediastream:" />
+    <title>zerosoft dictation</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; -webkit-user-select: none; user-select: none; cursor: default; }
+      body { display: flex; align-items: flex-end; justify-content: center; font: 500 12px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; }
+      .bar { display: none; align-items: center; gap: 10px; height: 36px; padding: 0 14px; margin-bottom: 4px; background: #0d0d0d; color: #f4f4f4; border: 1px solid #2a2a2a; border-radius: 6px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28); }
+      body[data-phase='recording'] .bar, body[data-phase='working'] .bar, body[data-phase='done'] .bar, body[data-phase='error'] .bar { display: flex; }
+      .dot { width: 8px; height: 8px; border-radius: 50%; background: #e5484d; flex: none; }
+      body[data-phase='working'] .dot { background: #8f8f8f; animation: pulse 0.9s ease-in-out infinite; }
+      body[data-phase='done'] .dot { background: #30a46c; }
+      body[data-phase='error'] .dot { background: #f5a524; }
+      .meter { display: flex; align-items: center; gap: 2px; height: 16px; }
+      .meter span { width: 3px; height: 3px; background: #f4f4f4; border-radius: 1px; transition: height 80ms linear; }
+      body:not([data-phase='recording']) .meter { display: none; }
+      .label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; }
+      @keyframes pulse { 50% { opacity: 0.3; } }
+      @media (prefers-reduced-motion: reduce) { .meter span { transition: none; } body[data-phase='working'] .dot { animation: none; } }
+    </style>
+  </head>
+  <body data-phase="hidden">
+    <div class="bar" role="status" aria-live="polite">
+      <span class="dot" aria-hidden="true"></span>
+      <span class="meter" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span>
+      <span class="label" id="label"></span>
+    </div>
+    <script src="overlay.js"></script>
+  </body>
+</html>

@@ -247,7 +247,8 @@
     "title": "Entre na zerosoft",
     "sub": "Entre com a sua conta Google. Não tem senha para criar.",
     "google": "Continuar com Google",
-    "legal": "Ao entrar, você aceita os <terms>Termos</terms> e a <privacy>Privacidade</privacy>."
+    "legal": "Ao entrar, você aceita os <terms>Termos</terms> e a <privacy>Privacidade</privacy>.",
+    "desktopHint": "Continue o login no seu navegador. O app volta aqui sozinho."
   },
   "blog": {
     "label": "Blog",
@@ -282,7 +283,8 @@
     "oss": "Open source sob AGPLv3. Recursos Enterprise em /ee sob licença comercial.",
     "starCta": "Dê uma estrela no GitHub",
     "feedback": "Feedback",
-    "videos": "Vídeos"
+    "videos": "Vídeos",
+    "desktopApp": "App de desktop"
   },
   "home": {
     "hero": {

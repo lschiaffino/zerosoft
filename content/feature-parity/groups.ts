@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-10-25',
+  lastReviewed: '2026-10-29',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -342,9 +342,9 @@ const parity: ProductParity = {
     }),
     row('desktop-app', 'apps', ['Desktop app', 'App de escritorio', 'App desktop'], 'partial', {
       detail: [
-        'The same installable app (PWA) in Chrome or Edge, with its own window and notifications; no downloadable desktop binary',
-        'La misma app instalable (PWA) en Chrome o Edge, con ventana propia y notificaciones; sin binario de escritorio para descargar',
-        'O mesmo app instalável (PWA) no Chrome ou Edge, com janela própria e notificações; sem binário desktop para baixar',
+        'The zerosoft app for Mac and Windows (zerosoft.ai/download) or the installable app (PWA) in Chrome or Edge, with its own window and notifications. The desktop builds are not signed yet',
+        'La app de zerosoft para Mac y Windows (zerosoft.ai/download) o la app instalable (PWA) en Chrome o Edge, con ventana propia y avisos. Las versiones de escritorio todavía no están firmadas',
+        'O app do zerosoft para Mac e Windows (zerosoft.ai/download) ou o app instalável (PWA) no Chrome ou Edge, com janela própria e avisos. As versões desktop ainda não são assinadas',
       ],
     }),
   ],

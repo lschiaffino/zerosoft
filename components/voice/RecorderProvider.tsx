@@ -60,10 +60,21 @@ export interface RecorderApi {
   /** Trozos recuperados con Reintentar, por reunión (para sugerir regenerar la nota). */
   recovered: Record<string, number>;
   retryFailed: (sessionId: string) => void;
-  start: (args: { sessionId: string; mode: CaptureMode; baseOffsetMs: number }) => Promise<void>;
+  start: (args: StartArgs) => Promise<void>;
   stop: () => Promise<void>;
   /** Escuchar los segmentos nuevos y el cierre de una reunión. */
   subscribe: (sessionId: string, onSegments: SegmentsListener, onDone?: DoneListener) => () => void;
+}
+
+/**
+ * desktop: la grabación la empezó la app de escritorio (queda capture=desktop y,
+ * si no hay audio del sistema, sigue solo con el micrófono en vez de fallar).
+ */
+export interface StartArgs {
+  sessionId: string;
+  mode: CaptureMode;
+  baseOffsetMs: number;
+  desktop?: boolean;
 }
 
 const RecorderContext = createContext<RecorderApi | null>(null);
@@ -377,7 +388,7 @@ export default function RecorderProvider({ children, owner }: { children: ReactN
   stopRef.current = stop;
 
   const start = useCallback(
-    async (args: { sessionId: string; mode: CaptureMode; baseOffsetMs: number }) => {
+    async (args: StartArgs) => {
       if (stateRef.current !== 'idle') return;
       setError(null);
       set('starting');
@@ -387,7 +398,7 @@ export default function RecorderProvider({ children, owner }: { children: ReactN
       const claim = await fetch(`/api/voice/sessions/${id}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ status: 'recording', capture: args.mode, recorderId: recorderIdRef.current }),
+        body: JSON.stringify({ status: 'recording', capture: args.desktop ? 'desktop' : args.mode, recorderId: recorderIdRef.current }),
       }).catch(() => null);
       if (!claim?.ok) {
         const code = ((await claim?.json().catch(() => null)) as { error?: string } | null)?.error ?? 'network';
@@ -401,8 +412,15 @@ export default function RecorderProvider({ children, owner }: { children: ReactN
         streams.push(mic);
         let tab: MediaStream | null = null;
         if (args.mode === 'mic_tab') {
-          tab = await getTabAudio();
-          streams.push(tab);
+          try {
+            tab = await getTabAudio();
+            streams.push(tab);
+          } catch (err) {
+            // Escritorio sin permiso de audio del sistema: se graba igual el micrófono.
+            if (!args.desktop) throw err;
+            tab = null;
+            setMode('mic');
+          }
         }
         streamsRef.current = streams;
         // Solo crece: un trozo nuevo nunca reusa el número (seq) de uno anterior de la misma reunión.

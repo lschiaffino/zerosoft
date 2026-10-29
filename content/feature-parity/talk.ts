@@ -28,7 +28,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Slack',
-  lastReviewed: '2026-10-28',
+  lastReviewed: '2026-10-29',
   areas: [
     { id: 'channels', label: loc(['Channels', 'Canales', 'Canais']) },
     { id: 'dms', label: loc(['Direct messages', 'Mensajes directos', 'Mensagens diretas']) },
@@ -437,6 +437,14 @@ const BUILT: Record<string, Built> = {
       'Admins set message retention (deleted hourly with their files) and export public channels as JSON; anyone exports their own conversations',
       'El admin define la retención de mensajes (se borran cada hora con sus archivos) y exporta los canales públicos en JSON; cualquiera exporta sus conversaciones',
       'O admin define a retenção de mensagens (apagadas a cada hora com os arquivos) e exporta os canais públicos em JSON; qualquer pessoa exporta suas conversas',
+    ],
+  },
+  'desktop-app': {
+    status: 'partial',
+    detail: [
+      'One app for Mac and Windows with the whole platform (desktop/, Electron): dock or taskbar badge with unread mentions and DMs, native notifications that open the message, sign-in through the browser. Builds are not signed yet and there is no Linux build',
+      'Una app para Mac y Windows con toda la plataforma (desktop/, Electron): contador en el dock o la barra de tareas con menciones y DMs sin leer, avisos nativos que abren el mensaje, login por el navegador. Las versiones todavía no están firmadas y no hay versión para Linux',
+      'Um app para Mac e Windows com toda a plataforma (desktop/, Electron): contador no dock ou na barra de tarefas com menções e DMs não lidas, avisos nativos que abrem a mensagem, login pelo navegador. As versões ainda não são assinadas e não há versão para Linux',
     ],
   },
 };

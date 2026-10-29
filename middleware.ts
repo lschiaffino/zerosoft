@@ -20,7 +20,7 @@ const RESERVED = new Set([
   'blog', 'products', 'docs', 'terms', 'privacy', 'security', 'status',
   'admin', 'www', 'mail', 'support', 'help', 'about', 'new',
   'login', 'signin', 'demo', 'manifesto', 'changelog', 'feedback', 'videos', 'roadmap', 'tools',
-  'feedback-board', 'brand', 'nuevo-branding',
+  'feedback-board', 'brand', 'nuevo-branding', 'download',
 ]);
 
 /** Páginas de la app que un dominio propio sí sirve: la puerta de contraseña y /gone. */

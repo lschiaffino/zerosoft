@@ -322,7 +322,7 @@ export default function CommandSearch() {
         label: tSettingsCmdk('section', { section: tSections(key) }),
         meta: '',
         href: settingsSectionHref(key),
-        keywords: key === 'billing' ? tSettingsCmdk('keywords.billing') : undefined,
+        keywords: key === 'billing' ? tSettingsCmdk('keywords.billing') : key === 'desktop' ? 'download,mac,windows,desktop,descargar,escritorio,baixar' : undefined,
       })),
       {
         group: 'settings',

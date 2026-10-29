@@ -143,11 +143,11 @@ export default function MeetingsHome(props: Props) {
     return data.id;
   }
 
-  async function newMeeting(opts: { eventKey?: string; replace?: boolean } = {}) {
+  async function newMeeting(opts: { eventKey?: string; replace?: boolean; query?: string } = {}) {
     const id = await create({ title: '', eventKey: opts.eventKey, locale }, opts.eventKey ?? 'new');
     if (!id) return;
     // Con ?new=1 la URL se reemplaza: "Atrás" desde la reunión no vuelve a crear otra.
-    if (opts.replace) router.replace(`/app/voice/meetings/${id}`);
+    if (opts.replace) router.replace(`/app/voice/meetings/${id}${opts.query ?? ''}`);
     else router.push(`/app/voice/meetings/${id}`);
   }
 
@@ -158,8 +158,10 @@ export default function MeetingsHome(props: Props) {
     if (params.get('new') === '1' || ev) {
       autoCreated.current = true;
       const existing = ev ? props.events.find((e) => e.key === ev)?.sessionId : null;
-      if (existing) router.replace(`/app/voice/meetings/${existing}`);
-      else void newMeeting({ replace: true, eventKey: ev ?? undefined });
+      // ?autostart=desktop ("Tomar notas" de la app de escritorio) pasa a la reunión, que empieza a grabar.
+      const query = params.get('autostart') === 'desktop' ? '?autostart=desktop' : '';
+      if (existing) router.replace(`/app/voice/meetings/${existing}${query}`);
+      else void newMeeting({ replace: true, eventKey: ev ?? undefined, query });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);

@@ -29,6 +29,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-29-desktop',
+    date: '2026-10-29',
+    title: {
+      en: 'zerosoft for Mac and Windows: dictation in any app and meeting notes with system audio',
+      es: 'zerosoft para Mac y Windows: dictado en cualquier app y notas de reuniones con el audio del sistema',
+      pt: 'zerosoft para Mac e Windows: ditado em qualquer app e notas de reuniões com o áudio do sistema',
+    },
+    items: [
+      { product: 'voice', en: 'A desktop app for Mac and Windows with every zerosoft app in one window. Hold Control + Option (Mac) or Ctrl + Windows in any app, speak and let go: the clean text is pasted where the cursor is.', es: 'Una app de escritorio para Mac y Windows con todas las apps de zerosoft en una ventana. Mantené Control + Option (Mac) o Ctrl + Windows en cualquier app, hablá y soltá: el texto limpio se pega donde está el cursor.', pt: 'Um app de desktop para Mac e Windows com todos os apps do zerosoft numa janela. Segure Control + Option (Mac) ou Ctrl + Windows em qualquer app, fale e solte: o texto limpo é colado onde está o cursor.' },
+      { product: 'voice', en: 'When a calendar meeting starts, or Zoom, Meet or Teams is in a call, the app offers to take notes. It records your microphone and the system audio, without a bot, and the notes land in Voice like any other meeting.', es: 'Cuando empieza una reunión del calendario, o Zoom, Meet o Teams están en llamada, la app ofrece tomar notas. Graba tu micrófono y el audio del sistema, sin bot, y las notas quedan en Voice como cualquier reunión.', pt: 'Quando começa uma reunião do calendário, ou o Zoom, o Meet ou o Teams estão em chamada, o app oferece fazer notas. Ele grava o seu microfone e o áudio do sistema, sem bot, e as notas ficam no Voice como qualquer reunião.' },
+      { product: 'talk', en: 'Unread mentions and DMs on the dock or taskbar icon, and native notifications that open the right page. You sign in with Google in your browser and the app picks it up. Download it at zerosoft.ai/download; the builds are not signed yet.', es: 'Menciones y DMs sin leer en el ícono del dock o la barra de tareas, y avisos nativos que abren la página justa. Entrás con Google en tu navegador y la app lo toma sola. Se descarga en zerosoft.ai/download; las versiones todavía no están firmadas.', pt: 'Menções e DMs não lidas no ícone do dock ou da barra de tarefas, e avisos nativos que abrem a página certa. Você entra com Google no navegador e o app pega sozinho. Baixe em zerosoft.ai/download; as versões ainda não são assinadas.' },
+    ],
+  },
+  {
     id: '2026-10-28-talk',
     date: '2026-10-28',
     title: {

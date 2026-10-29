@@ -6806,6 +6806,25 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    // Escritorio (desktop/): códigos de un solo uso del login en el navegador
+    // del sistema. Se guarda el hash del código, el challenge PKCE (S256) y la
+    // persona; vence a los 2 minutos y used_at lo reclama (compare-and-set).
+    id: '134_desktop_login',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS desktop_login_codes (
+          code_hash TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          challenge TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          expires_at TEXT NOT NULL,
+          used_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_desktop_login_codes_expires ON desktop_login_codes(expires_at);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

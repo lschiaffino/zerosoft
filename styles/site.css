@@ -520,6 +520,35 @@
   .status-desc { grid-column: 1 / -1; grid-row: 2; }
 }
 
+/* ---------- Descargas (/download) ---------- */
+
+.dl-buttons .read-actions { margin-top: 28px; }
+.dl-empty { max-width: 60ch; }
+.dl-body { display: grid; gap: 56px; }
+.dl-body .dl-unsigned { margin-top: 0; }
+.dl-h2 {
+  font-family: var(--font-signage);
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
+  font-size: 1.75rem;
+  line-height: 1;
+  margin-bottom: 16px;
+}
+.dl-row {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 24px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.dl-p { max-width: 68ch; }
+
+@media (max-width: 860px) {
+  .dl-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .dl-buttons .btn { width: 100%; justify-content: center; white-space: normal; }
+}
+
 /* ---------- 404 ---------- */
 
 .nf-hero { padding-top: 8px; padding-bottom: 56px; margin-bottom: 0; border-bottom: 0; }

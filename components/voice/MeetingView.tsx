@@ -21,6 +21,7 @@ import { ChatPanel, DetailsPanel, TranscriptPanel } from './MeetingSide';
 import { copyText } from './insert';
 import { checkRecordingFile, importRecording } from './importRecording';
 import { BriefPanel, FollowupModal, SendModal, ShareModal } from './MeetingPrep';
+import { desktopBridge } from '@/lib/desktop-bridge';
 
 type Detail = VoiceSessionDetail & { contact: { id: string; name: string; email: string } | null; share: VoiceShareInfo | null };
 
@@ -69,7 +70,16 @@ export default function MeetingView({ initial, templates, folders, transcription
   const notesTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Lo que soporta el navegador se mira después de hidratar (en el servidor no hay MediaRecorder).
   const [support, setSupport] = useState({ rec: true, tab: true });
-  useEffect(() => setSupport({ rec: recordingSupported(), tab: tabAudioSupported() }), []);
+  // App de escritorio: "pestaña" es el audio del sistema (sin selector), y va por defecto.
+  const [desktop, setDesktop] = useState(false);
+  useEffect(() => {
+    const bridge = desktopBridge();
+    setSupport({ rec: recordingSupported(), tab: tabAudioSupported() || !!bridge?.systemAudio });
+    if (bridge?.systemAudio) {
+      setDesktop(true);
+      setMode('mic_tab');
+    }
+  }, []);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const patch = useCallback(
@@ -314,6 +324,17 @@ export default function MeetingView({ initial, templates, folders, transcription
 
   const recording = rec.state === 'recording' || rec.state === 'stopping';
   const canRecord = transcription && support.rec;
+
+  // "Tomar notas" desde la app de escritorio (?autostart=desktop): empieza a grabar sola, una vez.
+  const autostarted = useRef(false);
+  useEffect(() => {
+    if (autostarted.current || !serverChecked || !canRecord) return;
+    if (new URLSearchParams(window.location.search).get('autostart') !== 'desktop' || !desktopBridge()) return;
+    autostarted.current = true;
+    window.history.replaceState(null, '', window.location.pathname);
+    if (rec.state !== 'idle' || recordingElsewhere || otherRecorder) return;
+    void recorder.start({ sessionId: d.id, mode: desktopBridge()?.systemAudio ? 'mic_tab' : 'mic', baseOffsetMs: d.durationMs, desktop: true });
+  }, [serverChecked, canRecord, rec.state, recordingElsewhere, otherRecorder, recorder, d.id, d.durationMs]);
   const recError = rec.error;
   const hasContent = d.segments.length > 0 || notes.trim().length > 0;
   const hasNotes = !!d.enhanced || notes.trim().length > 0;
@@ -425,7 +446,7 @@ export default function MeetingView({ initial, templates, folders, transcription
                 {support.tab && (
                   <label className="ui-check">
                     <input type="radio" name="vc-mode" checked={mode === 'mic_tab'} onChange={() => setMode('mic_tab')} />
-                    <span>{t('modeTab')}</span>
+                    <span>{desktop ? t('modeSystem') : t('modeTab')}</span>
                   </label>
                 )}
               </fieldset>
@@ -434,7 +455,7 @@ export default function MeetingView({ initial, templates, folders, transcription
                 className="btn btn-primary"
                 disabled={!canRecord || rec.state === 'starting' || recordingElsewhere || otherRecorder}
                 aria-busy={rec.state === 'starting' || undefined}
-                onClick={() => void recorder.start({ sessionId: d.id, mode, baseOffsetMs: d.durationMs })}
+                onClick={() => void recorder.start({ sessionId: d.id, mode, baseOffsetMs: d.durationMs, desktop })}
               >
                 <MicIcon /> {d.segments.length ? t('resume') : t('start')}
               </button>
@@ -467,7 +488,7 @@ export default function MeetingView({ initial, templates, folders, transcription
             </>
           )}
         </div>
-        {mode === 'mic_tab' && rec.state === 'idle' && <p className="vc-muted">{t('tabHelp')}</p>}
+        {mode === 'mic_tab' && rec.state === 'idle' && <p className="vc-muted">{desktop ? t('systemHelp') : t('tabHelp')}</p>}
         {otherRecorder && (
           <p className="vc-notice" role="status">
             {t('otherRecorder')}

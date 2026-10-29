@@ -63,7 +63,7 @@ export default function VoiceSettingsView(props: Props) {
         {tab === 'team' && props.isAdmin && <TeamUsage />}
         {tab === 'desktop' && (
           <>
-            <DesktopSettings provider={props.provider} apiBase={props.apiBase} />
+            <DesktopSettings provider={props.provider} />
             <McpSection apiBase={props.apiBase} />
           </>
         )}
@@ -443,26 +443,23 @@ function TemplatesSettings({ initial, builtinSections }: { initial: VoiceTemplat
   );
 }
 
-function DesktopSettings({ provider, apiBase }: { provider: string; apiBase: string }) {
+function DesktopSettings({ provider }: { provider: string }) {
   const t = useTranslations('voice.settings.desktop');
   return (
     <>
       <FormSection title={t('title')} description={t('desc')}>
         <p className="vc-notice">{t('unsigned')}</p>
         <ol className="vc-steps">
-          <li>{t('step1')}</li>
           <li>
-            {t('step2')} <Link href="/app/settings/api">{t('step2Link')}</Link>
+            {t('step1')} <Link href="/download">{t('step1Link')}</Link>
           </li>
-          <li>
-            {t('step3')} <code className="data">{apiBase}</code>
-          </li>
-          <li>{t('step4')}</li>
+          <li>{t('step2')}</li>
+          <li>{t('step3')}</li>
         </ol>
         <p>
-          <a className="btn btn-secondary" href="https://github.com/lschiaffino/zerosoft/tree/main/desktop/voice" target="_blank" rel="noreferrer">
+          <Link className="btn btn-secondary" href="/download">
             {t('source')}
-          </a>
+          </Link>
         </p>
       </FormSection>
       <FormSection title={t('whatTitle')} description={t('whatDesc')}>
