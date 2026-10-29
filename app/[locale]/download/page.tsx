@@ -10,7 +10,8 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
   return { title: t('meta.title'), description: t('meta.description') };
 }
 
-export const revalidate = 600;
+// Se arma en cada pedido: el release sale del data cache (10 min, lib/desktop-release.ts), no del build.
+export const dynamic = 'force-dynamic';
 
 const FEATURES = ['f1', 'f2', 'f3', 'f4'] as const;
 

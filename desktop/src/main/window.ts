@@ -92,8 +92,10 @@ export function setupSessionPermissions() {
         callback({});
         return;
       }
-      desktopCapturer
-        .getSources({ types: ['screen'], thumbnailSize: { width: 0, height: 0 } })
+      // Si macOS deja el pedido colgado (permiso de pantalla pendiente), a los 20 s se sigue sin
+      // audio del sistema: la web graba solo el micrófono en vez de quedar trabada.
+      const timeout = new Promise<never>((_r, reject) => setTimeout(() => reject(new Error('timeout')), 20_000));
+      Promise.race([desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 0, height: 0 } }), timeout])
         .then((sources) => {
           testHooks.displayRequests.push(sources.length ? 'loopback' : 'none');
           if (!sources.length) return callback({});
@@ -123,7 +125,7 @@ export function createMainWindow(): BrowserWindow {
     show: false,
     title: 'zerosoft',
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#0d0d0d' : '#ffffff',
-    icon: process.platform === 'win32' ? path.join(__dirname, '..', 'build', 'icon-256.png') : undefined,
+    ...(process.platform === 'win32' ? { icon: path.join(__dirname, '..', 'build', 'icon-256.png') } : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload-app.js'),
       partition: PARTITION,
