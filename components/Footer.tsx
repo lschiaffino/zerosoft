@@ -8,6 +8,9 @@ import ProductGlyph from './brand/ProductGlyph';
 import { ZeroRule } from './zero/ZeroTexture';
 import '@/styles/site.css';
 
+/** Key pública del proyecto de Analytics del propio sitio (formato zsp_…). */
+const SITE_ANALYTICS_KEY = /^zsp_[a-z0-9]{10,64}$/.test(process.env.ZS_ANALYTICS_SITE_KEY ?? '') ? process.env.ZS_ANALYTICS_SITE_KEY! : null;
+
 export default async function Footer({ locale }: { locale: string }) {
   const t = await getTranslations({ locale, namespace: 'common.footer' });
   const tm = await getTranslations({ locale, namespace: 'common.meta' });
@@ -96,6 +99,13 @@ export default async function Footer({ locale }: { locale: string }) {
         </span>
         <LocaleSwitcher locale={locale} />
       </div>
+      {/* Dogfood de Analytics: solo con ZS_ANALYTICS_SITE_KEY (apagado por defecto). El footer solo va en el sitio. */}
+      {SITE_ANALYTICS_KEY && (
+        <>
+          <script src="/zs.js" defer />
+          <script dangerouslySetInnerHTML={{ __html: `window.zs=window.zs||[];zs.push(['init',${JSON.stringify(SITE_ANALYTICS_KEY)}]);` }} />
+        </>
+      )}
     </footer>
   );
 }

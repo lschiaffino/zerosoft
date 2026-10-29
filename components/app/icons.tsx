@@ -56,7 +56,11 @@ export type IconName =
   | 'roadmap'
   | 'cycles'
   | 'insights'
-  | 'assistant';
+  | 'assistant'
+  | 'analytics'
+  | 'flag'
+  | 'sql'
+  | 'live';
 
 // Íconos geométricos mínimos (trazo, estilo Feather/Lucide) para el sidebar.
 const PATHS: Record<IconName, ReactNode> = {
@@ -274,6 +278,27 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <rect x="3" y="6" width="13" height="12" rx="2" />
       <path d="M16 10l5-3v10l-5-3z" />
+    </>
+  ),
+  analytics: (
+    <>
+      <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+    </>
+  ),
+  flag: (
+    <>
+      <path d="M5 21V4M5 4h11l-2 4 2 4H5" />
+    </>
+  ),
+  sql: (
+    <>
+      <ellipse cx="12" cy="5.5" rx="7" ry="2.5" />
+      <path d="M5 5.5v13c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5v-13M5 12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5" />
+    </>
+  ),
+  live: (
+    <>
+      <path d="M2 12h4l3-7 4 14 3-7h6" />
     </>
   ),
   talk: (

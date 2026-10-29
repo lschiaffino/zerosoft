@@ -140,6 +140,11 @@
       "a": "Liste meus quadros",
       "b": "Procure um quadro",
       "c": "O que você pode fazer aqui?"
+    },
+    "analytics": {
+      "a": "Quantos visitantes tivemos esta semana?",
+      "b": "Quais insights estão salvos neste projeto?",
+      "c": "Quais feature flags estão ativas?"
     }
   },
   "page": {

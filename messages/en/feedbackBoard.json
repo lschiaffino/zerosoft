@@ -64,6 +64,7 @@
     "voice": "Voice",
     "rec": "Rec",
     "talk": "Talk",
+    "analytics": "Analytics",
     "platform": "Platform",
     "site": "Website",
     "other": "Other"

@@ -57,7 +57,12 @@ export interface AppSearchItem {
     | 'talkPeople'
     | 'talkCanvases'
     | 'talkLists'
-    | 'workspaceTeams';
+    | 'workspaceTeams'
+    | 'analyticsInsights'
+    | 'analyticsDashboards'
+    | 'analyticsFlags'
+    | 'analyticsCohorts'
+    | 'analyticsProjects';
   label: string;
   meta: string;
   href: string;
@@ -381,6 +386,30 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     like,
   ).catch(() => [] as Row[]);
 
+  // Analytics: insights, tableros, flags y cohortes de los proyectos del workspace (meta: el proyecto), y los proyectos.
+  const analyticsProjects = `SELECT id FROM analytics_projects WHERE workspace_id = ? AND deleted_at IS NULL`;
+  const analyticsIn = (table: string) =>
+    all(
+      `SELECT r.id, r.name AS label, p.name AS meta FROM ${table} r JOIN analytics_projects p ON p.id = r.project_id
+       WHERE r.project_id IN (${analyticsProjects}) AND r.name LIKE ? ESCAPE '\\' ORDER BY r.updated_at DESC LIMIT ?`,
+      user.id,
+      like,
+    );
+  const [anInsights, anDashboards, anFlags, anCohorts, anProjects] = await Promise.all([
+    analyticsIn('analytics_insights'),
+    analyticsIn('analytics_dashboards'),
+    // Flags: por clave o descripción (se muestra la descripción si hay).
+    all(
+      `SELECT r.id, COALESCE(NULLIF(r.name, ''), r.key) AS label, r.key || ' · ' || p.name AS meta FROM analytics_flags r JOIN analytics_projects p ON p.id = r.project_id
+       WHERE r.project_id IN (${analyticsProjects}) AND (r.key LIKE ? ESCAPE '\\' OR r.name LIKE ? ESCAPE '\\') ORDER BY r.updated_at DESC LIMIT ?`,
+      user.id,
+      like,
+      like,
+    ),
+    analyticsIn('analytics_cohorts'),
+    all(`SELECT id, name AS label FROM analytics_projects WHERE workspace_id = ? AND deleted_at IS NULL AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT ?`, user.id, like),
+  ]);
+
   // Chat: conversaciones (asunto, visitante o texto), personas, vistas guardadas y equipos.
   const chatWidgets = `SELECT id FROM chat_widgets WHERE ${widgetWhere}`;
   const [chatConversations, chatPeople, chatViews, chatTeams, chatOutbound] = await Promise.all([
@@ -498,5 +527,10 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       return `/app/talk/${channelId}?tab=lists&list=${listId}`;
     }),
     ...workspaceTeams.map((r) => ({ id: r.id, group: 'workspaceTeams' as const, label: r.label, meta: `@${r.meta}`, href: '/app/settings/teams' })),
+    ...map(anInsights, 'analyticsInsights', (id) => `/app/analytics/insights/${id}`),
+    ...map(anDashboards, 'analyticsDashboards', (id) => `/app/analytics/dashboards/${id}`),
+    ...map(anFlags, 'analyticsFlags', (id) => `/app/analytics/flags/${id}`),
+    ...map(anCohorts, 'analyticsCohorts', (id) => `/app/analytics/cohorts?open=${id}`),
+    ...map(anProjects, 'analyticsProjects', (id) => `/app/analytics/settings?project=${id}`),
   ];
 }

@@ -43,6 +43,7 @@ export const PRODUCT_CONFIG = {
   voice: { name: 'Voice', launch: '/app/voice', path: 'voice', color: '#c026d3', category: 'daily', audience: 'personal' },
   rec: { name: 'Rec', launch: '/app/rec', path: 'rec', color: '#e11d48', category: 'daily', audience: 'team' },
   talk: { name: 'Talk', launch: '/app/talk', path: 'talk', color: '#8e3a80', category: 'daily', audience: 'team' },
+  analytics: { name: 'Analytics', launch: '/app/analytics', path: 'analytics', color: '#4f46e5', category: 'build', audience: 'team' },
 } as const satisfies Record<string, ProductEntry>;
 
 /**
@@ -65,6 +66,7 @@ export const APP_SWITCHER_ORDER = [
   'rec',
   'agents',
   'robots',
+  'analytics',
 ] as const satisfies readonly (keyof typeof PRODUCT_CONFIG)[];
 
 /** Todas las apps de la suite. */

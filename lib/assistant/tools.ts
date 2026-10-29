@@ -41,6 +41,9 @@ import { listAgents } from '../agents';
 import { listBoards } from '../boards';
 import { boardViewer } from '../board-access';
 import { searchApps } from '../app-search';
+import { listProjects as listAnalyticsProjects, type ProjectRow } from '../analytics/projects';
+import { runFunnel, runInsight, runTrends, runWeb, QueryError } from '../analytics/query';
+import { listFlags, listInsights } from '../analytics/records';
 import { rateLimit } from '../rate-limit';
 import { maskUrl } from './redact';
 import { canUseTool, readTool, writeTool, type AssistantTool, type ToolCtx } from './registry';
@@ -118,7 +121,7 @@ const platform: AssistantTool[] = [
     input: z.object({
       email: z.string().trim().email().max(200),
       role: z.enum(['member', 'admin', 'guest']).default('member'),
-      apps: z.array(z.string()).max(20).optional().describe('App keys: crm, docs, track, talk, voice, cal, flow, robots, agents, link, notes, board, chat, groups, rec. Omit for all apps.'),
+      apps: z.array(z.string()).max(20).optional().describe('App keys: crm, docs, track, talk, voice, cal, flow, robots, agents, link, notes, board, chat, groups, rec, analytics. Omit for all apps.'),
     }),
     prepare: async (ctx, { email, role, apps }) => {
       if (role === 'admin' && ctx.user.role !== 'owner') return { error: 'only_owner_invites_admins' };
@@ -831,7 +834,146 @@ const comms: AssistantTool[] = [
   }),
 ];
 
-export const ALL_TOOLS: AssistantTool[] = [...platform, ...crm, ...track, ...content, ...automate, ...comms];
+// ---------- Analytics ----------
+
+/** Proyecto por id o nombre (sin nada: el primero del workspace). */
+async function analyticsProject(ctx: ToolCtx, project?: string): Promise<ProjectRow | null> {
+  const all = await listAnalyticsProjects(ctx.workspaceId);
+  if (!project) return all[0] ?? null;
+  return all.find((p) => p.id === project) ?? byName(all, project, (p) => p.name) ?? null;
+}
+
+const projectArg = z.string().max(200).optional().describe('Project name or id. Omit for the first project of the workspace.');
+const daysArg = z.number().int().min(1).max(365).optional();
+
+/** Los errores de consulta vuelven como dato (el modelo se lo explica a la persona). */
+async function safeQuery<T>(fn: () => Promise<T>): Promise<T | { error: string }> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (err instanceof QueryError) return { error: err.code };
+    throw err;
+  }
+}
+
+const analytics: AssistantTool[] = [
+  readTool({
+    name: 'analytics_projects',
+    app: 'analytics',
+    description: 'Analytics (product analytics) projects of the workspace with their public key and settings.',
+    input: z.object({}),
+    run: async (ctx) => ({
+      projects: (await listAnalyticsProjects(ctx.workspaceId)).map((p) => ({ id: p.id, name: p.name, publicKey: p.public_key, retentionDays: p.retention_days, href: `/app/analytics/settings?project=${p.id}` })),
+    }),
+  }),
+  readTool({
+    name: 'analytics_web_overview',
+    app: 'analytics',
+    description: 'Web analytics of a project: visitors, pageviews, sessions, bounce rate and top pages, referrers, countries and devices, compared with the previous period.',
+    input: z.object({ project: projectArg, days: daysArg }),
+    run: async (ctx, { project, days }) => {
+      const p = await analyticsProject(ctx, project);
+      if (!p) return { error: 'no_project' };
+      const r = await runWeb(p, { kind: 'web', dateRange: { from: `-${days ?? 7}d` }, compare: true });
+      return { project: p.name, stats: r.stats, pages: r.pages.slice(0, 5), referrers: r.referrers.slice(0, 5), countries: r.countries.slice(0, 5), devices: r.devices, href: '/app/analytics' };
+    },
+  }),
+  readTool({
+    name: 'analytics_trend',
+    app: 'analytics',
+    description: 'Count an event over time in an Analytics project (total or unique users), optionally broken down by an event property such as $browser or utm_source.',
+    input: z.object({
+      project: projectArg,
+      event: z.string().trim().min(1).max(200).describe('Event name, such as $pageview or signed_up. Use * for any event.'),
+      unique: z.boolean().optional().describe('Count unique users instead of events.'),
+      days: daysArg,
+      breakdown: z.string().max(200).optional(),
+    }),
+    run: async (ctx, { project, event, unique, days, breakdown }) => {
+      const p = await analyticsProject(ctx, project);
+      if (!p) return { error: 'no_project' };
+      return safeQuery(async () => {
+        const r = await runTrends(p, {
+          kind: 'trends',
+          series: [{ event, math: unique ? 'unique' : 'total', filters: [] }],
+          interval: (days ?? 7) > 60 ? 'week' : 'day',
+          dateRange: { from: `-${days ?? 7}d` },
+          breakdown: breakdown ? { key: breakdown, type: 'event' } : null,
+          compare: !breakdown,
+          filters: [],
+          display: 'line',
+        });
+        return {
+          project: p.name,
+          buckets: r.buckets,
+          series: r.series.map((s) => ({ breakdown: s.breakdownValue, total: s.total, previousTotal: s.compareTotal ?? null, data: s.data })),
+          href: '/app/analytics/insights/new',
+        };
+      });
+    },
+  }),
+  readTool({
+    name: 'analytics_funnel',
+    app: 'analytics',
+    description: 'Conversion funnel between events in an Analytics project (in order, within a conversion window).',
+    input: z.object({ project: projectArg, steps: z.array(z.string().trim().min(1).max(200)).min(2).max(10), days: daysArg, windowDays: z.number().int().min(1).max(90).optional() }),
+    run: async (ctx, { project, steps, days, windowDays }) => {
+      const p = await analyticsProject(ctx, project);
+      if (!p) return { error: 'no_project' };
+      return safeQuery(async () => {
+        const r = await runFunnel(p, {
+          kind: 'funnel',
+          steps: steps.map((event) => ({ event, filters: [] })),
+          windowDays: windowDays ?? 14,
+          dateRange: { from: `-${days ?? 30}d` },
+          filters: [],
+        });
+        return { project: p.name, steps: r.steps.map((s) => pick(s, ['event', 'count', 'conversion', 'stepConversion', 'dropped', 'medianMs'])), truncated: r.truncated };
+      });
+    },
+  }),
+  readTool({
+    name: 'analytics_insights',
+    app: 'analytics',
+    description: 'Saved Analytics insights of a project. With insightId (or a name), runs it and returns a summary of the result.',
+    input: z.object({ project: projectArg, insight: z.string().max(200).optional().describe('Insight id or name to run.') }),
+    run: async (ctx, { project, insight }) => {
+      const p = await analyticsProject(ctx, project);
+      if (!p) return { error: 'no_project' };
+      const list = await listInsights(p.id);
+      if (!insight) return { project: p.name, insights: list.slice(0, 50).map((i) => ({ id: i.id, name: i.name, kind: i.kind, href: `/app/analytics/insights/${i.id}` })) };
+      const found = list.find((i) => i.id === insight) ?? byName(list, insight, (i) => i.name);
+      if (!found) return { error: 'insight_not_found' };
+      return safeQuery(async () => {
+        const r = await runInsight(p, found.query);
+        const summary =
+          r.kind === 'trends'
+            ? r.series.map((s) => ({ label: s.label, breakdown: s.breakdownValue, total: s.total }))
+            : r.kind === 'funnel'
+              ? r.steps.map((s) => pick(s, ['label', 'count', 'conversion']))
+              : r.kind === 'retention'
+                ? r.cohorts.map((c) => ({ start: c.start, size: c.size, values: c.values }))
+                : r.kind === 'paths'
+                  ? r.topPaths.slice(0, 10)
+                  : { columns: r.columns, rows: r.rows.slice(0, 20) };
+        return { name: found.name, kind: found.kind, result: summary, href: `/app/analytics/insights/${found.id}` };
+      });
+    },
+  }),
+  readTool({
+    name: 'analytics_flags',
+    app: 'analytics',
+    description: 'Feature flags of an Analytics project with whether they are on, their rollout and variants.',
+    input: z.object({ project: projectArg }),
+    run: async (ctx, { project }) => {
+      const p = await analyticsProject(ctx, project);
+      if (!p) return { error: 'no_project' };
+      return { project: p.name, flags: (await listFlags(p.id)).map((f) => ({ ...pick(f, ['key', 'name', 'active', 'rollout', 'variants']), conditions: f.conditions.length, href: `/app/analytics/flags/${f.id}` })) };
+    },
+  }),
+];
+
+export const ALL_TOOLS: AssistantTool[] = [...platform, ...crm, ...track, ...content, ...automate, ...comms, ...analytics];
 
 /** Herramientas que la sesión puede usar (rol y apps del workspace activo). */
 export function toolsFor(user: Pick<SessionUser, 'role' | 'apps'>): AssistantTool[] {

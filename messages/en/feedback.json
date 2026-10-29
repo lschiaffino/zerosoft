@@ -26,6 +26,7 @@
       "voice": "Voice",
       "rec": "Rec",
       "talk": "Talk",
+      "analytics": "Analytics",
       "site": "Website",
       "other": "Other"
     },

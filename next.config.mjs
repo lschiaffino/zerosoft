@@ -48,6 +48,8 @@ const nextConfig = {
         headers: cors,
       },
       { source: '/api/chat/messages/upload', headers: cors },
+      // Snippet de Analytics: se importa como módulo desde sitios de terceros.
+      { source: '/:file(zs\\.js|zs\\.mjs)', headers: [{ key: 'Access-Control-Allow-Origin', value: '*' }, { key: 'Cache-Control', value: 'public, max-age=3600' }] },
     ];
   },
 };

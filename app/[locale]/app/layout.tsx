@@ -81,7 +81,7 @@ export default async function AppLayout(
   if (workspaces.length && !workspaces.some((w) => w.current)) workspaces[0].current = true;
   const tTriage = await getTranslations({ locale, namespace: 'trackTriage' });
   // Lecturas independientes en paralelo (en Turso cada query es un RTT).
-  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tasksDue, serverTz, tPlanning, mode, tCat] =
+  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tAnalytics, tasksDue, serverTz, tPlanning, mode, tCat] =
     await Promise.all([
       getTranslations({ locale, namespace: 'settings' }),
       getTranslations({ locale, namespace: 'common.sidebar' }),
@@ -100,6 +100,7 @@ export default async function AppLayout(
       getTranslations({ locale, namespace: 'voice' }),
       getTranslations({ locale, namespace: 'rec' }),
       getTranslations({ locale, namespace: 'talk' }),
+      getTranslations({ locale, namespace: 'analytics' }),
       // El badge no puede tirar todas las páginas de la app: sin la tabla o con un error, 0.
       countDueTasks(user.id).catch((err) => {
         console.error('[app layout] countDueTasks', err);
@@ -165,6 +166,7 @@ export default async function AppLayout(
                 { href: '/app/voice/settings', label: tSide('appSettings') },
                 { href: '/app/rec/settings', label: tSide('appSettings') },
                 { href: '/app/talk/settings', label: tSide('appSettings') },
+                { href: '/app/analytics/settings', label: tSide('appSettings') },
                 { href: '/app/crm', label: tCrm('tabs.overview') },
                 { href: '/app/crm/contacts', label: tCrm('tabs.contacts') },
                 { href: '/app/crm/companies', label: tCrm('tabs.companies') },
@@ -250,6 +252,15 @@ export default async function AppLayout(
                 { href: '/app/rec/workspace', label: tRec('sidebar.workspace') },
                 { href: '/app/rec/new', label: tRec('sidebar.newVideo') },
                 { href: '/app/talk', label: tTalk('sidebar.home') },
+                { href: '/app/analytics', label: tAnalytics('sidebar.web') },
+                { href: '/app/analytics/events', label: tAnalytics('sidebar.events') },
+                { href: '/app/analytics/insights', label: tAnalytics('sidebar.insights') },
+                { href: '/app/analytics/dashboards', label: tAnalytics('sidebar.dashboards') },
+                { href: '/app/analytics/persons', label: tAnalytics('sidebar.persons') },
+                { href: '/app/analytics/cohorts', label: tAnalytics('sidebar.cohorts') },
+                { href: '/app/analytics/flags', label: tAnalytics('sidebar.flags') },
+                { href: '/app/analytics/sql', label: tAnalytics('sidebar.sql') },
+                { href: '/app/analytics/projects', label: tAnalytics('sidebar.projects') },
                 { href: '/app/assistant', label: tSide('assistant') },
               ]}
             />
@@ -408,6 +419,18 @@ export default async function AppLayout(
             voice: { meetings: tVoice('nav.meetings'), dictation: tVoice('nav.dictation'), newMeeting: tVoice('meetings.new') },
             rec: { home: tRec('sidebar.home'), workspace: tRec('sidebar.workspace'), newVideo: tRec('sidebar.newVideo') },
             talk: { home: tTalk('sidebar.home') },
+            analytics: {
+              web: tAnalytics('sidebar.web'),
+              events: tAnalytics('sidebar.events'),
+              insights: tAnalytics('sidebar.insights'),
+              dashboards: tAnalytics('sidebar.dashboards'),
+              persons: tAnalytics('sidebar.persons'),
+              cohorts: tAnalytics('sidebar.cohorts'),
+              flags: tAnalytics('sidebar.flags'),
+              sql: tAnalytics('sidebar.sql'),
+              projects: tAnalytics('sidebar.projects'),
+              newInsight: tAnalytics('sidebar.newInsight'),
+            },
             notifications: {
               title: tTrack('notifications.title'),
               markRead: tTrack('notifications.markRead'),

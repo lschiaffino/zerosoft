@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "Products",
-      "description": "Fifteen apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk and Rec. Open source for your server, or on zerosoft Cloud with a free plan and pay as you go."
+      "description": "Sixteen apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec and Analytics. Open source for your server, or on zerosoft Cloud with a free plan and pay as you go."
     },
     "hero": {
-      "title1": "Fifteen apps.",
+      "title1": "Sixteen apps.",
       "title2": "One workspace.",
       "sub": "For your company: CRM, support, AI agents, automations, robots, projects and links. For you: docs, notes, scheduling and a whiteboard. The core of each one is open source and runs on your server for $0."
     },
     "cta": {
-      "title1": "Try all fifteen apps.",
+      "title1": "Try all sixteen apps.",
       "title2": "With one account.",
       "sub": "Sign in with Google, create a workspace and start on the free plan. If you later prefer your own server, the code is on GitHub.",
       "button": "Open the app"
@@ -1357,6 +1357,92 @@
         "sub": "Try it with your team and vote on the public board for what we should do next.",
         "button": "Propose an idea"
       }
+    },
+    "analytics": {
+      "meta": {
+        "title": "Analytics: open-source product analytics",
+        "description": "Events from a small JS snippet, trends, funnels, retention, people, dashboards, feature flags and a web analytics overview. An open-source alternative to PostHog."
+      },
+      "hero": {
+        "sub": "Paste one script and see who visits, what they click and where they drop off. Trends, funnels and retention on your own events, feature flags with a rollout percentage, and a read-only SQL editor scoped to your project."
+      },
+      "featuresTitle": "Measure what people do.",
+      "featuresTitleDim": "Ship the next thing.",
+      "f1": {
+        "t": "One script",
+        "d": "Page views (single-page apps too), clicks on links and buttons, field changes without their values and form submits. identify, alias and group from code, plus a batch endpoint for your server."
+      },
+      "f2": {
+        "t": "Trends and funnels",
+        "d": "Counts and unique users by hour, day, week or month, broken down by any property and compared with the previous period. Funnels of up to 10 steps with a conversion window and the people who dropped."
+      },
+      "f3": {
+        "t": "Retention and paths",
+        "d": "Daily or weekly cohorts by first event and return event. Paths show the most common page sequences per session."
+      },
+      "f4": {
+        "t": "People and cohorts",
+        "d": "Each person with their properties, ids and event timeline. Cohorts by person properties or by how often someone did an event. Admins can delete a person with all their events."
+      },
+      "f5": {
+        "t": "Feature flags",
+        "d": "On and off flags or variants, a rollout percentage and targeting by person properties. The snippet reads them with isFeatureEnabled and getFeatureFlag."
+      },
+      "f6": {
+        "t": "Web analytics and SQL",
+        "d": "Visitors, page views, sessions, bounce rate, top pages, referrers, countries and devices on one page. For anything else, a read-only SQL editor over your project's events."
+      },
+      "steps": {
+        "s1": {
+          "t": "Create a project",
+          "d": "Each project gets a public key. Limit it to your domains and choose Do Not Track, IP anonymization and retention."
+        },
+        "s2": {
+          "t": "Paste the snippet",
+          "d": "Add the script to your site or import it as a module. Events show up in the live stream right away."
+        },
+        "s3": {
+          "t": "Ask your questions",
+          "d": "Build a trend, a funnel or a retention table, save it and pin it to a dashboard."
+        }
+      },
+      "compare": {
+        "rival": "PostHog",
+        "price": "$0.00005",
+        "per": "/ event after the first million a month",
+        "teamLabel": "5 million events a month",
+        "team": "up to $2,400",
+        "zero": "$0",
+        "note": "PostHog charges product analytics by usage: the first million events each month are free and the next ones start at about $0.00005 each, cheaper at higher volumes. At 5 million events a month that is at most about $2,400 a year, before session replay or flags. Check posthog.com/pricing for the current list. Analytics on your server costs $0 plus your database."
+      },
+      "faq": {
+        "f1": {
+          "q": "How do I install it?",
+          "a": "Create a project, copy the script tag from its setup page and paste it in your site. Or import https://zerosoft.ai/zs.mjs as a module. Servers can post events to /api/ingest/e with the project secret key."
+        },
+        "f2": {
+          "q": "Does it record sessions?",
+          "a": "No. Session replay is not built. Analytics records events and their properties, never the screen."
+        },
+        "f3": {
+          "q": "What does autocapture collect?",
+          "a": "Clicks on links and buttons with their text, which field changed (never what was typed) and form submits. Password fields and anything with the class zs-no-capture are skipped, and text that looks like an email or a long number is dropped."
+        },
+        "f4": {
+          "q": "How much traffic can it take?",
+          "a": "It runs on the same SQLite or Turso database as the rest of zerosoft, so it fits small and mid-size sites: a few million events per project before queries slow down. Funnels, retention and paths read up to 200,000 rows and tell you when they hit that cap."
+        },
+        "f5": {
+          "q": "What is missing compared to PostHog?",
+          "a": "Session replay, heatmaps, the toolbar, experiments, surveys, the data warehouse and pipelines, alerts and server or mobile SDKs. The SQL editor speaks SQLite, not HogQL. The parity table above has the full list."
+        }
+      },
+      "cta": {
+        "title1": "Paste the script.",
+        "title2": "Read the numbers.",
+        "sub": "Open Analytics, create a project and add the snippet to your site.",
+        "button": "Open Analytics"
+      }
     }
   },
   "product": {
@@ -1372,7 +1458,7 @@
     "apiDocs": "API docs",
     "howTitle": "How it works.",
     "suiteTitle": "One workspace.",
-    "suiteTitleDim": "Fifteen apps, same login.",
+    "suiteTitleDim": "Sixteen apps, same login.",
     "shotTitle": "{name}, inside.",
     "crumbs": "Breadcrumb",
     "navLabel": "{name} sections",
@@ -1735,6 +1821,22 @@
       "m2": "Lucía: I put it in Docs, it's in the sales folder.",
       "m3": "Thanks! I'll check it now.",
       "replyHint": "Message #general"
+    },
+    "analytics": {
+      "navWeb": "Web analytics",
+      "navInsights": "Insights",
+      "navFlags": "Feature flags",
+      "navPersons": "Persons",
+      "title": "Signups this week",
+      "new": "New insight",
+      "statVisitors": "Visitors",
+      "statViews": "Page views",
+      "statBounce": "Bounce rate",
+      "chartLabel": "Signups per day, this week and the previous one",
+      "funnelTitle": "Signup funnel",
+      "s1": "Viewed pricing",
+      "s2": "Started signup",
+      "s3": "Created a project"
     }
   },
   "status": {
@@ -2513,12 +2615,38 @@
     "paramInvoiceId": "Payment or invoice id, so the same sale never counts twice.",
     "paramPlatform": "ios or android.",
     "paramDeferredDomain": "Hostname of your custom domain, to only match links of that domain.",
-    "paramDeepLink": "Short link the app was opened with (universal link or app link), if any."
+    "paramDeepLink": "Short link the app was opened with (universal link or app link), if any.",
+    "analyticsApiTitle": "Analytics",
+    "analyticsApiDesc": "Product analytics. The ingest endpoints (/api/ingest/*) take the project key, not an API key: the public key (zsp_…) in the body from a browser, or the project secret key as Bearer zss_… from a server. Query endpoints accept a signed-in session or an API key with analytics:read.",
+    "analyticsCaptureTitle": "Capture events",
+    "analyticsCaptureDesc": "One event or a batch of up to 200, 512 KB per request. With the secret key as Bearer there is no origin check. Events with a repeated uuid are ignored. Rate limited per project.",
+    "analyticsDecideTitle": "Feature flags for a person",
+    "analyticsDecideDesc": "Values of the active flags for a distinct_id (true, false or the variant key) and the snippet settings. person_properties is added to what the person already has.",
+    "analyticsDeleteTitle": "Delete a person",
+    "analyticsDeleteDesc": "Deletes the person behind a distinct_id with all their events and sessions. Needs the project secret key as Bearer zss_….",
+    "analyticsQueryTitle": "Run a query",
+    "analyticsQueryDesc": "kind is trends, funnel, retention, paths, sql or web. SQL is read-only over the project tables events, persons, person_distinct_ids and sessions, up to 1,000 rows.",
+    "analyticsEventsTitle": "List events",
+    "analyticsEventsDesc": "Latest events of a project, newest first. Pass after with the last id you saw to get only new ones.",
+    "analyticsPersonsTitle": "List persons",
+    "analyticsPersonsDesc": "Persons of a project with their properties and distinct ids, most recently seen first.",
+    "paramAnalyticsApiKey": "Project public key (zsp_…). Also accepted as token.",
+    "paramAnalyticsBatch": "Events: event, distinct_id, properties, timestamp and an optional uuid. A single event can go at the top level instead.",
+    "paramAnalyticsSentAt": "When the client sent the batch; used to correct its clock.",
+    "paramAnalyticsDistinctId": "The id of the person in your product.",
+    "paramAnalyticsPersonProps": "Extra person properties for this evaluation.",
+    "paramAnalyticsProject": "Project id (ap_…).",
+    "paramAnalyticsQuery": "The query definition, the same one the app saves for an insight.",
+    "paramAnalyticsEvent": "Only this event name.",
+    "paramAnalyticsAfter": "Only events with a larger id.",
+    "paramAnalyticsCohort": "Only persons in this cohort id.",
+    "scope_analytics_read": "Read Analytics projects, events, persons and run queries.",
+    "scope_analytics_write": "Change Analytics projects, insights, dashboards, cohorts and flags."
   },
   "parityOverview": {
     "title": "Feature parity, app by app.",
     "titleDim": "Measured against each competitor.",
-    "lead": "Average parity across the 15 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
+    "lead": "Average parity across the 16 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
     "col": {
       "app": "App",
       "competitor": "Compared with",

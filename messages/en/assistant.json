@@ -140,6 +140,11 @@
       "a": "List my boards",
       "b": "Find a board",
       "c": "What can you do here?"
+    },
+    "analytics": {
+      "a": "How many visitors did we have this week?",
+      "b": "Which insights are saved in this project?",
+      "c": "Which feature flags are active?"
     }
   },
   "page": {

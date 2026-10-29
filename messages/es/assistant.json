@@ -140,6 +140,11 @@
       "a": "Listá mis pizarras",
       "b": "Buscá una pizarra",
       "c": "¿Qué podés hacer acá?"
+    },
+    "analytics": {
+      "a": "¿Cuántos visitantes tuvimos esta semana?",
+      "b": "¿Qué insights hay guardados en este proyecto?",
+      "c": "¿Qué feature flags están activos?"
     }
   },
   "page": {
