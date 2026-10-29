@@ -8,7 +8,7 @@
  * sin selector, solo para grabar reuniones), avisos y portapapeles, y
  * únicamente para el origen del servidor. Todo lo demás se niega.
  */
-import { BrowserWindow, desktopCapturer, nativeTheme, screen, shell, type WebContents } from 'electron';
+import { BrowserWindow, clipboard, desktopCapturer, Menu, nativeTheme, screen, shell, type MenuItemConstructorOptions, type WebContents } from 'electron';
 import path from 'path';
 import { classifyNavigation, isAppUrl, safeAppPath } from '../shared/nav';
 import { getWindowState, saveWindowState } from './config';
@@ -54,6 +54,16 @@ export function hardenContents(contents: WebContents) {
     if (guard(url)) e.preventDefault();
   });
   contents.on('will-attach-webview', (e) => e.preventDefault());
+  // Menú contextual (Electron no trae uno): ortografía, cortar, copiar, pegar y copiar link.
+  contents.on('context-menu', (_e, p) => {
+    const items: MenuItemConstructorOptions[] = [];
+    for (const word of p.dictionarySuggestions.slice(0, 4)) items.push({ label: word, click: () => contents.replaceMisspelling(word) });
+    if (p.misspelledWord) items.push({ label: 'Add to dictionary', click: () => contents.session.addWordToSpellCheckerDictionary(p.misspelledWord) }, { type: 'separator' });
+    if (p.linkURL && /^(https?|mailto):/.test(p.linkURL)) items.push({ label: 'Copy link', click: () => void clipboard.writeText(p.linkURL) }, { type: 'separator' });
+    if (p.isEditable) items.push({ role: 'cut', enabled: p.editFlags.canCut }, { role: 'copy', enabled: p.editFlags.canCopy }, { role: 'paste', enabled: p.editFlags.canPaste }, { role: 'selectAll' });
+    else if (p.selectionText) items.push({ role: 'copy' });
+    if (items.length) Menu.buildFromTemplate(items).popup();
+  });
   contents.setWindowOpenHandler(({ url }) => {
     // Un link de la app con target=_blank abre en la misma ventana (como Slack o Notion).
     if (isAppUrl(url, server())) {
@@ -85,10 +95,14 @@ export function setupSessionPermissions() {
       desktopCapturer
         .getSources({ types: ['screen'], thumbnailSize: { width: 0, height: 0 } })
         .then((sources) => {
+          testHooks.displayRequests.push(sources.length ? 'loopback' : 'none');
           if (!sources.length) return callback({});
           callback({ video: sources[0], audio: 'loopback' });
         })
-        .catch(() => callback({}));
+        .catch(() => {
+          testHooks.displayRequests.push('none');
+          callback({});
+        });
     },
     { useSystemPicker: false },
   );

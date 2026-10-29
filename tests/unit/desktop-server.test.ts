@@ -15,6 +15,7 @@ import { createNotification } from '@/lib/notifications';
 import { GET as loginGet, POST as loginPost } from '@/app/api/desktop/login/route';
 import { POST as tokenPost } from '@/app/api/desktop/token/route';
 import { GET as badgeGet } from '@/app/api/desktop/badge/route';
+import { parseAuthCallback } from '@/lib/native-login';
 
 const b64url = (b: Buffer) => b.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const pkce = () => {
@@ -121,6 +122,28 @@ describe('desktop: /api/desktop/login y /api/desktop/token', () => {
     expect(data.cookie.name).toMatch(/next-auth\.session-token$/);
     expect(data.cookie.maxAge).toBe(30 * 24 * 60 * 60);
     expect((await decode({ token: data.token, secret: process.env.NEXTAUTH_SECRET! }))?.email).toBe(u.email);
+  });
+
+  it('móvil: el canje con setCookie pone la cookie httpOnly y no devuelve el token (solo mismo origen)', async () => {
+    const u = await makeUser('mobile');
+    const { verifier, challenge } = pkce();
+    const code = await createDesktopLoginCode(u.id, challenge);
+    const cross = await tokenPost(
+      new NextRequest('http://x.test/api/desktop/token', { method: 'POST', body: JSON.stringify({ code, verifier, setCookie: true }), headers: { origin: 'https://evil.test', host: 'x.test' } }),
+    );
+    expect(cross.status).toBe(403);
+    const res = await tokenPost(
+      new NextRequest('http://x.test/api/desktop/token', { method: 'POST', body: JSON.stringify({ code, verifier, setCookie: true }), headers: { origin: 'http://x.test', host: 'x.test' } }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.token).toBeUndefined();
+    const set = res.headers.get('set-cookie') ?? '';
+    expect(set).toMatch(/next-auth\.session-token=/);
+    expect(set.toLowerCase()).toContain('httponly');
+    expect(parseAuthCallback(`zerosoft://auth/callback?code=${'a'.repeat(43)}&state=${'b'.repeat(20)}`)).toEqual({ code: 'a'.repeat(43), state: 'b'.repeat(20) });
+    expect(parseAuthCallback('zerosoft://auth/callback?code=x&state=y')).toBeNull();
+    expect(parseAuthCallback('https://auth/callback')).toBeNull();
   });
 
   it('el HTML escapa lo que viene de afuera', () => {

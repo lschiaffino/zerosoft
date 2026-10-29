@@ -123,11 +123,6 @@ export function isSignedIn(): boolean {
   return !!stored && stored.expiresAt > Date.now();
 }
 
-export async function hasSessionCookie(): Promise<boolean> {
-  const cookies = await appSession().cookies.get({ url: server() });
-  return cookies.some((c) => /next-auth\.session-token/.test(c.name));
-}
-
 export async function beginLogin(): Promise<void> {
   const verifier = b64url(crypto.randomBytes(32));
   const challenge = b64url(crypto.createHash('sha256').update(verifier).digest());

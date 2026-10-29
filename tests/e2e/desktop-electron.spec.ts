@@ -26,6 +26,8 @@ type Hooks = {
   pollBadge: () => Promise<void>;
   startDictation: () => void;
   stopDictation: () => Promise<void>;
+  startNotes: (eventKey?: string | null) => void;
+  displayRequests: string[];
 };
 
 test.describe('app de escritorio', () => {
@@ -34,8 +36,20 @@ test.describe('app de escritorio', () => {
 
   let app: ElectronApplication;
   let userData: string;
+  let server = '';
+
+  /** La ventana de la app (el overlay del dictado también es una ventana, de archivo local). */
+  async function mainWindow() {
+    for (let i = 0; i < 200; i++) {
+      const w = app.windows().find((p) => p.url().startsWith(server));
+      if (w) return w;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    throw new Error('sin ventana de la app');
+  }
 
   test.beforeAll(async ({ baseURL }) => {
+    server = baseURL!;
     userData = fs.mkdtempSync(path.join(os.tmpdir(), 'zs-desktop-e2e-'));
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const executablePath = require(path.join(root, 'node_modules', 'electron')) as unknown as string;
@@ -53,7 +67,7 @@ test.describe('app de escritorio', () => {
   });
 
   test('carga la app con el puente solo para el servidor y la navegación cerrada', async ({ baseURL }) => {
-    const win = await app.firstWindow();
+    const win = await mainWindow();
     await win.waitForURL(/\/app/, { timeout: 60_000 });
     expect(new URL(win.url()).origin).toBe(baseURL);
     const bridge = await win.evaluate(() => {
@@ -76,7 +90,7 @@ test.describe('app de escritorio', () => {
   });
 
   test('login en el navegador y vuelta por zerosoft:// con un código de un solo uso', async ({ request, baseURL }) => {
-    const win = await app.firstWindow();
+    const win = await mainWindow();
     await win.evaluate(() => (window as unknown as { zerosoftDesktop: { startLogin: () => void } }).zerosoftDesktop.startLogin());
     const opened = await expect
       .poll(() => app.evaluate(() => (globalThis as unknown as { __zsTest: Hooks }).__zsTest.openedExternal.find((u) => u.includes('/api/desktop/login'))))
@@ -99,10 +113,10 @@ test.describe('app de escritorio', () => {
 
     // Un state ajeno no hace nada; el bueno deja la sesión puesta y guardada cifrada.
     await app.evaluate(async (_e, l) => (globalThis as unknown as { __zsTest: Hooks }).__zsTest.deepLink(l.replace(/state=[^&]+/, `state=${'x'.repeat(32)}`)), link);
-    expect(await app.evaluate(async ({ session }) => (await session.fromPartition('persist:zerosoft').cookies.get({})).some((c) => c.name.endsWith('next-auth.session-token')))).toBe(false);
+    expect(await app.evaluate(async ({ session }) => (await session.fromPartition('persist:zerosoft').cookies.get({})).some((c: { name: string }) => c.name.endsWith('next-auth.session-token')))).toBe(false);
     await app.evaluate(async (_e, l) => (globalThis as unknown as { __zsTest: Hooks }).__zsTest.deepLink(l), link);
     await expect
-      .poll(() => app.evaluate(async ({ session }) => (await session.fromPartition('persist:zerosoft').cookies.get({})).map((c) => c.name)))
+      .poll(() => app.evaluate(async ({ session }) => (await session.fromPartition('persist:zerosoft').cookies.get({})).map((c: { name: string }) => c.name)))
       .toContain('next-auth.session-token');
     expect(fs.existsSync(path.join(userData, 'session.bin'))).toBe(true);
     expect(fs.readFileSync(path.join(userData, 'session.bin')).includes(Buffer.from('next-auth'))).toBe(false);
@@ -129,8 +143,23 @@ test.describe('app de escritorio', () => {
     await expect.poll(async () => (await hooks()).notifications).toContain(title);
     expect((await hooks()).badge).toBeGreaterThan(0);
     await app.evaluate((_e, t) => (globalThis as unknown as { __zsTest: Hooks }).__zsTest.notifications.find((n) => n.title === t)!.click(), title);
-    const win = await app.firstWindow();
+    const win = await mainWindow();
     await win.waitForURL(/\/app\/notes/);
+  });
+
+  test('notas de reunión: abre Voice, crea la reunión y graba con el audio del sistema', async ({ request }) => {
+    await app.evaluate(() => (globalThis as unknown as { __zsTest: Hooks }).__zsTest.startNotes());
+    const win = await mainWindow();
+    await win.waitForURL(/\/app\/voice\/meetings\/[^/?]+$/, { timeout: 30_000 });
+    const id = new URL(win.url()).pathname.split('/').pop()!;
+    // El grabador de la web empezó solo, con capture=desktop.
+    await expect.poll(async () => ((await (await request.get(`/api/voice/sessions/${id}`)).json()) as { status: string }).status, { timeout: 20_000 }).toBe('recording');
+    const detail = (await (await request.get(`/api/voice/sessions/${id}`)).json()) as { capture: string };
+    expect(detail.capture).toBe('desktop');
+    // La captura del sistema pasó por el handler (sin selector); con permiso de pantalla trae loopback.
+    expect((await app.evaluate(() => (globalThis as unknown as { __zsTest: Hooks }).__zsTest.displayRequests)).length).toBeGreaterThan(0);
+    await win.getByRole('button', { name: 'Stop', exact: true }).first().click();
+    await expect.poll(async () => ((await (await request.get(`/api/voice/sessions/${id}`)).json()) as { status: string }).status, { timeout: 30_000 }).not.toBe('recording');
   });
 
   test('dictado: micrófono → /api/voice/dictate → texto pegado', async ({ baseURL }) => {

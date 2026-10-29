@@ -19,6 +19,9 @@ export const testHooks = {
   startDictation: (() => undefined) as () => void,
   stopDictation: (async () => undefined) as () => Promise<void>,
   overlayLabels: [] as string[],
+  /** Pedidos de captura (getDisplayMedia) atendidos: con loopback o sin pantalla. */
+  displayRequests: [] as Array<'loopback' | 'none'>,
+  startNotes: (() => undefined) as (eventKey?: string | null) => void,
 };
 
 if (process.env.ZEROSOFT_DESKTOP_TEST === '1') (globalThis as unknown as { __zsTest: typeof testHooks }).__zsTest = testHooks;

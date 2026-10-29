@@ -207,3 +207,4 @@ testHooks.deepLink = handleDeepLink;
 testHooks.pollBadge = pollBadge;
 testHooks.startDictation = startDictation;
 testHooks.stopDictation = stopDictation;
+testHooks.startNotes = startNotes;
