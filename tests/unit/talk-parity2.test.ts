@@ -1,3 +1,4 @@
+import { takePending } from '@/lib/groups-push';
 import { createServer, type Server } from 'http';
 import type { AddressInfo } from 'net';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -343,6 +344,24 @@ describe('retención y export', () => {
 });
 
 describe('acceso por app y guests de workspace', () => {
+  it('al perder la app Talk, el push sin entregar se borra y no se entrega', async () => {
+    const w = await workspace('pushapps');
+    const dm = await openDm(w.a, [w.bob.id]);
+    await getDb().prepare('INSERT INTO groups_push_subscriptions (id, user_id, person_id, endpoint, p256dh, auth, user_agent, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(crypto.randomUUID(), w.bob.id, w.bob.id, `https://push.test/${crypto.randomUUID()}`, '', '', '', new Date().toISOString());
+    const r = await postMessage(w.a, { channelId: dm.id, body: 'previo' });
+    await talkPush(w.owner.id, w.bob.id, { title: 't', body: 'previo', href: `/app/talk/${dm.id}?m=${r.row.id}`, messageId: r.row.id });
+    const count = async () => Number(((await getDb().prepare("SELECT COUNT(*) AS n FROM groups_notifications WHERE person_id = ? AND body = 'previo'").get(w.bob.id)) as { n: number }).n);
+    expect(await count()).toBe(1);
+    await setMemberApps(w.team.id, w.bob.id, ['groups', 'docs']);
+    expect(await count()).toBe(0);
+    // Aunque la fila siga (otro camino), la entrega revisa el acceso a Talk.
+    await setMemberApps(w.team.id, w.bob.id, '*');
+    await talkPush(w.owner.id, w.bob.id, { title: 't', body: 'previo', href: `/app/talk/${dm.id}?m=${r.row.id}`, messageId: r.row.id });
+    await getDb().prepare("UPDATE team_members SET apps = '[\"groups\"]' WHERE team_id = ? AND user_id = ?").run(w.team.id, w.bob.id);
+    expect(await takePending(w.bob.id, w.bob.id)).toHaveLength(0);
+    expect(await count()).toBe(0);
+  });
+
   it('sin la app Talk no lee, no recibe avisos; un guest de workspace puede ser invitado de Talk', async () => {
     const w = await workspace('apps');
     const ch = await createChannel(w.a, { name: 'abierto', kind: 'public', memberIds: [w.bob.id] });
