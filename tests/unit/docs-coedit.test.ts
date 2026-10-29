@@ -111,7 +111,7 @@ describe('docs-coedit (servidor)', () => {
     // Lo que sale por el stream: la versión pública de esos eventos tampoco.
     const raw = (await getDb().prepare("SELECT * FROM docs_live_events WHERE page_id = ? AND kind = 'op'").all(pageId)) as Array<Record<string, unknown>>;
     const viewer: CoeditViewer = { ownerId: owner.id, realId: owner.id, actor: { id: owner.id } };
-    const out = await coeditFilter(viewer, pageId, 'full_access', () => undefined)(
+    const out = await coeditFilter(viewer, pageId, 'owner', () => undefined)(
       raw.map((r) => ({ id: Number(r.id), workspaceId: String(r.workspace_id), pageId, userId: (r.user_id as string) ?? null, kind: 'op', blockId: 'p', rev: Number(r.rev), session: (r.session_id as string) ?? null, seq: (r.seq as string) ?? null, payload: JSON.parse(String(r.payload)) })),
     );
     expect(out.length).toBe(payloads.length);

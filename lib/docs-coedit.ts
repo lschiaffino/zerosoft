@@ -116,6 +116,7 @@ export function publicEvent(e: RawEvent): CoeditEvent | null {
         start: typeof p.start === 'number' ? p.start : null,
         end: typeof p.end === 'number' ? p.end : null,
         mode: String(p.mode ?? 'edit'),
+        at: typeof p.at === 'string' ? p.at : null,
       };
     case 'leave':
       return { id: e.id, kind: 'leave', session: e.session ?? '', user: e.userId };
@@ -145,7 +146,6 @@ async function insertEvent(e: {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(e.workspaceId, e.pageId, e.userId ?? null, e.kind, e.blockId ?? null, e.rev ?? null, e.session ?? null, e.seq ?? null, JSON.stringify(e.payload ?? {}), now);
-  if (Math.random() < 0.02) void pruneEvents().catch(() => undefined);
   return res.changes ? (res.lastInsertRowid ?? null) : null;
 }
 
@@ -174,6 +174,9 @@ export async function docsAccessChanged(workspaceId: string, opts: { pageId?: st
   }
 }
 
+const CURSOR_MIN_MS = 100;
+const lastCursorAt = new Map<string, number>();
+
 /** Cursor de una sesión (y presencia): lo reciben las demás al instante. */
 export async function coeditCursor(args: {
   page: Pick<DocsPageRow, 'id' | 'user_id'>;
@@ -186,13 +189,18 @@ export async function coeditCursor(args: {
   end: number | null;
   mode: string;
 }): Promise<void> {
+  // Una por sesión cada 100 ms como mucho (el navegador ya manda una cada 200 ms).
+  const now = Date.now();
+  if (now - (lastCursorAt.get(args.session) ?? 0) < CURSOR_MIN_MS) return;
+  lastCursorAt.set(args.session, now);
+  if (lastCursorAt.size > 5000) lastCursorAt.clear();
   await insertEvent({
     workspaceId: args.page.user_id,
     pageId: args.page.id,
     userId: args.userId,
     kind: 'cursor',
     session: args.session,
-    payload: { name: args.name, image: args.image, block: args.block, start: args.start, end: args.end, mode: args.mode },
+    payload: { name: args.name, image: args.image, block: args.block, start: args.start, end: args.end, mode: args.mode, at: new Date(now).toISOString() },
   });
   coeditFeed().poke();
 }
@@ -571,7 +579,11 @@ export async function currentAccess(viewer: CoeditViewer, pageId: string): Promi
 async function backlog(pageId: string, cursor: number): Promise<{ events: RawEvent[]; cursor: number; gap?: boolean }> {
   const latest = async () => Number(((await getDb().prepare('SELECT MAX(id) AS id FROM docs_live_events').get()) as { id: number | null } | undefined)?.id ?? 0);
   if (!cursor) return { events: [], cursor: await latest() };
-  const rows = ((await getDb().prepare(`${SELECT_EVENTS} WHERE page_id = ? AND id > ? ORDER BY id LIMIT ${BACKLOG_LIMIT}`).all(pageId, cursor)) as Array<Record<string, unknown>>).map(toRaw);
+  // Cursores y avisos viejos no se repiten al reconectar (las operaciones sí: son el texto).
+  const fresh = new Date(Date.now() - EVENT_TTL_MS).toISOString();
+  const rows = ((await getDb()
+    .prepare(`${SELECT_EVENTS} WHERE page_id = ? AND id > ? AND (kind = 'op' OR created_at >= ?) ORDER BY id LIMIT ${BACKLOG_LIMIT}`)
+    .all(pageId, cursor, fresh)) as Array<Record<string, unknown>>).map(toRaw);
   if (rows.length >= BACKLOG_LIMIT) return { events: [], cursor: await latest(), gap: true };
   return { events: rows, cursor: rows.length ? rows[rows.length - 1].id : cursor };
 }
@@ -581,16 +593,26 @@ async function backlog(pageId: string, cursor: number): Promise<{ events: RawEve
  * acceso del workspace o de la página, revalida (si cambió el rol avisa; si
  * ya no puede abrirla, corta).
  */
-export function coeditFilter(viewer: CoeditViewer, pageId: string, initial: DocsAccess, onRevoked: () => void) {
+export function coeditFilter(viewer: CoeditViewer, pageId: string, initial: DocsAccess, onRevoked: () => void, onCheckError?: () => void) {
   let access: DocsAccess | null = initial;
   let revoked = false;
-  return async (events: RawEvent[]): Promise<CoeditEvent[]> => {
+  const filter = async (events: RawEvent[]): Promise<CoeditEvent[]> => {
     if (revoked) return [];
     const mine = events.filter((e) => e.pageId === pageId || (e.kind === 'access' && e.pageId === null));
     if (!mine.length) return [];
     const out: CoeditEvent[] = [];
     if (mine.some((e) => e.kind === 'access' && (e.pageId === pageId || e.workspaceId === viewer.ownerId || e.workspaceId === viewer.pageWorkspace || e.userId === viewer.realId))) {
-      const now = await currentAccess(viewer, pageId).catch(() => access);
+      let now: DocsAccess | null;
+      try {
+        now = await currentAccess(viewer, pageId);
+        filter.checkedAt = Date.now();
+      } catch {
+        // No se pudo revalidar (base caída): falla cerrado. No se manda nada más por
+        // esta conexión; el navegador se reconecta y la conexión nueva vuelve a chequear.
+        revoked = true;
+        onCheckError?.();
+        return [];
+      }
       if (!now) {
         revoked = true;
         onRevoked();
@@ -605,12 +627,23 @@ export function coeditFilter(viewer: CoeditViewer, pageId: string, initial: Docs
     }
     return out;
   };
+  /** Última revalidación (la periódica del stream no repite si fue hace poco). */
+  filter.checkedAt = Date.now();
+  return filter;
 }
+
+const CHECK_MS = 5_000;
 
 /** Stream SSE de una página para esta persona (ya chequeado su acceso). */
 export function coeditStream(viewer: CoeditViewer, pageId: string, access: DocsAccess, cursor: number, signal?: AbortSignal): Response {
-  let revoke: ((reason: string) => void) | null = null;
-  const filter = coeditFilter(viewer, pageId, access, () => revoke?.('revoked'));
+  let revoke: ((reason?: string) => void) | null = null;
+  const filter = coeditFilter(
+    viewer,
+    pageId,
+    access,
+    () => revoke?.('revoked'),
+    () => revoke?.(),
+  );
   return sseLiveResponse<CoeditEvent>({
     cursor,
     backlog: async (c) => {
@@ -625,8 +658,19 @@ export function coeditStream(viewer: CoeditViewer, pageId: string, access: DocsA
       });
     },
     // Red de seguridad: además de los avisos de cambio de acceso, cada 5 s.
-    check: async () => (await currentAccess(viewer, pageId).catch(() => 'view' as DocsAccess)) !== null,
-    checkMs: 5_000,
+    // Falla cerrado: si no se puede revalidar se corta (sin `revoked`: el navegador reconecta y se vuelve a chequear).
+    check: async () => {
+      // Recién revalidado por un aviso de cambio de acceso: no hace falta otra consulta.
+      if (Date.now() - filter.checkedAt < CHECK_MS) return true;
+      try {
+        filter.checkedAt = Date.now();
+        return (await currentAccess(viewer, pageId)) !== null;
+      } catch {
+        revoke?.();
+        return true;
+      }
+    },
+    checkMs: CHECK_MS,
     heartbeatMs: 15_000,
     maxMs: 240_000,
     signal,

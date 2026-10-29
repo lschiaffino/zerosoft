@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser, realUserId, type SessionUser } from '@/lib/session';
+import type { DocsPageRow } from '@/lib/db';
 import { DOC_INTERNAL_READ, getDocAccess, getDocPageRow, resolveDocAccess } from '@/lib/docs';
 import { canWriteAccess } from '@/lib/docs-access';
 import { SESSION_RE, leavePresence, touchPresence } from '@/lib/docs-live';
@@ -93,6 +94,36 @@ const bodySchema = z.object({
   bypass_lock: z.boolean().optional(),
 });
 
+const AFTER_SAVE_EVERY_MS = 15_000;
+const afterSaveState = new Map<string, { last: number; before: DocsPageRow | null; waiting: boolean }>();
+
+/**
+ * Los efectos de un guardado para las tandas de teclas: el primero sale ya y
+ * los siguientes se juntan en uno cada AFTER_SAVE_EVERY_MS (con la página de
+ * antes de la primera tanda del grupo). El último siempre corre: se espera
+ * dentro de after().
+ */
+async function throttledAfterSave(pageId: string, before: DocsPageRow, run: (first: DocsPageRow) => Promise<void>): Promise<void> {
+  let st = afterSaveState.get(pageId);
+  if (!st) {
+    if (afterSaveState.size > 2000) afterSaveState.clear();
+    st = { last: 0, before: null, waiting: false };
+    afterSaveState.set(pageId, st);
+  }
+  st.before ??= before;
+  const wait = st.last + AFTER_SAVE_EVERY_MS - Date.now();
+  if (wait > 0) {
+    if (st.waiting) return;
+    st.waiting = true;
+    await new Promise((r) => setTimeout(r, wait));
+    st.waiting = false;
+  }
+  const first = st.before;
+  st.before = null;
+  st.last = Date.now();
+  if (first) await run(first).catch(() => undefined);
+}
+
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
@@ -138,26 +169,31 @@ export async function POST(req: NextRequest) {
         actorId: me,
         session: body.session,
         items: body.items,
-        // Lo mismo que después de un guardado: versión automática, recordatorios de fechas y page.updated (agrupado).
-        onSaved: (before, blocks) =>
-          after(async () => {
-            const [{ maybeAutoSnapshot }, { afterDocsPageSaved }, { syncDocReminders }] = await Promise.all([
-              import('@/lib/docs-versions'),
-              import('@/lib/docs-events'),
-              import('@/lib/docs-reminders'),
-            ]);
-            await maybeAutoSnapshot(row.user_id, row.id, me, before).catch(() => undefined);
-            const updated = await getDocPageRow(row.id);
-            if (updated) await afterDocsPageSaved({ ws: row.user_id, before, after: updated, actorId: me, titleOrContent: true });
-            await syncDocReminders({
-              pageId: row.id,
-              workspaceId: row.user_id,
-              actorId: me,
-              blocks,
-              locale: locale === 'es' || locale === 'pt' || locale === 'en' ? locale : undefined,
-              timezone,
-            }).catch(() => undefined);
-          }),
+        // Lo mismo que después de un guardado (versión automática, recordatorios de fechas y
+        // page.updated), pero como mucho una vez cada 15 s por página: no en cada tanda de teclas.
+        onSaved: (before) =>
+          after(() =>
+            throttledAfterSave(row.id, before, async (first) => {
+              const [{ maybeAutoSnapshot }, { afterDocsPageSaved }, { syncDocReminders }, { parseBlocks }] = await Promise.all([
+                import('@/lib/docs-versions'),
+                import('@/lib/docs-events'),
+                import('@/lib/docs-reminders'),
+                import('@/lib/docs'),
+              ]);
+              await maybeAutoSnapshot(row.user_id, row.id, me, first).catch(() => undefined);
+              const updated = await getDocPageRow(row.id);
+              if (!updated) return;
+              await afterDocsPageSaved({ ws: row.user_id, before: first, after: updated, actorId: me, titleOrContent: true });
+              await syncDocReminders({
+                pageId: row.id,
+                workspaceId: row.user_id,
+                actorId: me,
+                blocks: parseBlocks(updated.content),
+                locale: locale === 'es' || locale === 'pt' || locale === 'en' ? locale : undefined,
+                timezone,
+              }).catch(() => undefined);
+            }),
+          ),
       });
     } catch (err) {
       if (err instanceof CoeditAccessError) return notFound();

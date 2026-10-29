@@ -202,8 +202,8 @@ export function useDocsCoedit(o: CoeditOptions): {
         st.key = key;
         void post({ cursor }).catch(() => undefined);
       };
-      // A lo sumo uno cada 120 ms.
-      const wait = Math.max(0, 120 - (Date.now() - st.at));
+      // A lo sumo uno cada 200 ms.
+      const wait = Math.max(0, 200 - (Date.now() - st.at));
       if (wait === 0) run();
       else st.timer = setTimeout(run, wait);
     },

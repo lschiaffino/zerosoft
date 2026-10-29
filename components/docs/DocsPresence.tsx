@@ -170,7 +170,7 @@ export function DocsPeerCursors({ peers, containerRef }: { peers: DocsPeer[]; co
             <span key={i} className="docs-peer-sel" style={{ left: r.left, top: r.top, width: r.width, height: r.height }} />
           ))}
           <span className="docs-peer-caret" style={{ left: b.left, top: b.top, height: b.height }} data-testid="docs-peer-caret">
-            <span className="docs-peer-name">{b.name}</span>
+            <span className="docs-peer-name" title={b.name}>{b.name}</span>
           </span>
         </div>
       ))}

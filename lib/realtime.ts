@@ -234,7 +234,7 @@ export interface SseLiveOptions<E> {
    * Suscripción al feed compartido; `push` recibe lo de esta conexión ya
    * filtrado y `revoke` corta la conexión (p. ej. la persona perdió el acceso).
    */
-  subscribe: (push: (batch: { events: E[]; cursor: number }) => void, revoke: (reason: string) => void) => () => void;
+  subscribe: (push: (batch: { events: E[]; cursor: number }) => void, revoke: (reason?: string) => void) => () => void;
   maxMs?: number;
   heartbeatMs?: number;
   /** Red de seguridad periódica: false corta la conexión con `bye` { reason: 'revoked' }. */

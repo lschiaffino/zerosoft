@@ -422,4 +422,6 @@ export async function setSubtreeTeamspace(workspaceId: string, ids: string[], te
       .prepare(`UPDATE docs_pages SET teamspace_id = ? WHERE user_id = ? AND id IN (${chunk.map(() => '?').join(',')})`)
       .run(teamspaceId, workspaceId, ...chunk);
   }
+  // A un teamspace privado: quien la tenía abierta sin ser miembro deja de verla en el acto.
+  await notifyAccess(workspaceId);
 }

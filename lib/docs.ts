@@ -796,7 +796,13 @@ export async function updateDocPage(
   // Otro guardado se coló entre el SELECT y el UPDATE.
   if (base !== undefined && result.changes === 0) throw new DocsConflictError();
   // Rol de los miembros, herencia o lugar en el árbol: cambia quién la ve (también las subpáginas).
-  if (input.member_role !== undefined || input.inherit_shares !== undefined || (input.parent_id !== undefined && input.parent_id !== row.parent_id)) {
+  // A la papelera o de vuelta: también.
+  if (
+    input.member_role !== undefined ||
+    input.inherit_shares !== undefined ||
+    (input.parent_id !== undefined && input.parent_id !== row.parent_id) ||
+    (input.archived !== undefined && (input.archived ? 1 : 0) !== row.archived)
+  ) {
     await docsAccessChangedLazy(ownerId, null).catch(() => undefined);
   }
   await recordRevisions(row, {
@@ -1050,6 +1056,8 @@ export async function deleteDocPage(ownerId: string, pageId: string): Promise<bo
   await getDb()
     .prepare(`DELETE FROM docs_pages WHERE id IN (${placeholders})`)
     .run(...ids);
+  // Quien la tenía abierta (o una subpágina) deja de verla en el acto.
+  await docsAccessChangedLazy(ownerId, null).catch(() => undefined);
   return true;
 }
 
@@ -1282,8 +1290,9 @@ export async function updateDocShareRole(
     .get(shareId, pageId)) as DocsShareRow | undefined;
   if (!share || share.kind === 'public') return null;
   await getDb().prepare('UPDATE docs_shares SET role = ? WHERE id = ?').run(role, shareId);
-  // Los editores abiertos de esa persona pasan al rol nuevo (o se cortan) en el acto.
-  await docsAccessChangedLazy(ownerId, pageId);
+  // Los editores abiertos de esa persona pasan al rol nuevo (o se cortan) en el acto,
+  // también en las subpáginas que heredan este share (por eso, todo el workspace).
+  await docsAccessChangedLazy(ownerId, null);
   return toShare({ ...share, role });
 }
 

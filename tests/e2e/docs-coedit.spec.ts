@@ -1,5 +1,6 @@
 import { createClient } from '@libsql/client';
 import { expect, test, type APIRequestContext, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { textHash } from '../../lib/docs-ot';
 
 /**
  * Docs: edición simultánea tecla por tecla (como Notion). Dos personas
@@ -205,4 +206,90 @@ test('Docs en vivo: quien lee ve escribir en vivo y, al sacarle el acceso, se le
   expect(((await after.json()) as { events: Array<{ kind: string }> }).events[0]?.kind).toBe('revoked');
   await ctxA.close();
   await ctxV.close();
+});
+
+test('Docs en vivo: una operación con HTML peligroso no se guarda ni se pinta en otra pantalla', async ({ browser, request }) => {
+  test.setTimeout(90_000);
+  const doc = await pageWith(request, `XSS ${uid()}`, [{ id: 'p', type: 'paragraph', content: 'ab' }]);
+  const email = `xss-${uid()}@darwin-e2e.io`;
+  const ctxV = await sessionAs(browser, email);
+  await shareWith(request, ctxV, doc.id, email, 'view');
+  const v = await ctxV.newPage();
+  const dialogs: string[] = [];
+  v.on('dialog', async (d) => {
+    dialogs.push(d.message());
+    await d.dismiss();
+  });
+  await openLive(v, doc.id);
+  // Quien edita manda a mano (sin el editor) una operación con un <img onerror>.
+  const res = await request.post('/api/docs/collab', {
+    data: { page: doc.id, session: 'xsssession0001', items: [{ block: 'p', rev: 0, hash: textHash('ab'), op: [1, '<img src=x onerror=alert(1)>ok', 1], seq: 'x1' }] },
+  });
+  expect(res.ok(), await res.text()).toBeTruthy();
+  expect(await res.text()).not.toMatch(/onerror|<img/i);
+  await expect.poll(() => textOf(request, doc.id), { timeout: 10_000 }).toBe('aokb');
+  await expect(v.locator('.docs-readonly-body')).toContainText('aokb', { timeout: 10_000 });
+  await expect(v.locator('.docs-readonly-body img')).toHaveCount(0);
+  expect(dialogs).toEqual([]);
+  // Nada de eso quedó en el feed.
+  const poll = await ctxV.request.get(`/api/docs/collab?page=${doc.id}&poll=1&cursor=1`);
+  expect(await poll.text()).not.toMatch(/onerror|<img/i);
+  await ctxV.close();
+});
+
+test('Docs en vivo: el título de un link a una página privada no sale por la foto de los bloques', async ({ browser, request }) => {
+  const secret = (await (await request.post('/api/docs/pages', { data: { title: `Adquisicion ${uid()}` } })).json()) as { id: string; title: string };
+  const link = `<a href="/app/docs/${secret.id}" data-page="${secret.id}">${secret.title}</a>`;
+  const doc = await pageWith(request, `Links ${uid()}`, [
+    { id: 'p', type: 'paragraph', content: `ver ${link}` },
+    { id: 'q', type: 'paragraph', content: 'texto' },
+  ]);
+  const email = `lnk-${uid()}@darwin-e2e.io`;
+  const ctxV = await sessionAs(browser, email);
+  await shareWith(request, ctxV, doc.id, email, 'view');
+  const snap = await ctxV.request.get(`/api/docs/collab?page=${doc.id}&blocks=p,q`);
+  const body = await snap.text();
+  expect(body).not.toContain(secret.title);
+  expect((JSON.parse(body) as { blocks: Record<string, unknown> }).blocks.p).toBeNull();
+  // En su pantalla tampoco: ve "Página privada".
+  const v = await ctxV.newPage();
+  await openLive(v, doc.id);
+  await expect(v.locator('.docs-readonly-body')).not.toContainText(secret.title);
+  await ctxV.close();
+});
+
+test('Docs en vivo: sin red, recargar con el borrador lo fusiona y la pantalla sigue en vivo', async ({ browser, request }) => {
+  test.setTimeout(120_000);
+  const doc = await pageWith(request, `Recarga ${uid()}`, [{ id: 'p', type: 'paragraph', content: 'alfa beta' }]);
+  const email = `rec-${uid()}@darwin-e2e.io`;
+  const ctxA = await browser.newContext();
+  const ctxB = await sessionAs(browser, email);
+  await shareWith(request, ctxB, doc.id, email, 'edit');
+  const a = await ctxA.newPage();
+  const b = await ctxB.newPage();
+  await openLive(a, doc.id);
+  await openLive(b, doc.id);
+  await ctxB.setOffline(true);
+  await b.evaluate(() => window.dispatchEvent(new Event('offline')));
+  await caretAtEnd(b);
+  await b.keyboard.type(' borrador', { delay: 30 });
+  await expect(b.getByTestId('docs-offline-banner')).toBeVisible({ timeout: 10_000 });
+  await caretAtStart(a);
+  await a.keyboard.type('A ', { delay: 30 });
+  await expect.poll(() => textOf(request, doc.id), { timeout: 15_000 }).toBe('A alfa beta');
+  // Vuelve la red y recarga: el borrador entra, sin perder lo de A.
+  await ctxB.setOffline(false);
+  await b.reload({ waitUntil: 'domcontentloaded' });
+  await expect.poll(() => textOf(request, doc.id), { timeout: 30_000 }).toBe('A alfa beta borrador');
+  await expect(editable(b)).toHaveText('A alfa beta borrador', { timeout: 20_000 });
+  await expect(b.locator('.docs-banner-bad')).toHaveCount(0);
+  // Y sigue en vivo para las dos.
+  await caretAtEnd(b);
+  await b.keyboard.type(' B', { delay: 30 });
+  await expect(editable(a)).toHaveText('A alfa beta borrador B', { timeout: 15_000 });
+  await caretAtEnd(a);
+  await a.keyboard.type(' fin', { delay: 30 });
+  await expect(editable(b)).toHaveText('A alfa beta borrador B fin', { timeout: 15_000 });
+  await ctxA.close();
+  await ctxB.close();
 });
