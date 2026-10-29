@@ -1,5 +1,6 @@
 'use client';
 
+import { pageStats } from '@/lib/docs-stats';
 import {
   Fragment,
   useCallback,
@@ -4010,6 +4011,9 @@ export default function DocsEditor({
                 )}
                 {layoutToggles && (<>
                 <hr className="docs-menu-divider" />
+                <div className="docs-menu-stats" role="note">
+                  {t('editor.stats', { ...pageStats(title, blocks) })}
+                </div>
                 <button
                   type="button"
                   role="menuitemcheckbox"
