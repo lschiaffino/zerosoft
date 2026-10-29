@@ -284,6 +284,16 @@ function reconcile(st: BlockState, blockId: string, pageText: string, out: Pendi
   return next;
 }
 
+const REVISION_EVERY_MS = 30_000;
+const lastRevision = new Map<string, number>();
+function shouldRecordRevision(pageId: string, now: number): boolean {
+  const last = lastRevision.get(pageId) ?? 0;
+  if (now - last < REVISION_EVERY_MS) return false;
+  lastRevision.set(pageId, now);
+  if (lastRevision.size > 5000) lastRevision.clear();
+  return true;
+}
+
 export class CoeditAccessError extends Error {
   constructor(public code: 'locked' | 'not_found') {
     super(code);
@@ -437,7 +447,10 @@ export async function applyTextOps(args: {
       .run(content, args.actorId, updatedAt, args.pageId, row.updated_at);
     if (result.changes === 0) continue;
     const iso = now.toISOString();
-    await recordRevisions(row, { updated_at: updatedAt, title: row.title, icon: row.icon, cover_url: row.cover_url, content }).catch(() => undefined);
+    // Versión guardada como mucho cada 30 s por página: las del medio se arman con las operaciones (lib/docs-revisions.ts).
+    if (shouldRecordRevision(args.pageId, now.getTime())) {
+      await recordRevisions(row, { updated_at: updatedAt, title: row.title, icon: row.icon, cover_url: row.cover_url, content }).catch(() => undefined);
+    }
     for (const id of touched) await saveState(args.pageId, id, states.get(id)!, iso);
     const eventIds = new Map<string, number>();
     for (const p of pending) {

@@ -347,6 +347,14 @@ export default function DocsEditorClient({
           setSaveError(null);
           return;
         }
+        if (res.status === 403 && patch.content && attempt < 2 && !force) {
+          // Sugerencias o comentarios mientras otra persona escribe en vivo: si a esta
+          // pantalla le faltaba una tecla ajena, se reintenta con lo que tiene ahora.
+          await new Promise((r) => setTimeout(r, 700));
+          const snap = editorApi.current?.snapshot();
+          retry = { patch: { ...patch, content: snap?.blocks ?? patch.content }, rebase: [] };
+          return;
+        }
         if (!res.ok) {
           setSaveError('failed');
           // Un interruptor optimista que no se guardó vuelve al valor del server.

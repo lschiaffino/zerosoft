@@ -1,10 +1,13 @@
 /**
  * Últimas versiones guardadas de una página (docs_page_revisions): la base
  * de la fusión de tres vías cuando un editor guarda sobre una versión vieja
- * (ver lib/docs-merge.ts). Se guardan las últimas 30 por página (con la
- * edición simultánea cada tanda de teclas deja una).
+ * (ver lib/docs-merge.ts). Se guardan las de los últimos 10 minutos (al
+ * menos 30, a lo sumo 300 por página). Las tandas de teclas de la edición
+ * simultánea no dejan una cada una: la versión de cualquier momento se arma
+ * con la última guardada antes y las operaciones del feed (lib/docs-coedit.ts).
  */
 import { getDb, type DocsPageRow } from './db';
+import { apply, isTextOp, textHash } from './docs-ot';
 
 export interface DocsRevision {
   updated_at: string;
@@ -14,7 +17,9 @@ export interface DocsRevision {
   content: string;
 }
 
-const KEEP = 30;
+const KEEP_MIN = 30;
+const KEEP_MAX = 300;
+const KEEP_WINDOW_MS = 10 * 60_000;
 
 /**
  * `updated_at` nuevo para un guardado sobre `prev`: la hora actual, pero
@@ -28,11 +33,60 @@ export function nextUpdatedAt(prev: string | null | undefined, now = new Date())
 }
 
 export async function getRevision(pageId: string, updatedAt: string): Promise<DocsRevision | null> {
-  return (
-    ((await getDb()
-      .prepare('SELECT updated_at, title, icon, cover_url, content FROM docs_page_revisions WHERE page_id = ? AND updated_at = ?')
-      .get(pageId, updatedAt)) as DocsRevision | undefined) ?? null
-  );
+  const exact = ((await getDb()
+    .prepare('SELECT updated_at, title, icon, cover_url, content FROM docs_page_revisions WHERE page_id = ? AND updated_at = ?')
+    .get(pageId, updatedAt)) as DocsRevision | undefined) ?? null;
+  return exact ?? (await revisionFromOps(pageId, updatedAt));
+}
+
+/**
+ * La página como estaba en `at` cuando esa marca la dejó una tanda de teclas
+ * (no guarda versión): la última versión guardada antes, más las operaciones
+ * que entraron hasta `at`, en orden. Null si no se puede armar exacta.
+ */
+async function revisionFromOps(pageId: string, at: string): Promise<DocsRevision | null> {
+  const base = await getRevisionAtOrBefore(pageId, at);
+  if (!base) return null;
+  let rows: Array<{ block_id: string; payload: string; at: string }>;
+  try {
+    rows = (await getDb()
+      .prepare(
+        `SELECT block_id, payload, json_extract(payload, '$.at') AS at FROM docs_live_events
+         WHERE page_id = ? AND kind = 'op' AND json_extract(payload, '$.at') > ? AND json_extract(payload, '$.at') <= ? ORDER BY id`,
+      )
+      .all(pageId, base.updated_at, at)) as Array<{ block_id: string; payload: string; at: string }>;
+  } catch {
+    return null;
+  }
+  // La marca tiene que ser de una tanda de teclas (si no, no es una versión que existió).
+  if (!rows.some((r) => r.at === at)) return null;
+  let blocks: Array<{ id: string; content?: unknown }>;
+  try {
+    blocks = JSON.parse(base.content) as Array<{ id: string; content?: unknown }>;
+  } catch {
+    return null;
+  }
+  const index = new Map(blocks.map((b, i) => [b.id, i]));
+  for (const r of rows) {
+    const i = index.get(r.block_id);
+    if (i === undefined) return null;
+    let p: { op?: unknown; hb?: string; ha?: string };
+    try {
+      p = JSON.parse(r.payload) as { op?: unknown; hb?: string; ha?: string };
+    } catch {
+      return null;
+    }
+    const text = typeof blocks[i].content === 'string' ? (blocks[i].content as string) : null;
+    // Ya está en la versión guardada (la reconciliación de un cambio que entró por el guardado).
+    if (text !== null && p.ha && textHash(text) === p.ha) continue;
+    if (text === null || !isTextOp(p.op) || (p.hb && textHash(text) !== p.hb)) return null;
+    try {
+      blocks[i] = { ...blocks[i], content: apply(text, p.op) };
+    } catch {
+      return null;
+    }
+  }
+  return { ...base, updated_at: at, content: JSON.stringify(blocks) };
 }
 
 /**
@@ -62,10 +116,15 @@ export async function recordRevisions(
   if (!had) await db.prepare(insert).run(prev.id, prev.updated_at, prev.title ?? '', prev.icon ?? null, prev.cover_url ?? null, prev.content ?? '[]');
   // La nueva manda (si cae en el mismo milisegundo que la anterior, la reemplaza).
   await db.prepare(insert.replace('INSERT OR IGNORE', 'INSERT OR REPLACE')).run(prev.id, next.updated_at, next.title ?? '', next.icon ?? null, next.cover_url ?? null, next.content);
+  // Las de los últimos 10 minutos (al menos KEEP_MIN, nunca más de KEEP_MAX): un editor o la API
+  // que guardan sobre una versión de hace unos minutos todavía se fusionan.
+  const cutoff = new Date(Date.parse(next.updated_at) - KEEP_WINDOW_MS).toISOString();
   await db
     .prepare(
       `DELETE FROM docs_page_revisions WHERE page_id = ? AND updated_at NOT IN (
-         SELECT updated_at FROM docs_page_revisions WHERE page_id = ? ORDER BY updated_at DESC LIMIT ${KEEP})`,
+         SELECT updated_at FROM docs_page_revisions WHERE page_id = ? ORDER BY updated_at DESC LIMIT ${KEEP_MIN})
+       AND (updated_at < ? OR updated_at NOT IN (
+         SELECT updated_at FROM docs_page_revisions WHERE page_id = ? ORDER BY updated_at DESC LIMIT ${KEEP_MAX}))`,
     )
-    .run(prev.id, prev.id);
+    .run(prev.id, prev.id, cutoff, prev.id);
 }

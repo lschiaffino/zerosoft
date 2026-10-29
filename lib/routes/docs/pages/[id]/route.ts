@@ -114,7 +114,17 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
       const next = cleanContent(patch.content);
       // La versión que vio cada uno de los sincronizados no es un cambio de contenido.
       const noAt = (list: typeof prev) => list.map((b) => (b.synced_at ? { ...b, synced_at: undefined } : b));
-      const why = checkMarksOnlyChange(noAt(prev), noAt(next), actorId, !locked);
+      let why = checkMarksOnlyChange(noAt(prev), noAt(next), actorId, !locked);
+      if (why && rev) {
+        // Lo que otra persona escribió en vivo (operaciones) ya llegó a su pantalla y
+        // es más nuevo que su base: contra la página como está ahora, solo cambian sus marcas.
+        const current = await editorBlocks(row, user);
+        if (!checkMarksOnlyChange(noAt(current), noAt(next), actorId, !locked)) {
+          why = null;
+          // La fusión se hace contra esta versión (si no, lo ajeno contaría como cambio suyo).
+          patch.base_updated_at = row.updated_at;
+        }
+      }
       if (why) return docsError(locked ? 423 : 403, locked ? 'locked' : why);
     }
   }
