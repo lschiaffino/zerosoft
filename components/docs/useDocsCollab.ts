@@ -37,7 +37,8 @@ export interface DocsEditorApi {
    * editor mandó o la última versión que vio) y `remote` (lo que quedó
    * guardado). Devuelve el resultado en el acto (ya puesto en el estado).
    */
-  applyRemote(base: DocsSnapshot, remote: DocsSnapshot, caretOp?: RemoteApply['caretOp']): { merged: DocsSnapshot; conflicts: string[]; changed: boolean };
+  /** `caretOp` null: el caret ya quedó donde va (no se toca al pintar). */
+  applyRemote(base: DocsSnapshot, remote: DocsSnapshot, caretOp?: RemoteApply['caretOp'] | null): { merged: DocsSnapshot; conflicts: string[]; changed: boolean };
   /** Descarta el guardado pendiente (se va a guardar lo fusionado). */
   cancelPendingSave(): void;
   hasPendingSave(): boolean;
@@ -113,6 +114,7 @@ export function useDocsCollab(d: Deps) {
   const remote = useRef<RemoteApply | null>(null);
   const composing = useRef(false);
   const lastInputType = useRef<string>('');
+  const lastInputAt = useRef(0);
   const depsRef = useRef(d);
   depsRef.current = d;
 
@@ -187,19 +189,45 @@ export function useDocsCollab(d: Deps) {
       const { live, blockRefs } = depsRef.current;
       const active = document.activeElement as HTMLElement | null;
       const idx = active ? blockRefs.current.findIndex((el) => el === active) : -1;
-      if (idx < 0 || !active) return false;
+      if (idx < 0 || !active || Date.now() - lastInputAt.current > 400) return false;
       // Una tecla que el navegador ya pintó y el modelo todavía no tiene.
       return serializeEditable(active) !== (live.current.blocks[idx]?.content ?? '');
     },
     applyBlockText: (changes, caretOp) => {
-      const cur = depsRef.current.live.current;
+      const { live, blockRefs } = depsRef.current;
+      const cur = live.current;
       if (!cur.blocks.some((b) => b.id in changes)) return;
+      // El DOM se actualiza ya, no en el próximo render: una tecla que llegue en el
+      // medio se escribe sobre el texto con lo de la otra persona (si no, la pisaba).
+      cur.blocks.forEach((b, i) => {
+        if (!(b.id in changes)) return;
+        const el = blockRefs.current[i];
+        if (!el || serializeEditable(el) !== (b.content ?? '')) return;
+        const focused = document.activeElement === el;
+        const sel = focused ? getSelectionOffsets(el) : null;
+        el.innerHTML = changes[b.id];
+        if (focused && sel) {
+          let start = sel.start;
+          let end = sel.end;
+          try {
+            if (caretOp?.blockId === b.id) {
+              for (const step of caretOp.steps) {
+                start = transformTextOffset(step.prev, start, step.op);
+                end = transformTextOffset(step.prev, end, step.op);
+              }
+            }
+          } catch {
+            /* el caret queda en el mismo offset */
+          }
+          setSelectionOffsets(el, start, end);
+        }
+      });
       const theirs = { title: cur.title, blocks: cur.blocks.map((b) => (b.id in changes ? { ...b, content: changes[b.id] } : b)) };
-      const res = api.applyRemote(cur, theirs, caretOp);
+      const res = api.applyRemote(cur, theirs, null);
       // El modelo ya es este (el render llega después): lo próximo que se lea lo ve.
       if (res.changed) depsRef.current.live.current = res.merged;
     },
-    applyRemote: (base, theirs, caretOp) => {
+    applyRemote: (base, theirs, caretOp?: RemoteApply['caretOp'] | null) => {
       const { live, blockRefs, setBlocksRaw, setTitle, normalize, titleRef } = depsRef.current;
       const prev = live.current;
       // Una fusión anterior todavía sin pintar: se da por terminada.
@@ -223,7 +251,7 @@ export function useDocsCollab(d: Deps) {
       if (sameContent(blocks, prev.blocks) && title === prev.title) return { merged: prev, conflicts: res.conflicts, changed: false };
       const entry: RemoteApply = {
         prev,
-        caret: caretBlock && sel ? { blockId: caretBlock.id, start: sel.start, end: sel.end, text: flatText(caretBlock.content) } : null,
+        caret: caretOp === null ? null : caretBlock && sel ? { blockId: caretBlock.id, start: sel.start, end: sel.end, text: flatText(caretBlock.content) } : null,
         resolve: () => {},
         conflicts: res.conflicts,
         caretOp,
@@ -319,6 +347,7 @@ export function useDocsCollab(d: Deps) {
     if (!root) return;
     const onBefore = (e: InputEvent) => {
       lastInputType.current = e.inputType;
+      lastInputAt.current = Date.now();
       if (depsRef.current.mode !== 'suggest') return;
       // Formato, soltar archivos o texto arrastrado: no se sugieren.
       if (/^format|^insertFromDrop$|^deleteByDrag$|^insertLink$/.test(e.inputType)) e.preventDefault();

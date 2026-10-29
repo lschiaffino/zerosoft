@@ -1,3 +1,4 @@
+import { createClient } from '@libsql/client';
 import { expect, test, type APIRequestContext, type Browser, type BrowserContext, type Page } from '@playwright/test';
 
 /**
@@ -40,6 +41,13 @@ async function shareWith(request: APIRequestContext, ctx: BrowserContext, pageId
   const visit = await ctx.newPage();
   await visit.goto('/en/app/docs', { waitUntil: 'domcontentloaded' });
   await visit.close();
+  // Sin el onboarding de la primera vez (no es lo que se prueba acá).
+  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  try {
+    await db.execute({ sql: "UPDATE users SET onboarded_at = datetime('now') WHERE email = ?", args: [email] });
+  } finally {
+    db.close();
+  }
   const res = await request.post(`/api/docs/pages/${pageId}/share`, { data: { kind: 'user', email, role } });
   expect(res.status(), await res.text()).toBe(201);
   return (await res.json()) as { id: string };
@@ -49,9 +57,11 @@ const editable = (p: Page, id = 'p') => p.locator(`[data-block-anchor="${id}"] .
 
 /** Espera a que el stream en vivo de la página esté conectado. */
 async function openLive(p: Page, pageId: string) {
-  const ready = p.waitForResponse((r) => r.url().includes(`/api/docs/collab?page=${pageId}`) && r.request().method() === 'GET', { timeout: 30_000 });
+  const ready = p.waitForRequest((r) => r.url().includes(`/api/docs/collab?page=${pageId}`) && r.method() === 'GET', { timeout: 30_000 });
   await p.goto(`/en/app/docs/${pageId}`, { waitUntil: 'domcontentloaded' });
   await ready;
+  // El stream ya mandó `ready` (lo de antes de engancharse se recupera por la huella).
+  await p.waitForTimeout(500);
   await expect(editable(p).or(p.locator('.docs-readonly-body')).first()).toBeVisible();
 }
 
@@ -84,12 +94,14 @@ test('Docs en vivo: dos personas en el mismo bloque y en el mismo punto, sin per
   await Promise.all([a.keyboard.type(' uno dos tres', { delay: 35 }), b.keyboard.type(' alfa beta gama', { delay: 35 })]);
 
   // El servidor tiene cada tecla una sola vez (las palabras no se mezclan: cada tanda entra entera o intercalada, pero completa).
-  await expect
-    .poll(async () => {
-      const text = (await textOf(request, doc.id)) ?? '';
-      return [...text.replace(/\s/g, '')].sort().join('');
-    }, { timeout: 20_000 })
-    .toBe([...'Plan:unodostresalfabetagama'].sort().join(''));
+  const letters = (t: string) => [...t.replace(/\s/g, '')].sort().join('');
+  const want = letters('Plan:unodostresalfabetagama');
+  let seen = '';
+  for (let i = 0; i < 40 && letters(seen) !== want; i++) {
+    seen = (await textOf(request, doc.id)) ?? '';
+    if (letters(seen) !== want) await a.waitForTimeout(500);
+  }
+  expect(letters(seen), `texto en el servidor: ${seen}`).toBe(want);
   const final = (await textOf(request, doc.id))!;
   // Las dos pantallas convergen al mismo texto sin recargar.
   await expect(editable(a)).toHaveText(final, { timeout: 15_000 });
