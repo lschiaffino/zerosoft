@@ -5,6 +5,9 @@
    muestra los colores del diseño; el resto sigue el tema claro u oscuro.
    ============================================================ */
 
+/* El padding de las secciones del sitio (globals.css) no aplica dentro de la app. */
+section.dz-presets, section.dz-tpl-section, .dz-side section { padding-top: 0; padding-bottom: 0; }
+
 /* ---------- Sidebar ---------- */
 
 .dz-branch-h { margin: 8px 0 2px 12px; font-size: 0.75rem; color: var(--dim); text-transform: uppercase; letter-spacing: 0.04em; }
