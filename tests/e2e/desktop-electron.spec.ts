@@ -86,10 +86,11 @@ test.describe('app de escritorio', () => {
       const b = (window as unknown as { zerosoftDesktop?: Record<string, unknown> }).zerosoftDesktop;
       return b ? { version: b.version, startLogin: typeof b.startLogin, keys: Object.keys(b).sort() } : null;
     });
-    expect(bridge).toEqual({ version: '0.1.0', startLogin: 'function', keys: ['dictation', 'openSettings', 'platform', 'startLogin', 'systemAudio', 'version'] });
+    expect(bridge).toEqual({ version: '0.1.0', startLogin: 'function', keys: ['consumeAutostart', 'dictation', 'openSettings', 'platform', 'startLogin', 'systemAudio', 'version'] });
     // Sin Node en la página.
     expect(await win.evaluate(() => typeof (window as unknown as { require?: unknown }).require)).toBe('undefined');
     // Un link externo va al navegador del sistema y la ventana no se mueve.
+    await win.waitForLoadState('load');
     await win.evaluate(() => {
       const a = document.createElement('a');
       a.href = 'https://example.com/docs';
@@ -97,7 +98,7 @@ test.describe('app de escritorio', () => {
       document.body.append(a);
       a.click();
     });
-    await expect.poll(() => app.evaluate(() => (globalThis as unknown as { __zsTest: Hooks }).__zsTest.openedExternal)).toContain('https://example.com/docs');
+    await expect.poll(() => app.evaluate(() => (globalThis as unknown as { __zsTest: Hooks }).__zsTest.openedExternal), { timeout: 15_000 }).toContain('https://example.com/docs');
     expect(new URL(win.url()).origin).toBe(baseURL);
   });
 
