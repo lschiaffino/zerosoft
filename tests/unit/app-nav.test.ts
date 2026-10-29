@@ -59,6 +59,8 @@ describe('sidebar de la app', () => {
     expect(appProductFromPath('/app/rec/settings')).toBe('rec');
     expect(appProductFromPath('/app/talk')).toBe('talk');
     expect(appProductFromPath('/app/design/abc')).toBe('design');
+    // El asistente es de la plataforma: shell neutro, nunca el de Link.
+    expect(appProductFromPath('/app/assistant')).toBe('home');
   });
 
   it.each(PRODUCTS)('cada ítem de %s apunta a una página existente', (product) => {
@@ -150,6 +152,7 @@ describe('sidebar de la app', () => {
     expect(active('link', '/app/links/overview')).toEqual(['/app/links/overview']);
     expect(active('link', '/app/links')).toEqual(['/app/links']);
     expect(active('home', '/app')).toEqual(['/app']);
+    expect(active('home', '/app/assistant')).toEqual(['/app/assistant']);
   });
 
   it('Track › Proyectos es una lista real y /app/chat/widgets no da 404', () => {

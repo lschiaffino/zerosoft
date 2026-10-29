@@ -57,10 +57,18 @@ export type IconName =
   | 'initiatives'
   | 'roadmap'
   | 'cycles'
-  | 'insights';
+  | 'insights'
+  | 'assistant';
 
 // Íconos geométricos mínimos (trazo, estilo Feather/Lucide) para el sidebar.
 const PATHS: Record<IconName, ReactNode> = {
+  // Asistente de la plataforma: destello (distinto del robot de "Ask AI" del CRM y Docs).
+  assistant: (
+    <>
+      <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" />
+      <path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z" />
+    </>
+  ),
   overview: (
     <>
       <rect x="3" y="3" width="7" height="7" />

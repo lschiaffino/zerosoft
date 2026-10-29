@@ -165,6 +165,9 @@
     "askDocs": "Perguntar à IA sobre seus docs",
     "groupWorkspaceTeams": "Equipes do workspace",
     "import": "Importar",
+    "assistant": "Assistente",
+    "askAssistant": "Perguntar ao assistente",
+    "groupAssistantChats": "Conversas do assistente",
     "groupDesigns": "Designs",
     "groupDesignFolders": "Pastas do Design"
   },

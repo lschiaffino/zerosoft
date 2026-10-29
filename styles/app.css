@@ -32,6 +32,9 @@
   padding: 24px 32px 104px;
 }
 
+/* La banda es sticky: el foco, los anclajes y scrollIntoView dejan su alto libre arriba. */
+html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
+
 /* ---------- Banda ---------- */
 
 .app-band {
@@ -337,19 +340,14 @@
     scrollbar-width: thin;
     scrollbar-color: var(--brand-rule) transparent;
   }
-  /* Indicio de scroll: los ítems se desvanecen en el borde donde hay más (AppSidebar pone data-more-*). */
-  .side-line[data-more-below] {
-    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent);
-    mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent);
-  }
-  .side-line[data-more-above] {
-    -webkit-mask-image: linear-gradient(to top, #000 calc(100% - 28px), transparent);
-    mask-image: linear-gradient(to top, #000 calc(100% - 28px), transparent);
-  }
-  .side-line[data-more-above][data-more-below] {
-    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 28px, #000 calc(100% - 40px), transparent);
-    mask-image: linear-gradient(to bottom, transparent, #000 28px, #000 calc(100% - 40px), transparent);
-  }
+  /*
+   * Indicio de scroll: una línea fina en el borde donde hay más (AppSidebar pone
+   * data-more-*). Antes era un desvanecido de 40px que dejaba el último ítem
+   * visible (p. ej. un team en "Your teams") gris, como deshabilitado.
+   */
+  .side-line[data-more-below] { box-shadow: inset 0 -1px 0 var(--line); }
+  .side-line[data-more-above] { box-shadow: inset 0 1px 0 var(--line); }
+  .side-line[data-more-above][data-more-below] { box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line); }
 }
 
 /* Pie: ajustes globales, docs, sitio, usuario. */
@@ -1262,9 +1260,9 @@ td.cell-actions > * + * { margin-left: 4px; }
 .home-recent-partial { padding: 8px 0 4px; font-size: 0.8125rem; color: var(--dim); border-top: 1px solid var(--line); }
 .home-split.home-split-full { grid-template-columns: minmax(0, 1fr); }
 
-/* Sidebar del inicio: hasta Notes entra sin scroll en una pantalla de 900px (16 apps). */
+/* Sidebar del inicio: hasta Notes entra sin scroll en una pantalla de 900px (16 apps y el asistente). */
 .side-line.side-line-compact .side-section { padding: 6px 8px 2px 12px; }
-.side-line.side-line-compact .side-stop { height: 28px; }
+.side-line.side-line-compact .side-stop { height: 27px; }
 
 /* Encabezado que pliega su grupo (el "More" de Track, como en Linear). */
 .side-section-toggle {

@@ -58,7 +58,7 @@
 /* ---------- Página de plan / initiative ---------- */
 .tp-plan { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 32px; align-items: start; min-width: 0; }
 .tp-plan-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.tp-plan-side { display: flex; flex-direction: column; gap: 12px; position: sticky; top: 72px; min-width: 0; }
+.tp-plan-side { display: flex; flex-direction: column; gap: 20px; position: sticky; top: calc(var(--band-h, 48px) + 24px); min-width: 0; }
 .tp-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--brand-gray-2); }
 .tp-crumbs a { color: var(--brand-gray-1); text-decoration: none; }
 .tp-crumbs a:hover { color: var(--ink); text-decoration: underline; }
@@ -71,23 +71,29 @@
 .tp-summary-input:hover { border-color: var(--line); }
 .tp-summary-input:focus { outline: none; border-color: var(--ink); color: var(--ink); }
 
-.tp-props { display: grid; grid-template-columns: 1fr; gap: 4px; margin: 0; }
-.tp-props dt { margin-top: 8px; font-size: 0.75rem; font-weight: 600; color: var(--brand-gray-2); }
+.tp-props { display: grid; grid-template-columns: 1fr; gap: 8px; margin: 0; }
+.tp-props dt { font-size: 0.75rem; font-weight: 600; line-height: 1.2; color: var(--brand-gray-2); }
+/* Cada propiedad es un bloque: el aire entre bloques es siempre el mismo (Health, Update reminders, Notifications). */
+.tp-props dt:not(:first-child) { margin-top: 12px; }
 .tp-props dd { margin: 0; min-width: 0; }
-.tp-prop-pair { display: flex; gap: 6px; }
-.tp-prop-note { margin-top: 2px; }
+.tp-prop-pair { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.tp-prop-note { margin-top: 0; }
 .tp-prop-btn { display: block; width: 100%; min-height: 36px; padding: 6px 10px; text-align: left; font: inherit; font-size: 0.875rem; color: var(--ink); background: var(--bg); border: 1px solid var(--ui-field); border-radius: var(--radius-1); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tp-prop-btn:hover { border-color: var(--brand-gray-2); }
 .tp-prop-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 .tp-checklist { display: flex; flex-direction: column; gap: 4px; margin: 6px 0 0; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius-1); max-height: 220px; overflow-y: auto; }
 .tp-check { font-size: 0.875rem; }
 .tp-check-inline { align-self: end; padding-bottom: 8px; font-size: 0.875rem; }
-.tp-danger-link { align-self: flex-start; color: var(--bad-ink); }
+/* Borrar va abajo, separado, con el mismo borde izquierdo y alto que Follow. */
+.tp-danger-link { align-self: flex-start; }
+.tp-plan-side > .tp-danger-link { margin-top: 4px; }
 
-.tp-card { display: flex; flex-direction: column; gap: 10px; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg); min-width: 0; }
-.tp-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+/* .track-page section (track.css) le saca el padding vertical a todo <section>: acá va con más especificidad. */
+.tp-card,
+.track-page section.tp-card { display: flex; flex-direction: column; gap: 12px; padding: 16px 20px; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg); min-width: 0; }
+.tp-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; min-height: 28px; }
 .tp-card-title { margin: 0; font-size: 0.875rem; font-weight: 600; }
-.tp-overview { display: flex; flex-direction: column; gap: 12px; }
+.tp-overview { display: flex; flex-direction: column; gap: 16px; }
 .tp-latest { display: flex; flex-direction: column; gap: 6px; }
 .tp-desc-form { display: flex; flex-direction: column; gap: 8px; }
 .tp-desc-textarea { min-height: 180px; }
@@ -95,8 +101,13 @@
 .tp-form-actions .ui-help { margin-right: auto; }
 .tp-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
 .tp-inline-form { display: flex; gap: 8px; align-items: center; min-width: 0; }
+/* Nombre, fecha/team y Agregar: mismo alto (32px) y mismo borde de campo. */
+.tp-inline-form .input,
+.tp-inline-form .select { height: 32px; min-height: 32px; padding-top: 4px; padding-bottom: 4px; font-size: 0.875rem; }
 .tp-inline-form .input { flex: 1; min-width: 0; }
 .tp-inline-form .select { width: auto; max-width: 50%; }
+.tp-inline-form .tp-chip.track-inline-trigger { height: 32px; min-height: 32px; padding: 0 10px; border-color: var(--ui-field); }
+.tp-inline-form .btn { --btn-h: 32px; flex: none; }
 .tp-inline-input { flex: 1; min-width: 0; padding: 4px 6px; font: inherit; font-size: 0.875rem; color: var(--ink); background: transparent; border: 1px solid transparent; border-radius: var(--radius-1); }
 .tp-inline-input:hover { border-color: var(--line); }
 .tp-inline-input:focus { outline: none; border-color: var(--ink); }
@@ -104,11 +115,12 @@
 
 /* Milestones */
 .tp-ms-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
-.tp-ms { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.tp-ms { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 4px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.tp-ms-list + .tp-inline-form { margin-top: 4px; }
 .tp-ms-diamond { width: 9px; height: 9px; flex: none; transform: rotate(45deg); border: 1.5px solid var(--brand-gray-2); }
 .tp-ms-next .tp-ms-diamond { border-color: var(--warn-ink); background: var(--warn-ink); }
 .tp-ms-done .tp-ms-diamond { border-color: var(--accent); background: var(--accent); }
-.tp-ms-date { width: 150px; flex: none; }
+.tp-ms-date { width: 160px; flex: none; }
 .tp-ms-pct { font-family: var(--font-data); font-size: 0.75rem; color: var(--brand-gray-1); white-space: nowrap; }
 .tp-overdue { color: var(--bad-ink); }
 
@@ -230,8 +242,8 @@
 /* ---------- Angosto ---------- */
 @media (max-width: 960px) {
   .tp-plan { grid-template-columns: minmax(0, 1fr); }
-  .tp-plan-side { position: static; order: -1; }
-  .tp-props { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); column-gap: 12px; }
+  /* Angosto: primero título, chips y contenido (como Linear); las propiedades del costado van después. */
+  .tp-plan-side { position: static; padding-top: 16px; border-top: 1px solid var(--line); }
 }
 
 @media (max-width: 767px) {
@@ -246,21 +258,31 @@
   .tp-widget-2 { grid-column: auto; }
   .tp-issue-row { flex-wrap: wrap; padding: 6px; }
   .tp-issue-meta { display: none; }
+  .tp-card,
+  .track-page section.tp-card { padding: 14px 16px; }
   .tp-inline-form { flex-wrap: wrap; }
+  .tp-inline-form .input { flex: 1 1 100%; }
   .tp-inline-form .select { max-width: 100%; }
-  .tp-ms { flex-wrap: wrap; }
-  .tp-ms-date { width: 100%; }
+  .tp-inline-form .tp-ms-date { flex: 1 1 auto; width: auto; }
+  /* Hito: nombre, % y borrar arriba; la fecha abajo, alineada con el nombre. */
+  .tp-ms { flex-wrap: wrap; row-gap: 4px; padding: 6px 0; }
+  .tp-ms .tp-inline-input { flex: 1 1 0; }
+  .tp-ms .tp-ms-date.tp-chip { order: 5; flex: 1 1 100%; width: auto; max-width: none; margin-left: 19px; }
 }
 
 /* ---------- Proyecto: chips de propiedades bajo el título (como Linear) ---------- */
-.tp-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0 14px; }
+/* Botones independientes: 6px entre chips y entre filas cuando envuelven, mismo alto. */
+.tp-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 12px; }
 .track-inline-trigger.tp-chip,
 .tp-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 26px;
+  height: 28px;
+  min-height: 28px;
   max-width: 260px;
+  /* .track-inline-trigger trae margen negativo para alinearse en texto; un chip con borde no lo lleva. */
+  margin: 0;
   padding: 0 8px;
   font-size: 0.8125rem;
   color: var(--ink);
@@ -268,16 +290,18 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-1);
 }
-.tp-chip:hover { background: var(--ui-hover); }
+.tp-chip:hover:not(:disabled),
+.tp-chip[aria-expanded="true"] { background: var(--ui-hover); border-color: var(--ui-field); }
 .tp-chip:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 .tp-chip.is-empty { color: var(--brand-gray-2); }
 .tp-chip .track-inline-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tp-chip .track-avatar { width: 16px; height: 16px; font-size: 0.625rem; }
-.tp-chip-range { display: inline-flex; align-items: center; gap: 4px; }
+.tp-chip-range { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
 .tp-chip-arrow { color: var(--brand-gray-2); font-size: 0.75rem; }
 .tp-desc .track-rte-content { min-height: 80px; }
 .tp-update-editor .track-rte-content { min-height: 90px; }
-.tp-ms-date.tp-chip { min-height: 24px; }
+.tp-ms .tp-ms-date.tp-chip { height: 28px; min-height: 28px; }
+.tp-ms-date.tp-chip .track-inline-text { flex: 1; min-width: 0; }
 
 /* Ajustes del team: auto-cierre (toda la fila tilda) y escalas de estimación. */
 .track-team-autoclose {

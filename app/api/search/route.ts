@@ -29,6 +29,7 @@ import { searchDesigns } from '@/lib/design';
 import { designActorOf } from '@/lib/design-http';
 import { actorOf } from '@/lib/rec-http';
 import { searchPlanning } from '@/lib/track-planning-search';
+import { listConversations } from '@/lib/assistant/store';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -243,6 +244,12 @@ export async function GET(req: NextRequest) {
 
   items.push(...apps);
   items.push(...planning);
+
+  // Charlas del asistente: solo las de la persona logueada (son privadas).
+  if (user.role !== 'guest') {
+    const chats = await listConversations({ workspaceId: user.id, personId: user.actingUser?.id ?? user.id }, { q, limit: 5 }).catch(() => []);
+    for (const c of chats) items.push({ id: c.id, group: 'assistantChats', label: c.title, meta: '', href: `/app/assistant?c=${c.id}` });
+  }
 
   for (const r of reports) {
     items.push({ id: r.id, group: 'reports', label: r.name, meta: '', href: `/app/crm/reports/custom/${r.id}` });

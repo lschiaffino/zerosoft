@@ -554,7 +554,7 @@ export function InitiativePage({ initiativeId }: { initiativeId: string }) {
             </select>
           </dd>
         </dl>
-        <button type="button" className="btn btn-sm btn-ghost tp-danger-link" onClick={() => setConfirm(true)} data-testid="tp-initiative-delete">
+        <button type="button" className="btn btn-sm btn-danger tp-danger-link" onClick={() => setConfirm(true)} data-testid="tp-initiative-delete">
           {t('initiatives.delete')}
         </button>
       </aside>

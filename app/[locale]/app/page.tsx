@@ -8,6 +8,7 @@ import { featuredApps, moreAppsByCategory, showTeamUi } from '@/lib/workspace-mo
 import { PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import PageHeader from '@/components/ui/PageHeader';
+import HomeAsk from '@/components/assistant/HomeAsk';
 import {
   CalBookingsBlock,
   CrmTasksBlock,
@@ -79,6 +80,9 @@ export default async function PlatformHomePage(props: {
           <p className="home-blocked-body">{tAccess('body', { app: PRODUCT_CONFIG[blocked].name, workspace: user.workspace?.name ?? '' })}</p>
         </div>
       )}
+
+      {/* El asistente de la plataforma: preguntar abre la charla a página completa. */}
+      <HomeAsk />
 
       <section className="home-section" aria-labelledby="home-today">
         <h2 id="home-today" className="home-h">

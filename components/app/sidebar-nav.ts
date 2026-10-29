@@ -34,6 +34,8 @@ export interface SidebarLabels {
   appSettings: string;
   /** Shell neutro (Ajustes de la plataforma): inicio y lista de apps. */
   platformHome: string;
+  /** Página del asistente (/app/assistant), debajo del inicio. */
+  assistant: string;
   apps: string;
   /** Títulos de las categorías de apps (switcher y sidebar del inicio). */
   categories: Record<ProductCategory, string>;
@@ -285,6 +287,8 @@ const APP_ICONS: Record<ProductKey, IconName> = {
 export function appProductFromPath(pathname: string): AppProduct {
   if (pathname === '/app' || pathname === '/app/') return 'home';
   if (pathname === '/app/settings' || pathname.startsWith('/app/settings/')) return 'home';
+  // El asistente es de la plataforma (no de una app): shell neutro.
+  if (pathname === '/app/assistant' || pathname.startsWith('/app/assistant/')) return 'home';
   for (const [prefix, product] of PRODUCT_PREFIXES) {
     if (pathname.includes(prefix)) return product;
   }
@@ -334,7 +338,12 @@ export function buildNav(
     case 'home':
       // Inicio y, debajo, las apps agrupadas por categoría (vender, atender…).
       return [
-        { items: [{ href: '/app', label: labels.platformHome, active: pathname === '/app', icon: 'overview' }] },
+        {
+          items: [
+            { href: '/app', label: labels.platformHome, active: pathname === '/app', icon: 'overview' },
+            { href: '/app/assistant', label: labels.assistant, active: pathname === '/app/assistant' || pathname.startsWith('/app/assistant/'), icon: 'assistant' },
+          ],
+        },
         ...appsByCategory()
           .map(({ category, apps }) => ({ category, apps: apps.filter((k) => !counts.allowed || counts.allowed === '*' || counts.allowed.includes(k)) }))
           .filter(({ apps }) => apps.length > 0)
