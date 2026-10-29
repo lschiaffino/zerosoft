@@ -98,7 +98,7 @@ export default function FlagEditor({ projectId, flag, publicKey }: { projectId: 
         <div className="ui-fields ui-fields-2">
           <label className="ui-field">
             <span className="label">{t('key')}</span>
-            <input className="input an-mono" value={key} onChange={(e) => setKey(e.target.value)} pattern="[A-Za-z0-9_-]+" maxLength={100} required />
+            <input className="input an-mono" value={key} onChange={(e) => setKey(e.target.value)} pattern="[A-Za-z0-9_\-]+" maxLength={100} required />
             <span className="ui-help">{t('keyHelp')}</span>
           </label>
           <label className="ui-field">
@@ -131,7 +131,7 @@ export default function FlagEditor({ projectId, flag, publicKey }: { projectId: 
                   aria-label={t('variantKey')}
                   value={v.key}
                   onChange={(e) => setVariants(variants.map((x, j) => (j === i ? { ...x, key: e.target.value } : x)))}
-                  pattern="[A-Za-z0-9_-]+"
+                  pattern="[A-Za-z0-9_\-]+"
                   maxLength={64}
                   required
                 />

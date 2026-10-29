@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { Link, useRouter } from '@/i18n/navigation';
+import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { notifyChanged, setProjectCookie } from './client';
 
 /**
@@ -11,7 +11,9 @@ import { notifyChanged, setProjectCookie } from './client';
 export default function ProjectBar({ projects, currentId }: { projects: Array<{ id: string; name: string }>; currentId: string | null }) {
   const t = useTranslations('analytics.projectBar');
   const router = useRouter();
-  if (!projects.length) return null;
+  const pathname = usePathname();
+  // En la lista de proyectos el selector sobra (y repetiría los nombres).
+  if (!projects.length || pathname.startsWith('/app/analytics/projects')) return null;
   return (
     <div className="an-projectbar">
       <label className="an-projectbar-field">

@@ -28,7 +28,7 @@ export default async function AnalyticsFlagPage(props: { params: Promise<{ local
   return (
     <>
       <SyncProject projectId={ctx.project.id} currentId={cookieProject} />
-      <FlagEditor key={flag.updatedAt} projectId={ctx.project.id} flag={flag} publicKey={ctx.project.public_key} />
+      <FlagEditor key={flag.id} projectId={ctx.project.id} flag={flag} publicKey={ctx.project.public_key} />
     </>
   );
 }

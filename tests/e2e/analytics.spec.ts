@@ -1,3 +1,4 @@
+import http from 'http';
 import { createClient } from '@libsql/client';
 import { expect, test, type Page } from '@playwright/test';
 
@@ -69,10 +70,18 @@ test('proyecto, snippet en otro sitio y eventos en vivo', async ({ page, request
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
 
   // El sitio del cliente: otro origen servido por Playwright, el snippet y la ingesta van a la app.
+  // Un servidor local en otro puerto (otro origen; Chrome no deja a un host público llamar a localhost).
+  const sitePort = (Number(process.env.E2E_PORT) || 3210) + 7;
+  const server = http.createServer((_req, res) => {
+    res.writeHead(200, { 'content-type': 'text/html' });
+    res.end(siteHtml(baseURL!, publicKey));
+  });
+  await new Promise<void>((resolve) => server.listen(sitePort, '127.0.0.1', resolve));
+  test.info().attach('site', { body: `http://127.0.0.1:${sitePort}` });
   const site = await page.context().newPage();
-  await site.route('http://shop.test/**', (route) => route.fulfill({ contentType: 'text/html', body: siteHtml(baseURL!, publicKey) }));
+  site.on('console', (m) => console.log('[site]', m.type(), m.text()));
   const ingest = site.waitForResponse((r) => r.url().includes('/api/ingest/e') && r.status() === 200);
-  await site.goto('http://shop.test/pricing?utm_source=newsletter');
+  await site.goto(`http://127.0.0.1:${sitePort}/pricing?utm_source=newsletter`);
   await ingest;
   await site.evaluate(() => {
     const w = window as unknown as { zs: { capture: (e: string, p?: Record<string, unknown>) => void; flush: () => void } };
@@ -92,6 +101,7 @@ test('proyecto, snippet en otro sitio y eventos en vivo', async ({ page, request
   const pv = await sql("SELECT pathname, utm_source, referring_domain FROM analytics_events WHERE project_id = ? AND event = '$pageview'", [projectId]);
   expect(pv[0]).toMatchObject({ pathname: '/pricing', utm_source: 'newsletter' });
   await site.close();
+  server.close();
 
   await page.goto('/en/app/analytics/events', { waitUntil: 'networkidle' });
   const table = page.getByTestId('an-live-table');
@@ -199,7 +209,7 @@ test('feature flag: crear, ajustar y evaluar (UI y /decide)', async ({ page, req
 test('SQL: lee el proyecto y rechaza otras tablas', async ({ page, baseURL }) => {
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
   await page.goto('/en/app/analytics/sql', { waitUntil: 'networkidle' });
-  const editor = page.getByLabel('Query');
+  const editor = page.getByRole('textbox', { name: 'Query' });
   await editor.fill("SELECT event, count() AS n FROM events WHERE event = 'signed_up' GROUP BY event");
   await page.getByRole('button', { name: 'Run', exact: true }).click();
   await expect(page.getByTestId('an-sql-result')).toContainText('signed_up');
@@ -207,6 +217,26 @@ test('SQL: lee el proyecto y rechaza otras tablas', async ({ page, baseURL }) =>
   await editor.fill('SELECT * FROM users');
   await page.getByRole('button', { name: 'Run', exact: true }).click();
   await expect(page.getByTestId('an-sql-result').getByRole('alert')).toContainText('Only the tables');
+});
+
+test('oscuro y 390px: web analytics y el editor sin scroll horizontal', async ({ page, context, baseURL }) => {
+  const errors = watchErrors(page);
+  await context.addCookies([
+    { name: 'zs_analytics_project', value: projectId, url: baseURL! },
+    { name: 'zs_theme', value: 'dark', url: baseURL! },
+  ]);
+  await page.goto('/en/app/analytics', { waitUntil: 'networkidle' });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.locator('.an-stat').first()).toBeVisible();
+  await shot(page, 'web-dark');
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const path of ['/en/app/analytics', '/en/app/analytics/insights/new', '/en/app/analytics/events', '/en/app/analytics/settings']) {
+    await page.goto(path, { waitUntil: 'networkidle' });
+    const { scroll, inner } = await page.evaluate(() => ({ scroll: document.scrollingElement!.scrollWidth, inner: window.innerWidth }));
+    expect(scroll, `${path}: scrollWidth ${scroll} > innerWidth ${inner}`).toBeLessThanOrEqual(inner + 1);
+  }
+  await shot(page, 'settings-390-dark');
+  expect(errors, errors.join('\n')).toEqual([]);
 });
 
 test('acceso por app: una persona sin Analytics no ve páginas, APIs ni búsqueda', async ({ browser, baseURL, request }) => {

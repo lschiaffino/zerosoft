@@ -50,6 +50,8 @@
 .an-panel { padding: 16px; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg); min-width: 0; }
 .an-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
 .an-toolbar .input { max-width: 320px; }
+/* Los selects de las barras y filas no ocupan todo el ancho. */
+.an-toolbar .select, .an-row .select, .an-range { width: auto; max-width: 240px; }
 .an-callout {
   display: flex;
   align-items: center;
