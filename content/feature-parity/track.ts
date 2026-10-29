@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'Linear',
   alsoCompared: ['Jira', 'GitHub Projects'],
-  lastReviewed: '2026-10-25',
+  lastReviewed: '2026-10-29',
   areas: [
     { id: 'issues', label: { en: 'Issues and data model', es: 'Issues y modelo de datos', pt: 'Issues e modelo de dados' } },
     { id: 'views', label: { en: 'Views and navigation', es: 'Vistas y navegación', pt: 'Visualizações e navegação' } },
@@ -462,6 +462,14 @@ const parity: ProductParity = {
       area: 'ai',
       label: { en: 'AI thread summaries and issues from free text', es: 'Resumen de hilos e issues desde texto libre con IA', pt: 'Resumo de threads e issues a partir de texto livre com IA' },
       detail: { en: 'Summary of the issue and its discussion, a team update draft from the last 14 days, and an issue drafted from pasted text (title, description, priority, labels). Needs an AI Gateway key', es: 'Resumen del issue y su discusión, borrador del update del equipo con los últimos 14 días e issue armado desde un texto pegado (título, descripción, prioridad, labels). Necesita una key de AI Gateway', pt: 'Resumo do issue e da discussão, rascunho do update da equipe com os últimos 14 dias e issue montado a partir de um texto colado (título, descrição, prioridade, labels). Precisa de uma chave do AI Gateway' },
+      status: 'have',
+      competitorHas: true,
+    },
+    {
+      id: 'ai-assistant',
+      area: 'ai',
+      label: { en: 'Assistant that answers and makes changes', es: 'Asistente que responde y hace cambios', pt: 'Assistente que responde e faz mudanças' },
+      detail: { en: 'Side panel with ⌘J on every page and a full-page chat with history: lists teams and projects with their health, creates issues and sets a project\'s update reminder. Every change waits for a Confirm click. Needs an OpenRouter key', es: 'Panel lateral con ⌘J en todas las páginas y chat a página completa con historial: lista teams y proyectos con su salud, crea issues y configura el recordatorio de update de un proyecto. Cada cambio espera un clic en Confirmar. Necesita una key de OpenRouter', pt: 'Painel lateral com ⌘J em todas as páginas e chat em página inteira com histórico: lista times e projetos com a saúde, cria issues e configura o lembrete de update de um projeto. Cada mudança espera um clique em Confirmar. Precisa de uma chave do OpenRouter' },
       status: 'have',
       competitorHas: true,
     },

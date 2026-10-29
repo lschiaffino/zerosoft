@@ -169,6 +169,7 @@ function useGroupOrder() {
         'talkCanvases',
         'talkLists',
         'workspaceTeams',
+        'assistantChats',
       ], []);
 }
 
@@ -280,6 +281,8 @@ export default function CommandSearch() {
       { group, label: t('newCrmAgentRun'), meta: '', href: '/app/crm/agents?new=1' },
       { group, label: t('installGmailExtension'), meta: '', href: '/app/crm/settings?tab=integrations#chrome-extension' },
       { group, label: t('installCrmApp'), meta: '', href: '/app/crm?install=1' },
+      // Asistente de la plataforma (⌘J): abre el panel donde se esté.
+      { group, label: t('askAssistant'), meta: '⌘J', href: '/app/assistant', event: 'zs:assistant', keywords: 'ai,ia,assistant,asistente,assistente,chat' },
       { group, label: t('newLink'), meta: '', href: '/app/links/new' },
       { group, label: t('newDocPage'), meta: '', href: '/app/docs' },
       { group, label: t('askDocs'), meta: '', href: '/app/docs?ask=1', event: inDocs ? 'zs:docs-ask' : undefined },

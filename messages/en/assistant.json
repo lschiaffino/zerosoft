@@ -1,0 +1,173 @@
+{
+  "title": "Assistant",
+  "newChat": "New chat",
+  "history": "History",
+  "close": "Close",
+  "loading": "Loading…",
+  "thinking": "Thinking…",
+  "sending": "Sending…",
+  "send": "Send",
+  "placeholder": "Ask anything or describe a change",
+  "foot": "Changes need your confirmation. The assistant only sees the apps you can use.",
+  "usingSelection": "Using the text you selected on this page.",
+  "errors": {
+    "not_configured": "The assistant is not set up on this server.",
+    "ai_disabled": "AI is turned off on this server.",
+    "quota_exceeded": "This workspace used its AI tokens for the month.",
+    "rate_limited": "Too many requests. Try again in a minute.",
+    "provider_auth": "The AI provider rejected the key. An admin needs to check OPENROUTER_API_KEY.",
+    "provider_error": "The assistant could not answer. Try again.",
+    "network": "Could not reach the server. Check your connection and try again.",
+    "status": "Could not load the assistant. Reload the page to try again.",
+    "load": "Could not load this chat."
+  },
+  "notConfigured": {
+    "title": "The assistant is not set up yet",
+    "disabledTitle": "AI is turned off on this server",
+    "admin": "Add OPENROUTER_API_KEY to the server environment (and optionally ASSISTANT_MODEL) and redeploy.",
+    "member": "The server administrator sets the OpenRouter key (OPENROUTER_API_KEY). Ask them to turn the assistant on."
+  },
+  "empty": {
+    "title": "What do you need?",
+    "body": "Ask about your data, find out why something failed or describe a change. You confirm every change before it happens.",
+    "suggestions": "Suggested questions"
+  },
+  "tool": {
+    "used": "Used {tool}",
+    "running": "Running",
+    "ok": "Done",
+    "failed": "Failed",
+    "input": "Request",
+    "output": "Result"
+  },
+  "action": {
+    "review": "Review and confirm",
+    "destructive": "Destructive change",
+    "typeToConfirm": "Type {text} to confirm",
+    "working": "Working…",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "done": "Done.",
+    "cancelled": "Cancelled. Nothing changed.",
+    "failed": "It did not work: {error}",
+    "open": "Open",
+    "showAll": "all {count} characters"
+  },
+  "actionErrors": {
+    "forbidden": "You no longer have access to do this.",
+    "confirm_text_mismatch": "The text does not match.",
+    "not_pending": "This change was already handled.",
+    "not_found": "This change no longer exists.",
+    "failed": "Could not apply the change. Try again."
+  },
+  "suggest": {
+    "home": {
+      "a": "What needs my attention today?",
+      "b": "Who is in this workspace?",
+      "c": "Why didn't my webhook fire?"
+    },
+    "crm": {
+      "a": "Show deals closing this month",
+      "b": "Create a pipeline Renewals with stages Contacted, Proposal, Signed",
+      "c": "Which tasks are overdue?"
+    },
+    "track": {
+      "a": "List the projects and their health",
+      "b": "Set up a weekly update reminder on a project",
+      "c": "Create an issue in a team"
+    },
+    "docs": {
+      "a": "Find pages about onboarding",
+      "b": "Create a page with meeting notes",
+      "c": "Find the page about our roadmap"
+    },
+    "flow": {
+      "a": "Which flow runs failed this week?",
+      "b": "List my flows and their last run",
+      "c": "Why did my last flow run fail?"
+    },
+    "robots": {
+      "a": "Which robots failed recently?",
+      "b": "List my robots",
+      "c": "Why did my robot fail?"
+    },
+    "settings": {
+      "a": "Who is in this workspace?",
+      "b": "Why didn't my webhook fire?",
+      "c": "Did my last import finish?"
+    },
+    "cal": {
+      "a": "What bookings do I have this week?",
+      "b": "List my event types",
+      "c": "Is my Google Calendar connected?"
+    },
+    "link": {
+      "a": "Find links to our pricing page",
+      "b": "Create a short link",
+      "c": "List my latest links"
+    },
+    "talk": {
+      "a": "Which channels am I in?",
+      "b": "Find a channel",
+      "c": "What can you do here?"
+    },
+    "voice": {
+      "a": "List my recent meetings",
+      "b": "Find the meeting about pricing",
+      "c": "What can you do here?"
+    },
+    "chat": {
+      "a": "Show open conversations",
+      "b": "Who wrote in today?",
+      "c": "What can you do here?"
+    },
+    "groups": {
+      "a": "List my WhatsApp groups",
+      "b": "Find a group",
+      "c": "What can you do here?"
+    },
+    "agents": {
+      "a": "List my agents",
+      "b": "Which agents are live?",
+      "c": "What can you do here?"
+    },
+    "notes": {
+      "a": "Find my notes about pricing",
+      "b": "Create a note with these ideas",
+      "c": "What can you do here?"
+    },
+    "board": {
+      "a": "List my boards",
+      "b": "Find a board",
+      "c": "What can you do here?"
+    }
+  },
+  "page": {
+    "title": "Assistant",
+    "description": "Chats with the assistant. Each chat is private to you in this workspace.",
+    "chats": "Chats",
+    "searchChats": "Search chats",
+    "emptyChats": "No chats yet. Ask something to start one.",
+    "noMatches": "No chats match.",
+    "untitled": "New chat",
+    "rename": "Rename",
+    "renameLabel": "Chat name",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "deleteTitle": "Delete this chat?",
+    "deleteBody": "Its messages are deleted. Changes you already confirmed stay in the apps.",
+    "loadError": "Could not load your chats.",
+    "retry": "Try again",
+    "actionsFor": "Actions for {title}"
+  },
+  "home": {
+    "title": "Ask the assistant",
+    "placeholder": "Ask about your data or describe a change",
+    "ask": "Ask",
+    "recent": "Recent chats",
+    "viewAll": "All chats",
+    "shortcut": "Open it from anywhere with {key}"
+  },
+  "loadEarlier": "Load earlier messages"
+}
