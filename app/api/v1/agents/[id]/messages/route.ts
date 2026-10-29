@@ -47,9 +47,12 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
       conversationId: parsed.data.conversationId ?? null,
       // La key actúa como quien la creó: con su acceso trabaja el agente en Docs.
       createdBy: auth.personId,
-      identity: parsed.data.user
-        ? { email: parsed.data.user.email ?? null, name: parsed.data.user.name ?? null, externalId: parsed.data.user.id ?? null }
-        : null,
+      // Afirmar quién es el usuario (contexto del CRM, memoria) solo con la key
+      // de alguien que edita el agente (owner o admin); si no, se ignora.
+      identity:
+        parsed.data.user && (auth.role === 'owner' || auth.role === 'admin')
+          ? { email: parsed.data.user.email ?? null, name: parsed.data.user.name ?? null, externalId: parsed.data.user.id ?? null }
+          : null,
     });
     return NextResponse.json({
       conversationId: res.conversation.id,
