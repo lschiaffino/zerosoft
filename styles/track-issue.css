@@ -494,6 +494,8 @@
   max-width: 200px;
   height: 26px;
   min-height: 26px;
+  /* Sin el margen negativo de .track-inline-trigger: los chips no se pisan. */
+  margin: 0;
   padding: 0 8px;
   font: inherit;
   font-size: 0.75rem;

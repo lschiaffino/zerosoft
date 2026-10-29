@@ -77,6 +77,30 @@ test('Project: labels con picker, crear en línea', async ({ page, request }) =>
     .toContain(name);
 });
 
+test('Project: chips separados, tarjetas con aire y controles de hito del mismo alto', async ({ page, request }) => {
+  const plan = await ok<{ id: string }>(request.post('/api/track/plans', { data: { name: `Layout ${uid()}` } }));
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`/en/app/track/projects/${plan.id}`, { waitUntil: 'networkidle' });
+    await expect(page.getByTestId('tp-chips')).toBeVisible();
+    const layout = await page.evaluate(() => {
+      const chips = [...document.querySelectorAll('[data-testid="tp-chips"] .tp-chip')].map((el) => el.getBoundingClientRect());
+      // Dos chips en la misma fila nunca se pisan ni se tocan.
+      let minGap = Infinity;
+      for (let i = 1; i < chips.length; i++) {
+        if (Math.abs(chips[i].top - chips[i - 1].top) < 2) minGap = Math.min(minGap, chips[i].left - chips[i - 1].right);
+      }
+      const card = getComputedStyle(document.querySelector('.tp-card')!);
+      const form = [...document.querySelectorAll('.tp-inline-form .input, .tp-inline-form .tp-chip, .tp-inline-form .btn')].map((el) => Math.round(el.getBoundingClientRect().height));
+      return { minGap, padTop: parseFloat(card.paddingTop), form, scroll: document.documentElement.scrollWidth - window.innerWidth };
+    });
+    expect(layout.minGap).toBeGreaterThanOrEqual(4);
+    expect(layout.padTop).toBeGreaterThanOrEqual(12);
+    expect(new Set(layout.form).size).toBe(1);
+    expect(layout.scroll).toBeLessThanOrEqual(0);
+  }
+});
+
 test('Triage › Duplicate sin sugeridos muestra los recientes del team', async ({ page, request }) => {
   const t = await team(request);
   await ok(request.patch(`/api/track/projects/${t.id}`, { data: { triageEnabled: true } }));
