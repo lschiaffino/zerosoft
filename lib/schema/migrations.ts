@@ -6805,6 +6805,43 @@ export const MIGRATIONS: Migration[] = [
         await addColumn(client, `ALTER TABLE talk_prefs ADD COLUMN ${col}`);
       }
     },
+  },  {
+    // Docs: edición simultánea tecla por tecla. Feed de eventos en vivo por
+    // página (operaciones de texto, cursores, guardados y cambios de acceso)
+    // que leen los streams SSE, y el texto de cada bloque con su número de
+    // versión (base de la transformación de las operaciones).
+    id: '132_docs_coedit',
+    up: async (client) => {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS docs_live_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          workspace_id TEXT NOT NULL,
+          page_id TEXT,
+          user_id TEXT,
+          kind TEXT NOT NULL,
+          block_id TEXT,
+          rev INTEGER,
+          session_id TEXT,
+          seq TEXT,
+          payload TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_docs_live_events_page ON docs_live_events(page_id, id);
+        CREATE INDEX IF NOT EXISTS idx_docs_live_events_created ON docs_live_events(created_at);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_docs_live_events_rev ON docs_live_events(page_id, block_id, rev) WHERE kind = 'op';
+        CREATE INDEX IF NOT EXISTS idx_docs_live_events_seq ON docs_live_events(page_id, session_id, seq) WHERE kind = 'op';
+
+        CREATE TABLE IF NOT EXISTS docs_block_text (
+          page_id TEXT NOT NULL,
+          block_id TEXT NOT NULL,
+          rev INTEGER NOT NULL DEFAULT 0,
+          text TEXT NOT NULL,
+          base_hash TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (page_id, block_id)
+        );
+      `);
+    },
   },
 ];
 

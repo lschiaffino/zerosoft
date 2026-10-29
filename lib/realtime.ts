@@ -136,6 +136,8 @@ export interface SharedFeed<E extends { id: number }> {
   cursor(): number;
   /** Conexiones suscriptas ahora. */
   size(): number;
+  /** Lee ya (algo se acaba de escribir en esta instancia): no espera la próxima vuelta. */
+  poke(): void;
 }
 
 interface FeedState<E> {
@@ -145,6 +147,9 @@ interface FeedState<E> {
   /** Lectura del cursor inicial, lanzada al suscribirse (antes de que la conexión lea su atraso). */
   starting: Promise<number> | null;
   started: boolean;
+  timer?: ReturnType<typeof setTimeout> | null;
+  running?: boolean;
+  again?: boolean;
 }
 
 const FEEDS_KEY = Symbol.for('zerosoft.realtime.feeds');
@@ -163,10 +168,12 @@ export function sharedFeed<E extends { id: number }>(
   const s = state;
   const interval = Math.max(200, opts.intervalMs ?? 700);
   const loop = async () => {
+    s.timer = null;
     if (!s.listeners.size) {
       s.started = false;
       return;
     }
+    s.running = true;
     try {
       if (!s.initialized) {
         s.cursor = await (s.starting ?? opts.start());
@@ -181,7 +188,10 @@ export function sharedFeed<E extends { id: number }>(
     } catch {
       // Un error de la base no corta el feed: se reintenta en la próxima vuelta.
     }
-    if (s.listeners.size) setTimeout(() => void loop(), interval);
+    s.running = false;
+    const again = s.again;
+    s.again = false;
+    if (s.listeners.size) s.timer = setTimeout(() => void loop(), again ? 0 : interval);
     else {
       // Sin nadie conectado se deja de leer; al volver se toma el cursor de nuevo.
       s.started = false;
@@ -204,6 +214,14 @@ export function sharedFeed<E extends { id: number }>(
     },
     cursor: () => s.cursor,
     size: () => s.listeners.size,
+    poke() {
+      if (!s.started) return;
+      if (s.running) s.again = true;
+      else if (s.timer) {
+        clearTimeout(s.timer);
+        s.timer = setTimeout(() => void loop(), 0);
+      }
+    },
   };
 }
 

@@ -18,7 +18,8 @@ import { pageLinkIds, type PageLinkCandidate } from './docs-page-links';
 import { databaseRowEntries } from './docs-database';
 import { applySamePageRows, prepareDatabaseSave, type DbEffect } from './docs-db-save';
 import { mergeBlocksDetailed, mergeField } from './docs-merge';
-import { getRevision, nextUpdatedAt, recordRevisions } from './docs-revisions';
+import { getRevision, getRevisionAtOrBefore, nextUpdatedAt, recordRevisions } from './docs-revisions';
+import { neutralizeTextForSave } from './docs-coedit-shared';
 import {
   buildSnippet,
   matchesAll,
@@ -508,6 +509,12 @@ export interface UpdateDocPageInput {
    * para fusionar, guarda igual. Con la base, la fusión ya hace ganar lo que llega.
    */
   merge?: 'ours';
+  /**
+   * El editor manda el texto de los bloques existentes como operaciones
+   * (lib/docs-coedit.ts): el texto de esos bloques queda el del servidor y
+   * este guardado solo cuenta para estructura y bloques nuevos.
+   */
+  text_ops?: boolean;
 }
 
 /** La página cambió desde el `base_updated_at` que mandó el cliente. */
@@ -561,6 +568,8 @@ export async function updateDocPage(
   const syncedSeenAt = new Map((incoming ?? []).filter((b) => b.type === 'synced' && b.synced_id && b.synced_at).map((b) => [b.synced_id!, b.synced_at!]));
   if (incoming) incoming = stripSyncedChildren(incoming);
   const rowBlocks = stripSyncedChildren(parseBlocks(row.content));
+  // Con operaciones de texto, el texto de los bloques que ya existen es el del servidor.
+  if (incoming && input.text_ops) incoming = neutralizeTextForSave(null, rowBlocks, incoming).ours;
   const fields: { title?: string; icon?: string | null; cover_url?: string | null } = {
     title: input.title?.trim(),
     icon: input.icon,
@@ -573,7 +582,8 @@ export async function updateDocPage(
     // pestaña, una automatización o una operación del servidor sobre una base):
     // se fusiona contra esa versión (lib/docs-merge.ts). Donde los dos tocaron
     // lo mismo gana quien guarda y lo otro queda en el historial de versiones.
-    const rev = await getRevision(pageId, base);
+    // Con operaciones de texto la base solo aporta la estructura: alcanza la última versión hasta esa marca.
+    const rev = (await getRevision(pageId, base)) ?? (input.text_ops ? await getRevisionAtOrBefore(pageId, base) : null);
     const touchesText = incoming !== undefined || fields.title !== undefined || fields.icon !== undefined || fields.cover_url !== undefined;
     if (touchesText) {
       if (!rev) {
@@ -584,7 +594,9 @@ export async function updateDocPage(
         clashed = true;
       } else {
         if (incoming !== undefined) {
-          const merged = mergeBlocksDetailed(stripSyncedChildren(parseBlocks(rev.content)), rowBlocks, incoming);
+          let revBlocks = stripSyncedChildren(parseBlocks(rev.content));
+          if (input.text_ops) revBlocks = neutralizeTextForSave(revBlocks, rowBlocks, incoming).base!;
+          const merged = mergeBlocksDetailed(revBlocks, rowBlocks, incoming);
           incoming = merged.blocks;
           if (merged.conflicts.length) clashed = true;
         }
@@ -835,6 +847,17 @@ export async function updateDocPage(
     }
   }
 
+  // Edición simultánea: el texto que cambió por acá llega a los editores abiertos como
+  // operación, y todos piden la versión nueva ya (sin esperar el pulso).
+  if (savedContent || fields.title !== undefined) {
+    try {
+      const { coeditAfterSave, coeditSaved } = await import('./docs-coedit');
+      if (savedContent) await coeditAfterSave(pageId, rowBlocks);
+      await coeditSaved(row, updatedAt, opts.actorId ?? null);
+    } catch {
+      /* el feed en vivo es un extra: el guardado ya quedó */
+    }
+  }
   const updated = (await getDb().prepare('SELECT * FROM docs_pages WHERE id = ?').get(pageId)) as DocsPageRow;
   // Flow y webhooks: page.updated (agrupado), filas nuevas, propiedades cambiadas y papelera.
   const { afterDocsPageSaved } = await import('./docs-events');

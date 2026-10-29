@@ -1,7 +1,8 @@
 /**
  * Últimas versiones guardadas de una página (docs_page_revisions): la base
  * de la fusión de tres vías cuando un editor guarda sobre una versión vieja
- * (ver lib/docs-merge.ts). Se guardan las últimas 12 por página.
+ * (ver lib/docs-merge.ts). Se guardan las últimas 30 por página (con la
+ * edición simultánea cada tanda de teclas deja una).
  */
 import { getDb, type DocsPageRow } from './db';
 
@@ -13,7 +14,7 @@ export interface DocsRevision {
   content: string;
 }
 
-const KEEP = 12;
+const KEEP = 30;
 
 /**
  * `updated_at` nuevo para un guardado sobre `prev`: la hora actual, pero
@@ -31,6 +32,19 @@ export async function getRevision(pageId: string, updatedAt: string): Promise<Do
     ((await getDb()
       .prepare('SELECT updated_at, title, icon, cover_url, content FROM docs_page_revisions WHERE page_id = ? AND updated_at = ?')
       .get(pageId, updatedAt)) as DocsRevision | undefined) ?? null
+  );
+}
+
+/**
+ * La última versión guardada en o antes de `at`. Con la edición simultánea
+ * alcanza para la estructura (qué bloques hay y en qué orden): el texto de
+ * los bloques no lo toma de acá (ver lib/docs-coedit-shared.ts).
+ */
+export async function getRevisionAtOrBefore(pageId: string, at: string): Promise<DocsRevision | null> {
+  return (
+    ((await getDb()
+      .prepare('SELECT updated_at, title, icon, cover_url, content FROM docs_page_revisions WHERE page_id = ? AND updated_at <= ? ORDER BY updated_at DESC LIMIT 1')
+      .get(pageId, at)) as DocsRevision | undefined) ?? null
   );
 }
 
