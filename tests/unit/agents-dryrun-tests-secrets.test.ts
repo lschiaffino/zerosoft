@@ -104,7 +104,7 @@ describe('playground en modo simulación', () => {
         { text: 'Done.' },
       ]),
     );
-    const res = await sendAgentMessage({ agent, channel: 'playground', text: 'I am ana@x.com, login is broken' });
+    const res = await sendAgentMessage({ agent, channel: 'playground', createdBy: agent.user_id, text: 'I am ana@x.com, login is broken' });
     const calls = res.result.toolCalls;
     expect(calls.map((c) => [c.tool, c.error])).toEqual([
       ['crm_upsert_contact', null],
@@ -207,7 +207,7 @@ describe('headers secretos de http_request', () => {
     setAiModelOverride(
       scriptedModel([{ tool: 'http_request', input: { url: 'https://example.com/orders', method: 'POST', body: '{}' } }, { text: 'ok' }]),
     );
-    const res = await sendAgentMessage({ agent: await reload(agent), channel: 'playground', text: 'order' });
+    const res = await sendAgentMessage({ agent: await reload(agent), channel: 'playground', createdBy: agent.user_id, text: 'order' });
     expect(fetchMock).not.toHaveBeenCalled();
     expect(res.result.toolCalls[0].output).toMatchObject({ simulated: true, wouldRun: { secretHeaders: ['X-Api-Key'] } });
     expect(JSON.stringify(res.result.toolCalls)).not.toContain(SECRET);
@@ -307,7 +307,7 @@ describe('lista: uso por API y Flow', () => {
     await sendAgentMessage({ agent, channel: 'api', text: 'from the API' });
     await sendAgentMessage({ agent, channel: 'api', source: 'flow', text: 'from a flow' });
     await sendAgentMessage({ agent, channel: 'api', source: 'flow', text: 'from a flow again' });
-    await sendAgentMessage({ agent, channel: 'playground', text: 'just testing' });
+    await sendAgentMessage({ agent, channel: 'playground', createdBy: agent.user_id, text: 'just testing' });
 
     const list = await listAgents(owner.id);
     const a = list.find((x) => x.id === agent.id)!;

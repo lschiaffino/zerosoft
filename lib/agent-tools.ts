@@ -63,6 +63,8 @@ export interface AgentRunContext {
   mcpServers?: string;
   /** Valores secretos (y sus partes) que nunca se registran ni vuelven al modelo. */
   secretValues?: string[];
+  /** Playground: acceso de quien prueba (ver playgroundAccess). undefined = sin resolver. */
+  playgroundCaller?: PlaygroundCaller | null;
 }
 
 export interface KnowledgeCitation {
@@ -109,6 +111,8 @@ function emailsInText(text: string): Set<string> {
  * dueño probando: no aplica.
  */
 function visitorGaveEmail(ctx: AgentRunContext, email: string): boolean {
+  // Playground: la persona prueba con datos que escribe ella (las lecturas
+  // reales las acota playgroundAccess).
   if (ctx.channel === 'playground') return true;
   const e = email.trim().toLowerCase();
   if (ctx.identifiedEmail && ctx.identifiedEmail.trim().toLowerCase() === e) return true;
@@ -325,6 +329,43 @@ async function findContact(workspaceId: string, email: string) {
     | undefined;
 }
 
+/** Acceso de quien prueba en el playground (lo resuelve playgroundAccess una vez por corrida). */
+export interface PlaygroundCaller {
+  email: string | null;
+  /** Edita el agente (en el workspace: owner o admin). */
+  canEdit: boolean;
+  apps: '*' | string[];
+}
+
+/**
+ * Playground: las herramientas que leen datos reales de otra app (CRM, MCP,
+ * HTTP) solo corren para quien edita el agente y tiene esa app en el
+ * workspace. La identidad "verificada" es la propia: su email. null = nadie
+ * identificado (se niega todo).
+ */
+export async function playgroundAccess(ctx: AgentRunContext): Promise<PlaygroundCaller | null> {
+  if (ctx.channel !== 'playground') return null;
+  if (ctx.playgroundCaller !== undefined) return ctx.playgroundCaller;
+  const personId = ctx.conversation.created_by ?? null;
+  let caller: PlaygroundCaller | null = null;
+  if (personId) {
+    const { personAppAccess } = await import('./api-auth');
+    const access = await personAppAccess(ctx.workspaceId, personId).catch(() => null);
+    const user = (await getDb().prepare('SELECT email FROM users WHERE id = ?').get(personId)) as { email: string | null } | undefined;
+    if (access) caller = { email: user?.email?.trim().toLowerCase() ?? null, canEdit: access.role === 'owner' || access.role === 'admin', apps: access.apps };
+  }
+  ctx.playgroundCaller = caller;
+  return caller;
+}
+
+/** En el playground, ¿puede quien prueba leer datos reales de esta app? Fuera del playground: sí. */
+export async function playgroundCanRead(ctx: AgentRunContext, app: string | null): Promise<boolean> {
+  if (ctx.channel !== 'playground') return true;
+  const caller = await playgroundAccess(ctx);
+  if (!caller || !caller.canEdit) return false;
+  return app === null || caller.apps === '*' || caller.apps.includes(app);
+}
+
 export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentTools> {
   const { agent, workspaceId } = ctx;
   const cfg = agent.tools;
@@ -449,9 +490,12 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
           // Solo el email que el propio visitante escribió: evita usar al agente
           // para averiguar si un email cualquiera está en el CRM.
           if (!visitorGaveEmail(ctx, email)) return { error: 'email_not_given_by_visitor' };
+          // Playground: solo quien edita el agente y tiene el CRM, y solo su propio email.
+          if (!(await playgroundCanRead(ctx, 'crm'))) return { error: 'playground_no_access' };
           // Un email escrito en el chat lo puede tipear cualquiera: los datos del
           // contacto (o si existe) solo con la identidad verificada y el mismo email.
-          const verified = ctx.channel === 'playground' || (ctx.identifiedEmail ?? '').trim().toLowerCase() === email.trim().toLowerCase();
+          const own = ctx.channel === 'playground' ? ((await playgroundAccess(ctx))?.email ?? null) : ctx.identifiedEmail ?? null;
+          const verified = (own ?? '').trim().toLowerCase() === email.trim().toLowerCase();
           if (!verified) return { error: 'identity_not_verified' };
           const c = await findContact(workspaceId, email);
           if (!c) return { found: false };
@@ -475,6 +519,8 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
         execute: logged(ctx, 'crm_upsert_contact', async (input: { email: string; name?: string; note?: string }) => {
           if (!EMAIL_RE.test(input.email)) return { error: 'invalid_email' };
           if (!visitorGaveEmail(ctx, input.email)) return { error: 'email_not_given_by_visitor' };
+          // Simular dice si el contacto existe: en el playground, solo con acceso al CRM.
+          if (!(await playgroundCanRead(ctx, 'crm'))) return { error: 'playground_no_access' };
           if (ctx.dryRun) {
             const existing = await findContact(workspaceId, input.email);
             return simulated({
@@ -500,6 +546,7 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
           if (!EMAIL_RE.test(email)) return { error: 'invalid_email' };
           // Se valida antes de buscar: la respuesta no dice si un email ajeno existe.
           if (!visitorGaveEmail(ctx, email)) return { error: 'email_not_given_by_visitor' };
+          if (!(await playgroundCanRead(ctx, 'crm'))) return { error: 'playground_no_access' };
           const c = await findContact(workspaceId, email);
           if (!c) return { error: 'contact_not_found' };
           if (ctx.dryRun) return simulated({ action: 'log_note', contactId: c.id, note });
@@ -834,6 +881,8 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
             return { error: 'invalid_url' };
           }
           if (!hostAllowed(url.hostname, domains)) return { error: 'domain_not_allowed' };
+          // Playground: el GET real (con los headers secretos) solo para quien edita el agente.
+          if (!(await playgroundCanRead(ctx, null))) return { error: 'playground_no_access' };
           const hasBody = input.method !== 'GET' && input.method !== 'DELETE';
           const extra: Record<string, string> = {};
           for (const h of secrets) if (hostAllowed(url.hostname, [h.domain])) extra[h.name] = h.value;
@@ -861,6 +910,8 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
     const servers = { mcp_servers: ctx.mcpServers };
     const run = logged(ctx, 'mcp_call', async (input: Record<string, unknown>) => {
       const readOnly = mcpToolIsReadOnly(servers, String(input.serverId ?? ''), String(input.tool ?? ''));
+      // Playground: las lecturas reales de un servidor MCP solo para quien edita el agente.
+      if (!(await playgroundCanRead(ctx, null))) return { error: 'playground_no_access' };
       // Una herramienta que cambia datos no corre en simulación.
       if (ctx.dryRun && !readOnly) return simulated({ action: 'mcp_call', server: input.server, tool: input.tool, arguments: input.arguments ?? {} });
       // Fuera del playground, las que escriben siempre esperan a un admin (como Docs).
