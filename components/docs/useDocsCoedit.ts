@@ -14,7 +14,8 @@
 import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
 import { CoeditEngine, type CoeditScreen, type CoeditTransport } from '@/lib/docs-coedit-client';
 import type { CoeditEvent, CoeditOpResult } from '@/lib/docs-coedit-shared';
-import { isCoeditBlock } from '@/lib/docs-coedit-shared';
+import { hasUnsafeMarkup, isCoeditBlock } from '@/lib/docs-coedit-shared';
+import { sanitizeHtml } from '@/lib/docs-richtext';
 import type { DocsBlock } from '@/lib/docs-types';
 import type { TextOp } from '@/lib/docs-ot';
 import { useRealtime, type RealtimeStatus } from '@/lib/realtime-client';
@@ -38,6 +39,9 @@ export interface CoeditOptions {
   onAccess: (access: string) => void;
   onRevoked: () => void;
   onSendError?: (code: string) => void;
+  onSendOk?: () => void;
+  /** Un bloque dejó de viajar por operaciones: su texto tiene que salir por el guardado. */
+  onUnmanaged?: (block: string, reason: 'unsupported' | 'too_large') => void;
 }
 
 const statusCode = (status: number) => (status === 403 ? 'forbidden' : status === 423 ? 'locked' : status === 404 ? 'not_found' : `http_${status}`);
@@ -77,7 +81,8 @@ export function useDocsCoedit(o: CoeditOptions): {
       const api = opts.current.editorApi.current;
       if (!api || !overlay.size) return;
       const changes: Record<string, string> = {};
-      for (const [id, v] of overlay) changes[id] = v.text;
+      // Defensa en profundidad: el servidor ya no reparte HTML que el editor no admite; si llegara, se sanea antes de pintarlo.
+      for (const [id, v] of overlay) changes[id] = hasUnsafeMarkup(v.text) ? sanitizeHtml(v.text) : v.text;
       const active = typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null;
       const caretBlock = active?.closest?.('[data-block-anchor]')?.getAttribute('data-block-anchor') ?? null;
       const steps = caretBlock ? overlay.get(caretBlock)?.steps : undefined;
@@ -112,7 +117,11 @@ export function useDocsCoedit(o: CoeditOptions): {
         return ((await res.json()) as { blocks: Record<string, { rev: number; text: string } | null> }).blocks;
       },
     };
-    engineRef.current = new CoeditEngine(o.session, screen, transport, { onError: (c) => opts.current.onSendError?.(c) });
+    engineRef.current = new CoeditEngine(o.session, screen, transport, {
+      onError: (c) => opts.current.onSendError?.(c),
+      onOk: () => opts.current.onSendOk?.(),
+      onUnmanaged: (block, reason) => opts.current.onUnmanaged?.(block, reason),
+    });
   }
 
   useEffect(() => () => engineRef.current?.stop(), []);

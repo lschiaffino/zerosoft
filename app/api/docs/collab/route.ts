@@ -16,6 +16,8 @@ import {
   type CoeditViewer,
 } from '@/lib/docs-coedit';
 import { isTextOp } from '@/lib/docs-ot';
+import { DOCS_BLOCK_MAX } from '@/lib/docs-schema';
+import { rateLimit } from '@/lib/rate-limit';
 import { requestCursor } from '@/lib/realtime';
 import { getUserTimeZone } from '@/lib/user-tz';
 import { docsError, forbidden, invalidBody, notFound, unauthorized } from '@/lib/docs-http';
@@ -35,6 +37,9 @@ export const maxDuration = 300;
  */
 
 const pageIdSchema = z.string().min(1).max(64);
+/** Un pedido entero (operaciones de hasta 50 bloques, cada una de un bloque como máximo). */
+const MAX_BODY_BYTES = 600_000;
+const OPS_PER_MINUTE = 900;
 
 function viewerOf(user: SessionUser, pageWorkspace: string): CoeditViewer {
   return { ownerId: user.id, realId: realUserId(user), actor: { id: user.id, actingUser: user.actingUser, team: user.team, role: user.role }, pageWorkspace };
@@ -66,9 +71,9 @@ const opItemSchema = z.object({
   block: z.string().min(1).max(64),
   rev: z.number().int().min(0).nullable(),
   hash: z.string().min(1).max(40),
-  op: z.array(z.union([z.number().int(), z.string().max(200_000)])).max(5000),
+  op: z.array(z.union([z.number().int(), z.string().max(DOCS_BLOCK_MAX)])).max(5000),
   seq: z.string().regex(/^[A-Za-z0-9_.-]{1,64}$/),
-  base: z.string().max(400_000).optional(),
+  base: z.string().max(DOCS_BLOCK_MAX).optional(),
 });
 
 const bodySchema = z.object({
@@ -92,9 +97,13 @@ export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   // sendBeacon (al salir) manda text/plain: se parsea a mano.
+  const declared = Number(req.headers.get('content-length') ?? 0);
+  if (declared > MAX_BODY_BYTES) return docsError(413, 'too_large');
   let json: unknown = null;
   try {
-    json = JSON.parse(await req.text());
+    const raw = await req.text();
+    if (raw.length > MAX_BODY_BYTES) return docsError(413, 'too_large');
+    json = JSON.parse(raw);
   } catch {
     json = null;
   }
@@ -119,6 +128,8 @@ export async function POST(req: NextRequest) {
     if (!canWriteAccess(access)) return forbidden();
     if (row.locked === 1 && !body.bypass_lock) return docsError(423, 'locked');
     if (body.items.some((i) => !isTextOp(i.op))) return docsError(400, 'invalid_input');
+    // Tecla por tecla son unas 8 por segundo; esto corta un abuso sin frenar a quien escribe.
+    if (process.env.RATE_LIMIT_DISABLED !== 'true' && !(await rateLimit(`docs-coedit:${me}:${row.id}`, OPS_PER_MINUTE, 60)).ok) return docsError(429, 'rate_limited');
     try {
       const locale = req.cookies.get('NEXT_LOCALE')?.value;
       const timezone = await getUserTimeZone().catch(() => undefined);

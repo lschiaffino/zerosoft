@@ -14,7 +14,7 @@
  * Deshacer sigue siendo del editor: deshacer es un cambio local más.
  */
 import { apply, diff, isNoop, textHash, transform, type TextOp } from './docs-ot';
-import type { CoeditEvent, CoeditOpItem, CoeditOpResult } from './docs-coedit-shared';
+import { COEDIT_BLOCK_MAX, hasPageLink, type CoeditEvent, type CoeditOpItem, type CoeditOpResult } from './docs-coedit-shared';
 
 /** Cuánto cambia una operación (caracteres insertados más borrados). */
 const opSize = (op: TextOp): number => op.reduce<number>((n, c) => n + (typeof c === 'string' ? c.length : c < 0 ? -c : 0), 0);
@@ -68,13 +68,34 @@ export class CoeditEngine {
     readonly session: string,
     private screen: CoeditScreen,
     private transport: CoeditTransport,
-    private opts: { throttleMs?: number; gapMs?: number; onError?: (code: string) => void } = {},
+    private opts: {
+      throttleMs?: number;
+      gapMs?: number;
+      onError?: (code: string) => void;
+      /** Un envío llegó bien (después de errores, el aviso se saca). */
+      onOk?: () => void;
+      /** El bloque deja de viajar por operaciones (link a página o demasiado largo): su texto sigue por el guardado. */
+      onUnmanaged?: (block: string, reason: 'unsupported' | 'too_large') => void;
+    } = {},
   ) {}
 
   stop() {
     this.stopped = true;
     if (this.flushTimer) clearTimeout(this.flushTimer);
     for (const b of this.blocks.values()) if (b.gapTimer) clearTimeout(b.gapTimer);
+  }
+
+  /**
+   * Deja de mandar el bloque por operaciones: su texto sale por el guardado.
+   * Vuelve solo con `register` (la base nueva del guardado) cuando el
+   * servidor lo tiene otra vez como bloque de texto común.
+   */
+  private unmanage(id: string, reason: 'unsupported' | 'too_large') {
+    const b = this.blocks.get(id);
+    if (!b) return;
+    if (b.gapTimer) clearTimeout(b.gapTimer);
+    this.blocks.delete(id);
+    this.opts.onUnmanaged?.(id, reason);
   }
 
   /** ¿El texto de este bloque viaja por operaciones? */
@@ -165,6 +186,11 @@ export class CoeditEngine {
       if (!b.inflight) {
         const v = this.screen.get(id);
         if (v === null || v === b.S) continue;
+        // Un link a página (su título depende de quién mira) o un bloque demasiado largo: por el guardado.
+        if (hasPageLink(v) || v.length > COEDIT_BLOCK_MAX) {
+          this.unmanage(id, hasPageLink(v) ? 'unsupported' : 'too_large');
+          continue;
+        }
         const op = diff(b.S, v);
         if (isNoop(op)) continue;
         b.inflight = { op, seq: this.nextSeq(), base: b.S, rev: b.rev, full: b.sendBase };
@@ -180,6 +206,7 @@ export class CoeditEngine {
       results = await this.transport.send(items);
       this.failures = 0;
       this.online = true;
+      this.opts.onOk?.();
     } catch (err) {
       this.failures += 1;
       this.online = false;
@@ -231,8 +258,8 @@ export class CoeditEngine {
         this.unsupported.add(r.block);
         return;
       case 'unsupported':
-        this.blocks.delete(r.block);
-        this.unsupported.add(r.block);
+      case 'too_large':
+        this.unmanage(r.block, r.status);
         return;
     }
   }
@@ -316,9 +343,18 @@ export class CoeditEngine {
   private applyEvent(id: string, b: BlockSync, ev: OpEvent) {
     if (b.inflight && ev.session === this.session && ev.seq === b.inflight.seq) {
       // La propia, confirmada (ya transformada por el servidor igual que acá).
+      const sent = apply(b.S, b.inflight.op);
       b.S = apply(b.S, ev.op);
       b.inflight = null;
       b.rev = ev.rev;
+      // El servidor la guardó saneada (sacó algo que el editor no admite): la pantalla queda igual que lo guardado.
+      if (b.S !== sent) {
+        const V = this.screen.get(id);
+        if (V === null) return;
+        const R = diff(sent, b.S);
+        const [, R2] = transform(diff(sent, V), R);
+        if (!isNoop(R2)) this.screen.set(id, apply(V, R2), R2, V);
+      }
       return;
     }
     const R = ev.op;

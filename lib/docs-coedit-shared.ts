@@ -25,8 +25,31 @@ export const COEDIT_TYPES = new Set([
   'callout',
 ]);
 
+/**
+ * Un bloque con links a otras páginas (`data-page`) no viaja por operaciones:
+ * el texto de esos links es el título de la página, que cada persona ve
+ * distinto (o como "Página privada" si no puede abrirla). Ese bloque sigue
+ * por el guardado, que enmascara por persona (lib/docs-guard.ts editorBlocks).
+ */
+/** Largo máximo del texto de un bloque (igual que DOCS_BLOCK_MAX del guardado, lib/docs-schema.ts). */
+export const COEDIT_BLOCK_MAX = 20000;
+
+export function hasPageLink(text: string): boolean {
+  return text.includes('data-page');
+}
+
 export function isCoeditBlock(b: Pick<DocsBlock, 'type' | 'content'> | undefined | null): boolean {
-  return !!b && COEDIT_TYPES.has(b.type) && typeof b.content === 'string';
+  return !!b && COEDIT_TYPES.has(b.type) && typeof b.content === 'string' && !hasPageLink(b.content);
+}
+
+/**
+ * Lo que el HTML-lite de un bloque nunca trae (lo saca el sanitizador del
+ * servidor). Si una operación llega con algo de esto, el navegador lo sanea
+ * antes de pintarlo (defensa en profundidad: el servidor ya no lo guarda).
+ */
+const UNSAFE_MARKUP_RE = /<\s*\/?\s*(script|style|iframe|frame|object|embed|img|svg|math|link|meta|base|form|input|button|textarea|select|video|audio|source|template|noscript)\b|<[^>]*\son[a-z]+\s*=|<[^>]*(javascript|vbscript)\s*:|<[^>]*data\s*:\s*text\/html|<[^>]*srcdoc\s*=/i;
+export function hasUnsafeMarkup(html: string): boolean {
+  return UNSAFE_MARKUP_RE.test(html);
 }
 
 /** Evento del feed en vivo de una página, tal como llega al navegador. */
@@ -63,7 +86,7 @@ export interface CoeditOpItem {
   base?: string;
 }
 
-export type CoeditOpStatus = 'ok' | 'dup' | 'resync' | 'gone' | 'unsupported';
+export type CoeditOpStatus = 'ok' | 'dup' | 'resync' | 'gone' | 'unsupported' | 'too_large';
 
 export interface CoeditOpResult {
   block: string;

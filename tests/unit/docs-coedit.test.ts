@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { getDb } from '@/lib/db';
 import { createDocPage, createDocShare, deleteDocShare, getDocPageRow, parseBlocks, updateDocPage } from '@/lib/docs';
-import { applyTextOps, coeditFilter, coeditFeed, currentAccess, type CoeditViewer } from '@/lib/docs-coedit';
+import { applyTextOps, blockSnapshots, coeditFilter, coeditFeed, currentAccess, publicEvent, type CoeditViewer } from '@/lib/docs-coedit';
+import { COEDIT_BLOCK_MAX } from '@/lib/docs-coedit-shared';
+import { DOCS_BLOCK_MAX } from '@/lib/docs-schema';
 import { diff, textHash } from '@/lib/docs-ot';
 import { addMember, createTeam } from '@/lib/teams';
 import type { DocsBlock } from '@/lib/docs-types';
@@ -89,13 +91,72 @@ describe('docs-coedit (servidor)', () => {
     expect(st).toEqual({ rev: 2, text: 'chau mundo' });
   });
 
-  it('el sanitizador corrige lo que quedó mal y lo manda como otra operación', async () => {
+  it('XSS: lo que manda el navegador se sanea antes de guardar; el feed y la respuesta llevan una sola operación limpia', async () => {
     const owner = await makeUser('co5');
     const pageId = await pageWith(owner.id, [para('p', 'ab')]);
-    const r = await applyTextOps({ pageId, actorId: owner.id, session: 'sessionAAA', items: [{ block: 'p', rev: 0, hash: textHash('ab'), op: [1, '<script>x</script>', 1], seq: 'a1' }] });
-    expect(r[0].status).toBe('ok');
-    expect(r[0].events?.length).toBe(2);
-    expect(await textOf(pageId)).not.toContain('<script>');
+    const payloads = ['<img src=x onerror=alert(1)>', '<script>alert(1)</script>', '<a href="javascript:alert(1)">x</a>', '<b onclick="alert(1)">y</b>'];
+    let text = 'ab';
+    for (const [k, payload] of payloads.entries()) {
+      const r = await applyTextOps({ pageId, actorId: owner.id, session: 'sessionAAA', items: [{ block: 'p', rev: k, hash: textHash(text), op: [1, payload, text.length - 1], seq: `a${k}` }] });
+      expect(r[0].status).toBe('ok');
+      expect(r[0].events?.length).toBe(1);
+      expect(JSON.stringify(r[0].events)).not.toMatch(/onerror|onclick|<script|javascript:|<img/i);
+      text = (await textOf(pageId))!;
+      expect(text).not.toMatch(/onerror|onclick|<script|javascript:|<img/i);
+    }
+    // Nada de eso quedó en el feed (ni como operación del navegador ni en ningún otro evento).
+    const rows = (await getDb().prepare('SELECT kind, payload FROM docs_live_events WHERE page_id = ?').all(pageId)) as Array<{ kind: string; payload: string }>;
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) expect(row.payload).not.toMatch(/onerror|onclick|<script|javascript:|<img/i);
+    // Lo que sale por el stream: la versión pública de esos eventos tampoco.
+    const raw = (await getDb().prepare("SELECT * FROM docs_live_events WHERE page_id = ? AND kind = 'op'").all(pageId)) as Array<Record<string, unknown>>;
+    const viewer: CoeditViewer = { ownerId: owner.id, realId: owner.id, actor: { id: owner.id } };
+    const out = await coeditFilter(viewer, pageId, 'full_access', () => undefined)(
+      raw.map((r) => ({ id: Number(r.id), workspaceId: String(r.workspace_id), pageId, userId: (r.user_id as string) ?? null, kind: 'op', blockId: 'p', rev: Number(r.rev), session: (r.session_id as string) ?? null, seq: (r.seq as string) ?? null, payload: JSON.parse(String(r.payload)) })),
+    );
+    expect(out.length).toBe(payloads.length);
+    expect(JSON.stringify(out)).not.toMatch(/onerror|onclick|<script|javascript:|<img/i);
+    // Y si una fila vieja lo tuviera, no sale por el stream.
+    expect(publicEvent({ id: 1, workspaceId: owner.id, pageId, userId: null, kind: 'op', blockId: 'p', rev: 9, session: null, seq: null, payload: { op: [1, '<img src=x onerror=alert(1)>'], hb: '', ha: '' } })).toBeNull();
+  });
+
+  it('links a páginas: un bloque con link no viaja por operaciones (el título no sale por el feed ni por la foto)', async () => {
+    const owner = await makeUser('co5l');
+    const secret = await createDocPage(owner.id, { title: 'Plan secreto' });
+    const link = `<a href="/app/docs/${secret.id}" data-page="${secret.id}">Plan secreto</a>`;
+    const pageId = await pageWith(owner.id, [para('p', `ver ${link}`), para('q', 'texto')]);
+    const row = (await getDocPageRow(pageId))!;
+    expect((await blockSnapshots(row, ['p', 'q'])).p).toBeNull();
+    // Operaciones sobre ese bloque, o que meten un link en otro: no se aplican.
+    const r = await applyTextOps({
+      pageId,
+      actorId: owner.id,
+      session: 'sessionAAA',
+      items: [
+        { block: 'p', rev: 0, hash: textHash(`ver ${link}`), op: ['x', `ver ${link}`.length], seq: 'l1' },
+        { block: 'q', rev: 0, hash: textHash('texto'), op: [5, ` ${link}`], seq: 'l2' },
+      ],
+    });
+    expect(r.map((x) => x.status)).toEqual(['unsupported', 'unsupported']);
+    expect(await textOf(pageId, 'q')).toBe('texto');
+    const rows = (await getDb().prepare('SELECT payload FROM docs_live_events WHERE page_id = ?').all(pageId)) as Array<{ payload: string }>;
+    for (const x of rows) expect(x.payload).not.toContain('Plan secreto');
+    // Un guardado que cambia ese bloque tampoco lo publica como operación.
+    await updateDocPage(owner.id, pageId, { content: [para('p', `ver otra vez ${link}`), para('q', 'texto')] });
+    const after = (await getDb().prepare('SELECT payload FROM docs_live_events WHERE page_id = ?').all(pageId)) as Array<{ payload: string }>;
+    for (const x of after) expect(x.payload).not.toContain('Plan secreto');
+  });
+
+  it(`tope: un bloque no pasa de ${DOCS_BLOCK_MAX} caracteres por operaciones (el guardado sigue andando)`, async () => {
+    const owner = await makeUser('co5b');
+    const pageId = await pageWith(owner.id, [para('p', 'a'), para('q', 'b')]);
+    const r = await applyTextOps({ pageId, actorId: owner.id, session: 'sessionAAA', items: [{ block: 'p', rev: 0, hash: textHash('a'), op: [1, 'x'.repeat(DOCS_BLOCK_MAX + 10)], seq: 'b1' }] });
+    expect(r[0].status).toBe('too_large');
+    expect(await textOf(pageId)).toBe('a');
+    expect(COEDIT_BLOCK_MAX).toBe(DOCS_BLOCK_MAX);
+    // Un guardado de estructura después sigue funcionando.
+    await updateDocPage(owner.id, pageId, { content: [para('p', 'a'), para('q', 'b'), para('n', 'nuevo')], text_ops: true });
+    expect(await textOf(pageId, 'n')).toBe('nuevo');
   });
 
   it('bloques que no son de texto o que no existen', async () => {

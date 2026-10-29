@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CoeditEngine, type CoeditScreen, type CoeditTransport } from '@/lib/docs-coedit-client';
 import { apply, baseLength, diff, textHash, transform, type TextOp } from '@/lib/docs-ot';
-import type { CoeditEvent, CoeditOpItem, CoeditOpResult } from '@/lib/docs-coedit-shared';
+import { COEDIT_BLOCK_MAX, type CoeditEvent, type CoeditOpItem, type CoeditOpResult } from '@/lib/docs-coedit-shared';
 
 type OpEvent = Extract<CoeditEvent, { kind: 'op' }>;
 
@@ -20,6 +20,8 @@ class FakeServer {
     return this.log.find((e) => e.rev === rev)?.ha ?? null;
   }
   baseHash = '';
+  /** Sanitizador del servidor (lib/docs-coedit.ts sanea antes de guardar y guarda una sola operación). */
+  sanitize: (t: string) => string = (t) => t;
   /** Un guardado de página que cambió el texto (lib/docs-coedit.ts coeditAfterSave): operación sin sesión. */
   save(next: string) {
     const ev: OpEvent = { kind: 'op', block: 'p', rev: this.rev + 1, session: null, seq: null, user: null, op: diff(this.text, next), hb: textHash(this.text), ha: textHash(next) };
@@ -44,7 +46,9 @@ class FakeServer {
         op = transform(op, diff(item.base, this.text))[0];
       } else return { block: item.block, seq: item.seq, status: 'resync', rev: this.rev, text: this.text };
       if (baseLength(op) !== this.text.length) return { block: item.block, seq: item.seq, status: 'resync', rev: this.rev, text: this.text };
-      const next = apply(this.text, op);
+      const raw = apply(this.text, op);
+      const next = this.sanitize(raw);
+      if (next !== raw) op = diff(this.text, next);
       const ev: OpEvent = { kind: 'op', block: item.block, rev: this.rev + 1, session, seq: item.seq, user: session, op, hb: textHash(this.text), ha: textHash(next) };
       this.text = next;
       this.rev += 1;
@@ -75,10 +79,12 @@ function client(server: FakeServer, session: string, initial: string) {
     },
     snapshot: async () => ({ p: { rev: server.rev, text: server.text } }),
   };
-  const engine = new CoeditEngine(session, screen, transport, { throttleMs: 1, gapMs: 200 });
+  const unmanaged: string[] = [];
+  const engine = new CoeditEngine(session, screen, transport, { throttleMs: 1, gapMs: 200, onUnmanaged: (b, why) => unmanaged.push(`${b}:${why}`) });
   engine.register([{ id: 'p', text: initial, rev: 0 }]);
   return {
     engine,
+    unmanaged,
     get text() {
       return text;
     },
@@ -224,6 +230,41 @@ describe('CoeditEngine', () => {
     expect(a.text).toBe('Reunión el lunes a las 10:30!');
     b.deliver();
     expect(b.text).toBe('Reunión el lunes a las 10:30');
+  });
+
+  it('lo propio que el servidor guardó saneado: la pantalla queda igual que lo guardado y la otra persona ve lo mismo', async () => {
+    const server = new FakeServer('ab');
+    server.baseHash = textHash('ab');
+    server.sanitize = (t) => t.replace(/<img[^>]*>/g, '');
+    const a = client(server, 'sessA4444', 'ab');
+    const b = client(server, 'sessB4444', 'ab');
+    a.type(1, '<img src=x onerror=alert(1)>ok');
+    await settle();
+    a.deliver();
+    b.deliver();
+    await settle();
+    expect(server.text).toBe('aokb');
+    expect(a.text).toBe('aokb');
+    expect(b.text).toBe('aokb');
+  });
+
+  it('un link a página o un bloque demasiado largo deja de viajar por operaciones (sale por el guardado)', async () => {
+    const server = new FakeServer('ab');
+    server.baseHash = textHash('ab');
+    const a = client(server, 'sessA5555', 'ab');
+    a.type(2, ' <a data-page="x">Secreto</a>');
+    await settle();
+    expect(server.text).toBe('ab');
+    expect(a.unmanaged).toEqual(['p:unsupported']);
+    expect(a.engine.manages('p')).toBe(false);
+    // Vuelve con la base nueva del guardado.
+    a.engine.register([{ id: 'p', text: 'ab', rev: null }]);
+    expect(a.engine.manages('p')).toBe(true);
+    const c = client(server, 'sessC5555', 'ab');
+    c.type(2, 'x'.repeat(COEDIT_BLOCK_MAX));
+    await settle();
+    expect(c.unmanaged).toEqual(['p:too_large']);
+    expect(server.text).toBe('ab');
   });
 
   it('reintentar la misma operación no la aplica dos veces', () => {

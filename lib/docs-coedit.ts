@@ -23,9 +23,10 @@ import { getDb, type DocsPageRow } from './db';
 import { DOC_INTERNAL_READ, parseBlocks, resolveDocAccess, type DocsActor } from './docs';
 import { stringifyBlocks, type DocsAccess, type DocsBlock } from './docs-types';
 import { sanitizeBlocks } from './docs-sanitize';
+import { DOCS_BLOCK_MAX } from './docs-schema';
 import { nextUpdatedAt, recordRevisions } from './docs-revisions';
 import { apply, baseLength, diff, isNoop, isTextOp, OpError, textHash, transform, type TextOp } from './docs-ot';
-import { isCoeditBlock, type CoeditEvent, type CoeditOpItem, type CoeditOpResult } from './docs-coedit-shared';
+import { hasPageLink, hasUnsafeMarkup, isCoeditBlock, type CoeditEvent, type CoeditOpItem, type CoeditOpResult } from './docs-coedit-shared';
 import { sharedFeed, sseLiveResponse, type SharedFeed } from './realtime';
 
 export const COEDIT_FEED_INTERVAL_MS = 300;
@@ -96,8 +97,13 @@ export function coeditFeed(): SharedFeed<RawEvent> {
 export function publicEvent(e: RawEvent): CoeditEvent | null {
   const p = e.payload;
   switch (e.kind) {
-    case 'op':
-      return { id: e.id, kind: 'op', block: e.blockId ?? '', rev: e.rev ?? 0, session: e.session, seq: e.seq, user: e.userId, op: p.op as TextOp, hb: String(p.hb ?? ''), ha: String(p.ha ?? '') };
+    case 'op': {
+      // Red de seguridad: nunca sale por el feed algo que el sanitizador no deja ni el título de un link a página.
+      const op = p.op as TextOp;
+      const inserted = Array.isArray(op) ? op.filter((c): c is string => typeof c === 'string').join('') : '';
+      if (hasUnsafeMarkup(inserted) || hasPageLink(inserted)) return null;
+      return { id: e.id, kind: 'op', block: e.blockId ?? '', rev: e.rev ?? 0, session: e.session, seq: e.seq, user: e.userId, op, hb: String(p.hb ?? ''), ha: String(p.ha ?? '') };
+    }
     case 'cursor':
       return {
         id: e.id,
@@ -247,12 +253,13 @@ async function revForHash(pageId: string, blockId: string, st: BlockState, hash:
   return null;
 }
 
-function sanitizeText(block: DocsBlock, raw: string): string {
+/** El texto como queda guardado (el mismo sanitizador del guardado), o null si no se pudo sanear (no se guarda). */
+function sanitizeText(block: DocsBlock, raw: string): string | null {
   try {
     const out = sanitizeBlocks([{ ...block, content: raw }])[0];
-    return typeof out?.content === 'string' ? out.content : raw;
+    return typeof out?.content === 'string' ? out.content : null;
   } catch {
-    return raw;
+    return null;
   }
 }
 
@@ -381,13 +388,26 @@ export async function applyTextOps(args: {
         continue;
       }
       const raw = isNoop(op) ? st.text : apply(st.text, op);
-      ops.push({ blockId: item.block, rev: st.rev + 1, op, hb: textHash(st.text), ha: textHash(raw), session: args.session, seq: item.seq, userId: args.actorId });
-      st = { ...st, rev: st.rev + 1, text: raw };
+      // Se sanea ANTES de guardar: lo que queda en la página, en el feed y en la
+      // respuesta es una sola operación hasta el texto limpio. Lo que mandó el
+      // navegador tal cual no se guarda ni se reparte nunca.
       const clean = sanitizeText(block, raw);
-      if (clean !== raw) {
-        ops.push({ blockId: item.block, rev: st.rev + 1, op: diff(raw, clean), hb: textHash(raw), ha: textHash(clean), session: null, seq: null, userId: null });
-        st = { ...st, rev: st.rev + 1, text: clean };
+      const refuse = clean === null ? 'resync' : clean.length > DOCS_BLOCK_MAX ? 'too_large' : hasPageLink(clean) ? 'unsupported' : null;
+      if (refuse || clean === null) {
+        res.status = refuse ?? 'resync';
+        res.rev = st.rev;
+        if (res.status === 'resync') res.text = st.text;
+        if (ops.length) {
+          states.set(item.block, st);
+          pending.push(...ops);
+          blocks[i] = { ...block, content: st.text };
+          touched.add(item.block);
+        }
+        continue;
       }
+      const stored = clean === raw ? op : diff(st.text, clean);
+      ops.push({ blockId: item.block, rev: st.rev + 1, op: stored, hb: textHash(st.text), ha: textHash(clean), session: args.session, seq: item.seq, userId: args.actorId });
+      st = { ...st, rev: st.rev + 1, text: clean };
       states.set(item.block, st);
       pending.push(...ops);
       res._ops = ops;

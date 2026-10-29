@@ -588,6 +588,14 @@ export default function DocsEditorClient({
     onSendError: (code) => {
       if (code === 'locked') setCurrent((prev) => ({ ...prev, locked: true }));
       else if (code === 'forbidden' || code === 'not_found') router.refresh();
+      // El servidor rechaza lo que se escribe (límite, error): se avisa en vez de mostrar "Guardado".
+      else if (code.startsWith('http_')) setSaveError((prev) => prev ?? 'failed');
+    },
+    onSendOk: () => setSaveError((prev) => (prev === 'failed' ? null : prev)),
+    // Un link a página o un bloque demasiado largo: el texto sale por el guardado (que avisa si no entra).
+    onUnmanaged: () => {
+      const snap = editorApi.current?.snapshot();
+      if (snap) void savePage({ content: snap.blocks });
     },
   });
   coeditRef.current = coedit;
