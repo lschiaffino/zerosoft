@@ -162,7 +162,7 @@ test.describe('app de escritorio', () => {
   test('un link con autostart (en Talk, un mail, un deep link) abre la reunión sin grabar', async ({ request, baseURL }) => {
     const win = await mainWindow();
     for (const autostart of ['desktop', 'A'.repeat(32)]) {
-      await win.loadURL(`${baseURL}/en/app/voice?new=1&autostart=${autostart}`);
+      await win.goto(`${baseURL}/en/app/voice?new=1&autostart=${autostart}`);
       await win.waitForURL(/\/app\/voice\/meetings\/[^/?]+/, { timeout: 30_000 });
       const id = new URL(win.url()).pathname.split('/').pop()!;
       await new Promise((r) => setTimeout(r, 3000));
