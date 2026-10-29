@@ -200,6 +200,9 @@ test('home: create from a preset, rename, star, folder, trash and restore', asyn
   await page.getByRole('menuitem', { name: 'Move to folder' }).click();
   await page.getByRole('button', { name: folderName }).click();
   await page.getByTestId('design-folder').filter({ hasText: folderName }).click();
+  // Esperar a que cargue la carpeta (la lista anterior se ve hasta que llega).
+  await expect(page).toHaveURL(/[?&]folder=/);
+  await expect(page.getByTestId('design-folder')).toHaveCount(0);
   await expect(page.getByTestId('design-card').filter({ hasText: name })).toBeVisible();
   // A la papelera y de vuelta.
   await page.getByTestId('design-card').filter({ hasText: name }).getByTestId('design-card-menu').click();
