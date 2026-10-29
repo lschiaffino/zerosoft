@@ -29,6 +29,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-29-assistant',
+    date: '2026-10-29',
+    title: {
+      en: 'An assistant for the whole workspace',
+      es: 'Un asistente para todo el workspace',
+      pt: 'Um assistente para todo o workspace',
+    },
+    items: [
+      { product: 'platform', en: 'Press ⌘J on any page to open the assistant in a side panel. It knows the page you are on and the text you selected. Asking from the home page opens a full-page chat with your history, where you rename, delete and search your chats.', es: 'Apretá ⌘J en cualquier página para abrir el asistente en un panel lateral. Sabe en qué página estás y qué texto seleccionaste. Preguntar desde el inicio abre el chat a página completa con tu historial, donde renombrás, borrás y buscás tus charlas.', pt: 'Aperte ⌘J em qualquer página para abrir o assistente em um painel lateral. Ele sabe em que página você está e o texto que selecionou. Perguntar pelo início abre o chat em página inteira com o seu histórico, onde você renomeia, exclui e busca suas conversas.' },
+      { product: 'platform', en: 'It reads CRM deals and pipelines, Track projects, Docs, Notes, Link, Cal, Flow, Robots, Agents, Talk, Voice, Chat, Groups and Board, and diagnoses webhooks, flow and robot runs, imports, invitation emails and connected accounts. It only sees the apps you can use in the workspace.', es: 'Lee deals y pipelines del CRM, proyectos de Track, Docs, Notes, Link, Cal, Flow, Robots, Agents, Talk, Voice, Chat, Groups y Board, y diagnostica webhooks, corridas de flows y robots, importaciones, emails de invitación y cuentas conectadas. Solo ve las apps que podés usar en el workspace.', pt: 'Lê deals e pipelines do CRM, projetos do Track, Docs, Notes, Link, Cal, Flow, Robots, Agents, Talk, Voice, Chat, Groups e Board, e diagnostica webhooks, execuções de flows e robôs, importações, e-mails de convite e contas conectadas. Só vê os apps que você pode usar no workspace.' },
+      { product: 'platform', en: 'Changes such as a new pipeline, an invitation or an issue show up as a card with what changes, and run only when you click Confirm. Deleting asks you to type the name. Self-host: add OPENROUTER_API_KEY; it runs DeepSeek by default and uses the workspace AI quota.', es: 'Los cambios, como un pipeline nuevo, una invitación o un issue, aparecen en una tarjeta con lo que cambia y se aplican recién cuando hacés clic en Confirmar. Para borrar te pide escribir el nombre. Self-host: agregá OPENROUTER_API_KEY; usa DeepSeek por defecto y la cuota de IA del workspace.', pt: 'As mudanças, como um pipeline novo, um convite ou uma issue, aparecem num cartão com o que muda e só se aplicam quando você clica em Confirmar. Para excluir, pede que você digite o nome. Self-host: adicione OPENROUTER_API_KEY; usa DeepSeek por padrão e a cota de IA do workspace.' },
+    ],
+  },
+  {
     id: '2026-10-28-talk',
     date: '2026-10-28',
     title: {

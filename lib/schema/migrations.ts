@@ -6806,6 +6806,67 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    // Asistente de la plataforma (panel lateral y chat del inicio): charlas por
+    // persona dentro del workspace, sus mensajes, las acciones de escritura que
+    // esperan el clic de confirmación (nunca se ejecutan solas) y el registro
+    // de cada herramienta que usó el asistente.
+    id: '133_assistant',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS assistant_conversations (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          title TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_assistant_conv_person ON assistant_conversations(workspace_id, person_id, updated_at);
+
+        CREATE TABLE IF NOT EXISTS assistant_messages (
+          id TEXT PRIMARY KEY,
+          conversation_id TEXT NOT NULL REFERENCES assistant_conversations(id) ON DELETE CASCADE,
+          role TEXT NOT NULL,
+          content TEXT NOT NULL DEFAULT '',
+          parts TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_assistant_msg_conv ON assistant_messages(conversation_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS assistant_actions (
+          id TEXT PRIMARY KEY,
+          conversation_id TEXT NOT NULL REFERENCES assistant_conversations(id) ON DELETE CASCADE,
+          workspace_id TEXT NOT NULL,
+          person_id TEXT NOT NULL,
+          tool TEXT NOT NULL,
+          input TEXT NOT NULL DEFAULT '{}',
+          summary TEXT NOT NULL DEFAULT '',
+          details TEXT NOT NULL DEFAULT '[]',
+          destructive INTEGER NOT NULL DEFAULT 0,
+          confirm_text TEXT,
+          status TEXT NOT NULL DEFAULT 'pending',
+          result TEXT,
+          created_at TEXT NOT NULL,
+          decided_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_assistant_actions_conv ON assistant_actions(conversation_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS assistant_audit (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          person_id TEXT NOT NULL,
+          conversation_id TEXT,
+          tool TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          input TEXT NOT NULL DEFAULT '{}',
+          outcome TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_assistant_audit_ws ON assistant_audit(workspace_id, created_at);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

@@ -516,6 +516,21 @@ export default function AppSidebar({
               <span className="band-search-label">{labels.docs.askAi}</span>
             </button>
           )}
+          {/* Asistente de la plataforma (panel lateral en toda la app, ⌘J). */}
+          <button
+            type="button"
+            className="band-search band-ai band-assistant"
+            onClick={() => window.dispatchEvent(new CustomEvent('zs:assistant'))}
+            aria-label={t('assistant')}
+            aria-haspopup="dialog"
+            aria-keyshortcuts="Meta+J Control+J"
+            title={`${t('assistant')} (⌘J)`}
+            data-assistant-trigger
+          >
+            <Icon name="agents" size={15} />
+            <span className="band-search-label">{t('assistant')}</span>
+            <kbd className="kbd">⌘J</kbd>
+          </button>
           <NotificationBell labels={bellLabels} onCountChange={setUnreadCount} />
         </div>
       </header>

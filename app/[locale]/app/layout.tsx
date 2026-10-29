@@ -13,6 +13,7 @@ import { getWorkspaceMode } from '@/lib/home';
 import AppSidebar from '@/components/app/AppSidebar';
 import AppTopbar from '@/components/app/AppTopbar';
 import CommandSearch from '@/components/app/CommandSearch';
+import AssistantPanel from '@/components/assistant/AssistantPanel';
 import DictationHost from '@/components/voice/DictationHost';
 import MeetingReminders from '@/components/voice/MeetingReminders';
 import RecorderProvider from '@/components/voice/RecorderProvider';
@@ -33,6 +34,7 @@ import '@/styles/app.css';
 import '@/styles/color.css';
 import '@/styles/voice-host.css';
 import '@/styles/workspace.css';
+import '@/styles/assistant.css';
 
 export const dynamic = 'force-dynamic';
 
@@ -117,7 +119,7 @@ export default async function AppLayout(
   return (
     // Cliente: lo que usan el sidebar y Cmd+K de otras apps; cada app suma su
     // namespace en su layout.
-    <ClientMessages locale={locale} namespaces={['settings.switcher', 'board.list', 'notes.actions', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder', 'voice.reminders', 'voice.prompts', 'rec.signout', 'notes.signOut']}>
+    <ClientMessages locale={locale} namespaces={['settings.switcher', 'board.list', 'notes.actions', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder', 'voice.reminders', 'voice.prompts', 'rec.signout', 'notes.signOut', 'assistant']}>
       <RecorderProvider owner={`${user.actingUser?.id ?? user.id}:${user.id}`}>
       {/* El script pone sidebar-collapsed antes del primer paint; React no toca la clase al hidratar. */}
       <div className="app-frame" suppressHydrationWarning>
@@ -248,6 +250,7 @@ export default async function AppLayout(
                 { href: '/app/rec/workspace', label: tRec('sidebar.workspace') },
                 { href: '/app/rec/new', label: tRec('sidebar.newVideo') },
                 { href: '/app/talk', label: tTalk('sidebar.home') },
+                { href: '/app/assistant', label: tSide('assistant') },
               ]}
             />
           }
@@ -449,6 +452,8 @@ export default async function AppLayout(
           <main className="app-content">{children}</main>
         </div>
         <CommandSearch />
+        {/* Asistente de la plataforma: ⌘J o el botón de la banda, en toda la app. */}
+        <AssistantPanel />
         {/* Dictado en toda la app y avisos de reunión: solo para quien tiene Voice en este workspace. */}
         {userCanUseApp(user, 'voice') && (
           <>

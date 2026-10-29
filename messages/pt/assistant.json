@@ -1,0 +1,107 @@
+{
+  "title": "Assistente",
+  "newChat": "Nova conversa",
+  "history": "Histórico",
+  "close": "Fechar",
+  "loading": "Carregando…",
+  "thinking": "Pensando…",
+  "sending": "Enviando…",
+  "send": "Enviar",
+  "placeholder": "Pergunte algo ou descreva uma mudança",
+  "foot": "As mudanças pedem sua confirmação. O assistente só vê os apps que você pode usar.",
+  "usingSelection": "Usando o texto que você selecionou nesta página.",
+  "errors": {
+    "not_configured": "O assistente não está configurado neste servidor.",
+    "ai_disabled": "A IA está desligada neste servidor.",
+    "quota_exceeded": "Este workspace usou os tokens de IA do mês.",
+    "rate_limited": "Pedidos demais. Tente de novo em um minuto.",
+    "provider_auth": "O provedor de IA recusou a chave. Um admin precisa revisar OPENROUTER_API_KEY.",
+    "provider_error": "O assistente não conseguiu responder. Tente de novo.",
+    "network": "Não foi possível chegar ao servidor. Verifique a conexão e tente de novo.",
+    "status": "Não foi possível carregar o assistente. Recarregue a página.",
+    "load": "Não foi possível carregar esta conversa."
+  },
+  "notConfigured": {
+    "title": "O assistente ainda não está configurado",
+    "disabledTitle": "A IA está desligada neste servidor",
+    "admin": "Adicione OPENROUTER_API_KEY ao ambiente do servidor (e, se quiser, ASSISTANT_MODEL) e publique de novo.",
+    "member": "Peça a um admin do workspace que conecte uma chave do OpenRouter."
+  },
+  "empty": {
+    "title": "Do que você precisa?",
+    "body": "Pergunte sobre seus dados, descubra por que algo falhou ou descreva uma mudança. Você confirma cada mudança antes de ela acontecer.",
+    "suggestions": "Perguntas sugeridas"
+  },
+  "tool": {
+    "used": "Usou {tool}",
+    "running": "Rodando",
+    "ok": "Pronto",
+    "failed": "Falhou",
+    "input": "Pedido",
+    "output": "Resultado"
+  },
+  "action": {
+    "review": "Revise e confirme",
+    "destructive": "Mudança destrutiva",
+    "typeToConfirm": "Digite {text} para confirmar",
+    "working": "Aplicando…",
+    "confirm": "Confirmar",
+    "cancel": "Cancelar",
+    "done": "Pronto.",
+    "cancelled": "Cancelado. Nada mudou.",
+    "failed": "Não funcionou: {error}",
+    "open": "Abrir"
+  },
+  "actionErrors": {
+    "forbidden": "Você não tem mais acesso para fazer isso.",
+    "confirm_text_mismatch": "O texto não confere.",
+    "not_pending": "Esta mudança já foi resolvida.",
+    "not_found": "Esta mudança não existe mais.",
+    "failed": "Não foi possível aplicar a mudança. Tente de novo."
+  },
+  "suggest": {
+    "home": { "a": "O que precisa da minha atenção hoje?", "b": "Quem está neste workspace?", "c": "Por que meu webhook não disparou?" },
+    "crm": { "a": "Mostre os deals que fecham este mês", "b": "Crie um pipeline Renovações com as etapas Contatado, Proposta, Assinado", "c": "Quais tarefas estão atrasadas?" },
+    "track": { "a": "Liste os projetos e a saúde deles", "b": "Configure um lembrete semanal de update em um projeto", "c": "Crie uma issue em um time" },
+    "docs": { "a": "Procure páginas sobre onboarding", "b": "Crie uma página com notas da reunião", "c": "O que mudou no Docs esta semana?" },
+    "flow": { "a": "Quais execuções de flows falharam esta semana?", "b": "Liste meus flows e a última execução", "c": "Por que minha última execução falhou?" },
+    "robots": { "a": "Quais robôs falharam recentemente?", "b": "Liste meus robôs", "c": "Por que meu robô falhou?" },
+    "settings": { "a": "Quem está neste workspace?", "b": "Por que meu webhook não disparou?", "c": "Minha última importação terminou?" },
+    "cal": { "a": "Quais reservas tenho esta semana?", "b": "Liste meus tipos de evento", "c": "Meu Google Calendar está conectado?" },
+    "link": { "a": "Procure links para a página de preços", "b": "Crie um link curto", "c": "Quais links tiveram mais cliques?" },
+    "talk": { "a": "Em quais canais eu estou?", "b": "Procure um canal", "c": "O que você pode fazer aqui?" },
+    "voice": { "a": "Liste minhas reuniões recentes", "b": "Procure a reunião sobre preços", "c": "O que você pode fazer aqui?" },
+    "chat": { "a": "Mostre as conversas abertas", "b": "Quem escreveu hoje?", "c": "O que você pode fazer aqui?" },
+    "groups": { "a": "Liste meus grupos de WhatsApp", "b": "Procure um grupo", "c": "O que você pode fazer aqui?" },
+    "agents": { "a": "Liste meus agentes", "b": "Quais agentes estão ativos?", "c": "O que você pode fazer aqui?" },
+    "notes": { "a": "Procure minhas notas sobre preços", "b": "Crie uma nota com estas ideias", "c": "O que você pode fazer aqui?" },
+    "board": { "a": "Liste meus quadros", "b": "Procure um quadro", "c": "O que você pode fazer aqui?" }
+  },
+  "page": {
+    "title": "Assistente",
+    "description": "Suas conversas com o assistente. Cada conversa é só sua neste workspace.",
+    "chats": "Conversas",
+    "searchChats": "Buscar conversas",
+    "emptyChats": "Ainda não há conversas. Pergunte algo para começar uma.",
+    "noMatches": "Nenhuma conversa corresponde.",
+    "untitled": "Nova conversa",
+    "rename": "Renomear",
+    "renameLabel": "Nome da conversa",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "delete": "Excluir",
+    "deleteTitle": "Excluir esta conversa?",
+    "deleteBody": "As mensagens são excluídas. As mudanças que você já confirmou ficam nos apps.",
+    "loadError": "Não foi possível carregar suas conversas.",
+    "retry": "Tentar de novo",
+    "actionsFor": "Ações de {title}"
+  },
+  "home": {
+    "title": "Pergunte ao assistente",
+    "placeholder": "Pergunte sobre seus dados ou descreva uma mudança",
+    "ask": "Perguntar",
+    "recent": "Conversas recentes",
+    "viewAll": "Todas as conversas",
+    "shortcut": "Abra de qualquer lugar com {key}"
+  }
+}

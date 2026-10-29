@@ -91,6 +91,18 @@ async function recVideo(request: APIRequestContext, name: string): Promise<Creat
 
 const APPS: AppCase[] = [
   {
+    // Charlas del asistente (página /app/assistant, historial a la izquierda).
+    app: 'Assistant chats',
+    list: '/en/app/assistant',
+    create: async (request, name) => {
+      const c = await ok<{ id: string; title: string }>(request.post('/api/assistant/conversations', { data: { title: name } }));
+      return { id: c.id, name: c.title };
+    },
+    detail: (i) => `/en/app/assistant?c=${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/assistant/conversations/${i.id}`, { data: { title: name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/assistant/conversations/${i.id}`))),
+  },
+  {
     app: 'Talk',
     list: '/en/app/talk',
     // El nombre se guarda como Slack (minúsculas, guiones): la UI muestra ese. Renombrar se prueba en talk.spec.
