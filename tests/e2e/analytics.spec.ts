@@ -217,6 +217,13 @@ test('SQL: lee el proyecto y rechaza otras tablas', async ({ page, baseURL }) =>
   await editor.fill('SELECT * FROM users');
   await page.getByRole('button', { name: 'Run', exact: true }).click();
   await expect(page.getByTestId('an-sql-result').getByRole('alert')).toContainText('Only the tables');
+  // Producto cartesiano y printf: rechazados antes de llegar a la base.
+  await editor.fill('SELECT count(*) FROM events a, events b');
+  await page.getByRole('button', { name: 'Run', exact: true }).click();
+  await expect(page.getByTestId('an-sql-result').getByRole('alert')).toContainText('Each JOIN needs ON');
+  await editor.fill("SELECT printf('%.*c', 900000000, 'x')");
+  await page.getByRole('button', { name: 'Run', exact: true }).click();
+  await expect(page.getByTestId('an-sql-result').getByRole('alert')).toContainText('function');
 });
 
 test('oscuro y 390px: web analytics y el editor sin scroll horizontal', async ({ page, context, baseURL }) => {

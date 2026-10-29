@@ -32,15 +32,19 @@ export interface SqlRunResult {
 
 const DB_URL = process.env.TURSO_DATABASE_URL ?? `file:${process.cwd()}/data/zerosoftware.db`;
 
-/** Programa del proceso hijo: lee {lib, path, sql, args, max} de stdin y escribe {columns, rows} o {error}. */
+/**
+ * Programa del proceso hijo: lee {path, sql, args, max} de stdin y escribe
+ * {columns, rows} o {error}. Resuelve libsql desde el directorio de la app (el
+ * bundle del servidor no puede resolverlo por su cuenta).
+ */
 const CHILD = `
 const input = [];
 process.stdin.on('data', (d) => input.push(d));
 process.stdin.on('end', () => {
   let out;
   try {
-    const { lib, path, sql, args, max } = JSON.parse(Buffer.concat(input).toString());
-    const Database = require(lib);
+    const { path, sql, args, max } = JSON.parse(Buffer.concat(input).toString());
+    const Database = require('module').createRequire(process.cwd() + '/package.json')('libsql');
     const db = new Database(path);
     db.exec('PRAGMA query_only = 1');
     const st = db.prepare(sql);
@@ -59,22 +63,9 @@ process.stdin.on('end', () => {
 });
 `;
 
-let libPath: string | null | undefined;
-
-async function libsqlPath(): Promise<string | null> {
-  if (libPath !== undefined) return libPath;
-  try {
-    const { createRequire } = await import('module');
-    libPath = createRequire(`${process.cwd()}/package.json`).resolve('libsql');
-  } catch {
-    libPath = null;
-  }
-  return libPath;
-}
-
-function runInChild(lib: string, path: string, sql: string, args: string[], max: number, timeoutMs: number): Promise<SqlRunResult> {
+function runInChild(path: string, sql: string, args: string[], max: number, timeoutMs: number): Promise<SqlRunResult> {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ['--max-old-space-size=256', '-e', CHILD], { stdio: ['pipe', 'pipe', 'ignore'] });
+    const child = spawn(process.execPath, ['--max-old-space-size=256', '-e', CHILD], { cwd: process.cwd(), stdio: ['pipe', 'pipe', 'ignore'] });
     const chunks: Buffer[] = [];
     let size = 0;
     let settled = false;
@@ -110,16 +101,14 @@ function runInChild(lib: string, path: string, sql: string, args: string[], max:
         }
       }),
     );
-    child.stdin.end(JSON.stringify({ lib, path, sql, args, max }));
+    child.stdin.end(JSON.stringify({ path, sql, args, max }));
   });
 }
 
 export async function runReadOnly(sql: string, args: string[], max: number, timeoutMs = SQL_TIMEOUT_MS): Promise<SqlRunResult> {
   await ensureMigrated();
   if (DB_URL.startsWith('file:')) {
-    const lib = await libsqlPath();
-    if (!lib) throw new SqlRunError('sql_error', 'sql_runner_unavailable');
-    return runInChild(lib, DB_URL.slice('file:'.length), sql, args, max, timeoutMs);
+    return runInChild(DB_URL.slice('file:'.length), sql, args, max, timeoutMs);
   }
   const tx = await getClient().transaction('read');
   let timer: ReturnType<typeof setTimeout> | undefined;
