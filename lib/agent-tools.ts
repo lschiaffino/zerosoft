@@ -27,7 +27,9 @@ import {
   type AgentToolCallDto,
   type AgentToolKey,
   type ApprovableAgentTool,
+  type AgentReplyUi,
 } from './agents-config';
+import { buttonsUi, formUi } from './agents-ui-blocks';
 import { rankKnowledge, type KnowledgeDoc } from './knowledge-search';
 import { extractDocsText, listCannedResponses } from './chat-data';
 import { safeFetch, UnsafeUrlError } from './safe-fetch';
@@ -63,8 +65,16 @@ export interface AgentRunContext {
   mcpServers?: string;
   /** Valores secretos (y sus partes) que nunca se registran ni vuelven al modelo. */
   secretValues?: string[];
+  /** Botones o formulario que acompañan la respuesta (show_buttons, show_form, procedimientos). */
+  ui?: AgentReplyUi | null;
+  /** El modelo arrancó un procedimiento (start_procedure): lo corre runAgent al terminar el paso. */
+  procedureStart?: string | null;
+  /** Conexiones de Stripe y Shopify ya descifradas. Nunca van al modelo ni al registro. */
+  integrations?: { stripeKey: string; shopify: { shop: string; token: string } | null };
   /** Playground: acceso de quien prueba (ver playgroundAccess). undefined = sin resolver. */
   playgroundCaller?: PlaygroundCaller | null;
+  /** agents.access (JSON): acceso por agente, para saber si quien prueba lo edita. */
+  agentAccess?: string | null;
 }
 
 export interface KnowledgeCitation {
@@ -85,6 +95,9 @@ export function docsActorOf(channel: AgentChannel, conversationCreatedBy: string
   if (channel === 'playground') return null;
   return cfg.docsActorId ?? null;
 }
+
+/** shopify_order: intentos por conversación. */
+const SHOPIFY_MAX_TRIES = 3;
 
 /** run_robot: cuánto espera su turno en la cola del workspace y tope de la corrida. */
 const AGENT_ROBOT_WAIT_MS = 10_000;
@@ -144,7 +157,7 @@ function toJson(value: unknown, max = 8000): string {
 }
 
 /** Envuelve una herramienta: registro, eventos para la UI y errores como datos. */
-function logged<I>(ctx: AgentRunContext, name: AgentToolKey, fn: (input: I) => Promise<ToolOutput>) {
+function logged<I>(ctx: AgentRunContext, name: AgentToolKey | 'start_procedure', fn: (input: I) => Promise<ToolOutput>) {
   return async (input: I): Promise<ToolOutput> => {
     const id = crypto.randomUUID();
     const started = Date.now();
@@ -152,7 +165,7 @@ function logged<I>(ctx: AgentRunContext, name: AgentToolKey, fn: (input: I) => P
     let output: ToolOutput;
     let error: string | null = null;
     try {
-      output = await fn(input);
+      output = (await playgroundGate(ctx, name)) ?? (await fn(input));
       if (output && typeof output.error === 'string') error = output.error;
     } catch (err) {
       error = err instanceof Error && /^[a-z_]+$/.test(err.message) ? err.message : 'tool_failed';
@@ -211,12 +224,30 @@ async function helpCenterLinks(workspaceId: string, pageIds: string[]): Promise<
   return out;
 }
 
+export type AgentKnowledgeDoc = KnowledgeDoc<KnowledgeKind> & { chunk?: boolean; titleExtra?: string };
+
+/**
+ * Busca en el conocimiento del agente: palabras clave (BM25) y, con la
+ * búsqueda semántica activa, embeddings fusionados con el ranking léxico
+ * (lib/agents-semantic.ts). Si los embeddings fallan, queda el léxico.
+ */
 export async function searchAgentKnowledge(
   agent: AgentDto,
   workspaceId: string,
   query: string,
   k = 5,
+  opts: { fakeEmbeddings?: boolean } = {},
 ): Promise<Array<{ kind: KnowledgeKind; title: string; text: string; source?: string; score: number }>> {
+  const docs = await collectAgentKnowledgeDocs(agent, workspaceId);
+  if (agent.settings?.semanticSearch) {
+    const { hybridRank } = await import('./agents-semantic');
+    return hybridRank(workspaceId, docs, query, k, { fake: opts.fakeEmbeddings });
+  }
+  return rankKnowledge(docs, query, k);
+}
+
+/** Todo el conocimiento del agente como documentos (Docs, URLs, fuentes, archivos, pares, respuestas guardadas). */
+export async function collectAgentKnowledgeDocs(agent: AgentDto, workspaceId: string): Promise<AgentKnowledgeDoc[]> {
   const db = getDb();
   const docs: Array<KnowledgeDoc<KnowledgeKind> & { chunk?: boolean; titleExtra?: string }> = [];
   const cfg = agent.knowledge;
@@ -249,7 +280,9 @@ export async function searchAgentKnowledge(
   const manual = new Set(cfg.urls);
   const sitemaps = new Set((cfg.sitemaps ?? []).map((sm) => sm.url));
   for (const u of urls) {
-    if (u.origin ? !sitemaps.has(u.origin) : !manual.has(u.url)) continue;
+    // Artículos de una fuente externa (Zendesk): origin 'source:<id>', siempre del agente.
+    const fromSource = Boolean(u.origin?.startsWith('source:'));
+    if (!fromSource && (u.origin ? !sitemaps.has(u.origin) : !manual.has(u.url))) continue;
     docs.push({ kind: 'url', title: u.title || u.url, text: u.content, source: u.url });
   }
   const { ownKnowledgeDocs } = await import('./agents-knowledge');
@@ -264,7 +297,7 @@ export async function searchAgentKnowledge(
       }
     }
   }
-  return rankKnowledge(docs, query, k);
+  return docs;
 }
 
 /** "Fuentes" en el idioma más probable del visitante. */
@@ -352,10 +385,42 @@ export async function playgroundAccess(ctx: AgentRunContext): Promise<Playground
     const { personAppAccess } = await import('./api-auth');
     const access = await personAppAccess(ctx.workspaceId, personId).catch(() => null);
     const user = (await getDb().prepare('SELECT email FROM users WHERE id = ?').get(personId)) as { email: string | null } | undefined;
-    if (access) caller = { email: user?.email?.trim().toLowerCase() ?? null, canEdit: access.role === 'owner' || access.role === 'admin', apps: access.apps };
+    if (access) {
+      // Edita el agente: owner, admin o editor de este agente (lib/agents-access.ts).
+      const { agentAccessLevel, parseAgentAccess } = await import('./agents-access');
+      const role = personId === ctx.workspaceId ? 'owner' : access.role;
+      const canEdit = agentAccessLevel(role, personId, parseAgentAccess(ctx.agentAccess ?? null)) === 'edit';
+      caller = { email: user?.email?.trim().toLowerCase() ?? null, canEdit, apps: access.apps };
+    }
   }
   ctx.playgroundCaller = caller;
   return caller;
+}
+
+/** App de la suite que toca cada herramienta (quien prueba en el playground tiene que tenerla). */
+export const AGENT_TOOL_APP: Partial<Record<string, string>> = {
+  crm_find_contact: 'crm',
+  crm_upsert_contact: 'crm',
+  crm_log_note: 'crm',
+  cal_get_availability: 'cal',
+  cal_book_meeting: 'cal',
+  track_create_issue: 'track',
+  run_flow: 'flow',
+  run_robot: 'robots',
+};
+
+/** Herramientas que leen datos de clientes o servicios: en el playground, solo para quien edita el agente. */
+const PLAYGROUND_EDIT_TOOLS = new Set(['crm_find_contact', 'crm_upsert_contact', 'crm_log_note', 'stripe_customer', 'shopify_order', 'http_request', 'mcp_call']);
+
+/** Playground: null si quien prueba puede correr la herramienta; si no, el error. */
+async function playgroundGate(ctx: AgentRunContext, name: string): Promise<ToolOutput | null> {
+  if (ctx.channel !== 'playground') return null;
+  const caller = await playgroundAccess(ctx);
+  if (!caller) return { error: 'playground_no_access' };
+  const app = AGENT_TOOL_APP[name];
+  if (app && caller.apps !== '*' && !caller.apps.includes(app)) return { error: 'playground_no_app', app };
+  if (PLAYGROUND_EDIT_TOOLS.has(name) && !caller.canEdit) return { error: 'playground_no_access' };
+  return null;
 }
 
 /** En el playground, ¿puede quien prueba leer datos reales de esta app? Fuera del playground: sí. */
@@ -385,7 +450,8 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
           "Search this business's knowledge base (docs pages, saved web pages, files, Q&A pairs and canned answers). Returns the most relevant passages, each with a ref number to cite. Use it before answering questions about the business.",
         inputSchema: z.object({ query: z.string().trim().min(2).max(300).describe('What to look for, in a few keywords') }),
         execute: logged(ctx, 'search_knowledge', async ({ query }: { query: string }) => {
-          const results = await searchAgentKnowledge(agent, workspaceId, query);
+          const { agentsAiFakeActive } = await import('./agents-ai');
+          const results = await searchAgentKnowledge(agent, workspaceId, query, 5, { fakeEmbeddings: await agentsAiFakeActive() });
           ctx.citations ??= new Map();
           ctx.searches ??= { calls: 0, empty: 0 };
           ctx.searches.calls++;
@@ -820,6 +886,152 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
         }),
       );
     }
+  }
+
+  // ---------- Botones y formularios en el chat ----------
+  if (on.has('show_buttons')) {
+    add(
+      'show_buttons',
+      tool({
+        description:
+          'Show 2 to 6 quick-reply buttons under your reply (short labels). The visitor taps one to answer. Use it for clear choices (topics, yes or no, plans). Still write the question itself in your reply.',
+        inputSchema: z.object({ options: z.array(z.string().trim().min(1).max(80)).min(2).max(6) }),
+        execute: logged(ctx, 'show_buttons', async ({ options }: { options: string[] }) => {
+          const ui = buttonsUi(options);
+          if (!ui || ui.kind !== 'buttons' || ui.options.length < 2) return { error: 'invalid_options' };
+          ctx.ui = ui;
+          return { shown: true, options: ui.options };
+        }),
+      }),
+    );
+  }
+  const forms = agent.settings.forms ?? [];
+  if (on.has('show_form') && forms.length) {
+    const ids = forms.map((f) => f.id) as [string, ...string[]];
+    add(
+      'show_form',
+      tool({
+        description: `Show one of these forms inside the chat so the visitor fills it in. Their answers come back as their next message. Use it instead of asking for the same data in text:\n${forms
+          .map((f) => `- ${f.id}: ${f.name} (${f.fields.map((x) => x.label).join(', ')})`)
+          .join('\n')}`,
+        inputSchema: z.object({ formId: z.enum(ids) }),
+        execute: logged(ctx, 'show_form', async ({ formId }: { formId: string }) => {
+          const form = forms.find((f) => f.id === formId);
+          if (!form) return { error: 'form_not_found' };
+          ctx.ui = formUi(form);
+          return { shown: true, form: form.name, note: 'Tell the visitor to fill in the form below the message, in one short sentence.' };
+        }),
+      }),
+    );
+  }
+
+  // ---------- Procedimientos ----------
+  const procedures = agent.settings.procedures ?? [];
+  if (procedures.length) {
+    const ids = procedures.map((p) => p.id) as [string, ...string[]];
+    tools.start_procedure = tool({
+      description: `Start a step-by-step procedure when the visitor's request clearly matches one. The procedure then writes the next messages itself, so do not write anything else in this reply:\n${procedures
+        .map((p) => `- ${p.id}: ${p.name}${p.trigger ? ` (use when: ${p.trigger})` : ''}`)
+        .join('\n')}`,
+      inputSchema: z.object({ procedureId: z.enum(ids) }),
+      execute: logged(ctx, 'start_procedure', async ({ procedureId }: { procedureId: string }) => {
+        if (!procedures.some((p) => p.id === procedureId)) return { error: 'procedure_not_found' };
+        ctx.procedureStart = procedureId;
+        return { started: true, note: 'The procedure takes over from here. Do not write a reply.' };
+      }),
+    });
+  }
+
+  // ---------- Código propio ----------
+  const fns = cfg.codeFunctions ?? [];
+  if (on.has('run_code') && fns.length) {
+    const names = fns.map((f) => f.name) as [string, ...string[]];
+    add(
+      'run_code',
+      tool({
+        description: `Run one of these functions written by the business (calculations, formatting, rules). Pass the parameters it declares:\n${fns
+          .map((f) => `- ${f.name}(${f.params.map((p) => `${p.name}: ${p.type}`).join(', ')})${f.description ? `: ${f.description}` : ''}`)
+          .join('\n')}`,
+        inputSchema: z.object({
+          function: z.enum(names),
+          input: z.record(z.string(), z.unknown()).optional().describe('Parameters by name'),
+        }),
+        execute: logged(ctx, 'run_code', async ({ function: name, input }: { function: string; input?: Record<string, unknown> }) => {
+          const fn = fns.find((f) => f.name === name);
+          if (!fn) return { error: 'function_not_found' };
+          // Sin red y sin efectos fuera de la VM: corre igual en el playground.
+          // Desde los canales de visitantes, tope diario por workspace (cada corrida es una VM).
+          if (ctx.channel !== 'playground' && process.env.RATE_LIMIT_DISABLED !== 'true') {
+            const { rateLimit } = await import('./rate-limit');
+            const limit = Number(process.env.AGENT_CODE_DAILY_LIMIT) > 0 ? Math.floor(Number(process.env.AGENT_CODE_DAILY_LIMIT)) : 500;
+            if (!(await rateLimit(`agent-code:${workspaceId}`, limit, 86_400)).ok) return { error: 'code_quota' };
+          }
+          const { runAgentCode } = await import('./agents-code');
+          return runAgentCode(fn, input ?? {});
+        }),
+      }),
+    );
+  }
+
+  // ---------- Stripe y Shopify (solo lectura, con las credenciales del dueño) ----------
+  const stripeKey = ctx.integrations?.stripeKey ?? '';
+  if (on.has('stripe_customer') && stripeKey) {
+    add(
+      'stripe_customer',
+      tool({
+        description:
+          "Look up the visitor's billing in Stripe by their email: subscription status, plan, renewal date and recent invoices (with links). Only works when the visitor's identity is verified (or in the playground).",
+        inputSchema: z.object({ email: z.string().trim().max(200) }),
+        execute: logged(ctx, 'stripe_customer', async ({ email }: { email: string }) => {
+          if (!EMAIL_RE.test(email)) return { error: 'invalid_email' };
+          if (!visitorGaveEmail(ctx, email)) return { error: 'email_not_given_by_visitor' };
+          // Datos de facturación: solo con la identidad verificada (firma del widget o la API).
+          // En el playground, la identidad es el email propio de quien prueba.
+          const own = ctx.channel === 'playground' ? ((await playgroundAccess(ctx))?.email ?? null) : ctx.identifiedEmail ?? null;
+          const verified = (own ?? '').trim().toLowerCase() === email.trim().toLowerCase();
+          if (!verified) return { error: 'identity_not_verified' };
+          const { stripeCustomerSummary } = await import('./agents-integrations');
+          return stripeCustomerSummary(stripeKey, email.trim().toLowerCase());
+        }),
+      }),
+    );
+  }
+  const shop = ctx.integrations?.shopify ?? null;
+  if (on.has('shopify_order') && shop) {
+    add(
+      'shopify_order',
+      tool({
+        description:
+          'Check the status of a Shopify order with its order number and the email used to buy (both must match): payment, fulfillment and tracking links.',
+        inputSchema: z.object({ orderNumber: z.string().trim().min(1).max(30), email: z.string().trim().max(200) }),
+        execute: logged(ctx, 'shopify_order', async ({ orderNumber, email }: { orderNumber: string; email: string }) => {
+          if (!EMAIL_RE.test(email)) return { error: 'invalid_email' };
+          if (!visitorGaveEmail(ctx, email)) return { error: 'email_not_given_by_visitor' };
+          // Playground: solo con el email propio de quien prueba.
+          if (ctx.channel === 'playground' && ((await playgroundAccess(ctx))?.email ?? '') !== email.trim().toLowerCase()) return { error: 'identity_not_verified' };
+          // Tope de intentos por conversación: número y email no se adivinan probando.
+          const tries = (await getDb()
+            .prepare("SELECT COUNT(*) AS c FROM agent_tool_calls WHERE conversation_id = ? AND tool = 'shopify_order'")
+            .get(ctx.conversation.id)) as { c: number };
+          if (Number(tries.c) >= SHOPIFY_MAX_TRIES) return { error: 'too_many_attempts' };
+          const { shopifyOrderStatus } = await import('./agents-integrations');
+          return shopifyOrderStatus(shop.shop, shop.token, orderNumber, email.trim().toLowerCase());
+        }),
+      }),
+    );
+  }
+  if (on.has('shopify_products') && shop) {
+    add(
+      'shopify_products',
+      tool({
+        description: 'Search the active products of the Shopify store by name: title, price, availability and link.',
+        inputSchema: z.object({ query: z.string().trim().min(2).max(100) }),
+        execute: logged(ctx, 'shopify_products', async ({ query }: { query: string }) => {
+          const { shopifyProductSearch } = await import('./agents-integrations');
+          return shopifyProductSearch(shop.shop, shop.token, query);
+        }),
+      }),
+    );
   }
 
   let handoff: BuiltAgentTools['handoff'] = null;

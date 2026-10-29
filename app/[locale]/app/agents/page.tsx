@@ -12,6 +12,6 @@ export const metadata: Metadata = { title: 'Agents' };
 export default async function AgentsPage(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
   const user = await requireUser(locale);
-  const agents = await listAgents(user.id);
+  const agents = await listAgents(user.id, user);
   return <AgentsHome agents={agents} canEdit={canEditAgents(user)} aiEnabled={aiEnabled()} />;
 }

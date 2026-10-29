@@ -36,6 +36,10 @@ export async function replyWithAgent(ws: string, chatId: string, messageId: stri
     await getDb().prepare('UPDATE groups_chats SET agent_conversation_id = ? WHERE id = ?').run(res.conversation.id, chat.id);
   }
   if (res.result.handoff || !res.reply?.content?.trim()) return 'handoff';
-  await sendMessage(ws, null, chat.id, { body: res.reply.content, authorKind: 'agent', replyToId: chat.kind === 'group' ? msg.id : null });
+  // WhatsApp no dibuja botones ni formularios: van como texto (responder "2" elige la opción 2).
+  const { uiAsText } = await import('./agents-ui-blocks');
+  const extra = uiAsText(res.result.ui ?? null);
+  const body = extra ? `${res.reply.content}\n\n${extra}` : res.reply.content;
+  await sendMessage(ws, null, chat.id, { body, authorKind: 'agent', replyToId: chat.kind === 'group' ? msg.id : null });
   return 'replied';
 }

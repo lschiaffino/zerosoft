@@ -483,8 +483,10 @@ export async function processInboundEmail(email: InboundEmail, schedule: Schedul
     isNewConversation: created,
     text: text || attachments.map((a) => a.name).join(', '),
     schedule,
-    // Por email no contesta el bot: su respuesta no saldría por email.
-    skipBot: true,
+    // Por email solo contesta un agente que lo tiene activo (Agents > Canales):
+    // su respuesta sale por email (lib/chat-offline-email.ts). El resto de los
+    // bots no contesta: su respuesta no saldría por email.
+    skipBot: !(await import('./agents-chat').then((m) => m.agentAnswersEmail(widget!)).catch(() => false)),
   });
   return { status: 'added', conversationId: conversation.id, created };
 }

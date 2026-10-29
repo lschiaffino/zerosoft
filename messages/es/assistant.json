@@ -1,0 +1,173 @@
+{
+  "title": "Asistente",
+  "newChat": "Nueva charla",
+  "history": "Historial",
+  "close": "Cerrar",
+  "loading": "Cargando…",
+  "thinking": "Pensando…",
+  "sending": "Enviando…",
+  "send": "Enviar",
+  "placeholder": "Preguntá algo o describí un cambio",
+  "foot": "Los cambios piden tu confirmación. El asistente solo ve las apps que podés usar.",
+  "usingSelection": "Usa el texto que seleccionaste en esta página.",
+  "errors": {
+    "not_configured": "El asistente no está configurado en este servidor.",
+    "ai_disabled": "La IA está apagada en este servidor.",
+    "quota_exceeded": "Este workspace usó sus tokens de IA del mes.",
+    "rate_limited": "Demasiados pedidos. Probá de nuevo en un minuto.",
+    "provider_auth": "El proveedor de IA rechazó la key. Un admin tiene que revisar OPENROUTER_API_KEY.",
+    "provider_error": "El asistente no pudo responder. Probá de nuevo.",
+    "network": "No se pudo llegar al servidor. Revisá la conexión y probá de nuevo.",
+    "status": "No se pudo cargar el asistente. Recargá la página.",
+    "load": "No se pudo cargar esta charla."
+  },
+  "notConfigured": {
+    "title": "El asistente todavía no está configurado",
+    "disabledTitle": "La IA está apagada en este servidor",
+    "admin": "Agregá OPENROUTER_API_KEY al entorno del servidor (y si querés ASSISTANT_MODEL) y volvé a desplegar.",
+    "member": "La key de OpenRouter (OPENROUTER_API_KEY) la configura quien administra el servidor. Pedile que active el asistente."
+  },
+  "empty": {
+    "title": "¿Qué necesitás?",
+    "body": "Preguntá por tus datos, averiguá por qué algo falló o describí un cambio. Cada cambio lo confirmás vos antes de que pase.",
+    "suggestions": "Preguntas sugeridas"
+  },
+  "tool": {
+    "used": "Usó {tool}",
+    "running": "Corriendo",
+    "ok": "Listo",
+    "failed": "Falló",
+    "input": "Pedido",
+    "output": "Resultado"
+  },
+  "action": {
+    "review": "Revisá y confirmá",
+    "destructive": "Cambio destructivo",
+    "typeToConfirm": "Escribí {text} para confirmar",
+    "working": "Aplicando…",
+    "confirm": "Confirmar",
+    "cancel": "Cancelar",
+    "done": "Listo.",
+    "cancelled": "Cancelado. No cambió nada.",
+    "failed": "No funcionó: {error}",
+    "open": "Abrir",
+    "showAll": "los {count} caracteres"
+  },
+  "actionErrors": {
+    "forbidden": "Ya no tenés acceso para hacer esto.",
+    "confirm_text_mismatch": "El texto no coincide.",
+    "not_pending": "Este cambio ya se resolvió.",
+    "not_found": "Este cambio ya no existe.",
+    "failed": "No se pudo aplicar el cambio. Probá de nuevo."
+  },
+  "suggest": {
+    "home": {
+      "a": "¿Qué necesita mi atención hoy?",
+      "b": "¿Quiénes están en este workspace?",
+      "c": "¿Por qué no se disparó mi webhook?"
+    },
+    "crm": {
+      "a": "Mostrame los deals que cierran este mes",
+      "b": "Creá un pipeline Renovaciones con las etapas Contactado, Propuesta, Firmado",
+      "c": "¿Qué tareas están vencidas?"
+    },
+    "track": {
+      "a": "Listá los proyectos y su salud",
+      "b": "Armá un recordatorio semanal de update en un proyecto",
+      "c": "Creá un issue en un team"
+    },
+    "docs": {
+      "a": "Buscá páginas sobre onboarding",
+      "b": "Creá una página con notas de la reunión",
+      "c": "Buscá la página de nuestro roadmap"
+    },
+    "flow": {
+      "a": "¿Qué corridas de flows fallaron esta semana?",
+      "b": "Listá mis flows y su última corrida",
+      "c": "¿Por qué falló mi última corrida?"
+    },
+    "robots": {
+      "a": "¿Qué robots fallaron hace poco?",
+      "b": "Listá mis robots",
+      "c": "¿Por qué falló mi robot?"
+    },
+    "settings": {
+      "a": "¿Quiénes están en este workspace?",
+      "b": "¿Por qué no se disparó mi webhook?",
+      "c": "¿Terminó mi última importación?"
+    },
+    "cal": {
+      "a": "¿Qué reservas tengo esta semana?",
+      "b": "Listá mis tipos de evento",
+      "c": "¿Está conectado mi Google Calendar?"
+    },
+    "link": {
+      "a": "Buscá links a la página de precios",
+      "b": "Creá un link corto",
+      "c": "Listá mis últimos links"
+    },
+    "talk": {
+      "a": "¿En qué canales estoy?",
+      "b": "Buscá un canal",
+      "c": "¿Qué podés hacer acá?"
+    },
+    "voice": {
+      "a": "Listá mis reuniones recientes",
+      "b": "Buscá la reunión sobre precios",
+      "c": "¿Qué podés hacer acá?"
+    },
+    "chat": {
+      "a": "Mostrame las conversaciones abiertas",
+      "b": "¿Quién escribió hoy?",
+      "c": "¿Qué podés hacer acá?"
+    },
+    "groups": {
+      "a": "Listá mis grupos de WhatsApp",
+      "b": "Buscá un grupo",
+      "c": "¿Qué podés hacer acá?"
+    },
+    "agents": {
+      "a": "Listá mis agentes",
+      "b": "¿Qué agentes están activos?",
+      "c": "¿Qué podés hacer acá?"
+    },
+    "notes": {
+      "a": "Buscá mis notas sobre precios",
+      "b": "Creá una nota con estas ideas",
+      "c": "¿Qué podés hacer acá?"
+    },
+    "board": {
+      "a": "Listá mis pizarras",
+      "b": "Buscá una pizarra",
+      "c": "¿Qué podés hacer acá?"
+    }
+  },
+  "page": {
+    "title": "Asistente",
+    "description": "Tus charlas con el asistente. Cada charla es privada tuya en este workspace.",
+    "chats": "Charlas",
+    "searchChats": "Buscar charlas",
+    "emptyChats": "Todavía no hay charlas. Preguntá algo para empezar una.",
+    "noMatches": "Ninguna charla coincide.",
+    "untitled": "Nueva charla",
+    "rename": "Renombrar",
+    "renameLabel": "Nombre de la charla",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Borrar",
+    "deleteTitle": "¿Borrar esta charla?",
+    "deleteBody": "Se borran sus mensajes. Los cambios que ya confirmaste quedan en las apps.",
+    "loadError": "No se pudieron cargar tus charlas.",
+    "retry": "Probar de nuevo",
+    "actionsFor": "Acciones de {title}"
+  },
+  "home": {
+    "title": "Preguntale al asistente",
+    "placeholder": "Preguntá por tus datos o describí un cambio",
+    "ask": "Preguntar",
+    "recent": "Charlas recientes",
+    "viewAll": "Todas las charlas",
+    "shortcut": "Abrilo desde cualquier lado con {key}"
+  },
+  "loadEarlier": "Cargar mensajes anteriores"
+}

@@ -71,6 +71,8 @@ export default defineConfig({
       CAL_SMS_FAKE: '1',
       CAL_ICLOUD_FAKE: '1',
       CRM_VOICE_FAKE: '1',
+      // Agents: número de teléfono asignado al workspace demo (lib/agents-voice.ts).
+      AGENTS_VOICE_NUMBERS: '+14155550142=demo',
       // Autocompletar de las bases de Docs contra el modelo falso (lib/docs-db-ai.ts);
       // con la cookie docs_ai_fake=off se ve el error ai_disabled.
       DOCS_AI_FAKE: '1',
@@ -111,6 +113,8 @@ export default defineConfig({
       // Agents contra el modelo falso (lib/agents-ai.ts) solo en los requests con la
       // cookie agents_ai_fake=on: el resto de la suite sigue viendo el agente sin AI.
       AGENTS_AI_FAKE: '1',
+      // Agents: Stripe, Shopify, Slack, Meta y Zendesk sin salir a internet (lib/agents-integrations.ts).
+      AGENTS_INTEGRATIONS_FAKE: '1',
       // Flow con el modelo falso (lib/flow-ai.ts) solo con la cookie flow_ai_fake=on.
       FLOW_AI_FAKE: '1',
       DOCS_EVENT_WINDOW_SEC: '0',
@@ -144,6 +148,8 @@ export default defineConfig({
       BOARD_AI_FAKE: '1',
       // /download y el feed de actualizaciones con un release fijo de la app de escritorio (lib/desktop-release.ts).
       DESKTOP_RELEASES_FAKE: '1',
+      // Asistente de la plataforma (⌘J) contra el modelo falso de lib/assistant/fake.ts: sin OpenRouter.
+      ASSISTANT_FAKE: '1',
       AI_GATEWAY_API_KEY: '',
       VERCEL_OIDC_TOKEN: '',
     },

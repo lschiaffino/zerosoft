@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser } from '@/lib/session';
-import { getAgentRow, listWorkspaceWidgets, setWidgetAgent } from '@/lib/agents';
-import { agentError, canEditAgents, forbidden, notFound, unauthorized } from '@/lib/agents-http';
+import { listWorkspaceWidgets, setWidgetAgent } from '@/lib/agents';
+import { agentError, canEditAgents, forbidden, notFound, unauthorized, visibleAgentRow } from '@/lib/agents-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,7 +13,7 @@ export async function GET(_req: NextRequest, props: Ctx) {
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  if (!(await getAgentRow(user.id, id))) return notFound();
+  if (!(await visibleAgentRow(user, id))) return notFound();
   return NextResponse.json({ widgets: await listWorkspaceWidgets(user.id) });
 }
 

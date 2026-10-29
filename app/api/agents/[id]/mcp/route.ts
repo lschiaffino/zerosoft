@@ -12,7 +12,7 @@ type Ctx = { params: Promise<{ id: string }> };
 /** Servidores MCP del agente (sin el valor del header de autenticación). */
 export async function GET(_req: NextRequest, props: Ctx) {
   const { id } = await props.params;
-  const ctx = await agentRouteContext(id, { edit: true });
+  const ctx = await agentRouteContext(id, { admin: true });
   if ('res' in ctx) return ctx.res;
   return NextResponse.json({ servers: listMcpServers(ctx.row) });
 }
@@ -27,7 +27,7 @@ const schema = z.object({
 /** Conecta un servidor: si no responde initialize y tools/list, no se guarda. */
 export async function POST(req: NextRequest, props: Ctx) {
   const { id } = await props.params;
-  const ctx = await agentRouteContext(id, { edit: true });
+  const ctx = await agentRouteContext(id, { admin: true });
   if ('res' in ctx) return ctx.res;
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return agentError(400, 'invalid_input');

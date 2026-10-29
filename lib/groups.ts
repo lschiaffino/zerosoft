@@ -1264,7 +1264,8 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[]): P
 }
 
 /** Mensaje de cliente nuevo: ticket por palabra clave, eventos (Flow/webhooks) y agente. */
-async function afterInbound(ws: string, chat: ChatRow, msg: MessageRow): Promise<void> {
+async function afterInbound(ws: string, chatRow: ChatRow, msg: MessageRow): Promise<void> {
+  let chat = chatRow;
   const settings = await getSettings(ws);
   const keyword = matchKeyword(settings.ticketKeywords, msg.body);
   if (keyword) {
@@ -1295,6 +1296,14 @@ async function afterInbound(ws: string, chat: ChatRow, msg: MessageRow): Promise
       after(flag);
     } catch {
       await flag();
+    }
+  }
+  // Agente por defecto (Agents > Canales): toma los chats 1 a 1 sin agente ni persona asignada.
+  if (!chat.agent_id && !chat.assigned_to && chat.kind !== 'group' && settings.defaultAgentId) {
+    const agent = (await getDb().prepare('SELECT id FROM agents WHERE id = ? AND user_id = ? AND enabled = 1').get(settings.defaultAgentId, ws)) as { id: string } | undefined;
+    if (agent) {
+      await getDb().prepare('UPDATE groups_chats SET agent_id = ?, agent_conversation_id = NULL WHERE id = ? AND agent_id IS NULL').run(agent.id, chat.id);
+      chat = { ...chat, agent_id: agent.id, agent_conversation_id: null };
     }
   }
   if (chat.agent_id && msg.body.trim()) {

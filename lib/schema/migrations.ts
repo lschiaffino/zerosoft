@@ -6807,6 +6807,122 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Asistente de la plataforma (panel lateral y chat del inicio): charlas por
+    // persona dentro del workspace, sus mensajes, las acciones de escritura que
+    // esperan el clic de confirmación (nunca se ejecutan solas) y el registro
+    // de cada herramienta que usó el asistente.
+    id: '133_assistant',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS assistant_conversations (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          title TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_assistant_conv_person ON assistant_conversations(workspace_id, person_id, updated_at);
+
+        CREATE TABLE IF NOT EXISTS assistant_messages (
+          id TEXT PRIMARY KEY,
+          conversation_id TEXT NOT NULL REFERENCES assistant_conversations(id) ON DELETE CASCADE,
+          role TEXT NOT NULL,
+          content TEXT NOT NULL DEFAULT '',
+          parts TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_assistant_msg_conv ON assistant_messages(conversation_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS assistant_actions (
+          id TEXT PRIMARY KEY,
+          conversation_id TEXT NOT NULL REFERENCES assistant_conversations(id) ON DELETE CASCADE,
+          workspace_id TEXT NOT NULL,
+          person_id TEXT NOT NULL,
+          tool TEXT NOT NULL,
+          input TEXT NOT NULL DEFAULT '{}',
+          summary TEXT NOT NULL DEFAULT '',
+          details TEXT NOT NULL DEFAULT '[]',
+          destructive INTEGER NOT NULL DEFAULT 0,
+          confirm_text TEXT,
+          status TEXT NOT NULL DEFAULT 'pending',
+          result TEXT,
+          created_at TEXT NOT NULL,
+          decided_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_assistant_actions_conv ON assistant_actions(conversation_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS assistant_audit (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          person_id TEXT NOT NULL,
+          conversation_id TEXT,
+          tool TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          input TEXT NOT NULL DEFAULT '{}',
+          outcome TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_assistant_audit_ws ON assistant_audit(workspace_id, created_at);
+      `);
+    },
+  },
+  {
+    // Agents contra Fin (cierre de paridad): botones y formularios en el chat
+    // (ui de cada mensaje), procedimientos (estado por conversación), tests
+    // A/B (variante por conversación y corrida), acceso por agente, número de
+    // teléfono, conexiones cifradas (Stripe, Shopify, Slack, Messenger e
+    // Instagram), embeddings del conocimiento, fuentes externas (Zendesk) y
+    // eventos ya procesados de los canales (para no contestar dos veces).
+    id: '131_agents_parity',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE agent_messages ADD COLUMN ui TEXT');
+      await addColumn(client, 'ALTER TABLE chat_messages ADD COLUMN ui TEXT');
+      await addColumn(client, 'ALTER TABLE agent_conversations ADD COLUMN procedure_state TEXT');
+      await addColumn(client, 'ALTER TABLE agent_conversations ADD COLUMN variant TEXT');
+      await addColumn(client, 'ALTER TABLE agent_conversations ADD COLUMN external_ref TEXT');
+      await addColumn(client, 'ALTER TABLE agent_runs ADD COLUMN variant TEXT');
+      await addColumn(client, 'ALTER TABLE agents ADD COLUMN ab_test TEXT');
+      await addColumn(client, 'ALTER TABLE agents ADD COLUMN access TEXT');
+      await addColumn(client, 'ALTER TABLE agents ADD COLUMN voice_number TEXT');
+      await addColumn(client, 'ALTER TABLE agents ADD COLUMN integrations TEXT');
+      await addColumn(client, 'ALTER TABLE agents ADD COLUMN embed_claimed_until TEXT');
+      await client.executeMultiple(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_agents_voice_number ON agents(voice_number) WHERE voice_number IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_agent_conversations_external ON agent_conversations(agent_id, external_ref);
+        CREATE TABLE IF NOT EXISTS agent_embeddings (
+          user_id TEXT NOT NULL,
+          hash TEXT NOT NULL,
+          model TEXT NOT NULL,
+          vector TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (user_id, hash, model)
+        );
+        CREATE TABLE IF NOT EXISTS agent_sources (
+          id TEXT PRIMARY KEY,
+          agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          target TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          error TEXT,
+          items INTEGER NOT NULL DEFAULT 0,
+          synced_at TEXT,
+          claimed_until TEXT,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          UNIQUE (agent_id, kind, target)
+        );
+        CREATE TABLE IF NOT EXISTS agent_channel_events (
+          id TEXT PRIMARY KEY,
+          agent_id TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_agent_channel_events_created ON agent_channel_events(created_at);
+      `);
+    },
+  },
+  {
     // Escritorio (desktop/): códigos de un solo uso del login en el navegador
     // del sistema. Se guarda el hash del código, el challenge PKCE (S256) y la
     // persona; vence a los 2 minutos y used_at lo reclama (compare-and-set).

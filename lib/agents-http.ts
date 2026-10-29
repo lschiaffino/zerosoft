@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server';
 import type { SessionUser } from './session';
 import type { AgentRow } from './db';
 import { roleAtLeast } from './teams';
+import { agentAccessFor } from './agents-access';
 import { AiError } from './ai';
 import { agentsAiEnabled } from './agents-ai';
 import { AgentError, getAgentRow, sendAgentMessage, type SendAgentMessageOptions } from './agents';
@@ -28,22 +29,38 @@ export function realUserId(user: Pick<SessionUser, 'id' | 'actingUser'>): string
   return user.actingUser?.id ?? user.id;
 }
 
+/** ¿Edita este agente? Admins y owners siempre; un miembro si el agente lo hizo editor. */
+export function canEditAgent(user: Pick<SessionUser, 'role' | 'id' | 'actingUser'>, row: Pick<AgentRow, 'access'>): boolean {
+  return agentAccessFor(user, row) === 'edit';
+}
+
+/** El agente, si la persona lo puede ver (acceso por agente); null si no existe o no lo ve. */
+export async function visibleAgentRow(user: Pick<SessionUser, 'role' | 'id' | 'actingUser'>, id: string): Promise<AgentRow | null> {
+  const row = await getAgentRow(user.id, id);
+  if (!row || agentAccessFor(user, row) === 'none') return null;
+  return row;
+}
+
 /**
- * Sesión y agente del workspace para una ruta de /api/agents/[id]/…; con
- * `edit`, solo admins y owners. Devuelve la respuesta de error o los datos.
+ * Sesión y agente del workspace para una ruta de /api/agents/[id]/…. Un agente
+ * que la persona no ve responde 404. Con `edit`, quien edita este agente
+ * (admins, owners y editores del agente); con `admin`, solo admins y owners
+ * (secretos, MCP, conexiones, aprobaciones). Devuelve el error o los datos.
  */
 export async function agentRouteContext(
   id: string,
-  opts: { edit?: boolean } = {},
-): Promise<{ res: NextResponse } | { user: SessionUser; row: AgentRow; personId: string }> {
+  opts: { edit?: boolean; admin?: boolean } = {},
+): Promise<{ res: NextResponse } | { user: SessionUser; row: AgentRow; personId: string; canEdit: boolean }> {
   // Import diferido: los tests unitarios de este módulo no cargan next-auth.
   const { getCurrentUser } = await import('./session');
   const user = await getCurrentUser();
   if (!user) return { res: unauthorized() };
-  if (opts.edit && !canEditAgents(user)) return { res: forbidden() };
-  const row = await getAgentRow(user.id, id);
+  if (opts.admin && !canEditAgents(user)) return { res: forbidden() };
+  const row = await visibleAgentRow(user, id);
   if (!row) return { res: notFound() };
-  return { user, row, personId: realUserId(user) };
+  const canEdit = canEditAgent(user, row);
+  if (opts.edit && !canEdit) return { res: forbidden() };
+  return { user, row, personId: realUserId(user), canEdit };
 }
 
 /**
@@ -88,7 +105,7 @@ export function runErrorCode(err: unknown): { code: string; status: number } {
 // Errores que el visitante de la página pública puede entender o resolver.
 // El resto (créditos, credenciales, cuota, AI apagada) es para el dueño: el
 // visitante ve 'unavailable' y el detalle queda en el log.
-const PUBLIC_SAFE_ERRORS = new Set(['rate_limited', 'conversation_not_found', 'empty_message', 'invalid_input', 'not_found', 'blocked']);
+const PUBLIC_SAFE_ERRORS = new Set(['rate_limited', 'conversation_not_found', 'empty_message', 'invalid_input', 'not_found', 'blocked', 'form_invalid', 'form_not_found']);
 
 export function publicErrorCode(code: string): string {
   return PUBLIC_SAFE_ERRORS.has(code) ? code : 'unavailable';
@@ -123,6 +140,7 @@ export async function streamAgentReply(
           text: res.result.text,
           status: res.result.status,
           handoff: res.result.handoff,
+          ui: res.result.ui ?? null,
         });
       } catch (err) {
         emit({ type: 'error', code: visitorCode(runErrorCode(err).code) });

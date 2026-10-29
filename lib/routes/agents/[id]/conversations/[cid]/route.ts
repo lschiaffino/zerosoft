@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getCurrentUser } from '@/lib/session';
 import { addTeammateReply, getConversationDetail, getConversationRow } from '@/lib/agents';
-import { agentError, agentRouteContext, notFound, realUserId, unauthorized } from '@/lib/agents-http';
+import { agentError, agentRouteContext, notFound, realUserId } from '@/lib/agents-http';
 import { parseScore, setConversationReview } from '@/lib/agents-quality';
 import { listMemories } from '@/lib/agents-context';
 import { blockConversationVisitor } from '@/lib/agents-privacy';
@@ -15,8 +14,9 @@ type Ctx = { params: Promise<{ id: string; cid: string }> };
 /** Una conversación con sus mensajes, feedback, llamadas a herramientas, puntaje y memoria del visitante. */
 export async function GET(_req: NextRequest, props: Ctx) {
   const { id, cid } = await props.params;
-  const user = await getCurrentUser();
-  if (!user) return unauthorized();
+  const ctx = await agentRouteContext(id);
+  if ('res' in ctx) return ctx.res;
+  const { user } = ctx;
   const detail = await getConversationDetail(user.id, id, cid, user.actingUser?.id ?? user.id);
   if (!detail) return notFound();
   const row = await getConversationRow(cid);
@@ -32,8 +32,10 @@ const replySchema = z.object({ message: z.string().trim().min(1).max(4000) });
  */
 export async function POST(req: NextRequest, props: Ctx) {
   const { id, cid } = await props.params;
-  const user = await getCurrentUser();
-  if (!user) return unauthorized();
+  // Responder como el equipo es editar la conversación: quien edita el agente.
+  const ctx = await agentRouteContext(id, { edit: true });
+  if ('res' in ctx) return ctx.res;
+  const { user } = ctx;
   const parsed = replySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return agentError(400, 'invalid_input');
   const res = await addTeammateReply(user.id, id, cid, parsed.data.message, realUserId(user));

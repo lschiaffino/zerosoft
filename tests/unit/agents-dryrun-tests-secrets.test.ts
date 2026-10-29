@@ -52,7 +52,7 @@ const BASE_TOOLS: Omit<AgentToolsConfig, 'enabled'> = {
   flowIds: [],
   robotIds: [], docsPageIds: [], docsActorId: null,
   httpAllowedDomains: [],
-  requireApproval: [],
+  requireApproval: [], codeFunctions: [],
 };
 
 function tools(enabled: AgentToolKey[], extra: Partial<typeof BASE_TOOLS> = {}): AgentUpdatePayload {
