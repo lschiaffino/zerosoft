@@ -80,10 +80,13 @@ test('⌘J abre el panel, pregunta, tarjeta de herramienta, confirmar un pipelin
   await expect(page).toHaveURL(/\/en\/app\/crm\/deals\?pipeline=/);
   await expect(page.locator('main.app-content')).toContainText('Proposal');
 
-  // Esc cierra el panel y el foco vuelve al botón de la banda.
-  await page.keyboard.press('ControlOrMeta+j');
+  // El panel sigue abierto al navegar; Esc lo cierra y ⌘J lo vuelve a abrir con la misma charla.
   await expect(panel).toBeVisible();
   await page.keyboard.press('Escape');
+  await expect(panel).toBeHidden();
+  await page.keyboard.press('ControlOrMeta+j');
+  await expect(panel.getByTestId('assistant-action').last()).toHaveAttribute('data-status', 'done');
+  await page.keyboard.press('ControlOrMeta+j');
   await expect(panel).toBeHidden();
   expect(errors, errors.join('\n')).toEqual([]);
 });
