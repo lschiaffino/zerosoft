@@ -25,6 +25,8 @@ export function ShareDialog({ open, onClose, designId, onChanged }: { open: bool
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Lo que pidió la persona mientras se guarda: la casilla no vuelve atrás hasta la respuesta.
+  const [linkWanted, setLinkWanted] = useState<boolean | null>(null);
   const [pick, setPick] = useState('');
   const [pickRole, setPickRole] = useState<'view' | 'edit'>('view');
 
@@ -160,7 +162,13 @@ export function ShareDialog({ open, onClose, designId, onChanged }: { open: bool
             <div className="ui-field">
               <span className="label">{t('link')}</span>
               <label className="ui-check">
-                <input type="checkbox" checked={!!share.token} disabled={busy} onChange={(e) => void save({ link: e.target.checked ? 'on' : 'off' })} data-testid="design-share-link" />
+                <input type="checkbox" checked={linkWanted ?? !!share.token}
+                  disabled={busy}
+                  onChange={(e) => {
+                    const on = e.target.checked;
+                    setLinkWanted(on);
+                    void save({ link: on ? 'on' : 'off' }).finally(() => setLinkWanted(null));
+                  }} data-testid="design-share-link" />
                 <span>{t('linkToggle')}</span>
               </label>
               {share.token && (

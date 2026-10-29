@@ -115,15 +115,13 @@ export function Popover({
   const bodyRef = useRef<HTMLDivElement>(null);
   // Fijo en la pantalla (debajo del botón, dentro de la ventana): así no lo
   // recorta la barra de herramientas, que scrollea en horizontal.
-  useLayoutEffect(() => {
-    if (!open) {
-      setPos(null);
-      return;
-    }
+  // Devuelve false si el botón ya no se ve (el menú no tendría dónde colgarse).
+  const place = (): boolean => {
     const btn = ref.current?.querySelector('button');
     const body = bodyRef.current;
-    if (!btn || !body) return;
+    if (!btn || !body) return true;
     const r = btn.getBoundingClientRect();
+    if (r.bottom < 0 || r.top > window.innerHeight) return false;
     const w = body.offsetWidth;
     const h = body.offsetHeight;
     let left = align === 'right' ? r.right - w : r.left;
@@ -131,13 +129,24 @@ export function Popover({
     let top = r.bottom + 4;
     if (top + h > window.innerHeight - 8 && r.top - h - 4 > 8) top = r.top - h - 4;
     setPos({ top, left });
+    return true;
+  };
+  const placeRef = useRef(place);
+  placeRef.current = place;
+  useLayoutEffect(() => {
+    if (!open) {
+      setPos(null);
+      return;
+    }
+    placeRef.current();
   }, [open, align]);
   useEffect(() => {
     if (!open) return;
     const close = () => setOpen(false);
-    // Al scrollear la página el menú quedaría lejos del botón: se cierra.
+    // Al scrollear, el menú sigue al botón; si el botón sale de la pantalla, se cierra.
     const onScroll = (e: Event) => {
-      if (!bodyRef.current?.contains(e.target as Node)) setOpen(false);
+      if (bodyRef.current?.contains(e.target as Node)) return;
+      if (!placeRef.current()) setOpen(false);
     };
     window.addEventListener('resize', close);
     window.addEventListener('scroll', onScroll, true);

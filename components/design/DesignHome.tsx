@@ -278,7 +278,10 @@ export default function DesignHome({
                   <span className="dz-card-sub">
                     {d.width} × {d.height}
                     {d.pages > 1 ? ` · ${t('pages', { n: d.pages })}` : ''} · {d.access !== 'owner' ? `${d.ownerName} · ` : ''}
-                    {relTime(view === 'trash' && d.deletedAt ? d.deletedAt : d.updatedAt, locale)}
+                    {/* La hora relativa cambia entre el servidor y el navegador: se acepta la diferencia. */}
+                    <time dateTime={view === 'trash' && d.deletedAt ? d.deletedAt : d.updatedAt} suppressHydrationWarning>
+                      {relTime(view === 'trash' && d.deletedAt ? d.deletedAt : d.updatedAt, locale)}
+                    </time>
                   </span>
                 </div>
                 <Popover label={t('menu', { name: d.name })} button={<Glyph d={G.more} />} align="right" testId="design-card-menu">
