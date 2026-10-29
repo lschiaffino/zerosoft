@@ -2531,8 +2531,8 @@
     "method": "Each app counts 1 for an included capability, 0.5 for a partial one and 0 for a missing one, with double weight for core capabilities. It is our own review against the code, updated with every release. Open an app to see its full list."
   },
   "desktopLogin": {
-    "title": "Open zerosoft for desktop",
-    "confirm": "The desktop app will sign in as {email}.",
+    "title": "Sign in to the zerosoft app",
+    "confirm": "The zerosoft app on {device} will sign in as {email}.",
     "continue": "Continue to the app",
     "notYou": "If you didn't start this from the zerosoft app, close this tab.",
     "doneTitle": "Back to the app",
@@ -2540,7 +2540,17 @@
     "open": "Open zerosoft",
     "close": "You can close this tab once the app opens.",
     "invalidTitle": "This link does not work",
-    "invalidBody": "Start signing in again from the zerosoft desktop app."
+    "invalidBody": "Start signing in again from the zerosoft app.",
+    "requested": "Requested at {time} UTC.",
+    "warning": "Only continue if you just tapped Sign in in the zerosoft app yourself. The app gets full access to your account. If someone sent you this link, close this tab.",
+    "devices": {
+      "mac": "a Mac",
+      "windows": "a Windows PC",
+      "linux": "a Linux computer",
+      "ios": "an iPhone or iPad",
+      "android": "an Android device",
+      "unknown": "a device"
+    }
   },
   "download": {
     "meta": {
@@ -2559,7 +2569,7 @@
     "noRelease": "There is no published build yet. You can build it from the source in desktop/ (the README explains how).",
     "source": "Source on GitHub",
     "unsignedTitle": "The builds are not signed yet",
-    "unsignedMac": "On Mac: open the .dmg, drag zerosoft to Applications, then right-click the app and choose Open. macOS asks once because the app is not notarized yet.",
+    "unsignedMac": "On Mac: open the .dmg and drag zerosoft to Applications. The first time, macOS blocks it because it is not notarized yet: on macOS 15 or later go to System Settings › Privacy & Security and click Open Anyway; on macOS 14 or earlier, right-click the app and choose Open.",
     "unsignedWin": "On Windows: SmartScreen may say it protected your PC. Click More info, then Run anyway.",
     "unsignedUpdates": "Automatic updates on Mac need a signed build. Until then, download new versions from this page.",
     "featuresTitle": "What the desktop app adds",

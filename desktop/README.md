@@ -77,8 +77,25 @@ El workflow `.github/workflows/desktop.yml` corre con un tag `desktop-vX.Y.Z` (i
 `desktop/package.json`), arma Mac (arm64 + x64) y Windows (x64) y los sube a un release de GitHub con
 ese tag. La página `/download` toma los links del último release.
 
-Sin secretos los instaladores salen **sin firmar**: en Mac hay que abrir con clic derecho › Abrir y
-las actualizaciones automáticas no se instalan (Squirrel exige firma); en Windows SmartScreen avisa.
+Sin secretos los instaladores salen **sin firmar**: en Mac la primera vez hay que ir a Ajustes del
+Sistema › Privacidad y seguridad › Abrir igualmente (macOS 15+; en 14 o anterior, clic derecho › Abrir)
+y las actualizaciones automáticas no se instalan (Squirrel exige firma); en Windows SmartScreen avisa.
+
+**Actualizaciones en Windows sin certificado:** electron-updater baja el instalador que indica
+`latest.yml` y solo verifica su **sha512** contra ese archivo (servido por zerosoft.ai desde el release
+de GitHub). Sin firma de código no hay verificación de publisher: la integridad depende de que nadie
+pueda cambiar el release ni el feed. Cuando exista el certificado, poner `win.publisherName` en
+`electron-builder.yml` (el CN del certificado) para que cada actualización verifique también la firma.
+
+**Endurecimiento del binario:** `electronFuses` en `electron-builder.yml` apaga `ELECTRON_RUN_AS_NODE`,
+`NODE_OPTIONS` y `--inspect`, obliga a cargar solo `app.asar` y verifica su integridad. La app
+empaquetada además ignora `ZEROSOFT_SERVER`, `ZEROSOFT_UPDATE_URL`, `ZEROSOFT_USER_DATA` y
+`ZEROSOFT_DESKTOP_TEST` (solo valen en desarrollo, `src/main/dev-env.ts`). Por eso los e2e con
+Playwright corren contra `electron .` (dist/), no contra la app empaquetada.
+
+**Grabar sola:** solo el aviso o el menú de la app arrancan la grabación de una reunión, con un nonce
+de un solo uso (`src/shared/nonce.ts`) que la página canjea por el puente. Un link con `autostart`
+(pegado en Talk, un mail o `zerosoft://open`) abre la reunión sin grabar.
 
 Secretos del repo para firmar:
 

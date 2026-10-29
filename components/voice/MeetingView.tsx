@@ -21,7 +21,7 @@ import { ChatPanel, DetailsPanel, TranscriptPanel } from './MeetingSide';
 import { copyText } from './insert';
 import { checkRecordingFile, importRecording } from './importRecording';
 import { BriefPanel, FollowupModal, SendModal, ShareModal } from './MeetingPrep';
-import { desktopBridge } from '@/lib/desktop-bridge';
+import { AUTOSTART_NONCE_RE, desktopBridge } from '@/lib/desktop-bridge';
 
 type Detail = VoiceSessionDetail & { contact: { id: string; name: string; email: string } | null; share: VoiceShareInfo | null };
 
@@ -325,15 +325,22 @@ export default function MeetingView({ initial, templates, folders, transcription
   const recording = rec.state === 'recording' || rec.state === 'stopping';
   const canRecord = transcription && support.rec;
 
-  // "Tomar notas" desde la app de escritorio (?autostart=desktop): empieza a grabar sola, una vez.
+  // "Tomar notas" desde la app de escritorio (?autostart=<nonce>): empieza a grabar sola una vez,
+  // solo si la app confirma que el nonce lo creó ella recién (un link copiado no graba nada).
   const autostarted = useRef(false);
   useEffect(() => {
     if (autostarted.current || !serverChecked || !canRecord) return;
-    if (new URLSearchParams(window.location.search).get('autostart') !== 'desktop' || !desktopBridge()) return;
+    const nonce = new URLSearchParams(window.location.search).get('autostart');
+    if (!nonce) return;
     autostarted.current = true;
     window.history.replaceState(null, '', window.location.pathname);
+    const bridge = desktopBridge();
+    if (!bridge?.consumeAutostart || !AUTOSTART_NONCE_RE.test(nonce)) return;
     if (rec.state !== 'idle' || recordingElsewhere || otherRecorder) return;
-    void recorder.start({ sessionId: d.id, mode: desktopBridge()?.systemAudio ? 'mic_tab' : 'mic', baseOffsetMs: d.durationMs, desktop: true });
+    void bridge.consumeAutostart(nonce).then((ok) => {
+      if (!ok) return;
+      void recorder.start({ sessionId: d.id, mode: bridge.systemAudio ? 'mic_tab' : 'mic', baseOffsetMs: d.durationMs, desktop: true });
+    });
   }, [serverChecked, canRecord, rec.state, recordingElsewhere, otherRecorder, recorder, d.id, d.durationMs]);
   const recError = rec.error;
   const hasContent = d.segments.length > 0 || notes.trim().length > 0;

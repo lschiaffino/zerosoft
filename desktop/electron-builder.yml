@@ -17,6 +17,16 @@ files:
   - '!**/*.map'
 asarUnpack:
   - node_modules/uiohook-napi/**
+# Fuses del binario de Electron (se escriben al empaquetar): sin ELECTRON_RUN_AS_NODE, sin
+# NODE_OPTIONS, sin --inspect, solo carga app.asar y verifica su integridad.
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  enableCookieEncryption: true
+  grantFileProtocolExtraPrivileges: false
 protocols:
   - name: zerosoft
     schemes: [zerosoft]
@@ -47,6 +57,9 @@ win:
   target:
     - target: nsis
       arch: [x64]
+  # Con certificado de firma: poner acá el nombre del publisher tal como figura en el certificado
+  # (CN), así electron-updater verifica la firma de cada actualización además del sha512.
+  # publisherName: ['zerosoft']
 nsis:
   oneClick: true
   perMachine: false

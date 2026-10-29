@@ -2531,8 +2531,8 @@
     "method": "Cada app suma 1 por capacidad incluida, 0,5 por parcial y 0 por faltante, con peso doble para las centrales. Es nuestra evaluación contra el código y se actualiza con cada versión. Abrí una app para ver la lista completa."
   },
   "desktopLogin": {
-    "title": "Abrir zerosoft para escritorio",
-    "confirm": "La app de escritorio va a entrar como {email}.",
+    "title": "Entrar a la app de zerosoft",
+    "confirm": "La app de zerosoft en {device} va a entrar como {email}.",
     "continue": "Seguir a la app",
     "notYou": "Si no empezaste esto desde la app de zerosoft, cerrá esta pestaña.",
     "doneTitle": "Volvé a la app",
@@ -2540,7 +2540,17 @@
     "open": "Abrir zerosoft",
     "close": "Cuando se abra la app, podés cerrar esta pestaña.",
     "invalidTitle": "Este link no funciona",
-    "invalidBody": "Empezá el inicio de sesión otra vez desde la app de escritorio de zerosoft."
+    "invalidBody": "Empezá el inicio de sesión otra vez desde la app de zerosoft.",
+    "requested": "Pedido a las {time} UTC.",
+    "warning": "Seguí solo si recién tocaste Iniciar sesión en la app de zerosoft. La app queda con acceso completo a tu cuenta. Si alguien te mandó este link, cerrá esta pestaña.",
+    "devices": {
+      "mac": "una Mac",
+      "windows": "una PC con Windows",
+      "linux": "una compu con Linux",
+      "ios": "un iPhone o iPad",
+      "android": "un Android",
+      "unknown": "un dispositivo"
+    }
   },
   "download": {
     "meta": {
@@ -2559,7 +2569,7 @@
     "noRelease": "Todavía no hay una versión publicada. Podés compilarla desde el código en desktop/ (el README explica cómo).",
     "source": "Código en GitHub",
     "unsignedTitle": "Las versiones todavía no están firmadas",
-    "unsignedMac": "En Mac: abrí el .dmg, arrastrá zerosoft a Aplicaciones y después hacé clic derecho en la app y elegí Abrir. macOS pregunta una vez porque la app todavía no está notarizada.",
+    "unsignedMac": "En Mac: abrí el .dmg y arrastrá zerosoft a Aplicaciones. La primera vez macOS la bloquea porque todavía no está notarizada: en macOS 15 o posterior andá a Ajustes del Sistema › Privacidad y seguridad y tocá Abrir igualmente; en macOS 14 o anterior, hacé clic derecho en la app y elegí Abrir.",
     "unsignedWin": "En Windows: SmartScreen puede decir que protegió tu PC. Tocá Más información y después Ejecutar de todas formas.",
     "unsignedUpdates": "En Mac las actualizaciones automáticas necesitan una versión firmada. Hasta entonces, bajá las versiones nuevas desde esta página.",
     "featuresTitle": "Qué suma la app de escritorio",

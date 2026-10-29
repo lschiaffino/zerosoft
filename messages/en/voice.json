@@ -449,7 +449,7 @@
     "desktop": {
       "title": "zerosoft for Mac and Windows",
       "desc": "The desktop app dictates into any app on your computer and records meetings with the system audio (Zoom, Meet, Teams or any call), without a bot.",
-      "unsigned": "The builds are not signed yet. On Mac, right-click the app and choose Open the first time; on Windows, click More info and Run anyway.",
+      "unsigned": "The builds are not signed yet. On Mac the first time, go to System Settings › Privacy & Security and click Open Anyway (macOS 14 or earlier: right-click the app and choose Open); on Windows, click More info and Run anyway.",
       "step1": "Download the app for your computer from",
       "step1Link": "the download page",
       "step2": "Open it and sign in with Google: the app opens your browser and comes back on its own.",

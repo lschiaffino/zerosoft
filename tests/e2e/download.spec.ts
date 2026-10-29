@@ -15,7 +15,7 @@ test.describe('/download', () => {
     await expect(primary).toHaveAttribute('href', /releases\/download\/desktop-v0\.1\.0\/zerosoft-0\.1\.0-(mac-(arm64|x64)\.dmg|win-x64\.exe)$/);
     await expect(page.getByRole('link', { name: 'All files for version 0.1.0' })).toHaveAttribute('href', /releases\/tag\/desktop-v0\.1\.0$/);
     await expect(page.getByRole('heading', { name: 'The builds are not signed yet' })).toBeVisible();
-    await expect(page.getByText('right-click the app and choose Open')).toBeVisible();
+    await expect(page.getByText('click Open Anyway')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'What the desktop app adds' })).toBeVisible();
     // El footer lleva acá.
     await expect(page.locator('footer').getByRole('link', { name: 'Desktop app' })).toHaveAttribute('href', '/en/download');
@@ -74,7 +74,8 @@ test.describe('/download', () => {
     expect(page.status()).toBe(200);
     expect(page.headers()['x-frame-options']).toBe('DENY');
     const html = await page.text();
-    expect(html).toContain('La app de escritorio va a entrar como');
+    expect(html).toContain('va a entrar como');
+    expect(html).toContain('Si alguien te mandó este link');
     const cross = await request.post('/api/desktop/login', { form: { challenge, state }, headers: { origin: 'https://evil.example' } });
     expect(cross.status()).toBe(403);
     const bad = await request.get('/api/desktop/login?challenge=x&state=y');

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import { createDesktopLoginCode, isValidChallenge, isValidState } from '@/lib/desktop-auth';
-import { confirmPage, DESKTOP_LOGIN_HEADERS, invalidPage, returnPage } from '@/lib/desktop-login-page';
+import { confirmPage, DESKTOP_LOGIN_HEADERS, invalidPage, parseLoginDevice, returnPage } from '@/lib/desktop-login-page';
 import { requestLocale } from '@/lib/request-locale';
 import { limitByIp } from '@/lib/rate-limit';
 
@@ -19,23 +19,25 @@ function html(body: string, status = 200) {
 }
 
 /**
- * Login de la app de escritorio, en el navegador del sistema (ver
+ * Login de las apps (escritorio y móvil), en el navegador del sistema (ver
  * lib/desktop-auth.ts). GET: sin sesión manda al login con Google y vuelve
- * acá; con sesión muestra la cuenta y un botón para confirmar.
+ * acá; con sesión muestra la cuenta, el dispositivo, la hora y un aviso, y
+ * un botón para confirmar. ?device= lo manda la app (mac, windows, ios…).
  */
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const challenge = sp.get('challenge');
   const state = sp.get('state');
   const locale = pickLocale(req, sp.get('locale'));
+  const device = parseLoginDevice(sp.get('device'));
   if (!isValidChallenge(challenge) || !isValidState(state)) return html(invalidPage(locale), 400);
   const user = await getCurrentUser();
   if (!user) {
-    const back = `/api/desktop/login?${new URLSearchParams({ challenge, state, locale })}`;
+    const back = `/api/desktop/login?${new URLSearchParams({ challenge, state, locale, device })}`;
     return NextResponse.redirect(new URL(`/${locale}/auth/signin?callbackUrl=${encodeURIComponent(back)}`, req.url), 307);
   }
   const email = user.actingUser?.email ?? user.email;
-  return html(confirmPage(locale, { email, challenge, state }));
+  return html(confirmPage(locale, { email, challenge, state, device }));
 }
 
 /** El formulario es del mismo origen (Origin o Sec-Fetch-Site): otra página no puede disparar un código. */

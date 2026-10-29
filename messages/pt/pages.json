@@ -2531,8 +2531,8 @@
     "method": "Cada app soma 1 por capacidade incluída, 0,5 por parcial e 0 por faltante, com peso dobrado para as centrais. É a nossa avaliação contra o código e é atualizada a cada versão. Abra um app para ver a lista completa."
   },
   "desktopLogin": {
-    "title": "Abrir o zerosoft para desktop",
-    "confirm": "O app de desktop vai entrar como {email}.",
+    "title": "Entrar no app do zerosoft",
+    "confirm": "O app do zerosoft em {device} vai entrar como {email}.",
     "continue": "Seguir para o app",
     "notYou": "Se você não começou isto pelo app do zerosoft, feche esta aba.",
     "doneTitle": "Volte para o app",
@@ -2540,7 +2540,17 @@
     "open": "Abrir zerosoft",
     "close": "Quando o app abrir, você pode fechar esta aba.",
     "invalidTitle": "Este link não funciona",
-    "invalidBody": "Comece o login de novo pelo app de desktop do zerosoft."
+    "invalidBody": "Comece o login de novo pelo app do zerosoft.",
+    "requested": "Pedido às {time} UTC.",
+    "warning": "Continue só se você acabou de tocar em Entrar no app do zerosoft. O app fica com acesso completo à sua conta. Se alguém te mandou este link, feche esta aba.",
+    "devices": {
+      "mac": "um Mac",
+      "windows": "um PC com Windows",
+      "linux": "um computador com Linux",
+      "ios": "um iPhone ou iPad",
+      "android": "um Android",
+      "unknown": "um dispositivo"
+    }
   },
   "download": {
     "meta": {
@@ -2559,7 +2569,7 @@
     "noRelease": "Ainda não há uma versão publicada. Você pode compilar a partir do código em desktop/ (o README explica como).",
     "source": "Código no GitHub",
     "unsignedTitle": "As versões ainda não são assinadas",
-    "unsignedMac": "No Mac: abra o .dmg, arraste o zerosoft para Aplicativos, depois clique com o botão direito no app e escolha Abrir. O macOS pergunta uma vez porque o app ainda não é notarizado.",
+    "unsignedMac": "No Mac: abra o .dmg e arraste o zerosoft para Aplicativos. Na primeira vez o macOS bloqueia porque o app ainda não é notarizado: no macOS 15 ou posterior vá em Ajustes do Sistema › Privacidade e Segurança e clique em Abrir Mesmo Assim; no macOS 14 ou anterior, clique com o botão direito no app e escolha Abrir.",
     "unsignedWin": "No Windows: o SmartScreen pode dizer que protegeu o seu PC. Clique em Mais informações e depois em Executar assim mesmo.",
     "unsignedUpdates": "No Mac, as atualizações automáticas precisam de uma versão assinada. Até lá, baixe as versões novas por esta página.",
     "featuresTitle": "O que o app de desktop adiciona",

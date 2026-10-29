@@ -6,6 +6,7 @@ import { currentEvent, detectMeetingApp, dueEvents } from '../../desktop/src/sha
 import { contextForApp } from '../../desktop/src/shared/dictation';
 import { fill, pickLocale, strings } from '../../desktop/src/shared/strings';
 import { multipartBody } from '../../desktop/src/main/multipart';
+import { NonceStore } from '../../desktop/src/shared/nonce';
 
 const CODE = 'a'.repeat(43);
 const STATE = 'S'.repeat(32);
@@ -189,5 +190,28 @@ describe('desktop: dictado y textos', () => {
     expect(Object.keys(strings('pt')).sort()).toEqual(keys);
     expect(fill(strings('es').dictateHint, { key: 'Control + Option' })).toBe('Dictar: mantené Control + Option');
     for (const l of ['en', 'es', 'pt'] as const) for (const v of Object.values(strings(l))) expect(v).not.toMatch(/—/);
+  });
+});
+
+describe('desktop: grabar sola solo con un nonce de la app', () => {
+  it('ningún path de la app conserva autostart (links, deep links, avisos del servidor)', () => {
+    expect(safeAppPath('/app/voice?new=1&autostart=desktop')).toBe('/app/voice?new=1');
+    expect(safeAppPath('/es/app/voice?event=cal%3A1&autostart=AAAAAAAAAAAAAAAAAAAAAAAA#x')).toBe('/es/app/voice?event=cal%3A1#x');
+    expect(parseDeepLink('zerosoft://open?path=/app/voice?new=1%26autostart=desktop')).toEqual({ kind: 'open', path: '/app/voice?new=1' });
+    expect(parseDeepLink('zerosoft://open/app/voice?autostart=desktop')).toEqual({ kind: 'open', path: '/app/voice' });
+  });
+
+  it('el nonce vale una vez y por 2 minutos; uno inventado no vale', () => {
+    const store = new NonceStore();
+    const n = 'n'.repeat(32);
+    store.add(n, 1000);
+    expect(store.consume('x'.repeat(32), 1000)).toBe(false);
+    expect(store.consume('desktop', 1000)).toBe(false);
+    expect(store.consume(n, 1000 + 60_000)).toBe(true);
+    expect(store.consume(n, 1000 + 60_000)).toBe(false);
+    const old = 'o'.repeat(32);
+    store.add(old, 0);
+    expect(store.consume(old, 2 * 60_000 + 1)).toBe(false);
+    expect(store.consume(42, 0)).toBe(false);
   });
 });

@@ -10,7 +10,7 @@ vi.mock('@/lib/session', async (orig) => ({ ...(await orig<object>()), getCurren
 import { createDesktopLoginCode, exchangeDesktopLoginCode, mintSessionToken, pkceChallenge, sessionCookieInfo } from '@/lib/desktop-auth';
 import { desktopDownloads, pickDesktopRelease, rewriteUpdateYml, type GhRelease } from '@/lib/desktop-release';
 import { talkBadgeCount, desktopBadge } from '@/lib/desktop-badge';
-import { confirmPage, escapeHtml, returnPage } from '@/lib/desktop-login-page';
+import { confirmPage, escapeHtml, parseLoginDevice, returnPage } from '@/lib/desktop-login-page';
 import { createNotification } from '@/lib/notifications';
 import { GET as loginGet, POST as loginPost } from '@/app/api/desktop/login/route';
 import { POST as tokenPost } from '@/app/api/desktop/token/route';
@@ -70,7 +70,7 @@ describe('desktop: códigos de login (PKCE)', () => {
 describe('desktop: /api/desktop/login y /api/desktop/token', () => {
   it('sin sesión manda al login y vuelve; con sesión pide confirmar', async () => {
     const { challenge } = pkce();
-    const url = `http://x/api/desktop/login?challenge=${challenge}&state=${STATE}&locale=es`;
+    const url = `http://x/api/desktop/login?challenge=${challenge}&state=${STATE}&locale=es&device=darwin`;
     const anon = await loginGet(new NextRequest(url));
     expect(anon.status).toBe(307);
     const loc = new URL(anon.headers.get('location')!);
@@ -84,6 +84,7 @@ describe('desktop: /api/desktop/login y /api/desktop/token', () => {
     const html = await page.text();
     expect(html).toContain(u.email);
     expect(html).toContain('method="post"');
+    expect(html).toContain('<strong>una Mac</strong>');
     const bad = await loginGet(new NextRequest('http://x/api/desktop/login?challenge=x&state=y'));
     expect(bad.status).toBe(400);
   });
@@ -146,9 +147,21 @@ describe('desktop: /api/desktop/login y /api/desktop/token', () => {
     expect(parseAuthCallback('https://auth/callback')).toBeNull();
   });
 
+  it('la confirmación dice dispositivo, hora y el aviso', () => {
+    expect(parseLoginDevice('darwin')).toBe('mac');
+    expect(parseLoginDevice('win32')).toBe('windows');
+    expect(parseLoginDevice('ios')).toBe('ios');
+    expect(parseLoginDevice('<script>')).toBe('unknown');
+    const html = confirmPage('es', { email: 'a@b.co', challenge: 'c', state: 's', device: 'android', now: new Date('2026-10-29T14:05:00Z') });
+    expect(html).toContain('<strong>un Android</strong>');
+    expect(html).toContain('Pedido a las 14:05 UTC.');
+    expect(html).toContain('Si alguien te mandó este link, cerrá esta pestaña.');
+    expect(confirmPage('en', { email: 'a@b.co', challenge: 'c', state: 's', device: 'unknown' })).toContain('The zerosoft app on <strong>a device</strong>');
+  });
+
   it('el HTML escapa lo que viene de afuera', () => {
     expect(escapeHtml('<a href="x">\'&')).toBe('&lt;a href=&quot;x&quot;&gt;&#39;&amp;');
-    expect(confirmPage('en', { email: '<b>@x.com', challenge: 'c', state: 's' })).not.toContain('<b>@');
+    expect(confirmPage('en', { email: '<b>@x.com', challenge: 'c', state: 's', device: 'mac' })).not.toContain('<b>@');
     expect(returnPage('pt', 'zerosoft://auth/callback?code=a&state=b')).toContain('zerosoft://auth/callback?code=a&amp;state=b');
   });
 });

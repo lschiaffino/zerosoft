@@ -132,6 +132,8 @@ export async function beginLogin(): Promise<void> {
   url.searchParams.set('challenge', challenge);
   url.searchParams.set('state', state);
   url.searchParams.set('locale', locale());
+  // Solo para el texto de la confirmación ("la app de zerosoft en una Mac").
+  url.searchParams.set('device', process.platform);
   if (TEST_MODE) {
     testHooks.openedExternal.push(url.toString());
     return;

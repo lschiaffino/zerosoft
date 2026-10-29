@@ -350,7 +350,8 @@
     "keywords": {
       "billing": "faturamento, faturas, assinatura, pagamento, billing, plano",
       "domains": "domínio próprio, dns, links curtos, domains",
-      "import": "importar migrar trazer token"
+      "import": "importar migrar trazer token",
+      "desktop": "baixar,mac,windows,desktop,app"
     },
     "importFrom": "Importar de {source} para o {app}"
   },

@@ -15,6 +15,7 @@ import { getWindowState, saveWindowState } from './config';
 import { beginLogin, isSignedIn } from './auth';
 import { appSession, getMainWindow, PARTITION, server, setMainWindow, TEST_MODE } from './state';
 import { testHooks } from './test-hooks';
+import { devEnv } from './dev-env';
 
 let quitting = false;
 export function setQuitting() {
@@ -142,7 +143,7 @@ export function createMainWindow(): BrowserWindow {
   if (state.maximized) win.maximize();
   hardenContents(win.webContents);
   win.once('ready-to-show', () => {
-    if (!TEST_MODE || process.env.ZEROSOFT_DESKTOP_SHOW === '1') win.show();
+    if (!TEST_MODE || devEnv('ZEROSOFT_DESKTOP_SHOW') === '1') win.show();
   });
 
   let timer: NodeJS.Timeout | null = null;
@@ -173,16 +174,21 @@ export function createMainWindow(): BrowserWindow {
 export function showMainWindow(): BrowserWindow {
   const win = getMainWindow() ?? createMainWindow();
   if (win.isMinimized()) win.restore();
-  if (!TEST_MODE || process.env.ZEROSOFT_DESKTOP_SHOW === '1') win.show();
+  if (!TEST_MODE || devEnv('ZEROSOFT_DESKTOP_SHOW') === '1') win.show();
   win.focus();
   return win;
 }
 
-/** Abre una página de la app (path validado) en la ventana. */
-export function openAppPath(rawPath: string): boolean {
+/**
+ * Abre una página de la app (path validado, sin `autostart`) en la ventana.
+ * `autostart` solo lo agrega main (meetings.ts) con un nonce que acaba de crear.
+ */
+export function openAppPath(rawPath: string, opts: { autostart?: string } = {}): boolean {
   const safe = safeAppPath(rawPath);
   if (!safe) return false;
+  const url = new URL(safe, server());
+  if (opts.autostart) url.searchParams.set('autostart', opts.autostart);
   const win = showMainWindow();
-  void win.loadURL(new URL(safe, server()).toString());
+  void win.loadURL(url.toString());
   return true;
 }

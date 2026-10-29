@@ -79,5 +79,8 @@ export function safeAppPath(raw: string | null | undefined): string | null {
   }
   if (url.origin !== 'http://internal.invalid') return null;
   if (!/^\/((en|es|pt)\/)?app(\/|$)/.test(url.pathname)) return null;
+  // Grabar una reunión sola lo pide solo main con un nonce de un solo uso (shared/nonce.ts):
+  // ningún link, deep link ni aviso del servidor puede traer `autostart` puesto.
+  url.searchParams.delete('autostart');
   return `${url.pathname}${url.search}${url.hash}`;
 }

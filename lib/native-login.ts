@@ -10,6 +10,7 @@
 
 interface CapacitorLike {
   isNativePlatform?: () => boolean;
+  getPlatform?: () => string;
   Plugins?: {
     Browser?: { open: (o: { url: string }) => Promise<void>; close?: () => Promise<void> };
     App?: { addListener: (event: 'appUrlOpen', cb: (data: { url: string }) => void) => Promise<{ remove: () => void }> | { remove: () => void } };
@@ -63,6 +64,6 @@ export async function startNativeLogin(locale: string, onError: () => void): Pro
     if (res?.ok) window.location.assign(`/${locale}/app`);
     else onError();
   });
-  const params = new URLSearchParams({ challenge, state, locale });
+  const params = new URLSearchParams({ challenge, state, locale, device: cap?.getPlatform?.() ?? 'unknown' });
   await Browser.open({ url: `${window.location.origin}/api/desktop/login?${params}` });
 }

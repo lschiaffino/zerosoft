@@ -342,9 +342,9 @@ const parity: ProductParity = {
     }),
     row('desktop-app', 'apps', ['Desktop app', 'App de escritorio', 'App desktop'], 'partial', {
       detail: [
-        'The zerosoft app for Mac and Windows (zerosoft.ai/download) or the installable app (PWA) in Chrome or Edge, with its own window and notifications. The desktop builds are not signed yet',
-        'La app de zerosoft para Mac y Windows (zerosoft.ai/download) o la app instalable (PWA) en Chrome o Edge, con ventana propia y avisos. Las versiones de escritorio todavía no están firmadas',
-        'O app do zerosoft para Mac e Windows (zerosoft.ai/download) ou o app instalável (PWA) no Chrome ou Edge, com janela própria e avisos. As versões desktop ainda não são assinadas',
+        'The installable app (PWA) in Chrome or Edge, with its own window and notifications. The zerosoft app for Mac and Windows shows up on /download with its first published release',
+        'La app instalable (PWA) en Chrome o Edge, con ventana propia y avisos. La app de zerosoft para Mac y Windows aparece en /download con su primera versión publicada',
+        'O app instalável (PWA) no Chrome ou Edge, com janela própria e avisos. O app do zerosoft para Mac e Windows aparece em /download com a primeira versão publicada',
       ],
     }),
   ],

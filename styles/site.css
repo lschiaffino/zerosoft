@@ -525,6 +525,8 @@
 .dl-buttons .read-actions { margin-top: 28px; }
 .dl-empty { max-width: 60ch; }
 .dl-body { display: grid; gap: 56px; }
+/* Las secciones de /download no llevan el padding grande de las secciones del sitio (globals.css). */
+.dl-body > section { padding-top: 0; padding-bottom: 0; }
 .dl-body .dl-unsigned { margin-top: 0; }
 .dl-h2 {
   font-family: var(--font-signage);

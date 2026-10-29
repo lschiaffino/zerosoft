@@ -12,6 +12,23 @@ la app acá: es la web, con lo que el wrapper suma.
 - **Micrófono** para Voice y los huddles de Talk (permisos que agrega `scripts/configure-native.mjs`).
 - Para un self-host, cambiá `server.url` y `allowNavigation` por tu dominio.
 
+## Próximo paso: Universal Links / App Links
+
+Hoy la vuelta del login usa el esquema propio `zerosoft://`, que cualquier app instalada puede
+registrar. El código solo no alcanza (hace falta el verifier PKCE, que nunca sale de la app), pero lo
+correcto para el teléfono es volver por un link https verificado:
+
+- **iOS (Universal Links):** servir `https://zerosoft.ai/.well-known/apple-app-site-association` con
+  el App ID (`<TEAM_ID>.ai.zerosoft.app`) y la ruta de vuelta (p. ej. `/app/auth/mobile-callback`), y
+  sumar el entitlement Associated Domains (`applinks:zerosoft.ai`) en Xcode.
+- **Android (App Links):** servir `https://zerosoft.ai/.well-known/assetlinks.json` con el package
+  `ai.zerosoft.app` y el SHA-256 del certificado de firma de Play, y un intent-filter
+  `android:autoVerify="true"` para esa ruta.
+- Después, `/api/desktop/login` redirige a esa URL https en vez de `zerosoft://` cuando el pedido
+  viene del teléfono (`device=ios|android`), y `lib/native-login.ts` escucha la misma ruta.
+
+Hace falta el Team ID de Apple y el certificado de Play para armar esos dos archivos.
+
 ## Armar los proyectos
 
 Requisitos: Node 20+, Xcode 16+ con CocoaPods (iOS) y Android Studio con JDK 21 (Android).

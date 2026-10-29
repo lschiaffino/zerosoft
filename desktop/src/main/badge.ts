@@ -72,6 +72,11 @@ function notify(title: string, body: string, onClick: () => void) {
   n.show();
 }
 
+/** Aviso del sistema con una acción de main al hacer clic. */
+export function notifyAction(title: string, body: string, onClick: () => void) {
+  notify(title, body, onClick);
+}
+
 /** Aviso del sistema que abre una página de la app (o la app) al hacer clic. */
 export function notifyOpen(title: string, body: string, href: string | null) {
   const target = safeAppPath(href ?? '') ?? '/app';

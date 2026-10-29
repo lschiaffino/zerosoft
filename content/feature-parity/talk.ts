@@ -442,9 +442,9 @@ const BUILT: Record<string, Built> = {
   'desktop-app': {
     status: 'partial',
     detail: [
-      'One app for Mac and Windows with the whole platform (desktop/, Electron): dock or taskbar badge with unread mentions and DMs, native notifications that open the message, sign-in through the browser. Builds are not signed yet and there is no Linux build',
-      'Una app para Mac y Windows con toda la plataforma (desktop/, Electron): contador en el dock o la barra de tareas con menciones y DMs sin leer, avisos nativos que abren el mensaje, login por el navegador. Las versiones todavía no están firmadas y no hay versión para Linux',
-      'Um app para Mac e Windows com toda a plataforma (desktop/, Electron): contador no dock ou na barra de tarefas com menções e DMs não lidas, avisos nativos que abrem a mensagem, login pelo navegador. As versões ainda não são assinadas e não há versão para Linux',
+      'One app for Mac and Windows with the whole platform (desktop/, Electron): dock or taskbar badge with unread mentions and DMs, native notifications that open the message, sign-in through the browser. Downloads arrive on /download with the first published release, unsigned at first; no Linux build',
+      'Una app para Mac y Windows con toda la plataforma (desktop/, Electron): contador en el dock o la barra de tareas con menciones y DMs sin leer, avisos nativos que abren el mensaje, login por el navegador. La descarga aparece en /download con la primera versión publicada, al principio sin firmar; sin versión para Linux',
+      'Um app para Mac e Windows com toda a plataforma (desktop/, Electron): contador no dock ou na barra de tarefas com menções e DMs não lidas, avisos nativos que abrem a mensagem, login pelo navegador. O download aparece em /download com a primeira versão publicada, no começo sem assinatura; sem versão para Linux',
     ],
   },
 };

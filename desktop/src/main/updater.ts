@@ -12,8 +12,10 @@ import { app, dialog, Notification } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import { fill } from '../shared/strings';
 import { t, TEST_MODE } from './state';
+import { devEnv } from './dev-env';
 
-const FEED = process.env.ZEROSOFT_UPDATE_URL || 'https://zerosoft.ai/api/desktop/update';
+// El feed es fijo en la app empaquetada (devEnv no lee el entorno ahí).
+const FEED = devEnv('ZEROSOFT_UPDATE_URL') || 'https://zerosoft.ai/api/desktop/update';
 const EVERY_MS = 4 * 60 * 60_000;
 let started = false;
 

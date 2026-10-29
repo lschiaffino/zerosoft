@@ -449,7 +449,7 @@
     "desktop": {
       "title": "zerosoft para Mac y Windows",
       "desc": "La app de escritorio dicta en cualquier app de la compu y graba reuniones con el audio del sistema (Zoom, Meet, Teams o cualquier llamada), sin bot.",
-      "unsigned": "Las versiones todavía no están firmadas. En Mac, la primera vez hacé clic derecho en la app y elegí Abrir; en Windows, tocá Más información y Ejecutar de todas formas.",
+      "unsigned": "Las versiones todavía no están firmadas. En Mac, la primera vez andá a Ajustes del Sistema › Privacidad y seguridad y tocá Abrir igualmente (en macOS 14 o anterior: clic derecho en la app y Abrir); en Windows, tocá Más información y Ejecutar de todas formas.",
       "step1": "Descargá la app para tu computadora desde",
       "step1Link": "la página de descargas",
       "step2": "Abrila e iniciá sesión con Google: la app abre tu navegador y vuelve sola.",

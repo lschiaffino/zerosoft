@@ -8,6 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import { defaultHotkey, isHotkeyId, type HotkeyId } from '../shared/hotkey';
 import { DEFAULT_SERVER, normalizeServer } from '../shared/nav';
+import { devEnv } from './dev-env';
 
 export interface Settings {
   server: string;
@@ -53,8 +54,8 @@ let cached: Settings | null = null;
 export function getSettings(): Settings {
   if (cached) return cached;
   const raw = readJson<Settings>('settings.json');
-  // ZEROSOFT_SERVER (desarrollo y e2e) pisa lo guardado.
-  const server = normalizeServer(process.env.ZEROSOFT_SERVER) ?? normalizeServer(raw.server) ?? DEFAULT_SERVER;
+  // ZEROSOFT_SERVER (solo desarrollo y e2e) pisa lo guardado.
+  const server = normalizeServer(devEnv('ZEROSOFT_SERVER')) ?? normalizeServer(raw.server) ?? DEFAULT_SERVER;
   cached = {
     server,
     hotkey: isHotkeyId(raw.hotkey) ? raw.hotkey : defaultHotkey(process.platform),

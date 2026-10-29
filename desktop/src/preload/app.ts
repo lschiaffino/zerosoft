@@ -21,6 +21,8 @@ if (info && origin === info.server) {
     startLogin: () => ipcRenderer.send(IPC.startLogin),
     /** Ajustes del escritorio: atajo, permisos, servidor. */
     openSettings: () => ipcRenderer.send(IPC.openSettings),
+    /** Canjea el nonce de "tomar notas" (lo creó main al tocar el aviso o el menú): true una sola vez. */
+    consumeAutostart: (nonce: string) => ipcRenderer.invoke(IPC.consumeAutostart, String(nonce).slice(0, 80)) as Promise<boolean>,
   });
   contextBridge.exposeInMainWorld('zerosoftDesktop', bridge);
 }

@@ -1,7 +1,7 @@
 /**
- * HTML de las pantallas del login del escritorio que ve el navegador del
- * sistema (/api/desktop/login): confirmar la cuenta, volver a la app y el
- * link inválido. Una página chica sin JS (CSP estricta), con los colores
+ * HTML de las pantallas del login de las apps (escritorio y móvil) que ve el
+ * navegador del sistema (/api/desktop/login): confirmar la cuenta con el
+ * dispositivo, la hora y un aviso, volver a la app y el link inválido. Una página chica sin JS (CSP estricta), con los colores
  * del sitio en claro y oscuro.
  */
 import en from '@/messages/en/pages.json';
@@ -11,6 +11,17 @@ import pt from '@/messages/pt/pages.json';
 type Locale = 'en' | 'es' | 'pt';
 type Strings = typeof en.desktopLogin;
 const ALL: Record<Locale, Strings> = { en: en.desktopLogin, es: es.desktopLogin, pt: pt.desktopLogin };
+
+/** Dispositivo que pidió el login (lo manda la app; solo cambia el texto). */
+export type LoginDevice = keyof Strings['devices'];
+const DEVICES: readonly LoginDevice[] = ['mac', 'windows', 'linux', 'ios', 'android'];
+
+export function parseLoginDevice(raw: unknown): LoginDevice {
+  const v = String(raw ?? '').toLowerCase();
+  if (v === 'darwin') return 'mac';
+  if (v === 'win32') return 'windows';
+  return (DEVICES as readonly string[]).includes(v) ? (v as LoginDevice) : 'unknown';
+}
 
 export function desktopLoginStrings(locale: string): Strings {
   return ALL[(['en', 'es', 'pt'].includes(locale) ? locale : 'en') as Locale];
@@ -49,6 +60,8 @@ strong{color:var(--fg);font-weight:600;word-break:break-all}
 .btn{display:inline-flex;align-items:center;justify-content:center;width:100%;height:40px;border:0;border-radius:4px;background:var(--btn);color:var(--btn-fg);font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
 .btn:focus-visible{outline:2px solid #3b82f6;outline-offset:2px}
 .fine{font-size:13px;margin:16px 0 0}
+p.fine{margin:-8px 0 12px}
+.warn{color:var(--fg);border-left:3px solid #d97706;padding:8px 12px;background:rgba(217,119,6,.08);font-size:14px}
 svg{display:block}
 </style>
 </head>
@@ -59,17 +72,21 @@ ${body}
 </html>`;
 }
 
-export function confirmPage(locale: string, input: { email: string; challenge: string; state: string }): string {
+export function confirmPage(locale: string, input: { email: string; challenge: string; state: string; device: LoginDevice; now?: Date }): string {
   const t = desktopLoginStrings(locale);
+  const time = (input.now ?? new Date()).toISOString().slice(11, 16);
   return page(
     locale,
     t.title,
     `<h1>${escapeHtml(t.title)}</h1>
-<p>${escapeHtml(t.confirm).replace('{email}', `<strong>${escapeHtml(input.email)}</strong>`)}</p>
+<p>${escapeHtml(t.confirm).replace('{device}', `<strong>${escapeHtml(t.devices[input.device])}</strong>`).replace('{email}', `<strong>${escapeHtml(input.email)}</strong>`)}</p>
+<p class="fine">${escapeHtml(t.requested.replace('{time}', time))}</p>
+<p class="warn" role="note">${escapeHtml(t.warning)}</p>
 <form method="post" action="/api/desktop/login">
 <input type="hidden" name="challenge" value="${escapeHtml(input.challenge)}">
 <input type="hidden" name="state" value="${escapeHtml(input.state)}">
 <input type="hidden" name="locale" value="${escapeHtml(locale)}">
+<input type="hidden" name="device" value="${escapeHtml(input.device)}">
 <button class="btn" type="submit" autofocus>${escapeHtml(t.continue)}</button>
 </form>
 <p class="fine">${escapeHtml(t.notYou)}</p>`,

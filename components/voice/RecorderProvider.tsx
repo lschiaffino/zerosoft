@@ -24,6 +24,28 @@ const MAX_FAILED_ATTEMPTS = 3;
 /** Terminar espera como mucho esto a que se suban los trozos pendientes; lo que queda pasa a reintentar. */
 const STOP_WAIT_MS = 20_000;
 const HEARTBEAT_MS = 30_000;
+/** Un pedido de micrófono o pantalla que no responde (permiso del sistema pendiente) se corta acá. */
+const MEDIA_TIMEOUT_MS = 20_000;
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => {
+      // Si llega tarde, se suelta lo que haya traído.
+      void p.then((v) => (v instanceof MediaStream ? stopStream(v) : undefined)).catch(() => undefined);
+      reject(new Error('media_timeout'));
+    }, ms);
+    p.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      },
+    );
+  });
+}
 
 type SegmentsListener = (segs: VoiceSegment[]) => void;
 type DoneListener = () => void;
@@ -394,26 +416,18 @@ export default function RecorderProvider({ children, owner }: { children: ReactN
       set('starting');
       setMode(args.mode);
       const id = args.sessionId;
-      // Claim de la grabación: si otra pestaña o dispositivo graba esta reunión, no se empieza.
-      const claim = await fetch(`/api/voice/sessions/${id}`, {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ status: 'recording', capture: args.desktop ? 'desktop' : args.mode, recorderId: recorderIdRef.current }),
-      }).catch(() => null);
-      if (!claim?.ok) {
-        const code = ((await claim?.json().catch(() => null)) as { error?: string } | null)?.error ?? 'network';
-        set('idle');
-        setError(code);
-        return;
-      }
+      // Primero la captura (micrófono y, si corresponde, pestaña o audio del sistema) y recién
+      // después el claim: la reunión figura "grabando" solo cuando de verdad se está grabando.
+      // Si el sistema deja el pedido colgado (permiso pendiente), a los 20 s se corta con error.
       const streams: MediaStream[] = [];
+      let tab: MediaStream | null = null;
+      let mic: MediaStream;
       try {
-        const mic = await getMic();
+        mic = await withTimeout(getMic(), MEDIA_TIMEOUT_MS);
         streams.push(mic);
-        let tab: MediaStream | null = null;
         if (args.mode === 'mic_tab') {
           try {
-            tab = await getTabAudio();
+            tab = await withTimeout(getTabAudio(), MEDIA_TIMEOUT_MS);
             streams.push(tab);
           } catch (err) {
             // Escritorio sin permiso de audio del sistema: se graba igual el micrófono.
@@ -422,6 +436,26 @@ export default function RecorderProvider({ children, owner }: { children: ReactN
             setMode('mic');
           }
         }
+      } catch (err) {
+        streams.forEach(stopStream);
+        set('idle');
+        setError(mediaErrorCode(err));
+        return;
+      }
+      // Claim de la grabación: si otra pestaña o dispositivo graba esta reunión, no se empieza.
+      const claim = await fetch(`/api/voice/sessions/${id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ status: 'recording', capture: args.desktop ? 'desktop' : tab ? 'mic_tab' : 'mic', recorderId: recorderIdRef.current }),
+      }).catch(() => null);
+      if (!claim?.ok) {
+        streams.forEach(stopStream);
+        const code = ((await claim?.json().catch(() => null)) as { error?: string } | null)?.error ?? 'network';
+        set('idle');
+        setError(code);
+        return;
+      }
+      try {
         streamsRef.current = streams;
         // Solo crece: un trozo nuevo nunca reusa el número (seq) de uno anterior de la misma reunión.
         baseRef.current = sessionRef.current === id ? Math.max(baseRef.current, args.baseOffsetMs) : args.baseOffsetMs;

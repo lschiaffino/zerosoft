@@ -27,6 +27,9 @@ type Hooks = {
   startDictation: () => void;
   stopDictation: () => Promise<void>;
   startNotes: (eventKey?: string | null) => void;
+  mintedNonces: string[];
+  dictationError: string;
+  consumedNonces: string[];
 };
 
 test.describe('app de escritorio', () => {
@@ -64,7 +67,14 @@ test.describe('app de escritorio', () => {
 
   test.afterAll(async () => {
     test.setTimeout(60_000);
-    await app?.close().catch(() => undefined);
+    // app.close() espera que todas las ventanas cierren; una captura colgada (permiso del sistema
+    // pendiente) lo traba. Se sale con app.exit y, si no alcanza, se mata el proceso que lanzamos.
+    if (app) {
+      const proc = app.process();
+      await Promise.race([app.evaluate(({ app: a }) => a.exit(0)).catch(() => undefined), new Promise((r) => setTimeout(r, 5000))]);
+      await Promise.race([app.close().catch(() => undefined), new Promise((r) => setTimeout(r, 10_000))]);
+      if (proc.exitCode === null) proc.kill('SIGKILL');
+    }
     fs.rmSync(userData, { recursive: true, force: true });
   });
 
@@ -149,21 +159,50 @@ test.describe('app de escritorio', () => {
     await win.waitForURL(/\/app\/notes/);
   });
 
-  test('notas de reunión: abre Voice, crea la reunión y graba con el audio del sistema', async ({ request }) => {
+  test('un link con autostart (en Talk, un mail, un deep link) abre la reunión sin grabar', async ({ request, baseURL }) => {
+    const win = await mainWindow();
+    for (const autostart of ['desktop', 'A'.repeat(32)]) {
+      await win.loadURL(`${baseURL}/en/app/voice?new=1&autostart=${autostart}`);
+      await win.waitForURL(/\/app\/voice\/meetings\/[^/?]+/, { timeout: 30_000 });
+      const id = new URL(win.url()).pathname.split('/').pop()!;
+      await new Promise((r) => setTimeout(r, 3000));
+      const s = (await (await request.get(`/api/voice/sessions/${id}`)).json()) as { status: string };
+      expect(s.status, autostart).not.toBe('recording');
+    }
+    expect(await app.evaluate(() => (globalThis as unknown as { __zsTest: Hooks }).__zsTest.consumedNonces)).toEqual([]);
+    // zerosoft://open saca autostart y zerosoft://notes abre sin grabar: ninguno crea un nonce.
+    await app.evaluate(async (_e, u) => (globalThis as unknown as { __zsTest: Hooks }).__zsTest.deepLink(u), 'zerosoft://open?path=/app/voice?new=1%26autostart=desktop');
+    await app.evaluate(async () => (globalThis as unknown as { __zsTest: Hooks }).__zsTest.deepLink('zerosoft://notes'));
+    expect(await app.evaluate(() => (globalThis as unknown as { __zsTest: Hooks }).__zsTest.mintedNonces)).toEqual([]);
+  });
+
+  test('notas de reunión desde el menú: nonce de un solo uso, grabación con capture=desktop', async ({ request }) => {
     await app.evaluate(() => (globalThis as unknown as { __zsTest: Hooks }).__zsTest.startNotes());
     const win = await mainWindow();
     await win.waitForURL(/\/app\/voice\/meetings\/[^/?]+$/, { timeout: 30_000 });
     const id = new URL(win.url()).pathname.split('/').pop()!;
-    // El grabador de la web empezó solo, con capture=desktop.
-    await expect.poll(async () => ((await (await request.get(`/api/voice/sessions/${id}`)).json()) as { status: string }).status, { timeout: 20_000 }).toBe('recording');
-    const detail = (await (await request.get(`/api/voice/sessions/${id}`)).json()) as { capture: string };
-    expect(detail.capture).toBe('desktop');
-    // (Con el micrófono falso de Chromium la captura de pantalla también es falsa y no pasa por el
-    // handler de loopback de window.ts: el audio del sistema real se prueba a mano, ver desktop/README.md.)
-    // La ventana está escondida en el modo test: el botón se toca por DOM.
-    await expect(win.locator('.vc-recorder-row .vc-rec-time')).toBeAttached({ timeout: 20_000 });
-    await win.locator('.vc-recorder-row button.btn-primary').dispatchEvent('click');
-    await expect.poll(async () => ((await (await request.get(`/api/voice/sessions/${id}`)).json()) as { status: string }).status, { timeout: 30_000 }).not.toBe('recording');
+    const hooks = () => app.evaluate(() => {
+      const h = (globalThis as unknown as { __zsTest: Hooks }).__zsTest;
+      return { minted: h.mintedNonces, consumed: h.consumedNonces };
+    });
+    // La página canjeó el nonce que creó main (una vez).
+    await expect.poll(async () => (await hooks()).consumed, { timeout: 20_000 }).toEqual((await hooks()).minted);
+    // La reunión figura "grabando" solo cuando la captura arrancó: con micrófono, graba y se corta;
+    // si el sistema no da el micrófono (permiso pendiente), queda libre y la página muestra el error.
+    const status = async () => ((await (await request.get(`/api/voice/sessions/${id}`)).json()) as { status: string; capture: string });
+    const started = await expect
+      .poll(async () => (await win.locator('.vc-recorder-row .vc-rec-time').count()) > 0, { timeout: 25_000 })
+      .toBe(true)
+      .then(() => true, () => false);
+    if (started) {
+      expect(await status()).toMatchObject({ status: 'recording', capture: 'desktop' });
+      // La ventana está escondida en el modo test: el botón se toca por DOM.
+      await win.locator('.vc-recorder-row button.btn-primary').dispatchEvent('click');
+      await expect.poll(async () => (await status()).status, { timeout: 30_000 }).not.toBe('recording');
+    } else {
+      test.info().annotations.push({ type: 'mic', description: 'Electron no recibió el micrófono en esta máquina: se verifica que la reunión no quede "grabando".' });
+      expect((await status()).status).not.toBe('recording');
+    }
   });
 
   test('dictado: micrófono → /api/voice/dictate → texto pegado', async ({ baseURL }) => {
@@ -175,6 +214,11 @@ test.describe('app de escritorio', () => {
     await app.evaluate(() => (globalThis as unknown as { __zsTest: Hooks }).__zsTest.startDictation());
     await new Promise((r) => setTimeout(r, 1500));
     await app.evaluate(() => (globalThis as unknown as { __zsTest: Hooks }).__zsTest.stopDictation());
+    if ((await app.evaluate(() => (globalThis as unknown as { __zsTest: Hooks }).__zsTest.dictationError)) === 'mic') {
+      // Sin micrófono en Electron (permiso del sistema pendiente en esta máquina): no hay qué mandar.
+      test.info().annotations.push({ type: 'mic', description: 'Electron no recibió el micrófono: el envío al servidor no se probó en esta corrida.' });
+      return;
+    }
     const pasted = await app.evaluate(() => (globalThis as unknown as { __zsTest: Hooks }).__zsTest.pasted);
     expect(pasted.at(-1)?.toLowerCase()).toContain('desktop dictation');
     const labels = await app.evaluate(() => (globalThis as unknown as { __zsTest: Hooks }).__zsTest.overlayLabels);

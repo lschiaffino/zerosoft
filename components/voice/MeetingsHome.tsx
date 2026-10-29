@@ -5,6 +5,7 @@ import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { Link, useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
+import { AUTOSTART_NONCE_RE } from '@/lib/desktop-bridge';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { formatDuration, type VoiceCalendarEvent, type VoiceFolder, type VoiceSessionSummary } from '@/lib/voice-types';
@@ -158,8 +159,10 @@ export default function MeetingsHome(props: Props) {
     if (params.get('new') === '1' || ev) {
       autoCreated.current = true;
       const existing = ev ? props.events.find((e) => e.key === ev)?.sessionId : null;
-      // ?autostart=desktop ("Tomar notas" de la app de escritorio) pasa a la reunión, que empieza a grabar.
-      const query = params.get('autostart') === 'desktop' ? '?autostart=desktop' : '';
+      // ?autostart=<nonce> ("Tomar notas" de la app de escritorio) pasa a la reunión.
+      // (Solo pasa el valor: la reunión lo canjea con la app, que decide si vale.)
+      const nonce = params.get('autostart') ?? '';
+      const query = AUTOSTART_NONCE_RE.test(nonce) ? `?autostart=${nonce}` : '';
       if (existing) router.replace(`/app/voice/meetings/${existing}${query}`);
       else void newMeeting({ replace: true, eventKey: ev ?? undefined, query });
     }

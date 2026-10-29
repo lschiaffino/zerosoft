@@ -19,13 +19,14 @@ import { getSettings } from './config';
 import { beginLogin, completeLogin, restoreSession, watchSessionCookie } from './auth';
 import { pollBadge, startBadgePolling } from './badge';
 import { dictationAvailable, setupDictation, startDictation, startHotkeys, stopDictation, stopHotkeys } from './dictation';
-import { startMeetingWatch, startNotes } from './meetings';
+import { consumeNotesNonce, startMeetingWatch, startNotes } from './meetings';
 import { openSettings, setupSettingsIpc } from './settings-window';
 import { getMainWindow, server, TEST_MODE } from './state';
 import { buildTrayMenu, createTray } from './tray';
 import { setupUpdater } from './updater';
 import { createMainWindow, openAppPath, setQuitting, setupSessionPermissions, showMainWindow } from './window';
 import { testHooks } from './test-hooks';
+import { devEnv } from './dev-env';
 
 // Audio del sistema en Mac 13+ (ScreenCaptureKit) para getDisplayMedia con loopback.
 app.commandLine.appendSwitch('enable-features', 'MacLoopbackAudioForScreenShare,MacSckSystemAudioLoopbackOverride');
@@ -37,7 +38,8 @@ if (TEST_MODE) {
 }
 
 // Datos aparte en los e2e (no pisan la sesión de la app instalada).
-if (process.env.ZEROSOFT_USER_DATA) app.setPath('userData', path.resolve(process.env.ZEROSOFT_USER_DATA));
+const userData = devEnv('ZEROSOFT_USER_DATA');
+if (userData) app.setPath('userData', path.resolve(userData));
 
 let ready = false;
 let queuedLink: string | null = null;
@@ -59,7 +61,8 @@ async function handleDeepLink(raw: string) {
     return;
   }
   if (link.kind === 'open') openAppPath(link.path);
-  else if (link.kind === 'notes') startNotes();
+  // zerosoft://notes viene de afuera: abre una reunión nueva, sin grabar sola.
+  else if (link.kind === 'notes') startNotes(null, { record: false });
 }
 
 function registerProtocol() {
@@ -96,6 +99,12 @@ function setupAppIpc() {
   });
   ipcMain.on(IPC.openSettings, (e) => {
     if (fromApp(e)) openSettings();
+  });
+  ipcMain.handle(IPC.consumeAutostart, (e, nonce: unknown) => {
+    if (!fromApp(e)) return false;
+    const ok = consumeNotesNonce(nonce);
+    if (ok && typeof nonce === 'string') testHooks.consumedNonces.push(nonce);
+    return ok;
   });
 }
 

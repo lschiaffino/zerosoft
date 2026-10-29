@@ -6,8 +6,23 @@
  * DESKTOP_RELEASES_REPO cambia el repo (self-host o fork); con
  * DESKTOP_RELEASES_TOKEN se consulta con token (más cupo de la API).
  * DESKTOP_RELEASES_FAKE=1 (e2e) devuelve un release fijo sin salir a internet.
+ * Todo sale por safeFetch (guarda SSRF, timeout) con una caché en memoria de
+ * 10 minutos por instancia (la API anónima de GitHub da 60 pedidos por hora).
  * Server-only.
  */
+import { safeFetch } from './safe-fetch';
+
+const CACHE_MS = 10 * 60_000;
+const cache = new Map<string, { until: number; value: unknown }>();
+
+async function cached<T>(key: string, load: () => Promise<T | null>): Promise<T | null> {
+  const hit = cache.get(key);
+  if (hit && hit.until > Date.now()) return hit.value as T;
+  const value = await load();
+  // Lo que falla se reintenta al minuto, no a los 10.
+  cache.set(key, { until: Date.now() + (value === null ? 60_000 : CACHE_MS), value });
+  return value;
+}
 
 export const DESKTOP_REPO = process.env.DESKTOP_RELEASES_REPO || 'lschiaffino/zerosoft';
 export const DESKTOP_TAG_PREFIX = 'desktop-v';
@@ -101,19 +116,21 @@ const FAKE: GhRelease = {
 export async function fetchReleases(): Promise<GhRelease[] | null> {
   if (process.env.DESKTOP_RELEASES_FAKE === '1') return [FAKE];
   if (process.env.DESKTOP_RELEASES_FAKE === 'empty') return [];
-  try {
-    const token = process.env.DESKTOP_RELEASES_TOKEN;
-    const res = await fetch(`https://api.github.com/repos/${DESKTOP_REPO}/releases?per_page=50`, {
-      headers: { accept: 'application/vnd.github+json', 'user-agent': 'zerosoft-site', ...(token ? { authorization: `Bearer ${token}` } : {}) },
-      next: { revalidate: 600 },
-      signal: AbortSignal.timeout(4000),
-    } as RequestInit);
-    if (!res.ok) return null;
-    const data = (await res.json()) as unknown;
-    return Array.isArray(data) ? (data as GhRelease[]) : null;
-  } catch {
-    return null;
-  }
+  return cached('releases', async () => {
+    try {
+      const token = process.env.DESKTOP_RELEASES_TOKEN;
+      const res = await safeFetch(
+        `https://api.github.com/repos/${DESKTOP_REPO}/releases?per_page=50`,
+        { headers: { accept: 'application/vnd.github+json', 'user-agent': 'zerosoft-site', ...(token ? { authorization: `Bearer ${token}` } : {}) } },
+        4000,
+      );
+      if (!res.ok) return null;
+      const data = (await res.json()) as unknown;
+      return Array.isArray(data) ? (data as GhRelease[]) : null;
+    } catch {
+      return null;
+    }
+  });
 }
 
 export async function latestDesktopRelease(): Promise<GhRelease | null> {
@@ -132,11 +149,14 @@ export async function updateFeed(file: 'latest-mac.yml' | 'latest.yml'): Promise
       { name: 'zerosoft-0.1.0-mac-arm64.zip', size: 1, browser_download_url: 'https://github.com/lschiaffino/zerosoft/releases/download/desktop-v0.1.0/zerosoft-0.1.0-mac-arm64.zip' },
     ]);
   }
-  try {
-    const res = await fetch(asset.browser_download_url, { next: { revalidate: 600 }, signal: AbortSignal.timeout(5000) } as RequestInit);
-    if (!res.ok) return null;
-    return rewriteUpdateYml(await res.text(), release.assets);
-  } catch {
-    return null;
-  }
+  return cached(`feed:${asset.browser_download_url}`, async () => {
+    try {
+      // GitHub responde la descarga con un 302 a su CDN.
+      const res = await safeFetch(asset.browser_download_url, {}, 5000, { maxRedirects: 3 });
+      if (!res.ok) return null;
+      return rewriteUpdateYml(await res.text(), release.assets);
+    } catch {
+      return null;
+    }
+  });
 }

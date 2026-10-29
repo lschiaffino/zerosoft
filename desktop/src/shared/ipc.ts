@@ -11,6 +11,7 @@ export const IPC = {
   appInfo: 'zs:app-info',
   startLogin: 'zs:start-login',
   openSettings: 'zs:open-settings',
+  consumeAutostart: 'zs:consume-autostart',
   // Overlay de dictado.
   overlayState: 'zs:overlay-state',
   overlayAudio: 'zs:overlay-audio',

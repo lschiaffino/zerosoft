@@ -2,6 +2,7 @@
 import { app, session, type BrowserWindow, type Session } from 'electron';
 import { pickLocale, strings, type Locale } from '../shared/strings';
 import { getSettings } from './config';
+import { devEnv } from './dev-env';
 
 export const PARTITION = 'persist:zerosoft';
 
@@ -32,4 +33,4 @@ export function t() {
 }
 
 /** e2e (Playwright _electron): sin efectos del sistema (navegador, portapapeles real, avisos visibles). */
-export const TEST_MODE = process.env.ZEROSOFT_DESKTOP_TEST === '1';
+export const TEST_MODE = devEnv('ZEROSOFT_DESKTOP_TEST') === '1';

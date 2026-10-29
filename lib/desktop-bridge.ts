@@ -13,7 +13,16 @@ export interface DesktopBridge {
   /** Login con Google en el navegador del sistema; vuelve por zerosoft://. */
   startLogin: () => void;
   openSettings: () => void;
+  /**
+   * Canjea el nonce de "tomar notas" (?autostart=<nonce>): lo crea la app al
+   * tocar su aviso o su menú y vale una sola vez. Un link con autostart que
+   * no salió de la app (pegado en Talk, un mail) devuelve false.
+   */
+  consumeAutostart?: (nonce: string) => Promise<boolean>;
 }
+
+/** Forma del nonce de autostart (desktop/src/shared/nonce.ts). */
+export const AUTOSTART_NONCE_RE = /^[A-Za-z0-9_-]{22,64}$/;
 
 export function desktopBridge(): DesktopBridge | null {
   if (typeof window === 'undefined') return null;

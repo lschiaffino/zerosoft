@@ -3,6 +3,8 @@
  * afuera (abrir el navegador, mostrar un aviso) queda anotado acá y el test
  * lo lee con electronApp.evaluate(). Fuera del modo test no se usa.
  */
+import { devEnv } from './dev-env';
+
 export interface ShownNotification {
   title: string;
   body: string;
@@ -19,9 +21,13 @@ export const testHooks = {
   startDictation: (() => undefined) as () => void,
   stopDictation: (async () => undefined) as () => Promise<void>,
   overlayLabels: [] as string[],
+  mintedNonces: [] as string[],
+  /** El overlay no consiguió el micrófono (permiso del sistema, dispositivo colgado). */
+  dictationError: '' as '' | 'mic',
+  consumedNonces: [] as string[],
   /** Pedidos de captura (getDisplayMedia) atendidos: con loopback o sin pantalla. */
   displayRequests: [] as Array<'loopback' | 'none'>,
   startNotes: (() => undefined) as (eventKey?: string | null) => void,
 };
 
-if (process.env.ZEROSOFT_DESKTOP_TEST === '1') (globalThis as unknown as { __zsTest: typeof testHooks }).__zsTest = testHooks;
+if (devEnv('ZEROSOFT_DESKTOP_TEST') === '1') (globalThis as unknown as { __zsTest: typeof testHooks }).__zsTest = testHooks;

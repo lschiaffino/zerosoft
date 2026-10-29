@@ -155,9 +155,9 @@ const parity: ProductParity = {
     row('desktop-apps', 'apps', ['Mac and Windows desktop apps', 'Apps de escritorio para Mac y Windows', 'Apps desktop para Mac e Windows'], 'partial', {
       weight: 2,
       detail: [
-        "One Electron app for Mac and Windows (zerosoft.ai/download): hold-to-talk dictation in any app with a small overlay, and meeting notes with mic plus system audio, offered when a calendar event starts or Zoom, Meet or Teams is in a call, without a bot. Builds are not signed or notarized yet",
-        "Una app de Electron para Mac y Windows (zerosoft.ai/download): dictado manteniendo un atajo en cualquier app con un overlay chico, y notas de reuniones con micrófono y audio del sistema, que se ofrecen cuando empieza un evento del calendario o Zoom, Meet o Teams están en llamada, sin bot. Las versiones todavía no están firmadas ni notarizadas",
-        "Um app Electron para Mac e Windows (zerosoft.ai/download): ditado segurando um atalho em qualquer app com um overlay pequeno, e notas de reuniões com microfone e áudio do sistema, oferecidas quando começa um evento do calendário ou o Zoom, o Meet ou o Teams estão em chamada, sem bot. As versões ainda não são assinadas nem notarizadas",
+        "One Electron app for Mac and Windows (source in desktop/): hold-to-talk dictation in any app with a small overlay, and meeting notes with mic plus system audio, offered when a calendar event starts or Zoom, Meet or Teams is in a call, without a bot. Downloads arrive on /download with the first published release, unsigned at first",
+        "Una app de Electron para Mac y Windows (código en desktop/): dictado manteniendo un atajo en cualquier app con un overlay chico, y notas de reuniones con micrófono y audio del sistema, que se ofrecen cuando empieza un evento del calendario o Zoom, Meet o Teams están en llamada, sin bot. La descarga aparece en /download con la primera versión publicada, al principio sin firmar",
+        "Um app Electron para Mac e Windows (código em desktop/): ditado segurando um atalho em qualquer app com um overlay pequeno, e notas de reuniões com microfone e áudio do sistema, oferecidas quando começa um evento do calendário ou o Zoom, o Meet ou o Teams estão em chamada, sem bot. O download aparece em /download com a primeira versão publicada, no começo sem assinatura",
       ],
     }),
     row('mobile-apps', 'apps', ['iOS and Android', 'iOS y Android', 'iOS e Android'], 'missing', {
@@ -169,9 +169,9 @@ const parity: ProductParity = {
     }),
     row('device-sync', 'apps', ['Sync across devices', 'Sincronizar entre dispositivos', 'Sincronizar entre dispositivos'], 'partial', {
       detail: [
-        "Dictionary, styles and history live on the server, so every browser uses the same ones; the desktop app would use them too through the API, but it is not built yet",
-        "El diccionario, los estilos y el historial viven en el servidor y cualquier navegador usa los mismos; la app de escritorio los usaría por la API, pero todavía no está compilada",
-        "O dicionário, os estilos e o histórico ficam no servidor e qualquer navegador usa os mesmos; o app desktop usaria pela API, mas ainda não está compilado",
+        "Dictionary, styles and history live on the server, so every browser and the desktop app (with your session) use the same ones. No phone app yet",
+        "El diccionario, los estilos y el historial viven en el servidor: cualquier navegador y la app de escritorio (con tu sesión) usan los mismos. Todavía sin app para el teléfono",
+        "O dicionário, os estilos e o histórico ficam no servidor: qualquer navegador e o app desktop (com a sua sessão) usam os mesmos. Ainda sem app para o celular",
       ],
     }),
     row('usage-stats', 'apps', ['Usage stats', 'Estadísticas de uso', 'Estatísticas de uso'], 'have', {
@@ -186,9 +186,9 @@ const parity: ProductParity = {
     row('botless-capture', 'capture', ['Record meetings without a bot', 'Grabar reuniones sin bot', 'Gravar reuniões sem bot'], 'partial', {
       weight: 2,
       detail: [
-        "No bot: the browser records your mic, or your mic plus a tab with Meet, Zoom or Teams on the web. The audio of native call apps needs the desktop app, which is on the way",
-        "Sin bot: el navegador graba tu micrófono, o el micrófono y una pestaña con Meet, Zoom o Teams web. El audio de las apps de llamadas nativas necesita la app de escritorio, que está en camino",
-        "Sem bot: o navegador grava seu microfone, ou o microfone e uma aba com Meet, Zoom ou Teams web. O áudio dos apps de chamada nativos precisa do app desktop, que está a caminho",
+        "No bot: the browser records your mic, or your mic plus a tab with Meet, Zoom or Teams on the web. The desktop app adds the system audio of native call apps; its download shows up on /download with the first published release",
+        "Sin bot: el navegador graba tu micrófono, o el micrófono y una pestaña con Meet, Zoom o Teams web. La app de escritorio suma el audio del sistema de las apps de llamadas nativas; se descarga en /download cuando salga la primera versión publicada",
+        "Sem bot: o navegador grava seu microfone, ou o microfone e uma aba com Meet, Zoom ou Teams web. O app desktop adiciona o áudio do sistema dos apps de chamada nativos; o download aparece em /download com a primeira versão publicada",
       ],
     }),
     row('live-transcript', 'capture', ['Live transcript', 'Transcripción en vivo', 'Transcrição ao vivo'], 'have', {

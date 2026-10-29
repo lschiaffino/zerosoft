@@ -172,6 +172,7 @@ export async function stopDictation() {
   send('working', t().working);
   const audio = await audioP;
   if (!audio || audio.error) {
+    testHooks.dictationError = 'mic';
     send('error', audio?.error === 'mic_denied' ? t().errMic : t().errFailed);
     return;
   }

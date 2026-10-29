@@ -449,7 +449,7 @@
     "desktop": {
       "title": "zerosoft para Mac e Windows",
       "desc": "O app de desktop dita em qualquer app do computador e grava reuniões com o áudio do sistema (Zoom, Meet, Teams ou qualquer chamada), sem bot.",
-      "unsigned": "As versões ainda não são assinadas. No Mac, na primeira vez clique com o botão direito no app e escolha Abrir; no Windows, clique em Mais informações e Executar assim mesmo.",
+      "unsigned": "As versões ainda não são assinadas. No Mac, na primeira vez vá em Ajustes do Sistema › Privacidade e Segurança e clique em Abrir Mesmo Assim (macOS 14 ou anterior: botão direito no app e Abrir); no Windows, clique em Mais informações e Executar assim mesmo.",
       "step1": "Baixe o app para o seu computador em",
       "step1Link": "a página de downloads",
       "step2": "Abra e entre com Google: o app abre o seu navegador e volta sozinho.",
