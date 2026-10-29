@@ -19,7 +19,7 @@ const schema = z.object({
 /** Renombrar, elegir herramientas, volver a leer la lista o cambiar el token. */
 export async function PATCH(req: NextRequest, props: Ctx) {
   const { id, sid } = await props.params;
-  const ctx = await agentRouteContext(id, { edit: true });
+  const ctx = await agentRouteContext(id, { admin: true });
   if ('res' in ctx) return ctx.res;
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return agentError(400, 'invalid_input');
@@ -35,7 +35,7 @@ export async function PATCH(req: NextRequest, props: Ctx) {
 
 export async function DELETE(_req: NextRequest, props: Ctx) {
   const { id, sid } = await props.params;
-  const ctx = await agentRouteContext(id, { edit: true });
+  const ctx = await agentRouteContext(id, { admin: true });
   if ('res' in ctx) return ctx.res;
   const servers = await removeMcpServer(ctx.row, sid, ctx.personId);
   if (!servers) return notFound();

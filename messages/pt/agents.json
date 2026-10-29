@@ -261,6 +261,30 @@
       "mcp_call": {
         "name": "Servidores MCP",
         "desc": "Usa as ferramentas dos servidores MCP que você conectar, como Zapier ou sua própria API. As que mudam dados são simuladas no playground e esperam a aprovação de um admin nos canais ao vivo."
+      },
+      "show_buttons": {
+        "name": "Mostrar botões",
+        "desc": "Botões de resposta rápida abaixo de uma resposta (temas, sim ou não, planos). O visitante toca em um para responder."
+      },
+      "show_form": {
+        "name": "Mostrar um formulário",
+        "desc": "Um dos seus formulários dentro do chat (captura de leads, dados de suporte). Pode salvar o contato no CRM."
+      },
+      "run_code": {
+        "name": "Rodar código",
+        "desc": "Suas próprias funções de JavaScript (preços, regras, formatos). Rodam em uma máquina isolada sem rede, até 30 segundos."
+      },
+      "stripe_customer": {
+        "name": "Stripe: cobrança do visitante",
+        "desc": "Assinatura, plano, data de renovação e últimas faturas do visitante identificado (somente leitura)."
+      },
+      "shopify_order": {
+        "name": "Shopify: status do pedido",
+        "desc": "Pagamento, envio e rastreio de um pedido, com o número e o email da compra."
+      },
+      "shopify_products": {
+        "name": "Shopify: buscar produtos",
+        "desc": "Produtos ativos da loja por nome, com preço, estoque e link."
       }
     },
     "groups": {
@@ -270,7 +294,8 @@
       "cal": "Cal",
       "track": "Track",
       "flow": "Flow",
-      "robots": "Robots"
+      "robots": "Robots",
+      "commerce": "Stripe e Shopify"
     },
     "advancedHint": "Requests HTTP para suas próprias APIs",
     "approval": "Pedir que alguém da equipe aprove antes de rodar",
@@ -283,7 +308,10 @@
     "docsPrivatePublic": "Algumas destas páginas estão em um teamspace fechado ou privado, e este agente tem página pública: qualquer pessoa que fale com ele pode receber respostas com o conteúdo delas.",
     "docsHiddenPublic": "Este agente público tem páginas de teamspaces privados que você não pode ver. Qualquer pessoa que fale com ele pode receber respostas com o conteúdo delas.",
     "needsMcp": "Conecte um servidor aqui embaixo.",
-    "approvalMcp": "Pedir a aprovação de um admin em cada chamada, também nas que só leem"
+    "approvalMcp": "Pedir a aprovação de um admin em cada chamada, também nas que só leem",
+    "needsForms": "Primeiro crie um formulário em Instruções > Formulários.",
+    "needsCode": "Adicione pelo menos uma função abaixo.",
+    "formsWhere": "Os formulários são montados em Instruções > Formulários."
   },
   "channels": {
     "chatTitle": "Widgets do Chat",
@@ -317,7 +345,40 @@
     "copied": "Copiado",
     "status": {
       "active": "Ativo"
-    }
+    },
+    "emailTitle": "Email",
+    "emailHint": "O agente responde os emails que chegam ao endereço dos widgets do Chat que ele atende. Encaminhe para lá a sua caixa de suporte. As respostas saem por email na mesma conversa.",
+    "answerEmails": "Responder emails",
+    "emailNotConfigured": "O email de entrada não está configurado neste servidor (CHAT_INBOUND_DOMAIN e Resend Inbound).",
+    "emailNoWidgets": "Atribua o agente a um widget do Chat acima para ter um endereço.",
+    "emailAddress": "Endereço de {widget}",
+    "whatsappTitle": "WhatsApp",
+    "whatsappHint": "Pelos números de WhatsApp conectados no Groups. Você também pode atribuir o agente conversa por conversa no Groups.",
+    "whatsappNoAccess": "Você precisa de acesso ao Groups neste workspace para configurar isto.",
+    "whatsappNoNumber": "Primeiro conecte um número de WhatsApp no Groups.",
+    "openGroups": "Abrir Groups",
+    "whatsappDefault": "Responder as conversas individuais novas",
+    "whatsappOther": "Outro agente responde as conversas novas agora. Ativar isto o substitui.",
+    "whatsappChats": "{count, plural, =0 {Nenhuma conversa atribuída a este agente} one {# conversa atribuída a este agente} other {# conversas atribuídas a este agente}}",
+    "voiceTitle": "Telefone",
+    "voiceHint": "O agente atende as ligações para um número da Twilio: escuta, responde em voz alta e pode passar a ligação para uma pessoa.",
+    "voiceNotConfigured": "O telefone usa a conta da Twilio deste servidor. Peça ao admin da instância para atribuir um número a este workspace (AGENTS_VOICE_NUMBERS).",
+    "voiceNumber": "Número da Twilio",
+    "voiceSave": "Salvar número",
+    "voiceRemove": "Remover número",
+    "voiceWebhook": "Use isto como Voice URL do número na Twilio (POST)",
+    "voiceLanguage": "Idioma",
+    "voiceHandoff": "Passar a ligação para (opcional)",
+    "voiceGreeting": "Saudação",
+    "voiceGreetingPlaceholder": "Olá, você ligou para a Acme. Como posso ajudar?",
+    "slackTitle": "Slack",
+    "slackHint": "O agente responde menções e mensagens diretas no seu workspace do Slack, na mesma conversa.",
+    "slackEvents": "Request URL de Event Subscriptions",
+    "metaTitle": "Messenger e Instagram",
+    "metaHint": "O agente responde as mensagens para a sua página do Facebook e a conta do Instagram dela. Os botões aparecem como respostas rápidas.",
+    "metaWebhook": "Callback URL do webhook",
+    "metaVerify": "Token de verificação",
+    "voiceNoNumber": "Sem número"
   },
   "playground": {
     "intro": "Converse com o agente como um visitante faria. As ferramentas aparecem em linha com entrada e saída.",
@@ -339,7 +400,10 @@
     "handedOffNotice": "Uma pessoa da equipe vai responder por aqui. Você pode continuar escrevendo: ela vai ver suas mensagens.",
     "teammate": "Equipe",
     "simulated": "Simulada",
-    "wouldRun": "Teria executado"
+    "wouldRun": "Teria executado",
+    "formSend": "Enviar",
+    "formRequired": "Preencha os campos obrigatórios.",
+    "formChoose": "Escolha…"
   },
   "conversations": {
     "filter": "Canal",
@@ -448,7 +512,43 @@
     "pdf_too_complex": "O PDF é grande ou complexo demais para ler. Divida ou exporte de novo.",
     "mcp_http_error": "O servidor respondeu com um erro. Revise a URL e o token.",
     "mcp_blocked_url": "Esse endereço não é permitido: use uma URL pública com HTTPS.",
-    "identity_not_verified": "A identidade do visitante não está verificada."
+    "identity_not_verified": "A identidade do visitante não está verificada.",
+    "form_invalid": "Revise o formulário: falta um campo obrigatório ou um valor não é válido.",
+    "form_not_found": "Esse formulário não está mais disponível. Peça de novo.",
+    "invalid_stripe_key": "Cole uma chave secreta ou restrita do Stripe (sk_ ou rk_).",
+    "stripe_auth": "O Stripe recusou a chave.",
+    "stripe_permissions": "A chave não consegue ler clientes. Dê leitura de clientes, assinaturas e faturas.",
+    "invalid_shop": "Escreva a loja como minhaloja.myshopify.com.",
+    "invalid_shopify_token": "Cole o token da Admin API (começa com shpat_).",
+    "shopify_auth": "A Shopify recusou o token.",
+    "shopify_unreachable": "Não conseguimos chegar a essa loja da Shopify.",
+    "invalid_slack_token": "Cole o token do bot (começa com xoxb-).",
+    "invalid_slack_secret": "Cole o signing secret de Basic Information.",
+    "slack_auth": "O Slack recusou o token do bot.",
+    "invalid_meta_token": "Cole o token de acesso da página.",
+    "invalid_meta_secret": "Cole o app secret das configurações do app da Meta.",
+    "meta_auth": "A Meta recusou o token da página.",
+    "unsafe_url": "Esse endereço não é permitido.",
+    "timeout": "O serviço demorou demais. Tente de novo.",
+    "network_error": "Não conseguimos chegar ao serviço. Tente de novo.",
+    "invalid_zendesk": "Escreva o subdomínio do Zendesk (acme ou acme.zendesk.com).",
+    "too_many_sources": "Este agente já tem 3 centrais de ajuda.",
+    "source_exists": "Essa central de ajuda já foi adicionada.",
+    "zendesk_not_found": "Não há uma central de ajuda nesse endereço.",
+    "zendesk_private": "Essa central de ajuda pede login. Só centrais de ajuda públicas podem ser lidas.",
+    "zendesk_unreachable": "Não conseguimos ler essa central de ajuda. Tentamos de novo amanhã, ou use Atualizar.",
+    "groups_access": "Você precisa de acesso ao Groups neste workspace.",
+    "voice_not_configured": "A Twilio não está configurada neste servidor.",
+    "invalid_phone": "Escreva o número com o código do país, como +5511955550123.",
+    "number_not_in_account": "Esse número não está na conta da Twilio deste servidor.",
+    "number_taken": "Outro agente já atende esse número.",
+    "ab_needs_versions": "Publique o agente primeiro para fazer um teste.",
+    "ab_same_version": "Escolha uma versão diferente da publicada.",
+    "invalid_person": "Essa pessoa não está neste workspace.",
+    "admin_always_edits": "Admins e owners sempre editam todos os agentes.",
+    "code_unavailable": "O código não está disponível neste servidor.",
+    "number_not_assigned": "Esse número não está atribuído a este workspace.",
+    "tool_app_access": "Você só pode ativar ferramentas de apps que tem neste workspace."
   },
   "public": {
     "subtitle": "Assistente de AI",
@@ -677,7 +777,20 @@
       "mcp_add": "Conectou o servidor MCP {server}",
       "mcp_edit": "Mudou o servidor MCP {server}",
       "mcp_remove": "Desconectou o servidor MCP {server}",
-      "secret_changed": "Mudou um header secreto"
+      "secret_changed": "Mudou um header secreto",
+      "ab_started": "Começou um teste A/B com a versão {number} ({percent}% das conversas novas)",
+      "ab_stopped": "Encerrou o teste A/B com a versão {number}",
+      "access_changed": "Mudou quem vê ou edita o agente",
+      "integration_changed": "Mudou uma conexão",
+      "source_changed": "Mudou uma central de ajuda",
+      "voice_changed": "Mudou o número de telefone",
+      "ab_promoted": "Encerrou o teste A/B e colocou a versão {number} no ar",
+      "integration_connect": "Conectou {name}",
+      "integration_disconnect": "Desconectou {name}",
+      "source_add": "Adicionou a central de ajuda {source}",
+      "source_remove": "Removeu a central de ajuda {source}",
+      "voice_set": "Atribuiu um número de telefone",
+      "voice_removed": "Removeu o número de telefone"
     },
     "publishTitle": "Publicar a versão {number}",
     "publishFirstTitle": "Publicar a versão 1",
@@ -777,7 +890,9 @@
     "scorecardPlaceholder": "Cumprimenta o visitante pelo nome\nOferece uma reunião quando perguntam sobre preços",
     "scorecardHelp": "Um por linha, até 10.",
     "aiScoring": "Pontuar as conversas com IA",
-    "aiScoringHint": "Desligado por padrão. Ligado, cada conversa é pontuada meia hora depois que para, até 300 por dia, e usa a cota de IA do workspace."
+    "aiScoringHint": "Desligado por padrão. Ligado, cada conversa é pontuada meia hora depois que para, até 300 por dia, e usa a cota de IA do workspace.",
+    "redactNames": "Ocultar também nomes e endereços (IA)",
+    "redactNamesHint": "Com a ocultação ativa, a IA encontra nomes de pessoas e endereços no que os visitantes escreveram e também os oculta. Gasta tokens de IA."
   },
   "rules": {
     "check": "Revisar regras",
@@ -851,5 +966,209 @@
       "same": "Igual",
       "worse": "Pior"
     }
+  },
+  "procedures": {
+    "title": "Procedimentos",
+    "hint": "Fluxos passo a passo que o agente segue em ordem, com perguntas, ramificações e ações. Começa com uma palavra-chave ou quando o agente reconhece o caso. O visitante pode escrever “cancelar” para sair.",
+    "empty": "Ainda não há procedimentos.",
+    "add": "Adicionar procedimento",
+    "newName": "Novo procedimento",
+    "firstQuestion": "Com qual email você comprou?",
+    "lastMessage": "Obrigado, já temos tudo o que precisamos.",
+    "untitled": "Procedimento sem nome",
+    "remove": "Remover",
+    "name": "Nome",
+    "keywords": "Palavras que o iniciam",
+    "keywordsPlaceholder": "reembolso, devolução",
+    "trigger": "Quando usar",
+    "triggerPlaceholder": "O visitante quer o reembolso de um pedido",
+    "triggerHint": "O agente lê isto para decidir quando começar. As palavras-chave o iniciam na hora.",
+    "steps": "Passos",
+    "addStep": "Adicionar passo",
+    "kind": "Passo",
+    "kinds": {
+      "message": "Dizer uma mensagem",
+      "ask": "Perguntar e esperar",
+      "form": "Mostrar um formulário",
+      "branch": "Se… ir para",
+      "action": "Rodar uma ferramenta",
+      "handoff": "Transferir para uma pessoa",
+      "end": "Terminar"
+    },
+    "resultVar": "Salvar resultado como",
+    "saveAs": "Salvar resposta como",
+    "up": "Subir",
+    "down": "Descer",
+    "removeStep": "Remover passo",
+    "question": "Pergunta",
+    "handoffReason": "Motivo para a equipe",
+    "message": "Mensagem",
+    "answerType": "Resposta",
+    "answerTypes": {
+      "text": "Qualquer texto",
+      "email": "Email",
+      "phone": "Telefone",
+      "number": "Número",
+      "choice": "Um dos botões"
+    },
+    "buttons": "Botões (opcional)",
+    "buttonsPlaceholder": "Sim, Não",
+    "form": "Formulário",
+    "ifVar": "Se",
+    "op": "Condição",
+    "ops": {
+      "equals": "é",
+      "not_equals": "não é",
+      "contains": "contém",
+      "exists": "tem valor",
+      "missing": "está vazio",
+      "gt": "é maior que",
+      "lt": "é menor que"
+    },
+    "value": "Valor",
+    "goto": "Ir para",
+    "stepN": "Passo {n}: {kind}",
+    "tool": "Ferramenta",
+    "args": "Dados",
+    "argsHint": "Um por linha: nome = valor. Use '{{variavel}}' para as respostas salvas e '{{resultado.campo}}' para o que uma ferramenta retornou.",
+    "issues": {
+      "bad_goto": "Este passo pula para um passo que não existe mais.",
+      "ask_needs_field": "Dê um nome à variável onde a resposta é salva.",
+      "tool_off": "Escolha uma ferramenta e ative-a na aba Ferramentas.",
+      "form_missing": "Escolha um formulário (crie em Formulários).",
+      "branch_needs_condition": "Complete a condição e o passo para onde vai.",
+      "duplicate_id": "Dois passos têm o mesmo id.",
+      "loop": "Este passo volta atrás sem uma pergunta no meio: se repetiria sem fim."
+    }
+  },
+  "forms": {
+    "title": "Formulários",
+    "hint": "Formulários que o agente pode mostrar dentro do chat, ou como passo de um procedimento. Com “Salvar no CRM”, cada envio cria ou atualiza o contato com uma nota.",
+    "empty": "Ainda não há formulários.",
+    "untitled": "Formulário sem nome",
+    "remove": "Remover",
+    "name": "Nome",
+    "formTitle": "Título exibido",
+    "saveToCrm": "Salvar no CRM",
+    "needsEmail": "Adicione um campo de email para salvar o contato.",
+    "fields": "Campos",
+    "label": "Rótulo",
+    "key": "Chave",
+    "type": "Tipo",
+    "types": {
+      "text": "Texto",
+      "email": "Email",
+      "phone": "Telefone",
+      "number": "Número",
+      "select": "Lista",
+      "textarea": "Texto longo"
+    },
+    "options": "Opções (separadas por vírgula)",
+    "required": "Obrigatório",
+    "removeField": "Remover campo",
+    "newField": "Novo campo",
+    "addField": "Adicionar campo",
+    "add": "Adicionar formulário",
+    "newName": "Dados de contato",
+    "nameField": "Nome"
+  },
+  "code": {
+    "unavailable": "O código roda no Vercel Sandbox. Neste servidor ele não está configurado, então as chamadas retornam code_unavailable.",
+    "empty": "Ainda não há funções.",
+    "remove": "Remover",
+    "name": "Nome da função",
+    "params": "Parâmetros (nome:tipo)",
+    "description": "O que faz (o agente lê isto)",
+    "code": "Código",
+    "codeHint": "O corpo de uma função async que recebe input com os parâmetros e retorna JSON. Sem acesso à rede.",
+    "add": "Adicionar função"
+  },
+  "integrations": {
+    "adminsOnly": "Só admins e owners podem conectar serviços.",
+    "disconnectConfirm": "Desconectar {name}? O agente deixa de usar na hora.",
+    "names": {
+      "stripe": "Stripe",
+      "shopify": "Shopify",
+      "slack": "Slack",
+      "meta": "Messenger e Instagram"
+    },
+    "disconnect": "Desconectar",
+    "connect": "Conectar",
+    "on": "Conectado",
+    "off": "Não conectado",
+    "stripeOn": "Chave {mode} terminada em {last4}",
+    "slackOn": "Token do bot terminado em {last4}",
+    "hints": {
+      "stripe": "Use uma chave restrita com leitura de clientes, assinaturas e faturas.",
+      "shopify": "Crie um app personalizado no admin da Shopify com leitura de pedidos e produtos, e cole o token da Admin API.",
+      "slack": "Crie um app do Slack com bot (app_mentions:read, im:history, chat:write), instale-o e cole o token do bot e o signing secret.",
+      "meta": "No seu app da Meta, gere um token de acesso da página (pages_messaging, e instagram_manage_messages para o Instagram) e cole-o com o app secret."
+    },
+    "fields": {
+      "key": "Chave secreta",
+      "shop": "Loja",
+      "token": "Token da Admin API",
+      "botToken": "Token do bot",
+      "signingSecret": "Signing secret",
+      "pageToken": "Token de acesso da página",
+      "appSecret": "App secret"
+    },
+    "testing": "Verificando…",
+    "save": "Salvar"
+  },
+  "sources": {
+    "title": "Central de ajuda do Zendesk",
+    "hint": "Artigos de uma central de ajuda pública do Zendesk, lidos em segundo plano e atualizados todo dia. Até 3 centrais de ajuda.",
+    "empty": "Ainda não há centrais de ajuda.",
+    "reading": "Lendo artigos…",
+    "articles": "{count, plural, one {# artigo} other {# artigos}}",
+    "zendesk": "Subdomínio do Zendesk",
+    "add": "Adicionar",
+    "docsImport": "Notion e Confluence entram pelo Docs: importe-os e as páginas funcionam como conhecimento.",
+    "importNotion": "Importar do Notion",
+    "importConfluence": "Importar do Confluence"
+  },
+  "semantic": {
+    "title": "Busca semântica",
+    "hint": "Encontra o trecho certo mesmo quando a pergunta usa outras palavras. Indexar gasta tokens de IA; enquanto indexa, a busca continua por palavras-chave.",
+    "toggle": "Usar busca semântica",
+    "nothing": "Ainda não há nada para indexar.",
+    "progress": "{indexed} de {total} trechos indexados."
+  },
+  "ab": {
+    "title": "Teste A/B",
+    "hint": "Uma versão salva atende parte das conversas novas e o resto continua com a publicada. Compare as duas e fique com a melhor.",
+    "needsVersions": "Publique pelo menos duas versões para fazer um teste.",
+    "running": "A versão {number} atende {percent}% das conversas novas desde {since}.",
+    "variant": "Versão",
+    "conversations": "Conversas",
+    "resolution": "Resolvidas",
+    "handoffs": "Transferências",
+    "thumbs": "Polegares para cima / baixo",
+    "a": "A: publicada",
+    "b": "B: v{number}",
+    "promote": "Colocar B no ar",
+    "stop": "Encerrar teste",
+    "promoteConfirm": "Colocar a versão {number} no ar para todos e encerrar o teste?",
+    "stopConfirm": "Encerrar o teste? Todas as conversas novas voltam para a versão publicada.",
+    "noVersions": "Ainda não há outra versão salva para testar.",
+    "versionB": "Versão B",
+    "percent": "% das conversas novas",
+    "start": "Começar teste",
+    "none": "Nenhum teste em andamento."
+  },
+  "access": {
+    "title": "Quem vê e quem edita",
+    "hint": "Admins e owners editam todos os agentes. Os membros veem os agentes em somente leitura, a menos que você mude aqui. Segredos, servidores MCP e conexões continuam com os admins.",
+    "members": "Membros por padrão",
+    "levels": {
+      "viewer": "Pode ver",
+      "none": "Sem acesso",
+      "editor": "Pode editar"
+    },
+    "adminEdits": "Edita (admin)",
+    "noApp": "Sem Agents neste workspace",
+    "personLabel": "Acesso de {name}",
+    "default": "Padrão ({level})"
   }
 }

@@ -577,7 +577,10 @@
     "pastConversation": "Conversación anterior",
     "allConversations": "Todas las conversaciones",
     "writeToContinue": "Para seguir, escribí en el chat.",
-    "reply": "Responder"
+    "reply": "Responder",
+    "agentFormSend": "Enviar",
+    "agentFormRequired": "Completá los campos obligatorios.",
+    "agentFormChoose": "Elegí…"
   },
   "bulk": {
     "label": "Acciones en lote",

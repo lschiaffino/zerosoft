@@ -58,6 +58,11 @@ export interface GroupsSettings {
   slaEmailExtra: string[];
   /** Idioma de los emails del workspace (el de quien guardó los ajustes). */
   locale: 'en' | 'es' | 'pt';
+  /**
+   * Agente de Agents que contesta los chats 1 a 1 nuevos que no tienen agente
+   * ni persona asignada (se configura desde Agents > Canales). null: ninguno.
+   */
+  defaultAgentId: string | null;
 }
 
 export const DEFAULT_SETTINGS: GroupsSettings = {
@@ -75,6 +80,7 @@ export const DEFAULT_SETTINGS: GroupsSettings = {
   slaEmailAdmins: false,
   slaEmailExtra: [],
   locale: 'en',
+  defaultAgentId: null,
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -126,6 +132,7 @@ export function normalizeSettings(raw: unknown): GroupsSettings {
     slaEmailAdmins: r.slaEmailAdmins === true,
     slaEmailExtra: parseEmails(r.slaEmailExtra),
     locale: r.locale === 'es' || r.locale === 'pt' ? r.locale : 'en',
+    defaultAgentId: typeof r.defaultAgentId === 'string' && /^[A-Za-z0-9-]{1,100}$/.test(r.defaultAgentId) ? r.defaultAgentId : null,
   };
 }
 

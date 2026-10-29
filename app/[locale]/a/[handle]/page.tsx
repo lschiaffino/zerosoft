@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { getAgentByHandle } from '@/lib/agents';
-import { aiEnabled } from '@/lib/ai';
+import { agentsAiEnabled } from '@/lib/agents-ai';
 import PublicAgentChat from '@/components/agents/PublicAgentChat';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import '@/styles/agents.css';
@@ -36,7 +36,7 @@ export default async function PublicAgentPage(props: Props) {
       <PublicAgentChat
         handle={agent.public_handle ?? handle}
         welcome={agent.welcome_message || t('public.defaultWelcome')}
-        offline={!aiEnabled()}
+        offline={!(await agentsAiEnabled())}
       />
       <p className="ag-public-foot ui-help">{t('public.disclaimer')}</p>
     </main>

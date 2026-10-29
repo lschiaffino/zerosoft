@@ -261,6 +261,30 @@
       "mcp_call": {
         "name": "MCP servers",
         "desc": "Use the tools of MCP servers you connect, like Zapier or your own API. Tools that change data are simulated in the playground and wait for an admin’s approval in live channels."
+      },
+      "show_buttons": {
+        "name": "Show buttons",
+        "desc": "Quick-reply buttons under a reply (topics, yes or no, plans). The visitor taps one to answer."
+      },
+      "show_form": {
+        "name": "Show a form",
+        "desc": "One of your forms inside the chat (lead capture, support details). Can save the contact in the CRM."
+      },
+      "run_code": {
+        "name": "Run code",
+        "desc": "Your own JavaScript functions (prices, rules, formats). They run in an isolated machine with no network, up to 30 seconds."
+      },
+      "stripe_customer": {
+        "name": "Stripe: billing of the visitor",
+        "desc": "Subscription, plan, renewal date and recent invoices of the identified visitor (read only)."
+      },
+      "shopify_order": {
+        "name": "Shopify: order status",
+        "desc": "Payment, shipping and tracking of an order, with its number and the email of the purchase."
+      },
+      "shopify_products": {
+        "name": "Shopify: product search",
+        "desc": "Active products of the store by name, with price, stock and link."
       }
     },
     "groups": {
@@ -270,7 +294,8 @@
       "cal": "Cal",
       "track": "Track",
       "flow": "Flow",
-      "robots": "Robots"
+      "robots": "Robots",
+      "commerce": "Stripe and Shopify"
     },
     "advancedHint": "HTTP requests to your own APIs",
     "approval": "Ask a teammate to approve before it runs",
@@ -283,7 +308,10 @@
     "docsPrivatePublic": "Some of these pages are in a closed or private teamspace, and this agent has a public page: anyone who talks to it can get answers from them.",
     "docsHiddenPublic": "This public agent has pages in private teamspaces you cannot see. Anyone who talks to it can get answers from them.",
     "needsMcp": "Connect a server below.",
-    "approvalMcp": "Ask an admin to approve every call, including the ones that only read"
+    "approvalMcp": "Ask an admin to approve every call, including the ones that only read",
+    "needsForms": "Create a form under Instructions > Forms first.",
+    "needsCode": "Add at least one function below.",
+    "formsWhere": "The forms are set up under Instructions > Forms."
   },
   "channels": {
     "chatTitle": "Chat widgets",
@@ -317,7 +345,40 @@
     "copied": "Copied",
     "status": {
       "active": "Active"
-    }
+    },
+    "emailTitle": "Email",
+    "emailHint": "The agent answers emails that arrive at the address of the Chat widgets it serves. Forward your support inbox there. Replies go out by email in the same thread.",
+    "answerEmails": "Answer emails",
+    "emailNotConfigured": "Incoming email is not set up on this server (CHAT_INBOUND_DOMAIN and Resend Inbound).",
+    "emailNoWidgets": "Assign the agent to a Chat widget above to get an address.",
+    "emailAddress": "Address of {widget}",
+    "whatsappTitle": "WhatsApp",
+    "whatsappHint": "Through the WhatsApp numbers connected in Groups. You can also assign the agent chat by chat from Groups.",
+    "whatsappNoAccess": "You need access to Groups in this workspace to set this up.",
+    "whatsappNoNumber": "Connect a WhatsApp number in Groups first.",
+    "openGroups": "Open Groups",
+    "whatsappDefault": "Answer new one-to-one chats",
+    "whatsappOther": "Another agent answers new chats now. Turning this on replaces it.",
+    "whatsappChats": "{count, plural, =0 {No chats assigned to this agent} one {# chat assigned to this agent} other {# chats assigned to this agent}}",
+    "voiceTitle": "Phone",
+    "voiceHint": "The agent answers calls to a Twilio number: it listens, replies out loud and can transfer to a person.",
+    "voiceNotConfigured": "Phone uses the Twilio account of this server. Ask the instance admin to assign a number to this workspace (AGENTS_VOICE_NUMBERS).",
+    "voiceNumber": "Twilio number",
+    "voiceSave": "Save number",
+    "voiceRemove": "Remove number",
+    "voiceWebhook": "Set this as the number’s Voice URL in Twilio (POST)",
+    "voiceLanguage": "Language",
+    "voiceHandoff": "Transfer to (optional)",
+    "voiceGreeting": "Greeting",
+    "voiceGreetingPlaceholder": "Hi, you reached Acme. How can I help?",
+    "slackTitle": "Slack",
+    "slackHint": "The agent answers mentions and direct messages in your Slack workspace, in the same thread.",
+    "slackEvents": "Request URL for Event Subscriptions",
+    "metaTitle": "Messenger and Instagram",
+    "metaHint": "The agent answers messages to your Facebook Page and its Instagram account. Buttons show as quick replies.",
+    "metaWebhook": "Callback URL of the webhook",
+    "metaVerify": "Verify token",
+    "voiceNoNumber": "No number"
   },
   "playground": {
     "intro": "Talk to the agent as a visitor would. Tool calls show inline with their input and output.",
@@ -339,7 +400,10 @@
     "handedOffNotice": "A person from the team will reply here. You can keep writing; they will see your messages.",
     "teammate": "Team",
     "simulated": "Simulated",
-    "wouldRun": "Would have run"
+    "wouldRun": "Would have run",
+    "formSend": "Send",
+    "formRequired": "Fill in the required fields.",
+    "formChoose": "Choose…"
   },
   "conversations": {
     "filter": "Channel",
@@ -448,7 +512,43 @@
     "pdf_too_complex": "The PDF is too large or complex to read. Split it or export it again.",
     "mcp_http_error": "The server answered with an error. Check the URL and the token.",
     "mcp_blocked_url": "That address is not allowed: use a public HTTPS URL.",
-    "identity_not_verified": "The visitor’s identity is not verified."
+    "identity_not_verified": "The visitor’s identity is not verified.",
+    "form_invalid": "Check the form: a required field is empty or a value is not valid.",
+    "form_not_found": "That form is no longer available. Ask again.",
+    "invalid_stripe_key": "Paste a Stripe secret or restricted key (sk_ or rk_).",
+    "stripe_auth": "Stripe rejected the key.",
+    "stripe_permissions": "The key cannot read customers. Give it read access to customers, subscriptions and invoices.",
+    "invalid_shop": "Enter the store as mystore.myshopify.com.",
+    "invalid_shopify_token": "Paste the Admin API token (it starts with shpat_).",
+    "shopify_auth": "Shopify rejected the token.",
+    "shopify_unreachable": "Could not reach that Shopify store.",
+    "invalid_slack_token": "Paste the bot token (it starts with xoxb-).",
+    "invalid_slack_secret": "Paste the signing secret from Basic Information.",
+    "slack_auth": "Slack rejected the bot token.",
+    "invalid_meta_token": "Paste the Page access token.",
+    "invalid_meta_secret": "Paste the app secret from the Meta app settings.",
+    "meta_auth": "Meta rejected the Page token.",
+    "unsafe_url": "That address is not allowed.",
+    "timeout": "The service took too long. Try again.",
+    "network_error": "Could not reach the service. Try again.",
+    "invalid_zendesk": "Enter the Zendesk subdomain (acme or acme.zendesk.com).",
+    "too_many_sources": "This agent already has 3 help centers.",
+    "source_exists": "That help center is already added.",
+    "zendesk_not_found": "No help center at that address.",
+    "zendesk_private": "That help center needs sign in. Only public help centers can be read.",
+    "zendesk_unreachable": "Could not read that help center. It retries tomorrow, or use Refresh.",
+    "groups_access": "You need access to Groups in this workspace.",
+    "voice_not_configured": "Twilio is not set up on this server.",
+    "invalid_phone": "Enter the number with its country code, like +14155550123.",
+    "number_not_in_account": "That number is not in the Twilio account of this server.",
+    "number_taken": "Another agent already answers that number.",
+    "ab_needs_versions": "Publish the agent first to run a test.",
+    "ab_same_version": "Pick a version other than the live one.",
+    "invalid_person": "That person is not in this workspace.",
+    "admin_always_edits": "Admins and owners always edit every agent.",
+    "code_unavailable": "Code is not available on this server.",
+    "number_not_assigned": "That number is not assigned to this workspace.",
+    "tool_app_access": "You can only turn on tools of apps you have in this workspace."
   },
   "public": {
     "subtitle": "AI assistant",
@@ -677,7 +777,20 @@
       "mcp_add": "Connected the MCP server {server}",
       "mcp_edit": "Changed the MCP server {server}",
       "mcp_remove": "Disconnected the MCP server {server}",
-      "secret_changed": "Changed a secret header"
+      "secret_changed": "Changed a secret header",
+      "ab_started": "Started an A/B test with version {number} ({percent}% of new conversations)",
+      "ab_stopped": "Ended the A/B test with version {number}",
+      "access_changed": "Changed who can see or edit the agent",
+      "integration_changed": "Changed a connection",
+      "source_changed": "Changed a help center source",
+      "voice_changed": "Changed the phone number",
+      "ab_promoted": "Ended the A/B test and put version {number} live",
+      "integration_connect": "Connected {name}",
+      "integration_disconnect": "Disconnected {name}",
+      "source_add": "Added the help center {source}",
+      "source_remove": "Removed the help center {source}",
+      "voice_set": "Assigned a phone number",
+      "voice_removed": "Removed the phone number"
     },
     "publishTitle": "Publish version {number}",
     "publishFirstTitle": "Publish version 1",
@@ -777,7 +890,9 @@
     "scorecardPlaceholder": "Greets the visitor by name\nOffers a meeting when the visitor asks about pricing",
     "scorecardHelp": "One per line, up to 10.",
     "aiScoring": "Score conversations with AI",
-    "aiScoringHint": "Off by default. When on, each conversation is scored half an hour after it goes quiet, up to 300 per day, and it uses the workspace AI quota."
+    "aiScoringHint": "Off by default. When on, each conversation is scored half an hour after it goes quiet, up to 300 per day, and it uses the workspace AI quota.",
+    "redactNames": "Also redact names and addresses (AI)",
+    "redactNamesHint": "With redaction on, AI finds names of people and street addresses in what visitors wrote and covers them too. Uses AI tokens."
   },
   "rules": {
     "check": "Check rules",
@@ -851,5 +966,209 @@
       "same": "Same",
       "worse": "Worse"
     }
+  },
+  "procedures": {
+    "title": "Procedures",
+    "hint": "Step-by-step flows the agent follows in order, with questions, branches and actions. It starts with a keyword or when the agent recognizes the case. The visitor can write “cancel” to leave it.",
+    "empty": "No procedures yet.",
+    "add": "Add procedure",
+    "newName": "New procedure",
+    "firstQuestion": "What email did you use?",
+    "lastMessage": "Thanks, we have everything we need.",
+    "untitled": "Untitled procedure",
+    "remove": "Remove",
+    "name": "Name",
+    "keywords": "Start keywords",
+    "keywordsPlaceholder": "refund, return",
+    "trigger": "When to use it",
+    "triggerPlaceholder": "The visitor wants a refund for an order",
+    "triggerHint": "The agent reads this to decide when to start. Keywords start it right away.",
+    "steps": "Steps",
+    "addStep": "Add step",
+    "kind": "Step",
+    "kinds": {
+      "message": "Say a message",
+      "ask": "Ask and wait",
+      "form": "Show a form",
+      "branch": "If… go to",
+      "action": "Run a tool",
+      "handoff": "Hand off to a person",
+      "end": "End"
+    },
+    "resultVar": "Save result as",
+    "saveAs": "Save answer as",
+    "up": "Move up",
+    "down": "Move down",
+    "removeStep": "Remove step",
+    "question": "Question",
+    "handoffReason": "Reason for the team",
+    "message": "Message",
+    "answerType": "Answer",
+    "answerTypes": {
+      "text": "Any text",
+      "email": "Email",
+      "phone": "Phone",
+      "number": "Number",
+      "choice": "One of the buttons"
+    },
+    "buttons": "Buttons (optional)",
+    "buttonsPlaceholder": "Yes, No",
+    "form": "Form",
+    "ifVar": "If",
+    "op": "Condition",
+    "ops": {
+      "equals": "is",
+      "not_equals": "is not",
+      "contains": "contains",
+      "exists": "has a value",
+      "missing": "is empty",
+      "gt": "is more than",
+      "lt": "is less than"
+    },
+    "value": "Value",
+    "goto": "Go to",
+    "stepN": "Step {n}: {kind}",
+    "tool": "Tool",
+    "args": "Inputs",
+    "argsHint": "One per line: name = value. Use '{{variable}}' for saved answers and '{{result.field}}' for tool results.",
+    "issues": {
+      "bad_goto": "This step jumps to a step that no longer exists.",
+      "ask_needs_field": "Name the variable where the answer is saved.",
+      "tool_off": "Pick a tool and turn it on in the Tools tab.",
+      "form_missing": "Pick a form (create it under Forms).",
+      "branch_needs_condition": "Complete the condition and the step to go to.",
+      "duplicate_id": "Two steps share the same id.",
+      "loop": "This step jumps back without a question in between: it would repeat forever."
+    }
+  },
+  "forms": {
+    "title": "Forms",
+    "hint": "Forms the agent can show inside the chat, or as a procedure step. With “Save in the CRM”, each submission creates or updates the contact with a note.",
+    "empty": "No forms yet.",
+    "untitled": "Untitled form",
+    "remove": "Remove",
+    "name": "Name",
+    "formTitle": "Title shown",
+    "saveToCrm": "Save in the CRM",
+    "needsEmail": "Add an email field to save the contact.",
+    "fields": "Fields",
+    "label": "Label",
+    "key": "Key",
+    "type": "Type",
+    "types": {
+      "text": "Text",
+      "email": "Email",
+      "phone": "Phone",
+      "number": "Number",
+      "select": "List",
+      "textarea": "Long text"
+    },
+    "options": "Options (comma separated)",
+    "required": "Required",
+    "removeField": "Remove field",
+    "newField": "New field",
+    "addField": "Add field",
+    "add": "Add form",
+    "newName": "Contact details",
+    "nameField": "Name"
+  },
+  "code": {
+    "unavailable": "Code runs in Vercel Sandbox. On this server it is not set up, so calls return code_unavailable.",
+    "empty": "No functions yet.",
+    "remove": "Remove",
+    "name": "Function name",
+    "params": "Parameters (name:type)",
+    "description": "What it does (the agent reads this)",
+    "code": "Code",
+    "codeHint": "The body of an async function that receives input with the parameters and returns JSON. No network access.",
+    "add": "Add function"
+  },
+  "integrations": {
+    "adminsOnly": "Only admins and owners can connect services.",
+    "disconnectConfirm": "Disconnect {name}? The agent stops using it right away.",
+    "names": {
+      "stripe": "Stripe",
+      "shopify": "Shopify",
+      "slack": "Slack",
+      "meta": "Messenger and Instagram"
+    },
+    "disconnect": "Disconnect",
+    "connect": "Connect",
+    "on": "Connected",
+    "off": "Not connected",
+    "stripeOn": "{mode} key ending in {last4}",
+    "slackOn": "Bot token ending in {last4}",
+    "hints": {
+      "stripe": "Use a restricted key with read access to customers, subscriptions and invoices.",
+      "shopify": "Create a custom app in your Shopify admin with read access to orders and products, and paste its Admin API token.",
+      "slack": "Create a Slack app with a bot (app_mentions:read, im:history, chat:write), install it and paste the bot token and the signing secret.",
+      "meta": "In your Meta app, generate a Page access token (pages_messaging, and instagram_manage_messages for Instagram) and paste it with the app secret."
+    },
+    "fields": {
+      "key": "Secret key",
+      "shop": "Store",
+      "token": "Admin API token",
+      "botToken": "Bot token",
+      "signingSecret": "Signing secret",
+      "pageToken": "Page access token",
+      "appSecret": "App secret"
+    },
+    "testing": "Checking…",
+    "save": "Save"
+  },
+  "sources": {
+    "title": "Zendesk help center",
+    "hint": "Articles of a public Zendesk help center, read in the background and refreshed every day. Up to 3 help centers.",
+    "empty": "No help centers yet.",
+    "reading": "Reading articles…",
+    "articles": "{count, plural, one {# article} other {# articles}}",
+    "zendesk": "Zendesk subdomain",
+    "add": "Add",
+    "docsImport": "Notion and Confluence come in through Docs: import them and their pages work as knowledge.",
+    "importNotion": "Import from Notion",
+    "importConfluence": "Import from Confluence"
+  },
+  "semantic": {
+    "title": "Semantic search",
+    "hint": "Finds the right passage even when the question uses other words. Indexing uses AI tokens; search keeps working by keywords while it indexes.",
+    "toggle": "Use semantic search",
+    "nothing": "Nothing to index yet.",
+    "progress": "{indexed} of {total} passages indexed."
+  },
+  "ab": {
+    "title": "A/B test",
+    "hint": "A saved version answers part of the new conversations and the rest keep the live one. Compare them and keep the better one.",
+    "needsVersions": "Publish at least two versions to run a test.",
+    "running": "Version {number} answers {percent}% of new conversations since {since}.",
+    "variant": "Version",
+    "conversations": "Conversations",
+    "resolution": "Resolved",
+    "handoffs": "Handoffs",
+    "thumbs": "Thumbs up / down",
+    "a": "A: live",
+    "b": "B: v{number}",
+    "promote": "Put B live",
+    "stop": "End test",
+    "promoteConfirm": "Put version {number} live for everyone and end the test?",
+    "stopConfirm": "End the test? All new conversations go back to the live version.",
+    "noVersions": "There is no other saved version to test yet.",
+    "versionB": "Version B",
+    "percent": "% of new conversations",
+    "start": "Start test",
+    "none": "No test running."
+  },
+  "access": {
+    "title": "Who can see and edit",
+    "hint": "Admins and owners edit every agent. Members see agents read only unless you change it here. Secrets, MCP servers and connections stay with admins.",
+    "members": "Members by default",
+    "levels": {
+      "viewer": "Can view",
+      "none": "No access",
+      "editor": "Can edit"
+    },
+    "adminEdits": "Edits (admin)",
+    "noApp": "Without Agents in this workspace",
+    "personLabel": "Access for {name}",
+    "default": "Default ({level})"
   }
 }
