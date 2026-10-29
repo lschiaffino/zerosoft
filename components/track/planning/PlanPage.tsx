@@ -71,7 +71,8 @@ export default function PlanPage({ planId }: { planId: string }) {
     if (next === 'overview') q.delete('tab');
     else q.set('tab', next);
     q.delete('new');
-    router.replace(`/app/track/projects/${planId}${q.toString() ? `?${q}` : ''}`);
+    // Cambiar de pestaña no mueve el scroll (si no, el título queda bajo la banda).
+    router.replace(`/app/track/projects/${planId}${q.toString() ? `?${q}` : ''}`, { scroll: false });
   };
 
   const patch = async (body: Record<string, unknown>) => {
@@ -205,7 +206,7 @@ export default function PlanPage({ planId }: { planId: string }) {
 
       <aside className="tp-plan-side" aria-label={t('plan.properties')}>
         <Properties plan={plan} onPatch={patch} following={data.following} onFollow={follow} />
-        <button type="button" className="btn btn-sm btn-ghost tp-danger-link" onClick={() => setConfirmDelete(true)} data-testid="tp-plan-delete">
+        <button type="button" className="btn btn-sm btn-danger tp-danger-link" onClick={() => setConfirmDelete(true)} data-testid="tp-plan-delete">
           {t('plan.delete')}
         </button>
       </aside>
