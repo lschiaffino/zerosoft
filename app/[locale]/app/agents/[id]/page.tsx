@@ -4,15 +4,16 @@ import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/session';
 import { getDb } from '@/lib/db';
 import { aiKnowledgeFilterSql, hiddenTeamspaceIds, teamspaceFilterSql } from '@/lib/docs-access';
-import { getAgentRow, listKnowledgeUrls, listSecretHeaders, listWorkspaceWidgets, toAgentDto } from '@/lib/agents';
+import { listKnowledgeUrls, listSecretHeaders, listWorkspaceWidgets, toAgentDto } from '@/lib/agents';
 import { listTestCases } from '@/lib/agents-tests';
-import { canEditAgents } from '@/lib/agents-http';
+import { canEditAgent, canEditAgents, visibleAgentRow } from '@/lib/agents-http';
 import { agentsAiEnabled } from '@/lib/agents-ai';
 import { withDraft } from '@/lib/agents-draft';
 import { versioningMeta } from '@/lib/agents-versions';
 import { listKnowledgeFiles, listQa, sitemapStatus } from '@/lib/agents-knowledge';
 import { listMcpServers } from '@/lib/agents-mcp';
 import AgentEditor from '@/components/agents/AgentEditor';
+import { agentCodeAvailable } from '@/lib/agents-code';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,11 +34,13 @@ export default async function AgentEditorPage(props: {
   const { locale, id } = await props.params;
   const search = await props.searchParams;
   const user = await requireUser(locale);
-  const row = await getAgentRow(user.id, id);
+  const row = await visibleAgentRow(user, id);
   if (!row) notFound();
   // El editor trabaja sobre el borrador (con versiones) o lo guardado.
   const agent = toAgentDto(withDraft(row));
-  const canEdit = canEditAgents(user);
+  // Editar este agente (admins y editores del agente); secretos, MCP y conexiones, solo admins.
+  const canEdit = canEditAgent(user, row);
+  const isAdmin = canEditAgents(user);
   const db = getDb();
   const [urls, widgets, docsPages, eventTypes, projects, flows, robots, tests] = await Promise.all([
     listKnowledgeUrls(id),
@@ -85,13 +88,15 @@ export default async function AgentEditorPage(props: {
       flows={flows}
       robots={robots}
       canEdit={canEdit}
-      secretHeaders={canEdit ? listSecretHeaders(row) : []}
+      secretHeaders={isAdmin ? listSecretHeaders(row) : []}
       tests={tests}
       versioning={versioning}
       files={files}
       qa={qa}
       sitemaps={sitemaps}
-      mcpServers={canEdit ? listMcpServers(row) : []}
+      mcpServers={isAdmin ? listMcpServers(row) : []}
+      isAdmin={isAdmin}
+      codeAvailable={agentCodeAvailable()}
       aiEnabled={await agentsAiEnabled()}
       origin={await requestOrigin()}
       initialTab={search.tab}

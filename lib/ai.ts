@@ -1,4 +1,5 @@
 import {
+  embedMany,
   generateText,
   Output,
   streamText,
@@ -339,6 +340,43 @@ export async function aiStreamText(opts: AiCallOptions) {
       await recordFromUsage(opts.workspaceId, opts.feature, modelId, totalUsage).catch(() => {});
     },
   });
+}
+
+// ---------- Embeddings ----------
+
+export type EmbedderFn = (values: string[]) => Promise<{ embeddings: number[][]; tokens: number }>;
+let embedderOverride: EmbedderFn | null = null;
+
+/** Tests: reemplaza el modelo de embeddings (null = el del Gateway). */
+export function setAiEmbedderOverride(fn: EmbedderFn | null): void {
+  embedderOverride = fn;
+}
+
+/** Modelo de embeddings ("proveedor/modelo" del Gateway) y dimensiones pedidas. */
+export function aiEmbeddingModelId(): string {
+  return process.env.AI_EMBEDDING_MODEL?.trim() || 'openai/text-embedding-3-small';
+}
+export const AI_EMBEDDING_DIMENSIONS = 256;
+
+/**
+ * Embeddings de varios textos (búsqueda semántica de Agents). Misma cuota y
+ * rate limit que el resto; los tokens se registran en ai_usage. `fake`
+ * (e2e) usa un embedder determinista sin Gateway, pero mide la cuota igual.
+ */
+export async function aiEmbedMany(opts: { workspaceId: string; feature: string; values: string[]; fake?: EmbedderFn | null }): Promise<number[][]> {
+  if (opts.values.length === 0) return [];
+  const local = embedderOverride ?? opts.fake ?? null;
+  if (local) await assertAiQuota(opts.workspaceId);
+  else await assertAiAvailable(opts.workspaceId);
+  const model = local ? 'embeddings-fake' : aiEmbeddingModelId();
+  const res = local
+    ? await local(opts.values)
+    : await embedMany({ model, values: opts.values, dimensions: AI_EMBEDDING_DIMENSIONS, maxRetries: 1, abortSignal: AbortSignal.timeout(30_000) }).then((r) => ({
+        embeddings: r.embeddings,
+        tokens: r.usage?.tokens ?? 0,
+      }));
+  await recordAiUsage({ workspaceId: opts.workspaceId, feature: opts.feature, model, inputTokens: res.tokens, outputTokens: 0 }).catch(() => {});
+  return res.embeddings;
 }
 
 // ---------- Transcripción ----------

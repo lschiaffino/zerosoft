@@ -46,6 +46,9 @@ import { applyCitations, buildAgentTools, docsActorOf, type AgentRunContext } fr
 import type { AgentVisitorIdentity } from './agents-context';
 import { changedKeys, draftOf, DRAFTED_KEYS, snapshotColumns, snapshotOfRow, versioningOn, withDraft, type AgentSnapshot } from './agents-draft';
 import { agentRuntimeModel, agentsAiEnabled } from './agents-ai';
+import type { AgentReplyUi } from './agents-config';
+import { parseUi, resolveNumberedChoice, validateFormSubmission } from './agents-ui-blocks';
+import { parseProcedureState, procedureByKeyword, runProcedureTurn, type AgentProcedureState, type ProcedureTurnResult } from './agents-procedures';
 
 export const AGENT_FEATURE = 'agents';
 const HISTORY_LIMIT = 20;
@@ -179,7 +182,13 @@ export type AgentChangeKind =
   | 'file_removed'
   | 'qa_changed'
   | 'mcp_changed'
-  | 'secret_changed';
+  | 'secret_changed'
+  | 'ab_started'
+  | 'ab_stopped'
+  | 'access_changed'
+  | 'integration_changed'
+  | 'source_changed'
+  | 'voice_changed';
 
 /** Quién cambió qué (pestaña Versiones). Nunca rompe la operación. */
 export async function recordAgentChange(
@@ -202,11 +211,19 @@ export async function listAgentOptions(workspaceId: string): Promise<Array<{ id:
     .all(workspaceId)) as Array<{ id: string; name: string }>;
 }
 
-export async function listAgents(workspaceId: string): Promise<AgentListItem[]> {
+export async function listAgents(
+  workspaceId: string,
+  /** Quien mira: los agentes sin acceso para esa persona no se listan (lib/agents-access.ts). */
+  viewer?: { role?: string | null; id: string; actingUser?: { id: string } | null },
+): Promise<AgentListItem[]> {
   const db = getDb();
-  const rows = (await db
+  let rows = (await db
     .prepare('SELECT * FROM agents WHERE user_id = ? ORDER BY created_at DESC')
     .all(workspaceId)) as AgentRow[];
+  if (viewer) {
+    const { agentAccessFor } = await import('./agents-access');
+    rows = rows.filter((r) => agentAccessFor(viewer, r) !== 'none');
+  }
   if (rows.length === 0) return [];
   const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
   // Por canal; las conversaciones que abrió un nodo de Flow cuentan como Flow (no API).
@@ -408,6 +425,45 @@ export async function assertConfigRefs(workspaceId: string, payload: AgentUpdate
 
 export type AgentWriteResult = { ok: true; agent: AgentDto } | { ok: false; error: string };
 
+/**
+ * Quien guarda solo puede sumar lo que él mismo puede usar: herramientas de
+ * apps que tiene en el workspace (CRM, Cal, Track, Flow, Robots) y páginas de
+ * Docs que ve. Lo que ya estaba configurado (por otra persona) no se toca.
+ */
+export async function assertEditorScope(
+  workspaceId: string,
+  before: { tools: { enabled: string[] }; knowledge: { docsPageIds: string[] } },
+  payload: AgentUpdatePayload,
+  personId?: string,
+): Promise<string | null> {
+  if (!personId || personId === workspaceId) return null;
+  const { personAppAccess } = await import('./api-auth');
+  const access = await personAppAccess(workspaceId, personId);
+  if (!access) return 'forbidden';
+  if (payload.tools) {
+    const { AGENT_TOOL_APP } = await import('./agent-tools');
+    const added = payload.tools.enabled.filter((k) => !before.tools.enabled.includes(k));
+    for (const k of added) {
+      const app = AGENT_TOOL_APP[k];
+      if (app && access.apps !== '*' && !access.apps.includes(app)) return 'tool_app_access';
+    }
+  }
+  const addedPages = (payload.knowledge?.docsPageIds ?? []).filter((id) => !before.knowledge.docsPageIds.includes(id));
+  if (addedPages.length) {
+    const { hiddenTeamspaceIds } = await import('./docs-access');
+    const hidden = await hiddenTeamspaceIds(workspaceId, personId);
+    if (hidden.length) {
+      const ph = addedPages.map(() => '?').join(', ');
+      const hp = hidden.map(() => '?').join(', ');
+      const row = (await getDb()
+        .prepare(`SELECT COUNT(*) AS c FROM docs_pages WHERE user_id = ? AND id IN (${ph}) AND teamspace_id IN (${hp})`)
+        .get(workspaceId, ...addedPages, ...hidden)) as { c: number };
+      if (Number(row.c) > 0) return 'invalid_docs_page';
+    }
+  }
+  return null;
+}
+
 /** Snapshot con lo que trae el payload (listas sin repetidos). */
 function mergeSnapshot(base: AgentSnapshot, payload: AgentUpdatePayload): AgentSnapshot {
   const next: AgentSnapshot = { ...base };
@@ -437,9 +493,20 @@ function mergeSnapshot(base: AgentSnapshot, payload: AgentUpdatePayload): AgentS
 export function knowledgeSources(row: AgentRow): { urls: string[]; sitemaps: Array<{ url: string; prefix: string }> } {
   const live = parseKnowledge(row.knowledge);
   const draft = versioningOn(row) ? draftOf(row).knowledge : live;
+  // Test A/B en curso: lo de la versión B también tiene que estar descargado.
+  const b = versioningOn(row) && row.ab_test ? abKnowledge(row.ab_test) : null;
   const sitemaps = new Map<string, { url: string; prefix: string }>();
-  for (const sm of [...live.sitemaps, ...draft.sitemaps]) sitemaps.set(sm.url, sm);
-  return { urls: [...new Set([...live.urls, ...draft.urls])], sitemaps: [...sitemaps.values()] };
+  for (const sm of [...live.sitemaps, ...draft.sitemaps, ...(b?.sitemaps ?? [])]) sitemaps.set(sm.url, sm);
+  return { urls: [...new Set([...live.urls, ...draft.urls, ...(b?.urls ?? [])])], sitemaps: [...sitemaps.values()] };
+}
+
+function abKnowledge(raw: string): { urls: string[]; sitemaps: Array<{ url: string; prefix: string }> } | null {
+  try {
+    const v = JSON.parse(raw) as { snapshot?: { knowledge?: unknown } };
+    return v?.snapshot?.knowledge ? parseKnowledge(JSON.stringify(v.snapshot.knowledge)) : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -470,6 +537,8 @@ export async function updateAgent(
   if (docsError) return { ok: false, error: docsError };
   const refError = await assertConfigRefs(workspaceId, payload);
   if (refError) return { ok: false, error: refError };
+  const scopeError = await assertEditorScope(workspaceId, draftOf(existing), payload, personId);
+  if (scopeError) return { ok: false, error: scopeError };
 
   const before = draftOf(existing);
   const next = mergeSnapshot(before, payload);
@@ -789,7 +858,7 @@ export async function refreshKnowledgeUrls(
   // Tope por request: las agregadas a mano primero; el resto de un sitemap lo baja el cron de cada minuto.
   const rows = (await getDb()
     .prepare(
-      `SELECT id, url FROM agent_knowledge_urls WHERE agent_id = ?${opts.onlyPending ? " AND status = 'pending'" : ''}
+      `SELECT id, url FROM agent_knowledge_urls WHERE agent_id = ? AND (origin IS NULL OR origin NOT LIKE 'source:%')${opts.onlyPending ? " AND status = 'pending'" : ''}
        ORDER BY CASE WHEN origin IS NULL THEN 0 ELSE 1 END, created_at LIMIT 40`,
     )
     .all(agentId)) as KnowledgeUrlRef[];
@@ -826,7 +895,7 @@ export async function resyncStaleKnowledgeUrls(opts: { now?: Date; limit?: numbe
   const rows = (await getDb()
     .prepare(
       `SELECT k.id, k.url FROM agent_knowledge_urls k JOIN agents a ON a.id = k.agent_id
-       WHERE k.status = 'pending' OR k.fetched_at IS NULL OR k.fetched_at < ?
+       WHERE (k.status = 'pending' OR k.fetched_at IS NULL OR k.fetched_at < ?) AND (k.origin IS NULL OR k.origin NOT LIKE 'source:%')
        ORDER BY COALESCE(k.fetched_at, '') ASC LIMIT ?`,
     )
     .all(cutoff, Math.min(Math.max(opts.limit ?? 30, 1), 500))) as KnowledgeUrlRef[];
@@ -875,6 +944,10 @@ export async function createConversation(
   if (opts.source !== 'flow' && channel !== 'playground') {
     const row = await getAgentRowById(agent.id);
     if (row) {
+      // Test A/B en curso: la conversación queda con su variante desde el principio.
+      const { assignVariant } = await import('./agents-ab');
+      const variant = await assignVariant(row, id);
+      if (variant) conversation.variant = variant;
       const { emitEventSoon } = await import('./events');
       await emitEventSoon(agent.user_id, 'agent.conversation_started', agentEventBase(row, conversation));
     }
@@ -997,15 +1070,16 @@ export async function getConversationDetail(
   if (conv.chat_conversation_id) {
     const rows = (await db
       .prepare(
-        "SELECT id, sender_type, body, created_at FROM chat_messages WHERE conversation_id = ? AND sender_type IN ('visitor', 'bot', 'user', 'system') AND is_note = 0 AND deleted_at IS NULL ORDER BY created_at, rowid",
+        "SELECT id, sender_type, body, ui, created_at FROM chat_messages WHERE conversation_id = ? AND sender_type IN ('visitor', 'bot', 'user', 'system') AND is_note = 0 AND deleted_at IS NULL ORDER BY created_at, rowid",
       )
-      .all(conv.chat_conversation_id)) as Array<{ id: string; sender_type: string; body: string; created_at: string }>;
+      .all(conv.chat_conversation_id)) as Array<{ id: string; sender_type: string; body: string; ui: string | null; created_at: string }>;
     messages = rows.map((r) => ({
       id: r.id,
       role: r.sender_type === 'visitor' ? 'user' : r.sender_type === 'system' || r.sender_type === 'user' ? 'system' : 'assistant',
       content: r.sender_type === 'user' ? `[teammate] ${r.body}` : r.body,
       runId: null,
       createdAt: r.created_at,
+      ...(r.ui ? { ui: parseUi(r.ui) } : {}),
     }));
   } else {
     const rows = (await db
@@ -1018,6 +1092,7 @@ export async function getConversationDetail(
       runId: r.run_id,
       createdAt: r.created_at,
       ...(r.author_id ? { teammate: true } : {}),
+      ...(r.ui ? { ui: parseUi(r.ui) } : {}),
     }));
   }
   for (const m of messages) {
@@ -1039,11 +1114,12 @@ async function addMessage(
   content: string,
   runId: string | null = null,
   authorId: string | null = null,
+  ui: AgentReplyUi | null = null,
 ): Promise<AgentMessageRow> {
   const id = crypto.randomUUID();
   await getDb()
-    .prepare('INSERT INTO agent_messages (id, conversation_id, role, content, run_id, author_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .run(id, conversationId, role, content, runId, authorId, nowIso());
+    .prepare('INSERT INTO agent_messages (id, conversation_id, role, content, run_id, author_id, ui, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(id, conversationId, role, content, runId, authorId, ui ? JSON.stringify(ui) : null, nowIso());
   return (await getDb().prepare('SELECT * FROM agent_messages WHERE id = ?').get(id)) as AgentMessageRow;
 }
 
@@ -1091,6 +1167,7 @@ export interface VisitorMessageDto {
   role: 'user' | 'assistant' | 'teammate';
   content: string;
   createdAt: string;
+  ui?: AgentReplyUi | null;
 }
 
 /**
@@ -1118,6 +1195,7 @@ export async function listVisitorMessages(
       role: m.role === 'user' ? 'user' : m.author_id ? 'teammate' : 'assistant',
       content: m.content,
       createdAt: m.created_at,
+      ...(m.ui ? { ui: parseUi(m.ui) } : {}),
     })),
   };
 }
@@ -1334,6 +1412,8 @@ export interface RunAgentOptions {
   dryRun?: boolean;
   /** Visitante identificado (firma del widget o la API key). */
   identity?: AgentVisitorIdentity | null;
+  /** Valores de un formulario que el visitante acaba de enviar (ya validados). */
+  formValues?: Record<string, string> | null;
 }
 
 export interface RunAgentResult {
@@ -1343,6 +1423,8 @@ export interface RunAgentResult {
   runId: string;
   toolCalls: AgentToolCallDto[];
   steps: number;
+  /** Botones o formulario que acompañan la respuesta. */
+  ui?: AgentReplyUi | null;
 }
 
 function allUserText(messages: ModelMessage[]): string {
@@ -1399,9 +1481,10 @@ async function recordRun(
   steps: number,
   extra: { handoffReason?: string | null; question?: string; unanswered?: boolean } = {},
 ): Promise<void> {
+  const variant = (conversation as Partial<AgentConversationRow>).variant;
   await getDb()
     .prepare(
-      'INSERT OR IGNORE INTO agent_runs (id, agent_id, user_id, conversation_id, channel, status, steps, handoff_reason, question, unanswered, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT OR IGNORE INTO agent_runs (id, agent_id, user_id, conversation_id, channel, status, steps, handoff_reason, question, unanswered, variant, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     )
     .run(
       runId,
@@ -1414,9 +1497,26 @@ async function recordRun(
       extra.handoffReason ? extra.handoffReason.slice(0, 300) : null,
       extra.question ? extra.question.replace(/\s+/g, ' ').trim().slice(0, 300) : null,
       extra.unanswered ? 1 : 0,
+      variant === 'a' || variant === 'b' ? variant : null,
       nowIso(),
     )
     .catch(() => {});
+}
+
+async function saveProcedureState(conversationId: string, state: AgentProcedureState | null): Promise<void> {
+  await getDb()
+    .prepare('UPDATE agent_conversations SET procedure_state = ? WHERE id = ?')
+    .run(state ? JSON.stringify(state).slice(0, 20_000) : null, conversationId);
+}
+
+/** Llama una herramienta ya armada (con su registro, simulación y aprobaciones) desde un procedimiento. */
+async function callBuiltTool(tools: Record<string, unknown>, name: string, args: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const t = tools[name] as { inputSchema?: { safeParse?: (v: unknown) => { success: boolean; data?: unknown } }; execute?: (input: unknown, opts: unknown) => Promise<unknown> } | undefined;
+  if (!t?.execute) return { error: 'tool_off' };
+  const parsed = t.inputSchema?.safeParse ? t.inputSchema.safeParse(args) : { success: true, data: args };
+  if (!parsed.success) return { error: 'invalid_tool_input' };
+  const out = await t.execute(parsed.data, { toolCallId: crypto.randomUUID(), messages: [] });
+  return out && typeof out === 'object' ? (out as Record<string, unknown>) : { result: out };
 }
 
 /**
@@ -1444,11 +1544,15 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
     secretHeaders: loadSecretHeaders(row),
     identifiedEmail: opts.identity?.email ?? null,
     mcpServers: row.mcp_servers ?? '[]',
+    agentAccess: row.access ?? null,
   };
   {
     const { mcpSecretValues } = await import('./agents-mcp');
     const { allSecretVariants } = await import('./agents-secrets');
-    ctx.secretValues = allSecretVariants([...(ctx.secretHeaders ?? []).map((h) => h.value), ...mcpSecretValues(row)]);
+    const { integrationSecrets, integrationSecretValues } = await import('./agents-integrations');
+    const integ = integrationSecrets(row);
+    ctx.integrations = { stripeKey: integ.stripeKey, shopify: integ.shopify?.token ? integ.shopify : null };
+    ctx.secretValues = allSecretVariants([...(ctx.secretHeaders ?? []).map((h) => h.value), ...mcpSecretValues(row), ...integrationSecretValues(row)]);
   }
   // Spam: un mensaje con una palabra bloqueada no pasa por el modelo ni por las herramientas.
   const spam = agent.settings.blockedWords.find((w) => normalize(lastUser).includes(normalize(w)));
@@ -1459,6 +1563,46 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
     return { status: 'blocked', text, handoff: false, runId, toolCalls: [], steps: 0 };
   }
   const { tools, enabled, handoff } = await buildAgentTools(ctx);
+
+  // Procedimientos: uno en curso (esperando una respuesta) o que arranca por
+  // palabra clave corre sin el modelo. "Cancelar" lo termina y sigue el agente.
+  const procedures = agent.settings.procedures ?? [];
+  const finishProcedure = async (turn: ProcedureTurnResult, modelSteps: number): Promise<RunAgentResult> => {
+    await saveProcedureState(conversation.id, turn.state);
+    let text = turn.messages.join('\n\n').trim();
+    let status: AgentRunStatus = 'replied';
+    if (turn.handoff) {
+      if (handoff) await handoff(turn.handoff);
+      else await markConversationHandoff(conversation.id);
+      text = text || agent.handoff.message || defaultHandoffMessage(lastUser);
+      status = 'handoff';
+    }
+    if (!text) text = '…';
+    opts.onEvent?.({ type: 'text', delta: text });
+    await recordRun(row, conversation, channel, runId, status, modelSteps + turn.steps, { handoffReason: turn.handoff, question: lastUser });
+    if (status === 'handoff' && !ctx.dryRun) await emitHandoff(row, conversation, turn.handoff ?? '');
+    return { status, text: truncateReply(text, Math.max(agent.guardrails.maxReplyChars, 1500)), handoff: status === 'handoff', runId, toolCalls: ctx.toolCalls, steps: modelSteps, ui: turn.ui };
+  };
+  if (procedures.length) {
+    const state = parseProcedureState(conversation.procedure_state ?? null);
+    const active = state ? procedures.find((p) => p.id === state.procedureId) : undefined;
+    const byKeyword = active ? null : procedureByKeyword(procedures, lastUser);
+    const proc = active ?? byKeyword;
+    if (proc) {
+      const turn = await runProcedureTurn({
+        procedure: proc,
+        forms: agent.settings.forms ?? [],
+        state: active ? state : null,
+        text: lastUser,
+        formValues: opts.formValues ?? null,
+        callTool: (name, args) => callBuiltTool(tools, name, args),
+      });
+      if (!turn.cancelled) return finishProcedure(turn, 0);
+      await saveProcedureState(conversation.id, null);
+    } else if (state) {
+      await saveProcedureState(conversation.id, null);
+    }
+  }
 
   // Palabras clave de derivación: sin pasar por el modelo.
   const keyword = agent.handoff.keywords.find((k) => normalize(lastUser).includes(normalize(k)));
@@ -1534,6 +1678,20 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
     outputTokens: usage?.outputTokens ?? 0,
   }).catch(() => {});
 
+  // El modelo reconoció un procedimiento: el procedimiento escribe la respuesta.
+  const started = ctx.procedureStart ? procedures.find((p) => p.id === ctx.procedureStart) : undefined;
+  if (started) {
+    const turn = await runProcedureTurn({
+      procedure: started,
+      forms: agent.settings.forms ?? [],
+      state: null,
+      text: lastUser,
+      formValues: null,
+      callTool: (name, args) => callBuiltTool(tools, name, args),
+    });
+    if (turn.messages.length || turn.handoff || turn.state) return finishProcedure(turn, steps.length);
+  }
+
   const last = steps[steps.length - 1];
   const hitCap = steps.length >= AGENT_MAX_STEPS && (last?.toolCalls.length ?? 0) > 0;
   let text = steps
@@ -1569,6 +1727,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<RunAgentResult> {
     runId,
     toolCalls: ctx.toolCalls,
     steps: steps.length,
+    ui: ctx.handoff ? null : (ctx.ui ?? null),
   };
 }
 
@@ -1662,6 +1821,8 @@ export interface SendAgentMessageOptions {
   identity?: AgentVisitorIdentity | null;
   /** País del visitante (header de Vercel), para el bloqueo por país. */
   country?: string | null;
+  /** Formulario que el visitante envió (se valida contra settings.forms). */
+  form?: { id: string; values: Record<string, unknown> } | null;
 }
 
 export interface SendAgentMessageResult {
@@ -1678,14 +1839,19 @@ export interface SendAgentMessageResult {
  */
 export async function sendAgentMessage(opts: SendAgentMessageOptions): Promise<SendAgentMessageResult> {
   const { agent, channel } = opts;
-  const text = opts.text.trim().slice(0, 4000);
-  if (!text) throw new AgentError('empty_message');
+  let text = opts.text.trim().slice(0, 4000);
   if (agent.enabled !== 1 && channel !== 'playground') throw new AgentError('agent_disabled', 403);
   const aiOn = await agentsAiEnabled();
   // Una conversación nueva no puede estar derivada: sin AI no hay nada que hacer.
   if (!opts.conversationId && !aiOn) throw new AgentError('ai_disabled', 503);
-  // El playground y los tests corren el borrador; el resto, lo publicado.
-  const runRow = channel === 'playground' ? withDraft(agent) : agent;
+  // El playground y los tests corren el borrador; el resto, lo publicado
+  // (o la versión B de un test A/B, según la conversación: más abajo).
+  let runRow = channel === 'playground' ? withDraft(agent) : agent;
+  let formValues: Record<string, string> | null = null;
+  let submittedForm: import('./agents-config').AgentForm | null = null;
+  // Un formulario solo se envía en una conversación donde el agente lo mostró.
+  if (opts.form && !opts.conversationId) throw new AgentError('form_not_found', 400);
+  if (!text && !opts.form) throw new AgentError('empty_message');
   if (channel === 'public') {
     const { isVisitorBlocked } = await import('./agents-privacy');
     if (await isVisitorBlocked(runRow, { visitorKey: opts.visitorKey ?? null, country: opts.country ?? null })) {
@@ -1714,6 +1880,23 @@ export async function sendAgentMessage(opts: SendAgentMessageOptions): Promise<S
     if (opts.country) await getDb().prepare('UPDATE agent_conversations SET country = ? WHERE id = ?').run(opts.country.slice(0, 2), conversation.id);
     conversation = (await getConversationRow(conversation.id)) as AgentConversationRow;
   }
+  if (channel !== 'playground') {
+    const { variantRow } = await import('./agents-ab');
+    runRow = await variantRow(agent, conversation);
+  }
+  // Formulario enviado (con la configuración de la variante que corre): tiene
+  // que ser el que el agente mostró; lo validado pasa a ser el mensaje.
+  if (opts.form) {
+    const settings = toAgentDto(runRow).settings;
+    const form = (settings.forms ?? []).find((f) => f.id === opts.form?.id) ?? null;
+    const { formShownInConversation } = await import('./agents-forms');
+    if (!form || !(await formShownInConversation(conversation, form.id, settings.procedures ?? []))) throw new AgentError('form_not_found', 400);
+    const sub = validateFormSubmission(form, opts.form.values);
+    if (!sub.ok) throw new AgentError(sub.error, 400);
+    text = sub.text.slice(0, 4000);
+    formValues = sub.values;
+    submittedForm = form;
+  }
   // Identidad de una conversación existente: la que quedó al empezarla (no la cambia otro request).
   const identity: AgentVisitorIdentity | null = conversation.visitor_email
     ? { email: conversation.visitor_email, name: conversation.visitor_name ?? null }
@@ -1740,7 +1923,20 @@ export async function sendAgentMessage(opts: SendAgentMessageOptions): Promise<S
   if (!aiOn) throw new AgentError('ai_disabled', 503);
   opts.onEvent?.({ type: 'start', conversationId: conversation.id });
 
+  // En un canal de solo texto, "2" elige la opción 2 de los últimos botones.
+  if (!opts.form) {
+    const prevUi = (await getDb()
+      .prepare("SELECT ui FROM agent_messages WHERE conversation_id = ? AND role = 'assistant' ORDER BY created_at DESC, rowid DESC LIMIT 1")
+      .get(conversation.id)) as { ui: string | null } | undefined;
+    text = resolveNumberedChoice(text, parseUi(prevUi?.ui ?? null));
+  }
   const userMessage = await addMessage(conversation.id, 'user', text);
+  if (submittedForm && formValues) {
+    const { saveFormSubmission } = await import('./agents-forms');
+    await saveFormSubmission({ agent: runRow, conversation, form: submittedForm, values: formValues, dryRun: opts.dryRun ?? channel === 'playground' }).catch((err) =>
+      console.error('[agents] form save failed', err instanceof Error ? err.message : err),
+    );
+  }
   await touchConversation(conversation, text);
   const history = (await getDb()
     .prepare(
@@ -1767,6 +1963,7 @@ export async function sendAgentMessage(opts: SendAgentMessageOptions): Promise<S
       abortSignal: opts.abortSignal,
       dryRun: opts.dryRun,
       identity,
+      formValues,
     });
   } catch (err) {
     // Página pública: el visitante no puede hacer nada con un error del modelo
@@ -1776,7 +1973,7 @@ export async function sendAgentMessage(opts: SendAgentMessageOptions): Promise<S
     if (!fallback) throw err;
     result = fallback;
   }
-  const reply = result.text ? await addMessage(conversation.id, 'assistant', result.text, result.runId) : null;
+  const reply = result.text ? await addMessage(conversation.id, 'assistant', result.text, result.runId, null, result.ui ?? null) : null;
   await touchConversation(conversation);
   return { conversation: (await getConversationRow(conversation.id)) as AgentConversationRow, userMessage, reply, result };
 }

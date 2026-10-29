@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser } from '@/lib/session';
 import { setMessageFeedback } from '@/lib/agents';
-import { agentError, notFound, realUserId, unauthorized } from '@/lib/agents-http';
+import { agentError, notFound, realUserId, unauthorized, visibleAgentRow } from '@/lib/agents-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,6 +19,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
+  if (!(await visibleAgentRow(user, id))) return notFound();
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return agentError(400, 'invalid_input');
   const ok = await setMessageFeedback(user.id, id, { ...parsed.data, createdBy: realUserId(user) });

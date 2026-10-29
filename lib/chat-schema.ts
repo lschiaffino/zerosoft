@@ -146,6 +146,13 @@ export const visitorMessageLimitsSchema = z
         language: z.string().max(64).optional(),
       })
       .optional(),
+    // Formulario de un agente de Agents enviado desde el widget (lib/agents-ui-blocks.ts lo valida).
+    agentForm: z
+      .object({
+        id: z.string().max(40),
+        values: z.record(z.string().max(64), z.string().max(2000)).refine((o) => Object.keys(o).length <= 20),
+      })
+      .optional(),
   })
   .passthrough();
 

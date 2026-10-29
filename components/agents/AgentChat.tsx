@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
-import { isSimulatedOutput, type AgentStreamEvent } from '@/lib/agents-config';
+import { isSimulatedOutput, type AgentReplyUi, type AgentStreamEvent } from '@/lib/agents-config';
+import AgentReplyBlock from './AgentReplyBlock';
 
 export interface ChatToolCall {
   id: string;
@@ -23,6 +24,8 @@ export interface ChatTurn {
   error?: string | null;
   status?: string;
   handoff?: boolean;
+  /** Botones o formulario de la respuesta. */
+  ui?: AgentReplyUi | null;
 }
 
 export interface AgentChatLabels {
@@ -45,6 +48,10 @@ export interface AgentChatLabels {
   wouldRun?: string;
   /** Botón para guardar la pregunta como caso de prueba. */
   saveTest?: string;
+  /** Formularios del chat: enviar, obligatorio y elegir. */
+  formSend?: string;
+  formRequired?: string;
+  formChoose?: string;
   /** Mensaje para un código de error (agents.errors.*). */
   error: (code: string) => string;
   toolName: (tool: string) => string;
@@ -76,7 +83,7 @@ interface Props {
 
 interface HistoryResponse {
   handedOff: boolean;
-  messages: Array<{ id: string; role: 'user' | 'assistant' | 'teammate'; content: string }>;
+  messages: Array<{ id: string; role: 'user' | 'assistant' | 'teammate'; content: string; ui?: AgentReplyUi | null }>;
 }
 
 const POLL_MS = 5000;
@@ -149,7 +156,7 @@ export default function AgentChat({
     const data = (await res.json().catch(() => null)) as HistoryResponse | null;
     if (!data || busyRef.current) return;
     setHandedOff(data.handedOff);
-    setTurns(data.messages.map((m) => ({ key: m.id, role: m.role, text: m.content, tools: [] })));
+    setTurns(data.messages.map((m) => ({ key: m.id, role: m.role, text: m.content, tools: [], ui: m.ui ?? null })));
   }
 
   const canLoad = Boolean(historyUrl);
@@ -211,7 +218,7 @@ export default function AgentChat({
           });
           break;
         }
-        patchLast((t) => ({ ...t, text: e.text || t.text, pending: false, status: e.status, handoff: e.handoff }));
+        patchLast((t) => ({ ...t, text: e.text || t.text, pending: false, status: e.status, handoff: e.handoff, ui: e.ui ?? null }));
         break;
       case 'error':
         patchLast((t) => ({ ...t, pending: false, error: e.code }));
@@ -219,7 +226,7 @@ export default function AgentChat({
     }
   }
 
-  async function send(text: string) {
+  async function send(text: string, form?: { id: string; values: Record<string, string> }) {
     const message = text.trim();
     if (!message || busy || disabledReason) return;
     setBusy(true);
@@ -237,7 +244,7 @@ export default function AgentChat({
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ...extraBody, conversationId, message }),
+        body: JSON.stringify({ ...extraBody, conversationId, message, ...(form ? { form } : {}) }),
         signal: controller.signal,
       });
       if (!res.ok || !res.body) {
@@ -297,6 +304,9 @@ export default function AgentChat({
     }
   }
 
+  // Botones y formularios: solo en la última respuesta (si el visitante ya contestó, quedan atrás).
+  const lastAssistant = turns.length > 0 && turns[turns.length - 1].role === 'assistant' ? turns.length - 1 : -1;
+
   return (
     <div className={`ag-chat ag-chat-${variant}`}>
       <div className="ag-chat-list" ref={listRef} aria-live="polite">
@@ -305,7 +315,7 @@ export default function AgentChat({
             <p className="ag-msg-text">{welcome}</p>
           </div>
         )}
-        {turns.map((t) => (
+        {turns.map((t, i) => (
           <div key={t.key} className={`ag-msg is-${t.role === 'teammate' ? 'assistant' : t.role}`}>
             {t.role === 'teammate' && labels.teammate && <p className="ag-msg-author label">{labels.teammate}</p>}
             {showTools && t.tools.length > 0 && (
@@ -334,6 +344,14 @@ export default function AgentChat({
                 <span className="ui-skeleton ui-skeleton-text ag-thinking-short" />
                 <span className="sr-only">{labels.thinking}</span>
               </div>
+            )}
+            {t.role === 'assistant' && t.ui && !t.pending && i === lastAssistant && !busy && !disabledReason && (
+              <AgentReplyBlock
+                ui={t.ui}
+                labels={{ send: labels.formSend ?? labels.send, required: labels.formRequired ?? '', choose: labels.formChoose ?? '' }}
+                onChoose={(option) => void send(option)}
+                onSubmit={(formId, values, text) => void send(text, { id: formId, values })}
+              />
             )}
             {t.error && <p className="ui-error">{labels.error(t.error)}</p>}
             {t.handoff && <p className="ui-help">{labels.handoff}</p>}

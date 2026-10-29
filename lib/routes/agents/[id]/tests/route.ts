@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { getAgentRow } from '@/lib/agents';
 import { createTestCase, listTestCases } from '@/lib/agents-tests';
 import { testCaseInputSchema } from '@/lib/agents-config';
-import { agentError, canEditAgents, forbidden, notFound, realUserId, unauthorized } from '@/lib/agents-http';
+import { agentError, canEditAgent, forbidden, notFound, realUserId, unauthorized, visibleAgentRow } from '@/lib/agents-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,7 +14,7 @@ export async function GET(_req: NextRequest, props: Ctx) {
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  if (!(await getAgentRow(user.id, id))) return notFound();
+  if (!(await visibleAgentRow(user, id))) return notFound();
   return NextResponse.json({ tests: await listTestCases(user.id, id) });
 }
 
@@ -24,8 +23,10 @@ export async function POST(req: NextRequest, props: Ctx) {
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  if (!canEditAgents(user)) return forbidden();
-  const agent = await getAgentRow(user.id, id);
+  const accessRow = await visibleAgentRow(user, id);
+  if (!accessRow) return notFound();
+  if (!canEditAgent(user, accessRow)) return forbidden();
+  const agent = await visibleAgentRow(user, id);
   if (!agent) return notFound();
   const parsed = testCaseInputSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return agentError(400, 'invalid_input');

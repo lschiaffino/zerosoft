@@ -11,7 +11,8 @@
  * Con el canal email configurado (CHAT_INBOUND_DOMAIN, lib/chat-email.ts) el
  * email lleva Reply-To a la conversación y responderlo vuelve al inbox. Las
  * conversaciones que entraron por email reciben cada respuesta por email en
- * la próxima corrida, sin esperar los minutos del widget.
+ * la próxima corrida, sin esperar los minutos del widget: las del equipo y
+ * las de un agente que contesta emails (Agents > Canales).
  */
 import { getDb } from './db';
 import { escapeHtml, namedSender, renderBrandedHtml, sendEmail } from './email';
@@ -189,7 +190,7 @@ async function loadCandidates(now: Date, limit: number): Promise<OfflineReplyCan
        JOIN chat_visitors v ON v.id = c.visitor_id
        JOIN chat_widgets w ON w.id = c.widget_id
        LEFT JOIN users u ON u.id = m.user_id
-       WHERE m.sender_type = 'user' AND m.is_note = 0 AND m.deleted_at IS NULL
+       WHERE (m.sender_type = 'user' OR (m.sender_type = 'bot' AND c.channel = 'email')) AND m.is_note = 0 AND m.deleted_at IS NULL
          AND m.read_at IS NULL AND m.offline_email_at IS NULL
          AND v.email IS NOT NULL AND v.email != '' AND (w.offline_email_minutes > 0 OR c.channel = 'email')
          AND m.created_at >= ?

@@ -39,6 +39,8 @@ import AgentKnowledgeExtra from './AgentKnowledgeExtra';
 import AgentMcp from './AgentMcp';
 import AgentReplay from './AgentReplay';
 import AgentBlocked from './AgentBlocked';
+import { CodeFunctionsEditor, FormsEditor, ProceduresEditor } from './AgentBuilders';
+import { AbTestPanel, AccessPanel, ChannelsPanel, IntegrationsPanel, SemanticStatus, SourcesPanel } from './AgentPanels';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useConfirm } from './useConfirm';
 import { api, chatLabels, errorText } from './agents-ui';
@@ -72,6 +74,10 @@ interface Props extends EditorRefs {
   sitemaps: AgentSitemapStatusDto[];
   /** Servidores MCP (sin el token; vacío si no puede editar). */
   mcpServers: AgentMcpServerDto[];
+  /** Admin u owner: secretos, MCP, conexiones, canales y acceso por persona. */
+  isAdmin?: boolean;
+  /** Hay runner de código (Vercel Sandbox) para run_code. */
+  codeAvailable?: boolean;
 }
 
 const TABS = ['instructions', 'knowledge', 'tools', 'channels', 'playground', 'conversations', 'analytics', 'versions'] as const;
@@ -96,6 +102,7 @@ const lines = (raw: string) =>
 /** Editor de un agente (/app/agents/[id]) con pestañas y un solo Guardar. */
 export default function AgentEditor(props: Props) {
   const { canEdit, aiEnabled, origin } = props;
+  const isAdmin = props.isAdmin ?? canEdit;
   const t = useTranslations('agents');
   const [confirmNode, ask] = useConfirm();
   const format = useFormatter();
@@ -449,6 +456,8 @@ export default function AgentEditor(props: Props) {
     if (key.startsWith('docs_') && draft.tools.docsPageIds.length === 0) return t('tools.needsDocsPages');
     if (key === 'http_request' && lines(domainsRaw).length === 0) return t('tools.needsDomains');
     if (key === 'mcp_call' && props.mcpServers.length === 0) return t('tools.needsMcp');
+    if (key === 'show_form' && draft.settings.forms.length === 0) return t('tools.needsForms');
+    if (key === 'run_code' && draft.tools.codeFunctions.length === 0) return t('tools.needsCode');
     return null;
   };
   const wide = tab === 'playground' || tab === 'conversations' || tab === 'analytics' || tab === 'versions';
@@ -670,9 +679,20 @@ export default function AgentEditor(props: Props) {
         )}
         {on && key === 'mcp_call' && (
           <div className="ag-tool-config">
-            {canEdit ? <AgentMcp agentId={agent.id} servers={props.mcpServers} readOnly={ro} /> : <p className="ui-help">{t('mcp.adminsOnly')}</p>}
+            {isAdmin ? <AgentMcp agentId={agent.id} servers={props.mcpServers} readOnly={ro} /> : <p className="ui-help">{t('mcp.adminsOnly')}</p>}
           </div>
         )}
+        {on && key === 'run_code' && (
+          <div className="ag-tool-config">
+            <CodeFunctionsEditor
+              functions={draft.tools.codeFunctions}
+              readOnly={ro}
+              available={props.codeAvailable ?? false}
+              onChange={(codeFunctions) => set('tools', { ...draft.tools, codeFunctions })}
+            />
+          </div>
+        )}
+        {on && key === 'show_form' && <p className="ui-help ag-tool-config">{t('tools.formsWhere')}</p>}
         {on && key === 'http_request' && (
           <div className="ag-tool-config">
             <div className="ui-field">
@@ -690,7 +710,7 @@ export default function AgentEditor(props: Props) {
               />
               <p className="ui-help">{t('tools.httpWarn')}</p>
             </div>
-            {canEdit && (
+            {isAdmin && (
               <AgentSecretHeaders
                 agentId={agent.id}
                 headers={secretHeaders}
@@ -1145,6 +1165,20 @@ export default function AgentEditor(props: Props) {
               </AdvancedSection>
             </FormSection>
 
+            <FormSection title={t('procedures.title')} description={t('procedures.hint')}>
+              <ProceduresEditor
+                procedures={draft.settings.procedures}
+                forms={draft.settings.forms}
+                enabledTools={draft.tools.enabled}
+                readOnly={ro}
+                onChange={(procedures) => set('settings', { ...draft.settings, procedures })}
+              />
+            </FormSection>
+
+            <FormSection title={t('forms.title')} description={t('forms.hint')}>
+              <FormsEditor forms={draft.settings.forms} readOnly={ro} onChange={(forms) => set('settings', { ...draft.settings, forms })} />
+            </FormSection>
+
             <FormSection title={t('settings.privacyTitle')} description={t('settings.privacyHint')}>
               {(
                 [
@@ -1152,6 +1186,7 @@ export default function AgentEditor(props: Props) {
                   ['visitorContext', 'visitorContextHint'],
                   ['memory', 'memoryHint'],
                   ['redactPii', 'redactPiiHint'],
+                  ['redactNames', 'redactNamesHint'],
                 ] as const
               ).map(([key, hint]) => (
                 <div key={key} className="ag-setting">
@@ -1224,7 +1259,9 @@ export default function AgentEditor(props: Props) {
               </div>
             </FormSection>
 
-            {canEdit && (
+            {canEdit && <AccessPanel agentId={agent.id} isAdmin={isAdmin} />}
+
+            {isAdmin && (
               <FormSection
                 tone="danger"
                 title={t('editor.dangerTitle')}
@@ -1501,6 +1538,22 @@ export default function AgentEditor(props: Props) {
             </FormSection>
 
 
+            <SourcesPanel agentId={agent.id} canEdit={canEdit} />
+
+            <FormSection title={t('semantic.title')} description={t('semantic.hint')}>
+              <label className="ui-switch">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={draft.settings.semanticSearch}
+                  disabled={ro}
+                  onChange={(e) => set('settings', { ...draft.settings, semanticSearch: e.target.checked })}
+                />
+                {t('semantic.toggle')}
+              </label>
+              <SemanticStatus agentId={agent.id} on={agent.settings.semanticSearch} dirty={dirty} />
+            </FormSection>
+
             <AgentKnowledgeExtra agentId={agent.id} canEdit={canEdit} initialFiles={props.files} initialQa={props.qa} />
 
             <AdvancedSection storageKey="agents.knowledge" hint={t('knowledge.advancedHint')}>
@@ -1548,12 +1601,24 @@ export default function AgentEditor(props: Props) {
             <AdvancedSection
               storageKey="agents.tools"
               hint={t('tools.advancedHint')}
-              defaultOpen={draft.tools.enabled.includes('http_request') || draft.tools.enabled.includes('mcp_call')}
+              defaultOpen={draft.tools.enabled.some((k) => ['http_request', 'mcp_call', 'run_code', 'stripe_customer', 'shopify_order', 'shopify_products'].includes(k))}
             >
               <ul className="ag-tool-list">
                 {renderTool('mcp_call')}
                 {renderTool('http_request')}
+                {renderTool('run_code')}
               </ul>
+              <section className="ag-tool-group" aria-labelledby="ag-group-commerce">
+                <h2 className="ag-tool-group-title" id="ag-group-commerce">
+                  {t('tools.groups.commerce')}
+                </h2>
+                <ul className="ag-tool-list">
+                  {renderTool('stripe_customer')}
+                  {renderTool('shopify_order')}
+                  {renderTool('shopify_products')}
+                </ul>
+                <IntegrationsPanel agentId={agent.id} kinds={['stripe', 'shopify']} isAdmin={isAdmin} />
+              </section>
             </AdvancedSection>
           </>
         )}
@@ -1672,6 +1737,14 @@ export default function AgentEditor(props: Props) {
               </div>
               <p className="ui-help">{t('channels.apiContinue')}</p>
             </FormSection>
+
+            <ChannelsPanel
+              agentId={agent.id}
+              isAdmin={isAdmin}
+              readOnly={ro}
+              settings={draft.settings}
+              onSettings={(settings) => set('settings', settings)}
+            />
           </>
         )}
 
@@ -1729,7 +1802,10 @@ export default function AgentEditor(props: Props) {
         )}
 
         {tab === 'versions' && (
-          <AgentVersions agentId={agent.id} canEdit={canEdit} dirty={dirty} reloadKey={versionsKey} onAgent={applyVersion} />
+          <>
+            <AbTestPanel agentId={agent.id} canEdit={canEdit} versioningEnabled={versioning.enabled} reloadKey={versionsKey} />
+            <AgentVersions agentId={agent.id} canEdit={canEdit} dirty={dirty} reloadKey={versionsKey} onAgent={applyVersion} />
+          </>
         )}
       </div>
     </div>

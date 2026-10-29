@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  return NextResponse.json({ agents: await listAgents(user.id), canEdit: canEditAgents(user) });
+  return NextResponse.json({ agents: await listAgents(user.id, user), canEdit: canEditAgents(user) });
 }
 
 /** Crea un agente (vacío o desde una plantilla). Solo admins. */
