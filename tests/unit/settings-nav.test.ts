@@ -33,6 +33,7 @@ describe('settings: secciones de la plataforma', () => {
       'import',
       'security',
       'notifications',
+      'desktop',
     ]);
     expect(account(true).map((t) => t.key).at(-1)).toBe('admin');
   });

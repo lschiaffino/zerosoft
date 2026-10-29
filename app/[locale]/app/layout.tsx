@@ -25,6 +25,7 @@ import { getUserTimeZone } from '@/lib/user-tz';
 import { SIDEBAR_COLLAPSED_SCRIPT } from '@/lib/sidebar-collapsed';
 import ClientMessages from '@/components/i18n/ClientMessages';
 import { settingsSectionHref, settingsSectionKeys } from '@/lib/settings-nav';
+import AppPwa from '@/components/app/AppPwa';
 // CSS común a toda la app: link.css trae la base de páginas, tablas y filtros
 // que usan todas las apps, app-shared.css las reglas de otras hojas que se usan
 // fuera de su app (ver su encabezado). Cada app importa su hoja en su layout.
@@ -126,6 +127,7 @@ export default async function AppLayout(
       <div className="app-frame" suppressHydrationWarning>
         <script dangerouslySetInnerHTML={{ __html: SIDEBAR_COLLAPSED_SCRIPT }} />
         <OfflineIdentity id={`${user.actingUser?.id ?? user.id}:${user.id}`} />
+        <AppPwa />
         <AppSidebar
           docsCanCreate={await canCreateDocPage(user, {}).catch(() => true)}
           demo={DEMO_MODE}

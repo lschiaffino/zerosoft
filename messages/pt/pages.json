@@ -2634,5 +2634,63 @@
       "beyond": "Além"
     },
     "method": "Cada app soma 1 por capacidade incluída, 0,5 por parcial e 0 por faltante, com peso dobrado para as centrais. É a nossa avaliação contra o código e é atualizada a cada versão. Abra um app para ver a lista completa."
+  },
+  "desktopLogin": {
+    "title": "Entrar no app do zerosoft",
+    "confirm": "O app do zerosoft em {device} vai entrar como {email}.",
+    "continue": "Seguir para o app",
+    "notYou": "Se você não começou isto pelo app do zerosoft, feche esta aba.",
+    "doneTitle": "Volte para o app",
+    "doneBody": "Seu navegador vai pedir para abrir o zerosoft. Permita para terminar o login.",
+    "open": "Abrir zerosoft",
+    "close": "Quando o app abrir, você pode fechar esta aba.",
+    "invalidTitle": "Este link não funciona",
+    "invalidBody": "Comece o login de novo pelo app do zerosoft.",
+    "requested": "Pedido às {time} UTC.",
+    "warning": "Continue só se você acabou de tocar em Entrar no app do zerosoft. O app fica com acesso completo à sua conta. Se alguém te mandou este link, feche esta aba.",
+    "devices": {
+      "mac": "um Mac",
+      "windows": "um PC com Windows",
+      "linux": "um computador com Linux",
+      "ios": "um iPhone ou iPad",
+      "android": "um Android",
+      "unknown": "um dispositivo"
+    }
+  },
+  "download": {
+    "meta": {
+      "title": "Baixe o zerosoft para Mac e Windows",
+      "description": "O app de desktop: todos os apps do zerosoft numa janela, ditado em qualquer app e notas de reuniões com o áudio do sistema. No celular, como app web instalável."
+    },
+    "title": "zerosoft no seu computador.",
+    "sub": "Todos os apps numa janela, mais o que uma aba do navegador não faz: ditar em qualquer app e fazer notas de reuniões com o áudio do computador.",
+    "macArm": "Baixar para Mac (Apple silicon)",
+    "macIntel": "Baixar para Mac (Intel)",
+    "win": "Baixar para Windows",
+    "otherMac": "Seu Mac tem chip Intel? Baixe a versão Intel.",
+    "otherArm": "Seu Mac tem Apple silicon? Baixe essa versão.",
+    "allFiles": "Todos os arquivos da versão {version}",
+    "versionLine": "Versão {version}, publicada em {date}.",
+    "noRelease": "Ainda não há uma versão publicada. Você pode compilar a partir do código em desktop/ (o README explica como).",
+    "source": "Código no GitHub",
+    "unsignedTitle": "As versões ainda não são assinadas",
+    "unsignedMac": "No Mac: abra o .dmg e arraste o zerosoft para Aplicativos. Na primeira vez o macOS bloqueia porque o app ainda não é notarizado: no macOS 15 ou posterior vá em Ajustes do Sistema › Privacidade e Segurança e clique em Abrir Mesmo Assim; no macOS 14 ou anterior, clique com o botão direito no app e escolha Abrir.",
+    "unsignedWin": "No Windows: o SmartScreen pode dizer que protegeu o seu PC. Clique em Mais informações e depois em Executar assim mesmo.",
+    "unsignedUpdates": "No Mac, as atualizações automáticas precisam de uma versão assinada. Até lá, baixe as versões novas por esta página.",
+    "featuresTitle": "O que o app de desktop adiciona",
+    "f1t": "Ditado em qualquer app",
+    "f1d": "Segure Control + Option no Mac ou Ctrl + Windows no Windows, fale e solte. O texto limpo é colado onde está o cursor, com o seu dicionário e estilo do Voice.",
+    "f2t": "Notas de reuniões sem bot",
+    "f2d": "Quando começa uma reunião do calendário, ou o Zoom, o Meet ou o Teams estão em chamada, o zerosoft oferece fazer notas. Ele grava o seu microfone e o áudio do sistema, e as notas ficam no Voice.",
+    "f3t": "Talk e o sino, nativos",
+    "f3d": "Menções e mensagens diretas não lidas no ícone do dock ou da barra de tarefas, e avisos do sistema que abrem a página certa.",
+    "f4t": "Login com Google no seu navegador",
+    "f4d": "O app manda você para o navegador para entrar e volta sozinho. Também funciona com o seu próprio servidor, se você usa o zerosoft self-hosted.",
+    "reqTitle": "Requisitos",
+    "reqMac": "macOS 12 ou posterior. O áudio do sistema em reuniões precisa do macOS 13 ou posterior.",
+    "reqWin": "Windows 10 ou 11, 64 bits.",
+    "mobileTitle": "No celular",
+    "mobileBody": "Abra zerosoft.ai/app no Safari ou no Chrome e adicione à tela de início: abre como um app, com todos os apps do zerosoft. As versões nativas de iOS e Android ainda não estão nas lojas.",
+    "openApp": "Abrir no navegador"
   }
 }

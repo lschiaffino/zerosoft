@@ -337,6 +337,7 @@
     "import": "Importar",
     "security": "Seguridad",
     "notifications": "Avisos",
+    "desktop": "App de escritorio",
     "admin": "Admin"
   },
   "nav": {
@@ -349,7 +350,8 @@
     "keywords": {
       "billing": "facturación, facturas, suscripción, pago, billing, plan",
       "domains": "dominio propio, dns, links cortos, domains",
-      "import": "importar migrar traer token"
+      "import": "importar migrar traer token",
+      "desktop": "descargar,mac,windows,escritorio,app"
     },
     "importFrom": "Importar de {source} a {app}"
   },

@@ -1,17 +1,20 @@
 {
-  "name": "zerosoft-crm-mobile",
+  "name": "zerosoft-mobile",
   "private": true,
-  "version": "0.0.1",
-  "description": "Wrapper de Capacitor del CRM (iOS y Android). Carga la app web desde server.url de capacitor.config.json; el offline lo da el service worker de la web. Para un self-host, cambiá server.url por tu dominio.",
+  "version": "0.1.0",
+  "description": "Wrapper de Capacitor de toda la plataforma (iOS y Android). Carga https://zerosoft.ai/app (server.url de capacitor.config.json); el login con Google va por el navegador del sistema y vuelve por zerosoft://. Para un self-host, cambiá server.url por tu dominio.",
   "scripts": {
-    "add:ios": "cap add ios",
-    "add:android": "cap add android",
+    "add:ios": "cap add ios && node scripts/configure-native.mjs",
+    "add:android": "cap add android && node scripts/configure-native.mjs",
+    "configure": "node scripts/configure-native.mjs",
     "sync": "cap sync",
     "open:ios": "cap open ios",
     "open:android": "cap open android"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.0",
+    "@capacitor/app": "^7.0.0",
+    "@capacitor/browser": "^7.0.0",
     "@capacitor/core": "^7.4.0",
     "@capacitor/ios": "^7.4.0"
   },
