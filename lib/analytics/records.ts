@@ -114,13 +114,21 @@ function toDashboard(r: DashboardRow): DashboardDto {
     id: r.id,
     name: r.name,
     description: r.description,
-    insightIds: r.items ? String(r.items).split(',').filter(Boolean) : [],
+    // "posición:id" separados por coma, en el orden del tablero.
+    insightIds: r.items
+      ? String(r.items)
+          .split(',')
+          .map((x) => x.split(':'))
+          .filter((x) => x.length === 2 && x[1])
+          .sort((a, b) => Number(a[0]) - Number(b[0]))
+          .map((x) => x[1])
+      : [],
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
 }
 
-const DASHBOARD_SELECT = `SELECT d.*, (SELECT group_concat(insight_id) FROM (SELECT insight_id FROM analytics_dashboard_items WHERE dashboard_id = d.id ORDER BY position, insight_id)) AS items
+const DASHBOARD_SELECT = `SELECT d.*, (SELECT group_concat(i.position || ':' || i.insight_id) FROM analytics_dashboard_items i WHERE i.dashboard_id = d.id) AS items
   FROM analytics_dashboards d`;
 
 export async function listDashboards(projectId: string, q?: string): Promise<DashboardDto[]> {

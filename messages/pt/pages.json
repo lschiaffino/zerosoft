@@ -1408,12 +1408,12 @@
       },
       "compare": {
         "rival": "PostHog",
-        "price": "US$ 0,00005",
-        "per": "/ evento depois do primeiro milhão no mês",
+        "price": "Por uso",
+        "per": "depois do primeiro milhão de eventos por mês",
         "teamLabel": "5 milhões de eventos por mês",
-        "team": "até US$ 2.400",
+        "team": "veja os preços do PostHog",
         "zero": "US$ 0",
-        "note": "O PostHog cobra analytics de produto por uso: o primeiro milhão de eventos de cada mês é grátis e os seguintes começam em cerca de US$ 0,00005 cada, mais baratos com mais volume. Com 5 milhões de eventos por mês são no máximo uns US$ 2.400 por ano, sem contar session replay nem flags. Veja posthog.com/pricing para a lista atual. O Analytics no seu servidor custa US$ 0 mais o seu banco de dados."
+        "note": "O PostHog cobra analytics de produto por uso: o primeiro milhão de eventos de cada mês é grátis e o resto é cobrado por evento, mais barato com mais volume. Não conseguimos verificar o preço atual por evento: confira em posthog.com/pricing. O Analytics no seu servidor custa US$ 0 mais o seu banco de dados."
       },
       "faq": {
         "f1": {

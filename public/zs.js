@@ -22,7 +22,7 @@
   var queue = Array.isArray(w.zs) ? w.zs : [];
 
   var cfg = { key: null, host: '', autocapture: true, pageviews: true, debug: false };
-  var state = { distinctId: null, props: {}, groups: {}, flags: null, flagCbs: [], buffer: [], timer: null, optedOut: false, ready: false };
+  var state = { distinctId: null, identified: false, props: {}, groups: {}, flags: null, flagCbs: [], buffer: [], timer: null, optedOut: false, ready: false };
   var SESSION_MS = 30 * 60 * 1000;
 
   function now() {
@@ -150,9 +150,15 @@
       if (props) capture('$set', { $set: props });
       return;
     }
+    // Solo un id anónimo se une al identificado: si ya había otra persona
+    // identificada en este navegador, el id nuevo empieza su propia persona.
+    var wasAnon = !state.identified;
     state.distinctId = id;
+    state.identified = true;
     store('id', { id: id, identified: true });
-    capture('$identify', { $anon_distinct_id: prev, $set: props || {} });
+    var p = { $set: props || {} };
+    if (wasAnon) p.$anon_distinct_id = prev;
+    capture('$identify', p);
     loadFlags();
   }
 
@@ -174,6 +180,7 @@
 
   function reset() {
     state.distinctId = uuid();
+    state.identified = false;
     state.props = {};
     state.groups = {};
     store('id', { id: state.distinctId, identified: false });
@@ -331,13 +338,15 @@
     } catch (e) {
       guess = '';
     }
-    cfg.host = String(opts.api_host || opts.host || guess || '').replace(/\/$/, '');
+    // Sin api_host ni src del script (p. ej. copiado inline): el servicio de zerosoft.
+    cfg.host = String(opts.api_host || opts.host || guess || 'https://zerosoft.ai').replace(/\/$/, '');
     if (opts.autocapture === false) cfg.autocapture = false;
     if (opts.capture_pageview === false) cfg.pageviews = false;
     cfg.debug = !!opts.debug;
     state.optedOut = !!store('optout');
     var saved = store('id');
     state.distinctId = saved && saved.id ? saved.id : uuid();
+    state.identified = !!(saved && saved.identified);
     if (!saved) store('id', { id: state.distinctId, identified: false });
     state.props = store('props') || {};
     state.groups = store('groups') || {};

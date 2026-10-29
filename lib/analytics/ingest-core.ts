@@ -18,6 +18,11 @@ export const INGEST_LIMITS = {
   /** Un timestamp del cliente más de esto en el futuro se toma como "ahora". */
   maxFutureMs: 60 * 60 * 1000,
   maxUrl: 2000,
+  /** Lo más viejo que se acepta (5 años); el proyecto puede pedir menos con su retención. */
+  maxPastMs: 5 * 365 * 86_400_000,
+  /** Propiedades de una persona después de juntar $set y $set_once. */
+  maxPersonKeys: 500,
+  maxPersonBytes: 64 * 1024,
 } as const;
 
 export interface CleanEvent {
@@ -48,13 +53,19 @@ function cleanString(v: unknown, max: number): string | null {
   return s;
 }
 
+/** Fechas razonables: entre 2000 y 2200 (en ms). Lo demás no se toma como fecha. */
+const MIN_TIME = Date.UTC(2000, 0, 1);
+const MAX_TIME = Date.UTC(2200, 0, 1);
+
 function parseTime(v: unknown): number | null {
-  if (typeof v === 'number' && Number.isFinite(v)) return v > 1e12 ? v : v * 1000;
-  if (typeof v === 'string' && v) {
-    const n = Date.parse(v);
-    return Number.isFinite(n) ? n : null;
+  let n: number | null = null;
+  if (typeof v === 'number' && Number.isFinite(v)) n = v > 1e11 ? v : v * 1000;
+  else if (typeof v === 'string' && v) {
+    const p = Date.parse(v);
+    n = Number.isFinite(p) ? p : null;
   }
-  return null;
+  if (n === null || !Number.isFinite(n) || n < MIN_TIME || n > MAX_TIME) return null;
+  return Math.round(n);
 }
 
 /**
@@ -62,11 +73,19 @@ function parseTime(v: unknown): number | null {
  * se corrige el desfase de su reloj (como PostHog): ts = ahora - (sent_at - timestamp).
  * Un timestamp en el futuro (más de una hora) se toma como ahora.
  */
-export function eventTime(timestamp: number | null, sentAt: number | null, now: number): number {
+export function eventTime(timestamp: number | null, sentAt: number | null, now: number): number | null {
   let ts = timestamp ?? now;
   if (timestamp != null && sentAt != null) ts = now - (sentAt - timestamp);
+  if (!Number.isFinite(ts)) return null;
   if (ts > now + INGEST_LIMITS.maxFutureMs) ts = now;
+  // Más viejo que el tope: se descarta (nunca se guarda un número fuera de rango).
+  if (ts < now - INGEST_LIMITS.maxPastMs) return null;
   return Math.round(ts);
+}
+
+/** ¿El ts es un instante válido para guardar? (lo usa la ingesta antes de escribir). */
+export function validTs(ts: number, now: number, maxAgeMs: number = INGEST_LIMITS.maxPastMs): boolean {
+  return Number.isSafeInteger(ts) && ts >= now - maxAgeMs && ts <= now + INGEST_LIMITS.maxFutureMs;
 }
 
 function cleanEvent(raw: unknown, sentAt: number | null, now: number): CleanEvent | null {
@@ -81,11 +100,14 @@ function cleanEvent(raw: unknown, sentAt: number | null, now: number): CleanEven
   delete props.api_key;
   let serialized: string;
   try {
-    serialized = JSON.stringify(props);
+    // $set y $set_once (en el evento o en sus propiedades) cuentan dentro del mismo tope.
+    serialized = JSON.stringify([props, raw.$set ?? null, raw.$set_once ?? null]);
   } catch {
     return null;
   }
   if (serialized.length > INGEST_LIMITS.maxPropsBytes) return null;
+  const ts = eventTime(parseTime(raw.timestamp), sentAt, now);
+  if (ts === null) return null;
   const uuidRaw = typeof raw.uuid === 'string' ? raw.uuid : typeof props.$insert_id === 'string' ? props.$insert_id : null;
   const uuid = uuidRaw && /^[0-9A-Za-z-]{8,64}$/.test(uuidRaw) ? uuidRaw : null;
   const set = isPlainObject(raw.$set) ? raw.$set : isPlainObject(props.$set) ? (props.$set as Record<string, unknown>) : null;
@@ -100,7 +122,7 @@ function cleanEvent(raw: unknown, sentAt: number | null, now: number): CleanEven
     event,
     distinctId,
     properties: props,
-    ts: eventTime(parseTime(raw.timestamp), sentAt, now),
+    ts,
     uuid,
     set,
     setOnce,
@@ -169,6 +191,18 @@ function str(v: unknown, max = 500): string | null {
   return typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null;
 }
 
+/** Parámetros de una URL que pueden traer secretos: no se guardan. */
+const SECRET_PARAM = /token|secret|password|passwd|auth|session|signature|sig$|code|key|otp|jwt|email/i;
+
+/** URL sin fragmento ni parámetros que parezcan secretos (tokens de login, links mágicos). */
+export function cleanUrl(raw: string | null): string | null {
+  const u = safeUrl(raw);
+  if (!u) return raw ? null : raw;
+  u.hash = '';
+  for (const k of [...u.searchParams.keys()]) if (SECRET_PARAM.test(k) && !/^utm_/i.test(k)) u.searchParams.delete(k);
+  return u.toString().slice(0, INGEST_LIMITS.maxUrl);
+}
+
 function safeUrl(raw: string | null): URL | null {
   if (!raw) return null;
   try {
@@ -192,9 +226,10 @@ export function referringDomain(referrer: string | null): string {
  * evento de servidor (sin navegador) puede traerlos en sus propiedades.
  */
 export function eventColumns(props: Record<string, unknown>, ctx: RequestContext | null): EventColumns {
-  const url = str(props.$current_url, INGEST_LIMITS.maxUrl);
+  const url = cleanUrl(str(props.$current_url, INGEST_LIMITS.maxUrl));
   const parsed = safeUrl(url);
-  const referrer = str(props.$referrer, INGEST_LIMITS.maxUrl);
+  const rawRef = str(props.$referrer, INGEST_LIMITS.maxUrl);
+  const referrer = rawRef === '$direct' ? rawRef : cleanUrl(rawRef);
   const q = parsed?.searchParams;
   const fromCtx = (k: keyof Omit<RequestContext, 'ip'>, prop: string) => {
     const own = str(props[prop], 100);
@@ -222,13 +257,27 @@ export function eventColumns(props: Record<string, unknown>, ctx: RequestContext
 /** IP anonimizada: el último octeto en 0 (IPv4) o solo los primeros 48 bits (IPv6). */
 export function maskIp(ip: string | null): string | null {
   if (!ip || ip === 'unknown') return null;
-  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.\d{1,3}$/.exec(ip);
+  const v4 = /^(?:::ffff:)?(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.\d{1,3}$/i.exec(ip);
+  // IPv4 (también la mapeada en IPv6, ::ffff:a.b.c.d): el último octeto en 0.
   if (v4) return `${v4[1]}.${v4[2]}.${v4[3]}.0`;
-  if (ip.includes(':')) {
-    const groups = ip.split(':').filter(Boolean).slice(0, 3);
-    return `${groups.join(':')}::`;
-  }
+  const groups = expandIpv6(ip);
+  if (groups) return `${groups.slice(0, 3).join(':')}::`;
   return null;
+}
+
+/** '2001:db8::1' → los 8 grupos (sin ceros a la izquierda). null si no es IPv6. */
+export function expandIpv6(ip: string): string[] | null {
+  const clean = ip.split('%')[0].toLowerCase();
+  if (!/^[0-9a-f:]+$/.test(clean) || !clean.includes(':')) return null;
+  const parts = clean.split('::');
+  if (parts.length > 2) return null;
+  const head = parts[0] ? parts[0].split(':') : [];
+  const tail = parts.length === 2 && parts[1] ? parts[1].split(':') : [];
+  const missing = 8 - head.length - tail.length;
+  if (parts.length === 1 ? head.length !== 8 : missing < 1) return null;
+  const all = [...head, ...Array(parts.length === 2 ? missing : 0).fill('0'), ...tail];
+  if (all.some((g) => !/^[0-9a-f]{1,4}$/.test(g))) return null;
+  return all.map((g) => g.replace(/^0+(?=.)/, ''));
 }
 
 // ---------- Dominios permitidos ----------
@@ -365,6 +414,8 @@ export function planPersons(
     if (!other || other === main) return;
     const otherState = state.get(other);
     const mainState = state.get(main);
+    // Un id que ya es de una persona identificada nunca se suma a otra (como PostHog).
+    if (otherState?.identified) return;
     if (!mainState && otherState) {
       // El id nuevo no tenía persona: se suma a la del anónimo.
       state.set(main, otherState);
@@ -410,9 +461,11 @@ export function planPersons(
       s.identified = true;
       w.identified = true;
     }
-    if (ev.initial) for (const [k, v] of Object.entries(ev.initial)) if (!(k in w.setOnce)) w.setOnce[k] = v;
-    if (ev.setOnce) for (const [k, v] of Object.entries(ev.setOnce)) if (!(k in w.setOnce)) w.setOnce[k] = v;
-    if (ev.set) Object.assign(w.set, ev.set);
+    // Tope de claves por persona y lote (el tope total lo aplica el UPDATE).
+    const room = (o: Record<string, unknown>) => Object.keys(o).length < INGEST_LIMITS.maxPersonKeys;
+    if (ev.initial) for (const [k, v] of Object.entries(ev.initial)) if (!(k in w.setOnce) && room(w.setOnce)) w.setOnce[k] = v;
+    if (ev.setOnce) for (const [k, v] of Object.entries(ev.setOnce)) if (!(k in w.setOnce) && room(w.setOnce)) w.setOnce[k] = v;
+    if (ev.set) for (const [k, v] of Object.entries(ev.set)) if (k in w.set || room(w.set)) w.set[k] = v;
   }
   for (const w of writes.values()) w.created = created.has(w.personId);
   return { mappings, merges, writes: [...writes.values()] };

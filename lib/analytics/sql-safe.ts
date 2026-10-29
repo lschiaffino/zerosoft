@@ -12,9 +12,14 @@
  *   pragma_*, load_extension…);
  * - ningún identificador puede nombrar una tabla real de la base (se pasa la
  *   lista de sqlite_master) ni empezar con sqlite_ o pragma_.
+ * - paréntesis balanceados, sin CROSS/NATURAL, sin FROM con comas y cada JOIN
+ *   con ON o USING, y como mucho dos tablas virtuales nombradas (frena los
+ *   productos cartesianos más obvios; el tope duro es el de tiempo).
  * Después se envuelve: las tablas virtuales son CTEs filtradas por
- * project_id y el resultado tiene LIMIT. El servidor además la corre en una
- * transacción de solo lectura.
+ * project_id (events, además, a los últimos 90 días) y el resultado tiene
+ * LIMIT. lib/analytics/sql-run.ts la corre con tope de tiempo y en solo
+ * lectura (PRAGMA query_only en un proceso aparte, o transacción de lectura
+ * en Turso).
  */
 
 export const SQL_MAX_ROWS = 1000;
@@ -24,8 +29,9 @@ export const VIRTUAL_TABLES = ['events', 'persons', 'person_distinct_ids', 'sess
 /** Funciones que se pueden llamar (en minúscula). */
 export const ALLOWED_FUNCTIONS = new Set([
   'count', 'sum', 'avg', 'min', 'max', 'total', 'group_concat',
-  'abs', 'round', 'lower', 'upper', 'length', 'substr', 'substring', 'trim', 'ltrim', 'rtrim', 'replace', 'instr',
-  'coalesce', 'ifnull', 'nullif', 'iif', 'cast', 'typeof', 'printf', 'format', 'hex',
+  // Sin printf/format/replace/hex: pueden armar textos enormes con poca consulta.
+  'abs', 'round', 'lower', 'upper', 'length', 'substr', 'substring', 'trim', 'ltrim', 'rtrim', 'instr',
+  'coalesce', 'ifnull', 'nullif', 'iif', 'cast', 'typeof',
   'date', 'time', 'datetime', 'strftime', 'julianday', 'unixepoch',
   'json_extract', 'json_array_length', 'json_type', 'json_valid', 'json_object', 'json_array', 'json_quote',
   'row_number', 'rank', 'dense_rank', 'percent_rank', 'cume_dist', 'ntile', 'lag', 'lead', 'first_value', 'last_value', 'nth_value',
@@ -36,7 +42,16 @@ export const ALLOWED_FUNCTIONS = new Set([
 const DENIED_KEYWORDS = new Set([
   'insert', 'update', 'delete', 'drop', 'create', 'alter', 'attach', 'detach', 'pragma', 'vacuum', 'reindex', 'analyze',
   'begin', 'commit', 'rollback', 'savepoint', 'release', 'recursive', 'trigger', 'upsert', 'conflict', 'returning', 'into', 'materialized',
+  // Joins sin condición (producto cartesiano).
+  'cross', 'natural',
 ]);
+
+/** Tablas virtuales que puede nombrar una consulta (FROM/JOIN), como mucho. */
+export const SQL_MAX_TABLE_REFS = 2;
+/** Ventana de la tabla events: los últimos N días. */
+export const SQL_WINDOW_DAYS = 90;
+
+const CLAUSE_END = new Set(['where', 'group', 'order', 'limit', 'having', 'union', 'except', 'intersect', 'window', 'select']);
 
 /** Palabras clave que pueden ir seguidas de "(" sin ser funciones. */
 const PAREN_KEYWORDS = new Set([
@@ -60,7 +75,10 @@ export type SqlCheck =
         | 'function_not_allowed'
         | 'table_not_allowed'
         | 'unterminated_string'
-        | 'invalid_character';
+        | 'invalid_character'
+        | 'unbalanced_parentheses'
+        | 'join_without_condition'
+        | 'too_many_tables';
       detail?: string;
     };
 
@@ -169,7 +187,55 @@ export function checkSql(input: string, realTables: Iterable<string>): SqlCheck 
       return { ok: false, error: 'function_not_allowed', detail: t.text };
     }
   }
+  // Paréntesis balanceados (la consulta va dentro de un SELECT * FROM (…)).
+  let depth = 0;
+  for (const t of toks) {
+    if (t.text === '(') depth++;
+    if (t.text === ')' && --depth < 0) return { ok: false, error: 'unbalanced_parentheses' };
+  }
+  if (depth !== 0) return { ok: false, error: 'unbalanced_parentheses' };
+  const joins = checkJoins(toks, virtual);
+  if (joins) return { ok: false, error: joins };
   return { ok: true, sql };
+}
+
+/**
+ * Cada FROM: sin listas con coma (FROM a, b), cada JOIN con ON o USING, y en
+ * toda la consulta como mucho SQL_MAX_TABLE_REFS tablas virtuales nombradas.
+ */
+function checkJoins(toks: Token[], virtual: Set<string>): 'join_without_condition' | 'too_many_tables' | null {
+  const lower = toks.map((t) => (t.kind === 'word' ? t.text.toLowerCase() : t.text));
+  let refs = 0;
+  for (let i = 1; i < toks.length; i++) {
+    if (toks[i].kind === 'word' && virtual.has(lower[i]) && (lower[i - 1] === 'from' || lower[i - 1] === 'join')) refs++;
+  }
+  if (refs > SQL_MAX_TABLE_REFS) return 'too_many_tables';
+  const depthAt: number[] = [];
+  let d = 0;
+  for (const t of toks) {
+    if (t.text === ')') d--;
+    depthAt.push(d);
+    if (t.text === '(') d++;
+  }
+  for (let i = 0; i < toks.length; i++) {
+    if (lower[i] !== 'from') continue;
+    const base = depthAt[i];
+    let pendingJoin = false;
+    for (let j = i + 1; j < toks.length; j++) {
+      if (depthAt[j] < base) break;
+      if (depthAt[j] > base) continue;
+      const w = lower[j];
+      if (CLAUSE_END.has(w)) break;
+      if (w === ',') return 'join_without_condition';
+      if (w === 'join') {
+        if (pendingJoin) return 'join_without_condition';
+        pendingJoin = true;
+      }
+      if (w === 'on' || w === 'using') pendingJoin = false;
+    }
+    if (pendingJoin) return 'join_without_condition';
+  }
+  return null;
 }
 
 /** Columnas de las tablas virtuales (para la ayuda del editor y la doc). */
@@ -190,7 +256,7 @@ export const VIRTUAL_COLUMNS: Record<(typeof VIRTUAL_TABLES)[number], string[]> 
  * Consulta lista para correr: las CTEs del proyecto (un parámetro por CTE,
  * todos el id del proyecto) y la del usuario como subconsulta con LIMIT.
  */
-export function wrapSql(userSql: string, projectId: string): { sql: string; args: string[] } {
+export function wrapSql(userSql: string, projectId: string, now = Date.now()): { sql: string; args: string[] } {
   const ctes = `WITH
   events AS (
     SELECT e.uuid, e.event, e.distinct_id, COALESCE(m.person_id, e.distinct_id) AS person_id, e.ts AS timestamp,
@@ -198,7 +264,7 @@ export function wrapSql(userSql: string, projectId: string): { sql: string; args
       e.referrer, e.referring_domain, e.utm_source, e.utm_medium, e.utm_campaign, e.browser, e.os, e.device AS device_type, e.country
     FROM analytics_events e
     LEFT JOIN analytics_person_ids m ON m.project_id = e.project_id AND m.distinct_id = e.distinct_id
-    WHERE e.project_id = ?
+    WHERE e.project_id = ? AND e.ts >= CAST(? AS INTEGER)
   ),
   persons AS (
     SELECT id, properties, is_identified, created_at, last_seen FROM analytics_persons WHERE project_id = ?
@@ -211,5 +277,5 @@ export function wrapSql(userSql: string, projectId: string): { sql: string; args
       entry_path, exit_path, referring_domain, utm_source, country, device AS device_type, browser
     FROM analytics_sessions WHERE project_id = ?
   )`;
-  return { sql: `${ctes}\nSELECT * FROM (\n${userSql}\n) LIMIT ${SQL_MAX_ROWS + 1}`, args: [projectId, projectId, projectId, projectId] };
+  return { sql: `${ctes}\nSELECT * FROM (\n${userSql}\n) LIMIT ${SQL_MAX_ROWS + 1}`, args: [projectId, String(now - SQL_WINDOW_DAYS * 86_400_000), projectId, projectId, projectId] };
 }

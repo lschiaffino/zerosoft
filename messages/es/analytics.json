@@ -236,14 +236,18 @@
       "function_not_allowed": "Esa función no está disponible",
       "table_not_allowed": "Solo están las tablas events, persons, person_distinct_ids y sessions",
       "unterminated_string": "A un texto le falta la comilla de cierre.",
-      "invalid_character": "La consulta tiene un carácter no permitido"
+      "invalid_character": "La consulta tiene un carácter no permitido",
+      "sql_timeout": "La consulta tardó demasiado (máximo 8 segundos) y se cortó. Sumá filtros o un rango más corto.",
+      "unbalanced_parentheses": "Los paréntesis no cierran.",
+      "join_without_condition": "Cada JOIN necesita ON o USING, y el FROM no puede listar tablas con comas.",
+      "too_many_tables": "Una consulta puede nombrar hasta dos tablas."
     }
   },
   "sql": {
     "title": "SQL",
     "description": "SQL de solo lectura sobre los eventos, personas y sesiones del proyecto (sintaxis de SQLite).",
     "query": "Consulta",
-    "help": "Tablas: events, persons, person_distinct_ids, sessions. Las propiedades se leen con json_extract(properties, '$.plan'). Las fechas van en milisegundos. Hasta 1.000 filas. Corré con ⌘ Enter.",
+    "help": "Tablas: events (últimos 90 días), persons, person_distinct_ids, sessions. Las propiedades se leen con json_extract(properties, '$.plan'). Las fechas van en milisegundos. Hasta 1.000 filas y 8 segundos; cada JOIN lleva ON. Corré con ⌘ Enter.",
     "saveInsight": "Guardar como insight",
     "run": "Correr",
     "schema": "Tablas y columnas",

@@ -846,8 +846,15 @@ async function analyticsProject(ctx: ToolCtx, project?: string): Promise<Project
 const projectArg = z.string().max(200).optional().describe('Project name or id. Omit for the first project of the workspace.');
 const daysArg = z.number().int().min(1).max(365).optional();
 
-/** Los errores de consulta vuelven como dato (el modelo se lo explica a la persona). */
-async function safeQuery<T>(fn: () => Promise<T>): Promise<T | { error: string }> {
+/**
+ * Los errores de consulta vuelven como dato (el modelo se lo explica a la
+ * persona). Mismos topes que /api/analytics/query: 240 por minuto y por
+ * workspace, y 30 para SQL.
+ */
+async function safeQuery<T>(ctx: ToolCtx, kind: string, fn: () => Promise<T>): Promise<T | { error: string }> {
+  const sql = kind === 'sql';
+  const limit = await rateLimit(`aquery:${sql ? 'sql:' : ''}${ctx.workspaceId}`, sql ? 30 : 240, 60);
+  if (!limit.ok && process.env.RATE_LIMIT_DISABLED !== 'true') return { error: 'rate_limited' };
   try {
     return await fn();
   } catch (err) {
@@ -874,7 +881,9 @@ const analytics: AssistantTool[] = [
     run: async (ctx, { project, days }) => {
       const p = await analyticsProject(ctx, project);
       if (!p) return { error: 'no_project' };
-      const r = await runWeb(p, { kind: 'web', dateRange: { from: `-${days ?? 7}d` }, compare: true });
+      const res = await safeQuery(ctx, 'web', () => runWeb(p, { kind: 'web', dateRange: { from: `-${days ?? 7}d` }, compare: true }));
+      if ('error' in res) return res;
+      const r = res;
       return { project: p.name, stats: r.stats, pages: r.pages.slice(0, 5), referrers: r.referrers.slice(0, 5), countries: r.countries.slice(0, 5), devices: r.devices, href: '/app/analytics' };
     },
   }),
@@ -892,7 +901,7 @@ const analytics: AssistantTool[] = [
     run: async (ctx, { project, event, unique, days, breakdown }) => {
       const p = await analyticsProject(ctx, project);
       if (!p) return { error: 'no_project' };
-      return safeQuery(async () => {
+      return safeQuery(ctx, 'trends', async () => {
         const r = await runTrends(p, {
           kind: 'trends',
           series: [{ event, math: unique ? 'unique' : 'total', filters: [] }],
@@ -920,7 +929,7 @@ const analytics: AssistantTool[] = [
     run: async (ctx, { project, steps, days, windowDays }) => {
       const p = await analyticsProject(ctx, project);
       if (!p) return { error: 'no_project' };
-      return safeQuery(async () => {
+      return safeQuery(ctx, 'funnel', async () => {
         const r = await runFunnel(p, {
           kind: 'funnel',
           steps: steps.map((event) => ({ event, filters: [] })),
@@ -944,7 +953,7 @@ const analytics: AssistantTool[] = [
       if (!insight) return { project: p.name, insights: list.slice(0, 50).map((i) => ({ id: i.id, name: i.name, kind: i.kind, href: `/app/analytics/insights/${i.id}` })) };
       const found = list.find((i) => i.id === insight) ?? byName(list, insight, (i) => i.name);
       if (!found) return { error: 'insight_not_found' };
-      return safeQuery(async () => {
+      return safeQuery(ctx, found.query.kind, async () => {
         const r = await runInsight(p, found.query);
         const summary =
           r.kind === 'trends'

@@ -8,6 +8,8 @@ import { ensureMigrated, getClient, getDb } from '../db';
 import { contextFromHeaders } from '../track';
 import { clientIp } from '../rate-limit';
 import {
+  INGEST_LIMITS,
+  validTs,
   eventColumns,
   initialProps,
   maskIp,
@@ -35,8 +37,15 @@ export function requestContext(req: Request): RequestContext {
 
 const DAY = 86_400_000;
 
-function dayOf(ts: number, offsetMin: number): string {
-  return new Date(ts + offsetMin * 60_000).toISOString().slice(0, 10);
+/** Día local de un ts (null si el ts no es una fecha válida: nunca tira). */
+export function dayOf(ts: number, offsetMin: number): string | null {
+  const d = new Date(ts + offsetMin * 60_000);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
+
+/** properties nuevas solo si entran en el tope de claves y bytes; si no, quedan las de antes. */
+function cappedPatch(expr: string): string {
+  return `CASE WHEN length(${expr}) <= ${INGEST_LIMITS.maxPersonBytes} AND (SELECT count(*) FROM json_each(${expr})) <= ${INGEST_LIMITS.maxPersonKeys} THEN ${expr} ELSE properties END`;
 }
 
 /**
@@ -45,6 +54,10 @@ function dayOf(ts: number, offsetMin: number): string {
  * distinct_ids del lote (una lectura) y el resto va en un batch de escritura.
  */
 export async function storeEvents(project: ProjectRow, events: CleanEvent[], ctx: RequestContext | null): Promise<number> {
+  // Nada fuera de la retención del proyecto ni con una fecha imposible.
+  const now = Date.now();
+  const maxAge = Math.min(INGEST_LIMITS.maxPastMs, Math.max(1, Number(project.retention_days) || 365) * DAY);
+  events = events.filter((e) => validTs(e.ts, now, maxAge));
   if (!events.length) return 0;
   await ensureMigrated();
   const pid = project.id;
@@ -73,7 +86,13 @@ export async function storeEvents(project: ProjectRow, events: CleanEvent[], ctx
   }
 
   const ip = ctx ? (project.anonymize_ip === 1 ? maskIp(ctx.ip) : ctx.ip && ctx.ip !== 'unknown' ? ctx.ip : null) : null;
-  const rows = events.map((e) => ({ e, cols: eventColumns(e.properties, ctx) }));
+  const rows = events.map((e) => {
+    const cols = eventColumns(e.properties, ctx);
+    // Las propiedades guardadas llevan la URL ya limpia (sin fragmento ni tokens).
+    if ('$current_url' in e.properties) e.properties.$current_url = cols.url;
+    if (typeof e.properties.$referrer === 'string' && e.properties.$referrer !== '$direct') e.properties.$referrer = cols.referrer;
+    return { e, cols };
+  });
   const plan = planPersons(
     pid,
     rows.map(({ e, cols }) => ({ ...e, initial: initialProps(cols) })),
@@ -131,10 +150,10 @@ export async function storeEvents(project: ProjectRow, events: CleanEvent[], ctx
   for (const m of plan.merges) {
     stmts.push(
       {
-        sql: `UPDATE analytics_persons SET properties = json_patch(COALESCE((SELECT properties FROM analytics_persons WHERE id = ?), '{}'), properties),
-                created_at = MIN(created_at, COALESCE((SELECT created_at FROM analytics_persons WHERE id = ?), created_at))
-              WHERE id = ? AND project_id = ?`,
-        args: [m.from, m.from, m.into, pid],
+        sql: `UPDATE analytics_persons SET properties = ${cappedPatch("json_patch(COALESCE((SELECT properties FROM analytics_persons WHERE id = ?1), '{}'), properties)")},
+                created_at = MIN(created_at, COALESCE((SELECT created_at FROM analytics_persons WHERE id = ?1), created_at))
+              WHERE id = ?2 AND project_id = ?3`,
+        args: [m.from, m.into, pid],
       },
       { sql: 'UPDATE analytics_person_ids SET person_id = ? WHERE project_id = ? AND person_id = ?', args: [m.into, pid, m.from] },
       { sql: 'DELETE FROM analytics_persons WHERE id = ? AND project_id = ?', args: [m.from, pid] },
@@ -143,9 +162,9 @@ export async function storeEvents(project: ProjectRow, events: CleanEvent[], ctx
   // 4. Propiedades: $set_once queda debajo de lo que había, $set encima.
   for (const w of plan.writes) {
     stmts.push({
-      sql: `UPDATE analytics_persons SET properties = json_patch(json_patch(?, properties), ?), last_seen = MAX(last_seen, ?),
-              created_at = MIN(created_at, ?), is_identified = MAX(is_identified, ?)
-            WHERE id = ? AND project_id = ?`,
+      sql: `UPDATE analytics_persons SET properties = ${cappedPatch('json_patch(json_patch(?1, properties), ?2)')}, last_seen = MAX(last_seen, ?3),
+              created_at = MIN(created_at, ?4), is_identified = MAX(is_identified, ?5)
+            WHERE id = ?6 AND project_id = ?7`,
       args: [JSON.stringify(w.setOnce), JSON.stringify(w.set), w.lastSeen, w.firstSeen, w.identified ? 1 : 0, w.personId, pid],
     });
   }
@@ -215,13 +234,14 @@ export async function storeEvents(project: ProjectRow, events: CleanEvent[], ctx
       args: [pid, type, key, JSON.stringify(set), e.ts, e.ts],
     });
   }
-  // 7. Eventos atrasados (más de 2 días): el rollup diario rehace desde ese día.
-  const oldest = Math.min(...events.map((e) => e.ts));
-  if (oldest < Date.now() - 2 * DAY && project.rolled_through) {
-    const day = dayOf(oldest, Number(project.tz_offset_min));
+  // 7. Un evento de un día que el rollup ya cerró lo marca para rehacer desde ahí.
+  // Se decide en SQL (rolled_through del momento, no el del caché del proyecto).
+  const oldestDay = dayOf(Math.min(...events.map((e) => e.ts)), Number(project.tz_offset_min));
+  if (oldestDay) {
     stmts.push({
-      sql: 'UPDATE analytics_projects SET dirty_from = MIN(COALESCE(dirty_from, ?), ?) WHERE id = ?',
-      args: [day, day, pid],
+      sql: `UPDATE analytics_projects SET dirty_from = MIN(COALESCE(dirty_from, ?1), ?1)
+            WHERE id = ?2 AND rolled_through IS NOT NULL AND ?1 <= rolled_through`,
+      args: [oldestDay, pid],
     });
   }
 

@@ -173,6 +173,8 @@
 .an-steps { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
 .an-step-n { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; font-family: var(--mono); font-size: 0.75rem; color: var(--ink); border: 1px solid var(--line); }
 .an-event-input { min-width: 0; flex: 1 1 160px; }
+/* En una columna (campo con etiqueta) el flex-basis sería el alto: ahí no crece. */
+.an-inline-field .an-event-input { flex: none; width: 100%; }
 .an-filters { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
 .an-filter { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
 .an-filter .input, .an-filter .select { min-width: 0; flex: 1 1 110px; }

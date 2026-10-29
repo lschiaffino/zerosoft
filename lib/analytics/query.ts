@@ -23,6 +23,7 @@ import {
 } from './compute';
 import { cohortSql, filtersSql, needsPerson, personJoins, PERSON_KEY, propText, type Arg, type Frag } from './sql-build';
 import { checkSql, SQL_MAX_ROWS, wrapSql } from './sql-safe';
+import { runReadOnly, SqlRunError } from './sql-run';
 import { getCohort } from './records';
 import type { ProjectRow } from './projects';
 import type {
@@ -348,18 +349,16 @@ export async function runSql(project: ProjectRow, sql: string): Promise<SqlResul
   const check = checkSql(sql, await realTables());
   if (!check.ok) throw new QueryError(check.error, check.detail);
   const wrapped = wrapSql(check.sql, project.id);
-  await ensureMigrated();
   const started = Date.now();
-  // Defensa extra: transacción de solo lectura.
-  const tx = await getClient().transaction('read');
   try {
-    const res = await tx.execute({ sql: wrapped.sql, args: wrapped.args });
-    const rows = res.rows.slice(0, SQL_MAX_ROWS).map((row) => res.columns.map((_, i) => cell(row[i])));
+    // Tope duro de tiempo y solo lectura (ver lib/analytics/sql-run.ts).
+    const res = await runReadOnly(wrapped.sql, wrapped.args, SQL_MAX_ROWS);
+    const rows = res.rows.slice(0, SQL_MAX_ROWS).map((row) => row.map(cell));
     return { kind: 'sql', columns: res.columns, rows, truncated: res.rows.length > SQL_MAX_ROWS, ms: Date.now() - started };
   } catch (err) {
-    throw new QueryError('sql_error', err instanceof Error ? err.message.replace(/analytics_[a-z_]+/g, '…').slice(0, 300) : undefined);
-  } finally {
-    tx.close();
+    if (err instanceof SqlRunError && err.code === 'timeout') throw new QueryError('sql_timeout');
+    const msg = err instanceof SqlRunError ? err.detail : err instanceof Error ? err.message : undefined;
+    throw new QueryError('sql_error', msg?.replace(/analytics_[a-z_]+/g, '…').slice(0, 300));
   }
 }
 

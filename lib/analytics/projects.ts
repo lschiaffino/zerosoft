@@ -177,7 +177,12 @@ export function forgetProjectCache(): void {
   byKey.clear();
 }
 
-/** Proyecto por key pública o secreta, con caché de 30 s por instancia (la ingesta lo pide en cada pedido). */
+/**
+ * Proyecto por key pública o secreta, con caché de 30 s por instancia (la
+ * ingesta lo pide en cada pedido). También guarda las keys que no existen (un
+ * barrido de keys falsas no va a la base). Al cambiar, rotar o borrar se vacía
+ * el caché de esta instancia; las demás instancias lo ven en hasta 30 s.
+ */
 export async function projectByKey(key: string, kind: 'public' | 'secret'): Promise<ProjectRow | null> {
   const cacheKey = `${kind}:${kind === 'secret' ? sha256(key) : key}`;
   const hit = byKey.get(cacheKey);

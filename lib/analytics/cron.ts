@@ -51,7 +51,16 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
     .all()) as Array<{ id: string }>;
   for (const { id } of deleted) {
     if (left() <= 0) break;
-    if (!(await claim(id, 'purged_at', now, CLAIM_MS))) continue;
+    // Un proyecto que falla no frena a los demás.
+    try {
+      await purgeDeleted(id);
+    } catch (err) {
+      console.error('[analytics cron] purge', id, err);
+    }
+  }
+  async function purgeDeleted(id: string) {
+    // Claim propio del borrado (el de retención usa purged_at con otra ventana).
+    if (!(await claim(id, 'rollup_claimed_at', now, CLAIM_MS))) return;
     let done = false;
     while (left() > 0) {
       const res = await db
@@ -64,10 +73,22 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
       }
     }
     if (!done) {
-      await db.prepare('UPDATE analytics_projects SET purged_at = NULL WHERE id = ?').run(id);
-      continue;
+      await db.prepare('UPDATE analytics_projects SET rollup_claimed_at = NULL WHERE id = ?').run(id);
+      return;
     }
-    for (const table of ['analytics_person_ids', 'analytics_persons', 'analytics_sessions', 'analytics_groups', 'analytics_daily']) {
+    // Todo explícito (no depende de que las FK en cascada estén prendidas).
+    await db.prepare('DELETE FROM analytics_dashboard_items WHERE dashboard_id IN (SELECT id FROM analytics_dashboards WHERE project_id = ?)').run(id);
+    for (const table of [
+      'analytics_insights',
+      'analytics_dashboards',
+      'analytics_cohorts',
+      'analytics_flags',
+      'analytics_person_ids',
+      'analytics_persons',
+      'analytics_sessions',
+      'analytics_groups',
+      'analytics_daily',
+    ]) {
       await db.prepare(`DELETE FROM ${table} WHERE project_id = ?`).run(id);
     }
     await db.prepare('DELETE FROM analytics_projects WHERE id = ?').run(id);
@@ -83,16 +104,25 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
     .all(now - CLAIM_MS)) as Array<{ id: string; tz_offset_min: number; rolled_through: string | null; dirty_from: string | null }>;
   for (const p of candidates) {
     if (left() <= 0) break;
+    try {
+      await rollup(p);
+    } catch (err) {
+      console.error('[analytics cron] rollup', p.id, err);
+      await db.prepare('UPDATE analytics_projects SET rollup_claimed_at = NULL WHERE id = ?').run(p.id).catch(() => null);
+    }
+  }
+  async function rollup(p: (typeof candidates)[number]) {
     const tz = Number(p.tz_offset_min);
     const yesterday = addDays(bucketOf(now, 'day', tz), -1);
     let from: string | null = p.dirty_from ?? (p.rolled_through ? addDays(p.rolled_through, 1) : null);
     if (!from) {
       const first = (await db.prepare('SELECT MIN(ts) AS ts FROM analytics_events WHERE project_id = ?').get(p.id)) as { ts: number | null } | undefined;
-      if (first?.ts == null) continue;
-      from = bucketOf(Number(first.ts), 'day', tz);
+      if (first?.ts == null || !Number.isFinite(Number(first.ts))) return;
+      // Nunca más atrás que la retención máxima (5 años), aunque haya un dato raro.
+      from = bucketOf(Math.max(Number(first.ts), now - 5 * 365 * DAY), 'day', tz);
     }
-    if (from > yesterday) continue;
-    if (!(await claim(p.id, 'rollup_claimed_at', now, CLAIM_MS))) continue;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || from > yesterday) return;
+    if (!(await claim(p.id, 'rollup_claimed_at', now, CLAIM_MS))) return;
     let day = from;
     let last: string | null = null;
     for (let n = 0; n < 31 && day <= yesterday && left() > 0; n++) {
@@ -111,13 +141,19 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
       day = addDays(day, 1);
     }
     if (last) {
-      // Si llegó un evento atrasado mientras tanto (dirty_from cambió), no se pisa.
+      // Si quedaron días ya cerrados sin rehacer (se cortó en 31 o por tiempo), dirty_from
+      // sigue en el siguiente; si llegó un evento atrasado mientras tanto, gana el más viejo.
+      const pending = p.rolled_through && addDays(last, 1) <= p.rolled_through ? addDays(last, 1) : null;
       await db
         .prepare(
-          `UPDATE analytics_projects SET rolled_through = CASE WHEN rolled_through IS NULL OR rolled_through < ? THEN ? ELSE rolled_through END,
-             dirty_from = CASE WHEN dirty_from IS ? THEN NULL ELSE dirty_from END, rollup_claimed_at = NULL WHERE id = ?`,
+          `UPDATE analytics_projects SET rolled_through = CASE WHEN rolled_through IS NULL OR rolled_through < ?1 THEN ?1 ELSE rolled_through END,
+             dirty_from = CASE
+               WHEN dirty_from IS ?2 THEN ?3
+               WHEN ?3 IS NULL THEN dirty_from
+               ELSE MIN(dirty_from, ?3) END,
+             rollup_claimed_at = NULL WHERE id = ?4`,
         )
-        .run(last, last, p.dirty_from, p.id);
+        .run(last, p.dirty_from, pending, p.id);
     } else {
       await db.prepare('UPDATE analytics_projects SET rollup_claimed_at = NULL WHERE id = ?').run(p.id);
     }
@@ -129,7 +165,16 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
     .all(now - 6 * 3_600_000)) as Array<{ id: string; retention_days: number }>;
   for (const p of due) {
     if (left() <= 0) break;
-    if (!(await claim(p.id, 'purged_at', now, 6 * 3_600_000))) continue;
+    try {
+      await retention(p);
+    } catch (err) {
+      console.error('[analytics cron] retention', p.id, err);
+    }
+  }
+  return out;
+
+  async function retention(p: (typeof due)[number]) {
+    if (!(await claim(p.id, 'purged_at', now, 6 * 3_600_000))) return;
     const cutoff = now - Number(p.retention_days) * DAY;
     for (let round = 0; round < 20 && left() > 0; round++) {
       const res = await db
@@ -140,6 +185,7 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
     }
     await db.prepare('DELETE FROM analytics_sessions WHERE project_id = ? AND started_at < ?').run(p.id, cutoff);
     await db.prepare('DELETE FROM analytics_daily WHERE project_id = ? AND day < ?').run(p.id, new Date(cutoff).toISOString().slice(0, 10));
+    // Lo que quedó con una fecha imposible (anterior a la validación de la ingesta) también sale.
+    await db.prepare('DELETE FROM analytics_events WHERE project_id = ? AND (ts > ? OR typeof(ts) != \'integer\')').run(p.id, now + 86_400_000);
   }
-  return out;
 }

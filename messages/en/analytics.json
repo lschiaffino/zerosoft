@@ -236,14 +236,18 @@
       "function_not_allowed": "That function isn't available",
       "table_not_allowed": "Only the tables events, persons, person_distinct_ids and sessions are available",
       "unterminated_string": "A string is missing its closing quote.",
-      "invalid_character": "The query has a character that isn't allowed"
+      "invalid_character": "The query has a character that isn't allowed",
+      "sql_timeout": "The query took too long (8 seconds max) and was stopped. Add filters or a shorter time range.",
+      "unbalanced_parentheses": "The parentheses don’t match.",
+      "join_without_condition": "Each JOIN needs ON or USING, and FROM can’t list tables with commas.",
+      "too_many_tables": "A query can name at most two tables."
     }
   },
   "sql": {
     "title": "SQL",
     "description": "Read-only SQL over this project's events, people and sessions (SQLite syntax).",
     "query": "Query",
-    "help": "Tables: events, persons, person_distinct_ids, sessions. Read properties with json_extract(properties, '$.plan'). Timestamps are milliseconds. Up to 1,000 rows. Run with ⌘ Enter.",
+    "help": "Tables: events (last 90 days), persons, person_distinct_ids, sessions. Read properties with json_extract(properties, '$.plan'). Timestamps are milliseconds. Up to 1,000 rows and 8 seconds; each JOIN needs ON. Run with ⌘ Enter.",
     "saveInsight": "Save as insight",
     "run": "Run",
     "schema": "Tables and columns",

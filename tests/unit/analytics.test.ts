@@ -120,6 +120,7 @@ describe('analytics: validación de la ingesta', () => {
   it('anonimiza IPv4 e IPv6', () => {
     expect(maskIp('203.0.113.77')).toBe('203.0.113.0');
     expect(maskIp('2001:db8:85a3:8d3:1319:8a2e:370:7348')).toBe('2001:db8:85a3::');
+    expect(maskIp('2001:0db8:0000::7348')).toBe('2001:db8:0::');
     expect(maskIp('unknown')).toBeNull();
   });
 
@@ -270,8 +271,8 @@ describe('analytics: capa SQL de solo lectura', () => {
   });
 
   it('envuelve con las CTEs del proyecto y un LIMIT', () => {
-    const w = wrapSql('SELECT 1', 'ap_1');
-    expect(w.args).toEqual(['ap_1', 'ap_1', 'ap_1', 'ap_1']);
+    const w = wrapSql('SELECT 1', 'ap_1', 1_000_000_000_000);
+    expect(w.args).toEqual(['ap_1', String(1_000_000_000_000 - 90 * DAY), 'ap_1', 'ap_1', 'ap_1']);
     expect(w.sql).toMatch(/WHERE e\.project_id = \?/);
     expect(w.sql).toMatch(/LIMIT 1001$/);
   });

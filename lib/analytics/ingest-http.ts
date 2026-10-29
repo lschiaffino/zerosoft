@@ -7,7 +7,8 @@
  */
 import { NextResponse } from 'next/server';
 import { extractBearer } from '../api-auth';
-import { rateLimit } from '../rate-limit';
+import { ensureMigrated, getClient } from '../db';
+import { clientIp } from '../rate-limit';
 import { INGEST_LIMITS, originAllowed, parseIngestBody } from './ingest-core';
 import { requestContext, storeEvents } from './ingest';
 import { parseDomainList, projectByKey, type ProjectRow } from './projects';
@@ -17,6 +18,26 @@ import { deletePerson, personIdByDistinctId } from './persons';
 /** Pedidos por minuto por proyecto (cada pedido trae hasta 200 eventos). */
 const INGEST_RPM = Number(process.env.ANALYTICS_INGEST_RPM) || 1200;
 const DECIDE_RPM = Number(process.env.ANALYTICS_DECIDE_RPM) || 2400;
+/** Pedidos por minuto de una IP a un proyecto (debajo del tope del proyecto). */
+const IP_PROJECT_RPM = Number(process.env.ANALYTICS_IP_RPM) || 300;
+/** Pedidos por minuto de una IP antes de mirar la key (por instancia, sin ir a la base). */
+const IP_PRECHECK_RPM = Number(process.env.ANALYTICS_IP_PRECHECK_RPM) || 600;
+
+const ipWindows = new Map<string, { start: number; count: number }>();
+
+/** Tope por IP en memoria, antes de buscar la key: frena a quien prueba keys o inunda sin costar un viaje a la base. */
+function ipPrecheck(ip: string): boolean {
+  if (process.env.RATE_LIMIT_DISABLED === 'true') return true;
+  const now = Date.now();
+  const w = ipWindows.get(ip);
+  if (!w || now - w.start >= 60_000) {
+    if (ipWindows.size > 10_000) ipWindows.clear();
+    ipWindows.set(ip, { start: now, count: 1 });
+    return true;
+  }
+  w.count++;
+  return w.count <= IP_PRECHECK_RPM;
+}
 
 export function corsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get('origin');
@@ -70,16 +91,34 @@ function dntOn(req: Request): boolean {
   return req.headers.get('dnt') === '1' || req.headers.get('sec-gpc') === '1';
 }
 
+/**
+ * Tope por proyecto y por IP dentro del proyecto, los dos en un solo viaje a la
+ * base (ventanas fijas de un minuto en rate_limits, como lib/rate-limit.ts).
+ */
 async function limited(req: Request, bucket: string, projectId: string, rpm: number): Promise<NextResponse | null> {
   if (process.env.RATE_LIMIT_DISABLED === 'true') return null;
-  const r = await rateLimit(`${bucket}:${projectId}`, rpm, 60);
-  if (r.ok) return null;
+  const now = Date.now();
+  const start = Math.floor(now / 60_000) * 60_000;
+  const upsert = (key: string) => ({
+    sql: `INSERT INTO rate_limits (key, window_start, count, expires_at) VALUES (?, ?, 1, ?)
+          ON CONFLICT (key, window_start) DO UPDATE SET count = count + 1 RETURNING count`,
+    args: [key, start, start + 60_000],
+  });
+  await ensureMigrated();
+  const [project, ip] = await getClient().batch([upsert(`${bucket}:${projectId}`), upsert(`${bucket}:${projectId}:${clientIp(req)}`)], 'write');
+  if (Number(project.rows[0]?.count ?? 0) <= rpm && Number(ip.rows[0]?.count ?? 0) <= Math.min(rpm, IP_PROJECT_RPM)) return null;
   const res = reply(req, 429, { error: 'rate_limited' });
-  res.headers.set('retry-after', String(Math.max(1, Math.ceil((r.resetAt - Date.now()) / 1000))));
+  res.headers.set('retry-after', String(Math.max(1, Math.ceil((start + 60_000 - now) / 1000))));
   return res;
 }
 
+function precheck(req: Request): NextResponse | null {
+  return ipPrecheck(clientIp(req)) ? null : reply(req, 429, { error: 'rate_limited' });
+}
+
 export async function handleCapture(req: Request): Promise<Response> {
+  const pre = precheck(req);
+  if (pre) return pre;
   const text = await readBody(req);
   if (text === null) return reply(req, 413, { error: 'payload_too_large' });
   const parsed = parseIngestBody(text);
@@ -97,6 +136,8 @@ export async function handleCapture(req: Request): Promise<Response> {
 }
 
 export async function handleDecide(req: Request): Promise<Response> {
+  const pre = precheck(req);
+  if (pre) return pre;
   const text = await readBody(req);
   if (text === null) return reply(req, 413, { error: 'payload_too_large' });
   let body: Record<string, unknown>;
@@ -125,6 +166,8 @@ export async function handleDecide(req: Request): Promise<Response> {
 
 /** Borra la persona de un distinct_id con todos sus eventos. Solo con la key secreta. */
 export async function handleDeletePerson(req: Request): Promise<Response> {
+  const pre = precheck(req);
+  if (pre) return pre;
   const bearer = extractBearer(req);
   if (!bearer?.startsWith('zss_')) return reply(req, 401, { error: 'secret_key_required' });
   const project = await projectByKey(bearer, 'secret');
