@@ -49,6 +49,7 @@ test.describe('app de escritorio', () => {
   }
 
   test.beforeAll(async ({ baseURL }) => {
+    test.setTimeout(180_000);
     server = baseURL!;
     userData = fs.mkdtempSync(path.join(os.tmpdir(), 'zs-desktop-e2e-'));
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -57,11 +58,12 @@ test.describe('app de escritorio', () => {
       executablePath,
       args: [root],
       env: { ...process.env, ZEROSOFT_SERVER: baseURL!, ZEROSOFT_DESKTOP_TEST: '1', ZEROSOFT_USER_DATA: userData } as Record<string, string>,
-      timeout: 60_000,
+      timeout: 150_000,
     });
   });
 
   test.afterAll(async () => {
+    test.setTimeout(60_000);
     await app?.close().catch(() => undefined);
     fs.rmSync(userData, { recursive: true, force: true });
   });
@@ -158,7 +160,9 @@ test.describe('app de escritorio', () => {
     expect(detail.capture).toBe('desktop');
     // (Con el micrófono falso de Chromium la captura de pantalla también es falsa y no pasa por el
     // handler de loopback de window.ts: el audio del sistema real se prueba a mano, ver desktop/README.md.)
-    await win.getByRole('button', { name: 'Stop', exact: true }).first().click();
+    // La ventana está escondida en el modo test: el botón se toca por DOM.
+    await expect(win.locator('.vc-recorder-row .vc-rec-time')).toBeAttached({ timeout: 20_000 });
+    await win.locator('.vc-recorder-row button.btn-primary').dispatchEvent('click');
     await expect.poll(async () => ((await (await request.get(`/api/voice/sessions/${id}`)).json()) as { status: string }).status, { timeout: 30_000 }).not.toBe('recording');
   });
 

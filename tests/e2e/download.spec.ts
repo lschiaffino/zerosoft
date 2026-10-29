@@ -29,6 +29,8 @@ test.describe('/download', () => {
     await expect(p1.getByTestId('download-mac-arm')).toBeVisible();
     await win.close();
     const mac = await browser.newContext({ userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15' });
+    // Safari no tiene userAgentData (Chromium sí, y diría el chip de esta máquina).
+    await mac.addInitScript(() => Object.defineProperty(Navigator.prototype, 'userAgentData', { get: () => undefined }));
     const p2 = await mac.newPage();
     await p2.goto('/pt/download');
     await expect(p2.getByTestId('download-primary')).toHaveText('Baixar para Mac (Apple silicon)');
