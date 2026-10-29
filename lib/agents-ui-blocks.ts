@@ -62,6 +62,7 @@ export function parseUi(raw: string | null | undefined): AgentReplyUi | null {
         formId: v.formId,
         title: typeof v.title === 'string' ? v.title : '',
         submitLabel: typeof v.submitLabel === 'string' ? v.submitLabel : '',
+        ...(v.consumed === true ? { consumed: true } : {}),
         fields: (v.fields as unknown[]).flatMap((f) => {
           const x = f as Record<string, unknown>;
           if (typeof x?.key !== 'string' || typeof x.label !== 'string') return [];

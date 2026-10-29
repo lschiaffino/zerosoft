@@ -596,7 +596,10 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
               note: input.note ?? null,
             });
           }
-          return (await queueIfRequired(ctx, 'crm_upsert_contact', input)) ?? performAgentAction(actionContext(ctx), 'crm_upsert_contact', input);
+          // ¿El email es el del visitante identificado (o el propio en el playground)? Lo decide el servidor, no el modelo.
+          const own = ctx.channel === 'playground' ? ((await playgroundAccess(ctx))?.email ?? null) : ctx.identifiedEmail ?? null;
+          const action = { email: input.email, name: input.name, note: input.note, emailVerified: (own ?? '').trim().toLowerCase() === input.email.trim().toLowerCase() };
+          return (await queueIfRequired(ctx, 'crm_upsert_contact', action)) ?? performAgentAction(actionContext(ctx), 'crm_upsert_contact', action);
         }),
       }),
     );
@@ -1201,6 +1204,15 @@ export async function performAgentAction(actx: AgentActionContext, tool: Approva
       const { createActivity, updateContact } = await import('./crm');
       const name = str(input.name) || null;
       const note = str(input.note);
+      // Un contacto que ya existía y un email que cualquiera pudo escribir: no se
+      // toca ni se anota; queda una nota suelta (como los formularios).
+      if (input.emailVerified !== true) {
+        const existing = await findContact(workspaceId, str(input.email));
+        if (existing) {
+          if (note) await createActivity(workspaceId, { type: 'note', subject: `Agent: ${agent.name} (${str(input.email)}, unverified)`, body: note });
+          return { existing: true, verified: false, noteLogged: Boolean(note) };
+        }
+      }
       const { contact, created } = await findOrCreateContact(workspaceId, { email: str(input.email), name, source: 'other' });
       if (!created && name && !contact.first_name && !contact.last_name) {
         const [firstName, ...rest] = name.trim().split(/\s+/);

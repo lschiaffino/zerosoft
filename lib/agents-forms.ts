@@ -38,13 +38,53 @@ export async function formShownInConversation(
     .prepare("SELECT ui FROM agent_messages WHERE conversation_id = ? AND role = 'assistant' ORDER BY created_at DESC, rowid DESC LIMIT 1")
     .get(conversation.id)) as { ui: string | null } | undefined;
   const ui = parseUi(last?.ui ?? null);
-  if (ui?.kind === 'form' && ui.formId === formId) return true;
+  if (ui?.kind === 'form' && ui.formId === formId && !ui.consumed) return true;
   const state = parseProcedureState(conversation.procedure_state ?? null);
   if (state?.awaiting) {
     const step = procedures.find((p) => p.id === state.procedureId)?.steps.find((s) => s.id === state.stepId);
     if (step?.kind === 'form' && step.formId === formId) return true;
   }
   return false;
+}
+
+/**
+ * Marca el formulario mostrado como enviado (compare-and-set): dos envíos a la
+ * vez o un reenvío del mismo formulario no pasan. Sobre el ui del último
+ * mensaje del agente, o sobre el estado del procedimiento que lo esperaba.
+ * true = este envío lo consumió.
+ */
+export async function consumeShownForm(
+  conversation: Pick<AgentConversationRow, 'id' | 'procedure_state'>,
+  formId: string,
+): Promise<boolean> {
+  const db = getDb();
+  const last = (await db
+    .prepare("SELECT id, ui FROM agent_messages WHERE conversation_id = ? AND role = 'assistant' ORDER BY created_at DESC, rowid DESC LIMIT 1")
+    .get(conversation.id)) as { id: string; ui: string | null } | undefined;
+  const ui = parseUi(last?.ui ?? null);
+  if (last?.ui && ui?.kind === 'form' && ui.formId === formId && !ui.consumed) {
+    const res = await db.prepare('UPDATE agent_messages SET ui = ? WHERE id = ? AND ui = ?').run(JSON.stringify({ ...ui, consumed: true }), last.id, last.ui);
+    return res.changes > 0;
+  }
+  // Paso de procedimiento: el estado cambia con este envío; si otro ya lo cambió, no pasa.
+  const state = parseProcedureState(conversation.procedure_state ?? null);
+  if (!state?.awaiting || !conversation.procedure_state) return false;
+  const res = await db
+    .prepare('UPDATE agent_conversations SET procedure_state = ? WHERE id = ? AND procedure_state = ?')
+    .run(JSON.stringify({ ...state, formConsumed: formId }), conversation.id, conversation.procedure_state);
+  return res.changes > 0;
+}
+
+/** Lo mismo para el widget de Chat: el ui del último mensaje del bot. */
+export async function consumeShownChatForm(chatConversationId: string, formId: string): Promise<boolean> {
+  const db = getDb();
+  const last = (await db
+    .prepare("SELECT id, ui FROM chat_messages WHERE conversation_id = ? AND sender_type = 'bot' AND deleted_at IS NULL ORDER BY created_at DESC, rowid DESC LIMIT 1")
+    .get(chatConversationId)) as { id: string; ui: string | null } | undefined;
+  const ui = parseUi(last?.ui ?? null);
+  if (!last?.ui || ui?.kind !== 'form' || ui.formId !== formId || ui.consumed) return false;
+  const res = await db.prepare('UPDATE chat_messages SET ui = ? WHERE id = ? AND ui = ?').run(JSON.stringify({ ...ui, consumed: true }), last.id, last.ui);
+  return res.changes > 0;
 }
 
 export async function saveFormSubmission(input: {
@@ -66,8 +106,9 @@ export async function saveFormSubmission(input: {
       if (v !== undefined) safe[f.key] = f.type === 'email' || f.type === 'phone' ? v : crmSafe(v);
     }
     const lead = crmContactFromForm(form, safe);
-    const firstName = lead.firstName;
-    const lastName = lead.lastName;
+    // El nombre completo se parte en nombre y apellido: cada parte, sin fórmula al principio.
+    const firstName = crmSafe(lead.firstName);
+    const lastName = crmSafe(lead.lastName);
     const note = lead.note;
     if (!lead.email) {
       error = 'no_email';

@@ -95,6 +95,9 @@ export async function POST(req: NextRequest, props: Ctx) {
       const { voiceNumbersFor } = await import('@/lib/agents-voice');
       if (!voiceNumbersFor({ id: user.id, email: user.email }).includes(number)) return agentError(400, 'number_not_assigned');
       if (!(await numberBelongsToAccount(number))) return agentError(400, 'number_not_in_account');
+      // Si lo tenía otro workspace y el admin de la instancia se lo reasignó a este, se libera.
+      const { releaseStaleVoiceNumber } = await import('@/lib/agents-voice');
+      await releaseStaleVoiceNumber(number);
       try {
         await getDb().prepare('UPDATE agents SET voice_number = ?, updated_at = ? WHERE id = ? AND user_id = ?').run(number, new Date().toISOString(), row.id, user.id);
       } catch (err) {

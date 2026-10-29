@@ -35,9 +35,12 @@ export async function pruneChannelEvents(now = new Date()): Promise<number> {
 /** Conversación del agente para un hilo externo (la crea si no existe). */
 export async function conversationForExternal(agent: AgentRow, source: ExternalSource, externalRef: string, title: string): Promise<string> {
   const db = getDb();
+  // Después de la redacción la clave queda como hash (h:…): se busca de las dos formas.
+  const { hashValue } = await import('./agents-privacy');
+  const hashed = `h:${hashValue(externalRef)}`;
   const found = (await db
-    .prepare("SELECT id FROM agent_conversations WHERE agent_id = ? AND external_ref = ? AND channel = 'api' ORDER BY created_at DESC LIMIT 1")
-    .get(agent.id, externalRef)) as { id: string } | undefined;
+    .prepare("SELECT id FROM agent_conversations WHERE agent_id = ? AND external_ref IN (?, ?) AND channel = 'api' ORDER BY created_at DESC LIMIT 1")
+    .get(agent.id, externalRef, hashed)) as { id: string } | undefined;
   if (found) return found.id;
   const { createConversation } = await import('./agents');
   const conv = await createConversation(agent, 'api', { title: title.slice(0, 80) });

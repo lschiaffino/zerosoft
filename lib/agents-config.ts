@@ -271,6 +271,8 @@ export type AgentReplyUi =
       title: string;
       submitLabel: string;
       fields: Array<{ key: string; label: string; type: AgentFormFieldType; required: boolean; options: string[] }>;
+      /** Ya se envió (no se acepta ni se muestra de nuevo). */
+      consumed?: boolean;
     };
 
 export const AGENT_VOICE_LANGUAGES = ['en-US', 'es-US', 'es-MX', 'es-ES', 'pt-BR'] as const;

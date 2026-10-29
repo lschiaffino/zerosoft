@@ -187,7 +187,7 @@ export async function validateChatAgentForm(
   const agent = agentConv ? await variantRow(widgetAgentRow, agentConv) : widgetAgentRow;
   const { parseSettings } = await import('./agents-config');
   const settings = parseSettings(agent.settings);
-  let shown = ui?.kind === 'form' && ui.formId === input.id;
+  let shown = ui?.kind === 'form' && ui.formId === input.id && !ui.consumed;
   if (!shown && agentConv) {
     const { formShownInConversation } = await import('./agents-forms');
     shown = await formShownInConversation(agentConv, input.id, settings.procedures);
@@ -195,7 +195,11 @@ export async function validateChatAgentForm(
   if (!shown) return null;
   const form = settings.forms.find((f) => f.id === input.id);
   const sub = validateFormSubmission(form, input.values);
-  return sub.ok ? { agent, text: sub.text, values: sub.values, formId: input.id } : null;
+  if (!sub.ok) return null;
+  // Válido: se consume una sola vez (el del bot o el del paso del procedimiento).
+  const { consumeShownChatForm, consumeShownForm } = await import('./agents-forms');
+  const consumed = ui?.kind === 'form' && ui.formId === input.id ? await consumeShownChatForm(chatConversationId, input.id) : agentConv ? await consumeShownForm(agentConv, input.id) : false;
+  return consumed ? { agent, text: sub.text, values: sub.values, formId: input.id } : null;
 }
 
 /** Guarda lo enviado (registro y, si el formulario lo pide, contacto del CRM). */
