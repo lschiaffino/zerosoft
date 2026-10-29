@@ -18,12 +18,19 @@
  * solo se pierde el borrador local.
  */
 import type { DocsBlock, DocsPage } from './docs-types';
+import type { CoeditDraftBlock } from './docs-coedit-client';
 
 export interface DocsDraft {
   owner: string;
   patch: Partial<DocsPage>;
   base: { updated_at: string; title: string; content: DocsBlock[] };
   at: number;
+  /**
+   * Edición simultánea: texto confirmado por el servidor de cada bloque
+   * cambiado (y la operación en vuelo), para mandar lo escrito sin red como
+   * operaciones al volver aunque se haya recargado la pestaña.
+   */
+  coedit?: { session: string; blocks: Record<string, CoeditDraftBlock> };
 }
 
 /** Prefijo de todo lo de Docs en localStorage (se borra entero al cerrar sesión). */
@@ -51,11 +58,15 @@ export function loadDraft(owner: string, pageId: string): DocsDraft | null {
 }
 
 /** Suma `patch` al borrador (la base es la del primer cambio sin red). */
-export function saveDraft(owner: string, pageId: string, patch: Partial<DocsPage>, base: DocsDraft['base']): boolean {
+export function saveDraft(owner: string, pageId: string, patch: Partial<DocsPage>, base: DocsDraft['base'], coedit?: DocsDraft['coedit']): boolean {
   if (!owner) return false;
   try {
     const prev = loadDraft(owner, pageId);
     const next: DocsDraft = { owner, patch: { ...(prev?.patch ?? {}), ...patch }, base: prev?.base ?? base, at: Date.now() };
+    // La base de cada bloque es la del primer cambio sin red (la más vieja).
+    if (coedit || prev?.coedit) {
+      next.coedit = { session: coedit?.session ?? prev!.coedit!.session, blocks: { ...(coedit?.blocks ?? {}), ...(prev?.coedit?.blocks ?? {}) } };
+    }
     const raw = JSON.stringify(next);
     if (raw.length > DRAFT_MAX_CHARS) return false;
     localStorage.setItem(draftKey(owner, pageId), raw);

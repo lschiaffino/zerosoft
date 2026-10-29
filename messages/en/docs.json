@@ -1718,5 +1718,10 @@
     "forbiddenBody": "Ask an admin of your workspace for edit access.",
     "failed": "Could not duplicate. Try again.",
     "untitled": "Untitled"
+  },
+  "coedit": {
+    "revoked": "You no longer have access to this page. Changes from others stopped and nothing you type here is saved.",
+    "backToDocs": "Back to Docs",
+    "revokedView": "You no longer have access to this page."
   }
 }

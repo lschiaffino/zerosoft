@@ -145,6 +145,8 @@ interface DocsEditorProps {
   remoteMerge?: DocsRemoteMerge | null;
   /** Ya se sumó a la pantalla (con el resultado: título y bloques). */
   onRemoteApplied?: (seq: number, merged: DocsSnapshot) => void;
+  /** Cambio propio en el editor (tipeo, deshacer, pegar…): la edición simultánea lo manda enseguida. */
+  onLocalChange?: () => void;
   ancestors: DocsPage[];
   /** Guarda solo lo que edita el editor (no pisa archived/is_public). */
   onSave: (patch: Partial<DocsPage>) => void;
@@ -486,6 +488,7 @@ export default function DocsEditor({
   page,
   remoteMerge = null,
   onRemoteApplied,
+  onLocalChange,
   ancestors,
   onSave,
   saving,
@@ -688,6 +691,8 @@ export default function DocsEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page.id]);
 
+  const onLocalChangeRef = useRef(onLocalChange);
+  onLocalChangeRef.current = onLocalChange;
   /** Fusión remota en curso (useDocsCollab): no es un paso propio del historial. */
   const consumeRemoteRef = useRef<(next: DocsSnapshot) => boolean>(() => false);
 
@@ -708,6 +713,7 @@ export default function DocsEditor({
       historyRef.current = recordChange(historyRef.current, lastSnap.current, next, Date.now());
     }
     lastSnap.current = next;
+    onLocalChangeRef.current?.();
   }, [title, blocks]);
 
   // No perder lo último tipeado: al salir de la página (navegación interna,

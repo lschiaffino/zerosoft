@@ -1718,5 +1718,10 @@
     "forbiddenBody": "Pedile a un admin de tu workspace acceso de edición.",
     "failed": "No se pudo duplicar. Probá de nuevo.",
     "untitled": "Sin título"
+  },
+  "coedit": {
+    "revoked": "Ya no tenés acceso a esta página. Dejaron de llegar los cambios de las demás personas y lo que escribas acá no se guarda.",
+    "backToDocs": "Volver a Docs",
+    "revokedView": "Ya no tenés acceso a esta página."
   }
 }

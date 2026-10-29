@@ -35,7 +35,7 @@ function newSession(): string {
 }
 
 /** Bloque y offsets de la selección actual dentro del editor (o nada). */
-function readCursor(root: HTMLElement | null): { block_id: string | null; start: number | null; end: number | null } {
+export function readCursor(root: HTMLElement | null): { block_id: string | null; start: number | null; end: number | null } {
   const none = { block_id: null, start: null, end: null };
   if (!root) return none;
   const sel = window.getSelection();
@@ -142,5 +142,20 @@ export function useDocsLive(opts: {
     };
   }, [opts.pageId, opts.enabled]);
 
-  return { peers, session: session.current, pulseNow: () => kick.current() };
+  /** Cursor de otra sesión que llegó por el feed en vivo (lib/docs-coedit.ts): se ve al instante. */
+  const upsertPeer = (p: DocsPeer) => {
+    const list = peersRef.current;
+    const i = list.findIndex((x) => x.session === p.session);
+    const next = i >= 0 ? list.map((x, k) => (k === i ? { ...x, ...p } : x)) : [p, ...list];
+    peersRef.current = next;
+    setPeers(next);
+  };
+  const removePeer = (sessionId: string) => {
+    const next = peersRef.current.filter((x) => x.session !== sessionId);
+    if (next.length === peersRef.current.length) return;
+    peersRef.current = next;
+    setPeers(next);
+  };
+
+  return { peers, session: session.current, pulseNow: () => kick.current(), upsertPeer, removePeer };
 }

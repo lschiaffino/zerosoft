@@ -109,6 +109,18 @@ export class CoeditEngine {
     this.drainDeferred();
   }
 
+  /**
+   * Se perdieron eventos (hueco grande en el feed): las versiones se vuelven
+   * a ubicar por la huella con el próximo evento de cada bloque.
+   */
+  forgetRevs() {
+    for (const b of this.blocks.values()) {
+      if (b.inflight) continue;
+      b.rev = null;
+      b.buffer.clear();
+    }
+  }
+
   /** Texto confirmado de un bloque (base del borrador sin conexión). */
   exportDraft(): Record<string, CoeditDraftBlock> {
     const out: Record<string, CoeditDraftBlock> = {};
@@ -203,8 +215,10 @@ export class CoeditEngine {
         b.sendBase = true;
         return;
       case 'gone':
+        // Ya no está en el servidor (lo borró otra persona) o no es de esta página (sincronizado).
         if (b.inflight?.seq === r.seq) b.inflight = null;
         this.blocks.delete(r.block);
+        this.unsupported.add(r.block);
         return;
       case 'unsupported':
         this.blocks.delete(r.block);

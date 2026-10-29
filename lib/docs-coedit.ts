@@ -510,6 +510,8 @@ export interface CoeditViewer {
   /** La persona. */
   realId: string;
   actor: DocsActor;
+  /** Workspace dueño de la página (un invitado mira páginas de otro workspace). */
+  pageWorkspace?: string;
 }
 
 /** Acceso actual a la página, revalidado sin la sesión (membresía, apps del workspace y permisos de la página). */
@@ -518,7 +520,7 @@ export async function currentAccess(viewer: CoeditViewer, pageId: string): Promi
     const { personAppAccess } = await import('./api-auth');
     const { canUseApp } = await import('./workspace');
     const a = await personAppAccess(viewer.ownerId, viewer.realId);
-    if (!a || !canUseApp(a, 'docs')) return null;
+    if (!a || !canUseApp({ role: a.role, apps: a.apps === '*' ? '*' : JSON.stringify(a.apps) }, 'docs')) return null;
     viewer.actor = { ...viewer.actor, role: a.role };
   }
   const res = await resolveDocAccess(viewer.actor, pageId, DOC_INTERNAL_READ);
@@ -546,7 +548,7 @@ export function coeditFilter(viewer: CoeditViewer, pageId: string, initial: Docs
     const mine = events.filter((e) => e.pageId === pageId || (e.kind === 'access' && e.pageId === null));
     if (!mine.length) return [];
     const out: CoeditEvent[] = [];
-    if (mine.some((e) => e.kind === 'access' && (e.pageId === pageId || e.workspaceId === viewer.ownerId || e.userId === viewer.realId || e.workspaceId === viewer.actor.id))) {
+    if (mine.some((e) => e.kind === 'access' && (e.pageId === pageId || e.workspaceId === viewer.ownerId || e.workspaceId === viewer.pageWorkspace || e.userId === viewer.realId))) {
       const now = await currentAccess(viewer, pageId).catch(() => access);
       if (!now) {
         revoked = true;

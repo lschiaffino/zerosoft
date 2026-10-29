@@ -517,6 +517,12 @@ export interface UpdateDocPageInput {
   text_ops?: boolean;
 }
 
+/** Avisa a los streams en vivo de Docs que cambiaron permisos (lib/docs-coedit.ts). */
+export async function docsAccessChangedLazy(workspaceId: string, pageId: string | null, userId: string | null = null): Promise<void> {
+  const { docsAccessChanged } = await import('./docs-coedit');
+  await docsAccessChanged(workspaceId, { pageId, userId });
+}
+
 /** La página cambió desde el `base_updated_at` que mandó el cliente. */
 export class DocsConflictError extends Error {
   constructor() {
@@ -789,6 +795,10 @@ export async function updateDocPage(
     .run(...args);
   // Otro guardado se coló entre el SELECT y el UPDATE.
   if (base !== undefined && result.changes === 0) throw new DocsConflictError();
+  // Rol de los miembros, herencia o lugar en el árbol: cambia quién la ve (también las subpáginas).
+  if (input.member_role !== undefined || input.inherit_shares !== undefined || (input.parent_id !== undefined && input.parent_id !== row.parent_id)) {
+    await docsAccessChangedLazy(ownerId, null).catch(() => undefined);
+  }
   await recordRevisions(row, {
     updated_at: updatedAt,
     title: fields.title ?? row.title,
@@ -1272,6 +1282,8 @@ export async function updateDocShareRole(
     .get(shareId, pageId)) as DocsShareRow | undefined;
   if (!share || share.kind === 'public') return null;
   await getDb().prepare('UPDATE docs_shares SET role = ? WHERE id = ?').run(role, shareId);
+  // Los editores abiertos de esa persona pasan al rol nuevo (o se cortan) en el acto.
+  await docsAccessChangedLazy(ownerId, pageId);
   return toShare({ ...share, role });
 }
 
@@ -1327,6 +1339,8 @@ export async function deleteDocShare(
   const res = await getDb()
     .prepare('DELETE FROM docs_shares WHERE id = ? AND page_id = ?')
     .run(shareId, pageId);
+  // Quien tenía la página abierta por ese share deja de verla en el acto (también las subpáginas).
+  if (res.changes > 0) await docsAccessChangedLazy(ownerId, null);
   return res.changes > 0;
 }
 

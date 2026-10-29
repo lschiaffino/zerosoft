@@ -23,8 +23,9 @@ import {
   stripComments,
   wrapComment as wrapCommentHtml,
 } from '@/lib/docs-marks';
-import { getSelectionOffsets, setCaretOffset } from '@/lib/docs-caret';
+import { getSelectionOffsets, setCaretOffset, setSelectionOffsets } from '@/lib/docs-caret';
 import { serializeEditable } from '@/lib/docs-richtext';
+import { transformTextOffset, type TextOp } from '@/lib/docs-ot';
 
 export type DocsEditorMode = 'edit' | 'suggest' | 'readonly';
 
@@ -36,7 +37,7 @@ export interface DocsEditorApi {
    * editor mandó o la última versión que vio) y `remote` (lo que quedó
    * guardado). Devuelve el resultado en el acto (ya puesto en el estado).
    */
-  applyRemote(base: DocsSnapshot, remote: DocsSnapshot): { merged: DocsSnapshot; conflicts: string[]; changed: boolean };
+  applyRemote(base: DocsSnapshot, remote: DocsSnapshot, caretOp?: RemoteApply['caretOp']): { merged: DocsSnapshot; conflicts: string[]; changed: boolean };
   /** Descarta el guardado pendiente (se va a guardar lo fusionado). */
   cancelPendingSave(): void;
   hasPendingSave(): boolean;
@@ -47,6 +48,16 @@ export interface DocsEditorApi {
   resolveSuggestion(id: string | null, accept: boolean): void;
   /** Selección actual dentro de un bloque de texto (para comentar con ⌘⇧M). */
   selection(): { blockId: string; start: number; end: number; quote: string } | null;
+  /** Texto (HTML-lite) de un bloque tal como está en el editor; null si no está. */
+  blockText(blockId: string): string | null;
+  /**
+   * Pone el texto de un bloque que cambió otra persona (operación del feed en
+   * vivo, lib/docs-coedit-client.ts): no es un paso propio del deshacer y el
+   * caret se corre según `op` (que lleva de `prev` a `text`).
+   */
+  applyBlockText(changes: Record<string, string>, caretOp?: CaretOp): void;
+  /** Composición (acentos, IME) o tecla todavía sin pasar al modelo: lo remoto espera. */
+  busy(): boolean;
 }
 
 interface Deps {
@@ -75,6 +86,14 @@ export interface RemoteApply {
   caret: { blockId: string; start: number; end: number; text: string } | null;
   resolve: (r: { merged: DocsSnapshot; conflicts: string[] }) => void;
   conflicts: string[];
+  /** Operaciones exactas sobre el bloque del caret (edición simultánea): corren el caret con precisión. */
+  caretOp?: CaretOp;
+}
+
+/** Pasos (texto de antes y operación) por los que pasó un bloque: el caret se corre por cada uno. */
+export interface CaretOp {
+  blockId: string;
+  steps: Array<{ op: TextOp; prev: string }>;
 }
 
 const HISTORY_REBASE = 50;
@@ -118,7 +137,24 @@ export function useDocsCollab(d: Deps) {
     };
     lastSnap.current = next;
     // Caret: si el bloque donde se escribe cambió, se corre según lo que se insertó antes.
-    if (r.caret) {
+    if (r.caret && r.caretOp && r.caretOp.blockId === r.caret.blockId) {
+      const i = next.blocks.findIndex((b) => b.id === r.caret!.blockId);
+      const el = i >= 0 ? blockRefs.current[i] : null;
+      if (el) {
+        try {
+          let start = r.caret.start;
+          let end = r.caret.end;
+          for (const step of r.caretOp.steps) {
+            start = transformTextOffset(step.prev, start, step.op);
+            end = transformTextOffset(step.prev, end, step.op);
+          }
+          if (document.activeElement !== el) el.focus();
+          setSelectionOffsets(el, start, end);
+        } catch {
+          /* texto que no coincide: el caret queda donde lo dejó el navegador */
+        }
+      }
+    } else if (r.caret) {
       const i = next.blocks.findIndex((b) => b.id === r.caret!.blockId);
       const el = i >= 0 ? blockRefs.current[i] : null;
       const text = i >= 0 ? flatText(next.blocks[i].content) : '';
@@ -134,7 +170,28 @@ export function useDocsCollab(d: Deps) {
 
   const api: DocsEditorApi = {
     snapshot: () => depsRef.current.live.current,
-    applyRemote: (base, theirs) => {
+    blockText: (blockId) => {
+      const b = depsRef.current.live.current.blocks.find((x) => x.id === blockId);
+      return b && typeof b.content === 'string' ? b.content : null;
+    },
+    busy: () => {
+      if (composing.current) return true;
+      const { live, blockRefs } = depsRef.current;
+      const active = document.activeElement as HTMLElement | null;
+      const idx = active ? blockRefs.current.findIndex((el) => el === active) : -1;
+      if (idx < 0 || !active) return false;
+      // Una tecla que el navegador ya pintó y el modelo todavía no tiene.
+      return serializeEditable(active) !== (live.current.blocks[idx]?.content ?? '');
+    },
+    applyBlockText: (changes, caretOp) => {
+      const cur = depsRef.current.live.current;
+      if (!cur.blocks.some((b) => b.id in changes)) return;
+      const theirs = { title: cur.title, blocks: cur.blocks.map((b) => (b.id in changes ? { ...b, content: changes[b.id] } : b)) };
+      const res = api.applyRemote(cur, theirs, caretOp);
+      // El modelo ya es este (el render llega después): lo próximo que se lea lo ve.
+      if (res.changed) depsRef.current.live.current = res.merged;
+    },
+    applyRemote: (base, theirs, caretOp) => {
       const { live, blockRefs, setBlocksRaw, setTitle, normalize, titleRef } = depsRef.current;
       const prev = live.current;
       // Una fusión anterior todavía sin pintar: se da por terminada.
@@ -161,6 +218,7 @@ export function useDocsCollab(d: Deps) {
         caret: caretBlock && sel ? { blockId: caretBlock.id, start: sel.start, end: sel.end, text: flatText(caretBlock.content) } : null,
         resolve: () => {},
         conflicts: res.conflicts,
+        caretOp,
       };
       remote.current = entry;
       // Red de seguridad: si por algo no se pintó, no queda marcada.

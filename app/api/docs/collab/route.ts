@@ -35,8 +35,8 @@ export const maxDuration = 300;
 
 const pageIdSchema = z.string().min(1).max(64);
 
-function viewerOf(user: SessionUser): CoeditViewer {
-  return { ownerId: user.id, realId: realUserId(user), actor: { id: user.id, actingUser: user.actingUser, team: user.team, role: user.role } };
+function viewerOf(user: SessionUser, pageWorkspace: string): CoeditViewer {
+  return { ownerId: user.id, realId: realUserId(user), actor: { id: user.id, actingUser: user.actingUser, team: user.team, role: user.role }, pageWorkspace };
 }
 
 export async function GET(req: NextRequest) {
@@ -55,10 +55,10 @@ export async function GET(req: NextRequest) {
   if (params.get('poll') === '1') {
     // Sin acceso: el editor corta igual que con el stream.
     if (!res) return NextResponse.json({ events: [{ kind: 'revoked' }], cursor: requestCursor(req) });
-    return NextResponse.json(await coeditPoll(viewerOf(user), pageId.data, res.access, requestCursor(req)));
+    return NextResponse.json(await coeditPoll(viewerOf(user, res.row.user_id), pageId.data, res.access, requestCursor(req)));
   }
   if (!res) return notFound();
-  return coeditStream(viewerOf(user), pageId.data, res.access, requestCursor(req), req.signal);
+  return coeditStream(viewerOf(user, res.row.user_id), pageId.data, res.access, requestCursor(req), req.signal);
 }
 
 const opItemSchema = z.object({

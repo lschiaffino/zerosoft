@@ -30,7 +30,11 @@ import DocsGlyph from './DocsGlyphs';
 import DocsPageIcon from './DocsPageIcon';
 import DocsFavoriteButton from './DocsFavoriteButton';
 import { DocsPeerCursors, DocsPresenceAvatars } from './DocsPresence';
-import { useDocsLive, type LivePulse } from './useDocsLive';
+import { readCursor, useDocsLive, type LivePulse } from './useDocsLive';
+import { useDocsCoedit } from './useDocsCoedit';
+import { neutralizeTextForMerge } from '@/lib/docs-coedit-shared';
+import type { CoeditEngine } from '@/lib/docs-coedit-client';
+import { diff, textHash, apply as applyOp } from '@/lib/docs-ot';
 import type { DocsEditorApi, DocsEditorMode } from './useDocsCollab';
 
 interface CommentsLabels {
@@ -146,6 +150,40 @@ export default function DocsEditorClient({
   const [remoteMerge, setRemoteMerge] = useState<DocsRemoteMerge | null>(null);
   /** Último cambio que no se pudo guardar tras varios intentos (para "Sobrescribir"). */
   const conflictPatch = useRef<Partial<DocsPage> | null>(null);
+  /** Sesión de esta pestaña (presencia y operaciones). */
+  const liveSession = useRef('');
+  const coeditEngineRef = useRef<CoeditEngine | null>(null);
+  /** Lo que el motor de la edición simultánea tiene sin confirmar (para el borrador sin red). */
+  const coeditDraft = () => {
+    const engine = coeditEngineRef.current;
+    return textOpsRef.current && engine ? { session: liveSession.current, blocks: engine.exportDraft() } : undefined;
+  };
+  /** Manda como operaciones lo escrito sin red en otra sesión (borrador local). */
+  const sendDraftOps = async (draft: DocsDraft): Promise<boolean> => {
+    const blocks = draft.coedit?.blocks ?? {};
+    const texts = new Map((draft.patch.content ?? []).map((b) => [b.id, b.content]));
+    const items: Array<{ block: string; rev: number | null; hash: string; op: Array<number | string>; seq: string; base: string }> = [];
+    for (const [id, d] of Object.entries(blocks)) {
+      let s0 = d.s;
+      if (d.inflight) {
+        items.push({ block: id, rev: d.rev, hash: textHash(s0), op: d.inflight.op, seq: d.inflight.seq, base: s0 });
+        try {
+          s0 = applyOp(s0, d.inflight.op);
+        } catch {
+          continue;
+        }
+      }
+      const text = texts.get(id);
+      if (typeof text === 'string' && text !== s0) items.push({ block: id, rev: null, hash: textHash(s0), op: diff(s0, text), seq: `draft.${textHash(s0 + text)}`, base: s0 });
+    }
+    if (!items.length) return true;
+    const res = await fetch('/api/docs/collab', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ page: page.id, session: draft.coedit!.session, items }),
+    }).catch(() => null);
+    return !!res?.ok;
+  };
   const editorApi = useRef<DocsEditorApi | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [current, setCurrent] = useState<DocsPage>(page);
@@ -183,7 +221,25 @@ export default function DocsEditorClient({
   const lockActive = locked && !(unlockedForMe && canWrite);
   bypassRef.current = locked && unlockedForMe && canWrite;
   // Bloqueada: solo leer y comentar. "Puede comentar": leer y, si lo elige, sugerir.
-  const mode: DocsEditorMode = lockActive ? 'readonly' : suggesting ? 'suggest' : canWrite ? 'edit' : 'readonly';
+  /** Perdió el acceso con la página abierta (el stream en vivo se cortó): ya no ve ni manda cambios. */
+  const [revoked, setRevoked] = useState(false);
+  const mode: DocsEditorMode = revoked || lockActive ? 'readonly' : suggesting ? 'suggest' : canWrite ? 'edit' : 'readonly';
+  /** Edición simultánea por operaciones (lib/docs-coedit.ts): el texto de los bloques existentes no viaja en el guardado. */
+  const textOps = mode === 'edit';
+  const textOpsRef = useRef(textOps);
+  textOpsRef.current = textOps;
+  /** Motor de la edición simultánea (se arma más abajo, junto al pulso en vivo). */
+  const coeditRef = useRef<{ manages: (id: string) => boolean; register: (blocks: DocsBlock[], prune?: boolean) => void } | null>(null);
+  /** Sin el texto que ya maneja la edición simultánea (llega por el feed, transformado). */
+  const neutral = useCallback((m: Merge): Merge => {
+    const c = coeditRef.current;
+    return c ? { ...m, merged: neutralizeTextForMerge(m.sent, m.merged, c.manages) } : m;
+  }, []);
+  /** Nueva base del servidor: los bloques que ya existen allá pasan a viajar por operaciones. */
+  const setBase = useCallback((next: Pick<DocsPage, 'updated_at' | 'title' | 'content'>) => {
+    base.current = serverBase(next);
+    coeditRef.current?.register(next.content, true);
+  }, []);
 
   useEffect(() => {
     setAllComments(comments);
@@ -215,12 +271,13 @@ export default function DocsEditorClient({
   }, []);
 
   /** Un cambio del servidor para la pantalla y para los guardados en cola. */
-  const pushMerge = useCallback((m: Merge) => {
+  const pushMerge = useCallback((raw: Merge) => {
+    const m = neutral(raw);
     const seq = ++mergeSeq.current;
     for (const q of queued.current) q.rebase.push(m);
     unapplied.current.push({ ...m, seq });
     setRemoteMerge({ seq, ...m });
-  }, []);
+  }, [neutral]);
 
   const onRemoteApplied = useCallback((seq: number, merged: DocsSnapshot) => {
     unapplied.current = unapplied.current.filter((m) => m.seq > seq);
@@ -232,12 +289,12 @@ export default function DocsEditorClient({
   const adoptServer = useCallback(
     (next: DocsPage) => {
       const old = base.current;
-      base.current = serverBase(next);
+      setBase(next);
       if (!sameContent(old.content, next.content) || old.title !== next.title) {
         pushMerge({ sent: old.content, merged: next.content, sentTitle: old.title, title: next.title });
       }
     },
-    [pushMerge],
+    [pushMerge, setBase],
   );
 
   const runSave = useCallback(
@@ -256,7 +313,7 @@ export default function DocsEditorClient({
       // Todo PATCH va con la base (también publicar, bloquear o el ancho): si
       // no, uno sin contenido adelantaba la base y el próximo pisaba lo ajeno.
       const withCtx = { ...patch, ...reminderContext(patch, locale, tz), ...(bypassRef.current && !('locked' in patch) ? { bypass_lock: true } : {}) };
-      const body = JSON.stringify({ ...withCtx, base_updated_at: base.current.updated_at, ...(force ? { merge: 'ours' } : {}) });
+      const body = JSON.stringify({ ...withCtx, base_updated_at: base.current.updated_at, ...(force ? { merge: 'ours' } : {}), ...(textOpsRef.current ? { text_ops: true } : {}) });
       const prevTitle = base.current.title;
       let retry: SaveItem | null = null;
       try {
@@ -276,7 +333,7 @@ export default function DocsEditorClient({
           if (remote && attempt < 3 && !force) {
             const old = base.current;
             adoptServer(remote);
-            retry = { patch: rebasePatch(patch, { sent: old.content, merged: remote.content, sentTitle: old.title, title: remote.title }), rebase: [] };
+            retry = { patch: rebasePatch(patch, neutral({ sent: old.content, merged: remote.content, sentTitle: old.title, title: remote.title })), rebase: [] };
             return;
           }
           conflictPatch.current = patch;
@@ -301,7 +358,7 @@ export default function DocsEditorClient({
         const updated = (await res.json().catch(() => null)) as (DocsPage & { merged?: boolean; stale_base?: boolean }) | null;
         // Un cambio sin contenido sobre una versión vieja no adelanta la base:
         // el próximo guardado de contenido se fusiona con lo ajeno.
-        if (updated?.updated_at && !updated.stale_base) base.current = serverBase(updated);
+        if (updated?.updated_at && !updated.stale_base) setBase(updated);
         // Fusionado con lo que había guardado: el editor suma a lo suyo lo que trajo.
         if (updated?.merged && updated.content && patch.content && !sameContent(patch.content, updated.content)) {
           pushMerge({ sent: patch.content, merged: updated.content, sentTitle: patch.title, title: updated.title });
@@ -322,7 +379,7 @@ export default function DocsEditorClient({
         if (!('content' in patch) || ('title' in patch && patch.title !== prevTitle)) router.refresh();
       } catch {
         // Sin red: queda en el borrador local y se manda al volver (no es un error).
-        if (typeof navigator !== 'undefined' && navigator.onLine === false && saveDraft(offlineOwner, page.id, patch, base.current)) {
+        if (typeof navigator !== 'undefined' && navigator.onLine === false && saveDraft(offlineOwner, page.id, patch, base.current, coeditDraft())) {
           setOffline(true);
           setSaveError('offline');
         } else setSaveError('failed');
@@ -332,7 +389,7 @@ export default function DocsEditorClient({
         if (retry) await runSave(retry, false, attempt + 1);
       }
     },
-    [page.id, router, locale, adoptServer, pushMerge, t, offlineOwner],
+    [page.id, router, locale, adoptServer, pushMerge, t, offlineOwner, neutral, setBase],
   );
 
   const savePage = useCallback(
@@ -345,7 +402,7 @@ export default function DocsEditorClient({
       }
       if (patch.content) setSuggestions(listSuggestions(patch.content));
       // Sin red: directo al borrador local (sin esperar a que falle el pedido).
-      if (typeof navigator !== 'undefined' && navigator.onLine === false && saveDraft(offlineOwner, page.id, patch, base.current)) {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false && saveDraft(offlineOwner, page.id, patch, base.current, coeditDraft())) {
         setOffline(true);
         setSaveError('offline');
         return;
@@ -367,7 +424,13 @@ export default function DocsEditorClient({
   const flushDraft = useCallback(async () => {
     const draft = loadDraft(offlineOwner, page.id);
     if (!draft || blockedRef.current || (typeof navigator !== 'undefined' && navigator.onLine === false)) return;
-    const body = JSON.stringify({ ...draft.patch, base_updated_at: draft.base.updated_at });
+    // Escrito sin red en otra pestaña o antes de recargar: el texto sale como operaciones
+    // (fusión tecla por tecla); en esta misma pestaña ya lo manda el motor.
+    if (draft.coedit && draft.coedit.session !== liveSession.current) {
+      const ok = await sendDraftOps(draft);
+      if (!ok) return;
+    }
+    const body = JSON.stringify({ ...draft.patch, base_updated_at: draft.base.updated_at, ...(draft.coedit ? { text_ops: true } : {}) });
     const res = await fetch(`/api/docs/pages/${page.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body }).catch(() => null);
     if (!res) return;
     if (res.ok) {
@@ -381,7 +444,7 @@ export default function DocsEditorClient({
     if (res.status === 409) {
       const data = (await res.json().catch(() => null)) as { current?: DocsPage | null } | null;
       if (data?.current) {
-        const rebased = rebasePatch(draft.patch, { sent: draft.base.content, merged: data.current.content, sentTitle: draft.base.title, title: data.current.title });
+        const rebased = rebasePatch(draft.patch, neutral({ sent: draft.base.content, merged: data.current.content, sentTitle: draft.base.title, title: data.current.title }));
         clearDraft(offlineOwner, page.id);
         setOffline(false);
         adoptServer(data.current);
@@ -406,7 +469,8 @@ export default function DocsEditorClient({
     }
     // Error del servidor: el borrador queda y se reintenta al volver la red o al abrir.
     setSaveError('failed');
-  }, [page.id, adoptServer, savePage, offlineOwner]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page.id, adoptServer, savePage, offlineOwner, neutral]);
 
   // Al abrir con un borrador pendiente o al volver la red: se manda.
   useEffect(() => {
@@ -452,7 +516,7 @@ export default function DocsEditorClient({
     const res = await fetch(`/api/docs/pages/${page.id}`);
     if (!res.ok) return;
     const fresh = (await res.json()) as DocsPage;
-    base.current = serverBase(fresh);
+    setBase(fresh);
     unapplied.current = [];
     conflictPatch.current = null;
     setSaveError(null);
@@ -492,14 +556,57 @@ export default function DocsEditorClient({
     },
     [adoptServer, current.locked, t],
   );
-  const { peers } = useDocsLive({
+  const liveMode = mode === 'edit' ? 'edit' : mode === 'suggest' ? 'suggest' : canWrite ? 'view' : 'comment';
+  const { peers, session, pulseNow, upsertPeer, removePeer } = useDocsLive({
     pageId: page.id,
     since: () => base.current.updated_at,
     syncedAt: () => syncedSeen.current,
-    mode: mode === 'edit' ? 'edit' : mode === 'suggest' ? 'suggest' : canWrite ? 'view' : 'comment',
+    mode: liveMode,
     rootRef: wrapRef,
     onPulse,
+    enabled: !revoked,
   });
+  liveSession.current = session;
+
+  // ---------- Edición simultánea ----------
+  const coedit = useDocsCoedit({
+    pageId: page.id,
+    session,
+    canSend: textOps,
+    enabled: !revoked,
+    editorApi,
+    bypassLock: () => bypassRef.current,
+    selfUserId: currentUserId,
+    onCursor: (ev) =>
+      upsertPeer({ session: ev.session, user_id: ev.user, name: ev.name, image: ev.image, block_id: ev.block, start: ev.start, end: ev.end, mode: ev.mode, updated_at: new Date().toISOString() }),
+    onLeave: removePeer,
+    onSaved: pulseNow,
+    // Cambió su rol en la página: se vuelve a cargar con el permiso nuevo.
+    onAccess: () => router.refresh(),
+    onRevoked: () => setRevoked(true),
+    onSendError: (code) => {
+      if (code === 'locked') setCurrent((prev) => ({ ...prev, locked: true }));
+      else if (code === 'forbidden' || code === 'not_found') router.refresh();
+    },
+  });
+  coeditRef.current = coedit;
+  coeditEngineRef.current = coedit.engine.current;
+  // Los bloques que ya existen en el servidor viajan por operaciones desde el primer momento.
+  useEffect(() => {
+    coedit.register(base.current.content, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page.id]);
+  // El cursor propio sale enseguida por el mismo feed (el pulso queda de respaldo).
+  const sendCursor = coedit.sendCursor;
+  useEffect(() => {
+    if (revoked) return;
+    const onSel = () => {
+      const cur = readCursor(wrapRef.current);
+      if (cur.block_id || peers.length) sendCursor({ block: cur.block_id, start: cur.start, end: cur.end, mode: liveMode });
+    };
+    document.addEventListener('selectionchange', onSel);
+    return () => document.removeEventListener('selectionchange', onSel);
+  }, [sendCursor, liveMode, peers.length, revoked]);
 
   const jumpToPeer = useCallback((p: { block_id: string | null }) => {
     if (!p.block_id) return;
@@ -955,6 +1062,14 @@ export default function DocsEditorClient({
           </button>
         </div>
       )}
+      {revoked && (
+        <div className="docs-banner docs-banner-bad" role="alert" data-testid="docs-access-revoked">
+          <span>{t('coedit.revoked')}</span>
+          <Link href="/app/docs" className="btn btn-secondary btn-sm">
+            {t('coedit.backToDocs')}
+          </Link>
+        </div>
+      )}
       {saveError === 'conflict' && (
         <div className="docs-banner docs-banner-bad" role="alert">
           <span>{t('editor.conflict')}</span>
@@ -986,6 +1101,7 @@ export default function DocsEditorClient({
         importUrl={canWrite && !lockActive ? `/api/docs/pages/${page.id}/import` : undefined}
         mode={mode}
         apiRef={editorApi}
+        onLocalChange={coedit.localChanged}
         currentUserId={currentUserId}
         onInlineComment={onInlineComment}
         belowTitle={

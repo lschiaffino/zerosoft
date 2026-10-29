@@ -37,6 +37,16 @@ export function maxRole<T extends string>(a: T | null, b: T | null): T | null {
   return roleRank(a) >= roleRank(b) ? a : b;
 }
 
+/** Cambiaron permisos de Docs: los streams en vivo revalidan ya (lib/docs-coedit.ts). Nunca tira. */
+async function notifyAccess(workspaceId: string, userId: string | null = null): Promise<void> {
+  try {
+    const { docsAccessChanged } = await import('./docs-coedit');
+    await docsAccessChanged(workspaceId, { userId });
+  } catch {
+    /* los streams igual revalidan solos cada pocos segundos */
+  }
+}
+
 /** Acceso que permite cambiar el contenido. */
 export function canWriteAccess(a: string | null | undefined): boolean {
   return a === 'owner' || a === 'full' || a === 'edit';
@@ -87,6 +97,7 @@ export async function getDocsSettings(workspaceId: string): Promise<DocsSettings
 
 export async function updateDocsSettings(workspaceId: string, patch: Partial<DocsSettings>): Promise<DocsSettings> {
   const next = { ...(await getDocsSettings(workspaceId)), ...patch };
+  if (patch.member_role !== undefined) await notifyAccess(workspaceId);
   await getDb()
     .prepare(
       `INSERT INTO docs_settings (workspace_id, member_role, allow_export, allow_publish, allow_guests, updated_at)
@@ -339,6 +350,8 @@ export async function updateTeamspace(
     sets.push('updated_at = ?');
     args.push(new Date().toISOString());
     await getDb().prepare(`UPDATE docs_teamspaces SET ${sets.join(', ')} WHERE id = ?`).run(...args, id);
+    const ts = await getTeamspace(id);
+    if (ts) await notifyAccess(ts.workspace_id);
   }
   return getTeamspace(id);
 }
@@ -395,6 +408,8 @@ export async function removeTeamspaceMember(id: string, userId: string): Promise
     if (Number(owners.n) <= 1) return 'last_owner';
   }
   await getDb().prepare('DELETE FROM docs_teamspace_members WHERE teamspace_id = ? AND user_id = ?').run(id, userId);
+  const ts = await getTeamspace(id);
+  if (ts) await notifyAccess(ts.workspace_id, userId);
   return 'ok';
 }
 

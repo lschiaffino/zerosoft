@@ -119,6 +119,14 @@ const STEPS: Step[] = [
       await db().prepare('DELETE FROM note_shares WHERE workspace_id = ? AND person_id = ?').run(e.ownerId, e.userId);
     },
   },
+  {
+    // Docs en vivo: sus páginas abiertas del workspace (al final, ya sin shares ni teamspaces) dejan de recibir cambios en el acto.
+    name: 'docs_live',
+    run: async (e) => {
+      const { docsAccessChanged } = await import('./docs-coedit');
+      await docsAccessChanged(e.ownerId, { userId: e.userId });
+    },
+  },
 ];
 
 /** ¿Sigue siendo persona (no guest) de algún equipo del owner? (un owner de antes de 128 puede tener varios). */
@@ -199,6 +207,13 @@ export async function personAppsChanged(event: { ownerId: string; teamId: string
     await claimIfCrm(event);
   } catch (err) {
     console.error('[workspace] apps changed: crm_import_owners', err);
+  }
+  // Sin la app Docs: sus páginas abiertas se cortan en el acto.
+  try {
+    const { docsAccessChanged } = await import('./docs-coedit');
+    await docsAccessChanged(event.ownerId, { userId: event.userId });
+  } catch (err) {
+    console.error('[workspace] apps changed: docs_live', err);
   }
 }
 
