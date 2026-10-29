@@ -8,6 +8,7 @@ import {
   renameDesign,
   restoreDesign,
   saveDesignDoc,
+  setDesignThumb,
   setStar,
   trashDesign,
 } from '@/lib/design';
@@ -63,6 +64,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       if (!res.ok) return designJson({ error: 'conflict', version: res.version, updatedByName: res.updatedByName }, 409);
       return designJson({ version: res.version, updatedAt: res.updatedAt });
     }
+    if (p.thumb) await setDesignThumb(s.actor, id, p.thumb);
     return designJson({ ok: true });
   } catch (err) {
     return designFail(err);

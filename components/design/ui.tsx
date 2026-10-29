@@ -28,12 +28,24 @@ export function Modal({
   testId?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const opener = useRef<HTMLElement | null>(null);
   const id = useId();
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
-    if (open && !d.open) d.showModal();
+    if (open && !d.open) {
+      opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      d.showModal();
+    }
     if (!open && d.open) d.close();
+    // Al cerrar, el foco vuelve a lo que lo abrió (si sigue en la página y nada más lo tomó).
+    if (!open && opener.current) {
+      const el = opener.current;
+      opener.current = null;
+      requestAnimationFrame(() => {
+        if (el.isConnected && (!document.activeElement || document.activeElement === document.body)) el.focus();
+      });
+    }
   }, [open]);
   return (
     <dialog

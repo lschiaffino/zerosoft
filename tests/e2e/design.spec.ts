@@ -297,3 +297,63 @@ test('per-app access: a member without Design sees no pages, APIs, search, files
     await ctx.close();
   }
 });
+
+test('a viewer cannot publish a template, an editor cannot turn on the public link, and images follow the design', async ({ request, browser, baseURL }) => {
+  test.setTimeout(120_000);
+  type DocResp = { design: { doc: { pages: Array<{ background: { image: string | null } }> }; version: number } };
+  const name = `Private ${uid()}`;
+  const { design } = (await (await request.post('/api/design/designs', { data: { width: 500, height: 500, name } })).json()) as { design: { id: string } };
+  const up = await request.post('/api/design/files', { multipart: { file: { name: 'dot.png', mimeType: 'image/png', buffer: PNG_1PX } } });
+  const fileId = ((await up.json()) as { file: { id: string } }).file.id;
+  const d = (await (await request.get(`/api/design/designs/${design.id}`)).json()) as DocResp;
+  d.design.doc.pages[0].background.image = fileId;
+  expect((await request.patch(`/api/design/designs/${design.id}`, { data: { doc: d.design.doc, version: d.design.version } })).status()).toBe(200);
+
+  const demoTeam = String((await sql("SELECT id FROM teams WHERE owner_id = 'demo' ORDER BY created_at, id LIMIT 1"))[0].id);
+  const email = `member-${uid()}@darwin-e2e.io`;
+  const ctx = await browser.newContext({ baseURL });
+  await ctx.addCookies([{ name: 'zs_e2e_as', value: email, url: baseURL! }]);
+  const p = await ctx.newPage();
+  try {
+    await p.goto('/en/app', { waitUntil: 'networkidle' });
+    const me = String((await sql('SELECT id FROM users WHERE email = ?', [email]))[0].id);
+    await sql("UPDATE users SET onboarded_at = datetime('now') WHERE id = ?", [me]);
+    await sql(`INSERT INTO team_members (team_id, user_id, role, apps) VALUES (?, ?, 'member', '["design"]')`, [demoTeam, me]);
+    await sql('UPDATE users SET active_team_id = ? WHERE id = ?', [demoTeam, me]);
+
+    // Privado: ni el diseño ni su imagen.
+    expect((await ctx.request.get(`/api/design/designs/${design.id}`)).status()).toBe(404);
+    expect((await ctx.request.get(`/api/design/files/${fileId}`)).status()).toBe(404);
+
+    // Con acceso de lectura ve la imagen, pero no publica el diseño como plantilla del workspace.
+    expect((await request.put(`/api/design/designs/${design.id}/share`, { data: { members: [{ userId: me, role: 'view' }] } })).status()).toBe(200);
+    expect((await ctx.request.get(`/api/design/files/${fileId}`)).status()).toBe(200);
+    expect((await ctx.request.post(`/api/design/designs/${design.id}/template`, { data: { name: 'Leaked' } })).status()).toBe(403);
+    expect(await (await ctx.request.get('/api/design/templates')).text()).not.toContain('Leaked');
+    await p.goto(`/en/app/design/${design.id}`, { waitUntil: 'networkidle' });
+    await p.getByTestId('design-more').click();
+    await expect(p.getByTestId('design-save-template')).toHaveCount(0);
+
+    // Con edición comparte, pero el link público lo maneja quien lo creó.
+    expect((await request.put(`/api/design/designs/${design.id}/share`, { data: { members: [{ userId: me, role: 'edit' }] } })).status()).toBe(200);
+    expect((await ctx.request.put(`/api/design/designs/${design.id}/share`, { data: { link: 'on' } })).status()).toBe(403);
+    expect((await ctx.request.post(`/api/design/designs/${design.id}/template`, { data: { name: 'Leaked' } })).status()).toBe(403);
+    await p.reload({ waitUntil: 'networkidle' });
+    await p.getByTestId('design-share-btn').click();
+    await expect(p.getByTestId('design-share-link')).toBeDisabled();
+
+    // Una imagen que no puede ver no entra en un diseño suyo.
+    const theirs = (await (await request.post('/api/design/files', { multipart: { file: { name: 'b.png', mimeType: 'image/png', buffer: PNG_1PX } } })).json()) as { file: { id: string } };
+    const mine = (await (await ctx.request.post('/api/design/designs', { data: { width: 300, height: 300, name: 'Mine' } })).json()) as { design: { id: string } };
+    const m = (await (await ctx.request.get(`/api/design/designs/${mine.design.id}`)).json()) as DocResp;
+    m.design.doc.pages[0].background.image = theirs.file.id;
+    expect((await ctx.request.patch(`/api/design/designs/${mine.design.id}`, { data: { doc: m.design.doc, version: m.design.version } })).status()).toBe(403);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('a design that does not exist is a real 404', async ({ page }) => {
+  const res = await page.goto('/en/app/design/dzzzzzzzzzzzzzzzz');
+  expect(res?.status()).toBe(404);
+});

@@ -11,7 +11,9 @@
  * - Comentarios fijados en un punto de una página; avisan a quien lo creó y
  *   a quienes participan del hilo.
  * - Archivos (imágenes y logos) en el storage de uploads, servidos por
- *   /api/design/files/<id> con chequeo de acceso.
+ *   /api/design/files/<id> a quien la subió, a quien ve un diseño que la usa
+ *   (design_file_refs, se escribe al guardar) y, si es un logo del kit, al
+ *   workspace.
  */
 import { randomBytes } from 'crypto';
 import { readFile } from 'fs/promises';
@@ -23,6 +25,7 @@ import {
   clampSide,
   cloneDoc,
   docBytes,
+  docFileIds,
   docSearchText,
   FILE_ID_RE,
   FONT_KEYS,
@@ -289,16 +292,20 @@ function cleanName(name: string | undefined, fallback: string): string {
   return n || fallback;
 }
 
-async function insertDesign(actor: DesignActor, input: { name: string; doc: DesignDoc; folderId?: string | null; isTemplate?: boolean }): Promise<string> {
+async function insertDesign(
+  actor: DesignActor,
+  input: { name: string; doc: DesignDoc; folderId?: string | null; isTemplate?: boolean; thumb?: string | null },
+): Promise<string> {
   const id = newKey('d');
   const now = nowIso();
   const json = JSON.stringify(input.doc);
   if (json.length > MAX_DOC_BYTES) throw new DesignError('too_large', 413);
+  await assertFilesReadable(actor, input.doc, null);
   const folderId = input.folderId ? await ownFolderId(actor, input.folderId) : null;
   await getDb()
     .prepare(
-      `INSERT INTO design_designs (id, workspace_id, created_by, folder_id, name, width, height, pages, doc, doc_bytes, search_text, version, is_template, updated_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
+      `INSERT INTO design_designs (id, workspace_id, created_by, folder_id, name, width, height, pages, doc, doc_bytes, search_text, thumb, version, is_template, updated_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -312,11 +319,13 @@ async function insertDesign(actor: DesignActor, input: { name: string; doc: Desi
       json,
       docBytes(input.doc),
       docSearchText(input.doc),
+      cleanThumb(input.thumb) ?? null,
       input.isTemplate ? 1 : 0,
       actor.personId,
       now,
       now,
     );
+  await writeFileRefs(id, input.doc);
   return id;
 }
 
@@ -339,7 +348,7 @@ export async function createDesign(actor: DesignActor, input: CreateDesignInput)
     if (!src.row.is_template) throw new DesignError('not_found', 404);
     const doc = parseDoc(JSON.parse(src.row.doc));
     if (!doc) throw new DesignError('invalid_input', 400);
-    return insertDesign(actor, { name: cleanName(input.name, src.row.name), doc: cloneDoc(doc), folderId: input.folderId });
+    return insertDesign(actor, { name: cleanName(input.name, src.row.name), doc: cloneDoc(doc), folderId: input.folderId, thumb: src.row.thumb });
   }
   if (input.template) {
     const t = findTemplate(input.template);
@@ -356,15 +365,25 @@ export async function duplicateDesign(actor: DesignActor, id: string, name?: str
   const { row } = await need(actor, id, 'view');
   const doc = parseDoc(JSON.parse(row.doc));
   if (!doc) throw new DesignError('invalid_input', 400);
-  return insertDesign(actor, { name: cleanName(name, `${row.name} (copy)`), doc: cloneDoc(doc), folderId: row.created_by === actor.personId ? row.folder_id : null });
+  return insertDesign(actor, {
+    name: cleanName(name, `${row.name} (copy)`),
+    doc: cloneDoc(doc),
+    folderId: row.created_by === actor.personId ? row.folder_id : null,
+    thumb: row.thumb,
+  });
 }
 
-/** Guarda una copia como plantilla del workspace (la ve todo el workspace para usarla). */
+/**
+ * Guarda una copia como plantilla del workspace, que ve todo el workspace:
+ * solo owner/admins, y sobre un diseño que pueden editar (con acceso de
+ * lectura no se publica un diseño privado).
+ */
 export async function saveAsTemplate(actor: DesignActor, id: string, name?: string): Promise<string> {
-  const { row } = await need(actor, id, 'view');
+  const { row } = await need(actor, id, 'edit');
+  if (!actor.admin) throw new DesignError('forbidden', 403);
   const doc = parseDoc(JSON.parse(row.doc));
   if (!doc) throw new DesignError('invalid_input', 400);
-  return insertDesign(actor, { name: cleanName(name, row.name), doc: cloneDoc(doc), isTemplate: true });
+  return insertDesign(actor, { name: cleanName(name, row.name), doc: cloneDoc(doc), isTemplate: true, thumb: row.thumb });
 }
 
 const THUMB_RE = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
@@ -383,6 +402,7 @@ export async function saveDesignDoc(actor: DesignActor, id: string, rawDoc: unkn
   await need(actor, id, 'edit');
   const doc = parseDoc(rawDoc);
   if (!doc) throw new DesignError(JSON.stringify(rawDoc ?? null).length > MAX_DOC_BYTES ? 'too_large' : 'invalid_input', JSON.stringify(rawDoc ?? null).length > MAX_DOC_BYTES ? 413 : 400);
+  await assertFilesReadable(actor, doc, id);
   const json = JSON.stringify(doc);
   const now = nowIso();
   const t = cleanThumb(thumb);
@@ -406,12 +426,23 @@ export async function saveDesignDoc(actor: DesignActor, id: string, rawDoc: unkn
       actor.ws,
       Math.trunc(baseVersion),
     );
-  if (res.changes > 0) return { ok: true, version: Math.trunc(baseVersion) + 1, updatedAt: now };
+  if (res.changes > 0) {
+    await writeFileRefs(id, doc);
+    return { ok: true, version: Math.trunc(baseVersion) + 1, updatedAt: now };
+  }
   const cur = (await getDb()
     .prepare("SELECT d.version, COALESCE(NULLIF(u.name, ''), u.email, '') AS n FROM design_designs d LEFT JOIN users u ON u.id = d.updated_by WHERE d.id = ?")
     .get(id)) as { version: number; n: string } | undefined;
   if (!cur) throw new DesignError('not_found', 404);
   return { ok: false, code: 'conflict', version: cur.version, updatedByName: cur.n };
+}
+
+/** Solo la miniatura (sin tocar la versión): el editor la arma al abrir un diseño que no tiene. */
+export async function setDesignThumb(actor: DesignActor, id: string, thumb: unknown): Promise<void> {
+  await need(actor, id, 'edit');
+  const t = cleanThumb(thumb);
+  if (!t) throw new DesignError('invalid_input', 400);
+  await getDb().prepare('UPDATE design_designs SET thumb = ? WHERE id = ? AND workspace_id = ?').run(t, id, actor.ws);
 }
 
 export async function renameDesign(actor: DesignActor, id: string, name: string): Promise<void> {
@@ -457,7 +488,7 @@ export async function purgeDesign(actor: DesignActor, id: string): Promise<void>
   const got = await getDesignAccess(actor, id);
   if (!got || got.access !== 'owner' || !got.row.deleted_at) throw new DesignError('not_found', 404);
   const db = getDb();
-  for (const t of ['design_members', 'design_stars', 'design_opens', 'design_comments', 'design_presence']) {
+  for (const t of ['design_members', 'design_stars', 'design_opens', 'design_comments', 'design_presence', 'design_file_refs']) {
     await db.prepare(`DELETE FROM ${t} WHERE design_id = ?`).run(id);
   }
   await db.prepare('DELETE FROM design_designs WHERE id = ? AND workspace_id = ?').run(id, actor.ws);
@@ -516,6 +547,8 @@ export interface DesignShareInfo {
   members: Array<{ userId: string; name: string; email: string; role: DesignLevel }>;
   ownerId: string;
   canShare: boolean;
+  /** Prender, apagar o renovar el link público: quien lo creó y owner/admins. */
+  canLink: boolean;
 }
 
 export async function getShare(actor: DesignActor, id: string): Promise<DesignShareInfo> {
@@ -527,7 +560,8 @@ export async function getShare(actor: DesignActor, id: string): Promise<DesignSh
     )
     .all(id)) as DesignShareInfo['members'];
   const canShare = can(access, 'share');
-  return { workspaceAccess: row.workspace_access, token: canShare ? row.share_token : null, members, ownerId: row.created_by, canShare };
+  const canLink = canShare && (access === 'owner' || actor.admin);
+  return { workspaceAccess: row.workspace_access, token: canShare ? row.share_token : null, members, ownerId: row.created_by, canShare, canLink };
 }
 
 export interface ShareUpdate {
@@ -543,7 +577,9 @@ export interface ShareUpdate {
  * (para avisarle).
  */
 export async function updateShare(actor: DesignActor, id: string, input: ShareUpdate, allowedPeople: Set<string>): Promise<{ added: string[] }> {
-  const { row } = await need(actor, id, 'share');
+  const { row, access } = await need(actor, id, 'share');
+  // Editar incluye compartir (como Canva), pero el link público lo manejan quien lo creó y owner/admins.
+  if (input.link && access !== 'owner' && !actor.admin) throw new DesignError('forbidden', 403);
   const db = getDb();
   if (input.workspaceAccess) {
     await db.prepare('UPDATE design_designs SET workspace_access = ? WHERE id = ?').run(input.workspaceAccess, id);
@@ -750,7 +786,7 @@ export function isDesignUploadUrl(url: string): boolean {
 
 /**
  * Sube una imagen: el tipo sale de los bytes (PNG, JPEG, GIF o WebP; SVG no),
- * hasta 10 MB, y pasa por saveUpload (lista de tipos permitidos del storage).
+ * hasta 4 MB (DESIGN_MAX_UPLOAD_BYTES), y pasa por saveUpload (lista de tipos permitidos del storage).
  */
 export async function saveDesignFile(actor: DesignActor, input: { bytes: Uint8Array; name: string; kind?: 'upload' | 'logo' }): Promise<DesignFileDto> {
   if (input.bytes.length > DESIGN_MAX_UPLOAD_BYTES) throw new DesignError('too_large', 413);
@@ -785,17 +821,68 @@ export async function getFileRow(id: string): Promise<DesignFileRow | null> {
   return ((await getDb().prepare('SELECT * FROM design_files WHERE id = ?').get(id)) as DesignFileRow | undefined) ?? null;
 }
 
+async function writeFileRefs(designId: string, doc: DesignDoc): Promise<void> {
+  const db = getDb();
+  await db.prepare('DELETE FROM design_file_refs WHERE design_id = ?').run(designId);
+  for (const fid of docFileIds(doc)) await db.prepare('INSERT OR IGNORE INTO design_file_refs (design_id, file_id) VALUES (?, ?)').run(designId, fid);
+}
+
+async function brandLogoIds(ws: string): Promise<string[]> {
+  const r = (await getDb().prepare('SELECT logos FROM design_brand WHERE workspace_id = ?').get(ws)) as { logos: string } | undefined;
+  try {
+    const ids = r ? (JSON.parse(r.logos) as unknown) : [];
+    return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
 /**
- * ¿Puede ver la imagen? Alguien del workspace con Design, o quien trae el
- * token vigente de un diseño de ese workspace que la usa. Revocar el link
- * corta también las imágenes.
+ * ¿La persona puede ver la imagen? Quien la subió; un logo del kit de marca,
+ * todo el workspace; el resto, solo si ve un diseño (no borrado) que la usa.
+ * Un admin no ve las imágenes de diseños privados de otros.
  */
-export async function canReadFile(file: DesignFileRow, viewer: { ws: string | null; token: string | null }): Promise<boolean> {
-  if (viewer.ws && viewer.ws === file.workspace_id) return true;
+export async function personCanReadFile(actor: Pick<DesignActor, 'ws' | 'personId'>, file: DesignFileRow): Promise<boolean> {
+  if (file.workspace_id !== actor.ws) return false;
+  if (file.uploaded_by === actor.personId) return true;
+  if ((await brandLogoIds(actor.ws)).includes(file.id)) return true;
+  const vis = visibleSql('d');
+  const r = await getDb()
+    .prepare(
+      `SELECT 1 AS x FROM design_file_refs r JOIN design_designs d ON d.id = r.design_id
+       WHERE r.file_id = ? AND d.workspace_id = ? AND d.deleted_at IS NULL AND ${vis.sql} LIMIT 1`,
+    )
+    .get(file.id, actor.ws, ...vis.argsFor(actor.personId));
+  return Boolean(r);
+}
+
+/**
+ * Al guardar, el diseño solo suma imágenes que la persona puede ver (las que
+ * ya usaba se quedan aunque las haya subido otra persona).
+ */
+async function assertFilesReadable(actor: DesignActor, doc: DesignDoc, designId: string | null): Promise<void> {
+  const ids = docFileIds(doc);
+  if (!ids.length) return;
+  const had = new Set(
+    designId ? ((await getDb().prepare('SELECT file_id FROM design_file_refs WHERE design_id = ?').all(designId)) as Array<{ file_id: string }>).map((r) => r.file_id) : [],
+  );
+  for (const fid of ids) {
+    if (had.has(fid)) continue;
+    const file = await getFileRow(fid);
+    if (!file || !(await personCanReadFile(actor, file))) throw new DesignError('forbidden', 403);
+  }
+}
+
+/**
+ * ¿Se sirve la imagen? A la persona según personCanReadFile, o a quien trae el
+ * token vigente de un diseño que la usa. Revocar el link corta las imágenes.
+ */
+export async function canReadFile(file: DesignFileRow, viewer: { actor: Pick<DesignActor, 'ws' | 'personId'> | null; token: string | null }): Promise<boolean> {
+  if (viewer.actor && (await personCanReadFile(viewer.actor, file))) return true;
   if (!viewer.token) return false;
   const pub = await getPublicDesign(viewer.token);
   if (!pub || pub.row.workspace_id !== file.workspace_id) return false;
-  return pub.row.doc.includes(`"${file.id}"`);
+  return docFileIds(pub.doc).includes(file.id);
 }
 
 export async function readDesignFile(file: DesignFileRow): Promise<Uint8Array | null> {
@@ -865,8 +952,8 @@ export async function saveBrandKit(actor: DesignActor, input: { colors: string[]
   const logos: string[] = [];
   for (const id of input.logos.slice(0, 12)) {
     if (!FILE_ID_RE.test(id)) continue;
-    const r = await getDb().prepare('SELECT 1 AS x FROM design_files WHERE id = ? AND workspace_id = ?').get(id, actor.ws);
-    if (r) logos.push(id);
+    const file = await getFileRow(id);
+    if (file && (await personCanReadFile(actor, file))) logos.push(id);
   }
   await getDb()
     .prepare(

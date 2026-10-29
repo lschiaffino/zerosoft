@@ -7041,6 +7041,15 @@ export const MIGRATIONS: Migration[] = [
           updated_at TEXT NOT NULL,
           PRIMARY KEY (design_id, user_id)
         );
+
+        -- Qué imágenes usa cada diseño (se escribe al guardar): una imagen se
+        -- sirve a quien la subió o a quien ve un diseño que la usa.
+        CREATE TABLE IF NOT EXISTS design_file_refs (
+          design_id TEXT NOT NULL REFERENCES design_designs(id) ON DELETE CASCADE,
+          file_id TEXT NOT NULL,
+          PRIMARY KEY (design_id, file_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_design_file_refs_file ON design_file_refs(file_id);
       `);
     },
   },

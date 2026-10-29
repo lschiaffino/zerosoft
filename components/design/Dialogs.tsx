@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { DESIGN_PRESETS, MAX_SIDE, MIN_SIDE, type DesignDoc } from '@/lib/design-model';
@@ -162,15 +162,20 @@ export function ShareDialog({ open, onClose, designId, onChanged }: { open: bool
             <div className="ui-field">
               <span className="label">{t('link')}</span>
               <label className="ui-check">
-                <input type="checkbox" checked={linkWanted ?? !!share.token}
-                  disabled={busy}
+                <input
+                  type="checkbox"
+                  checked={linkWanted ?? !!share.token}
+                  disabled={busy || !share.canLink}
                   onChange={(e) => {
                     const on = e.target.checked;
                     setLinkWanted(on);
                     void save({ link: on ? 'on' : 'off' }).finally(() => setLinkWanted(null));
-                  }} data-testid="design-share-link" />
+                  }}
+                  data-testid="design-share-link"
+                />
                 <span>{t('linkToggle')}</span>
               </label>
+              {!share.canLink && <p className="muted dz-share-note">{t('linkOwnerOnly')}</p>}
               {share.token && (
                 <>
                   <div className="dz-share-url">
@@ -189,9 +194,11 @@ export function ShareDialog({ open, onClose, designId, onChanged }: { open: bool
                     </button>
                   </div>
                   <p className="muted dz-share-note">{t('linkNote')}</p>
-                  <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => void save({ link: 'reset' })}>
-                    {t('reset')}
-                  </button>
+                  {share.canLink && (
+                    <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => void save({ link: 'reset' })}>
+                      {t('reset')}
+                    </button>
+                  )}
                 </>
               )}
             </div>
@@ -218,6 +225,7 @@ export function ExportDialog({ open, onClose, doc, name, pageIndex }: { open: bo
   const [boardsAvailable, setBoardsAvailable] = useState(false);
   const [boardId, setBoardId] = useState('');
   const [sent, setSent] = useState<string | null>(null);
+  const downloadRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -247,6 +255,8 @@ export function ExportDialog({ open, onClose, doc, name, pageIndex }: { open: bo
       setError(t('error'));
     } finally {
       setBusy(false);
+      // Mientras exporta el botón queda deshabilitado y pierde el foco: vuelve a él.
+      requestAnimationFrame(() => downloadRef.current?.focus());
     }
   };
 
@@ -279,7 +289,7 @@ export function ExportDialog({ open, onClose, doc, name, pageIndex }: { open: bo
           <button type="button" className="btn btn-secondary" onClick={onClose}>
             {t('close')}
           </button>
-          <button type="button" className="btn btn-primary" onClick={() => void run()} disabled={busy} data-testid="design-export-download">
+          <button ref={downloadRef} type="button" className="btn btn-primary" onClick={() => void run()} disabled={busy} data-testid="design-export-download">
             {t('download')}
           </button>
         </>

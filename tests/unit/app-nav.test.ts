@@ -10,6 +10,7 @@ import {
   type AppProduct,
   type SidebarLabels,
 } from '@/components/app/sidebar-nav';
+import { pageExists } from './page-exists';
 
 /**
  * Navegación izquierda de la app: cada ítem apunta a una página que existe,
@@ -31,11 +32,6 @@ function fakeLabels(): SidebarLabels {
   return new Proxy({} as SidebarLabels, {
     get: (_t, key) => (typeof key === 'string' && nested.includes(key) ? proxy(`${key}.`) : String(key)),
   });
-}
-
-function pageExists(href: string): boolean {
-  const path = href.split(/[?#]/)[0].replace(/^\//, '');
-  return existsSync(join(appDir, path, 'page.tsx'));
 }
 
 describe('sidebar de la app', () => {

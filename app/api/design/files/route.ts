@@ -15,7 +15,7 @@ export async function GET() {
 
 /**
  * Sube una imagen (multipart, campo `file`; `kind=logo` para el kit de marca).
- * El tipo se lee de los bytes: PNG, JPEG, GIF o WebP, hasta 10 MB.
+ * El tipo se lee de los bytes: PNG, JPEG, GIF o WebP, hasta 4 MB (DESIGN_MAX_UPLOAD_BYTES).
  */
 export async function POST(req: NextRequest) {
   const s = await designActor({ write: true });

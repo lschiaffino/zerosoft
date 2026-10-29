@@ -8,6 +8,9 @@
 /* El padding de las secciones del sitio (globals.css) no aplica dentro de la app. */
 section.dz-presets, section.dz-tpl-section, .dz-side section { padding-top: 0; padding-bottom: 0; }
 
+/* En el editor el botón flotante de feedback tapaba "Agregar página" y la tira de páginas. */
+body:has(.dz-editor) .fl-root { display: none; }
+
 /* ---------- Sidebar ---------- */
 
 .dz-branch-h { margin: 8px 0 2px 12px; font-size: 0.75rem; color: var(--dim); text-transform: uppercase; letter-spacing: 0.04em; }

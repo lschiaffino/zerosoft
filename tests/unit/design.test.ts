@@ -403,6 +403,8 @@ describe('design server', () => {
   const owner: DesignActor = { ws: 'dz-owner', personId: 'dz-owner', admin: true, name: 'Owner' };
   const mate: DesignActor = { ws: 'dz-owner', personId: 'dz-mate', admin: false, name: 'Mate' };
   const other: DesignActor = { ws: 'dz-other', personId: 'dz-other', admin: true, name: 'Other' };
+  // Admin del mismo workspace que no creó el diseño.
+  const boss: DesignActor = { ws: 'dz-owner', personId: 'dz-boss', admin: true, name: 'Boss' };
 
   beforeAll(async () => {
     uploads = await mkdtemp(path.join(os.tmpdir(), 'design-up-'));
@@ -411,6 +413,7 @@ describe('design server', () => {
     await upsertUser({ id: 'dz-owner', email: 'dz-owner@test.local', name: 'Owner' });
     await upsertUser({ id: 'dz-mate', email: 'dz-mate@test.local', name: 'Mate' });
     await upsertUser({ id: 'dz-other', email: 'dz-other@test.local', name: 'Other' });
+    await upsertUser({ id: 'dz-boss', email: 'dz-boss@test.local', name: 'Boss' });
   });
 
   afterAll(async () => {
@@ -475,21 +478,68 @@ describe('design server', () => {
     expect(await getPublicDesign(token2)).toBeNull();
   });
 
-  it('serves images to the workspace or to a public link that uses them', async () => {
+  it('lets editors share, but only the creator and admins turn the public link on or off', async () => {
+    const id = await createDesign(mate, { width: 500, height: 500, name: 'Mate link' });
+    await updateShare(mate, id, { members: [{ userId: 'dz-boss', role: 'edit' }] }, new Set(['dz-boss']));
+    // Un editor que no es admin comparte con personas, pero no prende el link.
+    const editor: DesignActor = { ws: 'dz-owner', personId: 'dz-editor', admin: false, name: 'Editor' };
+    await updateShare(mate, id, { members: [{ userId: 'dz-boss', role: 'edit' }, { userId: 'dz-editor', role: 'edit' }] }, new Set(['dz-boss', 'dz-editor']));
+    expect((await getShare(editor, id)).canShare).toBe(true);
+    expect((await getShare(editor, id)).canLink).toBe(false);
+    await updateShare(editor, id, { workspaceAccess: 'view' }, new Set());
+    await expect(updateShare(editor, id, { link: 'on' }, new Set())).rejects.toMatchObject({ code: 'forbidden' });
+    expect((await getShare(mate, id)).token).toBeNull();
+    // El admin con edición sí; quien lo creó también.
+    expect((await getShare(boss, id)).canLink).toBe(true);
+    await updateShare(boss, id, { link: 'on' }, new Set());
+    expect((await getShare(mate, id)).token).toMatch(/^[A-Za-z0-9_-]{16,}$/);
+    await updateShare(mate, id, { link: 'off' }, new Set());
+    expect((await getShare(mate, id)).token).toBeNull();
+  });
+
+  it('serves an image to whoever uploaded it, to people who see a design using it, or to its public link', async () => {
     const file = await saveDesignFile(owner, { bytes: PNG, name: 'logo.png' });
     expect(file).toMatchObject({ width: 4, height: 2 });
     await expect(saveDesignFile(owner, { bytes: new TextEncoder().encode('<svg/>'), name: 'x.svg' })).rejects.toMatchObject({ code: 'file_type_not_allowed' });
     const row = (await getFileRow(file.id))!;
-    expect(await canReadFile(row, { ws: 'dz-owner', token: null })).toBe(true);
-    expect(await canReadFile(row, { ws: 'dz-other', token: null })).toBe(false);
+    expect(await canReadFile(row, { actor: owner, token: null })).toBe(true);
+    // Otra persona del workspace (ni un admin) no la ve mientras ningún diseño que vea la use.
+    expect(await canReadFile(row, { actor: mate, token: null })).toBe(false);
+    expect(await canReadFile(row, { actor: boss, token: null })).toBe(false);
+    expect(await canReadFile(row, { actor: other, token: null })).toBe(false);
     const id = await createDesign(owner, { width: 500, height: 500, name: 'With image' });
     const d = (await getDesign(owner, id))!;
     await saveDesignDoc(owner, id, { ...d.doc, pages: [{ ...d.doc.pages[0], elements: [image({ src: file.id })] }] }, d.version);
+    // Privado: sigue sin verla.
+    expect(await canReadFile(row, { actor: mate, token: null })).toBe(false);
+    await updateShare(owner, id, { workspaceAccess: 'view' }, new Set());
+    expect(await canReadFile(row, { actor: mate, token: null })).toBe(true);
+    // En la papelera deja de contar.
+    await trashDesign(owner, id);
+    expect(await canReadFile(row, { actor: mate, token: null })).toBe(false);
+    await restoreDesign(owner, id);
     await updateShare(owner, id, { link: 'on' }, new Set());
     const token = (await getShare(owner, id)).token!;
-    expect(await canReadFile(row, { ws: null, token })).toBe(true);
+    expect(await canReadFile(row, { actor: null, token })).toBe(true);
     await updateShare(owner, id, { link: 'off' }, new Set());
-    expect(await canReadFile(row, { ws: null, token })).toBe(false);
+    expect(await canReadFile(row, { actor: null, token })).toBe(false);
+  });
+
+  it('does not let a design pick up images the editor cannot see', async () => {
+    const secret = await saveDesignFile(owner, { bytes: PNG, name: 'secret.png' });
+    const mine = await createDesign(mate, { width: 500, height: 500, name: 'Thief' });
+    const d = (await getDesign(mate, mine))!;
+    const withSecret = { ...d.doc, pages: [{ ...d.doc.pages[0], elements: [image({ src: secret.id })] }] };
+    await expect(saveDesignDoc(mate, mine, withSecret, d.version)).rejects.toMatchObject({ code: 'forbidden' });
+    expect(await canReadFile((await getFileRow(secret.id))!, { actor: mate, token: null })).toBe(false);
+    // Una imagen que ya usa un diseño compartido con edición se queda al guardar.
+    const shared = await createDesign(owner, { width: 500, height: 500, name: 'Shared image' });
+    const s0 = (await getDesign(owner, shared))!;
+    const r0 = await saveDesignDoc(owner, shared, { ...s0.doc, pages: [{ ...s0.doc.pages[0], elements: [image({ src: secret.id })] }] }, s0.version);
+    await updateShare(owner, shared, { members: [{ userId: 'dz-mate', role: 'edit' }] }, new Set(['dz-mate']));
+    const s1 = (await getDesign(mate, shared))!;
+    expect(r0.ok && s1.version === r0.version).toBe(true);
+    expect((await saveDesignDoc(mate, shared, s1.doc, s1.version)).ok).toBe(true);
   });
 
   it('pins comments, threads replies and notifies only people with access', async () => {
@@ -535,14 +585,26 @@ describe('design server', () => {
     expect(gone).toBeUndefined();
   });
 
-  it('saves workspace templates that everyone can use', async () => {
+  it('saves workspace templates that everyone can use, only from admins who can edit', async () => {
     const src = await createDesign(owner, { template: 'deck-pitch', locale: 'en' });
+    // Quien solo puede ver no publica el diseño como plantilla, ni siquiera un admin.
+    await updateShare(owner, src, { members: [{ userId: 'dz-mate', role: 'view' }, { userId: 'dz-boss', role: 'view' }] }, new Set(['dz-mate', 'dz-boss']));
+    await expect(saveAsTemplate(mate, src, 'Leak')).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(saveAsTemplate(boss, src, 'Leak')).rejects.toMatchObject({ code: 'forbidden' });
+    // Con edición pero sin ser admin, tampoco.
+    await updateShare(owner, src, { members: [{ userId: 'dz-mate', role: 'edit' }] }, new Set(['dz-mate']));
+    await expect(saveAsTemplate(mate, src, 'Leak')).rejects.toMatchObject({ code: 'forbidden' });
+    expect((await listDesigns(mate, { view: 'templates' })).some((x) => x.name === 'Leak')).toBe(false);
+    await saveDesignDoc(owner, src, (await getDesign(owner, src))!.doc, (await getDesign(owner, src))!.version, 'data:image/png;base64,AAAA');
     const tpl = await saveAsTemplate(owner, src, 'Team pitch');
+    // La plantilla y las copias arrancan con la miniatura.
+    expect((await getDesign(owner, tpl))?.thumb).toBe('data:image/png;base64,AAAA');
     expect((await listDesigns(mate, { view: 'templates' })).map((x) => x.id)).toContain(tpl);
     const copy = await createDesign(mate, { template: `w:${tpl}` });
     const d = await getDesign(mate, copy);
     expect(d?.access).toBe('owner');
     expect(d?.doc.pages).toHaveLength(3);
+    expect(d?.thumb).toBe('data:image/png;base64,AAAA');
   });
 
   it('lets only admins edit the brand kit and drops invalid values', async () => {

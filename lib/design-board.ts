@@ -6,6 +6,7 @@
 import { randomBytes } from 'crypto';
 import { accessAtLeast, boardViewer, getBoardAccess } from './board-access';
 import { BOARD_MAX_FILE_BYTES } from './board-file-refs';
+import { sniffDesignImage } from './design-image';
 import { getBoard, listBoards, saveBoardScene } from './boards';
 import { publishBoardEvent } from './board-live';
 import type { SessionUser } from './session';
@@ -47,6 +48,9 @@ export async function addImageToBoard(
   if (!accessAtLeast(level, 'edit')) throw new DesignBoardError('forbidden', 403);
   const personId = user.actingUser?.id ?? user.id;
   const mime = input.dataUrl.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
+  // El tipo declarado tiene que coincidir con los bytes (los primeros 16 alcanzan).
+  const head = Buffer.from(input.dataUrl.slice(input.dataUrl.indexOf(',') + 1, input.dataUrl.indexOf(',') + 1 + 24), 'base64');
+  if (sniffDesignImage(new Uint8Array(head)) !== mime) throw new DesignBoardError('invalid_input', 400);
   // En la pizarra entra con un ancho razonable (como mucho 800).
   const k = Math.min(1, 800 / Math.max(1, input.width));
   const w = Math.max(1, Math.round(input.width * k));

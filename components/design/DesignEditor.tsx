@@ -171,6 +171,27 @@ export default function DesignEditor({ initial, canEditBrand, commentId }: { ini
     }
   }, [ed.rev, ed.docRef, initial.id, readOnly]);
 
+  // Un diseño sin miniatura (recién creado desde un tamaño o una plantilla) la arma al abrir.
+  useEffect(() => {
+    if (readOnly || initial.thumb) return;
+    let gone = false;
+    const timer = window.setTimeout(async () => {
+      const thumb = await thumbnail(ed.docRef.current);
+      if (gone || !thumb) return;
+      const r = await fetch(`/api/design/designs/${initial.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ thumb }) }).catch(() => null);
+      if (r?.ok) {
+        lastThumbAt.current = Date.now();
+        notifyDesignChanged();
+      }
+    }, 1200);
+    return () => {
+      gone = true;
+      window.clearTimeout(timer);
+    };
+    // Solo al abrir.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (readOnly || saveState === 'conflict') return;
     if (ed.rev === savedRev.current) return;
@@ -680,9 +701,11 @@ export default function DesignEditor({ initial, canEditBrand, commentId }: { ini
               <button type="button" role="menuitem" onClick={() => { close(); void duplicateDesign(); }}>
                 {t('duplicate')}
               </button>
-              <button type="button" role="menuitem" onClick={() => { close(); void saveTemplate(); }} data-testid="design-save-template">
-                {t('saveTemplate')}
-              </button>
+              {canEditBrand && !readOnly && (
+                <button type="button" role="menuitem" onClick={() => { close(); void saveTemplate(); }} data-testid="design-save-template">
+                  {t('saveTemplate')}
+                </button>
+              )}
               <button type="button" role="menuitem" onClick={() => { close(); setDialog('shortcuts'); }}>
                 {t('shortcuts')}
               </button>
