@@ -113,7 +113,7 @@ describe('runAgent: tool calling', () => {
     ]);
     setAiModelOverride(model);
 
-    const res = await sendAgentMessage({ agent, channel: 'playground', text: 'How long does shipping take?' });
+    const res = await sendAgentMessage({ agent, channel: 'playground', createdBy: agent.user_id, text: 'How long does shipping take?' });
     expect(res.result.status).toBe('replied');
     expect(res.reply?.content).toBe('We ship worldwide in 5 business days.');
     expect(res.result.toolCalls.map((c) => c.tool)).toEqual(['search_knowledge']);
@@ -141,7 +141,7 @@ describe('runAgent: tool calling', () => {
     await addDocsPage(owner.id, 'Refund internal', 'PRIVATE refunds', false);
     const model = scriptedModel([{ tool: 'search_knowledge', input: { query: 'refund' } }, { text: 'ok' }]);
     setAiModelOverride(model);
-    const res = await sendAgentMessage({ agent, channel: 'playground', text: 'refunds?' });
+    const res = await sendAgentMessage({ agent, channel: 'playground', createdBy: agent.user_id, text: 'refunds?' });
     const text = JSON.stringify(res.result.toolCalls[0].output);
     expect(text).not.toContain('SECRET-B');
     expect(text).not.toContain('PRIVATE');
@@ -151,7 +151,7 @@ describe('runAgent: tool calling', () => {
     const { agent } = await setupAgent('cap', tools(['search_knowledge']));
     const model = scriptedModel([{ tool: 'search_knowledge', input: { query: 'loop forever' } }]);
     setAiModelOverride(model);
-    const res = await sendAgentMessage({ agent, channel: 'playground', text: 'hello there' });
+    const res = await sendAgentMessage({ agent, channel: 'playground', createdBy: agent.user_id, text: 'hello there' });
     expect(model.doGenerateCalls).toHaveLength(AGENT_MAX_STEPS);
     expect(res.result.status).toBe('step_limit');
     expect(res.reply?.content.length).toBeGreaterThan(0);
@@ -185,7 +185,7 @@ describe('runAgent: tool calling', () => {
   it('sin AI configurada falla con ai_disabled sin guardar nada', async () => {
     const { agent } = await setupAgent('noai');
     process.env.AI_ENABLED = 'false';
-    await expect(sendAgentMessage({ agent, channel: 'playground', text: 'hi' })).rejects.toMatchObject({ code: 'ai_disabled' });
+    await expect(sendAgentMessage({ agent, channel: 'playground', createdBy: agent.user_id, text: 'hi' })).rejects.toMatchObject({ code: 'ai_disabled' });
     const n = (await getDb().prepare('SELECT COUNT(*) AS c FROM agent_conversations WHERE agent_id = ?').get(agent.id)) as {
       c: number;
     };
@@ -246,7 +246,7 @@ describe('herramientas de la suite', () => {
         { text: 'Booked!' },
       ]),
     );
-    const res2 = await sendAgentMessage({ agent, channel: 'playground', dryRun: false, conversationId: res1.conversation.id, text: 'Yes, the first one. Ana, ana@x.com' });
+    const res2 = await sendAgentMessage({ agent, channel: 'playground', createdBy: agent.user_id, dryRun: false, conversationId: res1.conversation.id, text: 'Yes, the first one. Ana, ana@x.com' });
     expect(res2.result.toolCalls.map((c) => c.error)).toEqual(['not_confirmed', 'slot_not_offered', null]);
     const booking = (await getDb()
       .prepare('SELECT invitee_email, starts_at, status FROM calendar_bookings WHERE event_type_id = ?')
@@ -265,7 +265,7 @@ describe('herramientas de la suite', () => {
         { text: 'Sorry' },
       ]),
     );
-    const res3 = await sendAgentMessage({ agent, channel: 'playground', dryRun: false, conversationId: res1.conversation.id, text: 'Book the same for Bo' });
+    const res3 = await sendAgentMessage({ agent, channel: 'playground', createdBy: agent.user_id, dryRun: false, conversationId: res1.conversation.id, text: 'Book the same for Bo' });
     expect(res3.result.toolCalls[0].error).toBe('slot_unavailable');
   });
 
@@ -382,8 +382,9 @@ describe('herramientas de la suite', () => {
         { text: 'Saved.' },
       ]),
     );
-    const res = await sendAgentMessage({ agent, channel: 'playground', dryRun: false, text: 'I am Ana, shared@x.com' });
-    expect(res.result.toolCalls[0].output).toEqual({ found: false });
+    const res = await sendAgentMessage({ agent, channel: 'playground', createdBy: agent.user_id, dryRun: false, text: 'I am Ana, shared@x.com' });
+    // En el playground solo se verifica el email propio de quien prueba.
+    expect(res.result.toolCalls[0].output).toEqual({ error: 'identity_not_verified' });
     const mine = (await getDb()
       .prepare("SELECT id, first_name FROM crm_contacts WHERE user_id = ? AND email = 'shared@x.com'")
       .all(owner.id)) as Array<{ id: string; first_name: string }>;
@@ -423,7 +424,7 @@ describe('herramientas de la suite', () => {
         { text: 'Started.' },
       ]),
     );
-    const res = await sendAgentMessage({ agent, channel: 'playground', dryRun: false, text: 'run it' });
+    const res = await sendAgentMessage({ agent, channel: 'playground', createdBy: agent.user_id, dryRun: false, text: 'run it' });
     const runsB = await getDb().prepare('SELECT id FROM flow_runs WHERE flow_id = ?').all(fb.flow.id);
     expect(runsB).toHaveLength(0);
     const runsA = (await getDb().prepare('SELECT input FROM flow_runs WHERE flow_id = ?').all(fa.flow.id)) as Array<{
@@ -448,7 +449,7 @@ describe('herramientas de la suite', () => {
     setAiModelOverride(
       scriptedModel([{ tool: 'track_create_issue', input: { title: 'Login broken', priority: 'high' } }, { text: 'Reported.' }]),
     );
-    const res = await sendAgentMessage({ agent, channel: 'playground', dryRun: false, text: 'login is broken' });
+    const res = await sendAgentMessage({ agent, channel: 'playground', createdBy: agent.user_id, dryRun: false, text: 'login is broken' });
     expect(res.result.toolCalls[0].error).toBeNull();
     const issues = (await getDb().prepare('SELECT title, priority FROM track_issues WHERE project_id = ?').all(project.id)) as Array<{
       title: string;
@@ -470,7 +471,7 @@ describe('herramientas de la suite', () => {
         { text: 'There are 3 left.' },
       ]),
     );
-    const res = await sendAgentMessage({ agent, channel: 'playground', text: 'stock?' });
+    const res = await sendAgentMessage({ agent, channel: 'playground', createdBy: agent.user_id, text: 'stock?' });
     expect(res.result.toolCalls.map((c) => c.error)).toEqual(['domain_not_allowed', 'domain_not_allowed', null]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(String((fetchMock.mock.calls[0] as unknown[])[0])).toBe('https://api.example.com/stock?sku=1');
@@ -480,7 +481,7 @@ describe('herramientas de la suite', () => {
     const { agent } = await setupAgent('http-off', tools(['http_request']));
     const model = scriptedModel([{ text: 'hi' }]);
     setAiModelOverride(model);
-    await sendAgentMessage({ agent, channel: 'playground', text: 'hello' });
+    await sendAgentMessage({ agent, channel: 'playground', createdBy: agent.user_id, text: 'hello' });
     const toolsSent = (model.doGenerateCalls[0] as { tools?: Array<{ name: string }> }).tools ?? [];
     expect(toolsSent.map((t) => t.name)).not.toContain('http_request');
   });
@@ -491,10 +492,10 @@ describe('límites y derivación', () => {
     process.env.AGENT_CONVERSATION_LIMIT = '2';
     const { agent } = await setupAgent('rl');
     setAiModelOverride(scriptedModel([{ text: 'ok' }]));
-    const first = await sendAgentMessage({ agent, channel: 'playground', text: 'one' });
-    await sendAgentMessage({ agent, channel: 'playground', conversationId: first.conversation.id, text: 'two' });
+    const first = await sendAgentMessage({ agent, channel: 'playground', createdBy: agent.user_id, text: 'one' });
+    await sendAgentMessage({ agent, channel: 'playground', createdBy: agent.user_id, conversationId: first.conversation.id, text: 'two' });
     await expect(
-      sendAgentMessage({ agent, channel: 'playground', conversationId: first.conversation.id, text: 'three' }),
+      sendAgentMessage({ agent, channel: 'playground', createdBy: agent.user_id, conversationId: first.conversation.id, text: 'three' }),
     ).rejects.toBeInstanceOf(AgentError);
   });
 
@@ -516,7 +517,7 @@ describe('límites y derivación', () => {
     });
     const model = scriptedModel([{ text: 'should not run' }]);
     setAiModelOverride(model);
-    const res = await sendAgentMessage({ agent, channel: 'playground', text: 'Quiero un REEMBOLSO ya' });
+    const res = await sendAgentMessage({ agent, channel: 'playground', createdBy: agent.user_id, text: 'Quiero un REEMBOLSO ya' });
     expect(model.doGenerateCalls).toHaveLength(0);
     expect(res.reply?.content).toBe('Te paso con el equipo.');
     expect(res.result.handoff).toBe(true);
