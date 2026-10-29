@@ -337,6 +337,7 @@
     "import": "Import",
     "security": "Security",
     "notifications": "Notifications",
+    "desktop": "Desktop app",
     "admin": "Admin"
   },
   "nav": {
@@ -349,7 +350,8 @@
     "keywords": {
       "billing": "billing, invoices, subscription, payment, plan",
       "domains": "custom domain, dns, short links",
-      "import": "import migrate move token"
+      "import": "import migrate move token",
+      "desktop": "download,mac,windows,desktop,app"
     },
     "importFrom": "Import from {source} to {app}"
   },

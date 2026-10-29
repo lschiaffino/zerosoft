@@ -259,7 +259,8 @@
     "title": "Entrá a zerosoft",
     "sub": "Entrás con tu cuenta de Google. No hay contraseña que crear.",
     "google": "Continuar con Google",
-    "legal": "Al entrar aceptás los <terms>Términos</terms> y la <privacy>Privacidad</privacy>."
+    "legal": "Al entrar aceptás los <terms>Términos</terms> y la <privacy>Privacidad</privacy>.",
+    "desktopHint": "Seguí el inicio de sesión en tu navegador. La app vuelve acá sola."
   },
   "blog": {
     "label": "Blog",
@@ -294,7 +295,8 @@
     "oss": "Open source bajo AGPLv3. Las funciones Enterprise de /ee van con licencia comercial.",
     "starCta": "Danos una estrella en GitHub",
     "feedback": "Feedback",
-    "videos": "Videos"
+    "videos": "Videos",
+    "desktopApp": "App de escritorio"
   },
   "home": {
     "hero": {

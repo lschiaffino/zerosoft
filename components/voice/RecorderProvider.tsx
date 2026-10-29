@@ -24,6 +24,28 @@ const MAX_FAILED_ATTEMPTS = 3;
 /** Terminar espera como mucho esto a que se suban los trozos pendientes; lo que queda pasa a reintentar. */
 const STOP_WAIT_MS = 20_000;
 const HEARTBEAT_MS = 30_000;
+/** Un pedido de micrófono o pantalla que no responde (permiso del sistema pendiente) se corta acá. */
+const MEDIA_TIMEOUT_MS = 20_000;
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => {
+      // Si llega tarde, se suelta lo que haya traído.
+      void p.then((v) => (v instanceof MediaStream ? stopStream(v) : undefined)).catch(() => undefined);
+      reject(new Error('media_timeout'));
+    }, ms);
+    p.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      },
+    );
+  });
+}
 
 type SegmentsListener = (segs: VoiceSegment[]) => void;
 type DoneListener = () => void;
@@ -60,10 +82,21 @@ export interface RecorderApi {
   /** Trozos recuperados con Reintentar, por reunión (para sugerir regenerar la nota). */
   recovered: Record<string, number>;
   retryFailed: (sessionId: string) => void;
-  start: (args: { sessionId: string; mode: CaptureMode; baseOffsetMs: number }) => Promise<void>;
+  start: (args: StartArgs) => Promise<void>;
   stop: () => Promise<void>;
   /** Escuchar los segmentos nuevos y el cierre de una reunión. */
   subscribe: (sessionId: string, onSegments: SegmentsListener, onDone?: DoneListener) => () => void;
+}
+
+/**
+ * desktop: la grabación la empezó la app de escritorio (queda capture=desktop y,
+ * si no hay audio del sistema, sigue solo con el micrófono en vez de fallar).
+ */
+export interface StartArgs {
+  sessionId: string;
+  mode: CaptureMode;
+  baseOffsetMs: number;
+  desktop?: boolean;
 }
 
 const RecorderContext = createContext<RecorderApi | null>(null);
@@ -377,33 +410,52 @@ export default function RecorderProvider({ children, owner }: { children: ReactN
   stopRef.current = stop;
 
   const start = useCallback(
-    async (args: { sessionId: string; mode: CaptureMode; baseOffsetMs: number }) => {
+    async (args: StartArgs) => {
       if (stateRef.current !== 'idle') return;
       setError(null);
       set('starting');
       setMode(args.mode);
       const id = args.sessionId;
+      // Primero la captura (micrófono y, si corresponde, pestaña o audio del sistema) y recién
+      // después el claim: la reunión figura "grabando" solo cuando de verdad se está grabando.
+      // Si el sistema deja el pedido colgado (permiso pendiente), a los 20 s se corta con error.
+      const streams: MediaStream[] = [];
+      let tab: MediaStream | null = null;
+      let mic: MediaStream;
+      try {
+        mic = await withTimeout(getMic(), MEDIA_TIMEOUT_MS);
+        streams.push(mic);
+        if (args.mode === 'mic_tab') {
+          try {
+            tab = await withTimeout(getTabAudio(), MEDIA_TIMEOUT_MS);
+            streams.push(tab);
+          } catch (err) {
+            // Escritorio sin permiso de audio del sistema: se graba igual el micrófono.
+            if (!args.desktop) throw err;
+            tab = null;
+            setMode('mic');
+          }
+        }
+      } catch (err) {
+        streams.forEach(stopStream);
+        set('idle');
+        setError(mediaErrorCode(err));
+        return;
+      }
       // Claim de la grabación: si otra pestaña o dispositivo graba esta reunión, no se empieza.
       const claim = await fetch(`/api/voice/sessions/${id}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ status: 'recording', capture: args.mode, recorderId: recorderIdRef.current }),
+        body: JSON.stringify({ status: 'recording', capture: args.desktop ? 'desktop' : tab ? 'mic_tab' : 'mic', recorderId: recorderIdRef.current }),
       }).catch(() => null);
       if (!claim?.ok) {
+        streams.forEach(stopStream);
         const code = ((await claim?.json().catch(() => null)) as { error?: string } | null)?.error ?? 'network';
         set('idle');
         setError(code);
         return;
       }
-      const streams: MediaStream[] = [];
       try {
-        const mic = await getMic();
-        streams.push(mic);
-        let tab: MediaStream | null = null;
-        if (args.mode === 'mic_tab') {
-          tab = await getTabAudio();
-          streams.push(tab);
-        }
         streamsRef.current = streams;
         // Solo crece: un trozo nuevo nunca reusa el número (seq) de uno anterior de la misma reunión.
         baseRef.current = sessionRef.current === id ? Math.max(baseRef.current, args.baseOffsetMs) : args.baseOffsetMs;

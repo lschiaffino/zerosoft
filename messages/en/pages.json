@@ -2657,5 +2657,63 @@
       "beyond": "Beyond"
     },
     "method": "Each app counts 1 for an included capability, 0.5 for a partial one and 0 for a missing one, with double weight for core capabilities. It is our own review against the code, updated with every release. Open an app to see its full list."
+  },
+  "desktopLogin": {
+    "title": "Sign in to the zerosoft app",
+    "confirm": "The zerosoft app on {device} will sign in as {email}.",
+    "continue": "Continue to the app",
+    "notYou": "If you didn't start this from the zerosoft app, close this tab.",
+    "doneTitle": "Back to the app",
+    "doneBody": "Your browser will ask to open zerosoft. Allow it to finish signing in.",
+    "open": "Open zerosoft",
+    "close": "You can close this tab once the app opens.",
+    "invalidTitle": "This link does not work",
+    "invalidBody": "Start signing in again from the zerosoft app.",
+    "requested": "Requested at {time} UTC.",
+    "warning": "Only continue if you just tapped Sign in in the zerosoft app yourself. The app gets full access to your account. If someone sent you this link, close this tab.",
+    "devices": {
+      "mac": "a Mac",
+      "windows": "a Windows PC",
+      "linux": "a Linux computer",
+      "ios": "an iPhone or iPad",
+      "android": "an Android device",
+      "unknown": "a device"
+    }
+  },
+  "download": {
+    "meta": {
+      "title": "Download zerosoft for Mac and Windows",
+      "description": "The desktop app: every zerosoft app in one window, dictation in any app and meeting notes with system audio. Also on your phone as an installable web app."
+    },
+    "title": "zerosoft for your computer.",
+    "sub": "Every app in one window, plus what a browser tab cannot do: dictation in any app and meeting notes with your computer audio.",
+    "macArm": "Download for Mac (Apple silicon)",
+    "macIntel": "Download for Mac (Intel)",
+    "win": "Download for Windows",
+    "otherMac": "Mac with an Intel chip? Download the Intel version.",
+    "otherArm": "Mac with Apple silicon? Download the Apple silicon version.",
+    "allFiles": "All files for version {version}",
+    "versionLine": "Version {version}, published {date}.",
+    "noRelease": "There is no published build yet. You can build it from the source in desktop/ (the README explains how).",
+    "source": "Source on GitHub",
+    "unsignedTitle": "The builds are not signed yet",
+    "unsignedMac": "On Mac: open the .dmg and drag zerosoft to Applications. The first time, macOS blocks it because it is not notarized yet: on macOS 15 or later go to System Settings › Privacy & Security and click Open Anyway; on macOS 14 or earlier, right-click the app and choose Open.",
+    "unsignedWin": "On Windows: SmartScreen may say it protected your PC. Click More info, then Run anyway.",
+    "unsignedUpdates": "Automatic updates on Mac need a signed build. Until then, download new versions from this page.",
+    "featuresTitle": "What the desktop app adds",
+    "f1t": "Dictation in any app",
+    "f1d": "Hold Control + Option on Mac or Ctrl + Windows on Windows, speak, and let go. The clean text is pasted where your cursor is, with your Voice dictionary and style.",
+    "f2t": "Meeting notes without a bot",
+    "f2d": "When a calendar meeting starts, or Zoom, Meet or Teams is in a call, zerosoft offers to take notes. It records your mic and the system audio, and the notes land in Voice.",
+    "f3t": "Talk and the bell, native",
+    "f3d": "Unread mentions and direct messages on the dock or taskbar icon, and system notifications that open the right page.",
+    "f4t": "Sign in with Google in your browser",
+    "f4d": "The app sends you to your browser to sign in and comes back on its own. It also works with your own server if you self-host.",
+    "reqTitle": "Requirements",
+    "reqMac": "macOS 12 or later. System audio in meetings needs macOS 13 or later.",
+    "reqWin": "Windows 10 or 11, 64-bit.",
+    "mobileTitle": "On your phone",
+    "mobileBody": "Open zerosoft.ai/app in Safari or Chrome and add it to the home screen: it opens like an app, with every zerosoft app. Native iOS and Android builds are not in the stores yet.",
+    "openApp": "Open in the browser"
   }
 }

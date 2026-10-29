@@ -259,7 +259,8 @@
     "title": "Sign in to zerosoft",
     "sub": "Sign in with your Google account. There is no password to create.",
     "google": "Continue with Google",
-    "legal": "By signing in you agree to the <terms>Terms</terms> and <privacy>Privacy</privacy>."
+    "legal": "By signing in you agree to the <terms>Terms</terms> and <privacy>Privacy</privacy>.",
+    "desktopHint": "Continue signing in from your browser. The app comes back here on its own."
   },
   "blog": {
     "label": "Blog",
@@ -294,7 +295,8 @@
     "oss": "Open source under AGPLv3. Enterprise features in /ee under a commercial license.",
     "starCta": "Star on GitHub",
     "feedback": "Feedback",
-    "videos": "Videos"
+    "videos": "Videos",
+    "desktopApp": "Desktop app"
   },
   "home": {
     "hero": {

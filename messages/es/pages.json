@@ -2657,5 +2657,63 @@
       "beyond": "Más allá"
     },
     "method": "Cada app suma 1 por capacidad incluida, 0,5 por parcial y 0 por faltante, con peso doble para las centrales. Es nuestra evaluación contra el código y se actualiza con cada versión. Abrí una app para ver la lista completa."
+  },
+  "desktopLogin": {
+    "title": "Entrar a la app de zerosoft",
+    "confirm": "La app de zerosoft en {device} va a entrar como {email}.",
+    "continue": "Seguir a la app",
+    "notYou": "Si no empezaste esto desde la app de zerosoft, cerrá esta pestaña.",
+    "doneTitle": "Volvé a la app",
+    "doneBody": "Tu navegador va a pedir permiso para abrir zerosoft. Aceptá para terminar de entrar.",
+    "open": "Abrir zerosoft",
+    "close": "Cuando se abra la app, podés cerrar esta pestaña.",
+    "invalidTitle": "Este link no funciona",
+    "invalidBody": "Empezá el inicio de sesión otra vez desde la app de zerosoft.",
+    "requested": "Pedido a las {time} UTC.",
+    "warning": "Seguí solo si recién tocaste Iniciar sesión en la app de zerosoft. La app queda con acceso completo a tu cuenta. Si alguien te mandó este link, cerrá esta pestaña.",
+    "devices": {
+      "mac": "una Mac",
+      "windows": "una PC con Windows",
+      "linux": "una compu con Linux",
+      "ios": "un iPhone o iPad",
+      "android": "un Android",
+      "unknown": "un dispositivo"
+    }
+  },
+  "download": {
+    "meta": {
+      "title": "Descargá zerosoft para Mac y Windows",
+      "description": "La app de escritorio: todas las apps de zerosoft en una ventana, dictado en cualquier app y notas de reuniones con el audio del sistema. En el teléfono, como app web instalable."
+    },
+    "title": "zerosoft en tu computadora.",
+    "sub": "Todas las apps en una ventana, más lo que una pestaña del navegador no puede: dictar en cualquier app y tomar notas de reuniones con el audio de la compu.",
+    "macArm": "Descargar para Mac (Apple silicon)",
+    "macIntel": "Descargar para Mac (Intel)",
+    "win": "Descargar para Windows",
+    "otherMac": "¿Tu Mac tiene chip Intel? Descargá la versión Intel.",
+    "otherArm": "¿Tu Mac tiene Apple silicon? Descargá esa versión.",
+    "allFiles": "Todos los archivos de la versión {version}",
+    "versionLine": "Versión {version}, publicada el {date}.",
+    "noRelease": "Todavía no hay una versión publicada. Podés compilarla desde el código en desktop/ (el README explica cómo).",
+    "source": "Código en GitHub",
+    "unsignedTitle": "Las versiones todavía no están firmadas",
+    "unsignedMac": "En Mac: abrí el .dmg y arrastrá zerosoft a Aplicaciones. La primera vez macOS la bloquea porque todavía no está notarizada: en macOS 15 o posterior andá a Ajustes del Sistema › Privacidad y seguridad y tocá Abrir igualmente; en macOS 14 o anterior, hacé clic derecho en la app y elegí Abrir.",
+    "unsignedWin": "En Windows: SmartScreen puede decir que protegió tu PC. Tocá Más información y después Ejecutar de todas formas.",
+    "unsignedUpdates": "En Mac las actualizaciones automáticas necesitan una versión firmada. Hasta entonces, bajá las versiones nuevas desde esta página.",
+    "featuresTitle": "Qué suma la app de escritorio",
+    "f1t": "Dictado en cualquier app",
+    "f1d": "Mantené Control + Option en Mac o Ctrl + Windows en Windows, hablá y soltá. El texto limpio se pega donde está el cursor, con tu diccionario y tu estilo de Voice.",
+    "f2t": "Notas de reuniones sin bot",
+    "f2d": "Cuando empieza una reunión del calendario, o Zoom, Meet o Teams están en llamada, zerosoft ofrece tomar notas. Graba tu micrófono y el audio del sistema, y las notas quedan en Voice.",
+    "f3t": "Talk y la campana, nativos",
+    "f3d": "Menciones y mensajes directos sin leer en el ícono del dock o la barra de tareas, y avisos del sistema que abren la página justa.",
+    "f4t": "Entrás con Google en tu navegador",
+    "f4d": "La app te manda al navegador para iniciar sesión y vuelve sola. También funciona con tu propio servidor si usás zerosoft self-hosted.",
+    "reqTitle": "Requisitos",
+    "reqMac": "macOS 12 o posterior. El audio del sistema en reuniones necesita macOS 13 o posterior.",
+    "reqWin": "Windows 10 u 11, de 64 bits.",
+    "mobileTitle": "En el teléfono",
+    "mobileBody": "Abrí zerosoft.ai/app en Safari o Chrome y agregala a la pantalla de inicio: se abre como una app, con todas las apps de zerosoft. Las versiones nativas de iOS y Android todavía no están en las tiendas.",
+    "openApp": "Abrir en el navegador"
   }
 }

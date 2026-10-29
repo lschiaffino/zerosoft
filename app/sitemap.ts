@@ -17,6 +17,7 @@ const STATIC_PAGES: Array<{ path: string; priority: number; freq: MetadataRoute.
   { path: '', priority: 1, freq: 'weekly' },
   { path: '/products', priority: 0.9, freq: 'weekly' },
   { path: '/tools', priority: 0.9, freq: 'weekly' },
+  { path: '/download', priority: 0.7, freq: 'weekly' },
   { path: '/blog', priority: 0.7, freq: 'weekly' },
   { path: '/changelog', priority: 0.6, freq: 'weekly' },
   { path: '/feedback-board', priority: 0.5, freq: 'daily' },
