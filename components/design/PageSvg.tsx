@@ -1,8 +1,8 @@
 'use client';
 
-import { useId, type ReactNode, type Ref, type SVGProps } from 'react';
+import { useId, useSyncExternalStore, type ReactNode, type Ref, type SVGProps } from 'react';
 import { iconPath } from '@/lib/design-icons';
-import { dashArray, imagePlacement, linePaths, lineX, shapePath, type DesignDoc, type DesignElement, type DesignPage, type ImageEl } from '@/lib/design-model';
+import { dashArray, imagePlacement, linePaths, lineX, shapePath, type DesignDoc, type DesignElement, type DesignPage, type ImageEl, type TextEl } from '@/lib/design-model';
 import { fontFamily } from './fonts';
 import { layoutText } from './textLayout';
 
@@ -23,30 +23,48 @@ function maskPath(el: ImageEl): string {
   return shapePath('rect', el.w, el.h);
 }
 
+const noopSubscribe = () => () => {};
+
+/**
+ * El texto se corta en líneas midiendo con canvas, que en el servidor no hay:
+ * en el servidor y al hidratar va sin texto, y en el navegador se mide. Así el
+ * HTML del servidor y el primer render del cliente coinciden.
+ */
+function TextSvg({ el, common }: { el: TextEl; common: { transform: string; opacity: number; 'data-el': string } }) {
+  const canMeasure = useSyncExternalStore(noopSubscribe, () => true, () => false);
+  if (!canMeasure) {
+    return (
+      <g {...common}>
+        <rect width={el.w} height={el.h} fill="transparent" />
+      </g>
+    );
+  }
+  const layout = layoutText(el);
+  return (
+    <g {...common}>
+      <rect width={el.w} height={el.h} fill="transparent" />
+      <text
+        fill={el.color}
+        style={{ fontFamily: fontFamily(el.font), fontSize: el.size, fontWeight: el.weight, fontStyle: el.italic ? 'italic' : 'normal', whiteSpace: 'pre' }}
+        letterSpacing={el.letterSpacing || undefined}
+        textDecoration={el.underline ? 'underline' : undefined}
+      >
+        {layout.lines.map((line, i) => (
+          <tspan key={i} x={lineX(el.align, el.w, line.width)} y={baselineY(i, el.size, el.lineHeight)}>
+            {line.text || ' '}
+          </tspan>
+        ))}
+      </text>
+    </g>
+  );
+}
+
 export function ElementSvg({ el, uid, token, placeholderLabel }: { el: DesignElement; uid: string; token?: string | null; placeholderLabel?: string }) {
   const transform = `translate(${el.x} ${el.y})${el.rotation ? ` rotate(${el.rotation} ${el.w / 2} ${el.h / 2})` : ''}`;
   const common = { transform, opacity: el.opacity, 'data-el': el.id } as const;
   switch (el.type) {
-    case 'text': {
-      const layout = layoutText(el);
-      return (
-        <g {...common}>
-          <rect width={el.w} height={el.h} fill="transparent" />
-          <text
-            fill={el.color}
-            style={{ fontFamily: fontFamily(el.font), fontSize: el.size, fontWeight: el.weight, fontStyle: el.italic ? 'italic' : 'normal', whiteSpace: 'pre' }}
-            letterSpacing={el.letterSpacing || undefined}
-            textDecoration={el.underline ? 'underline' : undefined}
-          >
-            {layout.lines.map((line, i) => (
-              <tspan key={i} x={lineX(el.align, el.w, line.width)} y={baselineY(i, el.size, el.lineHeight)}>
-                {line.text || ' '}
-              </tspan>
-            ))}
-          </text>
-        </g>
-      );
-    }
+    case 'text':
+      return <TextSvg el={el} common={common} />;
     case 'shape':
       return (
         <g {...common}>
