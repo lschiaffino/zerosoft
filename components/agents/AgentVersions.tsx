@@ -74,7 +74,23 @@ export default function AgentVersions({
   const when = (iso: string) => format.dateTime(parseDbUtc(iso), { dateStyle: 'medium', timeStyle: 'short' });
 
   function describe(c: AgentChangeDto): string {
-    const d = c.detail as { fields?: string[]; version?: number; from?: number; name?: string; server?: string; question?: string; action?: string; draft?: boolean };
+    const d = c.detail as {
+      fields?: string[];
+      version?: number;
+      from?: number;
+      name?: string;
+      server?: string;
+      question?: string;
+      action?: string;
+      draft?: boolean;
+      percent?: number;
+      promoted?: boolean;
+      integration?: string;
+      source?: string;
+      number?: string;
+      members?: string;
+      role?: string;
+    };
     const field = (f: string) => (t.has(`versions.fields.${f}` as never) ? t(`versions.fields.${f}` as never) : f);
     switch (c.kind) {
       case 'save':
@@ -90,6 +106,18 @@ export default function AgentVersions({
         return t(`versions.kinds.qa_${d.action === 'remove' ? 'remove' : d.action === 'edit' ? 'edit' : 'add'}`, { question: d.question ?? '' });
       case 'mcp_changed':
         return t(`versions.kinds.mcp_${d.action === 'remove' ? 'remove' : d.action === 'edit' ? 'edit' : 'add'}`, { server: d.server ?? '' });
+      case 'ab_started':
+        return t('versions.kinds.ab_started', { number: d.version ?? 0, percent: d.percent ?? 0 });
+      case 'ab_stopped':
+        return t(d.promoted ? 'versions.kinds.ab_promoted' : 'versions.kinds.ab_stopped', { number: d.version ?? 0 });
+      case 'integration_changed': {
+        const n = d.integration && t.has(`integrations.names.${d.integration}` as never) ? t(`integrations.names.${d.integration}` as never) : (d.integration ?? '');
+        return t(d.action === 'disconnect' ? 'versions.kinds.integration_disconnect' : 'versions.kinds.integration_connect', { name: n });
+      }
+      case 'source_changed':
+        return t(d.action === 'remove' ? 'versions.kinds.source_remove' : 'versions.kinds.source_add', { source: d.source ?? '' });
+      case 'voice_changed':
+        return t(d.number === 'removed' ? 'versions.kinds.voice_removed' : 'versions.kinds.voice_set');
       default:
         return t.has(`versions.kinds.${c.kind}` as never) ? t(`versions.kinds.${c.kind}` as never) : c.kind;
     }

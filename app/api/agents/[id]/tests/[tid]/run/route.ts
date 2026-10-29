@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { getAgentRow } from '@/lib/agents';
 import { runTestCase } from '@/lib/agents-tests';
-import { agentError, notFound, realUserId, runErrorCode, unauthorized } from '@/lib/agents-http';
+import { agentError, notFound, realUserId, runErrorCode, unauthorized, visibleAgentRow } from '@/lib/agents-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,7 +17,7 @@ export async function POST(_req: NextRequest, props: Ctx) {
   const { id, tid } = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  const agent = await getAgentRow(user.id, id);
+  const agent = await visibleAgentRow(user, id);
   if (!agent) return notFound();
   try {
     const res = await runTestCase(agent, tid, realUserId(user));

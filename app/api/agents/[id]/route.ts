@@ -4,7 +4,7 @@ import { deleteAgent, getAgentDraft, getAgentRow, listKnowledgeUrls, refreshKnow
 import { versioningMeta } from '@/lib/agents-versions';
 import { sitemapStatus } from '@/lib/agents-knowledge';
 import { agentUpdateSchema } from '@/lib/agents-config';
-import { agentError, canEditAgents, forbidden, notFound, unauthorized } from '@/lib/agents-http';
+import { agentError, canEditAgent, canEditAgents, forbidden, notFound, unauthorized, visibleAgentRow } from '@/lib/agents-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,17 +16,19 @@ export async function GET(_req: NextRequest, props: Ctx) {
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  const agent = await getAgentDraft(user.id, id);
-  const row = await getAgentRow(user.id, id);
+  const row = await visibleAgentRow(user, id);
+  const agent = row ? await getAgentDraft(user.id, id) : null;
   if (!agent || !row) return notFound();
-  return NextResponse.json({ agent, urls: await listKnowledgeUrls(id), canEdit: canEditAgents(user), versioning: await versioningMeta(row) });
+  return NextResponse.json({ agent, urls: await listKnowledgeUrls(id), canEdit: canEditAgent(user, row), versioning: await versioningMeta(row) });
 }
 
 export async function PATCH(req: NextRequest, props: Ctx) {
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  if (!canEditAgents(user)) return forbidden();
+  const current = await visibleAgentRow(user, id);
+  if (!current) return notFound();
+  if (!canEditAgent(user, current)) return forbidden();
   const parsed = agentUpdateSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     const field = String(parsed.error.issues[0]?.path?.[0] ?? '');

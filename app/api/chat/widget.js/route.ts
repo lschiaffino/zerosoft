@@ -755,7 +755,110 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     }, ['📎 ' + a.name + ' (' + formatBytes(a.size) + ')']);
   }
 
+  // Botones y formularios de un agente de Agents: solo en la última respuesta
+  // (al llegar otro mensaje, el bloque anterior se saca).
+  var agentUiEl = null;
+  function clearAgentUi() {
+    if (agentUiEl && agentUiEl.parentNode) agentUiEl.parentNode.removeChild(agentUiEl);
+    agentUiEl = null;
+  }
+  function renderAgentUi(ui) {
+    // Un formulario ya enviado no se vuelve a mostrar.
+    if (!ui || typeof ui !== 'object' || ui.consumed) return null;
+    var btnStyle = 'border:1px solid ' + COLOR + ';background:#fff;color:' + COLOR + ';border-radius:8px;padding:6px 10px;font:inherit;font-size:13px;cursor:pointer;margin:0 6px 6px 0;';
+    if (ui.kind === 'buttons' && Array.isArray(ui.options)) {
+      var row = dom('div', { style: 'display:flex;flex-wrap:wrap;margin:-2px 0 10px;' });
+      ui.options.slice(0, 6).forEach(function (o) {
+        if (typeof o !== 'string') return;
+        var b = dom('button', { type: 'button', style: btnStyle }, [o]);
+        b.addEventListener('click', function () {
+          clearAgentUi();
+          sendMessage(o);
+        });
+        row.appendChild(b);
+      });
+      return row;
+    }
+    if (ui.kind === 'form' && Array.isArray(ui.fields)) {
+      // Mismos colores que las burbujas del bot (fondo blanco, texto oscuro) y el color del widget en el botón.
+      var form = dom('form', { style: 'background:#fff;color:#111;border-radius:12px;padding:10px 12px;margin:-2px 0 10px;max-width:85%;box-shadow:0 1px 2px rgba(0,0,0,0.05);border-left:3px solid ' + COLOR + ';' });
+      if (ui.title) form.appendChild(dom('p', { style: 'margin:0 0 8px;font-weight:600;font-size:13px;' }, [String(ui.title)]));
+      var inputs = {};
+      var inputStyle = 'width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:8px;padding:6px 8px;font:inherit;font-size:13px;margin-top:2px;background:#fff;color:#111;outline-color:' + COLOR + ';';
+      ui.fields.slice(0, 8).forEach(function (f) {
+        if (!f || typeof f.key !== 'string') return;
+        var id = 'zs-af-' + f.key;
+        var label = dom('label', { for: id, style: 'display:block;font-size:12px;margin-bottom:8px;color:#333;' }, [String(f.label || f.key) + (f.required ? ' *' : '')]);
+        var input;
+        if (f.type === 'select') {
+          input = dom('select', { id: id, style: inputStyle });
+          input.appendChild(dom('option', { value: '' }, [T('agentFormChoose')]));
+          (f.options || []).forEach(function (o) { input.appendChild(dom('option', { value: o }, [o])); });
+        } else if (f.type === 'textarea') {
+          input = dom('textarea', { id: id, rows: '3', style: inputStyle });
+        } else {
+          input = dom('input', { id: id, type: f.type === 'email' ? 'email' : f.type === 'phone' ? 'tel' : f.type === 'number' ? 'number' : 'text', style: inputStyle });
+        }
+        if (f.required) input.setAttribute('required', 'required');
+        inputs[f.key] = input;
+        label.appendChild(input);
+        form.appendChild(label);
+      });
+      var err = dom('p', { style: 'display:none;margin:0 0 6px;color:#b42318;font-size:12px;', role: 'alert' }, [T('agentFormRequired')]);
+      form.appendChild(err);
+      var submit = dom('button', { type: 'submit', style: 'border:0;background:' + COLOR + ';color:#fff;border-radius:8px;padding:7px 12px;font:inherit;font-size:13px;cursor:pointer;' }, [String(ui.submitLabel || T('agentFormSend'))]);
+      form.appendChild(submit);
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var values = {};
+        var missing = false;
+        ui.fields.forEach(function (f) {
+          var el = inputs[f.key];
+          if (!el) return;
+          var v = String(el.value || '').trim();
+          if (f.required && !v) missing = true;
+          if (v) values[f.key] = v;
+        });
+        if (missing) {
+          err.style.display = 'block';
+          return;
+        }
+        sendAgentForm(String(ui.formId || ''), values);
+      });
+      return form;
+    }
+    return null;
+  }
+
+  function sendAgentForm(formId, values) {
+    var payload = withIdentity({ widgetId: WIDGET_ID, visitorId: visitorId, agentForm: { id: formId, values: values } });
+    api('/api/chat/messages', { method: 'POST', body: JSON.stringify(payload) })
+      .then(function (r) {
+        return r.json().catch(function () { return null; }).then(function (data) {
+          return { ok: r.ok, data: data };
+        });
+      })
+      .then(function (res) {
+        if (!res.ok || !res.data || !res.data.message) {
+          showSendError(T('agentFormRequired'), '');
+          return;
+        }
+        clearAgentUi();
+        adoptConversation(res.data.conversation);
+        appendMessage(res.data.message);
+        lastMessageId = res.data.message.id;
+        if (res.data.bot) {
+          appendMessage(res.data.bot);
+          if (res.data.bot.id) lastMessageId = res.data.bot.id;
+        }
+      })
+      .catch(function () {
+        showSendError(T('sendFailed'), '');
+      });
+  }
+
   function appendMessage(m) {
+    clearAgentUi();
     var from = m.sender_type || 'visitor';
     var isVisitor = from === 'visitor';
     var wrap = dom('div', { style: 'display:flex;justify-content:' + (isVisitor ? 'flex-end' : 'flex-start') + ';margin-bottom:10px;' });
@@ -789,6 +892,13 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
 
     wrap.appendChild(bubble);
     messages.appendChild(wrap);
+    if (from === 'bot' && m.ui) {
+      var uiEl = renderAgentUi(m.ui);
+      if (uiEl) {
+        agentUiEl = uiEl;
+        messages.appendChild(uiEl);
+      }
+    }
     messages.scrollTop = messages.scrollHeight;
   }
 

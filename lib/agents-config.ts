@@ -21,12 +21,21 @@ export const AGENT_TOOL_KEYS = [
   'handoff_to_human',
   'http_request',
   'mcp_call',
+  'show_buttons',
+  'show_form',
+  'run_code',
+  'stripe_customer',
+  'shopify_order',
+  'shopify_products',
 ] as const;
 
 export type AgentToolKey = (typeof AGENT_TOOL_KEYS)[number];
 
 /** Grupo de cada herramienta (para agrupar en la UI). */
-export const AGENT_TOOL_GROUP: Record<AgentToolKey, 'knowledge' | 'crm' | 'cal' | 'track' | 'flow' | 'robots' | 'handoff' | 'http' | 'mcp'> = {
+export const AGENT_TOOL_GROUP: Record<
+  AgentToolKey,
+  'knowledge' | 'crm' | 'cal' | 'track' | 'flow' | 'robots' | 'handoff' | 'http' | 'mcp' | 'code' | 'commerce'
+> = {
   search_knowledge: 'knowledge',
   docs_read_pages: 'knowledge',
   docs_write_page: 'knowledge',
@@ -42,11 +51,18 @@ export const AGENT_TOOL_GROUP: Record<AgentToolKey, 'knowledge' | 'crm' | 'cal' 
   handoff_to_human: 'handoff',
   http_request: 'http',
   mcp_call: 'mcp',
+  // Botones y formularios van con la derivación: son parte de la conversación (Chat).
+  show_buttons: 'handoff',
+  show_form: 'handoff',
+  run_code: 'code',
+  stripe_customer: 'commerce',
+  shopify_order: 'commerce',
+  shopify_products: 'commerce',
 };
 
 /**
  * Orden de los grupos en la pestaña Herramientas y la app de la suite que
- * toca cada uno. `http` no está: vive en Avanzado.
+ * toca cada uno. `http`, `mcp`, `code` y `commerce` no están: viven en Avanzado.
  */
 export const AGENT_TOOL_GROUP_ORDER = [
   { key: 'knowledge', product: 'docs' },
@@ -117,6 +133,150 @@ const domain = z
   .transform((d) => d.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^\*\./, ''))
   .pipe(z.string().regex(/^[a-z0-9.-]+\.[a-z]{2,}$/));
 
+// ---------- Botones, formularios, procedimientos y código ----------
+
+/** Clave de una variable o de un campo de formulario (email, order_number…). */
+export const AGENT_VAR_RE = /^[a-zA-Z][a-zA-Z0-9_]{0,39}$/;
+const varName = z.string().trim().regex(AGENT_VAR_RE);
+const stepId = z.string().trim().regex(/^[a-z0-9_-]{1,40}$/);
+
+export const AGENT_MAX_BUTTONS = 6;
+export const AGENT_MAX_FORMS = 5;
+export const AGENT_FORM_MAX_FIELDS = 8;
+export const AGENT_FORM_FIELD_TYPES = ['text', 'email', 'phone', 'number', 'select', 'textarea'] as const;
+export type AgentFormFieldType = (typeof AGENT_FORM_FIELD_TYPES)[number];
+
+const buttonLabel = z.string().trim().min(1).max(80);
+
+export const formFieldSchema = z.object({
+  key: varName,
+  label: z.string().trim().min(1).max(80),
+  type: z.enum(AGENT_FORM_FIELD_TYPES).default('text'),
+  required: z.boolean().default(false),
+  /** Opciones de un campo select. */
+  options: z.array(buttonLabel).max(20).default([]),
+});
+
+/**
+ * Formulario que el agente muestra dentro del chat (show_form o un paso de un
+ * procedimiento). Con `saveToCrm`, lo enviado crea o actualiza el contacto
+ * del CRM (campos email, name/first_name/last_name, phone, company).
+ */
+export const formSchema = z.object({
+  id: stepId,
+  name: z.string().trim().min(1).max(80),
+  title: z.string().trim().max(200).default(''),
+  submitLabel: z.string().trim().max(40).default(''),
+  fields: z.array(formFieldSchema).min(1).max(AGENT_FORM_MAX_FIELDS),
+  saveToCrm: z.boolean().default(false),
+});
+export type AgentForm = z.infer<typeof formSchema>;
+export type AgentFormField = z.infer<typeof formFieldSchema>;
+
+export const AGENT_PROCEDURE_STEP_KINDS = ['message', 'ask', 'form', 'branch', 'action', 'handoff', 'end'] as const;
+export type AgentProcedureStepKind = (typeof AGENT_PROCEDURE_STEP_KINDS)[number];
+export const AGENT_ANSWER_TYPES = ['text', 'email', 'phone', 'number', 'choice'] as const;
+export type AgentAnswerType = (typeof AGENT_ANSWER_TYPES)[number];
+export const AGENT_CONDITION_OPS = ['equals', 'not_equals', 'contains', 'exists', 'missing', 'gt', 'lt'] as const;
+export type AgentConditionOp = (typeof AGENT_CONDITION_OPS)[number];
+/** Herramientas que un paso "Acción" de un procedimiento puede correr (siempre que estén activas). */
+export const AGENT_PROCEDURE_TOOLS = [
+  'crm_find_contact',
+  'crm_upsert_contact',
+  'crm_log_note',
+  'track_create_issue',
+  'run_flow',
+  'http_request',
+  'run_code',
+  'stripe_customer',
+  'shopify_order',
+] as const satisfies readonly AgentToolKey[];
+export type AgentProcedureTool = (typeof AGENT_PROCEDURE_TOOLS)[number];
+export const AGENT_MAX_PROCEDURES = 10;
+export const AGENT_PROCEDURE_MAX_STEPS = 30;
+
+export const procedureStepSchema = z.object({
+  id: stepId,
+  kind: z.enum(AGENT_PROCEDURE_STEP_KINDS),
+  /** Mensaje, pregunta o motivo de la derivación. Acepta {{variable}}. */
+  text: z.string().max(1000).default(''),
+  /** ask: dónde se guarda la respuesta. action: dónde se guarda el resultado. */
+  field: varName.nullable().default(null),
+  answerType: z.enum(AGENT_ANSWER_TYPES).default('text'),
+  /** ask: botones de respuesta (con answerType 'choice', la respuesta tiene que ser una de ellas). */
+  options: z.array(buttonLabel).max(AGENT_MAX_BUTTONS).default([]),
+  /** form: formulario de settings.forms. */
+  formId: stepId.nullable().default(null),
+  /** branch: si se cumple, salta a `goto`; si no, sigue con el próximo paso. */
+  condition: z
+    .object({
+      field: z.string().trim().min(1).max(80),
+      op: z.enum(AGENT_CONDITION_OPS),
+      value: z.string().max(200).default(''),
+    })
+    .nullable()
+    .default(null),
+  goto: stepId.nullable().default(null),
+  /** action: herramienta y argumentos (cada valor acepta {{variable}}). */
+  tool: z.enum(AGENT_PROCEDURE_TOOLS).nullable().default(null),
+  args: z.record(z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]{0,39}$/), z.string().max(2000)).default({}),
+});
+export type AgentProcedureStep = z.infer<typeof procedureStepSchema>;
+
+/**
+ * Procedimiento: pasos que el agente sigue en orden, sin improvisar. Empieza
+ * con una palabra clave o cuando el modelo reconoce el caso (`trigger`).
+ */
+export const procedureSchema = z.object({
+  id: stepId,
+  name: z.string().trim().min(1).max(80),
+  trigger: z.string().trim().max(500).default(''),
+  keywords: z.array(z.string().trim().min(2).max(60)).max(10).default([]),
+  steps: z.array(procedureStepSchema).min(1).max(AGENT_PROCEDURE_MAX_STEPS),
+});
+export type AgentProcedure = z.infer<typeof procedureSchema>;
+
+export const AGENT_MAX_CODE_FUNCTIONS = 10;
+export const AGENT_CODE_PARAM_TYPES = ['string', 'number', 'boolean'] as const;
+
+/**
+ * Función de código propio (JavaScript) que el agente llama con run_code. Corre
+ * en una microVM efímera sin red (lib/flow-code.ts), con tope de tiempo y memoria.
+ */
+export const codeFunctionSchema = z.object({
+  id: stepId,
+  name: z.string().trim().regex(/^[a-z][a-z0-9_]{1,39}$/),
+  description: z.string().trim().max(500).default(''),
+  params: z
+    .array(
+      z.object({
+        name: varName,
+        type: z.enum(AGENT_CODE_PARAM_TYPES).default('string'),
+        description: z.string().trim().max(200).default(''),
+      }),
+    )
+    .max(8)
+    .default([]),
+  code: z.string().min(1).max(20_000),
+  timeoutSec: z.number().int().min(1).max(30).default(10),
+});
+export type AgentCodeFunction = z.infer<typeof codeFunctionSchema>;
+
+/** Bloque interactivo que acompaña una respuesta (botones o un formulario). */
+export type AgentReplyUi =
+  | { kind: 'buttons'; options: string[] }
+  | {
+      kind: 'form';
+      formId: string;
+      title: string;
+      submitLabel: string;
+      fields: Array<{ key: string; label: string; type: AgentFormFieldType; required: boolean; options: string[] }>;
+      /** Ya se envió (no se acepta ni se muestra de nuevo). */
+      consumed?: boolean;
+    };
+
+export const AGENT_VOICE_LANGUAGES = ['en-US', 'es-US', 'es-MX', 'es-ES', 'pt-BR'] as const;
+
 export const knowledgeConfigSchema = z.object({
   allPublicDocs: z.boolean().default(true),
   docsPageIds: z.array(id).max(200).default([]),
@@ -160,6 +320,8 @@ export const toolsConfigSchema = z.object({
   httpAllowedDomains: z.array(domain).max(20).default([]),
   /** Acciones que esperan la aprobación de alguien del equipo (lib/agents-approvals.ts). */
   requireApproval: z.array(z.enum(APPROVABLE_AGENT_TOOLS)).max(APPROVABLE_AGENT_TOOLS.length).default([]),
+  /** Funciones de código propio (run_code). */
+  codeFunctions: z.array(codeFunctionSchema).max(AGENT_MAX_CODE_FUNCTIONS).default([]),
 });
 
 export const handoffConfigSchema = z.object({
@@ -207,6 +369,29 @@ export const settingsConfigSchema = z.object({
   aiScoring: z.boolean().default(false),
   /** Criterios del scorecard de calidad (cada conversación se puntúa contra ellos). */
   scorecard: z.array(z.string().trim().min(3).max(200)).max(10).default([]),
+  /** Además de los patrones, la AI tapa nombres de personas y direcciones (gasta AI). */
+  redactNames: z.boolean().default(false),
+  /** Búsqueda semántica: indexa el conocimiento con embeddings (gasta AI al indexar). */
+  semanticSearch: z.boolean().default(false),
+  /** Contesta los emails que llegan a la dirección de los widgets de Chat que atiende. */
+  answerEmails: z.boolean().default(false),
+  /** Formularios que el agente puede mostrar en el chat. */
+  forms: z.array(formSchema).max(AGENT_MAX_FORMS).default([]),
+  /** Procedimientos de varios pasos. */
+  procedures: z.array(procedureSchema).max(AGENT_MAX_PROCEDURES).default([]),
+  /** Teléfono (Twilio): idioma del reconocimiento de voz, saludo y número al que deriva. */
+  voice: z
+    .object({
+      language: z.enum(AGENT_VOICE_LANGUAGES).default('en-US'),
+      greeting: z.string().trim().max(300).default(''),
+      handoffNumber: z
+        .string()
+        .trim()
+        .max(20)
+        .regex(/^(\+[1-9]\d{7,14})?$/)
+        .default(''),
+    })
+    .default({}),
 });
 
 export type AgentSettingsConfig = z.infer<typeof settingsConfigSchema>;
@@ -438,6 +623,8 @@ export interface AgentMessageDto {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
+  /** Botones o formulario que acompañaron la respuesta. */
+  ui?: AgentReplyUi | null;
   runId: string | null;
   createdAt: string;
   rating?: number | null;
@@ -491,5 +678,5 @@ export type AgentStreamEvent =
   | { type: 'text'; delta: string }
   | { type: 'tool-start'; id: string; tool: string; input: unknown }
   | { type: 'tool-end'; id: string; tool: string; output: unknown; error: string | null; durationMs: number }
-  | { type: 'done'; messageId: string | null; text: string; status: string; handoff: boolean }
+  | { type: 'done'; messageId: string | null; text: string; status: string; handoff: boolean; ui?: AgentReplyUi | null }
   | { type: 'error'; code: string };

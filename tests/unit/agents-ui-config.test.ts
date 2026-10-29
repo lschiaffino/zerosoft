@@ -29,11 +29,11 @@ describe('suggestAgentHandle', () => {
 });
 
 describe('grupos de herramientas', () => {
-  it('cada herramienta está en un grupo visible o en Avanzado (http_request y MCP)', () => {
+  it('cada herramienta está en un grupo visible o en Avanzado (HTTP, MCP, código y comercio)', () => {
     const grouped = AGENT_TOOL_GROUP_ORDER.flatMap((g) => agentToolsInGroup(g.key));
     expect(new Set(grouped).size).toBe(grouped.length);
     const rest = AGENT_TOOL_KEYS.filter((k) => !grouped.includes(k));
-    expect(rest).toEqual(['http_request', 'mcp_call']);
+    expect(rest).toEqual(['http_request', 'mcp_call', 'run_code', 'stripe_customer', 'shopify_order', 'shopify_products']);
   });
 
   it('agrupa por producto en el orden de la lista', () => {

@@ -2306,6 +2306,8 @@ export type PublicChatMessage = Pick<ChatMessageRow, 'id' | 'conversation_id' | 
   attachments: ChatAttachment[];
   /** El agente editó el mensaje (el widget muestra "editado"). */
   edited_at: string | null;
+  /** Botones o formulario de un agente de Agents (JSON ya parseado). */
+  ui?: unknown;
 };
 
 /**
@@ -2323,6 +2325,7 @@ export function toPublicMessage(message: ChatMessageRow): PublicChatMessage {
     read_at: message.read_at,
     edited_at: message.edited_at ?? null,
     created_at: message.created_at,
+    ...(message.ui && message.sender_type === 'bot' ? { ui: parseJson<unknown>(message.ui, null) } : {}),
   };
 }
 

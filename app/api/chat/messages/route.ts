@@ -76,10 +76,20 @@ export async function POST(req: Request) {
   const widget = await getChatWidget(widgetId);
   if (!widget) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
+  // Formulario de un agente (botón Enviar en el widget): lo validado es el mensaje.
+  let agentForm: Awaited<ReturnType<typeof import('@/lib/agents-chat').validateChatAgentForm>> = null;
+  if (body.agentForm && typeof body.agentForm === 'object') {
+    const { validateChatAgentForm } = await import('@/lib/agents-chat');
+    // Solo en la conversación donde el agente mostró ese formulario.
+    const existing = (await getVisitorConversationWithMessages(widgetId, visitorExternalId))?.conversation ?? null;
+    agentForm = existing ? await validateChatAgentForm(widget, existing.id, body.agentForm as { id: string; values: Record<string, unknown> }) : null;
+    if (!agentForm) return NextResponse.json({ error: 'form_invalid' }, { status: 400 });
+  }
+
   // Formulario pre-chat: las respuestas se guardan con las etiquetas del widget.
   const answers = visitorFormAnswers(widget, body.fields);
   const answersText = formatVisitorFormAnswers(answers);
-  if (!messageBody && !answersText) {
+  if (!messageBody && !answersText && !agentForm) {
     return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   }
 
@@ -113,8 +123,12 @@ export async function POST(req: Request) {
     conversation = (await updateChatConversation(conversation.id, { status: 'open' })) ?? conversation;
   }
 
-  const finalBody = [messageBody, answersText].filter(Boolean).join('\n\n');
+  const finalBody = [agentForm ? agentForm.text : messageBody, answersText].filter(Boolean).join('\n\n');
   const message = await createChatMessage(conversation.id, 'visitor', { body: finalBody });
+  if (agentForm) {
+    const { saveChatAgentForm } = await import('@/lib/agents-chat');
+    await saveChatAgentForm(widget, conversation.id, agentForm).catch(() => null);
+  }
 
   const result = await afterVisitorMessage({
     widget,

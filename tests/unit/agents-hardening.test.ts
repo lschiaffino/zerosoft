@@ -120,7 +120,7 @@ describe('endurecimiento', () => {
     const owner = await makeUser('pii-chat');
     const created = await createAgent(owner.id, owner.id, { name: 'PII chat' });
     const res = await updateAgent(owner.id, created.id, {
-      settings: { channelInstructions: { chat: '', public: '', api: '' }, citations: true, visitorContext: false, memory: false, redactPii: true, blockedCountries: [], blockedWords: [], scorecard: [], aiScoring: false },
+      settings: { channelInstructions: { chat: '', public: '', api: '' }, citations: true, visitorContext: false, memory: false, redactPii: true, blockedCountries: [], blockedWords: [], scorecard: [], aiScoring: false, redactNames: false, semanticSearch: false, answerEmails: false, forms: [], procedures: [], voice: { language: 'en-US' as const, greeting: '', handoffNumber: '' } },
     });
     expect(res.ok).toBe(true);
     const agent = (await getAgentRow(owner.id, created.id)) as AgentRow;

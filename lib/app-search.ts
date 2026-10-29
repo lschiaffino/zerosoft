@@ -7,6 +7,7 @@ import type { TeamRole } from '@/lib/teams';
 import { chatAccessSql, groupsViewer } from '@/lib/groups-access';
 import { maskPhoneText } from '@/lib/groups-mask';
 import { bookingScopeFor } from './calendar-access';
+import { agentAccessFor } from './agents-access';
 
 /**
  * Búsqueda global (⌘K) en las apps que no tienen una propia: pizarras,
@@ -217,7 +218,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       user.actingUser?.id ?? user.id,
       like,
     ),
-    all(`SELECT id, name AS label FROM agents WHERE user_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?`, user.id, like),
+    all(`SELECT id, name AS label, access FROM agents WHERE user_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?`, user.id, like),
     all(`SELECT id, name AS label FROM robots WHERE user_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY updated_at DESC LIMIT ?`, user.id, like),
     // Groups: chats y grupos de WhatsApp por nombre o teléfono.
     all(
@@ -499,7 +500,12 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ...map(flows, 'flows', (id) =>
       id.startsWith('folder:') ? `/app/flow?folder=${id.slice(7)}` : id.startsWith('var:') ? '/app/flow/variables' : `/app/flow/${id}`,
     ),
-    ...map(agents, 'agents', (id) => `/app/agents/${id}`),
+    // Agentes que la persona no ve (acceso por agente) no aparecen.
+    ...map(
+      agents.filter((a) => agentAccessFor(user, { access: (a as { access?: string | null }).access ?? null }) !== 'none'),
+      'agents',
+      (id) => `/app/agents/${id}`,
+    ),
     ...map(robots, 'robots', (id) => `/app/robots/${id}`),
     ...map(groupChats.map(gMask), 'groupsChats', (id) => `/app/groups/inbox/${id}`),
     ...map(groupTickets.map(gMask), 'groupsTickets', (id) => `/app/groups/tickets?open=${id}`),

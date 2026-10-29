@@ -577,7 +577,10 @@
     "pastConversation": "Past conversation",
     "allConversations": "All conversations",
     "writeToContinue": "To follow up, write in the chat.",
-    "reply": "Reply"
+    "reply": "Reply",
+    "agentFormSend": "Send",
+    "agentFormRequired": "Fill in the required fields.",
+    "agentFormChoose": "Choose…"
   },
   "bulk": {
     "label": "Bulk actions",

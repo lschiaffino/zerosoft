@@ -79,7 +79,7 @@ const BASE_TOOLS: Omit<AgentToolsConfig, 'enabled'> = {
   flowIds: [],
   robotIds: [], docsPageIds: [], docsActorId: null,
   httpAllowedDomains: [],
-  requireApproval: [],
+  requireApproval: [], codeFunctions: [],
 };
 
 async function setupAgent(label: string, patch: AgentUpdatePayload = {}) {
@@ -224,6 +224,7 @@ describe('herramientas de la suite', () => {
     const res1 = await sendAgentMessage({
       agent,
       channel: 'playground',
+      createdBy: agent.user_id,
       text: 'I want a meeting',
       onEvent: (e) => {
         if (e.type === 'tool-end' && e.tool === 'cal_get_availability') {
