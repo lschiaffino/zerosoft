@@ -2243,3 +2243,6 @@ body:has(.docs-touchbar) .docs-editor { padding-bottom: 220px; }
 .docs-site-tables { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
 .docs-publish-settings { display: grid; gap: 12px; margin-top: 8px; }
 .docs-publish-settings textarea { resize: vertical; }
+
+/* Conteo de palabras al final del menú "…" de la página. */
+.docs-menu-stats { padding: 6px 10px; font-size: 0.75rem; color: var(--brand-gray-2); }

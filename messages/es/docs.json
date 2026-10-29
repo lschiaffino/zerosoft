@@ -47,6 +47,7 @@
     "duplicate": "Duplicar",
     "archive": "Archivar",
     "smallText": "Texto pequeño",
+    "stats": "{words} palabras · {characters} caracteres · {minutes} min de lectura",
     "fullWidth": "Ancho completo",
     "moveToTrash": "Mover a la papelera",
     "confirmTrash": "¿Seguro que querés mover esta página a la papelera?",

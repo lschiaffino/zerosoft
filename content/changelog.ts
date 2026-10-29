@@ -29,6 +29,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-29-docs-word-count',
+    date: '2026-10-29',
+    title: {
+      en: 'Docs: word count in the page menu',
+      es: 'Docs: conteo de palabras en el menú de la página',
+      pt: 'Docs: contagem de palavras no menu da página',
+    },
+    items: [
+      { product: 'docs', en: 'The page menu shows the words, characters and estimated reading time of the page.', es: 'El menú de la página muestra las palabras, los caracteres y el tiempo estimado de lectura.', pt: 'O menu da página mostra as palavras, os caracteres e o tempo estimado de leitura.' },
+    ],
+  },
+  {
     id: '2026-10-28-talk',
     date: '2026-10-28',
     title: {

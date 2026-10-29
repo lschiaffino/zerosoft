@@ -2383,5 +2383,43 @@
     "parity": "masking",
     "status": "done",
     "changelog": "2026-10-25-groups-platform"
+  },
+  {
+    "title": "Docs: Find text inside the open page with Cmd+F and accent-insensitive matches",
+    "description": "Notion 3.2 ships in-page find that ignores accents, so searching 'cafe' matches 'café' (https://www.notion.com/releases/2026-01-20). Docs has a Cmd+P page switcher and content search across pages (lib/docs-search.ts), but nothing that highlights matches inside the page being edited, so the browser find misses text in collapsed toggles. This matters for long meeting notes and specs. First scope: a find bar on Cmd+F that highlights matches, expands toggles, steps with Enter and Shift+Enter, and reuses normalizeSearch for accents.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Add a Tabs block to split a long page into tabs",
+    "description": "Notion 3.4 added a tabs block for organizing a page into sections (https://www.notion.com/releases). Docs has columns and toggles (lib/docs-columns.ts, components/docs/DocsBlocksView.tsx) but no way to show one section at a time inside a page. Small teams use it for project hubs with Overview, Decisions and Links. First scope: a tabs block with named tabs that each hold child blocks, switched with the keyboard, rendered in the read-only and published views.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Present a page as slides from a heading outline",
+    "description": "Notion graduated presentation mode out of beta on paid plans in 3.4 (https://www.notion.com/releases). Docs has no full-screen presentation of a page. Teams run weekly reviews from a page and would not need a second tool. First scope: a Present action in the page menu that splits blocks at each H1 or divider, steps with arrow keys, and exits with Esc.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Show sibling pages when hovering a breadcrumb segment",
+    "description": "Notion's April 2026 release lets you hover any breadcrumb item to see its sibling pages, including pages in databases (https://www.notion.com/releases/2026-04-24). Docs renders the ancestor trail as plain links (components/docs/DocsEditor.tsx, docs-breadcrumb). Moving sideways in a wiki then needs the sidebar. First scope: a menu on each segment that lists the siblings from the page tree, with keyboard support.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Add a Markdown endpoint to read and write a page body in the public API",
+    "description": "Notion's API returns and accepts page content as Markdown through GET /pages/{id}/markdown (https://matthiasfrank.de/en/notion-updates/api-markdown-and-transcript-support/). Docs has export to Markdown in the UI (lib/docs-markdown.ts) and a public API (lib/docs-v1.ts), but scripts and AI tools must handle the block JSON. First scope: GET and PUT /api/v1/docs/pages/{id}/markdown behind docs:read and docs:write, reusing the existing exporter and the paste-Markdown parser.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Show word count and reading time in the page menu",
+    "description": "Notion shows a word count at the bottom of the page menu (https://bullet.so/blog/how-to-check-word-count-in-notion/). Docs showed nothing before this change. The page menu in components/docs/DocsEditor.tsx now lists words, characters and reading time, computed by lib/docs-stats.ts.",
+    "product": "docs",
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-29-docs-word-count"
   }
 ]

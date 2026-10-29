@@ -47,6 +47,7 @@
     "duplicate": "Duplicate",
     "archive": "Archive",
     "smallText": "Small text",
+    "stats": "{words} words · {characters} characters · {minutes} min read",
     "fullWidth": "Full width",
     "moveToTrash": "Move to trash",
     "confirmTrash": "Are you sure you want to move this page to trash?",
