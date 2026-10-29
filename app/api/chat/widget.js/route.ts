@@ -763,7 +763,8 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     agentUiEl = null;
   }
   function renderAgentUi(ui) {
-    if (!ui || typeof ui !== 'object') return null;
+    // Un formulario ya enviado no se vuelve a mostrar.
+    if (!ui || typeof ui !== 'object' || ui.consumed) return null;
     var btnStyle = 'border:1px solid ' + COLOR + ';background:#fff;color:' + COLOR + ';border-radius:8px;padding:6px 10px;font:inherit;font-size:13px;cursor:pointer;margin:0 6px 6px 0;';
     if (ui.kind === 'buttons' && Array.isArray(ui.options)) {
       var row = dom('div', { style: 'display:flex;flex-wrap:wrap;margin:-2px 0 10px;' });

@@ -432,7 +432,7 @@ export type AgentWriteResult = { ok: true; agent: AgentDto } | { ok: false; erro
  */
 export async function assertEditorScope(
   workspaceId: string,
-  before: { tools: { enabled: string[] }; knowledge: { docsPageIds: string[] } },
+  before: { tools: { enabled: string[] }; knowledge: { docsPageIds: string[] }; settings: { forms: Array<{ id: string; saveToCrm: boolean }> } },
   payload: AgentUpdatePayload,
   personId?: string,
 ): Promise<string | null> {
@@ -447,6 +447,11 @@ export async function assertEditorScope(
       const app = AGENT_TOOL_APP[k];
       if (app && access.apps !== '*' && !access.apps.includes(app)) return 'tool_app_access';
     }
+  }
+  // Un formulario que guarda en el CRM escribe contactos: quien lo activa tiene que tener el CRM.
+  if (payload.settings && access.apps !== '*' && !access.apps.includes('crm')) {
+    const was = new Set(before.settings.forms.filter((f) => f.saveToCrm).map((f) => f.id));
+    if (payload.settings.forms.some((f) => f.saveToCrm && !was.has(f.id))) return 'tool_app_access';
   }
   const addedPages = (payload.knowledge?.docsPageIds ?? []).filter((id) => !before.knowledge.docsPageIds.includes(id));
   if (addedPages.length) {
@@ -1889,10 +1894,12 @@ export async function sendAgentMessage(opts: SendAgentMessageOptions): Promise<S
   if (opts.form) {
     const settings = toAgentDto(runRow).settings;
     const form = (settings.forms ?? []).find((f) => f.id === opts.form?.id) ?? null;
-    const { formShownInConversation } = await import('./agents-forms');
+    const { consumeShownForm, formShownInConversation } = await import('./agents-forms');
     if (!form || !(await formShownInConversation(conversation, form.id, settings.procedures ?? []))) throw new AgentError('form_not_found', 400);
     const sub = validateFormSubmission(form, opts.form.values);
     if (!sub.ok) throw new AgentError(sub.error, 400);
+    // Válido: se consume una sola vez (otro envío del mismo formulario, a la vez o después, no pasa).
+    if (!(await consumeShownForm(conversation, form.id))) throw new AgentError('form_not_found', 400);
     text = sub.text.slice(0, 4000);
     formValues = sub.values;
     submittedForm = form;

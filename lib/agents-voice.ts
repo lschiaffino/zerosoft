@@ -62,14 +62,53 @@ export function voicePhrases(language: string): { greeting: string; silence: str
  * dueño>,+14155550124=otro@x.com". Un workspace solo puede usar los suyos (la
  * cuenta de Twilio es de la instancia, no del workspace).
  */
+/** Número a E.164: "00…" pasa a "+…" y se agrega el "+" que falte. null si no es válido. */
+export function normalizeVoiceNumber(raw: string): string | null {
+  let n = raw.replace(/[^\d+]/g, '');
+  if (n.startsWith('00')) n = `+${n.slice(2)}`;
+  else if (!n.startsWith('+')) n = `+${n}`;
+  return /^\+[1-9]\d{7,14}$/.test(n) ? n : null;
+}
+
+const warned = new Set<string>();
+
+/** Separados por coma o salto de línea. Un número repetido queda con su primer dueño (y se avisa en el log). */
 export function voiceNumberMap(raw = process.env.AGENTS_VOICE_NUMBERS ?? ''): Map<string, string> {
   const out = new Map<string, string>();
-  for (const part of raw.split(',')) {
-    const [num, owner] = part.split('=').map((x) => x.trim());
-    const n = (num ?? '').replace(/[^\d+]/g, '');
-    if (/^\+[1-9]\d{7,14}$/.test(n) && owner) out.set(n, owner.toLowerCase());
+  for (const part of raw.split(/[,\n\r]+/)) {
+    const i = part.indexOf('=');
+    if (i <= 0) continue;
+    const n = normalizeVoiceNumber(part.slice(0, i).trim());
+    const owner = part.slice(i + 1).trim().toLowerCase();
+    if (!n || !owner) continue;
+    const prev = out.get(n);
+    if (prev !== undefined) {
+      if (prev !== owner && !warned.has(n)) {
+        warned.add(n);
+        console.warn('[agents-voice] AGENTS_VOICE_NUMBERS repeats a number with another owner; the first one wins', n.slice(0, -4).replace(/\d/g, '•') + n.slice(-4));
+      }
+      continue;
+    }
+    out.set(n, owner);
   }
   return out;
+}
+
+/**
+ * Antes de asignar un número a un agente: si lo tenía un agente de otro
+ * workspace al que el mapeo ya no se lo da (cambió el dueño), se libera.
+ */
+export async function releaseStaleVoiceNumber(number: string): Promise<number> {
+  const db = getDb();
+  const holders = (await db
+    .prepare('SELECT a.id, a.user_id, u.email FROM agents a LEFT JOIN users u ON u.id = a.user_id WHERE a.voice_number = ?')
+    .all(number)) as Array<{ id: string; user_id: string; email: string | null }>;
+  let released = 0;
+  for (const h of holders) {
+    if (voiceNumbersFor({ id: h.user_id, email: h.email }).includes(number)) continue;
+    released += (await db.prepare('UPDATE agents SET voice_number = NULL WHERE id = ? AND voice_number = ?').run(h.id, number)).changes;
+  }
+  return released;
 }
 
 /** Números asignados a un workspace (por id o email del dueño). */

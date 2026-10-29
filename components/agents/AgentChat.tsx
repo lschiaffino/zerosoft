@@ -345,7 +345,7 @@ export default function AgentChat({
                 <span className="sr-only">{labels.thinking}</span>
               </div>
             )}
-            {t.role === 'assistant' && t.ui && !t.pending && i === lastAssistant && !busy && !disabledReason && (
+            {t.role === 'assistant' && t.ui && !(t.ui.kind === 'form' && t.ui.consumed) && !t.pending && i === lastAssistant && !busy && !disabledReason && (
               <AgentReplyBlock
                 ui={t.ui}
                 labels={{ send: labels.formSend ?? labels.send, required: labels.formRequired ?? '', choose: labels.formChoose ?? '' }}
