@@ -114,6 +114,7 @@ export default function Stage({
   const viewportRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<Drag | null>(null);
+  const downHitId = useRef<string | null>(null);
   const [guides, setGuides] = useState<Array<{ axis: 'x' | 'y'; pos: number }>>([]);
   const [marquee, setMarquee] = useState<Box | null>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
@@ -173,6 +174,8 @@ export default function Stage({
   };
 
   const onPointerDown = (e: ReactPointerEvent) => {
+    // Con pointer capture, el dblclick llega al stage y no al elemento: se recuerda acá.
+    downHitId.current = elementAt(e.target)?.id ?? null;
     if (e.button === 1 || (e.button === 0 && spaceDown.current)) {
       drag.current = { kind: 'pan', start: { x: e.clientX, y: e.clientY }, view: viewRef.current };
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -361,7 +364,7 @@ export default function Stage({
 
   const onDoubleClick = (e: React.MouseEvent) => {
     if (readOnly || tool !== 'select') return;
-    const hit = elementAt(e.target);
+    const hit = elementAt(e.target) ?? page.elements.find((x) => x.id === downHitId.current) ?? null;
     if (!hit || hit.locked) return;
     if (hit.type === 'text') {
       ed.setSelected([hit.id]);

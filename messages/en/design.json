@@ -54,6 +54,7 @@
     "fromTemplate": "From a template",
     "templatesCount": "20 templates",
     "orTemplate": "Or start from a template",
+    "viewsLabel": "Design views",
     "views": {
       "recent": "Recent",
       "mine": "Your designs",

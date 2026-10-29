@@ -54,6 +54,7 @@
     "fromTemplate": "A partir de um modelo",
     "templatesCount": "20 modelos",
     "orTemplate": "Ou comece por um modelo",
+    "viewsLabel": "Visualizações de designs",
     "views": {
       "recent": "Recentes",
       "mine": "Seus designs",

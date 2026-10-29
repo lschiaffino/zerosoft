@@ -1262,9 +1262,9 @@ td.cell-actions > * + * { margin-left: 4px; }
 .home-recent-partial { padding: 8px 0 4px; font-size: 0.8125rem; color: var(--dim); border-top: 1px solid var(--line); }
 .home-split.home-split-full { grid-template-columns: minmax(0, 1fr); }
 
-/* Sidebar del inicio: las 12 apps por categoría entran sin scroll en una pantalla de 900px. */
-.side-line.side-line-compact .side-section { padding: 10px 8px 2px 12px; }
-.side-line.side-line-compact .side-stop { height: 30px; }
+/* Sidebar del inicio: hasta Notes entra sin scroll en una pantalla de 900px (16 apps). */
+.side-line.side-line-compact .side-section { padding: 6px 8px 2px 12px; }
+.side-line.side-line-compact .side-stop { height: 28px; }
 
 /* Encabezado que pliega su grupo (el "More" de Track, como en Linear). */
 .side-section-toggle {

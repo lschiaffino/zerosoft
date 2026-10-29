@@ -183,7 +183,7 @@ export default function DesignHome({
 
       <div className="dz-home-bar">
         {!folder && (
-          <nav className="dz-tabs" aria-label={t('views')}>
+          <nav className="dz-tabs" aria-label={t('viewsLabel')}>
             {TABS.map((v) => (
               <Link key={v} href={tabHref(v)} className={`dz-tab${view === v ? ' is-active' : ''}`} aria-current={view === v ? 'page' : undefined} data-testid={`design-view-${v}`}>
                 {t(`views.${v}`)}

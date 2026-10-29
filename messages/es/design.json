@@ -54,6 +54,7 @@
     "fromTemplate": "Desde una plantilla",
     "templatesCount": "20 plantillas",
     "orTemplate": "O empezá desde una plantilla",
+    "viewsLabel": "Vistas de diseños",
     "views": {
       "recent": "Recientes",
       "mine": "Tus diseños",

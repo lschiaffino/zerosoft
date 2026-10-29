@@ -189,6 +189,8 @@ test('home: create from a preset, rename, star, folder, trash and restore', asyn
   await expect(card).toContainText('2 pages');
   // Carpeta nueva y mover.
   await page.getByTestId('design-view-recent').click();
+  await expect(page).toHaveURL(/\/en\/app\/design$/);
+  await expect(page.getByTestId('design-view-recent')).toHaveAttribute('aria-current', 'page');
   await page.getByTestId('design-new-folder').click();
   const folderName = `Folder ${Date.now()}`;
   await page.getByTestId('design-name-dialog').getByRole('textbox').fill(folderName);
