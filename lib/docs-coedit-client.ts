@@ -109,6 +109,13 @@ export class CoeditEngine {
     this.drainDeferred();
   }
 
+  /** La pantalla se rehízo con la versión del servidor (recargar tras un conflicto): todo vuelve a empezar. */
+  reset() {
+    for (const b of this.blocks.values()) if (b.gapTimer) clearTimeout(b.gapTimer);
+    this.blocks.clear();
+    this.deferred = [];
+  }
+
   /**
    * Se perdieron eventos (hueco grande en el feed): las versiones se vuelven
    * a ubicar por la huella con el próximo evento de cada bloque.

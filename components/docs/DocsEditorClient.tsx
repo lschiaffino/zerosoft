@@ -516,6 +516,7 @@ export default function DocsEditorClient({
     const res = await fetch(`/api/docs/pages/${page.id}`);
     if (!res.ok) return;
     const fresh = (await res.json()) as DocsPage;
+    coeditEngineRef.current?.reset();
     setBase(fresh);
     unapplied.current = [];
     conflictPatch.current = null;
@@ -523,7 +524,7 @@ export default function DocsEditorClient({
     setCurrent(fresh);
     setEditorKey((k) => k + 1);
     router.refresh();
-  }, [page.id, router]);
+  }, [page.id, router, setBase]);
 
   const overwriteAfterConflict = useCallback(async () => {
     const patch = conflictPatch.current;

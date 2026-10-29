@@ -97,6 +97,8 @@ export interface CaretOp {
 }
 
 const HISTORY_REBASE = 50;
+/** Índice por id de cada lista de bloques (la edición simultánea lee bloques sueltos seguido). */
+const blockIndex = new WeakMap<DocsBlock[], Map<string, DocsBlock>>();
 
 /** Nuevo offset del caret después de que cambió el texto del bloque por fuera. */
 function shiftOffset(oldText: string, newText: string, offset: number): number {
@@ -171,7 +173,13 @@ export function useDocsCollab(d: Deps) {
   const api: DocsEditorApi = {
     snapshot: () => depsRef.current.live.current,
     blockText: (blockId) => {
-      const b = depsRef.current.live.current.blocks.find((x) => x.id === blockId);
+      const list = depsRef.current.live.current.blocks;
+      let index = blockIndex.get(list);
+      if (!index) {
+        index = new Map(list.map((x) => [x.id, x]));
+        blockIndex.set(list, index);
+      }
+      const b = index.get(blockId);
       return b && typeof b.content === 'string' ? b.content : null;
     },
     busy: () => {

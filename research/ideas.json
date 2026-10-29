@@ -786,7 +786,7 @@
     "kind": "idea",
     "parity": "realtime-editing",
     "status": "done",
-    "changelog": "2026-10-25-docs-collab"
+    "changelog": "2026-10-29-docs-coedit"
   },
   {
     "title": "Docs: Add filter, sort, group and board view to database blocks",
@@ -819,7 +819,7 @@
     "kind": "idea",
     "parity": "version-diff",
     "status": "done",
-    "changelog": "2026-10-25-docs-collab"
+    "changelog": "2026-10-29-docs-coedit"
   },
   {
     "title": "Docs: Add AI actions in the editor: summarize, improve, translate and draft",
@@ -1752,7 +1752,7 @@
     "kind": "idea",
     "parity": "suggested-edits",
     "status": "done",
-    "changelog": "2026-10-25-docs-collab"
+    "changelog": "2026-10-29-docs-coedit"
   },
   {
     "title": "Docs: Export a page with its subpages, or the whole workspace, as a Markdown or HTML zip",

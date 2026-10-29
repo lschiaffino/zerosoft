@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'Notion',
   alsoCompared: ['Confluence'],
-  lastReviewed: '2026-10-28',
+  lastReviewed: '2026-10-29',
   areas: [
     { id: 'editing', label: { en: 'Editing', es: 'Edición', pt: 'Edição' } },
     { id: 'databases', label: { en: 'Databases', es: 'Bases de datos', pt: 'Bancos de dados' } },
@@ -199,8 +199,8 @@ const parity: ProductParity = {
       id: 'realtime-editing',
       area: 'collaboration',
       label: { en: 'Real-time co-editing with live cursors and presence', es: 'Edición simultánea en tiempo real con cursores y presencia', pt: 'Edição simultânea em tempo real com cursores e presença' },
-      detail: { en: 'Presence avatars, live cursors and selections, and changes from other editors merge into yours every 1.5 s, by block and by span of text. No websockets: polling that works on Vercel and self-hosted. Notion merges keystroke by keystroke; here, if two people type over the same words at the same moment, yours wins and theirs stays in the history', es: 'Avatares de presencia, cursores y selecciones en vivo, y los cambios de las otras personas se fusionan con los tuyos cada 1,5 s, por bloque y por tramo de texto. Sin websockets: polling que anda en Vercel y en un servidor propio. Notion fusiona tecla por tecla; acá, si dos personas escriben sobre las mismas palabras en el mismo momento, gana lo tuyo y lo otro queda en el historial', pt: 'Avatares de presença, cursores e seleções ao vivo, e as mudanças das outras pessoas se mesclam com as suas a cada 1,5 s, por bloco e por trecho de texto. Sem websockets: polling que funciona na Vercel e em servidor próprio. O Notion mescla tecla por tecla; aqui, se duas pessoas digitam sobre as mesmas palavras no mesmo momento, vale a sua e a outra fica no histórico' },
-      status: 'partial',
+      detail: { en: 'Keystroke by keystroke in every text block: two people typing in the same paragraph or on the same word both keep what they wrote (operational transformation per block), with live cursors and selections by name and color, presence avatars, undo that only undoes your own changes, and offline edits that merge on reconnect. People with read access see edits live, and losing access closes the stream at once. Runs on Vercel and self-hosted (server-sent events over the database, no websockets). The page title and database cells merge on save, by field and cell, as in Notion databases', es: 'Tecla por tecla en todos los bloques de texto: dos personas escribiendo en el mismo párrafo o sobre la misma palabra conservan lo que escribió cada una (transformación operacional por bloque), con cursores y selecciones en vivo con nombre y color, avatares de presencia, deshacer que solo deshace lo propio y lo escrito sin conexión que se fusiona al volver. Quien solo lee también ve los cambios en vivo, y si pierde el acceso se le corta al instante. Anda en Vercel y en un servidor propio (eventos del servidor sobre la base, sin websockets). El título de la página y las celdas de las bases se fusionan al guardar, por campo y por celda, como en las bases de Notion', pt: 'Tecla por tecla em todos os blocos de texto: duas pessoas digitando no mesmo parágrafo ou na mesma palavra mantêm o que cada uma escreveu (transformação operacional por bloco), com cursores e seleções ao vivo com nome e cor, avatares de presença, desfazer que só desfaz o que é seu e o que foi escrito sem conexão mesclado ao voltar. Quem só lê também vê as mudanças ao vivo, e se perder o acesso é cortado na hora. Funciona na Vercel e em servidor próprio (eventos do servidor sobre o banco, sem websockets). O título da página e as células dos bancos se mesclam ao salvar, por campo e por célula, como nos bancos do Notion' },
+      status: 'have',
       competitorHas: true,
       weight: 2,
     },

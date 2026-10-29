@@ -29,6 +29,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-29-docs-coedit',
+    date: '2026-10-29',
+    title: {
+      en: 'Docs: real-time co-editing, keystroke by keystroke',
+      es: 'Docs: edición simultánea en tiempo real, tecla por tecla',
+      pt: 'Docs: edição simultânea em tempo real, tecla por tecla',
+    },
+    items: [
+      { product: 'docs', en: 'Two or more people can type in the same paragraph, even on the same word, and everyone sees each keystroke as it happens. Nothing typed is lost and every screen ends up with the same text.', es: 'Dos o más personas pueden escribir en el mismo párrafo, incluso sobre la misma palabra, y cada una ve las teclas de las demás a medida que se escriben. No se pierde nada de lo escrito y todas las pantallas terminan con el mismo texto.', pt: 'Duas ou mais pessoas podem digitar no mesmo parágrafo, até na mesma palavra, e cada uma vê as teclas das outras enquanto são digitadas. Nada do que foi digitado se perde e todas as telas terminam com o mesmo texto.' },
+      { product: 'docs', en: 'Cursors and selections of the other people show up right away with their name and color, and undo only undoes your own changes.', es: 'Los cursores y las selecciones de las demás personas aparecen al instante con su nombre y su color, y deshacer solo deshace lo tuyo.', pt: 'Os cursores e as seleções das outras pessoas aparecem na hora com nome e cor, e desfazer só desfaz o que é seu.' },
+      { product: 'docs', en: 'If you lose your connection you keep writing; when it comes back your text merges with what others wrote meanwhile. People with read access see edits live too, and if someone removes your access the page stops updating and closes at once.', es: 'Si se corta la conexión seguís escribiendo; al volver, lo tuyo se fusiona con lo que escribieron las demás personas mientras tanto. Quien solo lee también ve los cambios en vivo, y si te sacan el acceso la página deja de actualizarse y se cierra en el acto.', pt: 'Se a conexão cair você continua escrevendo; quando voltar, o seu texto se mescla com o que os outros escreveram nesse meio-tempo. Quem só lê também vê as mudanças ao vivo, e se tirarem o seu acesso a página para de atualizar e se fecha na hora.' },
+    ],
+  },
+  {
     id: '2026-10-28-talk',
     date: '2026-10-28',
     title: {
