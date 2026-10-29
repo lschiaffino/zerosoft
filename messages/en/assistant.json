@@ -25,7 +25,7 @@
     "title": "The assistant is not set up yet",
     "disabledTitle": "AI is turned off on this server",
     "admin": "Add OPENROUTER_API_KEY to the server environment (and optionally ASSISTANT_MODEL) and redeploy.",
-    "member": "Ask a workspace admin to connect an OpenRouter key."
+    "member": "The server administrator sets the OpenRouter key (OPENROUTER_API_KEY). Ask them to turn the assistant on."
   },
   "empty": {
     "title": "What do you need?",
@@ -50,7 +50,8 @@
     "done": "Done.",
     "cancelled": "Cancelled. Nothing changed.",
     "failed": "It did not work: {error}",
-    "open": "Open"
+    "open": "Open",
+    "showAll": "all {count} characters"
   },
   "actionErrors": {
     "forbidden": "You no longer have access to do this.",
@@ -60,22 +61,86 @@
     "failed": "Could not apply the change. Try again."
   },
   "suggest": {
-    "home": { "a": "What needs my attention today?", "b": "Who is in this workspace?", "c": "Why didn't my webhook fire?" },
-    "crm": { "a": "Show deals closing this month", "b": "Create a pipeline Renewals with stages Contacted, Proposal, Signed", "c": "Which tasks are overdue?" },
-    "track": { "a": "List the projects and their health", "b": "Set up a weekly update reminder on a project", "c": "Create an issue in a team" },
-    "docs": { "a": "Find pages about onboarding", "b": "Create a page with meeting notes", "c": "What changed in Docs this week?" },
-    "flow": { "a": "Which flow runs failed this week?", "b": "List my flows and their last run", "c": "Why did my last flow run fail?" },
-    "robots": { "a": "Which robots failed recently?", "b": "List my robots", "c": "Why did my robot fail?" },
-    "settings": { "a": "Who is in this workspace?", "b": "Why didn't my webhook fire?", "c": "Did my last import finish?" },
-    "cal": { "a": "What bookings do I have this week?", "b": "List my event types", "c": "Is my Google Calendar connected?" },
-    "link": { "a": "Find links to our pricing page", "b": "Create a short link", "c": "Which links got the most clicks?" },
-    "talk": { "a": "Which channels am I in?", "b": "Find a channel", "c": "What can you do here?" },
-    "voice": { "a": "List my recent meetings", "b": "Find the meeting about pricing", "c": "What can you do here?" },
-    "chat": { "a": "Show open conversations", "b": "Who wrote in today?", "c": "What can you do here?" },
-    "groups": { "a": "List my WhatsApp groups", "b": "Find a group", "c": "What can you do here?" },
-    "agents": { "a": "List my agents", "b": "Which agents are live?", "c": "What can you do here?" },
-    "notes": { "a": "Find my notes about pricing", "b": "Create a note with these ideas", "c": "What can you do here?" },
-    "board": { "a": "List my boards", "b": "Find a board", "c": "What can you do here?" }
+    "home": {
+      "a": "What needs my attention today?",
+      "b": "Who is in this workspace?",
+      "c": "Why didn't my webhook fire?"
+    },
+    "crm": {
+      "a": "Show deals closing this month",
+      "b": "Create a pipeline Renewals with stages Contacted, Proposal, Signed",
+      "c": "Which tasks are overdue?"
+    },
+    "track": {
+      "a": "List the projects and their health",
+      "b": "Set up a weekly update reminder on a project",
+      "c": "Create an issue in a team"
+    },
+    "docs": {
+      "a": "Find pages about onboarding",
+      "b": "Create a page with meeting notes",
+      "c": "Find the page about our roadmap"
+    },
+    "flow": {
+      "a": "Which flow runs failed this week?",
+      "b": "List my flows and their last run",
+      "c": "Why did my last flow run fail?"
+    },
+    "robots": {
+      "a": "Which robots failed recently?",
+      "b": "List my robots",
+      "c": "Why did my robot fail?"
+    },
+    "settings": {
+      "a": "Who is in this workspace?",
+      "b": "Why didn't my webhook fire?",
+      "c": "Did my last import finish?"
+    },
+    "cal": {
+      "a": "What bookings do I have this week?",
+      "b": "List my event types",
+      "c": "Is my Google Calendar connected?"
+    },
+    "link": {
+      "a": "Find links to our pricing page",
+      "b": "Create a short link",
+      "c": "List my latest links"
+    },
+    "talk": {
+      "a": "Which channels am I in?",
+      "b": "Find a channel",
+      "c": "What can you do here?"
+    },
+    "voice": {
+      "a": "List my recent meetings",
+      "b": "Find the meeting about pricing",
+      "c": "What can you do here?"
+    },
+    "chat": {
+      "a": "Show open conversations",
+      "b": "Who wrote in today?",
+      "c": "What can you do here?"
+    },
+    "groups": {
+      "a": "List my WhatsApp groups",
+      "b": "Find a group",
+      "c": "What can you do here?"
+    },
+    "agents": {
+      "a": "List my agents",
+      "b": "Which agents are live?",
+      "c": "What can you do here?"
+    },
+    "notes": {
+      "a": "Find my notes about pricing",
+      "b": "Create a note with these ideas",
+      "c": "What can you do here?"
+    },
+    "board": {
+      "a": "List my boards",
+      "b": "Find a board",
+      "c": "What can you do here?"
+    }
   },
   "page": {
     "title": "Assistant",
@@ -103,5 +168,6 @@
     "recent": "Recent chats",
     "viewAll": "All chats",
     "shortcut": "Open it from anywhere with {key}"
-  }
+  },
+  "loadEarlier": "Load earlier messages"
 }

@@ -5,6 +5,7 @@ import { runAssistantTurn } from '@/lib/assistant/engine';
 import { assistantUser, localeOf, owner } from '@/lib/assistant/http';
 import { addMessage, createConversation, getConversation } from '@/lib/assistant/store';
 import { rateLimit } from '@/lib/rate-limit';
+import { AiError, assertAiMonthlyQuota } from '@/lib/ai';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -35,6 +36,13 @@ export async function POST(req: NextRequest) {
   if (process.env.RATE_LIMIT_DISABLED !== 'true') {
     const limited = await rateLimit(`assistant:${who.personId}`, 120, 3600);
     if (!limited.ok) return NextResponse.json({ error: 'rate_limited' }, { status: 429 });
+  }
+  // Cuota del mes antes de crear nada: sin tokens no queda una charla vacía.
+  try {
+    await assertAiMonthlyQuota(who.workspaceId);
+  } catch (err) {
+    if (err instanceof AiError) return NextResponse.json({ error: err.code }, { status: 429 });
+    throw err;
   }
   const { message, page, locale: rawLocale } = parsed.data;
   let conversation = parsed.data.conversationId ? await getConversation(who, parsed.data.conversationId) : null;

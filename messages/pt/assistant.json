@@ -25,7 +25,7 @@
     "title": "O assistente ainda não está configurado",
     "disabledTitle": "A IA está desligada neste servidor",
     "admin": "Adicione OPENROUTER_API_KEY ao ambiente do servidor (e, se quiser, ASSISTANT_MODEL) e publique de novo.",
-    "member": "Peça a um admin do workspace que conecte uma chave do OpenRouter."
+    "member": "A chave do OpenRouter (OPENROUTER_API_KEY) é configurada por quem administra o servidor. Peça para ativar o assistente."
   },
   "empty": {
     "title": "Do que você precisa?",
@@ -50,7 +50,8 @@
     "done": "Pronto.",
     "cancelled": "Cancelado. Nada mudou.",
     "failed": "Não funcionou: {error}",
-    "open": "Abrir"
+    "open": "Abrir",
+    "showAll": "todos os {count} caracteres"
   },
   "actionErrors": {
     "forbidden": "Você não tem mais acesso para fazer isso.",
@@ -60,22 +61,86 @@
     "failed": "Não foi possível aplicar a mudança. Tente de novo."
   },
   "suggest": {
-    "home": { "a": "O que precisa da minha atenção hoje?", "b": "Quem está neste workspace?", "c": "Por que meu webhook não disparou?" },
-    "crm": { "a": "Mostre os deals que fecham este mês", "b": "Crie um pipeline Renovações com as etapas Contatado, Proposta, Assinado", "c": "Quais tarefas estão atrasadas?" },
-    "track": { "a": "Liste os projetos e a saúde deles", "b": "Configure um lembrete semanal de update em um projeto", "c": "Crie uma issue em um time" },
-    "docs": { "a": "Procure páginas sobre onboarding", "b": "Crie uma página com notas da reunião", "c": "O que mudou no Docs esta semana?" },
-    "flow": { "a": "Quais execuções de flows falharam esta semana?", "b": "Liste meus flows e a última execução", "c": "Por que minha última execução falhou?" },
-    "robots": { "a": "Quais robôs falharam recentemente?", "b": "Liste meus robôs", "c": "Por que meu robô falhou?" },
-    "settings": { "a": "Quem está neste workspace?", "b": "Por que meu webhook não disparou?", "c": "Minha última importação terminou?" },
-    "cal": { "a": "Quais reservas tenho esta semana?", "b": "Liste meus tipos de evento", "c": "Meu Google Calendar está conectado?" },
-    "link": { "a": "Procure links para a página de preços", "b": "Crie um link curto", "c": "Quais links tiveram mais cliques?" },
-    "talk": { "a": "Em quais canais eu estou?", "b": "Procure um canal", "c": "O que você pode fazer aqui?" },
-    "voice": { "a": "Liste minhas reuniões recentes", "b": "Procure a reunião sobre preços", "c": "O que você pode fazer aqui?" },
-    "chat": { "a": "Mostre as conversas abertas", "b": "Quem escreveu hoje?", "c": "O que você pode fazer aqui?" },
-    "groups": { "a": "Liste meus grupos de WhatsApp", "b": "Procure um grupo", "c": "O que você pode fazer aqui?" },
-    "agents": { "a": "Liste meus agentes", "b": "Quais agentes estão ativos?", "c": "O que você pode fazer aqui?" },
-    "notes": { "a": "Procure minhas notas sobre preços", "b": "Crie uma nota com estas ideias", "c": "O que você pode fazer aqui?" },
-    "board": { "a": "Liste meus quadros", "b": "Procure um quadro", "c": "O que você pode fazer aqui?" }
+    "home": {
+      "a": "O que precisa da minha atenção hoje?",
+      "b": "Quem está neste workspace?",
+      "c": "Por que meu webhook não disparou?"
+    },
+    "crm": {
+      "a": "Mostre os deals que fecham este mês",
+      "b": "Crie um pipeline Renovações com as etapas Contatado, Proposta, Assinado",
+      "c": "Quais tarefas estão atrasadas?"
+    },
+    "track": {
+      "a": "Liste os projetos e a saúde deles",
+      "b": "Configure um lembrete semanal de update em um projeto",
+      "c": "Crie uma issue em um time"
+    },
+    "docs": {
+      "a": "Procure páginas sobre onboarding",
+      "b": "Crie uma página com notas da reunião",
+      "c": "Procure a página do nosso roadmap"
+    },
+    "flow": {
+      "a": "Quais execuções de flows falharam esta semana?",
+      "b": "Liste meus flows e a última execução",
+      "c": "Por que minha última execução falhou?"
+    },
+    "robots": {
+      "a": "Quais robôs falharam recentemente?",
+      "b": "Liste meus robôs",
+      "c": "Por que meu robô falhou?"
+    },
+    "settings": {
+      "a": "Quem está neste workspace?",
+      "b": "Por que meu webhook não disparou?",
+      "c": "Minha última importação terminou?"
+    },
+    "cal": {
+      "a": "Quais reservas tenho esta semana?",
+      "b": "Liste meus tipos de evento",
+      "c": "Meu Google Calendar está conectado?"
+    },
+    "link": {
+      "a": "Procure links para a página de preços",
+      "b": "Crie um link curto",
+      "c": "Liste meus links mais recentes"
+    },
+    "talk": {
+      "a": "Em quais canais eu estou?",
+      "b": "Procure um canal",
+      "c": "O que você pode fazer aqui?"
+    },
+    "voice": {
+      "a": "Liste minhas reuniões recentes",
+      "b": "Procure a reunião sobre preços",
+      "c": "O que você pode fazer aqui?"
+    },
+    "chat": {
+      "a": "Mostre as conversas abertas",
+      "b": "Quem escreveu hoje?",
+      "c": "O que você pode fazer aqui?"
+    },
+    "groups": {
+      "a": "Liste meus grupos de WhatsApp",
+      "b": "Procure um grupo",
+      "c": "O que você pode fazer aqui?"
+    },
+    "agents": {
+      "a": "Liste meus agentes",
+      "b": "Quais agentes estão ativos?",
+      "c": "O que você pode fazer aqui?"
+    },
+    "notes": {
+      "a": "Procure minhas notas sobre preços",
+      "b": "Crie uma nota com estas ideias",
+      "c": "O que você pode fazer aqui?"
+    },
+    "board": {
+      "a": "Liste meus quadros",
+      "b": "Procure um quadro",
+      "c": "O que você pode fazer aqui?"
+    }
   },
   "page": {
     "title": "Assistente",
@@ -103,5 +168,6 @@
     "recent": "Conversas recentes",
     "viewAll": "Todas as conversas",
     "shortcut": "Abra de qualquer lugar com {key}"
-  }
+  },
+  "loadEarlier": "Carregar mensagens anteriores"
 }

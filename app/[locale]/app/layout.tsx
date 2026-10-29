@@ -270,6 +270,7 @@ export default async function AppLayout(
             importData: tSide('import'),
             appSettings: tSide('appSettings'),
             platformHome: tSide('platformHome'),
+            assistant: tSide('assistant'),
             apps: tSide('apps'),
             featured: tSide('featured'),
             moreApps: tSide('moreApps'),

@@ -14,7 +14,7 @@
  *   como datos para el modelo.
  */
 import { isStepCount, streamText, tool, type ModelMessage, type ToolSet } from 'ai';
-import { AiError, assertAiQuota, recordAiUsage } from '../ai';
+import { AiError, assertAiMonthlyQuota, assertAiRate, recordAiUsage } from '../ai';
 import { fakeModel } from '../crm-ai-fake';
 import type { SessionUser } from '../session';
 import { assistantState, resolveAssistantModel } from './config';
@@ -194,12 +194,13 @@ export async function* runAssistantTurn(opts: TurnOptions): AsyncGenerator<Assis
     return;
   }
   try {
-    await assertAiQuota(ctx.workspaceId);
+    await assertAiMonthlyQuota(ctx.workspaceId);
   } catch (err) {
     yield { type: 'error', code: errorCode(err) };
     return;
   }
   const tools = toolsFor(opts.user);
+  const toolNames = new Set(tools.map((t) => t.name));
   const resolved = resolveAssistantModel(() => fakeModel(fakeAssistantStep));
   if (!resolved) {
     yield { type: 'error', code: 'not_configured' };
@@ -217,6 +218,11 @@ export async function* runAssistantTurn(opts: TurnOptions): AsyncGenerator<Assis
     messages: await history(opts.conversationId),
     tools: sdkTools(ctx, tools, opts.conversationId, owner, actions),
     stopWhen: isStepCount(ASSISTANT_MAX_STEPS),
+    // Cada llamada al modelo cuenta para el rate limit por minuto del workspace.
+    prepareStep: async () => {
+      await assertAiRate(ctx.workspaceId);
+      return {};
+    },
     maxOutputTokens: 1500,
     temperature: 0.2,
     timeout: 240_000,
@@ -231,6 +237,10 @@ export async function* runAssistantTurn(opts: TurnOptions): AsyncGenerator<Assis
         yield { type: 'text', delta: part.text };
       } else if (part.type === 'tool-call') {
         const input = redact(part.input);
+        // Una herramienta que la sesión no tiene (o que no existe): el SDK no la corre; queda registrada como denegada.
+        if (!toolNames.has(part.toolName)) {
+          await audit({ owner, conversationId: opts.conversationId, tool: String(part.toolName).slice(0, 80), kind: 'denied', input, outcome: 'unknown_or_forbidden_tool' });
+        }
         pendingCalls.set(part.toolCallId, { tool: part.toolName, input });
         yield { type: 'tool', callId: part.toolCallId, tool: part.toolName, input };
       } else if (part.type === 'tool-result' || part.type === 'tool-error') {

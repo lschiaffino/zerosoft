@@ -54,7 +54,7 @@ export default function AssistantPanel() {
 
   const capture = useCallback(() => {
     const selection = window.getSelection?.()?.toString().trim().slice(0, 1500) || undefined;
-    setPage({ path: pathname, title: document.title.slice(0, 120), selection });
+    setPage({ path: pathname.slice(0, 300), title: document.title.slice(0, 120), selection });
   }, [pathname]);
 
   const show = useCallback(

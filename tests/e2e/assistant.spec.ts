@@ -153,6 +153,9 @@ test('historial a página completa: preguntar desde el inicio, renombrar, buscar
   await home.getByRole('textbox').fill(question);
   await home.getByRole('button', { name: 'Ask' }).click();
   await expect(page).toHaveURL(/\/en\/app\/assistant/);
+  // Shell de la plataforma (no el de Link) con el ítem del asistente marcado.
+  await expect(page.locator('#app-side .side-stop[href$="/app/assistant"]')).toHaveAttribute('aria-current', 'page');
+  await expect(page.locator('.band-product-name')).not.toHaveText('Link');
   const assistantPage = page.getByTestId('assistant-page');
   await expect(assistantPage.getByTestId('assistant-msg-assistant').last()).toContainText('Members:');
   await expect(page).toHaveURL(/\?c=/);

@@ -60,6 +60,20 @@ function ToolCard({ part }: { part: Extract<ChatPart, { type: 'tool' }> }) {
   );
 }
 
+/** Valor de un campo de la tarjeta: completo; si es largo, se abre con un expansor (se ve todo lo que se va a escribir). */
+function DetailValue({ value }: { value: string }) {
+  const t = useTranslations('assistant');
+  if (value.length <= 160 && !value.includes('\n')) return <span>{value}</span>;
+  return (
+    <details className="asst-action-long">
+      <summary>
+        {value.split('\n')[0].slice(0, 120)}… <span className="muted">({t('action.showAll', { count: value.length })})</span>
+      </summary>
+      <pre>{value}</pre>
+    </details>
+  );
+}
+
 /** Tarjeta de confirmación: resumen, qué cambia y Confirmar / Cancelar (tipeado si es destructiva). */
 function ActionCard({ action, onDecided }: { action: ActionView; onDecided: (a: ActionView) => void }) {
   const t = useTranslations('assistant');
@@ -110,7 +124,7 @@ function ActionCard({ action, onDecided }: { action: ActionView; onDecided: (a: 
                     <span aria-hidden="true"> → </span>
                   </>
                 )}
-                <span>{d.after}</span>
+                <DetailValue value={d.after} />
               </dd>
             </div>
           ))}
@@ -215,11 +229,14 @@ export default function AssistantChat({
   const createdRef = useRef<string | null>(null);
   const sentInitial = useRef(false);
 
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingEarlier, setLoadingEarlier] = useState(false);
+
   const load = useCallback(async (id: string) => {
     setLoading(true);
     setLoadError(false);
     const res = await fetch(`/api/assistant/conversations/${id}`).catch(() => null);
-    const data = (await res?.json().catch(() => null)) as { messages?: StoredMessage[]; actions?: ActionView[] } | null;
+    const data = (await res?.json().catch(() => null)) as { messages?: StoredMessage[]; actions?: ActionView[]; hasMore?: boolean } | null;
     setLoading(false);
     if (!res?.ok || !data?.messages) {
       setLoadError(true);
@@ -227,7 +244,21 @@ export default function AssistantChat({
       return;
     }
     setItems(toChatItems(data.messages, data.actions ?? []));
+    setHasMore(Boolean(data.hasMore));
   }, []);
+
+  /** Charlas largas: los mensajes anteriores de a 100. */
+  async function loadEarlier() {
+    const oldest = items[0];
+    if (!conversationId || !oldest || loadingEarlier) return;
+    setLoadingEarlier(true);
+    const res = await fetch(`/api/assistant/conversations/${conversationId}?before=${encodeURIComponent(oldest.id)}`).catch(() => null);
+    const data = (await res?.json().catch(() => null)) as { messages?: StoredMessage[]; actions?: ActionView[]; hasMore?: boolean } | null;
+    setLoadingEarlier(false);
+    if (!res?.ok || !data?.messages) return;
+    setItems((prev) => [...toChatItems(data.messages!, data.actions ?? []), ...prev]);
+    setHasMore(Boolean(data.hasMore));
+  }
 
   useEffect(() => {
     if (!conversationId) {
@@ -353,7 +384,13 @@ export default function AssistantChat({
             </ul>
           </div>
         ) : (
-          items.map((m) => (
+          <>
+          {hasMore && (
+            <button type="button" className="btn btn-ghost btn-sm asst-load-earlier" onClick={() => void loadEarlier()} disabled={loadingEarlier}>
+              {loadingEarlier ? t('loading') : t('loadEarlier')}
+            </button>
+          )}
+          {items.map((m) => (
             <div key={m.id} className={`asst-msg asst-msg-${m.role}`} data-testid={`assistant-msg-${m.role}`}>
               {m.parts.map((p) =>
                 p.type === 'tool' ? <ToolCard key={p.callId} part={p} /> : <ActionCard key={p.action.id} action={p.action} onDecided={updateAction} />,
@@ -370,7 +407,8 @@ export default function AssistantChat({
                 </p>
               )}
             </div>
-          ))
+          ))}
+          </>
         )}
       </div>
       <form

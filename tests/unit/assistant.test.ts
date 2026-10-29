@@ -5,9 +5,10 @@ import type { SessionUser } from '@/lib/session';
 import { assistantState, setAssistantModelOverride } from '@/lib/assistant/config';
 import { runAssistantTurn, type AssistantEvent } from '@/lib/assistant/engine';
 import { confirmTextMatches, decideAction } from '@/lib/assistant/actions';
-import { redact, REDACTED } from '@/lib/assistant/redact';
+import { maskUrl, redact, REDACTED } from '@/lib/assistant/redact';
 import { canUseTool } from '@/lib/assistant/registry';
 import { ALL_TOOLS, toolsFor } from '@/lib/assistant/tools';
+import { toolCtx } from '@/lib/assistant/registry';
 import { addMessage, createConversation, getAction, listConversations, renameConversation, deleteConversation } from '@/lib/assistant/store';
 import { makeUser } from './helpers';
 import { scriptedModel, type MockStep } from './ai-mock';
@@ -218,6 +219,67 @@ describe('asistente: secretos y charlas', () => {
     expect(out.header).toBe(REDACTED);
     expect(out.ok).toBe('fine');
     expect(out.name).toBe('Hook');
+  });
+
+  it('redact encuentra secretos dentro de textos y por nombre de campo', () => {
+    const out = redact({
+      privateKey: 'abc',
+      private_key: 'abc',
+      signature: 'abc',
+      note: 'my key is sk-abcdefghijklmnopqrstuv please',
+      header: 'Authorization: Bearer abc.def.ghi',
+      zs: 'see zs_live_abcdefghijklmnopqrstuvwx here',
+      gh: 'github_pat_11ABCDEFG0123456789',
+      aws: 'id AKIAIOSFODNN7EXAMPLE',
+      stripe: 'rk_live_abcdefghijklmnop and pk_live_abcdefghijklmnop',
+      jwt: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U',
+      slack: 'post to https://hooks.slack.com/services/T000/B000/XXXXXXXX',
+      title: 'Quarterly plan',
+    }) as Record<string, string>;
+    for (const k of ['privateKey', 'private_key', 'signature', 'jwt']) expect(out[k], k).toBe(REDACTED);
+    expect(out.note).toBe(`my key is ${REDACTED} please`);
+    expect(out.header).toBe(`Authorization: ${REDACTED}`);
+    for (const k of ['zs', 'gh', 'aws', 'stripe', 'slack']) expect(out[k], k).not.toMatch(/zs_live|github_pat|AKIA|rk_live|pk_live|hooks\.slack/);
+    expect(out.title).toBe('Quarterly plan');
+    expect(maskUrl('https://hooks.zapier.com/hooks/catch/123/abc')).toBe('https://hooks.zapier.com/…');
+    expect(maskUrl('not a url')).toBe(REDACTED);
+  });
+
+  it('list_webhooks devuelve solo el host de cada URL', async () => {
+    const u = asOwner(await makeUser('hooks'));
+    await getDb()
+      .prepare('INSERT INTO webhooks (id, user_id, url, events, secret) VALUES (?, ?, ?, ?, ?)')
+      .run(crypto.randomUUID(), u.id, 'https://example.com/hooks/very-secret-path-123', '["link.created"]', 'whsec_x');
+    const tool = ALL_TOOLS.find((t) => t.name === 'list_webhooks')!;
+    if (tool.kind !== 'read') throw new Error('read tool');
+    const out = (await tool.run(toolCtx(u, 'en'), {})) as { webhooks: Array<{ host: string }> };
+    expect(out.webhooks.map((w) => w.host)).toEqual(['https://example.com/…']);
+    expect(JSON.stringify(out)).not.toContain('very-secret-path');
+    expect(JSON.stringify(out)).not.toContain('whsec_');
+  });
+
+  it('una herramienta inventada o ajena queda registrada como denegada', async () => {
+    const owner = await makeUser('forge');
+    const docsOnly = asMember(owner, await makeUser('forgem'), 'member', ['docs']);
+    await turn(docsOnly, 'x', [{ tool: 'propose_remove_member', input: { email: 'a@b.test' } }, { text: 'no' }]);
+    const rows = (await getDb().prepare("SELECT tool, kind FROM assistant_audit WHERE workspace_id = ? AND kind = 'denied'").all(owner.id)) as Array<{ tool: string }>;
+    expect(rows.map((r) => r.tool)).toContain('propose_remove_member');
+  });
+
+  it('cada llamada al modelo cuenta para el rate limit por minuto', async () => {
+    process.env.AI_RATE_LIMIT_PER_MINUTE = '2';
+    try {
+      const u = asOwner(await makeUser('rate'));
+      const { events } = await turn(u, 'x', [
+        { tool: 'list_members', input: {} },
+        { tool: 'list_members', input: {} },
+        { tool: 'list_members', input: {} },
+        { text: 'done' },
+      ]);
+      expect(events.some((e) => e.type === 'error' && e.code === 'rate_limited')).toBe(true);
+    } finally {
+      delete process.env.AI_RATE_LIMIT_PER_MINUTE;
+    }
   });
 
   it('las charlas son por persona: listar, renombrar y borrar', async () => {

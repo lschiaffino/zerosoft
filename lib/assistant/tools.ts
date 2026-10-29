@@ -41,6 +41,8 @@ import { listAgents } from '../agents';
 import { listBoards } from '../boards';
 import { boardViewer } from '../board-access';
 import { searchApps } from '../app-search';
+import { rateLimit } from '../rate-limit';
+import { maskUrl } from './redact';
 import { canUseTool, readTool, writeTool, type AssistantTool, type ToolCtx } from './registry';
 
 // ---------- Utilidades ----------
@@ -135,6 +137,9 @@ const platform: AssistantTool[] = [
     execute: async (ctx, input) => {
       const team = ctx.user.workspace ?? (await ensureWorkspace(ctx.workspaceId));
       if (input.role === 'admin' && ctx.user.role !== 'owner') return { ok: false, error: 'only_owner_invites_admins' };
+      // El mismo tope que POST /api/teams/invites.
+      const limit = await rateLimit(`teams:invite:${ctx.personId}`, 30, 3600);
+      if (!limit.ok) return { ok: false, error: 'rate_limited' };
       const real = ctx.user.actingUser ?? ctx.user;
       const base = (process.env.NEXTAUTH_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000').replace(/\/$/, '');
       const { results } = await inviteMany({
@@ -178,6 +183,9 @@ const platform: AssistantTool[] = [
       const role = await getMemberRole(team.id, String(input.userId));
       if (!role) return { ok: false, error: 'member_not_found' };
       if (role === 'owner' || !canManage(ctx.user.role, role)) return { ok: false, error: 'forbidden' };
+      // El mismo tope que DELETE /api/teams/members/<id>.
+      const limit = await rateLimit(`teams:remove:${ctx.personId}`, 60, 3600);
+      if (!limit.ok) return { ok: false, error: 'rate_limited' };
       await removeMember(team.id, String(input.userId));
       return { ok: true, message: `${input.email} was removed.`, href: '/app/settings/members' };
     },
@@ -206,7 +214,10 @@ const platform: AssistantTool[] = [
     allApps: true,
     description: 'Workspace webhooks with their events and last delivery. Use first when the person asks why a webhook did not fire.',
     input: z.object({}),
-    run: async (ctx) => ({ webhooks: (await listWebhooks(ctx.workspaceId)).map((w) => pick(w, ['id', 'url', 'events', 'active', 'lastDelivery', 'createdAt'])) }),
+    run: async (ctx) => ({
+      // La URL de un webhook suele ser el secreto (Slack, Zapier): solo el host.
+      webhooks: (await listWebhooks(ctx.workspaceId)).map((w) => ({ ...pick(w, ['id', 'events', 'active', 'lastDelivery', 'createdAt']), host: maskUrl(w.url) })),
+    }),
   }),
   readTool({
     name: 'webhook_deliveries',
@@ -618,7 +629,7 @@ const content: AssistantTool[] = [
     input: z.object({ title: z.string().trim().min(1).max(200), markdown: z.string().max(20000).optional() }),
     prepare: async (_ctx, input) => ({
       summary: `Create Docs page "${input.title}"`,
-      details: [{ label: 'Title', after: input.title }, ...(input.markdown ? [{ label: 'Content', after: `${input.markdown.slice(0, 200)}${input.markdown.length > 200 ? '…' : ''}` }] : [])],
+      details: [{ label: 'Title', after: input.title }, ...(input.markdown ? [{ label: 'Content', after: input.markdown }] : [])],
       input,
     }),
     execute: async (ctx, input) => {
@@ -640,7 +651,11 @@ const content: AssistantTool[] = [
     app: 'notes',
     description: 'Prepare a new note with a title and plain text.',
     input: z.object({ title: z.string().trim().min(1).max(200), text: z.string().max(10000).optional() }),
-    prepare: async (_ctx, input) => ({ summary: `Create note "${input.title}"`, details: [{ label: 'Title', after: input.title }], input }),
+    prepare: async (_ctx, input) => ({
+      summary: `Create note "${input.title}"`,
+      details: [{ label: 'Title', after: input.title }, ...(input.text ? [{ label: 'Text', after: input.text }] : [])],
+      input,
+    }),
     execute: async (ctx, input) => {
       const paragraphs = String(input.text ?? '').split(/\n{2,}/).filter(Boolean);
       const note = await createNote(noteOwner(ctx.user), {
@@ -673,7 +688,11 @@ const content: AssistantTool[] = [
     input: z.object({ url: z.string().trim().url().max(2000), slug: z.string().trim().max(60).optional(), title: z.string().trim().max(200).optional() }),
     prepare: async (_ctx, input) => ({
       summary: `Create short link to ${input.url}`,
-      details: [{ label: 'URL', after: input.url }, ...(input.slug ? [{ label: 'Slug', after: input.slug }] : [])],
+      details: [
+        { label: 'URL', after: input.url },
+        ...(input.slug ? [{ label: 'Slug', after: input.slug }] : []),
+        ...(input.title ? [{ label: 'Title', after: input.title }] : []),
+      ],
       input,
     }),
     execute: async (ctx, input) => {

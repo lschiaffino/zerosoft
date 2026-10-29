@@ -199,10 +199,18 @@ export async function assertAiAvailable(workspaceId: string): Promise<void> {
  */
 export async function assertAiQuota(workspaceId: string): Promise<void> {
   await assertAiMonthlyQuota(workspaceId);
-  if (process.env.RATE_LIMIT_DISABLED !== 'true') {
-    const res = await rateLimit(`ai:${workspaceId}`, aiRateLimitPerMinute(), 60);
-    if (!res.ok) throw new AiError('rate_limited');
-  }
+  await assertAiRate(workspaceId);
+}
+
+/**
+ * Solo el rate limit por minuto del workspace (AI_RATE_LIMIT_PER_MINUTE). El
+ * asistente lo cuenta por cada llamada al modelo, no por turno: un turno con
+ * varias herramientas son varias llamadas.
+ */
+export async function assertAiRate(workspaceId: string): Promise<void> {
+  if (process.env.RATE_LIMIT_DISABLED === 'true') return;
+  const res = await rateLimit(`ai:${workspaceId}`, aiRateLimitPerMinute(), 60);
+  if (!res.ok) throw new AiError('rate_limited');
 }
 
 /**

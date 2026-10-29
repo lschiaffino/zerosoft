@@ -144,6 +144,33 @@ export async function listMessages(conversationId: string, limit = 200): Promise
   return rows.map((r) => ({ ...r, parts: parseJson<MessagePart[]>(r.parts, []) }));
 }
 
+/**
+ * Una página de mensajes (los más nuevos primero en la consulta, devueltos en
+ * orden). `before` = id del mensaje más viejo ya cargado: trae los anteriores.
+ */
+export async function listMessagesPage(
+  conversationId: string,
+  opts: { limit?: number; before?: string | null } = {},
+): Promise<{ messages: MessageRow[]; hasMore: boolean }> {
+  const limit = Math.min(Math.max(opts.limit ?? 100, 1), 200);
+  const args: Array<string | number> = [conversationId];
+  let cursor = '';
+  if (opts.before) {
+    cursor = ' AND rowid < (SELECT rowid FROM assistant_messages WHERE id = ? AND conversation_id = ?)';
+    args.push(opts.before, conversationId);
+  }
+  args.push(limit + 1);
+  const rows = (await getDb()
+    .prepare(
+      `SELECT id, role, content, parts, created_at FROM assistant_messages
+       WHERE conversation_id = ?${cursor} ORDER BY rowid DESC LIMIT ?`,
+    )
+    .all(...args)) as Array<Omit<MessageRow, 'parts'> & { parts: string }>;
+  const hasMore = rows.length > limit;
+  const page = rows.slice(0, limit).reverse();
+  return { messages: page.map((r) => ({ ...r, parts: parseJson<MessagePart[]>(r.parts, []) })), hasMore };
+}
+
 export async function addMessage(conversationId: string, role: 'user' | 'assistant', content: string, parts: MessagePart[] = []): Promise<MessageRow> {
   const row: MessageRow = { id: crypto.randomUUID(), role, content: content.slice(0, 20_000), parts, created_at: now() };
   await getDb()

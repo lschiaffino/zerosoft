@@ -145,6 +145,23 @@ body:has(.asst-panel) .fl-root { right: calc(min(440px, 100vw) + 20px); }
 .asst-home-recent a { color: var(--ink); overflow-wrap: anywhere; }
 .asst-home-foot p { margin: 0; }
 
+/* Valores largos de la tarjeta de confirmación (markdown, texto de una nota). */
+.asst-action-long > summary { cursor: pointer; overflow-wrap: anywhere; }
+.asst-action-long > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.asst-action-long pre {
+  margin: 6px 0 0;
+  max-height: 280px;
+  overflow: auto;
+  padding: 8px;
+  background: var(--bg-soft);
+  font-family: var(--font-data);
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.asst-home > p { margin: 0; font-size: 0.875rem; }
+.asst-load-earlier { align-self: center; }
+
 @media (prefers-reduced-motion: reduce) {
   .asst-tool > summary::before { transition: none; }
 }

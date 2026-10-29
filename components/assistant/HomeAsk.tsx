@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { ConversationSummary } from './client';
-import { useSuggestions } from './useAssistantStatus';
+import { useAssistantStatus, useSuggestions } from './useAssistantStatus';
 
 /**
  * El asistente en el inicio de la plataforma: preguntar abre la charla a
@@ -16,8 +16,11 @@ export default function HomeAsk() {
   const suggestions = useSuggestions('/app');
   const [draft, setDraft] = useState('');
   const [recent, setRecent] = useState<ConversationSummary[]>([]);
+  const { status } = useAssistantStatus(true);
+  const ready = status?.state === 'ready';
 
   useEffect(() => {
+    if (!ready) return;
     let alive = true;
     void fetch('/api/assistant/conversations')
       .then((r) => (r.ok ? r.json() : null))
@@ -28,12 +31,25 @@ export default function HomeAsk() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [ready]);
 
   function ask(text: string) {
     const q = text.trim();
     if (!q) return;
     router.push(`/app/assistant?q=${encodeURIComponent(q)}`);
+  }
+
+  // Mientras carga o si no responde el estado: nada (el inicio no salta con un error ajeno).
+  if (!status) return null;
+  if (!ready) {
+    return (
+      <section className="asst-home" aria-labelledby="asst-home-title" data-testid="home-assistant-off">
+        <h2 id="asst-home-title" className="asst-home-title">
+          {status.state === 'disabled' ? t('notConfigured.disabledTitle') : t('notConfigured.title')}
+        </h2>
+        <p className="muted">{status.admin ? t('notConfigured.admin') : t('notConfigured.member')}</p>
+      </section>
+    );
   }
 
   return (

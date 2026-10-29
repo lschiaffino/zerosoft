@@ -527,7 +527,7 @@ export default function AppSidebar({
             title={`${t('assistant')} (⌘J)`}
             data-assistant-trigger
           >
-            <Icon name="agents" size={15} />
+            <Icon name="assistant" size={15} />
             <span className="band-search-label">{t('assistant')}</span>
             <kbd className="kbd">⌘J</kbd>
           </button>
