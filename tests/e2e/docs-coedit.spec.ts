@@ -65,6 +65,14 @@ async function openLive(p: Page, pageId: string) {
   await expect(editable(p).or(p.locator('.docs-readonly-body')).first()).toBeVisible();
 }
 
+/**
+ * Caret al principio con un clic en el borde izquierdo (como lo haría una persona):
+ * Inicio después de un clic a la derecha del texto no mueve el caret en Chromium headless.
+ */
+async function caretAtStart(p: Page, id = 'p') {
+  await editable(p, id).click({ position: { x: 1, y: 6 } });
+}
+
 async function caretAtEnd(p: Page, id = 'p') {
   await editable(p, id).click();
   await p.keyboard.press('End');
@@ -108,8 +116,7 @@ test('Docs en vivo: dos personas en el mismo bloque y en el mismo punto, sin per
   await expect(editable(b)).toHaveText(final, { timeout: 15_000 });
 
   // Cursores: A ve el de Ana con su nombre y Ana ve el de A.
-  await editable(b).click();
-  await b.keyboard.press('Home');
+  await caretAtStart(b);
   await expect(a.getByTestId('docs-peer-caret').filter({ hasText: email.split('@')[0] })).toBeVisible({ timeout: 10_000 });
   await editable(a).click();
   await expect(b.getByTestId('docs-peer-caret')).toBeVisible({ timeout: 10_000 });
@@ -151,8 +158,7 @@ test('Docs en vivo: sin red se sigue escribiendo y al volver se fusiona con lo d
   await b.keyboard.type(' derecha', { delay: 25 });
   await expect(b.getByTestId('docs-offline-banner')).toBeVisible({ timeout: 10_000 });
   // Mientras, A escribe en el mismo párrafo (al principio y al final).
-  await editable(a).click();
-  await a.keyboard.press('Home');
+  await caretAtStart(a);
   await a.keyboard.type('izquierda ', { delay: 25 });
   await a.keyboard.press('End');
   await a.keyboard.type(' (A)', { delay: 25 });

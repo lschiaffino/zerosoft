@@ -16,6 +16,9 @@
 import { apply, diff, isNoop, textHash, transform, type TextOp } from './docs-ot';
 import type { CoeditEvent, CoeditOpItem, CoeditOpResult } from './docs-coedit-shared';
 
+/** Cuánto cambia una operación (caracteres insertados más borrados). */
+const opSize = (op: TextOp): number => op.reduce<number>((n, c) => n + (typeof c === 'string' ? c.length : c < 0 ? -c : 0), 0);
+
 type OpEvent = Extract<CoeditEvent, { kind: 'op' }>;
 
 export interface CoeditScreen {
@@ -319,6 +322,18 @@ export class CoeditEngine {
       return;
     }
     const R = ev.op;
+    // Cambio de un guardado de página (sin sesión) que la pantalla ya tiene: el eco
+    // del guardado propio cuando el texto viajó en el guardado (modo sugerir) o
+    // de un guardado que ya se fusionó acá. Transformarlo lo escribiría dos veces.
+    if (ev.session === null && !b.inflight) {
+      const V0 = this.screen.get(id);
+      const after = apply(b.S, R);
+      if (V0 !== null && (V0 === after || opSize(diff(after, V0)) < opSize(diff(b.S, V0)))) {
+        b.S = after;
+        b.rev = ev.rev;
+        return;
+      }
+    }
     const known = b.inflight ? apply(b.S, b.inflight.op) : b.S;
     let R1 = R;
     if (b.inflight) {

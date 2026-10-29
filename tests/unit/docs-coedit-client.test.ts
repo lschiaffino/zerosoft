@@ -20,6 +20,14 @@ class FakeServer {
     return this.log.find((e) => e.rev === rev)?.ha ?? null;
   }
   baseHash = '';
+  /** Un guardado de página que cambió el texto (lib/docs-coedit.ts coeditAfterSave): operación sin sesión. */
+  save(next: string) {
+    const ev: OpEvent = { kind: 'op', block: 'p', rev: this.rev + 1, session: null, seq: null, user: null, op: diff(this.text, next), hb: textHash(this.text), ha: textHash(next) };
+    this.text = next;
+    this.rev += 1;
+    this.log.push(ev);
+    for (const l of this.listeners) l(ev);
+  }
   receive(session: string, items: CoeditOpItem[]): CoeditOpResult[] {
     return items.map((item) => {
       const dup = this.log.find((e) => e.session === session && e.seq === item.seq);
@@ -82,6 +90,10 @@ function client(server: FakeServer, session: string, initial: string) {
     erase(at: number, n: number) {
       text = text.slice(0, at) + text.slice(at + n);
       engine.localChanged();
+    },
+    /** Cambia la pantalla sin operaciones (el texto viaja en el guardado, como en modo sugerir). */
+    edit(next: string) {
+      text = next;
     },
     deliver(count = Infinity) {
       for (let k = 0; k < count && inbox.length; k++) engine.receive(inbox.shift()!);
@@ -184,6 +196,34 @@ describe('CoeditEngine', () => {
     a.deliver();
     expect(server.text).toBe('>base!');
     expect(a.text).toBe('>base!');
+  });
+
+  it('el eco de un guardado propio (texto que viajó en el guardado) no se escribe dos veces', async () => {
+    const server = new FakeServer('Reunión el lunes');
+    server.baseHash = textHash('Reunión el lunes');
+    const a = client(server, 'sessA3333', 'Reunión el lunes');
+    const b = client(server, 'sessB3333', 'Reunión el lunes');
+    const saved = 'Reunión el lunes<span data-sug-kind="ins"> a las 10</span>';
+    a.edit(saved);
+    server.save(saved);
+    a.deliver();
+    b.deliver();
+    await settle();
+    expect(a.text).toBe(saved);
+    // Quien no tenía el cambio lo recibe.
+    expect(b.text).toBe(saved);
+    // Aceptar en la pantalla y guardar: el eco no cambia nada.
+    a.edit('Reunión el lunes a las 10');
+    server.save('Reunión el lunes a las 10');
+    a.deliver();
+    expect(a.text).toBe('Reunión el lunes a las 10');
+    // Se siguió escribiendo antes de que llegara el eco: queda una sola vez.
+    a.edit('Reunión el lunes a las 10:30!');
+    server.save('Reunión el lunes a las 10:30');
+    a.deliver();
+    expect(a.text).toBe('Reunión el lunes a las 10:30!');
+    b.deliver();
+    expect(b.text).toBe('Reunión el lunes a las 10:30');
   });
 
   it('reintentar la misma operación no la aplica dos veces', () => {
