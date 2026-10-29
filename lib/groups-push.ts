@@ -246,6 +246,15 @@ export async function takePending(ws: string, personId: string, limit = 5): Prom
   const out: PendingNotification[] = [];
   const now = new Date().toISOString();
   for (const r of rows) {
+    // Push de Talk: solo si la persona sigue en Talk de ese workspace (pudo perder la app o salir).
+    if (r.url.startsWith('/app/talk/')) {
+      const w = /[?&]w=([^&]+)/.exec(r.url)?.[1] ?? ws;
+      const { isWorkspacePerson } = await import('./talk');
+      if (!(await isWorkspacePerson(decodeURIComponent(w), personId).catch(() => false))) {
+        await db.prepare('DELETE FROM groups_notifications WHERE id = ?').run(r.id).catch(() => undefined);
+        continue;
+      }
+    }
     const claim = await db.prepare('UPDATE groups_notifications SET delivered_at = ? WHERE id = ? AND delivered_at IS NULL').run(now, r.id);
     if (claim.changes > 0) out.push({ id: r.id, title: r.title, body: r.body, url: r.url, createdAt: r.created_at });
   }

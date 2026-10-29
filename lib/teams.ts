@@ -94,6 +94,14 @@ export async function setMemberApps(teamId: string, userId: string, apps: AppAcc
     if (team) {
       const { emitTalkEvent } = await import('./talk');
       await emitTalkEvent(team.owner_id, 'access', { userId, payload: { change: 'apps' } }).catch(() => undefined);
+      // Si perdió Talk, el push sin entregar de este workspace no debe mostrar ese texto.
+      const { isWorkspacePerson } = await import('./talk');
+      if (!(await isWorkspacePerson(team.owner_id, userId).catch(() => true))) {
+        await getDb()
+          .prepare("DELETE FROM groups_notifications WHERE person_id = ? AND url LIKE '/app/talk/%' AND (user_id = ? OR url LIKE ? OR url LIKE ?)")
+          .run(userId, team.owner_id, `%?w=${encodeURIComponent(team.owner_id)}&%`, `%&w=${encodeURIComponent(team.owner_id)}&%`)
+          .catch(() => undefined);
+      }
       // Si ahora tiene el CRM, reclama los registros importados que lo esperaban.
       const { personAppsChanged } = await import('./workspace-lifecycle');
       await personAppsChanged({ ownerId: team.owner_id, teamId, userId });
