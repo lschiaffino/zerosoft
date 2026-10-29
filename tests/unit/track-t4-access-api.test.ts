@@ -9,6 +9,7 @@ import { handleTrackEvent } from '@/lib/track-events';
 import { auditCsvCell, auditToCsv, listAudit } from '@/lib/track-audit';
 import { handleMcpMessage } from '@/lib/track-mcp';
 import { validateApiKeyAuth } from '@/lib/api-auth';
+import { ensureWorkspace, updateWorkspace } from '@/lib/workspace';
 import { makeUser } from './helpers';
 
 const session = vi.hoisted(() => ({ user: null as null | Record<string, unknown> }));
@@ -95,6 +96,19 @@ describe('Track T4: proyectos privados e invitados', () => {
       }) as never,
     );
     expect(bad.status).toBe(400);
+    session.user = null;
+  });
+
+  it('workspace propio sin miembros: en modo equipo deja invitar; en modo personal, no', async () => {
+    const owner = await makeUser('solo');
+    const ws = await ensureWorkspace(owner.id);
+    await updateWorkspace(ws.id, { name: 'Solo team', mode: 'team' });
+    const fresh = async () => (await getDb().prepare('SELECT * FROM teams WHERE id = ?').get(ws.id)) as Awaited<ReturnType<typeof ensureWorkspace>>;
+    session.user = { ...owner, team: null, workspace: await fresh(), role: 'owner' };
+    expect(((await (await accessRoute.GET()).json()) as { personal: boolean }).personal).toBe(false);
+    await updateWorkspace(ws.id, { mode: 'personal' });
+    session.user = { ...owner, team: null, workspace: await fresh(), role: 'owner' };
+    expect(((await (await accessRoute.GET()).json()) as { personal: boolean }).personal).toBe(true);
     session.user = null;
   });
 });
