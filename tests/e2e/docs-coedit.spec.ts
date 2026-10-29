@@ -23,7 +23,8 @@ async function pageWith(request: APIRequestContext, title: string, content: Bloc
 
 async function textOf(request: APIRequestContext, id: string, block = 'p'): Promise<string | undefined> {
   const page = (await (await request.get(`/api/docs/pages/${id}`)).json()) as { content: Block[] };
-  return page.content.find((b) => b.id === block)?.content;
+  const raw = page.content.find((b) => b.id === block)?.content;
+  return raw?.replace(/&nbsp;|\u00a0/g, ' ');
 }
 
 /** Otra persona: su propia sesión (el server la reconoce por la cookie de e2e). */

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser, realUserId, type SessionUser } from '@/lib/session';
 import { DOC_INTERNAL_READ, getDocAccess, getDocPageRow, resolveDocAccess } from '@/lib/docs';
@@ -17,6 +17,7 @@ import {
 } from '@/lib/docs-coedit';
 import { isTextOp } from '@/lib/docs-ot';
 import { requestCursor } from '@/lib/realtime';
+import { getUserTimeZone } from '@/lib/user-tz';
 import { docsError, forbidden, invalidBody, notFound, unauthorized } from '@/lib/docs-http';
 
 export const runtime = 'nodejs';
@@ -119,7 +120,34 @@ export async function POST(req: NextRequest) {
     if (row.locked === 1 && !body.bypass_lock) return docsError(423, 'locked');
     if (body.items.some((i) => !isTextOp(i.op))) return docsError(400, 'invalid_input');
     try {
-      results = await applyTextOps({ pageId: row.id, actorId: me, session: body.session, items: body.items });
+      const locale = req.cookies.get('NEXT_LOCALE')?.value;
+      const timezone = await getUserTimeZone().catch(() => undefined);
+      results = await applyTextOps({
+        pageId: row.id,
+        actorId: me,
+        session: body.session,
+        items: body.items,
+        // Lo mismo que después de un guardado: versión automática, recordatorios de fechas y page.updated (agrupado).
+        onSaved: (before, blocks) =>
+          after(async () => {
+            const [{ maybeAutoSnapshot }, { afterDocsPageSaved }, { syncDocReminders }] = await Promise.all([
+              import('@/lib/docs-versions'),
+              import('@/lib/docs-events'),
+              import('@/lib/docs-reminders'),
+            ]);
+            await maybeAutoSnapshot(row.user_id, row.id, me, before).catch(() => undefined);
+            const updated = await getDocPageRow(row.id);
+            if (updated) await afterDocsPageSaved({ ws: row.user_id, before, after: updated, actorId: me, titleOrContent: true });
+            await syncDocReminders({
+              pageId: row.id,
+              workspaceId: row.user_id,
+              actorId: me,
+              blocks,
+              locale: locale === 'es' || locale === 'pt' || locale === 'en' ? locale : undefined,
+              timezone,
+            }).catch(() => undefined);
+          }),
+      });
     } catch (err) {
       if (err instanceof CoeditAccessError) return notFound();
       if (err instanceof Error && err.message === 'coedit_busy') return docsError(503, 'busy');

@@ -288,7 +288,14 @@ export class CoeditAccessError extends Error {
  * chequeó que puede editar (y que no está bloqueada). Reintenta si otro
  * guardado se cuela (compare-and-set de la página).
  */
-export async function applyTextOps(args: { pageId: string; actorId: string; session: string; items: CoeditOpItem[] }): Promise<CoeditOpResult[]> {
+export async function applyTextOps(args: {
+  pageId: string;
+  actorId: string;
+  session: string;
+  items: CoeditOpItem[];
+  /** Se guardó la página (versiones, recordatorios, eventos de Flow y webhooks: lo mismo que un guardado). */
+  onSaved?: (before: DocsPageRow, blocks: DocsBlock[]) => void;
+}): Promise<CoeditOpResult[]> {
   const items = args.items.slice(0, MAX_ITEMS);
   for (let attempt = 0; attempt < 6; attempt++) {
     const row = (await getDb().prepare('SELECT * FROM docs_pages WHERE id = ?').get(args.pageId)) as DocsPageRow | undefined;
@@ -429,6 +436,7 @@ export async function applyTextOps(args: { pageId: string; actorId: string; sess
       if (id) eventIds.set(`${p.blockId}:${p.rev}`, id);
     }
     coeditFeed().poke();
+    args.onSaved?.(row, blocks);
     return finish(eventIds);
   }
   // Demasiados guardados a la vez: el navegador reintenta con la misma seq.
