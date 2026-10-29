@@ -254,7 +254,7 @@ export function useDocsCollab(d: Deps) {
         caret: caretOp === null ? null : caretBlock && sel ? { blockId: caretBlock.id, start: sel.start, end: sel.end, text: flatText(caretBlock.content) } : null,
         resolve: () => {},
         conflicts: res.conflicts,
-        caretOp,
+        caretOp: caretOp ?? undefined,
       };
       remote.current = entry;
       // Red de seguridad: si por algo no se pintó, no queda marcada.
