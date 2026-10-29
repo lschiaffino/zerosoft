@@ -79,7 +79,7 @@ export default async function AppLayout(
   if (workspaces.length && !workspaces.some((w) => w.current)) workspaces[0].current = true;
   const tTriage = await getTranslations({ locale, namespace: 'trackTriage' });
   // Lecturas independientes en paralelo (en Turso cada query es un RTT).
-  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tasksDue, serverTz, tPlanning, mode, tCat] =
+  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tasksDue, serverTz, tPlanning, mode, tCat] =
     await Promise.all([
       getTranslations({ locale, namespace: 'settings' }),
       getTranslations({ locale, namespace: 'common.sidebar' }),
@@ -98,6 +98,7 @@ export default async function AppLayout(
       getTranslations({ locale, namespace: 'voice' }),
       getTranslations({ locale, namespace: 'rec' }),
       getTranslations({ locale, namespace: 'talk' }),
+      getTranslations({ locale, namespace: 'design' }),
       // El badge no puede tirar todas las páginas de la app: sin la tabla o con un error, 0.
       countDueTasks(user.id).catch((err) => {
         console.error('[app layout] countDueTasks', err);
@@ -163,6 +164,7 @@ export default async function AppLayout(
                 { href: '/app/voice/settings', label: tSide('appSettings') },
                 { href: '/app/rec/settings', label: tSide('appSettings') },
                 { href: '/app/talk/settings', label: tSide('appSettings') },
+                { href: '/app/design/settings', label: tSide('appSettings') },
                 { href: '/app/crm', label: tCrm('tabs.overview') },
                 { href: '/app/crm/contacts', label: tCrm('tabs.contacts') },
                 { href: '/app/crm/companies', label: tCrm('tabs.companies') },
@@ -248,6 +250,9 @@ export default async function AppLayout(
                 { href: '/app/rec/workspace', label: tRec('sidebar.workspace') },
                 { href: '/app/rec/new', label: tRec('sidebar.newVideo') },
                 { href: '/app/talk', label: tTalk('sidebar.home') },
+                { href: '/app/design', label: tDesign('sidebar.home') },
+                { href: '/app/design/templates', label: tDesign('sidebar.templates') },
+                { href: '/app/design/brand', label: tDesign('sidebar.brand') },
               ]}
             />
           }
@@ -404,6 +409,7 @@ export default async function AppLayout(
             voice: { meetings: tVoice('nav.meetings'), dictation: tVoice('nav.dictation'), newMeeting: tVoice('meetings.new') },
             rec: { home: tRec('sidebar.home'), workspace: tRec('sidebar.workspace'), newVideo: tRec('sidebar.newVideo') },
             talk: { home: tTalk('sidebar.home') },
+            design: { home: tDesign('sidebar.home'), templates: tDesign('sidebar.templates'), brand: tDesign('sidebar.brand'), newDesign: tDesign('sidebar.newDesign') },
             notifications: {
               title: tTrack('notifications.title'),
               markRead: tTrack('notifications.markRead'),
@@ -441,6 +447,8 @@ export default async function AppLayout(
                 recComment: tRec.raw('notifications.comment') as string,
                 recReaction: tRec.raw('notifications.reaction') as string,
                 recComments: tRec.raw('notifications.comments') as string,
+                designComment: tDesign.raw('notifications.comment') as string,
+                designShare: tDesign.raw('notifications.share') as string,
               },
             },
           }}

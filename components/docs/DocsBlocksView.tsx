@@ -6,6 +6,7 @@ import { buildToc } from '@/lib/docs-toc';
 import { docsFileHref, formatFileSize } from '@/lib/docs-files';
 import { blocksToTree, isToggleBlock, type DocsBlockNode } from '@/lib/docs-blocks';
 import { DocsBoardPreview } from './DocsBoardEmbed';
+import { DocsDesignPreview } from './DocsDesignEmbed';
 import DbReadOnly from './database/DbReadOnly';
 import { BookmarkCard, EmbedFrame } from './DocsLinkCards';
 import { columnRatio } from '@/lib/docs-columns';
@@ -207,6 +208,10 @@ export default function DocsBlocksView({
         // Vista previa con chequeo de acceso de quien mira (sin acceso: aviso, sin datos).
         if (!boards || !b.board_id) return null;
         return <DocsBoardPreview key={b.id} boardId={b.board_id} />;
+      case 'design':
+        // Misma regla que la pizarra: la vista previa chequea el acceso de quien mira.
+        if (!boards || !b.design_id) return null;
+        return <DocsDesignPreview key={b.id} designId={b.design_id} />;
       case 'database':
         // La vista activa de la base (filtro, orden, agrupado), en lectura.
         return <DbReadOnly key={b.id} block={b} people={people} locale={locale} pageId={pageId} foreign={foreign} defaultView={dbDefaultView} />;

@@ -1072,6 +1072,16 @@
 .mk-board-arrow,
 .mk-board-scribble { fill: none; stroke: var(--brand-ink); stroke-width: 1.5; stroke-linecap: round; }
 .mk-board-scribble { stroke: var(--accent); stroke-width: 3; stroke-dasharray: 2 7; }
+/* Design: plantillas, póster y tira de páginas (el póster usa sus propios colores). */
+.mk-design-panel { fill: var(--brand-white); stroke: var(--line); }
+.mk-design-cap { font-family: var(--sans); font-size: 12px; fill: var(--brand-gray-2); }
+.mk-design-poster-h { font-family: var(--sans); font-size: 30px; font-weight: 700; fill: #ffffff; }
+.mk-design-poster-s { font-family: var(--sans); font-size: 13px; fill: #cfe9f0; }
+.mk-design-poster-cta { font-family: var(--sans); font-size: 13px; font-weight: 700; fill: #111111; }
+.mk-design-sel { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+.mk-design-handle { fill: var(--brand-white); stroke: var(--accent); stroke-width: 1.5; }
+.mk-design-page { fill: var(--brand-white); stroke: var(--line); }
+.mk-design-page.active { stroke: var(--accent); stroke-width: 2; }
 
 /* ---------- Marco de la vista de producto ---------- */
 

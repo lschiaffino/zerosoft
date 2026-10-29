@@ -36,6 +36,7 @@ export const RIVALS: Record<ProductKey, string> = {
   voice: 'Wispr Flow · Granola',
   rec: 'Loom',
   talk: 'Slack',
+  design: 'Canva',
 };
 
 /** Las seis apps de la tabla de costos del home (precio por usuario o plan fijo). */
@@ -138,4 +139,5 @@ export const PRODUCT_PAGES: Record<ProductKey, ProductPageSpec> = {
   voice: { sections: ['features', 'parity', 'how', 'compare', 'shot', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
   rec: { sections: ['features', 'how', 'parity', 'compare', 'shot', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
   talk: { sections: ['features', 'parity', 'compare', 'how', 'shot', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
+  design: { sections: ['shot', 'features', 'parity', 'compare', 'how', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
 };

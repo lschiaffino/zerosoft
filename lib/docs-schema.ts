@@ -30,6 +30,7 @@ const docsBlockType = z.enum([
   'toggle',
   'callout',
   'board',
+  'design',
   'video',
   'audio',
   'pdf',
@@ -241,6 +242,7 @@ const docsBaseBlockSchema = z.object({
   icon: z.string().max(16).optional(),
   // Bloque board (sanitizeBlocks lo descarta si no es un id válido o el bloque no es board).
   board_id: z.string().max(64).optional(),
+  design_id: z.string().max(64).optional(),
   // Bloques nuevos (sanitizeBlocks valida cada campo según el tipo).
   width: z.number().min(0).max(100).optional(),
   align: z.enum(['left', 'center', 'right']).optional(),

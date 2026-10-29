@@ -439,7 +439,9 @@
       "flowTables": "Tables",
       "api": "API and webhooks",
       "aiUsage": "Workspace AI usage",
-      "recorder": "Robot recorder"
+      "recorder": "Robot recorder",
+      "designBrand": "Brand kit",
+      "designTemplates": "Design templates"
     }
   },
   "members": {

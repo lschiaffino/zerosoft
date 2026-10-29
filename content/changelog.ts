@@ -29,6 +29,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-29-design',
+    date: '2026-10-29',
+    title: {
+      en: 'Design: graphic design from templates, like Canva',
+      es: 'Design: diseño gráfico desde plantillas, como Canva',
+      pt: 'Design: design gráfico a partir de modelos, como o Canva',
+    },
+    items: [
+      { product: 'design', en: 'Start from a preset size (Instagram post and story, LinkedIn, A4, 16:9 presentation, logo), a custom size up to 8000 px or one of 20 templates. Designs live in folders, with search, stars, recents and a trash.', es: 'Arrancá de un tamaño listo (post e historia de Instagram, LinkedIn, A4, presentación 16:9, logo), uno a medida de hasta 8000 px o una de 20 plantillas. Los diseños se ordenan en carpetas, con búsqueda, favoritos, recientes y papelera.', pt: 'Comece por um tamanho pronto (post e story do Instagram, LinkedIn, A4, apresentação 16:9, logo), um personalizado de até 8000 px ou um de 20 modelos. Os designs ficam em pastas, com busca, favoritos, recentes e lixeira.' },
+      { product: 'design', en: 'The editor has text with 12 fonts, shapes, lines, icons, frames, grids and your uploaded images, with layers, groups, align and distribute, snapping guides, crop, rotate, lock, undo, keyboard shortcuts and several pages per design.', es: 'El editor tiene texto con 12 fuentes, formas, líneas, íconos, marcos, cuadrículas y tus imágenes, con capas, grupos, alinear y distribuir, guías de alineación, recortar, rotar, bloquear, deshacer, atajos de teclado y varias páginas por diseño.', pt: 'O editor tem texto com 12 fontes, formas, linhas, ícones, molduras, grades e suas imagens, com camadas, grupos, alinhar e distribuir, guias de alinhamento, recortar, girar, bloquear, desfazer, atalhos de teclado e várias páginas por design.' },
+      { product: 'design', en: 'A brand kit per workspace with logos, colors and fonts that admins edit and everyone applies from the editor. Download as PNG, transparent PNG, JPG or multi-page PDF, straight from the browser.', es: 'Un kit de marca por workspace con logos, colores y fuentes que editan los admins y aplica cualquiera desde el editor. Descargá en PNG, PNG transparente, JPG o PDF de varias páginas, directo desde el navegador.', pt: 'Um kit de marca por workspace com logos, cores e fontes que os admins editam e qualquer pessoa aplica no editor. Baixe em PNG, PNG transparente, JPG ou PDF de várias páginas, direto do navegador.' },
+      { product: 'design', en: 'Share with the workspace or with specific people to view or edit, or with a view-only public link you can turn off. Comments pin to a spot on the canvas and you see who has the design open. Insert a design in a Docs page or send a page to a Board.', es: 'Compartí con el workspace o con personas puntuales para ver o editar, o con un link público de solo lectura que podés cortar. Los comentarios se fijan en un punto del lienzo y ves quién tiene el diseño abierto. Insertá un diseño en una página de Docs o mandá una página a Board.', pt: 'Compartilhe com o workspace ou com pessoas específicas para ver ou editar, ou com um link público só de visualização que você pode desligar. Os comentários ficam fixados num ponto da tela e você vê quem está com o design aberto. Insira um design numa página do Docs ou envie uma página para o Board.' },
+    ],
+  },
+  {
     id: '2026-10-28-talk',
     date: '2026-10-28',
     title: {

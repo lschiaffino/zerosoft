@@ -26,6 +26,7 @@ export const API_SCOPES = [
   'talk:write',
   'boards:read',
   'boards:write',
+  'design:read',
 ] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 
@@ -71,6 +72,7 @@ export const SCOPE_APP: Record<string, string> = {
   docs: 'docs',
   talk: 'talk',
   boards: 'board',
+  design: 'design',
 };
 
 /** Solo los scopes de apps permitidas ('*' = todas). */

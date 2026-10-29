@@ -173,6 +173,7 @@ export function blocksToHtmlBody(input: DocsBlock[], opts: BlocksToHtmlOptions):
         break;
       case 'breadcrumb':
       case 'board':
+      case 'design':
         break;
       case 'table': {
         const rows = b.rows ?? [];

@@ -439,7 +439,9 @@
       "flowTables": "Tablas",
       "api": "API y webhooks",
       "aiUsage": "Uso de IA del workspace",
-      "recorder": "Grabador de robots"
+      "recorder": "Grabador de robots",
+      "designBrand": "Kit de marca",
+      "designTemplates": "Plantillas de Design"
     }
   },
   "members": {

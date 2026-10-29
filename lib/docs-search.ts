@@ -71,6 +71,7 @@ export function blockSearchText(block: DocsBlock): string {
       return block.button?.label ?? '';
     case 'divider':
     case 'board':
+    case 'design':
     case 'columns':
     case 'column':
     case 'synced':

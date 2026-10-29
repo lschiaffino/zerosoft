@@ -61,6 +61,7 @@
   --c-voice: #c026d3;
   --c-rec: #e11d48;
   --c-talk: #8e3a80;
+  --c-design: #00a5c8;
 
   /* Forma: la del tema (--radius-1). */
   --r-xs: var(--radius-1);
@@ -140,6 +141,7 @@ body {
 .card-groups { --accent: var(--c-groups); --on-accent: var(--ink); }
 .card-voice { --accent: var(--c-voice); --on-accent: #ffffff; }
 .card-rec { --accent: var(--c-rec); --on-accent: #ffffff; }
+.card-design { --accent: var(--c-design); --on-accent: #111111; }
 .card-talk { --accent: var(--c-talk); --on-accent: #ffffff; }
 /* El color del producto, oscurecido para usarlo como texto sobre blanco. */
 [class*='card-'] { --accent-ink: color-mix(in srgb, var(--accent) 74%, var(--ink)); }

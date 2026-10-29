@@ -1,0 +1,563 @@
+{
+  "meta": {
+    "title": "Design"
+  },
+  "sidebar": {
+    "home": "Designs",
+    "templates": "Modelos",
+    "brand": "Kit de marca",
+    "newDesign": "Novo design"
+  },
+  "notifications": {
+    "comment": "{actor} comentou em {title}",
+    "share": "{actor} compartilhou {title} com você"
+  },
+  "branch": {
+    "label": "Designs",
+    "folders": "Pastas",
+    "recent": "Recentes",
+    "empty": "Os designs que você abre aparecem aqui."
+  },
+  "presets": {
+    "instagram-post": {
+      "name": "Post do Instagram"
+    },
+    "instagram-story": {
+      "name": "Story do Instagram"
+    },
+    "linkedin-post": {
+      "name": "Post do LinkedIn"
+    },
+    "a4": {
+      "name": "Documento A4"
+    },
+    "presentation": {
+      "name": "Apresentação 16:9"
+    },
+    "logo": {
+      "name": "Logo"
+    },
+    "custom": {
+      "name": "Tamanho personalizado"
+    }
+  },
+  "home": {
+    "title": "Design",
+    "lead": "Posts, apresentações, folhetos e logos. Comece por um tamanho ou um modelo.",
+    "folderLead": "Designs desta pasta.",
+    "create": "Criar um design",
+    "createShort": "Criar",
+    "createTitle": "Criar um design",
+    "creating": "Criando…",
+    "createError": "Não foi possível criar o design. Tente de novo.",
+    "anySize": "Largura e altura em px",
+    "fromTemplate": "A partir de um modelo",
+    "templatesCount": "20 modelos",
+    "orTemplate": "Ou comece por um modelo",
+    "views": {
+      "recent": "Recentes",
+      "mine": "Seus designs",
+      "shared": "Compartilhados com você",
+      "starred": "Favoritos",
+      "trash": "Lixeira"
+    },
+    "search": "Buscar designs",
+    "folders": "Pastas",
+    "newFolder": "Nova pasta",
+    "renameFolder": "Renomear pasta",
+    "deleteFolder": "Excluir pasta",
+    "deleteFolderBody": "Excluir a pasta “{name}”? Os designs dela ficam em Seus designs.",
+    "listLabel": "Designs",
+    "loadError": "Não foi possível carregar os designs.",
+    "retry": "Tentar de novo",
+    "actionError": "Não funcionou. Tente de novo.",
+    "empty": {
+      "recent": {
+        "title": "Ainda não há designs",
+        "body": "Escolha um tamanho acima ou comece por um modelo. O que você cria e abre aparece aqui."
+      },
+      "mine": {
+        "title": "Você não criou designs",
+        "body": "Escolha um tamanho ou um modelo para começar o primeiro."
+      },
+      "shared": {
+        "title": "Nada compartilhado com você ainda",
+        "body": "Os designs que seu time compartilha com você ou com todo o workspace aparecem aqui."
+      },
+      "starred": {
+        "title": "Nenhum favorito",
+        "body": "Marque um design com a estrela no menu dele ou no editor para encontrá-lo aqui."
+      },
+      "trash": {
+        "title": "A lixeira está vazia",
+        "body": "Os designs que você manda para a lixeira ficam aqui até você restaurar ou excluir."
+      },
+      "folder": {
+        "title": "Esta pasta está vazia",
+        "body": "Mova designs pelo menu deles, ou crie um com a pasta aberta."
+      }
+    },
+    "emptySearch": {
+      "title": "Sem resultados",
+      "body": "Nenhum design corresponde a “{q}”."
+    },
+    "open": "Abrir {name}",
+    "openShort": "Abrir",
+    "menu": "Opções de {name}",
+    "rename": "Renomear",
+    "duplicate": "Duplicar",
+    "duplicated": "Cópia criada",
+    "copyName": "{name} (cópia)",
+    "star": "Marcar como favorito",
+    "unstar": "Tirar dos favoritos",
+    "starred": "Favorito",
+    "move": "Mover para pasta",
+    "moveTitle": "Mover para pasta",
+    "moved": "Movido para {folder}",
+    "noFolder": "Sem pasta",
+    "noFolders": "Você ainda não tem pastas. Crie uma na lista.",
+    "trash": "Mover para a lixeira",
+    "trashed": "Está na lixeira",
+    "restore": "Restaurar",
+    "restored": "Design restaurado",
+    "deleteForever": "Excluir de vez",
+    "purgeBody": "Excluir “{name}” de vez? Os comentários também são excluídos. Não dá para desfazer.",
+    "confirmDelete": "Excluir",
+    "cancel": "Cancelar",
+    "save": "Salvar",
+    "name": "Nome",
+    "untitled": "Design sem título",
+    "pages": "{n} páginas",
+    "customTitle": "Tamanho personalizado",
+    "width": "Largura (px)",
+    "height": "Altura (px)",
+    "sizeInvalid": "A largura e a altura vão de {min} a {max} px."
+  },
+  "templates": {
+    "title": "Modelos",
+    "lead": "Escolha um para começar um design novo com as páginas dele. Depois troque textos, cores e fotos.",
+    "filter": "Filtrar por tamanho",
+    "all": "Todos",
+    "search": "Buscar modelos",
+    "workspace": "Seu workspace",
+    "workspaceEmpty": "Salve qualquer design como modelo pelo menu do editor e seu time encontra aqui.",
+    "builtIn": "Modelos",
+    "empty": "Nenhum modelo corresponde.",
+    "use": "Usar o modelo {name}",
+    "pages": "{n} páginas",
+    "creating": "Criando seu design…",
+    "error": "Não foi possível criar o design. Tente de novo."
+  },
+  "brand": {
+    "title": "Kit de marca",
+    "lead": "As cores, fontes e logos do workspace. Todos aplicam pelo editor.",
+    "readOnly": "As cores, fontes e logos do workspace. Owners e admins editam.",
+    "save": "Salvar",
+    "saved": "Kit de marca salvo.",
+    "saveError": "Não foi possível salvar o kit de marca.",
+    "colors": "Cores",
+    "colorsHelp": "Até 24. No editor, um clique aplica a cor ao que está selecionado.",
+    "noColors": "Ainda não há cores.",
+    "newColor": "Nova cor",
+    "addColor": "Adicionar cor",
+    "removeColor": "Remover {color}",
+    "fonts": "Fontes",
+    "fontsHelp": "O texto que você adiciona pelo painel Texto usa estas fontes.",
+    "slot": {
+      "heading": "Título",
+      "subheading": "Subtítulo",
+      "body": "Corpo"
+    },
+    "sample": {
+      "heading": "Um título claro",
+      "subheading": "Uma linha de apoio",
+      "body": "Texto para parágrafos mais longos."
+    },
+    "noFont": "Padrão",
+    "logos": "Logos",
+    "logosHelp": "PNG, JPG, GIF ou WebP de até 4 MB. Até 12.",
+    "noLogos": "Ainda não há logos.",
+    "uploadLogo": "Enviar logo",
+    "removeLogo": "Remover",
+    "uploadError": "Não foi possível enviar o logo. Use PNG, JPG, GIF ou WebP de até 4 MB."
+  },
+  "editor": {
+    "back": "Voltar aos designs",
+    "name": "Nome do design",
+    "star": "Marcar como favorito",
+    "unstar": "Tirar dos favoritos",
+    "undo": "Desfazer",
+    "redo": "Refazer",
+    "saving": "Salvando…",
+    "saved": "Salvo",
+    "unsaved": "Alterações não salvas",
+    "saveError": "Não salvou. Tenta de novo quando você editar.",
+    "conflictShort": "Não salvo",
+    "conflict": "Outra pessoa salvou uma versão mais nova.",
+    "conflictBy": "{name} salvou uma versão mais nova.",
+    "loadLatest": "Trazer a versão dela",
+    "keepMine": "Ficar com a minha",
+    "updatedByOther": "Atualizado com a última versão salva.",
+    "viewOnly": "Somente leitura",
+    "presence": "Também aqui",
+    "personOnPage": "{name} · página {n}",
+    "zoom": "Zoom",
+    "zoomIn": "Aproximar",
+    "zoomOut": "Afastar",
+    "fit": "Ajustar à tela",
+    "comment": "Comentar",
+    "present": "Apresentar",
+    "download": "Baixar",
+    "share": "Compartilhar",
+    "more": "Mais",
+    "resize": "Mudar tamanho",
+    "duplicate": "Fazer uma cópia",
+    "copyName": "{name} (cópia)",
+    "resizedName": "{name} {w}×{h}",
+    "saveTemplate": "Salvar como modelo do workspace",
+    "templateSaved": "Salvo como modelo do workspace.",
+    "shortcuts": "Atalhos de teclado",
+    "trash": "Mover para a lixeira",
+    "actionError": "Não funcionou. Tente de novo.",
+    "renameError": "Não foi possível salvar o nome.",
+    "stage": "Tela do design",
+    "pages": "Páginas",
+    "pageN": "Página {n}",
+    "addPage": "Adicionar página",
+    "pageMenu": "Opções da página",
+    "duplicatePage": "Duplicar página",
+    "movePageUp": "Mover para a esquerda",
+    "movePageDown": "Mover para a direita",
+    "deletePage": "Excluir página",
+    "pickBackground": "Imagem de fundo",
+    "pickImage": "Escolha uma imagem",
+    "commentsError": "Não foi possível carregar os comentários.",
+    "uploadError": "Não foi possível enviar a imagem.",
+    "uploadTooLarge": "Essa imagem passa de 4 MB mesmo reduzida.",
+    "uploadType": "Use PNG, JPG, GIF ou WebP."
+  },
+  "panel": {
+    "label": "Ferramentas de design",
+    "tabs": {
+      "templates": "Modelos",
+      "elements": "Elementos",
+      "text": "Texto",
+      "uploads": "Uploads",
+      "brand": "Marca",
+      "layers": "Camadas"
+    },
+    "loading": "Carregando…",
+    "shapes": "Formas",
+    "shape": {
+      "rect": "Retângulo",
+      "ellipse": "Círculo",
+      "triangle": "Triângulo",
+      "diamond": "Losango",
+      "star": "Estrela",
+      "arrow": "Seta",
+      "hexagon": "Hexágono"
+    },
+    "lines": "Linhas",
+    "line": {
+      "solid": "Linha",
+      "dashed": "Linha tracejada",
+      "arrow": "Linha com seta"
+    },
+    "frames": "Molduras",
+    "frame": {
+      "none": "Moldura quadrada",
+      "rounded": "Moldura arredondada",
+      "circle": "Moldura circular"
+    },
+    "frameHint": "Solte uma imagem",
+    "grids": "Grades",
+    "grid": {
+      "2-cols": "Duas colunas",
+      "2-rows": "Duas linhas",
+      "3-cols": "Três colunas",
+      "2x2": "Quatro quadros",
+      "1+2": "Um grande e dois pequenos",
+      "3x2": "Seis células"
+    },
+    "icons": "Ícones",
+    "searchIcons": "Buscar ícones",
+    "noIcons": "Nenhum ícone corresponde.",
+    "add": {
+      "heading": "Adicionar um título",
+      "subheading": "Adicionar um subtítulo",
+      "body": "Adicionar texto"
+    },
+    "textDefault": {
+      "heading": "Adicione um título",
+      "subheading": "Adicione um subtítulo",
+      "body": "Adicione um pouco de texto"
+    },
+    "magicWrite": "Escrever com IA",
+    "upload": "Enviar imagem",
+    "uploading": "Enviando…",
+    "uploadHint": "PNG, JPG, GIF ou WebP. Fotos grandes são reduzidas para caber em 4 MB. Também dá para soltar imagens na tela ou colar.",
+    "noUploads": "Seus uploads aparecem aqui.",
+    "insert": "Adicionar {name}",
+    "brandColors": "Cores da marca",
+    "brandNoColors": "Ainda não há cores da marca.",
+    "applyColor": "Aplicar {color}",
+    "brandFonts": "Fontes da marca",
+    "brandFontUnset": "Padrão",
+    "brandLogos": "Logos",
+    "brandNoLogos": "Ainda não há logos.",
+    "editBrand": "Editar kit de marca",
+    "layersEmpty": "Esta página está vazia. O que você adiciona aparece aqui, a camada de cima primeiro.",
+    "layer": {
+      "text": "Texto",
+      "image": "Imagem",
+      "frame": "Moldura",
+      "line": "Linha"
+    },
+    "hide": "Ocultar",
+    "show": "Mostrar",
+    "lock": "Travar",
+    "unlock": "Destravar",
+    "up": "Trazer para frente",
+    "down": "Enviar para trás",
+    "templatesHint": "Um modelo adiciona as páginas dele depois da atual, na escala deste tamanho.",
+    "templatesError": "Não foi possível carregar os modelos.",
+    "addTemplate": "Adicionar páginas de {name}"
+  },
+  "toolbar": {
+    "label": "Propriedades",
+    "background": "Fundo",
+    "bgImage": "Imagem de fundo",
+    "removeBg": "Remover imagem",
+    "font": "Fonte",
+    "size": "Tamanho da letra",
+    "smaller": "Menor",
+    "bigger": "Maior",
+    "color": "Cor",
+    "weight": "Peso",
+    "weights": {
+      "300": "Fina",
+      "400": "Normal",
+      "500": "Média",
+      "600": "Seminegrito",
+      "700": "Negrito",
+      "800": "Extra negrito",
+      "900": "Black"
+    },
+    "bold": "Negrito",
+    "italic": "Itálico",
+    "underline": "Sublinhado",
+    "uppercase": "Maiúsculas",
+    "align": "Alinhamento: {value}",
+    "aligns": {
+      "left": "esquerda",
+      "center": "centro",
+      "right": "direita"
+    },
+    "spacing": "Espaçamento",
+    "lineHeight": "Entrelinha",
+    "letterSpacing": "Espaço entre letras",
+    "magic": "Magic write",
+    "shape": "Forma",
+    "shapes": {
+      "rect": "Retângulo",
+      "ellipse": "Círculo",
+      "triangle": "Triângulo",
+      "diamond": "Losango",
+      "star": "Estrela",
+      "arrow": "Seta",
+      "hexagon": "Hexágono"
+    },
+    "fill": "Preenchimento",
+    "stroke": "Borda",
+    "strokeWidth": "Espessura",
+    "radius": "Cantos",
+    "dash": "Estilo da linha",
+    "dashes": {
+      "solid": "Contínua",
+      "dashed": "Tracejada",
+      "dotted": "Pontilhada"
+    },
+    "arrowStart": "Seta no início",
+    "arrowEnd": "Seta no fim",
+    "crop": "Cortar",
+    "cropDone": "Pronto",
+    "cropZoom": "Zoom",
+    "mask": "Forma",
+    "masks": {
+      "none": "Quadrada",
+      "rounded": "Arredondada",
+      "circle": "Circular"
+    },
+    "flipH": "Espelhar horizontal",
+    "flipV": "Espelhar vertical",
+    "replace": "Substituir",
+    "opacity": "Transparência",
+    "position": "Posição",
+    "arrange": "Ordem",
+    "z": {
+      "forward": "Para frente",
+      "backward": "Para trás",
+      "front": "Na frente de tudo",
+      "back": "Atrás de tudo"
+    },
+    "alignTitle": "Alinhar",
+    "alignTo": {
+      "left": "Esquerda",
+      "hcenter": "Centro",
+      "right": "Direita",
+      "top": "Topo",
+      "vcenter": "Meio",
+      "bottom": "Base"
+    },
+    "distributeH": "Espaçar na horizontal",
+    "distributeV": "Espaçar na vertical",
+    "group": "Agrupar",
+    "ungroup": "Desagrupar",
+    "lock": "Travar",
+    "unlock": "Destravar",
+    "duplicate": "Duplicar",
+    "delete": "Excluir"
+  },
+  "share": {
+    "title": "Compartilhar",
+    "done": "Pronto",
+    "loadError": "Não foi possível carregar quem tem acesso.",
+    "saveError": "Não foi possível salvar a alteração.",
+    "onlyEditors": "Você pode ver este design. Quem pode editar controla o acesso.",
+    "workspace": "Seu workspace",
+    "access": {
+      "none": "Só as pessoas abaixo",
+      "view": "Todos podem ver e comentar",
+      "edit": "Todos podem editar"
+    },
+    "people": "Pessoas",
+    "noPeople": "Ninguém adicionado ainda.",
+    "addPerson": "Adicionar uma pessoa",
+    "roleLabel": "Acesso",
+    "roleFor": "Acesso de {name}",
+    "role": {
+      "view": "Pode ver e comentar",
+      "edit": "Pode editar"
+    },
+    "add": "Adicionar",
+    "remove": "Remover",
+    "link": "Link público",
+    "linkToggle": "Qualquer pessoa com o link pode ver",
+    "copy": "Copiar link",
+    "copied": "Copiado",
+    "reset": "Trocar link",
+    "linkNote": "Somente leitura e fora dos buscadores. Se você desligar ou trocar, o link anterior para de funcionar.",
+    "docsHint": "Para mostrar este design numa página do Docs, digite /design na página e escolha."
+  },
+  "export": {
+    "title": "Baixar",
+    "format": "Tipo de arquivo",
+    "formats": {
+      "png": "PNG",
+      "jpg": "JPG",
+      "pdf": "PDF"
+    },
+    "transparent": "Fundo transparente",
+    "pages": "Páginas",
+    "current": "Página atual ({n})",
+    "all": "Todas as páginas ({n})",
+    "size": "Tamanho",
+    "pdfNote": "Cada página entra no PDF como imagem: o texto não é selecionável.",
+    "multiNote": "Cada página baixa num arquivo próprio.",
+    "download": "Baixar",
+    "close": "Fechar",
+    "exporting": "Preparando o arquivo…",
+    "done": "Baixado: {files}",
+    "error": "Não foi possível criar o arquivo. Tente um tamanho menor.",
+    "board": "Adicionar a um quadro",
+    "boardPick": "Escolha um quadro",
+    "boardSend": "Adicionar página",
+    "boardNone": "Não há quadros que você possa editar.",
+    "boardSent": "Adicionado ao quadro.",
+    "boardOpen": "Abrir quadro",
+    "boardError": "Não foi possível adicionar a página ao quadro."
+  },
+  "ai": {
+    "title": "Magic write",
+    "prompt": "O que o texto deve dizer?",
+    "promptPlaceholder": "Um post curto anunciando o novo horário",
+    "write": "Escrever",
+    "rewrite": "Reescrever",
+    "shorter": "Mais curto",
+    "longer": "Mais longo",
+    "formal": "Mais formal",
+    "casual": "Mais informal",
+    "working": "Escrevendo…",
+    "insert": "Adicionar à página",
+    "replace": "Substituir texto",
+    "cancel": "Cancelar",
+    "error": "Não foi possível escrever o texto. Tente de novo.",
+    "disabled": "A IA não está configurada neste servidor.",
+    "quota": "O workspace chegou ao limite de IA por agora.",
+    "note": "Usa a cota de IA do workspace. Leia antes de publicar."
+  },
+  "resize": {
+    "title": "Mudar tamanho",
+    "width": "Largura (px)",
+    "height": "Altura (px)",
+    "apply": "Mudar este design",
+    "copy": "Mudar uma cópia",
+    "cancel": "Cancelar",
+    "invalid": "A largura e a altura vão de {min} a {max} px.",
+    "note": "O conteúdo é redimensionado para caber e fica centralizado. Revise a composição depois."
+  },
+  "shortcuts": {
+    "title": "Atalhos de teclado",
+    "close": "Fechar",
+    "undo": "Desfazer",
+    "redo": "Refazer",
+    "clipboard": "Copiar, recortar e colar",
+    "duplicate": "Duplicar",
+    "selectAll": "Selecionar tudo",
+    "group": "Agrupar e desagrupar",
+    "order": "Para frente e para trás (com Shift: na frente e atrás de tudo)",
+    "lock": "Travar ou destravar",
+    "nudge": "Mover 1 px (10 px com Shift)",
+    "delete": "Excluir",
+    "edit": "Editar o texto ou cortar a imagem",
+    "escape": "Sair, tirar a seleção",
+    "next": "Selecionar o próximo elemento",
+    "add": "Adicionar texto, retângulo, círculo ou linha",
+    "zoom": "Aproximar, afastar e ajustar",
+    "pan": "Mover pela tela",
+    "nosnap": "Mover sem ímã"
+  },
+  "comments": {
+    "title": "Comentários",
+    "close": "Fechar comentários",
+    "hint": "Escolha Comentar e clique na página para fixar um comentário.",
+    "showResolved": "Mostrar resolvidos",
+    "empty": "Ainda não há comentários.",
+    "newLabel": "Novo comentário na página {page}",
+    "placeholder": "Adicione um comentário",
+    "post": "Comentar",
+    "cancel": "Cancelar",
+    "reply": "Responder",
+    "replyLabel": "Resposta",
+    "replyPlaceholder": "Responder",
+    "resolve": "Resolver",
+    "reopen": "Reabrir",
+    "delete": "Excluir",
+    "page": "Página {n}",
+    "error": "Não foi possível salvar o comentário."
+  },
+  "present": {
+    "label": "Apresentação",
+    "page": "Página {n} de {total}",
+    "prev": "Página anterior",
+    "next": "Próxima página",
+    "exit": "Sair"
+  },
+  "public": {
+    "notFound": "Design não encontrado",
+    "meta": "{w} × {h} px · {n, plural, one {# página} other {# páginas}}",
+    "page": "Página {n}",
+    "present": "Apresentar",
+    "footer": "Compartilhado com o zerosoft Design. Somente leitura."
+  }
+}

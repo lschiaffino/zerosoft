@@ -5,7 +5,7 @@ import ClientMessages from '@/components/i18n/ClientMessages';
 export default async function HelpCenterLayout(props: { children: ReactNode; params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
   return (
-    <ClientMessages locale={locale} namespaces={['docs.help', 'docs.editor.board']}>
+    <ClientMessages locale={locale} namespaces={['docs.help', 'docs.editor.board', 'docs.editor.design']}>
       {props.children}
     </ClientMessages>
   );

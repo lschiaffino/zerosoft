@@ -26,6 +26,7 @@
   --c-voice-ink: #bc25cf;
   --c-rec-ink: #dd1c47;
   --c-talk-ink: #8e3a80;
+  --c-design-ink: #00748c;
 
   /* Texto sobre un relleno del color del producto. */
   --c-link-on: #ffffff;
@@ -43,6 +44,7 @@
   --c-voice-on: #ffffff;
   --c-rec-on: #ffffff;
   --c-talk-on: #ffffff;
+  --c-design-on: #111111;
 
   /* Escala (px a 1440): lectura y datos. Los títulos (--t-display, --t-h1,
      --t-h2, --t-h3) los define cada tema según su voz. */
