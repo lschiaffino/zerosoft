@@ -135,7 +135,13 @@
 
 .hd-mega-main { display: flex; flex-direction: column; min-width: 0; }
 /* Cinco categorías en tres columnas: vender, atender, automatizar / construir, trabajo diario. */
-.hd-mega-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 24px; padding: 20px; }
+/* Tres columnas que se llenan parejas (como texto en columnas): una categoría
+   larga no estira la fila entera, así que sumar apps no agranda el menú de a
+   saltos. Cada categoría queda entera en su columna. */
+.hd-mega-grid { column-count: 3; column-gap: 24px; padding: 20px; }
+.hd-mega-grid > .hd-group { break-inside: avoid; margin-bottom: 16px; }
+.hd-mega-grid > .hd-group:last-child { margin-bottom: 0; }
+.hd-mega-grid > .hd-building { column-span: all; }
 .hd-mega-note,
 .mobile-panel-note { font-size: 13px; line-height: 1.45; color: var(--brand-gray-2); }
 .hd-mega-note { padding: 14px 28px 18px; border-top: 1px solid var(--line); }

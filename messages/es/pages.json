@@ -3056,7 +3056,21 @@
     "scope_analytics_read": "Leer proyectos, eventos y personas de Analytics y correr consultas.",
     "scope_analytics_write": "Cambiar proyectos, insights, tableros, cohortes y flags de Analytics.",
     "scope_social_read": "Leer publicaciones de Social de las cuentas que ves.",
-    "scope_social_write": "Crear borradores y publicaciones programadas en Social (con aprobación si la necesitás)."
+    "scope_social_write": "Crear borradores y publicaciones programadas en Social (con aprobación si la necesitás).",
+    "socialApiTitle": "Social",
+    "socialApiDesc": "Publicaciones en redes sociales. La key actúa como la persona que la creó: ve y publica en las cuentas de esa persona, y quien necesita aprobación manda las publicaciones a aprobar. Scopes social:read y social:write.",
+    "socialPostsListTitle": "Listar publicaciones",
+    "socialPostsListDesc": "Las publicaciones que ve la key, de la más nueva a la más vieja, con el estado de cada cuenta y el link a lo publicado.",
+    "socialPostsCreateTitle": "Crear una publicación",
+    "socialPostsCreateDesc": "Guarda un borrador, la programa, la suma a la cola o la publica ya. Cada red chequea largo y archivos antes; los errores vuelven por cuenta.",
+    "paramSocialStatus": "draft, pending_approval, scheduled, published, partial o failed.",
+    "paramSocialFrom": "Desde esta fecha (ISO 8601).",
+    "paramSocialTo": "Hasta esta fecha (ISO 8601).",
+    "paramSocialText": "Texto de la publicación.",
+    "paramSocialAccounts": "Ids de las cuentas conectadas donde publicar.",
+    "paramSocialOverrides": "Texto propio por cuenta: { accountId: texto }.",
+    "paramSocialAction": "draft, schedule, queue o now. Por defecto draft.",
+    "paramSocialScheduledAt": "Fecha y hora de publicación (ISO 8601), con action schedule."
   },
   "parityOverview": {
     "title": "Paridad de funciones, app por app.",
