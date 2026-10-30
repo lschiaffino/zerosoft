@@ -12,13 +12,21 @@ export default function ChecklistView({ checklist: c, onChange, showPerson = fal
   const day = useDay();
   const errText = useErrorText();
   const [error, setError] = useState('');
+  // Marcado optimista: el tilde cambia al instante y vuelve atrás si la API falla.
+  const [local, setLocal] = useState<Record<string, boolean>>({});
   const today = new Date().toISOString().slice(0, 10);
   const toggle = async (id: string, done: boolean) => {
     setError('');
+    setLocal((x) => ({ ...x, [id]: done }));
     const res = await api(`/api/people/tasks/${id}`, { method: 'PATCH', json: { done } });
-    if (!res.ok) return setError(errText(res.data.error));
+    if (!res.ok) {
+      setLocal((x) => ({ ...x, [id]: !done }));
+      return setError(errText(res.data.error));
+    }
     onChange();
   };
+  const tasks = c.tasks.map((t) => (t.id in local ? { ...t, done: local[t.id] } : t));
+  const doneCount = tasks.filter((t) => t.done).length;
   return (
     <section className="ppl-panel" data-testid="people-checklist" aria-label={c.name}>
       <div className="ppl-panel-head">
@@ -33,11 +41,11 @@ export default function ChecklistView({ checklist: c, onChange, showPerson = fal
           )}
           <span className={`badge ${c.kind === 'offboarding' ? 'badge-warn' : 'badge-info'}`}>{t(`onboarding.kinds.${c.kind}`)}</span>
         </h2>
-        <span className="ppl-muted">{t('onboarding.progress', { done: c.done, total: c.total })}</span>
+        <span className="ppl-muted">{t('onboarding.progress', { done: doneCount, total: c.total })}</span>
       </div>
-      <Bar value={c.done} max={c.total} label={t('onboarding.progress', { done: c.done, total: c.total })} />
+      <Bar value={doneCount} max={c.total} label={t('onboarding.progress', { done: doneCount, total: c.total })} />
       <ul className="ppl-tasks">
-        {c.tasks.map((task) => {
+        {tasks.map((task) => {
           const late = !task.done && task.dueDate != null && task.dueDate < today;
           return (
             <li key={task.id} className={`ppl-task${task.done ? ' is-done' : ''}`}>

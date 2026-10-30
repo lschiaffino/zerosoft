@@ -160,6 +160,8 @@ test('una persona pide días, su manager aprueba, el saldo baja y Cal la muestra
 
     // Cal: la licencia es un bloqueo en su disponibilidad.
     await emp.page.goto('/en/app/calendar/availability', { waitUntil: 'networkidle' });
+    const toggle = emp.page.getByRole('button', { name: /Time off/ });
+    if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
     await expect(emp.page.getByText('Out of office (People)').first()).toBeVisible();
     const slots = await sql('SELECT starts_at, ends_at FROM calendar_blocked_slots WHERE user_id = ?', [emp.userId]);
     expect(slots).toContainEqual({ starts_at: `${mon}T00:00:00.000Z`, ends_at: `${addDays(mon, 3)}T00:00:00.000Z` });

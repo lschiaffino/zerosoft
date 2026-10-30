@@ -3051,6 +3051,7 @@
     "scope_analytics_read": "Leer proyectos, eventos y personas de Analytics y correr consultas.",
     "scope_analytics_write": "Cambiar proyectos, insights, tableros, cohortes y flags de Analytics.",
     "scope_social_read": "Leer publicaciones de Social de las cuentas que ves.",
+    "scope_people_read": "Leer el directorio de People: solo campos públicos de la ficha, nunca sueldo ni datos personales.",
     "scope_social_write": "Crear borradores y publicaciones programadas en Social (con aprobación si la necesitás)."
   },
   "parityOverview": {
