@@ -3155,6 +3155,7 @@
     "scope_analytics_write": "Change Analytics projects, insights, dashboards, cohorts and flags.",
     "scope_social_read": "Read Social posts on the accounts you can see.",
     "scope_people_read": "Read the People directory: public profile fields only, never salary or personal data.",
+    "scope_hiring_read": "Read Hiring jobs and the candidates the key's owner can see.",
     "scope_social_write": "Create Social drafts and scheduled posts (with approval if you need it).",
     "socialApiTitle": "Social",
     "socialApiDesc": "Social media posts. The key acts as the person who created it: it sees and posts to that person's accounts, and people who need approval send posts for approval. Scopes social:read and social:write.",

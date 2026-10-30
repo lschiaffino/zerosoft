@@ -6,7 +6,7 @@ import { expect, test } from '@playwright/test';
  * link al board. Y el porcentaje al lado de cada app en /products.
  */
 
-const PRODUCTS = ['crm', 'chat', 'groups', 'agents', 'flow', 'robots', 'track', 'link', 'docs', 'notes', 'cal', 'board', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'social', 'people'];
+const PRODUCTS = ['crm', 'chat', 'groups', 'agents', 'flow', 'robots', 'track', 'link', 'docs', 'notes', 'cal', 'board', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'social', 'hiring', 'people'];
 
 for (const product of PRODUCTS) {
   test(`paridad en /es/products/${product}`, async ({ page }) => {
