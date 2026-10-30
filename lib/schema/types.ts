@@ -1531,6 +1531,8 @@ export interface ChatMessageRow {
   deleted_at?: string | null;
   /** Claim del aviso por email al visitante (lib/chat-offline-email.ts). */
   offline_email_at?: string | null;
+  /** JSON AgentReplyUi: botones o formulario de un agente (131). */
+  ui?: string | null;
   created_at: string;
 }
 
@@ -2002,6 +2004,16 @@ export interface AgentRow {
   published_version_id?: string | null;
   /** JSON AgentMcpServerStored[] (lib/agents-mcp.ts), con el header de auth cifrado. */
   mcp_servers?: string;
+  /** JSON AgentAbTest (lib/agents-ab.ts): versión B y porcentaje de conversaciones nuevas (131). */
+  ab_test?: string | null;
+  /** JSON AgentAccessConfig (lib/agents-access.ts): acceso de los miembros a este agente (131). */
+  access?: string | null;
+  /** Número de Twilio que atiende el agente (E.164, único) (131). */
+  voice_number?: string | null;
+  /** JSON con las conexiones (Stripe, Shopify, Slack, Meta), secretos cifrados (lib/agents-integrations.ts) (131). */
+  integrations?: string | null;
+  /** Claim del cron que indexa embeddings (lib/agents-semantic.ts) (131). */
+  embed_claimed_until?: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -2055,6 +2067,12 @@ export interface AgentConversationRow {
   review_note?: string;
   redacted_at?: string | null;
   memory_at?: string | null;
+  /** JSON AgentProcedureState (lib/agents-procedures.ts): procedimiento en curso (131). */
+  procedure_state?: string | null;
+  /** Test A/B: 'a' (lo publicado) o 'b' (la versión en prueba) (131). */
+  variant?: string | null;
+  /** Hilo del canal externo (Slack, Messenger, Instagram, llamada) (131). */
+  external_ref?: string | null;
 }
 
 export interface AgentMessageRow {
@@ -2065,6 +2083,8 @@ export interface AgentMessageRow {
   run_id: string | null;
   /** Persona del equipo que respondió (después de una derivación); NULL = el agente. */
   author_id?: string | null;
+  /** JSON AgentReplyUi (131). */
+  ui?: string | null;
   created_at: string;
 }
 

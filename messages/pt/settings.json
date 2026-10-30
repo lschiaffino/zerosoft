@@ -337,6 +337,7 @@
     "import": "Importar",
     "security": "Segurança",
     "notifications": "Avisos",
+    "desktop": "App de desktop",
     "admin": "Admin"
   },
   "nav": {
@@ -349,7 +350,8 @@
     "keywords": {
       "billing": "faturamento, faturas, assinatura, pagamento, billing, plano",
       "domains": "domínio próprio, dns, links curtos, domains",
-      "import": "importar migrar trazer token"
+      "import": "importar migrar trazer token",
+      "desktop": "baixar,mac,windows,desktop,app"
     },
     "importFrom": "Importar de {source} para o {app}"
   },
@@ -439,7 +441,9 @@
       "flowTables": "Tabelas",
       "api": "API e webhooks",
       "aiUsage": "Uso de IA do workspace",
-      "recorder": "Gravador de robôs"
+      "recorder": "Gravador de robôs",
+      "designBrand": "Kit de marca",
+      "designTemplates": "Modelos do Design"
     }
   },
   "members": {

@@ -19,6 +19,8 @@ export type DocsBlockType =
   | 'toggle'
   | 'callout'
   | 'board'
+  // Diseño de Design embebido (vista previa con chequeo de acceso).
+  | 'design'
   // Archivos que se muestran en línea (subidos como image/file).
   | 'video'
   | 'audio'
@@ -397,6 +399,8 @@ export interface DocsBlock {
    * la página pueda ver la pizarra.
    */
   board_id?: string;
+  /** Bloque design: id del diseño de Design (vista previa por /api/design/designs/<id>?embed=1). */
+  design_id?: string;
   /** Imagen, video, PDF o embed: ancho en % del ancho de la página (10-100). */
   width?: number;
   /** Imagen: alineación. */

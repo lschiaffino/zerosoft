@@ -185,6 +185,9 @@ export function blocksToMarkdown(input: DocsBlock[], title?: string, opts: Block
       case 'board':
         text = b.board_id ? `[Board](/app/board/${b.board_id})` : '';
         break;
+      case 'design':
+        text = b.design_id ? `[Design](/app/design/${b.design_id})` : '';
+        break;
       case 'table': {
         const rows = b.rows ?? [];
         text = rows.length ? tableToMd(rows[0], rows.slice(1)) : '';

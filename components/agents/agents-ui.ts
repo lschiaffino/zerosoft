@@ -30,6 +30,9 @@ export function chatLabels(t: T): AgentChatLabels {
     teammate: t('chat.teammate'),
     simulated: t('chat.simulated'),
     wouldRun: t('chat.wouldRun'),
+    formSend: t('chat.formSend'),
+    formRequired: t('chat.formRequired'),
+    formChoose: t('chat.formChoose'),
     error: (code) => errorText(t, code),
     toolName: (tool) => toolName(t, tool),
   };

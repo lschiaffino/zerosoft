@@ -1,0 +1,565 @@
+{
+  "meta": {
+    "title": "Design"
+  },
+  "sidebar": {
+    "home": "Designs",
+    "templates": "Templates",
+    "brand": "Brand kit",
+    "newDesign": "New design"
+  },
+  "notifications": {
+    "comment": "{actor} commented on {title}",
+    "share": "{actor} shared {title} with you"
+  },
+  "branch": {
+    "label": "Designs",
+    "folders": "Folders",
+    "recent": "Recent",
+    "empty": "Designs you open show up here."
+  },
+  "presets": {
+    "instagram-post": {
+      "name": "Instagram post"
+    },
+    "instagram-story": {
+      "name": "Instagram story"
+    },
+    "linkedin-post": {
+      "name": "LinkedIn post"
+    },
+    "a4": {
+      "name": "A4 document"
+    },
+    "presentation": {
+      "name": "Presentation 16:9"
+    },
+    "logo": {
+      "name": "Logo"
+    },
+    "custom": {
+      "name": "Custom size"
+    }
+  },
+  "home": {
+    "title": "Design",
+    "lead": "Social posts, presentations, flyers and logos. Start from a size or a template.",
+    "folderLead": "Designs in this folder.",
+    "create": "Create a design",
+    "createShort": "Create",
+    "createTitle": "Create a design",
+    "creating": "Creating…",
+    "createError": "The design could not be created. Try again.",
+    "anySize": "Width and height in px",
+    "fromTemplate": "From a template",
+    "templatesCount": "20 templates",
+    "orTemplate": "Or start from a template",
+    "viewsLabel": "Design views",
+    "views": {
+      "recent": "Recent",
+      "mine": "Your designs",
+      "shared": "Shared with you",
+      "starred": "Starred",
+      "trash": "Trash"
+    },
+    "search": "Search designs",
+    "folders": "Folders",
+    "newFolder": "New folder",
+    "renameFolder": "Rename folder",
+    "deleteFolder": "Delete folder",
+    "deleteFolderBody": "Delete the folder “{name}”? Its designs stay in Your designs.",
+    "listLabel": "Designs",
+    "loadError": "The designs could not load.",
+    "retry": "Try again",
+    "actionError": "That did not work. Try again.",
+    "empty": {
+      "recent": {
+        "title": "No designs yet",
+        "body": "Pick a size above or start from a template. What you create and open shows up here."
+      },
+      "mine": {
+        "title": "You have not created designs",
+        "body": "Pick a size or a template to start your first one."
+      },
+      "shared": {
+        "title": "Nothing shared with you yet",
+        "body": "Designs your teammates share with you or with the whole workspace show up here."
+      },
+      "starred": {
+        "title": "No starred designs",
+        "body": "Star a design from its menu or from the editor to find it here."
+      },
+      "trash": {
+        "title": "The trash is empty",
+        "body": "Designs you move to the trash stay here until you restore them or delete them."
+      },
+      "folder": {
+        "title": "This folder is empty",
+        "body": "Move designs here from their menu, or create one while the folder is open."
+      }
+    },
+    "emptySearch": {
+      "title": "No results",
+      "body": "No design matches “{q}”."
+    },
+    "open": "Open {name}",
+    "openShort": "Open",
+    "menu": "Options for {name}",
+    "rename": "Rename",
+    "duplicate": "Duplicate",
+    "duplicated": "Copy created",
+    "copyName": "{name} (copy)",
+    "star": "Star",
+    "unstar": "Remove star",
+    "starred": "Starred",
+    "move": "Move to folder",
+    "moveTitle": "Move to folder",
+    "moved": "Moved to {folder}",
+    "noFolder": "No folder",
+    "noFolders": "You have no folders yet. Create one from the list.",
+    "trash": "Move to trash",
+    "trashed": "Moved to the trash",
+    "restore": "Restore",
+    "restored": "Design restored",
+    "deleteForever": "Delete permanently",
+    "purgeBody": "Delete “{name}” permanently? Its comments go with it. This cannot be undone.",
+    "confirmDelete": "Delete",
+    "cancel": "Cancel",
+    "save": "Save",
+    "name": "Name",
+    "untitled": "Untitled design",
+    "pages": "{n} pages",
+    "customTitle": "Custom size",
+    "width": "Width (px)",
+    "height": "Height (px)",
+    "sizeInvalid": "Width and height go from {min} to {max} px."
+  },
+  "templates": {
+    "title": "Templates",
+    "lead": "Pick one to start a new design with its pages. Then change the text, colors and photos.",
+    "filter": "Filter by size",
+    "all": "All",
+    "search": "Search templates",
+    "workspace": "Your workspace",
+    "workspaceEmpty": "Admins save a design as a template from the editor menu and your team finds it here.",
+    "builtIn": "Templates",
+    "empty": "No template matches.",
+    "use": "Use template {name}",
+    "pages": "{n} pages",
+    "creating": "Creating your design…",
+    "error": "The design could not be created. Try again."
+  },
+  "brand": {
+    "title": "Brand kit",
+    "lead": "Your workspace colors, fonts and logos. Everyone applies them from the editor.",
+    "readOnly": "Your workspace colors, fonts and logos. Owners and admins edit them.",
+    "save": "Save",
+    "saved": "Brand kit saved.",
+    "saveError": "The brand kit could not be saved.",
+    "colors": "Colors",
+    "colorsHelp": "Up to 24. In the editor, a click applies the color to what is selected.",
+    "noColors": "No colors yet.",
+    "newColor": "New color",
+    "addColor": "Add color",
+    "removeColor": "Remove {color}",
+    "fonts": "Fonts",
+    "fontsHelp": "Text you add from the Text panel uses these fonts.",
+    "slot": {
+      "heading": "Heading",
+      "subheading": "Subheading",
+      "body": "Body"
+    },
+    "sample": {
+      "heading": "A clear heading",
+      "subheading": "A supporting line",
+      "body": "Body text for longer paragraphs."
+    },
+    "noFont": "Default",
+    "logos": "Logos",
+    "logosHelp": "PNG, JPG, GIF or WebP up to 4 MB. Up to 12.",
+    "noLogos": "No logos yet.",
+    "uploadLogo": "Upload logo",
+    "removeLogo": "Remove",
+    "uploadError": "The logo could not be uploaded. Use PNG, JPG, GIF or WebP up to 4 MB."
+  },
+  "editor": {
+    "back": "Back to designs",
+    "name": "Design name",
+    "star": "Star",
+    "unstar": "Remove star",
+    "undo": "Undo",
+    "redo": "Redo",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "unsaved": "Unsaved changes",
+    "saveError": "Not saved. Retrying when you edit.",
+    "conflictShort": "Not saved",
+    "conflict": "Someone else saved a newer version.",
+    "conflictBy": "{name} saved a newer version.",
+    "loadLatest": "Load their version",
+    "keepMine": "Keep mine",
+    "updatedByOther": "Updated with the latest saved version.",
+    "viewOnly": "View only",
+    "presence": "Also here",
+    "personOnPage": "{name} · page {n}",
+    "zoom": "Zoom",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "fit": "Fit to screen",
+    "comment": "Comment",
+    "present": "Present",
+    "download": "Download",
+    "share": "Share",
+    "more": "More",
+    "resize": "Resize",
+    "duplicate": "Make a copy",
+    "copyName": "{name} (copy)",
+    "resizedName": "{name} {w}×{h}",
+    "saveTemplate": "Save as workspace template",
+    "templateSaved": "Saved as a workspace template.",
+    "shortcuts": "Keyboard shortcuts",
+    "trash": "Move to trash",
+    "actionError": "That did not work. Try again.",
+    "renameError": "The name could not be saved.",
+    "stage": "Design canvas",
+    "pages": "Pages",
+    "pageN": "Page {n}",
+    "addPage": "Add page",
+    "pageMenu": "Page options",
+    "duplicatePage": "Duplicate page",
+    "movePageUp": "Move page left",
+    "movePageDown": "Move page right",
+    "deletePage": "Delete page",
+    "pickBackground": "Background image",
+    "pickImage": "Choose an image",
+    "commentsError": "Comments could not load.",
+    "uploadError": "The image could not be uploaded.",
+    "uploadTooLarge": "That image is over 4 MB even after reducing it.",
+    "uploadType": "Use PNG, JPG, GIF or WebP."
+  },
+  "panel": {
+    "label": "Design tools",
+    "tabs": {
+      "templates": "Templates",
+      "elements": "Elements",
+      "text": "Text",
+      "uploads": "Uploads",
+      "brand": "Brand",
+      "layers": "Layers"
+    },
+    "loading": "Loading…",
+    "shapes": "Shapes",
+    "shape": {
+      "rect": "Rectangle",
+      "ellipse": "Circle",
+      "triangle": "Triangle",
+      "diamond": "Diamond",
+      "star": "Star",
+      "arrow": "Arrow",
+      "hexagon": "Hexagon"
+    },
+    "lines": "Lines",
+    "line": {
+      "solid": "Line",
+      "dashed": "Dashed line",
+      "arrow": "Arrow line"
+    },
+    "frames": "Frames",
+    "frame": {
+      "none": "Square frame",
+      "rounded": "Rounded frame",
+      "circle": "Circle frame"
+    },
+    "frameHint": "Drop an image",
+    "grids": "Grids",
+    "grid": {
+      "2-cols": "Two columns",
+      "2-rows": "Two rows",
+      "3-cols": "Three columns",
+      "2x2": "Four squares",
+      "1+2": "One large and two small",
+      "3x2": "Six cells"
+    },
+    "icons": "Icons",
+    "searchIcons": "Search icons",
+    "noIcons": "No icon matches.",
+    "add": {
+      "heading": "Add a heading",
+      "subheading": "Add a subheading",
+      "body": "Add body text"
+    },
+    "textDefault": {
+      "heading": "Add a heading",
+      "subheading": "Add a subheading",
+      "body": "Add a little bit of body text"
+    },
+    "magicWrite": "Write with AI",
+    "upload": "Upload image",
+    "uploading": "Uploading…",
+    "uploadHint": "PNG, JPG, GIF or WebP. Large photos are reduced to fit 4 MB. You can also drop images on the canvas or paste them.",
+    "noUploads": "Your uploads show up here.",
+    "insert": "Add {name}",
+    "brandColors": "Brand colors",
+    "brandNoColors": "No brand colors yet.",
+    "applyColor": "Apply {color}",
+    "brandFonts": "Brand fonts",
+    "brandFontUnset": "Default",
+    "brandLogos": "Logos",
+    "brandNoLogos": "No logos yet.",
+    "editBrand": "Edit brand kit",
+    "layersEmpty": "This page is empty. What you add shows up here, top layer first.",
+    "layer": {
+      "text": "Text",
+      "image": "Image",
+      "frame": "Frame",
+      "line": "Line"
+    },
+    "hide": "Hide",
+    "show": "Show",
+    "lock": "Lock",
+    "unlock": "Unlock",
+    "up": "Bring forward",
+    "down": "Send backward",
+    "templatesHint": "A template adds its pages after the current one, scaled to this size.",
+    "templatesError": "Templates could not load.",
+    "addTemplate": "Add pages from {name}"
+  },
+  "toolbar": {
+    "label": "Properties",
+    "background": "Background",
+    "bgImage": "Background image",
+    "removeBg": "Remove image",
+    "font": "Font",
+    "size": "Font size",
+    "smaller": "Smaller",
+    "bigger": "Bigger",
+    "color": "Color",
+    "weight": "Weight",
+    "weights": {
+      "300": "Light",
+      "400": "Regular",
+      "500": "Medium",
+      "600": "Semibold",
+      "700": "Bold",
+      "800": "Extra bold",
+      "900": "Black"
+    },
+    "bold": "Bold",
+    "italic": "Italic",
+    "underline": "Underline",
+    "uppercase": "Uppercase",
+    "align": "Alignment: {value}",
+    "aligns": {
+      "left": "left",
+      "center": "center",
+      "right": "right"
+    },
+    "spacing": "Spacing",
+    "lineHeight": "Line height",
+    "letterSpacing": "Letter spacing",
+    "magic": "Magic write",
+    "shape": "Shape",
+    "shapes": {
+      "rect": "Rectangle",
+      "ellipse": "Circle",
+      "triangle": "Triangle",
+      "diamond": "Diamond",
+      "star": "Star",
+      "arrow": "Arrow",
+      "hexagon": "Hexagon"
+    },
+    "fill": "Fill",
+    "stroke": "Border",
+    "strokeWidth": "Width",
+    "radius": "Corners",
+    "dash": "Line style",
+    "dashes": {
+      "solid": "Solid",
+      "dashed": "Dashed",
+      "dotted": "Dotted"
+    },
+    "arrowStart": "Start arrow",
+    "arrowEnd": "End arrow",
+    "crop": "Crop",
+    "cropDone": "Done",
+    "cropZoom": "Zoom",
+    "mask": "Shape",
+    "masks": {
+      "none": "Square",
+      "rounded": "Rounded",
+      "circle": "Circle"
+    },
+    "flipH": "Flip horizontally",
+    "flipV": "Flip vertically",
+    "replace": "Replace",
+    "opacity": "Transparency",
+    "position": "Position",
+    "arrange": "Arrange",
+    "z": {
+      "forward": "Forward",
+      "backward": "Backward",
+      "front": "To front",
+      "back": "To back"
+    },
+    "alignTitle": "Align",
+    "alignTo": {
+      "left": "Left",
+      "hcenter": "Center",
+      "right": "Right",
+      "top": "Top",
+      "vcenter": "Middle",
+      "bottom": "Bottom"
+    },
+    "distributeH": "Space horizontally",
+    "distributeV": "Space vertically",
+    "group": "Group",
+    "ungroup": "Ungroup",
+    "lock": "Lock",
+    "unlock": "Unlock",
+    "duplicate": "Duplicate",
+    "delete": "Delete"
+  },
+  "share": {
+    "title": "Share",
+    "done": "Done",
+    "loadError": "Sharing settings could not load.",
+    "saveError": "The change could not be saved.",
+    "onlyEditors": "You can view this design. People who can edit it manage who has access.",
+    "workspace": "Your workspace",
+    "access": {
+      "none": "Only people added below",
+      "view": "Everyone can view and comment",
+      "edit": "Everyone can edit"
+    },
+    "people": "People",
+    "noPeople": "Nobody added yet.",
+    "addPerson": "Add a person",
+    "roleLabel": "Access",
+    "roleFor": "Access for {name}",
+    "role": {
+      "view": "Can view and comment",
+      "edit": "Can edit"
+    },
+    "add": "Add",
+    "remove": "Remove",
+    "link": "Public link",
+    "linkToggle": "Anyone with the link can view",
+    "linkOwnerOnly": "Only the person who created the design and workspace admins turn the public link on or off.",
+    "copy": "Copy link",
+    "copied": "Copied",
+    "reset": "Reset link",
+    "linkNote": "View only and not indexed by search engines. Turning it off or resetting it stops the old link from working.",
+    "docsHint": "To show this design in a Docs page, type /design in the page and pick it."
+  },
+  "export": {
+    "title": "Download",
+    "format": "File type",
+    "formats": {
+      "png": "PNG",
+      "jpg": "JPG",
+      "pdf": "PDF"
+    },
+    "transparent": "Transparent background",
+    "pages": "Pages",
+    "current": "Current page ({n})",
+    "all": "All pages ({n})",
+    "size": "Size",
+    "pdfNote": "Each page goes into the PDF as an image: text is not selectable.",
+    "multiNote": "Each page downloads as its own file.",
+    "download": "Download",
+    "close": "Close",
+    "exporting": "Preparing the file…",
+    "done": "Downloaded: {files}",
+    "error": "The file could not be created. Try a smaller size.",
+    "board": "Add to a board",
+    "boardPick": "Choose a board",
+    "boardSend": "Add page",
+    "boardNone": "No boards you can edit.",
+    "boardSent": "Added to the board.",
+    "boardOpen": "Open board",
+    "boardError": "The page could not be added to the board."
+  },
+  "ai": {
+    "title": "Magic write",
+    "prompt": "What should it say?",
+    "promptPlaceholder": "A short post announcing our new opening hours",
+    "write": "Write",
+    "rewrite": "Rewrite",
+    "shorter": "Shorter",
+    "longer": "Longer",
+    "formal": "More formal",
+    "casual": "More casual",
+    "working": "Writing…",
+    "insert": "Add to page",
+    "replace": "Replace text",
+    "cancel": "Cancel",
+    "error": "The text could not be written. Try again.",
+    "disabled": "AI is not set up on this server.",
+    "quota": "The workspace reached its AI limit for now.",
+    "note": "Uses the workspace AI quota. Read it before you publish it."
+  },
+  "resize": {
+    "title": "Resize",
+    "width": "Width (px)",
+    "height": "Height (px)",
+    "apply": "Resize this design",
+    "copy": "Resize a copy",
+    "cancel": "Cancel",
+    "invalid": "Width and height go from {min} to {max} px.",
+    "note": "The content is scaled to fit and centered. Check the layout after resizing."
+  },
+  "shortcuts": {
+    "title": "Keyboard shortcuts",
+    "close": "Close",
+    "undo": "Undo",
+    "redo": "Redo",
+    "clipboard": "Copy, cut and paste",
+    "duplicate": "Duplicate",
+    "selectAll": "Select all",
+    "group": "Group and ungroup",
+    "order": "Forward and backward (with Shift: to front and back)",
+    "lock": "Lock or unlock",
+    "nudge": "Move 1 px (10 px with Shift)",
+    "delete": "Delete",
+    "edit": "Edit text or crop image",
+    "escape": "Exit, deselect",
+    "next": "Select the next element",
+    "add": "Add text, rectangle, circle or line",
+    "zoom": "Zoom in, out and fit",
+    "pan": "Move around the canvas",
+    "nosnap": "Move without snapping"
+  },
+  "comments": {
+    "title": "Comments",
+    "close": "Close comments",
+    "hint": "Choose Comment and click on the page to pin a comment.",
+    "showResolved": "Show resolved",
+    "empty": "No comments yet.",
+    "newLabel": "New comment on page {page}",
+    "placeholder": "Add a comment",
+    "post": "Comment",
+    "cancel": "Cancel",
+    "reply": "Reply",
+    "replyLabel": "Reply",
+    "replyPlaceholder": "Reply",
+    "resolve": "Resolve",
+    "reopen": "Reopen",
+    "delete": "Delete",
+    "page": "Page {n}",
+    "error": "The comment could not be saved."
+  },
+  "present": {
+    "label": "Presentation",
+    "page": "Page {n} of {total}",
+    "prev": "Previous page",
+    "next": "Next page",
+    "exit": "Exit"
+  },
+  "public": {
+    "notFound": "Design not found",
+    "meta": "{w} × {h} px · {n, plural, one {# page} other {# pages}}",
+    "page": "Page {n}",
+    "present": "Present",
+    "footer": "Shared with zerosoft Design. View only."
+  }
+}

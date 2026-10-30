@@ -1,0 +1,107 @@
+# App de escritorio (desktop/): instaladores de Mac y Windows en un release de GitHub.
+#
+# Se dispara con un tag desktop-vX.Y.Z (la versión de desktop/package.json tiene que coincidir).
+# Firma y notarización solo si están los secretos; sin ellos arma instaladores sin firmar:
+#   Mac:     CSC_LINK (certificado "Developer ID Application" en .p12, base64), CSC_KEY_PASSWORD,
+#            APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID (notarización).
+#   Windows: WIN_CSC_LINK y WIN_CSC_KEY_PASSWORD (certificado de firma de código, opcional).
+name: desktop
+
+on:
+  push:
+    tags: ['desktop-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            target: --mac --arm64 --x64
+          - os: windows-latest
+            target: --win --x64
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Versión del tag
+        if: startsWith(github.ref, 'refs/tags/desktop-v')
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME#desktop-v}"
+          pkg="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$pkg" ]; then echo "El tag ($tag) no coincide con desktop/package.json ($pkg)"; exit 1; fi
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+
+      - name: Firma disponible
+        id: sign
+        shell: bash
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+        run: |
+          echo "mac=$([ -n "$CSC_LINK" ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
+          echo "notarize=$([ -n "$CSC_LINK" ] && [ -n "$APPLE_ID" ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
+          echo "win=$([ -n "$WIN_CSC_LINK" ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
+
+      # Con certificado: firma (y notariza si están las credenciales de Apple).
+      - name: Instaladores firmados (Mac)
+        if: runner.os == 'macOS' && steps.sign.outputs.mac == 'yes'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: npx electron-builder ${{ matrix.target }} --publish always ${{ steps.sign.outputs.notarize == 'yes' && '-c.mac.notarize=true' || '-c.mac.notarize=false' }}
+
+      - name: Instaladores firmados (Windows)
+        if: runner.os == 'Windows' && steps.sign.outputs.win == 'yes'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        run: npx electron-builder ${{ matrix.target }} --publish always
+
+      # Sin certificado: instaladores sin firmar (la página /download explica cómo abrirlos).
+      - name: Instaladores sin firmar
+        if: (runner.os == 'macOS' && steps.sign.outputs.mac != 'yes') || (runner.os == 'Windows' && steps.sign.outputs.win != 'yes')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npx electron-builder ${{ matrix.target }} --publish always -c.mac.identity=null -c.mac.notarize=false
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: desktop-${{ runner.os }}
+          path: |
+            desktop/release/*.dmg
+            desktop/release/*.zip
+            desktop/release/*.exe
+            desktop/release/*.yml
+          if-no-files-found: ignore

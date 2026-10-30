@@ -518,7 +518,7 @@ const BASE_TOOLS: Omit<AgentToolsConfig, 'enabled'> = {
   flowIds: [],
   robotIds: [], docsPageIds: [], docsActorId: null,
   httpAllowedDomains: [],
-  requireApproval: [],
+  requireApproval: [], codeFunctions: [],
 };
 
 describe('Agents: run_robot', () => {
@@ -561,7 +561,7 @@ describe('Agents: run_robot', () => {
         { text: 'Done.' },
       ]),
     );
-    const res = await sendAgentMessage({ agent, channel: 'playground', text: 'find shoes' });
+    const res = await sendAgentMessage({ agent, channel: 'playground', createdBy: agent.user_id, text: 'find shoes' });
     const calls = res.result.toolCalls;
     expect(calls[0].output).toEqual({ error: 'missing_input', input: 'query' });
     expect(isSimulatedOutput(calls[1].output)).toBe(true);

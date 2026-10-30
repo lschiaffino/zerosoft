@@ -645,6 +645,7 @@ export async function blocksToPdf(input: DocsBlock[], title: string, opts: DocsP
       case 'toc':
       case 'breadcrumb':
       case 'board':
+      case 'design':
         break;
       default: {
         const runs = htmlToRuns(b.content);

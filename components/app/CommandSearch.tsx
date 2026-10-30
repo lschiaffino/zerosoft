@@ -137,6 +137,8 @@ function useGroupOrder() {
         'notes',
         'boards',
         'boardFolders',
+        'designs',
+        'designFolders',
         'tasks',
         'playbooks',
         'crmForms',
@@ -325,7 +327,7 @@ export default function CommandSearch() {
         label: tSettingsCmdk('section', { section: tSections(key) }),
         meta: '',
         href: settingsSectionHref(key),
-        keywords: key === 'billing' ? tSettingsCmdk('keywords.billing') : undefined,
+        keywords: key === 'billing' ? tSettingsCmdk('keywords.billing') : key === 'desktop' ? tSettingsCmdk('keywords.desktop') : undefined,
       })),
       {
         group: 'settings',

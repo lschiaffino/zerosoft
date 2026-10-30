@@ -13,7 +13,7 @@ import {
   setProjectVisibility,
 } from '@/lib/track-access';
 import { recordAudit } from '@/lib/track-audit';
-import { listOwnerSpacePeople, ownerSpaceSql } from '@/lib/workspace';
+import { ensureWorkspace, listOwnerSpacePeople, ownerSpaceSql, workspaceModeOf } from '@/lib/workspace';
 
 type SessionUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
 
@@ -36,8 +36,11 @@ async function accessScope(user: SessionUser) {
     teamId,
     where: teamId ? 'team_id = ?' : '(team_id IS NULL AND owner_id = ?)',
     arg: teamId ?? user.id,
-    // Sin nadie más en el workspace no hay a quién restringir.
-    personal: !teamId && people.length <= 1,
+    // Personal solo si el workspace está en modo personal y nadie más es parte.
+    // Un workspace en modo equipo sin miembros todavía puede tener privados e
+    // invitados: es justo lo que hace quien lo acaba de crear (antes veía
+    // "creá un workspace compartido" con el workspace compartido ya creado).
+    personal: !teamId && people.length <= 1 && workspaceModeOf(user.workspace ?? (await ensureWorkspace(user.id))) === 'personal',
     people,
     isMember: async (userId: string) =>
       teamId

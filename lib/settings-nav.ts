@@ -42,6 +42,8 @@ export const SETTINGS_SECTION_KEYS = [
   'import',
   'security',
   'notifications',
+  // La app de escritorio (Mac y Windows): lleva a /download.
+  'desktop',
 ] as const;
 export type SettingsSectionKey = (typeof SETTINGS_SECTION_KEYS)[number] | 'admin';
 
@@ -52,6 +54,7 @@ export function settingsSectionKeys(isAdmin: boolean): SettingsSectionKey[] {
 export function settingsSectionHref(key: SettingsSectionKey): string {
   if (key === 'profile') return '/app/settings';
   if (key === 'admin') return SETTINGS_ADMIN_ROUTES[0];
+  if (key === 'desktop') return '/download';
   return `/app/settings/${key}`;
 }
 

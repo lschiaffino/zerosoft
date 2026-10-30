@@ -20,7 +20,7 @@ const RESERVED = new Set([
   'blog', 'products', 'docs', 'terms', 'privacy', 'security', 'status',
   'admin', 'www', 'mail', 'support', 'help', 'about', 'new',
   'login', 'signin', 'demo', 'manifesto', 'changelog', 'feedback', 'videos', 'roadmap', 'tools',
-  'feedback-board', 'brand', 'nuevo-branding',
+  'feedback-board', 'brand', 'nuevo-branding', 'download',
 ]);
 
 /** Páginas de la app que un dominio propio sí sirve: la puerta de contraseña y /gone. */
@@ -269,6 +269,6 @@ export const config = {
   // Las APIs de las apps entran solo para el header de acceso por app (arriba).
   matcher: [
     '/((?!api/|r/|s/|_next/|_vercel/|apple-icon|.*\\..*).*)',
-    '/api/:family(crm|track|docs|notes|board|boards|links|calendar|chat|groups|agents|flow|robots|voice|rec|talk)/:path*',
+    '/api/:family(crm|track|docs|notes|board|boards|links|calendar|chat|groups|agents|flow|robots|voice|rec|talk|design)/:path*',
   ],
 };

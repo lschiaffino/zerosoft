@@ -4,7 +4,7 @@
  * settings.products.links.<label>. Link tiene su página propia
  * (/app/links/settings: dominios, importar, exportar).
  */
-export const MINIMAL_SETTINGS_APPS = ['docs', 'notes', 'board', 'flow', 'agents', 'robots', 'voice', 'rec', 'talk'] as const;
+export const MINIMAL_SETTINGS_APPS = ['docs', 'notes', 'board', 'flow', 'agents', 'robots', 'voice', 'rec', 'talk', 'design'] as const;
 export type MinimalSettingsApp = (typeof MINIMAL_SETTINGS_APPS)[number];
 
 export const PRODUCT_SETTINGS_SHORTCUTS: Record<MinimalSettingsApp, Array<{ href: string; label: string }>> = {
@@ -44,6 +44,12 @@ export const PRODUCT_SETTINGS_SHORTCUTS: Record<MinimalSettingsApp, Array<{ href
     { href: '/app/settings/billing', label: 'aiUsage' },
   ],
   talk: [{ href: '/app/settings/members', label: 'members' }],
+  design: [
+    { href: '/app/design/brand', label: 'designBrand' },
+    { href: '/app/design/templates', label: 'designTemplates' },
+    { href: '/app/settings/members', label: 'members' },
+    { href: '/app/settings/billing', label: 'aiUsage' },
+  ],
 };
 
 /** Pestañas de los ajustes de Link (?tab=), la primera es la de entrada. */

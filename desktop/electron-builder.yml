@@ -1,0 +1,75 @@
+# electron-builder: instaladores de Mac (dmg + zip, arm64 y x64) y Windows (NSIS x64).
+# Firma y notarización solo si están los secretos (ver README y .github/workflows/desktop.yml).
+appId: ai.zerosoft.desktop
+productName: zerosoft
+copyright: Copyright © 2026 zerosoft
+artifactName: zerosoft-${version}-${os}-${arch}.${ext}
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**
+  - build/trayTemplate.png
+  - build/trayTemplate@2x.png
+  - build/tray-win.png
+  - build/icon-256.png
+  - package.json
+  - '!**/*.map'
+asarUnpack:
+  - node_modules/uiohook-napi/**
+# Fuses del binario de Electron (se escriben al empaquetar): sin ELECTRON_RUN_AS_NODE, sin
+# NODE_OPTIONS, sin --inspect, solo carga app.asar y verifica su integridad.
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  enableCookieEncryption: true
+  grantFileProtocolExtraPrivileges: false
+protocols:
+  - name: zerosoft
+    schemes: [zerosoft]
+mac:
+  category: public.app-category.productivity
+  icon: build/icon.png
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  minimumSystemVersion: '12.0'
+  extendInfo:
+    NSMicrophoneUsageDescription: zerosoft records your microphone for dictation and meeting notes.
+    NSAudioCaptureUsageDescription: zerosoft records the system audio of a call for meeting notes.
+    NSScreenCaptureUsageDescription: zerosoft records the system audio of a call for meeting notes.
+    NSAppleEventsUsageDescription: zerosoft reads which app is in front to adapt the dictation (email, chat or notes).
+    LSUIElement: false
+  # notarize: lo activa el workflow con APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID.
+dmg:
+  sign: false
+win:
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch: [x64]
+  # Con certificado de firma: poner acá el nombre del publisher tal como figura en el certificado
+  # (CN), así electron-updater verifica la firma de cada actualización además del sha512.
+  # publisherName: ['zerosoft']
+nsis:
+  oneClick: true
+  perMachine: false
+  createDesktopShortcut: true
+  shortcutName: zerosoft
+publish:
+  # Los binarios van a un release desktop-v* de GitHub (los sube el workflow);
+  # la app busca actualizaciones en https://zerosoft.ai/api/desktop/update.
+  provider: github
+  owner: lschiaffino
+  repo: zerosoft
+  releaseType: release
+  tagNamePrefix: desktop-v

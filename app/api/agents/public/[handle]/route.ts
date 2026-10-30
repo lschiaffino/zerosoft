@@ -14,6 +14,10 @@ const schema = z.object({
   /** Token aleatorio del navegador: solo quien lo tiene continúa la conversación. */
   visitorKey: z.string().min(16).max(100),
   message: z.string().trim().min(1).max(2000),
+  /** Formulario del chat enviado (lib/agents-ui-blocks.ts lo valida contra el agente). */
+  form: z
+    .object({ id: z.string().min(1).max(40), values: z.record(z.string().max(64), z.string().max(2000)).refine((o) => Object.keys(o).length <= 20) })
+    .optional(),
 });
 
 function perMinute(): number {
@@ -36,6 +40,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ handle: 
     text: parsed.data.message,
     conversationId: parsed.data.conversationId ?? null,
     visitorKey: parsed.data.visitorKey,
+    form: parsed.data.form ?? null,
     country: requestCountry(req),
     abortSignal: req.signal,
   });

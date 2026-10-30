@@ -45,6 +45,9 @@ export default async function Footer({ locale }: { locale: string }) {
             <li>
               <Link href="/tools">{t('freeTools')}</Link>
             </li>
+            <li>
+              <Link href="/download">{t('desktopApp')}</Link>
+            </li>
           </ul>
         </div>
 

@@ -126,7 +126,8 @@
       "linkedDatabase": "Linked view of database",
       "ai": "Ask AI",
       "meeting": "AI meeting notes",
-      "syncedDatabase": "Synced database"
+      "syncedDatabase": "Synced database",
+      "design": "Design"
     },
     "breadcrumb": "Breadcrumb",
     "closePanel": "Close panel",
@@ -301,7 +302,22 @@
     },
     "favorite": "Add to favorites",
     "unfavorite": "Remove from favorites",
-    "savedOffline": "Saved on this device"
+    "savedOffline": "Saved on this device",
+    "design": {
+      "label": "Design",
+      "pick": "Choose a design",
+      "search": "Search designs",
+      "empty": "No designs yet. Create one in Design.",
+      "noMatch": "No design matches.",
+      "error": "Designs could not load.",
+      "noAccess": "You do not have access to this design.",
+      "open": "Open {name}",
+      "openButton": "Open in Design",
+      "change": "Change",
+      "loading": "Loading…",
+      "pages": "{n, plural, one {# page} other {# pages}}",
+      "create": "Create a design"
+    }
   },
   "database": {
     "database": "Database",

@@ -548,7 +548,9 @@
     "description": "Our search is in-memory BM25 over keyword tokens with a small ES/EN/PT stopword list (lib/knowledge-search.ts), so a question phrased differently from the doc, or in another language than the doc, often returns nothing and triggers a handoff. Fin answers in 45+ languages from the same content (https://fin.ai/capabilities). search_knowledge already returns a source for URLs but the visitor never sees which page an answer came from, which hurts trust and makes wrong answers hard to debug. First scope: hybrid ranking (BM25 plus embeddings via the AI Gateway, cached per chunk with a content hash), and an instruction plus UI to append one source link (Docs public URL or web URL) to answers that used knowledge.\n\nPriority: medium. Effort: M. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
     "product": "agents",
     "kind": "idea",
-    "parity": "semantic-retrieval"
+    "parity": "semantic-retrieval",
+    "status": "done",
+    "changelog": "2026-10-28-agents-parity-close"
   },
   {
     "title": "Agents: Alert the owner when thumbs-down, tool errors or step limits spike",
@@ -563,7 +565,9 @@
     "description": "Fin deploys to email, WhatsApp, SMS, Slack and voice (https://fin.ai/pricing), and Lindy drafts and triages email (https://docs.lindy.ai/features/inbox-management/email-drafting.md). Our channels are the Chat widget, the public page, the API and the Flow node (AgentChannel in lib/agents-config.ts, lib/agents-chat.ts); there is no email channel even though the suite already handles email in lib/crm-email.ts. Email is where most small-team support and sales actually happens. First scope: assign an agent to a CRM email inbox in 'draft' mode, where it writes a reply draft on each inbound thread for a teammate to send, with the same tools and logging as other channels.\n\nPriority: medium. Effort: L. Compared with Intercom Fin, Zapier Agents, Lindy (plus OpenAI AgentKit as reference for evals/versioning).",
     "product": "agents",
     "kind": "idea",
-    "parity": "email-channel"
+    "parity": "email-channel",
+    "status": "done",
+    "changelog": "2026-10-28-agents-parity-close"
   },
   {
     "title": "Board: Add voting sessions and a shared timer for workshops",
@@ -1345,7 +1349,9 @@
     "description": "Chatbase deploys agents to WhatsApp (with templates and Coexistence), Messenger, Instagram and Slack (https://www.chatbase.co/docs/llms.txt) and Fin answers on WhatsApp, SMS and Slack (https://fin.ai/updates). Agents only run on a Chat widget, /a/<handle>, the API and Flow (AGENT_USAGE_CHANNELS). For small teams in LatAm WhatsApp is where customers write. First scope: connect a WhatsApp Business Cloud number to an agent, map each phone number to an agent conversation, run runAgent on inbound messages, reply within the 24 h window, and hand off to the Chat inbox (shared with the Chat WhatsApp channel idea) with the same handoff rules.",
     "product": "agents",
     "kind": "idea",
-    "parity": "messaging-channels"
+    "parity": "messaging-channels",
+    "status": "done",
+    "changelog": "2026-10-28-agents-parity-close"
   },
   {
     "title": "Agents: Run multi-turn simulations with an AI customer and replay real conversations",
@@ -1370,7 +1376,9 @@
     "description": "Chatbase has Collect leads, Collect data, custom buttons and suggested messages as actions (https://www.chatbase.co/docs/llms.txt). Our agents ask for email and company in free text and then call crm_upsert_contact; visitors skip or mistype it and the SDR template loses leads. First scope: a collect_info tool the agent can call with fields (email, name, phone, company, a select) that renders a small form in the Chat widget and the public page, validates on the client, returns the values to the agent and saves them to the CRM contact, plus quick-reply buttons the agent can offer.",
     "product": "agents",
     "kind": "idea",
-    "parity": "chat-forms-buttons"
+    "parity": "chat-forms-buttons",
+    "status": "done",
+    "changelog": "2026-10-28-agents-parity-close"
   },
   {
     "title": "Agents: Connect MCP servers as tools",
@@ -1385,7 +1393,10 @@
     "title": "Agents: Add step-by-step procedures the agent follows for a specific task",
     "description": "Fin Procedures combine natural-language steps with deterministic if/else, code and approval steps (https://fin.ai/help/en/articles/13976187-fin-procedures-explained); Chatbase has Procedures (https://chatbase.co/docs/user-guides/chatbot/procedures/procedures-overview.md) and Voiceflow mixes playbooks with canvas workflows. Our agent has one instruction block, so a refund or reschedule flow depends on the model following prose. First scope: named procedures with a trigger description and ordered steps (ask for a field, call a tool, check a condition, hand off); the runtime injects the active procedure and tracks the current step per conversation, and Analytics shows completion per procedure.",
     "product": "agents",
-    "kind": "idea"
+    "kind": "idea",
+    "parity": "procedures",
+    "status": "done",
+    "changelog": "2026-10-28-agents-parity-close"
   },
   {
     "title": "Agents: Export, import and duplicate an agent with its configuration",

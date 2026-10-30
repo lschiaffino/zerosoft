@@ -33,6 +33,8 @@ export type IconName =
   | 'voice'
   | 'rec'
   | 'talk'
+  | 'design'
+  | 'palette'
   | 'products'
   | 'quotes'
   | 'templates'
@@ -274,6 +276,21 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <rect x="3" y="6" width="13" height="12" rx="2" />
       <path d="M16 10l5-3v10l-5-3z" />
+    </>
+  ),
+  design: (
+    <>
+      <path d="M4 20l4-1 11-11-3-3L5 16z" />
+      <path d="M14 7l3 3" />
+      <rect x="3" y="3" width="7" height="7" />
+    </>
+  ),
+  palette: (
+    <>
+      <path d="M12 3a9 9 0 1 0 0 18c1.2 0 2-.8 2-1.8 0-.5-.2-.9-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1 .8-1.6 1.8-1.6H17a4 4 0 0 0 4-4c0-4.4-4-8-9-8z" />
+      <circle cx="7.5" cy="11" r="1.2" />
+      <circle cx="10" cy="7" r="1.2" />
+      <circle cx="15" cy="7.5" r="1.2" />
     </>
   ),
   talk: (

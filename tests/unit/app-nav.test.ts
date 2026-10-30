@@ -10,6 +10,7 @@ import {
   type AppProduct,
   type SidebarLabels,
 } from '@/components/app/sidebar-nav';
+import { pageExists } from './page-exists';
 
 /**
  * Navegación izquierda de la app: cada ítem apunta a una página que existe,
@@ -19,23 +20,18 @@ import {
 const root = join(__dirname, '..', '..');
 const appDir = join(root, 'app', '[locale]');
 
-const SWITCHER_ORDER: AppProduct[] = ['link', 'crm', 'docs', 'calendar', 'track', 'chat', 'groups', 'flow', 'notes', 'board', 'talk', 'voice', 'rec', 'agents', 'robots'];
-const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk'];
+const SWITCHER_ORDER: AppProduct[] = ['link', 'crm', 'docs', 'calendar', 'track', 'chat', 'groups', 'flow', 'notes', 'board', 'design', 'talk', 'voice', 'rec', 'agents', 'robots'];
+const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design'];
 
 // Labels de prueba: cada hoja es su propia ruta ("crm.contacts"), así los
 // ítems sin label se notan.
 function fakeLabels(): SidebarLabels {
   const proxy = (prefix: string): unknown =>
     new Proxy({}, { get: (_t, key) => (typeof key === 'string' ? `${prefix}${key}` : undefined) });
-  const nested = ['categories', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'notifications'];
+  const nested = ['categories', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'notifications'];
   return new Proxy({} as SidebarLabels, {
     get: (_t, key) => (typeof key === 'string' && nested.includes(key) ? proxy(`${key}.`) : String(key)),
   });
-}
-
-function pageExists(href: string): boolean {
-  const path = href.split(/[?#]/)[0].replace(/^\//, '');
-  return existsSync(join(appDir, path, 'page.tsx'));
 }
 
 describe('sidebar de la app', () => {
@@ -58,6 +54,7 @@ describe('sidebar de la app', () => {
     expect(appProductFromPath('/app/voice')).toBe('voice');
     expect(appProductFromPath('/app/rec/settings')).toBe('rec');
     expect(appProductFromPath('/app/talk')).toBe('talk');
+    expect(appProductFromPath('/app/design/abc')).toBe('design');
     // El asistente es de la plataforma: shell neutro, nunca el de Link.
     expect(appProductFromPath('/app/assistant')).toBe('home');
   });

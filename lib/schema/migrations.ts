@@ -6868,6 +6868,211 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Agents contra Fin (cierre de paridad): botones y formularios en el chat
+    // (ui de cada mensaje), procedimientos (estado por conversación), tests
+    // A/B (variante por conversación y corrida), acceso por agente, número de
+    // teléfono, conexiones cifradas (Stripe, Shopify, Slack, Messenger e
+    // Instagram), embeddings del conocimiento, fuentes externas (Zendesk) y
+    // eventos ya procesados de los canales (para no contestar dos veces).
+    id: '131_agents_parity',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE agent_messages ADD COLUMN ui TEXT');
+      await addColumn(client, 'ALTER TABLE chat_messages ADD COLUMN ui TEXT');
+      await addColumn(client, 'ALTER TABLE agent_conversations ADD COLUMN procedure_state TEXT');
+      await addColumn(client, 'ALTER TABLE agent_conversations ADD COLUMN variant TEXT');
+      await addColumn(client, 'ALTER TABLE agent_conversations ADD COLUMN external_ref TEXT');
+      await addColumn(client, 'ALTER TABLE agent_runs ADD COLUMN variant TEXT');
+      await addColumn(client, 'ALTER TABLE agents ADD COLUMN ab_test TEXT');
+      await addColumn(client, 'ALTER TABLE agents ADD COLUMN access TEXT');
+      await addColumn(client, 'ALTER TABLE agents ADD COLUMN voice_number TEXT');
+      await addColumn(client, 'ALTER TABLE agents ADD COLUMN integrations TEXT');
+      await addColumn(client, 'ALTER TABLE agents ADD COLUMN embed_claimed_until TEXT');
+      await client.executeMultiple(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_agents_voice_number ON agents(voice_number) WHERE voice_number IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_agent_conversations_external ON agent_conversations(agent_id, external_ref);
+        CREATE TABLE IF NOT EXISTS agent_embeddings (
+          user_id TEXT NOT NULL,
+          hash TEXT NOT NULL,
+          model TEXT NOT NULL,
+          vector TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (user_id, hash, model)
+        );
+        CREATE TABLE IF NOT EXISTS agent_sources (
+          id TEXT PRIMARY KEY,
+          agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          target TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          error TEXT,
+          items INTEGER NOT NULL DEFAULT 0,
+          synced_at TEXT,
+          claimed_until TEXT,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          UNIQUE (agent_id, kind, target)
+        );
+        CREATE TABLE IF NOT EXISTS agent_channel_events (
+          id TEXT PRIMARY KEY,
+          agent_id TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_agent_channel_events_created ON agent_channel_events(created_at);
+      `);
+    },
+  },
+  {
+    // Escritorio (desktop/): códigos de un solo uso del login en el navegador
+    // del sistema. Se guarda el hash del código, el challenge PKCE (S256) y la
+    // persona; vence a los 2 minutos y used_at lo reclama (compare-and-set).
+    id: '134_desktop_login',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS desktop_login_codes (
+          code_hash TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          challenge TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          expires_at TEXT NOT NULL,
+          used_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_desktop_login_codes_expires ON desktop_login_codes(expires_at);
+      `);
+    },
+  },
+  {
+    // Design (como Canva): diseños con páginas en JSON, carpetas personales,
+    // favoritos, abiertos recientes, personas con acceso, comentarios fijados
+    // en el lienzo, archivos subidos (imágenes y logos), kit de marca del
+    // workspace y presencia (quién lo tiene abierto).
+    id: '135_design',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS design_folders (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_by TEXT NOT NULL,
+          name TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_design_folders_owner ON design_folders(workspace_id, created_by, name);
+
+        CREATE TABLE IF NOT EXISTS design_designs (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_by TEXT NOT NULL,
+          folder_id TEXT REFERENCES design_folders(id) ON DELETE SET NULL,
+          name TEXT NOT NULL DEFAULT '',
+          width INTEGER NOT NULL,
+          height INTEGER NOT NULL,
+          pages INTEGER NOT NULL DEFAULT 1,
+          doc TEXT NOT NULL,
+          doc_bytes INTEGER NOT NULL DEFAULT 0,
+          search_text TEXT NOT NULL DEFAULT '',
+          thumb TEXT,
+          version INTEGER NOT NULL DEFAULT 1,
+          workspace_access TEXT NOT NULL DEFAULT 'none',
+          share_token TEXT,
+          is_template INTEGER NOT NULL DEFAULT 0,
+          updated_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          deleted_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_design_designs_ws ON design_designs(workspace_id, deleted_at, updated_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_design_designs_creator ON design_designs(workspace_id, created_by, updated_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_design_designs_folder ON design_designs(folder_id);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_design_designs_share ON design_designs(share_token) WHERE share_token IS NOT NULL;
+
+        CREATE TABLE IF NOT EXISTS design_members (
+          design_id TEXT NOT NULL REFERENCES design_designs(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          role TEXT NOT NULL DEFAULT 'view',
+          added_by TEXT,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (design_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_design_members_user ON design_members(user_id);
+
+        CREATE TABLE IF NOT EXISTS design_stars (
+          design_id TEXT NOT NULL REFERENCES design_designs(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (design_id, user_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS design_opens (
+          design_id TEXT NOT NULL REFERENCES design_designs(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          opened_at TEXT NOT NULL,
+          PRIMARY KEY (design_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_design_opens_user ON design_opens(user_id, opened_at DESC);
+
+        CREATE TABLE IF NOT EXISTS design_comments (
+          id TEXT PRIMARY KEY,
+          design_id TEXT NOT NULL REFERENCES design_designs(id) ON DELETE CASCADE,
+          page_id TEXT NOT NULL,
+          x REAL NOT NULL DEFAULT 0,
+          y REAL NOT NULL DEFAULT 0,
+          parent_id TEXT REFERENCES design_comments(id) ON DELETE CASCADE,
+          author_id TEXT NOT NULL,
+          author_name TEXT NOT NULL DEFAULT '',
+          body TEXT NOT NULL,
+          resolved_at TEXT,
+          resolved_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_design_comments_design ON design_comments(design_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS design_files (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          uploaded_by TEXT NOT NULL,
+          kind TEXT NOT NULL DEFAULT 'upload',
+          url TEXT NOT NULL,
+          mime TEXT NOT NULL,
+          size INTEGER NOT NULL DEFAULT 0,
+          width INTEGER NOT NULL DEFAULT 0,
+          height INTEGER NOT NULL DEFAULT 0,
+          name TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_design_files_owner ON design_files(workspace_id, uploaded_by, created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS design_brand (
+          workspace_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          colors TEXT NOT NULL DEFAULT '[]',
+          fonts TEXT NOT NULL DEFAULT '{}',
+          logos TEXT NOT NULL DEFAULT '[]',
+          updated_by TEXT,
+          updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS design_presence (
+          design_id TEXT NOT NULL REFERENCES design_designs(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          name TEXT NOT NULL DEFAULT '',
+          page_id TEXT NOT NULL DEFAULT '',
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (design_id, user_id)
+        );
+
+        -- Qué imágenes usa cada diseño (se escribe al guardar): una imagen se
+        -- sirve a quien la subió o a quien ve un diseño que la usa.
+        CREATE TABLE IF NOT EXISTS design_file_refs (
+          design_id TEXT NOT NULL REFERENCES design_designs(id) ON DELETE CASCADE,
+          file_id TEXT NOT NULL,
+          PRIMARY KEY (design_id, file_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_design_file_refs_file ON design_file_refs(file_id);
+      `);
+    },
+  },
+  {
     // Docs: edición simultánea tecla por tecla. Feed de eventos en vivo por
     // página (operaciones de texto, cursores, guardados y cambios de acceso)
     // que leen los streams SSE, y el texto de cada bloque con su número de

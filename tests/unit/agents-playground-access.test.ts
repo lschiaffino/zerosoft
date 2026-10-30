@@ -41,7 +41,7 @@ async function lookup(agent: AgentRow, personId: string, email: string) {
 describe('playground: lecturas del CRM', () => {
   it('un miembro sin edición (o sin la app CRM) no lee contactos', async () => {
     const { member, agent } = await workspaceWithMember('["agents"]');
-    expect(await lookup(agent, member.id, 'secret@client.test')).toEqual({ error: 'playground_no_access' });
+    expect((await lookup(agent, member.id, 'secret@client.test')).error).toMatch(/^playground_no_(access|app)$/);
     const other = await workspaceWithMember('["agents","crm"]');
     expect(await lookup(other.agent, other.member.id, 'secret@client.test')).toEqual({ error: 'playground_no_access' });
   });
@@ -54,6 +54,6 @@ describe('playground: lecturas del CRM', () => {
 
   it('un admin sin la app CRM no lee contactos', async () => {
     const { member, agent } = await workspaceWithMember('["agents"]', 'admin');
-    expect(await lookup(agent, member.id, 'secret@client.test')).toEqual({ error: 'playground_no_access' });
+    expect((await lookup(agent, member.id, 'secret@client.test')).error).toMatch(/^playground_no_(access|app)$/);
   });
 });

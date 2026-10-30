@@ -13,10 +13,9 @@ import {
 } from '@/lib/settings-nav';
 import { PRODUCT_KEYS } from '@/lib/products';
 import { WEBHOOK_EVENTS } from '@/lib/webhooks-events';
+import { pageExists } from './page-exists';
 
 const root = join(__dirname, '..', '..');
-const pageExists = (href: string) =>
-  existsSync(join(root, 'app', '[locale]', href.split(/[?#]/)[0].replace(/^\//, ''), 'page.tsx'));
 
 describe('settings: secciones de la plataforma', () => {
   const account = (admin: boolean) => settingsSections(admin)[0].items;
@@ -34,6 +33,7 @@ describe('settings: secciones de la plataforma', () => {
       'import',
       'security',
       'notifications',
+      'desktop',
     ]);
     expect(account(true).map((t) => t.key).at(-1)).toBe('admin');
   });

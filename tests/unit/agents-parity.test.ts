@@ -48,7 +48,7 @@ afterEach(() => {
   }
 });
 
-const TOOLS = { calEventTypeId: null, calDays: 7, trackProjectId: null, flowIds: [], robotIds: [], docsPageIds: [], docsActorId: null, httpAllowedDomains: [], requireApproval: [] };
+const TOOLS = { calEventTypeId: null, calDays: 7, trackProjectId: null, flowIds: [], robotIds: [], docsPageIds: [], docsActorId: null, httpAllowedDomains: [], requireApproval: [], codeFunctions: [] };
 
 async function setupAgent(label: string, patch: AgentUpdatePayload = {}) {
   const owner = await makeUser(label);
@@ -214,7 +214,7 @@ describe('privacidad, bloqueos y reglas', () => {
   it('vuelve a redactar cuando la conversación se retoma y cubre memoria y puntaje', async () => {
     const { owner, agent } = await setupAgent('pii-again', {
       publicHandle: `pa-${crypto.randomUUID().slice(0, 8)}`,
-      settings: { channelInstructions: { chat: '', public: '', api: '' }, citations: true, visitorContext: false, memory: false, redactPii: true, blockedCountries: [], blockedWords: [], scorecard: [], aiScoring: false },
+      settings: { channelInstructions: { chat: '', public: '', api: '' }, citations: true, visitorContext: false, memory: false, redactPii: true, blockedCountries: [], blockedWords: [], scorecard: [], aiScoring: false, redactNames: false, semanticSearch: false, answerEmails: false, forms: [], procedures: [], voice: { language: 'en-US' as const, greeting: '', handoffNumber: '' } },
     });
     setAiModelOverride(scriptedModel([{ text: 'ok' }]));
     const row = (await getAgentRow(owner.id, agent.id)) as AgentRow;
@@ -244,7 +244,7 @@ describe('privacidad, bloqueos y reglas', () => {
 
   it('las palabras de spam cortan antes del modelo', async () => {
     const { owner, agent } = await setupAgent('spam', {
-      settings: { channelInstructions: { chat: '', public: '', api: '' }, citations: true, visitorContext: false, memory: false, redactPii: false, blockedCountries: [], blockedWords: ['casino'], scorecard: [], aiScoring: false },
+      settings: { channelInstructions: { chat: '', public: '', api: '' }, citations: true, visitorContext: false, memory: false, redactPii: false, blockedCountries: [], blockedWords: ['casino'], scorecard: [], aiScoring: false, redactNames: false, semanticSearch: false, answerEmails: false, forms: [], procedures: [], voice: { language: 'en-US' as const, greeting: '', handoffNumber: '' } },
     });
     const model = scriptedModel([{ text: 'nope' }]);
     setAiModelOverride(model);

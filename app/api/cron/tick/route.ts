@@ -129,6 +129,8 @@ export async function GET(req: NextRequest) {
   // (lo que quede sigue en cola para el próximo tick o el worker).
   // Agents: re-descarga las URLs de conocimiento con más de 24 h (de a pocas por tick).
   const agentKnowledge = await resyncStaleKnowledgeUrls({ limit: 30 }).catch(() => null);
+  // Agents: eventos ya procesados de Slack/Messenger/Instagram de más de 3 días.
+  await import('@/lib/agents-channels').then((m) => m.pruneChannelEvents()).catch(() => null);
   // Agents: picos de la última hora → email al dueño (con throttle por agente).
   const agentAlerts = await checkAgentAlerts().catch(() => null);
   // Agents: puntaje con AI y memoria de las conversaciones inactivas (claim por fila), y redacción de datos personales.

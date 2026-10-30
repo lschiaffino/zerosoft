@@ -36,7 +36,7 @@ export default async function SignInPage(props: {
         <Logo variant="symbol" tone="current" height={36} title="" />
         <h1>{t('title')}</h1>
         <p className="auth-sub">{t('sub')}</p>
-        <GoogleButton label={t('google')} locale={locale} callbackUrl={callbackUrl} />
+        <GoogleButton label={t('google')} locale={locale} callbackUrl={callbackUrl} desktopHint={t('desktopHint')} />
         <p className="auth-legal">
           {t.rich('legal', {
             terms: (chunks) => <a href={`/${locale}/terms`}>{chunks}</a>,
