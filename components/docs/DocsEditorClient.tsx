@@ -158,6 +158,13 @@ export default function DocsEditorClient({
     const engine = coeditEngineRef.current;
     return textOpsRef.current && engine ? { session: liveSession.current, blocks: engine.exportDraft() } : undefined;
   };
+  /** Texto propio sin confirmar (operaciones en vuelo o sin mandar): queda en el borrador local. */
+  const keepUnconfirmedDraft = () => {
+    const engine = coeditEngineRef.current;
+    const snap = editorApi.current?.snapshot();
+    if (!engine || !snap || !textOpsRef.current || !engine.pending()) return;
+    saveDraft(offlineOwner, page.id, { content: snap.blocks }, base.current, coeditDraft());
+  };
   /** Manda como operaciones lo escrito sin red en otra sesión (borrador local). */
   const sendDraftOps = async (draft: DocsDraft): Promise<boolean> => {
     const blocks = draft.coedit?.blocks ?? {};
@@ -444,6 +451,9 @@ export default function DocsEditorClient({
     if (res.ok) {
       const updated = (await res.json().catch(() => null)) as DocsPage | null;
       clearDraft(offlineOwner, page.id);
+      // Lo escrito en esta pestaña todavía viaja como operaciones: hasta que se confirme,
+      // queda en el borrador (si se recarga en el medio, se manda al volver a abrir).
+      keepUnconfirmedDraft();
       setOffline(false);
       setSaveError(null);
       if (updated?.updated_at) adoptServer(updated);
@@ -499,6 +509,15 @@ export default function DocsEditorClient({
       window.removeEventListener('offline', goOffline);
     };
   }, [page.id, flushDraft, offlineOwner]);
+
+  // Recargar o cerrar con teclas que todavía no confirmó el servidor: quedan en el borrador
+  // y se mandan al volver a abrir (con la misma seq: nunca dos veces).
+  useEffect(() => {
+    const onHide = () => keepUnconfirmedDraft();
+    window.addEventListener('pagehide', onHide);
+    return () => window.removeEventListener('pagehide', onHide);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page.id, offlineOwner]);
 
   // Una vista por apertura (Analítica de la página) y la marca de "Disponible sin conexión".
   useEffect(() => {
