@@ -71,6 +71,7 @@ export const API_SECTIONS: ApiSection[] = [
   { id: 'design', titleKey: 'designApiTitle', descKey: 'designApiDesc' },
   { id: 'shop', titleKey: 'shopApiTitle', descKey: 'shopApiDesc' },
   { id: 'analytics', titleKey: 'analyticsApiTitle', descKey: 'analyticsApiDesc' },
+  { id: 'social', titleKey: 'socialApiTitle', descKey: 'socialApiDesc' },
   { id: 'webhooks', titleKey: 'webhooksTitle', descKey: 'webhooksDesc' },
 ];
 
@@ -3222,6 +3223,62 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
       data: [{ id: 'd_1', name: 'Summer sale', width: 1080, height: 1080, pages: 1, owner: 'Ana', access: 'owner', starred: false, template: false, updated_at: '2026-10-29T12:00:00.000Z', url: 'https://zerosoft.ai/en/app/design/d_1' }],
     },
     responseStatus: 200,
+  },
+  // Social (redes sociales)
+  {
+    id: 'social-posts-list',
+    sectionId: 'social',
+    method: 'GET',
+    path: '/api/v1/social/posts',
+    titleKey: 'socialPostsListTitle',
+    descKey: 'socialPostsListDesc',
+    params: [
+      { name: 'status', type: 'string', descriptionKey: 'paramSocialStatus' },
+      { name: 'from', type: 'string', descriptionKey: 'paramSocialFrom' },
+      { name: 'to', type: 'string', descriptionKey: 'paramSocialTo' },
+    ],
+    response: {
+      data: [
+        {
+          id: 'sp_1',
+          text: 'Launch day #launch',
+          status: 'published',
+          scheduled_at: '2026-11-03T13:00:00.000Z',
+          published_at: '2026-11-03T13:00:12.000Z',
+          targets: [{ account_id: 'sa_1', network: 'linkedin', status: 'published', url: 'https://www.linkedin.com/feed/update/urn:li:share:1', error: null }],
+          created_at: '2026-11-01T10:00:00.000Z',
+        },
+      ],
+    },
+    responseStatus: 200,
+  },
+  {
+    id: 'social-posts-create',
+    sectionId: 'social',
+    method: 'POST',
+    path: '/api/v1/social/posts',
+    titleKey: 'socialPostsCreateTitle',
+    descKey: 'socialPostsCreateDesc',
+    params: [
+      { name: 'text', type: 'string', required: true, descriptionKey: 'paramSocialText' },
+      { name: 'accountIds', type: 'string[]', required: true, descriptionKey: 'paramSocialAccounts' },
+      { name: 'overrides', type: 'object', descriptionKey: 'paramSocialOverrides' },
+      { name: 'action', type: 'string', descriptionKey: 'paramSocialAction' },
+      { name: 'scheduledAt', type: 'string', descriptionKey: 'paramSocialScheduledAt' },
+    ],
+    request: { text: 'Launch day #launch', accountIds: ['sa_1'], action: 'schedule', scheduledAt: '2026-11-03T13:00:00.000Z' },
+    response: {
+      data: {
+        id: 'sp_2',
+        text: 'Launch day #launch',
+        status: 'scheduled',
+        scheduled_at: '2026-11-03T13:00:00.000Z',
+        published_at: null,
+        targets: [{ account_id: 'sa_1', network: 'linkedin', status: 'pending', url: null, error: null }],
+        created_at: '2026-11-01T10:00:00.000Z',
+      },
+    },
+    responseStatus: 201,
   },
 ];
 

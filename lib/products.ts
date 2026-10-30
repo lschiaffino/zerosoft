@@ -46,7 +46,7 @@ export const PRODUCT_CONFIG = {
   design: { name: 'Design', launch: '/app/design', path: 'design', color: '#00a5c8', category: 'build', audience: 'team' },
   shop: { name: 'Shop', launch: '/app/shop', path: 'shop', color: '#15803d', category: 'sell', audience: 'team' },
   analytics: { name: 'Analytics', launch: '/app/analytics', path: 'analytics', color: '#4f46e5', category: 'build', audience: 'team' },
-  social: { name: 'Social', launch: '/app/social', path: 'social', color: '#be185d', category: 'support', audience: 'team' },
+  social: { name: 'Social', launch: '/app/social', path: 'social', color: '#7e22ce', category: 'sell', audience: 'team' },
   people: { name: 'People', launch: '/app/people', path: 'people', color: '#8b5e34', category: 'daily', audience: 'team' },
 } as const satisfies Record<string, ProductEntry>;
 
