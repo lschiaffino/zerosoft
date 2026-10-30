@@ -40,7 +40,8 @@
       "design": "Graphic design from templates, with your brand",
       "analytics": "Product analytics and feature flags",
       "social": "Schedule, inbox and analytics for social media",
-      "hiring": "Applicant tracking with a careers page"
+      "hiring": "Applicant tracking with a careers page",
+      "sign": "Electronic signatures with an audit trail"
     },
     "building": "In the works"
   },
@@ -188,7 +189,9 @@
     "groupSocialLibrary": "Social library",
     "yourApps": "Your apps",
     "groupHiringJobs": "Jobs",
-    "groupHiringCandidates": "Candidates"
+    "groupHiringCandidates": "Candidates",
+    "groupSignEnvelopes": "Envelopes",
+    "groupSignTemplates": "Signature templates"
   },
   "manifesto": {
     "p1": "A team of ten pays <strong>$6,000 a year</strong> for a CRM, $1,440 to book meetings and $420 to shorten links. Those prices are set per head or per plan.",
@@ -258,6 +261,9 @@
     },
     "hiring": {
       "desc": "Jobs, a careers page, a candidate pipeline, scorecards, interviews and offers."
+    },
+    "sign": {
+      "desc": "Send PDFs for signature in order, with templates, bulk send and a certificate of completion."
     }
   },
   "model": {
@@ -433,6 +439,9 @@
       },
       "hiring": {
         "line": "Jobs, careers page, pipeline, scorecards and offers."
+      },
+      "sign": {
+        "line": "Envelopes, signing order, templates and an audit trail."
       }
     },
     "stack": {

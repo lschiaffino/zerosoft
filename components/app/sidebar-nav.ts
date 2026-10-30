@@ -211,6 +211,12 @@ export interface SidebarLabels {
     careers: string;
     newJob: string;
   };
+  /** Sign (DocuSign): sobres, plantillas. */
+  sign: {
+    home: string;
+    templates: string;
+    newEnvelope: string;
+  };
   notifications: {
     title: string;
     markRead: string;
@@ -267,7 +273,8 @@ export type AppProduct =
   | 'shop'
   | 'analytics'
   | 'social'
-  | 'hiring';
+  | 'hiring'
+  | 'sign';
 
 const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/crm', 'crm'],
@@ -289,6 +296,7 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/analytics', 'analytics'],
   ['/app/social', 'social'],
   ['/app/hiring', 'hiring'],
+  ['/app/sign', 'sign'],
 ];
 
 /** La app del shell para una clave de producto (Cal vive en /app/calendar). */
@@ -332,6 +340,7 @@ const APP_ICONS: Record<ProductKey, IconName> = {
   analytics: 'analytics',
   social: 'social',
   hiring: 'hiring',
+  sign: 'sign',
 };
 
 /** Producto de la app según la ruta. /app (inicio) y /app/settings son la plataforma (neutro); /app/links es Link. */
@@ -832,6 +841,18 @@ export function buildNav(
       ];
     }
 
+    case 'sign': {
+      const s = labels.sign;
+      return [
+        {
+          items: [
+            { href: '/app/sign', label: s.home, active: pathname === '/app/sign' || at('/app/sign/envelopes') || at('/app/sign/new'), icon: 'sign' },
+            { href: '/app/sign/templates', label: s.templates, active: at('/app/sign/templates'), icon: 'templates' },
+          ],
+        },
+      ];
+    }
+
     case 'shop':
       return [
         {
@@ -935,6 +956,8 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
       return [item('/app/voice?new=1', labels.voice.newMeeting, 'voice')];
     case 'hiring':
       return [item('/app/hiring/jobs/new', labels.hiring.newJob, 'hiring')];
+    case 'sign':
+      return [item('/app/sign/new', labels.sign.newEnvelope, 'sign')];
     case 'analytics':
       return [
         item('/app/analytics/insights/new', labels.analytics.newInsight, 'insights'),

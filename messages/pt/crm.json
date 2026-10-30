@@ -2087,7 +2087,8 @@
       "title": "Não foi possível carregar esta tela",
       "body": "Pode ser uma queda de conexão. Tente de novo; se continuar, avise a gente.",
       "retry": "Tentar de novo"
-    }
+    },
+    "sendForSignature": "Enviar para assinatura"
   },
   "rowTools": {
     "up": "Subir",

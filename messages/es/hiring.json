@@ -541,5 +541,12 @@
     "own_offer": "Una oferta que armaste la tiene que aprobar otra persona.",
     "storage_unavailable": "No hay almacenamiento de archivos configurado.",
     "auth_required": "No se pudo verificar el email."
+  },
+  "esign": {
+    "send": "Enviar a firmar con Sign",
+    "hint": "El candidato firma la carta como PDF con registro de auditoría. Cuando firma, la oferta queda aceptada.",
+    "sent": "Enviada con Sign",
+    "open": "Abrir en Sign",
+    "error": "No se pudo enviar con Sign."
   }
 }

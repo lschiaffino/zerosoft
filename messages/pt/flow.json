@@ -852,7 +852,9 @@
     "shop_inventory_low": "Shop: estoque baixo",
     "hiring_candidate_applied": "Hiring: nova candidatura",
     "hiring_candidate_stage_changed": "Hiring: candidato mudou de etapa",
-    "hiring_candidate_hired": "Hiring: candidato contratado"
+    "hiring_candidate_hired": "Hiring: candidato contratado",
+    "sign_envelope_completed": "Sign: envelope concluído",
+    "sign_envelope_declined": "Sign: envelope recusado"
   },
   "ops": {
     "equals": "é igual a",

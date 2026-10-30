@@ -7,7 +7,7 @@ import ActivityDateFacts from '@/components/crm/ActivityDateFacts';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { realUserId, requireUser } from '@/lib/session';
-import { workspaceTeamId } from '@/lib/workspace';
+import { userCanUseApp, workspaceTeamId } from '@/lib/workspace';
 import { canSeeOwner, ownerScopeSql, scopeContactDetail, sessionScope } from '@/lib/crm-visibility';
 import { scoreTier } from '@/lib/crm-scoring-schema';
 import { contactScores, listScores } from '@/lib/crm-scoring';
@@ -176,6 +176,11 @@ export default async function ContactDetailPage(props: {
                 ...Object.fromEntries(Object.entries(parseCustom(contact.custom)).map(([k, v]) => [`custom.${k}`, Array.isArray(v) ? v.join(', ') : String(v ?? '')])),
               }}
             />
+            {userCanUseApp(user, 'sign') && user.role !== 'guest' && (
+              <Link className="btn btn-outline" href={`/app/sign/new?crm=contact:${contact.id}`}>
+                {t('record.sendForSignature')}
+              </Link>
+            )}
             <BookMeetingMenu
               eventTypes={meetingTypes}
               name={`${contact.first_name} ${contact.last_name}`.trim() || undefined}

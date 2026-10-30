@@ -155,6 +155,11 @@
       "a": "Which jobs are open?",
       "b": "Who is in the interview stage?",
       "c": "What scorecards am I missing?"
+    },
+    "sign": {
+      "a": "Which envelopes are waiting on me?",
+      "b": "Who has not signed the latest contract?",
+      "c": "Which envelopes expire this week?"
     }
   },
   "page": {

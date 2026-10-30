@@ -155,6 +155,11 @@
       "a": "Quais vagas estão abertas?",
       "b": "Quem está na etapa de entrevista?",
       "c": "Quais scorecards estão faltando?"
+    },
+    "sign": {
+      "a": "Quais envelopes esperam minha assinatura?",
+      "b": "Quem não assinou o último contrato?",
+      "c": "Quais envelopes vencem esta semana?"
     }
   },
   "page": {

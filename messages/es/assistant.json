@@ -155,6 +155,11 @@
       "a": "¿Qué puestos están abiertos?",
       "b": "¿Quién está en la etapa de entrevista?",
       "c": "¿Qué scorecards me faltan?"
+    },
+    "sign": {
+      "a": "¿Qué sobres esperan mi firma?",
+      "b": "¿Quién no firmó el último contrato?",
+      "c": "¿Qué sobres vencen esta semana?"
     }
   },
   "page": {

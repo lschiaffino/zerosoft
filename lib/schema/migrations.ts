@@ -6,6 +6,7 @@ import type { DocsBlock } from '../docs-types';
 import { workspaceTeamsUp } from './workspace-migrations';
 import { shopUp } from './shop-migration';
 import { hiringUp } from './hiring-migration';
+import { signUp } from './sign-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -7462,6 +7463,11 @@ export const MIGRATIONS: Migration[] = [
     // Hiring (Workable): ver lib/schema/hiring-migration.ts.
     id: '140_hiring',
     up: hiringUp,
+  },
+  {
+    // Sign (DocuSign): ver lib/schema/sign-migration.ts.
+    id: '142_sign',
+    up: signUp,
   },
 ];
 

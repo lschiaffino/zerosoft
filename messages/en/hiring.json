@@ -541,5 +541,12 @@
     "own_offer": "Someone else has to approve an offer you prepared.",
     "storage_unavailable": "File storage is not configured.",
     "auth_required": "The email could not be verified."
+  },
+  "esign": {
+    "send": "Send for e-signature with Sign",
+    "hint": "The candidate signs the letter as a PDF with an audit trail. When they sign, the offer is accepted.",
+    "sent": "Sent with Sign",
+    "open": "Open in Sign",
+    "error": "Could not send it with Sign."
   }
 }

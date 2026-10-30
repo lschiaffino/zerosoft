@@ -1767,11 +1767,11 @@
         },
         "f4": {
           "q": "Há assinatura eletrônica para as ofertas?",
-          "a": "Ainda não. O candidato aceita digitando o nome completo; o Hiring guarda a data, o IP, o navegador e um hash da carta."
+          "a": "Sim, com o Sign. Uma oferta aprovada pode sair como um PDF que o candidato assina com trilha de auditoria, e fica aceita quando ele assina. Sem o Sign, o candidato aceita digitando o nome completo; o Hiring guarda a data, o IP, o navegador e um hash da carta."
         },
         "f5": {
           "q": "O que falta em relação ao Workable?",
-          "a": "Publicação em portais de vagas, banco de busca de candidatos, entrevistas em vídeo, testes, SMS, assinatura eletrônica e um HRIS. A tabela de paridade acima tem a lista completa."
+          "a": "Publicação em portais de vagas, banco de busca de candidatos, entrevistas em vídeo, testes, SMS e um HRIS. A tabela de paridade acima tem a lista completa."
         }
       },
       "cta": {
@@ -1779,6 +1779,92 @@
         "title2": "Os dados continuam seus.",
         "sub": "Abra o Hiring, crie sua primeira vaga e publique sua página de carreiras.",
         "button": "Abrir Hiring"
+      }
+    },
+    "sign": {
+      "meta": {
+        "title": "Sign: assinatura eletrônica open source com trilha de auditoria",
+        "description": "Envie PDFs para assinatura com ordem de assinatura, códigos por email, modelos e envio em massa. Cada envelope termina com um certificado de conclusão e hashes SHA-256. Uma alternativa open source ao DocuSign."
+      },
+      "hero": {
+        "sub": "Envie um PDF ou escolha uma página do Docs, coloque os campos de cada pessoa, defina a ordem e envie. Os destinatários assinam pelo celular sem conta, e todos recebem a cópia assinada com a trilha de auditoria."
+      },
+      "featuresTitle": "Envelopes que se fecham.",
+      "featuresTitleDim": "Sem cota de envelopes.",
+      "f1": {
+        "t": "Envelopes e campos",
+        "d": "Envie um PDF, use um modelo ou uma página do Docs. Adicione signatários, aprovadores e cópias, e coloque campos de assinatura, iniciais, data, nome, email, texto, caixa de seleção e lista para cada um."
+      },
+      "f2": {
+        "t": "Ordem de assinatura",
+        "d": "Sequencial ou em paralelo. A próxima pessoa recebe o link só depois que a anterior assina, com lembretes e data de vencimento."
+      },
+      "f3": {
+        "t": "Assinatura sem conta",
+        "d": "Um link pessoal por destinatário com código por email, consentimento para assinar eletronicamente e campos guiados. A assinatura é digitada, desenhada ou enviada, ou se recusa com um motivo."
+      },
+      "f4": {
+        "t": "Certificado de conclusão",
+        "d": "Os campos são desenhados no PDF e um certificado é anexado com cada evento, IP, navegador e horário, além do SHA-256 do original e do arquivo assinado."
+      },
+      "f5": {
+        "t": "Modelos e envio em massa",
+        "d": "Salve um documento com papéis e campos uma vez. Envie para uma pessoa ou para uma lista em CSV, um envelope por linha."
+      },
+      "f6": {
+        "t": "Conectado aos seus apps",
+        "d": "Envie de um negócio ou contato do CRM e o PDF assinado fica no registro. As ofertas do Hiring podem sair para assinatura. O Flow recebe os eventos de concluído e recusado."
+      },
+      "steps": {
+        "s1": {
+          "t": "Preparar",
+          "d": "Envie o PDF, adicione as pessoas e coloque os campos."
+        },
+        "s2": {
+          "t": "Enviar",
+          "d": "Cada pessoa recebe um link pessoal quando chega a vez dela."
+        },
+        "s3": {
+          "t": "Fechar",
+          "d": "Todos recebem o PDF assinado com o certificado."
+        }
+      },
+      "compare": {
+        "rival": "DocuSign",
+        "price": "Planos por usuário",
+        "per": "por usuário, com uma cota anual de envelopes",
+        "teamLabel": "Um time de 5 enviando contratos",
+        "team": "veja os preços do DocuSign",
+        "zero": "$0",
+        "note": "O DocuSign eSignature é vendido por usuário com um limite de envelopes. Não conseguimos verificar os preços atuais: veja docusign.com/pricing. O Sign no seu servidor custa $0 mais seu banco, armazenamento e envio de emails."
+      },
+      "faq": {
+        "f1": {
+          "q": "Tem validade jurídica?",
+          "a": "O Sign faz assinaturas eletrônicas simples com trilha de auditoria, como as que o ESIGN Act e a UETA dos EUA reconhecem. Não faz assinaturas avançadas nem qualificadas do eIDAS, nem \"firma digital\" da Lei 25.506 da Argentina, que exige um certificador licenciado. Verifique o que seu contrato exige."
+        },
+        "f2": {
+          "q": "Os destinatários precisam de conta?",
+          "a": "Não. Cada um recebe um link pessoal por email. Por padrão, também confirmam um código enviado para esse email antes de abrir o documento."
+        },
+        "f3": {
+          "q": "Posso mudar um envelope depois de enviar?",
+          "a": "Não. Um envelope enviado fica fixo. Anule, copie para um novo rascunho, corrija e envie de novo."
+        },
+        "f4": {
+          "q": "Quem vê os documentos?",
+          "a": "Quem envia, os admins do workspace e os destinatários pelo link. Os arquivos ficam privados e os scripts dos PDFs enviados são removidos."
+        },
+        "f5": {
+          "q": "O que falta comparado ao DocuSign?",
+          "a": "Assinaturas qualificadas e avançadas, verificação de identidade, códigos por SMS, pagamentos, assinatura presencial, PowerForms e app móvel. A tabela de paridade acima tem a lista completa."
+        }
+      },
+      "cta": {
+        "title1": "Envie.",
+        "title2": "Receba assinado.",
+        "sub": "Abra o Sign, envie um PDF e mande seu primeiro envelope.",
+        "button": "Abrir o Sign"
       }
     }
   },
@@ -2235,6 +2321,23 @@
       "i2": "Geral: Definitivamente sim",
       "offer": "Oferta aprovada pelo gestor",
       "action": "Enviar ao candidato"
+    },
+    "sign": {
+      "listTitle": "Envelopes",
+      "r1name": "Contrato de serviços",
+      "r1time": "Aguardando",
+      "r1meta": "Ana Pérez · 1 de 2 assinaram",
+      "r2name": "Carta de oferta",
+      "r2time": "Concluído",
+      "r2meta": "Bruno Silva",
+      "r3name": "NDA",
+      "r3time": "Rascunho",
+      "r3meta": "Modelo · 3 campos",
+      "status": "Sequencial · código por email",
+      "i1": "Ana Pérez assinou · 10:42 · IP 190.2.x.x",
+      "i2": "Link enviado para Bruno Silva",
+      "offer": "SHA-256 do original",
+      "action": "Enviar lembrete"
     }
   },
   "status": {
@@ -3070,7 +3173,8 @@
     "paramSocialAccounts": "Ids das contas conectadas onde publicar.",
     "paramSocialOverrides": "Texto próprio por conta: { accountId: texto }.",
     "paramSocialAction": "draft, schedule, queue ou now. Padrão draft.",
-    "paramSocialScheduledAt": "Data e hora de publicação (ISO 8601), com action schedule."
+    "paramSocialScheduledAt": "Data e hora de publicação (ISO 8601), com action schedule.",
+    "scope_sign_read": "Ler os envelopes do Sign que a pessoa dona da key vê (sem arquivos)."
   },
   "parityOverview": {
     "title": "Paridade de funções, app por app.",

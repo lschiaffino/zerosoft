@@ -6,6 +6,7 @@ import { canPayQuote, reconcileQuoteCheckout } from '@/lib/crm-quote-pay';
 import QuoteDocument from '@/components/crm/QuoteDocument';
 import QuotePublicActions from '@/components/crm/QuotePublicActions';
 import '@/styles/quote.css';
+import '@/styles/esign.css';
 
 export const dynamic = 'force-dynamic';
 

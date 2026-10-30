@@ -30,6 +30,8 @@ import { designActorOf } from '@/lib/design-http';
 import { searchShop } from '@/lib/shop';
 import { searchHiring } from '@/lib/hiring/candidates';
 import { actorOf as hiringActorOf } from '@/lib/hiring/http';
+import { searchSign } from '@/lib/sign/core';
+import { signActorOf } from '@/lib/sign/http';
 import { actorOf } from '@/lib/rec-http';
 import { searchPlanning } from '@/lib/track-planning-search';
 import { listConversations } from '@/lib/assistant/store';
@@ -58,7 +60,7 @@ export async function GET(req: NextRequest) {
   if (!q) return NextResponse.json<SearchResponse>({ q, items: [] });
 
   const scope = await sessionScope(user);
-  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec, designs, shop, hiring] = await Promise.all([
+  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec, designs, shop, hiring, sign] = await Promise.all([
     searchAll(user.id, q, scope),
     listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
     // Docs: título y texto de los bloques (el fragmento va como meta).
@@ -92,6 +94,8 @@ export async function GET(req: NextRequest) {
     userCanUseApp(user, 'shop') ? searchShop(user.id, q).catch(() => []) : Promise.resolve([]),
     // Hiring: puestos y solo los candidatos que la persona ve (equipo del puesto o admin).
     userCanUseApp(user, 'hiring') && user.role !== 'guest' ? searchHiring(hiringActorOf(user), q).catch(() => []) : Promise.resolve([]),
+    // Sign: sobres que la persona ve (los suyos, los que la esperan; un admin, todos) y plantillas.
+    userCanUseApp(user, 'sign') && user.role !== 'guest' ? searchSign(signActorOf(user), q).catch(() => []) : Promise.resolve([]),
   ]);
 
   const items: SearchResultItem[] = [];
@@ -190,6 +194,10 @@ export async function GET(req: NextRequest) {
 
   for (const h of hiring) {
     items.push({ id: `hiring-${h.kind}:${h.id}`, group: h.kind === 'job' ? 'hiringJobs' : 'hiringCandidates', label: h.label, meta: h.meta, href: h.href });
+  }
+
+  for (const x of sign) {
+    items.push({ id: `sign-${x.kind}:${x.id}`, group: x.kind === 'envelope' ? 'signEnvelopes' : 'signTemplates', label: x.label, meta: x.meta, href: x.href });
   }
 
   for (const l of links.links) {

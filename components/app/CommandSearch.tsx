@@ -139,6 +139,8 @@ function useGroupOrder() {
         'shopCustomers',
         'hiringJobs',
         'hiringCandidates',
+        'signEnvelopes',
+        'signTemplates',
         'links',
         'docs',
         'notes',

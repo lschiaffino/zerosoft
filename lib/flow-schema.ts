@@ -86,6 +86,8 @@ export const FLOW_EVENT_TYPES = [
   'hiring.candidate.applied',
   'hiring.candidate.stage_changed',
   'hiring.candidate.hired',
+  'sign.envelope.completed',
+  'sign.envelope.declined',
 ] as const;
 export type FlowEventType = (typeof FLOW_EVENT_TYPES)[number];
 
@@ -499,6 +501,16 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
     job: { id: 'job_1', title: 'Software Engineer', department: 'Engineering', location: 'Buenos Aires', workplace: 'hybrid', employmentType: 'full_time' },
     offer: { title: 'Software Engineer', salary: 60000, currency: 'USD', startDate: '2026-12-01' },
     hiredAt: '2026-11-15T12:00:00.000Z',
+  },
+  'sign.envelope.completed': {
+    envelope: { id: 'env_1', title: 'Services agreement', status: 'completed', sentAt: '2026-11-15T12:00:00.000Z', completedAt: '2026-11-16T09:30:00.000Z', declinedAt: null, documentHash: 'e3b0c442…', finalHash: '9f86d081…', links: [{ app: 'crm', kind: 'deal', id: 'deal_1' }], href: '/app/sign/envelopes/env_1' },
+    recipients: [{ name: 'Ana Pérez', email: 'ana@example.com', role: 'signer', status: 'signed', signedAt: '2026-11-16T09:30:00.000Z' }],
+  },
+  'sign.envelope.declined': {
+    envelope: { id: 'env_1', title: 'Services agreement', status: 'declined', sentAt: '2026-11-15T12:00:00.000Z', completedAt: null, declinedAt: '2026-11-16T09:30:00.000Z', documentHash: 'e3b0c442…', finalHash: null, links: [], href: '/app/sign/envelopes/env_1' },
+    recipients: [{ name: 'Ana Pérez', email: 'ana@example.com', role: 'signer', status: 'declined', signedAt: null }],
+    declinedBy: { name: 'Ana Pérez', email: 'ana@example.com' },
+    reason: 'The start date is wrong',
   },
 };
 

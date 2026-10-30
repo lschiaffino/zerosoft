@@ -48,6 +48,7 @@ export const PRODUCT_CONFIG = {
   analytics: { name: 'Analytics', launch: '/app/analytics', path: 'analytics', color: '#4f46e5', category: 'build', audience: 'team' },
   social: { name: 'Social', launch: '/app/social', path: 'social', color: '#7e22ce', category: 'sell', audience: 'team' },
   hiring: { name: 'Hiring', launch: '/app/hiring', path: 'hiring', color: '#0f766e', category: 'daily', audience: 'team' },
+  sign: { name: 'Sign', launch: '/app/sign', path: 'sign', color: '#92400e', category: 'sell', audience: 'team' },
 } as const satisfies Record<string, ProductEntry>;
 
 /**
@@ -72,6 +73,7 @@ export const APP_SWITCHER_ORDER = [
   'voice',
   'rec',
   'hiring',
+  'sign',
   'agents',
   'robots',
   'analytics',

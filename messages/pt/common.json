@@ -40,7 +40,8 @@
       "design": "Design gráfico a partir de modelos, com sua marca",
       "analytics": "Analytics de produto e feature flags",
       "social": "Agendamento, caixa de entrada e métricas de redes sociais",
-      "hiring": "Recrutamento com página de vagas"
+      "hiring": "Recrutamento com página de vagas",
+      "sign": "Assinatura eletrônica com trilha de auditoria"
     },
     "building": "Em construção"
   },
@@ -188,7 +189,9 @@
     "groupSocialLibrary": "Biblioteca do Social",
     "yourApps": "Seus apps",
     "groupHiringJobs": "Vagas",
-    "groupHiringCandidates": "Candidatos"
+    "groupHiringCandidates": "Candidatos",
+    "groupSignEnvelopes": "Envelopes",
+    "groupSignTemplates": "Modelos de assinatura"
   },
   "manifesto": {
     "p1": "Um time de dez pessoas paga <strong>US$ 6.000 por ano</strong> por um CRM, US$ 1.440 para agendar reuniões e US$ 420 para encurtar links. Esses preços são calculados por pessoa ou por plano.",
@@ -258,6 +261,9 @@
     },
     "hiring": {
       "desc": "Vagas, página de carreiras, pipeline de candidatos, scorecards, entrevistas e ofertas."
+    },
+    "sign": {
+      "desc": "Envie PDFs para assinatura em ordem, com modelos, envio em massa e certificado de conclusão."
     }
   },
   "model": {
@@ -433,6 +439,9 @@
       },
       "hiring": {
         "line": "Vagas, página de carreiras, pipeline, scorecards e ofertas."
+      },
+      "sign": {
+        "line": "Envelopes, ordem de assinatura, modelos e trilha de auditoria."
       }
     },
     "stack": {

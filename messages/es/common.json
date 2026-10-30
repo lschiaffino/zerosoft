@@ -40,7 +40,8 @@
       "design": "Diseño gráfico desde plantillas, con tu marca",
       "analytics": "Analítica de producto y feature flags",
       "social": "Programación, bandeja y métricas de redes sociales",
-      "hiring": "Selección de personal con página de empleos"
+      "hiring": "Selección de personal con página de empleos",
+      "sign": "Firma electrónica con registro de auditoría"
     },
     "building": "En construcción"
   },
@@ -188,7 +189,9 @@
     "groupSocialLibrary": "Biblioteca de Social",
     "yourApps": "Tus apps",
     "groupHiringJobs": "Puestos",
-    "groupHiringCandidates": "Candidatos"
+    "groupHiringCandidates": "Candidatos",
+    "groupSignEnvelopes": "Sobres",
+    "groupSignTemplates": "Plantillas de firma"
   },
   "manifesto": {
     "p1": "Un equipo de diez personas paga <strong>$6.000 al año</strong> por un CRM, $1.440 por agendar reuniones y $420 por acortar links. Esos precios se calculan por cabeza o por plan.",
@@ -258,6 +261,9 @@
     },
     "hiring": {
       "desc": "Puestos, página de empleos, pipeline de candidatos, scorecards, entrevistas y ofertas."
+    },
+    "sign": {
+      "desc": "Mandá PDFs a firmar en orden, con plantillas, envío masivo y certificado de finalización."
     }
   },
   "model": {
@@ -433,6 +439,9 @@
       },
       "hiring": {
         "line": "Puestos, página de empleos, pipeline, scorecards y ofertas."
+      },
+      "sign": {
+        "line": "Sobres, orden de firma, plantillas y registro de auditoría."
       }
     },
     "stack": {

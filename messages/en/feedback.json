@@ -32,7 +32,8 @@
       "site": "Website",
       "other": "Other",
       "social": "Social",
-      "hiring": "Hiring"
+      "hiring": "Hiring",
+      "sign": "Sign"
     },
     "messageLabel": "Message",
     "placeholder": {

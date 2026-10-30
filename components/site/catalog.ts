@@ -41,6 +41,7 @@ export const RIVALS: Record<ProductKey, string> = {
   analytics: 'PostHog',
   social: 'Hootsuite',
   hiring: 'Workable',
+  sign: 'DocuSign',
 };
 
 /** Las seis apps de la tabla de costos del home (precio por usuario o plan fijo). */
@@ -149,4 +150,5 @@ export const PRODUCT_PAGES: Record<ProductKey, ProductPageSpec> = {
   analytics: { sections: ['shot', 'features', 'how', 'parity', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
   social: { sections: ['shot', 'features', 'parity', 'compare', 'how', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
   hiring: { sections: ['shot', 'features', 'parity', 'how', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
+  sign: { sections: ['shot', 'features', 'parity', 'how', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
 };
