@@ -102,6 +102,8 @@ img.ws-mark.ws-mark-sm { width: 18px; height: 18px; }
 .ws-person { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .ws-person-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
 .ws-person-email { font-size: 12px; overflow-wrap: anywhere; }
+.ws-person-link { color: inherit; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.ws-person-link:hover { text-decoration-color: currentColor; }
 .ws-avatar { width: 24px; height: 24px; flex-shrink: 0; border-radius: var(--radius-1); object-fit: cover; }
 .ws-avatar-initial {
   display: inline-flex;

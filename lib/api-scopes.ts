@@ -34,6 +34,7 @@ export const API_SCOPES = [
   'analytics:write',
   'social:read',
   'social:write',
+  'people:read',
   'books:read',
   'books:write',
 ] as const;
@@ -86,6 +87,7 @@ export const SCOPE_APP: Record<string, string> = {
   analytics: 'analytics',
   social: 'social',
   hiring: 'hiring',
+  people: 'people',
   books: 'books',
 };
 

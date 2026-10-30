@@ -542,7 +542,8 @@
     "approve": "Aprovar",
     "allowAnyEmail": "Permitir outro email",
     "allowAnyEmailHelp": "Reenvia o convite e deixa aceitá-lo com outro email. Nunca para admins.",
-    "legacyNotice": "Atenção: quem entrar vai ver o que até hoje era só seu neste workspace, incluindo os projetos do Track e os widgets do Chat. Marque como privado o que deve continuar seu antes de convidar."
+    "legacyNotice": "Atenção: quem entrar vai ver o que até hoje era só seu neste workspace, incluindo os projetos do Track e os widgets do Chat. Marque como privado o que deve continuar seu antes de convidar.",
+    "peopleProfile": "Abrir o perfil no People"
   },
   "teamsForm": {
     "createTitle": "Criar uma equipe",

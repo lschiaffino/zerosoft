@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "Products",
-      "description": "Twenty-one apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics, Social, Hiring and Books. Open source for your server, or on zerosoft Cloud with a free plan and pay as you go."
+      "description": "Twenty-two apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics, Social, Hiring, People and Books. Open source for your server, or on zerosoft Cloud with a free plan and pay as you go."
     },
     "hero": {
-      "title1": "Twenty-one apps.",
+      "title1": "Twenty-two apps.",
       "title2": "One workspace.",
       "sub": "For your company: CRM, support, AI agents, automations, robots, projects and links. For you: docs, notes, scheduling and a whiteboard. The core of each one is open source and runs on your server for $0."
     },
     "cta": {
-      "title1": "Try all twenty-one apps.",
+      "title1": "Try all twenty-two apps.",
       "title2": "With one account.",
       "sub": "Sign in with Google, create a workspace and start on the free plan. If you later prefer your own server, the code is on GitHub.",
       "button": "Open the app"
@@ -1695,6 +1695,87 @@
         "button": "Propose an idea"
       }
     },
+    "people": {
+      "meta": {
+        "title": "People: open-source HR with time off, onboarding and reviews",
+        "description": "Employee directory, org chart, time off with accrual and approvals, onboarding checklists, documents, reviews and salary history. An open-source alternative to BambooHR."
+      },
+      "hero": {
+        "sub": "Every person in your workspace gets a profile. Track time off with real balances, run onboarding from templates, keep documents private and run review cycles, all next to the apps your team already uses."
+      },
+      "featuresTitle": "Your people.",
+      "featuresTitleDim": "No per-employee fee.",
+      "f1": {
+        "t": "Directory and org chart",
+        "d": "Profiles with job, team, manager, location and custom fields. The org chart builds itself from managers, with zoom, pan and PNG export."
+      },
+      "f2": {
+        "t": "Time off with real balances",
+        "d": "Vacation, sick and personal policies that accrue yearly, monthly or per pay period, with carryover and caps, half days and holidays for Argentina, Brazil, Mexico, the US, Spain and Colombia."
+      },
+      "f3": {
+        "t": "Approvals that reach Cal and Talk",
+        "d": "Managers approve their own reports. Approved days block the calendar so nobody books a meeting, and Talk shows the person as out of office."
+      },
+      "f4": {
+        "t": "Onboarding and offboarding",
+        "d": "Checklists from templates with tasks for the new person, their manager, IT and HR, due relative to the start date. Offboarding removes access with the same flow as Settings."
+      },
+      "f5": {
+        "t": "Private by default",
+        "d": "Salaries are encrypted and seen only by HR and the person. Personal data, documents and reviews never reach search, the assistant or exports for anyone else, and every view is logged."
+      },
+      "f6": {
+        "t": "Reviews, goals and 1:1s",
+        "d": "Review cycles with self, manager and peer reviews, goals with progress and 1:1 notes that only the two people read. Reports for headcount, turnover, time off and tenure."
+      },
+      "steps": {
+        "s1": {
+          "t": "Your team is already here",
+          "d": "Everyone in the workspace has a profile. Add managers, teams and start dates."
+        },
+        "s2": {
+          "t": "Set your policies",
+          "d": "Pick vacation days, accrual, carryover and the countries for holidays."
+        },
+        "s3": {
+          "t": "Hand it to the team",
+          "d": "People request time off, managers approve and new hires get their welcome page."
+        }
+      },
+      "compare": {
+        "rival": "BambooHR",
+        "note": "BambooHR quotes its plans by company size on bamboohr.com/pricing. People costs $0 on your server."
+      },
+      "faq": {
+        "f1": {
+          "q": "Do I need to load everyone by hand?",
+          "a": "No. Every member of your workspace gets a profile automatically. HR can also add people before they join; the profile links to their account when they accept the invitation."
+        },
+        "f2": {
+          "q": "Who sees salaries?",
+          "a": "Only HR admins and the person. Managers do not. Amounts are encrypted in the database and every view or change is recorded in the sensitive data log."
+        },
+        "f3": {
+          "q": "Does it run payroll?",
+          "a": "No. People exports a payroll CSV with each person and their current salary, ready for your payroll provider. It does not pay anyone or file taxes."
+        },
+        "f4": {
+          "q": "Can people sign documents?",
+          "a": "Not yet. You can share contracts and policies privately and ask people to confirm they read them. E-signature is not available."
+        },
+        "f5": {
+          "q": "What is missing compared to BambooHR?",
+          "a": "Payroll, benefits, applicant tracking (that is a separate app), e-signatures, surveys like eNPS, time tracking and a mobile app. The parity table above has the full list."
+        }
+      },
+      "cta": {
+        "title1": "Run HR in the suite.",
+        "title2": "Without the per-employee bill.",
+        "sub": "Open People: your workspace is already in the directory.",
+        "button": "Open People"
+      }
+    },
     "hiring": {
       "meta": {
         "title": "Hiring: open-source applicant tracking with a careers page",
@@ -1876,7 +1957,7 @@
     "apiDocs": "API docs",
     "howTitle": "How it works.",
     "suiteTitle": "One workspace.",
-    "suiteTitleDim": "Twenty-one apps, same login.",
+    "suiteTitleDim": "Twenty-two apps, same login.",
     "shotTitle": "{name}, inside.",
     "crumbs": "Breadcrumb",
     "navLabel": "{name} sections",
@@ -2299,6 +2380,23 @@
       "text": "Our new product ships today. #launch",
       "counter": "X 37/280",
       "approve": "Waiting for approval"
+    },
+    "people": {
+      "listTitle": "Who is out",
+      "r1name": "Ana Pérez",
+      "r1time": "Dec 21 to 24",
+      "r1meta": "Vacation · 4 days",
+      "r2name": "Bruno Díaz",
+      "r2time": "Dec 26",
+      "r2meta": "Half day · afternoon",
+      "r3name": "Lucía Gómez",
+      "r3time": "Jan 2",
+      "r3meta": "Waiting for approval",
+      "status": "Approved by Bruno Díaz",
+      "i1": "Vacation balance: 11.5 of 15 days",
+      "i2": "Holidays in Argentina are not counted",
+      "total": "Calendar blocked in Cal",
+      "action": "Talk status: out of office"
     },
     "hiring": {
       "listTitle": "Software Engineer",
@@ -3154,6 +3252,8 @@
     "scope_analytics_read": "Read Analytics projects, events, persons and run queries.",
     "scope_analytics_write": "Change Analytics projects, insights, dashboards, cohorts and flags.",
     "scope_social_read": "Read Social posts on the accounts you can see.",
+    "scope_people_read": "Read the People directory: public profile fields only, never salary or personal data.",
+    "scope_hiring_read": "Read Hiring jobs and the candidates the key's owner can see.",
     "scope_social_write": "Create Social drafts and scheduled posts (with approval if you need it).",
     "socialApiTitle": "Social",
     "socialApiDesc": "Social media posts. The key acts as the person who created it: it sees and posts to that person's accounts, and people who need approval send posts for approval. Scopes social:read and social:write.",
@@ -3187,7 +3287,7 @@
   "parityOverview": {
     "title": "Feature parity, app by app.",
     "titleDim": "Measured against each competitor.",
-    "lead": "Average parity across the 20 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
+    "lead": "Average parity across the 22 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
     "col": {
       "app": "App",
       "competitor": "Compared with",

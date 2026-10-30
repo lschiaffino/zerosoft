@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { getDb } from '@/lib/db';
-import { realUserId, requireUser } from '@/lib/session';
+import { realUserId, requireUser, userCanUseApp } from '@/lib/session';
 import { settingsSectionMetadata } from '@/lib/settings-meta';
 import { ensureWorkspace } from '@/lib/workspace';
 import { loadDirectory } from '@/lib/workspace-directory';
@@ -34,5 +34,5 @@ export default async function MembersSettingsPage(props: { params: Promise<{ loc
     | { created_at: string; onboarded_at: string | null }
     | undefined;
   const legacyNotice = user.role === 'owner' && team.keyed_by === 'owner' && Boolean(owner && owner.onboarded_at === owner.created_at);
-  return <MembersPanel initial={dir} me={realUserId(user)} role={user.role} legacyNotice={legacyNotice} />;
+  return <MembersPanel initial={dir} me={realUserId(user)} role={user.role} legacyNotice={legacyNotice} peopleLinks={userCanUseApp(user, 'people')} />;
 }
