@@ -4,6 +4,8 @@ import { getCurrentUser } from '@/lib/session';
 import ZeroTorus from '@/components/zero/ZeroTorus';
 import Logo from '@/components/brand/Logo';
 import GoogleButton from '@/components/auth/GoogleButton';
+import EmailCodeForm from '@/components/auth/EmailCodeForm';
+import { emailLoginEnabled } from '@/lib/email-login';
 import { safeCallbackUrl } from '@/lib/hosts';
 
 export const dynamic = 'force-dynamic';
@@ -37,6 +39,7 @@ export default async function SignInPage(props: {
         <h1>{t('title')}</h1>
         <p className="auth-sub">{t('sub')}</p>
         <GoogleButton label={t('google')} locale={locale} callbackUrl={callbackUrl} desktopHint={t('desktopHint')} />
+        {emailLoginEnabled() && <EmailCodeForm locale={locale} callbackUrl={callbackUrl} />}
         <p className="auth-legal">
           {t.rich('legal', {
             terms: (chunks) => <a href={`/${locale}/terms`}>{chunks}</a>,

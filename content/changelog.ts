@@ -29,6 +29,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-30-email-code-signin',
+    date: '2026-10-30',
+    title: {
+      en: 'Sign in with a code by email, and invitations that say which apps you get',
+      es: 'Entrar con un código por email, e invitaciones que dicen a qué apps entrás',
+      pt: 'Entrar com um código por email, e convites que dizem quais apps você recebe',
+    },
+    items: [
+      { product: 'platform', en: 'Besides Google, you can sign in with a 6-digit code sent to your email. It works once, expires in 10 minutes and stops working after 5 wrong tries. An invitation link opened without a session offers both options with the invited email already filled in.', es: 'Además de Google, podés entrar con un código de 6 dígitos que te llega por email. Sirve una vez, vence a los 10 minutos y deja de servir después de 5 intentos fallidos. Un link de invitación abierto sin sesión ofrece las dos opciones, con el email invitado ya puesto.', pt: 'Além do Google, você pode entrar com um código de 6 dígitos que chega por email. Funciona uma vez, vence em 10 minutos e para de funcionar depois de 5 tentativas erradas. Um link de convite aberto sem sessão oferece as duas opções, com o email convidado já preenchido.' },
+      { product: 'platform', en: 'When you invite someone with access to only some apps, the email, the invitation page and the pending list name those apps. Choosing more than 20 apps for an invitation or a member no longer fails.', es: 'Cuando invitás a alguien con acceso a algunas apps, el email, la página de la invitación y la lista de pendientes nombran esas apps. Elegir más de 20 apps para una invitación o un miembro ya no falla.', pt: 'Quando você convida alguém com acesso a só alguns apps, o email, a página do convite e a lista de pendentes mostram esses apps. Escolher mais de 20 apps para um convite ou um membro não falha mais.' },
+    ],
+  },
+  {
     id: '2026-10-29-docs-coedit',
     date: '2026-10-29',
     title: {

@@ -20,6 +20,7 @@ const COPY: Record<
     heading: string;
     line: string;
     role: Record<'admin' | 'member' | 'guest', string>;
+    apps: string;
     button: string;
     orCopy: string;
     expires: string;
@@ -37,6 +38,7 @@ const COPY: Record<
       member: 'You join as a member: you use the same apps and data as the rest of the team.',
       guest: 'You join as a guest: you only see what they share with you.',
     },
+    apps: 'You will use {apps} with the rest of the team.',
     button: 'Accept invitation',
     orCopy: 'Or paste this link in your browser:',
     expires: 'The link works once and expires on {date}.',
@@ -53,6 +55,7 @@ const COPY: Record<
       member: 'Entrás como miembro: usás las mismas apps y datos que el resto del equipo.',
       guest: 'Entrás como invitado: solo ves lo que te compartan.',
     },
+    apps: 'Vas a usar {apps} con el resto del equipo.',
     button: 'Aceptar invitación',
     orCopy: 'O pegá este link en el navegador:',
     expires: 'El link sirve una sola vez y vence el {date}.',
@@ -69,6 +72,7 @@ const COPY: Record<
       member: 'Você entra como membro: usa os mesmos apps e dados que o resto da equipe.',
       guest: 'Você entra como convidado: só vê o que compartilharem com você.',
     },
+    apps: 'Você vai usar {apps} com o resto da equipe.',
     button: 'Aceitar convite',
     orCopy: 'Ou cole este link no navegador:',
     expires: 'O link funciona uma vez e vence em {date}.',
@@ -97,6 +101,8 @@ export interface InviteEmailInput {
   expiresAt: string | null;
   locale?: string | null;
   logoUrl?: string | null;
+  /** Nombres de las apps a las que entra (si no son todas). */
+  apps?: string[] | null;
 }
 
 /** Asunto, texto y HTML de la invitación (puro, para testear). */
@@ -111,7 +117,13 @@ export function renderInviteEmail(input: InviteEmailInput): { subject: string; t
   const vars = { inviter: cleanLine(input.inviterName), workspace: cleanLine(input.workspaceName), date };
   const esc = (s: string) => escapeHtml(s);
   const subject = fill(c.subject, vars);
-  const lines = [fill(c.line, vars), c.role[input.role], date ? fill(c.expires, vars) : '', c.ignore].filter(Boolean);
+  // Con apps limitadas, el email dice cuáles en vez de "las mismas apps que el resto".
+  const appsLine =
+    input.role !== 'guest' && input.apps?.length
+      ? fill(c.apps, { apps: new Intl.ListFormat(tag, { type: 'conjunction' }).format(input.apps.map((a) => cleanLine(a))) })
+      : '';
+  const roleLine = [input.role === 'admin' || !appsLine ? c.role[input.role] : '', appsLine].filter(Boolean).join(' ');
+  const lines = [fill(c.line, vars), roleLine, date ? fill(c.expires, vars) : '', c.ignore].filter(Boolean);
   const text = [fill(c.heading, vars), '', ...lines.slice(0, 2), '', `${c.button}: ${input.url}`, '', ...lines.slice(2)].join('\n');
   const logo =
     input.logoUrl && /^https:\/\//.test(input.logoUrl)
@@ -127,7 +139,7 @@ export function renderInviteEmail(input: InviteEmailInput): { subject: string; t
     <p style="margin:0 0 4px;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#888888;">zerosoft</p>
     <h1 style="margin:0 0 24px;font-size:20px;font-weight:500;letter-spacing:-0.01em;color:#000000;border-bottom:2px solid #000000;display:inline-block;padding-bottom:6px;">${esc(fill(c.heading, vars))}</h1>
     ${p(esc(fill(c.line, vars)).replace(esc(vars.inviter), `<strong>${esc(vars.inviter)}</strong>`))}
-    ${p(esc(c.role[input.role]), 'color:#444444;')}
+    ${p(esc(roleLine), 'color:#444444;')}
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0;"><tr><td style="background:#000000;">
       <a href="${esc(input.url)}" style="display:inline-block;padding:12px 20px;font-family:${MONO};font-size:14px;color:#ffffff;text-decoration:none;">${esc(c.button)} &rarr;</a>
     </td></tr></table>

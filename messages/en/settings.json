@@ -448,7 +448,7 @@
   },
   "members": {
     "inviteTitle": "Invite people to {workspace}",
-    "inviteDesc": "Each person gets an email with a link that works once and expires in 14 days. They sign in with Google and land in this workspace.",
+    "inviteDesc": "Each person gets an email with a link that works once and expires in 14 days. They sign in with Google or a code sent to that email and land in this workspace.",
     "emails": "Emails",
     "emailsPlaceholder": "ana@company.com, leo@company.com",
     "emailsHelp": "Paste one or many, separated by commas or spaces. Enter sends.",
@@ -696,7 +696,7 @@
     "otherAccount": "Use another account",
     "mismatch": "This invitation was sent to <b>{invited}</b> and you are signed in as <b>{current}</b>.",
     "signinGoogle": "Continue with Google",
-    "useAccount": "Use the Google account for {email}.",
+    "useAccount": "Sign in with {email}: with Google or with a code by email.",
     "expires": "The link expires on {date}.",
     "invalidTitle": "This invitation no longer works",
     "invalidDesc": "It was already used or revoked. Ask whoever invited you for a new one.",
@@ -714,7 +714,8 @@
       "not_found": "This invitation does not exist.",
       "email_required": "This invitation can only be accepted with the email it was sent to."
     },
-    "mismatchStrict": "This invitation is for <b>{invited}</b> and you are signed in as <b>{current}</b>. Sign in with that account to accept it, or ask for an invitation to your email."
+    "mismatchStrict": "This invitation is for <b>{invited}</b> and you are signed in as <b>{current}</b>. Sign in with that account to accept it, or ask for an invitation to your email.",
+    "roleLineApps": "You will use {apps} with the rest of the team."
   },
   "welcome": {
     "metaTitle": "Welcome",

@@ -448,7 +448,7 @@
   },
   "members": {
     "inviteTitle": "Convide pessoas para {workspace}",
-    "inviteDesc": "Cada pessoa recebe um email com um link que funciona uma vez e vence em 14 dias. Ela entra com o Google e cai neste workspace.",
+    "inviteDesc": "Cada pessoa recebe um email com um link que funciona uma vez e vence em 14 dias. Ela entra com o Google ou com um código nesse email e cai neste workspace.",
     "emails": "Emails",
     "emailsPlaceholder": "ana@empresa.com, leo@empresa.com",
     "emailsHelp": "Cole um ou vários, separados por vírgulas ou espaços. Enter envia.",
@@ -696,7 +696,7 @@
     "otherAccount": "Usar outra conta",
     "mismatch": "Este convite foi enviado para <b>{invited}</b> e você entrou como <b>{current}</b>.",
     "signinGoogle": "Continuar com o Google",
-    "useAccount": "Use a conta do Google de {email}.",
+    "useAccount": "Entre com {email}: pelo Google ou com um código por email.",
     "expires": "O link vence em {date}.",
     "invalidTitle": "Este convite não funciona mais",
     "invalidDesc": "Já foi usado ou revogado. Peça um novo a quem convidou você.",
@@ -714,7 +714,8 @@
       "not_found": "Este convite não existe.",
       "email_required": "Este convite só pode ser aceito com o email para o qual foi enviado."
     },
-    "mismatchStrict": "Este convite é para <b>{invited}</b> e você entrou como <b>{current}</b>. Entre com essa conta para aceitar, ou peça um convite para o seu email."
+    "mismatchStrict": "Este convite é para <b>{invited}</b> e você entrou como <b>{current}</b>. Entre com essa conta para aceitar, ou peça um convite para o seu email.",
+    "roleLineApps": "Você vai usar {apps} com o resto da equipe."
   },
   "welcome": {
     "metaTitle": "Boas-vindas",

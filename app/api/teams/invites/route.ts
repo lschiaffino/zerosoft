@@ -20,7 +20,7 @@ const schema = z.object({
   // Una lista ("a@x.com, b@y.com") o un array de emails.
   emails: z.union([z.string().max(20_000), z.array(z.string().max(320)).max(200)]),
   role: z.enum(['admin', 'member', 'guest']).optional(),
-  apps: z.union([z.literal('*'), z.array(z.string().max(20)).max(20)]).optional(),
+  apps: z.union([z.literal('*'), z.array(z.string().max(20)).max(64)]).optional(),
   groupIds: z.array(z.string().max(64)).max(50).optional(),
   locale: z.enum(['en', 'es', 'pt']).optional(),
 });

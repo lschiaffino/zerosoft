@@ -7527,6 +7527,24 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, 'ALTER TABLE docs_settings ADD COLUMN coedit INTEGER NOT NULL DEFAULT 0');
     },
   },
+  {
+    // Entrar con un código por email (lib/email-login.ts): hash del código,
+    // vence a los 10 minutos, 5 intentos y used_at lo reclama (compare-and-set).
+    id: '144_email_login',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS email_login_codes (
+          code_hash TEXT PRIMARY KEY,
+          email TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          expires_at TEXT NOT NULL,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          used_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_email_login_codes_email ON email_login_codes(email, created_at);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

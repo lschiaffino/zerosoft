@@ -465,7 +465,17 @@ export default function MembersPanel({
                   </span>
                 ),
               },
-              { key: 'role', header: t('colRole'), cell: (i) => t(`roles.${i.role}`) },
+              {
+                key: 'role',
+                header: t('colRole'),
+                // Con apps limitadas se ven abajo del rol: lo que va a tener al aceptar.
+                cell: (i) => (
+                  <span className="ws-invite-email">
+                    <span>{t(`roles.${i.role}`)}</span>
+                    {i.role !== 'guest' && i.apps !== '*' && <span className="ws-cell-muted">{appsLabel(i.apps, i.role)}</span>}
+                  </span>
+                ),
+              },
               {
                 key: 'status',
                 header: t('colStatus'),
