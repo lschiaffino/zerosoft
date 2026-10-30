@@ -198,7 +198,11 @@ const parity: ProductParity = {
       detail: ['Three fixed roles plus field visibility; no custom permission groups', 'Tres roles fijos más la visibilidad por campo; sin grupos de permisos a medida', 'Três papéis fixos mais a visibilidade por campo; sem grupos de permissão personalizados'],
     }),
     row('audit', 'security', ['Audit log of sensitive data', 'Registro de datos sensibles', 'Registro de dados sensíveis'], 'have', {
-      detail: ['Every view and change of compensation, personal data, documents, performance and exit interviews', 'Cada vista y cambio de sueldo, datos personales, documentos, desempeño y entrevistas de salida', 'Cada visualização e mudança de salário, dados pessoais, documentos, desempenho e entrevistas de desligamento'],
+      detail: [
+        'Views and changes of salaries (and the payroll export), personal data, sensitive custom fields, documents and exit interviews, plus views of someone else\'s reviews and goals, with who, when and from where (app, API or assistant). Time off is not logged',
+        'Vistas y cambios de sueldos (y el export de nómina), datos personales, campos propios sensibles, documentos y entrevistas de salida, más las vistas de evaluaciones y objetivos ajenos, con quién, cuándo y desde dónde (app, API o asistente). Las licencias no se registran',
+        'Visualizações e mudanças de salários (e a exportação da folha), dados pessoais, campos personalizados sensíveis, documentos e entrevistas de desligamento, além das visualizações de avaliações e metas de outras pessoas, com quem, quando e de onde (app, API ou assistente). As folgas não são registradas',
+      ],
     }),
     // Plataforma
     row('api', 'platform', ['API', 'API', 'API'], 'partial', {
@@ -207,9 +211,12 @@ const parity: ProductParity = {
     row('automations', 'platform', ['Automations on HR events', 'Automatizaciones con eventos de RR. HH.', 'Automações com eventos de RH'], 'have', {
       detail: ['Flow triggers for hire, approved time off and offboarding, only for flows built by HR', 'Disparadores de Flow para ingreso, licencia aprobada y salida, solo en flows armados por HR', 'Gatilhos do Flow para admissão, folga aprovada e desligamento, só em flows criados pelo RH'],
     }),
-    row('assistant', 'platform', ['AI assistant', 'Asistente con IA', 'Assistente com IA'], 'better', {
-      competitorHas: false,
-      detail: ['Who is out, balances, pending approvals and the directory; requests and approvals with confirmation. It never reads salaries or personal data of others', 'Quién está fuera, saldos, pendientes de aprobación y el directorio; pide y aprueba con confirmación. Nunca lee sueldos ni datos personales ajenos', 'Quem está fora, saldos, aprovações pendentes e o diretório; pede e aprova com confirmação. Nunca lê salários nem dados pessoais de outros'],
+    row('assistant', 'platform', ['AI assistant', 'Asistente con IA', 'Assistente com IA'], 'have', {
+      detail: [
+        'Who is out, own balances, pending approvals and the directory (public fields); requests and approvals with confirmation. Salary amounts reach the model only when a person asks for their own: HR asking about someone else gets a link to the profile, and everyone else gets an error',
+        'Quién está fuera, saldos propios, pendientes de aprobación y el directorio (campos públicos); pide y aprueba con confirmación. Un monto de sueldo llega al modelo solo cuando una persona pregunta por el suyo: HR que pregunta por otra persona recibe el link a la ficha y el resto, un error',
+        'Quem está fora, saldos próprios, aprovações pendentes e o diretório (campos públicos); pede e aprova com confirmação. Um valor de salário só chega ao modelo quando a pessoa pergunta pelo próprio: o RH que pergunta por outra pessoa recebe o link do perfil e os demais, um erro',
+      ],
     }),
     row('import', 'platform', ['Import from a spreadsheet or another HRIS', 'Importar de planilla u otro sistema', 'Importar de planilha ou outro sistema'], 'missing'),
     row('mobile', 'platform', ['Mobile app', 'App móvil', 'App móvel'], 'partial', {

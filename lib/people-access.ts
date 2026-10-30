@@ -43,6 +43,8 @@ export interface PeopleViewer {
   employeeId: string | null;
   /** HR admin (owner, admin del workspace o marcado en People). */
   hr: boolean;
+  /** Owner del workspace (no tiene a quién pedirle aprobación). */
+  wsOwner?: boolean;
   /** Fichas que le reportan, directa o indirectamente. */
   reports: ReadonlySet<string>;
 }
@@ -102,11 +104,11 @@ export function canEditField(viewer: PeopleViewer, employeeId: string, field: st
 
 /**
  * Aprobar o rechazar un pedido de licencia: HR, o un manager de la cadena de
- * esa persona. Nadie aprueba lo propio, salvo HR sin manager (el owner de un
- * workspace chico no tiene a quién pedirle).
+ * esa persona. Nadie aprueba lo propio (un HR admin lo aprueba otro HR o un
+ * admin del workspace), salvo el owner sin manager: no tiene a quién pedirle.
  */
 export function canApprove(viewer: PeopleViewer, requestEmployeeId: string, requesterHasManager = true): boolean {
-  if (isSelf(viewer, requestEmployeeId)) return viewer.hr && !requesterHasManager;
+  if (isSelf(viewer, requestEmployeeId)) return viewer.hr && viewer.wsOwner === true && !requesterHasManager;
   if (viewer.hr) return true;
   return isManagerOf(viewer, requestEmployeeId);
 }

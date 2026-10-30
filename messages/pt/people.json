@@ -328,9 +328,10 @@
     "zoomOut": "Afastar",
     "reset": "Voltar à visão inicial",
     "canvas": "Organograma. Arraste ou use as setas para mover, mais e menos para o zoom.",
-    "help": "Arraste para mover; Ctrl ou Cmd com a roda para o zoom. O gestor é definido em cada perfil.",
+    "help": "Arraste para mover; Ctrl ou Cmd com a roda para o zoom e 0 para ajustar. O gestor é definido em cada perfil.",
     "emptyTitle": "Ainda não há organograma",
-    "emptyBody": "Cadastre pessoas e defina os gestores: o organograma se monta sozinho."
+    "emptyBody": "Cadastre pessoas e defina os gestores: o organograma se monta sozinho.",
+    "fit": "Ajustar à tela"
   },
   "reviews": {
     "desc": "Ciclos de avaliação com autoavaliação, avaliação do gestor e de pares.",
@@ -564,6 +565,8 @@
     "invalid_page": "Essa página do Docs não existe neste workspace.",
     "invalid_action": "Essa ação não existe.",
     "storage_unavailable": "O armazenamento de arquivos não está disponível agora.",
-    "file_type_not_allowed": "Esse tipo de arquivo não é permitido."
+    "file_type_not_allowed": "Esse tipo de arquivo não é permitido.",
+    "cannot_remove": "Só owner e admins do workspace removem pessoas do workspace, e um admin não remove outro admin. O perfil não mudou.",
+    "rate_limited": "Remoções demais por agora. Tente daqui a pouco."
   }
 }

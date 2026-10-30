@@ -31,6 +31,7 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
       return { text: rows.length ? `You have ${rows.length} webhooks. Check the last delivery of each.` : 'There are no webhooks in this workspace, so nothing could fire.' };
     }
     if (done.tool === 'people_compensation') {
+      if (out.amountsShown === false) return { text: `Open ${String(out.name)}'s profile to see the salary.` };
       const rows = (out.entries as Array<{ amount: number; currency: string }>) ?? [];
       return { text: rows.length ? `Salary of ${String(out.name)}: ${rows[0].currency} ${rows[0].amount}.` : 'No salary recorded.' };
     }
@@ -57,9 +58,9 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
     return { tool: 'crm_list_deals', input: { closeFrom: from, closeTo: to } };
   }
   const salary = /^(?:what is the )?salary of (.+?)\??$/i.exec(last);
-  if (salary) {
+  if (salary || /^(?:what is )?my salary\??$/i.test(last)) {
     if (!can.includes('people')) return { text: 'I cannot use People in this workspace.' };
-    return { tool: 'people_compensation', input: { name: salary[1].trim() } };
+    return { tool: 'people_compensation', input: salary ? { name: salary[1].trim() } : {} };
   }
   if (/who is out/i.test(last)) {
     if (!can.includes('people')) return { text: 'I cannot use People in this workspace.' };

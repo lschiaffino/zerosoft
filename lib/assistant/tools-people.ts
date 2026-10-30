@@ -17,10 +17,19 @@ const pctx = (ctx: ToolCtx): Promise<PeopleCtx> => peopleContext(ctx.workspaceId
 const today = () => new Date().toISOString().slice(0, 10);
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
-/** La persona por nombre o email (la primera que coincide del directorio que quien pregunta puede ver). */
-async function findPerson(p: PeopleCtx, name: string) {
-  const list = await listEmployees(p, { q: name.trim() });
-  return list[0] ?? null;
+/**
+ * La persona por nombre o email en el directorio que quien pregunta puede ver.
+ * Un nombre exacto gana; si hay varias coincidencias, se devuelven para que el
+ * modelo pregunte cuál (nunca elige al azar).
+ */
+async function findPerson(p: PeopleCtx, name: string): Promise<{ person: Awaited<ReturnType<typeof listEmployees>>[number] } | { error: string; candidates?: string[] }> {
+  const q = name.trim().toLowerCase();
+  const list = await listEmployees(p, { q });
+  const exact = list.filter((e) => e.name.toLowerCase() === q || e.workEmail.toLowerCase() === q);
+  if (exact.length === 1) return { person: exact[0] };
+  if (list.length === 1) return { person: list[0] };
+  if (!list.length) return { error: 'not_found' };
+  return { error: 'ambiguous', candidates: list.slice(0, 10).map((e) => `${e.name}${e.jobTitle ? ` (${e.jobTitle})` : ''}`) };
 }
 
 export const peopleTools: AssistantTool[] = [
@@ -84,13 +93,27 @@ export const peopleTools: AssistantTool[] = [
   readTool({
     name: 'people_compensation',
     app: 'people',
-    description: "A person's salary history. Only HR admins and the person themselves may see it; for anyone else this returns an error and no amounts.",
-    input: z.object({ name: z.string().trim().min(1).max(200) }),
+    description:
+      "Salary history. Without a name, the asking person's own salary. For someone else: only HR admins may look, and even then the amounts are not returned here, only a link to the profile where HR sees them (salaries of others never go to the model). Anyone else gets an error.",
+    input: z.object({ name: z.string().trim().max(200).optional() }),
     run: async (ctx, { name }) => {
       const p = await pctx(ctx);
-      const person = await findPerson(p, name);
+      let person: { id: string; name: string } | null = null;
+      if (!name) {
+        if (!p.viewer.employeeId) return { error: 'no_profile' };
+        const own = await getEmployeeRow(p.ws, p.viewer.employeeId);
+        person = own ? { id: own.id, name: own.name } : null;
+      } else {
+        const found = await findPerson(p, name);
+        if ('error' in found) return found;
+        person = found.person;
+      }
       if (!person) return { error: 'not_found' };
       if (!canSeeSensitive(p.viewer, person.id, 'compensation')) return { error: 'forbidden' };
+      if (person.id !== p.viewer.employeeId) {
+        // HR: el monto de otra persona no pasa por el modelo; solo el link.
+        return { name: person.name, amountsShown: false, note: 'Open the profile to see the salary.', href: `/app/people/${person.id}?tab=compensation` };
+      }
       const entries = await listCompensation(p, person.id, 'assistant');
       return { name: person.name, entries: entries.map((e) => ({ effective: e.effectiveDate, amount: e.amount, currency: e.currency, per: e.period })), href: `/app/people/${person.id}?tab=compensation` };
     },

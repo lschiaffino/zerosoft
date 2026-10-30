@@ -14,6 +14,8 @@ import {
   countLeaveDays,
   isIsoDate,
   seededHolidays,
+  zonedInstant,
+  zonedToday,
   type AccrualKind,
   type Balance,
   type HalfDay,
@@ -340,7 +342,8 @@ export async function createRequest(
     .get(employeeId, end, start);
   if (overlap) throw new PeopleError('overlap', 409);
   if (policy.accrual !== 'none') {
-    const bal = (await balancesUnchecked(ctx.ws, employeeId, today())).find((b) => b.policy.id === policy.id)?.balance;
+    const asOf = start > today() ? start : today();
+    const bal = (await balancesUnchecked(ctx.ws, employeeId, asOf)).find((b) => b.policy.id === policy.id)?.balance;
     if (bal && days > bal.available) throw new PeopleError('insufficient_balance', 409);
   }
   const id = newId('req');
@@ -377,7 +380,7 @@ export async function decideRequest(ctx: PeopleCtx, id: string, decision: 'appro
     await applyApprovedEffects(ctx.ws, id);
     const approver = (await db().prepare('SELECT COALESCE(name, email) AS n FROM users WHERE id = ?').get(ctx.personId)) as { n: string } | undefined;
     await emitPeopleEvent(ctx.ws, 'people.timeoff.approved', {
-      request: { id, startDate: r.start_date, endDate: r.end_date, days: Number(r.days), half: r.half, policy: r.policy_name, approvedBy: approver?.n ?? '', url: '/app/people/time-off' },
+      request: { id, startDate: r.start_date, endDate: r.end_date, days: Number(r.days), half: r.half, approvedBy: approver?.n ?? '', url: '/app/people/time-off' },
       employee: { id: emp.id, name: emp.name, workEmail: emp.work_email },
     });
   }
@@ -390,7 +393,14 @@ export async function decideRequest(ctx: PeopleCtx, id: string, decision: 'appro
   return toDto(ctx, (await getRequestRow(ctx.ws, id))!);
 }
 
-/** Bloqueo de Cal (todo el día, o medio día) y estado de Talk si ya empezó. */
+/** Zona horaria de la persona (la de su Cal); UTC si no configuró Cal. */
+export async function personTz(userId: string | null | undefined): Promise<string> {
+  if (!userId) return 'UTC';
+  const row = (await db().prepare('SELECT timezone FROM calendar_users WHERE user_id = ?').get(userId).catch(() => undefined)) as { timezone?: string } | undefined;
+  return row?.timezone || 'UTC';
+}
+
+/** Bloqueo de Cal (todo el día, o medio día) y estado de Talk si ya empezó. Días en la zona horaria de la persona. */
 async function applyApprovedEffects(ws: string, id: string): Promise<void> {
   const r = (await db().prepare('SELECT r.*, e.user_id FROM people_requests r JOIN people_employees e ON e.id = r.employee_id WHERE r.id = ?').get(id)) as
     | (RequestRow & { user_id: string | null })
@@ -399,8 +409,9 @@ async function applyApprovedEffects(ws: string, id: string): Promise<void> {
   try {
     if (!r.cal_slot_id) {
       const { createBlockedSlot } = await import('./calendar');
-      const startsAt = r.half === 'pm' ? `${r.start_date}T12:00:00.000Z` : `${r.start_date}T00:00:00.000Z`;
-      const endsAt = r.half === 'am' ? `${r.start_date}T12:00:00.000Z` : `${addDays(r.end_date, 1)}T00:00:00.000Z`;
+      const tz = await personTz(r.user_id);
+      const startsAt = zonedInstant(r.start_date, tz, r.half === 'pm' ? 12 : 0);
+      const endsAt = r.half === 'am' ? zonedInstant(r.start_date, tz, 12) : zonedInstant(addDays(r.end_date, 1), tz, 0);
       const slot = await createBlockedSlot(r.user_id, { startsAt, endsAt, reason: 'Out of office (People)' });
       const claimed = await db().prepare('UPDATE people_requests SET cal_slot_id = ? WHERE id = ? AND cal_slot_id IS NULL').run(slot.id, id);
       if (!claimed.changes) await db().prepare('DELETE FROM calendar_blocked_slots WHERE id = ?').run(slot.id);
@@ -408,7 +419,8 @@ async function applyApprovedEffects(ws: string, id: string): Promise<void> {
   } catch (err) {
     console.error('[people] cal block', err instanceof Error ? err.message : 'error');
   }
-  if (r.start_date <= today() && r.end_date >= today()) await setTalkStatus(ws, id);
+  const now = zonedToday(await personTz(r.user_id));
+  if (r.start_date <= now && r.end_date >= now) await setTalkStatus(ws, id);
 }
 
 async function setTalkStatus(ws: string, id: string): Promise<void> {
@@ -420,7 +432,8 @@ async function setTalkStatus(ws: string, id: string): Promise<void> {
   if (!r?.user_id) return;
   try {
     const { setStatus } = await import('./talk-extras');
-    await setStatus({ workspaceId: ws, personId: r.user_id, role: 'member', teamId: null }, { emoji: '🌴', text: `Out of office until ${r.end_date}`, expiresAt: `${addDays(r.end_date, 1)}T00:00:00.000Z` });
+    const tz = await personTz(r.user_id);
+    await setStatus({ workspaceId: ws, personId: r.user_id, role: 'member', teamId: null }, { emoji: '🌴', text: `Out of office until ${r.end_date}`, expiresAt: zonedInstant(addDays(r.end_date, 1), tz, 0) });
   } catch (err) {
     console.error('[people] talk status', err instanceof Error ? err.message : 'error');
   }
@@ -463,11 +476,22 @@ export async function cancelCalBlocksFor(ws: string, employeeId: string, from = 
 
 /** Cron de cada hora: las licencias aprobadas que empiezan hoy ponen "fuera de la oficina" en Talk. */
 export async function peopleTick(): Promise<number> {
+  // Margen de un día para las zonas adelantadas o atrasadas respecto de UTC; cada persona se mira en la suya.
+  const t = today();
   const due = (await db()
-    .prepare("SELECT id, workspace_id FROM people_requests WHERE status = 'approved' AND talk_set = 0 AND start_date <= ? AND end_date >= ? LIMIT 200")
-    .all(today(), today())) as Array<{ id: string; workspace_id: string }>;
-  for (const r of due) await setTalkStatus(r.workspace_id, r.id);
-  return due.length;
+    .prepare(
+      `SELECT r.id, r.workspace_id, r.start_date, r.end_date, e.user_id FROM people_requests r JOIN people_employees e ON e.id = r.employee_id
+       WHERE r.status = 'approved' AND r.talk_set = 0 AND r.start_date <= ? AND r.end_date >= ? LIMIT 200`,
+    )
+    .all(addDays(t, 1), addDays(t, -1))) as Array<{ id: string; workspace_id: string; start_date: string; end_date: string; user_id: string | null }>;
+  let n = 0;
+  for (const r of due) {
+    const local = zonedToday(await personTz(r.user_id));
+    if (r.start_date > local || r.end_date < local) continue;
+    await setTalkStatus(r.workspace_id, r.id);
+    n++;
+  }
+  return n;
 }
 
 // ---------- Calendario del equipo ----------

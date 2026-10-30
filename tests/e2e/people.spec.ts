@@ -54,6 +54,8 @@ async function member(browser: Browser, baseURL: string, name: string, apps = '*
   await sql("UPDATE users SET onboarded_at = datetime('now'), name = ? WHERE id = ?", [name, userId]);
   await sql('INSERT INTO team_members (team_id, user_id, role, apps) VALUES (?, ?, ?, ?)', [demoTeam, userId, 'member', apps]);
   await sql('UPDATE users SET active_team_id = ? WHERE id = ?', [demoTeam, userId]);
+  // Alta por SQL (sin personJoined): su primera visita a People le crea la ficha, como a un miembro de antes de People.
+  if (apps === '*') expect((await ctx.request.get('/api/people/me')).ok()).toBe(true);
   return { ctx, page, userId, name };
 }
 
@@ -107,6 +109,8 @@ test('HR crea una ficha con su manager y el organigrama la muestra', async ({ pa
   const node = page.getByTestId('people-org').locator(`.ppl-org-node[data-name="${name}"]`);
   await expect(node).toBeVisible();
   await expect(node).toHaveAttribute('data-manager', manager.id);
+  await page.getByRole('button', { name: 'Reset view' }).click();
+  await expect(page.getByText('100%')).toBeVisible();
   await page.getByRole('button', { name: 'Zoom in' }).click();
   await expect(page.getByText('110%')).toBeVisible();
   const download = page.waitForEvent('download');

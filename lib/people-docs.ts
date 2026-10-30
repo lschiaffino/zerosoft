@@ -6,7 +6,7 @@
  * Sign no está en main: no hay pedido de firma electrónica.
  */
 import { getDb } from './db';
-import { saveUpload, UploadError } from './uploads';
+import { deleteUploads, saveUpload, UploadError } from './uploads';
 import { canSeeDocument, isSelf } from './people-access';
 import { audit, getEmployeeRow, newId, nowIso, PeopleError, requireHr, type PeopleCtx } from './people';
 import { notifyPeople } from './people-effects';
@@ -174,9 +174,10 @@ export async function getDocumentFile(ctx: PeopleCtx, id: string): Promise<{ url
 
 export async function deleteDocument(ctx: PeopleCtx, id: string): Promise<boolean> {
   requireHr(ctx);
-  const r = (await db().prepare('SELECT employee_id FROM people_documents WHERE id = ? AND workspace_id = ?').get(id, ctx.ws)) as { employee_id: string | null } | undefined;
+  const r = (await db().prepare('SELECT employee_id, url FROM people_documents WHERE id = ? AND workspace_id = ?').get(id, ctx.ws)) as { employee_id: string | null; url: string } | undefined;
   if (!r) return false;
   await db().prepare('DELETE FROM people_documents WHERE id = ?').run(id);
+  if (r.url) await deleteUploads([r.url]).catch((err: unknown) => console.error('[people] delete file', err instanceof Error ? err.message : 'error'));
   if (r.employee_id) await audit(ctx, 'change', 'documents', r.employee_id);
   return true;
 }

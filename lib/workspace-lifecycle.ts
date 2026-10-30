@@ -120,10 +120,10 @@ const STEPS: Step[] = [
         .run(e.userId, e.ownerId),
   },
   {
-    // People: la ficha queda como baja (cuenta para rotación y antigüedad); sus licencias futuras se cancelan.
+    // People: la ficha queda como baja (cuenta para rotación y antigüedad), pierde HR admin
+    // y sus licencias futuras se cancelan. También al pasar a guest: un guest no es del equipo.
     name: 'people',
     run: async (e) => {
-      if (e.keepShares) return;
       const { markRemovedPerson, employeeIdForUser } = await import('./people');
       const id = await employeeIdForUser(e.ownerId, e.userId);
       await markRemovedPerson(e.ownerId, e.userId);

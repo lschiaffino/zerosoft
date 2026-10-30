@@ -68,6 +68,8 @@ export interface PeopleCtx {
   personId: string;
   /** Owner o admin del workspace. */
   wsAdmin: boolean;
+  /** Rol en el workspace (owner, admin, member). */
+  wsRole: string;
   viewer: PeopleViewer;
   visibility: VisibilitySettings;
   /** ¿La ficha de quien mira tiene manager? (aprobar lo propio). */
@@ -93,6 +95,7 @@ export interface PeopleSettings {
 
 /** Lo que el workspace necesita la primera vez: ajustes, políticas y plantillas por defecto. Idempotente. */
 export async function ensurePeople(ws: string): Promise<void> {
+  if (await db().prepare('SELECT 1 AS x FROM people_settings WHERE workspace_id = ?').get(ws)) return;
   const res = await db()
     .prepare('INSERT OR IGNORE INTO people_settings (workspace_id, visibility, welcome, countries, updated_at) VALUES (?, ?, ?, ?, ?)')
     .run(ws, '{}', '', '[]', nowIso());
@@ -152,9 +155,25 @@ export async function syncMembers(ws: string): Promise<void> {
   }
 }
 
-async function linkOrCreate(ws: string, userId: string, email: string, name: string | null, rows?: Array<{ id: string; user_id: string | null; work_email: string }>) {
+async function linkOrCreate(
+  ws: string,
+  userId: string,
+  email: string,
+  name: string | null,
+  rows?: Array<{ id: string; user_id: string | null; work_email: string }>,
+  opts: { rejoin?: boolean } = {},
+) {
   const list = rows ?? ((await db().prepare('SELECT id, user_id, work_email FROM people_employees WHERE workspace_id = ?').all(ws)) as Array<{ id: string; user_id: string | null; work_email: string }>);
-  if (list.some((r) => r.user_id === userId)) return;
+  const own = list.find((r) => r.user_id === userId);
+  if (own) {
+    // Vuelve al workspace: la ficha de antes (baja) queda activa otra vez.
+    if (opts.rejoin) {
+      await db()
+        .prepare("UPDATE people_employees SET status = 'active', end_date = NULL, updated_at = ? WHERE id = ? AND status IN ('terminated', 'offboarding')")
+        .run(nowIso(), own.id);
+    }
+    return;
+  }
   const pending = list.find((r) => !r.user_id && r.work_email && r.work_email.toLowerCase() === email.toLowerCase());
   if (pending) {
     await db().prepare('UPDATE people_employees SET user_id = ?, updated_at = ? WHERE id = ? AND user_id IS NULL').run(userId, nowIso(), pending.id);
@@ -174,7 +193,7 @@ export async function linkJoinedPerson(ws: string, userId: string): Promise<void
   const exists = await db().prepare('SELECT 1 AS x FROM people_settings WHERE workspace_id = ?').get(ws);
   if (!exists) return; // el workspace todavía no usa People: la ficha se crea al abrirlo.
   const u = (await db().prepare('SELECT email, name FROM users WHERE id = ?').get(userId)) as { email: string; name: string | null } | undefined;
-  if (u) await linkOrCreate(ws, userId, u.email, u.name);
+  if (u) await linkOrCreate(ws, userId, u.email, u.name, undefined, { rejoin: true });
 }
 
 /** Paso de personRemoved: la ficha queda como baja (no se borra: cuenta para rotación y antigüedad). */
@@ -185,11 +204,19 @@ export async function markRemovedPerson(ws: string, userId: string): Promise<voi
        WHERE workspace_id = ? AND user_id = ? AND status != 'terminated'`,
     )
     .run(today(), nowIso(), ws, userId);
+  await db().prepare('DELETE FROM people_hr_admins WHERE workspace_id = ? AND user_id = ?').run(ws, userId);
 }
 
 export async function isHrAdmin(ws: string, personId: string, wsAdmin: boolean): Promise<boolean> {
   if (wsAdmin || ws === personId) return true;
-  return Boolean(await db().prepare('SELECT 1 AS x FROM people_hr_admins WHERE workspace_id = ? AND user_id = ?').get(ws, personId));
+  return Boolean(
+    await db()
+      .prepare(
+        `SELECT 1 AS x FROM people_hr_admins h WHERE h.workspace_id = ? AND h.user_id = ?
+         AND EXISTS (SELECT 1 FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = h.workspace_id AND m.user_id = h.user_id AND m.role != 'guest')`,
+      )
+      .get(ws, personId),
+  );
 }
 
 async function managerMap(ws: string): Promise<Map<string, string | null>> {
@@ -200,7 +227,11 @@ async function managerMap(ws: string): Promise<Map<string, string | null>> {
 /** Contexto de People para una persona del workspace (sesión, asistente, API). */
 export async function peopleContext(ws: string, personId: string, wsRole: string): Promise<PeopleCtx> {
   await ensurePeople(ws);
-  await syncMembers(ws);
+  // Quien ya tiene ficha no dispara la sincronización: las altas llegan por
+  // personJoined (JOIN_STEPS). Solo alguien sin ficha (miembro de antes de
+  // People) la crea al entrar.
+  const linked = await db().prepare('SELECT 1 AS x FROM people_employees WHERE workspace_id = ? AND user_id = ?').get(ws, personId);
+  if (!linked) await syncMembers(ws);
   const wsAdmin = wsRole === 'owner' || wsRole === 'admin' || ws === personId;
   const [hr, me, map, settings] = await Promise.all([
     isHrAdmin(ws, personId, wsAdmin),
@@ -213,7 +244,8 @@ export async function peopleContext(ws: string, personId: string, wsRole: string
     ws,
     personId,
     wsAdmin,
-    viewer: { personId, employeeId, hr, reports: employeeId ? reportsOf(employeeId, map) : new Set() },
+    wsRole: ws === personId ? 'owner' : wsRole,
+    viewer: { personId, employeeId, hr, wsOwner: ws === personId, reports: employeeId ? reportsOf(employeeId, map) : new Set() },
     visibility: parseJson<VisibilitySettings>(settings?.visibility, {}),
     hasManager: Boolean(me?.manager_id),
   };
@@ -717,6 +749,8 @@ export async function updateEmployee(ctx: PeopleCtx, id: string, input: Employee
     if (!col) continue;
     const v = normalizeValue(key, value);
     if (key === 'managerId') {
+      // Nadie se elige su propio manager (así no se saca de la cadena de aprobación); el owner sí.
+      if (isSelf(ctx.viewer, id) && !ctx.viewer.wsOwner && (v ?? null) !== (r.manager_id ?? null)) throw new PeopleError('forbidden', 403);
       if (v && !(await getEmployeeRow(ctx.ws, v))) throw new PeopleError('invalid_manager');
       if (wouldCycle(id, v, await managerMap(ctx.ws))) throw new PeopleError('manager_cycle');
     }
@@ -768,6 +802,11 @@ export async function setPhoto(ctx: PeopleCtx, id: string, url: string): Promise
   if (!r) throw new PeopleError('not_found', 404);
   if (!canEditField(ctx.viewer, id, 'photo')) throw new PeopleError('forbidden', 403);
   await db().prepare('UPDATE people_employees SET photo_url = ?, updated_at = ? WHERE id = ?').run(url, nowIso(), id);
+  // La foto anterior no queda huérfana en el storage.
+  if (r.photo_url && r.photo_url !== url) {
+    const { deleteUploads } = await import('./uploads');
+    await deleteUploads([r.photo_url]).catch(() => undefined);
+  }
 }
 
 // ---------- Ajustes ----------

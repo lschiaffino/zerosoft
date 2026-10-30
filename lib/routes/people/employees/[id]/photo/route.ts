@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getEmployeeRow, PeopleError, setPhoto } from '@/lib/people';
+import { canEditField } from '@/lib/people-access';
 import { sniffRaster } from '@/lib/shop';
 import { saveUpload } from '@/lib/uploads';
 import { fileBlockResponse } from '@/lib/upload-serve';
@@ -26,6 +27,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 export async function POST(req: NextRequest, { params }: Ctx) {
   return withPeople(async (ctx) => {
     const id = (await params).id;
+    if (!(await getEmployeeRow(ctx.ws, id))) return pjson({ error: 'not_found' }, 404);
+    if (!canEditField(ctx.viewer, id, 'photo')) return pjson({ error: 'forbidden' }, 403);
     const form = await req.formData().catch(() => null);
     const file = form?.get('file');
     if (!(file instanceof File)) return pjson({ error: 'file_required' }, 400);
@@ -33,7 +36,6 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const buffer = Buffer.from(await file.arrayBuffer());
     const kind = sniffRaster(new Uint8Array(buffer.subarray(0, 32)));
     if (!kind) throw new PeopleError('image_type', 415);
-    if (!(await getEmployeeRow(ctx.ws, id))) return pjson({ error: 'not_found' }, 404);
     const url = await saveUpload('people', `photo.${kind.ext}`, kind.mime, buffer);
     await setPhoto(ctx, id, url);
     return pjson({ ok: true });

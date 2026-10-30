@@ -328,9 +328,10 @@
     "zoomOut": "Zoom out",
     "reset": "Reset view",
     "canvas": "Org chart. Drag or use the arrow keys to move, plus and minus to zoom.",
-    "help": "Drag to move, Ctrl or Cmd with the wheel to zoom. Set managers on each profile.",
+    "help": "Drag to move, Ctrl or Cmd with the wheel to zoom, 0 to fit. Set managers on each profile.",
     "emptyTitle": "No org chart yet",
-    "emptyBody": "Add people and set their managers: the chart builds itself."
+    "emptyBody": "Add people and set their managers: the chart builds itself.",
+    "fit": "Fit to screen"
   },
   "reviews": {
     "desc": "Review cycles with self, manager and peer reviews.",
@@ -564,6 +565,8 @@
     "invalid_page": "That Docs page does not exist in this workspace.",
     "invalid_action": "That action does not exist.",
     "storage_unavailable": "File storage is not available right now.",
-    "file_type_not_allowed": "That file type is not allowed."
+    "file_type_not_allowed": "That file type is not allowed.",
+    "cannot_remove": "Only workspace owners and admins remove people from the workspace, and an admin cannot remove another admin. The profile was not changed.",
+    "rate_limited": "Too many removals for now. Try again in a while."
   }
 }

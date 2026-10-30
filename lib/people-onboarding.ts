@@ -269,6 +269,24 @@ export async function offboard(ctx: PeopleCtx, employeeId: string, input: Offboa
   if (!emp) throw new PeopleError('not_found', 404);
   if (emp.user_id && emp.user_id === ctx.ws) throw new PeopleError('owner_profile', 409);
   if (emp.user_id && emp.user_id === ctx.personId) throw new PeopleError('self_offboard', 409);
+  // "Sacar del workspace" pide lo mismo que Ajustes › Miembros: ser owner o admin
+  // y poder gestionar el rol de esa persona (un admin no saca a otro admin). Se
+  // chequea antes de tocar la ficha: si no se puede, no cambia nada.
+  let teams: Array<{ team_id: string; role: string }> = [];
+  if (input.removeFromWorkspace && emp.user_id) {
+    if (!ctx.wsAdmin) throw new PeopleError('cannot_remove', 403);
+    teams = (await db()
+      .prepare("SELECT m.team_id, m.role FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ? AND m.user_id = ? AND m.role != 'owner'")
+      .all(ctx.ws, emp.user_id)) as Array<{ team_id: string; role: string }>;
+    const { normalizeRole } = await import('./teams');
+    // Misma regla que Ajustes › Miembros (lib/teams-http.ts canManage).
+    const canManage = (a: string, t: string) => t !== 'owner' && (a === 'owner' || (a === 'admin' && (t === 'member' || t === 'guest')));
+    const actor = normalizeRole(ctx.wsRole);
+    for (const t of teams) if (!canManage(actor, normalizeRole(t.role))) throw new PeopleError('cannot_remove', 403);
+    const { rateLimit } = await import('./rate-limit');
+    const limit = await rateLimit(`teams:remove:${ctx.personId}`, 60, 3600);
+    if (!limit.ok) throw new PeopleError('rate_limited', 429);
+  }
   const endDate = input.endDate && isIsoDate(input.endDate) ? input.endDate : today();
   const status = endDate <= today() ? 'terminated' : 'offboarding';
   await db().prepare('UPDATE people_employees SET end_date = ?, status = ?, updated_at = ? WHERE id = ?').run(endDate, status, nowIso(), employeeId);
@@ -278,9 +296,6 @@ export async function offboard(ctx: PeopleCtx, employeeId: string, input: Offboa
   if (input.templateId) checklistId = (await startChecklist(ctx, employeeId, input.templateId, endDate)).id;
   let removed = false;
   if (input.removeFromWorkspace && emp.user_id) {
-    const teams = (await db()
-      .prepare("SELECT m.team_id FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ? AND m.user_id = ? AND m.role != 'owner'")
-      .all(ctx.ws, emp.user_id)) as Array<{ team_id: string }>;
     const { removeMember } = await import('./teams');
     for (const t of teams) await removeMember(t.team_id, emp.user_id);
     if (!teams.length) {

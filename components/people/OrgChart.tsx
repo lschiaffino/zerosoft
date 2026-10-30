@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
@@ -58,7 +58,32 @@ export default function OrgChart({ nodes }: { nodes: OrgNode[] }) {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 24, y: 24 });
   const drag = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
-  const clampZoom = (z: number) => Math.max(0.3, Math.min(2.5, Math.round(z * 100) / 100));
+  const box = useRef<HTMLDivElement>(null);
+  const clampZoom = (z: number) => Math.max(0.2, Math.min(2.5, Math.round(z * 100) / 100));
+
+  // Ajustar a la pantalla: todo el organigrama visible y centrado (así abre).
+  const fit = useCallback(() => {
+    const el = box.current;
+    if (!el) return;
+    const pad = 24;
+    const z = clampZoom(Math.min(1, (el.clientWidth - pad * 2) / width, (el.clientHeight - pad * 2) / height));
+    setZoom(z);
+    setPan({ x: Math.max(pad, (el.clientWidth - width * z) / 2), y: pad });
+  }, [width, height]);
+  useEffect(() => fit(), [fit]);
+
+  // La rueda solo hace zoom con Ctrl o Cmd (y entonces no scrollea la página ni hace zoom del navegador).
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      setZoom((z) => clampZoom(z - e.deltaY * 0.002));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [nodes.length]);
 
   const onPointerDown = (e: RPointerEvent<HTMLDivElement>) => {
     if ((e.target as HTMLElement).closest('a')) return;
@@ -140,6 +165,9 @@ export default function OrgChart({ nodes }: { nodes: OrgNode[] }) {
             <button type="button" className="btn btn-sm btn-secondary" onClick={() => setZoom((z) => clampZoom(z + 0.1))} aria-label={t('org.zoomIn')}>
               +
             </button>
+            <button type="button" className="btn btn-sm btn-ghost" onClick={fit}>
+              {t('org.fit')}
+            </button>
             <button
               type="button"
               className="btn btn-sm btn-ghost"
@@ -152,6 +180,7 @@ export default function OrgChart({ nodes }: { nodes: OrgNode[] }) {
             </button>
           </div>
           <div
+            ref={box}
             className="ppl-org"
             data-testid="people-org"
             tabIndex={0}
@@ -161,13 +190,10 @@ export default function OrgChart({ nodes }: { nodes: OrgNode[] }) {
             onPointerMove={onPointerMove}
             onPointerUp={() => (drag.current = null)}
             onPointerCancel={() => (drag.current = null)}
-            onWheel={(e) => {
-              if (e.ctrlKey || e.metaKey) setZoom((z) => clampZoom(z - e.deltaY * 0.002));
-              else setPan((p) => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }));
-            }}
             onKeyDown={(e) => {
               const step = 40;
-              if (e.key === '+' || e.key === '=') setZoom((z) => clampZoom(z + 0.1));
+              if (e.key === '0') fit();
+              else if (e.key === '+' || e.key === '=') setZoom((z) => clampZoom(z + 0.1));
               else if (e.key === '-') setZoom((z) => clampZoom(z - 0.1));
               else if (e.key === 'ArrowLeft') setPan((p) => ({ ...p, x: p.x + step }));
               else if (e.key === 'ArrowRight') setPan((p) => ({ ...p, x: p.x - step }));

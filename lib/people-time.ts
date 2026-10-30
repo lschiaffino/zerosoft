@@ -149,9 +149,10 @@ export function accrualEvents(policy: AccrualPolicy, start: string, to: string, 
   if (policy.accrual === 'annual') {
     for (let y = startY; y <= endY; y++) {
       if (y === startY) {
-        // Primer año: los meses que quedan contando el de ingreso.
-        const month = toDate(start).getUTCMonth();
-        out.push({ date: start, days: roundDays((per * (12 - month)) / 12) });
+        // Primer año: prorrateado por los días que quedan del año desde el ingreso (inclusive).
+        const yearDays = diffDays(`${y}-01-01`, `${y + 1}-01-01`);
+        const left = diffDays(start, `${y + 1}-01-01`);
+        out.push({ date: start, days: roundDays((per * left) / yearDays) });
       } else {
         const d = `${y}-01-01`;
         if (d <= to) out.push({ date: d, days: per });
@@ -160,22 +161,17 @@ export function accrualEvents(policy: AccrualPolicy, start: string, to: string, 
     return out;
   }
   if (policy.accrual === 'monthly') {
-    // El mes de ingreso cuenta si entra hasta el 15; cada crédito cae el 1 del mes (el primero, el día de ingreso).
+    // Cada crédito cae el 1 del mes. El mes de ingreso cuenta entero si entra
+    // hasta el 15 y medio si entra después (prorrateo por quincena).
     const s = toDate(start);
     let y = s.getUTCFullYear();
     let m = s.getUTCMonth();
-    if (s.getUTCDate() > 15) {
-      m += 1;
-      if (m > 11) {
-        m = 0;
-        y += 1;
-      }
-    }
     for (;;) {
       const first = `${y}-${String(m + 1).padStart(2, '0')}-01`;
       const date = first < start ? start : first;
       if (date > to) break;
-      out.push({ date, days: roundDays(per / 12) });
+      const half = first < start && s.getUTCDate() > 15;
+      out.push({ date, days: roundDays(half ? per / 24 : per / 12) });
       m += 1;
       if (m > 11) {
         m = 0;
@@ -274,8 +270,10 @@ export function computeBalance(input: {
     }
   }
   rollTo(year);
-  const scheduled = input.approved.filter((u) => u.date > asOf).reduce((s, u) => s + u.days, 0);
-  const pending = (input.pending ?? []).reduce((s, u) => s + u.days, 0);
+  // Lo de otro año (p. ej. un pedido de enero próximo) sale del saldo de ese año, no de este.
+  const sameYear = (u: LedgerUse) => toDate(u.date).getUTCFullYear() === year;
+  const scheduled = input.approved.filter((u) => u.date > asOf && sameYear(u)).reduce((s, u) => s + u.days, 0);
+  const pending = (input.pending ?? []).filter(sameYear).reduce((s, u) => s + u.days, 0);
   const keep = policy.carryoverMax == null ? balance : Math.min(balance, Math.max(0, policy.carryoverMax));
   return {
     accrued: roundDays(accrued),
@@ -300,4 +298,34 @@ export function tenureYears(start: string | null, end: string | null, asOf: stri
   if (!start || !isIsoDate(start)) return 0;
   const to = end && isIsoDate(end) && end < asOf ? end : asOf;
   return Math.max(0, Math.round((diffDays(start, to) / 365.25) * 10) / 10);
+}
+
+/** Fecha de hoy ('YYYY-MM-DD') en una zona horaria IANA (UTC si no es válida). */
+export function zonedToday(tz: string | null | undefined, now = new Date()): string {
+  try {
+    return now.toLocaleDateString('en-CA', { timeZone: tz || 'UTC' });
+  } catch {
+    return now.toISOString().slice(0, 10);
+  }
+}
+
+/** Minutos que la zona está adelante de UTC en un instante. */
+function tzOffsetMinutes(tz: string, at: number): number {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(new Date(at));
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+  const asUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour') % 24, get('minute'), get('second'));
+  return Math.round((asUtc - at) / 60000);
+}
+
+/** Instante (ISO, UTC) de las `hour` hs locales de un día en una zona horaria. Corrige el cambio de horario. */
+export function zonedInstant(date: string, tz: string | null | undefined, hour = 0): string {
+  const base = Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10)), hour);
+  const zone = tz || 'UTC';
+  try {
+    let at = base - tzOffsetMinutes(zone, base) * 60000;
+    at = base - tzOffsetMinutes(zone, at) * 60000;
+    return new Date(at).toISOString();
+  } catch {
+    return new Date(base).toISOString();
+  }
 }

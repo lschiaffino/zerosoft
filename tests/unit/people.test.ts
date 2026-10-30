@@ -27,6 +27,8 @@ import {
   seededHolidays,
   seededYears,
   tenureYears,
+  zonedInstant,
+  zonedToday,
   HOLIDAY_COUNTRIES,
   type AccrualPolicy,
 } from '@/lib/people-time';
@@ -110,17 +112,22 @@ describe('días de licencia', () => {
 });
 
 describe('devengamiento', () => {
-  it('anual: prorrateado el primer año, entero cada 1 de enero', () => {
+  it('anual: prorrateado por días el primer año, entero cada 1 de enero', () => {
     const ev = accrualEvents(policy({ daysPerYear: 12 }), '2026-07-10', '2027-03-01');
     expect(ev).toEqual([
-      { date: '2026-07-10', days: 6 },
+      // 175 de 365 días (10 de julio al 31 de diciembre, inclusive).
+      { date: '2026-07-10', days: 5.753 },
       { date: '2027-01-01', days: 12 },
     ]);
   });
 
-  it('mensual: el mes de ingreso cuenta si entra hasta el 15', () => {
+  it('mensual: el mes de ingreso cuenta entero hasta el 15 y medio después', () => {
     expect(accrualEvents(policy({ accrual: 'monthly', daysPerYear: 12 }), '2026-01-10', '2026-03-31').map((e) => e.date)).toEqual(['2026-01-10', '2026-02-01', '2026-03-01']);
-    expect(accrualEvents(policy({ accrual: 'monthly', daysPerYear: 12 }), '2026-01-20', '2026-03-31').map((e) => e.date)).toEqual(['2026-02-01', '2026-03-01']);
+    expect(accrualEvents(policy({ accrual: 'monthly', daysPerYear: 12 }), '2026-01-20', '2026-03-31')).toEqual([
+      { date: '2026-01-20', days: 0.5 },
+      { date: '2026-02-01', days: 1 },
+      { date: '2026-03-01', days: 1 },
+    ]);
   });
 
   it('por período de pago: quincenal fija (15 y fin de mes), cada dos semanas y semanal', () => {
@@ -176,6 +183,32 @@ describe('devengamiento', () => {
     // Llega a 5 en marzo, baja a 1 en junio y vuelve a 5 con los créditos de julio y agosto.
     expect(used.balance).toBe(5);
     expect(used.used).toBe(4);
+  });
+
+  it('un pedido del año que viene no come el saldo de este año', () => {
+    const b = computeBalance({
+      policy: policy({ daysPerYear: 15, carryoverMax: 5 }),
+      startDate: '2025-01-01',
+      asOf: '2026-11-01',
+      approved: [{ date: '2027-01-11', days: 5 }],
+      pending: [{ date: '2027-02-01', days: 2 }],
+    });
+    expect(b.scheduled).toBe(0);
+    expect(b.pending).toBe(0);
+    expect(b.available).toBe(b.balance);
+    // Visto desde enero del año que viene, el pedido usa lo devengado ese año.
+    const next = computeBalance({ policy: policy({ daysPerYear: 15, carryoverMax: 5 }), startDate: '2025-01-01', asOf: '2027-01-11', approved: [{ date: '2027-01-11', days: 5 }] });
+    expect(next.used).toBe(5);
+    expect(next.balance).toBe(15);
+  });
+
+  it('zona horaria: hoy y la medianoche local', () => {
+    const at = new Date('2026-11-02T02:30:00Z');
+    expect(zonedToday('UTC', at)).toBe('2026-11-02');
+    expect(zonedToday('America/Argentina/Buenos_Aires', at)).toBe('2026-11-01');
+    expect(zonedInstant('2026-11-02', 'America/Argentina/Buenos_Aires')).toBe('2026-11-02T03:00:00.000Z');
+    expect(zonedInstant('2026-07-01', 'Europe/Madrid', 12)).toBe('2026-07-01T10:00:00.000Z');
+    expect(zonedInstant('2026-07-01', 'Nope/Zone')).toBe('2026-07-01T00:00:00.000Z');
   });
 
   it('medio día descuenta 0,5 y los ajustes suman o restan', () => {
@@ -280,9 +313,10 @@ describe('quién ve qué', () => {
     expect(canApprove(carla, 'dani')).toBe(false);
     expect(canApprove(carla, 'bruno')).toBe(false);
     expect(canApprove(bruno, 'bruno')).toBe(false);
-    // HR sin manager (el owner de un workspace chico) puede aprobar lo suyo.
-    expect(canApprove(hr, 'ana', false)).toBe(true);
-    expect(canApprove(hr, 'ana', true)).toBe(false);
+    // Un HR admin no aprueba lo suyo (lo hace otro HR o un admin); solo el owner sin manager, que no tiene a quién pedirle.
+    expect(canApprove(hr, 'ana', false)).toBe(false);
+    expect(canApprove({ ...hr, wsOwner: true }, 'ana', false)).toBe(true);
+    expect(canApprove({ ...hr, wsOwner: true }, 'ana', true)).toBe(false);
   });
 });
 
@@ -472,5 +506,99 @@ describe('People con la base', () => {
     await offboard(w.hr, ids.dani, { endDate: '2099-12-31' });
     expect(removed).toEqual([]);
     await expect(offboard(await ctxOf(w, w.users.manager), ids.carla, {})).rejects.toMatchObject({ code: 'forbidden' });
+  });
+
+  it('un HR admin que es member no saca del workspace a un admin (ni a nadie): la ficha no cambia', async () => {
+    const x = await workspace();
+    const admin = await upsertUser({ email: `ppl-admin-${uid()}@example.com`, name: 'Adam', image: null });
+    await addMember(x.teamId, admin.id, 'admin');
+    const hrMember = x.users.manager;
+    const { updateSettings } = await import('@/lib/people');
+    await updateSettings(x.hr, { hrAdmins: [hrMember] });
+    const hrCtx = await ctxOf(x, hrMember);
+    expect(hrCtx.viewer.hr).toBe(true);
+    const adminCtx = await peopleContext(x.owner, admin.id, 'admin');
+    const adminEmp = adminCtx.viewer.employeeId!;
+    removed.length = 0;
+    await expect(offboard(hrCtx, adminEmp, { removeFromWorkspace: true })).rejects.toMatchObject({ code: 'cannot_remove', status: 403 });
+    const all = await listEmployees(x.hr);
+    const carlaEmp = all.find((e) => e.userId === x.users.carla)!.id;
+    await expect(offboard(hrCtx, carlaEmp, { removeFromWorkspace: true })).rejects.toMatchObject({ code: 'cannot_remove' });
+    expect(removed).toEqual([]);
+    const row = (await getDb().prepare('SELECT status, end_date FROM people_employees WHERE id = ?').get(adminEmp)) as { status: string; end_date: string | null };
+    expect(row).toEqual({ status: 'active', end_date: null });
+    // Un admin del workspace no saca a otro admin; el owner sí.
+    const other = await upsertUser({ email: `ppl-admin2-${uid()}@example.com`, name: 'Ada', image: null });
+    await addMember(x.teamId, other.id, 'admin');
+    await expect(offboard(await peopleContext(x.owner, other.id, 'admin'), adminEmp, { removeFromWorkspace: true })).rejects.toMatchObject({ code: 'cannot_remove' });
+    expect((await offboard(x.hr, adminEmp, { removeFromWorkspace: true })).removed).toBe(true);
+    // Sin "sacar", HR (member) solo actualiza la ficha.
+    expect((await offboard(hrCtx, carlaEmp, { endDate: '2099-01-31' })).removed).toBe(false);
+  });
+
+  it('quien sale pierde HR admin; si vuelve, su ficha se reactiva y no recupera HR', async () => {
+    const x = await workspace();
+    const hrMember = x.users.dani;
+    const { updateSettings, isHrAdmin } = await import('@/lib/people');
+    await updateSettings(x.hr, { hrAdmins: [hrMember] });
+    expect((await ctxOf(x, hrMember)).viewer.hr).toBe(true);
+    const emp = (await ctxOf(x, hrMember)).viewer.employeeId!;
+    const { removeMember } = await import('@/lib/teams');
+    await removeMember(x.teamId, hrMember);
+    const hrRows = await getDb().prepare('SELECT 1 AS x FROM people_hr_admins WHERE workspace_id = ? AND user_id = ?').all(x.owner, hrMember);
+    expect(hrRows).toEqual([]);
+    expect((await getDb().prepare('SELECT status FROM people_employees WHERE id = ?').get(emp)) as { status: string }).toEqual({ status: 'terminated' });
+    // Aunque quede una fila vieja, isHrAdmin pide ser persona del workspace.
+    await getDb().prepare('INSERT INTO people_hr_admins (workspace_id, user_id, created_at) VALUES (?, ?, ?)').run(x.owner, hrMember, new Date().toISOString());
+    expect(await isHrAdmin(x.owner, hrMember, false)).toBe(false);
+    await getDb().prepare('DELETE FROM people_hr_admins WHERE workspace_id = ? AND user_id = ?').run(x.owner, hrMember);
+    // Vuelve: la misma ficha, activa, sin fecha de salida y sin HR.
+    await addMember(x.teamId, hrMember, 'member');
+    const back = (await getDb().prepare('SELECT id, status, end_date FROM people_employees WHERE workspace_id = ? AND user_id = ?').all(x.owner, hrMember)) as Array<{ id: string; status: string; end_date: string | null }>;
+    expect(back).toEqual([{ id: emp, status: 'active', end_date: null }]);
+    expect((await ctxOf(x, hrMember)).viewer.hr).toBe(false);
+  });
+
+  it('pasar a guest deja la ficha como baja y saca HR admin', async () => {
+    const x = await workspace();
+    const { updateSettings } = await import('@/lib/people');
+    await updateSettings(x.hr, { hrAdmins: [x.users.eva] });
+    const emp = (await ctxOf(x, x.users.eva)).viewer.employeeId!;
+    const { setMemberRole } = await import('@/lib/teams');
+    await setMemberRole(x.teamId, x.users.eva, 'guest');
+    expect((await getDb().prepare('SELECT status FROM people_employees WHERE id = ?').get(emp)) as { status: string }).toEqual({ status: 'terminated' });
+    expect(await getDb().prepare('SELECT 1 AS x FROM people_hr_admins WHERE workspace_id = ? AND user_id = ?').get(x.owner, x.users.eva)).toBeUndefined();
+  });
+
+  it('HR no aprueba su propia licencia ni se cambia su manager; otro HR o un admin sí', async () => {
+    const x = await workspace();
+    const { updateSettings } = await import('@/lib/people');
+    await updateSettings(x.hr, { hrAdmins: [x.users.carla] });
+    const hrCtx = await ctxOf(x, x.users.carla);
+    const me = hrCtx.viewer.employeeId!;
+    await expect(updateEmployee(hrCtx, me, { managerId: (await ctxOf(x, x.users.eva)).viewer.employeeId })).rejects.toMatchObject({ code: 'forbidden' });
+    const vacation = (await listPolicies(x.owner)).find((pp) => pp.kind === 'vacation')!;
+    await updateEmployee(x.hr, me, { startDate: '2024-01-01' });
+    const mon = futureMonday();
+    const req = await createRequest(hrCtx, { policyId: vacation.id, startDate: mon, endDate: mon });
+    await expect(decideRequest(await ctxOf(x, x.users.carla), req.id, 'approve')).rejects.toMatchObject({ code: 'forbidden' });
+    expect((await decideRequest(x.hr, req.id, 'approve')).status).toBe('approved');
+  });
+
+  it('el asistente: HR recibe el link (sin monto) del sueldo de otra persona; cada uno ve el suyo; un nombre ambiguo pide elegir', async () => {
+    const tool = peopleTools.find((t) => t.name === 'people_compensation')!;
+    const ownerUser = { id: w.owner, role: 'owner', apps: '*' } as never;
+    const run = (user: never, personId: string, input: Record<string, unknown>) =>
+      tool.kind === 'read' ? tool.run({ user, workspaceId: w.owner, personId, locale: 'en', isAdmin: personId === w.owner }, input as never) : null;
+    const hrView = (await run(ownerUser, w.owner, { name: 'Carla' })) as Record<string, unknown>;
+    expect(hrView.amountsShown).toBe(false);
+    expect(JSON.stringify(hrView)).not.toContain('98765');
+    const carlaUser = { id: w.owner, actingUser: { id: w.users.carla }, role: 'member', apps: '*' } as never;
+    expect(JSON.stringify(await run(carlaUser, w.users.carla, {}))).toContain('98765.43');
+    await createEmployee(w.hr, { name: 'Carlos Twin' });
+    await createEmployee(w.hr, { name: 'Carlos Other' });
+    const amb = (await run(ownerUser, w.owner, { name: 'Carlos' })) as { error: string; candidates: string[] };
+    expect(amb.error).toBe('ambiguous');
+    expect(amb.candidates.length).toBe(2);
   });
 });

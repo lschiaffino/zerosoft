@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
     ws,
     personId: '',
     wsAdmin: false,
+    wsRole: 'member',
     viewer: { personId: '', employeeId: null, hr: false, reports: new Set() },
     visibility: settings.visibility as VisibilitySettings,
     hasManager: false,

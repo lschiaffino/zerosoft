@@ -212,6 +212,7 @@ export default async function PeoplePage(props: Props) {
           myEmployeeId={ctx.viewer.employeeId}
           tab={sp.tab ?? 'overview'}
           templates={templates.map((x) => ({ id: x.id, name: x.name, kind: x.kind }))}
+          wsAdmin={ctx.wsAdmin}
         />
       );
     }

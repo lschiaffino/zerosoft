@@ -19,11 +19,13 @@ export interface ProfileProps {
   myEmployeeId: string | null;
   tab: string;
   templates: Array<{ id: string; name: string; kind: string }>;
+  /** Owner o admin del workspace: puede sacar a alguien del workspace al hacer el offboarding. */
+  wsAdmin?: boolean;
 }
 
 const TYPES = ['full_time', 'part_time', 'contractor', 'intern'] as const;
 
-export default function Profile({ employee: e, fields, people, hr, myEmployeeId, tab: initialTab, templates }: ProfileProps) {
+export default function Profile({ employee: e, fields, people, hr, myEmployeeId, tab: initialTab, templates, wsAdmin = false }: ProfileProps) {
   const t = useTranslations('people');
   const router = useRouter();
   const day = useDay();
@@ -440,7 +442,7 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
                   ))}
               </select>
             </Field>
-            {e.hasAccount && (
+            {e.hasAccount && wsAdmin && (
               <label className="ppl-check">
                 <input type="checkbox" name="remove" />
                 <span>

@@ -310,6 +310,7 @@ export interface Goal {
 
 export async function listGoals(ctx: PeopleCtx, employeeId: string): Promise<Goal[]> {
   if (!canSeeSensitive(ctx.viewer, employeeId, 'performance')) throw new PeopleError('forbidden', 403);
+  if (!isSelf(ctx.viewer, employeeId)) await audit(ctx, 'view', 'goals', employeeId);
   const rows = (await db().prepare('SELECT * FROM people_goals WHERE workspace_id = ? AND employee_id = ? ORDER BY created_at').all(ctx.ws, employeeId)) as Array<Record<string, unknown>>;
   return rows.map((r) => ({ id: String(r.id), employeeId: String(r.employee_id), title: String(r.title), progress: Number(r.progress), dueDate: (r.due_date as string | null) ?? null, updatedAt: String(r.updated_at) }));
 }

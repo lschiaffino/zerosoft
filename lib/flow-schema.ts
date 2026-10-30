@@ -487,7 +487,7 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
     employee: { id: 'emp_1', name: 'Ana Pérez', jobTitle: 'Designer', department: 'Product', workEmail: 'ana@acme.com', startDate: '2026-11-02', managerName: 'Bruno Díaz', url: '/app/people/emp_1' },
   },
   'people.timeoff.approved': {
-    request: { id: 'req_1', startDate: '2026-12-21', endDate: '2026-12-24', days: 4, half: '', policy: 'Vacation', approvedBy: 'Bruno Díaz', url: '/app/people/time-off' },
+    request: { id: 'req_1', startDate: '2026-12-21', endDate: '2026-12-24', days: 4, half: '', approvedBy: 'Bruno Díaz', url: '/app/people/time-off' },
     employee: { id: 'emp_1', name: 'Ana Pérez', workEmail: 'ana@acme.com' },
   },
   'people.offboarded': {

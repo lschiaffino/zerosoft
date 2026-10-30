@@ -328,9 +328,10 @@
     "zoomOut": "Alejar",
     "reset": "Volver a la vista inicial",
     "canvas": "Organigrama. Arrastrá o usá las flechas para moverte, más y menos para el zoom.",
-    "help": "Arrastrá para moverte; Ctrl o Cmd con la rueda para el zoom. El manager se elige en cada ficha.",
+    "help": "Arrastrá para moverte; Ctrl o Cmd con la rueda para el zoom y 0 para ajustar. El manager se elige en cada ficha.",
     "emptyTitle": "Todavía no hay organigrama",
-    "emptyBody": "Cargá personas y elegí sus managers: el organigrama se arma solo."
+    "emptyBody": "Cargá personas y elegí sus managers: el organigrama se arma solo.",
+    "fit": "Ajustar a la pantalla"
   },
   "reviews": {
     "desc": "Ciclos de evaluación con autoevaluación, evaluación del manager y de pares.",
@@ -564,6 +565,8 @@
     "invalid_page": "Esa página de Docs no existe en este workspace.",
     "invalid_action": "Esa acción no existe.",
     "storage_unavailable": "El almacenamiento de archivos no está disponible ahora.",
-    "file_type_not_allowed": "Ese tipo de archivo no está permitido."
+    "file_type_not_allowed": "Ese tipo de archivo no está permitido.",
+    "cannot_remove": "Solo owner y admins del workspace sacan personas del workspace, y un admin no saca a otro admin. La ficha no cambió.",
+    "rate_limited": "Demasiadas salidas por ahora. Probá en un rato."
   }
 }
