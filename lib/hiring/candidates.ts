@@ -8,7 +8,7 @@
 import { createHash, randomBytes } from 'crypto';
 import { z } from 'zod';
 import { getDb } from '../db';
-import { deleteUploads, saveUpload } from '../uploads';
+import { deleteHiringFiles, storeHiringFile } from './files';
 import { pdfToText } from '../pdf-text';
 import {
   EMAIL_RE,
@@ -34,6 +34,7 @@ import {
 import {
   appAccess,
   deleteApplicationRows,
+  deleteJob,
   ensureSettings,
   getJobRow,
   getSettings,
@@ -128,20 +129,27 @@ export async function getApplicationRow(ws: string, id: string): Promise<Applica
   return ((await getDb().prepare('SELECT * FROM hiring_applications WHERE id = ? AND workspace_id = ?').get(id, ws)) as ApplicationRow | undefined) ?? null;
 }
 
-// ---------- Resume ----------
+// ---------- Resume y documentos ----------
 
 export interface ResumeFile {
   bytes: Buffer;
   filename: string;
 }
 
-/** Valida el resume por sus bytes y lo guarda en la carpeta privada de Hiring. */
-export async function storeResume(file: ResumeFile): Promise<{ url: string; name: string; mime: string; text: string }> {
+export interface StoredFile {
+  ref: string;
+  name: string;
+  mime: string;
+  text: string;
+}
+
+/** Valida el resume por sus bytes y lo guarda como archivo privado (lib/hiring/files.ts). */
+export async function storeResume(file: ResumeFile): Promise<StoredFile> {
   if (file.bytes.length === 0 || file.bytes.length > RESUME_MAX_BYTES) throw new HiringError('resume_size', 413);
   const kind = sniffResume(new Uint8Array(file.bytes.subarray(0, 16)), file.filename);
   if (!kind) throw new HiringError('resume_type', 415);
   const safeName = (file.filename.replace(/[^\w.\- ]+/g, '_').slice(-100) || `resume.${kind.ext}`).replace(/\.[^.]*$/, '') + `.${kind.ext}`;
-  const url = await saveUpload('hiring', safeName, kind.mime, file.bytes);
+  const ref = await storeHiringFile(file.bytes, kind.mime);
   let text = '';
   if (kind.ext === 'pdf') {
     try {
@@ -150,12 +158,38 @@ export async function storeResume(file: ResumeFile): Promise<{ url: string; name
       text = '';
     }
   }
-  return { url, name: safeName, mime: kind.mime, text };
+  return { ref, name: safeName, mime: kind.mime, text };
+}
+
+/** Un CV nuevo de un candidato que ya tiene uno: queda como documento adicional, nunca reemplaza al original. */
+async function addDocument(candidateId: string, applicationId: string | null, file: StoredFile): Promise<void> {
+  await getDb()
+    .prepare('INSERT INTO hiring_documents (id, candidate_id, application_id, ref, name, mime, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(newId('hdoc'), candidateId, applicationId, file.ref, file.name, file.mime, nowIso());
+}
+
+export interface DocumentDto {
+  id: string;
+  name: string;
+  mime: string;
+  applicationId: string | null;
+  createdAt: string;
+}
+
+export async function listDocuments(candidateId: string, visibleApps: Set<string>): Promise<DocumentDto[]> {
+  const rows = (await getDb().prepare('SELECT id, name, mime, application_id, created_at FROM hiring_documents WHERE candidate_id = ? ORDER BY created_at DESC').all(candidateId)) as Array<{
+    id: string;
+    name: string;
+    mime: string;
+    application_id: string | null;
+    created_at: string;
+  }>;
+  return rows.filter((r) => !r.application_id || visibleApps.has(r.application_id)).map((r) => ({ id: r.id, name: r.name, mime: r.mime, applicationId: r.application_id, createdAt: r.created_at }));
 }
 
 // ---------- Alta ----------
 
-interface UpsertInput {
+interface NewCandidate {
   email: string;
   name: string;
   phone?: string;
@@ -163,57 +197,18 @@ interface UpsertInput {
   headline?: string;
   links?: string[];
   tags?: string[];
-  resume?: { url: string; name: string; mime: string; text: string } | null;
+  resume?: StoredFile | null;
   consent?: boolean;
   keepConsent?: boolean;
 }
 
-/**
- * Busca al candidato por email (en minúsculas) en el workspace; si existe, se
- * une (completa lo vacío, reemplaza el resume si llega uno nuevo). Devuelve
- * si ya existía: así la app avisa del duplicado.
- */
-export async function upsertCandidate(ws: string, input: UpsertInput): Promise<{ candidate: CandidateRow; duplicate: boolean; forgetToken: string }> {
+async function insertCandidate(ws: string, input: NewCandidate): Promise<{ candidate: CandidateRow; forgetToken: string }> {
   const email = normalizeEmail(input.email);
   if (!EMAIL_RE.test(email) || email.length > 254) throw new HiringError('invalid_email');
-  const db = getDb();
   const ts = nowIso();
   const forgetToken = randomBytes(24).toString('base64url');
-  const existing = (await db.prepare('SELECT * FROM hiring_candidates WHERE workspace_id = ? AND email = ?').get(ws, email)) as CandidateRow | undefined;
-  if (existing) {
-    const oldResume = input.resume && existing.resume_url ? existing.resume_url : null;
-    const tags = [...new Set([...parseJson<string[]>(existing.tags, []), ...(input.tags ?? [])])].slice(0, MAX_TAGS);
-    await db
-      .prepare(
-        `UPDATE hiring_candidates SET name = ?, phone = ?, location = ?, headline = ?, links = ?, tags = ?,
-          resume_url = ?, resume_name = ?, resume_mime = ?, resume_text = ?,
-          consent_at = CASE WHEN ? = 1 THEN ? ELSE consent_at END, keep_consent = CASE WHEN ? = 1 THEN 1 ELSE keep_consent END,
-          forget_token_hash = ?, last_activity_at = ?, updated_at = ? WHERE id = ?`,
-      )
-      .run(
-        input.name || existing.name,
-        existing.phone || input.phone || '',
-        existing.location || input.location || '',
-        existing.headline || input.headline || '',
-        JSON.stringify([...new Set([...parseJson<string[]>(existing.links, []), ...(input.links ?? [])])].slice(0, 10)),
-        JSON.stringify(tags),
-        input.resume?.url ?? existing.resume_url,
-        input.resume?.name ?? existing.resume_name,
-        input.resume?.mime ?? existing.resume_mime,
-        input.resume?.text ?? existing.resume_text,
-        input.consent ? 1 : 0,
-        ts,
-        input.keepConsent ? 1 : 0,
-        sha256(forgetToken),
-        ts,
-        ts,
-        existing.id,
-      );
-    if (oldResume && oldResume !== input.resume?.url) await deleteUploads([oldResume]);
-    return { candidate: (await getCandidateRow(ws, existing.id))!, duplicate: true, forgetToken };
-  }
   const id = newId('cand');
-  await db
+  await getDb()
     .prepare(
       `INSERT INTO hiring_candidates (id, workspace_id, email, name, phone, location, headline, links, tags, resume_url, resume_name, resume_mime, resume_text,
         consent_at, keep_consent, forget_token_hash, last_activity_at, created_at, updated_at)
@@ -229,7 +224,7 @@ export async function upsertCandidate(ws: string, input: UpsertInput): Promise<{
       input.headline ?? '',
       JSON.stringify((input.links ?? []).slice(0, 10)),
       JSON.stringify((input.tags ?? []).slice(0, MAX_TAGS)),
-      input.resume?.url ?? null,
+      input.resume?.ref ?? null,
       input.resume?.name ?? null,
       input.resume?.mime ?? null,
       input.resume?.text ?? '',
@@ -240,7 +235,53 @@ export async function upsertCandidate(ws: string, input: UpsertInput): Promise<{
       ts,
       ts,
     );
-  return { candidate: (await getCandidateRow(ws, id))!, duplicate: false, forgetToken };
+  return { candidate: (await getCandidateRow(ws, id))!, forgetToken };
+}
+
+/** Otros registros con el mismo email en el workspace (duplicados). */
+async function sameEmail(ws: string, email: string): Promise<CandidateRow[]> {
+  return (await getDb().prepare('SELECT * FROM hiring_candidates WHERE workspace_id = ? AND email = ? ORDER BY created_at').all(ws, normalizeEmail(email))) as CandidateRow[];
+}
+
+/** El registro con ese email que ya se postuló a este puesto, si hay. */
+async function candidateOnJob(ws: string, jobId: string, email: string): Promise<CandidateRow | null> {
+  return (
+    ((await getDb()
+      .prepare('SELECT c.* FROM hiring_candidates c JOIN hiring_applications a ON a.candidate_id = c.id WHERE c.workspace_id = ? AND c.email = ? AND a.job_id = ? LIMIT 1')
+      .get(ws, normalizeEmail(email), jobId)) as CandidateRow | undefined) ?? null
+  );
+}
+
+/**
+ * Junta lo que no pisa: el consentimiento para quedarse se suma y lo vacío
+ * (teléfono, ubicación, titular) se completa solo si quien carga ya ve al
+ * candidato. Nombre, email y CV nunca se reemplazan: un CV nuevo es otro documento.
+ */
+async function mergeInto(c: CandidateRow, input: NewCandidate, opts: { fillEmpty: boolean; applicationId: string | null }): Promise<void> {
+  const ts = nowIso();
+  await getDb()
+    .prepare(
+      `UPDATE hiring_candidates SET phone = ?, location = ?, headline = ?, keep_consent = CASE WHEN ? = 1 THEN 1 ELSE keep_consent END,
+        consent_at = CASE WHEN ? = 1 AND consent_at IS NULL THEN ? ELSE consent_at END, last_activity_at = ?, updated_at = ? WHERE id = ?`,
+    )
+    .run(
+      opts.fillEmpty ? c.phone || input.phone || '' : c.phone,
+      opts.fillEmpty ? c.location || input.location || '' : c.location,
+      opts.fillEmpty ? c.headline || input.headline || '' : c.headline,
+      input.keepConsent ? 1 : 0,
+      input.consent ? 1 : 0,
+      ts,
+      ts,
+      ts,
+      c.id,
+    );
+  if (input.resume) {
+    if (c.resume_url) await addDocument(c.id, opts.applicationId, input.resume);
+    else
+      await getDb()
+        .prepare('UPDATE hiring_candidates SET resume_url = ?, resume_name = ?, resume_mime = ?, resume_text = ? WHERE id = ? AND resume_url IS NULL')
+        .run(input.resume.ref, input.resume.name, input.resume.mime, input.resume.text, c.id);
+  }
 }
 
 async function firstStage(jobId: string): Promise<StageDto> {
@@ -305,7 +346,14 @@ export const publicApplySchema = z.object({
   source: z.string().max(20).nullable().default(null),
 });
 
-/** Postulación desde la página de empleos. El resume es obligatorio y se valida por sus bytes. */
+/**
+ * Postulación desde la página de empleos. El resume es obligatorio y se
+ * valida por sus bytes. Quien postula no está identificado: si su email ya se
+ * postuló a este puesto, se registra la nueva postulación en la línea de
+ * tiempo sin tocar nombre, datos ni CV (el CV nuevo queda como documento). Si
+ * el email existe en otro puesto, es otro registro: nada de un candidato de
+ * otro puesto pasa a ser visible para este equipo.
+ */
 export async function applyPublic(handle: string, jobSlug: string, input: z.infer<typeof publicApplySchema>, resume: ResumeFile | null) {
   const db = getDb();
   const settings = (await db.prepare('SELECT * FROM hiring_settings WHERE handle = ? AND published = 1').get(handle.toLowerCase())) as Awaited<ReturnType<typeof getSettings>> | undefined;
@@ -323,18 +371,18 @@ export async function applyPublic(handle: string, jobSlug: string, input: z.infe
   const utm = Object.fromEntries(Object.entries(input.utm).filter(([k]) => /^utm_(source|medium|campaign|term|content)$/.test(k)));
   const source = input.source && (SOURCES as readonly string[]).includes(input.source) && input.source !== 'manual' ? (input.source as Source) : utm.utm_source?.toLowerCase().includes('linkedin') || /linkedin\./i.test(input.referrer) ? 'linkedin' : utm.utm_source?.toLowerCase().includes('referr') ? 'referral' : 'careers';
   const links = input.linkedin && /^https?:\/\//i.test(input.linkedin) ? [input.linkedin] : [];
-  const { candidate, duplicate, forgetToken } = await upsertCandidate(settings.workspace_id, {
-    email: input.email,
-    name: input.name,
-    phone: input.phone,
-    links,
-    resume: stored,
-    consent: true,
-    keepConsent: input.keepConsent,
-  });
+  const fresh: NewCandidate = { email: input.email, name: input.name, phone: input.phone, links, resume: stored, consent: true, keepConsent: input.keepConsent };
   const knockouts = failedKnockouts(questions, answers);
-  const { app, existing } = await createApplication(settings.workspace_id, { job, candidate, source, utm, referrer: input.referrer, answers, knockouts, createdBy: null });
-  if (settings.auto_ack === 1 && !existing) {
+  const onJob = await candidateOnJob(settings.workspace_id, job.id, input.email);
+  if (onJob) {
+    const { app } = await createApplication(settings.workspace_id, { job, candidate: onJob, source, utm, referrer: input.referrer, answers, knockouts, createdBy: null });
+    await mergeInto(onJob, fresh, { fillEmpty: false, applicationId: app.id });
+    return { applicationId: app.id, duplicate: true, existing: true };
+  }
+  const duplicate = (await sameEmail(settings.workspace_id, input.email)).length > 0;
+  const { candidate, forgetToken } = await insertCandidate(settings.workspace_id, fresh);
+  const { app } = await createApplication(settings.workspace_id, { job, candidate, source, utm, referrer: input.referrer, answers, knockouts, createdBy: null });
+  if (settings.auto_ack === 1) {
     const tpl = await resolveTemplate(settings.workspace_id, 'ack', settings);
     await sendCandidateEmail(
       settings.workspace_id,
@@ -344,7 +392,7 @@ export async function applyPublic(handle: string, jobSlug: string, input: z.infe
       { kind: 'ack' },
     ).catch(() => null);
   }
-  return { applicationId: app.id, duplicate, existing };
+  return { applicationId: app.id, duplicate, existing: false };
 }
 
 export const manualAddSchema = z.object({
@@ -358,13 +406,53 @@ export const manualAddSchema = z.object({
   tags: z.array(z.string().trim().min(1).max(40)).max(MAX_TAGS).optional(),
 });
 
-/** Carga manual (recruiter, hiring manager o admin). Si el email ya existe, se une al candidato. */
+/**
+ * Carga manual (recruiter, hiring manager o admin). Se une a un candidato
+ * existente solo si quien carga ya lo ve (y sin pisar nombre ni CV); si el
+ * email existe en un puesto ajeno, se crea otro registro. Así cargar un email
+ * nunca sirve para leer a un candidato que no se ve.
+ */
 export async function addCandidateManually(actor: HiringActor, input: z.infer<typeof manualAddSchema>, resume: ResumeFile | null) {
   const job = await requireManage(actor, input.jobId);
   const stored = resume ? await storeResume(resume) : null;
-  const { candidate, duplicate } = await upsertCandidate(actor.ws, { ...input, resume: stored });
-  const { app, existing } = await createApplication(actor.ws, { job, candidate, source: input.source, utm: {}, referrer: '', answers: {}, knockouts: [], createdBy: actor.person });
-  return { candidateId: candidate.id, applicationId: app.id, duplicate, existing };
+  const fresh: NewCandidate = { ...input, resume: stored };
+  const onJob = await candidateOnJob(actor.ws, job.id, input.email);
+  if (onJob) {
+    const { app } = await createApplication(actor.ws, { job, candidate: onJob, source: input.source, utm: {}, referrer: '', answers: {}, knockouts: [], createdBy: actor.person });
+    await mergeInto(onJob, fresh, { fillEmpty: true, applicationId: app.id });
+    return { candidateId: onJob.id, applicationId: app.id, duplicate: true, existing: true };
+  }
+  const others = await sameEmail(actor.ws, input.email);
+  let target: CandidateRow | null = null;
+  for (const c of others) {
+    if (await canSeeCandidate(actor, c.id)) {
+      target = c;
+      break;
+    }
+  }
+  if (target) {
+    const { app } = await createApplication(actor.ws, { job, candidate: target, source: input.source, utm: {}, referrer: '', answers: {}, knockouts: [], createdBy: actor.person });
+    await mergeInto(target, fresh, { fillEmpty: true, applicationId: app.id });
+    return { candidateId: target.id, applicationId: app.id, duplicate: true, existing: false };
+  }
+  const { candidate } = await insertCandidate(actor.ws, fresh);
+  const { app } = await createApplication(actor.ws, { job, candidate, source: input.source, utm: {}, referrer: '', answers: {}, knockouts: [], createdBy: actor.person });
+  return { candidateId: candidate.id, applicationId: app.id, duplicate: others.length > 0, existing: false };
+}
+
+async function canSeeCandidate(actor: HiringActor, candidateId: string): Promise<boolean> {
+  const apps = (await getDb().prepare('SELECT id, job_id FROM hiring_applications WHERE candidate_id = ?').all(candidateId)) as Array<{ id: string; job_id: string }>;
+  for (const a of apps) if ((await appAccess(actor, a)).visible) return true;
+  return false;
+}
+
+/** Otros registros con el mismo email que la persona ve (para el aviso de duplicado en el perfil). */
+export async function visibleDuplicates(actor: HiringActor, c: CandidateRow): Promise<Array<{ id: string; name: string }>> {
+  const out: Array<{ id: string; name: string }> = [];
+  for (const o of await sameEmail(actor.ws, c.email)) {
+    if (o.id !== c.id && (await canSeeCandidate(actor, o.id))) out.push({ id: o.id, name: o.name });
+  }
+  return out;
 }
 
 // ---------- Listados ----------
@@ -521,11 +609,15 @@ export async function scorecardsFor(appId: string): Promise<ScorecardDto[]> {
 }
 
 /** Scorecards visibles para la persona en una postulación. */
-export function visibleScorecards(all: ScorecardDto[], opts: { admin: boolean; jobRole: TeamRole | null; person: string }): { visible: ScorecardDto[]; hidden: number } {
-  const submittedOwn = all.some((s) => s.userId === opts.person);
-  if (canSeeOthersScores({ admin: opts.admin, jobRole: opts.jobRole, submittedOwn })) return { visible: all, hidden: 0 };
-  const own = all.filter((s) => s.userId === opts.person);
-  return { visible: own, hidden: all.length - own.length };
+/**
+ * Scorecards visibles para la persona en una postulación. La ceguera es por
+ * etapa: un interviewer ve los de otros en una etapa recién después de enviar
+ * el suyo en esa misma etapa (haber puntuado otra etapa no destapa nada).
+ */
+export function visibleScorecards(all: ScorecardDto[], opts: { admin: boolean; jobRole: TeamRole | null; person: string }): { visible: ScorecardDto[]; hidden: number; openStages: string[] } {
+  const ownStages = new Set(all.filter((s) => s.userId === opts.person).map((s) => s.stageId));
+  const visible = all.filter((s) => s.userId === opts.person || canSeeOthersScores({ admin: opts.admin, jobRole: opts.jobRole, submittedOwn: ownStages.has(s.stageId) }));
+  return { visible, hidden: all.length - visible.length, openStages: [...ownStages] };
 }
 
 export interface CandidateProfile {
@@ -533,6 +625,9 @@ export interface CandidateProfile {
   applications: ProfileApplication[];
   timeline: ReturnType<typeof eventDto>[];
   canDelete: boolean;
+  documents: DocumentDto[];
+  /** Otros registros con el mismo email que la persona también ve. */
+  duplicates: Array<{ id: string; name: string }>;
 }
 
 /** Perfil completo, o null si la persona no ve ninguna postulación del candidato. */
@@ -543,6 +638,8 @@ export async function getCandidateProfile(actor: HiringActor, candidateId: strin
   const apps = (await db.prepare('SELECT * FROM hiring_applications WHERE candidate_id = ? ORDER BY created_at DESC').all(candidateId)) as ApplicationRow[];
   const out: ProfileApplication[] = [];
   let manageAll = apps.length > 0;
+  /** Postulaciones donde la persona puntúa a ciegas → etapas que ya tiene destapadas. */
+  const blindStages = new Map<string, Set<string>>();
   for (const a of apps) {
     const access = await appAccess(actor, a);
     if (!access.manage) manageAll = false;
@@ -552,7 +649,8 @@ export async function getCandidateProfile(actor: HiringActor, candidateId: strin
     const questions = parseJson<Question[]>(job.questions, []);
     const answers = parseJson<Record<string, string>>(a.answers, {});
     const all = await scorecardsFor(a.id);
-    const { visible, hidden } = visibleScorecards(all, { admin: actor.admin, jobRole: access.jobRole, person: actor.person });
+    const { visible, hidden, openStages } = visibleScorecards(all, { admin: actor.admin, jobRole: access.jobRole, person: actor.person });
+    if (!canSeeOthersScores({ admin: actor.admin, jobRole: access.jobRole, submittedOwn: false })) blindStages.set(a.id, new Set(openStages));
     const evals = (await db
       .prepare('SELECT e.user_id, e.stage_id, u.name FROM hiring_evaluators e LEFT JOIN users u ON u.id = e.user_id WHERE e.application_id = ? ORDER BY e.requested_at')
       .all(a.id)) as Array<{ user_id: string; stage_id: string; name: string | null }>;
@@ -580,16 +678,28 @@ export async function getCandidateProfile(actor: HiringActor, candidateId: strin
   }
   if (!out.length) return null;
   const visibleIds = new Set(out.map((a) => a.id));
-  const hiddenScoreApps = new Set(out.filter((a) => a.othersHidden > 0).map((a) => a.id));
+
   const events = (await db
     .prepare('SELECT e.*, u.name AS actor_name FROM hiring_events e LEFT JOIN users u ON u.id = e.actor_id WHERE e.candidate_id = ? ORDER BY e.created_at DESC LIMIT 300')
     .all(candidateId)) as EventRow[];
   const timeline = events
     .filter((e) => !e.application_id || visibleIds.has(e.application_id))
     // Antes de enviar su scorecard, un interviewer no ve la nota de los demás ni en la línea de tiempo.
-    .filter((e) => !(e.kind === 'score' && e.application_id && hiddenScoreApps.has(e.application_id) && e.actor_id !== actor.person))
+    .filter((e) => {
+      if (e.kind !== 'score' || !e.application_id || e.actor_id === actor.person) return true;
+      const open = blindStages.get(e.application_id);
+      if (!open) return true;
+      return open.has(String(parseJson<{ stageId?: string }>(e.data, {}).stageId ?? ''));
+    })
     .map(eventDto);
-  return { candidate: candidateDto(c), applications: out, timeline, canDelete: actor.admin || manageAll };
+  return {
+    candidate: candidateDto(c),
+    applications: out,
+    timeline,
+    canDelete: actor.admin || manageAll,
+    documents: await listDocuments(candidateId, visibleIds),
+    duplicates: await visibleDuplicates(actor, c),
+  };
 }
 
 /** Postulación con acceso de gestión (o 404/403). */
@@ -617,6 +727,13 @@ export async function requireVisibleCandidate(actor: HiringActor, candidateId: s
   const apps = (await getDb().prepare('SELECT id, job_id FROM hiring_applications WHERE candidate_id = ?').all(candidateId)) as Array<{ id: string; job_id: string }>;
   for (const a of apps) if ((await appAccess(actor, a)).visible) return c;
   throw new HiringError('not_found', 404);
+}
+
+/** Candidato que la persona gestiona (algún puesto suyo como recruiter o hiring manager, o admin). */
+export async function requireManagedCandidate(actor: HiringActor, candidateId: string): Promise<CandidateRow> {
+  const c = await requireVisibleCandidate(actor, candidateId);
+  if (!(await canManageCandidate(actor, candidateId))) throw new HiringError('forbidden', 403);
+  return c;
 }
 
 async function canManageCandidate(actor: HiringActor, candidateId: string): Promise<boolean> {
@@ -716,6 +833,11 @@ export async function rejectApplication(actor: HiringActor, appId: string, input
   const ts = nowIso();
   await getDb().prepare("UPDATE hiring_applications SET status = 'rejected', reject_reason = ?, rejected_at = ?, updated_at = ? WHERE id = ?").run(input.reason, ts, ts, app.id);
   await addEvent(actor.ws, candidate.id, app.id, 'rejected', actor.person, { reason: input.reason });
+  // Rechazada, sus ofertas abiertas se retiran (y su link deja de servir).
+  const withdrawn = await getDb()
+    .prepare("UPDATE hiring_offers SET status = 'withdrawn', token_hash = NULL, updated_at = ? WHERE application_id = ? AND status IN ('pending_approval','approved','sent')")
+    .run(ts, app.id);
+  if (withdrawn.changes) await addEvent(actor.ws, candidate.id, app.id, 'offer', actor.person, { status: 'withdrawn' });
   if (input.sendEmail) {
     const settings = await ensureSettings(actor.ws);
     const tpl = await resolveTemplate(actor.ws, 'rejection', settings, input.templateId);
@@ -831,10 +953,23 @@ export async function deleteCandidateRows(ws: string, candidateId: string): Prom
   if (!c) return false;
   const apps = (await db.prepare('SELECT id FROM hiring_applications WHERE candidate_id = ?').all(candidateId)) as Array<{ id: string }>;
   for (const a of apps) await deleteApplicationRows(a.id);
+  const docs = (await db.prepare('SELECT ref FROM hiring_documents WHERE candidate_id = ?').all(candidateId)) as Array<{ ref: string }>;
+  await db.prepare('DELETE FROM hiring_documents WHERE candidate_id = ?').run(candidateId);
   await db.prepare('DELETE FROM hiring_events WHERE candidate_id = ?').run(candidateId);
   await db.prepare('DELETE FROM hiring_candidates WHERE id = ? AND workspace_id = ?').run(candidateId, ws);
-  if (c.resume_url) await deleteUploads([c.resume_url]);
+  await deleteHiringFiles([c.resume_url, ...docs.map((d) => d.ref)]);
   return true;
+}
+
+/** Borra el puesto, sus postulaciones y los candidatos que quedan sin ninguna (con sus archivos). */
+export async function deleteJobAndOrphans(actor: HiringActor, jobId: string): Promise<void> {
+  const db = getDb();
+  const touched = ((await db.prepare('SELECT DISTINCT candidate_id FROM hiring_applications WHERE job_id = ? AND workspace_id = ?').all(jobId, actor.ws)) as Array<{ candidate_id: string }>).map((r) => r.candidate_id);
+  await deleteJob(actor, jobId);
+  for (const id of touched) {
+    const left = await db.prepare('SELECT 1 FROM hiring_applications WHERE candidate_id = ? LIMIT 1').get(id);
+    if (!left) await deleteCandidateRows(actor.ws, id);
+  }
 }
 
 /** Pedido de borrado desde la app: admin, o quien gestiona todas las postulaciones del candidato. */
@@ -850,9 +985,13 @@ export async function deleteCandidate(actor: HiringActor, candidateId: string): 
 /** Pedido de borrado del propio candidato con el link del email (token de un solo uso). */
 export async function forgetByToken(token: string): Promise<boolean> {
   if (!/^[A-Za-z0-9_-]{20,80}$/.test(token)) return false;
-  const row = (await getDb().prepare('SELECT id, workspace_id FROM hiring_candidates WHERE forget_token_hash = ?').get(sha256(token))) as { id: string; workspace_id: string } | undefined;
+  const row = (await getDb().prepare('SELECT id, workspace_id, email FROM hiring_candidates WHERE forget_token_hash = ?').get(sha256(token))) as
+    | { id: string; workspace_id: string; email: string }
+    | undefined;
   if (!row) return false;
-  return deleteCandidateRows(row.workspace_id, row.id);
+  // Todos los registros de ese email en el workspace (uno por puesto ajeno).
+  for (const c of await sameEmail(row.workspace_id, row.email)) await deleteCandidateRows(row.workspace_id, c.id);
+  return true;
 }
 
 const PURGE_CLAIM_TTL_MS = 15 * 60_000;

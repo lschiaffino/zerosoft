@@ -4,7 +4,8 @@ import type { Client } from '@libsql/client';
  * Hiring (Workable): ajustes de la página de empleos, puestos con su equipo
  * de contratación y sus etapas, candidatos (uno por email en el workspace),
  * postulaciones, línea de tiempo, evaluadores y scorecards, entrevistas con
- * Cal, plantillas y ofertas. Todo cuelga del workspace (workspace_id = id del
+ * Cal, plantillas y ofertas. Un candidato es un registro por persona y
+ * alcance: el mismo email en otro puesto es otro registro (ver lib/hiring/candidates.ts). Todo cuelga del workspace (workspace_id = id del
  * owner, como el resto de las apps).
  */
 export async function hiringUp(client: Client): Promise<void> {
@@ -16,7 +17,7 @@ export async function hiringUp(client: Client): Promise<void> {
       intro TEXT NOT NULL DEFAULT '',
       color TEXT,
       locale TEXT NOT NULL DEFAULT 'en',
-      published INTEGER NOT NULL DEFAULT 1,
+      published INTEGER NOT NULL DEFAULT 0,
       retention_months INTEGER NOT NULL DEFAULT 12,
       consent_text TEXT NOT NULL DEFAULT '',
       auto_ack INTEGER NOT NULL DEFAULT 1,
@@ -90,9 +91,9 @@ export async function hiringUp(client: Client): Promise<void> {
       purge_claimed_at TEXT,
       last_activity_at TEXT NOT NULL,
       created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      UNIQUE (workspace_id, email)
+      updated_at TEXT NOT NULL
     );
+    CREATE INDEX IF NOT EXISTS idx_hiring_candidates_email ON hiring_candidates(workspace_id, email);
     CREATE INDEX IF NOT EXISTS idx_hiring_candidates_activity ON hiring_candidates(last_activity_at);
     CREATE TABLE IF NOT EXISTS hiring_applications (
       id TEXT PRIMARY KEY,
@@ -117,6 +118,16 @@ export async function hiringUp(client: Client): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS idx_hiring_applications_job ON hiring_applications(job_id, status, stage_id);
     CREATE INDEX IF NOT EXISTS idx_hiring_applications_candidate ON hiring_applications(candidate_id);
+    CREATE TABLE IF NOT EXISTS hiring_documents (
+      id TEXT PRIMARY KEY,
+      candidate_id TEXT NOT NULL REFERENCES hiring_candidates(id) ON DELETE CASCADE,
+      application_id TEXT,
+      ref TEXT NOT NULL,
+      name TEXT NOT NULL,
+      mime TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_hiring_documents_candidate ON hiring_documents(candidate_id);
     CREATE TABLE IF NOT EXISTS hiring_events (
       id TEXT PRIMARY KEY,
       workspace_id TEXT NOT NULL,

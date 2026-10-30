@@ -142,6 +142,8 @@ export async function actOnOffer(actor: HiringActor, offerId: string, input: z.i
   const ts = nowIso();
   if (input.action === 'approve') {
     if (!canApproveOffer({ admin: actor.admin, jobRole: await jobRole(job.id, actor.person) })) throw new HiringError('forbidden', 403);
+    // Un hiring manager no aprueba la oferta que armó él mismo (un admin sí).
+    if (!actor.admin && offer.created_by === actor.person) throw new HiringError('own_offer', 403);
     const res = await db
       .prepare("UPDATE hiring_offers SET status = 'approved', approved_by = ?, approved_at = ?, updated_at = ? WHERE id = ? AND status = 'pending_approval'")
       .run(actor.person, ts, ts, offer.id);

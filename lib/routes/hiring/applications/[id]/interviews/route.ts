@@ -13,8 +13,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   const a = await hiringActor();
   if ('res' in a) return a.res;
   try {
-    const { app, candidate } = await requireVisibleApp(a.actor, (await params).id);
-    return hJson({ interviews: await listInterviews(a.actor.ws, app.id, candidate) });
+    const { app } = await requireVisibleApp(a.actor, (await params).id);
+    return hJson({ interviews: await listInterviews(a.actor.ws, app.id) });
   } catch (err) {
     return hFail(err);
   }

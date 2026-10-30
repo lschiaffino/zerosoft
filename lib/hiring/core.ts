@@ -87,7 +87,7 @@ export async function ensureSettings(ws: string, locale = 'en'): Promise<Setting
   await db
     .prepare(
       `INSERT OR IGNORE INTO hiring_settings (workspace_id, handle, company, intro, color, locale, published, retention_months, consent_text, auto_ack, created_at, updated_at)
-       VALUES (?, ?, ?, '', NULL, ?, 1, 12, '', 1, ?, ?)`,
+       VALUES (?, ?, ?, '', NULL, ?, 0, 12, '', 1, ?, ?)`,
     )
     .run(ws, handle, company, ['en', 'es', 'pt'].includes(locale) ? locale : 'en', ts, ts);
   return (await getSettings(ws))!;

@@ -1727,7 +1727,7 @@
       },
       "f6": {
         "t": "Private by default",
-        "d": "Candidate data only for the hiring team of each job and admins, in search, the assistant and the API. Retention deletes old candidates and a link lets them delete their own data. AI only assists."
+        "d": "Candidate data only for the hiring team of each job and admins, also in search, the assistant and the API. Retention deletes old candidates and a link lets them delete their own data. AI only assists."
       },
       "steps": {
         "s1": {
@@ -1755,7 +1755,7 @@
       "faq": {
         "f1": {
           "q": "Does the AI reject candidates?",
-          "a": "No. It can read a resume to fill fields and write a neutral summary. It never rejects, ranks or scores candidates; a person moves and rejects them."
+          "a": "No. It can read a resume to fill fields and write a neutral summary. It never decides on a candidate; a person moves and rejects them."
         },
         "f2": {
           "q": "Who sees a candidate?",

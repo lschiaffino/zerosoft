@@ -75,6 +75,8 @@ test('Hiring: de la plantilla a la oferta aceptada, con privacidad por equipo', 
 
     // 2. Postularse en la página de empleos, con CV.
     const { settings } = (await (await request.get('/api/hiring/settings')).json()) as { settings: { handle: string } };
+    // La página de empleos arranca sin publicar: la publica un admin.
+    expect((await request.put('/api/hiring/settings', { data: { published: true } })).ok()).toBe(true);
     const email = `ana-${uid()}@example.com`;
     const candidateName = `Ana Candidate ${uid()}`;
     const visitor = await browser.newContext({ baseURL });
@@ -116,6 +118,8 @@ test('Hiring: de la plantilla a la oferta aceptada, con privacidad por equipo', 
     await expect(linkInput).toBeVisible();
     const link = new URL(await linkInput.inputValue());
     expect(link.pathname).toMatch(/^\/en\/book\/[^/]+\/interview-[a-f0-9]+$/);
+    // Sin datos del candidato en la URL.
+    expect(link.search).toBe('');
     const booking = await browser.newContext({ baseURL });
     const bp = await booking.newPage();
     await bp.goto(`${link.pathname}${link.search}`, { waitUntil: 'networkidle' });
@@ -222,6 +226,8 @@ test('Hiring: knock-out marcado, duplicado por email y anti-spam en la página d
   const created = (await (await request.post('/api/hiring/jobs', { data: { title: `Support ${uid()}`, template: 'customer-support' } })).json()) as { job: { id: string; slug: string } };
   expect((await request.patch(`/api/hiring/jobs/${created.job.id}`, { data: { status: 'published' } })).ok()).toBe(true);
   const { settings } = (await (await request.get('/api/hiring/settings')).json()) as { settings: { handle: string } };
+  // La página de empleos arranca sin publicar: la publica un admin.
+  expect((await request.put('/api/hiring/settings', { data: { published: true } })).ok()).toBe(true);
   const email = `ko-${uid()}@example.com`;
   const form = (answer: string, extra: Record<string, string> = {}) => ({
     handle: settings.handle,

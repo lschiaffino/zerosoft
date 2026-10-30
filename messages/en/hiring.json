@@ -20,7 +20,7 @@
     "noPending": "Nothing to evaluate right now.",
     "recent": "Latest movement",
     "noRecent": "No candidates yet.",
-    "aiNote": "AI in Hiring only assists: it reads resumes and writes summaries. It never rejects, ranks or scores candidates. People decide."
+    "aiNote": "AI in Hiring only assists: it reads resumes and writes summaries. It never decides on a candidate; people do."
   },
   "jobs": {
     "new": "New job",
@@ -303,7 +303,10 @@
     "emailSent": "Email sent.",
     "send": "Send",
     "deleteTitle": "Delete all data of this candidate?",
-    "deleteBody": "{name}'s applications, resume, timeline, scorecards and offers are deleted for good. Use it when a candidate asks to be forgotten."
+    "deleteBody": "{name}'s applications, resume, timeline, scorecards and offers are deleted for good. Use it when a candidate asks to be forgotten.",
+    "links": "Links",
+    "documents": "Other documents",
+    "duplicates": "Same email in other jobs"
   },
   "events": {
     "applied": "Applied ({source})",
@@ -352,7 +355,8 @@
     "update": "Update scorecard",
     "submit": "Submit scorecard",
     "hidden": "{count, plural, one {# scorecard from another evaluator is hidden until you submit yours.} other {# scorecards from other evaluators are hidden until you submit yours.}}",
-    "none": "No scorecards yet."
+    "none": "No scorecards yet.",
+    "locked": "You already submitted your scorecard for this stage."
   },
   "interviews": {
     "schedule": "Send scheduling link",
@@ -427,7 +431,7 @@
   },
   "ai": {
     "title": "AI assistance",
-    "note": "AI only assists: it reads the resume and writes a neutral summary. It does not reject, rank or score.",
+    "note": "AI only assists: it reads the resume and writes a neutral summary. It never decides on a candidate.",
     "skills": "Skills",
     "parse": "Fill from resume",
     "parsed": "Fields filled from the resume.",
@@ -523,6 +527,11 @@
     "docs_unavailable": "You need Docs to import a page.",
     "not_on_team": "Evaluators have to be on the job's hiring team.",
     "stage_without_scorecard": "This stage has no scorecard criteria.",
-    "invalid_criterion": "That criterion is not part of this stage."
+    "invalid_criterion": "That criterion is not part of this stage.",
+    "not_assigned_stage": "You can only score the stage you were asked to evaluate.",
+    "scorecard_locked": "Your scorecard for this stage is already submitted.",
+    "own_offer": "Someone else has to approve an offer you prepared.",
+    "storage_unavailable": "File storage is not configured.",
+    "auth_required": "The email could not be verified."
   }
 }

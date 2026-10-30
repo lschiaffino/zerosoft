@@ -26,12 +26,14 @@ import {
   moveApplication,
   purgeExpiredCandidates,
   searchHiring,
-  upsertCandidate,
+  addCandidateManually,
   forgetByToken,
+  rejectApplication,
+  sha256,
 } from '@/lib/hiring/candidates';
 import { submitScorecard, sendFeedbackReminders } from '@/lib/hiring/evaluation';
 import { actOnOffer, createOffer, respondToOffer } from '@/lib/hiring/offers';
-import { parseHiringAddress, hiringReplyAddress, processHiringInbound } from '@/lib/hiring/comms';
+import { createTemplate, parseHiringAddress, hiringReplyAddress, processHiringInbound } from '@/lib/hiring/comms';
 import { registerOnHire, type HireEvent } from '@/lib/hiring/events';
 import { jobPostingJsonLd, publishedCareers, publishedJob } from '@/lib/hiring/careers';
 import { descriptionHtml } from '@/lib/hiring/markdown';
@@ -39,6 +41,7 @@ import { descriptionHtml } from '@/lib/hiring/markdown';
 process.env.UPLOADS_DIR = path.join(os.tmpdir(), `zs-hiring-uploads-${process.pid}`);
 process.env.CHAT_INBOUND_DOMAIN = 'inbound.example.test';
 process.env.RATE_LIMIT_DISABLED = 'true';
+process.env.CHAT_INBOUND_FAKE = '1';
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 const PDF = Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n', 'latin1');
@@ -64,6 +67,9 @@ async function world(): Promise<World> {
   const team = await ensureWorkspace(o.id);
   const owner = { ws: o.id, person: o.id, admin: true };
   const settings = await ensureSettings(o.id);
+  // La página de empleos arranca sin publicar.
+  expect(settings.published).toBe(0);
+  await updateSettings(owner, { published: true });
   return {
     owner,
     recruiter: await person(o.id, team.id, 'member'),
@@ -168,29 +174,49 @@ describe('reglas de acceso (puras)', () => {
 
 // ---------- Duplicados ----------
 
-describe('duplicados por email', () => {
-  it('el mismo email (otra mayúscula) se une al candidato existente', async () => {
-    const email = `dup-${uid()}@Example.com`;
-    const a = await upsertCandidate(w.owner.ws, { email, name: 'Ana' });
-    const b = await upsertCandidate(w.owner.ws, { email: email.toUpperCase(), name: 'Ana P.', phone: '+54 11 5555' });
-    expect(a.duplicate).toBe(false);
-    expect(b.duplicate).toBe(true);
-    expect(b.candidate.id).toBe(a.candidate.id);
-    expect(b.candidate.phone).toBe('+54 11 5555');
+describe('duplicados por email sin filtrar datos entre puestos', () => {
+  it('postularse otra vez al mismo puesto no toca nombre ni CV: el CV nuevo queda como documento', async () => {
+    const j = await setupJob(w);
+    const email = `twice-${uid()}@example.com`;
+    const first = await apply(w, j.slug, email);
+    const before = (await getDb().prepare('SELECT c.id, c.name, c.resume_url, c.forget_token_hash FROM hiring_candidates c JOIN hiring_applications a ON a.candidate_id = c.id WHERE a.id = ?').get(first.applicationId)) as Record<string, string>;
+    const again = await apply(w, j.slug, email.toUpperCase(), {}, { name: 'Mallory Impostor' });
+    expect(again).toMatchObject({ applicationId: first.applicationId, existing: true });
+    const after = (await getDb().prepare('SELECT name, resume_url, forget_token_hash FROM hiring_candidates WHERE id = ?').get(before.id)) as Record<string, string>;
+    expect(after).toEqual({ name: before.name, resume_url: before.resume_url, forget_token_hash: before.forget_token_hash });
+    const docs = (await getDb().prepare('SELECT COUNT(*) AS n FROM hiring_documents WHERE candidate_id = ?').get(before.id)) as { n: number };
+    expect(Number(docs.n)).toBe(1);
+    expect((await getCandidateProfile(w.recruiter, before.id))!.timeline.some((e) => e.kind === 'reapplied')).toBe(true);
   });
 
-  it('postularse dos veces al mismo puesto no crea otra postulación; a otro puesto sí, con el mismo candidato', async () => {
+  it('el mismo email en otro puesto es otro registro: el equipo del otro puesto no ve el original', async () => {
     const j1 = await setupJob(w);
-    const j2 = await setupJob(w);
-    const email = `twice-${uid()}@example.com`;
+    const email = `cross-${uid()}@example.com`;
     const first = await apply(w, j1.slug, email);
-    const again = await apply(w, j1.slug, email);
-    expect(again.applicationId).toBe(first.applicationId);
-    expect(again.existing).toBe(true);
-    const other = await apply(w, j2.slug, email);
-    expect(other.duplicate).toBe(true);
-    const rows = (await getDb().prepare('SELECT DISTINCT candidate_id FROM hiring_applications WHERE id IN (?, ?)').all(first.applicationId, other.applicationId)) as unknown[];
-    expect(rows).toHaveLength(1);
+    const orig = ((await getDb().prepare('SELECT candidate_id FROM hiring_applications WHERE id = ?').get(first.applicationId)) as { candidate_id: string }).candidate_id;
+
+    // Un puesto del "outsider" (recruiter solo ahí): postular el email por la página o cargarlo a mano.
+    const own = await createJob(w.outsider, { title: `Own ${uid()}`, description: 'x' });
+    await updateJob(w.outsider, own.job.id, { status: 'published' });
+    const viaPage = await apply(w, own.job.slug, email);
+    expect(viaPage.duplicate).toBe(true);
+    const pageCand = ((await getDb().prepare('SELECT candidate_id FROM hiring_applications WHERE id = ?').get(viaPage.applicationId)) as { candidate_id: string }).candidate_id;
+    expect(pageCand).not.toBe(orig);
+    const manual = await addCandidateManually(w.outsider, { jobId: own.job.id, name: 'Probe', email, source: 'manual' }, null);
+    expect(manual.candidateId).not.toBe(orig);
+    expect(await getCandidateProfile(w.outsider, orig)).toBeNull();
+    const seen = (await getCandidateProfile(w.outsider, manual.candidateId))!;
+    expect(seen.duplicates).toEqual([]);
+    // Ya había un registro en ese puesto (el de la página): se une a ese, no al original.
+    expect(manual.candidateId).toBe(pageCand);
+    // El admin ve los dos registros enlazados.
+    expect((await getCandidateProfile(w.owner, orig))!.duplicates.map((d) => d.id)).toContain(pageCand);
+
+    // Quien ya ve al candidato lo suma a otro puesto suyo: se une, sin pisar el nombre.
+    const j2 = await setupJob(w);
+    const merged = await addCandidateManually(w.recruiter, { jobId: j2.jobId, name: 'Other Name', email, source: 'referral' }, null);
+    expect(merged.candidateId).toBe(orig);
+    expect(((await getDb().prepare('SELECT name FROM hiring_candidates WHERE id = ?').get(orig)) as { name: string }).name).toBe('Ana Pérez');
   });
 });
 
@@ -297,9 +323,31 @@ describe('scorecards: nada de espiar antes de enviar el propio', () => {
     expect(after.scorecards).toHaveLength(2);
     expect(after.othersHidden).toBe(0);
 
+    // Enviado, queda cerrado: no puede cambiarlo después de ver los demás.
+    await expect(submitScorecard(w.interviewer, applicationId, { stageId: interview.id, ratings: crit, overall: 'strong_yes', notes: '' })).rejects.toMatchObject({ code: 'scorecard_locked' });
+    // Solo la etapa asignada: otra etapa con criterios no.
+    const screen = j.stages.find((s) => s.kind === 'review')!;
+    await expect(submitScorecard(w.interviewer2, applicationId, { stageId: screen.id, ratings: {}, overall: 'yes', notes: '' })).rejects.toMatchObject({ code: 'not_assigned_stage' });
     // Quien no está asignado ni gestiona no puede puntuar; criterios ajenos a la etapa tampoco.
     await expect(submitScorecard(w.outsider, applicationId, { stageId: interview.id, ratings: {}, overall: 'yes', notes: '' })).rejects.toMatchObject({ code: 'not_found' });
-    await expect(submitScorecard(w.interviewer, applicationId, { stageId: interview.id, ratings: { nope: 2 }, overall: 'yes', notes: '' })).rejects.toMatchObject({ code: 'invalid_criterion' });
+  });
+
+  it('la ceguera es por etapa: haber puntuado otra etapa no destapa esta', async () => {
+    const j = await setupJob(w);
+    const { applicationId } = await apply(w, j.slug, `sc2-${uid()}@example.com`);
+    const cand = ((await getDb().prepare('SELECT candidate_id FROM hiring_applications WHERE id = ?').get(applicationId)) as { candidate_id: string }).candidate_id;
+    const stages = await listStages(j.jobId);
+    const screen = stages.find((s) => s.kind === 'review')!;
+    const interview = stages.find((s) => s.kind === 'interview')!;
+    const crit = (id: string) => Object.fromEntries((JSON.parse(stages.find((s) => s.id === id)!.criteria) as Array<{ id: string }>).map((c) => [c.id, 2]));
+    await moveApplication(w.recruiter, applicationId, screen.id);
+    await submitScorecard(w.interviewer, applicationId, { stageId: screen.id, ratings: crit(screen.id), overall: 'yes', notes: 'screen' });
+    await moveApplication(w.recruiter, applicationId, interview.id);
+    await submitScorecard(w.interviewer2, applicationId, { stageId: interview.id, ratings: crit(interview.id), overall: 'no', notes: 'secret' });
+    const view = (await getCandidateProfile(w.interviewer, cand))!;
+    expect(view.applications[0].scorecards.map((s) => s.notes)).toEqual(['screen']);
+    expect(view.applications[0].othersHidden).toBe(1);
+    expect(view.timeline.filter((e) => e.kind === 'score' && e.actorId === w.interviewer2.person)).toEqual([]);
   });
 
   it('recordatorio de feedback: uno por evaluador, reclamado con compare-and-set', async () => {
@@ -362,6 +410,26 @@ describe('ofertas: aprobación y respuesta', () => {
     expect(audit.body_hash).toMatch(/^[0-9a-f]{64}$/);
   });
 
+  it('el hiring manager no aprueba la suya; rechazar retira la oferta y su link deja de servir', async () => {
+    const j = await setupJob(w);
+    const { applicationId } = await apply(w, j.slug, `of3-${uid()}@example.com`);
+    const offer = await createOffer(w.manager, applicationId, { salary: 1, currency: 'USD', startDate: null, templateId: null });
+    await expect(actOnOffer(w.manager, offer.id, { action: 'approve', templateId: null })).rejects.toMatchObject({ code: 'own_offer' });
+    await actOnOffer(w.owner, offer.id, { action: 'approve', templateId: null });
+    const sent = await actOnOffer(w.recruiter, offer.id, { action: 'send', templateId: null });
+    const token = sent.link!.split('/').pop()!;
+    await rejectApplication(w.recruiter, applicationId, { reason: '', sendEmail: false, templateId: null });
+    expect(((await getDb().prepare('SELECT status FROM hiring_offers WHERE id = ?').get(offer.id)) as { status: string }).status).toBe('withdrawn');
+    await expect(respondToOffer({ token, action: 'accept', signedName: 'ana perez', agree: true, reason: '' }, { ip: '1', ua: '' })).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('plantillas: solo admins o quien gestiona algún puesto', async () => {
+    const lonely = await person(w.owner.ws, (await ensureWorkspace(w.owner.ws)).id, 'member');
+    await expect(createTemplate(lonely, { kind: 'custom', name: 'x', subject: '', body: '' })).rejects.toMatchObject({ code: 'forbidden' });
+    await setupJob(w);
+    expect((await createTemplate(w.recruiter, { kind: 'custom', name: 'ok', subject: '', body: '' })).name).toBe('ok');
+  });
+
   it('un admin puede aprobar', async () => {
     const j = await setupJob(w);
     const { applicationId } = await apply(w, j.slug, `of2-${uid()}@example.com`);
@@ -383,18 +451,16 @@ describe('retención: borra con compare-and-set', () => {
     const db = getDb();
     const old = new Date(Date.now() - 400 * 86_400_000).toISOString();
     const mk = async (label: string, keep: boolean) => {
-      const { candidate } = await upsertCandidate(o.id, { email: `${label}-${uid()}@example.com`, name: label, keepConsent: keep });
-      await db.prepare('UPDATE hiring_candidates SET last_activity_at = ? WHERE id = ?').run(old, candidate.id);
-      return candidate.id;
+      const { candidateId } = await addCandidateManually(owner, { jobId: job.job.id, name: label, email: `${label}-${uid()}@example.com`, source: 'manual' }, null);
+      await db.prepare('UPDATE hiring_candidates SET last_activity_at = ?, keep_consent = ? WHERE id = ?').run(old, keep ? 1 : 0, candidateId);
+      return candidateId;
     };
     const stale = await mk('stale', false);
     const kept = await mk('kept', true);
     const hired = await mk('hired', false);
     const stage = (await listStages(job.job.id))[0];
-    await db
-      .prepare("INSERT INTO hiring_applications (id, workspace_id, job_id, candidate_id, stage_id, status, stage_changed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'hired', ?, ?, ?)")
-      .run(`app_${uid()}`, o.id, job.job.id, hired, stage.id, old, old, old);
-    const fresh = (await upsertCandidate(o.id, { email: `fresh-${uid()}@example.com`, name: 'fresh' })).candidate.id;
+    await db.prepare("UPDATE hiring_applications SET status = 'hired', stage_id = ? WHERE candidate_id = ?").run(stage.id, hired);
+    const fresh = (await addCandidateManually(owner, { jobId: job.job.id, name: 'fresh', email: `fresh-${uid()}@example.com`, source: 'manual' }, null)).candidateId;
 
     // Otra corrida ya lo reclamó hace un instante: esta no lo toca.
     await db.prepare('UPDATE hiring_candidates SET purge_claimed_at = ? WHERE id = ?').run(new Date().toISOString(), stale);
@@ -411,10 +477,19 @@ describe('retención: borra con compare-and-set', () => {
   });
 
   it('el candidato borra sus datos con el token del email', async () => {
-    const { candidate, forgetToken } = await upsertCandidate(w.owner.ws, { email: `forget-${uid()}@example.com`, name: 'Forget me' });
+    const j1 = await setupJob(w);
+    const j2 = await setupJob(w);
+    const email = `forget-${uid()}@example.com`;
+    const a1 = await apply(w, j1.slug, email);
+    await apply(w, j2.slug, email);
+    const ids = ((await getDb().prepare('SELECT id FROM hiring_candidates WHERE workspace_id = ? AND email = ?').all(w.owner.ws, email)) as Array<{ id: string }>).map((r) => r.id);
+    expect(ids).toHaveLength(2);
+    const token = 'forget-token-'.padEnd(32, 'x');
+    await getDb().prepare('UPDATE hiring_candidates SET forget_token_hash = ? WHERE id = (SELECT candidate_id FROM hiring_applications WHERE id = ?)').run(sha256(token), a1.applicationId);
     expect(await forgetByToken('x'.repeat(30))).toBe(false);
-    expect(await forgetByToken(forgetToken)).toBe(true);
-    expect(await getDb().prepare('SELECT 1 FROM hiring_candidates WHERE id = ?').get(candidate.id)).toBeFalsy();
+    expect(await forgetByToken(token)).toBe(true);
+    // Todos los registros de ese email, también el del otro puesto.
+    for (const id of ids) expect(await getDb().prepare('SELECT 1 FROM hiring_candidates WHERE id = ?').get(id)).toBeFalsy();
   });
 });
 

@@ -1,15 +1,16 @@
 /**
- * Hiring: entrevistas con Cal. Cada etapa de entrevista de un puesto tiene un
- * tipo de evento de Cal secreto (oculto del perfil), colectivo, con los
- * evaluadores como anfitriones: el link de auto-agenda solo ofrece horarios
- * en que están todos libres. Cal manda la confirmación con la invitación al
- * calendario y los recordatorios. La reserva se reconoce por el tipo de
- * evento y el email del candidato (syncInterviews). Server-only.
+ * Hiring: entrevistas con Cal. Cada entrevista crea su propio tipo de evento
+ * de Cal: secreto (oculto del perfil), de un solo uso y colectivo, con los
+ * evaluadores de esa postulación como anfitriones. El link de auto-agenda
+ * solo ofrece horarios en que están todos libres y no lleva datos del
+ * candidato en la URL (el slug es aleatorio). Cal manda la confirmación con la
+ * invitación al calendario y los recordatorios. Como el tipo de evento es de
+ * esa entrevista, su reserva es la del candidato (syncInterviews). Server-only.
  */
 import { randomBytes } from 'crypto';
 import { z } from 'zod';
 import { getDb } from '../db';
-import { createEventType, getEventTypeById, setEventHosts } from '../calendar';
+import { createEventType } from '../calendar';
 import type { EventTypeCreatePayload } from '../calendar-schema';
 import { HiringError, type HiringActor } from './types';
 import { appBase, ensureSettings, listStages, newId, nowIso, stageDto } from './core';
@@ -40,9 +41,8 @@ async function ownerHandle(ws: string): Promise<string | null> {
   return row?.handle ?? null;
 }
 
-function bookingLink(handle: string, slug: string, candidate: { name: string; email: string }, locale: string): string {
-  const qs = new URLSearchParams({ name: candidate.name, email: candidate.email, utm_source: 'hiring' });
-  return `${appBase()}/${locale}/book/${handle}/${slug}?${qs.toString()}`;
+function bookingLink(handle: string, slug: string, locale: string): string {
+  return `${appBase()}/${locale}/book/${handle}/${slug}`;
 }
 
 /**
@@ -64,33 +64,28 @@ export async function createSchedulingLink(actor: HiringActor, appId: string, in
     : ((await db.prepare("SELECT user_id FROM hiring_job_members WHERE job_id = ? AND role IN ('interviewer','hiring_manager')").all(job.id)) as Array<{ user_id: string }>).map((r) => r.user_id);
   const hosts = interviewers.length ? interviewers : [actor.person];
 
-  let eventType = stage.cal_event_type_id ? await getEventTypeById(stage.cal_event_type_id) : undefined;
-  if (eventType && eventType.user_id !== actor.ws) eventType = undefined;
-  if (!eventType) {
-    const payload = {
-      slug: `interview-${randomBytes(5).toString('hex')}`,
-      title: `${stage.name}: ${job.title}`.slice(0, 120),
-      durationMin: input.durationMin,
-      hidden: true,
-      active: true,
-      scheduling: 'collective',
-      hostIds: hosts,
-      description: '',
-    } as unknown as EventTypeCreatePayload;
-    try {
-      eventType = await createEventType(actor.ws, payload);
-    } catch (err) {
-      if (err instanceof Error && 'code' in err) throw new HiringError(`cal_${String((err as { code: string }).code)}`, 400);
-      throw err;
-    }
-    await db.prepare('UPDATE hiring_stages SET cal_event_type_id = ? WHERE id = ?').run(eventType.id, stage.id);
-  } else {
-    await setEventHosts(eventType.id, hosts);
+  const payload = {
+    slug: `interview-${randomBytes(8).toString('hex')}`,
+    title: `${stage.name}: ${job.title}`.slice(0, 120),
+    durationMin: input.durationMin,
+    hidden: true,
+    active: true,
+    singleUse: true,
+    scheduling: 'collective',
+    hostIds: hosts,
+    description: '',
+  } as unknown as EventTypeCreatePayload;
+  let eventType;
+  try {
+    eventType = await createEventType(actor.ws, payload);
+  } catch (err) {
+    if (err instanceof Error && 'code' in err) throw new HiringError(`cal_${String((err as { code: string }).code)}`, 400);
+    throw err;
   }
 
   const settings = await ensureSettings(actor.ws);
   const locale = input.locale ?? settings.locale;
-  const link = bookingLink(handle, eventType.slug, candidate, locale);
+  const link = bookingLink(handle, eventType.slug, locale);
   const id = newId('hiv');
   await db
     .prepare("INSERT INTO hiring_interviews (id, application_id, stage_id, event_type_id, status, created_by, created_at) VALUES (?, ?, ?, ?, 'invited', ?, ?)")
@@ -119,10 +114,9 @@ export async function syncInterviews(ws: string, appId?: string): Promise<number
       .prepare(
         r.booking_id
           ? 'SELECT id, starts_at, ends_at, status FROM calendar_bookings WHERE id = ?'
-          : `SELECT id, starts_at, ends_at, status FROM calendar_bookings WHERE event_type_id = ? AND lower(invitee_email) = ? AND created_at >= ?
-             AND id NOT IN (SELECT booking_id FROM hiring_interviews WHERE booking_id IS NOT NULL) ORDER BY created_at DESC LIMIT 1`,
+          : `SELECT id, starts_at, ends_at, status FROM calendar_bookings WHERE event_type_id = ? ORDER BY created_at DESC LIMIT 1`,
       )
-      .get(...(r.booking_id ? [r.booking_id] : [r.event_type_id!, String(r.email).toLowerCase(), String(r.created_at).slice(0, 19).replace('T', ' ')]))) as
+      .get(...(r.booking_id ? [r.booking_id] : [r.event_type_id!]))) as
       | { id: string; starts_at: string; ends_at: string; status: string }
       | undefined;
     if (!booking) continue;
@@ -140,7 +134,7 @@ export async function syncInterviews(ws: string, appId?: string): Promise<number
 }
 
 /** Entrevistas de una postulación (con el link de auto-agenda mientras no esté reservada). */
-export async function listInterviews(ws: string, appId: string, candidate: { name: string; email: string }): Promise<InterviewDto[]> {
+export async function listInterviews(ws: string, appId: string): Promise<InterviewDto[]> {
   await syncInterviews(ws, appId).catch(() => 0);
   const db = getDb();
   const handle = await ownerHandle(ws);
@@ -154,7 +148,7 @@ export async function listInterviews(ws: string, appId: string, candidate: { nam
     status: (r.status as InterviewDto['status']) ?? 'invited',
     startsAt: r.starts_at,
     endsAt: r.ends_at,
-    link: r.status === 'invited' && handle && r.slug ? bookingLink(handle, r.slug, candidate, settings.locale) : null,
+    link: r.status === 'invited' && handle && r.slug ? bookingLink(handle, r.slug, settings.locale) : null,
     createdAt: String(r.created_at),
   }));
 }

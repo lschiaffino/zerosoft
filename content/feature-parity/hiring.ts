@@ -81,13 +81,13 @@ const parity: ProductParity = {
       detail: ['Short and long text, yes or no, one option and number; required or optional', 'Texto corto y largo, sí o no, una opción y número; obligatorias u opcionales', 'Texto curto e longo, sim ou não, uma opção e número; obrigatórias ou opcionais'],
     }),
     row('resume-upload', 'careers', ['Resume upload', 'Subida de CV', 'Envio de currículo'], 'have', {
-      detail: ['PDF, DOC or DOCX checked by their bytes, stored privately', 'PDF, DOC o DOCX validados por sus bytes y guardados en privado', 'PDF, DOC ou DOCX validados pelos bytes e guardados em privado'],
+      detail: ['PDF, DOC or DOCX checked by their bytes; private Blob store or encrypted at rest', 'PDF, DOC o DOCX validados por sus bytes; store privado de Blob o cifrados', 'PDF, DOC ou DOCX validados pelos bytes; store privado do Blob ou cifrados'],
     }),
     row('knockout', 'careers', ['Knock-out questions', 'Preguntas knock-out', 'Perguntas eliminatórias'], 'partial', {
       detail: ['The application is flagged for review; it is not disqualified on its own', 'La postulación queda marcada para revisar; no se descarta sola', 'A candidatura fica marcada para análise; não é desclassificada sozinha'],
     }),
-    row('anti-spam', 'careers', ['Spam protection', 'Protección contra spam', 'Proteção contra spam'], 'have', {
-      detail: ['Rate limit per IP and a hidden trap field', 'Límite por IP y un campo trampa oculto', 'Limite por IP e um campo armadilha oculto'],
+    row('anti-spam', 'careers', ['Spam protection', 'Protección contra spam', 'Proteção contra spam'], 'partial', {
+      detail: ['Rate limit per IP and a hidden trap field; no CAPTCHA', 'Límite por IP y un campo trampa oculto; sin CAPTCHA', 'Limite por IP e um campo armadilha oculto; sem CAPTCHA'],
     }),
 
     // Candidatos
@@ -96,7 +96,7 @@ const parity: ProductParity = {
       detail: ['Careers page, referral, LinkedIn, manual, email, other, plus UTM parameters', 'Página de empleos, referido, LinkedIn, manual, email, otra, más parámetros UTM', 'Página de vagas, indicação, LinkedIn, manual, email, outra, mais parâmetros UTM'],
     }),
     row('duplicates', 'candidates', ['Duplicate detection', 'Detección de duplicados', 'Detecção de duplicados'], 'partial', {
-      detail: ['Same email joins the existing candidate; no manual merge of two profiles', 'El mismo email se une al candidato existente; no hay fusión manual de dos perfiles', 'O mesmo email se junta ao candidato existente; não há fusão manual de dois perfis'],
+      detail: ['Same email on the same job joins the existing record; on another job it is a separate record, linked only for people who can see both. No manual merge', 'El mismo email en el mismo puesto se une al registro existente; en otro puesto es otro registro, enlazado solo para quien ve los dos. Sin fusión manual', 'O mesmo email na mesma vaga se junta ao registro existente; em outra vaga é outro registro, ligado só para quem vê os dois. Sem fusão manual'],
     }),
     row('timeline', 'candidates', ['Activity timeline', 'Línea de tiempo', 'Linha do tempo'], 'have', {
       detail: ['Every email, reply, note, stage move, scorecard, interview and offer', 'Cada email, respuesta, nota, cambio de etapa, scorecard, entrevista y oferta', 'Cada email, resposta, nota, mudança de etapa, scorecard, entrevista e oferta'],
@@ -116,7 +116,9 @@ const parity: ProductParity = {
       weight: 2,
       detail: ['Up to 10 criteria rated 1 to 4 and an overall recommendation', 'Hasta 10 criterios del 1 al 4 y una recomendación general', 'Até 10 critérios de 1 a 4 e uma recomendação geral'],
     }),
-    row('blind-scores', 'evaluation', ["Others' scores hidden until you submit", 'Puntajes ajenos ocultos hasta enviar el tuyo', 'Notas dos outros ocultas até enviar a sua'], 'have'),
+    row('blind-scores', 'evaluation', ["Others' scores hidden until you submit", 'Puntajes ajenos ocultos hasta enviar el tuyo', 'Notas dos outros ocultas até enviar a sua'], 'have', {
+      detail: ['Per stage; an interviewer scores only the assigned stage, once', 'Por etapa; un entrevistador puntúa solo la etapa asignada, una vez', 'Por etapa; um entrevistador avalia só a etapa designada, uma vez'],
+    }),
     row('interviewer-scope', 'evaluation', ['Interviewers see only assigned candidates', 'Entrevistadores ven solo a sus asignados', 'Entrevistadores veem só os designados'], 'have'),
     row('feedback-reminders', 'evaluation', ['Feedback reminders', 'Recordatorios de feedback', 'Lembretes de feedback'], 'have'),
     row('assessments', 'evaluation', ['Assessments and tests', 'Evaluaciones y tests', 'Testes e avaliações'], 'missing'),
@@ -173,7 +175,7 @@ const parity: ProductParity = {
 
     // IA y plataforma
     row('ai-assist', 'platform', ['AI resume parsing and summaries', 'Lectura de CV y resúmenes con IA', 'Leitura de currículo e resumos com IA'], 'partial', {
-      detail: ['Reads PDF resumes only; AI never rejects, ranks or scores', 'Lee solo CVs en PDF; la IA nunca rechaza, ordena ni puntúa', 'Lê só currículos em PDF; a IA nunca reprova, ordena nem pontua'],
+      detail: ['Reads PDF resumes only; AI never decides on a candidate', 'Lee solo CVs en PDF; la IA nunca decide sobre un candidato', 'Lê só currículos em PDF; a IA nunca decide sobre um candidato'],
     }),
     row('automations', 'platform', ['Automations on stage changes and hires', 'Automatizaciones al cambiar de etapa y contratar', 'Automações ao mudar de etapa e contratar'], 'have', {
       detail: ['Flow triggers: applied, stage changed, hired', 'Disparadores de Flow: postulación, cambio de etapa, contratación', 'Gatilhos do Flow: candidatura, mudança de etapa, contratação'],

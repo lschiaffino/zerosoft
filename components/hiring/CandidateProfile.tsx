@@ -86,7 +86,8 @@ export default function CandidateProfile({
   const [ratings, setRatings] = useState<Record<string, number>>(mine?.ratings ?? {});
   const [overall, setOverall] = useState<string>(mine?.overall ?? '');
   const [scoreNotes, setScoreNotes] = useState(mine?.notes ?? '');
-  const canScore = Boolean(scoreStage) && (app.amEvaluator || app.canManage);
+  // Un interviewer puntúa una vez la etapa que le asignaron; quien gestiona puede actualizar el suyo.
+  const canScore = Boolean(scoreStage) && (app.amEvaluator || app.canManage) && (app.canManage || !mine);
 
   // ---------- Entrevistas y ofertas ----------
   const [interviews, setInterviews] = useState<InterviewDto[] | null>(null);
@@ -305,6 +306,7 @@ export default function CandidateProfile({
                   </div>
                 </form>
               )}
+              {mine && !app.canManage && <p className="ui-help">{t('score.locked')}</p>}
               {app.othersHidden > 0 && (
                 <p className="ui-help hr-hidden-note" data-testid="hr-hidden-scores">
                   {t('score.hidden', { count: app.othersHidden })}
@@ -438,6 +440,54 @@ export default function CandidateProfile({
         </div>
 
         <aside className="hr-profile-side">
+          {(c.links.length > 0 || profile.documents.length > 0 || profile.duplicates.length > 0) && (
+            <section className="panel">
+              {c.links.length > 0 && (
+                <>
+                  <h2 className="hr-panel-title">{t('profile.links')}</h2>
+                  <ul className="hr-list">
+                    {c.links.map((l) => (
+                      <li key={l}>
+                        <a className="hr-list-row" href={l} target="_blank" rel="noreferrer nofollow">
+                          <span className="hr-list-main">{l.replace(/^https?:\/\//, '')}</span>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+              {profile.documents.length > 0 && (
+                <>
+                  <h2 className="hr-panel-title">{t('profile.documents')}</h2>
+                  <ul className="hr-list">
+                    {profile.documents.map((d) => (
+                      <li key={d.id}>
+                        <a className="hr-list-row" href={`${resumeUrl}?doc=${d.id}${d.mime === 'application/pdf' ? '' : '&download=1'}`} target="_blank" rel="noreferrer">
+                          <span className="hr-list-main">{d.name}</span>
+                          <span className="hr-list-meta">{date(d.createdAt, false)}</span>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+              {profile.duplicates.length > 0 && (
+                <>
+                  <h2 className="hr-panel-title">{t('profile.duplicates')}</h2>
+                  <ul className="hr-list">
+                    {profile.duplicates.map((d) => (
+                      <li key={d.id}>
+                        <a className="hr-list-row" href={`/${locale}/app/hiring/candidates/${d.id}`}>
+                          <span className="hr-list-main">{d.name}</span>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </section>
+          )}
+
           <section className="panel">
             <h2 className="hr-panel-title">{t('profile.tags')}</h2>
             <ul className="hr-tags">
@@ -469,6 +519,7 @@ export default function CandidateProfile({
             )}
           </section>
 
+          {app.canManage && (
           <section className="panel">
             <h2 className="hr-panel-title">{t('ai.title')}</h2>
             <p className="ui-help">{t('ai.note')}</p>
@@ -487,6 +538,7 @@ export default function CandidateProfile({
               </button>
             </div>
           </section>
+          )}
 
           {app.answers.length > 0 && (
             <section className="panel">

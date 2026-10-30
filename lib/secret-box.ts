@@ -26,6 +26,28 @@ export function seal(plain: string): string {
   return `${PREFIX}${iv.toString('base64url')}.${cipher.getAuthTag().toString('base64url')}.${data.toString('base64url')}`;
 }
 
+const BYTES_MAGIC = Buffer.from('ZSB1');
+
+/** Cifra bytes (archivos privados guardados fuera de la base): "ZSB1" + iv + tag + datos. */
+export function sealBytes(plain: Buffer): Buffer {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', key(), iv);
+  const data = Buffer.concat([cipher.update(plain), cipher.final()]);
+  return Buffer.concat([BYTES_MAGIC, iv, cipher.getAuthTag(), data]);
+}
+
+/** Descifra lo de sealBytes; null si no es ese formato o la clave no coincide. */
+export function openBytes(sealed: Buffer): Buffer | null {
+  if (sealed.length < 32 || !sealed.subarray(0, 4).equals(BYTES_MAGIC)) return null;
+  try {
+    const decipher = createDecipheriv('aes-256-gcm', key(), sealed.subarray(4, 16));
+    decipher.setAuthTag(sealed.subarray(16, 32));
+    return Buffer.concat([decipher.update(sealed.subarray(32)), decipher.final()]);
+  } catch {
+    return null;
+  }
+}
+
 /** Devuelve el texto plano, o '' si no se puede descifrar (clave rotada o dato corrupto). */
 export function open(value: string | null | undefined): string {
   if (!value) return '';

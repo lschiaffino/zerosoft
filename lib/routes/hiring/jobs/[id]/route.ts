@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
-import { deleteJob, getJob, jobInputSchema, updateJob } from '@/lib/hiring/core';
+import { getJob, jobInputSchema, updateJob } from '@/lib/hiring/core';
+import { deleteJobAndOrphans } from '@/lib/hiring/candidates';
 import { hFail, hiringActor, hJson, readJson } from '@/lib/hiring/http';
 import { HiringError } from '@/lib/hiring/types';
 
@@ -32,7 +33,7 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
   const a = await hiringActor();
   if ('res' in a) return a.res;
   try {
-    await deleteJob(a.actor, (await params).id);
+    await deleteJobAndOrphans(a.actor, (await params).id);
     return hJson({ ok: true });
   } catch (err) {
     return hFail(err);

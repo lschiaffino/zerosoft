@@ -7,7 +7,7 @@
  * Chat, Resend Inbound). El webhook de Chat (/api/chat/inbound-email) reconoce
  * la dirección y llama a processHiringInbound: solo se acepta si el remitente
  * es el email del candidato y pasa los mismos filtros que Chat (respuestas
- * automáticas, rebotes, DMARC). La firma es un HMAC: nadie arma la dirección
+ * automáticas, rebotes) y además exige DMARC "pass" fuera del modo de prueba. La firma es un HMAC: nadie arma la dirección
  * de otra postulación. Sin dominio de recepción, los emails salen sin Reply-To
  * y las respuestas no vuelven (la app lo avisa).
  */
@@ -15,7 +15,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { z } from 'zod';
 import { getDb } from '../db';
 import { escapeHtml, namedSender, renderBrandedHtml, sendEmail } from '../email';
-import { inboundDomain, parseFrom, rejectReason, stripQuotedReply } from '../chat-email';
+import { inboundDomain, inboundFake, parseFrom, rejectReason, stripQuotedReply } from '../chat-email';
 import type { InboundAuth } from '../chat-email';
 import { emailDefault } from './builtin';
 import { HiringError, TEMPLATE_KINDS, firstName, renderTemplate, type HiringActor, type TemplateKind } from './types';
@@ -58,7 +58,21 @@ export async function getTemplate(ws: string, id: string): Promise<TemplateRow |
   return ((await getDb().prepare('SELECT * FROM hiring_templates WHERE id = ? AND workspace_id = ?').get(id, ws)) as TemplateRow | undefined) ?? null;
 }
 
+/** Plantillas: las gestionan los admins y quien es recruiter o hiring manager de algún puesto. */
+export async function canManageTemplates(actor: HiringActor): Promise<boolean> {
+  if (actor.admin) return true;
+  const row = await getDb()
+    .prepare("SELECT 1 FROM hiring_job_members m JOIN hiring_jobs j ON j.id = m.job_id WHERE j.workspace_id = ? AND m.user_id = ? AND m.role IN ('recruiter','hiring_manager') LIMIT 1")
+    .get(actor.ws, actor.person);
+  return Boolean(row);
+}
+
+async function requireTemplates(actor: HiringActor): Promise<void> {
+  if (!(await canManageTemplates(actor))) throw new HiringError('forbidden', 403);
+}
+
 export async function createTemplate(actor: HiringActor, input: z.infer<typeof templateSchema>): Promise<TemplateDto> {
+  await requireTemplates(actor);
   const id = newId('htp');
   const ts = nowIso();
   await getDb()
@@ -68,6 +82,7 @@ export async function createTemplate(actor: HiringActor, input: z.infer<typeof t
 }
 
 export async function updateTemplate(actor: HiringActor, id: string, patch: Partial<z.infer<typeof templateSchema>>): Promise<TemplateDto> {
+  await requireTemplates(actor);
   const cur = await getTemplate(actor.ws, id);
   if (!cur) throw new HiringError('not_found', 404);
   await getDb()
@@ -77,6 +92,7 @@ export async function updateTemplate(actor: HiringActor, id: string, patch: Part
 }
 
 export async function deleteTemplate(actor: HiringActor, id: string): Promise<void> {
+  await requireTemplates(actor);
   const res = await getDb().prepare('DELETE FROM hiring_templates WHERE id = ? AND workspace_id = ?').run(id, actor.ws);
   if (!res.changes) throw new HiringError('not_found', 404);
 }
@@ -196,6 +212,8 @@ export interface HiringInbound {
 export async function processHiringInbound(appId: string, email: HiringInbound): Promise<{ status: 'added' | 'duplicate' | 'ignored'; reason?: string }> {
   const reason = rejectReason({ ...email, to: [], messageId: null, attachments: [], skippedAttachments: [] } as unknown as Parameters<typeof rejectReason>[0]);
   if (reason) return { status: 'ignored', reason };
+  // Fuera del modo de prueba, sin veredicto DMARC "pass" no entra: el remitente es la única prueba de que es el candidato.
+  if (!inboundFake() && email.authentication?.dmarc?.toLowerCase() !== 'pass') return { status: 'ignored', reason: 'auth_required' };
   const db = getDb();
   const app = (await db
     .prepare(

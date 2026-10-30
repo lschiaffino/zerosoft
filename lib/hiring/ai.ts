@@ -1,7 +1,7 @@
 /**
  * Hiring: IA que ayuda (opcional, con la cuota de lib/ai.ts). Lee el resume
  * para completar campos y escribe un resumen del candidato. Nunca decide:
- * no rechaza, no ordena ni puntúa candidatos; eso lo hace una persona.
+ * nunca decide sobre un candidato; eso lo hace una persona.
  * HIRING_AI_FAKE=1 (e2e, nunca en producción) responde sin modelo.
  */
 import { z } from 'zod';
@@ -10,7 +10,7 @@ import { AiError, aiGenerateObject } from '../ai';
 import { HiringError, type HiringActor } from './types';
 import { nowIso, parseJson } from './core';
 import { addEvent } from './events';
-import { candidateDto, getCandidateRow, requireVisibleCandidate, type CandidateDto } from './candidates';
+import { candidateDto, getCandidateRow, requireManagedCandidate, type CandidateDto } from './candidates';
 
 const parsedSchema = z.object({
   name: z.string().max(160).default(''),
@@ -33,7 +33,7 @@ const INSTRUCTIONS =
   'You help a recruiter read a resume. Extract only what the resume says; leave a field empty when it is not there. Never judge, rank or recommend rejecting the candidate.';
 
 export async function parseResume(actor: HiringActor, candidateId: string): Promise<CandidateDto> {
-  const c = await requireVisibleCandidate(actor, candidateId);
+  const c = await requireManagedCandidate(actor, candidateId);
   if (!c.resume_text.trim()) throw new HiringError('no_resume_text');
   let fields: z.infer<typeof parsedSchema>;
   if (fakeMode()) {
@@ -69,7 +69,7 @@ export async function parseResume(actor: HiringActor, candidateId: string): Prom
 }
 
 export async function summarizeCandidate(actor: HiringActor, candidateId: string, locale = 'en'): Promise<CandidateDto> {
-  const c = await requireVisibleCandidate(actor, candidateId);
+  const c = await requireManagedCandidate(actor, candidateId);
   if (!c.resume_text.trim() && !c.headline) throw new HiringError('no_resume_text');
   let summary: string;
   if (fakeMode()) {

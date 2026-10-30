@@ -20,7 +20,7 @@
     "noPending": "Nada para avaliar agora.",
     "recent": "Último movimento",
     "noRecent": "Ainda não há candidatos.",
-    "aiNote": "A IA do Hiring só ajuda: lê currículos e escreve resumos. Nunca rejeita, ordena nem pontua candidatos. Quem decide são as pessoas."
+    "aiNote": "A IA do Hiring só ajuda: lê currículos e escreve resumos. Nunca decide sobre um candidato; quem decide são as pessoas."
   },
   "jobs": {
     "new": "Nova vaga",
@@ -303,7 +303,10 @@
     "emailSent": "Email enviado.",
     "send": "Enviar",
     "deleteTitle": "Excluir todos os dados deste candidato?",
-    "deleteBody": "As candidaturas, o currículo, a linha do tempo, os scorecards e as ofertas de {name} são excluídos para sempre. Use quando um candidato pedir para ser esquecido."
+    "deleteBody": "As candidaturas, o currículo, a linha do tempo, os scorecards e as ofertas de {name} são excluídos para sempre. Use quando um candidato pedir para ser esquecido.",
+    "links": "Links",
+    "documents": "Outros documentos",
+    "duplicates": "O mesmo email em outras vagas"
   },
   "events": {
     "applied": "Candidatou-se ({source})",
@@ -352,7 +355,8 @@
     "update": "Atualizar scorecard",
     "submit": "Enviar scorecard",
     "hidden": "{count, plural, one {# scorecard de outro avaliador fica oculto até você enviar o seu.} other {# scorecards de outros avaliadores ficam ocultos até você enviar o seu.}}",
-    "none": "Ainda não há scorecards."
+    "none": "Ainda não há scorecards.",
+    "locked": "Você já enviou seu scorecard desta etapa."
   },
   "interviews": {
     "schedule": "Enviar link para agendar",
@@ -427,7 +431,7 @@
   },
   "ai": {
     "title": "Ajuda de IA",
-    "note": "A IA só ajuda: lê o currículo e escreve um resumo neutro. Não reprova, não ordena nem pontua.",
+    "note": "A IA só ajuda: lê o currículo e escreve um resumo neutro. Nunca decide sobre um candidato.",
     "skills": "Habilidades",
     "parse": "Preencher pelo currículo",
     "parsed": "Campos preenchidos pelo currículo.",
@@ -523,6 +527,11 @@
     "docs_unavailable": "Você precisa do Docs para importar uma página.",
     "not_on_team": "Os avaliadores precisam estar no time da vaga.",
     "stage_without_scorecard": "Esta etapa não tem critérios de scorecard.",
-    "invalid_criterion": "Esse critério não é desta etapa."
+    "invalid_criterion": "Esse critério não é desta etapa.",
+    "not_assigned_stage": "Você só pode avaliar a etapa que pediram para você avaliar.",
+    "scorecard_locked": "Seu scorecard desta etapa já foi enviado.",
+    "own_offer": "Uma oferta que você preparou precisa ser aprovada por outra pessoa.",
+    "storage_unavailable": "Não há armazenamento de arquivos configurado.",
+    "auth_required": "Não foi possível verificar o email."
   }
 }

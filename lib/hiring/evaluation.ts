@@ -19,15 +19,18 @@ export const scorecardSchema = z.object({
 });
 
 /**
- * Envía (o reemplaza) el scorecard de la persona para una etapa. Solo quien
- * está asignado a evaluar o gestiona el puesto. Los criterios tienen que ser
- * los de la etapa.
+ * Envía el scorecard de la persona para una etapa. Un interviewer solo puede
+ * puntuar la etapa que le asignaron y una sola vez (después de enviar ve los
+ * de los demás, así que ya no se puede editar). Quien gestiona el puesto ve
+ * todo de entrada y puede actualizar el suyo. Los criterios son los de la etapa.
  */
 export async function submitScorecard(actor: HiringActor, appId: string, input: z.infer<typeof scorecardSchema>): Promise<{ id: string }> {
   const { app, access } = await requireVisibleApp(actor, appId);
   const db = getDb();
   const assigned = (await db.prepare('SELECT stage_id FROM hiring_evaluators WHERE application_id = ? AND user_id = ?').get(app.id, actor.person)) as { stage_id: string } | undefined;
   if (!assigned && !access.manage) throw new HiringError('forbidden', 403);
+  // Quien no gestiona el puesto puntúa solo la etapa que le asignaron.
+  if (!access.manage && assigned!.stage_id !== input.stageId) throw new HiringError('not_assigned_stage', 403);
   const stage = (await listStages(app.job_id)).map(stageDto).find((s) => s.id === input.stageId);
   if (!stage) throw new HiringError('invalid_stage');
   if (!stage.criteria.length) throw new HiringError('stage_without_scorecard');
@@ -37,6 +40,8 @@ export async function submitScorecard(actor: HiringActor, appId: string, input: 
   const existing = (await db.prepare('SELECT id FROM hiring_scorecards WHERE application_id = ? AND stage_id = ? AND user_id = ?').get(app.id, stage.id, actor.person)) as
     | { id: string }
     | undefined;
+  // Enviado, queda cerrado para quien puntúa a ciegas: después de enviar ya ve los de los demás.
+  if (existing && !access.manage) throw new HiringError('scorecard_locked', 409);
   const id = existing?.id ?? newId('hsc');
   if (existing) {
     await db.prepare('UPDATE hiring_scorecards SET ratings = ?, overall = ?, notes = ?, submitted_at = ? WHERE id = ?').run(JSON.stringify(input.ratings), input.overall, input.notes, ts, id);
@@ -45,7 +50,7 @@ export async function submitScorecard(actor: HiringActor, appId: string, input: 
       .prepare('INSERT INTO hiring_scorecards (id, application_id, stage_id, user_id, ratings, overall, notes, submitted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
       .run(id, app.id, stage.id, actor.person, JSON.stringify(input.ratings), input.overall, input.notes, ts);
   }
-  await addEvent(actor.ws, app.candidate_id, app.id, 'score', actor.person, { stage: stage.name, overall: input.overall, updated: Boolean(existing) });
+  await addEvent(actor.ws, app.candidate_id, app.id, 'score', actor.person, { stage: stage.name, stageId: stage.id, overall: input.overall, updated: Boolean(existing) });
   return { id };
 }
 

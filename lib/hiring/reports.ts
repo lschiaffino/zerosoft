@@ -78,7 +78,8 @@ export async function hiringReport(actor: HiringActor, opts: { days?: number; jo
   let funnel: HiringReport['funnel'];
   if (opts.jobId) {
     // Por etapa del puesto (posición): alcanzó la etapa si su máxima posición la supera.
-    const stages = await listStages(opts.jobId);
+    const own = await getDb().prepare('SELECT 1 FROM hiring_jobs WHERE id = ? AND workspace_id = ?').get(opts.jobId, actor.ws);
+    const stages = own ? await listStages(opts.jobId) : [];
     const posOf = new Map(stages.map((s) => [s.id, s.position]));
     const nameToPos = new Map(stages.map((s) => [`name:${s.name}`, s.position]));
     const maxPos = new Map<string, number>();

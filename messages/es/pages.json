@@ -1755,7 +1755,7 @@
       "faq": {
         "f1": {
           "q": "¿La IA rechaza candidatos?",
-          "a": "No. Puede leer un CV para completar campos y escribir un resumen neutral. Nunca rechaza, ordena ni puntúa candidatos: los mueve y los rechaza una persona."
+          "a": "No. Puede leer un CV para completar campos y escribir un resumen neutral. Nunca decide sobre un candidato: lo mueve y lo rechaza una persona."
         },
         "f2": {
           "q": "¿Quién ve a un candidato?",
