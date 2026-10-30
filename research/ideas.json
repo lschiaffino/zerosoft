@@ -2394,5 +2394,43 @@
     "parity": "masking",
     "status": "done",
     "changelog": "2026-10-25-groups-platform"
+  },
+  {
+    "title": "Flow: Sort, limit and remove duplicates from a list in one step",
+    "description": "Done. n8n has Sort, Limit and Remove Duplicates nodes (https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.sort/) and Zapier Formatter has Utilities such as pick from list. Flow had only Merge/Aggregate and the Code step (lib/flow-schema.ts, data.merge). The new List step covers sort, limit and dedupe over a list from an earlier node.",
+    "product": "flow",
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-30-flow-list"
+  },
+  {
+    "title": "Flow: Add a Stop and error step that fails a run with a custom message",
+    "description": "n8n has a Stop and Error node (https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.stopanderror/) and Zapier has Paths with a halt option. Flow can only fail through a node error or a Code step (lib/flow-engine.ts), so a branch that should end as failed needs a script. A step with a message template would route into the existing failure alert and error flow. First scope: one field with the message and an optional error code.",
+    "product": "flow",
+    "kind": "idea"
+  },
+  {
+    "title": "Flow: Add a Split out step that turns a list field into one item per entry",
+    "description": "n8n has Split Out and Aggregate nodes to move between a list and separate items (https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.splitout/). Flow loops over a list with logic.loop (lib/flow-schema.ts) capped at 100 items and with no Delay inside. A step that fans a list into items would let nodes after it run per entry without those limits. First scope: a list template and a field to keep, up to 1,000 items.",
+    "product": "flow",
+    "kind": "idea"
+  },
+  {
+    "title": "Flow: Add a Digest step that collects items and releases them on a schedule",
+    "description": "Zapier Digest collects entries over time and releases them as one summary (https://zapier.com/apps/digest/integrations). Flow can approximate it with a data table and a schedule flow (lib/flow-tables.ts) but needs two flows and manual cleanup. A Digest step would append to a named bucket and a schedule trigger would read and clear it. This matters for teams that want one daily email instead of one email per event. First scope: append, release and clear on a per-flow bucket.",
+    "product": "flow",
+    "kind": "idea"
+  },
+  {
+    "title": "Flow: Add a Compare datasets step to find new, changed and removed rows",
+    "description": "n8n Compare Datasets returns items only in A, only in B, equal and different (https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.comparedatasets/). Flow has no way to diff two lists without writing code in data.code (lib/flow-schema.ts). Syncing a Sheet with CRM contacts is a common first flow for small teams. First scope: two lists, a key field and four outputs.",
+    "product": "flow",
+    "kind": "idea"
+  },
+  {
+    "title": "Flow: Add a Convert to file step for CSV and JSON attachments",
+    "description": "n8n Convert to File and Extract from File turn rows into CSV or JSON and back (https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.converttofile/). Flow has no binary or file data between steps: action.email sends text only (lib/flow-schema.ts). Weekly report flows end up pasting rows into the email body. First scope: build a CSV string from a list and attach it to the email step.",
+    "product": "flow",
+    "kind": "idea"
   }
 ]

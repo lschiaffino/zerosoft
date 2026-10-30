@@ -753,6 +753,51 @@ export function mergeAggregate(cfg: Record<string, unknown>, tctx: Record<string
   return out;
 }
 
+const LIST_MAX = 10_000;
+
+/** Ordena, recorta o saca repetidos de una lista (sin salir del flow ni usar el nodo Código). */
+export function listOperation(cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
+  const raw = renderValue(cfg.items ?? '', tctx);
+  const list: unknown[] = Array.isArray(raw)
+    ? raw
+    : typeof raw === 'string' && raw.trim().startsWith('[')
+      ? parseJson<unknown[]>(raw, [])
+      : [];
+  const items = list.slice(0, LIST_MAX);
+  const field = String(cfg.field ?? '').trim();
+  const pick = (v: unknown) => (field ? renderValue(`{{x.${field}}}`, { x: v }) : v);
+  const op = ['sort', 'limit', 'dedupe'].includes(String(cfg.operation)) ? String(cfg.operation) : 'sort';
+  let out: unknown[];
+  if (op === 'limit') {
+    const n = Math.floor(Number(cfg.count));
+    out = items.slice(0, Number.isFinite(n) ? Math.max(n, 0) : 10);
+  } else if (op === 'dedupe') {
+    const seen = new Set<string>();
+    out = items.filter((v) => {
+      const k = stringify(pick(v));
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  } else {
+    const dir = cfg.order === 'desc' ? -1 : 1;
+    const num = (v: unknown) => (v === '' || v === null || v === undefined ? NaN : Number(v));
+    // Vacíos al final en cualquier sentido; números por valor; el resto como texto.
+    const keyed = items.map((v, i) => ({ v, i, k: pick(v) }));
+    keyed.sort((a, b) => {
+      const ea = a.k === '' || a.k === null || a.k === undefined;
+      const eb = b.k === '' || b.k === null || b.k === undefined;
+      if (ea || eb) return ea === eb ? a.i - b.i : ea ? 1 : -1;
+      const na = num(a.k);
+      const nb = num(b.k);
+      const c = Number.isFinite(na) && Number.isFinite(nb) ? na - nb : stringify(a.k).localeCompare(stringify(b.k), 'en', { numeric: true });
+      return c ? c * dir : a.i - b.i;
+    });
+    out = keyed.map((x) => x.v);
+  }
+  return { operation: op, field: field || null, count: out.length, items: out };
+}
+
 async function subflowNode(state: RunState, cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
   const flowId = renderString(cfg.flowId ?? '', tctx).trim();
   if (!flowId) throw new StepError('missing_flow');
@@ -1082,6 +1127,8 @@ async function runNodeLogic(state: RunState, node: FlowNode, loop?: LoopScope): 
       return { kind: 'ok', output: await codeNode(state, cfg), handles: ['out'] };
     case 'data.merge':
       return { kind: 'ok', output: mergeAggregate(cfg, tctx), handles: ['out'] };
+    case 'data.list':
+      return { kind: 'ok', output: listOperation(cfg, tctx), handles: ['out'] };
     case 'logic.run_flow':
       return { kind: 'ok', output: await subflowNode(state, cfg, tctx), handles: ['out'] };
     case 'app.slack':

@@ -438,6 +438,17 @@
         "items": "Lista"
       }
     },
+    "data_list": {
+      "title": "Lista: ordenar, limitar, sacar repetidos",
+      "desc": "Ordena una lista, se queda con los primeros N ítems o saca los repetidos. El resultado está en '{{nodes.<id>.output.items}}'.",
+      "fields": {
+        "items": "Lista",
+        "operation": "Operación",
+        "field": "Campo (vacío = el ítem entero)",
+        "order": "Orden",
+        "count": "Ítems a conservar"
+      }
+    },
     "data_code": {
       "title": "Código",
       "desc": "Corre JavaScript en un sandbox aislado. Los datos están en input.trigger e input.nodes. Devolvé un valor JSON.",
@@ -718,6 +729,11 @@
     "max": "Máximo",
     "collect": "Juntar valores",
     "unique": "Valores únicos",
+    "sort": "Ordenar",
+    "limit": "Quedarse con los primeros N",
+    "dedupe": "Sacar repetidos",
+    "asc": "Ascendente",
+    "desc": "Descendente",
     "join": "Unir como texto",
     "contact": "Contacto",
     "company": "Empresa",

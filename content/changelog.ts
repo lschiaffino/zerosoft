@@ -29,6 +29,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-30-flow-list',
+    date: '2026-10-30',
+    title: {
+      en: 'Flow: a List step to sort, limit and remove duplicates',
+      es: 'Flow: un paso Lista para ordenar, limitar y sacar repetidos',
+      pt: 'Flow: um passo Lista para ordenar, limitar e remover repetidos',
+    },
+    items: [
+      { product: 'flow', en: 'The new List step takes a list from an earlier node and sorts it by a field (numbers by value, text in natural order, empty values last), keeps the first N items or removes repeated items by a field. The result is in the items output, up to 10,000 items.', es: 'El nuevo paso Lista toma una lista de un nodo anterior y la ordena por un campo (números por valor, texto en orden natural, vacíos al final), se queda con los primeros N ítems o saca los repetidos por un campo. El resultado queda en la salida items, hasta 10.000 ítems.', pt: 'O novo passo Lista pega uma lista de um nó anterior e a ordena por um campo (números por valor, texto em ordem natural, vazios no fim), mantém os primeiros N itens ou remove os repetidos por um campo. O resultado fica na saída items, até 10.000 itens.' },
+    ],
+  },
+  {
     id: '2026-10-29-docs-coedit',
     date: '2026-10-29',
     title: {
