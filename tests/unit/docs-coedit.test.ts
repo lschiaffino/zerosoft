@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { getDb } from '@/lib/db';
 import { createDocPage, createDocShare, deleteDocShare, getDocPageRow, parseBlocks, updateDocPage } from '@/lib/docs';
 import { applyTextOps, blockSnapshots, coeditFilter, coeditFeed, currentAccess, publicEvent, type CoeditViewer } from '@/lib/docs-coedit';
-import { COEDIT_BLOCK_MAX } from '@/lib/docs-coedit-shared';
+import { COEDIT_BLOCK_MAX, isCoeditBlock } from '@/lib/docs-coedit-shared';
 import { DOCS_BLOCK_MAX } from '@/lib/docs-schema';
 import { diff, textHash } from '@/lib/docs-ot';
 import { addMember, createTeam } from '@/lib/teams';
@@ -161,7 +161,7 @@ describe('docs-coedit (servidor)', () => {
 
   it('bloques que no son de texto o que no existen', async () => {
     const owner = await makeUser('co6');
-    const pageId = await pageWith(owner.id, [para('p', 'a'), { id: 'd', type: 'divider', content: '' }]);
+    const pageId = await pageWith(owner.id, [para('p', 'a'), { id: 'd', type: 'divider', content: '' }, { id: 'g', type: 'design', content: '' }]);
     const r = await applyTextOps({
       pageId,
       actorId: owner.id,
@@ -169,9 +169,13 @@ describe('docs-coedit (servidor)', () => {
       items: [
         { block: 'd', rev: 0, hash: textHash(''), op: ['x'], seq: 'a1' },
         { block: 'zz', rev: 0, hash: textHash(''), op: ['x'], seq: 'a2' },
+        // El bloque de Design (/design) se guarda entero, no por operaciones.
+        { block: 'g', rev: 0, hash: textHash(''), op: ['x'], seq: 'a3' },
       ],
     });
-    expect(r.map((x) => x.status)).toEqual(['unsupported', 'gone']);
+    expect(r.map((x) => x.status)).toEqual(['unsupported', 'gone', 'unsupported']);
+    expect(isCoeditBlock({ type: 'design', content: '' })).toBe(false);
+    expect((await blockSnapshots((await getDocPageRow(pageId))!, ['g'])).g).toBeNull();
   });
 
   it('acceso: al borrar el share el stream corta; sacar la app Docs también', async () => {
