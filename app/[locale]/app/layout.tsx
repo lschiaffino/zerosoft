@@ -518,6 +518,7 @@ export default async function AppLayout(
               reports: tPeople('nav.reports'),
               welcome: tPeople('nav.welcome'),
               newPerson: tPeople('directory.add'),
+            },
             sign: {
               home: tSign('nav.envelopes'),
               templates: tSign('nav.templates'),

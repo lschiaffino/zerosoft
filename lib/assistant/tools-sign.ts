@@ -6,7 +6,7 @@
  */
 import { z } from 'zod';
 import { envelopeDto, listEnvelopes, remindEnvelope, requireSee, SIGN_BOXES, type SignBox } from '../sign/core';
-import { listTemplates, templateDto, useTemplate, type TemplateRole } from '../sign/templates';
+import { listTemplates, templateDto, envelopeFromTemplate, type TemplateRole } from '../sign/templates';
 import { isEmail, type SignActor } from '../sign/types';
 import { readTool, writeTool, type AssistantTool, type ToolCtx } from './registry';
 
@@ -100,7 +100,7 @@ export const signTools: AssistantTool[] = [
     },
     execute: async (ctx, input) => {
       try {
-        const env = await useTemplate(actor(ctx), String(input.templateId), {
+        const env = await envelopeFromTemplate(actor(ctx), String(input.templateId), {
           title: String(input.title),
           recipients: input.recipients as Record<string, { name: string; email: string }>,
           send: true,

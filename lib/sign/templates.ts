@@ -205,7 +205,7 @@ export interface UseTemplateInput {
 }
 
 /** Sobre nuevo desde la plantilla (borrador, o enviado con send). */
-export async function useTemplate(actor: SignActor, id: string, input: UseTemplateInput): Promise<EnvelopeRow> {
+export async function envelopeFromTemplate(actor: SignActor, id: string, input: UseTemplateInput): Promise<EnvelopeRow> {
   const t = await getTemplate(actor, id);
   if (!t.document_ref) throw new SignError('no_document');
   const roles = parseJson<TemplateRole[]>(t.roles, []);
@@ -284,7 +284,7 @@ export async function bulkSend(
       continue;
     }
     try {
-      await useTemplate(actor, t.id, { recipients: { ...(input.fixed ?? {}), [target.key]: person }, title: `${t.name} · ${person.name}`, send: true, locale: input.locale, bulkId });
+      await envelopeFromTemplate(actor, t.id, { recipients: { ...(input.fixed ?? {}), [target.key]: person }, title: `${t.name} · ${person.name}`, send: true, locale: input.locale, bulkId });
       sent++;
     } catch (err) {
       errors.push({ row: i + 2, error: err instanceof SignError ? err.code : 'error' });

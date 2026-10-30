@@ -515,6 +515,7 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
   },
   'people.offboarded': {
     employee: { id: 'emp_1', name: 'Ana Pérez', jobTitle: 'Designer', department: 'Product', workEmail: 'ana@acme.com', endDate: '2026-12-31', removedFromWorkspace: true, url: '/app/people/emp_1' },
+  },
   'sign.envelope.completed': {
     envelope: { id: 'env_1', title: 'Services agreement', status: 'completed', sentAt: '2026-11-15T12:00:00.000Z', completedAt: '2026-11-16T09:30:00.000Z', declinedAt: null, documentHash: 'e3b0c442…', finalHash: '9f86d081…', links: [{ app: 'crm', kind: 'deal', id: 'deal_1' }], href: '/app/sign/envelopes/env_1' },
     recipients: [{ name: 'Ana Pérez', email: 'ana@example.com', role: 'signer', status: 'signed', signedAt: '2026-11-16T09:30:00.000Z' }],

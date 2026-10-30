@@ -6,6 +6,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { PDFDocument, PDFName, PDFString } from 'pdf-lib';
 import { getDb, upsertUser } from '@/lib/db';
 import { canUseApp, ensureWorkspace } from '@/lib/workspace';
+import type { ProductKey } from '@/lib/products';
 import { scopesForApps } from '@/lib/api-scopes';
 import { toolsFor } from '@/lib/assistant/tools';
 import {
@@ -49,7 +50,7 @@ import {
   voidEnvelope,
 } from '@/lib/sign/core';
 import { declineSigning, publicState, resolveToken, runSignCron, sendOtp, sessionValid, submitSigning, verifyOtp } from '@/lib/sign/signing';
-import { bulkSend, createTemplate, setTemplateDocument, updateTemplate, useTemplate } from '@/lib/sign/templates';
+import { bulkSend, createTemplate, setTemplateDocument, updateTemplate, envelopeFromTemplate } from '@/lib/sign/templates';
 import { cleanSignatureImage, sha256Hex } from '@/lib/esign';
 
 process.env.UPLOADS_DIR = path.join(os.tmpdir(), `zs-sign-uploads-${process.pid}`);
@@ -203,7 +204,7 @@ describe('Sign: reglas puras', () => {
     expect(canUseApp({ role: 'member', apps: ['crm'] }, 'sign')).toBe(false);
     expect(canUseApp({ role: 'member', apps: ['sign'] }, 'sign')).toBe(true);
     expect(scopesForApps(['sign:read', 'crm:read'], ['crm'])).toEqual(['crm:read']);
-    const names = (apps: '*' | string[]) => toolsFor({ role: 'member', apps }).map((t) => t.name);
+    const names = (apps: '*' | ProductKey[]) => toolsFor({ role: 'member', apps }).map((t) => t.name);
     expect(names(['crm'])).not.toContain('sign_envelopes');
     expect(names(['sign'])).toEqual(expect.arrayContaining(['sign_envelopes', 'sign_envelope', 'sign_templates', 'propose_sign_send']));
   });
@@ -397,8 +398,8 @@ describe('Sign: de punta a punta', () => {
         { roleKey: 'us', kind: 'signature', page: 1, x: 0.6, y: 0.8, w: 0.3, h: 0.06 },
       ],
     });
-    await expect(useTemplate(w.owner, tp.id, { recipients: { client: { name: 'X', email: 'x@example.com' } } })).rejects.toThrow('role_unfilled');
-    const env = await useTemplate(w.owner, tp.id, { recipients: { client: { name: 'X', email: 'x@example.com' }, us: { name: 'Y', email: 'y@example.com' } }, send: true });
+    await expect(envelopeFromTemplate(w.owner, tp.id, { recipients: { client: { name: 'X', email: 'x@example.com' } } })).rejects.toThrow('role_unfilled');
+    const env = await envelopeFromTemplate(w.owner, tp.id, { recipients: { client: { name: 'X', email: 'x@example.com' }, us: { name: 'Y', email: 'y@example.com' } }, send: true });
     expect(env.status).toBe('sent');
     const res = await bulkSend(w.owner, tp.id, { csv: 'name,email\nAna,ana@example.com\nBad,not-an-email\nBruno,bruno@example.com\n', fixed: { us: { name: 'Y', email: 'y@example.com' } } });
     expect(res.sent).toBe(2);

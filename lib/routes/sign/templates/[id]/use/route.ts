@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { bulkSend, useTemplate } from '@/lib/sign/templates';
+import { bulkSend, envelopeFromTemplate } from '@/lib/sign/templates';
 import { parseBody, sFail, signActor, signLimit, sJson, type Ctx } from '@/lib/sign/http';
 
 export const runtime = 'nodejs';
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const id = (await params).id;
     const input = await parseBody(req, schema);
     if (input.mode === 'bulk') return sJson(await bulkSend(a.actor, id, input));
-    const env = await useTemplate(a.actor, id, input);
+    const env = await envelopeFromTemplate(a.actor, id, input);
     return sJson({ id: env.id, status: env.status }, 201);
   } catch (err) {
     return sFail(err);

@@ -276,7 +276,7 @@ export type AppProduct =
   | 'analytics'
   | 'social'
   | 'hiring'
-  | 'people';
+  | 'people'
   | 'sign';
 
 const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [

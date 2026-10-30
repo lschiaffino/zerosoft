@@ -7469,6 +7469,8 @@ export const MIGRATIONS: Migration[] = [
     // People (BambooHR): ver lib/schema/people-migration.ts.
     id: '139_people',
     up: peopleUp,
+  },
+  {
     // Sign (DocuSign): ver lib/schema/sign-migration.ts.
     id: '142_sign',
     up: signUp,

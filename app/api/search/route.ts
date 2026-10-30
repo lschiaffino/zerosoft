@@ -203,6 +203,8 @@ export async function GET(req: NextRequest) {
   const PEOPLE_HREF = { person: (id: string) => `/app/people/${id}`, template: (id: string) => `/app/people/onboarding/templates/${id}`, cycle: (id: string) => `/app/people/reviews/${id}` } as const;
   for (const p of people) {
     items.push({ id: `${p.kind}:${p.id}`, group: PEOPLE_GROUP[p.kind], label: p.label, meta: p.meta, href: PEOPLE_HREF[p.kind](p.id) });
+  }
+
   for (const x of sign) {
     items.push({ id: `sign-${x.kind}:${x.id}`, group: x.kind === 'envelope' ? 'signEnvelopes' : 'signTemplates', label: x.label, meta: x.meta, href: x.href });
   }
