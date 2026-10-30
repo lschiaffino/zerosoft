@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "Products",
-      "description": "Nineteen apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics and Social. Open source for your server, or on zerosoft Cloud with a free plan and pay as you go."
+      "description": "Twenty-one apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics, Social, Hiring and People. Open source for your server, or on zerosoft Cloud with a free plan and pay as you go."
     },
     "hero": {
-      "title1": "Nineteen apps.",
+      "title1": "Twenty-one apps.",
       "title2": "One workspace.",
       "sub": "For your company: CRM, support, AI agents, automations, robots, projects and links. For you: docs, notes, scheduling and a whiteboard. The core of each one is open source and runs on your server for $0."
     },
     "cta": {
-      "title1": "Try all nineteen apps.",
+      "title1": "Try all twenty-one apps.",
       "title2": "With one account.",
       "sub": "Sign in with Google, create a workspace and start on the free plan. If you later prefer your own server, the code is on GitHub.",
       "button": "Open the app"
@@ -1694,6 +1694,173 @@
         "sub": "Connect your accounts and vote on the public board for what we should do next.",
         "button": "Propose an idea"
       }
+    },
+    "people": {
+      "meta": {
+        "title": "People: open-source HR with time off, onboarding and reviews",
+        "description": "Employee directory, org chart, time off with accrual and approvals, onboarding checklists, documents, reviews and salary history. An open-source alternative to BambooHR."
+      },
+      "hero": {
+        "sub": "Every person in your workspace gets a profile. Track time off with real balances, run onboarding from templates, keep documents private and run review cycles, all next to the apps your team already uses."
+      },
+      "featuresTitle": "Your people.",
+      "featuresTitleDim": "No per-employee fee.",
+      "f1": {
+        "t": "Directory and org chart",
+        "d": "Profiles with job, team, manager, location and custom fields. The org chart builds itself from managers, with zoom, pan and PNG export."
+      },
+      "f2": {
+        "t": "Time off with real balances",
+        "d": "Vacation, sick and personal policies that accrue yearly, monthly or per pay period, with carryover and caps, half days and holidays for Argentina, Brazil, Mexico, the US, Spain and Colombia."
+      },
+      "f3": {
+        "t": "Approvals that reach Cal and Talk",
+        "d": "Managers approve their own reports. Approved days block the calendar so nobody books a meeting, and Talk shows the person as out of office."
+      },
+      "f4": {
+        "t": "Onboarding and offboarding",
+        "d": "Checklists from templates with tasks for the new person, their manager, IT and HR, due relative to the start date. Offboarding removes access with the same flow as Settings."
+      },
+      "f5": {
+        "t": "Private by default",
+        "d": "Salaries are encrypted and seen only by HR and the person. Personal data, documents and reviews never reach search, the assistant or exports for anyone else, and every view is logged."
+      },
+      "f6": {
+        "t": "Reviews, goals and 1:1s",
+        "d": "Review cycles with self, manager and peer reviews, goals with progress and 1:1 notes that only the two people read. Reports for headcount, turnover, time off and tenure."
+      },
+      "steps": {
+        "s1": {
+          "t": "Your team is already here",
+          "d": "Everyone in the workspace has a profile. Add managers, teams and start dates."
+        },
+        "s2": {
+          "t": "Set your policies",
+          "d": "Pick vacation days, accrual, carryover and the countries for holidays."
+        },
+        "s3": {
+          "t": "Hand it to the team",
+          "d": "People request time off, managers approve and new hires get their welcome page."
+        }
+      },
+      "compare": {
+        "rival": "BambooHR",
+        "note": "BambooHR quotes its plans by company size on bamboohr.com/pricing. People costs $0 on your server."
+      },
+      "faq": {
+        "f1": {
+          "q": "Do I need to load everyone by hand?",
+          "a": "No. Every member of your workspace gets a profile automatically. HR can also add people before they join; the profile links to their account when they accept the invitation."
+        },
+        "f2": {
+          "q": "Who sees salaries?",
+          "a": "Only HR admins and the person. Managers do not. Amounts are encrypted in the database and every view or change is recorded in the sensitive data log."
+        },
+        "f3": {
+          "q": "Does it run payroll?",
+          "a": "No. People exports a payroll CSV with each person and their current salary, ready for your payroll provider. It does not pay anyone or file taxes."
+        },
+        "f4": {
+          "q": "Can people sign documents?",
+          "a": "Not yet. You can share contracts and policies privately and ask people to confirm they read them. E-signature is not available."
+        },
+        "f5": {
+          "q": "What is missing compared to BambooHR?",
+          "a": "Payroll, benefits, applicant tracking (that is a separate app), e-signatures, surveys like eNPS, time tracking and a mobile app. The parity table above has the full list."
+        }
+      },
+      "cta": {
+        "title1": "Run HR in the suite.",
+        "title2": "Without the per-employee bill.",
+        "sub": "Open People: your workspace is already in the directory.",
+        "button": "Open People"
+      }
+    },
+    "hiring": {
+      "meta": {
+        "title": "Hiring: open-source applicant tracking with a careers page",
+        "description": "Jobs from templates, a careers page with Google for Jobs data, a candidate pipeline, scorecards, interviews scheduled with Cal and offers your candidates accept online. An open-source alternative to Workable."
+      },
+      "hero": {
+        "sub": "Publish jobs on your own careers page, move candidates through a kanban, collect scorecards from your interviewers and send offers, with candidate data visible only to each job's hiring team."
+      },
+      "featuresTitle": "Your hiring pipeline.",
+      "featuresTitleDim": "No per-job fees.",
+      "f1": {
+        "t": "Jobs and a careers page",
+        "d": "Jobs from templates with department, location, remote or hybrid, employment type and an optional salary range. A careers page with your logo and color, JobPosting structured data and a sitemap."
+      },
+      "f2": {
+        "t": "Application form",
+        "d": "Resume upload checked by its bytes, custom questions, knock-out questions that flag answers for review, a consent checkbox and protection against bots and floods."
+      },
+      "f3": {
+        "t": "Pipeline and candidates",
+        "d": "A kanban per job with drag between stages, a list with filters, tags, sources with UTM, duplicate detection by email and a timeline with every email, note, move and score."
+      },
+      "f4": {
+        "t": "Scorecards without peeking",
+        "d": "Criteria per stage rated by each interviewer. Interviewers only see the candidates they evaluate and cannot see other scores for a stage until they submit their own. Recruiters and hiring managers see every scorecard. Reminders when feedback is late."
+      },
+      "f5": {
+        "t": "Interviews and offers",
+        "d": "Candidates pick a time when every interviewer is free, through Cal. Offer letters from a template, approved by the hiring manager and accepted by the candidate with a typed name."
+      },
+      "f6": {
+        "t": "Private by default",
+        "d": "Candidate data only for the hiring team of each job and admins, also in search, the assistant and the API. Retention deletes old candidates and a link lets them delete their own data. AI only assists."
+      },
+      "steps": {
+        "s1": {
+          "t": "Create a job",
+          "d": "Start from a template, set the hiring team and the stages with their scorecards."
+        },
+        "s2": {
+          "t": "Publish",
+          "d": "Share /careers/your-company or a short link with UTM."
+        },
+        "s3": {
+          "t": "Decide together",
+          "d": "Move candidates, collect scorecards, schedule interviews and send the offer."
+        }
+      },
+      "compare": {
+        "rival": "Workable",
+        "price": "A plan per company",
+        "per": "priced by company size, monthly or yearly",
+        "teamLabel": "A team hiring for 5 roles",
+        "team": "see Workable pricing",
+        "zero": "$0",
+        "note": "Workable sells plans that grow with the size of your company, plus paid add-ons. We could not verify the current prices, so check workable.com/pricing. Hiring on your server costs $0 plus your database and email sending."
+      },
+      "faq": {
+        "f1": {
+          "q": "Does the AI reject candidates?",
+          "a": "No. It can read a resume to fill fields and write a neutral summary. It never decides on a candidate; a person moves and rejects them."
+        },
+        "f2": {
+          "q": "Who sees a candidate?",
+          "a": "The recruiters and hiring managers of the job they applied to, the interviewers asked to evaluate them, and the workspace admins. Nobody else, including in Cmd+K, the assistant and the API."
+        },
+        "f3": {
+          "q": "Can candidates schedule their own interview?",
+          "a": "Yes. Hiring creates a private Cal event with the interviewers as hosts and sends the candidate a link that only offers times when all of them are free."
+        },
+        "f4": {
+          "q": "Is there electronic signature for offers?",
+          "a": "Not yet. The candidate accepts by typing their full name; Hiring stores the date, IP, browser and a hash of the letter."
+        },
+        "f5": {
+          "q": "What is missing compared to Workable?",
+          "a": "Job board multiposting, a sourcing database, video interviews, assessments, SMS, e-signature and an HRIS. The parity table above has the full list."
+        }
+      },
+      "cta": {
+        "title1": "Hire with your team.",
+        "title2": "Keep the data yours.",
+        "sub": "Open Hiring, create your first job and publish your careers page.",
+        "button": "Open Hiring"
+      }
     }
   },
   "product": {
@@ -1709,7 +1876,7 @@
     "apiDocs": "API docs",
     "howTitle": "How it works.",
     "suiteTitle": "One workspace.",
-    "suiteTitleDim": "Nineteen apps, same login.",
+    "suiteTitleDim": "Twenty-one apps, same login.",
     "shotTitle": "{name}, inside.",
     "crumbs": "Breadcrumb",
     "navLabel": "{name} sections",
@@ -2132,6 +2299,40 @@
       "text": "Our new product ships today. #launch",
       "counter": "X 37/280",
       "approve": "Waiting for approval"
+    },
+    "people": {
+      "listTitle": "Who is out",
+      "r1name": "Ana Pérez",
+      "r1time": "Dec 21 to 24",
+      "r1meta": "Vacation · 4 days",
+      "r2name": "Bruno Díaz",
+      "r2time": "Dec 26",
+      "r2meta": "Half day · afternoon",
+      "r3name": "Lucía Gómez",
+      "r3time": "Jan 2",
+      "r3meta": "Waiting for approval",
+      "status": "Approved by Bruno Díaz",
+      "i1": "Vacation balance: 11.5 of 15 days",
+      "i2": "Holidays in Argentina are not counted",
+      "total": "Calendar blocked in Cal",
+      "action": "Talk status: out of office"
+    },
+    "hiring": {
+      "listTitle": "Software Engineer",
+      "r1name": "Ana Pérez",
+      "r1time": "Interview",
+      "r1meta": "Careers page · 2 scorecards",
+      "r2name": "Bruno Silva",
+      "r2time": "Phone screen",
+      "r2meta": "Referral",
+      "r3name": "Lucía Gómez",
+      "r3time": "Applied",
+      "r3meta": "LinkedIn · knock-out",
+      "status": "Interview scheduled with Cal",
+      "i1": "Role skills: Excellent · Problem solving: Good",
+      "i2": "Overall: Strong yes",
+      "offer": "Offer approved by the hiring manager",
+      "action": "Send to candidate"
     }
   },
   "status": {
@@ -2953,6 +3154,8 @@
     "scope_analytics_read": "Read Analytics projects, events, persons and run queries.",
     "scope_analytics_write": "Change Analytics projects, insights, dashboards, cohorts and flags.",
     "scope_social_read": "Read Social posts on the accounts you can see.",
+    "scope_people_read": "Read the People directory: public profile fields only, never salary or personal data.",
+    "scope_hiring_read": "Read Hiring jobs and the candidates the key's owner can see.",
     "scope_social_write": "Create Social drafts and scheduled posts (with approval if you need it).",
     "socialApiTitle": "Social",
     "socialApiDesc": "Social media posts. The key acts as the person who created it: it sees and posts to that person's accounts, and people who need approval send posts for approval. Scopes social:read and social:write.",
@@ -2972,7 +3175,7 @@
   "parityOverview": {
     "title": "Feature parity, app by app.",
     "titleDim": "Measured against each competitor.",
-    "lead": "Average parity across the 19 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
+    "lead": "Average parity across the 21 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
     "col": {
       "app": "App",
       "competitor": "Compared with",

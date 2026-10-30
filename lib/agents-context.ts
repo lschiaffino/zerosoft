@@ -116,7 +116,7 @@ export async function visitorContextBlock(workspaceId: string, identity: AgentVi
   const bookings = (await db
     .prepare(
       `SELECT e.title, b.starts_at, b.status FROM calendar_bookings b JOIN calendar_event_types e ON e.id = b.event_type_id
-       WHERE e.user_id = ? AND lower(b.invitee_email) = ? AND b.starts_at >= ? AND b.status IN ('confirmed', 'pending')
+       WHERE e.user_id = ? AND e.kind != 'hiring' AND lower(b.invitee_email) = ? AND b.starts_at >= ? AND b.status IN ('confirmed', 'pending')
        ORDER BY b.starts_at ASC LIMIT 5`,
     )
     .all(workspaceId, email, now.toISOString())) as Array<{ title: string; starts_at: string; status: string }>;

@@ -83,6 +83,12 @@ export const FLOW_EVENT_TYPES = [
   'shop.order.paid',
   'shop.order.fulfilled',
   'shop.inventory.low',
+  'hiring.candidate.applied',
+  'hiring.candidate.stage_changed',
+  'hiring.candidate.hired',
+  'people.hired',
+  'people.timeoff.approved',
+  'people.offboarded',
 ] as const;
 export type FlowEventType = (typeof FLOW_EVENT_TYPES)[number];
 
@@ -478,6 +484,35 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
   'shop.inventory.low': {
     item: { productId: 'prod_1', variantId: 'var_1', product: 'Blue mug', variant: 'Large', sku: 'MUG-L', available: 3, threshold: 5 },
     store: { name: 'Acme', handle: 'acme' },
+  },
+  'hiring.candidate.applied': {
+    candidate: { id: 'cand_1', name: 'Ana Pérez', email: 'ana@example.com' },
+    job: { id: 'job_1', title: 'Software Engineer' },
+    application: { id: 'app_1', source: 'careers', stage: 'Applied', knockedOut: false },
+  },
+  'hiring.candidate.stage_changed': {
+    candidate: { id: 'cand_1', name: 'Ana Pérez', email: 'ana@example.com' },
+    job: { id: 'job_1', title: 'Software Engineer' },
+    application: { id: 'app_1' },
+    from: { id: 'stg_1', name: 'Applied', kind: 'applied' },
+    to: { id: 'stg_2', name: 'Interview', kind: 'interview' },
+  },
+  'hiring.candidate.hired': {
+    candidate: { id: 'cand_1', name: 'Ana Pérez', email: 'ana@example.com', phone: '', location: 'Buenos Aires' },
+    job: { id: 'job_1', title: 'Software Engineer', department: 'Engineering', location: 'Buenos Aires', workplace: 'hybrid', employmentType: 'full_time' },
+    offer: { title: 'Software Engineer', salary: 60000, currency: 'USD', startDate: '2026-12-01' },
+    hiredAt: '2026-11-15T12:00:00.000Z',
+  },
+  // People: sin datos sensibles (ni sueldo, ni datos personales, ni motivo de salida).
+  'people.hired': {
+    employee: { id: 'emp_1', name: 'Ana Pérez', jobTitle: 'Designer', department: 'Product', workEmail: 'ana@acme.com', startDate: '2026-11-02', managerName: 'Bruno Díaz', url: '/app/people/emp_1' },
+  },
+  'people.timeoff.approved': {
+    request: { id: 'req_1', startDate: '2026-12-21', endDate: '2026-12-24', days: 4, half: '', approvedBy: 'Bruno Díaz', url: '/app/people/time-off' },
+    employee: { id: 'emp_1', name: 'Ana Pérez', workEmail: 'ana@acme.com' },
+  },
+  'people.offboarded': {
+    employee: { id: 'emp_1', name: 'Ana Pérez', jobTitle: 'Designer', department: 'Product', workEmail: 'ana@acme.com', endDate: '2026-12-31', removedFromWorkspace: true, url: '/app/people/emp_1' },
   },
 };
 

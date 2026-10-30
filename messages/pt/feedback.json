@@ -29,9 +29,11 @@
       "shop": "Shop",
       "design": "Design",
       "analytics": "Analytics",
+      "people": "People",
       "site": "Site",
       "other": "Outro",
-      "social": "Social"
+      "social": "Social",
+      "hiring": "Hiring"
     },
     "messageLabel": "Mensagem",
     "placeholder": {

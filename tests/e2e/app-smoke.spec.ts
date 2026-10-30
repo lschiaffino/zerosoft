@@ -77,6 +77,13 @@ async function groupsNumber(request: APIRequestContext): Promise<string> {
  * Proyecto de Analytics del smoke: el primero del workspace (es el que las
  * listas muestran sin cookie de proyecto); si no hay, se crea.
  */
+/** Puesto de Hiring compartido por los candidatos del smoke (la persona demo queda de recruiter). */
+let hiringJobId: string | null = null;
+async function hiringJob(request: APIRequestContext): Promise<string> {
+  if (!hiringJobId) hiringJobId = (await ok<{ job: { id: string } }>(request.post('/api/hiring/jobs', { data: { title: `Smoke role ${uid()}` } }))).job.id;
+  return hiringJobId;
+}
+
 let analyticsProjectId: string | null = null;
 async function analyticsProject(request: APIRequestContext): Promise<string> {
   if (analyticsProjectId) return analyticsProjectId;
@@ -458,6 +465,26 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await ok(request.delete(`/api/shop/discounts/${i.id}`))),
   },
   {
+    app: 'Hiring jobs',
+    list: '/en/app/hiring/jobs',
+    create: async (request, name) => ({ id: (await ok<{ job: { id: string } }>(request.post('/api/hiring/jobs', { data: { title: name } }))).job.id, name }),
+    detail: (i) => `/en/app/hiring/jobs/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/hiring/jobs/${i.id}`, { data: { title: name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/hiring/jobs/${i.id}`))),
+  },
+  {
+    app: 'Hiring candidates',
+    list: '/en/app/hiring/candidates',
+    create: async (request, name) => {
+      const jobId = await hiringJob(request);
+      const res = await ok<{ candidateId: string }>(request.post('/api/hiring/applications', { data: { jobId, name, email: `smoke-${uid()}@example.com` } }));
+      return { id: res.candidateId, name };
+    },
+    detail: (i) => `/en/app/hiring/candidates/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/hiring/candidates/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/hiring/candidates/${i.id}`))),
+  },
+  {
     app: 'Shop collections',
     list: '/en/app/shop/collections',
     create: async (request, name) => ({ id: (await ok<{ collection: { id: string } }>(request.post('/api/shop/collections', { data: { title: name } }))).collection.id, name }),
@@ -598,6 +625,31 @@ const APPS: AppCase[] = [
     detail: (i) => `/en/app/voice/settings?tab=prompts&prompt=${i.id}`,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/voice/prompts/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/voice/prompts/${i.id}`))),
+  },
+  {
+    // People: fichas del directorio (HR las crea antes de que la persona se sume).
+    app: 'People',
+    list: '/en/app/people',
+    create: async (request, name) => ({ id: (await ok<{ employee: { id: string } }>(request.post('/api/people/employees', { data: { name } }))).employee.id, name }),
+    detail: (i) => `/en/app/people/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/people/employees/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/people/employees/${i.id}`))),
+  },
+  {
+    app: 'People onboarding templates',
+    list: '/en/app/people/onboarding',
+    create: async (request, name) => ({ id: (await ok<{ template: { id: string } }>(request.post('/api/people/templates', { data: { name, kind: 'onboarding' } }))).template.id, name }),
+    detail: (i) => `/en/app/people/onboarding/templates/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/people/templates/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/people/templates/${i.id}`))),
+  },
+  {
+    app: 'People review cycles',
+    list: '/en/app/people/reviews',
+    create: async (request, name) => ({ id: (await ok<{ cycle: { id: string } }>(request.post('/api/people/cycles', { data: { name } }))).cycle.id, name }),
+    detail: (i) => `/en/app/people/reviews/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/people/cycles/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/people/cycles/${i.id}`))),
   },
   {
     app: 'Analytics insights',

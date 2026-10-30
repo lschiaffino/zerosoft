@@ -245,8 +245,9 @@ export async function listEventTypes(
   userId: string,
   opts: { activeOnly?: boolean; includePolls?: boolean } = {},
 ): Promise<EventTypeWithRules[]> {
-  // Los tipos que crea una encuesta de horario al reservarse no son del listado.
-  const kind = opts.includePolls ? '' : " AND kind != 'poll'";
+  // Los tipos que crea una encuesta de horario al reservarse no son del listado;
+  // los de entrevistas de Hiring (kind 'hiring') tampoco: son de esa entrevista.
+  const kind = opts.includePolls ? " AND kind != 'hiring'" : " AND kind NOT IN ('poll', 'hiring')";
   const sql = opts.activeOnly
     ? `SELECT * FROM calendar_event_types WHERE user_id = ? AND active = 1${kind} ORDER BY created_at DESC`
     : `SELECT * FROM calendar_event_types WHERE user_id = ?${kind} ORDER BY created_at DESC`;
@@ -465,7 +466,7 @@ export function isOneOff(eventType: Pick<CalendarEventTypeRow, 'one_off_times'>)
 export async function createEventType(
   userId: string,
   payload: EventTypeCreatePayload,
-  opts: { kind?: 'poll' } = {},
+  opts: { kind?: 'poll' | 'hiring' } = {},
 ): Promise<EventTypeWithRules> {
   if (await slugExists(userId, payload.slug)) {
     throw new CalendarError('slug_taken', 409);

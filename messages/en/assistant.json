@@ -150,6 +150,16 @@
       "a": "How many visitors did we have this week?",
       "b": "Which insights are saved in this project?",
       "c": "Which feature flags are active?"
+    },
+    "people": {
+      "a": "Who is out this week?",
+      "b": "How many vacation days do I have left?",
+      "c": "Which time off requests are waiting for me?"
+    },
+    "hiring": {
+      "a": "Which jobs are open?",
+      "b": "Who is in the interview stage?",
+      "c": "What scorecards am I missing?"
     }
   },
   "page": {

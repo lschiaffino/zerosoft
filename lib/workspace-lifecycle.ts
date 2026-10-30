@@ -120,6 +120,20 @@ const STEPS: Step[] = [
         .run(e.userId, e.ownerId),
   },
   {
+    // People: la ficha queda como baja (cuenta para rotación y antigüedad), pierde HR admin
+    // y sus licencias futuras se cancelan. También al pasar a guest: un guest no es del equipo.
+    name: 'people',
+    run: async (e) => {
+      const { markRemovedPerson, employeeIdForUser } = await import('./people');
+      const id = await employeeIdForUser(e.ownerId, e.userId);
+      await markRemovedPerson(e.ownerId, e.userId);
+      if (id) {
+        const { cancelCalBlocksFor } = await import('./people-timeoff');
+        await cancelCalBlocksFor(e.ownerId, id);
+      }
+    },
+  },
+  {
     // Lo que se le compartió persona a persona dentro del workspace.
     name: 'shares',
     run: async (e) => {
@@ -199,6 +213,15 @@ const JOIN_STEPS: Array<{ name: string; run: (e: PersonJoined) => Promise<unknow
     // Migración del CRM: los registros que esperaban a esta persona (owner del otro CRM) pasan a ser suyos.
     name: 'crm_import_owners',
     run: (e) => claimIfCrm(e),
+  },
+  {
+    // People: la persona que se suma tiene su ficha (o se enlaza al ingreso que HR cargó con su email).
+    name: 'people',
+    run: async (e) => {
+      if (e.role === 'guest') return;
+      const { linkJoinedPerson } = await import('./people');
+      await linkJoinedPerson(e.ownerId, e.userId);
+    },
   },
 ];
 

@@ -82,7 +82,7 @@ export default async function AppLayout(
   if (workspaces.length && !workspaces.some((w) => w.current)) workspaces[0].current = true;
   const tTriage = await getTranslations({ locale, namespace: 'trackTriage' });
   // Lecturas independientes en paralelo (en Turso cada query es un RTT).
-  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tSocial, tasksDue, serverTz, tPlanning, mode, tCat] =
+  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tSocial, tHiring, tPeople, tasksDue, serverTz, tPlanning, mode, tCat] =
     await Promise.all([
       getTranslations({ locale, namespace: 'settings' }),
       getTranslations({ locale, namespace: 'common.sidebar' }),
@@ -105,6 +105,8 @@ export default async function AppLayout(
       getTranslations({ locale, namespace: 'shop' }),
       getTranslations({ locale, namespace: 'analytics' }),
       getTranslations({ locale, namespace: 'social' }),
+      getTranslations({ locale, namespace: 'hiring' }),
+      getTranslations({ locale, namespace: 'people' }),
       // El badge no puede tirar todas las páginas de la app: sin la tabla o con un error, 0.
       countDueTasks(user.id).catch((err) => {
         console.error('[app layout] countDueTasks', err);
@@ -174,6 +176,7 @@ export default async function AppLayout(
                 { href: '/app/design/settings', label: tSide('appSettings') },
                 { href: '/app/shop/settings', label: tSide('appSettings') },
                 { href: '/app/analytics/settings', label: tSide('appSettings') },
+                { href: '/app/people/settings', label: tSide('appSettings') },
                 { href: '/app/crm', label: tCrm('tabs.overview') },
                 { href: '/app/crm/contacts', label: tCrm('tabs.contacts') },
                 { href: '/app/crm/companies', label: tCrm('tabs.companies') },
@@ -286,6 +289,19 @@ export default async function AppLayout(
                 { href: '/app/social/library', label: tSocial('sidebar.library') },
                 { href: '/app/social/accounts', label: tSocial('sidebar.accounts') },
                 { href: '/app/social/settings', label: tSocial('sidebar.settings') },
+                { href: '/app/hiring', label: tHiring('nav.home') },
+                { href: '/app/hiring/jobs', label: tHiring('nav.jobs') },
+                { href: '/app/hiring/candidates', label: tHiring('nav.candidates') },
+                { href: '/app/hiring/reports', label: tHiring('nav.reports') },
+                { href: '/app/hiring/templates', label: tHiring('nav.templates') },
+                { href: '/app/hiring/settings', label: tSide('appSettings') },
+                { href: '/app/people', label: tPeople('nav.directory') },
+                { href: '/app/people/org', label: tPeople('nav.org') },
+                { href: '/app/people/time-off', label: tPeople('nav.timeOff') },
+                { href: '/app/people/onboarding', label: tPeople('nav.onboarding') },
+                { href: '/app/people/reviews', label: tPeople('nav.reviews') },
+                { href: '/app/people/reports', label: tPeople('nav.reports') },
+                { href: '/app/people/welcome', label: tPeople('nav.welcome') },
                 { href: '/app/assistant', label: tSide('assistant') },
               ]}
             />
@@ -479,6 +495,25 @@ export default async function AppLayout(
               accounts: tSocial('sidebar.accounts'),
               settings: tSocial('sidebar.settings'),
               newPost: tSocial('sidebar.newPost'),
+            },
+            hiring: {
+              home: tHiring('nav.home'),
+              jobs: tHiring('nav.jobs'),
+              candidates: tHiring('nav.candidates'),
+              reports: tHiring('nav.reports'),
+              templates: tHiring('nav.templates'),
+              careers: tHiring('nav.careers'),
+              newJob: tHiring('jobs.new'),
+            },
+            people: {
+              directory: tPeople('nav.directory'),
+              org: tPeople('nav.org'),
+              timeOff: tPeople('nav.timeOff'),
+              onboarding: tPeople('nav.onboarding'),
+              reviews: tPeople('nav.reviews'),
+              reports: tPeople('nav.reports'),
+              welcome: tPeople('nav.welcome'),
+              newPerson: tPeople('directory.add'),
             },
             notifications: {
               title: tTrack('notifications.title'),

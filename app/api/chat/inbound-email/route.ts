@@ -11,6 +11,7 @@ import {
   type InboundAttachment,
   type SkipReason,
 } from '@/lib/chat-email';
+import { parseHiringAddress, processHiringInbound } from '@/lib/hiring/comms';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,6 +83,13 @@ export async function POST(req: Request) {
     authentication = content.authentication;
     messageId = content.messageId ?? messageId;
     if (content.attachments.length > 0) ({ files: attachments, skipped: skippedAttachments } = await fetchReceivedAttachments(emailId));
+  }
+
+  // Hiring: respuestas de candidatos (hire+<postulación>.<firma>@…) van a su línea de tiempo.
+  const hiringApp = parseHiringAddress(recipients);
+  if (hiringApp) {
+    const hiring = await processHiringInbound(hiringApp, { emailId, from, subject: typeof d.subject === 'string' ? d.subject : '', text, headers, authentication });
+    return NextResponse.json({ ok: true, hiring: hiring.status, ...(hiring.reason ? { reason: hiring.reason } : {}) });
   }
 
   const result = await processInboundEmail(

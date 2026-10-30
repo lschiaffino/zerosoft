@@ -201,6 +201,18 @@ export interface SidebarLabels {
     newInsight: string;
   };
   social: { calendar: string; posts: string; inbox: string; analytics: string; library: string; accounts: string; settings: string; newPost: string };
+  /** Hiring (Workable): inicio, puestos, candidatos, reportes, plantillas. */
+  hiring: {
+    home: string;
+    jobs: string;
+    candidates: string;
+    reports: string;
+    templates: string;
+    careers: string;
+    newJob: string;
+  };
+  /** People (BambooHR): directorio, organigrama, licencias, onboarding, evaluaciones, reportes. */
+  people: { directory: string; org: string; timeOff: string; onboarding: string; reviews: string; reports: string; welcome: string; newPerson: string };
   notifications: {
     title: string;
     markRead: string;
@@ -256,7 +268,9 @@ export type AppProduct =
   | 'design'
   | 'shop'
   | 'analytics'
-  | 'social';
+  | 'social'
+  | 'hiring'
+  | 'people';
 
 const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/crm', 'crm'],
@@ -277,6 +291,8 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/shop', 'shop'],
   ['/app/analytics', 'analytics'],
   ['/app/social', 'social'],
+  ['/app/hiring', 'hiring'],
+  ['/app/people', 'people'],
 ];
 
 /** La app del shell para una clave de producto (Cal vive en /app/calendar). */
@@ -319,6 +335,8 @@ const APP_ICONS: Record<ProductKey, IconName> = {
   shop: 'shop',
   analytics: 'analytics',
   social: 'social',
+  hiring: 'hiring',
+  people: 'people',
 };
 
 /** Producto de la app según la ruta. /app (inicio) y /app/settings son la plataforma (neutro); /app/links es Link. */
@@ -796,6 +814,29 @@ export function buildNav(
       ];
     }
 
+    case 'hiring': {
+      const h = labels.hiring;
+      return [
+        {
+          items: [
+            { href: '/app/hiring', label: h.home, active: pathname === '/app/hiring', icon: 'overview' },
+            { href: '/app/hiring/jobs', label: h.jobs, active: at('/app/hiring/jobs'), icon: 'hiring' },
+            { href: '/app/hiring/candidates', label: h.candidates, active: at('/app/hiring/candidates'), icon: 'contacts' },
+          ],
+        },
+        {
+          section: labels.insights,
+          items: [{ href: '/app/hiring/reports', label: h.reports, active: at('/app/hiring/reports'), icon: 'reports' }],
+        },
+        {
+          items: [
+            { href: '/app/hiring/templates', label: h.templates, active: at('/app/hiring/templates'), icon: 'templates' },
+            { href: '/app/hiring/settings', label: labels.appSettings, active: at('/app/hiring/settings'), icon: 'settings' },
+          ],
+        },
+      ];
+    }
+
     case 'shop':
       return [
         {
@@ -837,6 +878,30 @@ export function buildNav(
           ],
         },
       ];
+
+    case 'people': {
+      const pl = labels.people;
+      const peopleDetail = /^\/app\/people\/emp_/.test(pathname);
+      return [
+        {
+          items: [
+            { href: '/app/people', label: pl.directory, active: pathname === '/app/people' || peopleDetail, icon: 'people' },
+            { href: '/app/people/org', label: pl.org, active: at('/app/people/org'), icon: 'orgchart' },
+            { href: '/app/people/time-off', label: pl.timeOff, active: at('/app/people/time-off'), icon: 'timeoff' },
+            { href: '/app/people/onboarding', label: pl.onboarding, active: at('/app/people/onboarding'), icon: 'tasks' },
+            { href: '/app/people/reviews', label: pl.reviews, active: at('/app/people/reviews'), icon: 'insights' },
+          ],
+        },
+        {
+          section: labels.insights,
+          items: [
+            { href: '/app/people/reports', label: pl.reports, active: at('/app/people/reports'), icon: 'reports' },
+            { href: '/app/people/welcome', label: pl.welcome, active: at('/app/people/welcome'), icon: 'help' },
+          ],
+        },
+        appSettingsGroup('/app/people/settings'),
+      ];
+    }
 
     // Shell genérico (inicio y ajustes).
     case 'talk': {
@@ -897,6 +962,8 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
   switch (product) {
     case 'voice':
       return [item('/app/voice?new=1', labels.voice.newMeeting, 'voice')];
+    case 'hiring':
+      return [item('/app/hiring/jobs/new', labels.hiring.newJob, 'hiring')];
     case 'analytics':
       return [
         item('/app/analytics/insights/new', labels.analytics.newInsight, 'insights'),
@@ -949,6 +1016,8 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
       return [item('/app/groups/list?new=1', labels.newGroup, 'groups')];
     case 'social':
       return [item('/app/social/posts/new', labels.social.newPost, 'social')];
+    case 'people':
+      return [item('/app/people?new=1', labels.people.newPerson, 'people'), item('/app/people/time-off?new=1', labels.people.timeOff, 'timeoff')];
     case 'link':
     default:
       return [item('/app/links/new', labels.newLink, 'newLink')];

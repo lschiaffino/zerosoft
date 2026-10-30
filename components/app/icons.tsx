@@ -64,9 +64,13 @@ export type IconName =
   | 'insights'
   | 'assistant'
   | 'analytics'
+  | 'hiring'
   | 'flag'
   | 'sql'
-  | 'live';
+  | 'live'
+  | 'people'
+  | 'timeoff'
+  | 'orgchart';
 
 // Íconos geométricos mínimos (trazo, estilo Feather/Lucide) para el sidebar.
 const PATHS: Record<IconName, ReactNode> = {
@@ -306,6 +310,12 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
     </>
   ),
+  hiring: (
+    <>
+      <rect x="3" y="7" width="18" height="13" rx="1" />
+      <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18" />
+    </>
+  ),
   flag: (
     <>
       <path d="M5 21V4M5 4h11l-2 4 2 4H5" />
@@ -325,6 +335,29 @@ const PATHS: Record<IconName, ReactNode> = {
   talk: (
     <>
       <path d="M9 4L7 20M17 4l-2 16M4 9h16M3 15h16" />
+    </>
+  ),
+  people: (
+    <>
+      <circle cx="9" cy="8" r="3" />
+      <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" />
+      <path d="M16 5.5a3 3 0 0 1 0 5" />
+      <path d="M18 14.5c1.8.8 3 2.7 3 5" />
+    </>
+  ),
+  timeoff: (
+    <>
+      <rect x="4" y="5" width="16" height="15" />
+      <path d="M4 10h16M9 3v4M15 3v4" />
+      <path d="M9 15l2 2 4-4" />
+    </>
+  ),
+  orgchart: (
+    <>
+      <rect x="9" y="3" width="6" height="5" />
+      <rect x="3" y="16" width="6" height="5" />
+      <rect x="15" y="16" width="6" height="5" />
+      <path d="M12 8v4M6 16v-4h12v4" />
     </>
   ),
   shop: (
