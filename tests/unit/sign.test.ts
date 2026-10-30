@@ -29,7 +29,13 @@ import {
   type RecipientLike,
   type SignActor,
 } from '@/lib/sign/types';
-import { sanitizePdf, sniffPdf, MAX_PDF_BYTES } from '@/lib/sign/pdf';
+import { sanitizePdf, sniffPdf, MAX_PDF_BYTES, quoteUa } from '@/lib/sign/pdf';
+import zlib from 'zlib';
+import type { SessionUser } from '@/lib/session';
+import { createJob } from '@/lib/hiring/core';
+import { addCandidateManually } from '@/lib/hiring/candidates';
+import { actOnOffer, createOffer } from '@/lib/hiring/offers';
+import { sendHiringOffer } from '@/lib/sign/integrations';
 import {
   boxOf,
   copyEnvelope,
@@ -50,7 +56,7 @@ import {
   voidEnvelope,
 } from '@/lib/sign/core';
 import { declineSigning, publicState, resolveToken, runSignCron, sendOtp, sessionValid, submitSigning, verifyOtp } from '@/lib/sign/signing';
-import { bulkSend, createTemplate, setTemplateDocument, updateTemplate, envelopeFromTemplate } from '@/lib/sign/templates';
+import { BULK_DAILY_CAP, bulkSend, createTemplate, setTemplateDocument, updateTemplate, envelopeFromTemplate } from '@/lib/sign/templates';
 import { cleanSignatureImage, sha256Hex } from '@/lib/esign';
 
 process.env.UPLOADS_DIR = path.join(os.tmpdir(), `zs-sign-uploads-${process.pid}`);
@@ -110,10 +116,13 @@ async function draft(actor: SignActor, opts: { otp?: boolean; order?: 'sequentia
   await setDocument(actor, env.id, { bytes: await pdf(2), name: 'contract.pdf' });
   const a = `a-${uid()}@example.com`;
   const b = `b-${uid()}@example.com`;
-  const [r1, r2] = await saveRecipients(actor, env.id, [
+  const saved = await saveRecipients(actor, env.id, [
     { role: 'signer', name: 'Ana Uno', email: a, routingOrder: 1 },
     { role: 'signer', name: 'Bruno Dos', email: b, routingOrder: 2 },
   ]);
+  // En paralelo los dos tienen el mismo orden: se ubican por email.
+  const r1 = saved.find((r) => r.email === a)!;
+  const r2 = saved.find((r) => r.email === b)!;
   await saveFields(actor, env.id, [
     { recipientId: r1.id, kind: 'signature', page: 1, x: 0.1, y: 0.8, w: 0.3, h: 0.06 },
     { recipientId: r1.id, kind: 'date', page: 1, x: 0.5, y: 0.82, w: 0.2, h: 0.03 },
@@ -379,6 +388,9 @@ describe('Sign: de punta a punta', () => {
     expect((await listEnvelopes(w.other)).some((e) => e.id === env.id)).toBe(false);
     expect((await listEnvelopes(w.owner)).some((e) => e.id === env.id)).toBe(true);
     await saveRecipients(w.member, env.id, [{ role: 'signer', name: 'Other', email: w.other.email, routingOrder: 1 }]);
+    // Borrador: el destinatario todavía no lo ve. Enviado, sí.
+    await expect(requireSee(w.other, env.id)).rejects.toThrow('not_found');
+    await getDb().prepare("UPDATE sign_envelopes SET status = 'sent' WHERE id = ?").run(env.id);
     const seen = await requireSee(w.other, env.id);
     expect(seen.env.id).toBe(env.id);
     await expect(sendEnvelope(w.other, env.id)).rejects.toThrow('forbidden');
@@ -411,5 +423,177 @@ describe('Sign: de punta a punta', () => {
   it('la firma compartida con el CRM valida JPEG por sus bytes', () => {
     expect(cleanSignatureImage(SIG)).toBe(SIG);
     expect(cleanSignatureImage('data:image/png;base64,AAAA')).toBe('');
+  });
+});
+
+// ---------- QA: archivos hostiles, OTP en paralelo, integridad, ofertas de Hiring ----------
+
+/** PDF crudo a partir de cuerpos de objetos (como los generadores del QA). */
+function rawPdf(objs: Array<string | { dict: string; stream: Buffer }>, trailerExtra = ''): Buffer {
+  const parts = [Buffer.from('%PDF-1.7\n%\xe2\xe3\xcf\xd3\n', 'latin1')];
+  let off = parts[0].length;
+  const offs: number[] = [];
+  objs.forEach((o, i) => {
+    offs.push(off);
+    const b =
+      typeof o === 'string'
+        ? Buffer.from(`${i + 1} 0 obj\n${o}\nendobj\n`, 'latin1')
+        : Buffer.concat([Buffer.from(`${i + 1} 0 obj\n${o.dict.replace('LEN', String(o.stream.length))}\nstream\n`, 'latin1'), o.stream, Buffer.from('\nendstream\nendobj\n')]);
+    parts.push(b);
+    off += b.length;
+  });
+  const xref = `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n${offs.map((o) => `${String(o).padStart(10, '0')} 00000 n \n`).join('')}trailer\n<< /Size ${objs.length + 1} /Root 1 0 R ${trailerExtra} >>\nstartxref\n${off}\n%%EOF\n`;
+  parts.push(Buffer.from(xref, 'latin1'));
+  return Buffer.concat(parts);
+}
+const PAGE = '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>';
+const CONTENT = { dict: '<< /Length LEN >>', stream: Buffer.from('BT /F1 24 Tf 72 700 Td (Hello) Tj ET') };
+
+describe('Sign: archivos hostiles (QA)', () => {
+  it('bomba de descompresión en /ObjStm: se rechaza sin descomprimirla entera', async () => {
+    // Como gen-bomb2.mjs del QA, más chica para el test: 96 MB de espacios en dos ObjStm.
+    const bomb = (head: string) => zlib.deflateSync(Buffer.concat([Buffer.from(head), Buffer.alloc(48 * 1024 * 1024, 0x20)]), { level: 9 });
+    const file = rawPdf([
+      '<< /Type /Catalog /Pages 2 0 R >>',
+      'null',
+      PAGE,
+      CONTENT,
+      { dict: '<< /Type /ObjStm /N 1 /First 4 /Filter /FlateDecode /Length LEN >>', stream: bomb('2 0 << /Type /Pages /Kids [3 0 R] /Count 1 >>') },
+      { dict: '<< /Type /ObjStm /N 1 /First 4 /Filter /FlateDecode /Length LEN >>', stream: bomb('7 0 [1]') },
+    ]);
+    expect(file.length).toBeLessThan(MAX_PDF_BYTES);
+    const before = process.memoryUsage().rss;
+    await expect(sanitizePdf(file)).rejects.toMatchObject({ code: 'pdf_too_complex' });
+    expect(process.memoryUsage().rss - before).toBeLessThan(400 * 1024 * 1024);
+    // Un /Length mentiroso no esconde la bomba.
+    const lying = rawPdf(['<< /Type /Catalog /Pages 2 0 R >>', 'null', PAGE, CONTENT, { dict: '<< /Type /ObjStm /N 1 /First 4 /Filter /FlateDecode /Length 10 >>', stream: bomb('2 0 [1]') }]);
+    await expect(sanitizePdf(lying)).rejects.toMatchObject({ code: 'pdf_too_complex' });
+  });
+
+  it('demasiados objetos, anidamiento profundo, cifrado y filtros sin medir', async () => {
+    const many = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>', PAGE, CONTENT] as Array<string | { dict: string; stream: Buffer }>;
+    for (let i = 0; i < 21_000; i++) many.push(`[${i}]`);
+    await expect(sanitizePdf(rawPdf(many))).rejects.toMatchObject({ code: 'pdf_too_complex' });
+    const deep = rawPdf([`<< /Type /Catalog /Pages 2 0 R /X ${'['.repeat(5000)}${']'.repeat(5000)} >>`, '<< /Type /Pages /Kids [3 0 R] /Count 1 >>', PAGE, CONTENT]);
+    await expect(sanitizePdf(deep)).rejects.toMatchObject({ code: 'pdf_too_complex' });
+    const deepDict = rawPdf(['<< /Type /Catalog /Pages 2 0 R /X 5 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>', PAGE, CONTENT, `${'<< /A '.repeat(3000)}1${' >>'.repeat(3000)}`]);
+    await expect(sanitizePdf(deepDict)).rejects.toMatchObject({ code: 'pdf_too_complex' });
+    const enc = rawPdf(['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>', PAGE, CONTENT, `<< /Filter /Standard /V 1 /R 2 /O <${'00'.repeat(32)}> /U <${'00'.repeat(32)}> /P -4 >>`], '/Encrypt 5 0 R /ID [<01> <01>]');
+    await expect(sanitizePdf(enc)).rejects.toMatchObject({ code: 'pdf_encrypted' });
+    const lzw = rawPdf(['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>', PAGE, { dict: '<< /Filter /LZWDecode /Length LEN >>', stream: Buffer.from('xxxx') }]);
+    await expect(sanitizePdf(lzw)).rejects.toMatchObject({ code: 'pdf_unsupported' });
+    // Un árbol de páginas en bucle no es un 500.
+    const loop = rawPdf(['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [2 0 R 3 0 R] /Count 2 >>', PAGE, CONTENT]);
+    await expect(sanitizePdf(loop)).rejects.toBeInstanceOf(SignError);
+  });
+
+  it('el documento limpio se arma de nuevo: sin adjuntos sueltos, sin XFA y solo links http(s)', async () => {
+    const file = rawPdf([
+      '<< /Type /Catalog /Pages 2 0 R /Names << /EmbeddedFiles 6 0 R >> /AcroForm << /Fields [] /XFA 7 0 R >> >>',
+      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Annots [8 0 R 9 0 R 10 0 R] >>',
+      CONTENT,
+      { dict: '<< /Type /EmbeddedFile /Length LEN >>', stream: Buffer.from('MZ fake exe') },
+      '<< /Names [(f.exe) << /Type /Filespec /F (f.exe) /EF << /F 5 0 R >> >>] >>',
+      { dict: '<< /Length LEN >>', stream: Buffer.from('<xdp:xdp><script>alert(4)</script></xdp:xdp>') },
+      '<< /Type /Annot /Subtype /Link /Rect [0 0 100 100] /A << /S /URI /URI (javascript:alert(5)) >> >>',
+      '<< /Type /Annot /Subtype /Link /Rect [0 0 100 100] /A << /S /URI /URI (file:///etc/passwd) >> >>',
+      '<< /Type /Annot /Subtype /Link /Rect [0 0 100 100] /A << /S /URI /URI (https://example.com/ok) >> >>',
+    ]);
+    const clean = await sanitizePdf(file);
+    const text = clean.bytes.toString('latin1');
+    for (const bad of ['MZ fake', '<script', 'javascript:', 'file:///', '/EmbeddedFile', '/XFA', '/AcroForm']) expect(text, bad).not.toContain(bad);
+    expect(text).toContain('https://example.com/ok');
+    expect(clean.pages).toHaveLength(1);
+  });
+});
+
+describe('Sign: arreglos de la QA', () => {
+  it('OTP: con 20 intentos en paralelo se evalúan como mucho 5', async () => {
+    const { env, a } = await draft(w.owner, { otp: true });
+    await sendEnvelope(w.owner, env.id);
+    const r = (await resolveToken(linkFrom(mails(a).at(-1)!.text)!))!;
+    await sendOtp(r, meta);
+    const code = codeFrom(mails(a).at(-1)!.text)!;
+    const wrong = code === '111111' ? '222222' : '111111';
+    const results = await Promise.allSettled(Array.from({ length: 20 }, () => verifyOtp(r, wrong, meta)));
+    const codes = results.map((x) => (x.status === 'rejected' ? (x.reason as SignError).code : 'ok'));
+    expect(codes.filter((c) => c === 'otp_wrong').length).toBeLessThanOrEqual(4);
+    expect(codes.every((c) => c === 'otp_wrong' || c === 'otp_locked')).toBe(true);
+    const row = (await getDb().prepare('SELECT otp_attempts FROM sign_recipients WHERE id = ?').get(r.recipient.id)) as { otp_attempts: number };
+    expect(Number(row.otp_attempts)).toBe(OTP_MAX_ATTEMPTS);
+    // Con los 5 gastados, el código correcto ya no entra.
+    await expect(verifyOtp(r, code, meta)).rejects.toMatchObject({ code: 'otp_locked' });
+  });
+
+  it('el cierre verifica que el original sea el que se envió', async () => {
+    const { env, a } = await draft(w.owner, { order: 'parallel' });
+    await sendEnvelope(w.owner, env.id);
+    await getDb().prepare('UPDATE sign_envelopes SET document_hash = ? WHERE id = ?').run('0'.repeat(64), env.id);
+    await getDb().prepare("UPDATE sign_recipients SET status = 'signed', signed_at = ? WHERE envelope_id = ? AND email != ?").run(new Date().toISOString(), env.id, a);
+    const r = (await resolveToken(linkFrom(mails(a).at(-1)!.text)!))!;
+    const res = await submitSigning(r, true, { consent: true, values: {}, signature: SIG }, meta);
+    expect(res.completed).toBe(false);
+    expect((await getEnvelopeRow(w.owner.ws, env.id))!.status).toBe('sent');
+    expect((await getDb().prepare("SELECT 1 FROM sign_events WHERE envelope_id = ? AND kind = 'integrity_failed'").get(env.id))).toBeTruthy();
+  });
+
+  it('un destinatario no ve el borrador; un completo lo borra solo un admin', async () => {
+    const env = await createEnvelope(w.member, { title: `Draft ${uid()}` });
+    await saveRecipients(w.member, env.id, [{ role: 'signer', name: 'Other', email: w.other.email, routingOrder: 1 }]);
+    await expect(requireSee(w.other, env.id)).rejects.toThrow('not_found');
+    await getDb().prepare("UPDATE sign_envelopes SET status = 'completed' WHERE id = ?").run(env.id);
+    await expect(deleteEnvelope(w.member, env.id)).rejects.toMatchObject({ code: 'admin_only' });
+    await deleteEnvelope(w.owner, env.id);
+    expect(await getEnvelopeRow(w.owner.ws, env.id)).toBeNull();
+  });
+
+  it('envío masivo: el mismo bulkId y offset no duplica, y hay tope diario', async () => {
+    const tp = await createTemplate(w.owner, { name: `Bulk ${uid()}` });
+    await setTemplateDocument(w.owner, tp.id, { bytes: await pdf(1), name: 'b.pdf' });
+    await updateTemplate(w.owner, tp.id, { roles: [{ key: 'r1', name: 'Signer', role: 'signer', order: 1 }], fields: [{ roleKey: 'r1', kind: 'signature', page: 1, x: 0.1, y: 0.8, w: 0.3, h: 0.06 }] });
+    const bulkId = `blk_${uid()}${uid()}`;
+    const csv = 'name,email\nAna,ana-b@example.com\nBruno,bruno-b@example.com\n';
+    const first = await bulkSend(w.owner, tp.id, { csv, bulkId, offset: 0 });
+    expect(first).toMatchObject({ sent: 2, skipped: 0 });
+    const again = await bulkSend(w.owner, tp.id, { csv, bulkId, offset: 0 });
+    expect(again).toMatchObject({ sent: 0, skipped: 2 });
+    const n = (await getDb().prepare('SELECT COUNT(*) AS n FROM sign_envelopes WHERE bulk_id = ?').get(bulkId)) as { n: number };
+    expect(Number(n.n)).toBe(2);
+    await getDb().prepare('UPDATE sign_envelopes SET created_at = ? WHERE bulk_id = ?').run(new Date().toISOString(), bulkId);
+    const big = `name,email\n${Array.from({ length: 50 }, (_, i) => `P${i},p${i}-${uid()}@example.com`).join('\n')}`;
+    const ws = w.owner.ws;
+    // Simula el día lleno sin crear 1000 sobres.
+    await getDb().prepare(`UPDATE sign_envelopes SET bulk_id = 'blk_fill' WHERE workspace_id = ? AND bulk_id IS NULL`).run(ws);
+    const count = (await getDb().prepare('SELECT COUNT(*) AS n FROM sign_envelopes WHERE workspace_id = ? AND bulk_id IS NOT NULL').get(ws)) as { n: number };
+    if (Number(count.n) + 50 > BULK_DAILY_CAP) await expect(bulkSend(w.owner, tp.id, { csv: big })).rejects.toMatchObject({ code: 'bulk_daily_cap' });
+    else expect(BULK_DAILY_CAP).toBe(1000);
+  });
+
+  it('oferta de Hiring por Sign: no se reenvía por link, anular la devuelve a aprobada y retirarla anula el sobre', async () => {
+    const owner = { ws: w.owner.ws, person: w.owner.person, admin: true };
+    const job = await createJob(owner, { title: `Engineer ${uid()}` });
+    const added = await addCandidateManually(owner, { jobId: job.job.id, name: 'Carla Candidata', email: `carla-${uid()}@example.com`, source: 'manual' }, null);
+    const offer = await createOffer(owner, added.applicationId, { salary: 50000, currency: 'USD', startDate: '2026-12-01', templateId: null });
+    await actOnOffer(owner, offer.id, { action: 'approve', templateId: null });
+    const user = { id: w.owner.ws, email: w.owner.email, name: 'Owner', role: 'owner', apps: '*' } as unknown as SessionUser;
+    const env = await sendHiringOffer(user, w.owner, offer.id);
+    const sentOffer = (await getDb().prepare('SELECT status, sign_envelope_id FROM hiring_offers WHERE id = ?').get(offer.id)) as { status: string; sign_envelope_id: string };
+    expect(sentOffer).toMatchObject({ status: 'sent', sign_envelope_id: env.id });
+    await expect(actOnOffer(owner, offer.id, { action: 'send', templateId: null })).rejects.toMatchObject({ code: 'offer_in_sign' });
+    await voidEnvelope(w.owner, env.id, 'Wrong salary');
+    const back = (await getDb().prepare('SELECT status, sign_envelope_id FROM hiring_offers WHERE id = ?').get(offer.id)) as { status: string; sign_envelope_id: string | null };
+    expect(back).toMatchObject({ status: 'approved', sign_envelope_id: null });
+    // De nuevo por Sign y ahora se retira: el sobre queda anulado.
+    const env2 = await sendHiringOffer(user, w.owner, offer.id);
+    await actOnOffer(owner, offer.id, { action: 'withdraw', templateId: null });
+    expect((await getEnvelopeRow(w.owner.ws, env2.id))!.status).toBe('voided');
+    expect(((await getDb().prepare('SELECT status FROM hiring_offers WHERE id = ?').get(offer.id)) as { status: string }).status).toBe('withdrawn');
+  });
+
+  it('el certificado cita el navegador entre comillas y acotado', () => {
+    expect(quoteUa('Mozilla/5.0 "x"\nIP: 1.2.3.4')).toBe('"Mozilla/5.0 x IP: 1.2.3.4"');
+    expect(quoteUa('a'.repeat(300))).toHaveLength(162);
+    expect(quoteUa('')).toBe('-');
   });
 });

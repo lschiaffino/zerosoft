@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 
@@ -21,12 +21,15 @@ export default function PdfPages({
   pages,
   overlay,
   onPageClick,
+  placeLabel,
   label,
 }: {
   src: string;
   pages: PageSize[];
   overlay?: (page: number, width: number, height: number) => ReactNode;
   onPageClick?: (page: number, x: number, y: number) => void;
+  /** Con esto la página se enfoca con Tab y Enter pone el campo en el centro (editor de campos). */
+  placeLabel?: (page: number) => string;
   label: string;
 }) {
   const t = useTranslations('sign.viewer');
@@ -34,6 +37,28 @@ export default function PdfPages({
   const [width, setWidth] = useState(0);
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [error, setError] = useState(false);
+  // Solo se dibujan las páginas cerca de la vista (un PDF largo en el celular no arma cien canvas).
+  const [visible, setVisible] = useState<Set<number>>(() => new Set([0, 1]));
+  useEffect(() => {
+    const el = wrap.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        setVisible((prev) => {
+          const next = new Set(prev);
+          for (const e of entries) {
+            const i = Number((e.target as HTMLElement).dataset.page) - 1;
+            if (e.isIntersecting) next.add(i);
+            else next.delete(i);
+          }
+          return next;
+        });
+      },
+      { rootMargin: '800px 0px' },
+    );
+    for (const p of Array.from(el.querySelectorAll('.sg-pdf-page'))) io.observe(p);
+    return () => io.disconnect();
+  }, [width, doc, pages.length]);
 
   useEffect(() => {
     const el = wrap.current;
@@ -82,9 +107,21 @@ export default function PdfPages({
           const h = Math.round((width * p.h) / Math.max(1, p.w));
           return (
             <div key={i} className="sg-pdf-page" data-page={i + 1} style={{ width, height: h }}>
-              <PdfCanvas doc={doc} index={i} width={width} height={h} />
+              {visible.has(i) && <PdfCanvas doc={doc} index={i} width={width} height={h} />}
               <div
                 className="sg-page-overlay"
+                {...(placeLabel
+                  ? {
+                      role: 'button',
+                      tabIndex: 0,
+                      'aria-label': placeLabel(i + 1),
+                      onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+                        if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return;
+                        e.preventDefault();
+                        onPageClick?.(i + 1, 0.5, 0.5);
+                      },
+                    }
+                  : {})}
                 onClick={(e) => {
                   if (!onPageClick || e.target !== e.currentTarget) return;
                   const r = e.currentTarget.getBoundingClientRect();

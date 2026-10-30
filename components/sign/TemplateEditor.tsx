@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
@@ -31,6 +31,8 @@ export default function TemplateEditor({ initial, startTab, maxMb }: { initial: 
   const [title, setTitle] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // Mismo bulkId mientras no cambie el CSV: reintentar no duplica.
+  const bulkIdRef = useRef<string | null>(null);
   const [bulkResult, setBulkResult] = useState<{ sent: number; errors: Array<{ row: number; error: string }> } | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [docVersion, setDocVersion] = useState(0);
@@ -91,10 +93,29 @@ export default function TemplateEditor({ initial, startTab, maxMb }: { initial: 
     setError('');
     setBulkResult(null);
     const fixed = Object.fromEntries(Object.entries(people).filter(([k]) => k !== bulkTarget?.key));
-    const r = await api<{ sent: number; errors: Array<{ row: number; error: string }> }>(`/api/sign/templates/${tp.id}/use`, { method: 'POST', json: { mode: 'bulk', csv, fixed, locale } });
+    // En tandas de 25 filas con el mismo bulkId: cada fila tiene su clave, un reintento no duplica sobres.
+    const lines = csv.replace(/\r/g, '').split('\n').filter((l) => l.trim());
+    const [header, ...rows] = lines;
+    if (!header || !rows.length) {
+      setBusy(false);
+      return setError(errorText('csv_empty'));
+    }
+    const bulkId = bulkIdRef.current ?? `blk_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`;
+    bulkIdRef.current = bulkId;
+    const total = { sent: 0, errors: [] as Array<{ row: number; error: string }> };
+    for (let i = 0; i < rows.length; i += 25) {
+      const chunk = [header, ...rows.slice(i, i + 25)].join('\n');
+      const r = await api<{ sent: number; errors: Array<{ row: number; error: string }> }>(`/api/sign/templates/${tp.id}/use`, { method: 'POST', json: { mode: 'bulk', csv: chunk, fixed, locale, bulkId, offset: i } });
+      if (!r.ok) {
+        setBusy(false);
+        setBulkResult(total);
+        return setError(errorText(r.data.error));
+      }
+      total.sent += r.data.sent;
+      total.errors.push(...r.data.errors);
+      setBulkResult({ ...total, errors: [...total.errors] });
+    }
     setBusy(false);
-    if (!r.ok) return setError(errorText(r.data.error));
-    setBulkResult(r.data);
   };
   const remove = async () => {
     const r = await api(`/api/sign/templates/${tp.id}`, { method: 'DELETE' });
@@ -282,10 +303,18 @@ export default function TemplateEditor({ initial, startTab, maxMb }: { initial: 
       {tab === 'bulk' &&
         (tp.hasDocument && bulkTarget ? (
           <div className="ui-fields sg-form">
-            <p className="ui-help">{t('templates.bulkHelp', { role: bulkTarget.name, max: 200 })}</p>
+            <p className="ui-help">{t('templates.bulkHelp', { role: bulkTarget.name, max: 1000 })}</p>
             <label className="ui-field">
               <span className="label">{t('templates.csv')}</span>
-              <textarea className="textarea sg-mono" rows={8} value={csv} onChange={(e) => setCsv(e.target.value)} />
+              <textarea
+                className="textarea sg-mono"
+                rows={8}
+                value={csv}
+                onChange={(e) => {
+                  bulkIdRef.current = null;
+                  setCsv(e.target.value);
+                }}
+              />
             </label>
             <label className="ui-field">
               <span className="label">{t('templates.csvFile')}</span>

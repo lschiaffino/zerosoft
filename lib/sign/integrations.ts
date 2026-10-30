@@ -20,7 +20,7 @@ import { docsActorFor } from '../docs-platform-access';
 import { getPage } from '../docs-platform';
 import { blocksToPdf, needsUnicodeFont } from '../docs-pdf';
 import type { DocsBlock } from '../docs-types';
-import { markOfferSentForSignature, offerForSignature, settleOfferFromSign } from '../hiring/offers';
+import { markOfferSentForSignature, offerForSignature, reopenOfferFromSign, settleOfferFromSign } from '../hiring/offers';
 import type { HiringActor } from '../hiring/types';
 import { addEvent, createEnvelope, parseJson, saveFields, saveRecipients, sendEnvelope, setDocument, type EnvelopeLink, type EnvelopeRow } from './core';
 import { readSignFile } from './files';
@@ -57,7 +57,11 @@ export async function crmPrefill(user: SessionUser, ref: string): Promise<CrmPre
   return { link: { app: 'crm', kind: 'contact', id: c.contact.id, label: name }, title: name, recipient: c.contact.email ? { name, email: c.contact.email } : null };
 }
 
-/** Completo: el PDF firmado como adjunto del deal o contacto (link a la ruta privada). */
+/**
+ * Completo: el PDF firmado como adjunto del deal o contacto. El adjunto es un
+ * link a la página del sobre en Sign (no al archivo): quien puede verlo lo baja
+ * de ahí; quien no, ve un aviso claro de que no tiene acceso.
+ */
 async function attachToCrm(env: EnvelopeRow, link: EnvelopeLink): Promise<void> {
   if (link.kind !== 'deal' && link.kind !== 'contact') return;
   const table = link.kind === 'deal' ? 'crm_deals' : 'crm_contacts';
@@ -65,7 +69,7 @@ async function attachToCrm(env: EnvelopeRow, link: EnvelopeLink): Promise<void> 
   if (!exists) return;
   const name = `${(env.document_name || env.title).replace(/\.pdf$/i, '').slice(0, 120)} (signed).pdf`;
   const size = env.final_ref ? ((await readSignFile(env.final_ref))?.length ?? 0) : 0;
-  await createRecordFile(env.workspace_id, link.kind, link.id, { filename: name, contentType: 'application/pdf', size, url: `/api/sign/envelopes/${env.id}/document?v=final`, uploadedBy: env.created_by });
+  await createRecordFile(env.workspace_id, link.kind, link.id, { filename: name, contentType: 'application/pdf', size, url: `/app/sign/envelopes/${env.id}?from=crm`, uploadedBy: env.created_by });
   await addEvent(env.id, 'crm_attached', { detail: { kind: link.kind, id: link.id } });
 }
 
@@ -124,8 +128,12 @@ export async function sendHiringOffer(user: SessionUser, actor: SignActor, offer
   return sent;
 }
 
-async function settleHiring(env: EnvelopeRow, link: EnvelopeLink, kind: 'completed' | 'declined', who: { name: string; reason?: string } | null): Promise<void> {
+async function settleHiring(env: EnvelopeRow, link: EnvelopeLink, kind: SignHookKind, who: { name: string; reason?: string } | null): Promise<void> {
   if (link.kind !== 'offer') return;
+  if (kind === 'voided' || kind === 'expired') {
+    await reopenOfferFromSign(env.workspace_id, link.id, env.id);
+    return;
+  }
   const signer = who ?? ((await getDb().prepare("SELECT name, ip, user_agent FROM sign_recipients WHERE envelope_id = ? AND role = 'signer' ORDER BY routing_order LIMIT 1").get(env.id)) as { name: string } | undefined) ?? null;
   if (!signer) return;
   const meta = (await getDb().prepare("SELECT ip, user_agent FROM sign_recipients WHERE envelope_id = ? AND role = 'signer' ORDER BY signed_at DESC LIMIT 1").get(env.id)) as { ip: string; user_agent: string } | undefined;
@@ -136,7 +144,9 @@ async function settleHiring(env: EnvelopeRow, link: EnvelopeLink, kind: 'complet
 
 // ---------- Ganchos al cerrar ----------
 
-export async function runIntegrations(kind: 'completed' | 'declined', env: EnvelopeRow, who: { name: string; email: string; reason?: string } | null): Promise<void> {
+export type SignHookKind = 'completed' | 'declined' | 'voided' | 'expired';
+
+export async function runIntegrations(kind: SignHookKind, env: EnvelopeRow, who: { name: string; email: string; reason?: string } | null): Promise<void> {
   for (const link of parseJson<EnvelopeLink[]>(env.links, [])) {
     try {
       if (link.app === 'crm' && kind === 'completed') await attachToCrm(env, link);

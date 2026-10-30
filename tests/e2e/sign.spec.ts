@@ -135,6 +135,17 @@ test('Sign: dos firmantes en orden, código por email, certificado y hashes', as
   await page.getByRole('button', { name: 'Signature', exact: true }).click();
   await page1.click({ position: { x: 150, y: 600 } });
   await expect(page.getByRole('button', { name: `Signature field for ${b.name}` })).toBeVisible();
+  // Con teclado: la página se enfoca, Enter pone el campo, las flechas lo mueven y Supr lo saca.
+  await page.getByRole('button', { name: 'Text', exact: true }).click();
+  await page.getByRole('button', { name: /Place the Text field on page 1/ }).focus();
+  await page.keyboard.press('Enter');
+  const textField = page.getByRole('button', { name: `Text field for ${b.name}` });
+  await expect(textField).toBeFocused();
+  const before = await textField.boundingBox();
+  await page.keyboard.press('Shift+ArrowDown');
+  await expect.poll(async () => (await textField.boundingBox())!.y).toBeGreaterThan(before!.y);
+  await page.keyboard.press('Delete');
+  await expect(textField).toHaveCount(0);
   await page.getByRole('button', { name: 'Next' }).click();
 
   // 4. Enviar.

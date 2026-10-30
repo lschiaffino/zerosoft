@@ -92,7 +92,7 @@
     "no_signer_role": "La plantilla necesita un rol que firme.",
     "csv_empty": "El CSV no tiene filas.",
     "csv_header": "El CSV necesita un encabezado con name y email.",
-    "csv_too_many": "Hasta 200 filas por envío masivo.",
+    "csv_too_many": "Hasta 50 filas por tanda.",
     "invalid_roles": "Revisá los roles: cada uno con nombre y una clave distinta.",
     "invalid_row": "falta el nombre o un email válido",
     "rate_limited": "Demasiados intentos. Esperá unos minutos.",
@@ -115,7 +115,12 @@
     "state_voided": "Quien lo envió anuló este sobre.",
     "state_expired": "Este sobre venció.",
     "state_declined": "Alguien rechazó este sobre.",
-    "state_completed": "Este sobre ya está completo."
+    "state_completed": "Este sobre ya está completo.",
+    "pdf_too_complex": "Este PDF es demasiado complejo para procesarlo de forma segura (demasiados objetos, anidamiento o datos comprimidos que crecen demasiado). Imprimilo a un PDF nuevo y subí ese.",
+    "pdf_unsupported": "Este PDF usa una compresión que no aceptamos. Imprimilo a un PDF nuevo y subí ese.",
+    "admin_only": "Solo un admin puede borrar un sobre completo.",
+    "document_changed": "El documento guardado no coincide con el que se envió. No se firmó nada; escribí a soporte.",
+    "bulk_daily_cap": "El envío masivo está limitado a 1.000 sobres por día por workspace."
   },
   "new": {
     "title": "Nuevo sobre",
@@ -228,7 +233,8 @@
     "remove": "Quitar campo",
     "done": "Listo",
     "sideEmpty": "Elegí un campo para cambiarlo.",
-    "count": "{n, plural, =0 {sin campos} one {# campo} other {# campos}}"
+    "count": "{n, plural, =0 {sin campos} one {# campo} other {# campos}}",
+    "placeOnPage": "Poner el campo {kind} en la página {page}: presioná Enter"
   },
   "detail": {
     "reminded": "Recordatorio enviado.",
@@ -268,7 +274,8 @@
     "voidBody": "Los links dejan de funcionar y los destinatarios que recibieron uno reciben tu motivo. Las firmas ya hechas quedan en la línea de tiempo.",
     "voidReasonLabel": "Motivo",
     "deleteTitle": "¿Borrar este sobre?",
-    "deleteBody": "Se borran para siempre el sobre, sus archivos y su línea de tiempo. Los destinatarios conservan las copias que recibieron."
+    "deleteBody": "Se borran para siempre el sobre, sus archivos y su línea de tiempo. Los destinatarios conservan las copias que recibieron.",
+    "deleteCompleted": "Es un registro completo y firmado. Borrarlo saca para siempre de Sign el PDF firmado y el registro de auditoría."
   },
   "event": {
     "created": "Creado",
@@ -314,7 +321,7 @@
     "roleName": "Nombre del rol",
     "addRole": "Sumar rol",
     "useDraft": "Crear como borrador",
-    "bulkHelp": "Un sobre por fila, hasta {max}. El CSV necesita un encabezado con name y email: cada fila completa el rol {role}. Los otros roles de abajo son iguales en todos los sobres.",
+    "bulkHelp": "Un sobre por fila, hasta {max} por día. El CSV necesita un encabezado con name y email: cada fila completa el rol {role}. Los otros roles de abajo son iguales en todos los sobres. Sale en tandas; mandar la misma lista de nuevo no duplica sobres.",
     "csv": "CSV",
     "csvFile": "O subí un archivo CSV",
     "bulkSent": "{n, plural, one {# sobre enviado} other {# sobres enviados}}.",
@@ -411,5 +418,9 @@
     "declineReason": "Motivo",
     "cancel": "Cancelar",
     "declineConfirm": "Rechazar"
+  },
+  "noAccess": {
+    "title": "No podés abrir este documento firmado",
+    "body": "Solo lo ven en Sign quien lo envió, los admins del workspace y sus destinatarios. Pedile una copia a quien lo envió."
   }
 }

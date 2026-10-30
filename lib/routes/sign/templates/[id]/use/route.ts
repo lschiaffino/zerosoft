@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 const person = z.object({ name: z.string().max(120), email: z.string().max(254) });
 const schema = z.discriminatedUnion('mode', [
   z.object({ mode: z.literal('use'), title: z.string().max(200).optional(), message: z.string().max(4000).optional(), recipients: z.record(person), send: z.boolean().optional(), locale: z.string().max(5).optional() }),
-  z.object({ mode: z.literal('bulk'), csv: z.string().max(200_000), fixed: z.record(person).optional(), locale: z.string().max(5).optional() }),
+  z.object({ mode: z.literal('bulk'), csv: z.string().max(200_000), fixed: z.record(person).optional(), locale: z.string().max(5).optional(), bulkId: z.string().max(60).optional(), offset: z.number().int().min(0).max(100_000).optional() }),
 ]);
 
 /** POST: { mode: 'use' } arma un sobre (y lo envía con send); { mode: 'bulk' } manda uno por fila del CSV. */

@@ -15,6 +15,7 @@ import EnvelopeEditor from '@/components/sign/EnvelopeEditor';
 import EnvelopeDetail from '@/components/sign/EnvelopeDetail';
 import TemplatesList from '@/components/sign/TemplatesList';
 import TemplateEditor from '@/components/sign/TemplateEditor';
+import EmptyState from '@/components/ui/EmptyState';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,7 +77,18 @@ export default async function SignPage(props: Props) {
     case 'envelopes': {
       if (!id) notFound();
       const found = await seeOrNull(() => requireSee(actor, id));
-      if (!found) notFound();
+      if (!found) {
+        // Desde el adjunto de un deal o contacto del CRM: un aviso en vez de un 404 mudo.
+        if (sp.from === 'crm') {
+          const t = await getTranslations({ locale, namespace: 'sign' });
+          return (
+            <div className="app-page ui-page sg-page">
+              <EmptyState product="sign" title={t('noAccess.title')} body={t('noAccess.body')} action={{ label: t('nav.envelopes'), href: '/app/sign' }} />
+            </div>
+          );
+        }
+        notFound();
+      }
       const dto = await envelopeDto(actor, found.env, found.recipients, { fields: true, events: true });
       if (found.env.status === 'draft') {
         if (!dto.canManage) notFound();

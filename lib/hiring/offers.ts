@@ -37,6 +37,8 @@ export interface OfferRow {
   signed_ua: string | null;
   body_hash: string | null;
   decline_reason: string;
+  /** Sobre de Sign con el que salió a firmar (null: link con nombre escrito). */
+  sign_envelope_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -62,6 +64,7 @@ export function offerDto(o: OfferRow) {
     signedIp: o.signed_ip,
     bodyHash: o.body_hash,
     declineReason: o.decline_reason,
+    signEnvelopeId: o.sign_envelope_id ?? null,
     createdAt: o.created_at,
   };
 }
@@ -155,10 +158,17 @@ export async function actOnOffer(actor: HiringActor, offerId: string, input: z.i
     const res = await db.prepare("UPDATE hiring_offers SET status = 'withdrawn', token_hash = NULL, updated_at = ? WHERE id = ? AND status IN ('pending_approval','approved','sent')").run(ts, offer.id);
     if (!res.changes) throw new HiringError('invalid_state', 409);
     await addEvent(actor.ws, candidate.id, app.id, 'offer', actor.person, { status: 'withdrawn', title: offer.title });
+    // Si salió a firmar con Sign, el sobre se anula (el link deja de servir).
+    if (offer.sign_envelope_id) {
+      const { voidEnvelopeFromApp } = await import('../sign/core');
+      await voidEnvelopeFromApp(actor.ws, offer.sign_envelope_id, 'Offer withdrawn', actor.person).catch(() => false);
+    }
     return { offer: offerDto((await getOfferRow(actor.ws, offer.id))!) };
   }
   // send
   if (offer.status !== 'approved' && offer.status !== 'sent') throw new HiringError('offer_not_approved', 409);
+  // Salió a firmar con Sign: se sigue desde el sobre (anularlo la devuelve a aprobada).
+  if (offer.sign_envelope_id) throw new HiringError('offer_in_sign', 409);
   const token = randomBytes(24).toString('base64url');
   const res = await db
     .prepare("UPDATE hiring_offers SET status = 'sent', token_hash = ?, body_hash = ?, sent_at = ?, updated_at = ? WHERE id = ? AND status IN ('approved','sent')")
@@ -195,8 +205,8 @@ export async function markOfferSentForSignature(actor: HiringActor, offerId: str
   const { app, candidate } = await requireManageApp(actor, offer.application_id);
   const ts = nowIso();
   const res = await getDb()
-    .prepare("UPDATE hiring_offers SET status = 'sent', token_hash = NULL, body_hash = ?, sent_at = ?, updated_at = ? WHERE id = ? AND status = 'approved'")
-    .run(sha(offer.body), ts, ts, offer.id);
+    .prepare("UPDATE hiring_offers SET status = 'sent', token_hash = NULL, body_hash = ?, sent_at = ?, sign_envelope_id = ?, updated_at = ? WHERE id = ? AND status = 'approved'")
+    .run(sha(offer.body), ts, envelopeId, ts, offer.id);
   if (!res.changes) throw new HiringError('invalid_state', 409);
   await addEvent(actor.ws, candidate.id, app.id, 'offer', actor.person, { status: 'sent', title: offer.title, esign: envelopeId });
 }
@@ -270,6 +280,22 @@ export async function respondToOffer(input: z.infer<typeof respondSchema>, meta:
     if (!input.signedName || norm(input.signedName) !== norm(c.name)) throw new HiringError('name_mismatch');
   }
   return settleOffer(o, input.action, { signedName: input.signedName, reason: input.reason }, meta);
+}
+
+/**
+ * El sobre de Sign se anuló o venció sin firmarse: la oferta vuelve a
+ * aprobada (sin sobre), para mandarla de nuevo por Sign o por link.
+ */
+export async function reopenOfferFromSign(ws: string, offerId: string, envelopeId: string): Promise<boolean> {
+  const ts = nowIso();
+  const res = await getDb()
+    .prepare("UPDATE hiring_offers SET status = 'approved', sign_envelope_id = NULL, sent_at = NULL, updated_at = ? WHERE id = ? AND workspace_id = ? AND status = 'sent' AND sign_envelope_id = ?")
+    .run(ts, offerId, ws, envelopeId);
+  if (!res.changes) return false;
+  const o = (await getOfferRow(ws, offerId))!;
+  const app = await getApplicationRow(ws, o.application_id);
+  if (app) await addEvent(ws, app.candidate_id, app.id, 'offer', null, { status: 'approved', title: o.title, esignClosed: envelopeId });
+  return true;
 }
 
 /**

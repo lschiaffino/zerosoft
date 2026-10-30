@@ -92,7 +92,7 @@
     "no_signer_role": "The template needs a signer role.",
     "csv_empty": "The CSV has no rows.",
     "csv_header": "The CSV needs a header with name and email.",
-    "csv_too_many": "Up to 200 rows per bulk send.",
+    "csv_too_many": "Up to 50 rows per batch.",
     "invalid_roles": "Check the roles: each needs a name and a different key.",
     "invalid_row": "missing name or a valid email",
     "rate_limited": "Too many tries. Wait a few minutes.",
@@ -115,7 +115,12 @@
     "state_voided": "The sender voided this envelope.",
     "state_expired": "This envelope expired.",
     "state_declined": "Someone declined this envelope.",
-    "state_completed": "This envelope is already complete."
+    "state_completed": "This envelope is already complete.",
+    "pdf_too_complex": "This PDF is too complex to process safely (too many objects, too much nesting or compressed data that grows too much). Print it to a new PDF and upload that.",
+    "pdf_unsupported": "This PDF uses a compression we do not accept. Print it to a new PDF and upload that.",
+    "admin_only": "Only an admin can delete a completed envelope.",
+    "document_changed": "The stored document does not match the one that was sent. Nothing was signed; contact support.",
+    "bulk_daily_cap": "Bulk send is limited to 1,000 envelopes a day per workspace."
   },
   "new": {
     "title": "New envelope",
@@ -228,7 +233,8 @@
     "remove": "Remove field",
     "done": "Done",
     "sideEmpty": "Select a field to change it.",
-    "count": "{n, plural, =0 {no fields} one {# field} other {# fields}}"
+    "count": "{n, plural, =0 {no fields} one {# field} other {# fields}}",
+    "placeOnPage": "Place the {kind} field on page {page}: press Enter"
   },
   "detail": {
     "reminded": "Reminder sent.",
@@ -268,7 +274,8 @@
     "voidBody": "The links stop working and the recipients who got one receive your reason. Signatures already made stay in the timeline.",
     "voidReasonLabel": "Reason",
     "deleteTitle": "Delete this envelope?",
-    "deleteBody": "The envelope, its files and its timeline are deleted for good. Recipients keep the copies they received."
+    "deleteBody": "The envelope, its files and its timeline are deleted for good. Recipients keep the copies they received.",
+    "deleteCompleted": "This is a completed, signed record. Deleting it removes the signed PDF and the audit trail from Sign for good."
   },
   "event": {
     "created": "Created",
@@ -314,7 +321,7 @@
     "roleName": "Role name",
     "addRole": "Add role",
     "useDraft": "Create as draft",
-    "bulkHelp": "One envelope per row, up to {max}. The CSV needs a header with name and email: each row fills the {role} role. The other roles below are the same for every envelope.",
+    "bulkHelp": "One envelope per row, up to {max} a day. The CSV needs a header with name and email: each row fills the {role} role. The other roles below are the same for every envelope. It goes out in batches; sending the same list again does not duplicate envelopes.",
     "csv": "CSV",
     "csvFile": "Or upload a CSV file",
     "bulkSent": "{n, plural, one {# envelope sent} other {# envelopes sent}}.",
@@ -411,5 +418,9 @@
     "declineReason": "Reason",
     "cancel": "Cancel",
     "declineConfirm": "Decline"
+  },
+  "noAccess": {
+    "title": "You cannot open this signed document",
+    "body": "Only the person who sent it, the workspace admins and its recipients can see it in Sign. Ask the sender for a copy."
   }
 }

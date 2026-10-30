@@ -34,6 +34,7 @@ export async function signUp(client: Client): Promise<void> {
       links TEXT NOT NULL DEFAULT '[]',
       template_id TEXT,
       bulk_id TEXT,
+      bulk_key TEXT,
       sent_at TEXT,
       completed_at TEXT,
       declined_at TEXT,
@@ -46,6 +47,7 @@ export async function signUp(client: Client): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS idx_sign_envelopes_ws ON sign_envelopes(workspace_id, status, updated_at);
     CREATE INDEX IF NOT EXISTS idx_sign_envelopes_bulk ON sign_envelopes(bulk_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_sign_envelopes_bulk_key ON sign_envelopes(workspace_id, bulk_key);
     CREATE TABLE IF NOT EXISTS sign_recipients (
       id TEXT PRIMARY KEY,
       envelope_id TEXT NOT NULL REFERENCES sign_envelopes(id) ON DELETE CASCADE,
@@ -130,4 +132,6 @@ export async function signUp(client: Client): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS idx_sign_templates_ws ON sign_templates(workspace_id, updated_at);
   `);
+  // Hiring: la oferta que salió a firmar con Sign recuerda su sobre (no se reenvía por el link con nombre escrito).
+  await client.execute('ALTER TABLE hiring_offers ADD COLUMN sign_envelope_id TEXT');
 }

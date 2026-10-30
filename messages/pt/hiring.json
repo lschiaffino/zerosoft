@@ -540,7 +540,8 @@
     "scorecard_locked": "Seu scorecard desta etapa já foi enviado.",
     "own_offer": "Uma oferta que você preparou precisa ser aprovada por outra pessoa.",
     "storage_unavailable": "Não há armazenamento de arquivos configurado.",
-    "auth_required": "Não foi possível verificar o email."
+    "auth_required": "Não foi possível verificar o email.",
+    "offer_in_sign": "Esta oferta saiu para assinatura com o Sign. Acompanhe pelo envelope; anular devolve a oferta para aprovada."
   },
   "esign": {
     "send": "Enviar para assinatura com Sign",

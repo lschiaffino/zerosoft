@@ -67,6 +67,7 @@ export default function FieldPlacer({
   const [party, setParty] = useState(parties[0]?.id ?? '');
   const [tool, setTool] = useState<FieldKind | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [focusKey, setFocusKey] = useState<string | null>(null);
   const drag = useRef<{ key: string; mode: 'move' | 'resize'; startX: number; startY: number; orig: PlacedField; pw: number; ph: number } | null>(null);
 
   useEffect(() => {
@@ -104,7 +105,15 @@ export default function FieldPlacer({
     onChange([...fields, f]);
     setSelected(f.key);
     setTool(null);
+    setFocusKey(f.key);
   };
+
+  // El campo recién puesto (con mouse o con Enter) toma el foco: las flechas lo mueven.
+  useEffect(() => {
+    if (!focusKey) return;
+    document.querySelector<HTMLElement>(`[data-field-key="${focusKey}"]`)?.focus();
+    setFocusKey(null);
+  }, [focusKey, fields]);
 
   const onPointerDown = (e: ReactPointerEvent<HTMLElement>, f: PlacedField, mode: 'move' | 'resize') => {
     e.stopPropagation();
@@ -179,6 +188,7 @@ export default function FieldPlacer({
             pages={pages}
             label={t('document')}
             onPageClick={place}
+            placeLabel={tool ? (page) => t('placeOnPage', { kind: t(`kind.${tool}`), page }) : undefined}
             overlay={(page) =>
               fields
                 .filter((f) => f.page === page)
@@ -189,6 +199,7 @@ export default function FieldPlacer({
                       key={f.key}
                       role="button"
                       tabIndex={0}
+                      data-field-key={f.key}
                       aria-label={t('fieldLabel', { kind: t(`kind.${f.kind}`), who })}
                       aria-pressed={selected === f.key}
                       className={`sg-field-box${selected === f.key ? ' is-selected' : ''}`}

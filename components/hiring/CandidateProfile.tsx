@@ -420,7 +420,12 @@ export default function CandidateProfile({
                           </button>
                         )}
                         {o.status === 'pending_approval' && !(isAdmin || app.myRole === 'hiring_manager') && <span className="ui-help">{t('offers.waitingApproval')}</span>}
-                        {(o.status === 'approved' || o.status === 'sent') && (
+                        {o.status === 'sent' && o.signEnvelopeId && (
+                          <a className="btn btn-outline btn-sm" href={`/${locale}/app/sign/envelopes/${o.signEnvelopeId}`}>
+                            {t('esign.open')}
+                          </a>
+                        )}
+                        {(o.status === 'approved' || (o.status === 'sent' && !o.signEnvelopeId)) && (
                           <button
                             type="button"
                             className="btn btn-primary btn-sm"

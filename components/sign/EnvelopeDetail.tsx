@@ -193,7 +193,7 @@ export default function EnvelopeDetail({ env }: { env: EnvelopeDto }) {
                     {t('detail.void')}
                   </button>
                 )}
-                {env.status !== 'sent' && (
+                {env.canDelete && (
                   <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => setDeleteOpen(true)}>
                     {t('detail.delete')}
                   </button>
@@ -253,6 +253,7 @@ export default function EnvelopeDetail({ env }: { env: EnvelopeDto }) {
       <SignDialog open={deleteOpen} title={t('detail.deleteTitle')} onClose={() => setDeleteOpen(false)}>
         <div className="ui-modal-body">
           <p>{t('detail.deleteBody')}</p>
+          {env.status === 'completed' && <p className="ui-help">{t('detail.deleteCompleted')}</p>}
         </div>
         <div className="ui-modal-foot">
           <button type="button" className="btn btn-ghost" onClick={() => setDeleteOpen(false)}>

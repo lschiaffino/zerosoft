@@ -202,6 +202,7 @@ export interface UseTemplateInput {
   send?: boolean;
   locale?: string;
   bulkId?: string | null;
+  bulkKey?: string | null;
 }
 
 /** Sobre nuevo desde la plantilla (borrador, o enviado con send). */
@@ -222,6 +223,7 @@ export async function envelopeFromTemplate(actor: SignActor, id: string, input: 
     source: 'template',
     templateId: t.id,
     bulkId: input.bulkId ?? null,
+    bulkKey: input.bulkKey ?? null,
     signingOrder: t.signing_order,
     otpRequired: t.otp_required === 1,
     expiresDays: t.expires_days,
@@ -251,22 +253,27 @@ export async function envelopeFromTemplate(actor: SignActor, id: string, input: 
   return input.send ? sendEnvelope(actor, env.id) : env;
 }
 
-export const BULK_MAX_ROWS = 200;
+/** Filas por pedido (la UI manda el CSV en tandas) y sobres masivos por workspace en 24 h. */
+export const BULK_MAX_ROWS = 50;
+export const BULK_DAILY_CAP = 1000;
+const BULK_ID_RE = /^blk_[A-Za-z0-9_-]{8,40}$/;
 
 /**
  * Envío masivo: un sobre por fila. El CSV trae `name` y `email` (con
- * encabezado) para el primer rol que firma; los otros roles van fijos.
+ * encabezado) para el primer rol que firma; los otros roles van fijos. La UI
+ * lo manda en tandas con el mismo bulkId y el offset de la primera fila: cada
+ * fila tiene su clave (bulkId:fila), así un reintento no duplica sobres.
  */
 export async function bulkSend(
   actor: SignActor,
   id: string,
-  input: { csv: string; fixed?: Record<string, { name: string; email: string }>; locale?: string },
-): Promise<{ bulkId: string; sent: number; errors: Array<{ row: number; error: string }> }> {
+  input: { csv: string; fixed?: Record<string, { name: string; email: string }>; locale?: string; bulkId?: string; offset?: number },
+): Promise<{ bulkId: string; sent: number; skipped: number; errors: Array<{ row: number; error: string }> }> {
   const t = await getTemplate(actor, id);
   const roles = parseJson<TemplateRole[]>(t.roles, []);
   const target = roles.find((r) => r.role === 'signer');
   if (!target) throw new SignError('no_signer_role');
-  const rows = parseCsv(input.csv.replace(/^﻿/, '')).filter((r) => r.some((c) => c.trim()));
+  const rows = parseCsv(input.csv.replace(/^\uFEFF/, '')).filter((r) => r.some((c) => c.trim()));
   if (rows.length < 2) throw new SignError('csv_empty');
   const header = rows[0].map((h) => h.trim().toLowerCase());
   const iName = header.indexOf('name');
@@ -274,21 +281,39 @@ export async function bulkSend(
   if (iName < 0 || iEmail < 0) throw new SignError('csv_header');
   const body = rows.slice(1);
   if (body.length > BULK_MAX_ROWS) throw new SignError('csv_too_many', 400, { max: BULK_MAX_ROWS });
-  const bulkId = newId('blk');
+  const bulkId = input.bulkId && BULK_ID_RE.test(input.bulkId) ? input.bulkId : newId('blk');
+  const offset = Math.max(0, Math.min(100_000, Math.floor(input.offset ?? 0)));
+  const db = getDb();
+  const since = new Date(Date.now() - 86_400_000).toISOString();
+  const today = (await db.prepare('SELECT COUNT(*) AS n FROM sign_envelopes WHERE workspace_id = ? AND bulk_id IS NOT NULL AND created_at >= ?').get(actor.ws, since)) as { n: number };
+  if (Number(today.n) + body.length > BULK_DAILY_CAP) throw new SignError('bulk_daily_cap', 429, { max: BULK_DAILY_CAP });
   let sent = 0;
+  let skipped = 0;
   const errors: Array<{ row: number; error: string }> = [];
   for (const [i, row] of body.entries()) {
+    const rowNumber = offset + i + 2;
+    const bulkKey = `${bulkId}:${offset + i}`;
     const person = { name: (row[iName] ?? '').trim(), email: (row[iEmail] ?? '').trim() };
     if (!person.name || !isEmail(person.email)) {
-      errors.push({ row: i + 2, error: 'invalid_row' });
+      errors.push({ row: rowNumber, error: 'invalid_row' });
       continue;
     }
+    const existing = (await db.prepare('SELECT id, status FROM sign_envelopes WHERE workspace_id = ? AND bulk_key = ?').get(actor.ws, bulkKey)) as { id: string; status: string } | undefined;
     try {
-      await envelopeFromTemplate(actor, t.id, { recipients: { ...(input.fixed ?? {}), [target.key]: person }, title: `${t.name} · ${person.name}`, send: true, locale: input.locale, bulkId });
+      if (existing) {
+        // Ya creado en un intento anterior: si quedó en borrador, se termina de enviar; si no, nada.
+        if (existing.status === 'draft') {
+          await sendEnvelope(actor, existing.id);
+          sent++;
+        } else skipped++;
+        continue;
+      }
+      await envelopeFromTemplate(actor, t.id, { recipients: { ...(input.fixed ?? {}), [target.key]: person }, title: `${t.name} · ${person.name}`, send: true, locale: input.locale, bulkId, bulkKey });
       sent++;
     } catch (err) {
-      errors.push({ row: i + 2, error: err instanceof SignError ? err.code : 'error' });
+      if (err instanceof Error && /UNIQUE/i.test(err.message)) skipped++;
+      else errors.push({ row: rowNumber, error: err instanceof SignError ? err.code : 'error' });
     }
   }
-  return { bulkId, sent, errors };
+  return { bulkId, sent, skipped, errors };
 }

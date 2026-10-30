@@ -540,7 +540,8 @@
     "scorecard_locked": "Your scorecard for this stage is already submitted.",
     "own_offer": "Someone else has to approve an offer you prepared.",
     "storage_unavailable": "File storage is not configured.",
-    "auth_required": "The email could not be verified."
+    "auth_required": "The email could not be verified.",
+    "offer_in_sign": "This offer went out for signature with Sign. Follow it from the envelope; voiding it brings the offer back to approved."
   },
   "esign": {
     "send": "Send for e-signature with Sign",

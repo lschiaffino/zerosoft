@@ -92,7 +92,7 @@
     "no_signer_role": "O modelo precisa de um papel que assina.",
     "csv_empty": "O CSV não tem linhas.",
     "csv_header": "O CSV precisa de um cabeçalho com name e email.",
-    "csv_too_many": "Até 200 linhas por envio em massa.",
+    "csv_too_many": "Até 50 linhas por lote.",
     "invalid_roles": "Verifique os papéis: cada um com nome e uma chave diferente.",
     "invalid_row": "falta o nome ou um email válido",
     "rate_limited": "Tentativas demais. Espere alguns minutos.",
@@ -115,7 +115,12 @@
     "state_voided": "Quem enviou anulou este envelope.",
     "state_expired": "Este envelope venceu.",
     "state_declined": "Alguém recusou este envelope.",
-    "state_completed": "Este envelope já está concluído."
+    "state_completed": "Este envelope já está concluído.",
+    "pdf_too_complex": "Este PDF é complexo demais para processar com segurança (objetos demais, aninhamento ou dados comprimidos que crescem demais). Imprima para um novo PDF e envie esse.",
+    "pdf_unsupported": "Este PDF usa uma compressão que não aceitamos. Imprima para um novo PDF e envie esse.",
+    "admin_only": "Só um admin pode excluir um envelope concluído.",
+    "document_changed": "O documento guardado não corresponde ao que foi enviado. Nada foi assinado; fale com o suporte.",
+    "bulk_daily_cap": "O envio em massa é limitado a 1.000 envelopes por dia por workspace."
   },
   "new": {
     "title": "Novo envelope",
@@ -228,7 +233,8 @@
     "remove": "Remover campo",
     "done": "Pronto",
     "sideEmpty": "Selecione um campo para alterar.",
-    "count": "{n, plural, =0 {sem campos} one {# campo} other {# campos}}"
+    "count": "{n, plural, =0 {sem campos} one {# campo} other {# campos}}",
+    "placeOnPage": "Colocar o campo {kind} na página {page}: pressione Enter"
   },
   "detail": {
     "reminded": "Lembrete enviado.",
@@ -268,7 +274,8 @@
     "voidBody": "Os links param de funcionar e os destinatários que receberam um recebem seu motivo. As assinaturas feitas ficam na linha do tempo.",
     "voidReasonLabel": "Motivo",
     "deleteTitle": "Excluir este envelope?",
-    "deleteBody": "O envelope, os arquivos e a linha do tempo são excluídos para sempre. Os destinatários ficam com as cópias que receberam."
+    "deleteBody": "O envelope, os arquivos e a linha do tempo são excluídos para sempre. Os destinatários ficam com as cópias que receberam.",
+    "deleteCompleted": "É um registro concluído e assinado. Excluir remove para sempre do Sign o PDF assinado e a trilha de auditoria."
   },
   "event": {
     "created": "Criado",
@@ -314,7 +321,7 @@
     "roleName": "Nome do papel",
     "addRole": "Adicionar papel",
     "useDraft": "Criar como rascunho",
-    "bulkHelp": "Um envelope por linha, até {max}. O CSV precisa de um cabeçalho com name e email: cada linha preenche o papel {role}. Os outros papéis abaixo são iguais em todos os envelopes.",
+    "bulkHelp": "Um envelope por linha, até {max} por dia. O CSV precisa de um cabeçalho com name e email: cada linha preenche o papel {role}. Os outros papéis abaixo são iguais em todos os envelopes. Sai em lotes; enviar a mesma lista de novo não duplica envelopes.",
     "csv": "CSV",
     "csvFile": "Ou envie um arquivo CSV",
     "bulkSent": "{n, plural, one {# envelope enviado} other {# envelopes enviados}}.",
@@ -411,5 +418,9 @@
     "declineReason": "Motivo",
     "cancel": "Cancelar",
     "declineConfirm": "Recusar"
+  },
+  "noAccess": {
+    "title": "Você não pode abrir este documento assinado",
+    "body": "Só quem enviou, os admins do workspace e os destinatários podem vê-lo no Sign. Peça uma cópia a quem enviou."
   }
 }

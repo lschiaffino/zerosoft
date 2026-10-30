@@ -212,6 +212,8 @@ export async function requireSee(actor: SignActor, id: string): Promise<{ env: E
   if (!env) throw new SignError('not_found', 404);
   const recipients = await listRecipients(env.id);
   if (!canSeeEnvelope(actor, env, recipients.map((r) => r.email))) throw new SignError('not_found', 404);
+  // Un borrador es solo de quien lo arma (y de los admins): un destinatario todavía no recibió nada.
+  if (env.status === 'draft' && !canManageEnvelope(actor, env)) throw new SignError('not_found', 404);
   return { env, recipients };
 }
 
@@ -297,6 +299,7 @@ export async function envelopeDto(actor: SignActor, env: EnvelopeRow, recipients
     senderName: sender.name,
     senderEmail: sender.email,
     canManage: canManageEnvelope(actor, env),
+    canDelete: canManageEnvelope(actor, env) && env.status !== 'sent' && (env.status !== 'completed' || actor.admin),
     waitingOnMe: env.status === 'sent' && recipients.some((r) => active.has(r.id) && r.email.toLowerCase() === me),
     sentAt: env.sent_at,
     completedAt: env.completed_at,
@@ -403,6 +406,8 @@ export interface CreateEnvelopeInput {
   links?: EnvelopeLink[];
   templateId?: string | null;
   bulkId?: string | null;
+  /** Clave por fila del envío masivo: la misma fila no crea dos sobres aunque se reintente. */
+  bulkKey?: string | null;
   signingOrder?: SigningOrder;
   otpRequired?: boolean;
   expiresDays?: number;
@@ -415,8 +420,8 @@ export async function createEnvelope(actor: SignActor, input: CreateEnvelopeInpu
   const title = input.title.trim().slice(0, 200) || 'Untitled';
   await getDb()
     .prepare(
-      `INSERT INTO sign_envelopes (id, workspace_id, created_by, title, message, status, signing_order, otp_required, expires_days, reminder_days, locale, source, links, template_id, bulk_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO sign_envelopes (id, workspace_id, created_by, title, message, status, signing_order, otp_required, expires_days, reminder_days, locale, source, links, template_id, bulk_id, bulk_key, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -433,6 +438,7 @@ export async function createEnvelope(actor: SignActor, input: CreateEnvelopeInpu
       JSON.stringify((input.links ?? []).slice(0, 10)),
       input.templateId ?? null,
       input.bulkId ?? null,
+      input.bulkKey ?? null,
       ts,
       ts,
     );
@@ -692,17 +698,36 @@ export async function sendEnvelope(actor: SignActor, id: string): Promise<Envelo
 
 export async function voidEnvelope(actor: SignActor, id: string, reason: string): Promise<EnvelopeRow> {
   const { env, recipients } = await requireManage(actor, id);
+  return voidRow(env, recipients, reason, actor.person);
+}
+
+/**
+ * Anula desde otra app que ya validó el permiso (Hiring retira la oferta que
+ * salió a firmar). Nada si el sobre no está enviado.
+ */
+export async function voidEnvelopeFromApp(ws: string, id: string, reason: string, actorId: string): Promise<boolean> {
+  const env = await getEnvelopeRow(ws, id);
+  if (!env || env.status !== 'sent') return false;
+  await voidRow(env, await listRecipients(env.id), reason, actorId).catch(() => null);
+  return true;
+}
+
+async function voidRow(env: EnvelopeRow, recipients: RecipientRow[], reason: string, actorId: string): Promise<EnvelopeRow> {
   if (env.status !== 'sent') throw new SignError('invalid_state', 409);
   const ts = nowIso();
   const res = await getDb().prepare("UPDATE sign_envelopes SET status = 'voided', voided_at = ?, void_reason = ?, updated_at = ? WHERE id = ? AND status = 'sent'").run(ts, reason.slice(0, 500), ts, env.id);
   if (!res.changes) throw new SignError('invalid_state', 409);
-  await addEvent(env.id, 'voided', { actorId: actor.person, detail: { reason: reason.slice(0, 500) } });
+  await addEvent(env.id, 'voided', { actorId, detail: { reason: reason.slice(0, 500) } });
   const sender = await personName(env.created_by);
   const locale = signLocale(env.locale);
   for (const r of recipients.filter((x) => x.notified_at)) {
     await emailTo(env, r.email, 'voidedSubject', [signCopy(locale, 'voidedLine', { sender: sender.name, title: env.title }), ...(reason ? [signCopy(locale, 'reason', { reason })] : [])], { title: env.title });
   }
-  return (await getEnvelopeRow(actor.ws, env.id))!;
+  const voided = (await getEnvelopeRow(env.workspace_id, env.id))!;
+  // Otras apps (una oferta de Hiring vuelve a "aprobada").
+  const { runSignHooks } = await import('./hooks');
+  await runSignHooks('voided', voided, null);
+  return voided;
 }
 
 /** Copia a un borrador nuevo (mismo documento, destinatarios y campos): así se "corrige" un sobre enviado. */
@@ -748,6 +773,8 @@ export async function copyEnvelope(actor: SignActor, id: string): Promise<Envelo
 export async function deleteEnvelope(actor: SignActor, id: string): Promise<void> {
   const { env } = await requireManage(actor, id);
   if (env.status === 'sent') throw new SignError('void_first', 409);
+  // Un sobre completo es un registro firmado: solo un admin lo borra (la UI pide confirmación).
+  if (env.status === 'completed' && !actor.admin) throw new SignError('admin_only', 403);
   const res = await getDb().prepare("DELETE FROM sign_envelopes WHERE id = ? AND status != 'sent'").run(env.id);
   if (!res.changes) throw new SignError('void_first', 409);
   await deleteSignFiles([env.document_ref, env.final_ref]);

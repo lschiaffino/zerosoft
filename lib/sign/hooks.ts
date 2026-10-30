@@ -5,7 +5,7 @@
  */
 import type { EnvelopeRow } from './core';
 
-export async function runSignHooks(kind: 'completed' | 'declined', env: EnvelopeRow, who: { name: string; email: string; reason?: string } | null): Promise<void> {
+export async function runSignHooks(kind: 'completed' | 'declined' | 'voided' | 'expired', env: EnvelopeRow, who: { name: string; email: string; reason?: string } | null): Promise<void> {
   if (!env.links || env.links === '[]') return;
   const { runIntegrations } = await import('./integrations');
   await runIntegrations(kind, env, who);

@@ -163,15 +163,21 @@ export async function sendOtp(r: Resolved, meta: Meta): Promise<{ to: string }> 
 export async function verifyOtp(r: Resolved, code: string, meta: Meta): Promise<string> {
   const state = publicState(r, false);
   if (state !== 'otp' && state !== 'ready') throw new SignError(`state_${state}`, 409);
-  const fresh = (await getDb().prepare('SELECT * FROM sign_recipients WHERE id = ?').get(r.recipient.id)) as RecipientRow;
-  const result = checkOtp(fresh, code.trim());
+  const db = getDb();
+  // Cada intento se reserva antes de comparar (compare-and-set): con pedidos en paralelo
+  // se evalúan como mucho OTP_MAX_ATTEMPTS códigos por código enviado.
+  const claim = await db
+    .prepare('UPDATE sign_recipients SET otp_attempts = otp_attempts + 1 WHERE id = ? AND otp_hash IS NOT NULL AND otp_attempts < ?')
+    .run(r.recipient.id, OTP_MAX_ATTEMPTS);
+  const fresh = (await db.prepare('SELECT * FROM sign_recipients WHERE id = ?').get(r.recipient.id)) as RecipientRow;
+  if (!claim.changes) throw new SignError(fresh.otp_hash ? 'otp_locked' : 'otp_none', fresh.otp_hash ? 429 : 400);
+  // El intento ya está contado: se compara como si fuera el anterior.
+  const result = checkOtp({ ...fresh, otp_attempts: fresh.otp_attempts - 1 }, code.trim());
   if (result !== 'ok') {
     if (result === 'wrong') {
-      // Compare-and-set: dos intentos a la vez cuentan los dos.
-      await getDb().prepare('UPDATE sign_recipients SET otp_attempts = otp_attempts + 1 WHERE id = ?').run(r.recipient.id);
       await addEvent(r.env.id, 'otp_failed', { recipientId: r.recipient.id, ip: meta.ip, ua: meta.ua });
-      if (fresh.otp_attempts + 1 >= OTP_MAX_ATTEMPTS) throw new SignError('otp_locked', 429);
-      throw new SignError('otp_wrong', 400, { left: OTP_MAX_ATTEMPTS - fresh.otp_attempts - 1 });
+      if (fresh.otp_attempts >= OTP_MAX_ATTEMPTS) throw new SignError('otp_locked', 429);
+      throw new SignError('otp_wrong', 400, { left: OTP_MAX_ATTEMPTS - fresh.otp_attempts });
     }
     throw new SignError(result === 'locked' ? 'otp_locked' : result === 'expired' ? 'otp_expired' : 'otp_none', result === 'locked' ? 429 : 400);
   }
@@ -311,6 +317,11 @@ export async function finalizeEnvelope(envId: string): Promise<boolean> {
   }
   const original = await readSignFile(env.document_ref);
   if (!original) throw new SignError('file_unavailable', 500);
+  // Lo que se firma tiene que ser exactamente lo que se envió (el hash del certificado).
+  if (env.document_hash && sha256Hex(original) !== env.document_hash) {
+    await addEvent(env.id, 'integrity_failed', { detail: { expected: env.document_hash } });
+    throw new SignError('document_changed', 500);
+  }
   const fields = await listFields(env.id);
   const byRecipient = new Map(recipients.map((r) => [r.id, r]));
   const flattened = await flattenFields(
@@ -386,6 +397,7 @@ export async function expireEnvelope(env: EnvelopeRow): Promise<boolean> {
   const sender = await personName(env.created_by);
   if (sender.email) await emailTo(env, sender.email, 'expiredSubject', [signCopy(signLocale(env.locale), 'expiredLine', { title: env.title })], { title: env.title });
   await notifySender(env, 'notifyExpired');
+  await runSignHooks('expired', (await envelopeById(env.id))!, null);
   return true;
 }
 
