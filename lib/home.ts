@@ -232,7 +232,7 @@ export async function homeUnread(user: HomeUser): Promise<{ chat: number | null;
 
 // ---------- Recientes ----------
 
-export type RecentKind = 'doc' | 'note' | 'board' | 'design' | 'issue' | 'link' | 'contact' | 'deal' | 'flow' | 'product' | 'insight' | 'socialPost' | 'booksInvoice';
+export type RecentKind = 'doc' | 'note' | 'board' | 'design' | 'issue' | 'link' | 'contact' | 'deal' | 'flow' | 'product' | 'insight' | 'socialPost' | 'booksInvoice' | 'form';
 
 export interface RecentItem {
   kind: RecentKind;
@@ -257,6 +257,7 @@ const RECENT_PRODUCT: Record<RecentKind, ProductKey> = {
   insight: 'analytics',
   socialPost: 'social',
   booksInvoice: 'books',
+  form: 'forms',
 };
 
 /** Fecha comparable: '2026-10-25 10:00:00' y '2026-10-25T10:00:00.000Z' ordenan igual. */
@@ -291,7 +292,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
 
   const socialAdmin = !user.role || user.role === 'owner' || user.role === 'admin';
   const person = user.actingUser?.id ?? user.id;
-  const [docs, notes, boards, designs, issues, links, contacts, deals, flows, products, insights, socialPosts, booksInvoices] = await Promise.all([
+  const [docs, notes, boards, designs, issues, links, contacts, deals, flows, products, insights, socialPosts, booksInvoices, forms] = await Promise.all([
     all(`SELECT id, title AS label, updated_at FROM docs_pages WHERE user_id = ? AND archived = 0 ORDER BY updated_at DESC LIMIT ?`, user.id, per),
     // Notas: solo las de la persona (son privadas aunque el workspace sea compartido).
     listNotes(noteOwner(user), { view: 'all', limit: per })
@@ -363,6 +364,17 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
           per,
         )
       : Promise.resolve([] as Row[]),
+    // Forms: los formularios que la persona ve (acceso por formulario), nunca guest.
+    homeCanUse(user, 'forms') && user.role !== 'guest'
+      ? all(
+          `SELECT f.id, f.name AS label, f.updated_at FROM forms_forms f WHERE f.workspace_id = ? AND (? = 1 OR f.sharing = 'workspace' OR f.created_by = ? OR EXISTS (SELECT 1 FROM forms_members m WHERE m.form_id = f.id AND m.user_id = ?)) ORDER BY f.updated_at DESC LIMIT ?`,
+          user.id,
+          socialAdmin ? 1 : 0,
+          person,
+          person,
+          per,
+        )
+      : Promise.resolve([] as Row[]),
   ]);
 
   const href: Record<RecentKind, (id: string) => string> = {
@@ -379,6 +391,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
     insight: (id) => `/app/analytics/insights/${id}`,
     socialPost: (id) => `/app/social/posts/${id}`,
     booksInvoice: (id) => `/app/books/invoices/${id}`,
+    form: (id) => `/app/forms/${id}`,
   };
   const groups: Array<[RecentKind, Row[]]> = [
     ['doc', docs],
@@ -394,6 +407,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
     ['insight', insights],
     ['socialPost', socialPosts],
     ['booksInvoice', booksInvoices],
+    ['form', forms],
   ];
   const items = groups
     .flatMap(([kind, rows]) =>

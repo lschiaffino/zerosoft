@@ -762,6 +762,14 @@ const APPS: AppCase[] = [
     detail: (i) => `/en/app/books/recurring/${i.id}`,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/books/recurring/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/books/recurring/${i.id}`))),
+  },  {
+    // Forms: un formulario desde una plantilla; el detalle es el builder (el nombre va en un input).
+    app: 'Forms',
+    list: '/en/app/forms',
+    create: async (request, name) => ({ id: (await ok<{ form: { id: string } }>(request.post('/api/forms', { data: { name, template: 'contact' } }))).form.id, name }),
+    detail: (i) => `/en/app/forms/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/forms/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/forms/${i.id}`))),
   },
 ];
 

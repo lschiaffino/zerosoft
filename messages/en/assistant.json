@@ -165,6 +165,11 @@
       "a": "Which invoices are overdue?",
       "b": "How much did we invoice this month?",
       "c": "Draft an invoice for my last customer"
+    },
+    "forms": {
+      "a": "How many NPS responses did we get this week?",
+      "b": "Summarize the answers to my feedback form",
+      "c": "Create a contact form from a template"
     }
   },
   "page": {

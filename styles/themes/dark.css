@@ -89,6 +89,10 @@
   --c-people-ink: #c99a6b;
   --c-people: #c99a6b;
   --c-people-on: #111111;
+  /* Forms: el vino base no se lee sobre el fondo oscuro; relleno rosado claro y tinta encima. */
+  --c-forms-ink: #e3a1ad;
+  --c-forms: #e3a1ad;
+  --c-forms-on: #111111;
 
     /* Semánticos: -ink para texto, -soft mezclado con el fondo oscuro. */
     --ok-ink: #2bb062;
@@ -200,6 +204,10 @@
   --c-people-ink: #c99a6b;
   --c-people: #c99a6b;
   --c-people-on: #111111;
+  /* Forms: el vino base no se lee sobre el fondo oscuro; relleno rosado claro y tinta encima. */
+  --c-forms-ink: #e3a1ad;
+  --c-forms: #e3a1ad;
+  --c-forms-on: #111111;
 
   /* Semánticos: -ink para texto, -soft mezclado con el fondo oscuro. */
   --ok-ink: #2bb062;

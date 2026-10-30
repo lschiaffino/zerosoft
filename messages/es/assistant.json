@@ -165,6 +165,11 @@
       "a": "¿Qué facturas están vencidas?",
       "b": "¿Cuánto facturamos este mes?",
       "c": "Armá una factura para mi último cliente"
+    },
+    "forms": {
+      "a": "¿Cuántas respuestas de NPS tuvimos esta semana?",
+      "b": "Resumí las respuestas de mi formulario de feedback",
+      "c": "Creá un formulario de contacto desde una plantilla"
     }
   },
   "page": {

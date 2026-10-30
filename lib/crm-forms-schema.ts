@@ -4,6 +4,7 @@
  */
 import { z } from 'zod';
 import { LEAD_STATUSES, LIFECYCLE_STAGES, SOURCES } from './crm-constants';
+import { compareText, isEmail, isPhone, urlParamsOf as sharedUrlParamsOf } from './form-engine';
 
 /** 'step' no es un campo: corta el formulario en pasos (su etiqueta es el título del paso). */
 export const FORM_FIELD_TYPES = ['text', 'email', 'phone', 'select', 'checkbox', 'textarea', 'hidden', 'step'] as const;
@@ -274,8 +275,6 @@ export function normalizeFields(raw: unknown): FormField[] {
   return out;
 }
 
-const EMAIL_RE = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/;
-
 /** Valor del campo como texto para comparar ('yes'/'' para checkboxes). */
 function asText(v: string | boolean | undefined): string {
   if (v === true) return 'yes';
@@ -298,18 +297,8 @@ export function isFieldVisible(
   const parent = fields.find((f) => f.id === c.field);
   if (!parent) return true;
   if (!isFieldVisible(parent, values, fields, depth + 1)) return false;
-  const v = asText(values[c.field]);
-  const target = (c.value ?? '').trim();
-  switch (c.op) {
-    case 'filled':
-      return v !== '';
-    case 'empty':
-      return v === '';
-    case 'not_equals':
-      return v.toLowerCase() !== target.toLowerCase();
-    default:
-      return v.toLowerCase() === target.toLowerCase();
-  }
+  // Motor común (lib/form-engine.ts): misma comparación que la app Forms.
+  return compareText(c.op, asText(values[c.field]), c.value ?? '');
 }
 
 /** Campos agrupados en pasos (los 'step' cortan; el primero puede no tener título). */
@@ -389,8 +378,8 @@ export function validateSubmission(
       values[field.id] = '';
       continue;
     }
-    if (field.type === 'email' && !EMAIL_RE.test(value)) errors[field.id] = 'invalid_email';
-    if (field.type === 'phone' && !/^[+\d][\d\s().-]{4,30}$/.test(value)) errors[field.id] = 'invalid_phone';
+    if (field.type === 'email' && !isEmail(value)) errors[field.id] = 'invalid_email';
+    if (field.type === 'phone' && !isPhone(value)) errors[field.id] = 'invalid_phone';
     if (field.type === 'select' && field.options?.length && !field.options.includes(value)) {
       errors[field.id] = 'invalid_option';
     }
@@ -437,17 +426,5 @@ export function mapSubmission(fields: FormField[], values: Record<string, string
   return out;
 }
 
-/** Parámetros de UTM/URL de una URL (para capturar en campos ocultos). */
-export function urlParamsOf(url: string | undefined): Record<string, string> {
-  if (!url) return {};
-  try {
-    const u = new URL(url);
-    const out: Record<string, string> = {};
-    u.searchParams.forEach((v, k) => {
-      if (k.length <= 60) out[k] = v.slice(0, 500);
-    });
-    return out;
-  } catch {
-    return {};
-  }
-}
+/** Parámetros de UTM/URL de una URL (para capturar en campos ocultos). Del motor común. */
+export const urlParamsOf = sharedUrlParamsOf;

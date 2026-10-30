@@ -32,6 +32,8 @@ import { searchHiring } from '@/lib/hiring/candidates';
 import { actorOf as hiringActorOf } from '@/lib/hiring/http';
 import { searchPeopleForPalette } from '@/lib/people';
 import { searchBooks } from '@/lib/books-search';
+import { searchForms } from '@/lib/forms/search';
+import { actorOf as formsActorOf } from '@/lib/forms/http';
 import { actorOf } from '@/lib/rec-http';
 import { searchPlanning } from '@/lib/track-planning-search';
 import { listConversations } from '@/lib/assistant/store';
@@ -60,7 +62,7 @@ export async function GET(req: NextRequest) {
   if (!q) return NextResponse.json<SearchResponse>({ q, items: [] });
 
   const scope = await sessionScope(user);
-  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec, designs, shop, hiring, people, books] = await Promise.all([
+  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec, designs, shop, hiring, people, books, forms] = await Promise.all([
     searchAll(user.id, q, scope),
     listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
     // Docs: título y texto de los bloques (el fragmento va como meta).
@@ -98,6 +100,8 @@ export async function GET(req: NextRequest) {
     userCanUseApp(user, 'people') ? searchPeopleForPalette(user.id, (user.actingUser ?? user).id, user.role, q).catch(() => []) : Promise.resolve([]),
     // Books: comprobantes, contactos, ítems, bancos y recurrentes (con la app y según el rol de Books).
     userCanUseApp(user, 'books') ? searchBooks(user, q).catch(() => []) : Promise.resolve([]),
+    // Forms: formularios por nombre, solo los que la persona ve (con la app, nunca guest).
+    userCanUseApp(user, 'forms') && user.role !== 'guest' ? searchForms(formsActorOf(user), q).catch(() => []) : Promise.resolve([]),
   ]);
 
   const items: SearchResultItem[] = [];
@@ -198,6 +202,7 @@ export async function GET(req: NextRequest) {
     items.push({ id: `hiring-${h.kind}:${h.id}`, group: h.kind === 'job' ? 'hiringJobs' : 'hiringCandidates', label: h.label, meta: h.meta, href: h.href });
   }
   for (const b of books) items.push({ id: b.id, group: b.group, label: b.label, meta: b.meta, href: b.href });
+  for (const f of forms) items.push({ id: `forms:${f.id}`, group: 'forms', label: f.label, meta: f.meta, href: f.href });
 
   const PEOPLE_GROUP = { person: 'people', template: 'peopleTemplates', cycle: 'peopleCycles' } as const;
   const PEOPLE_HREF = { person: (id: string) => `/app/people/${id}`, template: (id: string) => `/app/people/onboarding/templates/${id}`, cycle: (id: string) => `/app/people/reviews/${id}` } as const;

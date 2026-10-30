@@ -213,6 +213,8 @@ export interface SidebarLabels {
   };
   /** People (BambooHR): directorio, organigrama, licencias, onboarding, evaluaciones, reportes. */
   people: { directory: string; org: string; timeOff: string; onboarding: string; reviews: string; reports: string; welcome: string; newPerson: string };
+  /** Forms (Typeform): formularios, plantillas y ajustes. */
+  forms: { forms: string; templates: string; newForm: string };
   /** Books: ventas, compras, contactos, ítems, bancos, contabilidad e informes. */
   books: {
     overview: string;
@@ -292,7 +294,8 @@ export type AppProduct =
   | 'social'
   | 'hiring'
   | 'people'
-  | 'books';
+  | 'books'
+  | 'forms';
 
 const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/crm', 'crm'],
@@ -316,6 +319,7 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/hiring', 'hiring'],
   ['/app/people', 'people'],
   ['/app/books', 'books'],
+  ['/app/forms', 'forms'],
 ];
 
 /** La app del shell para una clave de producto (Cal vive en /app/calendar). */
@@ -361,6 +365,7 @@ const APP_ICONS: Record<ProductKey, IconName> = {
   hiring: 'hiring',
   people: 'people',
   books: 'books',
+  forms: 'forms',
 };
 
 /** Producto de la app según la ruta. /app (inicio) y /app/settings son la plataforma (neutro); /app/links es Link. */
@@ -967,6 +972,16 @@ export function buildNav(
         },
         appSettingsGroup('/app/books/settings'),
       ];
+    case 'forms':
+      return [
+        {
+          items: [
+            { href: '/app/forms', label: labels.forms.forms, active: pathname === '/app/forms' || /^\/app\/forms\/fm_/.test(pathname), icon: 'forms' },
+            { href: '/app/forms/new', label: labels.forms.templates, active: at('/app/forms/new'), icon: 'templates' },
+          ],
+        },
+        appSettingsGroup('/app/forms/settings'),
+      ];
 
     // Shell genérico (inicio y ajustes).
     case 'talk': {
@@ -1085,6 +1100,8 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
       return [item('/app/people?new=1', labels.people.newPerson, 'people'), item('/app/people/time-off?new=1', labels.people.timeOff, 'timeoff')];
     case 'books':
       return [item('/app/books/invoices/new', labels.books.newInvoice, 'books')];
+    case 'forms':
+      return [item('/app/forms/new', labels.forms.newForm, 'forms')];
     case 'link':
     default:
       return [item('/app/links/new', labels.newLink, 'newLink')];

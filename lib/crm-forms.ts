@@ -31,6 +31,7 @@ import {
 import { LIFECYCLE_STAGES } from './crm-constants';
 import { isWorkspacePerson } from './crm-refs';
 import { emitEvent } from './events';
+import { csvCell, looksLikeSpam } from './form-engine';
 import type { OwnerScope } from './crm-visibility';
 
 export interface CrmForm {
@@ -184,7 +185,9 @@ async function slugTaken(slug: string, exceptId: string | null, db: Db): Promise
   const row = await db
     .prepare('SELECT 1 FROM crm_forms WHERE (slug = ? OR token = ?) AND id != ?')
     .get(slug, slug, exceptId ?? '');
-  return !!row;
+  if (row) return true;
+  // /f/<slug> es compartido con la app Forms: tampoco puede chocar con uno de sus formularios.
+  return !!(await db.prepare('SELECT 1 FROM forms_forms WHERE slug = ?').get(slug));
 }
 
 /** Valida referencias de settings (owner, lista, tags, secuencia) contra el workspace. */
@@ -353,14 +356,6 @@ export async function listSubmissions(
   return { rows, total };
 }
 
-function csvCell(value: unknown): string {
-  if (value === null || value === undefined) return '';
-  const s = String(value);
-  // Evita inyección de fórmulas al abrir el CSV en una planilla.
-  const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
-  return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
-}
-
 /** CSV de envíos: fecha, contacto, una columna por campo y UTM. */
 export function submissionsCsv(form: CrmForm, rows: SubmissionRow[]): string {
   const utmKeys = new Set<string>();
@@ -437,13 +432,11 @@ export async function submitForm(
     redirectUrl: s.successMode === 'redirect' ? s.redirectUrl : '',
   };
 
-  if ((body.website_url ?? '').trim()) return { ok: true, spam: true, ...success };
+  if (looksLikeSpam({ honeypot: body.website_url, minSeconds: 0 })) return { ok: true, spam: true, ...success };
   if (s.captcha && captchaConfigured() && !(await verifyCaptcha(body.captchaToken, meta.ip))) {
     return { ok: false, error: 'captcha' };
   }
-  if (s.minSubmitSeconds > 0 && body.elapsedMs !== undefined && body.elapsedMs < s.minSubmitSeconds * 1000) {
-    return { ok: true, spam: true, ...success };
-  }
+  if (looksLikeSpam({ elapsedMs: body.elapsedMs, minSeconds: s.minSubmitSeconds })) return { ok: true, spam: true, ...success };
 
   const urlParams = { ...urlParamsOf(body.pageUrl), ...(body.utm ?? {}) };
   const { values, errors } = validateSubmission(form.fields, s, body, urlParams);

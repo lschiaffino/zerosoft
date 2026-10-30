@@ -35,7 +35,7 @@ export function sectionOf(pathname: string): string {
   return seg;
 }
 
-const SECTIONS = ['home', 'crm', 'track', 'docs', 'flow', 'robots', 'settings', 'cal', 'link', 'talk', 'voice', 'chat', 'groups', 'agents', 'notes', 'board', 'shop', 'analytics', 'hiring', 'people', 'books'] as const;
+const SECTIONS = ['home', 'crm', 'track', 'docs', 'flow', 'robots', 'settings', 'cal', 'link', 'talk', 'voice', 'chat', 'groups', 'agents', 'notes', 'board', 'shop', 'analytics', 'hiring', 'people', 'books', 'forms'] as const;
 
 /** Preguntas sugeridas según la página (tres por sección, traducidas). */
 export function useSuggestions(pathname: string): string[] {

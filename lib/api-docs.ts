@@ -73,6 +73,7 @@ export const API_SECTIONS: ApiSection[] = [
   { id: 'analytics', titleKey: 'analyticsApiTitle', descKey: 'analyticsApiDesc' },
   { id: 'social', titleKey: 'socialApiTitle', descKey: 'socialApiDesc' },
   { id: 'books', titleKey: 'booksApiTitle', descKey: 'booksApiDesc' },
+  { id: 'forms', titleKey: 'formsApiTitle', descKey: 'formsApiDesc' },
   { id: 'webhooks', titleKey: 'webhooksTitle', descKey: 'webhooksDesc' },
 ];
 
@@ -3319,6 +3320,50 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     request: { contactId: 'con_1', reference: 'PO 778', lines: [{ description: 'Consulting', quantity: 10, unitPrice: '1000.00', taxRateId: 'tax_iva21' }] },
     response: { data: { id: 'inv_2', docType: 'invoice', status: 'draft', numberLabel: '', total: 1210000, currency: 'ARS', lines: [{ description: 'Consulting', quantity: 10, unitPrice: 100000, taxBps: 2100, net: 1000000, tax: 210000, total: 1210000 }] } },
     responseStatus: 201,
+  },
+  // Forms (formularios y encuestas)
+  {
+    id: 'forms-list',
+    sectionId: 'forms',
+    method: 'GET',
+    path: '/api/v1/forms/forms',
+    titleKey: 'formsListTitle',
+    descKey: 'formsListDesc',
+    scope: 'forms:read',
+    params: [
+      { name: 'q', type: 'string', descriptionKey: 'paramSearch' },
+      { name: 'status', type: 'string', descriptionKey: 'paramFormsStatus' },
+    ],
+    response: {
+      data: [
+        { id: 'fm_1', name: 'NPS survey', slug: 'nps-survey-a1b2c3', status: 'published', responseCount: 42, partialCount: 3, lastResponseAt: '2026-11-03T13:00:00.000Z', updatedAt: '2026-11-03T13:00:00.000Z', sharing: 'workspace', open: true },
+      ],
+    },
+    responseStatus: 200,
+  },
+  {
+    id: 'forms-responses',
+    sectionId: 'forms',
+    method: 'GET',
+    path: '/api/v1/forms/responses',
+    titleKey: 'formsResponsesTitle',
+    descKey: 'formsResponsesDesc',
+    scope: 'forms:read',
+    params: [
+      { name: 'form', type: 'string', required: true, descriptionKey: 'paramFormsForm' },
+      { name: 'status', type: 'string', descriptionKey: 'paramFormsResponseStatus' },
+      { name: 'from', type: 'string', descriptionKey: 'paramFormsFrom' },
+      { name: 'to', type: 'string', descriptionKey: 'paramFormsTo' },
+      { name: 'page', type: 'integer', descriptionKey: 'paramPage' },
+      { name: 'limit', type: 'number', descriptionKey: 'paramLimit' },
+    ],
+    response: {
+      data: [
+        { id: 'rs_1', status: 'completed', answers: { q_1: 9, q_2: 'Fast and clear' }, hidden: { source: 'newsletter' }, vars: { score: 0 }, endingId: 'end_1', lang: 'en', contactId: 'con_1', consent: true, createdAt: '2026-11-03T12:58:00.000Z', submittedAt: '2026-11-03T13:00:00.000Z' },
+      ],
+      total: 42,
+    },
+    responseStatus: 200,
   },
 ];
 

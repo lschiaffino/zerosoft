@@ -91,6 +91,7 @@ export const FLOW_EVENT_TYPES = [
   'people.offboarded',
   'books.invoice.paid',
   'books.invoice.overdue',
+  'forms.response.submitted',
 ] as const;
 export type FlowEventType = (typeof FLOW_EVENT_TYPES)[number];
 
@@ -545,6 +546,20 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
       url: 'https://zerosoftware.ai/en/app/books/invoices/inv_1',
     },
     daysOverdue: 3,
+  },
+  // Forms: respuestas por ref de pregunta, ocultos y variables (solo flows de personas con acceso al form).
+  'forms.response.submitted': {
+    form: { id: 'fm_1', name: 'NPS survey', slug: 'nps-survey' },
+    response: {
+      id: 'fmr_1',
+      submittedAt: '2026-11-03T13:00:00.000Z',
+      lang: 'en',
+      ending: 'end_thanks',
+      answers: { score_nps: '9', love: 'The speed', email: 'ana@example.com' },
+      hidden: { utm_source: 'newsletter' },
+      variables: { score: 0 },
+      url: 'https://zerosoftware.ai/en/app/forms/fm_1/responses/fmr_1',
+    },
   },
 };
 

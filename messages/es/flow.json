@@ -857,7 +857,8 @@
     "hiring_candidate_stage_changed": "Hiring: candidato cambió de etapa",
     "hiring_candidate_hired": "Hiring: candidato contratado",
     "books_invoice_paid": "Books: factura cobrada",
-    "books_invoice_overdue": "Books: factura vencida"
+    "books_invoice_overdue": "Books: factura vencida",
+    "forms_response_submitted": "Forms: respuesta enviada"
   },
   "ops": {
     "equals": "es igual a",

@@ -43,6 +43,7 @@ export const RIVALS: Record<ProductKey, string> = {
   hiring: 'Workable',
   people: 'BambooHR',
   books: 'Xero · QuickBooks',
+  forms: 'Typeform',
 };
 
 /** Las seis apps de la tabla de costos del home (precio por usuario o plan fijo). */
@@ -154,4 +155,6 @@ export const PRODUCT_PAGES: Record<ProductKey, ProductPageSpec> = {
   people: { sections: ['shot', 'features', 'parity', 'how', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
   // Sin bloque de precios: el de Xero no se verificó en USD para la región.
   books: { sections: ['shot', 'features', 'parity', 'how', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
+  // Los precios de Typeform no se pudieron verificar: el bloque remite a typeform.com/pricing.
+  forms: { sections: ['shot', 'features', 'parity', 'how', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
 };

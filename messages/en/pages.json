@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "Products",
-      "description": "Twenty-two apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics, Social, Hiring, People and Books. Open source for your server, or on zerosoft Cloud with a free plan and pay as you go."
+      "description": "Twenty-three apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics, Social, Hiring, People, Books and Forms. Open source for your server, or on zerosoft Cloud with a free plan and pay as you go."
     },
     "hero": {
-      "title1": "Twenty-two apps.",
+      "title1": "Twenty-three apps.",
       "title2": "One workspace.",
       "sub": "For your company: CRM, support, AI agents, automations, robots, projects and links. For you: docs, notes, scheduling and a whiteboard. The core of each one is open source and runs on your server for $0."
     },
     "cta": {
-      "title1": "Try all twenty-two apps.",
+      "title1": "Try all twenty-three apps.",
       "title2": "With one account.",
       "sub": "Sign in with Google, create a workspace and start on the free plan. If you later prefer your own server, the code is on GitHub.",
       "button": "Open the app"
@@ -1942,6 +1942,92 @@
         "sub": "Open Books, pick your country and send your first invoice.",
         "button": "Open Books"
       }
+    },
+    "forms": {
+      "meta": {
+        "title": "Forms: open-source forms and surveys, a Typeform alternative",
+        "description": "Forms and surveys that ask one question at a time, with logic, quizzes, NPS, file upload, themes, embeds and a responses table with a summary per question. An open-source alternative to Typeform, Google Forms and Tally."
+      },
+      "hero": {
+        "sub": "Build a form from a template, add logic and your colors, share a link or embed it, and read the answers in a table, a summary per question and a CSV. Every response can reach your CRM and your automations."
+      },
+      "featuresTitle": "Ask one question at a time.",
+      "featuresTitleDim": "Keep every answer.",
+      "f1": {
+        "t": "Questions for every case",
+        "d": "Short and long text, email, phone, number, URL, date, multiple choice, checkboxes, dropdown, yes or no, rating, opinion scale, NPS, ranking, matrix, file upload and signature. Files are private, checked by their bytes, up to 10 MB."
+      },
+      "f2": {
+        "t": "Logic and quizzes",
+        "d": "Jump by answer, branch with all or any conditions, calculate a score with points per option, pick an ending per path and show earlier answers or the score in later questions. Jumps only go forward."
+      },
+      "f3": {
+        "t": "Your look, in your languages",
+        "d": "Five themes, custom colors, four fonts and the colors from your Design brand kit. A form can be translated to English, Spanish and Portuguese with a table, and 12 templates get you started."
+      },
+      "f4": {
+        "t": "Keyboard first",
+        "d": "Enter to continue, letters A, B and C for choices, Y and N for yes or no, number keys and arrows. A progress bar shows where you are, answers are saved in the browser and a classic mode puts every question on one page."
+      },
+      "f5": {
+        "t": "Share it anywhere",
+        "d": "A public link, an inline embed script, an iframe, a popup and a QR code. Hidden fields come from URL parameters, and you can close a form on a date or after a number of responses."
+      },
+      "f6": {
+        "t": "Answers that go somewhere",
+        "d": "A responses table with filters, a summary per question with bar charts, averages, NPS and drop-off, and a CSV export. Responses can create CRM contacts, start a Flow, notify people and call a signed webhook."
+      },
+      "steps": {
+        "s1": {
+          "t": "Start from a template",
+          "d": "Contact, lead generation, NPS, RSVP, job application, feedback, quiz and more, or a blank form."
+        },
+        "s2": {
+          "t": "Add logic and your look",
+          "d": "Jumps, endings, a score, a theme and a language for each audience."
+        },
+        "s3": {
+          "t": "Share and read",
+          "d": "Send the link or embed the form, then follow responses and drop-off per question."
+        }
+      },
+      "compare": {
+        "rival": "Typeform",
+        "price": "A plan per account",
+        "per": "with a response cap per plan, monthly or yearly",
+        "teamLabel": "A team collecting responses",
+        "team": "see Typeform pricing",
+        "zero": "$0",
+        "note": "Typeform sells plans by account with response limits. We could not verify the current prices, so check typeform.com/pricing. Forms on your server costs $0 plus your database and email sending."
+      },
+      "faq": {
+        "f1": {
+          "q": "Does it show one question at a time?",
+          "a": "Yes, by default. You move with Enter, letters for choices, Y and N, number keys and arrows. If you prefer, a classic mode shows every question on one page."
+        },
+        "f2": {
+          "q": "What happens if someone does not finish?",
+          "a": "Their progress is saved in their browser so they can resume. If they agree, the answers so far are sent as a partial response, and the summary shows where people drop off."
+        },
+        "f3": {
+          "q": "Where do the answers go?",
+          "a": "To the responses table and a CSV export. From there a response can create a CRM contact (only for new emails), start a Flow, notify people by email and in the app, or call a signed webhook. There is no native Google Sheets connection yet."
+        },
+        "f4": {
+          "q": "Who can see the responses?",
+          "a": "Each form is open to the whole workspace or to the people you choose. Cmd+K, the assistant and the API follow the same rule."
+        },
+        "f5": {
+          "q": "What is missing compared to Typeform?",
+          "a": "Payments, native integrations such as Google Sheets and a Zapier app (webhooks and Flow instead), AI form generation, video and audio questions, A/B testing, custom domains, a CAPTCHA option (Forms uses a honeypot, a minimum time and a rate limit), tagging responses and drag and drop to reorder questions (buttons move them). The parity table above has the full list."
+        }
+      },
+      "cta": {
+        "title1": "Build your first form.",
+        "title2": "Share the link.",
+        "sub": "Open Forms, pick a template and publish a link.",
+        "button": "Open Forms"
+      }
     }
   },
   "product": {
@@ -1957,7 +2043,7 @@
     "apiDocs": "API docs",
     "howTitle": "How it works.",
     "suiteTitle": "One workspace.",
-    "suiteTitleDim": "Twenty-two apps, same login.",
+    "suiteTitleDim": "Twenty-three apps, same login.",
     "shotTitle": "{name}, inside.",
     "crumbs": "Breadcrumb",
     "navLabel": "{name} sections",
@@ -2431,6 +2517,23 @@
       "i2": "Setup × 1 · 10% off · VAT 21%",
       "total": "Total $121,000 · VAT $21,000",
       "action": "Journal posted: Bank / Receivables"
+    },
+    "forms": {
+      "listTitle": "Forms",
+      "r1name": "NPS survey",
+      "r1time": "42",
+      "r1meta": "42 responses · NPS 38",
+      "r2name": "Contact form",
+      "r2time": "17",
+      "r2meta": "17 responses · open",
+      "r3name": "Workshop registration",
+      "r3time": "60",
+      "r3meta": "Closed at 60 responses",
+      "status": "Published",
+      "i1": "1 of 5 · How likely are you to recommend us? (0 to 10)",
+      "i2": "Press 9, then Enter",
+      "summary": "Summary",
+      "action": "42 responses · average 8.4 · 3 stopped at question 4"
     }
   },
   "status": {
@@ -2848,7 +2951,14 @@
     "crmFormsTitle": "CRM · Forms",
     "crmFormsDesc": "Lead capture forms and their submissions. Each submission also creates or updates a contact and logs a \"Form submitted\" activity.",
     "formsListTitle": "List forms",
-    "formsListDesc": "All forms in the workspace with their fields, status and submission count. `key` is the public slug (or token) used in /f/'<key>' and the embed script.",
+    "formsListDesc": "Forms newest first, with status, response and partial counts, last response and who can open them.",
+    "formsResponsesTitle": "List responses",
+    "formsResponsesDesc": "Responses of one form, newest first. Answers are keyed by question id. File answers return a reference, not the file.",
+    "paramFormsStatus": "Filter forms by status, for example published.",
+    "paramFormsForm": "Id of the form.",
+    "paramFormsResponseStatus": "completed (default) or partial.",
+    "paramFormsFrom": "Only responses submitted on or after this date (YYYY-MM-DD).",
+    "paramFormsTo": "Only responses submitted on or before this date (YYYY-MM-DD).",
     "formsSubmissionsTitle": "List form submissions",
     "formsSubmissionsDesc": "Submissions of a form, newest first, with the submitted values, UTM parameters and the linked contact.",
     "paramLinkForwardParams": "Pass the query string of the short link to the destination (default true). On a conflict the short link value wins; qr is never passed.",
@@ -3271,6 +3381,7 @@
     "paramSocialScheduledAt": "Date and time to publish (ISO 8601), with action schedule.",
     "scope_books_read": "Read Books invoices (with the Books role of the person who created the key).",
     "scope_books_write": "Create draft invoices in Books.",
+    "scope_forms_read": "Read Forms forms and their responses, only the forms the key's owner can see.",
     "booksApiTitle": "Books",
     "booksApiDesc": "Invoices from Books. The key acts as the person who created it, with that person’s Books role. Amounts are integers in the currency’s minor unit (cents). Scopes books:read and books:write.",
     "booksInvoicesListTitle": "List invoices",
@@ -3282,12 +3393,14 @@
     "paramBooksLines": "Lines: description, quantity, unitPrice (integer minor units, or a decimal string with a dot as the decimal separator, e.g. \"1500.50\", whatever the currency), discountBps, taxRateId, itemId.",
     "paramBooksCurrency": "ISO currency code; the base currency if omitted.",
     "paramBooksFx": "Manual exchange rate (base currency per 1 unit) when the currency is not the base one.",
-    "paramBooksReference": "Your reference (purchase order, project)."
+    "paramBooksReference": "Your reference (purchase order, project).",
+    "formsApiTitle": "Forms",
+    "formsApiDesc": "Forms and their responses. The key acts as the person who created it and only sees the forms that person can open. Scope forms:read."
   },
   "parityOverview": {
     "title": "Feature parity, app by app.",
     "titleDim": "Measured against each competitor.",
-    "lead": "Average parity across the 22 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
+    "lead": "Average parity across the 23 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
     "col": {
       "app": "App",
       "competitor": "Compared with",

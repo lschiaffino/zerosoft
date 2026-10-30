@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "Productos",
-      "description": "Veintidós apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics, Social, Hiring, People y Books. Open source para tu servidor, o en zerosoft Cloud con plan gratis y pago por uso."
+      "description": "Veintitrés apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics, Social, Hiring, People, Books y Forms. Open source para tu servidor, o en zerosoft Cloud con plan gratis y pago por uso."
     },
     "hero": {
-      "title1": "Veintidós apps.",
+      "title1": "Veintitrés apps.",
       "title2": "Un solo workspace.",
       "sub": "Para tu empresa: CRM, soporte, agentes de IA, automatizaciones, robots, proyectos y links. Para vos: docs, notas, agenda y pizarra. El core de cada una es open source y corre en tu servidor por $0."
     },
     "cta": {
-      "title1": "Probá las veintidós apps.",
+      "title1": "Probá las veintitrés apps.",
       "title2": "Con una sola cuenta.",
       "sub": "Entrá con Google, creá un workspace y empezá con el plan gratis. Si después preferís tu servidor, el código está en GitHub.",
       "button": "Abrir la app"
@@ -1942,6 +1942,92 @@
         "sub": "Abrí Books, elegí tu país y mandá tu primera factura.",
         "button": "Abrir Books"
       }
+    },
+    "forms": {
+      "meta": {
+        "title": "Forms: formularios y encuestas open source, alternativa a Typeform",
+        "description": "Formularios y encuestas que preguntan de a una, con lógica, quizzes, NPS, archivos adjuntos, temas, embeds y una tabla de respuestas con resumen por pregunta. Una alternativa open source a Typeform, Google Forms y Tally."
+      },
+      "hero": {
+        "sub": "Armá un formulario desde una plantilla, sumale lógica y tus colores, compartí un link o incrustalo, y leé las respuestas en una tabla, un resumen por pregunta y un CSV. Cada respuesta puede llegar a tu CRM y a tus automatizaciones."
+      },
+      "featuresTitle": "Una pregunta a la vez.",
+      "featuresTitleDim": "Todas las respuestas, tuyas.",
+      "f1": {
+        "t": "Preguntas para cada caso",
+        "d": "Texto corto y largo, email, teléfono, número, URL, fecha, opción múltiple, casillas, desplegable, sí o no, calificación, escala de opinión, NPS, ranking, matriz, archivos y firma. Los archivos son privados, se validan por sus bytes y llegan hasta 10 MB."
+      },
+      "f2": {
+        "t": "Lógica y quizzes",
+        "d": "Saltos según la respuesta, ramas con condiciones todas o alguna, un puntaje con puntos por opción, un final por camino y respuestas anteriores o el puntaje dentro de las preguntas siguientes. Los saltos solo van hacia adelante."
+      },
+      "f3": {
+        "t": "Tu estilo, en tus idiomas",
+        "d": "Cinco temas, colores propios, cuatro tipografías y los colores del kit de marca de Design. Un formulario se traduce a inglés, español y portugués con una tabla, y 12 plantillas ayudan a arrancar."
+      },
+      "f4": {
+        "t": "Pensado para el teclado",
+        "d": "Enter para seguir, las letras A, B y C para elegir, Y y N para sí o no, teclas numéricas y flechas. Una barra de progreso muestra dónde vas, las respuestas se guardan en el navegador y un modo clásico muestra todas las preguntas en una página."
+      },
+      "f5": {
+        "t": "Compartilo donde quieras",
+        "d": "Un link público, un script para incrustarlo, un iframe, un popup y un código QR. Los campos ocultos salen de parámetros de la URL, y podés cerrar un formulario en una fecha o al llegar a cierta cantidad de respuestas."
+      },
+      "f6": {
+        "t": "Respuestas que van a algún lado",
+        "d": "Una tabla de respuestas con filtros, un resumen por pregunta con gráficos de barras, promedios, NPS y abandono, y exportación a CSV. Las respuestas pueden crear contactos del CRM, disparar un Flow, avisar a personas y llamar a un webhook firmado."
+      },
+      "steps": {
+        "s1": {
+          "t": "Arrancá desde una plantilla",
+          "d": "Contacto, captación de leads, NPS, RSVP, postulación, feedback, quiz y más, o un formulario en blanco."
+        },
+        "s2": {
+          "t": "Sumá lógica y estilo",
+          "d": "Saltos, finales, un puntaje, un tema y un idioma para cada público."
+        },
+        "s3": {
+          "t": "Compartí y leé",
+          "d": "Mandá el link o incrustá el formulario, y seguí las respuestas y el abandono por pregunta."
+        }
+      },
+      "compare": {
+        "rival": "Typeform",
+        "price": "Un plan por cuenta",
+        "per": "con un tope de respuestas por plan, mensual o anual",
+        "teamLabel": "Un equipo que junta respuestas",
+        "team": "ver precios de Typeform",
+        "zero": "$0",
+        "note": "Typeform vende planes por cuenta con límites de respuestas. No pudimos verificar los precios actuales: miralos en typeform.com/pricing. Forms en tu servidor cuesta $0 más tu base de datos y el envío de emails."
+      },
+      "faq": {
+        "f1": {
+          "q": "¿Muestra una pregunta a la vez?",
+          "a": "Sí, por defecto. Avanzás con Enter, letras para elegir, Y y N, teclas numéricas y flechas. Si preferís, un modo clásico muestra todas las preguntas en una página."
+        },
+        "f2": {
+          "q": "¿Qué pasa si alguien no termina?",
+          "a": "Su avance queda guardado en su navegador para retomarlo. Si acepta, las respuestas hasta ahí se envían como respuesta parcial, y el resumen muestra dónde abandona la gente."
+        },
+        "f3": {
+          "q": "¿A dónde van las respuestas?",
+          "a": "A la tabla de respuestas y a un CSV. Desde ahí una respuesta puede crear un contacto del CRM (solo para emails nuevos), disparar un Flow, avisar a personas por email y dentro de la app, o llamar a un webhook firmado. Todavía no hay conexión nativa con Google Sheets."
+        },
+        "f4": {
+          "q": "¿Quién ve las respuestas?",
+          "a": "Cada formulario está abierto a todo el workspace o a las personas que elijas. Cmd+K, el asistente y la API siguen la misma regla."
+        },
+        "f5": {
+          "q": "¿Qué falta respecto de Typeform?",
+          "a": "Pagos, integraciones nativas como Google Sheets y una app de Zapier (hay webhooks y Flow), generar formularios con IA, preguntas de video y audio, pruebas A/B, dominios propios, una opción de CAPTCHA (Forms usa un honeypot, un tiempo mínimo y un límite por IP), etiquetar respuestas y reordenar preguntas arrastrando (se mueven con botones). La tabla de paridad de arriba tiene la lista completa."
+        }
+      },
+      "cta": {
+        "title1": "Armá tu primer formulario.",
+        "title2": "Compartí el link.",
+        "sub": "Abrí Forms, elegí una plantilla y publicá un link.",
+        "button": "Abrir Forms"
+      }
     }
   },
   "product": {
@@ -1957,7 +2043,7 @@
     "apiDocs": "Docs de la API",
     "howTitle": "Cómo se usa.",
     "suiteTitle": "Un workspace.",
-    "suiteTitleDim": "Veintidós apps, el mismo login.",
+    "suiteTitleDim": "Veintitrés apps, el mismo login.",
     "shotTitle": "{name}, por dentro.",
     "crumbs": "Ubicación",
     "navLabel": "Secciones de {name}",
@@ -2431,6 +2517,23 @@
       "i2": "Puesta en marcha × 1 · 10% off · IVA 21%",
       "total": "Total $121.000 · IVA $21.000",
       "action": "Asiento registrado: Banco / Deudores por ventas"
+    },
+    "forms": {
+      "listTitle": "Formularios",
+      "r1name": "Encuesta NPS",
+      "r1time": "42",
+      "r1meta": "42 respuestas · NPS 38",
+      "r2name": "Formulario de contacto",
+      "r2time": "17",
+      "r2meta": "17 respuestas · abierto",
+      "r3name": "Inscripción al taller",
+      "r3time": "60",
+      "r3meta": "Cerrado a las 60 respuestas",
+      "status": "Publicado",
+      "i1": "1 de 5 · ¿Qué tan probable es que nos recomiendes? (0 a 10)",
+      "i2": "Apretá 9 y después Enter",
+      "summary": "Resumen",
+      "action": "42 respuestas · promedio 8,4 · 3 abandonaron en la pregunta 4"
     }
   },
   "status": {
@@ -2848,7 +2951,14 @@
     "crmFormsTitle": "CRM · Formularios",
     "crmFormsDesc": "Formularios de captura de leads y sus envíos. Cada envío también crea o actualiza un contacto y registra una actividad \"Form submitted\".",
     "formsListTitle": "Listar formularios",
-    "formsListDesc": "Todos los formularios del workspace con sus campos, estado y cantidad de envíos. `key` es el slug público (o el token) que usan /f/'<key>' y el script de embed.",
+    "formsListDesc": "Formularios del más nuevo al más viejo, con estado, cantidad de respuestas y parciales, última respuesta y quién puede abrirlos.",
+    "formsResponsesTitle": "Listar respuestas",
+    "formsResponsesDesc": "Respuestas de un formulario, de la más nueva a la más vieja. Las respuestas se indexan por id de pregunta. Las de archivo devuelven una referencia, no el archivo.",
+    "paramFormsStatus": "Filtrá los formularios por estado, por ejemplo published.",
+    "paramFormsForm": "Id del formulario.",
+    "paramFormsResponseStatus": "completed (por defecto) o partial.",
+    "paramFormsFrom": "Solo respuestas enviadas desde esta fecha (YYYY-MM-DD).",
+    "paramFormsTo": "Solo respuestas enviadas hasta esta fecha (YYYY-MM-DD).",
     "formsSubmissionsTitle": "Listar envíos de un formulario",
     "formsSubmissionsDesc": "Envíos de un formulario, los más recientes primero, con los valores, los parámetros UTM y el contacto vinculado.",
     "paramLinkForwardParams": "Pasa los query params del link corto al destino (default true). En conflicto gana el del link corto; qr nunca se pasa.",
@@ -3271,6 +3381,7 @@
     "paramSocialScheduledAt": "Fecha y hora de publicación (ISO 8601), con action schedule.",
     "scope_books_read": "Leer facturas de Books (con el rol de Books de quien creó la key).",
     "scope_books_write": "Crear facturas borrador en Books.",
+    "scope_forms_read": "Leer los formularios de Forms y sus respuestas, solo los que puede ver quien creó la key.",
     "booksApiTitle": "Books",
     "booksApiDesc": "Facturas de Books. La key actúa como la persona que la creó, con su rol de Books. Los importes son enteros en la unidad mínima de la moneda (centavos). Scopes books:read y books:write.",
     "booksInvoicesListTitle": "Listar facturas",
@@ -3282,12 +3393,14 @@
     "paramBooksLines": "Líneas: description, quantity, unitPrice (unidades mínimas enteras, o un texto decimal con punto como separador decimal, por ejemplo \"1500.50\", sea cual sea la moneda), discountBps, taxRateId, itemId.",
     "paramBooksCurrency": "Código de moneda ISO; si falta, la moneda base.",
     "paramBooksFx": "Tipo de cambio manual (moneda base por 1 unidad) cuando la moneda no es la base.",
-    "paramBooksReference": "Tu referencia (orden de compra, proyecto)."
+    "paramBooksReference": "Tu referencia (orden de compra, proyecto).",
+    "formsApiTitle": "Forms",
+    "formsApiDesc": "Formularios y sus respuestas. La key actúa como la persona que la creó y solo ve los formularios que esa persona puede abrir. Scope forms:read."
   },
   "parityOverview": {
     "title": "Paridad de funciones, app por app.",
     "titleDim": "Medida contra cada competidor.",
-    "lead": "Paridad promedio de las 22 apps: {average}%. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
+    "lead": "Paridad promedio de las 23 apps: {average}%. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
     "col": {
       "app": "App",
       "competitor": "Comparada con",

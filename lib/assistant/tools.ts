@@ -53,6 +53,7 @@ import { shopTools } from './tools-shop';
 import { hiringTools } from './tools-hiring';
 import { peopleTools } from './tools-people';
 import { booksTools } from './tools-books';
+import { formsTools } from './tools-forms';
 
 // ---------- Utilidades ----------
 
@@ -1117,7 +1118,7 @@ const social: AssistantTool[] = [
   }),
 ];
 
-export const ALL_TOOLS: AssistantTool[] = [...platform, ...crm, ...track, ...content, ...automate, ...comms, ...shopTools, ...analytics, ...social, ...hiringTools, ...peopleTools, ...booksTools];
+export const ALL_TOOLS: AssistantTool[] = [...platform, ...crm, ...track, ...content, ...automate, ...comms, ...shopTools, ...analytics, ...social, ...hiringTools, ...peopleTools, ...booksTools, ...formsTools];
 
 /** Herramientas que la sesión puede usar (rol y apps del workspace activo). */
 export function toolsFor(user: Pick<SessionUser, 'role' | 'apps'>): AssistantTool[] {

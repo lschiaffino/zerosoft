@@ -149,6 +149,7 @@ function useGroupOrder() {
         'booksItems',
         'booksBankAccounts',
         'booksRecurring',
+        'forms',
         'links',
         'docs',
         'notes',
