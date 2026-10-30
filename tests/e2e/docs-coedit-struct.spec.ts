@@ -228,6 +228,67 @@ test('Docs en vivo: partir el bloque con Enter mientras la otra persona escribe 
   await close();
 });
 
+test('Docs en vivo: la otra persona parte antes de mi caret y escribe en el bloque nuevo mientras sigo escribiendo', async ({ browser, request }) => {
+  test.setTimeout(120_000);
+  const PH = ' typed-by-A-all-of-it';
+  const { doc, a, b, close } = await twoPeople(browser, request, [{ id: 'p', type: 'paragraph', content: 'alpha beta gamma delta' }]);
+  // A escribe sin parar al final del párrafo.
+  await caretAtEnd(a);
+  const typing = a.keyboard.type(PH, { delay: 90 });
+  await b.waitForTimeout(700);
+  // B parte después de "alpha" y escribe al principio del bloque nuevo.
+  await caretAt(b, 'alpha'.length);
+  await b.keyboard.press('Enter');
+  await b.keyboard.type('Bnew ', { delay: 30 });
+  await typing;
+  const text = await converge(request, doc.id, a, b);
+  const blocks = await blocksOf(request, doc.id);
+  // Lo de A quedó entero y seguido, en el bloque nuevo (donde estaba su caret), con lo de B.
+  const tail = blocks.find((x) => x.content.includes('delta'));
+  expect(tail?.content, text).toContain('Bnew');
+  expect(tail?.content.endsWith(PH), text).toBeTruthy();
+  expect(count(text, 'typed-by-A-all-of-it'), text).toBe(1);
+  await close();
+});
+
+test('Docs en vivo: la otra persona va al final, aprieta Enter y escribe mientras escribo en el mismo bloque', async ({ browser, request }) => {
+  test.setTimeout(120_000);
+  const PH = ' typed-by-A-all-of-it';
+  const { doc, a, b, close } = await twoPeople(browser, request, [{ id: 'p', type: 'paragraph', content: 'alpha beta gamma delta' }]);
+  await caretAt(a, 'alpha'.length);
+  const typing = a.keyboard.type(PH, { delay: 90 });
+  await b.waitForTimeout(700);
+  await caretAtEnd(b);
+  await b.keyboard.press('Enter');
+  await b.keyboard.type('Bline', { delay: 30 });
+  await typing;
+  const text = await converge(request, doc.id, a, b);
+  const blocks = await blocksOf(request, doc.id);
+  expect(blocks.length, text).toBe(2);
+  expect(blocks[0].content, text).toBe(`alpha${PH} beta gamma delta`);
+  expect(blocks[1].content, text).toBe('Bline');
+  await close();
+});
+
+test('Docs en vivo: componiendo con IME mientras la otra persona parte el bloque antes del caret', async ({ browser, request }) => {
+  test.setTimeout(120_000);
+  const { doc, a, b, close } = await twoPeople(browser, request, [{ id: 'p', type: 'paragraph', content: 'alpha beta gamma' }]);
+  await caretAtEnd(a);
+  const cdp = await a.context().newCDPSession(a);
+  await cdp.send('Input.imeSetComposition', { text: 'に', selectionStart: 1, selectionEnd: 1 });
+  await caretAt(b, 'alpha'.length);
+  await b.keyboard.press('Enter');
+  await a.waitForTimeout(600);
+  await cdp.send('Input.imeSetComposition', { text: 'にほ', selectionStart: 2, selectionEnd: 2 });
+  await a.waitForTimeout(300);
+  await cdp.send('Input.insertText', { text: '日本' });
+  await a.keyboard.type('X', { delay: 50 });
+  const text = await converge(request, doc.id, a, b);
+  const blocks = await blocksOf(request, doc.id);
+  expect(blocks.map((x) => x.content), text).toEqual(['alpha', ' beta gamma日本X']);
+  await close();
+});
+
 test('Docs en vivo: unir con Backspace mientras la otra persona escribe en el bloque que se une', async ({ browser, request }) => {
   test.setTimeout(120_000);
   const { doc, a, b, close } = await twoPeople(browser, request, [

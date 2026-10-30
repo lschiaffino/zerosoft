@@ -1226,8 +1226,22 @@ export default function DocsEditor({
   // entra sin pisar lo que se editó acá desde entonces (lib/docs-merge.ts).
   const appliedMerge = useRef(0);
   const applyRemote = collab.api.applyRemote;
+  /** Una composición (IME, acentos) terminó: la fusión que esperaba entra ahora. */
+  const [composeTick, setComposeTick] = useState(0);
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    // Después de que entren las operaciones que esperaban (el motor las suelta a los 60 ms):
+    // primero el corte, después la estructura, como sin composición.
+    const onEnd = () => setTimeout(() => setComposeTick((v) => v + 1), 150);
+    root.addEventListener('compositionend', onEnd);
+    return () => root.removeEventListener('compositionend', onEnd);
+  }, []);
   useEffect(() => {
     if (!remoteMerge || remoteMerge.seq <= appliedMerge.current) return;
+    // Con una composición en curso no se rehace el bloque (el IME perdería lo que se compone):
+    // la fusión espera a que termine (y las operaciones que llegan en el medio, igual).
+    if (collab.composing.current) return;
     appliedMerge.current = remoteMerge.seq;
     const cur = live.current;
     const baseTitle = remoteMerge.sentTitle ?? cur.title;
@@ -1236,7 +1250,7 @@ export default function DocsEditor({
     if (res.changed && pendingSave.current) triggerSaveRef.current(res.merged.blocks, res.merged.title);
     onRemoteApplied?.(remoteMerge.seq, res.merged);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remoteMerge, onRemoteApplied]);
+  }, [remoteMerge, onRemoteApplied, composeTick]);
   const { suggestChange, onCompositionEnd, composing } = collab;
   /** Teclas del modo sugerir (se define más abajo, junto al cambio de bloque). */
   const suggestKeyDownRef = useRef<(index: number, e: React.KeyboardEvent<HTMLElement>) => boolean>(() => false);

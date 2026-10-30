@@ -22,6 +22,21 @@ describe('remapStructure (partir y unir mientras se escribe)', () => {
     expect(res.touched.sort()).toEqual(['n', 'p']);
   });
 
+  it('partir antes del caret cuando la otra persona ya escribió en el bloque nuevo: lo propio va después de la cola, lo suyo queda', () => {
+    const V = 'alpha beta gamma delta typed';
+    // Partió después de "alpha": la operación corta " beta gamma delta typed".
+    const op = [5, -23];
+    expect(apply(V, op)).toBe('alpha');
+    const traces: RemoteTrace[] = [{ block: 'p', at: 0, prev: V, op, own: true }];
+    // Acá se siguió escribiendo en el borde del corte; allá ya escribió "Bnew " al principio del bloque nuevo.
+    const now = 'alpha-by-A';
+    const prev = [blk('p', now)];
+    const merged = [blk('p', now), blk('n', 'Bnew  beta gamma delta typed')];
+    const res = remapStructure(prev, merged, merged, traces, { block: 'p', index: now.length })!;
+    expect(res.blocks.map((b) => b.content)).toEqual(['alpha', 'Bnew  beta gamma delta typed-by-A']);
+    expect(res.caret).toEqual({ block: 'n', index: 'Bnew  beta gamma delta typed-by-A'.length });
+  });
+
   it('partir con lo propio en el medio de la cola: va a ese lugar del bloque nuevo', () => {
     const V = 'alpha beta gaXmma delta';
     // Se borró " gamma delta" salvo la X propia (escrita en el medio).

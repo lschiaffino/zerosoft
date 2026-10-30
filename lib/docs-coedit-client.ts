@@ -189,6 +189,11 @@ export class CoeditEngine {
   /** Manda lo propio de cada bloque (uno en vuelo por bloque). */
   async flush(): Promise<void> {
     if (this.stopped || this.sending) return;
+    // Composición en curso (IME, acentos): lo intermedio no sale; se manda el texto final.
+    if (this.screen.busy()) {
+      this.localChanged(100);
+      return;
+    }
     const items: CoeditOpItem[] = [];
     for (const [id, b] of this.blocks) {
       if (b.resync) continue;

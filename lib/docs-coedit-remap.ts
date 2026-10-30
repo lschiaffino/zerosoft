@@ -139,10 +139,11 @@ export function remapStructure<B extends RemapBlock>(
     const pText = str(p);
     if (prevById.has(n.id) || !prevById.has(p.id) || nText === null || pText === null || !nText) continue;
     let span: ReturnType<typeof deletedSpan> = null;
+    // El bloque nuevo tiene la cola cortada; la otra persona pudo escribir ya ahí (antes o después de ella).
     const t = latest(p.id, (x) => {
       if (!x.own) return false;
       span = deletedSpan(x.prev, x.op);
-      return !!span && span.text === nText;
+      return !!span && nText.includes(span.text);
     });
     const sp = span as ReturnType<typeof deletedSpan>;
     if (!t || !sp) continue;
@@ -155,8 +156,10 @@ export function remapStructure<B extends RemapBlock>(
     }
     const orphan = pText.slice(cut);
     if (!orphan) continue;
-    // Dónde va en el bloque nuevo: donde se escribía (lo conservado en el medio del corte), o al final.
-    const at = Math.min(nText.length, sp.keptAt ?? nText.length);
+    // Dónde va en el bloque nuevo: donde se escribía (lo conservado en el medio del corte), o al
+    // final de la cola cortada (lo que la otra persona escribió en el bloque nuevo queda en su lugar).
+    const tailAt = nText.lastIndexOf(sp.text);
+    const at = Math.min(nText.length, tailAt + (sp.keptAt ?? sp.text.length));
     setContent(p.id, pText.slice(0, cut));
     setContent(n.id, nText.slice(0, at) + orphan + nText.slice(at));
     if (outCaret && outCaret.block === p.id && outCaret.index >= cut) outCaret = { block: n.id, index: at + (outCaret.index - cut) };
