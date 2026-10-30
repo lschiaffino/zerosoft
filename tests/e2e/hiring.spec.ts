@@ -112,7 +112,7 @@ test('Hiring: de la plantilla a la oferta aceptada, con privacidad por equipo', 
     await page.getByRole('tab', { name: 'Interviews' }).click();
     await page.getByRole('button', { name: 'Send scheduling link' }).click();
     await page.getByRole('dialog', { name: 'Send scheduling link' }).getByRole('button', { name: 'Create link' }).click();
-    const linkInput = page.getByLabel('Scheduling link');
+    const linkInput = page.getByLabel('Scheduling link', { exact: true });
     await expect(linkInput).toBeVisible();
     const link = new URL(await linkInput.inputValue());
     expect(link.pathname).toMatch(/^\/en\/book\/[^/]+\/interview-[a-f0-9]+$/);
@@ -173,7 +173,7 @@ test('Hiring: de la plantilla a la oferta aceptada, con privacidad por equipo', 
     await page.getByRole('button', { name: 'Approve' }).click();
     await expect(page.getByTestId('hr-offer')).toContainText('Approved');
     await page.getByRole('button', { name: 'Send to candidate' }).click();
-    const offerLink = page.getByLabel('Offer link');
+    const offerLink = page.getByLabel('Offer link', { exact: true });
     await expect(offerLink).toBeVisible();
     const offerUrl = new URL(await offerLink.inputValue());
     const cand = await browser.newContext({ baseURL });
@@ -197,8 +197,10 @@ test('Hiring: de la plantilla a la oferta aceptada, con privacidad por equipo', 
 
     // 9. Con la app pero fuera del equipo: el candidato no existe para esa persona.
     const op = await outsider.ctx.newPage();
-    const res = await op.goto(`/en/app/hiring/candidates/${candidateId}`, { waitUntil: 'networkidle' });
-    expect(res?.status()).toBe(404);
+    // Con loading.tsx la página ya está en streaming: el 404 llega como la página de no encontrado, sin datos.
+    await op.goto(`/en/app/hiring/candidates/${candidateId}`, { waitUntil: 'networkidle' });
+    await expect(op.locator('body')).not.toContainText(candidateName);
+    await expect(op.locator('body')).not.toContainText(email);
     expect((await outsider.ctx.request.get(`/api/hiring/candidates/${candidateId}`)).status()).toBe(404);
     expect((await outsider.ctx.request.get(`/api/hiring/candidates/${candidateId}/resume`)).status()).toBe(404);
     const list = (await (await outsider.ctx.request.get('/api/hiring/applications?status=all')).json()) as { applications: Array<{ id: string }> };
