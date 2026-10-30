@@ -6,6 +6,8 @@ export interface UserRow {
   name: string | null;
   image: string | null;
   handle?: string | null;
+  /** Email normalizado (NFC, trim, minúsculas) para buscar la cuenta (145_users_email_norm). */
+  email_norm?: string | null;
   active_team_id?: string | null;
   seeded_at?: string | null;
   /** Terminó el onboarding (/app/welcome). Los usuarios de antes de 128 lo tienen = created_at. */

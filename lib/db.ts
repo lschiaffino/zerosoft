@@ -180,6 +180,28 @@ import type { UserRow } from './schema/types';
 
 // ---------- Users ----------
 
+/** Email como clave de una cuenta: sin espacios, en minúsculas y en NFC. */
+export function normalizeEmail(email: string): string {
+  return email.normalize('NFC').trim().toLowerCase();
+}
+
+/**
+ * La cuenta de un email sin importar mayúsculas ni la forma Unicode: compara
+ * contra email_norm (normalizeEmail, calculado en JS; 145_users_email_norm).
+ * Una fila sin email_norm (escrita por fuera de upsertUser) cae a lower(email).
+ * `email` no se reescribe; si hubiera dos, gana la que coincide exacto y
+ * después la más vieja.
+ */
+async function findUserByEmail(email: string): Promise<UserRow | undefined> {
+  const clean = normalizeEmail(email);
+  return (await getDb()
+    .prepare(
+      `SELECT * FROM users WHERE email_norm = ? OR (email_norm IS NULL AND lower(email) = ?)
+       ORDER BY (email = ?) DESC, created_at, id LIMIT 1`,
+    )
+    .get(clean, clean, clean)) as UserRow | undefined;
+}
+
 export async function upsertUser(u: {
   email: string;
   name?: string | null;
@@ -187,16 +209,14 @@ export async function upsertUser(u: {
   id?: string;
 }): Promise<UserRow> {
   const db = getDb();
-  const existing = (await db.prepare('SELECT * FROM users WHERE email = ?').get(u.email)) as
-    | UserRow
-    | undefined;
+  const existing = await findUserByEmail(u.email);
   if (existing) {
     await db
       // El nombre que la persona cambió en zerosoft (onboarding, Ajustes) no lo pisa el de Google.
       .prepare(
-        "UPDATE users SET name = CASE WHEN json_extract(COALESCE(profile, '{}'), '$.nameEdited') = 1 THEN name ELSE COALESCE(?, name) END, image = COALESCE(?, image) WHERE id = ?",
+        "UPDATE users SET name = CASE WHEN json_extract(COALESCE(profile, '{}'), '$.nameEdited') = 1 THEN name ELSE COALESCE(?, name) END, image = COALESCE(?, image), email_norm = COALESCE(email_norm, ?) WHERE id = ?",
       )
-      .run(u.name ?? null, u.image ?? null, existing.id);
+      .run(u.name ?? null, u.image ?? null, normalizeEmail(existing.email), existing.id);
     return (await db.prepare('SELECT * FROM users WHERE id = ?').get(existing.id)) as UserRow;
   }
   // Dos requests concurrentes del mismo usuario nuevo (o dos usuarios con el
@@ -212,21 +232,19 @@ export async function upsertUser(u: {
     try {
       await db
         .prepare(
-          'INSERT INTO users (id, email, name, image, handle) VALUES (?, ?, ?, ?, ?) ON CONFLICT(email) DO NOTHING',
+          'INSERT INTO users (id, email, email_norm, name, image, handle) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(email) DO NOTHING',
         )
-        .run(u.id ?? crypto.randomUUID(), u.email, u.name ?? null, u.image ?? null, pickHandle(u.email, taken));
+        .run(u.id ?? crypto.randomUUID(), normalizeEmail(u.email), normalizeEmail(u.email), u.name ?? null, u.image ?? null, pickHandle(u.email, taken));
       break;
     } catch (err) {
       if (attempt >= 4 || !/UNIQUE constraint failed: users\.handle/.test(String(err))) throw err;
     }
   }
-  return (await db.prepare('SELECT * FROM users WHERE email = ?').get(u.email)) as UserRow;
+  return (await findUserByEmail(u.email)) as UserRow;
 }
 
 export async function getUserByEmail(email: string): Promise<UserRow | undefined> {
-  return (await getDb().prepare('SELECT * FROM users WHERE email = ?').get(email)) as
-    | UserRow
-    | undefined;
+  return findUserByEmail(email);
 }
 
 export async function getUserById(id: string): Promise<UserRow | undefined> {

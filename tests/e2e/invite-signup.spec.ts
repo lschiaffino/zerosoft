@@ -82,10 +82,25 @@ test('invitar con apps limitadas, entrar sin Google con un código por email y s
     const before = mailsTo(rita).length;
     await ritaRow.getByRole('button', { name: 'Resend' }).click();
     await expect.poll(() => mailsTo(rita).length).toBe(before + 1);
+    // Revocar pide confirmación: Esc cancela, Revoke confirma.
     await ritaRow.getByRole('button', { name: 'Revoke' }).click();
     const confirm = page.getByRole('alertdialog');
-    if (await confirm.count()) await confirm.getByRole('button', { name: 'Revoke' }).click();
+    await expect(confirm).toContainText(`Revoke the invitation to ${rita}?`);
+    await page.keyboard.press('Escape');
+    await expect(confirm).toHaveCount(0);
+    await expect(ritaRow).toBeVisible();
+    await ritaRow.getByRole('button', { name: 'Revoke' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Revoke' }).click();
     await expect(page.getByRole('row').filter({ hasText: rita })).toHaveCount(0);
+
+    // Con casi todas las apps, la lista dice lo que falta.
+    const tom = `tom-${uid()}@acme-e2e.io`;
+    const allButTrack = (await page.evaluate(() => Array.from(document.querySelectorAll('input[id^="ws-inv-app-"]')).map((i) => i.id.replace('ws-inv-app-', ''))))
+      .filter((k) => k !== 'track');
+    expect(allButTrack.length).toBeGreaterThan(20);
+    expect((await page.request.post('/api/teams/invites', { data: { emails: tom, role: 'member', apps: allButTrack } })).status()).toBe(201);
+    await page.reload({ waitUntil: 'networkidle' });
+    await expect(page.getByRole('row').filter({ hasText: tom })).toContainText('All apps except Track');
 
     // 2. El email de invitación: link, asunto y las apps que le tocan.
     const invite = await lastMail(marta, /invited you to/);
@@ -182,5 +197,24 @@ test('la página de entrar ofrece Google y código por email', async ({ browser 
     await expect(p.getByRole('heading', { name: '¿Cómo vas a usar zerosoft?' })).toBeVisible();
   } finally {
     await ctx.close();
+  }
+});
+
+test('un guest que entra a /app/welcome sin ?invited=1 recibe el onboarding corto', async ({ page, browser }) => {
+  const gina = `gina-${uid()}@acme-e2e.io`;
+  const team = String((await sql("SELECT name FROM teams WHERE owner_id = 'demo' ORDER BY created_at, id LIMIT 1"))[0].name);
+  const res = await page.request.post('/api/teams/invites', { data: { emails: gina, role: 'guest' } });
+  expect(res.status()).toBe(201);
+  const token = String((await sql("SELECT token FROM team_invites WHERE email = ? AND status = 'pending'", [gina]))[0].token);
+  const ctx = await context(browser, gina);
+  try {
+    expect((await ctx.request.post('/api/teams/accept', { data: { token } })).ok()).toBe(true);
+    const p = await ctx.newPage();
+    await p.goto('/en/app/welcome', { waitUntil: 'networkidle' });
+    await expect(p.getByRole('heading', { name: `Welcome to ${team}` })).toBeVisible();
+    await expect(p.getByText('With my team')).toHaveCount(0);
+  } finally {
+    await ctx.close();
+    await sql("DELETE FROM team_members WHERE user_id = (SELECT id FROM users WHERE email = ?)", [gina]);
   }
 });

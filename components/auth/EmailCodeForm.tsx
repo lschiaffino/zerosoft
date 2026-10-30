@@ -66,7 +66,14 @@ export default function EmailCodeForm({
     const res = await signIn('email-code', { email: sentTo, code: code.trim(), redirect: false, callbackUrl: target }).catch(() => null);
     if (!res || res.error || !res.ok) {
       setBusy(false);
-      setError(t('errors.bad_code'));
+      // Límite del día o de la IP: el mismo aviso para cualquier email; si no, código equivocado.
+      setError(
+        res?.error === 'daily_limit'
+          ? t('errors.daily_limit')
+          : res?.error === 'rate_limited'
+            ? t('errors.verify_rate_limited')
+            : t('errors.bad_code'),
+      );
       return;
     }
     window.location.assign(target);

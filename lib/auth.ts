@@ -78,11 +78,14 @@ providers.push(
     id: 'email-code',
     name: 'Email',
     credentials: { email: { label: 'Email', type: 'email' }, code: { label: 'Code', type: 'text' } },
-    async authorize(credentials) {
-      const { emailLoginEnabled, verifyLoginCode } = await import('./email-login');
+    async authorize(credentials, req) {
+      const { emailLoginEnabled, ipFromHeaders, verifyLoginCode } = await import('./email-login');
       if (!emailLoginEnabled()) return null;
-      const email = await verifyLoginCode(credentials?.email, credentials?.code);
-      return email ? { id: email, email, name: null } : null;
+      const res = await verifyLoginCode(credentials?.email, credentials?.code, ipFromHeaders(req?.headers as Record<string, unknown> | undefined));
+      if (res.ok) return { id: res.email, email: res.email, name: null };
+      // NextAuth devuelve el mensaje como `error`: el formulario muestra el aviso del límite.
+      if (res.error === 'daily_limit' || res.error === 'rate_limited') throw new Error(res.error);
+      return null;
     },
   }),
 );
@@ -100,8 +103,10 @@ export const authOptions: NextAuthOptions = {
       if (url.startsWith('/') && !url.startsWith('//')) return `${baseUrl}${url}`;
       return isTrustedReturnUrl(url, baseUrl) ? url : baseUrl;
     },
-    async signIn({ user }) {
+    async signIn({ user, account, profile }) {
       if (!user.email) return false;
+      // Google: solo con el email verificado por Google (si no, cualquiera podría declarar uno ajeno).
+      if (account?.provider === 'google' && (profile as { email_verified?: unknown } | undefined)?.email_verified !== true) return false;
       // Los datos de ejemplo ya no se siembran solos: se ofrecen en el onboarding (/app/welcome).
       await upsertUser({ email: user.email, name: user.name, image: user.image });
       return true;

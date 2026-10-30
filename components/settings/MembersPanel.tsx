@@ -13,6 +13,7 @@ import { PRODUCT_CONFIG, APP_SWITCHER_ORDER, type ProductKey } from '@/lib/produ
 import type { DirectoryDto, InviteDto, MemberDto } from '@/lib/workspace-directory';
 import type { InviteOutcome } from '@/lib/workspace-invites';
 import { parseDbUtc } from '@/lib/utils';
+import { describeApps, joinNames } from '@/lib/app-access-label';
 
 type Role = 'owner' | 'admin' | 'member' | 'guest';
 type Apps = '*' | ProductKey[];
@@ -103,6 +104,7 @@ export default function MembersPanel({
   role,
   legacyNotice = false,
   peopleLinks = false,
+  emailLogin = false,
 }: {
   initial: DirectoryDto;
   me: string;
@@ -111,6 +113,8 @@ export default function MembersPanel({
   peopleLinks?: boolean;
   /** Owner de antes de 128 con datos propios: quien entre va a ver lo que hasta hoy era solo suyo. */
   legacyNotice?: boolean;
+  /** Se puede entrar con código por email (lib/email-login.ts): cambia el texto de la invitación. */
+  emailLogin?: boolean;
 }) {
   const t = useTranslations('settings.members');
   const locale = useLocale();
@@ -135,6 +139,7 @@ export default function MembersPanel({
   const [editGroups, setEditGroups] = useState<string[]>([]);
   const [removing, setRemoving] = useState<MemberDto | null>(null);
   const [leaving, setLeaving] = useState(false);
+  const [revoking, setRevoking] = useState<InviteDto | null>(null);
 
   const groupName = useMemo(() => new Map(dir.groups.map((g) => [g.id, g.name])), [dir.groups]);
   const fmt = (iso: string | null) => (iso ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(parseDbUtc(iso)) : '');
@@ -228,13 +233,23 @@ export default function MembersPanel({
     await refresh();
   }
 
-  async function revoke(inv: InviteDto) {
+  async function revoke() {
+    const inv = revoking;
+    if (!inv) return;
     const res = await call(`/api/teams/invites/${encodeURIComponent(inv.id)}`, { method: 'DELETE' });
+    setRevoking(null);
     if (res) await refresh();
   }
 
-  const appsLabel = (apps: Apps, r: Role) =>
-    r === 'owner' ? t('allApps') : r === 'guest' ? t('guestAccess') : apps === '*' ? t('allApps') : apps.length === 0 ? t('noApps') : apps.map((k) => PRODUCT_CONFIG[k].name).join(', ');
+  // Con la mayoría de las apps se nombra lo que falta ("todas las apps menos Track").
+  const appsLabel = (apps: Apps, r: Role) => {
+    if (r === 'owner') return t('allApps');
+    if (r === 'guest') return t('guestAccess');
+    const d = describeApps(apps);
+    if (d.kind === 'all') return t('allApps');
+    if (!d.names.length) return t('noApps');
+    return d.kind === 'except' ? t('allAppsExcept', { apps: joinNames(d.names, locale) }) : d.names.join(', ');
+  };
 
   const q = query.trim().toLowerCase();
   const members = q ? dir.members.filter((m) => `${m.name ?? ''} ${m.email}`.toLowerCase().includes(q)) : dir.members;
@@ -243,7 +258,7 @@ export default function MembersPanel({
   return (
     <>
       {admin && (
-        <FormSection title={t('inviteTitle', { workspace: dir.team.name })} description={t('inviteDesc')}>
+        <FormSection title={t('inviteTitle', { workspace: dir.team.name })} description={t(emailLogin ? 'inviteDesc' : 'inviteDescGoogle')}>
           {legacyNotice && (
             <p className="ws-notice" role="note" data-testid="legacy-notice">
               {t('legacyNotice')}
@@ -523,7 +538,7 @@ export default function MembersPanel({
                     <button
                       type="button"
                       className="btn btn-ghost btn-danger btn-sm"
-                      onClick={() => void revoke(i)}
+                      onClick={() => setRevoking(i)}
                       disabled={busy}
                       aria-label={t('revokeOf', { email: i.email })}
                     >
@@ -562,6 +577,17 @@ export default function MembersPanel({
         cancelLabel={t('cancel')}
         onConfirm={() => void remove()}
         onCancel={() => setRemoving(null)}
+      />
+      <ConfirmDialog
+        open={revoking !== null}
+        danger
+        busy={busy}
+        title={t('revokeConfirm.title', { email: revoking?.email ?? '' })}
+        body={t('revokeConfirm.body')}
+        confirmLabel={t('revokeConfirm.confirm')}
+        cancelLabel={t('revokeConfirm.cancel')}
+        onConfirm={() => void revoke()}
+        onCancel={() => setRevoking(null)}
       />
       <ConfirmDialog
         open={leaving}

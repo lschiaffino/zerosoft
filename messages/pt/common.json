@@ -337,9 +337,12 @@
         "rate_limited": "Muitos códigos seguidos. Espere alguns minutos.",
         "send_failed": "O email não saiu. Tente de novo em um minuto.",
         "email_login_disabled": "Neste servidor não dá para entrar por email. Use o Google.",
-        "bad_code": "O código está errado ou venceu. Veja o último email ou peça outro."
+        "bad_code": "O código está errado ou venceu. Veja o último email ou peça outro.",
+        "daily_limit": "Tentativas demais com este email hoje. Entre com o Google ou tente de novo amanhã.",
+        "verify_rate_limited": "Muitos códigos testados a partir desta rede. Espere 15 minutos e tente de novo."
       }
-    }
+    },
+    "subGoogle": "Entre com a sua conta Google. Não tem senha para criar."
   },
   "blog": {
     "label": "Blog",

@@ -5,15 +5,26 @@
  *
  * - Se guarda el hash del código (email + código), nunca el código.
  * - Vence a los 10 minutos, sirve una vez (compare-and-set sobre used_at) y
- *   aguanta 5 intentos fallidos; un código nuevo invalida los anteriores.
- * - Pedir código responde igual exista o no la cuenta (no revela emails).
+ *   aguanta 5 intentos: cada intento suma primero (compare-and-set) y solo
+ *   se compara si quedaba cupo, así 50 intentos en paralelo no pasan de 5.
+ *   Un código nuevo invalida los anteriores.
+ * - Límites por día (UTC) contados por email + IP, para que un tercero desde
+ *   su IP no deje sin entrar a otra persona: 15 códigos y 20 intentos
+ *   fallidos; además un tope alto por email solo (60 códigos, 100 fallos)
+ *   contra un ataque desde muchas IPs. Solo cuenta como fallo un intento
+ *   contra un código vigente (adivinar sin código no bloquea a nadie). El
+ *   canje también tiene límite por IP.
+ * - Pedir código responde igual exista o no la cuenta. Al llegar a un límite
+ *   diario el mensaje es el mismo para cualquier email ("demasiados intentos
+ *   con este email hoy"): no revela si hay cuenta.
  * - Sin proveedor de email en producción no se ofrece: el código no llegaría.
  *
  * La sesión la emite NextAuth (CredentialsProvider 'email-code' en lib/auth.ts).
  * Server-only.
  */
 import { createHash, randomInt, timingSafeEqual } from 'crypto';
-import { getDb } from './db';
+import { getDb, normalizeEmail } from './db';
+import { clientIp, isRateLimited, rateLimit } from './rate-limit';
 import { sendEmail, appSender, escapeHtml } from './email';
 
 // Igual que lib/workspace-invites.ts (sin importarlo: lib/auth.ts no arrastra equipos).
@@ -21,6 +32,44 @@ const EMAIL_RE = /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/;
 
 export const EMAIL_CODE_TTL_MS = 10 * 60_000;
 export const EMAIL_CODE_MAX_ATTEMPTS = 5;
+/** Códigos por día por email + IP, y tope por email solo. */
+export const EMAIL_CODE_DAILY_LIMIT = 15;
+export const EMAIL_CODE_DAILY_LIMIT_EMAIL = 60;
+/** Intentos fallidos (contra un código vigente) por día por email + IP, y tope por email solo. */
+export const EMAIL_CODE_DAILY_FAILURES = 20;
+export const EMAIL_CODE_DAILY_FAILURES_EMAIL = 100;
+/** Canjes por IP cada 15 minutos (el callback de NextAuth no pasa por otra ruta con límite). */
+export const EMAIL_CODE_VERIFY_PER_IP = 30;
+const DAY_SEC = 86_400;
+const sendKey = (email: string, ip: string) => `auth:email-code:day:${email}:${ip}`;
+const sendEmailKey = (email: string) => `auth:email-code:day:${email}`;
+const failKey = (email: string, ip: string) => `auth:email-code:fail:${email}:${ip}`;
+const failEmailKey = (email: string) => `auth:email-code:fail:${email}`;
+
+/** ¿Este email (desde esta IP, o desde demasiadas) llegó al tope de fallos del día? */
+export async function emailLoginLocked(email: string, ip = 'unknown'): Promise<boolean> {
+  return (
+    (await isRateLimited(failKey(email, ip), EMAIL_CODE_DAILY_FAILURES, DAY_SEC)) ||
+    (await isRateLimited(failEmailKey(email), EMAIL_CODE_DAILY_FAILURES_EMAIL, DAY_SEC))
+  );
+}
+
+async function countFailure(email: string, ip: string): Promise<void> {
+  await rateLimit(failKey(email, ip), EMAIL_CODE_DAILY_FAILURES, DAY_SEC);
+  await rateLimit(failEmailKey(email), EMAIL_CODE_DAILY_FAILURES_EMAIL, DAY_SEC);
+}
+
+/** IP de una request de NextAuth (authorize recibe los headers como objeto). */
+export function ipFromHeaders(headers: Record<string, unknown> | Headers | undefined | null): string {
+  try {
+    const h = new Headers();
+    if (headers instanceof Headers) headers.forEach((v, k) => h.set(k, v));
+    else for (const [k, v] of Object.entries(headers ?? {})) if (typeof v === 'string') h.set(k, v);
+    return clientIp(new Request('http://localhost/', { headers: h }));
+  } catch {
+    return 'unknown';
+  }
+}
 
 type Lang = 'en' | 'es' | 'pt';
 
@@ -32,7 +81,7 @@ export function emailLoginEnabled(): boolean {
 
 export function normalizeLoginEmail(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
-  const email = raw.trim().toLowerCase();
+  const email = normalizeEmail(raw);
   return email.length <= 254 && EMAIL_RE.test(email) ? email : null;
 }
 
@@ -94,7 +143,16 @@ export function renderLoginCodeEmail(email: string, code: string, locale?: strin
  * Crea un código para `email` (invalida los anteriores) y lo manda. Devuelve
  * ok:false solo si el proveedor de email falló.
  */
-export async function sendLoginCode(email: string, locale?: string | null, now = Date.now()): Promise<{ ok: boolean; error?: string }> {
+export async function sendLoginCode(
+  email: string,
+  locale?: string | null,
+  ip = 'unknown',
+  now = Date.now(),
+): Promise<{ ok: boolean; sent: boolean; error?: 'daily_limit' | 'send_failed' | string }> {
+  // Tope del día: el mismo mensaje para cualquier email (no revela si hay cuenta).
+  if (await emailLoginLocked(email, ip)) return { ok: false, sent: false, error: 'daily_limit' };
+  if (!(await rateLimit(sendKey(email, ip), EMAIL_CODE_DAILY_LIMIT, DAY_SEC)).ok) return { ok: false, sent: false, error: 'daily_limit' };
+  if (!(await rateLimit(sendEmailKey(email), EMAIL_CODE_DAILY_LIMIT_EMAIL, DAY_SEC)).ok) return { ok: false, sent: false, error: 'daily_limit' };
   const db = getDb();
   const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
   await db.prepare('DELETE FROM email_login_codes WHERE email = ? OR expires_at < ?').run(email, new Date(now - 60 * 60_000).toISOString());
@@ -103,31 +161,40 @@ export async function sendLoginCode(email: string, locale?: string | null, now =
     .run(hashCode(email, code), email, new Date(now).toISOString(), new Date(now + EMAIL_CODE_TTL_MS).toISOString());
   const { subject, text, html } = renderLoginCodeEmail(email, code, locale);
   const res = await sendEmail({ to: email, subject, text, html, from: appSender() });
-  return res.ok ? { ok: true } : { ok: false, error: res.error ?? 'send_failed' };
+  return res.ok ? { ok: true, sent: true } : { ok: false, sent: false, error: res.error ?? 'send_failed' };
 }
 
+export type VerifyResult = { ok: true; email: string } | { ok: false; error: 'invalid' | 'daily_limit' | 'rate_limited' };
+
 /**
- * Canjea el código: true si es el vigente para ese email (y lo marca usado).
- * Cada intento fallido suma; al quinto el código deja de servir.
+ * Canjea el código. Primero reclama un intento (attempts + 1 solo si
+ * quedaba cupo) y solo entonces compara. Solo un intento contra un código
+ * vigente cuenta como fallo del día; sin código vigente no suma nada.
  */
-export async function verifyLoginCode(rawEmail: unknown, rawCode: unknown, now = Date.now()): Promise<string | null> {
+export async function verifyLoginCode(rawEmail: unknown, rawCode: unknown, ip = 'unknown', now = Date.now()): Promise<VerifyResult> {
+  if (!(await rateLimit(`auth:email-code:verify:${ip}`, EMAIL_CODE_VERIFY_PER_IP, 900)).ok) return { ok: false, error: 'rate_limited' };
   const email = normalizeLoginEmail(rawEmail);
   const code = typeof rawCode === 'string' ? rawCode.replace(/\D/g, '') : '';
-  if (!email || code.length !== 6) return null;
+  if (!email || code.length !== 6) return { ok: false, error: 'invalid' };
+  if (await emailLoginLocked(email, ip)) return { ok: false, error: 'daily_limit' };
   const db = getDb();
   const nowIso = new Date(now).toISOString();
   const row = (await db
-    .prepare('SELECT code_hash, attempts FROM email_login_codes WHERE email = ? AND used_at IS NULL AND expires_at > ? ORDER BY created_at DESC LIMIT 1')
-    .get(email, nowIso)) as { code_hash: string; attempts: number } | undefined;
-  if (!row || Number(row.attempts) >= EMAIL_CODE_MAX_ATTEMPTS) return null;
+    .prepare(
+      `UPDATE email_login_codes SET attempts = attempts + 1
+       WHERE code_hash = (SELECT code_hash FROM email_login_codes WHERE email = ? AND used_at IS NULL AND expires_at > ? ORDER BY created_at DESC LIMIT 1)
+         AND used_at IS NULL AND attempts < ?
+       RETURNING code_hash`,
+    )
+    .get(email, nowIso, EMAIL_CODE_MAX_ATTEMPTS)) as { code_hash: string } | undefined;
+  // Sin código vigente (o sin intentos): no se compara ni se cuenta como fallo.
+  if (!row) return { ok: false, error: 'invalid' };
   const want = Buffer.from(row.code_hash, 'hex');
   const got = Buffer.from(hashCode(email, code), 'hex');
   if (want.length !== got.length || !timingSafeEqual(want, got)) {
-    await db.prepare('UPDATE email_login_codes SET attempts = attempts + 1 WHERE code_hash = ?').run(row.code_hash);
-    return null;
+    await countFailure(email, ip);
+    return { ok: false, error: 'invalid' };
   }
-  const claim = await db
-    .prepare('UPDATE email_login_codes SET used_at = ? WHERE code_hash = ? AND used_at IS NULL AND attempts < ?')
-    .run(nowIso, row.code_hash, EMAIL_CODE_MAX_ATTEMPTS);
-  return claim.changes > 0 ? email : null;
+  const claim = await db.prepare('UPDATE email_login_codes SET used_at = ? WHERE code_hash = ? AND used_at IS NULL').run(nowIso, row.code_hash);
+  return claim.changes > 0 ? { ok: true, email } : { ok: false, error: 'invalid' };
 }

@@ -337,9 +337,12 @@
         "rate_limited": "Too many codes in a row. Wait a few minutes.",
         "send_failed": "The email didn't go out. Try again in a minute.",
         "email_login_disabled": "Signing in by email is off on this server. Use Google.",
-        "bad_code": "That code is wrong or expired. Check the latest email or ask for another."
+        "bad_code": "That code is wrong or expired. Check the latest email or ask for another.",
+        "daily_limit": "Too many tries for this email today. Use Google or try again tomorrow.",
+        "verify_rate_limited": "Too many codes checked from this network. Wait 15 minutes and try again."
       }
-    }
+    },
+    "subGoogle": "Sign in with your Google account. There is no password to create."
   },
   "blog": {
     "label": "Blog",

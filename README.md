@@ -108,7 +108,7 @@ cp .env.example .env          # NEXTAUTH_URL, NEXTAUTH_SECRET, Google credential
 docker compose up -d          # http://localhost:3000 — put any HTTPS reverse proxy in front
 ```
 
-Your reverse proxy must add the client address to `X-Forwarded-For` (nginx: `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`, Caddy and Traefik do it by default). Rate limits per IP read the rightmost entry; with more than one proxy in a chain, set `TRUST_PROXY_HOPS`. **If nothing sits in front of the app (it is exposed directly), set `TRUST_PROXY=0`**: otherwise a client can send its own `X-Forwarded-For` and pick its rate-limit bucket.
+Your reverse proxy must add the client address to `X-Forwarded-For` (nginx: `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`, Caddy and Traefik do it by default). Rate limits per IP read the rightmost entry; with more than one proxy in a chain, set `TRUST_PROXY_HOPS`. **If nothing sits in front of the app (it is exposed directly), set `TRUST_PROXY=0`**: otherwise a client can send its own `X-Forwarded-For` and pick its rate-limit bucket. This includes sign-in by email code: its limits (codes sent, codes checked, the daily lockout) are counted per IP, so `next start` exposed without a proxy lets a forged `X-Forwarded-For` dodge them. With `TRUST_PROXY=0` those limits are shared by everyone on the server, so if your team signs in by email code, prefer a reverse proxy over `TRUST_PROXY=0`.
 
 Data lives in two volumes: `zerosoft-data` (the SQLite file) and `zerosoft-uploads` (attachments). Back them up and you have everything.
 
