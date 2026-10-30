@@ -21,7 +21,7 @@
  * Solo lo hace quien tenía texto propio en el bloque (`own`): las demás
  * pantallas reciben el resultado por operaciones, así nada se mueve dos veces.
  */
-import { apply, diff, transformIndex, type TextOp } from './docs-ot';
+import { apply, diff, tokens, transformIndex, type TextOp } from './docs-ot';
 
 /** Operación de otra persona tal como se aplicó en esta pantalla. */
 export interface RemoteTrace {
@@ -52,25 +52,38 @@ export interface RemapResult<B extends RemapBlock> {
   touched: string[];
 }
 
-/** Tramo borrado por una operación: dónde empieza, el texto borrado y si en el medio quedó algo (lo que la operación conservó). */
-export function deletedSpan(prev: string, op: TextOp): { start: number; text: string; keptAt: number | null } | null {
+/** Solo formato (tags), sin texto. */
+const isMarkup = (s: string) => /^(?:<[^>]*>)+$/.test(s);
+
+/**
+ * Tramo borrado por una operación: dónde empieza, el texto borrado, si en el
+ * medio quedó texto (lo que la operación conservó: lo propio que la otra
+ * persona no vio) y cuánto se conservó en el medio en total (también formato,
+ * como el cierre de una negrita que quedó en el bloque). `start` es en `prev`;
+ * `at`, el mismo lugar después de la operación (lo que insertó antes lo corre).
+ */
+export function deletedSpan(prev: string, op: TextOp): { start: number; at: number; text: string; keptAt: number | null; keptLen: number } | null {
   let i = 0;
+  let ins = 0;
   let start = -1;
   let text = '';
   let keptAt: number | null = null;
+  let keptLen = 0;
   let ended = false;
   for (let k = 0; k < op.length; k++) {
     const c = op[k];
     if (typeof c === 'string') {
       if (start >= 0) return null; // Inserta en el medio del corte: no es un corte simple.
+      ins += c.length;
       continue;
     }
     if (c > 0) {
       if (start >= 0 && !ended) {
-        // Lo que se conserva en el medio del tramo (texto que la otra persona no vio).
+        // Lo que se conserva en el medio del tramo (texto que la otra persona no vio, o formato).
         const rest = op.slice(k + 1).some((x) => typeof x === 'number' && x < 0);
         if (rest) {
-          if (keptAt === null) keptAt = text.length;
+          keptLen += c;
+          if (keptAt === null && !isMarkup(prev.slice(i, i + c))) keptAt = text.length;
         } else ended = true;
       }
       i += c;
@@ -83,7 +96,23 @@ export function deletedSpan(prev: string, op: TextOp): { start: number; text: st
     i += n;
   }
   if (start < 0 || !text) return null;
-  return { start, text, keptAt };
+  return { start, at: start + ins, text, keptAt, keptLen };
+}
+
+/** Texto sin formato de un HTML-lite y, por cada carácter, su índice en el HTML (más uno al final). */
+function plainOf(html: string): { text: string; at: number[] } {
+  let text = '';
+  const at: number[] = [];
+  let i = 0;
+  for (const t of tokens(html)) {
+    if (!(t[0] === '<' && t.length > 1)) {
+      for (let k = 0; k < t.length; k++) at.push(i);
+      text += t;
+    }
+    i += t.length;
+  }
+  at.push(html.length);
+  return { text, at };
 }
 
 /** Inserción única de una operación (sin borrados): dónde y qué. */
@@ -131,38 +160,67 @@ export function remapStructure<B extends RemapBlock>(
     touched.add(id);
   };
 
-  // Partir: bloque nuevo (no estaba acá) justo después de uno que sí estaba.
+  // Partir: bloques nuevos (no estaban acá) después de uno que sí estaba. Pueden ser varios
+  // seguidos (la otra persona partió dos veces antes de que llegara la estructura): la cola
+  // cortada puede estar en cualquiera de ellos, o repartida entre varios. El bloque cortado
+  // puede no ser el de justo antes: los bloques que se partieron acá (Enter propio) quedan
+  // en el medio.
   for (let i = 1; i < blocks.length; i++) {
-    const n = blocks[i];
-    const p = blocks[i - 1];
-    const nText = str(n);
-    const pText = str(p);
-    if (prevById.has(n.id) || !prevById.has(p.id) || nText === null || pText === null || !nText) continue;
+    if (prevById.has(blocks[i].id) || !prevById.has(blocks[i - 1].id)) continue;
+    let end = i;
+    while (end < blocks.length && !prevById.has(blocks[end].id)) end++;
+    const run = blocks.slice(i, end);
+    if (run.some((b) => str(b) === null)) continue;
+    // Se compara el texto sin formato: el corte de una negrita deja su cierre en el bloque de arriba.
+    const plains = run.map((b) => plainOf(str(b)!));
+    const joined = plains.map((x) => x.text).join('');
+    if (!joined) continue;
     let span: ReturnType<typeof deletedSpan> = null;
-    // El bloque nuevo tiene la cola cortada; la otra persona pudo escribir ya ahí (antes o después de ella).
-    const t = latest(p.id, (x) => {
-      if (!x.own) return false;
-      span = deletedSpan(x.prev, x.op);
-      return !!span && nText.includes(span.text);
-    });
+    let spText = '';
+    let t: RemoteTrace | null = null;
+    let p: B | null = null;
+    for (let j = i - 1; j >= 0 && !t; j--) {
+      if (!prevById.has(blocks[j].id) || str(blocks[j]) === null) continue;
+      // Los bloques nuevos tienen la cola cortada; la otra persona pudo escribir ya ahí (antes o después de ella).
+      t = latest(blocks[j].id, (x) => {
+        if (!x.own) return false;
+        span = deletedSpan(x.prev, x.op);
+        spText = span ? plainOf(span.text).text : '';
+        return !!spText && joined.includes(spText);
+      });
+      if (t) p = blocks[j];
+    }
     const sp = span as ReturnType<typeof deletedSpan>;
-    if (!t || !sp) continue;
+    if (!t || !sp || !p) continue;
+    const pText = str(p)!;
     let cut: number;
     try {
       const after = apply(t.prev, t.op);
-      cut = transformIndex(sp.start, diff(after, pText));
+      // Sin texto propio en el medio, lo que quedó del tramo (formato) se queda arriba.
+      cut = transformIndex(sp.at + (sp.keptAt === null ? sp.keptLen : 0), diff(after, pText));
     } catch {
       continue;
     }
     const orphan = pText.slice(cut);
     if (!orphan) continue;
-    // Dónde va en el bloque nuevo: donde se escribía (lo conservado en el medio del corte), o al
-    // final de la cola cortada (lo que la otra persona escribió en el bloque nuevo queda en su lugar).
-    const tailAt = nText.lastIndexOf(sp.text);
-    const at = Math.min(nText.length, tailAt + (sp.keptAt ?? sp.text.length));
+    // Dónde va: donde se escribía (lo conservado en el medio del corte), o al final de la
+    // cola cortada (lo que la otra persona escribió en los bloques nuevos queda en su lugar).
+    const tailAt = joined.lastIndexOf(spText);
+    const keptPlain = sp.keptAt === null ? spText.length : plainOf(sp.text.slice(0, sp.keptAt)).text.length;
+    let pos = Math.min(joined.length, tailAt + keptPlain);
+    // El bloque del tramo donde cae esa posición (en un borde, el de antes: el que termina con la cola).
+    let k = 0;
+    while (k < run.length - 1 && pos > plains[k].text.length) {
+      pos -= plains[k].text.length;
+      k++;
+    }
+    const n = run[k];
+    const nText = str(n)!;
+    const at = plains[k].at[Math.min(pos, plains[k].text.length)];
     setContent(p.id, pText.slice(0, cut));
     setContent(n.id, nText.slice(0, at) + orphan + nText.slice(at));
     if (outCaret && outCaret.block === p.id && outCaret.index >= cut) outCaret = { block: n.id, index: at + (outCaret.index - cut) };
+    i = end - 1;
   }
 
   // Unir: un bloque que estaba acá y ya no está en el servidor.

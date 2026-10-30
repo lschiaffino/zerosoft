@@ -37,6 +37,70 @@ describe('remapStructure (partir y unir mientras se escribe)', () => {
     expect(res.caret).toEqual({ block: 'n', index: 'Bnew  beta gamma delta typed-by-A'.length });
   });
 
+  it('partir dos veces antes de que llegue la estructura: lo propio va al bloque nuevo que termina con la cola', () => {
+    // La otra persona partió en "alpha be|", escribió "AA", partió otra vez y escribió "BB":
+    // la estructura llega de una vez con dos bloques nuevos, el de la cola no es el primero.
+    const V = 'alpha beta gamma delta un';
+    const op = [8, -17];
+    const traces: RemoteTrace[] = [{ block: 'p', at: 0, prev: V, op, own: true }];
+    const now = 'alpha beo dos';
+    const merged = [blk('p', now), blk('a', 'AA'), blk('b', 'BBta gamma delta un')];
+    const res = remapStructure([blk('p', now)], merged, merged, traces, { block: 'p', index: now.length })!;
+    expect(res.blocks.map((b) => b.content)).toEqual(['alpha be', 'AA', 'BBta gamma delta uno dos']);
+    expect(res.caret).toEqual({ block: 'b', index: 'BBta gamma delta uno dos'.length });
+    expect(res.touched.sort()).toEqual(['b', 'p']);
+  });
+
+  it('la otra persona escribió antes del corte y partió en la misma operación: lo suyo queda arriba', () => {
+    // "one|": escribió "Aa" y partió; acá ya estaba "Ba" propio al final.
+    const V = 'one two three fiveBa';
+    const op = [3, 'Aa', -15, 2];
+    expect(apply(V, op)).toBe('oneAaBa');
+    const traces: RemoteTrace[] = [{ block: 'p', at: 0, prev: V, op, own: true }];
+    const now = 'oneAaBa';
+    const merged = [blk('p', now), blk('x', 'Ab'), blk('n', ' two three five')];
+    const res = remapStructure([blk('p', now)], merged, merged, traces, { block: 'p', index: now.length })!;
+    expect(res.blocks.map((b) => b.content)).toEqual(['oneAa', 'Ab', ' two three fiveBa']);
+  });
+
+  it('los bloques que se partieron acá quedan entre el bloque cortado y los nuevos: lo propio igual va a la cola', () => {
+    // Acá: "Ba" al final y Enter (bloques propios "Bb", ""); allá partieron en "one|" y escribieron "Ab".
+    const V = 'one two fiveBa';
+    const op = [3, 'Aa', -9, 2];
+    const traces: RemoteTrace[] = [{ block: 'p', at: 0, prev: V, op, own: true }];
+    const prev = [blk('p', 'oneAaBa'), blk('b1', 'Bb'), blk('b2', '')];
+    const merged = [blk('p', 'oneAaBa'), blk('b1', 'Bb'), blk('b2', ''), blk('x', 'Ab'), blk('n', ' two five')];
+    const res = remapStructure(prev, merged, merged, traces, { block: 'b2', index: 0 })!;
+    expect(res.blocks.map((b) => b.content)).toEqual(['oneAa', 'Bb', '', 'Ab', ' two fiveBa']);
+    expect(res.caret).toEqual({ block: 'b2', index: 0 });
+  });
+
+  it('partir dos veces dentro de una negrita: el cierre queda arriba y lo propio va al final de la cola', () => {
+    const V = 'alpha <strong>beta</strong> gamma delta un';
+    const after = 'alpha <strong>be</strong>';
+    const op = diff(V, after);
+    expect(apply(V, op)).toBe(after);
+    const traces: RemoteTrace[] = [{ block: 'p', at: 0, prev: V, op, own: true }];
+    const now = after + 'o dos';
+    const merged = [blk('p', now), blk('a', '<strong>AA</strong>'), blk('b', '<strong>BBta</strong> gamma delta un')];
+    const res = remapStructure([blk('p', now)], merged, merged, traces, { block: 'p', index: now.length })!;
+    expect(res.blocks.map((b) => b.content)).toEqual([after, '<strong>AA</strong>', '<strong>BBta</strong> gamma delta uno dos']);
+    expect(res.caret).toEqual({ block: 'b', index: '<strong>BBta</strong> gamma delta uno dos'.length });
+  });
+
+  it('partir dos veces en el medio de la cola: lo propio va al bloque donde terminó la cola', () => {
+    const V = 'alpha beta gamma delta';
+    const op = [10, -12];
+    const traces: RemoteTrace[] = [{ block: 'p', at: 0, prev: V, op, own: true }];
+    const now = 'alpha beta uno';
+    // La cola " gamma delta" quedó repartida en dos bloques nuevos.
+    const merged = [blk('p', now), blk('a', ' gamma'), blk('b', ' delta'), blk('q', 'otro')];
+    const prev = [blk('p', now), blk('q', 'otro')];
+    const res = remapStructure(prev, merged, merged, traces, { block: 'p', index: now.length })!;
+    expect(res.blocks.map((b) => b.content)).toEqual(['alpha beta', ' gamma', ' delta uno', 'otro']);
+    expect(res.caret).toEqual({ block: 'b', index: ' delta uno'.length });
+  });
+
   it('partir con lo propio en el medio de la cola: va a ese lugar del bloque nuevo', () => {
     const V = 'alpha beta gaXmma delta';
     // Se borró " gamma delta" salvo la X propia (escrita en el medio).
@@ -80,8 +144,12 @@ describe('remapStructure (partir y unir mientras se escribe)', () => {
   });
 
   it('deletedSpan y singleInsert', () => {
-    expect(deletedSpan('abcdef', [2, -2, 2])).toEqual({ start: 2, text: 'cd', keptAt: null });
-    expect(deletedSpan('abXcd', [-2, 1, -2])).toEqual({ start: 0, text: 'abcd', keptAt: 2 });
+    expect(deletedSpan('abcdef', [2, -2, 2])).toEqual({ start: 2, at: 2, text: 'cd', keptAt: null, keptLen: 0 });
+    expect(deletedSpan('abXcd', [-2, 1, -2])).toEqual({ start: 0, at: 0, text: 'abcd', keptAt: 2, keptLen: 1 });
+    // Lo conservado en el medio es solo formato: no es texto propio.
+    expect(deletedSpan('<b>abcd</b>ef', [5, -2, 4, -2])).toEqual({ start: 5, at: 5, text: 'cdef', keptAt: null, keptLen: 4 })
+    // Lo que insertó antes del corte corre el lugar después de la operación.
+    expect(deletedSpan('one two', [3, 'Aa', -4])).toEqual({ start: 3, at: 5, text: ' two', keptAt: null, keptLen: 0 });
     expect(deletedSpan('abc', [3])).toBeNull();
     expect(singleInsert([3, 'xy', 2])).toEqual({ at: 3, text: 'xy' });
     expect(singleInsert([1, 'x', -1])).toBeNull();
