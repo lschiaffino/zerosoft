@@ -67,16 +67,27 @@ export function isValidRfc(input: string): boolean {
 }
 
 function allSame(d: string): boolean {
-  return /^(\d)\1+$/.test(d);
+  return /^(.)\1+$/.test(d);
 }
 
-/** CNPJ: 14 dígitos con dos verificadores (módulo 11). */
+/** CNPJ sin puntuación y en mayúsculas (conserva las letras del CNPJ alfanumérico). */
+export function cleanCnpj(input: string): string {
+  return input.toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+/**
+ * CNPJ: 14 posiciones con dos verificadores (módulo 11). Desde julio de 2026
+ * la Receita Federal emite CNPJ alfanuméricos: las 12 primeras pueden ser
+ * letras o dígitos (valor = código ASCII − 48) y los dos verificadores son
+ * dígitos. Los numéricos de siempre siguen valiendo con la misma cuenta.
+ */
 export function isValidCnpj(input: string): boolean {
-  const d = digits(input);
-  if (d.length !== 14 || allSame(d)) return false;
+  const d = cleanCnpj(input);
+  if (!/^[A-Z0-9]{12}\d{2}$/.test(d) || allSame(d)) return false;
+  const val = (c: string) => c.charCodeAt(0) - 48;
   const calc = (len: number) => {
     const weights = len === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
-    const sum = weights.reduce((s, w, i) => s + w * Number(d[i]), 0);
+    const sum = weights.reduce((s, w, i) => s + w * val(d[i]), 0);
     const r = sum % 11;
     return r < 2 ? 0 : 11 - r;
   };
@@ -137,6 +148,7 @@ export function normalizeTaxId(type: TaxIdType | string, value: string): string 
     case 'rfc':
       return v.toUpperCase().replace(/[\s-]/g, '');
     case 'cnpj':
+      return cleanCnpj(v);
     case 'cpf':
       return digits(v);
     default:

@@ -20,6 +20,7 @@ export type SystemKey =
   | 'inventory'
   | 'tax_in'
   | 'ap'
+  | 'customer_credit'
   | 'tax_out'
   | 'equity'
   | 'retained'
@@ -31,7 +32,7 @@ export type SystemKey =
   | 'expense'
   | 'bank_fees';
 
-export const SYSTEM_KEYS: readonly SystemKey[] = ['cash', 'bank', 'ar', 'clearing', 'inventory', 'tax_in', 'ap', 'tax_out', 'equity', 'retained', 'sales', 'services', 'shipping_income', 'fx', 'cogs', 'expense', 'bank_fees'];
+export const SYSTEM_KEYS: readonly SystemKey[] = ['cash', 'bank', 'ar', 'clearing', 'inventory', 'tax_in', 'ap', 'customer_credit', 'tax_out', 'equity', 'retained', 'sales', 'services', 'shipping_income', 'fx', 'cogs', 'expense', 'bank_fees'];
 
 export interface AccountTemplate {
   code: string;
@@ -54,6 +55,7 @@ const GENERIC: AccountTemplate[] = [
   { code: '1500', name: 'Equipment', type: 'asset', subtype: 'fixed' },
   { code: '2000', name: 'Accounts payable', type: 'liability', subtype: 'payable', key: 'ap' },
   { code: '2100', name: 'Sales tax payable', type: 'liability', subtype: 'tax', key: 'tax_out' },
+  { code: '2050', name: 'Customer credits (unapplied payments)', type: 'liability', subtype: 'other', key: 'customer_credit' },
   { code: '2200', name: 'Loans', type: 'liability', subtype: 'other' },
   { code: '3000', name: "Owner's equity", type: 'equity', subtype: 'equity', key: 'equity' },
   { code: '3100', name: 'Retained earnings', type: 'equity', subtype: 'equity', key: 'retained' },
@@ -86,6 +88,7 @@ const AR: AccountTemplate[] = [
   { code: '1.2.01', name: 'Bienes de uso', type: 'asset', subtype: 'fixed' },
   { code: '2.1.01', name: 'Proveedores', type: 'liability', subtype: 'payable', key: 'ap' },
   { code: '2.1.02', name: 'IVA débito fiscal', type: 'liability', subtype: 'tax', key: 'tax_out' },
+  { code: '2.1.05', name: 'Anticipos y saldos a favor de clientes', type: 'liability', subtype: 'other', key: 'customer_credit' },
   { code: '2.1.03', name: 'Ingresos brutos a pagar', type: 'liability', subtype: 'tax' },
   { code: '2.1.04', name: 'Sueldos y cargas sociales a pagar', type: 'liability', subtype: 'other' },
   { code: '3.1.01', name: 'Capital social', type: 'equity', subtype: 'equity', key: 'equity' },
@@ -118,6 +121,7 @@ const MX: AccountTemplate[] = [
   { code: '151', name: 'Mobiliario y equipo', type: 'asset', subtype: 'fixed' },
   { code: '201', name: 'Proveedores', type: 'liability', subtype: 'payable', key: 'ap' },
   { code: '208', name: 'IVA trasladado', type: 'liability', subtype: 'tax', key: 'tax_out' },
+  { code: '206', name: 'Anticipos de clientes', type: 'liability', subtype: 'other', key: 'customer_credit' },
   { code: '213', name: 'Impuestos y derechos por pagar', type: 'liability', subtype: 'tax' },
   { code: '301', name: 'Capital social', type: 'equity', subtype: 'equity', key: 'equity' },
   { code: '304', name: 'Resultados de ejercicios anteriores', type: 'equity', subtype: 'equity', key: 'retained' },

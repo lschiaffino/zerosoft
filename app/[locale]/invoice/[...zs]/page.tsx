@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { ensureBooks } from '@/lib/books';
 import { getDocument, getPublicDocRow, markViewed } from '@/lib/books-docs';
+import { getCurrentUser } from '@/lib/session';
 import { onlineMethods, reconcileStripeReturn } from '@/lib/books-payments';
 import { bpsToPercent, formatMoney } from '@/lib/books-money';
 import PublicInvoiceActions from '@/components/books/PublicInvoiceActions';
@@ -36,7 +37,9 @@ export default async function PublicInvoicePage(props: Props) {
     await reconcileStripeReturn(token, sp.session_id).catch(() => false);
     row = (await getPublicDocRow(token)) ?? row;
   }
-  await markViewed(row).catch(() => undefined);
+  // "Vista por el cliente": no cuenta si la abre alguien del propio workspace (desde la app).
+  const viewer = await getCurrentUser().catch(() => null);
+  if (!viewer || viewer.id !== row.workspace_id) await markViewed(row).catch(() => undefined);
   const doc = await getDocument(row.workspace_id, row.id);
   if (!doc) notFound();
   const s = await ensureBooks(row.workspace_id);

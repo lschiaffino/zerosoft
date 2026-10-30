@@ -1197,15 +1197,26 @@ export function RecurringEditor({
   const [nextDate, setNextDate] = useState(rec?.nextDate ?? todayIso());
   const [endDate, setEndDate] = useState(rec?.endDate ?? '');
   const [autoSend, setAutoSend] = useState(rec?.autoSend ?? false);
-  const tplLine = rec?.template.lines[0];
-  const [itemId, setItemId] = useState(tplLine?.itemId ?? '');
-  const [description, setDescription] = useState(tplLine?.description ?? '');
-  const [quantity, setQuantity] = useState(String(tplLine?.quantity ?? 1));
-  const [unitPrice, setUnitPrice] = useState<number | null>(typeof tplLine?.unitPrice === 'number' ? tplLine.unitPrice : null);
-  const [taxRateId, setTaxRateId] = useState(tplLine?.taxRateId ?? '');
+  const [currency, setCurrency] = useState(rec?.template.currency ?? baseCurrency);
+  const [fxRate, setFxRate] = useState(rec?.template.fxRate ?? '');
+  type RecLine = { key: string; itemId: string; description: string; quantity: string; unitPrice: number | null; discount: string; taxRateId: string };
+  const blankLine = (): RecLine => ({ key: Math.random().toString(36).slice(2), itemId: '', description: '', quantity: '1', unitPrice: null, discount: '', taxRateId: '' });
+  const [lines, setLines] = useState<RecLine[]>(() => {
+    const src = rec?.template.lines ?? [];
+    if (!src.length) return [blankLine()];
+    return src.map((l) => ({
+      key: Math.random().toString(36).slice(2),
+      itemId: l.itemId ?? '',
+      description: l.description ?? '',
+      quantity: String(l.quantity ?? 1),
+      unitPrice: typeof l.unitPrice === 'number' ? l.unitPrice : null,
+      discount: l.discountBps ? String(l.discountBps / 100) : '',
+      taxRateId: l.taxRateId ?? '',
+    }));
+  });
+  const setLine = (key: string, patch: Partial<RecLine>) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(false);
-  const extraLines = rec?.template.lines.slice(1) ?? [];
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
@@ -1220,8 +1231,16 @@ export function RecurringEditor({
       autoSend,
       template: {
         ...(rec?.template ?? {}),
-        currency: rec?.template.currency ?? baseCurrency,
-        lines: [{ itemId: itemId || null, description, quantity: Number(quantity.replace(',', '.')) || 1, unitPrice: unitPrice ?? 0, taxRateId: taxRateId || null }, ...extraLines],
+        currency,
+        fxRate: currency === baseCurrency ? undefined : fxRate,
+        lines: lines.map((l) => ({
+          itemId: l.itemId || null,
+          description: l.description,
+          quantity: Number(l.quantity.replace(',', '.')) || 1,
+          unitPrice: l.unitPrice ?? 0,
+          discountBps: Math.round((Number(l.discount.replace(',', '.')) || 0) * 100),
+          taxRateId: l.taxRateId || null,
+        })),
       },
     };
     const res = rec
@@ -1293,56 +1312,80 @@ export function RecurringEditor({
               <input className="input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </label>
           </div>
-          <h2 className="bk-panel-title">{t('recurring.line')}</h2>
           <div className="bk-grid">
             <label className="ui-field">
-              <span className="label">{t('editor.colItem')}</span>
-              <select
-                className="select"
-                value={itemId}
-                onChange={(e) => {
-                  setItemId(e.target.value);
-                  const it = items.find((x) => x.id === e.target.value);
-                  if (it) {
-                    setDescription(it.name);
-                    setUnitPrice(it.price);
-                    setTaxRateId(it.taxRateId ?? '');
-                  }
-                }}
-              >
-                <option value="">{t('editor.noItem')}</option>
-                {items.map((it) => (
-                  <option key={it.id} value={it.id}>
-                    {it.name}
-                  </option>
-                ))}
-              </select>
+              <span className="label">{t('editor.currency')}</span>
+              <input className="input" maxLength={3} value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} />
             </label>
-            <label className="ui-field">
-              <span className="label">{t('editor.colDescription')}</span>
-              <input className="input" required value={description} onChange={(e) => setDescription(e.target.value)} />
-            </label>
-            <label className="ui-field">
-              <span className="label">{t('editor.colQty')}</span>
-              <input className="input num" inputMode="decimal" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
-            </label>
-            <label className="ui-field">
-              <span className="label">{t('editor.colPrice')}</span>
-              <MoneyInput value={unitPrice} onChange={setUnitPrice} currency={rec?.template.currency ?? baseCurrency} label={t('editor.colPrice')} required />
-            </label>
-            <label className="ui-field">
-              <span className="label">{t('editor.colTax')}</span>
-              <select className="select" value={taxRateId} onChange={(e) => setTaxRateId(e.target.value)}>
-                <option value="">{t('editor.noTax')}</option>
-                {taxes.map((x) => (
-                  <option key={x.id} value={x.id}>
-                    {x.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {currency !== baseCurrency && (
+              <label className="ui-field">
+                <span className="label">{t('editor.fxRate', { base: baseCurrency, cur: currency })}</span>
+                <input className="input num" inputMode="decimal" required value={fxRate} onChange={(e) => setFxRate(e.target.value)} />
+              </label>
+            )}
           </div>
-          {extraLines.length > 0 && <p className="ui-help">{t('recurring.extraLines', { n: extraLines.length })}</p>}
+          <h2 className="bk-panel-title">{t('editor.lines')}</h2>
+          {lines.map((l, i) => (
+            <div key={l.key} className="bk-grid bk-rec-line">
+              <label className="ui-field">
+                <span className="label">{t('editor.colItem')}</span>
+                <select
+                  className="select"
+                  value={l.itemId}
+                  onChange={(e) => {
+                    const it = items.find((x) => x.id === e.target.value);
+                    setLine(l.key, it ? { itemId: it.id, description: it.name, unitPrice: it.price, taxRateId: it.taxRateId ?? '' } : { itemId: '' });
+                  }}
+                >
+                  <option value="">{t('editor.noItem')}</option>
+                  {items.map((it) => (
+                    <option key={it.id} value={it.id}>
+                      {it.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="ui-field">
+                <span className="label">{t('editor.colDescription')}</span>
+                <input className="input" required value={l.description} onChange={(e) => setLine(l.key, { description: e.target.value })} />
+              </label>
+              <label className="ui-field">
+                <span className="label">{t('editor.colQty')}</span>
+                <input className="input num" inputMode="decimal" value={l.quantity} onChange={(e) => setLine(l.key, { quantity: e.target.value })} />
+              </label>
+              <label className="ui-field">
+                <span className="label">{t('editor.colPrice')}</span>
+                <MoneyInput value={l.unitPrice} onChange={(v) => setLine(l.key, { unitPrice: v })} currency={currency} label={t('editor.colPrice')} required />
+              </label>
+              <label className="ui-field">
+                <span className="label">{t('editor.colDiscount')}</span>
+                <input className="input num" inputMode="decimal" placeholder="0" value={l.discount} onChange={(e) => setLine(l.key, { discount: e.target.value })} />
+              </label>
+              <label className="ui-field">
+                <span className="label">{t('editor.colTax')}</span>
+                <select className="select" value={l.taxRateId} onChange={(e) => setLine(l.key, { taxRateId: e.target.value })}>
+                  <option value="">{t('editor.noTax')}</option>
+                  {taxes.map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {lines.length > 1 && (
+                <div>
+                  <button type="button" className="btn btn-ghost btn-sm" aria-label={`${t('editor.removeLine')} ${i + 1}`} onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))}>
+                    {t('editor.removeLine')}
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+          <div>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setLines((ls) => [...ls, blankLine()])}>
+              {t('editor.addLine')}
+            </button>
+          </div>
           <label className="ui-check">
             <input type="checkbox" checked={autoSend} onChange={(e) => setAutoSend(e.target.checked)} />
             <span>{t('recurring.autoSend')}</span>

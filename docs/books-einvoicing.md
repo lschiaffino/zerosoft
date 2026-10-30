@@ -8,8 +8,8 @@ Stripe y Mercado Pago para que las facturas se cobren online.
 prueba que funciona de punta a punta. Los conectores reales con ARCA (ex
 AFIP), con el SAT a través de un PAC y con Invopop **todavía no están
 implementados**. Una factura autorizada con el proveedor de prueba no tiene
-validez fiscal. En la página de paridad la fila figura como "parcial: gancho
-listo, faltan las credenciales del proveedor".
+validez fiscal. En la página de paridad la fila figura como parcial y dice
+que no hay conexión con ningún fisco: solo el proveedor de prueba.
 
 ## La interfaz (`lib/books-einvoice.ts`)
 
@@ -145,6 +145,22 @@ El token de las URLs es propio del workspace: no lo compartas. Si se filtra,
 generá una URL nueva en **Books › Ajustes › Cobros** (la anterior deja de
 funcionar) y actualizala en Stripe y en Mercado Pago. Aunque alguien tenga la
 URL, sin la firma del secreto ningún aviso registra un cobro.
+
+## Comprobantes de gastos
+
+Se guardan cifrados (AES-256-GCM) y nunca tienen una URL pública. Con
+`BOOKS_BLOB_READ_WRITE_TOKEN` van a un store de Vercel Blob privado; si no,
+se cifran antes de guardarse en el Blob de la suite o en el disco. La clave es
+`BOOKS_FILES_KEY` (recomendada) o una derivada de `ENCRYPTION_KEY` /
+`NEXTAUTH_SECRET`; para rotarla, la anterior va en `BOOKS_FILES_KEY_OLD`.
+
+## Pedidos de Shop
+
+Con el registro automático activo, cada pedido pagado desde ese momento pasa
+a una factura cobrada con los totales exactos del pedido (si la tasa del
+pedido no existe en Books, el impuesto va como línea de ajuste y llega un
+aviso). Los reembolsos y cancelaciones de Shop no se reflejan solos: se
+registran con una nota de crédito.
 
 ## Otros datos a configurar
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { formatMoney, parseAmount, toDecimalString } from '@/lib/books-money';
+import { formatMoney, parseAmountLocal, toInputString } from '@/lib/books-money';
 
 /** fetch JSON a la API de Books: { ok, status, data } (nunca lanza). */
 export async function api<T = Record<string, unknown>>(url: string, init: RequestInit & { json?: unknown } = {}): Promise<{ ok: boolean; status: number; data: T & { error?: string } }> {
@@ -134,12 +134,12 @@ export function Dialog({ open, title, onClose, children, wide = false }: { open:
 
 /** Input de dinero en texto decimal ("1234.50"): emite unidades mínimas de la moneda (o null). */
 export function MoneyInput({ value, onChange, currency, label, id, required, autoFocus }: { value: number | null; onChange: (v: number | null) => void; currency: string; label: string; id?: string; required?: boolean; autoFocus?: boolean }) {
-  const [text, setText] = useState(value == null ? '' : toDecimalString(value, currency));
+  const [text, setText] = useState(value == null ? '' : toInputString(value, currency));
   const last = useRef(value);
   useEffect(() => {
     if (value !== last.current) {
       last.current = value;
-      setText(value == null ? '' : toDecimalString(value, currency));
+      setText(value == null ? '' : toInputString(value, currency));
     }
   }, [value, currency]);
   return (
@@ -153,7 +153,7 @@ export function MoneyInput({ value, onChange, currency, label, id, required, aut
       value={text}
       onChange={(e) => {
         setText(e.target.value);
-        const parsed = e.target.value.trim() === '' ? null : parseAmount(e.target.value, currency);
+        const parsed = e.target.value.trim() === '' ? null : parseAmountLocal(e.target.value, currency);
         if (e.target.value.trim() === '' || parsed != null) {
           last.current = parsed;
           onChange(parsed);

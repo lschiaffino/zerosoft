@@ -698,7 +698,7 @@
     "providerPending": "Este conector todavía no está implementado. No se pueden autorizar facturas con él.",
     "testProviderHelp": "Devuelve un CAE ficticio. Las facturas autorizadas así no tienen validez fiscal.",
     "einvoiceDocs": "Lo que pide cada proveedor (certificados, CUIT, punto de venta, CSD) está en docs/books-einvoicing.md.",
-    "rolesHelp": "Los roles van encima del acceso a la app. Owners y admins son siempre contadores.",
+    "rolesHelp": "Los roles van encima del acceso por app. El owner y los admins son siempre contadores. Los miembros empiezan como lectura hasta que les des otro rol, y si salen y vuelven conservan el que tenían.",
     "noPeople": "Nadie más tiene Books en este workspace.",
     "roleFor": "Rol de {name}",
     "shopAutoPost": "Registrar los pedidos pagados de Shop como facturas",
@@ -709,7 +709,8 @@
     "auditEmpty": "Todavía no hay nada registrado.",
     "when": "Cuándo",
     "who": "Quién",
-    "what": "Qué"
+    "what": "Qué",
+    "lockAdminOnly": "Solo el owner y los admins del workspace cambian la fecha de cierre."
   },
   "audit": {
     "system": "Books",
@@ -840,7 +841,11 @@
     "webhook_not_configured": "El webhook no está configurado.",
     "ai_disabled": "La IA no está disponible en este workspace.",
     "quota_exceeded": "El workspace usó su cuota de IA del mes.",
-    "rate_limited": "Demasiados intentos. Esperá un minuto."
+    "rate_limited": "Demasiados intentos. Esperá un minuto.",
+    "already_credited": "Esta factura ya tiene notas de crédito por su total.",
+    "credit_exceeds_invoice": "La nota de crédito supera lo que queda por acreditar de la factura.",
+    "next_date_in_past": "La próxima fecha tiene que ser hoy o después.",
+    "not_a_member": "Esa persona no es miembro de este workspace."
   },
   "public": {
     "notFound": "Factura no encontrada",

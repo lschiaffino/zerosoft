@@ -88,6 +88,8 @@ a.bk-rowtext:hover .bk-rowtitle {
 /* Paneles y formularios */
 .bk-editor {
   display: grid;
+  /* minmax(0, 1fr): una tabla ancha no estira la columna más allá de la pantalla. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   align-items: start;
 }
@@ -188,6 +190,48 @@ a.bk-rowtext:hover .bk-rowtitle {
 }
 .bk-lines .input.num {
   min-width: 96px;
+}
+/* Celular: cada línea es una tarjeta con sus campos uno debajo del otro (sin scroll lateral). */
+@media (max-width: 720px) {
+  .bk-lines thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .bk-lines,
+  .bk-lines tbody,
+  .bk-lines tr,
+  .bk-lines td {
+    display: block;
+    width: 100%;
+  }
+  .bk-lines tr {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .bk-lines td {
+    padding: 4px 0;
+    border: 0;
+  }
+  .bk-lines td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: var(--t-data);
+    color: var(--dim);
+    margin-bottom: 2px;
+  }
+  .bk-lines td.num {
+    text-align: left;
+  }
+  .bk-lines .bk-cell,
+  .bk-lines .bk-cell-wide,
+  .bk-lines .bk-cell-xs,
+  .bk-lines .input.num {
+    width: 100%;
+    min-width: 0;
+  }
 }
 
 /* Totales y metadatos */
@@ -668,4 +712,9 @@ tr[data-archived] {
   .bk-public-actions {
     display: none;
   }
+}
+
+.bk-rec-line {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
 }

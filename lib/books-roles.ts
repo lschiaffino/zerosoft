@@ -9,8 +9,8 @@
  * - viewer: solo lectura de todo, informes incluidos.
  *
  * El owner y los admins del workspace son siempre accountant. Un miembro sin
- * rol asignado es accountant (el acceso a la app ya lo dio un admin); el
- * admin lo puede bajar a sales o viewer en Ajustes › Roles.
+ * rol asignado es viewer (solo lectura): un admin le da accountant o sales en
+ * Ajustes › Roles. Si sale del workspace y vuelve, conserva el rol que tenía.
  */
 
 export type BooksRole = 'accountant' | 'sales' | 'viewer';
@@ -42,5 +42,5 @@ export function visibleAreas(role: BooksRole): BooksArea[] {
 export function effectiveRole(workspaceRole: string | null | undefined, stored: string | null | undefined): BooksRole {
   const r = workspaceRole ?? 'owner';
   if (r === 'owner' || r === 'admin') return 'accountant';
-  return isBooksRole(stored) ? stored : 'accountant';
+  return isBooksRole(stored) ? stored : 'viewer';
 }

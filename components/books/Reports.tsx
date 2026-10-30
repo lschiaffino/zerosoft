@@ -1,5 +1,6 @@
 'use client';
 
+import { REPORT_KINDS, type ReportKind } from '@/lib/books-tabs';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -9,8 +10,6 @@ import type { AgingReport, BalanceSheet, CashFlow, ProfitLoss, ReportLine, TaxRe
 import { bpsToPercent, formatMoney } from '@/lib/books-money';
 import { Kpi } from './ui';
 
-export const REPORT_KINDS = ['pnl', 'balance-sheet', 'cash-flow', 'aged-receivables', 'aged-payables', 'tax'] as const;
-export type ReportKind = (typeof REPORT_KINDS)[number];
 const KEY: Record<ReportKind, string> = {
   pnl: 'pnl',
   'balance-sheet': 'balance',

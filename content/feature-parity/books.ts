@@ -77,9 +77,9 @@ const parity: ProductParity = {
     row('online-payments', 'invoicing', ['Online payment from the invoice', 'Cobro online desde la factura', 'Pagamento online pela fatura'], 'have', {
       weight: 2,
       detail: [
-        'Stripe Checkout and Mercado Pago with verified webhooks that mark the invoice paid once',
-        'Stripe Checkout y Mercado Pago con webhooks verificados que la marcan pagada una sola vez',
-        'Stripe Checkout e Mercado Pago com webhooks verificados que a marcam como paga uma única vez',
+        'Stripe Checkout and Mercado Pago with signed webhooks: each payment is recorded once, and anything above the balance is kept as a customer credit with a notice to admins',
+        'Stripe Checkout y Mercado Pago con webhooks firmados: cada cobro se registra una vez y lo que supera el saldo queda como saldo a favor del cliente, con aviso a los admins',
+        'Stripe Checkout e Mercado Pago com webhooks assinados: cada pagamento é registrado uma vez e o que passa do saldo fica como crédito do cliente, com aviso aos admins',
       ],
     }),
     row('recurring', 'invoicing', ['Recurring invoices', 'Facturas recurrentes', 'Faturas recorrentes'], 'have', {
@@ -97,9 +97,9 @@ const parity: ProductParity = {
     row('einvoice-hook', 'einvoicing', ['Electronic invoicing with the tax authority', 'Factura electrónica ante el fisco', 'Nota fiscal eletrônica junto ao fisco'], 'partial', {
       weight: 2,
       detail: [
-        'Hook ready, provider credentials needed: one interface for ARCA (ex AFIP), SAT CFDI through a PAC and Invopop. Only the test provider works end to end today',
-        'Gancho listo, faltan las credenciales del proveedor: una interfaz para ARCA (ex AFIP), CFDI del SAT con un PAC e Invopop. Hoy solo el proveedor de prueba funciona de punta a punta',
-        'Gancho pronto, faltam as credenciais do provedor: uma interface para ARCA (ex AFIP), CFDI do SAT via PAC e Invopop. Hoje só o provedor de teste funciona de ponta a ponta',
+        'Not implemented with any tax authority yet: the provider interface for ARCA (ex AFIP), SAT CFDI through a PAC and Invopop is in place, but only a test provider works (no fiscal validity)',
+        'Todavía sin conexión con ningún fisco: está la interfaz de proveedor para ARCA (ex AFIP), CFDI del SAT con un PAC e Invopop, pero solo funciona un proveedor de prueba (sin validez fiscal)',
+        'Ainda sem conexão com nenhum fisco: existe a interface de provedor para ARCA (ex AFIP), CFDI do SAT via PAC e Invopop, mas só funciona um provedor de teste (sem validade fiscal)',
       ],
     }),
     row('tax-filing', 'einvoicing', ['Filing tax returns', 'Presentación de declaraciones juradas', 'Entrega de declarações'], 'missing', {
@@ -109,7 +109,11 @@ const parity: ProductParity = {
     // Compras y gastos
     row('bills', 'purchases', ['Supplier bills with due dates and payments', 'Facturas de proveedores con vencimiento y pagos', 'Contas de fornecedores com vencimento e pagamentos'], 'have', { weight: 2 }),
     row('receipts', 'purchases', ['Expense receipts', 'Comprobantes de gastos', 'Comprovantes de despesas'], 'have', {
-      detail: ['Private uploads checked by their bytes', 'Archivos privados verificados por su contenido', 'Arquivos privados verificados pelo conteúdo'],
+      detail: [
+        'Photo or PDF checked by its bytes, stored encrypted (or in a private Blob store) and opened only through Books with the right role',
+        'Foto o PDF verificado por su contenido, guardado cifrado (o en un Blob privado) y que solo se abre desde Books con el rol que corresponde',
+        'Foto ou PDF verificado pelo conteúdo, guardado criptografado (ou em um Blob privado) e aberto só pelo Books com o papel certo',
+      ],
     }),
     row('receipt-ai', 'purchases', ['Read amount, date and vendor from a receipt', 'Leer importe, fecha y proveedor del comprobante', 'Ler valor, data e fornecedor do comprovante'], 'have', {
       detail: ['Optional, with AI from the workspace quota; the person reviews before saving', 'Opcional, con IA de la cuota del workspace; la persona revisa antes de guardar', 'Opcional, com IA da cota do workspace; a pessoa revisa antes de salvar'],
@@ -198,7 +202,11 @@ const parity: ProductParity = {
 
     // Equipo y control
     row('roles', 'team', ['User roles', 'Roles de usuario', 'Papéis de usuário'], 'have', {
-      detail: ['Accountant, sales (invoices only) and viewer (reports), on top of per-app access', 'Contador, ventas (solo facturas) y lectura (informes), encima del acceso por app', 'Contador, vendas (só faturas) e leitura (relatórios), sobre o acesso por app'],
+      detail: [
+        'Accountant, sales (invoices only) and viewer (reports, the default for members), on top of per-app access',
+        'Contador, ventas (solo facturas) y lectura (informes, el rol de entrada de los miembros), encima del acceso por app',
+        'Contador, vendas (só faturas) e leitura (relatórios, o papel inicial dos membros), sobre o acesso por app',
+      ],
     }),
     row('audit-log', 'team', ['Audit log', 'Registro de auditoría', 'Registro de auditoria'], 'have'),
     row('mobile-app', 'team', ['Mobile app', 'App móvil', 'App móvel'], 'missing'),
@@ -206,7 +214,11 @@ const parity: ProductParity = {
 
     // Apps conectadas
     row('shop-orders', 'integrations', ['Online store orders post as sales', 'Los pedidos de la tienda se registran como ventas', 'Pedidos da loja entram como vendas'], 'have', {
-      detail: ['Optional: paid Shop orders in the base currency become paid invoices with their journal', 'Opcional: los pedidos pagos de Shop en la moneda base pasan a facturas pagadas con su asiento', 'Opcional: pedidos pagos do Shop na moeda base viram faturas pagas com seu lançamento'],
+      detail: [
+        'Optional: paid Shop orders in the base currency become paid invoices with the exact order totals; Shop refunds and cancellations are recorded by hand with a credit note',
+        'Opcional: los pedidos pagos de Shop en la moneda base pasan a facturas pagadas con los totales exactos del pedido; los reembolsos y cancelaciones de Shop se registran a mano con una nota de crédito',
+        'Opcional: pedidos pagos do Shop na moeda base viram faturas pagas com os totais exatos do pedido; reembolsos e cancelamentos do Shop são registrados à mão com uma nota de crédito',
+      ],
     }),
     row('automations', 'integrations', ['Automations on invoice events', 'Automatizaciones con eventos de facturas', 'Automações com eventos de faturas'], 'have', {
       detail: ['Flow triggers when an invoice is paid or becomes overdue', 'Flow se dispara cuando una factura se paga o vence', 'O Flow dispara quando uma fatura é paga ou vence'],

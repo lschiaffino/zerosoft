@@ -65,7 +65,48 @@ export function parseAmount(input: string | number, currency: string): number | 
   return neg ? -minor : minor;
 }
 
-/** Unidades mínimas → "1234.56" (para inputs y CSV). */
+/**
+ * Monedas que se escriben con coma decimal y punto de miles ("1.500,25"):
+ * ARS, BRL y el resto de la región que usa esa convención. En la carga a
+ * mano y en los extractos bancarios se respeta: "-1.500" en ARS es menos mil
+ * quinientos, no menos uno con cincuenta.
+ */
+export const COMMA_DECIMAL_CURRENCIES: ReadonlySet<string> = new Set(['ARS', 'BRL', 'CLP', 'COP', 'UYU', 'PYG', 'BOB', 'EUR']);
+
+/**
+ * Importe escrito por una persona (editor, extracto CSV) con la convención de
+ * la moneda: coma decimal y punto de miles en ARS/BRL/…; punto decimal y coma
+ * de miles en el resto. null si no es un número.
+ */
+export function parseAmountLocal(input: string, currency: string): number | null {
+  let s = String(input).trim().replace(/\s/g, '').replace(/^\$|[A-Z]{3}$/i, '');
+  if (!s) return null;
+  if (COMMA_DECIMAL_CURRENCIES.has(currency.toUpperCase())) s = s.replace(/\./g, '').replace(',', '.');
+  else s = s.replace(/,/g, '');
+  return parseAmountDot(s, currency);
+}
+
+/** "1234.56" con punto decimal y sin separador de miles (OFX, ya normalizado) → unidades mínimas. */
+export function parseAmountDot(s: string, currency: string): number | null {
+  const dec = currencyDecimals(currency);
+  const neg = s.startsWith('-') || (s.startsWith('(') && s.endsWith(')'));
+  const body = s.replace(/^[-(]|\)$/g, '');
+  if (!/^\d+(\.\d+)?$/.test(body)) return null;
+  const [int, frac = ''] = body.split('.');
+  const padded = (frac + '0'.repeat(dec + 1)).slice(0, dec + 1);
+  let minor = Number(int) * 10 ** dec + Number(padded.slice(0, dec) || '0');
+  if (Number(padded[dec] ?? '0') >= 5) minor += 1;
+  if (!Number.isSafeInteger(minor)) return null;
+  return neg ? -minor : minor;
+}
+
+/** Unidades mínimas → texto para un input con la convención de la moneda ("1500,25" en ARS, "1500.25" en USD). */
+export function toInputString(minor: number, currency: string): string {
+  const s = toDecimalString(minor, currency);
+  return COMMA_DECIMAL_CURRENCIES.has(currency.toUpperCase()) ? s.replace('.', ',') : s;
+}
+
+/** Unidades mínimas → "1234.56" (para la API y CSV). */
 export function toDecimalString(minor: number, currency: string): string {
   const dec = currencyDecimals(currency);
   const neg = minor < 0;

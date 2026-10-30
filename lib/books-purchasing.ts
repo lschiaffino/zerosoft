@@ -45,12 +45,13 @@ export async function attachReceipt(actor: BooksActor, expenseId: string, file: 
   if (file.bytes.length > RECEIPT_MAX_BYTES) throw new BooksError('file_too_large', 413);
   const mime = sniffReceipt(file.bytes);
   if (!mime) throw new BooksError('file_type_not_allowed', 415);
-  const { saveUpload, deleteUploads } = await import('./uploads');
+  const { storeBooksFile, deleteBooksFiles } = await import('./books-files');
   const base = clean(file.name, 80).replace(/\.[A-Za-z0-9]+$/, '') || 'receipt';
-  const url = await saveUpload('books', `${base}.${EXT[mime]}`, mime, file.bytes);
+  // Privado: Blob privado o cifrado (lib/books-files.ts); nunca una URL que se pueda abrir.
+  const ref = await storeBooksFile(file.bytes, mime);
   const old = e.receipt_url;
-  await getDb().prepare('UPDATE books_expenses SET receipt_url = ?, receipt_mime = ?, receipt_name = ?, updated_at = ? WHERE id = ?').run(url, mime, `${base}.${EXT[mime]}`, nowDb(), e.id);
-  if (old) await deleteUploads([old]).catch(() => undefined);
+  await getDb().prepare('UPDATE books_expenses SET receipt_url = ?, receipt_mime = ?, receipt_name = ?, updated_at = ? WHERE id = ?').run(ref, mime, `${base}.${EXT[mime]}`, nowDb(), e.id);
+  if (old) await deleteBooksFiles([old]);
   await audit(actor, 'expense.receipt', 'expense', e.id, mime);
   return (await getExpense(actor.ws, e.id))!;
 }
@@ -59,17 +60,8 @@ export async function attachReceipt(actor: BooksActor, expenseId: string, file: 
 export async function readReceipt(ws: string, expenseId: string): Promise<{ bytes: Buffer; mime: string; name: string } | null> {
   const e = await getExpenseRow(ws, expenseId);
   if (!e?.receipt_url || !e.receipt_mime) return null;
-  const { localUploadPath } = await import('./uploads');
-  const local = localUploadPath(e.receipt_url, 'books');
-  let bytes: Buffer | null = null;
-  if (local) {
-    const { readFile } = await import('fs/promises');
-    bytes = await readFile(local).catch(() => null);
-  } else if (/^https:\/\/[a-z0-9.-]+\.blob\.vercel-storage\.com\//i.test(e.receipt_url)) {
-    // Solo nuestro Blob (la URL sale de la base, nunca del cliente).
-    const res = await fetch(e.receipt_url, { signal: AbortSignal.timeout(15_000) }).catch(() => null);
-    bytes = res?.ok ? Buffer.from(await res.arrayBuffer()) : null;
-  }
+  const { readBooksFile } = await import('./books-files');
+  const bytes = await readBooksFile(e.receipt_url);
   if (!bytes || !sniffReceipt(bytes)) return null;
   return { bytes, mime: e.receipt_mime, name: e.receipt_name ?? 'receipt' };
 }
@@ -348,7 +340,7 @@ export async function deleteExpense(actor: BooksActor, id: string): Promise<void
   if (!cur) throw new BooksError('not_found', 404);
   if (cur.status === 'posted') throw new BooksError('document_posted', 409);
   await getDb().prepare("DELETE FROM books_expenses WHERE id = ? AND status != 'posted'").run(id);
-  if (cur.receipt_url) await (await import('./uploads')).deleteUploads([cur.receipt_url]).catch(() => undefined);
+  if (cur.receipt_url) await (await import('./books-files')).deleteBooksFiles([cur.receipt_url]);
   await audit(actor, 'expense.delete', 'expense', id, cur.vendor);
 }
 
@@ -395,7 +387,7 @@ export async function voidExpense(actor: BooksActor, id: string): Promise<Expens
   if (!e) throw new BooksError('not_found', 404);
   if (e.status !== 'posted' || !e.journal_id) throw new BooksError('invalid_status', 409);
   await inTransaction(async (db) => {
-    await reverseJournal(actor.ws, actor.person, e.journal_id!, { sourceType: 'void', memo: `Void expense ${e.vendor}`, db });
+    await reverseJournal(actor.ws, actor.person, e.journal_id!, { date: todayIso(), sourceType: 'void', memo: `Void expense ${e.vendor}`, db });
     await db.prepare("UPDATE books_expenses SET status = 'void', updated_at = ? WHERE id = ? AND status = 'posted'").run(nowDb(), id);
   });
   await audit(actor, 'expense.void', 'expense', id, e.vendor);

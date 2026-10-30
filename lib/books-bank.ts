@@ -17,7 +17,7 @@ import { accountByKey, assertCan, audit, ensureBooks, getAccount } from './books
 import { amountDue, getDocRow, recordPayment } from './books-docs';
 import { inTransaction, postJournal } from './books-ledger';
 import { BooksError, clean, newId, nowDb, type BooksActor } from './books-schema';
-import { convert, CURRENCY_RE, daysBetween, isValidDate, parseAmount } from './books-money';
+import { convert, CURRENCY_RE, daysBetween, isValidDate, parseAmountDot, parseAmountLocal } from './books-money';
 
 export interface BankAccountRow {
   id: string;
@@ -241,10 +241,11 @@ export function parseCsvStatement(text: string, currency: string, opts: { dayFir
       continue;
     }
     let amount: number | null = null;
-    if (iAmt >= 0 && (cells[iAmt] ?? '').trim()) amount = parseAmount(cells[iAmt], currency);
+    // CSV: la convención de la moneda (en ARS y BRL el punto es de miles).
+    if (iAmt >= 0 && (cells[iAmt] ?? '').trim()) amount = parseAmountLocal(cells[iAmt], currency);
     else {
-      const deb = iDeb >= 0 && (cells[iDeb] ?? '').trim() ? parseAmount(cells[iDeb], currency) : 0;
-      const cred = iCred >= 0 && (cells[iCred] ?? '').trim() ? parseAmount(cells[iCred], currency) : 0;
+      const deb = iDeb >= 0 && (cells[iDeb] ?? '').trim() ? parseAmountLocal(cells[iDeb], currency) : 0;
+      const cred = iCred >= 0 && (cells[iCred] ?? '').trim() ? parseAmountLocal(cells[iCred], currency) : 0;
       amount = deb == null || cred == null ? null : Math.abs(cred) - Math.abs(deb);
     }
     if (amount == null || amount === 0) {
@@ -268,7 +269,8 @@ export function parseOfx(text: string, currency: string): { txns: ParsedTxn[]; e
   blocks.slice(0, 5000).forEach((raw, i) => {
     const block = raw.split(/<\/STMTTRN>/i)[0];
     const date = parseStatementDate(tag(block, 'DTPOSTED'));
-    const amount = parseAmount(tag(block, 'TRNAMT'), currency);
+    // OFX: el estándar siempre usa punto decimal.
+    const amount = parseAmountDot(tag(block, 'TRNAMT').replace(/^\+/, ''), currency);
     if (!date || amount == null || amount === 0) {
       errors.push({ row: i + 1, error: !date ? 'invalid_date' : 'invalid_amount' });
       return;

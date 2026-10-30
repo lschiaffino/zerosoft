@@ -142,6 +142,14 @@ function validTemplate(t: RecurringTemplate | undefined): RecurringTemplate {
   };
 }
 
+/** La próxima emisión: fecha válida, desde hoy y fuera de un período cerrado. */
+async function checkNextDate(ws: string, date: string): Promise<void> {
+  if (!isValidDate(date)) throw new BooksError('invalid_date');
+  if (date < todayIso()) throw new BooksError('next_date_in_past');
+  const s = await ensureBooks(ws);
+  if (s.lock_date && date <= s.lock_date) throw new BooksError('period_locked', 409, { lockDate: s.lock_date });
+}
+
 export async function createRecurring(actor: BooksActor, input: RecurringInput): Promise<RecurringDto> {
   assertCan(actor, 'invoices.write');
   await ensureBooks(actor.ws);
@@ -152,7 +160,7 @@ export async function createRecurring(actor: BooksActor, input: RecurringInput):
   const frequency = input.frequency ?? 'monthly';
   if (!(FREQUENCIES as readonly string[]).includes(frequency)) throw new BooksError('invalid_frequency');
   const nextDate = input.nextDate ?? todayIso();
-  if (!isValidDate(nextDate)) throw new BooksError('invalid_date');
+  await checkNextDate(actor.ws, nextDate);
   if (input.endDate && (!isValidDate(input.endDate) || input.endDate < nextDate)) throw new BooksError('invalid_end_date');
   const template = validTemplate(input.template);
   // El template tiene que poder armar una factura: se prueba como borrador y se descarta.
@@ -181,7 +189,8 @@ export async function updateRecurring(actor: BooksActor, id: string, input: Recu
   const frequency = input.frequency ?? r.frequency;
   if (!(FREQUENCIES as readonly string[]).includes(frequency)) throw new BooksError('invalid_frequency');
   const nextDate = input.nextDate ?? r.next_date;
-  if (!isValidDate(nextDate)) throw new BooksError('invalid_date');
+  if (input.nextDate !== undefined) await checkNextDate(actor.ws, nextDate);
+  else if (!isValidDate(nextDate)) throw new BooksError('invalid_date');
   const endDate = input.endDate !== undefined ? input.endDate : r.end_date;
   if (endDate && (!isValidDate(endDate) || endDate < nextDate)) throw new BooksError('invalid_end_date');
   const template = input.template
@@ -344,5 +353,7 @@ export async function runBooksCron(opts: { today?: string; budgetMs?: number } =
   const recurring = await runRecurring({ today: opts.today, budgetMs: opts.budgetMs }).catch((err) => (console.error('[books] cron recurring', err), null));
   const overdue = await markOverdue({ today: opts.today }).catch(() => null);
   const reminders = await sendReminders({ today: opts.today }).catch(() => null);
-  return { recurring, overdue, reminders };
+  // Pedidos de Shop que quedaron a medias (borrador o sin cobrar) o sin registrar.
+  const shop = await import('./books-integrations').then((m) => m.retryShopPosting()).catch(() => null);
+  return { recurring, overdue, reminders, shop };
 }

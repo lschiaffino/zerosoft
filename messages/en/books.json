@@ -698,7 +698,7 @@
     "providerPending": "This connector is not implemented yet. Invoices can't be authorized with it.",
     "testProviderHelp": "Returns a fake authorization code. Invoices authorized this way have no fiscal validity.",
     "einvoiceDocs": "What each provider needs (certificates, CUIT, punto de venta, CSD) is in docs/books-einvoicing.md.",
-    "rolesHelp": "Roles sit on top of app access. Owners and admins are always accountants.",
+    "rolesHelp": "Roles sit on top of app access. Owners and admins are always accountants. Members start as viewers until you give them another role, and keep their role if they leave and come back.",
     "noPeople": "Nobody else has Books in this workspace.",
     "roleFor": "Role of {name}",
     "shopAutoPost": "Post paid Shop orders as invoices",
@@ -709,7 +709,8 @@
     "auditEmpty": "Nothing recorded yet.",
     "when": "When",
     "who": "Who",
-    "what": "What"
+    "what": "What",
+    "lockAdminOnly": "Only the owner and admins of the workspace can change the close date."
   },
   "audit": {
     "system": "Books",
@@ -840,7 +841,11 @@
     "webhook_not_configured": "The webhook is not configured.",
     "ai_disabled": "AI is not available in this workspace.",
     "quota_exceeded": "Your workspace used its AI quota for the month.",
-    "rate_limited": "Too many tries. Wait a minute."
+    "rate_limited": "Too many tries. Wait a minute.",
+    "already_credited": "This invoice is already fully credited.",
+    "credit_exceeds_invoice": "The credit note is larger than what is left to credit on the invoice.",
+    "next_date_in_past": "The next date has to be today or later.",
+    "not_a_member": "That person is not a member of this workspace."
   },
   "public": {
     "notFound": "Invoice not found",

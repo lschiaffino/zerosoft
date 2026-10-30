@@ -215,3 +215,57 @@ test('una persona sin Books en el workspace no entra', async ({ browser, baseURL
     await ctx.close();
   }
 });
+
+test('todas las páginas de Books abren sin errores (build de producción), con todas las pestañas de Ajustes', async ({ page }) => {
+  test.setTimeout(240_000);
+  const errors = watchErrors(page);
+  page.on('console', (msg) => {
+    if (msg.type() === 'error' && /Server Components render|digest/i.test(msg.text())) errors.push(`console: ${msg.text()}`);
+  });
+  const tabs = ['company', 'taxes', 'series', 'reminders', 'payments', 'einvoice', 'roles', 'integrations', 'audit'];
+  const pages = [
+    '/en/app/books',
+    '/en/app/books/invoices',
+    '/en/app/books/invoices/new',
+    '/en/app/books/credit-notes',
+    '/en/app/books/bills',
+    '/en/app/books/bills/new',
+    '/en/app/books/recurring',
+    '/en/app/books/recurring/new',
+    '/en/app/books/quotes',
+    '/en/app/books/contacts',
+    '/en/app/books/contacts/new',
+    '/en/app/books/items',
+    '/en/app/books/items/new',
+    '/en/app/books/expenses',
+    '/en/app/books/purchase-orders',
+    '/en/app/books/banking',
+    '/en/app/books/accounts',
+    '/en/app/books/journal',
+    '/en/app/books/journal/new',
+    '/en/app/books/reports',
+    '/en/app/books/reports/pnl',
+    '/en/app/books/reports/balance-sheet',
+    '/en/app/books/reports/cash-flow',
+    '/en/app/books/reports/aged-receivables',
+    '/en/app/books/reports/aged-payables',
+    '/en/app/books/reports/tax',
+    '/en/app/books/settings',
+    ...tabs.map((tab) => `/en/app/books/settings?tab=${tab}`),
+  ];
+  for (const url of pages) {
+    const res = await page.goto(url, { waitUntil: 'networkidle' });
+    expect(res?.status(), url).toBeLessThan(400);
+    await expect(page.locator('main.app-content').getByText(/something went wrong|an error occurred/i), url).toHaveCount(0);
+  }
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('el editor de facturas entra en 390px sin scroll horizontal', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const url of ['/en/app/books/invoices/new', '/en/app/books/bills/new', '/en/app/books/recurring/new']) {
+    await page.goto(url, { waitUntil: 'networkidle' });
+    const { scroll, inner } = await page.evaluate(() => ({ scroll: document.scrollingElement!.scrollWidth, inner: window.innerWidth }));
+    expect(scroll, `${url}: scrollWidth ${scroll} > ${inner}`).toBeLessThanOrEqual(inner + 1);
+  }
+});

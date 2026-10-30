@@ -19,7 +19,7 @@ import { open as openSecret, seal } from './secret-box';
 import { verifyStripeSignature } from './calendar-payments';
 import { verifyMercadoPagoSignature } from './shop-payments';
 import { audit, ensureBooks, type SettingsRow } from './books';
-import { amountDue, getDocRow, publicUrl, recordPayment, type DocRow } from './books-docs';
+import { amountDue, getDocRow, publicUrl, recordPayment } from './books-docs';
 import { BooksError, nowDb, parseJson, type BooksActor } from './books-schema';
 import { currencyDecimals, toMajor } from './books-money';
 
@@ -173,6 +173,9 @@ export async function startInvoicePayment(token: string, method: 'stripe' | 'mer
   if (method === 'stripe') {
     const key = openSecret(p.stripe?.secret);
     if (!key) throw new BooksError('payment_unavailable', 409);
+    // La sesión anterior de esta factura se vence: un cliente no puede pagar dos checkouts abiertos.
+    // Si igual se pagó antes de vencer, el webhook la registra (la factura sale de la metadata firmada).
+    if (d.payment_session?.startsWith('cs_')) await stripeRequest(key, 'POST', `/checkout/sessions/${encodeURIComponent(d.payment_session)}/expire`).catch(() => undefined);
     const form = new URLSearchParams();
     form.set('mode', 'payment');
     form.set('client_reference_id', d.id);
@@ -214,7 +217,11 @@ export async function startInvoicePayment(token: string, method: 'stripe' | 'mer
 
 // ---------- Webhooks ----------
 
-export type BooksWebhookOutcome = { kind: 'paid'; invoiceId: string } | { kind: 'duplicate' } | { kind: 'ignored'; reason: string };
+export type BooksWebhookOutcome =
+  | { kind: 'paid'; invoiceId: string; excess?: number }
+  | { kind: 'credited'; invoiceId: string; excess: number }
+  | { kind: 'duplicate' }
+  | { kind: 'ignored'; reason: string };
 
 async function settingsByToken(token: string): Promise<SettingsRow | null> {
   if (!token || token.length > 80) return null;
@@ -231,17 +238,90 @@ async function remember(provider: string, ws: string, eventId: string): Promise<
 
 const systemActor = (ws: string): BooksActor => ({ ws, person: ws, admin: true, role: 'accountant' });
 
-async function payFromProvider(ws: string, d: DocRow, amount: number, method: 'stripe' | 'mercadopago', providerRef: string): Promise<BooksWebhookOutcome> {
-  if (!['sent', 'partial', 'overdue'].includes(d.status)) return { kind: 'ignored', reason: `status_${d.status}` };
-  if (amount <= 0 || amount > amountDue(d)) return { kind: 'ignored', reason: 'amount' };
-  const res = await recordPayment(systemActor(ws), d.id, { amount, method, reference: providerRef, providerRef }, { system: true });
-  return res.duplicate ? { kind: 'duplicate' } : { kind: 'paid', invoiceId: d.id };
+async function warn(ws: string, title: string, body: string, href: string, sourceId: string): Promise<void> {
+  const { notifyStaff } = await import('./books-integrations');
+  await notifyStaff(ws, title, body, href, sourceId);
 }
 
 /**
- * Stripe: checkout.session.completed / async_payment_succeeded. Exige firma,
- * que la sesión sea la última que abrimos para la factura y que cobre en su
- * moneda el monto que se pidió.
+ * Un cobro verificado por el proveedor nunca se descarta en silencio: se
+ * aplica a la factura hasta su saldo y lo que sobra (pagó dos veces, pagó
+ * una sesión vieja después de un cobro manual, la factura ya estaba pagada
+ * o anulada) queda como saldo a favor del cliente (cuenta de anticipos), con
+ * aviso al owner y los admins. Si no se puede registrar (otra moneda,
+ * factura que no existe) también avisa.
+ */
+export async function applyProviderPayment(
+  ws: string,
+  invoiceId: string,
+  input: { amount: number; currency: string; method: 'stripe' | 'mercadopago'; providerRef: string; date?: string },
+): Promise<BooksWebhookOutcome> {
+  const d = await getDocRow(ws, invoiceId);
+  const label = d?.number_label || invoiceId;
+  if (!d || d.doc_type !== 'invoice') {
+    await warn(ws, 'Online payment for an unknown invoice', `${input.method} ${input.providerRef}: ${input.amount} ${input.currency}. Record it by hand.`, '/app/books/invoices', input.providerRef);
+    return { kind: 'ignored', reason: 'unknown_invoice' };
+  }
+  if (input.currency.toUpperCase() !== d.currency) {
+    await warn(ws, `Online payment in another currency for ${label}`, `${input.method} charged ${input.amount} ${input.currency}; the invoice is in ${d.currency}. Record it by hand.`, `/app/books/invoices/${d.id}`, d.id);
+    return { kind: 'ignored', reason: 'currency' };
+  }
+  if (!(input.amount > 0)) return { kind: 'ignored', reason: 'amount' };
+  // El mismo cobro (misma referencia del proveedor) ya registrado, aplicado o como saldo a favor: nada nuevo.
+  const seenPay = await getDb().prepare('SELECT 1 AS x FROM books_payments WHERE workspace_id = ? AND provider_ref = ?').get(ws, input.providerRef);
+  const seenExcess = await getDb().prepare("SELECT 1 AS x FROM books_webhook_events WHERE provider = 'excess' AND workspace_id = ? AND event_id = ?").get(ws, input.providerRef);
+  if (seenPay || seenExcess) return { kind: 'duplicate' };
+  const open = ['sent', 'partial', 'overdue'].includes(d.status);
+  const apply = open ? Math.min(input.amount, amountDue(d)) : 0;
+  let duplicate = false;
+  if (apply > 0) {
+    const res = await recordPayment(systemActor(ws), d.id, { amount: apply, date: input.date, method: input.method, reference: input.providerRef, providerRef: input.providerRef }, { system: true });
+    duplicate = Boolean(res.duplicate);
+    if (duplicate) return { kind: 'duplicate' };
+  }
+  const excess = input.amount - apply;
+  if (excess > 0) {
+    // Claim por referencia: el excedente de un mismo cobro se registra una sola vez.
+    const claim = await getDb()
+      .prepare('INSERT OR IGNORE INTO books_webhook_events (provider, workspace_id, event_id, created_at) VALUES (?, ?, ?, ?)')
+      .run('excess', ws, input.providerRef, nowDb());
+    if (!claim.changes) return { kind: 'duplicate' };
+    const s = await ensureBooks(ws);
+    const { keyAccounts, postJournal } = await import('./books-ledger');
+    const k = await keyAccounts(ws, ['clearing', 'customer_credit'] as const);
+    const { convert, formatMoney } = await import('./books-money');
+    const base = convert(excess, d.currency, d.fx_rate, s.base_currency);
+    const date = input.date ?? new Date().toISOString().slice(0, 10);
+    const { isLocked } = await import('./books-ledger');
+    await postJournal(ws, null, {
+      date: isLocked(date, s.lock_date) ? new Date().toISOString().slice(0, 10) : date,
+      memo: `Unapplied ${input.method} payment for ${label}`,
+      sourceType: 'payment',
+      sourceId: `${input.providerRef}:excess`,
+      lines: [
+        { accountId: k.clearing, debit: base, contactId: d.contact_id },
+        { accountId: k.customer_credit, credit: base, contactId: d.contact_id, description: `Credit from ${input.providerRef}` },
+      ],
+    });
+    await audit({ ws, person: null }, 'payment.unapplied', 'invoice', d.id, `${excess} ${d.currency} ${input.providerRef}`);
+    await warn(
+      ws,
+      `Online payment above the balance of ${label}`,
+      `${input.method} charged ${formatMoney(input.amount, d.currency)}; ${formatMoney(apply, d.currency)} went to the invoice and ${formatMoney(excess, d.currency)} is a customer credit to refund or apply.`,
+      `/app/books/invoices/${d.id}`,
+      d.id,
+    );
+    return apply > 0 ? { kind: 'paid', invoiceId: d.id, excess } : { kind: 'credited', invoiceId: d.id, excess };
+  }
+  return { kind: 'paid', invoiceId: d.id };
+}
+
+/**
+ * Stripe: checkout.session.completed / async_payment_succeeded. Exige firma
+ * con el secreto del workspace; la factura sale de metadata.invoice_id (la
+ * puso nuestro servidor al abrir la sesión, y el evento está firmado), así
+ * que cualquier sesión que se haya abierto para la factura se registra. Lo
+ * cobrado es amount_total.
  */
 export async function handleStripeWebhook(token: string, rawBody: string, signature: string | null, nowSec?: number): Promise<BooksWebhookOutcome> {
   const s = await settingsByToken(token);
@@ -269,13 +349,10 @@ async function processStripe(s: SettingsRow, event: { type?: string; data?: { ob
   const meta = (o.metadata ?? {}) as Record<string, string>;
   if (meta.source !== 'zerosoft_books' || !meta.invoice_id) return { kind: 'ignored', reason: 'not_books' };
   if (o.payment_status !== 'paid') return { kind: 'ignored', reason: 'unpaid' };
-  const d = await getDocRow(s.workspace_id, meta.invoice_id);
-  if (!d || d.doc_type !== 'invoice' || !d.payment_session || o.id !== d.payment_session) return { kind: 'ignored', reason: 'unknown_session' };
-  if (String(o.currency ?? '').toLowerCase() !== d.currency.toLowerCase()) return { kind: 'ignored', reason: 'currency' };
-  const amount = Number(meta.amount);
-  if (!Number.isSafeInteger(amount) || Number(o.amount_total) !== stripeAmountOf(amount, d.currency)) return { kind: 'ignored', reason: 'amount' };
+  const amount = Number(o.amount_total);
+  if (!Number.isSafeInteger(amount) || amount <= 0) return { kind: 'ignored', reason: 'amount' };
   const ref = typeof o.payment_intent === 'string' ? o.payment_intent : String(o.id);
-  return payFromProvider(s.workspace_id, d, amount, 'stripe', `stripe:${ref}`);
+  return applyProviderPayment(s.workspace_id, meta.invoice_id, { amount, currency: String(o.currency ?? ''), method: 'stripe', providerRef: `stripe:${ref}` });
 }
 
 /** Vuelta del checkout de Stripe: consulta la sesión por si el webhook no llegó. */
@@ -283,7 +360,7 @@ export async function reconcileStripeReturn(token: string, sessionId: string): P
   if (booksPaymentsFake() || !sessionId || sessionId.length > 200) return false;
   const { getPublicDocRow } = await import('./books-docs');
   const d = await getPublicDocRow(token);
-  if (!d || d.payment_session !== sessionId) return false;
+  if (!d) return false;
   const s = await ensureBooks(d.workspace_id);
   const key = openSecret(stored(s).stripe?.secret);
   if (!key) return false;
@@ -307,7 +384,11 @@ export async function handleMercadoPagoWebhook(
   const secret = openSecret(stored(s).mercadopago?.webhookSecret);
   if (!secret) throw new BooksError('webhook_not_configured', 400);
   if (!input.dataId || input.dataId.length > 64) throw new BooksError('invalid_input', 400);
-  if (!verifyMercadoPagoSignature(input.signature, input.requestId, input.dataId, secret, input.nowSec)) throw new BooksError('invalid_signature', 400);
+  // El manifiesto lleva el id tal cual o en minúsculas según la versión de MP: se aceptan los dos (los dos exigen el secreto).
+  const signed =
+    verifyMercadoPagoSignature(input.signature, input.requestId, input.dataId, secret, input.nowSec) ||
+    verifyMercadoPagoSignature(input.signature, input.requestId, input.dataId.toLowerCase(), secret, input.nowSec);
+  if (!signed) throw new BooksError('invalid_signature', 400);
   if (input.type !== 'payment') return { kind: 'ignored', reason: 'event_type' };
   const eventId = `payment:${input.dataId}`;
   if (await seen('mercadopago', s.workspace_id, eventId)) return { kind: 'duplicate' };
@@ -323,13 +404,9 @@ export async function handleMercadoPagoWebhook(
   }
   let out: BooksWebhookOutcome = { kind: 'ignored', reason: 'unpaid' };
   if (payment.status === 'approved') {
-    const d = await getDocRow(s.workspace_id, String(payment.external_reference ?? ''));
-    if (!d || d.doc_type !== 'invoice') out = { kind: 'ignored', reason: 'unknown_invoice' };
-    else if (String(payment.currency_id ?? '').toUpperCase() !== d.currency) out = { kind: 'ignored', reason: 'currency' };
-    else {
-      const amount = Math.round(Number(payment.transaction_amount) * 10 ** currencyDecimals(d.currency));
-      out = await payFromProvider(s.workspace_id, d, amount, 'mercadopago', `mp:${String(payment.id ?? input.dataId)}`);
-    }
+    const currency = String(payment.currency_id ?? '').toUpperCase();
+    const amount = Math.round(Number(payment.transaction_amount) * 10 ** currencyDecimals(currency || 'USD'));
+    out = await applyProviderPayment(s.workspace_id, String(payment.external_reference ?? ''), { amount, currency, method: 'mercadopago', providerRef: `mp:${String(payment.id ?? input.dataId)}` });
   }
   await remember('mercadopago', s.workspace_id, eventId);
   return out;

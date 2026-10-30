@@ -206,22 +206,36 @@ export interface AgingReport {
 /** Saldos abiertos por contacto y antigüedad, convertidos a la moneda base con el tipo de cada comprobante. */
 export async function aging(ws: string, kind: 'receivables' | 'payables', asOf = todayIso()): Promise<AgingReport> {
   const s = await ensureBooks(ws);
+  const docType = kind === 'receivables' ? 'invoice' : 'bill';
+  // Saldos a la fecha: lo emitido hasta asOf (y no anulado antes de esa fecha), menos los cobros con fecha hasta asOf
+  // y las notas de crédito emitidas hasta asOf. Así cuadra con la cuenta de deudores (o proveedores) del libro.
   const docs = (await getDb()
     .prepare(
-      `SELECT d.id, d.number_label, d.due_date, d.total, d.paid_total, d.credited_total, d.currency, d.fx_rate, d.contact_id, c.name AS contact_name
+      `SELECT d.id, d.number_label, d.due_date, d.total, d.currency, d.fx_rate, d.contact_id, c.name AS contact_name,
+        (SELECT COALESCE(SUM(p.amount), 0) FROM books_payments p WHERE p.doc_id = d.id AND p.date <= ?) AS paid,
+        (SELECT COALESCE(SUM(cn.paid_total), 0) FROM books_documents cn WHERE cn.credit_for_id = d.id AND cn.status NOT IN ('draft','void') AND cn.issue_date <= ?) AS credited
        FROM books_documents d LEFT JOIN books_contacts c ON c.id = d.contact_id
-       WHERE d.workspace_id = ? AND d.doc_type = ? AND d.status IN ('sent','partial','overdue') AND d.issue_date <= ?
+       WHERE d.workspace_id = ? AND d.doc_type = ? AND d.status != 'draft' AND d.issue_date <= ?
+         AND (d.status != 'void' OR substr(d.voided_at, 1, 10) > ?)
        ORDER BY c.name COLLATE NOCASE, d.due_date`,
     )
-    .all(ws, kind === 'receivables' ? 'invoice' : 'bill', asOf)) as Array<Record<string, unknown>>;
+    .all(asOf, asOf, ws, docType, asOf, asOf)) as Array<Record<string, unknown>>;
+  // Notas de crédito con saldo sin aplicar: crédito a favor del cliente (negativo), al día.
+  const credits =
+    kind === 'receivables'
+      ? ((await getDb()
+          .prepare(
+            `SELECT d.id, d.number_label, d.total, d.paid_total, d.currency, d.fx_rate, d.contact_id, c.name AS contact_name
+             FROM books_documents d LEFT JOIN books_contacts c ON c.id = d.contact_id
+             WHERE d.workspace_id = ? AND d.doc_type = 'credit_note' AND d.status NOT IN ('draft','void') AND d.issue_date <= ? AND d.total > d.paid_total`,
+          )
+          .all(ws, asOf)) as Array<Record<string, unknown>>)
+      : [];
   const byContact = new Map<string, AgingRow>();
   const empty = (): Record<AgingBucket, number> => ({ current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0 });
   const totals = { ...empty(), total: 0 };
-  for (const d of docs) {
-    const due = Number(d.total) - Number(d.paid_total) - Number(d.credited_total);
-    if (due <= 0) continue;
+  const add = (d: Record<string, unknown>, due: number, bucket: AgingBucket) => {
     const base = convert(due, String(d.currency), String(d.fx_rate), s.base_currency);
-    const bucket = agingBucket((d.due_date as string) ?? null, asOf);
     const key = String(d.contact_id ?? '');
     const row = byContact.get(key) ?? { contactId: (d.contact_id as string) ?? null, contactName: String(d.contact_name ?? ''), buckets: empty(), total: 0, docs: [] };
     row.buckets[bucket] += base;
@@ -230,7 +244,12 @@ export async function aging(ws: string, kind: 'receivables' | 'payables', asOf =
     byContact.set(key, row);
     totals[bucket] += base;
     totals.total += base;
+  };
+  for (const d of docs) {
+    const due = Number(d.total) - Number(d.paid) - Number(d.credited);
+    if (due !== 0) add(d, due, agingBucket((d.due_date as string) ?? null, asOf));
   }
+  for (const c of credits) add(c, -(Number(c.total) - Number(c.paid_total)), 'current');
   return { kind, asOf, currency: s.base_currency, rows: [...byContact.values()].sort((a, b) => b.total - a.total), totals };
 }
 
@@ -278,19 +297,35 @@ export async function taxReport(ws: string, from: string, to: string): Promise<T
   const s = await ensureBooks(ws);
   const lines = (await getDb()
     .prepare(
-      `SELECT d.id, d.doc_type, d.issue_date, d.number_label, d.reference, d.currency, d.fx_rate, d.total, c.name AS contact_name, c.tax_id, c.tax_condition,
-        l.tax_rate_id, l.tax_bps, l.net, l.tax, t.name AS tax_name
-       FROM books_documents d JOIN books_lines l ON l.doc_id = d.id
-       LEFT JOIN books_contacts c ON c.id = d.contact_id LEFT JOIN books_tax_rates t ON t.id = l.tax_rate_id
-       WHERE d.workspace_id = ? AND d.status NOT IN ('draft','void') AND d.issue_date >= ? AND d.issue_date <= ?
-       ORDER BY d.issue_date, d.number_label`,
+      // Fechas del libro: un comprobante cuenta en el período de su emisión (aunque después se anule) y su
+      // anulación cuenta, en negativo, en el período en que se anuló. Anular no cambia un período ya presentado.
+      `SELECT x.* FROM (
+         SELECT 'issue' AS ev, d.issue_date AS ev_date, d.id, d.doc_type, d.number_label, d.reference, d.currency, d.fx_rate, d.total, c.name AS contact_name, c.tax_id, c.tax_condition,
+           l.tax_rate_id, l.tax_bps, l.net, l.tax, t.name AS tax_name
+         FROM books_documents d JOIN books_lines l ON l.doc_id = d.id
+         LEFT JOIN books_contacts c ON c.id = d.contact_id LEFT JOIN books_tax_rates t ON t.id = l.tax_rate_id
+         WHERE d.workspace_id = ? AND d.status != 'draft' AND d.issue_date >= ? AND d.issue_date <= ?
+         UNION ALL
+         SELECT 'void' AS ev, substr(d.voided_at, 1, 10) AS ev_date, d.id, d.doc_type, d.number_label, d.reference, d.currency, d.fx_rate, d.total, c.name AS contact_name, c.tax_id, c.tax_condition,
+           l.tax_rate_id, l.tax_bps, l.net, l.tax, t.name AS tax_name
+         FROM books_documents d JOIN books_lines l ON l.doc_id = d.id
+         LEFT JOIN books_contacts c ON c.id = d.contact_id LEFT JOIN books_tax_rates t ON t.id = l.tax_rate_id
+         WHERE d.workspace_id = ? AND d.status = 'void' AND substr(d.voided_at, 1, 10) >= ? AND substr(d.voided_at, 1, 10) <= ?
+       ) x ORDER BY x.ev_date, x.number_label`,
     )
-    .all(ws, from, to)) as Array<Record<string, unknown>>;
+    .all(ws, from, to, ws, from, to)) as Array<Record<string, unknown>>;
   const expenses = (await getDb()
     .prepare(
       `SELECT e.id, e.date, e.vendor, e.currency, e.fx_rate, e.total, e.tax, e.tax_rate_id, t.name AS tax_name, t.rate_bps, c.name AS contact_name, c.tax_id, c.tax_condition
        FROM books_expenses e LEFT JOIN books_tax_rates t ON t.id = e.tax_rate_id LEFT JOIN books_contacts c ON c.id = e.contact_id
-       WHERE e.workspace_id = ? AND e.status = 'posted' AND e.date >= ? AND e.date <= ?`,
+       WHERE e.workspace_id = ? AND e.status IN ('posted','void') AND e.journal_id IS NOT NULL AND e.date >= ? AND e.date <= ?`,
+    )
+    .all(ws, from, to)) as Array<Record<string, unknown>>;
+  const voidedExpenses = (await getDb()
+    .prepare(
+      `SELECT e.id, substr(e.updated_at, 1, 10) AS date, e.vendor, e.currency, e.fx_rate, e.total, e.tax, e.tax_rate_id, t.name AS tax_name, t.rate_bps, c.name AS contact_name, c.tax_id, c.tax_condition
+       FROM books_expenses e LEFT JOIN books_tax_rates t ON t.id = e.tax_rate_id LEFT JOIN books_contacts c ON c.id = e.contact_id
+       WHERE e.workspace_id = ? AND e.status = 'void' AND substr(e.updated_at, 1, 10) >= ? AND substr(e.updated_at, 1, 10) <= ?`,
     )
     .all(ws, from, to)) as Array<Record<string, unknown>>;
   const rows = new Map<string, TaxReportRow>();
@@ -302,7 +337,9 @@ export async function taxReport(ws: string, from: string, to: string): Promise<T
   };
   const books = new Map<string, TaxBookEntry & { purchase: boolean }>();
   for (const l of lines) {
-    const sign = l.doc_type === 'credit_note' ? -1 : 1;
+    const voided = l.ev === 'void';
+    const sign = (l.doc_type === 'credit_note' ? -1 : 1) * (voided ? -1 : 1);
+    const key = `${String(l.id)}:${String(l.ev)}`;
     const base = (v: number) => sign * convert(v, String(l.currency), String(l.fx_rate), s.base_currency);
     const net = base(Number(l.net));
     const tax = base(Number(l.tax));
@@ -311,9 +348,9 @@ export async function taxReport(ws: string, from: string, to: string): Promise<T
     const purchase = l.doc_type === 'bill';
     if (purchase) (r.purchasesNet += net), (r.purchasesTax += tax);
     else (r.salesNet += net), (r.salesTax += tax);
-    const entry = books.get(String(l.id)) ?? {
-      date: String(l.issue_date),
-      docType: String(l.doc_type),
+    const entry = books.get(key) ?? {
+      date: String(l.ev_date),
+      docType: voided ? `${String(l.doc_type)}_void` : String(l.doc_type),
       label: String(l.number_label || l.reference),
       contactName: String(l.contact_name ?? ''),
       taxId: String(l.tax_id ?? ''),
@@ -328,19 +365,19 @@ export async function taxReport(ws: string, from: string, to: string): Promise<T
       const k = String(bps);
       entry.byRate[k] = { net: (entry.byRate[k]?.net ?? 0) + net, tax: (entry.byRate[k]?.tax ?? 0) + tax };
     }
-    books.set(String(l.id), entry);
+    books.set(key, entry);
   }
-  for (const e of expenses) {
-    const base = (v: number) => convert(v, String(e.currency), String(e.fx_rate), s.base_currency);
+  for (const [e, sign] of [...expenses.map((x) => [x, 1] as const), ...voidedExpenses.map((x) => [x, -1] as const)]) {
+    const base = (v: number) => sign * convert(v, String(e.currency), String(e.fx_rate), s.base_currency);
     const tax = base(Number(e.tax));
     const total = base(Number(e.total));
     const bps = Number(e.rate_bps ?? 0);
     const r = rowFor((e.tax_rate_id as string) ?? null, String(e.tax_name ?? ''), bps);
     r.purchasesNet += total - tax;
     r.purchasesTax += tax;
-    books.set(String(e.id), {
+    books.set(`${String(e.id)}:${sign}`, {
       date: String(e.date),
-      docType: 'expense',
+      docType: sign < 0 ? 'expense_void' : 'expense',
       label: String(e.vendor ?? ''),
       contactName: String(e.contact_name ?? e.vendor ?? ''),
       taxId: String(e.tax_id ?? ''),
@@ -369,9 +406,11 @@ export async function taxReport(ws: string, from: string, to: string): Promise<T
   };
 }
 
-function csvCell(v: string | number): string {
-  const s = String(v);
-  return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+/** Celda CSV sin fórmulas: un texto que empieza con = + - @ (o tab/CR) va con apóstrofo; los números negativos quedan como números. */
+export function csvCell(v: string | number): string {
+  let s = String(v);
+  if (/^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s)) s = `'${s}`;
+  return /[",\n\r;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 /** Libro IVA (ventas o compras) en CSV: una fila por comprobante, una columna de neto e IVA por tasa. */

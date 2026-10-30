@@ -657,7 +657,7 @@ export default function DocumentEditor({
                 <tbody>
                   {lines.map((l, i) => (
                     <tr key={l.key}>
-                      <td>
+                      <td data-label={t('editor.colItem')}>
                         <select className="select bk-cell" aria-label={t('editor.colItem')} value={l.itemId ?? ''} onChange={(e) => pickItem(l.key, e.target.value)}>
                           <option value="">{t('editor.noItem')}</option>
                           {refs.items.map((it) => (
@@ -667,19 +667,19 @@ export default function DocumentEditor({
                           ))}
                         </select>
                       </td>
-                      <td>
+                      <td data-label={t('editor.colDescription')}>
                         <input className="input bk-cell bk-cell-wide" aria-label={t('editor.colDescription')} value={l.description} maxLength={1000} onChange={(e) => setLine(l.key, { description: e.target.value })} />
                       </td>
-                      <td>
+                      <td data-label={t('editor.colQty')}>
                         <input className="input num bk-cell bk-cell-xs" inputMode="decimal" aria-label={t('editor.colQty')} value={l.quantity} onChange={(e) => setLine(l.key, { quantity: e.target.value })} />
                       </td>
-                      <td>
+                      <td data-label={t('editor.colPrice')}>
                         <MoneyInput value={l.unitPrice} onChange={(v) => setLine(l.key, { unitPrice: v })} currency={currency} label={t('editor.colPrice')} />
                       </td>
-                      <td>
+                      <td data-label={t('editor.colDiscount')}>
                         <input className="input num bk-cell bk-cell-xs" inputMode="decimal" aria-label={t('editor.colDiscount')} placeholder="0" value={l.discount} onChange={(e) => setLine(l.key, { discount: e.target.value })} />
                       </td>
-                      <td>
+                      <td data-label={t('editor.colTax')}>
                         <select className="select bk-cell" aria-label={t('editor.colTax')} value={l.taxRateId ?? ''} onChange={(e) => setLine(l.key, { taxRateId: e.target.value || null })}>
                           <option value="">{t('editor.noTax')}</option>
                           {refs.taxes.map((x) => (
@@ -689,7 +689,7 @@ export default function DocumentEditor({
                           ))}
                         </select>
                       </td>
-                      <td className="num data">{money(totals.lines[i]?.net ?? 0)}</td>
+                      <td className="num data" data-label={t('editor.colAmount')}>{money(totals.lines[i]?.net ?? 0)}</td>
                       <td>
                         <button type="button" className="btn btn-ghost btn-sm" aria-label={t('editor.removeLine')} disabled={lines.length === 1} onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))}>
                           ×

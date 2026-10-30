@@ -13,8 +13,11 @@ import {
   rescale,
   roundHalfAway,
   toDecimalString,
+  parseAmountLocal,
+  parseAmountDot,
+  toInputString,
 } from '@/lib/books-money';
-import { arInvoiceLetter, formatCuit, isValidCnpj, isValidCpf, isValidCuit, isValidRfc, validateTaxId } from '@/lib/books-taxid';
+import { arInvoiceLetter, formatCuit, isValidCnpj, isValidCpf, isValidCuit, isValidRfc, normalizeTaxId, validateTaxId } from '@/lib/books-taxid';
 import { can, effectiveRole, visibleAreas } from '@/lib/books-roles';
 import { accountTemplate, SYSTEM_KEYS, taxTemplate } from '@/lib/books-templates';
 import { accountByKey, booksActor, createContact, createItem, ensureBooks, getItem, listTaxRates, setRole, updateSettings } from '@/lib/books';
@@ -29,7 +32,7 @@ import { signMercadoPago } from '@/lib/shop-payments';
 import { includedTax, createExpense, postExpense, createPurchaseOrder, receivePurchaseOrder, billFromPurchaseOrder, sniffReceipt } from '@/lib/books-purchasing';
 import { authorizeDocument, saveEInvoice } from '@/lib/books-einvoice';
 import { searchBooks } from '@/lib/books-search';
-import { invoiceFromQuote, postShopOrder } from '@/lib/books-integrations';
+import { invoiceFromQuote, postShopOrder, retryShopPosting, shopOrderLines } from '@/lib/books-integrations';
 import { scopesForApps } from '@/lib/api-scopes';
 import { toolsFor } from '@/lib/assistant/tools';
 import { BooksError, type BooksActor } from '@/lib/books-schema';
@@ -48,6 +51,15 @@ async function workspace(country: 'AR' | 'MX' | 'generic' = 'AR'): Promise<Books
   const u = await upsertUser({ email: `books-${uid()}@example.com`, name: 'Books Owner', image: null });
   await ensureBooks(u.id, { country });
   return { ws: u.id, person: u.id, admin: true, role: 'accountant' };
+}
+
+/** Agrega a la persona como miembro del workspace (con Books). */
+async function addMember(ws: string, email: string): Promise<string> {
+  const m = await upsertUser({ email, name: 'Member', image: null });
+  const teamId = `t-${ws}`;
+  await getDb().prepare("INSERT OR IGNORE INTO teams (id, name, owner_id) VALUES (?, 'T', ?)").run(teamId, ws);
+  await getDb().prepare('INSERT INTO team_members (team_id, user_id, role, apps) VALUES (?, ?, ?, ?)').run(teamId, m.id, 'member', '["books"]');
+  return m.id;
 }
 
 async function taxId(ws: string, code: string): Promise<string> {
@@ -128,6 +140,19 @@ describe('books money: impuestos y redondeo', () => {
     expect(includedTax(12100, 2100)).toBe(2100);
   });
 
+  it('carga a mano y extractos: la convención de la moneda (AR y BR, punto de miles)', () => {
+    expect(parseAmountLocal('-1.500', 'ARS')).toBe(-150000);
+    expect(parseAmountLocal('1.500,25', 'ARS')).toBe(150025);
+    expect(parseAmountLocal('2.000', 'BRL')).toBe(200000);
+    expect(parseAmountLocal('1,500.25', 'USD')).toBe(150025);
+    expect(parseAmountLocal('1500.5', 'MXN')).toBe(150050);
+    expect(parseAmountLocal('abc', 'ARS')).toBeNull();
+    expect(toInputString(150025, 'ARS')).toBe('1500,25');
+    expect(parseAmountLocal(toInputString(150025, 'ARS'), 'ARS')).toBe(150025);
+    expect(toInputString(150025, 'USD')).toBe('1500.25');
+    expect(parseAmountDot('-1.50', 'ARS')).toBe(-150);
+  });
+
   it('fin de mes en las recurrentes', () => {
     expect(addMonths('2026-01-31', 1)).toBe('2026-02-28');
     expect(nextRunDate('monthly', 1, '2026-02-28', 31)).toBe('2026-03-31');
@@ -162,6 +187,10 @@ describe('books tax IDs', () => {
     expect(isValidCnpj('11.222.333/0001-81')).toBe(true);
     expect(isValidCnpj('11.222.333/0001-82')).toBe(false);
     expect(isValidCnpj('11111111111111')).toBe(false);
+    // CNPJ alfanumérico (Receita Federal, desde julio de 2026).
+    expect(isValidCnpj('12.ABC.345/01DE-35')).toBe(true);
+    expect(isValidCnpj('12.ABC.345/01DE-36')).toBe(false);
+    expect(normalizeTaxId('cnpj', '12.abc.345/01de-35')).toBe('12ABC34501DE35');
     expect(isValidCpf('529.982.247-25')).toBe(true);
     expect(isValidCpf('529.982.247-24')).toBe(false);
     expect(validateTaxId('other', 'anything')).toBe(true);
@@ -199,16 +228,20 @@ describe('books roles', () => {
     expect(visibleAreas('sales')).toEqual(['invoices', 'contacts', 'items']);
   });
 
-  it('owner y admin son siempre accountant; un miembro sin rol también', () => {
+  it('owner y admin son siempre accountant; un miembro sin rol es viewer', () => {
     expect(effectiveRole('owner', 'viewer')).toBe('accountant');
     expect(effectiveRole('admin', 'sales')).toBe('accountant');
     expect(effectiveRole('member', 'sales')).toBe('sales');
-    expect(effectiveRole('member', null)).toBe('accountant');
+    expect(effectiveRole('member', null)).toBe('viewer');
   });
 
   it('el rol guardado limita lo que el miembro puede hacer', async () => {
     const owner = await workspace('generic');
-    const member = await upsertUser({ email: `books-m-${uid()}@example.com`, name: 'Member', image: null });
+    const member = { id: await addMember(owner.ws, `books-m-${uid()}@example.com`) };
+    // Sin rol: viewer.
+    expect((await booksActor({ ws: owner.ws, person: member.id, workspaceRole: 'member' })).role).toBe('viewer');
+    const outsider = await upsertUser({ email: `books-x-${uid()}@example.com`, name: 'X', image: null });
+    await expectCode(setRole(owner, outsider.id, 'sales'), 'not_a_member');
     await setRole(owner, member.id, 'sales');
     const sales = await booksActor({ ws: owner.ws, person: member.id, workspaceRole: 'member' });
     expect(sales.role).toBe('sales');
@@ -218,6 +251,10 @@ describe('books roles', () => {
     await expectCode(createItem(sales, { name: 'x' }), 'forbidden');
     await expectCode(updateSettings(sales, { footer: 'x' }), 'forbidden');
     await expectCode(setRole(sales, member.id, 'accountant'), 'forbidden');
+    // sales no anula.
+    const c2 = await createContact(owner, { name: 'Para anular' }, { syncCrm: false });
+    const inv = await approveDocument(owner, (await createDraft(owner, { contactId: c2.id, lines: [{ description: 'x', unitPrice: 100 }] })).id);
+    await expectCode(voidDocument(sales, inv.id), 'forbidden');
     await setRole(owner, member.id, 'viewer');
     const viewer = await booksActor({ ws: owner.ws, person: member.id, workspaceRole: 'member' });
     await expectCode(createContact(viewer, { name: 'x' }, { syncCrm: false }), 'forbidden');
@@ -278,6 +315,8 @@ describe('books journals: siempre balancean', () => {
     const equity = (await accountByKey(a.ws, 'equity')).id;
     const j = await createManualJournal(a, { date: '2026-01-05', lines: [{ accountId: cash, debit: 500 }, { accountId: equity, credit: 500 }] });
     await expect(getDb().prepare('UPDATE books_journal_lines SET debit = 1 WHERE journal_id = ?').run(j.id)).rejects.toThrow(/books_journal_immutable/);
+    await expect(getDb().prepare('DELETE FROM books_journal_lines WHERE journal_id = ?').run(j.id)).rejects.toThrow(/books_journal_immutable/);
+    await expect(getDb().prepare('DELETE FROM books_journals WHERE id = ?').run(j.id)).rejects.toThrow(/books_journal_immutable/);
     const rev = await reverseManualJournal(a, j.id);
     expect(rev.lines.find((l) => l.accountId === cash)!.credit).toBe(500);
     await expectCode(reverseManualJournal(a, j.id), 'already_reversed');
@@ -287,6 +326,7 @@ describe('books journals: siempre balancean', () => {
 
   it('cierre de período: nada con fecha cerrada', async () => {
     const a = await workspace('generic');
+    await expectCode(updateSettings({ ...a, admin: false }, { lockDate: '2026-03-31' }), 'forbidden');
     await updateSettings(a, { lockDate: '2026-03-31' });
     const cash = (await accountByKey(a.ws, 'cash')).id;
     const equity = (await accountByKey(a.ws, 'equity')).id;
@@ -353,6 +393,8 @@ describe('books documents: emisión, inmutabilidad, cobros y notas de crédito',
     await expectCode(updateDraft(a, d.id, { lines: [{ description: 'Cambio', unitPrice: 1 }] }), 'document_posted');
     await expect(getDb().prepare('UPDATE books_documents SET total = 1 WHERE id = ?').run(d.id)).rejects.toThrow(/books_document_immutable/);
     await expect(getDb().prepare('UPDATE books_lines SET unit_price = 1 WHERE doc_id = ?').run(d.id)).rejects.toThrow(/books_document_immutable/);
+    await expect(getDb().prepare("UPDATE books_documents SET status = 'draft' WHERE id = ?").run(d.id)).rejects.toThrow(/books_document_immutable/);
+    await expect(getDb().prepare('DELETE FROM books_documents WHERE id = ?').run(d.id)).rejects.toThrow(/books_document_immutable/);
     // Referencia y notas sí.
     const meta = await updateDraft(a, d.id, { reference: 'OC 123' });
     expect(meta.reference).toBe('OC 123');
@@ -479,7 +521,7 @@ describe('books bank: importación y conciliación', () => {
     const c = await createContact(a, { name: 'Banco Cliente' }, { syncCrm: false });
     const inv = await approveDocument(a, (await createDraft(a, { contactId: c.id, issueDate: '2026-03-01', lines: [{ description: 'x', unitPrice: 50000 }] })).id);
     const bank = await createBankAccount(a, { name: 'Galicia CC', bankName: 'Galicia' });
-    const csv = `date,description,amount\n2026-03-05,Transf Banco Cliente ${inv.numberLabel},500.00\n2026-03-06,Comision mantenimiento,-12.10\n`;
+    const csv = `fecha;descripcion;importe\n05/03/2026;Transf Banco Cliente ${inv.numberLabel};500,00\n06/03/2026;Comision mantenimiento;-12,10\n`;
     const r1 = await importStatement(a, bank.id, { filename: 'mov.csv', text: csv });
     expect(r1).toMatchObject({ imported: 2, duplicates: 0 });
     const r2 = await importStatement(a, bank.id, { filename: 'mov.csv', text: csv });
@@ -506,8 +548,10 @@ describe('books cron: recurrentes, vencidas y recordatorios con claims', () => {
   it('dos corridas a la vez generan una sola factura por período', async () => {
     const a = await workspace('generic');
     const c = await createContact(a, { name: 'Suscriptor', email: 'sub@example.com' }, { syncCrm: false });
-    const r = await createRecurring(a, { name: `Plan mensual ${uid()}`, contactId: c.id, frequency: 'monthly', nextDate: '2026-01-31', template: { termsDays: 10, lines: [{ description: 'Plan', unitPrice: 2500 }] } });
-    expect(r.nextDate).toBe('2026-01-31');
+    await expectCode(createRecurring(a, { name: 'Pasado', contactId: c.id, nextDate: '2020-01-01', template: { lines: [{ description: 'Plan', unitPrice: 2500 }] } }), 'next_date_in_past');
+    const r = await createRecurring(a, { name: `Plan mensual ${uid()}`, contactId: c.id, frequency: 'monthly', nextDate: '2099-01-31', template: { termsDays: 10, lines: [{ description: 'Plan', unitPrice: 2500 }] } });
+    // Simula un recurrente que arrancó el 31 de enero (lo que haría el cron con el tiempo).
+    await getDb().prepare("UPDATE books_recurring SET next_date = '2026-01-31' WHERE id = ?").run(r.id);
     const [x, y] = await Promise.all([runRecurring({ today: '2026-01-31' }), runRecurring({ today: '2026-01-31' })]);
     expect(x.created + y.created).toBe(1);
     const docs = (await getDb().prepare('SELECT * FROM books_documents WHERE recurring_id = ?').all(r.id)) as Array<{ status: string; issue_date: string }>;
@@ -567,7 +611,6 @@ describe('books payments: webhooks verificados e idempotentes', () => {
         data: { object: { id: session, payment_status: 'paid', currency: 'usd', amount_total: amount, payment_intent: `pi_${id}`, metadata: { source: 'zerosoft_books', invoice_id: d.id, amount: String(amount) } } },
       });
     await expectCode(handleStripeWebhook(s.webhook_token, event('evt_bad', 4200), 't=1,v1=00'), 'invalid_signature');
-    expect((await handleStripeWebhook(s.webhook_token, event('evt_other', 4200, 'cs_other'), signStripePayload(event('evt_other', 4200, 'cs_other'), FAKE_WHSEC))).kind).toBe('ignored');
     const body = event('evt_1', 4200);
     const first = await handleStripeWebhook(s.webhook_token, body, signStripePayload(body, FAKE_WHSEC));
     expect(first).toEqual({ kind: 'paid', invoiceId: d.id });
@@ -698,7 +741,7 @@ describe('books search', () => {
     await createBankAccount(owner, { name: `Banco ${tag}` });
     const all = await searchBooks({ id: owner.ws, role: 'owner' }, tag);
     expect(all.map((h) => h.group)).toEqual(expect.arrayContaining(['booksBills', 'booksBankAccounts', 'booksContacts']));
-    const member = await upsertUser({ email: `books-s-${uid()}@example.com`, name: 'S', image: null });
+    const member = { id: await addMember(owner.ws, `books-s-${uid()}@example.com`) };
     await setRole(owner, member.id, 'sales');
     const sales = await searchBooks({ id: owner.ws, role: 'member', actingUser: { id: member.id } }, tag);
     expect(sales.some((h) => h.group === 'booksBills' || h.group === 'booksBankAccounts')).toBe(false);
@@ -710,7 +753,7 @@ describe('books search', () => {
 describe('books integrations: Shop y CRM', () => {
   it('pedido de Shop pagado → factura emitida y cobrada, una sola vez', async () => {
     const a = await workspace('generic');
-    const ts = '2026-08-01 10:00:00';
+    const ts = '2099-08-01 10:00:00';
     const orderId = `ord_${uid()}`;
     await getDb()
       .prepare(
@@ -729,7 +772,7 @@ describe('books integrations: Shop y CRM', () => {
     expect(await postShopOrder(a.ws, orderId)).toBe(id);
     const doc = (await getDocument(a.ws, id!))!;
     expect(doc).toMatchObject({ status: 'paid', total: 4500, reference: 'Shop #1001' });
-    expect((await profitAndLoss(a.ws, '2026-08-01', '2026-08-31')).totalIncome).toBe(4500);
+    expect((await profitAndLoss(a.ws, '2099-08-01', '2099-08-31')).totalIncome).toBe(4500);
   });
 
   it('presupuesto del CRM → factura borrador con sus líneas, una vez', async () => {
@@ -748,5 +791,147 @@ describe('books integrations: Shop y CRM', () => {
     expect(doc.lines[0]).toMatchObject({ quantity: 2, unitPrice: 15050, discountBps: 1000, taxBps: 2000 });
     expect(doc.total).toBe(27090 + 5418);
     await expectCode(invoiceFromQuote(a, quoteId), 'quote_already_invoiced');
+  });
+});
+
+// ---------- Correcciones de la QA ----------
+
+describe('books QA: cobros online que no se pierden', () => {
+  async function setup() {
+    const a = await workspace('generic');
+    await savePayments(a, { stripe: { secretKey: FAKE_STRIPE_KEY, webhookSecret: FAKE_WHSEC } });
+    const c = await createContact(a, { name: `Online ${uid()}`, email: 'o@example.com' }, { syncCrm: false });
+    const d = await approveDocument(a, (await createDraft(a, { contactId: c.id, lines: [{ description: 'x', unitPrice: 250000 }] })).id);
+    const s = await ensureBooks(a.ws);
+    const send = async (session: string, amount: number) => {
+      const body = JSON.stringify({
+        id: `evt_${uid()}`,
+        type: 'checkout.session.completed',
+        data: { object: { id: session, payment_status: 'paid', currency: 'usd', amount_total: amount, payment_intent: `pi_${uid()}`, metadata: { source: 'zerosoft_books', invoice_id: d.id, amount: String(amount) } } },
+      });
+      return handleStripeWebhook(s.webhook_token, body, signStripePayload(body, FAKE_WHSEC));
+    };
+    return { a, d, send };
+  }
+
+  it('una sesión vieja pagada después de abrir otra se registra igual (la factura sale de la metadata firmada)', async () => {
+    const { a, d, send } = await setup();
+    await startInvoicePayment(d.publicToken!, 'stripe', 'en');
+    await startInvoicePayment(d.publicToken!, 'stripe', 'en');
+    expect((await send('cs_old_session', 250000)).kind).toBe('paid');
+    expect((await getDocument(a.ws, d.id))!.status).toBe('paid');
+  });
+
+  it('cobro por encima del saldo: se aplica el saldo y el resto queda como saldo a favor, con aviso', async () => {
+    const { a, d, send } = await setup();
+    await recordPayment(a, d.id, { amount: 1000 });
+    const out = await send('cs_any', 250000);
+    expect(out).toMatchObject({ kind: 'paid', excess: 1000 });
+    const doc = (await getDocument(a.ws, d.id))!;
+    expect(doc.status).toBe('paid');
+    const credit = (await accountByKey(a.ws, 'customer_credit')).id;
+    const bal = (await getDb().prepare('SELECT SUM(credit - debit) AS v FROM books_journal_lines WHERE account_id = ?').get(credit)) as { v: number };
+    expect(Number(bal.v)).toBe(1000);
+    const notes = (await getDb().prepare("SELECT COUNT(*) AS n FROM notifications WHERE user_id = ? AND type = 'books_invoice'").get(a.ws)) as { n: number };
+    expect(Number(notes.n)).toBeGreaterThan(0);
+    // Una factura ya pagada: todo el cobro queda como crédito, una sola vez por referencia.
+    const again = await send('cs_late', 5000);
+    expect(again).toMatchObject({ kind: 'credited', excess: 5000 });
+    expect((await balanceSheet(a.ws, '2099-12-31')).difference).toBe(0);
+  });
+});
+
+describe('books QA: informes que cuadran con el libro', () => {
+  it('antigüedad de saldos = cuenta de deudores, con nota de crédito que excede y a una fecha pasada', async () => {
+    const a = await workspace('generic');
+    const c = await createContact(a, { name: 'Cuadra' }, { syncCrm: false });
+    const inv = await approveDocument(a, (await createDraft(a, { contactId: c.id, issueDate: '2026-02-01', lines: [{ description: 'x', unitPrice: 10000 }] })).id);
+    await recordPayment(a, inv.id, { amount: 3000, date: '2026-02-10' });
+    await recordPayment(a, inv.id, { amount: 2000, date: '2026-03-10' });
+    // Nota por más que el saldo: el resto queda a favor del cliente.
+    const cn = await createCreditNote(a, inv.id, { lines: [{ description: 'Crédito', unitPrice: 5000 }] });
+    await approveDocument(a, cn.id);
+    // Otra nota por el total de la factura se pasa de lo que queda por acreditar.
+    await expectCode(approveDocument(a, (await createCreditNote(a, inv.id)).id), 'credit_exceeds_invoice');
+    await approveDocument(a, (await createCreditNote(a, inv.id, { lines: [{ description: 'Resto', unitPrice: 5000 }] })).id);
+    await expectCode(createCreditNote(a, inv.id), 'already_credited');
+    const arId = (await accountByKey(a.ws, 'ar')).id;
+    const ledger = async (asOf: string) =>
+      Number(
+        ((await getDb()
+          .prepare('SELECT COALESCE(SUM(l.debit - l.credit), 0) AS v FROM books_journal_lines l JOIN books_journals j ON j.id = l.journal_id WHERE l.account_id = ? AND j.date <= ?')
+          .get(arId, asOf)) as { v: number }).v,
+      );
+    const today = new Date().toISOString().slice(0, 10);
+    expect((await aging(a.ws, 'receivables', today)).totals.total).toBe(await ledger(today));
+    // A fin de febrero: el pago de marzo y la nota de hoy todavía no existían.
+    expect((await aging(a.ws, 'receivables', '2026-02-28')).totals.total).toBe(7000);
+    expect(await ledger('2026-02-28')).toBe(7000);
+  });
+
+  it('libro IVA: anular no cambia el período de emisión y el CSV no deja fórmulas', async () => {
+    const a = await workspace('AR');
+    const iva = await taxId(a.ws, 'IVA21');
+    const c = await createContact(a, { name: '=HYPERLINK("http://evil.example","x")', country: 'AR' }, { syncCrm: false });
+    const d = await approveDocument(a, (await createDraft(a, { contactId: c.id, issueDate: '2026-01-15', lines: [{ description: 'x', unitPrice: 10000, taxRateId: iva }] })).id);
+    await voidDocument(a, d.id);
+    const jan = await taxReport(a.ws, '2026-01-01', '2026-01-31');
+    expect(jan.totals.salesTax).toBe(2100);
+    const today = new Date().toISOString().slice(0, 10);
+    const now = await taxReport(a.ws, today, today);
+    expect(now.totals.salesTax).toBe(-2100);
+    const csv = taxBookCsv(jan.sales, jan.currency);
+    expect(csv).toContain(`"'=HYPERLINK`);
+    expect(csv).not.toMatch(/(^|,)"?=HYPERLINK/m);
+  });
+});
+
+describe('books QA: pedidos de Shop exactos y reintentos', () => {
+  it('líneas con los totales del pedido: tasa encontrada, tasa desconocida y redondeo', () => {
+    const acc = { sales: 's', shipping: 'h' };
+    const ok = shopOrderLines({ subtotal: 3333, discount: 0, shipping: 0, tax: 700, total: 4033, taxIncluded: false, shippingName: '' }, [{ title: 'A', quantity: 3, unit: 1111 }], { id: 't21', rateBps: 2100 }, acc);
+    expect(ok.warning).toBeNull();
+    const tot = (ls: typeof ok.lines, bps: number) => docTotals(ls.map((l) => ({ quantity: l.quantity, unitPrice: l.unitPrice, discountBps: l.discountBps, taxBps: l.taxRateId ? bps : 0 }))).total;
+    expect(tot(ok.lines, 2100)).toBe(4033);
+    const unknown = shopOrderLines({ subtotal: 1000, discount: 0, shipping: 500, tax: 130, total: 1630, taxIncluded: false, shippingName: 'Std' }, [{ title: 'B', quantity: 1, unit: 1000 }], null, acc);
+    expect(unknown.warning).toBe('tax_rate_not_found');
+    expect(unknown.lines.some((l) => /Tax/.test(l.description))).toBe(true);
+    expect(tot(unknown.lines, 0)).toBe(1630);
+    const disc = shopOrderLines({ subtotal: 999, discount: 333, shipping: 0, tax: 0, total: 666, taxIncluded: false, shippingName: '' }, [{ title: 'C', quantity: 3, unit: 333 }], null, acc);
+    expect(tot(disc.lines, 0)).toBe(666);
+  });
+
+  it('un borrador que quedó colgado se termina en el reintento, una sola vez', async () => {
+    const a = await workspace('generic');
+    await updateSettings(a, { shopAutoPost: true });
+    const ts = '2099-01-01 10:00:00';
+    const orderId = `ord_${uid()}`;
+    await getDb()
+      .prepare(
+        `INSERT INTO shop_orders (id, workspace_id, number, status, email, name, currency, subtotal_cents, discount_cents, shipping_cents, tax_cents, total_cents, payment_method, paid_at, status_token, created_at, updated_at)
+         VALUES (?, ?, 2001, 'paid', 'b@example.com', 'B', 'USD', 1000, 0, 0, 0, 1000, 'mercadopago', ?, ?, ?, ?)`,
+      )
+      .run(orderId, a.ws, ts, uid(), ts, ts);
+    await getDb().prepare("INSERT INTO shop_order_items (id, order_id, workspace_id, title, quantity, unit_cents, total_cents) VALUES (?, ?, ?, 'Pin', 1, 1000, 1000)").run(`it_${uid()}`, orderId, a.ws);
+    // Simula una corrida que creó el borrador y cortó.
+    const buyer = await createContact(a, { name: 'B', email: 'b@example.com' }, { syncCrm: false });
+    const draft = await createDraft(a, { contactId: buyer.id, reference: 'Shop #2001', lines: [{ description: 'Pin', unitPrice: 1000 }] }, { shop_order_id: orderId });
+    // El reintento del cron lo aprueba y lo cobra; correrlo otra vez (o el hook) no duplica nada.
+    // (Corridas simultáneas las cubren el índice único por pedido, el compare-and-set de aprobar y la referencia única del cobro.)
+    expect((await retryShopPosting()).failed).toBe(0);
+    expect(await postShopOrder(a.ws, orderId)).toBe(draft.id);
+    await retryShopPosting();
+    const doc = (await getDocument(a.ws, draft.id))!;
+    expect(doc.status).toBe('paid');
+    const pays = (await getDb().prepare('SELECT COUNT(*) AS n FROM books_payments WHERE doc_id = ?').get(draft.id)) as { n: number };
+    expect(Number(pays.n)).toBe(1);
+    expect((await getDb().prepare('SELECT COUNT(*) AS n FROM books_documents WHERE shop_order_id = ?').get(orderId) as { n: number }).n).toBe(1);
+  });
+});
+
+describe('books QA: tipos y CSV bancario en ARS', () => {
+  it('CSV en ARS: el punto es de miles', () => {
+    const { txns } = parseCsvStatement('fecha;concepto;importe\n01/03/2026;Comisión;-1.500\n02/03/2026;Cobro;12.345,67\n', 'ARS');
+    expect(txns.map((t) => t.amount)).toEqual([-150000, 1234567]);
   });
 });

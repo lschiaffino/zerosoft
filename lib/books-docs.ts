@@ -119,6 +119,8 @@ export interface DocInput {
 }
 
 export const MAX_LINES = 200;
+/** Tope del precio unitario y del total de una línea (unidades mínimas). */
+export const MAX_LINE_AMOUNT = 10_000_000_000_000;
 
 /** Saldo pendiente en la moneda del documento. */
 export function amountDue(d: Pick<DocRow, 'total' | 'paid_total' | 'credited_total' | 'status'>): number {
@@ -336,6 +338,8 @@ export async function listDocuments(
   const where = ['d.workspace_id = ?'];
   const args: Array<string | number> = [ws];
   const types = opts.docType ? (Array.isArray(opts.docType) ? opts.docType : [opts.docType]) : null;
+  // Una lista vacía no es "todos": no devuelve nada (nadie ve compras por un filtro vacío).
+  if (types && !types.length) return { items: [], total: 0 };
   if (types?.length) {
     where.push(`d.doc_type IN (${types.map(() => '?').join(',')})`);
     args.push(...types);
@@ -389,7 +393,7 @@ interface ResolvedLine {
   accountId: string | null;
 }
 
-async function resolveLines(ws: string, docType: DocType, currency: string, lines: LineInputDto[]): Promise<ResolvedLine[]> {
+async function resolveLines(ws: string, docType: DocType, currency: string, lines: LineInputDto[], opts: { allowNegative?: boolean } = {}): Promise<ResolvedLine[]> {
   if (!Array.isArray(lines) || lines.length > MAX_LINES) throw new BooksError('too_many_lines');
   const out: ResolvedLine[] = [];
   for (const l of lines) {
@@ -406,7 +410,8 @@ async function resolveLines(ws: string, docType: DocType, currency: string, line
       if (p == null) throw new BooksError('invalid_amount');
       unitPrice = p;
     }
-    if (unitPrice < 0 || !Number.isSafeInteger(unitPrice)) throw new BooksError('invalid_amount');
+    // Tope por línea: 10^13 unidades mínimas (diez billones con centavos) para que nada se acerque al límite de un entero seguro.
+    if ((unitPrice < 0 && !opts.allowNegative) || !Number.isSafeInteger(unitPrice) || Math.abs(unitPrice) > MAX_LINE_AMOUNT) throw new BooksError('invalid_amount');
     const discountBps = Math.trunc(Number(l.discountBps ?? 0));
     if (!(discountBps >= 0 && discountBps <= 10_000)) throw new BooksError('invalid_discount');
     const taxRateId = l.taxRateId !== undefined ? l.taxRateId : (item?.tax_rate_id ?? null);
@@ -415,6 +420,7 @@ async function resolveLines(ws: string, docType: DocType, currency: string, line
     const accountId = l.accountId ?? (docType === 'bill' ? item?.purchase_account_id : item?.sales_account_id) ?? null;
     if (accountId && !(await getAccount(ws, accountId))) throw new BooksError('invalid_account');
     if (!description && !item) continue;
+    if (Math.abs(quantity * unitPrice) > MAX_LINE_AMOUNT) throw new BooksError('invalid_amount');
     out.push({ itemId: item?.id ?? null, description, quantity, unitPrice, discountBps, taxRateId: tax?.id ?? null, taxBps: tax?.rate_bps ?? 0, accountId });
   }
   return out;
@@ -471,7 +477,12 @@ async function checkContact(ws: string, docType: DocType, contactId: string | nu
   return c;
 }
 
-export async function createDraft(actor: BooksActor, input: DocInput, extra: Partial<Pick<DocRow, 'recurring_id' | 'quote_id' | 'shop_order_id' | 'po_id' | 'credit_for_id'>> = {}): Promise<DocDto> {
+export async function createDraft(
+  actor: BooksActor,
+  input: DocInput,
+  extra: Partial<Pick<DocRow, 'recurring_id' | 'quote_id' | 'shop_order_id' | 'po_id' | 'credit_for_id'>> = {},
+  opts: { allowNegativeLines?: boolean } = {},
+): Promise<DocDto> {
   const docType = input.docType ?? 'invoice';
   if (!(DOC_TYPES as readonly string[]).includes(docType)) throw new BooksError('invalid_doc_type');
   assertCan(actor, `${docArea(docType)}.write`);
@@ -480,7 +491,7 @@ export async function createDraft(actor: BooksActor, input: DocInput, extra: Par
   const f = docFields(s, input, null, contact);
   const series = docType === 'bill' ? null : input.seriesId ? await getSeries(actor.ws, input.seriesId) : null;
   if (input.seriesId && (!series || series.doc_type !== docType)) throw new BooksError('invalid_series');
-  const lines = await resolveLines(actor.ws, docType, f.currency, input.lines ?? []);
+  const lines = await resolveLines(actor.ws, docType, f.currency, input.lines ?? [], { allowNegative: opts.allowNegativeLines });
   const id = newId(docType === 'bill' ? 'bil' : docType === 'credit_note' ? 'cn' : 'inv');
   const ts = nowDb();
   await inTransaction(async (db) => {
@@ -638,6 +649,10 @@ export async function approveDocument(actor: BooksActor, id: string, opts: { sys
     creditFor = await getDocRow(actor.ws, d.credit_for_id);
     if (!creditFor || creditFor.status === 'draft' || creditFor.status === 'void') throw new BooksError('invalid_credit_target', 409);
     if (creditFor.currency !== d.currency) throw new BooksError('currency_mismatch', 409);
+    // Las notas emitidas contra una factura no suman más que su total (aunque la factura ya esté cobrada).
+    const already = await creditedSoFar(actor.ws, creditFor.id);
+    if (already >= creditFor.total) throw new BooksError('already_credited', 409);
+    if (d.total > creditFor.total - already) throw new BooksError('credit_exceeds_invoice', 409, { max: creditFor.total - already });
   }
   const series = d.doc_type === 'bill' ? null : await pickSeries(actor.ws, d, s, contact);
   if (d.doc_type !== 'bill' && !series) throw new BooksError('series_required', 409);
@@ -700,13 +715,16 @@ export async function voidDocument(actor: BooksActor, id: string, reason = ''): 
   const d = await getDocRow(actor.ws, id);
   if (!d) throw new BooksError('not_found', 404);
   assertCan(actor, `${docArea(d.doc_type)}.write`);
+  // Anular revierte un asiento: solo el rol contable (sales emite y cobra, no anula).
+  if (actor.role !== 'accountant') throw new BooksError('forbidden', 403, { need: 'accountant' });
   if (d.status === 'draft') throw new BooksError('delete_draft_instead', 409);
   if (d.status === 'void') throw new BooksError('already_void', 409);
   if (d.doc_type !== 'credit_note' && (d.paid_total > 0 || d.credited_total > 0)) throw new BooksError('has_payments', 409);
   if (d.einvoice_status === 'authorized') throw new BooksError('einvoice_authorized_use_credit_note', 409);
   const ts = nowDb();
   await inTransaction(async (db) => {
-    if (d.journal_id) await reverseJournal(actor.ws, actor.person, d.journal_id, { sourceType: 'void', memo: `Void ${d.number_label}${reason ? `: ${clean(reason, 120)}` : ''}`, db });
+    // La reversa va con la fecha de la anulación: un período ya presentado no cambia.
+    if (d.journal_id) await reverseJournal(actor.ws, actor.person, d.journal_id, { date: todayIso(), sourceType: 'void', memo: `Void ${d.number_label}${reason ? `: ${clean(reason, 120)}` : ''}`, db });
     // Nota de crédito anulada: devuelve el saldo a la factura que había reducido.
     if (d.doc_type === 'credit_note' && d.credit_for_id && d.paid_total > 0) {
       const inv = (await getDocRow(actor.ws, d.credit_for_id, db))!;
@@ -726,12 +744,21 @@ export async function voidDocument(actor: BooksActor, id: string, reason = ''): 
   return (await getDocument(actor.ws, id))!;
 }
 
+/** Total de las notas de crédito emitidas (no anuladas) contra una factura. */
+async function creditedSoFar(ws: string, invoiceId: string): Promise<number> {
+  const r = (await getDb()
+    .prepare("SELECT COALESCE(SUM(total), 0) AS v FROM books_documents WHERE workspace_id = ? AND credit_for_id = ? AND doc_type = 'credit_note' AND status NOT IN ('draft','void')")
+    .get(ws, invoiceId)) as { v: number };
+  return Number(r.v);
+}
+
 /** Borrador de nota de crédito por el total (o las líneas pedidas) de una factura emitida. */
 export async function createCreditNote(actor: BooksActor, invoiceId: string, input: { lines?: LineInputDto[]; reason?: string } = {}): Promise<DocDto> {
   assertCan(actor, 'invoices.write');
   const inv = await getDocRow(actor.ws, invoiceId);
   if (!inv || inv.doc_type !== 'invoice') throw new BooksError('not_found', 404);
   if (inv.status === 'draft' || inv.status === 'void') throw new BooksError('invalid_status', 409);
+  if ((await creditedSoFar(actor.ws, inv.id)) >= inv.total) throw new BooksError('already_credited', 409);
   const lines =
     input.lines ??
     (await docLines(invoiceId)).map((l) => ({ itemId: l.item_id, description: l.description, quantity: l.quantity, unitPrice: l.unit_price, discountBps: l.discount_bps, taxRateId: l.tax_rate_id, accountId: l.account_id }));
@@ -812,6 +839,8 @@ export async function recordPayment(actor: BooksActor, docId: string, input: Pay
   const date = input.date ?? todayIso();
   if (!isValidDate(date)) throw new BooksError('invalid_date');
   const method: PaymentMethod = input.method && (PAYMENT_METHODS as readonly string[]).includes(input.method) ? input.method : 'bank';
+  // sales cobra solo a una cuenta bancaria o caja de Books, no a cualquier cuenta de activo.
+  if (!opts.system && actor.role !== 'accountant' && input.accountId && !input.bankAccountId) throw new BooksError('forbidden', 403, { need: 'bank_account' });
   const accountId = await paymentAccount(actor.ws, input, method);
   const payFx = d.currency === s.base_currency ? '1' : (normalizeRate(input.fxRate) ?? d.fx_rate);
   const k = await keyAccounts(actor.ws, ['ar', 'ap', 'fx'] as const);

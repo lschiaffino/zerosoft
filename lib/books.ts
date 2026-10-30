@@ -34,6 +34,7 @@ export interface SettingsRow {
   payments: string;
   einvoice: string;
   shop_auto_post: number;
+  shop_auto_post_since: string | null;
   crm_sync: number;
   lock_date: string | null;
   webhook_token: string;
@@ -143,6 +144,8 @@ export async function setRole(actor: BooksActor, personId: string, role: BooksRo
   if (!actor.admin) throw new BooksError('forbidden', 403);
   if (!isBooksRole(role)) throw new BooksError('invalid_role');
   if (personId === actor.ws) throw new BooksError('owner_is_accountant');
+  const { personAppAccess } = await import('./api-auth');
+  if (!(await personAppAccess(actor.ws, personId).catch(() => null))) throw new BooksError('not_a_member', 404);
   await getDb()
     .prepare('INSERT INTO books_roles (workspace_id, person_id, role, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(workspace_id, person_id) DO UPDATE SET role = excluded.role, updated_at = excluded.updated_at')
     .run(actor.ws, personId, role, nowDb());
@@ -377,11 +380,18 @@ export async function updateSettings(actor: BooksActor, patch: SettingsPatch): P
     const cur = reminderSettings(s);
     set('reminders', JSON.stringify(reminderSettings({ reminders: JSON.stringify({ ...cur, ...patch.reminders }) })));
   }
-  if (patch.shopAutoPost !== undefined) set('shop_auto_post', patch.shopAutoPost ? 1 : 0);
+  if (patch.shopAutoPost !== undefined) {
+    set('shop_auto_post', patch.shopAutoPost ? 1 : 0);
+    // Desde cuándo: al activarlo no se registran de golpe los pedidos viejos.
+    if (patch.shopAutoPost && !s.shop_auto_post) set('shop_auto_post_since', nowDb());
+  }
   if (patch.crmSync !== undefined) set('crm_sync', patch.crmSync ? 1 : 0);
-  if (patch.lockDate !== undefined) {
+  if (patch.lockDate !== undefined && patch.lockDate !== s.lock_date) {
+    // El cierre de período lo mueven solo owner y admins, y queda en la auditoría con el valor anterior.
+    if (!actor.admin) throw new BooksError('forbidden', 403, { need: 'admin' });
     if (patch.lockDate !== null && !isValidDate(patch.lockDate)) throw new BooksError('invalid_date');
     set('lock_date', patch.lockDate);
+    await audit(actor, 'settings.lock_date', 'settings', null, `${s.lock_date ?? 'none'} -> ${patch.lockDate ?? 'none'}`);
   }
   if (patch.baseCurrency !== undefined) {
     const c = patch.baseCurrency.toUpperCase();
@@ -429,14 +439,22 @@ export async function listAccounts(ws: string, opts: { includeArchived?: boolean
 }
 
 export async function accountByKey(ws: string, key: SystemKey): Promise<AccountRow> {
-  const row = (await getDb().prepare('SELECT * FROM books_accounts WHERE workspace_id = ? AND system_key = ?').get(ws, key)) as AccountRow | undefined;
-  if (!row) {
-    await ensureBooks(ws);
-    const again = (await getDb().prepare('SELECT * FROM books_accounts WHERE workspace_id = ? AND system_key = ?').get(ws, key)) as AccountRow | undefined;
-    if (!again) throw new BooksError('missing_system_account', 500, { key });
-    return again;
+  const find = async () => (await getDb().prepare('SELECT * FROM books_accounts WHERE workspace_id = ? AND system_key = ?').get(ws, key)) as AccountRow | undefined;
+  const row = await find();
+  if (row) return row;
+  // Una cuenta de sistema que la plantilla sumó después de armar el workspace: se crea con el código de la plantilla.
+  const s = await ensureBooks(ws);
+  const tpl = accountTemplate((BOOKS_COUNTRIES as readonly string[]).includes(s.country) ? (s.country as BooksCountry) : 'generic').find((a) => a.key === key);
+  if (tpl) {
+    const taken = await getDb().prepare('SELECT 1 AS x FROM books_accounts WHERE workspace_id = ? AND code = ?').get(ws, tpl.code);
+    const ts = nowDb();
+    await getDb()
+      .prepare('INSERT OR IGNORE INTO books_accounts (id, workspace_id, code, name, type, subtype, system_key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(newId('acc'), ws, taken ? `${tpl.code}-${key}` : tpl.code, tpl.name, tpl.type, tpl.subtype, key, ts, ts);
   }
-  return row;
+  const again = await find();
+  if (!again) throw new BooksError('missing_system_account', 500, { key });
+  return again;
 }
 
 export async function getAccount(ws: string, id: string): Promise<AccountRow | null> {

@@ -39,7 +39,8 @@ import DocumentEditor, { type DocKind, type EditorRefs } from '@/components/book
 import { ContactEditor, ExpenseEditor, ItemEditor, PurchaseOrderEditor, RecurringEditor } from '@/components/books/Records';
 import { AccountsView, BankAccountNew, BankAccountView, JournalList, JournalNew, JournalView } from '@/components/books/Ledger';
 import { AgingView, BalanceSheetView, CashFlowView, ProfitLossView, ReportsIndex, TaxView } from '@/components/books/Reports';
-import BooksSettings, { SETTINGS_TABS, type SettingsTab } from '@/components/books/Settings';
+import BooksSettings from '@/components/books/Settings';
+import { booksSettingsTab } from '@/lib/books-tabs';
 
 export const dynamic = 'force-dynamic';
 
@@ -333,7 +334,7 @@ export default async function BooksPage(props: Props) {
     // eslint-disable-next-line no-fallthrough
     case 'settings': {
       if (id) notFound();
-      const tab: SettingsTab = (SETTINGS_TABS as readonly string[]).includes(sp.tab ?? '') ? (sp.tab as SettingsTab) : 'company';
+      const tab = booksSettingsTab(sp.tab);
       const [taxes, series, audit, roles, people] = await Promise.all([
         listTaxRates(ws),
         listSeries(ws),

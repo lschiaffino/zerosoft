@@ -1,5 +1,6 @@
 'use client';
 
+import { SETTINGS_TABS, type SettingsTab } from '@/lib/books-tabs';
 import { useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -11,8 +12,6 @@ import type { BooksRole } from '@/lib/books-roles';
 import { bpsToPercent, percentToBps } from '@/lib/books-money';
 import { api, useDate, useErrorText, useToast } from './ui';
 
-export const SETTINGS_TABS = ['company', 'taxes', 'series', 'reminders', 'payments', 'einvoice', 'roles', 'integrations', 'audit'] as const;
-export type SettingsTab = (typeof SETTINGS_TABS)[number];
 
 export default function BooksSettings({
   tab,
@@ -72,7 +71,7 @@ export default function BooksSettings({
       {tab === 'company' && <Company settings={settings} canWrite={canWrite} admin={admin} patch={patch} push={push} />}
       {tab === 'taxes' && <Taxes taxes={taxes} canWrite={canWrite} patch={patch} />}
       {tab === 'series' && <Series series={series} canWrite={canWrite} patch={patch} country={settings.country} />}
-      {tab === 'reminders' && <Reminders settings={settings} canWrite={canWrite} patch={patch} />}
+      {tab === 'reminders' && <Reminders settings={settings} canWrite={canWrite} admin={admin} patch={patch} />}
       {tab === 'payments' && payments && <Payments payments={payments} patch={patch} />}
       {tab === 'einvoice' && einvoice && <EInvoice einvoice={einvoice} patch={patch} />}
       {tab === 'roles' && roles && <Roles roles={roles} people={people} patch={patch} />}
@@ -347,7 +346,7 @@ function Series({ series, canWrite, patch, country }: { series: SeriesRow[]; can
   );
 }
 
-function Reminders({ settings, canWrite, patch }: { settings: SettingsDto; canWrite: boolean; patch: Patch }) {
+function Reminders({ settings, canWrite, admin, patch }: { settings: SettingsDto; canWrite: boolean; admin: boolean; patch: Patch }) {
   const t = useTranslations('books');
   const [enabled, setEnabled] = useState(settings.reminders.enabled);
   const [days, setDays] = useState(settings.reminders.days.join(', '));
@@ -390,10 +389,11 @@ function Reminders({ settings, canWrite, patch }: { settings: SettingsDto; canWr
       >
         <h2 className="bk-panel-title">{t('settings.lockDate')}</h2>
         <p className="ui-help">{t('settings.lockHelp')}</p>
-        <fieldset className="bk-fieldset" disabled={!canWrite}>
+        {!admin && <p className="ui-help">{t('settings.lockAdminOnly')}</p>}
+        <fieldset className="bk-fieldset" disabled={!admin}>
           <input className="input" type="date" aria-label={t('settings.lockDate')} value={lock} onChange={(e) => setLock(e.target.value)} />
         </fieldset>
-        {canWrite && (
+        {admin && (
           <div className="bk-row">
             <button type="submit" className="btn btn-primary">
               {t('common.save')}
@@ -575,7 +575,7 @@ function Roles({ roles, people, patch }: { roles: Array<{ personId: string; role
         <ul className="bk-list">
           {people.map((p) => {
             const fixed = p.role === 'owner' || p.role === 'admin';
-            const current = fixed ? 'accountant' : (roles.find((r) => r.personId === p.id)?.role ?? 'accountant');
+            const current = fixed ? 'accountant' : (roles.find((r) => r.personId === p.id)?.role ?? 'viewer');
             return (
               <li key={p.id}>
                 <span className="bk-ellipsis">{p.name || p.email}</span>

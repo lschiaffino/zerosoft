@@ -6,9 +6,11 @@ import type { Client } from '@libsql/client';
  * unidades mínimas enteras de su moneda (centavos; pesos chilenos sin
  * decimales). Todo cuelga del workspace (workspace_id = id del owner).
  *
- * Inmutabilidad: los asientos no se editan (trigger) y un documento emitido
- * no cambia sus importes ni sus líneas (triggers); se corrige con una nota de
- * crédito o un asiento de reversa.
+ * Inmutabilidad (triggers): los asientos y sus líneas no se editan ni se
+ * borran; un documento emitido no cambia sus importes ni sus líneas y no
+ * vuelve a borrador. Se corrige con una nota de crédito, una anulación o un
+ * asiento de reversa. Borrar el workspace entero (users) sí arrastra todo:
+ * los triggers de borrado solo cortan mientras el workspace existe.
  */
 export async function booksUp(client: Client): Promise<void> {
   await client.executeMultiple(`
@@ -31,6 +33,7 @@ export async function booksUp(client: Client): Promise<void> {
       payments TEXT NOT NULL DEFAULT '{}',
       einvoice TEXT NOT NULL DEFAULT '{}',
       shop_auto_post INTEGER NOT NULL DEFAULT 0,
+      shop_auto_post_since TEXT,
       crm_sync INTEGER NOT NULL DEFAULT 1,
       lock_date TEXT,
       webhook_token TEXT NOT NULL UNIQUE,
@@ -388,6 +391,18 @@ export async function booksUp(client: Client): Promise<void> {
     BEGIN SELECT RAISE(ABORT, 'books_journal_immutable'); END;
     CREATE TRIGGER IF NOT EXISTS books_journal_no_update BEFORE UPDATE OF date, number, source_type, source_id, reversal_of ON books_journals
     BEGIN SELECT RAISE(ABORT, 'books_journal_immutable'); END;
+    CREATE TRIGGER IF NOT EXISTS books_jl_no_delete BEFORE DELETE ON books_journal_lines
+    WHEN EXISTS (SELECT 1 FROM users WHERE id = OLD.workspace_id)
+    BEGIN SELECT RAISE(ABORT, 'books_journal_immutable'); END;
+    CREATE TRIGGER IF NOT EXISTS books_journal_no_delete BEFORE DELETE ON books_journals
+    WHEN EXISTS (SELECT 1 FROM users WHERE id = OLD.workspace_id)
+    BEGIN SELECT RAISE(ABORT, 'books_journal_immutable'); END;
+    CREATE TRIGGER IF NOT EXISTS books_doc_no_redraft BEFORE UPDATE OF status ON books_documents
+    WHEN OLD.status != 'draft' AND NEW.status = 'draft'
+    BEGIN SELECT RAISE(ABORT, 'books_document_immutable'); END;
+    CREATE TRIGGER IF NOT EXISTS books_doc_posted_no_delete BEFORE DELETE ON books_documents
+    WHEN OLD.status != 'draft' AND EXISTS (SELECT 1 FROM users WHERE id = OLD.workspace_id)
+    BEGIN SELECT RAISE(ABORT, 'books_document_immutable'); END;
     -- Documentos emitidos: importes, moneda, contacto y fecha quedan fijos.
     CREATE TRIGGER IF NOT EXISTS books_doc_posted_fixed BEFORE UPDATE OF subtotal, discount_total, tax_total, total, currency, fx_rate, contact_id, issue_date, doc_type, number, series_id ON books_documents
     WHEN OLD.status != 'draft'

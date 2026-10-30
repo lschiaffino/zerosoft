@@ -15,7 +15,7 @@ import { getDb } from './db';
 import { assertCan, audit, createContact, ensureBooks, getContactRow, listTaxRates, type SettingsRow } from './books';
 import { approveDocument, createDraft, getDocRow, getDocument, publicUrl, recordPayment, type DocDto, type DocRow } from './books-docs';
 import { BooksError, clean, nowDb, type BooksActor } from './books-schema';
-import { formatMoney, parseAmount, rescale, todayIso, currencyDecimals } from './books-money';
+import { docTotals, formatMoney, parseAmount, rescale, currencyDecimals } from './books-money';
 import { escapeHtml, namedSender, renderBrandedHtml, sendEmail } from './email';
 import { personAppAccess } from './api-auth';
 
@@ -60,7 +60,7 @@ async function emit(ws: string, type: 'books.invoice.paid' | 'books.invoice.over
   }
 }
 
-async function notifyStaff(ws: string, title: string, body: string, href: string, sourceId: string): Promise<void> {
+export async function notifyStaff(ws: string, title: string, body: string, href: string, sourceId: string): Promise<void> {
   try {
     const { listOwnerSpacePeople } = await import('./workspace');
     const { createNotification } = await import('./notifications');
@@ -312,64 +312,150 @@ export function shopCentsToMinor(cents: number, currency: string): number {
 }
 
 /**
+ * Líneas de la factura de un pedido de Shop con los totales exactos del
+ * pedido (pura, exportada para los tests). Ítems y envío al neto; el
+ * impuesto con la tasa de Books que coincide con la del pedido. Si ninguna
+ * coincide, el impuesto va como una línea de ajuste sin tasa (y `warning`).
+ * Lo que no cierra por redondeo va en una línea de ajuste (puede ser
+ * negativa) para que el total sea exactamente el del pedido.
+ */
+export function shopOrderLines(
+  o: { subtotal: number; discount: number; shipping: number; tax: number; total: number; taxIncluded: boolean; shippingName: string },
+  items: Array<{ title: string; quantity: number; unit: number }>,
+  tax: { id: string; rateBps: number } | null,
+  accounts: { sales: string; shipping: string },
+): { lines: Array<{ description: string; quantity: number; unitPrice: number; taxRateId: string | null; discountBps?: number; accountId?: string }>; warning: string | null } {
+  const lines: Array<{ description: string; quantity: number; unitPrice: number; taxRateId: string | null; discountBps?: number; accountId?: string }> = [];
+  let warning: string | null = null;
+  const useRate = o.tax > 0 && tax ? tax : null;
+  if (o.tax > 0 && !tax) warning = 'tax_rate_not_found';
+  const pct = o.discount > 0 && o.subtotal > 0 ? Math.round((o.discount / o.subtotal) * 10_000) : 0;
+  for (const i of items) {
+    const unitNet = o.taxIncluded && useRate ? Math.round((i.unit * 10_000) / (10_000 + useRate.rateBps)) : i.unit;
+    lines.push({ description: i.title, quantity: i.quantity, unitPrice: unitNet, taxRateId: useRate?.id ?? null, discountBps: pct || undefined, accountId: accounts.sales });
+  }
+  if (o.shipping > 0) lines.push({ description: `Shipping${o.shippingName ? ` (${o.shippingName})` : ''}`, quantity: 1, unitPrice: o.shipping, taxRateId: null, accountId: accounts.shipping });
+  // Impuesto sin tasa en Books: si venía sumado, va como línea de ajuste; si venía incluido, ya está en los precios.
+  if (o.tax > 0 && !useRate && !o.taxIncluded) lines.push({ description: 'Tax (rate not configured in Books)', quantity: 1, unitPrice: o.tax, taxRateId: null, accountId: accounts.sales });
+  const t = docTotals(lines.map((l) => ({ quantity: l.quantity, unitPrice: l.unitPrice, discountBps: l.discountBps, taxBps: l.taxRateId ? (useRate?.rateBps ?? 0) : 0 })));
+  const diff = o.total - t.total;
+  if (diff !== 0) lines.push({ description: 'Rounding adjustment', quantity: 1, unitPrice: diff, taxRateId: null, accountId: accounts.sales });
+  return { lines, warning };
+}
+
+/**
  * Pedido de Shop pagado → factura emitida y cobrada en Books (si el ajuste
- * está activo). Idempotente: un índice único por pedido. Las líneas usan la
- * tasa del pedido (se busca la de Books con ese porcentaje) y el envío va a
- * su cuenta. El cobro entra a "cobros a acreditar" (Stripe o Mercado Pago)
- * o al banco si fue transferencia.
+ * está activo y el pedido es posterior a activarlo). Idempotente y seguro con
+ * corridas a la vez: un índice único por pedido para la factura, aprobar con
+ * compare-and-set y el cobro con referencia única. Si una corrida anterior
+ * dejó el borrador sin aprobar o sin cobrar, la siguiente lo termina (el cron
+ * horario reintenta). Los totales son los del pedido al centavo.
+ *
+ * Reembolsos y cancelaciones de Shop no se reflejan solos: se registran con
+ * una nota de crédito.
  */
 export async function postShopOrder(ws: string, orderId: string): Promise<string | null> {
   const s = await ensureBooks(ws);
   if (!s.shop_auto_post) return null;
   const db = getDb();
-  const existing = (await db.prepare('SELECT id FROM books_documents WHERE workspace_id = ? AND shop_order_id = ?').get(ws, orderId)) as { id: string } | undefined;
-  if (existing) return existing.id;
   const o = (await db.prepare('SELECT * FROM shop_orders WHERE id = ? AND workspace_id = ?').get(orderId, ws)) as Record<string, unknown> | undefined;
   if (!o || !o.paid_at) return null;
-  const items = (await db.prepare('SELECT * FROM shop_order_items WHERE order_id = ?').all(orderId)) as Array<Record<string, unknown>>;
+  if (s.shop_auto_post_since && String(o.paid_at) < s.shop_auto_post_since) return null;
   const currency = String(o.currency).toUpperCase();
   if (currency !== s.base_currency) return null; // Sin tipo de cambio no se registra: queda para hacerlo a mano.
   const actor: BooksActor = { ws, person: ws, admin: true, role: 'accountant' };
-  const email = String(o.email ?? '').toLowerCase();
-  const name = String(o.name || email || `Shop #${String(o.number)}`);
-  const byEmail = email ? ((await db.prepare('SELECT id FROM books_contacts WHERE workspace_id = ? AND email = ? AND archived = 0').get(ws, email)) as { id: string } | undefined) : undefined;
-  const contactId = byEmail?.id ?? (await createContact(actor, { kind: 'customer', name: clean(name, 160), email }, { syncCrm: false })).id;
-  const taxes = await listTaxRates(ws);
-  const subtotal = Number(o.subtotal_cents);
-  const taxCents = Number(o.tax_cents);
-  const included = Number(o.tax_included) === 1;
-  // Tasa efectiva del pedido sobre el neto (Shop calcula un impuesto por pedido).
-  const net = included ? subtotal - Number(o.discount_cents) - taxCents : subtotal - Number(o.discount_cents);
-  const rateBps = net > 0 ? Math.round((taxCents / net) * 10_000) : 0;
-  const tax = taxCents ? (taxes.find((t) => Math.abs(t.rate_bps - rateBps) <= 5) ?? null) : null;
-  const k = await (await import('./books-ledger')).keyAccounts(ws, ['sales', 'shipping_income'] as const);
-  const lines: Array<{ description: string; quantity: number; unitPrice: number; taxRateId: string | null; discountBps?: number; accountId?: string }> = items.map((i) => {
-    const unit = Number(i.unit_cents);
-    const unitNet = included && tax ? Math.round((unit * 10_000) / (10_000 + tax.rate_bps)) : unit;
-    return { description: `${String(i.title)}${i.variant_title ? ` (${String(i.variant_title)})` : ''}`, quantity: Number(i.quantity), unitPrice: shopCentsToMinor(unitNet, currency), taxRateId: tax?.id ?? null, accountId: k.sales };
-  });
-  if (Number(o.discount_cents) > 0 && subtotal > 0) {
-    const pct = Math.round((Number(o.discount_cents) / subtotal) * 10_000);
-    for (const l of lines) l.discountBps = pct;
+  const findDoc = async () => ((await db.prepare("SELECT id FROM books_documents WHERE workspace_id = ? AND shop_order_id = ? AND status != 'void'").get(ws, orderId)) as { id: string } | undefined)?.id ?? null;
+  let docId = await findDoc();
+  if (!docId) {
+    const items = (await db.prepare('SELECT * FROM shop_order_items WHERE order_id = ?').all(orderId)) as Array<Record<string, unknown>>;
+    const email = String(o.email ?? '').toLowerCase();
+    const name = String(o.name || email || `Shop #${String(o.number)}`);
+    const byEmail = email ? ((await db.prepare('SELECT id FROM books_contacts WHERE workspace_id = ? AND email = ? AND archived = 0').get(ws, email)) as { id: string } | undefined) : undefined;
+    const contactId = byEmail?.id ?? (await createContact(actor, { kind: 'customer', name: clean(name, 160), email }, { syncCrm: false })).id;
+    const included = Number(o.tax_included) === 1;
+    const subtotal = shopCentsToMinor(Number(o.subtotal_cents), currency);
+    const discount = shopCentsToMinor(Number(o.discount_cents), currency);
+    const taxAmt = shopCentsToMinor(Number(o.tax_cents), currency);
+    const net = included ? subtotal - discount - taxAmt : subtotal - discount;
+    const rateBps = net > 0 && taxAmt > 0 ? Math.round((taxAmt / net) * 10_000) : 0;
+    const taxes = await listTaxRates(ws);
+    const tax = taxAmt > 0 ? (taxes.find((t) => t.rate_bps > 0 && Math.abs(t.rate_bps - rateBps) <= 5) ?? null) : null;
+    const k = await (await import('./books-ledger')).keyAccounts(ws, ['sales', 'shipping_income'] as const);
+    const built = shopOrderLines(
+      {
+        subtotal,
+        discount,
+        shipping: shopCentsToMinor(Number(o.shipping_cents), currency),
+        tax: taxAmt,
+        total: shopCentsToMinor(Number(o.total_cents), currency),
+        taxIncluded: included,
+        shippingName: String(o.shipping_name ?? ''),
+      },
+      items.map((i) => ({ title: `${String(i.title)}${i.variant_title ? ` (${String(i.variant_title)})` : ''}`, quantity: Number(i.quantity), unit: shopCentsToMinor(Number(i.unit_cents), currency) })),
+      tax ? { id: tax.id, rateBps: tax.rate_bps } : null,
+      { sales: k.sales, shipping: k.shipping_income },
+    );
+    try {
+      docId = (
+        await createDraft(
+          actor,
+          { docType: 'invoice', contactId, currency, issueDate: String(o.paid_at).slice(0, 10), termsDays: 0, reference: `Shop #${String(o.number)}`, notes: built.warning ? 'The order tax rate has no matching rate in Books: it was posted as an adjustment line.' : '', lines: built.lines },
+          { shop_order_id: orderId },
+          { allowNegativeLines: true },
+        )
+      ).id;
+    } catch (err) {
+      // Otra corrida la creó a la vez (índice único por pedido): seguimos con esa.
+      if (!(err instanceof Error && /UNIQUE/i.test(err.message))) throw err;
+      docId = await findDoc();
+      if (!docId) return null;
+    }
+    if (built.warning) await notifyStaff(ws, `Shop order #${String(o.number)}: tax rate not found in Books`, `Posted with a tax adjustment line. Add a ${rateBps / 100}% rate in Books › Settings › Taxes.`, `/app/books/invoices/${docId}`, docId);
   }
-  if (Number(o.shipping_cents) > 0) lines.push({ description: `Shipping${o.shipping_name ? ` (${String(o.shipping_name)})` : ''}`, quantity: 1, unitPrice: shopCentsToMinor(Number(o.shipping_cents), currency), taxRateId: null, accountId: k.shipping_income });
-  const date = String(o.paid_at).slice(0, 10);
-  let doc: DocDto;
-  try {
-    doc = await createDraft(actor, { docType: 'invoice', contactId, currency, issueDate: date, termsDays: 0, reference: `Shop #${String(o.number)}`, lines }, { shop_order_id: orderId });
-  } catch (err) {
-    if (err instanceof Error && /UNIQUE/i.test(err.message)) return ((await db.prepare('SELECT id FROM books_documents WHERE workspace_id = ? AND shop_order_id = ?').get(ws, orderId)) as { id: string } | undefined)?.id ?? null;
-    throw err;
+  // Aprobar (si quedó borrador) y cobrar (si quedó saldo): los dos idempotentes.
+  let row = await getDocRow(ws, docId);
+  if (row?.status === 'draft') {
+    await approveDocument(actor, docId, { system: true }).catch((err) => {
+      if (!(err instanceof BooksError && err.code === 'document_posted')) throw err;
+    });
+    row = await getDocRow(ws, docId);
   }
-  // Los ítems de Shop ya descontaron su stock: el borrador va sin ítems vinculados, solo descripción.
-  const approved = await approveDocument(actor, doc.id, { system: true });
-  const total = shopCentsToMinor(Number(o.total_cents), currency);
-  const amount = Math.min(approved.amountDue, total);
-  if (amount > 0) {
-    const method = o.payment_method === 'stripe' ? 'stripe' : o.payment_method === 'mercadopago' ? 'mercadopago' : 'bank';
-    await recordPayment(actor, doc.id, { amount, date, method, reference: `Shop #${String(o.number)}`, providerRef: `shop:${orderId}` }, { system: true });
+  if (row && ['sent', 'partial', 'overdue'].includes(row.status)) {
+    const due = row.total - row.paid_total - row.credited_total;
+    if (due > 0) {
+      const method = o.payment_method === 'stripe' ? 'stripe' : o.payment_method === 'mercadopago' ? 'mercadopago' : 'bank';
+      await recordPayment(actor, docId, { amount: due, date: row.issue_date, method, reference: `Shop #${String(o.number)}`, providerRef: `shop:${orderId}` }, { system: true });
+    }
   }
-  return doc.id;
+  return docId;
+}
+
+/**
+ * Cron: termina los pedidos que quedaron a medias (borrador sin aprobar,
+ * emitido sin cobrar) o que no llegaron a registrarse (el hook falló), de
+ * los workspaces con el registro automático activo.
+ */
+export async function retryShopPosting(opts: { limit?: number } = {}): Promise<{ retried: number; failed: number }> {
+  const rows = (await getDb()
+    .prepare(
+      `SELECT o.id, o.workspace_id FROM shop_orders o JOIN books_settings s ON s.workspace_id = o.workspace_id AND s.shop_auto_post = 1
+       WHERE o.paid_at IS NOT NULL AND (s.shop_auto_post_since IS NULL OR o.paid_at >= s.shop_auto_post_since) AND upper(o.currency) = s.base_currency
+         AND o.status NOT IN ('cancelled')
+         AND NOT EXISTS (SELECT 1 FROM books_documents d WHERE d.workspace_id = o.workspace_id AND d.shop_order_id = o.id AND d.status IN ('paid', 'void'))
+       ORDER BY o.paid_at DESC LIMIT ?`,
+    )
+    .all(opts.limit ?? 50)) as Array<{ id: string; workspace_id: string }>;
+  let retried = 0;
+  let failed = 0;
+  for (const r of rows) {
+    try {
+      if (await postShopOrder(r.workspace_id, r.id)) retried++;
+    } catch (err) {
+      failed++;
+      console.error('[books] shop retry', r.id, err instanceof Error ? err.message : err);
+    }
+  }
+  return { retried, failed };
 }
 
 /** Hook de Shop: se llama al marcar un pedido pagado. Nunca tira. */

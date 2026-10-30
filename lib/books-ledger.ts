@@ -98,6 +98,14 @@ export async function postJournal(ws: string, person: string | null, input: Jour
     if (!acc) throw new BooksError('invalid_account', 400, { accountId: id });
     if (acc.archived && input.sourceType !== 'reversal' && input.sourceType !== 'void') throw new BooksError('account_archived', 409, { accountId: id });
   }
+  // Contacto y tasa de cada línea: del mismo workspace (nada apunta a datos ajenos).
+  const reader = opts.db ?? getDb();
+  for (const cid of [...new Set(lines.map((l) => l.contactId).filter((x): x is string => Boolean(x)))]) {
+    if (!(await reader.prepare('SELECT 1 AS x FROM books_contacts WHERE id = ? AND workspace_id = ?').get(cid, ws))) throw new BooksError('invalid_contact', 400);
+  }
+  for (const tid of [...new Set(lines.map((l) => l.taxRateId).filter((x): x is string => Boolean(x)))]) {
+    if (!(await reader.prepare('SELECT 1 AS x FROM books_tax_rates WHERE id = ? AND workspace_id = ?').get(tid, ws))) throw new BooksError('invalid_tax_rate', 400);
+  }
   if (opts.db) return writeJournal(opts.db, ws, person, input, lines);
   return inTransaction((db) => writeJournal(db, ws, person, input, lines));
 }
@@ -105,7 +113,16 @@ export async function postJournal(ws: string, person: string | null, input: Jour
 /** Corre `fn` en una transacción de escritura: commit si termina, rollback si tira. */
 export async function inTransaction<T>(fn: (db: Db) => Promise<T>): Promise<T> {
   await ensureMigrated();
-  const tx = await getClient().transaction('write');
+  // Otra escritura en curso (SQLite local: BEGIN IMMEDIATE devuelve BUSY): se reintenta con espera corta.
+  let tx: Awaited<ReturnType<ReturnType<typeof getClient>['transaction']>> | null = null;
+  for (let attempt = 0; !tx; attempt++) {
+    try {
+      tx = await getClient().transaction('write');
+    } catch (err) {
+      if (attempt >= 40 || !(err instanceof Error && /SQLITE_BUSY|database is locked/i.test(err.message))) throw err;
+      await new Promise((r) => setTimeout(r, 25 + Math.random() * 50));
+    }
+  }
   try {
     const out = await fn(txDb(tx));
     await tx.commit();
