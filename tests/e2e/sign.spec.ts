@@ -159,7 +159,7 @@ test('Sign: dos firmantes en orden, código por email, certificado y hashes', as
   const ps = await stranger.newPage();
   await ps.goto(`/en${linkB}`, { waitUntil: 'networkidle' });
   await expect(ps.getByRole('heading', { name: 'Confirm it is you' })).toBeVisible();
-  await expect(ps.locator('.sg-page')).toHaveCount(0);
+  await expect(ps.locator('.sg-pdf-page')).toHaveCount(0);
   const sigField = String((await sql("SELECT f.id FROM sign_fields f JOIN sign_recipients r ON r.id = f.recipient_id WHERE r.email = ? AND f.kind = 'signature'", [b.email]))[0].id);
   const forged = await stranger.request.post(`/api/sign/public/${tokenB}/submit`, { data: { action: 'sign', consent: true, values: { [sigField]: 'signed' }, signature: null } });
   expect(forged.status()).toBe(401);
@@ -238,7 +238,7 @@ test('Sign: la firma pública se ve bien a 390px', async ({ request, browser, ba
   const ctx = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 } });
   const p = await ctx.newPage();
   await p.goto(`/en${link}`, { waitUntil: 'networkidle' });
-  await expect(p.locator('.sg-page').first()).toBeVisible();
+  await expect(p.locator('.sg-pdf-page').first()).toBeVisible();
   const { scroll, inner } = await p.evaluate(() => ({ scroll: document.scrollingElement!.scrollWidth, inner: window.innerWidth }));
   expect(scroll).toBeLessThanOrEqual(inner + 1);
   await ctx.close();

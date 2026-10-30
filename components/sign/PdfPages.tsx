@@ -81,7 +81,7 @@ export default function PdfPages({
         (doc ? Array.from({ length: doc.numPages }, (_, i) => pages[i] ?? { w: 595.28, h: 841.89 }) : pages).map((p, i, all) => {
           const h = Math.round((width * p.h) / Math.max(1, p.w));
           return (
-            <div key={i} className="sg-page" data-page={i + 1} style={{ width, height: h }}>
+            <div key={i} className="sg-pdf-page" data-page={i + 1} style={{ width, height: h }}>
               <PdfCanvas doc={doc} index={i} width={width} height={h} />
               <div
                 className="sg-page-overlay"

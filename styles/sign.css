@@ -73,7 +73,7 @@
 
 /* Páginas del PDF */
 .sg-pages { display: grid; gap: 16px; justify-items: center; width: 100%; min-width: 0; }
-.sg-page { position: relative; background: #ffffff; box-shadow: 0 0 0 1px var(--line); max-width: 100%; }
+.sg-pdf-page { position: relative; background: #ffffff; box-shadow: 0 0 0 1px var(--line); max-width: 100%; }
 .sg-canvas { display: block; }
 .sg-page-overlay { position: absolute; inset: 0; }
 .sg-page-num { position: absolute; right: 6px; bottom: 4px; font-size: 0.6875rem; color: #6b6b6b; pointer-events: none; }
