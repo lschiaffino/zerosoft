@@ -26,7 +26,7 @@ import { sanitizeBlocks } from './docs-sanitize';
 import { DOCS_BLOCK_MAX } from './docs-schema';
 import { nextUpdatedAt, recordRevisions } from './docs-revisions';
 import { apply, baseLength, diff, isNoop, isTextOp, OpError, textHash, transform, type TextOp } from './docs-ot';
-import { hasPageLink, hasUnsafeMarkup, isCoeditBlock, type CoeditEvent, type CoeditOpItem, type CoeditOpResult } from './docs-coedit-shared';
+import { hasPageLink, hasUnsafeMarkup, isCoeditBlock, type CoeditEvent, type CoeditOpItem, type CoeditOpResult, type CoeditMark } from './docs-coedit-shared';
 import { sharedFeed, sseLiveResponse, type SharedFeed } from './realtime';
 
 export const COEDIT_FEED_INTERVAL_MS = 300;
@@ -102,7 +102,7 @@ export function publicEvent(e: RawEvent): CoeditEvent | null {
       const op = p.op as TextOp;
       const inserted = Array.isArray(op) ? op.filter((c): c is string => typeof c === 'string').join('') : '';
       if (hasUnsafeMarkup(inserted) || hasPageLink(inserted)) return null;
-      return { id: e.id, kind: 'op', block: e.blockId ?? '', rev: e.rev ?? 0, session: e.session, seq: e.seq, user: e.userId, op, hb: String(p.hb ?? ''), ha: String(p.ha ?? '') };
+      return { id: e.id, kind: 'op', block: e.blockId ?? '', rev: e.rev ?? 0, session: e.session, seq: e.seq, user: e.userId, op, hb: String(p.hb ?? ''), ha: String(p.ha ?? ''), ...(Array.isArray(p.marks) ? { marks: p.marks as CoeditMark[] } : {}) };
     }
     case 'cursor':
       return {
@@ -280,9 +280,10 @@ interface PendingOp {
   session: string | null;
   seq: string | null;
   userId: string | null;
+  marks?: CoeditMark[];
 }
 
-const toEvent = (p: PendingOp, id?: number): OpEvent => ({ id, kind: 'op', block: p.blockId, rev: p.rev, session: p.session, seq: p.seq, user: p.userId, op: p.op, hb: p.hb, ha: p.ha });
+const toEvent = (p: PendingOp, id?: number): OpEvent => ({ id, kind: 'op', block: p.blockId, rev: p.rev, session: p.session, seq: p.seq, user: p.userId, op: p.op, hb: p.hb, ha: p.ha, ...(p.marks ? { marks: p.marks } : {}) });
 
 /** Registra como operación lo que cambió el texto por otro camino. */
 function reconcile(st: BlockState, blockId: string, pageText: string, out: PendingOp[]): BlockState {
@@ -424,7 +425,7 @@ export async function applyTextOps(args: {
         continue;
       }
       const stored = clean === raw ? op : diff(st.text, clean);
-      ops.push({ blockId: item.block, rev: st.rev + 1, op: stored, hb: textHash(st.text), ha: textHash(clean), session: args.session, seq: item.seq, userId: args.actorId });
+      ops.push({ blockId: item.block, rev: st.rev + 1, op: stored, hb: textHash(st.text), ha: textHash(clean), session: args.session, seq: item.seq, userId: args.actorId, ...(item.marks ? { marks: item.marks } : {}) });
       st = { ...st, rev: st.rev + 1, text: clean };
       states.set(item.block, st);
       pending.push(...ops);
@@ -471,7 +472,7 @@ export async function applyTextOps(args: {
         rev: p.rev,
         session: p.session,
         seq: p.seq,
-        payload: { op: p.op, hb: p.hb, ha: p.ha, at: updatedAt },
+        payload: { op: p.op, hb: p.hb, ha: p.ha, at: updatedAt, ...(p.marks ? { marks: p.marks } : {}) },
         now: iso,
       });
       if (id) eventIds.set(`${p.blockId}:${p.rev}`, id);

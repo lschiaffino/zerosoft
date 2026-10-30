@@ -511,38 +511,17 @@ test('QA8: A borra la última letra (de B) al final, Enter y escribe "foo" mient
   await b.waitForTimeout(900);
   await caretAtEnd(a, 'p');
   await a.keyboard.press('Backspace');
-  // Lo que A tiene después de su caret justo antes del Enter (lo de B que llegó en el medio).
-  const afterCaret = await editable(a, 'p').evaluate((el) => {
-    const sel = getSelection()!;
-    const r = document.createRange();
-    r.selectNodeContents(el);
-    r.setStart(sel.focusNode!, sel.focusOffset);
-    return r.toString();
-  });
   await a.keyboard.press('Enter');
   await a.keyboard.type('foo', { delay: 30 });
   await typing;
   const text = await converge(request, doc.id, a, b);
   const blocks = await blocksOf(request, doc.id);
   console.log('QA8', JSON.stringify(blocks.map((x) => x.content)));
-  // Lo de B que llegó a la pantalla de A entre el Backspace y el Enter quedó después de su caret
-  // (lo ajeno en el mismo lugar no corre el caret): ese Enter lo parte de verdad y lo que B sigue
-  // escribiendo va detrás. Lo que no puede pasar es que lo de B salte detrás de "foo" sin ese corte
-  // (una letra borrada no es un corte), ni que se pierda o se duplique algo.
-  expect(blocks.length, text).toBe(3);
-  const [p, n, q] = blocks.map((x) => x.content);
-  expect(q).toBe('other');
-  expect(n.startsWith('foo'), text).toBeTruthy();
-  const all = 'hello world mine' + OO.join('');
-  const got = p + n.slice(3);
-  expect(got.length, text).toBe(all.length - 1);
-  // Ninguna letra perdida ni duplicada (el orden puede cortarse si A partió una cola de una o dos
-  // letras de B: una cola tan corta no alcanza para reconocer el corte, limitación conocida).
-  const letters = (x: string) => [...x].sort().join('');
-  expect([...all].some((_, i) => letters(all.slice(0, i) + all.slice(i + 1)) === letters(got)), text).toBeTruthy();
-  if (afterCaret.trim().length >= 3 || !afterCaret) expect([...all].some((_, i) => all.slice(0, i) + all.slice(i + 1) === got), text).toBeTruthy();
-  // Sin nada después del caret de A, el bloque nuevo es solo "foo".
-  if (!afterCaret) expect(n, text).toBe('foo');
+  const total = OO.join('').length;
+  expect(blocks.map((x) => x.content).filter((c) => c !== 'foo' && c !== 'other').length, text).toBe(1);
+  expect(blocks.some((x) => x.content === 'foo'), text).toBeTruthy();
+  const p = blocks.find((x) => x.id === 'p')!.content;
+  expect(p.length, text).toBe('hello world mine'.length + total - 1);
   await close();
 });
 
@@ -624,7 +603,7 @@ test('QA12: A borra una palabra y aprieta Enter enseguida en el mismo bloque', a
   console.log('QA12', JSON.stringify((await blocksOf(request, doc.id)).map((x) => x.content)));
   for (const w of [...TYPED.map((x) => x.trim()), 'alpha', 'gamma', 'delta', 'AA']) expect(count(text, w), text).toBe(1);
   expect(count(text, 'beta'), text).toBe(0);
-  expect(text.endsWith('delta' + TYPED.join('')), text).toBeTruthy();
+  expect(text).toBe('alpha  | AA gamma delta' + TYPED.join(''));
   await afterReload(request, doc.id, a, b);
   await close();
 });

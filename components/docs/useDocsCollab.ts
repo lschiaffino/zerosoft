@@ -91,6 +91,9 @@ interface Deps {
 export interface DocsCoeditStructure {
   manages(id: string): boolean;
   remap(prev: DocsBlock[], theirs: DocsBlock[], merged: DocsBlock[], caret: RemapCaret | null): RemapResult<DocsBlock> | null;
+  /** Este bloque se partió (`tail`: el HTML que se llevó el bloque nuevo) o se le unió otro (`copy`: el HTML que sumó). */
+  markSplit?(block: string, to: string, tail: string): void;
+  markMerge?(block: string, from: string, copy: string): void;
 }
 
 /** Lo que el efecto de historial necesita saber de una fusión remota en curso. */
@@ -268,14 +271,18 @@ export function useDocsCollab(d: Deps) {
         }
         const focused = document.activeElement === el;
         const sel = focused ? getSelectionOffsets(el) : null;
+        // El caret al final del bloque sigue al final: lo que otra persona escribe ahí queda
+        // antes de él (si no, un Enter "al final" se llevaba lo ajeno recién llegado).
+        // Salvo un bloque que se une a este: va después de lo que se está escribiendo.
+        const atEnd = !!sel && sel.start === sel.end && sel.end === flatText(dom).length && !(ops[b.id] ?? []).some((s) => (s as { stay?: boolean }).stay);
         el.innerHTML = changes[b.id];
         if (focused && sel) {
           let start = sel.start;
           let end = sel.end;
           try {
             for (const step of paintOps[b.id] ?? []) {
-              start = transformTextOffset(step.prev, start, step.op);
-              end = transformTextOffset(step.prev, end, step.op);
+              start = transformTextOffset(step.prev, start, step.op, atEnd);
+              end = transformTextOffset(step.prev, end, step.op, atEnd);
             }
           } catch {
             /* el caret queda en el mismo offset */
@@ -362,7 +369,7 @@ export function useDocsCollab(d: Deps) {
       }));
       const title = mergeTitle(base.title, theirs.title, prev.title);
       const merged = { title, blocks };
-      if (sameContent(blocks, prev.blocks) && title === prev.title) return { merged: prev, conflicts: res.conflicts, changed: false };
+      if (sameContent(blocks, prev.blocks) && title === prev.title && !exactCaret) return { merged: prev, conflicts: res.conflicts, changed: false };
       // Cada foto del historial suma lo que trajo la fusión (deshacer no deshace
       // lo ajeno). Se hace ya, no al pintar: dos fusiones seguidas antes de un
       // render no pierden la primera.

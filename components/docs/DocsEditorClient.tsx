@@ -34,6 +34,7 @@ import { readCursor, useDocsLive, type LivePulse } from './useDocsLive';
 import { useDocsCoedit } from './useDocsCoedit';
 import { neutralizeTextForMerge, type CoeditEvent } from '@/lib/docs-coedit-shared';
 import type { CoeditEngine } from '@/lib/docs-coedit-client';
+import { plainLength } from '@/lib/docs-coedit-remap';
 import { diff, textHash, apply as applyOp } from '@/lib/docs-ot';
 import type { DocsCoeditStructure, DocsEditorApi, DocsEditorMode } from './useDocsCollab';
 
@@ -337,6 +338,8 @@ export default function DocsEditorClient({
   const runSave = useCallback(
     async (item: SaveItem, force: boolean, attempt = 0): Promise<void> => {
       queued.current = queued.current.filter((q) => q !== item);
+      // El corte o la unión salen antes que la estructura: quien escribe en ese bloque los ve en orden.
+      if (textOpsRef.current && attempt === 0) await coeditEngineRef.current?.marksSent();
       let patch = item.patch;
       for (const m of item.rebase) patch = rebasePatch(patch, m);
       setSaving(true);
@@ -703,6 +706,13 @@ export default function DocsEditorClient({
     () => ({
       manages: (id) => coeditEngineRef.current?.manages(id) ?? false,
       remap: (prev, theirs, merged, caret) => (textOpsRef.current ? coeditEngineRef.current?.remap(prev, theirs, merged, caret) ?? null : null),
+      markSplit: (block, to, tail) => {
+        const n = plainLength(tail);
+        if (textOpsRef.current && n > 0) coeditEngineRef.current?.mark(block, { k: 'split', to, tail: n });
+      },
+      markMerge: (block, from, copy) => {
+        if (textOpsRef.current && copy) coeditEngineRef.current?.mark(block, { k: 'merge', from, len: copy.length });
+      },
     }),
     [],
   );

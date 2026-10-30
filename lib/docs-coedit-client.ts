@@ -14,7 +14,7 @@
  * Deshacer sigue siendo del editor: deshacer es un cambio local más.
  */
 import { apply, diff, isNoop, textHash, transform, type TextOp } from './docs-ot';
-import { COEDIT_BLOCK_MAX, hasPageLink, type CoeditEvent, type CoeditOpItem, type CoeditOpResult } from './docs-coedit-shared';
+import { COEDIT_BLOCK_MAX, hasPageLink, type CoeditEvent, type CoeditMark, type CoeditOpItem, type CoeditOpResult } from './docs-coedit-shared';
 import { ownTail, remapStructure, type RemapBlock, type RemapCaret, type RemapResult, type RemoteTrace } from './docs-coedit-remap';
 
 /** Cuánto se recuerdan las operaciones ajenas y lo escrito acá (para reubicar al partir o unir bloques). */
@@ -31,8 +31,11 @@ type OpEvent = Extract<CoeditEvent, { kind: 'op' }>;
 export interface CoeditScreen {
   /** Texto del bloque en pantalla (null = no está). */
   get(block: string): string | null;
-  /** Pone el texto nuevo; `op` lleva de lo que había a lo nuevo (para correr el caret). */
-  set(block: string, text: string, op: TextOp, prev: string): void;
+  /**
+   * Pone el texto nuevo; `op` lleva de lo que había a lo nuevo (para correr el caret).
+   * `stay`: el caret no se corre con lo insertado en su lugar (otro bloque que se une a este).
+   */
+  set(block: string, text: string, op: TextOp, prev: string, stay?: boolean): void;
   /** Composición en curso (acentos, IME): lo remoto espera. */
   busy(): boolean;
 }
@@ -47,7 +50,7 @@ interface BlockSync {
   /** Textos confirmados recientes (para saber qué tenía ya la otra persona al cortar). */
   past?: Array<{ at: number; S: string }>;
   rev: number | null;
-  inflight: { op: TextOp; seq: string; base: string; rev: number | null; full: boolean } | null;
+  inflight: { op: TextOp; seq: string; base: string; rev: number | null; full: boolean; marks: CoeditMark[] } | null;
   buffer: Map<number, OpEvent>;
   resync: boolean;
   /** Pedir el texto base completo al servidor en el próximo envío (después de un desfase). */
@@ -73,6 +76,8 @@ export class CoeditEngine {
   private failures = 0;
   /** Operaciones ajenas recién aplicadas en pantalla (lib/docs-coedit-remap.ts). */
   private traces: RemoteTrace[] = [];
+  /** Cambios de estructura hechos acá que salen con la próxima operación de cada bloque. */
+  private marks = new Map<string, CoeditMark[]>();
   /** Última vez que salió algo propio de cada bloque. */
   private ownAt = new Map<string, number>();
   /** Cuándo se conoció cada bloque (lib/docs-coedit-remap.ts: los que se partieron acá después de un corte). */
@@ -91,6 +96,8 @@ export class CoeditEngine {
       onOk?: () => void;
       /** El bloque deja de viajar por operaciones (link a página o demasiado largo): su texto sigue por el guardado. */
       onUnmanaged?: (block: string, reason: 'unsupported' | 'too_large') => void;
+      /** Llegó un corte marcado cuando el bloque nuevo ya estaba en pantalla: reubicar ahora. */
+      onStructureMark?: () => void;
     } = {},
   ) {}
 
@@ -111,6 +118,23 @@ export class CoeditEngine {
     if (b.gapTimer) clearTimeout(b.gapTimer);
     this.blocks.delete(id);
     this.opts.onUnmanaged?.(id, reason);
+  }
+
+  /** El editor partió o unió este bloque: la marca sale con la próxima operación. */
+  mark(block: string, m: CoeditMark) {
+    if (!this.blocks.has(block)) return;
+    this.marks.set(block, [...(this.marks.get(block) ?? []), m]);
+    this.localChanged();
+  }
+
+  /** Espera a que las marcas salgan: el guardado de la estructura no se adelanta a su operación. */
+  async marksSent(maxMs = 1500): Promise<void> {
+    const waiting = () => this.marks.size > 0 || [...this.blocks.values()].some((b) => !!b.inflight?.marks.length);
+    const until = Date.now() + maxMs;
+    while (waiting() && Date.now() < until && !this.stopped) {
+      if (!this.sending) await this.flush();
+      if (waiting()) await new Promise((r) => setTimeout(r, 15));
+    }
   }
 
   /** ¿El texto de este bloque viaja por operaciones? */
@@ -206,20 +230,28 @@ export class CoeditEngine {
       if (b.resync) continue;
       if (!b.inflight) {
         const v = this.screen.get(id);
-        if (v === null || v === b.S) continue;
+        if (v === null || v === b.S) {
+          this.marks.delete(id);
+          continue;
+        }
         // Un link a página (su título depende de quién mira) o un bloque demasiado largo: por el guardado.
         if (hasPageLink(v) || v.length > COEDIT_BLOCK_MAX) {
           this.unmanage(id, hasPageLink(v) ? 'unsupported' : 'too_large');
           continue;
         }
         const op = diff(b.S, v);
-        if (isNoop(op)) continue;
+        if (isNoop(op)) {
+          this.marks.delete(id);
+          continue;
+        }
         this.ownAt.set(id, Date.now());
-        b.inflight = { op, seq: this.nextSeq(), base: b.S, rev: b.rev, full: b.sendBase };
+        const marks = this.marks.get(id) ?? [];
+        this.marks.delete(id);
+        b.inflight = { op, seq: this.nextSeq(), base: b.S, rev: b.rev, full: b.sendBase, marks };
         b.sendBase = false;
       }
       const f = b.inflight;
-      items.push({ block: id, rev: f.rev, hash: textHash(f.base), op: f.op, seq: f.seq, ...(f.full ? { base: f.base } : {}) });
+      items.push({ block: id, rev: f.rev, hash: textHash(f.base), op: f.op, seq: f.seq, marks: f.marks, ...(f.full ? { base: f.base } : {}) });
     }
     if (!items.length) return;
     this.sending = true;
@@ -269,7 +301,11 @@ export class CoeditEngine {
         // Repetida sin eventos (el servidor ya la tenía y no hay más que decir): la trae el feed.
         return;
       case 'resync':
-        if (b.inflight?.seq === r.seq) b.inflight = null;
+        if (b.inflight?.seq === r.seq) {
+          // Lo en vuelo vuelve a salir como pendiente: su marca también.
+          this.keepMarks(r.block, b);
+          b.inflight = null;
+        }
         if (typeof r.text === 'string' && typeof r.rev === 'number') this.rebase(r.block, b, r.text, r.rev);
         b.sendBase = true;
         return;
@@ -418,9 +454,16 @@ export class CoeditEngine {
     if (isNoop(R2)) return;
     const own = !!inflight || !isNoop(B) || this.recentOwn(id);
     // Solo hace falta para reconocer un corte (lib/docs-coedit-remap.ts): una operación que borra.
-    const tailOwn = own && R2.some((c) => typeof c === 'number' && c < 0) ? ownTail(S0, V, R2) : undefined;
-    this.trace({ block: id, at: Date.now(), prev: V, op: R2, own, ...(tailOwn === undefined ? {} : { tailOwn }) });
-    this.screen.set(id, apply(V, R2), R2, V);
+    // Con marca el corte es seguro; esto solo hace falta para los que no la traen.
+    const tailOwn = !ev.marks && own && R2.some((c) => typeof c === 'number' && c < 0) ? ownTail(S0, V, R2) : undefined;
+    this.trace({ block: id, at: Date.now(), prev: V, op: R2, own, ...(tailOwn === undefined ? {} : { tailOwn }), ...(ev.marks ? { marks: ev.marks } : {}) });
+    this.screen.set(id, apply(V, R2), R2, V, !!ev.marks?.some((m) => m.k === 'merge'));
+    // La estructura llegó antes que el corte: se reubica ahora (después de pintar esta operación).
+    if (own && ev.marks?.some((m) => m.k === 'split' && this.screen.get(m.to) !== null)) queueMicrotask(() => this.opts.onStructureMark?.());
+  }
+
+  private keepMarks(id: string, b: BlockSync) {
+    if (b.inflight?.marks.length) this.marks.set(id, [...b.inflight.marks, ...(this.marks.get(id) ?? [])]);
   }
 
   private trace(t: RemoteTrace) {
@@ -540,6 +583,7 @@ export class CoeditEngine {
     const applied = !!f && [...b.buffer.values()].some((e) => e.session === this.session && e.seq === f.seq && e.rev <= rev);
     const known = f && applied ? apply(b.S, f.op) : b.S;
     // Si no entró, sigue en pantalla y se manda de nuevo como pendiente.
+    if (f && !applied) this.keepMarks(id, b);
     b.inflight = null;
     const V = this.screen.get(id);
     b.S = text;

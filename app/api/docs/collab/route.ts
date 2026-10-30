@@ -77,6 +77,15 @@ const opItemSchema = z.object({
   op: z.array(z.union([z.number().int(), z.string().max(DOCS_BLOCK_MAX)])).max(5000),
   seq: z.string().regex(/^[A-Za-z0-9_.-]{1,64}$/),
   base: z.string().max(DOCS_BLOCK_MAX).optional(),
+  marks: z
+    .array(
+      z.union([
+        z.object({ k: z.literal('split'), to: z.string().min(1).max(64), tail: z.number().int().min(1).max(DOCS_BLOCK_MAX) }).strict(),
+        z.object({ k: z.literal('merge'), from: z.string().min(1).max(64), len: z.number().int().min(1).max(DOCS_BLOCK_MAX) }).strict(),
+      ]),
+    )
+    .max(16)
+    .optional(),
 });
 
 const bodySchema = z.object({

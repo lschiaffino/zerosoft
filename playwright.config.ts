@@ -24,7 +24,9 @@ export default defineConfig({
   workers: 1,
   use: { baseURL: `http://localhost:${PORT}`, trace: 'retain-on-failure' },
   webServer: {
-    command: process.env.CI ? `npx next start -p ${PORT}` : `npx next dev -p ${PORT}`,
+    // Keep-alive largo: con el de 5 s (más 1 s de margen de Node) un pedido de un contexto de Playwright
+    // que estuvo ~6 s quieto caía justo cuando el servidor cerraba el socket (ECONNRESET, sin caída del servidor).
+    command: process.env.CI ? `npx next start -p ${PORT} --keepAliveTimeout 120000` : `npx next dev -p ${PORT}`,
     url: `http://localhost:${PORT}/en`,
     timeout: 180_000,
     reuseExistingServer: false,

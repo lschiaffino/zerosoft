@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deletedSpan, ownTail, remapStructure, shiftedSpans, singleInsert, type RemoteTrace } from '@/lib/docs-coedit-remap';
+import { deletedSpan, markedSpan, ownTail, plainLength, remapStructure, shiftedSpans, singleInsert, type RemoteTrace } from '@/lib/docs-coedit-remap';
 import { apply, diff } from '@/lib/docs-ot';
 
 const blk = (id: string, content: string) => ({ id, type: 'paragraph', content });
@@ -275,6 +275,93 @@ describe('remapStructure (partir y unir mientras se escribe)', () => {
     const res = remapStructure([blk('p', now)], merged, merged, traces, { block: 'p', index: now.length })!;
     expect(res.blocks.map((b) => b.content)).toEqual(['alpha ', 'AA gamma delta uno dos tres cuatro']);
     expect(res.caret).toEqual({ block: 'n', index: 'AA gamma delta uno dos tres cuatro'.length });
+  });
+
+  describe('con marca', () => {
+    const split = (to: string, tail: number) => [{ k: 'split' as const, to, tail }];
+
+    it('una cola de dos letras con texto escrito antes en el bloque nuevo: lo propio la sigue', () => {
+      const V = 'alpha beta uno dos tres cu';
+      const op = [21, -2, 3];
+      expect(apply(V, op)).toBe('alpha beta uno dos tr cu');
+      const now = 'alpha beta uno dos tr cuatro';
+      const traces: RemoteTrace[] = [{ block: 'p', at: 0, prev: V, op, own: true, marks: split('n', 2) }];
+      const merged = [blk('p', now), blk('n', 'NEWes'), blk('q', 'next')];
+      const res = remapStructure([blk('p', now), blk('q', 'next')], merged, merged, traces, { block: 'p', index: now.length })!;
+      expect(res.blocks.map((b) => b.content)).toEqual(['alpha beta uno dos tr', 'NEWes cuatro', 'next']);
+      expect(res.caret).toEqual({ block: 'n', index: 'NEWes cuatro'.length });
+    });
+
+    it('la marca manda: Backspace y Enter al final (sin cola) no traen marca y nada se mueve', () => {
+      const V = 'hello world mine uno dos';
+      const op = [19, -1, 4];
+      const now = apply(V, op) + ' tres';
+      const traces: RemoteTrace[] = [{ block: 'p', at: 0, prev: V, op, own: true, marks: [] }];
+      // Con reglas de texto esto parecería un corte ("foo" termina con la letra borrada).
+      const merged = [blk('p', now), blk('r', 'fooo'), blk('q', 'other')];
+      expect(remapStructure([blk('p', now), blk('q', 'other')], merged, merged, traces, { block: 'p', index: now.length })).toBeNull();
+    });
+
+    it('borrar una letra y cortar en la misma operación: solo la cola se muda', () => {
+      const V = 'hello world uno';
+      // A borró la "l" de "hel|lo", cortó en "hello |" y " uno" es de B.
+      const op = [3, -1, 2, -5, 4];
+      expect(apply(V, op)).toBe('helo  uno');
+      const traces: RemoteTrace[] = [{ block: 'p', at: 0, prev: V, op, own: true, marks: split('n', 5) }];
+      const now = 'helo  uno dos';
+      const merged = [blk('p', now), blk('n', 'world')];
+      const res = remapStructure([blk('p', now)], merged, merged, traces, { block: 'p', index: now.length })!;
+      expect(res.blocks.map((b) => b.content)).toEqual(['helo ', 'world uno dos']);
+      expect(res.caret).toEqual({ block: 'n', index: 'world uno dos'.length });
+    });
+
+    it('la estructura llegó antes que el corte: el bloque nuevo ya estaba en pantalla', () => {
+      const V = 'alpha beta uno';
+      const op = [5, -5, 4];
+      const now = 'alpha uno dos';
+      const traces: RemoteTrace[] = [{ block: 'p', at: 0, prev: V, op, own: true, marks: split('n', 5) }];
+      const both = [blk('p', now), blk('n', ' beta')];
+      const res = remapStructure(both, both, both, traces, { block: 'p', index: now.length })!;
+      expect(res.blocks.map((b) => b.content)).toEqual(['alpha', ' beta uno dos']);
+    });
+
+    it('sin nada propio detrás del corte: el caret igual sigue a la cola y la marca no vuelve a mover', () => {
+      const V = 'alpha beta';
+      const op = [5, -5];
+      const traces: RemoteTrace[] = [{ block: 'p', at: 0, prev: V, op, own: true, marks: split('n', 5) }];
+      const merged = [blk('p', 'alpha'), blk('n', ' beta')];
+      const res = remapStructure([blk('p', 'alpha')], merged, merged, traces, { block: 'p', index: 5 })!;
+      expect(res.blocks.map((b) => b.content)).toEqual(['alpha', ' beta']);
+      expect(res.caret).toEqual({ block: 'n', index: 5 });
+      expect(traces[0].done).toBe(true);
+      const later = [blk('p', 'alpha otro'), blk('n', ' beta')];
+      expect(remapStructure(later, later, later, traces, { block: 'p', index: 10 })).toBeNull();
+    });
+
+    it('la marca espera a la estructura', () => {
+      const traces: RemoteTrace[] = [{ block: 'p', at: 0, prev: 'alpha beta', op: [5, -5], own: true, marks: split('n', 5) }];
+      const merged = [blk('p', 'alpha')];
+      expect(remapStructure(merged, merged, merged, traces, null)).toBeNull();
+      expect(traces[0].done).toBeUndefined();
+    });
+
+    it('unir con marca: la copia es el final de lo insertado, aunque sea de una letra', () => {
+      const traces: RemoteTrace[] = [{ block: 'q', at: 0, prev: 'first', op: [5, 'MMx'], own: false, marks: [{ k: 'merge', from: 'p', len: 1 }] }];
+      const prev = [blk('q', 'firstMMx'), blk('p', 'x uno')];
+      const merged = [blk('q', 'firstMMx')];
+      const res = remapStructure(prev, [blk('q', 'firstMMx')], merged, traces, null, (id) => id === 'p')!;
+      expect(res.blocks.map((b) => b.content)).toEqual(['firstMMx uno']);
+    });
+
+    it('markedSpan y plainLength', () => {
+      expect(markedSpan('abcdef', [2, -4], 4)).toEqual({ start: 2, at: 2, text: 'cdef', keptAt: null, keptLen: 0 });
+      // Antes de la cola se borró algo de verdad.
+      expect(markedSpan('abcdef', [1, -5], 2)).toEqual({ start: 4, at: 1, text: 'ef', keptAt: null, keptLen: 0 });
+      // Lo que quedó en el medio de la cola es de quien recibe.
+      expect(markedSpan('abXcd', [-2, 1, -2], 4)).toEqual({ start: 0, at: 0, text: 'abcd', keptAt: 2, keptLen: 1 });
+      expect(markedSpan('abc', [3], 2)).toBeNull();
+      expect(plainLength('a<strong>b</strong>&nbsp;')).toBe(3);
+    });
   });
 
   it('deletedSpan y singleInsert', () => {
