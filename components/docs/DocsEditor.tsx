@@ -1184,6 +1184,19 @@ export default function DocsEditor({
     rootRef,
     titleRef,
     coedit: coeditStructure,
+    // El caret de una fusión remota: también el bloque enfocado para el editor (si no,
+    // su efecto de foco lo devolvía al bloque de antes).
+    placeCaret: (index, start, end) => {
+      const el = blockRefs.current[index];
+      if (!el) return;
+      if (document.activeElement !== el) el.focus();
+      setSelectionOffsets(el, start, end);
+      // Y por el mismo camino que un caret propio (el efecto de foco lo aplica antes que
+      // su "volver al bloque enfocado", que en este render todavía es el de antes).
+      pendingSelection.current = { index, start, end };
+      setFocusIndex(index);
+      setFocusTick((v) => v + 1);
+    },
   });
   consumeRemoteRef.current = collab.consumeRemote;
   restoreCaretRef.current = collab.restoreCaret;

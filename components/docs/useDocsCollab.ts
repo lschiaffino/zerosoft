@@ -11,6 +11,7 @@
  *   (lib/docs-marks.ts) hasta que alguien con edición la acepta;
  * - resaltados de comentarios sobre texto.
  */
+import { flushSync } from 'react-dom';
 import { useCallback, useEffect, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import type { DocsBlock } from '@/lib/docs-types';
 import { rebaseHistoryText, rebaseSnapshotText, type DocsHistory, type DocsSnapshot, type DocsTextSteps } from '@/lib/docs-history';
@@ -82,6 +83,8 @@ interface Deps {
   titleRef: MutableRefObject<HTMLDivElement | null>;
   /** Edición simultánea: qué bloques viajan por operaciones y cómo reubicar lo propio al partir o unir. */
   coedit?: DocsCoeditStructure | null;
+  /** Pone el caret en un bloque y lo deja como el enfocado del editor. */
+  placeCaret?: (index: number, start: number, end: number) => void;
 }
 
 /** Lo que el editor necesita de la edición simultánea al fusionar estructura (lib/docs-coedit-client.ts). */
@@ -99,6 +102,8 @@ export interface RemoteApply {
   caretDone?: boolean;
   /** Estructura fusionada (ids y tipos): el caret se pone recién cuando el render la muestra. */
   shape?: string;
+  /** Cambió la estructura: se pintó en el acto (sin teclas en el medio), el caret vuelve siempre a su lugar. */
+  structural?: boolean;
   resolve: (r: { merged: DocsSnapshot; conflicts: string[] }) => void;
   conflicts: string[];
   /** Operaciones exactas sobre el bloque del caret (edición simultánea): corren el caret con precisión. */
@@ -155,10 +160,16 @@ export function useDocsCollab(d: Deps) {
     const i = next.blocks.findIndex((b) => b.id === r.caret!.blockId);
     const el = i >= 0 ? blockRefs.current[i] : null;
     if (!el) return;
+    const place = (start: number, end: number) => {
+      if (depsRef.current.placeCaret) depsRef.current.placeCaret(i, start, end);
+      else {
+        if (document.activeElement !== el) el.focus();
+        setSelectionOffsets(el, start, end);
+      }
+    };
     if (r.caret.exact) {
       // Lo propio pasó a otro bloque (partir o unir): el caret va con eso.
-      el.focus();
-      setCaretOffset(el, r.caret.end);
+      place(r.caret.end, r.caret.end);
     } else if (r.caretOp && r.caretOp.blockId === r.caret.blockId) {
       try {
         let start = r.caret.start;
@@ -167,20 +178,23 @@ export function useDocsCollab(d: Deps) {
           start = transformTextOffset(step.prev, start, step.op);
           end = transformTextOffset(step.prev, end, step.op);
         }
-        if (document.activeElement !== el) el.focus();
-        setSelectionOffsets(el, start, end);
+        place(start, end);
       } catch {
         /* texto que no coincide: el caret queda donde lo dejó el navegador */
       }
     } else {
       const text = flatText(next.blocks[i].content);
-      if (text !== r.caret.text) {
-        el.focus();
-        setCaretOffset(el, shiftOffset(r.caret.text, text, r.caret.end));
+      const want = text !== r.caret.text ? shiftOffset(r.caret.text, text, r.caret.end) : r.caret.end;
+      if (r.structural) {
+        // Otro tipo ("# ") o bloques nuevos: el DOM del bloque se rehízo y el navegador
+        // deja el caret al principio. Vuelve a donde estaba (no hubo teclas en el medio).
+        const now = document.activeElement === el ? getSelectionOffsets(el) : null;
+        if (!now || now.start !== want || now.end !== want) place(want, want);
+      } else if (text !== r.caret.text) {
+        place(want, want);
       } else if ((r.caret.el && r.caret.el !== el) || document.activeElement !== el) {
         // El bloque se volvió a crear (cambió el tipo, "# "): el caret vuelve a su lugar.
-        el.focus();
-        setCaretOffset(el, r.caret.end);
+        place(r.caret.end, r.caret.end);
       }
     }
   }, []);
@@ -263,8 +277,11 @@ export function useDocsCollab(d: Deps) {
     applyRemote: (base, theirs, caretOp?: RemoteApply['caretOp'] | null) => {
       const { live, blockRefs, setBlocksRaw, setTitle, normalize, titleRef } = depsRef.current;
       const prev = live.current;
-      // Una fusión anterior todavía sin pintar: se da por terminada.
+      // Una fusión anterior todavía sin pintar: se da por terminada, pero si
+      // llevaba el caret a otro bloque (partir o unir), esa mudanza sigue en pie.
+      let carried: RemoteApply['caret'] = null;
       if (remote.current) {
+        if (!remote.current.caretDone && remote.current.caret?.exact) carried = remote.current.caret;
         remote.current.resolve({ merged: prev, conflicts: remote.current.conflicts });
         remote.current = null;
       }
@@ -326,11 +343,12 @@ export function useDocsCollab(d: Deps) {
       };
       const entry: RemoteApply = {
         prev,
-        caret: exactCaret ?? (caretOp === null ? null : caretBlock && sel ? { blockId: caretBlock.id, start: sel.start, end: sel.end, text: flatText(caretBlock.content), el: active } : null),
+        caret: exactCaret ?? (carried && blocks.some((b) => b.id === carried!.blockId) ? carried : null) ?? (caretOp === null ? null : caretBlock && sel ? { blockId: caretBlock.id, start: sel.start, end: sel.end, text: flatText(caretBlock.content), el: active } : null),
         resolve: () => {},
         conflicts: res.conflicts,
         caretOp: caretOp ?? undefined,
         shape: blockShape(blocks),
+        structural: blockShape(blocks) !== blockShape(prev.blocks),
       };
       remote.current = entry;
       // Red de seguridad: si por algo no se pintó, no queda marcada.
@@ -341,8 +359,20 @@ export function useDocsCollab(d: Deps) {
       if (title !== prev.title && titleRef.current && document.activeElement !== titleRef.current) {
         titleRef.current.textContent = title;
       }
-      setTitle(title);
-      setBlocksRaw(blocks);
+      // Cambió la estructura (partir, unir, otro tipo) o el caret se muda: se pinta
+      // antes de que el navegador entregue otra tecla (microtarea + render sincrónico),
+      // así ninguna cae en un bloque que ya no está o en un offset viejo.
+      if (entry.structural || entry.caret?.exact) {
+        queueMicrotask(() =>
+          flushSync(() => {
+            setTitle(title);
+            setBlocksRaw(blocks);
+          }),
+        );
+      } else {
+        setTitle(title);
+        setBlocksRaw(blocks);
+      }
       return { merged, conflicts: res.conflicts, changed: true };
     },
     cancelPendingSave: () => {

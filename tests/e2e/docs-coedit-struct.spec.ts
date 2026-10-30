@@ -172,6 +172,27 @@ test('Docs en vivo: deshacer solo deshace lo propio aunque la otra persona escri
   await close();
 });
 
+test('Docs en vivo: deshacer lo propio cuando la otra persona escribió adentro de eso', async ({ browser, request }) => {
+  test.setTimeout(120_000);
+  const { doc, a, b, close } = await twoPeople(browser, request, [{ id: 'p', type: 'paragraph', content: 'The fox' }]);
+  // A escribe una frase al final (un paso de deshacer).
+  await caretAtEnd(a);
+  await a.keyboard.type(' jumps over', { delay: 30 });
+  await expect.poll(() => textOf(request, doc.id), { timeout: 10_000 }).toBe('The fox jumps over');
+  await expect(editable(b)).toHaveText('The fox jumps over', { timeout: 10_000 });
+  // Ana escribe en el medio de lo de A (entre "jumps" y " over").
+  await caretAt(b, 'The fox jumps'.length);
+  await b.keyboard.type('XY', { delay: 40 });
+  await expect.poll(() => textOf(request, doc.id), { timeout: 10_000 }).toBe('The fox jumpsXY over');
+  await expect(editable(a)).toHaveText('The fox jumpsXY over', { timeout: 10_000 });
+  // A deshace: se va lo suyo, lo de Ana queda entero.
+  await editable(a).click();
+  await a.keyboard.press('ControlOrMeta+z');
+  await expect.poll(() => textOf(request, doc.id), { timeout: 10_000 }).toBe('The foxXY');
+  await converge(request, doc.id, a, b);
+  await close();
+});
+
 const TYPED = [' uno', ' dos', ' tres', ' cuatro', ' cinco', ' seis', ' siete', ' ocho'];
 
 /** B escribe palabra por palabra al final del bloque mientras `act` corre en A. */
@@ -230,6 +251,7 @@ test('Docs en vivo: "# " convierte en título mientras la otra persona escribe e
     await a.keyboard.type('# ', { delay: 40 });
   });
   const text = await converge(request, doc.id, a, b);
+  everyKeystrokeOnce(text, ['Agenda', 'lunes']);
   everyKeystrokeOnce(text, ['Agenda', 'lunes']);
   expect(count(text, '#')).toBe(0);
   const blocks = await blocksOf(request, doc.id);
