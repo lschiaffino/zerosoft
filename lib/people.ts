@@ -231,7 +231,18 @@ export async function peopleContext(ws: string, personId: string, wsRole: string
   // personJoined (JOIN_STEPS). Solo alguien sin ficha (miembro de antes de
   // People) la crea al entrar.
   const linked = await db().prepare('SELECT 1 AS x FROM people_employees WHERE workspace_id = ? AND user_id = ?').get(ws, personId);
-  if (!linked) await syncMembers(ws);
+  // Una sola lectura: ¿hay personas del workspace sin ficha (altas que no pasaron por personJoined)?
+  // Solo entonces se escribe.
+  const missing =
+    !linked ||
+    (await db()
+      .prepare(
+        `SELECT 1 AS x FROM team_members m JOIN teams t ON t.id = m.team_id
+         WHERE t.owner_id = ? AND t.keyed_by = 'owner' AND m.role != 'guest'
+         AND NOT EXISTS (SELECT 1 FROM people_employees e WHERE e.workspace_id = t.owner_id AND e.user_id = m.user_id) LIMIT 1`,
+      )
+      .get(ws));
+  if (missing) await syncMembers(ws);
   const wsAdmin = wsRole === 'owner' || wsRole === 'admin' || ws === personId;
   const [hr, me, map, settings] = await Promise.all([
     isHrAdmin(ws, personId, wsAdmin),
