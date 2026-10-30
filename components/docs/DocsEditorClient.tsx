@@ -147,6 +147,8 @@ export default function DocsEditorClient({
   /** Último cambio que no se pudo guardar tras varios intentos (para "Sobrescribir"). */
   const conflictPatch = useRef<Partial<DocsPage> | null>(null);
   const editorApi = useRef<DocsEditorApi | null>(null);
+  /** El borrador sin red lo escribió esta pestaña (su texto ya está en el editor). */
+  const draftHere = useRef(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [current, setCurrent] = useState<DocsPage>(page);
   const [editorKey, setEditorKey] = useState(0);
@@ -323,6 +325,7 @@ export default function DocsEditorClient({
       } catch {
         // Sin red: queda en el borrador local y se manda al volver (no es un error).
         if (typeof navigator !== 'undefined' && navigator.onLine === false && saveDraft(offlineOwner, page.id, patch, base.current)) {
+          draftHere.current = true;
           setOffline(true);
           setSaveError('offline');
         } else setSaveError('failed');
@@ -346,6 +349,7 @@ export default function DocsEditorClient({
       if (patch.content) setSuggestions(listSuggestions(patch.content));
       // Sin red: directo al borrador local (sin esperar a que falle el pedido).
       if (typeof navigator !== 'undefined' && navigator.onLine === false && saveDraft(offlineOwner, page.id, patch, base.current)) {
+        draftHere.current = true;
         setOffline(true);
         setSaveError('offline');
         return;
@@ -364,18 +368,38 @@ export default function DocsEditorClient({
    * que se escribió: el servidor lo fusiona con lo que otros guardaron. Si ya
    * no tiene esa versión (409), se rebasa sobre la actual y se guarda normal.
    */
-  const flushDraft = useCallback(async () => {
+  const flushDraftNow = useCallback(async () => {
     const draft = loadDraft(offlineOwner, page.id);
     if (!draft || blockedRef.current || (typeof navigator !== 'undefined' && navigator.onLine === false)) return;
     const body = JSON.stringify({ ...draft.patch, base_updated_at: draft.base.updated_at });
-    const res = await fetch(`/api/docs/pages/${page.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body }).catch(() => null);
+    // Cuenta como un guardado en curso: el pulso no trae lo ajeno en el medio (si lo
+    // traía, el editor guardaba también lo escrito sin red y quedaba dos veces).
+    inFlight.current++;
+    const res = await fetch(`/api/docs/pages/${page.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body })
+      .catch(() => null)
+      .finally(() => {
+        inFlight.current--;
+      });
     if (!res) return;
     if (res.ok) {
       const updated = (await res.json().catch(() => null)) as DocsPage | null;
       clearDraft(offlineOwner, page.id);
       setOffline(false);
       setSaveError(null);
-      if (updated?.updated_at) adoptServer(updated);
+      if (updated?.updated_at) {
+        // Escrito sin red en esta pestaña: lo que se mandó (el borrador) es lo que la pantalla
+        // ya tiene. Se fusiona contra eso, como un guardado, y entra solo lo ajeno (contra la
+        // base vieja, lo propio se sumaba dos veces). Un borrador de antes de abrir no está
+        // en pantalla: ese sí se suma desde la base vieja.
+        const sent = draftHere.current ? draft.patch.content : undefined;
+        draftHere.current = false;
+        if (sent) {
+          base.current = serverBase(updated);
+          if (!sameContent(sent, updated.content) || (draft.patch.title !== undefined && draft.patch.title !== updated.title)) {
+            pushMerge({ sent, merged: updated.content, sentTitle: draft.patch.title, title: updated.title });
+          }
+        } else adoptServer(updated);
+      }
       return;
     }
     if (res.status === 409) {
@@ -385,7 +409,8 @@ export default function DocsEditorClient({
         clearDraft(offlineOwner, page.id);
         setOffline(false);
         adoptServer(data.current);
-        await savePage(rebased);
+        // Va a la cola detrás de este envío (esperarlo acá trabaría la cola).
+        void savePage(rebased);
       }
       return;
     }
@@ -406,7 +431,17 @@ export default function DocsEditorClient({
     }
     // Error del servidor: el borrador queda y se reintenta al volver la red o al abrir.
     setSaveError('failed');
-  }, [page.id, adoptServer, savePage, offlineOwner]);
+  }, [page.id, adoptServer, savePage, offlineOwner, pushMerge]);
+
+  /**
+   * El borrador sale por la misma cola que los guardados del editor: uno detrás
+   * del otro, y lo que el editor guarde después se rebasa sobre lo fusionado.
+   */
+  const flushDraft = useCallback(() => {
+    const next = saveChain.current.then(() => flushDraftNow());
+    saveChain.current = next.catch(() => undefined);
+    return next;
+  }, [flushDraftNow]);
 
   // Al abrir con un borrador pendiente o al volver la red: se manda.
   useEffect(() => {

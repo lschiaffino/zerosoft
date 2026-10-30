@@ -1,3 +1,4 @@
+import { createClient } from '@libsql/client';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { readFile } from 'fs/promises';
 
@@ -302,3 +303,51 @@ test('D5: el cajón de Docs a 390 px no deja scroll horizontal en import ni ajus
   }
 });
 
+
+test('D5: sin red mientras otra persona edita el mismo bloque, al volver (sin recargar) lo escrito queda una sola vez', async ({ request, browser }) => {
+  test.setTimeout(120_000);
+  const tag = uid();
+  const doc = await pageWith(request, `Doble ${tag}`, [{ id: 'p', type: 'paragraph', content: 'alpha beta' }]);
+  // La otra persona: una invitada con su propia sesión (cookie de e2e), con edición.
+  const baseURL = test.info().project.use.baseURL as string;
+  const email = `dup-${tag}@darwin-e2e.io`;
+  const ctxB = await browser.newContext({ baseURL });
+  await ctxB.addCookies([{ name: 'zs_e2e_as', value: email, url: baseURL }]);
+  const visit = await ctxB.newPage();
+  await visit.goto('/en/app/docs', { waitUntil: 'domcontentloaded' });
+  await visit.close();
+  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  await db.execute({ sql: "UPDATE users SET onboarded_at = datetime('now') WHERE email = ?", args: [email] });
+  db.close();
+  const share = await request.post(`/api/docs/pages/${doc.id}/share`, { data: { kind: 'user', email, role: 'edit' } });
+  expect(share.status(), await share.text()).toBe(201);
+  const ctxA = await browser.newContext({ baseURL });
+  const a = await ctxA.newPage();
+  const b = await ctxB.newPage();
+  const editable = (p: Page) => p.locator('[data-block-anchor="p"] .docs-editable');
+  for (const p of [a, b]) {
+    await p.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'domcontentloaded' });
+    await editable(p).waitFor();
+  }
+  await a.waitForTimeout(1500);
+  // B se queda sin red y escribe al final; A escribe al principio del mismo párrafo.
+  await ctxB.setOffline(true);
+  await b.evaluate(() => window.dispatchEvent(new Event('offline')));
+  await editable(b).click();
+  await b.keyboard.press('End');
+  await b.keyboard.type(' offB', { delay: 40 });
+  await editable(a).click({ position: { x: 1, y: 6 } });
+  await a.keyboard.type('onA ', { delay: 40 });
+  await a.waitForTimeout(2500);
+  // Vuelve la red, sin recargar.
+  await ctxB.setOffline(false);
+  await b.evaluate(() => window.dispatchEvent(new Event('online')));
+  const text = async () =>
+    String(((await (await request.get(`/api/docs/pages/${doc.id}`)).json()) as { content: Array<{ content: string }> }).content[0]?.content).replace(/&nbsp;| /g, ' ');
+  await expect.poll(text, { timeout: 20_000 }).toBe('onA alpha beta offB');
+  await b.waitForTimeout(4000);
+  expect(await text()).toBe('onA alpha beta offB');
+  await expect(editable(b)).toHaveText('onA alpha beta offB', { timeout: 15_000 });
+  await ctxA.close();
+  await ctxB.close();
+});
