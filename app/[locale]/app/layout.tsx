@@ -82,7 +82,7 @@ export default async function AppLayout(
   if (workspaces.length && !workspaces.some((w) => w.current)) workspaces[0].current = true;
   const tTriage = await getTranslations({ locale, namespace: 'trackTriage' });
   // Lecturas independientes en paralelo (en Turso cada query es un RTT).
-  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tSocial, tHiring, tPeople, tBooks, tForms, tasksDue, serverTz, tPlanning, mode, tCat] =
+  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tSocial, tHiring, tPeople, tBooks, tSign, tForms, tasksDue, serverTz, tPlanning, mode, tCat] =
     await Promise.all([
       getTranslations({ locale, namespace: 'settings' }),
       getTranslations({ locale, namespace: 'common.sidebar' }),
@@ -108,6 +108,7 @@ export default async function AppLayout(
       getTranslations({ locale, namespace: 'hiring' }),
       getTranslations({ locale, namespace: 'people' }),
       getTranslations({ locale, namespace: 'books' }),
+      getTranslations({ locale, namespace: 'sign' }),
       getTranslations({ locale, namespace: 'forms' }),
       // El badge no puede tirar todas las páginas de la app: sin la tabla o con un error, 0.
       countDueTasks(user.id).catch((err) => {
@@ -320,6 +321,9 @@ export default async function AppLayout(
                 { href: '/app/books/accounts', label: tBooks('nav.accounts') },
                 { href: '/app/books/journal', label: tBooks('nav.journal') },
                 { href: '/app/books/reports', label: tBooks('nav.reports') },
+                { href: '/app/sign', label: tSign('nav.envelopes') },
+                { href: '/app/sign/templates', label: tSign('nav.templates') },
+                { href: '/app/sign/new', label: tSign('nav.new') },
                 { href: '/app/forms', label: tForms('nav.forms') },
                 { href: '/app/forms/new', label: tForms('nav.templates') },
                 { href: '/app/assistant', label: tSide('assistant') },
@@ -555,6 +559,11 @@ export default async function AppLayout(
               journal: tBooks('nav.journal'),
               reports: tBooks('nav.reports'),
               newInvoice: tBooks('docs.invoice.new'),
+            },
+            sign: {
+              home: tSign('nav.envelopes'),
+              templates: tSign('nav.templates'),
+              newEnvelope: tSign('nav.new'),
             },
             notifications: {
               title: tTrack('notifications.title'),

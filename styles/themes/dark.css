@@ -89,9 +89,13 @@
   --c-people-ink: #c99a6b;
   --c-people: #c99a6b;
   --c-people-on: #111111;
-  /* Forms: el vino base no se lee sobre el fondo oscuro; relleno rosado claro y tinta encima. */
-  --c-forms-ink: #e3a1ad;
-  --c-forms: #e3a1ad;
+  /* Sign: el rojo lacre base queda oscuro sobre el fondo oscuro; relleno claro y tinta encima. */
+  --c-sign-ink: #ffb3b3;
+  --c-sign: #ffb3b3;
+  --c-sign-on: #111111;
+  /* Forms: el oliva base no se lee sobre el fondo oscuro; relleno claro y tinta encima. */
+  --c-forms-ink: #e3ea8f;
+  --c-forms: #e3ea8f;
   --c-forms-on: #111111;
 
     /* Semánticos: -ink para texto, -soft mezclado con el fondo oscuro. */
@@ -204,9 +208,13 @@
   --c-people-ink: #c99a6b;
   --c-people: #c99a6b;
   --c-people-on: #111111;
-  /* Forms: el vino base no se lee sobre el fondo oscuro; relleno rosado claro y tinta encima. */
-  --c-forms-ink: #e3a1ad;
-  --c-forms: #e3a1ad;
+  /* Sign: el rojo lacre base queda oscuro sobre el fondo oscuro; relleno claro y tinta encima. */
+  --c-sign-ink: #ffb3b3;
+  --c-sign: #ffb3b3;
+  --c-sign-on: #111111;
+  /* Forms: el oliva base no se lee sobre el fondo oscuro; relleno claro y tinta encima. */
+  --c-forms-ink: #e3ea8f;
+  --c-forms: #e3ea8f;
   --c-forms-on: #111111;
 
   /* Semánticos: -ink para texto, -soft mezclado con el fondo oscuro. */
@@ -247,8 +255,10 @@
   :root:not([data-theme='light']) .card-shop { --on-accent: #111111; }
   :root:not([data-theme='light']) .card-hiring { --on-accent: #111111; }
   :root:not([data-theme='light']) .card-people { --on-accent: #111111; }
+  :root:not([data-theme='light']) .card-sign { --on-accent: #111111; }
 }
 :root[data-theme='dark'] .card-talk { --on-accent: #111111; }
 :root[data-theme='dark'] .card-shop { --on-accent: #111111; }
 :root[data-theme='dark'] .card-hiring { --on-accent: #111111; }
 :root[data-theme='dark'] .card-people { --on-accent: #111111; }
+:root[data-theme='dark'] .card-sign { --on-accent: #111111; }

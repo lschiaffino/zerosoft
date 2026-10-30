@@ -37,6 +37,8 @@ export interface OfferRow {
   signed_ua: string | null;
   body_hash: string | null;
   decline_reason: string;
+  /** Sobre de Sign con el que salió a firmar (null: link con nombre escrito). */
+  sign_envelope_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -62,6 +64,7 @@ export function offerDto(o: OfferRow) {
     signedIp: o.signed_ip,
     bodyHash: o.body_hash,
     declineReason: o.decline_reason,
+    signEnvelopeId: o.sign_envelope_id ?? null,
     createdAt: o.created_at,
   };
 }
@@ -155,10 +158,17 @@ export async function actOnOffer(actor: HiringActor, offerId: string, input: z.i
     const res = await db.prepare("UPDATE hiring_offers SET status = 'withdrawn', token_hash = NULL, updated_at = ? WHERE id = ? AND status IN ('pending_approval','approved','sent')").run(ts, offer.id);
     if (!res.changes) throw new HiringError('invalid_state', 409);
     await addEvent(actor.ws, candidate.id, app.id, 'offer', actor.person, { status: 'withdrawn', title: offer.title });
+    // Si salió a firmar con Sign, el sobre se anula (el link deja de servir).
+    if (offer.sign_envelope_id) {
+      const { voidEnvelopeFromApp } = await import('../sign/core');
+      await voidEnvelopeFromApp(actor.ws, offer.sign_envelope_id, 'Offer withdrawn', actor.person).catch(() => false);
+    }
     return { offer: offerDto((await getOfferRow(actor.ws, offer.id))!) };
   }
   // send
   if (offer.status !== 'approved' && offer.status !== 'sent') throw new HiringError('offer_not_approved', 409);
+  // Salió a firmar con Sign: se sigue desde el sobre (anularlo la devuelve a aprobada).
+  if (offer.sign_envelope_id) throw new HiringError('offer_in_sign', 409);
   const token = randomBytes(24).toString('base64url');
   const res = await db
     .prepare("UPDATE hiring_offers SET status = 'sent', token_hash = ?, body_hash = ?, sent_at = ?, updated_at = ? WHERE id = ? AND status IN ('approved','sent')")
@@ -172,6 +182,33 @@ export async function actOnOffer(actor: HiringActor, offerId: string, input: z.i
   });
   await addEvent(actor.ws, candidate.id, app.id, 'offer', actor.person, { status: 'sent', title: offer.title });
   return { offer: offerDto((await getOfferRow(actor.ws, offer.id))!), link };
+}
+
+/**
+ * La oferta aprobada sale a firmar con Sign en vez del link con nombre
+ * escrito: queda enviada, sin token propio y con el hash de la carta. Lo
+ * llama lib/sign/integrations.ts, que arma el sobre; el resultado vuelve por
+ * settleOfferFromSign.
+ */
+export async function offerForSignature(actor: HiringActor, offerId: string): Promise<{ offer: OfferRow; candidate: { name: string; email: string }; jobTitle: string; locale: string }> {
+  const offer = await getOfferRow(actor.ws, offerId);
+  if (!offer) throw new HiringError('not_found', 404);
+  const { job, candidate } = await requireManageApp(actor, offer.application_id);
+  if (offer.status !== 'approved') throw new HiringError('offer_not_approved', 409);
+  const settings = await ensureSettings(actor.ws);
+  return { offer, candidate: { name: candidate.name, email: candidate.email }, jobTitle: offer.title || job.title, locale: settings.locale };
+}
+
+export async function markOfferSentForSignature(actor: HiringActor, offerId: string, envelopeId: string): Promise<void> {
+  const offer = await getOfferRow(actor.ws, offerId);
+  if (!offer) throw new HiringError('not_found', 404);
+  const { app, candidate } = await requireManageApp(actor, offer.application_id);
+  const ts = nowIso();
+  const res = await getDb()
+    .prepare("UPDATE hiring_offers SET status = 'sent', token_hash = NULL, body_hash = ?, sent_at = ?, sign_envelope_id = ?, updated_at = ? WHERE id = ? AND status = 'approved'")
+    .run(sha(offer.body), ts, envelopeId, ts, offer.id);
+  if (!res.changes) throw new HiringError('invalid_state', 409);
+  await addEvent(actor.ws, candidate.id, app.id, 'offer', actor.person, { status: 'sent', title: offer.title, esign: envelopeId });
 }
 
 export interface PublicOffer {
@@ -235,20 +272,56 @@ export async function respondToOffer(input: z.infer<typeof respondSchema>, meta:
   const o = await offerByToken(input.token);
   if (!o) throw new HiringError('not_found', 404);
   if (o.status !== 'sent') throw new HiringError('offer_closed', 409);
+  if (input.action === 'accept') {
+    const app = (await getApplicationRow(o.workspace_id, o.application_id))!;
+    const c = (await getCandidateRow(o.workspace_id, app.candidate_id))!;
+    const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+    if (!input.agree) throw new HiringError('agree_required');
+    if (!input.signedName || norm(input.signedName) !== norm(c.name)) throw new HiringError('name_mismatch');
+  }
+  return settleOffer(o, input.action, { signedName: input.signedName, reason: input.reason }, meta);
+}
+
+/**
+ * El sobre de Sign se anuló o venció sin firmarse: la oferta vuelve a
+ * aprobada (sin sobre), para mandarla de nuevo por Sign o por link.
+ */
+export async function reopenOfferFromSign(ws: string, offerId: string, envelopeId: string): Promise<boolean> {
+  const ts = nowIso();
+  const res = await getDb()
+    .prepare("UPDATE hiring_offers SET status = 'approved', sign_envelope_id = NULL, sent_at = NULL, updated_at = ? WHERE id = ? AND workspace_id = ? AND status = 'sent' AND sign_envelope_id = ?")
+    .run(ts, offerId, ws, envelopeId);
+  if (!res.changes) return false;
+  const o = (await getOfferRow(ws, offerId))!;
+  const app = await getApplicationRow(ws, o.application_id);
+  if (app) await addEvent(ws, app.candidate_id, app.id, 'offer', null, { status: 'approved', title: o.title, esignClosed: envelopeId });
+  return true;
+}
+
+/**
+ * Oferta enviada para firmar con Sign (lib/sign/integrations.ts): el sobre
+ * completo la acepta con el nombre de quien firmó; rechazado, la rechaza.
+ * Nada si la oferta ya no está enviada (se retiró o se respondió).
+ */
+export async function settleOfferFromSign(ws: string, offerId: string, action: 'accept' | 'decline', who: { name: string; reason?: string }, meta: { ip: string; ua: string }): Promise<OfferStatus | null> {
+  const o = await getOfferRow(ws, offerId);
+  if (!o || o.status !== 'sent') return null;
+  return settleOffer(o, action, { signedName: who.name, reason: who.reason ?? '' }, meta);
+}
+
+/** Marca la oferta aceptada o rechazada (compare-and-set sobre status = 'sent'). */
+async function settleOffer(o: OfferRow, action: 'accept' | 'decline', who: { signedName: string; reason: string }, meta: { ip: string; ua: string }): Promise<OfferStatus> {
   const app = (await getApplicationRow(o.workspace_id, o.application_id))!;
   const c = (await getCandidateRow(o.workspace_id, app.candidate_id))!;
   const db = getDb();
   const ts = nowIso();
-  if (input.action === 'accept') {
-    const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
-    if (!input.agree) throw new HiringError('agree_required');
-    if (!input.signedName || norm(input.signedName) !== norm(c.name)) throw new HiringError('name_mismatch');
+  if (action === 'accept') {
     if (sha(o.body) !== o.body_hash) throw new HiringError('offer_changed', 409);
     const res = await db
       .prepare("UPDATE hiring_offers SET status = 'accepted', responded_at = ?, signed_name = ?, signed_ip = ?, signed_ua = ?, updated_at = ? WHERE id = ? AND status = 'sent'")
-      .run(ts, input.signedName, meta.ip.slice(0, 64), meta.ua.slice(0, 300), ts, o.id);
+      .run(ts, who.signedName, meta.ip.slice(0, 64), meta.ua.slice(0, 300), ts, o.id);
     if (!res.changes) throw new HiringError('offer_closed', 409);
-    await addEvent(o.workspace_id, c.id, app.id, 'offer', null, { status: 'accepted', title: o.title, signedName: input.signedName });
+    await addEvent(o.workspace_id, c.id, app.id, 'offer', null, { status: 'accepted', title: o.title, signedName: who.signedName });
     // Aceptada: a "Contratados".
     const hired = (await listStages(app.job_id)).find((s) => s.kind === 'hired');
     if (hired) {
@@ -261,18 +334,18 @@ export async function respondToOffer(input: z.infer<typeof respondSchema>, meta:
   } else {
     const res = await db
       .prepare("UPDATE hiring_offers SET status = 'declined', responded_at = ?, decline_reason = ?, signed_ip = ?, signed_ua = ?, updated_at = ? WHERE id = ? AND status = 'sent'")
-      .run(ts, input.reason, meta.ip.slice(0, 64), meta.ua.slice(0, 300), ts, o.id);
+      .run(ts, who.reason, meta.ip.slice(0, 64), meta.ua.slice(0, 300), ts, o.id);
     if (!res.changes) throw new HiringError('offer_closed', 409);
-    await addEvent(o.workspace_id, c.id, app.id, 'offer', null, { status: 'declined', title: o.title, reason: input.reason });
+    await addEvent(o.workspace_id, c.id, app.id, 'offer', null, { status: 'declined', title: o.title, reason: who.reason });
   }
   const job = await getJobRow(o.workspace_id, app.job_id);
   if (job) {
     await notifyTeam(await teamIds(job.id, ['recruiter', 'hiring_manager']), {
       title: `${c.name} · ${o.title}`,
-      body: input.action === 'accept' ? 'accepted' : 'declined',
+      body: action === 'accept' ? 'accepted' : 'declined',
       href: `/app/hiring/candidates/${c.id}?app=${app.id}`,
       sourceId: o.id,
     });
   }
-  return input.action === 'accept' ? 'accepted' : 'declined';
+  return action === 'accept' ? 'accepted' : 'declined';
 }

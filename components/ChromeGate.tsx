@@ -89,6 +89,8 @@ export default function ChromeGate({
     pathname.startsWith('/q/') ||
     // Facturas de Books (/invoice/<token>): documento del cliente, sin chrome de marketing.
     pathname.startsWith('/invoice/') ||
+    // Firma de Sign (/sign/<token>): el destinatario firma sin cuenta, sin chrome de marketing.
+    pathname.startsWith('/sign/') ||
     // Formularios del CRM (/f/<slug|token>): página del cliente, también embebida en un iframe.
     pathname.startsWith('/f/') ||
     // Formularios hospedados de Flow (/flow/form/<token>): página sola del cliente.

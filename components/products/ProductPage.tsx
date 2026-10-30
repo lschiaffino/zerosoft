@@ -38,6 +38,7 @@ import SocialMockup from './mockups/SocialMockup';
 import HiringMockup from './mockups/HiringMockup';
 import PeopleMockup from './mockups/PeopleMockup';
 import BooksMockup from './mockups/BooksMockup';
+import SignMockup from './mockups/SignMockup';
 import FormsMockup from './mockups/FormsMockup';
 
 const MOCKUPS: Record<ProductKey, ComponentType> = {
@@ -63,6 +64,7 @@ const MOCKUPS: Record<ProductKey, ComponentType> = {
   hiring: HiringMockup,
   people: PeopleMockup,
   books: BooksMockup,
+  sign: SignMockup,
   forms: FormsMockup,
 };
 

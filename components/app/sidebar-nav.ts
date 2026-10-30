@@ -236,6 +236,12 @@ export interface SidebarLabels {
     reports: string;
     newInvoice: string;
   };
+  /** Sign (DocuSign): sobres, plantillas. */
+  sign: {
+    home: string;
+    templates: string;
+    newEnvelope: string;
+  };
   notifications: {
     title: string;
     markRead: string;
@@ -295,6 +301,7 @@ export type AppProduct =
   | 'hiring'
   | 'people'
   | 'books'
+  | 'sign'
   | 'forms';
 
 const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
@@ -319,6 +326,7 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/hiring', 'hiring'],
   ['/app/people', 'people'],
   ['/app/books', 'books'],
+  ['/app/sign', 'sign'],
   ['/app/forms', 'forms'],
 ];
 
@@ -365,6 +373,7 @@ const APP_ICONS: Record<ProductKey, IconName> = {
   hiring: 'hiring',
   people: 'people',
   books: 'books',
+  sign: 'sign',
   forms: 'forms',
 };
 
@@ -866,6 +875,18 @@ export function buildNav(
       ];
     }
 
+    case 'sign': {
+      const s = labels.sign;
+      return [
+        {
+          items: [
+            { href: '/app/sign', label: s.home, active: pathname === '/app/sign' || at('/app/sign/envelopes') || at('/app/sign/new'), icon: 'sign' },
+            { href: '/app/sign/templates', label: s.templates, active: at('/app/sign/templates'), icon: 'templates' },
+          ],
+        },
+      ];
+    }
+
     case 'shop':
       return [
         {
@@ -1044,6 +1065,8 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
       return [item('/app/voice?new=1', labels.voice.newMeeting, 'voice')];
     case 'hiring':
       return [item('/app/hiring/jobs/new', labels.hiring.newJob, 'hiring')];
+    case 'sign':
+      return [item('/app/sign/new', labels.sign.newEnvelope, 'sign')];
     case 'analytics':
       return [
         item('/app/analytics/insights/new', labels.analytics.newInsight, 'insights'),

@@ -22,6 +22,7 @@ import social from './social';
 import hiring from './hiring';
 import people from './people';
 import books from './books';
+import sign from './sign';
 import forms from './forms';
 
 /**
@@ -52,6 +53,7 @@ export const PARITY: Record<ProductKey, ProductParity> = {
   hiring,
   people,
   books,
+  sign,
   forms,
 };
 

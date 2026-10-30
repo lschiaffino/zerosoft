@@ -7,13 +7,13 @@
  * contenido de la cotización tal como estaba al firmar; una cotización
  * enviada ya no se puede editar).
  */
-import { createHash } from 'crypto';
 import { getDb } from './db';
-import { buildPdf, jpegSize, type PdfLine } from './pdf-lite';
+import { buildPdf, type PdfLine } from './pdf-lite';
+import { cleanSignatureImage, MAX_SIGNATURE_BYTES, sha256Hex, signatureBytes, utcStamp } from './esign';
 import type { CrmQuoteRow } from './db';
 
-/** Máximo de la firma dibujada (data URL JPEG). */
-export const MAX_SIGNATURE_BYTES = 200 * 1024;
+// La validación de la firma y el hash son los de la firma electrónica compartida (lib/esign.ts, también la usa Sign).
+export { cleanSignatureImage, MAX_SIGNATURE_BYTES };
 
 /** Contenido que se firma, en un orden fijo. */
 export function quoteSignedContent(q: Pick<
@@ -60,17 +60,7 @@ export function quoteSignedContent(q: Pick<
 }
 
 export function quoteContentHash(q: Parameters<typeof quoteSignedContent>[0]): string {
-  return createHash('sha256').update(quoteSignedContent(q), 'utf8').digest('hex');
-}
-
-/** Valida la firma dibujada: data URL JPEG, tamaño acotado. Devuelve el data URL o '' si no sirve. */
-export function cleanSignatureImage(raw: unknown): string {
-  if (typeof raw !== 'string' || !raw.startsWith('data:image/jpeg;base64,')) return '';
-  if (raw.length > MAX_SIGNATURE_BYTES * 1.4) return '';
-  const buf = Buffer.from(raw.slice('data:image/jpeg;base64,'.length), 'base64');
-  const size = jpegSize(buf);
-  if (!size || size.width < 20 || size.height < 10 || size.width > 2000 || size.height > 1000) return '';
-  return raw;
+  return sha256Hex(quoteSignedContent(q));
 }
 
 export interface QuoteSignatureRow {
@@ -95,12 +85,7 @@ export async function getQuoteSignature(quoteId: string): Promise<QuoteSignature
   );
 }
 
-function utc(d: string | null | undefined): string {
-  if (!d) return '-';
-  const iso = d.includes('T') ? d : `${d.replace(' ', 'T')}Z`;
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? d : `${date.toISOString().replace('T', ' ').slice(0, 19)} UTC`;
-}
+const utc = utcStamp;
 
 /** Certificado de auditoría (PDF) de una cotización firmada. */
 export function signatureCertificate(q: CrmQuoteRow, sig: QuoteSignatureRow, publicUrl: string): Buffer {
@@ -150,7 +135,7 @@ export function signatureCertificate(q: CrmQuoteRow, sig: QuoteSignatureRow, pub
       gap: 18,
     },
   ];
-  const jpeg = sig.signature_image ? Buffer.from(sig.signature_image.slice('data:image/jpeg;base64,'.length), 'base64') : null;
+  const jpeg = sig.signature_image ? signatureBytes(sig.signature_image) : null;
   const signatureIdx = lines.findIndex((l) => l.text === 'Signature');
   return buildPdf({
     title: `Signature certificate ${q.number}`,

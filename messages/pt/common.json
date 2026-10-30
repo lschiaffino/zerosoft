@@ -1,6 +1,6 @@
 {
   "meta": {
-    "tagline": "Vinte e três apps open source para o seu time.",
+    "tagline": "Vinte e quatro apps open source para o seu time.",
     "description": "CRM, chat de suporte, agentes de IA, automações, robôs de navegador, projetos, links, docs, notas, agenda e quadro branco. Open source (AGPLv3): rode no seu servidor por $0 ou use a zerosoft Cloud, com plano grátis e cobrança por uso."
   },
   "header": {
@@ -42,6 +42,7 @@
       "social": "Agendamento, caixa de entrada e métricas de redes sociais",
       "people": "Diretório, folgas e avaliações",
       "hiring": "Recrutamento com página de vagas",
+      "sign": "Assinatura eletrônica com trilha de auditoria",
       "books": "Faturas, despesas, bancos e contabilidade",
       "forms": "Formulários e pesquisas, uma pergunta por vez"
     },
@@ -195,6 +196,8 @@
     "groupPeopleCycles": "Ciclos de avaliação",
     "groupHiringJobs": "Vagas",
     "groupHiringCandidates": "Candidatos",
+    "groupSignEnvelopes": "Envelopes",
+    "groupSignTemplates": "Modelos de assinatura",
     "groupBooksInvoices": "Faturas",
     "groupBooksCreditNotes": "Notas de crédito",
     "groupBooksBills": "Contas a pagar",
@@ -206,7 +209,7 @@
   },
   "manifesto": {
     "p1": "Um time de dez pessoas paga <strong>US$ 6.000 por ano</strong> por um CRM, US$ 1.440 para agendar reuniões e US$ 420 para encurtar links. Esses preços são calculados por pessoa ou por plano.",
-    "p2": "Rodar esse software custa bem menos. Os vinte e três apps da zerosoft cabem em <strong>um contêiner e um arquivo SQLite</strong>, num servidor pequeno.",
+    "p2": "Rodar esse software custa bem menos. Os vinte e quatro apps da zerosoft cabem em <strong>um contêiner e um arquivo SQLite</strong>, num servidor pequeno.",
     "p3": "Por isso publicamos o código. O core de cada app é AGPLv3: você pode ler, modificar e rodar no seu servidor sem nos pagar nada.",
     "final": "Por que fazemos a zerosoft.",
     "p4": "Se preferir que a gente opere, a zerosoft Cloud cobra por workspace e por uso. Colocar mais alguém no time não muda a fatura.",
@@ -275,6 +278,9 @@
     },
     "hiring": {
       "desc": "Vagas, página de carreiras, pipeline de candidatos, scorecards, entrevistas e ofertas."
+    },
+    "sign": {
+      "desc": "Envie PDFs para assinatura em ordem, com modelos, envio em massa e certificado de conclusão."
     },
     "books": {
       "desc": "Fature, receba e mantenha a contabilidade."
@@ -351,7 +357,7 @@
   },
   "home": {
     "hero": {
-      "title1": "Vinte e três apps para o seu time.",
+      "title1": "Vinte e quatro apps para o seu time.",
       "title2": "Zero licenças.",
       "sub": "Alternativas open source ao HubSpot, Intercom, Calendly, Linear, Notion e mais cinco produtos que o seu time paga todo mês. Rode no seu servidor por $0 ou use na zerosoft Cloud.",
       "ctaStart": "Comece grátis",
@@ -408,7 +414,7 @@
         "b3": "Modelos, comentários e compartilhamento"
       },
       "one": {
-        "title": "Uma conta para os vinte e três apps.",
+        "title": "Uma conta para os vinte e quatro apps.",
         "desc": "Convide seu time uma vez. Encontre contatos, empresas, negócios, links, docs e tarefas em uma única barra de busca, e pule entre apps sem trocar de ferramenta."
       },
       "replaces": "Substitui {rival}",
@@ -460,6 +466,9 @@
       "hiring": {
         "line": "Vagas, página de carreiras, pipeline, scorecards e ofertas."
       },
+      "sign": {
+        "line": "Envelopes, ordem de assinatura, modelos e trilha de auditoria."
+      },
       "books": {
         "line": "Fature, receba e mantenha a contabilidade."
       },
@@ -479,7 +488,7 @@
       "total": "Total por ano",
       "zeroTitle": "zerosoft, no seu servidor",
       "footnote": "Preços de tabela citados nas nossas páginas de produto, com cobrança mensal, para 10 usuários (Bitly Core é um plano fixo). Os fornecedores mudam os preços: confira nos sites deles. A zerosoft não tem afiliação com nenhuma dessas empresas.",
-      "rApps": "Os vinte e três apps",
+      "rApps": "Os vinte e quatro apps",
       "rSeats": "Usuários",
       "rLicense": "Licença",
       "rData": "Seus dados",
@@ -550,7 +559,7 @@
   },
   "appHome": {
     "title": "Seus apps",
-    "lead": "Os vinte e três apps do seu workspace. Escolha um para começar.",
+    "lead": "Os vinte e quatro apps do seu workspace. Escolha um para começar.",
     "apps": "Apps",
     "open": "Abrir {name}",
     "linkSummary": "Visão geral do Link",
@@ -670,7 +679,7 @@
   "notFound": {
     "sign": "Erro 404",
     "title": "Esta página não existe.",
-    "body": "O link pode ter um erro ou a página mudou de lugar. Pelo início você chega aos vinte e três apps.",
+    "body": "O link pode ter um erro ou a página mudou de lugar. Pelo início você chega aos vinte e quatro apps.",
     "cta": "Ir para o início",
     "meta": "Página não encontrada"
   },

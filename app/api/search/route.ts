@@ -32,6 +32,8 @@ import { searchHiring } from '@/lib/hiring/candidates';
 import { actorOf as hiringActorOf } from '@/lib/hiring/http';
 import { searchPeopleForPalette } from '@/lib/people';
 import { searchBooks } from '@/lib/books-search';
+import { searchSign } from '@/lib/sign/core';
+import { signActorOf } from '@/lib/sign/http';
 import { searchForms } from '@/lib/forms/search';
 import { actorOf as formsActorOf } from '@/lib/forms/http';
 import { actorOf } from '@/lib/rec-http';
@@ -62,7 +64,7 @@ export async function GET(req: NextRequest) {
   if (!q) return NextResponse.json<SearchResponse>({ q, items: [] });
 
   const scope = await sessionScope(user);
-  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec, designs, shop, hiring, people, books, forms] = await Promise.all([
+  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec, designs, shop, hiring, people, books, sign, forms] = await Promise.all([
     searchAll(user.id, q, scope),
     listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
     // Docs: título y texto de los bloques (el fragmento va como meta).
@@ -100,6 +102,8 @@ export async function GET(req: NextRequest) {
     userCanUseApp(user, 'people') ? searchPeopleForPalette(user.id, (user.actingUser ?? user).id, user.role, q).catch(() => []) : Promise.resolve([]),
     // Books: comprobantes, contactos, ítems, bancos y recurrentes (con la app y según el rol de Books).
     userCanUseApp(user, 'books') ? searchBooks(user, q).catch(() => []) : Promise.resolve([]),
+    // Sign: sobres que la persona ve (los suyos, los que la esperan; un admin, todos) y plantillas.
+    userCanUseApp(user, 'sign') && user.role !== 'guest' ? searchSign(signActorOf(user), q).catch(() => []) : Promise.resolve([]),
     // Forms: formularios por nombre, solo los que la persona ve (con la app, nunca guest).
     userCanUseApp(user, 'forms') && user.role !== 'guest' ? searchForms(formsActorOf(user), q).catch(() => []) : Promise.resolve([]),
   ]);
@@ -208,6 +212,10 @@ export async function GET(req: NextRequest) {
   const PEOPLE_HREF = { person: (id: string) => `/app/people/${id}`, template: (id: string) => `/app/people/onboarding/templates/${id}`, cycle: (id: string) => `/app/people/reviews/${id}` } as const;
   for (const p of people) {
     items.push({ id: `${p.kind}:${p.id}`, group: PEOPLE_GROUP[p.kind], label: p.label, meta: p.meta, href: PEOPLE_HREF[p.kind](p.id) });
+  }
+
+  for (const x of sign) {
+    items.push({ id: `sign-${x.kind}:${x.id}`, group: x.kind === 'envelope' ? 'signEnvelopes' : 'signTemplates', label: x.label, meta: x.meta, href: x.href });
   }
 
   for (const l of links.links) {

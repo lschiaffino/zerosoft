@@ -33,7 +33,8 @@
   --c-hiring-ink: #0f766e;
   --c-people-ink: #8b5e34;
   --c-books-ink: #1e3a8a;
-  --c-forms-ink: #7a1f31;
+  --c-sign-ink: #7f1d1d;
+  --c-forms-ink: #6e730d;
 
   /* Texto sobre un relleno del color del producto. */
   --c-link-on: #ffffff;
@@ -58,6 +59,7 @@
   --c-hiring-on: #ffffff;
   --c-people-on: #ffffff;
   --c-books-on: #ffffff;
+  --c-sign-on: #ffffff;
   --c-forms-on: #ffffff;
 
   /* Escala (px a 1440): lectura y datos. Los títulos (--t-display, --t-h1,

@@ -24,6 +24,7 @@ export const PRODUCT_KEYS = [
   'hiring',
   'people',
   'books',
+  'sign',
   'forms',
   'platform',
   'site',
@@ -60,6 +61,7 @@ export const PRODUCT_COLOR: Record<ProductKey, string> = {
   hiring: 'var(--c-hiring)',
   people: 'var(--c-people)',
   books: 'var(--c-books)',
+  sign: 'var(--c-sign)',
   forms: 'var(--c-forms)',
   platform: 'var(--ink)',
   site: 'var(--ink)',
@@ -122,6 +124,8 @@ export function productFromPath(pathname: string): ProductKey {
       return 'people';
     case 'books':
       return 'books';
+    case 'sign':
+      return 'sign';
     case 'forms':
       return 'forms';
     default:

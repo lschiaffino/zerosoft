@@ -1,3 +1,5 @@
+import { appendFileSync } from 'fs';
+
 /**
  * Email — envío simple de confirmaciones. Sin dependencias externas.
  * - Resend: si existe RESEND_API_KEY se envía vía fetch.
@@ -10,8 +12,10 @@
 
 export interface EmailAttachment {
   filename: string;
+  /** Texto (utf8) o, con encoding 'base64', bytes ya en base64 (un PDF). */
   content: string;
   contentType?: string;
+  encoding?: 'utf8' | 'base64';
 }
 
 interface SendOptions {
@@ -79,7 +83,7 @@ async function sendResend(opts: SendOptions): Promise<{ id?: string; ok: boolean
         ...(opts.headers && Object.keys(opts.headers).length ? { headers: opts.headers } : {}),
         attachments: opts.attachments?.map((a) => ({
           filename: a.filename,
-          content: Buffer.from(a.content, 'utf8').toString('base64'),
+          content: a.encoding === 'base64' ? a.content : Buffer.from(a.content, 'utf8').toString('base64'),
           content_type: a.contentType,
         })),
       }),
@@ -94,6 +98,7 @@ async function sendResend(opts: SendOptions): Promise<{ id?: string; ok: boolean
 
 function sendMock(opts: SendOptions): { ok: true; provider: string } {
   const provider = 'console';
+  captureEmail(opts);
   // eslint-disable-next-line no-console
   console.log(`[email:${provider}] to=${opts.to} from=${opts.from ?? fromEmail()} subject="${opts.subject}"`);
   // eslint-disable-next-line no-console
@@ -103,6 +108,22 @@ function sendMock(opts: SendOptions): { ok: true; provider: string } {
     console.log(`[email:${provider}] attachments: ${opts.attachments.map((a) => a.filename).join(', ')}`);
   }
   return { ok: true, provider };
+}
+
+/**
+ * Solo sin Resend (desarrollo y e2e): con EMAIL_CAPTURE_FILE, cada email que
+ * se "manda" se agrega como una línea JSON a ese archivo, para que un test lea
+ * el código o el link que recibió una persona. Nunca corre en Vercel.
+ */
+function captureEmail(opts: SendOptions): void {
+  const file = process.env.EMAIL_CAPTURE_FILE;
+  if (!file || process.env.VERCEL) return;
+  try {
+    const line = { to: opts.to, subject: opts.subject, text: opts.text, attachments: (opts.attachments ?? []).map((a) => a.filename), at: new Date().toISOString() };
+    appendFileSync(file, `${JSON.stringify(line)}\n`);
+  } catch {
+    /* best effort */
+  }
 }
 
 export async function sendEmail(opts: SendOptions): Promise<{ ok: boolean; provider?: string; id?: string; error?: string }> {

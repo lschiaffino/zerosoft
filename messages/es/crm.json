@@ -2087,7 +2087,8 @@
       "title": "No se pudo cargar esta vista",
       "body": "Puede ser un corte de conexión. Probá de nuevo; si sigue, avisanos.",
       "retry": "Reintentar"
-    }
+    },
+    "sendForSignature": "Enviar a firmar"
   },
   "rowTools": {
     "up": "Subir",
