@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { signIn } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 
@@ -27,6 +27,13 @@ export default function EmailCodeForm({
   const [notice, setNotice] = useState<string | null>(null);
   const codeRef = useRef<HTMLInputElement>(null);
 
+  // Al mandar (o reenviar) el código, el foco va al campo del código.
+  useEffect(() => {
+    if (!sentTo) return;
+    const id = window.setTimeout(() => codeRef.current?.focus(), 50);
+    return () => window.clearTimeout(id);
+  }, [sentTo, notice]);
+
   async function requestCode(e?: FormEvent) {
     e?.preventDefault();
     if (busy || !email.trim()) return;
@@ -48,7 +55,6 @@ export default function EmailCodeForm({
     setSentTo(email.trim().toLowerCase());
     setCode('');
     if (wasSent) setNotice(t('resent'));
-    setTimeout(() => codeRef.current?.focus(), 0);
   }
 
   async function verify(e: FormEvent) {

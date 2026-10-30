@@ -96,6 +96,8 @@ test('invitar con apps limitadas, entrar sin Google con un código por email y s
 
     // 3. Marta abre el link sin sesión (390px, oscuro): Google o un código por email.
     const m = await martaCtx.newPage();
+    // Con la página del owner abierta, esta tiene que estar al frente para que el foco sea real.
+    await m.bringToFront();
     await m.setViewportSize({ width: 390, height: 844 });
     await m.emulateMedia({ colorScheme: 'dark' });
     await m.goto(new URL(ritaLink).pathname, { waitUntil: 'networkidle' });
@@ -107,6 +109,7 @@ test('invitar con apps limitadas, entrar sin Google con un código por email y s
     await expect(m.getByLabel('Email de trabalho')).toHaveValue(marta);
     expect(await m.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
     await m.getByRole('button', { name: 'Me envie um código' }).click();
+    // El foco pasa al campo del código.
     await expect(m.getByLabel('Código')).toBeFocused();
     const codeMail = await lastMail(marta, /Seu código do zerosoft/);
     const code = /\b(\d{6})\b/.exec(codeMail.text)![1];
@@ -134,7 +137,7 @@ test('invitar con apps limitadas, entrar sin Google con un código por email y s
     // Ve a sus compañeros.
     await m.goto('/pt/app/settings/members', { waitUntil: 'networkidle' });
     await expect(m.getByTestId('member-row').filter({ hasText: 'demo@zerosoft.ai' })).toBeVisible();
-    const row = (await sql('SELECT u.locale, u.onboarded_at, m.apps FROM users u JOIN team_members m ON m.user_id = u.id WHERE u.email = ?', [marta]))[0];
+    const row = (await sql("SELECT u.locale, u.onboarded_at, m.apps FROM users u JOIN team_members m ON m.user_id = u.id AND m.role = 'member' WHERE u.email = ?", [marta]))[0];
     expect(row.locale).toBe('pt');
     expect(row.onboarded_at).toBeTruthy();
     expect(JSON.parse(String(row.apps)).sort()).toEqual(['crm', 'docs']);
