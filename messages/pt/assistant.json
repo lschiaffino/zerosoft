@@ -150,6 +150,11 @@
       "a": "Quantos visitantes tivemos esta semana?",
       "b": "Quais insights estão salvos neste projeto?",
       "c": "Quais feature flags estão ativas?"
+    },
+    "hiring": {
+      "a": "Quais vagas estão abertas?",
+      "b": "Quem está na etapa de entrevista?",
+      "c": "Quais scorecards estão faltando?"
     }
   },
   "page": {

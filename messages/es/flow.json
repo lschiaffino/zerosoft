@@ -849,7 +849,10 @@
     "shop_order_created": "Shop: pedido creado",
     "shop_order_paid": "Shop: pedido pagado",
     "shop_order_fulfilled": "Shop: pedido enviado",
-    "shop_inventory_low": "Shop: stock bajo"
+    "shop_inventory_low": "Shop: stock bajo",
+    "hiring_candidate_applied": "Hiring: nueva postulación",
+    "hiring_candidate_stage_changed": "Hiring: candidato cambió de etapa",
+    "hiring_candidate_hired": "Hiring: candidato contratado"
   },
   "ops": {
     "equals": "es igual a",

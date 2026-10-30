@@ -23,8 +23,9 @@ import { del, put } from '@vercel/blob';
 
 export const MAX_UPLOAD_SIZE = 10 * 1024 * 1024; // 10 MB
 
-export type UploadFolder = 'chat' | 'track' | 'tasks' | 'robots' | 'docs' | 'boards' | 'crm' | 'rec' | 'workspace' | 'design' | 'shop';
-const FOLDERS = new Set<string>(['chat', 'track', 'tasks', 'robots', 'docs', 'boards', 'crm', 'rec', 'workspace', 'design', 'shop']);
+export type UploadFolder = 'chat' | 'track' | 'tasks' | 'robots' | 'docs' | 'boards' | 'crm' | 'rec' | 'workspace' | 'design' | 'shop' | 'hiring';
+// hiring: resumes de candidatos (privados: solo por /api/hiring/candidates/<id>/resume con permiso).
+const FOLDERS = new Set<string>(['chat', 'track', 'tasks', 'robots', 'docs', 'boards', 'crm', 'rec', 'workspace', 'design', 'shop', 'hiring']);
 
 /** Extensión permitida → tipo con el que se guarda (y se sirve, si es de los que se muestran). */
 const ALLOWED: Record<string, string> = {

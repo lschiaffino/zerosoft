@@ -849,7 +849,10 @@
     "shop_order_created": "Shop: order placed",
     "shop_order_paid": "Shop: order paid",
     "shop_order_fulfilled": "Shop: order fulfilled",
-    "shop_inventory_low": "Shop: low stock"
+    "shop_inventory_low": "Shop: low stock",
+    "hiring_candidate_applied": "Hiring: candidate applied",
+    "hiring_candidate_stage_changed": "Hiring: candidate moved to a stage",
+    "hiring_candidate_hired": "Hiring: candidate hired"
   },
   "ops": {
     "equals": "equals",

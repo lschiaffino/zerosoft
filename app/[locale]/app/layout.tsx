@@ -82,7 +82,7 @@ export default async function AppLayout(
   if (workspaces.length && !workspaces.some((w) => w.current)) workspaces[0].current = true;
   const tTriage = await getTranslations({ locale, namespace: 'trackTriage' });
   // Lecturas independientes en paralelo (en Turso cada query es un RTT).
-  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tasksDue, serverTz, tPlanning, mode, tCat] =
+  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tHiring, tasksDue, serverTz, tPlanning, mode, tCat] =
     await Promise.all([
       getTranslations({ locale, namespace: 'settings' }),
       getTranslations({ locale, namespace: 'common.sidebar' }),
@@ -104,6 +104,7 @@ export default async function AppLayout(
       getTranslations({ locale, namespace: 'design' }),
       getTranslations({ locale, namespace: 'shop' }),
       getTranslations({ locale, namespace: 'analytics' }),
+      getTranslations({ locale, namespace: 'hiring' }),
       // El badge no puede tirar todas las páginas de la app: sin la tabla o con un error, 0.
       countDueTasks(user.id).catch((err) => {
         console.error('[app layout] countDueTasks', err);
@@ -278,6 +279,12 @@ export default async function AppLayout(
                 { href: '/app/analytics/flags', label: tAnalytics('sidebar.flags') },
                 { href: '/app/analytics/sql', label: tAnalytics('sidebar.sql') },
                 { href: '/app/analytics/projects', label: tAnalytics('sidebar.projects') },
+                { href: '/app/hiring', label: tHiring('nav.home') },
+                { href: '/app/hiring/jobs', label: tHiring('nav.jobs') },
+                { href: '/app/hiring/candidates', label: tHiring('nav.candidates') },
+                { href: '/app/hiring/reports', label: tHiring('nav.reports') },
+                { href: '/app/hiring/templates', label: tHiring('nav.templates') },
+                { href: '/app/hiring/settings', label: tSide('appSettings') },
                 { href: '/app/assistant', label: tSide('assistant') },
               ]}
             />
@@ -460,6 +467,15 @@ export default async function AppLayout(
               sql: tAnalytics('sidebar.sql'),
               projects: tAnalytics('sidebar.projects'),
               newInsight: tAnalytics('sidebar.newInsight'),
+            },
+            hiring: {
+              home: tHiring('nav.home'),
+              jobs: tHiring('nav.jobs'),
+              candidates: tHiring('nav.candidates'),
+              reports: tHiring('nav.reports'),
+              templates: tHiring('nav.templates'),
+              careers: tHiring('nav.careers'),
+              newJob: tHiring('jobs.new'),
             },
             notifications: {
               title: tTrack('notifications.title'),

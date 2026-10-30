@@ -198,6 +198,16 @@ export interface SidebarLabels {
     projects: string;
     newInsight: string;
   };
+  /** Hiring (Workable): inicio, puestos, candidatos, reportes, plantillas. */
+  hiring: {
+    home: string;
+    jobs: string;
+    candidates: string;
+    reports: string;
+    templates: string;
+    careers: string;
+    newJob: string;
+  };
   notifications: {
     title: string;
     markRead: string;
@@ -252,7 +262,8 @@ export type AppProduct =
   | 'talk'
   | 'design'
   | 'shop'
-  | 'analytics';
+  | 'analytics'
+  | 'hiring';
 
 const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/crm', 'crm'],
@@ -272,6 +283,7 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/design', 'design'],
   ['/app/shop', 'shop'],
   ['/app/analytics', 'analytics'],
+  ['/app/hiring', 'hiring'],
 ];
 
 /** La app del shell para una clave de producto (Cal vive en /app/calendar). */
@@ -313,6 +325,7 @@ const APP_ICONS: Record<ProductKey, IconName> = {
   design: 'design',
   shop: 'shop',
   analytics: 'analytics',
+  hiring: 'hiring',
 };
 
 /** Producto de la app según la ruta. /app (inicio) y /app/settings son la plataforma (neutro); /app/links es Link. */
@@ -772,6 +785,29 @@ export function buildNav(
       ];
     }
 
+    case 'hiring': {
+      const h = labels.hiring;
+      return [
+        {
+          items: [
+            { href: '/app/hiring', label: h.home, active: pathname === '/app/hiring', icon: 'overview' },
+            { href: '/app/hiring/jobs', label: h.jobs, active: at('/app/hiring/jobs'), icon: 'hiring' },
+            { href: '/app/hiring/candidates', label: h.candidates, active: at('/app/hiring/candidates'), icon: 'contacts' },
+          ],
+        },
+        {
+          section: labels.insights,
+          items: [{ href: '/app/hiring/reports', label: h.reports, active: at('/app/hiring/reports'), icon: 'reports' }],
+        },
+        {
+          items: [
+            { href: '/app/hiring/templates', label: h.templates, active: at('/app/hiring/templates'), icon: 'templates' },
+            { href: '/app/hiring/settings', label: labels.appSettings, active: at('/app/hiring/settings'), icon: 'settings' },
+          ],
+        },
+      ];
+    }
+
     case 'shop':
       return [
         {
@@ -851,6 +887,8 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
   switch (product) {
     case 'voice':
       return [item('/app/voice?new=1', labels.voice.newMeeting, 'voice')];
+    case 'hiring':
+      return [item('/app/hiring/jobs/new', labels.hiring.newJob, 'hiring')];
     case 'analytics':
       return [
         item('/app/analytics/insights/new', labels.analytics.newInsight, 'insights'),

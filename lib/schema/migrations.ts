@@ -5,6 +5,7 @@ import { stripSyncedChildren, syncedChildren } from '../docs-synced-refs';
 import type { DocsBlock } from '../docs-types';
 import { workspaceTeamsUp } from './workspace-migrations';
 import { shopUp } from './shop-migration';
+import { hiringUp } from './hiring-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -7253,6 +7254,11 @@ export const MIGRATIONS: Migration[] = [
         );
       `);
     },
+  },
+  {
+    // Hiring (Workable): ver lib/schema/hiring-migration.ts.
+    id: '140_hiring',
+    up: hiringUp,
   },
 ];
 

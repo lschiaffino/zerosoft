@@ -38,7 +38,8 @@
       "talk": "Em construção: mensagens de equipe",
       "shop": "Loja online com checkout e pedidos",
       "design": "Design gráfico a partir de modelos, com sua marca",
-      "analytics": "Analytics de produto e feature flags"
+      "analytics": "Analytics de produto e feature flags",
+      "hiring": "Recrutamento com página de vagas"
     },
     "building": "Em construção"
   },
@@ -181,7 +182,9 @@
     "groupAnalyticsDashboards": "Painéis do Analytics",
     "groupAnalyticsFlags": "Feature flags do Analytics",
     "groupAnalyticsCohorts": "Coortes do Analytics",
-    "groupAnalyticsProjects": "Projetos do Analytics"
+    "groupAnalyticsProjects": "Projetos do Analytics",
+    "groupHiringJobs": "Vagas",
+    "groupHiringCandidates": "Candidatos"
   },
   "manifesto": {
     "p1": "Um time de dez pessoas paga <strong>US$ 6.000 por ano</strong> por um CRM, US$ 1.440 para agendar reuniões e US$ 420 para encurtar links. Esses preços são calculados por pessoa ou por plano.",
@@ -245,6 +248,9 @@
     },
     "analytics": {
       "desc": "Eventos, funis, retenção e feature flags para o seu produto."
+    },
+    "hiring": {
+      "desc": "Vagas, página de carreiras, pipeline de candidatos, scorecards, entrevistas e ofertas."
     }
   },
   "model": {
@@ -414,7 +420,10 @@
       "analytics": {
         "line": "Analytics de produto, analytics web e feature flags."
       },
-      "building": "Em construção · como {rival}"
+      "building": "Em construção · como {rival}",
+      "hiring": {
+        "line": "Vagas, página de carreiras, pipeline, scorecards e ofertas."
+      }
     },
     "stack": {
       "title": "{total} por ano.",

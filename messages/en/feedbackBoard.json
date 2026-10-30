@@ -69,7 +69,8 @@
     "analytics": "Analytics",
     "platform": "Platform",
     "site": "Website",
-    "other": "Other"
+    "other": "Other",
+    "hiring": "Hiring"
   },
   "empty": "No ideas yet. Suggest the first one.",
   "emptySearch": "Nothing matches. Try other words or suggest the idea.",

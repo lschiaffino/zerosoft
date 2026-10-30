@@ -38,7 +38,8 @@
       "talk": "In the works: team messaging",
       "shop": "Online store with checkout and orders",
       "design": "Graphic design from templates, with your brand",
-      "analytics": "Product analytics and feature flags"
+      "analytics": "Product analytics and feature flags",
+      "hiring": "Applicant tracking with a careers page"
     },
     "building": "In the works"
   },
@@ -181,7 +182,9 @@
     "groupAnalyticsDashboards": "Analytics dashboards",
     "groupAnalyticsFlags": "Analytics feature flags",
     "groupAnalyticsCohorts": "Analytics cohorts",
-    "groupAnalyticsProjects": "Analytics projects"
+    "groupAnalyticsProjects": "Analytics projects",
+    "groupHiringJobs": "Jobs",
+    "groupHiringCandidates": "Candidates"
   },
   "manifesto": {
     "p1": "A team of ten pays <strong>$6,000 a year</strong> for a CRM, $1,440 to book meetings and $420 to shorten links. Those prices are set per head or per plan.",
@@ -245,6 +248,9 @@
     },
     "analytics": {
       "desc": "Events, funnels, retention and feature flags for your product."
+    },
+    "hiring": {
+      "desc": "Jobs, a careers page, a candidate pipeline, scorecards, interviews and offers."
     }
   },
   "model": {
@@ -414,7 +420,10 @@
       "analytics": {
         "line": "Product analytics, web analytics and feature flags."
       },
-      "building": "In the works · like {rival}"
+      "building": "In the works · like {rival}",
+      "hiring": {
+        "line": "Jobs, careers page, pipeline, scorecards and offers."
+      }
     },
     "stack": {
       "title": "{total} a year.",

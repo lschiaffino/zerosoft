@@ -38,7 +38,8 @@
       "talk": "En construcción: mensajería de equipo",
       "shop": "Tienda online con checkout y pedidos",
       "design": "Diseño gráfico desde plantillas, con tu marca",
-      "analytics": "Analítica de producto y feature flags"
+      "analytics": "Analítica de producto y feature flags",
+      "hiring": "Selección de personal con página de empleos"
     },
     "building": "En construcción"
   },
@@ -181,7 +182,9 @@
     "groupAnalyticsDashboards": "Tableros de Analytics",
     "groupAnalyticsFlags": "Feature flags de Analytics",
     "groupAnalyticsCohorts": "Cohortes de Analytics",
-    "groupAnalyticsProjects": "Proyectos de Analytics"
+    "groupAnalyticsProjects": "Proyectos de Analytics",
+    "groupHiringJobs": "Puestos",
+    "groupHiringCandidates": "Candidatos"
   },
   "manifesto": {
     "p1": "Un equipo de diez personas paga <strong>$6.000 al año</strong> por un CRM, $1.440 por agendar reuniones y $420 por acortar links. Esos precios se calculan por cabeza o por plan.",
@@ -245,6 +248,9 @@
     },
     "analytics": {
       "desc": "Eventos, embudos, retención y feature flags para tu producto."
+    },
+    "hiring": {
+      "desc": "Puestos, página de empleos, pipeline de candidatos, scorecards, entrevistas y ofertas."
     }
   },
   "model": {
@@ -414,7 +420,10 @@
       "analytics": {
         "line": "Analítica de producto, analítica web y feature flags."
       },
-      "building": "En construcción · como {rival}"
+      "building": "En construcción · como {rival}",
+      "hiring": {
+        "line": "Puestos, página de empleos, pipeline, scorecards y ofertas."
+      }
     },
     "stack": {
       "title": "{total} por año.",

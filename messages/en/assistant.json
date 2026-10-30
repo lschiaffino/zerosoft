@@ -150,6 +150,11 @@
       "a": "How many visitors did we have this week?",
       "b": "Which insights are saved in this project?",
       "c": "Which feature flags are active?"
+    },
+    "hiring": {
+      "a": "Which jobs are open?",
+      "b": "Who is in the interview stage?",
+      "c": "What scorecards am I missing?"
     }
   },
   "page": {

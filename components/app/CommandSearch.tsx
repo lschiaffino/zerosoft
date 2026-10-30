@@ -137,6 +137,8 @@ function useGroupOrder() {
         'shopCollections',
         'shopDiscounts',
         'shopCustomers',
+        'hiringJobs',
+        'hiringCandidates',
         'links',
         'docs',
         'notes',
