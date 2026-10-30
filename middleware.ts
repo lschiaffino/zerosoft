@@ -282,6 +282,6 @@ export const config = {
   // Las APIs de las apps entran solo para el header de acceso por app (arriba).
   matcher: [
     '/((?!api/|r/|s/|_next/|_vercel/|apple-icon|.*\\..*).*)',
-    '/api/:family(crm|track|docs|notes|board|boards|links|calendar|chat|groups|agents|flow|robots|voice|rec|talk|design|shop|analytics|hiring)/:path*',
+    '/api/:family(crm|track|docs|notes|board|boards|links|calendar|chat|groups|agents|flow|robots|voice|rec|talk|design|shop|analytics|social|hiring)/:path*',
   ],
 };
