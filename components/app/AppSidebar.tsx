@@ -17,6 +17,7 @@ import {
   buildNewItems,
   settingsNavItem,
   importNavItem,
+  productKeyOf,
   switcherHref,
   SWITCHER_PRODUCTS,
   type SidebarLabels,
@@ -175,6 +176,20 @@ export default function AppSidebar({
     }
     doSignOut();
   }
+  // Apps usadas hace poco (las primeras del sidebar del inicio): solo en este navegador.
+  const [recentApps, setRecentApps] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      const list = JSON.parse(window.localStorage.getItem('zs:recent-apps') ?? '[]') as unknown;
+      const prev = Array.isArray(list) ? list.filter((x): x is string => typeof x === 'string') : [];
+      const key = productKeyOf(product);
+      const next = key ? [key, ...prev.filter((x) => x !== key)].slice(0, 8) : prev;
+      if (key) window.localStorage.setItem('zs:recent-apps', JSON.stringify(next));
+      setRecentApps(next);
+    } catch {
+      // Sin storage: las destacadas del modo.
+    }
+  }, [product]);
   // Grupos plegables abiertos o cerrados a mano (por producto y sección).
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   useEffect(() => {
@@ -318,7 +333,7 @@ export default function AppSidebar({
     asideRef.current?.closest('.app-frame')?.classList.toggle('sidebar-collapsed', next);
   }
 
-  const nav = buildNav(product, pathname, labels, { tasksDue: dueCount, unread: unreadCount, allowed: allowedApps });
+  const nav = buildNav(product, pathname, labels, { tasksDue: dueCount, unread: unreadCount, allowed: allowedApps, recentApps, mode });
   const newItems = buildNewItems(product, labels, { docsCanCreate });
   const settingsItem = settingsNavItem(pathname, labels);
   const importItem = importNavItem(product, labels);
@@ -573,7 +588,7 @@ export default function AppSidebar({
           )}
         </div>
 
-        <nav className={`side-line${product === 'home' ? ' side-line-compact' : ''}`} aria-label={current.name} ref={lineRef} onScroll={updateOverflow}>
+        <nav className="side-line" aria-label={current.name} ref={lineRef} onScroll={updateOverflow}>
           {nav.map((group, i) => {
             const key = group.section ?? `top-${i}`;
             // Grupo plegable ("More"): abierto si la persona lo abrió o si tiene el ítem activo.

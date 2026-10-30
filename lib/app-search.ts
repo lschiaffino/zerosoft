@@ -63,7 +63,9 @@ export interface AppSearchItem {
     | 'analyticsDashboards'
     | 'analyticsFlags'
     | 'analyticsCohorts'
-    | 'analyticsProjects';
+    | 'analyticsProjects'
+    | 'socialPosts'
+    | 'socialLibrary';
   label: string;
   meta: string;
   href: string;
@@ -378,6 +380,21 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       like,
     ),
   ]);
+  // Social: publicaciones que la persona ve (propias o a sus cuentas; admins, todas) y la biblioteca del workspace.
+  const socialAdmin = !user.role || user.role === 'owner' || user.role === 'admin';
+  const [socialPosts, socialLibrary] = await Promise.all([
+    all(
+      `SELECT p.id, substr(replace(p.text, char(10), ' '), 1, 120) AS label, '' AS meta FROM social_posts p
+       WHERE p.workspace_id = ? AND p.text LIKE ? ESCAPE '\\'${
+         socialAdmin
+           ? ''
+           : ` AND (p.created_by = ? OR EXISTS (SELECT 1 FROM social_post_targets st JOIN social_account_members sm ON sm.account_id = st.account_id
+                WHERE st.post_id = p.id AND sm.person_id = ?))`
+       } ORDER BY p.updated_at DESC LIMIT ?`,
+      ...(socialAdmin ? [user.id, like] : [user.id, like, person, person]),
+    ),
+    all(`SELECT id, name AS label, '' AS meta FROM social_library WHERE workspace_id = ? AND (name LIKE ? ESCAPE '\\' OR body LIKE ? ESCAPE '\\') ORDER BY updated_at DESC LIMIT ?`, user.id, like, like),
+  ]);
   // Subequipos del workspace (Ajustes › Equipos), por nombre o @handle.
   const workspaceTeams = await all(
     `SELECT g.id, g.name AS label, g.slug AS meta FROM workspace_groups g
@@ -532,6 +549,8 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       const [channelId, listId] = id.split('|');
       return `/app/talk/${channelId}?tab=lists&list=${listId}`;
     }),
+    ...map(socialPosts, 'socialPosts', (id) => `/app/social/posts/${id}`),
+    ...map(socialLibrary, 'socialLibrary', (id) => `/app/social/library?item=${id}`),
     ...workspaceTeams.map((r) => ({ id: r.id, group: 'workspaceTeams' as const, label: r.label, meta: `@${r.meta}`, href: '/app/settings/teams' })),
     ...map(anInsights, 'analyticsInsights', (id) => `/app/analytics/insights/${id}`),
     ...map(anDashboards, 'analyticsDashboards', (id) => `/app/analytics/dashboards/${id}`),

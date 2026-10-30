@@ -175,6 +175,8 @@ function useGroupOrder() {
         'talkPeople',
         'talkCanvases',
         'talkLists',
+        'socialPosts',
+        'socialLibrary',
         'workspaceTeams',
         'analyticsInsights',
         'analyticsDashboards',

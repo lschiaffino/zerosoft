@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "Products",
-      "description": "Eighteen apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop and Analytics. Open source for your server, or on zerosoft Cloud with a free plan and pay as you go."
+      "description": "Nineteen apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics and Social. Open source for your server, or on zerosoft Cloud with a free plan and pay as you go."
     },
     "hero": {
-      "title1": "Eighteen apps.",
+      "title1": "Nineteen apps.",
       "title2": "One workspace.",
       "sub": "For your company: CRM, support, AI agents, automations, robots, projects and links. For you: docs, notes, scheduling and a whiteboard. The core of each one is open source and runs on your server for $0."
     },
     "cta": {
-      "title1": "Try all eighteen apps.",
+      "title1": "Try all nineteen apps.",
       "title2": "With one account.",
       "sub": "Sign in with Google, create a workspace and start on the free plan. If you later prefer your own server, the code is on GitHub.",
       "button": "Open the app"
@@ -1609,6 +1609,91 @@
         "sub": "Open Analytics, create a project and add the snippet to your site.",
         "button": "Open Analytics"
       }
+    },
+    "social": {
+      "meta": {
+        "title": "Social: open source social media management, a Hootsuite alternative",
+        "description": "Schedule posts to Facebook, Instagram, LinkedIn, X, TikTok, YouTube, Threads and Bluesky, answer comments and messages from one inbox, approve your team's posts and measure what works. Open source alternative to Hootsuite."
+      },
+      "hero": {
+        "sub": "Plan, publish and answer on social media with your team: one composer for every network, a shared calendar, approvals, a unified inbox and analytics. Each network is built on its official API and is being verified with live accounts."
+      },
+      "featuresTitle": "Every network from one place.",
+      "featuresTitleDim": "With your team and your approvals.",
+      "f1": {
+        "t": "One composer, every network",
+        "d": "Write once and adjust the text per network, with live previews, character counters and checks for photo size, ratio and video length."
+      },
+      "f2": {
+        "t": "Calendar and queue",
+        "d": "Month and week views, drag a post to reschedule it, recurring queue times per account and best-time suggestions from your own engagement."
+      },
+      "f3": {
+        "t": "Approvals",
+        "d": "Members who need approval send their posts to an admin, who approves or rejects them with a comment. Everyone gets notified."
+      },
+      "f4": {
+        "t": "Unified inbox",
+        "d": "Comments, mentions and direct messages where each network allows it. Reply, assign and mark done."
+      },
+      "f5": {
+        "t": "Analytics",
+        "d": "Impressions, reach, engagement and clicks per post, followers per account and a CSV export."
+      },
+      "f6": {
+        "t": "Your keys, your server",
+        "d": "You connect your own developer apps, tokens are stored encrypted and each member only posts to the accounts you give them."
+      },
+      "steps": {
+        "s1": {
+          "t": "Connect your accounts",
+          "d": "An admin connects the company pages and profiles and chooses who posts to each one."
+        },
+        "s2": {
+          "t": "Plan the week",
+          "d": "Write the posts, fill the queue and send them for approval if needed."
+        },
+        "s3": {
+          "t": "Answer and measure",
+          "d": "Reply from the inbox and check which posts worked."
+        }
+      },
+      "compare": {
+        "rival": "Hootsuite",
+        "price": "$99",
+        "per": "/ user / month",
+        "team": "$11,880",
+        "zero": "$0",
+        "note": "Hootsuite Standard is from $99 per user per month billed annually, per Hootsuite's plans page (October 29, 2026); Professional is from $199. A team of ten on Standard pays $11,880 a year. Social on your server costs $0; each network may charge for its own API (for example X)."
+      },
+      "faq": {
+        "f1": {
+          "q": "Which networks can I connect?",
+          "a": "Facebook pages, Instagram business accounts, LinkedIn profiles and company pages, X, TikTok, YouTube, Threads and Bluesky. Bluesky connects with an app password; the rest need a developer app created by whoever runs the server. We are still verifying each network with live accounts."
+        },
+        "f2": {
+          "q": "Do I need to create developer apps?",
+          "a": "Yes, on your own server. Each network asks for its own app (Meta, LinkedIn, X, TikTok, Google and Threads) and some, like Meta and LinkedIn, review it before you can post to company pages. The docs list every step and variable."
+        },
+        "f3": {
+          "q": "What does the inbox include?",
+          "a": "Comments and messages on Facebook and Instagram, comments on LinkedIn, YouTube and Threads, replies and mentions on Bluesky, and mentions on X if your X API plan includes reading them. TikTok does not offer comments through its public API."
+        },
+        "f4": {
+          "q": "Can someone post only after approval?",
+          "a": "Yes. Mark a member as needing approval and their posts wait for an admin, who approves or rejects them with a comment."
+        },
+        "f5": {
+          "q": "What is missing compared with Hootsuite?",
+          "a": "Social listening, paid ads, employee advocacy, Pinterest, video on X and an AI writer inside the composer (the suite assistant can draft posts), among others. The parity table lists it row by row."
+        }
+      },
+      "cta": {
+        "title1": "Social is ready to try.",
+        "title2": "Tell us what you are missing.",
+        "sub": "Connect your accounts and vote on the public board for what we should do next.",
+        "button": "Propose an idea"
+      }
     }
   },
   "product": {
@@ -1624,7 +1709,7 @@
     "apiDocs": "API docs",
     "howTitle": "How it works.",
     "suiteTitle": "One workspace.",
-    "suiteTitleDim": "Eighteen apps, same login.",
+    "suiteTitleDim": "Nineteen apps, same login.",
     "shotTitle": "{name}, inside.",
     "crumbs": "Breadcrumb",
     "navLabel": "{name} sections",
@@ -2033,6 +2118,20 @@
       "s1": "Viewed pricing",
       "s2": "Started signup",
       "s3": "Created a project"
+    },
+    "social": {
+      "sketch": "Sketch",
+      "title": "This week",
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "p1": "Launch post",
+      "p2": "Customer story",
+      "p3": "Event reminder",
+      "composer": "New post",
+      "text": "Our new product ships today. #launch",
+      "counter": "X 37/280",
+      "approve": "Waiting for approval"
     }
   },
   "status": {
@@ -2852,12 +2951,14 @@
     "paramAnalyticsAfter": "Only events with a larger id.",
     "paramAnalyticsCohort": "Only persons in this cohort id.",
     "scope_analytics_read": "Read Analytics projects, events, persons and run queries.",
-    "scope_analytics_write": "Change Analytics projects, insights, dashboards, cohorts and flags."
+    "scope_analytics_write": "Change Analytics projects, insights, dashboards, cohorts and flags.",
+    "scope_social_read": "Read Social posts on the accounts you can see.",
+    "scope_social_write": "Create Social drafts and scheduled posts (with approval if you need it)."
   },
   "parityOverview": {
     "title": "Feature parity, app by app.",
     "titleDim": "Measured against each competitor.",
-    "lead": "Average parity across the 18 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
+    "lead": "Average parity across the 19 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
     "col": {
       "app": "App",
       "competitor": "Compared with",

@@ -69,7 +69,8 @@
     "analytics": "Analytics",
     "platform": "Plataforma",
     "site": "Site",
-    "other": "Outro"
+    "other": "Outro",
+    "social": "Social"
   },
   "empty": "Ainda não há ideias. Proponha a primeira.",
   "emptySearch": "Nada corresponde à busca. Tente outras palavras ou proponha a ideia.",

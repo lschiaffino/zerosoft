@@ -30,7 +30,8 @@
       "design": "Design",
       "analytics": "Analytics",
       "site": "Site",
-      "other": "Outro"
+      "other": "Outro",
+      "social": "Social"
     },
     "messageLabel": "Mensagem",
     "placeholder": {

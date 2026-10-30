@@ -65,6 +65,7 @@
   --c-design: #00a5c8;
   --c-shop: #15803d;
   --c-analytics: #4f46e5;
+  --c-social: #be185d;
 
   /* Forma: la del tema (--radius-1). */
   --r-xs: var(--radius-1);
@@ -148,6 +149,7 @@ body {
 .card-talk { --accent: var(--c-talk); --on-accent: #ffffff; }
 .card-shop { --accent: var(--c-shop); --on-accent: #ffffff; }
 .card-analytics { --accent: var(--c-analytics); --on-accent: #ffffff; }
+.card-social { --accent: var(--c-social); --on-accent: #ffffff; }
 /* El color del producto, oscurecido para usarlo como texto sobre blanco. */
 [class*='card-'] { --accent-ink: color-mix(in srgb, var(--accent) 74%, var(--ink)); }
 

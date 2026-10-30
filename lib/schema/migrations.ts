@@ -7254,6 +7254,209 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Social (Hootsuite): cuentas conectadas por OAuth con tokens cifrados
+    // (secret-box), quién publica en cada una, roles (con o sin aprobación),
+    // publicaciones con un destino por cuenta (claim por fila en
+    // claimed_until, reintentos con next_attempt_at), horarios de la cola,
+    // bandeja (comentarios, menciones y DMs) con respuestas, métricas por
+    // publicación y por día de cada cuenta, biblioteca, estados de OAuth
+    // (state + PKCE), historial de aprobaciones, eventos de webhooks ya vistos
+    // y las subidas de Social (las publicaciones solo usan archivos de acá).
+    id: '137_social',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS social_accounts (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          network TEXT NOT NULL,
+          kind TEXT NOT NULL DEFAULT 'profile',
+          external_id TEXT NOT NULL,
+          name TEXT NOT NULL DEFAULT '',
+          handle TEXT,
+          avatar_url TEXT,
+          profile_url TEXT,
+          access_token TEXT,
+          refresh_token TEXT,
+          token_expires_at TEXT,
+          refresh_expires_at TEXT,
+          meta TEXT NOT NULL DEFAULT '{}',
+          status TEXT NOT NULL DEFAULT 'connected',
+          status_error TEXT,
+          connected_by TEXT,
+          refresh_claimed_until TEXT,
+          inbox_due_at TEXT,
+          inbox_claimed_until TEXT,
+          inbox_cursor TEXT,
+          metrics_due_at TEXT,
+          metrics_claimed_until TEXT,
+          followers INTEGER,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE (workspace_id, network, external_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_social_accounts_ws ON social_accounts(workspace_id);
+        CREATE TABLE IF NOT EXISTS social_account_members (
+          account_id TEXT NOT NULL REFERENCES social_accounts(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (account_id, person_id)
+        );
+        CREATE TABLE IF NOT EXISTS social_roles (
+          workspace_id TEXT NOT NULL,
+          person_id TEXT NOT NULL,
+          role TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (workspace_id, person_id)
+        );
+        CREATE TABLE IF NOT EXISTS social_posts (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          created_by TEXT NOT NULL,
+          text TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'draft',
+          scheduled_at TEXT,
+          published_at TEXT,
+          first_comment TEXT,
+          media TEXT NOT NULL DEFAULT '[]',
+          link_url TEXT,
+          short_url TEXT,
+          approval_by TEXT,
+          approval_at TEXT,
+          approval_comment TEXT,
+          submitted_at TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_social_posts_ws ON social_posts(workspace_id, scheduled_at);
+        CREATE TABLE IF NOT EXISTS social_post_targets (
+          id TEXT PRIMARY KEY,
+          post_id TEXT NOT NULL REFERENCES social_posts(id) ON DELETE CASCADE,
+          account_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          text_override TEXT,
+          status TEXT NOT NULL DEFAULT 'pending',
+          attempts INTEGER NOT NULL DEFAULT 0,
+          next_attempt_at TEXT,
+          claimed_until TEXT,
+          publish_ref TEXT,
+          external_id TEXT,
+          external_url TEXT,
+          error_code TEXT,
+          error_message TEXT,
+          published_at TEXT,
+          comment_status TEXT,
+          impressions INTEGER,
+          reach INTEGER,
+          engagement INTEGER,
+          likes INTEGER,
+          comments INTEGER,
+          shares INTEGER,
+          clicks INTEGER,
+          views INTEGER,
+          metrics_at TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE (post_id, account_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_social_targets_due ON social_post_targets(status, next_attempt_at);
+        CREATE INDEX IF NOT EXISTS idx_social_targets_account ON social_post_targets(account_id, published_at);
+        CREATE TABLE IF NOT EXISTS social_slots (
+          id TEXT PRIMARY KEY,
+          account_id TEXT NOT NULL REFERENCES social_accounts(id) ON DELETE CASCADE,
+          workspace_id TEXT NOT NULL,
+          weekday INTEGER NOT NULL,
+          minute INTEGER NOT NULL,
+          tz TEXT NOT NULL DEFAULT 'UTC',
+          created_at TEXT NOT NULL,
+          UNIQUE (account_id, weekday, minute)
+        );
+        CREATE TABLE IF NOT EXISTS social_inbox (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          account_id TEXT NOT NULL REFERENCES social_accounts(id) ON DELETE CASCADE,
+          kind TEXT NOT NULL,
+          external_id TEXT NOT NULL,
+          thread_ref TEXT,
+          target_id TEXT,
+          author_name TEXT NOT NULL DEFAULT '',
+          author_handle TEXT,
+          author_id TEXT,
+          text TEXT NOT NULL DEFAULT '',
+          received_at TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'open',
+          assigned_to TEXT,
+          done_at TEXT,
+          done_by TEXT,
+          created_at TEXT NOT NULL,
+          UNIQUE (account_id, kind, external_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_social_inbox_ws ON social_inbox(workspace_id, status, received_at);
+        CREATE TABLE IF NOT EXISTS social_inbox_replies (
+          id TEXT PRIMARY KEY,
+          item_id TEXT NOT NULL REFERENCES social_inbox(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          text TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'sent',
+          external_id TEXT,
+          error TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS social_account_stats (
+          account_id TEXT NOT NULL REFERENCES social_accounts(id) ON DELETE CASCADE,
+          day TEXT NOT NULL,
+          followers INTEGER,
+          impressions INTEGER,
+          reach INTEGER,
+          engagement INTEGER,
+          PRIMARY KEY (account_id, day)
+        );
+        CREATE TABLE IF NOT EXISTS social_library (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          name TEXT NOT NULL,
+          body TEXT NOT NULL DEFAULT '',
+          media TEXT NOT NULL DEFAULT '[]',
+          created_by TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_social_library_ws ON social_library(workspace_id, kind);
+        CREATE TABLE IF NOT EXISTS social_oauth_states (
+          state TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          person_id TEXT NOT NULL,
+          network TEXT NOT NULL,
+          verifier TEXT,
+          created_at TEXT NOT NULL,
+          expires_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS social_post_events (
+          id TEXT PRIMARY KEY,
+          post_id TEXT NOT NULL REFERENCES social_posts(id) ON DELETE CASCADE,
+          person_id TEXT,
+          kind TEXT NOT NULL,
+          body TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS social_webhook_events (
+          id TEXT PRIMARY KEY,
+          created_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS social_media (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          url TEXT NOT NULL UNIQUE,
+          mime TEXT NOT NULL,
+          size INTEGER NOT NULL,
+          created_by TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_social_media_ws ON social_media(workspace_id);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
