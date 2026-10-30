@@ -70,6 +70,10 @@
     --c-shop-ink: #3fb96b;
     --c-shop: #3fb96b;
     --c-shop-on: #111111;
+  /* Analytics: el índigo base no llega a 4,5:1 sobre el fondo oscuro; relleno claro y tinta encima. */
+  --c-analytics-ink: #8f8af2;
+  --c-analytics: #8f8af2;
+  --c-analytics-on: #111111;
 
     /* Semánticos: -ink para texto, -soft mezclado con el fondo oscuro. */
     --ok-ink: #2bb062;
@@ -162,6 +166,10 @@
   --c-shop-ink: #3fb96b;
   --c-shop: #3fb96b;
   --c-shop-on: #111111;
+  /* Analytics: el índigo base no llega a 4,5:1 sobre el fondo oscuro; relleno claro y tinta encima. */
+  --c-analytics-ink: #8f8af2;
+  --c-analytics: #8f8af2;
+  --c-analytics-on: #111111;
 
   /* Semánticos: -ink para texto, -soft mezclado con el fondo oscuro. */
   --ok-ink: #2bb062;

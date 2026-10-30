@@ -38,6 +38,7 @@ export const RIVALS: Record<ProductKey, string> = {
   talk: 'Slack',
   design: 'Canva',
   shop: 'Shopify · Tiendanube',
+  analytics: 'PostHog',
 };
 
 /** Las seis apps de la tabla de costos del home (precio por usuario o plan fijo). */
@@ -143,4 +144,5 @@ export const PRODUCT_PAGES: Record<ProductKey, ProductPageSpec> = {
   design: { sections: ['shot', 'features', 'parity', 'compare', 'how', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
   // Sin bloque de precios: el de Shopify no se pudo verificar en USD (ver pages.json › products.shop.compare.note).
   shop: { sections: ['shot', 'features', 'parity', 'how', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
+  analytics: { sections: ['shot', 'features', 'how', 'parity', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
 };

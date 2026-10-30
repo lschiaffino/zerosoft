@@ -185,6 +185,19 @@ export interface SidebarLabels {
     store: string;
     newProduct: string;
   };
+  /** Analytics (PostHog): web, eventos, insights, tableros, personas, cohortes, flags y SQL. */
+  analytics: {
+    web: string;
+    events: string;
+    insights: string;
+    dashboards: string;
+    persons: string;
+    cohorts: string;
+    flags: string;
+    sql: string;
+    projects: string;
+    newInsight: string;
+  };
   notifications: {
     title: string;
     markRead: string;
@@ -238,7 +251,8 @@ export type AppProduct =
   | 'rec'
   | 'talk'
   | 'design'
-  | 'shop';
+  | 'shop'
+  | 'analytics';
 
 const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/crm', 'crm'],
@@ -257,6 +271,7 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/talk', 'talk'],
   ['/app/design', 'design'],
   ['/app/shop', 'shop'],
+  ['/app/analytics', 'analytics'],
 ];
 
 /** La app del shell para una clave de producto (Cal vive en /app/calendar). */
@@ -297,6 +312,7 @@ const APP_ICONS: Record<ProductKey, IconName> = {
   talk: 'talk',
   design: 'design',
   shop: 'shop',
+  analytics: 'analytics',
 };
 
 /** Producto de la app según la ruta. /app (inicio) y /app/settings son la plataforma (neutro); /app/links es Link. */
@@ -721,6 +737,40 @@ export function buildNav(
         },
         appSettingsGroup('/app/design/settings'),
       ];
+    case 'analytics': {
+      const a = labels.analytics;
+      return [
+        {
+          items: [
+            { href: '/app/analytics', label: a.web, active: pathname === '/app/analytics', icon: 'analytics' },
+            { href: '/app/analytics/events', label: a.events, active: at('/app/analytics/events'), icon: 'live' },
+          ],
+        },
+        {
+          section: labels.insights,
+          items: [
+            { href: '/app/analytics/insights', label: a.insights, active: at('/app/analytics/insights'), icon: 'insights' },
+            // Los tableros cuelgan del ítem (AnalyticsBranch en el hueco #side-branch), como en PostHog.
+            { href: '/app/analytics/dashboards', label: a.dashboards, active: at('/app/analytics/dashboards'), icon: 'dashboards', branch: true },
+            { href: '/app/analytics/sql', label: a.sql, active: at('/app/analytics/sql'), icon: 'sql' },
+          ],
+        },
+        {
+          section: labels.records,
+          items: [
+            { href: '/app/analytics/persons', label: a.persons, active: at('/app/analytics/persons'), icon: 'contacts' },
+            { href: '/app/analytics/cohorts', label: a.cohorts, active: at('/app/analytics/cohorts'), icon: 'groups' },
+            { href: '/app/analytics/flags', label: a.flags, active: at('/app/analytics/flags'), icon: 'flag' },
+          ],
+        },
+        {
+          items: [
+            { href: '/app/analytics/projects', label: a.projects, active: at('/app/analytics/projects'), icon: 'folder' },
+            { href: '/app/analytics/settings', label: labels.appSettings, active: at('/app/analytics/settings'), icon: 'settings' },
+          ],
+        },
+      ];
+    }
 
     case 'shop':
       return [
@@ -801,6 +851,12 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
   switch (product) {
     case 'voice':
       return [item('/app/voice?new=1', labels.voice.newMeeting, 'voice')];
+    case 'analytics':
+      return [
+        item('/app/analytics/insights/new', labels.analytics.newInsight, 'insights'),
+        item('/app/analytics/dashboards?new=1', labels.analytics.dashboards, 'dashboards'),
+        item('/app/analytics/flags?new=1', labels.analytics.flags, 'flag'),
+      ];
     case 'home':
     case 'talk':
       // Sin app activa: crear lo más común de cada una.

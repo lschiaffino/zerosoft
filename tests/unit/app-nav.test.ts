@@ -20,15 +20,15 @@ import { pageExists } from './page-exists';
 const root = join(__dirname, '..', '..');
 const appDir = join(root, 'app', '[locale]');
 
-const SWITCHER_ORDER: AppProduct[] = ['link', 'crm', 'shop', 'docs', 'calendar', 'track', 'chat', 'groups', 'flow', 'notes', 'board', 'design', 'talk', 'voice', 'rec', 'agents', 'robots'];
-const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop'];
+const SWITCHER_ORDER: AppProduct[] = ['link', 'crm', 'shop', 'docs', 'calendar', 'track', 'chat', 'groups', 'flow', 'notes', 'board', 'design', 'talk', 'voice', 'rec', 'agents', 'robots', 'analytics'];
+const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics'];
 
 // Labels de prueba: cada hoja es su propia ruta ("crm.contacts"), así los
 // ítems sin label se notan.
 function fakeLabels(): SidebarLabels {
   const proxy = (prefix: string): unknown =>
     new Proxy({}, { get: (_t, key) => (typeof key === 'string' ? `${prefix}${key}` : undefined) });
-  const nested = ['categories', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'notifications'];
+  const nested = ['categories', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'notifications'];
   return new Proxy({} as SidebarLabels, {
     get: (_t, key) => (typeof key === 'string' && nested.includes(key) ? proxy(`${key}.`) : String(key)),
   });
@@ -55,6 +55,8 @@ describe('sidebar de la app', () => {
     expect(appProductFromPath('/app/rec/settings')).toBe('rec');
     expect(appProductFromPath('/app/talk')).toBe('talk');
     expect(appProductFromPath('/app/design/abc')).toBe('design');
+    expect(appProductFromPath('/app/analytics/insights')).toBe('analytics');
+    expect(appProductFromPath('/app/links/analytics')).toBe('link');
     // El asistente es de la plataforma: shell neutro, nunca el de Link.
     expect(appProductFromPath('/app/assistant')).toBe('home');
   });
@@ -108,7 +110,7 @@ describe('sidebar de la app', () => {
     expect(readFileSync(join(appDir, 'app', 'docs', 'page.tsx'), 'utf8')).toMatch(/sp\.new === '1'/);
   });
 
-  it('el switcher sale de PRODUCT_CONFIG: las 17 apps, en el orden de siempre', () => {
+  it('el switcher sale de PRODUCT_CONFIG: las 18 apps, en el orden de siempre', () => {
     expect(SWITCHER_PRODUCTS.map((p) => p.key)).toEqual(PRODUCTS.filter((p) => p !== 'home').sort((a, b) => SWITCHER_ORDER.indexOf(a) - SWITCHER_ORDER.indexOf(b)));
     expect(SWITCHER_PRODUCTS.find((p) => p.key === 'calendar')).toMatchObject({ line: 'cal', name: 'Cal', href: '/app/calendar' });
     expect(SWITCHER_PRODUCTS[0]).toMatchObject({ key: 'link', href: '/app/links' });

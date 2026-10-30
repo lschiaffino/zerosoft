@@ -74,6 +74,18 @@ async function groupsNumber(request: APIRequestContext): Promise<string> {
 }
 
 /**
+ * Proyecto de Analytics del smoke: el primero del workspace (es el que las
+ * listas muestran sin cookie de proyecto); si no hay, se crea.
+ */
+let analyticsProjectId: string | null = null;
+async function analyticsProject(request: APIRequestContext): Promise<string> {
+  if (analyticsProjectId) return analyticsProjectId;
+  const { projects } = await ok<{ projects: Array<{ id: string }> }>(request.get('/api/analytics/projects'));
+  analyticsProjectId = projects[0]?.id ?? (await ok<{ project: { id: string } }>(request.post('/api/analytics/projects', { data: { name: 'Smoke site' } }))).project.id;
+  return analyticsProjectId;
+}
+
+/**
  * Video de Rec listo, subido por la API como lo hace el grabador sin Blob:
  * crear, una parte, cerrar la subida y terminar. El título queda fijado por la
  * persona (si no, el resumen falso de la IA lo reemplaza).
@@ -569,6 +581,68 @@ const APPS: AppCase[] = [
     detail: (i) => `/en/app/voice/settings?tab=prompts&prompt=${i.id}`,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/voice/prompts/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/voice/prompts/${i.id}`))),
+  },
+  {
+    app: 'Analytics insights',
+    list: '/en/app/analytics/insights',
+    create: async (request, name) => {
+      const projectId = await analyticsProject(request);
+      const { insight } = await ok<{ insight: { id: string } }>(
+        request.post('/api/analytics/insights', { data: { projectId, name, query: { kind: 'trends', series: [{ event: '$pageview' }] } } }),
+      );
+      return { id: insight.id, name };
+    },
+    detail: (i) => `/en/app/analytics/insights/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/analytics/insights/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/analytics/insights/${i.id}`))),
+  },
+  {
+    app: 'Analytics dashboards',
+    list: '/en/app/analytics/dashboards',
+    // Cuelgan de "Dashboards" en el sidebar (AnalyticsBranch).
+    sidebar: true,
+    create: async (request, name) => {
+      const projectId = await analyticsProject(request);
+      return { id: (await ok<{ dashboard: { id: string } }>(request.post('/api/analytics/dashboards', { data: { projectId, name } }))).dashboard.id, name };
+    },
+    detail: (i) => `/en/app/analytics/dashboards/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/analytics/dashboards/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/analytics/dashboards/${i.id}`))),
+  },
+  {
+    app: 'Analytics flags',
+    list: '/en/app/analytics/flags',
+    create: async (request, name) => {
+      const projectId = await analyticsProject(request);
+      const key = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      return { id: (await ok<{ flag: { id: string } }>(request.post('/api/analytics/flags', { data: { projectId, key, name } }))).flag.id, name };
+    },
+    detail: (i) => `/en/app/analytics/flags/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/analytics/flags/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/analytics/flags/${i.id}`))),
+  },
+  {
+    app: 'Analytics cohorts',
+    list: '/en/app/analytics/cohorts',
+    create: async (request, name) => {
+      const projectId = await analyticsProject(request);
+      const definition = { properties: [], behavior: { event: '$pageview', days: 30, minCount: 1 } };
+      return { id: (await ok<{ cohort: { id: string } }>(request.post('/api/analytics/cohorts', { data: { projectId, name, definition } }))).cohort.id, name };
+    },
+    detail: (i) => `/en/app/analytics/cohorts?open=${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/analytics/cohorts/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/analytics/cohorts/${i.id}`))),
+  },
+  {
+    app: 'Analytics projects',
+    list: '/en/app/analytics/projects',
+    create: async (request, name) => {
+      await analyticsProject(request);
+      return { id: (await ok<{ project: { id: string } }>(request.post('/api/analytics/projects', { data: { name } }))).project.id, name };
+    },
+    detail: (i) => `/en/app/analytics/settings?project=${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/analytics/projects/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/analytics/projects/${i.id}`))),
   },
 ];
 
