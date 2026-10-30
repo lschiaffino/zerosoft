@@ -171,9 +171,21 @@ export async function POST(req: NextRequest) {
         items: body.items,
         // Lo mismo que después de un guardado (versión automática, recordatorios de fechas y
         // page.updated), pero como mucho una vez cada 15 s por página: no en cada tanda de teclas.
-        onSaved: (before) =>
-          after(() =>
-            throttledAfterSave(row.id, before, async (first) => {
+        onSaved: (before, blocks) =>
+          after(async () => {
+            // Un recordatorio de fecha que se escribe o se borra: al instante (no espera al grupo).
+            if (before.content.includes('data-remind') || blocks.some((b) => typeof b.content === 'string' && b.content.includes('data-remind'))) {
+              const { syncDocReminders } = await import('@/lib/docs-reminders');
+              await syncDocReminders({
+                pageId: row.id,
+                workspaceId: row.user_id,
+                actorId: me,
+                blocks,
+                locale: locale === 'es' || locale === 'pt' || locale === 'en' ? locale : undefined,
+                timezone,
+              }).catch(() => undefined);
+            }
+            await throttledAfterSave(row.id, before, async (first) => {
               const [{ maybeAutoSnapshot }, { afterDocsPageSaved }, { syncDocReminders }, { parseBlocks }] = await Promise.all([
                 import('@/lib/docs-versions'),
                 import('@/lib/docs-events'),
@@ -192,8 +204,8 @@ export async function POST(req: NextRequest) {
                 locale: locale === 'es' || locale === 'pt' || locale === 'en' ? locale : undefined,
                 timezone,
               }).catch(() => undefined);
-            }),
-          ),
+            });
+          }),
       });
     } catch (err) {
       if (err instanceof CoeditAccessError) return notFound();

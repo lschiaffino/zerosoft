@@ -225,7 +225,8 @@ test('D5: sin conexión lo escrito queda en el dispositivo y se guarda al volver
     .poll(async () => JSON.stringify(((await (await request.get(`/api/docs/pages/${doc.id}`)).json()) as { content: unknown }).content), { timeout: 15_000 })
     .toContain(`sin red ${tag}`);
   await expect(page.getByTestId('docs-offline-banner')).toBeHidden();
-  expect(await page.evaluate(findDraft, doc.id)).toBeNull();
+  // El borrador se borra cuando el servidor confirmó lo escrito (lo propio viaja como operaciones).
+  await expect.poll(() => page.evaluate(findDraft, doc.id), { timeout: 15_000 }).toBeNull();
   // "Disponible sin conexión" queda marcado.
   const menu = await openMenu(page);
   await menu.getByTestId('docs-offline-toggle').click();
