@@ -366,10 +366,13 @@ export function useDocsCollab(d: Deps) {
       // Cada foto del historial suma lo que trajo la fusión (deshacer no deshace
       // lo ajeno). Se hace ya, no al pintar: dos fusiones seguidas antes de un
       // render no pierden la primera.
-      const rebase = (s: DocsSnapshot): DocsSnapshot => ({
-        title: mergeTitle(prev.title, title, s.title),
-        blocks: mergeBlocksDetailed(prev.blocks, blocks, s.blocks).blocks,
-      });
+      // Edición simultánea: un bloque que la fusión sacó (otra persona lo unió a otro, y lo
+      // propio ya se mudó ahí) tampoco vuelve al deshacer; si no, su texto quedaba dos veces.
+      const gone = co ? new Set(prev.blocks.filter((b) => !blocks.some((x) => x.id === b.id)).map((b) => b.id)) : null;
+      const rebase = (s: DocsSnapshot): DocsSnapshot => {
+        const out = mergeBlocksDetailed(prev.blocks, blocks, s.blocks).blocks;
+        return { title: mergeTitle(prev.title, title, s.title), blocks: gone?.size ? out.filter((b) => !gone.has(b.id)) : out };
+      };
       const { historyRef } = depsRef.current;
       const h = historyRef.current;
       historyRef.current = {

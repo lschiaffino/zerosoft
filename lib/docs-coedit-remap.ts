@@ -88,6 +88,16 @@ export interface RemapResult<B extends RemapBlock> {
   touched: string[];
 }
 
+/** Letras (sin contar espacios) que tiene que tener una cola para reconocerla dentro de un bloque nuevo con más texto. */
+const MIN_TAIL = 3;
+
+/** Largo del final común de dos textos. */
+function commonSuffix(a: string, b: string): number {
+  let n = 0;
+  while (n < a.length && n < b.length && a[a.length - 1 - n] === b[b.length - 1 - n]) n++;
+  return n;
+}
+
 /** Solo formato (tags), sin texto. */
 const isMarkup = (s: string) => /^(?:<[^>]*>)+$/.test(s);
 
@@ -243,6 +253,8 @@ export function remapStructure<B extends RemapBlock>(
     if (!joined) continue;
     let span: ReturnType<typeof deletedSpan> = null;
     let spText = '';
+    /** Largo del final de lo borrado que está al final de los bloques nuevos. */
+    let matched = 0;
     let t: RemoteTrace | null = null;
     let p: B | null = null;
     /** Bloques entre el cortado y los nuevos (los más cercanos primero). */
@@ -259,14 +271,23 @@ export function remapStructure<B extends RemapBlock>(
         if (between.some((b) => str(b) !== '' && (bornAt(b.id) ?? -Infinity) < x.at - 1000)) return false;
         const found = deletedSpan(x.prev, x.op);
         if (!found) return false;
+        // Cuánto del final de lo borrado es el final de los bloques nuevos (la cola que se mudó).
+        // Lo de antes pudo borrarse de verdad en la misma operación (borrar una palabra y Enter).
+        let best: { v: NonNullable<typeof found>; text: string; m: number } | null = null;
         for (const v of shiftedSpans(x.prev, found)) {
-          spText = plainOf(v.text).text;
-          if (spText.trim() && joined.endsWith(spText)) {
-            span = v;
-            return true;
-          }
+          const text = plainOf(v.text).text;
+          const m = commonSuffix(text, joined);
+          if (!best || m > best.m) best = { v, text, m };
         }
-        return false;
+        if (!best || !best.text.trim()) return false;
+        // Una cola corta (una o dos letras) se confunde con cualquier bloque que termine igual: solo
+        // cuenta si es todo el bloque nuevo (allá no se escribió nada más).
+        const enough = best.m >= MIN_TAIL ? best.text.slice(best.text.length - best.m).trim().length >= MIN_TAIL : best.m === best.text.length && joined === best.text;
+        if (!enough) return false;
+        span = best.v;
+        spText = best.text;
+        matched = best.m;
+        return true;
       });
       if (t) p = cand;
       else between.push(cand);
@@ -286,9 +307,9 @@ export function remapStructure<B extends RemapBlock>(
     if (!orphan) continue;
     // Dónde va: donde se escribía (lo conservado en el medio del corte), o al final de la
     // cola cortada (lo que la otra persona escribió en los bloques nuevos queda en su lugar).
-    const tailAt = joined.lastIndexOf(spText);
+    const tailAt = joined.length - matched;
     const keptPlain = sp.keptAt === null ? spText.length : plainOf(sp.text.slice(0, sp.keptAt)).text.length;
-    let pos = Math.min(joined.length, tailAt + keptPlain);
+    let pos = Math.min(joined.length, tailAt + Math.max(0, keptPlain - (spText.length - matched)));
     // El bloque del tramo donde cae esa posición (en un borde, el de antes: el que termina con la cola).
     let k = 0;
     while (k < run.length - 1 && pos > plains[k].text.length) {

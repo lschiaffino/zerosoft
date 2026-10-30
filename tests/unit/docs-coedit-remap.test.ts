@@ -243,6 +243,40 @@ describe('remapStructure (partir y unir mientras se escribe)', () => {
     expect(res.blocks.map((b) => b.content)).toEqual(['first lineMMsecond line uno dos']);
   });
 
+  it('A borra la última letra (justo antes de lo propio), Enter y escribe algo que termina igual: nada se mueve', () => {
+    const S0 = 'hello world mine uno';
+    const V = 'hello world mine uno dos';
+    const op = [19, -1, 4];
+    const traces: RemoteTrace[] = [{ block: 'p', at: 0, prev: V, op, own: true, tailOwn: ownTail(S0, V, op) }];
+    const now = apply(V, op) + ' tres';
+    const prev = [blk('p', now), blk('q', 'other')];
+    const merged = [blk('p', now), blk('r', 'foo'), blk('q', 'other')];
+    expect(remapStructure(prev, merged, merged, traces, { block: 'p', index: now.length }, () => true, () => 0)).toBeNull();
+  });
+
+  it('cortar una palabra repetida ("go go |go")', () => {
+    const V = 'go go go XX';
+    const op = [6, -2, 3];
+    const traces: RemoteTrace[] = [{ block: 'p', at: 0, prev: V, op, own: true, tailOwn: ownTail('go go go', V, op) }];
+    const now = 'go go  XX YY';
+    const merged = [blk('p', now), blk('n', 'go')];
+    const res = remapStructure([blk('p', now)], merged, merged, traces, { block: 'p', index: now.length }, () => true, () => 0)!;
+    expect(res.blocks.map((b) => b.content)).toEqual(['go go ', 'go XX YY']);
+  });
+
+  it('borrar una palabra y Enter en la misma operación: la cola se muda con lo propio, lo borrado no', () => {
+    // "alpha beta| gamma delta uno dos t": Alt+Backspace borra "beta", Enter parte en "alpha |".
+    const V = 'alpha beta gamma delta uno dos tres';
+    const op = [6, -26, 3];
+    expect(apply(V, op)).toBe('alpha res');
+    const traces: RemoteTrace[] = [{ block: 'p', at: 0, prev: V, op, own: true, tailOwn: ownTail('alpha beta gamma delta uno dos t', V, op) }];
+    const now = 'alpha res cuatro';
+    const merged = [blk('p', now), blk('n', 'AA gamma delta uno dos t')];
+    const res = remapStructure([blk('p', now)], merged, merged, traces, { block: 'p', index: now.length })!;
+    expect(res.blocks.map((b) => b.content)).toEqual(['alpha ', 'AA gamma delta uno dos tres cuatro']);
+    expect(res.caret).toEqual({ block: 'n', index: 'AA gamma delta uno dos tres cuatro'.length });
+  });
+
   it('deletedSpan y singleInsert', () => {
     expect(deletedSpan('abcdef', [2, -2, 2])).toEqual({ start: 2, at: 2, text: 'cd', keptAt: null, keptLen: 0 });
     expect(deletedSpan('abXcd', [-2, 1, -2])).toEqual({ start: 0, at: 0, text: 'abcd', keptAt: 2, keptLen: 1 });
