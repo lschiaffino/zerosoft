@@ -17,6 +17,7 @@
  * Todo es puro (sin DOM ni React) para poder testearlo.
  */
 import type { DocsBlock } from './docs-types';
+import { OpError, rebaseText, type TextOp } from './docs-ot';
 
 export interface DocsSnapshot {
   title: string;
@@ -120,6 +121,52 @@ export function redoStep(h: DocsHistory, current: DocsSnapshot): { history: Docs
   return {
     snapshot,
     history: { past: push(h.past, current), future: h.future.slice(0, -1), typing: null },
+  };
+}
+
+/** Operaciones por las que pasó el texto de un bloque (de `prev` a lo siguiente), en orden. */
+export type DocsTextSteps = Record<string, Array<{ op: TextOp; prev: string }>>;
+
+/**
+ * Una foto con lo que escribió otra persona (edición simultánea): el texto de
+ * cada bloque tocado se transforma contra esas operaciones, así lo ajeno
+ * queda en la foto y deshacer solo saca lo propio. `cache` reutiliza el
+ * resultado entre fotos con el mismo texto (casi todas, en un historial).
+ */
+export function rebaseSnapshotText(s: DocsSnapshot, steps: DocsTextSteps, cache = new Map<string, string>()): DocsSnapshot {
+  let changed = false;
+  const blocks = s.blocks.map((b) => {
+    const list = steps[b.id];
+    if (!list?.length || typeof b.content !== 'string') return b;
+    const key = `${b.id}\u0000${b.content}`;
+    let text = cache.get(key);
+    if (text === undefined) {
+      text = b.content;
+      for (const st of list) {
+        try {
+          text = rebaseText(text, st.prev, st.op);
+        } catch (err) {
+          // Una foto que no sale del mismo texto (no debería): queda como estaba.
+          if (!(err instanceof OpError)) throw err;
+        }
+      }
+      cache.set(key, text);
+    }
+    if (text === b.content) return b;
+    changed = true;
+    return { ...b, content: text };
+  });
+  return changed ? { ...s, blocks } : s;
+}
+
+/** Todo el historial (deshacer y rehacer) con lo que escribió otra persona. */
+export function rebaseHistoryText(h: DocsHistory, steps: DocsTextSteps): DocsHistory {
+  if (!Object.keys(steps).length || (!h.past.length && !h.future.length)) return h;
+  const cache = new Map<string, string>();
+  return {
+    past: h.past.map((s) => rebaseSnapshotText(s, steps, cache)),
+    future: h.future.map((s) => rebaseSnapshotText(s, steps, cache)),
+    typing: h.typing,
   };
 }
 

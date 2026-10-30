@@ -1256,6 +1256,8 @@
     "adminsOnly": "Só os admins mudam isto.",
     "memberRole": "Os membros podem",
     "memberRoleHelp": "Acesso total também permite compartilhar, publicar, mover páginas e usar a lixeira. Pode ver ou Pode comentar deixa o Docs só leitura para os membros.",
+    "collabTitle": "Colaboração",
+    "collabHelp": "Como várias pessoas trabalham na mesma página ao mesmo tempo.",
     "securityTitle": "Segurança",
     "securityHelp": "O que estiver desligado só os admins podem fazer.",
     "allow_export": {
@@ -1269,6 +1271,10 @@
     "allow_guests": {
       "label": "Convidar convidados",
       "help": "Compartilhar uma página por email com pessoas de fora do workspace."
+    },
+    "coedit": {
+      "label": "Edição simultânea em tempo real (beta)",
+      "help": "Cada pessoa vê as teclas das outras enquanto são digitadas. Pode perder alguns caracteres se alguém dividir um bloco enquanto você digita; se acontecer, desligue. Desligada: as mudanças de cada uma se mesclam ao salvar."
     },
     "nameRequired": "Dê um nome ao teamspace.",
     "newTeamspace": "Teamspace novo",
@@ -1734,5 +1740,10 @@
     "forbiddenBody": "Peça acesso de edição a um admin do seu workspace.",
     "failed": "Não foi possível duplicar. Tente de novo.",
     "untitled": "Sem título"
+  },
+  "coedit": {
+    "revoked": "Você não tem mais acesso a esta página. As mudanças das outras pessoas pararam de chegar e o que você digitar aqui não é salvo.",
+    "backToDocs": "Voltar ao Docs",
+    "revokedView": "Você não tem mais acesso a esta página."
   }
 }

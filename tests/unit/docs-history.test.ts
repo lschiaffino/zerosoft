@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { diff } from '@/lib/docs-ot';
 import {
   DOCS_HISTORY_GROUP_MS,
   DOCS_HISTORY_LIMIT,
@@ -6,6 +7,8 @@ import {
   emptyHistory,
   firstChangedBlock,
   historyShortcut,
+  rebaseHistoryText,
+  rebaseSnapshotText,
   recordChange,
   redoStep,
   undoStep,
@@ -119,5 +122,57 @@ describe('docs-history: deshacer y rehacer', () => {
     expect(k('y', { ctrlKey: true })).toBe('redo');
     expect(k('z')).toBeNull();
     expect(k('z', { metaKey: true, altKey: true })).toBeNull();
+  });
+});
+
+describe('rebaseHistoryText (edición simultánea)', () => {
+  const snap = (p: string, q = 'otro'): DocsSnapshot => ({
+    title: 'T',
+    blocks: [
+      { id: 'p', type: 'paragraph', content: p },
+      { id: 'q', type: 'paragraph', content: q },
+    ],
+  });
+
+  it('deshacer y rehacer después de texto ajeno solo tocan lo propio', () => {
+    let h = emptyHistory();
+    let cur = snap('The quick brown fox');
+    // Paso propio 1.
+    let next = snap('The quick brown fox jumps');
+    h = recordChange(h, cur, next, 0);
+    cur = next;
+    // Llega "Hey " de otra persona: el historial y la pantalla la suman.
+    const steps1 = { p: [{ prev: cur.blocks[0].content, op: diff(cur.blocks[0].content, 'Hey The quick brown fox jumps') }] };
+    h = rebaseHistoryText(h, steps1);
+    cur = rebaseSnapshotText(cur, steps1);
+    expect(cur.blocks[0].content).toBe('Hey The quick brown fox jumps');
+    // Paso propio 2 (después de la pausa que corta el grupo).
+    next = snap('Hey The quick brown fox jumps high');
+    h = recordChange(h, cur, next, DOCS_HISTORY_GROUP_MS + 10);
+    cur = next;
+    // Otra persona escribe al final.
+    const steps2 = { p: [{ prev: cur.blocks[0].content, op: diff(cur.blocks[0].content, 'Hey The quick brown fox jumps high BKEEP') }] };
+    h = rebaseHistoryText(h, steps2);
+    cur = rebaseSnapshotText(cur, steps2);
+    // Deshacer dos veces: se van los dos pasos propios, queda lo ajeno.
+    const u1 = undoStep(h, cur)!;
+    expect(u1.snapshot.blocks[0].content).toBe('Hey The quick brown fox jumps BKEEP');
+    const u2 = undoStep(u1.history, u1.snapshot)!;
+    expect(u2.snapshot.blocks[0].content).toBe('Hey The quick brown fox BKEEP');
+    // Mientras tanto otra persona escribe en el medio: rehacer lo conserva.
+    const steps3 = { p: [{ prev: u2.snapshot.blocks[0].content, op: diff(u2.snapshot.blocks[0].content, 'Hey The quick red brown fox BKEEP') }] };
+    const h3 = rebaseHistoryText(u2.history, steps3);
+    const cur3 = rebaseSnapshotText(u2.snapshot, steps3);
+    const r1 = redoStep(h3, cur3)!;
+    expect(r1.snapshot.blocks[0].content).toBe('Hey The quick red brown fox jumps BKEEP');
+    // El otro bloque no se toca.
+    expect(r1.snapshot.blocks[1].content).toBe('otro');
+  });
+
+  it('sin operaciones o sin historial devuelve lo mismo', () => {
+    const h = emptyHistory();
+    expect(rebaseHistoryText(h, { p: [] })).toBe(h);
+    const s = snap('a');
+    expect(rebaseSnapshotText(s, {})).toBe(s);
   });
 });

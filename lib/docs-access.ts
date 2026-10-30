@@ -37,6 +37,16 @@ export function maxRole<T extends string>(a: T | null, b: T | null): T | null {
   return roleRank(a) >= roleRank(b) ? a : b;
 }
 
+/** Cambiaron permisos de Docs: los streams en vivo revalidan ya (lib/docs-coedit.ts). Nunca tira. */
+async function notifyAccess(workspaceId: string, userId: string | null = null): Promise<void> {
+  try {
+    const { docsAccessChanged } = await import('./docs-coedit');
+    await docsAccessChanged(workspaceId, { userId });
+  } catch {
+    /* los streams igual revalidan solos cada pocos segundos */
+  }
+}
+
 /** Acceso que permite cambiar el contenido. */
 export function canWriteAccess(a: string | null | undefined): boolean {
   return a === 'owner' || a === 'full' || a === 'edit';
@@ -63,6 +73,8 @@ export interface DocsSettings {
   allow_publish: boolean;
   /** Invitar personas de afuera por email. */
   allow_guests: boolean;
+  /** Edición simultánea tecla por tecla (beta, se prende a mano). Apagada: cada guardado se fusiona como antes. */
+  coedit: boolean;
 }
 
 export const DEFAULT_DOCS_SETTINGS: DocsSettings = {
@@ -70,11 +82,12 @@ export const DEFAULT_DOCS_SETTINGS: DocsSettings = {
   allow_export: true,
   allow_publish: true,
   allow_guests: true,
+  coedit: false,
 };
 
 export async function getDocsSettings(workspaceId: string): Promise<DocsSettings> {
   const row = (await getDb().prepare('SELECT * FROM docs_settings WHERE workspace_id = ?').get(workspaceId)) as
-    | { member_role: string; allow_export: number; allow_publish: number; allow_guests: number }
+    | { member_role: string; allow_export: number; allow_publish: number; allow_guests: number; coedit?: number | null }
     | undefined;
   if (!row) return { ...DEFAULT_DOCS_SETTINGS };
   return {
@@ -82,17 +95,42 @@ export async function getDocsSettings(workspaceId: string): Promise<DocsSettings
     allow_export: row.allow_export !== 0,
     allow_publish: row.allow_publish !== 0,
     allow_guests: row.allow_guests !== 0,
+    coedit: row.coedit === 1,
   };
+}
+
+/**
+ * `DOCS_COEDIT` manda sobre el ajuste de cada workspace: `on` la prende para
+ * todos, `off` la apaga para todos (sin volver atrás un deploy si algo
+ * falla). Sin la variable, decide el ajuste (apagado por defecto: es beta).
+ */
+export function coeditEnvOverride(): boolean | null {
+  const v = (process.env.DOCS_COEDIT ?? '').trim().toLowerCase();
+  if (v === 'on' || v === '1' || v === 'true') return true;
+  if (v === 'off' || v === '0' || v === 'false') return false;
+  return null;
+}
+
+/** Edición simultánea para este workspace: la variable de entorno o, si no está, el ajuste de Docs. */
+export async function coeditEnabled(workspaceId: string): Promise<boolean> {
+  const forced = coeditEnvOverride();
+  if (forced !== null) return forced;
+  try {
+    return (await getDocsSettings(workspaceId)).coedit;
+  } catch {
+    return false;
+  }
 }
 
 export async function updateDocsSettings(workspaceId: string, patch: Partial<DocsSettings>): Promise<DocsSettings> {
   const next = { ...(await getDocsSettings(workspaceId)), ...patch };
+  if (patch.member_role !== undefined) await notifyAccess(workspaceId);
   await getDb()
     .prepare(
-      `INSERT INTO docs_settings (workspace_id, member_role, allow_export, allow_publish, allow_guests, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)
+      `INSERT INTO docs_settings (workspace_id, member_role, allow_export, allow_publish, allow_guests, coedit, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(workspace_id) DO UPDATE SET member_role = excluded.member_role, allow_export = excluded.allow_export,
-         allow_publish = excluded.allow_publish, allow_guests = excluded.allow_guests, updated_at = excluded.updated_at`,
+         allow_publish = excluded.allow_publish, allow_guests = excluded.allow_guests, coedit = excluded.coedit, updated_at = excluded.updated_at`,
     )
     .run(
       workspaceId,
@@ -100,6 +138,7 @@ export async function updateDocsSettings(workspaceId: string, patch: Partial<Doc
       next.allow_export ? 1 : 0,
       next.allow_publish ? 1 : 0,
       next.allow_guests ? 1 : 0,
+      next.coedit ? 1 : 0,
       new Date().toISOString(),
     );
   return next;
@@ -339,6 +378,8 @@ export async function updateTeamspace(
     sets.push('updated_at = ?');
     args.push(new Date().toISOString());
     await getDb().prepare(`UPDATE docs_teamspaces SET ${sets.join(', ')} WHERE id = ?`).run(...args, id);
+    const ts = await getTeamspace(id);
+    if (ts) await notifyAccess(ts.workspace_id);
   }
   return getTeamspace(id);
 }
@@ -395,6 +436,8 @@ export async function removeTeamspaceMember(id: string, userId: string): Promise
     if (Number(owners.n) <= 1) return 'last_owner';
   }
   await getDb().prepare('DELETE FROM docs_teamspace_members WHERE teamspace_id = ? AND user_id = ?').run(id, userId);
+  const ts = await getTeamspace(id);
+  if (ts) await notifyAccess(ts.workspace_id, userId);
   return 'ok';
 }
 
@@ -407,4 +450,6 @@ export async function setSubtreeTeamspace(workspaceId: string, ids: string[], te
       .prepare(`UPDATE docs_pages SET teamspace_id = ? WHERE user_id = ? AND id IN (${chunk.map(() => '?').join(',')})`)
       .run(teamspaceId, workspaceId, ...chunk);
   }
+  // A un teamspace privado: quien la tenía abierta sin ser miembro deja de verla en el acto.
+  await notifyAccess(workspaceId);
 }

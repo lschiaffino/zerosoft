@@ -18,6 +18,8 @@
   --brand-gray-2: #5e5e5e; /* 6,5:1 */
   --brand-gray-3: #6e6e6e; /* 5,1:1, el gris más claro para texto */
   --brand-rule: #e8e8e8;
+  /* Selección de otra persona en Docs (edición simultánea). */
+  --peer-sel-opacity: 0.16;
   --brand-on-ink: #ffffff;
   --brand-on-ink-2: #b3b3b3; /* 9,4:1 sobre #0d0d0d */
   /* Flecha de los <select> (un data URI no toma currentColor). */

@@ -25,6 +25,8 @@ export interface LivePulse {
 const FAST_MS = 1500;
 const ALONE_MS = 4000;
 const HIDDEN_MS = 15000;
+/** Sin noticias de una sesión en este tiempo, su cursor deja de verse. */
+const PEER_STALE_MS = 30_000;
 
 function newSession(): string {
   try {
@@ -35,7 +37,7 @@ function newSession(): string {
 }
 
 /** Bloque y offsets de la selección actual dentro del editor (o nada). */
-function readCursor(root: HTMLElement | null): { block_id: string | null; start: number | null; end: number | null } {
+export function readCursor(root: HTMLElement | null): { block_id: string | null; start: number | null; end: number | null } {
   const none = { block_id: null, start: null, end: null };
   if (!root) return none;
   const sel = window.getSelection();
@@ -66,6 +68,8 @@ export function useDocsLive(opts: {
   const optsRef = useRef(opts);
   optsRef.current = opts;
   const peersRef = useRef<DocsPeer[]>([]);
+  /** Cuándo se supo de cada sesión por última vez (hora local). */
+  const seenAt = useRef(new Map<string, number>());
   const kick = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -88,6 +92,8 @@ export function useDocsLive(opts: {
         if (res.ok) {
           const pulse = (await res.json()) as LivePulse;
           peersRef.current = pulse.peers;
+          const at = Date.now();
+          for (const p of pulse.peers) seenAt.current.set(p.session, at);
           setPeers(pulse.peers);
           o.onPulse(pulse);
         }
@@ -142,5 +148,48 @@ export function useDocsLive(opts: {
     };
   }, [opts.pageId, opts.enabled]);
 
-  return { peers, session: session.current, pulseNow: () => kick.current() };
+  // Volver con Atrás/Adelante (la pestaña quedó en la caché del navegador): esa sesión ya
+  // avisó que se fue, así que se empieza una nueva (si no, sus pulsos no volverían a contar).
+  const [, setGen] = useState(0);
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (!e.persisted) return;
+      session.current = newSession();
+      setGen((g) => g + 1);
+      kick.current();
+    };
+    window.addEventListener('pageshow', onShow);
+    return () => window.removeEventListener('pageshow', onShow);
+  }, []);
+
+  // Una sesión que se fue sin avisar (sin `leave`, o sin pulsos que la saquen): su cursor se apaga solo.
+  useEffect(() => {
+    const sweep = setInterval(() => {
+      // Con la hora de esta pantalla (no la del servidor: los relojes pueden no coincidir).
+      const cutoff = Date.now() - PEER_STALE_MS;
+      const next = peersRef.current.filter((x) => (seenAt.current.get(x.session) ?? Date.now()) >= cutoff);
+      if (next.length === peersRef.current.length) return;
+      peersRef.current = next;
+      setPeers(next);
+    }, 5_000);
+    return () => clearInterval(sweep);
+  }, []);
+
+  /** Cursor de otra sesión que llegó por el feed en vivo (lib/docs-coedit.ts): se ve al instante. */
+  const upsertPeer = (p: DocsPeer) => {
+    seenAt.current.set(p.session, Date.now());
+    const list = peersRef.current;
+    const i = list.findIndex((x) => x.session === p.session);
+    const next = i >= 0 ? list.map((x, k) => (k === i ? { ...x, ...p } : x)) : [p, ...list];
+    peersRef.current = next;
+    setPeers(next);
+  };
+  const removePeer = (sessionId: string) => {
+    const next = peersRef.current.filter((x) => x.session !== sessionId);
+    if (next.length === peersRef.current.length) return;
+    peersRef.current = next;
+    setPeers(next);
+  };
+
+  return { peers, session: session.current, pulseNow: () => kick.current(), upsertPeer, removePeer };
 }

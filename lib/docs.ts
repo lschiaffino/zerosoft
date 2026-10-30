@@ -18,7 +18,8 @@ import { pageLinkIds, type PageLinkCandidate } from './docs-page-links';
 import { databaseRowEntries } from './docs-database';
 import { applySamePageRows, prepareDatabaseSave, type DbEffect } from './docs-db-save';
 import { mergeBlocksDetailed, mergeField } from './docs-merge';
-import { getRevision, nextUpdatedAt, recordRevisions } from './docs-revisions';
+import { getRevision, getRevisionAtOrBefore, nextUpdatedAt, recordRevisions } from './docs-revisions';
+import { neutralizeTextForSave } from './docs-coedit-shared';
 import {
   buildSnippet,
   matchesAll,
@@ -508,6 +509,18 @@ export interface UpdateDocPageInput {
    * para fusionar, guarda igual. Con la base, la fusión ya hace ganar lo que llega.
    */
   merge?: 'ours';
+  /**
+   * El editor manda el texto de los bloques existentes como operaciones
+   * (lib/docs-coedit.ts): el texto de esos bloques queda el del servidor y
+   * este guardado solo cuenta para estructura y bloques nuevos.
+   */
+  text_ops?: boolean;
+}
+
+/** Avisa a los streams en vivo de Docs que cambiaron permisos (lib/docs-coedit.ts). */
+export async function docsAccessChangedLazy(workspaceId: string, pageId: string | null, userId: string | null = null): Promise<void> {
+  const { docsAccessChanged } = await import('./docs-coedit');
+  await docsAccessChanged(workspaceId, { pageId, userId });
 }
 
 /** La página cambió desde el `base_updated_at` que mandó el cliente. */
@@ -561,6 +574,13 @@ export async function updateDocPage(
   const syncedSeenAt = new Map((incoming ?? []).filter((b) => b.type === 'synced' && b.synced_id && b.synced_at).map((b) => [b.synced_id!, b.synced_at!]));
   if (incoming) incoming = stripSyncedChildren(incoming);
   const rowBlocks = stripSyncedChildren(parseBlocks(row.content));
+  // Edición simultánea apagada (ajuste o DOCS_COEDIT): un editor viejo que manda text_ops guarda igual su texto.
+  if (input.text_ops) {
+    const { coeditEnabled } = await import('./docs-access');
+    if (!(await coeditEnabled(ownerId))) input = { ...input, text_ops: false };
+  }
+  // Con operaciones de texto, el texto de los bloques que ya existen es el del servidor.
+  if (incoming && input.text_ops) incoming = neutralizeTextForSave(null, rowBlocks, incoming).ours;
   const fields: { title?: string; icon?: string | null; cover_url?: string | null } = {
     title: input.title?.trim(),
     icon: input.icon,
@@ -573,7 +593,8 @@ export async function updateDocPage(
     // pestaña, una automatización o una operación del servidor sobre una base):
     // se fusiona contra esa versión (lib/docs-merge.ts). Donde los dos tocaron
     // lo mismo gana quien guarda y lo otro queda en el historial de versiones.
-    const rev = await getRevision(pageId, base);
+    // Con operaciones de texto la base solo aporta la estructura: alcanza la última versión hasta esa marca.
+    const rev = (await getRevision(pageId, base)) ?? (input.text_ops ? await getRevisionAtOrBefore(pageId, base) : null);
     const touchesText = incoming !== undefined || fields.title !== undefined || fields.icon !== undefined || fields.cover_url !== undefined;
     if (touchesText) {
       if (!rev) {
@@ -584,7 +605,9 @@ export async function updateDocPage(
         clashed = true;
       } else {
         if (incoming !== undefined) {
-          const merged = mergeBlocksDetailed(stripSyncedChildren(parseBlocks(rev.content)), rowBlocks, incoming);
+          let revBlocks = stripSyncedChildren(parseBlocks(rev.content));
+          if (input.text_ops) revBlocks = neutralizeTextForSave(revBlocks, rowBlocks, incoming).base!;
+          const merged = mergeBlocksDetailed(revBlocks, rowBlocks, incoming);
           incoming = merged.blocks;
           if (merged.conflicts.length) clashed = true;
         }
@@ -777,6 +800,16 @@ export async function updateDocPage(
     .run(...args);
   // Otro guardado se coló entre el SELECT y el UPDATE.
   if (base !== undefined && result.changes === 0) throw new DocsConflictError();
+  // Rol de los miembros, herencia o lugar en el árbol: cambia quién la ve (también las subpáginas).
+  // A la papelera o de vuelta: también.
+  if (
+    input.member_role !== undefined ||
+    input.inherit_shares !== undefined ||
+    (input.parent_id !== undefined && input.parent_id !== row.parent_id) ||
+    (input.archived !== undefined && (input.archived ? 1 : 0) !== row.archived)
+  ) {
+    await docsAccessChangedLazy(ownerId, null).catch(() => undefined);
+  }
   await recordRevisions(row, {
     updated_at: updatedAt,
     title: fields.title ?? row.title,
@@ -835,6 +868,18 @@ export async function updateDocPage(
     }
   }
 
+  // Edición simultánea: el texto que cambió por acá llega a los editores abiertos como
+  // operación, y todos piden la versión nueva ya (sin esperar el pulso).
+  if (savedContent || fields.title !== undefined) {
+    try {
+      const { coeditAfterSave, coeditSaved } = await import('./docs-coedit');
+      const { coeditEnabled } = await import('./docs-access');
+      if (savedContent && (await coeditEnabled(ownerId))) await coeditAfterSave(pageId, rowBlocks);
+      await coeditSaved(row, updatedAt, opts.actorId ?? null);
+    } catch {
+      /* el feed en vivo es un extra: el guardado ya quedó */
+    }
+  }
   const updated = (await getDb().prepare('SELECT * FROM docs_pages WHERE id = ?').get(pageId)) as DocsPageRow;
   // Flow y webhooks: page.updated (agrupado), filas nuevas, propiedades cambiadas y papelera.
   const { afterDocsPageSaved } = await import('./docs-events');
@@ -1017,6 +1062,8 @@ export async function deleteDocPage(ownerId: string, pageId: string): Promise<bo
   await getDb()
     .prepare(`DELETE FROM docs_pages WHERE id IN (${placeholders})`)
     .run(...ids);
+  // Quien la tenía abierta (o una subpágina) deja de verla en el acto.
+  await docsAccessChangedLazy(ownerId, null).catch(() => undefined);
   return true;
 }
 
@@ -1249,6 +1296,9 @@ export async function updateDocShareRole(
     .get(shareId, pageId)) as DocsShareRow | undefined;
   if (!share || share.kind === 'public') return null;
   await getDb().prepare('UPDATE docs_shares SET role = ? WHERE id = ?').run(role, shareId);
+  // Los editores abiertos de esa persona pasan al rol nuevo (o se cortan) en el acto,
+  // también en las subpáginas que heredan este share (por eso, todo el workspace).
+  await docsAccessChangedLazy(ownerId, null);
   return toShare({ ...share, role });
 }
 
@@ -1304,6 +1354,8 @@ export async function deleteDocShare(
   const res = await getDb()
     .prepare('DELETE FROM docs_shares WHERE id = ? AND page_id = ?')
     .run(shareId, pageId);
+  // Quien tenía la página abierta por ese share deja de verla en el acto (también las subpáginas).
+  if (res.changes > 0) await docsAccessChangedLazy(ownerId, null);
   return res.changes > 0;
 }
 

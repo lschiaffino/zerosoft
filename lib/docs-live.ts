@@ -39,6 +39,8 @@ export async function touchPresence(args: {
   now?: Date;
 }): Promise<void> {
   const now = (args.now ?? new Date()).toISOString();
+  // Una sesión que ya se fue (cerró la pestaña): un pulso o cursor que llega tarde no la revive.
+  if (await sessionLeft(args.pageId, args.session)) return;
   await getDb()
     .prepare(
       `INSERT INTO docs_presence (page_id, session_id, user_id, block_id, sel_start, sel_end, mode, updated_at)
@@ -56,6 +58,15 @@ export async function touchPresence(args: {
 
 export async function leavePresence(pageId: string, session: string, userId: string): Promise<void> {
   await getDb().prepare('DELETE FROM docs_presence WHERE page_id = ? AND session_id = ? AND user_id = ?').run(pageId, session, userId);
+}
+
+/** La sesión avisó que se fue de la página (feed en vivo, lib/docs-coedit.ts). */
+export async function sessionLeft(pageId: string, session: string): Promise<boolean> {
+  try {
+    return !!(await getDb().prepare("SELECT 1 FROM docs_live_events WHERE kind = 'leave' AND page_id = ? AND session_id = ? LIMIT 1").get(pageId, session));
+  } catch {
+    return false;
+  }
 }
 
 /** Las demás sesiones presentes en la página (la propia no). */

@@ -21,6 +21,7 @@ import { fireNoteReminders } from '@/lib/notes-reminders';
 import { fireDocReminders } from '@/lib/docs-reminders';
 import { fireVerificationExpiry } from '@/lib/docs-verify';
 import { pruneDocsAudit } from '@/lib/docs-audit';
+import { pruneEvents as pruneDocsLiveEvents } from '@/lib/docs-coedit';
 import { runAutoCycles } from '@/lib/track-auto-cycles';
 import { runRecurringIssues } from '@/lib/track-recurring';
 import { runHousekeeping } from '@/lib/track-housekeeping';
@@ -93,6 +94,8 @@ export async function GET(req: NextRequest) {
   // (claim por fila en verify_notified_at) y poda la auditoría de más de un año.
   const docVerify = await fireVerificationExpiry({ limit: 500 }).catch(() => null);
   const docAuditPruned = await pruneDocsAudit().catch(() => null);
+  // Feed en vivo de Docs: operaciones de más de una hora y el resto (cursores, avisos) de más de dos minutos.
+  await pruneDocsLiveEvents().catch(() => null);
   // Track: lo que corre solo. Los recordatorios van antes que los emails.
   const trackCycles = await runAutoCycles().catch(() => null);
   const trackRecurring = await runRecurringIssues({ limit: 200 }).catch(() => null);

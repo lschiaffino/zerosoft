@@ -1256,6 +1256,8 @@
     "adminsOnly": "Only admins can change this.",
     "memberRole": "Members can",
     "memberRoleHelp": "Full access also lets them share, publish, move pages and use the trash. Can view or Can comment makes Docs read only for members.",
+    "collabTitle": "Collaboration",
+    "collabHelp": "How people work on the same page at the same time.",
     "securityTitle": "Security",
     "securityHelp": "When something is off, only admins can do it.",
     "allow_export": {
@@ -1269,6 +1271,10 @@
     "allow_guests": {
       "label": "Invite guests",
       "help": "Share a page with people outside the workspace by email."
+    },
+    "coedit": {
+      "label": "Real-time co-editing (Beta)",
+      "help": "Everyone sees each keystroke as it is typed. It may lose a few characters if someone splits a block while you type; turn it off if you see it. Off: each person's changes merge when they save."
     },
     "nameRequired": "Give the teamspace a name.",
     "newTeamspace": "New teamspace",
@@ -1734,5 +1740,10 @@
     "forbiddenBody": "Ask an admin of your workspace for edit access.",
     "failed": "Could not duplicate. Try again.",
     "untitled": "Untitled"
+  },
+  "coedit": {
+    "revoked": "You no longer have access to this page. Changes from others stopped and nothing you type here is saved.",
+    "backToDocs": "Back to Docs",
+    "revokedView": "You no longer have access to this page."
   }
 }

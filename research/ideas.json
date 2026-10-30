@@ -790,7 +790,7 @@
     "kind": "idea",
     "parity": "realtime-editing",
     "status": "done",
-    "changelog": "2026-10-25-docs-collab"
+    "changelog": "2026-10-29-docs-coedit"
   },
   {
     "title": "Docs: Add filter, sort, group and board view to database blocks",

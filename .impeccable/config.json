@@ -65,6 +65,15 @@
         ],
         "createdAt": "2026-10-27T05:16:02.965Z",
         "reason": "agent: regex in an HTML import parser, not a rendered img"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "tests/unit/docs-coedit-client.test.ts"
+        ],
+        "createdAt": "2026-10-30T06:55:22.215Z",
+        "reason": "agent decision: the <img onerror> string is an intentional XSS payload in a sanitizer unit test, not rendered UI"
       }
     ]
   }

@@ -29,6 +29,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-29-docs-coedit',
+    date: '2026-10-29',
+    title: {
+      en: 'Docs: real-time co-editing, keystroke by keystroke (opt-in beta)',
+      es: 'Docs: edición simultánea en tiempo real, tecla por tecla (beta, a elección)',
+      pt: 'Docs: edição simultânea em tempo real, tecla por tecla (beta opcional)',
+    },
+    items: [
+      { product: 'docs', en: 'It is an opt-in beta: an admin turns it on for the workspace in Docs settings. It may lose a few characters if someone splits a block while you type; turn it off if you see it.', es: 'Es una beta a elección: un admin la prende para el workspace en los ajustes de Docs. Puede perder algunos caracteres si alguien parte un bloque mientras escribís; si lo ves, apagala.', pt: 'É uma beta opcional: um admin liga para o workspace nos ajustes do Docs. Pode perder alguns caracteres se alguém dividir um bloco enquanto você digita; se acontecer, desligue.' },
+      { product: 'docs', en: 'Two or more people can type in the same paragraph, even on the same word, and everyone sees each keystroke as it happens. Nothing typed is lost and every screen ends up with the same text.', es: 'Dos o más personas pueden escribir en el mismo párrafo, incluso sobre la misma palabra, y cada una ve las teclas de las demás a medida que se escriben. No se pierde nada de lo escrito y todas las pantallas terminan con el mismo texto.', pt: 'Duas ou mais pessoas podem digitar no mesmo parágrafo, até na mesma palavra, e cada uma vê as teclas das outras enquanto são digitadas. Nada do que foi digitado se perde e todas as telas terminam com o mesmo texto.' },
+      { product: 'docs', en: 'Cursors and selections of the other people show up right away with their name and color, and undo only undoes your own changes, even when someone typed in the middle of them. Blocks with links to other pages still merge when they save.', es: 'Los cursores y las selecciones de las demás personas aparecen al instante con su nombre y su color, y deshacer solo deshace lo tuyo, aunque otra persona haya escrito en el medio. Los bloques con links a otras páginas se siguen fusionando al guardar.', pt: 'Os cursores e as seleções das outras pessoas aparecem na hora com nome e cor, e desfazer só desfaz o que é seu, mesmo que outra pessoa tenha digitado no meio. Os blocos com links para outras páginas continuam se mesclando ao salvar.' },
+      { product: 'docs', en: 'If you lose your connection you keep writing; when it comes back your text merges with what others wrote meanwhile. People with read access see edits live too, and if someone removes your access the page stops updating and closes at once.', es: 'Si se corta la conexión seguís escribiendo; al volver, lo tuyo se fusiona con lo que escribieron las demás personas mientras tanto. Quien solo lee también ve los cambios en vivo, y si te sacan el acceso la página deja de actualizarse y se cierra en el acto.', pt: 'Se a conexão cair você continua escrevendo; quando voltar, o seu texto se mescla com o que os outros escreveram nesse meio-tempo. Quem só lê também vê as mudanças ao vivo, e se tirarem o seu acesso a página para de atualizar e se fecha na hora.' },
+    ],
+  },
+  {
     id: '2026-10-30-forms',
     date: '2026-10-30',
     title: {

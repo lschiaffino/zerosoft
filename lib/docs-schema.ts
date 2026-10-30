@@ -431,6 +431,8 @@ export const docPageUpdateSchema = z.object({
   base_updated_at: z.string().min(1).max(64).optional(),
   /** "Sobrescribir" tras un conflicto: fusiona y en lo que choca gana lo que llega. */
   merge: z.literal('ours').optional(),
+  /** El texto de los bloques existentes viaja como operaciones (lib/docs-coedit.ts). */
+  text_ops: z.boolean().optional(),
 });
 
 export const docShareRoleSchema = z.enum(['view', 'comment', 'edit', 'full']);
@@ -448,7 +450,7 @@ export const docShareUpdateSchema = z.object({
 });
 
 /** Campos que puede tocar alguien con un share de edición (no el dueño). */
-export const SHARED_EDITABLE_FIELDS = ['title', 'icon', 'cover_url', 'cover_position', 'content', 'base_updated_at', 'merge', 'locale', 'timezone'] as const;
+export const SHARED_EDITABLE_FIELDS = ['title', 'icon', 'cover_url', 'cover_position', 'content', 'base_updated_at', 'merge', 'text_ops', 'locale', 'timezone'] as const;
 
 export const docCommentCreateSchema = z.object({
   body: z.string().trim().min(1).max(5000),

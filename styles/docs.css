@@ -1955,8 +1955,11 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
   font-size: 0.6875rem;
   line-height: 1.4;
   white-space: nowrap;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.docs-peer-sel { position: absolute; background: var(--peer); opacity: 0.16; }
+.docs-peer-sel { position: absolute; background: var(--peer); opacity: var(--peer-sel-opacity, 0.16); }
 
 /* Sugerencias en el texto: inserción subrayada en verde, borrado tachado. */
 .docs-editor span[data-sug-kind='ins'],

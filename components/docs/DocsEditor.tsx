@@ -114,7 +114,7 @@ import {
 } from '@/lib/docs-history';
 import { DOCS_IMPORT_MAX_BYTES, docsImportKind } from '@/lib/docs-import';
 import DocsBlockEditor from './DocsBlockEditor';
-import { useDocsCollab, type DocsEditorApi, type DocsEditorMode } from './useDocsCollab';
+import { useDocsCollab, type DocsCoeditStructure, type DocsEditorApi, type DocsEditorMode } from './useDocsCollab';
 import MentionPopover from './MentionPopover';
 import UserMentionPopover, { type DateMentionOption } from './UserMentionPopover';
 import { fetchLinkPreview } from './DocsLinkBlocks';
@@ -145,6 +145,10 @@ interface DocsEditorProps {
   remoteMerge?: DocsRemoteMerge | null;
   /** Ya se sumó a la pantalla (con el resultado: título y bloques). */
   onRemoteApplied?: (seq: number, merged: DocsSnapshot) => void;
+  /** Cambio propio en el editor (tipeo, deshacer, pegar…): la edición simultánea lo manda enseguida. */
+  onLocalChange?: () => void;
+  /** Edición simultánea al fusionar estructura (partir o unir el bloque donde otra persona escribe). */
+  coeditStructure?: DocsCoeditStructure | null;
   ancestors: DocsPage[];
   /** Guarda solo lo que edita el editor (no pisa archived/is_public). */
   onSave: (patch: Partial<DocsPage>) => void;
@@ -489,6 +493,8 @@ export default function DocsEditor({
   page,
   remoteMerge = null,
   onRemoteApplied,
+  onLocalChange,
+  coeditStructure = null,
   ancestors,
   onSave,
   saving,
@@ -691,8 +697,15 @@ export default function DocsEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page.id]);
 
+  const onLocalChangeRef = useRef(onLocalChange);
+  onLocalChangeRef.current = onLocalChange;
   /** Fusión remota en curso (useDocsCollab): no es un paso propio del historial. */
   const consumeRemoteRef = useRef<(next: DocsSnapshot) => boolean>(() => false);
+  /** Caret después de una fusión remota: en layout, antes de que llegue otra tecla (useDocsCollab). */
+  const restoreCaretRef = useRef<() => void>(() => undefined);
+  useLayoutEffect(() => {
+    restoreCaretRef.current();
+  }, [title, blocks]);
 
   // Cada cambio de título o bloques (tipeo, Enter, borrar, mover, pegar,
   // subir un archivo…) deja un paso en el historial; el tipeo se agrupa.
@@ -711,6 +724,7 @@ export default function DocsEditor({
       historyRef.current = recordChange(historyRef.current, lastSnap.current, next, Date.now());
     }
     lastSnap.current = next;
+    onLocalChangeRef.current?.();
   }, [title, blocks]);
 
   // No perder lo último tipeado: al salir de la página (navegación interna,
@@ -1137,6 +1151,26 @@ export default function DocsEditor({
   // Deshacer desde el menú del navegador (Edición › Deshacer): mismo historial.
   // beforeinput nativo (el onBeforeInput de React no trae inputType).
   const rootRef = useRef<HTMLDivElement | null>(null);
+  // Un clic o mover el caret (flechas, Inicio, Fin) corta el grupo de tipeo del
+  // deshacer: dos tandas de teclas separadas son dos pasos, como en Notion.
+  useEffect(() => {
+    const cut = () => {
+      if (historyRef.current.typing) historyRef.current = { ...historyRef.current, typing: null };
+    };
+    const onPointer = (e: PointerEvent) => {
+      if (rootRef.current && e.target instanceof Node && rootRef.current.contains(e.target)) cut();
+    };
+    const NAV = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown']);
+    const onKey = (e: KeyboardEvent) => {
+      if (NAV.has(e.key) && rootRef.current && e.target instanceof Node && rootRef.current.contains(e.target)) cut();
+    };
+    document.addEventListener('pointerdown', onPointer, true);
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('pointerdown', onPointer, true);
+      document.removeEventListener('keydown', onKey, true);
+    };
+  }, []);
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
@@ -1169,16 +1203,45 @@ export default function DocsEditor({
     apiRef,
     rootRef,
     titleRef,
+    coedit: coeditStructure,
+    // El caret de una fusión remota: también el bloque enfocado para el editor (si no,
+    // su efecto de foco lo devolvía al bloque de antes).
+    placeCaret: (index, start, end) => {
+      const el = blockRefs.current[index];
+      if (!el) return;
+      if (document.activeElement !== el) el.focus();
+      setSelectionOffsets(el, start, end);
+      // Y por el mismo camino que un caret propio (el efecto de foco lo aplica antes que
+      // su "volver al bloque enfocado", que en este render todavía es el de antes).
+      pendingSelection.current = { index, start, end };
+      setFocusIndex(index);
+      setFocusTick((v) => v + 1);
+    },
   });
   consumeRemoteRef.current = collab.consumeRemote;
+  restoreCaretRef.current = collab.restoreCaret;
 
   // Lo que cambió en el servidor (la respuesta fusionada de un guardado, la
   // versión de otra persona que trae el pulso en vivo, una automatización):
   // entra sin pisar lo que se editó acá desde entonces (lib/docs-merge.ts).
   const appliedMerge = useRef(0);
   const applyRemote = collab.api.applyRemote;
+  /** Una composición (IME, acentos) terminó: la fusión que esperaba entra ahora. */
+  const [composeTick, setComposeTick] = useState(0);
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    // Después de que entren las operaciones que esperaban (el motor las suelta a los 60 ms):
+    // primero el corte, después la estructura, como sin composición.
+    const onEnd = () => setTimeout(() => setComposeTick((v) => v + 1), 150);
+    root.addEventListener('compositionend', onEnd);
+    return () => root.removeEventListener('compositionend', onEnd);
+  }, []);
   useEffect(() => {
     if (!remoteMerge || remoteMerge.seq <= appliedMerge.current) return;
+    // Con una composición en curso no se rehace el bloque (el IME perdería lo que se compone):
+    // la fusión espera a que termine (y las operaciones que llegan en el medio, igual).
+    if (collab.composing.current) return;
     appliedMerge.current = remoteMerge.seq;
     const cur = live.current;
     const baseTitle = remoteMerge.sentTitle ?? cur.title;
@@ -1187,7 +1250,7 @@ export default function DocsEditor({
     if (res.changed && pendingSave.current) triggerSaveRef.current(res.merged.blocks, res.merged.title);
     onRemoteApplied?.(remoteMerge.seq, res.merged);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remoteMerge, onRemoteApplied]);
+  }, [remoteMerge, onRemoteApplied, composeTick]);
   const { suggestChange, onCompositionEnd, composing } = collab;
   /** Teclas del modo sugerir (se define más abajo, junto al cambio de bloque). */
   const suggestKeyDownRef = useRef<(index: number, e: React.KeyboardEvent<HTMLElement>) => boolean>(() => false);

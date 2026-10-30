@@ -13,6 +13,7 @@ const schema = z.object({
   allow_export: z.boolean().optional(),
   allow_publish: z.boolean().optional(),
   allow_guests: z.boolean().optional(),
+  coedit: z.boolean().optional(),
 });
 
 /** Ajustes de Docs del workspace activo (cualquiera los lee; los cambia un admin). */

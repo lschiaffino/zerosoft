@@ -15,7 +15,7 @@ import {
 import { stripFileUrls } from '@/lib/docs-files';
 import { SHARED_EDITABLE_FIELDS, docPageUpdateSchema } from '@/lib/docs-schema';
 import { maybeAutoSnapshot } from '@/lib/docs-versions';
-import { getRevision } from '@/lib/docs-revisions';
+import { getRevision, opStampsSince } from '@/lib/docs-revisions';
 import { runDbEffects } from '@/lib/docs-db-server';
 import type { DbEffect } from '@/lib/docs-db-save';
 import { notFound, unauthorized, invalidBody, forbidden, docsError } from '@/lib/docs-http';
@@ -114,7 +114,28 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
       const next = cleanContent(patch.content);
       // La versión que vio cada uno de los sincronizados no es un cambio de contenido.
       const noAt = (list: typeof prev) => list.map((b) => (b.synced_at ? { ...b, synced_at: undefined } : b));
-      const why = checkMarksOnlyChange(noAt(prev), noAt(next), actorId, !locked);
+      let why = checkMarksOnlyChange(noAt(prev), noAt(next), actorId, !locked);
+      if (why && rev) {
+        // Lo que otra persona escribió en vivo (operaciones) ya llegó a su pantalla y
+        // es más nuevo que su base: su pantalla es alguna versión entre su base y ahora.
+        // Contra esa versión solo cambian sus marcas; la fusión se hace contra ella.
+        const current = await editorBlocks(row, user);
+        if (!checkMarksOnlyChange(noAt(current), noAt(next), actorId, !locked)) {
+          why = null;
+          patch.base_updated_at = row.updated_at;
+        } else {
+          for (const at of await opStampsSince(row.id, patch.base_updated_at!, 30)) {
+            const mid = await getRevision(row.id, at);
+            if (!mid) continue;
+            const seen = await editorBlocks(row, user, parseBlocks(mid.content));
+            if (!checkMarksOnlyChange(noAt(seen), noAt(next), actorId, !locked)) {
+              why = null;
+              patch.base_updated_at = at;
+              break;
+            }
+          }
+        }
+      }
       if (why) return docsError(locked ? 423 : 403, locked ? 'locked' : why);
     }
   }
