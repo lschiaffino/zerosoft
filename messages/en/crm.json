@@ -2087,7 +2087,8 @@
       "title": "This view could not load",
       "body": "It may be a connection drop. Try again; if it keeps failing, let us know.",
       "retry": "Try again"
-    }
+    },
+    "sendForSignature": "Send for signature"
   },
   "rowTools": {
     "up": "Move up",

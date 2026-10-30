@@ -161,10 +161,20 @@
       "b": "Who is in the interview stage?",
       "c": "What scorecards am I missing?"
     },
+    "sign": {
+      "a": "Which envelopes are waiting on me?",
+      "b": "Who has not signed the latest contract?",
+      "c": "Which envelopes expire this week?"
+    },
     "books": {
       "a": "Which invoices are overdue?",
       "b": "How much did we invoice this month?",
       "c": "Draft an invoice for my last customer"
+    },
+    "forms": {
+      "a": "How many NPS responses did we get this week?",
+      "b": "Summarize the answers to my feedback form",
+      "c": "Create a contact form from a template"
     }
   },
   "page": {

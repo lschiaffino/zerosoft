@@ -34,7 +34,9 @@
       "other": "Otro",
       "social": "Social",
       "hiring": "Hiring",
-      "books": "Books"
+      "sign": "Sign",
+      "books": "Books",
+      "forms": "Forms"
     },
     "messageLabel": "Mensaje",
     "placeholder": {

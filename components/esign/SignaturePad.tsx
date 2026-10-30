@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from 'react';
 /**
  * Firma dibujada con mouse, dedo o lápiz (pointer events) sobre un canvas.
  * `onChange` recibe la firma como data URL JPEG con fondo blanco (lo que
- * guarda el servidor y va al certificado), o '' si está vacía.
+ * guarda el servidor y va al certificado), o '' si está vacía. La comparten
+ * las cotizaciones del CRM y Sign (estilos en styles/esign.css).
  */
 export default function SignaturePad({
   label,
@@ -68,10 +69,10 @@ export default function SignaturePad({
   }
 
   return (
-    <div className="qp-sign">
+    <div className="esign-pad">
       <canvas
         ref={ref}
-        className="qp-sign-canvas"
+        className="esign-pad-canvas"
         role="img"
         aria-label={label}
         data-testid="signature-pad"
@@ -112,10 +113,9 @@ export default function SignaturePad({
           last.current = null;
         }}
       />
-      <div className="qp-row">
-        <span className="qp-legal">{label}</span>
-        <span className="qp-spacer" />
-        <button type="button" className="qp-link" onClick={reset} disabled={empty}>
+      <div className="esign-pad-row">
+        <span className="esign-pad-label">{label}</span>
+        <button type="button" className="esign-pad-clear" onClick={reset} disabled={empty}>
           {clearLabel}
         </button>
       </div>

@@ -465,6 +465,22 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await ok(request.delete(`/api/shop/discounts/${i.id}`))),
   },
   {
+    app: 'Sign envelopes',
+    list: '/en/app/sign',
+    create: async (request, name) => ({ id: (await ok<{ envelope: { id: string } }>(request.post('/api/sign/envelopes', { data: { title: name } }))).envelope.id, name }),
+    detail: (i) => `/en/app/sign/envelopes/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/sign/envelopes/${i.id}`, { data: { title: name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/sign/envelopes/${i.id}`))),
+  },
+  {
+    app: 'Sign templates',
+    list: '/en/app/sign/templates',
+    create: async (request, name) => ({ id: (await ok<{ template: { id: string } }>(request.post('/api/sign/templates', { data: { name } }))).template.id, name }),
+    detail: (i) => `/en/app/sign/templates/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/sign/templates/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/sign/templates/${i.id}`))),
+  },
+  {
     app: 'Hiring jobs',
     list: '/en/app/hiring/jobs',
     create: async (request, name) => ({ id: (await ok<{ job: { id: string } }>(request.post('/api/hiring/jobs', { data: { title: name } }))).job.id, name }),
@@ -762,6 +778,14 @@ const APPS: AppCase[] = [
     detail: (i) => `/en/app/books/recurring/${i.id}`,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/books/recurring/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/books/recurring/${i.id}`))),
+  },  {
+    // Forms: un formulario desde una plantilla; el detalle es el builder (el nombre va en un input).
+    app: 'Forms',
+    list: '/en/app/forms',
+    create: async (request, name) => ({ id: (await ok<{ form: { id: string } }>(request.post('/api/forms', { data: { name, template: 'contact' } }))).form.id, name }),
+    detail: (i) => `/en/app/forms/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/forms/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/forms/${i.id}`))),
   },
 ];
 

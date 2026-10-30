@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
-import SignaturePad from '@/components/crm/SignaturePad';
+import SignaturePad from '@/components/esign/SignaturePad';
 import { parseDbUtc } from '@/lib/utils';
 
 interface QuotePublicActionsProps {

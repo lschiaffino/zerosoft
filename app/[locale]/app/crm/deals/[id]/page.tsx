@@ -5,7 +5,7 @@ import ActivityDateFacts from '@/components/crm/ActivityDateFacts';
 import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import { realUserId, requireUser } from '@/lib/session';
-import { workspaceTeamId } from '@/lib/workspace';
+import { userCanUseApp, workspaceTeamId } from '@/lib/workspace';
 import { listApprovals } from '@/lib/crm-approvals';
 import { getSplits } from '@/lib/crm-splits';
 import ApprovalBanner, { type ApprovalBannerItem } from '@/components/crm/ApprovalBanner';
@@ -214,6 +214,11 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
                 ...Object.fromEntries(Object.entries(parseCustom(deal.custom)).map(([k, v]) => [`custom.${k}`, Array.isArray(v) ? v.join(', ') : String(v ?? '')])),
               }}
             />
+            {userCanUseApp(user, 'sign') && user.role !== 'guest' && (
+              <Link className="btn btn-outline" href={`/app/sign/new?crm=deal:${deal.id}`}>
+                {t('record.sendForSignature')}
+              </Link>
+            )}
             <BookMeetingMenu
               eventTypes={meetingTypes}
               name={primaryContact ? contactName(primaryContact) || undefined : undefined}

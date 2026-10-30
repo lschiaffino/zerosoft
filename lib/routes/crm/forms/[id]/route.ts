@@ -34,7 +34,7 @@ export async function PATCH(req: NextRequest, props: Ctx) {
   const parsed = formUpdateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
   try {
-    return NextResponse.json(await updateForm(user.id, id, parsed.data));
+    return NextResponse.json(await updateForm(user.id, id, parsed.data, undefined, { person: realUserId(user), admin: isWorkspaceAdmin(user) }));
   } catch (e) {
     if (e instanceof FormError) return crmError(400, e.code);
     throw e;

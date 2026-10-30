@@ -39,6 +39,7 @@ import { purgeExpiredCandidates } from '@/lib/hiring/candidates';
 import { sendFeedbackReminders } from '@/lib/hiring/evaluation';
 import { syncAllInterviews } from '@/lib/hiring/interviews';
 import { peopleTick } from '@/lib/people-timeoff';
+import { runSignCron } from '@/lib/sign/signing';
 import { importResearchIdeas, researchIdeaSchema } from '@/lib/roadmap';
 import researchIdeas from '@/research/ideas.json';
 import { GET as remindersCron } from '../../calendar/reminders/due/route';
@@ -124,6 +125,10 @@ export async function GET(req: NextRequest) {
   // Books: facturas recurrentes (claim por fila en claimed_until + next_date), vencidas (status con compare-and-set) y
   // recordatorios de pago (reminder_count con compare-and-set).
   const books = await import('@/lib/books-recurring').then((m) => m.runBooksCron({ budgetMs: 20_000 })).catch(() => null);
+  // Sign: sobres vencidos, recordatorios (claim en reminded_at) y cierres trabados (claim en finalize_claimed_at).
+  const sign = await runSignCron().catch(() => null);
+  // Forms: retención de respuestas, archivos subidos que nunca se enviaron y visitas viejas (claim por fila en purge_claimed_at).
+  const forms = await import('@/lib/forms/responses').then((m) => m.purgeFormsRetention()).catch(() => null);
   // Papelera del CRM: lo borrado hace más de 90 días se descarta para siempre.
   const trashPurged = await purgeExpiredTrash().catch(() => null);
   // Board: papelera de más de 30 días y eventos de tiempo real viejos (son efímeros).
@@ -168,6 +173,6 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, linkHistory, analytics, peopleOoo, hiring, books, trashPurged, boardTrashPurged, boardEventsPruned, boardSearchBackfill,
+  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, linkHistory, analytics, peopleOoo, hiring, sign, books, forms, trashPurged, boardTrashPurged, boardEventsPruned, boardSearchBackfill,
     docsDomainsPurged, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, agentQuality, agentRedacted, robots, ideas });
 }

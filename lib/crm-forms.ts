@@ -31,6 +31,7 @@ import {
 import { LIFECYCLE_STAGES } from './crm-constants';
 import { isWorkspacePerson } from './crm-refs';
 import { emitEvent } from './events';
+import { csvCell, looksLikeSpam } from './form-engine';
 import type { OwnerScope } from './crm-visibility';
 
 export interface CrmForm {
@@ -184,10 +185,26 @@ async function slugTaken(slug: string, exceptId: string | null, db: Db): Promise
   const row = await db
     .prepare('SELECT 1 FROM crm_forms WHERE (slug = ? OR token = ?) AND id != ?')
     .get(slug, slug, exceptId ?? '');
-  return !!row;
+  if (row) return true;
+  // /f/<slug> es compartido con la app Forms: tampoco puede chocar con uno de sus formularios.
+  return !!(await db.prepare('SELECT 1 FROM forms_forms WHERE slug = ?').get(slug));
 }
 
 /** Valida referencias de settings (owner, lista, tags, secuencia) contra el workspace. */
+/**
+ * Emails de aviso de alguien que no creó el form ni es admin: solo personas
+ * del workspace (o las que el form ya tenía). Mismo criterio que la app Forms.
+ */
+async function assertInsiderEmails(workspaceId: string, emails: string[], kept: string[], db: Db): Promise<void> {
+  const { listOwnerSpacePeople } = await import('./workspace');
+  const people = await listOwnerSpacePeople(workspaceId, {}, db);
+  for (const e of emails) {
+    const email = e.trim().toLowerCase();
+    if (kept.some((k) => k.toLowerCase() === email)) continue;
+    if (!people.some((p) => p.email.toLowerCase() === email)) throw new FormError('notify_external_forbidden');
+  }
+}
+
 async function cleanSettings(workspaceId: string, patch: Partial<FormSettings>, db: Db): Promise<Partial<FormSettings>> {
   const out = { ...patch };
   if (out.ownerId && !(await isWorkspacePerson(workspaceId, out.ownerId, db))) throw new FormError('invalid_owner');
@@ -283,9 +300,14 @@ export async function updateForm(
     settings?: Partial<FormSettings>;
   },
   db: Db = getDb(),
+  /** Quién edita: una dirección de aviso de afuera del workspace solo la agrega quien creó el form o un admin. */
+  actor?: { person: string; admin: boolean },
 ): Promise<CrmForm | null> {
   const existing = await getForm(workspaceId, id, db);
   if (!existing) return null;
+  if (input.settings?.notifyEmails && actor && !actor.admin && existing.created_by !== actor.person) {
+    await assertInsiderEmails(workspaceId, input.settings.notifyEmails, existing.settings.notifyEmails, db);
+  }
   const sets: Array<[string, string | null]> = [];
   if (input.name !== undefined) sets.push(['name', input.name.trim().slice(0, 200)]);
   if (input.slug !== undefined) {
@@ -351,14 +373,6 @@ export async function listSubmissions(
     )
     .all(...args, pageSize, (page - 1) * pageSize)) as SubmissionRow[];
   return { rows, total };
-}
-
-function csvCell(value: unknown): string {
-  if (value === null || value === undefined) return '';
-  const s = String(value);
-  // Evita inyección de fórmulas al abrir el CSV en una planilla.
-  const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
-  return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
 
 /** CSV de envíos: fecha, contacto, una columna por campo y UTM. */
@@ -437,13 +451,11 @@ export async function submitForm(
     redirectUrl: s.successMode === 'redirect' ? s.redirectUrl : '',
   };
 
-  if ((body.website_url ?? '').trim()) return { ok: true, spam: true, ...success };
+  if (looksLikeSpam({ honeypot: body.website_url, minSeconds: 0 })) return { ok: true, spam: true, ...success };
   if (s.captcha && captchaConfigured() && !(await verifyCaptcha(body.captchaToken, meta.ip))) {
     return { ok: false, error: 'captcha' };
   }
-  if (s.minSubmitSeconds > 0 && body.elapsedMs !== undefined && body.elapsedMs < s.minSubmitSeconds * 1000) {
-    return { ok: true, spam: true, ...success };
-  }
+  if (looksLikeSpam({ elapsedMs: body.elapsedMs, minSeconds: s.minSubmitSeconds })) return { ok: true, spam: true, ...success };
 
   const urlParams = { ...urlParamsOf(body.pageUrl), ...(body.utm ?? {}) };
   const { values, errors } = validateSubmission(form.fields, s, body, urlParams);
@@ -650,7 +662,10 @@ export async function submitForm(
   if (s.notifyEmails.length) {
     const { sendEmail } = await import('./email');
     const base = (process.env.NEXTAUTH_URL ?? 'https://zerosoft.ai').replace(/\/$/, '');
+    const { rateLimit } = await import('./rate-limit');
     for (const to of s.notifyEmails) {
+      // Tope diario por form: un formulario público no puede volverse un relay de emails.
+      if (!(await rateLimit(`crm-form-notify:${form.id}`, 200, 86_400)).ok) break;
       await sendEmail({
         to,
         subject: `New submission: ${form.name}`,

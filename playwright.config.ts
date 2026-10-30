@@ -9,6 +9,9 @@ const PORT = Number(process.env.E2E_PORT) || 3210;
 // Los tests que tocan la base directo (p. ej. simular DNS verificado) la leen de acá.
 process.env.E2E_DB_FILE ??= path.join(os.tmpdir(), `zerosoft-e2e-${Date.now()}.db`);
 const dbFile = process.env.E2E_DB_FILE;
+// Emails "enviados" sin Resend (lib/email.ts): una línea JSON por email, para leer códigos y links.
+process.env.E2E_MAIL_FILE ??= path.join(os.tmpdir(), `zerosoft-e2e-mail-${Date.now()}.jsonl`);
+const mailFile = process.env.E2E_MAIL_FILE;
 
 /**
  * E2E contra la app real en DEMO_MODE (todo request es el usuario demo) y una
@@ -158,6 +161,8 @@ export default defineConfig({
       HIRING_AI_FAKE: '1',
       // Books: Stripe y Mercado Pago sin salir a internet; el cobro lo marca un webhook firmado (lib/books-payments.ts).
       BOOKS_PAYMENTS_FAKE: '1',
+      // Sign (y cualquier email sin Resend): captura de emails para leer el código y el link de firma.
+      EMAIL_CAPTURE_FILE: mailFile,
       AI_GATEWAY_API_KEY: '',
       VERCEL_OIDC_TOKEN: '',
     },

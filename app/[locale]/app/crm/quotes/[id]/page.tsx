@@ -11,6 +11,7 @@ import { QUOTE_TONE, badgeClass } from '@/lib/crm-ui-tones';
 import { isAppConnected } from '@/lib/crm-apps';
 import { getQuoteSignature } from '@/lib/crm-quote-sign';
 import '@/styles/quote.css';
+import '@/styles/esign.css';
 import { parseDbUtc } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';

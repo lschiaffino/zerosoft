@@ -856,8 +856,11 @@
     "hiring_candidate_applied": "Hiring: candidate applied",
     "hiring_candidate_stage_changed": "Hiring: candidate moved to a stage",
     "hiring_candidate_hired": "Hiring: candidate hired",
+    "sign_envelope_completed": "Sign: envelope completed",
+    "sign_envelope_declined": "Sign: envelope declined",
     "books_invoice_paid": "Books: invoice paid",
-    "books_invoice_overdue": "Books: invoice overdue"
+    "books_invoice_overdue": "Books: invoice overdue",
+    "forms_response_submitted": "Forms: response submitted"
   },
   "ops": {
     "equals": "equals",

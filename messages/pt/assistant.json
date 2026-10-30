@@ -161,10 +161,20 @@
       "b": "Quem está na etapa de entrevista?",
       "c": "Quais scorecards estão faltando?"
     },
+    "sign": {
+      "a": "Quais envelopes esperam minha assinatura?",
+      "b": "Quem não assinou o último contrato?",
+      "c": "Quais envelopes vencem esta semana?"
+    },
     "books": {
       "a": "Quais faturas estão vencidas?",
       "b": "Quanto faturamos este mês?",
       "c": "Crie uma fatura para meu último cliente"
+    },
+    "forms": {
+      "a": "Quantas respostas de NPS recebemos esta semana?",
+      "b": "Resuma as respostas do meu formulário de feedback",
+      "c": "Crie um formulário de contato a partir de um modelo"
     }
   },
   "page": {

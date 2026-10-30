@@ -29,7 +29,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Workable',
-  lastReviewed: '2026-10-29',
+  lastReviewed: '2026-10-30',
   areas: [
     { id: 'jobs', label: loc(['Jobs', 'Puestos', 'Vagas']) },
     { id: 'careers', label: loc(['Careers page and applying', 'Página de empleos y postulación', 'Página de vagas e candidatura']) },
@@ -151,7 +151,13 @@ const parity: ProductParity = {
     row('offer-accept', 'offers', ['Candidate accepts or declines online', 'El candidato acepta o rechaza en línea', 'O candidato aceita ou recusa online'], 'have', {
       detail: ['Typed full name with date, IP, browser and a hash of the letter on record', 'Nombre escrito con fecha, IP, navegador y hash de la carta registrados', 'Nome digitado com data, IP, navegador e hash da carta registrados'],
     }),
-    row('e-signature', 'offers', ['Electronic signature', 'Firma electrónica', 'Assinatura eletrônica'], 'missing'),
+    row('e-signature', 'offers', ['Electronic signature', 'Firma electrónica', 'Assinatura eletrônica'], 'have', {
+      detail: [
+        'With Sign: an approved offer goes out as a PDF with an audit trail and is accepted when the candidate signs',
+        'Con Sign: una oferta aprobada sale como PDF con registro de auditoría y queda aceptada cuando el candidato firma',
+        'Com o Sign: uma oferta aprovada sai como PDF com trilha de auditoria e fica aceita quando o candidato assina',
+      ],
+    }),
 
     // Reportes
     row('time-to-hire', 'reports', ['Time to hire', 'Tiempo hasta contratar', 'Tempo até contratar'], 'have'),

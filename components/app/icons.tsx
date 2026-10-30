@@ -39,6 +39,7 @@ export type IconName =
   | 'discounts'
   | 'social'
   | 'books'
+  | 'forms'
   | 'bank'
   | 'receipt'
   | 'calendar'
@@ -68,6 +69,7 @@ export type IconName =
   | 'assistant'
   | 'analytics'
   | 'hiring'
+  | 'sign'
   | 'flag'
   | 'sql'
   | 'live'
@@ -319,6 +321,12 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18" />
     </>
   ),
+  sign: (
+    <>
+      <path d="M14 3h-8a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z" />
+      <path d="M14 3v5h5M8 17c1.5-2 2.5-2 3 0s1.5 1 2.5-.5" />
+    </>
+  ),
   flag: (
     <>
       <path d="M5 21V4M5 4h11l-2 4 2 4H5" />
@@ -373,6 +381,12 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z" />
       <path d="M5 17a3 3 0 0 1 3-3h11M9 8h6" />
+    </>
+  ),
+  forms: (
+    <>
+      <rect x="4" y="3" width="16" height="18" rx="1" />
+      <path d="M8 8h8M8 12h8M8 16h5" />
     </>
   ),
   bank: (

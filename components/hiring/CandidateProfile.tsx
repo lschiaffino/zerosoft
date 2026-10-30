@@ -21,6 +21,7 @@ export default function CandidateProfile({
   isAdmin,
   templates,
   repliesEnabled,
+  signEnabled = false,
 }: {
   initial: Profile;
   focusApp: string | null;
@@ -28,6 +29,8 @@ export default function CandidateProfile({
   isAdmin: boolean;
   templates: Tpl[];
   repliesEnabled: boolean;
+  /** La persona tiene Sign: la oferta aprobada puede salir a firmar con firma electrónica. */
+  signEnabled?: boolean;
 }) {
   const t = useTranslations('hiring');
   const locale = useLocale();
@@ -417,7 +420,12 @@ export default function CandidateProfile({
                           </button>
                         )}
                         {o.status === 'pending_approval' && !(isAdmin || app.myRole === 'hiring_manager') && <span className="ui-help">{t('offers.waitingApproval')}</span>}
-                        {(o.status === 'approved' || o.status === 'sent') && (
+                        {o.status === 'sent' && o.signEnvelopeId && (
+                          <a className="btn btn-outline btn-sm" href={`/${locale}/app/sign/envelopes/${o.signEnvelopeId}`}>
+                            {t('esign.open')}
+                          </a>
+                        )}
+                        {(o.status === 'approved' || (o.status === 'sent' && !o.signEnvelopeId)) && (
                           <button
                             type="button"
                             className="btn btn-primary btn-sm"
@@ -428,6 +436,24 @@ export default function CandidateProfile({
                             }}
                           >
                             {o.status === 'sent' ? t('offers.resend') : t('offers.send')}
+                          </button>
+                        )}
+                        {o.status === 'approved' && signEnabled && (
+                          <button
+                            type="button"
+                            className="btn btn-outline btn-sm"
+                            disabled={busy}
+                            title={t('esign.hint')}
+                            onClick={async () => {
+                              setBusy(true);
+                              const res = await api<{ href: string }>('/api/sign/integrations/hiring-offer', { method: 'POST', json: { offerId: o.id } });
+                              setBusy(false);
+                              if (!res.ok) return push(t('esign.error'), 'bad');
+                              push(t('esign.sent'));
+                              await reload();
+                            }}
+                          >
+                            {t('esign.send')}
                           </button>
                         )}
                         {['pending_approval', 'approved', 'sent'].includes(o.status) && (

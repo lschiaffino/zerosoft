@@ -73,7 +73,9 @@
     "other": "Other",
     "social": "Social",
     "hiring": "Hiring",
-    "books": "Books"
+    "sign": "Sign",
+    "books": "Books",
+    "forms": "Forms"
   },
   "empty": "No ideas yet. Suggest the first one.",
   "emptySearch": "Nothing matches. Try other words or suggest the idea.",

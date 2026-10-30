@@ -22,6 +22,8 @@ import social from './social';
 import hiring from './hiring';
 import people from './people';
 import books from './books';
+import sign from './sign';
+import forms from './forms';
 
 /**
  * Paridad de cada app contra su competidor principal. Al sumar o quitar una
@@ -51,6 +53,8 @@ export const PARITY: Record<ProductKey, ProductParity> = {
   hiring,
   people,
   books,
+  sign,
+  forms,
 };
 
 export type { ProductParity, ParityRow, ParityStatus, ParityArea, Localized } from './types';

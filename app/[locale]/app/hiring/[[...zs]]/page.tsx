@@ -108,6 +108,7 @@ export default async function HiringPage(props: Props) {
           isAdmin={actor.admin}
           templates={templates.filter((t) => t.kind !== 'job').map((t) => ({ id: t.id, jobId: t.jobId, kind: t.kind, name: t.name, subject: t.subject, body: t.body }))}
           repliesEnabled={repliesEnabled()}
+          signEnabled={userCanUseApp(user, 'sign')}
         />
       );
     }

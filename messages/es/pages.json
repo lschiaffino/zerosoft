@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "Productos",
-      "description": "Veintidós apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics, Social, Hiring, People y Books. Open source para tu servidor, o en zerosoft Cloud con plan gratis y pago por uso."
+      "description": "Veinticuatro apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics, Social, Hiring, People, Books, Sign y Forms. Open source para tu servidor, o en zerosoft Cloud con plan gratis y pago por uso."
     },
     "hero": {
-      "title1": "Veintidós apps.",
+      "title1": "Veinticuatro apps.",
       "title2": "Un solo workspace.",
       "sub": "Para tu empresa: CRM, soporte, agentes de IA, automatizaciones, robots, proyectos y links. Para vos: docs, notas, agenda y pizarra. El core de cada una es open source y corre en tu servidor por $0."
     },
     "cta": {
-      "title1": "Probá las veintidós apps.",
+      "title1": "Probá las veinticuatro apps.",
       "title2": "Con una sola cuenta.",
       "sub": "Entrá con Google, creá un workspace y empezá con el plan gratis. Si después preferís tu servidor, el código está en GitHub.",
       "button": "Abrir la app"
@@ -1848,11 +1848,11 @@
         },
         "f4": {
           "q": "¿Hay firma electrónica para las ofertas?",
-          "a": "Todavía no. El candidato acepta escribiendo su nombre completo; Hiring guarda la fecha, la IP, el navegador y un hash de la carta."
+          "a": "Sí, con Sign. Una oferta aprobada puede salir como un PDF que el candidato firma con registro de auditoría, y queda aceptada cuando firma. Sin Sign, el candidato acepta escribiendo su nombre completo; Hiring guarda la fecha, la IP, el navegador y un hash de la carta."
         },
         "f5": {
           "q": "¿Qué le falta frente a Workable?",
-          "a": "Publicación en portales de empleo, base de búsqueda de candidatos, entrevistas en video, evaluaciones, SMS, firma electrónica y un HRIS. La tabla de paridad de arriba tiene la lista completa."
+          "a": "Publicación en portales de empleo, base de búsqueda de candidatos, entrevistas en video, evaluaciones, SMS y un HRIS. La tabla de paridad de arriba tiene la lista completa."
         }
       },
       "cta": {
@@ -1860,6 +1860,92 @@
         "title2": "Los datos quedan tuyos.",
         "sub": "Abrí Hiring, creá tu primer puesto y publicá tu página de empleos.",
         "button": "Abrir Hiring"
+      }
+    },
+    "sign": {
+      "meta": {
+        "title": "Sign: firma electrónica open source con registro de auditoría",
+        "description": "Mandá PDFs a firmar con orden de firma, códigos por email, plantillas y envío masivo. Cada sobre termina con un certificado de finalización y hashes SHA-256. Una alternativa open source a DocuSign."
+      },
+      "hero": {
+        "sub": "Subí un PDF o elegí una página de Docs, poné los campos de cada persona, definí el orden y enviá. Los destinatarios firman desde el celular sin cuenta, y todos reciben la copia firmada con su registro de auditoría."
+      },
+      "featuresTitle": "Sobres que se cierran.",
+      "featuresTitleDim": "Sin cupo de sobres.",
+      "f1": {
+        "t": "Sobres y campos",
+        "d": "Subí un PDF, usá una plantilla o una página de Docs. Sumá firmantes, aprobadores y copias, y poné campos de firma, iniciales, fecha, nombre, email, texto, casilla y lista para cada uno."
+      },
+      "f2": {
+        "t": "Orden de firma",
+        "d": "Secuencial o en paralelo. La persona siguiente recibe el link recién cuando firma la anterior, con recordatorios y fecha de vencimiento."
+      },
+      "f3": {
+        "t": "Firma sin cuenta",
+        "d": "Un link personal por destinatario con código por email, consentimiento para firmar electrónicamente y campos guiados. La firma se escribe, se dibuja o se sube, o se rechaza con un motivo."
+      },
+      "f4": {
+        "t": "Certificado de finalización",
+        "d": "Los campos se dibujan en el PDF y se suma un certificado con cada evento, IP, navegador y hora, más el SHA-256 del original y del archivo firmado."
+      },
+      "f5": {
+        "t": "Plantillas y envío masivo",
+        "d": "Guardá un documento con roles y campos una vez. Mandalo a una persona o a una lista en CSV, un sobre por fila."
+      },
+      "f6": {
+        "t": "Conectado con tus apps",
+        "d": "Mandá desde un deal o contacto del CRM y el PDF firmado queda en el registro. Las ofertas de Hiring pueden salir a firmar. Flow recibe los eventos de completado y rechazado."
+      },
+      "steps": {
+        "s1": {
+          "t": "Preparar",
+          "d": "Subí el PDF, sumá a las personas y poné sus campos."
+        },
+        "s2": {
+          "t": "Enviar",
+          "d": "Cada persona recibe un link personal cuando le toca."
+        },
+        "s3": {
+          "t": "Cerrar",
+          "d": "Todos reciben el PDF firmado con el certificado."
+        }
+      },
+      "compare": {
+        "rival": "DocuSign",
+        "price": "Planes por usuario",
+        "per": "por usuario, con un cupo anual de sobres",
+        "teamLabel": "Un equipo de 5 que manda contratos",
+        "team": "ver los precios de DocuSign",
+        "zero": "$0",
+        "note": "DocuSign eSignature se vende por usuario con un tope de sobres. No pudimos verificar los precios actuales: mirá docusign.com/pricing. Sign en tu servidor cuesta $0 más tu base, almacenamiento y envío de emails."
+      },
+      "faq": {
+        "f1": {
+          "q": "¿Tiene validez legal?",
+          "a": "Sign hace firmas electrónicas simples con registro de auditoría, como las que reconocen la ESIGN Act y UETA de EE. UU. No hace firmas avanzadas ni calificadas de eIDAS, ni \"firma digital\" de la Ley 25.506, que pide un certificador licenciado. Revisá qué pide tu contrato."
+        },
+        "f2": {
+          "q": "¿Los destinatarios necesitan cuenta?",
+          "a": "No. Cada uno recibe un link personal por email. Por defecto, además confirman un código que llega a ese email antes de abrir el documento."
+        },
+        "f3": {
+          "q": "¿Puedo cambiar un sobre después de enviarlo?",
+          "a": "No. Un sobre enviado queda fijo. Anulalo, copialo a un borrador nuevo, corregilo y volvé a enviarlo."
+        },
+        "f4": {
+          "q": "¿Quién ve los documentos?",
+          "a": "Quien envía, los admins del workspace y los destinatarios con su link. Los archivos se guardan privados y los scripts de los PDFs subidos se sacan."
+        },
+        "f5": {
+          "q": "¿Qué falta comparado con DocuSign?",
+          "a": "Firmas calificadas y avanzadas, verificación de identidad, códigos por SMS, cobros, firma en persona, PowerForms y app móvil. La tabla de paridad de arriba tiene la lista completa."
+        }
+      },
+      "cta": {
+        "title1": "Mandalo.",
+        "title2": "Recibilo firmado.",
+        "sub": "Abrí Sign, subí un PDF y mandá tu primer sobre.",
+        "button": "Abrir Sign"
       }
     },
     "books": {
@@ -1942,6 +2028,92 @@
         "sub": "Abrí Books, elegí tu país y mandá tu primera factura.",
         "button": "Abrir Books"
       }
+    },
+    "forms": {
+      "meta": {
+        "title": "Forms: formularios y encuestas open source, alternativa a Typeform",
+        "description": "Formularios y encuestas que preguntan de a una, con lógica, quizzes, NPS, archivos adjuntos, temas, embeds y una tabla de respuestas con resumen por pregunta. Una alternativa open source a Typeform, Google Forms y Tally."
+      },
+      "hero": {
+        "sub": "Armá un formulario desde una plantilla, sumale lógica y tus colores, compartí un link o incrustalo, y leé las respuestas en una tabla, un resumen por pregunta y un CSV. Cada respuesta puede llegar a tu CRM y a tus automatizaciones."
+      },
+      "featuresTitle": "Una pregunta a la vez.",
+      "featuresTitleDim": "Todas las respuestas, tuyas.",
+      "f1": {
+        "t": "Preguntas para cada caso",
+        "d": "Texto corto y largo, email, teléfono, número, URL, fecha, opción múltiple, casillas, desplegable, sí o no, calificación, escala de opinión, NPS, ranking, matriz, archivos y firma. Los archivos son privados, se validan por sus bytes y llegan hasta 10 MB."
+      },
+      "f2": {
+        "t": "Lógica y quizzes",
+        "d": "Saltos según la respuesta, ramas con condiciones todas o alguna, un puntaje con puntos por opción, un final por camino y respuestas anteriores o el puntaje dentro de las preguntas siguientes. Los saltos solo van hacia adelante."
+      },
+      "f3": {
+        "t": "Tu estilo, en tus idiomas",
+        "d": "Cinco temas, colores propios, cuatro tipografías y los colores del kit de marca de Design. Un formulario se traduce a inglés, español y portugués con una tabla, y 12 plantillas ayudan a arrancar."
+      },
+      "f4": {
+        "t": "Pensado para el teclado",
+        "d": "Enter para seguir, las letras A, B y C para elegir, Y y N para sí o no, teclas numéricas y flechas. Una barra de progreso muestra dónde vas, las respuestas se guardan en el navegador y un modo clásico muestra todas las preguntas en una página."
+      },
+      "f5": {
+        "t": "Compartilo donde quieras",
+        "d": "Un link público, un script para incrustarlo, un iframe, un popup y un código QR. Los campos ocultos salen de parámetros de la URL, y podés cerrar un formulario en una fecha o al llegar a cierta cantidad de respuestas."
+      },
+      "f6": {
+        "t": "Respuestas que van a algún lado",
+        "d": "Una tabla de respuestas con filtros, un resumen por pregunta con gráficos de barras, promedios, NPS y abandono, y exportación a CSV. Las respuestas pueden crear contactos del CRM, disparar un Flow, avisar a personas y llamar a un webhook firmado."
+      },
+      "steps": {
+        "s1": {
+          "t": "Arrancá desde una plantilla",
+          "d": "Contacto, captación de leads, NPS, RSVP, postulación, feedback, quiz y más, o un formulario en blanco."
+        },
+        "s2": {
+          "t": "Sumá lógica y estilo",
+          "d": "Saltos, finales, un puntaje, un tema y un idioma para cada público."
+        },
+        "s3": {
+          "t": "Compartí y leé",
+          "d": "Mandá el link o incrustá el formulario, y seguí las respuestas y el abandono por pregunta."
+        }
+      },
+      "compare": {
+        "rival": "Typeform",
+        "price": "Un plan por cuenta",
+        "per": "con un tope de respuestas por plan, mensual o anual",
+        "teamLabel": "Un equipo que junta respuestas",
+        "team": "ver precios de Typeform",
+        "zero": "$0",
+        "note": "Typeform vende planes por cuenta con límites de respuestas. No pudimos verificar los precios actuales: miralos en typeform.com/pricing. Forms en tu servidor cuesta $0 más tu base de datos y el envío de emails."
+      },
+      "faq": {
+        "f1": {
+          "q": "¿Muestra una pregunta a la vez?",
+          "a": "Sí, por defecto. Avanzás con Enter, letras para elegir, Y y N, teclas numéricas y flechas. Si preferís, un modo clásico muestra todas las preguntas en una página."
+        },
+        "f2": {
+          "q": "¿Qué pasa si alguien no termina?",
+          "a": "Su avance queda guardado en su navegador para retomarlo. Si acepta, las respuestas hasta ahí se envían como respuesta parcial, y el resumen muestra dónde abandona la gente."
+        },
+        "f3": {
+          "q": "¿A dónde van las respuestas?",
+          "a": "A la tabla de respuestas y a un CSV. Desde ahí una respuesta puede crear un contacto del CRM (solo para emails nuevos), disparar un Flow, avisar a personas por email y dentro de la app, o llamar a un webhook firmado. Todavía no hay conexión nativa con Google Sheets."
+        },
+        "f4": {
+          "q": "¿Quién ve las respuestas?",
+          "a": "Cada formulario está abierto a todo el workspace o a las personas que elijas. Cmd+K, el asistente y la API siguen la misma regla."
+        },
+        "f5": {
+          "q": "¿Qué falta respecto de Typeform?",
+          "a": "Pagos, integraciones nativas como Google Sheets y una app de Zapier (hay webhooks y Flow), generar formularios con IA, preguntas de video y audio, pruebas A/B, dominios propios, una opción de CAPTCHA (Forms usa un honeypot, un tiempo mínimo y un límite por IP), etiquetar respuestas y reordenar preguntas arrastrando (se mueven con botones). La tabla de paridad de arriba tiene la lista completa."
+        }
+      },
+      "cta": {
+        "title1": "Armá tu primer formulario.",
+        "title2": "Compartí el link.",
+        "sub": "Abrí Forms, elegí una plantilla y publicá un link.",
+        "button": "Abrir Forms"
+      }
     }
   },
   "product": {
@@ -1957,7 +2129,7 @@
     "apiDocs": "Docs de la API",
     "howTitle": "Cómo se usa.",
     "suiteTitle": "Un workspace.",
-    "suiteTitleDim": "Veintidós apps, el mismo login.",
+    "suiteTitleDim": "Veinticuatro apps, el mismo login.",
     "shotTitle": "{name}, por dentro.",
     "crumbs": "Ubicación",
     "navLabel": "Secciones de {name}",
@@ -2415,6 +2587,23 @@
       "offer": "Oferta aprobada por el hiring manager",
       "action": "Enviar al candidato"
     },
+    "sign": {
+      "listTitle": "Sobres",
+      "r1name": "Contrato de servicios",
+      "r1time": "Esperando",
+      "r1meta": "Ana Pérez · 1 de 2 firmaron",
+      "r2name": "Carta oferta",
+      "r2time": "Completado",
+      "r2meta": "Bruno Silva",
+      "r3name": "NDA",
+      "r3time": "Borrador",
+      "r3meta": "Plantilla · 3 campos",
+      "status": "Secuencial · código por email",
+      "i1": "Ana Pérez firmó · 10:42 · IP 190.2.x.x",
+      "i2": "Link enviado a Bruno Silva",
+      "offer": "SHA-256 del original",
+      "action": "Mandar recordatorio"
+    },
     "books": {
       "listTitle": "Facturas",
       "r1name": "A 0001-00000124 · Estudio Norte",
@@ -2431,6 +2620,23 @@
       "i2": "Puesta en marcha × 1 · 10% off · IVA 21%",
       "total": "Total $121.000 · IVA $21.000",
       "action": "Asiento registrado: Banco / Deudores por ventas"
+    },
+    "forms": {
+      "listTitle": "Formularios",
+      "r1name": "Encuesta NPS",
+      "r1time": "42",
+      "r1meta": "42 respuestas · NPS 38",
+      "r2name": "Formulario de contacto",
+      "r2time": "17",
+      "r2meta": "17 respuestas · abierto",
+      "r3name": "Inscripción al taller",
+      "r3time": "60",
+      "r3meta": "Cerrado a las 60 respuestas",
+      "status": "Publicado",
+      "i1": "1 de 5 · ¿Qué tan probable es que nos recomiendes? (0 a 10)",
+      "i2": "Apretá 9 y después Enter",
+      "summary": "Resumen",
+      "action": "42 respuestas · promedio 8,4 · 3 abandonaron en la pregunta 4"
     }
   },
   "status": {
@@ -2848,7 +3054,7 @@
     "crmFormsTitle": "CRM · Formularios",
     "crmFormsDesc": "Formularios de captura de leads y sus envíos. Cada envío también crea o actualiza un contacto y registra una actividad \"Form submitted\".",
     "formsListTitle": "Listar formularios",
-    "formsListDesc": "Todos los formularios del workspace con sus campos, estado y cantidad de envíos. `key` es el slug público (o el token) que usan /f/'<key>' y el script de embed.",
+    "formsListDesc": "Formularios del más nuevo al más viejo, con estado, cantidad de respuestas y parciales, última respuesta y quién puede abrirlos.",
     "formsSubmissionsTitle": "Listar envíos de un formulario",
     "formsSubmissionsDesc": "Envíos de un formulario, los más recientes primero, con los valores, los parámetros UTM y el contacto vinculado.",
     "paramLinkForwardParams": "Pasa los query params del link corto al destino (default true). En conflicto gana el del link corto; qr nunca se pasa.",
@@ -3282,12 +3488,23 @@
     "paramBooksLines": "Líneas: description, quantity, unitPrice (unidades mínimas enteras, o un texto decimal con punto como separador decimal, por ejemplo \"1500.50\", sea cual sea la moneda), discountBps, taxRateId, itemId.",
     "paramBooksCurrency": "Código de moneda ISO; si falta, la moneda base.",
     "paramBooksFx": "Tipo de cambio manual (moneda base por 1 unidad) cuando la moneda no es la base.",
-    "paramBooksReference": "Tu referencia (orden de compra, proyecto)."
+    "paramBooksReference": "Tu referencia (orden de compra, proyecto).",
+    "scope_sign_read": "Leer los sobres de Sign que ve la persona dueña de la key (sin archivos).",
+    "formsResponsesTitle": "Listar respuestas",
+    "formsResponsesDesc": "Respuestas de un formulario, de la más nueva a la más vieja. Las respuestas se indexan por id de pregunta. Las de archivo devuelven una referencia, no el archivo.",
+    "paramFormsStatus": "Filtrá los formularios por estado, por ejemplo published.",
+    "paramFormsForm": "Id del formulario.",
+    "paramFormsResponseStatus": "completed (por defecto) o partial.",
+    "paramFormsFrom": "Solo respuestas enviadas desde esta fecha (YYYY-MM-DD).",
+    "paramFormsTo": "Solo respuestas enviadas hasta esta fecha (YYYY-MM-DD).",
+    "scope_forms_read": "Leer los formularios de Forms y sus respuestas, solo los que puede ver quien creó la key.",
+    "formsApiTitle": "Forms",
+    "formsApiDesc": "Formularios y sus respuestas. La key actúa como la persona que la creó y solo ve los formularios que esa persona puede abrir. Scope forms:read."
   },
   "parityOverview": {
     "title": "Paridad de funciones, app por app.",
     "titleDim": "Medida contra cada competidor.",
-    "lead": "Paridad promedio de las 22 apps: {average}%. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
+    "lead": "Paridad promedio de las 24 apps: {average}%. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
     "col": {
       "app": "App",
       "competitor": "Comparada con",
