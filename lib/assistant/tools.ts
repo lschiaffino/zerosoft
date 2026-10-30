@@ -41,6 +41,8 @@ import { listAgents } from '../agents';
 import { listBoards } from '../boards';
 import { boardViewer } from '../board-access';
 import { searchApps } from '../app-search';
+import { approvePost, createPost, listAccounts, listPosts, rejectPost, socialActor, validatePost, type SocialActor } from '../social';
+import { listInbox } from '../social-inbox';
 import { listProjects as listAnalyticsProjects, type ProjectRow } from '../analytics/projects';
 import { runFunnel, runInsight, runTrends, runWeb, QueryError } from '../analytics/query';
 import { listFlags, listInsights } from '../analytics/records';
@@ -984,7 +986,136 @@ const analytics: AssistantTool[] = [
   }),
 ];
 
-export const ALL_TOOLS: AssistantTool[] = [...platform, ...crm, ...track, ...content, ...automate, ...comms, ...shopTools, ...analytics, ...hiringTools];
+// ---------- Social ----------
+
+function socialOf(ctx: ToolCtx): SocialActor {
+  return socialActor(ctx.user);
+}
+
+const social: AssistantTool[] = [
+  readTool({
+    name: 'social_accounts',
+    app: 'social',
+    description: 'Social media accounts the person can post to (Facebook, Instagram, LinkedIn, X, TikTok, YouTube, Threads, Bluesky), with their status.',
+    input: z.object({}),
+    run: async (ctx) => ({
+      accounts: (await listAccounts(socialOf(ctx))).map((a) => ({ id: a.id, name: a.name, network: a.networkName, handle: a.handle, status: a.status, followers: a.followers })),
+    }),
+  }),
+  readTool({
+    name: 'social_posts',
+    app: 'social',
+    description: 'Social posts the person can see: drafts, scheduled, waiting for approval, published or failed. Optional status and text query.',
+    input: z.object({
+      status: z.enum(['draft', 'pending_approval', 'rejected', 'scheduled', 'published', 'partial', 'failed']).optional(),
+      query: z.string().trim().max(200).optional(),
+    }),
+    run: async (ctx, { status, query }) => ({
+      posts: (await listPosts(socialOf(ctx), { status, q: query || undefined, limit: 25 })).map((p) => ({
+        id: p.id,
+        text: p.text.slice(0, 280),
+        status: p.status,
+        scheduledAt: p.scheduledAt,
+        publishedAt: p.publishedAt,
+        accounts: p.targets.map((t) => `${t.account?.networkName ?? '?'}: ${t.account?.name ?? '?'} (${t.status})`),
+        href: `/app/social/posts/${p.id}`,
+      })),
+    }),
+  }),
+  readTool({
+    name: 'social_inbox',
+    app: 'social',
+    description: 'Open comments, mentions and direct messages in the Social inbox (only the accounts the person can see).',
+    input: z.object({ kind: z.enum(['comment', 'mention', 'dm']).optional() }),
+    run: async (ctx, { kind }) => ({
+      items: (await listInbox(socialOf(ctx), { status: 'open', kind })).slice(0, 25).map((i) => ({
+        id: i.id,
+        kind: i.kind,
+        account: `${i.account.networkName}: ${i.account.name}`,
+        from: i.authorName,
+        text: i.text.slice(0, 280),
+        receivedAt: i.receivedAt,
+        href: `/app/social/inbox?item=${i.id}`,
+      })),
+    }),
+  }),
+  writeTool({
+    name: 'propose_social_post',
+    app: 'social',
+    description:
+      'Prepare a social post for one or more connected accounts (by name or network). action: draft (save), schedule (needs when, ISO date), or queue (next free queue slot). People who need approval get it sent for approval. The person confirms before anything is saved.',
+    input: z.object({
+      text: z.string().trim().min(1).max(5000),
+      accounts: z.array(z.string().trim().min(1).max(120)).min(1).max(10),
+      action: z.enum(['draft', 'schedule', 'queue']).default('draft'),
+      when: z.string().trim().max(40).optional(),
+    }),
+    prepare: async (ctx, input) => {
+      const all = await listAccounts(socialOf(ctx));
+      const picked: typeof all = [];
+      for (const ref of input.accounts) {
+        const n = norm(ref);
+        const found = all.find((a) => a.id === ref) ?? all.find((a) => norm(a.name) === n || norm(a.handle ?? '') === n.replace(/^@/, '')) ?? all.find((a) => norm(a.networkName) === n);
+        if (!found) return { error: 'account_not_found', hint: { account: ref, available: all.map((a) => `${a.networkName}: ${a.name}`) } };
+        if (!picked.some((p) => p.id === found.id)) picked.push(found);
+      }
+      if (input.action === 'schedule' && (!input.when || Number.isNaN(new Date(input.when).getTime()))) return { error: 'when_required' };
+      if (input.action !== 'draft') {
+        const issues = validatePost(picked.map((a) => ({ id: a.id, network: a.network })), { text: input.text, media: [] });
+        if (issues.length) return { error: 'validation', hint: issues };
+      }
+      return {
+        summary: input.action === 'draft' ? 'Save a social draft' : input.action === 'queue' ? 'Add a social post to the queue' : `Schedule a social post for ${input.when}`,
+        details: [
+          { label: 'Accounts', after: picked.map((a) => `${a.networkName}: ${a.name}`).join(', ') },
+          { label: 'Text', after: input.text.slice(0, 500) },
+          ...(input.action === 'schedule' ? [{ label: 'When', after: String(input.when) }] : []),
+        ],
+        input: { text: input.text, accountIds: picked.map((a) => a.id), action: input.action, when: input.when ?? null },
+      };
+    },
+    execute: async (ctx, input) => {
+      const post = await createPost(socialOf(ctx), {
+        text: String(input.text),
+        accountIds: input.accountIds as string[],
+        action: input.action as 'draft' | 'schedule' | 'queue',
+        scheduledAt: (input.when as string | null) ?? null,
+      }).catch((err: { code?: string }) => ({ error: err.code ?? 'failed' }));
+      if ('error' in post) return { ok: false, error: String(post.error) };
+      const msg = post.status === 'pending_approval' ? 'Sent for approval.' : post.status === 'scheduled' ? `Scheduled for ${post.scheduledAt}.` : 'Draft saved.';
+      return { ok: true, message: msg, href: `/app/social/posts/${post.id}` };
+    },
+  }),
+  writeTool({
+    name: 'propose_social_review',
+    app: 'social',
+    admin: true,
+    description: 'Approve or reject a social post that is waiting for approval (rejecting needs a comment for the author). The person confirms first.',
+    input: z.object({ postId: z.string().trim().min(1).max(64), decision: z.enum(['approve', 'reject']), comment: z.string().trim().max(2000).optional() }),
+    prepare: async (ctx, input) => {
+      const pending = await listPosts(socialOf(ctx), { status: 'pending_approval', limit: 200 });
+      const post = pending.find((p) => p.id === input.postId);
+      if (!post) return { error: 'not_pending', hint: { pending: pending.map((p) => ({ id: p.id, text: p.text.slice(0, 80) })) } };
+      if (input.decision === 'reject' && !input.comment) return { error: 'comment_required' };
+      return {
+        summary: `${input.decision === 'approve' ? 'Approve' : 'Reject'} the post "${post.text.slice(0, 60)}"`,
+        details: [{ label: 'Decision', after: input.decision }, ...(input.comment ? [{ label: 'Comment', after: input.comment }] : [])],
+        input,
+      };
+    },
+    execute: async (ctx, input) => {
+      const actor = socialOf(ctx);
+      try {
+        const post = input.decision === 'approve' ? await approvePost(actor, String(input.postId), (input.comment as string) ?? null) : await rejectPost(actor, String(input.postId), String(input.comment ?? ''));
+        return { ok: true, message: post.status === 'rejected' ? 'Rejected.' : 'Approved.', href: `/app/social/posts/${post.id}` };
+      } catch (err) {
+        return { ok: false, error: (err as { code?: string }).code ?? 'failed' };
+      }
+    },
+  }),
+];
+
+export const ALL_TOOLS: AssistantTool[] = [...platform, ...crm, ...track, ...content, ...automate, ...comms, ...shopTools, ...analytics, ...social, ...hiringTools];
 
 /** Herramientas que la sesión puede usar (rol y apps del workspace activo). */
 export function toolsFor(user: Pick<SessionUser, 'role' | 'apps'>): AssistantTool[] {

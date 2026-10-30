@@ -37,6 +37,8 @@ export type IconName =
   | 'palette'
   | 'shop'
   | 'discounts'
+  | 'social'
+  | 'calendar'
   | 'products'
   | 'quotes'
   | 'templates'
@@ -342,6 +344,20 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <path d="M3 12V4h8l10 10-8 8z" />
       <circle cx="7.5" cy="8.5" r="1.5" />
+    </>
+  ),
+  social: (
+    <>
+      <circle cx="6" cy="12" r="2.5" />
+      <circle cx="18" cy="6" r="2.5" />
+      <circle cx="18" cy="18" r="2.5" />
+      <path d="M8.2 10.9l7.6-3.8M8.2 13.1l7.6 3.8" />
+    </>
+  ),
+  calendar: (
+    <>
+      <rect x="3" y="5" width="18" height="16" />
+      <path d="M3 10h18M8 3v4M16 3v4" />
     </>
   ),
   products: (

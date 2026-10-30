@@ -152,6 +152,8 @@ export default defineConfig({
       ASSISTANT_FAKE: '1',
       // Shop: Stripe y Mercado Pago sin salir a internet; el pago lo marca un webhook firmado (lib/shop-payments.ts).
       SHOP_PAYMENTS_FAKE: '1',
+      // Social contra redes simuladas (lib/social-fake.ts): conectar, publicar, comentarios y métricas sin salir a internet.
+      SOCIAL_FAKE: '1',
       // Hiring: lectura de resumes y resúmenes de candidatos sin modelo (lib/hiring/ai.ts).
       HIRING_AI_FAKE: '1',
       AI_GATEWAY_API_KEY: '',

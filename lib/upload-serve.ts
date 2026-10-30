@@ -84,8 +84,9 @@ export async function fileBlockResponse(
 
 /** Carpetas cuyas URLs son públicas por diseño (como las de Blob): se sirven con la URL. */
 // workspace: logos de los workspaces (se ven en el switcher y en los emails de invitación).
+// social: las redes (Meta, Threads) bajan las fotos y videos por URL para publicarlos.
 // shop: fotos de productos y logos de tiendas (se ven en la tienda pública).
-const PUBLIC_UPLOAD_FOLDERS = new Set(['chat', 'track', 'tasks', 'robots', 'workspace', 'shop']);
+const PUBLIC_UPLOAD_FOLDERS = new Set(['chat', 'track', 'tasks', 'robots', 'workspace', 'shop', 'social']);
 /** Lo único que se muestra en línea: imágenes raster, audio y video. El resto se descarga. */
 const INLINE_BY_EXT: Record<string, string> = {
   png: 'image/png',
@@ -103,6 +104,8 @@ const INLINE_BY_EXT: Record<string, string> = {
   webm: 'audio/webm',
   m4a: 'audio/mp4',
   mp4: 'video/mp4',
+  m4v: 'video/mp4',
+  mov: 'video/quicktime',
 };
 
 /** Headers de un archivo subido servido desde el disco: tipo solo de la lista, nosniff y sandbox siempre. */

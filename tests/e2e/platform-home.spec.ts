@@ -26,8 +26,8 @@ test('/app es el inicio: saludo, Para hoy, recientes, apps e importar', async ({
   await expect(page.getByTestId('home-more').getByRole('heading', { level: 3 }).first()).toBeVisible();
   await expect(page.getByTestId('home-invite').getByRole('link', { name: 'Invitar' })).toHaveAttribute('href', '/es/app/settings/members');
   await expect(page.getByTestId('home-import').getByRole('link', { name: 'Importar' })).toHaveAttribute('href', '/es/app/settings/import');
-  // El sidebar del inicio lista las apps por categoría.
-  await expect(page.locator('.side-line .side-section').first()).toHaveText('Vender');
+  // El sidebar del inicio: "Tus apps" arriba y el resto plegado en "Más apps".
+  await expect(page.locator('.side-line .side-section').first()).toHaveText('Tus apps');
   await expect(page.locator('.side-line [aria-current="page"]')).toHaveAttribute('href', '/es/app');
 });
 
@@ -112,12 +112,12 @@ test('sitio: productos por categoría y la nota de equipos y uso personal', asyn
   await trigger.click();
   const mega = page.locator('#hd-mega');
   await expect(mega.locator('.hd-group-title')).toHaveText(['Vender', 'Atender', 'Automatizar', 'Construir', 'Trabajo diario']);
-  await expect(mega.locator('a.hd-prod')).toHaveCount(16);
+  await expect(mega.locator('a.hd-prod')).toHaveCount(19);
   await expect(mega.locator('.hd-mega-note')).toContainText('Para equipos y para uso personal');
   await page.keyboard.press('Escape');
   const suite = page.locator('#productos .suite');
   await expect(suite.locator('.suite-group')).toHaveCount(5);
-  await expect(suite.locator('.suite-row')).toHaveCount(16);
+  await expect(suite.locator('.suite-row')).toHaveCount(19);
   await expect(suite.locator('.suite-audience')).toContainText('Para equipos y para uso personal');
   // Desde el sitio, Dashboard lleva al inicio (no a Link); desde una landing, a esa app.
   await expect(page.locator('.hd-right a.btn-chrome')).toHaveAttribute('href', '/es/app');
@@ -146,12 +146,33 @@ test('Tareas del CRM: mías por defecto y todas con un clic', async ({ page }) =
   await expect(page.getByTestId('home-crm-tasks').getByRole('link', { name: 'Todas' })).toHaveAttribute('aria-current', 'true');
 });
 
-test('sidebar del inicio: las apps de la última categoría entran en 900px', async ({ page }) => {
-  await page.goto('/es/app', { waitUntil: 'networkidle' });
+/** Estructura del sidebar del inicio: hasta 8 apps propias a la vista y el resto en "Más apps", plegado y con teclado. */
+async function expectHomeAppsStructure(page: import('@playwright/test').Page) {
   const line = page.locator('.side-line');
-  for (const name of ['Docs', 'Notes', 'Cal']) {
-    await expect(line.getByRole('link', { name, exact: true })).toBeInViewport({ ratio: 1 });
-  }
+  const groups = line.locator('.side-group');
+  const yours = groups.filter({ has: page.locator('.side-section', { hasText: 'Tus apps' }) });
+  const yourLinks = yours.locator('a.side-stop');
+  const n = await yourLinks.count();
+  expect(n).toBeGreaterThan(0);
+  expect(n).toBeLessThanOrEqual(8);
+  for (let i = 0; i < n; i++) await expect(yourLinks.nth(i)).toBeInViewport({ ratio: 1 });
+  const toggle = line.getByRole('button', { name: 'Más apps' });
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  // Con teclado: Enter abre el grupo y aparecen todas las apps.
+  await toggle.focus();
+  await page.keyboard.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  const more = groups.filter({ has: page.getByRole('button', { name: 'Más apps' }) }).locator('a.side-stop');
+  expect(n + (await more.count())).toBe(19);
+}
+
+test('sidebar del inicio: tus apps a la vista y el resto en "Más apps"', async ({ page }) => {
+  await page.goto('/es/app', { waitUntil: 'networkidle' });
+  await expectHomeAppsStructure(page);
+  // La app que se usó recién pasa arriba.
+  await page.goto('/es/app/robots', { waitUntil: 'networkidle' });
+  await page.goto('/es/app', { waitUntil: 'networkidle' });
+  await expect(page.locator('.side-line .side-group').filter({ has: page.locator('.side-section', { hasText: 'Tus apps' }) }).locator('a.side-stop').first()).toHaveText(/Robots/);
 });
 
 test('switcher en el teléfono: ←/→ cruzan entre columnas', async ({ page }) => {
@@ -193,7 +214,7 @@ test('pie del sidebar: la ayuda se llama Ayuda (no Docs, que es una app)', async
   await expect(help).toHaveAttribute('href', '/es/docs');
 });
 
-test('con un equipo activo, el sidebar del inicio a 1280×900 deja ver Notes y el equipo va en el switcher', async ({ page }) => {
+test('con un equipo activo, el sidebar del inicio muestra tus apps y el equipo va en el switcher', async ({ page }) => {
   const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
   const demo = String((await db.execute("SELECT id FROM users WHERE email = 'demo@zerosoft.ai'")).rows[0].id);
   const suffix = Math.random().toString(36).slice(2, 8);
@@ -207,10 +228,7 @@ test('con un equipo activo, el sidebar del inicio a 1280×900 deja ver Notes y e
   try {
     await page.goto('/es/app', { waitUntil: 'networkidle' });
     await expect(page.getByTestId('workspace-switcher')).toContainText('Ventas Norte');
-    const line = page.locator('.side-line');
-    for (const name of ['Docs', 'Notes', 'Cal']) {
-      await expect(line.getByRole('link', { name, exact: true })).toBeInViewport({ ratio: 1 });
-    }
+    await expectHomeAppsStructure(page);
   } finally {
     await db.execute({ sql: 'UPDATE users SET active_team_id = NULL WHERE id = ?', args: [demo] });
     db.close();

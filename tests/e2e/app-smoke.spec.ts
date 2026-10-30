@@ -591,6 +591,23 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await ok(request.delete(`/api/voice/sessions/${i.id}`))),
   },
   {
+    app: 'Social posts',
+    list: '/en/app/social/posts',
+    // Un borrador sin cuentas: el texto es lo que la lista y ⌘K muestran.
+    create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/social/posts', { data: { text: name, action: 'draft' } }))).id, name }),
+    detail: (i) => `/en/app/social/posts/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/social/posts/${i.id}`, { data: { text: name, action: 'draft' } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/social/posts/${i.id}`))),
+  },
+  {
+    app: 'Social library',
+    list: '/en/app/social/library',
+    create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/social/library', { data: { kind: 'snippet', name, body: 'Saved text' } }))).id, name }),
+    detail: (i) => `/en/app/social/library?item=${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/social/library/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/social/library/${i.id}`))),
+  },
+  {
     app: 'Voice folders',
     list: '/en/app/voice',
     create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/voice/folders', { data: { name } }))).id, name }),

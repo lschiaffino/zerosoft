@@ -1,6 +1,6 @@
 {
   "meta": {
-    "tagline": "Dieciocho apps open source para tu equipo.",
+    "tagline": "Diecinueve apps open source para tu equipo.",
     "description": "CRM, chat de soporte, agentes de IA, automatizaciones, robots, proyectos, links, docs, notas, agenda y pizarra. Open source (AGPLv3): corrélas en tu servidor por $0 o usá zerosoft Cloud, con plan gratis y pago por uso."
   },
   "header": {
@@ -39,6 +39,7 @@
       "shop": "Tienda online con checkout y pedidos",
       "design": "Diseño gráfico desde plantillas, con tu marca",
       "analytics": "Analítica de producto y feature flags",
+      "social": "Programación, bandeja y métricas de redes sociales",
       "hiring": "Selección de personal con página de empleos"
     },
     "building": "En construcción"
@@ -183,12 +184,15 @@
     "groupAnalyticsFlags": "Feature flags de Analytics",
     "groupAnalyticsCohorts": "Cohortes de Analytics",
     "groupAnalyticsProjects": "Proyectos de Analytics",
+    "groupSocialPosts": "Publicaciones de Social",
+    "groupSocialLibrary": "Biblioteca de Social",
+    "yourApps": "Tus apps",
     "groupHiringJobs": "Puestos",
     "groupHiringCandidates": "Candidatos"
   },
   "manifesto": {
     "p1": "Un equipo de diez personas paga <strong>$6.000 al año</strong> por un CRM, $1.440 por agendar reuniones y $420 por acortar links. Esos precios se calculan por cabeza o por plan.",
-    "p2": "Correr ese software cuesta mucho menos. Las dieciocho apps de zerosoft entran en <strong>un contenedor y un archivo SQLite</strong>, en un servidor chico.",
+    "p2": "Correr ese software cuesta mucho menos. Las diecinueve apps de zerosoft entran en <strong>un contenedor y un archivo SQLite</strong>, en un servidor chico.",
     "p3": "Por eso publicamos el código. El core de cada app es AGPLv3: lo podés leer, cambiar y correr en tu servidor sin pagarnos nada.",
     "final": "Por qué hacemos zerosoft.",
     "p4": "Si preferís que lo operemos nosotros, zerosoft Cloud cobra por workspace y por uso. Sumar a alguien al equipo no cambia la factura.",
@@ -248,6 +252,9 @@
     },
     "analytics": {
       "desc": "Eventos, embudos, retención y feature flags para tu producto."
+    },
+    "social": {
+      "desc": "Planeá, publicá y contestá en redes sociales."
     },
     "hiring": {
       "desc": "Puestos, página de empleos, pipeline de candidatos, scorecards, entrevistas y ofertas."
@@ -321,7 +328,7 @@
   },
   "home": {
     "hero": {
-      "title1": "Dieciocho apps para tu equipo.",
+      "title1": "Diecinueve apps para tu equipo.",
       "title2": "Cero licencias.",
       "sub": "Alternativas open source a HubSpot, Intercom, Calendly, Linear, Notion y cinco productos más que tu equipo paga cada mes. Corrélas en tu servidor por $0 o usalas en zerosoft Cloud.",
       "ctaStart": "Empezá gratis",
@@ -378,7 +385,7 @@
         "b3": "Plantillas, comentarios y permisos"
       },
       "one": {
-        "title": "Una cuenta para las dieciocho apps.",
+        "title": "Una cuenta para las diecinueve apps.",
         "desc": "Invitás a tu equipo una sola vez. Encontrás contactos, empresas, negocios, links, docs y tareas desde una sola barra de búsqueda, y saltás entre apps sin cambiar de herramienta."
       },
       "replaces": "Reemplaza a {rival}",
@@ -421,6 +428,9 @@
         "line": "Analítica de producto, analítica web y feature flags."
       },
       "building": "En construcción · como {rival}",
+      "social": {
+        "line": "Planeá, publicá y contestá en redes sociales."
+      },
       "hiring": {
         "line": "Puestos, página de empleos, pipeline, scorecards y ofertas."
       }
@@ -437,7 +447,7 @@
       "total": "Total por año",
       "zeroTitle": "zerosoft, en tu servidor",
       "footnote": "Precios de lista citados en nuestras páginas de producto, con facturación mensual, para 10 usuarios (Bitly Core es un plan fijo). Los proveedores cambian sus precios: chequeá sus sitios. zerosoft no está afiliado a ninguna de estas empresas.",
-      "rApps": "Las dieciocho apps",
+      "rApps": "Las diecinueve apps",
       "rSeats": "Usuarios",
       "rLicense": "Licencia",
       "rData": "Tus datos",
@@ -508,7 +518,7 @@
   },
   "appHome": {
     "title": "Tus apps",
-    "lead": "Las dieciocho apps de tu workspace. Elegí una para empezar.",
+    "lead": "Las diecinueve apps de tu workspace. Elegí una para empezar.",
     "apps": "Apps",
     "open": "Abrir {name}",
     "linkSummary": "Resumen de Link",
@@ -561,7 +571,8 @@
         "flow": "Flow",
         "design": "Diseño",
         "product": "Producto",
-        "insight": "Insight"
+        "insight": "Insight",
+        "socialPost": "Publicación de Social"
       },
       "untitled": "Sin título",
       "partial": "No pudimos cargar algunas apps. Recargá la página para verlas."
@@ -625,7 +636,7 @@
   "notFound": {
     "sign": "Error 404",
     "title": "Esta página no existe.",
-    "body": "El link puede tener un error o la página se mudó. Desde el inicio llegás a las dieciocho apps.",
+    "body": "El link puede tener un error o la página se mudó. Desde el inicio llegás a las diecinueve apps.",
     "cta": "Ir al inicio",
     "meta": "Página no encontrada"
   },
