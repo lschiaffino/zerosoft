@@ -151,6 +151,11 @@
       "b": "¿Qué insights hay guardados en este proyecto?",
       "c": "¿Qué feature flags están activos?"
     },
+    "hiring": {
+      "a": "¿Qué puestos están abiertos?",
+      "b": "¿Quién está en la etapa de entrevista?",
+      "c": "¿Qué scorecards me faltan?"
+    },
     "books": {
       "a": "¿Qué facturas están vencidas?",
       "b": "¿Cuánto facturamos este mes?",

@@ -28,6 +28,8 @@ import { searchRec } from '@/lib/rec';
 import { searchDesigns } from '@/lib/design';
 import { designActorOf } from '@/lib/design-http';
 import { searchShop } from '@/lib/shop';
+import { searchHiring } from '@/lib/hiring/candidates';
+import { actorOf as hiringActorOf } from '@/lib/hiring/http';
 import { searchBooks } from '@/lib/books-search';
 import { actorOf } from '@/lib/rec-http';
 import { searchPlanning } from '@/lib/track-planning-search';
@@ -57,7 +59,7 @@ export async function GET(req: NextRequest) {
   if (!q) return NextResponse.json<SearchResponse>({ q, items: [] });
 
   const scope = await sessionScope(user);
-  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec, designs, shop, books] = await Promise.all([
+  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec, designs, shop, hiring, books] = await Promise.all([
     searchAll(user.id, q, scope),
     listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
     // Docs: título y texto de los bloques (el fragmento va como meta).
@@ -89,6 +91,8 @@ export async function GET(req: NextRequest) {
     searchDesigns(designActorOf(user), q).catch(() => []),
     // Shop: productos, pedidos, colecciones, descuentos y clientes (solo con la app).
     userCanUseApp(user, 'shop') ? searchShop(user.id, q).catch(() => []) : Promise.resolve([]),
+    // Hiring: puestos y solo los candidatos que la persona ve (equipo del puesto o admin).
+    userCanUseApp(user, 'hiring') && user.role !== 'guest' ? searchHiring(hiringActorOf(user), q).catch(() => []) : Promise.resolve([]),
     // Books: comprobantes, contactos, ítems, bancos y recurrentes (con la app y según el rol de Books).
     userCanUseApp(user, 'books') ? searchBooks(user, q).catch(() => []) : Promise.resolve([]),
   ]);
@@ -187,6 +191,9 @@ export async function GET(req: NextRequest) {
     items.push({ id: `${s.kind}:${s.id}`, group: SHOP_GROUP[s.kind], label: s.label, meta: s.meta, href: `/app/shop/${SHOP_PATH[s.kind]}/${s.id}` });
   }
 
+  for (const h of hiring) {
+    items.push({ id: `hiring-${h.kind}:${h.id}`, group: h.kind === 'job' ? 'hiringJobs' : 'hiringCandidates', label: h.label, meta: h.meta, href: h.href });
+  }
   for (const b of books) items.push({ id: b.id, group: b.group, label: b.label, meta: b.meta, href: b.href });
 
   for (const l of links.links) {

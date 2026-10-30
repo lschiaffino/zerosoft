@@ -396,7 +396,7 @@ export async function assertConfigRefs(workspaceId: string, payload: AgentUpdate
   const t = payload.tools;
   if (t?.calEventTypeId) {
     const e = await db
-      .prepare('SELECT id FROM calendar_event_types WHERE id = ? AND user_id = ?')
+      .prepare("SELECT id FROM calendar_event_types WHERE id = ? AND user_id = ? AND kind != 'hiring'")
       .get(t.calEventTypeId, workspaceId);
     if (!e) return 'invalid_event_type';
   }

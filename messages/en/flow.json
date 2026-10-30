@@ -850,6 +850,9 @@
     "shop_order_paid": "Shop: order paid",
     "shop_order_fulfilled": "Shop: order fulfilled",
     "shop_inventory_low": "Shop: low stock",
+    "hiring_candidate_applied": "Hiring: candidate applied",
+    "hiring_candidate_stage_changed": "Hiring: candidate moved to a stage",
+    "hiring_candidate_hired": "Hiring: candidate hired",
     "books_invoice_paid": "Books: invoice paid",
     "books_invoice_overdue": "Books: invoice overdue"
   },

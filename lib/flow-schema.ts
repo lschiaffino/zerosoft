@@ -83,6 +83,9 @@ export const FLOW_EVENT_TYPES = [
   'shop.order.paid',
   'shop.order.fulfilled',
   'shop.inventory.low',
+  'hiring.candidate.applied',
+  'hiring.candidate.stage_changed',
+  'hiring.candidate.hired',
   'books.invoice.paid',
   'books.invoice.overdue',
 ] as const;
@@ -480,6 +483,24 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
   'shop.inventory.low': {
     item: { productId: 'prod_1', variantId: 'var_1', product: 'Blue mug', variant: 'Large', sku: 'MUG-L', available: 3, threshold: 5 },
     store: { name: 'Acme', handle: 'acme' },
+  },
+  'hiring.candidate.applied': {
+    candidate: { id: 'cand_1', name: 'Ana Pérez', email: 'ana@example.com' },
+    job: { id: 'job_1', title: 'Software Engineer' },
+    application: { id: 'app_1', source: 'careers', stage: 'Applied', knockedOut: false },
+  },
+  'hiring.candidate.stage_changed': {
+    candidate: { id: 'cand_1', name: 'Ana Pérez', email: 'ana@example.com' },
+    job: { id: 'job_1', title: 'Software Engineer' },
+    application: { id: 'app_1' },
+    from: { id: 'stg_1', name: 'Applied', kind: 'applied' },
+    to: { id: 'stg_2', name: 'Interview', kind: 'interview' },
+  },
+  'hiring.candidate.hired': {
+    candidate: { id: 'cand_1', name: 'Ana Pérez', email: 'ana@example.com', phone: '', location: 'Buenos Aires' },
+    job: { id: 'job_1', title: 'Software Engineer', department: 'Engineering', location: 'Buenos Aires', workplace: 'hybrid', employmentType: 'full_time' },
+    offer: { title: 'Software Engineer', salary: 60000, currency: 'USD', startDate: '2026-12-01' },
+    hiredAt: '2026-11-15T12:00:00.000Z',
   },
   'books.invoice.paid': {
     invoice: {

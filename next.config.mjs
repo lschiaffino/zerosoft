@@ -34,6 +34,8 @@ const nextConfig = {
         { source: '/uploads/:path*', destination: '/api/uploads/:path*' },
         // sitemap.xml de cada tienda de Shop (lib/shop-storefront.ts).
         { source: '/store/:handle/sitemap.xml', destination: '/api/shop/public/:handle/sitemap' },
+        // sitemap.xml de cada página de empleos de Hiring (lib/hiring/careers.ts).
+        { source: '/careers/:handle/sitemap.xml', destination: '/api/hiring/public/:handle/sitemap' },
       ],
       afterFiles: [],
       fallback: [],

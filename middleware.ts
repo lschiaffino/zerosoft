@@ -20,7 +20,7 @@ const RESERVED = new Set([
   'blog', 'products', 'docs', 'terms', 'privacy', 'security', 'status',
   'admin', 'www', 'mail', 'support', 'help', 'about', 'new',
   'login', 'signin', 'demo', 'manifesto', 'changelog', 'feedback', 'videos', 'roadmap', 'tools',
-  'feedback-board', 'brand', 'nuevo-branding', 'download', 'store',
+  'feedback-board', 'brand', 'nuevo-branding', 'download', 'store', 'careers',
 ]);
 
 /** Páginas de la app que un dominio propio sí sirve: la puerta de contraseña y /gone. */
@@ -159,6 +159,12 @@ export default async function middleware(incoming: NextRequest) {
     if (isAppHost(incoming.headers.get('host'))) return NextResponse.next();
     return new NextResponse('Not found', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
   }
+  // Páginas de empleos de Hiring (/careers/<handle>/…): igual que las tiendas,
+  // sin locale en la URL (el idioma es el de la página) y solo en el dominio de la app.
+  if (incoming.nextUrl.pathname.startsWith('/careers/')) {
+    if (isAppHost(incoming.headers.get('host'))) return NextResponse.next();
+    return new NextResponse('Not found', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
+  }
   const switched = brandSwitch(incoming);
   if (switched) return switched;
   const req = withForcedBrand(incoming);
@@ -276,6 +282,6 @@ export const config = {
   // Las APIs de las apps entran solo para el header de acceso por app (arriba).
   matcher: [
     '/((?!api/|r/|s/|_next/|_vercel/|apple-icon|.*\\..*).*)',
-    '/api/:family(crm|track|docs|notes|board|boards|links|calendar|chat|groups|agents|flow|robots|voice|rec|talk|design|shop|analytics|social|books)/:path*',
+    '/api/:family(crm|track|docs|notes|board|boards|links|calendar|chat|groups|agents|flow|robots|voice|rec|talk|design|shop|analytics|social|hiring|books)/:path*',
   ],
 };

@@ -58,7 +58,7 @@ export default async function AgentEditorPage(props: {
         .all(user.id, ...ts.args) as Promise<Array<{ id: string; title: string; is_public: number; restricted: number }>>;
     }),
     db
-      .prepare('SELECT id, title, duration_min FROM calendar_event_types WHERE user_id = ? AND active = 1 ORDER BY title')
+      .prepare("SELECT id, title, duration_min FROM calendar_event_types WHERE user_id = ? AND active = 1 AND kind NOT IN ('poll', 'hiring') ORDER BY title")
       .all(user.id) as Promise<Array<{ id: string; title: string; duration_min: number }>>,
     db
       .prepare("SELECT id, name FROM track_projects WHERE owner_id = ? AND status = 'active' ORDER BY name")

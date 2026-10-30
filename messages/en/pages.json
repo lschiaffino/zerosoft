@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "Products",
-      "description": "Twenty apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics, Social and Books. Open source for your server, or on zerosoft Cloud with a free plan and pay as you go."
+      "description": "Twenty-one apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics, Social, Hiring and Books. Open source for your server, or on zerosoft Cloud with a free plan and pay as you go."
     },
     "hero": {
-      "title1": "Twenty apps.",
+      "title1": "Twenty-one apps.",
       "title2": "One workspace.",
       "sub": "For your company: CRM, support, AI agents, automations, robots, projects and links. For you: docs, notes, scheduling and a whiteboard. The core of each one is open source and runs on your server for $0."
     },
     "cta": {
-      "title1": "Try all twenty apps.",
+      "title1": "Try all twenty-one apps.",
       "title2": "With one account.",
       "sub": "Sign in with Google, create a workspace and start on the free plan. If you later prefer your own server, the code is on GitHub.",
       "button": "Open the app"
@@ -1695,6 +1695,92 @@
         "button": "Propose an idea"
       }
     },
+    "hiring": {
+      "meta": {
+        "title": "Hiring: open-source applicant tracking with a careers page",
+        "description": "Jobs from templates, a careers page with Google for Jobs data, a candidate pipeline, scorecards, interviews scheduled with Cal and offers your candidates accept online. An open-source alternative to Workable."
+      },
+      "hero": {
+        "sub": "Publish jobs on your own careers page, move candidates through a kanban, collect scorecards from your interviewers and send offers, with candidate data visible only to each job's hiring team."
+      },
+      "featuresTitle": "Your hiring pipeline.",
+      "featuresTitleDim": "No per-job fees.",
+      "f1": {
+        "t": "Jobs and a careers page",
+        "d": "Jobs from templates with department, location, remote or hybrid, employment type and an optional salary range. A careers page with your logo and color, JobPosting structured data and a sitemap."
+      },
+      "f2": {
+        "t": "Application form",
+        "d": "Resume upload checked by its bytes, custom questions, knock-out questions that flag answers for review, a consent checkbox and protection against bots and floods."
+      },
+      "f3": {
+        "t": "Pipeline and candidates",
+        "d": "A kanban per job with drag between stages, a list with filters, tags, sources with UTM, duplicate detection by email and a timeline with every email, note, move and score."
+      },
+      "f4": {
+        "t": "Scorecards without peeking",
+        "d": "Criteria per stage rated by each interviewer. Interviewers only see the candidates they evaluate and cannot see other scores for a stage until they submit their own. Recruiters and hiring managers see every scorecard. Reminders when feedback is late."
+      },
+      "f5": {
+        "t": "Interviews and offers",
+        "d": "Candidates pick a time when every interviewer is free, through Cal. Offer letters from a template, approved by the hiring manager and accepted by the candidate with a typed name."
+      },
+      "f6": {
+        "t": "Private by default",
+        "d": "Candidate data only for the hiring team of each job and admins, also in search, the assistant and the API. Retention deletes old candidates and a link lets them delete their own data. AI only assists."
+      },
+      "steps": {
+        "s1": {
+          "t": "Create a job",
+          "d": "Start from a template, set the hiring team and the stages with their scorecards."
+        },
+        "s2": {
+          "t": "Publish",
+          "d": "Share /careers/your-company or a short link with UTM."
+        },
+        "s3": {
+          "t": "Decide together",
+          "d": "Move candidates, collect scorecards, schedule interviews and send the offer."
+        }
+      },
+      "compare": {
+        "rival": "Workable",
+        "price": "A plan per company",
+        "per": "priced by company size, monthly or yearly",
+        "teamLabel": "A team hiring for 5 roles",
+        "team": "see Workable pricing",
+        "zero": "$0",
+        "note": "Workable sells plans that grow with the size of your company, plus paid add-ons. We could not verify the current prices, so check workable.com/pricing. Hiring on your server costs $0 plus your database and email sending."
+      },
+      "faq": {
+        "f1": {
+          "q": "Does the AI reject candidates?",
+          "a": "No. It can read a resume to fill fields and write a neutral summary. It never decides on a candidate; a person moves and rejects them."
+        },
+        "f2": {
+          "q": "Who sees a candidate?",
+          "a": "The recruiters and hiring managers of the job they applied to, the interviewers asked to evaluate them, and the workspace admins. Nobody else, including in Cmd+K, the assistant and the API."
+        },
+        "f3": {
+          "q": "Can candidates schedule their own interview?",
+          "a": "Yes. Hiring creates a private Cal event with the interviewers as hosts and sends the candidate a link that only offers times when all of them are free."
+        },
+        "f4": {
+          "q": "Is there electronic signature for offers?",
+          "a": "Not yet. The candidate accepts by typing their full name; Hiring stores the date, IP, browser and a hash of the letter."
+        },
+        "f5": {
+          "q": "What is missing compared to Workable?",
+          "a": "Job board multiposting, a sourcing database, video interviews, assessments, SMS, e-signature and an HRIS. The parity table above has the full list."
+        }
+      },
+      "cta": {
+        "title1": "Hire with your team.",
+        "title2": "Keep the data yours.",
+        "sub": "Open Hiring, create your first job and publish your careers page.",
+        "button": "Open Hiring"
+      }
+    },
     "books": {
       "meta": {
         "title": "Books: open-source invoicing and accounting, a Xero alternative",
@@ -1790,7 +1876,7 @@
     "apiDocs": "API docs",
     "howTitle": "How it works.",
     "suiteTitle": "One workspace.",
-    "suiteTitleDim": "Twenty apps, same login.",
+    "suiteTitleDim": "Twenty-one apps, same login.",
     "shotTitle": "{name}, inside.",
     "crumbs": "Breadcrumb",
     "navLabel": "{name} sections",
@@ -2213,6 +2299,23 @@
       "text": "Our new product ships today. #launch",
       "counter": "X 37/280",
       "approve": "Waiting for approval"
+    },
+    "hiring": {
+      "listTitle": "Software Engineer",
+      "r1name": "Ana Pérez",
+      "r1time": "Interview",
+      "r1meta": "Careers page · 2 scorecards",
+      "r2name": "Bruno Silva",
+      "r2time": "Phone screen",
+      "r2meta": "Referral",
+      "r3name": "Lucía Gómez",
+      "r3time": "Applied",
+      "r3meta": "LinkedIn · knock-out",
+      "status": "Interview scheduled with Cal",
+      "i1": "Role skills: Excellent · Problem solving: Good",
+      "i2": "Overall: Strong yes",
+      "offer": "Offer approved by the hiring manager",
+      "action": "Send to candidate"
     },
     "books": {
       "listTitle": "Invoices",

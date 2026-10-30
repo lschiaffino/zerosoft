@@ -40,6 +40,7 @@ export const RIVALS: Record<ProductKey, string> = {
   shop: 'Shopify · Tiendanube',
   analytics: 'PostHog',
   social: 'Hootsuite',
+  hiring: 'Workable',
   books: 'Xero · QuickBooks',
 };
 
@@ -148,6 +149,7 @@ export const PRODUCT_PAGES: Record<ProductKey, ProductPageSpec> = {
   shop: { sections: ['shot', 'features', 'parity', 'how', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
   analytics: { sections: ['shot', 'features', 'how', 'parity', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
   social: { sections: ['shot', 'features', 'parity', 'compare', 'how', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
+  hiring: { sections: ['shot', 'features', 'parity', 'how', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
   // Sin bloque de precios: el de Xero no se verificó en USD para la región.
   books: { sections: ['shot', 'features', 'parity', 'how', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
 };
