@@ -37,6 +37,7 @@ export const RIVALS: Record<ProductKey, string> = {
   rec: 'Loom',
   talk: 'Slack',
   design: 'Canva',
+  shop: 'Shopify · Tiendanube',
   analytics: 'PostHog',
 };
 
@@ -141,5 +142,7 @@ export const PRODUCT_PAGES: Record<ProductKey, ProductPageSpec> = {
   rec: { sections: ['features', 'how', 'parity', 'compare', 'shot', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
   talk: { sections: ['features', 'parity', 'compare', 'how', 'shot', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
   design: { sections: ['shot', 'features', 'parity', 'compare', 'how', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
+  // Sin bloque de precios: el de Shopify no se pudo verificar en USD (ver pages.json › products.shop.compare.note).
+  shop: { sections: ['shot', 'features', 'parity', 'how', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
   analytics: { sections: ['shot', 'features', 'how', 'parity', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
 };

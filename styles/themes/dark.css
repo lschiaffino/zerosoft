@@ -65,6 +65,10 @@
     /* Talk: el ciruela base queda en 2,8:1 sobre el fondo oscuro; el relleno usa el tono claro (≥ 5:1) y tinta encima. */
     --c-talk: #b37baa;
     --c-talk-on: #111111;
+    /* Shop: el verde base queda oscuro sobre el fondo oscuro; relleno claro y tinta encima. */
+    --c-shop-ink: #3fb96b;
+    --c-shop: #3fb96b;
+    --c-shop-on: #111111;
   /* Analytics: el índigo base no llega a 4,5:1 sobre el fondo oscuro; relleno claro y tinta encima. */
   --c-analytics-ink: #8f8af2;
   --c-analytics: #8f8af2;
@@ -156,6 +160,10 @@
   /* Talk: el ciruela base queda en 2,8:1 sobre el fondo oscuro; el relleno usa el tono claro (≥ 5:1) y tinta encima. */
   --c-talk: #b37baa;
   --c-talk-on: #111111;
+  /* Shop: el verde base queda oscuro sobre el fondo oscuro; relleno claro y tinta encima. */
+  --c-shop-ink: #3fb96b;
+  --c-shop: #3fb96b;
+  --c-shop-on: #111111;
   /* Analytics: el índigo base no llega a 4,5:1 sobre el fondo oscuro; relleno claro y tinta encima. */
   --c-analytics-ink: #8f8af2;
   --c-analytics: #8f8af2;
@@ -196,5 +204,7 @@
 /* Talk en oscuro: su relleno es el tono claro, así que el texto encima va en tinta. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .card-talk { --on-accent: #111111; }
+  :root:not([data-theme='light']) .card-shop { --on-accent: #111111; }
 }
 :root[data-theme='dark'] .card-talk { --on-accent: #111111; }
+:root[data-theme='dark'] .card-shop { --on-accent: #111111; }

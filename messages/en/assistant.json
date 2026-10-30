@@ -141,6 +141,11 @@
       "b": "Find a board",
       "c": "What can you do here?"
     },
+    "shop": {
+      "a": "Which orders are waiting to ship?",
+      "b": "How were sales in the last 30 days?",
+      "c": "What is low on stock?"
+    },
     "analytics": {
       "a": "How many visitors did we have this week?",
       "b": "Which insights are saved in this project?",

@@ -150,6 +150,8 @@ export default defineConfig({
       DESKTOP_RELEASES_FAKE: '1',
       // Asistente de la plataforma (⌘J) contra el modelo falso de lib/assistant/fake.ts: sin OpenRouter.
       ASSISTANT_FAKE: '1',
+      // Shop: Stripe y Mercado Pago sin salir a internet; el pago lo marca un webhook firmado (lib/shop-payments.ts).
+      SHOP_PAYMENTS_FAKE: '1',
       AI_GATEWAY_API_KEY: '',
       VERCEL_OIDC_TOKEN: '',
     },

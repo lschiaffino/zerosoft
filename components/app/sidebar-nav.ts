@@ -172,6 +172,18 @@ export interface SidebarLabels {
   design: { home: string; templates: string; brand: string; newDesign: string };
   /** Apps en construcción (Talk ya no; queda el shell genérico): por ahora solo su inicio. */
   talk: { home: string };
+  /** Shop: inicio, pedidos, productos, colecciones, inventario, clientes, descuentos, analítica, tienda. */
+  shop: {
+    home: string;
+    orders: string;
+    products: string;
+    collections: string;
+    inventory: string;
+    customers: string;
+    discounts: string;
+    analytics: string;
+    store: string;
+    newProduct: string;
   /** Analytics (PostHog): web, eventos, insights, tableros, personas, cohortes, flags y SQL. */
   analytics: {
     web: string;
@@ -238,6 +250,7 @@ export type AppProduct =
   | 'rec'
   | 'talk'
   | 'design'
+  | 'shop'
   | 'analytics';
 
 const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
@@ -256,6 +269,7 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/rec', 'rec'],
   ['/app/talk', 'talk'],
   ['/app/design', 'design'],
+  ['/app/shop', 'shop'],
   ['/app/analytics', 'analytics'],
 ];
 
@@ -296,6 +310,7 @@ const APP_ICONS: Record<ProductKey, IconName> = {
   rec: 'rec',
   talk: 'talk',
   design: 'design',
+  shop: 'shop',
   analytics: 'analytics',
 };
 
@@ -756,6 +771,26 @@ export function buildNav(
       ];
     }
 
+    case 'shop':
+      return [
+        {
+          items: [
+            { href: '/app/shop', label: labels.shop.home, active: pathname === '/app/shop', icon: 'overview' },
+            { href: '/app/shop/orders', label: labels.shop.orders, active: at('/app/shop/orders'), icon: 'inbox' },
+            { href: '/app/shop/products', label: labels.shop.products, active: at('/app/shop/products'), icon: 'products' },
+            { href: '/app/shop/collections', label: labels.shop.collections, active: at('/app/shop/collections'), icon: 'lists' },
+            { href: '/app/shop/inventory', label: labels.shop.inventory, active: at('/app/shop/inventory'), icon: 'bulk' },
+            { href: '/app/shop/customers', label: labels.shop.customers, active: at('/app/shop/customers'), icon: 'contacts' },
+            { href: '/app/shop/discounts', label: labels.shop.discounts, active: at('/app/shop/discounts'), icon: 'discounts' },
+          ],
+        },
+        {
+          section: labels.insights,
+          items: [{ href: '/app/shop/analytics', label: labels.shop.analytics, active: at('/app/shop/analytics'), icon: 'reports' }],
+        },
+        appSettingsGroup('/app/shop/settings'),
+      ];
+
     // Shell genérico (inicio y ajustes).
     case 'talk': {
       const base = `/app/${product}`;
@@ -857,6 +892,8 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
       return [item('/app/rec/new', labels.rec.newVideo, 'rec')];
     case 'design':
       return [item('/app/design?new=1', labels.design.newDesign, 'design')];
+    case 'shop':
+      return [item('/app/shop/products/new', labels.shop.newProduct, 'products')];
     case 'agents':
       return [item('/app/agents?new=1', labels.newAgent, 'agents')];
     case 'robots':

@@ -845,7 +845,11 @@
     "database_row_created": "Docs: fila nueva en una base",
     "database_property_changed": "Docs: cambió una propiedad de una base",
     "voice_meeting_completed": "Voice: reunión grabada",
-    "voice_notes_ready": "Voice: nota de la reunión lista"
+    "voice_notes_ready": "Voice: nota de la reunión lista",
+    "shop_order_created": "Shop: pedido creado",
+    "shop_order_paid": "Shop: pedido pagado",
+    "shop_order_fulfilled": "Shop: pedido enviado",
+    "shop_inventory_low": "Shop: stock bajo"
   },
   "ops": {
     "equals": "es igual a",

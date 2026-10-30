@@ -49,7 +49,7 @@ for (const path of ['/es', '/es/products']) {
     const table = page.locator('#paridad .parity-overview-table');
     await expect(table.locator('tbody tr')).toHaveCount(PRODUCTS.length);
     await expect(table.locator('.po-percent').first()).toHaveText(/^\d{1,3}%$/);
-    await expect(page.locator('#paridad .parity-overview-lead')).toContainText('17 apps');
+    await expect(page.locator('#paridad .parity-overview-lead')).toContainText('18 apps');
     await table.locator('a.po-app', { hasText: 'Groups' }).click();
     await expect(page).toHaveURL(/\/es\/products\/groups#parity$/);
   });

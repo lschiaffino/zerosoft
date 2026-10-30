@@ -1037,6 +1037,29 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
     );
   }
 
+  // Shop nativo: mismo criterio que shopify_order (número + email, los dos tienen que coincidir).
+  if (on.has('shop_order')) {
+    add(
+      'shop_order',
+      tool({
+        description:
+          "Check the status of an order from this workspace's Shop store with its order number and the email used to buy (both must match): payment, shipping and tracking.",
+        inputSchema: z.object({ orderNumber: z.string().trim().min(1).max(30), email: z.string().trim().max(200) }),
+        execute: logged(ctx, 'shop_order', async ({ orderNumber, email }: { orderNumber: string; email: string }) => {
+          if (!EMAIL_RE.test(email)) return { error: 'invalid_email' };
+          if (!visitorGaveEmail(ctx, email)) return { error: 'email_not_given_by_visitor' };
+          if (ctx.channel === 'playground' && ((await playgroundAccess(ctx))?.email ?? '') !== email.trim().toLowerCase()) return { error: 'identity_not_verified' };
+          const tries = (await getDb()
+            .prepare("SELECT COUNT(*) AS c FROM agent_tool_calls WHERE conversation_id = ? AND tool = 'shop_order'")
+            .get(ctx.conversation.id)) as { c: number };
+          if (Number(tries.c) >= SHOPIFY_MAX_TRIES) return { error: 'too_many_attempts' };
+          const { shopOrderStatus } = await import('./shop-agent');
+          return shopOrderStatus(ctx.workspaceId, orderNumber, email.trim().toLowerCase());
+        }),
+      }),
+    );
+  }
+
   let handoff: BuiltAgentTools['handoff'] = null;
   if (on.has('handoff_to_human')) {
     const run = logged(ctx, 'handoff_to_human', async ({ reason }: { reason: string }) => {

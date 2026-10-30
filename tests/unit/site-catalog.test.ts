@@ -66,7 +66,8 @@ describe.each(LOCALES)('copy de las páginas de producto (%s)', (locale) => {
       `${p}.hero.sub`,
       `${p}.featuresTitle`,
       `${p}.featuresTitleDim`,
-      ...['rival', 'price', 'per', 'team', 'zero', 'note'].map((f) => `${p}.compare.${f}`),
+      // El rival siempre (tagline); la cuenta de precios solo si la página muestra el bloque (Shop no: el precio de Shopify no se pudo verificar en USD).
+      ...(spec.sections.includes('compare') ? ['rival', 'price', 'per', 'team', 'zero', 'note'] : ['rival']).map((f) => `${p}.compare.${f}`),
       ...['title1', 'title2', 'sub', 'button'].map((f) => `${p}.cta.${f}`),
       ...Array.from({ length: spec.features }, (_, i) => [`${p}.f${i + 1}.t`, `${p}.f${i + 1}.d`]).flat(),
       ...Array.from({ length: spec.faqs }, (_, i) => [`${p}.faq.f${i + 1}.q`, `${p}.faq.f${i + 1}.a`]).flat(),

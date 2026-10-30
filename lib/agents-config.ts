@@ -27,6 +27,7 @@ export const AGENT_TOOL_KEYS = [
   'stripe_customer',
   'shopify_order',
   'shopify_products',
+  'shop_order',
 ] as const;
 
 export type AgentToolKey = (typeof AGENT_TOOL_KEYS)[number];
@@ -58,6 +59,7 @@ export const AGENT_TOOL_GROUP: Record<
   stripe_customer: 'commerce',
   shopify_order: 'commerce',
   shopify_products: 'commerce',
+  shop_order: 'commerce',
 };
 
 /**
@@ -190,6 +192,7 @@ export const AGENT_PROCEDURE_TOOLS = [
   'run_code',
   'stripe_customer',
   'shopify_order',
+  'shop_order',
 ] as const satisfies readonly AgentToolKey[];
 export type AgentProcedureTool = (typeof AGENT_PROCEDURE_TOOLS)[number];
 export const AGENT_MAX_PROCEDURES = 10;

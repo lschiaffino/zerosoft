@@ -82,7 +82,7 @@ export default async function AppLayout(
   if (workspaces.length && !workspaces.some((w) => w.current)) workspaces[0].current = true;
   const tTriage = await getTranslations({ locale, namespace: 'trackTriage' });
   // Lecturas independientes en paralelo (en Turso cada query es un RTT).
-  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tAnalytics, tasksDue, serverTz, tPlanning, mode, tCat] =
+  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tasksDue, serverTz, tPlanning, mode, tCat] =
     await Promise.all([
       getTranslations({ locale, namespace: 'settings' }),
       getTranslations({ locale, namespace: 'common.sidebar' }),
@@ -102,6 +102,7 @@ export default async function AppLayout(
       getTranslations({ locale, namespace: 'rec' }),
       getTranslations({ locale, namespace: 'talk' }),
       getTranslations({ locale, namespace: 'design' }),
+      getTranslations({ locale, namespace: 'shop' }),
       getTranslations({ locale, namespace: 'analytics' }),
       // El badge no puede tirar todas las páginas de la app: sin la tabla o con un error, 0.
       countDueTasks(user.id).catch((err) => {
@@ -170,6 +171,7 @@ export default async function AppLayout(
                 { href: '/app/rec/settings', label: tSide('appSettings') },
                 { href: '/app/talk/settings', label: tSide('appSettings') },
                 { href: '/app/design/settings', label: tSide('appSettings') },
+                { href: '/app/shop/settings', label: tSide('appSettings') },
                 { href: '/app/analytics/settings', label: tSide('appSettings') },
                 { href: '/app/crm', label: tCrm('tabs.overview') },
                 { href: '/app/crm/contacts', label: tCrm('tabs.contacts') },
@@ -259,6 +261,14 @@ export default async function AppLayout(
                 { href: '/app/design', label: tDesign('sidebar.home') },
                 { href: '/app/design/templates', label: tDesign('sidebar.templates') },
                 { href: '/app/design/brand', label: tDesign('sidebar.brand') },
+                { href: '/app/shop', label: tShop('nav.home') },
+                { href: '/app/shop/orders', label: tShop('nav.orders') },
+                { href: '/app/shop/products', label: tShop('nav.products') },
+                { href: '/app/shop/collections', label: tShop('nav.collections') },
+                { href: '/app/shop/inventory', label: tShop('nav.inventory') },
+                { href: '/app/shop/customers', label: tShop('nav.customers') },
+                { href: '/app/shop/discounts', label: tShop('nav.discounts') },
+                { href: '/app/shop/analytics', label: tShop('nav.analytics') },
                 { href: '/app/analytics', label: tAnalytics('sidebar.web') },
                 { href: '/app/analytics/events', label: tAnalytics('sidebar.events') },
                 { href: '/app/analytics/insights', label: tAnalytics('sidebar.insights') },
@@ -427,6 +437,17 @@ export default async function AppLayout(
             rec: { home: tRec('sidebar.home'), workspace: tRec('sidebar.workspace'), newVideo: tRec('sidebar.newVideo') },
             talk: { home: tTalk('sidebar.home') },
             design: { home: tDesign('sidebar.home'), templates: tDesign('sidebar.templates'), brand: tDesign('sidebar.brand'), newDesign: tDesign('sidebar.newDesign') },
+            shop: {
+              home: tShop('nav.home'),
+              orders: tShop('nav.orders'),
+              products: tShop('nav.products'),
+              collections: tShop('nav.collections'),
+              inventory: tShop('nav.inventory'),
+              customers: tShop('nav.customers'),
+              discounts: tShop('nav.discounts'),
+              analytics: tShop('nav.analytics'),
+              store: tShop('nav.store'),
+              newProduct: tShop('products.new'),
             analytics: {
               web: tAnalytics('sidebar.web'),
               events: tAnalytics('sidebar.events'),

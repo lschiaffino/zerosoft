@@ -278,6 +278,10 @@
         "name": "Stripe: facturación del visitante",
         "desc": "Suscripción, plan, fecha de renovación y últimas facturas del visitante identificado (solo lectura)."
       },
+      "shop_order": {
+        "name": "Shop: estado del pedido",
+        "desc": "Pago, envío y seguimiento de un pedido de tu tienda de Shop, con su número y el email de la compra."
+      },
       "shopify_order": {
         "name": "Shopify: estado del pedido",
         "desc": "Pago, envío y seguimiento de un pedido, con su número y el email de la compra."

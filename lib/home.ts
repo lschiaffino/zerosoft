@@ -232,7 +232,7 @@ export async function homeUnread(user: HomeUser): Promise<{ chat: number | null;
 
 // ---------- Recientes ----------
 
-export type RecentKind = 'doc' | 'note' | 'board' | 'design' | 'issue' | 'link' | 'contact' | 'deal' | 'flow' | 'insight';
+export type RecentKind = 'doc' | 'note' | 'board' | 'design' | 'issue' | 'link' | 'contact' | 'deal' | 'flow' | 'product' | 'insight';
 
 export interface RecentItem {
   kind: RecentKind;
@@ -253,6 +253,7 @@ const RECENT_PRODUCT: Record<RecentKind, ProductKey> = {
   contact: 'crm',
   deal: 'crm',
   flow: 'flow',
+  product: 'shop',
   insight: 'analytics',
 };
 
@@ -286,7 +287,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
   const contactScope = ownerScopeSql('c', scope);
   const dealScope = ownerScopeSql('d', scope);
 
-  const [docs, notes, boards, designs, issues, links, contacts, deals, flows, insights] = await Promise.all([
+  const [docs, notes, boards, designs, issues, links, contacts, deals, flows, products, insights] = await Promise.all([
     all(`SELECT id, title AS label, updated_at FROM docs_pages WHERE user_id = ? AND archived = 0 ORDER BY updated_at DESC LIMIT ?`, user.id, per),
     // Notas: solo las de la persona (son privadas aunque el workspace sea compartido).
     listNotes(noteOwner(user), { view: 'all', limit: per })
@@ -327,6 +328,9 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
       per,
     ),
     all(`SELECT id, name AS label, updated_at FROM flow_flows WHERE user_id = ? ORDER BY updated_at DESC LIMIT ?`, user.id, per),
+    homeCanUse(user, 'shop')
+      ? all(`SELECT id, title AS label, updated_at FROM shop_products WHERE workspace_id = ? ORDER BY updated_at DESC LIMIT ?`, user.id, per)
+      : Promise.resolve([] as Row[]),
     // Analytics: insights guardados de los proyectos del workspace (solo si la persona tiene la app).
     homeCanUse(user, 'analytics')
       ? all(
@@ -348,6 +352,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
     contact: (id) => `/app/crm/contacts/${id}`,
     deal: (id) => `/app/crm/deals/${id}`,
     flow: (id) => `/app/flow/${id}`,
+    product: (id) => `/app/shop/products/${id}`,
     insight: (id) => `/app/analytics/insights/${id}`,
   };
   const groups: Array<[RecentKind, Row[]]> = [
@@ -360,6 +365,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
     ['contact', contacts],
     ['deal', deals],
     ['flow', flows],
+    ['product', products],
     ['insight', insights],
   ];
   const items = groups
