@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
-import { getDb } from '@/lib/db';
-import { EMAIL_CODE_MAX_ATTEMPTS, normalizeLoginEmail, renderLoginCodeEmail, sendLoginCode, verifyLoginCode } from '@/lib/email-login';
+import { getDb, getUserByEmail, upsertUser } from '@/lib/db';
+import { EMAIL_CODE_DAILY_FAILURES, EMAIL_CODE_DAILY_LIMIT, EMAIL_CODE_MAX_ATTEMPTS, emailLoginLocked, normalizeLoginEmail, renderLoginCodeEmail, sendLoginCode, verifyLoginCode } from '@/lib/email-login';
 import { renderInviteEmail } from '@/lib/invite-email';
+import { describeApps } from '@/lib/app-access-label';
+import { APP_SWITCHER_ORDER } from '@/lib/products';
 import { POST as requestCode } from '@/app/api/auth/email-code/route';
 
 /** Código vigente de un email, leído del texto del email "mandado" (sin Resend va a la consola). */
@@ -55,6 +57,69 @@ describe('login con código por email', () => {
     expect(await verifyLoginCode(email, code)).toBeNull();
   });
 
+  it('50 intentos equivocados en paralelo: attempts queda en 5 y el código correcto ya no sirve', async () => {
+    const email = `par-${uid()}@empresa.io`;
+    const code = await codeFor(email);
+    const wrong = code === '000000' ? '111111' : '000000';
+    const results = await Promise.all(Array.from({ length: 50 }, () => verifyLoginCode(email, wrong)));
+    expect(results.every((r) => r === null)).toBe(true);
+    const row = (await getDb().prepare('SELECT attempts FROM email_login_codes WHERE email = ?').get(email)) as { attempts: number };
+    expect(Number(row.attempts)).toBe(EMAIL_CODE_MAX_ATTEMPTS);
+    expect(await verifyLoginCode(email, code)).toBeNull();
+  });
+
+  it('como mucho 15 códigos por día por email; después no se manda nada pero la respuesta es la misma', async () => {
+    const email = `day-${uid()}@empresa.io`;
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      for (let i = 0; i < EMAIL_CODE_DAILY_LIMIT; i++) expect(await sendLoginCode(email)).toEqual({ ok: true, sent: true });
+      expect(await sendLoginCode(email)).toEqual({ ok: true, sent: false });
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it('20 intentos fallidos en el día bloquean el email: ni códigos nuevos ni canjes', async () => {
+    const email = `lock-${uid()}@empresa.io`;
+    for (let round = 0; round < EMAIL_CODE_DAILY_FAILURES / EMAIL_CODE_MAX_ATTEMPTS; round++) {
+      const code = await codeFor(email);
+      const wrong = code === '000000' ? '111111' : '000000';
+      for (let i = 0; i < EMAIL_CODE_MAX_ATTEMPTS; i++) await verifyLoginCode(email, wrong);
+    }
+    expect(await emailLoginLocked(email)).toBe(true);
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      expect(await sendLoginCode(email)).toEqual({ ok: true, sent: false });
+      expect(log).not.toHaveBeenCalled();
+    } finally {
+      log.mockRestore();
+    }
+    // Aun con un código vigente en la base, el canje se niega mientras dure el bloqueo.
+    const fresh = '123456';
+    const { createHash } = await import('crypto');
+    await getDb()
+      .prepare('INSERT INTO email_login_codes (code_hash, email, created_at, expires_at) VALUES (?, ?, ?, ?)')
+      .run(createHash('sha256').update(`email-login|${email}|${fresh}`).digest('hex'), email, new Date().toISOString(), new Date(Date.now() + 600_000).toISOString());
+    expect(await verifyLoginCode(email, fresh)).toBeNull();
+  });
+
+  it('la cuenta se encuentra sin importar mayúsculas (no se duplica)', async () => {
+    const id = `u-${uid()}`;
+    const mixed = `Ana.${id}@Empresa.IO`;
+    // Una fila vieja con mayúsculas (antes no se normalizaba).
+    await getDb().prepare('INSERT INTO users (id, email, handle) VALUES (?, ?, ?)').run(id, mixed, id);
+    expect((await getUserByEmail(mixed.toLowerCase()))?.id).toBe(id);
+    expect((await getUserByEmail(`  ${mixed.toUpperCase()} `))?.id).toBe(id);
+    const again = await upsertUser({ email: mixed.toLowerCase(), name: 'Ana' });
+    expect(again.id).toBe(id);
+    const count = (await getDb().prepare('SELECT COUNT(*) AS n FROM users WHERE lower(email) = ?').get(mixed.toLowerCase())) as { n: number };
+    expect(Number(count.n)).toBe(1);
+    // Las cuentas nuevas se guardan normalizadas.
+    const fresh = await upsertUser({ email: `  Leo.${id}@X.COM ` });
+    expect(fresh.email).toBe(`leo.${id}@x.com`);
+    expect(normalizeLoginEmail('Ana@E\u0301xito.com'.normalize('NFD'))).toBe('ana@éxito.com'.normalize('NFC'));
+  });
+
   it('el email del código está en en, es y pt', () => {
     expect(renderLoginCodeEmail('a@x.com', '123456', 'es').subject).toBe('Tu código de zerosoft: 123456');
     expect(renderLoginCodeEmail('a@x.com', '123456', 'pt').subject).toBe('Seu código do zerosoft: 123456');
@@ -90,5 +155,14 @@ describe('email de invitación con apps limitadas', () => {
     const admin = renderInviteEmail({ ...base, role: 'admin', locale: 'pt', apps: ['Track'] });
     expect(admin.text).toContain('Você entra como admin');
     expect(admin.text).toContain('Você vai usar Track com o resto da equipe.');
+  });
+
+  it('con la mayoría de las apps nombra las que faltan', () => {
+    expect(describeApps('*')).toEqual({ kind: 'all' });
+    expect(describeApps([...APP_SWITCHER_ORDER])).toEqual({ kind: 'all' });
+    expect(describeApps(['crm', 'docs'])).toEqual({ kind: 'list', names: ['CRM', 'Docs'] });
+    expect(describeApps(APP_SWITCHER_ORDER.filter((k) => k !== 'track'))).toEqual({ kind: 'except', names: ['Track'] });
+    const base = { to: 'leo@x.com', url: 'https://zerosoft.ai/es/invite/abc', workspaceName: 'Acme', inviterName: 'Fer', expiresAt: null };
+    expect(renderInviteEmail({ ...base, role: 'member', locale: 'es', appsExcept: ['Track'] }).text).toContain('Vas a usar todas las apps menos Track, con el resto del equipo.');
   });
 });

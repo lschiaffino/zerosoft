@@ -339,7 +339,8 @@
         "email_login_disabled": "Neste servidor não dá para entrar por email. Use o Google.",
         "bad_code": "O código está errado ou venceu. Veja o último email ou peça outro."
       }
-    }
+    },
+    "subGoogle": "Entre com a sua conta Google. Não tem senha para criar."
   },
   "blog": {
     "label": "Blog",

@@ -37,7 +37,7 @@ export default async function SignInPage(props: {
       <div className="auth-card">
         <Logo variant="symbol" tone="current" height={36} title="" />
         <h1>{t('title')}</h1>
-        <p className="auth-sub">{t('sub')}</p>
+        <p className="auth-sub">{t(emailLoginEnabled() ? 'sub' : 'subGoogle')}</p>
         <GoogleButton label={t('google')} locale={locale} callbackUrl={callbackUrl} desktopHint={t('desktopHint')} />
         {emailLoginEnabled() && <EmailCodeForm locale={locale} callbackUrl={callbackUrl} />}
         <p className="auth-legal">

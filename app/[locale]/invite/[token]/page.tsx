@@ -8,7 +8,7 @@ import { getMembership, parseApps } from '@/lib/workspace';
 import GoogleButton from '@/components/auth/GoogleButton';
 import EmailCodeForm from '@/components/auth/EmailCodeForm';
 import { emailLoginEnabled } from '@/lib/email-login';
-import { PRODUCT_CONFIG } from '@/lib/products';
+import { describeApps, joinNames } from '@/lib/app-access-label';
 import InviteAccept from '@/components/settings/InviteAccept';
 import '@/styles/workspace.css';
 
@@ -71,11 +71,11 @@ export default async function InvitePage(props: { params: Promise<{ locale: stri
   } else {
     const inviterName = inviter?.name?.trim() || inviter?.email || '';
     // Con apps limitadas, la invitación dice cuáles (no "las mismas apps que el resto").
-    const apps = parseApps(invite.apps);
+    const access = describeApps(parseApps(invite.apps));
     const appsLine =
-      role !== 'guest' && apps !== '*' && apps.length
-        ? t('roleLineApps', { apps: new Intl.ListFormat(locale, { type: 'conjunction' }).format(apps.map((a) => PRODUCT_CONFIG[a].name)) })
-        : null;
+      role === 'guest' || access.kind === 'all' || !access.names.length
+        ? null
+        : t('roleLineApps', { apps: access.kind === 'except' ? t('allAppsExcept', { apps: joinNames(access.names, locale) }) : joinNames(access.names, locale) });
     body = (
       <>
         <h1>{t('title', { workspace: team.name })}</h1>
@@ -97,7 +97,7 @@ export default async function InvitePage(props: { params: Promise<{ locale: stri
           <>
             <GoogleButton label={t('signinGoogle')} locale={locale} callbackUrl={`/${locale}/invite/${token}`} />
             {emailLoginEnabled() && <EmailCodeForm locale={locale} callbackUrl={`/${locale}/invite/${token}`} defaultEmail={invite.email} />}
-            {invite.email && <p className="auth-legal">{t('useAccount', { email: invite.email })}</p>}
+            {invite.email && <p className="auth-legal">{t(emailLoginEnabled() ? 'useAccount' : 'useAccountGoogle', { email: invite.email })}</p>}
           </>
         )}
         {invite.expires_at && <p className="auth-legal">{t('expires', { date: new Intl.DateTimeFormat(locale, { dateStyle: 'long' }).format(new Date(invite.expires_at)) })}</p>}

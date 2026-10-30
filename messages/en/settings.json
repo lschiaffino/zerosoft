@@ -543,7 +543,15 @@
     "allowAnyEmail": "Allow another email",
     "allowAnyEmailHelp": "Resends the invitation and lets them accept it with a different email. Never for admins.",
     "legacyNotice": "Heads up: whoever joins will see what so far was only yours in this workspace, including Track projects and Chat widgets. Mark as private what should stay yours before inviting.",
-    "peopleProfile": "Open their People profile"
+    "peopleProfile": "Open their People profile",
+    "inviteDescGoogle": "Each person gets an email with a link that works once and expires in 14 days. They sign in with Google and land in this workspace.",
+    "allAppsExcept": "All apps except {apps}",
+    "revokeConfirm": {
+      "title": "Revoke the invitation to {email}?",
+      "body": "The link stops working right away. You can invite this person again later.",
+      "confirm": "Revoke",
+      "cancel": "Cancel"
+    }
   },
   "teamsForm": {
     "createTitle": "Create a team",
@@ -715,7 +723,9 @@
       "email_required": "This invitation can only be accepted with the email it was sent to."
     },
     "mismatchStrict": "This invitation is for <b>{invited}</b> and you are signed in as <b>{current}</b>. Sign in with that account to accept it, or ask for an invitation to your email.",
-    "roleLineApps": "You will use {apps} with the rest of the team."
+    "roleLineApps": "You will use {apps} with the rest of the team.",
+    "useAccountGoogle": "Use the Google account for {email}.",
+    "allAppsExcept": "all apps except {apps}"
   },
   "welcome": {
     "metaTitle": "Welcome",

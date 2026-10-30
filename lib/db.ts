@@ -180,6 +180,23 @@ import type { UserRow } from './schema/types';
 
 // ---------- Users ----------
 
+/** Email como clave de una cuenta: sin espacios, en minúsculas y en NFC. */
+export function normalizeEmail(email: string): string {
+  return email.normalize('NFC').trim().toLowerCase();
+}
+
+/**
+ * La cuenta de un email sin importar mayúsculas: las filas viejas pueden tener
+ * "Ana@X.com" (no se reescriben); si hubiera dos, gana la que coincide exacto
+ * y después la más vieja.
+ */
+async function findUserByEmail(email: string): Promise<UserRow | undefined> {
+  const clean = normalizeEmail(email);
+  return (await getDb()
+    .prepare('SELECT * FROM users WHERE lower(email) = ? ORDER BY (email = ?) DESC, created_at, id LIMIT 1')
+    .get(clean, clean)) as UserRow | undefined;
+}
+
 export async function upsertUser(u: {
   email: string;
   name?: string | null;
@@ -187,9 +204,7 @@ export async function upsertUser(u: {
   id?: string;
 }): Promise<UserRow> {
   const db = getDb();
-  const existing = (await db.prepare('SELECT * FROM users WHERE email = ?').get(u.email)) as
-    | UserRow
-    | undefined;
+  const existing = await findUserByEmail(u.email);
   if (existing) {
     await db
       // El nombre que la persona cambió en zerosoft (onboarding, Ajustes) no lo pisa el de Google.
@@ -214,19 +229,17 @@ export async function upsertUser(u: {
         .prepare(
           'INSERT INTO users (id, email, name, image, handle) VALUES (?, ?, ?, ?, ?) ON CONFLICT(email) DO NOTHING',
         )
-        .run(u.id ?? crypto.randomUUID(), u.email, u.name ?? null, u.image ?? null, pickHandle(u.email, taken));
+        .run(u.id ?? crypto.randomUUID(), normalizeEmail(u.email), u.name ?? null, u.image ?? null, pickHandle(u.email, taken));
       break;
     } catch (err) {
       if (attempt >= 4 || !/UNIQUE constraint failed: users\.handle/.test(String(err))) throw err;
     }
   }
-  return (await db.prepare('SELECT * FROM users WHERE email = ?').get(u.email)) as UserRow;
+  return (await findUserByEmail(u.email)) as UserRow;
 }
 
 export async function getUserByEmail(email: string): Promise<UserRow | undefined> {
-  return (await getDb().prepare('SELECT * FROM users WHERE email = ?').get(email)) as
-    | UserRow
-    | undefined;
+  return findUserByEmail(email);
 }
 
 export async function getUserById(id: string): Promise<UserRow | undefined> {

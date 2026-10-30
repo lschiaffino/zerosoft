@@ -21,6 +21,7 @@ const COPY: Record<
     line: string;
     role: Record<'admin' | 'member' | 'guest', string>;
     apps: string;
+    appsExcept: string;
     button: string;
     orCopy: string;
     expires: string;
@@ -39,6 +40,7 @@ const COPY: Record<
       guest: 'You join as a guest: you only see what they share with you.',
     },
     apps: 'You will use {apps} with the rest of the team.',
+    appsExcept: 'You will use every app except {apps}, with the rest of the team.',
     button: 'Accept invitation',
     orCopy: 'Or paste this link in your browser:',
     expires: 'The link works once and expires on {date}.',
@@ -56,6 +58,7 @@ const COPY: Record<
       guest: 'Entrás como invitado: solo ves lo que te compartan.',
     },
     apps: 'Vas a usar {apps} con el resto del equipo.',
+    appsExcept: 'Vas a usar todas las apps menos {apps}, con el resto del equipo.',
     button: 'Aceptar invitación',
     orCopy: 'O pegá este link en el navegador:',
     expires: 'El link sirve una sola vez y vence el {date}.',
@@ -73,6 +76,7 @@ const COPY: Record<
       guest: 'Você entra como convidado: só vê o que compartilharem com você.',
     },
     apps: 'Você vai usar {apps} com o resto da equipe.',
+    appsExcept: 'Você vai usar todos os apps menos {apps}, com o resto da equipe.',
     button: 'Aceitar convite',
     orCopy: 'Ou cole este link no navegador:',
     expires: 'O link funciona uma vez e vence em {date}.',
@@ -103,6 +107,8 @@ export interface InviteEmailInput {
   logoUrl?: string | null;
   /** Nombres de las apps a las que entra (si no son todas). */
   apps?: string[] | null;
+  /** Con la mayoría de las apps: las que NO tiene ("todas menos Track"). */
+  appsExcept?: string[] | null;
 }
 
 /** Asunto, texto y HTML de la invitación (puro, para testear). */
@@ -118,10 +124,15 @@ export function renderInviteEmail(input: InviteEmailInput): { subject: string; t
   const esc = (s: string) => escapeHtml(s);
   const subject = fill(c.subject, vars);
   // Con apps limitadas, el email dice cuáles en vez de "las mismas apps que el resto".
+  const list = (names: string[]) => new Intl.ListFormat(tag, { type: 'conjunction' }).format(names.map((a) => cleanLine(a)));
   const appsLine =
-    input.role !== 'guest' && input.apps?.length
-      ? fill(c.apps, { apps: new Intl.ListFormat(tag, { type: 'conjunction' }).format(input.apps.map((a) => cleanLine(a))) })
-      : '';
+    input.role === 'guest'
+      ? ''
+      : input.appsExcept?.length
+        ? fill(c.appsExcept, { apps: list(input.appsExcept) })
+        : input.apps?.length
+          ? fill(c.apps, { apps: list(input.apps) })
+          : '';
   const roleLine = [input.role === 'admin' || !appsLine ? c.role[input.role] : '', appsLine].filter(Boolean).join(' ');
   const lines = [fill(c.line, vars), roleLine, date ? fill(c.expires, vars) : '', c.ignore].filter(Boolean);
   const text = [fill(c.heading, vars), '', ...lines.slice(0, 2), '', `${c.button}: ${input.url}`, '', ...lines.slice(2)].join('\n');

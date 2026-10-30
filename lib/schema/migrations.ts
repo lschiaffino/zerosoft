@@ -7544,6 +7544,13 @@ export const MIGRATIONS: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_email_login_codes_email ON email_login_codes(email, created_at);
       `);
     },
+  },  {
+    // Buscar cuentas por email sin importar mayúsculas (lib/db.ts → lower(email)).
+    // No reescribe filas: solo el índice para que la búsqueda no recorra la tabla.
+    id: '145_users_email_lower',
+    async up(client) {
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users(lower(email))');
+    },
   },
 ];
 

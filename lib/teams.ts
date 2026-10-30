@@ -1,6 +1,6 @@
 import { getDb, type TeamInviteRow, type TeamRow, type UserRow } from './db';
 import { cleanLine, ensureWorkspace, getMembership, parseApps, serializeApps, teamKeyed, type AppAccess } from './workspace';
-import { PRODUCT_CONFIG } from './products';
+import { describeApps } from './app-access-label';
 
 /**
  * Teams: el workspace de un owner compartido con su gente (ver lib/workspace.ts).
@@ -140,6 +140,21 @@ export async function listMemberTeams(userId: string): Promise<Array<TeamRow & {
        ORDER BY t.created_at ASC`,
     )
     .all(userId, userId)) as Array<TeamRow & { owner_email: string }>;
+}
+
+/**
+ * El último workspace ajeno al que la persona entró por invitación o dominio
+ * (cualquier rol, también guest), o null. El onboarding lo usa para dar la
+ * versión corta a quien llegó invitado, sin depender de ?invited=1.
+ */
+export async function joinedWorkspace(userId: string): Promise<{ id: string; name: string } | null> {
+  const row = (await getDb()
+    .prepare(
+      `SELECT t.id, t.name FROM team_members m JOIN teams t ON t.id = m.team_id
+       WHERE m.user_id = ? AND t.owner_id != ? ORDER BY m.created_at DESC, t.id LIMIT 1`,
+    )
+    .get(userId, userId)) as { id: string; name: string } | undefined;
+  return row ?? null;
 }
 
 /**
@@ -329,9 +344,9 @@ export async function sendInviteEmail(
     expiresAt: invite.expires_at,
     locale: opts.locale ?? invite.locale,
     logoUrl: team.logo_url ?? null,
-    apps: (() => {
-      const apps = parseApps(invite.apps);
-      return apps === '*' ? null : apps.map((a) => PRODUCT_CONFIG[a]?.name ?? a);
+    ...(() => {
+      const d = describeApps(parseApps(invite.apps));
+      return d.kind === 'list' ? { apps: d.names } : d.kind === 'except' ? { appsExcept: d.names } : {};
     })(),
   }).catch((err: unknown) => ({ status: 'failed' as const, error: err instanceof Error ? err.message : 'send_failed' }));
   await markInviteSent(invite.id, { ok: res.status === 'sent', skipped: res.status === 'skipped', error: res.error });

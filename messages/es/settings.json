@@ -543,7 +543,15 @@
     "allowAnyEmail": "Permitir otro email",
     "allowAnyEmailHelp": "Reenvía la invitación y deja aceptarla con otro email. Nunca para admins.",
     "legacyNotice": "Ojo: quien entre va a ver lo que hasta hoy era solo tuyo en este workspace, incluidos los proyectos de Track y los widgets de Chat. Marcá como privado lo que tenga que quedar tuyo antes de invitar.",
-    "peopleProfile": "Abrir su ficha en People"
+    "peopleProfile": "Abrir su ficha en People",
+    "inviteDescGoogle": "Cada persona recibe un email con un link que sirve una sola vez y vence a los 14 días. Entra con Google y cae en este workspace.",
+    "allAppsExcept": "Todas las apps menos {apps}",
+    "revokeConfirm": {
+      "title": "¿Revocar la invitación a {email}?",
+      "body": "El link deja de servir en el acto. Podés volver a invitar a esta persona después.",
+      "confirm": "Revocar",
+      "cancel": "Cancelar"
+    }
   },
   "teamsForm": {
     "createTitle": "Crear un equipo",
@@ -715,7 +723,9 @@
       "email_required": "Esta invitación solo se acepta con el email al que se mandó."
     },
     "mismatchStrict": "Esta invitación es para <b>{invited}</b> y entraste como <b>{current}</b>. Entrá con esa cuenta para aceptarla, o pedí una invitación a tu email.",
-    "roleLineApps": "Vas a usar {apps} con el resto del equipo."
+    "roleLineApps": "Vas a usar {apps} con el resto del equipo.",
+    "useAccountGoogle": "Usá la cuenta de Google de {email}.",
+    "allAppsExcept": "todas las apps menos {apps}"
   },
   "welcome": {
     "metaTitle": "Bienvenida",
