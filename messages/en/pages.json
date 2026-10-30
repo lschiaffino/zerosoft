@@ -2953,7 +2953,21 @@
     "scope_analytics_read": "Read Analytics projects, events, persons and run queries.",
     "scope_analytics_write": "Change Analytics projects, insights, dashboards, cohorts and flags.",
     "scope_social_read": "Read Social posts on the accounts you can see.",
-    "scope_social_write": "Create Social drafts and scheduled posts (with approval if you need it)."
+    "scope_social_write": "Create Social drafts and scheduled posts (with approval if you need it).",
+    "socialApiTitle": "Social",
+    "socialApiDesc": "Social media posts. The key acts as the person who created it: it sees and posts to that person's accounts, and people who need approval send posts for approval. Scopes social:read and social:write.",
+    "socialPostsListTitle": "List posts",
+    "socialPostsListDesc": "Posts the key can see, newest first, with each account's status and the link to the published post.",
+    "socialPostsCreateTitle": "Create a post",
+    "socialPostsCreateDesc": "Saves a draft, schedules it, adds it to the queue or publishes it now. Each network checks length and media first; errors come back per account.",
+    "paramSocialStatus": "draft, pending_approval, scheduled, published, partial or failed.",
+    "paramSocialFrom": "From this date (ISO 8601).",
+    "paramSocialTo": "Until this date (ISO 8601).",
+    "paramSocialText": "Text of the post.",
+    "paramSocialAccounts": "Ids of the connected accounts to post to.",
+    "paramSocialOverrides": "Own text per account: { accountId: text }.",
+    "paramSocialAction": "draft, schedule, queue or now. Default draft.",
+    "paramSocialScheduledAt": "Date and time to publish (ISO 8601), with action schedule."
   },
   "parityOverview": {
     "title": "Feature parity, app by app.",

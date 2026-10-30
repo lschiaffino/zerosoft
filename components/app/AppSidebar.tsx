@@ -180,16 +180,18 @@ export default function AppSidebar({
   const [recentApps, setRecentApps] = useState<string[]>([]);
   useEffect(() => {
     try {
-      const list = JSON.parse(window.localStorage.getItem('zs:recent-apps') ?? '[]') as unknown;
+      // Por persona y workspace: en un navegador compartido cada uno tiene su orden.
+      const storeKey = `zs:recent-apps:${user.id}:${user.ws}`;
+      const list = JSON.parse(window.localStorage.getItem(storeKey) ?? '[]') as unknown;
       const prev = Array.isArray(list) ? list.filter((x): x is string => typeof x === 'string') : [];
       const key = productKeyOf(product);
       const next = key ? [key, ...prev.filter((x) => x !== key)].slice(0, 8) : prev;
-      if (key) window.localStorage.setItem('zs:recent-apps', JSON.stringify(next));
+      if (key) window.localStorage.setItem(storeKey, JSON.stringify(next));
       setRecentApps(next);
     } catch {
       // Sin storage: las destacadas del modo.
     }
-  }, [product]);
+  }, [product, user.id, user.ws]);
   // Grupos plegables abiertos o cerrados a mano (por producto y sección).
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   useEffect(() => {
