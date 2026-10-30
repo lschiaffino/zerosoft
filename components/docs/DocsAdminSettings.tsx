@@ -61,11 +61,11 @@ export function DocsAccessSettings({ initial, canManage }: { initial: DocsSettin
         note={canManage ? undefined : t('adminsOnly')}
         onSubmit={
           canManage
-            ? (fd) => save({ allow_export: fd.get('allow_export') === 'on', allow_publish: fd.get('allow_publish') === 'on', allow_guests: fd.get('allow_guests') === 'on', coedit: fd.get('coedit') === 'on' })
+            ? (fd) => save({ allow_export: fd.get('allow_export') === 'on', allow_publish: fd.get('allow_publish') === 'on', allow_guests: fd.get('allow_guests') === 'on' })
             : undefined
         }
       >
-        {(['allow_export', 'allow_publish', 'allow_guests', 'coedit'] as const).map((key) => (
+        {(['allow_export', 'allow_publish', 'allow_guests'] as const).map((key) => (
           <label key={key} className="ui-switch docs-switch-row">
             <input type="checkbox" role="switch" name={key} defaultChecked={s[key]} disabled={!canManage} data-testid={`docs-settings-${key}`} />
             <span className="docs-switch-text">
@@ -74,6 +74,22 @@ export function DocsAccessSettings({ initial, canManage }: { initial: DocsSettin
             </span>
           </label>
         ))}
+      </FormSection>
+      {/* Colaboración: no es un permiso de admins (otra sección que Seguridad). */}
+      <FormSection
+        title={t('collabTitle')}
+        description={t('collabHelp')}
+        disabled={!canManage}
+        note={canManage ? undefined : t('adminsOnly')}
+        onSubmit={canManage ? (fd) => save({ coedit: fd.get('coedit') === 'on' }) : undefined}
+      >
+        <label className="ui-switch docs-switch-row">
+          <input type="checkbox" role="switch" name="coedit" defaultChecked={s.coedit} disabled={!canManage} data-testid="docs-settings-coedit" />
+          <span className="docs-switch-text">
+            <span className="docs-switch-label">{t('coedit.label')}</span>
+            <span className="ui-help">{t('coedit.help')}</span>
+          </span>
+        </label>
       </FormSection>
     </>
   );

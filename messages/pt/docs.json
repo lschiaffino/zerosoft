@@ -1256,6 +1256,8 @@
     "adminsOnly": "Só os admins mudam isto.",
     "memberRole": "Os membros podem",
     "memberRoleHelp": "Acesso total também permite compartilhar, publicar, mover páginas e usar a lixeira. Pode ver ou Pode comentar deixa o Docs só leitura para os membros.",
+    "collabTitle": "Colaboração",
+    "collabHelp": "Como várias pessoas trabalham na mesma página ao mesmo tempo.",
     "securityTitle": "Segurança",
     "securityHelp": "O que estiver desligado só os admins podem fazer.",
     "allow_export": {

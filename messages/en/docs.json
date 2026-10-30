@@ -1256,6 +1256,8 @@
     "adminsOnly": "Only admins can change this.",
     "memberRole": "Members can",
     "memberRoleHelp": "Full access also lets them share, publish, move pages and use the trash. Can view or Can comment makes Docs read only for members.",
+    "collabTitle": "Collaboration",
+    "collabHelp": "How people work on the same page at the same time.",
     "securityTitle": "Security",
     "securityHelp": "When something is off, only admins can do it.",
     "allow_export": {

@@ -1256,6 +1256,8 @@
     "adminsOnly": "Solo los admins lo cambian.",
     "memberRole": "Los miembros pueden",
     "memberRoleHelp": "Acceso total también deja compartir, publicar, mover páginas y usar la papelera. Puede ver o Puede comentar deja Docs en solo lectura para los miembros.",
+    "collabTitle": "Colaboración",
+    "collabHelp": "Cómo trabajan varias personas en la misma página a la vez.",
     "securityTitle": "Seguridad",
     "securityHelp": "Lo que esté apagado solo lo pueden hacer los admins.",
     "allow_export": {

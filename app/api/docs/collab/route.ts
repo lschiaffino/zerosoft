@@ -53,6 +53,8 @@ export async function GET(req: NextRequest) {
   const pageId = pageIdSchema.safeParse(params.get('page'));
   if (!pageId.success) return notFound();
   const res = await resolveDocAccess(user, pageId.data, DOC_INTERNAL_READ);
+  // Apagada para el workspace de la página (o en la instancia): ni stream, ni polling, ni foto de bloques.
+  if (res && !(await coeditEnabled(res.row.user_id))) return docsError(409, 'coedit_off');
   const blocks = params.get('blocks');
   if (blocks !== null) {
     if (!res) return notFound();
@@ -145,6 +147,8 @@ export async function POST(req: NextRequest) {
   const internal = row ? await getDocAccess(row, user, DOC_INTERNAL_READ) : null;
   if (!row || !internal) return notFound();
   const me = realUserId(user);
+  // Apagada: solo se acepta avisar que la sesión se fue (operaciones y cursores, no).
+  if (!body.leave && !(await coeditEnabled(row.user_id))) return docsError(409, 'coedit_off');
 
   if (body.leave) {
     await coeditLeave(row, body.session, me).catch(() => undefined);

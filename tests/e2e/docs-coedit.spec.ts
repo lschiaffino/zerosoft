@@ -332,6 +332,11 @@ test('Docs: con la edición simultánea apagada en Ajustes, dos personas editan 
     // Y el servidor rechaza operaciones mientras está apagada.
     const ops = await request.post('/api/docs/collab', { data: { page: doc.id, session: 'offsession0001', items: [{ block: 'p', rev: null, hash: textHash('izq centro der'), op: [14, '!'], seq: 'o1' }] } });
     expect(ops.status()).toBe(409);
+    // Tampoco el stream, la foto de los bloques ni los cursores.
+    expect((await request.get(`/api/docs/collab?page=${doc.id}&poll=1&cursor=1`)).status()).toBe(409);
+    expect((await request.get(`/api/docs/collab?page=${doc.id}&blocks=p`)).status()).toBe(409);
+    const cur = await request.post('/api/docs/collab', { data: { page: doc.id, session: 'offsession0001', cursor: { block: 'p', start: 0, end: 0, mode: 'edit' } } });
+    expect(cur.status()).toBe(409);
     await ctxA.close();
     await ctxB.close();
   } finally {
