@@ -201,6 +201,27 @@ export interface SidebarLabels {
     newInsight: string;
   };
   social: { calendar: string; posts: string; inbox: string; analytics: string; library: string; accounts: string; settings: string; newPost: string };
+  /** Books: ventas, compras, contactos, ítems, bancos, contabilidad e informes. */
+  books: {
+    overview: string;
+    sales: string;
+    invoices: string;
+    creditNotes: string;
+    recurring: string;
+    quotes: string;
+    purchases: string;
+    bills: string;
+    expenses: string;
+    purchaseOrders: string;
+    contacts: string;
+    items: string;
+    banking: string;
+    accounting: string;
+    accounts: string;
+    journal: string;
+    reports: string;
+    newInvoice: string;
+  };
   notifications: {
     title: string;
     markRead: string;
@@ -256,7 +277,8 @@ export type AppProduct =
   | 'design'
   | 'shop'
   | 'analytics'
-  | 'social';
+  | 'social'
+  | 'books';
 
 const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/crm', 'crm'],
@@ -277,6 +299,7 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/shop', 'shop'],
   ['/app/analytics', 'analytics'],
   ['/app/social', 'social'],
+  ['/app/books', 'books'],
 ];
 
 /** La app del shell para una clave de producto (Cal vive en /app/calendar). */
@@ -319,6 +342,7 @@ const APP_ICONS: Record<ProductKey, IconName> = {
   shop: 'shop',
   analytics: 'analytics',
   social: 'social',
+  books: 'books',
 };
 
 /** Producto de la app según la ruta. /app (inicio) y /app/settings son la plataforma (neutro); /app/links es Link. */
@@ -838,6 +862,47 @@ export function buildNav(
         },
       ];
 
+    case 'books':
+      return [
+        { items: [{ href: '/app/books', label: labels.books.overview, active: pathname === '/app/books', icon: 'overview' }] },
+        {
+          section: labels.books.sales,
+          items: [
+            { href: '/app/books/invoices', label: labels.books.invoices, active: at('/app/books/invoices'), icon: 'quotes' },
+            { href: '/app/books/credit-notes', label: labels.books.creditNotes, active: at('/app/books/credit-notes'), icon: 'lists' },
+            { href: '/app/books/recurring', label: labels.books.recurring, active: at('/app/books/recurring'), icon: 'cycles' },
+            { href: '/app/books/quotes', label: labels.books.quotes, active: at('/app/books/quotes'), icon: 'deals' },
+          ],
+        },
+        {
+          section: labels.books.purchases,
+          items: [
+            { href: '/app/books/bills', label: labels.books.bills, active: at('/app/books/bills'), icon: 'inbox' },
+            { href: '/app/books/expenses', label: labels.books.expenses, active: at('/app/books/expenses'), icon: 'receipt' },
+            { href: '/app/books/purchase-orders', label: labels.books.purchaseOrders, active: at('/app/books/purchase-orders'), icon: 'bulk' },
+          ],
+        },
+        {
+          items: [
+            { href: '/app/books/contacts', label: labels.books.contacts, active: at('/app/books/contacts'), icon: 'contacts' },
+            { href: '/app/books/items', label: labels.books.items, active: at('/app/books/items'), icon: 'products' },
+            { href: '/app/books/banking', label: labels.books.banking, active: at('/app/books/banking'), icon: 'bank' },
+          ],
+        },
+        {
+          section: labels.books.accounting,
+          items: [
+            { href: '/app/books/accounts', label: labels.books.accounts, active: at('/app/books/accounts'), icon: 'objects' },
+            { href: '/app/books/journal', label: labels.books.journal, active: at('/app/books/journal'), icon: 'books' },
+          ],
+        },
+        {
+          section: labels.insights,
+          items: [{ href: '/app/books/reports', label: labels.books.reports, active: at('/app/books/reports'), icon: 'reports' }],
+        },
+        appSettingsGroup('/app/books/settings'),
+      ];
+
     // Shell genérico (inicio y ajustes).
     case 'talk': {
       const base = `/app/${product}`;
@@ -949,6 +1014,8 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
       return [item('/app/groups/list?new=1', labels.newGroup, 'groups')];
     case 'social':
       return [item('/app/social/posts/new', labels.social.newPost, 'social')];
+    case 'books':
+      return [item('/app/books/invoices/new', labels.books.newInvoice, 'books')];
     case 'link':
     default:
       return [item('/app/links/new', labels.newLink, 'newLink')];

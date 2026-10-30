@@ -5,6 +5,7 @@ import { stripSyncedChildren, syncedChildren } from '../docs-synced-refs';
 import type { DocsBlock } from '../docs-types';
 import { workspaceTeamsUp } from './workspace-migrations';
 import { shopUp } from './shop-migration';
+import { booksUp } from './books-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -7456,6 +7457,11 @@ export const MIGRATIONS: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_social_media_ws ON social_media(workspace_id);
       `);
     },
+  },
+  {
+    // Books (Xero / QuickBooks / Alegra): ver lib/schema/books-migration.ts.
+    id: '141_books',
+    up: booksUp,
   },
 ];
 

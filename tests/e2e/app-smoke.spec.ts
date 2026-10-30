@@ -661,6 +661,56 @@ const APPS: AppCase[] = [
     rename: async (request, i, name) => void (await ok(request.patch(`/api/analytics/projects/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/analytics/projects/${i.id}`))),
   },
+  {
+    app: 'Books contacts',
+    list: '/en/app/books/contacts',
+    create: async (request, name) => ({ id: (await ok<{ contact: { id: string } }>(request.post('/api/books/contacts', { data: { name, syncCrm: false } }))).contact.id, name }),
+    detail: (i) => `/en/app/books/contacts/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/books/contacts/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/books/contacts/${i.id}`))),
+  },
+  {
+    app: 'Books items',
+    list: '/en/app/books/items',
+    create: async (request, name) => ({ id: (await ok<{ item: { id: string } }>(request.post('/api/books/items', { data: { name, price: 1500 } }))).item.id, name }),
+    detail: (i) => `/en/app/books/items/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/books/items/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/books/items/${i.id}`))),
+  },
+  {
+    // Factura borrador: lo que la lista y ⌘K muestran es su referencia (se renombra y se borra mientras es borrador).
+    app: 'Books invoices',
+    list: '/en/app/books/invoices',
+    create: async (request, name) => ({
+      id: (await ok<{ doc: { id: string } }>(request.post('/api/books/documents', { data: { docType: 'invoice', reference: name, lines: [{ description: 'Smoke line', unitPrice: 1000 }] } }))).doc.id,
+      name,
+    }),
+    detail: (i) => `/en/app/books/invoices/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/books/documents/${i.id}`, { data: { reference: name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/books/documents/${i.id}`))),
+  },
+  {
+    app: 'Books bank accounts',
+    list: '/en/app/books/banking',
+    create: async (request, name) => ({ id: (await ok<{ account: { id: string } }>(request.post('/api/books/bank-accounts', { data: { name } }))).account.id, name }),
+    detail: (i) => `/en/app/books/banking/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/books/bank-accounts/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/books/bank-accounts/${i.id}`))),
+  },
+  {
+    app: 'Books recurring',
+    list: '/en/app/books/recurring',
+    create: async (request, name) => {
+      const { contact } = await ok<{ contact: { id: string } }>(request.post('/api/books/contacts', { data: { name: `Smoke customer ${uid()}` } }));
+      const { recurring } = await ok<{ recurring: { id: string } }>(
+        request.post('/api/books/recurring', { data: { name, contactId: contact.id, frequency: 'monthly', nextDate: '2099-01-01', template: { lines: [{ description: 'Plan', unitPrice: 1000 }] } } }),
+      );
+      return { id: recurring.id, name };
+    },
+    detail: (i) => `/en/app/books/recurring/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/books/recurring/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/books/recurring/${i.id}`))),
+  },
 ];
 
 /** Errores de JS, de consola y respuestas 5xx mientras corre el test. */

@@ -849,7 +849,9 @@
     "shop_order_created": "Shop: pedido criado",
     "shop_order_paid": "Shop: pedido pago",
     "shop_order_fulfilled": "Shop: pedido enviado",
-    "shop_inventory_low": "Shop: estoque baixo"
+    "shop_inventory_low": "Shop: estoque baixo",
+    "books_invoice_paid": "Books: fatura paga",
+    "books_invoice_overdue": "Books: fatura vencida"
   },
   "ops": {
     "equals": "é igual a",

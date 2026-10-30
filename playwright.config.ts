@@ -154,6 +154,8 @@ export default defineConfig({
       SHOP_PAYMENTS_FAKE: '1',
       // Social contra redes simuladas (lib/social-fake.ts): conectar, publicar, comentarios y métricas sin salir a internet.
       SOCIAL_FAKE: '1',
+      // Books: Stripe y Mercado Pago sin salir a internet; el cobro lo marca un webhook firmado (lib/books-payments.ts).
+      BOOKS_PAYMENTS_FAKE: '1',
       AI_GATEWAY_API_KEY: '',
       VERCEL_OIDC_TOKEN: '',
     },

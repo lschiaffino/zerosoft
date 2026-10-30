@@ -28,6 +28,7 @@ import { searchRec } from '@/lib/rec';
 import { searchDesigns } from '@/lib/design';
 import { designActorOf } from '@/lib/design-http';
 import { searchShop } from '@/lib/shop';
+import { searchBooks } from '@/lib/books-search';
 import { actorOf } from '@/lib/rec-http';
 import { searchPlanning } from '@/lib/track-planning-search';
 import { listConversations } from '@/lib/assistant/store';
@@ -56,7 +57,7 @@ export async function GET(req: NextRequest) {
   if (!q) return NextResponse.json<SearchResponse>({ q, items: [] });
 
   const scope = await sessionScope(user);
-  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec, designs, shop] = await Promise.all([
+  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec, designs, shop, books] = await Promise.all([
     searchAll(user.id, q, scope),
     listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
     // Docs: título y texto de los bloques (el fragmento va como meta).
@@ -88,6 +89,8 @@ export async function GET(req: NextRequest) {
     searchDesigns(designActorOf(user), q).catch(() => []),
     // Shop: productos, pedidos, colecciones, descuentos y clientes (solo con la app).
     userCanUseApp(user, 'shop') ? searchShop(user.id, q).catch(() => []) : Promise.resolve([]),
+    // Books: comprobantes, contactos, ítems, bancos y recurrentes (con la app y según el rol de Books).
+    userCanUseApp(user, 'books') ? searchBooks(user, q).catch(() => []) : Promise.resolve([]),
   ]);
 
   const items: SearchResultItem[] = [];
@@ -183,6 +186,8 @@ export async function GET(req: NextRequest) {
   for (const s of shop) {
     items.push({ id: `${s.kind}:${s.id}`, group: SHOP_GROUP[s.kind], label: s.label, meta: s.meta, href: `/app/shop/${SHOP_PATH[s.kind]}/${s.id}` });
   }
+
+  for (const b of books) items.push({ id: b.id, group: b.group, label: b.label, meta: b.meta, href: b.href });
 
   for (const l of links.links) {
     const dto = toLinkDto(l);

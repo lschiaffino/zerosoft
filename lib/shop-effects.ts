@@ -217,6 +217,8 @@ export async function onOrderPaid(store: StoreRow, o: OrderRow, items: OrderItem
   await syncCrm(store, o, items);
   await notifyStaff(store.workspace_id, `Order #${o.number} paid`, `${o.email} · ${formatMoney(o.total_cents, o.currency)}`, `/app/shop/orders/${o.id}`, o.id);
   await emit(store, 'shop.order.paid', orderPayload(store, o, items));
+  // Books: factura emitida y cobrada por el pedido, si el workspace lo activó (lib/books-integrations.ts).
+  await import('./books-integrations').then((m) => m.onShopOrderPaid(store.workspace_id, o.id)).catch(() => undefined);
   await getDb().prepare('UPDATE shop_orders SET updated_at = ? WHERE id = ?').run(nowDb(), o.id);
 }
 

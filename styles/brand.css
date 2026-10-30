@@ -30,6 +30,7 @@
   --c-shop-ink: #15803d;
   --c-analytics-ink: #4f46e5;
   --c-social-ink: #7e22ce;
+  --c-books-ink: #1e3a8a;
 
   /* Texto sobre un relleno del color del producto. */
   --c-link-on: #ffffff;
@@ -51,6 +52,7 @@
   --c-shop-on: #ffffff;
   --c-analytics-on: #ffffff;
   --c-social-on: #ffffff;
+  --c-books-on: #ffffff;
 
   /* Escala (px a 1440): lectura y datos. Los títulos (--t-display, --t-h1,
      --t-h2, --t-h3) los define cada tema según su voz. */

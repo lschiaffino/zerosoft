@@ -96,6 +96,13 @@ const STEPS: Step[] = [
     },
   },
   {
+    // Books: su rol en Books se borra (si vuelve, entra con el rol por defecto que le dé un admin).
+    name: 'books',
+    run: async (e) => {
+      await db().prepare('DELETE FROM books_roles WHERE workspace_id = ? AND person_id = ?').run(e.ownerId, e.userId);
+    },
+  },
+  {
     // Webhooks, flows, robots y agentes con salida HTTP que armó: se pausan y el owner recibe aviso.
     name: 'automations',
     run: async (e) => {

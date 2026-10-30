@@ -150,6 +150,11 @@
       "a": "Quantos visitantes tivemos esta semana?",
       "b": "Quais insights estão salvos neste projeto?",
       "c": "Quais feature flags estão ativas?"
+    },
+    "books": {
+      "a": "Quais faturas estão vencidas?",
+      "b": "Quanto faturamos este mês?",
+      "c": "Crie uma fatura para meu último cliente"
     }
   },
   "page": {

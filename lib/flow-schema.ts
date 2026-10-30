@@ -83,6 +83,8 @@ export const FLOW_EVENT_TYPES = [
   'shop.order.paid',
   'shop.order.fulfilled',
   'shop.inventory.low',
+  'books.invoice.paid',
+  'books.invoice.overdue',
 ] as const;
 export type FlowEventType = (typeof FLOW_EVENT_TYPES)[number];
 
@@ -478,6 +480,36 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
   'shop.inventory.low': {
     item: { productId: 'prod_1', variantId: 'var_1', product: 'Blue mug', variant: 'Large', sku: 'MUG-L', available: 3, threshold: 5 },
     store: { name: 'Acme', handle: 'acme' },
+  },
+  'books.invoice.paid': {
+    invoice: {
+      id: 'inv_1',
+      number: 'B 00001-00000012',
+      status: 'paid',
+      contact: { id: 'con_1', name: 'Acme SA', email: 'billing@acme.example', taxId: '30-71234567-1' },
+      currency: 'ARS',
+      total: 121000,
+      amountDue: 0,
+      issueDate: '2026-01-01',
+      dueDate: '2026-01-31',
+      url: 'https://zerosoftware.ai/en/app/books/invoices/inv_1',
+    },
+    payment: { amount: 121000, method: 'stripe', date: '2026-01-20' },
+  },
+  'books.invoice.overdue': {
+    invoice: {
+      id: 'inv_1',
+      number: 'B 00001-00000012',
+      status: 'overdue',
+      contact: { id: 'con_1', name: 'Acme SA', email: 'billing@acme.example', taxId: '30-71234567-1' },
+      currency: 'ARS',
+      total: 121000,
+      amountDue: 121000,
+      issueDate: '2026-01-01',
+      dueDate: '2026-01-31',
+      url: 'https://zerosoftware.ai/en/app/books/invoices/inv_1',
+    },
+    daysOverdue: 3,
   },
 };
 

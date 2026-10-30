@@ -105,6 +105,9 @@ export async function GET(req: NextRequest) {
   const linkHistory = await pruneLinkHistory().catch(() => null);
   // Analytics: rollup diario, retención por proyecto y purga de proyectos borrados (claim por proyecto).
   const analytics = await runAnalyticsCron({ budgetMs: 20_000 }).catch(() => null);
+  // Books: facturas recurrentes (claim por fila en claimed_until + next_date), vencidas (status con compare-and-set) y
+  // recordatorios de pago (reminder_count con compare-and-set).
+  const books = await import('@/lib/books-recurring').then((m) => m.runBooksCron({ budgetMs: 20_000 })).catch(() => null);
   // Papelera del CRM: lo borrado hace más de 90 días se descarta para siempre.
   const trashPurged = await purgeExpiredTrash().catch(() => null);
   // Board: papelera de más de 30 días y eventos de tiempo real viejos (son efímeros).
@@ -149,6 +152,6 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, linkHistory, analytics, trashPurged, boardTrashPurged, boardEventsPruned, boardSearchBackfill,
+  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, linkHistory, analytics, books, trashPurged, boardTrashPurged, boardEventsPruned, boardSearchBackfill,
     docsDomainsPurged, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, agentQuality, agentRedacted, robots, ideas });
 }

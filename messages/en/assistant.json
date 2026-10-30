@@ -150,6 +150,11 @@
       "a": "How many visitors did we have this week?",
       "b": "Which insights are saved in this project?",
       "c": "Which feature flags are active?"
+    },
+    "books": {
+      "a": "Which invoices are overdue?",
+      "b": "How much did we invoice this month?",
+      "c": "Draft an invoice for my last customer"
     }
   },
   "page": {
