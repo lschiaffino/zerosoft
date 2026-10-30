@@ -151,6 +151,14 @@ describe('books money: impuestos y redondeo', () => {
     expect(parseAmountLocal(toInputString(150025, 'ARS'), 'ARS')).toBe(150025);
     expect(toInputString(150025, 'USD')).toBe('1500.25');
     expect(parseAmountDot('-1.50', 'ARS')).toBe(-150);
+    // Automático: un solo separador con 1 o 2 dígitos al final es el decimal, en cualquier moneda.
+    expect(parseAmountLocal('1500.5', 'ARS')).toBe(150050);
+    expect(parseAmountLocal('-12.10', 'ARS')).toBe(-1210);
+    expect(parseAmountLocal('12,50', 'USD')).toBe(1250);
+    // Formato elegido al importar.
+    expect(parseAmountLocal('1.500', 'ARS', 'dot')).toBe(150);
+    expect(parseAmountLocal('1,234.56', 'ARS', 'dot')).toBe(123456);
+    expect(parseAmountLocal('1.234,56', 'USD', 'comma')).toBe(123456);
   });
 
   it('fin de mes en las recurrentes', () => {
@@ -888,15 +896,21 @@ describe('books QA: informes que cuadran con el libro', () => {
 
 describe('books QA: pedidos de Shop exactos y reintentos', () => {
   it('líneas con los totales del pedido: tasa encontrada, tasa desconocida y redondeo', () => {
-    const acc = { sales: 's', shipping: 'h' };
+    const acc = { sales: 's', shipping: 'h', tax: 't' };
     const ok = shopOrderLines({ subtotal: 3333, discount: 0, shipping: 0, tax: 700, total: 4033, taxIncluded: false, shippingName: '' }, [{ title: 'A', quantity: 3, unit: 1111 }], { id: 't21', rateBps: 2100 }, acc);
     expect(ok.warning).toBeNull();
     const tot = (ls: typeof ok.lines, bps: number) => docTotals(ls.map((l) => ({ quantity: l.quantity, unitPrice: l.unitPrice, discountBps: l.discountBps, taxBps: l.taxRateId ? bps : 0 }))).total;
     expect(tot(ok.lines, 2100)).toBe(4033);
     const unknown = shopOrderLines({ subtotal: 1000, discount: 0, shipping: 500, tax: 130, total: 1630, taxIncluded: false, shippingName: 'Std' }, [{ title: 'B', quantity: 1, unit: 1000 }], null, acc);
     expect(unknown.warning).toBe('tax_rate_not_found');
-    expect(unknown.lines.some((l) => /Tax/.test(l.description))).toBe(true);
+    expect(unknown.lines.find((l) => l.accountId === 't')?.unitPrice).toBe(130);
     expect(tot(unknown.lines, 0)).toBe(1630);
+    // Incluido en los precios: el impuesto va a la cuenta de impuestos y sale de ventas.
+    const incl = shopOrderLines({ subtotal: 1210, discount: 0, shipping: 0, tax: 210, total: 1210, taxIncluded: true, shippingName: '' }, [{ title: 'D', quantity: 1, unit: 1210 }], null, acc);
+    expect(tot(incl.lines, 0)).toBe(1210);
+    const bySales = incl.lines.filter((l) => l.accountId === 's').reduce((x, l) => x + l.quantity * l.unitPrice, 0);
+    expect(bySales).toBe(1000);
+    expect(incl.lines.find((l) => l.accountId === 't')?.unitPrice).toBe(210);
     const disc = shopOrderLines({ subtotal: 999, discount: 333, shipping: 0, tax: 0, total: 666, taxIncluded: false, shippingName: '' }, [{ title: 'C', quantity: 3, unit: 333 }], null, acc);
     expect(tot(disc.lines, 0)).toBe(666);
   });
@@ -933,5 +947,8 @@ describe('books QA: tipos y CSV bancario en ARS', () => {
   it('CSV en ARS: el punto es de miles', () => {
     const { txns } = parseCsvStatement('fecha;concepto;importe\n01/03/2026;Comisión;-1.500\n02/03/2026;Cobro;12.345,67\n', 'ARS');
     expect(txns.map((t) => t.amount)).toEqual([-150000, 1234567]);
+    // Un extracto en ARS con punto decimal (1 o 2 dígitos) se lee bien en automático y con el formato forzado.
+    expect(parseCsvStatement('date,description,amount\n2026-03-01,Fee,-12.10\n', 'ARS').txns[0].amount).toBe(-1210);
+    expect(parseCsvStatement('date;description;amount\n2026-03-01;Big;1,500.00\n', 'ARS', { amountFormat: 'dot' }).txns[0].amount).toBe(150000);
   });
 });

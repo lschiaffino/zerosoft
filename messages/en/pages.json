@@ -3076,7 +3076,7 @@
     "booksInvoicesCreateDesc": "Saves a draft with the same body the app uses. Someone approves it in the app, which assigns the number and posts the journal.",
     "paramBooksStatus": "draft, sent, partial, paid, overdue, void, or open (anything still due).",
     "paramBooksContact": "Books contact id of the customer.",
-    "paramBooksLines": "Lines: description, quantity, unitPrice (minor units as a number or a decimal string), discountBps, taxRateId, itemId.",
+    "paramBooksLines": "Lines: description, quantity, unitPrice (integer minor units, or a decimal string with a dot as the decimal separator, e.g. \"1500.50\", whatever the currency), discountBps, taxRateId, itemId.",
     "paramBooksCurrency": "ISO currency code; the base currency if omitted.",
     "paramBooksFx": "Manual exchange rate (base currency per 1 unit) when the currency is not the base one.",
     "paramBooksReference": "Your reference (purchase order, project)."

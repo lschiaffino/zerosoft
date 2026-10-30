@@ -718,3 +718,8 @@ tr[data-archived] {
   padding-bottom: 12px;
   border-bottom: 1px solid var(--line);
 }
+
+.bk-inline-field {
+  display: inline-flex;
+  align-items: center;
+}

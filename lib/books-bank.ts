@@ -17,7 +17,7 @@ import { accountByKey, assertCan, audit, ensureBooks, getAccount } from './books
 import { amountDue, getDocRow, recordPayment } from './books-docs';
 import { inTransaction, postJournal } from './books-ledger';
 import { BooksError, clean, newId, nowDb, type BooksActor } from './books-schema';
-import { convert, CURRENCY_RE, daysBetween, isValidDate, parseAmountDot, parseAmountLocal } from './books-money';
+import { convert, CURRENCY_RE, daysBetween, isValidDate, parseAmountDot, parseAmountLocal, type AmountFormat } from './books-money';
 
 export interface BankAccountRow {
   id: string;
@@ -219,7 +219,12 @@ function findCol(headers: string[], names: string[]): number {
  * nombre (fecha, descripción, importe o débito/crédito, en/es/pt). Devuelve
  * los movimientos y los errores por fila.
  */
-export function parseCsvStatement(text: string, currency: string, opts: { dayFirst?: boolean } = {}): { txns: ParsedTxn[]; errors: Array<{ row: number; error: string }> } {
+export function parseCsvStatement(
+  text: string,
+  currency: string,
+  opts: { dayFirst?: boolean; amountFormat?: AmountFormat } = {},
+): { txns: ParsedTxn[]; errors: Array<{ row: number; error: string }> } {
+  const fmt = opts.amountFormat ?? 'auto';
   const lines = text.replace(/\r\n?/g, '\n').split('\n').filter((l) => l.trim());
   if (lines.length < 2) return { txns: [], errors: [{ row: 0, error: 'empty' }] };
   const first = lines[0];
@@ -242,10 +247,10 @@ export function parseCsvStatement(text: string, currency: string, opts: { dayFir
     }
     let amount: number | null = null;
     // CSV: la convención de la moneda (en ARS y BRL el punto es de miles).
-    if (iAmt >= 0 && (cells[iAmt] ?? '').trim()) amount = parseAmountLocal(cells[iAmt], currency);
+    if (iAmt >= 0 && (cells[iAmt] ?? '').trim()) amount = parseAmountLocal(cells[iAmt], currency, fmt);
     else {
-      const deb = iDeb >= 0 && (cells[iDeb] ?? '').trim() ? parseAmountLocal(cells[iDeb], currency) : 0;
-      const cred = iCred >= 0 && (cells[iCred] ?? '').trim() ? parseAmountLocal(cells[iCred], currency) : 0;
+      const deb = iDeb >= 0 && (cells[iDeb] ?? '').trim() ? parseAmountLocal(cells[iDeb], currency, fmt) : 0;
+      const cred = iCred >= 0 && (cells[iCred] ?? '').trim() ? parseAmountLocal(cells[iCred], currency, fmt) : 0;
       amount = deb == null || cred == null ? null : Math.abs(cred) - Math.abs(deb);
     }
     if (amount == null || amount === 0) {
@@ -298,14 +303,14 @@ export function dedupeKeys(txns: ParsedTxn[]): string[] {
 export async function importStatement(
   actor: BooksActor,
   bankAccountId: string,
-  input: { filename: string; text: string; dayFirst?: boolean },
+  input: { filename: string; text: string; dayFirst?: boolean; amountFormat?: AmountFormat },
 ): Promise<{ imported: number; duplicates: number; errors: Array<{ row: number; error: string }> }> {
   assertCan(actor, 'banking.write');
   const b = await getBankAccountRow(actor.ws, bankAccountId);
   if (!b) throw new BooksError('not_found', 404);
   if (input.text.length > 5_000_000) throw new BooksError('file_too_large', 413);
   const isOfx = /\.(ofx|qfx)$/i.test(input.filename) || /<OFX>/i.test(input.text.slice(0, 2000));
-  const parsed = isOfx ? parseOfx(input.text, b.currency) : parseCsvStatement(input.text, b.currency, { dayFirst: input.dayFirst });
+  const parsed = isOfx ? parseOfx(input.text, b.currency) : parseCsvStatement(input.text, b.currency, { dayFirst: input.dayFirst, amountFormat: input.amountFormat });
   const keys = dedupeKeys(parsed.txns);
   const importId = newId('imp');
   const ts = nowDb();

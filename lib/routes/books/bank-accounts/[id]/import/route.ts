@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { handle, readJson } from '@/lib/books-http';
 import { importStatement } from '@/lib/books-bank';
 import { BooksError } from '@/lib/books-schema';
+import { AMOUNT_FORMATS, type AmountFormat } from '@/lib/books-money';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -14,6 +15,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     let filename = 'statement.csv';
     let text = '';
     let dayFirst = true;
+    let format = 'auto';
     if ((req.headers.get('content-type') ?? '').includes('multipart/form-data')) {
       const form = await req.formData().catch(() => null);
       const file = form?.get('file');
@@ -22,13 +24,16 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       filename = file.name;
       text = await file.text();
       dayFirst = form?.get('dayFirst') !== '0';
+      format = String(form?.get('format') ?? 'auto');
     } else {
       const b = await readJson(req);
       filename = String(b.filename ?? filename);
       text = String(b.text ?? '');
       dayFirst = b.dayFirst !== false;
+      format = String(b.format ?? 'auto');
     }
     if (!text.trim()) throw new BooksError('file_required');
-    return importStatement(actor, (await params).id, { filename, text, dayFirst });
+    const amountFormat: AmountFormat = (AMOUNT_FORMATS as readonly string[]).includes(format) ? (format as AmountFormat) : 'auto';
+    return importStatement(actor, (await params).id, { filename, text, dayFirst, amountFormat });
   });
 }

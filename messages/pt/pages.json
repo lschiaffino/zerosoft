@@ -3076,7 +3076,7 @@
     "booksInvoicesCreateDesc": "Salva um rascunho com o mesmo corpo que o app usa. Alguém aprova no app, que atribui o número e gera o lançamento.",
     "paramBooksStatus": "draft, sent, partial, paid, overdue, void ou open (tudo que tem saldo).",
     "paramBooksContact": "Id do contato do Books (o cliente).",
-    "paramBooksLines": "Linhas: description, quantity, unitPrice (unidade mínima como número ou texto decimal), discountBps, taxRateId, itemId.",
+    "paramBooksLines": "Linhas: description, quantity, unitPrice (unidades mínimas inteiras, ou um texto decimal com ponto como separador decimal, por exemplo \"1500.50\", seja qual for a moeda), discountBps, taxRateId, itemId.",
     "paramBooksCurrency": "Código de moeda ISO; a moeda base se omitido.",
     "paramBooksFx": "Câmbio manual (moeda base por 1 unidade) quando a moeda não é a base.",
     "paramBooksReference": "Sua referência (pedido de compra, projeto)."

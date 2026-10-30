@@ -281,28 +281,38 @@ export async function applyProviderPayment(
   }
   const excess = input.amount - apply;
   if (excess > 0) {
-    // Claim por referencia: el excedente de un mismo cobro se registra una sola vez.
-    const claim = await getDb()
-      .prepare('INSERT OR IGNORE INTO books_webhook_events (provider, workspace_id, event_id, created_at) VALUES (?, ?, ?, ?)')
-      .run('excess', ws, input.providerRef, nowDb());
-    if (!claim.changes) return { kind: 'duplicate' };
     const s = await ensureBooks(ws);
-    const { keyAccounts, postJournal } = await import('./books-ledger');
+    const { inTransaction, isLocked, keyAccounts, postJournal } = await import('./books-ledger');
     const k = await keyAccounts(ws, ['clearing', 'customer_credit'] as const);
-    const { convert, formatMoney } = await import('./books-money');
+    const { convert } = await import('./books-money');
     const base = convert(excess, d.currency, d.fx_rate, s.base_currency);
     const date = input.date ?? new Date().toISOString().slice(0, 10);
-    const { isLocked } = await import('./books-ledger');
-    await postJournal(ws, null, {
-      date: isLocked(date, s.lock_date) ? new Date().toISOString().slice(0, 10) : date,
-      memo: `Unapplied ${input.method} payment for ${label}`,
-      sourceType: 'payment',
-      sourceId: `${input.providerRef}:excess`,
-      lines: [
-        { accountId: k.clearing, debit: base, contactId: d.contact_id },
-        { accountId: k.customer_credit, credit: base, contactId: d.contact_id, description: `Credit from ${input.providerRef}` },
-      ],
+    // Claim por referencia y asiento en la misma transacción: si el asiento falla, el claim no queda y el
+    // reintento del proveedor lo vuelve a intentar; si dos avisos llegan a la vez, uno solo lo registra.
+    const claimed = await inTransaction(async (tdb) => {
+      const claim = await tdb
+        .prepare('INSERT OR IGNORE INTO books_webhook_events (provider, workspace_id, event_id, created_at) VALUES (?, ?, ?, ?)')
+        .run('excess', ws, input.providerRef, nowDb());
+      if (!claim.changes) return false;
+      await postJournal(
+        ws,
+        null,
+        {
+          date: isLocked(date, s.lock_date) ? new Date().toISOString().slice(0, 10) : date,
+          memo: `Unapplied ${input.method} payment for ${label}`,
+          sourceType: 'payment',
+          sourceId: `${input.providerRef}:excess`,
+          lines: [
+            { accountId: k.clearing, debit: base, contactId: d.contact_id },
+            { accountId: k.customer_credit, credit: base, contactId: d.contact_id, description: `Credit from ${input.providerRef}` },
+          ],
+        },
+        { db: tdb },
+      );
+      return true;
     });
+    if (!claimed) return { kind: 'duplicate' };
+    const { formatMoney } = await import('./books-money');
     await audit({ ws, person: null }, 'payment.unapplied', 'invoice', d.id, `${excess} ${d.currency} ${input.providerRef}`);
     await warn(
       ws,

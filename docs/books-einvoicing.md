@@ -8,8 +8,8 @@ Stripe y Mercado Pago para que las facturas se cobren online.
 prueba que funciona de punta a punta. Los conectores reales con ARCA (ex
 AFIP), con el SAT a través de un PAC y con Invopop **todavía no están
 implementados**. Una factura autorizada con el proveedor de prueba no tiene
-validez fiscal. En la página de paridad la fila figura como parcial y dice
-que no hay conexión con ningún fisco: solo el proveedor de prueba.
+validez fiscal. En la página de paridad la fila figura como faltante: no hay
+conexión con ningún fisco, solo el proveedor de prueba.
 
 ## La interfaz (`lib/books-einvoice.ts`)
 
@@ -161,6 +161,16 @@ a una factura cobrada con los totales exactos del pedido (si la tasa del
 pedido no existe en Books, el impuesto va como línea de ajuste y llega un
 aviso). Los reembolsos y cancelaciones de Shop no se reflejan solos: se
 registran con una nota de crédito.
+
+## Importes en la API y en los extractos
+
+La API JSON (`/api/books/*` y `/api/v1/books/*`) recibe importes como enteros
+en la unidad mínima de la moneda o como texto con **punto decimal**
+("1500.50"), sea cual sea la moneda. En la app y en la importación de
+extractos CSV se respeta la convención de la moneda (en ARS y BRL, "1.500,50")
+y, si el número no es ambiguo (un solo separador con 1 o 2 dígitos al final),
+se lee como decimal; al importar se puede forzar el formato (1.234,56 o
+1,234.56). Los OFX siempre van con punto decimal, como dice el estándar.
 
 ## Otros datos a configurar
 

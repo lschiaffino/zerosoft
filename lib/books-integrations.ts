@@ -323,7 +323,7 @@ export function shopOrderLines(
   o: { subtotal: number; discount: number; shipping: number; tax: number; total: number; taxIncluded: boolean; shippingName: string },
   items: Array<{ title: string; quantity: number; unit: number }>,
   tax: { id: string; rateBps: number } | null,
-  accounts: { sales: string; shipping: string },
+  accounts: { sales: string; shipping: string; tax: string },
 ): { lines: Array<{ description: string; quantity: number; unitPrice: number; taxRateId: string | null; discountBps?: number; accountId?: string }>; warning: string | null } {
   const lines: Array<{ description: string; quantity: number; unitPrice: number; taxRateId: string | null; discountBps?: number; accountId?: string }> = [];
   let warning: string | null = null;
@@ -335,8 +335,12 @@ export function shopOrderLines(
     lines.push({ description: i.title, quantity: i.quantity, unitPrice: unitNet, taxRateId: useRate?.id ?? null, discountBps: pct || undefined, accountId: accounts.sales });
   }
   if (o.shipping > 0) lines.push({ description: `Shipping${o.shippingName ? ` (${o.shippingName})` : ''}`, quantity: 1, unitPrice: o.shipping, taxRateId: null, accountId: accounts.shipping });
-  // Impuesto sin tasa en Books: si venía sumado, va como línea de ajuste; si venía incluido, ya está en los precios.
-  if (o.tax > 0 && !useRate && !o.taxIncluded) lines.push({ description: 'Tax (rate not configured in Books)', quantity: 1, unitPrice: o.tax, taxRateId: null, accountId: accounts.sales });
+  // Impuesto sin tasa en Books: va a la cuenta de impuestos (débito fiscal), no a ventas. Si venía incluido en
+  // los precios, una línea negativa en ventas lo saca de ahí, así las ventas no quedan infladas.
+  if (o.tax > 0 && !useRate) {
+    lines.push({ description: 'Sales tax (no matching rate in Books)', quantity: 1, unitPrice: o.tax, taxRateId: null, accountId: accounts.tax });
+    if (o.taxIncluded) lines.push({ description: 'Tax included in prices', quantity: 1, unitPrice: -o.tax, taxRateId: null, accountId: accounts.sales });
+  }
   const t = docTotals(lines.map((l) => ({ quantity: l.quantity, unitPrice: l.unitPrice, discountBps: l.discountBps, taxBps: l.taxRateId ? (useRate?.rateBps ?? 0) : 0 })));
   const diff = o.total - t.total;
   if (diff !== 0) lines.push({ description: 'Rounding adjustment', quantity: 1, unitPrice: diff, taxRateId: null, accountId: accounts.sales });
@@ -380,7 +384,7 @@ export async function postShopOrder(ws: string, orderId: string): Promise<string
     const rateBps = net > 0 && taxAmt > 0 ? Math.round((taxAmt / net) * 10_000) : 0;
     const taxes = await listTaxRates(ws);
     const tax = taxAmt > 0 ? (taxes.find((t) => t.rate_bps > 0 && Math.abs(t.rate_bps - rateBps) <= 5) ?? null) : null;
-    const k = await (await import('./books-ledger')).keyAccounts(ws, ['sales', 'shipping_income'] as const);
+    const k = await (await import('./books-ledger')).keyAccounts(ws, ['sales', 'shipping_income', 'tax_out'] as const);
     const built = shopOrderLines(
       {
         subtotal,
@@ -393,13 +397,13 @@ export async function postShopOrder(ws: string, orderId: string): Promise<string
       },
       items.map((i) => ({ title: `${String(i.title)}${i.variant_title ? ` (${String(i.variant_title)})` : ''}`, quantity: Number(i.quantity), unit: shopCentsToMinor(Number(i.unit_cents), currency) })),
       tax ? { id: tax.id, rateBps: tax.rate_bps } : null,
-      { sales: k.sales, shipping: k.shipping_income },
+      { sales: k.sales, shipping: k.shipping_income, tax: k.tax_out },
     );
     try {
       docId = (
         await createDraft(
           actor,
-          { docType: 'invoice', contactId, currency, issueDate: String(o.paid_at).slice(0, 10), termsDays: 0, reference: `Shop #${String(o.number)}`, notes: built.warning ? 'The order tax rate has no matching rate in Books: it was posted as an adjustment line.' : '', lines: built.lines },
+          { docType: 'invoice', contactId, currency, issueDate: String(o.paid_at).slice(0, 10), termsDays: 0, reference: `Shop #${String(o.number)}`, notes: built.warning ? 'The order tax has no matching rate in Books. It was posted to the sales tax account without a rate, so it does not appear by rate in the tax report.' : '', lines: built.lines },
           { shop_order_id: orderId },
           { allowNegativeLines: true },
         )
@@ -410,7 +414,7 @@ export async function postShopOrder(ws: string, orderId: string): Promise<string
       docId = await findDoc();
       if (!docId) return null;
     }
-    if (built.warning) await notifyStaff(ws, `Shop order #${String(o.number)}: tax rate not found in Books`, `Posted with a tax adjustment line. Add a ${rateBps / 100}% rate in Books › Settings › Taxes.`, `/app/books/invoices/${docId}`, docId);
+    if (built.warning) await notifyStaff(ws, `Shop order #${String(o.number)}: tax rate not found in Books`, `The tax went to the sales tax account without a rate. Add a ${rateBps / 100}% rate in Books › Settings › Taxes for future orders.`, `/app/books/invoices/${docId}`, docId);
   }
   // Aprobar (si quedó borrador) y cobrar (si quedó saldo): los dos idempotentes.
   let row = await getDocRow(ws, docId);

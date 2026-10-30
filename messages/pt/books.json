@@ -473,7 +473,9 @@
     "register": "Lançar",
     "delete": "Excluir conta",
     "deleteTitle": "Excluir esta conta bancária?",
-    "deleteBody": "Se tiver movimentos, o Books arquiva a conta."
+    "deleteBody": "Se tiver movimentos, o Books arquiva a conta.",
+    "amountFormat": "Formato dos valores",
+    "formatAuto": "Valores: automático"
   },
   "accounts": {
     "desc": "Seu plano de contas. As usadas pelos lançamentos automáticos podem ser renomeadas, não excluídas.",

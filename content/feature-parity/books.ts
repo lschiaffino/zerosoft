@@ -94,7 +94,7 @@ const parity: ProductParity = {
     row('batch-payments', 'invoicing', ['Batch payments', 'Pagos por lote', 'Pagamentos em lote'], 'missing'),
 
     // Factura electrónica
-    row('einvoice-hook', 'einvoicing', ['Electronic invoicing with the tax authority', 'Factura electrónica ante el fisco', 'Nota fiscal eletrônica junto ao fisco'], 'partial', {
+    row('einvoice-hook', 'einvoicing', ['Electronic invoicing with the tax authority', 'Factura electrónica ante el fisco', 'Nota fiscal eletrônica junto ao fisco'], 'missing', {
       weight: 2,
       detail: [
         'Not implemented with any tax authority yet: the provider interface for ARCA (ex AFIP), SAT CFDI through a PAC and Invopop is in place, but only a test provider works (no fiscal validity)',

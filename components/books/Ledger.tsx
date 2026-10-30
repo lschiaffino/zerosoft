@@ -82,12 +82,14 @@ export function BankAccountView({
   const [categorize, setCategorize] = useState<{ txn: BankTxnDto; accountId: string; description: string } | null>(null);
   const [rename, setRename] = useState<string | null>(null);
   const [confirm, setConfirm] = useState(false);
+  const [format, setFormat] = useState('auto');
   const money = (v: number, cur = account.currency) => formatMoney(v, cur, locale);
 
   const upload = async (file: File) => {
     setBusy('import');
     const form = new FormData();
     form.set('file', file);
+    form.set('format', format);
     const res = await api<{ imported?: number; duplicates?: number; errors?: Array<{ row: number; error: string }> }>(`/api/books/bank-accounts/${account.id}/import`, { method: 'POST', body: form });
     setBusy(null);
     if (!res.ok) return push(errText(res.data.error), 'bad');
@@ -149,6 +151,14 @@ export function BankAccountView({
               <button type="button" className="btn btn-ghost" onClick={() => setRename(account.name)}>
                 {t('common.rename')}
               </button>
+              <label className="bk-inline-field">
+                <span className="sr-only">{t('banking.amountFormat')}</span>
+                <select className="select" aria-label={t('banking.amountFormat')} value={format} onChange={(e) => setFormat(e.target.value)}>
+                  <option value="auto">{t('banking.formatAuto')}</option>
+                  <option value="comma">1.234,56</option>
+                  <option value="dot">1,234.56</option>
+                </select>
+              </label>
               <label className="btn btn-primary bk-file">
                 {busy === 'import' ? t('common.loading') : t('banking.import')}
                 <input

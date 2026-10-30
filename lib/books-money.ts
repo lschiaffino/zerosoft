@@ -78,11 +78,23 @@ export const COMMA_DECIMAL_CURRENCIES: ReadonlySet<string> = new Set(['ARS', 'BR
  * la moneda: coma decimal y punto de miles en ARS/BRL/…; punto decimal y coma
  * de miles en el resto. null si no es un número.
  */
-export function parseAmountLocal(input: string, currency: string): number | null {
+export type AmountFormat = 'auto' | 'comma' | 'dot';
+export const AMOUNT_FORMATS: readonly AmountFormat[] = ['auto', 'comma', 'dot'];
+
+export function parseAmountLocal(input: string, currency: string, format: AmountFormat = 'auto'): number | null {
   let s = String(input).trim().replace(/\s/g, '').replace(/^\$|[A-Z]{3}$/i, '');
   if (!s) return null;
-  if (COMMA_DECIMAL_CURRENCIES.has(currency.toUpperCase())) s = s.replace(/\./g, '').replace(',', '.');
-  else s = s.replace(/,/g, '');
+  let decimal: ',' | '.';
+  if (format === 'comma') decimal = ',';
+  else if (format === 'dot') decimal = '.';
+  else {
+    // Automático: la convención de la moneda, salvo que el número diga otra cosa sin ambigüedad:
+    // un solo separador seguido de 1 o 2 dígitos al final es el decimal ("1500.5" en ARS, "12,50" en USD).
+    decimal = COMMA_DECIMAL_CURRENCIES.has(currency.toUpperCase()) ? ',' : '.';
+    if (!s.includes(',') && /^[-(]?\d+\.\d{1,2}\)?$/.test(s)) decimal = '.';
+    else if (!s.includes('.') && /^[-(]?\d+,\d{1,2}\)?$/.test(s)) decimal = ',';
+  }
+  s = decimal === ',' ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
   return parseAmountDot(s, currency);
 }
 

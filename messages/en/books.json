@@ -473,7 +473,9 @@
     "register": "Record",
     "delete": "Delete account",
     "deleteTitle": "Delete this bank account?",
-    "deleteBody": "If it has movements, Books archives it instead."
+    "deleteBody": "If it has movements, Books archives it instead.",
+    "amountFormat": "Amount format",
+    "formatAuto": "Amounts: automatic"
   },
   "accounts": {
     "desc": "Your chart of accounts. Accounts used by automatic entries can be renamed but not removed.",

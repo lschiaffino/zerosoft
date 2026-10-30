@@ -473,7 +473,9 @@
     "register": "Registrar",
     "delete": "Borrar cuenta",
     "deleteTitle": "¿Borrar esta cuenta bancaria?",
-    "deleteBody": "Si tiene movimientos, Books la archiva."
+    "deleteBody": "Si tiene movimientos, Books la archiva.",
+    "amountFormat": "Formato de importes",
+    "formatAuto": "Importes: automático"
   },
   "accounts": {
     "desc": "Tu plan de cuentas. Las que usan los asientos automáticos se renombran pero no se borran.",
