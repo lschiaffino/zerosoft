@@ -21,6 +21,7 @@ export async function hiringUp(client: Client): Promise<void> {
       retention_months INTEGER NOT NULL DEFAULT 12,
       consent_text TEXT NOT NULL DEFAULT '',
       auto_ack INTEGER NOT NULL DEFAULT 1,
+      members_create_jobs INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -125,6 +126,7 @@ export async function hiringUp(client: Client): Promise<void> {
       ref TEXT NOT NULL,
       name TEXT NOT NULL,
       mime TEXT NOT NULL,
+      unverified INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_hiring_documents_candidate ON hiring_documents(candidate_id);
@@ -176,6 +178,7 @@ export async function hiringUp(client: Client): Promise<void> {
     CREATE TABLE IF NOT EXISTS hiring_templates (
       id TEXT PRIMARY KEY,
       workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      job_id TEXT,
       kind TEXT NOT NULL,
       name TEXT NOT NULL,
       subject TEXT NOT NULL DEFAULT '',
@@ -210,5 +213,13 @@ export async function hiringUp(client: Client): Promise<void> {
       updated_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_hiring_offers_app ON hiring_offers(application_id);
+    CREATE TABLE IF NOT EXISTS hiring_audit (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      data TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_hiring_audit_ws ON hiring_audit(workspace_id, created_at);
   `);
 }

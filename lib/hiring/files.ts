@@ -5,23 +5,77 @@
  * Dónde se guardan, en orden:
  * - HIRING_BLOB_READ_WRITE_TOKEN: un store de Vercel Blob propio, con
  *   `access: 'private'` (se lee con get() y el token).
- * - BLOB_READ_WRITE_TOKEN (store público de la suite): el archivo se cifra con
- *   lib/secret-box (AES-256-GCM) antes del put; lo que queda en la URL son
- *   bytes cifrados.
+ * - BLOB_READ_WRITE_TOKEN (store público de la suite): el archivo se cifra
+ *   (AES-256-GCM) antes del put; lo que queda en la URL son bytes cifrados.
  * - Disco local (self-host y tests): cifrado igual, en UPLOADS_DIR/hiring.
+ *
+ * Clave de los archivos cifrados: HIRING_FILES_KEY (recomendada: no cambia si
+ * se rota NEXTAUTH_SECRET) o, si no está, una derivada con HKDF de
+ * ENCRYPTION_KEY / NEXTAUTH_SECRET con la etiqueta "hiring-files". Cada archivo
+ * lleva el id de su clave; HIRING_FILES_KEY_OLD (secretos anteriores, separados
+ * por coma) sigue sirviendo para leer lo guardado antes de una rotación.
  *
  * La referencia guardada en la base es "blobp:<pathname>", "blobe:<url>" o
  * "local:<nombre>".
  */
-import { randomUUID } from 'crypto';
+import { createCipheriv, createDecipheriv, createHash, hkdfSync, randomBytes, randomUUID } from 'crypto';
 import path from 'path';
 import { mkdir, readFile, unlink, writeFile } from 'fs/promises';
 import { del, get, put } from '@vercel/blob';
-import { openBytes, sealBytes } from '../secret-box';
 import { uploadsRoot } from '../uploads';
 import { HiringError } from './types';
 
 const LOCAL_NAME = /^[0-9a-f-]{36}\.bin$/;
+const MAGIC = Buffer.from('ZSH1');
+
+function derive(secret: string): Buffer {
+  return Buffer.from(hkdfSync('sha256', secret, 'zerosoft', 'hiring-files', 32));
+}
+
+/** Claves posibles: la actual primero, después las viejas (cada secreto, directo o derivado). */
+function keys(): Buffer[] {
+  const out: Buffer[] = [];
+  const own = process.env.HIRING_FILES_KEY?.trim();
+  if (own) out.push(createHash('sha256').update(own).digest());
+  const base = process.env.ENCRYPTION_KEY || process.env.NEXTAUTH_SECRET || 'zerosoft-dev-encryption-key';
+  out.push(derive(base));
+  for (const old of (process.env.HIRING_FILES_KEY_OLD ?? '').split(',').map((x) => x.trim()).filter(Boolean)) {
+    out.push(createHash('sha256').update(old).digest(), derive(old));
+  }
+  return out;
+}
+
+const keyId = (k: Buffer) => createHash('sha256').update(k).digest().subarray(0, 8);
+
+/** "ZSH1" + id de la clave (8) + iv (12) + tag (16) + datos. */
+export function sealFile(plain: Buffer): Buffer {
+  const k = keys()[0];
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', k, iv);
+  const data = Buffer.concat([cipher.update(plain), cipher.final()]);
+  return Buffer.concat([MAGIC, keyId(k), iv, cipher.getAuthTag(), data]);
+}
+
+export function openFile(sealed: Buffer): Buffer | null {
+  if (sealed.length < 40 || !sealed.subarray(0, 4).equals(MAGIC)) {
+    console.error('[hiring] archivo cifrado con formato desconocido');
+    return null;
+  }
+  const id = sealed.subarray(4, 12);
+  const k = keys().find((x) => keyId(x).equals(id));
+  if (!k) {
+    console.error('[hiring] no está la clave de un archivo (¿se rotó el secreto sin HIRING_FILES_KEY_OLD?)');
+    return null;
+  }
+  try {
+    const decipher = createDecipheriv('aes-256-gcm', k, sealed.subarray(12, 24));
+    decipher.setAuthTag(sealed.subarray(24, 40));
+    return Buffer.concat([decipher.update(sealed.subarray(40)), decipher.final()]);
+  } catch {
+    console.error('[hiring] no se pudo descifrar un archivo');
+    return null;
+  }
+}
 
 function privateToken(): string | null {
   return process.env.HIRING_BLOB_READ_WRITE_TOKEN?.trim() || null;
@@ -34,7 +88,7 @@ export async function storeHiringFile(bytes: Buffer, mime: string): Promise<stri
     const blob = await put(`hiring/${name}`, bytes, { access: 'private', token, contentType: mime, addRandomSuffix: false });
     return `blobp:${blob.pathname}`;
   }
-  const sealed = sealBytes(bytes);
+  const sealed = sealFile(bytes);
   if (process.env.BLOB_READ_WRITE_TOKEN) {
     const blob = await put(`hiring/${name}`, sealed, { access: 'public', contentType: 'application/octet-stream', addRandomSuffix: true });
     return `blobe:${blob.url}`;
@@ -60,12 +114,12 @@ export async function readHiringFile(ref: string): Promise<Buffer | null> {
       if (!/^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//i.test(url)) return null;
       const res = await fetch(url);
       if (!res.ok) return null;
-      return openBytes(Buffer.from(await res.arrayBuffer()));
+      return openFile(Buffer.from(await res.arrayBuffer()));
     }
     if (ref.startsWith('local:')) {
       const name = ref.slice(6);
       if (!LOCAL_NAME.test(name)) return null;
-      return openBytes(await readFile(path.join(uploadsRoot(), 'hiring', name)));
+      return openFile(await readFile(path.join(uploadsRoot(), 'hiring', name)));
     }
   } catch {
     return null;

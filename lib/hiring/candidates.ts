@@ -162,10 +162,10 @@ export async function storeResume(file: ResumeFile): Promise<StoredFile> {
 }
 
 /** Un CV nuevo de un candidato que ya tiene uno: queda como documento adicional, nunca reemplaza al original. */
-async function addDocument(candidateId: string, applicationId: string | null, file: StoredFile): Promise<void> {
+async function addDocument(candidateId: string, applicationId: string | null, file: StoredFile, unverified: boolean): Promise<void> {
   await getDb()
-    .prepare('INSERT INTO hiring_documents (id, candidate_id, application_id, ref, name, mime, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .run(newId('hdoc'), candidateId, applicationId, file.ref, file.name, file.mime, nowIso());
+    .prepare('INSERT INTO hiring_documents (id, candidate_id, application_id, ref, name, mime, unverified, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(newId('hdoc'), candidateId, applicationId, file.ref, file.name, file.mime, unverified ? 1 : 0, nowIso());
 }
 
 export interface DocumentDto {
@@ -173,18 +173,21 @@ export interface DocumentDto {
   name: string;
   mime: string;
   applicationId: string | null;
+  /** Llegó con una nueva postulación pública: nadie verificó que sea de la misma persona. */
+  unverified: boolean;
   createdAt: string;
 }
 
 export async function listDocuments(candidateId: string, visibleApps: Set<string>): Promise<DocumentDto[]> {
-  const rows = (await getDb().prepare('SELECT id, name, mime, application_id, created_at FROM hiring_documents WHERE candidate_id = ? ORDER BY created_at DESC').all(candidateId)) as Array<{
+  const rows = (await getDb().prepare('SELECT id, name, mime, application_id, unverified, created_at FROM hiring_documents WHERE candidate_id = ? ORDER BY created_at DESC').all(candidateId)) as Array<{
     id: string;
     name: string;
     mime: string;
     application_id: string | null;
+    unverified: number;
     created_at: string;
   }>;
-  return rows.filter((r) => !r.application_id || visibleApps.has(r.application_id)).map((r) => ({ id: r.id, name: r.name, mime: r.mime, applicationId: r.application_id, createdAt: r.created_at }));
+  return rows.filter((r) => !r.application_id || visibleApps.has(r.application_id)).map((r) => ({ id: r.id, name: r.name, mime: r.mime, applicationId: r.application_id, unverified: Number(r.unverified) === 1, createdAt: r.created_at }));
 }
 
 // ---------- Alta ----------
@@ -253,9 +256,10 @@ async function candidateOnJob(ws: string, jobId: string, email: string): Promise
 }
 
 /**
- * Junta lo que no pisa: el consentimiento para quedarse se suma y lo vacío
- * (teléfono, ubicación, titular) se completa solo si quien carga ya ve al
- * candidato. Nombre, email y CV nunca se reemplazan: un CV nuevo es otro documento.
+ * Junta lo que no pisa. Solo cuando carga alguien que ya ve al candidato
+ * (fillEmpty) se completa lo vacío y se suma el consentimiento para quedarse;
+ * una postulación pública no toca nada del registro. Nombre, email y CV nunca
+ * se reemplazan: un CV nuevo es otro documento (sin verificar si vino por la página).
  */
 async function mergeInto(c: CandidateRow, input: NewCandidate, opts: { fillEmpty: boolean; applicationId: string | null }): Promise<void> {
   const ts = nowIso();
@@ -268,15 +272,15 @@ async function mergeInto(c: CandidateRow, input: NewCandidate, opts: { fillEmpty
       opts.fillEmpty ? c.phone || input.phone || '' : c.phone,
       opts.fillEmpty ? c.location || input.location || '' : c.location,
       opts.fillEmpty ? c.headline || input.headline || '' : c.headline,
-      input.keepConsent ? 1 : 0,
-      input.consent ? 1 : 0,
+      opts.fillEmpty && input.keepConsent ? 1 : 0,
+      opts.fillEmpty && input.consent ? 1 : 0,
       ts,
       ts,
       ts,
       c.id,
     );
   if (input.resume) {
-    if (c.resume_url) await addDocument(c.id, opts.applicationId, input.resume);
+    if (c.resume_url || !opts.fillEmpty) await addDocument(c.id, opts.applicationId, input.resume, !opts.fillEmpty);
     else
       await getDb()
         .prepare('UPDATE hiring_candidates SET resume_url = ?, resume_name = ?, resume_mime = ?, resume_text = ? WHERE id = ? AND resume_url IS NULL')
@@ -383,7 +387,7 @@ export async function applyPublic(handle: string, jobSlug: string, input: z.infe
   const { candidate, forgetToken } = await insertCandidate(settings.workspace_id, fresh);
   const { app } = await createApplication(settings.workspace_id, { job, candidate, source, utm, referrer: input.referrer, answers, knockouts, createdBy: null });
   if (settings.auto_ack === 1) {
-    const tpl = await resolveTemplate(settings.workspace_id, 'ack', settings);
+    const tpl = await resolveTemplate(settings.workspace_id, 'ack', settings, null, job.id);
     await sendCandidateEmail(
       settings.workspace_id,
       { candidate, job, applicationId: app.id, senderName: settings.company, extra: { privacyLink: privacyLinkFor(settings.handle, forgetToken) } },
@@ -640,9 +644,12 @@ export async function getCandidateProfile(actor: HiringActor, candidateId: strin
   let manageAll = apps.length > 0;
   /** Postulaciones donde la persona puntúa a ciegas → etapas que ya tiene destapadas. */
   const blindStages = new Map<string, Set<string>>();
+  /** Postulaciones que la persona gestiona (los emails de oferta solo se ven ahí). */
+  const managed = new Set<string>();
   for (const a of apps) {
     const access = await appAccess(actor, a);
     if (!access.manage) manageAll = false;
+    else managed.add(a.id);
     if (!access.visible) continue;
     const job = (await getJobRow(actor.ws, a.job_id))!;
     const stages = (await listStages(a.job_id)).map(stageDto);
@@ -685,6 +692,7 @@ export async function getCandidateProfile(actor: HiringActor, candidateId: strin
   const timeline = events
     .filter((e) => !e.application_id || visibleIds.has(e.application_id))
     // Antes de enviar su scorecard, un interviewer no ve la nota de los demás ni en la línea de tiempo.
+    .filter((e) => !(e.kind === 'email_out' && e.application_id && !managed.has(e.application_id) && parseJson<{ kind?: string }>(e.data, {}).kind === 'offer'))
     .filter((e) => {
       if (e.kind !== 'score' || !e.application_id || e.actor_id === actor.person) return true;
       const open = blindStages.get(e.application_id);
@@ -840,7 +848,7 @@ export async function rejectApplication(actor: HiringActor, appId: string, input
   if (withdrawn.changes) await addEvent(actor.ws, candidate.id, app.id, 'offer', actor.person, { status: 'withdrawn' });
   if (input.sendEmail) {
     const settings = await ensureSettings(actor.ws);
-    const tpl = await resolveTemplate(actor.ws, 'rejection', settings, input.templateId);
+    const tpl = await resolveTemplate(actor.ws, 'rejection', settings, input.templateId, job.id);
     await sendCandidateEmail(actor.ws, { candidate, job, applicationId: app.id, senderName: await personName(actor.person) }, tpl, actor.person, { kind: 'rejection' });
   }
   return (await getApplicationRow(actor.ws, app.id))!;
@@ -989,8 +997,23 @@ export async function forgetByToken(token: string): Promise<boolean> {
     | { id: string; workspace_id: string; email: string }
     | undefined;
   if (!row) return false;
+  const records = await sameEmail(row.workspace_id, row.email);
+  // Registro del workspace sin datos personales: que el candidato pidió el borrado, de qué puestos y las ofertas aceptadas (anónimas).
+  const ids = records.map((c) => c.id);
+  const marks = ids.map(() => '?').join(',');
+  const jobs = ids.length
+    ? ((await getDb().prepare(`SELECT DISTINCT j.title FROM hiring_applications a JOIN hiring_jobs j ON j.id = a.job_id WHERE a.candidate_id IN (${marks})`).all(...ids)) as Array<{ title: string }>)
+    : [];
+  const offers = ids.length
+    ? ((await getDb()
+        .prepare(`SELECT o.title, o.salary, o.currency, o.start_date, o.responded_at FROM hiring_offers o JOIN hiring_applications a ON a.id = o.application_id WHERE a.candidate_id IN (${marks}) AND o.status = 'accepted'`)
+        .all(...ids)) as Array<Record<string, unknown>>)
+    : [];
+  await getDb()
+    .prepare('INSERT INTO hiring_audit (id, workspace_id, kind, data, created_at) VALUES (?, ?, ?, ?, ?)')
+    .run(newId('haud'), row.workspace_id, 'candidate_forget', JSON.stringify({ records: ids.length, jobs: jobs.map((j) => j.title), acceptedOffers: offers }), nowIso());
   // Todos los registros de ese email en el workspace (uno por puesto ajeno).
-  for (const c of await sameEmail(row.workspace_id, row.email)) await deleteCandidateRows(row.workspace_id, c.id);
+  for (const c of records) await deleteCandidateRows(row.workspace_id, c.id);
   return true;
 }
 

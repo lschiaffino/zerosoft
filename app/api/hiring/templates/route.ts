@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const a = await hiringActor();
   if ('res' in a) return a.res;
   const kind = req.nextUrl.searchParams.get('kind');
-  return hJson({ templates: await listTemplates(a.actor.ws, kind && (TEMPLATE_KINDS as readonly string[]).includes(kind) ? (kind as TemplateKind) : undefined) });
+  return hJson({ templates: await listTemplates(a.actor, kind && (TEMPLATE_KINDS as readonly string[]).includes(kind) ? (kind as TemplateKind) : undefined) });
 }
 
 export async function POST(req: NextRequest) {

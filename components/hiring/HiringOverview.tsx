@@ -15,12 +15,14 @@ export default function HiringOverview({
   recent,
   careersUrl,
   published,
+  canCreate,
 }: {
   jobs: JobListItem[];
   pending: PendingEvaluation[];
   recent: ApplicationListItem[];
   careersUrl: string;
   published: boolean;
+  canCreate: boolean;
 }) {
   const t = useTranslations('hiring');
   const date = useDate();
@@ -36,9 +38,11 @@ export default function HiringOverview({
                 {t('overview.careers')}
               </a>
             )}
-            <Link className="btn btn-primary" href="/app/hiring/jobs/new">
-              {t('jobs.new')}
-            </Link>
+            {canCreate && (
+              <Link className="btn btn-primary" href="/app/hiring/jobs/new">
+                {t('jobs.new')}
+              </Link>
+            )}
           </>
         }
       />
@@ -48,7 +52,7 @@ export default function HiringOverview({
             {t('overview.openJobs')}
           </h2>
           {jobs.length === 0 ? (
-            <EmptyState compact quiet body={t('overview.noOpenJobs')} action={{ label: t('jobs.new'), href: '/app/hiring/jobs/new' }} />
+            <EmptyState compact quiet body={t('overview.noOpenJobs')} action={canCreate ? { label: t('jobs.new'), href: '/app/hiring/jobs/new' } : undefined} />
           ) : (
             <ul className="hr-list">
               {jobs.map((j) => (

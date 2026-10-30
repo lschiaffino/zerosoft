@@ -1719,7 +1719,7 @@
       },
       "f4": {
         "t": "Scorecards sem espiar",
-        "d": "Critérios por etapa que cada entrevistador avalia. Entrevistadores só veem quem avaliam e não veem as notas dos outros até enviar a sua. Lembretes quando o feedback atrasa."
+        "d": "Critérios por etapa que cada entrevistador avalia. Entrevistadores só veem quem avaliam e não veem as notas dos outros de uma etapa até enviar a sua. Recrutadores e gestores veem todos os scorecards. Lembretes quando o feedback atrasa."
       },
       "f5": {
         "t": "Entrevistas e ofertas",

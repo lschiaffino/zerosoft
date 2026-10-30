@@ -11,7 +11,7 @@ import { OVERALL } from '@/lib/hiring/types';
 import { VARIABLES } from './variables';
 import { AppStatusBadge, HrDialog, api, money, useDate, useErrorText, useToast } from './ui';
 
-type Tpl = { id: string; kind: string; name: string; subject: string; body: string };
+type Tpl = { id: string; jobId: string | null; kind: string; name: string; subject: string; body: string };
 const TABS = ['timeline', 'resume', 'scorecards', 'interviews', 'offers'] as const;
 
 export default function CandidateProfile({
@@ -41,6 +41,8 @@ export default function CandidateProfile({
   const [busy, setBusy] = useState(false);
   const c = profile.candidate;
   const app = profile.applications.find((a) => a.id === appId) ?? profile.applications[0];
+  // Plantillas del workspace y las de este puesto.
+  const jobTemplates = templates.filter((x) => x.jobId === null || x.jobId === app.job.id);
 
   const reload = useCallback(async () => {
     const res = await api<Profile>(`/api/hiring/candidates/${c.id}`);
@@ -76,7 +78,7 @@ export default function CandidateProfile({
   const [mailOpen, setMailOpen] = useState(false);
   const [mail, setMail] = useState({ subject: '', body: '' });
   const pickTemplate = (id: string) => {
-    const tp = templates.find((x) => x.id === id);
+    const tp = jobTemplates.find((x) => x.id === id);
     if (tp) setMail({ subject: tp.subject, body: tp.body });
   };
 
@@ -233,7 +235,10 @@ export default function CandidateProfile({
                   .map((e) => (
                     <li key={e.id} className={`hr-event hr-event-${e.kind}`}>
                       <div className="hr-event-head">
-                        <span className="hr-event-kind">{t(`events.${e.kind}`, eventVars(e.data, t))}</span>
+                        <span className="hr-event-kind">
+                          {t(`events.${e.kind}`, eventVars(e.data, t))}
+                          {e.data.unverified === true && <span className="badge badge-warn hr-ml">{t('events.unverified')}</span>}
+                        </span>
                         <span className="hr-event-meta">
                           {e.actorName ?? (e.kind === 'email_in' ? c.name : '')} · {date(e.createdAt)}
                         </span>
@@ -464,7 +469,10 @@ export default function CandidateProfile({
                       <li key={d.id}>
                         <a className="hr-list-row" href={`${resumeUrl}?doc=${d.id}${d.mime === 'application/pdf' ? '' : '&download=1'}`} target="_blank" rel="noreferrer">
                           <span className="hr-list-main">{d.name}</span>
-                          <span className="hr-list-meta">{date(d.createdAt, false)}</span>
+                          <span className="hr-list-meta">
+                            {date(d.createdAt, false)}
+                            {d.unverified ? ` · ${t('profile.unverifiedDoc')}` : ''}
+                          </span>
                         </a>
                       </li>
                     ))}
@@ -608,7 +616,7 @@ export default function CandidateProfile({
                 <span className="label">{t('reject.template')}</span>
                 <select className="select" value={rejectTpl} onChange={(e) => setRejectTpl(e.target.value)}>
                   <option value="">{t('reject.defaultTemplate')}</option>
-                  {templates
+                  {jobTemplates
                     .filter((x) => x.kind === 'rejection')
                     .map((x) => (
                       <option key={x.id} value={x.id}>
@@ -646,7 +654,7 @@ export default function CandidateProfile({
               <span className="label">{t('templates.use')}</span>
               <select className="select" defaultValue="" onChange={(e) => pickTemplate(e.target.value)}>
                 <option value="">{t('templates.none')}</option>
-                {templates
+                {jobTemplates
                   .filter((x) => x.kind !== 'offer_letter')
                   .map((x) => (
                     <option key={x.id} value={x.id}>
@@ -811,6 +819,7 @@ function eventVars(data: Record<string, unknown>, t: ReturnType<typeof useTransl
     title: s(data.title),
     tags: [...((data.added as string[]) ?? []).map((x) => `+${x}`), ...((data.removed as string[]) ?? []).map((x) => `-${x}`)].join(' '),
     action: s(data.action) && t.has(`ai.actions.${s(data.action)}`) ? t(`ai.actions.${s(data.action)}`) : s(data.action),
+    reason: s(data.reason),
   };
 }
 

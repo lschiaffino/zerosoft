@@ -33,6 +33,8 @@ import {
 } from '@/lib/hiring/candidates';
 import { submitScorecard, sendFeedbackReminders } from '@/lib/hiring/evaluation';
 import { actOnOffer, createOffer, respondToOffer } from '@/lib/hiring/offers';
+import { hiringTools } from '@/lib/assistant/tools-hiring';
+import type { ToolCtx } from '@/lib/assistant/registry';
 import { createTemplate, parseHiringAddress, hiringReplyAddress, processHiringInbound } from '@/lib/hiring/comms';
 import { registerOnHire, type HireEvent } from '@/lib/hiring/events';
 import { jobPostingJsonLd, publishedCareers, publishedJob } from '@/lib/hiring/careers';
@@ -90,8 +92,9 @@ const KNOCK: Question[] = [
 
 /** Puesto publicado con equipo: recruiter, hiring manager y dos interviewers. */
 async function setupJob(w: World, questions: Question[] = []) {
-  const detail = await createJob(w.recruiter, { title: `Engineer ${uid()}`, description: '## Role\n- Build things', questions });
-  await setTeam(w.recruiter, detail.job.id, [
+  // Los puestos los crea un admin (por defecto los miembros no pueden).
+  const detail = await createJob(w.owner, { title: `Engineer ${uid()}`, description: '## Role\n- Build things', questions });
+  await setTeam(w.owner, detail.job.id, [
     { userId: w.recruiter.person, role: 'recruiter' },
     { userId: w.manager.person, role: 'hiring_manager' },
     { userId: w.interviewer.person, role: 'interviewer' },
@@ -184,8 +187,11 @@ describe('duplicados por email sin filtrar datos entre puestos', () => {
     expect(again).toMatchObject({ applicationId: first.applicationId, existing: true });
     const after = (await getDb().prepare('SELECT name, resume_url, forget_token_hash FROM hiring_candidates WHERE id = ?').get(before.id)) as Record<string, string>;
     expect(after).toEqual({ name: before.name, resume_url: before.resume_url, forget_token_hash: before.forget_token_hash });
-    const docs = (await getDb().prepare('SELECT COUNT(*) AS n FROM hiring_documents WHERE candidate_id = ?').get(before.id)) as { n: number };
+    const docs = (await getDb().prepare('SELECT COUNT(*) AS n, MIN(unverified) AS u FROM hiring_documents WHERE candidate_id = ?').get(before.id)) as { n: number; u: number };
     expect(Number(docs.n)).toBe(1);
+    expect(Number(docs.u)).toBe(1);
+    await apply(w, j.slug, email, {}, { keepConsent: true });
+    expect(((await getDb().prepare('SELECT keep_consent FROM hiring_candidates WHERE id = ?').get(before.id)) as { keep_consent: number }).keep_consent).toBe(0);
     expect((await getCandidateProfile(w.recruiter, before.id))!.timeline.some((e) => e.kind === 'reapplied')).toBe(true);
   });
 
@@ -196,7 +202,8 @@ describe('duplicados por email sin filtrar datos entre puestos', () => {
     const orig = ((await getDb().prepare('SELECT candidate_id FROM hiring_applications WHERE id = ?').get(first.applicationId)) as { candidate_id: string }).candidate_id;
 
     // Un puesto del "outsider" (recruiter solo ahí): postular el email por la página o cargarlo a mano.
-    const own = await createJob(w.outsider, { title: `Own ${uid()}`, description: 'x' });
+    const own = await createJob(w.owner, { title: `Own ${uid()}`, description: 'x' });
+    await setTeam(w.owner, own.job.id, [{ userId: w.outsider.person, role: 'recruiter' }]);
     await updateJob(w.outsider, own.job.id, { status: 'published' });
     const viaPage = await apply(w, own.job.slug, email);
     expect(viaPage.duplicate).toBe(true);
@@ -423,11 +430,49 @@ describe('ofertas: aprobación y respuesta', () => {
     await expect(respondToOffer({ token, action: 'accept', signedName: 'ana perez', agree: true, reason: '' }, { ip: '1', ua: '' })).rejects.toMatchObject({ status: 404 });
   });
 
-  it('plantillas: solo admins o quien gestiona algún puesto', async () => {
+  it('plantillas y puestos: un recruiter no cambia el acuse de todos (repro de la QA)', async () => {
+    // Un miembro no crea puestos salvo que un admin lo habilite.
     const lonely = await person(w.owner.ws, (await ensureWorkspace(w.owner.ws)).id, 'member');
-    await expect(createTemplate(lonely, { kind: 'custom', name: 'x', subject: '', body: '' })).rejects.toMatchObject({ code: 'forbidden' });
-    await setupJob(w);
-    expect((await createTemplate(w.recruiter, { kind: 'custom', name: 'ok', subject: '', body: '' })).name).toBe('ok');
+    await expect(createJob(lonely, { title: 'Mine', description: 'x' })).rejects.toMatchObject({ code: 'forbidden' });
+    const j1 = await setupJob(w);
+    const j2 = await setupJob(w);
+    // Repro: el recruiter de un puesto intenta reemplazar el acuse de todo el workspace con un phishing.
+    await expect(createTemplate(w.recruiter, { kind: 'ack', name: 'phish', subject: 'Verify your account', body: 'http://evil.example', jobId: null })).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(createTemplate(w.interviewer, { kind: 'ack', name: 'phish', subject: 'x', body: 'x', jobId: j1.jobId })).rejects.toMatchObject({ status: 403 });
+    // Una plantilla de su puesto sí, y la usa solo ese puesto.
+    await createTemplate(w.recruiter, { kind: 'ack', name: 'j1 ack', subject: 'Thanks from job one', body: 'Hi', jobId: j1.jobId });
+    const a1 = await apply(w, j1.slug, `t1-${uid()}@example.com`);
+    const a2 = await apply(w, j2.slug, `t2-${uid()}@example.com`);
+    const subjectOf = async (appId: string) => JSON.parse(((await getDb().prepare("SELECT data FROM hiring_events WHERE application_id = ? AND kind = 'email_out'").get(appId)) as { data: string }).data).subject;
+    expect(await subjectOf(a1.applicationId)).toBe('Thanks from job one');
+    expect(await subjectOf(a2.applicationId)).not.toBe('Thanks from job one');
+  });
+
+  it('los links con token (oferta, borrado, agenda) nunca llegan a un interviewer', async () => {
+    const j = await setupJob(w);
+    const { applicationId } = await apply(w, j.slug, `tok-${uid()}@example.com`);
+    const cand = ((await getDb().prepare('SELECT candidate_id FROM hiring_applications WHERE id = ?').get(applicationId)) as { candidate_id: string }).candidate_id;
+    await moveApplication(w.recruiter, applicationId, j.stages.find((s) => s.kind === 'interview')!.id);
+    const offer = await createOffer(w.recruiter, applicationId, { salary: 1, currency: 'USD', startDate: null, templateId: null });
+    await actOnOffer(w.owner, offer.id, { action: 'approve', templateId: null });
+    const sent = await actOnOffer(w.recruiter, offer.id, { action: 'send', templateId: null });
+    const token = sent.link!.split('/').pop()!;
+    // Nada guardado en la línea de tiempo lleva el token, para nadie.
+    const raw = ((await getDb().prepare('SELECT data FROM hiring_events WHERE candidate_id = ?').all(cand)) as Array<{ data: string }>).map((r) => r.data).join('\n');
+    expect(raw).not.toContain(token);
+    expect(raw).not.toMatch(/\/(offer|privacy)\/[A-Za-z0-9_-]{20,}/);
+    expect(raw).toContain('[offer link]');
+    expect(raw).toContain('[privacy link]');
+    // El interviewer: ni el email de la oferta, ni tokens en el perfil ni en el asistente.
+    const view = (await getCandidateProfile(w.interviewer, cand))!;
+    expect(JSON.stringify(view)).not.toMatch(/\/(offer|privacy)\//);
+    expect(view.timeline.some((e) => e.kind === 'email_out' && e.data.kind === 'offer')).toBe(false);
+    const tool = hiringTools.find((x) => x.name === 'hiring_candidate')!;
+    const ctx = { workspaceId: w.owner.ws, personId: w.interviewer.person, isAdmin: false, locale: 'en', user: {} } as unknown as ToolCtx;
+    const out = await (tool as unknown as { run: (c: ToolCtx, i: unknown) => Promise<unknown> }).run(ctx, { name: 'Ana Pérez' });
+    expect(JSON.stringify(out)).not.toMatch(/\/(offer|privacy)\//);
+    // El recruiter sí ve el email de la oferta, con el link tapado.
+    expect((await getCandidateProfile(w.recruiter, cand))!.timeline.some((e) => e.kind === 'email_out' && e.data.kind === 'offer')).toBe(true);
   });
 
   it('un admin puede aprobar', async () => {
@@ -505,6 +550,9 @@ describe('respuestas por email y página de empleos', () => {
     expect(parseHiringAddress([addr.replace(/\.[0-9a-f]{16}@/, '.0000000000000000@')])).toBeNull();
     const base = { subject: 'Re: hi', text: 'Thanks!\n\nOn Mon, someone wrote:\n> old', headers: {}, authentication: null };
     expect((await processHiringInbound(applicationId, { ...base, emailId: `e-${uid()}`, from: 'intruder@example.com' })).status).toBe('ignored');
+    // Nunca en silencio: queda un evento sin el texto.
+    const dropped = (await getDb().prepare("SELECT data FROM hiring_events WHERE application_id = ? AND kind = 'email_dropped'").get(applicationId)) as { data: string };
+    expect(JSON.parse(dropped.data)).toEqual({ reason: 'sender_mismatch', fromDomain: 'example.com' });
     const id = `e-${uid()}`;
     expect((await processHiringInbound(applicationId, { ...base, emailId: id, from: `Ana <${email}>` })).status).toBe('added');
     expect((await processHiringInbound(applicationId, { ...base, emailId: id, from: email })).status).toBe('duplicate');

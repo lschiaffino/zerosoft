@@ -73,6 +73,10 @@ export default function HiringSettings({ initial, canAdmin, careersUrl, repliesE
           <section className="ui-fields">
             <h2 className="hr-panel-title">{t('settings.emails')}</h2>
             <label className="ui-check">
+              <input type="checkbox" checked={s.membersCreateJobs} onChange={(e) => setS({ ...s, membersCreateJobs: e.target.checked })} />
+              {t('settings.membersCreateJobs')}
+            </label>
+            <label className="ui-check">
               <input type="checkbox" checked={s.autoAck} onChange={(e) => setS({ ...s, autoAck: e.target.checked })} />
               {t('settings.autoAck')}
             </label>

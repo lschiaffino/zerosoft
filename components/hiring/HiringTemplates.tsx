@@ -9,16 +9,19 @@ import { HrDialog, api, useErrorText, useToast } from './ui';
 import { VARIABLES } from './variables';
 
 const KINDS = ['ack', 'rejection', 'interview', 'offer', 'offer_letter', 'custom'] as const;
-type Draft = { id?: string; kind: (typeof KINDS)[number]; name: string; subject: string; body: string };
+type Draft = { id?: string; jobId: string | null; kind: (typeof KINDS)[number]; name: string; subject: string; body: string };
 
 /** Plantillas de email y de carta de oferta (las de puestos se guardan desde el editor del puesto). */
-export default function HiringTemplates({ initial }: { initial: TemplateDto[] }) {
+export default function HiringTemplates({ initial, canAdmin, jobs }: { initial: TemplateDto[]; canAdmin: boolean; jobs: Array<{ id: string; title: string }> }) {
   const t = useTranslations('hiring');
   const errText = useErrorText();
   const [toast, push] = useToast();
   const [items, setItems] = useState(initial);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
+  const canWrite = canAdmin || jobs.length > 0;
+  const blank = (): Draft => ({ jobId: canAdmin ? null : (jobs[0]?.id ?? null), kind: 'rejection', name: '', subject: '', body: '' });
+  const jobTitle = (id: string | null) => (id ? (jobs.find((j) => j.id === id)?.title ?? '·') : t('templates.allJobs'));
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
@@ -47,13 +50,15 @@ export default function HiringTemplates({ initial }: { initial: TemplateDto[] })
         title={t('nav.templates')}
         description={t('templates.desc')}
         actions={
-          <button type="button" className="btn btn-primary" onClick={() => setDraft({ kind: 'rejection', name: '', subject: '', body: '' })}>
-            {t('templates.new')}
-          </button>
+          canWrite ? (
+            <button type="button" className="btn btn-primary" onClick={() => setDraft(blank())}>
+              {t('templates.new')}
+            </button>
+          ) : undefined
         }
       />
       {items.length === 0 ? (
-        <EmptyState product="hiring" title={t('templates.emptyTitle')} body={t('templates.emptyBody')} action={<button type="button" className="btn btn-primary" onClick={() => setDraft({ kind: 'rejection', name: '', subject: '', body: '' })}>{t('templates.new')}</button>} />
+        <EmptyState product="hiring" title={t('templates.emptyTitle')} body={t('templates.emptyBody')} action={canWrite ? <button type="button" className="btn btn-primary" onClick={() => setDraft(blank())}>{t('templates.new')}</button> : undefined} />
       ) : (
         <div className="table-wrap">
           <table className="table hr-table">
@@ -61,6 +66,7 @@ export default function HiringTemplates({ initial }: { initial: TemplateDto[] })
               <tr>
                 <th scope="col">{t('templates.name')}</th>
                 <th scope="col">{t('templates.kind')}</th>
+                <th scope="col">{t('templates.scope')}</th>
                 <th scope="col">
                   <span className="sr-only">{t('common.actions')}</span>
                 </th>
@@ -70,11 +76,12 @@ export default function HiringTemplates({ initial }: { initial: TemplateDto[] })
               {items.map((x) => (
                 <tr key={x.id}>
                   <th scope="row">
-                    <button type="button" className="hr-linkbtn" onClick={() => setDraft({ id: x.id, kind: x.kind as Draft['kind'], name: x.name, subject: x.subject, body: x.body })}>
+                    <button type="button" className="hr-linkbtn" onClick={() => setDraft({ id: x.id, jobId: x.jobId, kind: x.kind as Draft['kind'], name: x.name, subject: x.subject, body: x.body })}>
                       {x.name}
                     </button>
                   </th>
                   <td>{t(`templates.kinds.${x.kind}`)}</td>
+                  <td>{jobTitle(x.jobId)}</td>
                   <td className="num">
                     <button type="button" className="btn btn-ghost btn-sm" aria-label={t('templates.deleteName', { name: x.name })} onClick={() => void remove(x.id)}>
                       {t('common.remove')}
@@ -107,6 +114,18 @@ export default function HiringTemplates({ initial }: { initial: TemplateDto[] })
                   </select>
                 </label>
               </div>
+              <label className="ui-field">
+                <span className="label">{t('templates.scope')}</span>
+                <select className="select" disabled={Boolean(draft.id)} value={draft.jobId ?? ''} onChange={(e) => setDraft({ ...draft, jobId: e.target.value || null })}>
+                  {canAdmin && <option value="">{t('templates.allJobs')}</option>}
+                  {jobs.map((j) => (
+                    <option key={j.id} value={j.id}>
+                      {j.title}
+                    </option>
+                  ))}
+                </select>
+                <span className="ui-help">{t('templates.scopeHelp')}</span>
+              </label>
               {draft.kind !== 'offer_letter' && (
                 <label className="ui-field">
                   <span className="label">{t('templates.subject')}</span>

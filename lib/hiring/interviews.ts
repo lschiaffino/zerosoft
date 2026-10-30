@@ -3,11 +3,14 @@
  * de Cal: secreto (oculto del perfil), de un solo uso y colectivo, con los
  * evaluadores de esa postulación como anfitriones. El link de auto-agenda
  * solo ofrece horarios en que están todos libres y no lleva datos del
- * candidato en la URL (el slug es aleatorio). Cal manda la confirmación con la
- * invitación al calendario y los recordatorios. Como el tipo de evento es de
- * esa entrevista, su reserva es la del candidato (syncInterviews). Server-only.
+ * candidato en la URL (slug aleatorio y una marca firmada en utm_content).
+ * Cal manda la confirmación con la invitación al calendario y los
+ * recordatorios. Los tipos de evento son kind 'hiring': no salen en los
+ * listados de Cal, y se desactivan al reservarse o al borrar la postulación.
+ * syncInterviews toma solo la reserva con el email del candidato o la marca.
+ * Server-only.
  */
-import { randomBytes } from 'crypto';
+import { createHmac, randomBytes } from 'crypto';
 import { z } from 'zod';
 import { getDb } from '../db';
 import { createEventType } from '../calendar';
@@ -41,8 +44,14 @@ async function ownerHandle(ws: string): Promise<string | null> {
   return row?.handle ?? null;
 }
 
-function bookingLink(handle: string, slug: string, locale: string): string {
-  return `${appBase()}/${locale}/book/${handle}/${slug}`;
+/** Marca firmada de la entrevista (viaja como utm_content y vuelve con la reserva): sin datos del candidato. */
+export function interviewMark(interviewId: string): string {
+  const sig = createHmac('sha256', process.env.NEXTAUTH_SECRET || 'zerosoft-hiring').update(`hiv:${interviewId}`).digest('hex').slice(0, 16);
+  return `${interviewId}.${sig}`;
+}
+
+function bookingLink(handle: string, slug: string, locale: string, interviewId: string): string {
+  return `${appBase()}/${locale}/book/${handle}/${slug}?utm_source=hiring&utm_content=${encodeURIComponent(interviewMark(interviewId))}`;
 }
 
 /**
@@ -77,7 +86,7 @@ export async function createSchedulingLink(actor: HiringActor, appId: string, in
   } as unknown as EventTypeCreatePayload;
   let eventType;
   try {
-    eventType = await createEventType(actor.ws, payload);
+    eventType = await createEventType(actor.ws, payload, { kind: 'hiring' });
   } catch (err) {
     if (err instanceof Error && 'code' in err) throw new HiringError(`cal_${String((err as { code: string }).code)}`, 400);
     throw err;
@@ -85,14 +94,14 @@ export async function createSchedulingLink(actor: HiringActor, appId: string, in
 
   const settings = await ensureSettings(actor.ws);
   const locale = input.locale ?? settings.locale;
-  const link = bookingLink(handle, eventType.slug, locale);
   const id = newId('hiv');
+  const link = bookingLink(handle, eventType.slug, locale, id);
   await db
     .prepare("INSERT INTO hiring_interviews (id, application_id, stage_id, event_type_id, status, created_by, created_at) VALUES (?, ?, ?, ?, 'invited', ?, ?)")
     .run(id, app.id, stage.id, eventType.id, actor.person, nowIso());
   await addEvent(actor.ws, candidate.id, app.id, 'interview', actor.person, { status: 'invited', stage: stage.name });
   if (input.sendEmail) {
-    const tpl = await resolveTemplate(actor.ws, 'interview', settings, input.templateId);
+    const tpl = await resolveTemplate(actor.ws, 'interview', settings, input.templateId, job.id);
     await sendCandidateEmail(actor.ws, { candidate, job, applicationId: app.id, senderName: await personName(actor.person), extra: { schedulingLink: link } }, tpl, actor.person, { kind: 'interview' });
   }
   return { interview: { id, stageId: stage.id, status: 'invited', startsAt: null, endsAt: null, link, createdAt: nowIso() }, link };
@@ -114,9 +123,11 @@ export async function syncInterviews(ws: string, appId?: string): Promise<number
       .prepare(
         r.booking_id
           ? 'SELECT id, starts_at, ends_at, status FROM calendar_bookings WHERE id = ?'
-          : `SELECT id, starts_at, ends_at, status FROM calendar_bookings WHERE event_type_id = ? ORDER BY created_at DESC LIMIT 1`,
+          : `SELECT id, starts_at, ends_at, status FROM calendar_bookings WHERE event_type_id = ? AND (lower(invitee_email) = ? OR instr(utm, ?) > 0)
+             ORDER BY created_at DESC LIMIT 1`,
       )
-      .get(...(r.booking_id ? [r.booking_id] : [r.event_type_id!]))) as
+      // Solo la reserva del candidato: su email, o la que llegó con la marca firmada de esta entrevista.
+      .get(...(r.booking_id ? [r.booking_id] : [r.event_type_id!, String(r.email).toLowerCase(), interviewMark(String(r.id))]))) as
       | { id: string; starts_at: string; ends_at: string; status: string }
       | undefined;
     if (!booking) continue;
@@ -127,6 +138,8 @@ export async function syncInterviews(ws: string, appId?: string): Promise<number
       .run(booking.id, booking.starts_at, booking.ends_at, status, r.id, booking.id);
     if (!res.changes) continue;
     changed++;
+    // Reservada (o cancelada), el tipo de evento de la entrevista ya no recibe más reservas.
+    await db.prepare("UPDATE calendar_event_types SET active = 0 WHERE id = ? AND kind = 'hiring'").run(r.event_type_id);
     const stage = (await db.prepare('SELECT name FROM hiring_stages WHERE id = ?').get(r.stage_id)) as { name: string } | undefined;
     await addEvent(ws, String(r.candidate_id), String(r.application_id), 'interview', null, { status, stage: stage?.name ?? '', startsAt: booking.starts_at });
   }
@@ -148,7 +161,7 @@ export async function listInterviews(ws: string, appId: string): Promise<Intervi
     status: (r.status as InterviewDto['status']) ?? 'invited',
     startsAt: r.starts_at,
     endsAt: r.ends_at,
-    link: r.status === 'invited' && handle && r.slug ? bookingLink(handle, r.slug, settings.locale) : null,
+    link: r.status === 'invited' && handle && r.slug ? bookingLink(handle, r.slug, settings.locale, String(r.id)) : null,
     createdAt: String(r.created_at),
   }));
 }

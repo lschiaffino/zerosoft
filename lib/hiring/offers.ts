@@ -103,7 +103,7 @@ export async function createOffer(actor: HiringActor, appId: string, input: z.in
   const title = input.title || job.title;
   let body = input.body;
   if (!body) {
-    const tpl = await resolveTemplate(actor.ws, 'offer_letter', settings, input.templateId);
+    const tpl = await resolveTemplate(actor.ws, 'offer_letter', settings, input.templateId, job.id);
     body = renderTemplate(tpl.body, {
       ...mailVars(settings, { candidate, job: { title }, applicationId: app.id, senderName: await personName(actor.person) }),
       'offer.salary': formatSalary(input.salary, input.currency, settings.locale),
@@ -166,7 +166,7 @@ export async function actOnOffer(actor: HiringActor, offerId: string, input: z.i
   if (!res.changes) throw new HiringError('invalid_state', 409);
   const settings = await ensureSettings(actor.ws);
   const link = offerLinkFor(settings.handle, token);
-  const tpl = await resolveTemplate(actor.ws, 'offer', settings, input.templateId);
+  const tpl = await resolveTemplate(actor.ws, 'offer', settings, input.templateId, job.id);
   await sendCandidateEmail(actor.ws, { candidate, job: { title: offer.title || job.title }, applicationId: app.id, senderName: await personName(actor.person), extra: { offerLink: link } }, tpl, actor.person, {
     kind: 'offer',
   });

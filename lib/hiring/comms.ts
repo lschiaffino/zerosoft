@@ -7,7 +7,7 @@
  * Chat, Resend Inbound). El webhook de Chat (/api/chat/inbound-email) reconoce
  * la dirección y llama a processHiringInbound: solo se acepta si el remitente
  * es el email del candidato y pasa los mismos filtros que Chat (respuestas
- * automáticas, rebotes) y además exige DMARC "pass" fuera del modo de prueba. La firma es un HMAC: nadie arma la dirección
+ * automáticas, rebotes); sin DMARC "pass" entra marcada como sin verificar. La firma es un HMAC: nadie arma la dirección
  * de otra postulación. Sin dominio de recepción, los emails salen sin Reply-To
  * y las respuestas no vuelven (la app lo avisa).
  */
@@ -19,7 +19,7 @@ import { inboundDomain, inboundFake, parseFrom, rejectReason, stripQuotedReply }
 import type { InboundAuth } from '../chat-email';
 import { emailDefault } from './builtin';
 import { HiringError, TEMPLATE_KINDS, firstName, renderTemplate, type HiringActor, type TemplateKind } from './types';
-import { appBase, ensureSettings, newId, nowIso, type SettingsRow } from './core';
+import { appBase, ensureSettings, newId, nowIso, requireManage, type SettingsRow } from './core';
 import { addEvent, notifyTeam, teamIds } from './events';
 
 // ---------- Plantillas ----------
@@ -27,6 +27,7 @@ import { addEvent, notifyTeam, teamIds } from './events';
 export interface TemplateRow {
   id: string;
   workspace_id: string;
+  job_id: string | null;
   kind: TemplateKind;
   name: string;
   subject: string;
@@ -36,7 +37,7 @@ export interface TemplateRow {
 }
 
 export function templateDto(t: TemplateRow) {
-  return { id: t.id, kind: t.kind, name: t.name, subject: t.subject, body: t.body, updatedAt: t.updated_at };
+  return { id: t.id, jobId: t.job_id, kind: t.kind, name: t.name, subject: t.subject, body: t.body, updatedAt: t.updated_at };
 }
 export type TemplateDto = ReturnType<typeof templateDto>;
 
@@ -45,12 +46,23 @@ export const templateSchema = z.object({
   name: z.string().trim().min(1).max(120),
   subject: z.string().trim().max(300).default(''),
   body: z.string().max(20_000).default(''),
+  /** Plantilla de un puesto (la usa solo ese puesto). Sin puesto, es del workspace: solo admins. */
+  jobId: z.string().max(80).nullable().default(null),
 });
 
-export async function listTemplates(ws: string, kind?: TemplateKind): Promise<TemplateDto[]> {
+/** Plantillas que la persona puede usar: las del workspace y las de los puestos que gestiona (admins: todas). */
+export async function listTemplates(actor: HiringActor | string, kind?: TemplateKind): Promise<TemplateDto[]> {
+  const ws = typeof actor === 'string' ? actor : actor.ws;
+  const scoped =
+    typeof actor === 'string' || actor.admin
+      ? ''
+      : ` AND (t.job_id IS NULL OR t.job_id IN (SELECT job_id FROM hiring_job_members WHERE user_id = ? AND role IN ('recruiter','hiring_manager')))`;
+  const args: string[] = [ws];
+  if (kind) args.push(kind);
+  if (scoped) args.push((actor as HiringActor).person);
   const rows = (await getDb()
-    .prepare(`SELECT * FROM hiring_templates WHERE workspace_id = ? ${kind ? 'AND kind = ?' : ''} ORDER BY kind, name COLLATE NOCASE`)
-    .all(...(kind ? [ws, kind] : [ws]))) as TemplateRow[];
+    .prepare(`SELECT t.* FROM hiring_templates t WHERE t.workspace_id = ? ${kind ? 'AND t.kind = ?' : ''}${scoped} ORDER BY t.kind, t.name COLLATE NOCASE`)
+    .all(...args)) as TemplateRow[];
   return rows.map(templateDto);
 }
 
@@ -58,33 +70,30 @@ export async function getTemplate(ws: string, id: string): Promise<TemplateRow |
   return ((await getDb().prepare('SELECT * FROM hiring_templates WHERE id = ? AND workspace_id = ?').get(id, ws)) as TemplateRow | undefined) ?? null;
 }
 
-/** Plantillas: las gestionan los admins y quien es recruiter o hiring manager de algún puesto. */
-export async function canManageTemplates(actor: HiringActor): Promise<boolean> {
-  if (actor.admin) return true;
-  const row = await getDb()
-    .prepare("SELECT 1 FROM hiring_job_members m JOIN hiring_jobs j ON j.id = m.job_id WHERE j.workspace_id = ? AND m.user_id = ? AND m.role IN ('recruiter','hiring_manager') LIMIT 1")
-    .get(actor.ws, actor.person);
-  return Boolean(row);
-}
-
-async function requireTemplates(actor: HiringActor): Promise<void> {
-  if (!(await canManageTemplates(actor))) throw new HiringError('forbidden', 403);
+/**
+ * Quién escribe plantillas: las del workspace (las que usan todos los puestos,
+ * incluido el acuse automático), solo admins; las de un puesto, quien lo
+ * gestiona (recruiter o hiring manager).
+ */
+async function requireTemplateScope(actor: HiringActor, jobId: string | null): Promise<void> {
+  if (jobId) await requireManage(actor, jobId);
+  else if (!actor.admin) throw new HiringError('forbidden', 403);
 }
 
 export async function createTemplate(actor: HiringActor, input: z.infer<typeof templateSchema>): Promise<TemplateDto> {
-  await requireTemplates(actor);
+  await requireTemplateScope(actor, input.jobId);
   const id = newId('htp');
   const ts = nowIso();
   await getDb()
-    .prepare('INSERT INTO hiring_templates (id, workspace_id, kind, name, subject, body, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(id, actor.ws, input.kind, input.name, input.subject, input.body, actor.person, ts, ts);
+    .prepare('INSERT INTO hiring_templates (id, workspace_id, job_id, kind, name, subject, body, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(id, actor.ws, input.jobId, input.kind, input.name, input.subject, input.body, actor.person, ts, ts);
   return templateDto((await getTemplate(actor.ws, id))!);
 }
 
 export async function updateTemplate(actor: HiringActor, id: string, patch: Partial<z.infer<typeof templateSchema>>): Promise<TemplateDto> {
-  await requireTemplates(actor);
   const cur = await getTemplate(actor.ws, id);
   if (!cur) throw new HiringError('not_found', 404);
+  await requireTemplateScope(actor, cur.job_id);
   await getDb()
     .prepare('UPDATE hiring_templates SET name = ?, subject = ?, body = ?, updated_at = ? WHERE id = ?')
     .run(patch.name ?? cur.name, patch.subject ?? cur.subject, patch.body ?? cur.body, nowIso(), id);
@@ -92,20 +101,31 @@ export async function updateTemplate(actor: HiringActor, id: string, patch: Part
 }
 
 export async function deleteTemplate(actor: HiringActor, id: string): Promise<void> {
-  await requireTemplates(actor);
-  const res = await getDb().prepare('DELETE FROM hiring_templates WHERE id = ? AND workspace_id = ?').run(id, actor.ws);
-  if (!res.changes) throw new HiringError('not_found', 404);
+  const cur = await getTemplate(actor.ws, id);
+  if (!cur) throw new HiringError('not_found', 404);
+  await requireTemplateScope(actor, cur.job_id);
+  await getDb().prepare('DELETE FROM hiring_templates WHERE id = ? AND workspace_id = ?').run(id, actor.ws);
 }
 
-/** La plantilla del workspace para un tipo (la más nueva) o la integrada en el idioma de la página de empleos. */
-export async function resolveTemplate(ws: string, kind: Exclude<TemplateKind, 'custom' | 'job'>, settings: SettingsRow, templateId?: string | null): Promise<{ subject: string; body: string }> {
+/**
+ * La plantilla para un envío: la elegida (si es del workspace o de este
+ * puesto), si no la más nueva del puesto, si no la del workspace, si no la
+ * integrada en el idioma de la página de empleos.
+ */
+export async function resolveTemplate(
+  ws: string,
+  kind: Exclude<TemplateKind, 'custom' | 'job'>,
+  settings: SettingsRow,
+  templateId: string | null | undefined,
+  jobId: string,
+): Promise<{ subject: string; body: string }> {
   if (templateId) {
     const t = await getTemplate(ws, templateId);
-    if (t) return { subject: t.subject, body: t.body };
+    if (t && (t.job_id === null || t.job_id === jobId)) return { subject: t.subject, body: t.body };
   }
-  const own = (await getDb().prepare('SELECT subject, body FROM hiring_templates WHERE workspace_id = ? AND kind = ? ORDER BY updated_at DESC LIMIT 1').get(ws, kind)) as
-    | { subject: string; body: string }
-    | undefined;
+  const own = (await getDb()
+    .prepare('SELECT subject, body FROM hiring_templates WHERE workspace_id = ? AND kind = ? AND (job_id = ? OR job_id IS NULL) ORDER BY job_id IS NULL, updated_at DESC LIMIT 1')
+    .get(ws, kind, jobId)) as { subject: string; body: string } | undefined;
   return own ?? emailDefault(settings.locale, kind);
 }
 
@@ -193,8 +213,18 @@ export async function sendCandidateEmail(
     html: renderBrandedHtml({ heading: subject, paragraphs: textToHtmlParagraphs(text), brandColor: settings.color, eyebrow: settings.company }),
     replyTo,
   });
-  await addEvent(ws, ctx.candidate.id, ctx.applicationId, 'email_out', actorId, { subject, body: text, kind: opts.kind ?? 'custom', delivered: res.ok });
+  // Los links con token (oferta, borrado de datos, agenda) son del candidato: en la línea de tiempo quedan tapados.
+  await addEvent(ws, ctx.candidate.id, ctx.applicationId, 'email_out', actorId, { subject: redactLinks(subject, ctx.extra), body: redactLinks(text, ctx.extra), kind: opts.kind ?? 'custom', delivered: res.ok });
   return { ok: res.ok };
+}
+
+const LINK_MARKERS: Record<string, string> = { offerLink: '[offer link]', privacyLink: '[privacy link]', schedulingLink: '[scheduling link]' };
+
+/** Reemplaza los links personales del candidato por una marca (también cualquier /offer/… o /privacy/… que quede). */
+export function redactLinks(text: string, extra: Record<string, string> = {}): string {
+  let out = text;
+  for (const [k, marker] of Object.entries(LINK_MARKERS)) if (extra[k]) out = out.split(extra[k]).join(marker);
+  return out.replace(/https?:\/\/\S*\/careers\/[^/\s]+\/(offer|privacy)\/[A-Za-z0-9_-]+/g, (_m, kind: string) => (kind === 'offer' ? '[offer link]' : '[privacy link]'));
 }
 
 // ---------- Respuestas ----------
@@ -209,11 +239,15 @@ export interface HiringInbound {
 }
 
 /** Una respuesta a hire+…: si es del candidato, va a su línea de tiempo y avisa al equipo. */
-export async function processHiringInbound(appId: string, email: HiringInbound): Promise<{ status: 'added' | 'duplicate' | 'ignored'; reason?: string }> {
-  const reason = rejectReason({ ...email, to: [], messageId: null, attachments: [], skippedAttachments: [] } as unknown as Parameters<typeof rejectReason>[0]);
-  if (reason) return { status: 'ignored', reason };
-  // Fuera del modo de prueba, sin veredicto DMARC "pass" no entra: el remitente es la única prueba de que es el candidato.
-  if (!inboundFake() && email.authentication?.dmarc?.toLowerCase() !== 'pass') return { status: 'ignored', reason: 'auth_required' };
+/**
+ * Una respuesta a hire+…. Nunca se descarta en silencio: si no entra, queda
+ * un evento "descartado" con el motivo (sin el texto). Se descarta solo lo
+ * que falla explícitamente (DMARC fail, SPF y DKIM fail, respuestas
+ * automáticas, rebotes) o no viene del email del candidato. Si no hay
+ * veredicto DMARC "pass" (fuera del modo de prueba), entra como "sin
+ * verificar": se ve con un aviso y no se avisa al equipo.
+ */
+export async function processHiringInbound(appId: string, email: HiringInbound): Promise<{ status: 'added' | 'duplicate' | 'ignored'; reason?: string; unverified?: boolean }> {
   const db = getDb();
   const app = (await db
     .prepare(
@@ -222,19 +256,26 @@ export async function processHiringInbound(appId: string, email: HiringInbound):
     )
     .get(appId.toLowerCase())) as { id: string; workspace_id: string; job_id: string; candidate_id: string; email: string; name: string; title: string } | undefined;
   if (!app) return { status: 'ignored', reason: 'unknown' };
-  const sender = parseFrom(email.from).email;
-  if (!sender || sender !== app.email.toLowerCase()) return { status: 'ignored', reason: 'sender_mismatch' };
   const claimed = await db.prepare('INSERT OR IGNORE INTO chat_inbound_emails (email_id, created_at) VALUES (?, ?)').run(`hire:${email.emailId}`.slice(0, 128), nowIso());
   if (!claimed.changes) return { status: 'duplicate' };
+  const sender = parseFrom(email.from).email;
+  const reason = rejectReason({ ...email, to: [], messageId: null, attachments: [], skippedAttachments: [] } as unknown as Parameters<typeof rejectReason>[0]) ?? (!sender || sender !== app.email.toLowerCase() ? 'sender_mismatch' : null);
+  if (reason) {
+    await addEvent(app.workspace_id, app.candidate_id, app.id, 'email_dropped', null, { reason, fromDomain: (sender ?? '').split('@')[1] ?? '' });
+    return { status: 'ignored', reason };
+  }
+  const unverified = !inboundFake() && email.authentication?.dmarc?.toLowerCase() !== 'pass';
   const body = stripQuotedReply(email.text).slice(0, 10_000);
-  await addEvent(app.workspace_id, app.candidate_id, app.id, 'email_in', null, { subject: email.subject.slice(0, 300), body });
-  await notifyTeam(await teamIds(app.job_id, ['recruiter', 'hiring_manager']), {
-    title: `${app.name} · ${app.title}`,
-    body: body.slice(0, 200),
-    href: `/app/hiring/candidates/${app.candidate_id}?app=${app.id}`,
-    sourceId: app.id,
-  });
-  return { status: 'added' };
+  await addEvent(app.workspace_id, app.candidate_id, app.id, 'email_in', null, { subject: email.subject.slice(0, 300), body, unverified });
+  if (!unverified) {
+    await notifyTeam(await teamIds(app.job_id, ['recruiter', 'hiring_manager']), {
+      title: `${app.name} · ${app.title}`,
+      body: body.slice(0, 200),
+      href: `/app/hiring/candidates/${app.candidate_id}?app=${app.id}`,
+      sourceId: app.id,
+    });
+  }
+  return { status: 'added', unverified };
 }
 
 export function offerLinkFor(handle: string, token: string): string {

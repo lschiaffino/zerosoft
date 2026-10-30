@@ -4,7 +4,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { userCanUseApp } from '@/lib/workspace';
 import { actorOf } from '@/lib/hiring/http';
-import { appBase, ensureSettings, getJob, hiringPeople, listJobs, settingsDto } from '@/lib/hiring/core';
+import { appBase, canCreateJobs, ensureSettings, getJob, hiringPeople, listJobs, settingsDto } from '@/lib/hiring/core';
 import { getCandidateProfile, listApplications, visibleTags } from '@/lib/hiring/candidates';
 import { myPendingEvaluations } from '@/lib/hiring/evaluation';
 import { listTemplates, repliesEnabled } from '@/lib/hiring/comms';
@@ -54,18 +54,18 @@ export default async function HiringPage(props: Props) {
   if (!section) {
     if (sp.new === '1') redirect(`/${locale}/app/hiring/jobs/new`);
     const [jobs, pending, recent] = await Promise.all([listJobs(actor, { status: 'published' }), myPendingEvaluations(actor), listApplications(actor, { status: 'active', limit: 8 })]);
-    return <HiringOverview jobs={jobs} pending={pending} recent={recent} careersUrl={careersUrl} published={settings.published === 1} />;
+    return <HiringOverview jobs={jobs} pending={pending} recent={recent} careersUrl={careersUrl} published={settings.published === 1} canCreate={canCreateJobs(actor, settings)} />;
   }
 
   switch (section) {
     case 'jobs': {
       if (!id) {
         const status = ['draft', 'published', 'closed', 'archived', 'all'].includes(sp.status ?? '') ? sp.status : undefined;
-        return <JobsList initial={await listJobs(actor, { status, q: sp.q })} q={sp.q ?? ''} status={status ?? ''} />;
+        return <JobsList initial={await listJobs(actor, { status, q: sp.q })} q={sp.q ?? ''} status={status ?? ''} canCreate={canCreateJobs(actor, settings)} />;
       }
       if (id === 'new') {
-        if (sub) notFound();
-        const saved = await listTemplates(actor.ws, 'job');
+        if (sub || !canCreateJobs(actor, settings)) notFound();
+        const saved = await listTemplates(actor, 'job');
         return <JobNew builtin={jobTemplates(settings.locale)} saved={saved.map((s) => ({ id: s.id, name: s.name }))} />;
       }
       const detail = await getJob(actor, id);
@@ -84,7 +84,7 @@ export default async function HiringPage(props: Props) {
           listApplications(actor, { q: sp.q, jobId: sp.job, status: sp.status ?? 'active', source: sp.source, tag: sp.tag, knockedOut: sp.knockout === '1' }),
           listJobs(actor, { status: 'all' }),
           visibleTags(actor),
-          listTemplates(actor.ws, 'rejection'),
+          listTemplates(actor, 'rejection'),
         ]);
         return (
           <CandidatesList
@@ -99,14 +99,14 @@ export default async function HiringPage(props: Props) {
       if (sub) notFound();
       const profile = await getCandidateProfile(actor, id);
       if (!profile) notFound();
-      const templates = await listTemplates(actor.ws);
+      const templates = await listTemplates(actor);
       return (
         <CandidateProfile
           initial={profile}
           focusApp={sp.app ?? null}
           me={actor.person}
           isAdmin={actor.admin}
-          templates={templates.filter((t) => t.kind !== 'job').map((t) => ({ id: t.id, kind: t.kind, name: t.name, subject: t.subject, body: t.body }))}
+          templates={templates.filter((t) => t.kind !== 'job').map((t) => ({ id: t.id, jobId: t.jobId, kind: t.kind, name: t.name, subject: t.subject, body: t.body }))}
           repliesEnabled={repliesEnabled()}
         />
       );
@@ -125,7 +125,8 @@ export default async function HiringPage(props: Props) {
     }
     case 'templates': {
       if (id) notFound();
-      return <HiringTemplates initial={await listTemplates(actor.ws)} />;
+      const jobs = await listJobs(actor, { status: 'all' });
+      return <HiringTemplates initial={await listTemplates(actor)} canAdmin={actor.admin} jobs={jobs.filter((j) => j.canManage).map((j) => ({ id: j.id, title: j.title }))} />;
     }
     case 'settings': {
       if (id) notFound();

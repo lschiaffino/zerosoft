@@ -1719,7 +1719,7 @@
       },
       "f4": {
         "t": "Scorecards sin espiar",
-        "d": "Criterios por etapa que puntúa cada entrevistador. Los entrevistadores solo ven a quienes evalúan y no ven los puntajes ajenos hasta enviar el suyo. Recordatorios cuando falta feedback."
+        "d": "Criterios por etapa que puntúa cada entrevistador. Los entrevistadores solo ven a quienes evalúan y no ven los puntajes ajenos de una etapa hasta enviar el suyo. Recruiters y hiring managers ven todos los scorecards. Recordatorios cuando falta feedback."
       },
       "f5": {
         "t": "Entrevistas y ofertas",

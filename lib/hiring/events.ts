@@ -15,6 +15,7 @@ export type EventKind =
   | 'note'
   | 'email_out'
   | 'email_in'
+  | 'email_dropped'
   | 'score'
   | 'interview'
   | 'offer'

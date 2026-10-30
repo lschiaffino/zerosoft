@@ -117,7 +117,7 @@ const parity: ProductParity = {
       detail: ['Up to 10 criteria rated 1 to 4 and an overall recommendation', 'Hasta 10 criterios del 1 al 4 y una recomendación general', 'Até 10 critérios de 1 a 4 e uma recomendação geral'],
     }),
     row('blind-scores', 'evaluation', ["Others' scores hidden until you submit", 'Puntajes ajenos ocultos hasta enviar el tuyo', 'Notas dos outros ocultas até enviar a sua'], 'have', {
-      detail: ['Per stage; an interviewer scores only the assigned stage, once', 'Por etapa; un entrevistador puntúa solo la etapa asignada, una vez', 'Por etapa; um entrevistador avalia só a etapa designada, uma vez'],
+      detail: ['For interviewers, per stage: they score only the assigned stage, once. Recruiters and hiring managers see every scorecard', 'Para entrevistadores, por etapa: puntúan solo la etapa asignada, una vez. Recruiters y hiring managers ven todos los scorecards', 'Para entrevistadores, por etapa: avaliam só a etapa designada, uma vez. Recrutadores e gestores veem todos os scorecards'],
     }),
     row('interviewer-scope', 'evaluation', ['Interviewers see only assigned candidates', 'Entrevistadores ven solo a sus asignados', 'Entrevistadores veem só os designados'], 'have'),
     row('feedback-reminders', 'evaluation', ['Feedback reminders', 'Recordatorios de feedback', 'Lembretes de feedback'], 'have'),

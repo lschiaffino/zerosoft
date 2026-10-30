@@ -10,7 +10,7 @@ import { JobStatusBadge } from './ui';
 
 const STATUSES = ['', 'published', 'draft', 'closed', 'archived', 'all'] as const;
 
-export default function JobsList({ initial, q, status }: { initial: JobListItem[]; q: string; status: string }) {
+export default function JobsList({ initial, q, status, canCreate }: { initial: JobListItem[]; q: string; status: string; canCreate: boolean }) {
   const t = useTranslations('hiring');
   const router = useRouter();
   const [query, setQuery] = useState(q);
@@ -32,9 +32,11 @@ export default function JobsList({ initial, q, status }: { initial: JobListItem[
         title={t('nav.jobs')}
         description={t('jobs.desc')}
         actions={
-          <Link className="btn btn-primary" href="/app/hiring/jobs/new">
-            {t('jobs.new')}
-          </Link>
+          canCreate ? (
+            <Link className="btn btn-primary" href="/app/hiring/jobs/new">
+              {t('jobs.new')}
+            </Link>
+          ) : undefined
         }
       />
       <div className="hr-toolbar">
@@ -53,7 +55,7 @@ export default function JobsList({ initial, q, status }: { initial: JobListItem[
         q || status ? (
           <EmptyState compact body={t('filters.noMatch')} />
         ) : (
-          <EmptyState product="hiring" title={t('jobs.emptyTitle')} body={t('jobs.emptyBody')} action={{ label: t('jobs.new'), href: '/app/hiring/jobs/new' }} />
+          <EmptyState product="hiring" title={t('jobs.emptyTitle')} body={canCreate ? t('jobs.emptyBody') : t('jobs.emptyBodyMember')} action={canCreate ? { label: t('jobs.new'), href: '/app/hiring/jobs/new' } : undefined} />
         )
       ) : (
         <div className="table-wrap">

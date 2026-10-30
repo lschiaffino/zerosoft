@@ -1719,7 +1719,7 @@
       },
       "f4": {
         "t": "Scorecards without peeking",
-        "d": "Criteria per stage rated by each interviewer. Interviewers only see the candidates they evaluate and cannot see other scores until they submit their own. Reminders when feedback is late."
+        "d": "Criteria per stage rated by each interviewer. Interviewers only see the candidates they evaluate and cannot see other scores for a stage until they submit their own. Recruiters and hiring managers see every scorecard. Reminders when feedback is late."
       },
       "f5": {
         "t": "Interviews and offers",

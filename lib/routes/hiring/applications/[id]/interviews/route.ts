@@ -13,8 +13,10 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   const a = await hiringActor();
   if ('res' in a) return a.res;
   try {
-    const { app } = await requireVisibleApp(a.actor, (await params).id);
-    return hJson({ interviews: await listInterviews(a.actor.ws, app.id) });
+    const { app, access } = await requireVisibleApp(a.actor, (await params).id);
+    // El link de agenda es del candidato: solo lo ve quien gestiona el puesto.
+    const list = await listInterviews(a.actor.ws, app.id);
+    return hJson({ interviews: access.manage ? list : list.map((i) => ({ ...i, link: null })) });
   } catch (err) {
     return hFail(err);
   }

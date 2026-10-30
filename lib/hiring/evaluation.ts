@@ -72,6 +72,10 @@ export async function setEvaluators(actor: HiringActor, appId: string, input: z.
     await db.prepare('INSERT INTO hiring_evaluators (application_id, user_id, stage_id, requested_at) VALUES (?, ?, ?, ?)').run(app.id, u, stage.id, ts);
   }
   const added = input.userIds.filter((u) => !before.has(u) && u !== actor.person);
+  // A quien se le quita la evaluación se le borran los avisos de esta postulación (llevan el nombre del candidato).
+  for (const u of before) {
+    if (!input.userIds.includes(u)) await db.prepare("DELETE FROM notifications WHERE user_id = ? AND source_type = 'hiring' AND source_id = ?").run(u, app.id);
+  }
   await notifyTeam(added, { title: `${candidate.name} · ${stage.name}`, body: job.title, href: `/app/hiring/candidates/${candidate.id}?app=${app.id}`, sourceId: app.id });
 }
 

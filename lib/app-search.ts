@@ -181,7 +181,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       needle,
     ),
     all(
-      `SELECT id, title AS label, slug AS meta FROM calendar_event_types WHERE user_id = ? AND kind != 'poll' AND title LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?`,
+      `SELECT id, title AS label, slug AS meta FROM calendar_event_types WHERE user_id = ? AND kind NOT IN ('poll', 'hiring') AND title LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?`,
       user.id,
       like,
     ),
@@ -190,7 +190,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     all(
       `SELECT b.id, b.invitee_name AS label, b.invitee_email AS email, b.invitee_email || ' · ' || e.title AS meta
        FROM calendar_bookings b JOIN calendar_event_types e ON e.id = b.event_type_id
-       WHERE e.user_id = ? AND (b.invitee_name LIKE ? ESCAPE '\\' OR b.invitee_email LIKE ? ESCAPE '\\')
+       WHERE e.user_id = ? AND e.kind != 'hiring' AND (b.invitee_name LIKE ? ESCAPE '\\' OR b.invitee_email LIKE ? ESCAPE '\\')
          AND (? = '' OR b.host_user_id = ? OR EXISTS (SELECT 1 FROM json_each(b.co_host_ids) j WHERE j.value = ?))
        ORDER BY b.starts_at DESC LIMIT ?`,
       user.id,

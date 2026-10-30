@@ -34,7 +34,8 @@
     "colLocation": "Local",
     "colStatus": "Status",
     "colCandidates": "Ativos",
-    "activeCount": "{count, plural, one {# candidato ativo} other {# candidatos ativos}}"
+    "activeCount": "{count, plural, one {# candidato ativo} other {# candidatos ativos}}",
+    "emptyBodyMember": "Um admin cria as vagas e inclui você no time."
   },
   "filters": {
     "all": "Todos",
@@ -306,7 +307,8 @@
     "deleteBody": "As candidaturas, o currículo, a linha do tempo, os scorecards e as ofertas de {name} são excluídos para sempre. Use quando um candidato pedir para ser esquecido.",
     "links": "Links",
     "documents": "Outros documentos",
-    "duplicates": "O mesmo email em outras vagas"
+    "duplicates": "O mesmo email em outras vagas",
+    "unverifiedDoc": "veio com uma nova candidatura, sem verificar"
   },
   "events": {
     "applied": "Candidatou-se ({source})",
@@ -333,7 +335,9 @@
       "accepted": "aceita",
       "declined": "recusada",
       "withdrawn": "retirada"
-    }
+    },
+    "email_dropped": "Email não aceito ({reason})",
+    "unverified": "Remetente não verificado"
   },
   "score": {
     "submitted": "Scorecard enviado.",
@@ -427,7 +431,10 @@
     },
     "deleteName": "Excluir {name}",
     "defaultsNote": "O modelo mais novo de cada tipo é o que o Hiring usa por padrão.",
-    "edit": "Editar modelo"
+    "edit": "Editar modelo",
+    "scope": "Usado por",
+    "allJobs": "Todas as vagas",
+    "scopeHelp": "Os modelos de todas as vagas (incluindo a confirmação automática) são geridos pelos admins. O de uma vaga é usado só por ela."
   },
   "ai": {
     "title": "Ajuda de IA",
@@ -485,7 +492,8 @@
     "retentionOff": "Nunca",
     "months": "{count} meses sem atividade",
     "retentionHelp": "Contratados e quem aceitou ficar para futuras vagas são mantidos.",
-    "consentText": "Texto de consentimento do formulário"
+    "consentText": "Texto de consentimento do formulário",
+    "membersCreateJobs": "Membros com Hiring podem criar vagas (senão, só admins)"
   },
   "errors": {
     "generic": "Algo deu errado. Tente de novo.",

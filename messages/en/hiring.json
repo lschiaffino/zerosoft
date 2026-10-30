@@ -34,7 +34,8 @@
     "colLocation": "Location",
     "colStatus": "Status",
     "colCandidates": "Active",
-    "activeCount": "{count, plural, one {# active candidate} other {# active candidates}}"
+    "activeCount": "{count, plural, one {# active candidate} other {# active candidates}}",
+    "emptyBodyMember": "An admin creates jobs and adds you to their hiring team."
   },
   "filters": {
     "all": "All",
@@ -306,7 +307,8 @@
     "deleteBody": "{name}'s applications, resume, timeline, scorecards and offers are deleted for good. Use it when a candidate asks to be forgotten.",
     "links": "Links",
     "documents": "Other documents",
-    "duplicates": "Same email in other jobs"
+    "duplicates": "Same email in other jobs",
+    "unverifiedDoc": "sent with a new application, unverified"
   },
   "events": {
     "applied": "Applied ({source})",
@@ -333,7 +335,9 @@
       "accepted": "accepted",
       "declined": "declined",
       "withdrawn": "withdrawn"
-    }
+    },
+    "email_dropped": "Email not accepted ({reason})",
+    "unverified": "Sender not verified"
   },
   "score": {
     "submitted": "Scorecard submitted.",
@@ -427,7 +431,10 @@
     },
     "deleteName": "Delete {name}",
     "defaultsNote": "The newest template of each type is the one Hiring uses by default.",
-    "edit": "Edit template"
+    "edit": "Edit template",
+    "scope": "Used by",
+    "allJobs": "All jobs",
+    "scopeHelp": "Templates for all jobs (including the automatic acknowledgement) are managed by admins. A job template is used only by that job."
   },
   "ai": {
     "title": "AI assistance",
@@ -485,7 +492,8 @@
     "retentionOff": "Never",
     "months": "{count} months without activity",
     "retentionHelp": "Hired candidates and those who agreed to stay for future openings are kept.",
-    "consentText": "Consent text on the application form"
+    "consentText": "Consent text on the application form",
+    "membersCreateJobs": "Members with Hiring can create jobs (otherwise only admins)"
   },
   "errors": {
     "generic": "Something went wrong. Try again.",

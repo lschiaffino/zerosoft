@@ -118,8 +118,11 @@ test('Hiring: de la plantilla a la oferta aceptada, con privacidad por equipo', 
     await expect(linkInput).toBeVisible();
     const link = new URL(await linkInput.inputValue());
     expect(link.pathname).toMatch(/^\/en\/book\/[^/]+\/interview-[a-f0-9]+$/);
-    // Sin datos del candidato en la URL.
-    expect(link.search).toBe('');
+    // Sin datos del candidato en la URL: solo la marca firmada de la entrevista.
+    expect(link.search).not.toContain('%40');
+    expect(link.search).not.toContain('@');
+    expect(link.searchParams.get('name')).toBeNull();
+    expect(link.searchParams.get('utm_content')).toMatch(/^hiv_[A-Za-z0-9_-]+\.[0-9a-f]{16}$/);
     const booking = await browser.newContext({ baseURL });
     const bp = await booking.newPage();
     await bp.goto(`${link.pathname}${link.search}`, { waitUntil: 'networkidle' });

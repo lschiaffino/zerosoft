@@ -59,6 +59,7 @@ export interface SettingsRow {
   retention_months: number;
   consent_text: string;
   auto_ack: number;
+  members_create_jobs: number;
   created_at: string;
   updated_at: string;
 }
@@ -103,6 +104,7 @@ export const settingsSchema = z.object({
   retentionMonths: z.number().int().min(0).max(120).optional(),
   consentText: z.string().trim().max(1000).optional(),
   autoAck: z.boolean().optional(),
+  membersCreateJobs: z.boolean().optional(),
 });
 
 export async function updateSettings(actor: HiringActor, input: z.infer<typeof settingsSchema>): Promise<SettingsRow> {
@@ -115,7 +117,7 @@ export async function updateSettings(actor: HiringActor, input: z.infer<typeof s
   }
   await db
     .prepare(
-      `UPDATE hiring_settings SET handle = ?, company = ?, intro = ?, color = ?, locale = ?, published = ?, retention_months = ?, consent_text = ?, auto_ack = ?, updated_at = ? WHERE workspace_id = ?`,
+      `UPDATE hiring_settings SET handle = ?, company = ?, intro = ?, color = ?, locale = ?, published = ?, retention_months = ?, consent_text = ?, auto_ack = ?, members_create_jobs = ?, updated_at = ? WHERE workspace_id = ?`,
     )
     .run(
       input.handle ?? cur.handle,
@@ -127,6 +129,7 @@ export async function updateSettings(actor: HiringActor, input: z.infer<typeof s
       input.retentionMonths ?? cur.retention_months,
       input.consentText ?? cur.consent_text,
       input.autoAck === undefined ? cur.auto_ack : input.autoAck ? 1 : 0,
+      input.membersCreateJobs === undefined ? cur.members_create_jobs : input.membersCreateJobs ? 1 : 0,
       nowIso(),
       actor.ws,
     );
@@ -144,6 +147,7 @@ export function settingsDto(s: SettingsRow) {
     retentionMonths: s.retention_months,
     consentText: s.consent_text,
     autoAck: s.auto_ack === 1,
+    membersCreateJobs: s.members_create_jobs === 1,
   };
 }
 export type SettingsDto = ReturnType<typeof settingsDto>;
@@ -377,8 +381,14 @@ function checkQuestions(qs: Question[]) {
 }
 
 /** Crea un puesto (borrador). Quien lo crea queda como recruiter. Con `template`, arranca de una plantilla integrada o del workspace. */
+/** Crear puestos: admins, o cualquiera con Hiring si un admin lo habilita en Ajustes. */
+export function canCreateJobs(actor: HiringActor, settings: Pick<SettingsRow, 'members_create_jobs'>): boolean {
+  return actor.admin || settings.members_create_jobs === 1;
+}
+
 export async function createJob(actor: HiringActor, input: JobInput, locale = 'en'): Promise<JobDetail> {
   const settings = await ensureSettings(actor.ws, locale);
+  if (!canCreateJobs(actor, settings)) throw new HiringError('forbidden', 403);
   let base: Partial<JobInput> = {};
   if (input.template) {
     const builtin = jobTemplate(settings.locale, input.template) ?? jobTemplate(locale, input.template);
@@ -514,6 +524,8 @@ export async function deleteJob(actor: HiringActor, id: string): Promise<void> {
 
 export async function deleteApplicationRows(appId: string): Promise<void> {
   const db = getDb();
+  // Los tipos de evento de Cal de sus entrevistas dejan de aceptar reservas.
+  await db.prepare("UPDATE calendar_event_types SET active = 0 WHERE kind = 'hiring' AND id IN (SELECT event_type_id FROM hiring_interviews WHERE application_id = ?)").run(appId);
   for (const t of ['hiring_evaluators', 'hiring_scorecards', 'hiring_interviews', 'hiring_offers']) await db.prepare(`DELETE FROM ${t} WHERE application_id = ?`).run(appId);
   await db.prepare('DELETE FROM hiring_events WHERE application_id = ?').run(appId);
   await db.prepare('DELETE FROM hiring_applications WHERE id = ?').run(appId);

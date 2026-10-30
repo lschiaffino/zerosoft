@@ -34,7 +34,8 @@
     "colLocation": "Ubicación",
     "colStatus": "Estado",
     "colCandidates": "Activos",
-    "activeCount": "{count, plural, one {# candidato activo} other {# candidatos activos}}"
+    "activeCount": "{count, plural, one {# candidato activo} other {# candidatos activos}}",
+    "emptyBodyMember": "Un admin crea los puestos y te suma a su equipo."
   },
   "filters": {
     "all": "Todos",
@@ -306,7 +307,8 @@
     "deleteBody": "Se borran para siempre las postulaciones, el CV, la línea de tiempo, los scorecards y las ofertas de {name}. Usalo cuando un candidato pide que lo olviden.",
     "links": "Links",
     "documents": "Otros documentos",
-    "duplicates": "El mismo email en otros puestos"
+    "duplicates": "El mismo email en otros puestos",
+    "unverifiedDoc": "llegó con una nueva postulación, sin verificar"
   },
   "events": {
     "applied": "Se postuló ({source})",
@@ -333,7 +335,9 @@
       "accepted": "aceptada",
       "declined": "rechazada",
       "withdrawn": "retirada"
-    }
+    },
+    "email_dropped": "Email no aceptado ({reason})",
+    "unverified": "Remitente sin verificar"
   },
   "score": {
     "submitted": "Scorecard enviado.",
@@ -427,7 +431,10 @@
     },
     "deleteName": "Borrar {name}",
     "defaultsNote": "La plantilla más nueva de cada tipo es la que Hiring usa por defecto.",
-    "edit": "Editar plantilla"
+    "edit": "Editar plantilla",
+    "scope": "Lo usa",
+    "allJobs": "Todos los puestos",
+    "scopeHelp": "Las plantillas de todos los puestos (incluido el acuse automático) las manejan los admins. La de un puesto la usa solo ese puesto."
   },
   "ai": {
     "title": "Ayuda de IA",
@@ -485,7 +492,8 @@
     "retentionOff": "Nunca",
     "months": "{count} meses sin actividad",
     "retentionHelp": "Se conservan los contratados y quienes aceptaron quedar para futuras búsquedas.",
-    "consentText": "Texto de consentimiento del formulario"
+    "consentText": "Texto de consentimiento del formulario",
+    "membersCreateJobs": "Los miembros con Hiring pueden crear puestos (si no, solo los admins)"
   },
   "errors": {
     "generic": "Algo salió mal. Probá de nuevo.",
