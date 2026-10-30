@@ -133,5 +133,13 @@ export async function signUp(client: Client): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_sign_templates_ws ON sign_templates(workspace_id, updated_at);
   `);
   // Hiring: la oferta que salió a firmar con Sign recuerda su sobre (no se reenvía por el link con nombre escrito).
-  await client.execute('ALTER TABLE hiring_offers ADD COLUMN sign_envelope_id TEXT');
+  // Idempotente: dos instancias pueden correr la migración a la vez.
+  const cols = (await client.execute('PRAGMA table_info(hiring_offers)')).rows.map((r) => String(r.name));
+  if (!cols.includes('sign_envelope_id')) {
+    try {
+      await client.execute('ALTER TABLE hiring_offers ADD COLUMN sign_envelope_id TEXT');
+    } catch (err) {
+      if (!/duplicate column/i.test(err instanceof Error ? err.message : String(err))) throw err;
+    }
+  }
 }
