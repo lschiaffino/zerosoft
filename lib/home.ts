@@ -232,7 +232,7 @@ export async function homeUnread(user: HomeUser): Promise<{ chat: number | null;
 
 // ---------- Recientes ----------
 
-export type RecentKind = 'doc' | 'note' | 'board' | 'design' | 'issue' | 'link' | 'contact' | 'deal' | 'flow' | 'product' | 'insight' | 'socialPost';
+export type RecentKind = 'doc' | 'note' | 'board' | 'design' | 'issue' | 'link' | 'contact' | 'deal' | 'flow' | 'product' | 'insight' | 'socialPost' | 'booksInvoice';
 
 export interface RecentItem {
   kind: RecentKind;
@@ -256,6 +256,7 @@ const RECENT_PRODUCT: Record<RecentKind, ProductKey> = {
   product: 'shop',
   insight: 'analytics',
   socialPost: 'social',
+  booksInvoice: 'books',
 };
 
 /** Fecha comparable: '2026-10-25 10:00:00' y '2026-10-25T10:00:00.000Z' ordenan igual. */
@@ -290,7 +291,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
 
   const socialAdmin = !user.role || user.role === 'owner' || user.role === 'admin';
   const person = user.actingUser?.id ?? user.id;
-  const [docs, notes, boards, designs, issues, links, contacts, deals, flows, products, insights, socialPosts] = await Promise.all([
+  const [docs, notes, boards, designs, issues, links, contacts, deals, flows, products, insights, socialPosts, booksInvoices] = await Promise.all([
     all(`SELECT id, title AS label, updated_at FROM docs_pages WHERE user_id = ? AND archived = 0 ORDER BY updated_at DESC LIMIT ?`, user.id, per),
     // Notas: solo las de la persona (son privadas aunque el workspace sea compartido).
     listNotes(noteOwner(user), { view: 'all', limit: per })
@@ -353,6 +354,15 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
       } ORDER BY p.updated_at DESC LIMIT ?`,
       ...(socialAdmin ? [user.id, per] : [user.id, person, person, per]),
     ),
+    // Books: las facturas tocadas hace poco (solo con la app; el rol de Books no cambia la lista de facturas).
+    homeCanUse(user, 'books')
+      ? all(
+          `SELECT d.id, COALESCE(NULLIF(d.reference, ''), NULLIF(d.number_label, ''), c.name) AS label, d.updated_at FROM books_documents d
+           LEFT JOIN books_contacts c ON c.id = d.contact_id WHERE d.workspace_id = ? AND d.doc_type = 'invoice' ORDER BY d.updated_at DESC LIMIT ?`,
+          user.id,
+          per,
+        )
+      : Promise.resolve([] as Row[]),
   ]);
 
   const href: Record<RecentKind, (id: string) => string> = {
@@ -368,6 +378,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
     product: (id) => `/app/shop/products/${id}`,
     insight: (id) => `/app/analytics/insights/${id}`,
     socialPost: (id) => `/app/social/posts/${id}`,
+    booksInvoice: (id) => `/app/books/invoices/${id}`,
   };
   const groups: Array<[RecentKind, Row[]]> = [
     ['doc', docs],
@@ -382,6 +393,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
     ['product', products],
     ['insight', insights],
     ['socialPost', socialPosts],
+    ['booksInvoice', booksInvoices],
   ];
   const items = groups
     .flatMap(([kind, rows]) =>

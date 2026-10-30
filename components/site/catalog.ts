@@ -42,6 +42,7 @@ export const RIVALS: Record<ProductKey, string> = {
   social: 'Hootsuite',
   hiring: 'Workable',
   people: 'BambooHR',
+  books: 'Xero · QuickBooks',
 };
 
 /** Las seis apps de la tabla de costos del home (precio por usuario o plan fijo). */
@@ -151,4 +152,6 @@ export const PRODUCT_PAGES: Record<ProductKey, ProductPageSpec> = {
   social: { sections: ['shot', 'features', 'parity', 'compare', 'how', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
   hiring: { sections: ['shot', 'features', 'parity', 'how', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
   people: { sections: ['shot', 'features', 'parity', 'how', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
+  // Sin bloque de precios: el de Xero no se verificó en USD para la región.
+  books: { sections: ['shot', 'features', 'parity', 'how', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
 };

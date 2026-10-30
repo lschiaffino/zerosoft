@@ -37,6 +37,7 @@ import AnalyticsMockup from './mockups/AnalyticsMockup';
 import SocialMockup from './mockups/SocialMockup';
 import HiringMockup from './mockups/HiringMockup';
 import PeopleMockup from './mockups/PeopleMockup';
+import BooksMockup from './mockups/BooksMockup';
 
 const MOCKUPS: Record<ProductKey, ComponentType> = {
   link: LinkMockup,
@@ -60,6 +61,7 @@ const MOCKUPS: Record<ProductKey, ComponentType> = {
   social: SocialMockup,
   hiring: HiringMockup,
   people: PeopleMockup,
+  books: BooksMockup,
 };
 
 const STEP_IDS = ['s1', 's2', 's3'] as const;

@@ -855,7 +855,9 @@
     "people_offboarded": "People: salida de una persona",
     "hiring_candidate_applied": "Hiring: nueva postulación",
     "hiring_candidate_stage_changed": "Hiring: candidato cambió de etapa",
-    "hiring_candidate_hired": "Hiring: candidato contratado"
+    "hiring_candidate_hired": "Hiring: candidato contratado",
+    "books_invoice_paid": "Books: factura cobrada",
+    "books_invoice_overdue": "Books: factura vencida"
   },
   "ops": {
     "equals": "es igual a",

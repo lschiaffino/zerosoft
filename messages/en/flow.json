@@ -855,7 +855,9 @@
     "people_offboarded": "People: person offboarded",
     "hiring_candidate_applied": "Hiring: candidate applied",
     "hiring_candidate_stage_changed": "Hiring: candidate moved to a stage",
-    "hiring_candidate_hired": "Hiring: candidate hired"
+    "hiring_candidate_hired": "Hiring: candidate hired",
+    "books_invoice_paid": "Books: invoice paid",
+    "books_invoice_overdue": "Books: invoice overdue"
   },
   "ops": {
     "equals": "equals",

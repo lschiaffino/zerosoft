@@ -38,6 +38,9 @@ export type IconName =
   | 'shop'
   | 'discounts'
   | 'social'
+  | 'books'
+  | 'bank'
+  | 'receipt'
   | 'calendar'
   | 'products'
   | 'quotes'
@@ -364,6 +367,24 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <path d="M4 8h16l-1.5 12h-13z" />
       <path d="M9 8a3 3 0 0 1 6 0" />
+    </>
+  ),
+  books: (
+    <>
+      <path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z" />
+      <path d="M5 17a3 3 0 0 1 3-3h11M9 8h6" />
+    </>
+  ),
+  bank: (
+    <>
+      <path d="M3 9l9-5 9 5z" />
+      <path d="M5 9v9M10 9v9M14 9v9M19 9v9M3 20h18" />
+    </>
+  ),
+  receipt: (
+    <>
+      <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" />
+      <path d="M9 8h6M9 12h6" />
     </>
   ),
   discounts: (

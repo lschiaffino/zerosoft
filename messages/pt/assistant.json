@@ -160,6 +160,11 @@
       "a": "Quais vagas estão abertas?",
       "b": "Quem está na etapa de entrevista?",
       "c": "Quais scorecards estão faltando?"
+    },
+    "books": {
+      "a": "Quais faturas estão vencidas?",
+      "b": "Quanto faturamos este mês?",
+      "c": "Crie uma fatura para meu último cliente"
     }
   },
   "page": {

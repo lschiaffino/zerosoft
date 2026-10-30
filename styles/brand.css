@@ -32,6 +32,7 @@
   --c-social-ink: #7e22ce;
   --c-hiring-ink: #0f766e;
   --c-people-ink: #8b5e34;
+  --c-books-ink: #1e3a8a;
 
   /* Texto sobre un relleno del color del producto. */
   --c-link-on: #ffffff;
@@ -55,6 +56,7 @@
   --c-social-on: #ffffff;
   --c-hiring-on: #ffffff;
   --c-people-on: #ffffff;
+  --c-books-on: #ffffff;
 
   /* Escala (px a 1440): lectura y datos. Los títulos (--t-display, --t-h1,
      --t-h2, --t-h3) los define cada tema según su voz. */

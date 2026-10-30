@@ -68,6 +68,10 @@
     /* Social: el violeta base queda oscuro sobre el fondo oscuro; relleno claro y tinta encima. */
     --c-social: #b88af5;
     --c-social-on: #111111;
+    /* Books: el azul marino base no se lee sobre el fondo oscuro; relleno claro (10:1) y tinta encima. */
+    --c-books-ink: #b4c8ec;
+    --c-books: #b4c8ec;
+    --c-books-on: #111111;
     /* Talk: el ciruela base queda en 2,8:1 sobre el fondo oscuro; el relleno usa el tono claro (≥ 5:1) y tinta encima. */
     --c-talk: #b37baa;
     --c-talk-on: #111111;
@@ -176,6 +180,10 @@
   /* Social: el violeta base queda oscuro sobre el fondo oscuro; relleno claro y tinta encima. */
   --c-social: #b88af5;
   --c-social-on: #111111;
+  /* Books: el azul marino base no se lee sobre el fondo oscuro; relleno claro (10:1) y tinta encima. */
+  --c-books-ink: #b4c8ec;
+  --c-books: #b4c8ec;
+  --c-books-on: #111111;
   /* Talk: el ciruela base queda en 2,8:1 sobre el fondo oscuro; el relleno usa el tono claro (≥ 5:1) y tinta encima. */
   --c-talk: #b37baa;
   --c-talk-on: #111111;

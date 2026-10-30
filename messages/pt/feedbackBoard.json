@@ -72,7 +72,8 @@
     "site": "Site",
     "other": "Outro",
     "social": "Social",
-    "hiring": "Hiring"
+    "hiring": "Hiring",
+    "books": "Books"
   },
   "empty": "Ainda não há ideias. Proponha a primeira.",
   "emptySearch": "Nada corresponde à busca. Tente outras palavras ou proponha a ideia.",

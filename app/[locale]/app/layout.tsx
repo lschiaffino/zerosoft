@@ -82,7 +82,7 @@ export default async function AppLayout(
   if (workspaces.length && !workspaces.some((w) => w.current)) workspaces[0].current = true;
   const tTriage = await getTranslations({ locale, namespace: 'trackTriage' });
   // Lecturas independientes en paralelo (en Turso cada query es un RTT).
-  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tSocial, tHiring, tPeople, tasksDue, serverTz, tPlanning, mode, tCat] =
+  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tSocial, tHiring, tPeople, tBooks, tasksDue, serverTz, tPlanning, mode, tCat] =
     await Promise.all([
       getTranslations({ locale, namespace: 'settings' }),
       getTranslations({ locale, namespace: 'common.sidebar' }),
@@ -107,6 +107,7 @@ export default async function AppLayout(
       getTranslations({ locale, namespace: 'social' }),
       getTranslations({ locale, namespace: 'hiring' }),
       getTranslations({ locale, namespace: 'people' }),
+      getTranslations({ locale, namespace: 'books' }),
       // El badge no puede tirar todas las páginas de la app: sin la tabla o con un error, 0.
       countDueTasks(user.id).catch((err) => {
         console.error('[app layout] countDueTasks', err);
@@ -177,6 +178,7 @@ export default async function AppLayout(
                 { href: '/app/shop/settings', label: tSide('appSettings') },
                 { href: '/app/analytics/settings', label: tSide('appSettings') },
                 { href: '/app/people/settings', label: tSide('appSettings') },
+                { href: '/app/books/settings', label: tSide('appSettings') },
                 { href: '/app/crm', label: tCrm('tabs.overview') },
                 { href: '/app/crm/contacts', label: tCrm('tabs.contacts') },
                 { href: '/app/crm/companies', label: tCrm('tabs.companies') },
@@ -302,6 +304,20 @@ export default async function AppLayout(
                 { href: '/app/people/reviews', label: tPeople('nav.reviews') },
                 { href: '/app/people/reports', label: tPeople('nav.reports') },
                 { href: '/app/people/welcome', label: tPeople('nav.welcome') },
+                { href: '/app/books', label: tBooks('nav.overview') },
+                { href: '/app/books/invoices', label: tBooks('nav.invoices') },
+                { href: '/app/books/credit-notes', label: tBooks('nav.creditNotes') },
+                { href: '/app/books/bills', label: tBooks('nav.bills') },
+                { href: '/app/books/recurring', label: tBooks('nav.recurring') },
+                { href: '/app/books/quotes', label: tBooks('nav.quotes') },
+                { href: '/app/books/contacts', label: tBooks('nav.contacts') },
+                { href: '/app/books/items', label: tBooks('nav.items') },
+                { href: '/app/books/expenses', label: tBooks('nav.expenses') },
+                { href: '/app/books/purchase-orders', label: tBooks('nav.purchaseOrders') },
+                { href: '/app/books/banking', label: tBooks('nav.banking') },
+                { href: '/app/books/accounts', label: tBooks('nav.accounts') },
+                { href: '/app/books/journal', label: tBooks('nav.journal') },
+                { href: '/app/books/reports', label: tBooks('nav.reports') },
                 { href: '/app/assistant', label: tSide('assistant') },
               ]}
             />
@@ -514,6 +530,26 @@ export default async function AppLayout(
               reports: tPeople('nav.reports'),
               welcome: tPeople('nav.welcome'),
               newPerson: tPeople('directory.add'),
+            },
+            books: {
+              overview: tBooks('nav.overview'),
+              sales: tBooks('nav.sales'),
+              invoices: tBooks('nav.invoices'),
+              creditNotes: tBooks('nav.creditNotes'),
+              recurring: tBooks('nav.recurring'),
+              quotes: tBooks('nav.quotes'),
+              purchases: tBooks('nav.purchases'),
+              bills: tBooks('nav.bills'),
+              expenses: tBooks('nav.expenses'),
+              purchaseOrders: tBooks('nav.purchaseOrders'),
+              contacts: tBooks('nav.contacts'),
+              items: tBooks('nav.items'),
+              banking: tBooks('nav.banking'),
+              accounting: tBooks('nav.accounting'),
+              accounts: tBooks('nav.accounts'),
+              journal: tBooks('nav.journal'),
+              reports: tBooks('nav.reports'),
+              newInvoice: tBooks('docs.invoice.new'),
             },
             notifications: {
               title: tTrack('notifications.title'),

@@ -31,6 +31,7 @@ import { searchShop } from '@/lib/shop';
 import { searchHiring } from '@/lib/hiring/candidates';
 import { actorOf as hiringActorOf } from '@/lib/hiring/http';
 import { searchPeopleForPalette } from '@/lib/people';
+import { searchBooks } from '@/lib/books-search';
 import { actorOf } from '@/lib/rec-http';
 import { searchPlanning } from '@/lib/track-planning-search';
 import { listConversations } from '@/lib/assistant/store';
@@ -59,7 +60,7 @@ export async function GET(req: NextRequest) {
   if (!q) return NextResponse.json<SearchResponse>({ q, items: [] });
 
   const scope = await sessionScope(user);
-  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec, designs, shop, hiring, people] = await Promise.all([
+  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec, designs, shop, hiring, people, books] = await Promise.all([
     searchAll(user.id, q, scope),
     listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
     // Docs: título y texto de los bloques (el fragmento va como meta).
@@ -95,6 +96,8 @@ export async function GET(req: NextRequest) {
     userCanUseApp(user, 'hiring') && user.role !== 'guest' ? searchHiring(hiringActorOf(user), q).catch(() => []) : Promise.resolve([]),
     // People: nombre, puesto y área (nada sensible), plantillas (HR) y ciclos visibles (solo con la app).
     userCanUseApp(user, 'people') ? searchPeopleForPalette(user.id, (user.actingUser ?? user).id, user.role, q).catch(() => []) : Promise.resolve([]),
+    // Books: comprobantes, contactos, ítems, bancos y recurrentes (con la app y según el rol de Books).
+    userCanUseApp(user, 'books') ? searchBooks(user, q).catch(() => []) : Promise.resolve([]),
   ]);
 
   const items: SearchResultItem[] = [];
@@ -194,6 +197,7 @@ export async function GET(req: NextRequest) {
   for (const h of hiring) {
     items.push({ id: `hiring-${h.kind}:${h.id}`, group: h.kind === 'job' ? 'hiringJobs' : 'hiringCandidates', label: h.label, meta: h.meta, href: h.href });
   }
+  for (const b of books) items.push({ id: b.id, group: b.group, label: b.label, meta: b.meta, href: b.href });
 
   const PEOPLE_GROUP = { person: 'people', template: 'peopleTemplates', cycle: 'peopleCycles' } as const;
   const PEOPLE_HREF = { person: (id: string) => `/app/people/${id}`, template: (id: string) => `/app/people/onboarding/templates/${id}`, cycle: (id: string) => `/app/people/reviews/${id}` } as const;

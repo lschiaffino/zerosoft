@@ -72,6 +72,7 @@ export const API_SECTIONS: ApiSection[] = [
   { id: 'shop', titleKey: 'shopApiTitle', descKey: 'shopApiDesc' },
   { id: 'analytics', titleKey: 'analyticsApiTitle', descKey: 'analyticsApiDesc' },
   { id: 'social', titleKey: 'socialApiTitle', descKey: 'socialApiDesc' },
+  { id: 'books', titleKey: 'booksApiTitle', descKey: 'booksApiDesc' },
   { id: 'webhooks', titleKey: 'webhooksTitle', descKey: 'webhooksDesc' },
 ];
 
@@ -3278,6 +3279,45 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
         created_at: '2026-11-01T10:00:00.000Z',
       },
     },
+    responseStatus: 201,
+  },
+  // Books (facturación y contabilidad)
+  {
+    id: 'books-invoices-list',
+    sectionId: 'books',
+    method: 'GET',
+    path: '/api/v1/books/invoices',
+    titleKey: 'booksInvoicesListTitle',
+    descKey: 'booksInvoicesListDesc',
+    params: [
+      { name: 'status', type: 'string', descriptionKey: 'paramBooksStatus' },
+      { name: 'q', type: 'string', descriptionKey: 'paramSearch' },
+      { name: 'limit', type: 'number', descriptionKey: 'paramLimit' },
+    ],
+    response: {
+      data: [
+        { id: 'inv_1', docType: 'invoice', status: 'sent', numberLabel: 'B 00001-00000012', reference: 'PO 778', contactId: 'con_1', contactName: 'Acme SA', issueDate: '2026-11-01', dueDate: '2026-12-01', currency: 'ARS', total: 12100000, amountDue: 12100000, sentAt: '2026-11-01 12:00:00', updatedAt: '2026-11-01 12:00:00' },
+      ],
+      total: 1,
+    },
+    responseStatus: 200,
+  },
+  {
+    id: 'books-invoices-create',
+    sectionId: 'books',
+    method: 'POST',
+    path: '/api/v1/books/invoices',
+    titleKey: 'booksInvoicesCreateTitle',
+    descKey: 'booksInvoicesCreateDesc',
+    params: [
+      { name: 'contactId', type: 'string', descriptionKey: 'paramBooksContact' },
+      { name: 'lines', type: 'object[]', required: true, descriptionKey: 'paramBooksLines' },
+      { name: 'currency', type: 'string', descriptionKey: 'paramBooksCurrency' },
+      { name: 'fxRate', type: 'string', descriptionKey: 'paramBooksFx' },
+      { name: 'reference', type: 'string', descriptionKey: 'paramBooksReference' },
+    ],
+    request: { contactId: 'con_1', reference: 'PO 778', lines: [{ description: 'Consulting', quantity: 10, unitPrice: '1000.00', taxRateId: 'tax_iva21' }] },
+    response: { data: { id: 'inv_2', docType: 'invoice', status: 'draft', numberLabel: '', total: 1210000, currency: 'ARS', lines: [{ description: 'Consulting', quantity: 10, unitPrice: 100000, taxBps: 2100, net: 1000000, tax: 210000, total: 1210000 }] } },
     responseStatus: 201,
   },
 ];

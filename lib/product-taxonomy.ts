@@ -23,6 +23,7 @@ export const PRODUCT_KEYS = [
   'social',
   'hiring',
   'people',
+  'books',
   'platform',
   'site',
   'other',
@@ -57,6 +58,7 @@ export const PRODUCT_COLOR: Record<ProductKey, string> = {
   social: 'var(--c-social)',
   hiring: 'var(--c-hiring)',
   people: 'var(--c-people)',
+  books: 'var(--c-books)',
   platform: 'var(--ink)',
   site: 'var(--ink)',
   other: 'var(--dim)',
@@ -116,6 +118,8 @@ export function productFromPath(pathname: string): ProductKey {
       return 'hiring';
     case 'people':
       return 'people';
+    case 'books':
+      return 'books';
     default:
       return 'link';
   }
