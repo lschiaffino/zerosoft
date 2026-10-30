@@ -32,7 +32,7 @@ import DocsFavoriteButton from './DocsFavoriteButton';
 import { DocsPeerCursors, DocsPresenceAvatars } from './DocsPresence';
 import { readCursor, useDocsLive, type LivePulse } from './useDocsLive';
 import { useDocsCoedit } from './useDocsCoedit';
-import { neutralizeTextForMerge } from '@/lib/docs-coedit-shared';
+import { neutralizeTextForMerge, type CoeditEvent } from '@/lib/docs-coedit-shared';
 import type { CoeditEngine } from '@/lib/docs-coedit-client';
 import { diff, textHash, apply as applyOp } from '@/lib/docs-ot';
 import type { DocsCoeditStructure, DocsEditorApi, DocsEditorMode } from './useDocsCollab';
@@ -164,7 +164,21 @@ export default function DocsEditorClient({
     const snap = editorApi.current?.snapshot();
     if (!engine || !snap || !textOpsRef.current || !engine.pending()) return;
     saveDraft(offlineOwner, page.id, { content: snap.blocks }, base.current, coeditDraft());
+    // Cuando el servidor confirma todo (y hay red), ese borrador ya no hace falta.
+    if (draftWatch.current) return;
+    draftWatch.current = setInterval(() => {
+      const e = coeditEngineRef.current;
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+      if (e && e.pending()) return;
+      if (draftWatch.current) clearInterval(draftWatch.current);
+      draftWatch.current = null;
+      clearDraft(offlineOwner, page.id);
+    }, 500);
   };
+  const draftWatch = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => () => {
+    if (draftWatch.current) clearInterval(draftWatch.current);
+  }, []);
   /** Manda como operaciones lo escrito sin red en otra sesión (borrador local). */
   const sendDraftOps = async (draft: DocsDraft): Promise<boolean> => {
     const blocks = draft.coedit?.blocks ?? {};
@@ -189,7 +203,13 @@ export default function DocsEditorClient({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ page: page.id, session: draft.coedit!.session, items }),
     }).catch(() => null);
-    return !!res?.ok;
+    if (!res?.ok) return false;
+    // Lo que quedó en el servidor entra a esta pantalla ya: el stream en vivo puede no
+    // estar conectado todavía (recién se abrió la página) y no lo traería.
+    const data = (await res.json().catch(() => null)) as { results?: Array<{ events?: CoeditEvent[] }> } | null;
+    const engine = coeditEngineRef.current;
+    for (const r of data?.results ?? []) for (const e of r.events ?? []) engine?.receive(e);
+    return true;
   };
   const editorApi = useRef<DocsEditorApi | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -444,6 +464,12 @@ export default function DocsEditorClient({
     if (draft.coedit && draft.coedit.session !== liveSession.current) {
       const ok = await sendDraftOps(draft);
       if (!ok) return;
+    } else if (draft.coedit) {
+      // Escrito en esta pestaña: lo manda el motor. Se espera a que el servidor lo
+      // confirme antes de guardar y borrar el borrador (si se cerrara en el medio, quedaba sin nada).
+      const engine = coeditEngineRef.current;
+      engine?.resume();
+      for (let i = 0; i < 50 && engine?.pending(); i++) await new Promise((r) => setTimeout(r, 200));
     }
     const body = JSON.stringify({ ...draft.patch, base_updated_at: draft.base.updated_at, ...(draft.coedit ? { text_ops: true } : {}) });
     const res = await fetch(`/api/docs/pages/${page.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body }).catch(() => null);
