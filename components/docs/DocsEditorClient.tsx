@@ -35,7 +35,7 @@ import { useDocsCoedit } from './useDocsCoedit';
 import { neutralizeTextForMerge } from '@/lib/docs-coedit-shared';
 import type { CoeditEngine } from '@/lib/docs-coedit-client';
 import { diff, textHash, apply as applyOp } from '@/lib/docs-ot';
-import type { DocsEditorApi, DocsEditorMode } from './useDocsCollab';
+import type { DocsCoeditStructure, DocsEditorApi, DocsEditorMode } from './useDocsCollab';
 
 interface CommentsLabels {
   title: string;
@@ -592,6 +592,14 @@ export default function DocsEditorClient({
   });
   coeditRef.current = coedit;
   coeditEngineRef.current = coedit.engine.current;
+  /** Al fusionar estructura: qué bloques viajan por operaciones y reubicar lo propio al partir o unir. */
+  const coeditStructure = useMemo<DocsCoeditStructure>(
+    () => ({
+      manages: (id) => coeditEngineRef.current?.manages(id) ?? false,
+      remap: (prev, theirs, merged, caret) => (textOpsRef.current ? coeditEngineRef.current?.remap(prev, theirs, merged, caret) ?? null : null),
+    }),
+    [],
+  );
   // Los bloques que ya existen en el servidor viajan por operaciones desde el primer momento.
   useEffect(() => {
     coedit.register(base.current.content, true);
@@ -1103,6 +1111,7 @@ export default function DocsEditorClient({
         mode={mode}
         apiRef={editorApi}
         onLocalChange={coedit.localChanged}
+        coeditStructure={coeditStructure}
         currentUserId={currentUserId}
         onInlineComment={onInlineComment}
         belowTitle={

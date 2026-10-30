@@ -114,7 +114,7 @@ import {
 } from '@/lib/docs-history';
 import { DOCS_IMPORT_MAX_BYTES, docsImportKind } from '@/lib/docs-import';
 import DocsBlockEditor from './DocsBlockEditor';
-import { useDocsCollab, type DocsEditorApi, type DocsEditorMode } from './useDocsCollab';
+import { useDocsCollab, type DocsCoeditStructure, type DocsEditorApi, type DocsEditorMode } from './useDocsCollab';
 import MentionPopover from './MentionPopover';
 import UserMentionPopover, { type DateMentionOption } from './UserMentionPopover';
 import { fetchLinkPreview } from './DocsLinkBlocks';
@@ -147,6 +147,8 @@ interface DocsEditorProps {
   onRemoteApplied?: (seq: number, merged: DocsSnapshot) => void;
   /** Cambio propio en el editor (tipeo, deshacer, pegar…): la edición simultánea lo manda enseguida. */
   onLocalChange?: () => void;
+  /** Edición simultánea al fusionar estructura (partir o unir el bloque donde otra persona escribe). */
+  coeditStructure?: DocsCoeditStructure | null;
   ancestors: DocsPage[];
   /** Guarda solo lo que edita el editor (no pisa archived/is_public). */
   onSave: (patch: Partial<DocsPage>) => void;
@@ -489,6 +491,7 @@ export default function DocsEditor({
   remoteMerge = null,
   onRemoteApplied,
   onLocalChange,
+  coeditStructure = null,
   ancestors,
   onSave,
   saving,
@@ -695,6 +698,11 @@ export default function DocsEditor({
   onLocalChangeRef.current = onLocalChange;
   /** Fusión remota en curso (useDocsCollab): no es un paso propio del historial. */
   const consumeRemoteRef = useRef<(next: DocsSnapshot) => boolean>(() => false);
+  /** Caret después de una fusión remota: en layout, antes de que llegue otra tecla (useDocsCollab). */
+  const restoreCaretRef = useRef<() => void>(() => undefined);
+  useLayoutEffect(() => {
+    restoreCaretRef.current();
+  }, [title, blocks]);
 
   // Cada cambio de título o bloques (tipeo, Enter, borrar, mover, pegar,
   // subir un archivo…) deja un paso en el historial; el tipeo se agrupa.
@@ -1172,8 +1180,10 @@ export default function DocsEditor({
     apiRef,
     rootRef,
     titleRef,
+    coedit: coeditStructure,
   });
   consumeRemoteRef.current = collab.consumeRemote;
+  restoreCaretRef.current = collab.restoreCaret;
 
   // Lo que cambió en el servidor (la respuesta fusionada de un guardado, la
   // versión de otra persona que trae el pulso en vivo, una automatización):

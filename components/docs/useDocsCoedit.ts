@@ -77,12 +77,14 @@ export function useDocsCoedit(o: CoeditOptions): {
       const api = opts.current.editorApi.current;
       if (!api || !overlay.size) return;
       const changes: Record<string, string> = {};
-      for (const [id, v] of overlay) changes[id] = v.text;
-      const active = typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null;
-      const caretBlock = active?.closest?.('[data-block-anchor]')?.getAttribute('data-block-anchor') ?? null;
-      const steps = caretBlock ? overlay.get(caretBlock)?.steps : undefined;
+      const steps: Record<string, Array<{ op: TextOp; prev: string }>> = {};
+      for (const [id, v] of overlay) {
+        changes[id] = v.text;
+        steps[id] = v.steps;
+      }
       overlay.clear();
-      api.applyBlockText(changes, caretBlock && steps ? { blockId: caretBlock, steps } : undefined);
+      // Las operaciones exactas: corren el caret y rebasan el deshacer (solo se deshace lo propio).
+      api.applyBlockText(changes, steps);
     };
     const screen: CoeditScreen = {
       get: (block) => overlay.get(block)?.text ?? opts.current.editorApi.current?.blockText(block) ?? null,

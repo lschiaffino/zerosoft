@@ -249,9 +249,18 @@ function serializeNode(
   serializeChildren(el, out, parentMark, stripMark);
 }
 
+/**
+ * Documento con `html` como cuerpo. El `<body>` explícito importa: sin él el
+ * parser tira los espacios del principio (van antes del body), y un bloque
+ * que empieza con espacio (partir justo antes de una palabra) lo perdía.
+ */
+function parseBody(html: string): Document {
+  return new DOMParser().parseFromString(`<!DOCTYPE html><body>${html}`, 'text/html');
+}
+
 /** Sanitiza un string de HTML arbitrario al subset permitido. */
 export function sanitizeHtml(html: string): string {
-  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const doc = parseBody(html);
   const out: string[] = [];
   serializeChildren(doc.body, out, null, null);
   return out.join('');
@@ -269,7 +278,7 @@ export function serializeEditable(el: HTMLElement): string {
 /** Texto plano del HTML-lite (offsets del modelo; BR/blocks ya son '\n'). */
 export function htmlToFlatText(html: string): string {
   if (!html) return '';
-  const doc = new DOMParser().parseFromString(sanitizeHtml(html), 'text/html');
+  const doc = parseBody(sanitizeHtml(html));
   return doc.body.textContent ?? '';
 }
 
@@ -316,7 +325,7 @@ function serializeFragment(frag: DocumentFragment): string {
 }
 
 function stripMarkFromHtml(html: string, tag: DocsMarkTag | 'a'): string {
-  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const doc = parseBody(html);
   const out: string[] = [];
   serializeChildren(doc.body, out, null, tag);
   return out.join('');
