@@ -438,6 +438,17 @@
         "items": "List"
       }
     },
+    "data_list": {
+      "title": "List: sort, limit, remove duplicates",
+      "desc": "Sorts a list, keeps the first N items or removes repeated ones. The result is in '{{nodes.<id>.output.items}}'.",
+      "fields": {
+        "items": "List",
+        "operation": "Operation",
+        "field": "Field (empty = the item itself)",
+        "order": "Order",
+        "count": "Items to keep"
+      }
+    },
     "data_code": {
       "title": "Code",
       "desc": "Runs JavaScript in an isolated sandbox. 'input.trigger' and 'input.nodes' hold the data. Return a JSON value.",
@@ -718,6 +729,11 @@
     "max": "Maximum",
     "collect": "Collect values",
     "unique": "Unique values",
+    "sort": "Sort",
+    "limit": "Keep the first N",
+    "dedupe": "Remove duplicates",
+    "asc": "Ascending",
+    "desc": "Descending",
     "join": "Join as text",
     "contact": "Contact",
     "company": "Company",

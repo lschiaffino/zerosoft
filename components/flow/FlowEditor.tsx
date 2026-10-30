@@ -158,6 +158,8 @@ function summaryOf(type: FlowNodeType, cfg: Record<string, unknown>, t: ReturnTy
       return s(cfg.code).split('\n')[0].slice(0, 60);
     case 'data.merge':
       return cfg.mode === 'aggregate' ? `${t(`options.${s(cfg.operation) || 'collect'}`)} ${s(cfg.field)}`.trim() : t('options.merge');
+    case 'data.list':
+      return `${t(`options.${s(cfg.operation) || 'sort'}`)} ${s(cfg.field)}`.trim();
     case 'logic.delay':
       if (cfg.mode === 'until') return `${t('options.until')} ${s(cfg.until)}`.trim();
       if (cfg.mode === 'resume') return t('options.resume');

@@ -438,6 +438,17 @@
         "items": "Lista"
       }
     },
+    "data_list": {
+      "title": "Lista: ordenar, limitar, remover repetidos",
+      "desc": "Ordena uma lista, mantém os primeiros N itens ou remove os repetidos. O resultado está em '{{nodes.<id>.output.items}}'.",
+      "fields": {
+        "items": "Lista",
+        "operation": "Operação",
+        "field": "Campo (vazio = o item inteiro)",
+        "order": "Ordem",
+        "count": "Itens a manter"
+      }
+    },
     "data_code": {
       "title": "Código",
       "desc": "Roda JavaScript em um sandbox isolado. Os dados estão em input.trigger e input.nodes. Retorne um valor JSON.",
@@ -718,6 +729,11 @@
     "max": "Máximo",
     "collect": "Juntar valores",
     "unique": "Valores únicos",
+    "sort": "Ordenar",
+    "limit": "Manter os primeiros N",
+    "dedupe": "Remover repetidos",
+    "asc": "Crescente",
+    "desc": "Decrescente",
     "join": "Unir como texto",
     "contact": "Contato",
     "company": "Empresa",
