@@ -74,9 +74,12 @@ export default function DocsReadOnlyView({
   showVersions = true,
   people,
   allowExport = true,
+  coedit = true,
 }: {
   /** Exportar habilitado (Ajustes › Seguridad). */
   allowExport?: boolean;
+  /** Edición simultánea prendida (ajuste del workspace y DOCS_COEDIT): ve escribir en vivo. */
+  coedit?: boolean;
   page: DocsPage;
   sharedBy: string | null;
   /** Miembros del workspace dueño (propiedades persona de las bases). */
@@ -87,7 +90,7 @@ export default function DocsReadOnlyView({
   const t = useTranslations('docs');
   const locale = useLocale();
   const [versions, setVersions] = useState(false);
-  const live = useLiveBlocks(page.id, page.content, showVersions);
+  const live = useLiveBlocks(page.id, page.content, showVersions && coedit);
 
   return (
     <div className={`docs-editor-wrap${versions ? ' has-side' : ''}`}>

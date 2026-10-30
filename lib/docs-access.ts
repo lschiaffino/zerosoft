@@ -73,6 +73,8 @@ export interface DocsSettings {
   allow_publish: boolean;
   /** Invitar personas de afuera por email. */
   allow_guests: boolean;
+  /** Edición simultánea tecla por tecla. Apagada: cada guardado se fusiona como antes. */
+  coedit: boolean;
 }
 
 export const DEFAULT_DOCS_SETTINGS: DocsSettings = {
@@ -80,11 +82,12 @@ export const DEFAULT_DOCS_SETTINGS: DocsSettings = {
   allow_export: true,
   allow_publish: true,
   allow_guests: true,
+  coedit: true,
 };
 
 export async function getDocsSettings(workspaceId: string): Promise<DocsSettings> {
   const row = (await getDb().prepare('SELECT * FROM docs_settings WHERE workspace_id = ?').get(workspaceId)) as
-    | { member_role: string; allow_export: number; allow_publish: number; allow_guests: number }
+    | { member_role: string; allow_export: number; allow_publish: number; allow_guests: number; coedit?: number | null }
     | undefined;
   if (!row) return { ...DEFAULT_DOCS_SETTINGS };
   return {
@@ -92,7 +95,27 @@ export async function getDocsSettings(workspaceId: string): Promise<DocsSettings
     allow_export: row.allow_export !== 0,
     allow_publish: row.allow_publish !== 0,
     allow_guests: row.allow_guests !== 0,
+    coedit: row.coedit !== 0,
   };
+}
+
+/**
+ * ¿La edición simultánea está prendida en esta instancia? `DOCS_COEDIT=off`
+ * la apaga para todos (sin volver atrás un deploy si algo falla).
+ */
+export function coeditEnvEnabled(): boolean {
+  const v = (process.env.DOCS_COEDIT ?? '').trim().toLowerCase();
+  return !(v === 'off' || v === '0' || v === 'false');
+}
+
+/** Edición simultánea para este workspace: la variable de entorno y el ajuste de Docs. */
+export async function coeditEnabled(workspaceId: string): Promise<boolean> {
+  if (!coeditEnvEnabled()) return false;
+  try {
+    return (await getDocsSettings(workspaceId)).coedit;
+  } catch {
+    return true;
+  }
 }
 
 export async function updateDocsSettings(workspaceId: string, patch: Partial<DocsSettings>): Promise<DocsSettings> {
@@ -100,10 +123,10 @@ export async function updateDocsSettings(workspaceId: string, patch: Partial<Doc
   if (patch.member_role !== undefined) await notifyAccess(workspaceId);
   await getDb()
     .prepare(
-      `INSERT INTO docs_settings (workspace_id, member_role, allow_export, allow_publish, allow_guests, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)
+      `INSERT INTO docs_settings (workspace_id, member_role, allow_export, allow_publish, allow_guests, coedit, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(workspace_id) DO UPDATE SET member_role = excluded.member_role, allow_export = excluded.allow_export,
-         allow_publish = excluded.allow_publish, allow_guests = excluded.allow_guests, updated_at = excluded.updated_at`,
+         allow_publish = excluded.allow_publish, allow_guests = excluded.allow_guests, coedit = excluded.coedit, updated_at = excluded.updated_at`,
     )
     .run(
       workspaceId,
@@ -111,6 +134,7 @@ export async function updateDocsSettings(workspaceId: string, patch: Partial<Doc
       next.allow_export ? 1 : 0,
       next.allow_publish ? 1 : 0,
       next.allow_guests ? 1 : 0,
+      next.coedit ? 1 : 0,
       new Date().toISOString(),
     );
   return next;

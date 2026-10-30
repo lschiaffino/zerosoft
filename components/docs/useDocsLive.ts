@@ -148,6 +148,20 @@ export function useDocsLive(opts: {
     };
   }, [opts.pageId, opts.enabled]);
 
+  // Volver con Atrás/Adelante (la pestaña quedó en la caché del navegador): esa sesión ya
+  // avisó que se fue, así que se empieza una nueva (si no, sus pulsos no volverían a contar).
+  const [, setGen] = useState(0);
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (!e.persisted) return;
+      session.current = newSession();
+      setGen((g) => g + 1);
+      kick.current();
+    };
+    window.addEventListener('pageshow', onShow);
+    return () => window.removeEventListener('pageshow', onShow);
+  }, []);
+
   // Una sesión que se fue sin avisar (sin `leave`, o sin pulsos que la saquen): su cursor se apaga solo.
   useEffect(() => {
     const sweep = setInterval(() => {

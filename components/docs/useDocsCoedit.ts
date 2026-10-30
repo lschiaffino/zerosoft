@@ -175,7 +175,11 @@ export function useDocsCoedit(o: CoeditOptions): {
     pollMs: 1_000,
     onEvents,
     // Reconectó: lo que se perdió llegó por el atraso; lo propio pendiente sale ya.
-    onConnect: () => engineRef.current?.resume(),
+    onConnect: () => {
+      engineRef.current?.resume();
+      // Lo que pasó mientras no estaba conectado y no llegó por el atraso: la pantalla se pone al día.
+      void engineRef.current?.verify();
+    },
     onReset: () => engineRef.current?.forgetRevs(),
     onRevoked: () => opts.current.onRevoked(),
   });

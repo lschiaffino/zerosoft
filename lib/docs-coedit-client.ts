@@ -472,6 +472,38 @@ export class CoeditEngine {
     void run();
   }
 
+  /**
+   * Compara la base de cada bloque con el servidor y, si no coincide (algo se
+   * perdió en el camino: reconexión, borrador que se mandó antes de conectar),
+   * trae el texto actual y rebasa lo propio encima. Bloques con algo en vuelo
+   * se dejan: su confirmación lo pone al día.
+   */
+  async verify(ids?: string[]): Promise<void> {
+    const list = (ids ?? [...this.blocks.keys()]).filter((id) => {
+      const b = this.blocks.get(id);
+      return !!b && !b.inflight && !b.resync;
+    });
+    for (let i = 0; i < list.length; i += 50) {
+      const chunk = list.slice(i, i + 50);
+      let snap: Record<string, { rev: number; text: string } | null>;
+      try {
+        snap = await this.transport.snapshot(chunk);
+      } catch {
+        return;
+      }
+      for (const id of chunk) {
+        const b = this.blocks.get(id);
+        const s = snap[id];
+        if (!b || !s || b.inflight || b.resync) continue;
+        if (s.text === b.S && (b.rev === null || b.rev === s.rev)) continue;
+        if (b.rev !== null && s.rev < b.rev) continue;
+        this.rebase(id, b, s.text, s.rev);
+        this.drain(id, b);
+      }
+    }
+    this.localChanged();
+  }
+
   /** El servidor tiene `text` en la versión `rev`: lo propio que no tiene se rebasa encima. */
   private rebase(id: string, b: BlockSync, text: string, rev: number) {
     if (b.gapTimer) clearTimeout(b.gapTimer);

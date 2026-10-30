@@ -1270,6 +1270,10 @@
       "label": "Invite guests",
       "help": "Share a page with people outside the workspace by email."
     },
+    "coedit": {
+      "label": "Real-time co-editing",
+      "help": "Everyone sees each keystroke as it is typed. Off: each person's changes merge when they save, every second or so."
+    },
     "nameRequired": "Give the teamspace a name.",
     "newTeamspace": "New teamspace",
     "newTeamspaceHelp": "A space with its own pages and members, for a team or a project.",

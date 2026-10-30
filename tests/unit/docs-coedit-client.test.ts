@@ -287,6 +287,23 @@ describe('CoeditEngine', () => {
     expect(b.engine.remap(res.blocks, res.blocks, res.blocks, null)).toBeNull();
   });
 
+  it('verify: si se perdió un evento (reconexión, borrador), la pantalla se pone al día con el servidor', async () => {
+    const server = new FakeServer('uno');
+    server.baseHash = textHash('uno');
+    const a = client(server, 'sessA7777', 'uno');
+    const b = client(server, 'sessB7777', 'uno');
+    a.type(3, ' dos');
+    await settle();
+    expect(server.text).toBe('uno dos');
+    // A B no le llegó nada (el stream no estaba conectado); escribe algo propio sin mandar.
+    b.edit('uno!');
+    await b.engine.verify();
+    await settle();
+    // Lo de A llegó y lo propio quedó (los dos en el mismo punto: el orden lo decide la transformación).
+    expect(b.text).toBe(server.text);
+    expect(server.text).toBe('uno! dos');
+  });
+
   it('reintentar la misma operación no la aplica dos veces', () => {
     const server = new FakeServer('a');
     const item = { block: 'p', rev: 0, hash: textHash('a'), op: ['b', 1] as TextOp, seq: 'q1' };

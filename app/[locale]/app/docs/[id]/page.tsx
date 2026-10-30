@@ -31,7 +31,7 @@ import {
   moveDocPageToTeamspaceAction,
   reorderDocPageAction,
 } from '@/lib/docs-actions';
-import { canShareAccess, getDocsSettings, getTeamspace, listTeamspaces } from '@/lib/docs-access';
+import { canShareAccess, coeditEnvEnabled, getDocsSettings, getTeamspace, listTeamspaces } from '@/lib/docs-access';
 import { canCreateDocPage, docsAllowed, docsHidden, editorBlocks } from '@/lib/docs-guard';
 import { listPageInvites } from '@/lib/docs-guests';
 import { cleanForReaders } from '@/lib/docs-marks';
@@ -93,6 +93,8 @@ export default async function DocsPageEditor(
   const subpages = inWorkspace ? [] : await listAccessibleSubpages(user, id);
   const backlinks = inWorkspace ? await listDocBacklinks(user.id, id, hide) : [];
   const settings = await getDocsSettings(row.user_id);
+  // Edición simultánea: el ajuste del workspace y DOCS_COEDIT (apagada: guardar y fusionar como antes).
+  const coedit = coeditEnvEnabled() && settings.coedit;
   const allowExport = await docsAllowed(user, row.user_id, 'allow_export');
   // Rol que hereda la página si no fija uno: el del teamspace o el de Ajustes.
   const ts = row.teamspace_id ? await getTeamspace(row.teamspace_id) : null;
@@ -156,6 +158,7 @@ export default async function DocsPageEditor(
             showVersions={canSeeVersions}
             people={dbPeople}
             allowExport={allowExport}
+            coedit={coedit}
           />
         ) : (
           <>
@@ -183,6 +186,7 @@ export default async function DocsPageEditor(
               allowExport={allowExport}
               memberRoleDefault={memberRoleDefault}
               offlineOwner={`${user.actingUser?.id ?? user.id}:${user.id}`}
+              coedit={coedit}
               commentsLabels={{
                 title: t('comments.title'),
                 empty: t('comments.empty'),

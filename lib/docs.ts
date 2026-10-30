@@ -574,6 +574,11 @@ export async function updateDocPage(
   const syncedSeenAt = new Map((incoming ?? []).filter((b) => b.type === 'synced' && b.synced_id && b.synced_at).map((b) => [b.synced_id!, b.synced_at!]));
   if (incoming) incoming = stripSyncedChildren(incoming);
   const rowBlocks = stripSyncedChildren(parseBlocks(row.content));
+  // Edición simultánea apagada (ajuste o DOCS_COEDIT): un editor viejo que manda text_ops guarda igual su texto.
+  if (input.text_ops) {
+    const { coeditEnabled } = await import('./docs-access');
+    if (!(await coeditEnabled(ownerId))) input = { ...input, text_ops: false };
+  }
   // Con operaciones de texto, el texto de los bloques que ya existen es el del servidor.
   if (incoming && input.text_ops) incoming = neutralizeTextForSave(null, rowBlocks, incoming).ours;
   const fields: { title?: string; icon?: string | null; cover_url?: string | null } = {
@@ -868,7 +873,8 @@ export async function updateDocPage(
   if (savedContent || fields.title !== undefined) {
     try {
       const { coeditAfterSave, coeditSaved } = await import('./docs-coedit');
-      if (savedContent) await coeditAfterSave(pageId, rowBlocks);
+      const { coeditEnabled } = await import('./docs-access');
+      if (savedContent && (await coeditEnabled(ownerId))) await coeditAfterSave(pageId, rowBlocks);
       await coeditSaved(row, updatedAt, opts.actorId ?? null);
     } catch {
       /* el feed en vivo es un extra: el guardado ya quedó */

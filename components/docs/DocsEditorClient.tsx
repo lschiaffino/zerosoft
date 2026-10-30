@@ -88,7 +88,10 @@ export default function DocsEditorClient({
   allowExport = true,
   memberRoleDefault = 'full',
   offlineOwner = '',
+  coedit: coeditOn = true,
 }: {
+  /** Edición simultánea prendida (ajuste del workspace y DOCS_COEDIT). Apagada: guardar y fusionar como antes. */
+  coedit?: boolean;
   page: DocsPage;
   ancestors: DocsPage[];
   shares: DocsPageShare[];
@@ -209,6 +212,8 @@ export default function DocsEditorClient({
     const data = (await res.json().catch(() => null)) as { results?: Array<{ events?: CoeditEvent[] }> } | null;
     const engine = coeditEngineRef.current;
     for (const r of data?.results ?? []) for (const e of r.events ?? []) engine?.receive(e);
+    // Y por las dudas (un evento que no casó con la base de esta pantalla): se compara con el servidor.
+    void engine?.verify(Object.keys(blocks));
     return true;
   };
   const editorApi = useRef<DocsEditorApi | null>(null);
@@ -252,7 +257,7 @@ export default function DocsEditorClient({
   const [revoked, setRevoked] = useState(false);
   const mode: DocsEditorMode = revoked || lockActive ? 'readonly' : suggesting ? 'suggest' : canWrite ? 'edit' : 'readonly';
   /** Edición simultánea por operaciones (lib/docs-coedit.ts): el texto de los bloques existentes no viaja en el guardado. */
-  const textOps = mode === 'edit';
+  const textOps = coeditOn && mode === 'edit';
   const textOpsRef = useRef(textOps);
   textOpsRef.current = textOps;
   /** Motor de la edición simultánea (se arma más abajo, junto al pulso en vivo). */
@@ -627,7 +632,7 @@ export default function DocsEditorClient({
     pageId: page.id,
     session,
     canSend: textOps,
-    enabled: !revoked,
+    enabled: !revoked && coeditOn,
     editorApi,
     bypassLock: () => bypassRef.current,
     selfUserId: currentUserId,
@@ -651,8 +656,9 @@ export default function DocsEditorClient({
       if (snap) void savePage({ content: snap.blocks });
     },
   });
-  coeditRef.current = coedit;
-  coeditEngineRef.current = coedit.engine.current;
+  // Apagada: nada viaja por operaciones (el guardado lleva y fusiona todo el texto).
+  coeditRef.current = coeditOn ? coedit : null;
+  coeditEngineRef.current = coeditOn ? coedit.engine.current : null;
   /** Al fusionar estructura: qué bloques viajan por operaciones y reubicar lo propio al partir o unir. */
   const coeditStructure = useMemo<DocsCoeditStructure>(
     () => ({
@@ -662,21 +668,22 @@ export default function DocsEditorClient({
     [],
   );
   // Los bloques que ya existen en el servidor viajan por operaciones desde el primer momento.
+  // (También con una sesión nueva: volver con Atrás arma un motor nuevo.)
   useEffect(() => {
-    coedit.register(base.current.content, true);
+    if (coeditOn) coedit.register(base.current.content, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page.id]);
+  }, [page.id, session]);
   // El cursor propio sale enseguida por el mismo feed (el pulso queda de respaldo).
   const sendCursor = coedit.sendCursor;
   useEffect(() => {
-    if (revoked) return;
+    if (revoked || !coeditOn) return;
     const onSel = () => {
       const cur = readCursor(wrapRef.current);
       if (cur.block_id || peers.length) sendCursor({ block: cur.block_id, start: cur.start, end: cur.end, mode: liveMode });
     };
     document.addEventListener('selectionchange', onSel);
     return () => document.removeEventListener('selectionchange', onSel);
-  }, [sendCursor, liveMode, peers.length, revoked]);
+  }, [sendCursor, liveMode, peers.length, revoked, coeditOn]);
 
   const jumpToPeer = useCallback((p: { block_id: string | null }) => {
     if (!p.block_id) return;

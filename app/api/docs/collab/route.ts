@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { getCurrentUser, realUserId, type SessionUser } from '@/lib/session';
 import type { DocsPageRow } from '@/lib/db';
 import { DOC_INTERNAL_READ, getDocAccess, getDocPageRow, resolveDocAccess } from '@/lib/docs';
-import { canWriteAccess } from '@/lib/docs-access';
+import { canWriteAccess, coeditEnabled } from '@/lib/docs-access';
 import { SESSION_RE, leavePresence, sessionLeft, touchPresence } from '@/lib/docs-live';
 import {
   CoeditAccessError,
@@ -154,6 +154,8 @@ export async function POST(req: NextRequest) {
 
   let results = undefined;
   if (body.items?.length) {
+    // Apagada para este workspace (o en la instancia): el editor guarda y fusiona como antes.
+    if (!(await coeditEnabled(row.user_id))) return docsError(409, 'coedit_off');
     // Escribir: los mismos permisos que el guardado de la página.
     const access = await getDocAccess(row, user);
     if (!canWriteAccess(access)) return forbidden();

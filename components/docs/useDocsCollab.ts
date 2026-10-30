@@ -276,7 +276,22 @@ export function useDocsCollab(d: Deps) {
     },
     applyRemote: (base, theirs, caretOp?: RemoteApply['caretOp'] | null) => {
       const { live, blockRefs, setBlocksRaw, setTitle, normalize, titleRef } = depsRef.current;
-      const prev = live.current;
+      let prev = live.current;
+      // Una tecla que el navegador ya pintó y el modelo todavía no tiene (el render llega
+      // después): la fusión parte de lo que está en pantalla, si no esa tecla se perdía
+      // al mover o sacar el bloque (partir, unir).
+      {
+        const el = document.activeElement as HTMLElement | null;
+        const k = el ? blockRefs.current.findIndex((x) => x === el) : -1;
+        const b = k >= 0 ? prev.blocks[k] : undefined;
+        if (el && b && typeof b.content === 'string' && !composing.current) {
+          const dom = serializeEditable(el);
+          if (dom !== b.content) {
+            prev = { ...prev, blocks: prev.blocks.map((x, i) => (i === k ? { ...x, content: dom } : x)) };
+            live.current = prev;
+          }
+        }
+      }
       // Una fusión anterior todavía sin pintar: se da por terminada, pero si
       // llevaba el caret a otro bloque (partir o unir), esa mudanza sigue en pie.
       let carried: RemoteApply['caret'] = null;

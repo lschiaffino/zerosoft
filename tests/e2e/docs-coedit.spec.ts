@@ -292,6 +292,42 @@ test('Docs en vivo: "sin red" con el stream vivo y recargar no duplica el texto 
   await ctxB.close();
 });
 
+test('Docs: con la edición simultánea apagada en Ajustes, dos personas editan y se fusiona al guardar', async ({ browser, request }) => {
+  test.setTimeout(120_000);
+  const off = await request.patch('/api/docs/settings', { data: { coedit: false } });
+  expect(off.ok(), await off.text()).toBeTruthy();
+  try {
+    const doc = await pageWith(request, `Apagada ${uid()}`, [{ id: 'p', type: 'paragraph', content: 'centro' }]);
+    const email = `off-${uid()}@darwin-e2e.io`;
+    const ctxA = await browser.newContext();
+    const ctxB = await sessionAs(browser, email);
+    await shareWith(request, ctxB, doc.id, email, 'edit');
+    const a = await ctxA.newPage();
+    const b = await ctxB.newPage();
+    const collab: string[] = [];
+    for (const p of [a, b]) p.on('request', (r) => r.url().includes('/api/docs/collab') && collab.push(`${r.method()} ${r.url()}`));
+    await a.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
+    await b.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
+    await caretAtStart(a);
+    await a.keyboard.type('izq ', { delay: 30 });
+    await expect.poll(() => textOf(request, doc.id), { timeout: 15_000 }).toBe('izq centro');
+    await expect(editable(b)).toHaveText('izq centro', { timeout: 15_000 });
+    await caretAtEnd(b);
+    await b.keyboard.type(' der', { delay: 30 });
+    await expect.poll(() => textOf(request, doc.id), { timeout: 15_000 }).toBe('izq centro der');
+    await expect(editable(a)).toHaveText('izq centro der', { timeout: 15_000 });
+    // Nada viajó por la edición simultánea (ni el stream ni operaciones).
+    expect(collab).toEqual([]);
+    // Y el servidor rechaza operaciones mientras está apagada.
+    const ops = await request.post('/api/docs/collab', { data: { page: doc.id, session: 'offsession0001', items: [{ block: 'p', rev: null, hash: textHash('izq centro der'), op: [14, '!'], seq: 'o1' }] } });
+    expect(ops.status()).toBe(409);
+    await ctxA.close();
+    await ctxB.close();
+  } finally {
+    await request.patch('/api/docs/settings', { data: { coedit: true } });
+  }
+});
+
 test('Docs en vivo: sin red, recargar con el borrador lo fusiona y la pantalla sigue en vivo', async ({ browser, request }) => {
   test.setTimeout(120_000);
   const doc = await pageWith(request, `Recarga ${uid()}`, [{ id: 'p', type: 'paragraph', content: 'alfa beta' }]);

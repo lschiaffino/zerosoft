@@ -7493,6 +7493,8 @@ export const MIGRATIONS: Migration[] = [
           PRIMARY KEY (page_id, block_id)
         );
       `);
+      // Interruptor por workspace (Ajustes de Docs): apagado, Docs vuelve a guardar y fusionar como antes.
+      await addColumn(client, 'ALTER TABLE docs_settings ADD COLUMN coedit INTEGER NOT NULL DEFAULT 1');
     },
   },
 ];

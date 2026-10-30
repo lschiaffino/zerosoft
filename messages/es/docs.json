@@ -1270,6 +1270,10 @@
       "label": "Invitar invitados",
       "help": "Compartir una página por email con personas de afuera del workspace."
     },
+    "coedit": {
+      "label": "Edición simultánea en tiempo real",
+      "help": "Cada persona ve las teclas de las demás a medida que se escriben. Apagada: los cambios de cada una se fusionan al guardar, más o menos cada segundo."
+    },
     "nameRequired": "Ponele un nombre al teamspace.",
     "newTeamspace": "Teamspace nuevo",
     "newTeamspaceHelp": "Un espacio con sus propias páginas y miembros, para un equipo o un proyecto.",
