@@ -4,7 +4,7 @@ import { getCurrentUser, realUserId, type SessionUser } from '@/lib/session';
 import type { DocsPageRow } from '@/lib/db';
 import { DOC_INTERNAL_READ, getDocAccess, getDocPageRow, resolveDocAccess } from '@/lib/docs';
 import { canWriteAccess } from '@/lib/docs-access';
-import { SESSION_RE, leavePresence, touchPresence } from '@/lib/docs-live';
+import { SESSION_RE, leavePresence, sessionLeft, touchPresence } from '@/lib/docs-live';
 import {
   CoeditAccessError,
   MAX_ITEMS,
@@ -147,8 +147,8 @@ export async function POST(req: NextRequest) {
   const me = realUserId(user);
 
   if (body.leave) {
-    await leavePresence(row.id, body.session, me);
     await coeditLeave(row, body.session, me).catch(() => undefined);
+    await leavePresence(row.id, body.session, me);
     return new NextResponse(null, { status: 204 });
   }
 
@@ -214,7 +214,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  if (body.cursor) {
+  if (body.cursor && !(await sessionLeft(row.id, body.session))) {
     const person = user.actingUser ?? user;
     await touchPresence({ pageId: row.id, session: body.session, userId: me, blockId: body.cursor.block, start: body.cursor.start, end: body.cursor.end, mode: body.cursor.mode });
     await coeditCursor({

@@ -36,7 +36,8 @@ async function typeOps(pageId: string, actorId: string, from: string, words: str
   const stamps: string[] = [];
   for (const [i, w] of words.entries()) {
     const next = text + w;
-    const r = await applyTextOps({ pageId, actorId, session, items: [{ block: 'p', rev, hash: textHash(text), op: diff(text, next), seq: `${session}-${i}` }] });
+    // Sin versión: el servidor la ubica por la huella (sirve también sobre un bloque que ya tenía historia).
+    const r = await applyTextOps({ pageId, actorId, session, items: [{ block: 'p', rev: i === 0 ? null : rev, hash: textHash(text), op: diff(text, next), seq: `${session}-${i}` }] });
     expect(r[0].status).toBe('ok');
     rev = r[0].events!.at(-1)!.rev;
     text = next;
@@ -84,6 +85,15 @@ describe('sugerencias mientras otra persona escribe en vivo', () => {
     const saved = await textOf(page.id);
     expect(saved).toContain('data-sug="s1"');
     expect(saved).toContain(' en la sala');
+    // Su pantalla iba por la mitad (le faltaba la última tanda ajena): también entra al primer intento.
+    const { text: text2 } = await typeOps(page.id, owner.id, saved!, [' hoy', ' mismo'], 'sessionBBB');
+    const halfway = text2.slice(0, text2.length - ' mismo'.length);
+    const sug2 = `<span data-sug="s2" data-sug-kind="ins" data-sug-by="${carla.id}"> (sí)</span>`;
+    const res2 = await pageRoute.PATCH(req(`http://x/api/docs/pages/${page.id}`, 'PATCH', { content: [para('p', `${halfway}${sug2}`)], base_updated_at: base }), { params: Promise.resolve({ id: page.id }) });
+    expect(res2.status, await res2.clone().text()).toBe(200);
+    const saved2 = await textOf(page.id);
+    expect(saved2).toContain('data-sug="s2"');
+    expect(saved2).toContain(' hoy mismo');
     // Cambiar texto ajeno sigue sin estar permitido.
     const bad = await pageRoute.PATCH(req(`http://x/api/docs/pages/${page.id}`, 'PATCH', { content: [para('p', 'otra cosa')], base_updated_at: base }), { params: Promise.resolve({ id: page.id }) });
     expect(bad.status).toBe(403);

@@ -50,6 +50,9 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const me = realUserId(user);
   const body = parsed.data;
   if (body.leave) {
+    // Las demás pantallas sacan su cursor ya, y un pulso que llegue tarde no la revive.
+    const { coeditLeave } = await import('@/lib/docs-coedit');
+    await coeditLeave(row, body.session, me).catch(() => undefined);
     await leavePresence(id, body.session, me);
     return new NextResponse(null, { status: 204 });
   }

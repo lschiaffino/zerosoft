@@ -1151,6 +1151,26 @@ export default function DocsEditor({
   // Deshacer desde el menú del navegador (Edición › Deshacer): mismo historial.
   // beforeinput nativo (el onBeforeInput de React no trae inputType).
   const rootRef = useRef<HTMLDivElement | null>(null);
+  // Un clic o mover el caret (flechas, Inicio, Fin) corta el grupo de tipeo del
+  // deshacer: dos tandas de teclas separadas son dos pasos, como en Notion.
+  useEffect(() => {
+    const cut = () => {
+      if (historyRef.current.typing) historyRef.current = { ...historyRef.current, typing: null };
+    };
+    const onPointer = (e: PointerEvent) => {
+      if (rootRef.current && e.target instanceof Node && rootRef.current.contains(e.target)) cut();
+    };
+    const NAV = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown']);
+    const onKey = (e: KeyboardEvent) => {
+      if (NAV.has(e.key) && rootRef.current && e.target instanceof Node && rootRef.current.contains(e.target)) cut();
+    };
+    document.addEventListener('pointerdown', onPointer, true);
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('pointerdown', onPointer, true);
+      document.removeEventListener('keydown', onKey, true);
+    };
+  }, []);
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;

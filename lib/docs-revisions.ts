@@ -89,6 +89,21 @@ async function revisionFromOps(pageId: string, at: string): Promise<DocsRevision
   return { ...base, updated_at: at, content: JSON.stringify(blocks) };
 }
 
+/** Marcas de las tandas de teclas después de `since`, de la más nueva a la más vieja (versiones que existieron). */
+export async function opStampsSince(pageId: string, since: string, limit: number): Promise<string[]> {
+  try {
+    const rows = (await getDb()
+      .prepare(
+        `SELECT DISTINCT json_extract(payload, '$.at') AS at FROM docs_live_events
+         WHERE page_id = ? AND kind = 'op' AND json_extract(payload, '$.at') > ? ORDER BY at DESC LIMIT ?`,
+      )
+      .all(pageId, since, limit)) as Array<{ at: string | null }>;
+    return rows.map((r) => r.at).filter((x): x is string => typeof x === 'string');
+  } catch {
+    return [];
+  }
+}
+
 /**
  * La última versión guardada en o antes de `at`. Con la edición simultánea
  * alcanza para la estructura (qué bloques hay y en qué orden): el texto de

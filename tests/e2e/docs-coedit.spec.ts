@@ -258,6 +258,40 @@ test('Docs en vivo: el título de un link a una página privada no sale por la f
   await ctxV.close();
 });
 
+test('Docs en vivo: "sin red" con el stream vivo y recargar no duplica el texto de la otra persona', async ({ browser, request }) => {
+  test.setTimeout(120_000);
+  const doc = await pageWith(request, `Sin red vivo ${uid()}`, [{ id: 'p', type: 'paragraph', content: 'base' }]);
+  const email = `onl-${uid()}@darwin-e2e.io`;
+  const ctxA = await browser.newContext();
+  const ctxB = await sessionAs(browser, email);
+  await shareWith(request, ctxB, doc.id, email, 'edit');
+  const a = await ctxA.newPage();
+  const b = await ctxB.newPage();
+  await openLive(a, doc.id);
+  await openLive(b, doc.id);
+  // El navegador de B dice que no tiene red, pero la conexión sigue (le llega lo de A).
+  await b.evaluate(() => {
+    Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false });
+    window.dispatchEvent(new Event('offline'));
+  });
+  await caretAtEnd(b);
+  await b.keyboard.type(' bee', { delay: 30 });
+  await caretAtStart(a);
+  await a.keyboard.type('AAA ', { delay: 30 });
+  await expect(editable(b)).toHaveText('AAA base bee', { timeout: 15_000 });
+  await caretAtEnd(b);
+  await b.keyboard.type(' dos', { delay: 30 });
+  await b.waitForTimeout(1500);
+  await b.reload({ waitUntil: 'domcontentloaded' });
+  await expect.poll(() => textOf(request, doc.id), { timeout: 30_000 }).toBe('AAA base bee dos');
+  await b.waitForTimeout(3000);
+  expect(await textOf(request, doc.id)).toBe('AAA base bee dos');
+  await expect(editable(b)).toHaveText('AAA base bee dos', { timeout: 15_000 });
+  await expect(editable(a)).toHaveText('AAA base bee dos', { timeout: 15_000 });
+  await ctxA.close();
+  await ctxB.close();
+});
+
 test('Docs en vivo: sin red, recargar con el borrador lo fusiona y la pantalla sigue en vivo', async ({ browser, request }) => {
   test.setTimeout(120_000);
   const doc = await pageWith(request, `Recarga ${uid()}`, [{ id: 'p', type: 'paragraph', content: 'alfa beta' }]);

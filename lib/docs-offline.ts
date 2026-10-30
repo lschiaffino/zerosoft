@@ -63,10 +63,11 @@ export function saveDraft(owner: string, pageId: string, patch: Partial<DocsPage
   try {
     const prev = loadDraft(owner, pageId);
     const next: DocsDraft = { owner, patch: { ...(prev?.patch ?? {}), ...patch }, base: prev?.base ?? base, at: Date.now() };
-    // La base de cada bloque es la del primer cambio sin red (la más vieja).
-    if (coedit || prev?.coedit) {
-      next.coedit = { session: coedit?.session ?? prev!.coedit!.session, blocks: { ...(coedit?.blocks ?? {}), ...(prev?.coedit?.blocks ?? {}) } };
-    }
+    // Lo que tiene el motor ahora: su base ya suma lo ajeno que llegó (el stream
+    // puede seguir vivo sin red) y lo propio en vuelo ya está transformado. Mezclarlo
+    // con una base vieja volvía a mandar como propio el texto de otra persona.
+    const co = coedit ?? prev?.coedit;
+    if (co) next.coedit = { session: co.session, blocks: { ...co.blocks } };
     const raw = JSON.stringify(next);
     if (raw.length > DRAFT_MAX_CHARS) return false;
     localStorage.setItem(draftKey(owner, pageId), raw);
