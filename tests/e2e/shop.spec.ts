@@ -216,3 +216,20 @@ test('acceso por app: una persona sin Shop no ve páginas, APIs ni resultados de
     await ctx.close();
   }
 });
+
+test('casillas en oscuro: el tilde se ve (Shop y otra app, estilo común)', async ({ page, context, baseURL }) => {
+  await context.addCookies([{ name: 'zs_theme', value: 'dark', url: baseURL! }]);
+  for (const path of ['/en/app/shop/settings?tab=notifications', '/en/app/settings/workspace']) {
+    await page.goto(path, { waitUntil: 'networkidle' });
+    const box = page.locator('.ui-check input[type="checkbox"]').first();
+    await expect(box).toBeVisible();
+    // Marcada sin guardar: solo interesa cómo se dibuja.
+    await box.evaluate((el) => {
+      (el as HTMLInputElement).checked = true;
+    });
+    const image = await box.evaluate((el) => getComputedStyle(el).backgroundImage);
+    // En oscuro el relleno es la tinta clara y el tilde va en tinta oscura (--check-img), no en blanco.
+    expect(image, path).toContain('0f0e0d');
+    await box.screenshot({ path: `test-results/shop-check-dark-${path.includes('shop') ? 'shop' : 'settings'}.png` });
+  }
+});

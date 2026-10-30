@@ -350,7 +350,8 @@
       "refunded": "Refund",
       "cancelled": "Cancelled",
       "email": "Email",
-      "stock": "Stock"
+      "stock": "Stock",
+      "refund_failed": "Refund failed"
     },
     "customer": "Customer",
     "customerNote": "Customer note",
@@ -363,7 +364,7 @@
     "item": "Item",
     "qty": "Qty",
     "slipThanks": "Thanks for your order.",
-    "paidAfterCancel": "This order was paid after it was cancelled. Refund {amount} to the customer.",
+    "paidAfterCancel": "This order is cancelled, but {amount} it was paid hasn’t been refunded. Refund it to the customer.",
     "restockFullOnly": "Restock only applies to a full refund",
     "cancelRefund": "Also refund {amount} to the customer"
   },

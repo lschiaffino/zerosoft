@@ -28,6 +28,7 @@
   --ink-disabled: #c8c8c8;
   /* La tilde de una casilla marcada (sobre --ink). */
   --check-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='square'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+  --check-dash-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath stroke='white' stroke-width='2' d='M3 6h6'/%3E%3C/svg%3E");
   /* Sombra de lo que flota (menús, modales). */
   --ui-shadow: rgb(13 13 13 / 0.12);
   --ui-shadow-strong: rgb(13 13 13 / 0.24);

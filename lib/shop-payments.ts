@@ -238,8 +238,18 @@ export async function startPayment(store: StoreRow, o: OrderRow, items: OrderIte
   return url;
 }
 
+/** ¿Se puede reembolsar por el proveedor? (credenciales y el id del pago). Transferencia: siempre (solo se registra). */
+export function canRefundPayment(store: StoreRow, o: Pick<OrderRow, 'payment_method' | 'payment_ref' | 'payment_id'>): boolean {
+  if (o.payment_method === 'manual') return true;
+  if (paymentsFake() && (o.payment_ref ?? '').startsWith('fake_')) return true;
+  if (!o.payment_id) return false;
+  return o.payment_method === 'stripe' ? Boolean(stripeKeyOf(store)) : Boolean(mpTokenOf(store));
+}
+
 export async function refundPayment(store: StoreRow, o: OrderRow, amountCents: number): Promise<void> {
   if (o.payment_method === 'manual') return;
+  // Modo de prueba: un pago "fail_refund" simula que el proveedor rechaza el reembolso.
+  if (paymentsFake() && o.payment_id === 'fail_refund') throw new ShopError('stripe_error', 502);
   if (paymentsFake() && (o.payment_ref ?? '').startsWith('fake_')) return;
   if (o.payment_method === 'stripe') {
     const key = stripeKeyOf(store);
