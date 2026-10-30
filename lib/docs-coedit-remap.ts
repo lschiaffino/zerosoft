@@ -32,6 +32,42 @@ export interface RemoteTrace {
   op: TextOp;
   /** Había texto propio en el bloque (sin confirmar o escrito hace un momento). */
   own: boolean;
+  /**
+   * Lo que la operación dejó después de su último borrado es todo propio (lo
+   * que la otra persona no tenía): así se ve un corte con Enter. Un borrado en
+   * el medio del texto (Backspace sobre una letra) deja texto de los dos y no
+   * es un corte. Sin el dato, se toma como corte.
+   */
+  tailOwn?: boolean;
+}
+
+/**
+ * ¿Lo que deja `op` en `screen` después de su último borrado es todo propio?
+ * Propio: lo que `screen` tiene y `server` (lo confirmado) no.
+ */
+export function ownTail(server: string, screen: string, op: TextOp): boolean {
+  let i = 0;
+  let lastDel = -1;
+  for (const c of op) {
+    if (typeof c === 'string') continue;
+    if (c < 0) {
+      i += -c;
+      lastDel = i;
+    } else i += c;
+  }
+  if (lastDel < 0 || lastDel >= screen.length) return true;
+  // Caracteres de `screen` que vienen de `server` (no insertados acá).
+  const fromServer = new Uint8Array(screen.length);
+  let k = 0;
+  for (const c of diff(server, screen)) {
+    if (typeof c === 'string') k += c.length;
+    else if (c > 0) {
+      fromServer.fill(1, k, k + c);
+      k += c;
+    }
+  }
+  for (let j = lastDel; j < screen.length; j++) if (fromServer[j]) return false;
+  return true;
 }
 
 export interface RemapBlock {
@@ -173,6 +209,8 @@ export function remapStructure<B extends RemapBlock>(
   caret: RemapCaret | null,
   /** Hay texto propio en ese bloque (sin confirmar o escrito hace un momento). */
   ownIn: (id: string) => boolean = () => false,
+  /** Desde cuándo se conoce el bloque (ms); null si no se sabe. Uno que todavía no llegó al servidor: Infinity. */
+  bornAt: (id: string) => number | null = () => null,
 ): RemapResult<B> | null {
   const prevById = new Map(prev.map((b) => [b.id, b]));
   const theirIds = new Set(theirs.map((b) => b.id));
@@ -207,23 +245,31 @@ export function remapStructure<B extends RemapBlock>(
     let spText = '';
     let t: RemoteTrace | null = null;
     let p: B | null = null;
+    /** Bloques entre el cortado y los nuevos (los más cercanos primero). */
+    const between: B[] = [];
     for (let j = i - 1; j >= 0 && !t; j--) {
-      if (!prevById.has(blocks[j].id) || str(blocks[j]) === null) continue;
-      // Los bloques nuevos tienen la cola cortada; la otra persona pudo escribir ya ahí (antes o después de ella).
-      t = latest(blocks[j].id, (x) => {
-        if (!x.own) return false;
+      const cand = blocks[j];
+      if (!prevById.has(cand.id) || str(cand) === null) break;
+      // Un corte: la operación se llevó la cola (lo que quedó después es solo lo propio)
+      // y esa cola es el final de los bloques nuevos (allá se escribe antes de ella).
+      t = latest(cand.id, (x) => {
+        if (!x.own || x.tailOwn === false) return false;
+        // Entre el bloque cortado y los nuevos solo puede haber bloques que se partieron acá
+        // después del corte (Enter propio) o vacíos: un bloque de antes no es parte de este corte.
+        if (between.some((b) => str(b) !== '' && (bornAt(b.id) ?? -Infinity) < x.at - 1000)) return false;
         const found = deletedSpan(x.prev, x.op);
         if (!found) return false;
         for (const v of shiftedSpans(x.prev, found)) {
           spText = plainOf(v.text).text;
-          if (spText && joined.includes(spText)) {
+          if (spText.trim() && joined.endsWith(spText)) {
             span = v;
             return true;
           }
         }
         return false;
       });
-      if (t) p = blocks[j];
+      if (t) p = cand;
+      else between.push(cand);
     }
     const sp = span as ReturnType<typeof deletedSpan>;
     if (!t || !sp || !p) continue;
@@ -274,14 +320,26 @@ export function remapStructure<B extends RemapBlock>(
       const q = blocks.find((b) => b.id === x.block);
       const qText = str(q);
       if (!q || qText === null) continue;
-      // La copia tiene que ser una versión de lo de acá (lo propio solo suma).
-      if (diff(ins.text, pText).some((c) => typeof c === 'number' && c < 0)) continue;
+      // La copia tiene que ser una versión de lo de acá (lo propio solo suma). La otra persona
+      // pudo escribir en el borde de la unión en la misma operación ("MM" + la copia): la copia
+      // es el final de lo insertado.
+      let d: TextOp;
       try {
-        const after = apply(x.prev, x.op);
-        const at = transformIndex(ins.at, diff(after, qText));
-        if (qText.slice(at, at + ins.text.length) === ins.text) found = { q, at, text: ins.text };
+        d = diff(apply(x.prev, x.op), qText);
       } catch {
-        /* otra operación: sigue buscando */
+        continue;
+      }
+      for (let k = 0; k + 2 <= ins.text.length && !found; k++) {
+        const copy = ins.text.slice(k);
+        if (diff(copy, pText).some((c) => typeof c === 'number' && c < 0)) continue;
+        // Lo que se escribió después en el mismo borde puede quedar antes o después del índice.
+        for (const late of [false, true]) {
+          const at = transformIndex(ins.at + k, d, late);
+          if (qText.slice(at, at + copy.length) === copy) {
+            found = { q, at, text: copy };
+            break;
+          }
+        }
       }
     }
     if (!found) continue;

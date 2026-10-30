@@ -225,9 +225,12 @@ test('QA en vivo: A une con Backspace el bloque de B mientras B escribe en el an
   let text = await converge(request, doc.id, a, b);
   console.log('MERGE-PREV-TEXT', text);
   text = await afterReload(request, doc.id, a, b);
-  // A y B escriben en el mismo lugar (el borde de la unión): sus letras pueden quedar intercaladas, ninguna se pierde.
+  // A y B escriben en el mismo lugar (el borde de la unión): sus letras pueden quedar intercaladas
+  // con lo de B, pero ninguna se pierde y las dos van entre "first line" y "second".
   expect(count(text, 'M')).toBe(2);
   expect(text.replace(/M/g, '')).toBe('first line uno dos tres cuatro cinco seis siete ochosecond line');
+  expect(text.startsWith('first line')).toBeTruthy();
+  expect(text.lastIndexOf('M')).toBeLessThan(text.indexOf('second'));
   const blocks = await blocksOf(request, doc.id);
   console.log('MERGE-PREV', JSON.stringify(blocks.map((x) => x.content)));
   expect(blocks.length).toBe(1);
@@ -311,3 +314,185 @@ test('QA en vivo: (texto plano) B escribe al final; A parte dos veces antes de s
   expect(blocks[blocks.length - 1].content.endsWith(TYPED.join('')), text).toBeTruthy();
   await close();
 });
+
+const dump = async (request: APIRequestContext, id: string) => JSON.stringify((await blocksOf(request, id)).map((x) => [x.type, x.content]));
+
+test('QA1: borrar una letra arriba y Enter+texto en otro bloque mientras B escribe en p', async ({ browser, request }) => {
+  test.setTimeout(150_000);
+  const { doc, a, b, close } = await twoPeople(browser, request, [
+    { id: 'p', type: 'paragraph', content: 'hello world mine' },
+    { id: 'q', type: 'paragraph', content: 'other' },
+  ]);
+  await typeWhile(b, async () => {
+    await caretAt(a, 'hello'.length);
+    await a.keyboard.press('Backspace');
+    await a.waitForTimeout(600);
+    await caretAtEnd(a, 'q');
+    await a.keyboard.press('Enter');
+    await a.keyboard.type('foo bar', { delay: 10 });
+  });
+  const text = await converge(request, doc.id, a, b);
+  console.log('QA1', await dump(request, doc.id));
+  expect(text).toContain('hell world mine uno dos tres cuatro cinco seis siete ocho');
+  expect(text).toContain('foo bar');
+  await close();
+});
+
+test('QA1b: lo mismo, Enter al final de p con B escribiendo en otro lado de p', async ({ browser, request }) => {
+  test.setTimeout(150_000);
+  const { doc, a, b, close } = await twoPeople(browser, request, [
+    { id: 'p', type: 'paragraph', content: 'hello world mine' },
+    { id: 'q', type: 'paragraph', content: 'other' },
+  ]);
+  await caretAt(b, 'hello world'.length);
+  const typing = (async () => { for (const w of TYPED) await b.keyboard.type(w, { delay: 45 }); })();
+  await b.waitForTimeout(500);
+  await caretAt(a, 'hel'.length);
+  await a.keyboard.press('Delete');
+  await a.waitForTimeout(600);
+  await caretAtEnd(a, 'p');
+  await a.keyboard.press('Enter');
+  await a.keyboard.type('zzz lol', { delay: 10 });
+  await typing;
+  const text = await converge(request, doc.id, a, b);
+  console.log('QA1b', await dump(request, doc.id));
+  expect(text).toBe('helo world uno dos tres cuatro cinco seis siete ocho mine | zzz lol | other');
+  await close();
+});
+
+for (const [name, content, cutAt] of [
+  ['aaaa', 'xaaaa yy', 3],
+  ['ttt', 'butttt ttt end', 4],
+  ['acentos', 'café 😀 naïve ação fin', 'café 😀 na'.length],
+  ['nbsp', 'one&nbsp;&nbsp;two three', 4],
+  ['italic-link', 'pre <em>itálico</em> <a href="https://example.com">linkito</a> post', 'pre itálico lin'.length],
+] as const) {
+  test(`QA2 ${name}: A parte dos veces mientras B escribe al final`, async ({ browser, request }) => {
+    test.setTimeout(150_000);
+    const { doc, a, b, close } = await twoPeople(browser, request, [{ id: 'p', type: 'paragraph', content }]);
+    const orig = await serverText(request, doc.id);
+    await typeWhile(b, async () => {
+      await caretAt(a, cutAt as number);
+      await a.keyboard.press('Enter');
+      await a.keyboard.type('AA', { delay: 30 });
+      await a.keyboard.press('Enter');
+      await a.keyboard.type('BB', { delay: 30 });
+    });
+    let text = await converge(request, doc.id, a, b);
+    console.log('QA2', name, await dump(request, doc.id));
+    const flat = text.split(' | ');
+    expect(flat.length).toBe(3);
+    expect(flat[0] + flat[1].replace(/^AA/, '') + flat[2].replace(/^BB/, '')).toBe(orig + TYPED.join(''));
+    text = await afterReload(request, doc.id, a, b);
+    expect(text.split(' | ').length).toBe(3);
+    await close();
+  });
+}
+
+for (const kind of ['heading', 'bulleted_list_item'] as const) {
+  test(`QA3 ${kind}: A parte en el medio mientras B escribe al final`, async ({ browser, request }) => {
+    test.setTimeout(150_000);
+    const blk: Block = { id: 'p', type: kind, content: 'title <strong>bold</strong> words here', ...(kind === 'heading' ? { level: 2 } : {}) };
+    const { doc, a, b, close } = await twoPeople(browser, request, [blk]);
+    await typeWhile(b, async () => {
+      await caretAt(a, 'title bo'.length);
+      await a.keyboard.press('Enter');
+      await a.keyboard.type('X1', { delay: 30 });
+      await a.keyboard.press('Enter');
+      await a.keyboard.type('X2', { delay: 30 });
+    });
+    const text = await converge(request, doc.id, a, b);
+    console.log('QA3', kind, await dump(request, doc.id));
+    for (const w of [...TYPED.map((x) => x.trim()), 'title', 'words', 'here', 'X1', 'X2']) expect(count(text, w), text).toBe(1);
+    expect(text.endsWith(TYPED.join('')), text).toBeTruthy();
+    await afterReload(request, doc.id, a, b);
+    await close();
+  });
+}
+
+test('QA4: A une con Backspace mientras B escribe en el bloque unido', async ({ browser, request }) => {
+  test.setTimeout(150_000);
+  const { doc, a, b, close } = await twoPeople(browser, request, [
+    { id: 'p', type: 'paragraph', content: 'first line' },
+    { id: 'q', type: 'paragraph', content: 'second <strong>line</strong>' },
+  ]);
+  await typeWhile(b, async () => {
+    await caretAtStart(a, 'q');
+    await a.keyboard.press('Backspace');
+    await a.keyboard.type('MM', { delay: 30 });
+  }, 'q');
+  let text = await converge(request, doc.id, a, b);
+  console.log('QA4', await dump(request, doc.id));
+  expect(text).toBe('first lineMMsecond line' + TYPED.join(''));
+  text = await afterReload(request, doc.id, a, b);
+  expect(text).toBe('first lineMMsecond line' + TYPED.join(''));
+  await close();
+});
+
+// Tres personas partiendo a la vez el bloque donde escribe una tercera: limitación conocida
+// (la reubicación sigue un solo corte ajeno por tanda de bloques nuevos).
+test.fixme('QA5: tres personas, A y C parten mientras B escribe', async ({ browser, request }) => {
+  test.setTimeout(180_000);
+  const { doc, a, b, close } = await twoPeople(browser, request, [{ id: 'p', type: 'paragraph', content: 'one two three four five six' }]);
+  const email = `carl-${uid()}@darwin-e2e.io`;
+  const ctxC = await sessionAs(browser, email);
+  await shareWith(request, ctxC, doc.id, email);
+  const c = await ctxC.newPage();
+  await openLive(c, doc.id);
+  await typeWhile(b, async () => {
+    await caretAt(a, 'one'.length);
+    await caretAt(c, 'one two three'.length);
+    await Promise.all([
+      (async () => { await a.keyboard.press('Enter'); await a.keyboard.type('Aa', { delay: 30 }); await a.keyboard.press('Enter'); await a.keyboard.type('Ab', { delay: 30 }); })(),
+      (async () => { await c.keyboard.press('Enter'); await c.keyboard.type('Ca', { delay: 30 }); await c.keyboard.press('Enter'); await c.keyboard.type('Cb', { delay: 30 }); })(),
+    ]);
+  });
+  let text = await converge(request, doc.id, a, b, c);
+  console.log('QA5', await dump(request, doc.id));
+  for (const w of ['one', 'two', 'three', 'four', 'five', 'six', 'Aa', 'Ab', 'Ca', 'Cb', ...TYPED.map((x) => x.trim())]) expect(count(text, w), text).toBe(1);
+  expect(text.endsWith('six' + TYPED.join('')), text).toBeTruthy();
+  text = await afterReload(request, doc.id, a, b, c);
+  await ctxC.close();
+  await close();
+});
+
+test('QA6: deshacer en B después de que un corte ajeno movió su texto', async ({ browser, request }) => {
+  test.setTimeout(150_000);
+  const { doc, a, b, close } = await twoPeople(browser, request, [{ id: 'p', type: 'paragraph', content: 'alpha beta gamma delta' }]);
+  await typeWhile(b, async () => {
+    await caretAt(a, 'alpha be'.length);
+    await a.keyboard.press('Enter');
+    await a.keyboard.type('AA', { delay: 30 });
+  });
+  let text = await converge(request, doc.id, a, b);
+  console.log('QA6-before', await dump(request, doc.id));
+  await b.waitForTimeout(1500);
+  for (let i = 0; i < 12; i++) { await b.keyboard.press('ControlOrMeta+z'); await b.waitForTimeout(150); }
+  text = await converge(request, doc.id, a, b);
+  console.log('QA6-after', await dump(request, doc.id));
+  // Lo de A queda; lo de B se deshace (todo o parte), sin letras sueltas ni duplicadas.
+  expect(count(text, 'AA')).toBe(1);
+  for (const w of ['alpha', 'gamma', 'delta']) expect(count(text, w), text).toBe(1);
+  for (const w of TYPED.map((x) => x.trim())) expect(count(text, w), text).toBeLessThanOrEqual(1);
+  text = await afterReload(request, doc.id, a, b);
+  await close();
+});
+
+for (const [name, second, mm] of [['plain+MM', 'second line', true], ['bold-noMM', 'second <strong>line</strong>', false], ['plain-noMM', 'second line', false]] as const) {
+  test(`QA4v ${name}`, async ({ browser, request }) => {
+    test.setTimeout(150_000);
+    const { doc, a, b, close } = await twoPeople(browser, request, [
+      { id: 'p', type: 'paragraph', content: 'first line' },
+      { id: 'q', type: 'paragraph', content: second },
+    ]);
+    await typeWhile(b, async () => {
+      await caretAtStart(a, 'q');
+      await a.keyboard.press('Backspace');
+      if (mm) await a.keyboard.type('MM', { delay: 30 });
+    }, 'q');
+    const text = await converge(request, doc.id, a, b);
+    console.log('QA4v', name, await dump(request, doc.id));
+    expect(text).toBe('first line' + (mm ? 'MM' : '') + 'second line' + TYPED.join(''));
+    await close();
+  });
+}

@@ -15,11 +15,13 @@
  */
 import { apply, diff, isNoop, textHash, transform, type TextOp } from './docs-ot';
 import { COEDIT_BLOCK_MAX, hasPageLink, type CoeditEvent, type CoeditOpItem, type CoeditOpResult } from './docs-coedit-shared';
-import { remapStructure, type RemapBlock, type RemapCaret, type RemapResult, type RemoteTrace } from './docs-coedit-remap';
+import { ownTail, remapStructure, type RemapBlock, type RemapCaret, type RemapResult, type RemoteTrace } from './docs-coedit-remap';
 
 /** Cuánto se recuerdan las operaciones ajenas y lo escrito acá (para reubicar al partir o unir bloques). */
 const TRACE_MS = 10_000;
 const OWN_MS = 3_000;
+/** Lo confirmado hace este tiempo ya lo tenía cualquier otra pantalla (reconocer un corte). */
+const SETTLED_MS = 2_000;
 
 /** Cuánto cambia una operación (caracteres insertados más borrados). */
 const opSize = (op: TextOp): number => op.reduce<number>((n, c) => n + (typeof c === 'string' ? c.length : c < 0 ? -c : 0), 0);
@@ -42,6 +44,8 @@ export interface CoeditTransport {
 
 interface BlockSync {
   S: string;
+  /** Textos confirmados recientes (para saber qué tenía ya la otra persona al cortar). */
+  past?: Array<{ at: number; S: string }>;
   rev: number | null;
   inflight: { op: TextOp; seq: string; base: string; rev: number | null; full: boolean } | null;
   buffer: Map<number, OpEvent>;
@@ -71,6 +75,8 @@ export class CoeditEngine {
   private traces: RemoteTrace[] = [];
   /** Última vez que salió algo propio de cada bloque. */
   private ownAt = new Map<string, number>();
+  /** Cuándo se conoció cada bloque (lib/docs-coedit-remap.ts: los que se partieron acá después de un corte). */
+  private born = new Map<string, number>();
   online = true;
 
   constructor(
@@ -131,6 +137,7 @@ export class CoeditEngine {
     const seen = new Set<string>();
     for (const b of server) {
       seen.add(b.id);
+      if (!this.born.has(b.id)) this.born.set(b.id, Date.now());
       if (this.unsupported.has(b.id) || this.blocks.has(b.id)) continue;
       this.blocks.set(b.id, { S: b.text, rev: b.rev ?? null, inflight: null, buffer: new Map(), resync: false, sendBase: false, gapTimer: null });
     }
@@ -356,6 +363,9 @@ export class CoeditEngine {
   }
 
   private applyEvent(id: string, b: BlockSync, ev: OpEvent) {
+    const now = Date.now();
+    b.past = (b.past ?? []).filter((x) => now - x.at < TRACE_MS);
+    b.past.push({ at: now, S: b.S });
     if (b.inflight && ev.session === this.session && ev.seq === b.inflight.seq) {
       // La propia, confirmada (ya transformada por el servidor igual que acá).
       const sent = apply(b.S, b.inflight.op);
@@ -386,6 +396,10 @@ export class CoeditEngine {
       }
     }
     const known = b.inflight ? apply(b.S, b.inflight.op) : b.S;
+    // Lo que la otra persona seguro tenía de este bloque: lo confirmado hace un par de
+    // segundos (lo de después puede no haberle llegado cuando cortó).
+    const settled = b.past ?? [];
+    const S0 = [...settled].reverse().find((x) => now - x.at >= SETTLED_MS)?.S ?? settled[0]?.S ?? b.S;
     const inflight = b.inflight;
     let R1 = R;
     if (b.inflight) {
@@ -402,7 +416,10 @@ export class CoeditEngine {
     const B = diff(known, V);
     const [, R2] = transform(B, R1);
     if (isNoop(R2)) return;
-    this.trace({ block: id, at: Date.now(), prev: V, op: R2, own: !!inflight || !isNoop(B) || this.recentOwn(id) });
+    const own = !!inflight || !isNoop(B) || this.recentOwn(id);
+    // Solo hace falta para reconocer un corte (lib/docs-coedit-remap.ts): una operación que borra.
+    const tailOwn = own && R2.some((c) => typeof c === 'number' && c < 0) ? ownTail(S0, V, R2) : undefined;
+    this.trace({ block: id, at: Date.now(), prev: V, op: R2, own, ...(tailOwn === undefined ? {} : { tailOwn }) });
     this.screen.set(id, apply(V, R2), R2, V);
   }
 
@@ -423,6 +440,11 @@ export class CoeditEngine {
     return this.recentOwn(id);
   }
 
+  /** Desde cuándo se conoce el bloque; uno que todavía no está en el servidor (recién creado acá): Infinity. */
+  bornAt(id: string): number {
+    return this.born.get(id) ?? Infinity;
+  }
+
   /**
    * Llegó un cambio de estructura de otra persona (partir o unir el bloque
    * donde se escribía): lo propio pasa al bloque que corresponde. Ver
@@ -432,7 +454,7 @@ export class CoeditEngine {
     const now = Date.now();
     const traces = this.traces.filter((x) => now - x.at < TRACE_MS);
     if (!traces.length) return null;
-    const res = remapStructure(prev, theirs, merged, traces, caret, (id) => this.ownIn(id));
+    const res = remapStructure(prev, theirs, merged, traces, caret, (id) => this.ownIn(id), (id) => this.bornAt(id));
     if (res) {
       // Ya se usaron: una fusión siguiente no vuelve a mover lo mismo.
       const used = new Set(res.touched);
