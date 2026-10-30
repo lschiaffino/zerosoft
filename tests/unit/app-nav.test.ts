@@ -10,6 +10,7 @@ import {
   type AppProduct,
   type SidebarLabels,
 } from '@/components/app/sidebar-nav';
+import { pageExists } from './page-exists';
 
 /**
  * Navegación izquierda de la app: cada ítem apunta a una página que existe,
@@ -19,29 +20,18 @@ import {
 const root = join(__dirname, '..', '..');
 const appDir = join(root, 'app', '[locale]');
 
-const SWITCHER_ORDER: AppProduct[] = ['link', 'crm', 'shop', 'docs', 'calendar', 'track', 'chat', 'groups', 'flow', 'notes', 'board', 'talk', 'voice', 'rec', 'agents', 'robots'];
-const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'shop'];
+const SWITCHER_ORDER: AppProduct[] = ['link', 'crm', 'shop', 'docs', 'calendar', 'track', 'chat', 'groups', 'flow', 'notes', 'board', 'design', 'talk', 'voice', 'rec', 'agents', 'robots'];
+const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop'];
 
 // Labels de prueba: cada hoja es su propia ruta ("crm.contacts"), así los
 // ítems sin label se notan.
 function fakeLabels(): SidebarLabels {
   const proxy = (prefix: string): unknown =>
     new Proxy({}, { get: (_t, key) => (typeof key === 'string' ? `${prefix}${key}` : undefined) });
-  const nested = ['categories', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'shop', 'notifications'];
+  const nested = ['categories', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'notifications'];
   return new Proxy({} as SidebarLabels, {
     get: (_t, key) => (typeof key === 'string' && nested.includes(key) ? proxy(`${key}.`) : String(key)),
   });
-}
-
-function pageExists(href: string): boolean {
-  const path = href.split(/[?#]/)[0].replace(/^\//, '');
-  if (existsSync(join(appDir, path, 'page.tsx'))) return true;
-  // Apps en una sola ruta (Shop: /app/shop/[[...zs]]): la página del catch-all opcional de un ancestro.
-  const parts = path.split('/');
-  for (let i = parts.length; i > 0; i--) {
-    if (existsSync(join(appDir, ...parts.slice(0, i), '[[...zs]]', 'page.tsx'))) return true;
-  }
-  return false;
 }
 
 describe('sidebar de la app', () => {
@@ -64,6 +54,7 @@ describe('sidebar de la app', () => {
     expect(appProductFromPath('/app/voice')).toBe('voice');
     expect(appProductFromPath('/app/rec/settings')).toBe('rec');
     expect(appProductFromPath('/app/talk')).toBe('talk');
+    expect(appProductFromPath('/app/design/abc')).toBe('design');
     // El asistente es de la plataforma: shell neutro, nunca el de Link.
     expect(appProductFromPath('/app/assistant')).toBe('home');
   });
@@ -117,7 +108,7 @@ describe('sidebar de la app', () => {
     expect(readFileSync(join(appDir, 'app', 'docs', 'page.tsx'), 'utf8')).toMatch(/sp\.new === '1'/);
   });
 
-  it('el switcher sale de PRODUCT_CONFIG: las 16 apps, en el orden de siempre', () => {
+  it('el switcher sale de PRODUCT_CONFIG: las 17 apps, en el orden de siempre', () => {
     expect(SWITCHER_PRODUCTS.map((p) => p.key)).toEqual(PRODUCTS.filter((p) => p !== 'home').sort((a, b) => SWITCHER_ORDER.indexOf(a) - SWITCHER_ORDER.indexOf(b)));
     expect(SWITCHER_PRODUCTS.find((p) => p.key === 'calendar')).toMatchObject({ line: 'cal', name: 'Cal', href: '/app/calendar' });
     expect(SWITCHER_PRODUCTS[0]).toMatchObject({ key: 'link', href: '/app/links' });

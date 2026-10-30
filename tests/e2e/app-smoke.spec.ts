@@ -448,6 +448,24 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await request.delete(`/api/rec/folders/${i.id}`)),
   },
   {
+    app: 'Design designs',
+    list: '/en/app/design',
+    sidebar: true,
+    create: async (request, name) => ({ id: (await ok<{ design: { id: string } }>(request.post('/api/design/designs', { data: { name, width: 1080, height: 1080 } }))).design.id, name }),
+    detail: (i) => `/en/app/design/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/design/designs/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await request.delete(`/api/design/designs/${i.id}`)),
+  },
+  {
+    app: 'Design folders',
+    list: '/en/app/design',
+    sidebar: true,
+    create: async (request, name) => ({ id: (await ok<{ folder: { id: string } }>(request.post('/api/design/folders', { data: { name } }))).folder.id, name }),
+    detail: (i) => `/en/app/design?folder=${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/design/folders/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await request.delete(`/api/design/folders/${i.id}`)),
+  },
+  {
     app: 'Groups templates',
     list: '/en/app/groups/templates',
     create: async (request, name) =>

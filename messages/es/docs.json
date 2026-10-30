@@ -126,7 +126,8 @@
       "linkedDatabase": "Vista vinculada de base",
       "ai": "Preguntarle a la IA",
       "meeting": "Notas de reunión con IA",
-      "syncedDatabase": "Base sincronizada"
+      "syncedDatabase": "Base sincronizada",
+      "design": "Diseño"
     },
     "breadcrumb": "Ruta",
     "closePanel": "Cerrar panel",
@@ -301,7 +302,22 @@
     },
     "favorite": "Agregar a favoritos",
     "unfavorite": "Quitar de favoritos",
-    "savedOffline": "Guardado en este dispositivo"
+    "savedOffline": "Guardado en este dispositivo",
+    "design": {
+      "label": "Diseño",
+      "pick": "Elegí un diseño",
+      "search": "Buscar diseños",
+      "empty": "Todavía no hay diseños. Creá uno en Design.",
+      "noMatch": "Ningún diseño coincide.",
+      "error": "No se pudieron cargar los diseños.",
+      "noAccess": "No tenés acceso a este diseño.",
+      "open": "Abrir {name}",
+      "openButton": "Abrir en Design",
+      "change": "Cambiar",
+      "loading": "Cargando…",
+      "pages": "{n, plural, one {# página} other {# páginas}}",
+      "create": "Creá un diseño"
+    }
   },
   "database": {
     "database": "Base de datos",

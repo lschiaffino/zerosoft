@@ -17,6 +17,7 @@ import type { ProductKey } from '@/lib/products';
 import { canUseApp, type AppAccess } from '@/lib/workspace';
 import { trackVisibleSql } from '@/lib/track-access';
 import { bookingScopeFor } from './calendar-access';
+import { recentDesigns } from './design';
 
 /**
  * Inicio de la plataforma (/app): agregados de todas las apps. Cada bloque de
@@ -231,7 +232,7 @@ export async function homeUnread(user: HomeUser): Promise<{ chat: number | null;
 
 // ---------- Recientes ----------
 
-export type RecentKind = 'doc' | 'note' | 'board' | 'issue' | 'link' | 'contact' | 'deal' | 'flow' | 'product';
+export type RecentKind = 'doc' | 'note' | 'board' | 'design' | 'issue' | 'link' | 'contact' | 'deal' | 'flow' | 'product';
 
 export interface RecentItem {
   kind: RecentKind;
@@ -246,6 +247,7 @@ const RECENT_PRODUCT: Record<RecentKind, ProductKey> = {
   doc: 'docs',
   note: 'notes',
   board: 'board',
+  design: 'design',
   issue: 'track',
   link: 'link',
   contact: 'crm',
@@ -284,7 +286,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
   const contactScope = ownerScopeSql('c', scope);
   const dealScope = ownerScopeSql('d', scope);
 
-  const [docs, notes, boards, issues, links, contacts, deals, flows, products] = await Promise.all([
+  const [docs, notes, boards, designs, issues, links, contacts, deals, flows, products] = await Promise.all([
     all(`SELECT id, title AS label, updated_at FROM docs_pages WHERE user_id = ? AND archived = 0 ORDER BY updated_at DESC LIMIT ?`, user.id, per),
     // Notas: solo las de la persona (son privadas aunque el workspace sea compartido).
     listNotes(noteOwner(user), { view: 'all', limit: per })
@@ -296,6 +298,10 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
       ...boardsVisible.args,
       per,
     ),
+    // Design: lo abierto o editado por la persona, con el alcance de la lista.
+    recentDesigns({ ws: user.id, personId: user.actingUser?.id ?? user.id, admin: user.role === 'owner' || user.role === 'admin', name: '' }, per)
+      .then((rows) => rows.map((d) => ({ id: d.id, label: d.name, updated_at: d.updated_at })))
+      .catch(fail),
     all(
       `SELECT i.id, i.identifier || ' ' || i.title AS label, i.updated_at FROM track_issues i JOIN track_projects p ON p.id = i.project_id
        WHERE ${projectWhere} ORDER BY i.updated_at DESC LIMIT ?`,
@@ -330,6 +336,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
     doc: (id) => `/app/docs/${id}`,
     note: (id) => `/app/notes?note=${encodeURIComponent(id)}`,
     board: (id) => `/app/board/${id}`,
+    design: (id) => `/app/design/${id}`,
     issue: (id) => `/app/track/issues/${id}`,
     link: (id) => `/app/links/${id}`,
     contact: (id) => `/app/crm/contacts/${id}`,
@@ -341,6 +348,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
     ['doc', docs],
     ['note', notes],
     ['board', boards],
+    ['design', designs],
     ['issue', issues],
     ['link', links],
     ['contact', contacts],

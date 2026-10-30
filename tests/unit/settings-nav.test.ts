@@ -13,15 +13,9 @@ import {
 } from '@/lib/settings-nav';
 import { PRODUCT_KEYS } from '@/lib/products';
 import { WEBHOOK_EVENTS } from '@/lib/webhooks-events';
+import { pageExists } from './page-exists';
 
 const root = join(__dirname, '..', '..');
-const pageExists = (href: string) => {
-  const parts = href.split(/[?#]/)[0].replace(/^\//, '').split('/');
-  if (existsSync(join(root, 'app', '[locale]', ...parts, 'page.tsx'))) return true;
-  // Apps en una sola ruta (Shop: /app/shop/[[...zs]]).
-  for (let i = parts.length; i > 0; i--) if (existsSync(join(root, 'app', '[locale]', ...parts.slice(0, i), '[[...zs]]', 'page.tsx'))) return true;
-  return false;
-};
 
 describe('settings: secciones de la plataforma', () => {
   const account = (admin: boolean) => settingsSections(admin)[0].items;

@@ -15,6 +15,7 @@ import track from './track';
 import voice from './voice';
 import rec from './rec';
 import talk from './talk';
+import design from './design';
 import shop from './shop';
 
 /**
@@ -38,6 +39,7 @@ export const PARITY: Record<ProductKey, ProductParity> = {
   voice,
   rec,
   talk,
+  design,
   shop,
 };
 

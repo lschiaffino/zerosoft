@@ -103,6 +103,12 @@ function sanitizeBoardField(block: DocsBlock): DocsBlock {
   return { ...rest, board_id };
 }
 
+function sanitizeDesignField(block: DocsBlock): DocsBlock {
+  const { design_id, ...rest } = block;
+  if (block.type !== 'design' || typeof design_id !== 'string' || !BOARD_ID_RE.test(design_id)) return rest;
+  return { ...rest, design_id };
+}
+
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
@@ -502,7 +508,7 @@ export function sanitizeBlocks(blocks: DocsBlock[]): DocsBlock[] {
   return blocks.map((b) => ({
     // image/file: URL solo del storage de Docs, nombre/MIME saneados.
     // board: solo un id de pizarra válido.
-    ...sanitizeExtraFields(sanitizeBoardField(sanitizeFileFields(b))),
+    ...sanitizeExtraFields(sanitizeDesignField(sanitizeBoardField(sanitizeFileFields(b)))),
     content: b.type === 'equation' ? equationContent(b.content) : sanitizeDocsHtml(b.content),
     // Las celdas de tablas/bases son texto plano (se renderizan en <input> y
     // como texto, nunca con innerHTML): escaparlas como HTML mostraba "&amp;"

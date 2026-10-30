@@ -6943,6 +6943,137 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Design (como Canva): diseños con páginas en JSON, carpetas personales,
+    // favoritos, abiertos recientes, personas con acceso, comentarios fijados
+    // en el lienzo, archivos subidos (imágenes y logos), kit de marca del
+    // workspace y presencia (quién lo tiene abierto).
+    id: '135_design',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS design_folders (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_by TEXT NOT NULL,
+          name TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_design_folders_owner ON design_folders(workspace_id, created_by, name);
+
+        CREATE TABLE IF NOT EXISTS design_designs (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_by TEXT NOT NULL,
+          folder_id TEXT REFERENCES design_folders(id) ON DELETE SET NULL,
+          name TEXT NOT NULL DEFAULT '',
+          width INTEGER NOT NULL,
+          height INTEGER NOT NULL,
+          pages INTEGER NOT NULL DEFAULT 1,
+          doc TEXT NOT NULL,
+          doc_bytes INTEGER NOT NULL DEFAULT 0,
+          search_text TEXT NOT NULL DEFAULT '',
+          thumb TEXT,
+          version INTEGER NOT NULL DEFAULT 1,
+          workspace_access TEXT NOT NULL DEFAULT 'none',
+          share_token TEXT,
+          is_template INTEGER NOT NULL DEFAULT 0,
+          updated_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          deleted_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_design_designs_ws ON design_designs(workspace_id, deleted_at, updated_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_design_designs_creator ON design_designs(workspace_id, created_by, updated_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_design_designs_folder ON design_designs(folder_id);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_design_designs_share ON design_designs(share_token) WHERE share_token IS NOT NULL;
+
+        CREATE TABLE IF NOT EXISTS design_members (
+          design_id TEXT NOT NULL REFERENCES design_designs(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          role TEXT NOT NULL DEFAULT 'view',
+          added_by TEXT,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (design_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_design_members_user ON design_members(user_id);
+
+        CREATE TABLE IF NOT EXISTS design_stars (
+          design_id TEXT NOT NULL REFERENCES design_designs(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (design_id, user_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS design_opens (
+          design_id TEXT NOT NULL REFERENCES design_designs(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          opened_at TEXT NOT NULL,
+          PRIMARY KEY (design_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_design_opens_user ON design_opens(user_id, opened_at DESC);
+
+        CREATE TABLE IF NOT EXISTS design_comments (
+          id TEXT PRIMARY KEY,
+          design_id TEXT NOT NULL REFERENCES design_designs(id) ON DELETE CASCADE,
+          page_id TEXT NOT NULL,
+          x REAL NOT NULL DEFAULT 0,
+          y REAL NOT NULL DEFAULT 0,
+          parent_id TEXT REFERENCES design_comments(id) ON DELETE CASCADE,
+          author_id TEXT NOT NULL,
+          author_name TEXT NOT NULL DEFAULT '',
+          body TEXT NOT NULL,
+          resolved_at TEXT,
+          resolved_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_design_comments_design ON design_comments(design_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS design_files (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          uploaded_by TEXT NOT NULL,
+          kind TEXT NOT NULL DEFAULT 'upload',
+          url TEXT NOT NULL,
+          mime TEXT NOT NULL,
+          size INTEGER NOT NULL DEFAULT 0,
+          width INTEGER NOT NULL DEFAULT 0,
+          height INTEGER NOT NULL DEFAULT 0,
+          name TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_design_files_owner ON design_files(workspace_id, uploaded_by, created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS design_brand (
+          workspace_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          colors TEXT NOT NULL DEFAULT '[]',
+          fonts TEXT NOT NULL DEFAULT '{}',
+          logos TEXT NOT NULL DEFAULT '[]',
+          updated_by TEXT,
+          updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS design_presence (
+          design_id TEXT NOT NULL REFERENCES design_designs(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          name TEXT NOT NULL DEFAULT '',
+          page_id TEXT NOT NULL DEFAULT '',
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (design_id, user_id)
+        );
+
+        -- Qué imágenes usa cada diseño (se escribe al guardar): una imagen se
+        -- sirve a quien la subió o a quien ve un diseño que la usa.
+        CREATE TABLE IF NOT EXISTS design_file_refs (
+          design_id TEXT NOT NULL REFERENCES design_designs(id) ON DELETE CASCADE,
+          file_id TEXT NOT NULL,
+          PRIMARY KEY (design_id, file_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_design_file_refs_file ON design_file_refs(file_id);
+      `);
+    },
+  },
+  {
     // Shop (Shopify / Tiendanube): ver lib/schema/shop-migration.ts.
     id: '138_shop',
     up: shopUp,

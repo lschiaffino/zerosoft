@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "Products",
-      "description": "Fifteen apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk and Rec. Open source for your server, or on zerosoft Cloud with a free plan and pay as you go."
+      "description": "Seventeen apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec and Design. Open source for your server, or on zerosoft Cloud with a free plan and pay as you go."
     },
     "hero": {
-      "title1": "Fifteen apps.",
+      "title1": "Seventeen apps.",
       "title2": "One workspace.",
       "sub": "For your company: CRM, support, AI agents, automations, robots, projects and links. For you: docs, notes, scheduling and a whiteboard. The core of each one is open source and runs on your server for $0."
     },
     "cta": {
-      "title1": "Try all fifteen apps.",
+      "title1": "Try all seventeen apps.",
       "title2": "With one account.",
       "sub": "Sign in with Google, create a workspace and start on the free plan. If you later prefer your own server, the code is on GitHub.",
       "button": "Open the app"
@@ -1443,6 +1443,91 @@
         "sub": "Open Shop, add your first product and publish your store.",
         "button": "Open Shop"
       }
+    },
+    "design": {
+      "meta": {
+        "title": "Design: open-source graphic design",
+        "description": "Make social posts, presentations, documents and logos from templates, with your brand kit, comments and export to PNG, JPG and PDF. An open-source alternative to Canva."
+      },
+      "hero": {
+        "sub": "Pick a size or a template, change the text, drop in your images and your brand colors, and download it as PNG, JPG or PDF. Your team comments right on the canvas."
+      },
+      "featuresTitle": "Pick a size.",
+      "featuresTitleDim": "Start from a template.",
+      "f1": {
+        "t": "Sizes and templates",
+        "d": "Instagram post and story, LinkedIn, A4, 16:9 presentation, logo or any size up to 8000 px. 20 templates to start from, and any design can become a workspace template."
+      },
+      "f2": {
+        "t": "A real editor",
+        "d": "Text with 12 fonts, shapes, lines, icons, frames and grids. Layers, groups, align and distribute, snapping guides, crop, rotate, lock, undo and keyboard shortcuts."
+      },
+      "f3": {
+        "t": "Several pages",
+        "d": "A deck or a carousel in one design. Reorder pages, duplicate them and present them full screen."
+      },
+      "f4": {
+        "t": "Brand kit",
+        "d": "Logos, colors and fonts for the whole workspace. Admins set them up and everyone applies them from the editor in one click."
+      },
+      "f5": {
+        "t": "Download in the browser",
+        "d": "PNG, transparent PNG, JPG and multi-page PDF at 1x, 2x or 3x. Nothing goes through a server to export."
+      },
+      "f6": {
+        "t": "Share and comment",
+        "d": "View or edit for the workspace or specific people, a public link you can turn off, comments pinned on the canvas and who has it open."
+      },
+      "steps": {
+        "s1": {
+          "t": "Pick a size",
+          "d": "A preset size, a custom one or a template."
+        },
+        "s2": {
+          "t": "Make it yours",
+          "d": "Change the text, add images and apply your brand colors and fonts."
+        },
+        "s3": {
+          "t": "Download or share",
+          "d": "PNG, JPG or PDF, or a link for your team to comment."
+        }
+      },
+      "compare": {
+        "rival": "Canva",
+        "price": "$250",
+        "per": "/ person / year",
+        "team": "$2,500",
+        "zero": "$0",
+        "note": "Canva Business costs $250 per person per year billed yearly ($25 per month billed monthly). A team of ten pays $2,500 a year. Prices checked on October 29, 2026 through public price trackers, since canva.com/pricing did not load from our checker. Design costs $0 on your server plus image storage."
+      },
+      "faq": {
+        "f1": {
+          "q": "Can I bring my Canva designs?",
+          "a": "There is no importer. Download the Canva design as PNG and use it as an image or a page background."
+        },
+        "f2": {
+          "q": "Where are my images stored?",
+          "a": "In your server file storage (Vercel Blob or a local folder) or in zerosoft Cloud. Uploads go through the same type and size checks as the rest of the suite, up to 4 MB per image (large photos are reduced in the browser)."
+        },
+        "f3": {
+          "q": "Who can see a design?",
+          "a": "Only you until you share it. You can give view or edit access to the whole workspace or to specific people, and turn on a view-only public link that you can turn off at any time."
+        },
+        "f4": {
+          "q": "Does it have AI?",
+          "a": "It writes and rewrites text if AI is configured on your server or you use zerosoft Cloud. It does not remove backgrounds or generate images yet."
+        },
+        "f5": {
+          "q": "What is missing compared to Canva?",
+          "a": "Stock photos and graphics, background removal and image generation, video and animation, charts and tables, text effects, uploading your own fonts, SVG export, print-ready PDF, version history and the mobile apps. The parity table above has the full list."
+        }
+      },
+      "cta": {
+        "title1": "Pick a size.",
+        "title2": "Download it.",
+        "sub": "Open Design, choose a template and make your first design.",
+        "button": "Open Design"
+      }
     }
   },
   "product": {
@@ -1458,7 +1543,7 @@
     "apiDocs": "API docs",
     "howTitle": "How it works.",
     "suiteTitle": "One workspace.",
-    "suiteTitleDim": "Fifteen apps, same login.",
+    "suiteTitleDim": "Seventeen apps, same login.",
     "shotTitle": "{name}, inside.",
     "crumbs": "Breadcrumb",
     "navLabel": "{name} sections",
@@ -1838,6 +1923,19 @@
       "i2": "Canvas tote × 2",
       "total": "Total $84.00 · discount WELCOME10",
       "action": "Fulfill with tracking"
+    },
+    "design": {
+      "title": "Spring launch",
+      "size": "Instagram post · 1080 × 1080",
+      "templates": "Templates",
+      "t1": "Announcement",
+      "t2": "Event",
+      "t3": "Quote",
+      "posterTitle": "Spring",
+      "posterTitle2": "launch",
+      "posterSub": "New collection, March 21",
+      "posterCta": "Shop now",
+      "pages": "Page 1 of 3"
     }
   },
   "status": {
@@ -2624,12 +2722,19 @@
     "paramInvoiceId": "Payment or invoice id, so the same sale never counts twice.",
     "paramPlatform": "ios or android.",
     "paramDeferredDomain": "Hostname of your custom domain, to only match links of that domain.",
-    "paramDeepLink": "Short link the app was opened with (universal link or app link), if any."
+    "paramDeepLink": "Short link the app was opened with (universal link or app link), if any.",
+    "designApiTitle": "Design",
+    "designApiDesc": "Read the designs the key’s person can see: names, sizes, pages and, with id, the full JSON of the pages.",
+    "designListTitle": "List or read designs",
+    "designListDesc": "Without id, the designs the person can see (most recent first). With id, that design with its pages in JSON.",
+    "paramDesignView": "recent (default), mine, shared, starred or templates",
+    "paramDesignId": "A design id: returns that design with its pages",
+    "scope_design_read": "Read Design designs and their pages."
   },
   "parityOverview": {
     "title": "Feature parity, app by app.",
     "titleDim": "Measured against each competitor.",
-    "lead": "Average parity across the 15 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
+    "lead": "Average parity across the 17 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
     "col": {
       "app": "App",
       "competitor": "Compared with",

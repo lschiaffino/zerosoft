@@ -5,8 +5,8 @@ import { del, put } from '@vercel/blob';
 
 /**
  * Almacenamiento de archivos subidos (adjuntos de Chat, Track, tareas del CRM,
- * bloques de imagen/archivo de Docs y Notes, imágenes de Board, media del CRM
- * y archivos de Robots).
+ * bloques de imagen/archivo de Docs y Notes, imágenes de Board y de Design,
+ * media del CRM y archivos de Robots).
  * - Con BLOB_READ_WRITE_TOKEN → Vercel Blob (lo que usa producción).
  * - Sin token y fuera de Vercel → disco local en UPLOADS_DIR (por defecto
  *   data/uploads), fuera de public/: nada se sirve como archivo estático.
@@ -23,8 +23,8 @@ import { del, put } from '@vercel/blob';
 
 export const MAX_UPLOAD_SIZE = 10 * 1024 * 1024; // 10 MB
 
-export type UploadFolder = 'chat' | 'track' | 'tasks' | 'robots' | 'docs' | 'boards' | 'crm' | 'rec' | 'workspace' | 'shop';
-const FOLDERS = new Set<string>(['chat', 'track', 'tasks', 'robots', 'docs', 'boards', 'crm', 'rec', 'workspace', 'shop']);
+export type UploadFolder = 'chat' | 'track' | 'tasks' | 'robots' | 'docs' | 'boards' | 'crm' | 'rec' | 'workspace' | 'design' | 'shop';
+const FOLDERS = new Set<string>(['chat', 'track', 'tasks', 'robots', 'docs', 'boards', 'crm', 'rec', 'workspace', 'design', 'shop']);
 
 /** Extensión permitida → tipo con el que se guarda (y se sirve, si es de los que se muestran). */
 const ALLOWED: Record<string, string> = {

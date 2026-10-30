@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "Produtos",
-      "description": "Quinze apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk e Rec. Open source para o seu servidor, ou no zerosoft Cloud com plano grátis e pagamento por uso."
+      "description": "Dezessete apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec e Design. Open source para o seu servidor, ou no zerosoft Cloud com plano grátis e pagamento por uso."
     },
     "hero": {
-      "title1": "Quinze apps.",
+      "title1": "Dezessete apps.",
       "title2": "Um só workspace.",
       "sub": "Para a sua empresa: CRM, suporte, agentes de IA, automações, robôs, projetos e links. Para você: docs, notas, agenda e quadro branco. O core de cada um é open source e roda no seu servidor por $0."
     },
     "cta": {
-      "title1": "Teste os quinze apps.",
+      "title1": "Teste os dezessete apps.",
       "title2": "Com uma só conta.",
       "sub": "Entre com o Google, crie um workspace e comece no plano grátis. Se depois preferir o seu servidor, o código está no GitHub.",
       "button": "Abrir o app"
@@ -1443,6 +1443,91 @@
         "sub": "Abra o Shop, cadastre seu primeiro produto e publique sua loja.",
         "button": "Abrir Shop"
       }
+    },
+    "design": {
+      "meta": {
+        "title": "Design: design gráfico open source",
+        "description": "Crie posts, apresentações, documentos e logos a partir de modelos, com o kit da sua marca, comentários e download em PNG, JPG e PDF. Uma alternativa open source ao Canva."
+      },
+      "hero": {
+        "sub": "Escolha um tamanho ou um modelo, troque o texto, coloque suas imagens e as cores da sua marca e baixe em PNG, JPG ou PDF. Sua equipe comenta direto na tela."
+      },
+      "featuresTitle": "Escolha um tamanho.",
+      "featuresTitleDim": "Comece por um modelo.",
+      "f1": {
+        "t": "Tamanhos e modelos",
+        "d": "Post e story do Instagram, LinkedIn, A4, apresentação 16:9, logo ou qualquer tamanho até 8000 px. 20 modelos para começar, e qualquer design vira modelo do workspace."
+      },
+      "f2": {
+        "t": "Um editor de verdade",
+        "d": "Texto com 12 fontes, formas, linhas, ícones, molduras e grades. Camadas, grupos, alinhar e distribuir, guias de alinhamento, recortar, girar, bloquear, desfazer e atalhos de teclado."
+      },
+      "f3": {
+        "t": "Várias páginas",
+        "d": "Uma apresentação ou um carrossel num design só. Reordene páginas, duplique e apresente em tela cheia."
+      },
+      "f4": {
+        "t": "Kit de marca",
+        "d": "Logos, cores e fontes para todo o workspace. Os admins configuram e qualquer pessoa aplica no editor com um clique."
+      },
+      "f5": {
+        "t": "Download no navegador",
+        "d": "PNG, PNG transparente, JPG e PDF de várias páginas em 1x, 2x ou 3x. Para exportar nada passa por um servidor."
+      },
+      "f6": {
+        "t": "Compartilhar e comentar",
+        "d": "Ver ou editar para o workspace ou para pessoas específicas, um link público que você pode desligar, comentários fixados na tela e quem está com ele aberto."
+      },
+      "steps": {
+        "s1": {
+          "t": "Escolha um tamanho",
+          "d": "Um pronto, um personalizado ou um modelo."
+        },
+        "s2": {
+          "t": "Deixe com a sua cara",
+          "d": "Troque o texto, coloque imagens e aplique as cores e fontes da sua marca."
+        },
+        "s3": {
+          "t": "Baixe ou compartilhe",
+          "d": "PNG, JPG ou PDF, ou um link para sua equipe comentar."
+        }
+      },
+      "compare": {
+        "rival": "Canva",
+        "price": "$250",
+        "per": "/ pessoa / ano",
+        "team": "$2.500",
+        "zero": "$0",
+        "note": "O Canva Business custa $250 por pessoa por ano com cobrança anual ($25 por mês com cobrança mensal). Uma equipe de dez paga $2.500 por ano. Preços conferidos em 29 de outubro de 2026 em sites públicos que acompanham preços, porque canva.com/pricing não carregou no nosso verificador. O Design no seu servidor custa $0 mais o armazenamento das imagens."
+      },
+      "faq": {
+        "f1": {
+          "q": "Posso trazer meus designs do Canva?",
+          "a": "Não há importador. Baixe o design do Canva em PNG e use como imagem ou como fundo de uma página."
+        },
+        "f2": {
+          "q": "Onde ficam minhas imagens?",
+          "a": "No armazenamento de arquivos do seu servidor (Vercel Blob ou uma pasta local) ou no zerosoft Cloud. Os envios passam pelas mesmas verificações de tipo e tamanho do resto da suíte, até 4 MB por imagem (fotos grandes são reduzidas no navegador)."
+        },
+        "f3": {
+          "q": "Quem pode ver um design?",
+          "a": "Só você até compartilhar. Você pode dar acesso de ver ou editar para todo o workspace ou para pessoas específicas, e ligar um link público só de visualização que se desliga quando quiser."
+        },
+        "f4": {
+          "q": "Tem IA?",
+          "a": "Escreve e reescreve textos se a IA estiver configurada no seu servidor ou se você usa o zerosoft Cloud. Ainda não remove fundos nem gera imagens."
+        },
+        "f5": {
+          "q": "O que falta comparado ao Canva?",
+          "a": "Fotos e gráficos de banco, remover fundos e gerar imagens, vídeo e animação, gráficos e tabelas, efeitos de texto, enviar fontes próprias, exportar em SVG, PDF pronto para gráfica, histórico de versões e os apps para celular. A tabela de paridade acima tem a lista completa."
+        }
+      },
+      "cta": {
+        "title1": "Escolha um tamanho.",
+        "title2": "Baixe.",
+        "sub": "Abra o Design, escolha um modelo e crie seu primeiro design.",
+        "button": "Abrir Design"
+      }
     }
   },
   "product": {
@@ -1458,7 +1543,7 @@
     "apiDocs": "Docs da API",
     "howTitle": "Como funciona.",
     "suiteTitle": "Um workspace.",
-    "suiteTitleDim": "Quinze apps, o mesmo login.",
+    "suiteTitleDim": "Dezessete apps, o mesmo login.",
     "shotTitle": "{name}, por dentro.",
     "crumbs": "Localização",
     "navLabel": "Seções do {name}",
@@ -1838,6 +1923,19 @@
       "i2": "Bolsa de lona × 2",
       "total": "Total R$ 184,00 · cupom BEMVINDO10",
       "action": "Enviar com rastreio"
+    },
+    "design": {
+      "title": "Lançamento de primavera",
+      "size": "Post do Instagram · 1080 × 1080",
+      "templates": "Modelos",
+      "t1": "Anúncio",
+      "t2": "Evento",
+      "t3": "Frase",
+      "posterTitle": "Nova",
+      "posterTitle2": "estação",
+      "posterSub": "Coleção nova, 21 de março",
+      "posterCta": "Comprar",
+      "pages": "Página 1 de 3"
     }
   },
   "status": {
@@ -2624,12 +2722,19 @@
     "paramInvoiceId": "Id do pagamento ou da fatura, para a mesma venda nunca contar duas vezes.",
     "paramPlatform": "ios ou android.",
     "paramDeferredDomain": "Hostname do seu domínio próprio, para buscar só links desse domínio.",
-    "paramDeepLink": "Link curto com que o app foi aberto (universal link ou app link), se houver."
+    "paramDeepLink": "Link curto com que o app foi aberto (universal link ou app link), se houver.",
+    "designApiTitle": "Design",
+    "designApiDesc": "Leia os designs que a pessoa da chave vê: nomes, tamanhos, páginas e, com id, o JSON completo das páginas.",
+    "designListTitle": "Listar ou ler designs",
+    "designListDesc": "Sem id, os designs que a pessoa vê (os mais recentes primeiro). Com id, esse design com suas páginas em JSON.",
+    "paramDesignView": "recent (padrão), mine, shared, starred ou templates",
+    "paramDesignId": "Id de um design: devolve esse design com suas páginas",
+    "scope_design_read": "Ler designs do Design e suas páginas."
   },
   "parityOverview": {
     "title": "Paridade de funções, app por app.",
     "titleDim": "Medida contra cada concorrente.",
-    "lead": "Paridade média dos 15 apps: {average}%. Comparamos {counted} capacidades da ferramenta que cada app substitui.",
+    "lead": "Paridade média dos 17 apps: {average}%. Comparamos {counted} capacidades da ferramenta que cada app substitui.",
     "col": {
       "app": "App",
       "competitor": "Comparado com",

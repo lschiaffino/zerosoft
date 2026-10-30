@@ -17,6 +17,7 @@ export const PRODUCT_KEYS = [
   'voice',
   'rec',
   'talk',
+  'design',
   'shop',
   'platform',
   'site',
@@ -46,6 +47,7 @@ export const PRODUCT_COLOR: Record<ProductKey, string> = {
   voice: 'var(--c-voice)',
   rec: 'var(--c-rec)',
   talk: 'var(--c-talk)',
+  design: 'var(--c-design)',
   shop: 'var(--c-shop)',
   platform: 'var(--ink)',
   site: 'var(--ink)',
@@ -94,6 +96,8 @@ export function productFromPath(pathname: string): ProductKey {
       return 'rec';
     case 'talk':
       return 'talk';
+    case 'design':
+      return 'design';
     case 'shop':
       return 'shop';
     default:

@@ -94,7 +94,7 @@ export async function listOpenItemsForMatching(limit = CANDIDATES_MAX): Promise<
 function classifierInstructions(): string {
   return [
     'You triage product feedback for zerosoft, an open-source suite with these products:',
-    'link (short links + link-in-bio), crm, cal (scheduling), track (issue tracking), chat (website live chat), docs (wiki/pages), flow (automations), agents (AI agents), notes, board (whiteboard), robots (browser automations), groups (WhatsApp team inbox and group management), voice (dictation and meeting notes), rec (screen and camera recording), talk (team messaging), shop (online store, orders and inventory), platform (account, billing, API, cross-app), site (the marketing website), other.',
+    'link (short links + link-in-bio), crm, cal (scheduling), track (issue tracking), chat (website live chat), docs (wiki/pages), flow (automations), agents (AI agents), notes, board (whiteboard), robots (browser automations), groups (WhatsApp team inbox and group management), voice (dictation and meeting notes), rec (screen and camera recording), talk (team messaging), shop (online store, orders and inventory), design (graphic design like Canva), platform (account, billing, API, cross-app), site (the marketing website), other.',
     '',
     'Classify the message:',
     '- kind: "bug" (something is broken or behaves wrongly), "idea" (a feature request or improvement), "question" (how-to / support question, nothing to build), "praise" (thanks / compliment), "other".',
