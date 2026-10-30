@@ -82,6 +82,8 @@ export default function ChromeGate({
     // Notas y pizarras compartidas por link (Notes /n, Board /b).
     pathname.startsWith('/n/') ||
     pathname.startsWith('/b/') ||
+    // Diseños de Design compartidos por link (/d/<token>).
+    pathname.startsWith('/d/') ||
     pathname.startsWith('/a/') ||
     // Quotes del CRM (/q/<token>): documento del cliente, sin chrome de marketing.
     pathname.startsWith('/q/') ||

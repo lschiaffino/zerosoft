@@ -6,7 +6,7 @@ import { expect, test } from '@playwright/test';
  * link al board. Y el porcentaje al lado de cada app en /products.
  */
 
-const PRODUCTS = ['crm', 'chat', 'groups', 'agents', 'flow', 'robots', 'track', 'link', 'docs', 'notes', 'cal', 'board', 'voice', 'rec', 'talk', 'analytics'];
+const PRODUCTS = ['crm', 'chat', 'groups', 'agents', 'flow', 'robots', 'track', 'link', 'docs', 'notes', 'cal', 'board', 'voice', 'rec', 'talk', 'design', 'analytics'];
 
 for (const product of PRODUCTS) {
   test(`paridad en /es/products/${product}`, async ({ page }) => {
@@ -49,7 +49,7 @@ for (const path of ['/es', '/es/products']) {
     const table = page.locator('#paridad .parity-overview-table');
     await expect(table.locator('tbody tr')).toHaveCount(PRODUCTS.length);
     await expect(table.locator('.po-percent').first()).toHaveText(/^\d{1,3}%$/);
-    await expect(page.locator('#paridad .parity-overview-lead')).toContainText('16 apps');
+    await expect(page.locator('#paridad .parity-overview-lead')).toContainText('17 apps');
     await table.locator('a.po-app', { hasText: 'Groups' }).click();
     await expect(page).toHaveURL(/\/es\/products\/groups#parity$/);
   });
@@ -73,6 +73,14 @@ test('/es/products/voice es una app real', async ({ page }) => {
   await expect(page.locator('#parity .parity-num .data')).not.toHaveText('0%');
   await expect(page.locator('.pd-actions .btn-primary')).toHaveAttribute('href', /\/app\/voice/);
   await expect(page.locator('main')).toContainText('Está en camino');
+});
+
+// Design (como Canva) sale como app real: la landing lleva a la app.
+test('/es/products/design es un producto real', async ({ page }) => {
+  await page.goto('/es/products/design');
+  await expect(page.locator('.pd-building')).toHaveCount(0);
+  await expect(page.locator('#parity .parity-num .data')).not.toHaveText('0%');
+  await expect(page.locator('.pd-actions .btn-primary')).toHaveAttribute('href', '/es/app/design');
 });
 
 // Rec ya salió (tanda 4c): la landing lleva a la app y la paridad deja de ser 0 %.

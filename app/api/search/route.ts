@@ -25,6 +25,8 @@ import { listObjects, searchRecords } from '@/lib/crm-objects';
 import { searchCustomReports } from '@/lib/crm-custom-reports';
 import { searchMedia } from '@/lib/crm-media';
 import { searchRec } from '@/lib/rec';
+import { searchDesigns } from '@/lib/design';
+import { designActorOf } from '@/lib/design-http';
 import { actorOf } from '@/lib/rec-http';
 import { searchPlanning } from '@/lib/track-planning-search';
 import { listConversations } from '@/lib/assistant/store';
@@ -53,7 +55,7 @@ export async function GET(req: NextRequest) {
   if (!q) return NextResponse.json<SearchResponse>({ q, items: [] });
 
   const scope = await sessionScope(user);
-  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec] = await Promise.all([
+  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec, designs] = await Promise.all([
     searchAll(user.id, q, scope),
     listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
     // Docs: título y texto de los bloques (el fragmento va como meta).
@@ -81,6 +83,8 @@ export async function GET(req: NextRequest) {
     searchPlanning({ teamId: user.team?.id ?? null, ownerId: user.id }, user.actingUser?.id ?? user.id, q).catch(() => []),
     // Rec: videos y carpetas, con el alcance de la biblioteca (míos y del workspace).
     searchRec(actorOf(user), q).catch(() => []),
+    // Design: diseños (nombre y texto) y carpetas propias, con el alcance de la lista.
+    searchDesigns(designActorOf(user), q).catch(() => []),
   ]);
 
   const items: SearchResultItem[] = [];
@@ -158,6 +162,16 @@ export async function GET(req: NextRequest) {
       label: r.label,
       meta: r.meta,
       href: r.kind === 'video' ? `/app/rec/${r.id}` : `/app/rec/f/${r.id}`,
+    });
+  }
+
+  for (const d of designs) {
+    items.push({
+      id: d.id,
+      group: d.kind === 'design' ? 'designs' : 'designFolders',
+      label: d.label,
+      meta: d.meta,
+      href: d.kind === 'design' ? `/app/design/${d.id}` : `/app/design?folder=${encodeURIComponent(d.id)}`,
     });
   }
 

@@ -31,6 +31,7 @@ import BoardMockup from './mockups/BoardMockup';
 import VoiceMockup from './mockups/VoiceMockup';
 import RecMockup from './mockups/RecMockup';
 import TalkMockup from './mockups/TalkMockup';
+import DesignMockup from './mockups/DesignMockup';
 import AnalyticsMockup from './mockups/AnalyticsMockup';
 
 const MOCKUPS: Record<ProductKey, ComponentType> = {
@@ -49,6 +50,7 @@ const MOCKUPS: Record<ProductKey, ComponentType> = {
   voice: VoiceMockup,
   rec: RecMockup,
   talk: TalkMockup,
+  design: DesignMockup,
   analytics: AnalyticsMockup,
 };
 

@@ -168,6 +168,8 @@ export interface SidebarLabels {
   voice: { meetings: string; dictation: string; newMeeting: string };
   /** Rec: Mis videos (con las carpetas colgando), Workspace y grabar. */
   rec: { home: string; workspace: string; newVideo: string };
+  /** Design: inicio (con carpetas y diseños colgando), plantillas y kit de marca. */
+  design: { home: string; templates: string; brand: string; newDesign: string };
   /** Apps en construcción (Talk ya no; queda el shell genérico): por ahora solo su inicio. */
   talk: { home: string };
   /** Analytics (PostHog): web, eventos, insights, tableros, personas, cohortes, flags y SQL. */
@@ -235,6 +237,7 @@ export type AppProduct =
   | 'voice'
   | 'rec'
   | 'talk'
+  | 'design'
   | 'analytics';
 
 const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
@@ -252,6 +255,7 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/voice', 'voice'],
   ['/app/rec', 'rec'],
   ['/app/talk', 'talk'],
+  ['/app/design', 'design'],
   ['/app/analytics', 'analytics'],
 ];
 
@@ -291,6 +295,7 @@ const APP_ICONS: Record<ProductKey, IconName> = {
   voice: 'voice',
   rec: 'rec',
   talk: 'talk',
+  design: 'design',
   analytics: 'analytics',
 };
 
@@ -698,6 +703,24 @@ export function buildNav(
         appSettingsGroup('/app/rec/settings'),
       ];
 
+    case 'design':
+      return [
+        {
+          items: [
+            {
+              href: '/app/design',
+              label: labels.design.home,
+              active: at('/app/design') && !at('/app/design/templates') && !at('/app/design/brand') && !at('/app/design/settings'),
+              icon: 'design',
+              // Carpetas y diseños recientes (DesignBranch en el hueco #side-branch).
+              branch: true,
+            },
+            { href: '/app/design/templates', label: labels.design.templates, active: at('/app/design/templates'), icon: 'templates' },
+            { href: '/app/design/brand', label: labels.design.brand, active: at('/app/design/brand'), icon: 'palette' },
+          ],
+        },
+        appSettingsGroup('/app/design/settings'),
+      ];
     case 'analytics': {
       const a = labels.analytics;
       return [
@@ -832,6 +855,8 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
       return [item('/app/board?new=1', labels.board.newBoard, 'board')];
     case 'rec':
       return [item('/app/rec/new', labels.rec.newVideo, 'rec')];
+    case 'design':
+      return [item('/app/design?new=1', labels.design.newDesign, 'design')];
     case 'agents':
       return [item('/app/agents?new=1', labels.newAgent, 'agents')];
     case 'robots':

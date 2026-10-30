@@ -41,6 +41,9 @@ export interface NotificationTextLabels {
   /** Avisos agrupados: "{count} comentarios nuevos en {title}". */
   recComments?: string;
   recReaction?: string;
+  /** Design: "{actor} comentó en {title}", "{actor} compartió {title} con vos". */
+  designComment?: string;
+  designShare?: string;
 }
 
 export interface NotificationLike {
@@ -133,6 +136,12 @@ export function notificationTitle(n: NotificationLike, L: NotificationTextLabels
     if (n.type === 'rec_view' && L.recView) return fill(L.recView, vars);
     if (n.type === 'rec_comment' && meta.emoji && L.recReaction) return fill(L.recReaction, vars);
     if (n.type === 'rec_comment' && L.recComment) return fill(L.recComment, vars);
+  }
+
+  if (source === 'design') {
+    const vars = { actor, title: String(meta.title || L.untitled) };
+    if (n.type === 'design_comment' && L.designComment) return fill(L.designComment, vars);
+    if (n.type === 'design_share' && L.designShare) return fill(L.designShare, vars);
   }
 
   return n.title;

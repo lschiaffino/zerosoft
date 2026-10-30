@@ -246,6 +246,16 @@ test('oscuro y 390px: web analytics y el editor sin scroll horizontal', async ({
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
+test('inicio a 900 px: las 17 apps del sidebar entran sin scroll', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/en/app', { waitUntil: 'networkidle' });
+  const line = page.locator('nav.side-line');
+  await expect(line.locator('a[href$="/app/analytics"]')).toBeVisible();
+  const { scroll, client } = await line.evaluate((el) => ({ scroll: el.scrollHeight, client: el.clientHeight }));
+  await shot(page, 'home-sidebar-900');
+  expect(scroll, `side-line scrollHeight ${scroll} > clientHeight ${client}`).toBeLessThanOrEqual(client + 1);
+});
+
 test('acceso por app: una persona sin Analytics no ve páginas, APIs ni búsqueda', async ({ browser, baseURL, request }) => {
   test.setTimeout(90_000);
   // Algo con nombre buscable en el workspace demo.

@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "Productos",
-      "description": "Dieciséis apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec y Analytics. Open source para tu servidor, o en zerosoft Cloud con plan gratis y pago por uso."
+      "description": "Diecisiete apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design y Analytics. Open source para tu servidor, o en zerosoft Cloud con plan gratis y pago por uso."
     },
     "hero": {
-      "title1": "Dieciséis apps.",
+      "title1": "Diecisiete apps.",
       "title2": "Un solo workspace.",
       "sub": "Para tu empresa: CRM, soporte, agentes de IA, automatizaciones, robots, proyectos y links. Para vos: docs, notas, agenda y pizarra. El core de cada una es open source y corre en tu servidor por $0."
     },
     "cta": {
-      "title1": "Probá las dieciséis apps.",
+      "title1": "Probá las diecisiete apps.",
       "title2": "Con una sola cuenta.",
       "sub": "Entrá con Google, creá un workspace y empezá con el plan gratis. Si después preferís tu servidor, el código está en GitHub.",
       "button": "Abrir la app"
@@ -1358,6 +1358,91 @@
         "button": "Proponer una idea"
       }
     },
+    "design": {
+      "meta": {
+        "title": "Design: diseño gráfico open source",
+        "description": "Hacé posts, presentaciones, documentos y logos desde plantillas, con tu kit de marca, comentarios y descarga en PNG, JPG y PDF. Una alternativa open source a Canva."
+      },
+      "hero": {
+        "sub": "Elegí un tamaño o una plantilla, cambiá el texto, sumá tus imágenes y los colores de tu marca, y descargalo en PNG, JPG o PDF. Tu equipo comenta directo sobre el lienzo."
+      },
+      "featuresTitle": "Elegí un tamaño.",
+      "featuresTitleDim": "Arrancá de una plantilla.",
+      "f1": {
+        "t": "Tamaños y plantillas",
+        "d": "Post e historia de Instagram, LinkedIn, A4, presentación 16:9, logo o cualquier tamaño de hasta 8000 px. 20 plantillas para arrancar, y cualquier diseño se puede guardar como plantilla del workspace."
+      },
+      "f2": {
+        "t": "Un editor de verdad",
+        "d": "Texto con 12 fuentes, formas, líneas, íconos, marcos y cuadrículas. Capas, grupos, alinear y distribuir, guías de alineación, recortar, rotar, bloquear, deshacer y atajos de teclado."
+      },
+      "f3": {
+        "t": "Varias páginas",
+        "d": "Una presentación o un carrusel en un solo diseño. Reordená páginas, duplicalas y presentalas a pantalla completa."
+      },
+      "f4": {
+        "t": "Kit de marca",
+        "d": "Logos, colores y fuentes para todo el workspace. Los admins los cargan y cualquiera los aplica desde el editor con un clic."
+      },
+      "f5": {
+        "t": "Descarga en el navegador",
+        "d": "PNG, PNG transparente, JPG y PDF de varias páginas en 1x, 2x o 3x. Para exportar no pasa nada por un servidor."
+      },
+      "f6": {
+        "t": "Compartir y comentar",
+        "d": "Ver o editar para el workspace o para personas puntuales, un link público que podés cortar, comentarios fijados en el lienzo y quién lo tiene abierto."
+      },
+      "steps": {
+        "s1": {
+          "t": "Elegí un tamaño",
+          "d": "Uno listo, uno a medida o una plantilla."
+        },
+        "s2": {
+          "t": "Hacelo tuyo",
+          "d": "Cambiá el texto, sumá imágenes y aplicá los colores y las fuentes de tu marca."
+        },
+        "s3": {
+          "t": "Descargalo o compartilo",
+          "d": "PNG, JPG o PDF, o un link para que tu equipo comente."
+        }
+      },
+      "compare": {
+        "rival": "Canva",
+        "price": "$250",
+        "per": "/ persona / año",
+        "team": "$2.500",
+        "zero": "$0",
+        "note": "Canva Business cuesta $250 por persona por año con facturación anual ($25 por mes con facturación mensual). Un equipo de diez paga $2.500 al año. Precios revisados el 29 de octubre de 2026 en sitios públicos que siguen precios, porque canva.com/pricing no cargó desde nuestro verificador. Design en tu servidor cuesta $0 más el almacenamiento de imágenes."
+      },
+      "faq": {
+        "f1": {
+          "q": "¿Puedo traer mis diseños de Canva?",
+          "a": "No hay importador. Descargá el diseño de Canva en PNG y usalo como imagen o como fondo de una página."
+        },
+        "f2": {
+          "q": "¿Dónde se guardan mis imágenes?",
+          "a": "En el almacenamiento de archivos de tu servidor (Vercel Blob o una carpeta local) o en zerosoft Cloud. Las subidas pasan por los mismos controles de tipo y tamaño que el resto de la suite, hasta 4 MB por imagen (las fotos grandes se achican en el navegador)."
+        },
+        "f3": {
+          "q": "¿Quién puede ver un diseño?",
+          "a": "Solo vos hasta que lo compartas. Podés dar acceso de ver o editar a todo el workspace o a personas puntuales, y prender un link público de solo lectura que se apaga cuando quieras."
+        },
+        "f4": {
+          "q": "¿Tiene IA?",
+          "a": "Escribe y reescribe textos si la IA está configurada en tu servidor o usás zerosoft Cloud. Todavía no quita fondos ni genera imágenes."
+        },
+        "f5": {
+          "q": "¿Qué le falta comparado con Canva?",
+          "a": "Fotos y gráficos de stock, quitar fondos y generar imágenes, video y animación, gráficos y tablas, efectos de texto, subir fuentes propias, exportar a SVG, PDF listo para imprenta, historial de versiones y las apps para el celular. La tabla de paridad de arriba tiene la lista completa."
+        }
+      },
+      "cta": {
+        "title1": "Elegí un tamaño.",
+        "title2": "Descargalo.",
+        "sub": "Abrí Design, elegí una plantilla y hacé tu primer diseño.",
+        "button": "Abrir Design"
+      }
+    },
     "analytics": {
       "meta": {
         "title": "Analytics: analítica de producto de código abierto",
@@ -1458,7 +1543,7 @@
     "apiDocs": "Docs de la API",
     "howTitle": "Cómo se usa.",
     "suiteTitle": "Un workspace.",
-    "suiteTitleDim": "Dieciséis apps, el mismo login.",
+    "suiteTitleDim": "Diecisiete apps, el mismo login.",
     "shotTitle": "{name}, por dentro.",
     "crumbs": "Ubicación",
     "navLabel": "Secciones de {name}",
@@ -1821,6 +1906,19 @@
       "m2": "Lucía: lo subí a Docs, está en la carpeta de ventas.",
       "m3": "¡Gracias! Lo reviso ahora.",
       "replyHint": "Escribí en #general"
+    },
+    "design": {
+      "title": "Lanzamiento de primavera",
+      "size": "Post de Instagram · 1080 × 1080",
+      "templates": "Plantillas",
+      "t1": "Anuncio",
+      "t2": "Evento",
+      "t3": "Frase",
+      "posterTitle": "Nueva",
+      "posterTitle2": "temporada",
+      "posterSub": "Colección nueva, 21 de marzo",
+      "posterCta": "Comprar",
+      "pages": "Página 1 de 3"
     },
     "analytics": {
       "navWeb": "Analítica web",
@@ -2616,6 +2714,13 @@
     "paramPlatform": "ios o android.",
     "paramDeferredDomain": "Hostname de tu dominio propio, para buscar solo links de ese dominio.",
     "paramDeepLink": "Link corto con el que se abrió la app (universal link o app link), si lo hay.",
+    "designApiTitle": "Design",
+    "designApiDesc": "Leé los diseños que ve la persona de la key: nombres, tamaños, páginas y, con id, el JSON completo de las páginas.",
+    "designListTitle": "Listar o leer diseños",
+    "designListDesc": "Sin id, los diseños que ve la persona (los más recientes primero). Con id, ese diseño con sus páginas en JSON.",
+    "paramDesignView": "recent (por defecto), mine, shared, starred o templates",
+    "paramDesignId": "Id de un diseño: devuelve ese diseño con sus páginas",
+    "scope_design_read": "Leer diseños de Design y sus páginas.",
     "analyticsApiTitle": "Analytics",
     "analyticsApiDesc": "Analítica de producto. Los endpoints de ingesta (/api/ingest/*) usan la key del proyecto, no una API key: la pública (zsp_…) en el cuerpo desde el navegador, o la key secreta del proyecto como Bearer zss_… desde un servidor. Las consultas aceptan una sesión iniciada o una API key con analytics:read.",
     "analyticsCaptureTitle": "Capturar eventos",
@@ -2646,7 +2751,7 @@
   "parityOverview": {
     "title": "Paridad de funciones, app por app.",
     "titleDim": "Medida contra cada competidor.",
-    "lead": "Paridad promedio de las 16 apps: {average}%. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
+    "lead": "Paridad promedio de las 17 apps: {average}%. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
     "col": {
       "app": "App",
       "competitor": "Comparada con",

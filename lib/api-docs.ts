@@ -68,6 +68,7 @@ export const API_SECTIONS: ApiSection[] = [
   { id: 'docs', titleKey: 'docsApiTitle', descKey: 'docsApiDesc' },
   { id: 'talk', titleKey: 'talkTitle', descKey: 'talkDesc' },
   { id: 'boards', titleKey: 'boardsApiTitle', descKey: 'boardsApiDesc' },
+  { id: 'design', titleKey: 'designApiTitle', descKey: 'designApiDesc' },
   { id: 'analytics', titleKey: 'analyticsApiTitle', descKey: 'analyticsApiDesc' },
   { id: 'webhooks', titleKey: 'webhooksTitle', descKey: 'webhooksDesc' },
 ];
@@ -3166,6 +3167,25 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     response: { jsonrpc: '2.0', id: 1, result: { content: [{ type: 'text', text: '{"version":13,"added":[...]}' }], isError: false } },
     responseStatus: 200,
   },
+
+  // Design (diseños como Canva): solo lectura.
+  {
+    id: 'design-list',
+    sectionId: 'design',
+    method: 'GET',
+    path: '/api/v1/design',
+    titleKey: 'designListTitle',
+    descKey: 'designListDesc',
+    params: [
+      { name: 'q', type: 'string', descriptionKey: 'paramSearch' },
+      { name: 'view', type: 'string', descriptionKey: 'paramDesignView' },
+      { name: 'id', type: 'string', descriptionKey: 'paramDesignId' },
+    ],
+    response: {
+      data: [{ id: 'd_1', name: 'Summer sale', width: 1080, height: 1080, pages: 1, owner: 'Ana', access: 'owner', starred: false, template: false, updated_at: '2026-10-29T12:00:00.000Z', url: 'https://zerosoft.ai/en/app/design/d_1' }],
+    },
+    responseStatus: 200,
+  },
 ];
 
 /** Qué permite cada scope de API key (se muestra en la doc y en la UI de keys). */
@@ -3182,7 +3202,7 @@ export const API_SCOPE_DOCS: Array<{ scope: ApiScope; descKey: string }> = API_S
 export function endpointScope(e: Pick<ApiEndpoint, 'path' | 'method' | 'scope'> & { public?: boolean }): ApiScope | null {
   if (e.public) return null;
   if (e.scope) return e.scope;
-  const m = /^\/api\/v1\/(crm|links|calendar|agents|robots|chat|groups|track|docs|talk|voice|boards)\b/.exec(e.path);
+  const m = /^\/api\/v1\/(crm|links|calendar|agents|robots|chat|groups|track|docs|talk|voice|boards|design)\b/.exec(e.path);
   if (!m) return null;
   if (m[1] === 'agents') return 'agents:run';
   if (m[1] === 'robots') return 'robots:run';

@@ -22,6 +22,7 @@ import DocsGlyph from './DocsGlyphs';
 import EmojiPicker from './EmojiPicker';
 import DocsDatabaseBlock, { type DbHooks } from './DocsDatabaseBlock';
 import { DocsBoardPicker, DocsBoardPreview } from './DocsBoardEmbed';
+import { DocsDesignPicker, DocsDesignPreview } from './DocsDesignEmbed';
 import DocsMediaBlock from './DocsMediaBlock';
 import DocsLinkBlock from './DocsLinkBlocks';
 import { BreadcrumbBlock, ButtonBlock, EquationBlock, TocBlock } from './DocsAdvancedBlocks';
@@ -313,6 +314,34 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
             <DocsBoardPreview boardId={block.board_id} onChange={() => onChange(index, { board_id: undefined })} />
           ) : (
             <DocsBoardPicker autoFocus={focused} onPick={(id) => onChange(index, { board_id: id })} />
+          )}
+        </div>
+      );
+    }
+
+    if (block.type === 'design') {
+      // Diseño de Design: como la pizarra, buscador o vista previa en vivo.
+      return (
+        <div
+          ref={(node) => {
+            if (typeof ref === 'function') ref(node);
+            else if (ref) ref.current = node;
+          }}
+          className={`docs-block docs-board-block${focused ? ' focused' : ''}`}
+          data-index={index}
+          data-testid="docs-design-block"
+          tabIndex={0}
+          role="group"
+          aria-label={t('editor.design.label')}
+          onKeyDown={(e) => onKeyDown(index, e)}
+          onFocus={(e) => {
+            if (e.target === e.currentTarget) onFocus(index);
+          }}
+        >
+          {block.design_id ? (
+            <DocsDesignPreview designId={block.design_id} onChange={() => onChange(index, { design_id: undefined })} />
+          ) : (
+            <DocsDesignPicker autoFocus={focused} onPick={(id) => onChange(index, { design_id: id })} />
           )}
         </div>
       );

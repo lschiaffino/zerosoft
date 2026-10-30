@@ -247,6 +247,7 @@ const BLOCK_COMMANDS: {
   { key: 'bookmark', type: 'bookmark', group: 'media' },
   { key: 'embed', type: 'embed', group: 'media' },
   { key: 'board', type: 'board', group: 'media' },
+  { key: 'design', type: 'design', group: 'media' },
   // Tanda D4: IA, notas de reunión y bases sincronizadas (components/docs/DocsEditorPlugins.tsx).
   { key: 'ai', type: 'paragraph', special: 'ai', group: 'advanced' },
   { key: 'meeting', type: 'meeting', group: 'advanced' },
@@ -266,13 +267,13 @@ const BLOCK_COMMANDS: {
 ];
 
 /** Bloques atómicos (se enfocan enteros): archivos, links, pizarra y los avanzados. */
-const CARD_TYPES = new Set<DocsBlockType>(['board', 'bookmark', 'embed', 'equation', 'toc', 'button', 'breadcrumb', 'meeting']);
+const CARD_TYPES = new Set<DocsBlockType>(['board', 'design', 'bookmark', 'embed', 'equation', 'toc', 'button', 'breadcrumb', 'meeting']);
 function isCardBlockType(type: DocsBlockType): boolean {
   return isFileBlockType(type) || CARD_TYPES.has(type);
 }
 
 /** Bloques que se crean enteros (no se convierte un texto en ellos): van debajo con un párrafo. */
-const INSERT_TYPES = new Set<DocsBlockType>(['board', 'bookmark', 'embed', 'equation', 'toc', 'button', 'breadcrumb', 'meeting']);
+const INSERT_TYPES = new Set<DocsBlockType>(['board', 'design', 'bookmark', 'embed', 'equation', 'toc', 'button', 'breadcrumb', 'meeting']);
 
 /** "Convertir en": los bloques de archivo, link, contenedores y avanzados no salen de un texto. */
 const TURN_INTO_COMMANDS = BLOCK_COMMANDS.filter(
@@ -302,6 +303,7 @@ const COMMAND_KEYWORDS: Record<string, string[]> = {
   image: ['image', 'picture', 'photo', 'img', 'upload', 'imagen', 'foto', 'imagem'],
   file: ['file', 'attachment', 'upload', 'pdf', 'document', 'archivo', 'adjunto', 'arquivo', 'anexo'],
   board: ['board', 'whiteboard', 'canvas', 'excalidraw', 'pizarra', 'quadro', 'lousa'],
+  design: ['design', 'canva', 'graphic', 'poster', 'flyer', 'diseño', 'diseno', 'gráfico', 'arte'],
   video: ['video', 'movie', 'mp4', 'vídeo'],
   audio: ['audio', 'sound', 'music', 'mp3', 'podcast', 'sonido', 'áudio'],
   pdf: ['pdf', 'document', 'documento'],
@@ -340,6 +342,7 @@ const BLOCK_ICONS: Record<DocsBlockType, DocsGlyphName> = {
   toggle: 'toggle',
   callout: 'callout',
   board: 'board',
+  design: 'image',
   video: 'video',
   audio: 'audio',
   pdf: 'pdf',
@@ -1891,10 +1894,10 @@ export default function DocsEditor({
         return;
       }
 
-      if (cmd.type === 'board') {
+      if (cmd.type === 'board' || cmd.type === 'design') {
         // Pizarra embebida: el bloque arranca sin pizarra y muestra el
         // buscador para elegirla. Reemplaza la línea si quedó vacía.
-        const boardBlock: DocsBlock = { id: crypto.randomUUID(), type: 'board', content: '' };
+        const boardBlock: DocsBlock = { id: crypto.randomUUID(), type: cmd.type, content: '' };
         const paraBlock: DocsBlock = { id: crypto.randomUUID(), type: 'paragraph', content: '' };
         const replace = block.type === 'paragraph' && stripped === '';
         setBlocks((prev) => {
@@ -1944,7 +1947,7 @@ export default function DocsEditor({
         if (!uploadsEnabled && isFileBlockType(c.type)) return false;
         if (!allowDatabase && c.type === 'database') return false;
         // Pizarras, sincronizados, vistas vinculadas, breadcrumb y fechas con recordatorio: solo en Docs (no en Notes ni en filas).
-        if (embedded && (c.type === 'board' || c.type === 'synced' || c.linked || c.type === 'breadcrumb' || c.special === 'date' || c.special === 'reminder')) return false;
+        if (embedded && (c.type === 'board' || c.type === 'design' || c.type === 'synced' || c.linked || c.type === 'breadcrumb' || c.special === 'date' || c.special === 'reminder')) return false;
         // IA, notas de reunión y bases sincronizadas: solo en páginas de Docs.
         if (embedded && ((c.special === 'ai' && !aiUrl) || c.type === 'meeting' || c.special === 'syncedDatabase')) return false;
         return commandMatches(c.label, COMMAND_KEYWORDS[c.key] ?? [], query);
