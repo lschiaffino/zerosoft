@@ -5,6 +5,8 @@ import {
   appProductFromPath,
   buildNav,
   buildNewItems,
+  homeAppGroups,
+  HOME_APPS_LIMIT,
   settingsNavItem,
   SWITCHER_PRODUCTS,
   type AppProduct,
@@ -20,15 +22,15 @@ import { pageExists } from './page-exists';
 const root = join(__dirname, '..', '..');
 const appDir = join(root, 'app', '[locale]');
 
-const SWITCHER_ORDER: AppProduct[] = ['link', 'crm', 'shop', 'docs', 'calendar', 'track', 'chat', 'groups', 'flow', 'notes', 'board', 'design', 'talk', 'voice', 'rec', 'agents', 'robots', 'analytics'];
-const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics'];
+const SWITCHER_ORDER: AppProduct[] = ['link', 'crm', 'shop', 'docs', 'calendar', 'track', 'chat', 'groups', 'social', 'flow', 'notes', 'board', 'design', 'talk', 'voice', 'rec', 'agents', 'robots', 'analytics'];
+const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'social'];
 
 // Labels de prueba: cada hoja es su propia ruta ("crm.contacts"), así los
 // ítems sin label se notan.
 function fakeLabels(): SidebarLabels {
   const proxy = (prefix: string): unknown =>
     new Proxy({}, { get: (_t, key) => (typeof key === 'string' ? `${prefix}${key}` : undefined) });
-  const nested = ['categories', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'notifications'];
+  const nested = ['categories', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'social', 'notifications'];
   return new Proxy({} as SidebarLabels, {
     get: (_t, key) => (typeof key === 'string' && nested.includes(key) ? proxy(`${key}.`) : String(key)),
   });
@@ -54,6 +56,7 @@ describe('sidebar de la app', () => {
     expect(appProductFromPath('/app/voice')).toBe('voice');
     expect(appProductFromPath('/app/rec/settings')).toBe('rec');
     expect(appProductFromPath('/app/talk')).toBe('talk');
+    expect(appProductFromPath('/app/social/posts')).toBe('social');
     expect(appProductFromPath('/app/design/abc')).toBe('design');
     expect(appProductFromPath('/app/analytics/insights')).toBe('analytics');
     expect(appProductFromPath('/app/links/analytics')).toBe('link');
@@ -110,7 +113,7 @@ describe('sidebar de la app', () => {
     expect(readFileSync(join(appDir, 'app', 'docs', 'page.tsx'), 'utf8')).toMatch(/sp\.new === '1'/);
   });
 
-  it('el switcher sale de PRODUCT_CONFIG: las 18 apps, en el orden de siempre', () => {
+  it('el switcher sale de PRODUCT_CONFIG: las 19 apps, en el orden de siempre', () => {
     expect(SWITCHER_PRODUCTS.map((p) => p.key)).toEqual(PRODUCTS.filter((p) => p !== 'home').sort((a, b) => SWITCHER_ORDER.indexOf(a) - SWITCHER_ORDER.indexOf(b)));
     expect(SWITCHER_PRODUCTS.find((p) => p.key === 'calendar')).toMatchObject({ line: 'cal', name: 'Cal', href: '/app/calendar' });
     expect(SWITCHER_PRODUCTS[0]).toMatchObject({ key: 'link', href: '/app/links' });
@@ -212,5 +215,21 @@ describe('base compartida del rediseño', () => {
     expect(css).not.toMatch(/box-shadow:\s*\d+px\s+\d+px/);
     expect(css).not.toMatch(/border-radius:\s*([3-9]|\d{2,})px/);
     expect(css).not.toMatch(/gradient\(/);
+  });
+});
+
+describe('sidebar del inicio: tus apps y "Más apps"', () => {
+  const L = { yourApps: 'Your apps', moreApps: 'More apps' } as unknown as SidebarLabels;
+  it('arriba hasta 8 (recientes primero, después las destacadas) y el resto plegado; ninguna se pierde', () => {
+    const groups = homeAppGroups(L, { recentApps: ['robots', 'nope'], mode: 'team' });
+    expect(groups[0].section).toBe('Your apps');
+    expect(groups[0].items.length).toBe(HOME_APPS_LIMIT);
+    expect(groups[0].items[0].href).toBe('/app/robots');
+    expect(groups[1]).toMatchObject({ section: 'More apps', collapsible: true });
+    expect(groups[0].items.length + groups[1].items.length).toBe(SWITCHER_PRODUCTS.length);
+  });
+  it('respeta el acceso por app y no muestra "Más apps" vacío', () => {
+    const groups = homeAppGroups(L, { allowed: ['crm', 'social'] });
+    expect(groups.map((g) => g.items.map((i) => i.href))).toEqual([['/app/crm', '/app/social']]);
   });
 });

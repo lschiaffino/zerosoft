@@ -350,7 +350,8 @@
       "refunded": "Reembolso",
       "cancelled": "Cancelado",
       "email": "Email",
-      "stock": "Estoque"
+      "stock": "Estoque",
+      "refund_failed": "Reembolso falhou"
     },
     "customer": "Cliente",
     "customerNote": "Nota do cliente",
@@ -363,7 +364,7 @@
     "item": "Item",
     "qty": "Qtd.",
     "slipThanks": "Obrigado pela compra.",
-    "paidAfterCancel": "Este pedido foi pago depois de cancelado. Reembolse {amount} ao cliente.",
+    "paidAfterCancel": "Este pedido está cancelado, mas {amount} que foram pagos não foram reembolsados. Reembolse o cliente.",
     "restockFullOnly": "A reposição só vale para um reembolso total",
     "cancelRefund": "Reembolsar também {amount} ao cliente"
   },

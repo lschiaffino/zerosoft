@@ -490,6 +490,39 @@ describe('shop: pagos sobre pedidos cancelados (QA B2)', () => {
   });
 });
 
+describe('shop: import con tope de tiempo para fotos (seguimiento F2)', () => {
+  it('sin tiempo para fotos, crea los productos y deja las fotos pendientes para otra pasada', async () => {
+    const a = await workspace();
+    const r = await importProductsCsv(a, SHOPIFY_CSV, { imageBudgetMs: 0 });
+    expect(r).toMatchObject({ created: 2, imagesPending: 1, imagesFailed: 0 });
+  });
+});
+
+describe('shop: cancelar y reembolsar (seguimiento F1)', () => {
+  it('si el reembolso no puede salir, no se cancela; si el proveedor falla, queda cancelado con el aviso', async () => {
+    const { a, store, variantId } = await sellingStore();
+    const res = await createCheckoutOrder(store, { email: 'f1@example.com', lines: [{ variantId, quantity: 1 }], address, paymentMethod: 'stripe' }, { origin: 'http://localhost' });
+    const o = (await getOrderRow(a.ws, res.order.id))!;
+    const ev = stripeEvent(o, o.total_cents);
+    expect((await handleStripeWebhook(store.webhook_token, ev.body, ev.sig)).kind).toBe('paid');
+    // Sin el id del pago en el proveedor (y fuera del modo de prueba): no se puede reembolsar → nada cambia.
+    await getDb().prepare("UPDATE shop_orders SET payment_id = NULL, payment_ref = 'cs_real' WHERE id = ?").run(o.id);
+    await expect(cancelOrder(a, o.id, { refund: true })).rejects.toMatchObject({ code: 'refund_unavailable' });
+    expect((await getOrderRow(a.ws, o.id))!.status).toBe('paid');
+    // El proveedor rechaza el reembolso: el pedido queda cancelado, sin reembolso y con el evento para reintentar.
+    await getDb().prepare("UPDATE shop_orders SET payment_id = 'fail_refund' WHERE id = ?").run(o.id);
+    const done = await cancelOrder(a, o.id, { refund: true });
+    expect(done).toMatchObject({ status: 'cancelled', refundedCents: 0 });
+    expect(done.events?.some((e) => e.kind === 'refund_failed')).toBe(true);
+    await expect(refundOrder(a, o.id, {})).rejects.toMatchObject({ code: 'stripe_error' });
+    expect((await getOrderRow(a.ws, o.id))!.refunded_cents).toBe(0);
+    // Reintento cuando el proveedor responde: se reembolsa y sigue cancelado.
+    await getDb().prepare("UPDATE shop_orders SET payment_ref = 'fake_cs_retry' WHERE id = ?").run(o.id);
+    await getDb().prepare("UPDATE shop_orders SET payment_id = 'pi_ok' WHERE id = ?").run(o.id);
+    expect(await refundOrder(a, o.id, {})).toMatchObject({ status: 'cancelled', refundedCents: o.total_cents });
+  });
+});
+
 describe('shop: más arreglos de la QA', () => {
   it('monedas sin decimales: precios, descuentos e impuestos en enteros', async () => {
     expect(roundToCurrency(123456, 'CLP')).toBe(123500);

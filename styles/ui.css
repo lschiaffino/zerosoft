@@ -309,12 +309,15 @@ select.select,
 .ui-check input[type='checkbox']:checked {
   background-color: var(--ink);
   border-color: var(--ink);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' d='M2.5 6.2l2.4 2.4 4.6-5'/%3E%3C/svg%3E");
+  /* El tilde va en el color del fondo (--check-img: blanco en claro, tinta oscura en oscuro):
+     sobre el relleno de tinta, que en oscuro es claro, un tilde blanco casi no se veía. */
+  background-image: var(--check-img);
 }
 .ui-check input[type='checkbox']:indeterminate {
   background-color: var(--ink);
   border-color: var(--ink);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath stroke='%23fff' stroke-width='2' d='M3 6h6'/%3E%3C/svg%3E");
+  /* La raya en el color del fondo, igual que el tilde (--check-dash-img). */
+  background-image: var(--check-dash-img);
 }
 .ui-check input:disabled { background-color: var(--brand-enamel); border-color: var(--line); cursor: not-allowed; }
 .ui-check:has(input:disabled) { color: var(--brand-gray-3); cursor: not-allowed; }

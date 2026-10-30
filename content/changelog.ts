@@ -43,6 +43,21 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-10-29-social',
+    date: '2026-10-29',
+    title: {
+      en: 'Social: plan, publish and answer on social media',
+      es: 'Social: planeá, publicá y contestá en redes sociales',
+      pt: 'Social: planeje, publique e responda nas redes sociais',
+    },
+    items: [
+      { product: 'social', en: 'Social opens at /app/social, our Hootsuite alternative. Admins connect Facebook pages, Instagram business accounts, LinkedIn profiles and company pages, X, TikTok, YouTube and Threads with the instance\'s developer apps, and Bluesky with an app password. Tokens are stored encrypted and each member posts only to the accounts they are given.', es: 'Social abre en /app/social, nuestra alternativa a Hootsuite. Los admins conectan páginas de Facebook, cuentas de empresa de Instagram, perfiles y páginas de empresa de LinkedIn, X, TikTok, YouTube y Threads con las apps de desarrollador de la instancia, y Bluesky con una contraseña de app. Los tokens se guardan cifrados y cada miembro publica solo en las cuentas que le dan.', pt: 'O Social abre em /app/social, nossa alternativa ao Hootsuite. Os admins conectam páginas do Facebook, contas comerciais do Instagram, perfis e páginas de empresa do LinkedIn, X, TikTok, YouTube e Threads com os apps de desenvolvedor da instância, e o Bluesky com uma senha de app. Os tokens ficam criptografados e cada membro publica só nas contas que recebe.' },
+      { product: 'social', en: 'One composer for every account, with its own text per network, live previews, character counters, checks for photo size, ratio and video length, a first comment, links shortened with Link and UTM, and texts and hashtag sets from the library.', es: 'Un compositor para todas las cuentas, con texto propio por red, vista previa, contador de caracteres, chequeo de peso, proporción y duración de fotos y videos, primer comentario, links acortados con Link y UTM, y textos y grupos de hashtags de la biblioteca.', pt: 'Um editor para todas as contas, com texto próprio por rede, prévia, contador de caracteres, checagem de tamanho, proporção e duração de fotos e vídeos, primeiro comentário, links encurtados com o Link e UTM, e textos e grupos de hashtags da biblioteca.' },
+      { product: 'social', en: 'A month and week calendar where you drag posts to reschedule them, queue times per account, best times from your own engagement (labeled starting times until there is data), publishing with automatic retries, the error of each network and links to the published posts.', es: 'Un calendario de mes y semana donde arrastrás las publicaciones para reprogramarlas, horarios de cola por cuenta, mejores horarios según tus propias interacciones (horarios para empezar, avisados, hasta que haya datos), publicación con reintentos automáticos, el error de cada red y links a lo publicado.', pt: 'Um calendário de mês e semana onde você arrasta as publicações para reagendar, horários de fila por conta, melhores horários pelas suas próprias interações (horários para começar, avisados, até haver dados), publicação com novas tentativas automáticas, o erro de cada rede e links para o que foi publicado.' },
+      { product: 'social', en: 'Members can need approval: an admin approves or rejects with a comment and everyone is notified. A unified inbox brings comments, mentions and direct messages where each API allows it, to reply, assign and mark done. Analytics show impressions, reach, engagement, clicks and followers, with CSV export.', es: 'Un miembro puede necesitar aprobación: un admin aprueba o rechaza con un comentario y todos reciben el aviso. Una bandeja unificada trae comentarios, menciones y mensajes directos donde cada API lo permite, para contestar, asignar y marcar hecho. Las métricas muestran impresiones, alcance, interacciones, clics y seguidores, con export a CSV.', pt: 'Um membro pode precisar de aprovação: um admin aprova ou recusa com um comentário e todos recebem o aviso. Uma caixa de entrada unificada traz comentários, menções e mensagens diretas onde cada API permite, para responder, atribuir e marcar como concluído. As métricas mostram impressões, alcance, interações, cliques e seguidores, com exportação em CSV.' },
+    ],
+  },
+  {
     id: '2026-10-29-shop',
     date: '2026-10-29',
     title: {

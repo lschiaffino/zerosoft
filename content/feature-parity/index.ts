@@ -18,6 +18,7 @@ import talk from './talk';
 import design from './design';
 import shop from './shop';
 import analytics from './analytics';
+import social from './social';
 
 /**
  * Paridad de cada app contra su competidor principal. Al sumar o quitar una
@@ -43,6 +44,7 @@ export const PARITY: Record<ProductKey, ProductParity> = {
   design,
   shop,
   analytics,
+  social,
 };
 
 export type { ProductParity, ParityRow, ParityStatus, ParityArea, Localized } from './types';

@@ -92,6 +92,11 @@ export async function setMemberApps(teamId: string, userId: string, apps: AppAcc
     // Las conexiones abiertas de Talk revalidan ya (si perdió Talk, se cortan).
     const team = await getTeamById(teamId);
     if (team) {
+      // Social: si perdió la app, lo que dejó programado vuelve a aprobación.
+      const { personHasSocialApp, pauseAuthorPosts } = await import('./social');
+      if (!(await personHasSocialApp(team.owner_id, userId).catch(() => true))) {
+        await pauseAuthorPosts(team.owner_id, userId, { reason: 'author_app' }).catch(() => undefined);
+      }
       const { emitTalkEvent } = await import('./talk');
       await emitTalkEvent(team.owner_id, 'access', { userId, payload: { change: 'apps' } }).catch(() => undefined);
       // Si perdió Talk, el push sin entregar de este workspace no debe mostrar ese texto.

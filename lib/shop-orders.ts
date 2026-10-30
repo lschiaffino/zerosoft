@@ -656,8 +656,22 @@ export async function cancelOrder(actor: ShopActor, orderId: string, opts: { res
   // Reembolsar es de admins: se chequea antes de cancelar para no dejar un pedido a medias.
   const refund = opts.refund === true && o.status === 'paid' && o.total_cents - o.refunded_cents > 0;
   if (refund && !actor.admin) throw new ShopError('forbidden', 403);
+  // Antes de cancelar: si el reembolso no puede salir (sin credenciales o sin id del pago), no se toca nada.
+  if (refund) {
+    const { canRefundPayment } = await import('./shop-payments');
+    if (!canRefundPayment(await ensureStore(actor.ws), o)) throw new ShopError('refund_unavailable', 409);
+  }
   if (!(await cancelOrderRow(o, { reason: 'staff', actor: actor.person, restock: opts.restock !== false }))) throw new ShopError('conflict', 409);
-  if (refund) return refundOrder(actor, orderId, { restock: false, reason: 'Order cancelled' });
+  if (refund) {
+    try {
+      return await refundOrder(actor, orderId, { restock: false, reason: 'Order cancelled' });
+    } catch (err) {
+      // El pedido ya quedó cancelado: se dice en la línea de tiempo y la página muestra el aviso para reintentar.
+      const code = err instanceof ShopError ? err.code : 'error';
+      await addOrderEvent(o, 'refund_failed', `Cancelled, but the refund failed (${code}). Retry it from Refund.`, actor.person);
+      return (await getOrder(actor.ws, orderId))!;
+    }
+  }
   return (await getOrder(actor.ws, orderId))!;
 }
 

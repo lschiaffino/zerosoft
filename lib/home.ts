@@ -232,7 +232,7 @@ export async function homeUnread(user: HomeUser): Promise<{ chat: number | null;
 
 // ---------- Recientes ----------
 
-export type RecentKind = 'doc' | 'note' | 'board' | 'design' | 'issue' | 'link' | 'contact' | 'deal' | 'flow' | 'product' | 'insight';
+export type RecentKind = 'doc' | 'note' | 'board' | 'design' | 'issue' | 'link' | 'contact' | 'deal' | 'flow' | 'product' | 'insight' | 'socialPost';
 
 export interface RecentItem {
   kind: RecentKind;
@@ -255,6 +255,7 @@ const RECENT_PRODUCT: Record<RecentKind, ProductKey> = {
   flow: 'flow',
   product: 'shop',
   insight: 'analytics',
+  socialPost: 'social',
 };
 
 /** Fecha comparable: '2026-10-25 10:00:00' y '2026-10-25T10:00:00.000Z' ordenan igual. */
@@ -287,7 +288,9 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
   const contactScope = ownerScopeSql('c', scope);
   const dealScope = ownerScopeSql('d', scope);
 
-  const [docs, notes, boards, designs, issues, links, contacts, deals, flows, products, insights] = await Promise.all([
+  const socialAdmin = !user.role || user.role === 'owner' || user.role === 'admin';
+  const person = user.actingUser?.id ?? user.id;
+  const [docs, notes, boards, designs, issues, links, contacts, deals, flows, products, insights, socialPosts] = await Promise.all([
     all(`SELECT id, title AS label, updated_at FROM docs_pages WHERE user_id = ? AND archived = 0 ORDER BY updated_at DESC LIMIT ?`, user.id, per),
     // Notas: solo las de la persona (son privadas aunque el workspace sea compartido).
     listNotes(noteOwner(user), { view: 'all', limit: per })
@@ -340,6 +343,16 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
           per,
         )
       : Promise.resolve([]),
+    // Social: las publicaciones que la persona ve (propias o a sus cuentas; admins, todas).
+    all(
+      `SELECT p.id, substr(replace(p.text, char(10), ' '), 1, 80) AS label, p.updated_at FROM social_posts p WHERE p.workspace_id = ?${
+        socialAdmin
+          ? ''
+          : ` AND (p.created_by = ? OR EXISTS (SELECT 1 FROM social_post_targets st JOIN social_account_members sm ON sm.account_id = st.account_id
+               WHERE st.post_id = p.id AND sm.person_id = ?))`
+      } ORDER BY p.updated_at DESC LIMIT ?`,
+      ...(socialAdmin ? [user.id, per] : [user.id, person, person, per]),
+    ),
   ]);
 
   const href: Record<RecentKind, (id: string) => string> = {
@@ -354,6 +367,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
     flow: (id) => `/app/flow/${id}`,
     product: (id) => `/app/shop/products/${id}`,
     insight: (id) => `/app/analytics/insights/${id}`,
+    socialPost: (id) => `/app/social/posts/${id}`,
   };
   const groups: Array<[RecentKind, Row[]]> = [
     ['doc', docs],
@@ -367,6 +381,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
     ['flow', flows],
     ['product', products],
     ['insight', insights],
+    ['socialPost', socialPosts],
   ];
   const items = groups
     .flatMap(([kind, rows]) =>

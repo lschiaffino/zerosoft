@@ -44,6 +44,13 @@ export interface NotificationTextLabels {
   /** Design: "{actor} comentó en {title}", "{actor} compartió {title} con vos". */
   designComment?: string;
   designShare?: string;
+  /** Social: "{title} espera tu aprobación", "Aprobaron {title}", "Rechazaron {title}", "No se pudo publicar {title}"… */
+  socialApproval?: string;
+  socialApproved?: string;
+  socialRejected?: string;
+  socialFailed?: string;
+  socialPartial?: string;
+  socialAssigned?: string;
 }
 
 export interface NotificationLike {
@@ -142,6 +149,18 @@ export function notificationTitle(n: NotificationLike, L: NotificationTextLabels
     const vars = { actor, title: String(meta.title || L.untitled) };
     if (n.type === 'design_comment' && L.designComment) return fill(L.designComment, vars);
     if (n.type === 'design_share' && L.designShare) return fill(L.designShare, vars);
+  }
+
+  if (source === 'social_post' || source === 'social_inbox') {
+    const vars = { actor, title: String(meta.postText || meta.text || n.title || L.untitled) };
+    const key =
+      n.type === 'social_approval' ? L.socialApproval
+      : n.type === 'social_approved' ? L.socialApproved
+      : n.type === 'social_rejected' ? L.socialRejected
+      : n.type === 'social_failed' ? (meta.partial ? L.socialPartial : L.socialFailed)
+      : n.type === 'social_assigned' ? L.socialAssigned
+      : undefined;
+    if (key) return fill(key, vars);
   }
 
   return n.title;

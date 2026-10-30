@@ -19,6 +19,7 @@ import { syncDueSources } from '@/lib/docs-sync';
 import { processPendingRec } from '@/lib/rec-ai';
 import { expirePendingOrders } from '@/lib/shop-orders';
 import { runTalkCron } from '@/lib/talk-notify';
+import { runSocialCron } from '@/lib/social-cron';
 import { fetchPendingKnowledgeUrls } from '@/lib/agents';
 import { processPendingSitemaps } from '@/lib/agents-knowledge';
 import { processPendingSources } from '@/lib/agents-sources';
@@ -85,6 +86,9 @@ export async function GET(req: NextRequest) {
   const shopExpired = await expirePendingOrders().catch(() => null);
   // Talk: mensajes programados (claim pending → sending), recordatorios (sent_at) y emails de menciones (talk_email_queue.sent_at).
   const talk = await runTalkCron().catch(() => null);
+  // Social: publicaciones vencidas (claim por destino en claimed_until, reintentos con backoff), tokens por vencer,
+  // bandeja y métricas por cuenta (claims en refresh/inbox/metrics_claimed_until).
+  const social = await runSocialCron({ budgetMs: 30_000 }).catch(() => null);
   // Agents: páginas nuevas de un sitemap (claim por fila en fetched_at).
   const agentSitemaps = await processPendingSitemaps({ limit: 3 }).catch(() => null);
   const agentPages = await fetchPendingKnowledgeUrls({ limit: 15 }).catch(() => null);
@@ -96,5 +100,5 @@ export async function GET(req: NextRequest) {
   const imports = await processImportJobs({ budgetMs: Math.max(5_000, IMPORT_BUDGET_MS - (Date.now() - start)) }).catch(() => null);
   // Imports del CRM con lo que queda de los 300 s (dejando margen).
   const crmImports = await processCrmImportJobs({ budgetMs: Math.max(0, CRM_IMPORT_BUDGET_MS - (Date.now() - start)) }).catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, noteReminders, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, groups, voice, crmAiRuns, docsEvents, docsSync, rec, shopExpired, talk, agentSitemaps, agentPages, agentSources, agentEmbeddings, flow, imports, crmImports });
+  return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, noteReminders, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, groups, voice, crmAiRuns, docsEvents, docsSync, rec, shopExpired, talk, social, agentSitemaps, agentPages, agentSources, agentEmbeddings, flow, imports, crmImports });
 }
