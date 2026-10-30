@@ -29,6 +29,7 @@ export const API_SCOPES = [
   'design:read',
   'shop:read',
   'shop:write',
+  'hiring:read',
   'analytics:read',
   'analytics:write',
   'social:read',
@@ -83,6 +84,7 @@ export const SCOPE_APP: Record<string, string> = {
   shop: 'shop',
   analytics: 'analytics',
   social: 'social',
+  hiring: 'hiring',
   people: 'people',
 };
 

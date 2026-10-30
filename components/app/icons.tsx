@@ -64,6 +64,7 @@ export type IconName =
   | 'insights'
   | 'assistant'
   | 'analytics'
+  | 'hiring'
   | 'flag'
   | 'sql'
   | 'live'
@@ -307,6 +308,12 @@ const PATHS: Record<IconName, ReactNode> = {
   analytics: (
     <>
       <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+    </>
+  ),
+  hiring: (
+    <>
+      <rect x="3" y="7" width="18" height="13" rx="1" />
+      <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18" />
     </>
   ),
   flag: (

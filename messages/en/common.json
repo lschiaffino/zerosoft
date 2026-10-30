@@ -1,6 +1,6 @@
 {
   "meta": {
-    "tagline": "Twenty open-source apps for your team.",
+    "tagline": "Twenty-one open-source apps for your team.",
     "description": "CRM, support chat, AI agents, automations, browser robots, projects, links, docs, notes, scheduling and a whiteboard. Open source (AGPLv3): run them on your server for $0 or use zerosoft Cloud, with a free plan and usage-based pricing."
   },
   "header": {
@@ -40,7 +40,8 @@
       "design": "Graphic design from templates, with your brand",
       "analytics": "Product analytics and feature flags",
       "social": "Schedule, inbox and analytics for social media",
-      "people": "Employee directory, time off and reviews"
+      "people": "Employee directory, time off and reviews",
+      "hiring": "Applicant tracking with a careers page"
     },
     "building": "In the works"
   },
@@ -189,11 +190,13 @@
     "yourApps": "Your apps",
     "groupPeople": "People",
     "groupPeopleTemplates": "Onboarding templates",
-    "groupPeopleCycles": "Review cycles"
+    "groupPeopleCycles": "Review cycles",
+    "groupHiringJobs": "Jobs",
+    "groupHiringCandidates": "Candidates"
   },
   "manifesto": {
     "p1": "A team of ten pays <strong>$6,000 a year</strong> for a CRM, $1,440 to book meetings and $420 to shorten links. Those prices are set per head or per plan.",
-    "p2": "Running that software costs far less. All twenty zerosoft apps fit in <strong>one container and one SQLite file</strong> on a small server.",
+    "p2": "Running that software costs far less. All twenty-one zerosoft apps fit in <strong>one container and one SQLite file</strong> on a small server.",
     "p3": "So we publish the code. The core of every app is AGPLv3: you can read it, change it and run it on your server without paying us.",
     "final": "Why we build zerosoft.",
     "p4": "If you would rather we run it, zerosoft Cloud bills per workspace, by usage. Adding someone to the team does not change the bill.",
@@ -259,6 +262,9 @@
     },
     "people": {
       "desc": "Employee directory, org chart, time off, onboarding and reviews."
+    },
+    "hiring": {
+      "desc": "Jobs, a careers page, a candidate pipeline, scorecards, interviews and offers."
     }
   },
   "model": {
@@ -329,7 +335,7 @@
   },
   "home": {
     "hero": {
-      "title1": "Twenty apps for your team.",
+      "title1": "Twenty-one apps for your team.",
       "title2": "Zero licenses.",
       "sub": "Open-source alternatives to HubSpot, Intercom, Calendly, Linear, Notion and five more products your team pays for every month. Run them on your server for $0 or use them on zerosoft Cloud.",
       "ctaStart": "Start free",
@@ -386,7 +392,7 @@
         "b3": "Templates, comments and sharing"
       },
       "one": {
-        "title": "One account for all twenty apps.",
+        "title": "One account for all twenty-one apps.",
         "desc": "Invite your team once. Find contacts, companies, deals, links, docs and tasks from a single search bar, and jump between apps without changing tools."
       },
       "replaces": "Replaces {rival}",
@@ -428,13 +434,16 @@
       "analytics": {
         "line": "Product analytics, web analytics and feature flags."
       },
+      "building": "In the works · like {rival}",
       "social": {
         "line": "Plan, publish and answer on social media."
       },
       "people": {
         "line": "Directory, time off, onboarding and reviews."
       },
-      "building": "In the works · like {rival}"
+      "hiring": {
+        "line": "Jobs, careers page, pipeline, scorecards and offers."
+      }
     },
     "stack": {
       "title": "{total} a year.",
@@ -448,7 +457,7 @@
       "total": "Total per year",
       "zeroTitle": "zerosoft, on your server",
       "footnote": "List prices as cited on our product pages, billed monthly, for 10 users (Bitly Core is a flat plan). Vendors change their prices, so check their sites. zerosoft is not affiliated with any of these companies.",
-      "rApps": "All twenty apps",
+      "rApps": "All twenty-one apps",
       "rSeats": "Users",
       "rLicense": "License",
       "rData": "Your data",
@@ -519,7 +528,7 @@
   },
   "appHome": {
     "title": "Your apps",
-    "lead": "The twenty apps in your workspace. Pick one to get started.",
+    "lead": "The twenty-one apps in your workspace. Pick one to get started.",
     "apps": "Apps",
     "open": "Open {name}",
     "linkSummary": "Link overview",
@@ -637,7 +646,7 @@
   "notFound": {
     "sign": "Error 404",
     "title": "This page does not exist.",
-    "body": "The link may have a typo or the page moved. The home page takes you to all twenty apps.",
+    "body": "The link may have a typo or the page moved. The home page takes you to all twenty-one apps.",
     "cta": "Go to the home page",
     "meta": "Page not found"
   },

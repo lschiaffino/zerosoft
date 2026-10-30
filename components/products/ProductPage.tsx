@@ -35,6 +35,7 @@ import DesignMockup from './mockups/DesignMockup';
 import ShopMockup from './mockups/ShopMockup';
 import AnalyticsMockup from './mockups/AnalyticsMockup';
 import SocialMockup from './mockups/SocialMockup';
+import HiringMockup from './mockups/HiringMockup';
 import PeopleMockup from './mockups/PeopleMockup';
 
 const MOCKUPS: Record<ProductKey, ComponentType> = {
@@ -57,6 +58,7 @@ const MOCKUPS: Record<ProductKey, ComponentType> = {
   shop: ShopMockup,
   analytics: AnalyticsMockup,
   social: SocialMockup,
+  hiring: HiringMockup,
   people: PeopleMockup,
 };
 

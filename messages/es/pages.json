@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "Productos",
-      "description": "Veinte apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics, Social y People. Open source para tu servidor, o en zerosoft Cloud con plan gratis y pago por uso."
+      "description": "Veintiuna apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics, Social, Hiring y People. Open source para tu servidor, o en zerosoft Cloud con plan gratis y pago por uso."
     },
     "hero": {
-      "title1": "Veinte apps.",
+      "title1": "Veintiuna apps.",
       "title2": "Un solo workspace.",
       "sub": "Para tu empresa: CRM, soporte, agentes de IA, automatizaciones, robots, proyectos y links. Para vos: docs, notas, agenda y pizarra. El core de cada una es open source y corre en tu servidor por $0."
     },
     "cta": {
-      "title1": "Probá las veinte apps.",
+      "title1": "Probá las veintiuna apps.",
       "title2": "Con una sola cuenta.",
       "sub": "Entrá con Google, creá un workspace y empezá con el plan gratis. Si después preferís tu servidor, el código está en GitHub.",
       "button": "Abrir la app"
@@ -1775,6 +1775,92 @@
         "sub": "Abrí People: tu workspace ya está en el directorio.",
         "button": "Abrir People"
       }
+    },
+    "hiring": {
+      "meta": {
+        "title": "Hiring: selección de personal open source con página de empleos",
+        "description": "Puestos desde plantillas, página de empleos con datos para Google for Jobs, pipeline de candidatos, scorecards, entrevistas agendadas con Cal y ofertas que el candidato acepta en línea. Una alternativa open source a Workable."
+      },
+      "hero": {
+        "sub": "Publicá puestos en tu página de empleos, mové candidatos en un kanban, juntá los scorecards de tus entrevistadores y mandá ofertas, con los datos de cada candidato visibles solo para el equipo de su puesto."
+      },
+      "featuresTitle": "Tu proceso de selección.",
+      "featuresTitleDim": "Sin cobro por puesto.",
+      "f1": {
+        "t": "Puestos y página de empleos",
+        "d": "Puestos desde plantillas con área, ubicación, remoto o híbrido, tipo de contrato y un rango salarial opcional. Una página de empleos con tu logo y color, datos estructurados JobPosting y sitemap."
+      },
+      "f2": {
+        "t": "Formulario de postulación",
+        "d": "CV validado por sus bytes, preguntas propias, preguntas knock-out que marcan respuestas para revisar, casilla de consentimiento y protección contra bots y abusos."
+      },
+      "f3": {
+        "t": "Pipeline y candidatos",
+        "d": "Un kanban por puesto para arrastrar entre etapas, una lista con filtros, etiquetas, fuentes con UTM, duplicados por email y una línea de tiempo con cada email, nota, movimiento y puntaje."
+      },
+      "f4": {
+        "t": "Scorecards sin espiar",
+        "d": "Criterios por etapa que puntúa cada entrevistador. Los entrevistadores solo ven a quienes evalúan y no ven los puntajes ajenos de una etapa hasta enviar el suyo. Recruiters y hiring managers ven todos los scorecards. Recordatorios cuando falta feedback."
+      },
+      "f5": {
+        "t": "Entrevistas y ofertas",
+        "d": "El candidato elige con Cal un horario en que todos los entrevistadores están libres. Cartas de oferta desde una plantilla, aprobadas por el hiring manager y aceptadas por el candidato escribiendo su nombre."
+      },
+      "f6": {
+        "t": "Privado de entrada",
+        "d": "Los datos del candidato, solo para el equipo de su puesto y los admins, también en la búsqueda, el asistente y la API. La retención borra candidatos viejos y un link les permite borrar sus datos. La IA solo ayuda."
+      },
+      "steps": {
+        "s1": {
+          "t": "Creá un puesto",
+          "d": "Empezá desde una plantilla, definí el equipo y las etapas con sus scorecards."
+        },
+        "s2": {
+          "t": "Publicá",
+          "d": "Compartí /careers/tu-empresa o un link corto con UTM."
+        },
+        "s3": {
+          "t": "Decidan juntos",
+          "d": "Mové candidatos, juntá scorecards, agendá entrevistas y mandá la oferta."
+        }
+      },
+      "compare": {
+        "rival": "Workable",
+        "price": "Un plan por empresa",
+        "per": "según el tamaño de la empresa, mensual o anual",
+        "teamLabel": "Un equipo con 5 búsquedas",
+        "team": "ver precios de Workable",
+        "zero": "$0",
+        "note": "Workable vende planes que crecen con el tamaño de la empresa, más extras pagos. No pudimos verificar los precios actuales: miralos en workable.com/pricing. Hiring en tu servidor cuesta $0 más tu base de datos y el envío de emails."
+      },
+      "faq": {
+        "f1": {
+          "q": "¿La IA rechaza candidatos?",
+          "a": "No. Puede leer un CV para completar campos y escribir un resumen neutral. Nunca decide sobre un candidato: lo mueve y lo rechaza una persona."
+        },
+        "f2": {
+          "q": "¿Quién ve a un candidato?",
+          "a": "Los recruiters y hiring managers del puesto al que se postuló, los entrevistadores que lo evalúan y los admins del workspace. Nadie más, tampoco en Cmd+K, el asistente o la API."
+        },
+        "f3": {
+          "q": "¿El candidato puede agendar su entrevista?",
+          "a": "Sí. Hiring crea un evento privado de Cal con los entrevistadores como anfitriones y le manda al candidato un link que solo ofrece horarios en que todos están libres."
+        },
+        "f4": {
+          "q": "¿Hay firma electrónica para las ofertas?",
+          "a": "Todavía no. El candidato acepta escribiendo su nombre completo; Hiring guarda la fecha, la IP, el navegador y un hash de la carta."
+        },
+        "f5": {
+          "q": "¿Qué le falta frente a Workable?",
+          "a": "Publicación en portales de empleo, base de búsqueda de candidatos, entrevistas en video, evaluaciones, SMS, firma electrónica y un HRIS. La tabla de paridad de arriba tiene la lista completa."
+        }
+      },
+      "cta": {
+        "title1": "Contratá con tu equipo.",
+        "title2": "Los datos quedan tuyos.",
+        "sub": "Abrí Hiring, creá tu primer puesto y publicá tu página de empleos.",
+        "button": "Abrir Hiring"
+      }
     }
   },
   "product": {
@@ -1790,7 +1876,7 @@
     "apiDocs": "Docs de la API",
     "howTitle": "Cómo se usa.",
     "suiteTitle": "Un workspace.",
-    "suiteTitleDim": "Veinte apps, el mismo login.",
+    "suiteTitleDim": "Veintiuna apps, el mismo login.",
     "shotTitle": "{name}, por dentro.",
     "crumbs": "Ubicación",
     "navLabel": "Secciones de {name}",
@@ -2230,6 +2316,23 @@
       "i2": "No cuentan los feriados de Argentina",
       "total": "Calendario bloqueado en Cal",
       "action": "Estado en Talk: fuera de la oficina"
+    },
+    "hiring": {
+      "listTitle": "Ingeniera de software",
+      "r1name": "Ana Pérez",
+      "r1time": "Entrevista",
+      "r1meta": "Página de empleos · 2 scorecards",
+      "r2name": "Bruno Silva",
+      "r2time": "Primera llamada",
+      "r2meta": "Referido",
+      "r3name": "Lucía Gómez",
+      "r3time": "Postulados",
+      "r3meta": "LinkedIn · knock-out",
+      "status": "Entrevista agendada con Cal",
+      "i1": "Habilidades del puesto: Excelente · Resolución de problemas: Bueno",
+      "i2": "General: Definitivamente sí",
+      "offer": "Oferta aprobada por el hiring manager",
+      "action": "Enviar al candidato"
     }
   },
   "status": {
@@ -3071,7 +3174,7 @@
   "parityOverview": {
     "title": "Paridad de funciones, app por app.",
     "titleDim": "Medida contra cada competidor.",
-    "lead": "Paridad promedio de las 20 apps: {average}%. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
+    "lead": "Paridad promedio de las 21 apps: {average}%. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
     "col": {
       "app": "App",
       "competitor": "Comparada con",

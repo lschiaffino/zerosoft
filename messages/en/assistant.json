@@ -155,6 +155,11 @@
       "a": "Who is out this week?",
       "b": "How many vacation days do I have left?",
       "c": "Which time off requests are waiting for me?"
+    },
+    "hiring": {
+      "a": "Which jobs are open?",
+      "b": "Who is in the interview stage?",
+      "c": "What scorecards am I missing?"
     }
   },
   "page": {

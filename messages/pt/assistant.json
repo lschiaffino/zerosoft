@@ -155,6 +155,11 @@
       "a": "Quem está fora esta semana?",
       "b": "Quantos dias de férias ainda tenho?",
       "c": "Quais pedidos de folga esperam a minha aprovação?"
+    },
+    "hiring": {
+      "a": "Quais vagas estão abertas?",
+      "b": "Quem está na etapa de entrevista?",
+      "c": "Quais scorecards estão faltando?"
     }
   },
   "page": {

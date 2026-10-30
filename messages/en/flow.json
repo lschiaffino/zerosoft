@@ -852,7 +852,10 @@
     "shop_inventory_low": "Shop: low stock",
     "people_hired": "People: person hired",
     "people_timeoff_approved": "People: time off approved",
-    "people_offboarded": "People: person offboarded"
+    "people_offboarded": "People: person offboarded",
+    "hiring_candidate_applied": "Hiring: candidate applied",
+    "hiring_candidate_stage_changed": "Hiring: candidate moved to a stage",
+    "hiring_candidate_hired": "Hiring: candidate hired"
   },
   "ops": {
     "equals": "equals",

@@ -25,7 +25,7 @@
       }
     },
     "footTitle": "Want the real thing?",
-    "footBody": "Twenty open-source apps that replace HubSpot, Intercom, Zapier, Calendly, Linear, Notion, Evernote, Miro, Canva, PostHog, UiPath and Bitly. Free plan on zerosoft Cloud, no credit card."
+    "footBody": "Twenty-one open-source apps that replace HubSpot, Intercom, Zapier, Calendly, Linear, Notion, Evernote, Miro, Canva, PostHog, UiPath and Bitly. Free plan on zerosoft Cloud, no credit card."
   },
   "common": {
     "label": "Free tools",
@@ -565,7 +565,7 @@
       "title": "SaaS cost calculator",
       "sub": "Pick the tools your team pays for and how many seats. See the yearly bill at list price, and what it costs with zerosoft.",
       "ctaTitle": "Same tools, zero license",
-      "ctaBody": "zerosoft is twenty open-source apps (AGPLv3). On your own server the core costs $0; on zerosoft Cloud you start on a free plan and pay for usage.",
+      "ctaBody": "zerosoft is twenty-one open-source apps (AGPLv3). On your own server the core costs $0; on zerosoft Cloud you start on a free plan and pay for usage.",
       "faq": [
         {
           "q": "Where do the prices come from?",
