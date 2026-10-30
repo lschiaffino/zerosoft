@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "Products",
-      "description": "Twenty-two apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics, Social, Hiring and People. Open source for your server, or on zerosoft Cloud with a free plan and pay as you go."
+      "description": "Twenty-three apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics, Social, Hiring, People and Books. Open source for your server, or on zerosoft Cloud with a free plan and pay as you go."
     },
     "hero": {
-      "title1": "Twenty-two apps.",
+      "title1": "Twenty-three apps.",
       "title2": "One workspace.",
       "sub": "For your company: CRM, support, AI agents, automations, robots, projects and links. For you: docs, notes, scheduling and a whiteboard. The core of each one is open source and runs on your server for $0."
     },
     "cta": {
-      "title1": "Try all twenty-two apps.",
+      "title1": "Try all twenty-three apps.",
       "title2": "With one account.",
       "sub": "Sign in with Google, create a workspace and start on the free plan. If you later prefer your own server, the code is on GitHub.",
       "button": "Open the app"
@@ -1947,6 +1947,87 @@
         "sub": "Open Sign, upload a PDF and send your first envelope.",
         "button": "Open Sign"
       }
+    },
+    "books": {
+      "meta": {
+        "title": "Books: open-source invoicing and accounting, a Xero alternative",
+        "description": "Invoices with taxes per line, online payment with Stripe or Mercado Pago, bills, expenses, bank reconciliation and double-entry accounting for small businesses in Latin America. An open-source alternative to Xero and QuickBooks."
+      },
+      "hero": {
+        "sub": "Invoice in your currency with VAT per line, get paid online, load your bills and receipts, import your bank statement and reconcile it. Every document posts its own double-entry journal."
+      },
+      "featuresTitle": "Your books.",
+      "featuresTitleDim": "No monthly plan.",
+      "f1": {
+        "t": "Invoices that get paid",
+        "d": "Line items with VAT per line, discounts and due dates. Send by email with a link to view it online and pay with Stripe or Mercado Pago. Reminders go out on their own."
+      },
+      "f2": {
+        "t": "Made for Latin America",
+        "d": "Chart of accounts and taxes for Argentina and Mexico, letters A, B and C per point of sale, CUIT, RFC, CNPJ and CPF checked by their digits, and any currency with your exchange rate."
+      },
+      "f3": {
+        "t": "Bills, expenses and stock",
+        "d": "Supplier bills with due dates, receipts that AI can read for you, purchase orders and receiving that raises stock. An item linked to Shop uses the store inventory."
+      },
+      "f4": {
+        "t": "Bank reconciliation",
+        "d": "Import CSV or OFX statements and match each line with an invoice or bill from the suggestions, or turn it into an expense. There is no live bank connection yet."
+      },
+      "f5": {
+        "t": "Real double entry",
+        "d": "Every invoice, bill, payment and expense posts a balanced journal. Posted entries are never edited: you fix them with a credit note or a reversal, and a lock date closes the period."
+      },
+      "f6": {
+        "t": "Reports for your accountant",
+        "d": "Profit and loss, balance sheet, cash flow, aged receivables and payables and the VAT sales and purchases books, exportable as CSV."
+      },
+      "steps": {
+        "s1": {
+          "t": "Pick your country",
+          "d": "Argentina, Mexico or generic: the chart of accounts, taxes and currency come ready."
+        },
+        "s2": {
+          "t": "Connect payments",
+          "d": "Paste your Stripe or Mercado Pago keys so customers can pay from the invoice."
+        },
+        "s3": {
+          "t": "Invoice",
+          "d": "Create a customer, send the first invoice and watch it post to the ledger when it is paid."
+        }
+      },
+      "compare": {
+        "rival": "Xero",
+        "note": "Xero plans are on xero.com/pricing. Books costs $0 on your server; Stripe and Mercado Pago charge their usual fees on each payment."
+      },
+      "faq": {
+        "f1": {
+          "q": "Does it issue electronic invoices to ARCA (AFIP) or the SAT?",
+          "a": "Not yet. Books has the hook for a fiscal provider (ARCA, SAT CFDI through a PAC, or Invopop) and a test provider, but the real connectors are not built. You need your own certificates and provider account; the docs list what each one asks for."
+        },
+        "f2": {
+          "q": "Does it connect to my bank?",
+          "a": "No. There are no live bank feeds. You download the statement from your bank as CSV or OFX and import it; Books skips lines it already has."
+        },
+        "f3": {
+          "q": "Can my accountant use it?",
+          "a": "Yes. Give them the accountant role. Salespeople can have the sales role (invoices only) and partners the viewer role (reports)."
+        },
+        "f4": {
+          "q": "Can I correct an invoice after sending it?",
+          "a": "Not by editing it. A sent invoice keeps its amounts; you issue a credit note or void it, and the journal shows both entries."
+        },
+        "f5": {
+          "q": "What is missing compared to Xero?",
+          "a": "Live bank feeds, payroll, fixed assets, budgets, tracking categories, several companies with consolidation and a mobile app. The parity table above has the full list."
+        }
+      },
+      "cta": {
+        "title1": "Close the month.",
+        "title2": "Keep the license money.",
+        "sub": "Open Books, pick your country and send your first invoice.",
+        "button": "Open Books"
+      }
     }
   },
   "product": {
@@ -1962,7 +2043,7 @@
     "apiDocs": "API docs",
     "howTitle": "How it works.",
     "suiteTitle": "One workspace.",
-    "suiteTitleDim": "Twenty-two apps, same login.",
+    "suiteTitleDim": "Twenty-three apps, same login.",
     "shotTitle": "{name}, inside.",
     "crumbs": "Breadcrumb",
     "navLabel": "{name} sections",
@@ -2436,6 +2517,23 @@
       "i2": "Link emailed to Bruno Silva",
       "offer": "SHA-256 of the original",
       "action": "Send reminder"
+    },
+    "books": {
+      "listTitle": "Invoices",
+      "r1name": "A 0001-00000124 · Estudio Norte",
+      "r1time": "$121,000",
+      "r1meta": "Paid with Mercado Pago",
+      "r2name": "A 0001-00000123 · Lucía Gómez",
+      "r2time": "$48,400",
+      "r2meta": "Overdue · reminder sent",
+      "r3name": "B 0001-00000045 · Bruno Silva",
+      "r3time": "$9,680",
+      "r3meta": "Sent · due in 12 days",
+      "status": "Paid",
+      "i1": "Monthly service × 1 · VAT 21%",
+      "i2": "Setup × 1 · 10% off · VAT 21%",
+      "total": "Total $121,000 · VAT $21,000",
+      "action": "Journal posted: Bank / Receivables"
     }
   },
   "status": {
@@ -3274,12 +3372,26 @@
     "paramSocialOverrides": "Own text per account: { accountId: text }.",
     "paramSocialAction": "draft, schedule, queue or now. Default draft.",
     "paramSocialScheduledAt": "Date and time to publish (ISO 8601), with action schedule.",
+    "scope_books_read": "Read Books invoices (with the Books role of the person who created the key).",
+    "scope_books_write": "Create draft invoices in Books.",
+    "booksApiTitle": "Books",
+    "booksApiDesc": "Invoices from Books. The key acts as the person who created it, with that person’s Books role. Amounts are integers in the currency’s minor unit (cents). Scopes books:read and books:write.",
+    "booksInvoicesListTitle": "List invoices",
+    "booksInvoicesListDesc": "Invoices, newest first, with status, number, customer, total and amount due.",
+    "booksInvoicesCreateTitle": "Create a draft invoice",
+    "booksInvoicesCreateDesc": "Saves a draft with the same body the app uses. Someone approves it in the app, which assigns the number and posts the journal.",
+    "paramBooksStatus": "draft, sent, partial, paid, overdue, void, or open (anything still due).",
+    "paramBooksContact": "Books contact id of the customer.",
+    "paramBooksLines": "Lines: description, quantity, unitPrice (integer minor units, or a decimal string with a dot as the decimal separator, e.g. \"1500.50\", whatever the currency), discountBps, taxRateId, itemId.",
+    "paramBooksCurrency": "ISO currency code; the base currency if omitted.",
+    "paramBooksFx": "Manual exchange rate (base currency per 1 unit) when the currency is not the base one.",
+    "paramBooksReference": "Your reference (purchase order, project).",
     "scope_sign_read": "Read Sign envelopes the key's owner can see (no files)."
   },
   "parityOverview": {
     "title": "Feature parity, app by app.",
     "titleDim": "Measured against each competitor.",
-    "lead": "Average parity across the 22 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
+    "lead": "Average parity across the 23 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
     "col": {
       "app": "App",
       "competitor": "Compared with",

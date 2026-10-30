@@ -165,6 +165,11 @@
       "a": "Quais envelopes esperam minha assinatura?",
       "b": "Quem não assinou o último contrato?",
       "c": "Quais envelopes vencem esta semana?"
+    },
+    "books": {
+      "a": "Quais faturas estão vencidas?",
+      "b": "Quanto faturamos este mês?",
+      "c": "Crie uma fatura para meu último cliente"
     }
   },
   "page": {

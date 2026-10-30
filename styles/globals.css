@@ -68,7 +68,8 @@
   --c-social: #7e22ce;
   --c-hiring: #0f766e;
   --c-people: #8b5e34;
-  --c-sign: #1e3a8a;
+  --c-books: #1e3a8a;
+  --c-sign: #7f1d1d;
 
   /* Forma: la del tema (--radius-1). */
   --r-xs: var(--radius-1);
@@ -155,6 +156,7 @@ body {
 .card-social { --accent: var(--c-social); --on-accent: #ffffff; }
 .card-hiring { --accent: var(--c-hiring); --on-accent: #ffffff; }
 .card-people { --accent: var(--c-people); --on-accent: #ffffff; }
+.card-books { --accent: var(--c-books); --on-accent: #ffffff; }
 .card-sign { --accent: var(--c-sign); --on-accent: #ffffff; }
 /* El color del producto, oscurecido para usarlo como texto sobre blanco. */
 [class*='card-'] { --accent-ink: color-mix(in srgb, var(--accent) 74%, var(--ink)); }

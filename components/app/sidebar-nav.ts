@@ -213,6 +213,27 @@ export interface SidebarLabels {
   };
   /** People (BambooHR): directorio, organigrama, licencias, onboarding, evaluaciones, reportes. */
   people: { directory: string; org: string; timeOff: string; onboarding: string; reviews: string; reports: string; welcome: string; newPerson: string };
+  /** Books: ventas, compras, contactos, ítems, bancos, contabilidad e informes. */
+  books: {
+    overview: string;
+    sales: string;
+    invoices: string;
+    creditNotes: string;
+    recurring: string;
+    quotes: string;
+    purchases: string;
+    bills: string;
+    expenses: string;
+    purchaseOrders: string;
+    contacts: string;
+    items: string;
+    banking: string;
+    accounting: string;
+    accounts: string;
+    journal: string;
+    reports: string;
+    newInvoice: string;
+  };
   /** Sign (DocuSign): sobres, plantillas. */
   sign: {
     home: string;
@@ -277,6 +298,7 @@ export type AppProduct =
   | 'social'
   | 'hiring'
   | 'people'
+  | 'books';
   | 'sign';
 
 const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
@@ -300,6 +322,7 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/social', 'social'],
   ['/app/hiring', 'hiring'],
   ['/app/people', 'people'],
+  ['/app/books', 'books'],
   ['/app/sign', 'sign'],
 ];
 
@@ -345,6 +368,7 @@ const APP_ICONS: Record<ProductKey, IconName> = {
   social: 'social',
   hiring: 'hiring',
   people: 'people',
+  books: 'books',
   sign: 'sign',
 };
 
@@ -924,6 +948,47 @@ export function buildNav(
       ];
     }
 
+    case 'books':
+      return [
+        { items: [{ href: '/app/books', label: labels.books.overview, active: pathname === '/app/books', icon: 'overview' }] },
+        {
+          section: labels.books.sales,
+          items: [
+            { href: '/app/books/invoices', label: labels.books.invoices, active: at('/app/books/invoices'), icon: 'quotes' },
+            { href: '/app/books/credit-notes', label: labels.books.creditNotes, active: at('/app/books/credit-notes'), icon: 'lists' },
+            { href: '/app/books/recurring', label: labels.books.recurring, active: at('/app/books/recurring'), icon: 'cycles' },
+            { href: '/app/books/quotes', label: labels.books.quotes, active: at('/app/books/quotes'), icon: 'deals' },
+          ],
+        },
+        {
+          section: labels.books.purchases,
+          items: [
+            { href: '/app/books/bills', label: labels.books.bills, active: at('/app/books/bills'), icon: 'inbox' },
+            { href: '/app/books/expenses', label: labels.books.expenses, active: at('/app/books/expenses'), icon: 'receipt' },
+            { href: '/app/books/purchase-orders', label: labels.books.purchaseOrders, active: at('/app/books/purchase-orders'), icon: 'bulk' },
+          ],
+        },
+        {
+          items: [
+            { href: '/app/books/contacts', label: labels.books.contacts, active: at('/app/books/contacts'), icon: 'contacts' },
+            { href: '/app/books/items', label: labels.books.items, active: at('/app/books/items'), icon: 'products' },
+            { href: '/app/books/banking', label: labels.books.banking, active: at('/app/books/banking'), icon: 'bank' },
+          ],
+        },
+        {
+          section: labels.books.accounting,
+          items: [
+            { href: '/app/books/accounts', label: labels.books.accounts, active: at('/app/books/accounts'), icon: 'objects' },
+            { href: '/app/books/journal', label: labels.books.journal, active: at('/app/books/journal'), icon: 'books' },
+          ],
+        },
+        {
+          section: labels.insights,
+          items: [{ href: '/app/books/reports', label: labels.books.reports, active: at('/app/books/reports'), icon: 'reports' }],
+        },
+        appSettingsGroup('/app/books/settings'),
+      ];
+
     // Shell genérico (inicio y ajustes).
     case 'talk': {
       const base = `/app/${product}`;
@@ -1041,6 +1106,8 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
       return [item('/app/social/posts/new', labels.social.newPost, 'social')];
     case 'people':
       return [item('/app/people?new=1', labels.people.newPerson, 'people'), item('/app/people/time-off?new=1', labels.people.timeOff, 'timeoff')];
+    case 'books':
+      return [item('/app/books/invoices/new', labels.books.newInvoice, 'books')];
     case 'link':
     default:
       return [item('/app/links/new', labels.newLink, 'newLink')];

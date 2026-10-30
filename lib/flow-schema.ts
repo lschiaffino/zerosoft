@@ -89,6 +89,8 @@ export const FLOW_EVENT_TYPES = [
   'people.hired',
   'people.timeoff.approved',
   'people.offboarded',
+  'books.invoice.paid',
+  'books.invoice.overdue',
   'sign.envelope.completed',
   'sign.envelope.declined',
 ] as const;
@@ -515,6 +517,36 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
   },
   'people.offboarded': {
     employee: { id: 'emp_1', name: 'Ana Pérez', jobTitle: 'Designer', department: 'Product', workEmail: 'ana@acme.com', endDate: '2026-12-31', removedFromWorkspace: true, url: '/app/people/emp_1' },
+  },
+  'books.invoice.paid': {
+    invoice: {
+      id: 'inv_1',
+      number: 'B 00001-00000012',
+      status: 'paid',
+      contact: { id: 'con_1', name: 'Acme SA', email: 'billing@acme.example' },
+      currency: 'ARS',
+      total: 121000,
+      amountDue: 0,
+      issueDate: '2026-01-01',
+      dueDate: '2026-01-31',
+      url: 'https://zerosoftware.ai/en/app/books/invoices/inv_1',
+    },
+    payment: { amount: 121000, method: 'stripe', date: '2026-01-20' },
+  },
+  'books.invoice.overdue': {
+    invoice: {
+      id: 'inv_1',
+      number: 'B 00001-00000012',
+      status: 'overdue',
+      contact: { id: 'con_1', name: 'Acme SA', email: 'billing@acme.example' },
+      currency: 'ARS',
+      total: 121000,
+      amountDue: 121000,
+      issueDate: '2026-01-01',
+      dueDate: '2026-01-31',
+      url: 'https://zerosoftware.ai/en/app/books/invoices/inv_1',
+    },
+    daysOverdue: 3,
   },
   'sign.envelope.completed': {
     envelope: { id: 'env_1', title: 'Services agreement', status: 'completed', sentAt: '2026-11-15T12:00:00.000Z', completedAt: '2026-11-16T09:30:00.000Z', declinedAt: null, documentHash: 'e3b0c442…', finalHash: '9f86d081…', links: [{ app: 'crm', kind: 'deal', id: 'deal_1' }], href: '/app/sign/envelopes/env_1' },

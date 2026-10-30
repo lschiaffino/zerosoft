@@ -7,6 +7,7 @@ import { workspaceTeamsUp } from './workspace-migrations';
 import { shopUp } from './shop-migration';
 import { hiringUp } from './hiring-migration';
 import { peopleUp } from './people-migration';
+import { booksUp } from './books-migration';
 import { signUp } from './sign-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
@@ -7469,6 +7470,11 @@ export const MIGRATIONS: Migration[] = [
     // People (BambooHR): ver lib/schema/people-migration.ts.
     id: '139_people',
     up: peopleUp,
+  },
+  {
+    // Books (Xero / QuickBooks / Alegra): ver lib/schema/books-migration.ts.
+    id: '141_books',
+    up: booksUp,
   },
   {
     // Sign (DocuSign): ver lib/schema/sign-migration.ts.

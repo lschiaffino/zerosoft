@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "Produtos",
-      "description": "Vinte e dois apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics, Social, Hiring e People. Open source para o seu servidor, ou no zerosoft Cloud com plano grátis e pagamento por uso."
+      "description": "Vinte e três apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics, Social, Hiring, People e Books. Open source para o seu servidor, ou no zerosoft Cloud com plano grátis e pagamento por uso."
     },
     "hero": {
-      "title1": "Vinte e dois apps.",
+      "title1": "Vinte e três apps.",
       "title2": "Um só workspace.",
       "sub": "Para a sua empresa: CRM, suporte, agentes de IA, automações, robôs, projetos e links. Para você: docs, notas, agenda e quadro branco. O core de cada um é open source e roda no seu servidor por $0."
     },
     "cta": {
-      "title1": "Teste os vinte e dois apps.",
+      "title1": "Teste os vinte e três apps.",
       "title2": "Com uma só conta.",
       "sub": "Entre com o Google, crie um workspace e comece no plano grátis. Se depois preferir o seu servidor, o código está no GitHub.",
       "button": "Abrir o app"
@@ -1947,6 +1947,87 @@
         "sub": "Abra o Sign, envie um PDF e mande seu primeiro envelope.",
         "button": "Abrir o Sign"
       }
+    },
+    "books": {
+      "meta": {
+        "title": "Books: faturamento e contabilidade open source, uma alternativa ao Xero",
+        "description": "Faturas com imposto por linha, pagamento online com Stripe ou Mercado Pago, contas a pagar, despesas, conciliação bancária e contabilidade de partida dobrada para pequenas empresas da América Latina. Uma alternativa open source ao Xero e ao QuickBooks."
+      },
+      "hero": {
+        "sub": "Fature na sua moeda com imposto por linha, receba online, lance suas contas e comprovantes, importe o extrato do banco e concilie. Cada documento gera seu próprio lançamento de partida dobrada."
+      },
+      "featuresTitle": "Suas contas.",
+      "featuresTitleDim": "Sem plano mensal.",
+      "f1": {
+        "t": "Faturas que são pagas",
+        "d": "Linhas com imposto por linha, descontos e vencimento. Vão por email com um link para ver online e pagar com Stripe ou Mercado Pago. Os lembretes saem sozinhos."
+      },
+      "f2": {
+        "t": "Feito para a América Latina",
+        "d": "Plano de contas e impostos da Argentina e do México, letras A, B e C por ponto de venda, CUIT, RFC, CNPJ e CPF conferidos pelo dígito e qualquer moeda com o seu câmbio."
+      },
+      "f3": {
+        "t": "Compras, despesas e estoque",
+        "d": "Contas de fornecedores com vencimento, comprovantes que a IA pode ler para você, pedidos de compra e recebimento que soma estoque. Um item vinculado ao Shop usa o estoque da loja."
+      },
+      "f4": {
+        "t": "Conciliação bancária",
+        "d": "Importe extratos em CSV ou OFX e ligue cada linha a uma fatura ou conta pelas sugestões, ou transforme em despesa. Ainda não há conexão direta com o banco."
+      },
+      "f5": {
+        "t": "Partida dobrada de verdade",
+        "d": "Cada fatura, conta, pagamento e despesa gera um lançamento que fecha. O que foi lançado não se edita: corrige-se com nota de crédito ou estorno, e uma data de fechamento trava o período."
+      },
+      "f6": {
+        "t": "Relatórios para o seu contador",
+        "d": "Demonstração de resultados, balanço, fluxo de caixa, idade de contas a receber e a pagar e livros de IVA de vendas e compras, exportáveis em CSV."
+      },
+      "steps": {
+        "s1": {
+          "t": "Escolha o país",
+          "d": "Argentina, México ou genérico: plano de contas, impostos e moeda já vêm prontos."
+        },
+        "s2": {
+          "t": "Conecte os pagamentos",
+          "d": "Cole suas chaves do Stripe ou do Mercado Pago para seus clientes pagarem pela fatura."
+        },
+        "s3": {
+          "t": "Fature",
+          "d": "Crie um cliente, envie a primeira fatura e veja o lançamento entrar no livro quando ela for paga."
+        }
+      },
+      "compare": {
+        "rival": "Xero",
+        "note": "Os planos do Xero estão em xero.com/pricing. O Books custa $0 no seu servidor; Stripe e Mercado Pago cobram a tarifa habitual em cada pagamento."
+      },
+      "faq": {
+        "f1": {
+          "q": "Emite nota fiscal eletrônica na ARCA (AFIP) ou no SAT?",
+          "a": "Ainda não. O Books tem o gancho para um provedor fiscal (ARCA, CFDI do SAT via PAC ou Invopop) e um provedor de teste, mas os conectores reais não estão prontos. São necessários seus certificados e sua conta no provedor; a documentação lista o que cada um pede."
+        },
+        "f2": {
+          "q": "Conecta com o meu banco?",
+          "a": "Não. Não há conexão direta com bancos. Você baixa o extrato em CSV ou OFX no seu banco e importa; o Books pula as linhas que já tem."
+        },
+        "f3": {
+          "q": "Meu contador pode usar?",
+          "a": "Sim. Dê a ele o papel de contador. Vendedores podem ter o papel de vendas (só faturas) e sócios o de leitura (relatórios)."
+        },
+        "f4": {
+          "q": "Posso corrigir uma fatura depois de enviar?",
+          "a": "Editando, não. Uma fatura emitida mantém os valores; você emite uma nota de crédito ou anula, e o diário mostra os dois lançamentos."
+        },
+        "f5": {
+          "q": "O que falta em relação ao Xero?",
+          "a": "Conexão direta com bancos, folha de pagamento, ativo imobilizado, orçamentos, centros de custo, várias empresas com consolidação e app móvel. A tabela de paridade acima tem a lista completa."
+        }
+      },
+      "cta": {
+        "title1": "Feche o mês.",
+        "title2": "Economize a licença.",
+        "sub": "Abra o Books, escolha o país e envie sua primeira fatura.",
+        "button": "Abrir o Books"
+      }
     }
   },
   "product": {
@@ -1962,7 +2043,7 @@
     "apiDocs": "Docs da API",
     "howTitle": "Como funciona.",
     "suiteTitle": "Um workspace.",
-    "suiteTitleDim": "Vinte e dois apps, o mesmo login.",
+    "suiteTitleDim": "Vinte e três apps, o mesmo login.",
     "shotTitle": "{name}, por dentro.",
     "crumbs": "Localização",
     "navLabel": "Seções do {name}",
@@ -2436,6 +2517,23 @@
       "i2": "Link enviado para Bruno Silva",
       "offer": "SHA-256 do original",
       "action": "Enviar lembrete"
+    },
+    "books": {
+      "listTitle": "Faturas",
+      "r1name": "A 0001-00000124 · Estudio Norte",
+      "r1time": "$121.000",
+      "r1meta": "Paga com Mercado Pago",
+      "r2name": "A 0001-00000123 · Lucía Gómez",
+      "r2time": "$48.400",
+      "r2meta": "Vencida · lembrete enviado",
+      "r3name": "B 0001-00000045 · Bruno Silva",
+      "r3time": "$9.680",
+      "r3meta": "Enviada · vence em 12 dias",
+      "status": "Paga",
+      "i1": "Mensalidade × 1 · IVA 21%",
+      "i2": "Implantação × 1 · 10% off · IVA 21%",
+      "total": "Total $121.000 · IVA $21.000",
+      "action": "Lançamento registrado: Banco / Contas a receber"
     }
   },
   "status": {
@@ -3274,12 +3372,26 @@
     "paramSocialOverrides": "Texto próprio por conta: { accountId: texto }.",
     "paramSocialAction": "draft, schedule, queue ou now. Padrão draft.",
     "paramSocialScheduledAt": "Data e hora de publicação (ISO 8601), com action schedule.",
+    "scope_books_read": "Ler faturas do Books (com o papel no Books de quem criou a key).",
+    "scope_books_write": "Criar faturas em rascunho no Books.",
+    "booksApiTitle": "Books",
+    "booksApiDesc": "Faturas do Books. A key age como a pessoa que a criou, com o papel dela no Books. Valores são inteiros na unidade mínima da moeda (centavos). Scopes books:read e books:write.",
+    "booksInvoicesListTitle": "Listar faturas",
+    "booksInvoicesListDesc": "Faturas, das mais novas para as mais antigas, com status, número, cliente, total e saldo.",
+    "booksInvoicesCreateTitle": "Criar uma fatura em rascunho",
+    "booksInvoicesCreateDesc": "Salva um rascunho com o mesmo corpo que o app usa. Alguém aprova no app, que atribui o número e gera o lançamento.",
+    "paramBooksStatus": "draft, sent, partial, paid, overdue, void ou open (tudo que tem saldo).",
+    "paramBooksContact": "Id do contato do Books (o cliente).",
+    "paramBooksLines": "Linhas: description, quantity, unitPrice (unidades mínimas inteiras, ou um texto decimal com ponto como separador decimal, por exemplo \"1500.50\", seja qual for a moeda), discountBps, taxRateId, itemId.",
+    "paramBooksCurrency": "Código de moeda ISO; a moeda base se omitido.",
+    "paramBooksFx": "Câmbio manual (moeda base por 1 unidade) quando a moeda não é a base.",
+    "paramBooksReference": "Sua referência (pedido de compra, projeto).",
     "scope_sign_read": "Ler os envelopes do Sign que a pessoa dona da key vê (sem arquivos)."
   },
   "parityOverview": {
     "title": "Paridade de funções, app por app.",
     "titleDim": "Medida contra cada concorrente.",
-    "lead": "Paridade média dos 22 apps: {average}%. Comparamos {counted} capacidades da ferramenta que cada app substitui.",
+    "lead": "Paridade média dos 23 apps: {average}%. Comparamos {counted} capacidades da ferramenta que cada app substitui.",
     "col": {
       "app": "App",
       "competitor": "Comparado com",

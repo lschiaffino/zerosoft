@@ -36,6 +36,8 @@ export const API_SCOPES = [
   'social:read',
   'social:write',
   'people:read',
+  'books:read',
+  'books:write',
 ] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 
@@ -87,6 +89,7 @@ export const SCOPE_APP: Record<string, string> = {
   social: 'social',
   hiring: 'hiring',
   people: 'people',
+  books: 'books',
   sign: 'sign',
 };
 

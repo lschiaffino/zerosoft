@@ -159,6 +159,8 @@ export default defineConfig({
       SOCIAL_FAKE: '1',
       // Hiring: lectura de resumes y resúmenes de candidatos sin modelo (lib/hiring/ai.ts).
       HIRING_AI_FAKE: '1',
+      // Books: Stripe y Mercado Pago sin salir a internet; el cobro lo marca un webhook firmado (lib/books-payments.ts).
+      BOOKS_PAYMENTS_FAKE: '1',
       // Sign (y cualquier email sin Resend): captura de emails para leer el código y el link de firma.
       EMAIL_CAPTURE_FILE: mailFile,
       AI_GATEWAY_API_KEY: '',

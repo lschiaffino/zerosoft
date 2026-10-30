@@ -165,6 +165,11 @@
       "a": "¿Qué sobres esperan mi firma?",
       "b": "¿Quién no firmó el último contrato?",
       "c": "¿Qué sobres vencen esta semana?"
+    },
+    "books": {
+      "a": "¿Qué facturas están vencidas?",
+      "b": "¿Cuánto facturamos este mes?",
+      "c": "Armá una factura para mi último cliente"
     }
   },
   "page": {

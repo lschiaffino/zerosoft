@@ -165,6 +165,11 @@
       "a": "Which envelopes are waiting on me?",
       "b": "Who has not signed the latest contract?",
       "c": "Which envelopes expire this week?"
+    },
+    "books": {
+      "a": "Which invoices are overdue?",
+      "b": "How much did we invoice this month?",
+      "c": "Draft an invoice for my last customer"
     }
   },
   "page": {
