@@ -73,7 +73,7 @@ export interface DocsSettings {
   allow_publish: boolean;
   /** Invitar personas de afuera por email. */
   allow_guests: boolean;
-  /** Edición simultánea tecla por tecla. Apagada: cada guardado se fusiona como antes. */
+  /** Edición simultánea tecla por tecla (beta, se prende a mano). Apagada: cada guardado se fusiona como antes. */
   coedit: boolean;
 }
 
@@ -82,7 +82,7 @@ export const DEFAULT_DOCS_SETTINGS: DocsSettings = {
   allow_export: true,
   allow_publish: true,
   allow_guests: true,
-  coedit: true,
+  coedit: false,
 };
 
 export async function getDocsSettings(workspaceId: string): Promise<DocsSettings> {
@@ -95,26 +95,30 @@ export async function getDocsSettings(workspaceId: string): Promise<DocsSettings
     allow_export: row.allow_export !== 0,
     allow_publish: row.allow_publish !== 0,
     allow_guests: row.allow_guests !== 0,
-    coedit: row.coedit !== 0,
+    coedit: row.coedit === 1,
   };
 }
 
 /**
- * ¿La edición simultánea está prendida en esta instancia? `DOCS_COEDIT=off`
- * la apaga para todos (sin volver atrás un deploy si algo falla).
+ * `DOCS_COEDIT` manda sobre el ajuste de cada workspace: `on` la prende para
+ * todos, `off` la apaga para todos (sin volver atrás un deploy si algo
+ * falla). Sin la variable, decide el ajuste (apagado por defecto: es beta).
  */
-export function coeditEnvEnabled(): boolean {
+export function coeditEnvOverride(): boolean | null {
   const v = (process.env.DOCS_COEDIT ?? '').trim().toLowerCase();
-  return !(v === 'off' || v === '0' || v === 'false');
+  if (v === 'on' || v === '1' || v === 'true') return true;
+  if (v === 'off' || v === '0' || v === 'false') return false;
+  return null;
 }
 
-/** Edición simultánea para este workspace: la variable de entorno y el ajuste de Docs. */
+/** Edición simultánea para este workspace: la variable de entorno o, si no está, el ajuste de Docs. */
 export async function coeditEnabled(workspaceId: string): Promise<boolean> {
-  if (!coeditEnvEnabled()) return false;
+  const forced = coeditEnvOverride();
+  if (forced !== null) return forced;
   try {
     return (await getDocsSettings(workspaceId)).coedit;
   } catch {
-    return true;
+    return false;
   }
 }
 

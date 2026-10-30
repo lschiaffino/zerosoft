@@ -1,14 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getDb } from '@/lib/db';
 import { createDocPage, getDocPageRow, parseBlocks, updateDocPage } from '@/lib/docs';
-import { coeditEnabled, coeditEnvEnabled, getDocsSettings, updateDocsSettings } from '@/lib/docs-access';
+import { coeditEnabled, coeditEnvOverride, getDocsSettings, updateDocsSettings } from '@/lib/docs-access';
 import type { DocsBlock } from '@/lib/docs-types';
 import { makeUser } from './helpers';
 
 /**
- * Interruptor de la edición simultánea: el ajuste del workspace y la variable
- * DOCS_COEDIT. Apagada, Docs guarda y fusiona como antes: un guardado con
- * text_ops (editor viejo) lleva su texto y nada sale como operación.
+ * Interruptor de la edición simultánea (beta): apagada por defecto, se prende
+ * por workspace en Ajustes de Docs. DOCS_COEDIT manda sobre el ajuste (on/off);
+ * sin la variable decide el ajuste. Apagada, Docs guarda y fusiona como antes:
+ * un guardado con text_ops (editor viejo) lleva su texto y nada sale como operación.
  */
 
 vi.mock('@/lib/user-tz', () => ({ getUserTimeZone: async () => 'UTC' }));
@@ -22,31 +23,38 @@ afterEach(() => {
   delete process.env.DOCS_COEDIT;
 });
 
-describe('interruptor de la edición simultánea', () => {
-  it('prendida por defecto; DOCS_COEDIT=off la apaga en toda la instancia', async () => {
+describe('interruptor de la edición simultánea (beta)', () => {
+  it('apagada por defecto; el ajuste la prende; DOCS_COEDIT manda sobre el ajuste', async () => {
+    delete process.env.DOCS_COEDIT;
     const owner = await makeUser('sw1');
-    expect((await getDocsSettings(owner.id)).coedit).toBe(true);
+    expect((await getDocsSettings(owner.id)).coedit).toBe(false);
+    expect(coeditEnvOverride()).toBeNull();
+    expect(await coeditEnabled(owner.id)).toBe(false);
+    await updateDocsSettings(owner.id, { coedit: true });
     expect(await coeditEnabled(owner.id)).toBe(true);
     for (const v of ['off', '0', 'false', 'OFF']) {
       process.env.DOCS_COEDIT = v;
-      expect(coeditEnvEnabled()).toBe(false);
+      expect(coeditEnvOverride()).toBe(false);
       expect(await coeditEnabled(owner.id)).toBe(false);
     }
-    process.env.DOCS_COEDIT = 'on';
-    expect(await coeditEnabled(owner.id)).toBe(true);
+    await updateDocsSettings(owner.id, { coedit: false });
+    for (const v of ['on', '1', 'true']) {
+      process.env.DOCS_COEDIT = v;
+      expect(await coeditEnabled(owner.id)).toBe(true);
+    }
   });
 
-  it('apagada en el workspace: el guardado con text_ops lleva su texto y no publica operaciones', async () => {
+  it('apagada: el guardado con text_ops lleva su texto y no publica operaciones', async () => {
+    delete process.env.DOCS_COEDIT;
     const owner = await makeUser('sw2');
     const page = await createDocPage(owner.id, { title: 'Sw' });
     await updateDocPage(owner.id, page.id, { content: [para('p', 'uno')] });
-    await updateDocsSettings(owner.id, { coedit: false });
     expect(await coeditEnabled(owner.id)).toBe(false);
     const before = await opCount(page.id);
     await updateDocPage(owner.id, page.id, { content: [para('p', 'uno dos')], text_ops: true });
     expect(await textOf(page.id)).toBe('uno dos');
     expect(await opCount(page.id)).toBe(before);
-    // Prendida otra vez: con text_ops el texto de un bloque existente viaja por operaciones.
+    // Prendida: con text_ops el texto de un bloque existente viaja por operaciones (el guardado no lo pisa).
     await updateDocsSettings(owner.id, { coedit: true });
     await updateDocPage(owner.id, page.id, { content: [para('p', 'otra cosa')], text_ops: true });
     expect(await textOf(page.id)).toBe('uno dos');

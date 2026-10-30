@@ -10,6 +10,8 @@ import type { DocsBlock } from '@/lib/docs-types';
 import { makeUser } from './helpers';
 
 vi.mock('@/lib/user-tz', () => ({ getUserTimeZone: async () => 'UTC' }));
+// La edición simultánea es beta (apagada por defecto): estas pruebas son del camino prendido.
+process.env.DOCS_COEDIT = 'on';
 
 const para = (id: string, content: string): DocsBlock => ({ id, type: 'paragraph', content });
 

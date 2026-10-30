@@ -20,6 +20,8 @@ vi.mock('@/lib/session', () => ({
   isWorkspaceAdmin: () => true,
 }));
 vi.mock('@/lib/user-tz', () => ({ getUserTimeZone: async () => 'UTC' }));
+// La edición simultánea es beta (apagada por defecto): estas pruebas son del camino prendido.
+process.env.DOCS_COEDIT = 'on';
 
 const pageRoute = await import('@/lib/routes/docs/pages/[id]/route');
 

@@ -1271,8 +1271,8 @@
       "help": "Compartir una página por email con personas de afuera del workspace."
     },
     "coedit": {
-      "label": "Edición simultánea en tiempo real",
-      "help": "Cada persona ve las teclas de las demás a medida que se escriben. Apagada: los cambios de cada una se fusionan al guardar, más o menos cada segundo."
+      "label": "Edición simultánea en tiempo real (beta)",
+      "help": "Cada persona ve las teclas de las demás a medida que se escriben. Puede perder algunos caracteres si alguien parte un bloque mientras escribís; si lo ves, apagala. Apagada: los cambios de cada una se fusionan al guardar."
     },
     "nameRequired": "Ponele un nombre al teamspace.",
     "newTeamspace": "Teamspace nuevo",

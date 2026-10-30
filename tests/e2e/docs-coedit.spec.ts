@@ -1,5 +1,5 @@
 import { createClient } from '@libsql/client';
-import { expect, test, type APIRequestContext, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { expect, request as pwRequest, test, type APIRequestContext, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { textHash } from '../../lib/docs-ot';
 
 /**
@@ -13,6 +13,17 @@ import { textHash } from '../../lib/docs-ot';
  */
 
 const uid = () => Math.random().toString(36).slice(2, 8);
+
+// La edición simultánea es beta (apagada por defecto): estas pruebas la prenden para el
+// workspace de demo y la vuelven a apagar al terminar (el resto de los e2e corre sin ella).
+async function setCoedit(on: boolean) {
+  const api = await pwRequest.newContext({ baseURL: `http://localhost:${Number(process.env.E2E_PORT) || 3210}` });
+  const res = await api.patch('/api/docs/settings', { data: { coedit: on } });
+  expect(res.ok(), await res.text()).toBeTruthy();
+  await api.dispose();
+}
+test.beforeAll(() => setCoedit(true));
+test.afterAll(() => setCoedit(false));
 
 type Block = { id: string; type: string; content: string };
 
