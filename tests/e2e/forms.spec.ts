@@ -89,8 +89,8 @@ test('Forms: plantilla con lógica, respuesta con teclado y archivo, resumen, CS
     await v.locator('input[type="file"]').setInputFiles({ name: 'screen.png', mimeType: 'image/png', buffer: PNG });
     await expect(v.getByText('screen.png')).toBeVisible();
     await expect(v.getByRole('button', { name: 'Submit' })).toBeFocused();
-    // Un humano tarda más que el tiempo mínimo anti-spam (2 s); Playwright no.
-    await v.waitForTimeout(2100);
+    // Playwright responde en menos del tiempo mínimo anti-spam (2 s desde el render, firmado por el
+    // servidor): el envío recibe too_fast, la página espera lo que falta y reintenta sola.
     await v.keyboard.press('Enter');
     // Rama de "Crítico": su propio final.
     await expect(v.getByRole('heading', { name: /Critical reports go straight to the team on call/ })).toBeVisible();
@@ -150,9 +150,28 @@ test('Forms: modo clásico, cierre por tope y pantalla de cerrado', async ({ pag
   await page.getByRole('textbox', { name: /What is your email/ }).fill('ana@example.com');
   await expect(page.getByRole('heading', { name: /How can we help, Ana\?/ })).toBeVisible();
   await page.getByRole('textbox', { name: /How can we help/ }).fill('Hello');
-  await page.waitForTimeout(2100);
   await page.getByRole('button', { name: 'Submit' }).click();
   await expect(page.getByRole('heading', { name: 'Thanks, Ana!' })).toBeVisible();
   await page.goto(`/en/f/${form.slug}`, { waitUntil: 'networkidle' });
   await expect(page.getByRole('heading', { name: 'This form is no longer accepting responses.' })).toBeVisible();
+});
+
+test('Forms: el popup del embed abre, atrapa el foco y Esc lo cierra desde dentro del formulario', async ({ browser, request, baseURL }) => {
+  const { form } = (await (await request.post('/api/forms', { data: { name: `Popup ${uid()}`, template: 'contact' } })).json()) as { form: { id: string; slug: string } };
+  expect((await request.patch(`/api/forms/${form.id}`, { data: { status: 'published' } })).ok()).toBe(true);
+  const host = await browser.newPage();
+  await host.setContent(
+    `<!doctype html><html><body><h1>Partner</h1><script src="${baseURL}/api/forms/embed.js" data-form="${form.slug}" data-mode="popup" data-button="Give feedback"></script><a href="#x">After</a></body></html>`,
+    { waitUntil: 'load' },
+  );
+  await host.getByRole('button', { name: 'Give feedback' }).click();
+  const dialog = host.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  const input = host.frameLocator('iframe[data-zs-form]').getByRole('textbox', { name: /What is your name/ });
+  await expect(input).toBeVisible({ timeout: 30_000 });
+  await input.click();
+  await host.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(host.getByRole('button', { name: 'Give feedback' })).toBeFocused();
+  await host.close();
 });

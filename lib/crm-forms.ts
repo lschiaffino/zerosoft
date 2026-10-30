@@ -191,6 +191,20 @@ async function slugTaken(slug: string, exceptId: string | null, db: Db): Promise
 }
 
 /** Valida referencias de settings (owner, lista, tags, secuencia) contra el workspace. */
+/**
+ * Emails de aviso de alguien que no creó el form ni es admin: solo personas
+ * del workspace (o las que el form ya tenía). Mismo criterio que la app Forms.
+ */
+async function assertInsiderEmails(workspaceId: string, emails: string[], kept: string[], db: Db): Promise<void> {
+  const { listOwnerSpacePeople } = await import('./workspace');
+  const people = await listOwnerSpacePeople(workspaceId, {}, db);
+  for (const e of emails) {
+    const email = e.trim().toLowerCase();
+    if (kept.some((k) => k.toLowerCase() === email)) continue;
+    if (!people.some((p) => p.email.toLowerCase() === email)) throw new FormError('notify_external_forbidden');
+  }
+}
+
 async function cleanSettings(workspaceId: string, patch: Partial<FormSettings>, db: Db): Promise<Partial<FormSettings>> {
   const out = { ...patch };
   if (out.ownerId && !(await isWorkspacePerson(workspaceId, out.ownerId, db))) throw new FormError('invalid_owner');
@@ -286,9 +300,14 @@ export async function updateForm(
     settings?: Partial<FormSettings>;
   },
   db: Db = getDb(),
+  /** Quién edita: una dirección de aviso de afuera del workspace solo la agrega quien creó el form o un admin. */
+  actor?: { person: string; admin: boolean },
 ): Promise<CrmForm | null> {
   const existing = await getForm(workspaceId, id, db);
   if (!existing) return null;
+  if (input.settings?.notifyEmails && actor && !actor.admin && existing.created_by !== actor.person) {
+    await assertInsiderEmails(workspaceId, input.settings.notifyEmails, existing.settings.notifyEmails, db);
+  }
   const sets: Array<[string, string | null]> = [];
   if (input.name !== undefined) sets.push(['name', input.name.trim().slice(0, 200)]);
   if (input.slug !== undefined) {
@@ -643,7 +662,10 @@ export async function submitForm(
   if (s.notifyEmails.length) {
     const { sendEmail } = await import('./email');
     const base = (process.env.NEXTAUTH_URL ?? 'https://zerosoft.ai').replace(/\/$/, '');
+    const { rateLimit } = await import('./rate-limit');
     for (const to of s.notifyEmails) {
+      // Tope diario por form: un formulario público no puede volverse un relay de emails.
+      if (!(await rateLimit(`crm-form-notify:${form.id}`, 200, 86_400)).ok) break;
       await sendEmail({
         to,
         subject: `New submission: ${form.name}`,

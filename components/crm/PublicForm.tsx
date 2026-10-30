@@ -10,6 +10,8 @@ import { formSteps, isFieldVisible, type FieldError, type FormField } from '@/li
 interface Props {
   form: PublicFormDto;
   embed: boolean;
+  /** Abierto como popup del embed: Esc le pide a la página que lo cierre. */
+  popup?: boolean;
   /** UTM / parámetros de URL de la página (o de la página contenedora en embed). */
   urlParams: Record<string, string>;
   pageUrl: string;
@@ -21,7 +23,7 @@ interface Props {
  * desde que se mostró (anti-spam) y UTM. En embed avisa su alto al iframe
  * padre (zs-form:height) y el envío (zs-form:submitted).
  */
-export default function PublicForm({ form, embed, urlParams, pageUrl, referrer }: Props) {
+export default function PublicForm({ form, embed, popup = false, urlParams, pageUrl, referrer }: Props) {
   const t = useTranslations('crm.formsPublic');
   const [values, setValues] = useState<Record<string, string | boolean>>(() => {
     const init: Record<string, string | boolean> = {};
@@ -77,6 +79,16 @@ export default function PublicForm({ form, embed, urlParams, pageUrl, referrer }
   useEffect(() => {
     shownAt.current = Date.now();
   }, []);
+
+  // Popup del embed (motor común, lib/form-engine-embed.ts): Esc con el foco dentro del iframe también cierra.
+  useEffect(() => {
+    if (!popup || window.parent === window) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') window.parent.postMessage({ type: 'zs-form:close', form: form.key }, '*');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [popup, form.key]);
 
   // Alto automático en embed: el alto del contenido (no el del viewport del
   // iframe, que nunca dejaría achicarlo después de enviar).

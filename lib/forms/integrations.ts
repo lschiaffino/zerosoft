@@ -18,6 +18,7 @@
  */
 import { getDb } from '../db';
 import { crmSafe } from '../agents-forms';
+import { after } from 'next/server';
 import { emitEvent } from '../events';
 import { open } from '../secret-box';
 import { signPayload } from '../webhooks';
@@ -36,6 +37,9 @@ export interface CompletedResponse {
 
 export type FormsResponseHook = (event: { workspaceId: string; formId: string; formName: string; response: CompletedResponse }) => Promise<void> | void;
 const hooks: FormsResponseHook[] = [];
+
+/** Emails de aviso por form y por día (entre todas las direcciones). */
+export const NOTIFY_EMAILS_PER_DAY = 200;
 
 /** Para Hiring, People u otra app que embeba un form y quiera enterarse de cada respuesta. */
 export function registerFormsResponseHook(fn: FormsResponseHook): () => void {
@@ -120,21 +124,6 @@ export async function afterResponse(row: FormRow, def: FormDefinition, r: Comple
     console.error('[forms] notify', err instanceof Error ? err.message : err);
   }
 
-  if (s.notifyEmails.length) {
-    try {
-      const { sendEmail } = await import('../email');
-      const html = `<p>New response to <strong>${escapeHtml(row.name)}</strong>.</p><table>${def.questions
-        .filter((q) => r.answers[q.id] !== undefined)
-        .map((q) => `<tr><td style="padding:4px 8px;color:#555">${escapeHtml(q.title || q.ref)}</td><td style="padding:4px 8px">${escapeHtml(answerDisplay(q, r.answers[q.id]))}</td></tr>`)
-        .join('')}</table><p><a href="${escapeHtml(`${baseUrl()}/en${href}`)}">Open in Forms</a></p>`;
-      for (const to of s.notifyEmails) {
-        await sendEmail({ to, subject: `New response: ${row.name}`.slice(0, 200), text: `${lines.join('\n')}\n\n${baseUrl()}/en${href}`, html });
-      }
-    } catch (err) {
-      console.error('[forms] email', err instanceof Error ? err.message : err);
-    }
-  }
-
   const payload = {
     form: { id: row.id, name: row.name, slug: row.slug },
     response: {
@@ -149,23 +138,57 @@ export async function afterResponse(row: FormRow, def: FormDefinition, r: Comple
     },
   };
 
-  if (s.webhookUrl && row.webhook_secret) {
+  // Emails, webhook, Flow y ganchos: después de responder (after), así una
+  // casilla o un servidor lento no demoran ni rompen el envío.
+  const job = async () => {
+    if (s.notifyEmails.length) {
+      try {
+        // Tope diario de emails de aviso por form (un form abierto no puede volverse un relay).
+        const { rateLimit } = await import('../rate-limit');
+        {
+          const { sendEmail } = await import('../email');
+          const html = `<p>New response to <strong>${escapeHtml(row.name)}</strong>.</p><table>${def.questions
+            .filter((q) => r.answers[q.id] !== undefined)
+            .map((q) => `<tr><td style="padding:4px 8px;color:#555">${escapeHtml(q.title || q.ref)}</td><td style="padding:4px 8px">${escapeHtml(answerDisplay(q, r.answers[q.id]))}</td></tr>`)
+            .join('')}</table><p><a href="${escapeHtml(`${baseUrl()}/en${href}`)}">Open in Forms</a></p>`;
+          for (const to of s.notifyEmails) {
+            if (!(await rateLimit(`forms-notify:${row.id}`, NOTIFY_EMAILS_PER_DAY, 86_400)).ok) break;
+            await sendEmail({ to, subject: `New response: ${row.name}`.slice(0, 200), text: `${lines.join('\n')}\n\n${baseUrl()}/en${href}`, html });
+          }
+        }
+      } catch (err) {
+        console.error('[forms] email', err instanceof Error ? err.message : err);
+      }
+    }
+
+    if (s.webhookUrl && row.webhook_secret) {
+      try {
+        const { safeFetch } = await import('../safe-fetch');
+        const body = JSON.stringify({ type: 'forms.response.submitted', data: payload });
+        await safeFetch(s.webhookUrl, { method: 'POST', headers: { 'content-type': 'application/json', 'Zerosoft-Signature': signPayload(open(row.webhook_secret), body) }, body }, 8000);
+      } catch (err) {
+        console.error('[forms] webhook', err instanceof Error ? err.message : 'error');
+      }
+    }
+
     try {
-      const { safeFetch } = await import('../safe-fetch');
-      const body = JSON.stringify({ type: 'forms.response.submitted', data: payload });
-      await safeFetch(s.webhookUrl, { method: 'POST', headers: { 'content-type': 'application/json', 'Zerosoft-Signature': signPayload(open(row.webhook_secret), body) }, body }, 8000);
+      await emitEvent(row.workspace_id, 'forms.response.submitted', payload, { audience: (creatorId) => personCanAccess(row, creatorId) });
     } catch (err) {
-      console.error('[forms] webhook', err instanceof Error ? err.message : 'error');
+      console.error('[forms] flow', err instanceof Error ? err.message : err);
     }
-  }
 
-  await emitEvent(row.workspace_id, 'forms.response.submitted', payload, { audience: (creatorId) => personCanAccess(row, creatorId) });
-
-  for (const h of hooks) {
-    try {
-      await h({ workspaceId: row.workspace_id, formId: row.id, formName: row.name, response: r });
-    } catch {
-      /* un gancho no corta el envío */
+    for (const h of hooks) {
+      try {
+        await h({ workspaceId: row.workspace_id, formId: row.id, formName: row.name, response: r });
+      } catch {
+        /* un gancho no corta el envío */
+      }
     }
+  };
+  try {
+    after(job);
+  } catch {
+    // Fuera de un request (tests, scripts): en el momento.
+    await job();
   }
 }

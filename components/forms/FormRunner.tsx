@@ -17,6 +17,10 @@ export interface RunnerProps {
   embed: boolean;
   /** Vista previa del builder: no guarda ni cuenta visitas. */
   preview?: boolean;
+  /** Marca de render firmada por el servidor (tiempo mínimo anti-spam). */
+  renderToken?: string;
+  /** Abierto como popup del embed: Esc avisa a la página para cerrarlo. */
+  popup?: boolean;
 }
 
 type Screen = 'resume' | 'welcome' | 'question' | 'consent' | 'ending' | 'closed';
@@ -62,7 +66,8 @@ export default function FormRunner(props: RunnerProps) {
   const [ending, setEnding] = useState<{ id: string; vars: Record<string, number> } | null>(null);
   const [honeypot, setHoneypot] = useState('');
   const [announce, setAnnounce] = useState('');
-  const shownAt = useRef(0);
+  const renderToken = useRef(props.renderToken ?? '');
+  const lastDigit = useRef<{ key: string; at: number } | null>(null);
   const visitId = useRef('');
   const partialToken = useRef<string | undefined>(undefined);
   const seen = useRef(new Set<string>());
@@ -76,7 +81,6 @@ export default function FormRunner(props: RunnerProps) {
 
   // Al montar: visita, tiempo y si hay progreso guardado en este navegador.
   useEffect(() => {
-    shownAt.current = Date.now();
     visitId.current = newVisitId();
     if (props.closedReason || preview) return;
     if (settings.resume) {
@@ -123,6 +127,16 @@ export default function FormRunner(props: RunnerProps) {
     }, 600);
   }, [answers, screen, slug, settings.resume, settings.partials, partialOk, preview, props.hidden, props.lang]);
 
+  // Popup del embed: Esc (también con el foco dentro del iframe) le pide a la página que lo cierre.
+  useEffect(() => {
+    if (!props.popup || window.parent === window) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') window.parent.postMessage({ type: 'zs-form:close', form: slug }, '*');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [props.popup, slug]);
+
   // Alto en embed (el script del embed ajusta el iframe).
   useEffect(() => {
     if (!embed || window.parent === window) return;
@@ -161,31 +175,49 @@ export default function FormRunner(props: RunnerProps) {
     return r.error ?? null;
   };
 
-  async function submit() {
+  /**
+   * Envía. Si el servidor dice too_fast (el tiempo mínimo desde el render no
+   * pasó, o la marca venció), espera lo que falta y reintenta una vez con la
+   * marca que devolvió. El progreso guardado en el navegador solo se borra
+   * cuando la respuesta quedó guardada.
+   */
+  async function submit(override?: Answers) {
     if (busy) return;
+    const sending = override ?? answers;
     if (preview) {
-      setEnding({ id: state.endingId, vars: state.vars });
+      const p = computePath(def, sending, props.hidden);
+      setEnding({ id: p.endingId, vars: p.vars });
       setScreen('ending');
       return;
     }
     setBusy(true);
     setSubmitError('');
-    const res = await fetch('/api/forms/public/submit', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        slug,
-        answers,
-        hidden: props.hidden,
-        lang: props.lang,
-        consent,
-        website_url: honeypot,
-        elapsedMs: Date.now() - shownAt.current,
-        resumeToken: partialToken.current,
-        visitId: visitId.current,
-      }),
-    }).catch(() => null);
-    const data = res ? ((await res.json().catch(() => null)) as { ok?: boolean; error?: string; reason?: string; errors?: Record<string, AnswerError>; endingId?: string; vars?: Record<string, number> } | null) : null;
+    type Reply = { ok?: boolean; error?: string; reason?: string; errors?: Record<string, AnswerError>; endingId?: string; vars?: Record<string, number>; waitMs?: number; renderToken?: string };
+    const post = async () => {
+      const res = await fetch('/api/forms/public/submit', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          slug,
+          answers: sending,
+          hidden: props.hidden,
+          lang: props.lang,
+          consent,
+          website_url: honeypot,
+          renderToken: renderToken.current,
+          resumeToken: partialToken.current,
+          visitId: visitId.current,
+        }),
+      }).catch(() => null);
+      const data = res ? ((await res.json().catch(() => null)) as Reply | null) : null;
+      return { res, data };
+    };
+    let { res, data } = await post();
+    if (data?.error === 'too_fast') {
+      if (data.renderToken) renderToken.current = data.renderToken;
+      await new Promise((r) => setTimeout(r, Math.min(Math.max(data?.waitMs ?? 2000, 0), 10_000) + 100));
+      ({ res, data } = await post());
+    }
     setBusy(false);
     if (res?.ok && data?.ok) {
       try {
@@ -193,7 +225,7 @@ export default function FormRunner(props: RunnerProps) {
       } catch {
         /* nada */
       }
-      const end = def.endings.find((e) => e.id === data.endingId) ?? def.endings[0];
+      const end = def.endings.find((e) => e.id === data?.endingId) ?? def.endings[0];
       setEnding({ id: end?.id ?? '', vars: data.vars ?? {} });
       setScreen('ending');
       if (embed && window.parent !== window) window.parent.postMessage({ type: 'zs-form:submitted', form: slug, redirectUrl: end?.redirectUrl ?? '' }, '*');
@@ -202,7 +234,7 @@ export default function FormRunner(props: RunnerProps) {
     }
     if (data?.error === 'invalid' && data.errors && Object.keys(data.errors).length) {
       setErrors(data.errors);
-      const first = state.path.find((id) => data.errors?.[id]);
+      const first = state.path.find((id) => data?.errors?.[id]);
       if (first && conversational) {
         setCurrent(first);
         setScreen('question');
@@ -225,19 +257,24 @@ export default function FormRunner(props: RunnerProps) {
     }
     const q = qById.get(current);
     if (!q) return;
-    // Ranking sin tocar: el orden que se ve es la respuesta.
-    if (q.type === 'ranking' && answers[q.id] === undefined && q.required) setAnswer(q.id, (q.choices ?? []).map((c) => c.id));
-    const err = q.type === 'ranking' && answers[q.id] === undefined && q.required ? null : validateOne(q);
+    // Ranking sin tocar: el orden que se ve es la respuesta (también si es la última pregunta).
+    let effective = answers;
+    if (q.type === 'ranking' && answers[q.id] === undefined && q.required) {
+      effective = { ...answers, [q.id]: (q.choices ?? []).map((c) => c.id) };
+      setAnswer(q.id, effective[q.id]);
+    }
+    const err = checkAnswer(q, effective[q.id]).error ?? null;
     if (err) {
       setErrors((e) => ({ ...e, [q.id]: err }));
       setAnnounce(t(`errors.${err}`));
       return;
     }
-    const nextId = state.path[pos + 1];
+    const path = effective === answers ? state.path : computePath(def, effective, props.hidden).path;
+    const nextId = path[path.indexOf(q.id) + 1];
     if (nextId) {
       setCurrent(nextId);
       setAnnounce('');
-    } else void finish();
+    } else void finish(effective);
   }
 
   function back() {
@@ -245,7 +282,7 @@ export default function FormRunner(props: RunnerProps) {
     else if (def.welcome.enabled) setScreen('welcome');
   }
 
-  async function finish() {
+  async function finish(override?: Answers) {
     if (def.consent.enabled && screen !== 'consent') {
       setScreen('consent');
       return;
@@ -254,7 +291,7 @@ export default function FormRunner(props: RunnerProps) {
       setSubmitError(t('consentRequired'));
       return;
     }
-    await submit();
+    await submit(override);
   }
 
   function onClassicSubmit(e: React.FormEvent) {
@@ -313,10 +350,16 @@ export default function FormRunner(props: RunnerProps) {
     }
     if ((q.type === 'rating' || q.type === 'opinion_scale') && /^[0-9]$/.test(k)) {
       e.preventDefault();
-      const n = Number(k);
       const lo = q.type === 'rating' ? 1 : q.nps ? 0 : (q.start ?? 1);
       const steps = q.type === 'opinion_scale' && q.nps ? 11 : (q.steps ?? 5);
-      if (n >= lo && n < lo + steps) setAnswer(q.id, n);
+      const hi = lo + steps - 1;
+      // 10 en escalas que llegan a 10: "1" y "0" seguidos (antes de 800 ms).
+      const prev = lastDigit.current;
+      lastDigit.current = { key: k, at: Date.now() };
+      let n = Number(k);
+      if (prev && prev.key === '1' && k === '0' && Date.now() - prev.at < 800 && hi >= 10) n = 10;
+      else if (k === '0' && lo > 0 && hi >= 10) n = 10;
+      if (n >= lo && n <= hi) setAnswer(q.id, n);
     }
   }
 
@@ -390,7 +433,7 @@ export default function FormRunner(props: RunnerProps) {
               {q.type === 'statement' ? q.button || t('continue') : pos === state.path.length - 1 && !def.consent.enabled ? t('submit') : t('ok')}
             </button>
             <span className="fr-hint" aria-hidden="true">
-              {q.type === 'long_text' ? t('hintShiftEnter') : t('hintEnter')}
+              {q.type === 'long_text' ? t('hintShiftEnter') : q.type === 'opinion_scale' && (q.nps || (q.start ?? 1) + (q.steps ?? 5) - 1 >= 10) ? t('hintTen') : t('hintEnter')}
             </span>
           </div>
         )}

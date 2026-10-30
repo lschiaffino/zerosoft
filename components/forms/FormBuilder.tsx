@@ -112,7 +112,19 @@ export default function FormBuilder({ initial, tab, me, admin, crmApp, brandColo
           <label className="sr-only" htmlFor="fm-name">
             {t('builder.name')}
           </label>
-          <input id="fm-name" className="fm-name" value={state.name} onChange={(e) => update('name', e.target.value)} maxLength={200} />
+          <input
+            id="fm-name"
+            className="fm-name"
+            value={state.name}
+            onChange={(e) => update('name', e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                void save();
+              }
+            }}
+            maxLength={200}
+          />
           <StatusBadge status={form.status} open={form.open} />
           {dirty && <span className="fm-dirty">{t('builder.unsaved')}</span>}
         </div>
@@ -177,6 +189,7 @@ export default function FormBuilder({ initial, tab, me, admin, crmApp, brandColo
                 update={update}
                 canShare={admin || form.createdBy === me}
                 crmApp={crmApp}
+                onRotated={(f) => setForm(f)}
               />
             )}
             {panel === 'translate' && <TranslatePanel def={state.definition} setDef={setDef} />}

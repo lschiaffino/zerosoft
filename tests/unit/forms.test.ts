@@ -26,7 +26,9 @@ import {
 } from '@/lib/forms/engine';
 import { templateDefinition, TEMPLATE_IDS } from '@/lib/forms/templates';
 import { canAccess, createForm, getForm, listForms, slugTaken, updateForm } from '@/lib/forms/core';
-import { deleteResponses, exportCsv, fileForMember, formSummary, getResponse, listResponses, purgeFormsRetention, savePartial, submitResponse, trackVisit, uploadPublicFile } from '@/lib/forms/responses';
+import { deleteResponses, exportCsv, fileForMember, formSummary, getResponse, listResponses, MAX_OPEN_PARTIALS_PER_IP, purgeFormsRetention, savePartial, submitResponse as rawSubmit, trackVisit, uploadPublicFile, type SubmitBody } from '@/lib/forms/responses';
+import { renderToken } from '@/lib/forms/render-token';
+import { createForm as createCrmFormRaw, getForm as getCrmForm, updateForm as updateCrmForm } from '@/lib/crm-forms';
 import { syncCrmContact } from '@/lib/forms/integrations';
 import { sniffFormFile } from '@/lib/forms/files';
 import { searchForms } from '@/lib/forms/search';
@@ -36,6 +38,8 @@ process.env.UPLOADS_DIR = path.join(os.tmpdir(), `zs-forms-uploads-${process.pid
 process.env.RATE_LIMIT_DISABLED = 'true';
 
 const uid = () => Math.random().toString(36).slice(2, 10);
+/** Envío de alguien que tardó más que el tiempo mínimo (marca de render de hace 5 s). */
+const submitResponse = (slug: string, body: SubmitBody, meta?: { ip?: string; userAgent?: string }) => rawSubmit(slug, { renderToken: renderToken(slug, Date.now() - 5000), ...body }, meta);
 const PDF = Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n', 'latin1');
 // PNG de 1x1 (firma).
 const PNG_1PX = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
@@ -248,7 +252,7 @@ describe('servidor: envío, límites, archivos y permisos', () => {
     await expect(uploadPublicFile(f.slug, 'q_name', { bytes: PDF, filename: 'cv.pdf' })).rejects.toMatchObject({ code: 'invalid_question' });
     const file = await uploadPublicFile(f.slug, 'q_cv', { bytes: PDF, filename: 'my cv <x>.pdf' });
     expect(file.name).toBe('my cv _x_.pdf');
-    const res = await submitResponse(f.slug, { answers: { q_name: 'Ana Pérez', q_email: 'ana@example.com', q_role: 'c1', q_cv: file }, consent: true, elapsedMs: 5000 });
+    const res = await submitResponse(f.slug, { answers: { q_name: 'Ana Pérez', q_email: 'ana@example.com', q_role: 'c1', q_cv: file }, consent: true });
     expect(res.ok).toBe(true);
     if (!res.ok) return;
     // El mismo archivo no se reusa en otro envío.
@@ -260,14 +264,64 @@ describe('servidor: envío, límites, archivos y permisos', () => {
     expect((await submitResponse(f.slug, { answers: { q_name: 'Bob', q_email: 'bob@example.com', q_role: 'c1' } })).ok).toBe(false);
   });
 
-  it('honeypot y tiempo mínimo: responde ok sin guardar nada', async () => {
+  it('honeypot: ok sin guardar; tiempo mínimo con marca firmada: too_fast y el reintento guarda', async () => {
     const { owner } = await world();
     const f = await published(owner, 'contact');
-    const a = await submitResponse(f.slug, { answers: { q_name: 'Bot', q_email: 'bot@x.io', q_message: 'buy' }, website_url: 'http://spam' });
-    const b = await submitResponse(f.slug, { answers: { q_name: 'Bot', q_email: 'bot@x.io', q_message: 'buy' }, elapsedMs: 200 });
+    const answers = { q_name: 'Ana', q_email: 'ana@example.com', q_message: 'hi' };
+    const a = await submitResponse(f.slug, { answers, website_url: 'http://spam' });
     expect(a.ok && a.spam).toBe(true);
-    expect(b.ok && b.spam).toBe(true);
+    // Sin marca, con una marca falsa o con una de otro form: sospechoso, esperar con una marca nueva.
+    for (const token of [undefined, `${Date.now() - 9000}.${'x'.repeat(32)}`, renderToken('another-form', Date.now() - 9000)]) {
+      const r = await rawSubmit(f.slug, { answers, renderToken: token });
+      expect(!r.ok && r.error).toBe('too_fast');
+      if (!r.ok && r.error === 'too_fast') expect(r.waitMs).toBe(2000);
+    }
+    // Demasiado rápido: lo que falta esperar, con la misma marca.
+    const fresh = renderToken(f.slug, Date.now() - 500);
+    const fast = await rawSubmit(f.slug, { answers, renderToken: fresh });
+    expect(!fast.ok && fast.error).toBe('too_fast');
+    if (!fast.ok && fast.error === 'too_fast') {
+      expect(fast.waitMs).toBeGreaterThan(1000);
+      expect(fast.waitMs).toBeLessThanOrEqual(1500);
+      expect(fast.renderToken).toBe(fresh);
+    }
     expect((await listResponses(owner, f.id))!.total).toBe(0);
+    // Pasado el tiempo, la misma marca sirve y la respuesta se guarda.
+    const later = await rawSubmit(f.slug, { answers, renderToken: renderToken(f.slug, Date.now() - 2100) });
+    expect(later.ok).toBe(true);
+    expect((await listResponses(owner, f.id))!.total).toBe(1);
+  });
+
+  it('parciales con topes: 3 abiertas por IP y 200 KB por parcial', async () => {
+    const { owner } = await world();
+    const f = await published(owner, 'contact');
+    await updateForm(owner, f.id, { settings: { partials: true } });
+    for (let i = 0; i < MAX_OPEN_PARTIALS_PER_IP; i++) await savePartial(f.slug, { answers: { q_name: `P${i}` }, consent: true }, { ip: '198.51.100.7' });
+    await expect(savePartial(f.slug, { answers: { q_name: 'one more' }, consent: true }, { ip: '198.51.100.7' })).rejects.toMatchObject({ code: 'partials_full' });
+    expect(await savePartial(f.slug, { answers: { q_name: 'other ip' }, consent: true }, { ip: '198.51.100.8' })).not.toBeNull();
+    // Una parcial que ya existe se sigue actualizando (el tope es para abrir nuevas).
+    const def = (await getForm(owner, f.id))!.definition;
+    expect(def.questions[2].type).toBe('long_text');
+    await expect(savePartial(f.slug, { answers: { q_message: 'x'.repeat(9000), q_name: 'y'.repeat(900) }, consent: true }, { ip: '198.51.100.9' })).resolves.not.toBeNull();
+    // 200 KB: un form con muchas preguntas largas.
+    const many = await createForm(owner, { name: 'Long', definition: { ...emptyDefinition(), questions: Array.from({ length: 30 }, (_, i) => q({ id: `q_l${i}`, type: 'long_text' })) } });
+    await updateForm(owner, many.id, { status: 'published', settings: { partials: true } });
+    const huge = Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`q_l${i}`, 'w'.repeat(9_000)]));
+    await expect(savePartial(many.slug, { answers: huge, consent: true }, { ip: '198.51.100.10' })).rejects.toMatchObject({ code: 'too_large' });
+  });
+
+  it('las parciales abandonadas se borran a los 30 días aunque la retención sea "siempre"', async () => {
+    const { owner } = await world();
+    const f = await published(owner, 'contact');
+    await updateForm(owner, f.id, { settings: { partials: true } });
+    await savePartial(f.slug, { answers: { q_name: 'Old' }, consent: true });
+    await savePartial(f.slug, { answers: { q_name: 'Fresh' }, consent: true });
+    const old = new Date(Date.now() - 31 * 86_400_000).toISOString();
+    await getDb().prepare("UPDATE forms_responses SET updated_at = ? WHERE form_id = ? AND answers LIKE '%Old%'").run(old, f.id);
+    const res = await purgeFormsRetention();
+    expect(res.partials).toBeGreaterThanOrEqual(1);
+    const left = (await listResponses(owner, f.id, { status: 'partial' }))!.rows;
+    expect(left.map((r) => r.answers.q_name)).toEqual(['Fresh']);
   });
 
   it('tope de respuestas con envíos simultáneos: nunca se pasa', async () => {
@@ -298,7 +352,7 @@ describe('servidor: envío, límites, archivos y permisos', () => {
     expect((await submitResponse(f.slug, body, { ip: '203.0.113.10' })).ok).toBe(true);
     await updateForm(owner, f.id, { settings: { closeAt: new Date(Date.now() - 1000).toISOString() } });
     const closed = await submitResponse(f.slug, body, { ip: '203.0.113.11' });
-    expect(!closed.ok && closed.reason).toBe('date');
+    expect(!closed.ok && closed.error !== 'too_fast' && closed.reason).toBe('date');
   });
 
   it('parciales: solo con consentimiento, y el envío final completa la misma fila', async () => {
@@ -469,5 +523,72 @@ describe('servidor: envío, límites, archivos y permisos', () => {
     expect(src.searchParams.get('email')).toBe('a@b.co');
     expect(src.searchParams.get('x')).toBeNull();
     expect(src.searchParams.get('popup')).toBe('1');
+  });
+});
+
+describe('avisos, webhook y retención (QA)', () => {
+  it('emails de aviso: un miembro solo suma personas del workspace; afuera, quien creó el form o un admin', async () => {
+    const { owner, member } = await world();
+    const alice = await member();
+    const aliceEmail = String(((await getDb().prepare('SELECT email FROM users WHERE id = ?').get(alice.person)) as { email: string }).email);
+    const f = await createForm(owner, { name: 'Notify', template: 'contact' });
+    await expect(updateForm(alice, f.id, { settings: { notifyEmails: ['spam-target@example.com'] } })).rejects.toMatchObject({ code: 'notify_external_forbidden' });
+    expect((await updateForm(alice, f.id, { settings: { notifyEmails: [aliceEmail] } }))!.settings.notifyEmails).toEqual([aliceEmail.toLowerCase()]);
+    expect((await updateForm(owner, f.id, { settings: { notifyEmails: [aliceEmail, 'boss@example.com'] } }))!.settings.notifyEmails).toContain('boss@example.com');
+    // Lo que ya estaba se puede volver a guardar tal cual (el builder manda todo).
+    expect(await updateForm(alice, f.id, { settings: { notifyEmails: [aliceEmail, 'boss@example.com'] } })).not.toBeNull();
+    // Webhook y su secreto: solo quien creó el form o un admin.
+    await expect(updateForm(alice, f.id, { settings: { webhookUrl: 'https://hooks.example.com/x' } })).rejects.toMatchObject({ code: 'forbidden' });
+    const withHook = (await updateForm(owner, f.id, { settings: { webhookUrl: 'https://hooks.example.com/x' } }))!;
+    expect(withHook.webhookSecret).toMatch(/^whsec_/);
+    expect((await getForm(alice, f.id))!.webhookSecret).toBe('');
+    await expect(updateForm(alice, f.id, { rotateWebhookSecret: true })).rejects.toMatchObject({ code: 'forbidden' });
+    const rotated = (await updateForm(owner, f.id, { rotateWebhookSecret: true }))!;
+    expect(rotated.webhookSecret).toMatch(/^whsec_/);
+    expect(rotated.webhookSecret).not.toBe(withHook.webhookSecret);
+    // Duplicar no se lleva las direcciones ni el webhook.
+    const { duplicateForm } = await import('@/lib/forms/core');
+    const copy = (await duplicateForm(alice, f.id))!;
+    expect(copy.settings.notifyEmails).toEqual([]);
+    expect(copy.settings.webhookUrl).toBe('');
+  });
+
+  it('CRM forms: la misma regla para los emails de aviso', async () => {
+    const { owner, member } = await world();
+    const alice = await member('["crm"]');
+    const form = await createCrmFormRaw(owner.ws, { name: 'CRM notify', createdBy: owner.person });
+    await expect(updateCrmForm(owner.ws, form.id, { settings: { notifyEmails: ['outsider@example.com'] } }, undefined, { person: alice.person, admin: false })).rejects.toMatchObject({ code: 'notify_external_forbidden' });
+    expect(await updateCrmForm(owner.ws, form.id, { settings: { notifyEmails: ['outsider@example.com'] } }, undefined, { person: owner.person, admin: true })).not.toBeNull();
+    expect((await getCrmForm(owner.ws, form.id))!.settings.notifyEmails).toEqual(['outsider@example.com']);
+  });
+
+  it('retención: borrar baja el contador y un reclamo trabado de más de una hora se retoma', async () => {
+    const { owner } = await world();
+    const f = await published(owner, 'contact');
+    await updateForm(owner, f.id, { settings: { retentionDays: 30, responseLimit: 2 } });
+    await submitResponse(f.slug, { answers: { q_name: 'A', q_email: 'a@example.com', q_message: 'hi' } });
+    await submitResponse(f.slug, { answers: { q_name: 'B', q_email: 'b@example.com', q_message: 'hi' } });
+    expect((await getForm(owner, f.id))!.closedReason).toBe('limit');
+    const old = new Date(Date.now() - 40 * 86_400_000).toISOString();
+    const stuck = new Date(Date.now() - 2 * 3_600_000).toISOString();
+    await getDb().prepare('UPDATE forms_responses SET submitted_at = ?, updated_at = ?, purge_claimed_at = ? WHERE form_id = ?').run(old, old, stuck, f.id);
+    const res = await purgeFormsRetention();
+    expect(res.responses).toBeGreaterThanOrEqual(2);
+    const after = (await getForm(owner, f.id))!;
+    expect(after.responseCount).toBe(0);
+    expect(after.open).toBe(true);
+  });
+
+  it('un tope por IP pasado se deshace sin dejar la fila ni el lugar ocupado', async () => {
+    const { owner } = await world();
+    const f = await published(owner, 'contact');
+    await updateForm(owner, f.id, { settings: { perIpLimit: 1, responseLimit: 5 } });
+    const body = { answers: { q_name: 'Ana', q_email: 'ana@example.com', q_message: 'hi' } };
+    const [x, y] = await Promise.all([submitResponse(f.slug, body, { ip: '192.0.2.44' }), submitResponse(f.slug, body, { ip: '192.0.2.44' })]);
+    const okCount = [x, y].filter((r) => r.ok).length;
+    expect(okCount).toBeLessThanOrEqual(1);
+    const total = (await listResponses(owner, f.id))!.total;
+    expect(total).toBe(okCount);
+    expect((await getForm(owner, f.id))!.responseCount).toBe(okCount);
   });
 });

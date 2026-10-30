@@ -12,7 +12,7 @@ import type { FileAnswer } from '@/lib/forms/types';
 import { FormTabs } from './ui';
 
 /** Una respuesta: cada pregunta con lo que se contestó, ocultos, variables, final, archivos y borrar. */
-export default function ResponseDetail({ form, response }: { form: FormDto; response: ResponseDto }) {
+export default function ResponseDetail({ form, response, timeZone }: { form: FormDto; response: ResponseDto; timeZone?: string }) {
   const t = useTranslations('forms.responses');
   const tp = useTranslations('forms.public');
   const format = useFormatter();
@@ -23,7 +23,7 @@ export default function ResponseDetail({ form, response }: { form: FormDto; resp
   const labels = { yes: tp('yes'), no: tp('no'), file: tp('file'), signed: tp('signed') };
   const def = form.definition;
   const ending = def.endings.find((e) => e.id === response.endingId);
-  const when = format.dateTime(new Date(response.submittedAt ?? response.createdAt), { dateStyle: 'long', timeStyle: 'short' });
+  const when = format.dateTime(new Date(response.submittedAt ?? response.createdAt), { dateStyle: 'long', timeStyle: 'short', timeZone });
 
   async function remove() {
     setBusy(true);

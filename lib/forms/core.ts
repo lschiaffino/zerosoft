@@ -63,7 +63,7 @@ export interface FormDto {
   open: boolean;
   closedReason: '' | 'draft' | 'closed' | 'date' | 'limit';
   canDelete: boolean;
-  /** Secreto de firma del webhook (lo ve quien tiene acceso al form). */
+  /** Secreto de firma del webhook (solo para quien creó el form o un admin). */
   webhookSecret: string;
 }
 
@@ -174,7 +174,8 @@ async function toDto(actor: FormsActor, row: FormRow): Promise<FormDto> {
     open: reason === '',
     closedReason: reason,
     canDelete: actor.admin || row.created_by === actor.person,
-    webhookSecret: row.webhook_secret ? open(row.webhook_secret) : '',
+    // El secreto de firma solo lo ve quien puede configurar el webhook.
+    webhookSecret: row.webhook_secret && (actor.admin || row.created_by === actor.person) ? open(row.webhook_secret) : '',
   };
 }
 
@@ -283,6 +284,8 @@ export interface UpdateInput {
   sharing?: Sharing;
   members?: string[];
   status?: FormStatus;
+  /** Genera un secreto de firma nuevo para el webhook (quien creó el form o un admin). */
+  rotateWebhookSecret?: boolean;
 }
 
 /** Ajustes nuevos: valida personas a avisar (con acceso) y que el CRM lo prenda alguien que lo tiene. */
@@ -296,7 +299,28 @@ async function cleanSettings(actor: FormsActor, row: FormRow, patch: Partial<For
       return p.role === 'owner' || p.role === 'admin' || sharing === 'workspace' || row.created_by === pid || members.includes(pid);
     });
   }
-  if (patch.crm?.enabled && !settingsOf(row).crm.enabled && !actor.crm) throw new FormsError('crm_forbidden', 403);
+  const owner = actor.admin || row.created_by === actor.person;
+  const before = settingsOf(row);
+  // Emails de aviso: personas del workspace que ven el form. Una dirección de
+  // afuera solo la agrega quien creó el form o un admin (si no, el form
+  // serviría para mandar sus respuestas a cualquier casilla).
+  if (patch.notifyEmails) {
+    const people = await listOwnerSpacePeople(actor.ws, { app: 'forms' });
+    const clean: string[] = [];
+    for (const raw of patch.notifyEmails) {
+      const email = raw.trim().toLowerCase();
+      if (clean.includes(email)) continue;
+      const p = people.find((x) => x.email.toLowerCase() === email);
+      const insider = p && (p.role === 'owner' || p.role === 'admin' || sharing === 'workspace' || row.created_by === p.id || members.includes(p.id));
+      const kept = before.notifyEmails.some((e) => e.toLowerCase() === email);
+      if (!insider && !owner && !kept) throw new FormsError('notify_external_forbidden', 403);
+      clean.push(email);
+    }
+    merged.notifyEmails = clean;
+  }
+  // Webhook: lo configura quien creó el form o un admin.
+  if (patch.webhookUrl !== undefined && patch.webhookUrl !== before.webhookUrl && !owner) throw new FormsError('forbidden', 403);
+  if (patch.crm?.enabled && !before.crm.enabled && !actor.crm) throw new FormsError('crm_forbidden', 403);
   if (merged.closeAt && Number.isNaN(Date.parse(merged.closeAt))) throw new FormsError('invalid_date');
   return merged;
 }
@@ -336,7 +360,10 @@ export async function updateForm(actor: FormsActor, id: string, input: UpdateInp
     }
   }
   if (input.settings !== undefined) sets.push(['settings', JSON.stringify(await cleanSettings(actor, row, input.settings, sharing, members))]);
-  if (input.settings?.webhookUrl && !row.webhook_secret) sets.push(['webhook_secret', seal(`whsec_${randomBytes(24).toString('hex')}`)]);
+  if (input.rotateWebhookSecret || (input.settings?.webhookUrl && !row.webhook_secret)) {
+    if (!actor.admin && row.created_by !== actor.person) throw new FormsError('forbidden', 403);
+    sets.push(['webhook_secret', seal(`whsec_${randomBytes(24).toString('hex')}`)]);
+  }
   if (input.status !== undefined && input.status !== row.status) {
     if (input.status === 'published') {
       const def = input.definition !== undefined ? normalizeDefinition(input.definition) : definitionOf(row);
@@ -363,7 +390,7 @@ export async function duplicateForm(actor: FormsActor, id: string, name?: string
   if (!row) return null;
   const copy = await createForm(actor, { name: name ?? `${row.name} (copy)`, definition: definitionOf(row) });
   const s = settingsOf(row);
-  await getDb().prepare('UPDATE forms_forms SET settings = ? WHERE id = ?').run(JSON.stringify({ ...s, webhookUrl: '', notifyPeople: [actor.person] }), copy.id);
+  await getDb().prepare('UPDATE forms_forms SET settings = ? WHERE id = ?').run(JSON.stringify({ ...s, webhookUrl: '', notifyEmails: [], notifyPeople: [actor.person] }), copy.id);
   return getForm(actor, copy.id);
 }
 

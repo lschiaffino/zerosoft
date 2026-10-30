@@ -24,6 +24,7 @@ const patchSchema = z.object({
   sharing: z.enum(SHARING).optional(),
   members: z.array(z.string().max(64)).max(200).optional(),
   status: z.enum(FORM_STATUSES).optional(),
+  rotateWebhookSecret: z.boolean().optional(),
 });
 
 /** PATCH: nombre, slug, definición (preguntas, lógica, finales, traducciones), ajustes, acceso y estado. */

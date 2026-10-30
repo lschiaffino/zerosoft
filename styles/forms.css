@@ -14,6 +14,11 @@
   padding: 0;
 }
 
+/* Popup del embed: aire alrededor y lugar para la X de cierre de la página. */
+.fp-embed.fp-popup {
+  padding: 40px 24px 20px;
+}
+
 .fp-card {
   border: 1px solid var(--line);
   border-radius: var(--radius-1);

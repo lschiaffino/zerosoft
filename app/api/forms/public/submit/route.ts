@@ -21,7 +21,7 @@ const bodySchema = z.object({
   lang: z.string().max(5).optional(),
   consent: z.boolean().optional(),
   website_url: z.string().max(500).optional(),
-  elapsedMs: z.number().int().min(0).max(86_400_000 * 30).optional(),
+  renderToken: z.string().max(80).optional(),
   resumeToken: z.string().max(64).optional(),
   visitId: z.string().max(40).optional(),
 });
@@ -29,7 +29,8 @@ const bodySchema = z.object({
 /**
  * Envío público de /f/<slug> (o del embed). Sin cookies. Rate limit por IP
  * (10 por minuto por form y 60 por hora en total) además del honeypot, el
- * tiempo mínimo y el límite por IP que el form tenga configurado.
+ * tiempo mínimo desde el render (marca firmada; too_fast con 425 y lo que
+ * falta esperar) y el límite por IP que el form tenga configurado.
  */
 export async function POST(req: NextRequest) {
   const raw = (await req.json().catch(() => null)) as unknown;
@@ -41,6 +42,7 @@ export async function POST(req: NextRequest) {
   if (perIp) return perIp;
   try {
     const res = await submitResponse(parsed.data.slug, parsed.data, { ip: clientIp(req), userAgent: req.headers.get('user-agent') ?? '' });
+    if (!res.ok && res.error === 'too_fast') return json({ error: 'too_fast', waitMs: res.waitMs, renderToken: res.renderToken }, 425);
     if (!res.ok) {
       const status = res.error === 'not_found' ? 404 : res.error === 'closed' ? 409 : res.error === 'ip_limit' ? 429 : 400;
       return json({ error: res.error, reason: res.reason, errors: res.errors ?? {} }, status);

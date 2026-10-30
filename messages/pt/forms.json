@@ -146,7 +146,8 @@
     "duplicate_question": "Duas perguntas compartilham o mesmo id.",
     "duplicate_choice": "Duas opções compartilham o mesmo id.",
     "duplicate_ending": "Dois finais compartilham o mesmo id.",
-    "invalid_steps": "Uma avaliação vai de 3 a 10 passos."
+    "invalid_steps": "Uma avaliação vai de 3 a 10 passos.",
+    "notify_external_forbidden": "Só quem criou o formulário ou um admin pode enviar avisos para endereços fora do workspace."
   },
   "builder": {
     "name": "Nome do formulário",
@@ -377,7 +378,11 @@
       "deleteTitle": "Excluir {name}?",
       "deleteBody": "Isso exclui o formulário, suas {n} respostas e seus arquivos. Não dá para desfazer.",
       "cancel": "Cancelar",
-      "error": "Algo deu errado. Tente de novo."
+      "error": "Algo deu errado. Tente de novo.",
+      "webhookOwnerOnly": "Só quem criou o formulário ou um admin pode mudar o webhook.",
+      "rotateSecret": "Trocar segredo",
+      "notifyEmailsMembers": "Endereços de pessoas do workspace que veem este formulário. Um endereço de fora só pode ser adicionado por quem criou o formulário ou por um admin.",
+      "accessEditors": "Todas as pessoas com acesso podem editar o formulário, ver e exportar as respostas e excluir respostas."
     },
     "translate": {
       "base": "Idioma base",
@@ -474,7 +479,8 @@
     "dropOffHelp": "Porcentagem das visitas que chegou a cada pergunta. Só se conta a pergunta alcançada, nunca as respostas.",
     "noVisits": "Ainda não há visitas.",
     "completed": "Completas",
-    "reached": "{n} · {pct}%"
+    "reached": "{n} · {pct}%",
+    "maxPerDay": "máx. {n} por dia"
   },
   "settings": {
     "title": "Configurações do Forms",
@@ -560,6 +566,7 @@
       "too_many": "Escolha menos opções.",
       "invalid_date": "Informe uma data válida.",
       "invalid_option": "Escolha uma das opções."
-    }
+    },
+    "hintTen": "aperte 1 e 0 para 10 · Enter para continuar"
   }
 }

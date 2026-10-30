@@ -34,7 +34,7 @@ export function FormTabs({ id, active }: { id: string; active: 'build' | 'respon
 export function useErrorText() {
   const t = useTranslations('forms.errors');
   return (code: string | undefined) => {
-    const known = ['duplicate_ref', 'missing_choices', 'invalid_jump', 'invalid_logic', 'invalid_definition', 'slug_taken', 'invalid_slug', 'no_questions', 'crm_forbidden', 'forbidden', 'invalid_date', 'name_required', 'duplicate_question', 'duplicate_choice', 'duplicate_ending', 'invalid_steps'];
+    const known = ['duplicate_ref', 'missing_choices', 'invalid_jump', 'invalid_logic', 'invalid_definition', 'slug_taken', 'invalid_slug', 'no_questions', 'crm_forbidden', 'forbidden', 'invalid_date', 'name_required', 'duplicate_question', 'duplicate_choice', 'duplicate_ending', 'invalid_steps', 'notify_external_forbidden'];
     return known.includes(code ?? '') ? t(code as 'forbidden') : t('generic');
   };
 }

@@ -3,6 +3,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { getPublicForm, toPublicForm } from '@/lib/crm-forms';
 import { definitionOf, getPublicFormRow, openState, settingsOf } from '@/lib/forms/core';
 import { hiddenFrom, localize, pickLang } from '@/lib/forms/engine';
+import { renderToken } from '@/lib/forms/render-token';
 import PublicForm from '@/components/crm/PublicForm';
 import FormRunner from '@/components/forms/FormRunner';
 import '@/styles/forms.css';
@@ -61,8 +62,8 @@ export default async function PublicFormPage(props: Props) {
       }
     }
     return (
-      <main className={`fp${embed ? ' fp-embed' : ''}`}>
-        <PublicForm form={toPublicForm(form)} embed={embed} urlParams={urlParams} pageUrl={one(sp.page_url).slice(0, 1500)} referrer={one(sp.ref).slice(0, 500)} />
+      <main className={`fp${embed ? ' fp-embed' : ''}${one(sp.popup) === '1' ? ' fp-popup' : ''}`}>
+        <PublicForm form={toPublicForm(form)} embed={embed} popup={one(sp.popup) === '1'} urlParams={urlParams} pageUrl={one(sp.page_url).slice(0, 1500)} referrer={one(sp.ref).slice(0, 500)} />
       </main>
     );
   }
@@ -87,6 +88,8 @@ export default async function PublicFormPage(props: Props) {
         lang={lang}
         languages={[def.lang, ...def.languages.filter((l) => l !== def.lang)]}
         embed={embed}
+        popup={one(sp.popup) === '1'}
+        renderToken={renderToken(row.slug)}
       />
     </div>
   );

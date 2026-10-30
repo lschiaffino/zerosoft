@@ -31,6 +31,7 @@ export default function SettingsPanel({
   update,
   canShare,
   crmApp,
+  onRotated,
 }: {
   form: FormDto;
   state: BuilderState;
@@ -38,6 +39,7 @@ export default function SettingsPanel({
   update: <K extends keyof BuilderState>(k: K, v: BuilderState[K]) => void;
   canShare: boolean;
   crmApp: boolean;
+  onRotated?: (f: FormDto) => void;
 }) {
   const t = useTranslations('forms.builder.settings');
   const router = useRouter();
@@ -77,6 +79,15 @@ export default function SettingsPanel({
       </select>
     </Field>
   );
+
+  async function rotate() {
+    setBusy(true);
+    const res = await fetch(`/api/forms/${form.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rotateWebhookSecret: true }) }).catch(() => null);
+    const data = res ? ((await res.json().catch(() => null)) as { form?: FormDto } | null) : null;
+    setBusy(false);
+    if (data?.form) onRotated?.(data.form);
+    else setError(t('error'));
+  }
 
   async function duplicate() {
     setBusy(true);
@@ -136,7 +147,7 @@ export default function SettingsPanel({
           </label>
         ))}
       </fieldset>
-      <Field label={t('notifyEmails')} id="fm-emails" help={t('notifyEmailsHelp')}>
+      <Field label={t('notifyEmails')} id="fm-emails" help={canShare ? t('notifyEmailsHelp') : t('notifyEmailsMembers')}>
         <input
           id="fm-emails"
           className="input"
@@ -166,6 +177,7 @@ export default function SettingsPanel({
             <span>{t(`sharing.${v}`)}</span>
           </label>
         ))}
+        <p className="ui-help">{t('accessEditors')}</p>
         {!canShare && <p className="ui-help">{t('accessOwnerOnly')}</p>}
       </fieldset>
       {state.sharing === 'people' && (
@@ -202,13 +214,18 @@ export default function SettingsPanel({
           </div>
         </>
       )}
-      <Field label={t('webhook')} id="fm-webhook" help={t('webhookHelp')}>
-        <input id="fm-webhook" className="input" type="url" placeholder="https://" value={s.webhookUrl} maxLength={2000} onChange={(e) => setSettings({ webhookUrl: e.target.value.trim() })} />
+      <Field label={t('webhook')} id="fm-webhook" help={canShare ? t('webhookHelp') : t('webhookOwnerOnly')}>
+        <input id="fm-webhook" className="input" type="url" placeholder="https://" value={s.webhookUrl} maxLength={2000} disabled={!canShare} onChange={(e) => setSettings({ webhookUrl: e.target.value.trim() })} />
       </Field>
-      {form.webhookSecret && s.webhookUrl && (
-        <p className="ui-help">
-          {t('webhookSecret')} <code className="fm-code-inline">{form.webhookSecret}</code>
-        </p>
+      {canShare && form.webhookSecret && s.webhookUrl && (
+        <div className="fm-row">
+          <p className="ui-help">
+            {t('webhookSecret')} <code className="fm-code-inline">{form.webhookSecret}</code>
+          </p>
+          <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => void rotate()}>
+            {t('rotateSecret')}
+          </button>
+        </div>
       )}
       <p className="ui-help">{t('flowHelp')}</p>
 

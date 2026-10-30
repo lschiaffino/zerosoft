@@ -146,7 +146,8 @@
     "duplicate_question": "Two questions share the same id.",
     "duplicate_choice": "Two options share the same id.",
     "duplicate_ending": "Two endings share the same id.",
-    "invalid_steps": "A rating goes from 3 to 10 steps."
+    "invalid_steps": "A rating goes from 3 to 10 steps.",
+    "notify_external_forbidden": "Only the creator of the form or an admin can send notifications to addresses outside the workspace."
   },
   "builder": {
     "name": "Form name",
@@ -377,7 +378,11 @@
       "deleteTitle": "Delete {name}?",
       "deleteBody": "This deletes the form, its {n} responses and their files. It cannot be undone.",
       "cancel": "Cancel",
-      "error": "Something went wrong. Try again."
+      "error": "Something went wrong. Try again.",
+      "webhookOwnerOnly": "Only the creator of the form or an admin can change the webhook.",
+      "rotateSecret": "Rotate secret",
+      "notifyEmailsMembers": "Addresses of workspace members who can see this form. External addresses can only be added by the creator of the form or an admin.",
+      "accessEditors": "Everyone with access can edit the form, see and export its responses, and delete responses."
     },
     "translate": {
       "base": "Base language",
@@ -474,7 +479,8 @@
     "dropOffHelp": "Share of visits that reached each question. Only the question reached is counted, never the answers.",
     "noVisits": "No visits yet.",
     "completed": "Completed",
-    "reached": "{n} · {pct}%"
+    "reached": "{n} · {pct}%",
+    "maxPerDay": "max {n} per day"
   },
   "settings": {
     "title": "Forms settings",
@@ -560,6 +566,7 @@
       "too_many": "Choose fewer options.",
       "invalid_date": "Enter a valid date.",
       "invalid_option": "Choose one of the options."
-    }
+    },
+    "hintTen": "press 1 then 0 for 10 · Enter to continue"
   }
 }

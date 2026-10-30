@@ -24,7 +24,7 @@ interface Filters {
 }
 
 /** Tabla de respuestas: filtros, búsqueda, completas o parciales, borrar y CSV con los mismos filtros. */
-export default function FormResponses({ form, rows, total, filters }: { form: FormDto; rows: ResponseDto[]; total: number; filters: Filters }) {
+export default function FormResponses({ form, rows, total, filters, timeZone }: { form: FormDto; rows: ResponseDto[]; total: number; filters: Filters; timeZone?: string }) {
   const t = useTranslations('forms.responses');
   const tp = useTranslations('forms.public');
   const format = useFormatter();
@@ -170,12 +170,12 @@ export default function FormResponses({ form, rows, total, filters }: { form: Fo
                 <tr key={r.id}>
                   <td className="fm-col-check">
                     <label className="ui-check">
-                      <input type="checkbox" aria-label={t('selectOne', { date: format.dateTime(new Date(r.submittedAt ?? r.createdAt), { dateStyle: 'medium', timeStyle: 'short' }) })} checked={selected.includes(r.id)} onChange={(e) => setSelected(e.target.checked ? [...selected, r.id] : selected.filter((x) => x !== r.id))} />
+                      <input type="checkbox" aria-label={t('selectOne', { date: format.dateTime(new Date(r.submittedAt ?? r.createdAt), { dateStyle: 'medium', timeStyle: 'short', timeZone }) })} checked={selected.includes(r.id)} onChange={(e) => setSelected(e.target.checked ? [...selected, r.id] : selected.filter((x) => x !== r.id))} />
                     </label>
                   </td>
                   <th scope="row">
                     <Link href={`/app/forms/${form.id}/responses/${r.id}`} className="fm-rowlink">
-                      <span className="fm-rowtitle">{format.dateTime(new Date(r.submittedAt ?? r.createdAt), { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                      <span className="fm-rowtitle">{format.dateTime(new Date(r.submittedAt ?? r.createdAt), { dateStyle: 'medium', timeStyle: 'short', timeZone })}</span>
                       <span className="fm-rowmeta fm-show-sm">{cols[0] ? answerDisplay(cols[0], r.answers[cols[0].id], labels).slice(0, 60) : ''}</span>
                     </Link>
                   </th>

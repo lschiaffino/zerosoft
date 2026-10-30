@@ -69,6 +69,11 @@ export default function FormSummary({ form, summary }: { form: FormDto; summary:
               </li>
             ))}
           </ol>
+          <div className="fm-days-axis" aria-hidden="true">
+            <span>{summary.byDay[0].day}</span>
+            <span>{t('maxPerDay', { n: maxDay })}</span>
+            {summary.byDay.length > 1 && <span>{summary.byDay[summary.byDay.length - 1].day}</span>}
+          </div>
         </section>
       )}
       {summary.total === 0 ? (

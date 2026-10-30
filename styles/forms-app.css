@@ -217,3 +217,9 @@
 }
 
 .fm-outline > .btn, .fm-rule > .btn, .fm-choices-edit > .btn, .fm-vars > .btn { align-self: flex-start; }
+
+.fm-days-axis { display: flex; justify-content: space-between; gap: 8px; font-family: var(--font-data); font-size: 0.75rem; color: var(--brand-gray-2); border-top: 1px solid var(--line); padding-top: 4px; }
+.fm-days li:only-child { flex: 0 0 24px; }
+@media (max-width: 760px) {
+  .fm-subtabs, .fm-tabs { flex-wrap: wrap; row-gap: 4px; }
+}

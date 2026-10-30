@@ -10,7 +10,8 @@
  *
  * data-mode="popup": en vez del iframe en línea pone un botón (data-button)
  * que abre el formulario en una ventana encima de la página; Esc o la X la
- * cierran y el foco vuelve al botón.
+ * cierran (también Esc con el foco dentro del formulario, que avisa con
+ * zs-form:close), el foco queda atrapado en la ventana y vuelve al botón.
  * Mismo enfoque que el embed de Cal (app/api/calendar/embed.js).
  */
 export const FORM_EMBED_SCRIPT = `(function () {
@@ -74,6 +75,8 @@ export const FORM_EMBED_SCRIPT = `(function () {
     overlay.appendChild(box);
     overlay.addEventListener('click', function (e) { if (e.target === overlay) closePopup(); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePopup(); });
+    // Foco atrapado: con la ventana abierta, el foco no sale a la página de atrás.
+    document.addEventListener('focusin', function (e) { if (overlay.style.display === 'flex' && !overlay.contains(e.target)) x.focus(); });
     button.addEventListener('click', function () {
       if (!overlay.parentNode) document.body.appendChild(overlay);
       overlay.style.display = 'flex';

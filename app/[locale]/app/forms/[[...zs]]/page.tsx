@@ -8,6 +8,7 @@ import { getForm, listForms, workspaceDefaults } from '@/lib/forms/core';
 import { formSummary, getResponse, listResponses } from '@/lib/forms/responses';
 import { TEMPLATES } from '@/lib/forms/templates';
 import { getBrandKit } from '@/lib/design';
+import { getUserTimeZone } from '@/lib/user-tz';
 import EmptyState from '@/components/ui/EmptyState';
 import FormsList from '@/components/forms/FormsList';
 import FormNew from '@/components/forms/FormNew';
@@ -80,11 +81,11 @@ export default async function FormsPage(props: Props) {
       if (rid) {
         const response = await getResponse(actor, form.id, rid);
         if (!response) notFound();
-        return <ResponseDetail form={form} response={response} />;
+        return <ResponseDetail form={form} response={response} timeZone={await getUserTimeZone()} />;
       }
       const filters = { status: (sp.status === 'partial' ? 'partial' : 'completed') as 'partial' | 'completed', q: sp.q ?? '', from: sp.from ?? '', to: sp.to ?? '', question: sp.question ?? '', value: sp.value ?? '', page: Number(sp.page) || 1, pageSize: 50 };
       const res = await listResponses(actor, form.id, filters);
-      return <FormResponses form={form} rows={res?.rows ?? []} total={res?.total ?? 0} filters={filters} />;
+      return <FormResponses form={form} rows={res?.rows ?? []} total={res?.total ?? 0} filters={filters} timeZone={await getUserTimeZone()} />;
     }
     case 'summary': {
       if (rid) notFound();
