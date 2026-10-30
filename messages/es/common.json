@@ -338,7 +338,8 @@
         "send_failed": "El email no salió. Probá de nuevo en un minuto.",
         "email_login_disabled": "En este servidor no se puede entrar por email. Usá Google.",
         "bad_code": "El código no es correcto o venció. Mirá el último email o pedí otro.",
-        "daily_limit": "Demasiados intentos con este email hoy. Entrá con Google o probá de nuevo mañana."
+        "daily_limit": "Demasiados intentos con este email hoy. Entrá con Google o probá de nuevo mañana.",
+        "verify_rate_limited": "Se probaron demasiados códigos desde esta red. Esperá 15 minutos y probá de nuevo."
       }
     },
     "subGoogle": "Entrás con tu cuenta de Google. No hay contraseña que crear."
