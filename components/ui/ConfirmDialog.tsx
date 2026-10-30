@@ -60,6 +60,20 @@ export default function ConfirmDialog({
       onClick={(e) => {
         if (e.target === e.currentTarget && !busy) onCancel();
       }}
+      onKeyDown={(e) => {
+        // Foco atrapado: Tab y Shift+Tab giran entre Cancelar y Confirmar (no se va a la barra del navegador).
+        if (e.key !== 'Tab') return;
+        const cancel = cancelRef.current;
+        const confirm = confirmRef.current;
+        if (!cancel || !confirm) return;
+        if (!e.shiftKey && document.activeElement === confirm) {
+          e.preventDefault();
+          cancel.focus();
+        } else if (e.shiftKey && document.activeElement === cancel) {
+          e.preventDefault();
+          confirm.focus();
+        }
+      }}
     >
       {open && (
         <>

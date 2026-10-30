@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { emailLoginEnabled, normalizeLoginEmail, sendLoginCode } from '@/lib/email-login';
-import { limitByIp, rateLimit } from '@/lib/rate-limit';
+import { clientIp, limitByIp, rateLimit } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -20,9 +20,13 @@ export async function POST(req: NextRequest) {
   if (!parsed.success || !email) return NextResponse.json({ error: 'invalid_email' }, { status: 400 });
   const byIp = await limitByIp(req, 'auth:email-code', 20, 900);
   if (byIp) return byIp;
-  const byEmail = await rateLimit(`auth:email-code:${email}`, 5, 900);
+  const ip = clientIp(req);
+  // Por email + IP: un tercero no gasta el cupo de otra persona desde su IP.
+  const byEmail = await rateLimit(`auth:email-code:${email}:${ip}`, 5, 900);
   if (!byEmail.ok) return NextResponse.json({ error: 'rate_limited' }, { status: 429 });
-  const res = await sendLoginCode(email, parsed.data.locale);
+  const res = await sendLoginCode(email, parsed.data.locale, ip);
+  // Tope del día: mismo mensaje para cualquier email (no revela si hay cuenta).
+  if (res.error === 'daily_limit') return NextResponse.json({ error: 'daily_limit' }, { status: 429 });
   if (!res.ok) return NextResponse.json({ error: 'send_failed' }, { status: 502 });
   return NextResponse.json({ ok: true });
 }

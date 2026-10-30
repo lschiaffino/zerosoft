@@ -186,15 +186,20 @@ export function normalizeEmail(email: string): string {
 }
 
 /**
- * La cuenta de un email sin importar mayúsculas: las filas viejas pueden tener
- * "Ana@X.com" (no se reescriben); si hubiera dos, gana la que coincide exacto
- * y después la más vieja.
+ * La cuenta de un email sin importar mayúsculas ni la forma Unicode: compara
+ * contra email_norm (normalizeEmail, calculado en JS; 145_users_email_norm).
+ * Una fila sin email_norm (escrita por fuera de upsertUser) cae a lower(email).
+ * `email` no se reescribe; si hubiera dos, gana la que coincide exacto y
+ * después la más vieja.
  */
 async function findUserByEmail(email: string): Promise<UserRow | undefined> {
   const clean = normalizeEmail(email);
   return (await getDb()
-    .prepare('SELECT * FROM users WHERE lower(email) = ? ORDER BY (email = ?) DESC, created_at, id LIMIT 1')
-    .get(clean, clean)) as UserRow | undefined;
+    .prepare(
+      `SELECT * FROM users WHERE email_norm = ? OR (email_norm IS NULL AND lower(email) = ?)
+       ORDER BY (email = ?) DESC, created_at, id LIMIT 1`,
+    )
+    .get(clean, clean, clean)) as UserRow | undefined;
 }
 
 export async function upsertUser(u: {
@@ -209,9 +214,9 @@ export async function upsertUser(u: {
     await db
       // El nombre que la persona cambió en zerosoft (onboarding, Ajustes) no lo pisa el de Google.
       .prepare(
-        "UPDATE users SET name = CASE WHEN json_extract(COALESCE(profile, '{}'), '$.nameEdited') = 1 THEN name ELSE COALESCE(?, name) END, image = COALESCE(?, image) WHERE id = ?",
+        "UPDATE users SET name = CASE WHEN json_extract(COALESCE(profile, '{}'), '$.nameEdited') = 1 THEN name ELSE COALESCE(?, name) END, image = COALESCE(?, image), email_norm = COALESCE(email_norm, ?) WHERE id = ?",
       )
-      .run(u.name ?? null, u.image ?? null, existing.id);
+      .run(u.name ?? null, u.image ?? null, normalizeEmail(existing.email), existing.id);
     return (await db.prepare('SELECT * FROM users WHERE id = ?').get(existing.id)) as UserRow;
   }
   // Dos requests concurrentes del mismo usuario nuevo (o dos usuarios con el
@@ -227,9 +232,9 @@ export async function upsertUser(u: {
     try {
       await db
         .prepare(
-          'INSERT INTO users (id, email, name, image, handle) VALUES (?, ?, ?, ?, ?) ON CONFLICT(email) DO NOTHING',
+          'INSERT INTO users (id, email, email_norm, name, image, handle) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(email) DO NOTHING',
         )
-        .run(u.id ?? crypto.randomUUID(), normalizeEmail(u.email), u.name ?? null, u.image ?? null, pickHandle(u.email, taken));
+        .run(u.id ?? crypto.randomUUID(), normalizeEmail(u.email), normalizeEmail(u.email), u.name ?? null, u.image ?? null, pickHandle(u.email, taken));
       break;
     } catch (err) {
       if (attempt >= 4 || !/UNIQUE constraint failed: users\.handle/.test(String(err))) throw err;

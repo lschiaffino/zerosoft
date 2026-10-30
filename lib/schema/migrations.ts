@@ -7544,12 +7544,23 @@ export const MIGRATIONS: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_email_login_codes_email ON email_login_codes(email, created_at);
       `);
     },
-  },  {
-    // Buscar cuentas por email sin importar mayúsculas (lib/db.ts → lower(email)).
-    // No reescribe filas: solo el índice para que la búsqueda no recorra la tabla.
-    id: '145_users_email_lower',
+  },
+  {
+    // Buscar cuentas por email sin importar mayúsculas ni acentos compuestos:
+    // email_norm = NFC + trim + minúsculas, calculado en JS (lower() de SQLite
+    // solo baja ASCII). No toca `email`; se completa acá para las filas viejas
+    // y lib/db.ts (upsertUser) lo escribe en las nuevas.
+    id: '145_users_email_norm',
     async up(client) {
-      await client.execute('CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users(lower(email))');
+      await addColumn(client, 'ALTER TABLE users ADD COLUMN email_norm TEXT');
+      const rows = (await client.execute('SELECT id, email FROM users WHERE email_norm IS NULL')).rows;
+      for (const r of rows) {
+        await client.execute({
+          sql: 'UPDATE users SET email_norm = ? WHERE id = ?',
+          args: [String(r.email).normalize('NFC').trim().toLowerCase(), String(r.id)],
+        });
+      }
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_users_email_norm ON users(email_norm)');
     },
   },
 ];
