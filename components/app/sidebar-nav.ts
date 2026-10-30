@@ -3,7 +3,7 @@ import type { IconName } from './icons';
 import { isNewLinkPath } from '@/lib/link-detail-tabs';
 import type { NotificationTextLabels } from '@/lib/notification-text';
 import { APP_SWITCHER_ORDER, PRODUCT_CONFIG, isBuildingProduct, type ProductCategory, type ProductKey } from '@/lib/products';
-import { appsByCategory } from '@/lib/workspace-mode';
+import { featuredApps, type WorkspaceMode } from '@/lib/workspace-mode';
 
 /** Resumen de Link (antes vivía en /app, que ahora es el inicio de la plataforma). */
 export const LINK_OVERVIEW_HREF = '/app/links/overview';
@@ -24,6 +24,8 @@ export interface SidebarLabels {
   records: string;
   activity: string;
   insights: string;
+  /** Sidebar del inicio: las apps de la persona arriba y el resto plegado. */
+  yourApps: string;
   linksSection: string;
   workspace: string;
   /** Ajustes globales de la cuenta (pie del sidebar, todos los productos). */
@@ -185,17 +187,6 @@ export interface SidebarLabels {
     store: string;
     newProduct: string;
   };
-  /** People (BambooHR): directorio, organigrama, licencias, onboarding, evaluaciones, reportes. */
-  people: {
-    directory: string;
-    org: string;
-    timeOff: string;
-    onboarding: string;
-    reviews: string;
-    reports: string;
-    welcome: string;
-    newPerson: string;
-  };
   /** Analytics (PostHog): web, eventos, insights, tableros, personas, cohortes, flags y SQL. */
   analytics: {
     web: string;
@@ -209,6 +200,9 @@ export interface SidebarLabels {
     projects: string;
     newInsight: string;
   };
+  social: { calendar: string; posts: string; inbox: string; analytics: string; library: string; accounts: string; settings: string; newPost: string };
+  /** People (BambooHR): directorio, organigrama, licencias, onboarding, evaluaciones, reportes. */
+  people: { directory: string; org: string; timeOff: string; onboarding: string; reviews: string; reports: string; welcome: string; newPerson: string };
   notifications: {
     title: string;
     markRead: string;
@@ -264,6 +258,7 @@ export type AppProduct =
   | 'design'
   | 'shop'
   | 'analytics'
+  | 'social'
   | 'people';
 
 const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
@@ -284,6 +279,7 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/design', 'design'],
   ['/app/shop', 'shop'],
   ['/app/analytics', 'analytics'],
+  ['/app/social', 'social'],
   ['/app/people', 'people'],
 ];
 
@@ -326,6 +322,7 @@ const APP_ICONS: Record<ProductKey, IconName> = {
   design: 'design',
   shop: 'shop',
   analytics: 'analytics',
+  social: 'social',
   people: 'people',
 };
 
@@ -365,11 +362,41 @@ export function importNavItem(product: AppProduct, labels: SidebarLabels): NavIt
   };
 }
 
+/** Apps que el inicio muestra arriba: las que la persona usó hace poco y las destacadas del modo. */
+export const HOME_APPS_LIMIT = 8;
+
+/**
+ * Apps del sidebar del inicio: arriba "Tus apps" (las recientes de la persona,
+ * completadas con las destacadas del modo, hasta HOME_APPS_LIMIT) y el resto
+ * en "Más apps", plegable con teclado. Sale de PRODUCT_CONFIG: una app nueva
+ * entra sola en uno de los dos grupos, sin tocar CSS.
+ */
+export function homeAppGroups(
+  labels: SidebarLabels,
+  opts: { allowed?: '*' | readonly string[]; recentApps?: readonly string[]; mode?: WorkspaceMode } = {},
+): NavGroup[] {
+  const can = (k: ProductKey) => !opts.allowed || opts.allowed === '*' || opts.allowed.includes(k);
+  const all = APP_SWITCHER_ORDER.filter(can);
+  const recent = (opts.recentApps ?? []).filter((k): k is ProductKey => (all as readonly string[]).includes(k));
+  const top = [...new Set([...recent, ...featuredApps({ mode: opts.mode ?? 'team' }).filter(can), ...all])].slice(0, HOME_APPS_LIMIT);
+  const rest = all.filter((k) => !top.includes(k));
+  const item = (line: ProductKey): NavItem => ({
+    href: switcherHref(line),
+    label: PRODUCT_CONFIG[line].name,
+    active: false,
+    icon: APP_ICONS[line],
+    soon: isBuildingProduct(line) || undefined,
+  });
+  const groups: NavGroup[] = [{ section: labels.yourApps, items: top.map(item) }];
+  if (rest.length) groups.push({ section: labels.moreApps, items: rest.map(item), collapsible: true });
+  return groups;
+}
+
 export function buildNav(
   product: AppProduct,
   pathname: string,
   labels: SidebarLabels,
-  counts: { tasksDue?: number; unread?: number; allowed?: '*' | readonly string[] } = {},
+  counts: { tasksDue?: number; unread?: number; allowed?: '*' | readonly string[]; recentApps?: readonly string[]; mode?: WorkspaceMode } = {},
 ): NavGroup[] {
   const at = (prefix: string) => pathname.startsWith(prefix);
   const tasksDue = counts.tasksDue ?? 0;
@@ -390,19 +417,7 @@ export function buildNav(
             { href: '/app/assistant', label: labels.assistant, active: pathname === '/app/assistant' || pathname.startsWith('/app/assistant/'), icon: 'assistant' },
           ],
         },
-        ...appsByCategory()
-          .map(({ category, apps }) => ({ category, apps: apps.filter((k) => !counts.allowed || counts.allowed === '*' || counts.allowed.includes(k)) }))
-          .filter(({ apps }) => apps.length > 0)
-          .map(({ category, apps }) => ({
-          section: labels.categories[category],
-          items: apps.map((line) => ({
-            href: switcherHref(line),
-            label: PRODUCT_CONFIG[line].name,
-            active: false,
-            icon: APP_ICONS[line],
-            soon: isBuildingProduct(line) || undefined,
-          })),
-        })),
+        ...homeAppGroups(labels, counts),
       ];
 
     case 'crm':
@@ -806,6 +821,28 @@ export function buildNav(
         appSettingsGroup('/app/shop/settings'),
       ];
 
+    case 'social':
+      return [
+        {
+          items: [
+            { href: '/app/social', label: labels.social.calendar, active: pathname === '/app/social' || at('/app/social/calendar'), icon: 'calendar' },
+            { href: '/app/social/posts', label: labels.social.posts, active: at('/app/social/posts') || at('/app/social/posts/new'), icon: 'lists' },
+            { href: '/app/social/inbox', label: labels.social.inbox, active: at('/app/social/inbox'), icon: 'inbox' },
+            { href: '/app/social/library', label: labels.social.library, active: at('/app/social/library'), icon: 'templates' },
+          ],
+        },
+        {
+          section: labels.insights,
+          items: [{ href: '/app/social/analytics', label: labels.social.analytics, active: at('/app/social/analytics'), icon: 'reports' }],
+        },
+        {
+          items: [
+            { href: '/app/social/accounts', label: labels.social.accounts, active: at('/app/social/accounts'), icon: 'social' },
+            { href: '/app/social/settings', label: labels.social.settings, active: at('/app/social/settings'), icon: 'settings' },
+          ],
+        },
+      ];
+
     case 'people': {
       const pl = labels.people;
       const peopleDetail = /^\/app\/people\/emp_/.test(pathname);
@@ -933,14 +970,16 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
       return [item('/app/design?new=1', labels.design.newDesign, 'design')];
     case 'shop':
       return [item('/app/shop/products/new', labels.shop.newProduct, 'products')];
-    case 'people':
-      return [item('/app/people?new=1', labels.people.newPerson, 'people'), item('/app/people/time-off?new=1', labels.people.timeOff, 'timeoff')];
     case 'agents':
       return [item('/app/agents?new=1', labels.newAgent, 'agents')];
     case 'robots':
       return [item('/app/robots?new=1', labels.newRobot, 'robots')];
     case 'groups':
       return [item('/app/groups/list?new=1', labels.newGroup, 'groups')];
+    case 'social':
+      return [item('/app/social/posts/new', labels.social.newPost, 'social')];
+    case 'people':
+      return [item('/app/people?new=1', labels.people.newPerson, 'people'), item('/app/people/time-off?new=1', labels.people.timeOff, 'timeoff')];
     case 'link':
     default:
       return [item('/app/links/new', labels.newLink, 'newLink')];

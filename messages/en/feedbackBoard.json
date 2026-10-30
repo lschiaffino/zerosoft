@@ -70,7 +70,8 @@
     "people": "People",
     "platform": "Platform",
     "site": "Website",
-    "other": "Other"
+    "other": "Other",
+    "social": "Social"
   },
   "empty": "No ideas yet. Suggest the first one.",
   "emptySearch": "Nothing matches. Try other words or suggest the idea.",

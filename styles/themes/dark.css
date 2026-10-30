@@ -63,6 +63,7 @@
     --c-rec-ink: #ea5f7d;
     --c-talk-ink: #b37baa;
     --c-design-ink: #22b8d6;
+    --c-social-ink: #f472b6;
     /* Talk: el ciruela base queda en 2,8:1 sobre el fondo oscuro; el relleno usa el tono claro (≥ 5:1) y tinta encima. */
     --c-talk: #b37baa;
     --c-talk-on: #111111;
@@ -162,6 +163,7 @@
   --c-rec-ink: #ea5f7d;
   --c-talk-ink: #b37baa;
   --c-design-ink: #22b8d6;
+  --c-social-ink: #f472b6;
   /* Talk: el ciruela base queda en 2,8:1 sobre el fondo oscuro; el relleno usa el tono claro (≥ 5:1) y tinta encima. */
   --c-talk: #b37baa;
   --c-talk-on: #111111;

@@ -29,6 +29,7 @@
   --c-design-ink: #00748c;
   --c-shop-ink: #15803d;
   --c-analytics-ink: #4f46e5;
+  --c-social-ink: #be185d;
   --c-people-ink: #8b5e34;
 
   /* Texto sobre un relleno del color del producto. */
@@ -50,6 +51,7 @@
   --c-design-on: #111111;
   --c-shop-on: #ffffff;
   --c-analytics-on: #ffffff;
+  --c-social-on: #ffffff;
   --c-people-on: #ffffff;
 
   /* Escala (px a 1440): lectura y datos. Los títulos (--t-display, --t-h1,

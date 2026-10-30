@@ -31,7 +31,8 @@
       "analytics": "Analytics",
       "people": "People",
       "site": "Website",
-      "other": "Other"
+      "other": "Other",
+      "social": "Social"
     },
     "messageLabel": "Message",
     "placeholder": {

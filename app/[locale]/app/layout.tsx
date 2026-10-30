@@ -82,7 +82,7 @@ export default async function AppLayout(
   if (workspaces.length && !workspaces.some((w) => w.current)) workspaces[0].current = true;
   const tTriage = await getTranslations({ locale, namespace: 'trackTriage' });
   // Lecturas independientes en paralelo (en Turso cada query es un RTT).
-  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tPeople, tasksDue, serverTz, tPlanning, mode, tCat] =
+  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tSocial, tPeople, tasksDue, serverTz, tPlanning, mode, tCat] =
     await Promise.all([
       getTranslations({ locale, namespace: 'settings' }),
       getTranslations({ locale, namespace: 'common.sidebar' }),
@@ -104,6 +104,7 @@ export default async function AppLayout(
       getTranslations({ locale, namespace: 'design' }),
       getTranslations({ locale, namespace: 'shop' }),
       getTranslations({ locale, namespace: 'analytics' }),
+      getTranslations({ locale, namespace: 'social' }),
       getTranslations({ locale, namespace: 'people' }),
       // El badge no puede tirar todas las páginas de la app: sin la tabla o con un error, 0.
       countDueTasks(user.id).catch((err) => {
@@ -280,6 +281,13 @@ export default async function AppLayout(
                 { href: '/app/analytics/flags', label: tAnalytics('sidebar.flags') },
                 { href: '/app/analytics/sql', label: tAnalytics('sidebar.sql') },
                 { href: '/app/analytics/projects', label: tAnalytics('sidebar.projects') },
+                { href: '/app/social', label: tSocial('sidebar.calendar') },
+                { href: '/app/social/posts', label: tSocial('sidebar.posts') },
+                { href: '/app/social/inbox', label: tSocial('sidebar.inbox') },
+                { href: '/app/social/analytics', label: tSocial('sidebar.analytics') },
+                { href: '/app/social/library', label: tSocial('sidebar.library') },
+                { href: '/app/social/accounts', label: tSocial('sidebar.accounts') },
+                { href: '/app/social/settings', label: tSocial('sidebar.settings') },
                 { href: '/app/people', label: tPeople('nav.directory') },
                 { href: '/app/people/org', label: tPeople('nav.org') },
                 { href: '/app/people/time-off', label: tPeople('nav.timeOff') },
@@ -301,6 +309,7 @@ export default async function AppLayout(
             records: tSide('records'),
             activity: tSide('activity'),
             insights: tSide('insights'),
+            yourApps: tSide('yourApps'),
             linksSection: tSide('linksSection'),
             workspace: tSide('workspace'),
             settings: tSide('settings'),
@@ -470,6 +479,16 @@ export default async function AppLayout(
               projects: tAnalytics('sidebar.projects'),
               newInsight: tAnalytics('sidebar.newInsight'),
             },
+            social: {
+              calendar: tSocial('sidebar.calendar'),
+              posts: tSocial('sidebar.posts'),
+              inbox: tSocial('sidebar.inbox'),
+              analytics: tSocial('sidebar.analytics'),
+              library: tSocial('sidebar.library'),
+              accounts: tSocial('sidebar.accounts'),
+              settings: tSocial('sidebar.settings'),
+              newPost: tSocial('sidebar.newPost'),
+            },
             people: {
               directory: tPeople('nav.directory'),
               org: tPeople('nav.org'),
@@ -519,6 +538,12 @@ export default async function AppLayout(
                 recComments: tRec.raw('notifications.comments') as string,
                 designComment: tDesign.raw('notifications.comment') as string,
                 designShare: tDesign.raw('notifications.share') as string,
+                socialApproval: tSocial.raw('notifications.approval') as string,
+                socialApproved: tSocial.raw('notifications.approved') as string,
+                socialRejected: tSocial.raw('notifications.rejected') as string,
+                socialFailed: tSocial.raw('notifications.failed') as string,
+                socialPartial: tSocial.raw('notifications.partial') as string,
+                socialAssigned: tSocial.raw('notifications.assigned') as string,
               },
             },
           }}

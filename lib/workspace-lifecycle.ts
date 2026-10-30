@@ -81,6 +81,21 @@ const STEPS: Step[] = [
     },
   },
   {
+    // Social: deja de publicar en las cuentas del workspace, sus ítems de la bandeja vuelven a sin asignar
+    // y lo programado vuelve a aprobación.
+    name: 'social',
+    run: async (e) => {
+      await db()
+        .prepare('DELETE FROM social_account_members WHERE person_id = ? AND account_id IN (SELECT id FROM social_accounts WHERE workspace_id = ?)')
+        .run(e.userId, e.ownerId);
+      await db().prepare('UPDATE social_inbox SET assigned_to = NULL WHERE workspace_id = ? AND assigned_to = ?').run(e.ownerId, e.userId);
+      await db().prepare('DELETE FROM social_roles WHERE workspace_id = ? AND person_id = ?').run(e.ownerId, e.userId);
+      // Lo que dejó programado vuelve a aprobación (con aviso a los admins) en vez de salir a su nombre.
+      const { pauseAuthorPosts } = await import('./social');
+      await pauseAuthorPosts(e.ownerId, e.userId, { reason: 'author_removed' });
+    },
+  },
+  {
     // Webhooks, flows, robots y agentes con salida HTTP que armó: se pausan y el owner recibe aviso.
     name: 'automations',
     run: async (e) => {

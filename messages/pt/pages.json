@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "Produtos",
-      "description": "Dezenove apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics e People. Open source para o seu servidor, ou no zerosoft Cloud com plano grátis e pagamento por uso."
+      "description": "Vinte apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics, Social e People. Open source para o seu servidor, ou no zerosoft Cloud com plano grátis e pagamento por uso."
     },
     "hero": {
-      "title1": "Dezenove apps.",
+      "title1": "Vinte apps.",
       "title2": "Um só workspace.",
       "sub": "Para a sua empresa: CRM, suporte, agentes de IA, automações, robôs, projetos e links. Para você: docs, notas, agenda e quadro branco. O core de cada um é open source e roda no seu servidor por $0."
     },
     "cta": {
-      "title1": "Teste os dezenove apps.",
+      "title1": "Teste os vinte apps.",
       "title2": "Com uma só conta.",
       "sub": "Entre com o Google, crie um workspace e comece no plano grátis. Se depois preferir o seu servidor, o código está no GitHub.",
       "button": "Abrir o app"
@@ -1610,6 +1610,91 @@
         "button": "Abrir o Analytics"
       }
     },
+    "social": {
+      "meta": {
+        "title": "Social: gestão de redes sociais open source, alternativa ao Hootsuite",
+        "description": "Agende publicações no Facebook, Instagram, LinkedIn, X, TikTok, YouTube, Threads e Bluesky, responda comentários e mensagens em uma só caixa de entrada, aprove o que o time publica e meça o que funciona. Alternativa open source ao Hootsuite."
+      },
+      "hero": {
+        "sub": "Planeje, publique e responda nas redes sociais com seu time: um editor para todas as redes, um calendário compartilhado, aprovações, uma caixa de entrada unificada e métricas. Cada rede é feita sobre a API oficial e estamos verificando com contas reais."
+      },
+      "featuresTitle": "Todas as redes em um só lugar.",
+      "featuresTitleDim": "Com seu time e suas aprovações.",
+      "f1": {
+        "t": "Um editor, todas as redes",
+        "d": "Escreva uma vez e ajuste o texto por rede, com prévia, contador de caracteres e checagem de tamanho, proporção e duração de fotos e vídeos."
+      },
+      "f2": {
+        "t": "Calendário e fila",
+        "d": "Visões de mês e semana, arraste uma publicação para reagendar, horários fixos de fila por conta e melhores horários pelas suas próprias interações."
+      },
+      "f3": {
+        "t": "Aprovações",
+        "d": "Quem precisa de aprovação envia a publicação para um admin, que aprova ou recusa com um comentário. Todos recebem o aviso."
+      },
+      "f4": {
+        "t": "Caixa de entrada unificada",
+        "d": "Comentários, menções e mensagens diretas onde cada rede permite. Responda, atribua e marque como concluído."
+      },
+      "f5": {
+        "t": "Métricas",
+        "d": "Impressões, alcance, interações e cliques por publicação, seguidores por conta e exportação em CSV."
+      },
+      "f6": {
+        "t": "Suas chaves, seu servidor",
+        "d": "Você conecta seus próprios apps de desenvolvedor, os tokens ficam criptografados e cada membro publica só nas contas que você der a ele."
+      },
+      "steps": {
+        "s1": {
+          "t": "Conecte suas contas",
+          "d": "Um admin conecta as páginas e perfis da empresa e escolhe quem publica em cada uma."
+        },
+        "s2": {
+          "t": "Planeje a semana",
+          "d": "Escreva as publicações, preencha a fila e envie para aprovação se precisar."
+        },
+        "s3": {
+          "t": "Responda e meça",
+          "d": "Responda pela caixa de entrada e veja quais publicações funcionaram."
+        }
+      },
+      "compare": {
+        "rival": "Hootsuite",
+        "price": "US$ 99",
+        "per": "/ usuário / mês",
+        "team": "US$ 11.880",
+        "zero": "$0",
+        "note": "O Hootsuite Standard começa em US$ 99 por usuário por mês no plano anual, segundo a página de planos do Hootsuite (29 de outubro de 2026); o Professional começa em US$ 199. Um time de dez no Standard paga US$ 11.880 por ano. O Social no seu servidor custa $0; cada rede pode cobrar pela própria API (por exemplo o X)."
+      },
+      "faq": {
+        "f1": {
+          "q": "Quais redes posso conectar?",
+          "a": "Páginas do Facebook, contas comerciais do Instagram, perfis e páginas de empresa do LinkedIn, X, TikTok, YouTube, Threads e Bluesky. O Bluesky se conecta com uma senha de app; as outras precisam de um app de desenvolvedor criado por quem administra o servidor. Ainda estamos verificando cada rede com contas reais."
+        },
+        "f2": {
+          "q": "Preciso criar apps de desenvolvedor?",
+          "a": "Sim, no seu próprio servidor. Cada rede pede seu app (Meta, LinkedIn, X, TikTok, Google e Threads) e algumas, como Meta e LinkedIn, revisam o app antes de permitir publicar em páginas de empresa. A documentação traz cada passo e cada variável."
+        },
+        "f3": {
+          "q": "O que entra na caixa de entrada?",
+          "a": "Comentários e mensagens do Facebook e do Instagram, comentários do LinkedIn, YouTube e Threads, respostas e menções do Bluesky, e menções do X se o seu plano da API do X permitir lê-las. O TikTok não oferece comentários na API pública."
+        },
+        "f4": {
+          "q": "Alguém pode publicar só com aprovação?",
+          "a": "Sim. Marque um membro como precisando de aprovação e as publicações dele aguardam um admin, que aprova ou recusa com um comentário."
+        },
+        "f5": {
+          "q": "O que falta em relação ao Hootsuite?",
+          "a": "Social listening, anúncios pagos, employee advocacy, Pinterest, vídeo no X e um gerador de textos com IA dentro do editor (o assistente da suíte pode criar publicações), entre outras coisas. A tabela de paridade detalha linha por linha."
+        }
+      },
+      "cta": {
+        "title1": "O Social está pronto para testar.",
+        "title2": "Conte o que falta.",
+        "sub": "Conecte suas contas e vote no board público no que devemos fazer em seguida.",
+        "button": "Propor uma ideia"
+      }
+    },
     "people": {
       "meta": {
         "title": "People: RH open source com folgas, onboarding e avaliações",
@@ -1705,7 +1790,7 @@
     "apiDocs": "Docs da API",
     "howTitle": "Como funciona.",
     "suiteTitle": "Um workspace.",
-    "suiteTitleDim": "Dezenove apps, o mesmo login.",
+    "suiteTitleDim": "Vinte apps, o mesmo login.",
     "shotTitle": "{name}, por dentro.",
     "crumbs": "Localização",
     "navLabel": "Seções do {name}",
@@ -2114,6 +2199,20 @@
       "s1": "Viu os preços",
       "s2": "Começou o cadastro",
       "s3": "Criou um projeto"
+    },
+    "social": {
+      "sketch": "Esboço",
+      "title": "Esta semana",
+      "mon": "Seg",
+      "tue": "Ter",
+      "wed": "Qua",
+      "p1": "Lançamento",
+      "p2": "Caso de cliente",
+      "p3": "Lembrete do evento",
+      "composer": "Nova publicação",
+      "text": "Nosso produto novo sai hoje. #lancamento",
+      "counter": "X 41/280",
+      "approve": "Aguarda aprovação"
     },
     "people": {
       "listTitle": "Quem está fora",
@@ -2950,12 +3049,14 @@
     "paramAnalyticsAfter": "Só eventos com id maior.",
     "paramAnalyticsCohort": "Só pessoas deste id de coorte.",
     "scope_analytics_read": "Ler projetos, eventos e pessoas do Analytics e rodar consultas.",
-    "scope_analytics_write": "Mudar projetos, insights, painéis, coortes e flags do Analytics."
+    "scope_analytics_write": "Mudar projetos, insights, painéis, coortes e flags do Analytics.",
+    "scope_social_read": "Ler publicações do Social das contas que você vê.",
+    "scope_social_write": "Criar rascunhos e publicações agendadas no Social (com aprovação se você precisar)."
   },
   "parityOverview": {
     "title": "Paridade de funções, app por app.",
     "titleDim": "Medida contra cada concorrente.",
-    "lead": "Paridade média dos 19 apps: {average}%. Comparamos {counted} capacidades da ferramenta que cada app substitui.",
+    "lead": "Paridade média dos 20 apps: {average}%. Comparamos {counted} capacidades da ferramenta que cada app substitui.",
     "col": {
       "app": "App",
       "competitor": "Comparado com",
