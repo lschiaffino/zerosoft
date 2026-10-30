@@ -85,7 +85,7 @@ export async function priceCart(
         .prepare(
           `SELECT v.id, v.title AS vtitle, v.sku, v.price_cents, v.compare_at_cents, v.weight_grams, v.track_inventory, v.image_url, v.options,
              p.id AS pid, p.handle, p.title, p.images, p.requires_shipping,
-             (SELECT COALESCE(SUM(MAX(i.available - i.reserved, 0)), 0) FROM shop_inventory i WHERE i.variant_id = v.id) AS free
+             (SELECT COALESCE(MAX(MAX(i.available - i.reserved, 0)), 0) FROM shop_inventory i WHERE i.variant_id = v.id) AS free
            FROM shop_variants v JOIN shop_products p ON p.id = v.product_id
            WHERE v.workspace_id = ? AND p.status = 'active' AND v.id IN (${ids.map(() => '?').join(',')})`,
         )
@@ -140,6 +140,7 @@ export async function priceCart(
     address: raw.address ?? null,
     taxRates: taxes,
     taxIncluded: store.tax_included === 1,
+    currency: store.currency,
   });
   return { lines, removed, totals, discount, currency: store.currency };
 }
@@ -441,7 +442,8 @@ export async function createCheckoutOrder(store: StoreRow, raw: unknown, opts: {
   const phone = input.address?.phone ?? '';
   const customerId = await upsertCustomer(ws, { email: input.email, name, phone });
   // El pedido por transferencia espera al comercio (no vence solo); el online vence.
-  const expires = input.paymentMethod === 'manual' ? null : nowDb(new Date(ts.getTime() + settings.holdMinutes * 60_000));
+  const hold = input.paymentMethod === 'stripe' ? Math.min(23 * 60, Math.max(31, settings.holdMinutes)) : settings.holdMinutes;
+  const expires = input.paymentMethod === 'manual' ? null : nowDb(new Date(ts.getTime() + hold * 60_000));
   const db = getDb();
   await db
     .prepare(
@@ -516,7 +518,7 @@ export async function markOrderPaid(
   ws: string,
   orderId: string,
   opts: { paymentId?: string | null; actor?: string | null; source: string },
-): Promise<boolean> {
+): Promise<boolean | 'after_cancel'> {
   const db = getDb();
   const ts = nowDb();
   const res = await db
@@ -525,7 +527,7 @@ export async function markOrderPaid(
        WHERE id = ? AND workspace_id = ? AND (status = 'pending' OR (status = 'cancelled' AND cancel_reason = 'expired'))`,
     )
     .run(ts, opts.paymentId ?? null, ts, orderId, ws);
-  if (!res.changes) return false;
+  if (!res.changes) return recordPaymentAfterCancel(ws, orderId, opts);
   const order = (await getOrderRow(ws, orderId))!;
   const items = await orderItems(orderId);
   // Stock: de la reserva si seguía; si se había liberado (vencido), de lo libre.
@@ -540,8 +542,8 @@ export async function markOrderPaid(
       await addOrderEvent(order, 'stock', `Not enough stock for ${failed.length} item(s): paid after the hold expired. Refund or restock.`);
     }
   }
-  // Pedido vencido que se pagó: el código vuelve a contar ese uso.
-  if (order.discount_id && prev === 'released') await claimDiscountUse(order.discount_id).catch(() => false);
+  // Pedido vencido que se pagó: el vencimiento había devuelto el uso del código; se vuelve a contar (aunque pase el tope: el pago ya entró).
+  if (order.discount_id && prev === 'released' && claimed.changes) await forceDiscountUse(order.discount_id);
   await addOrderEvent(order, 'paid', `Payment received (${opts.source})`, opts.actor ?? null);
   await db
     .prepare('UPDATE shop_customers SET orders_count = orders_count + 1, total_spent_cents = total_spent_cents + ?, updated_at = ? WHERE id = ?')
@@ -591,6 +593,33 @@ export async function fulfillOrder(
   return (await getOrder(actor.ws, orderId))!;
 }
 
+/**
+ * Pago verificado que llega para un pedido que el equipo ya canceló (sin
+ * pagar): se guarda el pago (una sola vez, compare-and-set sobre paid_at),
+ * queda en la línea de tiempo y se avisa al equipo para reembolsarlo. El
+ * pedido sigue cancelado y sin stock.
+ */
+async function recordPaymentAfterCancel(ws: string, orderId: string, opts: { paymentId?: string | null; source: string }): Promise<false | 'after_cancel'> {
+  const ts = nowDb();
+  const res = await getDb()
+    .prepare(
+      `UPDATE shop_orders SET paid_at = ?, payment_id = COALESCE(?, payment_id), updated_at = ?
+       WHERE id = ? AND workspace_id = ? AND status = 'cancelled' AND paid_at IS NULL`,
+    )
+    .run(ts, opts.paymentId ?? null, ts, orderId, ws);
+  if (!res.changes) return false;
+  const o = (await getOrderRow(ws, orderId))!;
+  const { formatMoney } = await import('./shop-money');
+  await addOrderEvent(o, 'paid', `Payment received after the order was cancelled (${opts.source}): refund ${formatMoney(o.total_cents, o.currency)} to the customer.`);
+  const { notifyStaff } = await import('./shop-effects');
+  await notifyStaff(ws, `Order #${o.number} was paid after it was cancelled`, `Refund ${formatMoney(o.total_cents, o.currency)} to ${o.email}`, `/app/shop/orders/${o.id}`, o.id);
+  return 'after_cancel';
+}
+
+async function forceDiscountUse(id: string): Promise<void> {
+  await getDb().prepare('UPDATE shop_discounts SET used_count = used_count + 1 WHERE id = ?').run(id);
+}
+
 /** Cancela con compare-and-set desde el estado leído; libera reserva o repone stock. */
 async function cancelOrderRow(o: OrderRow, opts: { reason: string; actor: string | null; restock: boolean }): Promise<boolean> {
   const db = getDb();
@@ -600,26 +629,35 @@ async function cancelOrderRow(o: OrderRow, opts: { reason: string; actor: string
     .run(ts, opts.reason, ts, o.id, o.status);
   if (!res.changes) return false;
   const items = await orderItems(o.id);
+  let released = false;
   if (o.stock_state === 'reserved') {
     const claimed = await db.prepare("UPDATE shop_orders SET stock_state = 'released' WHERE id = ? AND stock_state = 'reserved'").run(o.id);
-    if (claimed.changes) await releaseReservation(items);
+    if (claimed.changes) {
+      released = true;
+      await releaseReservation(items);
+    }
   } else if (o.stock_state === 'committed' && opts.restock) {
     const claimed = await db.prepare("UPDATE shop_orders SET stock_state = 'restocked' WHERE id = ? AND stock_state = 'committed'").run(o.id);
     if (claimed.changes) await restock(o.workspace_id, o.id, items, opts.actor, 'cancel');
   }
-  // Un pedido que nunca se pagó devuelve el uso del código.
-  if (o.status === 'pending' && o.discount_id) await releaseDiscountUse(o.discount_id);
+  // Un pedido que nunca se pagó devuelve el uso del código, atado al reclamo de la
+  // reserva: si un pago tardío ya la había tomado, el uso no se devuelve.
+  if (o.status === 'pending' && o.discount_id && released) await releaseDiscountUse(o.discount_id);
   await addOrderEvent(o, 'cancelled', opts.reason === 'expired' ? 'Cancelled: payment not received in time' : `Cancelled${opts.reason && opts.reason !== 'staff' ? ` (${opts.reason})` : ''}`, opts.actor);
   const store = await getStore(o.workspace_id);
   if (store) await revalidateStore(store.handle);
   return true;
 }
 
-export async function cancelOrder(actor: ShopActor, orderId: string, opts: { restock?: boolean } = {}): Promise<OrderDto> {
+export async function cancelOrder(actor: ShopActor, orderId: string, opts: { restock?: boolean; refund?: boolean } = {}): Promise<OrderDto> {
   const o = await getOrderRow(actor.ws, orderId);
   if (!o) throw new ShopError('not_found', 404);
   if (o.status !== 'pending' && o.status !== 'paid') throw new ShopError('invalid_status', 409);
+  // Reembolsar es de admins: se chequea antes de cancelar para no dejar un pedido a medias.
+  const refund = opts.refund === true && o.status === 'paid' && o.total_cents - o.refunded_cents > 0;
+  if (refund && !actor.admin) throw new ShopError('forbidden', 403);
   if (!(await cancelOrderRow(o, { reason: 'staff', actor: actor.person, restock: opts.restock !== false }))) throw new ShopError('conflict', 409);
+  if (refund) return refundOrder(actor, orderId, { restock: false, reason: 'Order cancelled' });
   return (await getOrder(actor.ws, orderId))!;
 }
 
@@ -631,7 +669,8 @@ export async function refundOrder(actor: ShopActor, orderId: string, input: { am
   if (!actor.admin) throw new ShopError('forbidden', 403);
   const o = await getOrderRow(actor.ws, orderId);
   if (!o) throw new ShopError('not_found', 404);
-  if (o.status !== 'paid' && o.status !== 'fulfilled') throw new ShopError('invalid_status', 409);
+  const refundable = o.status === 'paid' || o.status === 'fulfilled' || (o.status === 'cancelled' && o.paid_at != null);
+  if (!refundable) throw new ShopError('invalid_status', 409);
   const remaining = o.total_cents - o.refunded_cents;
   const amount = input.amountCents == null ? remaining : Math.trunc(input.amountCents);
   if (!(amount > 0) || amount > remaining) throw new ShopError('invalid_amount');
@@ -639,7 +678,7 @@ export async function refundOrder(actor: ShopActor, orderId: string, input: { am
   // Reclamo: se suma el monto con compare-and-set sobre lo ya reembolsado (dos clics no reembolsan dos veces).
   const db = getDb();
   const claim = await db
-    .prepare('UPDATE shop_orders SET refunded_cents = refunded_cents + ?, updated_at = ? WHERE id = ? AND refunded_cents = ? AND status IN (\'paid\', \'fulfilled\')')
+    .prepare("UPDATE shop_orders SET refunded_cents = refunded_cents + ?, updated_at = ? WHERE id = ? AND refunded_cents = ? AND (status IN ('paid', 'fulfilled') OR (status = 'cancelled' AND paid_at IS NOT NULL))")
     .run(amount, nowDb(), orderId, o.refunded_cents);
   if (!claim.changes) throw new ShopError('conflict', 409);
   const { refundPayment } = await import('./shop-payments');
@@ -650,14 +689,16 @@ export async function refundOrder(actor: ShopActor, orderId: string, input: { am
     throw err;
   }
   const full = o.refunded_cents + amount >= o.total_cents;
-  if (full) await db.prepare("UPDATE shop_orders SET status = 'refunded', refunded_at = ? WHERE id = ?").run(nowDb(), orderId);
+  // Un pedido cancelado sigue cancelado (con el reembolso registrado); el resto pasa a reembolsado.
+  if (full) await db.prepare("UPDATE shop_orders SET status = CASE WHEN status = 'cancelled' THEN status ELSE 'refunded' END, refunded_at = ? WHERE id = ?").run(nowDb(), orderId);
   const { formatMoney } = await import('./shop-money');
   await addOrderEvent(o, 'refunded', `Refunded ${formatMoney(amount, o.currency)}${input.reason ? `: ${input.reason.slice(0, 200)}` : ''}`, actor.person);
-  if (input.restock && full && o.stock_state === 'committed') {
+  if (input.restock && full && o.stock_state === 'committed' && o.status !== 'cancelled') {
     const claimed = await db.prepare("UPDATE shop_orders SET stock_state = 'restocked' WHERE id = ? AND stock_state = 'committed'").run(orderId);
     if (claimed.changes) await restock(actor.ws, orderId, await orderItems(orderId), actor.person, 'refund');
   }
-  await db.prepare('UPDATE shop_customers SET total_spent_cents = MAX(total_spent_cents - ?, 0) WHERE id = ?').run(amount, o.customer_id ?? '');
+  // Lo cobrado después de cancelar nunca sumó al gasto del cliente.
+  if (o.status !== 'cancelled') await db.prepare('UPDATE shop_customers SET total_spent_cents = MAX(total_spent_cents - ?, 0) WHERE id = ?').run(amount, o.customer_id ?? '');
   await revalidateStore(store.handle);
   return (await getOrder(actor.ws, orderId))!;
 }

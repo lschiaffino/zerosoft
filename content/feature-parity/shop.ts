@@ -99,12 +99,12 @@ const parity: ProductParity = {
     }),
     row('product-seo', 'catalog', ['SEO title, description and URL handle', 'Título, descripción y URL para buscadores', 'Título, descrição e URL para buscadores'], 'have'),
     // Inventario
-    row('multi-location', 'inventory', ['Stock per location', 'Stock por ubicación', 'Estoque por local'], 'have', {
+    row('multi-location', 'inventory', ['Stock per location', 'Stock por ubicación', 'Estoque por local'], 'partial', {
       weight: 2,
       detail: [
-        'Up to 50 locations; orders take stock from the default location first',
-        'Hasta 50 ubicaciones; los pedidos toman stock de la ubicación por defecto primero',
-        'Até 50 locais; os pedidos tiram estoque do local padrão primeiro',
+        'Up to 50 locations. Each order line ships from a single location (the default one first) and the store shows the stock of the best single location; one line is not split across locations',
+        'Hasta 50 ubicaciones. Cada línea de un pedido sale de una sola ubicación (primero la por defecto) y la tienda muestra el stock de la mejor; una línea no se reparte entre ubicaciones',
+        'Até 50 locais. Cada linha de um pedido sai de um só local (primeiro o padrão) e a loja mostra o estoque do melhor; uma linha não se divide entre locais',
       ],
     }),
     row('inventory-history', 'inventory', ['Adjustments with history', 'Ajustes con historial', 'Ajustes com histórico'], 'have', {
@@ -117,9 +117,9 @@ const parity: ProductParity = {
     row('no-overselling', 'inventory', ['No overselling', 'Sin sobreventa', 'Sem venda acima do estoque'], 'have', {
       weight: 2,
       detail: [
-        'Stock is reserved at checkout and taken out at payment with compare-and-set; unpaid orders release it after the hold time',
-        'El stock se reserva en el checkout y se descuenta al pagar con compare-and-set; los pedidos sin pagar lo liberan pasado el tiempo de reserva',
-        'O estoque é reservado no checkout e baixado no pagamento com compare-and-set; pedidos não pagos o liberam depois do tempo de reserva',
+        'Stock is reserved when the order is placed and taken out at payment with compare-and-set; unpaid orders release it after the hold time. A payment that arrives after the hold expired and the unit was sold is flagged for a refund',
+        'El stock se reserva al crear el pedido y se descuenta al pagar con compare-and-set; los pedidos sin pagar lo liberan pasado el tiempo de reserva. Un pago que llega después de vencida la reserva, con la unidad ya vendida, queda marcado para reembolsar',
+        'O estoque é reservado ao criar o pedido e baixado no pagamento com compare-and-set; pedidos não pagos o liberam depois do tempo de reserva. Um pagamento que chega depois de vencida a reserva, com a unidade já vendida, fica marcado para reembolso',
       ],
     }),
     row('low-stock-alerts', 'inventory', ['Low stock alerts', 'Avisos de stock bajo', 'Avisos de estoque baixo'], 'have', {
@@ -196,12 +196,12 @@ const parity: ProductParity = {
         'Com sua conta Stripe; o webhook assinado marca o pedido como pago uma vez',
       ],
     }),
-    row('mercadopago', 'checkout', ['Mercado Pago (Checkout Pro)', 'Mercado Pago (Checkout Pro)', 'Mercado Pago (Checkout Pro)'], 'better', {
+    row('mercadopago', 'checkout', ['Mercado Pago (Checkout Pro)', 'Mercado Pago (Checkout Pro)', 'Mercado Pago (Checkout Pro)'], 'have', {
       weight: 2,
       detail: [
-        'Built in with your access token and signed webhooks; on Shopify it is a third-party app',
-        'Integrado con tu access token y webhooks firmados; en Shopify es una app de terceros',
-        'Integrado com seu access token e webhooks assinados; no Shopify é um app de terceiros',
+        'Built in with your access token and signed webhooks (on Shopify it comes as Mercado Pago’s own app)',
+        'Integrado con tu access token y webhooks firmados (en Shopify llega como la app de Mercado Pago)',
+        'Integrado com seu access token e webhooks assinados (no Shopify chega como o app do Mercado Pago)',
       ],
     }),
     row('manual-payment', 'checkout', ['Bank transfer and other manual payments', 'Transferencia y otros pagos manuales', 'Transferência e outros pagamentos manuais'], 'have', {
@@ -227,11 +227,11 @@ const parity: ProductParity = {
       ],
     }),
     row('abandoned-checkout', 'checkout', ['Abandoned checkout emails', 'Emails de carrito abandonado', 'Emails de carrinho abandonado'], 'missing'),
-    row('checkout-rate-limits', 'checkout', ['Protection against card testing and code guessing', 'Protección contra pruebas de tarjetas y adivinar códigos', 'Proteção contra teste de cartões e adivinhação de cupons'], 'have', {
+    row('checkout-rate-limits', 'checkout', ['Abuse limits on checkout and discount codes', 'Límites contra abuso en el checkout y los códigos', 'Limites contra abuso no checkout e nos cupons'], 'partial', {
       detail: [
-        'Limits per IP on checkout, discount codes and order lookup, plus a bot trap field',
-        'Límites por IP en el checkout, los códigos y la búsqueda de pedidos, más un campo trampa para bots',
-        'Limites por IP no checkout, nos cupons e na busca de pedidos, mais um campo-armadilha para bots',
+        'Limits per IP on orders placed, unknown discount codes and order lookups, plus a bot trap field. No fraud analysis of its own: card checks are the payment provider’s',
+        'Límites por IP en pedidos creados, códigos inexistentes y búsquedas de pedidos, más un campo trampa para bots. Sin análisis de fraude propio: el control de tarjetas es del proveedor de pagos',
+        'Limites por IP em pedidos criados, cupons inexistentes e buscas de pedidos, mais um campo-armadilha para bots. Sem análise de fraude própria: o controle de cartões é do provedor de pagamentos',
       ],
     }),
     // Pedidos
@@ -245,9 +245,9 @@ const parity: ProductParity = {
     }),
     row('refunds', 'orders', ['Refunds through the payment provider', 'Reembolsos por el proveedor de pago', 'Reembolsos pelo provedor de pagamento'], 'have', {
       detail: [
-        'Full or partial, through Stripe or Mercado Pago, with optional restock',
-        'Total o parcial, por Stripe o Mercado Pago, con reposición opcional del stock',
-        'Total ou parcial, pelo Stripe ou Mercado Pago, com reposição opcional do estoque',
+        'Full or partial, through Stripe or Mercado Pago, with restock on full refunds. Cancelling a paid order can refund it in the same step, and a payment that lands on a cancelled order is recorded and flagged for a refund',
+        'Total o parcial, por Stripe o Mercado Pago, con reposición en los reembolsos totales. Cancelar un pedido pagado puede reembolsarlo en el mismo paso, y un pago que llega a un pedido cancelado queda registrado y marcado para reembolsar',
+        'Total ou parcial, pelo Stripe ou Mercado Pago, com reposição nos reembolsos totais. Cancelar um pedido pago pode reembolsá-lo no mesmo passo, e um pagamento que chega a um pedido cancelado fica registrado e marcado para reembolso',
       ],
     }),
     row('order-timeline', 'orders', ['Timeline and internal notes', 'Línea de tiempo y notas internas', 'Linha do tempo e notas internas'], 'have'),

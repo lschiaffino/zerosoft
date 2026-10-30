@@ -99,6 +99,11 @@ export function roundCents(n: number): number {
   return n < 0 ? -Math.round(-n) : Math.round(n);
 }
 
+/** Redondea a la unidad mínima de la moneda: en monedas sin decimales (CLP, PYG…), a enteros (múltiplos de 100 cents). */
+export function roundToCurrency(cents: number, currency: string): number {
+  return ZERO_DECIMAL.has(currency.toLowerCase()) ? Math.round(cents / 100) * 100 : Math.round(cents);
+}
+
 /** Basis points de un porcentaje escrito ("21", "10.5") con dos decimales. */
 export function percentToBps(pct: number): number {
   return Math.round(pct * 100);
@@ -186,11 +191,15 @@ export interface TotalsInput {
   taxRates: TaxRate[];
   /** Los precios ya incluyen el impuesto (IVA incluido, lo común en LATAM). */
   taxIncluded?: boolean;
+  /** Moneda: en las que no tienen decimales, descuento e impuesto se redondean a enteros. */
+  currency?: string;
 }
 
 export function computeTotals(input: TotalsInput): Totals {
+  const unit = input.currency && ZERO_DECIMAL.has(input.currency.toLowerCase()) ? 100 : 1;
+  const toUnit = (n: number) => (unit === 1 ? n : Math.round(n / unit) * unit);
   const subtotalCents = subtotalOf(input.lines);
-  const discountCents = discountAmount(input.discount ?? null, subtotalCents);
+  const discountCents = Math.min(subtotalCents, toUnit(discountAmount(input.discount ?? null, subtotalCents)));
   const merchandise = subtotalCents - discountCents;
   const needsShipping = input.lines.some((l) => l.requiresShipping !== false && l.quantity > 0);
   const weightGrams = weightOf(input.lines);
@@ -205,7 +214,7 @@ export function computeTotals(input: TotalsInput): Totals {
   const taxable = merchandise + (rate?.appliesToShipping ? shippingCents : 0);
   const taxIncluded = Boolean(input.taxIncluded);
   // Incluido: la parte del precio que es impuesto (precio − precio / (1 + t)); no se suma.
-  const taxCents = bps === 0 ? 0 : taxIncluded ? roundCents(taxable - taxable / (1 + bps / 10_000)) : roundCents((taxable * bps) / 10_000);
+  const taxCents = toUnit(bps === 0 ? 0 : taxIncluded ? roundCents(taxable - taxable / (1 + bps / 10_000)) : roundCents((taxable * bps) / 10_000));
   const totalCents = merchandise + shippingCents + (taxIncluded ? 0 : taxCents);
   return {
     subtotalCents,

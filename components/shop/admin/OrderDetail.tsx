@@ -20,6 +20,7 @@ export default function OrderDetail({ initial, storeHandle, canAdmin }: { initia
   const [fulfill, setFulfill] = useState<{ number: string; company: string; url: string; notify: boolean } | null>(null);
   const [refund, setRefund] = useState<{ amount: number | null; restock: boolean; reason: string } | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [refundOnCancel, setRefundOnCancel] = useState(true);
   const [confirmPaid, setConfirmPaid] = useState(false);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -56,6 +57,8 @@ export default function OrderDetail({ initial, storeHandle, canAdmin }: { initia
 
   const a = order.shippingAddress;
   const remaining = order.totalCents - order.refundedCents;
+  const paidAfterCancel = order.status === 'cancelled' && !!order.paidAt && remaining > 0;
+  const canRefund = canAdmin && remaining > 0 && (order.status === 'paid' || order.status === 'fulfilled' || paidAfterCancel);
   return (
     <div className="app-page ui-page shop-page">
       <PageHeader
@@ -85,6 +88,11 @@ export default function OrderDetail({ initial, storeHandle, canAdmin }: { initia
         {order.stockState === 'oversold' && <span className="badge badge-bad">{t('order.oversold')}</span>}
         {order.cancelReason === 'expired' && <span className="ui-help">{t('order.expired')}</span>}
       </div>
+      {paidAfterCancel && (
+        <p className="shop-alert" role="alert">
+          {t('order.paidAfterCancel', { amount: money(remaining) })}
+        </p>
+      )}
       <div className="shop-editor">
         <div className="shop-editor-main">
           <section className="panel shop-panel" aria-labelledby="ord-items">
@@ -139,7 +147,7 @@ export default function OrderDetail({ initial, storeHandle, canAdmin }: { initia
               )}
             </dl>
             <div className="shop-actions-row">
-              {canAdmin && (order.status === 'paid' || order.status === 'fulfilled') && remaining > 0 && (
+              {canRefund && (
                 <button type="button" className="btn btn-secondary" onClick={() => setRefund({ amount: remaining, restock: order.status === 'paid', reason: '' })}>
                   {t('order.refund')}
                 </button>
@@ -277,10 +285,17 @@ export default function OrderDetail({ initial, storeHandle, canAdmin }: { initia
                 <span className="label">{t('order.reason')}</span>
                 <input className="input" value={refund.reason} maxLength={200} onChange={(e) => setRefund({ ...refund, reason: e.target.value })} />
               </label>
-              <label className="ui-check">
-                <input type="checkbox" checked={refund.restock} onChange={(e) => setRefund({ ...refund, restock: e.target.checked })} />
-                <span>{t('order.restock')}</span>
-              </label>
+              {order.status !== 'cancelled' && (
+                <label className="ui-check">
+                  <input
+                    type="checkbox"
+                    checked={refund.restock && refund.amount === remaining}
+                    disabled={refund.amount !== remaining}
+                    onChange={(e) => setRefund({ ...refund, restock: e.target.checked })}
+                  />
+                  <span>{refund.amount === remaining ? t('order.restock') : t('order.restockFullOnly')}</span>
+                </label>
+              )}
               <p className="ui-help">{order.paymentMethod === 'manual' ? t('order.refundManualHelp') : t('order.refundHelp')}</p>
             </div>
             <div className="ui-modal-foot">
@@ -309,11 +324,25 @@ export default function OrderDetail({ initial, storeHandle, canAdmin }: { initia
         open={confirmCancel}
         danger
         title={t('order.cancelTitle', { n: order.number })}
-        body={order.status === 'paid' ? t('order.cancelPaidBody') : t('order.cancelBody')}
+        body={
+          order.status === 'paid' ? (
+            <>
+              <p>{t('order.cancelPaidBody')}</p>
+              {canAdmin && remaining > 0 && (
+                <label className="ui-check">
+                  <input type="checkbox" checked={refundOnCancel} onChange={(e) => setRefundOnCancel(e.target.checked)} />
+                  <span>{t('order.cancelRefund', { amount: money(remaining) })}</span>
+                </label>
+              )}
+            </>
+          ) : (
+            t('order.cancelBody')
+          )
+        }
         confirmLabel={t('order.cancel')}
         cancelLabel={t('common.back')}
         busy={busy}
-        onConfirm={() => void act('cancel', { restock: true }, t('order.cancelledToast')).then(() => setConfirmCancel(false))}
+        onConfirm={() => void act('cancel', { restock: true, refund: order.status === 'paid' && canAdmin && refundOnCancel }, t('order.cancelledToast')).then(() => setConfirmCancel(false))}
         onCancel={() => setConfirmCancel(false)}
       />
       {toast}

@@ -1374,7 +1374,7 @@
       },
       "f2": {
         "t": "Stock that adds up",
-        "d": "Stock per location with a history of every change. Checkout reserves units and payment takes them out, so two buyers never get the last one."
+        "d": "Stock per location with a history of every change. An order reserves its units and payment takes them out with compare-and-set, so a unit is not sold twice while the order is waiting for payment."
       },
       "f3": {
         "t": "Stripe and Mercado Pago",
@@ -1408,12 +1408,7 @@
       },
       "compare": {
         "rival": "Shopify",
-        "price": "R$99",
-        "per": "/ month (Basic)",
-        "team": "R$1,188",
-        "zero": "$0",
-        "teamLabel": "One store, a year",
-        "note": "Shopify Basic costs R$99 a month billed monthly in Brazil (R$89 billed yearly), before payment fees, as shown on shopify.com/pricing on October 29, 2026. Shop costs $0 on your server; Stripe and Mercado Pago charge their usual fees on each sale."
+        "note": "Shopify’s plans and payment fees are on shopify.com/pricing. Shop costs $0 on your server; Stripe and Mercado Pago charge their usual fees on each sale."
       },
       "faq": {
         "f1": {

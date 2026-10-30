@@ -1,5 +1,7 @@
 {
-  "meta": { "title": "Shop" },
+  "meta": {
+    "title": "Shop"
+  },
   "nav": {
     "home": "Início",
     "orders": "Pedidos",
@@ -12,7 +14,14 @@
     "settings": "Configurações",
     "store": "Loja online"
   },
-  "common": { "cancel": "Cancelar", "close": "Fechar", "save": "Salvar", "copy": "Copiar", "copied": "Copiado", "back": "Voltar" },
+  "common": {
+    "cancel": "Cancelar",
+    "close": "Fechar",
+    "save": "Salvar",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "back": "Voltar"
+  },
   "errors": {
     "generic": "Algo deu errado. Tente de novo.",
     "network": "Sem conexão. Verifique sua rede e tente de novo.",
@@ -72,8 +81,18 @@
     "unsafe_url": "Não é possível acessar esse endereço daqui.",
     "self_link": "Essa URL já é um link curto."
   },
-  "orderStatus": { "pending": "Pendente", "paid": "Pago", "fulfilled": "Enviado", "cancelled": "Cancelado", "refunded": "Reembolsado" },
-  "productStatus": { "active": "Ativo", "draft": "Rascunho", "archived": "Arquivado" },
+  "orderStatus": {
+    "pending": "Pendente",
+    "paid": "Pago",
+    "fulfilled": "Enviado",
+    "cancelled": "Cancelado",
+    "refunded": "Reembolsado"
+  },
+  "productStatus": {
+    "active": "Ativo",
+    "draft": "Rascunho",
+    "archived": "Arquivado"
+  },
   "overview": {
     "live": "Sua loja está publicada.",
     "notLive": "Sua loja ainda não está publicada.",
@@ -115,7 +134,8 @@
     "importDone": "{format}: {created} criados, {updated} atualizados, {skipped} ignorados.",
     "importImagesFailed": "{n} fotos não puderam ser baixadas.",
     "importRow": "Linha {row}",
-    "importRun": "Importar"
+    "importRun": "Importar",
+    "importImagesPending": "Ainda faltam as fotos de {n} produtos. Importe o mesmo arquivo de novo com “Atualizar os produtos que já existem” para baixar o resto."
   },
   "editor": {
     "title": "Título",
@@ -236,8 +256,19 @@
     "field": "Campo",
     "op": "Condição",
     "value": "Valor",
-    "fields": { "tag": "Tag", "type": "Tipo", "vendor": "Marca", "title": "Título", "price": "Preço" },
-    "ops": { "equals": "é", "contains": "contém", "gt": "é maior que", "lt": "é menor que" },
+    "fields": {
+      "tag": "Tag",
+      "type": "Tipo",
+      "vendor": "Marca",
+      "title": "Título",
+      "price": "Preço"
+    },
+    "ops": {
+      "equals": "é",
+      "contains": "contém",
+      "gt": "é maior que",
+      "lt": "é menor que"
+    },
     "addRule": "Adicionar regra",
     "matches": "Hoje {n} produtos cumprem.",
     "noProducts": "Ainda não há produtos.",
@@ -245,7 +276,8 @@
     "publishedLabel": "Mostrar no menu da loja",
     "featuredLabel": "Destacar na página inicial",
     "deleteTitle": "Excluir {title}?",
-    "deleteBody": "Os produtos ficam; só a coleção é removida."
+    "deleteBody": "Os produtos ficam; só a coleção é removida.",
+    "create": "Criar coleção"
   },
   "orders": {
     "desc": "Todos os pedidos da sua loja, com o status do pagamento e do envio.",
@@ -264,7 +296,11 @@
   },
   "order": {
     "title": "Pedido #{n}",
-    "method": { "stripe": "Cartão (Stripe)", "mercadopago": "Mercado Pago", "manual": "Transferência" },
+    "method": {
+      "stripe": "Cartão (Stripe)",
+      "mercadopago": "Mercado Pago",
+      "manual": "Transferência"
+    },
     "packingSlip": "Romaneio",
     "markPaid": "Marcar como pago",
     "markPaidTitle": "Marcar o pedido #{n} como pago?",
@@ -300,7 +336,7 @@
     "cancel": "Cancelar pedido",
     "cancelTitle": "Cancelar o pedido #{n}?",
     "cancelBody": "O estoque reservado é liberado e o uso do cupom é devolvido.",
-    "cancelPaidBody": "Os itens voltam ao estoque. O pagamento não é reembolsado: para isso use Reembolsar.",
+    "cancelPaidBody": "Os itens voltam ao estoque.",
     "cancelledToast": "Pedido cancelado",
     "timeline": "Linha do tempo",
     "addNote": "Adicionar nota",
@@ -326,7 +362,10 @@
     "shipTo": "Enviar para",
     "item": "Item",
     "qty": "Qtd.",
-    "slipThanks": "Obrigado pela compra."
+    "slipThanks": "Obrigado pela compra.",
+    "paidAfterCancel": "Este pedido foi pago depois de cancelado. Reembolse {amount} ao cliente.",
+    "restockFullOnly": "A reposição só vale para um reembolso total",
+    "cancelRefund": "Reembolsar também {amount} ao cliente"
   },
   "customers": {
     "desc": "Quem comprou na sua loja. Cada um também é um contato do CRM.",
@@ -364,7 +403,11 @@
     "code": "Cupom",
     "codeHelp": "Letras, números, hifens e sublinhados. O cliente digita no checkout.",
     "type": "Desconto",
-    "kinds": { "percent": "Porcentagem do pedido", "fixed": "Valor fixo", "free_shipping": "Frete grátis" },
+    "kinds": {
+      "percent": "Porcentagem do pedido",
+      "fixed": "Valor fixo",
+      "free_shipping": "Frete grátis"
+    },
     "percent": "Porcentagem",
     "amount": "Valor ({currency})",
     "minOrderLabel": "Pedido mínimo ({currency}, opcional)",
@@ -375,7 +418,8 @@
     "ends": "Termina",
     "activeLabel": "Ativo",
     "deleteTitle": "Excluir {code}?",
-    "deleteBody": "Os clientes não podem mais usá-lo. Os pedidos que o usaram mantêm o desconto."
+    "deleteBody": "Os clientes não podem mais usá-lo. Os pedidos que o usaram mantêm o desconto.",
+    "create": "Criar desconto"
   },
   "analytics": {
     "desc": "Vendas pagas, pedidos e quantas visitas viram compra.",
@@ -398,7 +442,15 @@
   },
   "settings": {
     "desc": "Sua loja, o visual, pagamentos, frete e impostos.",
-    "tabs": { "store": "Loja", "theme": "Visual", "payments": "Pagamentos", "shipping": "Frete", "taxes": "Impostos", "locations": "Locais", "notifications": "Emails" },
+    "tabs": {
+      "store": "Loja",
+      "theme": "Visual",
+      "payments": "Pagamentos",
+      "shipping": "Frete",
+      "taxes": "Impostos",
+      "locations": "Locais",
+      "notifications": "Emails e CRM"
+    },
     "adminOnly": "Só os admins do workspace veem e mudam os pagamentos.",
     "name": "Nome da loja",
     "handle": "Endereço da loja",
@@ -411,7 +463,11 @@
     "publishedHelp": "Enquanto estiver desligada, a loja e os produtos mostram uma página de não encontrado.",
     "customDomain": "As lojas ainda não aceitam domínio próprio: sua loja fica no endereço do zerosoft.",
     "theme": "Tema",
-    "themes": { "classic": "Clássico", "bold": "Marcante", "minimal": "Mínimo" },
+    "themes": {
+      "classic": "Clássico",
+      "bold": "Marcante",
+      "minimal": "Mínimo"
+    },
     "themeHelp": {
       "classic": "Limpo, com cabeçalho branco e sua cor nos botões.",
       "bold": "Cabeçalho na cor da sua marca e títulos grandes em maiúsculas.",
@@ -423,7 +479,12 @@
     "primary": "Cor principal",
     "accent": "Cor de destaque",
     "font": "Fonte",
-    "fonts": { "sans": "Sem serifa", "serif": "Serifada", "mono": "Monoespaçada", "rounded": "Arredondada" },
+    "fonts": {
+      "sans": "Sem serifa",
+      "serif": "Serifada",
+      "mono": "Monoespaçada",
+      "rounded": "Arredondada"
+    },
     "heroTitle": "Título da página inicial",
     "heroText": "Texto da página inicial",
     "announcement": "Barra de anúncio",
@@ -481,7 +542,8 @@
     "crmSync": "Criar ou atualizar o cliente no CRM e registrar lá o pedido",
     "holdMinutes": "Minutos que um pedido online reserva estoque esperando o pagamento",
     "holdHelp": "Depois disso, o pedido não pago é cancelado e o estoque volta à venda.",
-    "emailFrom": "Os emails saem do endereço do zerosoft com o nome da sua loja, e as respostas vão para o seu email de contato."
+    "emailFrom": "Os emails saem do endereço do zerosoft com o nome da sua loja, e as respostas vão para o seu email de contato.",
+    "adminOnlyStore": "Só os admins do workspace mudam o endereço da loja, a moeda e se ela está publicada."
   },
   "storefront": {
     "skip": "Ir para o conteúdo",
@@ -559,7 +621,13 @@
     "thanks": "Obrigado pela compra",
     "thanksPending": "Recebemos seu pedido",
     "paymentProcessing": "Confirmando seu pagamento",
-    "status": { "pending": "Aguardando pagamento", "paid": "Pago", "fulfilled": "Enviado", "cancelled": "Cancelado", "refunded": "Reembolsado" },
+    "status": {
+      "pending": "Aguardando pagamento",
+      "paid": "Pago",
+      "fulfilled": "Enviado",
+      "cancelled": "Cancelado",
+      "refunded": "Reembolsado"
+    },
     "transferTitle": "Como pagar",
     "transferRef": "Coloque o pedido #{n} na descrição da transferência.",
     "tracking": "Rastreio",
@@ -587,6 +655,5 @@
       "stripe_error": "O provedor de pagamentos não respondeu. Tente de novo.",
       "mp_error": "O provedor de pagamentos não respondeu. Tente de novo."
     }
-  },
-  "assistant": {}
+  }
 }

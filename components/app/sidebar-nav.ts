@@ -720,6 +720,8 @@ export function buildNav(
           ],
         },
         appSettingsGroup('/app/design/settings'),
+      ];
+
     case 'shop':
       return [
         {

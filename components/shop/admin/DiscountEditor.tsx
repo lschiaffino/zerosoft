@@ -122,7 +122,7 @@ export default function DiscountEditor({ discount, currency }: { discount: Disco
         </label>
         <div className="shop-actions-row">
           <button type="submit" className="btn btn-primary" aria-busy={saving} disabled={saving}>
-            {isNew ? t('editor.create') : t('editor.save')}
+            {isNew ? t('discounts.create') : t('editor.save')}
           </button>
           {!isNew && (
             <button type="button" className="btn btn-danger" onClick={() => setConfirm(true)}>

@@ -1374,7 +1374,7 @@
       },
       "f2": {
         "t": "Stock que cierra",
-        "d": "Stock por ubicación con el historial de cada cambio. El checkout reserva las unidades y el pago las descuenta: dos compradores nunca se llevan la última."
+        "d": "Stock por ubicación con el historial de cada cambio. El pedido reserva sus unidades y el pago las descuenta con compare-and-set: una unidad no se vende dos veces mientras el pedido espera el pago."
       },
       "f3": {
         "t": "Stripe y Mercado Pago",
@@ -1408,12 +1408,7 @@
       },
       "compare": {
         "rival": "Shopify",
-        "price": "R$99",
-        "per": "/ mes (Basic)",
-        "team": "R$1.188",
-        "zero": "$0",
-        "teamLabel": "Una tienda, un año",
-        "note": "Shopify Basic cuesta R$99 por mes con pago mensual en Brasil (R$89 con pago anual), sin contar comisiones de pago, según shopify.com/pricing el 29 de octubre de 2026. Shop cuesta $0 en tu servidor; Stripe y Mercado Pago cobran su comisión habitual por venta."
+        "note": "Los planes y comisiones de Shopify están en shopify.com/pricing. Shop cuesta $0 en tu servidor; Stripe y Mercado Pago cobran su comisión habitual por venta."
       },
       "faq": {
         "f1": {

@@ -15,6 +15,7 @@ interface ImportSummary {
   skipped: number;
   errors: Array<{ row?: number; handle?: string; error: string }>;
   imagesFailed: number;
+  imagesPending: number;
 }
 
 /** Productos: búsqueda, estado, importar (Shopify / Tiendanube) y exportar CSV. */
@@ -169,6 +170,11 @@ export default function ProductsList({ initial, total, currency, q, status }: { 
               <div className="shop-import-summary" role="status">
                 <p>{t('products.importDone', { created: summary.created, updated: summary.updated, skipped: summary.skipped, format: summary.format === 'tiendanube' ? 'Tiendanube' : 'Shopify' })}</p>
                 {summary.imagesFailed > 0 && <p className="ui-help">{t('products.importImagesFailed', { n: summary.imagesFailed })}</p>}
+                {summary.imagesPending > 0 && (
+                  <p className="ui-help" data-testid="shop-import-pending">
+                    {t('products.importImagesPending', { n: summary.imagesPending })}
+                  </p>
+                )}
                 {summary.errors.length > 0 && (
                   <ul className="shop-import-errors">
                     {summary.errors.slice(0, 10).map((er, i) => (

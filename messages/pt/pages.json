@@ -1374,7 +1374,7 @@
       },
       "f2": {
         "t": "Estoque que fecha",
-        "d": "Estoque por local com o histórico de cada mudança. O checkout reserva as unidades e o pagamento as baixa: dois compradores nunca levam a última."
+        "d": "Estoque por local com o histórico de cada mudança. O pedido reserva as unidades e o pagamento as baixa com compare-and-set: uma unidade não é vendida duas vezes enquanto o pedido espera o pagamento."
       },
       "f3": {
         "t": "Stripe e Mercado Pago",
@@ -1408,12 +1408,7 @@
       },
       "compare": {
         "rival": "Shopify",
-        "price": "R$99",
-        "per": "/ mês (Basic)",
-        "team": "R$1.188",
-        "zero": "$0",
-        "teamLabel": "Uma loja, um ano",
-        "note": "O Shopify Basic custa R$99 por mês no plano mensal no Brasil (R$89 no anual), sem contar as taxas de pagamento, conforme shopify.com/pricing em 29 de outubro de 2026. O Shop custa $0 no seu servidor; Stripe e Mercado Pago cobram a taxa de sempre por venda."
+        "note": "Os planos e taxas do Shopify estão em shopify.com/pricing. O Shop custa $0 no seu servidor; Stripe e Mercado Pago cobram a taxa de sempre por venda."
       },
       "faq": {
         "f1": {

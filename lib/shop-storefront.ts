@@ -119,7 +119,7 @@ export async function storefrontProduct(store: StoreRow, handle: string): Promis
   if (!p) return null;
   const variants = (await db
     .prepare(
-      `SELECT v.*, (SELECT COALESCE(SUM(MAX(i.available - i.reserved, 0)), 0) FROM shop_inventory i WHERE i.variant_id = v.id) AS free
+      `SELECT v.*, (SELECT COALESCE(MAX(MAX(i.available - i.reserved, 0)), 0) FROM shop_inventory i WHERE i.variant_id = v.id) AS free
        FROM shop_variants v WHERE v.product_id = ? ORDER BY v.position ASC`,
     )
     .all(p.id)) as Array<Record<string, unknown>>;

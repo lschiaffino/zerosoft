@@ -22,7 +22,9 @@ export default function ShopSettings({
   taxes,
   canAdmin,
   tab,
+  storeUrl,
 }: {
+  storeUrl: string;
   store: StoreDto;
   payments: PaymentsView | null;
   locations: LocationDto[];
@@ -37,7 +39,7 @@ export default function ShopSettings({
     <div className="app-page ui-page shop-page">
       <PageHeader title={t('nav.settings')} description={t('settings.desc')} />
       <SettingsTabs mode="query" param="tab" items={TABS.map((k) => ({ key: k, label: t(`settings.tabs.${k}`) }))}>
-        {active === 'store' && <StoreTab store={store} />}
+        {active === 'store' && <StoreTab store={store} storeUrl={storeUrl} canAdmin={canAdmin} />}
         {active === 'theme' && <ThemeTab store={store} />}
         {active === 'payments' && (canAdmin && payments ? <PaymentsTab initial={payments} /> : <p className="ui-help">{t('settings.adminOnly')}</p>)}
         {active === 'shipping' && <ShippingTab initial={shipping} currency={store.currency} />}
@@ -70,7 +72,7 @@ function useSaver() {
   return { run, busy, toast, push };
 }
 
-function StoreTab({ store }: { store: StoreDto }) {
+function StoreTab({ store, storeUrl, canAdmin }: { store: StoreDto; storeUrl: string; canAdmin: boolean }) {
   const t = useTranslations('shop');
   const { run, busy, toast } = useSaver();
   const [name, setName] = useState(store.name);
@@ -81,9 +83,10 @@ function StoreTab({ store }: { store: StoreDto }) {
   const [published, setPublished] = useState(store.published);
   const save = (e: FormEvent) => {
     e.preventDefault();
-    void run('/api/shop/store', 'PATCH', { name, handle, currency, locale, contactEmail: email, published });
+    // Dirección, moneda y publicar son de admins (el servidor también lo exige).
+    void run('/api/shop/store', 'PATCH', { name, locale, contactEmail: email, ...(canAdmin ? { handle, currency, published } : {}) });
   };
-  const url = typeof window === 'undefined' ? `/store/${store.handle}` : `${window.location.origin}/store/${store.handle}`;
+  const url = storeUrl;
   return (
     <form className="ui-section" onSubmit={save}>
       <label className="ui-field">
@@ -92,13 +95,13 @@ function StoreTab({ store }: { store: StoreDto }) {
       </label>
       <label className="ui-field">
         <span className="label">{t('settings.handle')}</span>
-        <input className="input data" required pattern="[a-z0-9][a-z0-9-]{1,38}[a-z0-9]" value={handle} onChange={(e) => setHandle(e.target.value.toLowerCase())} />
+        <input className="input data" required disabled={!canAdmin} pattern="[a-z0-9][a-z0-9-]{1,38}[a-z0-9]" value={handle} onChange={(e) => setHandle(e.target.value.toLowerCase())} />
         <span className="ui-help">{t('settings.handleHelp', { url })}</span>
       </label>
       <div className="ui-fields-2">
         <label className="ui-field">
           <span className="label">{t('settings.currency')}</span>
-          <select className="select" value={currency} onChange={(e) => setCurrency(e.target.value)}>
+          <select className="select" value={currency} disabled={!canAdmin} onChange={(e) => setCurrency(e.target.value)}>
             {SHOP_CURRENCIES.map((c) => (
               <option key={c} value={c}>
                 {c}
@@ -121,10 +124,11 @@ function StoreTab({ store }: { store: StoreDto }) {
         <span className="ui-help">{t('settings.contactEmailHelp')}</span>
       </label>
       <label className="ui-switch shop-switch">
-        <input type="checkbox" role="switch" checked={published} onChange={(e) => setPublished(e.target.checked)} name="published" />
+        <input type="checkbox" role="switch" checked={published} disabled={!canAdmin} onChange={(e) => setPublished(e.target.checked)} name="published" />
         <span>{t('settings.published')}</span>
       </label>
       <p className="ui-help">{t('settings.publishedHelp')}</p>
+      {!canAdmin && <p className="ui-help">{t('settings.adminOnlyStore')}</p>}
       <p className="ui-help">{t('settings.customDomain')}</p>
       <div className="ui-section-foot">
         <button type="submit" className="btn btn-primary" aria-busy={busy} disabled={busy}>

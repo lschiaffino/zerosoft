@@ -54,7 +54,7 @@ export function slugify(input: string, max = 64): string {
 }
 
 /** Handles de tienda que chocan con rutas propias. */
-export const RESERVED_STORE_HANDLES = new Set(['api', 'app', 'admin', 'new', 'store', 'shop', 'www', 'checkout', 'cart']);
+export const RESERVED_STORE_HANDLES = new Set(['api', 'app', 'admin', 'new', 'store', 'shop', 'www', 'checkout', 'cart', 'uploads', 'sitemap', 'robots', 'favicon', 'static', 'assets', 'zerosoft']);
 
 export interface ProductOption {
   name: string;

@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { publishedStore } from '@/lib/shop-storefront';
 import { priceCart } from '@/lib/shop-orders';
-import { readJson, shopJson, shopLimit } from '@/lib/shop-http';
+import { codeGuessBlocked, countCodeMiss, readJson, shopJson, shopLimit } from '@/lib/shop-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -30,9 +30,11 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const parsed = schema.safeParse(await readJson(req));
   if (!parsed.success) return shopJson({ error: 'invalid_input' }, 400);
   if (parsed.data.discountCode) {
-    const codeLimited = await shopLimit(req, 'code', 20, 600, handle);
-    if (codeLimited) return codeLimited;
+    const blocked = await codeGuessBlocked(req, handle);
+    if (blocked) return blocked;
   }
   const cart = await priceCart(store.row, parsed.data);
+  // Solo un código que no existe cuenta como intento de adivinar.
+  if (cart.discount?.error === 'discount_invalid') await countCodeMiss(req, handle);
   return shopJson({ cart, methods: store.methods });
 }

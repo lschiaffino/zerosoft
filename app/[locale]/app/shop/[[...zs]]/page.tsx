@@ -162,6 +162,7 @@ export default async function ShopPage(props: Props) {
           taxes={taxes}
           canAdmin={actor.admin}
           tab={sp.tab ?? 'store'}
+          storeUrl={`${(process.env.NEXTAUTH_URL ?? 'https://zerosoft.ai').replace(/\/$/, '')}/store/${dto.handle}`}
         />
       );
     }

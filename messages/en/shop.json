@@ -1,5 +1,7 @@
 {
-  "meta": { "title": "Shop" },
+  "meta": {
+    "title": "Shop"
+  },
   "nav": {
     "home": "Home",
     "orders": "Orders",
@@ -12,7 +14,14 @@
     "settings": "Settings",
     "store": "Online store"
   },
-  "common": { "cancel": "Cancel", "close": "Close", "save": "Save", "copy": "Copy", "copied": "Copied", "back": "Back" },
+  "common": {
+    "cancel": "Cancel",
+    "close": "Close",
+    "save": "Save",
+    "copy": "Copy",
+    "copied": "Copied",
+    "back": "Back"
+  },
   "errors": {
     "generic": "Something went wrong. Try again.",
     "network": "No connection. Check your network and try again.",
@@ -72,8 +81,18 @@
     "unsafe_url": "That address can’t be reached from here.",
     "self_link": "That URL is already a short link."
   },
-  "orderStatus": { "pending": "Pending", "paid": "Paid", "fulfilled": "Fulfilled", "cancelled": "Cancelled", "refunded": "Refunded" },
-  "productStatus": { "active": "Active", "draft": "Draft", "archived": "Archived" },
+  "orderStatus": {
+    "pending": "Pending",
+    "paid": "Paid",
+    "fulfilled": "Fulfilled",
+    "cancelled": "Cancelled",
+    "refunded": "Refunded"
+  },
+  "productStatus": {
+    "active": "Active",
+    "draft": "Draft",
+    "archived": "Archived"
+  },
   "overview": {
     "live": "Your store is live.",
     "notLive": "Your store isn’t published yet.",
@@ -115,7 +134,8 @@
     "importDone": "{format}: {created} created, {updated} updated, {skipped} skipped.",
     "importImagesFailed": "{n} photos couldn’t be downloaded.",
     "importRow": "Row {row}",
-    "importRun": "Import"
+    "importRun": "Import",
+    "importImagesPending": "{n} products are still missing their photos. Import the same file again with “Update products that already exist” to download the rest."
   },
   "editor": {
     "title": "Title",
@@ -236,8 +256,19 @@
     "field": "Field",
     "op": "Condition",
     "value": "Value",
-    "fields": { "tag": "Tag", "type": "Type", "vendor": "Brand", "title": "Title", "price": "Price" },
-    "ops": { "equals": "is", "contains": "contains", "gt": "is greater than", "lt": "is less than" },
+    "fields": {
+      "tag": "Tag",
+      "type": "Type",
+      "vendor": "Brand",
+      "title": "Title",
+      "price": "Price"
+    },
+    "ops": {
+      "equals": "is",
+      "contains": "contains",
+      "gt": "is greater than",
+      "lt": "is less than"
+    },
     "addRule": "Add rule",
     "matches": "{n} products match today.",
     "noProducts": "No products yet.",
@@ -245,7 +276,8 @@
     "publishedLabel": "Show in the store menu",
     "featuredLabel": "Feature on the home page",
     "deleteTitle": "Delete {title}?",
-    "deleteBody": "The products stay; only the collection is removed."
+    "deleteBody": "The products stay; only the collection is removed.",
+    "create": "Create collection"
   },
   "orders": {
     "desc": "Every order from your store, with payment and shipping status.",
@@ -264,7 +296,11 @@
   },
   "order": {
     "title": "Order #{n}",
-    "method": { "stripe": "Card (Stripe)", "mercadopago": "Mercado Pago", "manual": "Bank transfer" },
+    "method": {
+      "stripe": "Card (Stripe)",
+      "mercadopago": "Mercado Pago",
+      "manual": "Bank transfer"
+    },
     "packingSlip": "Packing slip",
     "markPaid": "Mark as paid",
     "markPaidTitle": "Mark order #{n} as paid?",
@@ -300,7 +336,7 @@
     "cancel": "Cancel order",
     "cancelTitle": "Cancel order #{n}?",
     "cancelBody": "The reserved stock is released and the discount code use is given back.",
-    "cancelPaidBody": "The items go back to stock. The payment isn’t refunded: use Refund for that.",
+    "cancelPaidBody": "The items go back to stock.",
     "cancelledToast": "Order cancelled",
     "timeline": "Timeline",
     "addNote": "Add note",
@@ -326,7 +362,10 @@
     "shipTo": "Ship to",
     "item": "Item",
     "qty": "Qty",
-    "slipThanks": "Thanks for your order."
+    "slipThanks": "Thanks for your order.",
+    "paidAfterCancel": "This order was paid after it was cancelled. Refund {amount} to the customer.",
+    "restockFullOnly": "Restock only applies to a full refund",
+    "cancelRefund": "Also refund {amount} to the customer"
   },
   "customers": {
     "desc": "People who bought from your store. Each one is also a CRM contact.",
@@ -364,7 +403,11 @@
     "code": "Code",
     "codeHelp": "Letters, numbers, hyphens and underscores. Customers type it at checkout.",
     "type": "Discount",
-    "kinds": { "percent": "Percentage of the order", "fixed": "Fixed amount", "free_shipping": "Free shipping" },
+    "kinds": {
+      "percent": "Percentage of the order",
+      "fixed": "Fixed amount",
+      "free_shipping": "Free shipping"
+    },
     "percent": "Percentage",
     "amount": "Amount ({currency})",
     "minOrderLabel": "Minimum order ({currency}, optional)",
@@ -375,7 +418,8 @@
     "ends": "Ends",
     "activeLabel": "Active",
     "deleteTitle": "Delete {code}?",
-    "deleteBody": "Customers can’t use it anymore. Orders that used it keep their discount."
+    "deleteBody": "Customers can’t use it anymore. Orders that used it keep their discount.",
+    "create": "Create discount"
   },
   "analytics": {
     "desc": "Paid sales, orders and how many visits turn into orders.",
@@ -398,7 +442,15 @@
   },
   "settings": {
     "desc": "Your store, its look, payments, shipping and taxes.",
-    "tabs": { "store": "Store", "theme": "Theme", "payments": "Payments", "shipping": "Shipping", "taxes": "Taxes", "locations": "Locations", "notifications": "Emails" },
+    "tabs": {
+      "store": "Store",
+      "theme": "Theme",
+      "payments": "Payments",
+      "shipping": "Shipping",
+      "taxes": "Taxes",
+      "locations": "Locations",
+      "notifications": "Emails and CRM"
+    },
     "adminOnly": "Only workspace admins see and change payment settings.",
     "name": "Store name",
     "handle": "Store address",
@@ -411,7 +463,11 @@
     "publishedHelp": "While it’s off, the store and its products give a not-found page.",
     "customDomain": "Custom domains aren’t available for stores yet: your store lives on the zerosoft address.",
     "theme": "Theme",
-    "themes": { "classic": "Classic", "bold": "Bold", "minimal": "Minimal" },
+    "themes": {
+      "classic": "Classic",
+      "bold": "Bold",
+      "minimal": "Minimal"
+    },
     "themeHelp": {
       "classic": "Clean, with a white header and your color on the buttons.",
       "bold": "Header in your brand color and big uppercase titles.",
@@ -423,7 +479,12 @@
     "primary": "Main color",
     "accent": "Accent color",
     "font": "Font",
-    "fonts": { "sans": "Sans serif", "serif": "Serif", "mono": "Monospace", "rounded": "Rounded" },
+    "fonts": {
+      "sans": "Sans serif",
+      "serif": "Serif",
+      "mono": "Monospace",
+      "rounded": "Rounded"
+    },
     "heroTitle": "Home page title",
     "heroText": "Home page text",
     "announcement": "Announcement bar",
@@ -481,7 +542,8 @@
     "crmSync": "Create or update the customer in the CRM and log the order there",
     "holdMinutes": "Minutes an online order holds stock while waiting for payment",
     "holdHelp": "After that, the unpaid order is cancelled and the stock goes back on sale.",
-    "emailFrom": "Emails go out from zerosoft’s address with your store name, and replies go to your contact email."
+    "emailFrom": "Emails go out from zerosoft’s address with your store name, and replies go to your contact email.",
+    "adminOnlyStore": "Only workspace admins change the store address, the currency and whether it is published."
   },
   "storefront": {
     "skip": "Skip to content",
@@ -559,7 +621,13 @@
     "thanks": "Thanks for your order",
     "thanksPending": "We got your order",
     "paymentProcessing": "Confirming your payment",
-    "status": { "pending": "Waiting for payment", "paid": "Paid", "fulfilled": "Shipped", "cancelled": "Cancelled", "refunded": "Refunded" },
+    "status": {
+      "pending": "Waiting for payment",
+      "paid": "Paid",
+      "fulfilled": "Shipped",
+      "cancelled": "Cancelled",
+      "refunded": "Refunded"
+    },
     "transferTitle": "How to pay",
     "transferRef": "Include order #{n} in the transfer description.",
     "tracking": "Tracking",
@@ -587,6 +655,5 @@
       "stripe_error": "The payment provider didn’t respond. Try again.",
       "mp_error": "The payment provider didn’t respond. Try again."
     }
-  },
-  "assistant": {}
+  }
 }

@@ -185,7 +185,7 @@ export default function CollectionEditor({ collection, products, storeHandle }: 
           </section>
           <div className="shop-editor-actions">
             <button type="submit" className="btn btn-primary btn-block" aria-busy={saving} disabled={saving}>
-              {isNew ? t('editor.create') : t('editor.save')}
+              {isNew ? t('collections.create') : t('editor.save')}
             </button>
             {!isNew && (
               <button type="button" className="btn btn-danger btn-block" onClick={() => setConfirm(true)}>

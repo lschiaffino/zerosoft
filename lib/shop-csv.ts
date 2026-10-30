@@ -484,7 +484,12 @@ export interface ImportSummary {
   skipped: number;
   errors: Array<{ row?: number; handle?: string; error: string }>;
   imagesFailed: number;
+  /** Productos que quedaron sin fotos por el tope de este pedido: volver a importar con "actualizar" las baja. */
+  imagesPending: number;
 }
+
+/** Fotos que se bajan por pedido (cada una hasta 10 s): el resto queda para otra pasada. */
+export const IMAGES_PER_IMPORT = 40;
 
 /**
  * Importa el CSV: crea los productos nuevos y, si `update`, reemplaza los que
@@ -504,9 +509,9 @@ export async function importProductsCsv(
   }
   const shop = await import('./shop');
   const { getDb } = await import('./db');
-  const summary: ImportSummary = { format: parsed.format, created: 0, updated: 0, skipped: 0, errors: [...parsed.errors], imagesFailed: 0 };
+  const summary: ImportSummary = { format: parsed.format, created: 0, updated: 0, skipped: 0, errors: [...parsed.errors], imagesFailed: 0, imagesPending: 0 };
   const loc = await shop.defaultLocation(actor.ws);
-  let imageBudget = 200;
+  let imageBudget = IMAGES_PER_IMPORT;
   for (const p of parsed.products.slice(0, opts.maxProducts ?? 2000)) {
     try {
       if (!p.variants.length) {
@@ -519,20 +524,25 @@ export async function importProductsCsv(
         continue;
       }
       const images: string[] = [];
-      if (opts.fetchImages !== false) {
-        for (const src of p.images.slice(0, 10)) {
-          if (imageBudget <= 0) break;
-          imageBudget--;
-          const url = await fetchImage(src);
-          if (url) images.push(url);
-          else summary.imagesFailed++;
+      // Al actualizar, un producto que ya tiene fotos no las vuelve a bajar (así una segunda pasada sigue donde quedó).
+      const current = existing ? await shop.getProduct(actor.ws, existing.id) : null;
+      const wantImages = opts.fetchImages !== false && p.images.length > 0 && !(current && current.images.length);
+      if (wantImages) {
+        if (imageBudget <= 0) summary.imagesPending++;
+        else {
+          for (const src of p.images.slice(0, 10)) {
+            if (imageBudget <= 0) break;
+            imageBudget--;
+            const url = await fetchImage(src);
+            if (url) images.push(url);
+            else summary.imagesFailed++;
+          }
         }
       }
       const input = toProductInput(p, images);
       const { stocks, ...productInput } = input;
       let productId: string;
       if (existing) {
-        const current = await shop.getProduct(actor.ws, existing.id);
         // Variantes que ya existían (misma combinación): conservan id y stock.
         const variants = productInput.variants.map((v) => {
           const match = current?.variants.find((cv) => cv.options.join('|').toLowerCase() === v.options.join('|').toLowerCase());

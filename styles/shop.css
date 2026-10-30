@@ -530,6 +530,17 @@ a.shop-rowtext:hover .shop-rowtitle,
   width: min(760px, calc(100vw - 32px));
 }
 
+/* Aviso dentro de una página (pago después de cancelar). */
+.shop-alert {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--bad);
+  border-left-width: 4px;
+  border-radius: var(--radius-1);
+  background: var(--bad-soft);
+  color: var(--ink);
+}
+
 /* Remito */
 .shop-slip-tools {
   display: flex;

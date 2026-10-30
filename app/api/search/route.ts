@@ -176,6 +176,8 @@ export async function GET(req: NextRequest) {
       meta: d.meta,
       href: d.kind === 'design' ? `/app/design/${d.id}` : `/app/design?folder=${encodeURIComponent(d.id)}`,
     });
+  }
+
   const SHOP_GROUP = { product: 'shopProducts', order: 'shopOrders', collection: 'shopCollections', discount: 'shopDiscounts', customer: 'shopCustomers' } as const;
   const SHOP_PATH = { product: 'products', order: 'orders', collection: 'collections', discount: 'discounts', customer: 'customers' } as const;
   for (const s of shop) {

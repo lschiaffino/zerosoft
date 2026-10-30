@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { formatMoney } from '@/lib/shop-money';
 import { fmt, type StorefrontStrings } from '@/lib/shop-i18n';
 import { clearCart } from './cart-store';
@@ -35,9 +35,15 @@ export default function CheckoutView({
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // La región solo cambia el impuesto: se re-precia cuando la persona deja de escribir, no en cada tecla.
+  const [region, setRegion] = useState('');
+  useEffect(() => {
+    const id = window.setTimeout(() => setRegion(addr.region.trim()), 500);
+    return () => window.clearTimeout(id);
+  }, [addr.region]);
   const priceOpts = useMemo(
-    () => ({ address: addr.country ? { country: addr.country, region: addr.region } : null, shippingRateId: rateId, discountCode: code }),
-    [addr.country, addr.region, rateId, code],
+    () => ({ address: addr.country ? { country: addr.country, region } : null, shippingRateId: rateId, discountCode: code }),
+    [addr.country, region, rateId, code],
   );
   const { lines, cart, methods, error, loading } = usePricedCart(handle, priceOpts);
   const money = (c: number) => formatMoney(c, cart?.currency ?? 'USD', locale);

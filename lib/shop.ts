@@ -44,7 +44,7 @@ import {
   type StoreSettings,
   type DiscountInput,
 } from './shop-schema';
-import type { DiscountRule, ShippingRate, TaxRate } from './shop-money';
+import { roundToCurrency, type DiscountRule, type ShippingRate, type TaxRate } from './shop-money';
 
 export { ShopError };
 
@@ -197,6 +197,8 @@ export interface StorePatch {
 
 export async function updateStore(actor: ShopActor, patch: StorePatch): Promise<StoreRow> {
   const store = await ensureStore(actor.ws);
+  // Cambiar la dirección pública, publicar o la moneda (que cambia todos los precios) es de admins.
+  if (!actor.admin && (patch.handle !== undefined || patch.published !== undefined || patch.currency !== undefined)) throw new ShopError('forbidden', 403);
   const sets: string[] = [];
   const args: Array<string | number> = [];
   const set = (col: string, v: string | number) => {
@@ -272,7 +274,21 @@ export async function revalidateWs(ws: string): Promise<void> {
 /** URL de una imagen subida por Shop (disco local o Blob): lo único que se acepta en el catálogo. */
 export function isOwnShopImage(url: string): boolean {
   if (/^\/uploads\/shop\/[A-Za-z0-9_-][A-Za-z0-9._-]{0,199}$/.test(url) && !url.includes('..')) return true;
-  return /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/shop\/[A-Za-z0-9._-]+$/i.test(url);
+  const host = ownBlobHost();
+  if (!host) return false;
+  const m = /^https:\/\/([a-z0-9-]+\.public\.blob\.vercel-storage\.com)\/shop\/[A-Za-z0-9._-]+$/i.exec(url);
+  return Boolean(m && m[1].toLowerCase() === host);
+}
+
+/**
+ * Host del Blob de este deployment: sale del token (vercel_blob_rw_<storeId>_…)
+ * o de SHOP_BLOB_HOST. Sin ninguno, ninguna URL de Blob es nuestra.
+ */
+export function ownBlobHost(): string | null {
+  const explicit = process.env.SHOP_BLOB_HOST?.trim().toLowerCase();
+  if (explicit) return explicit;
+  const m = /^vercel_blob_rw_([A-Za-z0-9]+)_/.exec(process.env.BLOB_READ_WRITE_TOKEN ?? '');
+  return m ? `${m[1].toLowerCase()}.public.blob.vercel-storage.com` : null;
 }
 
 /** Tipo real de una imagen por sus primeros bytes (nunca el que dice el navegador). Sin SVG. */
@@ -671,8 +687,15 @@ export async function createProduct(actor: ShopActor, raw: unknown, opts: { reas
 }
 
 /** Reemplaza las variantes: actualiza las que vienen con id, crea las nuevas y borra las que faltan. */
-async function writeVariants(actor: ShopActor, productId: string, options: ProductOption[], variants: ProductInput['variants'], reason: string): Promise<void> {
+async function writeVariants(actor: ShopActor, productId: string, options: ProductOption[], rawVariants: ProductInput['variants'], reason: string): Promise<void> {
   const db = getDb();
+  // Precios en la unidad mínima de la moneda de la tienda (CLP sin centavos).
+  const currency = (await ensureStore(actor.ws)).currency;
+  const variants = rawVariants.map((v) => ({
+    ...v,
+    priceCents: roundToCurrency(v.priceCents, currency),
+    compareAtCents: v.compareAtCents == null ? v.compareAtCents : roundToCurrency(v.compareAtCents, currency),
+  }));
   const existing = (await db.prepare('SELECT id FROM shop_variants WHERE product_id = ?').all(productId)) as Array<{ id: string }>;
   const keep = new Set<string>();
   const loc = await defaultLocation(actor.ws);
@@ -1385,7 +1408,7 @@ export async function listShippingRates(ws: string): Promise<ShippingRate[]> {
 export async function replaceShippingRates(actor: ShopActor, raw: unknown): Promise<ShippingRate[]> {
   const parsed = shippingRateInputSchema.array().max(50).safeParse(raw);
   if (!parsed.success) throw new ShopError('invalid_input');
-  await ensureStore(actor.ws);
+  const store = await ensureStore(actor.ws);
   const db = getDb();
   await db.prepare('DELETE FROM shop_shipping_rates WHERE workspace_id = ?').run(actor.ws);
   for (const [i, r] of parsed.data.entries()) {
@@ -1400,10 +1423,10 @@ export async function replaceShippingRates(actor: ShopActor, raw: unknown): Prom
         r.name,
         r.kind,
         JSON.stringify([...new Set(r.countries)]),
-        r.priceCents,
+        roundToCurrency(r.priceCents, store.currency),
         r.kind === 'weight' ? r.minWeightG : null,
         r.kind === 'weight' ? r.maxWeightG : null,
-        r.freeOverCents,
+        r.freeOverCents == null ? null : roundToCurrency(r.freeOverCents, store.currency),
         i,
       );
   }
@@ -1498,11 +1521,15 @@ function cleanDiscount(input: DiscountInput): DiscountInput {
   return { ...input, code: input.code.toUpperCase(), value: input.kind === 'free_shipping' ? 0 : input.value, startsAt, endsAt };
 }
 
+function roundDiscount(d: DiscountInput, currency: string): DiscountInput {
+  return { ...d, value: d.kind === 'fixed' ? roundToCurrency(d.value, currency) : d.value, minOrderCents: roundToCurrency(d.minOrderCents, currency) };
+}
+
 export async function createDiscount(actor: ShopActor, raw: unknown): Promise<DiscountDto> {
   const parsed = discountInputSchema.safeParse(raw);
   if (!parsed.success) throw new ShopError('invalid_input');
-  const d = cleanDiscount(parsed.data);
-  await ensureStore(actor.ws);
+  const store = await ensureStore(actor.ws);
+  const d = roundDiscount(cleanDiscount(parsed.data), store.currency);
   if (await findDiscountByCode(actor.ws, d.code)) throw new ShopError('code_taken', 409);
   const id = newId('disc');
   const ts = nowDb();
@@ -1521,7 +1548,7 @@ export async function updateDiscount(actor: ShopActor, id: string, raw: unknown)
   const merged = { ...cur, ...(raw && typeof raw === 'object' ? raw : {}) };
   const parsed = discountInputSchema.safeParse(merged);
   if (!parsed.success) throw new ShopError('invalid_input');
-  const d = cleanDiscount(parsed.data);
+  const d = roundDiscount(cleanDiscount(parsed.data), (await ensureStore(actor.ws)).currency);
   if (d.code !== cur.code) {
     const other = await findDiscountByCode(actor.ws, d.code);
     if (other && other.id !== id) throw new ShopError('code_taken', 409);

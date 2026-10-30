@@ -246,7 +246,7 @@ export async function shopUp(client: Client): Promise<void> {
       event_id TEXT NOT NULL,
       workspace_id TEXT NOT NULL,
       created_at TEXT NOT NULL,
-      PRIMARY KEY (provider, event_id)
+      PRIMARY KEY (provider, workspace_id, event_id)
     );
     CREATE TABLE IF NOT EXISTS shop_stats (
       workspace_id TEXT NOT NULL,

@@ -29,6 +29,8 @@ interface AppCase {
   remove?: (request: APIRequestContext, item: Created) => Promise<void>;
   /** Lista los ítems en el sidebar del shell (#side-branch), como Docs. */
   sidebar?: boolean;
+  /** Cómo se ve un nombre en la lista (los códigos de descuento de Shop van en mayúsculas y sin espacios). */
+  display?: (name: string) => string;
   /** URL del detalle cuando no lleva el id (los teams de Track usan su clave: /track/team/WEB). */
   detailUrl?: (item: Created) => RegExp;
 }
@@ -431,6 +433,19 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await ok(request.delete(`/api/shop/products/${i.id}`))),
   },
   {
+    // Un código de descuento se muestra en mayúsculas y sin espacios: el nombre del smoke se adapta.
+    app: 'Shop discounts',
+    list: '/en/app/shop/discounts',
+    create: async (request, name) => {
+      const code = name.replace(/\s+/g, '-').toUpperCase();
+      return { id: (await ok<{ discount: { id: string } }>(request.post('/api/shop/discounts', { data: { code, kind: 'percent', value: 1000 } }))).discount.id, name: code };
+    },
+    display: (name) => name.replace(/\s+/g, '-').toUpperCase(),
+    detail: (i) => `/en/app/shop/discounts/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/shop/discounts/${i.id}`, { data: { code: name.replace(/\s+/g, '-').toUpperCase() } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/shop/discounts/${i.id}`))),
+  },
+  {
     app: 'Shop collections',
     list: '/en/app/shop/collections',
     create: async (request, name) => ({ id: (await ok<{ collection: { id: string } }>(request.post('/api/shop/collections', { data: { title: name } }))).collection.id, name }),
@@ -637,8 +652,9 @@ for (const c of APPS) {
         const item = await c.create(request, freshName());
         await page.goto(c.list, { waitUntil: 'networkidle' });
         await expect(content(page).getByText(item.name).first()).toBeVisible();
-        const renamed = freshName();
-        await c.rename!(request, item, renamed);
+        const typed = freshName();
+        await c.rename!(request, item, typed);
+        const renamed = c.display ? c.display(typed) : typed;
         // Navegar dentro de la app (detalle y vuelta) no deja la lista vieja en caché.
         // Abrir y salir sin tocar nada no pregunta por cambios sin guardar.
         const prompts: string[] = [];

@@ -101,7 +101,20 @@ test('compra completa: variantes, tienda publicada, código, webhook, stock, env
   await page.getByLabel('Discount code').fill(code);
   await page.getByRole('button', { name: 'Apply' }).click();
   await expect(page.getByTestId('sf-discount')).toContainText('$5.00');
+  // Escribir una provincia larga con el código puesto no puede gastar el límite de códigos (QA B1):
+  // cada tecla no re-precia y un código válido no cuenta como intento.
+  const cartCalls: string[] = [];
+  page.on('request', (r) => {
+    if (r.url().includes('/api/shop/public/') && r.url().endsWith('/cart')) cartCalls.push(r.url());
+  });
+  await page.getByLabel('State or province').pressSequentially('Ciudad Autonoma de Buenos Aires, barrio de Palermo Soho', { delay: 15 });
   await expect(page.getByTestId('sf-total')).toHaveText('$50.00');
+  expect(cartCalls.length).toBeLessThan(5);
+  // Aunque re-precie muchas veces, un código válido no se limita; uno inexistente sí, a las 20.
+  for (let i = 0; i < 25; i++) {
+    const r = await request.post(`/api/shop/public/${store.handle}/cart`, { data: { lines: [{ variantId: m.id, quantity: 1 }], address: { country: 'AR', region: `R${i}` }, discountCode: code } });
+    expect(r.status(), `valid code #${i}`).toBe(200);
+  }
   await page.getByLabel('Credit or debit card').check();
   await page.getByRole('button', { name: 'Place order' }).click();
   await expect(page).toHaveURL(new RegExp(`/store/${store.handle}/orders/[A-Za-z0-9_-]+\\?return=1`));

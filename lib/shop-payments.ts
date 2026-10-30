@@ -258,10 +258,10 @@ export async function refundPayment(store: StoreRow, o: OrderRow, amountCents: n
 
 // ---------- Webhooks ----------
 
-export type WebhookOutcome = { kind: 'paid'; orderId: string } | { kind: 'duplicate' } | { kind: 'ignored'; reason: string };
+export type WebhookOutcome = { kind: 'paid'; orderId: string } | { kind: 'paid_after_cancel'; orderId: string } | { kind: 'duplicate' } | { kind: 'ignored'; reason: string };
 
-async function seen(provider: string, eventId: string): Promise<boolean> {
-  return Boolean(await getDb().prepare('SELECT 1 AS x FROM shop_webhook_events WHERE provider = ? AND event_id = ?').get(provider, eventId));
+async function seen(provider: string, eventId: string, ws: string): Promise<boolean> {
+  return Boolean(await getDb().prepare('SELECT 1 AS x FROM shop_webhook_events WHERE provider = ? AND workspace_id = ? AND event_id = ?').get(provider, ws, eventId));
 }
 
 async function remember(provider: string, eventId: string, ws: string): Promise<void> {
@@ -287,7 +287,7 @@ export async function handleStripeWebhook(token: string, rawBody: string, signat
   }
   const eventId = String(event.id ?? '');
   if (!eventId) throw new ShopError('invalid_input', 400);
-  if (await seen('stripe', eventId)) return { kind: 'duplicate' };
+  if (await seen('stripe', eventId, store.workspace_id)) return { kind: 'duplicate' };
   const out = await processStripeEvent(store, event);
   await remember('stripe', eventId, store.workspace_id);
   return out;
@@ -305,6 +305,7 @@ async function processStripeEvent(store: StoreRow, event: { type?: string; data?
   if (Number(s.amount_total) !== stripeAmount(o.total_cents, isZeroDecimalCurrency(o.currency))) return { kind: 'ignored', reason: 'amount' };
   const paymentId = typeof s.payment_intent === 'string' ? s.payment_intent : null;
   const marked = await markOrderPaid(store.workspace_id, o.id, { paymentId, source: 'Stripe' });
+  if (marked === 'after_cancel') return { kind: 'paid_after_cancel', orderId: o.id };
   return marked ? { kind: 'paid', orderId: o.id } : { kind: 'duplicate' };
 }
 
@@ -373,7 +374,7 @@ export async function handleMercadoPagoWebhook(
   if (!verifyMercadoPagoSignature(input.signature, input.requestId, input.dataId, secret, input.nowSec)) throw new ShopError('invalid_signature', 400);
   if (input.type !== 'payment') return { kind: 'ignored', reason: 'event_type' };
   const eventId = `payment:${input.dataId}`;
-  if (await seen('mercadopago', eventId)) return { kind: 'duplicate' };
+  if (await seen('mercadopago', eventId, store.workspace_id)) return { kind: 'duplicate' };
   let payment: Record<string, unknown>;
   if (paymentsFake() && input.dataId.startsWith('fake')) {
     // Modo de prueba: "fake<orderId>" es un pago aprobado por el total del pedido.
@@ -397,7 +398,7 @@ export async function handleMercadoPagoWebhook(
     else if (Math.round(Number(payment.transaction_amount) * 100) !== o.total_cents) out = { kind: 'ignored', reason: 'amount' };
     else {
       const marked = await markOrderPaid(store.workspace_id, o.id, { paymentId: String(payment.id ?? input.dataId), source: 'Mercado Pago' });
-      out = marked ? { kind: 'paid', orderId: o.id } : { kind: 'duplicate' };
+      out = marked === 'after_cancel' ? { kind: 'paid_after_cancel', orderId: o.id } : marked ? { kind: 'paid', orderId: o.id } : { kind: 'duplicate' };
     }
   }
   // Un pago pendiente puede aprobarse después (otro aviso con el mismo id): solo se recuerda el aprobado.

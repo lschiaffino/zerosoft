@@ -30,7 +30,9 @@ import {
   type StockItem,
 } from '@/lib/shop';
 import { commitStock } from '@/lib/shop';
-import { createCheckoutOrder, expirePendingOrders, getOrderRow, markPaidManually, priceCart, refundOrder } from '@/lib/shop-orders';
+import { cancelOrder, createCheckoutOrder, expirePendingOrders, getOrderRow, markPaidManually, orderEvents, priceCart, refundOrder } from '@/lib/shop-orders';
+import { roundToCurrency } from '@/lib/shop-money';
+import { isOwnShopImage } from '@/lib/shop';
 import { handleMercadoPagoWebhook, handleStripeWebhook, savePayments, signMercadoPago, verifyMercadoPagoSignature } from '@/lib/shop-payments';
 import { signStripePayload } from '@/lib/calendar-payments';
 import { parseProductCsv, importProductsCsv, exportShopifyCsv, toProductInput } from '@/lib/shop-csv';
@@ -421,6 +423,108 @@ describe('shop: permisos', () => {
     await expect(createCheckoutOrder({ ...store, published: 0 }, { email: 'g@example.com', lines: [{ variantId, quantity: 1 }], address, paymentMethod: 'manual' }, { origin: 'http://localhost' })).rejects.toMatchObject({
       code: 'store_closed',
     });
+  });
+});
+
+// ---------- Seguimiento de la QA ----------
+
+function stripeEvent(order: { id: string; payment_ref: string | null }, amount: number) {
+  const body = JSON.stringify({
+    id: `evt_${uid()}`,
+    type: 'checkout.session.completed',
+    data: { object: { id: order.payment_ref, payment_status: 'paid', currency: 'usd', amount_total: amount, payment_intent: `pi_${uid()}`, metadata: { source: 'zerosoft_shop', order_id: order.id } } },
+  });
+  return { body, sig: signStripePayload(body, FAKE_WHSEC) };
+}
+
+describe('shop: pagos sobre pedidos cancelados (QA B2)', () => {
+  it('un pago verificado sobre un pedido que el equipo canceló se guarda, avisa y se puede reembolsar', async () => {
+    const { a, store, variantId } = await sellingStore();
+    const res = await createCheckoutOrder(store, { email: 'late@example.com', lines: [{ variantId, quantity: 1 }], address, paymentMethod: 'stripe' }, { origin: 'http://localhost' });
+    await cancelOrder(a, res.order.id);
+    const o = (await getOrderRow(a.ws, res.order.id))!;
+    expect(o).toMatchObject({ status: 'cancelled', stock_state: 'released' });
+    const ev = stripeEvent(o, o.total_cents);
+    expect(await handleStripeWebhook(store.webhook_token, ev.body, ev.sig)).toEqual({ kind: 'paid_after_cancel', orderId: o.id });
+    const again = stripeEvent(o, o.total_cents);
+    expect((await handleStripeWebhook(store.webhook_token, again.body, again.sig)).kind).toBe('duplicate');
+    const after = (await getOrderRow(a.ws, o.id))!;
+    expect(after.status).toBe('cancelled');
+    expect(after.paid_at).toBeTruthy();
+    expect(after.payment_id).toMatch(/^pi_/);
+    expect((await orderEvents(o.id)).some((e) => e.kind === 'paid' && /after the order was cancelled/.test(e.message))).toBe(true);
+    const notes = await getDb().prepare("SELECT title FROM notifications WHERE user_id = ? AND title LIKE '%paid after it was cancelled%'").all(a.ws);
+    expect(notes.length).toBe(1);
+    // El stock no se tocó: el pedido sigue cancelado.
+    const inv = (await getDb().prepare('SELECT available, reserved FROM shop_inventory WHERE variant_id = ?').get(variantId)) as { available: number; reserved: number };
+    expect(inv).toEqual({ available: 3, reserved: 0 });
+    const refunded = await refundOrder(a, o.id, {});
+    expect(refunded).toMatchObject({ status: 'cancelled', refundedCents: o.total_cents });
+  });
+
+  it('cancelar un pedido pagado puede reembolsarlo en el mismo paso (solo admins)', async () => {
+    const { a, store, variantId } = await sellingStore();
+    const res = await createCheckoutOrder(store, { email: 'cx@example.com', lines: [{ variantId, quantity: 2 }], address, paymentMethod: 'manual' }, { origin: 'http://localhost' });
+    await markPaidManually(a, res.order.id);
+    await expect(cancelOrder({ ...a, admin: false }, res.order.id, { refund: true })).rejects.toMatchObject({ code: 'forbidden' });
+    expect((await getOrderRow(a.ws, res.order.id))!.status).toBe('paid');
+    const done = await cancelOrder(a, res.order.id, { refund: true });
+    expect(done).toMatchObject({ status: 'cancelled', refundedCents: res.order.totalCents });
+    const inv = (await getDb().prepare('SELECT available, reserved FROM shop_inventory WHERE variant_id = ?').get(variantId)) as { available: number; reserved: number };
+    expect(inv).toEqual({ available: 3, reserved: 0 });
+  });
+
+  it('vencimiento contra pago tardío: el uso del código se vuelve a contar', async () => {
+    const { a, store, variantId } = await sellingStore();
+    await createDiscount(a, { code: 'LATE', kind: 'fixed', value: 100, usageLimit: 1 });
+    const res = await createCheckoutOrder(store, { email: 'r@example.com', lines: [{ variantId, quantity: 1 }], address, paymentMethod: 'stripe', discountCode: 'LATE' }, { origin: 'http://localhost' });
+    const used = async () => ((await getDb().prepare("SELECT used_count FROM shop_discounts WHERE workspace_id = ? AND code = 'LATE'").get(a.ws)) as { used_count: number }).used_count;
+    expect(await used()).toBe(1);
+    await expirePendingOrders(new Date(Date.now() + 25 * 3600_000));
+    expect(await used()).toBe(0);
+    const o = (await getOrderRow(a.ws, res.order.id))!;
+    const ev = stripeEvent(o, o.total_cents);
+    expect((await handleStripeWebhook(store.webhook_token, ev.body, ev.sig)).kind).toBe('paid');
+    expect(await used()).toBe(1);
+    expect((await getOrderRow(a.ws, o.id))!).toMatchObject({ status: 'paid', stock_state: 'committed' });
+  });
+});
+
+describe('shop: más arreglos de la QA', () => {
+  it('monedas sin decimales: precios, descuentos e impuestos en enteros', async () => {
+    expect(roundToCurrency(123456, 'CLP')).toBe(123500);
+    expect(roundToCurrency(123456, 'USD')).toBe(123456);
+    const t = computeTotals({ lines: [{ unitCents: 999900, quantity: 1, weightGrams: 0, requiresShipping: false }], discount: { kind: 'percent', value: 1250 }, shippingRates: [], address: { country: 'CL' }, taxRates: [{ country: 'CL', region: '', rateBps: 1900, name: 'IVA', appliesToShipping: false }], currency: 'CLP' });
+    expect(t.discountCents % 100).toBe(0);
+    expect(t.taxCents % 100).toBe(0);
+    const a = await workspace();
+    await updateStore(a, { currency: 'CLP' });
+    const p = await createProduct(a, { title: 'Peso', variants: [{ options: [], priceCents: 1234567 }] });
+    expect(p.variants[0].priceCents).toBe(1234600);
+  });
+
+  it('dirección, publicar y moneda de la tienda son de admins', async () => {
+    const a = await workspace();
+    const member: ShopActor = { ...a, admin: false };
+    await expect(updateStore(member, { published: true })).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(updateStore(member, { handle: `h${uid()}` })).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(updateStore(member, { currency: 'ARS' })).rejects.toMatchObject({ code: 'forbidden' });
+    expect((await updateStore(member, { name: 'Ok' })).name).toBe('Ok');
+    await expect(updateStore(a, { handle: 'uploads' })).rejects.toMatchObject({ code: 'invalid_handle' });
+  });
+
+  it('solo las imágenes del Blob de este deployment', () => {
+    const prev = process.env.BLOB_READ_WRITE_TOKEN;
+    process.env.BLOB_READ_WRITE_TOKEN = ['vercel', 'blob', 'rw', 'AbC123', 'secretpart'].join('_');
+    try {
+      expect(isOwnShopImage('https://abc123.public.blob.vercel-storage.com/shop/x.png')).toBe(true);
+      expect(isOwnShopImage('https://other999.public.blob.vercel-storage.com/shop/x.png')).toBe(false);
+      expect(isOwnShopImage('/uploads/shop/abc.png')).toBe(true);
+    } finally {
+      if (prev === undefined) delete process.env.BLOB_READ_WRITE_TOKEN;
+      else process.env.BLOB_READ_WRITE_TOKEN = prev;
+    }
+    expect(isOwnShopImage('https://abc123.public.blob.vercel-storage.com/shop/x.png')).toBe(false);
   });
 });
 

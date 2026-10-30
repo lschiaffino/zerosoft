@@ -78,7 +78,7 @@ async function staffToNotify(ws: string): Promise<string[]> {
   }
 }
 
-async function notifyStaff(ws: string, title: string, body: string, href: string, sourceId: string): Promise<void> {
+export async function notifyStaff(ws: string, title: string, body: string, href: string, sourceId: string): Promise<void> {
   try {
     const { createNotification } = await import('./notifications');
     for (const userId of await staffToNotify(ws)) {
