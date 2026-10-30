@@ -73,6 +73,37 @@ describe('analytics: SQL con límites', () => {
     expect(checkSql('SELECT a.event FROM events a JOIN sessions s ON s.id = a.session_id WHERE a.event IN (1, 2)', REAL)).toMatchObject({ ok: true });
   });
 
+  it('no hay forma de multiplicar filas: CTEs, ON constantes, OR y subconsultas correlacionadas', () => {
+    const bad: Array<[string, string]> = [
+      ['WITH a AS (SELECT * FROM events), b AS (SELECT * FROM events) SELECT count(*) FROM a JOIN b ON 1=1 JOIN a c ON 1=1', 'too_many_tables'],
+      ['WITH a AS (SELECT * FROM events) SELECT count(*) FROM a x JOIN a y ON x.uuid = y.uuid', 'join_not_allowed'],
+      ['WITH a AS (SELECT * FROM events) SELECT count(*) FROM a JOIN persons p ON a.person_id = p.id', 'join_not_allowed'],
+      ['SELECT count(*) FROM events a JOIN events b ON a.uuid IS NOT b.uuid OR 1', 'join_not_allowed'],
+      ['SELECT count(*) FROM events a JOIN events b ON a.event = b.event', 'join_not_allowed'],
+      ['SELECT count(*) FROM events e JOIN persons p ON 1=1', 'join_not_allowed'],
+      ['SELECT count(*) FROM events e JOIN persons p ON e.person_id = p.id OR 1', 'join_not_allowed'],
+      ['SELECT count(*) FROM events e JOIN persons p ON e.event = p.id', 'join_not_allowed'],
+      ['SELECT count(*) FROM events e JOIN persons p USING (id)', 'join_without_condition'],
+      ['SELECT (SELECT count(*) FROM events b WHERE b.timestamp > a.timestamp) FROM events a', 'too_many_tables'],
+      ['SELECT * FROM events WHERE event IN (SELECT event FROM events)', 'too_many_tables'],
+      ['SELECT count(*) FROM (SELECT * FROM events) x JOIN persons p ON x.person_id = p.id', 'too_many_tables'],
+    ];
+    for (const [sql, error] of bad) expect(checkSql(sql, REAL), sql).toMatchObject({ ok: false, error });
+    for (const sql of [
+      'SELECT p.id, count(*) FROM events e JOIN persons p ON e.person_id = p.id AND p.is_identified = 1 GROUP BY 1',
+      'SELECT count(*) FROM events e LEFT JOIN sessions s ON s.id = e.session_id WHERE s.pageviews > 1',
+      'WITH x AS (SELECT person_id FROM events) SELECT count(*) FROM x',
+      'SELECT count(*) FROM (SELECT DISTINCT person_id FROM events)',
+    ]) {
+      expect(checkSql(sql, REAL), sql).toMatchObject({ ok: true });
+    }
+  });
+
+  it('cada tabla virtual tiene tope de filas', () => {
+    const w = wrapSql('SELECT 1', 'ap_1', 1_000_000_000_000);
+    expect(w.sql.match(/LIMIT 100000/g)?.length).toBe(4);
+  });
+
   it('events solo ve los últimos 90 días', () => {
     const now = Date.parse('2026-10-29T00:00:00Z');
     const w = wrapSql('SELECT 1', 'ap_1', now);

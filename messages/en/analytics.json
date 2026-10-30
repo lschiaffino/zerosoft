@@ -240,14 +240,16 @@
       "sql_timeout": "The query took too long (8 seconds max) and was stopped. Add filters or a shorter time range.",
       "unbalanced_parentheses": "The parentheses don’t match.",
       "join_without_condition": "Each JOIN needs ON or USING, and FROM can’t list tables with commas.",
-      "too_many_tables": "A query can name at most two tables."
+      "too_many_tables": "A query reads at most two tables (counting each use of a WITH), and two only through one JOIN by key.",
+      "join_not_allowed": "Joins only go between two tables by their key: events.person_id = persons.id, events.distinct_id = person_distinct_ids.distinct_id, events.session_id = sessions.id, person_distinct_ids.person_id = persons.id or sessions.distinct_id = person_distinct_ids.distinct_id. Extra conditions go with AND.",
+      "sql_busy": "Too many SQL queries are running right now. Try again in a few seconds."
     }
   },
   "sql": {
     "title": "SQL",
     "description": "Read-only SQL over this project's events, people and sessions (SQLite syntax).",
     "query": "Query",
-    "help": "Tables: events (last 90 days), persons, person_distinct_ids, sessions. Read properties with json_extract(properties, '$.plan'). Timestamps are milliseconds. Up to 1,000 rows and 8 seconds; each JOIN needs ON. Run with ⌘ Enter.",
+    "help": "Tables: events (last 90 days, the newest 100,000), persons, person_distinct_ids, sessions. Read properties with json_extract(properties, '$.plan'). Timestamps are milliseconds. At most two tables, joined by key with ON. Up to 1,000 rows and 8 seconds. Run with ⌘ Enter.",
     "saveInsight": "Save as insight",
     "run": "Run",
     "schema": "Tables and columns",

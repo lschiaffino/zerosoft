@@ -345,10 +345,17 @@ function cell(v: unknown): unknown {
   return v;
 }
 
+/** Consultas SQL corriendo en esta instancia (procesos hijos o esperas a Turso). */
+let sqlRunning = 0;
+export const SQL_CONCURRENCY = Number(process.env.ANALYTICS_SQL_CONCURRENCY) || 4;
+
 export async function runSql(project: ProjectRow, sql: string): Promise<SqlResult> {
   const check = checkSql(sql, await realTables());
   if (!check.ok) throw new QueryError(check.error, check.detail);
   const wrapped = wrapSql(check.sql, project.id);
+  // Como mucho SQL_CONCURRENCY consultas SQL a la vez por instancia; el resto, 429.
+  if (sqlRunning >= SQL_CONCURRENCY) throw new QueryError('sql_busy');
+  sqlRunning++;
   const started = Date.now();
   try {
     // Tope duro de tiempo y solo lectura (ver lib/analytics/sql-run.ts).
@@ -359,6 +366,8 @@ export async function runSql(project: ProjectRow, sql: string): Promise<SqlResul
     if (err instanceof SqlRunError && err.code === 'timeout') throw new QueryError('sql_timeout');
     const msg = err instanceof SqlRunError ? err.detail : err instanceof Error ? err.message : undefined;
     throw new QueryError('sql_error', msg?.replace(/analytics_[a-z_]+/g, '…').slice(0, 300));
+  } finally {
+    sqlRunning--;
   }
 }
 

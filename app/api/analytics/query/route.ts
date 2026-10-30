@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     if (!q.success) return aError(400, 'invalid_query', { issues: q.error.issues.slice(0, 5).map((i) => i.path.join('.')) });
     return NextResponse.json({ result: await runInsight(project, q.data) });
   } catch (err) {
-    if (err instanceof QueryError) return aError(400, err.code, { detail: err.detail ?? null });
+    if (err instanceof QueryError) return aError(err.code === 'sql_busy' ? 429 : 400, err.code, { detail: err.detail ?? null });
     throw err;
   }
 }

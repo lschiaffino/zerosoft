@@ -331,7 +331,8 @@
     if (state.ready || !key) return;
     opts = opts || {};
     cfg.key = String(key);
-    var script = d.currentScript || d.querySelector('script[src*="/zs.js"]');
+    // Con init inline (sync) currentScript es ese script, sin src: se busca el de zs.js.
+    var script = d.currentScript && d.currentScript.src ? d.currentScript : d.querySelector('script[src*="/zs.js"]');
     var guess = '';
     try {
       guess = script && script.src ? new URL(script.src).origin : '';

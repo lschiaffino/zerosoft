@@ -240,14 +240,16 @@
       "sql_timeout": "A consulta demorou demais (máximo de 8 segundos) e foi interrompida. Adicione filtros ou um período menor.",
       "unbalanced_parentheses": "Os parênteses não fecham.",
       "join_without_condition": "Cada JOIN precisa de ON ou USING, e o FROM não pode listar tabelas com vírgulas.",
-      "too_many_tables": "Uma consulta pode nomear no máximo duas tabelas."
+      "too_many_tables": "Uma consulta lê no máximo duas tabelas (cada uso de um WITH conta), e duas só com um JOIN pela chave.",
+      "join_not_allowed": "Os joins só ligam duas tabelas pela chave: events.person_id = persons.id, events.distinct_id = person_distinct_ids.distinct_id, events.session_id = sessions.id, person_distinct_ids.person_id = persons.id ou sessions.distinct_id = person_distinct_ids.distinct_id. As outras condições vão com AND.",
+      "sql_busy": "Há consultas SQL demais rodando agora. Tente de novo em alguns segundos."
     }
   },
   "sql": {
     "title": "SQL",
     "description": "SQL somente leitura sobre os eventos, pessoas e sessões do projeto (sintaxe do SQLite).",
     "query": "Consulta",
-    "help": "Tabelas: events (últimos 90 dias), persons, person_distinct_ids, sessions. Leia propriedades com json_extract(properties, '$.plan'). Os horários estão em milissegundos. Até 1.000 linhas e 8 segundos; cada JOIN precisa de ON. Execute com ⌘ Enter.",
+    "help": "Tabelas: events (últimos 90 dias, os 100.000 mais novos), persons, person_distinct_ids, sessions. Leia propriedades com json_extract(properties, '$.plan'). Os horários estão em milissegundos. No máximo duas tabelas, ligadas pela chave com ON. Até 1.000 linhas e 8 segundos. Execute com ⌘ Enter.",
     "saveInsight": "Salvar como insight",
     "run": "Executar",
     "schema": "Tabelas e colunas",

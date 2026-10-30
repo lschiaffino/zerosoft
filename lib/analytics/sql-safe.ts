@@ -12,12 +12,13 @@
  *   pragma_*, load_extension…);
  * - ningún identificador puede nombrar una tabla real de la base (se pasa la
  *   lista de sqlite_master) ni empezar con sqlite_ o pragma_.
- * - paréntesis balanceados, sin CROSS/NATURAL, sin FROM con comas y cada JOIN
- *   con ON o USING, y como mucho dos tablas virtuales nombradas (frena los
- *   productos cartesianos más obvios; el tope duro es el de tiempo).
+ * - paréntesis balanceados, sin CROSS/NATURAL ni FROM con comas, como mucho
+ *   dos tablas (expandiendo las CTEs) y, si son dos, un solo JOIN entre tablas
+ *   virtuales por una clave conocida (ver checkJoins): ninguna consulta puede
+ *   multiplicar filas.
  * Después se envuelve: las tablas virtuales son CTEs filtradas por
- * project_id (events, además, a los últimos 90 días) y el resultado tiene
- * LIMIT. lib/analytics/sql-run.ts la corre con tope de tiempo y en solo
+ * project_id, con tope de filas (events, además, a los últimos 90 días) y
+ * el resultado tiene LIMIT. lib/analytics/sql-run.ts la corre con tope de tiempo y en solo
  * lectura (PRAGMA query_only en un proceso aparte, o transacción de lectura
  * en Turso).
  */
@@ -48,6 +49,14 @@ const DENIED_KEYWORDS = new Set([
 
 /** Tablas virtuales que puede nombrar una consulta (FROM/JOIN), como mucho. */
 export const SQL_MAX_TABLE_REFS = 2;
+/**
+ * Filas que cada tabla virtual puede tener como mucho (events: las más nuevas
+ * de la ventana). Con los joins solo por clave, ninguna consulta recorre más de
+ * unas pocas veces este número: es el límite de trabajo en Turso, donde la
+ * consulta corre en el servidor y libsql no tiene cancelación ni timeout por
+ * sentencia (acá solo se deja de esperar).
+ */
+export const SQL_TABLE_ROW_CAP = 100_000;
 /** Ventana de la tabla events: los últimos N días. */
 export const SQL_WINDOW_DAYS = 90;
 
@@ -78,6 +87,7 @@ export type SqlCheck =
         | 'invalid_character'
         | 'unbalanced_parentheses'
         | 'join_without_condition'
+        | 'join_not_allowed'
         | 'too_many_tables';
       detail?: string;
     };
@@ -200,16 +210,32 @@ export function checkSql(input: string, realTables: Iterable<string>): SqlCheck 
 }
 
 /**
- * Cada FROM: sin listas con coma (FROM a, b), cada JOIN con ON o USING, y en
- * toda la consulta como mucho SQL_MAX_TABLE_REFS tablas virtuales nombradas.
+ * Joins y referencias a tablas (lo que puede multiplicar filas):
+ * - se cuentan las referencias de FROM/JOIN de toda la consulta, expandiendo
+ *   las CTEs (una CTE vale las tablas que lee, cada vez que se la nombra);
+ *   como mucho SQL_MAX_TABLE_REFS en total;
+ * - si hay dos, tienen que ser un solo JOIN entre dos tablas virtuales (no
+ *   CTEs ni subconsultas) unido por una clave conocida (events.person_id =
+ *   persons.id, events.session_id = sessions.id…), con `a.col = b.col` primero
+ *   y, si sigue algo, solo con AND (sin OR arriba): el resultado nunca tiene
+ *   más filas que la tabla más grande. Nada de FROM con comas ni USING.
+ * Así no entran el producto cartesiano, los joins con ON 1=1 o con OR, ni las
+ * subconsultas correlacionadas sobre la misma tabla.
  */
-function checkJoins(toks: Token[], virtual: Set<string>): 'join_without_condition' | 'too_many_tables' | null {
+const JOIN_KEYS = new Set(
+  [
+    ['events.person_id', 'persons.id'],
+    ['events.distinct_id', 'person_distinct_ids.distinct_id'],
+    ['events.session_id', 'sessions.id'],
+    ['person_distinct_ids.person_id', 'persons.id'],
+    ['sessions.distinct_id', 'person_distinct_ids.distinct_id'],
+  ].flatMap(([a, b]) => [`${a}=${b}`, `${b}=${a}`]),
+);
+
+type JoinError = 'join_without_condition' | 'too_many_tables' | 'join_not_allowed';
+
+function checkJoins(toks: Token[], virtual: Set<string>): JoinError | null {
   const lower = toks.map((t) => (t.kind === 'word' ? t.text.toLowerCase() : t.text));
-  let refs = 0;
-  for (let i = 1; i < toks.length; i++) {
-    if (toks[i].kind === 'word' && virtual.has(lower[i]) && (lower[i - 1] === 'from' || lower[i - 1] === 'join')) refs++;
-  }
-  if (refs > SQL_MAX_TABLE_REFS) return 'too_many_tables';
   const depthAt: number[] = [];
   let d = 0;
   for (const t of toks) {
@@ -217,24 +243,115 @@ function checkJoins(toks: Token[], virtual: Set<string>): 'join_without_conditio
     depthAt.push(d);
     if (t.text === '(') d++;
   }
+  /** Índice del ')' que cierra el '(' en i. */
+  const closeOf = (i: number) => {
+    for (let j = i + 1; j < toks.length; j++) if (toks[j].text === ')' && depthAt[j] === depthAt[i]) return j;
+    return toks.length - 1;
+  };
+
+  // CTEs: WITH name [(cols)] AS ( body ), … al principio de cualquier nivel.
+  const cte = new Map<string, number>();
+  const cteRanges: Array<[number, number, string]> = [];
+  for (let i = 0; i < toks.length; i++) {
+    if (lower[i] !== 'with') continue;
+    let j = i + 1;
+    for (;;) {
+      const name = lower[j];
+      if (toks[j]?.kind !== 'word') break;
+      j++;
+      if (toks[j]?.text === '(') j = closeOf(j) + 1;
+      if (lower[j] !== 'as' || toks[j + 1]?.text !== '(') break;
+      const end = closeOf(j + 1);
+      cteRanges.push([j + 2, end, name]);
+      j = end + 1;
+      if (toks[j]?.text !== ',') break;
+      j++;
+    }
+  }
+  const inCte = (k: number) => cteRanges.find(([a, b]) => k >= a && k < b);
+
+  /** Referencias de FROM/JOIN en [a, b) (las CTEs ya contadas valen lo suyo). */
+  const refsIn = (a: number, b: number, skipCtes: boolean): number => {
+    let n = 0;
+    for (let k = a; k < b; k++) {
+      if (skipCtes && inCte(k)) continue;
+      if (lower[k] !== 'from' && lower[k] !== 'join' && !(lower[k] === ',' && fromList(k))) continue;
+      const next = toks[k + 1];
+      if (!next || next.text === '(') continue; // subconsulta: su FROM cuenta adentro
+      n += cte.get(lower[k + 1]) ?? 1;
+    }
+    return n;
+  };
+  // Una coma dentro de un FROM (a la misma profundidad) es otra tabla.
+  const fromList = (k: number) => {
+    for (let j = k - 1; j >= 0; j--) {
+      if (depthAt[j] < depthAt[k]) return false;
+      if (depthAt[j] > depthAt[k]) continue;
+      if (lower[j] === 'from') return true;
+      if (CLAUSE_END.has(lower[j]) || lower[j] === 'select') return false;
+    }
+    return false;
+  };
+  for (const [a, b, name] of cteRanges) cte.set(name, refsIn(a, b, false));
+  const total = refsIn(0, toks.length, true) + 0;
+  if (total > SQL_MAX_TABLE_REFS) return 'too_many_tables';
+
+  // Cada FROM: sin comas; cada JOIN entre dos tablas virtuales por una clave.
+  let joins = 0;
   for (let i = 0; i < toks.length; i++) {
     if (lower[i] !== 'from') continue;
     const base = depthAt[i];
-    let pendingJoin = false;
-    for (let j = i + 1; j < toks.length; j++) {
-      if (depthAt[j] < base) break;
-      if (depthAt[j] > base) continue;
-      const w = lower[j];
-      if (CLAUSE_END.has(w)) break;
-      if (w === ',') return 'join_without_condition';
-      if (w === 'join') {
-        if (pendingJoin) return 'join_without_condition';
-        pendingJoin = true;
+    const aliases = new Map<string, string>();
+    const take = (k: number): number => {
+      // tabla [AS] alias → índice siguiente
+      const table = lower[k];
+      let j = k + 1;
+      if (lower[j] === 'as') j++;
+      const alias = toks[j]?.kind === 'word' && !CLAUSE_END.has(lower[j]) && !['join', 'on', 'left', 'inner', 'using', 'outer'].includes(lower[j]) ? lower[j++] : table;
+      aliases.set(alias, table);
+      return j;
+    };
+    if (toks[i + 1]?.text === '(') continue;
+    let j = take(i + 1);
+    while (j < toks.length && depthAt[j] >= base) {
+      if (depthAt[j] > base) {
+        j++;
+        continue;
       }
-      if (w === 'on' || w === 'using') pendingJoin = false;
+      const w = lower[j];
+      if (CLAUSE_END.has(w) || w === ')') break;
+      if (w === ',') return 'join_without_condition';
+      if (w === 'left' || w === 'inner' || w === 'outer') {
+        j++;
+        continue;
+      }
+      if (w !== 'join') {
+        j++;
+        continue;
+      }
+      joins++;
+      const left = [...aliases.values()][0];
+      if (toks[j + 1]?.text === '(') return 'join_not_allowed';
+      const right = lower[j + 1];
+      if (!virtual.has(left) || !virtual.has(right) || cte.has(left) || cte.has(right)) return 'join_not_allowed';
+      j = take(j + 1);
+      if (lower[j] !== 'on') return 'join_without_condition';
+      // a . col = b . col
+      const [a, d1, ca, eq, b, d2, cb] = lower.slice(j + 1, j + 8);
+      if (d1 !== '.' || d2 !== '.' || (eq !== '=' && eq !== '==') || a === b) return 'join_not_allowed';
+      const ta = aliases.get(a);
+      const tb = aliases.get(b);
+      if (!ta || !tb || !JOIN_KEYS.has(`${ta}.${ca}=${tb}.${cb}`)) return 'join_not_allowed';
+      j += 8;
+      // Lo que sigue en el ON solo puede ser AND (sin OR a este nivel).
+      while (j < toks.length && depthAt[j] >= base) {
+        if (depthAt[j] === base && (CLAUSE_END.has(lower[j]) || ['join', 'left', 'inner', ')'].includes(lower[j]))) break;
+        if (depthAt[j] === base && lower[j] === 'or') return 'join_not_allowed';
+        j++;
+      }
     }
-    if (pendingJoin) return 'join_without_condition';
   }
+  if (total === 2 && joins !== 1) return 'too_many_tables';
   return null;
 }
 
@@ -265,17 +382,20 @@ export function wrapSql(userSql: string, projectId: string, now = Date.now()): {
     FROM analytics_events e
     LEFT JOIN analytics_person_ids m ON m.project_id = e.project_id AND m.distinct_id = e.distinct_id
     WHERE e.project_id = ? AND e.ts >= CAST(? AS INTEGER)
+    ORDER BY e.ts DESC LIMIT ${SQL_TABLE_ROW_CAP}
   ),
   persons AS (
     SELECT id, properties, is_identified, created_at, last_seen FROM analytics_persons WHERE project_id = ?
+    ORDER BY last_seen DESC LIMIT ${SQL_TABLE_ROW_CAP}
   ),
   person_distinct_ids AS (
-    SELECT distinct_id, person_id FROM analytics_person_ids WHERE project_id = ?
+    SELECT distinct_id, person_id FROM analytics_person_ids WHERE project_id = ? LIMIT ${SQL_TABLE_ROW_CAP}
   ),
   sessions AS (
     SELECT id, distinct_id, started_at, ended_at, (ended_at - started_at) / 1000 AS duration_sec, pageviews, events AS event_count,
       entry_path, exit_path, referring_domain, utm_source, country, device AS device_type, browser
     FROM analytics_sessions WHERE project_id = ?
+    ORDER BY started_at DESC LIMIT ${SQL_TABLE_ROW_CAP}
   )`;
   return { sql: `${ctes}\nSELECT * FROM (\n${userSql}\n) LIMIT ${SQL_MAX_ROWS + 1}`, args: [projectId, String(now - SQL_WINDOW_DAYS * 86_400_000), projectId, projectId, projectId] };
 }
