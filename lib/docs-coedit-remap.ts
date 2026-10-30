@@ -99,20 +99,48 @@ export function deletedSpan(prev: string, op: TextOp): { start: number; at: numb
   return { start, at: start + ins, text, keptAt, keptLen };
 }
 
-/** Texto sin formato de un HTML-lite y, por cada carácter, su índice en el HTML (más uno al final). */
+/**
+ * Texto sin formato de un HTML-lite y, por cada carácter, su índice en el HTML
+ * (más uno al final). El espacio duro cuenta como espacio: el navegador pone
+ * uno al final de un bloque y lo cambia por uno común cuando sigue el texto.
+ */
 function plainOf(html: string): { text: string; at: number[] } {
   let text = '';
   const at: number[] = [];
   let i = 0;
-  for (const t of tokens(html)) {
-    if (!(t[0] === '<' && t.length > 1)) {
+  for (const raw of tokens(html)) {
+    if (!(raw[0] === '<' && raw.length > 1)) {
+      const t = raw === '&nbsp;' || raw === '\u00a0' ? ' ' : raw;
       for (let k = 0; k < t.length; k++) at.push(i);
       text += t;
     }
-    i += t.length;
+    i += raw.length;
   }
   at.push(html.length);
   return { text, at };
+}
+
+/**
+ * Un borrado de corrido se puede describir corrido a izquierda o derecha cuando
+ * el carácter de un borde se repite (borrar "ta gamma t" de "beta gamma tres"
+ * es lo mismo que borrar "a gamma tr"): el diff elige uno, el bloque nuevo
+ * tiene el otro. Devuelve todas las versiones equivalentes, la original primero.
+ */
+export function shiftedSpans(prev: string, sp: NonNullable<ReturnType<typeof deletedSpan>>): Array<NonNullable<ReturnType<typeof deletedSpan>>> {
+  if (sp.keptLen) return [sp];
+  const len = sp.text.length;
+  let lo = sp.start;
+  while (lo > 0 && prev[lo - 1] === prev[lo - 1 + len]) lo--;
+  let hi = sp.start;
+  while (hi + len < prev.length && prev[hi] === prev[hi + len]) hi++;
+  const out = [sp];
+  for (let d = 1; sp.start - d >= lo || sp.start + d <= hi; d++) {
+    for (const s of [sp.start - d, sp.start + d]) {
+      if (s < lo || s > hi) continue;
+      out.push({ ...sp, start: s, at: sp.at + (s - sp.start), text: prev.slice(s, s + len) });
+    }
+  }
+  return out;
 }
 
 /** Inserción única de una operación (sin borrados): dónde y qué. */
@@ -184,9 +212,16 @@ export function remapStructure<B extends RemapBlock>(
       // Los bloques nuevos tienen la cola cortada; la otra persona pudo escribir ya ahí (antes o después de ella).
       t = latest(blocks[j].id, (x) => {
         if (!x.own) return false;
-        span = deletedSpan(x.prev, x.op);
-        spText = span ? plainOf(span.text).text : '';
-        return !!spText && joined.includes(spText);
+        const found = deletedSpan(x.prev, x.op);
+        if (!found) return false;
+        for (const v of shiftedSpans(x.prev, found)) {
+          spText = plainOf(v.text).text;
+          if (spText && joined.includes(spText)) {
+            span = v;
+            return true;
+          }
+        }
+        return false;
       });
       if (t) p = blocks[j];
     }

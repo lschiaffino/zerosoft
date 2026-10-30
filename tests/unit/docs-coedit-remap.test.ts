@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deletedSpan, remapStructure, singleInsert, type RemoteTrace } from '@/lib/docs-coedit-remap';
+import { deletedSpan, remapStructure, shiftedSpans, singleInsert, type RemoteTrace } from '@/lib/docs-coedit-remap';
 import { apply, diff } from '@/lib/docs-ot';
 
 const blk = (id: string, content: string) => ({ id, type: 'paragraph', content });
@@ -73,6 +73,33 @@ describe('remapStructure (partir y unir mientras se escribe)', () => {
     const res = remapStructure(prev, merged, merged, traces, { block: 'b2', index: 0 })!;
     expect(res.blocks.map((b) => b.content)).toEqual(['oneAa', 'Bb', '', 'Ab', ' two fiveBa']);
     expect(res.caret).toEqual({ block: 'b2', index: 0 });
+  });
+
+  it('el corte termina en un espacio: en el bloque nuevo es un espacio duro y lo propio igual se mueve', () => {
+    // Allá ya tenían " uno dos " (lo propio confirmado) y cortaron justo antes de "tres".
+    const V = 'alpha beta gamma uno dos tres';
+    const op = [8, -17, 4];
+    expect(apply(V, op)).toBe('alpha betres');
+    const traces: RemoteTrace[] = [{ block: 'p', at: 0, prev: V, op, own: true }];
+    const now = 'alpha betres cuatro';
+    const merged = [blk('p', now), blk('a', 'AA'), blk('b', 'BBta gamma uno dos&nbsp;')];
+    const res = remapStructure([blk('p', now)], merged, merged, traces, { block: 'p', index: now.length })!;
+    expect(res.blocks.map((b) => b.content)).toEqual(['alpha be', 'AA', 'BBta gamma uno dos&nbsp;tres cuatro']);
+    expect(res.caret).toEqual({ block: 'b', index: 'BBta gamma uno dos&nbsp;tres cuatro'.length });
+  });
+
+  it('el diff corrió el borrado una letra (la del borde se repite): lo propio igual se mueve', () => {
+    // Caso real: "alpha be|ta ... dos tres" cortado; el diff describe el borrado desde "bet|a" hasta "t|res".
+    const V = 'alpha beta gamma delta uno dos tres';
+    const op = [9, -23, 3];
+    expect(apply(V, op)).toBe('alpha betres');
+    expect(shiftedSpans(V, deletedSpan(V, op)!).map((x) => x.text)).toEqual(['a gamma delta uno dos t', 'ta gamma delta uno dos ']);
+    const traces: RemoteTrace[] = [{ block: 'p', at: 0, prev: V, op, own: true }];
+    const now = 'alpha betres cuatro cinco ';
+    const merged = [blk('p', now), blk('a', 'AA'), blk('b', 'BBta gamma delta uno dos ')];
+    const res = remapStructure([blk('p', now)], merged, merged, traces, { block: 'p', index: now.length })!;
+    expect(res.blocks.map((b) => b.content)).toEqual(['alpha be', 'AA', 'BBta gamma delta uno dos tres cuatro cinco ']);
+    expect(res.caret).toEqual({ block: 'b', index: 'BBta gamma delta uno dos tres cuatro cinco '.length });
   });
 
   it('partir dos veces dentro de una negrita: el cierre queda arriba y lo propio va al final de la cola', () => {
