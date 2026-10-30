@@ -233,9 +233,9 @@ test('Docs en vivo: partir el bloque con Enter mientras la otra persona escribe 
   // Dos bloques: lo de antes del corte en el primero, el resto en el nuevo.
   const blocks = await blocksOf(request, doc.id);
   expect(blocks.length).toBe(2);
-  expect(blocks[0].content.startsWith('alpha beta')).toBeTruthy();
+  expect(blocks[0].content.startsWith('alpha beta'), text).toBeTruthy();
   // El espacio del principio del bloque nuevo queda (el parser no lo tira).
-  expect(blocks[1].content.startsWith(' gamma delta')).toBeTruthy();
+  expect(blocks[1].content.startsWith(' gamma delta'), text).toBeTruthy();
   await close();
 });
 

@@ -26,7 +26,7 @@ import {
 } from '@/lib/docs-marks';
 import { getSelectionOffsets, setCaretOffset, setSelectionOffsets } from '@/lib/docs-caret';
 import { serializeEditable } from '@/lib/docs-richtext';
-import { htmlIndexOf, textOffsetOf, transformTextOffset, type TextOp } from '@/lib/docs-ot';
+import { diff as diffText, htmlIndexOf, rebaseText, textOffsetOf, transformTextOffset, type TextOp } from '@/lib/docs-ot';
 import type { RemapCaret, RemapResult } from '@/lib/docs-coedit-remap';
 
 export type DocsEditorMode = 'edit' | 'suggest' | 'readonly';
@@ -207,6 +207,9 @@ export function useDocsCollab(d: Deps) {
   const consumeRemote = useCallback((next: DocsSnapshot): boolean => {
     const r = remote.current;
     if (!r) return false;
+    // Un render anterior a la fusión (otro estado que cambió en el mismo momento): la
+    // fusión sigue pendiente; la toma el render que la muestra (si no, el caret no se ponía).
+    if (r.shape !== undefined && blockShape(next.blocks) !== r.shape) return false;
     restoreCaret();
     remote.current = null;
     depsRef.current.lastSnap.current = next;
@@ -241,10 +244,28 @@ export function useDocsCollab(d: Deps) {
       if (!cur.blocks.some((b) => b.id in changes)) return;
       // El DOM se actualiza ya, no en el próximo render: una tecla que llegue en el
       // medio se escribe sobre el texto con lo de la otra persona (si no, la pisaba).
+      // Pasos para correr el caret en pantalla (el del DOM si se rebasó sobre teclas sin modelo).
+      const paintOps: typeof ops = { ...ops };
       cur.blocks.forEach((b, i) => {
         if (!(b.id in changes)) return;
         const el = blockRefs.current[i];
-        if (!el || serializeEditable(el) !== (b.content ?? '')) return;
+        if (!el) return;
+        const dom = serializeEditable(el);
+        if (dom !== (b.content ?? '')) {
+          // Teclas que el navegador ya pintó y el modelo todavía no tiene: lo ajeno se
+          // rebasa sobre lo que está en pantalla (si no, el próximo render las borraba).
+          // Si no se puede, como antes: el modelo toma lo ajeno y el DOM no se toca.
+          const steps = ops[b.id] ?? [];
+          if (!steps.length || steps[0].prev !== b.content) return;
+          try {
+            let text = dom;
+            for (const step of steps) text = rebaseText(text, step.prev, step.op);
+            changes[b.id] = text;
+            paintOps[b.id] = [{ prev: dom, op: diffText(dom, text) }];
+          } catch {
+            return;
+          }
+        }
         const focused = document.activeElement === el;
         const sel = focused ? getSelectionOffsets(el) : null;
         el.innerHTML = changes[b.id];
@@ -252,7 +273,7 @@ export function useDocsCollab(d: Deps) {
           let start = sel.start;
           let end = sel.end;
           try {
-            for (const step of ops[b.id] ?? []) {
+            for (const step of paintOps[b.id] ?? []) {
               start = transformTextOffset(step.prev, start, step.op);
               end = transformTextOffset(step.prev, end, step.op);
             }

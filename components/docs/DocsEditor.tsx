@@ -76,6 +76,7 @@ import {
   insertTextAtOffset,
   isRangeFullyMarked,
   removeHtmlRange,
+  serializeEditable,
   splitHtmlAt,
   toggleMark,
   unwrapLink,
@@ -1771,6 +1772,16 @@ export default function DocsEditor({
    * Convierte el bloque a otro tipo SIN borrar el contenido (salvo que se pase
    * `content` explícito, ej. el texto ya limpio del `/query` o del atajo md).
    */
+  /**
+   * El HTML del bloque como está en pantalla: puede tener texto de otra persona
+   * (edición simultánea) o teclas que el estado todavía no tiene. Partir, unir o
+   * convertir parten de esto; con el estado de antes, ese texto se perdía.
+   */
+  const domHtml = useCallback((index: number, fallback: string): string => {
+    const el = blockRefs.current[index];
+    return el && el.isContentEditable ? serializeEditable(el) : fallback;
+  }, []);
+
   const convertBlock = useCallback(
     (
       index: number,
@@ -2041,7 +2052,7 @@ export default function DocsEditor({
         return;
       }
 
-      const [before, after] = splitHtmlAt(block.content, caret);
+      const [before, after] = splitHtmlAt(domHtml(index, block.content), caret);
       const isList = LIST_TYPES.includes(block.type);
       const indent = blockIndent(block);
       // Listas/todo continúan el mismo tipo; heading/paragraph crean un párrafo.
@@ -2074,7 +2085,7 @@ export default function DocsEditor({
       setFocusIndex(at);
       setFocusTick((v) => v + 1);
     },
-    [blocks, convertBlock, indentBlocks, triggerSave, setBlocks],
+    [blocks, convertBlock, indentBlocks, triggerSave, setBlocks, domHtml],
   );
 
   /** Inserta un '\n' dentro del bloque en la posición del caret (offset plano). */
@@ -2187,10 +2198,12 @@ export default function DocsEditor({
         // Concatenar dos fragmentos HTML-lite saneados es seguro (pueden quedar
         // tags adyacentes iguales: válido, se renderiza igual). Los hijos del
         // bloque fusionado quedan donde estaban (normalizeIndents los acomoda).
-        const join = htmlToFlatText(prev.content).length;
+        const prevHtml = domHtml(prevIndex, prev.content);
+        const join = htmlToFlatText(prevHtml).length;
+        const html = domHtml(index, block.content);
         setBlocks((all) => {
           const next = [...all];
-          next[prevIndex] = { ...next[prevIndex], content: prev.content + block.content };
+          next[prevIndex] = { ...next[prevIndex], content: prevHtml + html };
           next.splice(index, 1);
           const norm = normalizeIndents(next);
           triggerSave(norm);
@@ -2209,7 +2222,7 @@ export default function DocsEditor({
       }
       return false;
     },
-    [blocks, convertBlock, hidden, indentBlocks, removeBlock, triggerSave, setBlocks],
+    [blocks, convertBlock, hidden, indentBlocks, removeBlock, triggerSave, setBlocks, domHtml],
   );
 
   /**
@@ -2454,11 +2467,12 @@ export default function DocsEditor({
 
       // Markdown: "# ", "## ", "### ", "- ", "* ", "1. ", "[] ", "[ ] ", "> ".
       if (e.key === ' ' && isEditable && collapsed && block.type === 'paragraph') {
-        const flatBefore = htmlToFlatText(block.content).slice(0, caret);
+        const html = serializeEditable(el);
+        const flatBefore = htmlToFlatText(html).slice(0, caret);
         const md = matchMarkdownPrefix(flatBefore);
         if (md) {
           e.preventDefault();
-          convertBlock(index, md.type, md.level, splitHtmlAt(block.content, flatBefore.length)[1], 0);
+          convertBlock(index, md.type, md.level, splitHtmlAt(html, flatBefore.length)[1], 0);
           return;
         }
       }
