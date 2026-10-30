@@ -15,6 +15,11 @@
  */
 import { apply, diff, isNoop, textHash, transform, type TextOp } from './docs-ot';
 import { COEDIT_BLOCK_MAX, hasPageLink, type CoeditEvent, type CoeditOpItem, type CoeditOpResult } from './docs-coedit-shared';
+import { remapStructure, type RemapBlock, type RemapCaret, type RemapResult, type RemoteTrace } from './docs-coedit-remap';
+
+/** Cuánto se recuerdan las operaciones ajenas y lo escrito acá (para reubicar al partir o unir bloques). */
+const TRACE_MS = 10_000;
+const OWN_MS = 3_000;
 
 /** Cuánto cambia una operación (caracteres insertados más borrados). */
 const opSize = (op: TextOp): number => op.reduce<number>((n, c) => n + (typeof c === 'string' ? c.length : c < 0 ? -c : 0), 0);
@@ -62,6 +67,10 @@ export class CoeditEngine {
   private seqN = 0;
   private stopped = false;
   private failures = 0;
+  /** Operaciones ajenas recién aplicadas en pantalla (lib/docs-coedit-remap.ts). */
+  private traces: RemoteTrace[] = [];
+  /** Última vez que salió algo propio de cada bloque. */
+  private ownAt = new Map<string, number>();
   online = true;
 
   constructor(
@@ -193,6 +202,7 @@ export class CoeditEngine {
         }
         const op = diff(b.S, v);
         if (isNoop(op)) continue;
+        this.ownAt.set(id, Date.now());
         b.inflight = { op, seq: this.nextSeq(), base: b.S, rev: b.rev, full: b.sendBase };
         b.sendBase = false;
       }
@@ -371,6 +381,7 @@ export class CoeditEngine {
       }
     }
     const known = b.inflight ? apply(b.S, b.inflight.op) : b.S;
+    const inflight = b.inflight;
     let R1 = R;
     if (b.inflight) {
       const [inf2, r1] = transform(b.inflight.op, R);
@@ -385,7 +396,45 @@ export class CoeditEngine {
     if (V === null) return;
     const B = diff(known, V);
     const [, R2] = transform(B, R1);
-    if (!isNoop(R2)) this.screen.set(id, apply(V, R2), R2, V);
+    if (isNoop(R2)) return;
+    this.trace({ block: id, at: Date.now(), prev: V, op: R2, own: !!inflight || !isNoop(B) || this.recentOwn(id) });
+    this.screen.set(id, apply(V, R2), R2, V);
+  }
+
+  private trace(t: RemoteTrace) {
+    const now = t.at;
+    this.traces = this.traces.filter((x) => now - x.at < TRACE_MS).slice(-40);
+    this.traces.push(t);
+  }
+
+  private recentOwn(id: string) {
+    return Date.now() - (this.ownAt.get(id) ?? 0) < OWN_MS;
+  }
+
+  /** Hay algo propio en el bloque: sin confirmar, en pantalla sin mandar o escrito hace un momento. */
+  ownIn(id: string): boolean {
+    const b = this.blocks.get(id);
+    if (b && (b.inflight || (this.screen.get(id) ?? b.S) !== b.S)) return true;
+    return this.recentOwn(id);
+  }
+
+  /**
+   * Llegó un cambio de estructura de otra persona (partir o unir el bloque
+   * donde se escribía): lo propio pasa al bloque que corresponde. Ver
+   * lib/docs-coedit-remap.ts. Si mueve algo, las operaciones salen enseguida.
+   */
+  remap<B extends RemapBlock>(prev: B[], theirs: RemapBlock[], merged: B[], caret: RemapCaret | null): RemapResult<B> | null {
+    const now = Date.now();
+    const traces = this.traces.filter((x) => now - x.at < TRACE_MS);
+    if (!traces.length) return null;
+    const res = remapStructure(prev, theirs, merged, traces, caret, (id) => this.ownIn(id));
+    if (res) {
+      // Ya se usaron: una fusión siguiente no vuelve a mover lo mismo.
+      const used = new Set(res.touched);
+      this.traces = this.traces.filter((x) => !used.has(x.block));
+      this.localChanged();
+    }
+    return res;
   }
 
   /**

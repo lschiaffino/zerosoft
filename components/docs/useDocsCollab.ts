@@ -13,7 +13,7 @@
  */
 import { useCallback, useEffect, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import type { DocsBlock } from '@/lib/docs-types';
-import type { DocsHistory, DocsSnapshot } from '@/lib/docs-history';
+import { rebaseHistoryText, rebaseSnapshotText, type DocsHistory, type DocsSnapshot, type DocsTextSteps } from '@/lib/docs-history';
 import { mergeBlocksDetailed, mergeTitle, sameContent } from '@/lib/docs-merge';
 import {
   applySuggestEdit,
@@ -25,7 +25,8 @@ import {
 } from '@/lib/docs-marks';
 import { getSelectionOffsets, setCaretOffset, setSelectionOffsets } from '@/lib/docs-caret';
 import { serializeEditable } from '@/lib/docs-richtext';
-import { transformTextOffset, type TextOp } from '@/lib/docs-ot';
+import { htmlIndexOf, textOffsetOf, transformTextOffset, type TextOp } from '@/lib/docs-ot';
+import type { RemapCaret, RemapResult } from '@/lib/docs-coedit-remap';
 
 export type DocsEditorMode = 'edit' | 'suggest' | 'readonly';
 
@@ -56,7 +57,7 @@ export interface DocsEditorApi {
    * vivo, lib/docs-coedit-client.ts): no es un paso propio del deshacer y el
    * caret se corre según `op` (que lleva de `prev` a `text`).
    */
-  applyBlockText(changes: Record<string, string>, caretOp?: CaretOp): void;
+  applyBlockText(changes: Record<string, string>, ops?: DocsTextSteps): void;
   /** Composición (acentos, IME) o tecla todavía sin pasar al modelo: lo remoto espera. */
   busy(): boolean;
 }
@@ -79,12 +80,25 @@ interface Deps {
   apiRef?: MutableRefObject<DocsEditorApi | null>;
   rootRef: MutableRefObject<HTMLDivElement | null>;
   titleRef: MutableRefObject<HTMLDivElement | null>;
+  /** Edición simultánea: qué bloques viajan por operaciones y cómo reubicar lo propio al partir o unir. */
+  coedit?: DocsCoeditStructure | null;
+}
+
+/** Lo que el editor necesita de la edición simultánea al fusionar estructura (lib/docs-coedit-client.ts). */
+export interface DocsCoeditStructure {
+  manages(id: string): boolean;
+  remap(prev: DocsBlock[], theirs: DocsBlock[], merged: DocsBlock[], caret: RemapCaret | null): RemapResult<DocsBlock> | null;
 }
 
 /** Lo que el efecto de historial necesita saber de una fusión remota en curso. */
 export interface RemoteApply {
   prev: DocsSnapshot;
-  caret: { blockId: string; start: number; end: number; text: string } | null;
+  /** `exact`: el caret va a ese offset de ese bloque (lo propio pasó a otro bloque al partir o unir). */
+  caret: { blockId: string; start: number; end: number; text: string; exact?: boolean; el?: HTMLElement | null } | null;
+  /** El caret ya se puso (efecto de layout, antes de que llegue otra tecla). */
+  caretDone?: boolean;
+  /** Estructura fusionada (ids y tipos): el caret se pone recién cuando el render la muestra. */
+  shape?: string;
   resolve: (r: { merged: DocsSnapshot; conflicts: string[] }) => void;
   conflicts: string[];
   /** Operaciones exactas sobre el bloque del caret (edición simultánea): corren el caret con precisión. */
@@ -98,6 +112,8 @@ export interface CaretOp {
 }
 
 const HISTORY_REBASE = 50;
+/** Ids y tipos de los bloques, en orden (la forma de la estructura). */
+const blockShape = (blocks: DocsBlock[]) => blocks.map((b) => `${b.id}:${b.type}`).join('|');
 /** Índice por id de cada lista de bloques (la edición simultánea lee bloques sueltos seguido). */
 const blockIndex = new WeakMap<DocsBlock[], Map<string, DocsBlock>>();
 
@@ -123,54 +139,66 @@ export function useDocsCollab(d: Deps) {
    * paso: si el cambio vino de una fusión remota, no es un paso propio (no se
    * deshace) y el historial se rebasa con lo que trajo la otra persona.
    */
+  /**
+   * El caret después de pintar una fusión remota. Corre en un efecto de
+   * layout (DocsEditor): antes de que el navegador entregue otra tecla, así
+   * nada se escribe en un bloque que ya no está o en un offset viejo.
+   */
+  const restoreCaret = useCallback(() => {
+    const r = remote.current;
+    if (!r || r.caretDone || !r.caret) return;
+    const { live, blockRefs } = depsRef.current;
+    const next = live.current;
+    // Un render anterior (una tecla en el medio) todavía no muestra la fusión: espera al siguiente.
+    if (r.shape !== undefined && blockShape(next.blocks) !== r.shape) return;
+    r.caretDone = true;
+    const i = next.blocks.findIndex((b) => b.id === r.caret!.blockId);
+    const el = i >= 0 ? blockRefs.current[i] : null;
+    if (!el) return;
+    if (r.caret.exact) {
+      // Lo propio pasó a otro bloque (partir o unir): el caret va con eso.
+      el.focus();
+      setCaretOffset(el, r.caret.end);
+    } else if (r.caretOp && r.caretOp.blockId === r.caret.blockId) {
+      try {
+        let start = r.caret.start;
+        let end = r.caret.end;
+        for (const step of r.caretOp.steps) {
+          start = transformTextOffset(step.prev, start, step.op);
+          end = transformTextOffset(step.prev, end, step.op);
+        }
+        if (document.activeElement !== el) el.focus();
+        setSelectionOffsets(el, start, end);
+      } catch {
+        /* texto que no coincide: el caret queda donde lo dejó el navegador */
+      }
+    } else {
+      const text = flatText(next.blocks[i].content);
+      if (text !== r.caret.text) {
+        el.focus();
+        setCaretOffset(el, shiftOffset(r.caret.text, text, r.caret.end));
+      } else if ((r.caret.el && r.caret.el !== el) || document.activeElement !== el) {
+        // El bloque se volvió a crear (cambió el tipo, "# "): el caret vuelve a su lugar.
+        el.focus();
+        setCaretOffset(el, r.caret.end);
+      }
+    }
+  }, []);
+
+  /**
+   * El efecto de historial de DocsEditor llama a esto antes de registrar un
+   * paso: si el cambio vino de una fusión remota, no es un paso propio (no se
+   * deshace). El historial ya se rebasó al llegar la fusión (applyRemote).
+   */
   const consumeRemote = useCallback((next: DocsSnapshot): boolean => {
     const r = remote.current;
     if (!r) return false;
+    restoreCaret();
     remote.current = null;
-    const { historyRef, lastSnap, blockRefs } = depsRef.current;
-    // Cada foto del historial suma lo que trajo la fusión (deshacer no deshace lo ajeno).
-    const rebase = (s: DocsSnapshot): DocsSnapshot => ({
-      title: mergeTitle(r.prev.title, next.title, s.title),
-      blocks: mergeBlocksDetailed(r.prev.blocks, next.blocks, s.blocks).blocks,
-    });
-    const h = historyRef.current;
-    historyRef.current = {
-      past: h.past.slice(-HISTORY_REBASE).map(rebase),
-      future: h.future.slice(0, HISTORY_REBASE).map(rebase),
-      typing: h.typing,
-    };
-    lastSnap.current = next;
-    // Caret: si el bloque donde se escribe cambió, se corre según lo que se insertó antes.
-    if (r.caret && r.caretOp && r.caretOp.blockId === r.caret.blockId) {
-      const i = next.blocks.findIndex((b) => b.id === r.caret!.blockId);
-      const el = i >= 0 ? blockRefs.current[i] : null;
-      if (el) {
-        try {
-          let start = r.caret.start;
-          let end = r.caret.end;
-          for (const step of r.caretOp.steps) {
-            start = transformTextOffset(step.prev, start, step.op);
-            end = transformTextOffset(step.prev, end, step.op);
-          }
-          if (document.activeElement !== el) el.focus();
-          setSelectionOffsets(el, start, end);
-        } catch {
-          /* texto que no coincide: el caret queda donde lo dejó el navegador */
-        }
-      }
-    } else if (r.caret) {
-      const i = next.blocks.findIndex((b) => b.id === r.caret!.blockId);
-      const el = i >= 0 ? blockRefs.current[i] : null;
-      const text = i >= 0 ? flatText(next.blocks[i].content) : '';
-      if (el && text !== r.caret.text) {
-        const off = shiftOffset(r.caret.text, text, r.caret.end);
-        el.focus();
-        setCaretOffset(el, off);
-      }
-    }
+    depsRef.current.lastSnap.current = next;
     r.resolve({ merged: next, conflicts: r.conflicts });
     return true;
-  }, []);
+  }, [restoreCaret]);
 
   const api: DocsEditorApi = {
     snapshot: () => depsRef.current.live.current,
@@ -193,8 +221,8 @@ export function useDocsCollab(d: Deps) {
       // Una tecla que el navegador ya pintó y el modelo todavía no tiene.
       return serializeEditable(active) !== (live.current.blocks[idx]?.content ?? '');
     },
-    applyBlockText: (changes, caretOp) => {
-      const { live, blockRefs } = depsRef.current;
+    applyBlockText: (changes, ops = {}) => {
+      const { live, blockRefs, setBlocksRaw, normalize, historyRef, lastSnap } = depsRef.current;
       const cur = live.current;
       if (!cur.blocks.some((b) => b.id in changes)) return;
       // El DOM se actualiza ya, no en el próximo render: una tecla que llegue en el
@@ -210,11 +238,9 @@ export function useDocsCollab(d: Deps) {
           let start = sel.start;
           let end = sel.end;
           try {
-            if (caretOp?.blockId === b.id) {
-              for (const step of caretOp.steps) {
-                start = transformTextOffset(step.prev, start, step.op);
-                end = transformTextOffset(step.prev, end, step.op);
-              }
+            for (const step of ops[b.id] ?? []) {
+              start = transformTextOffset(step.prev, start, step.op);
+              end = transformTextOffset(step.prev, end, step.op);
             }
           } catch {
             /* el caret queda en el mismo offset */
@@ -222,10 +248,17 @@ export function useDocsCollab(d: Deps) {
           setSelectionOffsets(el, start, end);
         }
       });
-      const theirs = { title: cur.title, blocks: cur.blocks.map((b) => (b.id in changes ? { ...b, content: changes[b.id] } : b)) };
-      const res = api.applyRemote(cur, theirs, null);
+      const byId = new Map(cur.blocks.map((b) => [b.id, b]));
+      const blocks = normalize(cur.blocks.map((b) => (b.id in changes && b.content !== changes[b.id] ? { ...b, content: changes[b.id] } : b)));
+      if (blocks.every((b) => byId.get(b.id) === b) && blocks.length === cur.blocks.length) return;
+      // Deshacer solo deshace lo propio: cada foto del historial (y la última
+      // registrada) suma lo ajeno transformando sus diferencias contra estas
+      // operaciones. Lo propio que se escriba después se registra como siempre.
+      historyRef.current = rebaseHistoryText(historyRef.current, ops);
+      if (lastSnap.current) lastSnap.current = rebaseSnapshotText(lastSnap.current, ops);
       // El modelo ya es este (el render llega después): lo próximo que se lea lo ve.
-      if (res.changed) depsRef.current.live.current = res.merged;
+      live.current = { title: cur.title, blocks };
+      setBlocksRaw(blocks);
     },
     applyRemote: (base, theirs, caretOp?: RemoteApply['caretOp'] | null) => {
       const { live, blockRefs, setBlocksRaw, setTitle, normalize, titleRef } = depsRef.current;
@@ -239,22 +272,65 @@ export function useDocsCollab(d: Deps) {
       const idx = active ? blockRefs.current.findIndex((el) => el === active) : -1;
       const sel = idx >= 0 && active ? getSelectionOffsets(active) : null;
       const caretBlock = idx >= 0 ? prev.blocks[idx] : undefined;
-      const res = mergeBlocksDetailed(base.blocks, theirs.blocks, prev.blocks);
-      // Los bloques que no cambiaron quedan con el mismo objeto (no se repinta lo que se está escribiendo).
       const byId = new Map(prev.blocks.map((b) => [b.id, b]));
-      const blocks = normalize(res.blocks.map((b) => {
+      // El texto de los bloques que viajan por operaciones no cuenta en esta
+      // fusión (llega por el feed): borrar uno gana aunque acá tenga texto
+      // nuevo. Lo propio de ese texto lo reubica `remap`.
+      const co = depsRef.current.coedit ?? null;
+      const baseById = new Map(base.blocks.map((b) => [b.id, b]));
+      const managed = (b: DocsBlock) => !!co && co.manages(b.id) && typeof b.content === 'string' && typeof baseById.get(b.id)?.content === 'string';
+      const ours = co ? prev.blocks.map((b) => (managed(b) ? { ...b, content: baseById.get(b.id)!.content } : b)) : prev.blocks;
+      const res = mergeBlocksDetailed(base.blocks, theirs.blocks, ours);
+      let mergedBlocks = co
+        ? res.blocks.map((b) => {
+            const mine = byId.get(b.id);
+            return mine && managed(mine) && typeof b.content === 'string' ? { ...b, content: mine.content } : b;
+          })
+        : res.blocks;
+      // Partir o unir el bloque donde se escribía: lo propio va al bloque que corresponde.
+      let exactCaret: RemoteApply['caret'] = null;
+      if (co) {
+        const caretAt: RemapCaret | null = caretBlock && sel && typeof caretBlock.content === 'string' ? { block: caretBlock.id, index: htmlIndexOf(caretBlock.content, sel.end) } : null;
+        const moved = co.remap(prev.blocks, theirs.blocks, mergedBlocks, caretAt);
+        if (moved) {
+          mergedBlocks = moved.blocks;
+          if (moved.caret && caretAt && moved.caret.block !== caretAt.block) {
+            const target = mergedBlocks.find((b) => b.id === moved.caret!.block);
+            const html = typeof target?.content === 'string' ? target.content : '';
+            const off = textOffsetOf(html, moved.caret.index);
+            exactCaret = { blockId: moved.caret.block, start: off, end: off, text: flatText(html), exact: true };
+          }
+        }
+      }
+      // Los bloques que no cambiaron quedan con el mismo objeto (no se repinta lo que se está escribiendo).
+      const blocks = normalize(mergedBlocks.map((b) => {
         const old = byId.get(b.id);
         return old && sameContent(old, b) ? old : b;
       }));
       const title = mergeTitle(base.title, theirs.title, prev.title);
       const merged = { title, blocks };
       if (sameContent(blocks, prev.blocks) && title === prev.title) return { merged: prev, conflicts: res.conflicts, changed: false };
+      // Cada foto del historial suma lo que trajo la fusión (deshacer no deshace
+      // lo ajeno). Se hace ya, no al pintar: dos fusiones seguidas antes de un
+      // render no pierden la primera.
+      const rebase = (s: DocsSnapshot): DocsSnapshot => ({
+        title: mergeTitle(prev.title, title, s.title),
+        blocks: mergeBlocksDetailed(prev.blocks, blocks, s.blocks).blocks,
+      });
+      const { historyRef } = depsRef.current;
+      const h = historyRef.current;
+      historyRef.current = {
+        past: h.past.slice(-HISTORY_REBASE).map(rebase),
+        future: h.future.slice(0, HISTORY_REBASE).map(rebase),
+        typing: h.typing,
+      };
       const entry: RemoteApply = {
         prev,
-        caret: caretOp === null ? null : caretBlock && sel ? { blockId: caretBlock.id, start: sel.start, end: sel.end, text: flatText(caretBlock.content) } : null,
+        caret: exactCaret ?? (caretOp === null ? null : caretBlock && sel ? { blockId: caretBlock.id, start: sel.start, end: sel.end, text: flatText(caretBlock.content), el: active } : null),
         resolve: () => {},
         conflicts: res.conflicts,
         caretOp: caretOp ?? undefined,
+        shape: blockShape(blocks),
       };
       remote.current = entry;
       // Red de seguridad: si por algo no se pintó, no queda marcada.
@@ -398,5 +474,5 @@ export function useDocsCollab(d: Deps) {
     if (res) apply(index, res.content, res.caret);
   }, [suggestChange]);
 
-  return { api, consumeRemote, remote, suggestChange, onCompositionEnd, composing, lastInputType };
+  return { api, consumeRemote, restoreCaret, remote, suggestChange, onCompositionEnd, composing, lastInputType };
 }

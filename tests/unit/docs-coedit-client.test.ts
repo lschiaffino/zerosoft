@@ -267,6 +267,26 @@ describe('CoeditEngine', () => {
     expect(server.text).toBe('ab');
   });
 
+  it('partir el bloque donde se escribe: lo propio pasa al bloque nuevo', async () => {
+    const server = new FakeServer('alpha beta gamma delta');
+    server.baseHash = textHash('alpha beta gamma delta');
+    const b = client(server, 'sessB4444', 'alpha beta gamma delta');
+    // Ana escribe al final (sin mandar todavía).
+    b.type(22, ' uno');
+    // La otra persona parte después de "alpha beta": su operación corta la cola.
+    server.receive('sessA4444', [{ block: 'p', rev: 0, hash: textHash('alpha beta gamma delta'), op: [10, -12], seq: 'a1' }]);
+    b.deliver();
+    expect(b.text).toBe('alpha beta uno');
+    // Llega la estructura: el bloque nuevo con la cola.
+    const prev = [{ id: 'p', content: b.text }];
+    const merged = [{ id: 'p', content: b.text }, { id: 'n', content: ' gamma delta' }];
+    const res = b.engine.remap(prev, merged, merged, { block: 'p', index: b.text.length })!;
+    expect(res.blocks.map((x) => x.content)).toEqual(['alpha beta', ' gamma delta uno']);
+    expect(res.caret).toEqual({ block: 'n', index: ' gamma delta uno'.length });
+    // Ya se usó: otra fusión no vuelve a mover.
+    expect(b.engine.remap(res.blocks, res.blocks, res.blocks, null)).toBeNull();
+  });
+
   it('reintentar la misma operación no la aplica dos veces', () => {
     const server = new FakeServer('a');
     const item = { block: 'p', rev: 0, hash: textHash('a'), op: ['b', 1] as TextOp, seq: 'q1' };

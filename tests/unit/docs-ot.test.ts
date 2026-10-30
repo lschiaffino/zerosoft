@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { apply, diff, htmlIndexOf, isNoop, textHash, textOffsetOf, tokens, transform, transformIndex, transformTextOffset, type TextOp } from '@/lib/docs-ot';
+import { apply, diff, htmlIndexOf, invert, isNoop, rebaseText, textHash, textOffsetOf, tokens, transform, transformIndex, transformTextOffset, type TextOp } from '@/lib/docs-ot';
 
 /** Generador pseudoaleatorio con semilla (los casos se repiten igual). */
 function rng(seed: number) {
@@ -107,5 +107,58 @@ describe('docs-ot', () => {
   it('huella distinta para textos distintos', () => {
     expect(textHash('abc')).toBe(textHash('abc'));
     expect(textHash('abc')).not.toBe(textHash('abd'));
+  });
+});
+
+describe('invert y rebaseText (deshacer en la edición simultánea)', () => {
+  it('invert vuelve al texto de antes', () => {
+    const cases: Array<[string, string]> = [
+      ['The quick fox', 'The very quick fox!'],
+      ['abc', ''],
+      ['', 'hola'],
+      ['<b>uno</b> dos', 'uno <i>dos</i> tres'],
+    ];
+    for (const [a, b] of cases) {
+      const op = diff(a, b);
+      expect(apply(apply(a, op), invert(op, a))).toBe(a);
+    }
+  });
+
+  it('el inverso transformado contra lo ajeno saca solo lo propio', () => {
+    // A escribió " jumps"; después Ana escribió " BKEEP" al final.
+    const before = 'The quick brown fox';
+    const mine = diff(before, 'The quick brown fox jumps');
+    const afterMine = apply(before, mine);
+    const theirs = diff(afterMine, 'Hey The quick brown fox jumps BKEEP');
+    const [undo] = transform(invert(mine, before), theirs);
+    expect(apply(apply(afterMine, theirs), undo)).toBe('Hey The quick brown fox BKEEP');
+  });
+
+  it('rebaseText: una foto vieja suma lo que escribió otra persona', () => {
+    // La foto es de antes de " jumps" (propio); llega "Hey " de Ana sobre el texto actual.
+    const prev = 'The quick brown fox jumps';
+    const op = diff(prev, 'Hey The quick brown fox jumps');
+    expect(rebaseText('The quick brown fox', prev, op)).toBe('Hey The quick brown fox');
+    // Foto igual al texto actual: queda lo ajeno tal cual.
+    expect(rebaseText(prev, prev, op)).toBe('Hey The quick brown fox jumps');
+    // Lo ajeno justo donde estaba lo propio borrado: se mantiene.
+    const op2 = diff(prev, 'The quick brown fox jumps over');
+    expect(rebaseText('The quick brown fox', prev, op2)).toBe('The quick brown fox over');
+  });
+
+  it('fuzz: deshacer después de cambios ajenos nunca saca texto ajeno', () => {
+    const r = rng(7);
+    for (let n = 0; n < 300; n++) {
+      const base = 'abcdefghij'.slice(0, 3 + Math.floor(r() * 7));
+      // Propio: inserta "XY" en algún lugar.
+      const at = Math.floor(r() * (base.length + 1));
+      const mineText = base.slice(0, at) + 'XY' + base.slice(at);
+      // Ajeno: inserta "#" en algún lugar del texto con lo propio.
+      const at2 = Math.floor(r() * (mineText.length + 1));
+      const theirsText = mineText.slice(0, at2) + '#' + mineText.slice(at2);
+      const undone = rebaseText(base, mineText, diff(mineText, theirsText));
+      expect(undone.split('#').length - 1).toBe(1);
+      expect(undone.replace('#', '')).toBe(base);
+    }
   });
 });

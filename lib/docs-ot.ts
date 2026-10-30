@@ -104,6 +104,43 @@ export function apply(text: string, op: TextOp): string {
 }
 
 /**
+ * Operación inversa: aplicada sobre apply(prev, op) vuelve a `prev` (deshacer
+ * lo propio). Lo insertado se borra y lo borrado se vuelve a insertar.
+ */
+export function invert(op: TextOp, prev: string): TextOp {
+  if (baseLength(op) !== prev.length) throw new OpError(`invert: base length ${baseLength(op)} != ${prev.length}`);
+  const out = new Builder();
+  let i = 0;
+  for (const c of op) {
+    if (isRetain(c)) {
+      out.retain(c);
+      i += c;
+    } else if (isInsert(c)) out.delete(c.length);
+    else {
+      const n = -(c as number);
+      out.insert(prev.slice(i, i + n));
+      i += n;
+    }
+  }
+  return out.done();
+}
+
+/**
+ * Lleva un texto que es `prev` con cambios propios (`text`) a lo que queda
+ * después de que entró `op` sobre `prev` (de otra persona): los cambios
+ * propios se transforman contra `op`, así lo ajeno queda. Base del deshacer
+ * en la edición simultánea: cada foto del historial pasa por acá con cada
+ * operación que llega, y deshacer solo saca lo propio.
+ */
+export function rebaseText(text: string, prev: string, op: TextOp): string {
+  const next = apply(prev, op);
+  if (text === prev) return next;
+  const own = diff(prev, text);
+  const [own2] = transform(own, op);
+  return apply(next, own2);
+}
+
+/**
  * Transformación: `a` y `b` salen del mismo texto; devuelve [a', b'] con
  * apply(apply(s, a), b') === apply(apply(s, b), a'). Si los dos insertan en
  * el mismo punto, lo de `a` queda primero. El servidor y el navegador la
