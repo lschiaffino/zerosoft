@@ -278,6 +278,10 @@
         "name": "Stripe: billing of the visitor",
         "desc": "Subscription, plan, renewal date and recent invoices of the identified visitor (read only)."
       },
+      "shop_order": {
+        "name": "Shop: order status",
+        "desc": "Payment, shipping and tracking of an order from your Shop store, with its number and the email of the purchase."
+      },
       "shopify_order": {
         "name": "Shopify: order status",
         "desc": "Payment, shipping and tracking of an order, with its number and the email of the purchase."

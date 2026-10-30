@@ -4,6 +4,7 @@ import { pickHandle } from './handles';
 import { stripSyncedChildren, syncedChildren } from '../docs-synced-refs';
 import type { DocsBlock } from '../docs-types';
 import { workspaceTeamsUp } from './workspace-migrations';
+import { shopUp } from './shop-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -7071,6 +7072,11 @@ export const MIGRATIONS: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_design_file_refs_file ON design_file_refs(file_id);
       `);
     },
+  },
+  {
+    // Shop (Shopify / Tiendanube): ver lib/schema/shop-migration.ts.
+    id: '138_shop',
+    up: shopUp,
   },
   {
     // Docs: edición simultánea tecla por tecla. Feed de eventos en vivo por

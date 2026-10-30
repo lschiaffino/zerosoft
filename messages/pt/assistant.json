@@ -140,6 +140,11 @@
       "a": "Liste meus quadros",
       "b": "Procure um quadro",
       "c": "O que você pode fazer aqui?"
+    },
+    "shop": {
+      "a": "Quais pedidos aguardam envio?",
+      "b": "Como foram as vendas dos últimos 30 dias?",
+      "c": "O que está com estoque baixo?"
     }
   },
   "page": {

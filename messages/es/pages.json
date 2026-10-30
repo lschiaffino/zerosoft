@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "Productos",
-      "description": "Dieciséis apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec y Design. Open source para tu servidor, o en zerosoft Cloud con plan gratis y pago por uso."
+      "description": "Diecisiete apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec y Design. Open source para tu servidor, o en zerosoft Cloud con plan gratis y pago por uso."
     },
     "hero": {
-      "title1": "Dieciséis apps.",
+      "title1": "Diecisiete apps.",
       "title2": "Un solo workspace.",
       "sub": "Para tu empresa: CRM, soporte, agentes de IA, automatizaciones, robots, proyectos y links. Para vos: docs, notas, agenda y pizarra. El core de cada una es open source y corre en tu servidor por $0."
     },
     "cta": {
-      "title1": "Probá las dieciséis apps.",
+      "title1": "Probá las diecisiete apps.",
       "title2": "Con una sola cuenta.",
       "sub": "Entrá con Google, creá un workspace y empezá con el plan gratis. Si después preferís tu servidor, el código está en GitHub.",
       "button": "Abrir la app"
@@ -1358,6 +1358,87 @@
         "button": "Proponer una idea"
       }
     },
+    "shop": {
+      "meta": {
+        "title": "Shop: tienda online open source con Stripe y Mercado Pago",
+        "description": "Vendé online con productos, variantes, stock por ubicación, códigos de descuento, tarifas de envío y checkout con Stripe o Mercado Pago. Una alternativa open source a Shopify y Tiendanube."
+      },
+      "hero": {
+        "sub": "Cargá tu catálogo o importalo de Shopify o Tiendanube, elegí un tema y publicá. Tus clientes compran como invitados con tarjeta, Mercado Pago o transferencia, y cada pedido llega a tu CRM."
+      },
+      "featuresTitle": "Tu tienda.",
+      "featuresTitleDim": "Sin plan mensual.",
+      "f1": {
+        "t": "Productos con variantes",
+        "d": "Talle, color o la opción que quieras, con precio, SKU, código de barras, peso y stock para cada combinación. Colecciones manuales o por reglas."
+      },
+      "f2": {
+        "t": "Stock que cierra",
+        "d": "Stock por ubicación con el historial de cada cambio. El pedido reserva sus unidades y el pago las descuenta con compare-and-set: una unidad no se vende dos veces mientras el pedido espera el pago."
+      },
+      "f3": {
+        "t": "Stripe y Mercado Pago",
+        "d": "Pagos con tarjeta con Stripe Checkout y Mercado Pago Checkout Pro con tus cuentas, más transferencia. Los webhooks firmados marcan los pedidos pagados."
+      },
+      "f4": {
+        "t": "Envíos, impuestos y códigos",
+        "d": "Tarifas fijas o por peso por país, gratis desde un monto, impuesto por país y región (sumado o incluido) y códigos de descuento con topes y fechas."
+      },
+      "f5": {
+        "t": "Pedidos de punta a punta",
+        "d": "Envío con seguimiento, reembolso total o parcial, notas internas, remito para imprimir y emails al cliente en el idioma de la tienda."
+      },
+      "f6": {
+        "t": "Conectada a la suite",
+        "d": "Los clientes pasan a contactos del CRM, Flow reacciona a pedidos y stock bajo, Link arma links de campaña, Agents responde \"¿dónde está mi pedido?\" y el asistente lee tus ventas."
+      },
+      "steps": {
+        "s1": {
+          "t": "Cargá el catálogo",
+          "d": "Creá productos o importá el CSV que exportaste de Shopify o Tiendanube."
+        },
+        "s2": {
+          "t": "Conectá los cobros",
+          "d": "Pegá tus claves de Stripe o Mercado Pago y agregá tus tarifas de envío."
+        },
+        "s3": {
+          "t": "Publicá",
+          "d": "Elegí un tema, subí tu logo y compartí /store/tu-tienda."
+        }
+      },
+      "compare": {
+        "rival": "Shopify",
+        "note": "Los planes y comisiones de Shopify están en shopify.com/pricing. Shop cuesta $0 en tu servidor; Stripe y Mercado Pago cobran su comisión habitual por venta."
+      },
+      "faq": {
+        "f1": {
+          "q": "¿Puedo pasar mi catálogo de Shopify o Tiendanube?",
+          "a": "Sí. Exportá los productos en CSV allá e importá el archivo en Shop: vienen variantes, precios, stock, campos de SEO y las URLs de fotos de Shopify. No se importan pedidos ni clientes."
+        },
+        "f2": {
+          "q": "¿Qué medios de pago hay?",
+          "a": "Stripe Checkout (tarjetas y los medios que actives en Stripe), Mercado Pago Checkout Pro y transferencia con tus instrucciones. Usás tus propias cuentas y sus comisiones."
+        },
+        "f3": {
+          "q": "¿Los clientes necesitan cuenta?",
+          "a": "No. El checkout es siempre como invitado y el cliente consulta su pedido con el número y su email."
+        },
+        "f4": {
+          "q": "¿Puedo usar mi dominio?",
+          "a": "Todavía no. La tienda vive en la dirección de zerosoft, en /store/tu-tienda."
+        },
+        "f5": {
+          "q": "¿Qué falta frente a Shopify?",
+          "a": "Dominio propio, editor de temas, cuentas de clientes, emails de carrito abandonado, tarifas y etiquetas de transportistas, gift cards, devoluciones, punto de venta y canales de marketplaces. La tabla de paridad de arriba tiene la lista completa."
+        }
+      },
+      "cta": {
+        "title1": "Abrí tu tienda.",
+        "title2": "Quedate con el margen.",
+        "sub": "Abrí Shop, cargá tu primer producto y publicá tu tienda.",
+        "button": "Abrir Shop"
+      }
+    },
     "design": {
       "meta": {
         "title": "Design: diseño gráfico open source",
@@ -1457,7 +1538,7 @@
     "apiDocs": "Docs de la API",
     "howTitle": "Cómo se usa.",
     "suiteTitle": "Un workspace.",
-    "suiteTitleDim": "Dieciséis apps, el mismo login.",
+    "suiteTitleDim": "Diecisiete apps, el mismo login.",
     "shotTitle": "{name}, por dentro.",
     "crumbs": "Ubicación",
     "navLabel": "Secciones de {name}",
@@ -1820,6 +1901,23 @@
       "m2": "Lucía: lo subí a Docs, está en la carpeta de ventas.",
       "m3": "¡Gracias! Lo reviso ahora.",
       "replyHint": "Escribí en #general"
+    },
+    "shop": {
+      "listTitle": "Pedidos",
+      "r1name": "#1042 · Ana Pérez",
+      "r1time": "$84.000",
+      "r1meta": "Pagado · 2 ítems",
+      "r2name": "#1041 · Bruno Silva",
+      "r2time": "$32.500",
+      "r2meta": "Enviado · seguimiento enviado",
+      "r3name": "#1040 · Lucía Gómez",
+      "r3time": "$120.000",
+      "r3meta": "Esperando la transferencia",
+      "status": "Pagado con Mercado Pago",
+      "i1": "Camisa de lino · M / Arena × 1",
+      "i2": "Bolso de lona × 2",
+      "total": "Total $84.000 · descuento BIENVENIDA10",
+      "action": "Enviar con seguimiento"
     },
     "design": {
       "title": "Lanzamiento de primavera",
@@ -2506,6 +2604,14 @@
     "paramLimit": "Cantidad máxima de resultados.",
     "scope_talk_read": "Leer canales y mensajes de Talk donde sos miembro.",
     "scope_talk_write": "Publicar mensajes y crear canales en Talk.",
+    "shopApiTitle": "Shop",
+    "shopApiDesc": "El catálogo y los pedidos de tu tienda. Scopes shop:read y shop:write. Los datos de clientes solo están disponibles para keys de personas con la app Shop.",
+    "shopProductsListTitle": "Listar productos",
+    "shopProductsListDesc": "Productos con estado, rango de precio, cantidad de variantes y stock. Un POST al mismo path crea un producto con el mismo cuerpo que usa la app.",
+    "shopOrdersListTitle": "Listar pedidos",
+    "shopOrdersListDesc": "Pedidos del más nuevo al más viejo, con estado (pending, paid, fulfilled, cancelled, refunded) y total en centavos.",
+    "scope_shop_read": "Leer productos y pedidos de Shop.",
+    "scope_shop_write": "Crear productos de Shop.",
     "boardsApiTitle": "Board",
     "boardsApiDesc": "Pizarras: listarlas y buscarlas (también por el texto de adentro), leer un resumen, crearlas desde una plantilla, sumarles stickies, formas y flechas, renombrarlas, moverlas a una carpeta o mandarlas a la papelera. La key actúa como la persona que la creó: ve y edita las pizarras que esa persona puede abrir. Quien tiene la pizarra abierta ve los cambios en vivo. Scopes boards:read y boards:write.",
     "boardsListTitle": "Listar pizarras",
@@ -2623,7 +2729,7 @@
   "parityOverview": {
     "title": "Paridad de funciones, app por app.",
     "titleDim": "Medida contra cada competidor.",
-    "lead": "Paridad promedio de las 16 apps: {average}%. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
+    "lead": "Paridad promedio de las 17 apps: {average}%. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
     "col": {
       "app": "App",
       "competitor": "Comparada con",
