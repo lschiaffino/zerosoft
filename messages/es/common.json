@@ -314,10 +314,32 @@
   },
   "auth": {
     "title": "Entrá a zerosoft",
-    "sub": "Entrás con tu cuenta de Google. No hay contraseña que crear.",
+    "sub": "Entrás con Google o con un código que te mandamos por email. No hay contraseña que crear.",
     "google": "Continuar con Google",
     "legal": "Al entrar aceptás los <terms>Términos</terms> y la <privacy>Privacidad</privacy>.",
-    "desktopHint": "Seguí el inicio de sesión en tu navegador. La app vuelve acá sola."
+    "desktopHint": "Seguí el inicio de sesión en tu navegador. La app vuelve acá sola.",
+    "email": {
+      "or": "o",
+      "label": "Email de trabajo",
+      "placeholder": "vos@empresa.com",
+      "send": "Mandame un código",
+      "sending": "Mandando…",
+      "sent": "Te mandamos un código de 6 dígitos a <b>{email}</b>. Vence en 10 minutos.",
+      "codeLabel": "Código",
+      "verify": "Entrar",
+      "verifying": "Entrando…",
+      "resend": "Mandar otro código",
+      "resent": "Te mandamos un código nuevo. El anterior ya no sirve.",
+      "changeEmail": "Usar otro email",
+      "errors": {
+        "generic": "No pudimos mandar el código. Probá de nuevo.",
+        "invalid_email": "Eso no parece un email.",
+        "rate_limited": "Pediste muchos códigos seguidos. Esperá unos minutos.",
+        "send_failed": "El email no salió. Probá de nuevo en un minuto.",
+        "email_login_disabled": "En este servidor no se puede entrar por email. Usá Google.",
+        "bad_code": "El código no es correcto o venció. Mirá el último email o pedí otro."
+      }
+    }
   },
   "blog": {
     "label": "Blog",

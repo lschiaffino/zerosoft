@@ -348,6 +348,18 @@ section { padding-top: clamp(72px, 8vw, 112px); padding-bottom: clamp(72px, 8vw,
 
 .auth-legal a { text-decoration: underline; text-underline-offset: 2px; }
 
+/* Entrar con código por email (components/auth/EmailCodeForm.tsx). */
+.auth-email { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; text-align: left; }
+.auth-or { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; color: var(--dim); font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+.auth-or::before, .auth-or::after { content: ''; flex: 1; border-top: 1px solid var(--line); }
+.auth-email .btn-block { margin-top: 4px; }
+.auth-email-sent { font-size: 0.875rem; line-height: 1.5; color: var(--ink-2); overflow-wrap: anywhere; }
+.auth-code { font-family: var(--mono); font-size: 1.25rem; letter-spacing: 0.3em; text-align: center; }
+.auth-email-actions { display: flex; justify-content: space-between; gap: 12px; margin-top: 4px; }
+.auth-link-btn { padding: 0; border: 0; background: none; color: var(--ink-3); font: inherit; font-size: 12px; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.auth-link-btn:hover { color: var(--ink); }
+.auth-link-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 860px) {

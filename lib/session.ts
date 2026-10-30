@@ -23,8 +23,8 @@ export const DEMO_EMAIL = 'demo@zerosoft.ai';
 /**
  * Solo e2e (playwright.config.ts): con DEMO_MODE y E2E_IDENTITY_COOKIE=1, la
  * cookie zs_e2e_as=<email> hace que el pedido sea de esa persona (otra sesión
- * para probar invitaciones). Nunca se prende en un deploy: la variable no
- * existe fuera de los tests.
+ * para probar invitaciones; zs_e2e_as=session usa la sesión real de NextAuth,
+ * o ninguna). Nunca se prende en un deploy: la variable no existe fuera de los tests.
  */
 export const E2E_IDENTITY_COOKIE = 'zs_e2e_as';
 // Falla cerrado: además de la variable, solo en CI o tests y nunca en Vercel.
@@ -88,10 +88,12 @@ async function getDemoUser(): Promise<UserRow> {
   return demo;
 }
 
-async function e2eIdentity(): Promise<UserRow | null> {
+async function e2eIdentity(): Promise<UserRow | 'session' | null> {
   if (!E2E_IDENTITY) return null;
   try {
     const email = (await cookies()).get(E2E_IDENTITY_COOKIE)?.value?.trim().toLowerCase();
+    // zs_e2e_as=session: la sesión real de NextAuth (o ninguna), para probar el login por código.
+    if (email === 'session') return 'session';
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email === DEMO_EMAIL) return null;
     return (await getUserByEmail(email)) ?? (await upsertUser({ email, name: email.split('@')[0], image: null }));
   } catch {
@@ -112,8 +114,9 @@ export const getCurrentUser = cache(loadCurrentUser);
 
 async function loadCurrentUser(): Promise<SessionUser | null> {
   let real: UserRow | null;
-  if (DEMO_MODE) {
-    real = (await e2eIdentity()) ?? (await getDemoUser());
+  const e2e = DEMO_MODE ? await e2eIdentity() : null;
+  if (DEMO_MODE && e2e !== 'session') {
+    real = e2e ?? (await getDemoUser());
   } else {
     const session = await getServerSession(authOptions);
     const email = session?.user?.email;

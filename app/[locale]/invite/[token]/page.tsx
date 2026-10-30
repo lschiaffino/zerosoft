@@ -4,8 +4,11 @@ import { Link } from '@/i18n/navigation';
 import { getDb } from '@/lib/db';
 import { DEMO_MODE, getCurrentUser } from '@/lib/session';
 import { getInviteByToken, getTeamById, inviteAcceptsEmail, inviteExpired, inviteUsable, normalizeInviteRole } from '@/lib/teams';
-import { getMembership } from '@/lib/workspace';
+import { getMembership, parseApps } from '@/lib/workspace';
 import GoogleButton from '@/components/auth/GoogleButton';
+import EmailCodeForm from '@/components/auth/EmailCodeForm';
+import { emailLoginEnabled } from '@/lib/email-login';
+import { PRODUCT_CONFIG } from '@/lib/products';
 import InviteAccept from '@/components/settings/InviteAccept';
 import '@/styles/workspace.css';
 
@@ -67,11 +70,17 @@ export default async function InvitePage(props: { params: Promise<{ locale: stri
     );
   } else {
     const inviterName = inviter?.name?.trim() || inviter?.email || '';
+    // Con apps limitadas, la invitación dice cuáles (no "las mismas apps que el resto").
+    const apps = parseApps(invite.apps);
+    const appsLine =
+      role !== 'guest' && apps !== '*' && apps.length
+        ? t('roleLineApps', { apps: new Intl.ListFormat(locale, { type: 'conjunction' }).format(apps.map((a) => PRODUCT_CONFIG[a].name)) })
+        : null;
     body = (
       <>
         <h1>{t('title', { workspace: team.name })}</h1>
         <p className="auth-sub">
-          {t('sub', { inviter: inviterName })} {t(`roleLine.${role}`)}
+          {[t('sub', { inviter: inviterName }), role === 'admin' || !appsLine ? t(`roleLine.${role}`) : '', appsLine ?? ''].filter(Boolean).join(' ')}
         </p>
         {real ? (
           <InviteAccept
@@ -87,6 +96,7 @@ export default async function InvitePage(props: { params: Promise<{ locale: stri
         ) : (
           <>
             <GoogleButton label={t('signinGoogle')} locale={locale} callbackUrl={`/${locale}/invite/${token}`} />
+            {emailLoginEnabled() && <EmailCodeForm locale={locale} callbackUrl={`/${locale}/invite/${token}`} defaultEmail={invite.email} />}
             {invite.email && <p className="auth-legal">{t('useAccount', { email: invite.email })}</p>}
           </>
         )}

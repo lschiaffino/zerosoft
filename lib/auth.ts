@@ -1,5 +1,6 @@
 import type { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
+import CredentialsProvider from 'next-auth/providers/credentials';
 import { upsertUser, getUserByEmail } from './db';
 import { isTrustedReturnUrl } from './hosts';
 
@@ -71,6 +72,20 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     })
   );
 }
+// Código por email (lib/email-login.ts): para quien no entra con Google.
+providers.push(
+  CredentialsProvider({
+    id: 'email-code',
+    name: 'Email',
+    credentials: { email: { label: 'Email', type: 'email' }, code: { label: 'Code', type: 'text' } },
+    async authorize(credentials) {
+      const { emailLoginEnabled, verifyLoginCode } = await import('./email-login');
+      if (!emailLoginEnabled()) return null;
+      const email = await verifyLoginCode(credentials?.email, credentials?.code);
+      return email ? { id: email, email, name: null } : null;
+    },
+  }),
+);
 
 export const authOptions: NextAuthOptions = {
   providers,

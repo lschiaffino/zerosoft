@@ -33,7 +33,7 @@ export async function DELETE(_req: NextRequest, props: { params: Promise<{ userI
 
 const patchSchema = z.object({
   role: z.enum(['admin', 'member', 'guest']).optional(),
-  apps: z.union([z.literal('*'), z.array(z.string().max(20)).max(20)]).optional(),
+  apps: z.union([z.literal('*'), z.array(z.string().max(20)).max(64)]).optional(),
   groupIds: z.array(z.string().max(64)).max(100).optional(),
 });
 

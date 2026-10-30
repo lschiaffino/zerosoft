@@ -36,7 +36,7 @@ const patchSchema = z.object({
   mode: z.enum(['personal', 'team']).optional(),
   size: z.enum(WORKSPACE_SIZES).nullable().optional(),
   allowedDomains: z.array(z.string().trim().max(120)).max(10).optional(),
-  joinApps: z.union([z.literal('*'), z.array(z.string().max(20)).max(20)]).optional(),
+  joinApps: z.union([z.literal('*'), z.array(z.string().max(20)).max(64)]).optional(),
   joinApproval: z.boolean().optional(),
 });
 

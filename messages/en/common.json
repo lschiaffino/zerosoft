@@ -314,10 +314,32 @@
   },
   "auth": {
     "title": "Sign in to zerosoft",
-    "sub": "Sign in with your Google account. There is no password to create.",
+    "sub": "Sign in with Google or with a code we send to your email. There is no password to create.",
     "google": "Continue with Google",
     "legal": "By signing in you agree to the <terms>Terms</terms> and <privacy>Privacy</privacy>.",
-    "desktopHint": "Continue signing in from your browser. The app comes back here on its own."
+    "desktopHint": "Continue signing in from your browser. The app comes back here on its own.",
+    "email": {
+      "or": "or",
+      "label": "Work email",
+      "placeholder": "you@company.com",
+      "send": "Email me a code",
+      "sending": "Sending…",
+      "sent": "We sent a 6-digit code to <b>{email}</b>. It expires in 10 minutes.",
+      "codeLabel": "Code",
+      "verify": "Sign in",
+      "verifying": "Signing in…",
+      "resend": "Send another code",
+      "resent": "We sent a new code. The previous one no longer works.",
+      "changeEmail": "Use another email",
+      "errors": {
+        "generic": "We couldn't send the code. Try again.",
+        "invalid_email": "That does not look like an email.",
+        "rate_limited": "Too many codes in a row. Wait a few minutes.",
+        "send_failed": "The email didn't go out. Try again in a minute.",
+        "email_login_disabled": "Signing in by email is off on this server. Use Google.",
+        "bad_code": "That code is wrong or expired. Check the latest email or ask for another."
+      }
+    }
   },
   "blog": {
     "label": "Blog",

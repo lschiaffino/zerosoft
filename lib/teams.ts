@@ -1,5 +1,6 @@
 import { getDb, type TeamInviteRow, type TeamRow, type UserRow } from './db';
 import { cleanLine, ensureWorkspace, getMembership, parseApps, serializeApps, teamKeyed, type AppAccess } from './workspace';
+import { PRODUCT_CONFIG } from './products';
 
 /**
  * Teams: el workspace de un owner compartido con su gente (ver lib/workspace.ts).
@@ -328,6 +329,10 @@ export async function sendInviteEmail(
     expiresAt: invite.expires_at,
     locale: opts.locale ?? invite.locale,
     logoUrl: team.logo_url ?? null,
+    apps: (() => {
+      const apps = parseApps(invite.apps);
+      return apps === '*' ? null : apps.map((a) => PRODUCT_CONFIG[a]?.name ?? a);
+    })(),
   }).catch((err: unknown) => ({ status: 'failed' as const, error: err instanceof Error ? err.message : 'send_failed' }));
   await markInviteSent(invite.id, { ok: res.status === 'sent', skipped: res.status === 'skipped', error: res.error });
   return res;
