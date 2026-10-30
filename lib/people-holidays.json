@@ -1,0 +1,189 @@
+{
+  "_note": "National public holidays per country for People time off. Dates already moved to the day they are observed where the law moves them (Argentina, Colombia, US). Regional holidays are not included: HR adds them as custom holidays.",
+  "AR": {
+    "2026": [
+      ["2026-01-01", "Año Nuevo"],
+      ["2026-02-16", "Carnaval"],
+      ["2026-02-17", "Carnaval"],
+      ["2026-03-24", "Día de la Memoria por la Verdad y la Justicia"],
+      ["2026-04-02", "Día del Veterano y de los Caídos en Malvinas"],
+      ["2026-04-03", "Viernes Santo"],
+      ["2026-05-01", "Día del Trabajador"],
+      ["2026-05-25", "Revolución de Mayo"],
+      ["2026-06-15", "Paso a la Inmortalidad de Güemes"],
+      ["2026-06-20", "Paso a la Inmortalidad de Belgrano"],
+      ["2026-07-09", "Día de la Independencia"],
+      ["2026-08-17", "Paso a la Inmortalidad de San Martín"],
+      ["2026-10-12", "Día del Respeto a la Diversidad Cultural"],
+      ["2026-11-23", "Día de la Soberanía Nacional"],
+      ["2026-12-08", "Inmaculada Concepción de María"],
+      ["2026-12-25", "Navidad"]
+    ],
+    "2027": [
+      ["2027-01-01", "Año Nuevo"],
+      ["2027-02-08", "Carnaval"],
+      ["2027-02-09", "Carnaval"],
+      ["2027-03-24", "Día de la Memoria por la Verdad y la Justicia"],
+      ["2027-03-26", "Viernes Santo"],
+      ["2027-04-02", "Día del Veterano y de los Caídos en Malvinas"],
+      ["2027-05-01", "Día del Trabajador"],
+      ["2027-05-25", "Revolución de Mayo"],
+      ["2027-06-21", "Paso a la Inmortalidad de Güemes"],
+      ["2027-06-20", "Paso a la Inmortalidad de Belgrano"],
+      ["2027-07-09", "Día de la Independencia"],
+      ["2027-08-16", "Paso a la Inmortalidad de San Martín"],
+      ["2027-10-11", "Día del Respeto a la Diversidad Cultural"],
+      ["2027-11-20", "Día de la Soberanía Nacional"],
+      ["2027-12-08", "Inmaculada Concepción de María"],
+      ["2027-12-25", "Navidad"]
+    ]
+  },
+  "BR": {
+    "2026": [
+      ["2026-01-01", "Confraternização Universal"],
+      ["2026-02-16", "Carnaval"],
+      ["2026-02-17", "Carnaval"],
+      ["2026-04-03", "Sexta-feira Santa"],
+      ["2026-04-21", "Tiradentes"],
+      ["2026-05-01", "Dia do Trabalho"],
+      ["2026-06-04", "Corpus Christi"],
+      ["2026-09-07", "Independência do Brasil"],
+      ["2026-10-12", "Nossa Senhora Aparecida"],
+      ["2026-11-02", "Finados"],
+      ["2026-11-15", "Proclamação da República"],
+      ["2026-11-20", "Dia Nacional de Zumbi e da Consciência Negra"],
+      ["2026-12-25", "Natal"]
+    ],
+    "2027": [
+      ["2027-01-01", "Confraternização Universal"],
+      ["2027-02-08", "Carnaval"],
+      ["2027-02-09", "Carnaval"],
+      ["2027-03-26", "Sexta-feira Santa"],
+      ["2027-04-21", "Tiradentes"],
+      ["2027-05-01", "Dia do Trabalho"],
+      ["2027-05-27", "Corpus Christi"],
+      ["2027-09-07", "Independência do Brasil"],
+      ["2027-10-12", "Nossa Senhora Aparecida"],
+      ["2027-11-02", "Finados"],
+      ["2027-11-15", "Proclamação da República"],
+      ["2027-11-20", "Dia Nacional de Zumbi e da Consciência Negra"],
+      ["2027-12-25", "Natal"]
+    ]
+  },
+  "MX": {
+    "2026": [
+      ["2026-01-01", "Año Nuevo"],
+      ["2026-02-02", "Día de la Constitución"],
+      ["2026-03-16", "Natalicio de Benito Juárez"],
+      ["2026-05-01", "Día del Trabajo"],
+      ["2026-09-16", "Día de la Independencia"],
+      ["2026-11-16", "Día de la Revolución"],
+      ["2026-12-25", "Navidad"]
+    ],
+    "2027": [
+      ["2027-01-01", "Año Nuevo"],
+      ["2027-02-01", "Día de la Constitución"],
+      ["2027-03-15", "Natalicio de Benito Juárez"],
+      ["2027-05-01", "Día del Trabajo"],
+      ["2027-09-16", "Día de la Independencia"],
+      ["2027-11-15", "Día de la Revolución"],
+      ["2027-12-25", "Navidad"]
+    ]
+  },
+  "US": {
+    "2026": [
+      ["2026-01-01", "New Year's Day"],
+      ["2026-01-19", "Martin Luther King Jr. Day"],
+      ["2026-02-16", "Presidents' Day"],
+      ["2026-05-25", "Memorial Day"],
+      ["2026-06-19", "Juneteenth"],
+      ["2026-07-03", "Independence Day (observed)"],
+      ["2026-09-07", "Labor Day"],
+      ["2026-10-12", "Columbus Day"],
+      ["2026-11-11", "Veterans Day"],
+      ["2026-11-26", "Thanksgiving Day"],
+      ["2026-12-25", "Christmas Day"]
+    ],
+    "2027": [
+      ["2027-01-01", "New Year's Day"],
+      ["2027-01-18", "Martin Luther King Jr. Day"],
+      ["2027-02-15", "Presidents' Day"],
+      ["2027-05-31", "Memorial Day"],
+      ["2027-06-18", "Juneteenth (observed)"],
+      ["2027-07-05", "Independence Day (observed)"],
+      ["2027-09-06", "Labor Day"],
+      ["2027-10-11", "Columbus Day"],
+      ["2027-11-11", "Veterans Day"],
+      ["2027-11-25", "Thanksgiving Day"],
+      ["2027-12-24", "Christmas Day (observed)"]
+    ]
+  },
+  "ES": {
+    "2026": [
+      ["2026-01-01", "Año Nuevo"],
+      ["2026-01-06", "Epifanía del Señor"],
+      ["2026-04-03", "Viernes Santo"],
+      ["2026-05-01", "Fiesta del Trabajo"],
+      ["2026-08-15", "Asunción de la Virgen"],
+      ["2026-10-12", "Fiesta Nacional de España"],
+      ["2026-11-01", "Todos los Santos"],
+      ["2026-12-06", "Día de la Constitución"],
+      ["2026-12-08", "Inmaculada Concepción"],
+      ["2026-12-25", "Navidad"]
+    ],
+    "2027": [
+      ["2027-01-01", "Año Nuevo"],
+      ["2027-01-06", "Epifanía del Señor"],
+      ["2027-03-26", "Viernes Santo"],
+      ["2027-05-01", "Fiesta del Trabajo"],
+      ["2027-08-15", "Asunción de la Virgen"],
+      ["2027-10-12", "Fiesta Nacional de España"],
+      ["2027-11-01", "Todos los Santos"],
+      ["2027-12-06", "Día de la Constitución"],
+      ["2027-12-08", "Inmaculada Concepción"],
+      ["2027-12-25", "Navidad"]
+    ]
+  },
+  "CO": {
+    "2026": [
+      ["2026-01-01", "Año Nuevo"],
+      ["2026-01-12", "Día de los Reyes Magos"],
+      ["2026-03-23", "Día de San José"],
+      ["2026-04-02", "Jueves Santo"],
+      ["2026-04-03", "Viernes Santo"],
+      ["2026-05-01", "Día del Trabajo"],
+      ["2026-05-18", "Ascensión del Señor"],
+      ["2026-06-08", "Corpus Christi"],
+      ["2026-06-15", "Sagrado Corazón"],
+      ["2026-06-29", "San Pedro y San Pablo"],
+      ["2026-07-20", "Día de la Independencia"],
+      ["2026-08-07", "Batalla de Boyacá"],
+      ["2026-08-17", "Asunción de la Virgen"],
+      ["2026-10-12", "Día de la Raza"],
+      ["2026-11-02", "Todos los Santos"],
+      ["2026-11-16", "Independencia de Cartagena"],
+      ["2026-12-08", "Inmaculada Concepción"],
+      ["2026-12-25", "Navidad"]
+    ],
+    "2027": [
+      ["2027-01-01", "Año Nuevo"],
+      ["2027-01-11", "Día de los Reyes Magos"],
+      ["2027-03-22", "Día de San José"],
+      ["2027-03-25", "Jueves Santo"],
+      ["2027-03-26", "Viernes Santo"],
+      ["2027-05-01", "Día del Trabajo"],
+      ["2027-05-10", "Ascensión del Señor"],
+      ["2027-05-31", "Corpus Christi"],
+      ["2027-06-07", "Sagrado Corazón"],
+      ["2027-07-05", "San Pedro y San Pablo"],
+      ["2027-07-20", "Día de la Independencia"],
+      ["2027-08-07", "Batalla de Boyacá"],
+      ["2027-08-16", "Asunción de la Virgen"],
+      ["2027-10-18", "Día de la Raza"],
+      ["2027-11-01", "Todos los Santos"],
+      ["2027-11-15", "Independencia de Cartagena"],
+      ["2027-12-08", "Inmaculada Concepción"],
+      ["2027-12-25", "Navidad"]
+    ]
+  }
+}

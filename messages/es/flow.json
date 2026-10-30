@@ -849,7 +849,10 @@
     "shop_order_created": "Shop: pedido creado",
     "shop_order_paid": "Shop: pedido pagado",
     "shop_order_fulfilled": "Shop: pedido enviado",
-    "shop_inventory_low": "Shop: stock bajo"
+    "shop_inventory_low": "Shop: stock bajo",
+    "people_hired": "People: ingreso de una persona",
+    "people_timeoff_approved": "People: licencia aprobada",
+    "people_offboarded": "People: salida de una persona"
   },
   "ops": {
     "equals": "es igual a",

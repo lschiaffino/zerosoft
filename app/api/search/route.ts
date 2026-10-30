@@ -28,6 +28,7 @@ import { searchRec } from '@/lib/rec';
 import { searchDesigns } from '@/lib/design';
 import { designActorOf } from '@/lib/design-http';
 import { searchShop } from '@/lib/shop';
+import { searchPeopleForPalette } from '@/lib/people';
 import { actorOf } from '@/lib/rec-http';
 import { searchPlanning } from '@/lib/track-planning-search';
 import { listConversations } from '@/lib/assistant/store';
@@ -56,7 +57,7 @@ export async function GET(req: NextRequest) {
   if (!q) return NextResponse.json<SearchResponse>({ q, items: [] });
 
   const scope = await sessionScope(user);
-  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec, designs, shop] = await Promise.all([
+  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec, designs, shop, people] = await Promise.all([
     searchAll(user.id, q, scope),
     listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
     // Docs: título y texto de los bloques (el fragmento va como meta).
@@ -88,6 +89,8 @@ export async function GET(req: NextRequest) {
     searchDesigns(designActorOf(user), q).catch(() => []),
     // Shop: productos, pedidos, colecciones, descuentos y clientes (solo con la app).
     userCanUseApp(user, 'shop') ? searchShop(user.id, q).catch(() => []) : Promise.resolve([]),
+    // People: nombre, puesto y área (nada sensible), plantillas (HR) y ciclos visibles (solo con la app).
+    userCanUseApp(user, 'people') ? searchPeopleForPalette(user.id, (user.actingUser ?? user).id, user.role, q).catch(() => []) : Promise.resolve([]),
   ]);
 
   const items: SearchResultItem[] = [];
@@ -182,6 +185,12 @@ export async function GET(req: NextRequest) {
   const SHOP_PATH = { product: 'products', order: 'orders', collection: 'collections', discount: 'discounts', customer: 'customers' } as const;
   for (const s of shop) {
     items.push({ id: `${s.kind}:${s.id}`, group: SHOP_GROUP[s.kind], label: s.label, meta: s.meta, href: `/app/shop/${SHOP_PATH[s.kind]}/${s.id}` });
+  }
+
+  const PEOPLE_GROUP = { person: 'people', template: 'peopleTemplates', cycle: 'peopleCycles' } as const;
+  const PEOPLE_HREF = { person: (id: string) => `/app/people/${id}`, template: (id: string) => `/app/people/onboarding/templates/${id}`, cycle: (id: string) => `/app/people/reviews/${id}` } as const;
+  for (const p of people) {
+    items.push({ id: `${p.kind}:${p.id}`, group: PEOPLE_GROUP[p.kind], label: p.label, meta: p.meta, href: PEOPLE_HREF[p.kind](p.id) });
   }
 
   for (const l of links.links) {

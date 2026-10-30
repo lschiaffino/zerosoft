@@ -185,6 +185,17 @@ export interface SidebarLabels {
     store: string;
     newProduct: string;
   };
+  /** People (BambooHR): directorio, organigrama, licencias, onboarding, evaluaciones, reportes. */
+  people: {
+    directory: string;
+    org: string;
+    timeOff: string;
+    onboarding: string;
+    reviews: string;
+    reports: string;
+    welcome: string;
+    newPerson: string;
+  };
   /** Analytics (PostHog): web, eventos, insights, tableros, personas, cohortes, flags y SQL. */
   analytics: {
     web: string;
@@ -252,7 +263,8 @@ export type AppProduct =
   | 'talk'
   | 'design'
   | 'shop'
-  | 'analytics';
+  | 'analytics'
+  | 'people';
 
 const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/crm', 'crm'],
@@ -272,6 +284,7 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/design', 'design'],
   ['/app/shop', 'shop'],
   ['/app/analytics', 'analytics'],
+  ['/app/people', 'people'],
 ];
 
 /** La app del shell para una clave de producto (Cal vive en /app/calendar). */
@@ -313,6 +326,7 @@ const APP_ICONS: Record<ProductKey, IconName> = {
   design: 'design',
   shop: 'shop',
   analytics: 'analytics',
+  people: 'people',
 };
 
 /** Producto de la app según la ruta. /app (inicio) y /app/settings son la plataforma (neutro); /app/links es Link. */
@@ -792,6 +806,30 @@ export function buildNav(
         appSettingsGroup('/app/shop/settings'),
       ];
 
+    case 'people': {
+      const pl = labels.people;
+      const peopleDetail = /^\/app\/people\/emp_/.test(pathname);
+      return [
+        {
+          items: [
+            { href: '/app/people', label: pl.directory, active: pathname === '/app/people' || peopleDetail, icon: 'people' },
+            { href: '/app/people/org', label: pl.org, active: at('/app/people/org'), icon: 'orgchart' },
+            { href: '/app/people/time-off', label: pl.timeOff, active: at('/app/people/time-off'), icon: 'timeoff' },
+            { href: '/app/people/onboarding', label: pl.onboarding, active: at('/app/people/onboarding'), icon: 'tasks' },
+            { href: '/app/people/reviews', label: pl.reviews, active: at('/app/people/reviews'), icon: 'insights' },
+          ],
+        },
+        {
+          section: labels.insights,
+          items: [
+            { href: '/app/people/reports', label: pl.reports, active: at('/app/people/reports'), icon: 'reports' },
+            { href: '/app/people/welcome', label: pl.welcome, active: at('/app/people/welcome'), icon: 'help' },
+          ],
+        },
+        appSettingsGroup('/app/people/settings'),
+      ];
+    }
+
     // Shell genérico (inicio y ajustes).
     case 'talk': {
       const base = `/app/${product}`;
@@ -895,6 +933,8 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
       return [item('/app/design?new=1', labels.design.newDesign, 'design')];
     case 'shop':
       return [item('/app/shop/products/new', labels.shop.newProduct, 'products')];
+    case 'people':
+      return [item('/app/people?new=1', labels.people.newPerson, 'people'), item('/app/people/time-off?new=1', labels.people.timeOff, 'timeoff')];
     case 'agents':
       return [item('/app/agents?new=1', labels.newAgent, 'agents')];
     case 'robots':

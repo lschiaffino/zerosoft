@@ -5,6 +5,7 @@ import { stripSyncedChildren, syncedChildren } from '../docs-synced-refs';
 import type { DocsBlock } from '../docs-types';
 import { workspaceTeamsUp } from './workspace-migrations';
 import { shopUp } from './shop-migration';
+import { peopleUp } from './people-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -7253,6 +7254,11 @@ export const MIGRATIONS: Migration[] = [
         );
       `);
     },
+  },
+  {
+    // People (BambooHR): ver lib/schema/people-migration.ts.
+    id: '139_people',
+    up: peopleUp,
   },
 ];
 

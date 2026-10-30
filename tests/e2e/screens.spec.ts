@@ -121,8 +121,8 @@ test('el shell: banda con switcher de apps y el ítem activo marcado', async ({ 
   await expect(active).toHaveCount(1);
   await expect(active).toHaveAttribute('href', /\/es\/app\/crm\/contacts$/);
   await page.locator('.band-product').click();
-  // Inicio, las 18 apps (destacadas y por categoría) y Buscar (⌘K).
-  await expect(page.getByRole('menuitem')).toHaveCount(20);
+  // Inicio, las 19 apps (destacadas y por categoría) y Buscar (⌘K).
+  await expect(page.getByRole('menuitem')).toHaveCount(21);
   await page.keyboard.press('Escape');
   await expect(page.getByRole('menuitem')).toHaveCount(0);
   await expect(page.locator('.band-product')).toBeFocused();

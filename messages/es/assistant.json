@@ -150,6 +150,11 @@
       "a": "¿Cuántos visitantes tuvimos esta semana?",
       "b": "¿Qué insights hay guardados en este proyecto?",
       "c": "¿Qué feature flags están activos?"
+    },
+    "people": {
+      "a": "¿Quién está fuera esta semana?",
+      "b": "¿Cuántos días de vacaciones me quedan?",
+      "c": "¿Qué pedidos de licencia esperan mi aprobación?"
     }
   },
   "page": {

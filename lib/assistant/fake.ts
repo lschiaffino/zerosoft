@@ -30,6 +30,14 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
       const rows = (out.webhooks as unknown[]) ?? [];
       return { text: rows.length ? `You have ${rows.length} webhooks. Check the last delivery of each.` : 'There are no webhooks in this workspace, so nothing could fire.' };
     }
+    if (done.tool === 'people_compensation') {
+      const rows = (out.entries as Array<{ amount: number; currency: string }>) ?? [];
+      return { text: rows.length ? `Salary of ${String(out.name)}: ${rows[0].currency} ${rows[0].amount}.` : 'No salary recorded.' };
+    }
+    if (done.tool === 'people_whos_out') {
+      const rows = (out.out as Array<{ name: string }>) ?? [];
+      return { text: rows.length ? `Out: ${rows.map((r) => r.name).join(', ')}.` : 'Nobody is out.' };
+    }
     if (done.tool === 'list_members') {
       const rows = (out.members as Array<{ email: string }>) ?? [];
       return { text: `Members: ${rows.map((r) => r.email).join(', ')}.` };
@@ -47,6 +55,15 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
     const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0, 10);
     const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
     return { tool: 'crm_list_deals', input: { closeFrom: from, closeTo: to } };
+  }
+  const salary = /^(?:what is the )?salary of (.+?)\??$/i.exec(last);
+  if (salary) {
+    if (!can.includes('people')) return { text: 'I cannot use People in this workspace.' };
+    return { tool: 'people_compensation', input: { name: salary[1].trim() } };
+  }
+  if (/who is out/i.test(last)) {
+    if (!can.includes('people')) return { text: 'I cannot use People in this workspace.' };
+    return { tool: 'people_whos_out', input: {} };
   }
   const invite = /^invite (\S+@\S+)(?: as (member|admin|guest))?/i.exec(last);
   if (invite) return { tool: 'propose_invite_member', input: { email: invite[1], role: (invite[2] ?? 'member').toLowerCase() } };

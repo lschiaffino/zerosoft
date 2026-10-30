@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "Produtos",
-      "description": "Dezoito apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop e Analytics. Open source para o seu servidor, ou no zerosoft Cloud com plano grátis e pagamento por uso."
+      "description": "Dezenove apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics e People. Open source para o seu servidor, ou no zerosoft Cloud com plano grátis e pagamento por uso."
     },
     "hero": {
-      "title1": "Dezoito apps.",
+      "title1": "Dezenove apps.",
       "title2": "Um só workspace.",
       "sub": "Para a sua empresa: CRM, suporte, agentes de IA, automações, robôs, projetos e links. Para você: docs, notas, agenda e quadro branco. O core de cada um é open source e roda no seu servidor por $0."
     },
     "cta": {
-      "title1": "Teste os dezoito apps.",
+      "title1": "Teste os dezenove apps.",
       "title2": "Com uma só conta.",
       "sub": "Entre com o Google, crie um workspace e comece no plano grátis. Se depois preferir o seu servidor, o código está no GitHub.",
       "button": "Abrir o app"
@@ -1609,6 +1609,87 @@
         "sub": "Abra o Analytics, crie um projeto e adicione o snippet ao seu site.",
         "button": "Abrir o Analytics"
       }
+    },
+    "people": {
+      "meta": {
+        "title": "People: RH open source com folgas, onboarding e avaliações",
+        "description": "Diretório, organograma, folgas com acúmulo e aprovações, checklists de onboarding, documentos, avaliações e histórico salarial. Uma alternativa open source ao BambooHR."
+      },
+      "hero": {
+        "sub": "Cada pessoa do seu workspace tem um perfil. Controle folgas com saldos reais, faça o onboarding a partir de modelos, guarde documentos privados e rode ciclos de avaliação, ao lado dos apps que sua equipe já usa."
+      },
+      "featuresTitle": "Sua equipe.",
+      "featuresTitleDim": "Sem custo por colaborador.",
+      "f1": {
+        "t": "Diretório e organograma",
+        "d": "Perfis com cargo, área, gestor, localização e campos personalizados. O organograma se monta a partir dos gestores, com zoom, arrastar e exportação em PNG."
+      },
+      "f2": {
+        "t": "Folgas com saldos reais",
+        "d": "Políticas de férias, licença médica e pessoais que acumulam por ano, por mês ou por período de pagamento, com transferência e limites, meio dia e feriados de Argentina, Brasil, México, Estados Unidos, Espanha e Colômbia."
+      },
+      "f3": {
+        "t": "Aprovações que chegam ao Cal e ao Talk",
+        "d": "Cada gestor aprova a própria equipe. Os dias aprovados bloqueiam a agenda para ninguém marcar reuniões, e o Talk mostra a pessoa fora do escritório."
+      },
+      "f4": {
+        "t": "Onboarding e desligamento",
+        "d": "Checklists a partir de modelos com tarefas para a pessoa, o gestor, TI e RH, com prazo relativo à admissão. O desligamento remove o acesso pelo mesmo fluxo das Configurações."
+      },
+      "f5": {
+        "t": "Privado por padrão",
+        "d": "Os salários são criptografados e só o RH e a pessoa veem. Dados pessoais, documentos e avaliações nunca chegam à busca, ao assistente nem às exportações de mais ninguém, e cada visualização fica registrada."
+      },
+      "f6": {
+        "t": "Avaliações, metas e 1:1",
+        "d": "Ciclos com autoavaliação, avaliação do gestor e de pares, metas com progresso e notas 1:1 que só as duas pessoas leem. Relatórios de quadro, rotatividade, folgas e tempo de casa."
+      },
+      "steps": {
+        "s1": {
+          "t": "Sua equipe já está aqui",
+          "d": "Cada pessoa do workspace tem um perfil. Adicione gestores, áreas e datas de admissão."
+        },
+        "s2": {
+          "t": "Defina suas políticas",
+          "d": "Escolha dias de férias, acúmulo, transferência e os países para os feriados."
+        },
+        "s3": {
+          "t": "Entregue à equipe",
+          "d": "Cada pessoa pede folga, os gestores aprovam e quem chega recebe a página de boas-vindas."
+        }
+      },
+      "compare": {
+        "rival": "BambooHR",
+        "note": "O BambooHR cota os planos pelo tamanho da empresa em bamboohr.com/pricing. O People custa $0 no seu servidor."
+      },
+      "faq": {
+        "f1": {
+          "q": "Preciso cadastrar todo mundo à mão?",
+          "a": "Não. Cada membro do workspace ganha um perfil automaticamente. O RH também pode cadastrar alguém antes de entrar; o perfil se vincula à conta quando a pessoa aceita o convite."
+        },
+        "f2": {
+          "q": "Quem vê os salários?",
+          "a": "Só o RH e a pessoa. Os gestores não. Os valores são criptografados no banco e cada visualização ou mudança fica no registro de dados sensíveis."
+        },
+        "f3": {
+          "q": "Ele processa a folha de pagamento?",
+          "a": "Não. O People exporta um CSV da folha com cada pessoa e o salário vigente, pronto para o seu provedor de folha. Não paga ninguém nem entrega impostos."
+        },
+        "f4": {
+          "q": "Dá para assinar documentos?",
+          "a": "Ainda não. Você pode compartilhar contratos e políticas em privado e pedir que confirmem a leitura. A assinatura eletrônica não está disponível."
+        },
+        "f5": {
+          "q": "O que falta em relação ao BambooHR?",
+          "a": "Folha de pagamento, benefícios, recrutamento (é outro app), assinatura eletrônica, pesquisas como eNPS, controle de ponto e app móvel. A tabela de paridade acima tem a lista completa."
+        }
+      },
+      "cta": {
+        "title1": "Cuide do RH na suíte.",
+        "title2": "Sem a conta por colaborador.",
+        "sub": "Abra o People: seu workspace já está no diretório.",
+        "button": "Abrir People"
+      }
     }
   },
   "product": {
@@ -1624,7 +1705,7 @@
     "apiDocs": "Docs da API",
     "howTitle": "Como funciona.",
     "suiteTitle": "Um workspace.",
-    "suiteTitleDim": "Dezoito apps, o mesmo login.",
+    "suiteTitleDim": "Dezenove apps, o mesmo login.",
     "shotTitle": "{name}, por dentro.",
     "crumbs": "Localização",
     "navLabel": "Seções do {name}",
@@ -2033,6 +2114,23 @@
       "s1": "Viu os preços",
       "s2": "Começou o cadastro",
       "s3": "Criou um projeto"
+    },
+    "people": {
+      "listTitle": "Quem está fora",
+      "r1name": "Ana Pérez",
+      "r1time": "21 a 24 dez",
+      "r1meta": "Férias · 4 dias",
+      "r2name": "Bruno Díaz",
+      "r2time": "26 dez",
+      "r2meta": "Meio dia · tarde",
+      "r3name": "Lucía Gómez",
+      "r3time": "2 jan",
+      "r3meta": "Esperando aprovação",
+      "status": "Aprovado por Bruno Díaz",
+      "i1": "Saldo de férias: 11,5 de 15 dias",
+      "i2": "Feriados da Argentina não contam",
+      "total": "Agenda bloqueada no Cal",
+      "action": "Status no Talk: fora do escritório"
     }
   },
   "status": {
@@ -2857,7 +2955,7 @@
   "parityOverview": {
     "title": "Paridade de funções, app por app.",
     "titleDim": "Medida contra cada concorrente.",
-    "lead": "Paridade média dos 18 apps: {average}%. Comparamos {counted} capacidades da ferramenta que cada app substitui.",
+    "lead": "Paridade média dos 19 apps: {average}%. Comparamos {counted} capacidades da ferramenta que cada app substitui.",
     "col": {
       "app": "App",
       "competitor": "Comparado com",

@@ -73,6 +73,9 @@
   --c-analytics-ink: #8f8af2;
   --c-analytics: #8f8af2;
   --c-analytics-on: #111111;
+  --c-people-ink: #c99a6b;
+  --c-people: #c99a6b;
+  --c-people-on: #111111;
 
     /* Semánticos: -ink para texto, -soft mezclado con el fondo oscuro. */
     --ok-ink: #2bb062;
@@ -168,6 +171,9 @@
   --c-analytics-ink: #8f8af2;
   --c-analytics: #8f8af2;
   --c-analytics-on: #111111;
+  --c-people-ink: #c99a6b;
+  --c-people: #c99a6b;
+  --c-people-on: #111111;
 
   /* Semánticos: -ink para texto, -soft mezclado con el fondo oscuro. */
   --ok-ink: #2bb062;
@@ -205,6 +211,8 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .card-talk { --on-accent: #111111; }
   :root:not([data-theme='light']) .card-shop { --on-accent: #111111; }
+  :root:not([data-theme='light']) .card-people { --on-accent: #111111; }
 }
 :root[data-theme='dark'] .card-talk { --on-accent: #111111; }
 :root[data-theme='dark'] .card-shop { --on-accent: #111111; }
+:root[data-theme='dark'] .card-people { --on-accent: #111111; }

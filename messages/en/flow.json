@@ -849,7 +849,10 @@
     "shop_order_created": "Shop: order placed",
     "shop_order_paid": "Shop: order paid",
     "shop_order_fulfilled": "Shop: order fulfilled",
-    "shop_inventory_low": "Shop: low stock"
+    "shop_inventory_low": "Shop: low stock",
+    "people_hired": "People: person hired",
+    "people_timeoff_approved": "People: time off approved",
+    "people_offboarded": "People: person offboarded"
   },
   "ops": {
     "equals": "equals",
