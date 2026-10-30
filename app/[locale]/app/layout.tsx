@@ -448,6 +448,7 @@ export default async function AppLayout(
               analytics: tShop('nav.analytics'),
               store: tShop('nav.store'),
               newProduct: tShop('products.new'),
+            },
             analytics: {
               web: tAnalytics('sidebar.web'),
               events: tAnalytics('sidebar.events'),

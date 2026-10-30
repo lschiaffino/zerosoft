@@ -184,6 +184,7 @@ export interface SidebarLabels {
     analytics: string;
     store: string;
     newProduct: string;
+  };
   /** Analytics (PostHog): web, eventos, insights, tableros, personas, cohortes, flags y SQL. */
   analytics: {
     web: string;
