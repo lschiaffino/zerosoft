@@ -51,6 +51,7 @@ import { maskUrl } from './redact';
 import { canUseTool, readTool, writeTool, type AssistantTool, type ToolCtx } from './registry';
 import { shopTools } from './tools-shop';
 import { hiringTools } from './tools-hiring';
+import { peopleTools } from './tools-people';
 import { signTools } from './tools-sign';
 
 // ---------- Utilidades ----------
@@ -1116,7 +1117,7 @@ const social: AssistantTool[] = [
   }),
 ];
 
-export const ALL_TOOLS: AssistantTool[] = [...platform, ...crm, ...track, ...content, ...automate, ...comms, ...shopTools, ...analytics, ...social, ...hiringTools, ...signTools];
+export const ALL_TOOLS: AssistantTool[] = [...platform, ...crm, ...track, ...content, ...automate, ...comms, ...shopTools, ...analytics, ...social, ...hiringTools, ...peopleTools, ...signTools];
 
 /** Herramientas que la sesión puede usar (rol y apps del workspace activo). */
 export function toolsFor(user: Pick<SessionUser, 'role' | 'apps'>): AssistantTool[] {

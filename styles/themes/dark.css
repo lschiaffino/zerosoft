@@ -82,9 +82,12 @@
   --c-hiring-ink: #3bbfae;
   --c-hiring: #3bbfae;
   --c-hiring-on: #111111;
-  /* Sign: el marrón base queda oscuro sobre el fondo oscuro; relleno claro y tinta encima. */
-  --c-sign-ink: #d9a07a;
-  --c-sign: #d9a07a;
+  --c-people-ink: #c99a6b;
+  --c-people: #c99a6b;
+  --c-people-on: #111111;
+  /* Sign: el azul marino base queda oscuro sobre el fondo oscuro; relleno claro y tinta encima. */
+  --c-sign-ink: #b4c3e6;
+  --c-sign: #b4c3e6;
   --c-sign-on: #111111;
 
     /* Semánticos: -ink para texto, -soft mezclado con el fondo oscuro. */
@@ -190,9 +193,12 @@
   --c-hiring-ink: #3bbfae;
   --c-hiring: #3bbfae;
   --c-hiring-on: #111111;
-  /* Sign: el marrón base queda oscuro sobre el fondo oscuro; relleno claro y tinta encima. */
-  --c-sign-ink: #d9a07a;
-  --c-sign: #d9a07a;
+  --c-people-ink: #c99a6b;
+  --c-people: #c99a6b;
+  --c-people-on: #111111;
+  /* Sign: el azul marino base queda oscuro sobre el fondo oscuro; relleno claro y tinta encima. */
+  --c-sign-ink: #b4c3e6;
+  --c-sign: #b4c3e6;
   --c-sign-on: #111111;
 
   /* Semánticos: -ink para texto, -soft mezclado con el fondo oscuro. */
@@ -232,9 +238,11 @@
   :root:not([data-theme='light']) .card-talk { --on-accent: #111111; }
   :root:not([data-theme='light']) .card-shop { --on-accent: #111111; }
   :root:not([data-theme='light']) .card-hiring { --on-accent: #111111; }
+  :root:not([data-theme='light']) .card-people { --on-accent: #111111; }
   :root:not([data-theme='light']) .card-sign { --on-accent: #111111; }
 }
 :root[data-theme='dark'] .card-talk { --on-accent: #111111; }
 :root[data-theme='dark'] .card-shop { --on-accent: #111111; }
 :root[data-theme='dark'] .card-hiring { --on-accent: #111111; }
+:root[data-theme='dark'] .card-people { --on-accent: #111111; }
 :root[data-theme='dark'] .card-sign { --on-accent: #111111; }

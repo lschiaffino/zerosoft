@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "Productos",
-      "description": "Diecinueve apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics y Social. Open source para tu servidor, o en zerosoft Cloud con plan gratis y pago por uso."
+      "description": "Veintidós apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics, Social, Hiring y People. Open source para tu servidor, o en zerosoft Cloud con plan gratis y pago por uso."
     },
     "hero": {
-      "title1": "Diecinueve apps.",
+      "title1": "Veintidós apps.",
       "title2": "Un solo workspace.",
       "sub": "Para tu empresa: CRM, soporte, agentes de IA, automatizaciones, robots, proyectos y links. Para vos: docs, notas, agenda y pizarra. El core de cada una es open source y corre en tu servidor por $0."
     },
     "cta": {
-      "title1": "Probá las diecinueve apps.",
+      "title1": "Probá las veintidós apps.",
       "title2": "Con una sola cuenta.",
       "sub": "Entrá con Google, creá un workspace y empezá con el plan gratis. Si después preferís tu servidor, el código está en GitHub.",
       "button": "Abrir la app"
@@ -1695,6 +1695,87 @@
         "button": "Proponer una idea"
       }
     },
+    "people": {
+      "meta": {
+        "title": "People: RR. HH. open source con licencias, onboarding y evaluaciones",
+        "description": "Directorio, organigrama, licencias con devengamiento y aprobaciones, checklists de onboarding, documentos, evaluaciones e historial de sueldos. Una alternativa open source a BambooHR."
+      },
+      "hero": {
+        "sub": "Cada persona de tu workspace tiene su ficha. Llevá las licencias con saldos reales, armá el onboarding desde plantillas, guardá documentos privados y corré ciclos de evaluación, al lado de las apps que tu equipo ya usa."
+      },
+      "featuresTitle": "Tu gente.",
+      "featuresTitleDim": "Sin costo por empleado.",
+      "f1": {
+        "t": "Directorio y organigrama",
+        "d": "Fichas con puesto, área, manager, ubicación y campos propios. El organigrama se arma solo con los managers, con zoom, paneo y exportación a PNG."
+      },
+      "f2": {
+        "t": "Licencias con saldos reales",
+        "d": "Políticas de vacaciones, enfermedad y personales que devengan por año, por mes o por período de pago, con arrastre y topes, medio día y feriados de Argentina, Brasil, México, Estados Unidos, España y Colombia."
+      },
+      "f3": {
+        "t": "Aprobaciones que llegan a Cal y Talk",
+        "d": "Cada manager aprueba a su equipo. Los días aprobados bloquean el calendario para que nadie agende reuniones, y Talk muestra a la persona fuera de la oficina."
+      },
+      "f4": {
+        "t": "Onboarding y offboarding",
+        "d": "Checklists desde plantillas con tareas para la persona, su manager, IT y HR, con vencimiento relativo al ingreso. El offboarding corta el acceso con el mismo flujo de Ajustes."
+      },
+      "f5": {
+        "t": "Privado por defecto",
+        "d": "Los sueldos están cifrados y solo los ven HR y la persona. Los datos personales, documentos y evaluaciones nunca llegan a la búsqueda, al asistente ni a los exports de nadie más, y cada vista queda registrada."
+      },
+      "f6": {
+        "t": "Evaluaciones, objetivos y 1:1",
+        "d": "Ciclos con autoevaluación, evaluación del manager y de pares, objetivos con avance y notas 1:1 que solo leen las dos personas. Reportes de dotación, rotación, licencias y antigüedad."
+      },
+      "steps": {
+        "s1": {
+          "t": "Tu equipo ya está",
+          "d": "Cada persona del workspace tiene su ficha. Sumá managers, áreas y fechas de ingreso."
+        },
+        "s2": {
+          "t": "Armá tus políticas",
+          "d": "Elegí días de vacaciones, devengamiento, arrastre y los países para los feriados."
+        },
+        "s3": {
+          "t": "Dáselo al equipo",
+          "d": "Cada persona pide sus días, los managers aprueban y quien entra recibe su página de bienvenida."
+        }
+      },
+      "compare": {
+        "rival": "BambooHR",
+        "note": "BambooHR cotiza sus planes según el tamaño de la empresa en bamboohr.com/pricing. People cuesta $0 en tu servidor."
+      },
+      "faq": {
+        "f1": {
+          "q": "¿Tengo que cargar a todos a mano?",
+          "a": "No. Cada miembro del workspace tiene su ficha automáticamente. HR también puede cargar a alguien antes de que entre; la ficha se enlaza a su cuenta cuando acepta la invitación."
+        },
+        "f2": {
+          "q": "¿Quién ve los sueldos?",
+          "a": "Solo HR y la persona. Los managers no. Los montos están cifrados en la base y cada vista o cambio queda en el registro de datos sensibles."
+        },
+        "f3": {
+          "q": "¿Liquida sueldos?",
+          "a": "No. People exporta un CSV de nómina con cada persona y su sueldo vigente, listo para tu proveedor de liquidación. No paga a nadie ni presenta impuestos."
+        },
+        "f4": {
+          "q": "¿Se pueden firmar documentos?",
+          "a": "Todavía no. Podés compartir contratos y políticas en privado y pedir que confirmen que los leyeron. La firma electrónica no está disponible."
+        },
+        "f5": {
+          "q": "¿Qué le falta frente a BambooHR?",
+          "a": "Liquidación de sueldos, beneficios, búsquedas y candidatos (es otra app), firma electrónica, encuestas como eNPS, control horario y app móvil. La tabla de paridad de arriba tiene la lista completa."
+        }
+      },
+      "cta": {
+        "title1": "Gestioná RR. HH. en la suite.",
+        "title2": "Sin la factura por empleado.",
+        "sub": "Abrí People: tu workspace ya está en el directorio.",
+        "button": "Abrir People"
+      }
+    },
     "hiring": {
       "meta": {
         "title": "Hiring: selección de personal open source con página de empleos",
@@ -1881,7 +1962,7 @@
     "apiDocs": "Docs de la API",
     "howTitle": "Cómo se usa.",
     "suiteTitle": "Un workspace.",
-    "suiteTitleDim": "Diecinueve apps, el mismo login.",
+    "suiteTitleDim": "Veintidós apps, el mismo login.",
     "shotTitle": "{name}, por dentro.",
     "crumbs": "Ubicación",
     "navLabel": "Secciones de {name}",
@@ -2304,6 +2385,23 @@
       "text": "Hoy sale nuestro producto nuevo. #lanzamiento",
       "counter": "X 45/280",
       "approve": "Espera aprobación"
+    },
+    "people": {
+      "listTitle": "Quién está fuera",
+      "r1name": "Ana Pérez",
+      "r1time": "21 al 24 dic",
+      "r1meta": "Vacaciones · 4 días",
+      "r2name": "Bruno Díaz",
+      "r2time": "26 dic",
+      "r2meta": "Medio día · tarde",
+      "r3name": "Lucía Gómez",
+      "r3time": "2 ene",
+      "r3meta": "Esperando aprobación",
+      "status": "Aprobado por Bruno Díaz",
+      "i1": "Saldo de vacaciones: 11,5 de 15 días",
+      "i2": "No cuentan los feriados de Argentina",
+      "total": "Calendario bloqueado en Cal",
+      "action": "Estado en Talk: fuera de la oficina"
     },
     "hiring": {
       "listTitle": "Ingeniera de software",
@@ -3159,6 +3257,8 @@
     "scope_analytics_read": "Leer proyectos, eventos y personas de Analytics y correr consultas.",
     "scope_analytics_write": "Cambiar proyectos, insights, tableros, cohortes y flags de Analytics.",
     "scope_social_read": "Leer publicaciones de Social de las cuentas que ves.",
+    "scope_people_read": "Leer el directorio de People: solo campos públicos de la ficha, nunca sueldo ni datos personales.",
+    "scope_hiring_read": "Leer los puestos de Hiring y los candidatos que ve quien creó la key.",
     "scope_social_write": "Crear borradores y publicaciones programadas en Social (con aprobación si la necesitás).",
     "socialApiTitle": "Social",
     "socialApiDesc": "Publicaciones en redes sociales. La key actúa como la persona que la creó: ve y publica en las cuentas de esa persona, y quien necesita aprobación manda las publicaciones a aprobar. Scopes social:read y social:write.",
@@ -3179,7 +3279,7 @@
   "parityOverview": {
     "title": "Paridad de funciones, app por app.",
     "titleDim": "Medida contra cada competidor.",
-    "lead": "Paridad promedio de las 19 apps: {average}%. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
+    "lead": "Paridad promedio de las 22 apps: {average}%. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
     "col": {
       "app": "App",
       "competitor": "Comparada con",

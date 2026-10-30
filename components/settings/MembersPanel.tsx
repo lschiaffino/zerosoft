@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useRouter } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import CopyButton from '@/components/link/CopyButton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import DataTable from '@/components/ui/DataTable';
@@ -102,10 +102,13 @@ export default function MembersPanel({
   me,
   role,
   legacyNotice = false,
+  peopleLinks = false,
 }: {
   initial: DirectoryDto;
   me: string;
   role: Role;
+  /** Quien mira tiene People: cada fila enlaza a la ficha de la persona. */
+  peopleLinks?: boolean;
   /** Owner de antes de 128 con datos propios: quien entre va a ver lo que hasta hoy era solo suyo. */
   legacyNotice?: boolean;
 }) {
@@ -360,7 +363,13 @@ export default function MembersPanel({
                   )}
                   <span className="ws-person-text" title={`${t('colJoined')}: ${fmt(m.joinedAt)}`}>
                     <span className="st-strong">
-                      {m.name || m.email.split('@')[0]}
+                      {peopleLinks ? (
+                        <Link href={`/app/people/u/${encodeURIComponent(m.userId)}`} className="ws-person-link" title={t('peopleProfile')}>
+                          {m.name || m.email.split('@')[0]}
+                        </Link>
+                      ) : (
+                        m.name || m.email.split('@')[0]
+                      )}
                       {m.userId === me && <span className="st-muted"> {t('you')}</span>}
                     </span>
                     <span className="data st-muted ws-person-email" title={m.email}>

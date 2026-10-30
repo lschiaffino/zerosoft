@@ -30,6 +30,7 @@ import { designActorOf } from '@/lib/design-http';
 import { searchShop } from '@/lib/shop';
 import { searchHiring } from '@/lib/hiring/candidates';
 import { actorOf as hiringActorOf } from '@/lib/hiring/http';
+import { searchPeopleForPalette } from '@/lib/people';
 import { searchSign } from '@/lib/sign/core';
 import { signActorOf } from '@/lib/sign/http';
 import { actorOf } from '@/lib/rec-http';
@@ -60,7 +61,7 @@ export async function GET(req: NextRequest) {
   if (!q) return NextResponse.json<SearchResponse>({ q, items: [] });
 
   const scope = await sessionScope(user);
-  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec, designs, shop, hiring, sign] = await Promise.all([
+  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec, designs, shop, hiring, people, sign] = await Promise.all([
     searchAll(user.id, q, scope),
     listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
     // Docs: título y texto de los bloques (el fragmento va como meta).
@@ -94,6 +95,8 @@ export async function GET(req: NextRequest) {
     userCanUseApp(user, 'shop') ? searchShop(user.id, q).catch(() => []) : Promise.resolve([]),
     // Hiring: puestos y solo los candidatos que la persona ve (equipo del puesto o admin).
     userCanUseApp(user, 'hiring') && user.role !== 'guest' ? searchHiring(hiringActorOf(user), q).catch(() => []) : Promise.resolve([]),
+    // People: nombre, puesto y área (nada sensible), plantillas (HR) y ciclos visibles (solo con la app).
+    userCanUseApp(user, 'people') ? searchPeopleForPalette(user.id, (user.actingUser ?? user).id, user.role, q).catch(() => []) : Promise.resolve([]),
     // Sign: sobres que la persona ve (los suyos, los que la esperan; un admin, todos) y plantillas.
     userCanUseApp(user, 'sign') && user.role !== 'guest' ? searchSign(signActorOf(user), q).catch(() => []) : Promise.resolve([]),
   ]);
@@ -196,6 +199,10 @@ export async function GET(req: NextRequest) {
     items.push({ id: `hiring-${h.kind}:${h.id}`, group: h.kind === 'job' ? 'hiringJobs' : 'hiringCandidates', label: h.label, meta: h.meta, href: h.href });
   }
 
+  const PEOPLE_GROUP = { person: 'people', template: 'peopleTemplates', cycle: 'peopleCycles' } as const;
+  const PEOPLE_HREF = { person: (id: string) => `/app/people/${id}`, template: (id: string) => `/app/people/onboarding/templates/${id}`, cycle: (id: string) => `/app/people/reviews/${id}` } as const;
+  for (const p of people) {
+    items.push({ id: `${p.kind}:${p.id}`, group: PEOPLE_GROUP[p.kind], label: p.label, meta: p.meta, href: PEOPLE_HREF[p.kind](p.id) });
   for (const x of sign) {
     items.push({ id: `sign-${x.kind}:${x.id}`, group: x.kind === 'envelope' ? 'signEnvelopes' : 'signTemplates', label: x.label, meta: x.meta, href: x.href });
   }

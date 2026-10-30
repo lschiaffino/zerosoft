@@ -643,6 +643,31 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await ok(request.delete(`/api/voice/prompts/${i.id}`))),
   },
   {
+    // People: fichas del directorio (HR las crea antes de que la persona se sume).
+    app: 'People',
+    list: '/en/app/people',
+    create: async (request, name) => ({ id: (await ok<{ employee: { id: string } }>(request.post('/api/people/employees', { data: { name } }))).employee.id, name }),
+    detail: (i) => `/en/app/people/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/people/employees/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/people/employees/${i.id}`))),
+  },
+  {
+    app: 'People onboarding templates',
+    list: '/en/app/people/onboarding',
+    create: async (request, name) => ({ id: (await ok<{ template: { id: string } }>(request.post('/api/people/templates', { data: { name, kind: 'onboarding' } }))).template.id, name }),
+    detail: (i) => `/en/app/people/onboarding/templates/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/people/templates/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/people/templates/${i.id}`))),
+  },
+  {
+    app: 'People review cycles',
+    list: '/en/app/people/reviews',
+    create: async (request, name) => ({ id: (await ok<{ cycle: { id: string } }>(request.post('/api/people/cycles', { data: { name } }))).cycle.id, name }),
+    detail: (i) => `/en/app/people/reviews/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/people/cycles/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/people/cycles/${i.id}`))),
+  },
+  {
     app: 'Analytics insights',
     list: '/en/app/analytics/insights',
     create: async (request, name) => {

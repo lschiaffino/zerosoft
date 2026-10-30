@@ -41,6 +41,7 @@ export const RIVALS: Record<ProductKey, string> = {
   analytics: 'PostHog',
   social: 'Hootsuite',
   hiring: 'Workable',
+  people: 'BambooHR',
   sign: 'DocuSign',
 };
 
@@ -150,5 +151,6 @@ export const PRODUCT_PAGES: Record<ProductKey, ProductPageSpec> = {
   analytics: { sections: ['shot', 'features', 'how', 'parity', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
   social: { sections: ['shot', 'features', 'parity', 'compare', 'how', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
   hiring: { sections: ['shot', 'features', 'parity', 'how', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
+  people: { sections: ['shot', 'features', 'parity', 'how', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
   sign: { sections: ['shot', 'features', 'parity', 'how', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
 };

@@ -86,6 +86,9 @@ export const FLOW_EVENT_TYPES = [
   'hiring.candidate.applied',
   'hiring.candidate.stage_changed',
   'hiring.candidate.hired',
+  'people.hired',
+  'people.timeoff.approved',
+  'people.offboarded',
   'sign.envelope.completed',
   'sign.envelope.declined',
 ] as const;
@@ -502,6 +505,16 @@ export const EVENT_SAMPLES: Record<FlowEventType, Record<string, unknown>> = {
     offer: { title: 'Software Engineer', salary: 60000, currency: 'USD', startDate: '2026-12-01' },
     hiredAt: '2026-11-15T12:00:00.000Z',
   },
+  // People: sin datos sensibles (ni sueldo, ni datos personales, ni motivo de salida).
+  'people.hired': {
+    employee: { id: 'emp_1', name: 'Ana Pérez', jobTitle: 'Designer', department: 'Product', workEmail: 'ana@acme.com', startDate: '2026-11-02', managerName: 'Bruno Díaz', url: '/app/people/emp_1' },
+  },
+  'people.timeoff.approved': {
+    request: { id: 'req_1', startDate: '2026-12-21', endDate: '2026-12-24', days: 4, half: '', approvedBy: 'Bruno Díaz', url: '/app/people/time-off' },
+    employee: { id: 'emp_1', name: 'Ana Pérez', workEmail: 'ana@acme.com' },
+  },
+  'people.offboarded': {
+    employee: { id: 'emp_1', name: 'Ana Pérez', jobTitle: 'Designer', department: 'Product', workEmail: 'ana@acme.com', endDate: '2026-12-31', removedFromWorkspace: true, url: '/app/people/emp_1' },
   'sign.envelope.completed': {
     envelope: { id: 'env_1', title: 'Services agreement', status: 'completed', sentAt: '2026-11-15T12:00:00.000Z', completedAt: '2026-11-16T09:30:00.000Z', declinedAt: null, documentHash: 'e3b0c442…', finalHash: '9f86d081…', links: [{ app: 'crm', kind: 'deal', id: 'deal_1' }], href: '/app/sign/envelopes/env_1' },
     recipients: [{ name: 'Ana Pérez', email: 'ana@example.com', role: 'signer', status: 'signed', signedAt: '2026-11-16T09:30:00.000Z' }],

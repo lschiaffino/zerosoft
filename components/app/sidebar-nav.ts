@@ -211,6 +211,8 @@ export interface SidebarLabels {
     careers: string;
     newJob: string;
   };
+  /** People (BambooHR): directorio, organigrama, licencias, onboarding, evaluaciones, reportes. */
+  people: { directory: string; org: string; timeOff: string; onboarding: string; reviews: string; reports: string; welcome: string; newPerson: string };
   /** Sign (DocuSign): sobres, plantillas. */
   sign: {
     home: string;
@@ -274,6 +276,7 @@ export type AppProduct =
   | 'analytics'
   | 'social'
   | 'hiring'
+  | 'people';
   | 'sign';
 
 const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
@@ -296,6 +299,7 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/analytics', 'analytics'],
   ['/app/social', 'social'],
   ['/app/hiring', 'hiring'],
+  ['/app/people', 'people'],
   ['/app/sign', 'sign'],
 ];
 
@@ -340,6 +344,7 @@ const APP_ICONS: Record<ProductKey, IconName> = {
   analytics: 'analytics',
   social: 'social',
   hiring: 'hiring',
+  people: 'people',
   sign: 'sign',
 };
 
@@ -895,6 +900,30 @@ export function buildNav(
         },
       ];
 
+    case 'people': {
+      const pl = labels.people;
+      const peopleDetail = /^\/app\/people\/emp_/.test(pathname);
+      return [
+        {
+          items: [
+            { href: '/app/people', label: pl.directory, active: pathname === '/app/people' || peopleDetail, icon: 'people' },
+            { href: '/app/people/org', label: pl.org, active: at('/app/people/org'), icon: 'orgchart' },
+            { href: '/app/people/time-off', label: pl.timeOff, active: at('/app/people/time-off'), icon: 'timeoff' },
+            { href: '/app/people/onboarding', label: pl.onboarding, active: at('/app/people/onboarding'), icon: 'tasks' },
+            { href: '/app/people/reviews', label: pl.reviews, active: at('/app/people/reviews'), icon: 'insights' },
+          ],
+        },
+        {
+          section: labels.insights,
+          items: [
+            { href: '/app/people/reports', label: pl.reports, active: at('/app/people/reports'), icon: 'reports' },
+            { href: '/app/people/welcome', label: pl.welcome, active: at('/app/people/welcome'), icon: 'help' },
+          ],
+        },
+        appSettingsGroup('/app/people/settings'),
+      ];
+    }
+
     // Shell genérico (inicio y ajustes).
     case 'talk': {
       const base = `/app/${product}`;
@@ -1010,6 +1039,8 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
       return [item('/app/groups/list?new=1', labels.newGroup, 'groups')];
     case 'social':
       return [item('/app/social/posts/new', labels.social.newPost, 'social')];
+    case 'people':
+      return [item('/app/people?new=1', labels.people.newPerson, 'people'), item('/app/people/time-off?new=1', labels.people.timeOff, 'timeoff')];
     case 'link':
     default:
       return [item('/app/links/new', labels.newLink, 'newLink')];

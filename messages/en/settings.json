@@ -542,7 +542,8 @@
     "approve": "Approve",
     "allowAnyEmail": "Allow another email",
     "allowAnyEmailHelp": "Resends the invitation and lets them accept it with a different email. Never for admins.",
-    "legacyNotice": "Heads up: whoever joins will see what so far was only yours in this workspace, including Track projects and Chat widgets. Mark as private what should stay yours before inviting."
+    "legacyNotice": "Heads up: whoever joins will see what so far was only yours in this workspace, including Track projects and Chat widgets. Mark as private what should stay yours before inviting.",
+    "peopleProfile": "Open their People profile"
   },
   "teamsForm": {
     "createTitle": "Create a team",
