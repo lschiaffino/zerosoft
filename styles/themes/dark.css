@@ -43,6 +43,7 @@
     --bg-soft: #141312;
     --ink-disabled: #4d4c48;
     --check-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%230f0e0d' stroke-width='2.2' stroke-linecap='square'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+    --check-dash-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath stroke='%230f0e0d' stroke-width='2' d='M3 6h6'/%3E%3C/svg%3E");
     --on-dark-3: #8d8c86;
 
     /* Texto de cada producto sobre el fondo oscuro (≥ 5:1 sobre #1d1c1a). */
@@ -134,6 +135,7 @@
   --bg-soft: #141312;
   --ink-disabled: #4d4c48;
   --check-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%230f0e0d' stroke-width='2.2' stroke-linecap='square'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+  --check-dash-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath stroke='%230f0e0d' stroke-width='2' d='M3 6h6'/%3E%3C/svg%3E");
   --on-dark-3: #8d8c86;
 
   /* Texto de cada producto sobre el fondo oscuro (≥ 5:1 sobre #1d1c1a). */

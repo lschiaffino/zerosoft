@@ -488,8 +488,13 @@ export interface ImportSummary {
   imagesPending: number;
 }
 
-/** Fotos que se bajan por pedido (cada una hasta 10 s): el resto queda para otra pasada. */
-export const IMAGES_PER_IMPORT = 40;
+/**
+ * Fotos que se bajan por pedido (cada una hasta 10 s) y tiempo total para
+ * bajarlas: la ruta tiene 300 s de límite, así nunca se pasa. Lo que no
+ * entra queda para otra pasada (imagesPending).
+ */
+export const IMAGES_PER_IMPORT = 25;
+export const IMAGE_TIME_BUDGET_MS = 180_000;
 
 /**
  * Importa el CSV: crea los productos nuevos y, si `update`, reemplaza los que
@@ -500,7 +505,7 @@ export const IMAGES_PER_IMPORT = 40;
 export async function importProductsCsv(
   actor: ShopActor,
   text: string,
-  opts: { update?: boolean; fetchImages?: boolean; maxProducts?: number } = {},
+  opts: { update?: boolean; fetchImages?: boolean; maxProducts?: number; imageBudgetMs?: number; maxImages?: number } = {},
 ): Promise<ImportSummary> {
   const parsed = parseProductCsv(text);
   if (!parsed) {
@@ -511,7 +516,9 @@ export async function importProductsCsv(
   const { getDb } = await import('./db');
   const summary: ImportSummary = { format: parsed.format, created: 0, updated: 0, skipped: 0, errors: [...parsed.errors], imagesFailed: 0, imagesPending: 0 };
   const loc = await shop.defaultLocation(actor.ws);
-  let imageBudget = IMAGES_PER_IMPORT;
+  let imageBudget = opts.maxImages ?? IMAGES_PER_IMPORT;
+  const imageDeadline = Date.now() + (opts.imageBudgetMs ?? IMAGE_TIME_BUDGET_MS);
+  const imagesLeft = () => imageBudget > 0 && Date.now() < imageDeadline;
   for (const p of parsed.products.slice(0, opts.maxProducts ?? 2000)) {
     try {
       if (!p.variants.length) {
@@ -528,10 +535,10 @@ export async function importProductsCsv(
       const current = existing ? await shop.getProduct(actor.ws, existing.id) : null;
       const wantImages = opts.fetchImages !== false && p.images.length > 0 && !(current && current.images.length);
       if (wantImages) {
-        if (imageBudget <= 0) summary.imagesPending++;
+        if (!imagesLeft()) summary.imagesPending++;
         else {
           for (const src of p.images.slice(0, 10)) {
-            if (imageBudget <= 0) break;
+            if (!imagesLeft()) break;
             imageBudget--;
             const url = await fetchImage(src);
             if (url) images.push(url);
