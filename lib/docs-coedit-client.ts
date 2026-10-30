@@ -485,6 +485,9 @@ export class CoeditEngine {
     });
     for (let i = 0; i < list.length; i += 50) {
       const chunk = list.slice(i, i + 50);
+      // Lo que tenía cada bloque al pedir la foto: si mientras tanto entró algo (eventos,
+      // la confirmación de un envío), ese camino ya lo puso al día y no se toca.
+      const seen = new Map(chunk.map((id) => [id, { S: this.blocks.get(id)?.S, rev: this.blocks.get(id)?.rev }]));
       let snap: Record<string, { rev: number; text: string } | null>;
       try {
         snap = await this.transport.snapshot(chunk);
@@ -495,6 +498,8 @@ export class CoeditEngine {
         const b = this.blocks.get(id);
         const s = snap[id];
         if (!b || !s || b.inflight || b.resync) continue;
+        const was = seen.get(id);
+        if (!was || was.S !== b.S || was.rev !== b.rev) continue;
         if (s.text === b.S && (b.rev === null || b.rev === s.rev)) continue;
         if (b.rev !== null && s.rev < b.rev) continue;
         this.rebase(id, b, s.text, s.rev);
