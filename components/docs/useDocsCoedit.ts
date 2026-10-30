@@ -184,6 +184,12 @@ export function useDocsCoedit(o: CoeditOptions): {
     onRevoked: () => opts.current.onRevoked(),
   });
 
+  // Al conectarse por primera vez (y al pasar a polling): lo que pasó entre que se armó la
+  // página y que el stream quedó enganchado no llega por el atraso; se compara con el servidor.
+  useEffect(() => {
+    if (status === 'live' || status === 'polling') void engineRef.current?.verify();
+  }, [status]);
+
   const localChanged = useCallback(() => {
     if (opts.current.canSend) engineRef.current?.localChanged();
   }, []);

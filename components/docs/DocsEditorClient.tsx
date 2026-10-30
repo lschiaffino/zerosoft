@@ -200,7 +200,10 @@ export default function DocsEditorClient({
       const text = texts.get(id);
       if (typeof text === 'string' && text !== s0) items.push({ block: id, rev: null, hash: textHash(s0), op: diff(s0, text), seq: `draft.${textHash(s0 + text)}`, base: s0 });
     }
-    if (!items.length) return true;
+    if (!items.length) {
+      void coeditEngineRef.current?.verify(Object.keys(blocks));
+      return true;
+    }
     const res = await fetch('/api/docs/collab', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
