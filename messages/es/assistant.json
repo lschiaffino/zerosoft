@@ -145,6 +145,11 @@
       "a": "¿Qué pedidos esperan envío?",
       "b": "¿Cómo fueron las ventas de los últimos 30 días?",
       "c": "¿Qué tiene poco stock?"
+    },
+    "analytics": {
+      "a": "¿Cuántos visitantes tuvimos esta semana?",
+      "b": "¿Qué insights hay guardados en este proyecto?",
+      "c": "¿Qué feature flags están activos?"
     }
   },
   "page": {

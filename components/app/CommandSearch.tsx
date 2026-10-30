@@ -176,6 +176,11 @@ function useGroupOrder() {
         'talkCanvases',
         'talkLists',
         'workspaceTeams',
+        'analyticsInsights',
+        'analyticsDashboards',
+        'analyticsFlags',
+        'analyticsCohorts',
+        'analyticsProjects',
         'assistantChats',
       ], []);
 }

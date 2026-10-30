@@ -7078,6 +7078,182 @@ export const MIGRATIONS: Migration[] = [
     id: '138_shop',
     up: shopUp,
   },
+  {
+    // Analytics (PostHog): proyectos con key pública y secreta, eventos con las
+    // columnas que piden las consultas web, personas (con sus distinct_ids),
+    // sesiones, grupos, rollups diarios, insights, tableros, cohortes y flags.
+    id: '136_analytics',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS analytics_projects (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          public_key TEXT NOT NULL UNIQUE,
+          secret_hash TEXT,
+          secret_hint TEXT,
+          allowed_domains TEXT NOT NULL DEFAULT '[]',
+          respect_dnt INTEGER NOT NULL DEFAULT 1,
+          anonymize_ip INTEGER NOT NULL DEFAULT 1,
+          autocapture INTEGER NOT NULL DEFAULT 1,
+          retention_days INTEGER NOT NULL DEFAULT 365,
+          tz_offset_min INTEGER NOT NULL DEFAULT 0,
+          rolled_through TEXT,
+          dirty_from TEXT,
+          rollup_claimed_at INTEGER,
+          purged_at INTEGER,
+          deleted_at INTEGER,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_projects_ws ON analytics_projects(workspace_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS analytics_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          project_id TEXT NOT NULL,
+          uuid TEXT,
+          event TEXT NOT NULL,
+          distinct_id TEXT NOT NULL,
+          ts INTEGER NOT NULL,
+          session_id TEXT,
+          properties TEXT NOT NULL DEFAULT '{}',
+          url TEXT,
+          pathname TEXT,
+          host TEXT,
+          referrer TEXT,
+          referring_domain TEXT,
+          utm_source TEXT,
+          utm_medium TEXT,
+          utm_campaign TEXT,
+          browser TEXT,
+          os TEXT,
+          device TEXT,
+          country TEXT,
+          ip TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_events_ts ON analytics_events(project_id, ts);
+        CREATE INDEX IF NOT EXISTS idx_analytics_events_event ON analytics_events(project_id, event, ts);
+        CREATE INDEX IF NOT EXISTS idx_analytics_events_distinct ON analytics_events(project_id, distinct_id, ts);
+        CREATE INDEX IF NOT EXISTS idx_analytics_events_session ON analytics_events(project_id, session_id);
+        CREATE INDEX IF NOT EXISTS idx_analytics_events_live ON analytics_events(project_id, id);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_analytics_events_uuid ON analytics_events(project_id, uuid) WHERE uuid IS NOT NULL;
+
+        CREATE TABLE IF NOT EXISTS analytics_persons (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL,
+          properties TEXT NOT NULL DEFAULT '{}',
+          is_identified INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL,
+          last_seen INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_persons_project ON analytics_persons(project_id, last_seen);
+
+        CREATE TABLE IF NOT EXISTS analytics_person_ids (
+          project_id TEXT NOT NULL,
+          distinct_id TEXT NOT NULL,
+          person_id TEXT NOT NULL,
+          PRIMARY KEY (project_id, distinct_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_person_ids_person ON analytics_person_ids(person_id);
+
+        CREATE TABLE IF NOT EXISTS analytics_sessions (
+          project_id TEXT NOT NULL,
+          id TEXT NOT NULL,
+          distinct_id TEXT NOT NULL,
+          started_at INTEGER NOT NULL,
+          ended_at INTEGER NOT NULL,
+          pageviews INTEGER NOT NULL DEFAULT 0,
+          events INTEGER NOT NULL DEFAULT 0,
+          entry_path TEXT,
+          exit_path TEXT,
+          referring_domain TEXT,
+          utm_source TEXT,
+          country TEXT,
+          device TEXT,
+          browser TEXT,
+          PRIMARY KEY (project_id, id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_sessions_start ON analytics_sessions(project_id, started_at);
+
+        CREATE TABLE IF NOT EXISTS analytics_groups (
+          project_id TEXT NOT NULL,
+          group_type TEXT NOT NULL,
+          group_key TEXT NOT NULL,
+          properties TEXT NOT NULL DEFAULT '{}',
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          PRIMARY KEY (project_id, group_type, group_key)
+        );
+
+        CREATE TABLE IF NOT EXISTS analytics_daily (
+          project_id TEXT NOT NULL,
+          day TEXT NOT NULL,
+          event TEXT NOT NULL,
+          count INTEGER NOT NULL,
+          uniques INTEGER NOT NULL,
+          PRIMARY KEY (project_id, day, event)
+        );
+
+        CREATE TABLE IF NOT EXISTS analytics_insights (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+          kind TEXT NOT NULL,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          query TEXT NOT NULL DEFAULT '{}',
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_insights_project ON analytics_insights(project_id, updated_at);
+
+        CREATE TABLE IF NOT EXISTS analytics_dashboards (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_dashboards_project ON analytics_dashboards(project_id, updated_at);
+
+        CREATE TABLE IF NOT EXISTS analytics_dashboard_items (
+          dashboard_id TEXT NOT NULL REFERENCES analytics_dashboards(id) ON DELETE CASCADE,
+          insight_id TEXT NOT NULL REFERENCES analytics_insights(id) ON DELETE CASCADE,
+          position INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (dashboard_id, insight_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS analytics_cohorts (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          definition TEXT NOT NULL DEFAULT '{}',
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_cohorts_project ON analytics_cohorts(project_id, updated_at);
+
+        CREATE TABLE IF NOT EXISTS analytics_flags (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+          key TEXT NOT NULL,
+          name TEXT NOT NULL DEFAULT '',
+          active INTEGER NOT NULL DEFAULT 1,
+          rollout INTEGER NOT NULL DEFAULT 100,
+          variants TEXT NOT NULL DEFAULT '[]',
+          conditions TEXT NOT NULL DEFAULT '[]',
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE (project_id, key)
+        );
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

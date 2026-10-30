@@ -232,7 +232,7 @@ export async function homeUnread(user: HomeUser): Promise<{ chat: number | null;
 
 // ---------- Recientes ----------
 
-export type RecentKind = 'doc' | 'note' | 'board' | 'design' | 'issue' | 'link' | 'contact' | 'deal' | 'flow' | 'product';
+export type RecentKind = 'doc' | 'note' | 'board' | 'design' | 'issue' | 'link' | 'contact' | 'deal' | 'flow' | 'product' | 'insight';
 
 export interface RecentItem {
   kind: RecentKind;
@@ -254,6 +254,7 @@ const RECENT_PRODUCT: Record<RecentKind, ProductKey> = {
   deal: 'crm',
   flow: 'flow',
   product: 'shop',
+  insight: 'analytics',
 };
 
 /** Fecha comparable: '2026-10-25 10:00:00' y '2026-10-25T10:00:00.000Z' ordenan igual. */
@@ -286,7 +287,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
   const contactScope = ownerScopeSql('c', scope);
   const dealScope = ownerScopeSql('d', scope);
 
-  const [docs, notes, boards, designs, issues, links, contacts, deals, flows, products] = await Promise.all([
+  const [docs, notes, boards, designs, issues, links, contacts, deals, flows, products, insights] = await Promise.all([
     all(`SELECT id, title AS label, updated_at FROM docs_pages WHERE user_id = ? AND archived = 0 ORDER BY updated_at DESC LIMIT ?`, user.id, per),
     // Notas: solo las de la persona (son privadas aunque el workspace sea compartido).
     listNotes(noteOwner(user), { view: 'all', limit: per })
@@ -330,6 +331,15 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
     homeCanUse(user, 'shop')
       ? all(`SELECT id, title AS label, updated_at FROM shop_products WHERE workspace_id = ? ORDER BY updated_at DESC LIMIT ?`, user.id, per)
       : Promise.resolve([] as Row[]),
+    // Analytics: insights guardados de los proyectos del workspace (solo si la persona tiene la app).
+    homeCanUse(user, 'analytics')
+      ? all(
+          `SELECT i.id, i.name AS label, i.updated_at FROM analytics_insights i JOIN analytics_projects p ON p.id = i.project_id
+           WHERE p.workspace_id = ? AND p.deleted_at IS NULL ORDER BY i.updated_at DESC LIMIT ?`,
+          user.id,
+          per,
+        )
+      : Promise.resolve([]),
   ]);
 
   const href: Record<RecentKind, (id: string) => string> = {
@@ -343,6 +353,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
     deal: (id) => `/app/crm/deals/${id}`,
     flow: (id) => `/app/flow/${id}`,
     product: (id) => `/app/shop/products/${id}`,
+    insight: (id) => `/app/analytics/insights/${id}`,
   };
   const groups: Array<[RecentKind, Row[]]> = [
     ['doc', docs],
@@ -355,6 +366,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
     ['deal', deals],
     ['flow', flows],
     ['product', products],
+    ['insight', insights],
   ];
   const items = groups
     .flatMap(([kind, rows]) =>

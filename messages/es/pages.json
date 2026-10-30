@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "Productos",
-      "description": "Diecisiete apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec y Design. Open source para tu servidor, o en zerosoft Cloud con plan gratis y pago por uso."
+      "description": "Dieciocho apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop y Analytics. Open source para tu servidor, o en zerosoft Cloud con plan gratis y pago por uso."
     },
     "hero": {
-      "title1": "Diecisiete apps.",
+      "title1": "Dieciocho apps.",
       "title2": "Un solo workspace.",
       "sub": "Para tu empresa: CRM, soporte, agentes de IA, automatizaciones, robots, proyectos y links. Para vos: docs, notas, agenda y pizarra. El core de cada una es open source y corre en tu servidor por $0."
     },
     "cta": {
-      "title1": "Probá las diecisiete apps.",
+      "title1": "Probá las dieciocho apps.",
       "title2": "Con una sola cuenta.",
       "sub": "Entrá con Google, creá un workspace y empezá con el plan gratis. Si después preferís tu servidor, el código está en GitHub.",
       "button": "Abrir la app"
@@ -1523,6 +1523,92 @@
         "sub": "Abrí Design, elegí una plantilla y hacé tu primer diseño.",
         "button": "Abrir Design"
       }
+    },
+    "analytics": {
+      "meta": {
+        "title": "Analytics: analítica de producto de código abierto",
+        "description": "Eventos desde un snippet de JS, tendencias, embudos, retención, personas, tableros, feature flags y analítica web. Una alternativa de código abierto a PostHog."
+      },
+      "hero": {
+        "sub": "Pegás un script y ves quién entra, qué toca y dónde abandona. Tendencias, embudos y retención sobre tus propios eventos, feature flags con porcentaje de rollout y un editor SQL de solo lectura acotado a tu proyecto."
+      },
+      "featuresTitle": "Medí lo que hace la gente.",
+      "featuresTitleDim": "Construí lo que sigue.",
+      "f1": {
+        "t": "Un solo script",
+        "d": "Páginas vistas (también en apps de una página), clicks en links y botones, cambios en campos sin su valor y envíos de formularios. identify, alias y group desde el código, y un endpoint por lotes para tu servidor."
+      },
+      "f2": {
+        "t": "Tendencias y embudos",
+        "d": "Cantidades y personas únicas por hora, día, semana o mes, abiertas por cualquier propiedad y comparadas con el período anterior. Embudos de hasta 10 pasos con ventana de conversión y la gente que abandonó."
+      },
+      "f3": {
+        "t": "Retención y caminos",
+        "d": "Cohortes diarias o semanales por el primer evento y el de vuelta. Los caminos muestran las secuencias de páginas más comunes por sesión."
+      },
+      "f4": {
+        "t": "Personas y cohortes",
+        "d": "Cada persona con sus propiedades, sus ids y su línea de tiempo de eventos. Cohortes por propiedades o por cuántas veces alguien hizo un evento. Un admin puede borrar a una persona con todos sus eventos."
+      },
+      "f5": {
+        "t": "Feature flags",
+        "d": "Flags de prendido y apagado o con variantes, porcentaje de rollout y segmentación por propiedades de la persona. El snippet los lee con isFeatureEnabled y getFeatureFlag."
+      },
+      "f6": {
+        "t": "Analítica web y SQL",
+        "d": "Visitantes, páginas vistas, sesiones, rebote, páginas más vistas, referentes, países y dispositivos en una página. Para lo demás, un editor SQL de solo lectura sobre los eventos del proyecto."
+      },
+      "steps": {
+        "s1": {
+          "t": "Creá un proyecto",
+          "d": "Cada proyecto tiene una key pública. Limitala a tus dominios y elegí Do Not Track, anonimizar IPs y la retención."
+        },
+        "s2": {
+          "t": "Pegá el snippet",
+          "d": "Sumá el script a tu sitio o importalo como módulo. Los eventos aparecen enseguida en el stream en vivo."
+        },
+        "s3": {
+          "t": "Hacé tus preguntas",
+          "d": "Armá una tendencia, un embudo o una tabla de retención, guardala y sumala a un tablero."
+        }
+      },
+      "compare": {
+        "rival": "PostHog",
+        "price": "Por uso",
+        "per": "después del primer millón de eventos al mes",
+        "teamLabel": "5 millones de eventos al mes",
+        "team": "ver precios de PostHog",
+        "zero": "US$0",
+        "note": "PostHog cobra la analítica de producto por uso: el primer millón de eventos de cada mes es gratis y el resto se cobra por evento, más barato con más volumen. No pudimos verificar el precio actual por evento: miralo en posthog.com/pricing. Analytics en tu servidor cuesta US$0 más tu base de datos."
+      },
+      "faq": {
+        "f1": {
+          "q": "¿Cómo lo instalo?",
+          "a": "Creá un proyecto, copiá el tag del script de su página de configuración y pegalo en tu sitio. O importá https://zerosoft.ai/zs.mjs como módulo. Un servidor puede mandar eventos a /api/ingest/e con la key secreta del proyecto."
+        },
+        "f2": {
+          "q": "¿Graba las sesiones?",
+          "a": "No. Session replay no está hecho. Analytics guarda eventos y sus propiedades, nunca la pantalla."
+        },
+        "f3": {
+          "q": "¿Qué junta el autocapture?",
+          "a": "Clicks en links y botones con su texto, qué campo cambió (nunca lo que se escribió) y envíos de formularios. Se saltean los campos de contraseña y todo lo que tenga la clase zs-no-capture, y se descarta el texto que parece un email o un número largo."
+        },
+        "f4": {
+          "q": "¿Cuánto tráfico aguanta?",
+          "a": "Corre en la misma base SQLite o Turso que el resto de zerosoft, así que sirve para sitios chicos y medianos: unos pocos millones de eventos por proyecto antes de que las consultas se pongan lentas. Embudos, retención y caminos leen hasta 200.000 filas y avisan cuando llegan a ese tope."
+        },
+        "f5": {
+          "q": "¿Qué le falta comparado con PostHog?",
+          "a": "Session replay, mapas de calor, la toolbar, experimentos, encuestas, el data warehouse y los pipelines, alertas y SDKs de servidor o mobile. El editor SQL habla SQLite, no HogQL. La tabla de paridad de arriba tiene la lista completa."
+        }
+      },
+      "cta": {
+        "title1": "Pegá el script.",
+        "title2": "Leé los números.",
+        "sub": "Abrí Analytics, creá un proyecto y sumá el snippet a tu sitio.",
+        "button": "Abrir Analytics"
+      }
     }
   },
   "product": {
@@ -1538,7 +1624,7 @@
     "apiDocs": "Docs de la API",
     "howTitle": "Cómo se usa.",
     "suiteTitle": "Un workspace.",
-    "suiteTitleDim": "Diecisiete apps, el mismo login.",
+    "suiteTitleDim": "Dieciocho apps, el mismo login.",
     "shotTitle": "{name}, por dentro.",
     "crumbs": "Ubicación",
     "navLabel": "Secciones de {name}",
@@ -1931,6 +2017,22 @@
       "posterSub": "Colección nueva, 21 de marzo",
       "posterCta": "Comprar",
       "pages": "Página 1 de 3"
+    },
+    "analytics": {
+      "navWeb": "Analítica web",
+      "navInsights": "Insights",
+      "navFlags": "Feature flags",
+      "navPersons": "Personas",
+      "title": "Registros de esta semana",
+      "new": "Nuevo insight",
+      "statVisitors": "Visitantes",
+      "statViews": "Páginas vistas",
+      "statBounce": "Rebote",
+      "chartLabel": "Registros por día, esta semana y la anterior",
+      "funnelTitle": "Embudo de registro",
+      "s1": "Vio los precios",
+      "s2": "Empezó el registro",
+      "s3": "Creó un proyecto"
     }
   },
   "status": {
@@ -2724,12 +2826,38 @@
     "designListDesc": "Sin id, los diseños que ve la persona (los más recientes primero). Con id, ese diseño con sus páginas en JSON.",
     "paramDesignView": "recent (por defecto), mine, shared, starred o templates",
     "paramDesignId": "Id de un diseño: devuelve ese diseño con sus páginas",
-    "scope_design_read": "Leer diseños de Design y sus páginas."
+    "scope_design_read": "Leer diseños de Design y sus páginas.",
+    "analyticsApiTitle": "Analytics",
+    "analyticsApiDesc": "Analítica de producto. Los endpoints de ingesta (/api/ingest/*) usan la key del proyecto, no una API key: la pública (zsp_…) en el cuerpo desde el navegador, o la key secreta del proyecto como Bearer zss_… desde un servidor. Las consultas aceptan una sesión iniciada o una API key con analytics:read.",
+    "analyticsCaptureTitle": "Capturar eventos",
+    "analyticsCaptureDesc": "Un evento o un lote de hasta 200, 512 KB por pedido. Con la key secreta como Bearer no se chequea el origen. Los eventos con un uuid repetido se ignoran. Tiene tope por proyecto.",
+    "analyticsDecideTitle": "Feature flags de una persona",
+    "analyticsDecideDesc": "Valores de los flags activos para un distinct_id (true, false o la clave de la variante) y los ajustes del snippet. person_properties se suma a lo que la persona ya tiene.",
+    "analyticsDeleteTitle": "Borrar una persona",
+    "analyticsDeleteDesc": "Borra a la persona de un distinct_id con todos sus eventos y sesiones. Pide la key secreta del proyecto como Bearer zss_….",
+    "analyticsQueryTitle": "Correr una consulta",
+    "analyticsQueryDesc": "kind es trends, funnel, retention, paths, sql o web. SQL es de solo lectura sobre las tablas del proyecto events, persons, person_distinct_ids y sessions, hasta 1.000 filas.",
+    "analyticsEventsTitle": "Listar eventos",
+    "analyticsEventsDesc": "Últimos eventos de un proyecto, los más nuevos primero. Pasá after con el último id que viste para traer solo los nuevos.",
+    "analyticsPersonsTitle": "Listar personas",
+    "analyticsPersonsDesc": "Personas de un proyecto con sus propiedades y distinct ids, las vistas más recientemente primero.",
+    "paramAnalyticsApiKey": "Key pública del proyecto (zsp_…). También se acepta como token.",
+    "paramAnalyticsBatch": "Eventos: event, distinct_id, properties, timestamp y un uuid opcional. Un solo evento puede ir en el primer nivel.",
+    "paramAnalyticsSentAt": "Cuándo mandó el lote el cliente; sirve para corregir su reloj.",
+    "paramAnalyticsDistinctId": "El id de la persona en tu producto.",
+    "paramAnalyticsPersonProps": "Propiedades extra de la persona para esta evaluación.",
+    "paramAnalyticsProject": "Id del proyecto (ap_…).",
+    "paramAnalyticsQuery": "La definición de la consulta, la misma que guarda la app en un insight.",
+    "paramAnalyticsEvent": "Solo este nombre de evento.",
+    "paramAnalyticsAfter": "Solo eventos con un id mayor.",
+    "paramAnalyticsCohort": "Solo personas de este id de cohorte.",
+    "scope_analytics_read": "Leer proyectos, eventos y personas de Analytics y correr consultas.",
+    "scope_analytics_write": "Cambiar proyectos, insights, tableros, cohortes y flags de Analytics."
   },
   "parityOverview": {
     "title": "Paridad de funciones, app por app.",
     "titleDim": "Medida contra cada competidor.",
-    "lead": "Paridad promedio de las 17 apps: {average}%. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
+    "lead": "Paridad promedio de las 18 apps: {average}%. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
     "col": {
       "app": "App",
       "competitor": "Comparada con",
