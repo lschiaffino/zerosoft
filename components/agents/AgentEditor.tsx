@@ -339,6 +339,19 @@ export default function AgentEditor(props: Props) {
     router.push('/app/agents');
   }
 
+  async function duplicate() {
+    const res = await api<{ id?: string }>(`/api/agents/${agent.id}/duplicate`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: t('editor.duplicateName', { name: agent.name }) }),
+    });
+    if (!res.ok || !res.data.id) {
+      setNotice({ kind: 'error', text: errorText(t, res.data.error) });
+      return;
+    }
+    router.push(`/app/agents/${res.data.id}`);
+  }
+
   async function refreshUrls() {
     setRefreshing(true);
     const res = await api<{ urls?: AgentKnowledgeUrlDto[]; sitemaps?: AgentSitemapStatusDto[] }>(`/api/agents/${agent.id}/knowledge`, { method: 'POST' });
@@ -1260,6 +1273,18 @@ export default function AgentEditor(props: Props) {
             </FormSection>
 
             {canEdit && <AccessPanel agentId={agent.id} isAdmin={isAdmin} />}
+
+            {isAdmin && (
+              <FormSection
+                title={t('editor.duplicate')}
+                description={t('editor.duplicateBody')}
+                footer={
+                  <button type="button" className="btn ag-foot-end" onClick={duplicate}>
+                    {t('editor.duplicate')}
+                  </button>
+                }
+              />
+            )}
 
             {isAdmin && (
               <FormSection
