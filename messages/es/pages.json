@@ -3514,6 +3514,8 @@
     "paramFormsFrom": "Solo respuestas enviadas desde esta fecha (YYYY-MM-DD).",
     "paramFormsTo": "Solo respuestas enviadas hasta esta fecha (YYYY-MM-DD).",
     "scope_forms_read": "Leer los formularios de Forms y sus respuestas, solo los que puede ver quien creó la key.",
+    "scope_notes_read": "Leer las notas que puede ver quien creó la clave, y sus tareas.",
+    "scope_notes_write": "Crear y editar las notas de quien creó la clave.",
     "formsApiTitle": "Forms",
     "formsApiDesc": "Formularios y sus respuestas. La key actúa como la persona que la creó y solo ve los formularios que esa persona puede abrir. Scope forms:read."
   },
