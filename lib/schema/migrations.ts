@@ -7647,26 +7647,34 @@ export const MIGRATIONS: Migration[] = [
         CREATE TABLE IF NOT EXISTS note_file_text (
           note_id TEXT NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
           block_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
           kind TEXT NOT NULL,
           status TEXT NOT NULL DEFAULT 'pending',
           attempts INTEGER NOT NULL DEFAULT 0,
           text TEXT NOT NULL DEFAULT '',
           claimed_at TEXT,
+          queued_at TEXT NOT NULL DEFAULT '',
           PRIMARY KEY (note_id, block_id)
         )
       `);
-      await client.execute('CREATE INDEX IF NOT EXISTS idx_note_file_text_status ON note_file_text(status, kind)');
-      // Notas ya guardadas (imports de ENEX llenos de escaneos): entran a la cola.
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_note_file_text_queue ON note_file_text(status, workspace_id, queued_at)');
       await client.execute(`
-        INSERT OR IGNORE INTO note_file_text (note_id, block_id, kind)
-        SELECT n.id, json_extract(b.value, '$.id'),
-               CASE WHEN json_extract(b.value, '$.type') = 'image' THEN 'image' ELSE 'pdf' END
-        FROM notes n, json_each(n.content) b
-        WHERE n.locked IS NULL AND n.trashed_at IS NULL AND json_valid(n.content)
-          AND (json_extract(b.value, '$.type') IN ('image', 'pdf')
-               OR (json_extract(b.value, '$.type') = 'file' AND json_extract(b.value, '$.mime') = 'application/pdf'))
-          AND json_extract(b.value, '$.id') IS NOT NULL
+        CREATE TABLE IF NOT EXISTS note_workspace_settings (
+          workspace_id TEXT PRIMARY KEY,
+          ocr_enabled_at TEXT
+        )
       `);
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS note_admin_audit (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          actor_id TEXT NOT NULL,
+          action TEXT NOT NULL,
+          detail TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL
+        )
+      `);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_note_admin_audit ON note_admin_audit(workspace_id, created_at)');
     },
   },
 ];

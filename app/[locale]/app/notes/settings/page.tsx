@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { roleAtLeast } from '@/lib/teams';
+import { inboundDomain } from '@/lib/chat-email';
 import { Link } from '@/i18n/navigation';
 import { PRODUCT_SETTINGS_SHORTCUTS } from '@/lib/product-settings';
 import { ProductSettingsShell } from '@/components/app/ProductSettingsShell';
@@ -26,12 +27,15 @@ export default async function NotesSettingsPage(props: { params: Promise<{ local
   return (
     <ProductSettingsShell locale={locale} product="notes" tabs={[{ key: 'general', label: t('general') }]}>
       <div className="st-stack">
-        <FormSection title={tNotes('email.title')}>
-          <NotesEmailPanel />
-        </FormSection>
+        {/* Sin dominio de entrada no hay nada que la persona pueda hacer: no se ofrece. */}
+        {inboundDomain() && (
+          <FormSection title={tNotes('email.title')}>
+            <NotesEmailPanel />
+          </FormSection>
+        )}
         {admin && (
           <FormSection title={tNotes('admin.title')}>
-            <NotesAdminPanel />
+            <NotesAdminPanel selfId={user.actingUser?.id ?? user.id} />
           </FormSection>
         )}
         <FormSection title={t('shortcuts')}>

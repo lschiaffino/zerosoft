@@ -86,6 +86,16 @@ export async function setNoteShare(
     await db
       .prepare(`DELETE FROM note_shares WHERE ${col} = ? AND person_id = ? AND owner_id = ?`)
       .run(target.id, personId, owner.personId);
+    // Sin acceso no hay tarea asignada: se limpia salvo que le quede otro share (nota o libreta).
+    await db
+      .prepare(
+        `UPDATE note_tasks SET assignee_id = NULL WHERE assignee_id = ? AND note_id IN (
+           SELECT n.id FROM notes n WHERE ${target.kind === 'note' ? 'n.id = ?' : 'n.notebook_id = ?'}
+             AND NOT EXISTS (SELECT 1 FROM note_shares s WHERE s.person_id = ? AND s.owner_id = n.person_id
+               AND (s.note_id = n.id OR (s.notebook_id IS NOT NULL AND s.notebook_id = n.notebook_id)))
+         )`,
+      )
+      .run(personId, target.id, personId);
     return 'ok';
   }
   if (personId === owner.personId) return 'not_member';

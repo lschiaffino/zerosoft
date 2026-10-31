@@ -74,7 +74,7 @@ interface Props {
   /** Filtro inicial de la lista (p. ej. "Compartidas conmigo" desde un aviso). */
   initialFilter?: NotesFilter;
   /** El link abierto es de una nota del workspace sin permiso: se puede pedir acceso. */
-  initialDenied?: { id: string; status: 'can_request' | 'pending' | 'denied' } | null;
+  initialDenied?: { id: string; status: 'can_request' | 'pending' | 'denied' | 'denied_wait' } | null;
   /** Aviso de un pedido de acceso: abre Compartir en la nota. */
   openRequests?: boolean;
   /** Hay IA para buscar por significado. */
@@ -153,6 +153,7 @@ export default function NotesApp({
   const [pane, setPane] = useState<Pane>(initialNote || initialDenied ? 'editor' : 'list');
   const denied = note ? null : initialDenied;
   const [semantic, setSemantic] = useState(false);
+  const [semanticDegraded, setSemanticDegraded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadedKey, setLoadedKey] = useState(() => listKey(initialFilter ?? { kind: 'all' }, 'updated'));
   const [listError, setListError] = useState(false);
@@ -386,8 +387,9 @@ export default function NotesApp({
       const useSemantic = semantic && q.trim().length > 0;
       const res = await fetch(useSemantic ? `/api/notes/semantic?q=${encodeURIComponent(q.trim())}` : `/api/notes?${filterQuery(filter, q, sort)}`);
       if (!res.ok) throw new Error(String(res.status));
-      const data = (await res.json()) as { notes: NoteSummary[] };
+      const data = (await res.json()) as { notes: NoteSummary[]; degraded?: boolean };
       if (seq === reqSeq.current) {
+        setSemanticDegraded(Boolean(useSemantic && data.degraded));
         setNotes(data.notes);
         if (dropStaleNote.current) {
           dropStaleNote.current = false;
@@ -653,10 +655,13 @@ export default function NotesApp({
   useEffect(() => {
     const url = new URL(window.location.href);
     if (note) url.searchParams.set('note', note.id);
-    else url.searchParams.delete('note');
-    for (const k of ['new', 'search', 'template', 'q']) url.searchParams.delete(k);
+    // El pedido de acceso sobrevive a recargar.
+    else if (!denied) url.searchParams.delete('note');
+    if (filter.kind === 'home' || filter.kind === 'tasks') url.searchParams.set('view', filter.kind);
+    else if (filter.kind !== 'shared') url.searchParams.delete('view');
+    for (const k of ['new', 'search', 'template', 'q', 'requests']) url.searchParams.delete(k);
     window.history.replaceState(null, '', url.toString());
-  }, [note]);
+  }, [note, denied, filter.kind]);
 
   // La selección sale de la lista visible (filtrar o borrar la achica).
   useEffect(() => {
@@ -1794,6 +1799,11 @@ export default function NotesApp({
               )}
             </div>
           </div>
+          {semantic && semanticDegraded && (
+            <p className="notes-home-hint" role="status" data-testid="semantic-degraded">
+              {t('list.semanticDegraded')}
+            </p>
+          )}
           <div className="notes-list-meta">
             <span className="notes-list-count">{q.trim() ? t('list.resultCount', { count: notes.length }) : t('list.count', { count: notes.length })}</span>
             <select

@@ -62,7 +62,8 @@
     "emptySharedBody": "Quando alguém da equipe compartilhar uma nota ou um caderno com você, aparece aqui.",
     "sharedBy": "de {name}",
     "semantic": "Buscar por significado",
-    "semanticHint": "Encontra notas pelo que dizem, mesmo com outras palavras. Usa sua cota de IA."
+    "semanticHint": "Encontra notas pelo que dizem, mesmo com outras palavras. Usa sua cota de IA.",
+    "semanticDegraded": "A busca por significado não está disponível agora: estes resultados coincidem só por palavras-chave."
   },
   "trash": {
     "confirmDelete": "Excluir esta nota para sempre? Não dá para desfazer.",
@@ -166,7 +167,8 @@
       "screenshot": "Escolha uma aba ou janela e salve o que ela mostra."
     },
     "fetchError": "Não foi possível ler essa página. Abra-a e use o bookmarklet, ou salve como favorito.",
-    "emptyPage": "Essa página não tem texto para salvar."
+    "emptyPage": "Essa página não tem texto para salvar.",
+    "screenshotCancelled": "A captura foi cancelada. Nada foi salvo."
   },
   "public": {
     "notFound": "Nota não encontrada",
@@ -471,7 +473,8 @@
     "savedLocal": "Gravação salva neste dispositivo. Ela é adicionada à nota quando a conexão voltar.",
     "addedLater": "Gravação adicionada à nota.",
     "addPage": "Adicionar outra página",
-    "scanPages": "{count, plural, one {# página} other {# páginas}}"
+    "scanPages": "{count, plural, one {# página} other {# páginas}}",
+    "scanTooBig": "A digitalização é grande demais para enviar. Suas páginas continuam aqui: remova algumas e tente de novo."
   },
   "signOut": {
     "title": "{count, plural, one {# mudança no Notes ainda não foi enviada} other {# mudanças no Notes ainda não foram enviadas}}",
@@ -560,7 +563,8 @@
     "requests": "Pedidos de acesso",
     "approveView": "Pode ver",
     "approveEdit": "Pode editar",
-    "deny": "Recusar"
+    "deny": "Recusar",
+    "deniedWait": "Seu pedido foi recusado. Você pode pedir de novo amanhã."
   },
   "email": {
     "title": "Email para Notes",
@@ -572,7 +576,7 @@
     "copy": "Copiar",
     "copied": "Copiado",
     "tipSubject": "O assunto é o título. Termine com @caderno e #etiqueta para organizar, por exemplo: Fatura @Financeiro #recibos",
-    "tipAttachments": "Imagens e PDFs entram na busca depois de lidos.",
+    "tipAttachments": "O texto de PDFs comuns entra na busca. Imagens, só se um admin ligou a leitura.",
     "rotate": "Pedir outro endereço",
     "rotateHint": "O endereço atual deixa de funcionar. Quem tiver o endereço pode adicionar notas à sua conta."
   },
@@ -595,12 +599,19 @@
     "untitled": "Sem título",
     "disableLink": "Desligar link",
     "transfer": "Transferir notas",
-    "transferHint": "Move todas as notas, cadernos, modelos e buscas salvas de uma pessoa para outra, para quando alguém sai. Notas bloqueadas continuam bloqueadas.",
+    "transferHint": "Quando alguém sai do workspace, move as notas, cadernos, modelos e buscas salvas dessa pessoa para outro membro atual, que não seja você. Quem tinha acesso compartilhado continua com ele. Cadernos de mesmo nome são unidos. Notas bloqueadas continuam bloqueadas. Cada transferência fica registrada.",
     "from": "De",
     "to": "Para",
     "transferAction": "Transferir",
     "transferConfirm": "Confirmar",
-    "transferDone": "Notas transferidas."
+    "transferDone": "Notas transferidas.",
+    "noFormer": "Ninguém que saiu tem notas aqui.",
+    "ocrTitle": "Ler imagens e digitalizações",
+    "ocrLabel": "Ler o texto de imagens e PDFs digitalizados novos",
+    "ocrHint": "Desligado por padrão. Ligado, os arquivos novos são enviados ao modelo de IA e usam a cota de IA do workspace. Os anteriores não são lidos. O texto de PDFs comuns sempre entra na busca, sem modelo.",
+    "auditTitle": "Atividade",
+    "auditTransfer": "Transferiu notas",
+    "auditLink": "Desligou um link público"
   },
   "annotate": {
     "open": "Anotar imagem ou PDF",
@@ -624,7 +635,9 @@
       "highlight": "Marca-texto",
       "box": "Caixa",
       "text": "Texto"
-    }
+    },
+    "tooBig": "A cópia é grande demais para enviar. Suas marcas continuam aqui.",
+    "truncated": "Só é possível anotar as primeiras {max} de {total} páginas. A cópia salva mantém todas."
   },
   "transcribe": {
     "open": "Transcrever áudio",
@@ -635,5 +648,10 @@
     "error": "Não foi possível transcrever o áudio.",
     "heading": "Transcrição",
     "speaker": "Pessoa {speaker}"
+  },
+  "fileText": {
+    "failed": "Não foi possível ler para a busca: {names}.",
+    "retry": "Tentar de novo",
+    "unnamed": "Arquivo sem nome"
   }
 }

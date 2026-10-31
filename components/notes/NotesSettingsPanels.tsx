@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
-import type { NotesAdminLink, NotesAdminMember } from '@/lib/notes-admin';
+import type { NotesAdminAuditEntry, NotesAdminLink, NotesAdminMember } from '@/lib/notes-admin';
 
 /** Dirección secreta para mandarse notas por email. */
 export function NotesEmailPanel() {
@@ -70,10 +70,10 @@ export function NotesEmailPanel() {
 }
 
 /** Consola de admin: uso por persona, links públicos y pasar notas entre personas. */
-export function NotesAdminPanel() {
+export function NotesAdminPanel({ selfId }: { selfId: string }) {
   const t = useTranslations('notes.admin');
   const format = useFormatter();
-  const [data, setData] = useState<{ members: NotesAdminMember[]; links: NotesAdminLink[] } | null>(null);
+  const [data, setData] = useState<{ members: NotesAdminMember[]; former: NotesAdminMember[]; links: NotesAdminLink[]; audit: NotesAdminAuditEntry[]; ocr: boolean } | null>(null);
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [from, setFrom] = useState('');
@@ -94,7 +94,7 @@ export function NotesAdminPanel() {
     void load();
   }, [load]);
 
-  async function post(body: Record<string, string>): Promise<boolean> {
+  async function post(body: Record<string, string | boolean>): Promise<boolean> {
     setBusy(true);
     setError(false);
     const res = await fetch('/api/notes/admin', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).catch(() => null);
@@ -128,6 +128,16 @@ export function NotesAdminPanel() {
           {t('error')}
         </p>
       )}
+      <section>
+        <h3 className="notes-settings-h">{t('ocrTitle')}</h3>
+        <label className="notes-clip-mode">
+          <input type="checkbox" checked={data.ocr} disabled={busy} onChange={(e) => void post({ action: 'ocr', enabled: e.target.checked })} />
+          <span>
+            <strong>{t('ocrLabel')}</strong>
+            <span className="ui-help">{t('ocrHint')}</span>
+          </span>
+        </label>
+      </section>
       <section>
         <h3 className="notes-settings-h">{t('people')}</h3>
         <div className="notes-admin-scroll">
@@ -180,45 +190,61 @@ export function NotesAdminPanel() {
       <section>
         <h3 className="notes-settings-h">{t('transfer')}</h3>
         <p className="ui-help">{t('transferHint')}</p>
-        <div className="notes-admin-transfer">
-          <select className="select" value={from} aria-label={t('from')} onChange={(e) => { setFrom(e.target.value); setConfirming(false); setDone(false); }}>
-            <option value="">{t('from')}</option>
-            {data.members.map((m) => (
-              <option key={m.id} value={m.id}>
-                {who(m)} ({m.notes})
-              </option>
-            ))}
-          </select>
-          <select className="select" value={to} aria-label={t('to')} onChange={(e) => { setTo(e.target.value); setConfirming(false); setDone(false); }}>
-            <option value="">{t('to')}</option>
-            {data.members.filter((m) => m.id !== from).map((m) => (
-              <option key={m.id} value={m.id}>
-                {who(m)}
-              </option>
-            ))}
-          </select>
-          {confirming ? (
-            <button
-              type="button"
-              className="btn btn-sm btn-danger"
-              aria-busy={busy}
-              onClick={() =>
-                void post({ action: 'transfer', from, to }).then((ok) => {
-                  setConfirming(false);
-                  setDone(ok);
-                })
-              }
-            >
-              {t('transferConfirm')}
-            </button>
-          ) : (
-            <button type="button" className="btn btn-sm" disabled={!from || !to || from === to} onClick={() => setConfirming(true)}>
-              {t('transferAction')}
-            </button>
-          )}
-        </div>
+        {data.former.length === 0 ? (
+          <p className="ui-help">{t('noFormer')}</p>
+        ) : (
+          <div className="notes-admin-transfer">
+            <select className="select" value={from} aria-label={t('from')} onChange={(e) => { setFrom(e.target.value); setConfirming(false); setDone(false); }}>
+              <option value="">{t('from')}</option>
+              {data.former.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {who(m)} ({m.notes})
+                </option>
+              ))}
+            </select>
+            <select className="select" value={to} aria-label={t('to')} onChange={(e) => { setTo(e.target.value); setConfirming(false); setDone(false); }}>
+              <option value="">{t('to')}</option>
+              {data.members.filter((m) => m.id !== selfId).map((m) => (
+                <option key={m.id} value={m.id}>
+                  {who(m)}
+                </option>
+              ))}
+            </select>
+            {confirming ? (
+              <button
+                type="button"
+                className="btn btn-sm btn-danger"
+                aria-busy={busy}
+                onClick={() =>
+                  void post({ action: 'transfer', from, to }).then((ok) => {
+                    setConfirming(false);
+                    setDone(ok);
+                  })
+                }
+              >
+                {t('transferConfirm')}
+              </button>
+            ) : (
+              <button type="button" className="btn btn-sm" disabled={!from || !to} onClick={() => setConfirming(true)}>
+                {t('transferAction')}
+              </button>
+            )}
+          </div>
+        )}
         {done && <p className="ui-help" role="status">{t('transferDone')}</p>}
       </section>
+      {data.audit.length > 0 && (
+        <section>
+          <h3 className="notes-settings-h">{t('auditTitle')}</h3>
+          <ul className="notes-admin-links">
+            {data.audit.map((a) => (
+              <li key={a.id} className="ui-help">
+                {format.dateTime(new Date(a.created_at), { dateStyle: 'medium', timeStyle: 'short' })} · {a.actor} · {t(a.action === 'transfer' ? 'auditTransfer' : 'auditLink')}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

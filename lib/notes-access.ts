@@ -10,7 +10,11 @@ import type { NoteOwner } from './notes';
 import { resolveNoteAccess, setNoteShare, type NoteShareRole } from './notes-shares';
 import { noteHref } from './notes-types';
 
-export type AccessGate = { status: 'can_request' | 'pending' | 'denied' };
+/** Después de un rechazo se puede volver a pedir recién pasado este tiempo. */
+export const ACCESS_RETRY_MS = 24 * 3_600_000;
+
+/** denied: rechazado y ya se puede volver a pedir. denied_wait: todavía no. */
+export type AccessGate = { status: 'can_request' | 'pending' | 'denied' | 'denied_wait' };
 
 async function foreignNote(viewer: NoteOwner, noteId: string): Promise<{ person_id: string; title: string } | null> {
   const row = (await getDb().prepare('SELECT person_id, workspace_id, title, trashed_at FROM notes WHERE id = ?').get(noteId)) as
@@ -24,15 +28,19 @@ async function foreignNote(viewer: NoteOwner, noteId: string): Promise<{ person_
 /** Null: no aplica (la nota no existe, es de otro workspace o ya tiene acceso). */
 export async function noteAccessGate(viewer: NoteOwner, noteId: string): Promise<AccessGate | null> {
   if (!(await foreignNote(viewer, noteId))) return null;
-  const req = (await getDb().prepare('SELECT status FROM note_access_requests WHERE note_id = ? AND requester_id = ?').get(noteId, viewer.personId)) as { status: string } | undefined;
+  const req = (await getDb().prepare('SELECT status, decided_at FROM note_access_requests WHERE note_id = ? AND requester_id = ?').get(noteId, viewer.personId)) as
+    | { status: string; decided_at: string | null }
+    | undefined;
   if (req?.status === 'pending') return { status: 'pending' };
-  if (req?.status === 'denied') return { status: 'denied' };
+  if (req?.status === 'denied') return { status: Date.now() - Date.parse(req.decided_at ?? '') < ACCESS_RETRY_MS ? 'denied_wait' : 'denied' };
   return { status: 'can_request' };
 }
 
 export async function requestNoteAccess(viewer: NoteOwner, noteId: string): Promise<boolean> {
   const note = await foreignNote(viewer, noteId);
   if (!note) return false;
+  // Recién rechazado: no se vuelve a molestar al dueño.
+  if ((await noteAccessGate(viewer, noteId))?.status === 'denied_wait') return true;
   const res = await getDb()
     .prepare(
       `INSERT INTO note_access_requests (id, note_id, requester_id, status, created_at) VALUES (?, ?, ?, 'pending', ?)
@@ -45,7 +53,7 @@ export async function requestNoteAccess(viewer: NoteOwner, noteId: string): Prom
     await createNotification({
       userId: note.person_id,
       type: 'note_access',
-      title: who?.name || who?.email || '',
+      title: `${who?.name || who?.email || 'Someone'} requested access to a note`,
       body: note.title || undefined,
       href: `${noteHref(noteId)}&requests=1`,
       sourceType: 'note',

@@ -5,9 +5,8 @@ import { createNote, noteOwner } from '@/lib/notes';
 import { noteClipSchema } from '@/lib/notes-schema';
 import { clipBlocks, noteEventPayload } from '@/lib/notes-types';
 import { invalidInput, jsonError, limitWrites } from '@/lib/write-limit';
-import { ClipFetchError, clipContentBlocks, fetchClipHtml } from '@/lib/notes-clip';
+import { CLIP_MAX_HTML, ClipFetchError, clipContentBlocks, fetchClipHtml } from '@/lib/notes-clip';
 import type { DocsBlock } from '@/lib/docs-types';
-import { processNoteFileQueue } from '@/lib/notes-file-text';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,7 +26,7 @@ export async function POST(req: NextRequest) {
   let content: DocsBlock[] = clipBlocks(url, mode === 'bookmark' ? '' : (selection ?? ''));
   if (mode === 'article' || mode === 'page') {
     try {
-      const source = html || (await fetchClipHtml(url));
+      const source = html ? Buffer.from(html).subarray(0, CLIP_MAX_HTML).toString() : await fetchClipHtml(url);
       const blocks = await clipContentBlocks(source, mode, url);
       if (!blocks.length) return jsonError(422, 'empty_page');
       content = [...clipBlocks(url, ''), ...blocks];
@@ -42,7 +41,6 @@ export async function POST(req: NextRequest) {
     content,
     tags: ['clip'],
   });
-  await processNoteFileQueue({ noteId: note.id, limit: 3 }).catch(() => undefined);
   await emitEventSoon(owner.workspaceId, 'note.created', noteEventPayload(note, owner.personId));
   return NextResponse.json(note, { status: 201 });
 }

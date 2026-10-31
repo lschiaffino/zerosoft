@@ -6,7 +6,7 @@
  * copian a la nota (hasta MAX_IMAGES); si no se pueden bajar quedan como link.
  */
 import type { DocsBlock } from './docs-types';
-import { safeFetch } from './safe-fetch';
+import { readTextCapped, safeFetch } from './safe-fetch';
 import { saveUpload, UploadError } from './uploads';
 
 export type ClipMode = 'bookmark' | 'selection' | 'article' | 'page';
@@ -223,8 +223,8 @@ export async function resolveClipImages(blocks: ClipBlock[]): Promise<DocsBlock[
       try {
         const res = await safeFetch(clipImage, {}, 8000, { maxRedirects: 3 });
         const mime = (res.headers.get('content-type') ?? '').split(';')[0].trim();
-        const buf = res.ok && mime.startsWith('image/') ? Buffer.from(await res.arrayBuffer()) : null;
-        if (buf && buf.length > 0 && buf.length <= MAX_IMAGE_BYTES) {
+        const buf = res.ok && mime.startsWith('image/') ? await readBytesCapped(res, MAX_IMAGE_BYTES) : null;
+        if (buf && buf.length > 0) {
           const name = decodeURIComponent(new URL(clipImage).pathname.split('/').pop() || 'image').slice(0, 120) || 'image';
           const url = await saveUpload('docs', name, mime, buf);
           saved = { ...block, url, name, size: buf.length, mime };
@@ -241,6 +241,26 @@ export async function resolveClipImages(blocks: ClipBlock[]): Promise<DocsBlock[
   return out;
 }
 
+/** Lee hasta `max` bytes y corta la descarga; null si el archivo es más grande. */
+export async function readBytesCapped(res: Response, max: number): Promise<Buffer | null> {
+  if (Number(res.headers.get('content-length') ?? 0) > max || !res.body) return res.body ? null : Buffer.alloc(0);
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done || !value) break;
+      total += value.byteLength;
+      if (total > max) return null;
+      chunks.push(value);
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+  return Buffer.concat(chunks);
+}
+
 export class ClipFetchError extends Error {}
 
 /** Baja la página (para recortes sin HTML del bookmarklet). */
@@ -249,7 +269,7 @@ export async function fetchClipHtml(url: string): Promise<string> {
   if (!res?.ok) throw new ClipFetchError('fetch_failed');
   const type = res.headers.get('content-type') ?? '';
   if (type && !/html|xml/i.test(type)) throw new ClipFetchError('not_html');
-  return (await res.text()).slice(0, CLIP_MAX_HTML);
+  return readTextCapped(res, CLIP_MAX_HTML);
 }
 
 /** Bloques finales de un recorte de artículo o página. */

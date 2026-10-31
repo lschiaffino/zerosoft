@@ -19,7 +19,15 @@ const patchSchema = z.object({
   note_id: z.string().min(1).max(64),
   block_id: z.string().min(1).max(64),
   checked: z.boolean().optional(),
-  due: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  due: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .refine((v) => {
+      const d = new Date(`${v}T00:00:00Z`);
+      return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+    }, 'invalid_date')
+    .nullable()
+    .optional(),
   assignee_id: z.string().min(1).max(128).nullable().optional(),
 });
 

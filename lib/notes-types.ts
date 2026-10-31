@@ -339,6 +339,6 @@ export function clipBookmarklet(origin: string, locale: string): string {
     'javascript:(function(){var s=window.getSelection?String(window.getSelection()):"";' +
     `var w=window.open("${base}?url="+encodeURIComponent(location.href)+"&title="+encodeURIComponent(document.title)+"&selection="+encodeURIComponent(s.slice(0,4000)),"zsclip","width=560,height=680");` +
     // La ventana avisa que está lista y recibe la página como la ve la persona (también con sesión).
-    `window.addEventListener("message",function(e){if(e.source===w&&e.data==="zs-clip-ready")w.postMessage({zsClipHtml:document.documentElement.outerHTML.slice(0,2000000)},"${origin}");});})();`
+    `window.addEventListener("message",function(e){if(e.source===w&&e.data==="zs-clip-ready")w.postMessage({zsClipHtml:new TextDecoder().decode(new TextEncoder().encode(document.documentElement.outerHTML).slice(0,2000000))},"${origin}");});})();`
   );
 }

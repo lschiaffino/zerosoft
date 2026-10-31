@@ -62,7 +62,8 @@
     "emptySharedBody": "When a teammate shares a note or a notebook with you, it shows up here.",
     "sharedBy": "from {name}",
     "semantic": "Search by meaning",
-    "semanticHint": "Finds notes by what they mean, even when they use other words. Uses your AI quota."
+    "semanticHint": "Finds notes by what they mean, even when they use other words. Uses your AI quota.",
+    "semanticDegraded": "Search by meaning is not available right now, so these results match keywords only."
   },
   "trash": {
     "confirmDelete": "Delete this note forever? This can't be undone.",
@@ -166,7 +167,8 @@
       "screenshot": "Pick a tab or window and save what it shows."
     },
     "fetchError": "Couldn't read that page. Open it and use the bookmarklet, or save it as a bookmark.",
-    "emptyPage": "That page has no text to save."
+    "emptyPage": "That page has no text to save.",
+    "screenshotCancelled": "Screen capture was cancelled. Nothing was saved."
   },
   "public": {
     "notFound": "Note not found",
@@ -471,7 +473,8 @@
     "savedLocal": "Recording saved on this device. It’s added to the note when you’re back online.",
     "addedLater": "Recording added to the note.",
     "addPage": "Add another page",
-    "scanPages": "{count, plural, one {# page} other {# pages}}"
+    "scanPages": "{count, plural, one {# page} other {# pages}}",
+    "scanTooBig": "The scan is too large to upload. Your pages are still here: remove some and try again."
   },
   "signOut": {
     "title": "{count, plural, one {# change in Notes isn’t uploaded yet} other {# changes in Notes aren’t uploaded yet}}",
@@ -560,7 +563,8 @@
     "requests": "Access requests",
     "approveView": "Can view",
     "approveEdit": "Can edit",
-    "deny": "Decline"
+    "deny": "Decline",
+    "deniedWait": "The owner declined your request. You can ask again tomorrow."
   },
   "email": {
     "title": "Email to Notes",
@@ -572,7 +576,7 @@
     "copy": "Copy",
     "copied": "Copied",
     "tipSubject": "The subject is the title. End it with @notebook and #tag to file it, for example: Invoice @Finance #receipts",
-    "tipAttachments": "Images and PDFs are searchable once they are read.",
+    "tipAttachments": "Text in regular PDFs is searchable. Images only if an admin turned on reading them.",
     "rotate": "Get a new address",
     "rotateHint": "The current address stops working. Anyone with the address can add notes to your account."
   },
@@ -595,12 +599,19 @@
     "untitled": "Untitled",
     "disableLink": "Turn off link",
     "transfer": "Transfer notes",
-    "transferHint": "Moves all notes, notebooks, templates and saved searches from one person to another, for when someone leaves. Locked notes stay locked.",
+    "transferHint": "When someone leaves the workspace, moves their notes, notebooks, templates and saved searches to a current member other than you. People they shared with keep access. Same-named notebooks are merged. Locked notes stay locked. Every transfer is logged.",
     "from": "From",
     "to": "To",
     "transferAction": "Transfer",
     "transferConfirm": "Confirm transfer",
-    "transferDone": "Notes transferred."
+    "transferDone": "Notes transferred.",
+    "noFormer": "Nobody who left has notes here.",
+    "ocrTitle": "Read images and scans",
+    "ocrLabel": "Read text in new images and scanned PDFs",
+    "ocrHint": "Off by default. When on, new files are sent to the AI model and use the workspace AI quota. Earlier files are not read. Text in regular PDFs is always searchable, no model involved.",
+    "auditTitle": "Activity",
+    "auditTransfer": "Transferred notes",
+    "auditLink": "Turned off a public link"
   },
   "annotate": {
     "open": "Annotate image or PDF",
@@ -624,7 +635,9 @@
       "highlight": "Highlight",
       "box": "Box",
       "text": "Text"
-    }
+    },
+    "tooBig": "The copy is too large to upload. Your marks are still here.",
+    "truncated": "Only the first {max} of {total} pages can be annotated. The saved copy keeps every page."
   },
   "transcribe": {
     "open": "Transcribe audio",
@@ -635,5 +648,10 @@
     "error": "Couldn't transcribe the audio.",
     "heading": "Transcript",
     "speaker": "Speaker {speaker}"
+  },
+  "fileText": {
+    "failed": "Couldn't read for search: {names}.",
+    "retry": "Try again",
+    "unnamed": "Unnamed file"
   }
 }

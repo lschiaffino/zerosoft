@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
+import { uploadDocsFile } from '@/lib/docs-upload-client';
 import PageHeader from '@/components/ui/PageHeader';
 import ClipBookmarklet from './ClipBookmarklet';
 
@@ -22,6 +23,11 @@ export default function NotesClipForm({ url, title, selection }: { url: string; 
   const [mode, setMode] = useState<'article' | 'page' | 'selection' | 'bookmark' | 'screenshot'>(selection ? 'selection' : 'article');
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const html = useRef<string | undefined>(undefined);
+  const [canCapture, setCanCapture] = useState(false);
+
+  useEffect(() => {
+    setCanCapture(typeof navigator.mediaDevices?.getDisplayMedia === 'function');
+  }, []);
 
   // El bookmarklet manda la página como la ve la persona (también con sesión).
   useEffect(() => {
@@ -61,11 +67,7 @@ export default function NotesClipForm({ url, title, selection }: { url: string; 
       });
       if (!res.ok) return null;
       const note = (await res.json()) as { id: string; content: unknown[]; updated_at: string };
-      const body = new FormData();
-      body.append('file', new File([blob], 'screenshot.png', { type: 'image/png' }));
-      const up = await fetch(`/api/notes/${note.id}/files`, { method: 'POST', body });
-      if (!up.ok) return null;
-      const file = (await up.json()) as { url: string; name: string; size: number; mime: string };
+      const file = await uploadDocsFile(new File([blob], 'screenshot.png', { type: 'image/png' }), { uploadUrl: `/api/notes/${note.id}/files` });
       const patch = await fetch(`/api/notes/${note.id}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
@@ -83,7 +85,10 @@ export default function NotesClipForm({ url, title, selection }: { url: string; 
     setState('saving');
     setErrorCode(null);
     if (mode === 'screenshot') {
-      const id = await screenshot().catch(() => null);
+      const id = await screenshot().catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === 'NotAllowedError') setErrorCode('screenshot_cancelled');
+        return null;
+      });
       if (!id) {
         setState('error');
         return;
@@ -177,7 +182,7 @@ export default function NotesClipForm({ url, title, selection }: { url: string; 
         </div>
         <fieldset className="ui-field notes-clip-modes">
           <legend className="label">{t('modeLabel')}</legend>
-          {(['article', 'page', 'selection', 'bookmark', 'screenshot'] as const).map((m) => (
+          {(['article', 'page', 'selection', 'bookmark', ...(canCapture ? (['screenshot'] as const) : [])] as const).map((m) => (
             <label key={m} className="notes-clip-mode">
               <input type="radio" name="clip-mode" value={m} checked={mode === m} onChange={() => setMode(m)} />
               <span>
@@ -198,7 +203,7 @@ export default function NotesClipForm({ url, title, selection }: { url: string; 
       </div>
       {state === 'error' && (
         <p className="ui-error" role="alert">
-          {errorCode === 'fetch_failed' ? t('fetchError') : errorCode === 'empty_page' ? t('emptyPage') : t('error')}
+          {errorCode === 'fetch_failed' ? t('fetchError') : errorCode === 'empty_page' ? t('emptyPage') : errorCode === 'screenshot_cancelled' ? t('screenshotCancelled') : t('error')}
         </p>
       )}
       <div className="notes-clip-actions">

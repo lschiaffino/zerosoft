@@ -195,6 +195,8 @@ test('Búsqueda: encuentra texto dentro de un PDF y de una imagen', async ({ pag
   await expect
     .poll(async () => ((await (await request.get(`/api/notes?q=${word}`)).json()) as { notes: Array<{ title: string }> }).notes.map((n) => n.title), { timeout: 20_000 })
     .toContain(title);
+  // Leer imágenes se prende por workspace.
+  expect((await request.post('/api/notes/admin', { data: { action: 'ocr', enabled: true } })).ok()).toBeTruthy();
   const imgTitle = `Con foto ${uid()}`;
   await fileNote(request, imgTitle, 'r.png', 'image/png', png(20, 20), 'image');
   // El OCR falso devuelve un texto fijo.
@@ -381,6 +383,9 @@ test('Pedir acceso: no se ve nada, el dueño aprueba y queda abierta', async ({ 
   await expect(other.getByText(title)).toHaveCount(0);
   await gate.getByRole('button', { name: 'Request access' }).click();
   await expect(gate.getByText('Request sent')).toBeVisible();
+  // Recargar mantiene la pantalla de pedido.
+  await other.reload();
+  await expect(other.getByTestId('note-access-gate').getByText('Request sent')).toBeVisible();
   await page.goto(`/en/app/notes?note=${note.id}&requests=1`);
   await page.getByRole('button', { name: 'Can edit' }).click();
   await expect(page.getByRole('button', { name: 'Can edit' })).toHaveCount(0);

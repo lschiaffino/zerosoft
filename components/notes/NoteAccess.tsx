@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 /** Pantalla de quien abre el link de una nota sin permiso: no ve nada de adentro, puede pedir acceso. */
-export function NoteAccessGate({ noteId, initial }: { noteId: string; initial: 'can_request' | 'pending' | 'denied' }) {
+export function NoteAccessGate({ noteId, initial }: { noteId: string; initial: 'can_request' | 'pending' | 'denied' | 'denied_wait' }) {
   const t = useTranslations('notes.access');
   const [status, setStatus] = useState(initial);
   const [busy, setBusy] = useState(false);
@@ -15,15 +15,15 @@ export function NoteAccessGate({ noteId, initial }: { noteId: string; initial: '
     setError(false);
     const res = await fetch(`/api/notes/${encodeURIComponent(noteId)}/access`, { method: 'POST' }).catch(() => null);
     setBusy(false);
-    if (res?.ok) setStatus('pending');
+    if (res?.ok) setStatus(((await res.json()) as { status: typeof status }).status);
     else setError(true);
   }
 
   return (
     <div className="notes-access-gate" data-testid="note-access-gate">
       <h1>{t('title')}</h1>
-      <p>{status === 'pending' ? t('pending') : status === 'denied' ? t('denied') : t('body')}</p>
-      {status !== 'pending' && (
+      <p>{status === 'pending' ? t('pending') : status === 'denied' ? t('denied') : status === 'denied_wait' ? t('deniedWait') : t('body')}</p>
+      {status !== 'pending' && status !== 'denied_wait' && (
         <button type="button" className="btn btn-primary" aria-busy={busy} onClick={() => void request()}>
           {status === 'denied' ? t('requestAgain') : t('request')}
         </button>

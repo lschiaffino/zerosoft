@@ -998,9 +998,7 @@
     "description": "Evernote gives every user a private address; forwarded emails become notes, and the subject line accepts @notebook and #tag shortcuts, up to 200 emails per day (https://help.evernote.com/hc/articles/209005347). We have no inbound capture besides the bookmarklet (app/api/notes has no email route), although the suite already sends and receives email through Resend and CRM email sync. Forwarding receipts, confirmations and threads is one of the fastest capture habits and works from any phone mail client. First scope: a per-person secret address shown in Notes settings, an inbound webhook that creates a note with subject as title and body as blocks, and @notebook and #tag parsing in the subject.\n\nPriority: medium. Effort: M. Compared with Evernote.",
     "product": "notes",
     "kind": "idea",
-    "parity": "email-to-note",
-    "status": "done",
-    "changelog": "2026-10-30-notes-parity-tasks-home"
+    "parity": "email-to-note"
   },
   {
     "title": "Notes: Support search operators like tag:, notebook:, intitle:, created: and todo:",
@@ -1984,9 +1982,7 @@
     "description": "Evernote searches text inside images and PDFs and, since 11.32, auto-generated image captions (https://releasebot.io/updates/evernote); Bear Pro does OCR on images and PDFs (https://bear.app/faq/features-and-price-of-bear-pro/). Notes stores attachments (app/api/notes/[id]/files) but search only looks at title, text blocks and tags, so receipts and scans imported from ENEX never show up. First scope: on upload (and for ENEX resources on import), extract PDF text and run OCR on images in a background job, store the text per attachment, include it in notes search and Ask your notes, and show 'Found in attachment' in the result.\n\nPriority: high. Effort: M. Compared with Evernote.",
     "product": "notes",
     "kind": "idea",
-    "parity": "ocr-search",
-    "status": "done",
-    "changelog": "2026-10-30-notes-parity-tasks-home"
+    "parity": "ocr-search"
   },
   {
     "title": "Notes: Save searches with operators as smart lists in the sidebar",

@@ -1,20 +1,23 @@
 'use client';
 
+import { DocsUploadError, uploadDocsFile } from '@/lib/docs-upload-client';
 import { useEffect, useRef, useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import type { DocsBlock } from '@/lib/docs-types';
-import { fileBlockFromUpload, type DocsUploadResult } from '@/lib/docs-files';
+import { fileBlockFromUpload } from '@/lib/docs-files';
 import { defaultQuad, detectQuad, enhanceDocument, outputSize, warpQuad, type Pt } from '@/lib/notes-scan';
 import { NotesModal } from './NotesModal';
 import NotesIcon from './NotesIcon';
 
 /** Sube un archivo a la nota y devuelve el bloque listo para insertar. */
 export async function uploadToNote(noteId: string, file: File, kind?: 'audio' | 'image'): Promise<DocsBlock | null> {
-  const body = new FormData();
-  body.append('file', file);
-  const res = await fetch(`/api/notes/${encodeURIComponent(noteId)}/files`, { method: 'POST', body }).catch(() => null);
-  if (!res?.ok) return null;
-  return fileBlockFromUpload((await res.json()) as DocsUploadResult, kind);
+  try {
+    return fileBlockFromUpload(await uploadDocsFile(file, { uploadUrl: `/api/notes/${encodeURIComponent(noteId)}/files` }), kind);
+  } catch (err) {
+    // Muy grande: lo avisa quien llamó, con lo hecho todavía en pantalla.
+    if (err instanceof DocsUploadError && err.code === 'file_too_large') throw err;
+    return null;
+  }
 }
 
 function pickMime(): { mime: string; ext: string } | null {
@@ -328,8 +331,9 @@ export function ScanDialog({
       if (!block) throw new Error('upload');
       onInsert([block, { id: crypto.randomUUID(), type: 'paragraph', content: '' }]);
       onClose();
-    } catch {
-      onError(t('uploadError'));
+    } catch (err) {
+      // El diálogo queda abierto con las páginas: no se pierde el escaneo.
+      onError(err instanceof DocsUploadError ? t('scanTooBig') : t('uploadError'));
     } finally {
       setBusy(false);
     }

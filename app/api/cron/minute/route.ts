@@ -67,7 +67,6 @@ export async function GET(req: NextRequest) {
   const chatEmails = await sendOfflineReplyEmails({ limit: 200 }).catch(() => null);
   const noteReminders = await fireNoteReminders({ limit: 200 }).catch(() => null);
   const noteTasks = await fireNoteTasksDue({ limit: 200 }).catch(() => null);
-  const noteFiles = await processNoteFileQueue({ limit: 10 }).catch(() => null);
   const noteEmbeddings = await warmNoteEmbeddings().catch(() => null);
   const docReminders = await fireDocReminders({ limit: 200 }).catch(() => null);
   const trackReminders = await fireIssueReminders({ limit: 200 }).catch(() => null);
@@ -106,5 +105,7 @@ export async function GET(req: NextRequest) {
   const imports = await processImportJobs({ budgetMs: Math.max(5_000, IMPORT_BUDGET_MS - (Date.now() - start)) }).catch(() => null);
   // Imports del CRM con lo que queda de los 300 s (dejando margen).
   const crmImports = await processCrmImportJobs({ budgetMs: Math.max(0, CRM_IMPORT_BUDGET_MS - (Date.now() - start)) }).catch(() => null);
+  // Notes: archivos para la búsqueda, al final y con tope de tiempo (no le saca el minuto a lo demás).
+  const noteFiles = await processNoteFileQueue({ limit: 10, budgetMs: 20_000 }).catch(() => null);
   return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, noteReminders, noteTasks, noteFiles, noteEmbeddings, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, groups, voice, crmAiRuns, docsEvents, docsSync, rec, shopExpired, talk, social, agentSitemaps, agentPages, agentSources, agentEmbeddings, flow, imports, crmImports });
 }

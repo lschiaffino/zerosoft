@@ -94,6 +94,45 @@ function paintHighlights(root: HTMLElement | null, terms: string[]): number {
   return ranges.length;
 }
 
+/** Archivos que no se pudieron leer para la búsqueda, con reintento. */
+function NoteFileFailures({ noteId, blocks, canRetry }: { noteId: string; blocks: DocsBlock[]; canRetry: boolean }) {
+  const t = useTranslations('notes.fileText');
+  const [failed, setFailed] = useState<string[]>([]);
+  const url = `/api/notes/${encodeURIComponent(noteId)}/file-text`;
+  useEffect(() => {
+    let live = true;
+    void fetch(url)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { failed: string[] } | null) => {
+        if (live && d) setFailed(d.failed);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [url]);
+  if (!failed.length) return null;
+  const names = failed.map((id) => blocks.find((b) => b.id === id)?.name || t('unnamed')).join(', ');
+  return (
+    <p className="note-file-failed" role="status" data-testid="note-file-failed">
+      {t('failed', { names })}
+      {canRetry && (
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={() => {
+            void fetch(url, { method: 'POST' }).then((r) => {
+              if (r.ok) setFailed([]);
+            });
+          }}
+        >
+          {t('retry')}
+        </button>
+      )}
+    </p>
+  );
+}
+
 /** Los chips de fecha de los todos, salvo sin red o en una nota bloqueada. */
 function MaybeTasks({ enabled, noteId, onError, children }: { enabled: boolean; noteId: string; onError: () => void; children: ReactNode }) {
   return enabled ? (
@@ -771,6 +810,7 @@ export default function NoteEditorPane({
         />
       )}
 
+      {!locked && !offline && <NoteFileFailures noteId={note.id} blocks={note.content} canRetry />}
       <div className="note-meta">
         {tags.map((tg) => (
           <span key={tg} className="note-tag">

@@ -32,20 +32,26 @@ async function noteDocs(owner: NoteOwner) {
   return rows.filter((r) => r.title.trim() || r.body_text.trim()).map((r) => ({ kind: 'note' as const, title: r.title, text: r.body_text || r.title, source: r.id }));
 }
 
-/** Ids de notas por relevancia (cada nota una vez). */
-export async function semanticNoteIds(owner: NoteOwner, q: string, limit = 20): Promise<string[]> {
+/** Ids de notas por relevancia (cada nota una vez). `degraded`: el modelo falló y son solo palabras clave. */
+export async function semanticNoteIds(owner: NoteOwner, q: string, limit = 20): Promise<{ ids: string[]; degraded: boolean }> {
   await ensureNotePrefsRow(owner);
   await getDb()
     .prepare('UPDATE note_prefs SET semantic_at = COALESCE(semantic_at, ?) WHERE workspace_id = ? AND person_id = ?')
     .run(new Date().toISOString(), owner.workspaceId, owner.personId);
   const docs = await noteDocs(owner);
-  const ranked = await hybridRank(owner.workspaceId, docs, q, limit * 2, { fake: fake() });
+  let degraded = false;
+  const ranked = await hybridRank(owner.workspaceId, docs, q, limit * 2, {
+    fake: fake(),
+    onFallback: () => {
+      degraded = true;
+    },
+  });
   const ids: string[] = [];
   for (const r of ranked) {
     if (r.source && !ids.includes(r.source)) ids.push(r.source);
     if (ids.length >= limit) break;
   }
-  return ids;
+  return { ids, degraded };
 }
 
 /** Cron: completa el índice de quienes ya usaron la búsqueda (claim por persona). */

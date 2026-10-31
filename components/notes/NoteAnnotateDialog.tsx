@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { DocsBlock } from '@/lib/docs-types';
+import { DocsUploadError } from '@/lib/docs-upload-client';
 import { noteFileHref } from '@/lib/notes-types';
 import { uploadToNote } from './NoteCapture';
 import { NotesModal } from './NotesModal';
@@ -96,6 +97,13 @@ function AnnotatePage({
       height={background.height}
       data-testid="annotate-canvas"
       role="img"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && tool === 'text') {
+          e.preventDefault();
+          onAskText(page, [0.1, 0.1]);
+        }
+      }}
       aria-label={t('pageLabel', { page: page + 1 })}
       onPointerDown={(e) => {
         const p = point(e);
@@ -148,6 +156,7 @@ export default function NoteAnnotateDialog({
   const [loadError, setLoadError] = useState(false);
   const [textAt, setTextAt] = useState<{ page: number; at: [number, number] } | null>(null);
   const [text, setText] = useState('');
+  const [truncated, setTruncated] = useState(0);
   const pdfBytes = useRef<ArrayBuffer | null>(null);
   const isPdf = target ? target.type !== 'image' : false;
 
@@ -191,7 +200,10 @@ export default function NoteAnnotateDialog({
         await page.render({ canvas: c, viewport }).promise;
         out.push(c);
       }
-      if (live) setPages(out);
+      if (live) {
+        setTruncated(doc.numPages > MAX_PDF_PAGES ? doc.numPages : 0);
+        setPages(out);
+      }
     })().catch(() => {
       if (live) setLoadError(true);
     });
@@ -242,8 +254,9 @@ export default function NoteAnnotateDialog({
       if (!block) throw new Error('upload');
       onInsert([isPdf ? { ...block, type: 'pdf' } : block, { id: crypto.randomUUID(), type: 'paragraph', content: '' }]);
       onClose();
-    } catch {
-      onError(t('saveError'));
+    } catch (err) {
+      // El diálogo queda abierto con las marcas: no se pierde el trabajo.
+      onError(err instanceof DocsUploadError ? t('tooBig') : t('saveError'));
     } finally {
       setBusy(false);
     }
@@ -334,6 +347,8 @@ export default function NoteAnnotateDialog({
           ) : !pages ? (
             <p className="ui-help" role="status">{t('loading')}</p>
           ) : (
+            <>
+            {truncated > 0 && <p className="ui-help">{t('truncated', { max: MAX_PDF_PAGES, total: truncated })}</p>}
             <div className="note-annotate-pages">
               {pages.map((bg, i) => (
                 <AnnotatePage
@@ -348,6 +363,7 @@ export default function NoteAnnotateDialog({
                 />
               ))}
             </div>
+            </>
           )}
         </>
       )}

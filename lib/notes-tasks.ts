@@ -7,6 +7,7 @@
  */
 import { getDb, type NoteRow } from './db';
 import type { DocsBlock } from './docs-types';
+import { personAppAccess } from './api-auth';
 import { createNotification } from './notifications';
 import { updateNote, type NoteOwner } from './notes';
 import { listNoteShares, noteShareCandidates, resolveNoteAccess, setNoteShare } from './notes-shares';
@@ -55,7 +56,12 @@ export async function listTasks(viewer: NoteOwner): Promise<NoteTask[]> {
        LIMIT ${MAX_NOTES}`,
     )
     .all(viewer.workspaceId, viewer.personId, viewer.personId)) as typeof own;
-  const notes = [...own, ...assigned];
+  // Solo las notas que la persona todavía puede abrir: un share sacado corta acá.
+  const reachable: typeof assigned = [];
+  for (const n of assigned) {
+    if (await resolveNoteAccess(viewer, n.id)) reachable.push(n);
+  }
+  const notes = [...own, ...reachable];
   if (!notes.length) return [];
   const metaRows = (await db
     .prepare(`SELECT note_id, block_id, due_date, assignee_id FROM note_tasks WHERE note_id IN (${notes.map(() => '?').join(',')})`)
@@ -127,8 +133,11 @@ export async function setTaskMeta(
   if (access.access === 'view') return 'forbidden';
   if (access.row.locked != null) return 'locked';
   const blocks = parseBlocks(access.row.content);
-  const block = blocks.find((b) => b.id === blockId && b.type === 'todo');
-  if (!block) return 'not_found';
+  // Un todo recién escrito todavía no llegó al servidor: la fila se guarda igual
+  // y toma efecto al guardarse. La vista de tareas sale de los bloques, así que
+  // una fila de un bloque que nunca llega no muestra nada.
+  const block = blocks.find((b) => b.id === blockId);
+  if (block && block.type !== 'todo') return 'not_found';
   const db = getDb();
   const cur = (await db.prepare('SELECT due_date, assignee_id FROM note_tasks WHERE note_id = ? AND block_id = ?').get(noteId, blockId)) as
     | { due_date: string | null; assignee_id: string | null }
@@ -157,7 +166,7 @@ export async function setTaskMeta(
     await createNotification({
       userId: assignee,
       type: 'note_task',
-      title: plainTodo(block).trim().slice(0, 140) || access.row.title,
+      title: `Task assigned to you: ${(block ? plainTodo(block).trim().slice(0, 140) : '') || access.row.title}`,
       body: access.row.title || undefined,
       href: noteHref(noteId),
       sourceType: 'note',
@@ -174,6 +183,7 @@ export async function setTaskChecked(viewer: NoteOwner, noteId: string, blockId:
   if (!access) return 'not_found';
   if (access.access === 'view') return 'forbidden';
   if (access.row.locked != null) return 'locked';
+  if (access.row.trashed_at) return 'not_found';
   const blocks = parseBlocks(access.row.content);
   if (!blocks.some((b) => b.id === blockId && b.type === 'todo')) return 'not_found';
   const note = await updateNote(access.owner, noteId, { content: blocks.map((b) => (b.id === blockId ? { ...b, checked } : b)) });
@@ -186,7 +196,7 @@ export async function fireNoteTasksDue(opts: { limit?: number; now?: Date } = {}
   const now = opts.now ?? new Date();
   const rows = (await db
     .prepare(
-      `SELECT t.note_id, t.block_id, t.assignee_id, n.person_id, n.title, n.content FROM note_tasks t
+      `SELECT t.note_id, t.block_id, t.assignee_id, n.person_id, n.workspace_id, n.title, n.content FROM note_tasks t
        JOIN notes n ON n.id = t.note_id
        WHERE t.due_date IS NOT NULL AND t.due_date <= ? AND t.notified_at IS NULL AND n.trashed_at IS NULL AND n.locked IS NULL
        LIMIT ?`,
@@ -196,6 +206,7 @@ export async function fireNoteTasksDue(opts: { limit?: number; now?: Date } = {}
     block_id: string;
     assignee_id: string | null;
     person_id: string;
+    workspace_id: string;
     title: string;
     content: string;
   }>;
@@ -205,10 +216,17 @@ export async function fireNoteTasksDue(opts: { limit?: number; now?: Date } = {}
     if (claim.changes === 0) continue;
     const block = parseBlocks(r.content).find((b) => b.id === r.block_id);
     if (!block || block.type !== 'todo' || block.checked) continue;
+    // Solo a quien todavía puede abrir la nota; si no, al dueño (y se limpia la asignación).
+    let recipient = r.person_id;
+    if (r.assignee_id && r.assignee_id !== r.person_id) {
+      const member = await personAppAccess(r.workspace_id, r.assignee_id);
+      if (member && (await resolveNoteAccess({ workspaceId: r.workspace_id, personId: r.assignee_id }, r.note_id))) recipient = r.assignee_id;
+      else await db.prepare('UPDATE note_tasks SET assignee_id = NULL WHERE note_id = ? AND block_id = ?').run(r.note_id, r.block_id);
+    }
     await createNotification({
-      userId: r.assignee_id ?? r.person_id,
+      userId: recipient,
       type: 'note_task',
-      title: plainTodo(block).trim().slice(0, 140) || r.title,
+      title: `Task due: ${plainTodo(block).trim().slice(0, 140) || r.title}`,
       body: r.title || undefined,
       href: noteHref(r.note_id),
       sourceType: 'note',

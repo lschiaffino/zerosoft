@@ -63,10 +63,21 @@ export default function NotesHome({ notebooks, tags, searches, onOpenNote, onCho
     setData({ recent: recent ?? [], pinned: pinned ?? [], shared: shared ?? [], tasks: tasks ?? [], events: events ?? [] });
   }, []);
 
+  // Salir o cerrar dentro de la espera: lo último se manda igual (keepalive).
+  const pendingScratch = useRef<string | null>(null);
   useEffect(() => {
     void load();
+    const flush = () => {
+      if (pendingScratch.current === null) return;
+      const value = pendingScratch.current;
+      pendingScratch.current = null;
+      void fetch('/api/notes/prefs', { method: 'PATCH', keepalive: true, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ scratch: value }) }).catch(() => undefined);
+    };
+    window.addEventListener('pagehide', flush);
     return () => {
+      window.removeEventListener('pagehide', flush);
       if (timer.current) clearTimeout(timer.current);
+      flush();
     };
   }, [load]);
 
@@ -79,11 +90,13 @@ export default function NotesHome({ notebooks, tags, searches, onOpenNote, onCho
   function changeScratch(value: string) {
     setScratch(value);
     setScratchState('saving');
+    pendingScratch.current = value;
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => void persistScratch(value), SCRATCH_DEBOUNCE_MS);
   }
 
   async function persistScratch(value: string) {
+    pendingScratch.current = null;
     const res = await fetch('/api/notes/prefs', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ scratch: value }) }).catch(() => null);
     setScratchState(res?.ok ? 'saved' : 'error');
   }

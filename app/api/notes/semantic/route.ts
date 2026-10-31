@@ -21,8 +21,8 @@ export async function GET(req: NextRequest) {
   const limited = await limitWrites('notes:semantic', owner.personId, 60);
   if (limited) return limited;
   try {
-    const ids = await semanticNoteIds(owner, q);
-    if (!ids.length) return NextResponse.json({ notes: [] });
+    const { ids, degraded } = await semanticNoteIds(owner, q);
+    if (!ids.length) return NextResponse.json({ notes: [], degraded });
     const rows = (await getDb()
       .prepare(`SELECT * FROM notes WHERE id IN (${ids.map(() => '?').join(',')}) AND workspace_id = ? AND person_id = ?`)
       .all(...ids, owner.workspaceId, owner.personId)) as NoteRow[];
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
         updated_at: r.updated_at,
       }];
     });
-    return NextResponse.json({ notes });
+    return NextResponse.json({ notes, degraded });
   } catch (err) {
     if (err instanceof AiError) return jsonError(err.code === 'ai_disabled' ? 503 : 429, err.code);
     throw err;
