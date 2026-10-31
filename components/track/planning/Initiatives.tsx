@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent, type KeyboardEvent, useRef } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
@@ -268,6 +268,15 @@ export function InitiativePage({ initiativeId }: { initiativeId: string }) {
   const [plans, setPlans] = useState<PlanSummary[]>([]);
   const [meta, setMeta] = useState<PlansMeta | null>(null);
   const [name, setName] = useState('');
+  // Esc descarta: el blur que le sigue no guarda (leería el borrador de antes de restaurarlo).
+  const cancelled = useRef(false);
+  const unlessCancelled = (fn: () => void) => () => {
+    if (cancelled.current) {
+      cancelled.current = false;
+      return;
+    }
+    fn();
+  };
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [pick, setPick] = useState('');
@@ -327,6 +336,7 @@ export function InitiativePage({ initiativeId }: { initiativeId: string }) {
   const enter = (e: KeyboardEvent<HTMLElement>) => {
     if (e.key === 'Enter') (e.target as HTMLElement).blur();
     if (e.key === 'Escape') {
+      cancelled.current = true;
       setName(ini.name);
       (e.target as HTMLElement).blur();
     }
@@ -352,7 +362,7 @@ export function InitiativePage({ initiativeId }: { initiativeId: string }) {
           value={name}
           maxLength={200}
           onValueChange={setName}
-          onBlur={() => (name.trim() && name.trim() !== ini.name ? void patch({ name: name.trim() }) : setName(ini.name))}
+          onBlur={unlessCancelled(() => (name.trim() && name.trim() !== ini.name ? void patch({ name: name.trim() }) : setName(ini.name)))}
           onKeyDown={enter}
           data-testid="tp-initiative-name"
         />

@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { apiErrorText, ApiError } from '@/components/analytics/client';
-import { APP_SECTIONS, isAppSection } from '@/lib/app-sections';
+import { APP_SECTIONS, isAppSection, sectionTakesId } from '@/lib/app-sections';
 import { notificationTitle, type NotificationTextLabels } from '@/lib/notification-text';
 import { PRODUCT_CONFIG, PRODUCT_KEYS, productSettingsHref } from '@/lib/products';
 
@@ -31,6 +31,12 @@ describe('Secciones de las apps de una sola ruta (404 real)', () => {
       expect(cases.length).toBeGreaterThan(0);
       for (const section of cases) expect(isAppSection(app, section), `${app}/${section}`).toBe(true);
     }
+  });
+
+  it('una pantalla única no acepta id', () => {
+    expect(sectionTakesId('sign', 'settings', 'x')).toBe(false);
+    expect(sectionTakesId('sign', 'envelopes', 'x')).toBe(true);
+    expect(sectionTakesId('sign', 'settings', undefined)).toBe(true);
   });
 
   it('sin sección es la home; una desconocida no pasa', () => {

@@ -676,7 +676,7 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
 .list-rules-match { display: flex; align-items: center; gap: 8px; font-size: 0.875rem; }
 .list-rules-rows { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; width: 100%; }
 .list-rule { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.list-rule-join { font-size: 11px; color: var(--dim); text-transform: uppercase; }
+.list-rule-join { font-size: 12px; color: var(--dim); }
 .list-rule .filter-builder-row { flex-wrap: wrap; }
 .list-rule .filter-builder-row > .select,
 .list-rule .filter-builder-row > .input { width: auto; min-width: 0; }

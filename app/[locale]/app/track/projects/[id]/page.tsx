@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { requireUser } from '@/lib/session';
 import { getDb } from '@/lib/db';
 import { teamPath } from '@/lib/track-routes';
@@ -30,6 +30,7 @@ export default async function Page(props: {
       }
       redirect(`/${locale}${teamPath(team)}${sp.size ? `?${sp}` : ''}`);
     }
+    notFound();
   }
   return (
     <div className="app-page track-page ui-page tp-page">

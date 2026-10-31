@@ -89,6 +89,7 @@ function StoreTab({ store, storeUrl, canAdmin }: { store: StoreDto; storeUrl: st
   const url = storeUrl;
   return (
     <form className="ui-section" onSubmit={save}>
+      <div className="ui-section-body">
       <label className="ui-field">
         <span className="label">{t('settings.name')}</span>
         <input className="input" required maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
@@ -130,6 +131,7 @@ function StoreTab({ store, storeUrl, canAdmin }: { store: StoreDto; storeUrl: st
       <p className="ui-help">{t('settings.publishedHelp')}</p>
       {!canAdmin && <p className="ui-help">{t('settings.adminOnlyStore')}</p>}
       <p className="ui-help">{t('settings.customDomain')}</p>
+      </div>
       <div className="ui-section-foot">
         <button type="submit" className="btn btn-primary" aria-busy={busy} disabled={busy}>
           {t('common.save')}
@@ -161,6 +163,7 @@ function ThemeTab({ store }: { store: StoreDto }) {
   };
   return (
     <form className="ui-section" onSubmit={save}>
+      <div className="ui-section-body">
       <fieldset className="ui-field shop-fieldset">
         <legend className="label">{t('settings.theme')}</legend>
         <div className="shop-themes">
@@ -225,6 +228,7 @@ function ThemeTab({ store }: { store: StoreDto }) {
         <span className="label">{t('settings.announcement')}</span>
         <input className="input" maxLength={160} value={brand.announcement} onChange={(e) => setBrand({ ...brand, announcement: e.target.value })} />
       </label>
+      </div>
       <div className="ui-section-foot">
         <button type="submit" className="btn btn-primary" aria-busy={busy} disabled={busy}>
           {t('common.save')}
@@ -385,6 +389,7 @@ function ShippingTab({ initial, currency }: { initial: ShippingRate[]; currency:
   };
   return (
     <form className="ui-section" onSubmit={save}>
+      <div className="ui-section-body">
       <p className="ui-help">{t('settings.shippingHelp')}</p>
       {rates.length === 0 && <p className="ui-help">{t('settings.noRates')}</p>}
       {rates.map((r, i) => (
@@ -452,6 +457,7 @@ function ShippingTab({ initial, currency }: { initial: ShippingRate[]; currency:
         </button>
       </div>
       {toast}
+      </div>
     </form>
   );
 }
@@ -471,6 +477,7 @@ function TaxesTab({ initial, included }: { initial: TaxRate[]; included: boolean
   };
   return (
     <form className="ui-section" onSubmit={save}>
+      <div className="ui-section-body">
       <label className="ui-check">
         <input type="checkbox" checked={taxIncluded} onChange={(e) => setTaxIncluded(e.target.checked)} />
         <span>{t('settings.taxIncluded')}</span>
@@ -500,6 +507,7 @@ function TaxesTab({ initial, included }: { initial: TaxRate[]; included: boolean
         </button>
       </div>
       {toast}
+      </div>
     </form>
   );
 }

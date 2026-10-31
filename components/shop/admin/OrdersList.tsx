@@ -59,7 +59,7 @@ export default function OrdersList({ initial, total, currency, q, status }: { in
                 <th scope="col" className="shop-hide-sm">
                   {t('orders.colDate')}
                 </th>
-                <th scope="col">{t('orders.colCustomer')}</th>
+                <th scope="col" className="shop-hide-xs">{t('orders.colCustomer')}</th>
                 <th scope="col">{t('orders.colStatus')}</th>
                 <th scope="col" className="num">
                   {t('orders.colTotal')}
@@ -73,9 +73,10 @@ export default function OrdersList({ initial, total, currency, q, status }: { in
                     <Link href={`/app/shop/orders/${o.id}`} className="data">
                       #{o.number}
                     </Link>
+                    <span className="shop-show-xs">{o.name || o.email}</span>
                   </th>
                   <td className="shop-hide-sm">{date(o.createdAt)}</td>
-                  <td className="shop-ellipsis">{o.name || o.email}</td>
+                  <td className="shop-ellipsis shop-hide-xs">{o.name || o.email}</td>
                   <td>
                     <StatusBadge status={o.status} />
                   </td>

@@ -28,6 +28,7 @@
 .hr-rowtitle { display: block; font-weight: 600; overflow-wrap: break-word; }
 .hr-rowmeta { display: block; color: var(--muted); font-size: 0.875rem; overflow-wrap: break-word; }
 .hr-ml { margin-left: 6px; }
+.hr-show-sm { display: none; }
 .hr-check-col { width: 36px; }
 .hr-panel-title { margin: 0 0 12px; font-size: 0.9375rem; font-weight: 700; }
 .hr-head-meta { display: inline-flex; flex-wrap: wrap; gap: 10px; align-items: center; }
@@ -236,6 +237,8 @@ a.hr-list-row:hover .hr-list-main { text-decoration: underline; }
 
 @media (max-width: 640px) {
   .hr-hide-sm { display: none; }
+  .hr-table .hr-rowmeta { overflow-wrap: anywhere; }
+  .hr-table .hr-show-sm { display: block; }
   .hr-stagebar-actions { width: 100%; }
   .hr-stagebar-actions .select { flex: 1; min-width: 0; }
   .hr-bulk-group { flex-wrap: wrap; }

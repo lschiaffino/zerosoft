@@ -19,3 +19,16 @@ export function isAppSection(app: keyof typeof APP_SECTIONS, section: string | u
   const prefix = ID_PREFIX[app];
   return prefix !== undefined && section.startsWith(prefix);
 }
+
+/** Secciones de una sola pantalla: /app/sign/settings/x no existe. */
+const NO_ID: Record<keyof typeof APP_SECTIONS, readonly string[]> = {
+  sign: ['new', 'settings'],
+  shop: ['inventory', 'analytics', 'settings'],
+  books: ['quotes', 'accounts', 'settings'],
+  people: ['org', 'time-off', 'reports', 'settings', 'welcome'],
+  hiring: ['reports', 'templates', 'settings'],
+};
+
+export function sectionTakesId(app: keyof typeof APP_SECTIONS, section: string | undefined, id: string | undefined): boolean {
+  return !id || !section || !NO_ID[app].includes(section);
+}

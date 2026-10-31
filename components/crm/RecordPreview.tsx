@@ -167,6 +167,7 @@ function contactName(c: PreviewContact): string {
 
 export default function RecordPreview({ type, id, locale, onClose }: RecordPreviewProps) {
   const t = useTranslations('crm');
+  const plural = type === 'company' ? 'companies' : `${type}s`;
   const [payload, setPayload] = useState<PreviewPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -175,7 +176,7 @@ export default function RecordPreview({ type, id, locale, onClose }: RecordPrevi
     let cancelled = false;
     setLoading(true);
     setError(false);
-    fetch(`/api/crm/${type}s/${id}`)
+    fetch(`/api/crm/${plural}/${id}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!cancelled) {
@@ -193,10 +194,11 @@ export default function RecordPreview({ type, id, locale, onClose }: RecordPrevi
     return () => {
       cancelled = true;
     };
-  }, [type, id]);
+  }, [plural, id]);
 
   // Es un diálogo: el foco entra al abrir y vuelve a donde estaba al cerrar.
   const closeRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     closeRef.current?.focus();
@@ -207,12 +209,26 @@ export default function RecordPreview({ type, id, locale, onClose }: RecordPrevi
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose();
+      if (e.key !== 'Tab') return;
+      // El foco no sale del diálogo.
+      const items = Array.from(panelRef.current?.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input, select, textarea, [tabindex="0"]') ?? []);
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      if (e.shiftKey && (active === first || !panelRef.current?.contains(active))) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (active === last || !panelRef.current?.contains(active))) {
+        e.preventDefault();
+        first.focus();
+      }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const detailHref = `/app/crm/${type}s/${id}`;
+  const detailHref = `/app/crm/${plural}/${id}`;
 
   // Pre-fill del booking: contacto directo, o primer contacto del deal.
   let prefillName: string | undefined;
@@ -521,6 +537,7 @@ export default function RecordPreview({ type, id, locale, onClose }: RecordPrevi
   return (
     <div className="preview-overlay" onClick={onClose} role="presentation">
       <aside
+        ref={panelRef}
         className="preview-panel"
         onClick={(e) => e.stopPropagation()}
         role="dialog"

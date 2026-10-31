@@ -79,6 +79,19 @@ const INTERACTIVE = 'button, a[href], input, textarea, select, [role="button"], 
  * guardar, adjuntar…) o queda fuera de la pantalla; si todas chocan, no se
  * muestra (el atajo sigue andando).
  */
+/** ¿Hay texto de este elemento en ese punto? El botón no se apoya sobre un título ni una migaja. */
+function hasTextAt(el: Element, x: number, y: number): boolean {
+  for (const node of el.childNodes) {
+    if (node.nodeType !== Node.TEXT_NODE || !node.nodeValue?.trim()) continue;
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    for (const r of range.getClientRects()) {
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return true;
+    }
+  }
+  return false;
+}
+
 function useBarPosition(field: HTMLElement | null, barRef: RefObject<HTMLButtonElement | null>): { top: number; left: number } | null {
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   useEffect(() => {
@@ -119,6 +132,7 @@ function useBarPosition(field: HTMLElement | null, barRef: RefObject<HTMLButtonE
             if (el === barRef.current || barRef.current?.contains(el)) continue;
             if (el === field || field.contains(el)) return false;
             if (el.closest(INTERACTIVE)) return false;
+            if (hasTextAt(el, x, y)) return false;
           }
         }
         return true;

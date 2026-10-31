@@ -36,6 +36,8 @@ import '@/styles/color.css';
 import '@/styles/voice-host.css';
 import '@/styles/workspace.css';
 import '@/styles/assistant.css';
+import NavProgress from '@/components/app/NavProgress';
+import { Suspense } from 'react';
 
 export const dynamic = 'force-dynamic';
 
@@ -616,6 +618,9 @@ export default async function AppLayout(
           }}
         />
         <div className="app-main-scroll">
+          <Suspense fallback={null}>
+            <NavProgress />
+          </Suspense>
           <main className="app-content">{children}</main>
         </div>
         <CommandSearch />

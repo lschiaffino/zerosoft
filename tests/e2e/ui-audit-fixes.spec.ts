@@ -50,6 +50,74 @@ test('un título largo editable se lee entero y Enter confirma sin agregar salto
   await expect(title).not.toBeFocused();
 });
 
+test('los títulos editables conservan el tamaño y el peso de su app', async ({ page, request }) => {
+  const plan = await request.post('/api/track/plans', { data: { name: LONG } });
+  expect(plan.ok()).toBeTruthy();
+  const { id } = (await plan.json()) as { id: string };
+  await page.goto(`/en/app/track/projects/${id}`, { waitUntil: 'networkidle' });
+  const title = page.getByTestId('tp-plan-name');
+  await expect(title).toHaveValue(LONG);
+  expect(await title.evaluate((el) => [getComputedStyle(el).fontSize, getComputedStyle(el).fontWeight])).toEqual(['24px', '700']);
+
+  // Esc descarta lo escrito: no se guarda.
+  await title.fill('Borrador descartado');
+  await page.keyboard.press('Escape');
+  await expect(title).toHaveValue(LONG);
+  await page.reload({ waitUntil: 'networkidle' });
+  await expect(page.getByTestId('tp-plan-name')).toHaveValue(LONG);
+
+  const form = await request.post('/api/forms', { data: { name: LONG, template: null, lang: 'en' } });
+  expect(form.ok()).toBeTruthy();
+  const created = (await form.json()) as { id?: string; form?: { id: string } };
+  await page.goto(`/en/app/forms/${created.id ?? created.form?.id}`, { waitUntil: 'networkidle' });
+  const name = page.locator('#fm-name');
+  await expect(name).toHaveValue(LONG);
+  expect(await name.evaluate((el) => [getComputedStyle(el).fontSize, getComputedStyle(el).fontWeight])).toEqual(['21.6px', '700']);
+});
+
+test('una navegación lenta da respuesta y las estáticas conservan el esqueleto', async ({ page }) => {
+  await page.goto('/en/app/settings', { waitUntil: 'networkidle' });
+  await page.route('**/app/sign/settings**', async (route) => {
+    await new Promise((r) => setTimeout(r, 1500));
+    await route.continue();
+  });
+  await page.locator('.st-nav a[href$="/app/sign/settings"]').click();
+  await expect(page.getByTestId('nav-progress')).toBeVisible();
+  await expect(page).toHaveURL(/\/app\/sign\/settings/);
+  await expect(page.getByTestId('nav-progress')).toHaveCount(0);
+});
+
+test('los registros desconocidos responden 404 y los válidos abren', async ({ request }) => {
+  for (const path of ['people/emp_zzz', 'people/reviews/zzz', 'shop/products/zzz', 'shop/orders/zzz', 'books/invoices/zzz', 'books/contacts/zzz', 'hiring/jobs/zzz', 'hiring/candidates/zzz', 'sign/envelopes/zzz', 'sign/templates/zzz', 'sign/settings/x', 'agents/zzz', 'analytics/insights/zzz', 'analytics/dashboards/zzz', 'analytics/flags/zzz', 'analytics/persons/zzz', 'calendar/event-types/zzz', 'calendar/polls/zzz', 'links/zzz', 'rec/zzz', 'robots/zzz', 'social/posts/zzz', 'talk/zzz', 'voice/meetings/zzz', 'track/projects/zzz']) {
+    expect((await request.get(`/en/app/${path}`)).status(), path).toBe(404);
+  }
+  for (const path of ['agents', 'agents/settings', 'analytics', 'analytics/insights', 'analytics/insights/new', 'calendar', 'calendar/polls', 'links', 'links/new', 'rec', 'rec/new', 'robots', 'robots/recorder', 'social', 'social/posts', 'talk', 'voice', 'books/invoices/new', 'shop/products/new', 'hiring/jobs/new', 'docs/import']) {
+    expect((await request.get(`/en/app/${path}`, { maxRedirects: 2 })).status(), path).toBe(200);
+  }
+  // Registros reales recién creados.
+  const job = (await (await request.post('/api/hiring/jobs', { data: { title: `J ${uid()}` } })).json()) as { id?: string; job?: { id: string } };
+  expect((await request.get(`/en/app/hiring/jobs/${job.id ?? job.job?.id}`)).status()).toBe(200);
+  const robot = (await request.get('/api/robots')).ok();
+  expect(robot).toBeTruthy();
+  const link = (await (await request.post('/api/links', { data: { url: 'https://example.com/a', slug: `l-${uid()}` } })).json()) as { id: string };
+  expect((await request.get(`/en/app/links/${link.id}`)).status()).toBe(200);
+});
+
+test('Vista previa de empresa: carga y atrapa el foco', async ({ page, request }) => {
+  await request.post('/api/crm/companies', { data: { name: `Preview ${uid()}` } });
+  await page.goto('/en/app/crm/companies', { waitUntil: 'networkidle' });
+  await page.locator('.preview-btn').first().click();
+  const panel = page.locator('.preview-panel');
+  await expect(panel.locator('.preview-close')).toBeFocused();
+  await expect(panel).not.toContainText(/couldn.t load|failed/i);
+  for (let i = 0; i < 12; i++) {
+    await page.keyboard.press('Tab');
+    expect(await panel.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+  }
+  await page.keyboard.press('Escape');
+  await expect(panel).toHaveCount(0);
+});
+
 test('las secciones y registros desconocidos responden 404', async ({ request }) => {
   for (const path of ['sign/zzz', 'shop/zzz', 'books/zzz', 'people/zzz', 'hiring/zzz', 'forms/zzz', 'crm/contacts/zzz', 'crm/companies/zzz', 'crm/deals/zzz', 'crm/leads/zzz', 'docs/zzz']) {
     const res = await request.get(`/en/app/${path}`);

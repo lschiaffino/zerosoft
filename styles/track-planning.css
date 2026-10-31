@@ -420,3 +420,10 @@
   display: inline-flex;
   gap: 2px;
 }
+
+/* Roadmap, "Sin fechas": nombre y ayuda; la grilla de cinco columnas es de las listas. */
+.tp-roadmap .tp-row { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); grid-template-areas: none; }
+.tp-roadmap .tp-row-link { grid-area: auto; }
+@media (max-width: 720px) {
+  .tp-roadmap .tp-row { grid-template-columns: minmax(0, 1fr); gap: 2px; padding-block: 8px; }
+}

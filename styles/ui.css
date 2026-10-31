@@ -715,7 +715,8 @@ dialog.ui-drawer[open] { display: flex; }
 .ui-page-header-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 /* Con un título editable el bloque toma el ancho libre: un <textarea> no tiene ancho propio que dar. */
 .ui-page-header-text:has(.ui-title-input) { flex: 1 1 320px; }
-textarea.ui-title-input.ui-title-input {
+/* Sin especificidad: cada app fija el tamaño y el peso de su título (.tp-title-input, .fm-name). */
+:where(textarea.ui-title-input) {
   display: block;
   width: 100%;
   min-width: 0;
@@ -724,10 +725,11 @@ textarea.ui-title-input.ui-title-input {
   field-sizing: content;
   font: inherit;
   letter-spacing: inherit;
-  line-height: 1.2;
   color: inherit;
   overflow-wrap: anywhere;
 }
+/* Varias apps declaran font: inherit, que traería el interlineado apretado del h1 y cortaría las letras. */
+textarea.ui-title-input.ui-title-input { line-height: 1.2; }
 .ui-page-back { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--brand-gray-2); text-decoration: none; }
 .ui-page-back:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .ui-page-title {
@@ -978,4 +980,37 @@ section.ui-section { padding: 0; }
 .hr-filter.select, .fm-filter.select, .sc-inbox-filters .select { width: auto; flex: 0 1 200px; min-width: 0; max-width: 100%; }
 @media (max-width: 480px) {
   .hr-filter.select, .fm-filter.select, .sc-inbox-filters .select { flex: 1 1 100%; }
+}
+
+/* Navegación en curso: aparece tras una pausa corta para no parpadear en las rápidas. */
+.nav-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  height: 2px;
+  background: var(--accent, var(--ink));
+  transform-origin: left;
+  animation: nav-progress 8s cubic-bezier(0.1, 0.7, 0.2, 1) 120ms both;
+}
+@keyframes nav-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(0.92); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-progress { animation: none; }
+}
+
+/* Rótulos de la app: fuente de UI y sentence case. La mono queda para los datos. */
+.app-frame .section-label,
+.app-frame .stat-label,
+.app-frame .stat-card .stat-label,
+.app-frame .panel-more,
+.app-frame .chip,
+.app-frame .tl-count {
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  letter-spacing: 0;
+  text-transform: none;
 }

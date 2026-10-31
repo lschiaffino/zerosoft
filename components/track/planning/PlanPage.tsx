@@ -44,6 +44,15 @@ export default function PlanPage({ planId }: { planId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [name, setName] = useState('');
+  // Esc descarta: el blur que le sigue no guarda (leería el borrador de antes de restaurarlo).
+  const cancelled = useRef(false);
+  const unlessCancelled = (fn: () => void) => () => {
+    if (cancelled.current) {
+      cancelled.current = false;
+      return;
+    }
+    fn();
+  };
   const [summary, setSummary] = useState('');
   // "Write update" lleva a Updates con el foco en el texto.
   const [focusCompose, setFocusCompose] = useState(false);
@@ -126,6 +135,7 @@ export default function PlanPage({ planId }: { planId: string }) {
   const enter = (e: KeyboardEvent<HTMLElement>) => {
     if (e.key === 'Enter') (e.target as HTMLElement).blur();
     if (e.key === 'Escape') {
+      cancelled.current = true;
       setName(plan.name);
       setSummary(plan.summary);
       (e.target as HTMLElement).blur();
@@ -150,7 +160,7 @@ export default function PlanPage({ planId }: { planId: string }) {
             value={name}
             maxLength={200}
             onValueChange={setName}
-            onBlur={() => void saveName()}
+            onBlur={unlessCancelled(() => void saveName())}
             onKeyDown={enter}
             data-testid="tp-plan-name"
           />
@@ -162,7 +172,7 @@ export default function PlanPage({ planId }: { planId: string }) {
           value={summary}
           maxLength={255}
           onChange={(e) => setSummary(e.target.value)}
-          onBlur={() => summary !== plan.summary && void patch({ summary })}
+          onBlur={unlessCancelled(() => summary !== plan.summary && void patch({ summary }))}
           onKeyDown={enter}
         />
         <PlanChips plan={plan} meta={meta} onPatch={patch} locale={locale} />

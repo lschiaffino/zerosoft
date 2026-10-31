@@ -212,6 +212,7 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
     groupsMention: tr.raw('notifications.groupsMention') as string,
     groupsAssigned: tr.raw('notifications.groupsAssigned') as string,
     groupsAutoAssigned: tr.raw('notifications.groupsAutoAssigned') as string,
+    chatMessage: tr.raw('notifications.chatMessage') as string,
   };
 
   const firstLoad = loading && rows.length === 0;

@@ -8,11 +8,18 @@
 import type { ChatConversationRow, ChatMessageRow, ChatVisitorRow, ChatWidgetRow } from './db';
 import { applyAssignmentRules, listChatAgents } from './chat-data';
 import { dispatchChatBot, type ScheduleTask } from './chat-bot-ai';
+import { getDb } from './db';
 import { createNotification } from './notifications';
 import { emitEvent } from './events';
 import { emitChatEvent } from './chat-api';
 import { listFollowers } from './chat-collab';
 import { notifyPersonLink } from './groups-push';
+
+const CHAT_PUSH_TITLE: Record<string, (name: string) => string> = {
+  en: (name) => `New message from ${name}`,
+  es: (name) => `Mensaje nuevo de ${name}`,
+  pt: (name) => `Nova mensagem de ${name}`,
+};
 
 export async function afterVisitorMessage(input: {
   widget: ChatWidgetRow;
@@ -94,7 +101,10 @@ export async function afterVisitorMessage(input: {
   // Push al celular o al navegador (PWA de la suite): en segundo plano.
   schedule(async () => {
     for (const userId of recipients) {
-      await notifyPersonLink(widget.user_id, userId, { title, body: (message.body || text).slice(0, 140), url: href });
+      // El push sale tal cual: va en el idioma que eligió cada persona.
+      const row = (await getDb().prepare('SELECT locale FROM users WHERE id = ?').get(userId)) as { locale: string | null } | undefined;
+      const pushTitle = CHAT_PUSH_TITLE[row?.locale ?? 'en']?.(senderName) ?? title;
+      await notifyPersonLink(widget.user_id, userId, { title: pushTitle, body: (message.body || text).slice(0, 140), url: href });
     }
   });
 

@@ -30,6 +30,8 @@ export default function TitleInput({ value, onValueChange, onKeyDown, className 
   }, [value]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // Enter de un IME confirma la composición, no el título.
+    if (e.nativeEvent.isComposing) return;
     onKeyDown?.(e);
     if (e.key === 'Enter' && !e.defaultPrevented) {
       e.preventDefault();
