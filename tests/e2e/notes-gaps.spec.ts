@@ -157,7 +157,7 @@ test('Recortes: el bookmarklet real manda la página y guarda el artículo', asy
   const heading = `Titular ${uid()}`;
   const body = 'Cuerpo del artículo. '.repeat(20);
   await page.route('https://blog.test/**', (route) =>
-    route.fulfill({ contentType: 'text/html', body: `<html><head><title>${heading}</title></head><body><nav>Menu raro</nav><article><h1>${heading}</h1><p>${body}</p></article></body></html>` }),
+    route.fulfill({ contentType: 'text/html; charset=utf-8', body: `<html><head><title>${heading}</title></head><body><nav>Menu raro</nav><article><h1>${heading}</h1><p>${body}</p></article></body></html>` }),
   );
   await page.goto('https://blog.test/post');
   const popupPromise = context.waitForEvent('page');
@@ -168,7 +168,7 @@ test('Recortes: el bookmarklet real manda la página y guarda el artículo', asy
   // Sin el HTML del bookmarklet el servidor no podría bajar blog.test.
   await popup.getByRole('button', { name: 'Save note', exact: true }).click();
   await popup.getByRole('link', { name: 'Open note' }).click();
-  await expect(popup.getByText('Cuerpo del artículo.').first()).toBeVisible();
+  await expect(popup.locator('.docs-editable', { hasText: 'Cuerpo del artículo.' }).first()).toBeVisible();
   await expect(popup.getByText('Menu raro')).toHaveCount(0);
 });
 
@@ -177,7 +177,7 @@ test('Recortes: marcador y error claro si no se puede leer la página', async ({
   await page.goto(`/en/app/notes/clip?url=${encodeURIComponent('http://127.0.0.1:9/nada')}&title=${encodeURIComponent(title)}`);
   await page.getByRole('radio', { name: /Article/ }).check();
   await page.getByRole('button', { name: 'Save note', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText("Couldn't read that page");
+  await expect(page.getByText("Couldn't read that page")).toBeVisible();
   await page.getByRole('radio', { name: /Bookmark/ }).check();
   await page.getByRole('button', { name: 'Save note', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Open note' })).toBeVisible();
@@ -383,9 +383,10 @@ test('Pedir acceso: no se ve nada, el dueño aprueba y queda abierta', async ({ 
   await expect(gate.getByText('Request sent')).toBeVisible();
   await page.goto(`/en/app/notes?note=${note.id}&requests=1`);
   await page.getByRole('button', { name: 'Can edit' }).click();
-  await expect(page.locator('.notes-people-list').getByText(email.split('@')[0])).toBeVisible();
-  await other.reload();
-  await expect(other.getByText('secreto interno')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Can edit' })).toHaveCount(0);
+  await expect(page.getByRole('combobox', { name: `Access for ${email.split('@')[0]}` })).toHaveValue('edit');
+  await other.goto(`/en/app/notes?note=${note.id}`);
+  await expect(other.locator('.docs-editable', { hasText: 'secreto interno' })).toBeVisible();
   await ctx.close();
 });
 
@@ -406,7 +407,7 @@ test('Tareas: asignar a un compañero se la muestra en su vista', async ({ brows
 test('Consola de admin: uso, links públicos y sin contenido privado', async ({ page, request }) => {
   const title = `Pública ${uid()}`;
   const note = await newNote(request, { title, content: [para('cuerpo privado')] });
-  expect((await request.patch(`/api/notes/${note.id}/share`, { data: { shared: true } })).ok()).toBeTruthy();
+  expect((await request.post(`/api/notes/${note.id}/share`, { data: { shared: true } })).ok()).toBeTruthy();
   await page.goto('/en/app/notes/settings');
   const admin = page.getByTestId('notes-admin');
   await expect(admin.getByRole('link', { name: title })).toBeVisible();

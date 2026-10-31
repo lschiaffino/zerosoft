@@ -29,7 +29,7 @@ interface Row {
   guest_email: string | null;
 }
 
-const SELECT = `SELECT b.id, et.title AS title, b.starts_at AS start_time, b.ends_at AS end_time, b.guest_name, b.guest_email
+const SELECT = `SELECT b.id, et.title AS title, b.starts_at AS start_time, b.ends_at AS end_time, b.invitee_name AS guest_name, b.invitee_email AS guest_email
   FROM calendar_bookings b JOIN calendar_event_types et ON et.id = b.event_type_id`;
 
 const toEvent = (r: Row): NoteEvent => ({

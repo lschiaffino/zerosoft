@@ -81,7 +81,13 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (added.length) await emitEventSoon(owner.workspaceId, 'note.tagged', { ...payload, added });
     if (trashedNow) await emitEventSoon(owner.workspaceId, 'note.trashed', payload);
     // Archivos nuevos: se leen para la búsqueda sin esperar al cron.
-    if (patch.content !== undefined && !note.locked) after(() => processNoteFileQueue({ noteId: id, limit: 3 }).catch(() => undefined));
+    if (patch.content !== undefined && !note.locked) {
+      try {
+        after(() => processNoteFileQueue({ noteId: id, limit: 3 }).catch(() => undefined));
+      } catch {
+        // Fuera de un pedido (tests): lo levanta el cron.
+      }
+    }
     return NextResponse.json(note);
   } catch (err) {
     // Otra pestaña o dispositivo guardó desde que se abrió la nota: no se pisa en silencio.

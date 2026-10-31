@@ -15,6 +15,8 @@ import { adminDisableLink, adminTransferNotes, notesAdminOverview } from '@/lib/
 import { handleNotesRpc } from '@/lib/notes-mcp';
 import { detectQuad } from '@/lib/notes-scan';
 import { addMember, createTeam } from '@/lib/teams';
+import { createEventType } from '@/lib/calendar';
+import { listNoteEvents, noteFromEvent } from '@/lib/notes-events';
 import { makeUser } from './helpers';
 
 async function workspace(label: string) {
@@ -274,5 +276,24 @@ describe('escaneo', () => {
   it('sin hoja no inventa bordes', () => {
     const data = new Uint8ClampedArray(100 * 100 * 4).fill(255);
     expect(detectQuad({ width: 100, height: 100, data })).toBeNull();
+  });
+});
+
+describe('nota desde una reserva de Cal', () => {
+  it('lista las reservas de la persona y arma la nota', async () => {
+    const { owner, asA, ownerUser } = await workspace('cal');
+    const et = await createEventType(ownerUser.id, { slug: `n-${crypto.randomUUID().slice(0, 6)}`, title: 'Demo', durationMin: 30, active: true } as Parameters<typeof createEventType>[1]);
+    const start = new Date(Date.now() + 86_400_000).toISOString();
+    const id = crypto.randomUUID();
+    await getDb()
+      .prepare("INSERT INTO calendar_bookings (id, event_type_id, invitee_email, invitee_name, starts_at, ends_at) VALUES (?, ?, 'ana@x.test', 'Ana', ?, ?)")
+      .run(id, et.id, start, start);
+    expect((await listNoteEvents(owner)).map((e) => [e.id, e.attendee])).toEqual([[id, 'Ana']]);
+    expect(await listNoteEvents(asA)).toEqual([]);
+    const labels = { when: 'When', with: 'With', agenda: 'Agenda', notes: 'Notes', actions: 'Actions' };
+    expect(await noteFromEvent(asA, id, labels, 'en', 'UTC')).toBeNull();
+    const note = await noteFromEvent(owner, id, labels, 'en', 'UTC');
+    expect(note?.title).toBe('Demo: Ana');
+    expect(note?.tags).toEqual(['meeting']);
   });
 });
