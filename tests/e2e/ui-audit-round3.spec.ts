@@ -1,3 +1,4 @@
+import { createClient } from '@libsql/client';
 import { expect, test, type Browser } from '@playwright/test';
 
 /** Tercera ronda de la auditoría de UI: hidratación fuera de UTC, listas a 390 y metadatos para compartir. */
@@ -88,6 +89,23 @@ test.describe('listas a 390', () => {
       expect(doc, route).toBeLessThanOrEqual(391);
     }
   });
+});
+
+test('People: leer no crea fichas y la que falta se da de alta sin colgar la página', async ({ page, request }) => {
+  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  await page.goto('/en/app/people', { waitUntil: 'networkidle' });
+  const count = async () => Number((await db.execute("SELECT COUNT(*) AS n FROM people_employees WHERE workspace_id = 'demo'")).rows[0].n);
+  const id = `orphan-${uid()}`;
+  await db.execute({ sql: 'INSERT INTO users (id, email, name) VALUES (?, ?, ?)', args: [id, `${id}@darwin-e2e.io`, 'Orphan'] });
+  const team = (await db.execute("SELECT id FROM teams WHERE owner_id = 'demo' ORDER BY created_at, id LIMIT 1")).rows[0].id as string;
+  await db.execute({ sql: "INSERT INTO team_members (team_id, user_id, role, apps) VALUES (?, ?, 'member', '*')", args: [team, id] });
+  const before = await count();
+  // Un GET directo no escribe; la página pide el alta por POST.
+  expect((await request.get('/en/app/people/reports')).status()).toBe(200);
+  expect(await count()).toBe(before);
+  await page.goto('/en/app/people/reports', { waitUntil: 'networkidle', timeout: 30_000 });
+  await expect.poll(count).toBe(before + 1);
+  db.close();
 });
 
 test('/en trae las etiquetas para compartir', async ({ request }) => {
