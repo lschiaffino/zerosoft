@@ -5,7 +5,8 @@ import NoProject from '@/components/analytics/NoProject';
 import InsightEditor from '@/components/analytics/InsightEditor';
 import SyncProject from '@/components/analytics/SyncProject';
 import { analyticsPage } from '@/lib/analytics/page';
-import { getDb } from '@/lib/db';
+import { recordProjectId } from '@/lib/analytics/guard';
+import { requireUser } from '@/lib/session';
 import { getInsight, listCohorts, listDashboards } from '@/lib/analytics/records';
 import { INSIGHT_KINDS, type InsightKind } from '@/lib/analytics/types';
 
@@ -22,9 +23,10 @@ export default async function AnalyticsInsightPage(props: { params: Promise<{ lo
   const { locale, id } = await props.params;
   const { kind } = await props.searchParams;
   // El insight puede ser de otro proyecto del workspace: ese pasa a ser el que se mira.
-  const owner = id === 'new' ? null : ((await getDb().prepare('SELECT project_id FROM analytics_insights WHERE id = ?').get(id)) as { project_id: string } | undefined);
-  if (id !== 'new' && !owner) notFound();
-  const [ctx, t] = await Promise.all([analyticsPage(locale, owner?.project_id), getTranslations({ locale, namespace: 'analytics.insights' })]);
+  const user = await requireUser(locale);
+  const ownerProject = id === 'new' ? null : await recordProjectId('insights', id, user.id);
+  if (id !== 'new' && !ownerProject) notFound();
+  const [ctx, t] = await Promise.all([analyticsPage(locale, ownerProject), getTranslations({ locale, namespace: 'analytics.insights' })]);
   if (!ctx.project) return <NoProject title={t('title')} canManage={ctx.canManage} />;
   const insight = id === 'new' ? null : await getInsight(ctx.project.id, id);
   if (id !== 'new' && !insight) notFound();

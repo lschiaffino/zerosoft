@@ -70,6 +70,17 @@
 .btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .btn:disabled,
 .btn[aria-disabled='true'] { opacity: 0.4; cursor: not-allowed; }
+/* Primario deshabilitado: contorno y texto tenue, sin el bloque gris con texto oscuro. */
+.btn-primary:disabled, .btn-primary[aria-disabled='true'],
+.btn-solid:disabled, .btn-solid[aria-disabled='true'] {
+  --btn-bg: transparent;
+  --btn-fg: var(--brand-gray-1);
+  --btn-bd: var(--line);
+  background: transparent;
+  color: var(--brand-gray-1);
+  border-color: var(--line);
+  opacity: 1;
+}
 .btn svg { flex-shrink: 0; transition: transform var(--ui-dur) var(--ease); }
 .btn:hover svg[data-arrow], .btn:hover .icon-arrow { transform: translateX(3px); }
 
@@ -744,7 +755,7 @@ textarea.ui-title-input.ui-title-input { line-height: 1.2; }
      empujar la página a scroll horizontal. */
   overflow-wrap: anywhere;
 }
-.ui-page-desc { max-width: 65ch; font-size: 0.9375rem; line-height: 1.45; color: var(--brand-gray-1); }
+.ui-page-desc { max-width: 65ch; font-size: 0.9375rem; line-height: 1.45; color: var(--brand-gray-1); overflow-wrap: anywhere; }
 .ui-page-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 
 /* Sección de formulario: título y ayuda, campos, pie con su propio Guardar.
@@ -783,6 +794,7 @@ section.ui-section { padding: 0; }
 .ui-section-danger .ui-section-foot { background: var(--bad-soft); border-top-color: color-mix(in srgb, var(--bad-ink) 30%, var(--bg)); }
 @media (max-width: 720px) {
   .ui-section-body { padding: 16px; }
+
   .ui-section-foot { padding: 10px 16px; }
 }
 
@@ -1014,3 +1026,28 @@ section.ui-section { padding: 0; }
   letter-spacing: 0;
   text-transform: none;
 }
+
+/* 390: un título largo no se come la primera pantalla. */
+@media (max-width: 640px) {
+  .ui-page-title { font-size: 1.5rem; line-height: 1.15; }
+}
+
+/* Color elegido igual al fondo (negro en oscuro): el borde lo mantiene visible. */
+input[type='color'] { border: 1px solid var(--brand-gray-2); }
+/* Elegir archivo: el botón del navegador con el estilo de los botones secundarios. */
+input[type='file']::file-selector-button {
+  height: 32px;
+  margin-right: 10px;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+input[type='file']::file-selector-button:hover { background: var(--ui-hover); }
+/* Totales al pie de una tabla: filete pleno, igual en la celda de título y en la del monto. */
+.table tfoot th { color: var(--ink); border-bottom-color: var(--line); font-size: inherit; }

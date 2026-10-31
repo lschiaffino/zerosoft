@@ -15,6 +15,17 @@ interface PeopleClientProps {
 const PAGE_SIZE = 25;
 
 /** Personas que escribieron por algún widget: tabla densa con búsqueda. */
+function EmailBreak({ email }: { email: string }) {
+  const [user, ...domain] = email.split('@');
+  return (
+    <>
+      {user}
+      <wbr />
+      {domain.length ? `@${domain.join('@')}` : ''}
+    </>
+  );
+}
+
 export default function PeopleClient({ widgetIds }: PeopleClientProps) {
   const t = useTranslations('chat');
   const locale = useLocale();
@@ -131,11 +142,11 @@ export default function PeopleClient({ widgetIds }: PeopleClientProps) {
                 <tr key={v.id}>
                   <td>
                     <Link href={`/app/chat/people/${v.id}`} className="cell-link">
-                      {v.name || v.email || t('conversation.anonymous')}
+                      {v.name || (v.email ? <EmailBreak email={v.email} /> : t('conversation.anonymous'))}
                     </Link>
                   </td>
                   <td data-label={t('visitorPanel.email')}>
-                    {v.email ? <span className="data">{v.email}</span> : <span className="chat-quiet">{t('people.noEmail')}</span>}
+                    {v.email ? <span className="data chat-email"><EmailBreak email={v.email} /></span> : <span className="chat-quiet">{t('people.noEmail')}</span>}
                   </td>
                   <td className="num data" data-label={t('overview.conversations')}>
                     {v.conversation_count}

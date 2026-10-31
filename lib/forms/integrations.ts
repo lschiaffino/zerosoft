@@ -16,6 +16,7 @@
  *
  * Nada de esto puede romper el envío: cada paso atrapa sus errores.
  */
+import { localized } from '../notification-copy';
 import { getDb } from '../db';
 import { crmSafe } from '../agents-forms';
 import { after } from 'next/server';
@@ -118,7 +119,7 @@ export async function afterResponse(row: FormRow, def: FormDefinition, r: Comple
     const { createNotification } = await import('../notifications');
     for (const pid of s.notifyPeople) {
       if (!(await personCanAccess(row, pid))) continue;
-      await createNotification({ userId: pid, type: 'forms_response', title: `New response to "${row.name}"`, body: lines.slice(0, 6).join('\n').slice(0, 1000), href, sourceType: 'forms_response', sourceId: r.id });
+      await createNotification({ userId: pid, type: 'forms_response', title: localized('formResponse', { name: row.name }), body: lines.slice(0, 6).join('\n').slice(0, 1000), href, sourceType: 'forms_response', sourceId: r.id });
     }
   } catch (err) {
     console.error('[forms] notify', err instanceof Error ? err.message : err);

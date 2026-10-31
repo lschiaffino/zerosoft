@@ -1,5 +1,6 @@
 'use client';
 
+import { useMounted } from '@/components/ui/useMounted';
 import { useMemo, useRef, useState } from 'react';
 import { titleFromComment } from '@/lib/track-comment-title';
 import { useTranslations } from 'next-intl';
@@ -189,6 +190,7 @@ export default function IssueActivityTimeline({
   onChange,
   onCreateSubIssue,
 }: IssueActivityTimelineProps) {
+  const mounted = useMounted();
   const tt = useTranslations('track.ux.thread');
   const tp = useTranslations('track.priorities');
   const attachmentUrls = useMemo(() => new Map(attachments.map((a) => [a.id, a.url])), [attachments]);
@@ -620,7 +622,7 @@ export default function IssueActivityTimeline({
           <Avatar name={name} small={!isRoot} />
           <span className="track-comment-author">{name}</span>
           <time className="track-activity-time" dateTime={c.activity.created_at} title={c.activity.created_at}>
-            {relDate(c.activity.created_at, locale)}
+            {mounted ? relDate(c.activity.created_at, locale) : ''}
           </time>
           {c.editedAt && (
             <span className="track-activity-time" title={relDate(c.editedAt, locale)}>
@@ -783,7 +785,7 @@ export default function IssueActivityTimeline({
                 </span>
                 <span className="track-activity-text">{renderEvent(activity)}</span>
                 <time className="track-activity-time" dateTime={activity.created_at} title={activity.created_at}>
-                  {relDate(activity.created_at, locale)}
+                  {mounted ? relDate(activity.created_at, locale) : ''}
                 </time>
               </li>
             ),

@@ -9,6 +9,7 @@
  * lista/tags/secuencia, avisa al owner y a los emails configurados y dispara
  * el trigger de workflows `form_submitted` y el evento de Flow `form.submitted`.
  */
+import { localized } from './notification-copy';
 import { typedCustomValues } from './crm-custom-fields';
 import { createHash } from 'crypto';
 import { getDb, type CrmContactRow, type CrmFormRow, type CrmFormSubmissionRow, type Db } from './db';
@@ -652,7 +653,7 @@ export async function submitForm(
     await createNotification({
       userId: contact.owner_id ?? workspaceId,
       type: 'crm_form',
-      title: `${contactName} submitted "${form.name}"`,
+      title: localized('crmFormSubmitted', { who: contactName, name: form.name }),
       body: lines.slice(0, 6).join('\n'),
       href: `/app/crm/contacts/${contact.id}`,
       sourceType: 'crm_form',

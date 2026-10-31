@@ -15,7 +15,7 @@
  * - Los subequipos viven en lib/workspace-groups.ts.
  */
 import { getDb, type Db, type TeamRow, type UserRow } from './db';
-import { isProductKey, PRODUCT_CONFIG, type ProductKey } from './products';
+import { appFromPath, isProductKey, type ProductKey } from './products';
 import { normalizeWorkspaceMode, WORKSPACE_SIZES_LIST, type WorkspaceMode } from './workspace-mode';
 import { slugifyName } from './schema/workspace-migrations';
 
@@ -66,25 +66,7 @@ export function hasAllApps(user: { role?: string | null; apps?: AppAccess | stri
   return user.role === 'owner' || user.apps == null || user.apps === '*';
 }
 
-/** Segmento de ruta (/app/<x> o /api/<x>) → app. */
-const PATH_APPS: Record<string, ProductKey> = (() => {
-  const out: Record<string, ProductKey> = {};
-  for (const key of Object.keys(PRODUCT_CONFIG) as ProductKey[]) out[PRODUCT_CONFIG[key].path] = key;
-  // Familias de API con otro nombre que su página.
-  out.boards = 'board';
-  out.link = 'link';
-  return out;
-})();
-
-/** App de un path de página (/<locale>/app/<x>/…, /app/<x>/…) o de API (/api/<x>/…). null si no es de una app. */
-export function appFromPath(path: string | null | undefined): ProductKey | null {
-  if (!path) return null;
-  const clean = path.split(/[?#]/)[0];
-  const page = /^(?:\/(?:en|es|pt))?\/app\/([^/]+)/.exec(clean);
-  const api = /^\/api\/([^/]+)/.exec(clean);
-  const seg = page?.[1] ?? api?.[1];
-  return seg ? (PATH_APPS[seg] ?? null) : null;
-}
+export { appFromPath };
 
 // ---------- Ficha ----------
 

@@ -134,3 +134,36 @@ export function productsByCategory(category: ProductCategory): SiteProductKey[] 
 export function productSettingsHref(key: ProductKey): string {
   return `${PRODUCT_CONFIG[key].launch}/settings`;
 }
+
+/** Segmento de ruta (/app/<x> o /api/<x>) → app. */
+const PATH_APPS: Record<string, ProductKey> = (() => {
+  const out: Record<string, ProductKey> = {};
+  for (const key of Object.keys(PRODUCT_CONFIG) as ProductKey[]) out[PRODUCT_CONFIG[key].path] = key;
+  // Familias de API con otro nombre que su página.
+  out.boards = 'board';
+  out.link = 'link';
+  return out;
+})();
+
+/** App de un path de página (/<locale>/app/<x>/…, /app/<x>/…) o de API (/api/<x>/…). null si no es de una app. */
+export function appFromPath(path: string | null | undefined): ProductKey | null {
+  if (!path) return null;
+  const clean = path.split(/[?#]/)[0];
+  const page = /^(?:\/(?:en|es|pt))?\/app\/([^/]+)/.exec(clean);
+  const api = /^\/api\/([^/]+)/.exec(clean);
+  const seg = page?.[1] ?? api?.[1];
+  return seg ? (PATH_APPS[seg] ?? null) : null;
+}
+
+/** Lo que la persona puede abrir de las apps: '*' o su lista (rol y team_members.apps). */
+export type AllowedApps = '*' | readonly ProductKey[];
+
+/**
+ * ¿Se le ofrece este destino a la persona? Sirve en cliente (Cmd+K): nada de
+ * una app bloqueada, venga de la ruta o de `app` cuando la ruta no la dice
+ * (como el hub de importación, que vive en Ajustes).
+ */
+export function hrefAllowed(allowed: AllowedApps, href: string, app?: ProductKey | null): boolean {
+  const target = app ?? appFromPath(href);
+  return !target || allowed === '*' || allowed.includes(target);
+}

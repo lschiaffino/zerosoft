@@ -1,5 +1,6 @@
 'use client';
 
+import { useMounted } from '@/components/ui/useMounted';
 import { useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import FormSection from '@/components/ui/FormSection';
@@ -42,6 +43,7 @@ export default function ActivityLogPanel({ initial, locale }: { initial: Entry[]
     setState('idle');
   }
 
+  const mounted = useMounted();
   const when = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' });
   const label = (action: string) => (t.has(`activity.action.${action.replace('.', '_')}`) ? t(`activity.action.${action.replace('.', '_')}`) : action);
 
@@ -89,7 +91,7 @@ export default function ActivityLogPanel({ initial, locale }: { initial: Entry[]
                 {e.summary && <span className="cal-activity-target"> · {e.summary}</span>}
               </span>
               <time className="cal-muted data" dateTime={e.createdAt}>
-                {when.format(new Date(e.createdAt))}
+                {mounted ? when.format(new Date(e.createdAt)) : ''}
               </time>
             </li>
           ))}
