@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { decodeMentions, encodeMentions } from '@/lib/talk-markdown';
@@ -7,6 +8,8 @@ import { searchEmoji } from '@/lib/talk-emoji';
 import { parseRemindCommand } from '@/lib/talk-time';
 import type { TalkChannelDto, TalkFileDto, TalkMessageDto } from '@/lib/talk';
 import { TalkApiError, useTalk } from './talk-context';
+
+const ClipRecorder = dynamic(() => import('./ClipRecorder'), { ssr: false });
 
 type Suggest = { kind: 'user' | 'group' | 'special' | 'channel' | 'emoji' | 'command'; id: string; label: string; detail?: string; insert: string };
 
@@ -33,6 +36,8 @@ export default function Composer({ channel, parentId, initialDraft = '', focusKe
   const decoded = useMemo(() => decodeMentions(initialDraft, namesFrom(ctx)), [initialDraft]); // eslint-disable-line react-hooks/exhaustive-deps
   const [text, setText] = useState(decoded.text);
   const picked = useRef({ users: decoded.users, groups: decoded.groups, channels: decoded.channels });
+  const [recording, setRecording] = useState(false);
+  const agentKey = useRef<string | null>(null);
   const [files, setFiles] = useState<Array<TalkFileDto & { uploading?: boolean; tmp?: string }>>([]);
   const [also, setAlso] = useState(false);
   const [sending, setSending] = useState(false);
@@ -100,6 +105,7 @@ export default function Composer({ channel, parentId, initialDraft = '', focusKe
         { kind: 'command', id: 'topic', label: '/topic', detail: t('composer.cmdTopic'), insert: '/topic' },
         { kind: 'command', id: 'status', label: '/status', detail: t('composer.cmdStatus'), insert: '/status' },
         { kind: 'command', id: 'summarize', label: '/summarize', detail: t('composer.cmdSummarize'), insert: '/summarize' },
+        { kind: 'command', id: 'ask', label: '/ask', detail: t('composer.cmdAsk'), insert: '/ask' },
         { kind: 'command', id: 'huddle', label: '/huddle', detail: t('composer.cmdHuddle'), insert: '/huddle' },
         { kind: 'command', id: 'leave', label: '/leave', detail: t('composer.cmdLeave'), insert: '/leave' },
       ];
@@ -260,6 +266,28 @@ export default function Composer({ channel, parentId, initialDraft = '', focusKe
     if (lower === '/summarize' || lower === '/resumir') {
       dialog(parentId ? { kind: 'summary', rootId: parentId } : { kind: 'summary', channelId: channel.id });
       return true;
+    }
+    if (lower === '/ask' || lower === '/preguntar' || lower === '/perguntar') {
+      if (!arg) {
+        toast(t('composer.askEmpty'), 'error');
+        return false;
+      }
+      // La misma clave en cada reintento de este texto: el servidor no publica ni paga dos veces.
+      agentKey.current ??= crypto.randomUUID();
+      setSending(true);
+      try {
+        const res = await api<{ message: TalkMessageDto; reply: TalkMessageDto | null; error: string | null }>('/api/talk/ai', {
+          method: 'POST',
+          json: { kind: 'agent', channelId: channel.id, parentId, question: arg, key: agentKey.current },
+        });
+        agentKey.current = null;
+        onSent?.(res.message);
+        if (res.error) toast(t.has(`errors.${res.error}`) ? t(`errors.${res.error}`) : t('errors.generic'), 'error');
+        else if (!parentId) ctx.openThread(res.message.id);
+        return true;
+      } finally {
+        setSending(false);
+      }
     }
     if (lower === '/huddle') {
       ctx.huddle.join(channel.id);
@@ -504,6 +532,9 @@ export default function Composer({ channel, parentId, initialDraft = '', focusKe
               e.target.value = '';
             }}
           />
+          <button type="button" className="btn btn-ghost btn-sm btn-icon" aria-label={t('clips.open')} title={t('clips.open')} disabled={files.length >= MAX_FILES} onClick={() => setRecording(true)} data-testid="talk-clip-open">
+            <IconRecord />
+          </button>
           <button type="button" className="btn btn-ghost btn-sm btn-icon" aria-label={t('composer.emoji')} title={t('composer.emoji')} onClick={() => dialog({ kind: 'emoji', onPick: (em) => insertAtCaret(em) })}>
             <span aria-hidden="true">☺</span>
           </button>
@@ -546,6 +577,15 @@ export default function Composer({ channel, parentId, initialDraft = '', focusKe
         </div>
       </div>
       <p className="talk-hint">{t('composer.hint')}</p>
+      {recording && (
+        <ClipRecorder
+          onClose={() => setRecording(false)}
+          onDone={(file) => {
+            setRecording(false);
+            void upload([file]);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -574,6 +614,16 @@ function ToolBtn({ label, kbd, onClick, children }: { label: string; kbd?: strin
     <button type="button" className="talk-tool" aria-label={label} title={kbd ? `${label} (${kbd})` : label} onMouseDown={(e) => e.preventDefault()} onClick={onClick}>
       {children}
     </button>
+  );
+}
+
+/** Cámara de video: el micrófono de la barra ya es el dictado. */
+function IconRecord() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+      <rect x="1.5" y="4" width="9" height="8" rx="1" />
+      <path d="m10.5 7 4-2v6l-4-2" />
+    </svg>
   );
 }
 

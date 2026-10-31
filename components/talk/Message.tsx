@@ -345,6 +345,9 @@ function ThreadSummary({ m, onOpen }: { m: TalkMessageDto; onOpen: () => void })
   );
 }
 
+/** Lo que el navegador reproduce en el mensaje; el resto queda como archivo para bajar. */
+const isPlayable = (mime: string) => /^(audio|video)\/(webm|mp4|mpeg|ogg|wav|aac)\b/.test(mime);
+
 function Files({ m }: { m: TalkMessageDto }) {
   const t = useTranslations('talk');
   return (
@@ -355,6 +358,16 @@ function Files({ m }: { m: TalkMessageDto }) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={f.url} alt={f.name} loading="lazy" />
           </a>
+        ) : isPlayable(f.mime) ? (
+          <figure key={f.id} className="talk-clip-file" data-testid="talk-clip-file">
+            {f.mime.startsWith('video/') ? <video src={f.url} controls preload="metadata" playsInline aria-label={f.name} /> : <audio src={f.url} controls preload="metadata" aria-label={f.name} />}
+            <figcaption>
+              <span className="talk-file-size">{fmtSize(f.size)}</span>
+              <a className="btn btn-ghost btn-sm" href={`${f.url}?download=1`} aria-label={t('message.download', { name: f.name })}>
+                {t('message.downloadShort')}
+              </a>
+            </figcaption>
+          </figure>
         ) : (
           <div key={f.id} className="talk-file">
             <span className="talk-file-icon" aria-hidden="true">
