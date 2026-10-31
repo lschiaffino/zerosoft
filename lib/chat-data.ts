@@ -532,14 +532,24 @@ async function applyVisitorIdentity(existing: ChatVisitorRow, payload?: VisitorP
   if (isReservedVisitorKey(existing.external_id)) return existing;
   if (payload?.verified && payload.email) {
     await db
-      .prepare('UPDATE chat_visitors SET email = ?, name = COALESCE(?, name), email_verified = 1 WHERE id = ?')
-      .run(payload.email, payload.name ?? null, existing.id);
+      .prepare(
+        `UPDATE chat_visitors SET name = COALESCE(?, name), email_verified = 1,
+           campaign_opt_in_at = CASE WHEN LOWER(COALESCE(email, '')) = LOWER(?) THEN campaign_opt_in_at ELSE NULL END,
+           email = ?
+         WHERE id = ?`,
+      )
+      .run(payload.name ?? null, payload.email, payload.email, existing.id);
   } else if (existing.email_verified === 1 || !(payload?.email || payload?.name)) {
     return existing;
   } else {
     await db
-      .prepare('UPDATE chat_visitors SET email = COALESCE(?, email), name = COALESCE(?, name) WHERE id = ?')
-      .run(payload.email ?? null, payload.name ?? null, existing.id);
+      .prepare(
+        `UPDATE chat_visitors SET name = COALESCE(?, name),
+           campaign_opt_in_at = CASE WHEN ? IS NULL OR LOWER(COALESCE(email, '')) = LOWER(?) THEN campaign_opt_in_at ELSE NULL END,
+           email = COALESCE(?, email)
+         WHERE id = ?`,
+      )
+      .run(payload.name ?? null, payload.email ?? null, payload.email ?? null, payload.email ?? null, existing.id);
   }
   return (await db.prepare('SELECT * FROM chat_visitors WHERE id = ?').get(existing.id)) as ChatVisitorRow;
 }

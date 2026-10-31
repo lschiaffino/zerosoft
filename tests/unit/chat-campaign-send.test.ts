@@ -10,6 +10,29 @@ afterEach(() => {
   delete process.env.RESEND_API_KEY;
 });
 
+describe('consentimiento e identidad del visitante', () => {
+  it('cambiar el email por el widget borra el consentimiento; repetir el mismo o cambiar el nombre no', async () => {
+    const owner = await makeUser('o2');
+    const widget = await createChatWidget(owner.id, null, { name: 'W' } as never);
+    const v = await getOrCreateChatVisitor(widget.id, 'k2', { email: 'a@x.io' });
+    await setCampaignOptIn(v.id, true);
+    expect((await getOrCreateChatVisitor(widget.id, 'k2', { email: 'A@x.io' })).campaign_opt_in_at).toBeTruthy();
+    expect((await getOrCreateChatVisitor(widget.id, 'k2', { name: 'Ana' })).campaign_opt_in_at).toBeTruthy();
+    const moved = await getOrCreateChatVisitor(widget.id, 'k2', { email: 'victima@x.io' });
+    expect(moved.email).toBe('victima@x.io');
+    expect(moved.campaign_opt_in_at).toBeNull();
+  });
+
+  it('un email firmado nuevo tampoco hereda el consentimiento', async () => {
+    const owner = await makeUser('o3');
+    const widget = await createChatWidget(owner.id, null, { name: 'W' } as never);
+    const v = await getOrCreateChatVisitor(widget.id, 'k3', { email: 'a@x.io', verified: true });
+    await setCampaignOptIn(v.id, true);
+    expect((await getOrCreateChatVisitor(widget.id, 'k3', { email: 'a@x.io', verified: true })).campaign_opt_in_at).toBeTruthy();
+    expect((await getOrCreateChatVisitor(widget.id, 'k3', { email: 'b@x.io', verified: true })).campaign_opt_in_at).toBeNull();
+  });
+});
+
 describe('reintento de campañas contra Resend', () => {
   it('manda la misma Idempotency-Key en cada intento, también tras un 5xx', async () => {
     const owner = await makeUser('o');

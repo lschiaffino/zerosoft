@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { canSeeAgentConversation } from '@/lib/chat-access';
+import { isWorkspaceAdmin } from '@/lib/session';
 import { z } from 'zod';
 import { agentError, agentRouteContext, notFound, runErrorCode } from '@/lib/agents-http';
 import { listReplayCandidates, replayConversation } from '@/lib/agents-sim';
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest, props: Ctx) {
   const ctx = await agentRouteContext(id, { edit: true });
   if ('res' in ctx) return ctx.res;
   const limit = Number(req.nextUrl.searchParams.get('limit') ?? 10);
-  return NextResponse.json({ conversations: await listReplayCandidates(ctx.user.id, id, Number.isFinite(limit) ? limit : 10) });
+  return NextResponse.json({ conversations: await listReplayCandidates(ctx.user.id, id, Number.isFinite(limit) ? limit : 10, isWorkspaceAdmin(ctx.user) ? undefined : ctx.personId) });
 }
 
 const schema = z.object({ conversationId: z.string().min(1).max(100) });

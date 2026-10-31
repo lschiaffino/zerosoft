@@ -283,8 +283,15 @@ test('Agents: lista, detalle, export, analítica y sugerencias no muestran una b
   expect(analytics.analytics.total ?? analytics.analytics.conversations ?? 0).toBe(0);
   expect((await out.ctx.request.post(`/api/agents/${agent.id}/feedback`, { data: { conversationId: ids[0], messageId: 'x', rating: 1 } })).status()).toBe(404);
 
+  // Replay pide edición: con permiso de editor, la lista tampoco muestra la bandeja a quien no está.
+  await sql('UPDATE agents SET access = ? WHERE id = ?', [JSON.stringify({ members: 'viewer', people: { [out.id]: 'editor', [inside.id]: 'editor' } }), agent.id]);
+  const replayOut = await out.ctx.request.get(`/api/agents/${agent.id}/replay`);
+  expect(replayOut.status()).toBe(200);
+  expect(await replayOut.text()).not.toContain(word);
+
   // Positivo: quien está en la lista y el dueño ven todo.
   for (const c of [inside.ctx.request, request]) {
+    expect(await (await c.get(`/api/agents/${agent.id}/replay`)).text()).toContain(word);
     expect(await (await c.get(`/api/agents/${agent.id}/suggestions`)).text()).toContain('PREGUNTASECRETA');
     expect(await (await c.get(`/api/agents/${agent.id}/analytics?days=30`)).text()).toContain(word);
     expect(await (await c.get(`/api/agents/${agent.id}/conversations`)).text()).toContain(ids[0]);
