@@ -4,6 +4,7 @@ const session = vi.hoisted(() => ({ user: null as null | Record<string, unknown>
 vi.mock('@/lib/session', () => ({
   getCurrentUser: async () => session.user,
   realUserId: (u: { id: string; actingUser?: { id: string } }) => u.actingUser?.id ?? u.id,
+  isWorkspaceAdmin: (u: { role?: string }) => u.role === 'owner' || u.role === 'admin',
 }));
 const sentEmails = vi.hoisted(() => [] as Array<{ to: string; subject: string; text: string; html?: string }>);
 const emailFails = vi.hoisted(() => ({ value: false }));
