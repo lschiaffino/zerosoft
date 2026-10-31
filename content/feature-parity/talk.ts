@@ -384,7 +384,7 @@ const BUILT: Record<string, Built> = {
     detail: ['Workspace owner, admin and member, plus channel admins. No finer roles', 'Owner, admin y miembro del workspace, más admins de canal. Sin roles más finos', 'Owner, admin e membro do workspace, mais admins de canal. Sem papéis mais finos'],
   },
   'huddles': {
-    status: 'have',
+    status: 'partial',
     detail: [
       'Audio and camera video in channels and DMs, peer to peer (WebRTC) for up to 15 people, with who is talking and mute. Camera at 360p, so far checked only with simulated video between two browser tabs, not with a real camera. STUN by default; strict networks need a TURN server (TALK_TURN_URLS and TALK_TURN_SECRET)',
       'Audio y video de cámara en canales y DMs, de navegador a navegador (WebRTC) para hasta 15 personas, con quién habla y silencio. Cámara a 360p, por ahora verificada solo con video simulado entre dos pestañas, no con una cámara real. STUN por defecto; las redes estrictas necesitan un servidor TURN (TALK_TURN_URLS y TALK_TURN_SECRET)',
