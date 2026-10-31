@@ -470,6 +470,16 @@ test('ajustes: marca en la página y el embed, no en la puerta; defaults para lo
   await page.getByTestId('rec-retention-save').click();
   const dialog = page.getByRole('alertdialog').filter({ hasText: 'older than 30 days' });
   await expect(dialog).toBeVisible();
+  if (process.env.REC_SHOTS) {
+    for (const [name, w, scheme] of [['dark-390', 390, 'dark'], ['light-390', 390, 'light'], ['dark-1280', 1280, 'dark']] as const) {
+      await page.setViewportSize({ width: w, height: 800 });
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.waitForTimeout(200);
+      await page.screenshot({ path: `${process.env.REC_SHOTS}/retention-${name}.png` });
+    }
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.emulateMedia({ colorScheme: 'light' });
+  }
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   let s = await ok<{ settings: { retentionDays: number | null } }>(request.get('/api/rec/settings'));
   expect(s.settings.retentionDays).toBeNull();
@@ -493,7 +503,14 @@ test('del video a Docs y Track, y resumen por mail con tope y sin repetir', asyn
   const project = await ok<{ id: string }>(request.post('/api/track/projects', { data: { name: `Rec ${uid()}`, identifier: `R${uid().slice(0, 3).toUpperCase()}` } }));
 
   await page.goto(`/en/app/rec/${v.id}`);
+  // Video personal: sin confirmar, ni la API lo deja.
+  expect((await request.post(`/api/rec/videos/${v.id}/export`, { data: { target: 'doc' } })).status()).toBe(409);
   await page.getByTestId('rec-export-doc').click();
+  const widen = page.getByRole('alertdialog').filter({ hasText: 'More people will read this' });
+  await widen.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.getByTestId('rec-export-done')).toHaveCount(0);
+  await page.getByTestId('rec-export-doc').click();
+  await widen.getByRole('button', { name: 'Create anyway' }).click();
   await page.getByTestId('rec-export-link').click();
   await expect(page).toHaveURL(/\/en\/app\/docs\//);
   await expect(page.getByText('Resumen del video')).toBeVisible();
@@ -503,20 +520,27 @@ test('del video a Docs y Track, y resumen por mail con tope y sin repetir', asyn
   await page.goto(`/en/app/rec/${v.id}`);
   await page.getByTestId('rec-export-project').selectOption(project.id);
   await page.getByTestId('rec-export-issue').click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Create anyway' }).click();
   await page.getByTestId('rec-export-link').click();
   await expect(page).toHaveURL(/\/en\/app\/track\/issue/);
   await expect(page.getByText(title).first()).toBeVisible();
 
   // Sin permiso sobre el video no hay exportación.
   const out = await asPerson(browser, baseURL!, `exp-${uid()}@e2e.dev`);
-  expect((await out.request.post(`/api/rec/videos/${v.id}/export`, { data: { target: 'doc' } })).status()).toBe(404);
+  expect((await out.request.post(`/api/rec/videos/${v.id}/export`, { data: { target: 'doc', confirmWiden: true } })).status()).toBe(404);
   expect((await out.request.post(`/api/rec/videos/${v.id}/recap`, { data: { emails: ['a@b.io'] } })).status()).toBe(404);
   await out.ctx.close();
 
   // Resumen por mail.
+  const stamp = uid();
   await page.goto(`/en/app/rec/${v.id}`);
+  // Afuera del workspace no se manda (ni con la API).
+  const blocked = await request.post(`/api/rec/videos/${v.id}/recap`, { data: { emails: ['stranger@spam.example'] } });
+  expect(blocked.status()).toBe(403);
+  await ok(request.patch(`/api/rec/videos/${v.id}`, { data: { privacy: 'workspace', allowedEmails: [`recap-${stamp}@example.com`] } }));
+  await page.reload();
   await page.getByTestId('rec-recap').click();
-  const to = `recap-${uid()}@example.com`;
+  const to = `recap-${stamp}@example.com`;
   await page.getByTestId('rec-recap-emails').fill(to);
   await page.getByTestId('rec-recap-send').click();
   await expect(page.getByTestId('rec-recap-msg')).toContainText('Sent to 1 person');
@@ -553,4 +577,40 @@ test('oEmbed y descarga: solo lo abierto se describe; sin descarga no hay botón
   await expect(anon.page.getByRole('heading', { name: title })).toBeVisible();
   await expect(anon.page.getByRole('button', { name: 'Download' })).toHaveCount(0);
   await anon.ctx.close();
+});
+
+test('traspaso: solo de quien se fue, con confirmación; a quien sigue no se le saca nada', async ({ page, request }) => {
+  const v = await upload(request, tiny, `De quien se fue ${uid()}`);
+  const c = db();
+  const leaver = `rec-left-${uid()}`;
+  await c.execute({ sql: "INSERT INTO users (id, email, name) VALUES (?, ?, 'Persona Ida')", args: [leaver, `${leaver}@e2e.dev`] });
+  await c.execute({ sql: 'UPDATE rec_videos SET created_by = ? WHERE id = ?', args: [leaver, v.id] });
+  const me = (await c.execute({ sql: 'SELECT workspace_id FROM rec_videos WHERE id = ?', args: [v.id] })).rows[0].workspace_id as string;
+  c.close();
+  // Con la API: la dueña no se puede.
+  const self = await request.post('/api/rec/settings/transfer', { data: { from: me, to: leaver } });
+  expect(self.status()).toBe(403);
+
+  await page.goto('/en/app/rec/settings');
+  await expect(page.getByTestId('rec-transfer-from').locator('option')).toHaveCount(2);
+  await page.getByTestId('rec-transfer-from').selectOption(leaver);
+  // No hay nadie más: quien hace el pase lo recibe.
+  await page.getByTestId('rec-transfer-to').selectOption({ index: 1 });
+  await page.getByTestId('rec-transfer-go').click();
+  const dialog = page.getByRole('alertdialog').filter({ hasText: 'Transfer this content?' });
+  await expect(dialog).toContainText('1 video');
+  if (process.env.REC_SHOTS) {
+    for (const [name, w, scheme] of [['dark-390', 390, 'dark'], ['light-390', 390, 'light'], ['dark-1280', 1280, 'dark']] as const) {
+      await page.setViewportSize({ width: w, height: 800 });
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.waitForTimeout(200);
+      await page.screenshot({ path: `${process.env.REC_SHOTS}/transfer-${name}.png` });
+    }
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.emulateMedia({ colorScheme: 'light' });
+  }
+  await dialog.getByRole('button', { name: 'Transfer' }).click();
+  await expect(page.getByTestId('rec-settings-toast')).toContainText('Transferred 1 video');
+  const { video } = await ok<{ video: { createdBy: string } }>(request.get(`/api/rec/videos/${v.id}`));
+  expect(video.createdBy).toBe(me);
 });

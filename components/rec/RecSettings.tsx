@@ -261,6 +261,7 @@ export default function RecSettings() {
         <section className="rec-edit-block">
           <h2 className="rec-h">{t('transfer')}</h2>
           <p className="ui-help">{t('transferHelp')}</p>
+          {data.owners?.length === 0 && <p className="ui-help" data-testid="rec-transfer-none">{t('transferNone')}</p>}
           <div className="ui-fields ui-fields-2">
             <div className="ui-field">
               <label className="label" htmlFor="rec-tr-from">

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { getRecSettings, listContentOwners, retentionPreview, updateRecSettings } from '@/lib/rec-admin';
-import { recActor, recFail, recJson, recPeople } from '@/lib/rec-http';
+import { recActor, recCurrentPeople, recFail, recJson, recPeople } from '@/lib/rec-http';
 import { REC_RETENTION_OPTIONS } from '@/lib/rec-schema';
 
 export const runtime = 'nodejs';
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   if (!s.actor.admin) return recJson({ settings, admin: false });
   const days = Number(req.nextUrl.searchParams.get('previewDays'));
   const preview = (REC_RETENTION_OPTIONS as readonly number[]).includes(days) ? await retentionPreview(s.actor, days) : null;
-  return recJson({ settings, admin: true, owners: await listContentOwners(s.actor), people: await recPeople(s.user), preview });
+  return recJson({ settings, admin: true, owners: await listContentOwners(s.actor, await recCurrentPeople(s.user)), people: await recPeople(s.user), preview });
 }
 
 const schema = z

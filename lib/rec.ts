@@ -15,13 +15,14 @@
  */
 import { createHash, createHmac, randomBytes, scrypt as scryptCb, timingSafeEqual } from 'crypto';
 import { promisify } from 'util';
-import { getDb } from './db';
+import { ensureMigrated, getClient, getDb, txDb } from './db';
 import { deleteUploads } from './uploads';
 import {
   chaptersInTrim,
   chaptersToText,
   cleanEmails,
   cleanOverlays,
+  MAX_REC_ALLOWED,
   overlaysInTrim,
   remapChapters,
   remapSegments,
@@ -67,6 +68,43 @@ export interface RecActor {
   actor: string;
   admin: boolean;
   name: string;
+}
+
+/**
+ * Borra archivos de Rec. Si Blob falla, la URL queda en cola y el cron reintenta:
+ * un archivo de un video borrado no puede quedar leíble por un error de red.
+ */
+export async function dropRecFiles(urls: string[]): Promise<void> {
+  const blobs = urls.filter((u) => /^https:\/\//.test(u));
+  const local = urls.filter((u) => !/^https:\/\//.test(u));
+  if (local.length) await deleteUploads(local);
+  if (!blobs.length || !process.env.BLOB_READ_WRITE_TOKEN) return;
+  const { del } = await import('@vercel/blob');
+  try {
+    await del(blobs);
+  } catch {
+    for (const u of blobs) await getDb().prepare('INSERT OR IGNORE INTO rec_file_deletes (url) VALUES (?)').run(u).catch(() => undefined);
+  }
+}
+
+/** Cron: reintenta lo que Blob no pudo borrar. Hasta 20 intentos por archivo. */
+export async function retryRecFileDeletes(limit = 20): Promise<number> {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return 0;
+  const rows = (await getDb().prepare('SELECT url FROM rec_file_deletes ORDER BY attempts LIMIT ?').all(limit)) as Array<{ url: string }>;
+  if (!rows.length) return 0;
+  const { del } = await import('@vercel/blob');
+  let done = 0;
+  for (const r of rows) {
+    try {
+      await del(r.url);
+      await getDb().prepare('DELETE FROM rec_file_deletes WHERE url = ?').run(r.url);
+      done++;
+    } catch {
+      await getDb().prepare('UPDATE rec_file_deletes SET attempts = attempts + 1 WHERE url = ?').run(r.url);
+      await getDb().prepare('DELETE FROM rec_file_deletes WHERE url = ? AND attempts >= 20').run(r.url);
+    }
+  }
+  return done;
 }
 
 export function nowDb(): string {
@@ -337,6 +375,22 @@ function canSeeFolder(a: RecActor, f: RecFolderRow): boolean {
   return f.workspace_id === a.ws && (f.space === 'workspace' || f.created_by === a.actor);
 }
 
+/** Todo o nada. */
+export async function inTx<T>(fn: (t: ReturnType<typeof txDb>) => Promise<T>): Promise<T> {
+  await ensureMigrated();
+  const tx = await getClient().transaction('write');
+  try {
+    const out = await fn(txDb(tx));
+    await tx.commit();
+    return out;
+  } catch (err) {
+    await tx.rollback().catch(() => undefined);
+    throw err;
+  } finally {
+    tx.close();
+  }
+}
+
 /** ¿Esta persona es miembro del espacio? Los admins entran a todos los del workspace. */
 export async function isSpaceMember(spaceId: string, userId: string): Promise<boolean> {
   return !!(await getDb().prepare('SELECT 1 FROM rec_space_members WHERE space_id = ? AND user_id = ?').get(spaceId, userId));
@@ -437,8 +491,10 @@ export async function deleteFolder(a: RecActor, id: string): Promise<void> {
   const f = await getFolder(a, id);
   if (!f) throw new RecError('not_found', 404);
   if (!canManageFolder(a, f)) throw new RecError('forbidden', 403);
-  await getDb().prepare('UPDATE rec_videos SET folder_id = NULL WHERE folder_id = ?').run(id);
-  await getDb().prepare('DELETE FROM rec_folders WHERE id = ?').run(id);
+  await inTx(async (t) => {
+    await t.prepare('UPDATE rec_videos SET folder_id = NULL WHERE folder_id = ?').run(id);
+    await t.prepare('DELETE FROM rec_folders WHERE id = ?').run(id);
+  });
 }
 
 // ============================================================
@@ -774,7 +830,10 @@ export async function updateVideo(a: RecActor, id: string, patch: RecVideoPatch)
     set('privacy', patch.privacy === 'link' ? 'link' : 'workspace');
     set('people_only', patch.privacy === 'people' ? 1 : 0);
   }
-  if (patch.allowedEmails !== undefined) set('allowed_emails', JSON.stringify(cleanEmails(patch.allowedEmails)));
+  if (patch.allowedEmails !== undefined) {
+    if (cleanEmails(patch.allowedEmails.slice(0, MAX_REC_ALLOWED)).length < new Set(cleanEmails(patch.allowedEmails)).size || patch.allowedEmails.length > MAX_REC_ALLOWED) throw new RecError('allowed_full');
+    set('allowed_emails', JSON.stringify(cleanEmails(patch.allowedEmails)));
+  }
   if (patch.requireEmail !== undefined) set('require_email', patch.requireEmail ? 1 : 0);
   if (patch.archived !== undefined) set('archived_at', patch.archived ? nowDb() : null);
   if (patch.overlays !== undefined) set('overlays', JSON.stringify(cleanOverlays(patch.overlays, v.duration_sec > 0 ? v.duration_sec : Infinity)));
@@ -837,7 +896,7 @@ export async function updateVideo(a: RecActor, id: string, patch: RecVideoPatch)
       .prepare(`UPDATE rec_videos SET ${sets.join(', ')}, updated_at = datetime('now') WHERE id = ?`)
       .run(...args, id);
   }
-  if (dropCut) await deleteUploads([dropCut]).catch(() => undefined);
+  if (dropCut) await dropRecFiles([dropCut]).catch(() => undefined);
   return (await rawVideo(id))!;
 }
 
@@ -845,7 +904,7 @@ export async function updateVideo(a: RecActor, id: string, patch: RecVideoPatch)
 export async function setTrimmedFile(id: string, url: string, trimFor: string): Promise<void> {
   const prev = (await getDb().prepare('SELECT trimmed_url FROM rec_videos WHERE id = ?').get(id)) as { trimmed_url: string | null } | undefined;
   await getDb().prepare('UPDATE rec_videos SET trimmed_url = ?, trimmed_for = ? WHERE id = ?').run(url, trimFor, id);
-  if (prev?.trimmed_url && prev.trimmed_url !== url) await deleteUploads([prev.trimmed_url]).catch(() => undefined);
+  if (prev?.trimmed_url && prev.trimmed_url !== url) await dropRecFiles([prev.trimmed_url]).catch(() => undefined);
 }
 
 /**
@@ -864,7 +923,15 @@ export async function deleteVideo(a: RecActor, id: string): Promise<void> {
   await getDb().prepare('DELETE FROM rec_videos WHERE id = ?').run(id);
   const { deleteRecParts } = await import('./rec-upload');
   await deleteRecParts(id).catch(() => undefined);
-  await deleteUploads([v.url, v.audio_url, v.thumb_url, v.gif_url, v.trimmed_url].filter((u): u is string => !!u));
+  await dropRecFiles([v.url, v.audio_url, v.thumb_url, v.gif_url, v.trimmed_url].filter((u): u is string => !!u));
+}
+
+/**
+ * ¿Pasar este video a Docs o Track amplía quién lee la transcripción? Solo no lo
+ * hace si ya está en el espacio general del workspace, sin contraseña ni lista.
+ */
+export function exportWidens(v: Pick<RecVideoRow, 'space' | 'space_id' | 'people_only' | 'password_hash'>): boolean {
+  return v.space !== 'workspace' || !!v.space_id || !!v.people_only || !!v.password_hash;
 }
 
 /** Link nuevo: el anterior (y las cookies de contraseña y de email atadas a él) deja de andar. */
@@ -887,11 +954,43 @@ export async function isWatchLater(a: RecActor, id: string): Promise<boolean> {
 }
 
 /**
+ * Lo más restrictivo de las fuentes de una copia: nadie que no pudiera ver todas
+ * las partes gana acceso. La lista de emails es la intersección de las fuentes
+ * que limitan. Un "solo workspace" dentro de un espacio queda como personas
+ * puntuales: la copia es personal y si no lo verían todos los del workspace. Dos
+ * contraseñas distintas no se pueden combinar y se rechaza.
+ */
+export function strictestAccess(
+  sources: Array<Pick<RecVideoRow, 'privacy' | 'people_only' | 'allowed_emails' | 'password_hash' | 'expires_at' | 'allow_download' | 'require_email' | 'comments_require_account' | 'space_id'>>,
+): { privacy: 'link' | 'workspace'; people_only: number; allowed_emails: string; password_hash: string | null; expires_at: string | null; allow_download: number; require_email: number; comments_require_account: number } {
+  const limiting = sources.filter((s) => s.privacy === 'workspace' || s.people_only);
+  const people = sources.some((s) => s.people_only || (s.privacy === 'workspace' && s.space_id));
+  let list: string[] | null = null;
+  for (const s of limiting) {
+    const own = parseJson<string[]>(s.allowed_emails, []);
+    list = list === null ? own : list.filter((e) => own.includes(e));
+  }
+  const passwords = [...new Set(sources.map((s) => s.password_hash).filter((p): p is string => !!p))];
+  if (passwords.length > 1) throw new RecError('join_mixed_password');
+  const expiries = sources.map((s) => s.expires_at).filter((e): e is string => !!e).sort();
+  return {
+    privacy: limiting.length ? 'workspace' : 'link',
+    people_only: people ? 1 : 0,
+    allowed_emails: JSON.stringify(list ?? []),
+    password_hash: passwords[0] ?? null,
+    expires_at: expiries[0] ?? null,
+    allow_download: sources.every((s) => s.allow_download) ? 1 : 0,
+    require_email: sources.some((s) => s.require_email) ? 1 : 0,
+    comments_require_account: sources.some((s) => s.comments_require_account) ? 1 : 0,
+  };
+}
+
+/**
  * Cierra una copia armada en el navegador (uniendo o sacando partes). No pasa
  * por la cola de transcripción: la transcripción y los capítulos salen de las
  * fuentes, sin gastar IA. El resumen no se copia (puede hablar de lo que se
- * sacó). Hereda la privacidad de la primera fuente: una copia de algo protegido
- * nunca queda más abierta.
+ * sacó). Toma lo más restrictivo de todas las fuentes (strictestAccess): una copia
+ * de algo protegido nunca queda más abierta.
  */
 export async function finalizeDerived(
   a: RecActor,
@@ -911,6 +1010,7 @@ export async function finalizeDerived(
   const segs = remapSegments(sources.map((s) => parseJson<RecSegment[]>(s.transcript, [])), pieces);
   const chapters = remapChapters(sources.map((s) => parseJson<RecChapter[]>(s.chapters, [])), pieces);
   const first = sources[0];
+  const access = strictestAccess(sources);
   const duration = Math.max(0, Math.min(Number(input.durationSec) || 0, 12 * 3600));
   await getDb()
     .prepare(
@@ -927,14 +1027,14 @@ export async function finalizeDerived(
       segs.length ? 'done' : 'none',
       first.transcript_lang,
       JSON.stringify(chapters),
-      first.privacy,
-      first.people_only,
-      first.allowed_emails,
-      first.require_email,
-      first.password_hash,
-      first.expires_at,
-      first.allow_download,
-      first.comments_require_account,
+      access.privacy,
+      access.people_only,
+      access.allowed_emails,
+      access.require_email,
+      access.password_hash,
+      access.expires_at,
+      access.allow_download,
+      access.comments_require_account,
       id,
     );
   return (await rawVideo(id))!;
@@ -979,7 +1079,7 @@ export async function setVideoFile(id: string, kind: 'video' | 'audio' | 'thumb'
   } else {
     await getDb().prepare(`UPDATE rec_videos SET ${col} = ?, updated_at = datetime('now') WHERE id = ?`).run(url, id);
   }
-  if (prev?.u && prev.u !== url) await deleteUploads([prev.u]).catch(() => undefined);
+  if (prev?.u && prev.u !== url) await dropRecFiles([prev.u]).catch(() => undefined);
 }
 
 export { manageable as getManageableVideo };
@@ -1480,7 +1580,7 @@ export async function cleanupStaleRecordings(limit = 20): Promise<number> {
     const res = await getDb().prepare("DELETE FROM rec_videos WHERE id = ? AND status = 'recording'").run(r.id);
     if (!res.changes) continue;
     await deleteRecParts(r.id).catch(() => undefined);
-    await deleteUploads([r.url, r.audio_url, r.thumb_url, r.gif_url].filter((u): u is string => !!u));
+    await dropRecFiles([r.url, r.audio_url, r.thumb_url, r.gif_url].filter((u): u is string => !!u));
   }
   const { cleanEmptyPartDirs } = await import('./rec-upload');
   await cleanEmptyPartDirs().catch(() => undefined);

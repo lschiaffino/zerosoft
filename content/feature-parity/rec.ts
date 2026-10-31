@@ -185,12 +185,12 @@ const parity: ProductParity = {
     }),
 
     // Privacidad
-    row('privacy-levels', 'privacy', ['Who can watch: link, workspace or specific people', 'Quién lo ve: link, workspace o personas puntuales', 'Quem assiste: link, workspace ou pessoas específicas'], 'have', {
+    row('privacy-levels', 'privacy', ['Who can watch: link, workspace or specific people', 'Quién lo ve: link, workspace o personas puntuales', 'Quem assiste: link, workspace ou pessoas específicas'], 'partial', {
       weight: 2,
       detail: [
-        'Anyone with the link, signed-in members of the workspace (or of the space), or only the emails you list, checked on every request. Workspace default for new videos. The link can be reset',
-        'Cualquiera con el link, miembros del workspace con sesión (o del espacio), o solo los emails que listás, chequeado en cada pedido. Privacidad por defecto del workspace para lo nuevo. El link se puede cambiar',
-        'Qualquer pessoa com o link, membros do workspace com sessão (ou do espaço), ou só os emails que você lista, verificado em cada pedido. Privacidade padrão do workspace para os novos. O link pode ser trocado',
+        'Anyone with the link, signed-in members of the workspace (or of the space), or only the emails you list, checked on every request. Workspace default for new videos. The link can be reset. Files in a public Blob store (the default without REC_BLOB_ACCESS=private) stay readable by anyone holding the storage URL; the app never shows that URL. Private storage is not in place yet',
+        'Cualquiera con el link, miembros del workspace con sesión (o del espacio), o solo los emails que listás, chequeado en cada pedido. Privacidad por defecto del workspace para lo nuevo. El link se puede cambiar. Los archivos en un store público de Blob (el default sin REC_BLOB_ACCESS=private) siguen siendo leíbles por quien tenga la URL del almacenamiento; la app nunca la muestra. Todavía no hay almacenamiento privado',
+        'Qualquer pessoa com o link, membros do workspace com sessão (ou do espaço), ou só os emails que você lista, verificado em cada pedido. Privacidade padrão do workspace para os novos. O link pode ser trocado. Os arquivos num store público do Blob (o padrão sem REC_BLOB_ACCESS=private) continuam legíveis por quem tiver a URL do armazenamento; o app nunca a mostra. Ainda não há armazenamento privado',
       ],
     }),
     row('password-protect', 'privacy', ['Password-protected videos', 'Videos con contraseña', 'Vídeos com senha'], 'have', {
@@ -280,7 +280,7 @@ const parity: ProductParity = {
         'Em vídeos de 60 segundos ou mais, editáveis como linhas "0:00 Intro"',
       ],
     }),
-    row('ai-workflows', 'ai', ['Turn a video into a doc or a task', 'Del video a un documento o una tarea', 'Do vídeo para um documento ou uma tarefa'], 'have', {
+    row('ai-workflows', 'ai', ['Turn a video into a doc or a task', 'Del video a un documento o una tarea', 'Do vídeo para um documento ou uma tarefa'], 'partial', {
       detail: [
         'One click creates a Docs page or a Track issue with the link, the AI summary, chapters and transcript that you can see. The text is copied as it is, not rewritten by AI. No Jira',
         'Con un clic crea una página de Docs o un issue de Track con el link, el resumen de IA, los capítulos y la transcripción que podés ver. El texto se copia tal cual, sin reescribirlo con IA. Sin Jira',
@@ -289,9 +289,9 @@ const parity: ProductParity = {
     }),
     row('ai-meeting-notes', 'ai', ['Meeting notes and recap emails', 'Notas y mail de resumen de reuniones', 'Notas e email de resumo de reuniões'], 'partial', {
       detail: [
-        'Emails a recap of any video (title, summary, chapters and link), up to 20 addresses per send and without repeating a send. Tested with the email capture of the tests, not against Resend in production. No meeting capture and no notes written for meetings',
-        'Manda por mail un resumen de cualquier video (título, resumen, capítulos y link), hasta 20 direcciones por envío y sin repetir un envío. Probado con la captura de mails de los tests, no contra Resend en producción. No graba reuniones ni escribe notas para ellas',
-        'Envia por email um resumo de qualquer vídeo (título, resumo, capítulos e link), até 20 endereços por envio e sem repetir um envio. Testado com a captura de emails dos testes, não contra o Resend em produção. Não grava reuniões nem escreve notas para elas',
+        'Emails a recap of any video (title, summary, chapters and link), to workspace members and people allowed on the video, up to 20 addresses per send and 50 per day, without repeating a send. Tested with the email capture of the tests, not against Resend in production. No meeting capture and no notes written for meetings',
+        'Manda por mail un resumen de cualquier video (título, resumen, capítulos y link), a miembros del workspace y a quienes tienen permiso en el video, hasta 20 direcciones por envío y 50 por día, sin repetir un envío. Probado con la captura de mails de los tests, no contra Resend en producción. No graba reuniones ni escribe notas para ellas',
+        'Envia por email um resumo de qualquer vídeo (título, resumo, capítulos e link), para membros do workspace e quem tem permissão no vídeo, até 20 endereços por envio e 50 por dia, sem repetir um envio. Testado com a captura de emails dos testes, não contra o Resend em produção. Não grava reuniões nem escreve notas para elas',
       ],
     }),
 
@@ -341,9 +341,9 @@ const parity: ProductParity = {
     row('sso-scim', 'admin', ['SSO and SCIM', 'SSO y SCIM', 'SSO e SCIM'], 'missing'),
     row('data-retention', 'admin', ['Data retention and content transfer', 'Retención de datos y traspaso de contenido', 'Retenção de dados e transferência de conteúdo'], 'have', {
       detail: [
-        'Per workspace and off by default: deletes videos older than 30 to 730 days, after a confirmation with the count and 7 days of notice. Admins can transfer all the videos and folders of one person to another',
-        'Por workspace y apagada por defecto: borra videos de más de 30 a 730 días, con confirmación que dice cuántos y 7 días de aviso. Los admins pueden pasar todos los videos y carpetas de una persona a otra',
-        'Por workspace e desligada por padrão: apaga vídeos com mais de 30 a 730 dias, com confirmação que diz quantos e 7 dias de aviso. Os admins podem passar todos os vídeos e pastas de uma pessoa para outra',
+        'Per workspace and off by default: deletes videos older than 30 to 730 days, after a confirmation with the count and 7 days of notice. Authors get an in-app notice when those days start and when videos are deleted. Admins can transfer the videos and folders of someone who left to another person',
+        'Por workspace y apagada por defecto: borra videos de más de 30 a 730 días, con confirmación que dice cuántos y 7 días de aviso. Quienes los grabaron reciben un aviso en la app al empezar esos días y al borrarse. Los admins pueden pasar los videos y carpetas de alguien que se fue a otra persona',
+        'Por workspace e desligada por padrão: apaga vídeos com mais de 30 a 730 dias, com confirmação que diz quantos e 7 dias de aviso. Quem gravou recebe um aviso no app no começo desses dias e ao apagar. Os admins podem passar os vídeos e pastas de alguém que saiu para outra pessoa',
       ],
     }),
   ],

@@ -6,10 +6,11 @@
  */
 import { createHash } from 'crypto';
 import { getDb } from './db';
-import { deleteUploads } from './uploads';
 import { escapeHtml } from './email';
 import {
+  dropRecFiles,
   getManageableVideo,
+  inTx,
   getVideoRow,
   nowDb,
   RecError,
@@ -22,7 +23,10 @@ import {
   cleanBrandColor,
   cleanEmails,
   fmtClock,
+  MAX_REC_ALLOWED,
   MAX_RECAP_RECIPIENTS,
+  REC_RECAP_DAILY,
+  REC_RECAP_DAILY_NEW,
   REC_RETENTION_GRACE_DAYS,
   REC_RETENTION_OPTIONS,
   segmentsInTrim,
@@ -36,6 +40,65 @@ function parseJson<T>(text: string | null | undefined, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+// ---------- Textos de lo que se manda: en el idioma de quien lo recibe ----------
+
+type Lang = 'en' | 'es' | 'pt';
+const TEXT = {
+  en: {
+    accessSubject: 'You can now watch the video you asked for',
+    accessBody: 'Your request was approved. Open the video here:',
+    sharedSubject: 'A video was shared with you',
+    sharedBody: 'A video was shared with you on zerosoft. Open it here:',
+    recapIntro: (from: string, title: string) => `${from} shared a recap of "${title}".`,
+    recapSubject: (title: string) => `Recap: ${title}`,
+    asked: (who: string, title: string) => `${who} asked to watch "${title}"`,
+    moved: (who: string, v: number, f: number) => `${who} moved ${v} ${v === 1 ? 'video' : 'videos'} and ${f} ${f === 1 ? 'folder' : 'folders'} of someone who left to your library`,
+    retentionStart: (n: number, days: number, date: string) => `${n} of your videos ${n === 1 ? 'is' : 'are'} older than ${days} days and will be deleted from ${date}`,
+    retentionDeleted: (n: number) => `Retention deleted ${n} of your videos`,
+  },
+  es: {
+    accessSubject: 'Ya podés ver el video que pediste',
+    accessBody: 'Aprobaron tu pedido. Abrí el video acá:',
+    sharedSubject: 'Te compartieron un video',
+    sharedBody: 'Te compartieron un video en zerosoft. Abrilo acá:',
+    recapIntro: (from: string, title: string) => `${from} compartió un resumen de "${title}".`,
+    recapSubject: (title: string) => `Resumen: ${title}`,
+    asked: (who: string, title: string) => `${who} pidió ver "${title}"`,
+    moved: (who: string, v: number, f: number) => `${who} pasó a tu biblioteca ${v} ${v === 1 ? 'video' : 'videos'} y ${f} ${f === 1 ? 'carpeta' : 'carpetas'} de alguien que se fue`,
+    retentionStart: (n: number, days: number, date: string) => `${n} de tus videos ${n === 1 ? 'tiene' : 'tienen'} más de ${days} días y se ${n === 1 ? 'va' : 'van'} a borrar desde el ${date}`,
+    retentionDeleted: (n: number) => `La retención borró ${n} de tus videos`,
+  },
+  pt: {
+    accessSubject: 'Você já pode assistir ao vídeo que pediu',
+    accessBody: 'Seu pedido foi aprovado. Abra o vídeo aqui:',
+    sharedSubject: 'Compartilharam um vídeo com você',
+    sharedBody: 'Compartilharam um vídeo com você na zerosoft. Abra aqui:',
+    recapIntro: (from: string, title: string) => `${from} compartilhou um resumo de "${title}".`,
+    recapSubject: (title: string) => `Resumo: ${title}`,
+    asked: (who: string, title: string) => `${who} pediu para assistir "${title}"`,
+    moved: (who: string, v: number, f: number) => `${who} passou para sua biblioteca ${v} ${v === 1 ? 'vídeo' : 'vídeos'} e ${f} ${f === 1 ? 'pasta' : 'pastas'} de alguém que saiu`,
+    retentionStart: (n: number, days: number, date: string) => `${n} dos seus vídeos ${n === 1 ? 'tem' : 'têm'} mais de ${days} dias e ${n === 1 ? 'será apagado' : 'serão apagados'} a partir de ${date}`,
+    retentionDeleted: (n: number) => `A retenção apagou ${n} dos seus vídeos`,
+  },
+};
+
+const lang = (l: unknown): Lang => (l === 'es' || l === 'pt' ? l : 'en');
+
+async function userLang(id: string): Promise<Lang> {
+  const r = (await getDb().prepare('SELECT locale FROM users WHERE id = ?').get(id).catch(() => undefined)) as { locale?: string | null } | undefined;
+  return lang(r?.locale);
+}
+
+async function emailLang(email: string): Promise<Lang> {
+  const r = (await getDb().prepare('SELECT locale FROM users WHERE lower(email) = ? LIMIT 1').get(email.toLowerCase()).catch(() => undefined)) as { locale?: string | null } | undefined;
+  return lang(r?.locale);
+}
+
+/** Registro de lo que hacen los admins y de lo que sale de Rec. */
+export async function recAudit(ws: string, actor: string, action: string, detail: Record<string, unknown>, db: Pick<ReturnType<typeof getDb>, 'prepare'> = getDb()): Promise<void> {
+  await db.prepare('INSERT INTO rec_audit (id, workspace_id, actor_id, action, detail) VALUES (?, ?, ?, ?, ?)').run(crypto.randomUUID(), ws, actor, action, JSON.stringify(detail));
 }
 
 function requireAdmin(a: RecActor): void {
@@ -126,16 +189,20 @@ export async function renameSpace(a: RecActor, id: string, name: string): Promis
 }
 
 /**
- * Borra el espacio. Sus videos vuelven a "Mis videos" de quien los grabó (no a
- * todo el workspace: nadie gana acceso por esto) y sus carpetas desaparecen.
+ * Borra el espacio, todo o nada. Sus videos vuelven a "Mis videos" de quien los
+ * grabó, sin que nadie gane acceso, y sus carpetas desaparecen.
  */
 export async function deleteSpace(a: RecActor, id: string): Promise<void> {
   await manageableSpace(a, id);
-  const db = getDb();
-  await db.prepare("UPDATE rec_videos SET space = 'personal', space_id = NULL, folder_id = NULL WHERE space_id = ?").run(id);
-  await db.prepare('DELETE FROM rec_folders WHERE space_id = ?').run(id);
-  await db.prepare('DELETE FROM rec_space_members WHERE space_id = ?').run(id);
-  await db.prepare('DELETE FROM rec_spaces WHERE id = ?').run(id);
+  await inTx(async (t) => {
+    // "Solo workspace" adentro de un espacio era solo para sus miembros: en un video personal abriría a todo el workspace.
+    await t
+      .prepare("UPDATE rec_videos SET people_only = CASE WHEN privacy = 'workspace' THEN 1 ELSE people_only END, space = 'personal', space_id = NULL, folder_id = NULL WHERE space_id = ?")
+      .run(id);
+    await t.prepare('DELETE FROM rec_folders WHERE space_id = ?').run(id);
+    await t.prepare('DELETE FROM rec_space_members WHERE space_id = ?').run(id);
+    await t.prepare('DELETE FROM rec_spaces WHERE id = ?').run(id);
+  });
 }
 
 export async function spaceMemberIds(a: RecActor, id: string): Promise<string[]> {
@@ -151,9 +218,10 @@ export async function setSpaceMembers(a: RecActor, id: string, userIds: string[]
   const next = [...new Set(userIds)].filter((u) => ok.has(u)).slice(0, 500);
   // Quien la creó no se queda afuera por error: sigue siendo miembro.
   if (!next.includes(s.created_by) && ok.has(s.created_by)) next.push(s.created_by);
-  const db = getDb();
-  await db.prepare('DELETE FROM rec_space_members WHERE space_id = ?').run(id);
-  for (const u of next) await db.prepare('INSERT OR IGNORE INTO rec_space_members (space_id, user_id) VALUES (?, ?)').run(id, u);
+  await inTx(async (t) => {
+    await t.prepare('DELETE FROM rec_space_members WHERE space_id = ?').run(id);
+    for (const u of next) await t.prepare('INSERT OR IGNORE INTO rec_space_members (space_id, user_id) VALUES (?, ?)').run(id, u);
+  });
 }
 
 // ============================================================
@@ -232,6 +300,7 @@ export async function updateRecSettings(
   const cur = (await settingsRow(a.ws))!;
   const sets: string[] = [];
   const args: Array<string | number | null> = [];
+  let startsAt: string | null = null;
   const set = (col: string, val: string | number | null) => {
     sets.push(`${col} = ?`);
     args.push(val);
@@ -256,10 +325,17 @@ export async function updateRecSettings(
       if (!(REC_RETENTION_OPTIONS as readonly number[]).includes(days)) throw new RecError('invalid_input');
       set('retention_days', days);
       // Prender o acortar da un plazo antes de borrar; alargar no lo cambia.
-      if (cur.retention_days === null || days < cur.retention_days) set('retention_starts_at', dateDb(Date.now() + REC_RETENTION_GRACE_DAYS * 86_400_000));
+      if (cur.retention_days === null || days < cur.retention_days) {
+        startsAt = dateDb(Date.now() + REC_RETENTION_GRACE_DAYS * 86_400_000);
+        set('retention_starts_at', startsAt);
+      }
     }
   }
   if (sets.length) await db.prepare(`UPDATE rec_settings SET ${sets.join(', ')}, updated_at = datetime('now') WHERE workspace_id = ?`).run(...args, a.ws);
+  if (startsAt && patch.retentionDays) {
+    await recAudit(a.ws, a.actor, 'retention_on', { days: patch.retentionDays, startsAt });
+    await notifyRetentionStart(a.ws, patch.retentionDays, startsAt).catch(() => undefined);
+  }
   return getRecSettings(a.ws);
 }
 
@@ -269,20 +345,38 @@ export async function setBrandLogo(a: RecActor, url: string | null): Promise<voi
   await db.prepare('INSERT OR IGNORE INTO rec_settings (workspace_id) VALUES (?)').run(a.ws);
   const cur = await settingsRow(a.ws);
   await db.prepare("UPDATE rec_settings SET brand_logo_url = ?, updated_at = datetime('now') WHERE workspace_id = ?").run(url, a.ws);
-  if (cur?.brand_logo_url && cur.brand_logo_url !== url) await deleteUploads([cur.brand_logo_url]).catch(() => undefined);
+  if (cur?.brand_logo_url && cur.brand_logo_url !== url) await dropRecFiles([cur.brand_logo_url]).catch(() => undefined);
 }
 
 // ============================================================
 // Retención
 // ============================================================
 
-/** Cuántos videos listos tienen más de `days` días (lo que se confirma antes de prenderla). */
+/** Corte del primer borrado: lo que para entonces (pasado el aviso) tenga más de `days` días. */
+function firstRunCutoff(days: number): string {
+  return dateDb(Date.now() - (days - REC_RETENTION_GRACE_DAYS) * 86_400_000);
+}
+
+/** Cuántos videos se borrarían en el primer borrado, pasado el aviso (lo que se confirma antes de prenderla). */
 export async function retentionPreview(a: RecActor, days: number): Promise<number> {
   requireAdmin(a);
   const row = (await getDb()
     .prepare("SELECT COUNT(*) AS n FROM rec_videos WHERE workspace_id = ? AND status = 'ready' AND created_at < ?")
-    .get(a.ws, dateDb(Date.now() - days * 86_400_000))) as { n: number };
+    .get(a.ws, firstRunCutoff(days))) as { n: number };
   return Number(row.n) || 0;
+}
+
+/** Al empezar el plazo de aviso: a cada persona, cuántos de sus videos se van a borrar y desde cuándo. */
+async function notifyRetentionStart(ws: string, days: number, startsAt: string): Promise<void> {
+  const rows = (await getDb()
+    .prepare("SELECT created_by, COUNT(*) AS n FROM rec_videos WHERE workspace_id = ? AND status = 'ready' AND created_at < ? GROUP BY created_by LIMIT 500")
+    .all(ws, firstRunCutoff(days))) as Array<{ created_by: string; n: number }>;
+  const { createNotification } = await import('./notifications');
+  for (const r of rows) {
+    const l = await userLang(r.created_by);
+    const date = new Intl.DateTimeFormat(l, { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(`${startsAt.replace(' ', 'T')}Z`));
+    await createNotification({ userId: r.created_by, type: 'rec_retention', title: TEXT[l].retentionStart(Number(r.n), days, date), href: '/app/rec', sourceType: 'rec_retention', sourceId: ws, meta: {} }).catch(() => undefined);
+  }
 }
 
 /**
@@ -316,10 +410,11 @@ export async function applyRetention(opts: { budgetMs?: number; limit?: number }
     const cutoff = dateDb(Date.now() - w.retention_days * 86_400_000);
     const asked = left;
     const videos = (await db
-      .prepare("SELECT id, url, audio_url, thumb_url, gif_url, trimmed_url FROM rec_videos WHERE workspace_id = ? AND status = 'ready' AND created_at < ? LIMIT ?")
-      .all(w.workspace_id, cutoff, left)) as Array<Pick<RecVideoRow, 'id' | 'url' | 'audio_url' | 'thumb_url' | 'gif_url' | 'trimmed_url'>>;
+      .prepare("SELECT id, created_by, url, audio_url, thumb_url, gif_url, trimmed_url FROM rec_videos WHERE workspace_id = ? AND status = 'ready' AND created_at < ? LIMIT ?")
+      .all(w.workspace_id, cutoff, left)) as Array<Pick<RecVideoRow, 'id' | 'created_by' | 'url' | 'audio_url' | 'thumb_url' | 'gif_url' | 'trimmed_url'>>;
     let here = 0;
     let stopped = false;
+    const byAuthor = new Map<string, number>();
     for (const v of videos) {
       if (Date.now() - start > budget) {
         stopped = true;
@@ -328,11 +423,19 @@ export async function applyRetention(opts: { budgetMs?: number; limit?: number }
       const res = await db.prepare("DELETE FROM rec_videos WHERE id = ? AND status = 'ready' AND created_at < ?").run(v.id, cutoff);
       if (!res.changes) continue;
       here++;
-      await deleteUploads([v.url, v.audio_url, v.thumb_url, v.gif_url, v.trimmed_url].filter((u): u is string => !!u)).catch(() => undefined);
+      byAuthor.set(v.created_by, (byAuthor.get(v.created_by) ?? 0) + 1);
+      await dropRecFiles([v.url, v.audio_url, v.thumb_url, v.gif_url, v.trimmed_url].filter((u): u is string => !!u)).catch(() => undefined);
     }
     left -= here;
     deleted += here;
-    if (here) await db.prepare('UPDATE rec_settings SET retention_deleted = retention_deleted + ? WHERE workspace_id = ?').run(here, w.workspace_id);
+    if (here) {
+      await db.prepare('UPDATE rec_settings SET retention_deleted = retention_deleted + ? WHERE workspace_id = ?').run(here, w.workspace_id);
+      const { createNotification } = await import('./notifications');
+      for (const [author, n] of byAuthor) {
+        const l = await userLang(author);
+        await createNotification({ userId: author, type: 'rec_retention', title: TEXT[l].retentionDeleted(n), href: '/app/rec', sourceType: 'rec_retention', sourceId: w.workspace_id, meta: {} }).catch(() => undefined);
+      }
+    }
     // Quedó trabajo: la próxima corrida sigue, sin esperar una hora.
     if (stopped || videos.length >= asked) await db.prepare('UPDATE rec_settings SET retention_checked_at = ? WHERE workspace_id = ?').run(hourAgo, w.workspace_id);
   }
@@ -350,42 +453,50 @@ export interface RecContentOwner {
   folders: number;
 }
 
-/** Quién tiene videos o carpetas en el workspace (también gente que ya no está). Solo admins. */
-export async function listContentOwners(a: RecActor): Promise<RecContentOwner[]> {
+/**
+ * Quién se fue del workspace y dejó videos o carpetas. Solo admins. `current` son
+ * todas las personas que están hoy, también invitadas: a ellas no se les saca nada.
+ */
+export async function listContentOwners(a: RecActor, current: string[]): Promise<RecContentOwner[]> {
   requireAdmin(a);
   const rows = (await getDb()
     .prepare(
       `SELECT o.created_by AS user_id, COALESCE(u.name, u.email, '') AS name, SUM(o.videos) AS videos, SUM(o.folders) AS folders FROM (
-         SELECT created_by, COUNT(*) AS videos, 0 AS folders FROM rec_videos WHERE workspace_id = ? AND status = 'ready' GROUP BY created_by
+         SELECT created_by, COUNT(*) AS videos, 0 AS folders FROM rec_videos WHERE workspace_id = ? AND status != 'recording' GROUP BY created_by
          UNION ALL
          SELECT created_by, 0, COUNT(*) FROM rec_folders WHERE workspace_id = ? GROUP BY created_by
        ) o LEFT JOIN users u ON u.id = o.created_by GROUP BY o.created_by ORDER BY name LIMIT 500`,
     )
     .all(a.ws, a.ws)) as Array<{ user_id: string; name: string; videos: number; folders: number }>;
-  return rows.map((r) => ({ userId: r.user_id, name: r.name, videos: Number(r.videos) || 0, folders: Number(r.folders) || 0 }));
+  return rows
+    .filter((r) => r.user_id !== a.ws && !current.includes(r.user_id))
+    .map((r) => ({ userId: r.user_id, name: r.name, videos: Number(r.videos) || 0, folders: Number(r.folders) || 0 }));
 }
 
-/** Pasa todos los videos y carpetas de una persona a otra del workspace (también los personales). */
-export async function transferContent(a: RecActor, from: string, to: string, allowedTargets: string[]): Promise<{ videos: number; folders: number }> {
+/**
+ * Pasa los videos y carpetas de alguien que se fue a otra persona del workspace,
+ * de una sola vez y con registro. Nunca de la dueña ni de quien sigue (aunque sea
+ * invitada), y nunca lo que se está grabando. Quien hace el pase solo se lo queda
+ * si no hay nadie más. Los videos personales pasan a ser de quien los recibe.
+ */
+export async function transferContent(a: RecActor, from: string, to: string, targets: string[], current: string[]): Promise<{ videos: number; folders: number }> {
   requireAdmin(a);
-  if (from === to || !allowedTargets.includes(to)) throw new RecError('invalid_input');
-  const db = getDb();
-  const v = await db.prepare("UPDATE rec_videos SET created_by = ?, updated_at = datetime('now') WHERE workspace_id = ? AND created_by = ?").run(to, a.ws, from);
-  const f = await db.prepare("UPDATE rec_folders SET created_by = ?, updated_at = datetime('now') WHERE workspace_id = ? AND created_by = ?").run(to, a.ws, from);
-  const videos = Number(v.changes) || 0;
-  const folders = Number(f.changes) || 0;
+  if (from === a.ws) throw new RecError('transfer_owner', 403);
+  if (from === to || current.includes(from)) throw new RecError('transfer_not_former', 403);
+  if (!targets.includes(to)) throw new RecError('invalid_input');
+  if (to === a.actor && targets.some((t) => t !== a.actor)) throw new RecError('transfer_self', 403);
+  const { videos, folders } = await inTx(async (t) => {
+    const v = await t.prepare("UPDATE rec_videos SET created_by = ?, updated_at = datetime('now') WHERE workspace_id = ? AND created_by = ? AND status != 'recording'").run(to, a.ws, from);
+    const f = await t.prepare("UPDATE rec_folders SET created_by = ?, updated_at = datetime('now') WHERE workspace_id = ? AND created_by = ?").run(to, a.ws, from);
+    const out = { videos: Number(v.changes) || 0, folders: Number(f.changes) || 0 };
+    if (out.videos || out.folders) await recAudit(a.ws, a.actor, 'transfer', { from, to, ...out }, t);
+    return out;
+  });
   if (videos || folders) {
     try {
       const { createNotification } = await import('./notifications');
-      await createNotification({
-        userId: to,
-        type: 'rec_access',
-        title: `${a.name || 'An admin'} moved ${videos} videos to your library`,
-        href: '/app/rec',
-        sourceType: 'rec_transfer',
-        sourceId: from,
-        meta: { actorName: a.name },
-      });
+      const l = await userLang(to);
+      await createNotification({ userId: to, type: 'rec_access', title: TEXT[l].moved(a.name || 'Admin', videos, folders), href: '/app/rec', sourceType: 'rec_transfer', sourceId: from, meta: { actorName: a.name } });
     } catch {
       /* el aviso no corta el traspaso */
     }
@@ -414,19 +525,20 @@ export async function requestAccess(v: Pick<RecVideoRow, 'id' | 'created_by' | '
   if (!email) throw new RecError('signin_required', 403);
   const db = getDb();
   const existing = (await db.prepare('SELECT status FROM rec_access_requests WHERE video_id = ? AND email = ?').get(v.id, email)) as { status: RecAccessRequestDto['status'] } | undefined;
-  if (existing) return existing.status;
+  if (existing && existing.status !== 'approved') return existing.status;
   await limited(`rec:access:user:${email}`, 20, 3600);
   await limited(`rec:access:video:${v.id}`, 30, 3600);
-  const res = await db
-    .prepare('INSERT OR IGNORE INTO rec_access_requests (id, video_id, email, name) VALUES (?, ?, ?, ?)')
-    .run(crypto.randomUUID(), v.id, email, person.name.trim().slice(0, 80));
+  // Lo habían aprobado y le sacaron el acceso: el pedido vuelve a quedar pendiente.
+  const res = existing
+    ? await db.prepare("UPDATE rec_access_requests SET status = 'pending', decided_at = NULL WHERE video_id = ? AND email = ? AND status = 'approved'").run(v.id, email)
+    : await db.prepare('INSERT OR IGNORE INTO rec_access_requests (id, video_id, email, name) VALUES (?, ?, ?, ?)').run(crypto.randomUUID(), v.id, email, person.name.trim().slice(0, 80));
   if (res.changes) {
     try {
       const { createNotification } = await import('./notifications');
       await createNotification({
         userId: v.created_by,
         type: 'rec_access',
-        title: `${person.name || email} asked to watch "${v.title}"`,
+        title: TEXT[await userLang(v.created_by)].asked(person.name || email, v.title),
         href: `/app/rec/${v.id}?share=1`,
         sourceType: 'rec_video',
         sourceId: v.id,
@@ -449,27 +561,37 @@ export async function listAccessRequests(a: RecActor, videoId: string): Promise<
 
 /** Aprobar suma el email a la lista (quitarlo después corta el acceso al toque) y le avisa una sola vez. */
 export async function decideAccessRequest(a: RecActor, videoId: string, requestId: string, approve: boolean, shareUrl: string): Promise<{ allowedEmails: string[] }> {
-  const v = await getManageableVideo(a, videoId);
+  await getManageableVideo(a, videoId);
   const db = getDb();
-  const req = (await db.prepare("SELECT id, email FROM rec_access_requests WHERE id = ? AND video_id = ? AND status = 'pending'").get(requestId, videoId)) as { id: string; email: string } | undefined;
+  const req = (await db.prepare("SELECT email FROM rec_access_requests WHERE id = ? AND video_id = ? AND status = 'pending'").get(requestId, videoId)) as { email: string } | undefined;
   if (!req) throw new RecError('not_found', 404);
-  const claim = await db
-    .prepare("UPDATE rec_access_requests SET status = ?, decided_at = datetime('now') WHERE id = ? AND status = 'pending'")
-    .run(approve ? 'approved' : 'denied', requestId);
-  const current = parseJson<string[]>(v.allowed_emails, []);
-  if (!approve || !claim.changes) return { allowedEmails: current };
-  const allowed = cleanEmails([...current, req.email]);
-  await db.prepare("UPDATE rec_videos SET allowed_emails = ?, updated_at = datetime('now') WHERE id = ?").run(JSON.stringify(allowed), videoId);
-  const { sendEmail, appSender } = await import('./email');
-  await sendEmail({
-    to: req.email,
-    from: appSender(),
-    subject: `You can now watch "${v.title}"`,
-    text: `${a.name || 'The owner'} gave you access to "${v.title}".\n\n${shareUrl}`,
-    html: `<p>${escapeHtml(a.name || 'The owner')} gave you access to "${escapeHtml(v.title)}".</p><p><a href="${escapeHtml(shareUrl)}">${escapeHtml(shareUrl)}</a></p>`,
-    idempotencyKey: `rec-access-${requestId}`,
-  }).catch(() => undefined);
-  return { allowedEmails: allowed };
+  const email = req.email;
+  if (approve) {
+    // Una sola sentencia: lee y escribe la lista a la vez, dos aprobaciones juntas no se pisan.
+    const added = await db
+      .prepare(
+        `UPDATE rec_videos SET allowed_emails = (SELECT json_group_array(value) FROM (SELECT value FROM json_each(allowed_emails) UNION SELECT ?)), updated_at = datetime('now')
+         WHERE id = ? AND (json_array_length(allowed_emails) < ? OR EXISTS (SELECT 1 FROM json_each(allowed_emails) WHERE value = ?))`,
+      )
+      .run(email, videoId, MAX_REC_ALLOWED, email);
+    if (!added.changes) throw new RecError('allowed_full', 409);
+  }
+  const claim = await db.prepare("UPDATE rec_access_requests SET status = ?, decided_at = datetime('now') WHERE id = ? AND status = 'pending'").run(approve ? 'approved' : 'denied', requestId);
+  const after = (await getDb().prepare('SELECT allowed_emails FROM rec_videos WHERE id = ?').get(videoId)) as { allowed_emails: string };
+  if (approve && claim.changes) {
+    const { sendEmail, appSender } = await import('./email');
+    const tx = TEXT[await emailLang(email)];
+    // Sin el título ni el nombre: a alguien de afuera no le sale texto libre.
+    await sendEmail({
+      to: email,
+      from: appSender(),
+      subject: tx.accessSubject,
+      text: `${tx.accessBody}\n\n${shareUrl}`,
+      html: `<p>${escapeHtml(tx.accessBody)}</p><p><a href="${escapeHtml(shareUrl)}">${escapeHtml(shareUrl)}</a></p>`,
+      idempotencyKey: `rec-access-${requestId}`,
+    }).catch(() => undefined);
+  }
+  return { allowedEmails: parseJson<string[]>(after.allowed_emails, []) };
 }
 
 // ============================================================
@@ -556,44 +678,73 @@ export function recapEmail(
   content: { chapters: RecChapter[]; summary: string },
   shareUrl: string,
   from: string,
+  locale: string = 'en',
 ): { subject: string; text: string; html: string } {
-  const lines = [`${from} shared a recap of "${v.title}".`, ''];
+  const tx = TEXT[lang(locale)];
+  const lines = [tx.recapIntro(from, v.title), ''];
   if (content.summary.trim()) lines.push(content.summary.trim(), '');
   if (content.chapters.length) lines.push(...content.chapters.map((c) => `${fmtClock(c.start)} ${c.title}`), '');
   lines.push(shareUrl);
   const html = [
-    `<p>${escapeHtml(from)} shared a recap of "${escapeHtml(v.title)}".</p>`,
+    `<p>${escapeHtml(tx.recapIntro(from, v.title))}</p>`,
     content.summary.trim() ? `<p>${escapeHtml(content.summary.trim())}</p>` : '',
     content.chapters.length ? `<ul>${content.chapters.map((c) => `<li>${fmtClock(c.start)} ${escapeHtml(c.title)}</li>`).join('')}</ul>` : '',
     `<p><a href="${escapeHtml(shareUrl)}">${escapeHtml(shareUrl)}</a></p>`,
   ].join('');
-  return { subject: `Recap: ${v.title}`.slice(0, 200), text: lines.join('\n'), html };
+  return { subject: tx.recapSubject(v.title).slice(0, 200), text: lines.join('\n'), html };
+}
+
+/** A alguien de afuera del workspace: texto fijo y el link, nada que haya escrito una persona. */
+export function outsideRecapEmail(shareUrl: string, locale: string = 'en'): { subject: string; text: string; html: string } {
+  const tx = TEXT[lang(locale)];
+  return {
+    subject: tx.sharedSubject,
+    text: `${tx.sharedBody}\n\n${shareUrl}`,
+    html: `<p>${escapeHtml(tx.sharedBody)}</p><p><a href="${escapeHtml(shareUrl)}">${escapeHtml(shareUrl)}</a></p>`,
+  };
 }
 
 /**
- * Manda el resumen a hasta MAX_RECAP_RECIPIENTS direcciones. La misma lista con
- * el mismo contenido no sale dos veces (clave por video, destinos y texto); hay
- * tope por persona y por workspace, y cada envío lleva su clave de idempotencia.
+ * Manda el resumen solo a miembros del workspace (`memberEmails`) y a quienes ya
+ * tienen permiso en este video; a estos últimos, si son de afuera, sin texto libre.
+ * Cuenta destinatarios: REC_RECAP_DAILY por día y por workspace, REC_RECAP_DAILY_NEW
+ * si la cuenta que manda o la del workspace tienen menos de 7 días. La misma lista
+ * con el mismo contenido no sale dos veces, y cada envío lleva clave de idempotencia.
  */
-export async function sendRecap(a: RecActor, id: string, rawEmails: string[], shareUrl: string): Promise<{ sent: number; duplicate: boolean }> {
+export async function sendRecap(a: RecActor, id: string, rawEmails: string[], shareUrl: string, memberEmails: string[]): Promise<{ sent: number; duplicate: boolean }> {
   const v = await getManageableVideo(a, id);
   if (v.status !== 'ready') throw new RecError('not_ready', 409);
   const emails = cleanEmails(rawEmails).sort();
   if (!emails.length) throw new RecError('invalid_input');
   if (emails.length > MAX_RECAP_RECIPIENTS) throw new RecError('too_many_recipients');
+  const members = new Set(memberEmails.map((e) => e.toLowerCase()));
+  const allowed = new Set(parseJson<string[]>(v.allowed_emails, []));
+  if (emails.some((e) => !members.has(e) && !allowed.has(e))) throw new RecError('recap_outside', 403);
   const content = visibleContent(v, false);
-  const { subject, text, html } = recapEmail(v, content, shareUrl, a.name || 'Someone');
-  const key = createHash('sha256').update(JSON.stringify([id, emails, subject, text])).digest('hex').slice(0, 40);
+  const base = recapEmail(v, content, shareUrl, a.name || 'Someone');
+  const key = createHash('sha256').update(JSON.stringify([id, emails, base.subject, base.text])).digest('hex').slice(0, 40);
   const db = getDb();
   if (await db.prepare('SELECT 1 FROM rec_recaps WHERE key = ?').get(key)) return { sent: 0, duplicate: true };
-  await limited(`rec:recap:user:${a.actor}`, 20, 3600);
-  await limited(`rec:recap:ws:${a.ws}`, 300, 86_400);
-  const claim = await db.prepare('INSERT OR IGNORE INTO rec_recaps (key, video_id, recipients, sent_by) VALUES (?, ?, ?, ?)').run(key, id, JSON.stringify(emails), a.actor);
-  if (!claim.changes) return { sent: 0, duplicate: true };
+  const ages = (await db.prepare('SELECT MAX(created_at) AS newest FROM users WHERE id IN (?, ?)').get(a.actor, a.ws)) as { newest: string | null };
+  const newest = ages.newest ? new Date(`${ages.newest.replace(' ', 'T').replace(/Z$/, '')}Z`).getTime() : 0;
+  const cap = Date.now() - newest < 7 * 86_400_000 ? REC_RECAP_DAILY_NEW : REC_RECAP_DAILY;
+  // Se reclama antes de mandar, en una sola sentencia con la cuenta del día: dos envíos a la vez no pasan el tope.
+  const claim = await db
+    .prepare(
+      `INSERT OR IGNORE INTO rec_recaps (key, workspace_id, video_id, recipients, n, sent_by)
+       SELECT ?, ?, ?, ?, ?, ? WHERE (SELECT COALESCE(SUM(n), 0) FROM rec_recaps WHERE workspace_id = ? AND created_at >= datetime('now', '-1 day')) + ? <= ?`,
+    )
+    .run(key, a.ws, id, JSON.stringify(emails), emails.length, a.actor, a.ws, emails.length, cap);
+  if (!claim.changes) {
+    if (await db.prepare('SELECT 1 FROM rec_recaps WHERE key = ?').get(key)) return { sent: 0, duplicate: true };
+    throw new RecError('recap_quota', 429);
+  }
   const { sendEmail, appSender } = await import('./email');
   let sent = 0;
   for (const to of emails) {
-    const r = await sendEmail({ to, from: appSender(), subject, text, html, idempotencyKey: `rec-recap-${key}-${createHash('sha256').update(to).digest('hex').slice(0, 12)}` }).catch(() => ({ ok: false }));
+    const l = await emailLang(to);
+    const mail = members.has(to) ? recapEmail(v, content, shareUrl, a.name || 'Someone', l) : outsideRecapEmail(shareUrl, l);
+    const r = await sendEmail({ to, from: appSender(), ...mail, idempotencyKey: `rec-recap-${key}-${createHash('sha256').update(to).digest('hex').slice(0, 12)}` }).catch(() => ({ ok: false }));
     if (r.ok) sent++;
   }
   if (!sent) {
@@ -602,5 +753,6 @@ export async function sendRecap(a: RecActor, id: string, rawEmails: string[], sh
     throw new RecError('recap_failed', 502);
   }
   await db.prepare('UPDATE rec_recaps SET sent = ? WHERE key = ?').run(sent, key);
+  await recAudit(a.ws, a.actor, 'recap', { video: id, recipients: emails.length, sent });
   return { sent, duplicate: false };
 }

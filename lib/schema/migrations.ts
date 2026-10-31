@@ -7885,10 +7885,27 @@ export const MIGRATIONS: Migration[] = [
         );
         CREATE TABLE IF NOT EXISTS rec_recaps (
           key TEXT PRIMARY KEY,
-          video_id TEXT NOT NULL REFERENCES rec_videos(id) ON DELETE CASCADE,
+          workspace_id TEXT NOT NULL,
+          video_id TEXT NOT NULL,
           recipients TEXT NOT NULL,
+          n INTEGER NOT NULL DEFAULT 0,
           sent_by TEXT NOT NULL,
           sent INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_rec_recaps_ws ON rec_recaps(workspace_id, created_at);
+        CREATE TABLE IF NOT EXISTS rec_audit (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          actor_id TEXT NOT NULL,
+          action TEXT NOT NULL,
+          detail TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_rec_audit_ws ON rec_audit(workspace_id, created_at);
+        CREATE TABLE IF NOT EXISTS rec_file_deletes (
+          url TEXT PRIMARY KEY,
+          attempts INTEGER NOT NULL DEFAULT 0,
           created_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
       `);

@@ -35,7 +35,8 @@ export async function resolvePublicPage(
     let requestStatus: string | null = null;
     if (access === 'forbidden' && viewer.email) {
       const row = (await getDb().prepare('SELECT status FROM rec_access_requests WHERE video_id = ? AND email = ?').get(v.id, viewer.email.trim().toLowerCase())) as { status: string } | undefined;
-      requestStatus = row?.status ?? null;
+      // Aprobado y sin acceso: se lo sacaron después, puede volver a pedirlo.
+      requestStatus = row?.status === 'approved' ? null : row?.status ?? null;
     }
     return { state: access, title: access === 'expired' ? v.title : '', signedIn: !!viewer.userId, requestStatus };
   }

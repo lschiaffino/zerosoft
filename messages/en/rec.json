@@ -154,7 +154,15 @@
       "join_incompatible": "These two videos cannot be joined: their size or tracks are different.",
       "too_many_recipients": "Too many addresses for one send.",
       "recap_failed": "The email could not be sent. Try again.",
-      "invalid_email": "Enter a valid email."
+      "invalid_email": "Enter a valid email.",
+      "recap_outside": "Recaps only go to members of the workspace and people already allowed on this video.",
+      "recap_quota": "The daily recap limit for this workspace was reached.",
+      "allowed_full": "A video can have up to 100 allowed emails.",
+      "join_mixed_password": "These videos have different passwords, so they cannot be joined. Remove one first.",
+      "export_widens": "Confirm first: more people would read this video.",
+      "transfer_owner": "The owner's content cannot be transferred.",
+      "transfer_not_former": "You can only transfer the content of someone who left the workspace.",
+      "transfer_self": "Choose another person to receive it."
     },
     "downloading": "Downloading {pct}%"
   },
@@ -522,12 +530,16 @@
     "chapters": "Chapters",
     "transcript": "Transcript",
     "recapTitle": "Email a recap",
-    "recapHelp": "Sends the title, summary, chapters and link. Up to {max} addresses per send.",
+    "recapHelp": "Only to members of the workspace and people already allowed on this video, up to {max} addresses per send and 50 per day (10 for new accounts). People outside the workspace get a fixed text with the link.",
     "recapPrivate": "This video is not open to anyone with the link: recipients need access to watch it.",
     "recapTo": "To (emails)",
     "recapSend": "{n, plural, =0 {Send} one {Send to # person} other {Send to # people}}",
     "recapSent": "{n, plural, one {Sent to # person.} other {Sent to # people.}}",
-    "recapDuplicate": "This same recap already went to these people. Nothing was sent."
+    "recapDuplicate": "This same recap already went to these people. Nothing was sent.",
+    "widenTitle": "More people will read this",
+    "widenDoc": "This video is more closed than Docs. The new page copies its summary and transcript, and members who can open Docs pages will read them even if they cannot watch the video.",
+    "widenIssue": "This video is more closed than the project. The new issue copies its summary and transcript, and everyone who sees the project will read them even if they cannot watch the video.",
+    "widenGo": "Create anyway"
   },
   "settings": {
     "readOnly": "An admin of the workspace can change these settings.",
@@ -547,23 +559,24 @@
     "logoRemove": "Remove logo",
     "logoUpload": "Upload logo",
     "retention": "Retention",
-    "retentionHelp": "Deletes videos older than the period you choose, with their comments and analytics. Off by default. The first deletions run {days} days after you turn it on or shorten it.",
+    "retentionHelp": "Deletes videos older than the period you choose, with their comments and analytics. Off by default. The first deletions run {days} days after you turn it on or shorten it. Authors get a notice in the app at the start of those days and when their videos are deleted.",
     "retentionKeep": "Keep videos for",
     "retentionOff": "Keep them (off)",
     "retentionDays": "{days} days",
     "retentionOn": "First deletions from {date}. Deleted so far: {deleted}.",
     "retentionConfirmTitle": "Delete videos older than {days} days?",
-    "retentionConfirmBody": "{count, plural, =0 {No video is older than that today.} one {# video is older than that today and will be deleted.} other {# videos are older than that today and will be deleted.}} Deletions start in {grace} days and cannot be undone.",
+    "retentionConfirmBody": "{count, plural, =0 {No video will be over that age at the first deletion.} one {# video will be over that age at the first deletion.} other {# videos will be over that age at the first deletion.}} Deletions start in {grace} days and cannot be undone. Their authors get a notice now.",
     "retentionConfirm": "Turn on retention",
     "transfer": "Transfer content",
-    "transferHelp": "Moves all the videos and folders of one person to another, including personal ones. Useful when someone leaves.",
+    "transferHelp": "Moves the videos and folders of someone who left the workspace to another person, including their personal videos. It cannot be used on the owner or on anyone still in the workspace.",
     "transferFrom": "From",
     "transferTo": "To",
     "transferPick": "Choose a person",
-    "transferOwner": "{name} ({videos} videos, {folders} folders)",
+    "transferOwner": "{name} ({videos, plural, one {# video} other {# videos}}, {folders, plural, one {# folder} other {# folders}})",
     "transferGo": "Transfer",
-    "transferDone": "Transferred {videos} videos and {folders} folders.",
+    "transferDone": "Transferred {videos, plural, one {# video} other {# videos}} and {folders, plural, one {# folder} other {# folders}}.",
     "transferConfirmTitle": "Transfer this content?",
-    "transferConfirmBody": "{videos} videos and {folders} folders go from {from} to {to}. {to} will see personal videos too."
+    "transferConfirmBody": "{videos, plural, one {# video} other {# videos}} and {folders, plural, one {# folder} other {# folders}} go from {from} to {to}. {to} will also see the personal videos of {from}.",
+    "transferNone": "Nobody who left has videos or folders here."
   }
 }

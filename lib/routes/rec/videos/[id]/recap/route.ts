@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { sendRecap } from '@/lib/rec-admin';
 import { getVideoRow } from '@/lib/rec';
-import { recActor, recFail, recJson } from '@/lib/rec-http';
+import { recActor, recFail, recJson, recPeople } from '@/lib/rec-http';
 import { recShareUrl } from '@/lib/rec-page';
 
 export const runtime = 'nodejs';
@@ -20,7 +20,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   try {
     const v = await getVideoRow(s.actor, id);
     if (!v) return recJson({ error: 'not_found' }, 404);
-    return recJson(await sendRecap(s.actor, id, parsed.data.emails, recShareUrl(parsed.data.locale ?? 'en', v.share_id)));
+    const people = await recPeople(s.user);
+    return recJson(await sendRecap(s.actor, id, parsed.data.emails, recShareUrl(parsed.data.locale ?? 'en', v.share_id), people.map((p) => p.email)));
   } catch (err) {
     return recFail(err);
   }

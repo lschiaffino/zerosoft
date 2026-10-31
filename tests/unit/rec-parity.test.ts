@@ -10,6 +10,7 @@ import {
   cleanEmails,
   cleanOverlays,
   fillerSegments,
+  sniffImageType,
   keepRanges,
   overlaysInTrim,
   remapChapters,
@@ -20,6 +21,8 @@ import {
   createFolder,
   createVideo,
   emailGateToken,
+  exportWidens,
+  strictestAccess,
   finalizeDerived,
   finalizeVideo,
   getFolder,
@@ -49,6 +52,8 @@ import {
   listAccessRequests,
   listContentOwners,
   listSpaces,
+  outsideRecapEmail,
+  recapEmail,
   requestAccess,
   retentionPreview,
   sendRecap,
@@ -489,19 +494,118 @@ describe('retención', () => {
 });
 
 describe('traspaso de contenido', () => {
-  it('solo admins, a una persona del workspace; pasan videos y carpetas', async () => {
-    const v = await ready(outsiderMate, 'De quien se va');
-    const f = await createFolder(outsiderMate, { name: 'Suya', space: 'personal' });
-    await expect(transferContent(member, outsiderMate.actor, member.actor, [member.actor])).rejects.toMatchObject({ status: 403 });
-    await expect(listContentOwners(member)).rejects.toMatchObject({ status: 403 });
-    await expect(transferContent(owner, outsiderMate.actor, 'rp-stranger', [member.actor])).rejects.toMatchObject({ code: 'invalid_input' });
-    expect((await listContentOwners(owner)).some((o) => o.userId === outsiderMate.actor)).toBe(true);
-    const r = await transferContent(owner, outsiderMate.actor, member.actor, [member.actor]);
-    expect(r.videos).toBeGreaterThanOrEqual(1);
-    expect(r.folders).toBeGreaterThanOrEqual(1);
+  it('solo de quien se fue: nunca de la dueña ni de quien sigue, y no toca lo que se graba', async () => {
+    const leaver: RecActor = { ws: owner.ws, actor: 'rp-leaver', admin: false, name: 'Leaver' };
+    await upsertUser({ id: 'rp-leaver', email: 'rp-leaver@test.local', name: 'Leaver' });
+    const v = await ready(leaver, 'De quien se fue');
+    const f = await createFolder(leaver, { name: 'Suya', space: 'personal' });
+    const rec = await createVideo(leaver, { title: 'Grabando', mode: 'screen', contentType: 'video/webm' });
+    const current = [owner.actor, member.actor, outsiderMate.actor];
+    const targets = [owner.actor, member.actor];
+
+    await expect(transferContent(member, 'rp-leaver', member.actor, targets, current)).rejects.toMatchObject({ status: 403 });
+    await expect(listContentOwners(member, current)).rejects.toMatchObject({ status: 403 });
+    // Dueña, miembro activo e invitada (está en current): no.
+    await expect(transferContent(owner, owner.ws, member.actor, targets, current)).rejects.toMatchObject({ code: 'transfer_owner' });
+    await expect(transferContent(owner, outsiderMate.actor, member.actor, targets, current)).rejects.toMatchObject({ code: 'transfer_not_former' });
+    await expect(transferContent(owner, member.actor, owner.actor, targets, current)).rejects.toMatchObject({ code: 'transfer_not_former' });
+    await expect(transferContent(owner, 'rp-leaver', 'rp-stranger', targets, current)).rejects.toMatchObject({ code: 'invalid_input' });
+    // Quien hace el pase no se lo queda si hay alguien más.
+    await expect(transferContent(owner, 'rp-leaver', owner.actor, targets, current)).rejects.toMatchObject({ code: 'transfer_self' });
+
+    const owners = await listContentOwners(owner, current);
+    expect(owners.map((o) => o.userId)).toEqual(['rp-leaver']);
+
+    const r = await transferContent(owner, 'rp-leaver', member.actor, targets, current);
+    expect(r).toEqual({ videos: 1, folders: 1 });
     expect((await getVideoRow(member, v.id))!.created_by).toBe(member.actor);
     expect(await getFolder(member, f.id)).not.toBeNull();
-    expect(await getVideoRow(outsiderMate, v.id)).toBeNull();
+    const still = (await getDb().prepare('SELECT created_by FROM rec_videos WHERE id = ?').get(rec.id)) as { created_by: string };
+    expect(still.created_by).toBe('rp-leaver');
+    const audit = (await getDb().prepare("SELECT detail FROM rec_audit WHERE workspace_id = ? AND action = 'transfer'").all(owner.ws)) as Array<{ detail: string }>;
+    expect(JSON.parse(audit[audit.length - 1].detail)).toMatchObject({ from: 'rp-leaver', to: member.actor, videos: 1 });
+    const note = await getDb().prepare("SELECT 1 FROM notifications WHERE user_id = ? AND source_type = 'rec_transfer'").get(member.actor);
+    expect(note).toBeTruthy();
+  });
+});
+
+describe('borrar un espacio no abre nada', () => {
+  it('"solo workspace" adentro de un espacio queda solo para la lista y su autor', async () => {
+    const s = await createSpace(member, 'Temporal');
+    const v = await ready(member, 'Cerrado', { spaceId: s.id });
+    await updateVideo(member, v.id, { privacy: 'workspace', allowedEmails: ['ok@out.test'] });
+    const open = await ready(member, 'Abierto', { spaceId: s.id });
+    await deleteSpace(member, s.id);
+    const row = (await getPublicVideoRow(v.share_id))!;
+    expect(row.people_only).toBe(1);
+    expect(publicAccess(row, { ws: owner.ws, userId: 'rp-mate' }, null)).toBe('forbidden');
+    expect(publicAccess(row, { ws: 'x', userId: 'x', email: 'ok@out.test' }, null)).toBe('ok');
+    expect(publicAccess(row, { ws: owner.ws, userId: member.actor }, null)).toBe('ok');
+    expect((await getPublicVideoRow(open.share_id))!.people_only).toBe(0);
+  });
+});
+
+describe('exportar', () => {
+  it('avisa si el video es más cerrado que el destino', async () => {
+    const general = await ready(owner, 'General', { space: 'workspace' });
+    expect(exportWidens(general)).toBe(false);
+    const mine = await ready(owner, 'Mío');
+    expect(exportWidens(mine)).toBe(true);
+    const s = await createSpace(owner, 'Exp');
+    expect(exportWidens(await ready(owner, 'Espacio', { spaceId: s.id }))).toBe(true);
+    await updateVideo(owner, general.id, { password: 'clave-larga' });
+    expect(exportWidens((await getVideoRow(owner, general.id))!)).toBe(true);
+  });
+});
+
+describe('unir: lo más restrictivo', () => {
+  const base = { privacy: 'link' as const, people_only: 0, allowed_emails: '[]', password_hash: null, expires_at: null, allow_download: 1, require_email: 0, comments_require_account: 0, space_id: null };
+  it('público + contraseña = con contraseña; descarga, email y vencimiento también', () => {
+    const r = strictestAccess([base, { ...base, password_hash: 'h', allow_download: 0, expires_at: '2030-01-01 00:00:00', require_email: 1 }, { ...base, expires_at: '2029-01-01 00:00:00' }]);
+    expect(r).toMatchObject({ privacy: 'link', password_hash: 'h', allow_download: 0, require_email: 1, expires_at: '2029-01-01 00:00:00' });
+  });
+  it('listas: intersección; workspace o personas ganan al link; espacio cerrado no se abre', () => {
+    const a = { ...base, privacy: 'workspace' as const, people_only: 1, allowed_emails: '["a@x.io","b@x.io"]' };
+    const b = { ...base, privacy: 'workspace' as const, people_only: 1, allowed_emails: '["b@x.io"]' };
+    expect(strictestAccess([base, a, b])).toMatchObject({ privacy: 'workspace', people_only: 1, allowed_emails: '["b@x.io"]' });
+    expect(strictestAccess([base, { ...base, privacy: 'workspace' }])).toMatchObject({ privacy: 'workspace', people_only: 0 });
+    expect(strictestAccess([base, { ...base, privacy: 'workspace', space_id: 's' }])).toMatchObject({ people_only: 1 });
+  });
+  it('dos contraseñas distintas se rechazan', () => {
+    expect(() => strictestAccess([{ ...base, password_hash: 'x' }, { ...base, password_hash: 'y' }])).toThrow('join_mixed_password');
+  });
+});
+
+describe('logo y pedidos', () => {
+  it('el logo se valida por contenido', () => {
+    expect(sniffImageType(Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))).toBe('image/png');
+    expect(sniffImageType(Uint8Array.from([0xff, 0xd8, 0xff, 0xe0]))).toBe('image/jpeg');
+    expect(sniffImageType(new TextEncoder().encode('<svg onload="alert(1)"/>'))).toBeNull();
+  });
+  it('aprobado y revocado puede volver a pedir; con 100 emails aprobar falla y no miente', async () => {
+    const v = await ready(owner, 'Revocado');
+    await updateVideo(owner, v.id, { privacy: 'people' });
+    await requestAccess(v, { email: 'r@out.test', name: '' });
+    const [r] = await listAccessRequests(owner, v.id);
+    await decideAccessRequest(owner, v.id, r.id, true, 'https://z.test');
+    await updateVideo(owner, v.id, { allowedEmails: [] });
+    expect(await requestAccess(v, { email: 'r@out.test', name: '' })).toBe('pending');
+    const full = Array.from({ length: 100 }, (_, i) => `p${i}@x.io`);
+    await updateVideo(owner, v.id, { allowedEmails: full });
+    const [again] = await listAccessRequests(owner, v.id);
+    await expect(decideAccessRequest(owner, v.id, again.id, true, 'https://z.test')).rejects.toMatchObject({ code: 'allowed_full' });
+    expect((await listAccessRequests(owner, v.id))).toHaveLength(1);
+    await expect(updateVideo(owner, v.id, { allowedEmails: [...full, 'x@x.io'] })).rejects.toMatchObject({ code: 'allowed_full' });
+  });
+  it('dos aprobaciones a la vez no pierden a nadie', async () => {
+    const v = await ready(owner, 'Dos');
+    await updateVideo(owner, v.id, { privacy: 'people' });
+    await requestAccess(v, { email: 'a@out.test', name: '' });
+    await requestAccess(v, { email: 'b@out.test', name: '' });
+    const rs = await listAccessRequests(owner, v.id);
+    await Promise.all(rs.map((r) => decideAccessRequest(owner, v.id, r.id, true, 'https://z.test')));
+    const row = (await getVideoRow(owner, v.id))!;
+    expect(JSON.parse(row.allowed_emails).sort()).toEqual(['a@out.test', 'b@out.test']);
   });
 });
 
@@ -557,15 +661,67 @@ describe('overlays', () => {
 });
 
 describe('resumen por mail', () => {
-  it('tope de direcciones, solo quien administra, y la misma lista no sale dos veces', async () => {
-    const v = await ready(owner, 'Recap');
-    await expect(sendRecap(member, v.id, ['a@x.io'], 'https://z.test')).rejects.toBeInstanceOf(RecError);
-    await expect(sendRecap(owner, v.id, ['nope'], 'https://z.test')).rejects.toMatchObject({ code: 'invalid_input' });
+  const ws: RecActor = { ws: 'rp-recap', actor: 'rp-recap', admin: true, name: 'R' };
+  const members = ['in1@x.io', 'in2@x.io', 'in3@x.io'];
+  beforeAll(async () => {
+    await upsertUser({ id: 'rp-recap', email: 'rp-recap@test.local', name: 'R' });
+    await getDb().prepare("UPDATE users SET created_at = datetime('now', '-30 days') WHERE id = 'rp-recap'").run();
+  });
+
+  it('solo a miembros y a quienes tienen permiso; tope por envío; la misma lista no sale dos veces', async () => {
+    const v = await ready(ws, 'Recap');
+    await expect(sendRecap(member, v.id, ['in1@x.io'], 'https://z.test', members)).rejects.toBeInstanceOf(RecError);
+    await expect(sendRecap(ws, v.id, ['nope'], 'https://z.test', members)).rejects.toMatchObject({ code: 'invalid_input' });
+    await expect(sendRecap(ws, v.id, ['stranger@spam.io'], 'https://z.test', members)).rejects.toMatchObject({ code: 'recap_outside' });
+    await expect(sendRecap(ws, v.id, ['in1@x.io', 'stranger@spam.io'], 'https://z.test', members)).rejects.toMatchObject({ code: 'recap_outside' });
     const many = Array.from({ length: 21 }, (_, i) => `p${i}@x.io`);
-    await expect(sendRecap(owner, v.id, many, 'https://z.test')).rejects.toMatchObject({ code: 'too_many_recipients' });
-    expect(await sendRecap(owner, v.id, ['a@x.io', 'b@x.io'], 'https://z.test')).toEqual({ sent: 2, duplicate: false });
-    expect(await sendRecap(owner, v.id, ['b@x.io', 'A@x.io'], 'https://z.test')).toEqual({ sent: 0, duplicate: true });
-    expect(await sendRecap(owner, v.id, ['c@x.io'], 'https://z.test')).toEqual({ sent: 1, duplicate: false });
+    await expect(sendRecap(ws, v.id, many, 'https://z.test', many)).rejects.toMatchObject({ code: 'too_many_recipients' });
+    expect(await sendRecap(ws, v.id, ['in1@x.io', 'in2@x.io'], 'https://z.test', members)).toEqual({ sent: 2, duplicate: false });
+    expect(await sendRecap(ws, v.id, ['IN2@x.io', 'in1@x.io'], 'https://z.test', members)).toEqual({ sent: 0, duplicate: true });
+    await updateVideo(ws, v.id, { privacy: 'people', allowedEmails: ['guest@out.test'] });
+    expect(await sendRecap(ws, v.id, ['guest@out.test'], 'https://z.test', members)).toEqual({ sent: 1, duplicate: false });
+  });
+
+  it('a alguien de afuera no le llega texto libre', () => {
+    const mail = outsideRecapEmail('https://z.test/v/abc', 'es');
+    expect(mail.text).toContain('https://z.test/v/abc');
+    expect(mail.subject).toBe('Te compartieron un video');
+    expect(recapEmail({ title: 'COMPRA YA' }, { chapters: [], summary: 'spam' }, 'https://z.test', 'Bob').text).toContain('COMPRA YA');
+    expect(JSON.stringify(mail)).not.toContain('COMPRA');
+  });
+
+  it('cuenta destinatarios por día, y menos para una cuenta nueva', async () => {
+    const list = Array.from({ length: 20 }, (_, i) => `q${i}@x.io`);
+    const v = await ready(ws, 'Tope');
+    // Ya salieron 3 arriba: 20 + 20 entran, los siguientes 20 pasan de 50.
+    await sendRecap(ws, v.id, list, 'https://z.test', list);
+    await updateVideo(ws, v.id, { title: 'Tope 2' });
+    await sendRecap(ws, v.id, list, 'https://z.test', list);
+    await updateVideo(ws, v.id, { title: 'Tope 3' });
+    await expect(sendRecap(ws, v.id, list, 'https://z.test', list)).rejects.toMatchObject({ code: 'recap_quota' });
+
+    const fresh: RecActor = { ws: 'rp-recap-new', actor: 'rp-recap-new', admin: true, name: 'N' };
+    await upsertUser({ id: 'rp-recap-new', email: 'rp-recap-new@test.local', name: 'N' });
+    const w = await ready(fresh, 'Nueva');
+    await sendRecap(fresh, w.id, list.slice(0, 10), 'https://z.test', list);
+    await updateVideo(fresh, w.id, { title: 'Nueva 2' });
+    await expect(sendRecap(fresh, w.id, list.slice(0, 1), 'https://z.test', list)).rejects.toMatchObject({ code: 'recap_quota' });
+  });
+});
+
+describe('avisos de retención', () => {
+  it('avisa al prender y al borrar', async () => {
+    const ws: RecActor = { ws: 'rp-ret2', actor: 'rp-ret2', admin: true, name: 'R' };
+    await upsertUser({ id: 'rp-ret2', email: 'rp-ret2@test.local', name: 'R' });
+    const v = await ready(ws, 'Vieja');
+    await getDb().prepare("UPDATE rec_videos SET created_at = datetime('now', '-400 days') WHERE id = ?").run(v.id);
+    await updateRecSettings(ws, { retentionDays: 365 });
+    const count = async () => Number(((await getDb().prepare("SELECT COUNT(*) AS n FROM notifications WHERE user_id = ? AND type = 'rec_retention'").get(ws.actor)) as { n: number }).n);
+    expect(await count()).toBe(1);
+    await getDb().prepare("UPDATE rec_settings SET retention_starts_at = datetime('now', '-1 hour') WHERE workspace_id = ?").run(ws.ws);
+    await applyRetention();
+    expect(await count()).toBe(2);
+    await updateRecSettings(ws, { retentionDays: null });
   });
 });
 

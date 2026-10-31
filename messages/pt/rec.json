@@ -154,7 +154,15 @@
       "join_incompatible": "Estes dois vídeos não podem ser unidos: têm tamanho ou faixas diferentes.",
       "too_many_recipients": "Endereços demais para um envio.",
       "recap_failed": "Não foi possível enviar o email. Tente de novo.",
-      "invalid_email": "Digite um email válido."
+      "invalid_email": "Digite um email válido.",
+      "recap_outside": "Os resumos vão só para membros do workspace e quem já tem permissão neste vídeo.",
+      "recap_quota": "Chegou ao limite diário de resumos deste workspace.",
+      "allowed_full": "Um vídeo pode ter até 100 emails com permissão.",
+      "join_mixed_password": "Estes vídeos têm senhas diferentes e não podem ser unidos. Tire uma primeiro.",
+      "export_widens": "Confirme primeiro: mais gente leria este vídeo.",
+      "transfer_owner": "O conteúdo da dona não pode ser transferido.",
+      "transfer_not_former": "Só se transfere o conteúdo de alguém que saiu do workspace.",
+      "transfer_self": "Escolha outra pessoa para receber."
     },
     "downloading": "Baixando {pct}%"
   },
@@ -522,12 +530,16 @@
     "chapters": "Capítulos",
     "transcript": "Transcrição",
     "recapTitle": "Enviar resumo por email",
-    "recapHelp": "Envia o título, o resumo, os capítulos e o link. Até {max} endereços por envio.",
+    "recapHelp": "Só para membros do workspace e quem já tem permissão neste vídeo, até {max} endereços por envio e 50 por dia (10 em contas novas). Quem é de fora do workspace recebe um texto fixo com o link.",
     "recapPrivate": "Este vídeo não está aberto a qualquer pessoa com o link: quem receber precisa de acesso para assistir.",
     "recapTo": "Para (emails)",
     "recapSend": "{n, plural, =0 {Enviar} one {Enviar para # pessoa} other {Enviar para # pessoas}}",
     "recapSent": "{n, plural, one {Enviado para # pessoa.} other {Enviado para # pessoas.}}",
-    "recapDuplicate": "Este mesmo resumo já foi para estas pessoas. Nada foi enviado."
+    "recapDuplicate": "Este mesmo resumo já foi para estas pessoas. Nada foi enviado.",
+    "widenTitle": "Mais gente vai ler isto",
+    "widenDoc": "Este vídeo é mais fechado que o Docs. A página nova copia o resumo e a transcrição, e os membros que abrem páginas do Docs vão ler mesmo sem poder assistir ao vídeo.",
+    "widenIssue": "Este vídeo é mais fechado que o projeto. O issue novo copia o resumo e a transcrição, e quem vê o projeto vai ler mesmo sem poder assistir ao vídeo.",
+    "widenGo": "Criar mesmo assim"
   },
   "settings": {
     "readOnly": "Um admin do workspace pode mudar estes ajustes.",
@@ -547,23 +559,24 @@
     "logoRemove": "Tirar logo",
     "logoUpload": "Enviar logo",
     "retention": "Retenção",
-    "retentionHelp": "Apaga os vídeos mais antigos que o prazo escolhido, com comentários e análises. Desligada por padrão. As primeiras exclusões rodam {days} dias depois de ligar ou encurtar.",
+    "retentionHelp": "Apaga os vídeos mais antigos que o prazo escolhido, com comentários e análises. Desligada por padrão. As primeiras exclusões rodam {days} dias depois de ligar ou encurtar. Quem gravou recebe um aviso no app no começo desses dias e quando os vídeos são apagados.",
     "retentionKeep": "Guardar os vídeos",
     "retentionOff": "Sem prazo (desligada)",
     "retentionDays": "{days} dias",
     "retentionOn": "Primeiras exclusões a partir de {date}. Apagados até agora: {deleted}.",
     "retentionConfirmTitle": "Apagar os vídeos com mais de {days} dias?",
-    "retentionConfirmBody": "{count, plural, =0 {Hoje nenhum vídeo passa desse prazo.} one {Hoje # vídeo passa desse prazo e será apagado.} other {Hoje # vídeos passam desse prazo e serão apagados.}} As exclusões começam em {grace} dias e não podem ser desfeitas.",
+    "retentionConfirmBody": "{count, plural, =0 {Nenhum vídeo vai passar desse prazo na primeira exclusão.} one {# vídeo vai passar desse prazo na primeira exclusão.} other {# vídeos vão passar desse prazo na primeira exclusão.}} As exclusões começam em {grace} dias e não podem ser desfeitas. Quem gravou recebe um aviso agora.",
     "retentionConfirm": "Ligar retenção",
     "transfer": "Transferir conteúdo",
-    "transferHelp": "Passa todos os vídeos e pastas de uma pessoa para outra, também os pessoais. Serve quando alguém sai.",
+    "transferHelp": "Passa os vídeos e pastas de alguém que saiu do workspace para outra pessoa, também os vídeos pessoais. Não pode ser usado com a dona nem com quem continua no workspace.",
     "transferFrom": "De",
     "transferTo": "Para",
     "transferPick": "Escolha uma pessoa",
-    "transferOwner": "{name} ({videos} vídeos, {folders} pastas)",
+    "transferOwner": "{name} ({videos, plural, one {# vídeo} other {# vídeos}}, {folders, plural, one {# pasta} other {# pastas}})",
     "transferGo": "Transferir",
-    "transferDone": "Foram transferidos {videos} vídeos e {folders} pastas.",
+    "transferDone": "Foram transferidos {videos, plural, one {# vídeo} other {# vídeos}} e {folders, plural, one {# pasta} other {# pastas}}.",
     "transferConfirmTitle": "Transferir este conteúdo?",
-    "transferConfirmBody": "{videos} vídeos e {folders} pastas passam de {from} para {to}. {to} também vai ver os vídeos pessoais."
+    "transferConfirmBody": "{videos, plural, one {# vídeo} other {# vídeos}} e {folders, plural, one {# pasta} other {# pastas}} passam de {from} para {to}. {to} também vai ver os vídeos pessoais de {from}.",
+    "transferNone": "Ninguém que saiu tem vídeos ou pastas aqui."
   }
 }

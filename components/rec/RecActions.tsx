@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { cleanEmails, MAX_RECAP_RECIPIENTS } from '@/lib/rec-schema';
 import type { RecVideoDto } from '@/lib/rec';
 
@@ -15,7 +16,8 @@ export default function RecActions({ video }: { video: RecVideoDto }) {
   const t = useTranslations('rec.export');
   const tc = useTranslations('rec.common');
   const locale = useLocale();
-  const [targets, setTargets] = useState<{ docs: boolean; projects: Array<{ id: string; name: string }> } | null>(null);
+  const [targets, setTargets] = useState<{ docs: boolean; projects: Array<{ id: string; name: string }>; widens?: boolean } | null>(null);
+  const [confirming, setConfirming] = useState<'doc' | 'issue' | null>(null);
   const [projectId, setProjectId] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +32,7 @@ export default function RecActions({ video }: { video: RecVideoDto }) {
     let alive = true;
     void fetch(`/api/rec/videos/${video.id}/export`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: { docs: boolean; projects: Array<{ id: string; name: string }> } | null) => {
+      .then((d: { docs: boolean; projects: Array<{ id: string; name: string }>; widens?: boolean } | null) => {
         if (!alive) return;
         setTargets(d ?? { docs: false, projects: [] });
         if (d?.projects[0]) setProjectId(d.projects[0].id);
@@ -53,14 +55,21 @@ export default function RecActions({ video }: { video: RecVideoDto }) {
     return tc.has(`errors.${code}`) ? tc(`errors.${code}`) : tc('errors.generic');
   };
 
+  /** Si el video es más cerrado que el destino, primero se confirma. */
+  function ask(target: 'doc' | 'issue') {
+    if (targets?.widens) setConfirming(target);
+    else void send(target);
+  }
+
   async function send(target: 'doc' | 'issue') {
+    setConfirming(null);
     setBusy(true);
     setError(null);
     setCreated(null);
     const res = await fetch(`/api/rec/videos/${video.id}/export`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ target, projectId: target === 'issue' ? projectId : undefined, locale }),
+      body: JSON.stringify({ target, projectId: target === 'issue' ? projectId : undefined, locale, confirmWiden: !!targets?.widens }),
     }).catch(() => null);
     setBusy(false);
     if (!res?.ok) return setError(await message(res));
@@ -94,7 +103,7 @@ export default function RecActions({ video }: { video: RecVideoDto }) {
       <p className="ui-help">{t('help')}</p>
       <div className="rec-actions-row">
         {targets.docs && (
-          <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => void send('doc')} data-testid="rec-export-doc">
+          <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => ask('doc')} data-testid="rec-export-doc">
             {t('createDoc')}
           </button>
         )}
@@ -110,7 +119,7 @@ export default function RecActions({ video }: { video: RecVideoDto }) {
                 </option>
               ))}
             </select>
-            <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => void send('issue')} data-testid="rec-export-issue">
+            <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => ask('issue')} data-testid="rec-export-issue">
               {t('createIssue')}
             </button>
           </>
@@ -142,6 +151,17 @@ export default function RecActions({ video }: { video: RecVideoDto }) {
           {error}
         </p>
       )}
+      <ConfirmDialog
+        open={confirming !== null}
+        title={t('widenTitle')}
+        body={confirming === 'doc' ? t('widenDoc') : t('widenIssue')}
+        confirmLabel={t('widenGo')}
+        cancelLabel={tc('cancel')}
+        danger
+        busy={busy}
+        onConfirm={() => confirming && void send(confirming)}
+        onCancel={() => setConfirming(null)}
+      />
       <dialog
         ref={dialog}
         className="ui-modal"

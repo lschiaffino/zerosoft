@@ -505,3 +505,15 @@ export const REC_RETENTION_GRACE_DAYS = 7;
 export const MAX_RECAP_RECIPIENTS = 20;
 /** Tope de cada archivo al editar en el navegador (se arma en memoria de quien edita). */
 export const MAX_REC_EDIT_BYTES = 600 * 1024 * 1024;
+
+/** Tipo real de una imagen por sus primeros bytes (lo que dice el navegador no cuenta). */
+export function sniffImageType(b: Uint8Array): 'image/png' | 'image/jpeg' | 'image/webp' | null {
+  if (b.length >= 8 && [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((x, i) => b[i] === x)) return 'image/png';
+  if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg';
+  if (b.length >= 12 && String.fromCharCode(...b.subarray(0, 4)) === 'RIFF' && String.fromCharCode(...b.subarray(8, 12)) === 'WEBP') return 'image/webp';
+  return null;
+}
+
+/** Destinatarios por día y por workspace del resumen por mail (y con una cuenta de menos de 7 días). */
+export const REC_RECAP_DAILY = 50;
+export const REC_RECAP_DAILY_NEW = 10;

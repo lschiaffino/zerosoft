@@ -311,6 +311,8 @@ export async function processPendingRec(opts: { limit?: number; budgetMs?: numbe
   // Retención: con tope propio, antes de la cola y sin tocar su presupuesto.
   const { applyRetention } = await import('./rec-admin');
   await applyRetention({ budgetMs: 3000, limit: 20 }).catch(() => null);
+  const { retryRecFileDeletes } = await import('./rec');
+  await retryRecFileDeletes().catch(() => 0);
   const queueStart = Date.now();
   for (const r of rows) {
     if (Date.now() - queueStart > (opts.budgetMs ?? 20_000)) break;

@@ -46,7 +46,9 @@ export async function publicViewerFor(
   if (!user) return { ws: null, userId: null, email: null, emailPassed: passed };
   const person = user.actingUser ?? user;
   const id = realUserId(user);
-  const inWorkspace = user.id === v.workspace_id && userCanUseApp(user, 'rec');
+  // Miembro sin acceso a Rec: las rutas /api/rec no lo reconocen, y la página responde igual (también ante el pedido de email).
+  if (user.id === v.workspace_id && !userCanUseApp(user, 'rec')) return { ws: null, userId: null, email: null, emailPassed: passed };
+  const inWorkspace = user.id === v.workspace_id;
   const admin = user.role === 'owner' || user.role === 'admin';
   const spaceMember = !!v.space_id && inWorkspace && (admin || (await isSpaceMember(v.space_id, id)));
   return { ws: inWorkspace ? user.id : null, userId: id, email: person.email ?? null, spaceMember, emailPassed: passed };
@@ -58,6 +60,14 @@ export async function recPeople(user: SessionUser): Promise<Array<{ id: string; 
   if (!user.workspace) return [];
   const rows = await listTeamPeople(user.workspace, { app: 'rec' });
   return rows.map((p) => ({ id: p.user_id, name: p.name || p.email, email: p.email }));
+}
+
+/** Todas las personas que están hoy en el workspace, también invitadas y sin acceso a Rec. */
+export async function recCurrentPeople(user: SessionUser): Promise<string[]> {
+  const { listTeamPeople } = await import('./workspace');
+  if (!user.workspace) return [user.id];
+  const rows = await listTeamPeople(user.workspace, { includeGuests: true });
+  return [user.id, ...rows.map((p) => p.user_id)];
 }
 
 const VK_COOKIE = 'rec_vk';

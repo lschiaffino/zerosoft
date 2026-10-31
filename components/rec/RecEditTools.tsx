@@ -75,7 +75,7 @@ export default function RecEditTools({ video, uploadMode, partBytes }: { video: 
     setError(null);
     let newId: string | null = null;
     try {
-      if (sourceSizes.some((n) => n > MAX_REC_EDIT_BYTES)) throw new Error('edit_too_large');
+      if (sourceSizes.reduce((a, b) => a + b, 0) > MAX_REC_EDIT_BYTES) throw new Error('edit_too_large');
       const loaded: Array<{ bytes: Uint8Array; keep: Array<[number, number]> }> = [];
       for (let i = 0; i < sources.length; i++) {
         const bytes = await readVideo(sources[i].id, (p) => setBusy(t('working', { pct: Math.round((i * 50 + p / 2) / sources.length) })));
@@ -213,7 +213,7 @@ export default function RecEditTools({ video, uploadMode, partBytes }: { video: 
         <button
           type="button"
           className="btn btn-primary btn-sm"
-          disabled={!!busy || !joinTarget || tooBig}
+          disabled={!!busy || !joinTarget || tooBig || video.size + (joinTarget?.size ?? 0) > MAX_REC_EDIT_BYTES}
           onClick={() =>
             joinTarget &&
             void createCopy(

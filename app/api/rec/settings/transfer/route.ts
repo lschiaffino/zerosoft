@@ -1,12 +1,12 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { transferContent } from '@/lib/rec-admin';
-import { recActor, recFail, recJson, recPeople } from '@/lib/rec-http';
+import { recActor, recCurrentPeople, recFail, recJson, recPeople } from '@/lib/rec-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** Pasa los videos y carpetas de una persona a otra del workspace. Solo admins. */
+/** Pasa los videos y carpetas de alguien que se fue a otra persona del workspace. Solo admins. */
 export async function POST(req: NextRequest) {
   const s = await recActor();
   if ('res' in s) return s.res;
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return recJson({ error: 'invalid_input' }, 400);
   try {
     const people = await recPeople(s.user);
-    return recJson(await transferContent(s.actor, parsed.data.from, parsed.data.to, people.map((p) => p.id)));
+    return recJson(await transferContent(s.actor, parsed.data.from, parsed.data.to, people.map((p) => p.id), await recCurrentPeople(s.user)));
   } catch (err) {
     return recFail(err);
   }
