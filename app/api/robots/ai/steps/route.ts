@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser } from '@/lib/session';
+import { getRobotWorkspaceConfig } from '@/lib/robots';
 import { AiError, assertRobotsAi, credentialRefs, stepsFromDescription, stepsNeedingReview } from '@/lib/robots-ai';
 import { getRobotRow, snapshotPage } from '@/lib/robots';
-import { aiErrorCode, canEditRobots, forbidden, robotError, unauthorized } from '@/lib/robots-http';
+import { aiErrorCode, isRobotBuilder, forbidden, robotError, unauthorized } from '@/lib/robots-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,7 +22,7 @@ const body = z.object({
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  if (!canEditRobots(user)) return forbidden();
+  if (!isRobotBuilder(user.role, await getRobotWorkspaceConfig(user.id))) return forbidden();
   const parsed = body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return robotError(400, 'invalid_input');
   try {

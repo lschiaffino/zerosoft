@@ -15,7 +15,7 @@
     "schedule": "Schedule",
     "never": "Never run",
     "noSchedule": "Manual",
-    "adminOnly": "Only workspace admins and owners can create, edit and run robots.",
+    "adminOnly": "Your role can view robots but not create or run them.",
     "record": "Record steps",
     "creating": "Creating robot…",
     "emptyTitle": "No robots yet",
@@ -136,7 +136,7 @@
     "running": "Running…",
     "delete": "Delete robot",
     "confirmDelete": "Delete this robot and its run history?",
-    "readOnly": "Read only: only admins and owners can edit or run robots.",
+    "readOnly": "Read only: your role cannot edit this robot.",
     "tabs": {
       "steps": "Steps",
       "inputs": "Inputs",
@@ -359,7 +359,7 @@
     "logTime": "Time",
     "view": "Data view",
     "copied": "Copied",
-    "queuedNotice": "Waiting in line: another robot is running in this workspace. This run starts when it finishes.",
+    "queuedNotice": "Waiting in line: this workspace is at its limit of runs at once. It starts when a slot frees up.",
     "warningsNotice": "{count, plural, one {# step failed and the robot continued.} other {# steps failed and the robot continued.}} They are marked in the log.",
     "downloadCsv": "Download CSV",
     "changed": "Data changed",
@@ -399,7 +399,16 @@
     "geoProxy": "Country: {country} · via proxy",
     "refresh": "Refresh",
     "autoRefresh": "Updating while runs wait in the queue.",
-    "batch": "Bulk"
+    "batch": "Bulk",
+    "relearned": "Step {step} no longer matched its selector and found the same element again: {selector}.",
+    "relearnedField": "Step {step}: column {field} was blank and was found again with: {selector}.",
+    "relearnedSaved": "Saved in the robot; the old selector stays as an alternative.",
+    "relearnedNotSaved": "Used in this run only.",
+    "cancelQueued": "Remove from queue",
+    "cancelConfirm": "Remove this run from the queue?",
+    "cancelYes": "Remove",
+    "cancelNo": "Back",
+    "cancelDone": "Run removed from the queue."
   },
   "settings": {
     "enabled": "Allow automatic runs",
@@ -480,11 +489,14 @@
     "retention": "Keep runs for",
     "retentionDefault": "Default ({count} days)",
     "retentionDays": "{count, plural, one {# day} other {# days}}",
-    "pausedByFailures": "Automatic runs were paused on {date} after several failed runs in a row. Check the Runs tab, then turn them back on."
+    "pausedByFailures": "Automatic runs were paused on {date} after several failed runs in a row. Check the Runs tab, then turn them back on.",
+    "selfHealTitle": "Find elements again when the site changes",
+    "selfHealHint": "Each good run remembers what its elements look like. If a selector stops matching, the robot looks for the most similar element and only uses it when one clearly wins. If the run succeeds, the new selector is saved and the run says so.",
+    "selfHeal": "Re-learn selectors automatically"
   },
   "errors": {
     "generic": "Something went wrong. Try again.",
-    "forbidden": "Only workspace admins and owners can do this.",
+    "forbidden": "Your role can't do this on this robot.",
     "not_found": "This robot no longer exists.",
     "invalid_input": "Invalid data.",
     "unknown_template": "Unknown template.",
@@ -515,7 +527,9 @@
     "snapshot_failed": "Could not open the page. Check the address and try again.",
     "no_failure": "This run has no captured failure.",
     "step_not_found": "That step is no longer in the robot.",
-    "too_many_inputs": "Send between 1 and 1,000 rows."
+    "too_many_inputs": "Send between 1 and 1,000 rows.",
+    "admin_only_login": "Logins, saved sessions and destinations with credentials are for workspace admins and owners.",
+    "not_queued": "That run is no longer in the queue."
   },
   "paste": {
     "title": "Paste recorded steps",
@@ -565,11 +579,28 @@
       "pickText": "Click the text to extract. Esc cancels.",
       "pickList": "Click an item of the list, then the parts of it you want as columns. Click Done when finished.",
       "pickNext": "Click the Next or Load more button.",
-      "listCount": "List: {count} items"
+      "listCount": "List: {count} items",
+      "sent": "sent to the editor",
+      "sendFail": "could not send, copy them instead"
     },
     "codeTitle": "No bookmarks bar",
     "extractTitle": "Extract while you record",
-    "extractBody": "Capture text saves one value. Capture list marks an item that repeats (a product, a row, a result): every similar item becomes a row and each part you click inside it becomes a column. Next page marks the button that loads more rows."
+    "extractBody": "Capture text saves one value. Capture list marks an item that repeats (a product, a row, a result): every similar item becomes a row and each part you click inside it becomes a column. Next page marks the button that loads more rows.",
+    "extension": {
+      "title": "Chrome extension",
+      "body": "It keeps recording across pages and sends each step to the robot you are editing. It is not in the Chrome Web Store yet, so it installs by hand.",
+      "step1": "Download the .zip and unzip it.",
+      "step2": "Open chrome://extensions, turn on Developer mode and choose Load unpacked with that folder.",
+      "step3": "In your robot, go to Steps, Record steps, copy the recording code and paste it in the extension with the starting URL.",
+      "download": "Download extension",
+      "popupTitle": "zerosoft Robots recorder",
+      "popupCode": "Recording code",
+      "popupUrl": "Starting URL",
+      "popupStart": "Start recording",
+      "popupStop": "Stop recording",
+      "popupActive": "Recording in the tab that opened.",
+      "popupInvalid": "Check the code and the URL."
+    }
   },
   "loading": "Loading robots…",
   "alertEmail": {
@@ -641,11 +672,13 @@
     "rows": "{count, plural, one {# row} other {# rows}} found",
     "tooMany": "Only the first {max} rows are used.",
     "start": "Queue {count, plural, one {# run} other {# runs}}",
-    "queued": "{count, plural, one {# run queued} other {# runs queued}}. They run one after another.",
+    "queued": "{count, plural, one {# run queued} other {# runs queued}}. They run as your workspace limit allows.",
     "noInputs": "This robot has no inputs. Add inputs first to run it over a list.",
     "parseError": "Could not read the CSV: the first row must have the column names.",
     "cancel": "Cancel",
-    "preview": "First rows"
+    "preview": "First rows",
+    "progress": "Queued {done, number} of {total, number}…",
+    "partial": "{done, number} of {total, number} queued. Start again to continue from there."
   },
   "data": {
     "title": "Data across runs",
@@ -709,12 +742,14 @@
     "kinds": {
       "crm": "CRM",
       "sheets": "Google Sheets",
-      "airtable": "Airtable"
+      "airtable": "Airtable",
+      "s3": "S3 or compatible"
     },
     "kindHints": {
       "crm": "Creates or updates contacts by email, or companies by domain.",
       "sheets": "Keeps a sheet equal to the table, or appends the new rows.",
-      "airtable": "Creates or updates records in a table."
+      "airtable": "Creates or updates records in a table.",
+      "s3": "Uploads the rows of each successful run as a file (up to 5,000 rows and 10 MB) to a bucket."
     },
     "remove": "Remove destination",
     "enabled": "On",
@@ -766,7 +801,14 @@
       "overwrite": "Overwrite with the robot's data"
     },
     "loginWarning": "This robot signs in with a saved login, so the rows it sends can include private data. Only send them where that is allowed.",
-    "droppedRecipients": "Saved. These addresses are not people in the workspace and were removed from the change email: {list}"
+    "droppedRecipients": "Saved. These addresses are not people in the workspace and were removed from the change email: {list}",
+    "s3CredentialHint": "A saved \"basic\" credential: username is the Access Key ID, password is the Secret Access Key.",
+    "s3Bucket": "Bucket",
+    "s3Region": "Region",
+    "s3Endpoint": "Endpoint",
+    "s3EndpointHint": "Empty for AWS. For R2, MinIO or Spaces: https://host",
+    "s3Prefix": "Folder (optional)",
+    "s3Format": "Format"
   },
   "geo": {
     "title": "Country",
@@ -789,5 +831,44 @@
     "more": "More changes in the app.",
     "cta": "Open the data",
     "footer": "You get this email because change emails are on for this robot, in its Integrations tab."
+  },
+  "record": {
+    "title": "Record live",
+    "opening": "Opening the recording…",
+    "desc": "Do the task on the site. Steps show up here as you go. Nothing reaches the robot until you add them. The recording lasts one hour.",
+    "bookmarkletLabel": "With a bookmark",
+    "bookmarklet": "Record this robot",
+    "bookmarkletHint": "Drag it to the bookmarks bar and click it on the site. Click it again after each page load. This link only works for this recording. Sites with a strict security policy can block it: use the extension there.",
+    "extensionLabel": "With the Chrome extension",
+    "copyCode": "Copy recording code",
+    "copied": "Copied",
+    "download": "Download extension",
+    "extensionHint": "The extension follows you across pages and works on sites that block the bookmark. Paste this code and the starting URL in its window. Install steps are in the Step recorder page.",
+    "waiting": "Waiting for steps…",
+    "received": "{count, plural, one {# step received} other {# steps received}}",
+    "modeLabel": "Add them",
+    "append": "After the current steps",
+    "replace": "Replacing the current steps",
+    "add": "Add {count, plural, =0 {steps} one {# step} other {# steps}}",
+    "cancel": "Close"
+  },
+  "batches": {
+    "title": "Batches",
+    "progress": "{done, number} of {total, number} finished · {failed, number} failed",
+    "cancel": "Cancel the rest",
+    "confirmTitle": "Cancel this batch?",
+    "confirmBody": "{count, plural, one {# queued run} other {# queued runs}} will not start. Runs already finished or running stay as they are.",
+    "keep": "Keep running",
+    "confirm": "Cancel the rest"
+  },
+  "workspace": {
+    "concurrencyTitle": "Runs at once",
+    "concurrencyHint": "How many robots this workspace can run at the same time, up to {max}. The rest wait in the queue. Each run counts toward your monthly minutes, so more at once spends them faster.",
+    "concurrency": "Runs at once",
+    "membersTitle": "What members can do",
+    "membersHint": "Members can create robots, edit and delete the ones they created, and run any robot that does not use a login, a saved session or a credential. Those stay for admins and owners.",
+    "members": "Let members build and run robots",
+    "adminOnly": "Only workspace admins and owners can change this.",
+    "saved": "Saved"
   }
 }

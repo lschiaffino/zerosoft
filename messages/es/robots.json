@@ -15,7 +15,7 @@
     "schedule": "Horario",
     "never": "Nunca corrió",
     "noSchedule": "Manual",
-    "adminOnly": "Solo los admins y owners del workspace pueden crear, editar y correr robots.",
+    "adminOnly": "Tu rol puede ver los robots, pero no crearlos ni correrlos.",
     "record": "Grabar pasos",
     "creating": "Creando robot…",
     "emptyTitle": "Todavía no hay robots",
@@ -136,7 +136,7 @@
     "running": "Corriendo…",
     "delete": "Borrar robot",
     "confirmDelete": "¿Borrar este robot y su historial de corridas?",
-    "readOnly": "Solo lectura: solo admins y owners pueden editar o correr robots.",
+    "readOnly": "Solo lectura: tu rol no puede editar este robot.",
     "tabs": {
       "steps": "Pasos",
       "inputs": "Entradas",
@@ -359,7 +359,7 @@
     "logTime": "Tiempo",
     "view": "Vista de los datos",
     "copied": "Copiado",
-    "queuedNotice": "En cola: hay otro robot corriendo en este workspace. Esta corrida arranca cuando termine.",
+    "queuedNotice": "Esperando turno: el workspace está en su tope de corridas a la vez. Arranca cuando se libere un lugar.",
     "warningsNotice": "{count, plural, one {# paso falló y el robot siguió.} other {# pasos fallaron y el robot siguió.}} Están marcados en el registro.",
     "downloadCsv": "Descargar CSV",
     "changed": "Cambiaron los datos",
@@ -399,7 +399,16 @@
     "geoProxy": "País: {country} · por proxy",
     "refresh": "Actualizar",
     "autoRefresh": "Se actualiza mientras haya corridas en cola.",
-    "batch": "Lote"
+    "batch": "Lote",
+    "relearned": "El paso {step} ya no encontraba su selector y volvió a dar con el mismo elemento: {selector}.",
+    "relearnedField": "Paso {step}: la columna {field} quedó en blanco y se volvió a encontrar con: {selector}.",
+    "relearnedSaved": "Guardado en el robot; el selector viejo queda como alternativo.",
+    "relearnedNotSaved": "Se usó solo en esta corrida.",
+    "cancelQueued": "Sacar de la cola",
+    "cancelConfirm": "¿Sacar esta corrida de la cola?",
+    "cancelYes": "Sacar",
+    "cancelNo": "Volver",
+    "cancelDone": "Corrida fuera de la cola."
   },
   "settings": {
     "enabled": "Permitir corridas automáticas",
@@ -480,11 +489,14 @@
     "retention": "Guardar corridas durante",
     "retentionDefault": "Por defecto ({count} días)",
     "retentionDays": "{count, plural, one {# día} other {# días}}",
-    "pausedByFailures": "Las corridas automáticas se pausaron el {date} después de varias corridas fallidas seguidas. Revisá la pestaña Corridas y volvé a prenderlas."
+    "pausedByFailures": "Las corridas automáticas se pausaron el {date} después de varias corridas fallidas seguidas. Revisá la pestaña Corridas y volvé a prenderlas.",
+    "selfHealTitle": "Volver a encontrar elementos cuando el sitio cambia",
+    "selfHealHint": "Cada corrida buena recuerda cómo son sus elementos. Si un selector deja de andar, el robot busca el elemento más parecido y solo lo usa si uno gana claro. Si la corrida termina bien, guarda el selector nuevo y la corrida lo avisa.",
+    "selfHeal": "Reaprender selectores solo"
   },
   "errors": {
     "generic": "Algo salió mal. Probá de nuevo.",
-    "forbidden": "Solo los admins y owners del workspace pueden hacer esto.",
+    "forbidden": "Tu rol no puede hacer esto en este robot.",
     "not_found": "Este robot ya no existe.",
     "invalid_input": "Datos inválidos.",
     "unknown_template": "Plantilla desconocida.",
@@ -515,7 +527,9 @@
     "snapshot_failed": "No se pudo abrir la página. Revisá la dirección y probá de nuevo.",
     "no_failure": "Esta corrida no tiene una falla capturada.",
     "step_not_found": "Ese paso ya no está en el robot.",
-    "too_many_inputs": "Mandá entre 1 y 1.000 filas."
+    "too_many_inputs": "Mandá entre 1 y 1.000 filas.",
+    "admin_only_login": "Los logins, las sesiones guardadas y los envíos con credenciales son para admins y owners del workspace.",
+    "not_queued": "Esa corrida ya no está en la cola."
   },
   "paste": {
     "title": "Pegar pasos grabados",
@@ -565,11 +579,28 @@
       "pickText": "Tocá el texto a extraer. Esc cancela.",
       "pickList": "Tocá un elemento de la lista y después las partes que querés como columnas. Tocá Listo al terminar.",
       "pickNext": "Tocá el botón Siguiente o Cargar más.",
-      "listCount": "Lista: {count} elementos"
+      "listCount": "Lista: {count} elementos",
+      "sent": "enviados al editor",
+      "sendFail": "no se pudieron enviar, copialos"
     },
     "codeTitle": "Sin barra de favoritos",
     "extractTitle": "Extraer mientras grabás",
-    "extractBody": "Capturar texto guarda un valor. Capturar lista marca un elemento que se repite (un producto, una fila, un resultado): cada elemento parecido es una fila y cada parte que tocás adentro es una columna. Página siguiente marca el botón que carga más filas."
+    "extractBody": "Capturar texto guarda un valor. Capturar lista marca un elemento que se repite (un producto, una fila, un resultado): cada elemento parecido es una fila y cada parte que tocás adentro es una columna. Página siguiente marca el botón que carga más filas.",
+    "extension": {
+      "title": "Extensión de Chrome",
+      "body": "Sigue grabando entre páginas y manda cada paso al robot que estás editando. Todavía no está en la Chrome Web Store: se instala a mano.",
+      "step1": "Bajá el .zip y descomprimilo.",
+      "step2": "Abrí chrome://extensions, prendé el Modo de desarrollador y elegí Cargar descomprimida con esa carpeta.",
+      "step3": "En tu robot, andá a Pasos, Grabar pasos, copiá el código de grabación y pegalo en la extensión con la URL de inicio.",
+      "download": "Bajar extensión",
+      "popupTitle": "Grabador de Robots de zerosoft",
+      "popupCode": "Código de grabación",
+      "popupUrl": "URL de inicio",
+      "popupStart": "Empezar a grabar",
+      "popupStop": "Dejar de grabar",
+      "popupActive": "Grabando en la pestaña que se abrió.",
+      "popupInvalid": "Revisá el código y la URL."
+    }
   },
   "loading": "Cargando robots…",
   "alertEmail": {
@@ -632,7 +663,7 @@
   "bulk": {
     "button": "Correr en lote",
     "title": "Correr con muchas entradas",
-    "desc": "Subí un CSV con una fila por corrida. Cada fila queda como una corrida en la cola, hasta {max}.",
+    "desc": "Subí un CSV con una fila por corrida. Cada fila es una corrida en la cola, hasta {max}.",
     "file": "Archivo CSV",
     "paste": "O pegá el CSV",
     "map": "Columna para cada entrada",
@@ -641,11 +672,13 @@
     "rows": "{count, plural, one {# fila encontrada} other {# filas encontradas}}",
     "tooMany": "Solo se usan las primeras {max} filas.",
     "start": "Poner {count, plural, one {# corrida} other {# corridas}} en cola",
-    "queued": "{count, plural, one {# corrida en cola} other {# corridas en cola}}. Corren una detrás de otra.",
+    "queued": "{count, plural, one {# corrida en cola} other {# corridas en cola}}. Corren según el tope de tu workspace.",
     "noInputs": "Este robot no tiene entradas. Agregá entradas para correrlo sobre una lista.",
     "parseError": "No se pudo leer el CSV: la primera fila tiene que tener los nombres de las columnas.",
     "cancel": "Cancelar",
-    "preview": "Primeras filas"
+    "preview": "Primeras filas",
+    "progress": "En cola {done, number} de {total, number}…",
+    "partial": "{done, number} de {total, number} en cola. Volvé a empezar para seguir desde ahí."
   },
   "data": {
     "title": "Datos entre corridas",
@@ -709,12 +742,14 @@
     "kinds": {
       "crm": "CRM",
       "sheets": "Google Sheets",
-      "airtable": "Airtable"
+      "airtable": "Airtable",
+      "s3": "S3 o compatible"
     },
     "kindHints": {
       "crm": "Crea o actualiza contactos por email, o empresas por dominio.",
       "sheets": "Mantiene una hoja igual a la tabla, o agrega las filas nuevas.",
-      "airtable": "Crea o actualiza registros en una tabla."
+      "airtable": "Crea o actualiza registros en una tabla.",
+      "s3": "Sube las filas de cada corrida exitosa como archivo (hasta 5.000 filas y 10 MB) a un bucket."
     },
     "remove": "Quitar destino",
     "enabled": "Activo",
@@ -766,7 +801,14 @@
       "overwrite": "Pisar con los datos del robot"
     },
     "loginWarning": "Este robot inicia sesión con un login guardado, así que las filas que envía pueden incluir datos privados. Mandalas solo a donde esté permitido.",
-    "droppedRecipients": "Guardado. Estas direcciones no son personas del workspace y se quitaron del email de cambios: {list}"
+    "droppedRecipients": "Guardado. Estas direcciones no son personas del workspace y se quitaron del email de cambios: {list}",
+    "s3CredentialHint": "Una credencial \"basic\" guardada: el usuario es el Access Key ID y la contraseña el Secret Access Key.",
+    "s3Bucket": "Bucket",
+    "s3Region": "Región",
+    "s3Endpoint": "Endpoint",
+    "s3EndpointHint": "Vacío para AWS. Para R2, MinIO o Spaces: https://host",
+    "s3Prefix": "Carpeta (opcional)",
+    "s3Format": "Formato"
   },
   "geo": {
     "title": "País",
@@ -789,5 +831,44 @@
     "more": "Hay más cambios en la app.",
     "cta": "Ver los datos",
     "footer": "Recibís este email porque los emails de cambios están prendidos para este robot, en su pestaña Integraciones."
+  },
+  "record": {
+    "title": "Grabar en vivo",
+    "opening": "Abriendo la grabación…",
+    "desc": "Hacé la tarea en el sitio. Los pasos aparecen acá a medida que los hacés. Nada entra al robot hasta que los agregues. La grabación dura una hora.",
+    "bookmarkletLabel": "Con un favorito",
+    "bookmarklet": "Grabar este robot",
+    "bookmarkletHint": "Arrastralo a la barra de favoritos y tocalo en el sitio. Volvé a tocarlo después de cada carga de página. Este link solo sirve para esta grabación. Los sitios con una política de seguridad estricta pueden bloquearlo: ahí usá la extensión.",
+    "extensionLabel": "Con la extensión de Chrome",
+    "copyCode": "Copiar código de grabación",
+    "copied": "Copiado",
+    "download": "Bajar extensión",
+    "extensionHint": "La extensión te sigue entre páginas y funciona en sitios que bloquean el favorito. Pegá este código y la URL de inicio en su ventana. Cómo instalarla está en la página Grabador de pasos.",
+    "waiting": "Esperando pasos…",
+    "received": "{count, plural, one {# paso recibido} other {# pasos recibidos}}",
+    "modeLabel": "Agregarlos",
+    "append": "Después de los pasos actuales",
+    "replace": "Reemplazando los pasos actuales",
+    "add": "Agregar {count, plural, =0 {pasos} one {# paso} other {# pasos}}",
+    "cancel": "Cerrar"
+  },
+  "batches": {
+    "title": "Lotes",
+    "progress": "{done, number} de {total, number} terminadas · {failed, number} fallidas",
+    "cancel": "Cancelar lo que falta",
+    "confirmTitle": "¿Cancelar este lote?",
+    "confirmBody": "{count, plural, one {# corrida en cola no va a arrancar} other {# corridas en cola no van a arrancar}}. Las que ya terminaron o están corriendo quedan como están.",
+    "keep": "Seguir corriendo",
+    "confirm": "Cancelar lo que falta"
+  },
+  "workspace": {
+    "concurrencyTitle": "Corridas a la vez",
+    "concurrencyHint": "Cuántos robots puede correr este workspace al mismo tiempo, hasta {max}. El resto espera en la cola. Cada corrida cuenta para los minutos del mes: más a la vez los gasta más rápido.",
+    "concurrency": "Corridas a la vez",
+    "membersTitle": "Qué pueden hacer los members",
+    "membersHint": "Los members pueden crear robots, editar y borrar los que crearon, y correr cualquier robot que no use un login, una sesión guardada o una credencial. Esos quedan para admins y owners.",
+    "members": "Dejar que los members armen y corran robots",
+    "adminOnly": "Solo los admins y owners del workspace pueden cambiar esto.",
+    "saved": "Guardado"
   }
 }

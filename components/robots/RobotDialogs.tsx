@@ -1,9 +1,11 @@
 'use client';
 
-import { useId, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { parseCsv } from '@/lib/robots-csv';
-import { MAX_BULK_INPUTS, type RobotInputDef, type RobotStep } from '@/lib/robots-schema';
+import type { RobotBatchSummary } from '@/lib/robots';
+import { recorderBookmarklet, recorderLabels } from '@/lib/robots-recorder';
+import { MAX_BATCH_INPUTS, MAX_BULK_INPUTS, type RobotInputDef, type RobotStep } from '@/lib/robots-schema';
 import { errorText, RobotDialog } from './robots-ui';
 
 /** Resumen corto de un paso ("Ir a URL · https://…") para las vistas previas. */
@@ -188,10 +190,12 @@ export function BulkRunDialog({
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const batch = useRef<{ key: string; id: string; offset: number } | null>(null);
 
   const table = useMemo(() => {
     if (!text.trim()) return null;
-    const rows = parseCsv(text, MAX_BULK_INPUTS + 1);
+    const rows = parseCsv(text, MAX_BATCH_INPUTS + 2);
     if (rows.length < 2) return { head: rows[0] ?? [], body: [] as string[][] };
     return { head: rows[0], body: rows.slice(1) };
   }, [text]);
@@ -204,7 +208,7 @@ export function BulkRunDialog({
     return head.find((h) => norm(h) === norm(d.name) || (d.label && norm(h) === norm(d.label))) ?? (inputs.length === 1 && head.length === 1 ? head[0] : '');
   };
 
-  const body = table?.body.slice(0, MAX_BULK_INPUTS) ?? [];
+  const body = table?.body.slice(0, MAX_BATCH_INPUTS) ?? [];
 
   async function start() {
     if (!table) return;
@@ -219,20 +223,45 @@ export function BulkRunDialog({
       }
       return o;
     });
-    const res = await fetch(`/api/robots/${robotId}/bulk`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ inputs: values }),
-    }).catch(() => null);
-    const data = (await res?.json().catch(() => null)) as { total?: number; error?: string; name?: string; index?: number } | null;
-    setBusy(false);
-    if (!res?.ok || !data?.total) {
-      setError(errorText(tr, data?.error, { name: data?.name ?? '' }));
-      return;
+    // En partes de hasta 1.000 filas y 3,5 MB (Vercel corta a 4,5 MB). Reintentar sigue desde la que falló:
+    // mismo batchId y offset, y el servidor no duplica lo que ya entró.
+    const batchId = batch.current?.key === text ? batch.current.id : crypto.randomUUID();
+    batch.current = { key: text, id: batchId, offset: batch.current?.key === text ? batch.current.offset : 0 };
+    let total = 0;
+    let offset = batch.current.offset;
+    while (offset < values.length) {
+      const chunk: Array<Record<string, string>> = [];
+      let bytes = 0;
+      while (offset + chunk.length < values.length && chunk.length < MAX_BULK_INPUTS) {
+        const size = JSON.stringify(values[offset + chunk.length]).length + 1;
+        if (chunk.length && bytes + size > 3_500_000) break;
+        chunk.push(values[offset + chunk.length]);
+        bytes += size;
+      }
+      const res = await fetch(`/api/robots/${robotId}/bulk`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ inputs: chunk, batchId, offset }),
+      }).catch(() => null);
+      const data = (await res?.json().catch(() => null)) as { total?: number; error?: string; name?: string; index?: number } | null;
+      if (!res?.ok || !data?.total) {
+        setBusy(false);
+        setProgress(null);
+        setError(offset > 0 ? `${t('partial', { done: offset, total: values.length })} ${errorText(tr, data?.error, { name: data?.name ?? '' })}` : errorText(tr, data?.error, { name: data?.name ?? '' }));
+        return;
+      }
+      total = data.total;
+      offset += chunk.length;
+      batch.current.offset = offset;
+      setProgress({ done: offset, total: values.length });
     }
+    setBusy(false);
+    setProgress(null);
+    batch.current = null;
+    if (!total) return;
     setText('');
     setMapping({});
-    onQueued(data.total);
+    onQueued(total);
   }
 
   return (
@@ -253,8 +282,13 @@ export function BulkRunDialog({
       }
     >
       <div className="ui-fields">
-        <p className="robots-muted robots-small">{t('desc', { max: MAX_BULK_INPUTS.toLocaleString() })}</p>
+        <p className="robots-muted robots-small">{t('desc', { max: MAX_BATCH_INPUTS.toLocaleString() })}</p>
         {inputs.length === 0 && <p className="robots-note-warn">{t('noInputs')}</p>}
+        {progress && (
+          <p className="robots-muted robots-small" role="status">
+            {t('progress', { done: progress.done, total: progress.total })}
+          </p>
+        )}
         <div className="ui-field">
           <label className="label" htmlFor={`${uid}-file`}>
             {t('file')}
@@ -267,7 +301,7 @@ export function BulkRunDialog({
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (!f) return;
-              if (f.size > 5 * 1024 * 1024) {
+              if (f.size > 100 * 1024 * 1024) {
                 setError(t('parseError'));
                 return;
               }
@@ -287,7 +321,8 @@ export function BulkRunDialog({
             id={`${uid}-paste`}
             className="textarea data"
             rows={4}
-            value={text}
+            value={text.length > 200_000 ? '' : text}
+            readOnly={text.length > 200_000}
             spellCheck={false}
             placeholder={inputs.length ? `${inputs.map((i) => i.name).join(',')}\n…` : ''}
             onChange={(e) => setText(e.target.value)}
@@ -297,7 +332,7 @@ export function BulkRunDialog({
           <>
             <p className="robots-muted robots-small" role="status">
               {t('rows', { count: table.body.length })}
-              {table.body.length > MAX_BULK_INPUTS ? ` · ${t('tooMany', { max: MAX_BULK_INPUTS })}` : ''}
+              {table.body.length > MAX_BATCH_INPUTS ? ` · ${t('tooMany', { max: MAX_BATCH_INPUTS })}` : ''}
             </p>
             {inputs.length > 0 && (
               <fieldset className="robots-mapping">
@@ -534,5 +569,246 @@ export function AiBuilderDialog({ open, onClose, onCreate }: { open: boolean; on
         </div>
       )}
     </RobotDialog>
+  );
+}
+
+/**
+ * Grabar en vivo: abre una grabación y muestra los pasos a medida que llegan
+ * del sitio (bookmarklet de esta grabación o extensión). Nada entra al robot
+ * hasta tocar Agregar.
+ */
+export function RecordDialog({
+  open,
+  onClose,
+  robotId,
+  onAdd,
+}: {
+  open: boolean;
+  onClose: () => void;
+  robotId: string;
+  onAdd: (steps: RobotStep[], mode: 'append' | 'replace') => void;
+}) {
+  const t = useTranslations('robots.record');
+  const tr = useTranslations('robots.recorder');
+  const trr = useTranslations('robots');
+  const summary = useStepSummary();
+  const [rec, setRec] = useState<{ id: string; token: string; sendUrl: string } | null>(null);
+  const [steps, setSteps] = useState<RobotStep[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [mode, setMode] = useState<'append' | 'replace'>('append');
+  const linkRef = useRef<HTMLAnchorElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    let timer: ReturnType<typeof setInterval> | null = null;
+    let id: string | null = null;
+    setSteps([]);
+    setError(null);
+    setRec(null);
+    void (async () => {
+      const res = await fetch(`/api/robots/${robotId}/recording`, { method: 'POST' }).catch(() => null);
+      const data = (await res?.json().catch(() => null)) as { id?: string; token?: string; sendUrl?: string; error?: string } | null;
+      if (!alive) return;
+      if (!res?.ok || !data?.id || !data.token || !data.sendUrl) {
+        setError(errorText(trr, data?.error));
+        return;
+      }
+      id = data.id;
+      setRec({ id: data.id, token: data.token, sendUrl: data.sendUrl });
+      timer = setInterval(() => {
+        void fetch(`/api/robots/recordings/${data.id}`)
+          .then((r) => (r.ok ? (r.json() as Promise<{ steps: RobotStep[] }>) : null))
+          .then((d) => {
+            if (alive && d) setSteps(d.steps);
+          })
+          .catch(() => {});
+      }, 1500);
+    })();
+    return () => {
+      alive = false;
+      if (timer) clearInterval(timer);
+      // La grabación no sirve más: se borra (y su token deja de valer).
+      if (id) void fetch(`/api/robots/recordings/${id}`, { method: 'DELETE' }).catch(() => {});
+    };
+  }, [open, robotId, trr]);
+
+  const labels = useMemo(() => recorderLabels((k, v) => tr(k as never, v as never)), [tr]);
+  // React 19 bloquea href="javascript:…": se asigna directo en el DOM.
+  useEffect(() => {
+    if (rec) linkRef.current?.setAttribute('href', recorderBookmarklet(labels, { url: rec.sendUrl, token: rec.token }));
+  }, [rec, labels]);
+
+  async function copyCode() {
+    if (!rec) return;
+    await navigator.clipboard?.writeText(`${rec.sendUrl}#${rec.token}`).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  return (
+    <RobotDialog
+      open={open}
+      onClose={onClose}
+      title={t('title')}
+      foot={
+        <>
+          <button type="button" className="btn btn-ghost" onClick={onClose}>
+            {t('cancel')}
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={!steps.length}
+            onClick={() => onAdd(steps, mode)}
+          >
+            {t('add', { count: steps.length })}
+          </button>
+        </>
+      }
+    >
+      <div className="ui-fields">
+        {error && (
+          <p className="robots-note-warn" role="alert">
+            {error}
+          </p>
+        )}
+        {!rec && !error && <p className="robots-muted robots-small">{t('opening')}</p>}
+        {rec && (
+          <>
+            <p className="robots-muted robots-small">{t('desc')}</p>
+            <div className="ui-field">
+              <span className="label">{t('bookmarkletLabel')}</span>
+              <div className="robots-inline">
+                <a ref={linkRef} className="btn btn-secondary btn-sm robots-bookmarklet" draggable onClick={(e) => e.preventDefault()} data-testid="robots-record-bookmarklet">
+                  {t('bookmarklet')}
+                </a>
+              </div>
+              <p className="ui-help">{t('bookmarkletHint')}</p>
+            </div>
+            <div className="ui-field">
+              <span className="label">{t('extensionLabel')}</span>
+              <div className="robots-inline">
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => void copyCode()}>
+                  {copied ? t('copied') : t('copyCode')}
+                </button>
+                <a className="robots-link" href="/api/robots/recorder-extension" download>
+                  {t('download')}
+                </a>
+              </div>
+              <p className="ui-help">{t('extensionHint')}</p>
+            </div>
+            <div aria-live="polite">
+              <p className="robots-small robots-muted">{steps.length ? t('received', { count: steps.length }) : t('waiting')}</p>
+              {steps.length > 0 && (
+                <ol className="robots-run-extras" data-testid="robots-record-steps">
+                  {steps.slice(-8).map((s, i) => (
+                    <li key={i}>{summary(s)}</li>
+                  ))}
+                </ol>
+              )}
+            </div>
+            <fieldset className="robots-radios">
+              <legend className="label">{t('modeLabel')}</legend>
+              {(['append', 'replace'] as const).map((m) => (
+                <label key={m} className="robots-radio">
+                  <input type="radio" name="record-mode" checked={mode === m} onChange={() => setMode(m)} />
+                  <span>{t(m)}</span>
+                </label>
+              ))}
+            </fieldset>
+          </>
+        )}
+      </div>
+    </RobotDialog>
+  );
+}
+
+/** Lotes del robot con su avance. Cancelar pide confirmación: saca de la cola lo que falta. */
+export function BatchesPanel({ robotId, initial, canRun, refreshKey }: { robotId: string; initial: RobotBatchSummary[]; canRun: boolean; refreshKey: number }) {
+  const t = useTranslations('robots.batches');
+  const tr = useTranslations('robots');
+  const [batches, setBatches] = useState(initial);
+  const [confirm, setConfirm] = useState<RobotBatchSummary | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/robots/${robotId}/bulk`).catch(() => null);
+    const data = (await res?.json().catch(() => null)) as { batches?: RobotBatchSummary[] } | null;
+    if (res?.ok && data?.batches) setBatches(data.batches);
+  }, [robotId]);
+
+  useEffect(() => {
+    void load();
+  }, [load, refreshKey]);
+
+  const live = batches.some((b) => b.counts.queued + b.counts.running > 0);
+  useEffect(() => {
+    if (!live) return;
+    const timer = setInterval(() => void load(), 5000);
+    return () => clearInterval(timer);
+  }, [live, load]);
+
+  async function cancel() {
+    if (!confirm) return;
+    setBusy(true);
+    setError(null);
+    const res = await fetch(`/api/robots/batches/${confirm.id}`, { method: 'DELETE' }).catch(() => null);
+    const data = (await res?.json().catch(() => null)) as { error?: string } | null;
+    setBusy(false);
+    if (!res?.ok) {
+      setError(errorText(tr, data?.error));
+      return;
+    }
+    setConfirm(null);
+    await load();
+  }
+
+  if (!batches.length) return null;
+  return (
+    <section className="robots-block" aria-labelledby="robots-batches-title">
+      <h3 className="robots-h3" id="robots-batches-title">
+        {t('title')}
+      </h3>
+      <ul className="robots-batches">
+        {batches.map((b) => (
+          <li key={b.id} className="robots-batch" data-testid="robots-batch">
+            <span className="robots-small">
+              {t('progress', { done: b.counts.success + b.counts.failed, total: b.total, failed: b.counts.failed })}
+            </span>
+            {canRun && b.counts.queued > 0 && (
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirm(b)}>
+                {t('cancel')}
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+      <RobotDialog
+        open={!!confirm}
+        busy={busy}
+        onClose={() => setConfirm(null)}
+        title={t('confirmTitle')}
+        foot={
+          <>
+            <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => setConfirm(null)}>
+              {t('keep')}
+            </button>
+            <button type="button" className="btn btn-primary btn-danger" disabled={busy} onClick={() => void cancel()}>
+              {t('confirm')}
+            </button>
+          </>
+        }
+      >
+        <p>{t('confirmBody', { count: confirm?.counts.queued ?? 0 })}</p>
+        {error && (
+          <p className="robots-note-warn" role="alert">
+            {error}
+          </p>
+        )}
+      </RobotDialog>
+    </section>
   );
 }

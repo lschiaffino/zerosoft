@@ -15,7 +15,7 @@
     "schedule": "Agendamento",
     "never": "Nunca executado",
     "noSchedule": "Manual",
-    "adminOnly": "Somente admins e owners do workspace podem criar, editar e executar robôs.",
+    "adminOnly": "Seu papel pode ver os robôs, mas não criar nem rodar.",
     "record": "Gravar passos",
     "creating": "Criando robô…",
     "emptyTitle": "Ainda não há robôs",
@@ -136,7 +136,7 @@
     "running": "Executando…",
     "delete": "Excluir robô",
     "confirmDelete": "Excluir este robô e o histórico de execuções?",
-    "readOnly": "Somente leitura: apenas admins e owners podem editar ou executar robôs.",
+    "readOnly": "Somente leitura: seu papel não pode editar este robô.",
     "tabs": {
       "steps": "Passos",
       "inputs": "Entradas",
@@ -359,7 +359,7 @@
     "logTime": "Tempo",
     "view": "Visualização dos dados",
     "copied": "Copiado",
-    "queuedNotice": "Na fila: outro robô está em execução neste workspace. Esta execução começa quando ele terminar.",
+    "queuedNotice": "Aguardando a vez: o workspace está no limite de execuções ao mesmo tempo. Começa quando liberar um lugar.",
     "warningsNotice": "{count, plural, one {# passo falhou e o robô continuou.} other {# passos falharam e o robô continuou.}} Eles estão marcados no registro.",
     "downloadCsv": "Baixar CSV",
     "changed": "Dados mudaram",
@@ -399,7 +399,16 @@
     "geoProxy": "País: {country} · via proxy",
     "refresh": "Atualizar",
     "autoRefresh": "Atualiza enquanto houver execuções na fila.",
-    "batch": "Lote"
+    "batch": "Lote",
+    "relearned": "O passo {step} não encontrava mais seu seletor e achou o mesmo elemento de novo: {selector}.",
+    "relearnedField": "Passo {step}: a coluna {field} ficou em branco e foi encontrada de novo com: {selector}.",
+    "relearnedSaved": "Salvo no robô; o seletor antigo fica como alternativo.",
+    "relearnedNotSaved": "Usado só nesta execução.",
+    "cancelQueued": "Tirar da fila",
+    "cancelConfirm": "Tirar esta execução da fila?",
+    "cancelYes": "Tirar",
+    "cancelNo": "Voltar",
+    "cancelDone": "Execução fora da fila."
   },
   "settings": {
     "enabled": "Permitir execuções automáticas",
@@ -480,11 +489,14 @@
     "retention": "Guardar execuções por",
     "retentionDefault": "Padrão ({count} dias)",
     "retentionDays": "{count, plural, one {# dia} other {# dias}}",
-    "pausedByFailures": "As execuções automáticas foram pausadas em {date} depois de várias execuções com falha seguidas. Confira a aba Execuções e ligue-as de novo."
+    "pausedByFailures": "As execuções automáticas foram pausadas em {date} depois de várias execuções com falha seguidas. Confira a aba Execuções e ligue-as de novo.",
+    "selfHealTitle": "Encontrar elementos de novo quando o site muda",
+    "selfHealHint": "Cada execução boa lembra como são seus elementos. Se um seletor para de funcionar, o robô procura o elemento mais parecido e só usa se um ganhar com clareza. Se a execução terminar bem, salva o seletor novo e a execução avisa.",
+    "selfHeal": "Reaprender seletores sozinho"
   },
   "errors": {
     "generic": "Algo deu errado. Tente novamente.",
-    "forbidden": "Somente admins e owners do workspace podem fazer isso.",
+    "forbidden": "Seu papel não pode fazer isto neste robô.",
     "not_found": "Este robô não existe mais.",
     "invalid_input": "Dados inválidos.",
     "unknown_template": "Modelo desconhecido.",
@@ -515,7 +527,9 @@
     "snapshot_failed": "Não foi possível abrir a página. Confira o endereço e tente de novo.",
     "no_failure": "Esta execução não tem uma falha capturada.",
     "step_not_found": "Esse passo não está mais no robô.",
-    "too_many_inputs": "Envie entre 1 e 1.000 linhas."
+    "too_many_inputs": "Envie entre 1 e 1.000 linhas.",
+    "admin_only_login": "Logins, sessões salvas e envios com credenciais são para admins e owners do workspace.",
+    "not_queued": "Essa execução não está mais na fila."
   },
   "paste": {
     "title": "Colar passos gravados",
@@ -565,11 +579,28 @@
       "pickText": "Clique no texto a extrair. Esc cancela.",
       "pickList": "Clique em um item da lista e depois nas partes que quer como colunas. Clique em Pronto ao terminar.",
       "pickNext": "Clique no botão Próximo ou Carregar mais.",
-      "listCount": "Lista: {count} itens"
+      "listCount": "Lista: {count} itens",
+      "sent": "enviados ao editor",
+      "sendFail": "não foi possível enviar, copie"
     },
     "codeTitle": "Sem barra de favoritos",
     "extractTitle": "Extrair enquanto grava",
-    "extractBody": "Capturar texto guarda um valor. Capturar lista marca um item que se repete (um produto, uma linha, um resultado): cada item parecido vira uma linha e cada parte que você clica dentro dele vira uma coluna. Próxima página marca o botão que carrega mais linhas."
+    "extractBody": "Capturar texto guarda um valor. Capturar lista marca um item que se repete (um produto, uma linha, um resultado): cada item parecido vira uma linha e cada parte que você clica dentro dele vira uma coluna. Próxima página marca o botão que carrega mais linhas.",
+    "extension": {
+      "title": "Extensão do Chrome",
+      "body": "Continua gravando entre páginas e envia cada passo ao robô que você está editando. Ainda não está na Chrome Web Store: a instalação é manual.",
+      "step1": "Baixe o .zip e descompacte.",
+      "step2": "Abra chrome://extensions, ligue o Modo do desenvolvedor e escolha Carregar sem compactação com essa pasta.",
+      "step3": "No seu robô, vá em Passos, Gravar passos, copie o código de gravação e cole na extensão com a URL inicial.",
+      "download": "Baixar extensão",
+      "popupTitle": "Gravador de Robôs do zerosoft",
+      "popupCode": "Código de gravação",
+      "popupUrl": "URL inicial",
+      "popupStart": "Começar a gravar",
+      "popupStop": "Parar de gravar",
+      "popupActive": "Gravando na aba que abriu.",
+      "popupInvalid": "Confira o código e a URL."
+    }
   },
   "loading": "Carregando robôs…",
   "alertEmail": {
@@ -641,11 +672,13 @@
     "rows": "{count, plural, one {# linha encontrada} other {# linhas encontradas}}",
     "tooMany": "Só as primeiras {max} linhas são usadas.",
     "start": "Colocar {count, plural, one {# execução} other {# execuções}} na fila",
-    "queued": "{count, plural, one {# execução na fila} other {# execuções na fila}}. Elas rodam uma depois da outra.",
+    "queued": "{count, plural, one {# execução na fila} other {# execuções na fila}}. Rodam conforme o limite do seu workspace.",
     "noInputs": "Este robô não tem entradas. Adicione entradas para executá-lo sobre uma lista.",
     "parseError": "Não foi possível ler o CSV: a primeira linha precisa ter os nomes das colunas.",
     "cancel": "Cancelar",
-    "preview": "Primeiras linhas"
+    "preview": "Primeiras linhas",
+    "progress": "Na fila {done, number} de {total, number}…",
+    "partial": "{done, number} de {total, number} na fila. Comece de novo para continuar dali."
   },
   "data": {
     "title": "Dados entre execuções",
@@ -709,12 +742,14 @@
     "kinds": {
       "crm": "CRM",
       "sheets": "Google Sheets",
-      "airtable": "Airtable"
+      "airtable": "Airtable",
+      "s3": "S3 ou compatível"
     },
     "kindHints": {
       "crm": "Cria ou atualiza contatos por email, ou empresas por domínio.",
       "sheets": "Mantém uma planilha igual à tabela, ou adiciona as linhas novas.",
-      "airtable": "Cria ou atualiza registros em uma tabela."
+      "airtable": "Cria ou atualiza registros em uma tabela.",
+      "s3": "Envia as linhas de cada execução bem-sucedida como arquivo (até 5.000 linhas e 10 MB) para um bucket."
     },
     "remove": "Remover destino",
     "enabled": "Ativo",
@@ -766,7 +801,14 @@
       "overwrite": "Sobrescrever com os dados do robô"
     },
     "loginWarning": "Este robô faz login com um login salvo, então as linhas que envia podem incluir dados privados. Envie-as só para onde for permitido.",
-    "droppedRecipients": "Salvo. Estes endereços não são pessoas do workspace e foram removidos do email de mudanças: {list}"
+    "droppedRecipients": "Salvo. Estes endereços não são pessoas do workspace e foram removidos do email de mudanças: {list}",
+    "s3CredentialHint": "Uma credencial \"basic\" salva: o usuário é o Access Key ID e a senha é o Secret Access Key.",
+    "s3Bucket": "Bucket",
+    "s3Region": "Região",
+    "s3Endpoint": "Endpoint",
+    "s3EndpointHint": "Vazio para AWS. Para R2, MinIO ou Spaces: https://host",
+    "s3Prefix": "Pasta (opcional)",
+    "s3Format": "Formato"
   },
   "geo": {
     "title": "País",
@@ -789,5 +831,44 @@
     "more": "Há mais mudanças no app.",
     "cta": "Ver os dados",
     "footer": "Você recebe este email porque os emails de mudanças estão ligados para este robô, na aba Integrações."
+  },
+  "record": {
+    "title": "Gravar ao vivo",
+    "opening": "Abrindo a gravação…",
+    "desc": "Faça a tarefa no site. Os passos aparecem aqui conforme você avança. Nada entra no robô até você adicionar. A gravação dura uma hora.",
+    "bookmarkletLabel": "Com um favorito",
+    "bookmarklet": "Gravar este robô",
+    "bookmarkletHint": "Arraste para a barra de favoritos e clique nele no site. Clique de novo depois de cada carregamento de página. Este link só serve para esta gravação. Sites com política de segurança estrita podem bloqueá-lo: neles, use a extensão.",
+    "extensionLabel": "Com a extensão do Chrome",
+    "copyCode": "Copiar código de gravação",
+    "copied": "Copiado",
+    "download": "Baixar extensão",
+    "extensionHint": "A extensão acompanha você entre páginas e funciona em sites que bloqueiam o favorito. Cole este código e a URL inicial na janela dela. Como instalar está na página Gravador de passos.",
+    "waiting": "Aguardando passos…",
+    "received": "{count, plural, one {# passo recebido} other {# passos recebidos}}",
+    "modeLabel": "Adicionar",
+    "append": "Depois dos passos atuais",
+    "replace": "Substituindo os passos atuais",
+    "add": "Adicionar {count, plural, =0 {passos} one {# passo} other {# passos}}",
+    "cancel": "Fechar"
+  },
+  "batches": {
+    "title": "Lotes",
+    "progress": "{done, number} de {total, number} concluídas · {failed, number} com falha",
+    "cancel": "Cancelar o restante",
+    "confirmTitle": "Cancelar este lote?",
+    "confirmBody": "{count, plural, one {# execução na fila não vai começar} other {# execuções na fila não vão começar}}. As que já terminaram ou estão rodando continuam como estão.",
+    "keep": "Continuar rodando",
+    "confirm": "Cancelar o restante"
+  },
+  "workspace": {
+    "concurrencyTitle": "Execuções ao mesmo tempo",
+    "concurrencyHint": "Quantos robôs este workspace pode rodar ao mesmo tempo, até {max}. O resto espera na fila. Cada execução conta nos minutos do mês: mais ao mesmo tempo gasta mais rápido.",
+    "concurrency": "Execuções ao mesmo tempo",
+    "membersTitle": "O que os members podem fazer",
+    "membersHint": "Os members podem criar robôs, editar e apagar os que criaram e rodar qualquer robô que não use login, sessão salva ou credencial. Esses ficam para admins e owners.",
+    "members": "Deixar os members montar e rodar robôs",
+    "adminOnly": "Só admins e owners do workspace podem mudar isto.",
+    "saved": "Salvo"
   }
 }

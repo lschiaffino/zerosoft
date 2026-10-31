@@ -230,18 +230,56 @@ export interface RecorderLabels {
   pickList?: string;
   pickNext?: string;
   listCount?: string;
+  /** Grabación en vivo: los pasos llegaron al editor, o no se pudieron mandar. */
+  sent?: string;
+  sendFail?: string;
+}
+
+/** Destino de la grabación en vivo: los pasos se mandan solos a la grabación abierta en el editor. */
+export interface RecorderLive {
+  url: string;
+  token: string;
+}
+
+/** Textos del panel (de messages robots.recorder.panel.*). */
+export function recorderLabels(t: (key: string, values?: Record<string, string>) => string): RecorderLabels {
+  return {
+    recording: t('panel.recording'),
+    steps: t('panel.steps'),
+    copy: t('panel.copy'),
+    copied: t('panel.copied'),
+    clear: t('panel.clear'),
+    close: t('panel.close'),
+    hint: t('panel.hint'),
+    text: t('panel.text'),
+    list: t('panel.list'),
+    next: t('panel.next'),
+    done: t('panel.done'),
+    pickText: t('panel.pickText'),
+    pickList: t('panel.pickList'),
+    pickNext: t('panel.pickNext'),
+    listCount: t('panel.listCount', { count: '{count}' }),
+    sent: t('panel.sent'),
+    sendFail: t('panel.sendFail'),
+  };
 }
 
 /** Placeholder de contraseñas: el valor real nunca se graba. */
 export const PASSWORD_PLACEHOLDER = '{{credentials.LOGIN.password}}';
 
 /** Código JS del grabador (lo que corre en la página del usuario). */
-export function buildRecorderScript(labels: RecorderLabels): string {
+export function buildRecorderScript(labels: RecorderLabels, live?: RecorderLive | null): string {
   const L = JSON.stringify(labels);
+  const LIVE = JSON.stringify(live ?? null);
   return `(function(){
 if (window.__zsRecorder) { window.__zsRecorder.show(); return; }
 var __name = function (f) { return f; };
 var L = ${L};
+// Grabación en vivo: del bookmarklet, o de la extensión (que además trae los pasos de la página anterior).
+var CFG = window.__zsRecCfg || null;
+var LIVE = CFG || ${LIVE};
+var sendState = '';
+var sendTimer = null;
 var KEY = 'zerosoft-robot-recorder';
 var gen = ${generateSelector.toString()};
 var altsOf = ${selectorAlternatives.toString()};
@@ -251,9 +289,25 @@ var mode = null;
 var listCard = null;
 var state;
 try { state = JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch (e) { state = null; }
+if (CFG && CFG.state && Array.isArray(CFG.state.steps)) state = CFG.state;
 if (!state || !Array.isArray(state.steps)) state = { steps: [], last: '' };
-if (state.last !== location.href) state.steps.push({ type: 'goto', url: location.href });
-function save() { state.last = location.href; try { sessionStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} render(); }
+// Un clic o un Enter recién hecho explica el cambio de página: repetirlo sería un goto de más.
+var acted = state.at && Date.now() - state.at < 10000;
+if (state.last !== location.href && !(acted && state.steps.length)) state.steps.push({ type: 'goto', url: location.href });
+function send() {
+  if (!LIVE) return;
+  clearTimeout(sendTimer);
+  sendTimer = setTimeout(function () {
+    fetch(LIVE.url, { method: 'POST', headers: { 'content-type': 'text/plain' }, body: JSON.stringify({ token: LIVE.token, steps: state.steps }) })
+      .then(function (r) { sendState = r.ok ? 'ok' : 'fail'; render(); }, function () { sendState = 'fail'; render(); });
+  }, 200);
+}
+function save() {
+  state.last = location.href;
+  try { sessionStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  try { if (CFG && chrome && chrome.runtime && chrome.runtime.id) chrome.runtime.sendMessage({ zsState: state }); } catch (e) {}
+  render(); send();
+}
 function info(el, depth) {
   if (!el || el.nodeType !== 1) return null;
   var attrs = {};
@@ -355,6 +409,7 @@ function push(step) {
   var prev = state.steps[state.steps.length - 1];
   if (prev && step.type === 'fill' && prev.type === 'fill' && prev.selector === step.selector) { prev.value = step.value; save(); return; }
   if (state.steps.length >= 100) return;
+  if (step.type === 'click' || step.type === 'press') state.at = Date.now();
   state.steps.push(step); save();
 }
 // Campos secretos: nunca se graba su valor. Además de type=password, cuentan los que
@@ -421,7 +476,7 @@ q('.e1').addEventListener('click', function () { setMode(mode === 'text' ? null 
 q('.e2').addEventListener('click', function () { listCard = null; setMode(mode === 'list' ? null : 'list'); });
 q('.e3').addEventListener('click', function () { setMode(mode === 'next' ? null : 'next'); });
 q('.k').addEventListener('click', function () { setMode(null); });
-function render() { q('.t').textContent = L.recording + ' · ' + state.steps.length + ' ' + L.steps; }
+function render() { q('.t').textContent = L.recording + ' · ' + state.steps.length + ' ' + L.steps + (sendState === 'ok' ? ' · ' + (L.sent || '') : sendState === 'fail' ? ' · ' + (L.sendFail || '') : ''); }
 q('.c').addEventListener('click', function () {
   var text = JSON.stringify({ zerosoftRobotSteps: 1, steps: state.steps }, null, 2);
   var done = function () { q('.c').textContent = L.copied; setTimeout(function () { q('.c').textContent = L.copy; }, 1500); };
@@ -429,7 +484,10 @@ q('.c').addEventListener('click', function () {
   else { prompt(L.copy, text); }
 });
 q('.x').addEventListener('click', function () { state = { steps: [{ type: 'goto', url: location.href }], last: location.href }; save(); });
-q('.q').addEventListener('click', function () { host.style.display = 'none'; });
+q('.q').addEventListener('click', function () {
+  host.style.display = 'none';
+  try { if (CFG && chrome && chrome.runtime && chrome.runtime.id) chrome.runtime.sendMessage({ zsStop: true }); } catch (e) {}
+});
 document.documentElement.appendChild(host);
 window.__zsRecorder = { show: function () { host.style.display = ''; } };
 save();
@@ -437,8 +495,8 @@ save();
 }
 
 /** href del bookmarklet. */
-export function recorderBookmarklet(labels: RecorderLabels): string {
-  return `javascript:${encodeURIComponent(buildRecorderScript(labels))}`;
+export function recorderBookmarklet(labels: RecorderLabels, live?: RecorderLive | null): string {
+  return `javascript:${encodeURIComponent(buildRecorderScript(labels, live))}`;
 }
 
 export type ParseRecordedResult = { ok: true; steps: RobotStep[] } | { ok: false; error: 'invalid_json' | 'no_steps' | 'invalid_steps'; index?: number };

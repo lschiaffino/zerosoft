@@ -4,7 +4,9 @@
  */
 import { NextResponse } from 'next/server';
 import type { SessionUser } from './session';
-import { roleAtLeast } from './teams';
+import { roleAtLeast, type TeamRole } from './teams';
+import type { RobotRow } from './db';
+import type { RobotWorkspaceConfig } from './robots';
 
 export function robotError(status: number, error: string, extra: Record<string, unknown> = {}): NextResponse {
   return NextResponse.json({ error, ...extra }, { status });
@@ -17,6 +19,48 @@ export const notFound = () => robotError(404, 'not_found');
 /** Crear, editar, borrar y correr robots: admins y owners (igual que Flow). */
 export function canEditRobots(user: Pick<SessionUser, 'role'>): boolean {
   return roleAtLeast(user.role, 'admin');
+}
+
+/** ¿El robot usa un login, una sesión guardada o envíos con credenciales? Esos quedan para admins. */
+export function robotUsesLogin(row: Pick<RobotRow, 'steps' | 'persist_session' | 'settings'>): boolean {
+  if (row.persist_session === 1) return true;
+  if (/\{\{\s*credentials\./.test(row.steps ?? '')) return true;
+  return /"kind"\s*:\s*"(sheets|airtable|s3)"/.test(row.settings ?? '');
+}
+
+/** ¿Es member (no invitado) en un workspace que deja armar robots a sus members? */
+export function isRobotBuilder(role: TeamRole, config: Pick<RobotWorkspaceConfig, 'membersCanBuild'>): boolean {
+  return roleAtLeast(role, 'admin') || (config.membersCanBuild && roleAtLeast(role, 'member'));
+}
+
+/** Editar un robot: admins, o el member que lo creó si no usa un login. */
+export function canEditRobot(
+  who: { role: TeamRole; personId: string },
+  row: Pick<RobotRow, 'steps' | 'persist_session' | 'settings' | 'created_by'>,
+  config: Pick<RobotWorkspaceConfig, 'membersCanBuild'>,
+): boolean {
+  if (roleAtLeast(who.role, 'admin')) return true;
+  return isRobotBuilder(who.role, config) && row.created_by === who.personId && !robotUsesLogin(row);
+}
+
+/** Correr un robot: admins, o cualquier member (si el workspace lo permite) cuando no usa un login. */
+export function canRunRobot(
+  who: { role: TeamRole },
+  row: Pick<RobotRow, 'steps' | 'persist_session' | 'settings'>,
+  config: Pick<RobotWorkspaceConfig, 'membersCanBuild'>,
+): boolean {
+  if (roleAtLeast(who.role, 'admin')) return true;
+  return isRobotBuilder(who.role, config) && !robotUsesLogin(row);
+}
+
+/** Lo que un member no puede guardar: logins en los pasos, sesión guardada ni envíos con credenciales. */
+export function memberPatchError(patch: { steps?: unknown; persistSession?: boolean; settings?: unknown; import?: unknown }): string | null {
+  const text = JSON.stringify([patch.steps ?? null, patch.import ?? null]);
+  if (/\{\{\s*credentials\./.test(text)) return 'admin_only_login';
+  if (patch.persistSession === true) return 'admin_only_login';
+  const settings = JSON.stringify([patch.settings ?? null, patch.import ?? null]);
+  if (/"kind"\s*:\s*"(sheets|airtable|s3)"/.test(settings)) return 'admin_only_login';
+  return null;
 }
 
 /** Persona real logueada (no el dueño del workspace). */

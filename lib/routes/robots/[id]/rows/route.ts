@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { getRobotRow } from '@/lib/robots';
+import { getRobotRow, getRobotWorkspaceConfig } from '@/lib/robots';
 import { clearDataset, listDataset, type DatasetFilter } from '@/lib/robots-dataset';
 import { valueToCsv } from '@/lib/robots-csv';
-import { canEditRobots, forbidden, notFound, robotViewer, unauthorized } from '@/lib/robots-http';
+import { canEditRobot, canEditRobots, forbidden, notFound, realUserId, robotViewer, unauthorized } from '@/lib/robots-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -42,12 +42,13 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   return NextResponse.json(res);
 }
 
-/** Vaciar la tabla (las corridas no se tocan). Solo admins. */
+/** Vaciar la tabla (las corridas no se tocan). Quien puede editar el robot. */
 export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  if (!canEditRobots(user)) return forbidden();
-  if (!(await getRobotRow(user.id, id))) return notFound();
+  const row = await getRobotRow(user.id, id);
+  if (!row) return canEditRobots(user) ? notFound() : forbidden();
+  if (!canEditRobot({ role: user.role, personId: realUserId(user) }, row, await getRobotWorkspaceConfig(user.id))) return forbidden();
   return NextResponse.json({ ok: true, deleted: await clearDataset(user.id, id) });
 }

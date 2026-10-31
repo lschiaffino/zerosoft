@@ -77,6 +77,7 @@ export default function RunsPanel({
   robotName = 'robot',
   onApplyFix,
   toolbar,
+  onCancelQueued,
 }: {
   runs: RobotRunDto[];
   selectedId: string | null;
@@ -91,6 +92,8 @@ export default function RunsPanel({
   onApplyFix?: (fix: StepFix) => void;
   /** Botones de arriba (Correr en lote, Actualizar). */
   toolbar?: React.ReactNode;
+  /** Sacar de la cola una corrida que todavía no arrancó. */
+  onCancelQueued?: (id: string) => Promise<void>;
 }) {
   const t = useTranslations('robots.runs');
   const format = useFormatter();
@@ -149,7 +152,7 @@ export default function RunsPanel({
             <span className="ui-skeleton ui-skeleton-row" />
           </div>
         ) : run ? (
-          <RunDetail run={run} robotName={robotName} onApplyFix={onApplyFix} />
+          <RunDetail run={run} robotName={robotName} onApplyFix={onApplyFix} onCancelQueued={onCancelQueued} />
         ) : (
           <p className="robots-run-body robots-muted">{t('select')}</p>
         )}
@@ -159,7 +162,17 @@ export default function RunsPanel({
   );
 }
 
-function RunDetail({ run, robotName, onApplyFix }: { run: RobotRunDto; robotName: string; onApplyFix?: (fix: StepFix) => void }) {
+function RunDetail({
+  run,
+  robotName,
+  onApplyFix,
+  onCancelQueued,
+}: {
+  run: RobotRunDto;
+  robotName: string;
+  onApplyFix?: (fix: StepFix) => void;
+  onCancelQueued?: (id: string) => Promise<void>;
+}) {
   const t = useTranslations('robots.runs');
   const tTypes = useTranslations('robots.steps.types');
   const [view, setView] = useState<'table' | 'json'>('table');
@@ -178,7 +191,12 @@ function RunDetail({ run, robotName, onApplyFix }: { run: RobotRunDto; robotName
         <span>{t(`trigger.${run.trigger}`)}</span>
         {run.changed !== null && <span className="badge">{run.changed ? t('changed') : t('unchanged')}</span>}
       </div>
-      {run.status === 'queued' && <p className="ui-help">{t('queuedNotice')}</p>}
+      {run.status === 'queued' && (
+        <p className="ui-help">
+          {t('queuedNotice')}{' '}
+          {onCancelQueued && <CancelQueued onConfirm={() => onCancelQueued(run.id)} />}
+        </p>
+      )}
       {run.error && (
         <div className="robots-run-error" role="alert">
           <strong>{t('error')}</strong>
@@ -353,6 +371,30 @@ function RunDetail({ run, robotName, onApplyFix }: { run: RobotRunDto; robotName
   );
 }
 
+/** Dos pasos: el primer clic pregunta, el segundo saca la corrida de la cola. Esc o Volver dejan todo igual. */
+function CancelQueued({ onConfirm }: { onConfirm: () => Promise<void> }) {
+  const t = useTranslations('robots.runs');
+  const [asking, setAsking] = useState(false);
+  if (!asking) {
+    return (
+      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAsking(true)}>
+        {t('cancelQueued')}
+      </button>
+    );
+  }
+  return (
+    <span className="robots-inline" onKeyDown={(e) => e.key === 'Escape' && setAsking(false)}>
+      <span>{t('cancelConfirm')}</span>
+      <button type="button" className="btn btn-primary btn-danger btn-sm" autoFocus onClick={() => void onConfirm()}>
+        {t('cancelYes')}
+      </button>
+      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAsking(false)}>
+        {t('cancelNo')}
+      </button>
+    </span>
+  );
+}
+
 /** Autorreparación, IA, tabla acumulada, email de cambios, envíos y país de la corrida. */
 function RunExtras({ run, onApplyFix }: { run: RobotRunDto; onApplyFix?: (fix: StepFix) => void }) {
   const t = useTranslations('robots.runs');
@@ -387,9 +429,14 @@ function RunExtras({ run, onApplyFix }: { run: RobotRunDto; onApplyFix?: (fix: S
               const parts = h.step.split('.').map(Number);
               const path = parts.length === 1 ? { index: parts[0] - 1, child: null } : parts.length === 3 ? { index: parts[0] - 1, child: parts[2] - 1 } : null;
               return (
-                <li key={h.step}>
-                  <span>{t('healed', { step: h.step, selector: h.to })}</span>{' '}
-                  {onApplyFix && path && (
+                <li key={`${h.step}-${h.field ?? ''}`}>
+                  <span>
+                    {h.relearned
+                      ? t(h.field ? 'relearnedField' : 'relearned', { step: h.step, selector: h.to, field: h.field ?? '' })
+                      : t('healed', { step: h.step, selector: h.to })}
+                  </span>{' '}
+                  {h.relearned && <span className="robots-muted">{t(h.saved ? 'relearnedSaved' : 'relearnedNotSaved')}</span>}{' '}
+                  {onApplyFix && path && !h.saved && !h.field && (
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => onApplyFix({ ...path, step: h.step, selector: h.to, text: '' })}>
                       {t('promote')}
                     </button>

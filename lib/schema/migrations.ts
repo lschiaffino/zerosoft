@@ -7717,6 +7717,38 @@ export const MIGRATIONS: Migration[] = [
       for (const [name, body] of triggers) await client.execute(`CREATE TRIGGER IF NOT EXISTS ${name} ${body}`);
     },
   },
+  {
+    // Robots: huellas de selectores (autoaprendizaje), grabaciones en vivo e índices de la cola.
+    id: '149_robots_prints_recordings_queue',
+    async up(client) {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS robot_selector_prints (
+          robot_id TEXT NOT NULL REFERENCES robots(id) ON DELETE CASCADE,
+          selector TEXT NOT NULL,
+          print TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (robot_id, selector)
+        )`);
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS robot_recordings (
+          id TEXT PRIMARY KEY,
+          robot_id TEXT NOT NULL REFERENCES robots(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          created_by TEXT NOT NULL,
+          token_hash TEXT NOT NULL,
+          steps TEXT NOT NULL DEFAULT '[]',
+          updated_at TEXT NOT NULL,
+          expires_at TEXT NOT NULL
+        )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_robot_recordings_expires ON robot_recordings(expires_at)');
+      await client.execute(
+        "CREATE INDEX IF NOT EXISTS idx_robot_runs_queued_solo ON robot_runs(user_id, created_at) WHERE status = 'queued' AND batch_id IS NULL",
+      );
+      await client.execute(
+        "CREATE INDEX IF NOT EXISTS idx_robot_runs_queued_batch ON robot_runs(user_id, created_at) WHERE status = 'queued' AND batch_id IS NOT NULL",
+      );
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

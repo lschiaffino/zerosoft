@@ -29,6 +29,41 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-31-robots-paridad',
+    date: '2026-10-31',
+    title: {
+      en: 'Robots: live recording, selectors that re-learn and batches of 50,000',
+      es: 'Robots: grabación en vivo, selectores que se reaprenden y lotes de 50.000',
+      pt: 'Robôs: gravação ao vivo, seletores que se reaprendem e lotes de 50.000',
+    },
+    items: [
+      {
+        product: 'robots',
+        en: 'Record from the Steps tab: each click, field and extraction reaches the editor as you go. The Chrome extension follows you across pages; it installs by hand for now.',
+        es: 'Grabá desde la pestaña Pasos: cada clic, campo y extracción llega al editor a medida que lo hacés. La extensión de Chrome te sigue entre páginas; por ahora se instala a mano.',
+        pt: 'Grave na aba Passos: cada clique, campo e extração chega ao editor conforme você faz. A extensão do Chrome acompanha você entre páginas; por enquanto a instalação é manual.',
+      },
+      {
+        product: 'robots',
+        en: 'When a site changes its HTML, the robot looks for the most similar element, saves the new selector if the run succeeds and tells you in the run. On by default in new robots.',
+        es: 'Cuando un sitio cambia su HTML, el robot busca el elemento más parecido, guarda el selector nuevo si la corrida termina bien y te lo avisa en la corrida. Prendido por defecto en los robots nuevos.',
+        pt: 'Quando um site muda o HTML, o robô procura o elemento mais parecido, salva o seletor novo se a execução terminar bem e avisa na execução. Ligado por padrão nos robôs novos.',
+      },
+      {
+        product: 'robots',
+        en: 'Batches go up to 50,000 rows, with progress and cancel. Workspaces can run up to 5 robots at once, and single runs go ahead of batches.',
+        es: 'Los lotes llegan a 50.000 filas, con avance y cancelación. Un workspace puede correr hasta 5 robots a la vez, y las corridas sueltas pasan antes que los lotes.',
+        pt: 'Os lotes chegam a 50.000 linhas, com progresso e cancelamento. Um workspace pode rodar até 5 robôs ao mesmo tempo, e execuções avulsas passam antes dos lotes.',
+      },
+      {
+        product: 'robots',
+        en: 'New workspace setting: members can build robots and run the ones without a login. New destination: S3 or a compatible bucket.',
+        es: 'Ajuste nuevo del workspace: los members pueden armar robots y correr los que no usan login. Envío nuevo: S3 o un bucket compatible.',
+        pt: 'Novo ajuste do workspace: os members podem montar robôs e rodar os que não usam login. Novo envio: S3 ou um bucket compatível.',
+      },
+    ],
+  },
+  {
     id: '2026-10-31-pulido-interfaz',
     date: '2026-10-31',
     title: {

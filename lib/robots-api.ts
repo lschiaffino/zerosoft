@@ -60,7 +60,7 @@ const MESSAGES: Record<string, string> = {
   missing_input: 'A required input is missing.',
   missing_credential: 'A credential used by the robot is missing.',
   no_steps: 'The robot has no steps.',
-  too_many_inputs: 'Send between 1 and 1,000 inputs.',
+  too_many_inputs: 'Send between 1 and 1,000 inputs per request and up to 50,000 per batch.',
 };
 
 /** Error de startRobotRun / enqueueRobotBatch → respuesta v1. */
