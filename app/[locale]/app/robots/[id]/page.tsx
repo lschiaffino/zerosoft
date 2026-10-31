@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/session';
-import { getRobot, getUsage, listRobotRuns } from '@/lib/robots';
-import { canEditRobots, robotViewer } from '@/lib/robots-http';
+import { getRobot, getRobotRow, getRobotWorkspaceConfig, getUsage, listRobotBatches, listRobotRuns } from '@/lib/robots';
+import { canEditRobot, canRunRobot, realUserId, robotViewer } from '@/lib/robots-http';
 import RobotEditor from '@/components/robots/RobotEditor';
 
 export const dynamic = 'force-dynamic';
@@ -14,6 +14,23 @@ export default async function RobotEditorPage(props: { params: Promise<{ locale:
   const user = await requireUser(locale);
   const robot = await getRobot(user.id, id);
   if (!robot) notFound();
-  const [runs, usage] = await Promise.all([listRobotRuns(user.id, id, 50, robotViewer(user)), getUsage(user.id)]);
-  return <RobotEditor key={robot.id} robot={robot} runs={runs} usage={usage} canEdit={canEditRobots(user)} />;
+  const [row, config, runs, usage, batches] = await Promise.all([
+    getRobotRow(user.id, id),
+    getRobotWorkspaceConfig(user.id),
+    listRobotRuns(user.id, id, 50, robotViewer(user)),
+    getUsage(user.id),
+    listRobotBatches(user.id, id, robotViewer(user)),
+  ]);
+  if (!row) notFound();
+  return (
+    <RobotEditor
+      key={robot.id}
+      robot={robot}
+      runs={runs}
+      usage={usage}
+      batches={batches}
+      canEdit={canEditRobot({ role: user.role, personId: realUserId(user) }, row, config)}
+      canRun={canRunRobot(user, row, config)}
+    />
+  );
 }

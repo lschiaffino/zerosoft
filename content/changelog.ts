@@ -29,6 +29,76 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-31-robots-paridad',
+    date: '2026-10-31',
+    title: {
+      en: 'Robots: live recording, selectors that re-learn and batches of 50,000',
+      es: 'Robots: grabación en vivo, selectores que se reaprenden y lotes de 50.000',
+      pt: 'Robôs: gravação ao vivo, seletores que se reaprendem e lotes de 50.000',
+    },
+    items: [
+      {
+        product: 'robots',
+        en: 'Record from the Steps tab: each click, field and extraction reaches the editor, and you review them before adding. The Chrome extension follows you across pages; it installs by hand for now.',
+        es: 'Grabá desde la pestaña Pasos: cada clic, campo y extracción llega al editor y lo revisás antes de agregarlo. La extensión de Chrome te sigue entre páginas; por ahora se instala a mano.',
+        pt: 'Grave na aba Passos: cada clique, campo e extração chega ao editor e você confere antes de adicionar. A extensão do Chrome acompanha você entre páginas; por enquanto a instalação é manual.',
+      },
+      {
+        product: 'robots',
+        en: 'Optional setting: when a site changes its HTML, steps that read data use the most similar element and save it. Clicks and fields stop and suggest a replacement for you to approve.',
+        es: 'Ajuste opcional: cuando un sitio cambia su HTML, los pasos que leen datos usan el elemento más parecido y lo guardan. Los clics y campos se frenan y sugieren un reemplazo para que lo apruebes.',
+        pt: 'Ajuste opcional: quando um site muda o HTML, os passos que leem dados usam o elemento mais parecido e salvam. Cliques e campos param e sugerem um substituto para você aprovar.',
+      },
+      {
+        product: 'robots',
+        en: 'Batches go up to 50,000 rows, with progress and cancel, and pause when monthly minutes run out. Workspaces can run up to 5 robots at once, and single runs go ahead of batches.',
+        es: 'Los lotes llegan a 50.000 filas, con avance y cancelación, y se pausan al quedarse sin minutos del mes. Un workspace puede correr hasta 5 robots a la vez, y las corridas sueltas pasan antes que los lotes.',
+        pt: 'Os lotes chegam a 50.000 linhas, com progresso e cancelamento, e pausam ao ficar sem minutos do mês. Um workspace pode rodar até 5 robôs ao mesmo tempo, e execuções avulsas passam antes dos lotes.',
+      },
+      {
+        product: 'robots',
+        en: 'New workspace setting: members can build robots and run the ones without a login. New destination: S3 or a compatible bucket.',
+        es: 'Ajuste nuevo del workspace: los members pueden armar robots y correr los que no usan login. Envío nuevo: S3 o un bucket compatible.',
+        pt: 'Novo ajuste do workspace: os members podem montar robôs e rodar os que não usam login. Novo envio: S3 ou um bucket compatível.',
+      },
+    ],
+  },
+  {
+    id: '2026-10-31-talk-marcadores-camara-clips',
+    date: '2026-10-31',
+    title: {
+      en: 'Talk: bookmarks, camera in huddles, clips and /ask',
+      es: 'Talk: marcadores, cámara en huddles, clips y /ask',
+      pt: 'Talk: favoritos, câmera em huddles, clipes e /ask',
+    },
+    items: [
+      {
+        product: 'talk',
+        en: 'Channels have a bookmarks bar: any member adds, edits or deletes links, and they show up in Cmd+K.',
+        es: 'Los canales tienen una barra de marcadores: cualquier miembro agrega, edita o borra links, y aparecen en Cmd+K.',
+        pt: 'Os canais têm uma barra de favoritos: qualquer membro adiciona, edita ou apaga links, e eles aparecem no Cmd+K.',
+      },
+      {
+        product: 'talk',
+        en: 'Huddles now carry camera video. Whoever joined first can also send video and screen to people who join later; before, it did not reach them.',
+        es: 'Los huddles ahora llevan video de cámara. Quien entró primero también manda video y pantalla a quienes entran después; antes no les llegaba.',
+        pt: 'Os huddles agora têm vídeo de câmera. Quem entrou primeiro também envia vídeo e tela para quem entra depois; antes não chegava.',
+      },
+      {
+        product: 'talk',
+        en: 'Record an audio or video clip from the composer and play it inside the message.',
+        es: 'Grabá un clip de audio o video desde el editor y reproducilo en el mensaje.',
+        pt: 'Grave um clipe de áudio ou vídeo pelo editor e reproduza na mensagem.',
+      },
+      {
+        product: 'talk',
+        en: '/ask answers a question in the thread using only that conversation, and the recap can arrive each morning with a notification.',
+        es: '/ask responde una pregunta en el hilo usando solo esa conversación, y el recap puede llegar cada mañana con un aviso.',
+        pt: '/ask responde uma pergunta no fio usando só essa conversa, e o resumo pode chegar toda manhã com um aviso.',
+      },
+    ],
+  },
+  {
     id: 'rec-parity-2026-10-31',
     date: '2026-10-31',
     title: {

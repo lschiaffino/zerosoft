@@ -7801,6 +7801,90 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Talk: marcadores del canal, recap diario opcional y corridas de /ask.
+    // Solo tablas nuevas y columnas apagadas por defecto: no toca datos existentes ni agrega triggers.
+    id: '150_talk_bookmarks_recap_agent',
+    up: async (client) => {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS talk_bookmarks (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          channel_id TEXT NOT NULL REFERENCES talk_channels(id) ON DELETE CASCADE,
+          title TEXT NOT NULL,
+          url TEXT NOT NULL,
+          created_by TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )
+      `);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_talk_bookmarks_channel ON talk_bookmarks(channel_id, created_at)');
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_talk_bookmarks_ws ON talk_bookmarks(workspace_id)');
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS talk_agent_runs (
+          workspace_id TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          key TEXT NOT NULL,
+          message_id TEXT,
+          reply_id TEXT,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (workspace_id, user_id, key)
+        )
+      `);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_talk_agent_runs_created ON talk_agent_runs(created_at)');
+      await addColumn(client, 'ALTER TABLE talk_prefs ADD COLUMN recap_daily INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE talk_prefs ADD COLUMN recap_next_at TEXT');
+      await addColumn(client, 'ALTER TABLE talk_prefs ADD COLUMN recap_due_at TEXT');
+      await addColumn(client, 'ALTER TABLE talk_prefs ADD COLUMN recap_tz TEXT');
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_talk_prefs_recap_due ON talk_prefs(recap_next_at) WHERE recap_daily = 1');
+    },
+  },
+  {
+    // Robots: huellas de selectores (autoaprendizaje), grabaciones en vivo e índices de la cola.
+    id: '149_robots_prints_recordings_queue',
+    async up(client) {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS robot_selector_prints (
+          robot_id TEXT NOT NULL REFERENCES robots(id) ON DELETE CASCADE,
+          selector TEXT NOT NULL,
+          print TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (robot_id, selector)
+        )`);
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS robot_recordings (
+          id TEXT PRIMARY KEY,
+          robot_id TEXT NOT NULL REFERENCES robots(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          created_by TEXT NOT NULL,
+          token_hash TEXT NOT NULL,
+          steps TEXT NOT NULL DEFAULT '[]',
+          updated_at TEXT NOT NULL,
+          expires_at TEXT NOT NULL
+        )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_robot_recordings_expires ON robot_recordings(expires_at)');
+      await client.execute(
+        "CREATE INDEX IF NOT EXISTS idx_robot_runs_queued_solo ON robot_runs(user_id, created_at) WHERE status = 'queued' AND batch_id IS NULL",
+      );
+      await client.execute("CREATE INDEX IF NOT EXISTS idx_robot_runs_queued_all ON robot_runs(user_id, created_at) WHERE status = 'queued'");
+      // Filas de un lote en partes: esperan acá hasta que llega la última y entran a la cola de una.
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS robot_batch_items (
+          id TEXT PRIMARY KEY,
+          batch_id TEXT NOT NULL,
+          position INTEGER NOT NULL,
+          robot_id TEXT NOT NULL REFERENCES robots(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          input TEXT NOT NULL,
+          created_by TEXT,
+          created_at TEXT NOT NULL
+        )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_robot_batch_items ON robot_batch_items(batch_id, position)');
+      await client.execute(
+        "CREATE INDEX IF NOT EXISTS idx_robot_runs_queued_batch ON robot_runs(user_id, created_at) WHERE status = 'queued' AND batch_id IS NOT NULL",
+      );
+    },
+  },
+  {
     // Rec, paridad con Loom: personas puntuales y pedido de acceso, email para ver,
     // archivo y "ver más tarde", espacios con miembros, overlays, marca, retención y
     // resúmenes por mail. Todo aditivo: los videos que ya existen quedan como estaban.

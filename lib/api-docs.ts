@@ -1939,6 +1939,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
       total: 2,
       counts: { queued: 0, running: 1, success: 1, failed: 0 },
       done: false,
+      nextOffset: null,
       runs: [
         { id: '1f2e3d4c-…', status: 'success', input: { url: 'https://example.com/a' }, output: { title: 'A' }, error: null },
         { id: '5b6a7c8d-…', status: 'running', input: { url: 'https://example.com/b' }, output: {}, error: null },

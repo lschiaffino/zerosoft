@@ -100,7 +100,9 @@
     "cmdHuddle": "Começar ou entrar em um huddle",
     "cmdLeave": "Sair do canal",
     "cmdApp": "Comando de um app",
-    "unknownCommand": "{command} não é um comando aqui"
+    "unknownCommand": "{command} não é um comando aqui",
+    "cmdAsk": "Perguntar à IA sobre esta conversa",
+    "askEmpty": "Escreva uma pergunta depois de /ask."
   },
   "message": {
     "deleted": "Esta mensagem foi apagada.",
@@ -458,7 +460,11 @@
     "ai_disabled": "A IA não está disponível neste workspace agora.",
     "quota_exceeded": "Este workspace usou a cota de IA do mês.",
     "edit_window_passed": "Já passou o tempo para editar esta mensagem.",
-    "invalid_retention": "Escolha um período de retenção válido."
+    "invalid_retention": "Escolha um período de retenção válido.",
+    "invalid_bookmark_url": "Digite um link completo, como https://exemplo.com.",
+    "too_many_bookmarks": "Este canal chegou ao limite de 50 favoritos.",
+    "camera_unavailable": "A câmera não está disponível. Permita no navegador e tente de novo.",
+    "agent_duplicate": "Essa pergunta já está a caminho."
   },
   "email": {
     "mentionSubject": "{actor} mencionou você em #{channel}",
@@ -523,13 +529,14 @@
     "stale": "de mais de 12 horas atrás",
     "messages": "{count, plural, one {# mensagem} other {# mensagens}}",
     "emptyTitle": "Ainda não há resumo",
-    "emptyBody": "Faça um para se atualizar sobre as últimas 24 horas dos seus canais em um minuto."
+    "emptyBody": "Faça um para se atualizar sobre as últimas 24 horas dos seus canais em um minuto.",
+    "daily": "Fazer um para mim toda manhã perto das 8:00 no meu fuso horário e me avisar. Dias sem mensagens são pulados."
   },
   "huddle": {
     "title": "Huddle",
     "inChannel": "Huddle em {channel}",
-    "collapse": "Ocultar telas",
-    "expand": "Ver telas",
+    "collapse": "Ocultar vídeo",
+    "expand": "Ver vídeo",
     "joining": "Entrando…",
     "alone": "Por enquanto só você. Os outros veem no canal e podem entrar.",
     "connecting": "Conectando…",
@@ -543,14 +550,18 @@
     "stopShare": "Parar de compartilhar",
     "share": "Compartilhar tela",
     "leave": "Sair",
-    "screens": "Telas compartilhadas",
+    "screens": "Vídeo compartilhado",
     "yourScreen": "Sua tela",
     "screenOf": "Tela de {name}",
     "joinCount": "Entrar no huddle ({count})",
     "start": "Huddle",
     "liveCount": "Huddle com {count, plural, one {# pessoa} other {# pessoas}}",
     "startedMessage": "começou um huddle. Entre pelo cabeçalho do canal; este fio é para notas e links.",
-    "leaveHuddle": "Sair do huddle"
+    "leaveHuddle": "Sair do huddle",
+    "cameraOn": "Ligar câmera",
+    "cameraOff": "Desligar câmera",
+    "cameraOnLabel": "com a câmera ligada",
+    "yourCamera": "Você"
   },
   "sections": {
     "itemMenu": "Opções de {name}",
@@ -765,5 +776,39 @@
     "level_mentions": "Mensagens diretas, menções, fios e palavras-chave",
     "level_all": "Tudo o que aparece no sino",
     "level_off": "Nada"
+  },
+  "bookmarks": {
+    "title": "Favoritos do canal",
+    "addFirst": "+ Adicionar um favorito",
+    "addShort": "+ Adicionar",
+    "addTitle": "Adicionar um favorito",
+    "editTitle": "Editar favorito",
+    "url": "Link",
+    "name": "Nome",
+    "namePlaceholder": "Se ficar vazio, usa o nome do site",
+    "edit": "Editar",
+    "delete": "Apagar",
+    "options": "Opções de {name}",
+    "deleteTitle": "Apagar este favorito?",
+    "deleteBody": "\"{name}\" some para todos no canal. A página de destino continua igual.",
+    "deleted": "Favorito apagado",
+    "loadError": "Não foi possível carregar os favoritos.",
+    "more": "Mais ({count})",
+    "moreLabel": "Mais favoritos"
+  },
+  "clips": {
+    "open": "Gravar um clipe",
+    "title": "Gravar um clipe",
+    "help": "Áudio de até {audio} minutos ou vídeo de até {video} segundos. Você revisa antes de anexar.",
+    "recordAudio": "Gravar áudio",
+    "recordVideo": "Gravar vídeo",
+    "stop": "Parar",
+    "recording": "Gravando {elapsed} de {max}",
+    "retake": "Gravar de novo",
+    "attach": "Anexar à mensagem",
+    "unsupported": "Este navegador não consegue gravar clipes.",
+    "noMic": "Sem acesso ao microfone. Permita no navegador e tente de novo.",
+    "noCamera": "Sem acesso à câmera ou ao microfone. Permita no navegador e tente de novo.",
+    "empty": "Nada foi gravado. Tente de novo."
   }
 }

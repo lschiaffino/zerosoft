@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'Browse AI',
   alsoCompared: ['Apify'],
-  lastReviewed: '2026-10-28',
+  lastReviewed: '2026-10-31',
   areas: [
     { id: 'building', label: { en: 'Building a robot', es: 'Armado del robot', pt: 'Montagem do robô' } },
     { id: 'login', label: { en: 'Login and sessions', es: 'Login y sesiones', pt: 'Login e sessões' } },
@@ -25,9 +25,9 @@ const parity: ProductParity = {
       area: 'building',
       label: { en: 'Record clicks and typing on the site', es: 'Grabar clics y escritura en el sitio', pt: 'Gravar cliques e digitação no site' },
       detail: {
-        en: 'The recorder captures clicks, typing, selects, Enter and extractions (text, lists with columns, next page) with alternative selectors, but the steps are copied as JSON and pasted; Browse AI records live in a Chrome extension',
-        es: 'El grabador captura clics, escritura, opciones, Enter y extracciones (texto, listas con columnas, página siguiente) con selectores alternativos, pero los pasos se copian como JSON y se pegan; Browse AI graba en vivo en una extensión de Chrome',
-        pt: 'O gravador captura cliques, digitação, opções, Enter e extrações (texto, listas com colunas, próxima página) com seletores alternativos, mas os passos são copiados como JSON e colados; o Browse AI grava ao vivo em uma extensão do Chrome',
+        en: 'Record from the robot\'s Steps tab: clicks, typing, selects, Enter and extractions arrive in the editor and you review them before adding. The Chrome extension follows you across pages, but it installs by hand with Developer mode (Load unpacked) and has no auto-update; a bookmark also works, reclicked on each page load. Browse AI has a store extension',
+        es: 'Se graba desde la pestaña Pasos del robot: clics, escritura, opciones, Enter y extracciones llegan al editor y los revisás antes de agregarlos. La extensión de Chrome te sigue entre páginas, pero se instala a mano con el Modo de desarrollador (Cargar descomprimida) y no se actualiza sola; también anda con un favorito, que hay que volver a tocar en cada página. Browse AI tiene una extensión en la tienda',
+        pt: 'Grava-se na aba Passos do robô: cliques, digitação, opções, Enter e extrações chegam ao editor e você confere antes de adicionar. A extensão do Chrome acompanha você entre páginas, mas a instalação é manual com o Modo do desenvolvedor (Carregar sem compactação) e não se atualiza sozinha; também funciona com um favorito, clicado de novo a cada página. O Browse AI tem uma extensão na loja',
       },
       status: 'partial',
       competitorHas: true,
@@ -272,9 +272,9 @@ const parity: ProductParity = {
       area: 'automation',
       label: { en: 'Bulk runs with many inputs', es: 'Corridas en lote con muchas entradas', pt: 'Execuções em lote com muitas entradas' },
       detail: {
-        en: 'Up to 1,000 inputs per batch from a CSV in the app or the API v1, run one at a time; Browse AI allows 50,000',
-        es: 'Hasta 1.000 entradas por lote desde un CSV en la app o la API v1, de a una; Browse AI permite 50.000',
-        pt: 'Até 1.000 entradas por lote a partir de um CSV no app ou da API v1, uma de cada vez; o Browse AI permite 50.000',
+        en: 'Up to 50,000 inputs per batch from a CSV or the API v1, with progress and cancel; nothing starts until every row is uploaded. At the default 120 minutes a month that is about 240 runs of 30 s: the batch pauses when minutes run out, so 50,000 needs a larger quota and days of running. Browse AI allows 50,000',
+        es: 'Hasta 50.000 entradas por lote desde un CSV o la API v1, con avance y cancelación; nada arranca hasta que se suban todas las filas. Con los 120 minutos por mes de la cuota por defecto son unas 240 corridas de 30 s: el lote se pausa al quedarse sin minutos, así que 50.000 necesita más cuota y días de corrida. Browse AI permite 50.000',
+        pt: 'Até 50.000 entradas por lote a partir de um CSV ou da API v1, com progresso e cancelamento; nada começa até todas as linhas serem enviadas. Com os 120 minutos por mês da cota padrão são cerca de 240 execuções de 30 s: o lote pausa ao ficar sem minutos, então 50.000 exige mais cota e dias de execução. O Browse AI permite 50.000',
       },
       status: 'partial',
       competitorHas: true,
@@ -284,8 +284,12 @@ const parity: ProductParity = {
       id: 'run-queue',
       area: 'automation',
       label: { en: 'Queue and concurrency', es: 'Cola y concurrencia', pt: 'Fila e concorrência' },
-      detail: { en: 'One run at a time per workspace, the rest wait in a queue', es: 'Una corrida a la vez por workspace, el resto en cola', pt: 'Uma execução por vez por workspace, o resto em fila' },
-      status: 'partial',
+      detail: {
+        en: 'Up to 5 runs at once per workspace (Robots settings, default 1). The rest wait in a queue you can cancel from; single runs go ahead of batches',
+        es: 'Hasta 5 corridas a la vez por workspace (Ajustes de Robots, 1 por defecto). El resto espera en una cola de la que se puede sacar; las corridas sueltas pasan antes que los lotes',
+        pt: 'Até 5 execuções ao mesmo tempo por workspace (Ajustes de Robôs, 1 por padrão). O resto espera em uma fila da qual é possível tirar; execuções avulsas passam antes dos lotes',
+      },
+      status: 'have',
       competitorHas: true,
     },
     // ---------- Integraciones y API ----------
@@ -343,7 +347,12 @@ const parity: ProductParity = {
       id: 'external-storage',
       area: 'integrations',
       label: { en: 'S3 or external storage', es: 'S3 o storage externo', pt: 'S3 ou storage externo' },
-      status: 'missing',
+      detail: {
+        en: 'Uploads each run\'s rows as CSV or JSON to S3 or a compatible bucket with a saved credential (up to 5,000 rows and 10 MB). Files from download steps stay in our storage. The signature matches the AWS published example, but it was validated against a fake local server, not live accounts',
+        es: 'Sube las filas de cada corrida como CSV o JSON a un bucket de S3 o compatible con una credencial guardada (hasta 5.000 filas y 10 MB). Los archivos de los pasos de descarga siguen en nuestro storage. La firma coincide con el ejemplo publicado por AWS, pero se validó contra un servidor local falso, no contra cuentas reales',
+        pt: 'Envia as linhas de cada execução como CSV ou JSON para um bucket S3 ou compatível com uma credencial salva (até 5.000 linhas e 10 MB). Os arquivos dos passos de download continuam no nosso storage. A assinatura coincide com o exemplo publicado pela AWS, mas foi validada contra um servidor local falso, não contas reais',
+      },
+      status: 'partial',
       competitorHas: true,
     },
     // ---------- Admin ----------
@@ -351,8 +360,12 @@ const parity: ProductParity = {
       id: 'roles',
       area: 'admin',
       label: { en: 'Workspace roles', es: 'Roles del workspace', pt: 'Papéis do workspace' },
-      detail: { en: 'Only admins and owners create, edit and run robots; members can view', es: 'Solo admins y owners crean, editan y corren robots; los miembros ven', pt: 'Só admins e owners criam, editam e executam robôs; membros visualizam' },
-      status: 'partial',
+      detail: {
+        en: 'Owners and admins do everything. A workspace setting lets members create robots, edit and delete their own, and run any robot without a login, saved session or credentials; otherwise they view. Guests view',
+        es: 'Owners y admins hacen todo. Un ajuste del workspace deja a los members crear robots, editar y borrar los suyos y correr cualquier robot sin login, sesión guardada ni credenciales; si no, miran. Los invitados miran',
+        pt: 'Owners e admins fazem tudo. Um ajuste do workspace deixa os members criar robôs, editar e apagar os seus e rodar qualquer robô sem login, sessão salva ou credenciais; caso contrário, só veem. Convidados só veem',
+      },
+      status: 'have',
       competitorHas: true,
     },
     {
@@ -424,9 +437,9 @@ const parity: ProductParity = {
       area: 'reliability',
       label: { en: 'Self-healing when the layout changes', es: 'Autorreparación cuando cambia el layout', pt: 'Autorreparo quando o layout muda' },
       detail: {
-        en: 'Alternative selectors are tried when the main one breaks (the run shows which worked, with one click to promote it) and AI suggests a selector from the failed page; it does not re-learn the layout on its own like Browse AI or UiPath',
-        es: 'Se prueban selectores alternativos cuando el principal se rompe (la corrida muestra cuál sirvió, con un clic para promoverlo) y la IA sugiere un selector desde la página que falló; no re-aprende el layout solo como Browse AI o UiPath',
-        pt: 'Seletores alternativos são testados quando o principal quebra (a execução mostra qual funcionou, com um clique para promovê-lo) e a IA sugere um seletor a partir da página que falhou; não reaprende o layout sozinho como o Browse AI ou o UiPath',
+        en: 'Optional, off by default. On steps that read data, when a selector or column stops matching on the same site, the robot uses the most similar element if one clearly wins and saves it. Clicks and fields never act on a found element: the step fails and the run suggests the only element with the same visible name, for a person to approve. Steps with logins never change. AI can suggest a selector from the failed page. It does not re-learn actions on its own like Browse AI',
+        es: 'Opcional, apagado por defecto. En pasos que leen datos, si un selector o una columna deja de andar en el mismo sitio, el robot usa el elemento más parecido si uno gana claro y lo guarda. Los clics y campos nunca actúan sobre un elemento encontrado: el paso falla y la corrida sugiere el único con el mismo nombre visible, para que lo apruebe una persona. Los pasos con login nunca cambian. La IA puede sugerir un selector desde la página que falló. No reaprende acciones solo como Browse AI',
+        pt: 'Opcional, desligado por padrão. Em passos que leem dados, se um seletor ou coluna para de funcionar no mesmo site, o robô usa o elemento mais parecido se um ganhar com clareza e salva. Cliques e campos nunca agem sobre um elemento encontrado: o passo falha e a execução sugere o único com o mesmo nome visível, para uma pessoa aprovar. Passos com login nunca mudam. A IA pode sugerir um seletor a partir da página que falhou. Não reaprende ações sozinho como o Browse AI',
       },
       status: 'partial',
       competitorHas: true,

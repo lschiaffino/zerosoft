@@ -4,7 +4,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type Keyboard
 import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { Link, useRouter } from '@/i18n/navigation';
-import type { RobotDto, RobotRunDto, RobotUsage } from '@/lib/robots';
+import type { RobotBatchSummary, RobotDto, RobotRunDto, RobotUsage } from '@/lib/robots';
 import { isValidCron, nextCronRuns } from '@/lib/cron';
 import { parseRecordedSteps, PASSWORD_PLACEHOLDER } from '@/lib/robots-recorder';
 import {
@@ -39,7 +39,7 @@ import StepList from './StepList';
 import RunsPanel, { type StepFix } from './RunsPanel';
 import DataPanel from './DataPanel';
 import IntegrationsPanel from './IntegrationsPanel';
-import { BulkRunDialog, NlStepsDialog } from './RobotDialogs';
+import { BatchesPanel, BulkRunDialog, NlStepsDialog, RecordDialog } from './RobotDialogs';
 import { errorText, RobotDialog, RunnerNote, UsageMeter } from './robots-ui';
 import { useStableKeys } from './useStableKeys';
 
@@ -57,10 +57,13 @@ interface Props {
   runs: RobotRunDto[];
   usage: RobotUsage;
   canEdit: boolean;
+  /** Puede correr este robot (admins, o members si el workspace lo permite y el robot no usa un login). */
+  canRun: boolean;
+  batches: RobotBatchSummary[];
 }
 
 /** Editor de un robot: pasos, entradas, programación, corridas y avanzado. Un solo Guardar. */
-export default function RobotEditor({ robot: initial, runs: initialRuns, usage: initialUsage, canEdit }: Props) {
+export default function RobotEditor({ robot: initial, runs: initialRuns, usage: initialUsage, canEdit, canRun, batches }: Props) {
   const t = useTranslations('robots');
   const locale = useLocale();
   const router = useRouter();
@@ -82,6 +85,8 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
   const [settings, setSettings] = useState<RobotSettings>(initial.settings ?? {});
   const [nlOpen, setNlOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [recordOpen, setRecordOpen] = useState(false);
+  const [batchKey, setBatchKey] = useState(0);
   const [dataKey, setDataKey] = useState(0);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');
@@ -90,7 +95,10 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
   const [toast, setToast] = useState<string | null>(null);
   const [runs, setRuns] = useState(initialRuns);
   const [usage, setUsage] = useState(initialUsage);
-  const [selectedRun, setSelectedRun] = useState<string | null>(initialRuns[0]?.id ?? null);
+  const [selectedRun, setSelectedRun] = useState<string | null>(() => {
+    const wanted = params.get('run');
+    return wanted && initialRuns.some((r) => r.id === wanted) ? wanted : (initialRuns[0]?.id ?? null);
+  });
   const [tab, setTabState] = useState<Tab>(() => tabFromParam(params.get('tab')));
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
@@ -226,7 +234,7 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
   }
 
   async function run(values: Record<string, string>) {
-    if (dirty && !(await save())) {
+    if (canEdit && dirty && !(await save())) {
       setRunOpen(false);
       return;
     }
@@ -318,6 +326,48 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
     setToast(t('paste.imported', { count: res.steps.length }));
   }
 
+  async function approveSuggestion(runId: string, step: string) {
+    if (dirty) {
+      setError(t('errors.save_first'));
+      return;
+    }
+    const res = await fetch(`/api/robots/runs/${runId}/approve`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ step }),
+    }).catch(() => null);
+    const data = (await res?.json().catch(() => null)) as { robot?: RobotDto; error?: string } | null;
+    if (!res?.ok || !data?.robot) {
+      setError(errorText(t, data?.error));
+      return;
+    }
+    setRobot(data.robot);
+    setSteps(data.robot.steps);
+    setToast(t('runs.suggestionApproved'));
+    await refreshRuns();
+  }
+
+  async function cancelQueued(id: string) {
+    const res = await fetch(`/api/robots/runs/${id}`, { method: 'DELETE' }).catch(() => null);
+    if (!res?.ok) {
+      setError(t('errors.not_queued'));
+    } else {
+      setToast(t('runs.cancelDone'));
+    }
+    await refreshRuns();
+  }
+
+  function addRecorded(recorded: RobotStep[], mode: 'append' | 'replace') {
+    const next = mode === 'replace' ? recorded : [...steps, ...recorded];
+    if (countSteps(next) > MAX_ROBOT_STEPS) {
+      setError(t('errors.too_many_steps'));
+      return;
+    }
+    setSteps(next);
+    setRecordOpen(false);
+    setToast(t('paste.imported', { count: recorded.length }));
+  }
+
   async function clearSession() {
     const res = await fetch(`/api/robots/${robot.id}/session`, { method: 'DELETE' }).catch(() => null);
     if (!res?.ok) {
@@ -356,7 +406,7 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
   const stepCount = countSteps(steps);
   const noRunner = usage.backend === 'none';
   const saveState = saving ? t('editor.saving') : dirty ? t('editor.unsaved') : savedAt ? t('editor.saved') : '';
-  const runButton = canEdit ? (
+  const runButton = canRun ? (
     <button
       type="button"
       className="btn btn-primary"
@@ -414,7 +464,9 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
               </button>
               {runButton}
             </>
-          ) : undefined
+          ) : (
+            (runButton ?? undefined)
+          )
         }
       />
 
@@ -462,9 +514,11 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
                       {t('editor.writeAi')}
                     </button>
                   )}
-                  <Link href="/app/robots/recorder" className="btn btn-ghost btn-sm">
-                    {t('editor.record')}
-                  </Link>
+                  {!readOnly && (
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRecordOpen(true)}>
+                      {t('editor.record')}
+                    </button>
+                  )}
                   {!readOnly && (
                     <button
                       type="button"
@@ -540,6 +594,8 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
             emptyAction={runButton}
             robotName={robot.name}
             onApplyFix={canEdit ? applyFix : undefined}
+            onCancelQueued={canRun ? cancelQueued : undefined}
+            onApproveSuggestion={canEdit ? approveSuggestion : undefined}
             toolbar={
               <>
                 <p className="robots-muted robots-small">{pending ? t('runs.autoRefresh') : ''}</p>
@@ -547,7 +603,7 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => void refreshRuns()}>
                     {t('runs.refresh')}
                   </button>
-                  {canEdit && (
+                  {canRun && (
                     <button type="button" className="btn btn-secondary btn-sm" disabled={noRunner || stepCount === 0} onClick={() => setBulkOpen(true)}>
                       {t('bulk.button')}
                     </button>
@@ -557,6 +613,8 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
             }
           />
         )}
+
+        {tab === 'runs' && <BatchesPanel robotId={robot.id} initial={batches} canRun={canRun} refreshKey={batchKey} />}
 
         {tab === 'data' && (
           <DataPanel
@@ -604,6 +662,18 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
                   </button>
                 )}
               </div>
+            </FormSection>
+
+            <FormSection title={t('settings.selfHealTitle')} description={t('settings.selfHealHint')}>
+              <label className="robots-inline">
+                <input
+                  type="checkbox"
+                  checked={settings.selfHeal === true}
+                  disabled={readOnly}
+                  onChange={(e) => setSettings({ ...settings, selfHeal: e.target.checked })}
+                />
+                <span>{t('settings.selfHeal')}</span>
+              </label>
             </FormSection>
 
             <FormSection title={t('settings.alertsTitle')} description={t('settings.alertsHint')}>
@@ -901,14 +971,22 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
           onClose={() => setBulkOpen(false)}
           robotId={robot.id}
           inputs={inputs}
+          usage={usage}
+          avgRunMs={(() => {
+            const done = runs.filter((r) => r.status === 'success' && r.durationMs);
+            return done.length ? done.reduce((a, r) => a + (r.durationMs ?? 0), 0) / done.length : null;
+          })()}
           onQueued={(count) => {
             setBulkOpen(false);
             setToast(t('bulk.queued', { count }));
+            setBatchKey((k) => k + 1);
             setTab('runs');
             void refreshRuns();
           }}
         />
       )}
+
+      {canEdit && <RecordDialog open={recordOpen} onClose={() => setRecordOpen(false)} robotId={robot.id} onAdd={addRecorded} />}
 
       <div className="ui-toasts" role="status" aria-live="polite">
         {toast && <div className="ui-toast">{toast}</div>}

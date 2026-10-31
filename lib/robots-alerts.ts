@@ -70,6 +70,56 @@ export function decideOutcome(opts: {
 /** Errores que no son fallas del robot (lo apagó alguien): no cuentan. */
 const NOT_A_FAILURE = new Set(['disabled']);
 
+const NOTICE_MESSAGES = { en, es, pt } as const;
+
+/**
+ * A quién avisar: quien lanzó o armó, si sigue en el workspace y puede usar
+ * Robots. Si no, el dueño del workspace.
+ */
+export async function noticeRecipient(workspaceId: string, personId: string | null | undefined): Promise<string | null> {
+  if (!personId || personId === workspaceId) return workspaceId;
+  const { canUseApp } = await import('./workspace');
+  const m = (await getDb()
+    .prepare('SELECT m.role, m.apps FROM teams t JOIN team_members m ON m.team_id = t.id WHERE t.owner_id = ? AND m.user_id = ? LIMIT 1')
+    .get(workspaceId, personId)) as { role: string; apps: string | null } | undefined;
+  return m && canUseApp({ role: m.role, apps: m.apps }, 'robots') ? personId : workspaceId;
+}
+
+/** Aviso en la app, en el idioma con el que se guardó el robot. */
+export async function sendRobotNotice(
+  row: Pick<RobotRow, 'id' | 'name' | 'alert_locale'>,
+  to: string,
+  key: 'batchPaused' | 'credentialMisuse',
+  href: string,
+  sourceId: string,
+  values: { count?: number; step?: string },
+): Promise<void> {
+  const locale = row.alert_locale === 'es' || row.alert_locale === 'pt' ? row.alert_locale : 'en';
+  const texts = NOTICE_MESSAGES[locale].notices[key];
+  const { createNotification } = await import('./notifications');
+  await createNotification({
+    userId: to,
+    type: 'robot_notice',
+    title: texts.title.replace('{name}', row.name),
+    body: texts.body.replace('{count}', String(values.count ?? '')).replace('{step}', values.step ?? ''),
+    href,
+    sourceType: 'robot',
+    sourceId,
+  });
+}
+
+async function credentialNotice(workspaceId: string, robotId: string, error: string): Promise<void> {
+  const db = getDb();
+  const res = await db
+    .prepare('INSERT OR IGNORE INTO robot_runtime (key, value, updated_at) VALUES (?, ?, ?)')
+    .run(`cred_notice:${robotId}`, '1', new Date().toISOString());
+  if (res.changes !== 1) return;
+  const row = (await db.prepare('SELECT * FROM robots WHERE id = ? AND user_id = ?').get(robotId, workspaceId)) as RobotRow | undefined;
+  if (!row) return;
+  const to = await noticeRecipient(workspaceId, row.created_by);
+  if (to) await sendRobotNotice(row, to, 'credentialMisuse', `/app/robots/${robotId}`, `credential:${robotId}`, { step: error.split(':')[0] });
+}
+
 /**
  * Registra el resultado de una corrida terminada: contador de fallas, pausa y
  * email. Nunca tira (la corrida ya quedó guardada).
@@ -86,6 +136,12 @@ export async function recordRobotOutcome(
         .prepare('UPDATE robots SET consecutive_failures = 0 WHERE id = ? AND user_id = ? AND consecutive_failures <> 0')
         .run(robotId, workspaceId);
       return 'reset';
+    }
+    // Una credencial fuera de un campo no se arregla sola: no cuenta para la pausa ni manda
+    // una alerta por corrida. Un solo aviso por robot, que dice qué cambiar.
+    if (/credential_not_allowed/.test(run.error ?? '')) {
+      await credentialNotice(workspaceId, robotId, run.error ?? '');
+      return 'none';
     }
     if (run.trigger === 'manual' || NOT_A_FAILURE.has(run.error ?? '')) return 'none';
     await db
