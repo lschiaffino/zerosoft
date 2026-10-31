@@ -20,6 +20,7 @@ function newDestination(kind: Kind): RobotDestination {
   const id = Math.random().toString(36).slice(2, 10);
   if (kind === 'crm') return { id, kind, enabled: true, variable: '', object: 'contacts', mapping: {}, onExisting: 'fill' };
   if (kind === 'sheets') return { id, kind, enabled: true, variable: '', credential: '', spreadsheetId: '', sheet: 'Sheet1', mode: 'sync' };
+  if (kind === 's3') return { id, kind, enabled: true, variable: '', credential: '', endpoint: '', region: 'us-east-1', bucket: '', prefix: '', format: 'csv' };
   return { id, kind, enabled: true, variable: '', credential: '', baseId: '', table: '', mergeField: '' };
 }
 
@@ -153,6 +154,24 @@ export default function IntegrationsPanel({
                       </div>
                     </>
                   )}
+                  {d.kind === 's3' && (
+                    <>
+                      <TextField label={t('credential')} value={d.credential} readOnly={readOnly} onChange={(v) => setDest(i, { ...d, credential: v })} hint={t('s3CredentialHint')} />
+                      <TextField label={t('s3Bucket')} value={d.bucket} readOnly={readOnly} onChange={(v) => setDest(i, { ...d, bucket: v.trim() })} />
+                      <TextField label={t('s3Region')} value={d.region} readOnly={readOnly} onChange={(v) => setDest(i, { ...d, region: v.trim() })} />
+                      <TextField label={t('s3Endpoint')} value={d.endpoint ?? ''} readOnly={readOnly} onChange={(v) => setDest(i, { ...d, endpoint: v.trim() })} hint={t('s3EndpointHint')} />
+                      <TextField label={t('s3Prefix')} value={d.prefix ?? ''} readOnly={readOnly} onChange={(v) => setDest(i, { ...d, prefix: v.trim() })} />
+                      <div className="ui-field">
+                        <label className="label" htmlFor={`${uid}-${d.id}-format`}>
+                          {t('s3Format')}
+                        </label>
+                        <select id={`${uid}-${d.id}-format`} className="select" value={d.format} disabled={readOnly} onChange={(e) => setDest(i, { ...d, format: e.target.value as 'csv' | 'json' })}>
+                          <option value="csv">CSV</option>
+                          <option value="json">JSON</option>
+                        </select>
+                      </div>
+                    </>
+                  )}
                   {d.kind === 'airtable' && (
                     <>
                       <TextField label={t('credential')} value={d.credential} readOnly={readOnly} onChange={(v) => setDest(i, { ...d, credential: v })} hint={t('credentialHint')} />
@@ -162,7 +181,7 @@ export default function IntegrationsPanel({
                     </>
                   )}
                 </div>
-                {(d.kind === 'sheets' || d.kind === 'airtable') && (
+                {(d.kind === 'sheets' || d.kind === 'airtable' || d.kind === 's3') && (
                   <Link href="/app/flow/credentials" className="robots-link">
                     {t('credentialsLink')}
                   </Link>
@@ -174,7 +193,7 @@ export default function IntegrationsPanel({
         {!readOnly && dests.length < MAX_DESTINATIONS && (
           <div className="robots-add">
             <select className="select" value={addKind} aria-label={t('addLabel')} onChange={(e) => setAddKind(e.target.value as Kind)}>
-              {(['crm', 'sheets', 'airtable'] as const).map((k) => (
+              {(['crm', 'sheets', 'airtable', 's3'] as const).map((k) => (
                 <option key={k} value={k}>
                   {t(`kinds.${k}`)}
                 </option>

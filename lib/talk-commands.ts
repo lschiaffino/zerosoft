@@ -43,7 +43,7 @@ export const RESPONSE_URL_USES = 5;
 export const MAX_COMMANDS = 50;
 
 /** Los comandos propios de Talk no se pueden registrar. */
-const RESERVED = new Set(['remind', 'recordar', 'recordarme', 'lembrar', 'lembrete', 'topic', 'tema', 'leave', 'salir', 'sair', 'status', 'estado', 'summarize', 'resumir', 'huddle']);
+const RESERVED = new Set(['remind', 'recordar', 'recordarme', 'lembrar', 'lembrete', 'topic', 'tema', 'leave', 'salir', 'sair', 'status', 'estado', 'summarize', 'resumir', 'huddle', 'ask', 'preguntar', 'perguntar']);
 
 export interface TalkCommandDto {
   id: string;

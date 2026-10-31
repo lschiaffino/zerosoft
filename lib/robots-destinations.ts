@@ -16,6 +16,11 @@
  * variable) o todas las de la variable de la corrida. Hasta 500 por envío
  * (sync: hasta 5.000). Todo el HTTP pasa por safeFetch.
  *
+ *  - s3: sube las filas de la corrida como CSV o JSON a un bucket (AWS o
+ *    compatible), con una credencial basic: usuario = Access Key ID, contraseña
+ *    = Secret Access Key. La clave incluye el id de la corrida: reintentar pisa
+ *    el mismo objeto. Hasta 5.000 filas y 10 MB por envío.
+ *
  * ROBOTS_DESTINATIONS_FAKE=1 (e2e, nunca en producción): Sheets y Airtable no
  * salen a internet; el resultado dice cuántas filas se hubieran mandado.
  */
@@ -104,6 +109,15 @@ async function sendToCrm(
 ): Promise<Omit<DestinationResult, 'id' | 'kind'>> {
   const { isWorkspacePerson } = await import('./crm-refs');
   if (robot.created_by && !(await isWorkspacePerson(workspaceId, robot.created_by))) throw new DestinationError('owner_left');
+  // Corre con el acceso de quien armó el robot: un member sin CRM no escribe en el CRM.
+  if (robot.created_by && robot.created_by !== workspaceId) {
+    const { getDb: db } = await import('./db');
+    const { canUseApp } = await import('./workspace');
+    const m = (await db()
+      .prepare('SELECT m.role, m.apps FROM teams t JOIN team_members m ON m.team_id = t.id WHERE t.owner_id = ? AND m.user_id = ? LIMIT 1')
+      .get(workspaceId, robot.created_by)) as { role: string; apps: string | null } | undefined;
+    if (m && !canUseApp({ role: m.role, apps: m.apps }, 'crm')) throw new DestinationError('no_crm_access');
+  }
   const crm = await import('./crm');
   const { getDb } = await import('./db');
   const pick = (row: Record<string, unknown>, field: string) => {
@@ -284,11 +298,54 @@ async function sendToAirtable(
   return { ok: true, count: created + updated, created, updated };
 }
 
+// ---------- S3 ----------
+
+const MAX_S3_BYTES = 10 * 1024 * 1024;
+
+async function sendToS3(
+  workspaceId: string,
+  robot: Pick<RobotRow, 'id' | 'name'>,
+  runId: string,
+  dest: Extract<RobotDestination, { kind: 's3' }>,
+  rows: Array<Record<string, unknown>>,
+  secrets: string[],
+): Promise<Omit<DestinationResult, 'id' | 'kind'>> {
+  const list = rows.slice(0, MAX_SYNC_ROWS);
+  if (destinationsFake() && !dest.endpoint) return { ok: true, count: list.length, fake: true };
+  if (!list.length) return { ok: true, count: 0 };
+  const cred = await credentialFor(workspaceId, dest.credential, ['basic']);
+  const accessKeyId = cred.data.username ?? '';
+  const secretAccessKey = cred.data.password ?? '';
+  if (!accessKeyId || !secretAccessKey) throw new DestinationError('missing_credential');
+  secrets.push(secretAccessKey);
+  const { valueToCsv } = await import('./robots-csv');
+  const body = dest.format === 'json' ? JSON.stringify(list) : (valueToCsv(list) ?? '');
+  if (Buffer.byteLength(body) > MAX_S3_BYTES) throw new DestinationError('s3_too_large');
+  const slug = robot.name.replace(/[^\w.-]+/g, '-').slice(0, 60) || robot.id;
+  const prefix = dest.prefix.replace(/^\/+|\/+$/g, '');
+  const key = `${prefix ? `${prefix}/` : ''}${slug}/${runId}.${dest.format}`;
+  const { putS3Object } = await import('./robots-s3');
+  let status: number;
+  try {
+    status = await putS3Object(
+      { accessKeyId, secretAccessKey, region: dest.region, bucket: dest.bucket, endpoint: dest.endpoint, key },
+      body,
+      dest.format === 'json' ? 'application/json' : 'text/csv; charset=utf-8',
+    );
+  } catch {
+    throw new DestinationError('network_error');
+  }
+  if (status >= 300) throw new DestinationError(`s3_http_${status}`);
+  return { ok: true, count: list.length };
+}
+
 // ---------- Orquestación ----------
 
 export async function runDestinations(opts: {
   workspaceId: string;
   robot: Pick<RobotRow, 'id' | 'created_by' | 'name'>;
+  /** Corrida: nombre estable del objeto en S3. */
+  runId?: string;
   destinations: readonly RobotDestination[];
   vars: Record<string, unknown>;
   datasetVariable: string | null;
@@ -303,7 +360,10 @@ export async function runDestinations(opts: {
     const fromDataset = !!opts.dataset && opts.dataset.variable === variable;
     try {
       let res: Omit<DestinationResult, 'id' | 'kind'>;
-      if (dest.kind === 'sheets' && dest.mode === 'sync') {
+      if (dest.kind === 's3') {
+        const rows = rowsOf(opts.vars[variable]);
+        res = await sendToS3(opts.workspaceId, opts.robot, opts.runId ?? crypto.randomUUID(), dest, rows, opts.secrets);
+      } else if (dest.kind === 'sheets' && dest.mode === 'sync') {
         const rows = fromDataset ? await activeDatasetRows(opts.workspaceId, opts.robot.id, MAX_SYNC_ROWS) : rowsOf(opts.vars[variable]).slice(0, MAX_SYNC_ROWS);
         res = await sendToSheets(opts.workspaceId, dest, rows, opts.secrets);
       } else {

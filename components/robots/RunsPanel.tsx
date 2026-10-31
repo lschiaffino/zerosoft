@@ -77,6 +77,8 @@ export default function RunsPanel({
   robotName = 'robot',
   onApplyFix,
   toolbar,
+  onCancelQueued,
+  onApproveSuggestion,
 }: {
   runs: RobotRunDto[];
   selectedId: string | null;
@@ -91,6 +93,10 @@ export default function RunsPanel({
   onApplyFix?: (fix: StepFix) => void;
   /** Botones de arriba (Correr en lote, Actualizar). */
   toolbar?: React.ReactNode;
+  /** Sacar de la cola una corrida que todavía no arrancó. */
+  onCancelQueued?: (id: string) => Promise<void>;
+  /** Aprobar el selector sugerido para un paso de acción: queda guardado en el robot. */
+  onApproveSuggestion?: (runId: string, step: string) => Promise<void>;
 }) {
   const t = useTranslations('robots.runs');
   const format = useFormatter();
@@ -149,7 +155,7 @@ export default function RunsPanel({
             <span className="ui-skeleton ui-skeleton-row" />
           </div>
         ) : run ? (
-          <RunDetail run={run} robotName={robotName} onApplyFix={onApplyFix} />
+          <RunDetail run={run} robotName={robotName} onApplyFix={onApplyFix} onCancelQueued={onCancelQueued} onApproveSuggestion={onApproveSuggestion} />
         ) : (
           <p className="robots-run-body robots-muted">{t('select')}</p>
         )}
@@ -159,7 +165,19 @@ export default function RunsPanel({
   );
 }
 
-function RunDetail({ run, robotName, onApplyFix }: { run: RobotRunDto; robotName: string; onApplyFix?: (fix: StepFix) => void }) {
+function RunDetail({
+  run,
+  robotName,
+  onApplyFix,
+  onCancelQueued,
+  onApproveSuggestion,
+}: {
+  run: RobotRunDto;
+  robotName: string;
+  onApplyFix?: (fix: StepFix) => void;
+  onCancelQueued?: (id: string) => Promise<void>;
+  onApproveSuggestion?: (runId: string, step: string) => Promise<void>;
+}) {
   const t = useTranslations('robots.runs');
   const tTypes = useTranslations('robots.steps.types');
   const [view, setView] = useState<'table' | 'json'>('table');
@@ -178,11 +196,20 @@ function RunDetail({ run, robotName, onApplyFix }: { run: RobotRunDto; robotName
         <span>{t(`trigger.${run.trigger}`)}</span>
         {run.changed !== null && <span className="badge">{run.changed ? t('changed') : t('unchanged')}</span>}
       </div>
-      {run.status === 'queued' && <p className="ui-help">{t('queuedNotice')}</p>}
+      {run.status === 'queued' && (
+        <p className="ui-help">
+          {t('queuedNotice')}{' '}
+          {onCancelQueued && <CancelQueued onConfirm={() => onCancelQueued(run.id)} />}
+        </p>
+      )}
       {run.error && (
         <div className="robots-run-error" role="alert">
           <strong>{t('error')}</strong>
-          <span className="data">{run.error}</span>
+          {/credential_not_allowed/.test(run.error) ? (
+            <span>{t('credentialNotAllowed', { step: run.error.split(':')[0] })}</span>
+          ) : (
+            <span className="data">{run.error}</span>
+          )}
         </div>
       )}
       {run.status === 'success' && run.warnings > 0 && (
@@ -190,7 +217,7 @@ function RunDetail({ run, robotName, onApplyFix }: { run: RobotRunDto; robotName
       )}
       {run.dataHidden && <p className="robots-note-warn">{t('dataHidden')}</p>}
       {run.failure && <FailureCapture failure={run.failure} runId={run.id} onApplyFix={onApplyFix} />}
-      <RunExtras run={run} onApplyFix={onApplyFix} />
+      <RunExtras run={run} onApplyFix={onApplyFix} onApproveSuggestion={onApproveSuggestion} />
 
       <section className="robots-block" aria-labelledby={`log-${run.id}`}>
         <h3 className="robots-h3" id={`log-${run.id}`}>
@@ -353,8 +380,40 @@ function RunDetail({ run, robotName, onApplyFix }: { run: RobotRunDto; robotName
   );
 }
 
+/** Dos pasos: el primer clic pregunta, el segundo saca la corrida de la cola. Esc o Volver dejan todo igual. */
+function CancelQueued({ onConfirm }: { onConfirm: () => Promise<void> }) {
+  const t = useTranslations('robots.runs');
+  const [asking, setAsking] = useState(false);
+  if (!asking) {
+    return (
+      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAsking(true)}>
+        {t('cancelQueued')}
+      </button>
+    );
+  }
+  return (
+    <span className="robots-inline" onKeyDown={(e) => e.key === 'Escape' && setAsking(false)}>
+      <span>{t('cancelConfirm')}</span>
+      <button type="button" className="btn btn-primary btn-danger btn-sm" autoFocus onClick={() => void onConfirm()}>
+        {t('cancelYes')}
+      </button>
+      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAsking(false)}>
+        {t('cancelNo')}
+      </button>
+    </span>
+  );
+}
+
 /** Autorreparación, IA, tabla acumulada, email de cambios, envíos y país de la corrida. */
-function RunExtras({ run, onApplyFix }: { run: RobotRunDto; onApplyFix?: (fix: StepFix) => void }) {
+function RunExtras({
+  run,
+  onApplyFix,
+  onApproveSuggestion,
+}: {
+  run: RobotRunDto;
+  onApplyFix?: (fix: StepFix) => void;
+  onApproveSuggestion?: (runId: string, step: string) => Promise<void>;
+}) {
   const t = useTranslations('robots.runs');
   const ti = useTranslations('robots.integrations');
   const x = run.exports ?? {};
@@ -387,9 +446,22 @@ function RunExtras({ run, onApplyFix }: { run: RobotRunDto; onApplyFix?: (fix: S
               const parts = h.step.split('.').map(Number);
               const path = parts.length === 1 ? { index: parts[0] - 1, child: null } : parts.length === 3 ? { index: parts[0] - 1, child: parts[2] - 1 } : null;
               return (
-                <li key={h.step}>
-                  <span>{t('healed', { step: h.step, selector: h.to })}</span>{' '}
-                  {onApplyFix && path && (
+                <li key={`${h.step}-${h.field ?? ''}`}>
+                  <span>
+                    {h.review
+                      ? t('relearnedAction', { step: h.step, selector: h.to })
+                      : h.relearned
+                      ? t(h.field ? 'relearnedField' : 'relearned', { step: h.step, selector: h.to, field: h.field ?? '' })
+                      : t('healed', { step: h.step, selector: h.to })}
+                  </span>{' '}
+                  {h.relearned && !h.review && <span className="robots-muted">{t(h.saved ? 'relearnedSaved' : 'relearnedNotSaved')}</span>}{' '}
+                  {h.review && h.saved && <span className="robots-muted">{t('suggestionApproved')}</span>}{' '}
+                  {h.review && !h.saved && onApproveSuggestion && (
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => void onApproveSuggestion(run.id, h.step)}>
+                      {t('approveSuggestion')}
+                    </button>
+                  )}
+                  {onApplyFix && path && !h.saved && !h.field && !h.review && (
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => onApplyFix({ ...path, step: h.step, selector: h.to, text: '' })}>
                       {t('promote')}
                     </button>

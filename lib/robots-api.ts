@@ -60,7 +60,9 @@ const MESSAGES: Record<string, string> = {
   missing_input: 'A required input is missing.',
   missing_credential: 'A credential used by the robot is missing.',
   no_steps: 'The robot has no steps.',
-  too_many_inputs: 'Send between 1 and 1,000 inputs.',
+  admin_only_login: 'This robot uses a login: only workspace admins can run it.',
+  batch_too_large: 'The batch is larger than 64 MB of inputs.',
+  too_many_inputs: 'Send between 1 and 1,000 inputs per request and up to 50,000 per batch.',
 };
 
 /** Error de startRobotRun / enqueueRobotBatch → respuesta v1. */
@@ -70,5 +72,5 @@ export function robotApiError(code: string, extra: { name?: string; index?: numb
     message = `Missing required input "${extra.name}"${extra.index !== undefined ? ` (inputs[${extra.index}])` : ''}.`;
   }
   if (code === 'missing_credential' && extra.name) message = `Missing credential "${extra.name}".`;
-  return apiError(code === 'too_many_inputs' ? 400 : runErrorStatus(code), code, message);
+  return apiError(code === 'too_many_inputs' || code === 'batch_too_large' ? 400 : runErrorStatus(code), code, message);
 }

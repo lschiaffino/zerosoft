@@ -46,6 +46,10 @@ export const MAX_PAGINATE_PAGES = 20;
 export const MAX_LIST_ROWS = 1000;
 /** Entradas de una corrida en lote (CSV en la app o API v1; una corrida por entrada). */
 export const MAX_BULK_INPUTS = 1000;
+/** Entradas de un lote completo (se sube de a MAX_BULK_INPUTS por pedido). */
+export const MAX_BATCH_INPUTS = 50_000;
+/** Bytes de entradas de un lote completo. */
+export const MAX_BATCH_BYTES = 64 * 1024 * 1024;
 /** Reintentos por paso. */
 export const MAX_STEP_RETRIES = 5;
 /** Intervalo mínimo de un schedule en minutos (el cron de robots corre cada 5). */
@@ -519,6 +523,18 @@ export const robotDestinationSchema = z.discriminatedUnion('kind', [
     /** Campo de Airtable que identifica la fila (upsert); vacío = solo crea. */
     mergeField: z.string().trim().max(100).optional().default(''),
   }),
+  z.object({
+    ...destBase,
+    kind: z.literal('s3'),
+    /** Credencial basic: usuario = Access Key ID, contraseña = Secret Access Key. */
+    credential: z.string().trim().min(1).max(100),
+    /** Vacío = AWS. Otro servicio compatible: https://host (R2, MinIO, Spaces). */
+    endpoint: z.string().trim().max(300).regex(/^(https?:\/\/[^\s/]+)?$/).optional().default(''),
+    region: z.string().trim().regex(/^[a-z0-9-]{1,40}$/).default('us-east-1'),
+    bucket: z.string().trim().regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/),
+    prefix: z.string().trim().max(200).regex(/^[\w./-]*$/).optional().default(''),
+    format: z.enum(['csv', 'json']).default('csv'),
+  }),
 ]);
 export type RobotDestination = z.infer<typeof robotDestinationSchema>;
 
@@ -560,6 +576,11 @@ export const robotSettingsSchema = z.object({
     .regex(/^([a-z]{2})?$/)
     .optional(),
   destinations: z.array(robotDestinationSchema).max(MAX_DESTINATIONS).optional(),
+  /**
+   * Autoaprendizaje: si un selector deja de existir, busca el elemento por su
+   * huella de la última corrida buena y, si la corrida termina bien, guarda el selector nuevo.
+   */
+  selfHeal: z.boolean().optional(),
 });
 export type RobotSettings = z.infer<typeof robotSettingsSchema>;
 
@@ -657,6 +678,11 @@ export const robotApiRunSchema = z.object({
 /** API v1: un robot sobre muchas entradas (una corrida en cola por entrada). */
 export const robotBulkSchema = z.object({
   inputs: z.array(z.record(z.unknown())).min(1).max(MAX_BULK_INPUTS),
+  /** Lote en partes: mismo batchId (uuid del cliente) y la posición de la primera fila. Reenviar una parte no la duplica. */
+  batchId: z.string().uuid().optional(),
+  offset: z.number().int().min(0).max(MAX_BATCH_INPUTS).optional(),
+  /** Filas de todo el lote: con batchId, nada entra a la cola hasta que llegan todas. */
+  total: z.number().int().min(1).max(MAX_BATCH_INPUTS).optional(),
 });
 
 // ---------- Plantillas ----------
@@ -1016,3 +1042,33 @@ export const ROBOT_TEMPLATES: readonly RobotTemplate[] = [
     ],
   },
 ];
+
+// ---------- Credenciales y selectores reaprendidos ----------
+
+/** Cualquier referencia a credenciales en una plantilla, con espacios, filtros o el objeto entero. */
+export const CREDENTIAL_TEMPLATE = /\{\{[^{}]*\bcredentials\b/;
+
+/**
+ * Una credencial solo se escribe en el valor de un paso fill. Nunca en un
+ * selector, una URL, un texto ni código que corre en la página. Devuelve el
+ * índice del primer paso que no cumple, o null.
+ */
+export function credentialMisuse(steps: readonly unknown[]): number | null {
+  const bad = (step: unknown): boolean => {
+    if (!step || typeof step !== 'object') return false;
+    const { steps: inner, ...rest } = step as Record<string, unknown>;
+    if (rest.type === 'fill') delete rest.value;
+    if (CREDENTIAL_TEMPLATE.test(JSON.stringify(rest))) return true;
+    return Array.isArray(inner) && inner.some(bad);
+  };
+  const i = steps.findIndex(bad);
+  return i < 0 ? null : i;
+}
+
+const SIMPLE_PART = String.raw`[a-z][a-z0-9-]*(?:#[A-Za-z][\w-]*)?(?:\.[A-Za-z][\w-]*)*(?:\[[a-z-]+="[\w .:/@-]+"\])?(?::nth-of-type\(\d+\))?`;
+const SIMPLE_SELECTOR = new RegExp(`^(?::scope > )?${SIMPLE_PART}(?: > ${SIMPLE_PART})*$`);
+
+/** Selector reaprendido: etiquetas, id, clases, un atributo y posición, unidos con " > ". Sin comas ni plantillas. */
+export function isSimpleSelector(v: unknown): boolean {
+  return typeof v === 'string' && v.length <= 500 && SIMPLE_SELECTOR.test(v);
+}

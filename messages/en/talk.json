@@ -100,7 +100,9 @@
     "cmdHuddle": "Start or join a huddle",
     "cmdLeave": "Leave the channel",
     "cmdApp": "App command",
-    "unknownCommand": "{command} isn't a command here"
+    "unknownCommand": "{command} isn't a command here",
+    "cmdAsk": "Ask AI about this conversation",
+    "askEmpty": "Write a question after /ask."
   },
   "message": {
     "deleted": "This message was deleted.",
@@ -458,7 +460,11 @@
     "ai_disabled": "AI isn't available in this workspace right now.",
     "quota_exceeded": "This workspace used its AI quota for the month.",
     "edit_window_passed": "The time to edit this message is over.",
-    "invalid_retention": "Pick a valid retention period."
+    "invalid_retention": "Pick a valid retention period.",
+    "invalid_bookmark_url": "Enter a full web link, like https://example.com.",
+    "too_many_bookmarks": "This channel reached its limit of 50 bookmarks.",
+    "camera_unavailable": "Your camera isn't available. Allow it in the browser and try again.",
+    "agent_duplicate": "That question is already on its way."
   },
   "email": {
     "mentionSubject": "{actor} mentioned you in #{channel}",
@@ -523,13 +529,14 @@
     "stale": "older than 12 hours",
     "messages": "{count, plural, one {# message} other {# messages}}",
     "emptyTitle": "No recap yet",
-    "emptyBody": "Make one to catch up on the last 24 hours of your channels in a minute."
+    "emptyBody": "Make one to catch up on the last 24 hours of your channels in a minute.",
+    "daily": "Make one for me each morning around 8:00 in my time zone and notify me. Days with no messages are skipped."
   },
   "huddle": {
     "title": "Huddle",
     "inChannel": "Huddle in {channel}",
-    "collapse": "Hide screens",
-    "expand": "Show screens",
+    "collapse": "Hide video",
+    "expand": "Show video",
     "joining": "Joining…",
     "alone": "You're the only one here. Others see it in the channel and can join.",
     "connecting": "Connecting…",
@@ -543,14 +550,18 @@
     "stopShare": "Stop sharing",
     "share": "Share screen",
     "leave": "Leave",
-    "screens": "Shared screens",
+    "screens": "Shared video",
     "yourScreen": "Your screen",
     "screenOf": "{name}'s screen",
     "joinCount": "Join huddle ({count})",
     "start": "Huddle",
     "liveCount": "Huddle with {count, plural, one {# person} other {# people}}",
     "startedMessage": "started a huddle. Join it from the channel header; this thread is for notes and links.",
-    "leaveHuddle": "Leave huddle"
+    "leaveHuddle": "Leave huddle",
+    "cameraOn": "Turn on camera",
+    "cameraOff": "Turn off camera",
+    "cameraOnLabel": "camera on",
+    "yourCamera": "You"
   },
   "sections": {
     "itemMenu": "Options for {name}",
@@ -765,5 +776,39 @@
     "level_mentions": "Direct messages, mentions, threads and keywords",
     "level_all": "Everything that shows in the bell",
     "level_off": "Nothing"
+  },
+  "bookmarks": {
+    "title": "Channel bookmarks",
+    "addFirst": "+ Add a bookmark",
+    "addShort": "+ Add",
+    "addTitle": "Add a bookmark",
+    "editTitle": "Edit bookmark",
+    "url": "Link",
+    "name": "Name",
+    "namePlaceholder": "Uses the site name if you leave it empty",
+    "edit": "Edit",
+    "delete": "Delete",
+    "options": "Options for {name}",
+    "deleteTitle": "Delete this bookmark?",
+    "deleteBody": "\"{name}\" goes away for everyone in the channel. The linked page stays as it is.",
+    "deleted": "Bookmark deleted",
+    "loadError": "Bookmarks couldn't load.",
+    "more": "More ({count})",
+    "moreLabel": "More bookmarks"
+  },
+  "clips": {
+    "open": "Record a clip",
+    "title": "Record a clip",
+    "help": "Audio up to {audio} minutes or video up to {video} seconds. You review it before attaching it.",
+    "recordAudio": "Record audio",
+    "recordVideo": "Record video",
+    "stop": "Stop",
+    "recording": "Recording {elapsed} of {max}",
+    "retake": "Record again",
+    "attach": "Attach to message",
+    "unsupported": "This browser can't record clips.",
+    "noMic": "No microphone access. Allow it in the browser and try again.",
+    "noCamera": "No camera or microphone access. Allow them in the browser and try again.",
+    "empty": "Nothing was recorded. Try again."
   }
 }

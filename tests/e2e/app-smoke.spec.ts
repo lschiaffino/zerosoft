@@ -536,6 +536,15 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await ok(request.delete(`/api/shop/collections/${i.id}`))),
   },
   {
+    app: 'Rec spaces',
+    list: '/en/app/rec',
+    sidebar: true,
+    create: async (request, name) => ({ id: (await ok<{ space: { id: string } }>(request.post('/api/rec/spaces', { data: { name } }))).space.id, name }),
+    detail: (i) => `/en/app/rec/s/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/rec/spaces/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await request.delete(`/api/rec/spaces/${i.id}`)),
+  },
+  {
     app: 'Rec folders',
     list: '/en/app/rec',
     sidebar: true,

@@ -1,22 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { getRobot, getRobotRun } from '@/lib/robots';
+import { getRobot, getRobotRow, getRobotRun, getRobotWorkspaceConfig } from '@/lib/robots';
 import { AiError, suggestSelectorFix } from '@/lib/robots-ai';
-import { aiErrorCode, canEditRobots, forbidden, notFound, robotError, unauthorized } from '@/lib/robots-http';
+import { aiErrorCode, canEditRobot, canEditRobots, forbidden, notFound, realUserId, robotError, unauthorized } from '@/lib/robots-http';
 import { requestLocale } from '@/lib/request-locale';
 import { stepPath } from '@/lib/robots-editor';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** "Sugerir un arreglo con IA": selector nuevo para el paso que falló, desde el DOM capturado. Solo admins. */
+/** "Sugerir un arreglo con IA": selector nuevo para el paso que falló, desde el DOM capturado. Quien puede editar el robot. */
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  if (!canEditRobots(user)) return forbidden();
   const run = await getRobotRun(user.id, id);
-  if (!run) return notFound();
+  if (!run) return canEditRobots(user) ? notFound() : forbidden();
+  const owner = await getRobotRow(user.id, run.robotId);
+  if (!owner || !canEditRobot({ role: user.role, personId: realUserId(user) }, owner, await getRobotWorkspaceConfig(user.id))) return forbidden();
   if (!run.failure) return robotError(400, 'no_failure');
   const robot = await getRobot(user.id, run.robotId);
   if (!robot) return notFound();

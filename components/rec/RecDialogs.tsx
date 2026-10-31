@@ -14,6 +14,14 @@ export interface RecFolder {
   name: string;
   space: 'personal' | 'workspace';
   created_by: string;
+  space_id?: string | null;
+}
+
+export interface RecSpaceItem {
+  id: string;
+  name: string;
+  canManage: boolean;
+  members: number;
 }
 
 function useModal(open: boolean) {
@@ -111,12 +119,13 @@ export function RecNameDialog({
   );
 }
 
-export type MoveTarget = { space: 'personal' | 'workspace'; folderId: string | null };
+export type MoveTarget = { space: 'personal' | 'workspace'; folderId: string | null; spaceId?: string | null };
 
 /** Mover un video: a la raíz de Mis videos o del workspace, o a una carpeta. */
 export function RecMoveDialog({
   open,
   folders,
+  spaces = [],
   current,
   busy,
   onMove,
@@ -124,6 +133,7 @@ export function RecMoveDialog({
 }: {
   open: boolean;
   folders: RecFolder[];
+  spaces?: RecSpaceItem[];
   current: MoveTarget;
   busy?: boolean;
   onMove: (t: MoveTarget) => void;
@@ -133,7 +143,7 @@ export function RecMoveDialog({
   const tc = useTranslations('rec.common');
   const ref = useModal(open);
   const id = useId();
-  const key = (m: MoveTarget) => m.folderId ?? `root:${m.space}`;
+  const key = (m: MoveTarget) => m.folderId ?? (m.spaceId ? `space:${m.spaceId}` : `root:${m.space}`);
   const curKey = key(current);
   const [sel, setSel] = useState(curKey);
   useEffect(() => {
@@ -143,7 +153,11 @@ export function RecMoveDialog({
     { k: 'root:personal', label: t('mine'), target: { space: 'personal', folderId: null }, group: 'personal' },
     ...folders.filter((f) => f.space === 'personal').map((f) => ({ k: f.id, label: f.name, target: { space: 'personal' as const, folderId: f.id }, group: 'personal' as const })),
     { k: 'root:workspace', label: t('workspace'), target: { space: 'workspace', folderId: null }, group: 'workspace' },
-    ...folders.filter((f) => f.space === 'workspace').map((f) => ({ k: f.id, label: f.name, target: { space: 'workspace' as const, folderId: f.id }, group: 'workspace' as const })),
+    ...folders.filter((f) => f.space === 'workspace' && !f.space_id).map((f) => ({ k: f.id, label: f.name, target: { space: 'workspace' as const, folderId: f.id }, group: 'workspace' as const })),
+    ...spaces.flatMap((s) => [
+      { k: `space:${s.id}`, label: s.name, target: { space: 'workspace' as const, folderId: null, spaceId: s.id }, group: 'workspace' as const },
+      ...folders.filter((f) => f.space_id === s.id).map((f) => ({ k: f.id, label: f.name, target: { space: 'workspace' as const, folderId: f.id, spaceId: s.id }, group: 'workspace' as const })),
+    ]),
   ];
   return (
     <dialog

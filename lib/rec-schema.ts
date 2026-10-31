@@ -6,7 +6,7 @@
 export type RecMode = 'screen_camera' | 'screen' | 'camera';
 export const REC_MODES: readonly RecMode[] = ['screen_camera', 'screen', 'camera'];
 export type RecSpace = 'personal' | 'workspace';
-export type RecPrivacy = 'link' | 'workspace';
+export type RecPrivacy = 'link' | 'workspace' | 'people';
 export type RecCtaMode = 'always' | 'end';
 export type RecTranscriptStatus = 'none' | 'pending' | 'processing' | 'done' | 'failed' | 'disabled';
 
@@ -317,3 +317,203 @@ export function nameKey(name: string): string {
   }
   return out;
 }
+
+// ============================================================
+// Personas puntuales
+// ============================================================
+
+export const MAX_REC_ALLOWED = 100;
+
+/** Emails limpios: minúsculas, sin repetidos, hasta MAX_REC_ALLOWED. Acepta texto con comas o líneas. */
+export function cleanEmails(input: string | string[]): string[] {
+  const list = Array.isArray(input) ? input : input.split(/[\s,;]+/);
+  const out = new Set<string>();
+  for (const raw of list) {
+    const e = String(raw ?? '').trim().toLowerCase();
+    if (e.length <= 254 && /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/.test(e)) out.add(e);
+    if (out.size >= MAX_REC_ALLOWED) break;
+  }
+  return [...out];
+}
+
+// ============================================================
+// Overlays: texto, caja y flecha sobre el video (los dibuja el reproductor)
+// ============================================================
+
+export const REC_OVERLAY_KINDS = ['text', 'box', 'arrow'] as const;
+export type RecOverlayKind = (typeof REC_OVERLAY_KINDS)[number];
+export const REC_OVERLAY_COLORS = ['#ffffff', '#111111', '#e11d48', '#f59e0b', '#16a34a', '#2563eb'] as const;
+export const MAX_REC_OVERLAYS = 30;
+
+export interface RecOverlay {
+  id: string;
+  kind: RecOverlayKind;
+  /** Segundos del video original. */
+  start: number;
+  end: number;
+  /** Posición y tamaño en fracción del cuadro (0 a 1). En la flecha, de (x, y) a (x + w, y + h). */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  text: string;
+  color: string;
+}
+
+function unit(v: unknown, min = 0): number {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return min;
+  return Math.round(Math.max(min, Math.min(1, n)) * 1000) / 1000;
+}
+
+/** Valida lo que llega del cliente: tipos, colores de la lista, rangos y largo del texto. */
+export function cleanOverlays(input: unknown, duration = Infinity): RecOverlay[] {
+  if (!Array.isArray(input)) return [];
+  const out: RecOverlay[] = [];
+  for (const raw of input.slice(0, MAX_REC_OVERLAYS)) {
+    const o = (raw ?? {}) as Record<string, unknown>;
+    const kind = o.kind as RecOverlayKind;
+    if (!REC_OVERLAY_KINDS.includes(kind)) continue;
+    const max = Number.isFinite(duration) && duration > 0 ? duration : 12 * 3600;
+    const start = Math.max(0, Math.min(Number(o.start) || 0, max));
+    const end = Math.max(0, Math.min(Number(o.end) || 0, max));
+    if (end <= start) continue;
+    const text = kind === 'text' ? String(o.text ?? '').trim().slice(0, 160) : '';
+    if (kind === 'text' && !text) continue;
+    const color = (REC_OVERLAY_COLORS as readonly string[]).includes(String(o.color)) ? String(o.color) : REC_OVERLAY_COLORS[2];
+    out.push({
+      id: /^[\w-]{1,40}$/.test(String(o.id ?? '')) ? String(o.id) : `o${out.length + 1}`,
+      kind,
+      start: Math.round(start * 10) / 10,
+      end: Math.round(end * 10) / 10,
+      x: unit(o.x),
+      y: unit(o.y),
+      w: unit(o.w),
+      h: unit(o.h),
+      text,
+      color,
+    });
+  }
+  return out;
+}
+
+/** Los que se pueden mostrar a quien no administra el video: solo los que caen dentro del recorte. */
+export function overlaysInTrim(list: RecOverlay[], start: number, end: number | null): RecOverlay[] {
+  return list.filter((o) => o.end > start && (end === null || o.start < end));
+}
+
+// ============================================================
+// Editar sin recodificar: mapa de lo que queda y qué pasa con la transcripción
+// ============================================================
+
+/** Tramo de un archivo fuente copiado a la salida: [from, to) de la fuente `src`, desde `at` en la salida (segundos). */
+export interface RecEditPiece {
+  src: number;
+  from: number;
+  to: number;
+  at: number;
+}
+
+/** Lo que queda de un video después de sacar `cuts` (rangos en segundos), dentro de [start, end). */
+export function keepRanges(cuts: Range[], start: number, end: number): Range[] {
+  const sorted = mergeRanges(cuts.map(([a, b]) => [Math.max(a, start), Math.min(b, end)] as Range).filter(([a, b]) => b > a));
+  const out: Range[] = [];
+  let cursor = start;
+  for (const [a, b] of sorted) {
+    if (a > cursor) out.push([cursor, a]);
+    cursor = Math.max(cursor, b);
+  }
+  if (cursor < end) out.push([cursor, end]);
+  return out;
+}
+
+/** Transcripción para la salida: se queda lo que cae en cada tramo, corrido a su nueva posición. */
+export function remapSegments(lists: RecSegment[][], pieces: RecEditPiece[]): RecSegment[] {
+  const out: RecSegment[] = [];
+  for (const p of pieces) {
+    for (const s of lists[p.src] ?? []) {
+      const mid = (s.start + s.end) / 2;
+      if (mid < p.from || mid >= p.to) continue;
+      const start = Math.max(0, p.at + Math.max(s.start, p.from) - p.from);
+      const end = p.at + Math.min(s.end, p.to) - p.from;
+      if (end > start) out.push({ ...s, start: Math.round(start * 100) / 100, end: Math.round(end * 100) / 100 });
+    }
+  }
+  return out.sort((a, b) => a.start - b.start);
+}
+
+export function remapChapters(lists: RecChapter[][], pieces: RecEditPiece[]): RecChapter[] {
+  const out: RecChapter[] = [];
+  for (const p of pieces) {
+    for (const c of lists[p.src] ?? []) {
+      if (c.start >= p.from && c.start < p.to) out.push({ start: Math.round(p.at + c.start - p.from), title: c.title });
+    }
+  }
+  return normalizeChapters(out);
+}
+
+/** Silencios: huecos de al menos `minGap` segundos sin nadie hablando (entre segmentos, y al principio y al final). */
+export function silenceCuts(segments: RecSegment[], duration: number, minGap = 2): Range[] {
+  const out: Range[] = [];
+  let cursor = 0;
+  for (const s of [...segments].sort((a, b) => a.start - b.start)) {
+    if (s.start - cursor >= minGap) out.push([cursor, s.start]);
+    cursor = Math.max(cursor, s.end);
+  }
+  if (duration - cursor >= minGap) out.push([cursor, duration]);
+  return out;
+}
+
+const FILLER_WORDS = new Set(['um', 'umm', 'uh', 'uhh', 'er', 'erm', 'ah', 'hmm', 'hm', 'mm', 'mmm', 'eh', 'ehh', 'este', 'ehm', 'em', 'tipo', 'bueno', 'nada', 'né', 'tá', 'like']);
+
+/** Índices de los segmentos que son solo muletillas. La transcripción viene por frases: no se cortan palabras sueltas. */
+export function fillerSegments(segments: RecSegment[]): number[] {
+  const out: number[] = [];
+  segments.forEach((s, i) => {
+    const words = s.text.toLowerCase().split(/[^\p{L}]+/u).filter(Boolean);
+    if (words.length > 0 && words.every((w) => FILLER_WORDS.has(w))) out.push(i);
+  });
+  return out;
+}
+
+// ============================================================
+// Marca
+// ============================================================
+
+export function cleanBrandColor(raw: unknown): string | null {
+  const s = String(raw ?? '').trim().toLowerCase();
+  return /^#[0-9a-f]{6}$/.test(s) ? s : null;
+}
+
+/** Negro o blanco, el que se lea mejor sobre el color de la marca. */
+export function brandOnColor(hex: string): '#000000' | '#ffffff' {
+  const n = (i: number) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  const lum = 0.2126 * n(1) + 0.7152 * n(3) + 0.0722 * n(5);
+  return (lum + 0.05) / 0.05 >= 1.05 / (lum + 0.05) ? '#000000' : '#ffffff';
+}
+
+// ============================================================
+// Retención
+// ============================================================
+
+export const REC_RETENTION_OPTIONS = [30, 90, 180, 365, 730] as const;
+/** Días entre prender (o acortar) la retención y el primer borrado. */
+export const REC_RETENTION_GRACE_DAYS = 7;
+export const MAX_RECAP_RECIPIENTS = 20;
+/** Tope de cada archivo al editar en el navegador (se arma en memoria de quien edita). */
+export const MAX_REC_EDIT_BYTES = 600 * 1024 * 1024;
+
+/** Tipo real de una imagen por sus primeros bytes (lo que dice el navegador no cuenta). */
+export function sniffImageType(b: Uint8Array): 'image/png' | 'image/jpeg' | 'image/webp' | null {
+  if (b.length >= 8 && [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((x, i) => b[i] === x)) return 'image/png';
+  if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg';
+  if (b.length >= 12 && String.fromCharCode(...b.subarray(0, 4)) === 'RIFF' && String.fromCharCode(...b.subarray(8, 12)) === 'WEBP') return 'image/webp';
+  return null;
+}
+
+/** Destinatarios por día y por workspace del resumen por mail (y con una cuenta de menos de 7 días). */
+export const REC_RECAP_DAILY = 50;
+export const REC_RECAP_DAILY_NEW = 10;

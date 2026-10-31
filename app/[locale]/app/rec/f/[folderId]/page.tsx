@@ -24,9 +24,10 @@ export default async function RecFolderPage(props: Props) {
   return (
     <RecLibrary
       key={f.id}
-      scope={{ kind: 'folder', folder: { id: f.id, name: f.name, space: f.space, created_by: f.created_by } }}
+      scope={{ kind: 'folder', folder: { id: f.id, name: f.name, space: f.space, created_by: f.created_by, space_id: f.space_id ?? null } }}
       initialVideos={data.videos}
       initialFolders={data.folders}
+      initialSpaces={data.spaces}
       baseUrl={data.baseUrl}
     />
   );

@@ -15,10 +15,13 @@ import { parseDbUtc } from '@/lib/utils';
 import RecPlayer, { type RecMarker, type RecPlayerHandle } from './RecPlayer';
 import RecComments from './RecComments';
 import RecCopy from './RecCopy';
+import RecActions from './RecActions';
+import RecEditTools from './RecEditTools';
+import RecOverlayEditor from './RecOverlayEditor';
 import RecDownload from './RecDownload';
 import RecShareDialog from './RecShareDialog';
 import { RecTranscript } from './RecWatch';
-import { RecMoveDialog, RecNameDialog, notifyRecChanged, type RecFolder } from './RecDialogs';
+import { RecMoveDialog, RecNameDialog, notifyRecChanged, type RecFolder, type RecSpaceItem } from './RecDialogs';
 import { assetsFromVideo, canvasToBlob, snapshot } from './recorder-media';
 import { uploadAsset, uploadWhole } from './liveUpload';
 
@@ -32,12 +35,16 @@ type Tab = 'details' | 'transcript' | 'insights' | 'edit';
 export default function RecDetail({
   initial,
   folders,
+  spaces = [],
+  initialLater = false,
   baseUrl,
   uploadMode,
   partBytes,
 }: {
   initial: RecVideoDto;
   folders: RecFolder[];
+  spaces?: RecSpaceItem[];
+  initialLater?: boolean;
   baseUrl: string;
   uploadMode: 'blob' | 'local';
   partBytes: number;
@@ -71,6 +78,8 @@ export default function RecDetail({
   const [thumbVer, setThumbVer] = useState(0);
   const [cutting, setCutting] = useState<number | null>(null);
   const [regenerating, setRegenerating] = useState(false);
+  const [later, setLater] = useState(initialLater);
+  const [overlays, setOverlays] = useState(initial.overlays);
   const player = useRef<RecPlayerHandle>(null);
   // Avisa al sidebar y vacía la caché del router: volver atrás no muestra la lista vieja.
   const changed = () => {
@@ -80,13 +89,16 @@ export default function RecDetail({
 
   const file = `/api/rec/videos/${video.id}/file`;
   const shareUrl = `${baseUrl}/${locale}/v/${video.shareId}`;
-  const back = video.folderId ? `/app/rec/f/${video.folderId}` : video.space === 'workspace' ? '/app/rec/workspace' : '/app/rec';
-  const backLabel = video.folderId ? folders.find((f) => f.id === video.folderId)?.name ?? t('library') : video.space === 'workspace' ? t('workspace') : t('mine');
+  const spaceHere = spaces.find((s) => s.id === video.spaceId);
+  const back = video.folderId ? `/app/rec/f/${video.folderId}` : video.spaceId ? `/app/rec/s/${video.spaceId}` : video.space === 'workspace' ? '/app/rec/workspace' : '/app/rec';
+  const backLabel = video.folderId ? folders.find((f) => f.id === video.folderId)?.name ?? t('library') : video.spaceId ? spaceHere?.name ?? t('library') : video.space === 'workspace' ? t('workspace') : t('mine');
 
   useEffect(() => {
     const created = search.get('created');
     if (created) setToast(created === 'copied' ? t('createdCopied') : t('created'));
-  }, [search, t]);
+    // Desde el aviso de un pedido de acceso: abre compartir.
+    if (search.get('share') === '1' && initial.canManage) setShare(true);
+  }, [search, t, initial.canManage]);
 
   useEffect(() => {
     if (!toast) return;
@@ -141,6 +153,26 @@ export default function RecDetail({
     setVideo(v);
     if (okToast) setToast(okToast);
     changed();
+    return true;
+  }
+
+  async function toggleLater() {
+    const res = await fetch(`/api/rec/videos/${video.id}/later`, { method: later ? 'DELETE' : 'POST' }).catch(() => null);
+    if (!res?.ok) return fail(res);
+    setLater(!later);
+    setToast(later ? t('laterRemoved') : t('laterAdded'));
+    changed();
+  }
+
+  async function rotate(): Promise<boolean> {
+    const res = await fetch(`/api/rec/videos/${video.id}/rotate-share`, { method: 'POST' }).catch(() => null);
+    if (!res?.ok) {
+      await fail(res);
+      return false;
+    }
+    const { video: v } = (await res.json()) as { video: RecVideoDto };
+    setVideo(v);
+    setToast(t('rotated'));
     return true;
   }
 
@@ -286,7 +318,10 @@ export default function RecDetail({
         }
       />
       <div className="rec-detail-tools">
-        <RecDownload url={`${file}?download=1`} label={t('download')} className="btn btn-ghost btn-sm" testId="rec-download" />
+        {(video.canManage || video.allowDownload) && <RecDownload url={`${file}?download=1`} label={t('download')} className="btn btn-ghost btn-sm" testId="rec-download" />}
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => void toggleLater()} aria-pressed={later} data-testid="rec-later">
+          {later ? t('laterRemove') : t('laterAdd')}
+        </button>
         <Link className="btn btn-ghost btn-sm" href={`/v/${video.shareId}`} target="_blank">
           {t('openPage')}
         </Link>
@@ -298,13 +333,17 @@ export default function RecDetail({
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMoving(true)}>
               {t('move')}
             </button>
+            <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => void patch({ archived: !video.archived }, video.archived ? t('restored') : t('archivedToast'))} data-testid="rec-archive">
+              {video.archived ? t('restore') : t('archive')}
+            </button>
             <button type="button" className="btn btn-ghost btn-danger btn-sm" onClick={() => setDeleting(true)}>
               {t('delete')}
             </button>
           </>
         )}
         <span className="rec-detail-badges muted">
-          {video.privacy === 'workspace' ? t('badgeWorkspace') : t('badgeLink')}
+          {video.archived ? `${t('badgeArchived')} · ` : ''}
+          {video.privacy === 'people' ? t('badgePeople') : video.privacy === 'workspace' ? t('badgeWorkspace') : t('badgeLink')}
           {video.hasPassword ? ` · ${t('badgePassword')}` : ''}
           {video.expiresAt ? ` · ${t('badgeExpires', { date: new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(parseDbUtc(video.expiresAt)) })}` : ''}
         </span>
@@ -329,6 +368,8 @@ export default function RecDetail({
             markers={markers}
             cta={video.ctaLabel && video.ctaUrl ? { label: video.ctaLabel, url: video.ctaUrl, mode: video.ctaMode } : null}
             onTime={setNow}
+            overlays={overlays}
+            noDownload={!video.canManage && !video.allowDownload}
           />
           <div className="ui-tabs" role="tablist" aria-label={t('tabs')}>
             {(['details', 'transcript', ...(video.canManage ? (['insights', 'edit'] as const) : [])] as Tab[]).map((k) => (
@@ -401,6 +442,7 @@ export default function RecDetail({
                   </button>
                 </div>
               )}
+              <RecActions video={video} />
             </div>
           )}
 
@@ -626,6 +668,8 @@ export default function RecDetail({
                   </button>
                 </div>
               </section>
+              <RecOverlayEditor overlays={overlays} duration={video.durationSec} currentAbs={relNow} busy={busy} onChange={setOverlays} onSave={() => void patch({ overlays }, t('saved'))} />
+              <RecEditTools video={video} uploadMode={uploadMode} partBytes={partBytes} />
             </div>
           )}
         </div>
@@ -649,7 +693,7 @@ export default function RecDetail({
           </div>
         </div>
       )}
-      <RecShareDialog open={share} video={video} shareUrl={shareUrl} onClose={() => setShare(false)} onSave={(p) => patch(p, t('saved'))} />
+      <RecShareDialog open={share} video={video} shareUrl={shareUrl} onClose={() => setShare(false)} onSave={(p) => patch(p, t('saved'))} onRotate={rotate} onVideo={(p) => setVideo((v) => ({ ...v, ...p }))} />
       <RecNameDialog
         open={renaming}
         title={t('rename')}
@@ -665,10 +709,11 @@ export default function RecDetail({
       <RecMoveDialog
         open={moving}
         folders={folders}
-        current={{ space: video.space, folderId: video.folderId }}
+        spaces={spaces}
+        current={{ space: video.space, folderId: video.folderId, spaceId: video.spaceId }}
         busy={busy}
         onMove={async (m) => {
-          if (await patch({ folderId: m.folderId, space: m.space }, t('moved'))) setMoving(false);
+          if (await patch({ folderId: m.folderId, space: m.space, spaceId: m.spaceId ?? null }, t('moved'))) setMoving(false);
         }}
         onClose={() => setMoving(false)}
       />

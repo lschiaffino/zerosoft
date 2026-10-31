@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withTalk, readBody } from '@/lib/talk-http';
-import { jsonError } from '@/lib/write-limit';
-import { askTalk, dailyRecap, lastSummary, summarizeChannel, summarizeThread, translateMessage } from '@/lib/talk-ai';
+import { jsonError, limitWrites } from '@/lib/write-limit';
+import { askInChannel, askTalk, dailyRecap, lastSummary, summarizeChannel, summarizeThread, translateMessage } from '@/lib/talk-ai';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,6 +22,7 @@ const schema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('thread'), rootId: id }),
   z.object({ kind: z.literal('recap') }),
   z.object({ kind: z.literal('ask'), question: z.string().min(1).max(500) }),
+  z.object({ kind: z.literal('agent'), channelId: id, parentId: id.nullish(), question: z.string().min(1).max(1500), key: z.string().min(8).max(64) }),
   z.object({ kind: z.literal('translate'), messageId: id, lang: z.string().max(5) }),
 ]);
 
@@ -35,6 +36,12 @@ export async function POST(req: NextRequest) {
       if (b.kind === 'thread') return NextResponse.json({ summary: await summarizeThread(actor, b.rootId) });
       if (b.kind === 'recap') return NextResponse.json({ summary: await dailyRecap(actor) });
       if (b.kind === 'ask') return NextResponse.json({ answer: await askTalk(actor, b.question) });
+      if (b.kind === 'agent') {
+        // Además del límite por minuto: cada /ask paga una llamada y publica en el canal.
+        const limited = await limitWrites('talk:agent', actor.personId, 30, 3600);
+        if (limited) return limited;
+        return NextResponse.json(await askInChannel(actor, { channelId: b.channelId, parentId: b.parentId, question: b.question, key: b.key }), { status: 201 });
+      }
       return NextResponse.json(await translateMessage(actor, b.messageId, b.lang));
     },
     { write: 'ai', limit: 30 },

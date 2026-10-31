@@ -230,18 +230,58 @@ export interface RecorderLabels {
   pickList?: string;
   pickNext?: string;
   listCount?: string;
+  /** Grabación en vivo: los pasos llegaron al editor, o no se pudieron mandar. */
+  sent?: string;
+  sendFail?: string;
+  keepQuery?: string;
+}
+
+/** Destino de la grabación en vivo: los pasos se mandan solos a la grabación abierta en el editor. */
+export interface RecorderLive {
+  url: string;
+  token: string;
+}
+
+/** Textos del panel (de messages robots.recorder.panel.*). */
+export function recorderLabels(t: (key: string, values?: Record<string, string>) => string): RecorderLabels {
+  return {
+    recording: t('panel.recording'),
+    steps: t('panel.steps'),
+    copy: t('panel.copy'),
+    copied: t('panel.copied'),
+    clear: t('panel.clear'),
+    close: t('panel.close'),
+    hint: t('panel.hint'),
+    text: t('panel.text'),
+    list: t('panel.list'),
+    next: t('panel.next'),
+    done: t('panel.done'),
+    pickText: t('panel.pickText'),
+    pickList: t('panel.pickList'),
+    pickNext: t('panel.pickNext'),
+    listCount: t('panel.listCount', { count: '{count}' }),
+    sent: t('panel.sent'),
+    sendFail: t('panel.sendFail'),
+    keepQuery: t('panel.keepQuery'),
+  };
 }
 
 /** Placeholder de contraseñas: el valor real nunca se graba. */
 export const PASSWORD_PLACEHOLDER = '{{credentials.LOGIN.password}}';
 
 /** Código JS del grabador (lo que corre en la página del usuario). */
-export function buildRecorderScript(labels: RecorderLabels): string {
+export function buildRecorderScript(labels: RecorderLabels, live?: RecorderLive | null): string {
   const L = JSON.stringify(labels);
+  const LIVE = JSON.stringify(live ?? null);
   return `(function(){
 if (window.__zsRecorder) { window.__zsRecorder.show(); return; }
 var __name = function (f) { return f; };
 var L = ${L};
+// Grabación en vivo: del bookmarklet, o de la extensión (que además trae los pasos de la página anterior).
+var CFG = window.__zsRecCfg || null;
+var LIVE = CFG || ${LIVE};
+var sendState = '';
+var sendTimer = null;
 var KEY = 'zerosoft-robot-recorder';
 var gen = ${generateSelector.toString()};
 var altsOf = ${selectorAlternatives.toString()};
@@ -251,9 +291,36 @@ var mode = null;
 var listCard = null;
 var state;
 try { state = JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch (e) { state = null; }
+if (CFG && CFG.state && Array.isArray(CFG.state.steps)) state = CFG.state;
 if (!state || !Array.isArray(state.steps)) state = { steps: [], last: '' };
-if (state.last !== location.href) state.steps.push({ type: 'goto', url: location.href });
-function save() { state.last = location.href; try { sessionStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} render(); }
+// Un clic o un Enter recién hecho explica el cambio de página: repetirlo sería un goto de más.
+var acted = state.at && Date.now() - state.at < 10000;
+// Los parámetros de una URL suelen llevar tokens o datos: no se graban salvo que la persona los pida.
+function pageUrl() { return state.keepQuery || !location.origin ? location.href : location.origin + location.pathname; }
+if (state.last !== location.href && !(acted && state.steps.length)) state.steps.push({ type: 'goto', url: pageUrl() });
+function clean(v) { return typeof v === 'string' ? v.replace(/\{\{/g, '{ {') : v; }
+function cleanStep(step) {
+  Object.keys(step).forEach(function (k) {
+    if (k === 'value' && step[k] === ${JSON.stringify(PASSWORD_PLACEHOLDER)}) return;
+    if (typeof step[k] === 'string') step[k] = clean(step[k]);
+    else if (Array.isArray(step[k])) step[k] = step[k].map(clean);
+  });
+  return step;
+}
+function send() {
+  if (!LIVE) return;
+  clearTimeout(sendTimer);
+  sendTimer = setTimeout(function () {
+    fetch(LIVE.url, { method: 'POST', headers: { 'content-type': 'text/plain' }, body: JSON.stringify({ token: LIVE.token, steps: state.steps }) })
+      .then(function (r) { sendState = r.ok ? 'ok' : 'fail'; render(); }, function () { sendState = 'fail'; render(); });
+  }, 200);
+}
+function save() {
+  state.last = location.href;
+  try { sessionStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  try { if (CFG && chrome && chrome.runtime && chrome.runtime.id) chrome.runtime.sendMessage({ zsState: state }); } catch (e) {}
+  render(); send();
+}
 function info(el, depth) {
   if (!el || el.nodeType !== 1) return null;
   var attrs = {};
@@ -352,9 +419,11 @@ function capture(t) {
 }
 function inPanel(el) { return host && (el === host || host.contains(el)); }
 function push(step) {
+  cleanStep(step);
   var prev = state.steps[state.steps.length - 1];
   if (prev && step.type === 'fill' && prev.type === 'fill' && prev.selector === step.selector) { prev.value = step.value; save(); return; }
   if (state.steps.length >= 100) return;
+  if (step.type === 'click' || step.type === 'press') state.at = Date.now();
   state.steps.push(step); save();
 }
 // Campos secretos: nunca se graba su valor. Además de type=password, cuentan los que
@@ -369,18 +438,26 @@ function secret(el) {
   var ac = (el.getAttribute('autocomplete') || '').toLowerCase();
   if (/current-password|new-password|one-time-code|cc-number|cc-csc/.test(ac)) return true;
   try { var cs = getComputedStyle(el); var ts = cs.getPropertyValue('-webkit-text-security') || cs.webkitTextSecurity || ''; if (ts && ts !== 'none') return true; } catch (e) {}
-  var names = ((el.getAttribute('name') || '') + ' ' + (el.id || '') + ' ' + (el.getAttribute('aria-label') || '')).toLowerCase();
-  if (/passw|pwd|contrase|senha/.test(names)) return true;
-  var numeric = (el.getAttribute('inputmode') || '').toLowerCase() === 'numeric' || type === 'tel' || type === 'number';
-  return numeric && /(^|[^a-z])(pin|otp|cvv|cvc|card|token|code)/.test(names);
+  var lab = '';
+  try { if (el.labels && el.labels[0]) lab = el.labels[0].textContent || ''; } catch (e) {}
+  var names = ((el.getAttribute('name') || '') + ' ' + (el.id || '') + ' ' + (el.getAttribute('aria-label') || '') + ' ' + (el.getAttribute('placeholder') || '') + ' ' + lab).toLowerCase();
+  if (/passw|(^|[^a-z])pass([^a-z]|$)|pwd|contrase|senha|clave|secret|token|api[ _-]?key|apikey|ssn|(^|[^a-z])(dni|cpf|cuit|cuil|cbu|iban|cvv|cvc|otp|pin)([^a-z]|$)|card|tarjeta|cart[aã]o|seguridad social/.test(names)) return true;
+  if (/cc-|password|one-time/.test(ac)) return true;
+  // Si no se sabe y el valor parece un dato sensible, también se enmascara.
+  var v = String(el.value || '');
+  var digits = v.replace(/[\\s-]/g, '');
+  if (/^\\d{13,19}$/.test(digits) || /^\\d{3}-\\d{2}-\\d{4}$/.test(v)) return true;
+  return v.length >= 24 && !/\\s/.test(v) && /[0-9]/.test(v) && /[A-Za-z]/.test(v) && !/^https?:/.test(v);
 }
 document.addEventListener('focusin', function (e) { markPw(e.target); }, true);
 document.addEventListener('mouseover', function (e) {
-  if (!mode) return;
+  if (!mode || e.isTrusted === false) return;
   var t = e.target; if (!t || t.nodeType !== 1 || inPanel(t)) return;
   outline(t);
 }, true);
+// La página puede disparar eventos falsos: solo cuenta lo que hizo la persona.
 document.addEventListener('click', function (e) {
+  if (e.isTrusted === false) return;
   var t = e.target; if (!t || t.nodeType !== 1 || inPanel(t)) return;
   // Captura de datos: el clic marca qué extraer y no llega a la página.
   if (mode) { e.preventDefault(); e.stopPropagation(); if (e.stopImmediatePropagation) e.stopImmediatePropagation(); capture(t); return; }
@@ -391,6 +468,7 @@ document.addEventListener('click', function (e) {
   push(withAlts({ type: 'click', selector: s.selector, text: s.text || '' }, s));
 }, true);
 document.addEventListener('change', function (e) {
+  if (e.isTrusted === false) return;
   var el = e.target; if (!el || el.nodeType !== 1 || inPanel(el)) return;
   var tag = el.tagName.toLowerCase();
   if (tag === 'select') { push({ type: 'select', selector: sel(el).selector, value: el.value }); return; }
@@ -403,6 +481,7 @@ document.addEventListener('change', function (e) {
   }
 }, true);
 document.addEventListener('keydown', function (e) {
+  if (e.isTrusted === false) return;
   if (mode && e.key === 'Escape') { e.preventDefault(); setMode(null); return; }
   var el = e.target; markPw(el); if (e.key !== 'Enter' || !el || el.nodeType !== 1 || inPanel(el)) return;
   var tag = el.tagName.toLowerCase(); if (tag !== 'input') return;
@@ -421,15 +500,36 @@ q('.e1').addEventListener('click', function () { setMode(mode === 'text' ? null 
 q('.e2').addEventListener('click', function () { listCard = null; setMode(mode === 'list' ? null : 'list'); });
 q('.e3').addEventListener('click', function () { setMode(mode === 'next' ? null : 'next'); });
 q('.k').addEventListener('click', function () { setMode(null); });
-function render() { q('.t').textContent = L.recording + ' · ' + state.steps.length + ' ' + L.steps; }
+function render() { q('.t').textContent = L.recording + ' · ' + state.steps.length + ' ' + L.steps + (sendState === 'ok' ? ' · ' + (L.sent || '') : sendState === 'fail' ? ' · ' + (L.sendFail || '') : ''); }
 q('.c').addEventListener('click', function () {
   var text = JSON.stringify({ zerosoftRobotSteps: 1, steps: state.steps }, null, 2);
   var done = function () { q('.c').textContent = L.copied; setTimeout(function () { q('.c').textContent = L.copy; }, 1500); };
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function () { prompt(L.copy, text); });
   else { prompt(L.copy, text); }
 });
-q('.x').addEventListener('click', function () { state = { steps: [{ type: 'goto', url: location.href }], last: location.href }; save(); });
-q('.q').addEventListener('click', function () { host.style.display = 'none'; });
+q('.x').addEventListener('click', function () { state = { steps: [{ type: 'goto', url: pageUrl() }], last: location.href, keepQuery: state.keepQuery }; save(); });
+try {
+var kq = document.createElement('label');
+kq.style.cssText = 'display:flex;gap:6px;align-items:center;margin-top:6px;font-size:12px';
+var kqi = document.createElement('input');
+kqi.type = 'checkbox';
+kqi.checked = !!state.keepQuery;
+kqi.className = 'kq';
+kqi.addEventListener('change', function (e) {
+  if (e.isTrusted === false) { kqi.checked = !!state.keepQuery; return; }
+  state.keepQuery = kqi.checked;
+  // También la primera URL de esta página, que ya se anotó.
+  for (var i = state.steps.length - 1; i >= 0; i--) { if (state.steps[i].type === 'goto') { state.steps[i].url = pageUrl(); break; } }
+  save();
+});
+kq.appendChild(kqi);
+kq.appendChild(document.createTextNode(L.keepQuery || 'Keep URL parameters'));
+q('.p').appendChild(kq);
+} catch (e) {}
+q('.q').addEventListener('click', function () {
+  host.style.display = 'none';
+  try { if (CFG && chrome && chrome.runtime && chrome.runtime.id) chrome.runtime.sendMessage({ zsStop: true }); } catch (e) {}
+});
 document.documentElement.appendChild(host);
 window.__zsRecorder = { show: function () { host.style.display = ''; } };
 save();
@@ -437,8 +537,8 @@ save();
 }
 
 /** href del bookmarklet. */
-export function recorderBookmarklet(labels: RecorderLabels): string {
-  return `javascript:${encodeURIComponent(buildRecorderScript(labels))}`;
+export function recorderBookmarklet(labels: RecorderLabels, live?: RecorderLive | null): string {
+  return `javascript:${encodeURIComponent(buildRecorderScript(labels, live))}`;
 }
 
 export type ParseRecordedResult = { ok: true; steps: RobotStep[] } | { ok: false; error: 'invalid_json' | 'no_steps' | 'invalid_steps'; index?: number };

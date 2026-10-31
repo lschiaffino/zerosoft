@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { deleteRobot, getRobot, updateRobot } from '@/lib/robots';
+import { deleteRobot, getRobot, getRobotRow, getRobotWorkspaceConfig, setRobotOwner, updateRobot } from '@/lib/robots';
 import { robotUpdateSchema } from '@/lib/robots-schema';
-import { canEditRobots, forbidden, notFound, robotError, unauthorized } from '@/lib/robots-http';
+import { canEditRobot, canEditRobots, forbidden, memberPatchError, memberSettingsError, notFound, realUserId, robotError, robotUsesLogin, unauthorized } from '@/lib/robots-http';
 import { requestLocale } from '@/lib/request-locale';
 
 export const runtime = 'nodejs';
@@ -16,22 +16,34 @@ export async function GET(_req: NextRequest, props: Ctx) {
   if (!user) return unauthorized();
   const robot = await getRobot(user.id, id);
   if (!robot) return notFound();
-  return NextResponse.json({ robot, canEdit: canEditRobots(user) });
+  const row = await getRobotRow(user.id, id);
+  const canEdit = !!row && canEditRobot({ role: user.role, personId: realUserId(user) }, row, await getRobotWorkspaceConfig(user.id));
+  return NextResponse.json({ robot, canEdit });
 }
 
 export async function PATCH(req: NextRequest, props: Ctx) {
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  if (!canEditRobots(user)) return forbidden();
+  const row = await getRobotRow(user.id, id);
+  if (!row) return canEditRobots(user) ? notFound() : forbidden();
+  if (!canEditRobot({ role: user.role, personId: realUserId(user) }, row, await getRobotWorkspaceConfig(user.id))) return forbidden();
   const parsed = robotUpdateSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return robotError(400, 'invalid_input');
+  if (!canEditRobots(user)) {
+    const denied = memberPatchError(parsed.data) ?? (await memberSettingsError(user, user.id, parsed.data.settings));
+    if (denied) return robotError(403, denied);
+  }
   // Los avisos por email salen en el idioma de quien guardó el robot.
   const locale = requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language'));
   const res = await updateRobot(user.id, id, { ...parsed.data, locale });
   if (!res.ok) {
     if (res.error === 'not_found') return notFound();
     return robotError(400, res.error, { index: res.index });
+  }
+  // Un admin que agrega un login se hace cargo del robot: al correr se mira quién lo armó.
+  if (canEditRobots(user) && row.created_by !== realUserId(user) && robotUsesLogin((await getRobotRow(user.id, id)) ?? row) && !robotUsesLogin(row)) {
+    await setRobotOwner(user.id, id, realUserId(user));
   }
   return NextResponse.json({ robot: res.robot, ...(res.droppedRecipients ? { droppedRecipients: res.droppedRecipients } : {}) });
 }
@@ -40,7 +52,9 @@ export async function DELETE(_req: NextRequest, props: Ctx) {
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  if (!canEditRobots(user)) return forbidden();
+  const row = await getRobotRow(user.id, id);
+  if (!row) return canEditRobots(user) ? notFound() : forbidden();
+  if (!canEditRobot({ role: user.role, personId: realUserId(user) }, row, await getRobotWorkspaceConfig(user.id))) return forbidden();
   if (!(await deleteRobot(user.id, id))) return notFound();
   return NextResponse.json({ ok: true });
 }

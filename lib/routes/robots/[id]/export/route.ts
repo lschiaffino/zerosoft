@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { exportRobot, getRobot } from '@/lib/robots';
-import { canEditRobots, forbidden, notFound, unauthorized } from '@/lib/robots-http';
+import { exportRobot, getRobot, getRobotRow, getRobotWorkspaceConfig } from '@/lib/robots';
+import { canEditRobot, canEditRobots, realUserId, forbidden, notFound, unauthorized } from '@/lib/robots-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,7 +11,9 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  if (!canEditRobots(user)) return forbidden();
+  const row = await getRobotRow(user.id, id);
+  if (!row) return canEditRobots(user) ? notFound() : forbidden();
+  if (!canEditRobot({ role: user.role, personId: realUserId(user) }, row, await getRobotWorkspaceConfig(user.id))) return forbidden();
   const robot = await getRobot(user.id, id);
   if (!robot) return notFound();
   const name = `${robot.name.replace(/[^\w.-]+/g, '-').slice(0, 60) || 'robot'}.robot.json`;

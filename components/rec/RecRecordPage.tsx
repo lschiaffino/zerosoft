@@ -39,7 +39,7 @@ export function useUploadLabel() {
  * se puede descargar la grabación o dejarla para después (se recupera al
  * volver a abrir Rec en este navegador).
  */
-export default function RecRecordPage({ folderId, space, baseUrl, transcriptionOn }: { folderId: string | null; space: 'personal' | 'workspace'; baseUrl: string; transcriptionOn: boolean }) {
+export default function RecRecordPage({ folderId, space, spaceId = null, baseUrl, transcriptionOn }: { folderId: string | null; space: 'personal' | 'workspace'; spaceId?: string | null; baseUrl: string; transcriptionOn: boolean }) {
   const t = useTranslations('rec.record');
   const tc = useTranslations('rec.common');
   const locale = useLocale();
@@ -60,7 +60,7 @@ export default function RecRecordPage({ folderId, space, baseUrl, transcriptionO
         const res = await fetch('/api/rec/videos', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ title, mode, contentType: mime.split(';')[0], folderId, space }),
+          body: JSON.stringify({ title, mode, contentType: mime.split(';')[0], folderId, space, spaceId }),
         }).catch(() => null);
         if (!res?.ok) {
           const code = ((await res?.json().catch(() => null)) as { error?: string } | null)?.error ?? (res ? 'generic' : 'offline_start');
@@ -89,7 +89,7 @@ export default function RecRecordPage({ folderId, space, baseUrl, transcriptionO
         }
       },
     }),
-    [folderId, space, locale, t, errorText],
+    [folderId, space, spaceId, locale, t, errorText],
   );
 
   // No cerrar la pestaña a mitad de una grabación o de una subida.
@@ -129,7 +129,7 @@ export default function RecRecordPage({ folderId, space, baseUrl, transcriptionO
     saveFile(await localRecording(up.info), `${up.info.title.replace(/[\\/:*?"<>|]+/g, ' ')}.webm`);
   }
 
-  const back = folderId ? `/app/rec/f/${folderId}` : space === 'workspace' ? '/app/rec/workspace' : '/app/rec';
+  const back = folderId ? `/app/rec/f/${folderId}` : spaceId ? `/app/rec/s/${spaceId}` : space === 'workspace' ? '/app/rec/workspace' : '/app/rec';
   const pct = status && status.totalBytes ? Math.min(99, Math.round((status.uploadedBytes / status.totalBytes) * 100)) : 0;
 
   return (

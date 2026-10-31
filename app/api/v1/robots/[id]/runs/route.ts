@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { apiError, requireApiUser } from '@/lib/api-auth';
-import { getRobotRow, listRobotRuns, startRobotRun } from '@/lib/robots';
+import { getRobotRow, getRobotWorkspaceConfig, listRobotRuns, startRobotRun } from '@/lib/robots';
+import { canRunRobot } from '@/lib/robots-http';
 import { apiRobotViewer, robotApiError, toApiRobotRun } from '@/lib/robots-api';
 import { robotApiRunSchema } from '@/lib/robots-schema';
 import { roleAtLeast } from '@/lib/teams';
@@ -31,9 +32,13 @@ export async function GET(req: Request, props: Ctx) {
 export async function POST(req: Request, props: Ctx) {
   const auth = await requireApiUser(req, 'robots:run');
   if ('res' in auth) return auth.res;
-  // La key actúa con el rol de quien la creó: correr robots es de admins, como en la app.
-  if (!roleAtLeast(auth.role, 'admin')) return apiError(403, 'forbidden', 'Running robots requires a workspace admin.');
   const { id } = await props.params;
+  // La key actúa con el rol de quien la creó, con las mismas reglas que la app.
+  const row = await getRobotRow(auth.user.id, id);
+  if (!row && !roleAtLeast(auth.role, 'admin')) return apiError(403, 'forbidden', 'Running robots requires a workspace admin.');
+  if (row && !canRunRobot({ role: auth.role }, row, await getRobotWorkspaceConfig(auth.user.id))) {
+    return apiError(403, 'forbidden', 'Running this robot requires a workspace admin.');
+  }
   const parsed = robotApiRunSchema.safeParse((await req.json().catch(() => ({}))) ?? {});
   if (!parsed.success) return apiError(400, 'invalid_input', 'Body must be { "inputs"?: object, "wait"?: boolean }.');
   const res = await startRobotRun(auth.user.id, id, parsed.data.inputs, {

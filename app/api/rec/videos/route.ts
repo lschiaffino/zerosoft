@@ -14,14 +14,21 @@ export async function GET(req: NextRequest) {
   if ('res' in s) return s.res;
   const sp = req.nextUrl.searchParams;
   const folder = sp.get('folder');
+  const space = sp.get('space');
   const raw = sp.get('scope');
   const scope: RecScope = folder
     ? { kind: 'folder', folderId: folder }
-    : raw === 'workspace'
-      ? { kind: 'workspace' }
-      : raw === 'all'
-        ? { kind: 'all' }
-        : { kind: 'mine' };
+    : space
+      ? { kind: 'space', spaceId: space }
+      : raw === 'workspace'
+        ? { kind: 'workspace' }
+        : raw === 'archived'
+          ? { kind: 'archived' }
+          : raw === 'later'
+            ? { kind: 'later' }
+            : raw === 'all'
+              ? { kind: 'all' }
+              : { kind: 'mine' };
   const [videos, folders] = await Promise.all([listVideos(s.actor, scope, sp.get('q') ?? ''), listFolders(s.actor)]);
   return recJson({ videos, folders });
 }
@@ -32,6 +39,7 @@ const createSchema = z.object({
   contentType: z.string().max(80),
   folderId: z.string().max(60).nullable().optional(),
   space: z.enum(['personal', 'workspace']).optional(),
+  spaceId: z.string().max(60).nullable().optional(),
   titleSource: z.enum(['auto', 'user']).optional(),
 });
 

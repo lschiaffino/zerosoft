@@ -40,6 +40,8 @@ export interface RobotJob {
   proxy?: { server: string; username?: string; password?: string };
   locale?: string;
   timezoneId?: string;
+  /** Autoaprendizaje de selectores: huellas de corridas anteriores. */
+  selfHeal?: { prints: Record<string, unknown> };
 }
 
 let playwrightResolvable: boolean | null = null;
@@ -137,6 +139,7 @@ export function harnessJob(job: RobotJob, extra: Partial<HarnessJob> = {}): Harn
     ...(job.proxy ? { proxy: job.proxy } : {}),
     ...(job.locale ? { locale: job.locale } : {}),
     ...(job.timezoneId ? { timezoneId: job.timezoneId } : {}),
+    ...(job.selfHeal ? { selfHeal: job.selfHeal } : {}),
     allowPrivate: allowedPrivate(),
     ...extra,
   };

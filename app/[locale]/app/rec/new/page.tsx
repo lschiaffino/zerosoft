@@ -3,6 +3,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { actorOf } from '@/lib/rec-http';
 import { getFolder } from '@/lib/rec';
+import { getSpace } from '@/lib/rec-admin';
 import { recBaseUrl } from '@/lib/rec-page';
 import { transcriptionConfigured } from '@/lib/rec-ai';
 import RecRecordPage from '@/components/rec/RecRecordPage';
@@ -16,16 +17,18 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
 }
 
 /** Grabar: ?folder=<id> o ?space=workspace dicen dónde queda el video. */
-export default async function RecNewPage(props: { params: Promise<{ locale: string }>; searchParams: Promise<{ folder?: string; space?: string }> }) {
+export default async function RecNewPage(props: { params: Promise<{ locale: string }>; searchParams: Promise<{ folder?: string; space?: string; spaceId?: string }> }) {
   const { locale } = await props.params;
   const sp = await props.searchParams;
   setRequestLocale(locale);
   const user = await requireUser(locale);
   const folder = sp.folder ? await getFolder(actorOf(user), sp.folder) : null;
+  const inSpace = !folder && sp.spaceId ? await getSpace(actorOf(user), sp.spaceId) : null;
   return (
     <RecRecordPage
       folderId={folder?.id ?? null}
-      space={folder?.space ?? (sp.space === 'workspace' ? 'workspace' : 'personal')}
+      space={folder?.space ?? (inSpace || sp.space === 'workspace' ? 'workspace' : 'personal')}
+      spaceId={inSpace?.id ?? null}
       baseUrl={recBaseUrl()}
       transcriptionOn={transcriptionConfigured()}
     />

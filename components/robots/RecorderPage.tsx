@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { buildRecorderScript, PASSWORD_PLACEHOLDER, recorderBookmarklet, type RecorderLabels } from '@/lib/robots-recorder';
+import { buildRecorderScript, PASSWORD_PLACEHOLDER, recorderBookmarklet, recorderLabels, type RecorderLabels } from '@/lib/robots-recorder';
 import PageHeader from '@/components/ui/PageHeader';
 
 /** /app/robots/recorder: bookmarklet para grabar pasos en cualquier sitio. */
@@ -11,26 +11,7 @@ export default function RecorderPage() {
   const linkRef = useRef<HTMLAnchorElement>(null);
   const [copied, setCopied] = useState(false);
 
-  const labels = useMemo<RecorderLabels>(
-    () => ({
-      recording: t('panel.recording'),
-      steps: t('panel.steps'),
-      copy: t('panel.copy'),
-      copied: t('panel.copied'),
-      clear: t('panel.clear'),
-      close: t('panel.close'),
-      hint: t('panel.hint'),
-      text: t('panel.text'),
-      list: t('panel.list'),
-      next: t('panel.next'),
-      done: t('panel.done'),
-      pickText: t('panel.pickText'),
-      pickList: t('panel.pickList'),
-      pickNext: t('panel.pickNext'),
-      listCount: t('panel.listCount', { count: '{count}' }),
-    }),
-    [t],
-  );
+  const labels = useMemo<RecorderLabels>(() => recorderLabels((k, v) => t(k as never, v as never)), [t]);
 
   // React 19 bloquea href="javascript:…": se asigna directo en el DOM.
   useEffect(() => {
@@ -55,6 +36,23 @@ export default function RecorderPage() {
           {t('bookmarklet')}
         </a>
         <p>{t('dragHint')}</p>
+      </section>
+
+      <section className="robots-block" aria-labelledby="recorder-live">
+        <h2 className="ui-section-title" id="recorder-live">
+          {t('extension.title')}
+        </h2>
+        <p className="robots-lead">{t('extension.body')}</p>
+        <ol className="robots-lead robots-recorder-list">
+          <li>{t('extension.step1')}</li>
+          <li>{t('extension.step2')}</li>
+          <li>{t('extension.step3')}</li>
+        </ol>
+        <div>
+          <a className="btn btn-secondary" href="/api/robots/recorder-extension" download>
+            {t('extension.download')}
+          </a>
+        </div>
       </section>
 
       <section className="robots-block" aria-labelledby="recorder-how">

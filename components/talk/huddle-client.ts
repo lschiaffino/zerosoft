@@ -10,13 +10,20 @@
  *   menor). Choque de ofertas: el de id mayor cede ("polite peer").
  * - ICE sin trickle: se espera a juntar candidatos (hasta ICE_WAIT_MS) y se
  *   manda una sola oferta / respuesta, así la señalización son dos mensajes.
- * - La pantalla compartida va por un transceiver de video creado de entrada:
- *   empezar o dejar de compartir es replaceTrack, sin renegociar.
+ * - Pantalla y cámara van por dos transceivers de video creados de entrada por
+ *   quien ofrece (orden fijo: pantalla, cámara): prender o apagar es
+ *   replaceTrack, sin renegociar. Quien responde toma los que crea la oferta y
+ *   los pasa a sendrecv: un addTransceiver propio no se asocia a la oferta
+ *   (JSEP) y lo que mandara por ahí nunca llegaría.
+ * - La cámara sale en 360p a 15 cuadros y con tope de bitrate: en malla, cada
+ *   persona sube una copia por cada otra.
  */
 import type { HuddleDto, IceServer } from '@/lib/talk-huddles';
 
 const ICE_WAIT_MS = 2500;
 const BEAT_MS = 15_000;
+const CAMERA_CONSTRAINTS: MediaTrackConstraints = { width: { ideal: 640 }, height: { ideal: 360 }, frameRate: { ideal: 15, max: 15 } };
+const CAMERA_MAX_BITRATE = 350_000;
 
 type Api = <T>(url: string, init?: RequestInit & { json?: unknown }) => Promise<T>;
 
@@ -24,9 +31,12 @@ interface PeerConn {
   peerId: string;
   userId: string;
   pc: RTCPeerConnection;
+  /** Pantalla compartida. */
   video: RTCRtpSender | null;
+  cameraSender: RTCRtpSender | null;
   audioEl: HTMLAudioElement | null;
   screen: MediaStream | null;
+  camera: MediaStream | null;
   level: number;
   analyser: AnalyserNode | null;
   createdAt: number;
@@ -40,6 +50,10 @@ export interface HuddleView {
   peerId: string;
   muted: boolean;
   sharing: boolean;
+  /** Mi cámara está prendida. */
+  cameraOn: boolean;
+  /** Pidiendo o soltando la cámara: el botón espera. */
+  cameraBusy: boolean;
   micMissing: boolean;
   turn: boolean;
   /** Estado de la conexión con cada otra pestaña. */
@@ -47,6 +61,8 @@ export interface HuddleView {
   speaking: string[];
   screens: Array<{ peerId: string; userId: string; stream: MediaStream }>;
   localScreen: MediaStream | null;
+  cameras: Array<{ peerId: string; userId: string; stream: MediaStream }>;
+  localCamera: MediaStream | null;
 }
 
 function newPeerId(): string {
@@ -77,6 +93,8 @@ export class HuddleSession {
   private ice: IceServer[] = [];
   private mic: MediaStream | null = null;
   private screenStream: MediaStream | null = null;
+  private cameraStream: MediaStream | null = null;
+  private sharePending = false;
   private beatTimer: ReturnType<typeof setInterval> | null = null;
   private levelTimer: ReturnType<typeof setInterval> | null = null;
   private audioCtx: AudioContext | null = null;
@@ -103,6 +121,10 @@ export class HuddleSession {
       speaking: [],
       screens: [],
       localScreen: null,
+      cameraOn: false,
+      cameraBusy: false,
+      cameras: [],
+      localCamera: null,
     };
   }
 
@@ -139,16 +161,42 @@ export class HuddleSession {
     }
   }
 
-  private newConn(peerId: string, userId: string): PeerConn {
+  /** Los senders de video según el orden de los transceivers: [pantalla, cámara]. */
+  private bindVideo(conn: PeerConn) {
+    const videos = conn.pc.getTransceivers().filter((t) => t.receiver.track.kind === 'video');
+    conn.video = videos[0]?.sender ?? null;
+    conn.cameraSender = videos[1]?.sender ?? null;
+    for (const t of videos) if (t.direction !== 'sendrecv') t.direction = 'sendrecv';
+    const screenTrack = this.screenStream?.getVideoTracks()[0];
+    if (screenTrack) void conn.video?.replaceTrack(screenTrack).catch(() => undefined);
+    const cameraTrack = this.cameraStream?.getVideoTracks()[0];
+    if (cameraTrack) {
+      void conn.cameraSender?.replaceTrack(cameraTrack).catch(() => undefined);
+      this.capCamera(conn);
+    }
+  }
+
+  private capCamera(conn: PeerConn) {
+    const sender = conn.cameraSender;
+    if (!sender) return;
+    const params = sender.getParameters();
+    if (!params.encodings?.length) return; // Todavía sin negociar: se aplica el tope al conectar.
+    params.encodings[0].maxBitrate = CAMERA_MAX_BITRATE;
+    void sender.setParameters(params).catch(() => undefined);
+  }
+
+  private newConn(peerId: string, userId: string, role: 'offer' | 'answer' = 'offer'): PeerConn {
     this.peers.get(peerId)?.pc.close();
     const pc = new RTCPeerConnection({ iceServers: this.ice as RTCIceServer[] });
-    const conn: PeerConn = { peerId, userId, pc, video: null, audioEl: null, screen: null, level: 0, analyser: null, createdAt: Date.now() };
+    const conn: PeerConn = { peerId, userId, pc, video: null, cameraSender: null, audioEl: null, screen: null, camera: null, level: 0, analyser: null, createdAt: Date.now() };
     const track = this.mic?.getAudioTracks()[0];
     if (track) pc.addTrack(track, this.mic!);
     else pc.addTransceiver('audio', { direction: 'recvonly' });
-    conn.video = pc.addTransceiver('video', { direction: 'sendrecv' }).sender;
-    const screenTrack = this.screenStream?.getVideoTracks()[0];
-    if (screenTrack) void conn.video.replaceTrack(screenTrack);
+    if (role === 'offer') {
+      pc.addTransceiver('video', { direction: 'sendrecv' });
+      pc.addTransceiver('video', { direction: 'sendrecv' });
+      this.bindVideo(conn);
+    }
     pc.ontrack = (e) => {
       if (e.track.kind === 'audio') {
         const stream = e.streams[0] ?? new MediaStream([e.track]);
@@ -162,7 +210,10 @@ export class HuddleSession {
         void conn.audioEl.play().catch(() => undefined);
         conn.analyser = this.analyse(stream);
       } else {
-        conn.screen = new MediaStream([e.track]);
+        // El orden de los transceivers dice qué es: el primero la pantalla, el segundo la cámara.
+        const index = pc.getTransceivers().filter((t) => t.receiver.track.kind === 'video').indexOf(e.transceiver);
+        if (index === 1) conn.camera = new MediaStream([e.track]);
+        else conn.screen = new MediaStream([e.track]);
         e.track.onunmute = () => this.syncScreens();
         e.track.onmute = () => this.syncScreens();
         this.syncScreens();
@@ -170,6 +221,7 @@ export class HuddleSession {
     };
     pc.onconnectionstatechange = () => {
       this.emit({ links: { ...this.view.links, [peerId]: pc.connectionState } });
+      if (pc.connectionState === 'connected' && this.cameraStream) this.capCamera(conn);
       if (pc.connectionState === 'failed' && this.peerId < peerId) void this.offer(peerId, userId);
     };
     this.peers.set(peerId, conn);
@@ -201,8 +253,9 @@ export class HuddleSession {
       const existing = this.peers.get(from);
       // Choque: los dos ofrecimos. Cede el de id mayor.
       if (existing && existing.pc.signalingState === 'have-local-offer' && this.peerId < from) return;
-      const conn = this.newConn(from, fromUser ?? existing?.userId ?? '');
+      const conn = this.newConn(from, fromUser ?? existing?.userId ?? '', 'answer');
       await conn.pc.setRemoteDescription({ type: 'offer', sdp: p.data.sdp });
+      this.bindVideo(conn);
       const answer = await conn.pc.createAnswer();
       await conn.pc.setLocalDescription(answer);
       await waitIce(conn.pc);
@@ -245,10 +298,11 @@ export class HuddleSession {
     try {
       const res = await this.api<{ huddle: HuddleDto }>('/api/talk/huddles', {
         method: 'POST',
-        json: { action: 'beat', huddleId, peerId: this.peerId, state: { muted: this.view.muted, sharing: this.view.sharing } },
+        json: { action: 'beat', huddleId, peerId: this.peerId, state: { muted: this.view.muted, sharing: this.view.sharing, video: this.view.cameraOn } },
       });
       if (this.closed) return;
       this.emit({ huddle: res.huddle });
+      this.syncScreens();
       // Reconciliación: fuera las conexiones con pestañas que ya no están; las que faltan, las ofrece el de id menor.
       const live = new Set(res.huddle.peers.map((p) => p.peerId));
       for (const id of [...this.peers.keys()]) if (!live.has(id)) this.dropPeer(id);
@@ -275,14 +329,21 @@ export class HuddleSession {
 
   async share(): Promise<void> {
     if (this.view.sharing) return this.stopShare();
+    if (this.sharePending || this.closed) return;
+    this.sharePending = true;
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
     } catch {
       return;
+    } finally {
+      this.sharePending = false;
     }
     const track = stream.getVideoTracks()[0];
-    if (!track) return;
+    if (!track || this.closed) {
+      stream.getTracks().forEach((t) => t.stop());
+      return;
+    }
     this.screenStream = stream;
     track.onended = () => void this.stopShare();
     for (const c of this.peers.values()) await c.video?.replaceTrack(track).catch(() => undefined);
@@ -298,15 +359,68 @@ export class HuddleSession {
     void this.beat();
   }
 
+  /** Prende o apaga mi cámara. Devuelve un código de error si no se pudo. */
+  async toggleCamera(): Promise<string | null> {
+    // Un doble clic no pide dos veces: el segundo stream quedaría prendido sin nadie que lo apague.
+    if (this.view.cameraBusy || this.closed) return null;
+    this.emit({ cameraBusy: true });
+    try {
+      if (this.view.cameraOn) {
+        await this.stopCamera();
+        return null;
+      }
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: CAMERA_CONSTRAINTS, audio: false });
+      } catch {
+        return this.closed ? null : 'camera_unavailable';
+      }
+      // Salió del huddle mientras el navegador pedía el permiso.
+      if (this.closed) {
+        stream.getTracks().forEach((t) => t.stop());
+        return null;
+      }
+      const track = stream.getVideoTracks()[0];
+      if (!track) {
+        stream.getTracks().forEach((t) => t.stop());
+        return 'camera_unavailable';
+      }
+      this.cameraStream = stream;
+      track.onended = () => void this.stopCamera();
+      for (const c of this.peers.values()) {
+        await c.cameraSender?.replaceTrack(track).catch(() => undefined);
+        this.capCamera(c);
+      }
+      this.emit({ cameraOn: true, localCamera: stream });
+      void this.beat();
+      return null;
+    } finally {
+      if (!this.closed) this.emit({ cameraBusy: false });
+    }
+  }
+
+  async stopCamera(): Promise<void> {
+    for (const c of this.peers.values()) await c.cameraSender?.replaceTrack(null).catch(() => undefined);
+    // Se apaga el dispositivo (la luz de la cámara), no solo el envío.
+    this.cameraStream?.getTracks().forEach((t) => t.stop());
+    this.cameraStream = null;
+    this.emit({ cameraOn: false, localCamera: null });
+    void this.beat();
+  }
+
   private syncScreens() {
-    const sharingPeers = new Set((this.view.huddle?.peers ?? []).filter((p) => p.sharing).map((p) => p.peerId));
-    const screens = [...this.peers.values()]
-      .filter((c) => c.screen && c.screen.getVideoTracks().some((t) => t.readyState === 'live' && !t.muted) && (sharingPeers.size === 0 || sharingPeers.has(c.peerId)))
-      .map((c) => ({ peerId: c.peerId, userId: c.userId, stream: c.screen! }));
+    const peers = this.view.huddle?.peers ?? [];
+    const sharing = new Set(peers.filter((p) => p.sharing).map((p) => p.peerId));
+    const filming = new Set(peers.filter((p) => p.video).map((p) => p.peerId));
+    const live = (s: MediaStream | null) => !!s && s.getVideoTracks().some((t) => t.readyState === 'live' && !t.muted);
+    const conns = [...this.peers.values()];
+    // Lo manda el estado del huddle: un track apagado no siempre queda "muted" del otro lado.
+    const screens = conns.filter((c) => live(c.screen) && sharing.has(c.peerId)).map((c) => ({ peerId: c.peerId, userId: c.userId, stream: c.screen! }));
+    const cameras = conns.filter((c) => live(c.camera) && filming.has(c.peerId)).map((c) => ({ peerId: c.peerId, userId: c.userId, stream: c.camera! }));
     // Solo si cambió (el medidor de voz llama cada 300 ms: no re-renderiza de más).
-    const key = screens.map((x) => `${x.peerId}:${x.stream.id}`).join();
-    if (key === this.view.screens.map((x) => `${x.peerId}:${x.stream.id}`).join()) return;
-    this.emit({ screens });
+    const keyOf = (list: Array<{ peerId: string; stream: MediaStream }>) => list.map((x) => `${x.peerId}:${x.stream.id}`).join();
+    if (keyOf(screens) === keyOf(this.view.screens) && keyOf(cameras) === keyOf(this.view.cameras)) return;
+    this.emit({ screens, cameras });
   }
 
   private analyse(stream: MediaStream): AnalyserNode | null {
@@ -344,8 +458,10 @@ export class HuddleSession {
   private stopTracks() {
     this.mic?.getTracks().forEach((t) => t.stop());
     this.screenStream?.getTracks().forEach((t) => t.stop());
+    this.cameraStream?.getTracks().forEach((t) => t.stop());
     this.mic = null;
     this.screenStream = null;
+    this.cameraStream = null;
   }
 
   async leave(notify = true): Promise<void> {
@@ -360,7 +476,7 @@ export class HuddleSession {
     if (notify && huddleId) {
       await this.api('/api/talk/huddles', { method: 'POST', json: { action: 'leave', huddleId, peerId: this.peerId } }).catch(() => undefined);
     }
-    this.emit({ status: 'error', error: null, huddle: null, screens: [], localScreen: null });
+    this.emit({ status: 'error', error: null, huddle: null, screens: [], localScreen: null, cameras: [], localCamera: null, cameraOn: false, cameraBusy: false });
   }
 
   /** Al cerrar la pestaña: salida inmediata (sin esperar al barrido). */

@@ -272,6 +272,8 @@ export default async function AppLayout(
                 { href: '/app/voice/dictation', label: tVoice('nav.dictation') },
                 { href: '/app/rec', label: tRec('sidebar.home') },
                 { href: '/app/rec/workspace', label: tRec('sidebar.workspace') },
+                { href: '/app/rec/later', label: tRec('sidebar.later') },
+                { href: '/app/rec/archive', label: tRec('sidebar.archive') },
                 { href: '/app/rec/new', label: tRec('sidebar.newVideo') },
                 { href: '/app/talk', label: tTalk('sidebar.home') },
                 { href: '/app/design', label: tDesign('sidebar.home') },
@@ -492,7 +494,7 @@ export default async function AppLayout(
               settings: tGroups('sidebar.settings'),
             },
             voice: { meetings: tVoice('nav.meetings'), dictation: tVoice('nav.dictation'), newMeeting: tVoice('meetings.new') },
-            rec: { home: tRec('sidebar.home'), workspace: tRec('sidebar.workspace'), newVideo: tRec('sidebar.newVideo') },
+            rec: { home: tRec('sidebar.home'), workspace: tRec('sidebar.workspace'), newVideo: tRec('sidebar.newVideo'), later: tRec('sidebar.later'), archive: tRec('sidebar.archive') },
             talk: { home: tTalk('sidebar.home') },
             design: { home: tDesign('sidebar.home'), templates: tDesign('sidebar.templates'), brand: tDesign('sidebar.brand'), newDesign: tDesign('sidebar.newDesign') },
             shop: {

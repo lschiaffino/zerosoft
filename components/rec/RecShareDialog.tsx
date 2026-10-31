@@ -1,8 +1,11 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { RecVideoDto } from '@/lib/rec';
+import type { RecAccessRequestDto } from '@/lib/rec-admin';
+import { cleanEmails } from '@/lib/rec-schema';
 import RecCopy from './RecCopy';
 
 function toLocalInput(db: string | null): string {
@@ -24,12 +27,16 @@ export default function RecShareDialog({
   shareUrl,
   onClose,
   onSave,
+  onRotate,
+  onVideo,
 }: {
   open: boolean;
   video: RecVideoDto;
   shareUrl: string;
   onClose: () => void;
   onSave: (patch: Record<string, unknown>) => Promise<boolean>;
+  onRotate: () => Promise<boolean>;
+  onVideo: (patch: Partial<RecVideoDto>) => void;
 }) {
   const t = useTranslations('rec.share');
   const tc = useTranslations('rec.common');
@@ -44,6 +51,11 @@ export default function RecShareDialog({
   const [notify, setNotify] = useState(video.notify);
   const [requireAccount, setRequireAccount] = useState(video.commentsRequireAccount);
   const [busy, setBusy] = useState(false);
+  const [emails, setEmails] = useState(video.allowedEmails.join('\n'));
+  const [requireEmail, setRequireEmail] = useState(video.requireEmail);
+  const [requests, setRequests] = useState<RecAccessRequestDto[]>([]);
+  const [rotating, setRotating] = useState(false);
+  const locale = useLocale();
 
   useEffect(() => {
     const d = ref.current;
@@ -57,6 +69,14 @@ export default function RecShareDialog({
       setAllowComments(video.allowComments);
       setNotify(video.notify);
       setRequireAccount(video.commentsRequireAccount);
+      setEmails(video.allowedEmails.join('\n'));
+      setRequireEmail(video.requireEmail);
+      if (video.canManage) {
+        void fetch(`/api/rec/videos/${video.id}/requests`)
+          .then((r) => (r.ok ? (r.json() as Promise<{ requests: RecAccessRequestDto[] }>) : null))
+          .then((x) => setRequests(x?.requests ?? []))
+          .catch(() => setRequests([]));
+      }
       d.showModal();
     }
     if (!open && d.open) d.close();
@@ -64,6 +84,21 @@ export default function RecShareDialog({
 
   const embedUrl = `${shareUrl}/embed`;
   const embed = `<iframe src="${embedUrl}" width="640" height="400" frameborder="0" allow="fullscreen" allowfullscreen title="${video.title.replace(/"/g, '&quot;')}"></iframe>`;
+
+  async function decide(r: RecAccessRequestDto, approve: boolean) {
+    const res = await fetch(`/api/rec/videos/${video.id}/requests/${r.id}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ approve, locale }),
+    }).catch(() => null);
+    if (!res?.ok) return;
+    const { allowedEmails } = (await res.json()) as { allowedEmails: string[] };
+    setRequests((prev) => prev.filter((x) => x.id !== r.id));
+    setEmails(allowedEmails.join('\n'));
+    onVideo({ allowedEmails });
+  }
+
+  const personal = video.space === 'personal';
 
   async function save() {
     const patch: Record<string, unknown> = {
@@ -73,6 +108,8 @@ export default function RecShareDialog({
       allowComments,
       notify,
       commentsRequireAccount: requireAccount,
+      requireEmail,
+      allowedEmails: cleanEmails(emails),
     };
     if (password) patch.password = password;
     else if (removePw) patch.password = null;
@@ -136,7 +173,39 @@ export default function RecShareDialog({
                 <input type="radio" name={`${id}-p`} checked={privacy === 'workspace'} onChange={() => setPrivacy('workspace')} />
                 <span>{t('workspaceOnly')}</span>
               </label>
+              <label className="ui-check">
+                <input type="radio" name={`${id}-p`} checked={privacy === 'people'} disabled={!personal} onChange={() => setPrivacy('people')} data-testid="rec-share-people" />
+                <span>{t('peopleOnly')}</span>
+              </label>
+              {!personal && <p className="ui-help">{t('peopleNeedsPersonal')}</p>}
             </fieldset>
+            {privacy !== 'link' && (
+              <div className="ui-field">
+                <label className="label" htmlFor={`${id}-people`}>
+                  {privacy === 'people' ? t('peopleList') : t('peopleExtra')}
+                </label>
+                <textarea id={`${id}-people`} className="textarea" rows={3} value={emails} onChange={(e) => setEmails(e.target.value)} placeholder="ana@example.com" data-testid="rec-share-emails" />
+                <p className="ui-help">{t('peopleHelp')}</p>
+              </div>
+            )}
+            {requests.length > 0 && (
+              <div className="rec-share-group" data-testid="rec-share-requests">
+                <p className="label">{t('requests')}</p>
+                <ul className="rec-requests">
+                  {requests.map((r) => (
+                    <li key={r.id} className="rec-request">
+                      <span className="rec-request-who">{r.name ? `${r.name} · ${r.email}` : r.email}</span>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => void decide(r, false)} data-testid="rec-request-deny">
+                        {t('deny')}
+                      </button>
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => void decide(r, true)} data-testid="rec-request-approve">
+                        {t('approve')}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="ui-fields ui-fields-2">
               <div className="ui-field">
                 <label className="label" htmlFor={`${id}-pw`}>
@@ -152,7 +221,6 @@ export default function RecShareDialog({
                   minLength={8}
                   maxLength={200}
                   placeholder={video.hasPassword ? t('passwordSet') : ''}
-                  disabled={privacy === 'workspace'}
                 />
                 <p className="ui-help">{t('passwordHelp')}</p>
                 {video.hasPassword && (
@@ -173,6 +241,11 @@ export default function RecShareDialog({
             <fieldset className="rec-share-group">
               <legend className="label">{t('options')}</legend>
               <label className="ui-check">
+                <input type="checkbox" checked={requireEmail} onChange={(e) => setRequireEmail(e.target.checked)} data-testid="rec-share-require-email" />
+                <span>{t('requireEmail')}</span>
+              </label>
+              <p className="ui-help">{t('requireEmailHelp')}</p>
+              <label className="ui-check">
                 <input type="checkbox" checked={allowDownload} onChange={(e) => setAllowDownload(e.target.checked)} />
                 <span>{t('allowDownload')}</span>
               </label>
@@ -190,6 +263,17 @@ export default function RecShareDialog({
                 <span>{t('notify')}</span>
               </label>
             </fieldset>
+            {video.canManage && (
+              <div className="rec-share-group">
+                <p className="label">{t('rotate')}</p>
+                <p className="ui-help">{t('rotateHelp')}</p>
+                <div>
+                  <button type="button" className="btn btn-ghost btn-danger btn-sm" onClick={() => setRotating(true)} data-testid="rec-share-rotate">
+                    {t('rotateGo')}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           <div className="ui-modal-foot">
             <button type="button" className="btn btn-sm" onClick={onClose}>
@@ -203,6 +287,22 @@ export default function RecShareDialog({
           </div>
         </form>
       )}
+      <ConfirmDialog
+        open={rotating}
+        title={t('rotateTitle')}
+        body={t('rotateBody')}
+        confirmLabel={t('rotateGo')}
+        cancelLabel={tc('cancel')}
+        danger
+        busy={busy}
+        onConfirm={async () => {
+          setBusy(true);
+          await onRotate();
+          setBusy(false);
+          setRotating(false);
+        }}
+        onCancel={() => setRotating(false)}
+      />
     </dialog>
   );
 }

@@ -15,9 +15,16 @@ import { uploadAsset, uploadWhole } from './liveUpload';
 import RecPending from './RecPending';
 import { canvasToBlob, snapshot } from './recorder-media';
 import { isRecVideoType } from '@/lib/rec-schema';
-import { RecMoveDialog, RecNameDialog, notifyRecChanged, type MoveTarget, type RecFolder } from './RecDialogs';
+import { RecMoveDialog, RecNameDialog, notifyRecChanged, type MoveTarget, type RecFolder, type RecSpaceItem } from './RecDialogs';
+import RecSpaceMembers from './RecSpaceMembers';
 
-type Scope = { kind: 'mine' } | { kind: 'workspace' } | { kind: 'folder'; folder: RecFolder };
+type Scope =
+  | { kind: 'mine' }
+  | { kind: 'workspace' }
+  | { kind: 'folder'; folder: RecFolder }
+  | { kind: 'space'; space: RecSpaceItem }
+  | { kind: 'archived' }
+  | { kind: 'later' };
 
 /**
  * Biblioteca de Rec (como la de Loom): Mis videos, los del workspace y
@@ -29,11 +36,13 @@ export default function RecLibrary({
   scope,
   initialVideos,
   initialFolders,
+  initialSpaces = [],
   baseUrl,
 }: {
   scope: Scope;
   initialVideos: RecListItem[];
   initialFolders: RecFolder[];
+  initialSpaces?: RecSpaceItem[];
   baseUrl: string;
 }) {
   const t = useTranslations('rec.library');
@@ -55,6 +64,10 @@ export default function RecLibrary({
   const [folderRename, setFolderRename] = useState(false);
   const [folderDelete, setFolderDelete] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [newSpace, setNewSpace] = useState(false);
+  const [spaceRename, setSpaceRename] = useState(false);
+  const [spaceDelete, setSpaceDelete] = useState(false);
+  const [spaceMembers, setSpaceMembers] = useState(false);
   const first = useRef(true);
   // Avisa al sidebar y vacía la caché del router: volver atrás no muestra la lista vieja.
   const changed = () => {
@@ -71,7 +84,10 @@ export default function RecLibrary({
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState<number | null>(null);
 
-  const scopeQuery = scope.kind === 'folder' ? `folder=${encodeURIComponent(scope.folder.id)}` : `scope=${scope.kind}`;
+  const scopeQuery =
+    scope.kind === 'folder' ? `folder=${encodeURIComponent(scope.folder.id)}` : scope.kind === 'space' ? `space=${encodeURIComponent(scope.space.id)}` : `scope=${scope.kind}`;
+  const listOnly = scope.kind === 'archived' || scope.kind === 'later';
+  const spaceIdHere = scope.kind === 'space' ? scope.space.id : scope.kind === 'folder' ? (scope.folder.space_id ?? null) : null;
 
   useEffect(() => {
     if (first.current) {
@@ -165,7 +181,8 @@ export default function RecLibrary({
           mode: 'screen',
           contentType: type,
           folderId: scope.kind === 'folder' ? scope.folder.id : null,
-          space: scope.kind === 'workspace' ? 'workspace' : 'personal',
+          space: scope.kind === 'workspace' || scope.kind === 'space' ? 'workspace' : 'personal',
+          spaceId: scope.kind === 'space' ? scope.space.id : null,
           // El nombre del archivo es un título elegido: la IA no lo reemplaza.
           titleSource: 'user',
         }),
@@ -212,9 +229,15 @@ export default function RecLibrary({
 
   async function move(target: MoveTarget) {
     if (!moving) return;
-    if (await patchVideo(moving, { folderId: target.folderId, space: target.space })) {
+    if (await patchVideo(moving, { folderId: target.folderId, space: target.space, spaceId: target.spaceId ?? null })) {
       const stays =
-        scope.kind === 'folder' ? target.folderId === scope.folder.id : !target.folderId && target.space === (scope.kind === 'workspace' ? 'workspace' : 'personal');
+        scope.kind === 'folder'
+          ? target.folderId === scope.folder.id
+          : scope.kind === 'space'
+            ? !target.folderId && target.spaceId === scope.space.id
+            : scope.kind === 'archived' || scope.kind === 'later'
+              ? true
+              : !target.folderId && !target.spaceId && target.space === (scope.kind === 'workspace' ? 'workspace' : 'personal');
       setVideos((prev) => (stays ? prev.map((x) => (x.id === moving.id ? { ...x, folderId: target.folderId, space: target.space } : x)) : prev.filter((x) => x.id !== moving.id)));
       setMoving(null);
       setToast(t('moved'));
@@ -235,10 +258,64 @@ export default function RecLibrary({
     changed();
   }
 
+  /** Archivar o restaurar: sale de esta lista y queda en la otra. El link sigue andando. */
+  async function setArchived(v: RecListItem, archived: boolean) {
+    if (await patchVideo(v, { archived })) {
+      setVideos((prev) => prev.filter((x) => x.id !== v.id));
+      setToast(archived ? t('archived') : t('restored'));
+    }
+  }
+
+  async function setLater(v: RecListItem, on: boolean) {
+    setError(null);
+    const res = await fetch(`/api/rec/videos/${v.id}/later`, { method: on ? 'POST' : 'DELETE' }).catch(() => null);
+    if (!res?.ok) return fail(res);
+    setVideos((prev) => (scope.kind === 'later' && !on ? prev.filter((x) => x.id !== v.id) : prev.map((x) => (x.id === v.id ? { ...x, watchLater: on } : x))));
+    setToast(on ? t('laterAdded') : t('laterRemoved'));
+    changed();
+  }
+
+  async function createSpace(name: string) {
+    setBusy(true);
+    setError(null);
+    const res = await fetch('/api/rec/spaces', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) }).catch(() => null);
+    setBusy(false);
+    if (!res?.ok) return fail(res);
+    const { space } = (await res.json()) as { space: RecSpaceItem };
+    setNewSpace(false);
+    changed();
+    router.push(`/app/rec/s/${space.id}`);
+  }
+
+  async function renameSpace(name: string) {
+    if (scope.kind !== 'space') return;
+    setBusy(true);
+    const res = await fetch(`/api/rec/spaces/${scope.space.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) }).catch(() => null);
+    setBusy(false);
+    if (!res?.ok) return fail(res);
+    setSpaceRename(false);
+    changed();
+  }
+
+  async function deleteSpace() {
+    if (scope.kind !== 'space') return;
+    setBusy(true);
+    const res = await fetch(`/api/rec/spaces/${scope.space.id}`, { method: 'DELETE' }).catch(() => null);
+    setBusy(false);
+    if (res?.status !== 204) return fail(res);
+    setSpaceDelete(false);
+    changed();
+    router.push('/app/rec');
+  }
+
   async function createFolder(name: string) {
     setBusy(true);
     setError(null);
-    const res = await fetch('/api/rec/folders', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, space: newFolderSpace }) }).catch(() => null);
+    const res = await fetch('/api/rec/folders', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name, space: scope.kind === 'space' ? 'workspace' : newFolderSpace, spaceId: scope.kind === 'space' ? scope.space.id : null }),
+    }).catch(() => null);
     setBusy(false);
     if (!res?.ok) return fail(res);
     const { folder } = (await res.json()) as { folder: RecFolder };
@@ -272,11 +349,38 @@ export default function RecLibrary({
 
   const shareUrl = (v: RecListItem) => `${baseUrl}/${locale}/v/${v.shareId}`;
   const date = (d: string) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(parseDbUtc(d));
-  const title = scope.kind === 'folder' ? scope.folder.name : scope.kind === 'workspace' ? t('workspace') : t('mine');
-  const desc = scope.kind === 'folder' ? (scope.folder.space === 'workspace' ? t('folderWorkspaceDesc') : t('folderPersonalDesc')) : scope.kind === 'workspace' ? t('workspaceDesc') : t('mineDesc');
+  const title =
+    scope.kind === 'folder' ? scope.folder.name : scope.kind === 'space' ? scope.space.name : scope.kind === 'workspace' ? t('workspace') : scope.kind === 'archived' ? t('archive') : scope.kind === 'later' ? t('later') : t('mine');
+  const desc =
+    scope.kind === 'folder'
+      ? scope.folder.space_id
+        ? t('folderSpaceDesc')
+        : scope.folder.space === 'workspace'
+          ? t('folderWorkspaceDesc')
+          : t('folderPersonalDesc')
+      : scope.kind === 'space'
+        ? t('spaceDesc', { n: scope.space.members })
+        : scope.kind === 'workspace'
+          ? t('workspaceDesc')
+          : scope.kind === 'archived'
+            ? t('archiveDesc')
+            : scope.kind === 'later'
+              ? t('laterDesc')
+              : t('mineDesc');
   const recordHref =
-    scope.kind === 'folder' ? `/app/rec/new?folder=${scope.folder.id}` : scope.kind === 'workspace' ? '/app/rec/new?space=workspace' : '/app/rec/new';
-  const subFolders = scope.kind === 'folder' ? [] : folders.filter((f) => f.space === (scope.kind === 'workspace' ? 'workspace' : 'personal'));
+    scope.kind === 'folder'
+      ? `/app/rec/new?folder=${scope.folder.id}`
+      : scope.kind === 'space'
+        ? `/app/rec/new?spaceId=${scope.space.id}`
+        : scope.kind === 'workspace'
+          ? '/app/rec/new?space=workspace'
+          : '/app/rec/new';
+  const subFolders =
+    scope.kind === 'folder' || listOnly
+      ? []
+      : scope.kind === 'space'
+        ? folders.filter((f) => f.space_id === scope.space.id)
+        : folders.filter((f) => !f.space_id && f.space === (scope.kind === 'workspace' ? 'workspace' : 'personal'));
   // Buscando: también las carpetas (de los dos espacios) cuyo nombre coincide.
   const needle = q.trim().toLowerCase();
   const shownFolders = needle ? folders.filter((f) => f.name.toLowerCase().includes(needle)) : subFolders;
@@ -286,9 +390,38 @@ export default function RecLibrary({
       <PageHeader
         title={title}
         description={desc}
-        back={scope.kind === 'folder' ? { href: scope.folder.space === 'workspace' ? '/app/rec/workspace' : '/app/rec', label: scope.folder.space === 'workspace' ? t('workspace') : t('mine') } : undefined}
+        back={
+          scope.kind === 'folder'
+            ? spaceIdHere
+              ? { href: `/app/rec/s/${spaceIdHere}`, label: t('spaces') }
+              : { href: scope.folder.space === 'workspace' ? '/app/rec/workspace' : '/app/rec', label: scope.folder.space === 'workspace' ? t('workspace') : t('mine') }
+            : undefined
+        }
         actions={
+          listOnly ? undefined : (
           <>
+            {scope.kind === 'mine' && (
+              <button type="button" className="btn btn-secondary" onClick={() => setNewSpace(true)} data-testid="rec-new-space">
+                {t('newSpace')}
+              </button>
+            )}
+            {scope.kind === 'space' && (
+              <>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSpaceMembers(true)} data-testid="rec-space-members">
+                  {t('spaceMembers')}
+                </button>
+                {scope.space.canManage && (
+                  <>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSpaceRename(true)} data-testid="rec-space-rename">
+                      {t('renameSpace')}
+                    </button>
+                    <button type="button" className="btn btn-ghost btn-danger btn-sm" onClick={() => setSpaceDelete(true)} data-testid="rec-space-delete">
+                      {t('deleteSpace')}
+                    </button>
+                  </>
+                )}
+              </>
+            )}
             {scope.kind === 'folder' ? (
               <>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => setFolderRename(true)}>
@@ -327,9 +460,10 @@ export default function RecLibrary({
               {t('record')}
             </Link>
           </>
+          )
         }
       />
-      {scope.kind !== 'folder' && <RecPending />}
+      {scope.kind !== 'folder' && !listOnly && <RecPending />}
       <div className="rec-toolbar">
         <input
           type="search"
@@ -345,6 +479,20 @@ export default function RecLibrary({
         <p className="ui-error" role="alert">
           {error}
         </p>
+      )}
+      {scope.kind === 'mine' && !needle && initialSpaces.length > 0 && (
+        <ul className="rec-folders" aria-label={t('spaces')} data-testid="rec-spaces">
+          {initialSpaces.map((s) => (
+            <li key={s.id}>
+              <Link href={`/app/rec/s/${s.id}`} className="rec-folder">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <path d="M4 5h16v14H4zM4 10h16M9 10v9" />
+                </svg>
+                <span>{s.name}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
       )}
       {shownFolders.length > 0 && (
         <ul className="rec-folders" aria-label={t('folders')}>
@@ -367,9 +515,29 @@ export default function RecLibrary({
         ) : (
           <EmptyState
             product="rec"
-            title={scope.kind === 'workspace' ? t('emptyWorkspaceTitle') : t('emptyTitle')}
-            body={scope.kind === 'workspace' ? t('emptyWorkspaceBody') : t('emptyBody')}
-            action={{ label: t('record'), href: recordHref }}
+            title={
+              scope.kind === 'workspace'
+                ? t('emptyWorkspaceTitle')
+                : scope.kind === 'archived'
+                  ? t('emptyArchiveTitle')
+                  : scope.kind === 'later'
+                    ? t('emptyLaterTitle')
+                    : scope.kind === 'space'
+                      ? t('emptySpaceTitle')
+                      : t('emptyTitle')
+            }
+            body={
+              scope.kind === 'workspace'
+                ? t('emptyWorkspaceBody')
+                : scope.kind === 'archived'
+                  ? t('emptyArchiveBody')
+                  : scope.kind === 'later'
+                    ? t('emptyLaterBody')
+                    : scope.kind === 'space'
+                      ? t('emptySpaceBody')
+                      : t('emptyBody')
+            }
+            action={listOnly ? { label: t('mine'), href: '/app/rec' } : { label: t('record'), href: recordHref }}
           />
         )
       ) : (
@@ -428,6 +596,9 @@ export default function RecLibrary({
                       >
                         {t('copyLink')}
                       </button>
+                      <button type="button" role="menuitem" className="rec-menu-item" data-testid="rec-card-later" onClick={() => (setMenu(null), void setLater(v, !v.watchLater))}>
+                        {v.watchLater ? t('laterRemove') : t('laterAdd')}
+                      </button>
                       {v.canManage && (
                         <>
                           <button type="button" role="menuitem" className="rec-menu-item" onClick={() => (setMenu(null), setRenaming(v))}>
@@ -435,6 +606,9 @@ export default function RecLibrary({
                           </button>
                           <button type="button" role="menuitem" className="rec-menu-item" onClick={() => (setMenu(null), setMoving(v))}>
                             {t('moveTo')}
+                          </button>
+                          <button type="button" role="menuitem" className="rec-menu-item" data-testid="rec-card-archive" onClick={() => (setMenu(null), void setArchived(v, !v.archived))}>
+                            {v.archived ? t('restore') : t('archiveAction')}
                           </button>
                           <button type="button" role="menuitem" className="rec-menu-item danger" onClick={() => (setMenu(null), setDeleting(v))}>
                             {t('delete')}
@@ -466,6 +640,24 @@ export default function RecLibrary({
         onSubmit={(n) => void rename(n)}
         onClose={() => setRenaming(null)}
       />
+      <RecNameDialog open={newSpace} title={t('newSpace')} label={t('name')} submitLabel={t('create')} busy={busy} onSubmit={(n) => void createSpace(n)} onClose={() => setNewSpace(false)} />
+      {scope.kind === 'space' && (
+        <>
+          <RecNameDialog open={spaceRename} title={t('renameSpace')} label={t('name')} initial={scope.space.name} submitLabel={tc('save')} busy={busy} onSubmit={(n) => void renameSpace(n)} onClose={() => setSpaceRename(false)} />
+          <ConfirmDialog
+            open={spaceDelete}
+            title={t('deleteSpaceTitle', { name: scope.space.name })}
+            body={t('deleteSpaceBody')}
+            confirmLabel={t('delete')}
+            cancelLabel={tc('cancel')}
+            danger
+            busy={busy}
+            onConfirm={() => void deleteSpace()}
+            onCancel={() => setSpaceDelete(false)}
+          />
+          <RecSpaceMembers open={spaceMembers} spaceId={scope.space.id} canManage={scope.space.canManage} onClose={() => setSpaceMembers(false)} onChanged={changed} />
+        </>
+      )}
       <RecNameDialog
         open={newFolder}
         title={t('newFolder')}
@@ -475,6 +667,7 @@ export default function RecLibrary({
         onSubmit={(n) => void createFolder(n)}
         onClose={() => setNewFolder(false)}
         extra={
+          scope.kind === 'space' ? undefined : (
           <fieldset className="rec-space-pick">
             <legend className="label">{t('folderSpace')}</legend>
             {(['personal', 'workspace'] as const).map((s) => (
@@ -484,6 +677,7 @@ export default function RecLibrary({
               </label>
             ))}
           </fieldset>
+          )
         }
       />
       {scope.kind === 'folder' && (
@@ -514,7 +708,8 @@ export default function RecLibrary({
       <RecMoveDialog
         open={moving !== null}
         folders={folders}
-        current={{ space: moving?.space ?? 'personal', folderId: moving?.folderId ?? null }}
+        spaces={initialSpaces}
+        current={{ space: moving?.space ?? 'personal', folderId: moving?.folderId ?? null, spaceId: moving?.spaceId ?? null }}
         busy={busy}
         onMove={(m) => void move(m)}
         onClose={() => setMoving(null)}

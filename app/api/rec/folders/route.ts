@@ -12,7 +12,7 @@ export async function GET() {
   return recJson({ folders: await listFolders(s.actor) });
 }
 
-const schema = z.object({ name: z.string().max(120), space: z.enum(['personal', 'workspace']) });
+const schema = z.object({ name: z.string().max(120), space: z.enum(['personal', 'workspace']), spaceId: z.string().max(60).nullable().optional() });
 
 export async function POST(req: NextRequest) {
   const s = await recActor();
