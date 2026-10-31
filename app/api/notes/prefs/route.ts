@@ -11,7 +11,9 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return jsonError(401, 'unauthorized');
-  return NextResponse.json(await getNotePrefs(noteOwner(user)));
+  const owner = noteOwner(user);
+  // draftScope: de quién es el borrador local del bloc (ver NotesHome); no sale de esta persona.
+  return NextResponse.json({ ...(await getNotePrefs(owner)), draftScope: `${user.id}:${owner.personId}` });
 }
 
 const schema = z.object({ home: z.array(z.string().max(30)).max(20).optional(), scratch: z.string().max(20_000).optional() });

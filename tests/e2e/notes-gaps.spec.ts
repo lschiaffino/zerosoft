@@ -102,6 +102,37 @@ test('Tareas: fecha desde el editor, vista por vencimiento y marcar hecha', asyn
   await expect(page.locator('.note-task-chip.is-set')).toBeVisible();
 });
 
+test('Bloc rápido: un borrador de otra cuenta o sobre un texto más viejo no se aplica', async ({ page, request }) => {
+  await openHome(page);
+  const box = page.getByRole('textbox', { name: 'Scratch pad' });
+  const current = `Actual ${uid()}`;
+  await box.fill(current);
+  await expect(page.locator('[data-widget="scratch"]').getByRole('status')).toHaveText('Saved');
+  const { draftScope } = (await (await request.get('/api/notes/prefs')).json()) as { draftScope: string };
+  const plant = (draft: unknown) => page.evaluate((d) => localStorage.setItem('zs:notes:scratch-draft', JSON.stringify(d)), draft);
+  const draftNow = () => page.evaluate(() => localStorage.getItem('zs:notes:scratch-draft'));
+
+  await plant({ scope: 'otra:cuenta', base: current, text: 'privado de otra cuenta' });
+  await page.reload();
+  await expect(box).toHaveValue(current);
+  expect(await draftNow()).toBeNull();
+
+  await plant({ scope: draftScope, base: 'texto anterior', text: 'borrador viejo' });
+  await page.reload();
+  await expect(box).toHaveValue(current);
+  expect(await draftNow()).toBeNull();
+
+  // El borrador propio sobre el mismo texto sí se recupera y se guarda.
+  const rescued = `${current} rescatado`;
+  await plant({ scope: draftScope, base: current, text: rescued });
+  await page.reload();
+  await expect(box).toHaveValue(rescued);
+  await expect.poll(async () => ((await (await request.get('/api/notes/prefs')).json()) as { scratch: string }).scratch).toBe(rescued);
+  await expect.poll(draftNow).toBeNull();
+  const final = await request.patch('/api/notes/prefs', { data: { scratch: '' } });
+  expect(final.ok()).toBe(true);
+});
+
 test('Inicio: personalizar widgets, bloc rápido a nota y reunión de Cal', async ({ page, request }) => {
   await openHome(page);
   await expect(page.locator('[data-widget="scratch"]')).toBeVisible();

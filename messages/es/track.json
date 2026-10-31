@@ -333,7 +333,7 @@
     "noteAccessRequest": "{actor} pidió acceso a una nota",
     "noteTaskAssigned": "Te asignaron una tarea: {title}",
     "noteTaskDue": "Tarea que vence: {title}",
-    "noteTransfer": "Recibiste {count} notas de {actor}",
+    "noteTransfer": "Notas recibidas de {actor}: {count}",
     "docShared": "{actor} compartió {title} con vos",
     "docConflict": "{actor} cambió lo mismo que vos en {title}: tu versión quedó en el historial",
     "boardMention": "{actor} te mencionó en {title}",

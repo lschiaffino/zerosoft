@@ -502,9 +502,9 @@ const parity: ProductParity = {
       area: 'ai',
       label: { en: 'Search text inside images and PDFs', es: 'Buscar texto dentro de imágenes y PDF', pt: 'Buscar texto dentro de imagens e PDFs' },
       detail: {
-        en: "Text in regular PDFs is searchable. Reading images and scans is opt-in per workspace and has not been run with a real model yet",
-        es: "El texto de los PDF comunes se puede buscar. Leer imágenes y escaneos se prende por workspace y todavía no se probó con un modelo real",
-        pt: "O texto de PDFs comuns entra na busca. Ler imagens e digitalizações é opcional por workspace e ainda não foi testado com um modelo real",
+        en: "Text in regular PDFs added from now on is searchable. Reading images and scans is opt-in per workspace and has not been run with a real model yet",
+        es: "El texto de los PDF comunes que se agreguen desde ahora se puede buscar. Leer imágenes y escaneos se prende por workspace y todavía no se probó con un modelo real",
+        pt: "O texto de PDFs comuns adicionados a partir de agora entra na busca. Ler imagens e digitalizações é opcional por workspace e ainda não foi testado com um modelo real",
       },
       status: 'partial',
       competitorHas: true,

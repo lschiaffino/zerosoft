@@ -24,6 +24,26 @@ type Fetched = { recent: NoteSummary[] | null; pinned: NoteSummary[] | null; sha
 const SCRATCH_DEBOUNCE_MS = 600;
 const SCRATCH_DRAFT_KEY = 'zs:notes:scratch-draft';
 
+function clearScratchDraft() {
+  try {
+    localStorage.removeItem(SCRATCH_DRAFT_KEY);
+  } catch {
+    // Nada que limpiar.
+  }
+}
+
+function readScratchDraft(): { scope: string; base: string; text: string } | null {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SCRATCH_DRAFT_KEY) ?? 'null') as { scope?: unknown; base?: unknown; text?: unknown } | null;
+    return parsed && typeof parsed.scope === 'string' && typeof parsed.base === 'string' && typeof parsed.text === 'string'
+      ? { scope: parsed.scope, base: parsed.base, text: parsed.text }
+      : null;
+  } catch {
+    // Sin almacenamiento o con un borrador viejo: lo del servidor.
+    return null;
+  }
+}
+
 /** Inicio de Notes: widgets que cada persona elige y ordena, como el Home de Evernote. */
 export default function NotesHome({ notebooks, tags, searches, onOpenNote, onChoose, onPickSearch, onNewNote }: Props) {
   const t = useTranslations('notes.home');
@@ -33,6 +53,8 @@ export default function NotesHome({ notebooks, tags, searches, onOpenNote, onCho
   const [widgets, setWidgets] = useState<HomeWidget[] | null>(null);
   const [editing, setEditing] = useState(false);
   const [scratch, setScratch] = useState('');
+  const draftScope = useRef('');
+  const scratchBase = useRef('');
   const [scratchState, setScratchState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [data, setData] = useState<Fetched>({ recent: null, pinned: null, shared: null, tasks: null, events: null });
   const [error, setError] = useState(false);
@@ -51,17 +73,17 @@ export default function NotesHome({ notebooks, tags, searches, onOpenNote, onCho
       setError(true);
       return;
     }
-    const p = (await prefs.json()) as { home: HomeWidget[]; scratch: string };
+    const p = (await prefs.json()) as { home: HomeWidget[]; scratch: string; draftScope: string };
     setWidgets(p.home);
-    // Una copia que no llegó a guardarse (se cerró la pestaña en el medio) gana y se manda.
-    let draft: string | null = null;
-    try {
-      draft = localStorage.getItem(SCRATCH_DRAFT_KEY);
-    } catch {
-      // Sin almacenamiento: lo del servidor.
-    }
-    setScratch(draft ?? p.scratch);
-    if (draft !== null && draft !== p.scratch) void persistScratch(draft);
+    draftScope.current = p.draftScope;
+    scratchBase.current = p.scratch;
+    // Una copia que no llegó a guardarse (se cerró la pestaña en el medio) gana y se manda, solo si
+    // es de esta persona y salió del mismo texto: si no, pisaría algo más nuevo o de otra cuenta.
+    const draft = readScratchDraft();
+    const usable = draft !== null && draft.scope === p.draftScope && draft.base === p.scratch;
+    if (draft !== null && !usable) clearScratchDraft();
+    setScratch(usable ? draft.text : p.scratch);
+    if (usable && draft.text !== p.scratch) void persistScratch(draft.text);
     const [recent, pinned, shared, tasks, events] = await Promise.all([
       get('/api/notes?limit=6&sort=updated', (d: { notes: NoteSummary[] }) => d.notes),
       get('/api/notes?view=pinned&limit=6', (d: { notes: NoteSummary[] }) => d.notes),
@@ -106,7 +128,7 @@ export default function NotesHome({ notebooks, tags, searches, onOpenNote, onCho
     setScratchState('saving');
     pendingScratch.current = value;
     try {
-      localStorage.setItem(SCRATCH_DRAFT_KEY, value);
+      localStorage.setItem(SCRATCH_DRAFT_KEY, JSON.stringify({ scope: draftScope.current, base: scratchBase.current, text: value }));
     } catch {
       // Sin almacenamiento: queda el envío al salir.
     }
@@ -119,11 +141,8 @@ export default function NotesHome({ notebooks, tags, searches, onOpenNote, onCho
     const res = await fetch('/api/notes/prefs', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ scratch: value }) }).catch(() => null);
     setScratchState(res?.ok ? 'saved' : 'error');
     if (res?.ok) {
-      try {
-        localStorage.removeItem(SCRATCH_DRAFT_KEY);
-      } catch {
-        // Nada que limpiar.
-      }
+      scratchBase.current = value;
+      clearScratchDraft();
     }
   }
 
