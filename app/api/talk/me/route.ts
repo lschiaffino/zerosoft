@@ -28,6 +28,8 @@ const schema = z.object({
         })
         .optional(),
       recapChannels: z.array(z.string().max(64)).max(50).optional(),
+      recapDaily: z.boolean().optional(),
+      recapTimeZone: z.string().max(64).optional(),
     })
     .optional(),
 });

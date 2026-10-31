@@ -62,6 +62,7 @@ export interface AppSearchItem {
     | 'talkPeople'
     | 'talkCanvases'
     | 'talkLists'
+    | 'talkBookmarks'
     | 'workspaceTeams'
     | 'analyticsInsights'
     | 'analyticsDashboards'
@@ -367,7 +368,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
 
   // Talk: canvases y listas de los canales que la persona lee (públicos, o donde es miembro).
   const talkReadable = `(c.kind = 'public' OR EXISTS (SELECT 1 FROM talk_members m WHERE m.channel_id = c.id AND m.user_id = ?))`;
-  const [talkCanvases, talkLists] = await Promise.all([
+  const [talkCanvases, talkLists, talkBookmarks] = await Promise.all([
     all(
       `SELECT v.channel_id AS id, CASE WHEN v.title != '' THEN v.title ELSE COALESCE('#' || NULLIF(c.name, ''), 'Canvas') END AS label,
          CASE WHEN c.kind IN ('public', 'private') THEN '#' || c.name ELSE '' END AS meta
@@ -385,6 +386,16 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
        WHERE l.workspace_id = ? AND c.archived_at IS NULL AND ${talkReadable} AND l.name LIKE ? ESCAPE '\\' ORDER BY l.updated_at DESC LIMIT ?`,
       user.id,
       person,
+      like,
+    ),
+    all(
+      `SELECT b.channel_id AS id, b.title AS label, CASE WHEN c.kind IN ('public', 'private') THEN '#' || c.name ELSE '' END AS meta
+       FROM talk_bookmarks b JOIN talk_channels c ON c.id = b.channel_id
+       WHERE b.workspace_id = ? AND c.archived_at IS NULL AND ${talkReadable}
+         AND (b.title LIKE ? ESCAPE '\\' OR b.url LIKE ? ESCAPE '\\') ORDER BY b.updated_at DESC LIMIT ?`,
+      user.id,
+      person,
+      like,
       like,
     ),
   ]);
@@ -558,6 +569,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ...map(talkChannels, 'talkChannels', (id) => `/app/talk/${id}`),
     ...map(talkDms, 'talkDms', (id) => `/app/talk/${id}`),
     ...map(talkPeople, 'talkPeople', (id) => `/app/talk?dm=${encodeURIComponent(id)}`),
+    ...map(talkBookmarks, 'talkBookmarks', (id) => `/app/talk/${id}`),
     ...map(talkCanvases, 'talkCanvases', (id) => `/app/talk/${id}?tab=canvas`),
     ...map(talkLists, 'talkLists', (id) => {
       const [channelId, listId] = id.split('|');

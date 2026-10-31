@@ -250,6 +250,17 @@ export function RecapView({ onBack }: { onBack: () => void }) {
       setBusy(false);
     }
   }
+  const [daily, setDaily] = useState(!!ctx.boot.prefs.recapDaily);
+  async function toggleDaily(on: boolean) {
+    setDaily(on);
+    try {
+      await ctx.api('/api/talk/me', { method: 'PATCH', json: { prefs: { recapDaily: on, recapTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone } } });
+      ctx.refreshBoot();
+    } catch (err) {
+      setDaily(!on);
+      ctx.toast(errorText(t, err), 'error');
+    }
+  }
   async function savePicked() {
     try {
       await ctx.api('/api/talk/me', { method: 'PATCH', json: { prefs: { recapChannels: picked } } });
@@ -274,6 +285,10 @@ export function RecapView({ onBack }: { onBack: () => void }) {
       }
     >
       <div className="talk-recap">
+        <label className="ui-check talk-recap-daily">
+          <input type="checkbox" checked={daily} onChange={(e) => void toggleDaily(e.target.checked)} data-testid="talk-recap-daily" />
+          <span>{t('recap.daily')}</span>
+        </label>
         <button type="button" className="btn btn-primary btn-sm" onClick={() => void run()} disabled={busy} aria-busy={busy || undefined} data-testid="talk-recap-run">
           {busy ? t('ai.working') : summary ? t('recap.refresh') : t('recap.make')}
         </button>
