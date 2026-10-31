@@ -68,6 +68,24 @@ test('crear equipo, invitar a dos, aceptar con otra sesión, ver los datos en to
     // Solo las de esta prueba (otras specs pueden dejar invitaciones pendientes en el workspace demo).
     const ours = page.getByTestId('invite-row').filter({ hasText: /^(ana|leo)-/ });
     await expect(ours).toHaveCount(2);
+    // En una columna angosta el email corta antes de la arroba: el dominio queda entero.
+    const emailCell = ours.first();
+    await page.setViewportSize({ width: 1000, height: 800 });
+    const domainLines = await emailCell.evaluate((el) => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      range.setStartAfter(el.querySelector('wbr')!);
+      // Por línea, no por rectángulo: la arroba y el dominio son dos nodos de texto.
+      return new Set(Array.from(range.getClientRects(), (r) => Math.round(r.top))).size;
+    });
+    expect(domainLines).toBe(1);
+    // Y un email larguísimo no saca la tabla de su lugar a 1280.
+    await page.setViewportSize({ width: 1280, height: 800 });
+    const original = await emailCell.innerText();
+    await emailCell.evaluate((el) => { el.textContent = `${'nombre.muy.largo.de.persona.'.repeat(3)}@empresa-con-nombre-largo.example.com`; });
+    const wrap = page.locator('.ws-invites').first();
+    expect(await wrap.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    await emailCell.evaluate((el, text) => { el.textContent = text; }, original);
     const tokens = await sql("SELECT email, token FROM team_invites WHERE email IN (?, ?) AND status = 'pending'", [ana, leo]);
     const tokenOf = (email: string) => String(tokens.find((t) => t.email === email)?.token);
 

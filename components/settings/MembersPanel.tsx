@@ -469,7 +469,9 @@ export default function MembersPanel({
                 cell: (i) => (
                   <span className="ws-invite-email">
                     <span className="data" data-testid="invite-row">
-                      {i.email}
+                      {/* Si no entra en una línea, corta antes de la arroba y no a mitad de palabra. */}
+                      {i.email.split('@')[0]}
+                      <wbr />@{i.email.split('@').slice(1).join('@')}
                     </span>
                     {/* Permitir otro email: un link chico debajo, así la fila no se sale a 1280. */}
                     {i.kind !== 'request' && !i.anyEmail && i.role !== 'admin' && (
