@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const s = await chatSession();
   if (s instanceof NextResponse) return s;
-  return NextResponse.json({ companies: await listCompanies(s.ws) });
+  return NextResponse.json({ companies: await listCompanies(s.ws, s.widgets.map((w) => w.id)) });
 }
 
 export async function POST(req: Request) {

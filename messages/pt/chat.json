@@ -818,7 +818,7 @@
   },
   "outbound": {
     "title": "Mensagens de saída",
-    "sub": "Uma mensagem ou uma pesquisa de 1 a 5 que aparece no seu site conforme a página, o tempo na página e o público. Cada visitante vê uma vez.",
+    "sub": "Uma mensagem, pesquisa, banner, post, checklist ou tour no seu site, conforme a página, o tempo na página e o público. Mensagens, pesquisas e posts aparecem uma vez por visitante. Banners, checklists e tours ficam até fechar ou terminar.",
     "add": "Nova mensagem",
     "empty": "Nenhuma mensagem de saída",
     "emptySub": "Cumprimente quem entra em preços ou pergunte como foi a visita.",
@@ -914,7 +914,11 @@
     "restricted": "Restringir esta caixa",
     "members": "Pessoas com acesso",
     "membersHelp": "Os admins sempre têm acesso. As regras só atribuem a pessoas desta lista.",
-    "saved": "Salvo"
+    "saved": "Salvo",
+    "confirmTitle": "Mudar quem vê esta caixa?",
+    "confirmBody": "Quem perder o acesso deixa de ver as conversas na hora. As atribuições, seguimentos e avisos desta caixa são removidos, e as conversas abertas voltam a passar pelas regras de atribuição. Os gatilhos do Flow não rodam em uma caixa restrita.",
+    "confirm": "Salvar alterações",
+    "result": "{lost, plural, one {# pessoa perdeu} other {# pessoas perderam}} o acesso e {reassigned, plural, one {# conversa foi reatribuída} other {# conversas foram reatribuídas}}"
   },
   "routing": {
     "title": "Habilidades e carga",
@@ -1006,11 +1010,11 @@
   },
   "campaigns": {
     "title": "Campanhas",
-    "sub": "Envie um e-mail às pessoas de um widget. Cada e-mail tem link de cancelamento e quem cancelou não recebe mais.",
+    "sub": "Envie um e-mail às pessoas de um widget que aceitaram receber campanhas. Cada e-mail tem link de cancelamento.",
     "listLabel": "Campanhas",
     "add": "Nova campanha",
     "empty": "Ainda não há campanhas",
-    "emptySub": "Escreva uma e envie às pessoas com e-mail conhecido.",
+    "emptySub": "Escreva uma e envie às pessoas que aceitaram receber campanhas.",
     "adminOnly": "Só os admins do workspace podem criar e enviar campanhas.",
     "newTitle": "Nova campanha",
     "editTitle": "Editar campanha",
@@ -1040,11 +1044,12 @@
       "sent": "Enviada",
       "preparing": "Preparando"
     },
-    "capNote": "Limite do workspace: {limit} destinatários por dia, restam {remaining}.",
-    "overCap": "Este envio passa do limite de {limit} destinatários por dia. Restam {remaining} hoje: reduza o público ou tente amanhã.",
-    "noRecipients": "Ninguém deste público pode receber.",
-    "excludedImported": "{count, plural, one {# pessoa importada fica de fora} other {# pessoas importadas ficam de fora}}: primeiro precisam dar consentimento.",
-    "excludedUnsubscribed": "{count, plural, one {# pessoa cancelou e fica de fora} other {# pessoas cancelaram e ficam de fora}}."
+    "capNote": "Limite do workspace: {limit} destinatários por dia, restam {remaining} hoje.",
+    "overCap": "Hoje saem {now} e os outros {later} continuam quando o limite renova, às 00:00 UTC.",
+    "noRecipients": "Ninguém deste público aceitou receber campanhas.",
+    "excludedUnsubscribed": "{count, plural, one {# pessoa cancelou e fica de fora} other {# pessoas cancelaram e ficam de fora}}.",
+    "waitingCap": "Limite do dia atingido: continua amanhã.",
+    "excludedNoOptIn": "{count, plural, one {# pessoa não aceitou} other {# pessoas não aceitaram}} receber campanhas e {count, plural, one {fica de fora} other {ficam de fora}}."
   },
   "importer": {
     "title": "Importar conversas",
@@ -1060,7 +1065,7 @@
     "adminOnly": "Só os admins do workspace podem importar.",
     "noWidgets": "Crie um widget primeiro.",
     "failed": "{count} falharam: importe o arquivo de novo para tentar novamente.",
-    "noCampaigns": "As pessoas importadas não recebem campanhas até você marcar o consentimento na ficha."
+    "noCampaigns": "As pessoas importadas não recebem campanhas até um admin marcar o consentimento na ficha."
   },
   "insights": {
     "title": "Temas e CX score",

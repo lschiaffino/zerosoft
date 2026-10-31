@@ -2,7 +2,9 @@
  * Chat — campañas por email a las personas de un widget. Borrador, envío (foto
  * de destinatarios, sin repetir email ni dados de baja) y cron que reclama cada
  * destinatario con compare-and-set para que dos corridas no manden dos veces.
- * Cada email lleva su link de baja firmado. Server-only.
+ * Cada email lleva su link de baja firmado. Solo llega a quien dio su
+ * consentimiento: lo marca un admin o lo manda el sitio con identidad firmada.
+ * Server-only.
  */
 import { createHmac, timingSafeEqual } from 'crypto';
 import { getDb } from './db';
@@ -44,6 +46,12 @@ interface Input {
 }
 
 const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+
+/** Pendientes de una campaña en curso (para mostrar cuántos esperan cupo). */
+export async function campaignPending(campaignId: string): Promise<number> {
+  const row = (await getDb().prepare("SELECT COUNT(*) AS n FROM chat_campaign_recipients WHERE campaign_id = ? AND status IN ('pending', 'claimed')").get(campaignId)) as { n: number };
+  return Number(row.n);
+}
 
 export async function listCampaigns(workspaceId: string, widgetIds: string[]): Promise<ChatCampaign[]> {
   if (widgetIds.length === 0) return [];
@@ -105,13 +113,13 @@ function audienceSql(audience: string): { sql: string; args: string[] } {
 
 /** Un email con forma de email. */
 const VALID_EMAIL_SQL = `email LIKE '%_@_%._%' AND email NOT LIKE '% %' AND email NOT LIKE '%<%' AND email NOT LIKE '%>%'`;
-/** Importados sin consentimiento: trajeron su email de otra herramienta, nadie les preguntó por campañas. */
-const IMPORTED_NO_OPT_IN_SQL = `external_id LIKE 'mail.import.%' AND campaign_opt_in_at IS NULL`;
+/** Solo con consentimiento explícito: un email escrito en el chat no suma a nadie a la audiencia. */
+const OPTED_IN_SQL = `campaign_opt_in_at IS NOT NULL`;
 
 function eligibleWhere(audience: string): { sql: string; args: string[] } {
   const a = audienceSql(audience);
   return {
-    sql: `widget_id = ? AND email IS NOT NULL AND ${VALID_EMAIL_SQL} AND NOT (${IMPORTED_NO_OPT_IN_SQL})
+    sql: `widget_id = ? AND email IS NOT NULL AND ${VALID_EMAIL_SQL} AND ${OPTED_IN_SQL}
       AND LOWER(email) NOT IN (SELECT LOWER(email) FROM chat_visitors u WHERE u.widget_id = chat_visitors.widget_id AND u.unsubscribed_at IS NOT NULL AND u.email IS NOT NULL)${a.sql}`,
     args: a.args,
   };
@@ -120,8 +128,8 @@ function eligibleWhere(audience: string): { sql: string; args: string[] } {
 export interface AudienceInfo {
   /** A cuántas direcciones les llegaría. */
   size: number;
-  /** Importadas sin consentimiento. */
-  excludedImported: number;
+  /** Con email pero sin consentimiento. */
+  excludedNoOptIn: number;
   excludedUnsubscribed: number;
 }
 
@@ -131,12 +139,12 @@ export async function describeAudience(widgetId: string, audience: string): Prom
   const a = audienceSql(audience);
   const row = (await db.prepare(`SELECT COUNT(DISTINCT LOWER(email)) AS n FROM chat_visitors WHERE ${w.sql}`).get(widgetId, ...w.args)) as { n: number };
   const imported = (await db
-    .prepare(`SELECT COUNT(DISTINCT LOWER(email)) AS n FROM chat_visitors WHERE widget_id = ? AND email IS NOT NULL AND ${IMPORTED_NO_OPT_IN_SQL}${a.sql}`)
+    .prepare(`SELECT COUNT(DISTINCT LOWER(email)) AS n FROM chat_visitors WHERE widget_id = ? AND email IS NOT NULL AND campaign_opt_in_at IS NULL${a.sql}`)
     .get(widgetId, ...a.args)) as { n: number };
   const unsub = (await db
     .prepare(`SELECT COUNT(DISTINCT LOWER(email)) AS n FROM chat_visitors WHERE widget_id = ? AND email IS NOT NULL AND unsubscribed_at IS NOT NULL${a.sql}`)
     .get(widgetId, ...a.args)) as { n: number };
-  return { size: Number(row.n), excludedImported: Number(imported.n), excludedUnsubscribed: Number(unsub.n) };
+  return { size: Number(row.n), excludedNoOptIn: Number(imported.n), excludedUnsubscribed: Number(unsub.n) };
 }
 
 // ---------- Tope por workspace ----------
@@ -152,24 +160,46 @@ export interface CampaignCap {
   remaining: number;
 }
 
-export async function campaignCap(workspaceId: string, now = new Date()): Promise<CampaignCap> {
-  const db = getDb();
-  const owner = (await db.prepare('SELECT created_at FROM users WHERE id = ?').get(workspaceId)) as { created_at: string | null } | undefined;
-  const created = owner?.created_at ? Date.parse(owner.created_at.includes('T') ? owner.created_at : `${owner.created_at.replace(' ', 'T')}Z`) : NaN;
-  const isNew = !Number.isFinite(created) || now.getTime() - created < NEW_ACCOUNT_MS;
-  const limit = isNew ? CAMPAIGN_DAILY_CAP_NEW : CAMPAIGN_DAILY_CAP;
-  const row = (await db
-    .prepare(`SELECT COALESCE(SUM(total), 0) AS n FROM chat_campaigns WHERE workspace_id = ? AND status != 'draft' AND sent_at > ?`)
-    .get(workspaceId, new Date(now.getTime() - 86_400_000).toISOString())) as { n: number };
-  const used = Number(row.n);
-  return { limit, used, remaining: Math.max(0, limit - used) };
+const usageDay = (now: Date) => now.toISOString().slice(0, 10);
+
+export function parseUserDate(raw: string | null | undefined): number {
+  if (!raw) return NaN;
+  return Date.parse(raw.includes('T') ? raw : `${raw.replace(' ', 'T')}Z`);
+}
+
+async function capLimit(workspaceId: string, now: Date): Promise<number> {
+  const owner = (await getDb().prepare('SELECT created_at FROM users WHERE id = ?').get(workspaceId)) as { created_at: string | null } | undefined;
+  const created = parseUserDate(owner?.created_at);
+  return !Number.isFinite(created) || now.getTime() - created < NEW_ACCOUNT_MS ? CAMPAIGN_DAILY_CAP_NEW : CAMPAIGN_DAILY_CAP;
 }
 
 /**
- * Pasa de borrador a preparando con compare-and-set: el tope se chequea en la
- * misma sentencia, dos envíos a la vez no lo pasan. La foto de destinatarios es
- * un solo INSERT ... SELECT (una vuelta a la base) y recién después queda
- * "enviando": el cron no ve la campaña a medio armar.
+ * Cupo del día (UTC). Vive en su propia tabla, no en las campañas: borrar una
+ * campaña no devuelve lo que ya se usó.
+ */
+export async function campaignCap(workspaceId: string, now = new Date()): Promise<CampaignCap> {
+  const limit = await capLimit(workspaceId, now);
+  const row = (await getDb().prepare('SELECT used FROM chat_campaign_usage WHERE workspace_id = ? AND day = ?').get(workspaceId, usageDay(now))) as { used: number } | undefined;
+  const used = Number(row?.used ?? 0);
+  return { limit, used, remaining: Math.max(0, limit - used) };
+}
+
+/** Toma un lugar del cupo de hoy; false si no queda. Atómico: dos corridas no lo pasan. */
+async function reserveCap(workspaceId: string, limit: number, now: Date): Promise<boolean> {
+  const res = await getDb()
+    .prepare(
+      `INSERT INTO chat_campaign_usage (workspace_id, day, used) VALUES (?, ?, 1)
+       ON CONFLICT (workspace_id, day) DO UPDATE SET used = used + 1 WHERE used < ?`,
+    )
+    .run(workspaceId, usageDay(now), limit);
+  return res.changes > 0;
+}
+
+/**
+ * Pasa de borrador a preparando con compare-and-set. La foto de destinatarios
+ * es un solo INSERT ... SELECT y recién después queda "enviando": el cron no ve
+ * la campaña a medio armar. El tope no corta el envío: sale hasta el cupo y el
+ * resto queda pendiente para cuando se libere al día siguiente.
  */
 export async function startCampaign(workspaceId: string, id: string, now = new Date()): Promise<ChatCampaign> {
   const db = getDb();
@@ -179,19 +209,11 @@ export async function startCampaign(workspaceId: string, id: string, now = new D
   if (c.status !== 'draft') throw new ChatCollabError('already_sent', 409);
   const info = await describeAudience(c.widget_id, c.audience);
   if (info.size === 0) throw new ChatCollabError('no_recipients');
-  const cap = await campaignCap(workspaceId, now);
-  if (info.size > cap.remaining) throw new ChatCollabError('daily_cap', 429);
   const iso = now.toISOString();
   const res = await db
-    .prepare(
-      `UPDATE chat_campaigns SET status = 'preparing', total = ?, sent_at = ?, updated_at = ? WHERE id = ? AND status = 'draft'
-       AND ? + (SELECT COALESCE(SUM(x.total), 0) FROM chat_campaigns x WHERE x.workspace_id = ? AND x.status != 'draft' AND x.sent_at > ?) <= ?`,
-    )
-    .run(info.size, iso, iso, id, info.size, workspaceId, new Date(now.getTime() - 86_400_000).toISOString(), cap.limit);
-  if (res.changes === 0) {
-    const fresh = await getCampaign(workspaceId, id);
-    throw fresh?.status === 'draft' ? new ChatCollabError('daily_cap', 429) : new ChatCollabError('already_sent', 409);
-  }
+    .prepare(`UPDATE chat_campaigns SET status = 'preparing', total = ?, sent_at = ?, updated_at = ? WHERE id = ? AND status = 'draft'`)
+    .run(info.size, iso, iso, id);
+  if (res.changes === 0) throw new ChatCollabError('already_sent', 409);
   await prepareRecipients(c, info.size);
   return (await getCampaign(workspaceId, id))!;
 }
@@ -277,18 +299,28 @@ export async function processChatCampaigns(opts: { limit?: number; origin?: stri
   for (const c of stuck) await prepareRecipients(c, Number(c.total));
   // Un reclamo colgado: la corrida murió sin saber si salió. Cuenta como error, no se reintenta para no duplicar.
   const staleRes = await db.prepare("UPDATE chat_campaign_recipients SET status = 'failed' WHERE status = 'claimed' AND claimed_at < ?").run(staleAt);
+  // Workspaces sin cupo hoy: afuera de la consulta, así no le ocupan el lote a los demás.
+  const now = new Date();
+  const blocked: string[] = [];
+  const limits = new Map<string, number>();
+  for (const w of (await db.prepare("SELECT DISTINCT workspace_id FROM chat_campaigns WHERE status = 'sending'").all()) as Array<{ workspace_id: string }>) {
+    const cap = await campaignCap(w.workspace_id, now);
+    limits.set(w.workspace_id, cap.limit);
+    if (cap.remaining === 0) blocked.push(w.workspace_id);
+  }
   const pending = (await db
     .prepare(
-      `SELECT r.campaign_id, r.visitor_id, r.email, r.attempts, c.subject, c.body, w.name AS widget_name, w.color AS color, v.name AS visitor_name, v.unsubscribed_at
+      `SELECT r.campaign_id, c.workspace_id, r.visitor_id, r.email, r.attempts, c.subject, c.body, w.name AS widget_name, w.color AS color, v.name AS visitor_name, v.unsubscribed_at
        FROM chat_campaign_recipients r
        JOIN chat_campaigns c ON c.id = r.campaign_id
        JOIN chat_widgets w ON w.id = c.widget_id
        JOIN chat_visitors v ON v.id = r.visitor_id
-       WHERE r.status = 'pending' AND c.status = 'sending' AND (r.next_attempt_at IS NULL OR r.next_attempt_at <= ?)${opts.campaignId ? ' AND c.id = ?' : ''}
+       WHERE r.status = 'pending' AND c.status = 'sending' AND (r.next_attempt_at IS NULL OR r.next_attempt_at <= ?)${opts.campaignId ? ' AND c.id = ?' : ''}${blocked.length ? ` AND c.workspace_id NOT IN (${blocked.map(() => '?').join(', ')})` : ''}
        LIMIT ?`,
     )
-    .all(nowIso, ...(opts.campaignId ? [opts.campaignId] : []), limit)) as Array<{
+    .all(nowIso, ...(opts.campaignId ? [opts.campaignId] : []), ...blocked, limit)) as Array<{
     campaign_id: string;
+    workspace_id: string;
     visitor_id: string;
     email: string;
     attempts: number;
@@ -312,6 +344,11 @@ export async function processChatCampaigns(opts: { limit?: number; origin?: stri
       await db.prepare("UPDATE chat_campaign_recipients SET status = 'skipped' WHERE campaign_id = ? AND visitor_id = ?").run(r.campaign_id, r.visitor_id);
       continue;
     }
+    // El primer intento toma cupo; un reintento ya lo tiene. Sin cupo vuelve a pendiente.
+    if (Number(r.attempts) === 0 && !(await reserveCap(r.workspace_id, limits.get(r.workspace_id) ?? CAMPAIGN_DAILY_CAP_NEW, now))) {
+      await db.prepare("UPDATE chat_campaign_recipients SET status = 'pending', claimed_at = NULL WHERE campaign_id = ? AND visitor_id = ?").run(r.campaign_id, r.visitor_id);
+      continue;
+    }
     const subject = fillCampaignText(r.subject, { name: r.visitor_name, email: r.email });
     const body = fillCampaignText(r.body, { name: r.visitor_name, email: r.email });
     const link = `${origin}/api/chat/unsubscribe?t=${encodeURIComponent(unsubscribeToken(r.visitor_id))}`;
@@ -326,6 +363,8 @@ export async function processChatCampaigns(opts: { limit?: number; origin?: stri
         eyebrow: r.widget_name,
       }),
       headers: { 'List-Unsubscribe': `<${link}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
+      // Misma clave en cada reintento: si se perdió la respuesta, Resend no lo manda de nuevo.
+      idempotencyKey: `chat-campaign/${r.campaign_id}/${r.visitor_id}`,
     }).catch((): { ok: false; status?: number; retryAfter?: number } => ({ ok: false }));
     if (res.ok) {
       await db.prepare("UPDATE chat_campaign_recipients SET status = 'sent', sent_at = ? WHERE campaign_id = ? AND visitor_id = ?").run(new Date().toISOString(), r.campaign_id, r.visitor_id);

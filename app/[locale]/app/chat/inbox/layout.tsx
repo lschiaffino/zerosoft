@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { listAccessibleChatWidgets } from '@/lib/chat-access';
+import { filterWidgetAudience } from '@/lib/chat-audience';
 import { getTranslations } from 'next-intl/server';
 import { realUserId, requireUser } from '@/lib/session';
 import { isChatAgentAway, listChatAgents } from '@/lib/chat-data';
@@ -38,7 +39,11 @@ export default async function ChatInboxLayout(props: { children: ReactNode; para
   }
 
   // Los widgets del workspace comparten agentes (el dueño o los miembros del team).
-  const agents = await listChatAgents(widgets[0].user_id, widgets[0].team_id);
+  const allAgents = await listChatAgents(widgets[0].user_id, widgets[0].team_id);
+  // Con una bandeja restringida solo aparecen quienes ven alguna de las de esta persona.
+  const seen = new Set<string>();
+  for (const w of widgets) for (const a of await filterWidgetAudience(w, allAgents)) seen.add(a.id);
+  const agents = allAgents.filter((a) => seen.has(a.id));
   const away = await isChatAgentAway(realUserId(user));
   const teams = (await listChatTeams(user.id)).map((x) => ({ id: x.id, name: x.name }));
 

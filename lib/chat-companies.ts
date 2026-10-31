@@ -27,15 +27,21 @@ export function normalizeDomain(raw: unknown): string | null {
   return s && /^[a-z0-9.-]+\.[a-z]{2,}$/.test(s) ? s : null;
 }
 
-const SELECT = `SELECT c.*, (SELECT COUNT(*) FROM chat_visitors v WHERE v.company_id = c.id) AS people FROM chat_companies c`;
+/** Con `widgetIds`, las personas cuentan solo las de esas bandejas. */
+function select(widgetIds?: string[]): { sql: string; args: string[] } {
+  const scope = widgetIds ? ` AND v.widget_id IN (${widgetIds.length ? widgetIds.map(() => '?').join(', ') : "''"})` : '';
+  return { sql: `SELECT c.*, (SELECT COUNT(*) FROM chat_visitors v WHERE v.company_id = c.id${scope}) AS people FROM chat_companies c`, args: widgetIds ?? [] };
+}
 
-export async function listCompanies(workspaceId: string): Promise<ChatCompany[]> {
-  const rows = (await getDb().prepare(`${SELECT} WHERE c.workspace_id = ? ORDER BY c.name COLLATE NOCASE LIMIT 500`).all(workspaceId)) as ChatCompany[];
+export async function listCompanies(workspaceId: string, widgetIds?: string[]): Promise<ChatCompany[]> {
+  const q = select(widgetIds);
+  const rows = (await getDb().prepare(`${q.sql} WHERE c.workspace_id = ? ORDER BY c.name COLLATE NOCASE LIMIT 500`).all(...q.args, workspaceId)) as ChatCompany[];
   return rows.map((r) => ({ ...r, people: Number(r.people) }));
 }
 
-export async function getCompany(workspaceId: string, id: string): Promise<ChatCompany | null> {
-  const row = (await getDb().prepare(`${SELECT} WHERE c.workspace_id = ? AND c.id = ?`).get(workspaceId, id)) as ChatCompany | undefined;
+export async function getCompany(workspaceId: string, id: string, widgetIds?: string[]): Promise<ChatCompany | null> {
+  const q = select(widgetIds);
+  const row = (await getDb().prepare(`${q.sql} WHERE c.workspace_id = ? AND c.id = ?`).get(...q.args, workspaceId, id)) as ChatCompany | undefined;
   return row ? { ...row, people: Number(row.people) } : null;
 }
 
@@ -50,7 +56,7 @@ export async function createCompany(workspaceId: string, input: Record<string, u
   return (await getCompany(workspaceId, id))!;
 }
 
-export async function updateCompany(workspaceId: string, id: string, input: Record<string, unknown>): Promise<ChatCompany | null> {
+export async function updateCompany(workspaceId: string, id: string, input: Record<string, unknown>, widgetIds?: string[]): Promise<ChatCompany | null> {
   const current = await getCompany(workspaceId, id);
   if (!current) return null;
   const name = input.name !== undefined ? text(input.name, 120) : current.name;
@@ -66,7 +72,7 @@ export async function updateCompany(workspaceId: string, id: string, input: Reco
       id,
       workspaceId,
     );
-  return getCompany(workspaceId, id);
+  return getCompany(workspaceId, id, widgetIds);
 }
 
 export async function deleteCompany(workspaceId: string, id: string): Promise<boolean> {

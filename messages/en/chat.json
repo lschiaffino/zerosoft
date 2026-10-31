@@ -818,7 +818,7 @@
   },
   "outbound": {
     "title": "Outbound messages",
-    "sub": "A message or a 1 to 5 survey that shows up on your site by page, time on page and audience. Each visitor sees it once.",
+    "sub": "A message, survey, banner, post, checklist or tour on your site, by page, time on page and audience. Messages, surveys and posts show once per visitor. Banners, checklists and tours stay until closed or finished.",
     "add": "New message",
     "empty": "No outbound messages",
     "emptySub": "Greet visitors on the pricing page or ask how their visit went.",
@@ -914,7 +914,11 @@
     "restricted": "Restrict this inbox",
     "members": "People with access",
     "membersHelp": "Admins always have access. Rules only assign to people on this list.",
-    "saved": "Saved"
+    "saved": "Saved",
+    "confirmTitle": "Change who sees this inbox?",
+    "confirmBody": "People who lose access stop seeing its conversations right away. Their assignments, follows and notifications from this inbox are removed, and their open conversations go through your assignment rules again. Flow triggers do not run on a restricted inbox.",
+    "confirm": "Save changes",
+    "result": "{lost, plural, one {# person} other {# people}} lost access and {reassigned, plural, one {# conversation was} other {# conversations were}} reassigned"
   },
   "routing": {
     "title": "Skills and capacity",
@@ -1006,11 +1010,11 @@
   },
   "campaigns": {
     "title": "Campaigns",
-    "sub": "Email the people of a widget. Each email has an unsubscribe link and people who left aren’t emailed again.",
+    "sub": "Email the people of a widget who agreed to receive campaigns. Each email has an unsubscribe link.",
     "listLabel": "Campaigns",
     "add": "New campaign",
     "empty": "No campaigns yet",
-    "emptySub": "Write one and send it to people with a known email.",
+    "emptySub": "Write one and send it to people who agreed to receive campaigns.",
     "adminOnly": "Only workspace admins can create and send campaigns.",
     "newTitle": "New campaign",
     "editTitle": "Edit campaign",
@@ -1040,11 +1044,12 @@
       "sent": "Sent",
       "preparing": "Preparing"
     },
-    "capNote": "Workspace limit: {limit} recipients per day, {remaining} left.",
-    "overCap": "This send goes over the daily limit of {limit} recipients. {remaining} left today: narrow the audience or try tomorrow.",
-    "noRecipients": "Nobody in this audience can receive it.",
-    "excludedImported": "{count, plural, one {# imported person is left out} other {# imported people are left out}}: they need to opt in first.",
-    "excludedUnsubscribed": "{count, plural, one {# person unsubscribed and is left out} other {# people unsubscribed and are left out}}."
+    "capNote": "Workspace limit: {limit} recipients per day, {remaining} left today.",
+    "overCap": "{now} go out today and the other {later} continue when the limit resets, at 00:00 UTC.",
+    "noRecipients": "Nobody in this audience has agreed to receive campaigns.",
+    "excludedUnsubscribed": "{count, plural, one {# person unsubscribed and is left out} other {# people unsubscribed and are left out}}.",
+    "waitingCap": "Daily limit reached: continues tomorrow.",
+    "excludedNoOptIn": "{count, plural, one {# person hasn’t} other {# people haven’t}} agreed to receive campaigns and {count, plural, one {is} other {are}} left out."
   },
   "importer": {
     "title": "Import conversations",
@@ -1060,7 +1065,7 @@
     "adminOnly": "Only workspace admins can import.",
     "noWidgets": "Create a widget first.",
     "failed": "{count} failed: import the file again to retry those.",
-    "noCampaigns": "Imported people don’t get campaigns until you mark their consent on their profile."
+    "noCampaigns": "Imported people don’t get campaigns until an admin marks their consent on their profile."
   },
   "insights": {
     "title": "Topics and CX score",

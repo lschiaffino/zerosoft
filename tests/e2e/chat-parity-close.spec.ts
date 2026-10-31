@@ -85,7 +85,8 @@ test('permisos: una bandeja restringida no se ve, no se abre y no sale en Cmd+K'
   await page.goto(`/en/app/chat/widgets/${w.id}/access`);
   await page.getByRole('switch', { name: 'Restrict this inbox' }).check();
   await page.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByText('Saved')).toBeVisible();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Save changes' }).click();
+  await expect(page.getByText('Saved', { exact: false })).toBeVisible();
 
   for (const url of [`/api/chat/widgets/${w.id}`, `/api/chat/conversations/${conv.conversation.id}`, `/api/chat/conversations/${conv.conversation.id}/messages`, `/api/chat/widgets/${w.id}/rules`]) {
     expect((await ctx.request.get(url)).status(), url).toBe(404);
@@ -180,6 +181,8 @@ test('campaña: borrador, envío con confirmación, resultado y baja por el link
   const w = await widget(request);
   const email = `camp-${uid()}@x.io`;
   const m = await ok<{ visitor: { id: string } }>(request.post('/api/chat/messages', { data: { widgetId: w.id, visitorId: `e2e-${uid()}`, body: 'hola', name: 'Cami', email } }));
+  // Escribir en el chat con un email no suma a nadie: hace falta el consentimiento.
+  await ok(request.patch(`/api/chat/visitors/${m.visitor.id}`, { data: { campaignOptIn: true } }));
   const name = `Novedades ${uid()}`;
   await page.goto('/es/app/chat/campaigns');
   await page.getByRole('button', { name: 'Nueva campaña' }).first().click();
@@ -191,9 +194,16 @@ test('campaña: borrador, envío con confirmación, resultado y baja por el link
   const row = page.locator('tr', { hasText: name });
   await expect(row).toContainText('Borrador');
   await row.getByRole('button', { name: 'Enviar' }).click();
-  await expect(page.getByRole('dialog')).toContainText('1 persona.');
-  await page.getByRole('dialog').getByRole('button', { name: 'Enviar' }).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toContainText('1 persona.');
+  // Teclado: el foco entra, Esc cierra y Enter confirma.
+  expect(await dialog.evaluate((d) => d.contains(document.activeElement))).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await row.getByRole('button', { name: 'Enviar' }).click();
+  await expect(dialog).toContainText('1 persona.');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
   await expect(row).toContainText(/Enviando|Enviada/);
   await expect(async () => {
     await page.reload();
@@ -214,9 +224,9 @@ test('campaña: borrador, envío con confirmación, resultado y baja por el link
   expect(v[0].unsubscribed_at).toBeTruthy();
 });
 
-test('campaña: los importados sin consentimiento quedan afuera, con el motivo en pantalla, y el tope corta el envío', async ({ page, request }) => {
+test('campaña: solo con consentimiento; el tope no es un callejón y borrar no libera cupo', async ({ page, request, baseURL }) => {
   const w = await widget(request);
-  const bad = 'not an email <script>';
+  // Validación del import (sin email válido, sin 500).
   const res = await request.post('/api/chat/import', {
     multipart: {
       widgetId: w.id,
@@ -225,7 +235,7 @@ test('campaña: los importados sin consentimiento quedan afuera, con el motivo e
         mimeType: 'application/json',
         buffer: Buffer.from(
           JSON.stringify([
-            { id: uid(), created_at: 1790000000, source: { body: 'a', author: { type: 'user', email: bad, name: 'Mala' } }, conversation_parts: { conversation_parts: [] } },
+            { id: uid(), created_at: 1790000000, source: { body: 'a', author: { type: 'user', email: 'not an email <script>', name: 'Mala' } }, conversation_parts: { conversation_parts: [] } },
             { id: uid(), created_at: 1e20, source: { body: 'b', author: { type: 'user', email: `imp${uid()}@x.io`, name: 'Sin Permiso' } }, conversation_parts: { conversation_parts: [] } },
             { id: { raro: 1 }, created_at: 1, source: { body: 'c', author: { type: 'user' } } },
             { session_id: 'x'.repeat(5000), messages: [{ type: 'text', from: 'user', content: 'd' }] },
@@ -238,30 +248,61 @@ test('campaña: los importados sin consentimiento quedan afuera, con el motivo e
   expect(((await res.json()) as { imported: number }).imported).toBe(2);
   expect((await sql('SELECT email FROM chat_visitors WHERE widget_id = ? AND name = ?', [w.id, 'Mala']))[0].email).toBeNull();
 
-  const name = `Sin importados ${uid()}`;
+  // El POST anónimo con un email ajeno no agrega a nadie a la audiencia.
+  await ok(request.post('/api/chat/messages', { data: { widgetId: w.id, visitorId: `e2e-${uid()}`, body: 'hola', email: `ajeno${uid()}@x.io`, campaignOptIn: true } }));
+  const name = `Consentimiento ${uid()}`;
   const c = await ok<{ id: string }>(request.post('/api/chat/campaigns', { data: { name, widget_id: w.id, subject: 'Hola', body: 'Texto' } }));
   await page.goto('/es/app/chat/campaigns');
-  await page.locator('tr', { hasText: name }).getByRole('button', { name: 'Enviar' }).click();
-  await expect(page.getByRole('dialog')).toContainText('1 persona importada queda afuera');
-  await expect(page.getByRole('dialog')).toContainText('Nadie de esta audiencia');
+  const row = page.locator('tr', { hasText: name });
+  await row.getByRole('button', { name: 'Enviar' }).click();
+  await expect(page.getByRole('alertdialog')).toContainText('2 personas no aceptaron');
+  await expect(page.getByRole('alertdialog')).toContainText('Nadie de esta audiencia');
   await page.keyboard.press('Escape');
   expect((await request.post(`/api/chat/campaigns/${c.id}`, { data: { action: 'send' } })).status()).toBe(400);
 
-  // Con consentimiento entra.
-  const imported = (await sql('SELECT id FROM chat_visitors WHERE widget_id = ? AND email IS NOT NULL', [w.id]))[0].id as string;
-  await page.goto(`/es/app/chat/people/${imported}`);
+  // Solo un admin lo marca, desde la ficha, y queda en el registro.
+  const person = (await sql('SELECT id FROM chat_visitors WHERE widget_id = ? AND email IS NOT NULL LIMIT 1', [w.id]))[0].id as string;
+  await page.goto(`/es/app/chat/people/${person}`);
   await page.getByRole('checkbox', { name: 'Aceptó recibir campañas' }).check();
-  await expect.poll(async () => (await sql('SELECT campaign_opt_in_at FROM chat_visitors WHERE id = ?', [imported]))[0].campaign_opt_in_at).toBeTruthy();
+  await expect.poll(async () => (await sql('SELECT campaign_opt_in_at FROM chat_visitors WHERE id = ?', [person]))[0].campaign_opt_in_at).toBeTruthy();
+  expect(Number((await sql("SELECT COUNT(*) AS n FROM chat_audit_log WHERE action = 'visitor.opt_in' AND detail LIKE ?", [`%${person}%`]))[0].n)).toBe(1);
 
-  // Tope: una campaña enviada que ya usó todo el cupo de hoy frena la siguiente, con el motivo.
-  await sql("INSERT INTO chat_campaigns (id, workspace_id, widget_id, name, status, total, sent_at) VALUES (?, 'demo', ?, 'Grande', 'sent', 500, ?)", [`big-${uid()}`, w.id, new Date().toISOString()]);
-  const over = await request.post(`/api/chat/campaigns/${c.id}`, { data: { action: 'send' } });
-  expect(over.status()).toBe(429);
-  expect(((await over.json()) as { error: string }).error).toBe('daily_cap');
-  await page.goto('/es/app/chat/campaigns');
-  await page.locator('tr', { hasText: name }).getByRole('button', { name: 'Enviar' }).click();
-  await expect(page.getByRole('dialog')).toContainText('pasa el límite');
-  await sql("DELETE FROM chat_campaigns WHERE name = 'Grande' AND widget_id = ?", [w.id]);
+  // Sin cupo: se puede mandar igual, queda esperando y lo dice. Borrar no devuelve cupo.
+  const day = new Date().toISOString().slice(0, 10);
+  const previous = (await sql("SELECT used FROM chat_campaign_usage WHERE workspace_id = 'demo' AND day = ?", [day]))[0]?.used ?? 0;
+  await sql("INSERT INTO chat_campaign_usage (workspace_id, day, used) VALUES ('demo', ?, 500) ON CONFLICT (workspace_id, day) DO UPDATE SET used = 500", [day]);
+  try {
+    await page.goto('/es/app/chat/campaigns');
+    await page.locator('tr', { hasText: name }).getByRole('button', { name: 'Enviar' }).click();
+    await expect(page.getByRole('alertdialog')).toContainText('siguen cuando se renueva');
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('alertdialog')).toHaveCount(0);
+    await fetch(`${baseURL}/api/cron/minute`, { headers: { authorization: 'Bearer e2e-cron' } });
+    await page.reload();
+    await expect(page.locator('tr', { hasText: name })).toContainText('sigue mañana');
+    expect(Number((await sql("SELECT COUNT(*) AS n FROM chat_campaign_recipients WHERE campaign_id = ? AND status = 'pending'", [c.id]))[0].n)).toBe(1);
+    await ok(request.delete(`/api/chat/campaigns/${c.id}`));
+    expect(Number((await sql("SELECT used FROM chat_campaign_usage WHERE workspace_id = 'demo' AND day = ?", [day]))[0].used)).toBe(500);
+  } finally {
+    await sql("UPDATE chat_campaign_usage SET used = ? WHERE workspace_id = 'demo' AND day = ?", [previous as number, day]);
+  }
+});
+
+test('consentimiento: un miembro no lo puede marcar', async ({ request, browser, baseURL }) => {
+  const w = await widget(request);
+  const m = await ok<{ visitor: { id: string } }>(request.post('/api/chat/messages', { data: { widgetId: w.id, visitorId: `e2e-${uid()}`, body: 'hola', email: `m${uid()}@x.io` } }));
+  const email = `chat-mem-${uid()}@darwin-e2e.io`;
+  const ctx = await browser.newContext({ baseURL });
+  await ctx.addCookies([{ name: 'zs_e2e_as', value: email, url: baseURL! }]);
+  const p = await ctx.newPage();
+  await p.goto('/en/app', { waitUntil: 'domcontentloaded' });
+  const me = String((await sql('SELECT id FROM users WHERE email = ?', [email]))[0].id);
+  const team = (await sql("SELECT id FROM teams WHERE owner_id = 'demo' ORDER BY created_at, id LIMIT 1"))[0]?.id as string;
+  await sql("UPDATE users SET onboarded_at = datetime('now'), active_team_id = ? WHERE id = ?", [team, me]);
+  await sql("INSERT INTO team_members (team_id, user_id, role, apps) VALUES (?, ?, 'member', '[\"chat\"]')", [team, me]);
+  await sql('UPDATE chat_widgets SET team_id = ? WHERE id = ?', [team, w.id]);
+  expect((await ctx.request.patch(`/api/chat/visitors/${m.visitor.id}`, { data: { campaignOptIn: true } })).status()).toBe(403);
+  await ctx.close();
 });
 
 test('layout: Resolver no pisa los detalles y el email corta antes de la arroba', async ({ page, request }) => {
@@ -319,55 +360,70 @@ test('contenido en la página: banner, post, checklist y tour como visitante', a
   const w = await widget(request);
   const add = (name: string, format: string, body: string) =>
     ok(request.post(`/api/chat/widgets/${w.id}/outbound`, { data: { name, format, body, active: true } }));
-  await add('Tour', 'tour', '#precios | Acá están los precios\n#noexiste | Se saltea\n#titulo | Y este es el título');
+  await add('Tour', 'tour', '#precios | Acá están los precios\n#otra | En la otra página\n#titulo | Y este es el título');
   await add('Lista', 'checklist', 'Primeros pasos\nCrear cuenta\nInvitar equipo');
   await add('Post', 'post', 'Novedad grande\nAhora hay más cosas.');
   await add('Barra', 'banner', 'Oferta de hoy');
 
-  await host(page, baseURL!, w.id);
+  // Segunda página del sitio con el elemento del paso que falta en la primera.
+  await page.route('http://localhost:3799/**', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: `<!doctype html><html lang="es"><head><title>Sitio</title></head><body><div id="cabecera" style="position:fixed;top:0;left:0;right:0;height:30px">Fija</div><div id="capa" style="position:fixed;top:0;left:0;right:0;bottom:0;pointer-events:none"></div><h1 id="titulo" style="margin-top:40px">Sitio</h1><p id="precios">Precios</p>${route.request().url().includes('/otra') ? '<p id="otra">Otra</p>' : ''}<script src="${baseURL}/api/chat/widget.js?id=${w.id}"></script></body></html>`,
+    }),
+  );
+  await page.goto('http://localhost:3799/inicio');
   const banner = page.locator('[data-zs-banner]');
   await expect(banner).toContainText('Oferta de hoy');
-  // La barra baja la página en lugar de taparla.
-  const titleTop = await page.locator('#titulo').evaluate((el) => el.getBoundingClientRect().top);
-  const barHeight = await banner.evaluate((el) => el.getBoundingClientRect().bottom);
-  expect(titleTop).toBeGreaterThanOrEqual(barHeight);
+  // La barra baja la página y la cabecera fija, sin mover un overlay a pantalla completa.
+  const barBottom = await banner.evaluate((el) => el.getBoundingClientRect().bottom);
+  expect(await page.locator('#titulo').evaluate((el) => el.getBoundingClientRect().top)).toBeGreaterThanOrEqual(barBottom);
+  expect(await page.locator('#cabecera').evaluate((el) => el.getBoundingClientRect().top)).toBeGreaterThanOrEqual(barBottom - 1);
+  expect(await page.locator('#capa').evaluate((el) => el.getBoundingClientRect().top)).toBe(0);
+  // Al achicar la ventana la barra crece y el empuje acompaña.
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.waitForTimeout(200);
+  const narrow = await banner.evaluate((el) => el.getBoundingClientRect().bottom);
+  expect(await page.locator('#cabecera').evaluate((el) => el.getBoundingClientRect().top)).toBeGreaterThanOrEqual(narrow - 1);
+  await page.setViewportSize({ width: 1280, height: 800 });
+
+  // Una lista abierta no frena post, tour ni mensajes.
+  const checklist = page.locator('[data-zs-checklist]');
+  await expect(checklist).toContainText('Invitar equipo');
   const post = page.locator('[data-zs-post]');
   await expect(post).toContainText('Novedad grande');
   await page.keyboard.press('Escape');
   await expect(post).toHaveCount(0);
-
-  // Checklist: el avance se guarda, cerrarla deja una solapa y sigue al recargar.
-  const checklist = page.locator('[data-zs-checklist]');
-  await expect(checklist).toContainText('Invitar equipo');
   await checklist.getByRole('checkbox').first().check();
   await expect(checklist).toContainText('1 de 2');
-  await checklist.getByRole('button', { name: /Cerrar|Close/ }).click();
-  const tab = page.locator('[data-zs-checklist-tab]');
-  await expect(tab).toContainText('1 de 2');
 
-  // La tour se muestra después y se retoma donde quedó.
+  // El tour avanza, y el paso que está en otra página espera a esa página.
   const tour = page.locator('[data-zs-tour]');
   await expect(tour).toContainText('Acá están los precios');
   await tour.getByRole('button', { name: 'Siguiente' }).click();
-  await expect(tour).toContainText('Y este es el título');
+  await expect(tour).toHaveCount(0);
   await page.reload();
-  // La barra sigue, la lista sigue minimizada y el tour vuelve en el paso donde estaba.
+  await page.waitForTimeout(800);
+  await expect(tour).toHaveCount(0);
   await expect(banner).toBeVisible();
-  await expect(tab).toContainText('1 de 2');
   await expect(post).toHaveCount(0);
+  await expect(checklist).toContainText('1 de 2');
+  await page.goto('http://localhost:3799/otra');
+  await expect(tour).toContainText('En la otra página');
+  await tour.getByRole('button', { name: 'Siguiente' }).click();
   await expect(tour).toContainText('Y este es el título');
   await tour.getByRole('button', { name: 'Listo' }).click();
   await expect(tour).toHaveCount(0);
 
-  // Reabrir la lista muestra el avance y descartarla la saca para siempre.
+  // Cerrar deja la solapa; descartar la saca para siempre.
+  await checklist.getByRole('button', { name: /Cerrar|Close/ }).click();
+  const tab = page.locator('[data-zs-checklist-tab]');
+  await expect(tab).toContainText('1 de 2');
   await tab.click();
-  await expect(checklist).toContainText('1 de 2');
   await expect(checklist.getByRole('checkbox').first()).toBeChecked();
   await checklist.getByRole('button', { name: 'Descartar' }).click();
   await banner.getByRole('button').click();
   await expect(banner).toHaveCount(0);
-  const after = await page.locator('#titulo').evaluate((el) => el.getBoundingClientRect().top);
-  expect(after).toBeLessThan(titleTop);
   await page.reload();
   await page.waitForTimeout(1500);
   await expect(banner).toHaveCount(0);

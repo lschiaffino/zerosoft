@@ -240,33 +240,180 @@ test('reportes propios: el atado a una bandeja restringida no se ve; solo creado
   await inside.ctx.close();
 });
 
-test('Agents y Flow: una conversación de bandeja restringida no sale por ahí', async ({ request, browser, baseURL }) => {
+test('Agents: lista, detalle, export, analítica y sugerencias no muestran una bandeja restringida a quien no está', async ({ request, browser, baseURL }) => {
   const team = await demoTeam();
   const s = await setup(request, team);
   const out = await person(browser, baseURL!, team, 'member');
+  const inside = await person(browser, baseURL!, team, 'member');
   const agent = await ok<{ id: string }>(request.post('/api/agents', { data: { name: `Bot ${uid()}` } }));
-  const cid = `ac-${uid()}`;
-  await sql(
-    "INSERT INTO agent_conversations (id, agent_id, user_id, channel, chat_conversation_id, visitor_key, title, created_at, updated_at) VALUES (?, ?, 'demo', 'chat', ?, ?, ?, datetime('now'), datetime('now'))",
-    [cid, agent.id, s.conversationId, s.visitorKey, 'SECRETTITLE'],
-  );
-  await restrict(request, s.widget.id, []);
-  const can = await out.ctx.request.get(`/api/agents/${agent.id}/conversations`);
-  if (can.status() === 200) {
-    expect(await can.text()).not.toContain(cid);
-    expect((await out.ctx.request.get(`/api/agents/${agent.id}/conversations/${cid}`)).status()).toBe(404);
-    expect(await (await out.ctx.request.get(`/api/agents/${agent.id}/export`)).text()).not.toContain(s.body);
+  const word = `zebra${uid()}`;
+  // La analítica pide varias conversaciones con la misma palabra para armar un tema.
+  const ids: string[] = [];
+  for (let i = 0; i < 4; i++) {
+    const m = await ok<{ conversation: { id: string } }>(request.post('/api/chat/messages', { data: { widgetId: s.widget.id, visitorId: `ag-${uid()}`, body: 'agente' } }));
+    const id = `ac-${uid()}`;
+    ids.push(id);
+    await sql(
+      "INSERT INTO agent_conversations (id, agent_id, user_id, channel, chat_conversation_id, visitor_key, title, created_at, updated_at) VALUES (?, ?, 'demo', 'chat', ?, ?, ?, datetime('now'), datetime('now'))",
+      [id, agent.id, m.conversation.id, `v-${uid()}`, `${word} pregunta secreta`],
+    );
   }
-  // El admin sí ve el listado.
-  expect(await (await request.get(`/api/agents/${agent.id}/conversations`)).text()).toContain(cid);
+  const question = `PREGUNTASECRETA ${word}`;
+  const columns = (await sql('PRAGMA table_info(agent_runs)')) as unknown as Array<{ name: string; notnull: number; dflt_value: unknown; pk: number }>;
+  const row: Record<string, string | number> = { id: `r-${uid()}`, agent_id: agent.id, user_id: 'demo', conversation_id: ids[0], channel: 'chat', question, unanswered: 1, status: 'ok', created_at: new Date().toISOString() };
+  for (const c of columns) if (c.notnull && c.dflt_value === null && !(c.name in row)) row[c.name] = '';
+  await sql(`INSERT INTO agent_runs (${Object.keys(row).join(', ')}) VALUES (${Object.keys(row).map(() => '?').join(', ')})`, Object.values(row));
+  await restrict(request, s.widget.id, [inside.id]);
 
-  // Sin eventos de Flow: ni message.received ni conversation.created para esta bandeja.
-  const before = (await sql("SELECT COUNT(*) AS n FROM flow_events WHERE data LIKE ?", [`%${s.conversationId}%`]).catch(() => [{ n: 0 }]))[0].n;
-  await ok(request.post('/api/chat/messages', { data: { widgetId: s.widget.id, visitorId: s.visitorKey, body: 'sin flow' } }));
-  await new Promise((r) => setTimeout(r, 500));
-  const after = (await sql("SELECT COUNT(*) AS n FROM flow_events WHERE data LIKE ?", [`%${s.conversationId}%`]).catch(() => [{ n: 0 }]))[0].n;
-  expect(after).toBe(before);
+  const paths = ['conversations', `conversations/${ids[0]}`, 'export', 'analytics?days=30', 'suggestions'];
+  const secrets = [word, 'PREGUNTASECRETA', ids[0]];
+  for (const p of paths) {
+    const res = await out.ctx.request.get(`/api/agents/${agent.id}/${p}`);
+    if (p.startsWith('conversations/')) {
+      expect(res.status(), p).toBe(404);
+      continue;
+    }
+    // El miembro entra al agente: si no fuera 200 esta prueba no probaría nada.
+    expect(res.status(), p).toBe(200);
+    const text = await res.text();
+    for (const secret of secrets) expect(text, `${p}: ${secret}`).not.toContain(secret);
+  }
+  // Tampoco los números: la analítica cuenta cero conversaciones suyas.
+  const analytics = (await (await out.ctx.request.get(`/api/agents/${agent.id}/analytics?days=30`)).json()) as { analytics: { total?: number; conversations?: number } };
+  expect(analytics.analytics.total ?? analytics.analytics.conversations ?? 0).toBe(0);
+  expect((await out.ctx.request.post(`/api/agents/${agent.id}/feedback`, { data: { conversationId: ids[0], messageId: 'x', rating: 1 } })).status()).toBe(404);
+
+  // Positivo: quien está en la lista y el dueño ven todo.
+  for (const c of [inside.ctx.request, request]) {
+    expect(await (await c.get(`/api/agents/${agent.id}/suggestions`)).text()).toContain('PREGUNTASECRETA');
+    expect(await (await c.get(`/api/agents/${agent.id}/analytics?days=30`)).text()).toContain(word);
+    expect(await (await c.get(`/api/agents/${agent.id}/conversations`)).text()).toContain(ids[0]);
+    expect((await c.get(`/api/agents/${agent.id}/conversations/${ids[0]}`)).status()).toBe(200);
+  }
   await out.ctx.close();
+  await inside.ctx.close();
+});
+
+test('Flow: una bandeja restringida no dispara flows y el nodo no escribe en ella; una abierta sí', async ({ request, baseURL }) => {
+  const team = await demoTeam();
+  const open = await setup(request, team);
+  const closed = await setup(request, team);
+  await restrict(request, closed.widget.id, []);
+  const mkFlow = async (event: string | null, conversation?: string) => {
+    const id = `fl-${uid()}`;
+    const at = new Date().toISOString();
+    const graph = {
+      nodes: [
+        { id: 'trigger', type: event ? 'trigger.event' : 'trigger.manual', position: { x: 0, y: 0 }, config: event ? { event } : {} },
+        { id: 'msg', type: 'app.chat_message', position: { x: 0, y: 160 }, config: { conversationId: conversation ?? '{{trigger.conversation.id}}', body: 'FLOWSENT' } },
+      ],
+      edges: [{ id: 'e1', source: 'trigger', sourceHandle: 'out', target: 'msg', from: 'trigger', to: 'msg' }],
+    };
+    await sql("INSERT INTO flow_flows (id, user_id, name, enabled, graph, trigger_type, trigger_event, created_by, created_at, updated_at) VALUES (?, 'demo', ?, 1, ?, ?, ?, 'demo', ?, ?)", [id, id, JSON.stringify(graph), event ? 'trigger.event' : 'trigger.manual', event, at, at]);
+    return id;
+  };
+  const cron = () => fetch(`${baseURL}/api/cron/minute`, { headers: { authorization: 'Bearer e2e-cron' } });
+  const sent = async (id: string) => Number((await sql("SELECT COUNT(*) AS n FROM chat_messages WHERE conversation_id = ? AND body = 'FLOWSENT'", [id]))[0].n);
+  const trigger = await mkFlow('message.received');
+  try {
+    await ok(request.post('/api/chat/messages', { data: { widgetId: open.widget.id, visitorId: open.visitorKey, body: 'abierta' } }));
+    await ok(request.post('/api/chat/messages', { data: { widgetId: closed.widget.id, visitorId: closed.visitorKey, body: 'cerrada' } }));
+    // Control: en la abierta el flow corre; si no, la otra mitad no probaría nada.
+    await expect
+      .poll(async () => {
+        await cron();
+        return sent(open.conversationId);
+      }, { timeout: 20_000 })
+      .toBeGreaterThan(0);
+    expect(await sent(closed.conversationId)).toBe(0);
+    expect(Number((await sql('SELECT COUNT(*) AS n FROM flow_runs WHERE input LIKE ?', [`%${closed.conversationId}%`]))[0].n)).toBe(0);
+    await sql('UPDATE flow_flows SET enabled = 0 WHERE id = ?', [trigger]);
+
+    // Nodo: un flow manual que apunta a la conversación restringida falla.
+    const manual = await mkFlow(null, closed.conversationId);
+    await ok(request.post(`/api/flow/flows/${manual}/run`, { data: { input: {} } }));
+    await expect
+      .poll(async () => {
+        await cron();
+        return String((await sql('SELECT status FROM flow_runs WHERE flow_id = ? ORDER BY created_at DESC LIMIT 1', [manual]))[0]?.status ?? '');
+      }, { timeout: 20_000 })
+      .toBe('failed');
+    expect(await sent(closed.conversationId)).toBe(0);
+    await sql('UPDATE flow_flows SET enabled = 0 WHERE id = ?', [manual]);
+  } finally {
+    await sql('UPDATE flow_flows SET enabled = 0 WHERE id = ?', [trigger]);
+  }
+});
+
+test('API v1: assign con key de owner y de miembro de la lista, y números filtrados', async ({ request, browser, baseURL }) => {
+  const team = await demoTeam();
+  const s = await setup(request, team);
+  const out = await person(browser, baseURL!, team, 'member');
+  const inside = await person(browser, baseURL!, team, 'member');
+  await restrict(request, s.widget.id, [inside.id]);
+  const c = `/api/v1/chat/conversations/${s.conversationId}/assign`;
+  const headers = (key: string) => ({ Authorization: `Bearer ${key}` });
+  const ownerKey = (await ok<{ key: string }>(request.post('/api/keys', { data: { name: `o ${uid()}`, scopes: ['chat:read', 'chat:write'] } }))).key;
+  expect((await request.post(c, { headers: headers(ownerKey), data: { assignedTo: inside.id } })).status()).toBe(200);
+  expect((await sql('SELECT assigned_to FROM chat_conversations WHERE id = ?', [s.conversationId]))[0].assigned_to).toBe(inside.id);
+  expect((await request.post(c, { headers: headers(ownerKey), data: { assignedTo: out.id } })).status()).toBe(400);
+  const memberKey = await apiKey(inside.ctx);
+  expect((await inside.ctx.request.post(c, { headers: headers(memberKey), data: { assignedTo: 'demo' } })).status()).toBe(200);
+  expect((await sql('SELECT assigned_to FROM chat_conversations WHERE id = ?', [s.conversationId]))[0].assigned_to).toBe('demo');
+  expect((await inside.ctx.request.post(c, { headers: headers(memberKey), data: { assignedTo: out.id } })).status()).toBe(400);
+
+  // Números: equipo y empresa no cuentan lo que no ve.
+  const teamRow = await ok<{ id: string }>(request.post('/api/chat/teams', { data: { name: `T ${uid()}` } }));
+  await sql('UPDATE chat_conversations SET team_id = ? WHERE id = ?', [teamRow.id, s.conversationId]);
+  const company = await ok<{ id: string }>(request.post('/api/chat/companies', { data: { name: `C ${uid()}` } }));
+  await sql('UPDATE chat_visitors SET company_id = ? WHERE id = ?', [company.id, s.visitorId]);
+  const openOf = async (r: APIRequestContext) => ((await ok<{ teams: Array<{ id: string; open_count: number }> }>(r.get('/api/chat/teams'))).teams.find((x) => x.id === teamRow.id)!).open_count;
+  const peopleOf = async (r: APIRequestContext) => ((await ok<{ companies: Array<{ id: string; people: number }> }>(r.get('/api/chat/companies'))).companies.find((x) => x.id === company.id)!).people;
+  expect(await openOf(out.ctx.request)).toBe(0);
+  expect(await openOf(inside.ctx.request)).toBe(1);
+  expect(await peopleOf(out.ctx.request)).toBe(0);
+  expect(await peopleOf(inside.ctx.request)).toBe(1);
+  await out.ctx.close();
+  await inside.ctx.close();
+});
+
+test('restringir: avisa antes, reparte en el momento y guardar sin cambios no borra nada', async ({ page, request, browser, baseURL }) => {
+  const team = await demoTeam();
+  const s = await setup(request, team);
+  const out = await person(browser, baseURL!, team, 'member');
+  const inside = await person(browser, baseURL!, team, 'member');
+  await ok(inside.ctx.request.post(`/api/chat/conversations/${s.conversationId}/follow`, { data: { follow: true } }));
+  await ok(request.post('/api/chat/messages', { data: { widgetId: s.widget.id, visitorId: s.visitorKey, body: 'avisar a quien sigue' } }));
+  await ok(request.post(`/api/chat/widgets/${s.widget.id}/rules`, { data: { name: 'Reparto', matchType: 'round_robin' } }));
+  await sql('UPDATE chat_conversations SET assigned_to = ? WHERE id = ?', [out.id, s.conversationId]);
+
+  await page.goto(`/es/app/chat/widgets/${s.widget.id}/access`);
+  await page.getByRole('switch', { name: 'Restringir esta bandeja' }).check();
+  await page.getByRole('button', { name: 'Guardar' }).click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toContainText('Quienes pierdan el acceso');
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  // Cancelar no cambió nada.
+  expect(Number((await sql('SELECT restricted FROM chat_widgets WHERE id = ?', [s.widget.id]))[0].restricted)).toBe(0);
+  await restrict(request, s.widget.id, [inside.id]);
+  // La abierta se repartió ya, sin esperar otro mensaje, y no a quien quedó afuera.
+  const assigned = (await sql('SELECT assigned_to FROM chat_conversations WHERE id = ?', [s.conversationId]))[0].assigned_to;
+  expect(assigned).toBeTruthy();
+  expect(assigned).not.toBe(out.id);
+
+  // Guardar otra vez lo mismo: el seguidor de la lista conserva todo.
+  const count = async () => Number((await sql('SELECT COUNT(*) AS n FROM notifications WHERE user_id = ? AND source_id = ?', [inside.id, s.conversationId]))[0].n);
+  const before = await count();
+  expect(before).toBeGreaterThan(0);
+  await restrict(request, s.widget.id, [inside.id]);
+  expect(await count()).toBe(before);
+  expect(Number((await sql('SELECT COUNT(*) AS n FROM chat_conversation_followers WHERE user_id = ? AND conversation_id = ?', [inside.id, s.conversationId]))[0].n)).toBe(1);
+  // Sacarlo de la lista sí limpia.
+  await restrict(request, s.widget.id, []);
+  expect(await count()).toBe(0);
+  await out.ctx.close();
+  await inside.ctx.close();
 });
 
 test('stream: solo avisa de bandejas visibles y al reconectar recupera lo perdido', async ({ request, browser, baseURL }) => {

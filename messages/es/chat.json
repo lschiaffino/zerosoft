@@ -818,7 +818,7 @@
   },
   "outbound": {
     "title": "Mensajes salientes",
-    "sub": "Un mensaje o una encuesta de 1 a 5 que aparece en tu sitio según la página, el tiempo en la página y la audiencia. Cada visitante lo ve una vez.",
+    "sub": "Un mensaje, encuesta, banner, post, checklist o tour en tu sitio, según la página, el tiempo en la página y la audiencia. Mensajes, encuestas y posts se muestran una vez por visitante. Banners, checklists y tours siguen hasta cerrarlos o terminarlos.",
     "add": "Nuevo mensaje",
     "empty": "No hay mensajes salientes",
     "emptySub": "Saludá a quien entra a precios o preguntá cómo le fue en la visita.",
@@ -914,7 +914,11 @@
     "restricted": "Restringir esta bandeja",
     "members": "Personas con acceso",
     "membersHelp": "Los admins siempre entran. Las reglas solo asignan a personas de esta lista.",
-    "saved": "Guardado"
+    "saved": "Guardado",
+    "confirmTitle": "¿Cambiar quién ve esta bandeja?",
+    "confirmBody": "Quienes pierdan el acceso dejan de ver sus conversaciones en el momento. Se les quitan las asignaciones, seguimientos y avisos de esta bandeja, y sus conversaciones abiertas vuelven a pasar por las reglas de asignación. Los disparadores de Flow no corren en una bandeja restringida.",
+    "confirm": "Guardar cambios",
+    "result": "{lost, plural, one {# persona perdió} other {# personas perdieron}} el acceso y {reassigned, plural, one {# conversación se reasignó} other {# conversaciones se reasignaron}}"
   },
   "routing": {
     "title": "Habilidades y carga",
@@ -1006,11 +1010,11 @@
   },
   "campaigns": {
     "title": "Campañas",
-    "sub": "Mandá un email a las personas de un widget. Cada email tiene link de baja y a quien se dio de baja no le llega más.",
+    "sub": "Mandá un email a las personas de un widget que aceptaron recibir campañas. Cada email tiene link de baja.",
     "listLabel": "Campañas",
     "add": "Nueva campaña",
     "empty": "Todavía no hay campañas",
-    "emptySub": "Escribí una y mandala a las personas con email conocido.",
+    "emptySub": "Escribí una y mandala a las personas que aceptaron recibir campañas.",
     "adminOnly": "Solo los admins del workspace pueden crear y mandar campañas.",
     "newTitle": "Nueva campaña",
     "editTitle": "Editar campaña",
@@ -1040,11 +1044,12 @@
       "sent": "Enviada",
       "preparing": "Preparando"
     },
-    "capNote": "Límite del workspace: {limit} destinatarios por día, quedan {remaining}.",
-    "overCap": "Este envío pasa el límite de {limit} destinatarios por día. Hoy quedan {remaining}: achicá la audiencia o probá mañana.",
-    "noRecipients": "Nadie de esta audiencia lo puede recibir.",
-    "excludedImported": "{count, plural, one {# persona importada queda afuera} other {# personas importadas quedan afuera}}: primero tienen que dar su consentimiento.",
-    "excludedUnsubscribed": "{count, plural, one {# persona se dio de baja y queda afuera} other {# personas se dieron de baja y quedan afuera}}."
+    "capNote": "Límite del workspace: {limit} destinatarios por día, hoy quedan {remaining}.",
+    "overCap": "Hoy salen {now} y los otros {later} siguen cuando se renueva el límite, a las 00:00 UTC.",
+    "noRecipients": "Nadie de esta audiencia aceptó recibir campañas.",
+    "excludedUnsubscribed": "{count, plural, one {# persona se dio de baja y queda afuera} other {# personas se dieron de baja y quedan afuera}}.",
+    "waitingCap": "Límite del día alcanzado: sigue mañana.",
+    "excludedNoOptIn": "{count, plural, one {# persona no aceptó} other {# personas no aceptaron}} recibir campañas y {count, plural, one {queda afuera} other {quedan afuera}}."
   },
   "importer": {
     "title": "Importar conversaciones",
@@ -1060,7 +1065,7 @@
     "adminOnly": "Solo los admins del workspace pueden importar.",
     "noWidgets": "Primero creá un widget.",
     "failed": "{count} fallaron: importá el archivo de nuevo para reintentarlas.",
-    "noCampaigns": "Las personas importadas no reciben campañas hasta que marques su consentimiento en la ficha."
+    "noCampaigns": "Las personas importadas no reciben campañas hasta que un admin marque su consentimiento en la ficha."
   },
   "insights": {
     "title": "Temas y CX score",

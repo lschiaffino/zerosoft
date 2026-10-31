@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { cleanVisitorAttributes, getCompany, setCampaignOptIn, setVisitorProfile } from '@/lib/chat-companies';
 import { canAccessWidget } from '@/lib/chat-access';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
+import { recordChatAudit } from '@/lib/chat-audit';
 import {
   getChatVisitor,
   getChatVisitorWithStats,
@@ -34,7 +35,7 @@ export async function GET(_req: Request, props: { params: Promise<{ id: string }
 
   const visitor = await getChatVisitorWithStats(params.id);
   if (!visitor) return NextResponse.json({ error: 'not_found' }, { status: 404 });
-  return NextResponse.json(visitor);
+  return NextResponse.json({ ...visitor, can_set_opt_in: isWorkspaceAdmin(user) });
 }
 
 export async function PATCH(req: Request, props: { params: Promise<{ id: string }> }) {
@@ -56,9 +57,11 @@ export async function PATCH(req: Request, props: { params: Promise<{ id: string 
       ? (body.metadata as Record<string, unknown>)
       : undefined;
 
-  // Importado que dio su consentimiento: el equipo lo marca, recién ahí entra en campañas.
+  // Consentimiento para campañas: solo un admin, y queda registrado.
   if (typeof body.campaignOptIn === 'boolean') {
+    if (!isWorkspaceAdmin(user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
     await setCampaignOptIn(params.id, body.campaignOptIn);
+    await recordChatAudit(user.id, realUserId(user), 'visitor.opt_in', { id: params.id, optIn: body.campaignOptIn });
     return NextResponse.json(await getChatVisitor(params.id));
   }
   // Empresa (del workspace) y atributos propios.

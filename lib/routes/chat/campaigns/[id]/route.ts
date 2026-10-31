@@ -20,7 +20,7 @@ export async function GET(_req: Request, props: Ctx) {
   const campaign = await visible(s, id);
   if (!campaign) return chatError(404, 'not_found');
   const info = await describeAudience(campaign.widget_id, campaign.audience);
-  return NextResponse.json({ ...campaign, audience_size: info.size, excluded_imported: info.excludedImported, excluded_unsubscribed: info.excludedUnsubscribed, cap: await campaignCap(s.ws) });
+  return NextResponse.json({ ...campaign, audience_size: info.size, excluded_no_opt_in: info.excludedNoOptIn, excluded_unsubscribed: info.excludedUnsubscribed, cap: await campaignCap(s.ws) });
 }
 
 export async function PATCH(req: Request, props: Ctx) {

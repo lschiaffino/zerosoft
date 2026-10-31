@@ -2,10 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { canAccessWidget, getApiConversation, listAccessibleChatWidgets, setWidgetAccess } from '@/lib/chat-access';
 import { createChatConversation, createChatWidget, getChatWidget, getOrCreateChatVisitor, pickRoundRobinAgent, applyAssignmentRules, createAssignmentRule, type ChatAgent } from '@/lib/chat-data';
 import { aggregateReport, weekStart } from '@/lib/chat-custom-reports';
-import { campaignCap, isRetryableSend, cleanAudience, fillCampaignText, unsubscribeToken, verifyUnsubscribeToken, createCampaign, startCampaign, processChatCampaigns, getCampaign, unsubscribeVisitor } from '@/lib/chat-campaigns';
+import { campaignCap, campaignPending, deleteCampaign, isRetryableSend, cleanAudience, fillCampaignText, unsubscribeToken, verifyUnsubscribeToken, createCampaign, startCampaign, processChatCampaigns, getCampaign, unsubscribeVisitor } from '@/lib/chat-campaigns';
 import { conversationCxScore, topTopics } from '@/lib/chat-insights';
 import { cleanImportEmail, importConversations, parseImport, stripHtml } from '@/lib/chat-import';
-import { cleanVisitorAttributes, normalizeDomain } from '@/lib/chat-companies';
+import { cleanVisitorAttributes, normalizeDomain, setCampaignOptIn } from '@/lib/chat-companies';
 import { filterBatch, pruneChatEvents } from '@/lib/chat-realtime';
 import { createChatMessage } from '@/lib/chat-data';
 import { getDb } from '@/lib/db';
@@ -141,9 +141,12 @@ describe('campañas', () => {
   it('manda una vez por email, saltea bajas y dos corridas no duplican', async () => {
     const { owner, widget } = await setup();
     const a = await getOrCreateChatVisitor(widget.id, 'c1', { email: 'one@x.io', name: 'One' });
-    await getOrCreateChatVisitor(widget.id, 'c2', { email: 'ONE@x.io' });
+    const b = await getOrCreateChatVisitor(widget.id, 'c2', { email: 'ONE@x.io' });
     const out = await getOrCreateChatVisitor(widget.id, 'c3', { email: 'out@x.io' });
     await getOrCreateChatVisitor(widget.id, 'c4', {});
+    // Sin consentimiento no entra; este no lo tiene.
+    await getOrCreateChatVisitor(widget.id, 'c5', { email: 'nooptin@x.io' });
+    for (const v of [a, b, out]) await setCampaignOptIn(v.id, true);
     await unsubscribeVisitor(out.id);
     const c = await createCampaign(owner.id, owner.id, { name: 'Novedades', subject: 'Hola', body: 'Texto', widget_id: widget.id });
     await expect(startCampaign(owner.id, (await createCampaign(owner.id, owner.id, { name: 'vacía', widget_id: widget.id })).id)).rejects.toThrow('missing_body');
@@ -169,7 +172,7 @@ describe('envío con reintentos', () => {
   it('un error transitorio deja al destinatario pendiente con espera y sin duplicar', async () => {
     const { owner, widget } = await setup();
     await getDb().prepare("UPDATE users SET created_at = '2020-01-01 00:00:00' WHERE id = ?").run(owner.id);
-    await getOrCreateChatVisitor(widget.id, 'r1', { email: 'r1@x.io' });
+    await setCampaignOptIn((await getOrCreateChatVisitor(widget.id, 'r1', { email: 'r1@x.io' })).id, true);
     const c = await createCampaign(owner.id, owner.id, { name: 'R', subject: 'S', body: 'B', widget_id: widget.id });
     await startCampaign(owner.id, c.id);
     sendMock.fail = { ok: false, status: 503, error: 'x' };
@@ -182,15 +185,42 @@ describe('envío con reintentos', () => {
     expect((await processChatCampaigns({ campaignId: c.id, gapMs: 0 })).sent).toBe(1);
     expect((await getCampaign(owner.id, c.id))?.status).toBe('sent');
   });
-  it('el tope por día corta sin mandar nada y cuentas nuevas tienen menos', async () => {
+  it('el tope manda hasta el cupo, deja el resto pendiente, y borrar no libera', async () => {
     const { owner, widget } = await setup();
-    await getOrCreateChatVisitor(widget.id, 't1', { email: 't1@x.io' });
-    const cap = await campaignCap(owner.id);
-    expect(cap.limit).toBe(50);
-    await getDb().prepare("INSERT INTO chat_campaigns (id, workspace_id, widget_id, name, status, total, sent_at) VALUES ('full', ?, ?, 'F', 'sent', 50, ?)").run(owner.id, widget.id, new Date().toISOString());
+    expect((await campaignCap(owner.id)).limit).toBe(50);
+    await getDb().prepare("UPDATE users SET created_at = '2020-01-01 00:00:00' WHERE id = ?").run(owner.id);
+    expect((await campaignCap(owner.id)).limit).toBe(500);
+    await getDb().prepare("UPDATE users SET created_at = '2020-01-01T00:00:00.000Z' WHERE id = ?").run(owner.id);
+    expect((await campaignCap(owner.id)).limit).toBe(500);
+    const day = new Date().toISOString().slice(0, 10);
+    await getDb().prepare('INSERT INTO chat_campaign_usage (workspace_id, day, used) VALUES (?, ?, 499)').run(owner.id, day);
+    for (const k of ['a', 'b', 'c']) await setCampaignOptIn((await getOrCreateChatVisitor(widget.id, `t${k}`, { email: `${k}@x.io` })).id, true);
     const c = await createCampaign(owner.id, owner.id, { name: 'X', subject: 'S', body: 'B', widget_id: widget.id });
-    await expect(startCampaign(owner.id, c.id)).rejects.toThrow('daily_cap');
-    expect((await getCampaign(owner.id, c.id))?.status).toBe('draft');
+    await startCampaign(owner.id, c.id);
+    expect((await processChatCampaigns({ campaignId: c.id, gapMs: 0 })).sent).toBe(1);
+    expect((await processChatCampaigns({ campaignId: c.id, gapMs: 0 })).sent).toBe(0);
+    const after = (await getCampaign(owner.id, c.id))!;
+    expect(after.status).toBe('sending');
+    expect(after.sent).toBe(1);
+    expect(await campaignPending(c.id)).toBe(2);
+    expect((await campaignCap(owner.id)).remaining).toBe(0);
+    await deleteCampaign(owner.id, c.id);
+    expect((await campaignCap(owner.id)).remaining).toBe(0);
+    // Al día siguiente sigue.
+    const next = new Date(Date.now() + 86_400_000);
+    expect((await campaignCap(owner.id, next)).remaining).toBe(500);
+  });
+  it('una campaña de otro workspace sin cupo no le ocupa el lote a los demás', async () => {
+    const full = await setup();
+    await getDb().prepare('INSERT INTO chat_campaign_usage (workspace_id, day, used) VALUES (?, ?, 50)').run(full.owner.id, new Date().toISOString().slice(0, 10));
+    await setCampaignOptIn((await getOrCreateChatVisitor(full.widget.id, 'f', { email: 'f@x.io' })).id, true);
+    await startCampaign(full.owner.id, (await createCampaign(full.owner.id, full.owner.id, { name: 'F', subject: 'S', body: 'B', widget_id: full.widget.id })).id);
+    const free = await setup();
+    await setCampaignOptIn((await getOrCreateChatVisitor(free.widget.id, 'g', { email: 'g@x.io' })).id, true);
+    const c = await createCampaign(free.owner.id, free.owner.id, { name: 'G', subject: 'S', body: 'B', widget_id: free.widget.id });
+    await startCampaign(free.owner.id, c.id);
+    expect((await processChatCampaigns({ limit: 1, gapMs: 0 })).sent).toBe(1);
+    expect((await getCampaign(free.owner.id, c.id))?.sent).toBe(1);
   });
 });
 

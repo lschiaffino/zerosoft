@@ -56,3 +56,15 @@ export function chatConversationVisibleSql(column: string, personId: string): { 
     args: [personId, personId],
   };
 }
+
+/**
+ * Lo mismo para filas colgadas de una conversación de Agents (agent_runs,
+ * agent_tool_calls, agent_feedback): deja afuera las de bandejas que no se ven.
+ */
+export function agentConversationVisibleSql(column: string, personId: string): { sql: string; args: string[] } {
+  const v = chatConversationVisibleSql('zac.chat_conversation_id', personId);
+  return {
+    sql: `${column} IN (SELECT zac.id FROM agent_conversations zac WHERE ${v.sql})`,
+    args: v.args,
+  };
+}

@@ -62,20 +62,29 @@ function toTeam(r: TeamRow): ChatTeam {
   };
 }
 
-const TEAM_SELECT = `SELECT t.*,
+/** Con `widgetIds`, las abiertas cuentan solo las de esas bandejas (las restringidas que la persona no ve, no). */
+function teamSelect(widgetIds?: string[]): { sql: string; args: string[] } {
+  const scope = widgetIds ? ` AND c.widget_id IN (${widgetIds.length ? widgetIds.map(() => '?').join(', ') : "''"})` : '';
+  return {
+    sql: `SELECT t.*,
   (SELECT GROUP_CONCAT(m.user_id, ',') FROM chat_team_members m WHERE m.team_id = t.id) AS members,
-  (SELECT COUNT(*) FROM chat_conversations c WHERE c.team_id = t.id AND c.status = 'open') AS open_count
-  FROM chat_teams t`;
+  (SELECT COUNT(*) FROM chat_conversations c WHERE c.team_id = t.id AND c.status = 'open'${scope}) AS open_count
+  FROM chat_teams t`,
+    args: widgetIds ?? [],
+  };
+}
 
-export async function listChatTeams(workspaceId: string): Promise<ChatTeam[]> {
+export async function listChatTeams(workspaceId: string, widgetIds?: string[]): Promise<ChatTeam[]> {
+  const q = teamSelect(widgetIds);
   const rows = (await getDb()
-    .prepare(`${TEAM_SELECT} WHERE t.workspace_id = ? ORDER BY t.name COLLATE NOCASE`)
-    .all(workspaceId)) as TeamRow[];
+    .prepare(`${q.sql} WHERE t.workspace_id = ? ORDER BY t.name COLLATE NOCASE`)
+    .all(...q.args, workspaceId)) as TeamRow[];
   return rows.map(toTeam);
 }
 
-export async function getChatTeam(workspaceId: string, id: string): Promise<ChatTeam | null> {
-  const row = (await getDb().prepare(`${TEAM_SELECT} WHERE t.id = ? AND t.workspace_id = ?`).get(id, workspaceId)) as
+export async function getChatTeam(workspaceId: string, id: string, widgetIds?: string[]): Promise<ChatTeam | null> {
+  const q = teamSelect(widgetIds);
+  const row = (await getDb().prepare(`${q.sql} WHERE t.id = ? AND t.workspace_id = ?`).get(...q.args, id, workspaceId)) as
     | TeamRow
     | undefined;
   return row ? toTeam(row) : null;

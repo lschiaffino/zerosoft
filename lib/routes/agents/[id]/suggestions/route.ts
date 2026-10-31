@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isWorkspaceAdmin } from '@/lib/session';
 import { z } from 'zod';
 import { agentError, agentRouteContext } from '@/lib/agents-http';
 import { dismissSuggestions, listSuggestions } from '@/lib/agents-knowledge';
@@ -13,7 +14,7 @@ export async function GET(_req: NextRequest, props: Ctx) {
   const { id } = await props.params;
   const ctx = await agentRouteContext(id);
   if ('res' in ctx) return ctx.res;
-  return NextResponse.json({ suggestions: await listSuggestions(ctx.user.id, id) });
+  return NextResponse.json({ suggestions: await listSuggestions(ctx.user.id, id, 30, new Date(), isWorkspaceAdmin(ctx.user) ? undefined : ctx.personId) });
 }
 
 const schema = z.object({ dismiss: z.array(z.string().min(1).max(100)).min(1).max(500) });
@@ -26,5 +27,5 @@ export async function POST(req: NextRequest, props: Ctx) {
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return agentError(400, 'invalid_input');
   await dismissSuggestions(ctx.user.id, id, parsed.data.dismiss);
-  return NextResponse.json({ suggestions: await listSuggestions(ctx.user.id, id) });
+  return NextResponse.json({ suggestions: await listSuggestions(ctx.user.id, id, 30, new Date(), isWorkspaceAdmin(ctx.user) ? undefined : ctx.personId) });
 }

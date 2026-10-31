@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { chatError, chatSession, collabError, readBody } from '@/lib/chat-http';
-import { createCampaign, listCampaigns } from '@/lib/chat-campaigns';
+import { campaignCap, createCampaign, listCampaigns } from '@/lib/chat-campaigns';
 import { recordChatAudit } from '@/lib/chat-audit';
 
 export const dynamic = 'force-dynamic';
@@ -8,7 +8,10 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const s = await chatSession();
   if (s instanceof NextResponse) return s;
-  return NextResponse.json({ campaigns: await listCampaigns(s.ws, s.widgets.map((w) => w.id)) });
+  const campaigns = await listCampaigns(s.ws, s.widgets.map((w) => w.id));
+  const cap = await campaignCap(s.ws);
+  // Las que siguen enviando con el cupo de hoy agotado esperan al próximo día.
+  return NextResponse.json({ campaigns: campaigns.map((c) => ({ ...c, waiting_cap: c.status === 'sending' && cap.remaining === 0 })), cap });
 }
 
 /** Mandar emails a toda una base es de admins, igual que el export masivo. */

@@ -10,7 +10,7 @@ export async function GET(_req: Request, props: Ctx) {
   const { id } = await props.params;
   const s = await chatSession();
   if (s instanceof NextResponse) return s;
-  const company = await getCompany(s.ws, id);
+  const company = await getCompany(s.ws, id, s.widgets.map((w) => w.id));
   return company ? NextResponse.json(company) : chatError(404, 'not_found');
 }
 
@@ -21,7 +21,7 @@ export async function PATCH(req: Request, props: Ctx) {
   const body = await readBody(req);
   if (!body) return chatError(400, 'invalid_input');
   try {
-    const company = await updateCompany(s.ws, id, body);
+    const company = await updateCompany(s.ws, id, body, s.widgets.map((w) => w.id));
     return company ? NextResponse.json(company) : chatError(404, 'not_found');
   } catch (err) {
     return collabError(err);

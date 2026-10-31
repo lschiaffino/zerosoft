@@ -7679,6 +7679,12 @@ export const MIGRATIONS: Migration[] = [
           PRIMARY KEY (campaign_id, visitor_id)
         );
         CREATE INDEX IF NOT EXISTS idx_chat_campaign_rec ON chat_campaign_recipients(campaign_id, status);
+        CREATE TABLE IF NOT EXISTS chat_campaign_usage (
+          workspace_id TEXT NOT NULL,
+          day TEXT NOT NULL,
+          used INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (workspace_id, day)
+        );
         CREATE TABLE IF NOT EXISTS chat_events (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           conversation_id TEXT NOT NULL,
@@ -7687,12 +7693,18 @@ export const MIGRATIONS: Migration[] = [
         );
       `);
       // Feed del tiempo real: cualquier escritura queda anotada (lib/chat-realtime.ts).
+      // OJO: un trigger vive con su tabla. Una migración que reconstruya chat_messages,
+      // chat_conversations, chat_typing o chat_presence (crear _new, copiar, DROP, RENAME)
+      // los pierde y Chat queda sin tiempo real sin ningún error: hay que recrearlos en esa
+      // misma migración. tests/unit/chat-events-triggers.test.ts falla si faltan.
       const widgetOf = (conversation: string) => `(SELECT widget_id FROM chat_conversations WHERE id = ${conversation})`;
       const note = (conversation: string) =>
         `INSERT INTO chat_events (conversation_id, widget_id) SELECT ${conversation}, ${widgetOf(conversation)} WHERE ${widgetOf(conversation)} IS NOT NULL;`;
       const triggers: Array<[string, string]> = [
         ['chat_events_msg_ins', `AFTER INSERT ON chat_messages BEGIN ${note('NEW.conversation_id')} END`],
-        ['chat_events_msg_upd', `AFTER UPDATE ON chat_messages BEGIN ${note('NEW.conversation_id')} END`],
+        // Marcar leídos toca muchas filas de una: un solo aviso por conversación y segundo.
+        ['chat_events_msg_read', `AFTER UPDATE OF read_at ON chat_messages WHEN OLD.read_at IS NULL AND NEW.read_at IS NOT NULL BEGIN INSERT INTO chat_events (conversation_id, widget_id) SELECT NEW.conversation_id, ${widgetOf('NEW.conversation_id')} WHERE ${widgetOf('NEW.conversation_id')} IS NOT NULL AND NOT EXISTS (SELECT 1 FROM chat_events e WHERE e.id = (SELECT MAX(id) FROM chat_events) AND e.conversation_id = NEW.conversation_id AND e.created_at = datetime('now')); END`],
+        ['chat_events_msg_upd', `AFTER UPDATE ON chat_messages WHEN NOT (OLD.read_at IS NULL AND NEW.read_at IS NOT NULL) BEGIN ${note('NEW.conversation_id')} END`],
         ['chat_events_conv_ins', `AFTER INSERT ON chat_conversations BEGIN ${note('NEW.id')} END`],
         ['chat_events_conv_upd', `AFTER UPDATE ON chat_conversations BEGIN ${note('NEW.id')} END`],
         ['chat_events_typing_ins', `AFTER INSERT ON chat_typing BEGIN ${note('NEW.conversation_id')} END`],

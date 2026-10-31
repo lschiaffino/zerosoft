@@ -30,6 +30,8 @@ interface SendOptions {
   replyTo?: string;
   /** Headers extra (Chat: In-Reply-To y References para agrupar el hilo). */
   headers?: Record<string, string>;
+  /** Resend no manda dos veces con la misma clave (24 h): para reintentos tras una respuesta perdida. */
+  idempotencyKey?: string;
 }
 
 function fromEmail(): string {
@@ -72,6 +74,7 @@ async function sendResend(opts: SendOptions): Promise<{ id?: string; ok: boolean
       headers: {
         authorization: `Bearer ${apiKey}`,
         'content-type': 'application/json',
+        ...(opts.idempotencyKey ? { 'Idempotency-Key': opts.idempotencyKey } : {}),
       },
       body: JSON.stringify({
         from: opts.from ?? fromEmail(),

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { ChatAgent } from '@/lib/chat-data';
 
 /** Permisos de la bandeja: abierta a todo el workspace o solo admins y una lista de personas. */
@@ -17,7 +18,14 @@ export default function WidgetAccessClient(props: {
   const [members, setMembers] = useState(props.initialMembers);
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
+  const [saved, setSaved] = useState({ restricted: props.initialRestricted, members: props.initialMembers });
+  const [confirming, setConfirming] = useState(false);
+  const [note, setNote] = useState('');
+  // Avisa solo si alguien puede perder acceso: restringir una abierta o sacar a alguien de la lista.
+  const losesAccess = restricted && (!saved.restricted || saved.members.some((id) => !members.includes(id)));
+
   async function save() {
+    setConfirming(false);
     setState('saving');
     try {
       const res = await fetch(`/api/chat/widgets/${props.widgetId}/access`, {
@@ -25,6 +33,11 @@ export default function WidgetAccessClient(props: {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ restricted, memberIds: members }),
       });
+      if (res.ok) {
+        const data = (await res.json()) as { lost?: number; reassigned?: number };
+        setSaved({ restricted, members });
+        setNote(data.lost ? t('access.result', { lost: data.lost, reassigned: data.reassigned ?? 0 }) : '');
+      }
       setState(res.ok ? 'saved' : 'error');
     } catch {
       setState('error');
@@ -74,15 +87,24 @@ export default function WidgetAccessClient(props: {
         )}
         {props.canManage && (
           <div>
-            <button type="button" className="btn btn-primary" disabled={state === 'saving'} onClick={() => void save()}>
+            <button type="button" className="btn btn-primary" disabled={state === 'saving'} onClick={() => (losesAccess ? setConfirming(true) : void save())}>
               {t('common.save')}
             </button>
           </div>
         )}
         <p className={state === 'error' ? 'ui-error' : 'ui-help chat-ok'} role="status" aria-live="polite">
-          {state === 'saved' ? t('access.saved') : state === 'error' ? t('errors.generic') : ''}
+          {state === 'saved' ? `${t('access.saved')}${note ? `. ${note}` : ''}` : state === 'error' ? t('errors.generic') : ''}
         </p>
       </div>
+      <ConfirmDialog
+        open={confirming}
+        title={t('access.confirmTitle')}
+        body={t('access.confirmBody')}
+        confirmLabel={t('access.confirm')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={() => void save()}
+        onCancel={() => setConfirming(false)}
+      />
     </section>
   );
 }

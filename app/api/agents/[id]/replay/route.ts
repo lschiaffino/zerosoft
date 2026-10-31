@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { canSeeAgentConversation } from '@/lib/chat-access';
 import { z } from 'zod';
 import { agentError, agentRouteContext, notFound, runErrorCode } from '@/lib/agents-http';
 import { listReplayCandidates, replayConversation } from '@/lib/agents-sim';
@@ -27,6 +28,7 @@ export async function POST(req: NextRequest, props: Ctx) {
   if ('res' in ctx) return ctx.res;
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return agentError(400, 'invalid_input');
+  if (parsed.data.conversationId && !(await canSeeAgentConversation(ctx.user, parsed.data.conversationId))) return notFound();
   try {
     const result = await replayConversation(ctx.row, parsed.data.conversationId, ctx.personId);
     if (!result) return notFound();

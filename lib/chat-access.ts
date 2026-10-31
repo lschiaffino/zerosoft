@@ -1,7 +1,7 @@
-import { getChatConversation, getChatWidget, listChatWidgets } from './chat-data';
+import { applyAssignmentRules, getChatConversation, getChatWidget, listChatAgents, listChatWidgets } from './chat-data';
 import { getDb, type ChatConversationRow, type ChatWidgetRow } from './db';
 import { roleAtLeast, type TeamRole } from './teams';
-import { personCanSeeWidget, restrictedAudience } from './chat-audience';
+import { isRestricted, personCanSeeWidget, restrictedAudience } from './chat-audience';
 import { getWorkspaceConversation, workspaceWidgetIds } from './chat-api';
 import type { ApiKeyAuth } from './api-auth';
 
@@ -35,34 +35,56 @@ export async function listWidgetAccess(widgetId: string): Promise<string[]> {
   return rows.map((r) => r.user_id);
 }
 
-/** Reemplaza quién entra a la bandeja. `restricted` false la abre a todo el workspace. */
-export async function setWidgetAccess(widgetId: string, restricted: boolean, userIds: string[]): Promise<void> {
+/**
+ * Reemplaza quién entra a la bandeja. Solo quien PIERDE el acceso con este
+ * cambio deja de tener asignación, seguimiento, presencia y avisos de esa
+ * bandeja (traen texto y nombre del visitante); guardar sin cambios no toca a
+ * nadie. Las abiertas que se quedan sin asignado se reparten en el momento.
+ */
+export async function setWidgetAccess(widgetId: string, restricted: boolean, userIds: string[]): Promise<{ lost: number; reassigned: number }> {
   const db = getDb();
+  const before = await getChatWidget(widgetId);
+  if (!before) return { lost: 0, reassigned: 0 };
+  const previous = isRestricted(before) ? await restrictedAudience(before) : null;
   await db.prepare('UPDATE chat_widgets SET restricted = ?, updated_at = ? WHERE id = ?').run(restricted ? 1 : 0, new Date().toISOString(), widgetId);
   await db.prepare('DELETE FROM chat_widget_access WHERE widget_id = ?').run(widgetId);
   for (const id of new Set(userIds)) {
     await db.prepare('INSERT OR IGNORE INTO chat_widget_access (widget_id, user_id) VALUES (?, ?)').run(widgetId, id);
   }
-  if (restricted) await revokeOutsiders(widgetId);
-}
-
-/**
- * Quien quedó afuera deja de tener rastros: asignación, seguimiento, presencia
- * y las notificaciones de esa bandeja (traen texto y nombre del visitante).
- */
-async function revokeOutsiders(widgetId: string): Promise<void> {
-  const db = getDb();
-  const widget = await getChatWidget(widgetId);
-  if (!widget) return;
-  const allowed = [...(await restrictedAudience({ ...widget, restricted: 1 }))];
-  const marks = allowed.map(() => '?').join(', ');
-  const conversations = `SELECT id FROM chat_conversations WHERE widget_id = ?`;
-  await db.prepare(`UPDATE chat_conversations SET assigned_to = NULL WHERE widget_id = ? AND assigned_to IS NOT NULL AND assigned_to NOT IN (${marks})`).run(widgetId, ...allowed);
-  await db.prepare(`DELETE FROM chat_conversation_followers WHERE conversation_id IN (${conversations}) AND user_id NOT IN (${marks})`).run(widgetId, ...allowed);
-  await db.prepare(`DELETE FROM chat_presence WHERE conversation_id IN (${conversations}) AND user_id NOT IN (${marks})`).run(widgetId, ...allowed);
-  await db
-    .prepare(`DELETE FROM notifications WHERE source_type = 'chat_conversation' AND source_id IN (${conversations}) AND user_id NOT IN (${marks})`)
-    .run(widgetId, ...allowed);
+  if (!restricted) return { lost: 0, reassigned: 0 };
+  const allowed = await restrictedAudience({ ...before, restricted: 1 });
+  const agents = await listChatAgents(before.user_id, before.team_id);
+  // Antes era abierta: pierden quienes no están en la nueva lista, incluido quien ya no sea agente.
+  const wereIn = previous ? [...previous] : null;
+  const candidates = wereIn ?? [
+    ...new Set([
+      ...agents.map((a) => a.id),
+      ...((await db.prepare('SELECT DISTINCT user_id FROM chat_conversation_followers WHERE conversation_id IN (SELECT id FROM chat_conversations WHERE widget_id = ?)').all(widgetId)) as Array<{ user_id: string }>).map((r) => r.user_id),
+      ...((await db.prepare('SELECT DISTINCT assigned_to AS user_id FROM chat_conversations WHERE widget_id = ? AND assigned_to IS NOT NULL').all(widgetId)) as Array<{ user_id: string }>).map((r) => r.user_id),
+      ...((await db
+        .prepare("SELECT DISTINCT user_id FROM notifications WHERE source_type = 'chat_conversation' AND source_id IN (SELECT id FROM chat_conversations WHERE widget_id = ?)")
+        .all(widgetId)) as Array<{ user_id: string }>).map((r) => r.user_id),
+    ]),
+  ];
+  const lost = candidates.filter((id) => !allowed.has(id));
+  if (lost.length === 0) return { lost: 0, reassigned: 0 };
+  const marks = lost.map(() => '?').join(', ');
+  const conversations = 'SELECT id FROM chat_conversations WHERE widget_id = ?';
+  const orphaned = (await db
+    .prepare(`SELECT id FROM chat_conversations WHERE widget_id = ? AND status IN ('open', 'pending') AND assigned_to IN (${marks}) LIMIT 500`)
+    .all(widgetId, ...lost)) as Array<{ id: string }>;
+  await db.prepare(`UPDATE chat_conversations SET assigned_to = NULL WHERE widget_id = ? AND assigned_to IN (${marks})`).run(widgetId, ...lost);
+  await db.prepare(`DELETE FROM chat_conversation_followers WHERE conversation_id IN (${conversations}) AND user_id IN (${marks})`).run(widgetId, ...lost);
+  await db.prepare(`DELETE FROM chat_presence WHERE conversation_id IN (${conversations}) AND user_id IN (${marks})`).run(widgetId, ...lost);
+  await db.prepare(`DELETE FROM notifications WHERE source_type = 'chat_conversation' AND source_id IN (${conversations}) AND user_id IN (${marks})`).run(widgetId, ...lost);
+  let reassigned = 0;
+  for (const c of orphaned) {
+    const last = (await db
+      .prepare("SELECT body FROM chat_messages WHERE conversation_id = ? AND sender_type = 'visitor' AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1")
+      .get(c.id)) as { body: string } | undefined;
+    if (await applyAssignmentRules(widgetId, c.id, last?.body ?? '', agents)) reassigned += 1;
+  }
+  return { lost: lost.length, reassigned };
 }
 
 /** La persona puede ver la bandeja. */

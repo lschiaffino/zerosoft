@@ -685,6 +685,8 @@ export async function updateChatVisitor(
     if (email !== existing.email) {
       fields.push('email_verified = ?');
       args.push(email && payload.emailVerified ? 1 : 0);
+      // El consentimiento era de la dirección anterior.
+      fields.push('campaign_opt_in_at = NULL');
     }
   }
   if (payload.notes !== undefined) {

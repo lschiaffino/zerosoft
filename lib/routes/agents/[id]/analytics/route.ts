@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { getAgentAnalytics, parseAnalyticsRange } from '@/lib/agents-analytics';
 import { rememberAlertLocale, setAgentAlertsEnabled } from '@/lib/agents-alerts';
 import { agentError, canEditAgent, forbidden, notFound, unauthorized, visibleAgentRow } from '@/lib/agents-http';
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest, props: Ctx) {
   if (!row) return notFound();
   const locale = req.nextUrl.searchParams.get('locale');
   if (locale && canEditAgent(user, row)) await rememberAlertLocale(id, locale).catch(() => {});
-  const analytics = await getAgentAnalytics(user.id, id, parseAnalyticsRange(req.nextUrl.searchParams.get('days')));
+  const analytics = await getAgentAnalytics(user.id, id, parseAnalyticsRange(req.nextUrl.searchParams.get('days')), undefined, isWorkspaceAdmin(user) ? undefined : (user.actingUser?.id ?? user.id));
   return NextResponse.json({ analytics, alertsEnabled: (row.alerts_enabled ?? 1) === 1 });
 }
 

@@ -11,7 +11,7 @@ export async function GET(_req: Request, props: Ctx) {
   const { id } = await props.params;
   const s = await chatSession();
   if (s instanceof NextResponse) return s;
-  const team = await getChatTeam(s.ws, id);
+  const team = await getChatTeam(s.ws, id, s.widgets.map((w) => w.id));
   return team ? NextResponse.json(team) : chatError(404, 'not_found');
 }
 

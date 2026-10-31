@@ -28,7 +28,7 @@ export async function PUT(req: Request, props: Ctx) {
   if (!body || typeof body.restricted !== 'boolean' || !Array.isArray(body.memberIds)) return chatError(400, 'invalid_input');
   const valid = new Set(s.agents.map((a) => a.id));
   const memberIds = body.memberIds.filter((x): x is string => typeof x === 'string' && valid.has(x));
-  await setWidgetAccess(id, body.restricted, memberIds);
-  await recordChatAudit(s.ws, s.me, 'widget.access', { id, restricted: body.restricted, members: memberIds.length });
-  return NextResponse.json({ restricted: body.restricted, memberIds });
+  const result = await setWidgetAccess(id, body.restricted, memberIds);
+  await recordChatAudit(s.ws, s.me, 'widget.access', { id, restricted: body.restricted, members: memberIds.length, ...result });
+  return NextResponse.json({ restricted: body.restricted, memberIds, ...result });
 }

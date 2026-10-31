@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { canSeeAgentConversation } from '@/lib/chat-access';
 import { z } from 'zod';
 import { getCurrentUser } from '@/lib/session';
 import { agentError, notFound, realUserId, streamAgentReply, unauthorized, visibleAgentRow } from '@/lib/agents-http';
@@ -25,6 +26,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if (!agent) return notFound();
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return agentError(400, 'invalid_input');
+  if (parsed.data.conversationId && !(await canSeeAgentConversation(user, parsed.data.conversationId))) return notFound();
   return streamAgentReply({
     agent,
     channel: 'playground',

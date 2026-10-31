@@ -134,7 +134,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   // email en minúsculas con el secreto del widget, calculado en el server del
   // sitio: con una firma válida el email queda verificado en el inbox.
   var SCRIPT_EL = document.currentScript;
-  var identity = { email: null, name: null, userHash: null };
+  var identity = { email: null, name: null, userHash: null, campaignOptIn: false };
   function cleanIdentity(o) {
     if (!o || typeof o !== 'object') return;
     if (typeof o.email === 'string') {
@@ -146,6 +146,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
       }
     }
     if (typeof o.userHash === 'string' && /^[0-9a-fA-F]{64}$/.test(o.userHash)) identity.userHash = o.userHash;
+    if (o.campaignOptIn === true) identity.campaignOptIn = true;
     if (typeof o.name === 'string') {
       var n = o.name.replace(/[\\u0000-\\u001f]/g, '').trim().slice(0, 120);
       if (n) identity.name = n;
@@ -171,6 +172,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     if (identity.email) payload.email = identity.email;
     if (identity.name) payload.name = identity.name;
     if (identity.email && identity.userHash) payload.userHash = identity.userHash;
+    if (identity.email && identity.userHash && identity.campaignOptIn) payload.campaignOptIn = true;
     payload.context = pageContext();
     return payload;
   }
@@ -645,6 +647,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   function obClose() {
     obCard.style.display = 'none';
     obShown = null;
+    if (typeof clSync === 'function') clSync();
   }
   // Contenido en la página: barra, post, checklist y tour. El texto va siempre como texto (dom), nunca como HTML.
   function obLines(m) {
@@ -673,7 +676,8 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
       var el = list[i];
       if (el === root || root.contains(el)) continue;
       var st = getComputedStyle(el);
-      if ((st.position === 'fixed' || st.position === 'sticky') && (parseFloat(st.top) || 0) < px) {
+      // Un overlay a pantalla completa no se mueve: solo cabeceras y barras.
+      if ((st.position === 'fixed' || st.position === 'sticky') && (parseFloat(st.top) || 0) < px && el.getBoundingClientRect().height < window.innerHeight * 0.5) {
         obPushed.push({ el: el, top: el.style.top });
         el.style.top = ((parseFloat(st.top) || 0) + px) + 'px';
       }
@@ -686,6 +690,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     for (var id in obBars) { obBars[id].style.top = h + 'px'; h += obBars[id].offsetHeight; }
     obPushPage(h);
   }
+  window.addEventListener('resize', function () { obLayoutBars(); });
   function obBanner(m) {
     if (obBars[m.id]) return;
     var bar = dom('div', { role: 'status', 'data-zs-banner': m.id, style: 'position:fixed;top:0;left:0;right:0;z-index:2147483646;display:flex;align-items:center;gap:12px;justify-content:center;padding:10px 14px;box-sizing:border-box;background:' + COLOR + ';color:#fff;font:14px/1.4 system-ui,-apple-system,sans-serif;' }, [
@@ -758,34 +763,44 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
       obChecklistSave(m, state);
       if (obTab && obTab.parentNode) obTab.parentNode.removeChild(obTab);
       obTab = null;
-      if (obShown) obClose();
       obChecklist(m);
     });
     root.appendChild(obTab);
+  }
+  // Tarjeta propia: una lista abierta no frena mensajes, encuestas ni posts; se esconde mientras haya otra tarjeta o el chat abierto.
+  var clCard = dom('div', { style: obCard.getAttribute('style') });
+  var clOpen = false;
+  function clSync() {
+    clCard.style.display = clOpen && !obShown && !open ? 'block' : 'none';
+    if (obTab) obTab.style.display = open ? 'none' : 'block';
+  }
+  function clHide() {
+    clOpen = false;
+    clCard.removeAttribute('data-zs-checklist');
+    clSync();
   }
   function obChecklist(m) {
     var parsed = obChecklistItems(m);
     var lines = parsed.lines;
     var state = obChecklistState(m);
     state.done = state.done || {};
-    obShown = m;
-    obCard.innerHTML = '';
-    obCard.setAttribute('data-zs-checklist', m.id);
+    clOpen = true;
+    if (!clCard.parentNode) root.insertBefore(clCard, obCard);
+    clCard.innerHTML = '';
+    clCard.setAttribute('data-zs-checklist', m.id);
     var head = dom('div', { style: 'display:flex;align-items:center;gap:8px;margin-bottom:8px;' }, [dom('strong', { style: 'flex:1;font-size:14px;' }, [parsed.title || m.from || ''])]);
     head.appendChild(obCloseBtn(function () {
       state.min = true;
       obChecklistSave(m, state);
-      obCard.removeAttribute('data-zs-checklist');
-      obClose();
+      clHide();
       obChecklistTab(m);
-      obEvaluate();
     }));
-    obCard.appendChild(head);
+    clCard.appendChild(head);
     var progress = dom('div', { style: 'font-size:12px;color:#666;margin-bottom:8px;' });
     function paintProgress() {
       progress.textContent = T('checklistProgress', { done: obChecklistCount(state, lines), total: lines.length });
     }
-    obCard.appendChild(progress);
+    clCard.appendChild(progress);
     lines.forEach(function (line, i) {
       var box = dom('input', { type: 'checkbox', style: 'margin:2px 8px 0 0;flex:none;' });
       box.checked = !!state.done[i];
@@ -794,18 +809,16 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
         obChecklistSave(m, state);
         paintProgress();
       });
-      obCard.appendChild(dom('label', { style: 'display:flex;align-items:flex-start;font-size:13px;margin-bottom:6px;cursor:pointer;word-break:break-word;' }, [box, dom('span', {}, [line])]));
+      clCard.appendChild(dom('label', { style: 'display:flex;align-items:flex-start;font-size:13px;margin-bottom:6px;cursor:pointer;word-break:break-word;' }, [box, dom('span', {}, [line])]));
     });
     var dismiss = dom('button', { type: 'button', style: 'background:none;border:none;color:#666;cursor:pointer;font-size:12px;padding:4px 0 0;text-decoration:underline;' }, [T('dismiss')]);
     dismiss.addEventListener('click', function () {
       obMarkSeen(m.id);
-      obCard.removeAttribute('data-zs-checklist');
-      obClose();
-      obEvaluate();
+      clHide();
     });
-    obCard.appendChild(dismiss);
+    clCard.appendChild(dismiss);
     paintProgress();
-    obCard.style.display = 'block';
+    clSync();
   }
   // El tour sigue donde quedó hasta terminarlo o cerrarlo. Si el paso que toca no está en esta página, espera a la página donde está.
   function obTourSteps(m) {
@@ -822,12 +835,10 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   function obTourPos(m) {
     try { return Number(localStorage.getItem(obTourKey(m))) || 0; } catch (e) { return 0; }
   }
-  /** Próximo paso que se puede mostrar en esta página, desde from; -1 si no hay. */
+  /** El paso from, si se puede mostrar en esta página; -1 si no: el tour espera a la página donde está. */
   function obTourNext(steps, from) {
-    for (var i = from; i < steps.length; i++) {
-      if (!steps[i].sel || obFind(steps[i].sel)) return i;
-    }
-    return -1;
+    if (from >= steps.length) return -1;
+    return !steps[from].sel || obFind(steps[from].sel) ? from : -1;
   }
   function obTour(m) {
     var steps = obTourSteps(m);
@@ -850,7 +861,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
       var at = obTourNext(steps, i + 1);
       if (at < 0) {
         // Se acabó, o lo que falta está en otra página: ahí sigue.
-        var finished = i + 1 >= steps.length || i === steps.length - 1;
+        var finished = i + 1 >= steps.length;
         try { localStorage.setItem(obTourKey(m), String(i + 1)); } catch (e) {}
         obSkip[m.id] = true;
         end(finished);
@@ -891,7 +902,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   function obRender(m) {
     if (m.format === 'post') { obPost(m); return; }
     if (m.format === 'tour') { obTour(m); return; }
-    if (m.format === 'checklist') { obChecklist(m); return; }
+    clSync();
     obCard.innerHTML = '';
     var x = dom('button', { type: 'button', 'aria-label': T('close'), style: 'float:right;background:none;border:none;color:#888;cursor:pointer;font-size:16px;line-height:1;padding:0 0 0 8px;' }, ['×']);
     x.addEventListener('click', obClose);
@@ -955,23 +966,35 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
         obEvent(bm, 'seen').catch(function () {});
       }
     }
+    // La lista tampoco interrumpe: abierta o en su solapa, sin ocupar la cola.
+    for (var c = 0; c < obMessages.length; c++) {
+      var cm = obMessages[c];
+      if (cm.format !== 'checklist' || seenIds.indexOf(cm.id) >= 0 || obSkip[cm.id] || !obUrlMatches(cm) || !obAudience(cm)) continue;
+      obSkip[cm.id] = true;
+      if (obChecklistState(cm).min) { obChecklistTab(cm); clSync(); }
+      else {
+        (function (msg) {
+          setTimeout(function () {
+            obEvent(msg, 'seen').catch(function () {});
+            obChecklist(msg);
+          }, Math.max(0, Number(msg.delaySeconds) || 0) * 1000);
+        })(cm);
+      }
+      break;
+    }
     if (obShown || open || obBlocking) return;
     for (var i = 0; i < obMessages.length; i++) {
       var m = obMessages[i];
-      if (m.format === 'banner' || seenIds.indexOf(m.id) >= 0 || obSkip[m.id]) continue;
+      if (m.format === 'banner' || m.format === 'checklist' || seenIds.indexOf(m.id) >= 0 || obSkip[m.id]) continue;
       // Un mensaje para empezar a chatear no interrumpe una conversación en curso.
       if (m.kind === 'chat' && (!m.format || m.format === 'message') && conversationId) continue;
       if (!obUrlMatches(m) || !obAudience(m)) continue;
-      if (m.format === 'checklist' && obChecklistState(m).min) {
-        if (!obTab) obChecklistTab(m);
-        continue;
-      }
       // Un tour sin pasos para esta página no se gasta: espera a la página donde están.
       if (m.format === 'tour' && obTourNext(obTourSteps(m), obTourPos(m)) < 0) continue;
       (function (msg) {
         obTimer = setTimeout(function () {
           if (open || obShown || obBlocking || String(location.href) !== obUrl) return;
-          var persistent = msg.format === 'checklist' || msg.format === 'tour';
+          var persistent = msg.format === 'tour';
           if (msg.format === 'post' || msg.format === 'tour') obBlocking = true;
           else obShown = msg;
           // Lo que queda hasta terminarlo o descartarlo no se marca al mostrarlo.
@@ -990,7 +1013,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
       if (obMessages.length) {
         visitorReady.then(obEvaluate);
         // Sitios de una sola página: la URL cambia sin recargar.
-        setInterval(function () { if (String(location.href) !== obUrl) { obSkip = {}; obEvaluate(); } }, 1500);
+        setInterval(function () { if (String(location.href) !== obUrl) { for (var sk in obSkip) { var skm = obMessages.filter(function (x) { return x.id === sk; })[0]; if (!skm || skm.format !== 'checklist') delete obSkip[sk]; } obEvaluate(); } }, 1500);
       }
     })
     .catch(function () {});
@@ -1589,6 +1612,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   function openChat() {
     open = true;
     obClose();
+    if (typeof clSync === 'function') clSync();
     if (historyOpen) showHistory(false);
     box.style.display = 'flex';
     btn.setAttribute('aria-label', T('closeChat'));
@@ -1632,6 +1656,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
 
   function closeChat() {
     open = false;
+    if (typeof clSync === 'function') clSync();
     box.style.display = 'none';
     btn.setAttribute('aria-label', T('openChat'));
     closeStream();
