@@ -600,7 +600,7 @@ describe('avisos', () => {
     expect(await noticeRecipient(owner.id, 'se-fue')).toBe(owner.id);
   });
 
-  it('credencial fuera de un fill: no pausa ni suma fallas, un solo aviso por robot', async () => {
+  it('credencial fuera de un fill: un solo aviso por robot y, si se repite, pausa las corridas automáticas', async () => {
     const u = await makeUser();
     const r = await robotIn(u.id);
     await updateRobot(u.id, r.id, { enabled: true, pauseAfter: 1 });
@@ -608,10 +608,12 @@ describe('avisos', () => {
       name: 'local',
       run: async () => ({ status: 'failed', error: '2: credential_not_allowed', vars: {}, logs: [], screenshots: [], pages: 0 }),
     });
-    for (let i = 0; i < 3; i++) await startRobotRun(u.id, r.id, undefined, { trigger: 'schedule' });
+    for (let i = 0; i < 2; i++) await startRobotRun(u.id, r.id, undefined, { trigger: 'schedule' });
+    expect((await getRobotRow(u.id, r.id))?.enabled).toBe(1);
+    await startRobotRun(u.id, r.id, undefined, { trigger: 'schedule' });
     const row = await getRobotRow(u.id, r.id);
-    expect(row?.enabled).toBe(1);
-    expect(Number(row?.consecutive_failures ?? 0)).toBe(0);
+    expect(row?.enabled).toBe(0);
+    expect(row?.paused_at).toBeTruthy();
     const list = await notices(u.id);
     expect(list.length).toBe(1);
     expect(list[0].body).toContain('Step 2');
@@ -644,7 +646,7 @@ describe('credenciales fuera de un fill', () => {
     expect(JSON.stringify(res)).not.toContain('hunter2');
   });
 
-  it('un robot con login armado por un member no corre, aunque lo lance un admin o el cron', async () => {
+  it('un robot con login armado por un member no corre por el cron; si lo corre un admin, se hace cargo', async () => {
     const owner = await makeUser();
     const m = await makeUser();
     const team = crypto.randomUUID();
@@ -655,8 +657,12 @@ describe('credenciales fuera de un fill', () => {
     // Aparece un login en los pasos sin pasar por el guardado.
     await getDb().prepare('UPDATE robots SET steps = ? WHERE id = ?').run(JSON.stringify([{ type: 'fill', selector: '#p', value: '{{credentials.L.password}}' }]), res.robot.id);
     setRobotBackendForTests(instantBackend);
-    expect(await startRobotRun(owner.id, res.robot.id, undefined, { trigger: 'manual', actorId: owner.id })).toMatchObject({ ok: false, error: 'admin_only_login' });
     expect(await startRobotRun(owner.id, res.robot.id, undefined, { trigger: 'schedule' })).toMatchObject({ ok: false, error: 'admin_only_login' });
+    // El admin que lo corre a mano queda como quien lo armó: ya no es un 403 (acá falta la credencial).
+    expect(await startRobotRun(owner.id, res.robot.id, undefined, { trigger: 'manual', actorId: owner.id })).toMatchObject({ ok: false, error: 'missing_credential' });
+    const row = (await getDb().prepare('SELECT created_by FROM robots WHERE id = ?').get(res.robot.id)) as { created_by: string };
+    expect(row.created_by).toBe(owner.id);
+    expect(await startRobotRun(owner.id, res.robot.id, undefined, { trigger: 'schedule' })).toMatchObject({ ok: false, error: 'missing_credential' });
   });
 });
 

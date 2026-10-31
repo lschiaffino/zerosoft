@@ -20,6 +20,6 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const parsed = robotRunSchema.safeParse((await req.json().catch(() => ({}))) ?? {});
   if (!parsed.success) return robotError(400, 'invalid_input');
   const res = await startRobotRun(user.id, id, parsed.data.inputs, { trigger: 'manual', actorId: realUserId(user) });
-  if (!res.ok) return robotError(runErrorStatus(res.error), res.error, res.name ? { name: res.name } : {});
+  if (!res.ok) return robotError(runErrorStatus(res.error), res.error, { ...(res.name ? { name: res.name } : {}), ...(res.index !== undefined ? { index: res.index } : {}) });
   return NextResponse.json({ run: res.run });
 }

@@ -102,11 +102,12 @@ const opts = (extra: Partial<Parameters<typeof robotInterpreter>[3]> = {}) => ({
 describe('robots: credenciales', () => {
   it('resuelve {{credentials.<name>.x}} en el intérprete', async () => {
     const { page, actions } = fakePage();
+    page.url = () => 'https://a.test/login';
     const res = await robotInterpreter(
       page,
       steps([
-        { type: 'fill', selector: '#user', value: '{{credentials.login.username}}' },
-        { type: 'fill', selector: '#pass', value: '{{credentials.login.password}}' },
+        { type: 'fill', selector: '#user', value: '{{credentials.login.username}}', origin: 'https://a.test' },
+        { type: 'fill', selector: '#pass', value: '{{credentials.login.password}}', origin: 'https://a.test' },
       ]),
       {},
       opts({ credentials: { login: { username: 'ada', password: 'hunter2-secret' } } }),

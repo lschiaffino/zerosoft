@@ -116,7 +116,21 @@ const retry = {
  */
 const heal = {
   fallbacks: z.array(z.string().trim().min(1).max(500)).max(MAX_FALLBACKS).optional(),
+  /**
+   * El elemento grabado (etiqueta, tipo y nombre visible). Una acción solo usa un
+   * alternativo que dé con un elemento igual; sin esto, sus alternativos no se usan.
+   */
+  identity: z
+    .object({
+      tag: z.string().trim().regex(/^[a-z][a-z0-9-]{0,30}$/),
+      type: z.string().trim().max(40).optional().default(''),
+      name: z.string().max(80),
+    })
+    .optional(),
 };
+
+/** Origen (https://host[:puerto]) donde se grabó o configuró un login. */
+export const ORIGIN_RE = /^https?:\/\/[a-z0-9.-]+(?::\d{1,5})?$/i;
 
 const gotoStep = z.object({ type: z.literal('goto'), url: template.min(1), ...retry });
 const clickStep = z.object({
@@ -126,7 +140,15 @@ const clickStep = z.object({
   ...heal,
   ...retry,
 });
-const fillStep = z.object({ type: z.literal('fill'), selector: selector.min(1), value: template.default(''), ...heal, ...retry });
+const fillStep = z.object({
+  type: z.literal('fill'),
+  selector: selector.min(1),
+  value: template.default(''),
+  /** Sitio donde va el login: un fill con credencial falla en otro origen (p. ej. después de una redirección). */
+  origin: z.union([z.string().trim().max(200).regex(ORIGIN_RE), z.literal('')]).optional(),
+  ...heal,
+  ...retry,
+});
 const selectStep = z.object({ type: z.literal('select'), selector: selector.min(1), value: template.default(''), ...heal, ...retry });
 const pressStep = z.object({
   type: z.literal('press'),
@@ -1071,4 +1093,10 @@ const SIMPLE_SELECTOR = new RegExp(`^(?::scope > )?${SIMPLE_PART}(?: > ${SIMPLE_
 /** Selector reaprendido: etiquetas, id, clases, un atributo y posición, unidos con " > ". Sin comas ni plantillas. */
 export function isSimpleSelector(v: unknown): boolean {
   return typeof v === 'string' && v.length <= 500 && SIMPLE_SELECTOR.test(v);
+}
+
+/** Filas de un lote que alcanzan a correr con los minutos que quedan (a `secondsPerRun` por corrida). */
+export function batchRowsCovered(minutesLeft: number, secondsPerRun: number, rows: number): number {
+  if (!(secondsPerRun > 0)) return rows;
+  return Math.max(0, Math.min(rows, Math.floor((Math.max(0, minutesLeft) * 60) / secondsPerRun)));
 }

@@ -21,7 +21,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if (!canRunRobot(user, row, await getRobotWorkspaceConfig(user.id))) return forbidden();
   const parsed = robotBulkSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return robotError(400, 'too_many_inputs');
-  const res = await enqueueRobotBatch(user.id, id, parsed.data.inputs, { actorId: realUserId(user), batchId: parsed.data.batchId, offset: parsed.data.offset, total: parsed.data.total });
+  const res = await enqueueRobotBatch(user.id, id, parsed.data.inputs, { actorId: realUserId(user), adopt: true, batchId: parsed.data.batchId, offset: parsed.data.offset, total: parsed.data.total });
   if (!res.ok) {
     const status = res.error === 'too_many_inputs' || res.error === 'batch_too_large' ? 400 : runErrorStatus(res.error);
     return robotError(status, res.error, { ...(res.name ? { name: res.name } : {}), ...(res.index !== undefined ? { index: res.index } : {}) });

@@ -231,7 +231,8 @@
       "aiFields": "Campos de cada linha",
       "aiFieldName": "Coluna",
       "aiFieldDesc": "Descrição (opcional)",
-      "aiScope": "Só dentro deste seletor (opcional)"
+      "aiScope": "Só dentro deste seletor (opcional)",
+      "origin": "Site do login"
     },
     "modes": {
       "text": "Texto do primeiro resultado",
@@ -280,13 +281,14 @@
       "load_more": "Botão Carregar mais",
       "scroll": "Scroll infinito"
     },
-    "fallbacksHint": "São testados em ordem quando o seletor principal não está na página. O log da execução diz qual funcionou.",
+    "fallbacksHint": "São testados em ordem quando o seletor principal não está na página. Em cliques, campos e selects, um alternativo só é usado se encontrar o elemento gravado (mesma tag, tipo e nome visível), e nunca em um passo com login. O log da execução diz qual funcionou.",
     "fallbacksShow": "Seletores alternativos",
     "instructionPlaceholder": "Cada produto com nome, preço e link",
     "aiHint": "A IA lê o texto da página ao terminar a execução e preenche a variável como linhas. Os passos seguintes da mesma execução ainda não a veem.",
     "scrollHint": "Desce até o final e espera, até não carregarem linhas novas ou depois de {max} rolagens.",
     "moreHint": "Clica no botão até ele sumir, não carregarem linhas novas ou depois de {max} cliques, e lê todas as linhas.",
-    "loadMoreDefault": "Carregar mais"
+    "loadMoreDefault": "Carregar mais",
+    "originHint": "O login só é digitado neste site. Vazio usa o site do último passo Ir para URL com endereço fixo. Se a página terminar em outro site (depois de um redirecionamento, por exemplo), o passo falha sem digitá-lo."
   },
   "inputs": {
     "title": "Entradas",
@@ -412,7 +414,8 @@
     "relearnedAction": "O passo {step} não encontrava mais seu seletor e nada foi clicado nem digitado. Substituto sugerido, o único elemento com o mesmo nome: {selector}. Aprove se estiver certo.",
     "approveSuggestion": "Aprovar e salvar",
     "suggestionApproved": "Aprovado e salvo no robô.",
-    "credentialNotAllowed": "O passo {step} usa uma credencial fora do valor de um campo Preencher, e ela não foi enviada à página. As credenciais agora só funcionam como valor de um passo Preencher. Abra a aba Passos e tire-a da URL, do seletor, do texto ou do script."
+    "credentialNotAllowed": "O passo {step} usa uma credencial fora do valor de um campo Preencher, e ela não foi enviada à página. As credenciais agora só funcionam como valor de um passo Preencher. Abra a aba Passos e tire-a da URL, do seletor, do texto ou do script.",
+    "credentialOrigin": "O passo {step} ia digitar um login em um site diferente do configurado, então ele não foi enviado. Se a página de login mudou, grave o login de novo ou preencha o Site do login nesse passo."
   },
   "settings": {
     "enabled": "Permitir execuções automáticas",
@@ -692,10 +695,13 @@
     "nothingStarted": "Nenhuma execução começou. Corrija e coloque na fila de novo.",
     "rowMissing": "Linha {row}: “{name}” é obrigatório. Nada foi enviado.",
     "estimate": "Cerca de {minutes, plural, one {# minuto} other {# minutos}} de navegador a {seconds} s por execução, e pelo menos {wall} com {concurrency} ao mesmo tempo.",
-    "estimateOver": "Restam {left, number} minutos este mês. O lote pausa quando acabam e continua quando houver minutos de novo.",
-    "expiry": "Linhas ainda aguardando depois de 45 dias são descartadas.",
+    "expiry": "As linhas que ainda estiverem esperando depois de {age} são descartadas, e você recebe um aviso.",
     "wallMinutes": "{count, plural, one {# minuto} other {# minutos}}",
-    "wallHours": "{count, plural, one {# hora} other {# horas}}"
+    "wallHours": "{count, plural, one {# hora} other {# horas}}",
+    "cover": "Os {left, number} minutos que restam neste mês cobrem cerca de {covered, number} destas {rows, number} linhas. O resto espera na fila até haver minutos de novo.",
+    "coverAll": "Os {left, number} minutos que restam neste mês cobrem todas as {rows, number} linhas.",
+    "days": "{count, plural, one {# dia} other {# dias}}",
+    "hours": "{count, plural, one {# hora} other {# horas}}"
   },
   "data": {
     "title": "Dados entre execuções",
@@ -899,7 +905,13 @@
     },
     "credentialMisuse": {
       "title": "{name}: um passo precisa de mudança",
-      "body": "O passo {step} usa uma credencial fora do valor de um campo Preencher, então o robô para ali. Tire-a da URL, do seletor, do texto ou do script. Este robô não vai enviar este aviso de novo."
+      "body": "O passo {step} usa uma credencial fora do valor de um campo Preencher, então o robô para antes de abrir o navegador. Tire-a da URL, do seletor, do texto ou do script. As execuções agendadas pausam depois de 3 que falhem assim. Este robô não vai enviar este aviso de novo."
+    },
+    "batchExpired": {
+      "title": "{name}: linhas do lote descartadas",
+      "body": "{count} linhas de um lote esperaram mais de {age} na fila e foram descartadas sem rodar. Coloque-as na fila de novo para rodá-las.",
+      "days": "{count} dias",
+      "hours": "{count} horas"
     }
   }
 }

@@ -231,7 +231,8 @@
       "aiFields": "Fields of each row",
       "aiFieldName": "Column",
       "aiFieldDesc": "Description (optional)",
-      "aiScope": "Only inside this selector (optional)"
+      "aiScope": "Only inside this selector (optional)",
+      "origin": "Login site"
     },
     "modes": {
       "text": "Text of the first match",
@@ -280,13 +281,14 @@
       "load_more": "Load more button",
       "scroll": "Infinite scroll"
     },
-    "fallbacksHint": "Tried in order when the main selector is not on the page. The run log says which one worked.",
+    "fallbacksHint": "Tried in order when the main selector is not on the page. On clicks, fields and selects, an alternative is used only if it finds the recorded element (same tag, type and visible name), and never on a step with a login. The run log says which one worked.",
     "fallbacksShow": "Alternative selectors",
     "instructionPlaceholder": "Every product with its name, price and link",
     "aiHint": "AI reads the page text when the run ends and fills the variable as rows. Later steps of the same run don't see it yet.",
     "scrollHint": "Scrolls to the bottom and waits, until no new rows load or after {max} scrolls.",
     "moreHint": "Clicks the button until it disappears, no new rows load or after {max} clicks, then reads every row.",
-    "loadMoreDefault": "Load more"
+    "loadMoreDefault": "Load more",
+    "originHint": "The login is only typed on this site. Empty uses the site of the last Go to URL step with a fixed address. If the page ends up on another site (after a redirect, for example), the step fails without typing it."
   },
   "inputs": {
     "title": "Inputs",
@@ -412,7 +414,8 @@
     "relearnedAction": "Step {step} no longer matched its selector and nothing was clicked or typed. Suggested replacement, the only element with the same name: {selector}. Approve it if it is right.",
     "approveSuggestion": "Approve and save",
     "suggestionApproved": "Approved and saved in the robot.",
-    "credentialNotAllowed": "Step {step} uses a credential outside a Fill field value, and it was not sent to the page. Credentials now only work as the value of a Fill field step. Open the Steps tab and take it out of the URL, selector, text or script."
+    "credentialNotAllowed": "Step {step} uses a credential outside a Fill field value, and it was not sent to the page. Credentials now only work as the value of a Fill field step. Open the Steps tab and take it out of the URL, selector, text or script.",
+    "credentialOrigin": "Step {step} would type a login on a different site than the one it was set up for, so it was not sent. If the login page moved, record the login again or set the Login site on that step."
   },
   "settings": {
     "enabled": "Allow automatic runs",
@@ -692,10 +695,13 @@
     "nothingStarted": "No run started. Fix it and queue again.",
     "rowMissing": "Row {row}: “{name}” is required. Nothing was uploaded.",
     "estimate": "About {minutes, plural, one {# browser minute} other {# browser minutes}} at {seconds} s per run, and at least {wall} with {concurrency} at once.",
-    "estimateOver": "You have {left, number} minutes left this month. The batch pauses when they run out and continues when there are minutes again.",
-    "expiry": "Rows still waiting after 45 days are dropped.",
+    "expiry": "Rows still waiting after {age} are dropped, and you get a notice.",
     "wallMinutes": "{count, plural, one {# minute} other {# minutes}}",
-    "wallHours": "{count, plural, one {# hour} other {# hours}}"
+    "wallHours": "{count, plural, one {# hour} other {# hours}}",
+    "cover": "Your {left, number} minutes left this month cover about {covered, number} of these {rows, number} rows. The rest wait in the queue until there are minutes again.",
+    "coverAll": "Your {left, number} minutes left this month cover all {rows, number} rows.",
+    "days": "{count, plural, one {# day} other {# days}}",
+    "hours": "{count, plural, one {# hour} other {# hours}}"
   },
   "data": {
     "title": "Data across runs",
@@ -899,7 +905,13 @@
     },
     "credentialMisuse": {
       "title": "{name}: a step needs a change",
-      "body": "Step {step} uses a credential outside a Fill field value, so the robot stops there. Take it out of the URL, selector, text or script. This robot will not send this notice again."
+      "body": "Step {step} uses a credential outside a Fill field value, so the robot stops before opening the browser. Take it out of the URL, selector, text or script. Scheduled runs pause after 3 runs that fail like this. This robot will not send this notice again."
+    },
+    "batchExpired": {
+      "title": "{name}: batch rows dropped",
+      "body": "{count} rows of a batch waited more than {age} in the queue and were dropped without running. Queue them again to run them.",
+      "days": "{count} days",
+      "hours": "{count} hours"
     }
   }
 }

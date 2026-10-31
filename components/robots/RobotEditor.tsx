@@ -246,11 +246,11 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ inputs: values }),
     }).catch(() => null);
-    const data = (await res?.json().catch(() => null)) as { run?: RobotRunDto; error?: string; name?: string } | null;
+    const data = (await res?.json().catch(() => null)) as { run?: RobotRunDto; error?: string; name?: string; index?: number } | null;
     setRunning(false);
     setRunOpen(false);
     if (!res?.ok || !data?.run) {
-      setError(errorText(t, data?.error, { name: data?.name ?? '' }));
+      setError(errorText(t, data?.error, { name: data?.name ?? '', index: (data?.index ?? 0) + 1 }));
       return;
     }
     const newRun = data.run;

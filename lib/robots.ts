@@ -19,7 +19,7 @@ import { rateLimit } from './rate-limit';
 import { getRobotBackend, robotBackendName, type RobotBackendName } from './robots-runner';
 import { open, seal } from './secret-box';
 import { recordRobotOutcome } from './robots-alerts';
-import { PASSWORD_PLACEHOLDER as RECORDER_PASSWORD_PLACEHOLDER } from './robots-recorder';
+import { onlyRecorderSteps, PASSWORD_PLACEHOLDER as RECORDER_PASSWORD_PLACEHOLDER } from './robots-recorder';
 import { diffRobotOutputs, stableJson } from './robots-diff';
 import { geoOptions } from './robots-geo';
 import { mergeDataset, rowsOf, toRowObject, type DatasetMergeResult } from './robots-dataset';
@@ -195,6 +195,8 @@ export interface RobotUsage {
   changeEmailsPerDay: number;
   /** Corridas a la vez de este workspace. */
   concurrency: number;
+  /** Lo que espera una fila de un lote antes de descartarse (ROBOTS_BATCH_QUEUE_MAX_AGE_H). */
+  batchExpiry: { unit: 'days' | 'hours'; count: number };
 }
 
 function nowIso(): string {
@@ -601,6 +603,7 @@ export async function getUsage(workspaceId: string): Promise<RobotUsage> {
     proxies: !!(process.env.ROBOTS_PROXY_URL ?? '').trim(),
     changeEmailsPerDay: envInt('ROBOTS_CHANGE_EMAILS_PER_DAY', 24),
     concurrency: (await getRobotWorkspaceConfig(workspaceId)).concurrency,
+    batchExpiry: batchExpiry(),
   };
 }
 
@@ -715,7 +718,8 @@ export type RunErrorCode =
   | 'missing_input'
   | 'missing_credential'
   | 'no_steps'
-  | 'admin_only_login';
+  | 'admin_only_login'
+  | 'credential_misuse';
 
 /**
  * Credenciales usadas en los pasos ({{credentials.<name>.campo}}), en claro
@@ -755,7 +759,7 @@ async function storeFiles(files: RobotFile[], vars: Record<string, unknown>): Pr
 
 export type StartRunResult =
   | { ok: true; run: RobotRunDto; queued?: boolean }
-  | { ok: false; error: RunErrorCode; name?: string };
+  | { ok: false; error: RunErrorCode; name?: string; index?: number };
 
 export type { RobotFile };
 
@@ -921,6 +925,42 @@ export function batchQueueMaxAgeMs(): number {
   return envInt('ROBOTS_BATCH_QUEUE_MAX_AGE_H', 1080) * 3_600_000;
 }
 
+/** Días (u horas, si no llega a un día entero) que espera una fila de un lote: lo que dice la app. */
+export function batchExpiry(): { unit: 'days' | 'hours'; count: number } {
+  const hours = Math.round(batchQueueMaxAgeMs() / 3_600_000);
+  return hours >= 24 && hours % 24 === 0 ? { unit: 'days', count: hours / 24 } : { unit: 'hours', count: Math.max(1, hours) };
+}
+
+/**
+ * Filas de lotes que vencieron en la pasada `ts`: un aviso por lote a quien lo
+ * lanzó, con cuántas se descartaron. Una sola vez por lote.
+ */
+async function noticeExpiredBatches(ts: string): Promise<number> {
+  const db = getDb();
+  const rows = (await db
+    .prepare(
+      `SELECT batch_id, user_id, MIN(robot_id) AS robot_id, MIN(created_by) AS created_by, COUNT(*) AS n FROM robot_runs
+       WHERE status = 'failed' AND error = 'queue_expired' AND batch_id IS NOT NULL AND finished_at = ? GROUP BY batch_id, user_id LIMIT 50`,
+    )
+    .all(ts)) as Array<{ batch_id: string; user_id: string; robot_id: string; created_by: string | null; n: number }>;
+  let sent = 0;
+  const { noticeRecipient, sendRobotNotice } = await import('./robots-alerts');
+  const exp = batchExpiry();
+  for (const b of rows) {
+    const res = await db
+      .prepare('INSERT OR IGNORE INTO robot_runtime (key, value, updated_at) VALUES (?, ?, ?)')
+      .run(`batch_expired:${b.user_id}:${b.batch_id}`, '1', nowIso());
+    if (res.changes !== 1) continue;
+    const row = await getRobotRow(b.user_id, b.robot_id);
+    if (!row) continue;
+    const to = await noticeRecipient(b.user_id, b.created_by);
+    if (!to) continue;
+    await sendRobotNotice(row, to, 'batchExpired', `/app/robots/${row.id}?tab=runs`, `batch-expired:${b.batch_id}`, { count: Number(b.n), age: exp });
+    sent++;
+  }
+  return sent;
+}
+
 /** ¿El workspace se quedó sin minutos este mes? */
 export async function robotQuotaExhausted(workspaceId: string): Promise<boolean> {
   const limit = freeMinutesPerMonth();
@@ -943,6 +983,7 @@ export async function expireQueuedRobotRuns(workspaceId?: string, now = Date.now
        WHERE status = 'queued' AND batch_id IS NOT NULL AND created_at < ?${workspaceId ? ' AND user_id = ?' : ''}`,
     )
     .run(...(workspaceId ? [ts, ts, batchCutoff, workspaceId] : [ts, ts, batchCutoff]));
+  if (bulk.changes > 0) await noticeExpiredBatches(ts).catch(() => undefined);
   const rows = (await db
     .prepare(
       `SELECT r.id, r.trigger, r.user_id, b.id AS robot_id, b.name AS robot_name FROM robot_runs r JOIN robots b ON b.id = r.robot_id
@@ -987,6 +1028,23 @@ async function loginAllowed(row: RobotRow, actorId: string | null | undefined): 
   return true;
 }
 
+/**
+ * Un admin que corre o guarda un robot con login que armó alguien que hoy es
+ * member (o invitado) se hace cargo: queda como quien lo armó y el robot vuelve
+ * a correr, también programado. Devuelve la fila actualizada.
+ */
+export async function adoptLoginRobot(row: RobotRow, actorId: string | null | undefined): Promise<RobotRow> {
+  if (!actorId || row.created_by === actorId) return row;
+  const { robotUsesLogin } = await import('./robots-http');
+  if (!robotUsesLogin(row)) return row;
+  const actor = await personRole(row.user_id, actorId);
+  if (actor !== 'owner' && actor !== 'admin') return row;
+  const creator = await personRole(row.user_id, row.created_by);
+  if (creator !== 'member' && creator !== 'guest') return row;
+  await setRobotOwner(row.user_id, row.id, actorId);
+  return { ...row, created_by: actorId };
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
@@ -1015,14 +1073,18 @@ export async function startRobotRun(
     timeoutCapMs?: number;
   },
 ): Promise<StartRunResult> {
-  const row = await getRobotRow(workspaceId, robotId);
+  let row = await getRobotRow(workspaceId, robotId);
   if (!row) return { ok: false, error: 'not_found' };
   if (opts.trigger !== 'manual' && row.enabled !== 1) return { ok: false, error: 'disabled' };
   const robot = toRobotDto(row);
   if (robot.steps.length === 0) return { ok: false, error: 'no_steps' };
   const backend = getRobotBackend();
   if (!backend) return { ok: false, error: 'runner_unavailable' };
+  if (opts.trigger === 'manual') row = await adoptLoginRobot(row, opts.actorId);
   if (!(await loginAllowed(row, opts.actorId))) return { ok: false, error: 'admin_only_login' };
+  // Una credencial fuera del valor de un fill falla acá, antes de abrir el navegador.
+  const misuse = credentialMisuse(robot.steps);
+  if (misuse !== null) return { ok: false, error: 'credential_misuse', index: misuse };
   const resolved = resolveInputs(robot.inputs, values);
   if (!resolved.ok) return { ok: false, error: 'missing_input', name: resolved.name };
   const creds = await resolveRobotCredentials(workspaceId, robot.steps);
@@ -1548,6 +1610,8 @@ async function claimForDrain(run: RobotRunRow): Promise<(() => Promise<unknown>)
   if (run.trigger !== 'manual' && row.enabled !== 1) return (await failRun(row, run, 'disabled', 'queued')) ? true : null;
   if (!(await loginAllowed(row, run.created_by))) return (await failRun(row, run, 'admin_only_login', 'queued')) ? true : null;
   const robot = toRobotDto(row);
+  const misuse = credentialMisuse(robot.steps);
+  if (misuse !== null) return (await failRun(row, run, `${misuse + 1}: credential_not_allowed`, 'queued')) ? true : null;
   const timeoutMs = await effectiveTimeoutMs(run.user_id, robot);
   if (timeoutMs === null) {
     // Sin minutos, un lote queda en pausa: sigue el mes que viene o cuando se amplíe la cuota.
@@ -1571,9 +1635,9 @@ async function pickQueuedRuns(concurrency: number, ws?: string): Promise<RobotRu
     .all(...(ws ? [ws] : []))) as Array<{ user_id: string }>;
   const picked: RobotRunRow[] = [];
   for (const { user_id } of spaces) {
-    await syncPausedBatchNotices(user_id).catch(() => 0);
     const left = concurrency - picked.length;
     if (left <= 0) break;
+    await syncPausedBatchNotices(user_id).catch(() => 0);
     const running = (await db
       .prepare("SELECT COUNT(*) AS n FROM robot_runs WHERE user_id = ? AND status = 'running'")
       .get(user_id)) as { n: number };
@@ -1683,7 +1747,9 @@ export async function runDueRobots(now: Date = new Date(), limit = 100, budgetMs
           .run(next, row.id, row.next_run_at);
         if (res.changes !== 1) return false;
         const r = await startRobotRun(row.user_id, row.id, undefined, { trigger: 'schedule' });
-        if (!r.ok && r.error !== 'not_found' && r.error !== 'disabled') await recordSkippedRun(row, r.error);
+        if (!r.ok && r.error !== 'not_found' && r.error !== 'disabled') {
+          await recordSkippedRun(row, r.error === 'credential_misuse' ? `${(r.index ?? 0) + 1}: credential_not_allowed` : r.error);
+        }
         return r.ok;
       }),
     );
@@ -1701,7 +1767,7 @@ export async function runDueRobots(now: Date = new Date(), limit = 100, budgetMs
  * credencial faltante…) queda en el historial como fallida con el código y
  * emite robot.run.failed: no se pierde en silencio.
  */
-async function recordSkippedRun(row: RobotRow, error: RunErrorCode): Promise<void> {
+async function recordSkippedRun(row: RobotRow, error: string): Promise<void> {
   const id = crypto.randomUUID();
   const ts = nowIso();
   await getDb()
@@ -1755,19 +1821,22 @@ export async function enqueueRobotBatch(
   workspaceId: string,
   robotId: string,
   inputs: Array<Record<string, unknown>>,
-  opts: { actorId?: string | null; batchId?: string; offset?: number; total?: number } = {},
+  opts: { actorId?: string | null; batchId?: string; offset?: number; total?: number; adopt?: boolean } = {},
 ): Promise<EnqueueBatchResult> {
   if (inputs.length === 0 || inputs.length > MAX_BULK_INPUTS) return { ok: false, error: 'too_many_inputs' };
   const offset = opts.offset ?? 0;
   if (offset + inputs.length > MAX_BATCH_INPUTS) return { ok: false, error: 'too_many_inputs' };
   if (opts.batchId && (!opts.total || offset + inputs.length > opts.total)) return { ok: false, error: 'too_many_inputs' };
-  const row = await getRobotRow(workspaceId, robotId);
+  let row = await getRobotRow(workspaceId, robotId);
   if (!row) return { ok: false, error: 'not_found' };
   if (row.enabled !== 1) return { ok: false, error: 'disabled' };
   const robot = toRobotDto(row);
   if (robot.steps.length === 0) return { ok: false, error: 'no_steps' };
   if (!getRobotBackend()) return { ok: false, error: 'runner_unavailable' };
+  if (opts.adopt) row = await adoptLoginRobot(row, opts.actorId);
   if (!(await loginAllowed(row, opts.actorId))) return { ok: false, error: 'admin_only_login' };
+  const misuse = credentialMisuse(robot.steps);
+  if (misuse !== null) return { ok: false, error: 'credential_misuse', index: misuse };
   const resolved: Array<Record<string, unknown>> = [];
   for (let i = 0; i < inputs.length; i++) {
     const r = resolveInputs(robot.inputs, inputs[i]);
@@ -2019,7 +2088,7 @@ export async function getRobotRecording(workspaceId: string, id: string, personI
   if (!row) return null;
   const plain = row.steps.startsWith('[') ? row.steps : open(row.steps);
   const v = validateSteps(parseJson<unknown>(plain, []));
-  return { id: row.id, robotId: row.robot_id, steps: v.ok ? v.steps : [], updatedAt: row.updated_at, expiresAt: row.expires_at };
+  return { id: row.id, robotId: row.robot_id, steps: v.ok && onlyRecorderSteps(v.steps) ? v.steps : [], updatedAt: row.updated_at, expiresAt: row.expires_at };
 }
 
 export async function deleteRobotRecording(workspaceId: string, id: string, personId: string): Promise<boolean> {
@@ -2057,6 +2126,8 @@ export async function pushRobotRecording(id: string, token: string, steps: unkno
   const a = Buffer.from(await tokenHash(token));
   const b = Buffer.from(row?.token_hash ?? '0'.repeat(64));
   if (!row || a.length !== b.length || !timingSafeEqual(a, b) || row.expires_at < nowIso()) return { ok: false, error: 'not_found' };
+  // El grabador no produce scripts, subidas ni loops: lo que llega con eso lo armó la página.
+  if (!onlyRecorderSteps(steps)) return { ok: false, error: 'invalid_steps' };
   const v = validateSteps(neutralizeRecorded(steps));
   if (!v.ok) return { ok: false, error: 'invalid_steps' };
   await getDb().prepare('UPDATE robot_recordings SET steps = ?, updated_at = ? WHERE id = ?').run(seal(JSON.stringify(v.steps)), nowIso(), id);

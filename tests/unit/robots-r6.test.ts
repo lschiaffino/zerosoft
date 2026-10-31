@@ -258,7 +258,7 @@ describe('TOTP', () => {
       const res = await robotInterpreter(
         page,
         steps([
-          { type: 'fill', selector: '.card', value: '{{credentials.site.totp}}' },
+          { type: 'fill', selector: '.card', value: '{{credentials.site.totp}}', origin: 'https://shop.test' },
         ]),
         {},
         opts({ now: () => now, credentials: { site: { username: 'ana', password: 'pw', totpSecret: secret } } }),

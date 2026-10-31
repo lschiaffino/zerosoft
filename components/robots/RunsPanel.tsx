@@ -207,6 +207,8 @@ function RunDetail({
           <strong>{t('error')}</strong>
           {/credential_not_allowed/.test(run.error) ? (
             <span>{t('credentialNotAllowed', { step: run.error.split(':')[0] })}</span>
+          ) : /credential_origin/.test(run.error) ? (
+            <span>{t('credentialOrigin', { step: run.error.split(':')[0] })}</span>
           ) : (
             <span className="data">{run.error}</span>
           )}

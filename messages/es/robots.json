@@ -231,7 +231,8 @@
       "aiFields": "Campos de cada fila",
       "aiFieldName": "Columna",
       "aiFieldDesc": "Descripción (opcional)",
-      "aiScope": "Solo dentro de este selector (opcional)"
+      "aiScope": "Solo dentro de este selector (opcional)",
+      "origin": "Sitio del login"
     },
     "modes": {
       "text": "Texto del primer resultado",
@@ -280,13 +281,14 @@
       "load_more": "Botón Cargar más",
       "scroll": "Scroll infinito"
     },
-    "fallbacksHint": "Se prueban en orden cuando el selector principal no está en la página. El log de la corrida dice cuál sirvió.",
+    "fallbacksHint": "Se prueban en orden cuando el selector principal no está en la página. En clics, campos y selects, un alternativo solo se usa si da con el elemento grabado (misma etiqueta, tipo y nombre visible), y nunca en un paso con login. El log de la corrida dice cuál sirvió.",
     "fallbacksShow": "Selectores alternativos",
     "instructionPlaceholder": "Cada producto con su nombre, precio y link",
     "aiHint": "La IA lee el texto de la página al terminar la corrida y completa la variable como filas. Los pasos siguientes de la misma corrida todavía no la ven.",
     "scrollHint": "Baja hasta el final y espera, hasta que no cargan filas nuevas o después de {max} bajadas.",
     "moreHint": "Hace clic en el botón hasta que desaparece, no cargan filas nuevas o después de {max} clics, y lee todas las filas.",
-    "loadMoreDefault": "Cargar más"
+    "loadMoreDefault": "Cargar más",
+    "originHint": "El login solo se escribe en este sitio. Vacío usa el sitio del último paso Ir a URL con dirección fija. Si la página termina en otro sitio (después de una redirección, por ejemplo), el paso falla sin escribirlo."
   },
   "inputs": {
     "title": "Entradas",
@@ -412,7 +414,8 @@
     "relearnedAction": "El paso {step} ya no encontraba su selector y no se hizo ningún clic ni se escribió nada. Reemplazo sugerido, el único elemento con el mismo nombre: {selector}. Aprobalo si está bien.",
     "approveSuggestion": "Aprobar y guardar",
     "suggestionApproved": "Aprobado y guardado en el robot.",
-    "credentialNotAllowed": "El paso {step} usa una credencial fuera del valor de un campo Completar, y no se mandó a la página. Las credenciales ahora solo funcionan como valor de un paso Completar. Abrí la pestaña Pasos y sacala de la URL, el selector, el texto o el script."
+    "credentialNotAllowed": "El paso {step} usa una credencial fuera del valor de un campo Completar, y no se mandó a la página. Las credenciales ahora solo funcionan como valor de un paso Completar. Abrí la pestaña Pasos y sacala de la URL, el selector, el texto o el script.",
+    "credentialOrigin": "El paso {step} iba a escribir un login en un sitio distinto del que se configuró, así que no se mandó. Si la página de login cambió, grabá el login de nuevo o completá el Sitio del login en ese paso."
   },
   "settings": {
     "enabled": "Permitir corridas automáticas",
@@ -692,10 +695,13 @@
     "nothingStarted": "No arrancó ninguna corrida. Corregilo y volvé a ponerlo en cola.",
     "rowMissing": "Fila {row}: “{name}” es obligatorio. No se subió nada.",
     "estimate": "Unos {minutes, plural, one {# minuto} other {# minutos}} de navegador a {seconds} s por corrida, y al menos {wall} con {concurrency} a la vez.",
-    "estimateOver": "Te quedan {left, number} minutos este mes. El lote se pausa cuando se acaban y sigue cuando vuelva a haber minutos.",
-    "expiry": "Las filas que sigan esperando después de 45 días se descartan.",
+    "expiry": "Las filas que sigan esperando después de {age} se descartan, y te llega un aviso.",
     "wallMinutes": "{count, plural, one {# minuto} other {# minutos}}",
-    "wallHours": "{count, plural, one {# hora} other {# horas}}"
+    "wallHours": "{count, plural, one {# hora} other {# horas}}",
+    "cover": "Los {left, number} minutos que te quedan este mes alcanzan para unas {covered, number} de estas {rows, number} filas. El resto espera en la cola hasta que vuelva a haber minutos.",
+    "coverAll": "Los {left, number} minutos que te quedan este mes alcanzan para las {rows, number} filas.",
+    "days": "{count, plural, one {# día} other {# días}}",
+    "hours": "{count, plural, one {# hora} other {# horas}}"
   },
   "data": {
     "title": "Datos entre corridas",
@@ -899,7 +905,13 @@
     },
     "credentialMisuse": {
       "title": "{name}: un paso necesita un cambio",
-      "body": "El paso {step} usa una credencial fuera del valor de un campo Completar, así que el robot se frena ahí. Sacala de la URL, el selector, el texto o el script. Este robot no va a volver a mandar este aviso."
+      "body": "El paso {step} usa una credencial fuera del valor de un campo Completar, así que el robot se frena antes de abrir el navegador. Sacala de la URL, el selector, el texto o el script. Las corridas programadas se pausan después de 3 que fallen así. Este robot no va a volver a mandar este aviso."
+    },
+    "batchExpired": {
+      "title": "{name}: filas del lote descartadas",
+      "body": "{count} filas de un lote esperaron más de {age} en la cola y se descartaron sin correr. Volvé a ponerlas en cola para correrlas.",
+      "days": "{count} días",
+      "hours": "{count} horas"
     }
   }
 }

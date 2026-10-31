@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { deleteRobot, getRobot, getRobotRow, getRobotWorkspaceConfig, setRobotOwner, updateRobot } from '@/lib/robots';
+import { adoptLoginRobot, deleteRobot, getRobot, getRobotRow, getRobotWorkspaceConfig, setRobotOwner, updateRobot } from '@/lib/robots';
 import { robotUpdateSchema } from '@/lib/robots-schema';
 import { canEditRobot, canEditRobots, forbidden, memberPatchError, memberSettingsError, notFound, realUserId, robotError, robotUsesLogin, unauthorized } from '@/lib/robots-http';
 import { requestLocale } from '@/lib/request-locale';
@@ -42,10 +42,18 @@ export async function PATCH(req: NextRequest, props: Ctx) {
     return robotError(400, res.error, { index: res.index });
   }
   // Un admin que agrega un login se hace cargo del robot: al correr se mira quién lo armó.
-  if (canEditRobots(user) && row.created_by !== realUserId(user) && robotUsesLogin((await getRobotRow(user.id, id)) ?? row) && !robotUsesLogin(row)) {
-    await setRobotOwner(user.id, id, realUserId(user));
+  // También si guarda uno con login que armó alguien que hoy es member: si no, el robot no corre más.
+  let robot = res.robot;
+  if (canEditRobots(user)) {
+    const after = (await getRobotRow(user.id, id)) ?? row;
+    if (row.created_by !== realUserId(user) && robotUsesLogin(after) && !robotUsesLogin(row)) {
+      await setRobotOwner(user.id, id, realUserId(user));
+      robot = (await getRobot(user.id, id)) ?? robot;
+    } else if ((await adoptLoginRobot(after, realUserId(user))) !== after) {
+      robot = (await getRobot(user.id, id)) ?? robot;
+    }
   }
-  return NextResponse.json({ robot: res.robot, ...(res.droppedRecipients ? { droppedRecipients: res.droppedRecipients } : {}) });
+  return NextResponse.json({ robot, ...(res.droppedRecipients ? { droppedRecipients: res.droppedRecipients } : {}) });
 }
 
 export async function DELETE(_req: NextRequest, props: Ctx) {

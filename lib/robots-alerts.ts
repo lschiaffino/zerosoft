@@ -70,6 +70,28 @@ export function decideOutcome(opts: {
 /** Errores que no son fallas del robot (lo apagó alguien): no cuentan. */
 const NOT_A_FAILURE = new Set(['disabled']);
 
+/** Errores de configuración: no se arreglan solos, repetirlos no sirve. */
+const CONFIG_ERROR = /^(?:[\d.]+:\s*)?(credential_not_allowed|credential_origin|admin_only_login|missing_credential|missing_input|no_steps)$/;
+
+/** Fallas automáticas iguales seguidas que pausan el schedule aunque el robot diga "nunca pausar". */
+export const SAME_ERROR_PAUSE = 3;
+
+/**
+ * ¿Las últimas SAME_ERROR_PAUSE corridas automáticas fallaron con el mismo error de
+ * configuración? Entonces se pausa el schedule: va a seguir fallando igual.
+ */
+async function repeatedConfigError(workspaceId: string, robotId: string): Promise<boolean> {
+  const rows = (await getDb()
+    .prepare(
+      `SELECT status, error FROM robot_runs WHERE robot_id = ? AND user_id = ? AND trigger <> 'manual' AND status IN ('success', 'failed')
+       ORDER BY created_at DESC, rowid DESC LIMIT ?`,
+    )
+    .all(robotId, workspaceId, SAME_ERROR_PAUSE)) as Array<{ status: string; error: string | null }>;
+  if (rows.length < SAME_ERROR_PAUSE) return false;
+  const first = rows[0].error ?? '';
+  return CONFIG_ERROR.test(first) && rows.every((r) => r.status === 'failed' && (r.error ?? '') === first);
+}
+
 const NOTICE_MESSAGES = { en, es, pt } as const;
 
 /**
@@ -89,19 +111,21 @@ export async function noticeRecipient(workspaceId: string, personId: string | nu
 export async function sendRobotNotice(
   row: Pick<RobotRow, 'id' | 'name' | 'alert_locale'>,
   to: string,
-  key: 'batchPaused' | 'credentialMisuse',
+  key: 'batchPaused' | 'credentialMisuse' | 'batchExpired',
   href: string,
   sourceId: string,
-  values: { count?: number; step?: string },
+  values: { count?: number; step?: string; age?: { unit: 'days' | 'hours'; count: number } },
 ): Promise<void> {
   const locale = row.alert_locale === 'es' || row.alert_locale === 'pt' ? row.alert_locale : 'en';
-  const texts = NOTICE_MESSAGES[locale].notices[key];
+  const notices = NOTICE_MESSAGES[locale].notices as Record<string, { title: string; body: string; days?: string; hours?: string }>;
+  const texts = notices[key] ?? (NOTICE_MESSAGES.en.notices as Record<string, { title: string; body: string }>)[key];
+  const ageText = values.age ? (values.age.unit === 'days' ? (texts.days ?? '{count} days') : (texts.hours ?? '{count} hours')).replace('{count}', String(values.age.count)) : '';
   const { createNotification } = await import('./notifications');
   await createNotification({
     userId: to,
     type: 'robot_notice',
     title: texts.title.replace('{name}', row.name),
-    body: texts.body.replace('{count}', String(values.count ?? '')).replace('{step}', values.step ?? ''),
+    body: texts.body.replace('{count}', String(values.count ?? '')).replace('{step}', values.step ?? '').replace('{age}', ageText),
     href,
     sourceType: 'robot',
     sourceId,
@@ -139,9 +163,19 @@ export async function recordRobotOutcome(
     }
     // Una credencial fuera de un campo no se arregla sola: no cuenta para la pausa ni manda
     // una alerta por corrida. Un solo aviso por robot, que dice qué cambiar.
+    // Pero si es automática y se repite, el schedule se pausa sin otro aviso.
     if (/credential_not_allowed/.test(run.error ?? '')) {
       await credentialNotice(workspaceId, robotId, run.error ?? '');
-      return 'none';
+      if (run.trigger === 'manual') return 'none';
+      await db
+        .prepare('UPDATE robots SET consecutive_failures = consecutive_failures + 1 WHERE id = ? AND user_id = ?')
+        .run(robotId, workspaceId);
+      if (!(await repeatedConfigError(workspaceId, robotId))) return 'none';
+      const ts = new Date().toISOString();
+      const res = await db
+        .prepare('UPDATE robots SET enabled = 0, next_run_at = NULL, paused_at = ? WHERE id = ? AND user_id = ? AND enabled = 1')
+        .run(ts, robotId, workspaceId);
+      return res.changes === 1 ? 'pause' : 'none';
     }
     if (run.trigger === 'manual' || NOT_A_FAILURE.has(run.error ?? '')) return 'none';
     await db
@@ -149,11 +183,13 @@ export async function recordRobotOutcome(
       .run(robotId, workspaceId);
     const row = (await db.prepare('SELECT * FROM robots WHERE id = ? AND user_id = ?').get(robotId, workspaceId)) as RobotRow | undefined;
     if (!row) return 'none';
+    // Un robot que dice "nunca pausar" igual se pausa si repite el mismo error de configuración.
+    const stuck = !(Number(row.pause_after) > 0) && (await repeatedConfigError(workspaceId, robotId));
     const action = decideOutcome({
       status: 'failed',
       trigger: run.trigger,
       failures: Number(row.consecutive_failures) || 0,
-      pauseAfter: Number(row.pause_after) || 0,
+      pauseAfter: stuck ? SAME_ERROR_PAUSE : Number(row.pause_after) || 0,
       hasSchedule: !!row.schedule,
       enabled: row.enabled === 1,
       alertsOn: row.failure_alerts === 1,
