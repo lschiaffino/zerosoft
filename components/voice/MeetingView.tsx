@@ -213,7 +213,7 @@ export default function MeetingView({ initial, templates, folders, transcription
       const data = (await res?.json().catch(() => null)) as { enhanced?: Detail['enhanced']; enhancedAt?: string; crmActivityId?: string | null; error?: string } | null;
       setEnhancing(false);
       if (!res?.ok || !data?.enhanced) {
-        setError(data?.error ?? 'network');
+        setError(data?.error ?? (res ? 'generic' : 'network'));
         return;
       }
       setD((prev) => ({ ...prev, enhanced: data.enhanced ?? null, enhancedAt: data.enhancedAt ?? null, crmActivityId: data.crmActivityId ?? prev.crmActivityId, templateKey: templateKey ?? prev.templateKey }));
@@ -267,7 +267,7 @@ export default function MeetingView({ initial, templates, folders, transcription
       return;
     }
     if (!res?.ok || !data) {
-      setError(data?.error ?? 'network');
+      setError(data?.error ?? (res ? 'generic' : 'network'));
       return;
     }
     if (target === 'markdown') {

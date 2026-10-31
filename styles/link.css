@@ -16,10 +16,15 @@
 .app-page { display: flex; flex-direction: column; gap: 28px; }
 .app-page.narrow { max-width: 720px; }
 
+/* Igual que .ui-page-title (styles/ui.css): un solo tamaño de título en toda la app. */
 .app-title {
-  font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 500;
-  letter-spacing: -0.02em;
+  font-family: var(--font-signage);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
+  font-size: 2rem;
+  line-height: 1.05;
+  letter-spacing: -0.005em;
+  overflow-wrap: anywhere;
 }
 
 .app-sub { margin-top: -16px; font-size: 0.95rem; }

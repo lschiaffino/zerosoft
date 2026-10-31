@@ -448,18 +448,27 @@ select.select,
   background: var(--bg);
   border-bottom: 1px solid var(--ink);
 }
-.table td {
+.table td,
+.table :where(tbody) th {
   height: 36px;
   padding: 6px 12px;
   vertical-align: middle;
   border-bottom: 1px solid var(--line);
+}
+/* <th scope="row">: la primera celda de la fila se ve como las demás, con su peso. */
+.table :where(tbody) th {
+  font-size: inherit;
+  white-space: normal;
+  overflow-wrap: break-word;
+  color: var(--ink);
+  background: transparent;
 }
 .table th.num, .table td.num { text-align: right; }
 .table td.data, .table td .data { font-size: 0.8125rem; }
 .table tbody tr { transition: background-color 80ms linear; }
 .table tbody tr:hover { background: var(--brand-enamel); }
 .table tbody tr[aria-selected='true'] { background: var(--ui-hover); }
-.table-compact td { height: 32px; padding: 4px 10px; }
+.table-compact td, .table-compact :where(tbody) th { height: 32px; padding: 4px 10px; }
 .table-sticky thead th { position: sticky; top: 0; z-index: 1; }
 .table a.cell-link { color: var(--ink); font-weight: 600; text-decoration: none; }
 .table a.cell-link:hover { text-decoration: underline; text-underline-offset: 3px; }
@@ -704,6 +713,21 @@ dialog.ui-drawer[open] { display: flex; }
   border-bottom: var(--stroke-rule) solid var(--ink);
 }
 .ui-page-header-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+/* Con un título editable el bloque toma el ancho libre: un <textarea> no tiene ancho propio que dar. */
+.ui-page-header-text:has(.ui-title-input) { flex: 1 1 320px; }
+textarea.ui-title-input.ui-title-input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  resize: none;
+  field-sizing: content;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: 1.2;
+  color: inherit;
+  overflow-wrap: anywhere;
+}
 .ui-page-back { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--brand-gray-2); text-decoration: none; }
 .ui-page-back:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .ui-page-title {
@@ -948,4 +972,10 @@ section.ui-section { padding: 0; }
 @media (max-width: 520px) {
   .ximp-map { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .ximp-map > .select { margin-bottom: 8px; }
+}
+
+/* Filtros de lista: un <select> dentro de una fila de filtros mide lo que necesita, no todo el ancho. */
+.hr-filter.select, .fm-filter.select, .sc-inbox-filters .select { width: auto; flex: 0 1 200px; min-width: 0; max-width: 100%; }
+@media (max-width: 480px) {
+  .hr-filter.select, .fm-filter.select, .sc-inbox-filters .select { flex: 1 1 100%; }
 }

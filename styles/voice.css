@@ -236,6 +236,7 @@ a.vc-row-main:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px
 .vc-library { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 20px; align-items: start; }
 .vc-library-main { min-width: 0; }
 .vc-folders { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.vc-folder { min-width: 0; max-width: 100%; }
 .vc-folders ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
 .vc-folders-title { margin: 8px 0 0; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); }
 .vc-folders-empty { margin: 0; font-size: 0.8125rem; }
@@ -257,6 +258,7 @@ a.vc-row-main:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px
   font-size: 0.875rem;
   cursor: pointer;
 }
+.vc-folder-btn .vc-folder-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vc-folder-btn:hover { background: var(--ui-hover); color: var(--ink); }
 .vc-folder-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 .vc-folder-btn[aria-current='page'] { background: var(--ui-press); color: var(--ink); font-weight: 600; }
@@ -333,7 +335,7 @@ a.vc-row-main:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px
   .vc-library { grid-template-columns: minmax(0, 1fr); }
   .vc-folders ul { flex-direction: row; flex-wrap: wrap; gap: 4px; }
   .vc-folder.is-sub { padding-left: 0; }
-  .vc-folder-btn { width: auto; border: 1px solid var(--line); }
+  .vc-folder-btn { width: auto; max-width: 100%; border: 1px solid var(--line); }
 }
 @media (max-width: 520px) {
   .vc-upcoming li { flex-wrap: wrap; }

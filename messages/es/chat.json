@@ -406,7 +406,7 @@
     "actions": "Acciones"
   },
   "errors": {
-    "generic": "Algo salió mal. Inténtalo de nuevo.",
+    "generic": "Algo salió mal. Probá de nuevo.",
     "fileTooLarge": "Archivo demasiado grande (máx. 10 MB).",
     "fileTypeNotAllowed": "Este tipo de archivo no está permitido.",
     "messageTooLong": "Mensaje demasiado largo (máx. 5.000 caracteres).",

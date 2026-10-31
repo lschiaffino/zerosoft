@@ -88,7 +88,7 @@ export async function afterVisitorMessage(input: {
       href,
       sourceType: 'chat_conversation',
       sourceId: conversation.id,
-      meta: { visitorName: visitor.name, visitorEmail: visitor.email },
+      meta: { actorName: senderName, visitorName: visitor.name, visitorEmail: visitor.email },
     });
   }
   // Push al celular o al navegador (PWA de la suite): en segundo plano.

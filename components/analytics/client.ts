@@ -23,6 +23,11 @@ export class ApiError extends Error {
   }
 }
 
+/** Mensaje para la persona: el código de la API (server_error, invalid_body…) nunca se muestra crudo. */
+export function apiErrorText(err: unknown, t: (key: 'error' | 'errorInvalid') => string): string {
+  return err instanceof ApiError && err.status >= 400 && err.status < 500 ? t('errorInvalid') : t('error');
+}
+
 export async function api<T>(url: string, init?: { method?: string; body?: unknown; signal?: AbortSignal }): Promise<T> {
   const res = await fetch(url, {
     method: init?.method ?? (init?.body ? 'POST' : 'GET'),

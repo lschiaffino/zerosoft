@@ -18,6 +18,7 @@ import { PLAN_PRIORITIES, PLAN_STATUSES } from '@/lib/track-planning-schema';
 import { api, fmtDay, HealthDot, LoadingRows, PlanStatusIcon, ProgressBar, personName } from './shared';
 import type { PlansMeta } from './PlansList';
 import PlanUpdates from './PlanUpdates';
+import TitleInput from '@/components/ui/TitleInput';
 
 type Tab = 'overview' | 'issues' | 'updates';
 
@@ -122,12 +123,12 @@ export default function PlanPage({ planId }: { planId: string }) {
     );
   }
   const { plan } = data;
-  const enter = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+  const enter = (e: KeyboardEvent<HTMLElement>) => {
+    if (e.key === 'Enter') (e.target as HTMLElement).blur();
     if (e.key === 'Escape') {
       setName(plan.name);
       setSummary(plan.summary);
-      (e.target as HTMLInputElement).blur();
+      (e.target as HTMLElement).blur();
     }
   };
 
@@ -143,12 +144,12 @@ export default function PlanPage({ planId }: { planId: string }) {
           <span className="tp-plan-icon" aria-hidden="true">
             {plan.icon || <PlanStatusIcon status={plan.status} />}
           </span>
-          <input
+          <TitleInput
             className="tp-title-input"
             aria-label={t('plans.nameLabel')}
             value={name}
             maxLength={200}
-            onChange={(e) => setName(e.target.value)}
+            onValueChange={setName}
             onBlur={() => void saveName()}
             onKeyDown={enter}
             data-testid="tp-plan-name"
@@ -638,7 +639,7 @@ function Milestones({
                 defaultValue={m.name}
                 maxLength={200}
                 onBlur={(e) => e.target.value.trim() && e.target.value.trim() !== m.name && void update(m.id, { name: e.target.value.trim() })}
-                onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLElement).blur()}
               />
               <DateChip
                 value={m.target_date}

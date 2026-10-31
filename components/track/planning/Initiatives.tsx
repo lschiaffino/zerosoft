@@ -13,6 +13,7 @@ import { INITIATIVE_STATUSES, type InitiativeStatus } from '@/lib/track-planning
 import { api, fmtDay, HealthDot, LoadingRows, Modal, PlanStatusIcon, ProgressBar, personName, type Person } from './shared';
 import { NewPlanModal, type PlansMeta } from './PlansList';
 import { projectPath } from '@/lib/track-routes';
+import TitleInput from '@/components/ui/TitleInput';
 
 /** Initiatives: lista con salud, plans activos (color por salud), responsable, fecha y progreso. */
 export function InitiativesList() {
@@ -323,11 +324,11 @@ export function InitiativePage({ initiativeId }: { initiativeId: string }) {
   const own = plans.filter((p) => ini.plan_ids.includes(p.id));
   const fromChildren = ini.plans.filter((p) => !ini.plan_ids.includes(p.id));
   const candidates = plans.filter((p) => !ini.plan_ids.includes(p.id));
-  const enter = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+  const enter = (e: KeyboardEvent<HTMLElement>) => {
+    if (e.key === 'Enter') (e.target as HTMLElement).blur();
     if (e.key === 'Escape') {
       setName(ini.name);
-      (e.target as HTMLInputElement).blur();
+      (e.target as HTMLElement).blur();
     }
   };
 
@@ -345,12 +346,12 @@ export function InitiativePage({ initiativeId }: { initiativeId: string }) {
           <span aria-hidden="true">›</span>
           <span>{ini.name}</span>
         </nav>
-        <input
+        <TitleInput
           className="tp-title-input"
           aria-label={t('initiatives.nameLabel')}
           value={name}
           maxLength={200}
-          onChange={(e) => setName(e.target.value)}
+          onValueChange={setName}
           onBlur={() => (name.trim() && name.trim() !== ini.name ? void patch({ name: name.trim() }) : setName(ini.name))}
           onKeyDown={enter}
           data-testid="tp-initiative-name"

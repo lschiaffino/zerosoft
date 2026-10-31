@@ -444,7 +444,15 @@
       "builtinTitle": "Modelos incluídos",
       "builtinDesc": "As seções que cada um pede para a IA.",
       "deleteTitle": "Apagar este modelo?",
-      "deleteBody": "“{name}” será apagado. As reuniões que o usaram mantêm a nota."
+      "deleteBody": "“{name}” será apagado. As reuniões que o usaram mantêm a nota.",
+      "builtinSections": {
+        "general": "Resumo · Discussão · Perguntas em aberto",
+        "sales": "Contexto e dor · Requisitos · Orçamento e preço · Decisão e prazos · Objeções · Próximos passos",
+        "one_on_one": "Conquistas · Bloqueios · Feedback · Crescimento e metas · Pendências",
+        "standup": "Feito desde a última vez · O que vem a seguir · Bloqueios",
+        "interview": "Trajetória · Pontos fortes · Dúvidas · Respostas-chave · Recomendação",
+        "customer": "Como usam o produto · Problemas · Pedidos · Sentimento · Pendências"
+      }
     },
     "desktop": {
       "title": "zerosoft para Mac e Windows",
@@ -468,7 +476,8 @@
       "mcpTools": "Ferramentas: list_meetings, get_meeting (a nota e, se pedido, a transcrição), ask_meetings, list_dictations e list_folders.",
       "webhooksTitle": "Webhooks e Flow",
       "webhooksDesc": "voice.meeting.completed e voice.notes.ready chegam só aos webhooks e flows criados por quem gravou a reunião. Criar webhooks e flows é para admins, então as reuniões de um member ainda não chegam a nenhum webhook.",
-      "webhooksLink": "Configurar webhooks"
+      "webhooksLink": "Configurar webhooks",
+      "step2Link": "Ajustes > API"
     },
     "prompts": {
       "recipes": {

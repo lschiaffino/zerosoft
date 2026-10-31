@@ -222,7 +222,8 @@
     "done_retry": "Reintentando",
     "reschedule": "Reprogramar",
     "rescheduleLabel": "Nueva fecha y hora",
-    "done_reschedule": "Reprogramada"
+    "done_reschedule": "Reprogramada",
+    "noAccounts": "Esta publicación todavía no tiene cuentas. Editala para elegir dónde sale."
   },
   "events": {
     "created": "{name} la creó",

@@ -443,7 +443,8 @@
       "aiUsage": "Uso de IA del workspace",
       "recorder": "Grabador de robots",
       "designBrand": "Kit de marca",
-      "designTemplates": "Plantillas de Design"
+      "designTemplates": "Plantillas de Design",
+      "signTemplates": "Plantillas de Sign"
     }
   },
   "members": {

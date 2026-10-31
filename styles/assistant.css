@@ -122,6 +122,10 @@ body:has(.asst-panel) .fl-root { right: calc(min(440px, 100vw) + 20px); }
 .asst-page-item.is-current { background: var(--bg-soft); }
 .asst-page-link { flex: 1; min-width: 0; padding: 7px 8px; color: var(--ink); font-size: 0.875rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; }
 .asst-page-item .btn { flex: none; }
+/* Renombrar y Borrar aparecen al pasar el mouse o con foco: el título usa todo el ancho de la columna. */
+@media (hover: hover) {
+  .asst-page-item:not(:hover):not(:focus-within) .btn { display: none; }
+}
 .asst-page-rename { display: flex; gap: 4px; padding: 4px; width: 100%; }
 .asst-page-rename .input { flex: 1; min-width: 0; }
 .asst-page-note { margin: 0; padding: 12px; font-size: 0.8125rem; }

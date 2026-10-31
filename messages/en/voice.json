@@ -444,7 +444,15 @@
       "builtinTitle": "Built-in templates",
       "builtinDesc": "Sections each one asks AI to fill.",
       "deleteTitle": "Delete this template?",
-      "deleteBody": "“{name}” is deleted. Meetings that used it keep their notes."
+      "deleteBody": "“{name}” is deleted. Meetings that used it keep their notes.",
+      "builtinSections": {
+        "general": "Overview · Discussion · Open questions",
+        "sales": "Context and pain · Requirements · Budget and pricing · Decision process and timeline · Objections · Next steps",
+        "one_on_one": "Wins · Blockers · Feedback · Growth and goals · Follow-ups",
+        "standup": "Done since last time · Working on next · Blockers",
+        "interview": "Candidate background · Strengths · Concerns · Answers to key questions · Recommendation",
+        "customer": "How they use the product · Problems raised · Feature requests · Sentiment · Follow-ups"
+      }
     },
     "desktop": {
       "title": "zerosoft for Mac and Windows",
@@ -468,7 +476,8 @@
       "mcpTools": "Tools: list_meetings, get_meeting (notes and, if asked, the transcript), ask_meetings, list_dictations and list_folders.",
       "webhooksTitle": "Webhooks and Flow",
       "webhooksDesc": "voice.meeting.completed and voice.notes.ready reach only the webhooks and flows created by the person who recorded the meeting. Creating webhooks and flows is for admins, so a member’s meetings do not reach any webhook yet.",
-      "webhooksLink": "Set up webhooks"
+      "webhooksLink": "Set up webhooks",
+      "step2Link": "Settings > API"
     },
     "prompts": {
       "recipes": {

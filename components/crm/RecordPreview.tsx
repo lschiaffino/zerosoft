@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import BookMeetingMenu from '@/components/crm/BookMeetingMenu';
@@ -194,6 +194,14 @@ export default function RecordPreview({ type, id, locale, onClose }: RecordPrevi
       cancelled = true;
     };
   }, [type, id]);
+
+  // Es un diálogo: el foco entra al abrir y vuelve a donde estaba al cerrar.
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    return () => previous?.focus?.();
+  }, []);
 
   // Cerrar con Escape.
   useEffect(() => {
@@ -521,6 +529,7 @@ export default function RecordPreview({ type, id, locale, onClose }: RecordPrevi
       >
         <div className="preview-head">
           <button
+            ref={closeRef}
             type="button"
             className="icon-btn preview-close"
             onClick={onClose}

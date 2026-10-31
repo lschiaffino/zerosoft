@@ -191,6 +191,10 @@ a.bk-rowtext:hover .bk-rowtitle {
 .bk-lines .input.num {
   min-width: 96px;
 }
+/* El precio lleva cifras largas; la descripción cede antes que cortar el monto. */
+.bk-lines td[data-label] .input.num:not(.bk-cell) { min-width: 136px; }
+.bk-lines .bk-cell-wide { min-width: 160px; width: 100%; }
+.bk-lines th, .bk-lines td { padding-left: 6px; padding-right: 6px; }
 /* Celular: cada línea es una tarjeta con sus campos uno debajo del otro (sin scroll lateral). */
 @media (max-width: 720px) {
   .bk-lines thead {

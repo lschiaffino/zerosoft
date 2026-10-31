@@ -116,10 +116,19 @@ export function Popover({ trigger, ariaLabel, disabled, className, children, wid
       close(false);
     };
     const onResize = () => close(false);
+    // Esc cierra aunque el foco no haya entrado al menú (un menú sin ítems enfocables, un clic afuera de la fila).
+    const onEsc = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      close();
+    };
+    document.addEventListener('keydown', onEsc, true);
     document.addEventListener('mousedown', onDown);
     window.addEventListener('scroll', onScroll, true);
     window.addEventListener('resize', onResize);
     return () => {
+      document.removeEventListener('keydown', onEsc, true);
       document.removeEventListener('mousedown', onDown);
       window.removeEventListener('scroll', onScroll, true);
       window.removeEventListener('resize', onResize);

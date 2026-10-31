@@ -28,6 +28,7 @@ import {
   type VisibilitySettings,
 } from './people-access';
 import { isIsoDate, tenureYears, type PayPeriod } from './people-time';
+import { seedLocale, type SeedLocale } from './seed-locale';
 
 // ---------- Errores y utilidades ----------
 
@@ -93,6 +94,24 @@ export interface PeopleSettings {
   hrAdmins: string[];
 }
 
+const PEOPLE_DEFAULTS: Record<SeedLocale, { vacation: string; sick: string; personal: string; newHire: string; leaving: string; onboarding: string[]; offboarding: string[] }> = {
+  en: {
+    vacation: 'Vacation', sick: 'Sick leave', personal: 'Personal', newHire: 'New hire', leaving: 'Leaving the company',
+    onboarding: ['Send the welcome email and first-day plan', 'Prepare laptop and accounts', 'Sign the contract and read the handbook', 'First 1:1 and 30-day goals', '30-day check-in'],
+    offboarding: ['Return laptop and equipment', 'Remove access to tools', 'Hand over open work', 'Exit interview'],
+  },
+  es: {
+    vacation: 'Vacaciones', sick: 'Licencia por enfermedad', personal: 'Personal', newHire: 'Ingreso', leaving: 'Salida de la empresa',
+    onboarding: ['Mandar el email de bienvenida y el plan del primer día', 'Preparar la notebook y las cuentas', 'Firmar el contrato y leer el manual', 'Primer 1:1 y objetivos a 30 días', 'Revisión a los 30 días'],
+    offboarding: ['Devolver la notebook y el equipo', 'Quitar el acceso a las herramientas', 'Traspasar el trabajo abierto', 'Entrevista de salida'],
+  },
+  pt: {
+    vacation: 'Férias', sick: 'Licença médica', personal: 'Pessoal', newHire: 'Admissão', leaving: 'Saída da empresa',
+    onboarding: ['Enviar o email de boas-vindas e o plano do primeiro dia', 'Preparar o notebook e as contas', 'Assinar o contrato e ler o manual', 'Primeiro 1:1 e metas de 30 dias', 'Revisão de 30 dias'],
+    offboarding: ['Devolver o notebook e o equipamento', 'Remover o acesso às ferramentas', 'Passar o trabalho em aberto', 'Entrevista de saída'],
+  },
+};
+
 /** Lo que el workspace necesita la primera vez: ajustes, políticas y plantillas por defecto. Idempotente. */
 export async function ensurePeople(ws: string): Promise<void> {
   if (await db().prepare('SELECT 1 AS x FROM people_settings WHERE workspace_id = ?').get(ws)) return;
@@ -101,10 +120,12 @@ export async function ensurePeople(ws: string): Promise<void> {
     .run(ws, '{}', '', '[]', nowIso());
   if (res.changes === 0) return;
   const now = nowIso();
+  // En el idioma de quien abre People por primera vez. Después son datos del workspace y se editan.
+  const copy = PEOPLE_DEFAULTS[await seedLocale()];
   const policies: Array<[string, string, string, number, number | null, number | null]> = [
-    ['Vacation', 'vacation', 'annual', 15, 5, 30],
-    ['Sick leave', 'sick', 'annual', 10, 0, null],
-    ['Personal', 'personal', 'annual', 3, 0, null],
+    [copy.vacation, 'vacation', 'annual', 15, 5, 30],
+    [copy.sick, 'sick', 'annual', 10, 0, null],
+    [copy.personal, 'personal', 'annual', 3, 0, null],
   ];
   for (const [name, kind, accrual, days, carry, cap] of policies) {
     await db()
@@ -115,21 +136,21 @@ export async function ensurePeople(ws: string): Promise<void> {
       .run(newId('pol'), ws, name, kind, accrual, days, carry, cap, now, now);
   }
   const onboarding = [
-    { title: 'Send the welcome email and first-day plan', assignee: 'hr', offsetDays: -7 },
-    { title: 'Prepare laptop and accounts', assignee: 'it', offsetDays: -3 },
-    { title: 'Sign the contract and read the handbook', assignee: 'new_hire', offsetDays: 0 },
-    { title: 'First 1:1 and 30-day goals', assignee: 'manager', offsetDays: 1 },
-    { title: '30-day check-in', assignee: 'manager', offsetDays: 30 },
+    { title: copy.onboarding[0], assignee: 'hr', offsetDays: -7 },
+    { title: copy.onboarding[1], assignee: 'it', offsetDays: -3 },
+    { title: copy.onboarding[2], assignee: 'new_hire', offsetDays: 0 },
+    { title: copy.onboarding[3], assignee: 'manager', offsetDays: 1 },
+    { title: copy.onboarding[4], assignee: 'manager', offsetDays: 30 },
   ];
   const offboarding = [
-    { title: 'Return laptop and equipment', assignee: 'new_hire', offsetDays: 0 },
-    { title: 'Remove access to tools', assignee: 'it', offsetDays: 0 },
-    { title: 'Hand over open work', assignee: 'manager', offsetDays: -3 },
-    { title: 'Exit interview', assignee: 'hr', offsetDays: -1 },
+    { title: copy.offboarding[0], assignee: 'new_hire', offsetDays: 0 },
+    { title: copy.offboarding[1], assignee: 'it', offsetDays: 0 },
+    { title: copy.offboarding[2], assignee: 'manager', offsetDays: -3 },
+    { title: copy.offboarding[3], assignee: 'hr', offsetDays: -1 },
   ];
   for (const [name, kind, tasks] of [
-    ['New hire', 'onboarding', onboarding],
-    ['Leaving the company', 'offboarding', offboarding],
+    [copy.newHire, 'onboarding', onboarding],
+    [copy.leaving, 'offboarding', offboarding],
   ] as const) {
     await db()
       .prepare('INSERT INTO people_templates (id, workspace_id, name, kind, tasks, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')

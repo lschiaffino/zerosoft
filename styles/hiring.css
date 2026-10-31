@@ -25,8 +25,8 @@
   min-width: 0;
 }
 .hr-rowlink:hover .hr-rowtitle { text-decoration: underline; }
-.hr-rowtitle { display: block; font-weight: 600; overflow-wrap: anywhere; }
-.hr-rowmeta { display: block; color: var(--muted); font-size: 0.875rem; overflow-wrap: anywhere; }
+.hr-rowtitle { display: block; font-weight: 600; overflow-wrap: break-word; }
+.hr-rowmeta { display: block; color: var(--muted); font-size: 0.875rem; overflow-wrap: break-word; }
 .hr-ml { margin-left: 6px; }
 .hr-check-col { width: 36px; }
 .hr-panel-title { margin: 0 0 12px; font-size: 0.9375rem; font-weight: 700; }

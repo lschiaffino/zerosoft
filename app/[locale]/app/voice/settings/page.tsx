@@ -2,7 +2,6 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { getVoiceSettings, listCustomTemplates, listDictionary, voiceOwner } from '@/lib/voice';
 import { transcribeModel, transcribeProvider } from '@/lib/voice-transcribe';
-import { BUILTIN_TEMPLATE_SECTIONS } from '@/lib/voice-templates';
 import { API_BASE_URL } from '@/lib/api-docs';
 import { getWorkspaceSettings, listPrompts } from '@/lib/voice-library';
 import VoiceSettingsView from '@/components/voice/VoiceSettingsView';
@@ -38,7 +37,6 @@ export default async function VoiceSettingsPage(props: { params: Promise<{ local
       transforms={transforms}
       workspace={workspace}
       isAdmin={isWorkspaceAdmin(user)}
-      builtinSections={BUILTIN_TEMPLATE_SECTIONS}
       provider={`${provider} (${transcribeModel(provider)})`}
       apiBase={process.env.NEXTAUTH_URL ? `${process.env.NEXTAUTH_URL.replace(/\/$/, '')}/api/v1` : API_BASE_URL}
     />

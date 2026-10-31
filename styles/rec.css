@@ -254,7 +254,8 @@ section.rec-edit-block { padding-bottom: 20px; }
   text-decoration: none;
   max-width: 100%;
 }
-.rec-folder span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rec-folders li { min-width: 0; max-width: 100%; }
+.rec-folder span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rec-folder:hover { border-color: var(--ink); }
 .rec-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; }
 .rec-card { position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 0; }

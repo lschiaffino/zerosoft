@@ -112,7 +112,7 @@ describe('sidebar de la app', () => {
       'components/robots/RobotsHome.tsx',
     ];
     for (const f of files) expect(readFileSync(join(root, f), 'utf8'), f).toMatch(/get\('new'\) === '1'/);
-    expect(readFileSync(join(appDir, 'app', 'docs', 'page.tsx'), 'utf8')).toMatch(/sp\.new === '1'/);
+    expect(readFileSync(join(appDir, 'app', 'docs', '(home)', 'page.tsx'), 'utf8')).toMatch(/sp\.new === '1'/);
   });
 
   it('el switcher sale de PRODUCT_CONFIG: las 24 apps, en el orden de siempre', () => {

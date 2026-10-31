@@ -11,6 +11,7 @@ import type { InsightResult } from '@/lib/track-planning-core';
 import type { InsightQuery } from '@/lib/track-planning-schema';
 import { api, fmtWhen, LoadingRows, Modal } from './shared';
 import { InsightView } from './Insights';
+import TitleInput from '@/components/ui/TitleInput';
 
 /** Dashboards del workspace y personales. */
 export function DashboardsList() {
@@ -216,11 +217,11 @@ export function DashboardPage({ dashboardId }: { dashboardId: string }) {
       />
     );
   const d = data.dashboard;
-  const enter = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+  const enter = (e: KeyboardEvent<HTMLElement>) => {
+    if (e.key === 'Enter') (e.target as HTMLElement).blur();
     if (e.key === 'Escape') {
       setName(d.name);
-      (e.target as HTMLInputElement).blur();
+      (e.target as HTMLElement).blur();
     }
   };
   return (
@@ -230,12 +231,12 @@ export function DashboardPage({ dashboardId }: { dashboardId: string }) {
         <span aria-hidden="true">›</span>
         <span>{d.name}</span>
       </nav>
-      <input
+      <TitleInput
         className="tp-title-input"
         aria-label={t('dashboards.nameLabel')}
         value={name}
         maxLength={200}
-        onChange={(e) => setName(e.target.value)}
+        onValueChange={setName}
         onBlur={() => (name.trim() && name.trim() !== d.name ? void patch({ name: name.trim() }) : setName(d.name))}
         onKeyDown={enter}
         data-testid="tp-dashboard-name"

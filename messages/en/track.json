@@ -336,7 +336,8 @@
     "boardReply": "{actor} replied on {title}",
     "groupsMention": "{actor} mentioned you in {title}",
     "groupsAssigned": "{actor} assigned you {title}",
-    "groupsAutoAssigned": "New WhatsApp chat for you: {title}"
+    "groupsAutoAssigned": "New WhatsApp chat for you: {title}",
+    "chatMessage": "New message from {actor}"
   },
   "errors": {
     "invalid_slug": "Invalid slug. Use lowercase letters, numbers and dashes only.",

@@ -166,7 +166,8 @@ export default function PostDetail({ post, events }: { post: PostDto; events: Po
           <h2 id="sc-targets-title" className="sc-small">
             {t('accounts')}
           </h2>
-          <div className="sc-targets">
+          {post.targets.length === 0 && <p className="sc-muted sc-small">{t('noAccounts')}</p>}
+          <div className="sc-targets" hidden={post.targets.length === 0}>
             {post.targets.map((tg) => (
               <div key={tg.id} className="sc-target" data-testid="post-target">
                 <div className="sc-row">

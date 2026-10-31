@@ -252,7 +252,8 @@ a { color: inherit; text-decoration: none; }
 
 /* ---------- Secciones ---------- */
 
-section { padding-top: clamp(72px, 8vw, 112px); padding-bottom: clamp(72px, 8vw, 112px); }
+/* Solo el sitio público: dentro de la app (.app-frame) una <section> no trae aire propio. */
+section:not(:where(.app-frame *)) { padding-top: clamp(72px, 8vw, 112px); padding-bottom: clamp(72px, 8vw, 112px); }
 
 /* Rótulo de sección: solo dentro de la app (el sitio público separa con .zero-dots). */
 .section-label {
@@ -365,7 +366,7 @@ section { padding-top: clamp(72px, 8vw, 112px); padding-bottom: clamp(72px, 8vw,
 @media (max-width: 860px) {
   .container { --gutter: 16px; }
 
-  section { padding-top: 64px; padding-bottom: 64px; }
+  section:not(:where(.app-frame *)) { padding-top: 64px; padding-bottom: 64px; }
   .section-label { margin-bottom: 16px; }
   .section-title { margin-bottom: 36px; }
 

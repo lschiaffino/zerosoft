@@ -15,6 +15,7 @@ import { canSeeOneOnOne, canSeeSensitive, isManagerOf, isSelf } from './people-a
 import { isIsoDate } from './people-time';
 import { audit, getEmployeeRow, newId, nowIso, parseJson, PeopleError, requireHr, type PeopleCtx } from './people';
 import { notifyPeople } from './people-effects';
+import { seedLocale, type SeedLocale } from './seed-locale';
 
 const db = () => getDb();
 
@@ -42,6 +43,21 @@ export const DEFAULT_QUESTIONS: Question[] = [
   { id: 'q2', text: 'What could be better?', kind: 'text' },
   { id: 'q3', text: 'Overall performance', kind: 'rating' },
 ];
+
+/** Las preguntas con las que nace un ciclo, en el idioma de quien lo crea. */
+const DEFAULT_QUESTIONS_BY_LOCALE: Record<SeedLocale, Question[]> = {
+  en: DEFAULT_QUESTIONS,
+  es: [
+    { id: 'q1', text: '¿Qué salió bien en este período?', kind: 'text' },
+    { id: 'q2', text: '¿Qué podría mejorar?', kind: 'text' },
+    { id: 'q3', text: 'Desempeño general', kind: 'rating' },
+  ],
+  pt: [
+    { id: 'q1', text: 'O que foi bem neste período?', kind: 'text' },
+    { id: 'q2', text: 'O que poderia melhorar?', kind: 'text' },
+    { id: 'q3', text: 'Desempenho geral', kind: 'rating' },
+  ],
+};
 
 function cleanQuestions(raw: unknown): Question[] {
   if (!Array.isArray(raw)) return DEFAULT_QUESTIONS;
@@ -114,7 +130,7 @@ export async function createCycle(ctx: PeopleCtx, input: Record<string, unknown>
       id,
       ctx.ws,
       name,
-      JSON.stringify(cleanQuestions(input.questions)),
+      JSON.stringify(input.questions === undefined ? DEFAULT_QUESTIONS_BY_LOCALE[await seedLocale()] : cleanQuestions(input.questions)),
       input.selfReview === false ? 0 : 1,
       input.managerReview === false ? 0 : 1,
       input.peerReview === true ? 1 : 0,

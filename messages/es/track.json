@@ -305,7 +305,7 @@
     "next": "Siguiente",
     "today": "Hoy",
     "unscheduled": "Sin fecha",
-    "updateError": "No se pudieron actualizar las fechas. Inténtalo de nuevo."
+    "updateError": "No se pudieron actualizar las fechas. Probá de nuevo."
   },
   "inbox": {
     "title": "Bandeja de entrada",
@@ -336,7 +336,8 @@
     "boardReply": "{actor} respondió en {title}",
     "groupsMention": "{actor} te mencionó en {title}",
     "groupsAssigned": "{actor} te asignó {title}",
-    "groupsAutoAssigned": "Chat de WhatsApp nuevo para vos: {title}"
+    "groupsAutoAssigned": "Chat de WhatsApp nuevo para vos: {title}",
+    "chatMessage": "Mensaje nuevo de {actor}"
   },
   "errors": {
     "invalid_slug": "Slug inválido. Usá letras minúsculas, números y guiones.",
@@ -345,7 +346,7 @@
     "missing_name": "El nombre es obligatorio.",
     "missing_title": "El título es obligatorio.",
     "invalid_input": "Algunos campos son inválidos. Revisalos e intentá de nuevo.",
-    "generic": "Algo salió mal. Intentá de nuevo.",
+    "generic": "Algo salió mal. Probá de nuevo.",
     "invalid_range": "La fecha de fin no puede ser anterior al inicio.",
     "last_status": "El equipo necesita al menos un estado.",
     "cycle_overlap": "Se superpone con otro ciclo. Elegí otras fechas.",

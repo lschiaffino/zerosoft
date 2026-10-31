@@ -775,7 +775,7 @@
   },
   "appSoon": {
     "desc": "{app} isn't ready yet.",
-    "title": "Coming soon: we are building {app}",
+    "title": "We're building {app}",
     "body": "There is nothing to use here yet. When the first version ships, you'll see it on this page and in the changelog.",
     "propose": "Propose an idea",
     "plan": "See what {app} will do",

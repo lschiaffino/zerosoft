@@ -65,7 +65,8 @@
   background: transparent;
   color: var(--ink);
   min-width: 0;
-  flex: 1 1 200px;
+  flex: 1 1 320px;
+  width: auto;
 }
 .fm-name:hover { border-color: var(--line); }
 .fm-name:focus { outline: none; border-color: var(--ink); }

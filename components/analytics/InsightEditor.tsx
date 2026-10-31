@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
+import TitleInput from '@/components/ui/TitleInput';
 import type {
   FunnelQuery,
   InsightDto,
@@ -15,7 +16,7 @@ import type {
   SqlQuery,
   TrendsQuery,
 } from '@/lib/analytics/types';
-import { ApiError, api, notifyChanged, runQuery } from './client';
+import { ApiError, apiErrorText, api, notifyChanged, runQuery } from './client';
 import { EventInput, FilterList, cleanFilters, useProjectMeta, type ProjectMeta } from './Filters';
 import InsightResultView from './InsightResultView';
 import NameDialog from './NameDialog';
@@ -389,7 +390,7 @@ export default function InsightEditor({
       }
       setAskName(false);
     } catch (err) {
-      setError(err instanceof ApiError ? tc('errorCode', { code: err.code }) : tc('error'));
+      setError(apiErrorText(err, tc));
     } finally {
       setSaving(false);
     }
@@ -415,15 +416,12 @@ export default function InsightEditor({
         back={{ href: '/app/analytics/insights', label: t('back') }}
         title={
           insight ? (
-            <input
+            <TitleInput
               className="an-title-input"
               aria-label={t('name')}
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onValueChange={setName}
               onBlur={() => name.trim() && name !== insight.name && void save(name.trim())}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-              }}
               maxLength={200}
             />
           ) : (

@@ -342,12 +342,12 @@ a.ppl-rowtitle:not(:hover) {
 }
 .ppl-bars li {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(60px, 2fr) auto;
+  grid-template-columns: minmax(84px, 1fr) minmax(60px, 2fr) auto;
   gap: 10px;
   align-items: center;
 }
 .ppl-bars-label {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .ppl-bars-num {
   font-family: var(--font-data);
@@ -478,12 +478,15 @@ a.ppl-rowtitle:not(:hover) {
 /* Organigrama: zoom y paneo */
 .ppl-org-tools {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   margin-bottom: 8px;
 }
 .ppl-org {
   position: relative;
+  width: 100%;
+  min-width: 0;
   height: min(70vh, 640px);
   border: 1px solid var(--line);
   border-radius: var(--radius-1);

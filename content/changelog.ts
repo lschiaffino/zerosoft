@@ -29,6 +29,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-31-pulido-interfaz',
+    date: '2026-10-31',
+    title: {
+      en: 'Interface fixes across the apps',
+      es: 'Arreglos de interfaz en todas las apps',
+      pt: 'Ajustes de interface em todos os apps',
+    },
+    items: [
+      {
+        product: 'sign',
+        en: 'Sign now has its own settings page, linked from Settings.',
+        es: 'Sign ahora tiene su página de ajustes, enlazada desde Ajustes.',
+        pt: 'O Sign agora tem sua página de ajustes, com link em Ajustes.',
+      },
+      {
+        product: 'track',
+        en: 'Esc closes the status, priority, assignee and date menus in issue rows.',
+        es: 'Esc cierra los menús de estado, prioridad, responsable y fecha en las filas de issues.',
+        pt: 'Esc fecha os menus de status, prioridade, responsável e data nas linhas de issues.',
+      },
+      {
+        product: 'crm',
+        en: 'Tables stop overflowing at 390 px with long names, and dashboard widgets show their full title.',
+        es: 'Las tablas ya no se desbordan a 390 px con nombres largos, y los widgets de los paneles muestran el título completo.',
+        pt: 'As tabelas não transbordam mais a 390 px com nomes longos, e os widgets dos painéis mostram o título completo.',
+      },
+    ],
+  },
+  {
     id: '2026-10-30-email-code-signin',
     date: '2026-10-30',
     title: {

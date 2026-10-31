@@ -443,7 +443,8 @@
       "aiUsage": "Uso de IA do workspace",
       "recorder": "Gravador de robôs",
       "designBrand": "Kit de marca",
-      "designTemplates": "Modelos do Design"
+      "designTemplates": "Modelos do Design",
+      "signTemplates": "Modelos do Sign"
     }
   },
   "members": {

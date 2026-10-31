@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import NameDialog from './NameDialog';
-import { ApiError, notifyChanged } from './client';
+import { ApiError, apiErrorText, notifyChanged } from './client';
 
 export interface RecordItem {
   id: string;
@@ -50,7 +50,7 @@ export default function RecordList({
       notifyChanged();
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? t('errorCode', { code: err.code }) : t('error'));
+      setError(apiErrorText(err, t));
     } finally {
       setBusy(false);
     }

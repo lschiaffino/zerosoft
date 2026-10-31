@@ -23,12 +23,12 @@
     "copied": "Copied",
     "actions": "Actions",
     "error": "Something went wrong. Try again.",
-    "errorCode": "It didn't work ({code}). Try again.",
     "loading": "Loading Analytics…",
     "pageErrorTitle": "This page didn't load",
     "pageErrorBody": "Something failed while loading Analytics. Your data is safe. Try again.",
     "retry": "Try again",
-    "backHome": "Back to web analytics"
+    "backHome": "Back to web analytics",
+    "errorInvalid": "That didn't work with those details. Check them and try again."
   },
   "noProject": {
     "title": "Create your first project",

@@ -1118,10 +1118,13 @@ export default function DashboardsView({
                       <span className="dash-widget-grip" aria-hidden="true">
                         ⠿
                       </span>
-                      <span className="dash-widget-title" title={widgetTitle(w)}>
-                        {widgetTitle(w)}
-                      </span>
-                      <span className="dash-widget-actions">
+                      {/* En un KPI el título y el select dicen lo mismo: el select hace de título. */}
+                      {w.type !== 'kpi' && (
+                        <span className="dash-widget-title" title={widgetTitle(w)}>
+                          {widgetTitle(w)}
+                        </span>
+                      )}
+                      <span className={`dash-widget-actions${w.type === 'kpi' ? ' dash-widget-actions-grow' : ''}`}>
                         {w.type === 'kpi' && (
                           <select
                             className="dash-widget-select"

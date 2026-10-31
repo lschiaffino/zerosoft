@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { CohortDto, PropertyFilter } from '@/lib/analytics/types';
-import { ApiError, api, fmtNumber, notifyChanged } from './client';
+import { ApiError, apiErrorText, api, fmtNumber, notifyChanged } from './client';
 import { EventInput, FilterList, cleanFilters, useProjectMeta } from './Filters';
 
 /**
@@ -48,7 +48,7 @@ export default function CohortEditor({ projectId, cohort }: { projectId: string;
       notifyChanged();
       router.refresh();
     } catch (err) {
-      setMsg({ ok: false, text: err instanceof ApiError ? tc('errorCode', { code: err.code }) : tc('error') });
+      setMsg({ ok: false, text: apiErrorText(err, tc) });
     } finally {
       setBusy(false);
     }

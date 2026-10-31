@@ -96,8 +96,11 @@ function useBarPosition(field: HTMLElement | null, barRef: RefObject<HTMLButtonE
         { top: r.top - BAR - GAP, left: r.left },
         { top: r.bottom + GAP, left: r.left },
       ];
+      // Dentro de un diálogo el botón queda dentro del diálogo: afuera flota sobre la página atenuada.
+      const modal = field.closest('dialog, [role="dialog"], [aria-modal="true"]')?.getBoundingClientRect() ?? null;
       const free = (c: { top: number; left: number }) => {
         if (c.top < 4 || c.left < 4 || c.top + BAR > vh - 4 || c.left + BAR > vw - 4) return false;
+        if (modal && (c.top < modal.top || c.left < modal.left || c.top + BAR > modal.bottom || c.left + BAR > modal.right)) return false;
         // Con un margen alrededor: tampoco se apoya sobre el borde de otro campo o botón.
         const m = 4;
         const points = [
@@ -190,7 +193,7 @@ function TransformsMenu({
     const data = (await res?.json().catch(() => null)) as { text?: string; error?: string } | null;
     setBusy(null);
     if (!res?.ok || !data?.text) {
-      onDone(tErr(voiceErrorKey(data?.error ?? 'network')));
+      onDone(tErr(voiceErrorKey(data?.error ?? (res ? 'generic' : 'network'))));
       onClose();
       return;
     }
