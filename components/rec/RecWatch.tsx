@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, type CSSProperties } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { fmtClock, type RecChapter, type RecSegment } from '@/lib/rec-schema';
+import { brandOnColor, fmtClock, type RecChapter, type RecOverlay, type RecSegment } from '@/lib/rec-schema';
+import type { RecBrand } from '@/lib/rec-admin';
 import { parseDbUtc } from '@/lib/utils';
 import RecPlayer, { type RecMarker, type RecPlayerHandle } from './RecPlayer';
 import RecComments, { storedViewerName } from './RecComments';
@@ -27,10 +28,17 @@ export interface RecWatchVideo {
   ctaUrl: string;
   ctaMode: 'always' | 'end';
   hasThumb: boolean;
+  overlays: RecOverlay[];
+}
+
+/** Variables de la marca para la página compartida (el color ya viene validado). */
+export function brandStyle(brand: RecBrand | null | undefined): CSSProperties | undefined {
+  if (!brand?.color) return undefined;
+  return { ['--rec-brand' as string]: brand.color, ['--rec-brand-on' as string]: brandOnColor(brand.color) };
 }
 
 /** Página del video compartido: reproductor, resumen, capítulos, comentarios con tiempo y transcripción. */
-export default function RecWatch({ video, shareUrl, member }: { video: RecWatchVideo; shareUrl: string; member: boolean }) {
+export default function RecWatch({ video, shareUrl, member, brand }: { video: RecWatchVideo; shareUrl: string; member: boolean; brand?: RecBrand | null }) {
   const t = useTranslations('rec.watch');
   const locale = useLocale();
   const player = useRef<RecPlayerHandle>(null);
@@ -43,8 +51,15 @@ export default function RecWatch({ video, shareUrl, member }: { video: RecWatchV
   const date = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(parseDbUtc(video.createdAt));
 
   return (
-    <main className="rec-watch" data-testid="rec-watch">
+    <main className={`rec-watch${brand ? ' has-brand' : ''}${brand?.color ? ' branded' : ''}`} data-testid="rec-watch" style={brandStyle(brand)}>
       <div className="rec-watch-main">
+        {brand && (brand.name || brand.hasLogo) && (
+          <div className="rec-brand-bar" data-testid="rec-brand">
+            {/* eslint-disable-next-line @next/next/no-img-element -- logo servido por la ruta con permisos */}
+            {brand.hasLogo && <img src={`${file}?kind=logo`} alt={brand.name} className="rec-brand-logo" data-testid="rec-brand-logo" />}
+            {brand.name && <span className="rec-brand-name">{brand.name}</span>}
+          </div>
+        )}
         <RecPlayer
           ref={player}
           src={file}
@@ -60,6 +75,8 @@ export default function RecWatch({ video, shareUrl, member }: { video: RecWatchV
           trackUrl={`/api/rec/v/${encodeURIComponent(video.shareId)}/track`}
           viewerName={viewerName}
           onTime={setNow}
+          overlays={video.overlays}
+          noDownload={!video.allowDownload && !member}
         />
         <header className="rec-watch-head">
           <h1 className="rec-watch-title">{video.title}</h1>

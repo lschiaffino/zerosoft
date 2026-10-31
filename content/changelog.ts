@@ -29,6 +29,41 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 'rec-parity-2026-10-31',
+    date: '2026-10-31',
+    title: {
+      en: 'Rec: specific people, spaces, editing from the transcript and your brand',
+      es: 'Rec: personas puntuales, espacios, editar desde la transcripción y tu marca',
+      pt: 'Rec: pessoas específicas, espaços, editar pela transcrição e sua marca',
+    },
+    items: [
+      {
+        product: 'rec',
+        en: 'A video can be limited to the emails you list. People without access can ask for it, and you can ask for an email before watching (it is not verified).',
+        es: 'Un video se puede limitar a los emails que listás. Quien no tiene acceso lo puede pedir, y se puede pedir un email antes de ver (no se verifica).',
+        pt: 'Um vídeo pode ser limitado aos emails que você lista. Quem não tem acesso pode pedir, e dá para pedir um email antes de assistir (não é verificado).',
+      },
+      {
+        product: 'rec',
+        en: 'Spaces with their own members, an archive and a watch later list.',
+        es: 'Espacios con sus miembros, archivo y una lista de "ver más tarde".',
+        pt: 'Espaços com membros próprios, arquivo e uma lista de "assistir depois".',
+      },
+      {
+        product: 'rec',
+        en: 'New copies of WebM recordings without the phrases or silences you mark, or joined with another recording. Text, boxes and arrows over the video.',
+        es: 'Copias nuevas de las grabaciones WebM sin las frases o silencios que marcás, o unidas con otra grabación. Textos, cajas y flechas sobre el video.',
+        pt: 'Cópias novas das gravações WebM sem as frases ou silêncios que você marca, ou unidas com outra gravação. Textos, caixas e setas sobre o vídeo.',
+      },
+      {
+        product: 'rec',
+        en: 'Your name, logo and color on the shared page, defaults for new videos, retention and content transfer. From a video: a Docs page, a Track issue or a recap by email.',
+        es: 'Tu nombre, logo y color en la página compartida, valores por defecto para lo nuevo, retención y traspaso de contenido. Desde un video: una página de Docs, un issue de Track o un resumen por mail.',
+        pt: 'Seu nome, logo e cor na página compartilhada, padrões para os novos, retenção e transferência de conteúdo. A partir de um vídeo: uma página do Docs, um issue do Track ou um resumo por email.',
+      },
+    ],
+  },
+  {
     id: '2026-10-31-pulido-interfaz',
     date: '2026-10-31',
     title: {

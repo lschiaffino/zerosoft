@@ -299,7 +299,6 @@ export async function resummarizeForTrim(id: string, opts: { forceOff?: boolean 
 
 /** Cron: lo que quedó en cola (o colgado más de 15 min). */
 export async function processPendingRec(opts: { limit?: number; budgetMs?: number } = {}): Promise<{ processed: number }> {
-  const start = Date.now();
   const rows = (await getDb()
     .prepare(
       `SELECT id FROM rec_videos WHERE status = 'ready' AND (transcript_status = 'pending' OR (transcript_status = 'processing' AND processing_at < ?))
@@ -309,8 +308,12 @@ export async function processPendingRec(opts: { limit?: number; budgetMs?: numbe
   let processed = 0;
   const { cleanupStaleRecordings } = await import('./rec');
   await cleanupStaleRecordings().catch(() => 0);
+  // Retención: con tope propio, antes de la cola y sin tocar su presupuesto.
+  const { applyRetention } = await import('./rec-admin');
+  await applyRetention({ budgetMs: 3000, limit: 20 }).catch(() => null);
+  const queueStart = Date.now();
   for (const r of rows) {
-    if (Date.now() - start > (opts.budgetMs ?? 20_000)) break;
+    if (Date.now() - queueStart > (opts.budgetMs ?? 20_000)) break;
     if (await processRecVideo(r.id)) processed++;
   }
   return { processed };

@@ -2,7 +2,7 @@
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useTranslations } from 'next-intl';
-import { chapterAt, fmtClock, mergeRanges, trimmedDuration, type Range, type RecChapter } from '@/lib/rec-schema';
+import { chapterAt, fmtClock, mergeRanges, trimmedDuration, type Range, type RecChapter, type RecOverlay } from '@/lib/rec-schema';
 
 export interface RecMarker {
   id: string;
@@ -48,9 +48,12 @@ const RecPlayer = forwardRef<
     viewerName?: () => string;
     onTime?: (t: number) => void;
     compact?: boolean;
+    overlays?: RecOverlay[];
+    /** Sin descarga: el menú del navegador no ofrece "guardar video". */
+    noDownload?: boolean;
   }
 >(function RecPlayer(props, ref) {
-  const { src, captionsSrc, poster, title, durationSec, trimStart, trimEnd, chapters = [], markers = [], cta, trackUrl, viewerName, onTime, compact } = props;
+  const { src, captionsSrc, poster, title, durationSec, trimStart, trimEnd, chapters = [], markers = [], cta, trackUrl, viewerName, onTime, compact, overlays = [], noDownload } = props;
   const t = useTranslations('rec.player');
   const wrap = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
@@ -278,9 +281,31 @@ const RecPlayer = forwardRef<
           onClick={toggle}
           aria-label={title}
           data-testid="rec-video"
+          controlsList={noDownload ? 'nodownload' : undefined}
+          onContextMenu={noDownload ? (e) => e.preventDefault() : undefined}
         >
           {captionsSrc && <track kind="captions" src={captionsSrc} default={false} label={t('captions')} />}
         </video>
+        {overlays.length > 0 && (
+          <div className="rec-overlay-layer" aria-hidden={false}>
+            {overlays
+              .filter((o) => trimStart + time >= o.start && trimStart + time < o.end)
+              .map((o) =>
+                o.kind === 'arrow' ? (
+                  <svg key={o.id} className="rec-overlay rec-overlay-arrow" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" data-testid="rec-overlay-shown">
+                    <line x1={o.x * 100} y1={o.y * 100} x2={Math.min(100, (o.x + o.w) * 100)} y2={Math.min(100, (o.y + o.h) * 100)} stroke={o.color} strokeWidth={3} vectorEffect="non-scaling-stroke" />
+                    <circle cx={Math.min(100, (o.x + o.w) * 100)} cy={Math.min(100, (o.y + o.h) * 100)} r={1.4} fill={o.color} />
+                  </svg>
+                ) : o.kind === 'box' ? (
+                  <span key={o.id} className="rec-overlay rec-overlay-box" style={{ left: `${o.x * 100}%`, top: `${o.y * 100}%`, width: `${o.w * 100}%`, height: `${o.h * 100}%`, borderColor: o.color }} data-testid="rec-overlay-shown" />
+                ) : (
+                  <span key={o.id} className="rec-overlay rec-overlay-text" style={{ left: `${o.x * 100}%`, top: `${o.y * 100}%`, maxWidth: `${Math.max(10, o.w * 100)}%`, background: o.color, color: o.color === '#ffffff' || o.color === '#f59e0b' ? '#111111' : '#ffffff' }} data-testid="rec-overlay-shown">
+                    {o.text}
+                  </span>
+                ),
+              )}
+          </div>
+        )}
         {!playing && (
           <button type="button" className="rec-player-big" onClick={toggle} aria-label={t('play')}>
             <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true">

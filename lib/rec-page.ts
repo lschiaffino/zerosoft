@@ -3,8 +3,11 @@
  * servidor. Server-only.
  */
 import { cookies } from 'next/headers';
-import { getCurrentUser, realUserId } from './session';
+import { getDb } from './db';
+import { getCurrentUser } from './session';
 import { getPublicVideoRow, publicAccess, toPublicDto, unlockCookieName, type PublicAccess, type PublicVideoDto } from './rec';
+import { publicViewerFor } from './rec-http';
+import { getRecBrand, type RecBrand } from './rec-admin';
 
 export function recBaseUrl(): string {
   return (process.env.NEXTAUTH_URL ?? 'https://zerosoft.ai').replace(/\/$/, '');
@@ -16,18 +19,29 @@ export function recShareUrl(locale: string, shareId: string): string {
 
 export async function resolvePublicPage(
   shareId: string,
-): Promise<{ state: 'not_found' } | { state: Exclude<PublicAccess, 'ok'>; title: string } | { state: 'ok'; video: PublicVideoDto; member: boolean }> {
+): Promise<
+  | { state: 'not_found' }
+  | { state: Exclude<PublicAccess, 'ok'>; title: string; signedIn: boolean; requestStatus: string | null }
+  | { state: 'ok'; video: PublicVideoDto; member: boolean; brand: RecBrand | null }
+> {
   const v = await getPublicVideoRow(shareId);
   if (!v) return { state: 'not_found' };
   const user = await getCurrentUser();
   const jar = await cookies();
-  const viewer = { ws: user?.id ?? null, userId: user ? realUserId(user) : null };
+  const viewer = await publicViewerFor(v, user, (n) => jar.get(n)?.value);
   const access = publicAccess(v, viewer, jar.get(unlockCookieName(v.share_id))?.value ?? null);
   // El título no se muestra si hay contraseña o es solo del workspace.
-  if (access !== 'ok') return { state: access, title: access === 'expired' ? v.title : '' };
+  if (access !== 'ok') {
+    let requestStatus: string | null = null;
+    if (access === 'forbidden' && viewer.email) {
+      const row = (await getDb().prepare('SELECT status FROM rec_access_requests WHERE video_id = ? AND email = ?').get(v.id, viewer.email.trim().toLowerCase())) as { status: string } | undefined;
+      requestStatus = row?.status ?? null;
+    }
+    return { state: access, title: access === 'expired' ? v.title : '', signedIn: !!viewer.userId, requestStatus };
+  }
   const isAuthor = !!viewer.userId && viewer.userId === v.created_by && viewer.ws === v.workspace_id;
   // El autor ve todo, aun con recorte; los demás, lo que queda dentro.
-  return { state: 'ok', video: toPublicDto(v, isAuthor), member: isAuthor };
+  return { state: 'ok', video: toPublicDto(v, isAuthor), member: isAuthor, brand: await getRecBrand(v.workspace_id) };
 }
 
 /**

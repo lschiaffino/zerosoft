@@ -7800,6 +7800,100 @@ export const MIGRATIONS: Migration[] = [
       await client.execute('CREATE INDEX IF NOT EXISTS idx_note_admin_audit ON note_admin_audit(workspace_id, created_at)');
     },
   },
+  {
+    // Rec, paridad con Loom: personas puntuales y pedido de acceso, email para ver,
+    // archivo y "ver más tarde", espacios con miembros, overlays, marca, retención y
+    // resúmenes por mail. Todo aditivo: los videos que ya existen quedan como estaban.
+    id: '151_rec_parity',
+    up: async (client) => {
+      const cols = new Set((await client.execute('PRAGMA table_info(rec_videos)')).rows.map((r) => String(r.name)));
+      const add: Array<[string, string]> = [
+        ['people_only', 'INTEGER NOT NULL DEFAULT 0'],
+        ['allowed_emails', "TEXT NOT NULL DEFAULT '[]'"],
+        ['require_email', 'INTEGER NOT NULL DEFAULT 0'],
+        ['archived_at', 'TEXT'],
+        ['space_id', 'TEXT'],
+        ['overlays', "TEXT NOT NULL DEFAULT '[]'"],
+      ];
+      for (const [name, def] of add) {
+        if (cols.has(name)) continue;
+        // Otra instancia pudo agregarla entre el PRAGMA y este ALTER.
+        await client.execute(`ALTER TABLE rec_videos ADD COLUMN ${name} ${def}`).catch((err: unknown) => {
+          if (!/duplicate column/i.test(String(err))) throw err;
+        });
+      }
+      const folderCols = new Set((await client.execute('PRAGMA table_info(rec_folders)')).rows.map((r) => String(r.name)));
+      if (!folderCols.has('space_id')) {
+        await client.execute('ALTER TABLE rec_folders ADD COLUMN space_id TEXT').catch((err: unknown) => {
+          if (!/duplicate column/i.test(String(err))) throw err;
+        });
+      }
+      await client.executeMultiple(`
+        CREATE INDEX IF NOT EXISTS idx_rec_videos_space ON rec_videos(space_id);
+        CREATE TABLE IF NOT EXISTS rec_spaces (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          created_by TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_rec_spaces_ws ON rec_spaces(workspace_id, name);
+        CREATE TABLE IF NOT EXISTS rec_space_members (
+          space_id TEXT NOT NULL REFERENCES rec_spaces(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (space_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_rec_space_members_user ON rec_space_members(user_id);
+        CREATE TABLE IF NOT EXISTS rec_watch_later (
+          user_id TEXT NOT NULL,
+          video_id TEXT NOT NULL REFERENCES rec_videos(id) ON DELETE CASCADE,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, video_id)
+        );
+        CREATE TABLE IF NOT EXISTS rec_settings (
+          workspace_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          default_privacy TEXT NOT NULL DEFAULT 'link',
+          default_allow_download INTEGER NOT NULL DEFAULT 1,
+          brand_name TEXT NOT NULL DEFAULT '',
+          brand_color TEXT,
+          brand_logo_url TEXT,
+          retention_days INTEGER,
+          retention_starts_at TEXT,
+          retention_checked_at TEXT,
+          retention_deleted INTEGER NOT NULL DEFAULT 0,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS rec_access_requests (
+          id TEXT PRIMARY KEY,
+          video_id TEXT NOT NULL REFERENCES rec_videos(id) ON DELETE CASCADE,
+          email TEXT NOT NULL,
+          name TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'pending',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          decided_at TEXT,
+          UNIQUE (video_id, email)
+        );
+        CREATE TABLE IF NOT EXISTS rec_viewer_emails (
+          video_id TEXT NOT NULL REFERENCES rec_videos(id) ON DELETE CASCADE,
+          viewer_key TEXT NOT NULL,
+          name TEXT NOT NULL DEFAULT '',
+          email TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (video_id, viewer_key)
+        );
+        CREATE TABLE IF NOT EXISTS rec_recaps (
+          key TEXT PRIMARY KEY,
+          video_id TEXT NOT NULL REFERENCES rec_videos(id) ON DELETE CASCADE,
+          recipients TEXT NOT NULL,
+          sent_by TEXT NOT NULL,
+          sent INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

@@ -3,14 +3,15 @@
 import { useCallback } from 'react';
 import RecPlayer from './RecPlayer';
 import { storedViewerName } from './RecComments';
-import type { RecWatchVideo } from './RecWatch';
+import { brandStyle, type RecWatchVideo } from './RecWatch';
+import type { RecBrand } from '@/lib/rec-admin';
 
 /** Reproductor insertado: el video, la llamada a la acción y el título con link a la página. */
-export default function RecEmbed({ video, shareUrl }: { video: RecWatchVideo; shareUrl: string }) {
+export default function RecEmbed({ video, shareUrl, brand }: { video: RecWatchVideo; shareUrl: string; brand?: RecBrand | null }) {
   const file = `/api/rec/v/${encodeURIComponent(video.shareId)}/file`;
   const viewerName = useCallback(() => storedViewerName(), []);
   return (
-    <main className="rec-embed" data-testid="rec-embed">
+    <main className={`rec-embed${brand ? ' has-brand' : ''}${brand?.color ? ' branded' : ''}`} data-testid="rec-embed" style={brandStyle(brand)}>
       <a className="rec-embed-title" href={shareUrl} target="_blank" rel="noopener noreferrer">
         {video.title}
       </a>
@@ -26,6 +27,8 @@ export default function RecEmbed({ video, shareUrl }: { video: RecWatchVideo; sh
         cta={video.ctaLabel && video.ctaUrl ? { label: video.ctaLabel, url: video.ctaUrl, mode: video.ctaMode } : null}
         trackUrl={`/api/rec/v/${encodeURIComponent(video.shareId)}/track`}
         viewerName={viewerName}
+        overlays={video.overlays}
+        noDownload={!video.allowDownload}
         compact
       />
     </main>

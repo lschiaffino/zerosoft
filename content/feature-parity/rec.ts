@@ -29,7 +29,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Loom',
-  lastReviewed: '2026-10-25',
+  lastReviewed: '2026-10-31',
   areas: [
     { id: 'capture', label: loc(['Recording', 'Grabación', 'Gravação']) },
     { id: 'recorder', label: loc(['Recording tools', 'Herramientas al grabar', 'Ferramentas de gravação']) },
@@ -104,15 +104,25 @@ const parity: ProductParity = {
     row('trim-stitch', 'editing', ['Trim and stitch videos', 'Recortar y unir videos', 'Cortar e unir vídeos'], 'partial', {
       weight: 2,
       detail: [
-        'Trim the start and the end. In WebM recordings everyone else gets a copy cut without re-encoding (from the keyframe before the start: up to about 2 s before it stay in that file, hidden by the player); thumbnail, GIF and captions are rebuilt for the trim. MP4 and MOV uploads are only trimmed in the player. No joining clips',
-        'Recortar el principio y el final. En las grabaciones WebM los demás reciben una copia cortada sin recodificar (desde el keyframe anterior al inicio: hasta unos 2 s antes quedan en ese archivo, ocultos por el reproductor); miniatura, GIF y subtítulos se rearman para el recorte. En MP4 y MOV subidos solo se recorta en el reproductor. Sin unir clips',
-        'Cortar o começo e o fim. Nas gravações WebM os outros recebem uma cópia cortada sem recodificar (desde o keyframe anterior ao começo: até uns 2 s antes ficam nesse arquivo, ocultos pelo player); miniatura, GIF e legendas são refeitos para o corte. Em MP4 e MOV enviados só corta no player. Sem juntar clipes',
+        'Trim the start and the end. In WebM recordings everyone else gets a copy cut without re-encoding (from the keyframe before the start: up to about 2 s before it stay in that file, hidden by the player); thumbnail, GIF and captions are rebuilt for the trim. WebM recordings of the same size and tracks can be joined into a new video. MP4 and MOV uploads are only trimmed in the player and cannot be joined',
+        'Recortar el principio y el final. En las grabaciones WebM los demás reciben una copia cortada sin recodificar (desde el keyframe anterior al inicio: hasta unos 2 s antes quedan en ese archivo, ocultos por el reproductor); miniatura, GIF y subtítulos se rearman para el recorte. Las grabaciones WebM del mismo tamaño y pistas se unen en un video nuevo. En MP4 y MOV subidos solo se recorta en el reproductor y no se pueden unir',
+        'Cortar o começo e o fim. Nas gravações WebM os outros recebem uma cópia cortada sem recodificar (desde o keyframe anterior ao começo: até uns 2 s antes ficam nesse arquivo, ocultos pelo player); miniatura, GIF e legendas são refeitos para o corte. Gravações WebM do mesmo tamanho e faixas se unem num vídeo novo. Em MP4 e MOV enviados só corta no player e não dá para unir',
       ],
     }),
-    row('edit-by-transcript', 'editing', ['Edit from the transcript', 'Editar desde la transcripción', 'Editar pela transcrição'], 'missing', {
-      detail: ['Deleting text cuts the video', 'Borrar texto corta el video', 'Apagar texto corta o vídeo'],
+    row('edit-by-transcript', 'editing', ['Edit from the transcript', 'Editar desde la transcripción', 'Editar pela transcrição'], 'partial', {
+      detail: [
+        'Check phrases of the transcript and it creates a new video without them, re-using the transcript and without AI. By phrase, not by word; each cut ends at the next keyframe (about 2 s in recordings); WebM recordings up to 600 MB only. The original is not changed',
+        'Marcás frases de la transcripción y crea un video nuevo sin ellas, con la misma transcripción y sin IA. Por frase, no por palabra; cada corte termina en el keyframe siguiente (unos 2 s en las grabaciones); solo grabaciones WebM de hasta 600 MB. El original no cambia',
+        'Você marca frases da transcrição e cria um vídeo novo sem elas, com a mesma transcrição e sem IA. Por frase, não por palavra; cada corte termina no keyframe seguinte (uns 2 s nas gravações); só gravações WebM de até 600 MB. O original não muda',
+      ],
     }),
-    row('filler-silence-removal', 'editing', ['Remove filler words and silences with AI', 'Quitar muletillas y silencios con IA', 'Remover vícios de linguagem e silêncios com IA'], 'missing'),
+    row('filler-silence-removal', 'editing', ['Remove filler words and silences with AI', 'Quitar muletillas y silencios con IA', 'Remover vícios de linguagem e silêncios com IA'], 'partial', {
+      detail: [
+        'From the transcript and without AI: marks silences of 2 s or more and phrases made up only of filler words, then creates a new video. It does not remove a filler word inside a sentence. Same limits as editing from the transcript',
+        'Desde la transcripción y sin IA: marca silencios de 2 s o más y frases hechas solo de muletillas, y crea un video nuevo. No saca una muletilla en medio de una frase. Los mismos límites que editar desde la transcripción',
+        'A partir da transcrição e sem IA: marca silêncios de 2 s ou mais e frases feitas só de vícios, e cria um vídeo novo. Não tira um vício no meio de uma frase. Os mesmos limites de editar pela transcrição',
+      ],
+    }),
     row('custom-thumbnail', 'editing', ['Custom and GIF thumbnails', 'Miniatura propia y GIF', 'Miniatura própria e GIF'], 'have', {
       detail: [
         'A GIF of the first seconds and a thumbnail are made while recording; any frame can be the thumbnail',
@@ -120,7 +130,13 @@ const parity: ProductParity = {
         'Um GIF dos primeiros segundos e uma miniatura são feitos ao gravar; qualquer quadro pode ser a miniatura',
       ],
     }),
-    row('overlays', 'editing', ['Text, box and arrow overlays', 'Textos, cajas y flechas sobre el video', 'Textos, caixas e setas sobre o vídeo'], 'missing'),
+    row('overlays', 'editing', ['Text, box and arrow overlays', 'Textos, cajas y flechas sobre el video', 'Textos, caixas e setas sobre o vídeo'], 'have', {
+      detail: [
+        'Text, boxes and arrows with a time range, position and color. The player draws them on the video page, the shared page and embeds; downloaded files do not include them',
+        'Textos, cajas y flechas con rango de tiempo, posición y color. Los dibuja el reproductor en el detalle, la página compartida y al insertar; el archivo descargado no los lleva',
+        'Textos, caixas e setas com intervalo de tempo, posição e cor. O player desenha no detalhe, na página compartilhada e ao incorporar; o arquivo baixado não os inclui',
+      ],
+    }),
     row('upload-download', 'editing', ['Upload and download videos', 'Subir y descargar videos', 'Enviar e baixar vídeos'], 'have', {
       detail: [
         'Upload a WebM, MP4 or MOV file and download the original',
@@ -160,15 +176,21 @@ const parity: ProductParity = {
         'Só links web (sem email, telefone ou IP), durante o vídeo todo ou só no final, com contagem de cliques',
       ],
     }),
-    row('custom-branding', 'sharing', ['Your logo and colors, no Loom branding', 'Logo y colores propios, sin la marca de Loom', 'Logo e cores próprios, sem a marca do Loom'], 'missing'),
+    row('custom-branding', 'sharing', ['Your logo and colors, no Loom branding', 'Logo y colores propios, sin la marca de Loom', 'Logo e cores próprios, sem a marca do Loom'], 'have', {
+      detail: [
+        'Your name, logo (PNG, JPEG or WebP up to 1 MB) and color on the shared page and embeds, only for people who can watch. These pages carry no zerosoft or Loom branding',
+        'Tu nombre, logo (PNG, JPEG o WebP de hasta 1 MB) y color en la página compartida y al insertar, solo para quien puede ver el video. Esas páginas no llevan marca de zerosoft ni de Loom',
+        'Seu nome, logo (PNG, JPEG ou WebP de até 1 MB) e cor na página compartilhada e ao incorporar, só para quem pode assistir. Essas páginas não têm marca da zerosoft nem do Loom',
+      ],
+    }),
 
     // Privacidad
-    row('privacy-levels', 'privacy', ['Who can watch: link, workspace or specific people', 'Quién lo ve: link, workspace o personas puntuales', 'Quem assiste: link, workspace ou pessoas específicas'], 'partial', {
+    row('privacy-levels', 'privacy', ['Who can watch: link, workspace or specific people', 'Quién lo ve: link, workspace o personas puntuales', 'Quem assiste: link, workspace ou pessoas específicas'], 'have', {
       weight: 2,
       detail: [
-        'Anyone with the link or only signed-in members of the workspace. Not specific people yet, and no workspace default',
-        'Cualquiera con el link o solo miembros del workspace con sesión. Todavía no personas puntuales ni privacidad por defecto del workspace',
-        'Qualquer pessoa com o link ou só membros do workspace com sessão. Ainda não pessoas específicas nem privacidade padrão do workspace',
+        'Anyone with the link, signed-in members of the workspace (or of the space), or only the emails you list, checked on every request. Workspace default for new videos. The link can be reset',
+        'Cualquiera con el link, miembros del workspace con sesión (o del espacio), o solo los emails que listás, chequeado en cada pedido. Privacidad por defecto del workspace para lo nuevo. El link se puede cambiar',
+        'Qualquer pessoa com o link, membros do workspace com sessão (ou do espaço), ou só os emails que você lista, verificado em cada pedido. Privacidade padrão do workspace para os novos. O link pode ser trocado',
       ],
     }),
     row('password-protect', 'privacy', ['Password-protected videos', 'Videos con contraseña', 'Vídeos com senha'], 'have', {
@@ -178,12 +200,18 @@ const parity: ProductParity = {
         'O vídeo, a miniatura, o GIF e as legendas só saem pelas nossas rotas depois de checar senha, expiração e workspace. Com REC_BLOB_ACCESS=private o store do Blob é privado; com um público o path do arquivo é aleatório e nunca aparece',
       ],
     }),
-    row('request-access', 'privacy', ['Request access or ask for an email to watch', 'Pedir acceso o pedir email para ver', 'Pedir acesso ou pedir email para assistir'], 'missing'),
-    row('download-restriction', 'privacy', ['Block downloads', 'Bloquear la descarga', 'Bloquear o download'], 'partial', {
+    row('request-access', 'privacy', ['Request access or ask for an email to watch', 'Pedir acceso o pedir email para ver', 'Pedir acesso ou pedir email para assistir'], 'have', {
       detail: [
-        'Per video, off by default with a password: the download button and the download link stop working. The video still streams, so it can be captured',
-        'Por video, apagada por defecto con contraseña: el botón y el link de descarga dejan de andar. El video se sigue transmitiendo, así que se puede capturar',
-        'Por vídeo, desligado por padrão com senha: o botão e o link de download param de funcionar. O vídeo continua sendo transmitido, então dá para capturar',
+        'Signed-in people without access ask for it; the owner gets a notice and approves or declines in Share, and an approval sends one email. "Ask for an email to watch" collects an email from people who are not signed in: it is not verified',
+        'Quien entró con su cuenta y no tiene acceso lo pide; el autor recibe un aviso y aprueba o rechaza en Compartir, y al aprobar sale un mail. "Pedir email para ver" le pide un email a quien no entró con su cuenta: no se verifica',
+        'Quem entrou com a conta e não tem acesso pede; o autor recebe um aviso e aprova ou recusa em Compartilhar, e ao aprovar sai um email. "Pedir email para assistir" pede um email a quem não entrou com a conta: não é verificado',
+      ],
+    }),
+    row('download-restriction', 'privacy', ['Block downloads', 'Bloquear la descarga', 'Bloquear o download'], 'have', {
+      detail: [
+        'Per video and as a workspace default for new videos: the download button, the download link and the browser "save video" menu stop working. The video still streams, so it can be captured',
+        'Por video y como valor por defecto del workspace para lo nuevo: el botón, el link de descarga y el "guardar video" del navegador dejan de andar. El video se sigue transmitiendo, así que se puede capturar',
+        'Por vídeo e como padrão do workspace para os novos: o botão, o link de download e o "salvar vídeo" do navegador param de funcionar. O vídeo continua sendo transmitido, então dá para capturar',
       ],
     }),
 
@@ -252,29 +280,35 @@ const parity: ProductParity = {
         'Em vídeos de 60 segundos ou mais, editáveis como linhas "0:00 Intro"',
       ],
     }),
-    row('ai-workflows', 'ai', ['Turn a video into a doc or a task', 'Del video a un documento o una tarea', 'Do vídeo para um documento ou uma tarefa'], 'missing', {
+    row('ai-workflows', 'ai', ['Turn a video into a doc or a task', 'Del video a un documento o una tarea', 'Do vídeo para um documento ou uma tarefa'], 'have', {
       detail: [
-        'Docs, bug reports and Jira issues from the video',
-        'Documentos, reportes de bug e issues de Jira a partir del video',
-        'Documentos, relatórios de bug e issues do Jira a partir do vídeo',
+        'One click creates a Docs page or a Track issue with the link, the AI summary, chapters and transcript that you can see. The text is copied as it is, not rewritten by AI. No Jira',
+        'Con un clic crea una página de Docs o un issue de Track con el link, el resumen de IA, los capítulos y la transcripción que podés ver. El texto se copia tal cual, sin reescribirlo con IA. Sin Jira',
+        'Com um clique cria uma página do Docs ou um issue do Track com o link, o resumo de IA, os capítulos e a transcrição que você pode ver. O texto é copiado como está, sem reescrever com IA. Sem Jira',
       ],
     }),
-    row('ai-meeting-notes', 'ai', ['Meeting notes and recap emails', 'Notas y mail de resumen de reuniones', 'Notas e email de resumo de reuniões'], 'missing'),
+    row('ai-meeting-notes', 'ai', ['Meeting notes and recap emails', 'Notas y mail de resumen de reuniones', 'Notas e email de resumo de reuniões'], 'partial', {
+      detail: [
+        'Emails a recap of any video (title, summary, chapters and link), up to 20 addresses per send and without repeating a send. Tested with the email capture of the tests, not against Resend in production. No meeting capture and no notes written for meetings',
+        'Manda por mail un resumen de cualquier video (título, resumen, capítulos y link), hasta 20 direcciones por envío y sin repetir un envío. Probado con la captura de mails de los tests, no contra Resend en producción. No graba reuniones ni escribe notas para ellas',
+        'Envia por email um resumo de qualquer vídeo (título, resumo, capítulos e link), até 20 endereços por envio e sem repetir um envio. Testado com a captura de emails dos testes, não contra o Resend em produção. Não grava reuniões nem escreve notas para elas',
+      ],
+    }),
 
     // Biblioteca
-    row('library-folders', 'library', ['Personal library with folders and archive', 'Biblioteca personal con carpetas y archivo', 'Biblioteca pessoal com pastas e arquivo'], 'partial', {
+    row('library-folders', 'library', ['Personal library with folders and archive', 'Biblioteca personal con carpetas y archivo', 'Biblioteca pessoal com pastas e arquivo'], 'have', {
       weight: 2,
       detail: [
-        'My videos with folders, search, rename, move and delete. No archive or watch later',
-        'Mis videos con carpetas, búsqueda, renombrar, mover y borrar. Sin archivo ni "ver más tarde"',
-        'Meus vídeos com pastas, busca, renomear, mover e apagar. Sem arquivo nem "assistir depois"',
+        'My videos with folders, search, rename, move and delete, an archive that keeps the links working, and a personal watch later list',
+        'Mis videos con carpetas, búsqueda, renombrar, mover y borrar, un archivo que deja andando los links y una lista personal de "ver más tarde"',
+        'Meus vídeos com pastas, busca, renomear, mover e apagar, um arquivo que mantém os links funcionando e uma lista pessoal de "assistir depois"',
       ],
     }),
-    row('shared-spaces', 'library', ['Shared team spaces', 'Espacios compartidos del equipo', 'Espaços compartilhados da equipe'], 'partial', {
+    row('shared-spaces', 'library', ['Shared team spaces', 'Espacios compartidos del equipo', 'Espaços compartilhados da equipe'], 'have', {
       detail: [
-        'One space shared with the whole workspace, with its own folders. Not several spaces with their own members',
-        'Un espacio compartido con todo el workspace, con sus carpetas. Todavía no varios espacios con miembros propios',
-        'Um espaço compartilhado com todo o workspace, com suas pastas. Ainda não vários espaços com membros próprios',
+        'One space shared with the whole workspace, plus any number of spaces with their own members and folders. Only members and workspace admins see a space and its videos in the library and in Cmd+K; a video open to anyone with the link stays open',
+        'Un espacio compartido con todo el workspace y todos los espacios que quieras con sus miembros y carpetas. Solo los miembros y los admins del workspace ven un espacio y sus videos en la biblioteca y en Cmd+K; un video abierto a cualquiera con el link sigue abierto',
+        'Um espaço compartilhado com todo o workspace e quantos espaços quiser com membros e pastas próprios. Só os membros e os admins do workspace veem um espaço e seus vídeos na biblioteca e no Cmd+K; um vídeo aberto a qualquer pessoa com o link continua aberto',
       ],
     }),
     row('video-search', 'library', ['Search videos', 'Buscar videos', 'Buscar vídeos'], 'have', {
@@ -286,7 +320,13 @@ const parity: ProductParity = {
     }),
 
     // Integraciones
-    row('slack', 'integrations', ['Slack previews', 'Vista previa en Slack', 'Prévia no Slack'], 'missing'),
+    row('slack', 'integrations', ['Slack previews', 'Vista previa en Slack', 'Prévia no Slack'], 'partial', {
+      detail: [
+        'Open videos publish Open Graph tags and oEmbed, which Slack reads to build the preview. Checked by reading those responses: never tried in a real Slack workspace. No Slack app',
+        'Los videos abiertos publican etiquetas Open Graph y oEmbed, que Slack lee para armar la vista previa. Comprobado leyendo esas respuestas: nunca se probó en un Slack real. Sin app de Slack',
+        'Os vídeos abertos publicam tags Open Graph e oEmbed, que o Slack lê para montar a prévia. Verificado lendo essas respostas: nunca testado num Slack real. Sem app do Slack',
+      ],
+    }),
     row('jira-confluence-github', 'integrations', ['Jira, Confluence and GitHub', 'Jira, Confluence y GitHub', 'Jira, Confluence e GitHub'], 'missing'),
     row('gmail', 'integrations', ['Record and insert from Gmail', 'Grabar e insertar desde Gmail', 'Gravar e inserir pelo Gmail'], 'missing'),
 
@@ -299,7 +339,13 @@ const parity: ProductParity = {
       ],
     }),
     row('sso-scim', 'admin', ['SSO and SCIM', 'SSO y SCIM', 'SSO e SCIM'], 'missing'),
-    row('data-retention', 'admin', ['Data retention and content transfer', 'Retención de datos y traspaso de contenido', 'Retenção de dados e transferência de conteúdo'], 'missing'),
+    row('data-retention', 'admin', ['Data retention and content transfer', 'Retención de datos y traspaso de contenido', 'Retenção de dados e transferência de conteúdo'], 'have', {
+      detail: [
+        'Per workspace and off by default: deletes videos older than 30 to 730 days, after a confirmation with the count and 7 days of notice. Admins can transfer all the videos and folders of one person to another',
+        'Por workspace y apagada por defecto: borra videos de más de 30 a 730 días, con confirmación que dice cuántos y 7 días de aviso. Los admins pueden pasar todos los videos y carpetas de una persona a otra',
+        'Por workspace e desligada por padrão: apaga vídeos com mais de 30 a 730 dias, com confirmação que diz quantos e 7 dias de aviso. Os admins podem passar todos os vídeos e pastas de uma pessoa para outra',
+      ],
+    }),
   ],
 };
 

@@ -19,5 +19,5 @@ export default async function RecPage(props: { params: Promise<{ locale: string 
   setRequestLocale(locale);
   if (sp.new === '1') redirect(`/${locale}/app/rec/new`);
   const data = await libraryData(locale, { kind: 'mine' });
-  return <RecLibrary scope={{ kind: 'mine' }} initialVideos={data!.videos} initialFolders={data!.folders} baseUrl={data!.baseUrl} />;
+  return <RecLibrary scope={{ kind: 'mine' }} initialVideos={data!.videos} initialFolders={data!.folders} initialSpaces={data!.spaces} baseUrl={data!.baseUrl} />;
 }

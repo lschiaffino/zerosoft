@@ -171,7 +171,7 @@ export interface SidebarLabels {
   };
   voice: { meetings: string; dictation: string; newMeeting: string };
   /** Rec: Mis videos (con las carpetas colgando), Workspace y grabar. */
-  rec: { home: string; workspace: string; newVideo: string };
+  rec: { home: string; workspace: string; newVideo: string; later: string; archive: string };
   /** Design: inicio (con carpetas y diseños colgando), plantillas y kit de marca. */
   design: { home: string; templates: string; brand: string; newDesign: string };
   /** Apps en construcción (Talk ya no; queda el shell genérico): por ahora solo su inicio. */
@@ -791,12 +791,14 @@ export function buildNav(
             {
               href: '/app/rec',
               label: labels.rec.home,
-              active: pathname === '/app/rec' || (at('/app/rec') && !at('/app/rec/workspace') && !at('/app/rec/new') && !at('/app/rec/settings') && !at('/app/rec/f/')),
+              active: pathname === '/app/rec' || (at('/app/rec') && !at('/app/rec/workspace') && !at('/app/rec/new') && !at('/app/rec/settings') && !at('/app/rec/f/') && !at('/app/rec/s/') && !at('/app/rec/later') && !at('/app/rec/archive')),
               icon: 'rec',
               // Carpetas (RecBranch en el hueco #side-branch).
               branch: true,
             },
             { href: '/app/rec/workspace', label: labels.rec.workspace, active: at('/app/rec/workspace'), icon: 'companies' },
+            { href: '/app/rec/later', label: labels.rec.later, active: at('/app/rec/later'), icon: 'clip' },
+            { href: '/app/rec/archive', label: labels.rec.archive, active: at('/app/rec/archive'), icon: 'folder' },
             { href: '/app/rec/new', label: labels.rec.newVideo, active: at('/app/rec/new'), icon: 'recorder' },
           ],
         },

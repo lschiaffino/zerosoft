@@ -221,6 +221,64 @@ interface ClusterInfo {
   keyStart: boolean;
 }
 
+/** Bytes de un cluster sin el id, el tamaño ni el Timecode, con los bloques cuyo tiempo absoluto cae antes de `untilMs`. */
+function clusterBody(b: Uint8Array, c: ClusterInfo, untilMs: number): { parts: Uint8Array[]; lastMs: number } {
+  const id = readId(b, c.start)!;
+  const size = readSize(b, c.start + id.length)!;
+  let p = c.start + id.length + size.length;
+  const parts: Uint8Array[] = [];
+  let lastMs = c.timecode;
+  while (p < c.end) {
+    const cid = readId(b, p);
+    const cs = cid && readSize(b, p + cid.length);
+    if (!cid || !cs || cs.unknown) break;
+    const data = p + cid.length + cs.length;
+    const next = data + cs.value;
+    if (cid.value === ID_SIMPLE_BLOCK || cid.value === ID_BLOCK_GROUP) {
+      let blockPos = data;
+      if (cid.value === ID_BLOCK_GROUP) {
+        let q = data;
+        blockPos = -1;
+        while (q < next) {
+          const qid = readId(b, q);
+          const qs = qid && readSize(b, q + qid.length);
+          if (!qid || !qs || qs.unknown) break;
+          if (qid.value === ID_BLOCK) {
+            blockPos = q + qid.length + qs.length;
+            break;
+          }
+          q += qid.length + qs.length + qs.value;
+        }
+      }
+      if (blockPos >= 0) {
+        const tl = readSize(b, blockPos)!.length;
+        const rel = ((b[blockPos + tl] << 24) >> 16) | b[blockPos + tl + 1];
+        const abs = c.timecode + rel;
+        if (abs < untilMs) {
+          parts.push(b.subarray(p, next));
+          lastMs = Math.max(lastMs, abs);
+        }
+      }
+    } else if (cid.value !== ID_TIMECODE) {
+      parts.push(b.subarray(p, next));
+    }
+    p = next;
+  }
+  return { parts, lastMs };
+}
+
+function timecodeElement(ms: number): Uint8Array {
+  const out = new Uint8Array(10);
+  out[0] = 0xe7;
+  out[1] = 0x88;
+  let v = Math.max(0, Math.round(ms));
+  for (let i = 9; i >= 2; i--) {
+    out[i] = v % 256;
+    v = Math.floor(v / 256);
+  }
+  return out;
+}
+
 function readUInt(b: Uint8Array, pos: number, len: number): number {
   let v = 0;
   for (let i = 0; i < len; i++) v = v * 256 + b[pos + i];
@@ -376,4 +434,157 @@ export function cutWebm(bytes: Uint8Array, startMs: number, endMs: number | null
   }
   const dur = Number.isFinite(end) ? Math.min(end, durationMs || end) : durationMs;
   return { bytes: patchWebmDuration(out, dur), fromMs: clusters[first].timecode, startCut: first > 0 || startMs === 0 };
+}
+
+// ============================================================
+// Componer sin recodificar: sacar partes y unir grabaciones
+// ============================================================
+
+interface ParsedWebm {
+  header: Uint8Array;
+  segmentHead: Uint8Array;
+  info: Uint8Array;
+  tracks: Uint8Array;
+  signature: string;
+  clusters: ClusterInfo[];
+}
+
+function parseTrackSignature(b: Uint8Array, start: number, end: number): string {
+  const out: string[] = [];
+  let p = start;
+  while (p < end) {
+    const id = readId(b, p);
+    const size = id && readSize(b, p + id.length);
+    if (!id || !size || size.unknown) break;
+    const data = p + id.length + size.length;
+    if (id.value === ID_TRACK_ENTRY) {
+      let q = data;
+      const fields: string[] = [];
+      while (q < data + size.value) {
+        const cid = readId(b, q);
+        const cs = cid && readSize(b, q + cid.length);
+        if (!cid || !cs || cs.unknown) break;
+        const cd = q + cid.length + cs.length;
+        if (cid.value === ID_TRACK_NUMBER) fields.push(`n${readUInt(b, cd, cs.value)}`);
+        if (cid.value === ID_TRACK_TYPE) fields.push(`t${readUInt(b, cd, cs.value)}`);
+        if (cid.value === 0x86) fields.push(new TextDecoder().decode(b.subarray(cd, cd + cs.value)));
+        if (cid.value === 0xe0) {
+          let r = cd;
+          while (r < cd + cs.value) {
+            const vid = readId(b, r);
+            const vs = vid && readSize(b, r + vid.length);
+            if (!vid || !vs || vs.unknown) break;
+            const vd = r + vid.length + vs.length;
+            if (vid.value === 0xb0 || vid.value === 0xba) fields.push(`${vid.value === 0xb0 ? 'w' : 'h'}${readUInt(b, vd, vs.value)}`);
+            r = vd + vs.value;
+          }
+        }
+        q = cd + cs.value;
+      }
+      out.push(fields.join(','));
+    }
+    p = data + size.value;
+  }
+  return out.join('|');
+}
+
+function parseWebm(bytes: Uint8Array): ParsedWebm | null {
+  const ebml = readId(bytes, 0);
+  if (!ebml || ebml.value !== ID_EBML) return null;
+  const ebmlSize = readSize(bytes, ebml.length);
+  if (!ebmlSize || ebmlSize.unknown) return null;
+  const headerEnd = ebml.length + ebmlSize.length + ebmlSize.value;
+  const seg = readId(bytes, headerEnd);
+  if (!seg || seg.value !== ID_SEGMENT) return null;
+  const segSize = readSize(bytes, headerEnd + seg.length);
+  if (!segSize) return null;
+  let pos = headerEnd + seg.length + segSize.length;
+  let info: [number, number] | null = null;
+  let tracks: [number, number] | null = null;
+  let videoTrack: number | null = null;
+  let signature = '';
+  const clusters: ClusterInfo[] = [];
+  while (pos < bytes.length) {
+    const id = readId(bytes, pos);
+    const size = id && readSize(bytes, pos + id.length);
+    if (!id || !size) break;
+    const data = pos + id.length + size.length;
+    if (id.value === ID_CLUSTER) {
+      const c = scanCluster(bytes, pos, data, size, videoTrack);
+      if (!c || c.end <= pos) break;
+      clusters.push(c);
+      pos = c.end;
+      continue;
+    }
+    if (size.unknown) return null;
+    if (id.value === ID_INFO) info = [pos, data + size.value];
+    if (id.value === ID_TRACKS) {
+      tracks = [pos, data + size.value];
+      videoTrack = videoTrackNumber(bytes, data, data + size.value);
+      signature = parseTrackSignature(bytes, data, data + size.value);
+    }
+    pos = data + size.value;
+  }
+  if (!info || !tracks || !clusters.length) return null;
+  return { header: bytes.subarray(0, headerEnd), segmentHead: bytes.subarray(headerEnd, headerEnd + seg.length), info: bytes.subarray(info[0], info[1]), tracks: bytes.subarray(tracks[0], tracks[1]), signature, clusters };
+}
+
+export interface WebmEditPiece {
+  /** Índice de la fuente. */
+  src: number;
+  /** Lo que realmente se copió de la fuente, en ms. */
+  fromMs: number;
+  toMs: number;
+  /** Desde qué ms arranca en la salida. */
+  atMs: number;
+}
+
+export type WebmComposeResult =
+  | { ok: true; bytes: Uint8Array; durationMs: number; pieces: WebmEditPiece[] }
+  | { ok: false; error: 'unreadable' | 'incompatible' | 'nothing_left' };
+
+/**
+ * Arma un WebM nuevo con los tramos pedidos de una o más fuentes, sin
+ * recodificar. Un tramo empieza en el primer cluster con keyframe en o después
+ * de su inicio (lo que se sacó no vuelve a aparecer, a cambio de perder hasta un
+ * intervalo de keyframes de lo que sigue) y sus bloques se cortan en el fin. Para
+ * unir, las fuentes tienen que tener las mismas pistas, códec y tamaño.
+ */
+export function composeWebm(sources: Array<{ bytes: Uint8Array; keep: Array<[number, number]> }>): WebmComposeResult {
+  const parsed: ParsedWebm[] = [];
+  for (const s of sources) {
+    const p = parseWebm(s.bytes);
+    if (!p) return { ok: false, error: 'unreadable' };
+    parsed.push(p);
+  }
+  if (!parsed.length) return { ok: false, error: 'unreadable' };
+  if (parsed.some((p) => p.signature !== parsed[0].signature)) return { ok: false, error: 'incompatible' };
+  const out: Uint8Array[] = [parsed[0].header, parsed[0].segmentHead, Uint8Array.from([0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]), parsed[0].info, parsed[0].tracks];
+  const pieces: WebmEditPiece[] = [];
+  let cursor = 0;
+  sources.forEach((source, src) => {
+    const p = parsed[src];
+    for (const [from, to] of source.keep) {
+      const first = p.clusters.findIndex((c) => c.keyStart && c.timecode >= from && c.timecode < to);
+      if (first < 0) continue;
+      const startMs = p.clusters[first].timecode;
+      let lastMs = startMs;
+      const at = cursor;
+      for (let i = first; i < p.clusters.length && p.clusters[i].timecode < to; i++) {
+        const c = p.clusters[i];
+        const { parts, lastMs: last } = clusterBody(source.bytes, c, to);
+        lastMs = Math.max(lastMs, last);
+        const tc = timecodeElement(at + c.timecode - startMs);
+        const len = tc.length + parts.reduce((n, x) => n + x.length, 0);
+        out.push(Uint8Array.from([0x1f, 0x43, 0xb6, 0x75]), sizeVint8(len), tc, ...parts);
+      }
+      // Un cuadro más de margen: el siguiente tramo no pisa al último bloque de este.
+      const end = Math.min(to, lastMs + 34);
+      const length = Math.max(1, end - startMs);
+      pieces.push({ src, fromMs: startMs, toMs: startMs + length, atMs: at });
+      cursor = at + length;
+    }
+  });
+  if (!pieces.length) return { ok: false, error: 'nothing_left' };
+  return { ok: true, bytes: patchWebmDuration(concat(out), cursor), durationMs: cursor, pieces };
 }

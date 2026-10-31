@@ -6,7 +6,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, realUserId, type SessionUser } from './session';
 import { AiError } from './ai';
 import { UploadError } from './uploads';
-import { getPublicVideoRow, publicAccess, RecError, unlockCookieName, type RecActor, type RecVideoRow, type RecViewer } from './rec';
+import { userCanUseApp } from './workspace';
+import { emailGateCookie, emailGateToken, getPublicVideoRow, isSpaceMember, publicAccess, RecError, unlockCookieName, type PublicViewer, type RecActor, type RecVideoRow, type RecViewer } from './rec';
 
 export function recJson<T>(body: T, status = 200) {
   return NextResponse.json(body, { status });
@@ -29,6 +30,34 @@ export async function recActor(): Promise<{ actor: RecActor; user: SessionUser }
   const user = await getCurrentUser();
   if (!user) return { res: recJson({ error: 'unauthorized' }, 401) };
   return { actor: actorOf(user), user };
+}
+
+/**
+ * Quién mira, para las reglas de la página pública. La página y las rutas pasan
+ * por acá: dan la misma respuesta. Sin acceso a Rec en el workspace, la persona
+ * no cuenta como miembro (ni como autora), aunque la página /v no sea de una app.
+ */
+export async function publicViewerFor(
+  v: Pick<RecVideoRow, 'share_id' | 'space_id' | 'workspace_id'>,
+  user: SessionUser | null,
+  cookie: (name: string) => string | null | undefined,
+): Promise<PublicViewer> {
+  const passed = cookie(emailGateCookie(v.share_id)) === emailGateToken(v);
+  if (!user) return { ws: null, userId: null, email: null, emailPassed: passed };
+  const person = user.actingUser ?? user;
+  const id = realUserId(user);
+  const inWorkspace = user.id === v.workspace_id && userCanUseApp(user, 'rec');
+  const admin = user.role === 'owner' || user.role === 'admin';
+  const spaceMember = !!v.space_id && inWorkspace && (admin || (await isSpaceMember(v.space_id, id)));
+  return { ws: inWorkspace ? user.id : null, userId: id, email: person.email ?? null, spaceMember, emailPassed: passed };
+}
+
+/** Personas del workspace con acceso a Rec (para espacios y traspaso). */
+export async function recPeople(user: SessionUser): Promise<Array<{ id: string; name: string; email: string }>> {
+  const { listTeamPeople } = await import('./workspace');
+  if (!user.workspace) return [];
+  const rows = await listTeamPeople(user.workspace, { app: 'rec' });
+  return rows.map((p) => ({ id: p.user_id, name: p.name || p.email, email: p.email }));
 }
 
 const VK_COOKIE = 'rec_vk';
@@ -67,7 +96,7 @@ export async function publicVideoFor(
   const v = await getPublicVideoRow(shareId);
   if (!v) return { res: recJson({ error: 'not_found' }, 404) };
   const user = await getCurrentUser();
-  const viewer = { ws: user?.id ?? null, userId: user ? realUserId(user) : null };
+  const viewer = await publicViewerFor(v, user, (n) => req.cookies.get(n)?.value);
   const access = publicAccess(v, viewer, req.cookies.get(unlockCookieName(v.share_id))?.value ?? null);
   if (access !== 'ok') return { res: recJson({ error: access }, access === 'expired' ? 410 : 403) };
   return { v, isAuthor: !!viewer.userId && viewer.userId === v.created_by && viewer.ws === v.workspace_id, user };

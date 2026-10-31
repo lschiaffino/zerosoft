@@ -182,7 +182,7 @@ export async function GET(req: NextRequest) {
       group: r.kind === 'video' ? 'recVideos' : 'recFolders',
       label: r.label,
       meta: r.meta,
-      href: r.kind === 'video' ? `/app/rec/${r.id}` : `/app/rec/f/${r.id}`,
+      href: r.kind === 'video' ? `/app/rec/${r.id}` : r.kind === 'space' ? `/app/rec/s/${r.id}` : `/app/rec/f/${r.id}`,
     });
   }
 

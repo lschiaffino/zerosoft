@@ -16,5 +16,5 @@ export default async function RecWorkspacePage(props: { params: Promise<{ locale
   const { locale } = await props.params;
   setRequestLocale(locale);
   const data = await libraryData(locale, { kind: 'workspace' });
-  return <RecLibrary scope={{ kind: 'workspace' }} initialVideos={data!.videos} initialFolders={data!.folders} baseUrl={data!.baseUrl} />;
+  return <RecLibrary scope={{ kind: 'workspace' }} initialVideos={data!.videos} initialFolders={data!.folders} initialSpaces={data!.spaces} baseUrl={data!.baseUrl} />;
 }

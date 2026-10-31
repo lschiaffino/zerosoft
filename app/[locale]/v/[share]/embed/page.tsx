@@ -11,7 +11,8 @@ export async function generateMetadata(props: Props) {
   const { locale, share } = await props.params;
   const page = await resolvePublicPage(share);
   const t = await getTranslations({ locale, namespace: 'rec.watch' });
-  return { title: page.state === 'ok' ? page.video.title : t('metaLocked'), robots: { index: false, follow: false } };
+  const name = page.state === 'ok' ? page.video.title : t('metaLocked');
+  return { title: page.state === 'ok' && page.brand ? { absolute: name } : name, robots: { index: false, follow: false } };
 }
 
 /** Reproductor solo, para insertar en un iframe (Notion, Docs, una web). Con contraseña o privado, manda a la página. */
@@ -31,5 +32,5 @@ export default async function RecEmbedPage(props: Props) {
       </main>
     );
   }
-  return <RecEmbed video={page.video} shareUrl={url} />;
+  return <RecEmbed video={page.video} shareUrl={url} brand={page.brand} />;
 }
