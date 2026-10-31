@@ -64,7 +64,7 @@ const parity: ProductParity = {
       id: 'file-upload',
       area: 'editing',
       label: { en: 'Images and files', es: 'Imágenes y archivos', pt: 'Imagens e arquivos' },
-      detail: { en: 'Images, video, audio, PDF and files by upload, paste or drag; images resize, align and take a caption. Up to 5 GB per file with Vercel Blob (the browser uploads directly), 50 MB on a self-hosted disk', es: 'Imágenes, video, audio, PDF y archivos subiendo, pegando o arrastrando; las imágenes se estiran, se alinean y llevan leyenda. Hasta 5 GB por archivo con Vercel Blob (sube el navegador directo), 50 MB en el disco de un servidor propio', pt: 'Imagens, vídeo, áudio, PDF e arquivos enviando, colando ou arrastando; as imagens se redimensionam, se alinham e têm legenda. Até 5 GB por arquivo com Vercel Blob (o navegador envia direto), 50 MB no disco de um servidor próprio' },
+      detail: { en: 'Images, video, audio, PDF and files by upload, paste or drag; images resize, align and take a caption. Up to 100 MB per file with Vercel Blob (the browser uploads directly), 50 MB on a self-hosted disk', es: 'Imágenes, video, audio, PDF y archivos subiendo, pegando o arrastrando; las imágenes se estiran, se alinean y llevan leyenda. Hasta 100 MB por archivo con Vercel Blob (sube el navegador directo), 50 MB en el disco de un servidor propio', pt: 'Imagens, vídeo, áudio, PDF e arquivos enviando, colando ou arrastando; as imagens se redimensionam, se alinham e têm legenda. Até 100 MB por arquivo com Vercel Blob (o navegador envia direto), 50 MB no disco de um servidor próprio' },
       status: 'have',
       competitorHas: true,
       weight: 2,

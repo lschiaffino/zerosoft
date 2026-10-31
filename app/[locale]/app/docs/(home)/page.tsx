@@ -18,7 +18,7 @@ import {
   reorderDocPageAction,
 } from '@/lib/docs-actions';
 import { getDocTemplates } from '@/lib/docs-templates';
-import { formatDateTime } from '@/lib/utils';
+import LocalDate from '@/components/ui/LocalDate';
 import Icon from '@/components/app/icons';
 import { Link } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
@@ -161,7 +161,7 @@ export default async function DocsLandingPage(props: {
                 {
                   key: 'edited',
                   header: t('landing.colEdited'),
-                  cell: (p) => formatDateTime(p.updated_at, locale),
+                  cell: (p) => <LocalDate value={p.updated_at} locale={locale} />,
                   numeric: true,
                   width: '200px',
                 },
@@ -199,7 +199,7 @@ export default async function DocsLandingPage(props: {
                     if (!p.verified_at) return <span className="docs-wiki-state">{t('verify.unverified')}</span>;
                     return (
                       <span className={`docs-wiki-state${expired ? ' is-expired' : ' is-ok'}`}>
-                        {expired ? t('verify.expiredBadge') : p.verified_until ? t('verify.until', { date: formatDateTime(p.verified_until, locale) }) : t('verify.forever')}
+                        {expired ? t('verify.expiredBadge') : p.verified_until ? t.rich('verify.until', { date: () => <LocalDate value={p.verified_until} locale={locale} /> }) : t('verify.forever')}
                       </span>
                     );
                   },

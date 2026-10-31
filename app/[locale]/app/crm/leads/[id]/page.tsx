@@ -11,7 +11,7 @@ import { SOURCES } from '@/lib/crm-constants';
 import { fieldAccessFor, redactCustomJson, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { ownerOptions } from '@/lib/crm-owners';
 import { withActivityFiles } from '@/lib/crm-files';
-import { formatDate } from '@/lib/utils';
+import LocalDate from '@/components/ui/LocalDate';
 import PageHeader from '@/components/ui/PageHeader';
 import RecordTabs from '@/components/crm/RecordTabs';
 import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
@@ -104,7 +104,7 @@ export default async function LeadPage(props: {
             {lead.contact_id && <Link href={`/app/crm/contacts/${lead.contact_id}`}>{lead.contact_name ?? lead.contact_email}</Link>}
             {lead.company_id && <Link href={`/app/crm/companies/${lead.company_id}`}>{lead.company_name}</Link>}
             <span>{ownerLabel}</span>
-            {lead.converted_at && <span>{t('leads.converted', { date: formatDate(lead.converted_at, locale) })}</span>}
+            {lead.converted_at && <span>{t.rich('leads.converted', { date: () => <LocalDate value={lead.converted_at} locale={locale} kind="date" /> })}</span>}
             {kind === 'disqualified' && lead.disqualify_reason && (
               <span>{t('leads.disqualify.reasonLabel', { reason: lead.disqualify_reason })}</span>
             )}
@@ -170,11 +170,11 @@ export default async function LeadPage(props: {
                 </div>
                 <div>
                   <dt>{t('leads.columns.lastActivity')}</dt>
-                  <dd>{lead.last_activity_at ? formatDate(lead.last_activity_at, locale) : '—'}</dd>
+                  <dd>{lead.last_activity_at ? <LocalDate value={lead.last_activity_at} locale={locale} kind="date" /> : '—'}</dd>
                 </div>
                 <div>
                   <dt>{t('leads.columns.created')}</dt>
-                  <dd>{formatDate(lead.created_at, locale)}</dd>
+                  <dd><LocalDate value={lead.created_at} locale={locale} kind="date" /></dd>
                 </div>
               </dl>
               <Link href={recordTabHref(base, 'properties')} className="record-summary-more">

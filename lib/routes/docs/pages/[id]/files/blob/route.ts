@@ -3,7 +3,8 @@ import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 import { getCurrentUser } from '@/lib/session';
 import { getDocAccess, getDocPageRow } from '@/lib/docs';
 import { isAllowedUpload } from '@/lib/uploads';
-import { DOCS_MAX_BLOB_UPLOAD, isDocsStoragePathname } from '@/lib/docs-files';
+import { DOCS_BLOB_TOKENS_PER_MINUTE, DOCS_MAX_BLOB_UPLOAD, isDocsStoragePathname } from '@/lib/docs-files';
+import { limitWrites } from '@/lib/write-limit';
 import { docsError, forbidden, notFound, unauthorized } from '@/lib/docs-http';
 import { canWriteAccess } from '@/lib/docs-access';
 
@@ -32,6 +33,9 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if (!row || !access) return notFound();
   if (!canWriteAccess(access)) return forbidden();
   if (row.locked === 1) return docsError(423, 'locked');
+  // Cada permiso deja subir un archivo al storage: tope por persona, no por workspace.
+  const limited = await limitWrites('docs:blob', user.actingUser?.id ?? user.id, DOCS_BLOB_TOKENS_PER_MINUTE);
+  if (limited) return limited;
 
   try {
     const result = await handleUpload({
