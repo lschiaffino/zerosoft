@@ -7563,6 +7563,38 @@ export const MIGRATIONS: Migration[] = [
       await client.execute('CREATE INDEX IF NOT EXISTS idx_users_email_norm ON users(email_norm)');
     },
   },
+  {
+    // Track: en bases donde track_issues quedó con el CHECK viejo, crear un
+    // issue sin prioridad ('none', el default) fallaba. Reconstruye la tabla
+    // solo si al CHECK le falta 'none'; si no, no hace nada.
+    id: '146_track_priority_none_check',
+    async up(client) {
+      const sql = String(
+        (await client.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'track_issues'")).rows[0]?.sql ?? '',
+      );
+      const check = /CHECK\s*\(\s*priority\s+IN\s*\([^)]*\)\s*\)/i;
+      if (!sql || !check.test(sql) || /'none'/.test(sql.match(check)?.[0] ?? '')) return;
+      const newSql = sql
+        .replace(check, "CHECK (priority IN ('none', 'urgent', 'high', 'medium', 'low'))")
+        .replace(/priority\s+TEXT\s+NOT\s+NULL\s+DEFAULT\s+'medium'/i, "priority TEXT NOT NULL DEFAULT 'none'")
+        .replace(/^CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["`]?track_issues["`]?/i, 'CREATE TABLE track_issues_new');
+      const cols = (await client.execute('PRAGMA table_info(track_issues)')).rows.map((r) => `"${String(r.name)}"`).join(', ');
+      // Índices y triggers se van con el DROP: se vuelven a crear después.
+      const dependents = (
+        await client.execute(
+          "SELECT sql FROM sqlite_master WHERE type IN ('index', 'trigger') AND tbl_name = 'track_issues' AND sql IS NOT NULL",
+        )
+      ).rows.map((r) => String(r.sql));
+      await client.migrate([
+        'DROP TABLE IF EXISTS track_issues_new',
+        newSql,
+        `INSERT INTO track_issues_new (${cols}) SELECT ${cols} FROM track_issues`,
+        'DROP TABLE track_issues',
+        'ALTER TABLE track_issues_new RENAME TO track_issues',
+        ...dependents,
+      ]);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
