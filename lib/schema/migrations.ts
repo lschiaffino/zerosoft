@@ -7800,6 +7800,42 @@ export const MIGRATIONS: Migration[] = [
       await client.execute('CREATE INDEX IF NOT EXISTS idx_note_admin_audit ON note_admin_audit(workspace_id, created_at)');
     },
   },
+  {
+    // Talk: marcadores del canal, recap diario opcional y corridas de /ask.
+    // Solo tablas nuevas y columnas apagadas por defecto: no toca datos existentes ni agrega triggers.
+    id: '150_talk_bookmarks_recap_agent',
+    up: async (client) => {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS talk_bookmarks (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          channel_id TEXT NOT NULL REFERENCES talk_channels(id) ON DELETE CASCADE,
+          title TEXT NOT NULL,
+          url TEXT NOT NULL,
+          created_by TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )
+      `);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_talk_bookmarks_channel ON talk_bookmarks(channel_id, created_at)');
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_talk_bookmarks_ws ON talk_bookmarks(workspace_id)');
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS talk_agent_runs (
+          workspace_id TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          key TEXT NOT NULL,
+          message_id TEXT,
+          reply_id TEXT,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (workspace_id, user_id, key)
+        )
+      `);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_talk_agent_runs_created ON talk_agent_runs(created_at)');
+      await addColumn(client, 'ALTER TABLE talk_prefs ADD COLUMN recap_daily INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE talk_prefs ADD COLUMN recap_next_at TEXT');
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_talk_prefs_recap_due ON talk_prefs(recap_next_at) WHERE recap_daily = 1');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

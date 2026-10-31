@@ -193,6 +193,7 @@ function useGroupOrder() {
         'talkPeople',
         'talkCanvases',
         'talkLists',
+        'talkBookmarks',
         'socialPosts',
         'socialLibrary',
         'workspaceTeams',

@@ -10,6 +10,7 @@ import Message, { fmtFull } from './Message';
 import MessageBody from './MessageBody';
 import { draftKey, useTalk, type TalkBusEvent } from './talk-context';
 import { HuddleButton } from './Huddle';
+import BookmarksBar from './Bookmarks';
 
 // El editor de Docs pesa: el canvas se carga recién cuando se abre la pestaña.
 const CanvasPane = dynamic(() => import('./CanvasPane'), { ssr: false });
@@ -411,6 +412,7 @@ export default function ChannelPane({ channel, highlightId, onBack, initialTab, 
           {t('ai.summarize')}
         </button>
       </div>
+      <BookmarksBar channel={channel} />
       {tab === 'canvas' && (
         <div className="talk-tab-panel" role="tabpanel" id="talk-panel-canvas" aria-labelledby="talk-tab-canvas">
           <CanvasPane channel={channel} />

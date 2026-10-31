@@ -804,3 +804,159 @@
     width: auto;
   }
 }
+
+/* Marcadores del canal */
+.talk-bookmarks {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  min-height: 34px;
+  padding: 2px 12px;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.talk-bookmark {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: var(--radius-1);
+}
+
+.talk-bookmark:hover,
+.talk-bookmark:focus-within {
+  background: var(--ui-hover);
+}
+
+.talk-bookmark-link {
+  max-width: 200px;
+  padding: 3px 6px;
+  overflow: hidden;
+  color: inherit;
+  font-size: 0.8125rem;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.talk-bookmark-link:hover {
+  text-decoration: underline;
+}
+
+.talk-bookmark-more {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-1);
+  background: none;
+  color: var(--brand-gray-2);
+  cursor: pointer;
+}
+
+.talk-bookmark-menu {
+  position: fixed;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  min-width: 120px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  box-shadow: var(--ui-shadow);
+}
+
+.talk-bookmark-menu button {
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--radius-1);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.talk-bookmark-menu button:hover,
+.talk-bookmark-menu button:focus-visible {
+  background: var(--ui-hover);
+}
+
+.talk-bookmark-menu .is-danger {
+  color: var(--danger, #c62828);
+}
+
+/* Cámaras del huddle */
+.talk-huddle-cameras {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.talk-huddle-screen.is-mirrored video {
+  transform: scaleX(-1);
+}
+
+/* Clips de audio y video */
+.talk-clip {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.talk-clip-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.talk-clip-preview {
+  display: block;
+  width: 100%;
+  max-height: 40vh;
+  border-radius: var(--radius-1);
+  background: #000;
+}
+
+.talk-clip-preview[hidden] {
+  display: none;
+}
+
+.talk-clip-audio {
+  width: 100%;
+}
+
+.talk-clip-time {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.talk-clip-file {
+  margin: 0;
+  max-width: min(420px, 100%);
+}
+
+.talk-clip-file video {
+  display: block;
+  width: 100%;
+  max-height: 320px;
+  border-radius: var(--radius-1);
+  background: #000;
+}
+
+.talk-clip-file audio {
+  display: block;
+  width: 100%;
+}
+
+.talk-clip-file figcaption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
+}

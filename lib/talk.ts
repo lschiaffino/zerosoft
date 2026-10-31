@@ -168,7 +168,9 @@ export type TalkEventKind =
   | 'canvas'
   | 'list'
   | 'section'
-  | 'ephemeral';
+  | 'ephemeral'
+  // Marcadores del canal (lib/talk-bookmarks.ts).
+  | 'bookmark';
 
 export interface TalkEvent {
   id: number;
