@@ -163,6 +163,10 @@ export const noteClipSchema = z.object({
   url,
   title: z.string().max(300).optional(),
   selection: z.string().max(8000).optional(),
+  /** bookmark: solo el link. selection: lo marcado. article y page: el contenido de la página. */
+  mode: z.enum(['bookmark', 'selection', 'article', 'page']).default('selection'),
+  /** La página tal como la ve la persona (bookmarklet). */
+  html: z.string().max(2_000_000).optional(),
 });
 
 export const noteReminderSchema = z.object({

@@ -18,6 +18,9 @@ import * as m12 from '@/lib/routes/notes/notebooks/[id]/route';
 import * as m13 from '@/lib/routes/notes/notebooks/[id]/shares/route';
 import * as m14 from '@/lib/routes/notes/searches/[id]/route';
 import * as m15 from '@/lib/routes/notes/templates/[id]/route';
+import * as m16 from '@/lib/routes/notes/[id]/access/route';
+import * as m17 from '@/lib/routes/notes/[id]/tasks/route';
+import * as m18 from '@/lib/routes/notes/[id]/transcribe/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -39,6 +42,9 @@ const d = createDispatcher('zsPath', [
   { pattern: 'notebooks/[id]/shares', mod: m13 }, // lib/routes/notes/notebooks/[id]/shares
   { pattern: 'searches/[id]', mod: m14 }, // lib/routes/notes/searches/[id]
   { pattern: 'templates/[id]', mod: m15 }, // lib/routes/notes/templates/[id]
+  { pattern: '[id]/access', mod: m16 }, // lib/routes/notes/[id]/access
+  { pattern: '[id]/tasks', mod: m17 }, // lib/routes/notes/[id]/tasks
+  { pattern: '[id]/transcribe', mod: m18 }, // lib/routes/notes/[id]/transcribe
 ]);
 
 export const GET = d.GET;

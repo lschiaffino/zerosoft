@@ -57,6 +57,7 @@ import * as m51 from '@/lib/routes/v1/track/teams/[id]/route';
 import * as m52 from '@/lib/routes/v1/track/teams/[id]/cycles/route';
 import * as m53 from '@/lib/routes/v1/track/teams/[id]/statuses/route';
 import * as m54 from '@/lib/routes/v1/voice/sessions/[id]/route';
+import * as m55 from '@/lib/routes/v1/notes/[id]/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -117,6 +118,7 @@ const d = createDispatcher('zsPath', [
   { pattern: 'track/teams/[id]/cycles', mod: m52 }, // lib/routes/v1/track/teams/[id]/cycles
   { pattern: 'track/teams/[id]/statuses', mod: m53 }, // lib/routes/v1/track/teams/[id]/statuses
   { pattern: 'voice/sessions/[id]', mod: m54 }, // lib/routes/v1/voice/sessions/[id]
+  { pattern: 'notes/[id]', mod: m55 }, // lib/routes/v1/notes/[id]
 ]);
 
 export const GET = d.GET;

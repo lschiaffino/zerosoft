@@ -19,7 +19,9 @@
     "trash": "Trash",
     "shared": "Shared with me",
     "savedSearches": "Saved searches",
-    "exportAll": "Export all notes"
+    "exportAll": "Export all notes",
+    "home": "Home",
+    "tasks": "Tasks"
   },
   "notebooks": {
     "new": "New notebook",
@@ -58,7 +60,9 @@
     "clearSearch": "Clear search",
     "emptySharedTitle": "Nothing shared with you yet",
     "emptySharedBody": "When a teammate shares a note or a notebook with you, it shows up here.",
-    "sharedBy": "from {name}"
+    "sharedBy": "from {name}",
+    "semantic": "Search by meaning",
+    "semanticHint": "Finds notes by what they mean, even when they use other words. Uses your AI quota."
   },
   "trash": {
     "confirmDelete": "Delete this note forever? This can't be undone.",
@@ -145,7 +149,24 @@
     "copied": "Copied",
     "source": "Source",
     "saveHint": "⌘↵ to save",
-    "touchInstall": "Install the clipper from a computer. Copy the code to paste it there as a bookmark."
+    "touchInstall": "Install the clipper from a computer. Copy the code to paste it there as a bookmark.",
+    "modeLabel": "What to save",
+    "modes": {
+      "article": "Article",
+      "page": "Full page",
+      "selection": "Selection",
+      "bookmark": "Bookmark",
+      "screenshot": "Screenshot"
+    },
+    "modeHints": {
+      "article": "The main text and images, without menus or ads.",
+      "page": "Everything on the page, as text and images.",
+      "selection": "Only the text you selected.",
+      "bookmark": "Just the link.",
+      "screenshot": "Pick a tab or window and save what it shows."
+    },
+    "fetchError": "Couldn't read that page. Open it and use the bookmarklet, or save it as a bookmark.",
+    "emptyPage": "That page has no text to save."
   },
   "public": {
     "notFound": "Note not found",
@@ -448,7 +469,9 @@
     "confirmDiscard": "Discard this recording?",
     "tooBig": "The recording is over 10 MB and can’t be added.",
     "savedLocal": "Recording saved on this device. It’s added to the note when you’re back online.",
-    "addedLater": "Recording added to the note."
+    "addedLater": "Recording added to the note.",
+    "addPage": "Add another page",
+    "scanPages": "{count, plural, one {# page} other {# pages}}"
   },
   "signOut": {
     "title": "{count, plural, one {# change in Notes isn’t uploaded yet} other {# changes in Notes aren’t uploaded yet}}",
@@ -459,5 +482,158 @@
     "download": "Download pending changes",
     "confirm": "Sign out anyway",
     "cancel": "Cancel"
+  },
+  "tasks": {
+    "setDue": "Due date and assignee",
+    "due": "Due date",
+    "assignee": "Assignee",
+    "nobody": "Nobody",
+    "assignHint": "Assigning shares the note with that person, with edit access.",
+    "error": "Couldn't load your tasks.",
+    "retry": "Try again",
+    "loading": "Loading tasks",
+    "emptyTitle": "No tasks yet",
+    "emptyBody": "Add a checklist to any note and its items show up here.",
+    "showDone": "Show {count, plural, one {# completed task} other {# completed tasks}}",
+    "untitled": "Untitled",
+    "groups": {
+      "overdue": "Overdue",
+      "today": "Today",
+      "upcoming": "Upcoming",
+      "noDate": "No date",
+      "done": "Completed"
+    }
+  },
+  "home": {
+    "title": "Home",
+    "customize": "Customize",
+    "done": "Done",
+    "addWidget": "Add a widget",
+    "moveUp": "Move {name} up",
+    "moveDown": "Move {name} down",
+    "hide": "Hide {name}",
+    "loading": "Loading",
+    "saving": "Saving",
+    "saved": "Saved",
+    "saveError": "Couldn't save",
+    "error": "Couldn't load your home.",
+    "retry": "Try again",
+    "noWidgets": "No widgets. Choose Customize to add some.",
+    "scratchPlaceholder": "Jot something down. It stays here until you turn it into a note.",
+    "scratchToNote": "Save as note",
+    "tasksEmpty": "No open tasks.",
+    "recentEmpty": "No notes yet.",
+    "pinnedEmpty": "No pinned notes.",
+    "sharedEmpty": "Nothing shared with you.",
+    "eventsEmpty": "No Cal bookings in the next 14 days.",
+    "eventNoteAction": "Create a meeting note",
+    "notebooksEmpty": "No notebooks yet.",
+    "tagsEmpty": "No tags yet.",
+    "searchesEmpty": "No saved searches.",
+    "widgets": {
+      "scratch": "Scratch pad",
+      "tasks": "Tasks",
+      "recent": "Recent notes",
+      "pinned": "Pinned",
+      "shared": "Shared with me",
+      "events": "Upcoming meetings",
+      "notebooks": "Notebooks",
+      "tags": "Tags",
+      "searches": "Saved searches"
+    },
+    "eventNote": {
+      "when": "When",
+      "agenda": "Agenda",
+      "notes": "Notes",
+      "actions": "Action items",
+      "with": "With"
+    }
+  },
+  "access": {
+    "title": "You don't have access to this note",
+    "body": "Ask the owner for access. They get a notice and choose whether you can view or edit.",
+    "pending": "Request sent. You will get a notice when the owner answers.",
+    "denied": "The owner declined your request. You can ask again.",
+    "request": "Request access",
+    "requestAgain": "Ask again",
+    "error": "Couldn't send that. Try again.",
+    "requests": "Access requests",
+    "approveView": "Can view",
+    "approveEdit": "Can edit",
+    "deny": "Decline"
+  },
+  "email": {
+    "title": "Email to Notes",
+    "lead": "Forward an email to this address and it becomes a note in your account, with its attachments.",
+    "loading": "Loading",
+    "error": "Couldn't load your address.",
+    "unavailable": "This workspace has no inbound email domain set up. Whoever runs it needs to set the same inbound domain Chat uses.",
+    "address": "Your Notes address",
+    "copy": "Copy",
+    "copied": "Copied",
+    "tipSubject": "The subject is the title. End it with @notebook and #tag to file it, for example: Invoice @Finance #receipts",
+    "tipAttachments": "Images and PDFs are searchable once they are read.",
+    "rotate": "Get a new address",
+    "rotateHint": "The current address stops working. Anyone with the address can add notes to your account."
+  },
+  "admin": {
+    "title": "Team console",
+    "lead": "How the team uses Notes. Private notes stay private: you see counts, not content.",
+    "loading": "Loading",
+    "error": "Couldn't load the console.",
+    "retry": "Try again",
+    "people": "People",
+    "person": "Person",
+    "notes": "Notes",
+    "notebooks": "Notebooks",
+    "shares": "Shares",
+    "links": "Public links",
+    "lastUpdate": "Last edit",
+    "never": "Never",
+    "publicLinks": "Public links",
+    "noLinks": "No notes have a public link.",
+    "untitled": "Untitled",
+    "disableLink": "Turn off link",
+    "transfer": "Transfer notes",
+    "transferHint": "Moves all notes, notebooks, templates and saved searches from one person to another, for when someone leaves. Locked notes stay locked.",
+    "from": "From",
+    "to": "To",
+    "transferAction": "Transfer",
+    "transferConfirm": "Confirm transfer",
+    "transferDone": "Notes transferred."
+  },
+  "annotate": {
+    "open": "Annotate image or PDF",
+    "none": "This note has no saved image or PDF.",
+    "title": "Annotate",
+    "close": "Close",
+    "undo": "Undo",
+    "save": "Save a copy",
+    "tools": "Tools",
+    "color": "Color",
+    "textLabel": "Text to add",
+    "addText": "Add",
+    "loading": "Loading file",
+    "loadError": "Couldn't open the file.",
+    "saveError": "Couldn't save the copy.",
+    "untitledFile": "Untitled file",
+    "suffix": "annotated",
+    "pageLabel": "Page {page}",
+    "tool": {
+      "pen": "Pen",
+      "highlight": "Highlight",
+      "box": "Box",
+      "text": "Text"
+    }
+  },
+  "transcribe": {
+    "open": "Transcribe audio",
+    "none": "This note has no saved audio recording.",
+    "working": "Transcribing the audio. This can take a minute.",
+    "done": "Transcript added to the note.",
+    "disabled": "Transcription is not set up in this workspace.",
+    "error": "Couldn't transcribe the audio.",
+    "heading": "Transcript",
+    "speaker": "Speaker {speaker}"
   }
 }

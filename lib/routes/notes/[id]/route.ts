@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
+import { processNoteFileQueue } from '@/lib/notes-file-text';
 import { getCurrentUser } from '@/lib/session';
 import { emitEventSoon } from '@/lib/events';
 import { addedTags, noteEventPayload } from '@/lib/notes-types';
@@ -79,6 +80,8 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     const payload = noteEventPayload(note, owner.personId);
     if (added.length) await emitEventSoon(owner.workspaceId, 'note.tagged', { ...payload, added });
     if (trashedNow) await emitEventSoon(owner.workspaceId, 'note.trashed', payload);
+    // Archivos nuevos: se leen para la búsqueda sin esperar al cron.
+    if (patch.content !== undefined && !note.locked) after(() => processNoteFileQueue({ noteId: id, limit: 3 }).catch(() => undefined));
     return NextResponse.json(note);
   } catch (err) {
     // Otra pestaña o dispositivo guardó desde que se abrió la nota: no se pisa en silencio.

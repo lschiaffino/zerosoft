@@ -660,3 +660,103 @@
 .notes-track-linked { margin-left: auto; flex-shrink: 0; font-size: 0.75rem; color: var(--brand-gray-2); }
 .notes-track-project { display: flex; flex-direction: column; gap: 4px; font-size: 0.8125rem; font-weight: 600; }
 .notes-track-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ---------- Tareas ---------- */
+.note-task-chip-wrap { position: relative; flex: none; align-self: flex-start; margin-left: 8px; }
+.note-task-chip {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 22px; padding: 0 6px;
+  border: 1px solid transparent; border-radius: var(--ui-radius, 4px); background: none;
+  color: var(--brand-gray-2); font-size: 0.75rem; cursor: pointer; opacity: 0.45;
+}
+.docs-block:hover .note-task-chip, .note-task-chip:focus-visible, .note-task-chip.is-set, .note-task-chip[aria-expanded='true'] { opacity: 1; }
+.note-task-chip.is-set { border-color: var(--line, var(--border)); color: var(--brand-gray-1); }
+.note-task-chip.is-overdue { color: var(--danger, #b42318); border-color: currentColor; }
+.note-task-chip:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.note-task-chip-who { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.note-task-pop { right: 0; left: auto; width: 240px; display: flex; flex-direction: column; gap: 10px; }
+.docs-block-todo { position: relative; }
+.notes-tasks { padding: 4px 0 16px; }
+.notes-tasks-group h2 { display: flex; gap: 6px; padding: 12px 16px 4px; font-size: 0.75rem; font-weight: 600; color: var(--brand-gray-1); }
+.notes-tasks-group h2.is-overdue, .notes-task .is-overdue, .notes-home-row-meta.is-overdue { color: var(--danger, #b42318); }
+.notes-tasks-group ul { list-style: none; margin: 0; padding: 0; }
+.notes-task { display: flex; align-items: flex-start; gap: 8px; padding: 6px 16px; }
+.notes-task.is-active { background: var(--surface-2, var(--bg-subtle, transparent)); }
+.notes-task .docs-check { margin-top: 3px; flex: none; }
+.notes-task-open { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; font: inherit; }
+.notes-task-open:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.notes-task-text { font-size: 0.875rem; overflow-wrap: anywhere; }
+.notes-task.is-done .notes-task-text { text-decoration: line-through; color: var(--brand-gray-2); }
+.notes-task-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.75rem; color: var(--brand-gray-2); }
+.notes-task-note { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
+.notes-tasks-more { margin: 8px 16px; }
+.notes-tasks-loading, .notes-tasks-empty { padding: 24px 16px; font-size: 0.875rem; color: var(--brand-gray-1); }
+.notes-tasks-empty-title { font-weight: 600; margin-bottom: 4px; }
+.notes-pane-back { display: none; }
+
+/* ---------- Inicio ---------- */
+.notes-app[data-home='true'] { grid-template-columns: 216px minmax(0, 1fr); }
+.notes-home-pane { min-width: 0; min-height: 0; overflow-y: auto; padding: 20px 24px 32px; }
+.notes-home { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.notes-home-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.notes-home-head h1 { font-size: 1.25rem; }
+.notes-home-add { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.notes-home-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.notes-home-card { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 12px; border: 1px solid var(--line, var(--border)); border-radius: var(--ui-radius, 4px); background: var(--bg); }
+.notes-home-card header { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; }
+.notes-home-card h2 { font-size: 0.8125rem; font-weight: 600; }
+.notes-home-card-tools { display: flex; gap: 2px; }
+.notes-home-list { list-style: none; margin: 0; padding: 0; }
+.notes-home-list button { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; width: 100%; padding: 6px 4px; border: 0; background: none; color: inherit; font: inherit; font-size: 0.875rem; text-align: left; cursor: pointer; border-radius: var(--ui-radius, 4px); }
+.notes-home-list button:hover { background: var(--surface-2, var(--bg-subtle, transparent)); }
+.notes-home-list button:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.notes-home-row-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notes-home-row-meta { flex: none; font-size: 0.75rem; color: var(--brand-gray-2); }
+.notes-home-hint { font-size: 0.8125rem; color: var(--brand-gray-2); }
+.notes-home-scratch { width: 100%; resize: vertical; }
+.notes-home-scratch-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+/* ---------- Pedir acceso ---------- */
+.notes-access-gate { max-width: 420px; margin: 72px auto; padding: 0 16px; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.notes-access-gate h1 { font-size: 1.25rem; }
+.notes-access-gate p { color: var(--brand-gray-1); }
+.notes-access-requests { margin-bottom: 8px; }
+
+/* ---------- Ajustes: email y admin ---------- */
+.notes-settings-tips { margin: 0; padding-left: 18px; font-size: 0.8125rem; color: var(--brand-gray-1); }
+.notes-settings-h { font-size: 0.8125rem; font-weight: 600; margin-bottom: 6px; }
+.notes-admin-scroll { overflow-x: auto; }
+.notes-admin-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+.notes-admin-table th, .notes-admin-table td { padding: 6px 8px; border-bottom: 1px solid var(--line, var(--border)); text-align: left; white-space: nowrap; }
+.notes-admin-links { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.notes-admin-links li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.875rem; }
+.notes-admin-links a { overflow-wrap: anywhere; }
+.notes-admin-transfer { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+
+/* ---------- Recortes ---------- */
+.notes-clip-modes { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.notes-clip-mode { display: flex; align-items: flex-start; gap: 8px; font-size: 0.875rem; cursor: pointer; }
+.notes-clip-mode > span { display: flex; flex-direction: column; }
+.notes-clip-mode strong { font-weight: 500; }
+
+/* ---------- Escaneo y anotar ---------- */
+.notes-scan-count { margin-right: auto; font-size: 0.8125rem; color: var(--brand-gray-1); }
+.note-annotate-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; }
+.note-annotate-tools [aria-pressed='true'] { border-color: var(--ink); }
+.note-annotate-colors { display: inline-flex; gap: 6px; margin-left: 8px; }
+.note-annotate-color { width: 22px; height: 22px; padding: 0; border: 2px solid transparent; border-radius: var(--ui-radius, 4px); cursor: pointer; }
+.note-annotate-color[aria-pressed='true'] { border-color: var(--ink); }
+.note-annotate-color:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.note-annotate-text { margin-bottom: 10px; }
+.note-annotate-pages { display: flex; flex-direction: column; gap: 12px; max-height: 62dvh; overflow: auto; }
+.note-annotate-canvas { display: block; width: 100%; height: auto; touch-action: none; cursor: crosshair; border: 1px solid var(--line, var(--border)); background: #fff; }
+.note-annotate-pick { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+
+@media (max-width: 760px) {
+  .notes-app[data-home='true'] { grid-template-columns: minmax(0, 1fr); }
+  .notes-app[data-home='true'][data-pane='nav'] .notes-home-pane { display: none; }
+  .notes-app[data-home='true']:not([data-pane='nav']) .notes-nav { display: none; }
+  .notes-home-pane { padding: 12px 16px 24px; }
+  .notes-home-grid { grid-template-columns: minmax(0, 1fr); }
+  .notes-pane-back { display: inline-flex; align-self: flex-start; }
+  .note-task-pop { position: fixed; left: 16px; right: 16px; top: 30%; width: auto; }
+}

@@ -5,6 +5,9 @@ import { createNote, noteOwner } from '@/lib/notes';
 import { noteClipSchema } from '@/lib/notes-schema';
 import { clipBlocks, noteEventPayload } from '@/lib/notes-types';
 import { invalidInput, jsonError, limitWrites } from '@/lib/write-limit';
+import { ClipFetchError, clipContentBlocks, fetchClipHtml } from '@/lib/notes-clip';
+import type { DocsBlock } from '@/lib/docs-types';
+import { processNoteFileQueue } from '@/lib/notes-file-text';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,13 +21,28 @@ export async function POST(req: NextRequest) {
   if (limited) return limited;
   const parsed = noteClipSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return invalidInput(parsed.error);
-  const { url, title, selection } = parsed.data;
+  const { url, title, selection, mode, html } = parsed.data;
+  // Selección o marcador: lo que viene en el pedido. Artículo o página: el HTML
+  // del bookmarklet (la página como la ve la persona) o, sin él, el que baja el servidor.
+  let content: DocsBlock[] = clipBlocks(url, mode === 'bookmark' ? '' : (selection ?? ''));
+  if (mode === 'article' || mode === 'page') {
+    try {
+      const source = html || (await fetchClipHtml(url));
+      const blocks = await clipContentBlocks(source, mode, url);
+      if (!blocks.length) return jsonError(422, 'empty_page');
+      content = [...clipBlocks(url, ''), ...blocks];
+    } catch (err) {
+      if (err instanceof ClipFetchError) return jsonError(422, 'fetch_failed');
+      throw err;
+    }
+  }
   const note = await createNote(owner, {
     title: (title?.trim() || url).slice(0, 300),
     source_url: url,
-    content: clipBlocks(url, selection ?? ''),
+    content,
     tags: ['clip'],
   });
+  await processNoteFileQueue({ noteId: note.id, limit: 3 }).catch(() => undefined);
   await emitEventSoon(owner.workspaceId, 'note.created', noteEventPayload(note, owner.personId));
   return NextResponse.json(note, { status: 201 });
 }

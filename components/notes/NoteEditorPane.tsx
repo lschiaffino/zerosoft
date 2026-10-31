@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import DocsEditor from '@/components/docs/DocsEditor';
 import type { DocsBlock, DocsPage } from '@/lib/docs-types';
@@ -19,6 +19,9 @@ import { usePopover } from './usePopover';
 import { AudioRecordButton, ScanDialog } from './NoteCapture';
 import { LockedNoteGate, LockSetDialog, openNoteKeys } from './NoteLock';
 import { PromptDialog } from './NotesModal';
+import { NoteTasksProvider } from './NoteTasks';
+import { NoteAccessRequests } from './NoteAccess';
+import NoteAnnotateDialog, { annotatableBlocks } from './NoteAnnotateDialog';
 import { parseDbUtc } from '@/lib/utils';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error' | 'local';
@@ -59,6 +62,8 @@ interface Props {
   onToggleFocus?: () => void;
   /** Palabras de la búsqueda con la que se abrió: se resaltan en la nota. */
   highlight?: string[];
+  /** Abre Compartir al entrar (aviso de un pedido de acceso). */
+  openShare?: boolean;
 }
 
 const HIGHLIGHT = 'notes-search';
@@ -89,6 +94,17 @@ function paintHighlights(root: HTMLElement | null, terms: string[]): number {
   return ranges.length;
 }
 
+/** Los chips de fecha de los todos, salvo sin red o en una nota bloqueada. */
+function MaybeTasks({ enabled, noteId, onError, children }: { enabled: boolean; noteId: string; onError: () => void; children: ReactNode }) {
+  return enabled ? (
+    <NoteTasksProvider noteId={noteId} onError={onError}>
+      {children}
+    </NoteTasksProvider>
+  ) : (
+    <>{children}</>
+  );
+}
+
 export default function NoteEditorPane({
   note,
   notebooks,
@@ -114,6 +130,7 @@ export default function NoteEditorPane({
   focusMode = false,
   onToggleFocus,
   highlight = [],
+  openShare = false,
 }: Props) {
   const t = useTranslations('notes');
   const format = useFormatter();
@@ -131,6 +148,16 @@ export default function NoteEditorPane({
   const [trackOpen, setTrackOpen] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
   const [lockOpen, setLockOpen] = useState(false);
+  const [annotating, setAnnotating] = useState<DocsBlock[] | null>(null);
+  const [sharesKey, setSharesKey] = useState(0);
+  const taskError = useCallback(() => onError?.(), [onError]);
+  const openedShare = useRef(false);
+  useEffect(() => {
+    if (openShare && !openedShare.current) {
+      openedShare.current = true;
+      share.toggle();
+    }
+  }, [openShare, share]);
   const [tplOpen, setTplOpen] = useState(false);
   const [peopleCount, setPeopleCount] = useState(0);
   /** Nota bloqueada abierta en esta pestaña: el contenido descifrado y la clave. */
@@ -467,15 +494,17 @@ export default function NoteEditorPane({
         {gate ||
           (canEdit ? (
             <div className="note-body">
-              <DocsEditor
-                page={page}
-                ancestors={[]}
-                onSave={handleSave}
-                embedded
-                files={files}
-                aiUrl={!offline ? '/api/notes/ai' : undefined}
-                titlePlaceholder={t('editor.titlePlaceholder')}
-              />
+              <NoteTasksProvider noteId={note.id} onError={taskError}>
+                <DocsEditor
+                  page={page}
+                  ancestors={[]}
+                  onSave={handleSave}
+                  embedded
+                  files={files}
+                  aiUrl={!offline ? '/api/notes/ai' : undefined}
+                  titlePlaceholder={t('editor.titlePlaceholder')}
+                />
+              </NoteTasksProvider>
             </div>
           ) : (
             <div className="note-body note-body-readonly">
@@ -512,6 +541,56 @@ export default function NoteEditorPane({
     );
   }
 
+  /** Lo guardado en el servidor: el editor autoguarda y el prop puede estar atrasado. */
+  async function savedBlocks(): Promise<DocsBlock[] | null> {
+    const res = await fetch(`/api/notes/${encodeURIComponent(note.id)}`).catch(() => null);
+    if (!res?.ok) return null;
+    return ((await res.json()) as NoteDetail).content;
+  }
+
+  async function openAnnotate() {
+    const blocks = await savedBlocks();
+    if (!blocks) return onError?.();
+    const files = annotatableBlocks(blocks);
+    if (!files.length) return onError?.(t('annotate.none'));
+    setAnnotating(files);
+  }
+
+  async function transcribe() {
+    const blocks = await savedBlocks();
+    if (!blocks) return onError?.();
+    const audio = [...blocks].reverse().find((b) => b.type === 'audio' && b.url);
+    if (!audio) return onError?.(t('transcribe.none'));
+    onNotice?.(t('transcribe.working'));
+    const res = await fetch(`/api/notes/${encodeURIComponent(note.id)}/transcribe`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ block_id: audio.id }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      const code = res ? ((await res.json().catch(() => null)) as { error?: string } | null)?.error : null;
+      return onError?.(code === 'transcribe_disabled' || code === 'ai_disabled' ? t('transcribe.disabled') : t('transcribe.error'));
+    }
+    const data = (await res.json()) as { text: string; pieces: Array<{ text: string; speaker: string }> };
+    const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const lines = data.pieces.length ? data.pieces : [{ text: data.text, speaker: '' }];
+    const merged: Array<{ text: string; speaker: string }> = [];
+    for (const p of lines) {
+      const last = merged[merged.length - 1];
+      if (last && last.speaker === p.speaker) last.text += ` ${p.text}`;
+      else merged.push({ ...p });
+    }
+    insertRef.current?.([
+      { id: crypto.randomUUID(), type: 'heading', level: 3, content: esc(t('transcribe.heading')) },
+      ...merged.map((p) => ({
+        id: crypto.randomUUID(),
+        type: 'paragraph' as const,
+        content: p.speaker ? `<strong>${esc(t('transcribe.speaker', { speaker: p.speaker }))}:</strong> ${esc(p.text)}` : esc(p.text),
+      })),
+    ]);
+    onNotice?.(t('transcribe.done'));
+  }
+
   const exportHref = (format: string) => `/api/notes/${encodeURIComponent(note.id)}/export?format=${format}&locale=${locale}`;
   const canWrite = !locked || Boolean(unlocked);
   const menuItems: Array<{ label: string; onSelect: () => void; danger?: boolean }> = [];
@@ -525,6 +604,8 @@ export default function NoteEditorPane({
       },
     });
   if (!locked && !offline) item(t('history.open'), () => setHistoryOpen(true));
+  if (!locked && !offline) item(t('annotate.open'), () => void openAnnotate());
+  if (!locked && !offline) item(t('transcribe.open'), () => void transcribe());
   if (!locked && !offline) item(t('track.open'), () => setTrackOpen(true));
   if (!locked && !offline) item(t('templates.saveAs'), () => setTplOpen(true));
   if (!locked && !offline) {
@@ -643,7 +724,8 @@ export default function NoteEditorPane({
                       {t('share.enable')}
                     </button>
                   )}
-                  <NoteSharePeople apiUrl={`/api/notes/${encodeURIComponent(note.id)}/shares`} onCount={setPeopleCount} />
+                  <NoteAccessRequests noteId={note.id} onDecided={() => setSharesKey((k) => k + 1)} />
+                  <NoteSharePeople key={sharesKey} apiUrl={`/api/notes/${encodeURIComponent(note.id)}/shares`} onCount={setPeopleCount} />
                 </div>
               )}
             </div>
@@ -668,6 +750,15 @@ export default function NoteEditorPane({
         <ScanDialog noteId={note.id} onInsert={(b) => insertRef.current?.(b)} onClose={() => setScanOpen(false)} onError={(m) => onError?.(m)} />
       )}
       {lockOpen && <LockSetDialog onLock={lockWith} onClose={() => setLockOpen(false)} />}
+      {annotating && (
+        <NoteAnnotateDialog
+          noteId={note.id}
+          blocks={annotating}
+          onInsert={(b) => insertRef.current?.(b)}
+          onClose={() => setAnnotating(null)}
+          onError={(m) => onError?.(m)}
+        />
+      )}
       {tplOpen && (
         <PromptDialog
           title={t('templates.saveAs')}
@@ -722,18 +813,20 @@ export default function NoteEditorPane({
 
       {gate || (
         <div className="note-body">
-          <DocsEditor
-            key={unlocked ? 'open' : 'plain'}
-            page={page}
-            ancestors={[]}
-            onSave={handleSave}
-            embedded
-            pageLinks={pageLinks}
-            files={files}
-            aiUrl={!locked && !offline ? '/api/notes/ai' : undefined}
-            insertRef={insertRef}
-            titlePlaceholder={t('editor.titlePlaceholder')}
-          />
+          <MaybeTasks enabled={!locked && !offline} noteId={note.id} onError={taskError}>
+            <DocsEditor
+              key={unlocked ? 'open' : 'plain'}
+              page={page}
+              ancestors={[]}
+              onSave={handleSave}
+              embedded
+              pageLinks={pageLinks}
+              files={files}
+              aiUrl={!locked && !offline ? '/api/notes/ai' : undefined}
+              insertRef={insertRef}
+              titlePlaceholder={t('editor.titlePlaceholder')}
+            />
+          </MaybeTasks>
         </div>
       )}
       {note.backlinks && note.backlinks.length > 0 && (
