@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDb } from '@/lib/db';
 import { addMember, createTeam } from '@/lib/teams';
 import { addMembers, createChannel, deleteChannel, listEventsSince, postMessage, readableChannel, removeMember, updateChannel, type TalkActor } from '@/lib/talk';
-import { AGENT_BOT_NAME, askInChannel, neutralizeAgentText, nextRecapAt, sendDailyRecaps } from '@/lib/talk-ai';
+import { AGENT_BOT_NAME, askInChannel, fairRecapBatch, neutralizeAgentText, nextRecapAt, sendDailyRecaps } from '@/lib/talk-ai';
+import { extractMentions } from '@/lib/talk-markdown';
 import { setPrefs } from '@/lib/talk-extras';
 import { searchApps } from '@/lib/app-search';
 import { CLIP_AUDIO_BPS, CLIP_MAX_BYTES, CLIP_VIDEO_BPS, clipFileName, clipMaxSeconds, pickClipMime } from '@/lib/talk-clips';
@@ -32,7 +33,7 @@ describe('marcadores del canal', () => {
     expect(normalizeBookmarkUrl('example.com/a')).toBe('https://example.com/a');
     expect(normalizeBookmarkUrl('http://example.com')).toBe('http://example.com/');
     expect(normalizeBookmarkUrl('example.com:8080/x')).toBe('https://example.com:8080/x');
-    for (const bad of ['javascript:alert(1)', 'JaVaScRiPt:alert(1)', 'data:text/html,<script>1</script>', 'mailto:a@b.co', 'file:///etc/passwd', 'vbscript:x', 'nada', '', 'https://user:pw@example.com']) {
+    for (const bad of ['https://./', 'https://a..b/', 'javascript:alert(1)', 'JaVaScRiPt:alert(1)', 'data:text/html,<script>1</script>', 'mailto:a@b.co', 'file:///etc/passwd', 'vbscript:x', 'nada', '', 'https://user:pw@example.com']) {
       expect(normalizeBookmarkUrl(bad), bad).toBeNull();
     }
   });
@@ -167,7 +168,7 @@ describe('/ask', () => {
     const w = await workspace('ag2');
     const c = await createChannel(w.a, { name: 'ag-dos', kind: 'private' });
     await askInChannel(w.a, { channelId: c.id, question: 'hola', key: 'ag2-key-0001' });
-    await expect(askInChannel(w.a, { channelId: c.id, question: 'hola', key: 'ag2-key-0001' })).rejects.toMatchObject({ code: 'agent_duplicate' });
+    await askInChannel(w.a, { channelId: c.id, question: 'hola', key: 'ag2-key-0001' });
     const n = (await getDb().prepare("SELECT COUNT(*) AS n FROM talk_messages WHERE channel_id = ? AND body = 'hola'").get(c.id)) as { n: number };
     expect(Number(n.n)).toBe(1);
     await expect(askInChannel(w.b, { channelId: c.id, question: 'hola', key: 'ag2-key-0002' })).rejects.toMatchObject({ status: 404 });
@@ -179,6 +180,57 @@ describe('/ask', () => {
   it('/ask no se puede registrar como comando de una app', async () => {
     const w = await workspace('ag4');
     await expect(createCommand(w.o, { command: '/ask', url: 'https://example.com/hook' })).rejects.toMatchObject({ code: 'invalid_command' });
+  });
+});
+
+describe('/ask, nuevos casos', () => {
+  it('saca tokens anidados hasta el final', () => {
+    for (const nested of ['<<@x>!channel>', '<<!here>!channel>', '<<<@a>@b>!channel>', '<!<@x>channel>', '<<#c>@u1>', '<<@a><!channel>!here>']) {
+      const out = neutralizeAgentText(nested);
+      const m = extractMentions(out);
+      expect(m.channel || m.here, nested).toBe(false);
+      expect(m.users, nested).toEqual([]);
+      expect(out, nested).not.toMatch(/<[@#!]/);
+    }
+    expect(extractMentions(neutralizeAgentText('<'.repeat(200) + '@x>'.repeat(200) + '!channel>')).channel).toBe(false);
+  });
+
+  it('un link con etiqueta muestra el destino real', () => {
+    expect(neutralizeAgentText('mirá <https://malo.example/x|Tu banco>')).toBe('mirá Tu banco (https://malo.example/x)');
+    expect(neutralizeAgentText('[Tu banco](https://malo.example/x)')).toBe('Tu banco (https://malo.example/x)');
+  });
+
+  it('la respuesta del bot se guarda sin menciones ni aviso aunque el cuerpo traiga un token', async () => {
+    const w = await workspace('ag5');
+    const c = await createChannel(w.a, { name: 'ag-cinco', kind: 'public' });
+    const bot: TalkActor = { workspaceId: w.owner.id, personId: w.owner.id, role: 'owner', teamId: null };
+    const res = await postMessage(bot, { channelId: c.id, body: `<!channel> <@${w.bob.id}>`, botName: AGENT_BOT_NAME, noMentions: true }, { asBot: true });
+    expect(res.row.broadcast ?? null).toBeNull();
+    const row = (await getDb().prepare('SELECT broadcast, mentions FROM talk_messages WHERE id = ?').get(res.row.id)) as { broadcast: string | null; mentions: string };
+    expect(row.broadcast).toBeNull();
+    expect(JSON.parse(row.mentions)).toEqual([]);
+  });
+
+  it('un reintento con la misma clave recupera el resultado; un hilo inválido no gasta la clave', async () => {
+    const w = await workspace('ag6');
+    const c = await createChannel(w.a, { name: 'ag-seis', kind: 'public' });
+    await postMessage(w.a, { channelId: c.id, body: 'contexto' });
+    const first = await askInChannel(w.a, { channelId: c.id, question: 'hola', key: 'ag6-key-0001' });
+    const again = await askInChannel(w.a, { channelId: c.id, question: 'hola', key: 'ag6-key-0001' });
+    expect(again.message.id).toBe(first.message.id);
+    expect(again.reply?.id).toBe(first.reply?.id);
+    const n = (await getDb().prepare("SELECT COUNT(*) AS n FROM talk_messages WHERE channel_id = ? AND body = 'hola'").get(c.id)) as { n: number };
+    expect(Number(n.n)).toBe(1);
+    await expect(askInChannel(w.a, { channelId: c.id, parentId: 'no-existe', question: 'x', key: 'ag6-key-0002' })).rejects.toMatchObject({ code: 'invalid_parent' });
+    const ok = await askInChannel(w.a, { channelId: c.id, question: 'x', key: 'ag6-key-0002' });
+    expect(ok.message.body).toBe('x');
+    // Otra corrida en curso (sin mensaje todavía): 409, no otra publicación.
+    await getDb().prepare('INSERT INTO talk_agent_runs (workspace_id, user_id, key, created_at) VALUES (?, ?, ?, ?)').run(w.owner.id, w.ana.id, 'ag6-key-0003', new Date().toISOString());
+    await expect(askInChannel(w.a, { channelId: c.id, question: 'y', key: 'ag6-key-0003' })).rejects.toMatchObject({ code: 'agent_duplicate' });
+    // Recuperar no abre otro canal: sin acceso, rechaza antes.
+    const priv = await createChannel(w.a, { name: 'ag-seis-p', kind: 'private' });
+    await expect(askInChannel(w.b, { channelId: priv.id, question: 'hola', key: 'ag6-key-0001' })).rejects.toMatchObject({ status: 404 });
+    await expect(askInChannel(w.a, { channelId: priv.id, question: 'hola', key: 'ag6-key-0001' })).rejects.toMatchObject({ code: 'agent_duplicate' });
   });
 });
 
@@ -207,6 +259,52 @@ describe('recap diario', () => {
     expect(row.recap_next_at > new Date().toISOString()).toBe(true);
     await sendDailyRecaps({ limit: 500 });
     expect(await ai(w.ana.id)).toBe(1);
+  });
+
+  it('reparte entre workspaces con tope por cada uno', () => {
+    const rows = [...Array.from({ length: 20 }, () => ({ workspace_id: 'grande' })), { workspace_id: 'chico1' }, { workspace_id: 'chico2' }];
+    const batch = fairRecapBatch(rows, 6, 3);
+    expect(batch).toHaveLength(5);
+    expect(batch.filter((r) => r.workspace_id === 'grande')).toHaveLength(3);
+    expect(batch.slice(0, 3).map((r) => r.workspace_id)).toEqual(['grande', 'chico1', 'chico2']);
+  });
+
+  it('usa la zona del navegador si el perfil no tiene', async () => {
+    const w = await workspace('rc3');
+    await setPrefs(w.a, { recapDaily: true, recapTimeZone: 'America/Argentina/Buenos_Aires' });
+    const row = (await getDb().prepare('SELECT recap_next_at, recap_tz FROM talk_prefs WHERE workspace_id = ? AND user_id = ?').get(w.owner.id, w.ana.id)) as { recap_next_at: string; recap_tz: string };
+    expect(row.recap_tz).toBe('America/Argentina/Buenos_Aires');
+    expect(new Date(row.recap_next_at).getUTCHours()).toBe(11);
+    await setPrefs(w.b, { recapDaily: true, recapTimeZone: 'no/existe' });
+    const bad = (await getDb().prepare('SELECT recap_tz FROM talk_prefs WHERE workspace_id = ? AND user_id = ?').get(w.owner.id, w.bob.id)) as { recap_tz: string | null };
+    expect(bad.recap_tz).toBeNull();
+  });
+
+  it('un límite de uso reintenta esa mañana y, vencida la ventana, avisa', async () => {
+    const w = await workspace('rc4');
+    const c = await createChannel(w.a, { name: 'rc-cuatro', kind: 'public' });
+    await postMessage(w.a, { channelId: c.id, body: 'novedad' });
+    await setPrefs(w.a, { recapDaily: true });
+    const due = new Date(Date.now() - 60_000).toISOString();
+    await getDb().prepare('UPDATE talk_prefs SET recap_next_at = ? WHERE workspace_id = ? AND user_id = ?').run(due, w.owner.id, w.ana.id);
+    const ai = await import('@/lib/ai');
+    const quota = vi.spyOn(ai, 'assertAiQuota').mockRejectedValue(new ai.AiError('rate_limited'));
+    await sendDailyRecaps({ limit: 500, perWorkspace: 500 });
+    const row = async () => (await getDb().prepare('SELECT recap_next_at, recap_due_at FROM talk_prefs WHERE workspace_id = ? AND user_id = ?').get(w.owner.id, w.ana.id)) as { recap_next_at: string; recap_due_at: string | null };
+    const retry = await row();
+    expect(retry.recap_due_at).toBe(due);
+    expect(new Date(retry.recap_next_at).getTime()).toBeLessThan(Date.now() + 31 * 60_000);
+    const title = async () => ((await getDb().prepare("SELECT title FROM notifications WHERE type = 'talk_recap' AND user_id = ?").all(w.ana.id)) as Array<{ title: string }>).map((n) => n.title);
+    expect(await title()).toEqual([]);
+    // Pasada la ventana (programado hace 5 horas): no reintenta, avisa y queda para mañana.
+    const old = new Date(Date.now() - 5 * 3_600_000).toISOString();
+    await getDb().prepare('UPDATE talk_prefs SET recap_next_at = ?, recap_due_at = ? WHERE workspace_id = ? AND user_id = ?').run(due, old, w.owner.id, w.ana.id);
+    await sendDailyRecaps({ limit: 500, perWorkspace: 500 });
+    expect((await title()).join()).toContain("couldn't be made");
+    const done = await row();
+    expect(done.recap_due_at).toBeNull();
+    expect(new Date(done.recap_next_at).getTime()).toBeGreaterThan(Date.now() + 31 * 60_000);
+    quota.mockRestore();
   });
 
   it('sin actividad no avisa, respeta el tope y se apaga si ya no está en Talk', async () => {

@@ -792,7 +792,9 @@
     "deleteTitle": "Delete this bookmark?",
     "deleteBody": "\"{name}\" goes away for everyone in the channel. The linked page stays as it is.",
     "deleted": "Bookmark deleted",
-    "loadError": "Bookmarks couldn't load."
+    "loadError": "Bookmarks couldn't load.",
+    "more": "More ({count})",
+    "moreLabel": "More bookmarks"
   },
   "clips": {
     "open": "Record a clip",

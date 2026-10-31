@@ -792,7 +792,9 @@
     "deleteTitle": "¿Borrar este marcador?",
     "deleteBody": "\"{name}\" desaparece para todos en el canal. La página a la que apunta sigue igual.",
     "deleted": "Marcador borrado",
-    "loadError": "No se pudieron cargar los marcadores."
+    "loadError": "No se pudieron cargar los marcadores.",
+    "more": "Más ({count})",
+    "moreLabel": "Más marcadores"
   },
   "clips": {
     "open": "Grabar un clip",

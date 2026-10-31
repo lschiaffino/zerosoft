@@ -792,7 +792,9 @@
     "deleteTitle": "Apagar este favorito?",
     "deleteBody": "\"{name}\" some para todos no canal. A página de destino continua igual.",
     "deleted": "Favorito apagado",
-    "loadError": "Não foi possível carregar os favoritos."
+    "loadError": "Não foi possível carregar os favoritos.",
+    "more": "Mais ({count})",
+    "moreLabel": "Mais favoritos"
   },
   "clips": {
     "open": "Gravar um clipe",

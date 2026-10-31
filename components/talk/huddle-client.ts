@@ -52,6 +52,8 @@ export interface HuddleView {
   sharing: boolean;
   /** Mi cámara está prendida. */
   cameraOn: boolean;
+  /** Pidiendo o soltando la cámara: el botón espera. */
+  cameraBusy: boolean;
   micMissing: boolean;
   turn: boolean;
   /** Estado de la conexión con cada otra pestaña. */
@@ -92,6 +94,7 @@ export class HuddleSession {
   private mic: MediaStream | null = null;
   private screenStream: MediaStream | null = null;
   private cameraStream: MediaStream | null = null;
+  private sharePending = false;
   private beatTimer: ReturnType<typeof setInterval> | null = null;
   private levelTimer: ReturnType<typeof setInterval> | null = null;
   private audioCtx: AudioContext | null = null;
@@ -119,6 +122,7 @@ export class HuddleSession {
       screens: [],
       localScreen: null,
       cameraOn: false,
+      cameraBusy: false,
       cameras: [],
       localCamera: null,
     };
@@ -325,14 +329,21 @@ export class HuddleSession {
 
   async share(): Promise<void> {
     if (this.view.sharing) return this.stopShare();
+    if (this.sharePending || this.closed) return;
+    this.sharePending = true;
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
     } catch {
       return;
+    } finally {
+      this.sharePending = false;
     }
     const track = stream.getVideoTracks()[0];
-    if (!track) return;
+    if (!track || this.closed) {
+      stream.getTracks().forEach((t) => t.stop());
+      return;
+    }
     this.screenStream = stream;
     track.onended = () => void this.stopShare();
     for (const c of this.peers.values()) await c.video?.replaceTrack(track).catch(() => undefined);
@@ -350,31 +361,42 @@ export class HuddleSession {
 
   /** Prende o apaga mi cámara. Devuelve un código de error si no se pudo. */
   async toggleCamera(): Promise<string | null> {
-    if (this.view.cameraOn) {
-      await this.stopCamera();
-      return null;
-    }
-    let stream: MediaStream;
+    // Un doble clic no pide dos veces: el segundo stream quedaría prendido sin nadie que lo apague.
+    if (this.view.cameraBusy || this.closed) return null;
+    this.emit({ cameraBusy: true });
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: CAMERA_CONSTRAINTS, audio: false });
-    } catch {
-      return 'camera_unavailable';
-    }
-    if (this.closed) {
-      stream.getTracks().forEach((t) => t.stop());
+      if (this.view.cameraOn) {
+        await this.stopCamera();
+        return null;
+      }
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: CAMERA_CONSTRAINTS, audio: false });
+      } catch {
+        return this.closed ? null : 'camera_unavailable';
+      }
+      // Salió del huddle mientras el navegador pedía el permiso.
+      if (this.closed) {
+        stream.getTracks().forEach((t) => t.stop());
+        return null;
+      }
+      const track = stream.getVideoTracks()[0];
+      if (!track) {
+        stream.getTracks().forEach((t) => t.stop());
+        return 'camera_unavailable';
+      }
+      this.cameraStream = stream;
+      track.onended = () => void this.stopCamera();
+      for (const c of this.peers.values()) {
+        await c.cameraSender?.replaceTrack(track).catch(() => undefined);
+        this.capCamera(c);
+      }
+      this.emit({ cameraOn: true, localCamera: stream });
+      void this.beat();
       return null;
+    } finally {
+      if (!this.closed) this.emit({ cameraBusy: false });
     }
-    const track = stream.getVideoTracks()[0];
-    if (!track) return 'camera_unavailable';
-    this.cameraStream = stream;
-    track.onended = () => void this.stopCamera();
-    for (const c of this.peers.values()) {
-      await c.cameraSender?.replaceTrack(track).catch(() => undefined);
-      this.capCamera(c);
-    }
-    this.emit({ cameraOn: true, localCamera: stream });
-    void this.beat();
-    return null;
   }
 
   async stopCamera(): Promise<void> {
@@ -454,7 +476,7 @@ export class HuddleSession {
     if (notify && huddleId) {
       await this.api('/api/talk/huddles', { method: 'POST', json: { action: 'leave', huddleId, peerId: this.peerId } }).catch(() => undefined);
     }
-    this.emit({ status: 'error', error: null, huddle: null, screens: [], localScreen: null, cameras: [], localCamera: null, cameraOn: false });
+    this.emit({ status: 'error', error: null, huddle: null, screens: [], localScreen: null, cameras: [], localCamera: null, cameraOn: false, cameraBusy: false });
   }
 
   /** Al cerrar la pestaña: salida inmediata (sin esperar al barrido). */

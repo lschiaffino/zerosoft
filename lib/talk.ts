@@ -1089,6 +1089,8 @@ export interface PostMessageInput {
   botName?: string | null;
   /** Lo manda el cron de programados. */
   scheduled?: boolean;
+  /** Texto que no escribió una persona (IA): no se guardan menciones ni avisos a todo el canal, diga lo que diga. */
+  noMentions?: boolean;
 }
 
 export interface PostResult {
@@ -1131,7 +1133,7 @@ export async function postMessage(actor: TalkActor, input: PostMessageInput, opt
       .all(...fileIds, channel.id, actor.personId)) as Array<{ id: string }>;
     if (own.length !== fileIds.length) throw new TalkError('invalid_file');
   }
-  const mentions = extractMentions(body);
+  const mentions = input.noMentions ? { users: [] as string[], groups: [] as string[], channel: false, here: false } : extractMentions(body);
   // Los grupos mencionados se expanden a personas al guardar (los avisos y el contador de menciones los ven).
   const groupMembers: string[] = [];
   if (mentions.groups.length) {

@@ -7833,6 +7833,8 @@ export const MIGRATIONS: Migration[] = [
       await client.execute('CREATE INDEX IF NOT EXISTS idx_talk_agent_runs_created ON talk_agent_runs(created_at)');
       await addColumn(client, 'ALTER TABLE talk_prefs ADD COLUMN recap_daily INTEGER NOT NULL DEFAULT 0');
       await addColumn(client, 'ALTER TABLE talk_prefs ADD COLUMN recap_next_at TEXT');
+      await addColumn(client, 'ALTER TABLE talk_prefs ADD COLUMN recap_due_at TEXT');
+      await addColumn(client, 'ALTER TABLE talk_prefs ADD COLUMN recap_tz TEXT');
       await client.execute('CREATE INDEX IF NOT EXISTS idx_talk_prefs_recap_due ON talk_prefs(recap_next_at) WHERE recap_daily = 1');
     },
   },

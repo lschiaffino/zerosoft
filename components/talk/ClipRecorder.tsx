@@ -28,6 +28,8 @@ export default function ClipRecorder({ onClose, onDone }: { onClose: () => void;
   const recorder = useRef<MediaRecorder | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const preview = useRef<HTMLVideoElement>(null);
+  const unmounted = useRef(false);
+  const firstChoice = useRef<HTMLButtonElement>(null);
   const supported = typeof window !== 'undefined' && !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined';
 
   function stopTracks() {
@@ -38,15 +40,20 @@ export default function ClipRecorder({ onClose, onDone }: { onClose: () => void;
   }
 
   // Al cerrar: fuera el micrófono, la cámara y la vista previa.
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    unmounted.current = false;
+    return () => {
+      unmounted.current = true;
       const r = recorder.current;
       if (r) r.ondataavailable = r.onstop = null;
       if (r && r.state !== 'inactive') r.stop();
       stopTracks();
-    },
-    [],
-  );
+    };
+  }, []);
+  // Al volver a elegir (al abrir, tras un error o para grabar de nuevo) el foco queda en la primera opción.
+  useEffect(() => {
+    if (phase === 'idle') firstChoice.current?.focus();
+  }, [phase]);
   const resultUrl = result?.url;
   useEffect(() => () => {
     if (resultUrl) URL.revokeObjectURL(resultUrl);
@@ -69,8 +76,14 @@ export default function ClipRecorder({ onClose, onDone }: { onClose: () => void;
         next === 'video' ? { audio: true, video: { width: { ideal: 640 }, height: { ideal: 360 }, frameRate: { ideal: 15, max: 24 } } } : { audio: true },
       );
     } catch {
+      if (unmounted.current) return;
       setPhase('idle');
       setError(next === 'video' ? t('clips.noCamera') : t('clips.noMic'));
+      return;
+    }
+    // Se cerró mientras el navegador pedía el permiso: nada queda prendido.
+    if (unmounted.current) {
+      media.getTracks().forEach((tr) => tr.stop());
       return;
     }
     stream.current = media;
@@ -144,7 +157,7 @@ export default function ClipRecorder({ onClose, onDone }: { onClose: () => void;
           <>
             <p className="talk-muted">{t('clips.help', { audio: clipMaxSeconds('audio') / 60, video: clipMaxSeconds('video') })}</p>
             <div className="talk-clip-choices">
-              <button type="button" className="btn btn-sm" disabled={phase === 'starting'} onClick={() => void start('audio')} data-testid="talk-clip-audio">
+              <button ref={firstChoice} type="button" className="btn btn-sm" disabled={phase === 'starting'} onClick={() => void start('audio')} data-testid="talk-clip-audio">
                 {t('clips.recordAudio')}
               </button>
               <button type="button" className="btn btn-sm" disabled={phase === 'starting'} onClick={() => void start('video')} data-testid="talk-clip-video">

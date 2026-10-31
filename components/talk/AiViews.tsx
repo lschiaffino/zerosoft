@@ -254,7 +254,7 @@ export function RecapView({ onBack }: { onBack: () => void }) {
   async function toggleDaily(on: boolean) {
     setDaily(on);
     try {
-      await ctx.api('/api/talk/me', { method: 'PATCH', json: { prefs: { recapDaily: on } } });
+      await ctx.api('/api/talk/me', { method: 'PATCH', json: { prefs: { recapDaily: on, recapTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone } } });
       ctx.refreshBoot();
     } catch (err) {
       setDaily(!on);

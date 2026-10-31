@@ -162,7 +162,7 @@ export function HuddleBar() {
           {v.muted ? t('huddle.unmute') : t('huddle.mute')}
         </button>
         {typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia && (
-          <button type="button" className="btn btn-sm" aria-pressed={v.cameraOn} disabled={v.status !== 'live'} onClick={h.toggleCamera} data-testid="talk-huddle-camera">
+          <button type="button" className="btn btn-sm" aria-pressed={v.cameraOn} disabled={v.status !== 'live' || v.cameraBusy} onClick={h.toggleCamera} data-testid="talk-huddle-camera">
             {v.cameraOn ? t('huddle.cameraOff') : t('huddle.cameraOn')}
           </button>
         )}

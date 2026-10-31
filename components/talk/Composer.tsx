@@ -37,7 +37,7 @@ export default function Composer({ channel, parentId, initialDraft = '', focusKe
   const [text, setText] = useState(decoded.text);
   const picked = useRef({ users: decoded.users, groups: decoded.groups, channels: decoded.channels });
   const [recording, setRecording] = useState(false);
-  const agentKey = useRef<string | null>(null);
+  const agentKey = useRef<{ text: string; key: string } | null>(null);
   const [files, setFiles] = useState<Array<TalkFileDto & { uploading?: boolean; tmp?: string }>>([]);
   const [also, setAlso] = useState(false);
   const [sending, setSending] = useState(false);
@@ -272,19 +272,25 @@ export default function Composer({ channel, parentId, initialDraft = '', focusKe
         toast(t('composer.askEmpty'), 'error');
         return false;
       }
-      // La misma clave en cada reintento de este texto: el servidor no publica ni paga dos veces.
-      agentKey.current ??= crypto.randomUUID();
+      // Misma clave solo para reintentar este mismo texto tras perder la respuesta: el servidor devuelve lo que ya hizo.
+      const question = encodeMentions(arg, picked.current);
+      const held = agentKey.current?.text === question ? agentKey.current : { text: question, key: crypto.randomUUID() };
+      agentKey.current = held;
       setSending(true);
       try {
         const res = await api<{ message: TalkMessageDto; reply: TalkMessageDto | null; error: string | null }>('/api/talk/ai', {
           method: 'POST',
-          json: { kind: 'agent', channelId: channel.id, parentId, question: arg, key: agentKey.current },
+          json: { kind: 'agent', channelId: channel.id, parentId, question, key: held.key },
         });
         agentKey.current = null;
         onSent?.(res.message);
         if (res.error) toast(t.has(`errors.${res.error}`) ? t(`errors.${res.error}`) : t('errors.generic'), 'error');
         else if (!parentId) ctx.openThread(res.message.id);
         return true;
+      } catch (err) {
+        // El servidor contestó (rechazo, IA apagada): terminó. Sin respuesta, la clave queda para reintentar.
+        if (err instanceof TalkApiError) agentKey.current = null;
+        throw err;
       } finally {
         setSending(false);
       }

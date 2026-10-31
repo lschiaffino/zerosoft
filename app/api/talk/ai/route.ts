@@ -22,7 +22,7 @@ const schema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('thread'), rootId: id }),
   z.object({ kind: z.literal('recap') }),
   z.object({ kind: z.literal('ask'), question: z.string().min(1).max(500) }),
-  z.object({ kind: z.literal('agent'), channelId: id, parentId: id.nullish(), question: z.string().min(1).max(500), key: z.string().min(8).max(64) }),
+  z.object({ kind: z.literal('agent'), channelId: id, parentId: id.nullish(), question: z.string().min(1).max(1500), key: z.string().min(8).max(64) }),
   z.object({ kind: z.literal('translate'), messageId: id, lang: z.string().max(5) }),
 ]);
 

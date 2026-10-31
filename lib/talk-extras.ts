@@ -8,7 +8,7 @@ import { sha256 } from './api-auth';
 import { likeContains } from './track-views';
 import { emojiFromName } from './talk-emoji';
 import { parseTalkSearch, hasSearchCriteria } from './talk-search';
-import { DEFAULT_DND, inDndSchedule, parseDays, validTime, type DndSchedule } from './talk-quiet';
+import { DEFAULT_DND, inDndSchedule, parseDays, validTime, validTimeZone, type DndSchedule } from './talk-quiet';
 import {
   TalkError,
   canManageChannel,
@@ -388,6 +388,8 @@ export interface PrefsInput {
   dnd?: Partial<DndSchedule>;
   recapChannels?: string[];
   recapDaily?: boolean;
+  /** Zona del navegador al activarlo: se usa si el perfil no tiene una. */
+  recapTimeZone?: string;
 }
 
 export async function setPrefs(actor: TalkActor, input: PrefsInput): Promise<TalkPrefs> {
@@ -417,10 +419,12 @@ export async function setPrefs(actor: TalkActor, input: PrefsInput): Promise<Tal
   }
   if (input.recapDaily !== undefined) {
     const { nextRecapAt } = await import('./talk-ai');
-    const tz = (await db.prepare('SELECT timezone FROM talk_profiles WHERE workspace_id = ? AND user_id = ?').get(actor.workspaceId, actor.personId)) as { timezone: string } | undefined;
+    const profile = (await db.prepare('SELECT timezone FROM talk_profiles WHERE workspace_id = ? AND user_id = ?').get(actor.workspaceId, actor.personId)) as { timezone: string } | undefined;
+    const browser = validTimeZone(input.recapTimeZone) ? input.recapTimeZone : null;
+    const zone = profile?.timezone || browser || '';
     await db
-      .prepare('UPDATE talk_prefs SET recap_daily = ?, recap_next_at = ? WHERE workspace_id = ? AND user_id = ?')
-      .run(input.recapDaily ? 1 : 0, input.recapDaily ? nextRecapAt(tz?.timezone ?? '') : null, actor.workspaceId, actor.personId);
+      .prepare('UPDATE talk_prefs SET recap_daily = ?, recap_next_at = ?, recap_due_at = NULL, recap_tz = COALESCE(?, recap_tz) WHERE workspace_id = ? AND user_id = ?')
+      .run(input.recapDaily ? 1 : 0, input.recapDaily ? nextRecapAt(zone) : null, browser, actor.workspaceId, actor.personId);
   }
   if (input.notify) await db.prepare('UPDATE talk_prefs SET notify = ? WHERE workspace_id = ? AND user_id = ?').run(input.notify, actor.workspaceId, actor.personId);
   if (input.email) await db.prepare('UPDATE talk_prefs SET email = ? WHERE workspace_id = ? AND user_id = ?').run(input.email, actor.workspaceId, actor.personId);

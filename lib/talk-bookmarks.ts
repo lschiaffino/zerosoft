@@ -33,7 +33,9 @@ export function normalizeBookmarkUrl(raw: string): string | null {
   try {
     const u = new URL(hasScheme ? v : `https://${v}`);
     if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
-    if (!u.hostname.includes('.') || u.username || u.password) return null;
+    // Dominio de verdad: al menos dos partes y ninguna vacía ("https://./" no sirve).
+    const parts = u.hostname.split('.');
+    if (parts.length < 2 || parts.some((p) => !p) || u.username || u.password) return null;
     return u.toString();
   } catch {
     return null;

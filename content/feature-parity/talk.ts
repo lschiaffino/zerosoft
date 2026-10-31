@@ -386,9 +386,9 @@ const BUILT: Record<string, Built> = {
   'huddles': {
     status: 'partial',
     detail: [
-      'Audio and camera video in channels and DMs, peer to peer (WebRTC) for up to 15 people, with who is talking and mute. Camera at 360p, so far checked only with simulated video between two browser tabs, not with a real camera. STUN by default; strict networks need a TURN server (TALK_TURN_URLS and TALK_TURN_SECRET)',
-      'Audio y video de cámara en canales y DMs, de navegador a navegador (WebRTC) para hasta 15 personas, con quién habla y silencio. Cámara a 360p, por ahora verificada solo con video simulado entre dos pestañas, no con una cámara real. STUN por defecto; las redes estrictas necesitan un servidor TURN (TALK_TURN_URLS y TALK_TURN_SECRET)',
-      'Áudio e vídeo de câmera em canais e DMs, de navegador a navegador (WebRTC) para até 15 pessoas, com quem está falando e mudo. Câmera a 360p, até agora verificada só com vídeo simulado entre duas abas, não com uma câmera real. STUN por padrão; redes restritas precisam de um servidor TURN (TALK_TURN_URLS e TALK_TURN_SECRET)',
+      'Audio and camera video in channels and DMs, peer to peer (WebRTC) for up to 15 people, with who is talking and mute. Camera at 360p, so far checked only with simulated video between two browser tabs, not with a real camera. Each person with the camera on uploads one copy per other person (up to about 350 kbps each), so large calls need good upload. STUN by default; strict networks need a TURN server (TALK_TURN_URLS and TALK_TURN_SECRET)',
+      'Audio y video de cámara en canales y DMs, de navegador a navegador (WebRTC) para hasta 15 personas, con quién habla y silencio. Cámara a 360p, por ahora verificada solo con video simulado entre dos pestañas, no con una cámara real. Cada persona con la cámara prendida sube una copia por cada otra (hasta unos 350 kbps cada una): las llamadas grandes necesitan buena subida. STUN por defecto; las redes estrictas necesitan un servidor TURN (TALK_TURN_URLS y TALK_TURN_SECRET)',
+      'Áudio e vídeo de câmera em canais e DMs, de navegador a navegador (WebRTC) para até 15 pessoas, com quem está falando e mudo. Câmera a 360p, até agora verificada só com vídeo simulado entre duas abas, não com uma câmera real. Cada pessoa com a câmera ligada envia uma cópia para cada outra (até cerca de 350 kbps cada), então chamadas grandes precisam de bom upload. STUN por padrão; redes restritas precisam de um servidor TURN (TALK_TURN_URLS e TALK_TURN_SECRET)',
     ],
   },
   'screen-share': {

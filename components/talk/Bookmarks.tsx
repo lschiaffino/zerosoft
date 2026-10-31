@@ -1,12 +1,32 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import type { TalkChannelDto } from '@/lib/talk';
 import type { TalkBookmarkDto } from '@/lib/talk-bookmarks';
 import { errorText } from './Composer';
 import { Modal } from './Dialogs';
 import { useTalk } from './talk-context';
+
+type Popover = { top: number; left: number };
+
+/** Flechas, Home y End entre los elementos enfocables de un menú. */
+function moveFocus(e: ReactKeyboardEvent<HTMLElement>, selector: string) {
+  const keys = ['ArrowDown', 'ArrowUp', 'Home', 'End'];
+  if (!keys.includes(e.key)) return;
+  e.preventDefault();
+  const items = [...e.currentTarget.querySelectorAll<HTMLElement>(selector)];
+  if (!items.length) return;
+  const at = items.indexOf(document.activeElement as HTMLElement);
+  const next = e.key === 'Home' ? 0 : e.key === 'End' ? items.length - 1 : e.key === 'ArrowDown' ? (at + 1) % items.length : (at - 1 + items.length) % items.length;
+  items[next].focus();
+}
+
+/** Ubica un menú fijo debajo del botón y dentro de la pantalla. */
+function below(el: HTMLElement, width: number): Popover {
+  const r = el.getBoundingClientRect();
+  return { top: r.bottom + 4, left: Math.max(8, Math.min(r.left, window.innerWidth - width - 8)) };
+}
 
 /** Barra de marcadores del canal: los links que el equipo quiere tener a mano. */
 export default function BookmarksBar({ channel }: { channel: TalkChannelDto }) {
@@ -16,19 +36,31 @@ export default function BookmarksBar({ channel }: { channel: TalkChannelDto }) {
   const [failed, setFailed] = useState(false);
   const [editing, setEditing] = useState<{ bookmark: TalkBookmarkDto | null } | null>(null);
   const [removing, setRemoving] = useState<TalkBookmarkDto | null>(null);
-  const [menu, setMenu] = useState<{ id: string; top: number; left: number } | null>(null);
+  const [menu, setMenu] = useState<(Popover & { id: string }) | null>(null);
+  const [more, setMore] = useState<Popover | null>(null);
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
   const canEdit = channel.isMember && !channel.archived && !channel.deactivated;
+  const listRef = useRef<HTMLDivElement>(null);
+  const returnFocus = useRef<HTMLElement | null>(null);
+  // Solo vale la última carga: la de un canal anterior que llega tarde se descarta.
+  const loadSeq = useRef(0);
 
   const load = useCallback(() => {
+    const seq = ++loadSeq.current;
     setFailed(false);
     return api<{ bookmarks: TalkBookmarkDto[] }>(`/api/talk/channels/${channel.id}/bookmarks`)
-      .then((r) => setItems(r.bookmarks))
-      .catch(() => setFailed(true));
+      .then((r) => {
+        if (seq === loadSeq.current) setItems(r.bookmarks);
+      })
+      .catch(() => {
+        if (seq === loadSeq.current) setFailed(true);
+      });
   }, [api, channel.id]);
 
   useEffect(() => {
     setItems(null);
     setMenu(null);
+    setMore(null);
     void load();
   }, [load]);
 
@@ -40,18 +72,42 @@ export default function BookmarksBar({ channel }: { channel: TalkChannelDto }) {
     [subscribe, channel.id, load],
   );
 
-  // Esc o un clic afuera cierran el menú abierto.
+  // Los que no entran en la fila (la lista corta el renglón) van al menú "Más".
+  const measure = useCallback(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const els = [...list.querySelectorAll<HTMLElement>('[data-bookmark-id]')];
+    const top = els[0]?.offsetTop ?? 0;
+    const next = new Set(els.filter((el) => el.offsetTop > top).map((el) => el.dataset.bookmarkId!));
+    setHidden((prev) => (prev.size === next.size && [...next].every((id) => prev.has(id)) ? prev : next));
+  }, []);
+  useLayoutEffect(measure, [measure, items]);
   useEffect(() => {
-    if (!menu) return;
+    const list = listRef.current;
+    if (!list || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(list);
+    return () => ro.disconnect();
+  }, [measure, items === null]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Esc o un clic afuera cierran; Esc devuelve el foco al botón que abrió.
+  const open = !!menu || !!more;
+  useEffect(() => {
+    if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        setMenu(null);
-      }
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      setMenu((m) => {
+        if (!m) setMore(null);
+        return null;
+      });
+      returnFocus.current?.focus();
     };
     const onDown = (e: MouseEvent) => {
-      if (!(e.target as HTMLElement).closest?.('.talk-bookmark-menu, .talk-bookmark-more')) setMenu(null);
+      if ((e.target as HTMLElement).closest?.('.talk-bookmark-menu, .talk-bookmark-more, .talk-bookmark-overflow, .talk-bookmark-more-btn')) return;
+      setMenu(null);
+      setMore(null);
     };
     window.addEventListener('keydown', onKey, true);
     window.addEventListener('mousedown', onDown);
@@ -59,7 +115,7 @@ export default function BookmarksBar({ channel }: { channel: TalkChannelDto }) {
       window.removeEventListener('keydown', onKey, true);
       window.removeEventListener('mousedown', onDown);
     };
-  }, [menu]);
+  }, [open]);
 
   async function remove(b: TalkBookmarkDto) {
     try {
@@ -85,60 +141,105 @@ export default function BookmarksBar({ channel }: { channel: TalkChannelDto }) {
   if (items === null) return <div className="talk-bookmarks" aria-busy="true" aria-label={t('common.loading')} />;
   if (!items.length && !canEdit) return null;
 
+  const extras = items.filter((b) => hidden.has(b.id));
+  const row = (b: TalkBookmarkDto, measured: boolean) => (
+    <span key={b.id} className={`talk-bookmark${measured && hidden.has(b.id) ? ' is-overflow' : ''}`} {...(measured ? { 'data-bookmark-id': b.id } : {})}>
+      <a href={b.url} target="_blank" rel="noopener noreferrer" className="talk-bookmark-link" title={b.url}>
+        {b.title}
+      </a>
+      {canEdit && (
+        <button
+          type="button"
+          className="talk-bookmark-more"
+          aria-label={t('bookmarks.options', { name: b.title })}
+          aria-haspopup="menu"
+          aria-expanded={menu?.id === b.id}
+          onClick={(e) => {
+            returnFocus.current = e.currentTarget;
+            const at = below(e.currentTarget, 140);
+            setMenu((m) => (m?.id === b.id ? null : { id: b.id, ...at }));
+          }}
+        >
+          ⋯
+        </button>
+      )}
+    </span>
+  );
+  const menuFor = menu && items.find((b) => b.id === menu.id);
+
   return (
     <div className="talk-bookmarks" role="region" aria-label={t('bookmarks.title')} data-testid="talk-bookmarks">
-      {items.map((b) => (
-        <span key={b.id} className="talk-bookmark">
-          <a href={b.url} target="_blank" rel="noopener noreferrer" className="talk-bookmark-link" title={b.url}>
-            {b.title}
-          </a>
-          {canEdit && (
-            <button
-              type="button"
-              className="talk-bookmark-more"
-              aria-label={t('bookmarks.options', { name: b.title })}
-              aria-expanded={menu?.id === b.id}
-              onClick={(e) => {
-                // La barra corre de costado: el menú se ubica fijo, debajo del botón y dentro de la pantalla.
-                const r = e.currentTarget.getBoundingClientRect();
-                setMenu((m) => (m?.id === b.id ? null : { id: b.id, top: r.bottom + 4, left: Math.max(8, Math.min(r.left, window.innerWidth - 148)) }));
-              }}
-            >
-              ⋯
-            </button>
-          )}
-          {menu?.id === b.id && (
-            <span className="talk-bookmark-menu" role="menu" style={{ top: menu.top, left: menu.left }}>
-              <button
-                type="button"
-                role="menuitem"
-                autoFocus
-                onClick={() => {
-                  setMenu(null);
-                  setEditing({ bookmark: b });
-                }}
-              >
-                {t('bookmarks.edit')}
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="is-danger"
-                onClick={() => {
-                  setMenu(null);
-                  setRemoving(b);
-                }}
-              >
-                {t('bookmarks.delete')}
-              </button>
-            </span>
-          )}
-        </span>
-      ))}
+      <div className="talk-bookmarks-list" ref={listRef}>
+        {items.map((b) => row(b, true))}
+      </div>
+      {extras.length > 0 && (
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm talk-bookmark-more-btn"
+          aria-label={t('bookmarks.moreLabel')}
+          aria-haspopup="true"
+          aria-expanded={!!more}
+          onClick={(e) => {
+            returnFocus.current = e.currentTarget;
+            const at = below(e.currentTarget, 240);
+            setMenu(null);
+            setMore((m) => (m ? null : at));
+          }}
+          data-testid="talk-bookmark-overflow-btn"
+        >
+          {t('bookmarks.more', { count: extras.length })}
+        </button>
+      )}
       {canEdit && (
         <button type="button" className="btn btn-ghost btn-sm talk-bookmark-add" onClick={() => setEditing({ bookmark: null })} data-testid="talk-bookmark-add">
           {items.length ? t('bookmarks.addShort') : t('bookmarks.addFirst')}
         </button>
+      )}
+      {more && extras.length > 0 && (
+        <div
+          className="talk-bookmark-overflow"
+          style={{ top: more.top, left: more.left }}
+          data-testid="talk-bookmark-overflow"
+          ref={(el) => {
+            if (el && !el.contains(document.activeElement)) el.querySelector<HTMLElement>('a')?.focus();
+          }}
+          onKeyDown={(e) => moveFocus(e, 'a, button')}
+        >
+          {extras.map((b) => row(b, false))}
+        </div>
+      )}
+      {menu && menuFor && (
+        <div
+          className="talk-bookmark-menu"
+          role="menu"
+          style={{ top: menu.top, left: menu.left }}
+          onKeyDown={(e) => moveFocus(e, '[role="menuitem"]')}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            autoFocus
+            onClick={() => {
+              setMenu(null);
+              setMore(null);
+              setEditing({ bookmark: menuFor });
+            }}
+          >
+            {t('bookmarks.edit')}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="is-danger"
+            onClick={() => {
+              setMenu(null);
+              setMore(null);
+              setRemoving(menuFor);
+            }}
+          >
+            {t('bookmarks.delete')}
+          </button>
+        </div>
       )}
       {editing && (
         <BookmarkDialog

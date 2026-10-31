@@ -60,9 +60,17 @@ const fakeMedia = () => {
     }
   };
   (window as unknown as { AudioContext: unknown }).AudioContext = noAudio;
+  // __gum: pedidos y tracks entregados; __gumDelay simula el diálogo de permiso del navegador.
+  const w = window as unknown as { __gum: { calls: number; tracks: MediaStreamTrack[] }; __gumDelay: number };
+  w.__gum = { calls: 0, tracks: [] };
+  w.__gumDelay = 0;
   navigator.mediaDevices.getUserMedia = async (c) => {
     if (!c?.video) throw new DOMException('no mic', 'NotAllowedError');
-    return new MediaStream([video()]);
+    w.__gum.calls++;
+    await new Promise((r) => setTimeout(r, w.__gumDelay));
+    const track = video();
+    w.__gum.tracks.push(track);
+    return new MediaStream([track]);
   };
   navigator.mediaDevices.getDisplayMedia = async () => new MediaStream([video(640, 360)]);
 };
@@ -138,6 +146,32 @@ test.describe('marcadores', () => {
     expect((await request.post(`/api/talk/channels/${priv.id}/bookmarks`, { data: { url: 'https://example.com/c' } })).status()).toBe(404);
   });
 
+  test('los que no entran van a "Más", "+ Add" queda visible y el menú se maneja con teclado', async ({ page, request }) => {
+    const ch = await newChannel(request);
+    for (let i = 0; i < 12; i++) await ok(request.post(`/api/talk/channels/${ch.id}/bookmarks`, { data: { url: `https://example.com/${i}`, title: `Marcador largo número ${i}` } }));
+    await page.setViewportSize({ width: 390, height: 800 });
+    await openChannel(page, ch.id);
+    await expect(page.getByTestId('talk-bookmark-add')).toBeInViewport();
+    const moreBtn = page.getByTestId('talk-bookmark-overflow-btn');
+    await expect(moreBtn).toBeInViewport();
+    await moreBtn.click();
+    const extra = page.getByTestId('talk-bookmark-overflow');
+    await expect(extra.getByRole('link', { name: 'Marcador largo número 11' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(extra).toHaveCount(0);
+    await expect(moreBtn).toBeFocused();
+    await page.setViewportSize({ width: 1280, height: 800 });
+    const opts = page.getByRole('button', { name: 'Options for Marcador largo número 0' });
+    await opts.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('menuitem', { name: 'Edit' })).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(page.getByRole('menuitem', { name: 'Delete' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('menu')).toHaveCount(0);
+    await expect(opts).toBeFocused();
+  });
+
   test('390 px y oscuro sin scroll horizontal', async ({ page, request }) => {
     const ch = await newChannel(request);
     for (let i = 0; i < 6; i++) await ok(request.post(`/api/talk/channels/${ch.id}/bookmarks`, { data: { url: `https://example.com/${i}`, title: `Marcador largo número ${i}` } }));
@@ -165,6 +199,47 @@ async function hasFrames(page: Page, selector: string): Promise<void> {
     .poll(() => page.locator(selector).evaluateAll((els) => els.some((e) => (e as HTMLVideoElement).videoWidth > 0 && (e as HTMLVideoElement).currentTime > 0)), { timeout: 30_000 })
     .toBe(true);
 }
+
+const gum = (page: Page) =>
+  page.evaluate(() => {
+    const g = (window as unknown as { __gum: { calls: number; tracks: MediaStreamTrack[] } }).__gum;
+    return { calls: g.calls, live: g.tracks.filter((t) => t.readyState === 'live').length };
+  });
+const slowGum = (page: Page, ms: number) => page.evaluate((v) => void ((window as unknown as { __gumDelay: number }).__gumDelay = v), ms);
+
+test('huddle: doble clic en cámara pide una vez; apagar y salir no dejan nada prendido', async ({ page, request }) => {
+  test.setTimeout(120_000);
+  const ch = await newChannel(request);
+  await openChannel(page, ch.id);
+  await page.getByTestId('talk-huddle-button').click();
+  await expect(page.getByTestId('talk-huddle')).toContainText("You're the only one here");
+  await slowGum(page, 800);
+  const cam = page.getByTestId('talk-huddle-camera');
+  await cam.evaluate((b: HTMLButtonElement) => {
+    b.click();
+    b.click();
+  });
+  await expect(cam).toBeDisabled();
+  await expect(cam).toHaveAttribute('aria-pressed', 'true');
+  expect(await gum(page)).toMatchObject({ calls: 1, live: 1 });
+  await cam.click();
+  await expect(cam).toHaveAttribute('aria-pressed', 'false');
+  await expect.poll(async () => (await gum(page)).live).toBe(0);
+  // Salir con la cámara prendida, y salir con el pedido todavía pendiente.
+  await slowGum(page, 0);
+  await cam.click();
+  await expect(cam).toHaveAttribute('aria-pressed', 'true');
+  await page.getByTestId('talk-huddle').getByRole('button', { name: 'Leave' }).click();
+  await expect.poll(async () => (await gum(page)).live).toBe(0);
+  await page.getByTestId('talk-huddle-button').click();
+  await expect(page.getByTestId('talk-huddle')).toContainText("You're the only one here");
+  await slowGum(page, 800);
+  await page.getByTestId('talk-huddle-camera').click();
+  await page.getByTestId('talk-huddle').getByRole('button', { name: 'Leave' }).click();
+  await expect(page.getByTestId('talk-huddle')).toHaveCount(0);
+  await page.waitForTimeout(1200);
+  expect((await gum(page)).live).toBe(0);
+});
 
 test('huddle: la cámara va y vuelve entre quien entró primero y quien entró después', async ({ browser, request }) => {
   test.setTimeout(120_000);
@@ -227,6 +302,20 @@ test.describe('clips', () => {
     if (process.env.TALK_SHOTS) await page.screenshot({ path: `${process.env.TALK_SHOTS}/clip-video.png` });
   });
 
+  test('cerrar el diálogo con el permiso pendiente no deja el dispositivo prendido', async ({ page, request }) => {
+    const ch = await newChannel(request);
+    await openChannel(page, ch.id);
+    await slowGum(page, 800);
+    await page.getByTestId('talk-clip-open').click();
+    // El foco arranca en la primera opción.
+    await expect(page.getByTestId('talk-clip-audio')).toBeFocused();
+    await page.getByTestId('talk-clip-video').click();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('talk-clip-dialog')).toHaveCount(0);
+    await page.waitForTimeout(1200);
+    expect(await gum(page)).toMatchObject({ calls: 1, live: 0 });
+  });
+
   test('sin micrófono avisa; un audio adjunto se muestra con reproductor', async ({ page, request }) => {
     const ch = await newChannel(request);
     await openChannel(page, ch.id);
@@ -273,12 +362,48 @@ test.describe('/ask', () => {
     await context.clearCookies({ name: 'talk_ai_fake' });
   });
 
+  test('respuesta perdida: reintentar recupera; otra pregunta no queda trabada; un error no la traba', async ({ page, request }) => {
+    const ch = await newChannel(request);
+    await ok(request.post(`/api/talk/channels/${ch.id}/messages`, { data: { body: 'contexto' } }));
+    await openChannel(page, ch.id);
+    const box = page.locator('.talk-channel textarea').first();
+    // El servidor lo hace pero la respuesta no llega.
+    await page.route('**/api/talk/ai', async (route) => {
+      await route.fetch();
+      await route.abort('failed');
+    }, { times: 1 });
+    await box.fill('/ask primera pregunta');
+    const lost = page.waitForEvent('requestfailed', (r) => r.url().includes('/api/talk/ai'));
+    await box.press('Enter');
+    await lost;
+    await expect(box).toBeEnabled();
+    await expect(box).toHaveValue('/ask primera pregunta');
+    await page.waitForTimeout(300);
+    await box.press('Enter');
+    await expect(box).toHaveValue('');
+    const n = await sql("SELECT COUNT(*) AS n FROM talk_messages WHERE channel_id = ? AND body = 'primera pregunta'", [ch.id]);
+    expect(Number(n[0].n)).toBe(1);
+    // Se perdió de nuevo y la persona escribe otra cosa: clave nueva, no un 409.
+    await page.route('**/api/talk/ai', (route) => route.abort('failed'), { times: 1 });
+    await box.fill('/ask segunda sin salir');
+    const lost2 = page.waitForEvent('requestfailed', (r) => r.url().includes('/api/talk/ai'));
+    await box.press('Enter');
+    await lost2;
+    await expect(box).toHaveValue('/ask segunda sin salir');
+    await page.waitForTimeout(300);
+    await box.fill('/ask tercera pregunta');
+    await box.press('Enter');
+    await expect(box).toHaveValue('');
+    await expect(page.locator('.talk-scroll [data-testid="talk-message"]', { hasText: 'tercera pregunta' }).first()).toBeVisible();
+  });
+
   test('misma clave no publica dos veces; fuera del canal se rechaza', async ({ request }) => {
     const ch = await newChannel(request, 'private');
     const key = `e2e-${uid()}-key`;
     const data = { kind: 'agent', channelId: ch.id, question: 'hola?', key };
-    await ok(request.post('/api/talk/ai', { data }));
-    expect((await request.post('/api/talk/ai', { data })).status()).toBe(409);
+    const first = await ok<{ message: { id: string } }>(request.post('/api/talk/ai', { data }));
+    const again = await ok<{ message: { id: string } }>(request.post('/api/talk/ai', { data }));
+    expect(again.message.id).toBe(first.message.id);
     const rows = await sql("SELECT COUNT(*) AS n FROM talk_messages WHERE channel_id = ? AND body = 'hola?'", [ch.id]);
     expect(Number(rows[0].n)).toBe(1);
     await ok(request.delete(`/api/talk/channels/${ch.id}/members`));
@@ -293,6 +418,7 @@ test('recap diario: se activa, el cron lo arma una sola vez y avisa', async ({ p
   const box = page.getByTestId('talk-recap-daily');
   await expect(box).not.toBeChecked();
   await box.check();
+  await expect.poll(async () => (await sql('SELECT recap_tz AS z FROM talk_prefs WHERE recap_daily = 1 LIMIT 1'))[0]?.z).toBeTruthy();
   await expect.poll(async () => Number((await sql('SELECT recap_daily AS d FROM talk_prefs WHERE recap_daily = 1 LIMIT 1'))[0]?.d ?? 0)).toBe(1);
   await page.reload({ waitUntil: 'networkidle' });
   await expect(page.getByTestId('talk-recap-daily')).toBeChecked();
