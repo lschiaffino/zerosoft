@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -147,7 +148,7 @@ export default function VideoDetail({
             {views.map((v) => (
               <li key={v.id} className="media-link">
                 <div className="media-link-head">
-                  <span className="data">{fmt(v.started_at)}</span>
+                  <span className="data"><LocalText>{fmt(v.started_at)}</LocalText></span>
                   <span className="data muted">{t('watched', { time: fmtDuration(v.watched_sec) })}</span>
                   {(v.duration_sec || video.durationSec) > 0 && (
                     <span className="data muted">{t('watchedPct', { pct: watchedPct(v.max_position, v.duration_sec || video.durationSec) })}</span>

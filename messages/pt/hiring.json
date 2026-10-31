@@ -455,7 +455,7 @@
     "lastDays": "Últimos {days} dias",
     "timeToHire": "Tempo médio até contratar",
     "days": "{days} dias",
-    "median": "Mediana {days} dias · {hires} contratações",
+    "median": "Mediana de {days} dias · {hires, plural, one {# contratação} other {# contratações}}",
     "openJobs": "Vagas abertas",
     "activeCandidates": "{count, plural, one {# candidato ativo} other {# candidatos ativos}}",
     "applications": "Candidaturas",

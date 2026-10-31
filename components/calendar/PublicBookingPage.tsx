@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import type { EventTypeWithRules } from '@/lib/calendar';
@@ -641,7 +642,7 @@ export default function PublicBookingPage({
                 <h2 className="bk-h2">{reschedule ? t('booking.pickNewDay') : t('booking.pickDay')}</h2>
                 <div className="bk-cal-head">
                   <p id="bk-month" className="bk-month" aria-live="polite">
-                    {monthLabel}
+                    <LocalText>{monthLabel}</LocalText>
                   </p>
                   <div className="bk-cal-nav">
                     <button
@@ -724,7 +725,7 @@ export default function PublicBookingPage({
               {selectedDate && (
                 <section className="bk-slots" aria-labelledby="bk-slots-title">
                   <h2 id="bk-slots-title" className="bk-h2 bk-slots-title" ref={slotsHead}>
-                    {selectedDateLabel}
+                    <LocalText>{selectedDateLabel}</LocalText>
                   </h2>
                   {loadingSlots ? (
                     <div className="bk-slot-list" aria-busy="true" aria-label={t('booking.loadingSlots')}>

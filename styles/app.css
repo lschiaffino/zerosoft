@@ -348,6 +348,20 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   .side-line[data-more-below] { box-shadow: inset 0 -1px 0 var(--line); }
   .side-line[data-more-above] { box-shadow: inset 0 1px 0 var(--line); }
   .side-line[data-more-above][data-more-below] { box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line); }
+  /* Y una flecha al pie: el filete solo no dice que abajo sigue la lista. Fondo liso, sin agrisar el último ítem. */
+  .side-line[data-more-below]::after {
+    content: '\2304';
+    position: sticky;
+    bottom: 0;
+    display: block;
+    height: 18px;
+    font-size: 0.875rem;
+    line-height: 10px;
+    text-align: center;
+    color: var(--brand-gray-2);
+    background: var(--side-bg);
+    pointer-events: none;
+  }
 }
 
 /* Pie: ajustes globales, docs, sitio, usuario. */

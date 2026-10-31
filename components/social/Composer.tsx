@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
@@ -501,7 +502,7 @@ export default function Composer({
                   <div className="sc-best">
                     {best.times.map((b) => (
                       <button key={`${b.weekday}-${b.hour}`} type="button" className="btn btn-sm" onClick={() => setAt(localInput(b.next))}>
-                        {weekday(b.weekday)} {String(b.hour).padStart(2, '0')}:00
+                        <LocalText>{weekday(b.weekday)}</LocalText> {String(b.hour).padStart(2, '0')}:00
                       </button>
                     ))}
                   </div>

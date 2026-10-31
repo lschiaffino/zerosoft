@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useState, type FormEvent, type KeyboardEvent, useRef } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -103,7 +104,7 @@ export function DashboardsList() {
                     {d.widget_count}
                   </td>
                   <td data-label={t('dashboards.owner')}>{d.user_name ?? ''}</td>
-                  <td data-label={t('dashboards.updated')}>{fmtWhen(d.updated_at, locale)}</td>
+                  <td data-label={t('dashboards.updated')}><LocalText>{fmtWhen(d.updated_at, locale)}</LocalText></td>
                 </tr>
               ))}
             </tbody>

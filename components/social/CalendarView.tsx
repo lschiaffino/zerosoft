@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -98,7 +99,7 @@ export default function CalendarView({ posts, view, anchor, tz, today }: { posts
           ›
         </Link>
         <h2 className="sc-cal-title sc-grow" aria-live="polite">
-          {title}
+          <LocalText>{title}</LocalText>
         </h2>
         <nav className="ui-tabs" aria-label={t('views')}>
           <Link className="ui-tab" href={href(anchor, 'month')} aria-current={view === 'month' ? 'page' : undefined}>
@@ -146,7 +147,10 @@ export default function CalendarView({ posts, view, anchor, tz, today }: { posts
               }}
             >
               <div className="sc-day-head">
-                <span className="sc-day-num">{Number(d.slice(8))}</span>
+                <span className="sc-day-num">
+                  <span className="sc-day-wd">{new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }).format(new Date(`${d}T12:00:00Z`))} </span>
+                  {Number(d.slice(8))}
+                </span>
                 {d >= today && (
                   <Link className="sc-day-add" href={`/app/social/posts/new?date=${d}`} aria-label={t('newOn', { date: d })}>
                     +

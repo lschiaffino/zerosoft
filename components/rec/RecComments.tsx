@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { REC_REACTIONS, fmtClock } from '@/lib/rec-schema';
@@ -213,7 +214,7 @@ export default function RecComments({
                     {fmtClock(rel(c.atSec as number))}
                   </button>
                 )}
-                <span className="muted rec-comment-date">{when(c.createdAt)}</span>
+                <span className="muted rec-comment-date"><LocalText>{when(c.createdAt)}</LocalText></span>
               </div>
               <p className="rec-comment-body">{c.body}</p>
               <div className="rec-comment-actions">
@@ -236,7 +237,7 @@ export default function RecComments({
                         <strong>{r.authorName || t('guest')}</strong>
                         {r.guest && <span className="rec-badge">{t('guest')}</span>}
                         {r.byAuthor && <span className="rec-badge author">{t('authorBadge')}</span>}
-                        <span className="muted rec-comment-date">{when(r.createdAt)}</span>
+                        <span className="muted rec-comment-date"><LocalText>{when(r.createdAt)}</LocalText></span>
                       </div>
                       <p className="rec-comment-body">{r.body}</p>
                       {(r.mine || moderator) && (

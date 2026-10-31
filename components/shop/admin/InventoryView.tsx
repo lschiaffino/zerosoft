@@ -85,7 +85,7 @@ export default function InventoryView({
           action={!lowOnly && !q ? { label: t('products.new'), href: '/app/shop/products/new' } : undefined}
         />
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap table-stack">
           <table className="table shop-table">
             <thead>
               <tr>
@@ -111,13 +111,13 @@ export default function InventoryView({
                       <span className="shop-rowmeta">{[r.variantTitle !== 'Default' ? r.variantTitle : '', r.sku].filter(Boolean).join(' · ')}</span>
                     </Link>
                   </th>
-                  {locations.length > 1 && <td className="shop-hide-sm">{r.locationName}</td>}
-                  <td className="num">{r.reserved}</td>
-                  <td className="num">
+                  {locations.length > 1 && <td className="shop-hide-sm" data-label={t('inventory.location')}>{r.locationName}</td>}
+                  <td className="num" data-label={t('inventory.reserved')}>{r.reserved}</td>
+                  <td className="num" data-label={t('inventory.available')}>
                     {r.available}
                     {r.low && <span className="badge badge-warn shop-low">{t('inventory.low')}</span>}
                   </td>
-                  <td>
+                  <td className="table-stack-actions">
                     <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEdit({ row: r, mode: 'delta', value: '', reason: 'received' })}>
                       {t('inventory.adjust')}
                     </button>

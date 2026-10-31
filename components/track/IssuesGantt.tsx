@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import TrackIcon from './TrackIcon';
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { Link } from '@/i18n/navigation';
@@ -288,7 +289,7 @@ export default function IssuesGantt({ issues, statuses, locale, onDatesChange, l
     <div className="track-gantt">
       <div className="track-gantt-header">
         <div className="track-gantt-title">
-          {fmtDay(windowStart)} → {fmtDay(windowEnd)}
+          <LocalText>{fmtDay(windowStart)}</LocalText> → <LocalText>{fmtDay(windowEnd)}</LocalText>
         </div>
         <div className="btn-group track-gantt-nav">
           <button type="button" className="btn btn-sm" onClick={() => setShiftWeeks((w) => w - 2)}>
@@ -374,7 +375,7 @@ export default function IssuesGantt({ issues, statuses, locale, onDatesChange, l
                   )}
                   {p && visible && (
                     <span className="track-gantt-dragtip" style={{ left: `${left}%` }} aria-hidden>
-                      {fmtDay(rs)} → {fmtDay(re)}
+                      <LocalText>{fmtDay(rs)}</LocalText> → <LocalText>{fmtDay(re)}</LocalText>
                     </span>
                   )}
                 </div>

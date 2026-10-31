@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -124,7 +125,7 @@ export default function TasksBoard({ initial, people, me, openId = null }: { ini
           product="groups"
         />
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap table-stack">
           <table className="table gr-table gr-tasks-table">
             <thead>
               <tr>
@@ -158,16 +159,16 @@ export default function TasksBoard({ initial, people, me, openId = null }: { ini
                         </span>
                       </div>
                     </td>
-                    <td>
+                    <td data-label={t('tasks.remindAt')}>
                       {task.dueAt ? (
                         <span className={overdue ? 'badge badge-bad' : 'ui-help'}>
-                          {parseDbUtc(task.dueAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}
+                          <LocalText>{parseDbUtc(task.dueAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}</LocalText>
                         </span>
                       ) : (
                         <span className="ui-help">{t('tasks.noDate')}</span>
                       )}
                     </td>
-                    <td className="gr-hide-sm">
+                    <td className="gr-hide-sm" data-label={t('tasks.owner')}>
                       <select className="select" value={task.ownerId ?? ''} onChange={(e) => void patch(task, { ownerId: e.target.value || null })} aria-label={t('tasks.owner')}>
                         {people.map((p) => (
                           <option key={p.id} value={p.id}>
@@ -176,7 +177,7 @@ export default function TasksBoard({ initial, people, me, openId = null }: { ini
                         ))}
                       </select>
                     </td>
-                    <td className="gr-hide-sm num">
+                    <td className="gr-hide-sm num table-stack-actions">
                       <button type="button" className="btn btn-ghost btn-sm gr-danger" onClick={() => setRemoving(task)}>
                         {t('common.delete')}
                       </button>

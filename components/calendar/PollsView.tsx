@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useMounted } from '@/components/ui/useMounted';
 import { useEffect, useId, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -396,7 +397,7 @@ export function PollDetail({ poll: initial, pollUrl, canManage = true }: { poll:
             <table className="table cal-poll-grid">
               <thead>
                 <tr>
-                  <th scope="col">{t('polls.time')}</th>
+                  <th scope="col"><LocalText>{t('polls.time')}</LocalText></th>
                   <th scope="col" className="num">
                     {t('polls.votes')}
                   </th>

@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useEffect, useState } from 'react';
 import { parseDbUtc } from '@/lib/utils';
 
@@ -92,7 +93,7 @@ export default function HistoryPanel({ entity, entityId, locale, labels }: Histo
           </span>
           <span className="history-meta">
             {e.actorEmail ? `${e.actorEmail} · ` : ''}
-            <time dateTime={e.createdAt}>{formatDate(e.createdAt)}</time>
+            <time dateTime={e.createdAt}><LocalText>{formatDate(e.createdAt)}</LocalText></time>
           </span>
         </li>
       ))}

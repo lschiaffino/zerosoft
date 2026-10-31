@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useTranslations } from 'next-intl';
 import { slaRemaining, slaState, type SlaState } from '@/lib/track-triage-shared';
 
@@ -45,8 +46,8 @@ export default function SlaChip({
   return (
     <span className={`track-sla is-${state}${compact ? ' is-compact' : ''}`} title={title} data-testid="track-sla-chip" data-state={state}>
       <FlameIcon />
-      <span className={compact ? 'track-sla-text' : undefined}>{text}</span>
-      <span className="sr-only">{title}</span>
+      <span className={compact ? 'track-sla-text' : undefined}><LocalText>{text}</LocalText></span>
+      <span className="sr-only"><LocalText>{title}</LocalText></span>
     </span>
   );
 }

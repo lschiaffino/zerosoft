@@ -2,7 +2,7 @@
  * Texto de un aviso en el idioma de quien lo recibe, al guardarlo. Es para los
  * avisos que la bandeja muestra tal cual; los que arma al mostrarlos están en
  * lib/notification-text.ts. Sin users.locale vale el del workspace y después el
- * de la request que disparó el aviso.
+ * de la página de la app desde la que se disparó (nunca el de un visitante).
  */
 import { getDb } from './db';
 import en from '@/messages/en/notificationCopy.json';
@@ -38,34 +38,57 @@ function asLocale(value: string | null | undefined): Locale | null {
   return short === 'en' || short === 'es' || short === 'pt' ? short : null;
 }
 
-/** Idioma de la request en curso: la ruta, la página de origen, la cookie, el navegador. Fuera de una request, null. */
-async function requestLocale(): Promise<Locale | null> {
+/**
+ * Idioma de la página de la app desde la que alguien con sesión disparó el aviso.
+ * Un checkout público, un webhook o un cron no cuentan: el navegador de un cliente
+ * no elige el idioma de los avisos del equipo. Fuera de una request, null.
+ */
+async function inAppRequestLocale(): Promise<Locale | null> {
   try {
-    const { cookies, headers } = await import('next/headers');
+    const { headers } = await import('next/headers');
     const h = await headers();
-    const fromPath = /^(?:https?:\/\/[^/]+)?\/(en|es|pt)(?:[/?#]|$)/;
+    const fromApp = /^(?:https?:\/\/[^/]+)?\/(en|es|pt)\/app(?:[/?#]|$)/;
+    let locale: Locale | null = null;
     for (const path of [h.get('x-zs-return-path'), h.get('referer')]) {
-      const match = path ? fromPath.exec(path) : null;
-      if (match) return match[1] as Locale;
+      const match = path ? fromApp.exec(path) : null;
+      if (match) {
+        locale = match[1] as Locale;
+        break;
+      }
     }
-    return asLocale((await cookies()).get('NEXT_LOCALE')?.value) ?? asLocale(h.get('accept-language'));
+    if (!locale) return null;
+    const { getCurrentUser } = await import('./session');
+    return (await getCurrentUser()) ? locale : null;
   } catch {
     return null;
   }
 }
 
-export async function recipientLocale(userId: string): Promise<Locale> {
+/** Idioma del workspace de la persona: el de quien lo creó y, si no lo eligió, el del primer miembro que sí. */
+async function workspaceLocale(userId: string): Promise<Locale | null> {
   const db = getDb();
-  const own = (await db.prepare('SELECT locale FROM users WHERE id = ?').get(userId)) as { locale: string | null } | undefined;
-  const mine = asLocale(own?.locale);
-  if (mine) return mine;
   const owner = (await db
     .prepare(
-      `SELECT u.locale FROM team_members m JOIN teams t ON t.id = m.team_id JOIN users u ON u.id = t.owner_id
-       WHERE m.user_id = ? AND u.locale IS NOT NULL ORDER BY m.created_at LIMIT 1`,
+      `SELECT u.locale FROM teams t JOIN users u ON u.id = t.owner_id
+       WHERE u.locale IS NOT NULL AND (t.owner_id = ? OR t.id IN (SELECT team_id FROM team_members WHERE user_id = ?))
+       ORDER BY t.created_at LIMIT 1`,
     )
-    .get(userId)) as { locale: string | null } | undefined;
-  return asLocale(owner?.locale) ?? (await requestLocale()) ?? 'en';
+    .get(userId, userId)) as { locale: string | null } | undefined;
+  if (asLocale(owner?.locale)) return asLocale(owner?.locale);
+  const member = (await db
+    .prepare(
+      `SELECT u.locale FROM team_members m JOIN users u ON u.id = m.user_id
+       WHERE u.locale IS NOT NULL AND m.team_id IN (
+         SELECT team_id FROM team_members WHERE user_id = ? UNION SELECT id FROM teams WHERE owner_id = ?
+       ) ORDER BY m.created_at LIMIT 1`,
+    )
+    .get(userId, userId)) as { locale: string | null } | undefined;
+  return asLocale(member?.locale);
+}
+
+export async function recipientLocale(userId: string): Promise<Locale> {
+  const own = (await getDb().prepare('SELECT locale FROM users WHERE id = ?').get(userId)) as { locale: string | null } | undefined;
+  return asLocale(own?.locale) ?? (await workspaceLocale(userId)) ?? (await inAppRequestLocale()) ?? 'en';
 }
 
 /** Resuelve los textos de un aviso; solo busca el idioma si alguno lo necesita. */

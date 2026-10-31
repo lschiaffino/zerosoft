@@ -3,6 +3,9 @@ import { notFound, redirect } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { sessionCtx } from '@/lib/people-http';
+import PeopleSync from '@/components/people/PeopleSync';
+import type { PeopleCtx } from '@/lib/people';
+import type { SessionUser } from '@/lib/session';
 import {
   directoryFacets,
   employeeIdForUser,
@@ -60,11 +63,22 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
  * /reviews, /reviews/<ciclo>, /reports, /settings, /welcome y /me.
  */
 export default async function PeoplePage(props: Props) {
-  const { locale, zs = [] } = await props.params;
-  const sp = await props.searchParams;
+  const { locale } = await props.params;
   setRequestLocale(locale);
   const user = await requireUser(locale);
   const ctx = await sessionCtx(user);
+  const view = await peopleView(props, user, ctx);
+  return (
+    <>
+      {ctx.needsSync && <PeopleSync />}
+      {view}
+    </>
+  );
+}
+
+async function peopleView(props: Props, user: SessionUser, ctx: PeopleCtx) {
+  const { locale, zs = [] } = await props.params;
+  const sp = await props.searchParams;
   const t = await getTranslations({ locale, namespace: 'people' });
   const [section, id, sub] = zs;
   if (zs.length > 3) notFound();

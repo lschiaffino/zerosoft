@@ -227,10 +227,16 @@ a.hr-list-row:hover .hr-list-main { text-decoration: underline; }
 .hr-stat-label { color: var(--muted); font-size: 0.8125rem; }
 .hr-stat-value { font-size: 1.75rem; font-weight: 700; font-family: var(--font-data); }
 .hr-stat-sub { color: var(--muted); font-size: 0.8125rem; }
+/* Sin dato todavía: una línea tranquila, no una cifra. */
+.hr-stat-empty { font-size: 0.9375rem; color: var(--muted); }
 .hr-report { margin-bottom: 16px; overflow-x: auto; }
 .hr-bar { display: inline-block; width: min(240px, 40vw); height: 8px; background: var(--brand-enamel); vertical-align: middle; margin-right: 8px; }
 .hr-bar > span { display: block; height: 100%; background: var(--accent); }
 .hr-bar-num { font-family: var(--font-data); }
+@media (max-width: 640px) {
+  .hr-bar { width: 56px; }
+  .hr-table th, .hr-table td { padding-left: 6px; padding-right: 6px; }
+}
 
 .hr-dialog { width: min(560px, calc(100vw - 32px)); }
 .hr-dialog-wide { width: min(760px, calc(100vw - 32px)); }

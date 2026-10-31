@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -164,7 +165,7 @@ export default function PlanUpdates({
               it.kind === 'event' ? (
                 <li key={`e-${it.event.id}`} className="tp-feed-event">
                   <span>{eventText(it.event)}</span>
-                  <time className="ui-help">{fmtWhen(it.at, locale)}</time>
+                  <time className="ui-help"><LocalText>{fmtWhen(it.at, locale)}</LocalText></time>
                 </li>
               ) : (
                 <li key={`u-${it.update.id}`} className="tp-card tp-update" data-testid="tp-update">
@@ -172,7 +173,7 @@ export default function PlanUpdates({
                     <HealthDot health={it.update.health} label={t(`health.${it.update.health}`)} />
                     <span className="tp-update-author">{it.update.user_name || it.update.user_email}</span>
                     <time className="ui-help">
-                      {fmtWhen(it.update.created_at, locale)}
+                      <LocalText>{fmtWhen(it.update.created_at, locale)}</LocalText>
                       {it.update.updated_at ? ` · ${t('updates.edited')}` : ''}
                     </time>
                     {it.update.user_id === me && (
@@ -316,7 +317,7 @@ function Comments({ updateId, count }: { updateId: string; count: number }) {
           {rows?.map((c) => (
             <div key={c.id} className="tp-comment">
               <span className="tp-update-author">{c.user_name || c.user_email}</span>
-              <time className="ui-help">{fmtWhen(c.created_at, locale)}</time>
+              <time className="ui-help"><LocalText>{fmtWhen(c.created_at, locale)}</LocalText></time>
               {c.user_id === me && (
                 <button
                   type="button"

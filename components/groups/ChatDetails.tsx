@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -451,7 +452,7 @@ export default function ChatDetails({
             {scheduled.map((s) => (
               <li key={s.id}>
                 <span>
-                  {parseDbUtc(s.scheduledAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })} · {s.body.slice(0, 60)}
+                  <LocalText>{parseDbUtc(s.scheduledAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}</LocalText> · {s.body.slice(0, 60)}
                 </span>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => void cancelScheduled(s.id)}>
                   {t('common.cancel')}
@@ -472,7 +473,7 @@ export default function ChatDetails({
       </section>
 
       <section className="gr-detail-section gr-detail-foot">
-        <p className="ui-help">{t('details.since', { time: parseDbUtc(chat.createdAt).toLocaleDateString(locale) })}</p>
+        <p className="ui-help"><LocalText>{t('details.since', { time: parseDbUtc(chat.createdAt).toLocaleDateString(locale) })}</LocalText></p>
         <a className="btn btn-ghost btn-sm" href={`/api/groups/export?type=messages&chat=${chat.id}`}>
           {t('details.exportMessages')}
         </a>

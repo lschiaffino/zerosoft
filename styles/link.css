@@ -788,3 +788,8 @@ section.lk-block { padding-bottom: 0; }
 .lk-ev-time { white-space: nowrap; }
 .lk-qr-rename { width: 160px; }
 @media (max-width: 640px) { .lk-events-actions { flex-wrap: wrap; justify-content: flex-end; } .lk-events-actions .select { max-width: 100%; } }
+
+/* 390: el mismo tamaño que .ui-page-title. */
+@media (max-width: 640px) {
+  .app-title { font-size: 1.5rem; line-height: 1.15; }
+}

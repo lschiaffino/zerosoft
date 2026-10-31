@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -207,7 +208,7 @@ export default function VideosLibrary({ initial, direct, baseUrl }: { initial: V
                         {v.views}
                       </td>
                       <td className="data" data-label={t('colLastView')}>
-                        {v.last_viewed_at ? fmt(v.last_viewed_at) : <span className="muted">{t('never')}</span>}
+                        {v.last_viewed_at ? <LocalText>{fmt(v.last_viewed_at)}</LocalText> : <span className="muted">{t('never')}</span>}
                       </td>
                       <td className="media-actions">
                         <CopyButton text={`${baseUrl}/${locale}/watch/${v.token}`} className="btn btn-ghost btn-sm" />

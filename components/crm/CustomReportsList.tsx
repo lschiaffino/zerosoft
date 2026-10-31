@@ -78,7 +78,7 @@ export default function CustomReportsList({ reports, locale }: { reports: Custom
           </Link>
         </div>
       ) : (
-        <div className="panel rb-scroll">
+        <div className="table-wrap table-stack rb-scroll">
           <table className="table rb-list-table">
             <thead>
               <tr>
@@ -111,10 +111,10 @@ export default function CustomReportsList({ reports, locale }: { reports: Custom
                       <Link href={`/app/crm/reports/custom/${r.id}`}>{r.name}</Link>
                     )}
                   </td>
-                  <td className="muted">{tb(`sources.${r.source}`)}</td>
-                  <td className="muted">{tb(`vizs.${r.viz}`)}</td>
-                  <td className="muted mono">{date(r.updatedAt)}</td>
-                  <td>
+                  <td className="muted" data-label={tb('source')}>{tb(`sources.${r.source}`)}</td>
+                  <td className="muted" data-label={tb('viz')}>{tb(`vizs.${r.viz}`)}</td>
+                  <td className="muted mono" data-label={tb('updated')}>{date(r.updatedAt)}</td>
+                  <td className="table-stack-actions">
                     <div className="rb-list-actions">
                       {deleting === r.id ? (
                         <>

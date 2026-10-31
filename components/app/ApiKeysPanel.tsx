@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useState, type FormEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -171,11 +172,11 @@ export default function ApiKeysPanel({ initialKeys, isAdmin }: { initialKeys: Ap
             header: t('colScopes'),
             cell: (k) => (k.scopes.length === API_SCOPES.length ? t('scopesAll') : <span className="data st-muted">{k.scopes.join(' ')}</span>),
           },
-          { key: 'created', header: t('colCreated'), cell: (k) => formatTs(k.created_at, locale), data: true },
+          { key: 'created', header: t('colCreated'), cell: (k) => <LocalText>{formatTs(k.created_at, locale)}</LocalText>, data: true },
           {
             key: 'used',
             header: t('colLastUsed'),
-            cell: (k) => (k.last_used_at ? formatTs(k.last_used_at, locale) : <span className="st-muted">{t('never')}</span>),
+            cell: (k) => (k.last_used_at ? <LocalText>{formatTs(k.last_used_at, locale)}</LocalText> : <span className="st-muted">{t('never')}</span>),
             data: true,
           },
           {

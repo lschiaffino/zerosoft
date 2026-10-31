@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -282,7 +283,7 @@ export function AuditLog({ chatId, people, compact = false }: { chatId?: string;
                 )}
               </span>
               <time className="ui-help" dateTime={e.createdAt}>
-                {parseDbUtc(e.createdAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}
+                <LocalText>{parseDbUtc(e.createdAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}</LocalText>
               </time>
             </li>
           ))}
@@ -491,7 +492,7 @@ function WebhooksSection({ events, canEdit }: { events: string[]; canEdit: boole
                   </span>
                   <br />
                   <time className="ui-help" dateTime={d.createdAt}>
-                    {parseDbUtc(d.createdAt).toLocaleString(locale)}
+                    <LocalText>{parseDbUtc(d.createdAt).toLocaleString(locale)}</LocalText>
                   </time>
                   <details>
                     <summary className="ui-help">{t('integrations.payload')}</summary>

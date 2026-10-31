@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
@@ -118,9 +119,9 @@ export default function ApprovalDialog({ dealId, info, onClose, locale = 'en' }:
           </p>
         ) : pending ? (
           <p className="ui-help">
-            {pending.requested_by_name
+            <LocalText>{pending.requested_by_name
               ? t('approvals.pendingBy', { name: pending.requested_by_name, date: fmt(pending.created_at) })
-              : t('approvals.pendingSince', { date: fmt(pending.created_at) })}
+              : t('approvals.pendingSince', { date: fmt(pending.created_at) })}</LocalText>
           </p>
         ) : (
           <label className="field">

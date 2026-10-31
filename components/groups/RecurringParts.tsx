@@ -1,6 +1,7 @@
 'use client';
 
 import { useId, useMemo } from 'react';
+import LocalText from '@/components/ui/LocalText';
 import { useLocale, useTranslations } from 'next-intl';
 import { POLL_MAX_OPTIONS, type PollDto } from '@/lib/groups-polls';
 import { normalizeRule, upcomingRuns, type RecurrenceRule } from '@/lib/groups-recurrence';
@@ -165,7 +166,7 @@ export function RecurrenceFields({
         </p>
       ) : (
         <p className="ui-help" role="status">
-          {next.length ? t('recurring.next', { list: next.map((d) => d.toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone: timezone })).join(' · ') }) : t('recurring.noNext')}
+          <LocalText>{next.length ? t('recurring.next', { list: next.map((d) => d.toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone: timezone })).join(' · ') }) : t('recurring.noNext')}</LocalText>
         </p>
       )}
     </div>

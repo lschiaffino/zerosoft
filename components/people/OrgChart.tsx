@@ -51,6 +51,8 @@ export function layoutOrg(nodes: OrgNode[]): { placed: Placed[]; width: number; 
   return { placed, width: Math.max(cursor - GX, W), height: (depthMax + 1) * (H + GY) - GY };
 }
 
+const clampZoom = (z: number) => Math.max(0.2, Math.min(2.5, Math.round(z * 100) / 100));
+
 export default function OrgChart({ nodes }: { nodes: OrgNode[] }) {
   const t = useTranslations('people');
   const { placed, width, height } = useMemo(() => layoutOrg(nodes), [nodes]);
@@ -58,19 +60,41 @@ export default function OrgChart({ nodes }: { nodes: OrgNode[] }) {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 24, y: 24 });
   const drag = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
+  const view = useRef({ z: zoom, p: pan });
+  view.current = { z: zoom, p: pan };
   const box = useRef<HTMLDivElement>(null);
-  const clampZoom = (z: number) => Math.max(0.2, Math.min(2.5, Math.round(z * 100) / 100));
 
   // Ajustar a la pantalla: todo el organigrama visible y centrado (así abre).
-  const fit = useCallback(() => {
+  const fit = useCallback((readable = false) => {
     const el = box.current;
     if (!el) return;
     const pad = 24;
-    const z = clampZoom(Math.min(1, (el.clientWidth - pad * 2) / width, (el.clientHeight - pad * 2) / height));
+    const all = clampZoom(Math.min(1, (el.clientWidth - pad * 2) / width, (el.clientHeight - pad * 2) / height));
+    // Al abrir en un teléfono, nombres legibles aunque no entre todo: se recorre con el dedo.
+    const z = readable && el.clientWidth < 640 ? Math.max(all, 0.6) : all;
     setZoom(z);
     setPan({ x: Math.max(pad, (el.clientWidth - width * z) / 2), y: pad });
   }, [width, height]);
-  useEffect(() => fit(), [fit]);
+  useEffect(() => fit(true), [fit]);
+
+  // Zoom alrededor de un punto del recuadro: lo que está ahí se queda ahí.
+  const zoomAt = useCallback((next: (z: number) => number, cx: number, cy: number) => {
+    const { z, p } = view.current;
+    const nz = clampZoom(next(z));
+    setZoom(nz);
+    setPan({ x: cx - ((cx - p.x) / z) * nz, y: cy - ((cy - p.y) / z) * nz });
+  }, []);
+  const zoomCenter = (delta: number) => {
+    const el = box.current;
+    if (el) zoomAt((z) => z + delta, el.clientWidth / 2, el.clientHeight / 2);
+  };
+  // Dos dedos: distancia y punto medio.
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ d: number; x: number; y: number } | null>(null);
+  const spread = () => {
+    const [a, b] = [...pointers.current.values()];
+    return { d: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  };
 
   // La rueda solo hace zoom con Ctrl o Cmd (y entonces no scrollea la página ni hace zoom del navegador).
   useEffect(() => {
@@ -79,18 +103,39 @@ export default function OrgChart({ nodes }: { nodes: OrgNode[] }) {
     const onWheel = (e: WheelEvent) => {
       if (!(e.ctrlKey || e.metaKey)) return;
       e.preventDefault();
-      setZoom((z) => clampZoom(z - e.deltaY * 0.002));
+      const r = el.getBoundingClientRect();
+      zoomAt((z) => z - e.deltaY * 0.002, e.clientX - r.left, e.clientY - r.top);
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [nodes.length]);
+  }, [nodes.length, zoomAt]);
 
+  const release = (e: RPointerEvent<HTMLDivElement>) => {
+    pointers.current.delete(e.pointerId);
+    pinch.current = null;
+    drag.current = null;
+  };
   const onPointerDown = (e: RPointerEvent<HTMLDivElement>) => {
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.current.size === 2) {
+      drag.current = null;
+      pinch.current = spread();
+      return;
+    }
     if ((e.target as HTMLElement).closest('a')) return;
     drag.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
     e.currentTarget.setPointerCapture(e.pointerId);
   };
   const onPointerMove = (e: RPointerEvent<HTMLDivElement>) => {
+    if (pointers.current.has(e.pointerId)) pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.current.size === 2 && pinch.current) {
+      const now = spread();
+      const r = box.current?.getBoundingClientRect();
+      const ratio = now.d / pinch.current.d;
+      pinch.current = now;
+      if (r) zoomAt((z) => z * ratio, now.x - r.left, now.y - r.top);
+      return;
+    }
     const d = drag.current;
     if (d) setPan({ x: d.px + e.clientX - d.x, y: d.py + e.clientY - d.y });
   };
@@ -156,16 +201,16 @@ export default function OrgChart({ nodes }: { nodes: OrgNode[] }) {
       ) : (
         <>
           <div className="ppl-org-tools" role="group" aria-label={t('org.zoom')}>
-            <button type="button" className="btn btn-sm btn-secondary" onClick={() => setZoom((z) => clampZoom(z - 0.1))} aria-label={t('org.zoomOut')}>
+            <button type="button" className="btn btn-sm btn-secondary" onClick={() => zoomCenter(-0.1)} aria-label={t('org.zoomOut')}>
               −
             </button>
             <span className="ppl-muted" aria-live="polite">
               {Math.round(zoom * 100)}%
             </span>
-            <button type="button" className="btn btn-sm btn-secondary" onClick={() => setZoom((z) => clampZoom(z + 0.1))} aria-label={t('org.zoomIn')}>
+            <button type="button" className="btn btn-sm btn-secondary" onClick={() => zoomCenter(0.1)} aria-label={t('org.zoomIn')}>
               +
             </button>
-            <button type="button" className="btn btn-sm btn-ghost" onClick={fit}>
+            <button type="button" className="btn btn-sm btn-ghost" onClick={() => fit()}>
               {t('org.fit')}
             </button>
             <button
@@ -188,8 +233,8 @@ export default function OrgChart({ nodes }: { nodes: OrgNode[] }) {
             aria-label={t('org.canvas')}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
-            onPointerUp={() => (drag.current = null)}
-            onPointerCancel={() => (drag.current = null)}
+            onPointerUp={release}
+            onPointerCancel={release}
             onKeyDown={(e) => {
               const step = 40;
               if (e.key === '0') fit();

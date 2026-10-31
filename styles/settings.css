@@ -240,6 +240,7 @@
 .st-group-check { font-weight: 600; }
 .st-event-list { list-style: none; display: flex; flex-direction: column; gap: 6px; padding-left: 24px; }
 .st-event-list .ui-check { font-size: 0.8125rem; }
+.st-event-toggle { display: none; }
 
 .st-url { display: inline-block; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
 .st-delivery { display: inline-flex; align-items: center; gap: 8px; }
@@ -253,6 +254,25 @@
   .st-event-groups { grid-template-columns: minmax(0, 1fr); }
   .st-event-group, .st-event-group + .st-event-group { padding: 12px 0; border-left: 0; }
   .st-event-group + .st-event-group { border-top: 1px solid var(--line); }
+  /* Más de 40 eventos: cada grupo plegado, con su casilla y cuántos eligió. */
+  .st-event-group { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .st-event-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 72px;
+    min-height: 40px;
+    padding: 0 4px;
+    font: inherit;
+    font-size: 0.8125rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--brand-gray-1);
+    background: none;
+    border: 0;
+    cursor: pointer;
+  }
+  .st-event-list { grid-column: 1 / -1; display: none; }
+  .st-event-list[data-open] { display: flex; }
   .st-form-foot { flex-direction: column-reverse; align-items: stretch; }
   .st-url { max-width: 180px; }
 }

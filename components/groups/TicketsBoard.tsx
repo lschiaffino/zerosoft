@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -277,11 +278,11 @@ export default function TicketsBoard({
                   </td>
                   <td className="gr-hide-sm">
                     {tk.status === 'resolved' || tk.status === 'closed' ? (
-                      <span className="ui-help">{tk.resolvedAt ? resolvedLabel(tk.resolvedAt) : ''}</span>
+                      <span className="ui-help"><LocalText>{tk.resolvedAt ? resolvedLabel(tk.resolvedAt) : ''}</LocalText></span>
                     ) : tk.breached ? (
                       <span className="badge badge-bad">{t('tickets.breached')}</span>
                     ) : tk.dueAt ? (
-                      <span className="ui-help">{parseDbUtc(tk.dueAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}</span>
+                      <span className="ui-help"><LocalText>{parseDbUtc(tk.dueAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}</LocalText></span>
                     ) : null}
                   </td>
                   {shownFields.map((f) => (

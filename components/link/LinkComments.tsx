@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useState, type FormEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { LinkCommentDto } from '@/lib/link-comments';
@@ -71,7 +72,7 @@ export default function LinkComments({ linkId, initial, viewerId, isAdmin }: Lin
               <div className="lk-comment-head">
                 <span className="lk-comment-author">{c.authorName || t('comments.unknownAuthor')}</span>
                 <time className="data lk-comment-time" dateTime={c.createdAt}>
-                  {formatDateTime(c.createdAt, locale)}
+                  <LocalText>{formatDateTime(c.createdAt, locale)}</LocalText>
                 </time>
                 {(c.authorId === viewerId || isAdmin) && (
                   <button

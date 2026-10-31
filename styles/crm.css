@@ -649,7 +649,7 @@ tr:hover .cell-quick { opacity: 0.8; }
   position: fixed;
   inset: 0;
   z-index: 400;
-  background: color-mix(in srgb, var(--bg) 75%, transparent);
+  background: var(--ui-backdrop);
   backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
@@ -660,9 +660,9 @@ tr:hover .cell-quick { opacity: 0.8; }
 .modal-card {
   background: var(--bg);
   border: 1px solid var(--ink);
-  border-radius: var(--r-md);
-  padding: 28px;
-  width: min(440px, 100%);
+  border-radius: var(--radius-1);
+  padding: 20px;
+  width: min(520px, 100%);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -3232,8 +3232,8 @@ section.pb-body, section.pb-qs, section.pb-runs { padding: 0; }
     gap: 8px;
     font-size: 0.8125rem;
     white-space: normal;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    /* Visible: la elipsis la pone el primer hijo y acá se recortaba el borde de los botones. */
+    overflow: visible;
   }
   .crm-cards td[data-card='line'][data-card-label]::before {
     content: attr(data-card-label);
@@ -3257,10 +3257,12 @@ section.pb-body, section.pb-qs, section.pb-runs { padding: 0; }
     border-radius: var(--radius-1);
     color: var(--ink);
     flex-shrink: 0;
+    /* Área de 40px en una línea de 32px: la tarjeta no se estira por cada botón y no se pisan (row-gap 4px). */
+    margin-block: -4px;
   }
   .crm-cards .phone-touch.is-compact { gap: 6px; margin-left: auto; }
   .crm-cards td[data-card='line'] .cell-quick:first-of-type { margin-left: auto; }
-  .crm-cards .row-check { width: 22px; height: 22px; }
+  .crm-cards .row-check { width: 24px; height: 24px; }
   .crm-cards .cell-converted { display: none; }
 
   /* Selección masiva: barra abajo a lo ancho, con scroll propio. */
@@ -3369,4 +3371,9 @@ section.pb-body, section.pb-qs, section.pb-runs { padding: 0; }
 
 @media (max-width: 720px) {
   .dash-toolbar .dash-name-input { flex: 1 1 100%; width: 100%; }
+}
+
+/* 390: el mismo tamaño que .ui-page-title. */
+@media (max-width: 640px) {
+  .app-title { font-size: 1.5rem; line-height: 1.15; }
 }

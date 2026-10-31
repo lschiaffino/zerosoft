@@ -376,7 +376,7 @@ export function AccountsView({ accounts, canWrite, showArchived }: { accounts: A
             <h2 className="bk-panel-title" id={`bk-acc-${type}`}>
               {t(`accounts.types.${type}`)}
             </h2>
-            <div className="table-wrap bk-table-wrap">
+            <div className="table-wrap bk-table-wrap table-stack">
               <table className="table bk-table">
                 <tbody>
                   {list.map((a) => (
@@ -388,7 +388,7 @@ export function AccountsView({ accounts, canWrite, showArchived }: { accounts: A
                           {a.system_key && <span className="bk-rowmeta">{t('accounts.system')}</span>}
                         </Link>
                       </th>
-                      <td className="num">
+                      <td className="num table-stack-actions">
                         {canWrite && (
                           <span className="bk-row bk-row-end">
                             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEdit({ id: a.id, code: a.code, name: a.name, type: a.type })}>
@@ -472,7 +472,7 @@ export function JournalList({ journals, currency, canWrite, accountName }: { jou
       {journals.length === 0 ? (
         <EmptyState product="books" title={t('journal.emptyTitle')} body={t('journal.emptyBody')} />
       ) : (
-        <div className="table-wrap bk-table-wrap">
+        <div className="table-wrap bk-table-wrap table-stack">
           <table className="table bk-table">
             <thead>
               <tr>

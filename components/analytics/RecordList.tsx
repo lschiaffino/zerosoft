@@ -58,7 +58,7 @@ export default function RecordList({
 
   return (
     <>
-      <div className="table-wrap">
+      <div className="table-wrap table-stack">
         <table className="table an-list" data-testid={testId}>
           <thead>
             <tr>
@@ -79,9 +79,9 @@ export default function RecordList({
                     {item.name}
                   </Link>
                 </td>
-                {labels.meta && <td className="an-muted">{item.meta}</td>}
+                {labels.meta && <td className="an-muted" data-label={labels.meta}>{item.meta}</td>}
                 {canEdit && (
-                  <td className="an-actions">
+                  <td className="an-actions table-stack-actions">
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRenaming(item)} aria-label={`${labels.rename}: ${item.name}`}>
                       {labels.rename}
                     </button>

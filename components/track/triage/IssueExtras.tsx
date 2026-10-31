@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -60,7 +61,7 @@ function SummaryBlock({ issueId, locale, hideEmpty = false, runSignal = 0 }: { i
           <p className="track-ai-summary-text" data-testid="track-ai-summary-text">
             {summary}
           </p>
-          {generatedAt && <p className="ui-help">{t('ai.summaryAt', { when: relDate(generatedAt, locale) })}</p>}
+          {generatedAt && <p className="ui-help"><LocalText>{t('ai.summaryAt', { when: relDate(generatedAt, locale) })}</LocalText></p>}
         </>
       ) : (
         !error && <p className="ui-help">{t('ai.summaryEmpty')}</p>
@@ -305,7 +306,7 @@ function SessionView({ s, locale, onChange }: { s: AgentSessionDto; locale: stri
               {a.type === 'response' || a.type === 'prompt' ? <MarkdownView source={a.body} /> : <p>{a.body}</p>}
             </div>
             <time className="track-request-meta" dateTime={a.createdAt}>
-              {relDate(a.createdAt, locale)}
+              <LocalText>{relDate(a.createdAt, locale)}</LocalText>
             </time>
           </li>
         ))}

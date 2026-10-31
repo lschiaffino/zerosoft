@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useId, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
@@ -607,7 +608,7 @@ export function DocsAuditLog({ people }: { people: Array<{ id: string; name: str
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
-                  <td className="num">{formatDateTime(r.created_at, locale)}</td>
+                  <td className="num"><LocalText>{formatDateTime(r.created_at, locale)}</LocalText></td>
                   <td>{r.actor_label || t('auditSystem')}</td>
                   <td>
                     <span className="docs-audit-action">{ta.has(`action.${r.action}`) ? ta(`action.${r.action}`) : r.action}</span>

@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { formatCallDuration, isDefaultOutcome } from '@/lib/crm-calls';
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -696,7 +697,7 @@ export default function Timeline({
                     {item.pinned ? <span className="badge">{t('common.pinned')}</span> : null}
                     <span className="tl-subject">{item.subject || '—'}</span>
                     <span className="tl-date">
-                      {formatWhen(item.due_at ?? item.created_at, locale)}
+                      <LocalText>{formatWhen(item.due_at ?? item.created_at, locale)}</LocalText>
                     </span>
                   </div>
                   {item.body && (
@@ -708,7 +709,7 @@ export default function Timeline({
                   <div className="tl-meta">
                     {item.type === 'task' && item.due_at && (
                       <span>
-                        {t('tasks.dueLabel')} {formatDay(item.due_at, locale)}
+                        {t('tasks.dueLabel')} <LocalText>{formatDay(item.due_at, locale)}</LocalText>
                       </span>
                     )}
                     {item.direction && <span>{t(`enums.direction.${item.direction}`)}</span>}

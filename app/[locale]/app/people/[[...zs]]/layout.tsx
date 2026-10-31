@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { notFound, redirect } from 'next/navigation';
 import { isAppSection, sectionTakesId } from '@/lib/app-sections';
-import { employeeIdForUser, getEmployee } from '@/lib/people';
+import { employeeIdForUser, getEmployee, syncMembers } from '@/lib/people';
 import { getTemplate } from '@/lib/people-onboarding';
 import { sessionCtx } from '@/lib/people-http';
 import { getCycle } from '@/lib/people-perf';
@@ -18,7 +18,12 @@ export default async function Layout(props: { children: ReactNode; params: Promi
   if (profile || section === 'u' || (section === 'reviews' && id) || (section === 'onboarding' && id)) {
     const ctx = await sessionCtx(await requireUser(locale));
     if (section === 'u') {
-      const employee = await employeeIdForUser(ctx.ws, id as string);
+      // Link a alguien del workspace todavía sin ficha (de antes de People): se da de alta acá, no es un 404.
+      let employee = await employeeIdForUser(ctx.ws, id as string);
+      if (!employee && ctx.needsSync) {
+        await syncMembers(ctx.ws);
+        employee = await employeeIdForUser(ctx.ws, id as string);
+      }
       if (!employee) notFound();
       redirect(`/${locale}/app/people/${employee}`);
     }

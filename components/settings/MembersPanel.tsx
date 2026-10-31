@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useMemo, useState, type FormEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -507,7 +508,7 @@ export default function MembersPanel({
                       .filter(Boolean)
                       .join(' ')}
                   >
-                    {i.kind === 'request'
+                    <LocalText>{i.kind === 'request'
                       ? t('status.request')
                       : i.expired
                         ? t('status.expired')
@@ -515,7 +516,7 @@ export default function MembersPanel({
                           ? t('status.sent', { date: fmt(i.sentAt) })
                           : i.emailStatus === 'failed'
                             ? t('status.failed')
-                            : t('status.linkOnly')}
+                            : t('status.linkOnly')}</LocalText>
                     {i.anyEmail && <span className="ws-status-note"> {t('status.anyEmail')}</span>}
                   </span>
                 ),

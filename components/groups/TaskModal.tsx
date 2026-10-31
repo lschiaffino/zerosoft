@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -221,7 +222,7 @@ export function ChatTasksSection({ chatId, people, me }: { chatId: string; peopl
               <span className="gr-task-main">
                 <span className="gr-task-title">{task.title}</span>
                 <span className="ui-help">
-                  {task.dueAt ? parseDbUtc(task.dueAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' }) : t('tasks.noDate')}
+                  <LocalText>{task.dueAt ? parseDbUtc(task.dueAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' }) : t('tasks.noDate')}</LocalText>
                   {task.ownerName ? ` · ${task.ownerName}` : ''}
                 </span>
               </span>

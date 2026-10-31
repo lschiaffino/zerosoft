@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
@@ -132,7 +133,7 @@ export default function DealInsightCard({
           )}
           <p className="ai-meta">
             {data.stale ? <span className="ai-stale">{t('score.stale')}</span> : null}
-            <span>{t('updatedAt', { when: formatAiWhen(data.updatedAt, locale) })}</span>
+            <span><LocalText>{t('updatedAt', { when: formatAiWhen(data.updatedAt, locale) })}</LocalText></span>
           </p>
         </>
       ) : error ? null : (

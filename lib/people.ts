@@ -75,6 +75,8 @@ export interface PeopleCtx {
   visibility: VisibilitySettings;
   /** ¿La ficha de quien mira tiene manager? (aprobar lo propio). */
   hasManager: boolean;
+  /** Falta la ficha de alguien del workspace (ver syncMembers). */
+  needsSync?: boolean;
 }
 
 interface SettingsRow {
@@ -156,6 +158,8 @@ export async function ensurePeople(ws: string): Promise<void> {
       .prepare('INSERT INTO people_templates (id, workspace_id, name, kind, tasks, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
       .run(newId('tpl'), ws, name, kind, JSON.stringify(tasks.map((t) => ({ ...t, description: '' }))), now, now);
   }
+  // Parte de la siembra de la primera vez: quien crea el workspace y quienes ya están tienen ficha.
+  await syncMembers(ws);
 }
 
 /**
@@ -248,22 +252,20 @@ async function managerMap(ws: string): Promise<Map<string, string | null>> {
 /** Contexto de People para una persona del workspace (sesión, asistente, API). */
 export async function peopleContext(ws: string, personId: string, wsRole: string): Promise<PeopleCtx> {
   await ensurePeople(ws);
-  // Quien ya tiene ficha no dispara la sincronización: las altas llegan por
-  // personJoined (JOIN_STEPS). Solo alguien sin ficha (miembro de antes de
-  // People) la crea al entrar.
+  // Leer no crea fichas: las altas llegan por personJoined (JOIN_STEPS). Si falta alguna
+  // (miembro de antes de People), needsSync le avisa a la página y esta pide el alta por POST.
   const linked = await db().prepare('SELECT 1 AS x FROM people_employees WHERE workspace_id = ? AND user_id = ?').get(ws, personId);
-  // Una sola lectura: ¿hay personas del workspace sin ficha (altas que no pasaron por personJoined)?
-  // Solo entonces se escribe.
-  const missing =
+  const needsSync =
     !linked ||
-    (await db()
-      .prepare(
-        `SELECT 1 AS x FROM team_members m JOIN teams t ON t.id = m.team_id
-         WHERE t.owner_id = ? AND t.keyed_by = 'owner' AND m.role != 'guest'
-         AND NOT EXISTS (SELECT 1 FROM people_employees e WHERE e.workspace_id = t.owner_id AND e.user_id = m.user_id) LIMIT 1`,
-      )
-      .get(ws));
-  if (missing) await syncMembers(ws);
+    Boolean(
+      await db()
+        .prepare(
+          `SELECT 1 AS x FROM team_members m JOIN teams t ON t.id = m.team_id
+           WHERE t.owner_id = ? AND t.keyed_by = 'owner' AND m.role != 'guest'
+           AND NOT EXISTS (SELECT 1 FROM people_employees e WHERE e.workspace_id = t.owner_id AND e.user_id = m.user_id) LIMIT 1`,
+        )
+        .get(ws),
+    );
   const wsAdmin = wsRole === 'owner' || wsRole === 'admin' || ws === personId;
   const [hr, me, map, settings] = await Promise.all([
     isHrAdmin(ws, personId, wsAdmin),
@@ -280,6 +282,7 @@ export async function peopleContext(ws: string, personId: string, wsRole: string
     viewer: { personId, employeeId, hr, wsOwner: ws === personId, reports: employeeId ? reportsOf(employeeId, map) : new Set() },
     visibility: parseJson<VisibilitySettings>(settings?.visibility, {}),
     hasManager: Boolean(me?.manager_id),
+    needsSync,
   };
 }
 

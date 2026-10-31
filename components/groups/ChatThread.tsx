@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -674,7 +675,7 @@ export default function ChatThread(props: ThreadProps) {
             if (m.direction === 'system') {
               return (
                 <div key={m.id}>
-                  {showDay && <p className="gr-day">{parseDbUtc(m.createdAt).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' })}</p>}
+                  {showDay && <p className="gr-day"><LocalText>{parseDbUtc(m.createdAt).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' })}</LocalText></p>}
                   <SystemLine m={m} nameOf={nameOf} />
                 </div>
               );
@@ -703,7 +704,7 @@ export default function ChatThread(props: ThreadProps) {
             const isEditing = editing?.id === m.id;
             return (
               <div key={m.id}>
-                {showDay && <p className="gr-day">{parseDbUtc(m.createdAt).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' })}</p>}
+                {showDay && <p className="gr-day"><LocalText>{parseDbUtc(m.createdAt).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' })}</LocalText></p>}
                 <article className={`gr-msg gr-msg-${m.direction}${m.deletedAt ? ' is-deleted' : ''}`} id={`m-${m.id}`}>
                   <div className="gr-bubble">
                     {(author || m.direction === 'note') && (
@@ -817,7 +818,7 @@ export default function ChatThread(props: ThreadProps) {
                       </p>
                     )}
                     <p className="gr-msg-foot">
-                      <time dateTime={m.createdAt}>{parseDbUtc(m.createdAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}</time>
+                      <time dateTime={m.createdAt}><LocalText>{parseDbUtc(m.createdAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}</LocalText></time>
                       {m.deletedAt ? (
                         <span className="gr-deleted-tag">{t('thread.deletedTag')}</span>
                       ) : (

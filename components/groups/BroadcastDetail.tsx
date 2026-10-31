@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useMounted } from '@/components/ui/useMounted';
 import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -84,7 +85,7 @@ export default function BroadcastDetail({ initial }: { initial: { broadcast: Bro
           {t('broadcasts.cancel')}
         </button>
       )}
-      <div className="table-wrap">
+      <div className="table-wrap table-stack">
         <table className="table gr-table">
           <thead>
             <tr>
@@ -99,11 +100,11 @@ export default function BroadcastDetail({ initial }: { initial: { broadcast: Bro
                 <td>
                   <Link href={`/app/groups/inbox/${r.chatId}`}>{r.chatName}</Link>
                 </td>
-                <td>
+                <td data-label={t('broadcasts.colStatus')}>
                   <span className={`badge ${r.status === 'sent' ? 'badge-ok' : r.status === 'failed' ? 'badge-bad' : 'badge-outline'}`}>{t(`recipientStatus.${r.status}`)}</span>
                   {r.error && <span className="ui-help"> {errText(r.error)}</span>}
                 </td>
-                <td className="gr-hide-sm ui-help">{r.sentAt ? parseDbUtc(r.sentAt).toLocaleTimeString(locale) : ''}</td>
+                <td className="gr-hide-sm ui-help" data-label={t('broadcasts.colSentAt')}><LocalText>{r.sentAt ? parseDbUtc(r.sentAt).toLocaleTimeString(locale) : ''}</LocalText></td>
               </tr>
             ))}
           </tbody>

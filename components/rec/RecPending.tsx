@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
@@ -67,7 +68,7 @@ export default function RecPending() {
         {items.map((m) => (
           <li key={m.videoId} className="rec-pending-row">
             <span className="rec-pending-name">
-              {m.title} <span className="muted data">· {date(m.createdAt)} · {(m.bytes / (1024 * 1024)).toFixed(1)} MB</span>
+              {m.title} <span className="muted data">· <LocalText>{date(m.createdAt)}</LocalText> · {(m.bytes / (1024 * 1024)).toFixed(1)} MB</span>
             </span>
             <span className="rec-pending-actions">
               <button type="button" className="btn btn-primary btn-sm" disabled={busy !== null} onClick={() => void resume(m)} data-testid="rec-pending-resume">

@@ -57,6 +57,14 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
     },
     description: t('description'),
     metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
+    // Título y descripción los completa Next con los de cada página; la que quiere otra imagen pone su openGraph.
+    openGraph: {
+      type: 'website',
+      siteName: 'zerosoft',
+      locale: { en: 'en_US', es: 'es_AR', pt: 'pt_BR' }[locale] ?? 'en_US',
+      images: [{ url: '/api/og/home', width: 1200, height: 630, alt: 'zerosoft' }],
+    },
+    twitter: { card: 'summary_large_image', images: ['/api/og/home'] },
     // Favicon y apple-icon: app/icon.svg y app/apple-icon.tsx (el cero de lib/zero-mark.ts).
   };
 }

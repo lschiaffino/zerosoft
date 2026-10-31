@@ -35,7 +35,7 @@ export default function ProjectList({ projects, labels }: ProjectListProps) {
   return (
     <DataTable
       caption={labels.caption}
-      className="track-projects"
+      className="track-projects table-stack"
       rows={projects}
       rowKey={(p) => p.id}
       rowHref={(p) => teamPath(p)}

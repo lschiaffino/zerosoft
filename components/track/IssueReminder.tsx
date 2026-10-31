@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Popover } from './InlineEditors';
@@ -76,7 +77,7 @@ export default function IssueReminder({ issueId, locale, initial, compact = fals
                 }}
               >
                 <span className="track-menu-label">{t(PRESET_LABEL[p])}</span>
-                <span className="track-menu-meta">{formatWhenShort(snoozeAt(p, new Date()).toISOString(), locale)}</span>
+                <span className="track-menu-meta"><LocalText>{formatWhenShort(snoozeAt(p, new Date()).toISOString(), locale)}</LocalText></span>
               </button>
             ))}
             <div className="track-menu-sep" />

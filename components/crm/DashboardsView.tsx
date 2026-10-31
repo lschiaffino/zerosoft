@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import type { CrmDashboardWidgetRow } from '@/lib/db';
@@ -954,7 +955,7 @@ export default function DashboardsView({
                   {task.subject || tCrm('enums.activityType.task')}
                 </span>
                 <span className="dash-list-meta mono">
-                  {task.due_at ? formatDate(task.due_at, locale) : '—'}
+                  <LocalText>{task.due_at ? formatDate(task.due_at, locale) : '—'}</LocalText>
                   {task.contact_name || task.company_name || task.deal_name
                     ? ` · ${task.contact_name ?? task.company_name ?? task.deal_name}`
                     : ''}
@@ -986,7 +987,7 @@ export default function DashboardsView({
                 <span className="dash-list-main" title={a.subject}>
                   <span className="badge">{tCrm(`enums.activityType.${a.type}`)}</span> {a.subject}
                 </span>
-                <span className="dash-list-meta mono">{formatDate(a.created_at, locale)}</span>
+                <span className="dash-list-meta mono"><LocalText>{formatDate(a.created_at, locale)}</LocalText></span>
               </li>
             ))}
           </ul>

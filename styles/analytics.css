@@ -267,7 +267,4 @@
   .an-props { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* Celular: la segunda columna no se reduce a una palabra por línea; la tabla se desplaza dentro de su marco. */
-@media (max-width: 600px) {
-  .an-page .table td.an-muted { min-width: 140px; }
-}
+

@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -280,7 +281,7 @@ export default function DesignHome({
                     {d.pages > 1 ? ` · ${t('pages', { n: d.pages })}` : ''} · {d.access !== 'owner' ? `${d.ownerName} · ` : ''}
                     {/* La hora relativa cambia entre el servidor y el navegador: se acepta la diferencia. */}
                     <time dateTime={view === 'trash' && d.deletedAt ? d.deletedAt : d.updatedAt} suppressHydrationWarning>
-                      {relTime(view === 'trash' && d.deletedAt ? d.deletedAt : d.updatedAt, locale)}
+                      <LocalText>{relTime(view === 'trash' && d.deletedAt ? d.deletedAt : d.updatedAt, locale)}</LocalText>
                     </time>
                   </span>
                 </div>

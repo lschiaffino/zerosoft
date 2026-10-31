@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -89,7 +90,7 @@ export function RequestRow({
           </Link>
         )}
         <span className="track-request-meta">
-          {t(`sources.${r.source}`)} · {relDate(r.createdAt, locale)}
+          {t(`sources.${r.source}`)} · <LocalText>{relDate(r.createdAt, locale)}</LocalText>
           {r.sourceUrl && (
             <>
               {' · '}

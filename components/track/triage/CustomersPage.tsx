@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -149,7 +150,7 @@ export default function CustomersPage({ locale }: { locale: string }) {
                       <span className="track-customer-stat hide-sm">
                         <span className="track-x-muted">{t('colRevenue')}</span> {money(c.revenue, c.currency, locale)}
                       </span>
-                      <span className="track-customer-stat hide-sm track-x-muted">{relDate(c.lastRequestAt, locale)}</span>
+                      <span className="track-customer-stat hide-sm track-x-muted"><LocalText>{relDate(c.lastRequestAt, locale)}</LocalText></span>
                     </button>
                     {expanded && (
                       <div className="track-customer-detail">

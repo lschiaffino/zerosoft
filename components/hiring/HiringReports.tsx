@@ -34,10 +34,10 @@ export default function HiringReports({ report, jobs }: { report: HiringReport; 
       <div className="hr-stats">
         <div className="panel hr-stat">
           <span className="hr-stat-label">{t('reports.timeToHire')}</span>
-          <span className="hr-stat-value" data-testid="hr-time-to-hire">
+          <span className={report.timeToHire.avgDays == null ? 'hr-stat-empty' : 'hr-stat-value'} data-testid="hr-time-to-hire">
             {report.timeToHire.avgDays == null ? t('reports.noData') : t('reports.days', { days: report.timeToHire.avgDays })}
           </span>
-          <span className="hr-stat-sub">{t('reports.median', { days: report.timeToHire.medianDays ?? '·', hires: report.timeToHire.hires })}</span>
+          {report.timeToHire.medianDays != null && <span className="hr-stat-sub">{t('reports.median', { days: report.timeToHire.medianDays, hires: report.timeToHire.hires })}</span>}
         </div>
         <div className="panel hr-stat">
           <span className="hr-stat-label">{t('reports.openJobs')}</span>
@@ -90,7 +90,7 @@ export default function HiringReports({ report, jobs }: { report: HiringReport; 
         {report.sources.length === 0 ? (
           <p className="ui-help">{t('reports.noData')}</p>
         ) : (
-          <div className="table-wrap">
+          <div className="table-wrap table-stack">
             <table className="table hr-table">
               <thead>
                 <tr>
@@ -110,9 +110,9 @@ export default function HiringReports({ report, jobs }: { report: HiringReport; 
                 {report.sources.map((s) => (
                   <tr key={s.source}>
                     <th scope="row">{t.has(`sources.${s.source}`) ? t(`sources.${s.source}`) : s.source}</th>
-                    <td className="num">{s.applications}</td>
-                    <td className="num">{s.interviews}</td>
-                    <td className="num">{s.hires}</td>
+                    <td className="num" data-label={t('reports.applications')}>{s.applications}</td>
+                    <td className="num" data-label={t('reports.interviews')}>{s.interviews}</td>
+                    <td className="num" data-label={t('reports.hires')}>{s.hires}</td>
                   </tr>
                 ))}
               </tbody>
@@ -128,7 +128,7 @@ export default function HiringReports({ report, jobs }: { report: HiringReport; 
         {report.openJobs.length === 0 ? (
           <p className="ui-help">{t('overview.noOpenJobs')}</p>
         ) : (
-          <div className="table-wrap">
+          <div className="table-wrap table-stack">
             <table className="table hr-table">
               <thead>
                 <tr>
@@ -150,9 +150,9 @@ export default function HiringReports({ report, jobs }: { report: HiringReport; 
                     <th scope="row">
                       <Link href={`/app/hiring/jobs/${j.id}`}>{j.title}</Link>
                     </th>
-                    <td className="num">{j.daysOpen}</td>
-                    <td className="num">{j.active}</td>
-                    <td className="num">{j.total}</td>
+                    <td className="num" data-label={t('reports.daysOpen')}>{j.daysOpen}</td>
+                    <td className="num" data-label={t('reports.active')}>{j.active}</td>
+                    <td className="num" data-label={t('reports.total')}>{j.total}</td>
                   </tr>
                 ))}
               </tbody>

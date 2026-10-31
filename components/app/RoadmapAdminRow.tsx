@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -117,7 +118,7 @@ export function RoadmapAdminRow({
         <span className={`badge ${item.is_public === 1 ? 'badge-outline' : ''}`}>
           {item.is_public === 1 ? t('admin.public') : t('admin.private')}
         </span>
-        <span className="data st-muted">{formatDateTime(item.created_at, locale)}</span>
+        <span className="data st-muted"><LocalText>{formatDateTime(item.created_at, locale)}</LocalText></span>
       </div>
 
       <form

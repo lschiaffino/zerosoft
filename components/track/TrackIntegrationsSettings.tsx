@@ -4,6 +4,7 @@
  * Track › Ajustes: Integraciones (Slack, Sentry, Zendesk, Intercom, Figma,
  * Zapier), API y MCP, Acceso (proyectos privados e invitados) y Audit log.
  */
+import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -65,7 +66,7 @@ function EventLog({ rows, locale }: { rows: IntegrationEvent[]; locale: string }
         <li key={e.id} className={e.ok ? undefined : 'is-error'}>
           <span className="data">{e.direction === 'in' ? '←' : '→'}</span>
           <span className="track-int-log-text">{e.summary}</span>
-          <span className="st-muted">{fmtDate(e.createdAt, locale)}</span>
+          <span className="st-muted"><LocalText>{fmtDate(e.createdAt, locale)}</LocalText></span>
         </li>
       ))}
     </ul>
@@ -1228,7 +1229,7 @@ export function AuditLogSettings({ isAdmin, locale }: { isAdmin: boolean; locale
                   </div>
                   {describeData(r.data) ? <div className="track-audit-detail st-muted">{describeData(r.data)}</div> : null}
                   <div className="track-audit-meta st-muted">
-                    {fmtDate(r.createdAt, locale)} · {t(`audit.via.${r.via}`)}
+                    <LocalText>{fmtDate(r.createdAt, locale)}</LocalText> · {t(`audit.via.${r.via}`)}
                     {r.projectName ? ` · ${r.projectName}` : ''}
                     {r.ip ? <span className="data"> · {r.ip}</span> : null}
                   </div>

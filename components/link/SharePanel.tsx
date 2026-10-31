@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { formatDate } from '@/lib/utils';
@@ -90,7 +91,7 @@ export default function SharePanel({ target, initial }: SharePanelProps) {
               <span className="data lk-cell-trunc" title={r.url}>
                 {r.url.replace(/^https?:\/\//, '')}
               </span>
-              <span className="ui-help">{t('share.createdOn', { date: formatDate(r.created_at, locale) })}</span>
+              <span className="ui-help"><LocalText>{t('share.createdOn', { date: formatDate(r.created_at, locale) })}</LocalText></span>
               <span className="lk-share-actions">
                 <CopyButton text={r.url} className="btn btn-sm btn-ghost" />
                 <a href={r.url} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-ghost">

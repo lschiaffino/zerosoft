@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { DragEvent } from 'react';
@@ -312,7 +313,7 @@ export default function IssuesBoard({
                             )}
                             {issue.cycle_name && <span className="track-board-cycle">{issue.cycle_name}</span>}
                             {issue.due_date && (
-                              <span className="track-board-due">{formatDate(issue.due_date, locale)}</span>
+                              <span className="track-board-due"><LocalText>{formatDate(issue.due_date, locale)}</LocalText></span>
                             )}
                           </div>
                         </Link>

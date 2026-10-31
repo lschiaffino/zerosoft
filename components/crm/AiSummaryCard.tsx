@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { RecordSummary } from '@/lib/crm-ai';
@@ -83,7 +84,7 @@ export default function AiSummaryCard({
           )}
           <p className="ai-meta">
             {summary.stale ? <span className="ai-stale">{t('summary.stale')}</span> : null}
-            <span>{t('updatedAt', { when: formatAiWhen(summary.updatedAt, locale) })}</span>
+            <span><LocalText>{t('updatedAt', { when: formatAiWhen(summary.updatedAt, locale) })}</LocalText></span>
           </p>
         </>
       ) : error ? null : (

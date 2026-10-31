@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -164,7 +165,7 @@ export default function CrmMigrationPanel({
             {history.map((j) => (
               <li key={j.id} className="mig-history-row">
                 <span>{NAMES[j.provider]}</span>
-                <span className="muted">{formatDate(j.createdAt, locale)}</span>
+                <span className="muted"><LocalText>{formatDate(j.createdAt, locale)}</LocalText></span>
                 <span className="mono">{t(`status.${j.status}`)}</span>
                 <span className="muted">
                   {t('historyCounts', {

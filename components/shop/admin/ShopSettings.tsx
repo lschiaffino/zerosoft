@@ -519,7 +519,7 @@ function LocationsTab({ initial, lowStock }: { initial: LocationDto[]; lowStock:
   const [low, setLow] = useState(String(lowStock));
   return (
     <div className="ui-section ui-section-body">
-      <ul className="shop-items">
+      <ul className="shop-items shop-items-named">
         {initial.map((l) => (
           <li key={l.id}>
             <span>{l.name}</span>

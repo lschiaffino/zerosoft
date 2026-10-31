@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useLocale, useTranslations } from 'next-intl';
 import type { CrmWorkflowRunRow } from '@/lib/db';
 import EmptyState from '@/components/ui/EmptyState';
@@ -43,7 +44,7 @@ export default function WorkflowRuns({ runs }: { runs: CrmWorkflowRunRow[] }) {
                 const s = runSummary(run.output);
                 return (
                   <tr key={run.id}>
-                    <td className="data">{fmt.format(parseWhen(run.started_at))}</td>
+                    <td className="data"><LocalText>{fmt.format(parseWhen(run.started_at))}</LocalText></td>
                     <td>
                       <span className={`badge ${TONE[run.status] ?? ''}`.trim()}>
                         {t.has(`runStatus.${run.status}`) ? t(`runStatus.${run.status}` as 'runStatus.done') : run.status}

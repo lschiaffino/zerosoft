@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { EmailThreadView } from '@/lib/crm-email';
@@ -50,7 +51,7 @@ export default function EmailThread({
         <span className="tl-type">{t('enums.activityType.email')}</span>
         <span className="tl-subject">{thread.subject || '—'}</span>
         {count > 1 && <span className="em-count mono">{t('email.messages', { n: count })}</span>}
-        <span className="tl-date">{when(thread.lastAt, locale)}</span>
+        <span className="tl-date"><LocalText>{when(thread.lastAt, locale)}</LocalText></span>
       </div>
       <div className="em-messages">
         {shown.map((m) => (
@@ -61,7 +62,7 @@ export default function EmailThread({
                 →
               </span>
               <span className="em-to muted">{displayName(m.to)}</span>
-              {open && count > 1 && <span className="em-date muted">{when(m.sentAt, locale)}</span>}
+              {open && count > 1 && <span className="em-date muted"><LocalText>{when(m.sentAt, locale)}</LocalText></span>}
             </div>
             <p className={`em-body${open ? '' : ' clamp'}`}>{open ? m.body : m.snippet || m.body}</p>
             {m.direction === 'out' && m.tracked && (

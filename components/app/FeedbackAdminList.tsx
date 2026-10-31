@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { FeedbackRow } from '@/lib/feedback';
@@ -105,7 +106,7 @@ export default function FeedbackAdminList({
               <ProductTag product={r.product} label={tp(r.product)} />
               <span className="st-fb-who">
                 <span>{r.email ?? t('admin.anonymous')}</span>
-                <span className="data">{formatDateTime(r.created_at, locale)}</span>
+                <span className="data"><LocalText>{formatDateTime(r.created_at, locale)}</LocalText></span>
               </span>
             </div>
             <p className="st-fb-msg">{r.message}</p>

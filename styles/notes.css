@@ -204,10 +204,10 @@
 .notes-item:hover { background: var(--brand-enamel); }
 .notes-item[aria-current='true'] { background: var(--ui-hover); }
 
+/* block: en un flex el texto suelto no toma los puntos suspensivos y se corta en seco. */
 .notes-item-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  display: block;
+  max-width: 100%;
   min-width: 0;
   font-size: 0.9375rem;
   font-weight: 600;
@@ -218,7 +218,7 @@
 }
 
 /* Fijada: el único lugar de la lista con el color de Notes. */
-.notes-pin { display: inline-flex; flex-shrink: 0; color: var(--c-notes-ink); }
+.notes-pin { display: inline-flex; flex-shrink: 0; margin-right: 6px; vertical-align: -2px; color: var(--c-notes-ink); }
 .notes-untitled { font-weight: 400; color: var(--brand-gray-2); }
 
 .notes-item-snippet {

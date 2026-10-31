@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useState, type FormEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { LinkIntegrationKey, LinkIntegrationView } from '@/lib/link-integrations';
@@ -83,8 +84,8 @@ export default function LinkIntegrationsPanel({
                 </div>
                 {i.connected && (
                   <p className="muted crm-app-meta">
-                    {t('integrations.connectedOn', { date: fmt(i.connectedAt) })}
-                    {i.lastUsedAt ? ` · ${t('integrations.lastUsed', { date: fmt(i.lastUsedAt) })}` : ''}
+                    <LocalText>{t('integrations.connectedOn', { date: fmt(i.connectedAt) })}</LocalText>
+                    <LocalText>{i.lastUsedAt ? ` · ${t('integrations.lastUsed', { date: fmt(i.lastUsedAt) })}` : ''}</LocalText>
                   </p>
                 )}
                 {i.connected && i.lastError && <p className="ui-error">{t('integrations.lastError', { error: i.lastError })}</p>}

@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
@@ -327,7 +328,7 @@ export default function IssuePeek() {
                           {c.who?.[0]?.toUpperCase() ?? '?'}
                         </span>
                         <strong>{c.who}</strong>
-                        <span className="track-peek-comment-at">{relDate(c.at, locale)}</span>
+                        <span className="track-peek-comment-at"><LocalText>{relDate(c.at, locale)}</LocalText></span>
                       </p>
                       <MarkdownView source={c.body} className="track-peek-comment-body" />
                     </li>

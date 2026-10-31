@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { ChatDto, MessageDto } from '@/lib/groups';
@@ -147,7 +148,7 @@ export function SystemLine({ m, nameOf }: { m: MessageDto; nameOf: (id: string |
       )}
       <span>{text}</span>
       {extra}
-      <time dateTime={m.createdAt}>{time}</time>
+      <time dateTime={m.createdAt}><LocalText>{time}</LocalText></time>
     </p>
   );
 }

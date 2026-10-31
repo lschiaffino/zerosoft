@@ -107,7 +107,7 @@ export default function ObjectsIndex({ rows, canAdmin }: { rows: ObjectRow[]; ca
           }
         />
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap table-stack">
           <table className="table crm-table" data-testid="objects-table">
             <caption className="sr-only">{t('objects.title')}</caption>
             <thead>
@@ -130,8 +130,8 @@ export default function ObjectsIndex({ rows, canAdmin }: { rows: ObjectRow[]; ca
                     </Link>
                     {o.description && <span className="muted cell-sub">{o.description}</span>}
                   </td>
-                  <td className="num">{o.records}</td>
-                  <td className="num muted hide-sm">{o.properties}</td>
+                  <td className="num" data-label={t('objects.columnRecords')}>{o.records}</td>
+                  <td className="num muted hide-sm" data-label={t('objects.columnProperties')}>{o.properties}</td>
                 </tr>
               ))}
             </tbody>

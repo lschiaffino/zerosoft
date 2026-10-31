@@ -77,18 +77,25 @@ async function seedCrm(userId: string) {
   }
 }
 
+const DOCS_SEED: Record<SeedLocale, { title: string; heading: string; body: string; todo: string }> = {
+  en: { title: 'Getting started', heading: 'Welcome to Docs', body: 'This is your first page. Type / to insert blocks, [[ to link pages.', todo: 'Create your first real page' },
+  es: { title: 'Primeros pasos', heading: 'Te damos la bienvenida a Docs', body: 'Esta es tu primera página. Escribí / para insertar bloques y [[ para enlazar páginas.', todo: 'Crear tu primera página de verdad' },
+  pt: { title: 'Primeiros passos', heading: 'Boas-vindas ao Docs', body: 'Esta é a sua primeira página. Digite / para inserir blocos e [[ para vincular páginas.', todo: 'Criar a sua primeira página de verdade' },
+};
+
 async function seedDocs(userId: string) {
+  const copy = DOCS_SEED[await requestLocale()];
   await createDocPage(userId, {
-    title: 'Getting started',
+    title: copy.title,
     icon: '0️⃣',
     content: [
-      { id: crypto.randomUUID(), type: 'heading', level: 1, content: 'Welcome to Docs' },
+      { id: crypto.randomUUID(), type: 'heading', level: 1, content: copy.heading },
       {
         id: crypto.randomUUID(),
         type: 'paragraph',
-        content: 'This is your first page. Type / to insert blocks, [[ to link pages.',
+        content: copy.body,
       },
-      { id: crypto.randomUUID(), type: 'todo', content: 'Create your first real page', checked: false },
+      { id: crypto.randomUUID(), type: 'todo', content: copy.todo, checked: false },
     ],
   });
 }
@@ -133,14 +140,21 @@ async function seedTrack(userId: string) {
   }
 }
 
+const CALENDAR_SEED: Record<SeedLocale, { title: string; description: string }> = {
+  en: { title: '30 min meeting', description: 'Quick intro call.' },
+  es: { title: 'Reunión de 30 min', description: 'Llamada corta de presentación.' },
+  pt: { title: 'Reunião de 30 min', description: 'Chamada rápida de apresentação.' },
+};
+
 async function seedCalendar(userId: string) {
+  const copy = CALENDAR_SEED[await requestLocale()];
   await getOrCreateCalendarUser(userId);
   const eventType = await createEventType(userId, {
     slug: '30min',
-    title: '30 min meeting',
+    title: copy.title,
     durationMin: 30,
     location: 'https://meet.google.com/new',
-    description: 'Quick intro call.',
+    description: copy.description,
     active: true,
   });
   // Disponibilidad: lunes a viernes 9:00–17:00.

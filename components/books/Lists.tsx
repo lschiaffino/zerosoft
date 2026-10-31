@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useState, type FormEvent, type ReactNode, Children, cloneElement, isValidElement, type ReactElement } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
@@ -32,9 +32,20 @@ function SearchBar({ base, q, placeholder, extra }: { base: string; q: string; p
   );
 }
 
+/** Pone en cada celda el rótulo de su columna: a 390 la fila se apila en pares rótulo / valor (.table-stack). */
+function withLabels(rows: ReactNode, labels: string[]): ReactNode {
+  return Children.map(rows, (row) => {
+    if (!isValidElement<{ children?: ReactNode }>(row)) return row;
+    const cells = Children.toArray(row.props.children).map((cell, i) =>
+      isValidElement(cell) && cell.type === 'td' && labels[i] ? cloneElement(cell as ReactElement<Record<string, unknown>>, { 'data-label': labels[i] }) : cell,
+    );
+    return cloneElement(row, undefined, cells);
+  });
+}
+
 function Table({ head, children, caption }: { head: Array<{ label: string; num?: boolean; hideSm?: boolean }>; children: ReactNode; caption?: string }) {
   return (
-    <div className="table-wrap bk-table-wrap">
+    <div className="table-wrap bk-table-wrap table-stack">
       <table className="table bk-table">
         {caption && <caption className="sr-only">{caption}</caption>}
         <thead>
@@ -46,7 +57,7 @@ function Table({ head, children, caption }: { head: Array<{ label: string; num?:
             ))}
           </tr>
         </thead>
-        <tbody>{children}</tbody>
+        <tbody>{withLabels(children, head.map((h) => h.label))}</tbody>
       </table>
     </div>
   );
@@ -112,7 +123,7 @@ export function DocumentsList({ kind, items, total, q, status, canWrite, baseCur
                   <span className="bk-rowmeta">{[d.reference ? d.numberLabel : '', d.contactName].filter(Boolean).join(' · ') || t('status.draft')}</span>
                 </Link>
               </th>
-              <td className="bk-hide-sm bk-ellipsis">{d.contactName}</td>
+              <td className="bk-hide-sm bk-ellipsis table-stack-dup">{d.contactName}</td>
               <td className="bk-hide-sm">{date(d.issueDate)}</td>
               <td>
                 <StatusBadge status={d.status} />

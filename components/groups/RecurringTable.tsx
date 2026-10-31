@@ -59,7 +59,7 @@ export default function RecurringTable({ initial }: { initial: RecurringDto[] })
 
   return (
     <>
-      <div className="table-wrap">
+      <div className="table-wrap table-stack">
         <table className="table gr-table">
           <thead>
             <tr>
@@ -76,15 +76,15 @@ export default function RecurringTable({ initial }: { initial: RecurringDto[] })
                   <Link href={`/app/groups/broadcasts/recurring/${r.id}`}>{title(r)}</Link>
                   <span className="ui-help"> · {t('recurring.chats', { n: r.chatIds.length })}</span>
                 </td>
-                <td className="gr-hide-sm ui-help">{ruleText(r.rule)}</td>
-                <td>
+                <td className="gr-hide-sm ui-help" data-label={t('recurring.colRule')}>{ruleText(r.rule)}</td>
+                <td data-label={t('recurring.colNext')}>
                   {r.status === 'active' && r.nextRunAt ? (
                     <time dateTime={r.nextRunAt}>{(mounted ? parseDbUtc(r.nextRunAt).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' }) : '')}</time>
                   ) : (
                     <span className="badge badge-outline">{t(`recurring.status.${r.status}`)}</span>
                   )}
                 </td>
-                <td className="num">
+                <td className="num table-stack-actions">
                   <span className="gr-inline-form gr-row-actions">
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => void toggle(r)} disabled={busy === r.id || r.status === 'ended'}>
                       {r.status === 'active' ? t('recurring.pause') : t('recurring.resume')}

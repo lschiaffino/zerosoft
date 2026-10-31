@@ -225,7 +225,7 @@ export default async function ObjectRecordsPage(props: {
         )
       ) : (
         <>
-          <div className="table-wrap">
+          <div className="table-wrap table-stack">
             <table className="table crm-table" data-testid="object-records">
               <caption className="sr-only">{object.plural}</caption>
               <thead>
@@ -257,7 +257,7 @@ export default async function ObjectRecordsPage(props: {
                       {columns.map((c) => {
                         const cell = cells[`custom:${c.name}`];
                         return (
-                          <td key={c.id} className={`muted hide-sm${c.type === 'number' || c.type === 'currency' ? ' num' : ''}`}>
+                          <td key={c.id} data-label={c.label} className={`muted hide-sm${c.type === 'number' || c.type === 'currency' ? ' num' : ''}`}>
                             {cell ? (
                               cell.href ? (
                                 <a href={cell.href} target="_blank" rel="noreferrer">
@@ -272,8 +272,8 @@ export default async function ObjectRecordsPage(props: {
                           </td>
                         );
                       })}
-                      <td className="muted hide-sm">{cellCtx.users.get(r.owner_id ?? user.id) ?? r.owner_name ?? '—'}</td>
-                      <td className="num muted cell-date">{formatDate(r.created_at, locale)}</td>
+                      <td className="muted" data-label={t('objects.owner')}>{cellCtx.users.get(r.owner_id ?? user.id) ?? r.owner_name ?? '—'}</td>
+                      <td className="num muted cell-date" data-label={t('objects.created')}>{formatDate(r.created_at, locale)}</td>
                     </tr>
                   );
                 })}

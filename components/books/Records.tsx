@@ -179,7 +179,7 @@ export function ContactEditor({
         documents.length === 0 ? (
           <p className="ui-help">{t('contacts.noDocuments')}</p>
         ) : (
-          <div className="table-wrap bk-table-wrap">
+          <div className="table-wrap bk-table-wrap table-stack">
             <table className="table bk-table">
               <tbody>
                 {documents.map((d) => (
@@ -187,11 +187,11 @@ export function ContactEditor({
                     <th scope="row">
                       <Link href={`/app/books/${d.docType === 'bill' ? 'bills' : d.docType === 'credit_note' ? 'credit-notes' : 'invoices'}/${d.id}`}>{d.reference || d.numberLabel || t('docs.untitled')}</Link>
                     </th>
-                    <td className="bk-hide-sm">{date(d.issueDate)}</td>
-                    <td>
+                    <td className="bk-hide-sm" data-label={t('docs.colDate')}>{date(d.issueDate)}</td>
+                    <td data-label={t('docs.colStatus')}>
                       <StatusBadge status={d.status} />
                     </td>
-                    <td className="num">{formatMoney(d.total, d.currency, locale)}</td>
+                    <td className="num" data-label={t('docs.colTotal')}>{formatMoney(d.total, d.currency, locale)}</td>
                   </tr>
                 ))}
               </tbody>

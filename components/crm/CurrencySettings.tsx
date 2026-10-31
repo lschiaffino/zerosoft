@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
@@ -172,7 +173,7 @@ export default function CurrencySettings({
                     />{' '}
                     <span className="data">{base}</span>
                   </td>
-                  <td className="data">{fmtDate(r.updated_at)}</td>
+                  <td className="data"><LocalText>{fmtDate(r.updated_at)}</LocalText></td>
                   <td>
                     {canEdit && (
                       <button

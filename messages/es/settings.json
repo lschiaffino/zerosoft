@@ -85,6 +85,7 @@
     "urlPlaceholder": "https://example.com/webhooks/zerosoft",
     "events": "Eventos",
     "eventsCount": "{count, plural, =0 {Ninguno elegido} one {# elegido} other {# elegidos}}",
+    "eventsToggle": "Ver los eventos de {group}",
     "add": "Agregar webhook",
     "signature": "Firma",
     "signatureHint": "Cómo verificar",

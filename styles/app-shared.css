@@ -556,3 +556,68 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
 .crm-app-log li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
 .crm-app-log-detail { flex-basis: 100%; overflow-wrap: anywhere; }
 .crm-app-notice { margin: 0; }
+
+/* Listas a 390: cada fila es una tarjeta (nombre arriba, pares rótulo / valor, acciones al pie), sin scroll
+   lateral. El rótulo sale de data-label; la cabecera queda solo para lectores de pantalla. */
+@media (max-width: 640px) {
+  .table-wrap.table-stack { overflow-x: visible; background: none; }
+  .table-wrap.table-stack .table,
+  .table-wrap.table-stack .table tbody { display: block; width: 100%; min-width: 0; }
+  .table-wrap.table-stack .table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .table-wrap.table-stack .table tr { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; padding: 12px; border-bottom: 1px solid var(--line); }
+  .table-wrap.table-stack .table tbody tr:last-child { border-bottom: 0; }
+  .table-wrap.table-stack .table tbody tr:hover { background: none; }
+  .table-wrap.table-stack .table td,
+  .table-wrap.table-stack .table tbody th {
+    display: grid;
+    grid-template-columns: 112px minmax(0, 1fr);
+    align-items: baseline;
+    gap: 12px;
+    grid-column: 1 / -1;
+    width: auto;
+    height: auto;
+    min-width: 0;
+    padding: 0;
+    text-align: left;
+    white-space: normal;
+    border: 0;
+    overflow-wrap: anywhere;
+  }
+  .table-wrap.table-stack .table td[data-label]::before {
+    content: attr(data-label);
+    font-family: var(--font-ui);
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: var(--brand-gray-2);
+  }
+  .table-wrap.table-stack .table td:not([data-label]),
+  .table-wrap.table-stack .table tbody th { display: block; font-weight: 600; }
+  .table-wrap.table-stack .table td:empty,
+  .table-wrap.table-stack .table td[hidden] { display: none; }
+  /* Una insignia o un valor corto ocupan lo suyo, no toda la columna. */
+  .table-wrap.table-stack .table td[data-label] > .badge { justify-self: start; }
+  .table-wrap.table-stack .table td[data-label] > .select { width: 100%; }
+  /* Casilla de la fila: a la izquierda del nombre. */
+  .table-wrap.table-stack .table tr:has(> .gr-check-col) { grid-template-columns: auto minmax(0, 1fr); column-gap: 12px; }
+  .table-wrap.table-stack .table td.gr-check-col { grid-column: 1; grid-row: 1; display: flex; align-items: center; }
+  .table-wrap.table-stack .table td.gr-check-col + td { grid-column: 2; grid-row: 1; }
+  .table-wrap.table-stack .table td.table-stack-actions { display: flex; flex-wrap: wrap; gap: 4px; font-weight: 400; }
+  .table-wrap.table-stack .table td.table-stack-actions > span { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-start; }
+  .table-wrap.table-stack .table td.table-stack-actions .btn { --btn-h: 40px; }
+  .table-wrap.table-stack .table td.bk-hide-sm,
+  .table-wrap.table-stack .table td.gr-hide-sm,
+  .table-wrap.table-stack .table td.an-hide-sm,
+  .table-wrap.table-stack .table td.shop-hide-sm,
+  .table-wrap.table-stack .table td.hide-sm { display: grid; }
+  .table-wrap.table-stack .table td.table-stack-actions.gr-hide-sm { display: flex; }
+  .table-wrap.table-stack .table td.bk-hide-sm:empty,
+  .table-wrap.table-stack .table td.gr-hide-sm:empty,
+  .table-wrap.table-stack .table td.gr-hide-sm[hidden],
+  .table-wrap.table-stack .table td.table-stack-dup { display: none; }
+}
+
+/* 390: un monto grande se lee entero; cortado con puntos suspensivos no sirve de nada. */
+@media (max-width: 640px) {
+  .stat-card .stat-num-small { font-size: 1.25rem; line-height: 1.2; white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+  .stat-card { padding: 16px; }
+}

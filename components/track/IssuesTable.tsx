@@ -1,5 +1,6 @@
 "use client";
 
+import LocalText from '@/components/ui/LocalText';
 import { useMemo, useState } from "react";
 import IssueDemandBadges from "./triage/IssueDemandBadges";
 import { Link } from "@/i18n/navigation";
@@ -543,7 +544,7 @@ export default function IssuesTable({
                 )}
                 {show("created") && (
                   <td className="hide-sm track-cell-dim track-col-created">
-                    {formatDate(issue.created_at, locale)}
+                    <LocalText>{formatDate(issue.created_at, locale)}</LocalText>
                   </td>
                 )}
               </tr>

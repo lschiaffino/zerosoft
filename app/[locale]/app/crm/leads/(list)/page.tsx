@@ -137,7 +137,7 @@ export default async function LeadsPage(props: {
         )
       ) : (
         <>
-          <div className="table-wrap">
+          <div className="table-wrap table-stack">
             <table className="table crm-table" data-testid="leads-table">
               <caption className="sr-only">{t('leads.title')}</caption>
               <thead>
@@ -170,18 +170,18 @@ export default async function LeadsPage(props: {
                       </Link>
                       {l.deal_name && <span className="muted cell-sub">{t('leads.columns.deal')}: {l.deal_name}</span>}
                     </td>
-                    <td>
+                    <td data-label={t('leads.columns.stage')}>
                       <span className={`badge lead-kind-${l.stage_kind ?? 'open'}`}>{l.stage_name ?? '—'}</span>
                     </td>
-                    <td className="muted hide-sm">
+                    <td className="muted hide-sm" data-label={t('leads.columns.contact')}>
                       {l.contact_id ? <Link href={`/app/crm/contacts/${l.contact_id}`}>{l.contact_name ?? l.contact_email}</Link> : '—'}
                     </td>
-                    <td className="muted hide-sm">
+                    <td className="muted hide-sm" data-label={t('leads.columns.company')}>
                       {l.company_id ? <Link href={`/app/crm/companies/${l.company_id}`}>{l.company_name}</Link> : '—'}
                     </td>
-                    <td className="muted hide-sm">{ownerName.get(l.owner_id ?? user.id) ?? l.owner_name ?? '—'}</td>
-                    <td className="num muted cell-date hide-sm">{l.last_activity_at ? formatDate(l.last_activity_at, locale) : '—'}</td>
-                    <td className="num muted cell-date">{formatDate(l.created_at, locale)}</td>
+                    <td className="muted hide-sm" data-label={t('leads.columns.owner')}>{ownerName.get(l.owner_id ?? user.id) ?? l.owner_name ?? '—'}</td>
+                    <td className="num muted cell-date hide-sm" data-label={t('leads.columns.lastActivity')}>{l.last_activity_at ? formatDate(l.last_activity_at, locale) : '—'}</td>
+                    <td className="num muted cell-date" data-label={t('leads.columns.created')}>{formatDate(l.created_at, locale)}</td>
                   </tr>
                 ))}
               </tbody>

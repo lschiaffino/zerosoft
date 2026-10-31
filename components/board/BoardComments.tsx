@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useState, type FormEvent } from 'react';
 import type { CommentView } from '@/lib/board';
 import { parseDbUtc } from '@/lib/utils';
@@ -139,7 +140,7 @@ export default function BoardComments({
                 {c.is_official === 1 && c.author_name && <span className="bp-comment-tag">{c.author_name}</span>}
                 {c.pinned === 1 && <span className="bp-comment-pin">{labels.pinned}</span>}
                 <time className="bp-hint" dateTime={c.created_at}>
-                  {parseDbUtc(c.created_at).toLocaleDateString(locale, { dateStyle: 'medium' })}
+                  <LocalText>{parseDbUtc(c.created_at).toLocaleDateString(locale, { dateStyle: 'medium' })}</LocalText>
                 </time>
               </p>
               <div className="bp-comment-body" dangerouslySetInnerHTML={{ __html: c.body }} />

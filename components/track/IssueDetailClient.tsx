@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -1458,7 +1459,7 @@ export default function IssueDetailClient({
                       {a.filename}
                     </a>
                     <span className="track-attachment-meta">
-                      {formatBytes(a.size)} · {a.user_name ?? a.user_email} · {relDate(a.created_at, locale)}
+                      {formatBytes(a.size)} · {a.user_name ?? a.user_email} · <LocalText>{relDate(a.created_at, locale)}</LocalText>
                     </span>
                     {a.user_id === userId && (
                       <button
@@ -1515,7 +1516,7 @@ export default function IssueDetailClient({
           <section className="track-detail-section track-detail-activity">
             <h2 className="track-section-title">
               {labels.activity.title}
-              <span className="track-section-meta">{labels.createdOn.replace('{date}', formatDate(issue.created_at, locale))}</span>
+              <span className="track-section-meta"><LocalText>{labels.createdOn.replace('{date}', formatDate(issue.created_at, locale))}</LocalText></span>
             </h2>
             <IssueActivityTimeline
               issueId={issue.id}

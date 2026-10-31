@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -309,11 +310,11 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
                   </Link>
                   {tab === 'snoozed' && n.snoozed_until ? (
                     <time className="track-inbox-time" dateTime={n.snoozed_until}>
-                      {tr('inboxSnooze.until', { when: formatWhenShort(n.snoozed_until, locale) })}
+                      <LocalText>{tr('inboxSnooze.until', { when: formatWhenShort(n.snoozed_until, locale) })}</LocalText>
                     </time>
                   ) : (
                     <time className="track-inbox-time" dateTime={n.created_at}>
-                      {relDate(n.snoozed_until ?? n.created_at, locale)}
+                      <LocalText>{relDate(n.snoozed_until ?? n.created_at, locale)}</LocalText>
                     </time>
                   )}
                   {tab === 'snoozed' ? (
@@ -335,7 +336,7 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
                             }}
                           >
                             <span className="track-menu-label">{tr(SNOOZE_LABEL[p])}</span>
-                            <span className="track-menu-meta">{formatWhenShort(snoozeAt(p, new Date()).toISOString(), locale)}</span>
+                            <span className="track-menu-meta"><LocalText>{formatWhenShort(snoozeAt(p, new Date()).toISOString(), locale)}</LocalText></span>
                           </button>
                         ))
                       }

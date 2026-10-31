@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import FormSection from '@/components/ui/FormSection';
@@ -177,7 +178,7 @@ export function TeamAutomation({ projectId, isAdmin }: { projectId: string; isAd
                 <span className="track-identifier">{i.identifier}</span>
                 <span className="tp-issue-title">{i.title}</span>
                 <span className="tp-issue-meta">{i.status_name}</span>
-                <span className="tp-issue-meta">{fmtWhen(i.archived_at, locale)}</span>
+                <span className="tp-issue-meta"><LocalText>{fmtWhen(i.archived_at, locale)}</LocalText></span>
                 <button type="button" className="btn btn-sm" onClick={() => void restore([i.id])}>
                   {t('automation.restore')}
                 </button>

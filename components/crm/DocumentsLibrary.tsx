@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -203,7 +204,7 @@ export default function DocumentsLibrary({ initial, direct }: { initial: Documen
                         {d.views}
                       </td>
                       <td className="data" data-label={t('colLastView')}>
-                        {d.last_viewed_at ? fmt(d.last_viewed_at) : <span className="muted">{t('never')}</span>}
+                        {d.last_viewed_at ? <LocalText>{fmt(d.last_viewed_at)}</LocalText> : <span className="muted">{t('never')}</span>}
                       </td>
                       <td className="media-actions">
                         {d.canManage && (

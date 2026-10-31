@@ -73,7 +73,7 @@ export function InitiativesList() {
           }
         />
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap table-stack">
           <table className="table tp-table" data-testid="tp-initiatives">
             <caption className="sr-only">{t('initiatives.title')}</caption>
             <thead>

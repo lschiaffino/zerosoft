@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -174,7 +175,7 @@ export default function DocumentDetail({
                     )}
                     <span className="data muted">{t('viewsCount', { count: l.views })}</span>
                     {l.seconds > 0 && <span className="data muted">{t('timeViewed', { time: fmtDuration(l.seconds) })}</span>}
-                    {l.last_viewed_at && <span className="data muted">{t('lastViewed', { date: fmt(l.last_viewed_at) })}</span>}
+                    {l.last_viewed_at && <span className="data muted"><LocalText>{t('lastViewed', { date: fmt(l.last_viewed_at) })}</LocalText></span>}
                   </div>
                   <div className="media-link-url">
                     <code className="data">{url}</code>

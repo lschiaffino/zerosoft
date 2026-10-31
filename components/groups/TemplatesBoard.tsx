@@ -82,7 +82,7 @@ export default function TemplatesBoard({
           product="groups"
         />
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap table-stack">
           <table className="table gr-table">
             <thead>
               <tr>
@@ -103,9 +103,9 @@ export default function TemplatesBoard({
                       {tpl.name}
                     </button>
                   </td>
-                  <td className="gr-hide-sm gr-mono">{tpl.groupName || <span className="ui-help">{t('templates.sameName')}</span>}</td>
-                  <td className="num">{tpl.members.length}</td>
-                  <td className="gr-hide-sm">
+                  <td className="gr-hide-sm gr-mono" data-label={t('templates.colGroupName')}>{tpl.groupName || <span className="ui-help">{t('templates.sameName')}</span>}</td>
+                  <td className="num" data-label={t('templates.colMembers')}>{tpl.members.length}</td>
+                  <td className="gr-hide-sm" data-label={t('details.labels')} hidden={tpl.labelIds.length === 0}>
                     <span className="gr-label-row">
                       {tpl.labelIds.map((id) => {
                         const l = labelById.get(id);
@@ -113,7 +113,7 @@ export default function TemplatesBoard({
                       })}
                     </span>
                   </td>
-                  <td className="num">
+                  <td className="num table-stack-actions">
                     <span className="gr-inline-form">
                       <button type="button" className="btn btn-secondary btn-sm" onClick={() => setUsing(tpl)} disabled={groupNumbers.length === 0}>
                         {t('templates.use')}

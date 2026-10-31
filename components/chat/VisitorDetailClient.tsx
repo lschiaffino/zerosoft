@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import VisitorProfile from './VisitorProfile';
 import ClientTime from './ClientTime';
 import { useState } from 'react';
@@ -111,7 +112,7 @@ export default function VisitorDetailClient({ initialVisitor }: VisitorDetailCli
             )}
             <div>
               <dt>{t('visitorPanel.firstSeen')}</dt>
-              <dd className="data" suppressHydrationWarning>{formatDateTime(visitor.created_at, locale)}</dd>
+              <dd className="data" suppressHydrationWarning><LocalText>{formatDateTime(visitor.created_at, locale)}</LocalText></dd>
             </div>
             <div>
               <dt>{t('conversation.messages')}</dt>

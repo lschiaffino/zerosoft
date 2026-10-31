@@ -40,7 +40,12 @@
 /* ---------- Calendario ---------- */
 
 .sc-cal-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.sc-cal-title { font-weight: 700; font-size: 1.0625rem; min-width: 0; }
+.sc-cal-title { font-weight: 700; font-size: 1.0625rem; min-width: 0; text-wrap: balance; }
+@media (max-width: 720px) {
+  /* El mes va en su propia línea; apretado con las pestañas se partía en tres. */
+  .sc-cal-bar .sc-cal-title { flex: 1 1 40%; }
+  .sc-cal-bar .ui-tabs { flex: 1 1 100%; }
+}
 .sc-cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
 .sc-cal-head { padding: 6px 8px; font-size: 0.75rem; color: var(--ink-3); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--bg-soft); }
 .sc-day { min-height: 116px; padding: 6px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; min-width: 0; background: var(--bg); }
@@ -48,6 +53,7 @@
 .sc-day[data-today='true'] .sc-day-num { color: var(--c-social-ink); font-weight: 700; }
 .sc-day[data-drop='true'] { outline: 2px solid var(--c-social); outline-offset: -2px; }
 .sc-week .sc-day { min-height: 360px; }
+.sc-day-wd { display: none; }
 .sc-day-head { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
 .sc-day-num { font-size: 0.8125rem; color: var(--ink-2); font-family: var(--font-data); }
 .sc-day-add { opacity: 0; color: var(--ink-3); text-decoration: none; font-size: 1rem; line-height: 1; padding: 0 4px; border-radius: var(--radius-1); }
@@ -162,6 +168,10 @@
   .sc-cal-head { display: none; }
   .sc-day, .sc-week .sc-day { min-height: 0; }
   .sc-day[data-out='true'] { display: none; }
+  .sc-day-wd { display: inline; text-transform: capitalize; }
+  /* Mes: una agenda. Con publicaciones se ven esos días y hoy; 30 filas vacías no dicen nada. */
+  .sc-cal:not(.sc-week):has(.sc-chip) .sc-day:not(:has(.sc-chip)):not([data-today='true']) { display: none; }
+  .sc-day-add { min-width: 40px; min-height: 32px; display: inline-flex; align-items: center; justify-content: center; }
   .sc-day-add { opacity: 1; }
   .sc-item { flex-wrap: wrap; }
   .sc-item-side { align-items: flex-start; text-align: left; flex-direction: row; flex-wrap: wrap; }

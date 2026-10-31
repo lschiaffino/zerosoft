@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import Icon from '@/components/app/icons';
@@ -86,11 +87,11 @@ export default function VerifyDialog({
         <p className="ui-help">{t('help')}</p>
         {page.verified_at && (
           <p className={`docs-verify-state${expired ? ' is-expired' : ''}`} role="status">
-            {expired
+            <LocalText>{expired
               ? t('expiredOn', { date: formatDateTime(page.verified_until!, locale) })
               : page.verified_until
                 ? t('validUntil', { date: formatDateTime(page.verified_until, locale) })
-                : t('validForever')}
+                : t('validForever')}</LocalText>
           </p>
         )}
         <div className="ui-field">

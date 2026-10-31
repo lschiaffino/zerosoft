@@ -38,6 +38,18 @@ export const CHANGELOG: ChangelogEntry[] = [
     },
     items: [
       {
+        product: 'books',
+        en: 'At 390 px, invoices and contacts are cards with their total and actions in view, and invoice lines no longer cut off the Tax field next to the sidebar.',
+        es: 'A 390 px, facturas y contactos son tarjetas con el total y las acciones a la vista, y las líneas de factura ya no cortan el campo Impuesto al lado de la barra lateral.',
+        pt: 'A 390 px, faturas e contatos são cartões com o total e as ações à vista, e as linhas da fatura não cortam mais o campo Imposto ao lado da barra lateral.',
+      },
+      {
+        product: 'groups',
+        en: 'At 390 px, the group, task, template and recurring broadcast lists are cards with every action in view.',
+        es: 'A 390 px, las listas de grupos, tareas, plantillas y envíos recurrentes son tarjetas con todas las acciones a la vista.',
+        pt: 'A 390 px, as listas de grupos, tarefas, modelos e envios recorrentes são cartões com todas as ações à vista.',
+      },
+      {
         product: 'chat',
         en: 'Long emails in Chat people no longer widen the page at 390 px, and the alerts panel takes the keyboard focus when it opens.',
         es: 'Los emails largos en las personas de Chat ya no ensanchan la página a 390 px, y el panel de avisos toma el foco del teclado al abrirse.',

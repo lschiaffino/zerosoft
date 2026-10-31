@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -95,7 +96,7 @@ export default function IssuesCalendar({ issues, locale, labels }: IssuesCalenda
     <div className="track-calendar">
       <div className="track-calendar-header">
         <div className="track-calendar-title">
-          {current.toLocaleDateString(locale, { month: 'long', year: 'numeric' })}
+          <LocalText>{current.toLocaleDateString(locale, { month: 'long', year: 'numeric' })}</LocalText>
         </div>
         <div className="btn-group track-calendar-nav">
           <button type="button" className="btn btn-sm" onClick={() => setCurrent((d) => addMonths(d, -1))}>
@@ -178,7 +179,7 @@ export default function IssuesCalendar({ issues, locale, labels }: IssuesCalenda
 
       <section className="track-calendar-agenda" aria-live="polite">
         <h3 className="track-calendar-agenda-title">
-          {selected.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })}
+          <LocalText>{selected.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })}</LocalText>
         </h3>
         {selectedIssues.length === 0 ? (
           <p className="ui-help">{t('calendar.nothingDue')}</p>

@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useId, useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
@@ -763,7 +764,7 @@ export default function RoutingFormEditor({ initial, eventTypes, publicBase, sub
                 <tbody>
                   {submissions.map((s) => (
                     <tr key={s.id}>
-                      <td className="data">{fmtWhen(s.created_at)}</td>
+                      <td className="data"><LocalText>{fmtWhen(s.created_at)}</LocalText></td>
                       <td>
                         {Object.entries(s.answersParsed).map(([k, v]) => (
                           <span key={k} className="cal-submission-answer">

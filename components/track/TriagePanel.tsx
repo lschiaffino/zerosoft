@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
@@ -399,9 +400,9 @@ function TriageDetail({
         <p className="track-triage-detail-id">
           <span className="track-identifier">{issue.identifier}</span>
           <span className="track-triage-meta">
-            {source === 'app' ? t('triage.createdInApp') : t('triage.from', { source: t(`triage.sources.${source}`) })} · {relDate(issue.created_at, locale)}
+            {source === 'app' ? t('triage.createdInApp') : t('triage.from', { source: t(`triage.sources.${source}`) })} · <LocalText>{relDate(issue.created_at, locale)}</LocalText>
             {customers > 0 && <> · {tt('queue.customers', { count: customers })}</>}
-            {issue.snoozed_until && <> · {tt('queue.snoozedUntil', { date: formatWhenShort(issue.snoozed_until, locale) })}</>}
+            {issue.snoozed_until && <> · <LocalText>{tt('queue.snoozedUntil', { date: formatWhenShort(issue.snoozed_until, locale) })}</LocalText></>}
           </span>
         </p>
         <h2 className="track-triage-detail-title">{issue.title || t('issues.untitled')}</h2>
@@ -552,11 +553,11 @@ export default function TriagePanel(props: TriagePanelProps) {
     <div className="track-triage" data-testid="track-triage">
       <div className="track-triage-head">
         <span className="track-triage-owner" data-testid="track-triage-owner">
-          {owner
+          <LocalText>{owner
             ? owner.until
               ? tt('queue.ownerUntil', { name: owner.name, date: formatWhenShort(owner.until, props.locale) })
               : tt('queue.owner', { name: owner.name })
-            : tt('queue.noOwner')}
+            : tt('queue.noOwner')}</LocalText>
         </span>
         <span className="track-triage-head-actions">
           {(snoozedCount > 0 || showSnoozed) && (
@@ -604,7 +605,7 @@ export default function TriagePanel(props: TriagePanelProps) {
                   >
                     <span className="track-triage-row-top">
                       <span className="track-identifier">{issue.identifier}</span>
-                      <span className="track-triage-row-when">{relDate(issue.created_at, props.locale)}</span>
+                      <span className="track-triage-row-when"><LocalText>{relDate(issue.created_at, props.locale)}</LocalText></span>
                     </span>
                     <span className="track-triage-row-title">{issue.title || t('issues.untitled')}</span>
                     <span className="track-triage-row-meta">

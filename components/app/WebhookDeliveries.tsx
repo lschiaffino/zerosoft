@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { WebhookDeliveryDto } from '@/lib/webhooks';
@@ -104,7 +105,7 @@ export default function WebhookDeliveries({
                     <span className={`badge ${tone}`}>{t(`delivery.${d.status}`)}</span>
                     <span className="data st-muted">{d.responseCode ?? d.error ?? ''}</span>
                     <span className="st-muted">{t('log.attempts', { count: d.attempts })}</span>
-                    <span className="data st-muted">{fmt(d.createdAt)}</span>
+                    <span className="data st-muted"><LocalText>{fmt(d.createdAt)}</LocalText></span>
                     <button
                       type="button"
                       className="btn btn-secondary btn-sm"
@@ -119,7 +120,7 @@ export default function WebhookDeliveries({
                   {expanded && (
                     <div className="st-delivery-detail">
                       {d.status === 'pending' && d.nextAttemptAt && (
-                        <p className="ui-help">{t('log.nextAttempt', { at: fmt(d.nextAttemptAt) })}</p>
+                        <p className="ui-help"><LocalText>{t('log.nextAttempt', { at: fmt(d.nextAttemptAt) })}</LocalText></p>
                       )}
                       {d.durationMs != null && <p className="ui-help">{t('log.duration', { ms: d.durationMs })}</p>}
                       <p className="label">{t('log.request')}</p>

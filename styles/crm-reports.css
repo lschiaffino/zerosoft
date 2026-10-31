@@ -234,7 +234,7 @@ a.report-type-tab { text-decoration: none; display: inline-block; }
 }
 .fc-dialog {
   background: var(--bg);
-  border: 1px solid var(--line);
+  border: 1px solid var(--ink);
   border-radius: var(--radius-1);
   width: min(440px, 100%);
   padding: 20px;

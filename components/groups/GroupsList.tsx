@@ -283,7 +283,7 @@ export default function GroupsList({
           product="groups"
         />
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap table-stack">
           <table className="table gr-table">
             <thead>
               <tr>
@@ -325,8 +325,8 @@ export default function GroupsList({
                       {c.flagged && <span className="badge badge-bad">{t('inbox.flagged')}</span>}
                     </Link>
                   </td>
-                  <td className="num">{c.memberCount}</td>
-                  <td>
+                  <td className="num" data-label={t('list.colMembers')}>{c.memberCount}</td>
+                  <td data-label={c.labels.length ? t('list.colLabels') : undefined} hidden={c.labels.length === 0}>
                     <span className="gr-label-row">
                       {c.labels.map((l) => (
                         <LabelTag key={l.id} name={l.name} color={l.color} />
@@ -334,11 +334,11 @@ export default function GroupsList({
                     </span>
                   </td>
                   {shownProps.map((p) => (
-                    <td key={p.id} className="gr-hide-sm">
+                    <td key={p.id} className="gr-hide-sm" data-label={p.label}>
                       <PropertyValueText def={p} value={c.properties[p.key]} />
                     </td>
                   ))}
-                  <td className="gr-hide-sm ui-help">{rel(c.lastMessageAt ?? c.createdAt)}</td>
+                  <td className="gr-hide-sm ui-help" data-label={t('list.colActivity')}>{rel(c.lastMessageAt ?? c.createdAt)}</td>
                 </tr>
               ))}
             </tbody>

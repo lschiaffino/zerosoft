@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import FormSection from '@/components/ui/FormSection';
@@ -569,11 +570,11 @@ function GithubSettingsBody({ isAdmin, locale, example }: { isAdmin: boolean; lo
             </div>
           )}
           <p className="ui-help">
-            {config.lastDeliveryAt
+            <LocalText>{config.lastDeliveryAt
               ? t('github.lastDelivery', {
                   date: parseDbUtc(config.lastDeliveryAt).toLocaleString(locale),
                 })
-              : t('github.noDelivery')}
+              : t('github.noDelivery')}</LocalText>
           </p>
         </div>
       </FormSection>

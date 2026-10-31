@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -57,7 +58,7 @@ export default function DocsTrashList({ pages, canDelete = true, labels }: DocsT
             <DocsPageIcon icon={page.icon} pageId={page.id} size={16} />
             {page.title || t('untitled')}
           </span>
-          <span className="docs-trash-date num">{formatDate(page.updated_at, locale)}</span>
+          <span className="docs-trash-date num"><LocalText>{formatDate(page.updated_at, locale)}</LocalText></span>
           <span className="docs-trash-actions">
             <button
               type="button"

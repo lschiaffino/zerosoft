@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -151,7 +152,7 @@ export default function NotificationBell({ labels, onCountChange }: Notification
                   {n.body && <span className="side-bell-item-body">{n.body}</span>}
                   <span className="side-bell-item-meta">
                     {!n.read_at && <span className="side-bell-dot" />}
-                    <time dateTime={n.created_at}>{relDate(n.created_at, locale)}</time>
+                    <time dateTime={n.created_at}><LocalText>{relDate(n.created_at, locale)}</LocalText></time>
                   </span>
                 </Link>
               ))}

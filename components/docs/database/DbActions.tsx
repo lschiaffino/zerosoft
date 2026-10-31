@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { DbAction, DbAutomation, DbProperty, DbTrigger, DbValue, DocsDatabase, DocsMentionableUser } from '@/lib/docs-types';
@@ -455,7 +456,7 @@ export function DbAutomationsPanel({
                 const who = auto ? name(auto) : r.automation_id.startsWith('button:') ? t('automations.button') : t('automations.deleted');
                 return (
                   <li key={r.id} className={r.status === 'error' ? 'is-error' : ''}>
-                    <span className="docs-db-muted mono">{new Date(r.created_at).toLocaleString(locale, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+                    <span className="docs-db-muted mono"><LocalText>{new Date(r.created_at).toLocaleString(locale, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</LocalText></span>
                     <span>
                       {who} · {t(`actions.types.${r.action_type}`)}
                     </span>

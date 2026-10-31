@@ -277,6 +277,8 @@ section.ui-section.shop-section {
   flex: 1;
   min-width: 0;
 }
+.shop-items-named li > :first-child { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.shop-items-named li > :nth-child(2) { flex: 0 0 auto; }
 .shop-totals {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -304,6 +306,9 @@ section.ui-section.shop-section {
   flex-wrap: wrap;
   margin-top: 12px;
 }
+/* El campo de texto toma el resto de la línea; el botón queda al lado y a la altura del campo. */
+.shop-inline-form > .input { flex: 1 1 200px; width: auto; min-width: 0; }
+.shop-inline-form > .ui-field { flex: 0 0 auto; }
 .shop-note-form .input {
   flex: 1 1 200px;
   min-width: 0;

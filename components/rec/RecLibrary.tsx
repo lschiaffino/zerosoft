@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -391,7 +392,7 @@ export default function RecLibrary({
                 <div className="rec-card-meta">
                   <span className="muted">
                     {v.authorName ? `${v.authorName} · ` : ''}
-                    {date(v.createdAt)}
+                    <LocalText>{date(v.createdAt)}</LocalText>
                   </span>
                   <span className="muted data">
                     {t('viewsShort', { n: v.uniqueViewers })}

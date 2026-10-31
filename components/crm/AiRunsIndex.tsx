@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -215,7 +216,7 @@ export default function AiRunsIndex({
                   <td className="num">
                     {r.processed}/{r.total}
                   </td>
-                  <td className="num muted cell-date">{formatAiWhen(r.createdAt, locale)}</td>
+                  <td className="num muted cell-date"><LocalText>{formatAiWhen(r.createdAt, locale)}</LocalText></td>
                   <td>
                     {confirmingId === r.id ? (
                       <div className="cell-actions confirm">

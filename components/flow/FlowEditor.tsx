@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import {
@@ -1007,7 +1008,7 @@ function Editor({
           <p className="ui-help">{t('poll.hint')}</p>
           {p?.checkedAt && (
             <p className="ui-help" suppressHydrationWarning>
-              {t('poll.checked', { time: parseDbUtc(p.checkedAt).toLocaleString(), n: p.seen })}
+              <LocalText>{t('poll.checked', { time: parseDbUtc(p.checkedAt).toLocaleString(), n: p.seen })}</LocalText>
             </p>
           )}
           {p?.error && (
@@ -1041,7 +1042,7 @@ function Editor({
     if (selected.data.type === 'trigger.schedule' && flow.enabled && flow.nextRunAt) {
       return (
         <p className="ui-help" suppressHydrationWarning>
-          {t('editor.nextRun')}: {parseDbUtc(flow.nextRunAt).toLocaleString()}
+          {t('editor.nextRun')}: <LocalText>{parseDbUtc(flow.nextRunAt).toLocaleString(locale)}</LocalText>
         </p>
       );
     }

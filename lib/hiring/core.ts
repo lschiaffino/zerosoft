@@ -9,6 +9,7 @@
  */
 import { randomBytes } from 'crypto';
 import { getDb } from '../db';
+import { seedLocale } from '../seed-locale';
 import { listOwnerSpacePeople } from '../workspace';
 import { getWorkspace } from '../workspace';
 import {
@@ -72,9 +73,11 @@ export async function getSettings(ws: string): Promise<SettingsRow | null> {
 }
 
 /** Ajustes del workspace (los crea la primera vez con el nombre del workspace como handle). */
-export async function ensureSettings(ws: string, locale = 'en'): Promise<SettingsRow> {
+export async function ensureSettings(ws: string, requested?: string): Promise<SettingsRow> {
   const existing = await getSettings(ws);
   if (existing) return existing;
+  // En el idioma de quien abre Hiring por primera vez: de ahí salen las etapas y plantillas por defecto.
+  const locale = requested ?? (await seedLocale());
   const db = getDb();
   const team = await getWorkspace(ws).catch(() => null);
   const user = (await db.prepare('SELECT name, handle FROM users WHERE id = ?').get(ws)) as { name: string | null; handle: string | null } | undefined;

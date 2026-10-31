@@ -19,6 +19,7 @@ import DictationHost from '@/components/voice/DictationHost';
 import MeetingReminders from '@/components/voice/MeetingReminders';
 import RecorderProvider from '@/components/voice/RecorderProvider';
 import TimezoneCookie from '@/components/app/TimezoneCookie';
+import ActiveTabIntoView from '@/components/app/ActiveTabIntoView';
 import { SupportIdentify } from '@/components/SupportWidget';
 import { supportWidgetId } from '@/lib/support';
 import { signVisitorIdentity } from '@/lib/chat-identity';
@@ -644,6 +645,9 @@ export default async function AppLayout(
           </>
         )}
         <TimezoneCookie serverTz={serverTz} />
+        <Suspense fallback={null}>
+          <ActiveTabIntoView />
+        </Suspense>
         {supportId && (
           <SupportIdentify
             email={supportEmail}

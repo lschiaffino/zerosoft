@@ -50,6 +50,7 @@ interface WebhooksPanelProps {
 export default function WebhooksPanel({ initial, defaultDomain = '', linkDomains = [] }: WebhooksPanelProps) {
   const t = useTranslations('settings.webhooks');
   const [rows, setRows] = useState(initial);
+  const [openGroups, setOpenGroups] = useState<string[]>([]);
   const [url, setUrl] = useState('');
   const [selected, setSelected] = useState<WebhookEvent[]>([]);
   const [filterLinks, setFilterLinks] = useState('');
@@ -183,7 +184,17 @@ export default function WebhooksPanel({ initial, defaultDomain = '', linkDomains
                   label={t(`groups.${g.key}`)}
                   onToggle={() => setSelected((prev) => toggleGroup(g.events, prev))}
                 />
-                <ul className="st-event-list">
+                <button
+                  type="button"
+                  className="st-event-toggle"
+                  aria-expanded={openGroups.includes(g.key)}
+                  aria-label={t('eventsToggle', { group: t(`groups.${g.key}`) })}
+                  onClick={() => setOpenGroups((prev) => (prev.includes(g.key) ? prev.filter((k) => k !== g.key) : [...prev, g.key]))}
+                >
+                  {g.events.filter((e) => selected.includes(e)).length}/{g.events.length}
+                  <span aria-hidden="true">{openGroups.includes(g.key) ? ' ▴' : ' ▾'}</span>
+                </button>
+                <ul className="st-event-list" data-open={openGroups.includes(g.key) || undefined}>
                   {g.events.map((ev) => (
                     <li key={ev}>
                       <label className="ui-check" title={ev}>

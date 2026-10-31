@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useChatStream } from './useChatStream';
 import ClientTime from './ClientTime';
 import { useEffect, useMemo, useRef, useState } from 'react';

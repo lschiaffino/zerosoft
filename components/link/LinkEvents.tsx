@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -184,7 +185,7 @@ export default function LinkEvents({ linkId, links = [] }: { linkId?: string; li
               {events.map((e) => (
                 <tr key={e.key} className={fresh.has(e.key) ? 'lk-event-new' : undefined} data-type={e.type}>
                   <td className="data lk-ev-time" title={parseDbUtc(e.ts).toLocaleString(locale)}>
-                    {time(e.ts)}
+                    <LocalText>{time(e.ts)}</LocalText>
                   </td>
                   <td>
                     <span className={`badge lk-ev-${e.type}`}>{typeLabel(e)}</span>

@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { DocsBlock, DocsVersionSummary } from '@/lib/docs-types';
@@ -143,7 +144,7 @@ export default function VersionsPanel({
           onConfirm={() => void restore()}
         />
         <p className="docs-versions-meta">
-          {formatDateTime(preview.created_at, locale)} · {who(preview)}
+          <LocalText>{formatDateTime(preview.created_at, locale)}</LocalText> · {who(preview)}
         </p>
         {preview.content.some((b) => b.type === 'synced') && <p className="ui-help docs-versions-synced">{t('syncedCurrent')}</p>}
         <div className="docs-versions-views" role="tablist" aria-label={t('viewLabel')}>
@@ -206,7 +207,7 @@ export default function VersionsPanel({
             <li key={v.id}>
               <button type="button" className="docs-versions-row" onClick={() => open(v.id)}>
                 <span className="docs-versions-when" title={formatDateTime(v.created_at, locale)}>
-                  {formatTimeAgo(v.created_at, locale)}
+                  <LocalText>{formatTimeAgo(v.created_at, locale)}</LocalText>
                 </span>
                 <span className="docs-versions-who">
                   {who(v)}

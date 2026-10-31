@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -164,7 +165,7 @@ export default function AssignmentPanel({ rule, unavailable, history, people, se
             <ul className="assign-history-list">
               {history.slice(0, 15).map((h) => (
                 <li key={h.id}>
-                  <span className="data">{fmt(h.created_at)}</span>{' '}
+                  <span className="data"><LocalText>{fmt(h.created_at)}</LocalText></span>{' '}
                   {h.contact_id ? (
                     <Link href={`/app/crm/contacts/${h.contact_id}`}>{h.contact_name || t('forms.contact')}</Link>
                   ) : null}{' '}

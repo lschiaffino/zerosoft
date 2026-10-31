@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -321,7 +322,7 @@ export default function AppsPanel({
                   <span className={`badge ${l.status === 'ok' ? 'badge-ok' : 'badge-bad'}`}>{l.status === 'ok' ? t('ok') : t('failed')}</span>
                   <span className="data">{l.event}</span>
                   {l.detail && <span className="muted crm-app-log-detail">{l.detail}</span>}
-                  <span className="data muted">{fmt(l.at)}</span>
+                  <span className="data muted"><LocalText>{fmt(l.at)}</LocalText></span>
                 </li>
               ))}
             </ul>
@@ -360,8 +361,8 @@ export default function AppsPanel({
               </div>
               {app.connected && app.connectedAt && (
                 <p className="muted crm-app-meta">
-                  {t('connectedOn', { date: fmt(app.connectedAt) })}
-                  {app.lastUsedAt ? ` · ${t('lastUsed', { date: fmt(app.lastUsedAt) })}` : ''}
+                  <LocalText>{t('connectedOn', { date: fmt(app.connectedAt) })}</LocalText>
+                  <LocalText>{app.lastUsedAt ? ` · ${t('lastUsed', { date: fmt(app.lastUsedAt) })}` : ''}</LocalText>
                 </p>
               )}
               {app.connected && app.lastError && (

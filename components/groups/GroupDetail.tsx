@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -42,7 +43,7 @@ export default function GroupDetail({ data }: { data: ThreadProps }) {
                   {m.body.slice(0, 160) || mediaText({ media: m.media })}
                 </span>
                 <time className="ui-help" dateTime={m.createdAt}>
-                  {parseDbUtc(m.createdAt).toLocaleString(locale)}
+                  <LocalText>{parseDbUtc(m.createdAt).toLocaleString(locale)}</LocalText>
                 </time>
               </li>
             ))}

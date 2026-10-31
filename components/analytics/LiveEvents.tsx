@@ -104,7 +104,7 @@ export default function LiveEvents({ projectId, initial }: { projectId: string; 
           <p>{t('empty')}</p>
         </div>
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap table-stack">
           <table className="table table-compact an-table an-live-table" data-testid="an-live-table">
             <thead>
               <tr>
@@ -125,9 +125,9 @@ export default function LiveEvents({ projectId, initial }: { projectId: string; 
                         {e.event}
                       </button>
                     </td>
-                    <td className="an-mono an-ellipsis">{e.distinctId}</td>
-                    <td className="an-hide-sm an-ellipsis">{e.pathname ?? e.url ?? ''}</td>
-                    <td className="an-muted an-nowrap">{(mounted ? fmtTime(e.ts, locale) : '')}</td>
+                    <td className="an-mono an-ellipsis" data-label={t('person')}>{e.distinctId}</td>
+                    <td className="an-hide-sm an-ellipsis" data-label={t('url')}>{e.pathname ?? e.url ?? ''}</td>
+                    <td className="an-muted" data-label={t('time')}>{(mounted ? fmtTime(e.ts, locale) : '')}</td>
                   </tr>
                   {open === e.id && (
                     <tr className="an-live-detail">
