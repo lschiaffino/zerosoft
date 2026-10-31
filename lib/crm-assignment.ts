@@ -7,6 +7,7 @@
  * marcadas como no disponibles (fuera de oficina) se saltean sin perder su
  * turno en el orden. Cada asignación queda en crm_assignment_history.
  */
+import { localized } from './notification-copy';
 import { getDb, type Db } from './db';
 import { isWorkspacePerson } from './crm-refs';
 import { createNotification } from './notifications';
@@ -152,8 +153,8 @@ export async function assignNewLead(
     await createNotification({
       userId: personId,
       type: 'crm_lead',
-      title: `New lead assigned: ${name || 'contact'}`,
-      body: `Source: ${source}`,
+      title: name ? localized('leadAssigned', { name }) : localized('leadAssignedContact'),
+      body: localized('leadSource', { source }),
       href: `/app/crm/contacts/${contactId}`,
       sourceType: 'crm_contact',
       sourceId: contactId,

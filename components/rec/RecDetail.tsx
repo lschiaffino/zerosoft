@@ -1,5 +1,6 @@
 'use client';
 
+import { useMounted } from '@/components/ui/useMounted';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -51,6 +52,7 @@ export default function RecDetail({
   const t = useTranslations('rec.detail');
   const tc = useTranslations('rec.common');
   const locale = useLocale();
+  const mounted = useMounted();
   const router = useRouter();
   const search = useSearchParams();
   const [video, setVideo] = useState(initial);
@@ -284,7 +286,7 @@ export default function RecDetail({
   }
 
   const visible = trimmedDuration(video.durationSec, video.trimStart, video.trimEnd);
-  const date = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(parseDbUtc(video.createdAt));
+  const date = mounted ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(parseDbUtc(video.createdAt)) : '';
   const relNow = () => video.trimStart + (player.current?.current() ?? 0);
   const transcriptMsg = (() => {
     switch (video.transcriptStatus) {

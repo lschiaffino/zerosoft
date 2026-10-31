@@ -1,5 +1,6 @@
 'use client';
 
+import { useMounted } from '@/components/ui/useMounted';
 import { useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
@@ -17,6 +18,7 @@ import { api, fmtDateTime, useErrorText, useToast } from './shared';
 export default function LibraryView({ items, kind }: { items: LibraryItem[]; kind: LibraryKind | 'all' }) {
   const t = useTranslations('social.library');
   const locale = useLocale();
+  const mounted = useMounted();
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
@@ -174,7 +176,7 @@ export default function LibraryView({ items, kind }: { items: LibraryItem[]; kin
               </div>
               <div className="sc-item-side">
                 <span className="sc-muted sc-small">{t(`kind_${i.kind}`)}</span>
-                <span className="sc-muted sc-small">{fmtDateTime(i.updatedAt, locale)}</span>
+                <span className="sc-muted sc-small">{(mounted ? fmtDateTime(i.updatedAt, locale) : '')}</span>
               </div>
             </Link>
           ))}

@@ -74,6 +74,7 @@ export default function InboxAlerts() {
   const [note, setNote] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
   const wrap = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setSoundState(soundEnabled());
@@ -82,6 +83,8 @@ export default function InboxAlerts() {
 
   useEffect(() => {
     if (!open) return;
+    // El foco entra al panel: Tab y Esc trabajan ahí.
+    panel.current?.querySelector<HTMLElement>('input, button')?.focus();
     fetch('/api/groups/push')
       .then((r) => (r.ok ? (r.json() as Promise<{ publicKey: string | null }>) : null))
       .then((d) => setPublicKey(d?.publicKey ?? null))
@@ -179,7 +182,7 @@ export default function InboxAlerts() {
         <ChatIcon name="bell" size={16} />
       </button>
       {open && (
-        <div id="chat-alerts-panel" className="chat-alerts-panel" role="dialog" aria-label={t('alerts.title')}>
+        <div ref={panel} id="chat-alerts-panel" className="chat-alerts-panel" role="dialog" aria-label={t('alerts.title')}>
           <label className="ui-switch">
             <input type="checkbox" role="switch" checked={sound} onChange={(e) => toggleSound(e.target.checked)} />
             {t('alerts.sound')}

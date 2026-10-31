@@ -1,5 +1,6 @@
 'use client';
 
+import { useMounted } from '@/components/ui/useMounted';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
@@ -34,15 +35,17 @@ export function useErrorText() {
 /** 'YYYY-MM-DD' o ISO → fecha corta en el idioma de la UI (las fechas de licencias son días, en UTC). */
 export function useDay() {
   const locale = useLocale();
+  const mounted = useMounted();
   return useCallback(
     (value: string | null | undefined, opts: Intl.DateTimeFormatOptions = { dateStyle: 'medium' }) => {
       if (!value) return '';
       const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
+      if (!dateOnly && !mounted) return '';
       const d = new Date(dateOnly ? `${value}T00:00:00Z` : value);
       if (Number.isNaN(d.getTime())) return value;
       return dateOnly ? d.toLocaleDateString(locale, { ...opts, timeZone: 'UTC' }) : d.toLocaleString(locale, opts);
     },
-    [locale],
+    [locale, mounted],
   );
 }
 

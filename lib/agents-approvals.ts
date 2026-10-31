@@ -10,6 +10,7 @@
  * la rechaza. La decisión queda como una llamada más en agent_tool_calls:
  * así el agente la ve en su historial la próxima vez que el visitante escribe.
  */
+import { localized } from './notification-copy';
 import { getDb, type AgentConversationRow } from './db';
 import { isApprovableTool, type AgentPendingActionDto, type ApprovableAgentTool } from './agents-config';
 import { performAgentAction, type AgentActionContext } from './agent-tools';
@@ -68,7 +69,7 @@ export async function queueAgentAction(
   await createNotification({
     userId: actx.workspaceId,
     type: 'chat_message',
-    title: `${actx.agent.name}: an action needs your approval`,
+    title: localized('agentNeedsApproval', { agent: actx.agent.name }),
     body: approvalSummary(tool, input).slice(0, 140),
     href: `/app/agents/${actx.agent.id}?tab=conversations&c=${actx.conversationId}`,
     sourceType: 'agent_conversation',

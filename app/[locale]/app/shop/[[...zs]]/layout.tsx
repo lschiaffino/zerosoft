@@ -9,8 +9,10 @@ import { getOrder } from '@/lib/shop-orders';
 /** Arriba de loading.tsx: una sección o un registro desconocido responde 404 y no 200 (ver lib/app-sections.ts). */
 export default async function Layout(props: { children: ReactNode; params: Promise<{ locale: string; zs?: string[] }> }) {
   const { locale, zs = [] } = await props.params;
-  const [section, id] = zs;
-  if (!isAppSection('shop', section) || !sectionTakesId('shop', section, id)) notFound();
+  const [section, id, sub] = zs;
+  if (zs.length > 3 || !isAppSection('shop', section) || !sectionTakesId('shop', section, id)) notFound();
+  if (sub && !(section === 'orders' && sub === 'packing-slip')) notFound();
+  if (id === 'new' && !['products', 'collections', 'discounts'].includes(section ?? '')) notFound();
   if (section && id && id !== 'new') {
     const user = await requireUser(locale);
     const { ws } = actorOf(user);

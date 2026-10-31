@@ -3514,6 +3514,8 @@
     "paramFormsFrom": "Only responses submitted on or after this date (YYYY-MM-DD).",
     "paramFormsTo": "Only responses submitted on or before this date (YYYY-MM-DD).",
     "scope_forms_read": "Read Forms forms and their responses, only the forms the key's owner can see.",
+    "scope_notes_read": "Read notes the key's owner can see, and their tasks.",
+    "scope_notes_write": "Create and edit the notes of the key's owner.",
     "formsApiTitle": "Forms",
     "formsApiDesc": "Forms and their responses. The key acts as the person who created it and only sees the forms that person can open. Scope forms:read."
   },

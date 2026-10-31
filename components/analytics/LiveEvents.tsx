@@ -1,5 +1,6 @@
 'use client';
 
+import { useMounted } from '@/components/ui/useMounted';
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { LiveEvent } from '@/lib/analytics/types';
@@ -15,6 +16,7 @@ const POLL_MS = 3000;
 export default function LiveEvents({ projectId, initial }: { projectId: string; initial: LiveEvent[] }) {
   const t = useTranslations('analytics.events');
   const locale = useLocale();
+  const mounted = useMounted();
   const meta = useProjectMeta(projectId);
   const [events, setEvents] = useState<LiveEvent[]>(initial);
   const [paused, setPaused] = useState(false);
@@ -125,7 +127,7 @@ export default function LiveEvents({ projectId, initial }: { projectId: string; 
                     </td>
                     <td className="an-mono an-ellipsis">{e.distinctId}</td>
                     <td className="an-hide-sm an-ellipsis">{e.pathname ?? e.url ?? ''}</td>
-                    <td className="an-muted an-nowrap">{fmtTime(e.ts, locale)}</td>
+                    <td className="an-muted an-nowrap">{(mounted ? fmtTime(e.ts, locale) : '')}</td>
                   </tr>
                   {open === e.id && (
                     <tr className="an-live-detail">

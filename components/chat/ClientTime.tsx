@@ -1,15 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useLocale } from 'next-intl';
 import { formatDateTime, formatTimeAgo } from '@/lib/datetime';
+import { useMounted } from '@/components/ui/useMounted';
 
-/** true después de montar: lo que depende de la hora o la zona del navegador se dibuja recién ahí. */
-export function useMounted(): boolean {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  return mounted;
-}
+export { useMounted };
 
 /**
  * Hora relativa ("hace 5 min") o absoluta, dibujada en el cliente: el server

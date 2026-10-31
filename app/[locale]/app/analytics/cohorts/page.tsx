@@ -4,7 +4,8 @@ import NoProject from '@/components/analytics/NoProject';
 import CollectionPage from '@/components/analytics/CollectionPage';
 import CohortEditor from '@/components/analytics/CohortEditor';
 import { analyticsPage } from '@/lib/analytics/page';
-import { getDb } from '@/lib/db';
+import { recordProjectId } from '@/lib/analytics/guard';
+import { requireUser } from '@/lib/session';
 import { getCohort, listCohorts } from '@/lib/analytics/records';
 
 export const dynamic = 'force-dynamic';
@@ -19,8 +20,8 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
 export default async function AnalyticsCohortsPage(props: { params: Promise<{ locale: string }>; searchParams: Promise<{ open?: string }> }) {
   const { locale } = await props.params;
   const { open } = await props.searchParams;
-  const owner = open ? ((await getDb().prepare('SELECT project_id FROM analytics_cohorts WHERE id = ?').get(open)) as { project_id: string } | undefined) : undefined;
-  const [ctx, t] = await Promise.all([analyticsPage(locale, owner?.project_id), getTranslations({ locale, namespace: 'analytics.cohorts' })]);
+  const ownerProject = open ? await recordProjectId('cohorts', open, (await requireUser(locale)).id) : null;
+  const [ctx, t] = await Promise.all([analyticsPage(locale, ownerProject), getTranslations({ locale, namespace: 'analytics.cohorts' })]);
   if (!ctx.project) return <NoProject title={t('title')} canManage={ctx.canManage} />;
   const [cohorts, opened] = await Promise.all([listCohorts(ctx.project.id), open ? getCohort(ctx.project.id, open) : null]);
   const summary = (c: (typeof cohorts)[number]) =>
