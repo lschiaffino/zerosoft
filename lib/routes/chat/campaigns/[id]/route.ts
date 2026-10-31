@@ -1,6 +1,6 @@
 import { after, NextResponse } from 'next/server';
 import { chatError, chatSession, collabError, readBody, type ChatSession } from '@/lib/chat-http';
-import { countAudience, deleteCampaign, getCampaign, processChatCampaigns, startCampaign, updateCampaign } from '@/lib/chat-campaigns';
+import { campaignCap, describeAudience, deleteCampaign, getCampaign, processChatCampaigns, startCampaign, updateCampaign } from '@/lib/chat-campaigns';
 import { recordChatAudit } from '@/lib/chat-audit';
 
 export const dynamic = 'force-dynamic';
@@ -19,7 +19,8 @@ export async function GET(_req: Request, props: Ctx) {
   if (s instanceof NextResponse) return s;
   const campaign = await visible(s, id);
   if (!campaign) return chatError(404, 'not_found');
-  return NextResponse.json({ ...campaign, audience_size: await countAudience(campaign.widget_id, campaign.audience) });
+  const info = await describeAudience(campaign.widget_id, campaign.audience);
+  return NextResponse.json({ ...campaign, audience_size: info.size, excluded_imported: info.excludedImported, excluded_unsubscribed: info.excludedUnsubscribed, cap: await campaignCap(s.ws) });
 }
 
 export async function PATCH(req: Request, props: Ctx) {
@@ -49,7 +50,7 @@ export async function POST(req: Request, props: Ctx) {
     const campaign = await startCampaign(s.ws, id);
     await recordChatAudit(s.ws, s.me, 'campaign.sent', { id, recipients: campaign.total });
     const origin = new URL(req.url).origin;
-    after(() => processChatCampaigns({ limit: 50, origin, campaignId: id }).then(() => undefined));
+    after(() => processChatCampaigns({ limit: 40, origin, campaignId: id }).then(() => undefined));
     return NextResponse.json(campaign);
   } catch (err) {
     return collabError(err);

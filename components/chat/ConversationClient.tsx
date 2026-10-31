@@ -361,7 +361,7 @@ export default function ConversationClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]);
 
-  const streamLive = useChatStream(`/api/chat/stream?conversation=${conversationId}`, () => {
+  const streamLive = useChatStream(conversationId, () => {
     fetchMessages();
     fetchTyping();
     fetchConversation();

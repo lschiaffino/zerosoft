@@ -5,7 +5,7 @@
 import { NextResponse } from 'next/server';
 import { listAccessibleChatWidgets } from './chat-access';
 import { getCurrentUser, isWorkspaceAdmin, realUserId, type SessionUser } from './session';
-import { listChatAgents, type ChatAgent } from './chat-data';
+import { listChatAgents, listChatWidgets, type ChatAgent } from './chat-data';
 import { ChatCollabError } from './chat-collab';
 import { limitWrites } from './write-limit';
 import type { ChatWidgetRow } from './db';
@@ -52,4 +52,10 @@ export async function readBody(req: Request): Promise<Record<string, unknown> | 
 export function collabError(err: unknown): NextResponse {
   if (err instanceof ChatCollabError) return chatError(err.status, err.code);
   throw err;
+}
+
+/** Widgets del workspace que esta persona no ve (bandejas restringidas). */
+export async function hiddenWidgetIds(s: ChatSession): Promise<Set<string>> {
+  const visible = new Set(s.widgets.map((w) => w.id));
+  return new Set((await listChatWidgets(s.user.id, s.user.team?.id ?? null)).map((w) => w.id).filter((id) => !visible.has(id)));
 }

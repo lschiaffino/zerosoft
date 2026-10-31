@@ -1483,6 +1483,7 @@ export interface ChatVisitorRow {
   /** JSON { clave: valor } de atributos propios. */
   attributes?: string | null;
   unsubscribed_at?: string | null;
+  campaign_opt_in_at?: string | null;
   widget_id: string;
   external_id: string;
   email: string | null;

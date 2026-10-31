@@ -655,12 +655,52 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     x.addEventListener('click', fn);
     return x;
   }
+  // La barra empuja la página en lugar de taparla: baja el contenido y lo fijo arriba.
+  var obPushed = [];
+  var obBars = {};
+  function obPushPage(px) {
+    obPushed.forEach(function (p) { p.el.style.top = p.top; });
+    obPushed = [];
+    var body = document.body;
+    if (obBaseMargin === null) obBaseMargin = body.style.marginTop || '';
+    var base = parseFloat(getComputedStyle(body).marginTop) || 0;
+    if (obAppliedPush) base -= obAppliedPush;
+    obAppliedPush = px;
+    body.style.marginTop = px ? (base + px) + 'px' : obBaseMargin;
+    if (!px) return;
+    var list = document.querySelectorAll('body > *, header, nav, [class*="header"], [class*="navbar"]');
+    for (var i = 0; i < list.length && i < 200; i++) {
+      var el = list[i];
+      if (el === root || root.contains(el)) continue;
+      var st = getComputedStyle(el);
+      if ((st.position === 'fixed' || st.position === 'sticky') && (parseFloat(st.top) || 0) < px) {
+        obPushed.push({ el: el, top: el.style.top });
+        el.style.top = ((parseFloat(st.top) || 0) + px) + 'px';
+      }
+    }
+  }
+  var obBaseMargin = null;
+  var obAppliedPush = 0;
+  function obLayoutBars() {
+    var h = 0;
+    for (var id in obBars) { obBars[id].style.top = h + 'px'; h += obBars[id].offsetHeight; }
+    obPushPage(h);
+  }
   function obBanner(m) {
-    var bar = dom('div', { role: 'status', 'data-zs-banner': m.id, style: 'position:fixed;top:0;left:0;right:0;z-index:2147483646;display:flex;align-items:center;gap:12px;justify-content:center;padding:10px 14px;background:' + COLOR + ';color:#fff;font:14px/1.4 system-ui,-apple-system,sans-serif;' }, [
+    if (obBars[m.id]) return;
+    var bar = dom('div', { role: 'status', 'data-zs-banner': m.id, style: 'position:fixed;top:0;left:0;right:0;z-index:2147483646;display:flex;align-items:center;gap:12px;justify-content:center;padding:10px 14px;box-sizing:border-box;background:' + COLOR + ';color:#fff;font:14px/1.4 system-ui,-apple-system,sans-serif;' }, [
       dom('span', { style: 'flex:1;text-align:center;word-break:break-word;' }, [m.body]),
     ]);
-    bar.appendChild(obCloseBtn(function () { if (bar.parentNode) bar.parentNode.removeChild(bar); }, '#fff'));
+    bar.appendChild(obCloseBtn(function () {
+      if (bar.parentNode) bar.parentNode.removeChild(bar);
+      delete obBars[m.id];
+      // Sigue en cada página hasta que se cierra o vence.
+      obMarkSeen(m.id);
+      obLayoutBars();
+    }, '#fff'));
+    obBars[m.id] = bar;
     root.appendChild(bar);
+    obLayoutBars();
   }
   function obPost(m) {
     var lines = String(m.body || '').split('\\n');
@@ -671,6 +711,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
       document.removeEventListener('keydown', onKey);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
       // Lo que interrumpe va de a uno: lo siguiente aparece al cerrar este.
+      obBlocking = false;
       obEvaluate();
     }
     function onKey(e) { if (e.key === 'Escape') close(); }
@@ -685,70 +726,144 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     root.appendChild(overlay);
     x.focus();
   }
-  function obChecklist(m) {
-    var key = 'zs_chat_cl_' + m.id;
+  // La lista queda hasta que se descarta. Cerrarla la deja en una solapa con el avance para volver a abrirla.
+  var obTab = null;
+  var obSkip = {};
+  function obChecklistState(m) {
+    try { return JSON.parse(localStorage.getItem('zs_chat_cl_' + m.id) || '{}') || {}; } catch (e) { return {}; }
+  }
+  function obChecklistSave(m, state) {
+    try { localStorage.setItem('zs_chat_cl_' + m.id, JSON.stringify(state)); } catch (e) {}
+  }
+  function obChecklistItems(m) {
     var lines = obLines(m);
     var title = lines.length > 1 ? lines.shift() : '';
-    var done = {};
-    try { done = JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch (e) {}
+    return { title: title, lines: lines };
+  }
+  function obChecklistCount(state, lines) {
+    var n = 0;
+    lines.forEach(function (_, i) { if (state.done && state.done[i]) n++; });
+    return n;
+  }
+  function obChecklistTab(m) {
+    var parsed = obChecklistItems(m);
+    var state = obChecklistState(m);
+    if (obTab && obTab.parentNode) obTab.parentNode.removeChild(obTab);
+    obTab = dom('button', { type: 'button', 'data-zs-checklist-tab': m.id, style: 'position:fixed;bottom:28px;' + (POSITION === 'bottom-left' ? 'left:88px;' : 'right:88px;') + 'z-index:2147483645;max-width:calc(100vw - 110px);background:#fff;color:#111;border:1px solid rgba(0,0,0,0.15);border-radius:8px;padding:8px 10px;cursor:pointer;font:13px/1.2 system-ui,-apple-system,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,0.12);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' }, [
+      (parsed.title ? parsed.title + ': ' : '') + T('checklistProgress', { done: obChecklistCount(state, parsed.lines), total: parsed.lines.length }),
+    ]);
+    obTab.addEventListener('click', function () {
+      state = obChecklistState(m);
+      state.min = false;
+      obChecklistSave(m, state);
+      if (obTab && obTab.parentNode) obTab.parentNode.removeChild(obTab);
+      obTab = null;
+      if (obShown) obClose();
+      obChecklist(m);
+    });
+    root.appendChild(obTab);
+  }
+  function obChecklist(m) {
+    var parsed = obChecklistItems(m);
+    var lines = parsed.lines;
+    var state = obChecklistState(m);
+    state.done = state.done || {};
+    obShown = m;
     obCard.innerHTML = '';
     obCard.setAttribute('data-zs-checklist', m.id);
-    var head = dom('div', { style: 'display:flex;align-items:center;gap:8px;margin-bottom:8px;' }, [dom('strong', { style: 'flex:1;font-size:14px;' }, [title || m.from || ''])]);
-    head.appendChild(obCloseBtn(obClose));
+    var head = dom('div', { style: 'display:flex;align-items:center;gap:8px;margin-bottom:8px;' }, [dom('strong', { style: 'flex:1;font-size:14px;' }, [parsed.title || m.from || ''])]);
+    head.appendChild(obCloseBtn(function () {
+      state.min = true;
+      obChecklistSave(m, state);
+      obCard.removeAttribute('data-zs-checklist');
+      obClose();
+      obChecklistTab(m);
+      obEvaluate();
+    }));
     obCard.appendChild(head);
     var progress = dom('div', { style: 'font-size:12px;color:#666;margin-bottom:8px;' });
     function paintProgress() {
-      var n = 0;
-      lines.forEach(function (_, i) { if (done[i]) n++; });
-      progress.textContent = T('checklistProgress', { done: n, total: lines.length });
+      progress.textContent = T('checklistProgress', { done: obChecklistCount(state, lines), total: lines.length });
     }
     obCard.appendChild(progress);
     lines.forEach(function (line, i) {
       var box = dom('input', { type: 'checkbox', style: 'margin:2px 8px 0 0;flex:none;' });
-      box.checked = !!done[i];
+      box.checked = !!state.done[i];
       box.addEventListener('change', function () {
-        done[i] = box.checked;
-        try { localStorage.setItem(key, JSON.stringify(done)); } catch (e) {}
+        state.done[i] = box.checked;
+        obChecklistSave(m, state);
         paintProgress();
       });
       obCard.appendChild(dom('label', { style: 'display:flex;align-items:flex-start;font-size:13px;margin-bottom:6px;cursor:pointer;word-break:break-word;' }, [box, dom('span', {}, [line])]));
     });
+    var dismiss = dom('button', { type: 'button', style: 'background:none;border:none;color:#666;cursor:pointer;font-size:12px;padding:4px 0 0;text-decoration:underline;' }, [T('dismiss')]);
+    dismiss.addEventListener('click', function () {
+      obMarkSeen(m.id);
+      obCard.removeAttribute('data-zs-checklist');
+      obClose();
+      obEvaluate();
+    });
+    obCard.appendChild(dismiss);
     paintProgress();
     obCard.style.display = 'block';
   }
-  function obTour(m) {
-    // Una línea por paso: "selector CSS | texto". Los pasos cuyo elemento no está en la página se saltean.
-    var steps = obLines(m).map(function (l) {
+  // El tour sigue donde quedó hasta terminarlo o cerrarlo. Si el paso que toca no está en esta página, espera a la página donde está.
+  function obTourSteps(m) {
+    return obLines(m).map(function (l) {
       var cut = l.indexOf('|');
       return cut > 0 ? { sel: l.slice(0, cut).trim(), text: l.slice(cut + 1).trim() } : { sel: '', text: l };
     });
+  }
+  function obFind(sel) {
+    if (!sel) return null;
+    try { return document.querySelector(sel); } catch (e) { return null; }
+  }
+  function obTourKey(m) { return 'zs_chat_tour_' + m.id; }
+  function obTourPos(m) {
+    try { return Number(localStorage.getItem(obTourKey(m))) || 0; } catch (e) { return 0; }
+  }
+  /** Próximo paso que se puede mostrar en esta página, desde from; -1 si no hay. */
+  function obTourNext(steps, from) {
+    for (var i = from; i < steps.length; i++) {
+      if (!steps[i].sel || obFind(steps[i].sel)) return i;
+    }
+    return -1;
+  }
+  function obTour(m) {
+    var steps = obTourSteps(m);
     var tip = dom('div', { role: 'dialog', 'data-zs-tour': m.id, style: 'position:fixed;z-index:2147483647;background:#fff;color:#111;max-width:300px;box-sizing:border-box;padding:12px 14px;border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,0.25);font:14px/1.4 system-ui,-apple-system,sans-serif;' });
-    var i = -1;
+    var i = obTourPos(m) - 1;
     var lit = null;
     var prevOutline = '';
     function unlight() { if (lit) lit.style.outline = prevOutline; lit = null; }
-    function end() {
+    function end(done) {
       unlight();
       document.removeEventListener('keydown', onKey);
       if (tip.parentNode) tip.parentNode.removeChild(tip);
+      if (done) obMarkSeen(m.id);
+      obBlocking = false;
       obEvaluate();
     }
-    function onKey(e) { if (e.key === 'Escape') end(); }
-    function find(sel) {
-      if (!sel) return null;
-      try { return document.querySelector(sel); } catch (e) { return null; }
-    }
+    function onKey(e) { if (e.key === 'Escape') end(true); }
     function next() {
       unlight();
-      i++;
-      while (i < steps.length && steps[i].sel && !find(steps[i].sel)) i++;
-      if (i >= steps.length) { end(); return; }
-      var el = find(steps[i].sel);
+      var at = obTourNext(steps, i + 1);
+      if (at < 0) {
+        // Se acabó, o lo que falta está en otra página: ahí sigue.
+        var finished = i + 1 >= steps.length || i === steps.length - 1;
+        try { localStorage.setItem(obTourKey(m), String(i + 1)); } catch (e) {}
+        obSkip[m.id] = true;
+        end(finished);
+        return;
+      }
+      i = at;
+      try { localStorage.setItem(obTourKey(m), String(i)); } catch (e) {}
+      var el = obFind(steps[i].sel);
       tip.innerHTML = '';
       var last = i === steps.length - 1;
       var go = dom('button', { type: 'button', style: 'background:' + COLOR + ';color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;' }, [T(last ? 'tourDone' : 'tourNext')]);
       go.addEventListener('click', next);
-      var row = dom('div', { style: 'display:flex;justify-content:flex-end;gap:6px;align-items:center;margin-top:8px;' }, [obCloseBtn(end), go]);
+      var row = dom('div', { style: 'display:flex;justify-content:flex-end;gap:6px;align-items:center;margin-top:8px;' }, [obCloseBtn(function () { end(true); }), go]);
       tip.appendChild(dom('p', { style: 'margin:0;word-break:break-word;' }, [steps[i].text]));
       tip.appendChild(row);
       if (el) {
@@ -774,9 +889,8 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     next();
   }
   function obRender(m) {
-    if (m.format === 'banner') { obBanner(m); obShown = null; obEvaluate(); return; }
-    if (m.format === 'post') { obPost(m); obShown = null; return; }
-    if (m.format === 'tour') { obTour(m); obShown = null; return; }
+    if (m.format === 'post') { obPost(m); return; }
+    if (m.format === 'tour') { obTour(m); return; }
     if (m.format === 'checklist') { obChecklist(m); return; }
     obCard.innerHTML = '';
     var x = dom('button', { type: 'button', 'aria-label': T('close'), style: 'float:right;background:none;border:none;color:#888;cursor:pointer;font-size:16px;line-height:1;padding:0 0 0 8px;' }, ['×']);
@@ -827,22 +941,41 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   var obMessages = [];
   var obTimer = null;
   var obUrl = '';
+  var obBlocking = false;
   function obEvaluate() {
     obUrl = String(location.href);
     if (obTimer) { clearTimeout(obTimer); obTimer = null; }
-    if (obShown || open) return;
     var seenIds = obSeenList();
+    // Las barras no interrumpen: todas las que tocan, sin esperar a nada.
+    for (var b = 0; b < obMessages.length; b++) {
+      var bm = obMessages[b];
+      if (bm.format !== 'banner' || seenIds.indexOf(bm.id) >= 0 || !obUrlMatches(bm) || !obAudience(bm)) continue;
+      if (!obBars[bm.id]) {
+        obBanner(bm);
+        obEvent(bm, 'seen').catch(function () {});
+      }
+    }
+    if (obShown || open || obBlocking) return;
     for (var i = 0; i < obMessages.length; i++) {
       var m = obMessages[i];
-      if (seenIds.indexOf(m.id) >= 0) continue;
+      if (m.format === 'banner' || seenIds.indexOf(m.id) >= 0 || obSkip[m.id]) continue;
       // Un mensaje para empezar a chatear no interrumpe una conversación en curso.
       if (m.kind === 'chat' && (!m.format || m.format === 'message') && conversationId) continue;
       if (!obUrlMatches(m) || !obAudience(m)) continue;
+      if (m.format === 'checklist' && obChecklistState(m).min) {
+        if (!obTab) obChecklistTab(m);
+        continue;
+      }
+      // Un tour sin pasos para esta página no se gasta: espera a la página donde están.
+      if (m.format === 'tour' && obTourNext(obTourSteps(m), obTourPos(m)) < 0) continue;
       (function (msg) {
         obTimer = setTimeout(function () {
-          if (open || obShown || String(location.href) !== obUrl) return;
-          obShown = msg;
-          obMarkSeen(msg.id);
+          if (open || obShown || obBlocking || String(location.href) !== obUrl) return;
+          var persistent = msg.format === 'checklist' || msg.format === 'tour';
+          if (msg.format === 'post' || msg.format === 'tour') obBlocking = true;
+          else obShown = msg;
+          // Lo que queda hasta terminarlo o descartarlo no se marca al mostrarlo.
+          if (!persistent) obMarkSeen(msg.id);
           obEvent(msg, 'seen').catch(function () {});
           obRender(msg);
         }, Math.max(0, Number(msg.delaySeconds) || 0) * 1000);
@@ -857,7 +990,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
       if (obMessages.length) {
         visitorReady.then(obEvaluate);
         // Sitios de una sola página: la URL cambia sin recargar.
-        setInterval(function () { if (String(location.href) !== obUrl) obEvaluate(); }, 1500);
+        setInterval(function () { if (String(location.href) !== obUrl) { obSkip = {}; obEvaluate(); } }, 1500);
       }
     })
     .catch(function () {});
@@ -1474,7 +1607,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     pollTimer = setInterval(poll, streamLive ? 20000 : 5000);
   }
   function openStream() {
-    if (stream || !conversationId || typeof EventSource === 'undefined') return;
+    if (stream || !conversationId || typeof EventSource === 'undefined' || document.visibilityState === 'hidden') return;
     stream = new EventSource(ORIGIN + '/api/chat/stream?widgetId=' + encodeURIComponent(WIDGET_ID) + '&visitorId=' + encodeURIComponent(visitorId));
     stream.addEventListener('ready', function () { streamLive = true; if (open) startPolling(); });
     stream.addEventListener('events', function () { poll(); pollTyping(); });
@@ -1490,6 +1623,12 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     stream = null;
     streamLive = false;
   }
+  // Con la pestaña oculta no se gasta una conexión; al volver se relee.
+  document.addEventListener('visibilitychange', function () {
+    if (!open) return;
+    if (document.visibilityState === 'visible') { openStream(); poll(); pollTyping(); startPolling(); }
+    else closeStream();
+  });
 
   function closeChat() {
     open = false;

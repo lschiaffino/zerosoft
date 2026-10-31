@@ -1,17 +1,28 @@
-import { describe, expect, it } from 'vitest';
-import { canAccessWidget, listAccessibleChatWidgets, setWidgetAccess } from '@/lib/chat-access';
+import { describe, expect, it, vi } from 'vitest';
+import { canAccessWidget, getApiConversation, listAccessibleChatWidgets, setWidgetAccess } from '@/lib/chat-access';
 import { createChatConversation, createChatWidget, getChatWidget, getOrCreateChatVisitor, pickRoundRobinAgent, applyAssignmentRules, createAssignmentRule, type ChatAgent } from '@/lib/chat-data';
 import { aggregateReport, weekStart } from '@/lib/chat-custom-reports';
-import { cleanAudience, fillCampaignText, unsubscribeToken, verifyUnsubscribeToken, createCampaign, startCampaign, processChatCampaigns, getCampaign, unsubscribeVisitor } from '@/lib/chat-campaigns';
+import { campaignCap, isRetryableSend, cleanAudience, fillCampaignText, unsubscribeToken, verifyUnsubscribeToken, createCampaign, startCampaign, processChatCampaigns, getCampaign, unsubscribeVisitor } from '@/lib/chat-campaigns';
 import { conversationCxScore, topTopics } from '@/lib/chat-insights';
-import { importConversations, parseImport, stripHtml } from '@/lib/chat-import';
+import { cleanImportEmail, importConversations, parseImport, stripHtml } from '@/lib/chat-import';
 import { cleanVisitorAttributes, normalizeDomain } from '@/lib/chat-companies';
-import { conversationFingerprint, inboxFingerprint } from '@/lib/chat-realtime';
+import { filterBatch, pruneChatEvents } from '@/lib/chat-realtime';
 import { createChatMessage } from '@/lib/chat-data';
 import { getDb } from '@/lib/db';
 import { makeUser } from './helpers';
 
+const sendMock = vi.hoisted(() => ({ fail: null as null | { ok: false; status?: number; error?: string } }));
+vi.mock('@/lib/email', async (orig) => ({
+  ...(await orig<typeof import('@/lib/email')>()),
+  sendEmail: async () => sendMock.fail ?? { ok: true },
+}));
+
 const agent = (id: string): ChatAgent => ({ id, email: `${id}@x.io`, name: id, image: null, away: false });
+
+async function seedConversation(widgetId: string) {
+  const v = await getOrCreateChatVisitor(widgetId, `s-${crypto.randomUUID()}`, {});
+  return createChatConversation(widgetId, v.id);
+}
 
 async function setup() {
   const owner = await makeUser('owner');
@@ -35,6 +46,8 @@ describe('permisos por bandeja', () => {
     expect((await listAccessibleChatWidgets(as(allowed.id, 'member'))).map((x) => x.id)).toContain(w.id);
     // Otro workspace no entra ni siendo admin.
     expect(await canAccessWidget(w, { id: other.id, role: 'admin' })).toBe(false);
+    // Key de un miembro: mismo criterio que la sesión.
+    expect(await getApiConversation({ user: owner, personId: other.id, role: 'member' }, (await seedConversation(w.id)).id)).toBeNull();
   });
 
   it('las reglas no asignan a quien no ve la bandeja', async () => {
@@ -73,6 +86,21 @@ describe('ruteo por habilidad y carga', () => {
     const c2 = await createChatConversation(widget.id, v.id);
     expect(await pickRoundRobinAgent(widget.id, c2.id, [agent(a.id)])).toBeNull();
     expect(await pickRoundRobinAgent(widget.id, c2.id, [agent(a.id), agent(b.id)])).toBe(b.id);
+  });
+});
+
+describe('carga por persona', () => {
+  it('cuenta las abiertas de todos los widgets del workspace', async () => {
+    const { owner, widget } = await setup();
+    const other = await createChatWidget(owner.id, null, { name: 'W2' } as never);
+    const a = await makeUser('a');
+    await getDb().prepare('INSERT INTO chat_agent_routing (workspace_id, user_id, capacity) VALUES (?, ?, 1)').run(owner.id, a.id);
+    const v = await getOrCreateChatVisitor(other.id, 'k5', {});
+    const open = await createChatConversation(other.id, v.id);
+    await getDb().prepare('UPDATE chat_conversations SET assigned_to = ? WHERE id = ?').run(a.id, open.id);
+    const v2 = await getOrCreateChatVisitor(widget.id, 'k6', {});
+    const c = await createChatConversation(widget.id, v2.id);
+    expect(await pickRoundRobinAgent(widget.id, c.id, [agent(a.id)])).toBeNull();
   });
 });
 
@@ -131,6 +159,41 @@ describe('campañas', () => {
   });
 });
 
+describe('envío con reintentos', () => {
+  it('429 y 5xx se reintentan; 4xx no', () => {
+    expect(isRetryableSend({ status: 429 })).toBe(true);
+    expect(isRetryableSend({ status: 503 })).toBe(true);
+    expect(isRetryableSend({})).toBe(true);
+    expect(isRetryableSend({ status: 422 })).toBe(false);
+  });
+  it('un error transitorio deja al destinatario pendiente con espera y sin duplicar', async () => {
+    const { owner, widget } = await setup();
+    await getDb().prepare("UPDATE users SET created_at = '2020-01-01 00:00:00' WHERE id = ?").run(owner.id);
+    await getOrCreateChatVisitor(widget.id, 'r1', { email: 'r1@x.io' });
+    const c = await createCampaign(owner.id, owner.id, { name: 'R', subject: 'S', body: 'B', widget_id: widget.id });
+    await startCampaign(owner.id, c.id);
+    sendMock.fail = { ok: false, status: 503, error: 'x' };
+    expect((await processChatCampaigns({ campaignId: c.id, gapMs: 0 })).retried).toBe(1);
+    // Todavía en espera: la próxima corrida no lo toca.
+    sendMock.fail = null;
+    expect((await processChatCampaigns({ campaignId: c.id, gapMs: 0 })).sent).toBe(0);
+    expect((await getCampaign(owner.id, c.id))?.status).toBe('sending');
+    await getDb().prepare('UPDATE chat_campaign_recipients SET next_attempt_at = NULL WHERE campaign_id = ?').run(c.id);
+    expect((await processChatCampaigns({ campaignId: c.id, gapMs: 0 })).sent).toBe(1);
+    expect((await getCampaign(owner.id, c.id))?.status).toBe('sent');
+  });
+  it('el tope por día corta sin mandar nada y cuentas nuevas tienen menos', async () => {
+    const { owner, widget } = await setup();
+    await getOrCreateChatVisitor(widget.id, 't1', { email: 't1@x.io' });
+    const cap = await campaignCap(owner.id);
+    expect(cap.limit).toBe(50);
+    await getDb().prepare("INSERT INTO chat_campaigns (id, workspace_id, widget_id, name, status, total, sent_at) VALUES ('full', ?, ?, 'F', 'sent', 50, ?)").run(owner.id, widget.id, new Date().toISOString());
+    const c = await createCampaign(owner.id, owner.id, { name: 'X', subject: 'S', body: 'B', widget_id: widget.id });
+    await expect(startCampaign(owner.id, c.id)).rejects.toThrow('daily_cap');
+    expect((await getCampaign(owner.id, c.id))?.status).toBe('draft');
+  });
+});
+
 describe('importar', () => {
   const intercom = {
     id: '123',
@@ -156,6 +219,16 @@ describe('importar', () => {
       { type: 'file', from: 'user', content: { url: 'x' }, timestamp: 1700000002000 },
     ],
   };
+  it('no explota con basura: timestamp enorme, id objeto, session_id largo, email inválido', () => {
+    const parsed = parseImport([
+      { id: 'a1', created_at: 1e20, source: { body: 'x', author: { type: 'user', email: 'not an email <script>' } } },
+      { id: { o: 1 }, source: { body: 'x', author: { type: 'user' } } },
+      { session_id: 'y'.repeat(500), messages: [{ type: 'text', from: 'user', content: 'x' }] },
+    ]);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0].email).toBeNull();
+    expect(cleanImportEmail('ana@x.io')).toBe('ana@x.io');
+  });
   it('entiende Intercom y Crisp y deja afuera las notas', () => {
     const [a, b] = parseImport({ conversations: [intercom, crisp, { foo: 1 }] });
     expect(a.messages.map((m) => [m.sender, m.body])).toEqual([['visitor', 'Hola & chau'], ['user', 'Respuesta']]);
@@ -167,8 +240,8 @@ describe('importar', () => {
   it('importar dos veces no duplica', async () => {
     const { widget } = await setup();
     const list = parseImport([intercom, crisp]);
-    expect(await importConversations(widget.id, list)).toEqual({ imported: 2, skipped: 0, messages: 4 });
-    expect(await importConversations(widget.id, list)).toEqual({ imported: 0, skipped: 2, messages: 0 });
+    expect(await importConversations(widget.id, list)).toEqual({ imported: 2, skipped: 0, failed: 0, messages: 4 });
+    expect(await importConversations(widget.id, list)).toEqual({ imported: 0, skipped: 2, failed: 0, messages: 0 });
   });
 });
 
@@ -188,15 +261,20 @@ describe('insights, empresas y tiempo real', () => {
     expect(cleanVisitorAttributes({ plan: 'pro', n: 3, x: {}, '': 'a' })).toEqual({ plan: 'pro', n: '3' });
     expect(() => cleanVisitorAttributes([])).toThrow();
   });
-  it('la huella cambia con un mensaje nuevo', async () => {
+  it('los triggers anotan cada cambio y el filtro deja una vez por conversación', async () => {
     const { widget } = await setup();
     const v = await getOrCreateChatVisitor(widget.id, 'k9', {});
     const c = await createChatConversation(widget.id, v.id);
-    const before = await conversationFingerprint(c.id);
-    expect(await conversationFingerprint(c.id)).toBe(before);
+    const count = async () => Number(((await getDb().prepare('SELECT COUNT(*) AS n FROM chat_events WHERE conversation_id = ?').get(c.id)) as { n: number }).n);
+    const before = await count();
     await createChatMessage(c.id, 'visitor', { body: 'hola' });
-    expect(await conversationFingerprint(c.id)).not.toBe(before);
-    expect(await inboxFingerprint([widget.id])).toContain('1|');
-    expect(await inboxFingerprint([])).toBe('');
+    expect(await count()).toBeGreaterThan(before);
+    const rows = [
+      { id: 1, conversation_id: 'a', widget_id: 'w' },
+      { id: 2, conversation_id: 'a', widget_id: 'w' },
+      { id: 3, conversation_id: 'b', widget_id: 'x' },
+    ];
+    expect(filterBatch(rows, (e) => e.widget_id === 'w')).toEqual([{ id: 2, conversationId: 'a' }]);
+    expect(await pruneChatEvents(new Date(Date.now() + 7_200_000))).toBeGreaterThan(0);
   });
 });

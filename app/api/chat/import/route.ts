@@ -5,7 +5,8 @@ import { recordChatAudit } from '@/lib/chat-audit';
 
 export const dynamic = 'force-dynamic';
 
-const MAX_BYTES = 20 * 1024 * 1024;
+/** Vercel corta los requests en 4,5 MB (con el multipart, 4 MB de archivo). */
+const MAX_BYTES = 4 * 1024 * 1024;
 
 /** multipart: widgetId + file (JSON de la API de Intercom o Crisp). Admins. */
 export async function POST(req: Request) {

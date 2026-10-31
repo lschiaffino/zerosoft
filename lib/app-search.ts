@@ -473,7 +473,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       like,
     ),
     all(`SELECT id, name AS label, domain AS meta FROM chat_companies WHERE workspace_id = ? AND (name LIKE ? ESCAPE '\\' OR domain LIKE ? ESCAPE '\\') ORDER BY name LIMIT ?`, user.id, like, like),
-    all(`SELECT id, name AS label FROM chat_saved_reports WHERE workspace_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT ?`, user.id, like),
+    all(`SELECT id, name AS label FROM chat_saved_reports WHERE workspace_id = ? AND (widget_id IS NULL OR widget_id IN (${chatWidgets})) AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT ?`, user.id, teamId ?? user.id, like),
     all(`SELECT id, name AS label FROM chat_campaigns WHERE widget_id IN (${chatWidgets}) AND name LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?`, teamId ?? user.id, like),
   ]);
 

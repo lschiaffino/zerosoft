@@ -1,17 +1,30 @@
 import { NextResponse } from 'next/server';
-import { chatError, chatSession, collabError, readBody } from '@/lib/chat-http';
+import { chatError, chatSession, collabError, hiddenWidgetIds, readBody, type ChatSession } from '@/lib/chat-http';
 import { deleteSavedReport, getSavedReport, runReport, updateSavedReport } from '@/lib/chat-custom-reports';
 
 export const dynamic = 'force-dynamic';
 
 type Ctx = { params: Promise<{ id: string }> };
 
+/** Un reporte atado a una bandeja que no se ve no existe para esta persona. */
+async function visibleReport(s: ChatSession, id: string) {
+  const report = await getSavedReport(s.ws, id);
+  if (!report) return null;
+  if (report.widget_id && (await hiddenWidgetIds(s)).has(report.widget_id)) return null;
+  return report;
+}
+
+/** Cambiar o borrar es de quien lo creó o de un admin. */
+function canEdit(s: ChatSession, report: { created_by?: string | null }): boolean {
+  return s.isAdmin || report.created_by === s.me;
+}
+
 /** El reporte con su resultado, sobre los widgets que esta persona ve. ?format=csv lo baja. */
 export async function GET(req: Request, props: Ctx) {
   const { id } = await props.params;
   const s = await chatSession();
   if (s instanceof NextResponse) return s;
-  const report = await getSavedReport(s.ws, id);
+  const report = await visibleReport(s, id);
   if (!report) return chatError(404, 'not_found');
   const result = await runReport(report, s.widgets.map((w) => w.id));
   if (new URL(req.url).searchParams.get('format') === 'csv') {
@@ -30,6 +43,9 @@ export async function PATCH(req: Request, props: Ctx) {
   if (s instanceof NextResponse) return s;
   const body = await readBody(req);
   if (!body) return chatError(400, 'invalid_input');
+  const current = await visibleReport(s, id);
+  if (!current) return chatError(404, 'not_found');
+  if (!canEdit(s, current)) return chatError(403, 'forbidden');
   if (typeof body.widget_id === 'string' && body.widget_id && !s.widgets.some((w) => w.id === body.widget_id)) return chatError(400, 'invalid_input');
   try {
     const report = await updateSavedReport(s.ws, id, body);
@@ -43,5 +59,8 @@ export async function DELETE(_req: Request, props: Ctx) {
   const { id } = await props.params;
   const s = await chatSession({ write: true });
   if (s instanceof NextResponse) return s;
+  const current = await visibleReport(s, id);
+  if (!current) return chatError(404, 'not_found');
+  if (!canEdit(s, current)) return chatError(403, 'forbidden');
   return (await deleteSavedReport(s.ws, id)) ? NextResponse.json({ ok: true }) : chatError(404, 'not_found');
 }

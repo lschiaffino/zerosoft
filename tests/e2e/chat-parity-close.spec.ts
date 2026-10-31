@@ -16,7 +16,15 @@ async function ok<T = Record<string, unknown>>(res: Promise<APIResponse>): Promi
 async function sql(q: string, args: Array<string | number | null> = []) {
   const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
   try {
-    return (await db.execute({ sql: q, args })).rows;
+    // La app escribe en la misma base: un lock momentáneo se reintenta.
+    for (let i = 0; ; i++) {
+      try {
+        return (await db.execute({ sql: q, args })).rows;
+      } catch (err) {
+        if (i >= 20 || !String(err).includes('SQLITE_BUSY')) throw err;
+        await new Promise((r) => setTimeout(r, 150));
+      }
+    }
   } finally {
     db.close();
   }
@@ -40,7 +48,7 @@ test('tiempo real: un mensaje del visitante aparece sin esperar el polling', asy
   const w = await widget(request);
   const visitorId = `e2e-${uid()}`;
   const conv = await ok<{ conversation: { id: string } }>(request.post('/api/chat/messages', { data: { widgetId: w.id, visitorId, body: 'primero', name: 'Rita' } }));
-  const streamed = page.waitForResponse((r) => r.url().includes(`/api/chat/stream?conversation=${conv.conversation.id}`));
+  const streamed = page.waitForResponse((r) => r.url().includes('/api/chat/stream'));
   await page.goto(`/es/app/chat/inbox/${conv.conversation.id}`);
   expect((await streamed).headers()['content-type']).toContain('text/event-stream');
   await expect(page.locator('.chat-message-text', { hasText: 'primero' })).toBeVisible();
@@ -79,7 +87,7 @@ test('permisos: una bandeja restringida no se ve, no se abre y no sale en Cmd+K'
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByText('Saved')).toBeVisible();
 
-  for (const url of [`/api/chat/widgets/${w.id}`, `/api/chat/conversations/${conv.conversation.id}`, `/api/chat/conversations/${conv.conversation.id}/messages`, `/api/chat/widgets/${w.id}/rules`, `/api/chat/stream?conversation=${conv.conversation.id}`]) {
+  for (const url of [`/api/chat/widgets/${w.id}`, `/api/chat/conversations/${conv.conversation.id}`, `/api/chat/conversations/${conv.conversation.id}/messages`, `/api/chat/widgets/${w.id}/rules`]) {
     expect((await ctx.request.get(url)).status(), url).toBe(404);
   }
   const list = await (await ctx.request.get('/api/chat/widgets')).json();
@@ -206,6 +214,77 @@ test('campaña: borrador, envío con confirmación, resultado y baja por el link
   expect(v[0].unsubscribed_at).toBeTruthy();
 });
 
+test('campaña: los importados sin consentimiento quedan afuera, con el motivo en pantalla, y el tope corta el envío', async ({ page, request }) => {
+  const w = await widget(request);
+  const bad = 'not an email <script>';
+  const res = await request.post('/api/chat/import', {
+    multipart: {
+      widgetId: w.id,
+      file: {
+        name: 'i.json',
+        mimeType: 'application/json',
+        buffer: Buffer.from(
+          JSON.stringify([
+            { id: uid(), created_at: 1790000000, source: { body: 'a', author: { type: 'user', email: bad, name: 'Mala' } }, conversation_parts: { conversation_parts: [] } },
+            { id: uid(), created_at: 1e20, source: { body: 'b', author: { type: 'user', email: `imp${uid()}@x.io`, name: 'Sin Permiso' } }, conversation_parts: { conversation_parts: [] } },
+            { id: { raro: 1 }, created_at: 1, source: { body: 'c', author: { type: 'user' } } },
+            { session_id: 'x'.repeat(5000), messages: [{ type: 'text', from: 'user', content: 'd' }] },
+          ]),
+        ),
+      },
+    },
+  });
+  expect(res.status()).toBe(201);
+  expect(((await res.json()) as { imported: number }).imported).toBe(2);
+  expect((await sql('SELECT email FROM chat_visitors WHERE widget_id = ? AND name = ?', [w.id, 'Mala']))[0].email).toBeNull();
+
+  const name = `Sin importados ${uid()}`;
+  const c = await ok<{ id: string }>(request.post('/api/chat/campaigns', { data: { name, widget_id: w.id, subject: 'Hola', body: 'Texto' } }));
+  await page.goto('/es/app/chat/campaigns');
+  await page.locator('tr', { hasText: name }).getByRole('button', { name: 'Enviar' }).click();
+  await expect(page.getByRole('dialog')).toContainText('1 persona importada queda afuera');
+  await expect(page.getByRole('dialog')).toContainText('Nadie de esta audiencia');
+  await page.keyboard.press('Escape');
+  expect((await request.post(`/api/chat/campaigns/${c.id}`, { data: { action: 'send' } })).status()).toBe(400);
+
+  // Con consentimiento entra.
+  const imported = (await sql('SELECT id FROM chat_visitors WHERE widget_id = ? AND email IS NOT NULL', [w.id]))[0].id as string;
+  await page.goto(`/es/app/chat/people/${imported}`);
+  await page.getByRole('checkbox', { name: 'Aceptó recibir campañas' }).check();
+  await expect.poll(async () => (await sql('SELECT campaign_opt_in_at FROM chat_visitors WHERE id = ?', [imported]))[0].campaign_opt_in_at).toBeTruthy();
+
+  // Tope: una campaña enviada que ya usó todo el cupo de hoy frena la siguiente, con el motivo.
+  await sql("INSERT INTO chat_campaigns (id, workspace_id, widget_id, name, status, total, sent_at) VALUES (?, 'demo', ?, 'Grande', 'sent', 500, ?)", [`big-${uid()}`, w.id, new Date().toISOString()]);
+  const over = await request.post(`/api/chat/campaigns/${c.id}`, { data: { action: 'send' } });
+  expect(over.status()).toBe(429);
+  expect(((await over.json()) as { error: string }).error).toBe('daily_cap');
+  await page.goto('/es/app/chat/campaigns');
+  await page.locator('tr', { hasText: name }).getByRole('button', { name: 'Enviar' }).click();
+  await expect(page.getByRole('dialog')).toContainText('pasa el límite');
+  await sql("DELETE FROM chat_campaigns WHERE name = 'Grande' AND widget_id = ?", [w.id]);
+});
+
+test('layout: Resolver no pisa los detalles y el email corta antes de la arroba', async ({ page, request }) => {
+  const w = await widget(request);
+  const conv = await ok<{ conversation: { id: string } }>(request.post('/api/chat/messages', { data: { widgetId: w.id, visitorId: `e2e-${uid()}`, body: 'hola', name: 'Larga', email: `una.direccion.muy.larga.para.cortar${uid()}@subdominio.ejemplo-largo.com` } }));
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`/es/app/chat/inbox/${conv.conversation.id}`);
+    const resolve = page.locator('.chat-thread-actions').getByRole('button').last();
+    await expect(resolve).toBeVisible();
+    const box = (await resolve.boundingBox())!;
+    expect(box.x + box.width).toBeLessThanOrEqual(width);
+    if (width === 1440) {
+      const details = await page.getByRole('complementary', { name: 'Detalles' }).boundingBox();
+      if (details) expect(box.x + box.width).toBeLessThanOrEqual(details.x + 1);
+    }
+    expect(await noScroll(page)).toBe(true);
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`/es/app/chat/inbox/${conv.conversation.id}`);
+  await expect(page.locator('dd.chat-email wbr')).toHaveCount(1);
+});
+
 test('importar: un archivo de Intercom entra a la bandeja y dos veces no duplica', async ({ page, request }) => {
   const w = await widget(request);
   const marker = `pedido ${uid()}`;
@@ -246,25 +325,61 @@ test('contenido en la página: banner, post, checklist y tour como visitante', a
   await add('Barra', 'banner', 'Oferta de hoy');
 
   await host(page, baseURL!, w.id);
-  await expect(page.locator('[data-zs-banner]')).toContainText('Oferta de hoy');
+  const banner = page.locator('[data-zs-banner]');
+  await expect(banner).toContainText('Oferta de hoy');
+  // La barra baja la página en lugar de taparla.
+  const titleTop = await page.locator('#titulo').evaluate((el) => el.getBoundingClientRect().top);
+  const barHeight = await banner.evaluate((el) => el.getBoundingClientRect().bottom);
+  expect(titleTop).toBeGreaterThanOrEqual(barHeight);
   const post = page.locator('[data-zs-post]');
   await expect(post).toContainText('Novedad grande');
   await page.keyboard.press('Escape');
   await expect(post).toHaveCount(0);
+
+  // Checklist: el avance se guarda, cerrarla deja una solapa y sigue al recargar.
   const checklist = page.locator('[data-zs-checklist]');
   await expect(checklist).toContainText('Invitar equipo');
   await checklist.getByRole('checkbox').first().check();
   await expect(checklist).toContainText('1 de 2');
   await checklist.getByRole('button', { name: /Cerrar|Close/ }).click();
+  const tab = page.locator('[data-zs-checklist-tab]');
+  await expect(tab).toContainText('1 de 2');
 
-  await page.reload();
-  // Cada cosa se muestra una vez por visitante: sigue el tour.
+  // La tour se muestra después y se retoma donde quedó.
   const tour = page.locator('[data-zs-tour]');
   await expect(tour).toContainText('Acá están los precios');
   await tour.getByRole('button', { name: 'Siguiente' }).click();
   await expect(tour).toContainText('Y este es el título');
+  await page.reload();
+  // La barra sigue, la lista sigue minimizada y el tour vuelve en el paso donde estaba.
+  await expect(banner).toBeVisible();
+  await expect(tab).toContainText('1 de 2');
+  await expect(post).toHaveCount(0);
+  await expect(tour).toContainText('Y este es el título');
   await tour.getByRole('button', { name: 'Listo' }).click();
   await expect(tour).toHaveCount(0);
+
+  // Reabrir la lista muestra el avance y descartarla la saca para siempre.
+  await tab.click();
+  await expect(checklist).toContainText('1 de 2');
+  await expect(checklist.getByRole('checkbox').first()).toBeChecked();
+  await checklist.getByRole('button', { name: 'Descartar' }).click();
+  await banner.getByRole('button').click();
+  await expect(banner).toHaveCount(0);
+  const after = await page.locator('#titulo').evaluate((el) => el.getBoundingClientRect().top);
+  expect(after).toBeLessThan(titleTop);
+  await page.reload();
+  await page.waitForTimeout(1500);
+  await expect(banner).toHaveCount(0);
+  await expect(checklist).toHaveCount(0);
+  await expect(tab).toHaveCount(0);
+  await expect(tour).toHaveCount(0);
+
+  // Un banner vencido no aparece.
+  const expired = await widget(request);
+  await ok(request.post(`/api/chat/widgets/${expired.id}/outbound`, { data: { name: 'Vieja', format: 'banner', body: 'Vencida', active: true, expiresAt: '2020-01-01T00:00:00.000Z' } }));
+  const list = await ok<{ messages: unknown[] }>(request.get(`/api/chat/outbound?widgetId=${expired.id}`));
+  expect(list.messages).toEqual([]);
   expect(errors, errors.join('\n')).toEqual([]);
 
   // Editor: los tipos nuevos se eligen en el formulario.

@@ -18,6 +18,7 @@ export interface SavedReport {
   group_by: ReportGroup;
   range_days: number;
   widget_id: string | null;
+  created_by?: string | null;
   created_at: string;
   updated_at: string;
 }

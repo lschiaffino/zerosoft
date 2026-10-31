@@ -10,7 +10,7 @@ interface Campaign extends CollectionItem {
   subject: string;
   body: string;
   audience: string;
-  status: 'draft' | 'sending' | 'sent';
+  status: 'draft' | 'preparing' | 'sending' | 'sent';
   total: number;
   sent: number;
   failed: number;
@@ -27,15 +27,17 @@ export default function CampaignsClient({
   canManage: boolean;
 }) {
   const t = useTranslations('chat');
-  const [confirm, setConfirm] = useState<{ campaign: Campaign; size: number; reload: () => Promise<void> } | null>(null);
+  const [confirm, setConfirm] = useState<{ campaign: Campaign; size: number; imported: number; unsubscribed: number; cap: { limit: number; used: number; remaining: number } | null; reload: () => Promise<void> } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function askSend(campaign: Campaign, reload: () => Promise<void>) {
     setError(null);
     const res = await fetch(`/api/chat/campaigns/${campaign.id}`).catch(() => null);
-    const data = res?.ok ? ((await res.json()) as { audience_size: number }) : null;
-    setConfirm({ campaign, size: data?.audience_size ?? 0, reload });
+    const data = res?.ok
+      ? ((await res.json()) as { audience_size: number; excluded_imported: number; excluded_unsubscribed: number; cap: { limit: number; used: number; remaining: number } })
+      : null;
+    setConfirm({ campaign, size: data?.audience_size ?? 0, imported: data?.excluded_imported ?? 0, unsubscribed: data?.excluded_unsubscribed ?? 0, cap: data?.cap ?? null, reload });
   }
 
   async function send() {
@@ -50,7 +52,12 @@ export default function CampaignsClient({
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        setError(data.error === 'missing_body' ? t('campaigns.missingBody') : t('errors.generic'));
+        const known: Record<string, string> = {
+          missing_body: t('campaigns.missingBody'),
+          no_recipients: t('campaigns.noRecipients'),
+          daily_cap: t('campaigns.overCap', { limit: confirm.cap?.limit ?? 0, remaining: confirm.cap?.remaining ?? 0 }),
+        };
+        setError(known[data.error ?? ''] ?? t('errors.generic'));
         return;
       }
       await confirm.reload();
@@ -111,11 +118,17 @@ export default function CampaignsClient({
         onSubmit={() => void send()}
         submitLabel={t('campaigns.send')}
         cancelLabel={t('common.cancel')}
+        submitDisabled={!confirm || confirm.size === 0 || (confirm.cap ? confirm.size > confirm.cap.remaining : false)}
         busy={busy}
         error={error}
         centered
       >
         <p>{t('campaigns.confirmBody', { name: confirm?.campaign.name ?? '', count: confirm?.size ?? 0 })}</p>
+        {confirm && confirm.imported > 0 && <p className="ui-help">{t('campaigns.excludedImported', { count: confirm.imported })}</p>}
+        {confirm && confirm.unsubscribed > 0 && <p className="ui-help">{t('campaigns.excludedUnsubscribed', { count: confirm.unsubscribed })}</p>}
+        {confirm?.cap && <p className="ui-help">{t('campaigns.capNote', { limit: confirm.cap.limit, remaining: confirm.cap.remaining })}</p>}
+        {confirm && confirm.size === 0 && <p className="ui-error">{t('campaigns.noRecipients')}</p>}
+        {confirm?.cap && confirm.size > confirm.cap.remaining && <p className="ui-error">{t('campaigns.overCap', { limit: confirm.cap.limit, remaining: confirm.cap.remaining })}</p>}
       </QuickModal>
     </>
   );

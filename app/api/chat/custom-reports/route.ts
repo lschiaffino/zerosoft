@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
-import { chatError, chatSession, collabError, readBody } from '@/lib/chat-http';
+import { chatError, chatSession, collabError, hiddenWidgetIds, readBody } from '@/lib/chat-http';
 import { createSavedReport, listSavedReports } from '@/lib/chat-custom-reports';
 
 export const dynamic = 'force-dynamic';
 
-/** Lista; con ?metric=&groupBy=&rangeDays=&widgetId= corre sin guardar. */
+/** Los reportes guardados, salvo los atados a una bandeja que esta persona no ve. */
 export async function GET() {
   const s = await chatSession();
   if (s instanceof NextResponse) return s;
-  const reports = await listSavedReports(s.ws);
+  const hidden = await hiddenWidgetIds(s);
+  const reports = (await listSavedReports(s.ws)).filter((r) => !r.widget_id || !hidden.has(r.widget_id));
   return NextResponse.json({ reports });
 }
 

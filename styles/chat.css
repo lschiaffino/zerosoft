@@ -311,7 +311,7 @@
 }
 .chat-thread-sub > span { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .chat-thread-sub > .chat-sla { flex-shrink: 0; }
-.chat-thread-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.chat-thread-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; margin-left: auto; min-width: 0; max-width: 100%; }
 .chat-compact-select { width: auto; max-width: 190px; }
 .chat-details-toggle { display: none; }
 .chat-thread-error { flex-basis: 100%; }
@@ -968,3 +968,5 @@ body:has(.chat-composer) #zs-chat-root { display: none !important; }
 @media (max-width: 640px) {
   .chat-custom-bar-cell { display: none; }
 }
+/* Un email corta antes de la arroba, no a mitad de palabra. */
+.chat-dl dd.chat-email { overflow-wrap: break-word; word-break: normal; }

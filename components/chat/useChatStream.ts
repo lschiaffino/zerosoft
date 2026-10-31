@@ -2,30 +2,79 @@
 
 import { useEffect, useRef } from 'react';
 
+type Listener = { conversationId: string | null; fn: () => void };
+
 /**
- * Escucha el aviso SSE de Chat (/api/chat/stream) y llama a onChange cuando
- * algo cambió. Devuelve una ref "live": con el stream conectado el polling de
- * respaldo se puede espaciar; si se cae, EventSource reintenta solo y el
- * polling vuelve a su ritmo.
+ * Una sola conexión SSE por pestaña, compartida por la lista y la conversación
+ * abierta. Con la pestaña oculta se cierra y al volver reengancha desde el
+ * último evento visto. Al reconectar avisa a todos para releer.
  */
-export function useChatStream(url: string, onChange: () => void) {
-  const live = useRef(false);
+const listeners = new Set<Listener>();
+let es: EventSource | null = null;
+let cursor = 0;
+let connectedOnce = false;
+let live = false;
+let watching = false;
+
+function fireAll() {
+  for (const l of listeners) l.fn();
+}
+
+function open() {
+  if (es || typeof EventSource === 'undefined' || listeners.size === 0 || document.visibilityState !== 'visible') return;
+  es = new EventSource(`/api/chat/stream${cursor ? `?cursor=${cursor}` : ''}`);
+  es.addEventListener('ready', () => {
+    live = true;
+    if (connectedOnce) fireAll();
+    connectedOnce = true;
+  });
+  es.addEventListener('events', (e) => {
+    const data = JSON.parse((e as MessageEvent<string>).data) as { events: Array<{ conversationId: string }>; cursor: number };
+    cursor = Math.max(cursor, data.cursor);
+    const ids = new Set(data.events.map((x) => x.conversationId));
+    for (const l of listeners) if (!l.conversationId || ids.has(l.conversationId)) l.fn();
+  });
+  es.addEventListener('reset', () => fireAll());
+  es.addEventListener('bye', (e) => {
+    const reason = (JSON.parse((e as MessageEvent<string>).data) as { reason?: string }).reason;
+    if (reason === 'revoked') close();
+  });
+  es.onerror = () => {
+    live = false;
+  };
+}
+
+function close() {
+  es?.close();
+  es = null;
+  live = false;
+}
+
+function onVisibility() {
+  if (document.visibilityState === 'visible') open();
+  else close();
+}
+
+/** onChange corre cuando cambió esa conversación (o cualquiera, con null). `live` dice si el stream está conectado. */
+export function useChatStream(conversationId: string | null, onChange: () => void) {
   const handler = useRef(onChange);
   handler.current = onChange;
+  const state = useRef({ get current() { return live; } });
   useEffect(() => {
-    if (typeof EventSource === 'undefined') return;
-    const es = new EventSource(url);
-    es.addEventListener('ready', () => {
-      live.current = true;
-    });
-    es.addEventListener('events', () => handler.current());
-    es.onerror = () => {
-      live.current = false;
-    };
+    const entry: Listener = { conversationId, fn: () => handler.current() };
+    listeners.add(entry);
+    if (!watching) {
+      watching = true;
+      document.addEventListener('visibilitychange', onVisibility);
+    }
+    open();
     return () => {
-      live.current = false;
-      es.close();
+      listeners.delete(entry);
+      if (listeners.size === 0) {
+        close();
+        connectedOnce = false;
+      }
     };
-  }, [url]);
-  return live;
+  }, [conversationId]);
+  return state.current;
 }

@@ -203,7 +203,7 @@ export default function ChatCollection<T extends CollectionItem>(p: CollectionPr
                         {t('common.edit')}
                       </button>
                     )}
-                    {p.canManage && (
+                    {p.canManage && !p.locked?.(item) && (
                       <button
                         type="button"
                         className="btn btn-ghost btn-icon btn-sm"

@@ -30,7 +30,25 @@ const asStr = (v: unknown): string | null => (typeof v === 'string' && v.trim() 
 function iso(v: unknown): string {
   const n = Number(v);
   if (!Number.isFinite(n) || n <= 0) return new Date().toISOString();
-  return new Date(n < 1e12 ? n * 1000 : n).toISOString();
+  const d = new Date(n < 1e12 ? n * 1000 : n);
+  return Number.isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+}
+
+/** Id externo: texto o número corto; cualquier otra cosa no es un id. */
+function externalId(v: unknown): string | null {
+  const id = typeof v === 'number' && Number.isFinite(v) ? String(v) : typeof v === 'string' ? v.trim() : '';
+  return id && id.length <= 128 && /^[\w.:@-]+$/.test(id) ? id : null;
+}
+
+/** Solo un email con forma de email; lo demás se descarta (y no se le puede escribir). */
+export function cleanImportEmail(v: unknown): string | null {
+  const e = asStr(v)?.toLowerCase() ?? null;
+  return e && e.length <= 254 && /^[^\s@<>"'(),;:]+@[^\s@<>"'(),;:]+\.[^\s@<>"'(),;:]{2,}$/.test(e) ? e : null;
+}
+
+function cleanName(v: unknown): string | null {
+  const n = asStr(v);
+  return n ? stripHtml(n).slice(0, 200) || null : null;
 }
 
 /** Intercom manda HTML en los cuerpos. */
@@ -49,7 +67,7 @@ export function stripHtml(html: string): string {
 }
 
 function parseIntercom(raw: Record<string, unknown>): ImportedConversation | null {
-  const id = asStr(raw.id) ?? (raw.id != null ? String(raw.id) : null);
+  const id = externalId(raw.id);
   if (!id) return null;
   const source = asObj(raw.source);
   const author = asObj(source.author);
@@ -70,9 +88,9 @@ function parseIntercom(raw: Record<string, unknown>): ImportedConversation | nul
   return {
     externalId: `intercom:${id}`,
     source: 'intercom',
-    email: asStr(visitorAuthor.email) ?? asStr(contact.email),
-    name: asStr(visitorAuthor.name) ?? asStr(contact.name),
-    subject: asStr(source.subject) ? stripHtml(asStr(source.subject)!) : asStr(raw.title),
+    email: cleanImportEmail(visitorAuthor.email) ?? cleanImportEmail(contact.email),
+    name: cleanName(visitorAuthor.name) ?? cleanName(contact.name),
+    subject: (asStr(source.subject) ? stripHtml(asStr(source.subject)!) : asStr(raw.title))?.slice(0, 200) ?? null,
     open: raw.state === 'open' || raw.open === true,
     createdAt: iso(raw.created_at),
     messages: messages.filter((m) => m.body),
@@ -80,7 +98,7 @@ function parseIntercom(raw: Record<string, unknown>): ImportedConversation | nul
 }
 
 function parseCrisp(raw: Record<string, unknown>): ImportedConversation | null {
-  const id = asStr(raw.session_id);
+  const id = externalId(raw.session_id);
   if (!id) return null;
   const meta = asObj(raw.meta);
   const messages: ImportedMessage[] = [];
@@ -94,9 +112,9 @@ function parseCrisp(raw: Record<string, unknown>): ImportedConversation | null {
   return {
     externalId: `crisp:${id}`,
     source: 'crisp',
-    email: asStr(meta.email),
-    name: asStr(meta.nickname),
-    subject: asStr(meta.subject),
+    email: cleanImportEmail(meta.email),
+    name: cleanName(meta.nickname),
+    subject: asStr(meta.subject)?.slice(0, 200) ?? null,
     open: raw.state === 'pending' || raw.state === 'unresolved',
     createdAt: iso(raw.created_at),
     messages,
@@ -118,11 +136,12 @@ export function parseImport(raw: unknown): ImportedConversation[] {
 
 export const IMPORT_MAX_CONVERSATIONS = 2000;
 
-/** Guarda en el widget. Devuelve cuántas entraron y cuántas ya estaban. */
-export async function importConversations(widgetId: string, conversations: ImportedConversation[]): Promise<{ imported: number; skipped: number; messages: number }> {
+/** Guarda en el widget. Devuelve cuántas entraron, cuántas ya estaban y cuántas fallaron (esas se limpian y se pueden reintentar). */
+export async function importConversations(widgetId: string, conversations: ImportedConversation[]): Promise<{ imported: number; skipped: number; failed: number; messages: number }> {
   const db = getDb();
   let imported = 0;
   let skipped = 0;
+  let failed = 0;
   let messages = 0;
   for (const c of conversations.slice(0, IMPORT_MAX_CONVERSATIONS)) {
     // El visitante importado usa una clave reservada: nadie la puede usar desde el widget.
@@ -135,20 +154,32 @@ export async function importConversations(widgetId: string, conversations: Impor
     const visitorId = crypto.randomUUID();
     const conversationId = crypto.randomUUID();
     const last = c.messages[c.messages.length - 1]?.at ?? c.createdAt;
-    await db
-      .prepare('INSERT INTO chat_visitors (id, widget_id, external_id, email, name, created_at) VALUES (?, ?, ?, ?, ?, ?)')
-      .run(visitorId, widgetId, key, c.email?.toLowerCase() ?? null, c.name, c.createdAt);
-    await db
-      .prepare('INSERT INTO chat_conversations (id, widget_id, visitor_id, status, subject, resolved_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(conversationId, widgetId, visitorId, c.open ? 'open' : 'resolved', c.subject, c.open ? null : last, c.createdAt, last);
-    for (const m of c.messages) {
+    try {
       await db
-        .prepare('INSERT INTO chat_messages (id, conversation_id, sender_type, body, read_at, created_at) VALUES (?, ?, ?, ?, ?, ?)')
-        .run(crypto.randomUUID(), conversationId, m.sender, m.body.slice(0, 20000), m.at, m.at);
-      messages += 1;
+        .prepare('INSERT INTO chat_visitors (id, widget_id, external_id, email, name, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(visitorId, widgetId, key, c.email, c.name, c.createdAt);
+      await db
+        .prepare('INSERT INTO chat_conversations (id, widget_id, visitor_id, status, subject, resolved_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(conversationId, widgetId, visitorId, c.open ? 'open' : 'resolved', c.subject, c.open ? null : last, c.createdAt, last);
+      // De a 100 por sentencia: 2.000 conversaciones son demasiadas vueltas a la base de a una.
+      for (let i = 0; i < c.messages.length; i += 100) {
+        const chunk = c.messages.slice(i, i + 100);
+        await db
+          .prepare(`INSERT INTO chat_messages (id, conversation_id, sender_type, body, read_at, created_at) VALUES ${chunk.map(() => '(?, ?, ?, ?, ?, ?)').join(', ')}`)
+          .run(...chunk.flatMap((m) => [crypto.randomUUID(), conversationId, m.sender, m.body.slice(0, 20000), m.at, m.at]));
+      }
+      await db.prepare('INSERT OR IGNORE INTO chat_conversation_tags (conversation_id, tag) VALUES (?, ?)').run(conversationId, `import-${c.source}`);
+      imported += 1;
+      messages += c.messages.length;
+    } catch (err) {
+      // Sin esto, el visitante a medio cargar la haría figurar como "ya estaba" para siempre.
+      // eslint-disable-next-line no-console
+      console.error('[chat-import] failed', err);
+      await db.prepare('DELETE FROM chat_messages WHERE conversation_id = ?').run(conversationId).catch(() => undefined);
+      await db.prepare('DELETE FROM chat_conversations WHERE id = ?').run(conversationId).catch(() => undefined);
+      await db.prepare('DELETE FROM chat_visitors WHERE id = ?').run(visitorId).catch(() => undefined);
+      failed += 1;
     }
-    await db.prepare('INSERT OR IGNORE INTO chat_conversation_tags (conversation_id, tag) VALUES (?, ?)').run(conversationId, `import-${c.source}`);
-    imported += 1;
   }
-  return { imported, skipped, messages };
+  return { imported, skipped, failed, messages };
 }

@@ -598,7 +598,8 @@
     "agentFormChoose": "Elegí…",
     "tourNext": "Siguiente",
     "tourDone": "Listo",
-    "checklistProgress": "{done} de {total} listos"
+    "checklistProgress": "{done} de {total} listos",
+    "dismiss": "Descartar"
   },
   "bulk": {
     "label": "Acciones en lote",
@@ -869,11 +870,12 @@
     "deleteBody": "¿Borrar {name}? También se borran sus conteos y las respuestas de la encuesta.",
     "adminOnly": "Solo los admins del workspace crean y editan mensajes salientes.",
     "hints": {
-      "banner": "Una barra arriba de la página, una vez por visitante.",
+      "banner": "Una barra arriba que baja la página. Sigue en cada página hasta que el visitante la cierra o pasa la fecha.",
       "post": "La primera línea es el título y el resto el texto. Se abre al centro de la página.",
-      "checklist": "La primera línea es el título y después un ítem por línea. El avance queda en el navegador del visitante.",
-      "tour": "Un paso por línea: selector CSS | texto. Por ejemplo: #precios | Acá ves los planes. Si el elemento no está en la página, el paso se saltea."
-    }
+      "checklist": "La primera línea es el título y después un ítem por línea. Sigue hasta que el visitante la descarta; cerrarla deja una solapa con el avance, guardado en su navegador.",
+      "tour": "Un paso por línea: selector CSS | texto. Por ejemplo: #precios | Acá ves los planes. Sigue hasta terminarlo o cerrarlo; si un paso no está en esta página, continúa en la que lo tiene."
+    },
+    "expires": "Mostrar hasta (opcional)"
   },
   "emailChannel": {
     "title": "Email",
@@ -954,7 +956,8 @@
     "attributeName": "Nombre",
     "attributeValue": "Valor",
     "addAttribute": "Agregar",
-    "removeAttribute": "Quitar {name}"
+    "removeAttribute": "Quitar {name}",
+    "optIn": "Aceptó recibir campañas"
   },
   "reportsCustom": {
     "title": "Reportes propios",
@@ -1034,22 +1037,30 @@
     "statuses": {
       "draft": "Borrador",
       "sending": "Enviando",
-      "sent": "Enviada"
-    }
+      "sent": "Enviada",
+      "preparing": "Preparando"
+    },
+    "capNote": "Límite del workspace: {limit} destinatarios por día, quedan {remaining}.",
+    "overCap": "Este envío pasa el límite de {limit} destinatarios por día. Hoy quedan {remaining}: achicá la audiencia o probá mañana.",
+    "noRecipients": "Nadie de esta audiencia lo puede recibir.",
+    "excludedImported": "{count, plural, one {# persona importada queda afuera} other {# personas importadas quedan afuera}}: primero tienen que dar su consentimiento.",
+    "excludedUnsubscribed": "{count, plural, one {# persona se dio de baja y queda afuera} other {# personas se dieron de baja y quedan afuera}}."
   },
   "importer": {
     "title": "Importar conversaciones",
     "sub": "Traé tu historial de Intercom o Crisp con el JSON de sus APIs. Lo importado no dispara reglas ni bot, e importar dos veces el mismo archivo no duplica.",
     "widget": "Al widget",
     "file": "Archivo JSON",
-    "fileHelp": "Intercom: resultados de GET /conversations/'{id}'. Crisp: conversaciones con session_id y messages. Hasta 20 MB y 2.000 conversaciones.",
+    "fileHelp": "Intercom: resultados de GET /conversations/'{id}'. Crisp: conversaciones con session_id y messages. Hasta 4 MB por archivo (partí los más grandes) y 2.000 conversaciones.",
     "submit": "Importar",
     "done": "{imported} importadas, {skipped} ya estaban, {messages} mensajes.",
     "invalid_file": "Ese archivo no es JSON válido.",
     "nothing_to_import": "En ese archivo no hay conversaciones de Intercom o Crisp con mensajes.",
-    "file_too_large": "El archivo pasa los 20 MB.",
+    "file_too_large": "El archivo pasa los 4 MB. Partilo e importá cada parte.",
     "adminOnly": "Solo los admins del workspace pueden importar.",
-    "noWidgets": "Primero creá un widget."
+    "noWidgets": "Primero creá un widget.",
+    "failed": "{count} fallaron: importá el archivo de nuevo para reintentarlas.",
+    "noCampaigns": "Las personas importadas no reciben campañas hasta que marques su consentimiento en la ficha."
   },
   "insights": {
     "title": "Temas y CX score",

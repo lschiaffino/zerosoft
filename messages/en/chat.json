@@ -598,7 +598,8 @@
     "agentFormChoose": "Choose…",
     "tourNext": "Next",
     "tourDone": "Done",
-    "checklistProgress": "{done} of {total} done"
+    "checklistProgress": "{done} of {total} done",
+    "dismiss": "Dismiss"
   },
   "bulk": {
     "label": "Bulk actions",
@@ -869,11 +870,12 @@
     "deleteBody": "Delete {name}? Its counts and survey answers are deleted too.",
     "adminOnly": "Only workspace admins create and edit outbound messages.",
     "hints": {
-      "banner": "A bar across the top of the page, once per visitor.",
+      "banner": "A bar at the top that moves the page down. It stays on every page until the visitor closes it or the date passes.",
       "post": "First line is the title, the rest the text. Opens in the center of the page.",
-      "checklist": "First line is the title, then one item per line. Progress is saved in the visitor’s browser.",
-      "tour": "One step per line: CSS selector | text. For example: #pricing | See the plans here. Steps whose element isn’t on the page are skipped."
-    }
+      "checklist": "First line is the title, then one item per line. It stays until the visitor dismisses it; closing it leaves a tab with the progress, saved in their browser.",
+      "tour": "One step per line: CSS selector | text. For example: #pricing | See the plans here. It stays until finished or closed; if a step isn’t on this page, it continues on the page that has it."
+    },
+    "expires": "Show until (optional)"
   },
   "emailChannel": {
     "title": "Email",
@@ -954,7 +956,8 @@
     "attributeName": "Name",
     "attributeValue": "Value",
     "addAttribute": "Add",
-    "removeAttribute": "Remove {name}"
+    "removeAttribute": "Remove {name}",
+    "optIn": "Agreed to receive campaigns"
   },
   "reportsCustom": {
     "title": "Custom reports",
@@ -1034,22 +1037,30 @@
     "statuses": {
       "draft": "Draft",
       "sending": "Sending",
-      "sent": "Sent"
-    }
+      "sent": "Sent",
+      "preparing": "Preparing"
+    },
+    "capNote": "Workspace limit: {limit} recipients per day, {remaining} left.",
+    "overCap": "This send goes over the daily limit of {limit} recipients. {remaining} left today: narrow the audience or try tomorrow.",
+    "noRecipients": "Nobody in this audience can receive it.",
+    "excludedImported": "{count, plural, one {# imported person is left out} other {# imported people are left out}}: they need to opt in first.",
+    "excludedUnsubscribed": "{count, plural, one {# person unsubscribed and is left out} other {# people unsubscribed and are left out}}."
   },
   "importer": {
     "title": "Import conversations",
     "sub": "Bring your history from Intercom or Crisp with the JSON of their APIs. Imported conversations don’t run rules or the bot, and importing a file twice doesn’t duplicate.",
     "widget": "Into widget",
     "file": "JSON file",
-    "fileHelp": "Intercom: GET /conversations/'{id}' results. Crisp: conversations with session_id and messages. Up to 20 MB and 2,000 conversations.",
+    "fileHelp": "Intercom: GET /conversations/'{id}' results. Crisp: conversations with session_id and messages. Up to 4 MB per file (split bigger exports) and 2,000 conversations.",
     "submit": "Import",
     "done": "{imported} imported, {skipped} already there, {messages} messages.",
     "invalid_file": "That file isn’t valid JSON.",
     "nothing_to_import": "No Intercom or Crisp conversations with messages in that file.",
-    "file_too_large": "The file is over 20 MB.",
+    "file_too_large": "The file is over 4 MB. Split it and import each part.",
     "adminOnly": "Only workspace admins can import.",
-    "noWidgets": "Create a widget first."
+    "noWidgets": "Create a widget first.",
+    "failed": "{count} failed: import the file again to retry those.",
+    "noCampaigns": "Imported people don’t get campaigns until you mark their consent on their profile."
   },
   "insights": {
     "title": "Topics and CX score",

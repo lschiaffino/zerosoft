@@ -13,6 +13,10 @@ export default function ImportClient({ widgets, canManage }: { widgets: Array<{ 
 
   async function submit() {
     if (!file || !widgetId || busy) return;
+    if (file.size > 4 * 1024 * 1024) {
+      setResult({ tone: 'error', text: t('importer.file_too_large') });
+      return;
+    }
     setBusy(true);
     setResult(null);
     try {
@@ -20,13 +24,13 @@ export default function ImportClient({ widgets, canManage }: { widgets: Array<{ 
       form.set('widgetId', widgetId);
       form.set('file', file);
       const res = await fetch('/api/chat/import', { method: 'POST', body: form });
-      const data = (await res.json().catch(() => ({}))) as { error?: string; imported?: number; skipped?: number; messages?: number };
+      const data = (await res.json().catch(() => ({}))) as { error?: string; imported?: number; skipped?: number; failed?: number; messages?: number };
       if (!res.ok) {
         const known = ['invalid_file', 'nothing_to_import', 'file_too_large'];
         setResult({ tone: 'error', text: known.includes(data.error ?? '') ? t(`importer.${data.error}`) : t('errors.generic') });
         return;
       }
-      setResult({ tone: 'ok', text: t('importer.done', { imported: data.imported ?? 0, skipped: data.skipped ?? 0, messages: data.messages ?? 0 }) });
+      setResult({ tone: 'ok', text: `${t('importer.done', { imported: data.imported ?? 0, skipped: data.skipped ?? 0, messages: data.messages ?? 0 })}${data.failed ? ` ${t('importer.failed', { count: data.failed })}` : ''} ${t('importer.noCampaigns')}` });
     } catch {
       setResult({ tone: 'error', text: t('errors.generic') });
     } finally {

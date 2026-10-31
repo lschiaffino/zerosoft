@@ -51,7 +51,8 @@
     "agentFormChoose": "Choisir…",
     "tourNext": "Suivant",
     "tourDone": "Terminé",
-    "checklistProgress": "{done} sur {total} terminés"
+    "checklistProgress": "{done} sur {total} terminés",
+    "dismiss": "Ignorer"
   },
   "de": {
     "defaultWelcome": "Hallo! Wie können wir helfen?",
@@ -105,7 +106,8 @@
     "agentFormChoose": "Auswählen…",
     "tourNext": "Weiter",
     "tourDone": "Fertig",
-    "checklistProgress": "{done} von {total} erledigt"
+    "checklistProgress": "{done} von {total} erledigt",
+    "dismiss": "Ausblenden"
   },
   "it": {
     "defaultWelcome": "Ciao! Come possiamo aiutarti?",
@@ -159,7 +161,8 @@
     "agentFormChoose": "Scegli…",
     "tourNext": "Avanti",
     "tourDone": "Fine",
-    "checklistProgress": "{done} di {total} completati"
+    "checklistProgress": "{done} di {total} completati",
+    "dismiss": "Ignora"
   },
   "nl": {
     "defaultWelcome": "Hallo! Waarmee kunnen we helpen?",
@@ -213,7 +216,8 @@
     "agentFormChoose": "Kies…",
     "tourNext": "Volgende",
     "tourDone": "Klaar",
-    "checklistProgress": "{done} van {total} voltooid"
+    "checklistProgress": "{done} van {total} voltooid",
+    "dismiss": "Sluiten"
   },
   "pl": {
     "defaultWelcome": "Cześć! W czym możemy pomóc?",
@@ -267,7 +271,8 @@
     "agentFormChoose": "Wybierz…",
     "tourNext": "Dalej",
     "tourDone": "Gotowe",
-    "checklistProgress": "Ukończono {done} z {total}"
+    "checklistProgress": "Ukończono {done} z {total}",
+    "dismiss": "Odrzuć"
   },
   "sv": {
     "defaultWelcome": "Hej! Hur kan vi hjälpa dig?",
@@ -321,7 +326,8 @@
     "agentFormChoose": "Välj…",
     "tourNext": "Nästa",
     "tourDone": "Klart",
-    "checklistProgress": "{done} av {total} klara"
+    "checklistProgress": "{done} av {total} klara",
+    "dismiss": "Avfärda"
   },
   "ru": {
     "defaultWelcome": "Здравствуйте! Чем мы можем помочь?",
@@ -375,7 +381,8 @@
     "agentFormChoose": "Выберите…",
     "tourNext": "Далее",
     "tourDone": "Готово",
-    "checklistProgress": "Выполнено {done} из {total}"
+    "checklistProgress": "Выполнено {done} из {total}",
+    "dismiss": "Скрыть"
   },
   "tr": {
     "defaultWelcome": "Merhaba! Size nasıl yardımcı olabiliriz?",
@@ -429,7 +436,8 @@
     "agentFormChoose": "Seçin…",
     "tourNext": "İleri",
     "tourDone": "Bitti",
-    "checklistProgress": "{total} işlemden {done} tanesi tamamlandı"
+    "checklistProgress": "{total} işlemden {done} tanesi tamamlandı",
+    "dismiss": "Kapat"
   },
   "ja": {
     "defaultWelcome": "こんにちは。どのようなご用件でしょうか？",
@@ -483,7 +491,8 @@
     "agentFormChoose": "選択…",
     "tourNext": "次へ",
     "tourDone": "完了",
-    "checklistProgress": "{total}件中{done}件完了"
+    "checklistProgress": "{total}件中{done}件完了",
+    "dismiss": "閉じる"
   },
   "ko": {
     "defaultWelcome": "안녕하세요. 무엇을 도와드릴까요?",
@@ -537,7 +546,8 @@
     "agentFormChoose": "선택…",
     "tourNext": "다음",
     "tourDone": "완료",
-    "checklistProgress": "{total}개 중 {done}개 완료"
+    "checklistProgress": "{total}개 중 {done}개 완료",
+    "dismiss": "닫기"
   },
   "zh": {
     "defaultWelcome": "你好，有什么可以帮你？",
@@ -591,7 +601,8 @@
     "agentFormChoose": "请选择…",
     "tourNext": "下一步",
     "tourDone": "完成",
-    "checklistProgress": "已完成 {done}/{total}"
+    "checklistProgress": "已完成 {done}/{total}",
+    "dismiss": "忽略"
   },
   "id": {
     "defaultWelcome": "Halo! Ada yang bisa kami bantu?",
@@ -645,6 +656,7 @@
     "agentFormChoose": "Pilih…",
     "tourNext": "Berikutnya",
     "tourDone": "Selesai",
-    "checklistProgress": "{done} dari {total} selesai"
+    "checklistProgress": "{done} dari {total} selesai",
+    "dismiss": "Tutup"
   }
 }

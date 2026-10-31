@@ -7606,6 +7606,8 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, 'ALTER TABLE chat_visitors ADD COLUMN company_id TEXT');
       await addColumn(client, 'ALTER TABLE chat_visitors ADD COLUMN attributes TEXT');
       await addColumn(client, 'ALTER TABLE chat_visitors ADD COLUMN unsubscribed_at TEXT');
+      await addColumn(client, 'ALTER TABLE chat_visitors ADD COLUMN campaign_opt_in_at TEXT');
+      await addColumn(client, 'ALTER TABLE chat_outbound ADD COLUMN expires_at TEXT');
       await client.executeMultiple(`
         CREATE TABLE IF NOT EXISTS chat_widget_access (
           widget_id TEXT NOT NULL REFERENCES chat_widgets(id) ON DELETE CASCADE,
@@ -7670,12 +7672,37 @@ export const MIGRATIONS: Migration[] = [
           visitor_id TEXT NOT NULL REFERENCES chat_visitors(id) ON DELETE CASCADE,
           email TEXT NOT NULL,
           status TEXT NOT NULL DEFAULT 'pending',
+          attempts INTEGER NOT NULL DEFAULT 0,
+          next_attempt_at TEXT,
           claimed_at TEXT,
           sent_at TEXT,
           PRIMARY KEY (campaign_id, visitor_id)
         );
         CREATE INDEX IF NOT EXISTS idx_chat_campaign_rec ON chat_campaign_recipients(campaign_id, status);
+        CREATE TABLE IF NOT EXISTS chat_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          conversation_id TEXT NOT NULL,
+          widget_id TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
       `);
+      // Feed del tiempo real: cualquier escritura queda anotada (lib/chat-realtime.ts).
+      const widgetOf = (conversation: string) => `(SELECT widget_id FROM chat_conversations WHERE id = ${conversation})`;
+      const note = (conversation: string) =>
+        `INSERT INTO chat_events (conversation_id, widget_id) SELECT ${conversation}, ${widgetOf(conversation)} WHERE ${widgetOf(conversation)} IS NOT NULL;`;
+      const triggers: Array<[string, string]> = [
+        ['chat_events_msg_ins', `AFTER INSERT ON chat_messages BEGIN ${note('NEW.conversation_id')} END`],
+        ['chat_events_msg_upd', `AFTER UPDATE ON chat_messages BEGIN ${note('NEW.conversation_id')} END`],
+        ['chat_events_conv_ins', `AFTER INSERT ON chat_conversations BEGIN ${note('NEW.id')} END`],
+        ['chat_events_conv_upd', `AFTER UPDATE ON chat_conversations BEGIN ${note('NEW.id')} END`],
+        ['chat_events_typing_ins', `AFTER INSERT ON chat_typing BEGIN ${note('NEW.conversation_id')} END`],
+        ['chat_events_typing_upd', `AFTER UPDATE ON chat_typing WHEN OLD.expires_at < strftime('%Y-%m-%dT%H:%M:%fZ', 'now') BEGIN ${note('NEW.conversation_id')} END`],
+        ['chat_events_typing_del', `AFTER DELETE ON chat_typing BEGIN ${note('OLD.conversation_id')} END`],
+        ['chat_events_presence_ins', `AFTER INSERT ON chat_presence BEGIN ${note('NEW.conversation_id')} END`],
+        ['chat_events_presence_upd', `AFTER UPDATE OF typing ON chat_presence WHEN OLD.typing != NEW.typing BEGIN ${note('NEW.conversation_id')} END`],
+        ['chat_events_presence_del', `AFTER DELETE ON chat_presence BEGIN ${note('OLD.conversation_id')} END`],
+      ];
+      for (const [name, body] of triggers) await client.execute(`CREATE TRIGGER IF NOT EXISTS ${name} ${body}`);
     },
   },
 ];

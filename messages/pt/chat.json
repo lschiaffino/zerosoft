@@ -598,7 +598,8 @@
     "agentFormChoose": "Escolha…",
     "tourNext": "Próximo",
     "tourDone": "Concluir",
-    "checklistProgress": "{done} de {total} concluídos"
+    "checklistProgress": "{done} de {total} concluídos",
+    "dismiss": "Descartar"
   },
   "bulk": {
     "label": "Ações em lote",
@@ -869,11 +870,12 @@
     "deleteBody": "Apagar {name}? As contagens e as respostas da pesquisa também são apagadas.",
     "adminOnly": "Só os admins do workspace criam e editam mensagens de saída.",
     "hints": {
-      "banner": "Uma barra no topo da página, uma vez por visitante.",
+      "banner": "Uma barra no topo que desce a página. Fica em cada página até o visitante fechar ou passar a data.",
       "post": "A primeira linha é o título e o resto o texto. Abre no centro da página.",
-      "checklist": "A primeira linha é o título e depois um item por linha. O progresso fica no navegador do visitante.",
-      "tour": "Um passo por linha: seletor CSS | texto. Por exemplo: #precos | Aqui estão os planos. Se o elemento não estiver na página, o passo é pulado."
-    }
+      "checklist": "A primeira linha é o título e depois um item por linha. Fica até o visitante descartar; fechar deixa uma aba com o progresso, salvo no navegador.",
+      "tour": "Um passo por linha: seletor CSS | texto. Por exemplo: #precos | Aqui estão os planos. Fica até terminar ou fechar; se um passo não está nesta página, continua na que o tem."
+    },
+    "expires": "Mostrar até (opcional)"
   },
   "emailChannel": {
     "title": "Email",
@@ -954,7 +956,8 @@
     "attributeName": "Nome",
     "attributeValue": "Valor",
     "addAttribute": "Adicionar",
-    "removeAttribute": "Remover {name}"
+    "removeAttribute": "Remover {name}",
+    "optIn": "Aceitou receber campanhas"
   },
   "reportsCustom": {
     "title": "Relatórios próprios",
@@ -1034,22 +1037,30 @@
     "statuses": {
       "draft": "Rascunho",
       "sending": "Enviando",
-      "sent": "Enviada"
-    }
+      "sent": "Enviada",
+      "preparing": "Preparando"
+    },
+    "capNote": "Limite do workspace: {limit} destinatários por dia, restam {remaining}.",
+    "overCap": "Este envio passa do limite de {limit} destinatários por dia. Restam {remaining} hoje: reduza o público ou tente amanhã.",
+    "noRecipients": "Ninguém deste público pode receber.",
+    "excludedImported": "{count, plural, one {# pessoa importada fica de fora} other {# pessoas importadas ficam de fora}}: primeiro precisam dar consentimento.",
+    "excludedUnsubscribed": "{count, plural, one {# pessoa cancelou e fica de fora} other {# pessoas cancelaram e ficam de fora}}."
   },
   "importer": {
     "title": "Importar conversas",
     "sub": "Traga seu histórico do Intercom ou Crisp com o JSON das APIs deles. O importado não dispara regras nem bot, e importar duas vezes o mesmo arquivo não duplica.",
     "widget": "Para o widget",
     "file": "Arquivo JSON",
-    "fileHelp": "Intercom: resultados de GET /conversations/'{id}'. Crisp: conversas com session_id e messages. Até 20 MB e 2.000 conversas.",
+    "fileHelp": "Intercom: resultados de GET /conversations/'{id}'. Crisp: conversas com session_id e messages. Até 4 MB por arquivo (divida os maiores) e 2.000 conversas.",
     "submit": "Importar",
     "done": "{imported} importadas, {skipped} já existiam, {messages} mensagens.",
     "invalid_file": "Esse arquivo não é JSON válido.",
     "nothing_to_import": "Esse arquivo não tem conversas do Intercom ou Crisp com mensagens.",
-    "file_too_large": "O arquivo passa de 20 MB.",
+    "file_too_large": "O arquivo passa de 4 MB. Divida e importe cada parte.",
     "adminOnly": "Só os admins do workspace podem importar.",
-    "noWidgets": "Crie um widget primeiro."
+    "noWidgets": "Crie um widget primeiro.",
+    "failed": "{count} falharam: importe o arquivo de novo para tentar novamente.",
+    "noCampaigns": "As pessoas importadas não recebem campanhas até você marcar o consentimento na ficha."
   },
   "insights": {
     "title": "Temas e CX score",

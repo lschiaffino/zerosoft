@@ -12,6 +12,7 @@
  * Server-only.
  */
 import { generateText, isStepCount, streamText, type ModelMessage, type StepResult, type ToolSet } from 'ai';
+import { chatConversationVisibleSql } from './chat-audience';
 import { getDb } from './db';
 import { aiKnowledgeFilterSql } from './docs-access';
 import type { AgentConversationRow, AgentMessageRow, AgentRow, AgentToolCallRow, AgentChannel } from './db';
@@ -999,8 +1000,9 @@ export async function conversationForChat(
 export async function listConversations(
   workspaceId: string,
   agentId: string,
-  opts: { channel?: AgentChannel; limit?: number; needsReview?: boolean } = {},
+  opts: { channel?: AgentChannel; limit?: number; needsReview?: boolean; viewer?: { personId: string; isAdmin: boolean } } = {},
 ): Promise<AgentConversationDto[]> {
+  const visible = opts.viewer && !opts.viewer.isAdmin ? chatConversationVisibleSql('c.chat_conversation_id', opts.viewer.personId) : null;
   const limit = Math.min(Math.max(opts.limit ?? 50, 1), 200);
   const rows = (await getDb()
     .prepare(
@@ -1009,13 +1011,13 @@ export async function listConversations(
            THEN (SELECT COUNT(*) FROM chat_messages m WHERE m.conversation_id = c.chat_conversation_id AND m.sender_type IN ('visitor', 'bot', 'user') AND m.is_note = 0)
            ELSE (SELECT COUNT(*) FROM agent_messages m WHERE m.conversation_id = c.id) END AS message_count
        FROM agent_conversations c
-       WHERE c.user_id = ? AND c.agent_id = ? AND (? IS NULL OR c.channel = ?)${
+       WHERE c.user_id = ? AND c.agent_id = ? AND (? IS NULL OR c.channel = ?)${visible ? ` AND ${visible.sql}` : ''}${
          // Cola de revisión: puntuadas con CSAT bajo o algún criterio del scorecard en falla, sin revisar.
          opts.needsReview ? ` AND c.scored_at IS NOT NULL AND c.reviewed_at IS NULL AND (c.csat <= 2 OR c.score LIKE '%"pass":false%')` : ''
        }
        ORDER BY c.updated_at DESC LIMIT ?`,
     )
-    .all(workspaceId, agentId, opts.channel ?? null, opts.channel ?? null, limit)) as Array<
+    .all(workspaceId, agentId, opts.channel ?? null, opts.channel ?? null, ...(visible?.args ?? []), limit)) as Array<
     AgentConversationRow & { message_count: number }
   >;
   return rows.map(toConversationDto);

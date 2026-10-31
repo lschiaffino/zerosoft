@@ -17,6 +17,8 @@ export default function VisitorProfile({ visitorId }: { visitorId: string }) {
   const [attrs, setAttrs] = useState<Array<[string, string]>>([]);
   const [key, setKey] = useState('');
   const [value, setValue] = useState('');
+  const [imported, setImported] = useState(false);
+  const [optIn, setOptIn] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
 
@@ -24,10 +26,12 @@ export default function VisitorProfile({ visitorId }: { visitorId: string }) {
     let live = true;
     setLoaded(false);
     Promise.all([fetch('/api/chat/companies').then((r) => r.json()), fetch(`/api/chat/visitors/${visitorId}`).then((r) => r.json())])
-      .then(([c, v]: [{ companies?: Company[] }, { company_id?: string | null; attributes?: string | null }]) => {
+      .then(([c, v]: [{ companies?: Company[] }, { company_id?: string | null; attributes?: string | null; external_id?: string; campaign_opt_in_at?: string | null }]) => {
         if (!live) return;
         setCompanies(c.companies ?? []);
         setCompanyId(v.company_id ?? '');
+        setImported((v.external_id ?? '').startsWith('mail.import.'));
+        setOptIn(Boolean(v.campaign_opt_in_at));
         let parsed: Record<string, string> = {};
         try {
           parsed = JSON.parse(v.attributes ?? '{}') as Record<string, string>;
@@ -132,6 +136,19 @@ export default function VisitorProfile({ visitorId }: { visitorId: string }) {
           </button>
         </div>
       </div>
+      {imported && (
+        <label className="ui-check">
+          <input
+            type="checkbox"
+            checked={optIn}
+            onChange={(e) => {
+              setOptIn(e.target.checked);
+              void patch({ campaignOptIn: e.target.checked });
+            }}
+          />
+          {t('companies.optIn')}
+        </label>
+      )}
       {error && (
         <p className="ui-error" role="alert">
           {t('errors.generic')}

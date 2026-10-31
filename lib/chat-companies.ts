@@ -106,3 +106,7 @@ export async function setVisitorProfile(visitorId: string, patch: { companyId?: 
   if (patch.companyId !== undefined) await db.prepare('UPDATE chat_visitors SET company_id = ? WHERE id = ?').run(patch.companyId, visitorId);
   if (patch.attributes !== undefined) await db.prepare('UPDATE chat_visitors SET attributes = ? WHERE id = ?').run(JSON.stringify(patch.attributes), visitorId);
 }
+
+export async function setCampaignOptIn(visitorId: string, optIn: boolean): Promise<void> {
+  await getDb().prepare('UPDATE chat_visitors SET campaign_opt_in_at = ? WHERE id = ?').run(optIn ? new Date().toISOString() : null, visitorId);
+}

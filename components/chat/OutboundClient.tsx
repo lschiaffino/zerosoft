@@ -13,6 +13,7 @@ interface Outbound {
   name: string;
   kind: 'chat' | 'survey';
   format: 'message' | 'banner' | 'post' | 'checklist' | 'tour';
+  expires_at?: string | null;
   body: string;
   url_match: 'any' | 'contains' | 'equals';
   url_value: string;
@@ -29,6 +30,7 @@ interface Form {
   name: string;
   kind: Outbound['kind'];
   format: Outbound['format'];
+  expiresAt: string;
   body: string;
   urlMatch: Outbound['url_match'];
   urlValue: string;
@@ -37,7 +39,7 @@ interface Form {
   active: boolean;
 }
 
-const EMPTY: Form = { name: '', kind: 'chat', format: 'message', body: '', urlMatch: 'any', urlValue: '', delaySeconds: '0', audience: 'all', active: false };
+const EMPTY: Form = { name: '', kind: 'chat', format: 'message', expiresAt: '', body: '', urlMatch: 'any', urlValue: '', delaySeconds: '0', audience: 'all', active: false };
 
 /**
  * Mensajes salientes del widget: un mensaje proactivo (si el visitante
@@ -97,6 +99,7 @@ export default function OutboundClient({ widgetId, canManage = true }: { widgetI
       name: r.name,
       kind: r.kind,
       format: r.format ?? 'message',
+      expiresAt: r.expires_at ? r.expires_at.slice(0, 10) : '',
       body: r.body,
       urlMatch: r.url_match,
       urlValue: r.url_value,
@@ -123,6 +126,7 @@ export default function OutboundClient({ widgetId, canManage = true }: { widgetI
           name: form.name.trim(),
           kind: form.kind === 'chat' ? 'chat' : 'survey',
           format: form.kind === 'survey' ? 'message' : form.format,
+          expiresAt: form.format === 'banner' && form.expiresAt ? `${form.expiresAt}T23:59:59.000Z` : null,
           body: form.body,
           urlMatch: form.urlMatch,
           urlValue: form.urlValue,
@@ -356,6 +360,14 @@ export default function OutboundClient({ widgetId, canManage = true }: { widgetI
               onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
             />
             <p className="ui-help">{form.kind === 'survey' ? t('outbound.surveyHint') : form.format === 'message' ? t('outbound.chatHint') : t(`outbound.hints.${form.format}`)}</p>
+            {form.kind === 'chat' && form.format === 'banner' && (
+              <>
+                <label className="label" htmlFor="ob-expires">
+                  {t('outbound.expires')}
+                </label>
+                <input id="ob-expires" className="input" type="date" value={form.expiresAt} onChange={(e) => setForm((f) => ({ ...f, expiresAt: e.target.value }))} />
+              </>
+            )}
           </div>
           <div className="ui-fields-2">
             <div className="ui-field">

@@ -1,6 +1,9 @@
 import { getChatConversation, getChatWidget, listChatWidgets } from './chat-data';
 import { getDb, type ChatConversationRow, type ChatWidgetRow } from './db';
 import { roleAtLeast, type TeamRole } from './teams';
+import { personCanSeeWidget, restrictedAudience } from './chat-audience';
+import { getWorkspaceConversation, workspaceWidgetIds } from './chat-api';
+import type { ApiKeyAuth } from './api-auth';
 
 /** Lo mínimo de la sesión que hace falta para decidir el acceso. */
 export interface ChatAccessUser {
@@ -40,6 +43,26 @@ export async function setWidgetAccess(widgetId: string, restricted: boolean, use
   for (const id of new Set(userIds)) {
     await db.prepare('INSERT OR IGNORE INTO chat_widget_access (widget_id, user_id) VALUES (?, ?)').run(widgetId, id);
   }
+  if (restricted) await revokeOutsiders(widgetId);
+}
+
+/**
+ * Quien quedó afuera deja de tener rastros: asignación, seguimiento, presencia
+ * y las notificaciones de esa bandeja (traen texto y nombre del visitante).
+ */
+async function revokeOutsiders(widgetId: string): Promise<void> {
+  const db = getDb();
+  const widget = await getChatWidget(widgetId);
+  if (!widget) return;
+  const allowed = [...(await restrictedAudience({ ...widget, restricted: 1 }))];
+  const marks = allowed.map(() => '?').join(', ');
+  const conversations = `SELECT id FROM chat_conversations WHERE widget_id = ?`;
+  await db.prepare(`UPDATE chat_conversations SET assigned_to = NULL WHERE widget_id = ? AND assigned_to IS NOT NULL AND assigned_to NOT IN (${marks})`).run(widgetId, ...allowed);
+  await db.prepare(`DELETE FROM chat_conversation_followers WHERE conversation_id IN (${conversations}) AND user_id NOT IN (${marks})`).run(widgetId, ...allowed);
+  await db.prepare(`DELETE FROM chat_presence WHERE conversation_id IN (${conversations}) AND user_id NOT IN (${marks})`).run(widgetId, ...allowed);
+  await db
+    .prepare(`DELETE FROM notifications WHERE source_type = 'chat_conversation' AND source_id IN (${conversations}) AND user_id NOT IN (${marks})`)
+    .run(widgetId, ...allowed);
 }
 
 /** La persona puede ver la bandeja. */
@@ -62,13 +85,6 @@ export async function listAccessibleChatWidgets(user: ChatAccessUser): Promise<C
   return widgets.filter((w) => Number(w.restricted ?? 0) !== 1 || mine.has(w.id));
 }
 
-/** Filtra una lista de agentes a los que pueden atender la bandeja (para reglas y round robin). */
-export async function agentsWithWidgetAccess<T extends { id: string }>(widget: ChatWidgetRow, agents: T[]): Promise<T[]> {
-  if (Number(widget.restricted ?? 0) !== 1) return agents;
-  const allowed = new Set(await listWidgetAccess(widget.id));
-  return agents.filter((a) => allowed.has(a.id) || a.id === widget.user_id);
-}
-
 /** Conversación accesible para el agente logueado (vía su widget). */
 export async function canAccessConversation(
   conversationId: string,
@@ -79,4 +95,44 @@ export async function canAccessConversation(
   const widget = await getChatWidget(conversation.widget_id);
   if (!(await canAccessWidget(widget, user))) return { ok: false, conversation: null };
   return { ok: true, conversation };
+}
+
+// ---------- API v1 ----------
+
+/** Solo las keys de owner y admin valen para todo el workspace; la de un miembro respeta la lista. */
+function keyIsAdmin(auth: Pick<ApiKeyAuth, 'role'>): boolean {
+  return roleAtLeast(auth.role, 'admin');
+}
+
+export async function apiWidgetIds(auth: Pick<ApiKeyAuth, 'user' | 'personId' | 'role'>): Promise<string[]> {
+  const ids = await workspaceWidgetIds(auth.user.id);
+  if (keyIsAdmin(auth) || ids.length === 0) return ids;
+  const hidden = new Set(
+    ((await getDb()
+      .prepare(
+        `SELECT w.id FROM chat_widgets w WHERE w.id IN (${ids.map(() => '?').join(', ')}) AND w.restricted = 1 AND w.user_id != ?
+         AND NOT EXISTS (SELECT 1 FROM chat_widget_access a WHERE a.widget_id = w.id AND a.user_id = ?)`,
+      )
+      .all(...ids, auth.personId, auth.personId)) as Array<{ id: string }>).map((r) => r.id),
+  );
+  return ids.filter((id) => !hidden.has(id));
+}
+
+/** Conversación del workspace que esta key puede ver (null si no). */
+export async function getApiConversation(auth: Pick<ApiKeyAuth, 'user' | 'personId' | 'role'>, id: string) {
+  const conversation = await getWorkspaceConversation(auth.user.id, id);
+  if (!conversation) return null;
+  if (keyIsAdmin(auth)) return conversation;
+  const widget = await getChatWidget(conversation.widget_id);
+  return widget && (await personCanSeeWidget(widget, auth.personId)) ? conversation : null;
+}
+
+/** Una conversación de Agents que viene de un widget de Chat respeta la lista de esa bandeja. */
+export async function canSeeAgentConversation(user: ChatAccessUser, agentConversationId: string): Promise<boolean> {
+  if (isAdmin(user)) return true;
+  const row = (await getDb().prepare('SELECT chat_conversation_id AS id FROM agent_conversations WHERE id = ?').get(agentConversationId)) as { id: string | null } | undefined;
+  if (!row?.id) return true;
+  const conv = await getChatConversation(row.id);
+  const widget = conv ? await getChatWidget(conv.widget_id) : undefined;
+  return !widget || personCanSeeWidget(widget, person(user));
 }

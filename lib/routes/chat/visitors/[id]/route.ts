@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { cleanVisitorAttributes, getCompany, setVisitorProfile } from '@/lib/chat-companies';
+import { cleanVisitorAttributes, getCompany, setCampaignOptIn, setVisitorProfile } from '@/lib/chat-companies';
 import { canAccessWidget } from '@/lib/chat-access';
 import { getCurrentUser } from '@/lib/session';
 import {
@@ -56,6 +56,11 @@ export async function PATCH(req: Request, props: { params: Promise<{ id: string 
       ? (body.metadata as Record<string, unknown>)
       : undefined;
 
+  // Importado que dio su consentimiento: el equipo lo marca, recién ahí entra en campañas.
+  if (typeof body.campaignOptIn === 'boolean') {
+    await setCampaignOptIn(params.id, body.campaignOptIn);
+    return NextResponse.json(await getChatVisitor(params.id));
+  }
   // Empresa (del workspace) y atributos propios.
   if (body.companyId !== undefined || body.attributes !== undefined) {
     const companyId = body.companyId === null || body.companyId === '' ? null : typeof body.companyId === 'string' ? body.companyId : undefined;

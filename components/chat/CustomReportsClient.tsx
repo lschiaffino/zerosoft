@@ -15,6 +15,7 @@ interface Report extends CollectionItem {
   group_by: string;
   range_days: number;
   widget_id: string | null;
+  created_by?: string | null;
 }
 
 interface Row {
@@ -25,7 +26,7 @@ interface Row {
 }
 
 /** Reportes propios: métrica × dimensión, guardados con nombre; abrir uno lo corre. */
-export default function CustomReportsClient({ widgets }: { widgets: Array<{ id: string; name: string }> }) {
+export default function CustomReportsClient({ widgets, me, isAdmin }: { widgets: Array<{ id: string; name: string }>; me: string; isAdmin: boolean }) {
   const t = useTranslations('chat');
   const locale = useLocale();
   const params = useSearchParams();
@@ -73,6 +74,7 @@ export default function CustomReportsClient({ widgets }: { widgets: Array<{ id: 
         api="/api/chat/custom-reports"
         listKey="reports"
         canManage
+        locked={(r) => !isAdmin && r.created_by !== me}
         defaults={{ metric: 'conversations', group_by: 'day', range_days: '30', widget_id: '' }}
         fields={[
           { id: 'name', label: t('reportsCustom.name'), type: 'text', required: true, maxLength: 80 },

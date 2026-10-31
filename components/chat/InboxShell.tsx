@@ -282,7 +282,7 @@ export default function InboxShell({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh]);
 
-  const streamLive = useChatStream('/api/chat/stream', () => refresh());
+  const streamLive = useChatStream(null, () => refresh());
 
   useKeyShortcut('/', () => searchRef.current?.focus());
   // Con una conversación abierta J/K los maneja la conversación (siguiente y anterior).

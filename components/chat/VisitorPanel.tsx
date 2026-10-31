@@ -90,7 +90,10 @@ export default function VisitorPanel({ conversation }: VisitorPanelProps) {
           {visitor.email && (
             <div>
               <dt>{t('visitorPanel.email')}</dt>
-              <dd className="data">{visitor.email}</dd>
+              <dd className="data chat-email">
+                {visitor.email.split('@')[0]}
+                <wbr />@{visitor.email.split('@').slice(1).join('@')}
+              </dd>
               <dd className="ui-help">
                 {visitor.email_verified === 1 ? t('visitorPanel.emailVerified') : t('visitorPanel.emailUnverified')}
               </dd>

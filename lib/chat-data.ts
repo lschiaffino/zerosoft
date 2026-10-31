@@ -1,6 +1,7 @@
 import { listOwnerSpacePeople } from './workspace';
 import type { WidgetLocaleSetting } from './chat-widget-i18n';
 import { getDb, getUserById } from './db';
+import { filterWidgetAudience, isRestricted, personCanSeeWidget } from './chat-audience';
 import { withVisibleContent } from './docs-visible';
 import { emitChatEvent, emitConversationChanges, toApiMessage } from './chat-api';
 import { inlineHtmlToText } from './docs-markdown';
@@ -1249,6 +1250,8 @@ async function emitConversationEvents(before: ChatConversationRow, after: ChatCo
   if (!resolved && !assigned) return;
   const widget = await getChatWidget(after.widget_id);
   if (!widget) return;
+  // Bandeja restringida: lo de adentro no sale a Flow (los flows los ve otra gente).
+  if (isRestricted(widget)) return;
   const { emitEvent } = await import('./events');
   const base = conversationEventBase(after, widget);
   if (assigned) {
@@ -1345,7 +1348,7 @@ export async function setChatAgentAway(
   let reassigned = 0;
   if (away && opts.reassign && opts.widgets?.length) {
     for (const widget of opts.widgets) {
-      const agents = (await listChatAgents(widget.user_id, widget.team_id)).filter((a) => a.id !== userId);
+      const agents = await filterWidgetAudience(widget, (await listChatAgents(widget.user_id, widget.team_id)).filter((a) => a.id !== userId));
       const rows = (await db
         .prepare(
           `SELECT id FROM chat_conversations
@@ -1408,8 +1411,17 @@ export async function pickRoundRobinAgent(
     .prepare('SELECT user_id, capacity FROM chat_agent_routing WHERE workspace_id = (SELECT user_id FROM chat_widgets WHERE id = ?) AND capacity IS NOT NULL')
     .all(widgetId)) as Array<{ user_id: string; capacity: number }>;
   if (limits.length > 0) {
+    // La carga es de la persona: cuenta sus conversaciones activas en todos los widgets del workspace.
+    const open = (await getDb()
+      .prepare(
+        `SELECT c.assigned_to, COUNT(*) AS n FROM chat_conversations c JOIN chat_widgets w ON w.id = c.widget_id
+         WHERE w.user_id = (SELECT user_id FROM chat_widgets WHERE id = ?) AND c.assigned_to IS NOT NULL AND c.id != ? AND c.status IN ('open', 'pending')
+         GROUP BY c.assigned_to`,
+      )
+      .all(widgetId, conversationId)) as Array<{ assigned_to: string; n: number }>;
+    const load = new Map(open.map((r) => [r.assigned_to, Number(r.n)]));
     const cap = new Map(limits.map((l) => [l.user_id, Number(l.capacity)]));
-    available = available.filter((a) => !cap.has(a.id) || Number(stats.get(a.id)?.active ?? 0) < (cap.get(a.id) as number));
+    available = available.filter((a) => !cap.has(a.id) || (load.get(a.id) ?? 0) < (cap.get(a.id) as number));
     if (available.length === 0) return null;
   }
   const sorted = [...available].sort((a, b) => {
@@ -1424,7 +1436,8 @@ export async function pickRoundRobinAgent(
 
 /** El usuario atiende el widget (owner en un workspace personal o miembro del team). */
 export async function isChatAgentOfWidget(widget: ChatWidgetRow, userId: string): Promise<boolean> {
-  return (await listChatAgents(widget.user_id, widget.team_id)).some((a) => a.id === userId);
+  if (!(await listChatAgents(widget.user_id, widget.team_id)).some((a) => a.id === userId)) return false;
+  return personCanSeeWidget(widget, userId);
 }
 
 // ---------- Assignment rules ----------
@@ -1605,14 +1618,8 @@ export async function applyAssignmentRules(
 ): Promise<string | null> {
   const db = getDb();
   // Bandeja restringida: solo reciben conversaciones quienes pueden verla.
-  const restrictedWidget = (await db.prepare('SELECT user_id, restricted FROM chat_widgets WHERE id = ?').get(widgetId)) as { user_id: string; restricted: number } | undefined;
-  if (Number(restrictedWidget?.restricted ?? 0) === 1) {
-    const allowed = new Set(
-      ((await db.prepare('SELECT user_id FROM chat_widget_access WHERE widget_id = ?').all(widgetId)) as Array<{ user_id: string }>).map((r) => r.user_id),
-    );
-    allowed.add(restrictedWidget!.user_id);
-    teamMembers = teamMembers.filter((m) => allowed.has(m.id));
-  }
+  const audienceWidget = await getChatWidget(widgetId);
+  if (audienceWidget) teamMembers = await filterWidgetAudience(audienceWidget, teamMembers);
   // No pisar una asignación existente (manual o previa): las reglas solo
   // auto-asignan conversaciones sin dueño.
   const current = await getChatConversation(conversationId);
@@ -2482,7 +2489,7 @@ export async function submitConversationCsat(
   const conv = await getChatConversation(conversationId);
   if (conv && res.changes === 1) {
     const widget = await getChatWidget(conv.widget_id);
-    if (widget) {
+    if (widget && !isRestricted(widget)) {
       const { emitEvent } = await import('./events');
       await emitEvent(widget.user_id, 'conversation.rated', {
         ...conversationEventBase(conv, widget),

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { filterWidgetAudience } from '@/lib/chat-audience';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import { canAccessConversation } from '@/lib/chat-access';
 import {
@@ -62,7 +63,7 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
       : [];
     if (mentions.length > 0) {
       const widget = await getChatWidget(conversation.widget_id);
-      const agents = widget ? await listChatAgents(widget.user_id, widget.team_id) : [];
+      const agents = widget ? await filterWidgetAudience(widget, await listChatAgents(widget.user_id, widget.team_id)) : [];
       const actor = user.actingUser ?? user;
       for (const agent of agents.filter((a) => mentions.includes(a.id))) {
         await createChatNoteMentionNotification({

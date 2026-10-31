@@ -30,6 +30,8 @@ export interface ChatOutboundRow {
   name: string;
   kind: (typeof OUTBOUND_KINDS)[number];
   format: (typeof OUTBOUND_FORMATS)[number];
+  /** Fecha (ISO) en la que deja de mostrarse. */
+  expires_at: string | null;
   body: string;
   url_match: (typeof OUTBOUND_URL_MATCH)[number];
   url_value: string;
@@ -53,6 +55,7 @@ export interface OutboundInput {
   name?: unknown;
   kind?: unknown;
   format?: unknown;
+  expiresAt?: unknown;
   body?: unknown;
   urlMatch?: unknown;
   urlValue?: unknown;
@@ -86,6 +89,14 @@ export function cleanOutbound(input: OutboundInput, partial: boolean): Partial<O
   if (input.body !== undefined) {
     if (typeof input.body !== 'string') throw new ChatCollabError('invalid_input');
     out.body = input.body.trim().slice(0, OUTBOUND_BODY_MAX);
+  }
+  if (input.expiresAt !== undefined) {
+    if (input.expiresAt === null || input.expiresAt === '') out.expires_at = null;
+    else {
+      const t = typeof input.expiresAt === 'string' ? Date.parse(input.expiresAt) : NaN;
+      if (!Number.isFinite(t)) throw new ChatCollabError('invalid_input');
+      out.expires_at = new Date(t).toISOString();
+    }
   }
   if (input.urlMatch !== undefined) {
     const m = pick(input.urlMatch, OUTBOUND_URL_MATCH);
@@ -143,10 +154,10 @@ export async function createOutbound(widgetId: string, userId: string, input: Ou
   const now = nowIso();
   await getDb()
     .prepare(
-      `INSERT INTO chat_outbound (id, widget_id, name, kind, format, body, url_match, url_value, delay_seconds, audience, active, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO chat_outbound (id, widget_id, name, kind, format, expires_at, body, url_match, url_value, delay_seconds, audience, active, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, widgetId, v.name!, v.kind ?? 'chat', v.kind === 'survey' ? 'message' : (v.format ?? 'message'), v.body ?? '', v.url_match ?? 'any', v.url_value ?? '', v.delay_seconds ?? 0, v.audience ?? 'all', active, userId, now, now);
+    .run(id, widgetId, v.name!, v.kind ?? 'chat', v.kind === 'survey' ? 'message' : (v.format ?? 'message'), v.expires_at ?? null, v.body ?? '', v.url_match ?? 'any', v.url_value ?? '', v.delay_seconds ?? 0, v.audience ?? 'all', active, userId, now, now);
   return (await getOutbound(id))!;
 }
 
@@ -154,6 +165,8 @@ export async function updateOutbound(id: string, input: OutboundInput): Promise<
   const current = await getOutbound(id);
   if (!current) return null;
   const v = cleanOutbound(input, true);
+  // Una encuesta siempre se muestra como tarjeta.
+  if ((v.kind ?? current.kind) === 'survey') v.format = 'message';
   const body = v.body ?? current.body;
   // Activar sin texto no tiene sentido: el widget no mostraría nada.
   if ((v.active ?? current.active) === 1 && !body) throw new ChatCollabError('missing_body');
@@ -162,7 +175,7 @@ export async function updateOutbound(id: string, input: OutboundInput): Promise<
     const sets = entries.map(([k]) => `${k} = ?`);
     await getDb()
       .prepare(`UPDATE chat_outbound SET ${sets.join(', ')}, updated_at = ? WHERE id = ?`)
-      .run(...entries.map(([, val]) => val as string | number), nowIso(), id);
+      .run(...entries.map(([, val]) => val as string | number | null), nowIso(), id);
   }
   return getOutbound(id);
 }
@@ -191,9 +204,9 @@ export async function listPublicOutbound(widgetId: string): Promise<PublicOutbou
     .prepare(
       `SELECT o.*, u.name AS author_name, w.name AS widget_name FROM chat_outbound o
        JOIN chat_widgets w ON w.id = o.widget_id LEFT JOIN users u ON u.id = o.created_by
-       WHERE o.widget_id = ? AND o.active = 1 AND o.body != '' ORDER BY o.created_at DESC LIMIT 20`,
+       WHERE o.widget_id = ? AND o.active = 1 AND o.body != '' AND (o.expires_at IS NULL OR o.expires_at > ?) ORDER BY o.created_at DESC LIMIT 20`,
     )
-    .all(widgetId)) as Array<ChatOutboundRow & { author_name: string | null; widget_name: string }>;
+    .all(widgetId, nowIso())) as Array<ChatOutboundRow & { author_name: string | null; widget_name: string }>;
   return rows.map((r) => ({
     from: (r.author_name ?? '').trim().split(/\s+/)[0] ? `${(r.author_name ?? '').trim().split(/\s+/)[0]} · ${r.widget_name}` : r.widget_name,
     id: r.id,
