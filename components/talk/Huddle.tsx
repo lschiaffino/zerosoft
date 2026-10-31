@@ -15,6 +15,7 @@ export interface HuddleControls {
   leave: () => void;
   toggleMute: () => void;
   toggleShare: () => void;
+  toggleCamera: () => void;
 }
 
 /** Un huddle por pestaña (como Slack: entrar a otro sale del actual). */
@@ -75,17 +76,22 @@ export function useHuddleManager(api: Api, onError: (code: string) => void): Hud
     leave,
     toggleMute: () => session.current?.setMuted(!session.current.view.muted),
     toggleShare: () => void session.current?.share(),
+    toggleCamera: () => {
+      void session.current?.toggleCamera().then((code) => {
+        if (code) onError(code);
+      });
+    },
     onEvents,
   };
 }
 
-function ScreenVideo({ stream, label }: { stream: MediaStream; label: string }) {
+function ScreenVideo({ stream, label, mirrored }: { stream: MediaStream; label: string; mirrored?: boolean }) {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     if (ref.current && ref.current.srcObject !== stream) ref.current.srcObject = stream;
   }, [stream]);
   return (
-    <figure className="talk-huddle-screen">
+    <figure className={`talk-huddle-screen${mirrored ? ' is-mirrored' : ''}`}>
       <video ref={ref} autoPlay playsInline muted aria-label={label} />
       <figcaption>{label}</figcaption>
     </figure>
@@ -99,7 +105,7 @@ export function HuddleBar() {
   const h = ctx.huddle;
   const v = h.view;
   const [expanded, setExpanded] = useState(false);
-  const hasScreens = !!v && (v.screens.length > 0 || !!v.localScreen);
+  const hasScreens = !!v && (v.screens.length > 0 || !!v.localScreen || v.cameras.length > 0 || !!v.localCamera);
   useEffect(() => {
     if (hasScreens) setExpanded(true);
   }, [hasScreens]);
@@ -141,6 +147,7 @@ export function HuddleBar() {
               {ctx.personName(p.userId)}
               {p.muted ? `, ${t('huddle.muted')}` : ''}
               {p.sharing ? `, ${t('huddle.sharing')}` : ''}
+              {p.video ? `, ${t('huddle.cameraOnLabel')}` : ''}
             </span>
             {p.muted && (
               <span className="talk-huddle-badge" aria-hidden="true">
@@ -154,6 +161,11 @@ export function HuddleBar() {
         <button type="button" className="btn btn-sm" aria-pressed={v.muted} disabled={v.micMissing} onClick={h.toggleMute}>
           {v.muted ? t('huddle.unmute') : t('huddle.mute')}
         </button>
+        {typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia && (
+          <button type="button" className="btn btn-sm" aria-pressed={v.cameraOn} disabled={v.status !== 'live'} onClick={h.toggleCamera} data-testid="talk-huddle-camera">
+            {v.cameraOn ? t('huddle.cameraOff') : t('huddle.cameraOn')}
+          </button>
+        )}
         {typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia && (
           <button type="button" className="btn btn-sm" aria-pressed={v.sharing} onClick={h.toggleShare}>
             {v.sharing ? t('huddle.stopShare') : t('huddle.share')}
@@ -169,6 +181,14 @@ export function HuddleBar() {
           {v.screens.map((s) => (
             <ScreenVideo key={s.peerId} stream={s.stream} label={t('huddle.screenOf', { name: ctx.personName(s.userId) })} />
           ))}
+          {(v.localCamera || v.cameras.length > 0) && (
+            <div className="talk-huddle-cameras" data-testid="talk-huddle-cameras">
+              {v.localCamera && <ScreenVideo stream={v.localCamera} label={t('huddle.yourCamera')} mirrored />}
+              {v.cameras.map((c) => (
+                <ScreenVideo key={c.peerId} stream={c.stream} label={ctx.personName(c.userId)} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </section>
