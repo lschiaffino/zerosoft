@@ -725,7 +725,9 @@
     "title": "Chat: Push new messages in real time and add browser notifications with sound",
     "description": "Intercom's inbox and Messenger update instantly and teammates get desktop notifications for new conversations and replies. Our inbox refreshes on a 10 s setInterval only while the tab is visible (components/chat/InboxShell.tsx) and the widget polls every 5 s (app/api/chat/widget.js/route.ts); there is no browser Notification or sound anywhere in components/chat, so an agent working in another tab only sees the in-app notification bell. Live chat lives or dies on reply speed in the first minute, and hidden-tab polling makes the team miss it. First scope: browser notifications plus an optional sound for new conversations and replies to assigned chats, and keep polling in hidden tabs at a slower rate; move to SSE later.\n\nPriority: medium. Effort: M. Compared with Intercom.",
     "product": "chat",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "chat-realtime-permissions-campaigns"
   },
   {
     "title": "CRM: Find and merge duplicate companies by domain and name",

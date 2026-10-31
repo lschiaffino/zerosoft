@@ -7,11 +7,15 @@ import { resolveNoteAccess } from '@/lib/notes-shares';
 import { findFileBlock } from '@/lib/docs-files';
 import { fileBlockResponse } from '@/lib/upload-serve';
 import { AiError } from '@/lib/ai';
+import { readBytesCapped } from '@/lib/notes-clip';
 import { providerDiarizes, transcribeAudio, transcriptionConfigured, VoiceTranscribeError } from '@/lib/voice-transcribe';
 import type { DocsBlock } from '@/lib/docs-types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+/** Lo que acepta el proveedor de transcripción por archivo. */
+const MAX_TRANSCRIBE_BYTES = 25 * 1024 * 1024;
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -37,12 +41,15 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   const blocks = JSON.parse(access.row.content || '[]') as DocsBlock[];
   const block = findFileBlock(blocks, parsed.data.block_id);
   if (!block || block.type !== 'audio') return jsonError(404, 'not_found');
+  if ((block.size ?? 0) > MAX_TRANSCRIBE_BYTES) return jsonError(413, 'audio_too_large');
   const file = await fileBlockResponse(block, { download: true }).catch(() => null);
   if (!file?.ok) return jsonError(404, 'not_found');
+  const audio = await readBytesCapped(file, MAX_TRANSCRIBE_BYTES);
+  if (!audio) return jsonError(413, 'audio_too_large');
   try {
     const res = await transcribeAudio({
       workspaceId: owner.workspaceId,
-      audio: new Uint8Array(await file.arrayBuffer()),
+      audio: new Uint8Array(audio),
       mimeType: (block.mime || 'audio/webm').split(';')[0],
       fakeSpeakers: true,
     });

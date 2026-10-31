@@ -474,7 +474,7 @@
     "addedLater": "Recording added to the note.",
     "addPage": "Add another page",
     "scanPages": "{count, plural, one {# page} other {# pages}}",
-    "scanTooBig": "The scan is too large to upload. Your pages are still here: remove some and try again."
+    "scanTooBig": "The scan is too large to upload (limit 100 MB). Your pages are still here. Try fewer pages."
   },
   "signOut": {
     "title": "{count, plural, one {# change in Notes isn’t uploaded yet} other {# changes in Notes aren’t uploaded yet}}",
@@ -505,7 +505,8 @@
       "upcoming": "Upcoming",
       "noDate": "No date",
       "done": "Completed"
-    }
+    },
+    "notSaved": "Saving this item first. Try assigning it again in a moment."
   },
   "home": {
     "title": "Home",
@@ -578,7 +579,8 @@
     "tipSubject": "The subject is the title. End it with @notebook and #tag to file it, for example: Invoice @Finance #receipts",
     "tipAttachments": "Text in regular PDFs is searchable. Images only if an admin turned on reading them.",
     "rotate": "Get a new address",
-    "rotateHint": "The current address stops working. Anyone with the address can add notes to your account."
+    "rotateHint": "The current address stops working. Anyone with the address can add notes to your account.",
+    "attachmentsNotSaved": "Attachments not saved: {names}"
   },
   "admin": {
     "title": "Team console",
@@ -599,7 +601,7 @@
     "untitled": "Untitled",
     "disableLink": "Turn off link",
     "transfer": "Transfer notes",
-    "transferHint": "When someone leaves the workspace, moves their notes, notebooks, templates and saved searches to a current member other than you. People they shared with keep access. Same-named notebooks are merged. Locked notes stay locked. Every transfer is logged.",
+    "transferHint": "When someone leaves the workspace, moves their notes, notebooks, templates, saved searches and reminders to a current member other than you, or to you if nobody else is here. Who can read what does not change: a notebook with shares stays separate and gets a suffix; only unshared notebooks with the same name are merged. Locked notes stay locked. Every transfer is logged.",
     "from": "From",
     "to": "To",
     "transferAction": "Transfer",
@@ -607,11 +609,13 @@
     "transferDone": "Notes transferred.",
     "noFormer": "Nobody who left has notes here.",
     "ocrTitle": "Read images and scans",
-    "ocrLabel": "Read text in new images and scanned PDFs",
-    "ocrHint": "Off by default. When on, new files are sent to the AI model and use the workspace AI quota. Earlier files are not read. Text in regular PDFs is always searchable, no model involved.",
+    "ocrLabel": "Read text in images and scanned PDFs added from now on",
+    "ocrHint": "Off by default. When on, images and scanned PDFs added to notes from now on are sent to the AI model and use the workspace AI quota. Files already in notes are not read, even if you edit the note, and turning it off stops anything still waiting. Text in regular PDFs added from now on is always searchable, no model involved.",
     "auditTitle": "Activity",
     "auditTransfer": "Transferred notes",
-    "auditLink": "Turned off a public link"
+    "auditLink": "Turned off a public link",
+    "auditOcrOn": "Turned on reading images and scans",
+    "auditOcrOff": "Turned off reading images and scans"
   },
   "annotate": {
     "open": "Annotate image or PDF",
@@ -647,11 +651,14 @@
     "disabled": "Transcription is not set up in this workspace.",
     "error": "Couldn't transcribe the audio.",
     "heading": "Transcript",
-    "speaker": "Speaker {speaker}"
+    "speaker": "Speaker {speaker}",
+    "tooLarge": "This recording is over 25 MB, the limit for transcription."
   },
   "fileText": {
     "failed": "Couldn't read for search: {names}.",
     "retry": "Try again",
-    "unnamed": "Unnamed file"
+    "unnamed": "Unnamed file",
+    "ocrOff": "Reading images and scans is turned off in this workspace, so those files were not retried. An admin can turn it on in Notes settings.",
+    "tooLarge": "Over the 12 MB reading limit, so not searchable: {names}."
   }
 }

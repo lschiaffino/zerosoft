@@ -466,11 +466,11 @@ const parity: ProductParity = {
       area: 'ai',
       label: { en: 'Semantic search', es: 'Búsqueda semántica', pt: 'Busca semântica' },
       detail: {
-        en: "A button next to the search box finds notes by meaning, mixed with keywords, and says so when it can only match keywords. Uses the workspace AI quota",
-        es: "Un botón al lado de la búsqueda encuentra notas por significado, mezclado con palabras clave, y avisa cuando solo puede buscar por palabras clave. Usa la cuota de IA del workspace",
-        pt: "Um botão ao lado da busca encontra notas por significado, misturado com palavras-chave, e avisa quando só pode buscar por palavras-chave. Usa a cota de IA do workspace",
+        en: "A button next to the search box searches by meaning, and says so when it can only match keywords. It still needs one run with real embeddings to count as working",
+        es: "Un botón al lado de la búsqueda busca por significado, y avisa cuando solo puede buscar por palabras clave. Falta una corrida con embeddings reales para darlo por andando",
+        pt: "Um botão ao lado da busca busca por significado, e avisa quando só pode buscar por palavras-chave. Falta uma execução com embeddings reais para dar como funcionando",
       },
-      status: 'have',
+      status: 'partial',
       competitorHas: true,
     },
     {

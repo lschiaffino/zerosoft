@@ -3,21 +3,16 @@ import { getCurrentUser } from '@/lib/session';
 import { createAssignmentRule, getChatWidget, isChatAgentOfWidget, listAssignmentRules } from '@/lib/chat-data';
 import { teamBelongsTo } from '@/lib/chat-collab';
 
-export const dynamic = 'force-dynamic';
+import { canAccessWidget } from '@/lib/chat-access';
 
-function canAccess(widget: Awaited<ReturnType<typeof getChatWidget>>, user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>) {
-  if (!widget) return false;
-  if (widget.user_id === user.id) return true;
-  if (widget.team_id && user.team?.id === widget.team_id) return true;
-  return false;
-}
+export const dynamic = 'force-dynamic';
 
 export async function GET(_req: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const widget = await getChatWidget(params.id);
-  if (!canAccess(widget, user)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  if (!await canAccessWidget(widget, user)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
   const rules = await listAssignmentRules(params.id);
   return NextResponse.json({ rules });
@@ -28,7 +23,7 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const widget = await getChatWidget(params.id);
-  if (!canAccess(widget, user)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  if (!await canAccessWidget(widget, user)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
   let body: Record<string, unknown>;
   try {
@@ -66,6 +61,7 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
     assignTo,
     assignTeamId,
     teamRoundRobin: body.teamRoundRobin === true,
+    requiredSkill: typeof body.requiredSkill === 'string' ? body.requiredSkill : null,
     position: typeof body.position === 'number' ? body.position : undefined,
     active: typeof body.active === 'boolean' ? body.active : undefined,
   });

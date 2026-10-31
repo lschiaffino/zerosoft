@@ -7,5 +7,5 @@ export const dynamic = 'force-dynamic';
 export default async function ChatWidgetsPage(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
   const user = await requireUser(locale);
-  return <WidgetsIndex locale={locale} userId={user.id} teamId={user.team?.id ?? null} />;
+  return <WidgetsIndex locale={locale} user={user} />;
 }

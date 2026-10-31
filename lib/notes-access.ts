@@ -55,6 +55,7 @@ export async function requestNoteAccess(viewer: NoteOwner, noteId: string): Prom
       type: 'note_access',
       title: `${who?.name || who?.email || 'Someone'} requested access to a note`,
       body: note.title || undefined,
+      meta: { noteKind: 'access_request', actorName: who?.name || who?.email || '' },
       href: `${noteHref(noteId)}&requests=1`,
       sourceType: 'note',
       sourceId: noteId,

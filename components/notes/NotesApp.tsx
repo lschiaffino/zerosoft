@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { setTopbarLabel } from '@/components/app/AppTopbar';
 import NotesHome from './NotesHome';
 import { NotesTasksList } from './NoteTasks';
 import { NoteAccessGate } from './NoteAccess';
@@ -650,6 +651,12 @@ export default function NotesApp({
   useEffect(() => {
     if (!q.trim()) setHighlight([]);
   }, [q]);
+
+  // La banda de arriba nombra Inicio y Tareas (la ruta es la misma que Todas las notas).
+  useEffect(() => {
+    setTopbarLabel('/app/notes', filter.kind === 'home' ? t('nav.home') : filter.kind === 'tasks' ? t('nav.tasks') : null);
+    return () => setTopbarLabel('', null);
+  }, [filter.kind, t]);
 
   // URL compartible (?note=<id>) sin navegar.
   useEffect(() => {

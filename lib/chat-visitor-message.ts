@@ -9,6 +9,7 @@ import type { ChatConversationRow, ChatMessageRow, ChatVisitorRow, ChatWidgetRow
 import { applyAssignmentRules, listChatAgents } from './chat-data';
 import { dispatchChatBot, type ScheduleTask } from './chat-bot-ai';
 import { createNotification } from './notifications';
+import { filterWidgetAudience, isRestricted } from './chat-audience';
 import { emitEvent } from './events';
 import { emitChatEvent } from './chat-api';
 import { listFollowers } from './chat-collab';
@@ -36,7 +37,7 @@ export async function afterVisitorMessage(input: {
       visitor: { id: visitor.id, name: visitor.name, email: visitor.email, emailVerified: visitor.email_verified === 1 },
       widget: { id: widget.id, name: widget.name },
     };
-    schedule(async () => {
+    if (!isRestricted(widget)) schedule(async () => {
       if (isNewConversation) {
         await emitEvent(widget.user_id, 'conversation.created', eventBase);
         await emitChatEvent(conv.id, 'chat.conversation.created');
@@ -60,7 +61,7 @@ export async function afterVisitorMessage(input: {
   const botMessage = input.skipBot ? null : await dispatchChatBot(widget, conversation, { id: message.id, body: text }, schedule);
 
   // Notify widget owner and assigned agent.
-  const recipients = new Set<string>();
+  let recipients = new Set<string>();
   recipients.add(widget.user_id);
   // Solo si sigue siendo agente del widget (no a quien salió del team).
   if (
@@ -74,6 +75,9 @@ export async function afterVisitorMessage(input: {
   for (const id of await listFollowers(conversation.id)) {
     if (agents.some((a) => a.id === id)) recipients.add(id);
   }
+
+  // Bandeja restringida: un asignado o seguidor viejo que quedó afuera no recibe el texto.
+  recipients = new Set((await filterWidgetAudience(widget, [...recipients].map((id) => ({ id })))).map((r) => r.id));
 
   const senderName = visitor.name || visitor.email || visitor.external_id;
   const title = `New message from ${senderName}`;

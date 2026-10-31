@@ -121,9 +121,15 @@ test('Inicio: personalizar widgets, bloc rápido a nota y reunión de Cal', asyn
   await expect(page.locator('[data-widget="scratch"]').getByRole('status')).toHaveText('Saved');
   await page.reload();
   await expect(box).toHaveValue(line);
+  // Navegar enseguida no pierde lo escrito.
+  const quick = `${line} apurada`;
+  await box.fill(quick);
+  await page.goto('/en/app/notes?view=home');
+  await expect(box).toHaveValue(quick);
+  await expect(page.locator('.band-section-name')).toHaveText('Home');
   await page.getByRole('button', { name: 'Save as note' }).click();
   await expect(page.locator('.note-pane')).toBeVisible();
-  await expect(page.locator('.notes-list').getByText(line).first()).toBeVisible();
+  await expect(page.locator('.notes-list').getByText(quick).first()).toBeVisible();
   const prefs = (await (await request.get('/api/notes/prefs')).json()) as { scratch: string };
   expect(prefs.scratch).toBe('');
 });

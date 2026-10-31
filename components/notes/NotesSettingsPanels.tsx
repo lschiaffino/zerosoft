@@ -204,7 +204,7 @@ export function NotesAdminPanel({ selfId }: { selfId: string }) {
             </select>
             <select className="select" value={to} aria-label={t('to')} onChange={(e) => { setTo(e.target.value); setConfirming(false); setDone(false); }}>
               <option value="">{t('to')}</option>
-              {data.members.filter((m) => m.id !== selfId).map((m) => (
+              {(data.members.some((m) => m.id !== selfId) ? data.members.filter((m) => m.id !== selfId) : data.members).map((m) => (
                 <option key={m.id} value={m.id}>
                   {who(m)}
                 </option>
@@ -239,7 +239,7 @@ export function NotesAdminPanel({ selfId }: { selfId: string }) {
           <ul className="notes-admin-links">
             {data.audit.map((a) => (
               <li key={a.id} className="ui-help">
-                {format.dateTime(new Date(a.created_at), { dateStyle: 'medium', timeStyle: 'short' })} · {a.actor} · {t(a.action === 'transfer' ? 'auditTransfer' : 'auditLink')}
+                {format.dateTime(new Date(a.created_at), { dateStyle: 'medium', timeStyle: 'short' })} · {a.actor} · {t(a.action === 'transfer' ? 'auditTransfer' : a.action === 'ocr' ? (a.detail.enabled ? 'auditOcrOn' : 'auditOcrOff') : 'auditLink')}
               </li>
             ))}
           </ul>

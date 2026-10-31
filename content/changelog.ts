@@ -46,6 +46,19 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: 'chat-realtime-permissions-campaigns',
+    date: '2026-10-30',
+    title: { en: 'Chat: real time, inbox permissions and campaigns', es: 'Chat: tiempo real, permisos por bandeja y campañas', pt: 'Chat: tempo real, permissões por caixa e campanhas' },
+    items: [
+      { product: 'chat', en: 'Inbox, conversation and messenger update through a server stream, usually within two seconds.', es: 'La bandeja, la conversación y el messenger se actualizan por un stream del servidor, en general en menos de dos segundos.', pt: 'A caixa, a conversa e o messenger se atualizam por um stream do servidor, em geral em menos de dois segundos.' },
+      { product: 'chat', en: 'Restrict an inbox to admins and a list of people from the new Access tab of each widget.', es: 'Restringí una bandeja a los admins y una lista de personas desde la pestaña Acceso de cada widget.', pt: 'Restrinja uma caixa aos admins e a uma lista de pessoas pela aba Acesso de cada widget.' },
+      { product: 'chat', en: 'Assignment rules can require a skill, and each person can have a maximum of open conversations.', es: 'Las reglas de asignación pueden pedir una habilidad y cada persona puede tener un máximo de conversaciones abiertas.', pt: 'As regras de atribuição podem exigir uma habilidade e cada pessoa pode ter um máximo de conversas abertas.' },
+      { product: 'chat', en: 'New: companies and free attributes on people, saved custom reports, and email campaigns with unsubscribe and a daily limit.', es: 'Nuevo: empresas y atributos libres en las personas, reportes propios guardados y campañas por email con baja y un límite diario.', pt: 'Novo: empresas e atributos livres nas pessoas, relatórios próprios salvos e campanhas por e-mail com cancelamento e um limite diário.' },
+      { product: 'chat', en: 'The messenger shows banners, posts, checklists and product tours, and speaks 15 languages.', es: 'El messenger muestra banners, posts, checklists y tours guiados, y habla 15 idiomas.', pt: 'O messenger mostra banners, posts, checklists e tours guiados, e fala 15 idiomas.' },
+      { product: 'chat', en: 'Import conversations from the JSON of the Intercom or Crisp API, and see topics and a CX score in Reports.', es: 'Importá conversaciones con el JSON de la API de Intercom o Crisp, y mirá temas y un CX score en Reportes.', pt: 'Importe conversas com o JSON da API do Intercom ou Crisp, e veja temas e um CX score em Relatórios.' },
+    ],
+  },
+  {
     id: '2026-10-30-email-code-signin',
     date: '2026-10-30',
     title: {

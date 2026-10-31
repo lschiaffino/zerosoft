@@ -474,7 +474,7 @@
     "addedLater": "Gravação adicionada à nota.",
     "addPage": "Adicionar outra página",
     "scanPages": "{count, plural, one {# página} other {# páginas}}",
-    "scanTooBig": "A digitalização é grande demais para enviar. Suas páginas continuam aqui: remova algumas e tente de novo."
+    "scanTooBig": "A digitalização é grande demais para enviar (limite de 100 MB). Suas páginas continuam aqui. Tente com menos páginas."
   },
   "signOut": {
     "title": "{count, plural, one {# mudança no Notes ainda não foi enviada} other {# mudanças no Notes ainda não foram enviadas}}",
@@ -505,7 +505,8 @@
       "upcoming": "Próximas",
       "noDate": "Sem prazo",
       "done": "Concluídas"
-    }
+    },
+    "notSaved": "Este item ainda está sendo salvo. Tente atribuir de novo em um instante."
   },
   "home": {
     "title": "Início",
@@ -578,7 +579,8 @@
     "tipSubject": "O assunto é o título. Termine com @caderno e #etiqueta para organizar, por exemplo: Fatura @Financeiro #recibos",
     "tipAttachments": "O texto de PDFs comuns entra na busca. Imagens, só se um admin ligou a leitura.",
     "rotate": "Pedir outro endereço",
-    "rotateHint": "O endereço atual deixa de funcionar. Quem tiver o endereço pode adicionar notas à sua conta."
+    "rotateHint": "O endereço atual deixa de funcionar. Quem tiver o endereço pode adicionar notas à sua conta.",
+    "attachmentsNotSaved": "Anexos não salvos: {names}"
   },
   "admin": {
     "title": "Console da equipe",
@@ -599,7 +601,7 @@
     "untitled": "Sem título",
     "disableLink": "Desligar link",
     "transfer": "Transferir notas",
-    "transferHint": "Quando alguém sai do workspace, move as notas, cadernos, modelos e buscas salvas dessa pessoa para outro membro atual, que não seja você. Quem tinha acesso compartilhado continua com ele. Cadernos de mesmo nome são unidos. Notas bloqueadas continuam bloqueadas. Cada transferência fica registrada.",
+    "transferHint": "Quando alguém sai do workspace, move as notas, cadernos, modelos, buscas salvas e lembretes dessa pessoa para outro membro atual, que não seja você, ou para você se não houver mais ninguém. Quem pode ler o quê não muda: um caderno compartilhado fica separado com um sufixo; só se unem os de mesmo nome sem compartilhamento. Notas bloqueadas continuam bloqueadas. Cada transferência fica registrada.",
     "from": "De",
     "to": "Para",
     "transferAction": "Transferir",
@@ -607,11 +609,13 @@
     "transferDone": "Notas transferidas.",
     "noFormer": "Ninguém que saiu tem notas aqui.",
     "ocrTitle": "Ler imagens e digitalizações",
-    "ocrLabel": "Ler o texto de imagens e PDFs digitalizados novos",
-    "ocrHint": "Desligado por padrão. Ligado, os arquivos novos são enviados ao modelo de IA e usam a cota de IA do workspace. Os anteriores não são lidos. O texto de PDFs comuns sempre entra na busca, sem modelo.",
+    "ocrLabel": "Ler o texto de imagens e PDFs digitalizados adicionados daqui em diante",
+    "ocrHint": "Desligado por padrão. Ligado, imagens e PDFs digitalizados adicionados às notas daqui em diante são enviados ao modelo de IA e usam a cota de IA do workspace. Arquivos que já estão nas notas não são lidos, mesmo se você editar a nota, e desligar interrompe o que estava esperando. O texto de PDFs comuns adicionados daqui em diante sempre entra na busca, sem modelo.",
     "auditTitle": "Atividade",
     "auditTransfer": "Transferiu notas",
-    "auditLink": "Desligou um link público"
+    "auditLink": "Desligou um link público",
+    "auditOcrOn": "Ligou a leitura de imagens e digitalizações",
+    "auditOcrOff": "Desligou a leitura de imagens e digitalizações"
   },
   "annotate": {
     "open": "Anotar imagem ou PDF",
@@ -647,11 +651,14 @@
     "disabled": "A transcrição não está configurada neste workspace.",
     "error": "Não foi possível transcrever o áudio.",
     "heading": "Transcrição",
-    "speaker": "Pessoa {speaker}"
+    "speaker": "Pessoa {speaker}",
+    "tooLarge": "Esta gravação passa de 25 MB, o limite para transcrever."
   },
   "fileText": {
     "failed": "Não foi possível ler para a busca: {names}.",
     "retry": "Tentar de novo",
-    "unnamed": "Arquivo sem nome"
+    "unnamed": "Arquivo sem nome",
+    "ocrOff": "A leitura de imagens e digitalizações está desligada neste workspace, então esses arquivos não foram reprocessados. Um admin pode ligá-la nas configurações do Notes.",
+    "tooLarge": "Passam do limite de leitura de 12 MB e não entram na busca: {names}."
   }
 }

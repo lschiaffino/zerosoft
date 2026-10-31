@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { apiError, requireApiUser } from '@/lib/api-auth';
 import { countChatConversations, listChatConversations } from '@/lib/chat-data';
-import { toApiConversation, workspaceWidgetIds } from '@/lib/chat-api';
+import { toApiConversation } from '@/lib/chat-api';
+import { apiWidgetIds } from '@/lib/chat-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,7 +18,7 @@ export async function GET(req: Request) {
   if (status && !(STATUSES as readonly string[]).includes(status)) {
     return apiError(400, 'invalid_input', 'status must be open, pending, snoozed or resolved.');
   }
-  let widgetIds = await workspaceWidgetIds(auth.user.id);
+  let widgetIds = await apiWidgetIds(auth);
   const widgetId = sp.get('widgetId');
   if (widgetId) widgetIds = widgetIds.filter((id) => id === widgetId);
   const limit = Math.min(Math.max(Number(sp.get('limit')) || 50, 1), 200);

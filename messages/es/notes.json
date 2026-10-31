@@ -474,7 +474,7 @@
     "addedLater": "Grabación agregada a la nota.",
     "addPage": "Sumar otra página",
     "scanPages": "{count, plural, one {# página} other {# páginas}}",
-    "scanTooBig": "El escaneo es muy grande para subirlo. Tus páginas siguen acá: sacá algunas y probá de nuevo."
+    "scanTooBig": "El escaneo es muy grande para subirlo (tope de 100 MB). Tus páginas siguen acá. Probá con menos páginas."
   },
   "signOut": {
     "title": "{count, plural, one {# cambio de Notes todavía no se subió} other {# cambios de Notes todavía no se subieron}}",
@@ -505,7 +505,8 @@
       "upcoming": "Próximas",
       "noDate": "Sin fecha",
       "done": "Hechas"
-    }
+    },
+    "notSaved": "Primero se está guardando este ítem. Probá asignarlo de nuevo en un momento."
   },
   "home": {
     "title": "Inicio",
@@ -578,7 +579,8 @@
     "tipSubject": "El asunto es el título. Terminalo con @libreta y #etiqueta para ordenarla, por ejemplo: Factura @Finanzas #recibos",
     "tipAttachments": "El texto de los PDF comunes se puede buscar. Las imágenes, solo si un admin prendió su lectura.",
     "rotate": "Pedir otra dirección",
-    "rotateHint": "La dirección actual deja de funcionar. Quien tenga la dirección puede sumar notas a tu cuenta."
+    "rotateHint": "La dirección actual deja de funcionar. Quien tenga la dirección puede sumar notas a tu cuenta.",
+    "attachmentsNotSaved": "Adjuntos que no se guardaron: {names}"
   },
   "admin": {
     "title": "Consola del equipo",
@@ -599,7 +601,7 @@
     "untitled": "Sin título",
     "disableLink": "Apagar link",
     "transfer": "Pasar notas",
-    "transferHint": "Cuando alguien se va del workspace, pasa sus notas, libretas, plantillas y búsquedas guardadas a otra persona que siga, que no seas vos. Quienes las tenían compartidas siguen entrando. Las libretas de igual nombre se unen. Las notas bloqueadas siguen bloqueadas. Cada pase queda registrado.",
+    "transferHint": "Cuando alguien se va del workspace, pasa sus notas, libretas, plantillas, búsquedas guardadas y recordatorios a otra persona que siga, que no seas vos, o a vos si no hay nadie más. Quién puede leer qué no cambia: una libreta con compartidos queda aparte con un sufijo; solo se unen las de igual nombre sin compartir. Las notas bloqueadas siguen bloqueadas. Cada pase queda registrado.",
     "from": "De",
     "to": "A",
     "transferAction": "Pasar",
@@ -607,11 +609,13 @@
     "transferDone": "Notas transferidas.",
     "noFormer": "Nadie que se haya ido tiene notas acá.",
     "ocrTitle": "Leer imágenes y escaneos",
-    "ocrLabel": "Leer el texto de imágenes y PDF escaneados nuevos",
-    "ocrHint": "Apagado por defecto. Prendido, los archivos nuevos se mandan al modelo de IA y usan la cuota de IA del workspace. Los anteriores no se leen. El texto de los PDF comunes siempre se puede buscar, sin modelo.",
+    "ocrLabel": "Leer el texto de imágenes y PDF escaneados que se sumen de ahora en más",
+    "ocrHint": "Apagado por defecto. Prendido, las imágenes y los PDF escaneados que se sumen a las notas de ahora en más se mandan al modelo de IA y usan la cuota de IA del workspace. Los archivos que ya están en las notas no se leen, aunque edites la nota, y apagarlo corta lo que estaba esperando. El texto de los PDF comunes que se sumen de ahora en más siempre se puede buscar, sin modelo.",
     "auditTitle": "Actividad",
     "auditTransfer": "Pasó notas",
-    "auditLink": "Apagó un link público"
+    "auditLink": "Apagó un link público",
+    "auditOcrOn": "Prendió la lectura de imágenes y escaneos",
+    "auditOcrOff": "Apagó la lectura de imágenes y escaneos"
   },
   "annotate": {
     "open": "Anotar imagen o PDF",
@@ -647,11 +651,14 @@
     "disabled": "La transcripción no está configurada en este workspace.",
     "error": "No se pudo transcribir el audio.",
     "heading": "Transcripción",
-    "speaker": "Persona {speaker}"
+    "speaker": "Persona {speaker}",
+    "tooLarge": "Esta grabación pasa los 25 MB, el tope para transcribir."
   },
   "fileText": {
     "failed": "No se pudo leer para la búsqueda: {names}.",
     "retry": "Reintentar",
-    "unnamed": "Archivo sin nombre"
+    "unnamed": "Archivo sin nombre",
+    "ocrOff": "Leer imágenes y escaneos está apagado en este workspace, así que esos archivos no se reintentaron. Un admin puede prenderlo en los ajustes de Notes.",
+    "tooLarge": "Pasan el tope de lectura de 12 MB y no se pueden buscar: {names}."
   }
 }

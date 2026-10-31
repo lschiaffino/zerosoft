@@ -62,7 +62,7 @@ const widgetBase = {
   botSource: z.enum(['canned', 'docs', 'ai', 'agent']).optional(),
   officeHours: officeHoursSchema.nullable().optional(),
   helpEnabled: z.boolean().optional(),
-  locale: z.enum(['auto', 'en', 'es', 'pt']).optional(),
+  locale: z.enum(['auto', 'en', 'es', 'pt', 'fr', 'de', 'it', 'nl', 'pl', 'sv', 'ru', 'tr', 'ja', 'ko', 'zh', 'id']).optional(),
   // Minutos sin leer antes de mandar la respuesta por email (0 = nunca, tope 1 día).
   offlineEmailMinutes: z.number().int().min(0).max(1440).optional(),
   conversationAttributes: z

@@ -40,7 +40,7 @@ export async function PATCH(req: NextRequest) {
   const parsed = patchSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return invalidInput(parsed.error);
   const { note_id, block_id, checked, due, assignee_id } = parsed.data;
-  const STATUS = { not_found: 404, forbidden: 403, not_member: 400, locked: 423 } as const;
+  const STATUS = { not_found: 404, forbidden: 403, not_member: 400, locked: 423, not_saved: 409 } as const;
   let out: Record<string, unknown> = {};
   if (due !== undefined || assignee_id !== undefined) {
     const res = await setTaskMeta(owner, note_id, block_id, { due, assignee_id });

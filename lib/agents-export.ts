@@ -5,6 +5,7 @@
  * lib/agents.ts). Sin el playground. Server-only.
  */
 import { getDb } from './db';
+import { chatConversationVisibleSql } from './chat-audience';
 import type { AgentConversationRow } from './db';
 
 const MAX_CONVERSATIONS = 2000;
@@ -32,16 +33,17 @@ const HEADER = [
   'message',
 ];
 
-export async function exportConversationsCsv(workspaceId: string, agentId: string, opts: { days?: number; now?: Date } = {}): Promise<string> {
+export async function exportConversationsCsv(workspaceId: string, agentId: string, opts: { days?: number; now?: Date; viewerId?: string } = {}): Promise<string> {
+  const visible = opts.viewerId ? chatConversationVisibleSql('chat_conversation_id', opts.viewerId) : null;
   const db = getDb();
   const now = opts.now ?? new Date();
   const from = new Date(now.getTime() - Math.min(Math.max(opts.days ?? 30, 1), 365) * 86_400_000).toISOString();
   const convs = (await db
     .prepare(
-      `SELECT * FROM agent_conversations WHERE user_id = ? AND agent_id = ? AND channel != 'playground' AND created_at >= ?
+      `SELECT * FROM agent_conversations WHERE user_id = ? AND agent_id = ? AND channel != 'playground'${visible ? ` AND ${visible.sql}` : ''} AND created_at >= ?
        ORDER BY created_at DESC LIMIT ?`,
     )
-    .all(workspaceId, agentId, from, MAX_CONVERSATIONS)) as AgentConversationRow[];
+    .all(workspaceId, agentId, ...(visible?.args ?? []), from, MAX_CONVERSATIONS)) as AgentConversationRow[];
   const lines = [HEADER.join(',')];
   for (const c of convs) {
     const base = [

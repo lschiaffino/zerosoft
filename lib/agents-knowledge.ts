@@ -9,6 +9,7 @@
  * se usan apenas se cargan. Server-only.
  */
 import { getDb } from './db';
+import { agentConversationVisibleSql } from './chat-audience';
 import type { AgentRow } from './db';
 import { extractDocsText } from './chat-data';
 import { parseCsv } from './csv-parse';
@@ -536,16 +537,17 @@ function suggestionKey(q: string): string {
  * conocimiento (la búsqueda no encontró nada o derivó por no saber), agrupadas
  * por palabras clave. Sin el playground ni las descartadas.
  */
-export async function listSuggestions(workspaceId: string, agentId: string, days = 30, now = new Date()): Promise<AgentSuggestionDto[]> {
+export async function listSuggestions(workspaceId: string, agentId: string, days = 30, now = new Date(), viewerId?: string): Promise<AgentSuggestionDto[]> {
   const from = new Date(now.getTime() - days * 86_400_000).toISOString();
+  const visible = viewerId ? agentConversationVisibleSql('conversation_id', viewerId) : null;
   const rows = (await getDb()
     .prepare(
       `SELECT id, conversation_id, question, created_at FROM agent_runs
        WHERE user_id = ? AND agent_id = ? AND unanswered = 1 AND suggestion_dismissed = 0 AND channel != 'playground'
-         AND question IS NOT NULL AND question != '' AND created_at >= ?
+         AND question IS NOT NULL AND question != '' AND created_at >= ?${visible ? ` AND ${visible.sql}` : ''}
        ORDER BY created_at DESC LIMIT 1000`,
     )
-    .all(workspaceId, agentId, from)) as Array<{ id: string; conversation_id: string; question: string; created_at: string }>;
+    .all(workspaceId, agentId, from, ...(visible?.args ?? []))) as Array<{ id: string; conversation_id: string; question: string; created_at: string }>;
   const groups = new Map<string, AgentSuggestionDto>();
   for (const r of rows) {
     const key = suggestionKey(r.question) || r.question.toLowerCase();

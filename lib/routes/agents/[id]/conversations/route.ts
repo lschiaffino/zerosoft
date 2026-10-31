@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { listConversations } from '@/lib/agents';
 import { notFound, unauthorized, visibleAgentRow } from '@/lib/agents-http';
 import type { AgentChannel } from '@/lib/db';
@@ -17,5 +17,5 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   const raw = req.nextUrl.searchParams.get('channel');
   const channel = CHANNELS.includes(raw as AgentChannel) ? (raw as AgentChannel) : undefined;
   const needsReview = req.nextUrl.searchParams.get('review') === '1';
-  return NextResponse.json({ conversations: await listConversations(user.id, id, { channel, limit: 100, needsReview }) });
+  return NextResponse.json({ conversations: await listConversations(user.id, id, { channel, limit: 100, needsReview, viewer: { personId: user.actingUser?.id ?? user.id, isAdmin: isWorkspaceAdmin(user) } }) });
 }

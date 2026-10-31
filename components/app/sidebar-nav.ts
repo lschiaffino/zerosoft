@@ -140,6 +140,8 @@ export interface SidebarLabels {
     settings: string;
     teams?: string;
     views?: string;
+    companies?: string;
+    campaigns?: string;
   };
   flow: {
     flows: string;
@@ -659,6 +661,8 @@ export function buildNav(
             },
             ...(labels.chat.teams ? [{ href: '/app/chat/teams', label: labels.chat.teams, active: at('/app/chat/teams'), icon: 'groups' as const }] : []),
             ...(labels.chat.views ? [{ href: '/app/chat/views', label: labels.chat.views, active: at('/app/chat/views'), icon: 'lists' as const }] : []),
+            ...(labels.chat.companies ? [{ href: '/app/chat/companies', label: labels.chat.companies, active: at('/app/chat/companies'), icon: 'companies' as const }] : []),
+            ...(labels.chat.campaigns ? [{ href: '/app/chat/campaigns', label: labels.chat.campaigns, active: at('/app/chat/campaigns'), icon: 'social' as const }] : []),
           ],
         },
       ];

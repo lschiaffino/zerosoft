@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
+import { listAccessibleChatWidgets } from '@/lib/chat-access';
 import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
 import { recordChatAudit } from '@/lib/chat-audit';
 import { clientIp } from '@/lib/rate-limit';
-import { listChatWidgets } from '@/lib/chat-data';
 import { parseReportRange } from '@/lib/chat-inbox';
 import { exportConversations, exportToCsv } from '@/lib/chat-export';
 import { limitWrites } from '@/lib/write-limit';
@@ -24,7 +24,7 @@ export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;
   const range = parseReportRange(sp.get('from'), sp.get('to'));
   const status = ['open', 'pending', 'snoozed', 'resolved'].includes(sp.get('status') ?? '') ? sp.get('status')! : undefined;
-  const widgets = await listChatWidgets(user.id, user.team?.id ?? null);
+  const widgets = await listAccessibleChatWidgets(user);
   const json = sp.get('format') === 'json';
   const list = await exportConversations(
     widgets.map((w) => w.id),

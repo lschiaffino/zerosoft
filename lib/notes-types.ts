@@ -4,6 +4,9 @@
 import type { DocsBlock } from './docs-types';
 import { databaseTable } from './docs-database';
 
+/** Tope de la subida directa del navegador a Blob en Notes. */
+export const NOTES_MAX_BLOB_UPLOAD = 100 * 1024 * 1024;
+
 export type NotesSort = 'updated' | 'created' | 'title';
 export const NOTES_SORTS: readonly NotesSort[] = ['updated', 'created', 'title'];
 

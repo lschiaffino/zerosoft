@@ -7,7 +7,6 @@ import {
   inboundFake,
   processInboundEmail,
   readAuthentication,
-  skippedNote,
   verifySvixSignature,
   type InboundAttachment,
   type SkipReason,
@@ -97,7 +96,7 @@ export async function POST(req: Request) {
   // Notes: notes+<token>@… crea una nota con el email.
   const notesToken = parseNotesAddress(recipients);
   if (notesToken) {
-    const notes = await processNotesInbound(notesToken, { emailId, from, subject: typeof d.subject === 'string' ? d.subject : '', text, headers, attachments, authentication, skippedNote: skippedNote(skippedAttachments) });
+    const notes = await processNotesInbound(notesToken, { emailId, from, subject: typeof d.subject === 'string' ? d.subject : '', text, headers, attachments, authentication, skippedCount: skippedAttachments.length });
     return NextResponse.json({ ok: true, notes: notes.status, ...(notes.status === 'skipped' ? { reason: notes.reason } : {}) });
   }
 

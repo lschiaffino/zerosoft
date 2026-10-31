@@ -7,6 +7,9 @@
  * Server-only.
  */
 import { randomBytes } from 'crypto';
+import en from '@/messages/en/notes.json';
+import es from '@/messages/es/notes.json';
+import pt from '@/messages/pt/notes.json';
 import { getDb } from './db';
 import { personAppAccess } from './api-auth';
 import { inboundDomain, rejectReason, type InboundAttachment, type InboundAuth } from './chat-email';
@@ -78,8 +81,8 @@ export interface NotesInboundEmail {
   attachments: InboundAttachment[];
   /** Veredicto del servidor receptor: lo que no pasa no entra, como en Chat. */
   authentication: InboundAuth | null;
-  /** Aviso de los adjuntos que no se pudieron traer. */
-  skippedNote?: string | null;
+  /** Adjuntos que no se pudieron traer de Resend. */
+  skippedCount?: number;
 }
 
 export type NotesInboundResult = { status: 'created'; noteId: string } | { status: 'skipped'; reason: string };
@@ -134,7 +137,10 @@ export async function processNotesInbound(token: string, email: NotesInboundEmai
     const notebooks = parsed.notebook ? await listNotebooks(owner) : [];
     const notebook = parsed.notebook ? notebooks.find((n) => n.name.toLowerCase() === parsed.notebook!.toLowerCase()) : undefined;
     const files = await attachmentBlocks(email.attachments);
-    const skipped = [...(email.skippedNote ? [email.skippedNote] : []), ...(files.failed.length ? [`Attachments not saved: ${files.failed.join(', ')}`] : [])];
+    const missing = [...files.failed, ...(email.skippedCount ? [`+${email.skippedCount}`] : [])];
+    const user = (await db.prepare('SELECT locale FROM users WHERE id = ?').get(person.person_id)) as { locale: string | null } | undefined;
+    const notSaved = (user?.locale === 'es' ? es : user?.locale === 'pt' ? pt : en).email.attachmentsNotSaved;
+    const skipped = missing.length ? [notSaved.replace('{names}', missing.join(', '))] : [];
     const note = await createNote(owner, {
       title: parsed.title,
       notebook_id: notebook?.id ?? null,

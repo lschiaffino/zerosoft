@@ -11,9 +11,10 @@ import { groupTasks, type NoteTask } from '@/lib/notes-tasks-shared';
 import { fireNoteTasksDue, listTasks, setTaskChecked, setTaskMeta } from '@/lib/notes-tasks';
 import { decideAccessRequest, listAccessRequests, noteAccessGate, requestNoteAccess } from '@/lib/notes-access';
 import { getNoteForViewer, setNoteShare } from '@/lib/notes-shares';
-import { fileTextKind, joinBody, looksLikeRefusal, noteFileFailures, pdfText, processNoteFileQueue, retryNoteFileFailures, setNoteOcrEnabled, setNoteOcrOverride, syncNoteFileQueue } from '@/lib/notes-file-text';
+import { clearNoteFileQueue, fileTextKind, joinBody, looksLikeRefusal, noteFileFailures, pdfText, processNoteFileQueue, retryNoteFileFailures, setNoteOcrEnabled, setNoteOcrOverride, syncNoteFileQueue } from '@/lib/notes-file-text';
 import { getNotePrefs, saveNotePrefs } from '@/lib/notes-prefs';
-import { adminDisableLink, adminTransferNotes, notesAdminOverview } from '@/lib/notes-admin';
+import { adminDisableLink, adminSetOcr, adminTransferNotes, notesAdminOverview } from '@/lib/notes-admin';
+import { fireNoteReminders, getNoteReminder, setNoteReminder } from '@/lib/notes-reminders';
 import { handleNotesRpc } from '@/lib/notes-mcp';
 import { detectQuad } from '@/lib/notes-scan';
 import { addMember, createTeam } from '@/lib/teams';
@@ -130,6 +131,9 @@ describe('tareas', () => {
     expect(await setTaskMeta(asA, note.id, 't1', { due: '2026-03-01' })).toBe('not_found');
     // Un todo sin guardar todavía: se acepta y no aparece hasta que exista.
     expect(await setTaskMeta(owner, note.id, 'sin-guardar', { due: '2026-03-01' })).toMatchObject({ due: '2026-03-01' });
+    // Asignar un bloque que no existe no comparte ni avisa.
+    expect(await setTaskMeta(owner, note.id, 'sin-guardar', { assignee_id: asA.personId })).toBe('not_saved');
+    expect(await listTasks(asA)).toEqual([]);
     const meta = await setTaskMeta(owner, note.id, 't1', { due: '2026-03-01', assignee_id: asA.personId });
     expect(meta).toMatchObject({ due: '2026-03-01', assignee_id: asA.personId });
     const mine = await listTasks(asA);
@@ -215,7 +219,7 @@ describe('texto de archivos', () => {
     const db = getDb();
     expect(((await db.prepare('SELECT block_id FROM note_file_text WHERE note_id = ?').all(note.id)) as Array<{ block_id: string }>).map((r) => r.block_id)).toEqual(['img']);
     await syncNoteFileQueue(note.id, []);
-    expect((await db.prepare('SELECT block_id FROM note_file_text WHERE note_id = ?').all(note.id)).length).toBe(0);
+    await db.prepare('DELETE FROM note_file_text WHERE note_id = ?').run(note.id);
     await db.prepare("INSERT INTO note_file_text (note_id, block_id, workspace_id, kind, status, text) VALUES (?, 'p', ?, 'pdf', 'done', 'palabraescaneada')").run(note.id, owner.workspaceId);
     const saved = await updateNote(owner, note.id, { content: [{ id: 'p', type: 'paragraph', content: 'hola de nuevo' }] });
     expect(saved).toBeTruthy();
@@ -223,10 +227,11 @@ describe('texto de archivos', () => {
   });
 });
 
+async function ws_leave(ws: Awaited<ReturnType<typeof workspace>>, personId: string) {
+  await getDb().prepare('DELETE FROM team_members WHERE user_id = ? AND team_id IN (SELECT id FROM teams WHERE owner_id = ?)').run(personId, ws.ownerUser.id);
+}
+
 describe('consola de admin', () => {
-  async function leave(ws: Awaited<ReturnType<typeof workspace>>, personId: string) {
-    await getDb().prepare('DELETE FROM team_members WHERE user_id = ? AND team_id IN (SELECT id FROM teams WHERE owner_id = ?)').run(personId, ws.ownerUser.id);
-  }
   it('cuenta por persona y apaga links, con registro', async () => {
     const ws = await workspace('adm');
     const { asA, asB, ownerUser } = ws;
@@ -248,37 +253,96 @@ describe('consola de admin', () => {
     await createNote(ws.owner, { title: 'Del dueño', content: [] });
     expect(await adminTransferNotes(ownerUser.id, asB.personId, asA.personId, ownerUser.id)).toBe('not_former');
     expect(await adminTransferNotes(ownerUser.id, asB.personId, ownerUser.id, asA.personId)).toBe('owner');
-    await leave(ws, asA.personId);
+    await ws_leave(ws, asA.personId);
     expect(await adminTransferNotes(ownerUser.id, asB.personId, asA.personId, asB.personId)).toBe('self');
     expect(await adminTransferNotes(ownerUser.id, asB.personId, asA.personId, 'fuera')).toBe('not_member');
     expect((await listNotes(asA)).length).toBe(1);
     expect((await notesAdminOverview(ownerUser.id)).audit).toEqual([]);
   });
-  it('de quien se fue: mantiene los compartidos, une libretas iguales y queda registrado', async () => {
-    const ws = await workspace('adm3');
-    const { asA, asB, owner, ownerUser } = ws;
-    const third = await makeUser('adm3c');
-    const team = (await getDb().prepare('SELECT id FROM teams WHERE owner_id = ?').get(ownerUser.id)) as { id: string };
+  async function withThird(ws: Awaited<ReturnType<typeof workspace>>, label: string): Promise<NoteOwner> {
+    const third = await makeUser(label);
+    const team = (await getDb().prepare('SELECT id FROM teams WHERE owner_id = ?').get(ws.ownerUser.id)) as { id: string };
     await addMember(team.id, third.id, 'member');
-    const asC: NoteOwner = { workspaceId: ownerUser.id, personId: third.id };
-    const bookA = await createNotebook(asA, 'Clientes');
-    const bookB = await createNotebook(asB, 'clientes');
-    const only = await createNotebook(asA, 'Solo A');
-    const n1 = await createNote(asA, { title: 'En libreta', notebook_id: bookA.id, content: [] });
-    const n2 = await createNote(asA, { title: 'Suelta', notebook_id: only.id, content: [] });
-    await setNoteShare(asA, { kind: 'note', id: n2.id }, asC.personId, 'edit');
-    await setNoteShare(asA, { kind: 'notebook', id: bookA.id }, asC.personId, 'view');
-    await leave(ws, asA.personId);
-    expect((await notesAdminOverview(ownerUser.id)).former.map((f) => f.id)).toEqual([asA.personId]);
-    expect(await adminTransferNotes(ownerUser.id, owner.personId, asA.personId, asB.personId)).toBe(2);
-    expect((await getNote(asB, n1.id))?.notebook_id).toBe(bookB.id);
-    expect((await getNoteForViewer(asC, n2.id))?.access).toBe('edit');
-    expect((await getNoteForViewer(asC, n1.id))?.access).toBe('view');
-    const books = await listNotebooks(asB);
-    expect(books.map((b) => b.name).sort()).toEqual(['Solo A', 'clientes']);
+    return { workspaceId: ws.ownerUser.id, personId: third.id };
+  }
+  it('de quien se fue: nadie gana ni pierde acceso; una libreta con shares no se une', async () => {
+    const ws = await workspace('adm3');
+    const { asA: leaver, asB: receiver, owner, ownerUser } = ws;
+    const c = await withThird(ws, 'adm3c');
+    const d = await withThird(ws, 'adm3d');
+    // Libretas de igual nombre: C lee la de R (y puede editar otra nota de R), D lee la de quien se va.
+    const bookR = await createNotebook(receiver, 'Clientes');
+    const bookL = await createNotebook(leaver, 'clientes');
+    const rPrivate = await createNote(receiver, { title: 'Privada de R', notebook_id: bookR.id, content: [] });
+    const lPrivate = await createNote(leaver, { title: 'De quien se va', notebook_id: bookL.id, content: [] });
+    await setNoteShare(receiver, { kind: 'notebook', id: bookR.id }, c.personId, 'view');
+    await setNoteShare(leaver, { kind: 'notebook', id: bookL.id }, d.personId, 'edit');
+    await ws_leave(ws, leaver.personId);
+    expect(await adminTransferNotes(ownerUser.id, owner.personId, leaver.personId, receiver.personId)).toBe(1);
+    expect((await getNoteForViewer(c, rPrivate.id))?.access).toBe('view');
+    expect(await getNoteForViewer(c, lPrivate.id)).toBeNull();
+    expect((await getNoteForViewer(d, lPrivate.id))?.access).toBe('edit');
+    expect(await getNoteForViewer(d, rPrivate.id)).toBeNull();
+    expect((await getNote(receiver, lPrivate.id))?.notebook_id).toBe(bookL.id);
+    const names = (await listNotebooks(receiver)).map((b) => b.name);
+    expect(names).toHaveLength(2);
+    expect(names.some((n) => n.startsWith('clientes (') )).toBe(true);
     const overview = await notesAdminOverview(ownerUser.id);
     expect(overview.former).toEqual([]);
-    expect(overview.audit[0]).toMatchObject({ action: 'transfer', detail: { from: asA.personId, to: asB.personId, notes: 2 } });
+    expect(overview.audit[0]).toMatchObject({ action: 'transfer', detail: { from: leaver.personId, to: receiver.personId, notes: 1 } });
+  });
+  it('sin shares de ningún lado, las de igual nombre se unen', async () => {
+    const ws = await workspace('adm4');
+    const { asA: leaver, asB: receiver, owner, ownerUser } = ws;
+    const bookR = await createNotebook(receiver, 'Ideas');
+    const bookL = await createNotebook(leaver, 'ideas');
+    const n = await createNote(leaver, { title: 'N', notebook_id: bookL.id, content: [] });
+    await ws_leave(ws, leaver.personId);
+    await adminTransferNotes(ownerUser.id, owner.personId, leaver.personId, receiver.personId);
+    expect((await getNote(receiver, n.id))?.notebook_id).toBe(bookR.id);
+    expect((await listNotebooks(receiver)).map((b) => b.name)).toEqual(['Ideas']);
+  });
+  it('el recordatorio pasa a quien recibe y a quien se fue no le llega', async () => {
+    const ws = await workspace('adm5');
+    const { asA: leaver, asB: receiver, owner, ownerUser } = ws;
+    const n = await createNote(leaver, { title: 'Con aviso', content: [{ id: 'p', type: 'paragraph', content: 'texto privado' }] });
+    const m = await createNote(leaver, { title: 'Sin pase', content: [] });
+    await setNoteReminder(leaver, n.id, { at: new Date(Date.now() + 60_000).toISOString() });
+    await setNoteReminder(leaver, m.id, { at: new Date(Date.now() + 60_000).toISOString() });
+    await ws_leave(ws, leaver.personId);
+    // Se fue y todavía nadie pasó las notas: no le llega nada.
+    const count = async (id: string) => Number(((await getDb().prepare("SELECT COUNT(*) AS c FROM notifications WHERE user_id = ? AND type = 'note_reminder'").get(id)) as { c: number }).c);
+    await fireNoteReminders({ now: new Date(Date.now() + 120_000) });
+    expect(await count(leaver.personId)).toBe(0);
+    await getDb().prepare('UPDATE note_reminders SET sent_at = NULL WHERE note_id = ?').run(n.id);
+    await adminTransferNotes(ownerUser.id, owner.personId, leaver.personId, receiver.personId);
+    expect((await getNoteReminder(receiver, n.id))?.at).toBeTruthy();
+    await fireNoteReminders({ now: new Date(Date.now() + 120_000) });
+    expect(await count(leaver.personId)).toBe(0);
+    expect(await count(receiver.personId)).toBe(1);
+  });
+  it('un guest no se fue; alguien ajeno al workspace no deja registro; el dueño solo puede recuperar', async () => {
+    const ws = await workspace('adm6');
+    const { asA, ownerUser } = ws;
+    await createNote(asA, { title: 'De guest', content: [] });
+    await getDb().prepare("UPDATE team_members SET role = 'guest' WHERE user_id = ?").run(asA.personId);
+    expect((await notesAdminOverview(ownerUser.id)).former).toEqual([]);
+    expect(await adminTransferNotes(ownerUser.id, ws.asB.personId, asA.personId, ownerUser.id)).toBe('not_former');
+    const stranger = await makeUser('adm6x');
+    expect(await adminTransferNotes(ownerUser.id, ws.asB.personId, stranger.id, ownerUser.id)).toBe('not_former');
+    expect((await notesAdminOverview(ownerUser.id)).audit).toEqual([]);
+    // Dueño sin nadie más.
+    const solo = await makeUser('adm6s');
+    const left = await makeUser('adm6l');
+    const leftNote = await createNote({ workspaceId: solo.id, personId: left.id }, { title: 'Solo en papelera', content: [] });
+    await getDb().prepare("UPDATE notes SET trashed_at = '2026-01-01' WHERE id = ?").run(leftNote.id);
+    expect((await notesAdminOverview(solo.id)).former.map((f) => f.id)).toEqual([left.id]);
+    expect(await adminTransferNotes(solo.id, solo.id, left.id, solo.id)).toBe(1);
+  });
+  it('prender o apagar el OCR queda registrado', async () => {
+    const { owner, ownerUser } = await workspace('adm7');
+    await adminSetOcr(ownerUser.id, owner.personId, true);
+    expect((await notesAdminOverview(ownerUser.id)).audit[0]).toMatchObject({ action: 'ocr', detail: { enabled: true } });
   });
 });
 
@@ -339,10 +403,10 @@ describe('email: acceso y autenticación', () => {
   it('los adjuntos que no entran quedan dichos en la nota', async () => {
     const { owner } = await workspace('mail5');
     const token = await address(owner);
-    const res = await processNotesInbound(token, { ...base(`j-${Date.now()}`), skippedNote: 'Attachments not saved: 1 (too_large)', attachments: [{ filename: 'x.exe', contentType: 'application/x-msdownload', data: Buffer.from('x') }] });
+    const res = await processNotesInbound(token, { ...base(`j-${Date.now()}`), skippedCount: 1, attachments: [{ filename: 'x.exe', contentType: 'application/x-msdownload', data: Buffer.from('x') }] });
     expect(res.status).toBe('created');
     const note = await getNote(owner, (res as { noteId: string }).noteId);
-    expect(JSON.stringify(note?.content)).toContain('too_large');
+    expect(JSON.stringify(note?.content)).toContain('x.exe');
   });
 });
 
@@ -364,6 +428,70 @@ describe('cola de archivos', () => {
     await setNoteOcrEnabled(owner.workspaceId, true);
     await updateNote(owner, note.id, { content: [image('a'), image('b')] });
     expect((await pending(owner.workspaceId)).map((r) => [r.block_id, r.status])).toEqual([['a', 'off'], ['b', 'pending']]);
+  });
+  it('editar una nota vieja, sacar y volver a poner una foto o bloquear y desbloquear no la lee', async () => {
+    await clean();
+    const { owner } = await workspace('ocr8');
+    const db = getDb();
+    // Nota de antes de la cola: no tiene filas.
+    const note = await createNote(owner, { title: 'Vieja', content: [image('v1')] });
+    await db.prepare('DELETE FROM note_file_text WHERE note_id = ?').run(note.id);
+    await setNoteOcrEnabled(owner.workspaceId, true);
+    await updateNote(owner, note.id, { content: [image('v1'), { id: 'p', type: 'paragraph', content: 'editada' }] });
+    expect((await pending(owner.workspaceId))[0]).toMatchObject({ block_id: 'v1', status: 'off' });
+    // Sacar y volver a poner.
+    await updateNote(owner, note.id, { content: [] });
+    await updateNote(owner, note.id, { content: [image('v1')] });
+    expect((await pending(owner.workspaceId))[0]).toMatchObject({ block_id: 'v1', status: 'off' });
+    // Una nueva sí; apagar corta lo que esperaba.
+    await updateNote(owner, note.id, { content: [image('v1'), image('v2')] });
+    expect((await pending(owner.workspaceId))[1]).toMatchObject({ block_id: 'v2', status: 'pending' });
+    await setNoteOcrEnabled(owner.workspaceId, false);
+    expect((await pending(owner.workspaceId))[1]).toMatchObject({ block_id: 'v2', status: 'off' });
+    // Bloquear y desbloquear no vuelve a leer.
+    await setNoteOcrEnabled(owner.workspaceId, true);
+    await clearNoteFileQueue(note.id);
+    await syncNoteFileQueue(note.id, [image('v1'), image('v2'), image('v3')], { noNew: true });
+    expect((await pending(owner.workspaceId)).map((r) => r.status)).toEqual(['off', 'off', 'off']);
+  });
+  it('reintentar: con el OCR apagado lo dice; lo muy grande no se reintenta', async () => {
+    await clean();
+    const { owner } = await workspace('ocr9');
+    await setNoteOcrEnabled(owner.workspaceId, true);
+    const note = await createNote(owner, { title: 'R', content: [image('r1'), image('r2')] });
+    const db = getDb();
+    await db.prepare("UPDATE note_file_text SET status = 'failed', error = 'refused' WHERE block_id = 'r1' AND note_id = ?").run(note.id);
+    await db.prepare("UPDATE note_file_text SET status = 'failed', error = 'too_large' WHERE block_id = 'r2' AND note_id = ?").run(note.id);
+    await setNoteOcrEnabled(owner.workspaceId, false);
+    expect(await retryNoteFileFailures(note.id)).toEqual({ retried: 0, ocrOff: true });
+    await setNoteOcrEnabled(owner.workspaceId, true);
+    expect(await retryNoteFileFailures(note.id)).toEqual({ retried: 1, ocrOff: false });
+    expect((await noteFileFailures(note.id)).map((f) => f.block_id)).toEqual(['r2']);
+  });
+  it('un workspace sin cuota va al fondo de su turno y no tapa a los demás', async () => {
+    await clean();
+    const seen: string[] = [];
+    setNoteOcrOverride(async (ws) => {
+      seen.push(ws);
+      return 'texto';
+    });
+    const prev = process.env.AI_FREE_TOKENS_PER_MONTH;
+    process.env.AI_FREE_TOKENS_PER_MONTH = '1';
+    try {
+      const full = await workspace('ocr10');
+      await setNoteOcrEnabled(full.owner.workspaceId, true);
+      const n = await createNote(full.owner, { title: 'F', content: [image('f1')] });
+      await getDb().prepare("UPDATE note_file_text SET queued_at = '2020-01-01' WHERE note_id = ?").run(n.id);
+      await recordAiUsage({ workspaceId: full.owner.workspaceId, feature: 'test', model: 'm', inputTokens: 100, outputTokens: 0 });
+      await processNoteFileQueue({ limit: 1 });
+      const row = (await getDb().prepare('SELECT queued_at FROM note_file_text WHERE note_id = ?').get(n.id)) as { queued_at: string };
+      expect(row.queued_at > '2020-01-02').toBe(true);
+      expect(seen).toEqual([]);
+    } finally {
+      if (prev === undefined) delete process.env.AI_FREE_TOKENS_PER_MONTH;
+      else process.env.AI_FREE_TOKENS_PER_MONTH = prev;
+      setNoteOcrOverride(null);
+    }
   });
   it('reparte entre workspaces: uno lleno no acapara la pasada', async () => {
     await clean();
@@ -420,7 +548,7 @@ describe('cola de archivos', () => {
     const note = await createNote(owner, { title: 'F', content: [image('r')] });
     await processNoteFileQueue({});
     setNoteOcrOverride(null);
-    expect(await noteFileFailures(note.id)).toEqual(['r']);
+    expect((await noteFileFailures(note.id)).map((f) => f.block_id)).toEqual(['r']);
     expect(await listNotes(owner, { q: 'sorry' })).toEqual([]);
   });
   it('un tope de tiempo vencido no procesa nada', async () => {
@@ -441,7 +569,7 @@ describe('cola de archivos', () => {
     await getDb().prepare("UPDATE note_file_text SET status = 'processing', attempts = 3, claimed_at = '2020-01-01' WHERE note_id = ?").run(note.id);
     await processNoteFileQueue({});
     expect((await pending(owner.workspaceId))[0].status).toBe('failed');
-    expect(await noteFileFailures(note.id)).toEqual(['s']);
+    expect((await noteFileFailures(note.id)).map((f) => f.block_id)).toEqual(['s']);
     await retryNoteFileFailures(note.id);
     expect((await pending(owner.workspaceId))[0]).toMatchObject({ status: 'pending', attempts: 0 });
     expect(await noteFileFailures(note.id)).toEqual([]);
@@ -451,6 +579,13 @@ describe('cola de archivos', () => {
     expect(looksLikeRefusal('Lo siento, no puedo ver la imagen')).toBe(true);
     expect(looksLikeRefusal('Não consigo ler o arquivo')).toBe(true);
     expect(looksLikeRefusal('Total 42 USD, factura 0001')).toBe(false);
+    expect(looksLikeRefusal('I apologize, but no image came through.')).toBe(true);
+    expect(looksLikeRefusal('The image is blank.')).toBe(true);
+    expect(looksLikeRefusal('There is no text in this file.')).toBe(true);
+    // Texto real que suena parecido.
+    expect(looksLikeRefusal('Sorry we missed you! Your parcel is at the depot.')).toBe(false);
+    expect(looksLikeRefusal('Dear customer, we are sorry, I cannot attend on Friday.')).toBe(false);
+    expect(looksLikeRefusal(`Lo siento mucho. ${'x'.repeat(400)}`)).toBe(false);
   });
 });
 

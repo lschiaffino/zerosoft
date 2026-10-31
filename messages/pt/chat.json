@@ -7,7 +7,9 @@
     "reports": "Relatórios",
     "widgets": "Widgets",
     "teams": "Times",
-    "views": "Visualizações"
+    "views": "Visualizações",
+    "companies": "Empresas",
+    "campaigns": "Campanhas"
   },
   "overview": {
     "title": "Chat",
@@ -83,7 +85,19 @@
       "auto": "Automático",
       "en": "Inglês",
       "es": "Espanhol",
-      "pt": "Português"
+      "pt": "Português",
+      "fr": "Francês",
+      "de": "Alemão",
+      "it": "Italiano",
+      "nl": "Holandês",
+      "pl": "Polonês",
+      "sv": "Sueco",
+      "ru": "Russo",
+      "tr": "Turco",
+      "ja": "Japonês",
+      "ko": "Coreano",
+      "zh": "Chinês",
+      "id": "Indonésio"
     },
     "attributesTitle": "Atributos da conversa",
     "attributesSub": "Campos que a equipe preenche em cada conversa, como motivo ou plano. Os obrigatórios precisam estar preenchidos para resolver.",
@@ -431,7 +445,8 @@
     "canned": "Respostas salvas",
     "sla": "SLA",
     "outbound": "Saída",
-    "email": "Email"
+    "email": "Email",
+    "access": "Acesso"
   },
   "reports": {
     "title": "Relatórios",
@@ -580,7 +595,11 @@
     "reply": "Responder",
     "agentFormSend": "Enviar",
     "agentFormRequired": "Preencha os campos obrigatórios.",
-    "agentFormChoose": "Escolha…"
+    "agentFormChoose": "Escolha…",
+    "tourNext": "Próximo",
+    "tourDone": "Concluir",
+    "checklistProgress": "{done} de {total} concluídos",
+    "dismiss": "Descartar"
   },
   "bulk": {
     "label": "Ações em lote",
@@ -799,7 +818,7 @@
   },
   "outbound": {
     "title": "Mensagens de saída",
-    "sub": "Uma mensagem ou uma pesquisa de 1 a 5 que aparece no seu site conforme a página, o tempo na página e o público. Cada visitante vê uma vez.",
+    "sub": "Uma mensagem, pesquisa, banner, post, checklist ou tour no seu site, conforme a página, o tempo na página e o público. Mensagens, pesquisas e posts aparecem uma vez por visitante. Banners, checklists e tours ficam até fechar ou terminar.",
     "add": "Nova mensagem",
     "empty": "Nenhuma mensagem de saída",
     "emptySub": "Cumprimente quem entra em preços ou pergunte como foi a visita.",
@@ -807,7 +826,11 @@
     "kind": "Tipo",
     "kinds": {
       "chat": "Mensagem de chat",
-      "survey": "Pesquisa"
+      "survey": "Pesquisa",
+      "banner": "Banner",
+      "post": "Post",
+      "checklist": "Checklist",
+      "tour": "Tour guiado"
     },
     "where": "Página",
     "anyPage": "Qualquer página",
@@ -845,7 +868,14 @@
     "needsBody": "Escreva a mensagem antes de ativar.",
     "deleteTitle": "Apagar mensagem",
     "deleteBody": "Apagar {name}? As contagens e as respostas da pesquisa também são apagadas.",
-    "adminOnly": "Só os admins do workspace criam e editam mensagens de saída."
+    "adminOnly": "Só os admins do workspace criam e editam mensagens de saída.",
+    "hints": {
+      "banner": "Uma barra no topo que desce a página. Fica em cada página até o visitante fechar ou passar a data.",
+      "post": "A primeira linha é o título e o resto o texto. Abre no centro da página.",
+      "checklist": "A primeira linha é o título e depois um item por linha. Fica até o visitante descartar; fechar deixa uma aba com o progresso, salvo no navegador.",
+      "tour": "Um passo por linha: seletor CSS | texto. Por exemplo: #precos | Aqui estão os planos. Fica até terminar ou fechar; se um passo não está nesta página, continua na que o tem."
+    },
+    "expires": "Mostrar até (opcional)"
   },
   "emailChannel": {
     "title": "Email",
@@ -876,5 +906,173 @@
     "invalidId": "Escreva um ID como WEB-12.",
     "noProject": "Escolha um time ao qual você tem acesso.",
     "noProjects": "Você ainda não tem times no Track."
+  },
+  "access": {
+    "title": "Quem vê esta caixa",
+    "sub": "Por padrão todo o workspace vê. Se restringir, as conversas, relatórios e ajustes ficam só para os admins e as pessoas que você escolher.",
+    "adminOnly": "Só os admins do workspace podem mudar isso.",
+    "restricted": "Restringir esta caixa",
+    "members": "Pessoas com acesso",
+    "membersHelp": "Os admins sempre têm acesso. As regras só atribuem a pessoas desta lista.",
+    "saved": "Salvo",
+    "confirmTitle": "Mudar quem vê esta caixa?",
+    "confirmBody": "Quem perder o acesso deixa de ver as conversas na hora. As atribuições, seguimentos e avisos desta caixa são removidos, e as conversas abertas voltam a passar pelas regras de atribuição. Os gatilhos do Flow não rodam em uma caixa restrita.",
+    "confirm": "Salvar alterações",
+    "result": "{lost, plural, one {# pessoa perdeu} other {# pessoas perderam}} o acesso e {reassigned, plural, one {# conversa foi reatribuída} other {# conversas foram reatribuídas}}"
+  },
+  "routing": {
+    "title": "Habilidades e carga",
+    "sub": "Uma regra com habilidade obrigatória vai só para quem a tem. A carga é o máximo de conversas abertas que alguém recebe por round robin.",
+    "person": "Pessoa",
+    "skills": "Habilidades",
+    "capacity": "Carga máxima",
+    "skillsPlaceholder": "faturamento, inglês",
+    "noLimit": "Sem limite",
+    "skillsOf": "Habilidades de {name}",
+    "capacityOf": "Carga máxima de {name}",
+    "saved": "Salvo",
+    "requiredSkill": "Habilidade obrigatória",
+    "skillPlaceholder": "faturamento",
+    "requiredSkillHint": "Distribui entre as pessoas disponíveis com esta habilidade e abaixo da carga. Se ninguém atender, segue a próxima regra."
+  },
+  "companies": {
+    "title": "Empresas",
+    "sub": "Agrupe pessoas por empresa e guarde o plano e as notas.",
+    "listLabel": "Empresas",
+    "add": "Nova empresa",
+    "empty": "Ainda não há empresas",
+    "emptySub": "Crie uma e escolha na ficha de uma pessoa.",
+    "adminOnly": "Só os admins podem mudar isso.",
+    "newTitle": "Nova empresa",
+    "editTitle": "Editar empresa",
+    "create": "Criar empresa",
+    "deleteTitle": "Apagar a empresa?",
+    "deleteBody": "“{name}” será apagada. As pessoas ficam, sem empresa.",
+    "name": "Nome",
+    "domain": "Domínio",
+    "plan": "Plano",
+    "notes": "Notas",
+    "people": "Pessoas",
+    "company": "Empresa",
+    "none": "Sem empresa",
+    "createFirst": "Criar uma empresa",
+    "attributes": "Atributos",
+    "attributeName": "Nome",
+    "attributeValue": "Valor",
+    "addAttribute": "Adicionar",
+    "removeAttribute": "Remover {name}",
+    "optIn": "Aceitou receber campanhas"
+  },
+  "reportsCustom": {
+    "title": "Relatórios próprios",
+    "sub": "Escolha uma métrica e como agrupar. Os relatórios salvos rodam sobre as caixas que cada pessoa pode ver.",
+    "listLabel": "Relatórios salvos",
+    "add": "Novo relatório",
+    "empty": "Ainda não há relatórios próprios",
+    "emptySub": "Por exemplo: primeira resposta por time, últimos 30 dias.",
+    "adminOnly": "Só os admins podem mudar isso.",
+    "newTitle": "Novo relatório",
+    "editTitle": "Editar relatório",
+    "create": "Criar relatório",
+    "deleteTitle": "Apagar o relatório?",
+    "deleteBody": "“{name}” será apagado.",
+    "name": "Nome",
+    "metric": "Métrica",
+    "groupBy": "Agrupar por",
+    "range": "Últimos dias",
+    "widget": "Widget",
+    "allWidgets": "Todos os widgets",
+    "days": "{days} dias",
+    "none": "Nenhum",
+    "total": "{count, plural, one {# conversa} other {# conversas}} no período",
+    "back": "Voltar aos relatórios",
+    "metrics": {
+      "conversations": "Conversas",
+      "resolved": "Resolvidas",
+      "resolution_rate": "Taxa de resolução",
+      "first_response": "Primeira resposta média",
+      "resolution_time": "Tempo de resolução médio",
+      "csat": "CSAT médio",
+      "messages": "Mensagens"
+    },
+    "groups": {
+      "day": "Dia",
+      "week": "Semana",
+      "tag": "Tag",
+      "widget": "Widget",
+      "team": "Time",
+      "channel": "Canal",
+      "priority": "Prioridade",
+      "status": "Status",
+      "assignee": "Atribuída a",
+      "company": "Empresa"
+    }
+  },
+  "campaigns": {
+    "title": "Campanhas",
+    "sub": "Envie um e-mail às pessoas de um widget que aceitaram receber campanhas. Cada e-mail tem link de cancelamento.",
+    "listLabel": "Campanhas",
+    "add": "Nova campanha",
+    "empty": "Ainda não há campanhas",
+    "emptySub": "Escreva uma e envie às pessoas que aceitaram receber campanhas.",
+    "adminOnly": "Só os admins do workspace podem criar e enviar campanhas.",
+    "newTitle": "Nova campanha",
+    "editTitle": "Editar campanha",
+    "create": "Criar rascunho",
+    "deleteTitle": "Apagar a campanha?",
+    "deleteBody": "“{name}” será apagada com os resultados.",
+    "name": "Nome",
+    "widget": "Widget",
+    "audience": "Público",
+    "subject": "Assunto",
+    "body": "Mensagem",
+    "bodyHelp": "Você pode usar '{{first_name|olá}}', '{{name}}' e '{{email}}'. Uma campanha enviada só pode ser renomeada.",
+    "status": "Status",
+    "results": "Resultados",
+    "counts": "{sent} de {total} enviados, {failed} com erro",
+    "send": "Enviar",
+    "confirmTitle": "Enviar a campanha?",
+    "confirmBody": "“{name}” chega a {count, plural, one {# pessoa} other {# pessoas}}. Não dá para desfazer.",
+    "missingBody": "Coloque assunto e mensagem antes de enviar.",
+    "audiences": {
+      "all": "Todos com e-mail",
+      "verified": "Só e-mails verificados"
+    },
+    "statuses": {
+      "draft": "Rascunho",
+      "sending": "Enviando",
+      "sent": "Enviada",
+      "preparing": "Preparando"
+    },
+    "capNote": "Limite do workspace: {limit} destinatários por dia, restam {remaining} hoje.",
+    "overCap": "Hoje saem {now} e os outros {later} continuam quando o limite renova, às 00:00 UTC.",
+    "noRecipients": "Ninguém deste público aceitou receber campanhas.",
+    "excludedUnsubscribed": "{count, plural, one {# pessoa cancelou e fica de fora} other {# pessoas cancelaram e ficam de fora}}.",
+    "waitingCap": "Limite do dia atingido: continua amanhã.",
+    "excludedNoOptIn": "{count, plural, one {# pessoa não aceitou} other {# pessoas não aceitaram}} receber campanhas e {count, plural, one {fica de fora} other {ficam de fora}}."
+  },
+  "importer": {
+    "title": "Importar conversas",
+    "sub": "Traga seu histórico do Intercom ou Crisp com o JSON das APIs deles. O importado não dispara regras nem bot, e importar duas vezes o mesmo arquivo não duplica.",
+    "widget": "Para o widget",
+    "file": "Arquivo JSON",
+    "fileHelp": "Intercom: resultados de GET /conversations/'{id}'. Crisp: conversas com session_id e messages. Até 4 MB por arquivo (divida os maiores) e 2.000 conversas.",
+    "submit": "Importar",
+    "done": "{imported} importadas, {skipped} já existiam, {messages} mensagens.",
+    "invalid_file": "Esse arquivo não é JSON válido.",
+    "nothing_to_import": "Esse arquivo não tem conversas do Intercom ou Crisp com mensagens.",
+    "file_too_large": "O arquivo passa de 4 MB. Divida e importe cada parte.",
+    "adminOnly": "Só os admins do workspace podem importar.",
+    "noWidgets": "Crie um widget primeiro.",
+    "failed": "{count} falharam: importe o arquivo de novo para tentar novamente.",
+    "noCampaigns": "As pessoas importadas não recebem campanhas até um admin marcar o consentimento na ficha."
+  },
+  "insights": {
+    "title": "Temas e CX score",
+    "sub": "{count, plural, one {# conversa} other {# conversas}} neste período. Calculado com palavras e tempos, sem IA.",
+    "cxScore": "CX score",
+    "cxHelp": "Usa o CSAT quando existe; senão, a velocidade da primeira resposta e se foi resolvida.",
+    "topic": "Tema",
+    "noTopics": "Faltam conversas para encontrar temas."
   }
 }

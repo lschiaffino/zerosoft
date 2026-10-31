@@ -29,6 +29,6 @@ export async function POST(_req: NextRequest, ctx: Ctx) {
   if (!access || access.access === 'view') return jsonError(404, 'not_found');
   const limited = await limitWrites('notes:write', owner.personId);
   if (limited) return limited;
-  await retryNoteFileFailures(id);
-  return NextResponse.json({ failed: [] });
+  const res = await retryNoteFileFailures(id);
+  return NextResponse.json({ failed: await noteFileFailures(id), ocrOff: res.ocrOff });
 }

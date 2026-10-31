@@ -9,8 +9,9 @@ describe('Chat widget: idioma', () => {
     expect(pickWidgetLocale('pt-BR', 'es', 'en', ['en'])).toBe('pt');
     expect(pickWidgetLocale(null, 'es', 'en', ['en'])).toBe('es');
     expect(pickWidgetLocale(null, 'auto', 'es-AR', ['en-US'])).toBe('es');
-    expect(pickWidgetLocale(null, 'auto', '', ['fr-FR', 'pt_BR'])).toBe('pt');
-    expect(pickWidgetLocale('xx', 'auto', 'de', 'fr')).toBe('en');
+    expect(pickWidgetLocale(null, 'auto', '', ['xx-XX', 'pt_BR'])).toBe('pt');
+    expect(pickWidgetLocale(null, 'auto', '', ['fr-FR'])).toBe('fr');
+    expect(pickWidgetLocale('xx', 'auto', 'qq', 'yy')).toBe('en');
   });
 
   it('tiene los mismos textos en en/es/pt', () => {

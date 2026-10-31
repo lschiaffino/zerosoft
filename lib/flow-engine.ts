@@ -487,6 +487,7 @@ async function chatMessageNode(ws: string, cfg: Record<string, unknown>, tctx: R
   const conv = await getChatConversation(conversationId);
   const widget = conv ? await getChatWidget(conv.widget_id) : undefined;
   if (!conv || !widget || widget.user_id !== ws) throw new StepError('conversation_not_found');
+  if (Number(widget.restricted ?? 0) === 1) throw new StepError('restricted_inbox');
   const msg = await createChatMessage(conv.id, 'bot', { body: body.slice(0, 10_000) });
   return { message: { id: msg.id, body: msg.body }, conversation: { id: conv.id } };
 }

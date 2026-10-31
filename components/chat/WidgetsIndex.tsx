@@ -1,5 +1,7 @@
 import { getTranslations } from 'next-intl/server';
-import { countChatConversations, listChatWidgets } from '@/lib/chat-data';
+import { countChatConversations } from '@/lib/chat-data';
+import { listAccessibleChatWidgets } from '@/lib/chat-access';
+import type { SessionUser } from '@/lib/session';
 import { formatDate, formatNumber } from '@/lib/utils';
 import PageHeader from '@/components/ui/PageHeader';
 import PlatformSettingsLink from '@/components/app/PlatformSettingsLink';
@@ -18,17 +20,15 @@ type WidgetRowView = ChatWidgetRow & { open: number };
  */
 export default async function WidgetsIndex({
   locale,
-  userId,
-  teamId,
+  user,
   openNew = false,
 }: {
   locale: string;
-  userId: string;
-  teamId: string | null;
+  user: SessionUser;
   openNew?: boolean;
 }) {
   const t = await getTranslations({ locale, namespace: 'chat' });
-  const widgets = await listChatWidgets(userId, teamId);
+  const widgets = await listAccessibleChatWidgets(user);
   const counts = await Promise.all(widgets.map((w) => countChatConversations([w.id], { status: 'open' })));
   const rows: WidgetRowView[] = widgets.map((w, i) => ({ ...w, open: counts[i] }));
   const createButton = (

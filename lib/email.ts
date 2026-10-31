@@ -30,6 +30,8 @@ interface SendOptions {
   replyTo?: string;
   /** Headers extra (Chat: In-Reply-To y References para agrupar el hilo). */
   headers?: Record<string, string>;
+  /** Resend no manda dos veces con la misma clave (24 h): para reintentos tras una respuesta perdida. */
+  idempotencyKey?: string;
 }
 
 function fromEmail(): string {
@@ -62,7 +64,7 @@ export function appSender(): string {
   return 'zerosoft <notifications@zerosoft.ai>';
 }
 
-async function sendResend(opts: SendOptions): Promise<{ id?: string; ok: boolean; error?: string }> {
+async function sendResend(opts: SendOptions): Promise<{ id?: string; ok: boolean; error?: string; status?: number; retryAfter?: number }> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return { ok: false };
 
@@ -72,6 +74,7 @@ async function sendResend(opts: SendOptions): Promise<{ id?: string; ok: boolean
       headers: {
         authorization: `Bearer ${apiKey}`,
         'content-type': 'application/json',
+        ...(opts.idempotencyKey ? { 'Idempotency-Key': opts.idempotencyKey } : {}),
       },
       body: JSON.stringify({
         from: opts.from ?? fromEmail(),
@@ -89,7 +92,7 @@ async function sendResend(opts: SendOptions): Promise<{ id?: string; ok: boolean
       }),
     });
     const data = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
-    if (!res.ok) return { ok: false, error: data.message ?? `resend_${res.status}` };
+    if (!res.ok) return { ok: false, error: data.message ?? `resend_${res.status}`, status: res.status, retryAfter: Number(res.headers.get('retry-after')) || undefined };
     return { ok: true, id: data.id };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'resend_error' };
@@ -126,13 +129,13 @@ function captureEmail(opts: SendOptions): void {
   }
 }
 
-export async function sendEmail(opts: SendOptions): Promise<{ ok: boolean; provider?: string; id?: string; error?: string }> {
+export async function sendEmail(opts: SendOptions): Promise<{ ok: boolean; provider?: string; id?: string; error?: string; status?: number; retryAfter?: number }> {
   if (process.env.RESEND_API_KEY) {
     const resend = await sendResend(opts);
     if (resend.ok) return { ok: true, provider: 'resend', id: resend.id };
     // eslint-disable-next-line no-console
     console.error(`[email:resend] failed to=${opts.to} error=${resend.error ?? 'unknown'}`);
-    return { ok: false, provider: 'resend', error: resend.error ?? 'resend_error' };
+    return { ok: false, provider: 'resend', error: resend.error ?? 'resend_error', status: resend.status, retryAfter: resend.retryAfter };
   }
 
   const mock = sendMock(opts);

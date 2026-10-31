@@ -3,7 +3,8 @@ import { getCurrentUser } from '@/lib/session';
 import { noteEditable, noteOwner } from '@/lib/notes';
 import { resolveNoteAccess } from '@/lib/notes-shares';
 import { MAX_UPLOAD_SIZE, saveUpload, UploadError } from '@/lib/uploads';
-import { cleanFileName, DOCS_MAX_BLOB_UPLOAD, type DocsUploadConfig, type DocsUploadResult } from '@/lib/docs-files';
+import { NOTES_MAX_BLOB_UPLOAD } from '@/lib/notes-types';
+import { cleanFileName, type DocsUploadConfig, type DocsUploadResult } from '@/lib/docs-files';
 import { jsonError, limitWrites } from '@/lib/write-limit';
 
 export const runtime = 'nodejs';
@@ -19,7 +20,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   if (!user) return jsonError(401, 'unauthorized');
   const access = await resolveNoteAccess(noteOwner(user), id);
   if (!access) return jsonError(404, 'not_found');
-  return NextResponse.json<DocsUploadConfig>(process.env.BLOB_READ_WRITE_TOKEN ? { mode: 'blob', max: DOCS_MAX_BLOB_UPLOAD } : { mode: 'server', max: MAX_UPLOAD_SIZE });
+  return NextResponse.json<DocsUploadConfig>(process.env.BLOB_READ_WRITE_TOKEN && access.row.locked == null ? { mode: 'blob', max: NOTES_MAX_BLOB_UPLOAD } : { mode: 'server', max: MAX_UPLOAD_SIZE });
 }
 
 /**

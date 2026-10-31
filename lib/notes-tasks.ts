@@ -9,6 +9,7 @@ import { getDb, type NoteRow } from './db';
 import type { DocsBlock } from './docs-types';
 import { personAppAccess } from './api-auth';
 import { createNotification } from './notifications';
+import { canUseApp } from './workspace';
 import { updateNote, type NoteOwner } from './notes';
 import { listNoteShares, noteShareCandidates, resolveNoteAccess, setNoteShare } from './notes-shares';
 import { blocksToText, noteHref } from './notes-types';
@@ -119,7 +120,7 @@ export async function noteTaskMeta(
   return { meta, candidates: [self, ...others.filter((p) => p.id !== self.id)], canEdit: access.access !== 'view' };
 }
 
-export type TaskError = 'not_found' | 'forbidden' | 'not_member' | 'locked';
+export type TaskError = 'not_found' | 'forbidden' | 'not_member' | 'locked' | 'not_saved';
 
 /** Cambia fecha o responsable. Asignar comparte la nota con esa persona (si lo hace el dueño). */
 export async function setTaskMeta(
@@ -138,6 +139,8 @@ export async function setTaskMeta(
   // una fila de un bloque que nunca llega no muestra nada.
   const block = blocks.find((b) => b.id === blockId);
   if (block && block.type !== 'todo') return 'not_found';
+  // Sin el bloque guardado no se comparte ni se avisa nada: una fecha sola sí se guarda.
+  if (!block && patch.assignee_id) return 'not_saved';
   const db = getDb();
   const cur = (await db.prepare('SELECT due_date, assignee_id FROM note_tasks WHERE note_id = ? AND block_id = ?').get(noteId, blockId)) as
     | { due_date: string | null; assignee_id: string | null }
@@ -169,6 +172,7 @@ export async function setTaskMeta(
       title: `Task assigned to you: ${(block ? plainTodo(block).trim().slice(0, 140) : '') || access.row.title}`,
       body: access.row.title || undefined,
       href: noteHref(noteId),
+      meta: { noteKind: 'task_assigned', title: (block ? plainTodo(block).trim().slice(0, 140) : '') || access.row.title },
       sourceType: 'note',
       sourceId: noteId,
     }).catch(() => undefined);
@@ -212,15 +216,17 @@ export async function fireNoteTasksDue(opts: { limit?: number; now?: Date } = {}
   }>;
   let sent = 0;
   for (const r of rows) {
+    // Un todo que todavía no se guardó: sin claim, avisa cuando exista.
+    const block = parseBlocks(r.content).find((b) => b.id === r.block_id);
+    if (!block) continue;
     const claim = await db.prepare('UPDATE note_tasks SET notified_at = ? WHERE note_id = ? AND block_id = ? AND notified_at IS NULL').run(now.toISOString(), r.note_id, r.block_id);
     if (claim.changes === 0) continue;
-    const block = parseBlocks(r.content).find((b) => b.id === r.block_id);
-    if (!block || block.type !== 'todo' || block.checked) continue;
+    if (block.type !== 'todo' || block.checked) continue;
     // Solo a quien todavía puede abrir la nota; si no, al dueño (y se limpia la asignación).
     let recipient = r.person_id;
     if (r.assignee_id && r.assignee_id !== r.person_id) {
       const member = await personAppAccess(r.workspace_id, r.assignee_id);
-      if (member && (await resolveNoteAccess({ workspaceId: r.workspace_id, personId: r.assignee_id }, r.note_id))) recipient = r.assignee_id;
+      if (member && canUseApp({ role: member.role, apps: member.apps as never }, 'notes') && (await resolveNoteAccess({ workspaceId: r.workspace_id, personId: r.assignee_id }, r.note_id))) recipient = r.assignee_id;
       else await db.prepare('UPDATE note_tasks SET assignee_id = NULL WHERE note_id = ? AND block_id = ?').run(r.note_id, r.block_id);
     }
     await createNotification({
@@ -229,6 +235,7 @@ export async function fireNoteTasksDue(opts: { limit?: number; now?: Date } = {}
       title: `Task due: ${plainTodo(block).trim().slice(0, 140) || r.title}`,
       body: r.title || undefined,
       href: noteHref(r.note_id),
+      meta: { noteKind: 'task_due', title: plainTodo(block).trim().slice(0, 140) || r.title },
       sourceType: 'note',
       sourceId: r.note_id,
     }).catch(() => undefined);

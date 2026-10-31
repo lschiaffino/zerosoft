@@ -22,6 +22,7 @@ interface Props {
 type Fetched = { recent: NoteSummary[] | null; pinned: NoteSummary[] | null; shared: NoteSummary[] | null; tasks: NoteTask[] | null; events: NoteEvent[] | null };
 
 const SCRATCH_DEBOUNCE_MS = 600;
+const SCRATCH_DRAFT_KEY = 'zs:notes:scratch-draft';
 
 /** Inicio de Notes: widgets que cada persona elige y ordena, como el Home de Evernote. */
 export default function NotesHome({ notebooks, tags, searches, onOpenNote, onChoose, onPickSearch, onNewNote }: Props) {
@@ -52,7 +53,15 @@ export default function NotesHome({ notebooks, tags, searches, onOpenNote, onCho
     }
     const p = (await prefs.json()) as { home: HomeWidget[]; scratch: string };
     setWidgets(p.home);
-    setScratch(p.scratch);
+    // Una copia que no llegó a guardarse (se cerró la pestaña en el medio) gana y se manda.
+    let draft: string | null = null;
+    try {
+      draft = localStorage.getItem(SCRATCH_DRAFT_KEY);
+    } catch {
+      // Sin almacenamiento: lo del servidor.
+    }
+    setScratch(draft ?? p.scratch);
+    if (draft !== null && draft !== p.scratch) void persistScratch(draft);
     const [recent, pinned, shared, tasks, events] = await Promise.all([
       get('/api/notes?limit=6&sort=updated', (d: { notes: NoteSummary[] }) => d.notes),
       get('/api/notes?view=pinned&limit=6', (d: { notes: NoteSummary[] }) => d.notes),
@@ -73,9 +82,14 @@ export default function NotesHome({ notebooks, tags, searches, onOpenNote, onCho
       pendingScratch.current = null;
       void fetch('/api/notes/prefs', { method: 'PATCH', keepalive: true, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ scratch: value }) }).catch(() => undefined);
     };
+    const onHidden = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
     window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onHidden);
     return () => {
       window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onHidden);
       if (timer.current) clearTimeout(timer.current);
       flush();
     };
@@ -91,6 +105,11 @@ export default function NotesHome({ notebooks, tags, searches, onOpenNote, onCho
     setScratch(value);
     setScratchState('saving');
     pendingScratch.current = value;
+    try {
+      localStorage.setItem(SCRATCH_DRAFT_KEY, value);
+    } catch {
+      // Sin almacenamiento: queda el envío al salir.
+    }
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => void persistScratch(value), SCRATCH_DEBOUNCE_MS);
   }
@@ -99,6 +118,13 @@ export default function NotesHome({ notebooks, tags, searches, onOpenNote, onCho
     pendingScratch.current = null;
     const res = await fetch('/api/notes/prefs', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ scratch: value }) }).catch(() => null);
     setScratchState(res?.ok ? 'saved' : 'error');
+    if (res?.ok) {
+      try {
+        localStorage.removeItem(SCRATCH_DRAFT_KEY);
+      } catch {
+        // Nada que limpiar.
+      }
+    }
   }
 
   async function scratchToNote() {

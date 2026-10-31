@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const s = await chatSession();
   if (s instanceof NextResponse) return s;
-  return NextResponse.json({ teams: await listChatTeams(s.ws) });
+  return NextResponse.json({ teams: await listChatTeams(s.ws, s.widgets.map((w) => w.id)) });
 }
 
 /** { name, memberIds? }: solo admins (como los equipos de Intercom). */

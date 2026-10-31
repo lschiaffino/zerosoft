@@ -4,6 +4,7 @@ import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { listChatAgents } from '@/lib/chat-data';
 import PageHeader from '@/components/ui/PageHeader';
 import TeamsClient from '@/components/chat/TeamsClient';
+import RoutingClient from '@/components/chat/RoutingClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,7 @@ export default async function ChatTeamsPage(props: { params: Promise<{ locale: s
       <PageHeader title={t('teams.pageTitle')} description={t('teams.sub')} />
       <Suspense fallback={null}>
         <TeamsClient agents={agents} canManage={isWorkspaceAdmin(user)} />
+        <RoutingClient canManage={isWorkspaceAdmin(user)} />
       </Suspense>
     </div>
   );

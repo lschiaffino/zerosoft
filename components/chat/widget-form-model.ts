@@ -1,3 +1,4 @@
+import type { WidgetLocaleSetting } from '@/lib/chat-widget-i18n';
 import type { ChatWidgetRow } from '@/lib/db';
 import type { OfficeHoursConfig, OfficeHoursDay } from '@/lib/chat-data';
 import { parseAttributeDefs, type ChatAttributeType } from '@/lib/chat-attributes';
@@ -26,7 +27,7 @@ export interface WidgetFormValues {
   botGreeting: string;
   botSource: 'canned' | 'docs' | 'ai' | 'agent';
   helpEnabled: boolean;
-  locale: 'auto' | 'en' | 'es' | 'pt';
+  locale: WidgetLocaleSetting;
   /** Minutos sin leer antes de avisar por email al visitante (0 = nunca). */
   offlineEmailMinutes: number;
 }

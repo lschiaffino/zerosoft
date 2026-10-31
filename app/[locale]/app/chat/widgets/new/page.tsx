@@ -10,5 +10,5 @@ export const dynamic = 'force-dynamic';
 export default async function NewWidgetPage(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
   const user = await requireUser(locale);
-  return <WidgetsIndex locale={locale} userId={user.id} teamId={user.team?.id ?? null} openNew />;
+  return <WidgetsIndex locale={locale} user={user} openNew />;
 }

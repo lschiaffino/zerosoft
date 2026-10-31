@@ -15,7 +15,7 @@ export default async function EditWidgetPage(props: { params: Promise<{ locale: 
 
   const user = await requireUser(locale);
   const widget = await getChatWidget(id);
-  if (!widget || !canAccessWidget(widget, user)) notFound();
+  if (!widget || !await canAccessWidget(widget, user)) notFound();
 
   const origin = publicOrigin((await headers()).get('host'));
   // Para el diálogo de borrar: cuántas conversaciones se van con el widget.

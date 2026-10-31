@@ -94,16 +94,17 @@ function paintHighlights(root: HTMLElement | null, terms: string[]): number {
   return ranges.length;
 }
 
-/** Archivos que no se pudieron leer para la búsqueda, con reintento. */
-function NoteFileFailures({ noteId, blocks, canRetry }: { noteId: string; blocks: DocsBlock[]; canRetry: boolean }) {
+/** Archivos que no se pudieron leer para la búsqueda, con reintento donde sirve. */
+function NoteFileFailures({ noteId, blocks }: { noteId: string; blocks: DocsBlock[] }) {
   const t = useTranslations('notes.fileText');
-  const [failed, setFailed] = useState<string[]>([]);
+  const [failed, setFailed] = useState<Array<{ block_id: string; error: string | null }>>([]);
+  const [ocrOff, setOcrOff] = useState(false);
   const url = `/api/notes/${encodeURIComponent(noteId)}/file-text`;
   useEffect(() => {
     let live = true;
     void fetch(url)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: { failed: string[] } | null) => {
+      .then((d: { failed: typeof failed } | null) => {
         if (live && d) setFailed(d.failed);
       })
       .catch(() => undefined);
@@ -112,29 +113,38 @@ function NoteFileFailures({ noteId, blocks, canRetry }: { noteId: string; blocks
     };
   }, [url]);
   if (!failed.length) return null;
-  const names = failed.map((id) => blocks.find((b) => b.id === id)?.name || t('unnamed')).join(', ');
+  const name = (id: string) => blocks.find((b) => b.id === id)?.name || t('unnamed');
+  const tooLarge = failed.filter((f) => f.error === 'too_large');
+  const rest = failed.filter((f) => f.error !== 'too_large');
   return (
-    <p className="note-file-failed" role="status" data-testid="note-file-failed">
-      {t('failed', { names })}
-      {canRetry && (
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm"
-          onClick={() => {
-            void fetch(url, { method: 'POST' }).then((r) => {
-              if (r.ok) setFailed([]);
-            });
-          }}
-        >
-          {t('retry')}
-        </button>
+    <div className="note-file-failed" data-testid="note-file-failed">
+      {rest.length > 0 && (
+        <p role="status">
+          {t('failed', { names: rest.map((f) => name(f.block_id)).join(', ') })}{' '}
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => {
+              void fetch(url, { method: 'POST' }).then(async (r) => {
+                if (!r.ok) return;
+                const d = (await r.json()) as { failed: typeof failed; ocrOff: boolean };
+                setFailed(d.failed);
+                setOcrOff(d.ocrOff);
+              });
+            }}
+          >
+            {t('retry')}
+          </button>
+        </p>
       )}
-    </p>
+      {ocrOff && <p role="status">{t('ocrOff')}</p>}
+      {tooLarge.length > 0 && <p role="status">{t('tooLarge', { names: tooLarge.map((f) => name(f.block_id)).join(', ') })}</p>}
+    </div>
   );
 }
 
 /** Los chips de fecha de los todos, salvo sin red o en una nota bloqueada. */
-function MaybeTasks({ enabled, noteId, onError, children }: { enabled: boolean; noteId: string; onError: () => void; children: ReactNode }) {
+function MaybeTasks({ enabled, noteId, onError, children }: { enabled: boolean; noteId: string; onError: (msg?: string) => void; children: ReactNode }) {
   return enabled ? (
     <NoteTasksProvider noteId={noteId} onError={onError}>
       {children}
@@ -189,7 +199,7 @@ export default function NoteEditorPane({
   const [lockOpen, setLockOpen] = useState(false);
   const [annotating, setAnnotating] = useState<DocsBlock[] | null>(null);
   const [sharesKey, setSharesKey] = useState(0);
-  const taskError = useCallback(() => onError?.(), [onError]);
+  const taskError = useCallback((msg?: string) => onError?.(msg), [onError]);
   const openedShare = useRef(false);
   useEffect(() => {
     if (openShare && !openedShare.current) {
@@ -533,6 +543,7 @@ export default function NoteEditorPane({
         {gate ||
           (canEdit ? (
             <div className="note-body">
+              {!offline && !locked && <NoteFileFailures noteId={note.id} blocks={note.content} />}
               <NoteTasksProvider noteId={note.id} onError={taskError}>
                 <DocsEditor
                   page={page}
@@ -608,7 +619,7 @@ export default function NoteEditorPane({
     }).catch(() => null);
     if (!res?.ok) {
       const code = res ? ((await res.json().catch(() => null)) as { error?: string } | null)?.error : null;
-      return onError?.(code === 'transcribe_disabled' || code === 'ai_disabled' ? t('transcribe.disabled') : t('transcribe.error'));
+      return onError?.(code === 'transcribe_disabled' || code === 'ai_disabled' ? t('transcribe.disabled') : code === 'audio_too_large' ? t('transcribe.tooLarge') : t('transcribe.error'));
     }
     const data = (await res.json()) as { text: string; pieces: Array<{ text: string; speaker: string }> };
     const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -810,7 +821,7 @@ export default function NoteEditorPane({
         />
       )}
 
-      {!locked && !offline && <NoteFileFailures noteId={note.id} blocks={note.content} canRetry />}
+      {!locked && !offline && <NoteFileFailures noteId={note.id} blocks={note.content} />}
       <div className="note-meta">
         {tags.map((tg) => (
           <span key={tg} className="note-tag">

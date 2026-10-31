@@ -17,7 +17,7 @@ export default async function WidgetEmailPage(props: { params: Promise<{ locale:
   const { locale, id } = await props.params;
   const user = await requireUser(locale);
   const widget = await getChatWidget(id);
-  if (!widget || !canAccessWidget(widget, user)) notFound();
+  if (!widget || !await canAccessWidget(widget, user)) notFound();
   const t = await getTranslations({ locale, namespace: 'chat' });
   const address = inboundAddress('inbox', widget.id);
   const signed = !!process.env.RESEND_WEBHOOK_SECRET?.trim() || inboundFake();

@@ -576,7 +576,7 @@ export async function createNote(owner: NoteOwner, input: NoteInput = {}): Promi
   return (await getNote(owner, id))!;
 }
 
-export async function updateNote(owner: NoteOwner, id: string, patch: NoteInput): Promise<NoteDetail | null> {
+export async function updateNote(owner: NoteOwner, id: string, patch: NoteInput, opts: { restoring?: boolean } = {}): Promise<NoteDetail | null> {
   const row = await getNoteRow(owner, id);
   if (!row) return null;
   // Una nota en la papelera es de solo lectura: primero hay que restaurarla.
@@ -610,7 +610,7 @@ export async function updateNote(owner: NoteOwner, id: string, patch: NoteInput)
     const content = isLocked ? lockedFileBlocks(patch.content) : sanitizeBlocks(patch.content);
     sets.push('content = ?', 'body_text = ?');
     args.push(JSON.stringify(content), isLocked ? '' : await bodyWithFileText(id, content));
-    if (!isLocked) await syncNoteFileQueue(id, content).catch(() => undefined);
+    if (!isLocked) await syncNoteFileQueue(id, content, { prev: parseJson<DocsBlock[]>(row.content, []), noNew: opts.restoring }).catch(() => undefined);
   }
   if (patch.lock) {
     sets.push('locked = ?');
@@ -672,7 +672,7 @@ export async function restoreNoteVersion(owner: NoteOwner, id: string, versionId
   const version = await getNoteVersion(owner, id, versionId);
   if (!version) return null;
   await snapshotBeforeRestore(row);
-  return updateNote(owner, id, { title: version.title, content: version.content });
+  return updateNote(owner, id, { title: version.title, content: version.content }, { restoring: true });
 }
 
 /**
@@ -742,7 +742,7 @@ export async function unlockNote(
     const now = await getNoteRow(owner, id);
     throw new NotesConflictError(now ? toDetail(now) : null);
   }
-  await syncNoteFileQueue(id, content).catch(() => undefined);
+  await syncNoteFileQueue(id, content, { noNew: true }).catch(() => undefined);
   return getNote(owner, id);
 }
 

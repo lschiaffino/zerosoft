@@ -21,6 +21,11 @@ export interface NotificationTextLabels {
   docCommentMention: string;
   docCommentReply: string;
   docShared: string;
+  /** Notes (meta.noteKind): pedidos de acceso, tareas y pases de notas. */
+  noteAccessRequest?: string;
+  noteTaskAssigned?: string;
+  noteTaskDue?: string;
+  noteTransfer?: string;
   /** "{actor} cambió lo mismo en {title}: tu versión quedó en el historial". */
   docConflict?: string;
   boardMention: string;
@@ -79,6 +84,11 @@ export function notificationTitle(n: NotificationLike, L: NotificationTextLabels
   const meta = parseNotificationMeta(n.meta);
   const actor = String(meta.actorName || L.someone);
   const source = n.source_type ?? '';
+
+  if (source === 'note' && meta.noteKind) {
+    const tpl = { access_request: L.noteAccessRequest, task_assigned: L.noteTaskAssigned, task_due: L.noteTaskDue, transfer: L.noteTransfer }[String(meta.noteKind)];
+    if (tpl) return fill(tpl, { actor, title: String(meta.title ?? L.untitled), count: String(meta.count ?? '') });
+  }
 
   if (source === 'track_plan') {
     const vars = { actor, plan: String(meta.planName ?? '') };

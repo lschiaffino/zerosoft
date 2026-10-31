@@ -3,9 +3,9 @@ import { getCurrentUser } from '@/lib/session';
 import { noteOwner } from '@/lib/notes';
 import { invalidInput, jsonError, limitWrites } from '@/lib/write-limit';
 import { z } from 'zod';
-import { adminDisableLink, adminTransferNotes, notesAdminOverview } from '@/lib/notes-admin';
+import { adminDisableLink, adminSetOcr, adminTransferNotes, notesAdminOverview } from '@/lib/notes-admin';
 import { roleAtLeast } from '@/lib/teams';
-import { noteOcrEnabled, setNoteOcrEnabled } from '@/lib/notes-file-text';
+import { noteOcrEnabled } from '@/lib/notes-file-text';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   if (parsed.data.action === 'disable_link') {
     if (!(await adminDisableLink(user.id, actor, parsed.data.note_id))) return jsonError(404, 'not_found');
   } else if (parsed.data.action === 'ocr') {
-    await setNoteOcrEnabled(user.id, parsed.data.enabled);
+    await adminSetOcr(user.id, actor, parsed.data.enabled);
   } else {
     const moved = await adminTransferNotes(user.id, actor, parsed.data.from, parsed.data.to);
     if (typeof moved === 'string') return jsonError(400, moved);

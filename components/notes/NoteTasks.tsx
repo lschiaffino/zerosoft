@@ -14,11 +14,13 @@ interface Candidate {
 }
 
 async function patchTask(body: Record<string, unknown>): Promise<Record<string, unknown> | null> {
+  // 409: el todo todavía no se guardó (no se puede asignar).
   const res = await fetch('/api/notes/tasks', {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   }).catch(() => null);
+  if (res?.status === 409) return { notSaved: true };
   return res?.ok ? ((await res.json()) as Record<string, unknown>) : null;
 }
 
@@ -42,7 +44,7 @@ function TaskChip({
   meta: NoteTaskMeta | undefined;
   candidates: Candidate[];
   onChange: (blockId: string, m: NoteTaskMeta) => void;
-  onError: () => void;
+  onError: (msg?: string) => void;
 }) {
   const t = useTranslations('notes.tasks');
   const dueLabel = useDueLabel();
@@ -56,6 +58,7 @@ function TaskChip({
     const res = await patchTask({ note_id: noteId, block_id: block.id, ...patch });
     setBusy(false);
     if (!res) onError();
+    else if (res.notSaved) onError(t('notSaved'));
     else onChange(block.id, res as unknown as NoteTaskMeta);
   }
 
@@ -107,10 +110,10 @@ function TaskChip({
 }
 
 /**
- * Da a los todos de la nota su chip de fecha. El chip solo aparece en bloques
- * que ya están guardados en el servidor: uno recién escrito lo toma al guardarse.
+ * Da a los todos de la nota su chip de fecha. En un todo recién escrito la fecha
+ * se guarda igual; asignar espera a que el bloque llegue al servidor.
  */
-export function NoteTasksProvider({ noteId, children, onError }: { noteId: string; children: ReactNode; onError: () => void }) {
+export function NoteTasksProvider({ noteId, children, onError }: { noteId: string; children: ReactNode; onError: (msg?: string) => void }) {
   const [meta, setMeta] = useState<Record<string, NoteTaskMeta>>({});
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   useEffect(() => {

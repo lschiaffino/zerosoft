@@ -4,8 +4,9 @@ import { getCurrentUser } from '@/lib/session';
 import { noteOwner } from '@/lib/notes';
 import { resolveNoteAccess } from '@/lib/notes-shares';
 import { isAllowedUpload } from '@/lib/uploads';
-import { DOCS_MAX_BLOB_UPLOAD, isDocsStoragePathname } from '@/lib/docs-files';
-import { jsonError } from '@/lib/write-limit';
+import { isDocsStoragePathname } from '@/lib/docs-files';
+import { NOTES_MAX_BLOB_UPLOAD } from '@/lib/notes-types';
+import { jsonError, limitWrites } from '@/lib/write-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,6 +28,9 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if (!user) return jsonError(401, 'unauthorized');
   const access = await resolveNoteAccess(noteOwner(user), id);
   if (!access || access.access === 'view' || access.row.trashed_at) return jsonError(404, 'not_found');
+  if (access.row.locked != null) return jsonError(423, 'locked');
+  const limited = await limitWrites('notes:blob', noteOwner(user).personId, 30);
+  if (limited) return limited;
 
   try {
     const result = await handleUpload({
@@ -35,7 +39,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
       onBeforeGenerateToken: async (pathname) => {
         if (!isDocsStoragePathname(pathname) || !isAllowedUpload(pathname, '')) throw new Error('file_type_not_allowed');
         return {
-          maximumSizeInBytes: DOCS_MAX_BLOB_UPLOAD,
+          maximumSizeInBytes: NOTES_MAX_BLOB_UPLOAD,
           addRandomSuffix: false,
           allowOverwrite: false,
           // Nada que el navegador ejecute (HTML, SVG, JS, XML).

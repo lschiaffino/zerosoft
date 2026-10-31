@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
+import { listAccessibleChatWidgets } from '@/lib/chat-access';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import {
-  listChatWidgets,
   listChatConversations,
   countChatConversations,
   reopenExpiredSnoozesThrottled,
@@ -24,7 +24,7 @@ export async function GET(req: Request) {
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const widgets = await listChatWidgets(user.id, user.team?.id ?? null);
+  const widgets = await listAccessibleChatWidgets(user);
   const ownedIds = widgets.map((w) => w.id);
   const widgetIds = parseWidgetIds(searchParams.get('widgetIds'), ownedIds);
 

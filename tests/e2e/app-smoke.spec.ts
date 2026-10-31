@@ -380,6 +380,33 @@ const APPS: AppCase[] = [
     sidebar: true,
   },
   {
+    app: 'Chat companies',
+    list: '/en/app/chat/companies',
+    create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/chat/companies', { data: { name } }))).id, name }),
+    detail: (i) => `/en/app/chat/companies?open=${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/chat/companies/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/chat/companies/${i.id}`))),
+  },
+  {
+    app: 'Chat custom reports',
+    list: '/en/app/chat/reports/custom',
+    create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/chat/custom-reports', { data: { name, metric: 'conversations', group_by: 'day' } }))).id, name }),
+    detail: (i) => `/en/app/chat/reports/custom?report=${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/chat/custom-reports/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/chat/custom-reports/${i.id}`))),
+  },
+  {
+    app: 'Chat campaigns',
+    list: '/en/app/chat/campaigns',
+    create: async (request, name) => {
+      const w = await ok<{ id: string }>(request.post('/api/chat/widgets', { data: { name: `Campaign widget ${uid()}` } }));
+      return { id: (await ok<{ id: string }>(request.post('/api/chat/campaigns', { data: { name, widget_id: w.id } }))).id, name };
+    },
+    detail: (i) => `/en/app/chat/campaigns?open=${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/chat/campaigns/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/chat/campaigns/${i.id}`))),
+  },
+  {
     app: 'Flow',
     list: '/en/app/flow',
     create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/flow/flows', { data: { name } }))).id, name }),

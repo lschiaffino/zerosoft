@@ -6,8 +6,11 @@
  * persona; nunca de un miembro activo ni del dueño, ni a quien hace el pase.
  * Cada acción queda en note_admin_audit. Server-only.
  */
-import { getDb } from './db';
+import { ensureMigrated, getClient, getDb, txDb } from './db';
 import { listBoardMembers } from './board-comments';
+import { createNotification } from './notifications';
+import { setNoteOcrEnabled } from './notes-file-text';
+import { listMembers, listOwnedTeams } from './teams';
 
 export interface NotesAdminMember {
   id: string;
@@ -31,7 +34,7 @@ export interface NotesAdminLink {
 export interface NotesAdminAuditEntry {
   id: string;
   actor: string;
-  action: 'disable_link' | 'transfer';
+  action: 'disable_link' | 'transfer' | 'ocr';
   detail: Record<string, unknown>;
   created_at: string;
 }
@@ -40,6 +43,20 @@ async function audit(workspaceId: string, actorId: string, action: NotesAdminAud
   await getDb()
     .prepare('INSERT INTO note_admin_audit (id, workspace_id, actor_id, action, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
     .run(crypto.randomUUID(), workspaceId, actorId, action, JSON.stringify(detail), new Date().toISOString());
+}
+
+/** Quienes siguen en el workspace, también como guest: un guest no "se fue". */
+async function currentPeople(workspaceId: string): Promise<Set<string>> {
+  const ids = new Set([workspaceId]);
+  for (const team of await listOwnedTeams(workspaceId)) {
+    for (const m of await listMembers(team.id, { includeGuests: true })) ids.add(m.user_id);
+  }
+  return ids;
+}
+
+export async function adminSetOcr(workspaceId: string, actorId: string, enabled: boolean): Promise<void> {
+  await setNoteOcrEnabled(workspaceId, enabled);
+  await audit(workspaceId, actorId, 'ocr', { enabled });
 }
 
 export async function listNotesAdminAudit(workspaceId: string, limit = 20): Promise<NotesAdminAuditEntry[]> {
@@ -86,8 +103,10 @@ export async function notesAdminOverview(workspaceId: string): Promise<{
       last_update: s?.last_update ?? null,
     };
   };
-  const current = new Set(people.map((p) => p.id));
-  const formerIds = [...new Set([...stats.map((s) => s.person_id), ...notebooks.map((n) => n.person_id)])].filter((id) => !current.has(id));
+  const current = await currentPeople(workspaceId);
+  // También con todo en la papelera: esas notas igual hay que poder recuperarlas.
+  const anyNote = (await db.prepare('SELECT DISTINCT person_id FROM notes WHERE workspace_id = ?').all(workspaceId)) as Array<{ person_id: string }>;
+  const formerIds = [...new Set([...anyNote.map((s) => s.person_id), ...notebooks.map((n) => n.person_id)])].filter((id) => !current.has(id));
   const formerUsers = formerIds.length
     ? ((await db.prepare(`SELECT id, name, email FROM users WHERE id IN (${formerIds.map(() => '?').join(',')})`).all(...formerIds)) as Array<{ id: string; name: string | null; email: string }>)
     : [];
@@ -111,53 +130,81 @@ export async function adminDisableLink(workspaceId: string, actorId: string, not
 export type TransferError = 'not_former' | 'owner' | 'self' | 'not_member';
 
 /**
- * Pasa notas, libretas, plantillas y búsquedas guardadas de alguien que se fue
- * a una persona del workspace. Quienes tenían la nota compartida la siguen
- * viendo; una libreta con el mismo nombre que una de quien recibe se une a esa.
- * Una nota bloqueada sigue bloqueada: solo la abre quien sepa la contraseña.
+ * Pasa notas, libretas, plantillas, búsquedas guardadas y recordatorios de alguien
+ * que se fue a una persona del workspace, de una sola vez (transacción). Nadie gana
+ * ni pierde acceso: los compartidos siguen cubriendo las mismas notas. Por eso una
+ * libreta con shares (de cualquiera de los dos lados) nunca se une: queda aparte con
+ * un sufijo; solo se unen las de igual nombre sin shares. Una nota bloqueada sigue
+ * bloqueada: solo la abre quien sepa la contraseña. Quien hace el pase solo puede
+ * quedarse con las notas si no hay nadie más en el workspace.
  */
 export async function adminTransferNotes(workspaceId: string, actorId: string, from: string, to: string): Promise<number | TransferError> {
   if (from === workspaceId) return 'owner';
-  if (to === actorId) return 'self';
   if (from === to) return 'not_former';
+  if ((await currentPeople(workspaceId)).has(from)) return 'not_former';
   const people = await listBoardMembers(workspaceId);
-  if (people.some((p) => p.id === from)) return 'not_former';
   if (!people.some((p) => p.id === to)) return 'not_member';
+  if (to === actorId && people.some((p) => p.id !== actorId)) return 'self';
   const db = getDb();
+  const has = (await db
+    .prepare('SELECT (SELECT COUNT(*) FROM notes WHERE workspace_id = ? AND person_id = ?) + (SELECT COUNT(*) FROM note_notebooks WHERE workspace_id = ? AND person_id = ?) AS c')
+    .get(workspaceId, from, workspaceId, from)) as { c: number };
+  // Alguien que nunca tuvo nada acá: no hay pase ni registro.
+  if (!Number(has.c)) return 'not_former';
+  const leaver = (await db.prepare('SELECT name, email FROM users WHERE id = ?').get(from)) as { name: string | null; email: string } | undefined;
+  const leaverName = leaver?.name || leaver?.email || '';
 
-  // Libretas: las de igual nombre se unen a la de quien recibe.
-  const fromBooks = (await db.prepare('SELECT id, name FROM note_notebooks WHERE workspace_id = ? AND person_id = ?').all(workspaceId, from)) as Array<{ id: string; name: string }>;
-  const toBooks = (await db.prepare('SELECT id, name FROM note_notebooks WHERE workspace_id = ? AND person_id = ?').all(workspaceId, to)) as Array<{ id: string; name: string }>;
-  const byName = new Map(toBooks.map((b) => [b.name.trim().toLowerCase(), b.id]));
-  for (const book of fromBooks) {
-    const target = byName.get(book.name.trim().toLowerCase());
-    if (!target) continue;
-    await db.prepare('UPDATE notes SET notebook_id = ? WHERE notebook_id = ?').run(target, book.id);
-    const shares = (await db.prepare('SELECT id, person_id, role FROM note_shares WHERE notebook_id = ?').all(book.id)) as Array<{ id: string; person_id: string; role: string }>;
-    for (const s of shares) {
-      const there = (await db.prepare('SELECT id, role FROM note_shares WHERE notebook_id = ? AND person_id = ?').get(target, s.person_id)) as { id: string; role: string } | undefined;
-      if (there) {
-        // Se queda el permiso más fuerte.
-        if (s.role === 'edit' && there.role !== 'edit') await db.prepare("UPDATE note_shares SET role = 'edit' WHERE id = ?").run(there.id);
-        await db.prepare('DELETE FROM note_shares WHERE id = ?').run(s.id);
-      } else {
-        await db.prepare('UPDATE note_shares SET notebook_id = ? WHERE id = ?').run(target, s.id);
+  await ensureMigrated();
+  const tx = await getClient().transaction('write');
+  const t = txDb(tx);
+  let moved = 0;
+  try {
+    const fromBooks = (await t.prepare('SELECT id, name FROM note_notebooks WHERE workspace_id = ? AND person_id = ?').all(workspaceId, from)) as Array<{ id: string; name: string }>;
+    const toBooks = (await t.prepare('SELECT id, name FROM note_notebooks WHERE workspace_id = ? AND person_id = ?').all(workspaceId, to)) as Array<{ id: string; name: string }>;
+    const byName = new Map(toBooks.map((b) => [b.name.trim().toLowerCase(), b.id]));
+    const shared = async (id: string) => Boolean(await t.prepare('SELECT 1 AS x FROM note_shares WHERE notebook_id = ? LIMIT 1').get(id));
+    for (const book of fromBooks) {
+      const target = byName.get(book.name.trim().toLowerCase());
+      if (!target) continue;
+      if ((await shared(book.id)) || (await shared(target))) {
+        const name = `${book.name} (${leaverName})`.slice(0, 80);
+        await t.prepare('UPDATE note_notebooks SET name = ? WHERE id = ?').run(name, book.id);
+        continue;
       }
+      await t.prepare('UPDATE notes SET notebook_id = ? WHERE notebook_id = ?').run(target, book.id);
+      await t.prepare('DELETE FROM note_notebooks WHERE id = ?').run(book.id);
     }
-    await db.prepare('DELETE FROM note_notebooks WHERE id = ?').run(book.id);
+    moved = (await t.prepare('UPDATE notes SET person_id = ? WHERE workspace_id = ? AND person_id = ?').run(to, workspaceId, from)).changes;
+    for (const table of ['note_notebooks', 'note_templates', 'note_saved_searches', 'note_reminders']) {
+      await t.prepare(`UPDATE ${table} SET person_id = ? WHERE workspace_id = ? AND person_id = ?`).run(to, workspaceId, from);
+    }
+    // El acceso se chequea contra owner_id: los compartidos siguen valiendo con la nueva dueña.
+    await t.prepare('UPDATE note_shares SET owner_id = ? WHERE workspace_id = ? AND owner_id = ?').run(to, workspaceId, from);
+    await t.prepare('DELETE FROM note_shares WHERE workspace_id = ? AND owner_id = ? AND person_id = ?').run(workspaceId, to, to);
+    // Lo que tenía compartido o asignado quien se fue ya no le corresponde.
+    await t.prepare('DELETE FROM note_shares WHERE workspace_id = ? AND person_id = ?').run(workspaceId, from);
+    await t.prepare('UPDATE note_tasks SET assignee_id = NULL WHERE assignee_id = ? AND note_id IN (SELECT id FROM notes WHERE workspace_id = ?)').run(from, workspaceId);
+    await t.prepare('UPDATE note_prefs SET email_token = NULL WHERE workspace_id = ? AND person_id = ?').run(workspaceId, from);
+    await t
+      .prepare('INSERT INTO note_admin_audit (id, workspace_id, actor_id, action, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(crypto.randomUUID(), workspaceId, actorId, 'transfer', JSON.stringify({ from, to, notes: moved }), new Date().toISOString());
+    await tx.commit();
+  } catch (err) {
+    await tx.rollback().catch(() => undefined);
+    throw err;
+  } finally {
+    tx.close();
   }
-
-  const res = await db.prepare('UPDATE notes SET person_id = ? WHERE workspace_id = ? AND person_id = ?').run(to, workspaceId, from);
-  for (const table of ['note_notebooks', 'note_templates', 'note_saved_searches']) {
-    await db.prepare(`UPDATE ${table} SET person_id = ? WHERE workspace_id = ? AND person_id = ?`).run(to, workspaceId, from);
+  if (to !== actorId) {
+    await createNotification({
+      userId: to,
+      type: 'note_access',
+      title: `You received ${moved} notes from ${leaverName}`,
+      href: '/app/notes',
+      sourceType: 'note',
+      sourceId: from,
+      meta: { noteKind: 'transfer', actorName: leaverName, count: String(moved) },
+    }).catch(() => undefined);
   }
-  // Los compartidos siguen valiendo con la nueva dueña (el acceso se chequea contra owner_id).
-  await db.prepare('UPDATE note_shares SET owner_id = ? WHERE workspace_id = ? AND owner_id = ?').run(to, workspaceId, from);
-  await db.prepare('DELETE FROM note_shares WHERE workspace_id = ? AND owner_id = ? AND person_id = ?').run(workspaceId, to, to);
-  // Lo que tenía compartido o asignado quien se fue ya no le corresponde.
-  await db.prepare('DELETE FROM note_shares WHERE workspace_id = ? AND person_id = ?').run(workspaceId, from);
-  await db.prepare('UPDATE note_tasks SET assignee_id = NULL WHERE assignee_id = ? AND note_id IN (SELECT id FROM notes WHERE workspace_id = ?)').run(from, workspaceId);
-  await db.prepare('UPDATE note_prefs SET email_token = NULL WHERE workspace_id = ? AND person_id = ?').run(workspaceId, from);
-  await audit(workspaceId, actorId, 'transfer', { from, to, notes: res.changes });
-  return res.changes;
+  return moved;
 }
