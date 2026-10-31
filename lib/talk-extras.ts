@@ -354,12 +354,14 @@ export interface TalkPrefs {
   dnd: DndSchedule;
   /** Canales del recap diario (vacío = todos los míos). */
   recapChannels: string[];
+  /** Recap automático cada mañana (apagado por defecto). */
+  recapDaily: boolean;
 }
 
-type PrefsRow = { notify: TalkPrefs['notify']; email: TalkPrefs['email']; keywords: string; push: string; dnd_schedule: number; dnd_start: string; dnd_end: string; dnd_days: string; recap_channels: string };
+type PrefsRow = { notify: TalkPrefs['notify']; email: TalkPrefs['email']; keywords: string; push: string; dnd_schedule: number; dnd_start: string; dnd_end: string; dnd_days: string; recap_channels: string; recap_daily?: number };
 
 export function prefsFromRow(row: PrefsRow | undefined): TalkPrefs {
-  if (!row) return { notify: 'mentions', email: 'mentions', keywords: '', push: 'mentions', dnd: { ...DEFAULT_DND }, recapChannels: [] };
+  if (!row) return { notify: 'mentions', email: 'mentions', keywords: '', push: 'mentions', dnd: { ...DEFAULT_DND }, recapChannels: [], recapDaily: false };
   return {
     notify: row.notify,
     email: row.email,
@@ -367,12 +369,13 @@ export function prefsFromRow(row: PrefsRow | undefined): TalkPrefs {
     push: row.push === 'all' || row.push === 'off' ? row.push : 'mentions',
     dnd: { enabled: !!Number(row.dnd_schedule), start: validTime(row.dnd_start) ? row.dnd_start : '22:00', end: validTime(row.dnd_end) ? row.dnd_end : '08:00', days: parseDays(row.dnd_days) },
     recapChannels: row.recap_channels ? row.recap_channels.split(',').filter(Boolean) : [],
+    recapDaily: !!Number(row.recap_daily ?? 0),
   };
 }
 
 export async function getPrefs(workspaceId: string, userId: string): Promise<TalkPrefs> {
   const row = (await getDb()
-    .prepare('SELECT notify, email, keywords, push, dnd_schedule, dnd_start, dnd_end, dnd_days, recap_channels FROM talk_prefs WHERE workspace_id = ? AND user_id = ?')
+    .prepare('SELECT notify, email, keywords, push, dnd_schedule, dnd_start, dnd_end, dnd_days, recap_channels, recap_daily FROM talk_prefs WHERE workspace_id = ? AND user_id = ?')
     .get(workspaceId, userId)) as PrefsRow | undefined;
   return prefsFromRow(row);
 }
@@ -384,6 +387,7 @@ export interface PrefsInput {
   push?: TalkPrefs['push'];
   dnd?: Partial<DndSchedule>;
   recapChannels?: string[];
+  recapDaily?: boolean;
 }
 
 export async function setPrefs(actor: TalkActor, input: PrefsInput): Promise<TalkPrefs> {
@@ -410,6 +414,13 @@ export async function setPrefs(actor: TalkActor, input: PrefsInput): Promise<Tal
   if (input.recapChannels) {
     const ids = [...new Set(input.recapChannels)].slice(0, 50).filter((id) => /^[\w-]{1,64}$/.test(id));
     await db.prepare('UPDATE talk_prefs SET recap_channels = ? WHERE workspace_id = ? AND user_id = ?').run(ids.join(','), actor.workspaceId, actor.personId);
+  }
+  if (input.recapDaily !== undefined) {
+    const { nextRecapAt } = await import('./talk-ai');
+    const tz = (await db.prepare('SELECT timezone FROM talk_profiles WHERE workspace_id = ? AND user_id = ?').get(actor.workspaceId, actor.personId)) as { timezone: string } | undefined;
+    await db
+      .prepare('UPDATE talk_prefs SET recap_daily = ?, recap_next_at = ? WHERE workspace_id = ? AND user_id = ?')
+      .run(input.recapDaily ? 1 : 0, input.recapDaily ? nextRecapAt(tz?.timezone ?? '') : null, actor.workspaceId, actor.personId);
   }
   if (input.notify) await db.prepare('UPDATE talk_prefs SET notify = ? WHERE workspace_id = ? AND user_id = ?').run(input.notify, actor.workspaceId, actor.personId);
   if (input.email) await db.prepare('UPDATE talk_prefs SET email = ? WHERE workspace_id = ? AND user_id = ?').run(input.email, actor.workspaceId, actor.personId);

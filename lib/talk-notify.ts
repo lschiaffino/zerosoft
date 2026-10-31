@@ -406,5 +406,9 @@ export async function runTalkCron(): Promise<Record<string, unknown>> {
   const huddles = await sweepHuddles().catch(() => null);
   const { pruneCommandResponses } = await import('./talk-commands');
   await pruneCommandResponses().catch(() => undefined);
+  await getDb()
+    .prepare('DELETE FROM talk_agent_runs WHERE created_at < ?')
+    .run(new Date(Date.now() - 86_400_000).toISOString())
+    .catch(() => undefined);
   return { scheduled, reminders, emails, huddles, at: nowIso() };
 }

@@ -29,6 +29,41 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-31-talk-marcadores-camara-clips',
+    date: '2026-10-31',
+    title: {
+      en: 'Talk: bookmarks, camera in huddles, clips and /ask',
+      es: 'Talk: marcadores, cámara en huddles, clips y /ask',
+      pt: 'Talk: favoritos, câmera em huddles, clipes e /ask',
+    },
+    items: [
+      {
+        product: 'talk',
+        en: 'Channels have a bookmarks bar: any member adds, edits or deletes links, and they show up in Cmd+K.',
+        es: 'Los canales tienen una barra de marcadores: cualquier miembro agrega, edita o borra links, y aparecen en Cmd+K.',
+        pt: 'Os canais têm uma barra de favoritos: qualquer membro adiciona, edita ou apaga links, e eles aparecem no Cmd+K.',
+      },
+      {
+        product: 'talk',
+        en: 'Huddles now carry camera video. Whoever joined first can also send video and screen to people who join later; before, it did not reach them.',
+        es: 'Los huddles ahora llevan video de cámara. Quien entró primero también manda video y pantalla a quienes entran después; antes no les llegaba.',
+        pt: 'Os huddles agora têm vídeo de câmera. Quem entrou primeiro também envia vídeo e tela para quem entra depois; antes não chegava.',
+      },
+      {
+        product: 'talk',
+        en: 'Record an audio or video clip from the composer and play it inside the message.',
+        es: 'Grabá un clip de audio o video desde el editor y reproducilo en el mensaje.',
+        pt: 'Grave um clipe de áudio ou vídeo pelo editor e reproduza na mensagem.',
+      },
+      {
+        product: 'talk',
+        en: '/ask answers a question in the thread using only that conversation, and the recap can arrive each morning with a notification.',
+        es: '/ask responde una pregunta en el hilo usando solo esa conversación, y el recap puede llegar cada mañana con un aviso.',
+        pt: '/ask responde uma pergunta no fio usando só essa conversa, e o resumo pode chegar toda manhã com um aviso.',
+      },
+    ],
+  },
+  {
     id: '2026-10-31-pulido-interfaz',
     date: '2026-10-31',
     title: {

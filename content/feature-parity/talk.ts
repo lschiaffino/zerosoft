@@ -28,7 +28,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Slack',
-  lastReviewed: '2026-10-29',
+  lastReviewed: '2026-10-31',
   areas: [
     { id: 'channels', label: loc(['Channels', 'Canales', 'Canais']) },
     { id: 'dms', label: loc(['Direct messages', 'Mensajes directos', 'Mensagens diretas']) },
@@ -281,15 +281,31 @@ type Built = { status: ParityStatus; detail?: L };
 
 /** Lo que Talk ya hace (tanda 4d, 2026-10-25; ronda 2, 2026-10-28). Lo que no está acá sigue en missing. */
 const BUILT: Record<string, Built> = {
+  clips: {
+    status: 'partial',
+    detail: [
+      'Record audio (up to 5 minutes) or video (up to 90 seconds) from the composer, review it, attach it, and play it inside the message. No transcript yet',
+      'Grabás audio (hasta 5 minutos) o video (hasta 90 segundos) desde el editor, lo revisás, lo adjuntás y se reproduce en el mensaje. Todavía sin transcripción',
+      'Grave áudio (até 5 minutos) ou vídeo (até 90 segundos) pelo editor, revise, anexe e reproduza na mensagem. Ainda sem transcrição',
+    ],
+  },
+  'ai-agent': {
+    status: 'partial',
+    detail: [
+      '/ask in any channel or DM posts your question and an AI bot answers in its thread, using only that conversation. No personal agent that takes actions and no partner agents. Tested only against a fake AI model',
+      '/ask en cualquier canal o DM publica tu pregunta y un bot de IA responde en su hilo, usando solo esa conversación. Sin agente personal que haga acciones ni agentes de terceros. Probado solo contra un modelo de IA falso',
+      '/ask em qualquer canal ou DM publica sua pergunta e um bot de IA responde no fio, usando só essa conversa. Sem agente pessoal que execute ações nem agentes de terceiros. Testado só contra um modelo de IA falso',
+    ],
+  },
   'public-channels': { status: 'have' },
   'private-channels': { status: 'have', detail: ['Only members read them; webhooks and flows only get their messages if the person who created them is a member', 'Solo los leen sus miembros; webhooks y flows reciben sus mensajes solo si quien los creó es miembro', 'Só os membros leem; webhooks e flows recebem as mensagens só se quem os criou for membro'] },
   'channel-manage': { status: 'have', detail: ['Rename, topic, description, archive and restore, change to private and delete', 'Renombrar, tema, descripción, archivar y restaurar, pasar a privado y borrar', 'Renomear, tema, descrição, arquivar e restaurar, tornar privado e apagar'] },
   'channel-header': {
-    status: 'partial',
+    status: 'have',
     detail: [
-      'Header with topic, members, pinned messages and Messages, Canvas and Lists tabs. No bookmarks yet',
-      'Encabezado con tema, miembros, mensajes fijados y pestañas de Mensajes, Canvas y Listas. Todavía sin marcadores',
-      'Cabeçalho com tema, membros, mensagens fixadas e abas de Mensagens, Canvas e Listas. Ainda sem marcadores',
+      'Header with topic, members, pinned messages and Messages, Canvas and Lists tabs, plus a bar of bookmarks any member adds, edits and deletes',
+      'Encabezado con tema, miembros, mensajes fijados y pestañas de Mensajes, Canvas y Listas, más una barra de marcadores que cualquier miembro agrega, edita y borra',
+      'Cabeçalho com tema, membros, mensagens fixadas e abas de Mensagens, Canvas e Listas, mais uma barra de favoritos que qualquer membro adiciona, edita e apaga',
     ],
   },
   'sidebar-sections': {
@@ -367,20 +383,20 @@ const BUILT: Record<string, Built> = {
     status: 'partial',
     detail: ['Workspace owner, admin and member, plus channel admins. No finer roles', 'Owner, admin y miembro del workspace, más admins de canal. Sin roles más finos', 'Owner, admin e membro do workspace, mais admins de canal. Sem papéis mais finos'],
   },
-  huddles: {
-    status: 'partial',
+  'huddles': {
+    status: 'have',
     detail: [
-      'Audio huddles in channels and DMs, peer to peer (WebRTC) for up to 15 people, with who is talking and mute. No camera video yet. STUN by default; strict networks need a TURN server (TALK_TURN_URLS and TALK_TURN_SECRET)',
-      'Huddles de audio en canales y DMs, de persona a persona (WebRTC) hasta 15, con quién habla y silencio. Todavía sin cámara. STUN por defecto; las redes estrictas necesitan un servidor TURN (TALK_TURN_URLS y TALK_TURN_SECRET)',
-      'Huddles de áudio em canais e DMs, ponto a ponto (WebRTC) até 15 pessoas, com quem está falando e silenciar. Ainda sem câmera. STUN por padrão; redes restritas precisam de um servidor TURN (TALK_TURN_URLS e TALK_TURN_SECRET)',
+      'Audio and camera video in channels and DMs, peer to peer (WebRTC) for up to 15 people, with who is talking and mute. Camera at 360p, so far checked only with simulated video between two browser tabs, not with a real camera. STUN by default; strict networks need a TURN server (TALK_TURN_URLS and TALK_TURN_SECRET)',
+      'Audio y video de cámara en canales y DMs, de navegador a navegador (WebRTC) para hasta 15 personas, con quién habla y silencio. Cámara a 360p, por ahora verificada solo con video simulado entre dos pestañas, no con una cámara real. STUN por defecto; las redes estrictas necesitan un servidor TURN (TALK_TURN_URLS y TALK_TURN_SECRET)',
+      'Áudio e vídeo de câmera em canais e DMs, de navegador a navegador (WebRTC) para até 15 pessoas, com quem está falando e mudo. Câmera a 360p, até agora verificada só com vídeo simulado entre duas abas, não com uma câmera real. STUN por padrão; redes restritas precisam de um servidor TURN (TALK_TURN_URLS e TALK_TURN_SECRET)',
     ],
   },
   'screen-share': {
     status: 'partial',
     detail: [
-      'Anyone in the huddle shares a screen (several at once). No drawing on the screen',
-      'Cualquiera del huddle comparte pantalla (varias a la vez). Sin dibujar sobre la pantalla',
-      'Qualquer pessoa do huddle compartilha a tela (várias ao mesmo tempo). Sem desenhar na tela',
+      'Anyone in the huddle shares a screen (several at once), whether they joined first or last. No drawing on the screen',
+      'Cualquiera del huddle comparte pantalla (varias a la vez), haya entrado primero o último. Sin dibujar sobre la pantalla',
+      'Qualquer pessoa do huddle compartilha a tela (várias ao mesmo tempo), tenha entrado primeiro ou por último. Sem desenhar na tela',
     ],
   },
   'huddle-notes': {
@@ -426,9 +442,9 @@ const BUILT: Record<string, Built> = {
   'ai-search-recaps': {
     status: 'partial',
     detail: [
-      'Answers with cited sources in search, message translation and a recap of the last 24 hours of the channels you pick. The recap is made when you ask for it, not sent daily',
-      'Respuestas con fuentes en la búsqueda, traducción de mensajes y recap de las últimas 24 horas de los canales que elijas. El recap se arma cuando lo pedís, no llega solo cada día',
-      'Respostas com fontes na busca, tradução de mensagens e resumo das últimas 24 horas dos canais que você escolher. O resumo é feito quando você pede, não chega sozinho todo dia',
+      'Answers with cited sources in search, message translation and a recap of the last 24 hours of the channels you pick, on request or each morning with a notification. Tested only against a fake AI model, so it stays partial until checked with a real provider',
+      'Respuestas con fuentes en la búsqueda, traducción de mensajes y recap de las últimas 24 horas de los canales que elijas, cuando lo pedís o cada mañana con un aviso. Probado solo contra un modelo de IA falso: queda parcial hasta verificarlo con un proveedor real',
+      'Respostas com fontes na busca, tradução de mensagens e resumo das últimas 24 horas dos canais que você escolher, quando pedir ou toda manhã com um aviso. Testado só contra um modelo de IA falso: fica parcial até ser verificado com um provedor real',
     ],
   },
   'retention-export': {
