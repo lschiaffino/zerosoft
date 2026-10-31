@@ -19,7 +19,9 @@
     "trash": "Lixeira",
     "shared": "Compartilhadas comigo",
     "savedSearches": "Buscas salvas",
-    "exportAll": "Exportar todas as notas"
+    "exportAll": "Exportar todas as notas",
+    "home": "Início",
+    "tasks": "Tarefas"
   },
   "notebooks": {
     "new": "Novo caderno",
@@ -58,7 +60,10 @@
     "clearSearch": "Limpar busca",
     "emptySharedTitle": "Ninguém compartilhou nada com você ainda",
     "emptySharedBody": "Quando alguém da equipe compartilhar uma nota ou um caderno com você, aparece aqui.",
-    "sharedBy": "de {name}"
+    "sharedBy": "de {name}",
+    "semantic": "Buscar por significado",
+    "semanticHint": "Encontra notas pelo que dizem, mesmo com outras palavras. Usa sua cota de IA.",
+    "semanticDegraded": "A busca por significado não está disponível agora: estes resultados coincidem só por palavras-chave."
   },
   "trash": {
     "confirmDelete": "Excluir esta nota para sempre? Não dá para desfazer.",
@@ -145,7 +150,25 @@
     "copied": "Copiado",
     "source": "Fonte",
     "saveHint": "⌘↵ para salvar",
-    "touchInstall": "O recorte se instala pelo computador. Copie o código para colá-lo lá como favorito."
+    "touchInstall": "O recorte se instala pelo computador. Copie o código para colá-lo lá como favorito.",
+    "modeLabel": "O que salvar",
+    "modes": {
+      "article": "Artigo",
+      "page": "Página inteira",
+      "selection": "Seleção",
+      "bookmark": "Favorito",
+      "screenshot": "Captura"
+    },
+    "modeHints": {
+      "article": "O texto principal e as imagens, sem menus nem anúncios.",
+      "page": "Tudo o que há na página, como texto e imagens.",
+      "selection": "Só o texto que você marcou.",
+      "bookmark": "Só o link.",
+      "screenshot": "Escolha uma aba ou janela e salve o que ela mostra."
+    },
+    "fetchError": "Não foi possível ler essa página. Abra-a e use o bookmarklet, ou salve como favorito.",
+    "emptyPage": "Essa página não tem texto para salvar.",
+    "screenshotCancelled": "A captura foi cancelada. Nada foi salvo."
   },
   "public": {
     "notFound": "Nota não encontrada",
@@ -448,7 +471,10 @@
     "confirmDiscard": "Descartar esta gravação?",
     "tooBig": "A gravação passa de 10 MB e não pode ser adicionada.",
     "savedLocal": "Gravação salva neste dispositivo. Ela é adicionada à nota quando a conexão voltar.",
-    "addedLater": "Gravação adicionada à nota."
+    "addedLater": "Gravação adicionada à nota.",
+    "addPage": "Adicionar outra página",
+    "scanPages": "{count, plural, one {# página} other {# páginas}}",
+    "scanTooBig": "A digitalização é grande demais para enviar (limite de 100 MB). Suas páginas continuam aqui. Tente com menos páginas."
   },
   "signOut": {
     "title": "{count, plural, one {# mudança no Notes ainda não foi enviada} other {# mudanças no Notes ainda não foram enviadas}}",
@@ -459,5 +485,180 @@
     "download": "Baixar as mudanças pendentes",
     "confirm": "Sair mesmo assim",
     "cancel": "Cancelar"
+  },
+  "tasks": {
+    "setDue": "Prazo e responsável",
+    "due": "Prazo",
+    "assignee": "Responsável",
+    "nobody": "Ninguém",
+    "assignHint": "Atribuir compartilha a nota com essa pessoa, com permissão de edição.",
+    "error": "Não foi possível carregar suas tarefas.",
+    "retry": "Tentar de novo",
+    "loading": "Carregando tarefas",
+    "emptyTitle": "Ainda não há tarefas",
+    "emptyBody": "Adicione uma lista de tarefas a qualquer nota e os itens aparecem aqui.",
+    "showDone": "Ver {count, plural, one {# tarefa concluída} other {# tarefas concluídas}}",
+    "untitled": "Sem título",
+    "groups": {
+      "overdue": "Atrasadas",
+      "today": "Hoje",
+      "upcoming": "Próximas",
+      "noDate": "Sem prazo",
+      "done": "Concluídas"
+    },
+    "notSaved": "Este item ainda está sendo salvo. Tente atribuir de novo em um instante."
+  },
+  "home": {
+    "title": "Início",
+    "customize": "Personalizar",
+    "done": "Pronto",
+    "addWidget": "Adicionar um widget",
+    "moveUp": "Subir {name}",
+    "moveDown": "Descer {name}",
+    "hide": "Ocultar {name}",
+    "loading": "Carregando",
+    "saving": "Salvando",
+    "saved": "Salvo",
+    "saveError": "Não foi possível salvar",
+    "error": "Não foi possível carregar seu início.",
+    "retry": "Tentar de novo",
+    "noWidgets": "Sem widgets. Toque em Personalizar para adicionar.",
+    "scratchPlaceholder": "Anote algo. Fica aqui até virar uma nota.",
+    "scratchToNote": "Salvar como nota",
+    "tasksEmpty": "Nenhuma tarefa aberta.",
+    "recentEmpty": "Ainda não há notas.",
+    "pinnedEmpty": "Nenhuma nota fixada.",
+    "sharedEmpty": "Nada foi compartilhado com você.",
+    "eventsEmpty": "Nenhuma reserva do Cal nos próximos 14 dias.",
+    "eventNoteAction": "Criar uma nota de reunião",
+    "notebooksEmpty": "Ainda não há cadernos.",
+    "tagsEmpty": "Ainda não há etiquetas.",
+    "searchesEmpty": "Nenhuma busca salva.",
+    "widgets": {
+      "scratch": "Bloco rápido",
+      "tasks": "Tarefas",
+      "recent": "Notas recentes",
+      "pinned": "Fixadas",
+      "shared": "Compartilhadas comigo",
+      "events": "Próximas reuniões",
+      "notebooks": "Cadernos",
+      "tags": "Etiquetas",
+      "searches": "Buscas salvas"
+    },
+    "eventNote": {
+      "when": "Quando",
+      "agenda": "Pauta",
+      "notes": "Notas",
+      "actions": "Pendências",
+      "with": "Com"
+    }
+  },
+  "access": {
+    "title": "Você não tem acesso a esta nota",
+    "body": "Peça acesso a quem a criou. A pessoa recebe um aviso e escolhe se você pode ver ou editar.",
+    "pending": "Pedido enviado. Você recebe um aviso quando a pessoa responder.",
+    "denied": "Seu pedido foi recusado. Você pode pedir de novo.",
+    "request": "Pedir acesso",
+    "requestAgain": "Pedir de novo",
+    "error": "Não foi possível enviar. Tente de novo.",
+    "requests": "Pedidos de acesso",
+    "approveView": "Pode ver",
+    "approveEdit": "Pode editar",
+    "deny": "Recusar",
+    "deniedWait": "Seu pedido foi recusado. Você pode pedir de novo amanhã."
+  },
+  "email": {
+    "title": "Email para Notes",
+    "lead": "Encaminhe um email para este endereço e ele vira uma nota na sua conta, com os anexos.",
+    "loading": "Carregando",
+    "error": "Não foi possível carregar seu endereço.",
+    "unavailable": "Este workspace não tem um domínio de entrada configurado. Quem administra precisa configurar o mesmo domínio que o Chat usa.",
+    "address": "Seu endereço do Notes",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "tipSubject": "O assunto é o título. Termine com @caderno e #etiqueta para organizar, por exemplo: Fatura @Financeiro #recibos",
+    "tipAttachments": "O texto de PDFs comuns entra na busca. Imagens, só se um admin ligou a leitura.",
+    "rotate": "Pedir outro endereço",
+    "rotateHint": "O endereço atual deixa de funcionar. Quem tiver o endereço pode adicionar notas à sua conta.",
+    "attachmentsNotSaved": "Anexos não salvos: {names}"
+  },
+  "admin": {
+    "title": "Console da equipe",
+    "lead": "Como a equipe usa o Notes. Notas privadas continuam privadas: você vê contagens, não conteúdo.",
+    "loading": "Carregando",
+    "error": "Não foi possível carregar o console.",
+    "retry": "Tentar de novo",
+    "people": "Pessoas",
+    "person": "Pessoa",
+    "notes": "Notas",
+    "notebooks": "Cadernos",
+    "shares": "Compartilhadas",
+    "links": "Links públicos",
+    "lastUpdate": "Última edição",
+    "never": "Nunca",
+    "publicLinks": "Links públicos",
+    "noLinks": "Nenhuma nota tem link público.",
+    "untitled": "Sem título",
+    "disableLink": "Desligar link",
+    "transfer": "Transferir notas",
+    "transferHint": "Quando alguém sai do workspace, move as notas, cadernos, modelos, buscas salvas e lembretes dessa pessoa para outro membro atual, que não seja você, ou para você se não houver mais ninguém. Quem pode ler o quê não muda: um caderno compartilhado fica separado com um sufixo; só se unem os de mesmo nome sem compartilhamento. Notas bloqueadas continuam bloqueadas. Cada transferência fica registrada.",
+    "from": "De",
+    "to": "Para",
+    "transferAction": "Transferir",
+    "transferConfirm": "Confirmar",
+    "transferDone": "Notas transferidas.",
+    "noFormer": "Ninguém que saiu tem notas aqui.",
+    "ocrTitle": "Ler imagens e digitalizações",
+    "ocrLabel": "Ler o texto de imagens e PDFs digitalizados adicionados daqui em diante",
+    "ocrHint": "Desligado por padrão. Ligado, imagens e PDFs digitalizados adicionados às notas daqui em diante são enviados ao modelo de IA e usam a cota de IA do workspace. Arquivos que já estão nas notas não são lidos, mesmo se você editar a nota, e desligar interrompe o que estava esperando. O texto de PDFs comuns adicionados daqui em diante sempre entra na busca, sem modelo.",
+    "auditTitle": "Atividade",
+    "auditTransfer": "Transferiu notas",
+    "auditLink": "Desligou um link público",
+    "auditOcrOn": "Ligou a leitura de imagens e digitalizações",
+    "auditOcrOff": "Desligou a leitura de imagens e digitalizações"
+  },
+  "annotate": {
+    "open": "Anotar imagem ou PDF",
+    "none": "Esta nota não tem imagens nem PDFs salvos.",
+    "title": "Anotar",
+    "close": "Fechar",
+    "undo": "Desfazer",
+    "save": "Salvar uma cópia",
+    "tools": "Ferramentas",
+    "color": "Cor",
+    "textLabel": "Texto a adicionar",
+    "addText": "Adicionar",
+    "loading": "Carregando arquivo",
+    "loadError": "Não foi possível abrir o arquivo.",
+    "saveError": "Não foi possível salvar a cópia.",
+    "untitledFile": "Arquivo sem nome",
+    "suffix": "anotado",
+    "pageLabel": "Página {page}",
+    "tool": {
+      "pen": "Caneta",
+      "highlight": "Marca-texto",
+      "box": "Caixa",
+      "text": "Texto"
+    },
+    "tooBig": "A cópia é grande demais para enviar. Suas marcas continuam aqui.",
+    "truncated": "Só é possível anotar as primeiras {max} de {total} páginas. A cópia salva mantém todas."
+  },
+  "transcribe": {
+    "open": "Transcrever áudio",
+    "none": "Esta nota não tem gravações salvas.",
+    "working": "Transcrevendo o áudio. Pode levar um minuto.",
+    "done": "Transcrição adicionada à nota.",
+    "disabled": "A transcrição não está configurada neste workspace.",
+    "error": "Não foi possível transcrever o áudio.",
+    "heading": "Transcrição",
+    "speaker": "Pessoa {speaker}",
+    "tooLarge": "Esta gravação passa de 25 MB, o limite para transcrever."
+  },
+  "fileText": {
+    "failed": "Não foi possível ler para a busca: {names}.",
+    "retry": "Tentar de novo",
+    "unnamed": "Arquivo sem nome",
+    "ocrOff": "A leitura de imagens e digitalizações está desligada neste workspace, então esses arquivos não foram reprocessados. Um admin pode ligá-la nas configurações do Notes.",
+    "tooLarge": "Passam do limite de leitura de 12 MB e não entram na busca: {names}."
   }
 }

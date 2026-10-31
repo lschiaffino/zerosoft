@@ -24,7 +24,7 @@ export function canEditRobots(user: Pick<SessionUser, 'role'>): boolean {
 /** ¿El robot usa un login, una sesión guardada o envíos con credenciales? Esos quedan para admins. */
 export function robotUsesLogin(row: Pick<RobotRow, 'steps' | 'persist_session' | 'settings'>): boolean {
   if (row.persist_session === 1) return true;
-  if (/\{\{\s*credentials\./.test(row.steps ?? '')) return true;
+  if (/\{\{[^{}]*\bcredentials\b/.test(row.steps ?? '')) return true;
   return /"kind"\s*:\s*"(sheets|airtable|s3)"/.test(row.settings ?? '');
 }
 
@@ -56,10 +56,33 @@ export function canRunRobot(
 /** Lo que un member no puede guardar: logins en los pasos, sesión guardada ni envíos con credenciales. */
 export function memberPatchError(patch: { steps?: unknown; persistSession?: boolean; settings?: unknown; import?: unknown }): string | null {
   const text = JSON.stringify([patch.steps ?? null, patch.import ?? null]);
-  if (/\{\{\s*credentials\./.test(text)) return 'admin_only_login';
+  if (/\{\{[^{}]*\bcredentials\b/.test(text)) return 'admin_only_login';
   if (patch.persistSession === true) return 'admin_only_login';
   const settings = JSON.stringify([patch.settings ?? null, patch.import ?? null]);
   if (/"kind"\s*:\s*"(sheets|airtable|s3)"/.test(settings)) return 'admin_only_login';
+  return null;
+}
+
+/**
+ * Lo que un member manda a otras apps o personas: el envío al CRM pide acceso al
+ * CRM, y el email de cambios solo va a gente del workspace.
+ */
+export async function memberSettingsError(
+  user: { role?: string | null; apps?: unknown },
+  workspaceId: string,
+  settings: unknown,
+): Promise<string | null> {
+  const s = (settings ?? {}) as { destinations?: Array<{ kind?: string }>; changeEmail?: { to?: string[] } };
+  if (s.destinations?.some((d) => d.kind === 'crm')) {
+    const { userCanUseApp } = await import('./workspace');
+    if (!userCanUseApp(user as Parameters<typeof userCanUseApp>[0], 'crm')) return 'no_crm_access';
+  }
+  const to = s.changeEmail?.to ?? [];
+  if (to.length) {
+    const { workspaceMemberEmails } = await import('./robots-alerts');
+    const members = await workspaceMemberEmails(workspaceId);
+    if (to.some((a) => !members.has(String(a).toLowerCase()))) return 'outside_recipient';
+  }
   return null;
 }
 
@@ -88,6 +111,8 @@ export function runErrorStatus(code: string): number {
       return 429;
     case 'busy':
       return 409;
+    case 'admin_only_login':
+      return 403;
     case 'runner_unavailable':
       return 503;
     default:

@@ -122,6 +122,8 @@ export interface RobotHealed {
   field?: string;
   /** Ya quedó guardado en los pasos del robot. */
   saved?: boolean;
+  /** Paso de acción: se usó en esta corrida y una persona decide si queda. */
+  review?: boolean;
 }
 
 export interface InterpreterOptions {
@@ -145,7 +147,11 @@ export interface InterpreterOptions {
   /** Reloj (epoch ms) para los códigos TOTP; tests. */
   now?: () => number;
   /** Autoaprendizaje prendido: huellas guardadas de corridas anteriores, por selector. */
-  selfHeal?: { prints: Record<string, unknown> };
+  selfHeal?: {
+    prints: Record<string, unknown>;
+    /** Corre una expresión en un mundo aislado: la página no puede tocar sus globales. Sin esto no hay autoaprendizaje. */
+    evaluate?: (expr: string) => Promise<unknown>;
+  };
 }
 
 export interface InterpreterStep {
@@ -302,62 +308,77 @@ export async function robotInterpreter(
   const clip = (v: string, n = 5000) => (v.length > n ? v.slice(0, n) : v);
 
   /** Último selector alternativo que usó un paso (autorreparación); lo lee runList. */
-  let lastHeal: { from: string; to: string; relearned?: boolean } | null = null;
+  let lastHeal: { from: string; to: string; relearned?: boolean; review?: boolean } | null = null;
   const healed: RobotHealed[] = [];
   const prints: Record<string, unknown> = {};
   /** Columnas de una lista que reencontró la huella en este paso; las lee runList. */
   let lastFieldHeals: Array<{ field: string; from: string; to: string }> = [];
 
   // ---- Autoaprendizaje: huella del elemento y búsqueda por parecido ----
-  // Texto, no función: corre en la página (como evaluate) y va tal cual a la microVM.
+  // La página es hostil: el texto corre en un mundo aislado (sus globales no se pueden
+  // pisar) y su DOM igual puede mentir. Por eso de la página solo vuelven datos sueltos
+  // (etiqueta, id, clases, un atributo, posición): el selector se arma y valida acá.
   const PAGE_LIB =
     `const norm=(s)=>String(s||'').replace(/\\s+/g,' ').trim();` +
     `const shape=(s)=>norm(s).slice(0,40).replace(/[A-Za-z\\u00C0-\\u024F]+/g,'a').replace(/[0-9]+/g,'0');` +
     `const good=(c)=>/^[A-Za-z][\\w-]{1,40}$/.test(c)&&!/[0-9]{3,}/.test(c);` +
-    `const cls=(el)=>Array.from(el.classList||[]).filter(good).slice(0,8);` +
-    `const ATTRS=['name','aria-label','placeholder','type','role','title','alt','data-testid','data-test','data-qa','data-cy'];` +
-    `const attrs=(el)=>{const o={};for(const a of ATTRS){const v=el.getAttribute(a);if(v)o[a]=v.slice(0,100);}const h=el.getAttribute('href');if(h)o.href=h.split('?')[0].slice(0,200);return o;};` +
+    `const cls=(el)=>Array.from(el.classList||[]).filter(good).slice(0,3);` +
+    `const ATTRS=['name','aria-label','placeholder','role','title','alt','data-testid','data-test','data-qa','data-cy'];` +
+    `const okVal=(v)=>/^[\\w .:\\/@-]{1,100}$/.test(v);` +
+    `const attrs=(el)=>{const o={};for(const a of ATTRS.concat(['type'])){const v=el.getAttribute(a);if(v)o[a]=v.slice(0,100);}const h=el.getAttribute('href');if(h)o.href=h.split('?')[0].slice(0,200);return o;};` +
     `const label=(el)=>{const p=el.previousElementSibling;const t=p?norm(p.innerText||p.textContent):'';return t.length>0&&t.length<=40?t:'';};` +
     `const nth=(el)=>{const p=el.parentElement;return p?Array.from(p.children).filter((c)=>c.tagName===el.tagName).indexOf(el)+1:1;};` +
     `const txt=(el)=>norm(el.innerText||el.textContent).slice(0,80);` +
-    `const read=(el)=>({t:el.tagName.toLowerCase(),id:el.id||'',c:cls(el),a:attrs(el),x:txt(el),s:shape(el.innerText||el.textContent),l:label(el),i:nth(el),p:el.parentElement?{t:el.parentElement.tagName.toLowerCase(),c:cls(el.parentElement)}:null});` +
+    `const isPw=(el)=>(el.getAttribute('type')||'').toLowerCase()==='password'||/password|one-time-code/.test(el.getAttribute('autocomplete')||'');` +
+    `const nameOf=(el)=>{const lab=el.labels&&el.labels[0]?norm(el.labels[0].innerText||el.labels[0].textContent):'';return norm(el.getAttribute('aria-label')||lab||el.getAttribute('placeholder')||el.getAttribute('alt')||el.getAttribute('title')||(/^(submit|button)$/.test(el.getAttribute('type')||'')?el.getAttribute('value'):'')||el.innerText||el.textContent).slice(0,80);};` +
+    `const read=(el)=>({t:el.tagName.toLowerCase(),id:el.id||'',c:cls(el),a:attrs(el),x:txt(el),nm:nameOf(el),s:shape(el.innerText||el.textContent),l:label(el),i:nth(el),p:el.parentElement?{t:el.parentElement.tagName.toLowerCase(),c:cls(el.parentElement)}:null});` +
     `const overlap=(a,b)=>{if(!a.length||!b.length)return 0;let n=0;for(const x of a)if(b.indexOf(x)>=0)n++;return n/Math.max(a.length,b.length);};` +
     `const score=(el,pr)=>{let r=0;const c=read(el);if(pr.id&&c.id===pr.id)r+=4;if(pr.x&&c.x===pr.x)r+=pr.x.length>=3?5:2;else if(pr.s&&c.s===pr.s)r+=2;for(const k of Object.keys(pr.a||{})){if(c.a[k]===pr.a[k])r+=k==='type'||k==='role'?1:3;}r+=overlap(pr.c||[],c.c)*3;if(pr.p&&c.p){if(pr.p.t===c.p.t)r+=0.5;r+=overlap(pr.p.c||[],c.p.c)*2;}if(pr.l&&c.l===pr.l)r+=3;if(pr.i&&c.i===pr.i)r+=0.5;return r;};` +
-    `const uniq=(s,el)=>{try{const m=document.querySelectorAll(s);return m.length===1&&m[0]===el;}catch(e){return false;}};` +
-    `const q=(v)=>'"'+v.replace(/\\\\/g,'\\\\\\\\').replace(/"/g,'\\\\"')+'"';` +
-    `const css=(el)=>{const t=el.tagName.toLowerCase();if(el.id&&good(el.id)&&uniq('#'+el.id,el))return '#'+el.id;for(const a of ATTRS){const v=el.getAttribute(a);if(v&&a!=='type'&&v.length<=100){const s=t+'['+a+'='+q(v)+']';if(uniq(s,el))return s;}}const c=cls(el);if(c.length){const s=t+c.map((x)=>'.'+x).join('');if(uniq(s,el))return s;}const parts=[];let cur=el;for(let d=0;cur&&cur.tagName!=='BODY'&&d<8;d++){const p=cur.parentElement;const same=p?Array.from(p.children).filter((x)=>x.tagName===cur.tagName):[cur];parts.unshift(cur.tagName.toLowerCase()+(same.length>1?':nth-of-type('+(same.indexOf(cur)+1)+')':''));const s=parts.join(' > ');if(uniq(s,el))return s;cur=p;}const full='body > '+parts.join(' > ');return uniq(full,el)?full:'';};` +
-    `const relCss=(card,el)=>{if(card===el)return '';const t=el.tagName.toLowerCase();const c=cls(el);const tries=[c.length?t+c.map((x)=>'.'+x).join(''):'',t];for(const s of tries){if(!s)continue;try{if(card.querySelector(s)===el)return s;}catch(e){}}const parts=[];let cur=el;for(let d=0;cur&&cur!==card&&d<6;d++){const p=cur.parentElement;const same=p?Array.from(p.children).filter((x)=>x.tagName===cur.tagName):[cur];parts.unshift(cur.tagName.toLowerCase()+(same.length>1?':nth-of-type('+(same.indexOf(cur)+1)+')':''));cur=p;}return ':scope > '+parts.join(' > ');};` +
-    `const fieldScore=(el,f)=>{const c=read(el);let r=0;if(f.attribute&&!el.getAttribute(f.attribute))return -1;if(!f.attribute&&!c.x)return -1;if(f.pr.t===c.t)r+=2;r+=overlap(f.pr.c||[],c.c)*3;if(f.pr.s&&f.pr.s===c.s)r+=3;if(f.pr.l&&f.pr.l===c.l)r+=2;if(f.attribute==='href'&&c.t==='a')r+=1;if(f.attribute==='src'&&c.t==='img')r+=1;return r;};` +
-    `const fitFields=(card,fields)=>{const out={};const used=[];let found=0;const all=[card].concat(Array.from(card.querySelectorAll('*')).slice(0,300));for(const f of fields){if(!f.pr){continue;}let best=null;let bs=2.5;for(const el of all){if(used.indexOf(el)>=0&&!f.attribute)continue;if(!f.attribute&&el.children.length>2)continue;const v=fieldScore(el,f);if(v>bs){bs=v;best=el;}}if(best){if(!f.attribute)used.push(best);out[f.name]=relCss(card,best);found++;}}return {out,found};};`;
+    `const partStr=(p)=>p.t+(p.id?'#'+p.id:'')+(p.c||[]).map((x)=>'.'+x).join('')+(p.a?'['+p.a[0]+'="'+p.a[1]+'"]':'')+(p.n?':nth-of-type('+p.n+')':'');` +
+    `const toStr=(ps)=>ps.map(partStr).join(' > ');` +
+    `const uniq=(ps,el)=>{try{const m=document.querySelectorAll(toStr(ps));return m.length===1&&m[0]===el;}catch(e){return false;}};` +
+    `const pathParts=(el,stop)=>{const parts=[];let cur=el;for(let d=0;cur&&cur!==stop&&cur.tagName!=='BODY'&&d<8;d++){const p=cur.parentElement;const same=p?Array.from(p.children).filter((x)=>x.tagName===cur.tagName):[cur];parts.unshift({t:cur.tagName.toLowerCase(),n:same.length>1?same.indexOf(cur)+1:0});cur=p;}return parts;};` +
+    `const spec=(el)=>{const t=el.tagName.toLowerCase();if(el.id&&good(el.id)&&uniq([{t,id:el.id}],el))return [{t,id:el.id}];for(const a of ATTRS){const v=el.getAttribute(a);if(v&&okVal(v)&&uniq([{t,a:[a,v]}],el))return [{t,a:[a,v]}];}const c=cls(el);if(c.length&&uniq([{t,c}],el))return [{t,c}];const ps=[{t:'body'}].concat(pathParts(el,null));return uniq(ps,el)?ps:null;};` +
+    `const relSpec=(card,el)=>{if(card===el)return {parts:[]};const t=el.tagName.toLowerCase();const c=cls(el);for(const p of [c.length?{t,c}:null,{t}]){if(!p)continue;try{if(card.querySelector(partStr(p))===el)return {parts:[p]};}catch(e){}}return {scope:true,parts:pathParts(el,card)};};` +
+    `const fieldScore=(el,f)=>{const c=read(el);let r=0;if(isPw(el))return -1;if(f.attribute&&!el.getAttribute(f.attribute))return -1;if(!f.attribute&&!c.x)return -1;if(f.pr.t===c.t)r+=2;r+=overlap(f.pr.c||[],c.c)*3;if(f.pr.s&&f.pr.s===c.s)r+=3;if(f.pr.l&&f.pr.l===c.l)r+=2;if(f.attribute==='href'&&c.t==='a')r+=1;if(f.attribute==='src'&&c.t==='img')r+=1;return r;};` +
+    `const fitFields=(card,fields)=>{const out={};const used=[];let found=0;const all=[card].concat(Array.from(card.querySelectorAll('*')).slice(0,300));for(const f of fields){if(!f.pr){continue;}let best=null;let bs=2.5;for(const el of all){if(used.indexOf(el)>=0&&!f.attribute)continue;if(!f.attribute&&el.children.length>2)continue;const v=fieldScore(el,f);if(v>bs){bs=v;best=el;}}if(best){if(!f.attribute)used.push(best);out[f.name]=relSpec(card,best);found++;}}return {out,found};};`;
 
-  /** Lee la huella del selector (y de las columnas, si es una lista). null si no está. */
+  /** Lee la huella del selector (y de las columnas, si es una lista), con el origen. null si no está o es un campo de contraseña. */
   const printExpr = (selector: string, fields?: Array<{ name: string; selector: string; attribute: string }>) =>
     `(() => {${PAGE_LIB} let m; try { m = document.querySelectorAll(${JSON.stringify(selector)}); } catch (e) { return null; }` +
-    ` if (!m.length) return null; const pr = read(m[0]); pr.n = m.length;` +
+    ` if (!m.length || isPw(m[0])) return null; const pr = read(m[0]); pr.n = m.length; pr.o = location.origin;` +
     ` const fields = ${JSON.stringify(fields ?? null)}; if (fields) { pr.f = {}; for (const f of fields) { let el = m[0]; if (f.selector) { try { el = m[0].querySelector(f.selector); } catch (e) { el = null; } } if (el) pr.f[f.name] = read(el); } }` +
     ` return JSON.stringify(pr); })()`;
 
-  /** Busca el elemento más parecido a la huella. Solo si gana claro: un parecido dudoso no sirve. */
+  /** Extracción: el elemento más parecido, solo si gana claro. Nunca un campo de contraseña. */
   const relearnExpr = (pr: unknown) =>
-    `(() => {${PAGE_LIB} const pr = ${JSON.stringify(pr)}; const all = Array.from(document.querySelectorAll(pr.t)).slice(0, 3000); let best = null, bs = 0, second = 0;` +
-    ` for (const el of all) { const v = score(el, pr); if (v > bs) { second = bs; bs = v; best = el; } else if (v > second) { second = v; } }` +
-    ` if (!best || bs < 5 || bs - second < 1) return null; const sel = css(best); return sel ? JSON.stringify({ selector: sel, score: bs }) : null; })()`;
+    `(() => {${PAGE_LIB} const pr = ${JSON.stringify(pr)}; if (pr.o !== location.origin) return null; const all = Array.from(document.querySelectorAll(pr.t)).slice(0, 3000); let best = null, bs = 0, second = 0;` +
+    ` for (const el of all) { if (isPw(el)) continue; const v = score(el, pr); if (v > bs) { second = bs; bs = v; best = el; } else if (v > second) { second = v; } }` +
+    ` if (!best || bs < 5 || bs - second < 1) return null; const parts = spec(best); return parts ? JSON.stringify({ parts }) : null; })()`;
+
+  /** Acción: un solo elemento de la misma etiqueta (y tipo) con el mismo nombre visible. Las clases no cuentan. */
+  const relearnActionExpr = (pr: unknown) =>
+    `(() => {${PAGE_LIB} const pr = ${JSON.stringify(pr)}; if (pr.o !== location.origin || !pr.nm) return null; const type = (pr.a || {}).type || '';` +
+    ` const hits = Array.from(document.querySelectorAll(pr.t)).slice(0, 3000).filter((el) => !isPw(el) && (el.getAttribute('type') || '') === type && nameOf(el) === pr.nm);` +
+    ` if (hits.length !== 1) return null; const parts = spec(hits[0]); return parts ? JSON.stringify({ parts }) : null; })()`;
 
   /** Busca la lista: grupos de hermanos parecidos cuyas tarjetas tengan las columnas de la huella. */
   const relearnListExpr = (pr: unknown, fields: Array<{ name: string; attribute: string }>) =>
-    `(() => {${PAGE_LIB} const pr = ${JSON.stringify(pr)}; const fields = ${JSON.stringify(fields)}.map((f) => Object.assign({}, f, { pr: (pr.f || {})[f.name] })); const want = fields.filter((f) => f.pr).length; if (!want) return null;` +
+    `(() => {${PAGE_LIB} const pr = ${JSON.stringify(pr)}; if (pr.o !== location.origin) return null; const fields = ${JSON.stringify(fields)}.map((f) => Object.assign({}, f, { pr: (pr.f || {})[f.name] })); const want = fields.filter((f) => f.pr).length; if (!want) return null;` +
     ` let best = null, bs = 0; const parents = Array.from(document.querySelectorAll('body, body *')).filter((p) => p.children.length >= 2).slice(0, 3000);` +
     ` for (const p of parents) { const groups = {}; for (const c of Array.from(p.children)) { (groups[c.tagName] = groups[c.tagName] || []).push(c); }` +
     ` for (const tag of Object.keys(groups)) { const g = groups[tag]; if (g.length < 2) continue; const fit = fitFields(g[0], fields); if (fit.found < Math.ceil(want * 0.6)) continue; const second = fitFields(g[1], fields); if (second.found < fit.found - 1) continue;` +
     ` const shared = cls(g[0]).filter((c) => g.every((x) => x.classList.contains(c))); const count = Math.min(g.length, pr.n || g.length) / Math.max(g.length, pr.n || g.length); const v = (fit.found / want) * 5 + count * 2 + overlap(pr.c || [], cls(g[0])) * 3 + (tag.toLowerCase() === pr.t ? 1 : 0); if (v > bs) { bs = v; best = { p, tag: tag.toLowerCase(), shared, fit }; } } }` +
-    ` if (!best || bs < 5) return null; const ps = css(best.p) || ''; const base = best.tag + best.shared.slice(0, 2).map((c) => '.' + c).join(''); const sel = ps ? ps + ' > ' + base : base; return JSON.stringify({ selector: sel, fields: best.fit.out, score: bs }); })()`;
+    ` if (!best || bs < 5) return null; const base = { t: best.tag, c: best.shared.slice(0, 2) }; const ps = best.p.tagName === 'BODY' ? [{ t: 'body' }] : spec(best.p); if (!ps) return null; return JSON.stringify({ parts: ps.concat([base]), fields: best.fit.out }); })()`;
 
   /** Columnas en blanco en todas las filas: las busca dentro de las tarjetas que sí están. */
   const relearnFieldsExpr = (selector: string, pr: unknown, fields: Array<{ name: string; attribute: string }>) =>
-    `(() => {${PAGE_LIB} const pr = ${JSON.stringify(pr)}; const fields = ${JSON.stringify(fields)}.map((f) => Object.assign({}, f, { pr: (pr.f || {})[f.name] })); let m; try { m = document.querySelectorAll(${JSON.stringify(selector)}); } catch (e) { return null; } if (!m.length) return null; return JSON.stringify(fitFields(m[0], fields).out); })()`;
+    `(() => {${PAGE_LIB} const pr = ${JSON.stringify(pr)}; if (pr.o !== location.origin) return null; const fields = ${JSON.stringify(fields)}.map((f) => Object.assign({}, f, { pr: (pr.f || {})[f.name] })); let m; try { m = document.querySelectorAll(${JSON.stringify(selector)}); } catch (e) { return null; } if (!m.length) return null; return JSON.stringify(fitFields(m[0], fields).out); })()`;
 
   const evalJson = async <R,>(expr: string, ms = 3000): Promise<R | null> => {
-    const json = await within(page.evaluate<string>(expr), ms);
+    const run = opts.selfHeal?.evaluate;
+    if (!run) return null;
+    const json = await within(run(expr), ms);
     if (typeof json !== 'string') return null;
     try {
       return JSON.parse(json) as R;
@@ -366,17 +387,69 @@ export async function robotInterpreter(
     }
   };
 
-  const RELEARN_TYPES = ['click', 'fill', 'select', 'press', 'wait', 'extract', 'extract_table', 'extract_list', 'scroll', 'download', 'upload'];
+  /** Arma el selector con lo que vino de la página, validando cada dato. null si algo no cierra. */
+  const buildSelector = (raw: unknown, scope = false): string | null => {
+    if (!Array.isArray(raw) || raw.length > 10) return null;
+    const out: string[] = [];
+    for (const p of raw as Array<Record<string, unknown>>) {
+      if (!p || typeof p !== 'object') return null;
+      const t = p.t;
+      if (typeof t !== 'string' || !/^[a-z][a-z0-9-]{0,30}$/.test(t)) return null;
+      let piece = t;
+      if (p.id !== undefined && p.id !== '') {
+        if (typeof p.id !== 'string' || !/^[A-Za-z][\w-]{0,63}$/.test(p.id)) return null;
+        piece += `#${p.id}`;
+      }
+      const classes = p.c === undefined ? [] : p.c;
+      if (!Array.isArray(classes) || classes.length > 3) return null;
+      for (const c of classes) {
+        if (typeof c !== 'string' || !/^[A-Za-z][\w-]{0,40}$/.test(c)) return null;
+        piece += `.${c}`;
+      }
+      if (p.a !== undefined) {
+        const a = p.a as unknown[];
+        if (!Array.isArray(a) || a.length !== 2) return null;
+        const allowed = ['name', 'aria-label', 'placeholder', 'role', 'title', 'alt', 'data-testid', 'data-test', 'data-qa', 'data-cy'];
+        if (allowed.indexOf(String(a[0])) < 0 || typeof a[1] !== 'string' || !/^[\w .:/@-]{1,100}$/.test(a[1])) return null;
+        piece += `[${a[0]}="${a[1]}"]`;
+      }
+      if (p.n !== undefined && p.n !== 0) {
+        if (!Number.isInteger(p.n) || (p.n as number) < 1 || (p.n as number) > 9999) return null;
+        piece += `:nth-of-type(${p.n})`;
+      }
+      out.push(piece);
+    }
+    if (!out.length) return scope ? null : '';
+    return (scope ? ':scope > ' : '') + out.join(' > ');
+  };
+
+  const fieldSelector = (raw: unknown): string | null => {
+    const r = raw as { scope?: unknown; parts?: unknown } | null;
+    return r && typeof r === 'object' ? buildSelector(r.parts, r.scope === true) : null;
+  };
+
+  const READ_TYPES = ['wait', 'extract', 'extract_table', 'extract_list', 'scroll'];
+  const ACTION_TYPES = ['click', 'fill', 'select', 'press', 'download', 'upload'];
+  /** Un paso que usa un login, o que apunta a un campo de contraseña, nunca se reaprende. */
+  const canRelearn = (s: InterpreterStep, pr: unknown): boolean => {
+    if (/\{\{[^{}]*\bcredentials\b/.test(JSON.stringify(s))) return false;
+    const print = pr as { t?: unknown; a?: { type?: unknown } } | undefined;
+    if (!print || typeof print.t !== 'string' || !/^[a-z][a-z0-9-]{0,30}$/.test(print.t)) return false;
+    return String(print.a?.type ?? '').toLowerCase() !== 'password';
+  };
 
   /**
    * Si el selector no está y hay huella, espera un poco (la página puede estar
-   * cargando) y lo busca por parecido. Si no aparece nada claro, sigue con el
-   * original y el paso falla como siempre.
+   * cargando) y busca el elemento. Extracción: el más parecido. Acción: el único
+   * con el mismo nombre visible, y queda para que una persona lo revise. Si no
+   * aparece nada claro, sigue con el original y el paso falla como siempre.
    */
   const relearn = async (s: InterpreterStep, selector: string, ctx: Record<string, unknown>): Promise<string> => {
-    if (!opts.selfHeal || !selector || RELEARN_TYPES.indexOf(s.type) < 0) return selector;
+    if (!opts.selfHeal?.evaluate || !selector) return selector;
+    const isAction = ACTION_TYPES.indexOf(s.type) >= 0;
+    if (!isAction && READ_TYPES.indexOf(s.type) < 0) return selector;
     const pr = opts.selfHeal.prints[str(s.selector).trim()];
-    if (!pr) return selector;
+    if (!canRelearn(s, pr)) return selector;
     const until = Date.now() + Math.min(3000, Math.max(0, remaining() - 1000));
     for (;;) {
       const n = await page.locator(selector).count().catch(() => 0);
@@ -385,20 +458,27 @@ export async function robotInterpreter(
       await page.waitForTimeout(250);
     }
     if (s.type === 'extract_list') {
-      const fields = (Array.isArray(s.fields) ? (s.fields as Array<Record<string, unknown>>) : []).map((f) => ({ name: str(f.name), attribute: str(f.attribute).trim() }));
-      const res = await evalJson<{ selector: string; fields: Record<string, string> }>(relearnListExpr(pr, fields));
-      if (!res) return selector;
-      lastHeal = { from: selector, to: res.selector, relearned: true };
+      const list = (Array.isArray(s.fields) ? (s.fields as Array<Record<string, unknown>>) : []).map((f) => ({ name: str(f.name), attribute: str(f.attribute).trim() }));
+      const res = await evalJson<{ parts: unknown; fields: Record<string, unknown> }>(relearnListExpr(pr, list));
+      const to = res ? buildSelector(res.parts) : null;
+      if (!res || !to || !res.fields || typeof res.fields !== 'object') return selector;
+      lastHeal = { from: selector, to, relearned: true };
       const current = (s.fields as Array<Record<string, unknown>>) ?? [];
-      lastFieldHeals = Object.keys(res.fields)
-        .map((field) => ({ field, from: render(str(current.find((f) => f.name === field)?.selector), ctx).trim(), to: res.fields[field] }))
-        .filter((f) => f.from !== f.to);
-      return res.selector;
+      lastFieldHeals = [];
+      for (const f of current) {
+        const name = str(f.name);
+        if (!Object.prototype.hasOwnProperty.call(res.fields, name)) continue;
+        const fieldTo = fieldSelector(res.fields[name]);
+        const from = render(str(f.selector), ctx).trim();
+        if (fieldTo !== null && fieldTo !== from) lastFieldHeals.push({ field: name, from, to: fieldTo });
+      }
+      return to;
     }
-    const res = await evalJson<{ selector: string }>(relearnExpr(pr));
-    if (!res) return selector;
-    lastHeal = { from: selector, to: res.selector, relearned: true };
-    return res.selector;
+    const res = await evalJson<{ parts: unknown }>(isAction ? relearnActionExpr(pr) : relearnExpr(pr));
+    const to = res ? buildSelector(res.parts) : null;
+    if (!to) return selector;
+    lastHeal = { from: selector, to, relearned: true, ...(isAction ? { review: true } : {}) };
+    return to;
   };
 
   /**
@@ -593,6 +673,10 @@ export async function robotInterpreter(
   };
 
   const runLeaf = async (s: InterpreterStep, ctx: Record<string, unknown>): Promise<Outcome> => {
+    // Una credencial solo se escribe en el valor de un fill: nunca llega a un selector, una URL ni a código.
+    const { value: _value, ...withoutValue } = s;
+    void _value;
+    if (/\{\{[^{}]*\bcredentials\b/.test(JSON.stringify(s.type === 'fill' ? withoutValue : s))) fail('credential_not_allowed');
     lastHeal = null;
     lastFieldHeals = [];
     let selector = await heal(s, ctx, render(str(s.selector), ctx).trim());
@@ -600,7 +684,8 @@ export async function robotInterpreter(
     // Clave de la huella: el selector del paso, o el nuevo si recién se reencontró.
     const printKey = lastHeal ? selector : str(s.selector).trim() || selector;
     // Huella antes de actuar (un clic puede cambiar de página). Las listas la toman después de leer.
-    if (opts.selfHeal && selector && RELEARN_TYPES.indexOf(s.type) >= 0 && s.type !== 'extract_list') {
+    const learnable = !!opts.selfHeal?.evaluate && !!selector && !/\{\{[^{}]*\bcredentials\b/.test(JSON.stringify(s));
+    if (learnable && (READ_TYPES.indexOf(s.type) >= 0 || ACTION_TYPES.indexOf(s.type) >= 0) && s.type !== 'extract_list') {
       const pr = await evalJson<unknown>(printExpr(selector), 1500);
       if (pr) prints[printKey] = pr;
     }
@@ -777,22 +862,23 @@ export async function robotInterpreter(
         };
         // Autoaprendizaje: las tarjetas están pero una columna quedó en blanco en todas
         // las filas de la primera página y antes traía datos: se busca adentro de la tarjeta.
-        const stored = opts.selfHeal ? (opts.selfHeal.prints[str(s.selector).trim()] as { f?: Record<string, unknown> } | undefined) : undefined;
+        const stored = learnable ? (opts.selfHeal!.prints[str(s.selector).trim()] as { f?: Record<string, unknown> } | undefined) : undefined;
         if (stored?.f) {
           const first = (await readCards()) as Array<Record<string, string>>;
           const blank = first.length ? fields.filter((f) => stored.f![f.name] && first.every((r) => !r[f.name])) : [];
           if (blank.length) {
-            const fix = await evalJson<Record<string, string>>(relearnFieldsExpr(selector, stored, blank));
+            const fix = await evalJson<Record<string, unknown>>(relearnFieldsExpr(selector, stored, blank));
             for (const f of blank) {
-              const to = fix?.[f.name];
-              if (to === undefined || to === f.selector) continue;
+              if (!fix || !Object.prototype.hasOwnProperty.call(fix, f.name)) continue;
+              const to = fieldSelector(fix[f.name]);
+              if (to === null || to === f.selector) continue;
               lastFieldHeals.push({ field: f.name, from: f.selector, to });
               f.selector = to;
             }
             arg = JSON.stringify({ fields, max });
           }
         }
-        if (opts.selfHeal) {
+        if (learnable) {
           const pr = await evalJson<unknown>(printExpr(selector, fields), 1500);
           if (pr) prints[printKey] = pr;
         }
@@ -999,7 +1085,7 @@ export async function robotInterpreter(
   const FATAL = /^(timeout|step_limit|page_crashed)$/;
 
   /** Errores que no se arreglan reintentando el paso. */
-  const NO_RETRY = /^(timeout|page_crashed|page_limit|step_limit|invalid_url|private_host|https_required|unresolvable_host|missing_selector|missing_attribute|missing_fields|missing_totp_secret|invalid_key|unknown_step|file_limit|file_too_large|unsupported|result_too_large)$/;
+  const NO_RETRY = /^(credential_not_allowed|timeout|page_crashed|page_limit|step_limit|invalid_url|private_host|https_required|unresolvable_host|missing_selector|missing_attribute|missing_fields|missing_totp_secret|invalid_key|unknown_step|file_limit|file_too_large|unsupported|result_too_large)$/;
 
   /** Ejecuta un paso con sus reintentos (retries + retryDelayMs). */
   const runWithRetries = async (s: InterpreterStep, ctx: Record<string, unknown>): Promise<Outcome & { attempts: number }> => {
@@ -1033,6 +1119,7 @@ export async function robotInterpreter(
       if (remaining() <= 0) fail('timeout');
       const started = Date.now();
       if (s.type === 'loop_over') {
+        if (/\{\{[^{}]*\bcredentials\b/.test(str(s.list))) fail('credential_not_allowed');
         const raw = renderRaw(s.list, ctx);
         let items: unknown[];
         if (Array.isArray(raw)) items = raw;
@@ -1091,8 +1178,8 @@ export async function robotInterpreter(
         throw new RobotError(`${label}: ${code}`);
       }
       if (lastHeal) {
-        const h: { from: string; to: string; relearned?: boolean } = lastHeal;
-        healed.push({ step: label, from: h.from, to: h.to, ...(h.relearned ? { relearned: true } : {}) });
+        const h: { from: string; to: string; relearned?: boolean; review?: boolean } = lastHeal;
+        healed.push({ step: label, from: h.from, to: h.to, ...(h.relearned ? { relearned: true } : {}), ...(h.review ? { review: true } : {}) });
         out.detail = `${out.detail ?? ''} · healed: ${h.to}`.trim();
         lastHeal = null;
       }
@@ -1463,6 +1550,8 @@ export interface HarnessChromium {
       on(event: 'page', cb: (p: { close(): Promise<void> }) => void): void;
       newPage(): Promise<unknown>;
       storageState(): Promise<unknown>;
+      /** CDP (Chromium): mundo aislado para leer la página sin que ella pueda pisar nada. */
+      newCDPSession?(page: unknown): Promise<{ send(method: string, params?: unknown): Promise<unknown>; detach(): Promise<void> }>;
     }>;
     close(): Promise<void>;
   }>;
@@ -1570,6 +1659,23 @@ export async function robotHarness(
       if (opened > job.maxPages) void p.close().catch(() => {});
     });
     const page = (await context.newPage()) as RobotPage;
+    const isolated =
+      job.selfHeal && typeof context.newCDPSession === 'function'
+        ? async (expr: string): Promise<unknown> => {
+            const cdp = await context.newCDPSession!(page);
+            try {
+              const tree = (await cdp.send('Page.getFrameTree')) as { frameTree: { frame: { id: string } } };
+              const world = (await cdp.send('Page.createIsolatedWorld', { frameId: tree.frameTree.frame.id, worldName: 'zs-robots' })) as { executionContextId: number };
+              const res = (await cdp.send('Runtime.evaluate', { expression: expr, contextId: world.executionContextId, returnByValue: true })) as {
+                result?: { value?: unknown };
+                exceptionDetails?: unknown;
+              };
+              return res.exceptionDetails ? null : (res.result?.value ?? null);
+            } finally {
+              await cdp.detach().catch(() => {});
+            }
+          }
+        : undefined;
     const result = await interpret(page, job.steps, job.inputs, {
       deadline: job.deadline,
       checkUrl,
@@ -1582,7 +1688,7 @@ export async function robotHarness(
       maxFiles: job.maxFiles,
       maxFileBytes: job.maxFileBytes,
       lastBlocked: (since: number) => (guard ? guard.blockedSince(since) : null),
-      ...(job.selfHeal ? { selfHeal: job.selfHeal } : {}),
+      ...(job.selfHeal ? { selfHeal: { prints: job.selfHeal.prints, evaluate: isolated } } : {}),
     });
     if (job.saveSession) {
       try {

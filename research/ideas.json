@@ -991,7 +991,9 @@
     "title": "Notes: Clip full articles and bookmarks, not only the selected text",
     "description": "Evernote's Web Clipper offers Article, Simplified article, Full page, Bookmark and Screenshot modes (https://help.evernote.com/hc/en-us/articles/209125827). Our bookmarklet only sends URL, title and the current selection, truncated to 4000 characters in a query string, and the server stores the selection as quote blocks (lib/notes-types.ts clipBookmarklet and clipBlocks). With nothing selected the note is just a link, so 'save this article to read later' does not work. First scope: when no selection is made, fetch the URL server-side, extract the main article with a readability-style pass into sanitized blocks, and store the page description and favicon for bookmark clips; send the selection via POST message instead of the URL to lift the 4000 character cap.\n\nPriority: medium. Effort: M. Compared with Evernote.",
     "product": "notes",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-30-notes-parity-tasks-home"
   },
   {
     "title": "Notes: Add a personal inbound email address that turns forwarded email into notes",
@@ -1973,7 +1975,9 @@
     "title": "Notes: Add due dates to checklist items and a Tasks view across notes",
     "description": "Evernote tasks live inside notes with due dates, recurrence, reminders and flags, and a central Tasks view lists them all (https://help.evernote.com/hc/articles/1500003792141). In Notes a checklist item is a to-do block with no date, and reminders are one per note (lib/notes-reminders.ts). 'Send to Track' covers team work, but personal tasks have nowhere to live. First scope: a due date on to-do blocks (typed with a date picker or '@' shortcut), a 'Tasks' entry in the Notes sidebar listing open items from every note grouped by Overdue / Today / Upcoming / No date with a link back to the note, and reuse the reminder cron to notify on the due time.\n\nPriority: high. Effort: M. Compared with Evernote.",
     "product": "notes",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-30-notes-parity-tasks-home"
   },
   {
     "title": "Notes: Search text inside images and PDF attachments",
@@ -2032,14 +2036,18 @@
     "description": "Evernote records audio with pause/resume and transcribes it with speaker recognition (https://evernote.com/blog/2025-recap, https://releasebot.io/updates/evernote); Apple Notes records and transcribes too (https://support.apple.com/guide/notes/record-and-transcribe-audio-apdb5106e334/mac). Notes has file blocks (10 MB cap) but no recorder and no transcription. First scope: a 'Record' block that uses MediaRecorder in the browser, uploads the audio as an attachment, and, when AI is set up, adds a transcript below it that is searchable and used by Ask your notes.\n\nPriority: low. Effort: M. Compared with Evernote.",
     "product": "notes",
     "kind": "idea",
-    "parity": "audio-recording"
+    "parity": "audio-recording",
+    "status": "done",
+    "changelog": "2026-10-30-notes-parity-tasks-home"
   },
   {
     "title": "Notes: Create a note linked to a Cal booking or event",
     "description": "Evernote's calendar pop-up creates a note linked to a Google or Outlook event (December 2025, https://evernote.com/blog/2025-recap). Our Cal app has bookings with attendees, but there is no way to open a meeting note from them. First scope: a 'Meeting note' action on a Cal booking that creates a note titled with the event and date, with attendees and a link back, and lists linked notes on the booking.\n\nPriority: low. Effort: S. Compared with Evernote.",
     "product": "notes",
     "kind": "idea",
-    "parity": "calendar-notes"
+    "parity": "calendar-notes",
+    "status": "done",
+    "changelog": "2026-10-30-notes-parity-tasks-home"
   },
   {
     "title": "Robots: Pick what to extract by clicking on a live preview of the page",

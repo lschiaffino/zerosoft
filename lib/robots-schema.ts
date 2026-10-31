@@ -48,6 +48,8 @@ export const MAX_LIST_ROWS = 1000;
 export const MAX_BULK_INPUTS = 1000;
 /** Entradas de un lote completo (se sube de a MAX_BULK_INPUTS por pedido). */
 export const MAX_BATCH_INPUTS = 50_000;
+/** Bytes de entradas de un lote completo. */
+export const MAX_BATCH_BYTES = 64 * 1024 * 1024;
 /** Reintentos por paso. */
 export const MAX_STEP_RETRIES = 5;
 /** Intervalo mínimo de un schedule en minutos (el cron de robots corre cada 5). */
@@ -679,6 +681,8 @@ export const robotBulkSchema = z.object({
   /** Lote en partes: mismo batchId (uuid del cliente) y la posición de la primera fila. Reenviar una parte no la duplica. */
   batchId: z.string().uuid().optional(),
   offset: z.number().int().min(0).max(MAX_BATCH_INPUTS).optional(),
+  /** Filas de todo el lote: con batchId, nada entra a la cola hasta que llegan todas. */
+  total: z.number().int().min(1).max(MAX_BATCH_INPUTS).optional(),
 });
 
 // ---------- Plantillas ----------
@@ -1038,3 +1042,33 @@ export const ROBOT_TEMPLATES: readonly RobotTemplate[] = [
     ],
   },
 ];
+
+// ---------- Credenciales y selectores reaprendidos ----------
+
+/** Cualquier referencia a credenciales en una plantilla, con espacios, filtros o el objeto entero. */
+export const CREDENTIAL_TEMPLATE = /\{\{[^{}]*\bcredentials\b/;
+
+/**
+ * Una credencial solo se escribe en el valor de un paso fill. Nunca en un
+ * selector, una URL, un texto ni código que corre en la página. Devuelve el
+ * índice del primer paso que no cumple, o null.
+ */
+export function credentialMisuse(steps: readonly unknown[]): number | null {
+  const bad = (step: unknown): boolean => {
+    if (!step || typeof step !== 'object') return false;
+    const { steps: inner, ...rest } = step as Record<string, unknown>;
+    if (rest.type === 'fill') delete rest.value;
+    if (CREDENTIAL_TEMPLATE.test(JSON.stringify(rest))) return true;
+    return Array.isArray(inner) && inner.some(bad);
+  };
+  const i = steps.findIndex(bad);
+  return i < 0 ? null : i;
+}
+
+const SIMPLE_PART = String.raw`[a-z][a-z0-9-]*(?:#[A-Za-z][\w-]*)?(?:\.[A-Za-z][\w-]*)*(?:\[[a-z-]+="[\w .:/@-]+"\])?(?::nth-of-type\(\d+\))?`;
+const SIMPLE_SELECTOR = new RegExp(`^(?::scope > )?${SIMPLE_PART}(?: > ${SIMPLE_PART})*$`);
+
+/** Selector reaprendido: etiquetas, id, clases, un atributo y posición, unidos con " > ". Sin comas ni plantillas. */
+export function isSimpleSelector(v: unknown): boolean {
+  return typeof v === 'string' && v.length <= 500 && SIMPLE_SELECTOR.test(v);
+}

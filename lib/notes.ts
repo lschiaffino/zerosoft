@@ -18,6 +18,7 @@ import { AiError, aiEnabled, aiGenerateText } from './ai';
 import { isEmptyNoteQuery, parseNoteQuery, type NoteQuery } from './notes-query';
 import { getNoteVersion, maybeAutoSnapshotNote, snapshotBeforeRestore } from './notes-versions';
 import { getNoteReminder } from './notes-reminders';
+import { bodyWithFileText, clearNoteFileQueue, syncNoteFileQueue } from './notes-file-text';
 import {
   NOTE_TAGS_PER_NOTE,
   blocksToText,
@@ -571,10 +572,11 @@ export async function createNote(owner: NoteOwner, input: NoteInput = {}): Promi
       createdAt,
       updatedAt > createdAt ? updatedAt : createdAt,
     );
+  await syncNoteFileQueue(id, content).catch(() => undefined);
   return (await getNote(owner, id))!;
 }
 
-export async function updateNote(owner: NoteOwner, id: string, patch: NoteInput): Promise<NoteDetail | null> {
+export async function updateNote(owner: NoteOwner, id: string, patch: NoteInput, opts: { restoring?: boolean } = {}): Promise<NoteDetail | null> {
   const row = await getNoteRow(owner, id);
   if (!row) return null;
   // Una nota en la papelera es de solo lectura: primero hay que restaurarla.
@@ -607,7 +609,8 @@ export async function updateNote(owner: NoteOwner, id: string, patch: NoteInput)
   if (patch.content !== undefined) {
     const content = isLocked ? lockedFileBlocks(patch.content) : sanitizeBlocks(patch.content);
     sets.push('content = ?', 'body_text = ?');
-    args.push(JSON.stringify(content), isLocked ? '' : blocksToText(content));
+    args.push(JSON.stringify(content), isLocked ? '' : await bodyWithFileText(id, content));
+    if (!isLocked) await syncNoteFileQueue(id, content, { prev: parseJson<DocsBlock[]>(row.content, []), noNew: opts.restoring }).catch(() => undefined);
   }
   if (patch.lock) {
     sets.push('locked = ?');
@@ -669,7 +672,7 @@ export async function restoreNoteVersion(owner: NoteOwner, id: string, versionId
   const version = await getNoteVersion(owner, id, versionId);
   if (!version) return null;
   await snapshotBeforeRestore(row);
-  return updateNote(owner, id, { title: version.title, content: version.content });
+  return updateNote(owner, id, { title: version.title, content: version.content }, { restoring: true });
 }
 
 /**
@@ -701,6 +704,7 @@ export async function lockNote(
     throw new NotesConflictError(now ? toDetail(now) : null);
   }
   await db.prepare('DELETE FROM note_versions WHERE note_id = ?').run(id);
+  await clearNoteFileQueue(id).catch(() => undefined);
   return getNote(owner, id);
 }
 
@@ -738,6 +742,7 @@ export async function unlockNote(
     const now = await getNoteRow(owner, id);
     throw new NotesConflictError(now ? toDetail(now) : null);
   }
+  await syncNoteFileQueue(id, content, { noNew: true }).catch(() => undefined);
   return getNote(owner, id);
 }
 

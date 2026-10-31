@@ -39,21 +39,21 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         product: 'robots',
-        en: 'Record from the Steps tab: each click, field and extraction reaches the editor as you go. The Chrome extension follows you across pages; it installs by hand for now.',
-        es: 'Grabá desde la pestaña Pasos: cada clic, campo y extracción llega al editor a medida que lo hacés. La extensión de Chrome te sigue entre páginas; por ahora se instala a mano.',
-        pt: 'Grave na aba Passos: cada clique, campo e extração chega ao editor conforme você faz. A extensão do Chrome acompanha você entre páginas; por enquanto a instalação é manual.',
+        en: 'Record from the Steps tab: each click, field and extraction reaches the editor, and you review them before adding. The Chrome extension follows you across pages; it installs by hand for now.',
+        es: 'Grabá desde la pestaña Pasos: cada clic, campo y extracción llega al editor y lo revisás antes de agregarlo. La extensión de Chrome te sigue entre páginas; por ahora se instala a mano.',
+        pt: 'Grave na aba Passos: cada clique, campo e extração chega ao editor e você confere antes de adicionar. A extensão do Chrome acompanha você entre páginas; por enquanto a instalação é manual.',
       },
       {
         product: 'robots',
-        en: 'When a site changes its HTML, the robot looks for the most similar element, saves the new selector if the run succeeds and tells you in the run. On by default in new robots.',
-        es: 'Cuando un sitio cambia su HTML, el robot busca el elemento más parecido, guarda el selector nuevo si la corrida termina bien y te lo avisa en la corrida. Prendido por defecto en los robots nuevos.',
-        pt: 'Quando um site muda o HTML, o robô procura o elemento mais parecido, salva o seletor novo se a execução terminar bem e avisa na execução. Ligado por padrão nos robôs novos.',
+        en: 'Optional setting: when a site changes its HTML, steps that read data use the most similar element and save it. Clicks and fields use an element with the same visible name and leave the change for you to review.',
+        es: 'Ajuste opcional: cuando un sitio cambia su HTML, los pasos que leen datos usan el elemento más parecido y lo guardan. Los clics y campos usan un elemento con el mismo nombre visible y dejan el cambio para que lo revises.',
+        pt: 'Ajuste opcional: quando um site muda o HTML, os passos que leem dados usam o elemento mais parecido e salvam. Cliques e campos usam um elemento com o mesmo nome visível e deixam a mudança para você conferir.',
       },
       {
         product: 'robots',
-        en: 'Batches go up to 50,000 rows, with progress and cancel. Workspaces can run up to 5 robots at once, and single runs go ahead of batches.',
-        es: 'Los lotes llegan a 50.000 filas, con avance y cancelación. Un workspace puede correr hasta 5 robots a la vez, y las corridas sueltas pasan antes que los lotes.',
-        pt: 'Os lotes chegam a 50.000 linhas, com progresso e cancelamento. Um workspace pode rodar até 5 robôs ao mesmo tempo, e execuções avulsas passam antes dos lotes.',
+        en: 'Batches go up to 50,000 rows, with progress and cancel, and pause when monthly minutes run out. Workspaces can run up to 5 robots at once, and single runs go ahead of batches.',
+        es: 'Los lotes llegan a 50.000 filas, con avance y cancelación, y se pausan al quedarse sin minutos del mes. Un workspace puede correr hasta 5 robots a la vez, y las corridas sueltas pasan antes que los lotes.',
+        pt: 'Os lotes chegam a 50.000 linhas, com progresso e cancelamento, e pausam ao ficar sem minutos do mês. Um workspace pode rodar até 5 robôs ao mesmo tempo, e execuções avulsas passam antes dos lotes.',
       },
       {
         product: 'robots',
@@ -90,6 +90,23 @@ export const CHANGELOG: ChangelogEntry[] = [
         es: 'Las tablas ya no se desbordan a 390 px con nombres largos, y los widgets de los paneles muestran el título completo.',
         pt: 'As tabelas não transbordam mais a 390 px com nomes longos, e os widgets dos painéis mostram o título completo.',
       },
+    ],
+  },
+  {
+    id: '2026-10-30-notes-parity-tasks-home',
+    date: '2026-10-30',
+    title: {
+      en: 'Notes: tasks with due dates, a Home you arrange and search inside PDFs',
+      es: 'Notes: tareas con fecha, un Inicio a medida y búsqueda dentro de PDF',
+      pt: 'Notes: tarefas com prazo, um Início do seu jeito e busca dentro de PDFs',
+    },
+    items: [
+      { product: 'notes', en: 'Any checklist item can have a due date and an assignee, and a Tasks view lists them all by Overdue, Today, Upcoming and No date.', es: 'Cualquier ítem de una lista puede tener fecha y responsable, y la vista de Tareas los junta en Vencidas, Hoy, Próximas y Sin fecha.', pt: 'Qualquer item de lista pode ter prazo e responsável, e a visão de Tarefas reúne tudo em Atrasadas, Hoje, Próximas e Sem prazo.' },
+      { product: 'notes', en: 'Home has nine widgets you add, hide and reorder, including a scratch pad and a meeting note from any Cal booking.', es: 'El Inicio tiene nueve widgets que sumás, ocultás y ordenás, con un bloc rápido y una nota de reunión desde cualquier reserva de Cal.', pt: 'O Início tem nove widgets que você adiciona, oculta e ordena, com um bloco rápido e uma nota de reunião a partir de qualquer reserva do Cal.' },
+      { product: 'notes', en: 'Search finds text inside PDFs. Admins can turn on reading images and scans with AI for new files. A new button searches by meaning.', es: 'La búsqueda encuentra texto dentro de PDF. Los admins pueden prender la lectura con IA de imágenes y escaneos nuevos. Un botón nuevo busca por significado.', pt: 'A busca encontra texto dentro de PDFs. Admins podem ligar a leitura com IA de imagens e digitalizações novas. Um botão novo busca por significado.' },
+      { product: 'notes', en: 'The web clipper saves the article, the full page, a selection, a bookmark or a screenshot.', es: 'El recorte web guarda el artículo, la página entera, una selección, un marcador o una captura.', pt: 'O recorte da web salva o artigo, a página inteira, uma seleção, um favorito ou uma captura.' },
+      { product: 'notes', en: 'Annotate images and PDFs, transcribe recordings, and scan several pages into one PDF with the edges found for you.', es: 'Anotá imágenes y PDF, transcribí grabaciones y escaneá varias páginas a un PDF con los bordes detectados solos.', pt: 'Anote imagens e PDFs, transcreva gravações e digitalize várias páginas em um PDF com as bordas detectadas sozinhas.' },
+      { product: 'notes', en: 'Teammates can request access from a note link, admins get a team console, and there is a public API and an MCP server.', es: 'Tus compañeros pueden pedir acceso desde el link de una nota, los admins tienen una consola del equipo, y hay API pública y servidor MCP.', pt: 'Colegas podem pedir acesso pelo link de uma nota, admins têm um console da equipe, e há API pública e servidor MCP.' },
     ],
   },
   {

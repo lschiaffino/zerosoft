@@ -259,7 +259,6 @@ describe('TOTP', () => {
         page,
         steps([
           { type: 'fill', selector: '.card', value: '{{credentials.site.totp}}' },
-          { type: 'goto', url: 'https://shop.test/verify?code={{credentials.site.totp}}' },
         ]),
         {},
         opts({ now: () => now, credentials: { site: { username: 'ana', password: 'pw', totpSecret: secret } } }),
@@ -268,7 +267,6 @@ describe('TOTP', () => {
       expect(filled).toEqual([code]);
       expect(code).toBe(referenceTotp(secret.split(':')[0], now, code.length));
       expect(JSON.stringify(res.logs)).not.toContain(code);
-      expect(res.logs[1].detail).toBe('https://shop.test/verify?code=[redacted]');
     }
   });
 

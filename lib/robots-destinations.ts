@@ -109,6 +109,15 @@ async function sendToCrm(
 ): Promise<Omit<DestinationResult, 'id' | 'kind'>> {
   const { isWorkspacePerson } = await import('./crm-refs');
   if (robot.created_by && !(await isWorkspacePerson(workspaceId, robot.created_by))) throw new DestinationError('owner_left');
+  // Corre con el acceso de quien armó el robot: un member sin CRM no escribe en el CRM.
+  if (robot.created_by && robot.created_by !== workspaceId) {
+    const { getDb: db } = await import('./db');
+    const { canUseApp } = await import('./workspace');
+    const m = (await db()
+      .prepare('SELECT m.role, m.apps FROM teams t JOIN team_members m ON m.team_id = t.id WHERE t.owner_id = ? AND m.user_id = ? LIMIT 1')
+      .get(workspaceId, robot.created_by)) as { role: string; apps: string | null } | undefined;
+    if (m && !canUseApp({ role: m.role, apps: m.apps }, 'crm')) throw new DestinationError('no_crm_access');
+  }
   const crm = await import('./crm');
   const { getDb } = await import('./db');
   const pick = (row: Record<string, unknown>, field: string) => {

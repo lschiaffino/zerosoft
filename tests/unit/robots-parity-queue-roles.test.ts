@@ -15,6 +15,7 @@ import {
   getRobotRow,
   getRobotWorkspaceConfig,
   listRobotBatches,
+  neutralizeRecorded,
   pushRobotRecording,
   setRobotWorkspaceConfig,
   startRobotRun,
@@ -22,10 +23,11 @@ import {
 } from '@/lib/robots';
 import { canEditRobot, canRunRobot, isRobotBuilder, memberPatchError, robotUsesLogin } from '@/lib/robots-http';
 import { recorderExtensionFiles, storedZip } from '@/lib/robots-recorder-extension';
-import { buildRecorderScript } from '@/lib/robots-recorder';
+import { buildRecorderScript, PASSWORD_PLACEHOLDER } from '@/lib/robots-recorder';
 import { setRobotBackendForTests, type RobotBackend, type RobotJob } from '@/lib/robots-runner';
 import { s3Url, signS3Put } from '@/lib/robots-s3';
-import { robotDestinationSchema, robotBulkSchema, MAX_BATCH_INPUTS } from '@/lib/robots-schema';
+import { credentialMisuse, isSimpleSelector, robotDestinationSchema, robotBulkSchema, MAX_BATCH_INPUTS } from '@/lib/robots-schema';
+import { robotInterpreter, type RobotPage } from '@/lib/robots-interpreter';
 import { makeUser } from './helpers';
 
 beforeEach(() => {
@@ -178,11 +180,13 @@ describe('lotes grandes', () => {
     const batchId = crypto.randomUUID();
     const part1 = Array.from({ length: 1000 }, (_, i) => ({ q: `a${i}` }));
     const part2 = Array.from({ length: 500 }, (_, i) => ({ q: `b${i}` }));
-    const r1 = await enqueueRobotBatch(u.id, r.id, part1, { batchId, offset: 0 });
+    const r1 = await enqueueRobotBatch(u.id, r.id, part1, { batchId, offset: 0, total: 1500 });
     expect(r1.ok && r1.total).toBe(1000);
-    const again = await enqueueRobotBatch(u.id, r.id, part1, { batchId, offset: 0 });
+    // Nada arranca hasta que llega la última parte.
+    expect(await getRobotBatch(u.id, batchId)).toBeNull();
+    const again = await enqueueRobotBatch(u.id, r.id, part1, { batchId, offset: 0, total: 1500 });
     expect(again.ok && again.total).toBe(1000);
-    const r2 = await enqueueRobotBatch(u.id, r.id, part2, { batchId, offset: 1000 });
+    const r2 = await enqueueRobotBatch(u.id, r.id, part2, { batchId, offset: 1000, total: 1500 });
     expect(r2.ok && r2.total).toBe(1500);
     const page = await getRobotBatch(u.id, batchId, undefined, { limit: 10, offset: 1000 });
     expect(page?.total).toBe(1500);
@@ -195,7 +199,7 @@ describe('lotes grandes', () => {
     const u = await makeUser();
     const r = await robotIn(u.id, true);
     setRobotBackendForTests(instantBackend);
-    const over = await enqueueRobotBatch(u.id, r.id, [{ q: 'x' }, { q: 'y' }], { batchId: crypto.randomUUID(), offset: MAX_BATCH_INPUTS - 1 });
+    const over = await enqueueRobotBatch(u.id, r.id, [{ q: 'x' }, { q: 'y' }], { batchId: crypto.randomUUID(), offset: MAX_BATCH_INPUTS - 1, total: MAX_BATCH_INPUTS });
     expect(over).toMatchObject({ ok: false, error: 'too_many_inputs' });
     expect(robotBulkSchema.safeParse({ inputs: Array.from({ length: 1001 }, () => ({})) }).success).toBe(false);
   });
@@ -208,9 +212,9 @@ describe('lotes grandes', () => {
     const rb = await robotIn(b.id, true);
     setRobotBackendForTests(instantBackend);
     const batchId = crypto.randomUUID();
-    await enqueueRobotBatch(a.id, ra.id, [{ q: '1' }], { batchId, offset: 0 });
-    expect(await enqueueRobotBatch(b.id, rb.id, [{ q: '2' }], { batchId, offset: 1 })).toMatchObject({ ok: false, error: 'not_found' });
-    expect(await enqueueRobotBatch(a.id, ra2.id, [{ q: '2' }], { batchId, offset: 1 })).toMatchObject({ ok: false, error: 'not_found' });
+    await enqueueRobotBatch(a.id, ra.id, [{ q: '1' }], { batchId, offset: 0, total: 1 });
+    expect(await enqueueRobotBatch(b.id, rb.id, [{ q: '2' }], { batchId, offset: 0, total: 1 })).toMatchObject({ ok: false, error: 'not_found' });
+    expect(await enqueueRobotBatch(a.id, ra2.id, [{ q: '2' }], { batchId, offset: 0, total: 1 })).toMatchObject({ ok: false, error: 'not_found' });
     expect(await getRobotBatch(b.id, batchId)).toBeNull();
     expect(await cancelRobotBatch(b.id, batchId)).toBeNull();
     expect((await getRobotBatch(a.id, batchId))?.counts.queued).toBe(1);
@@ -392,50 +396,59 @@ describe('S3', () => {
 });
 
 describe('autoaprendizaje', () => {
-  it('los robots nuevos lo traen prendido; los existentes no cambian', async () => {
+  it('los robots nuevos lo traen apagado', async () => {
     const u = await makeUser();
     const r = await robotIn(u.id);
-    expect(r.settings.selfHeal).toBe(true);
-    await getDb().prepare("UPDATE robots SET settings = '{}' WHERE id = ?").run(r.id);
-    expect((await getRobot(u.id, r.id))?.settings.selfHeal).toBeUndefined();
+    expect(r.settings.selfHeal).toBeUndefined();
   });
 
-  it('una corrida con selector reencontrado lo guarda y deja el viejo como alternativo', async () => {
+  async function healing(steps: unknown[]) {
     const u = await makeUser();
-    const res = await createRobot(u.id, u.id, { name: 'H', steps: [{ type: 'goto', url: 'https://example.com' }, { type: 'click', selector: '.old', text: '' }] });
+    const res = await createRobot(u.id, u.id, { name: 'H', steps });
     if (!res.ok) throw new Error(res.error);
-    setRobotBackendForTests({
-      name: 'local',
-      run: async (job) => {
-        expect(job.selfHeal).toBeDefined();
-        return {
-          status: 'success',
-          error: null,
-          vars: {},
-          logs: [],
-          screenshots: [],
-          pages: 1,
-          healed: [{ step: '2', from: '.old', to: '.new', relearned: true }],
-          prints: { '.new': { t: 'a', x: 'Buy' } },
-        };
-      },
-    });
-    const run = await startRobotRun(u.id, res.robot.id, undefined, { trigger: 'manual' });
+    await updateRobot(u.id, res.robot.id, { settings: { selfHeal: true } });
+    return { u, id: res.robot.id };
+  }
+  const ok = (healed: unknown[], prints?: Record<string, unknown>): RobotBackend => ({
+    name: 'local',
+    run: async () => ({ status: 'success', error: null, vars: {}, logs: [], screenshots: [], pages: 1, healed: healed as never, ...(prints ? { prints } : {}) }),
+  });
+
+  it('un paso que lee guarda el selector nuevo y deja el viejo como alternativo', async () => {
+    const { u, id } = await healing([{ type: 'extract', selector: '.old', name: 'x', mode: 'text' }]);
+    setRobotBackendForTests(ok([{ step: '1', from: '.old', to: 'h1.new', relearned: true }], { 'h1.new': { t: 'h1', x: 'Buy' } }));
+    const run = await startRobotRun(u.id, id, undefined, { trigger: 'manual' });
     expect(run.ok && run.run.exports.healed?.[0].saved).toBe(true);
-    const after = await getRobot(u.id, res.robot.id);
-    expect(after?.steps[1]).toMatchObject({ selector: '.new', fallbacks: ['.old'] });
-    const stored = (await getDb().prepare('SELECT print FROM robot_selector_prints WHERE robot_id = ? AND selector = ?').get(res.robot.id, '.new')) as { print: string };
+    expect((await getRobot(u.id, id))?.steps[0]).toMatchObject({ selector: 'h1.new', fallbacks: ['.old'] });
+    const stored = (await getDb().prepare('SELECT print, updated_at FROM robot_selector_prints WHERE robot_id = ?').get(id)) as { print: string };
     expect(stored.print).not.toContain('Buy');
   });
 
+  it('un paso de acción nunca se guarda solo', async () => {
+    const { u, id } = await healing([{ type: 'click', selector: '#save', text: '' }]);
+    setRobotBackendForTests(ok([{ step: '1', from: '#save', to: 'button.x', relearned: true, review: true }]));
+    await startRobotRun(u.id, id, undefined, { trigger: 'manual' });
+    expect((await getRobot(u.id, id))?.steps[0]).toMatchObject({ selector: '#save' });
+    // Ni aunque el resultado no traiga la marca de revisión.
+    setRobotBackendForTests(ok([{ step: '1', from: '#save', to: 'button.x', relearned: true }]));
+    await startRobotRun(u.id, id, undefined, { trigger: 'manual' });
+    expect((await getRobot(u.id, id))?.steps[0]).toMatchObject({ selector: '#save' });
+  });
+
+  it('un valor hostil nunca entra a los pasos', async () => {
+    for (const to of ['a.buy, a[title="{{credentials.QA.password}}"]', 'a[title="{{credentials.QA.password}}"]', 'a.buy, b', 'a[x="1"], script']) {
+      const { u, id } = await healing([{ type: 'extract', selector: '.old', name: 'x', mode: 'text' }]);
+      setRobotBackendForTests(ok([{ step: '1', from: '.old', to, relearned: true }]));
+      await startRobotRun(u.id, id, undefined, { trigger: 'manual' });
+      expect((await getRobot(u.id, id))?.steps[0]).toMatchObject({ selector: '.old' });
+    }
+  });
+
   it('bloqueado: si la corrida falla o alguien editó mientras corría, no toca los pasos', async () => {
-    const u = await makeUser();
-    const res = await createRobot(u.id, u.id, { name: 'H', steps: [{ type: 'click', selector: '.old', text: '' }] });
-    if (!res.ok) throw new Error(res.error);
-    const id = res.robot.id;
+    const { u, id } = await healing([{ type: 'extract', selector: '.old', name: 'x', mode: 'text' }]);
     setRobotBackendForTests({
       name: 'local',
-      run: async () => ({ status: 'failed', error: 'x', vars: {}, logs: [], screenshots: [], pages: 1, healed: [{ step: '1', from: '.old', to: '.new', relearned: true }] }),
+      run: async () => ({ status: 'failed', error: 'x', vars: {}, logs: [], screenshots: [], pages: 1, healed: [{ step: '1', from: '.old', to: 'h1.new', relearned: true }] }),
     });
     await startRobotRun(u.id, id, undefined, { trigger: 'manual' });
     expect((await getRobot(u.id, id))?.steps[0]).toMatchObject({ selector: '.old' });
@@ -444,18 +457,21 @@ describe('autoaprendizaje', () => {
       run: async () => {
         await tick();
         await getDb().prepare("UPDATE robots SET updated_at = '2999-01-01T00:00:00.000Z' WHERE id = ?").run(id);
-        return { status: 'success', error: null, vars: {}, logs: [], screenshots: [], pages: 1, healed: [{ step: '1', from: '.old', to: '.new', relearned: true }] };
+        return { status: 'success', error: null, vars: {}, logs: [], screenshots: [], pages: 1, healed: [{ step: '1', from: '.old', to: 'h1.new', relearned: true }] };
       },
     });
     const run = await startRobotRun(u.id, id, undefined, { trigger: 'manual' });
     expect(run.ok && run.run.exports.healed?.[0].saved).toBeUndefined();
-    expect((await getRobot(u.id, id))?.steps[0]).toMatchObject({ selector: '.old' });
   });
 
-  it('apagado: la corrida no recibe huellas', async () => {
-    const u = await makeUser();
-    const r = await robotIn(u.id);
-    await updateRobot(u.id, r.id, { settings: { selfHeal: false } });
+  it('apagarlo borra las huellas y la corrida no las recibe', async () => {
+    const { u, id } = await healing([{ type: 'goto', url: 'https://example.com' }]);
+    setRobotBackendForTests(ok([], { '.a': { t: 'a' } }));
+    await startRobotRun(u.id, id, undefined, { trigger: 'manual' });
+    const count = async () => Number(((await getDb().prepare('SELECT COUNT(*) AS n FROM robot_selector_prints WHERE robot_id = ?').get(id)) as { n: number }).n);
+    expect(await count()).toBe(1);
+    await updateRobot(u.id, id, { settings: { selfHeal: false } });
+    expect(await count()).toBe(0);
     let job: RobotJob | null = null;
     setRobotBackendForTests({
       name: 'local',
@@ -464,7 +480,105 @@ describe('autoaprendizaje', () => {
         return { status: 'success', error: null, vars: {}, logs: [], screenshots: [], pages: 1 };
       },
     });
-    await startRobotRun(u.id, r.id, undefined, { trigger: 'manual' });
+    await startRobotRun(u.id, id, undefined, { trigger: 'manual' });
     expect((job as RobotJob | null)?.selfHeal).toBeUndefined();
+  });
+
+  it('una huella sin cambios no se vuelve a escribir', async () => {
+    const { u, id } = await healing([{ type: 'goto', url: 'https://example.com' }]);
+    setRobotBackendForTests(ok([], { '.a': { t: 'a', x: 'same' } }));
+    await startRobotRun(u.id, id, undefined, { trigger: 'manual' });
+    await getDb().prepare("UPDATE robot_selector_prints SET updated_at = 'marker' WHERE robot_id = ?").run(id);
+    await startRobotRun(u.id, id, undefined, { trigger: 'manual' });
+    const row = (await getDb().prepare('SELECT updated_at FROM robot_selector_prints WHERE robot_id = ?').get(id)) as { updated_at: string };
+    expect(row.updated_at).toBe('marker');
+  });
+});
+
+describe('credenciales fuera de un fill', () => {
+  it('detecta selector, URL, script y variantes; el valor de un fill pasa', () => {
+    expect(credentialMisuse([{ type: 'fill', selector: '#p', value: '{{credentials.L.password}}' }])).toBeNull();
+    expect(credentialMisuse([{ type: 'goto', url: 'https://a.test?x={{credentials.L.password}}' }])).toBe(0);
+    expect(credentialMisuse([{ type: 'click', selector: 'a[x="{{ credentials.L.password | trim }}"]' }])).toBe(0);
+    expect(credentialMisuse([{ type: 'fill', selector: '{{credentials}}', value: 'x' }])).toBe(0);
+    expect(credentialMisuse([{ type: 'evaluate', name: 'a', script: 'return "{{credentials.L.password}}"' }])).toBe(0);
+    expect(credentialMisuse([{ type: 'goto', url: 'https://a.test' }, { type: 'loop_over', list: '{{credentials.L.password}}', steps: [] }])).toBe(1);
+    expect(credentialMisuse([{ type: 'loop_over', list: 'a', steps: [{ type: 'goto', url: '{{credentials.L.password}}' }] }])).toBe(0);
+  });
+
+  it('guardar lo rechaza', async () => {
+    const u = await makeUser();
+    expect(await createRobot(u.id, u.id, { name: 'x', steps: [{ type: 'goto', url: 'https://a.test/{{credentials.L.password}}' }] })).toMatchObject({ ok: false, error: 'credential_misuse' });
+    const r = await robotIn(u.id);
+    expect(await updateRobot(u.id, r.id, { steps: [{ type: 'evaluate', name: 'a', script: '{{credentials.L.password}}' }] })).toMatchObject({ ok: false, error: 'credential_misuse' });
+  });
+
+  it('correr lo frena aunque ya esté guardado (robots viejos)', async () => {
+    const page = { url: () => '', locator: () => ({}), waitForTimeout: async () => {}, screenshot: async () => new Uint8Array(), evaluate: async () => '{}' } as unknown as RobotPage;
+    const res = await robotInterpreter(page, [{ type: 'click', selector: 'a[x="{{credentials.L.password}}"]' }], {}, { deadline: Date.now() + 5000, checkUrl: async () => null, credentials: { L: { password: 'hunter2' } } });
+    expect(res.status).toBe('failed');
+    expect(res.error).toContain('credential_not_allowed');
+    expect(JSON.stringify(res)).not.toContain('hunter2');
+  });
+
+  it('un robot con login armado por un member no corre, aunque lo lance un admin o el cron', async () => {
+    const owner = await makeUser();
+    const m = await makeUser();
+    const team = crypto.randomUUID();
+    await getDb().prepare('INSERT INTO teams (id, name, slug, owner_id) VALUES (?, ?, ?, ?)').run(team, 'T', `t-${team}`, owner.id);
+    await getDb().prepare("INSERT INTO team_members (team_id, user_id, role) VALUES (?, ?, 'member')").run(team, m.id);
+    const res = await createRobot(owner.id, m.id, { name: 'x', steps: [{ type: 'goto', url: 'https://a.test' }] });
+    if (!res.ok) throw new Error(res.error);
+    // Aparece un login en los pasos sin pasar por el guardado.
+    await getDb().prepare('UPDATE robots SET steps = ? WHERE id = ?').run(JSON.stringify([{ type: 'fill', selector: '#p', value: '{{credentials.L.password}}' }]), res.robot.id);
+    setRobotBackendForTests(instantBackend);
+    expect(await startRobotRun(owner.id, res.robot.id, undefined, { trigger: 'manual', actorId: owner.id })).toMatchObject({ ok: false, error: 'admin_only_login' });
+    expect(await startRobotRun(owner.id, res.robot.id, undefined, { trigger: 'schedule' })).toMatchObject({ ok: false, error: 'admin_only_login' });
+  });
+});
+
+describe('selectores simples', () => {
+  it('acepta lo que arma el intérprete y nada más', () => {
+    for (const ok of ['a', 'a.buy', 'button#save', 'input[name="q"]', 'body > main > div:nth-of-type(2)', ':scope > div > span', 'a[aria-label="Sign in"]']) expect(isSimpleSelector(ok), ok).toBe(true);
+    for (const bad of ['a, b', 'a[title="{{credentials.x.y}}"]', '{{x}}', 'a[x="1"] b', 'a:has(b)', 'a[x=1]', 'a[x="a\\"b"]', '']) expect(isSimpleSelector(bad), bad).toBe(false);
+  });
+});
+
+describe('recorder: lo grabado es dato', () => {
+  it('el servidor neutraliza plantillas y deja solo el marcador en un valor', () => {
+    const out = neutralizeRecorded([
+      { type: 'fill', selector: 'a[x="{{credentials.Q.password}}"]', value: '{{credentials.Q.password}}' },
+      { type: 'fill', selector: '#p', value: PASSWORD_PLACEHOLDER },
+      { type: 'goto', url: PASSWORD_PLACEHOLDER },
+    ]) as Array<Record<string, string>>;
+    expect(JSON.stringify(out[0])).not.toContain('{{');
+    expect(out[1].value).toBe(PASSWORD_PLACEHOLDER);
+    expect(out[2].url).not.toContain('{{');
+  });
+});
+
+describe('cuota y lotes', () => {
+  it('sin minutos el lote queda en pausa, sin fallar filas ni eventos', async () => {
+    const u = await makeUser();
+    const r = await robotIn(u.id, true);
+    setRobotBackendForTests(instantBackend);
+    const res = await enqueueRobotBatch(u.id, r.id, [{ q: '1' }, { q: '2' }]);
+    if (!res.ok) throw new Error(res.error);
+    vi.stubEnv('ROBOTS_FREE_MINUTES_PER_MONTH', '1');
+    await getDb().prepare('INSERT INTO robot_usage (user_id, month, runs, ms) VALUES (?, ?, 1, ?)').run(u.id, new Date().toISOString().slice(0, 7), 120_000);
+    expect(await drainRobotQueue({ workspaceId: u.id, budgetMs: 600_000, concurrency: 2 })).toBe(0);
+    expect((await getRobotBatch(u.id, res.batchId))?.counts.queued).toBe(2);
+    expect((await listRobotBatches(u.id, r.id))[0].paused).toBe(true);
+  });
+
+  it('una parte inválida no deja arrancar nada', async () => {
+    const u = await makeUser();
+    const res = await createRobot(u.id, u.id, { name: 'x', steps: [{ type: 'goto', url: 'https://a.test/{{inputs.q}}' }], inputs: [{ name: 'q', label: 'Q', kind: 'text', required: true }] });
+    if (!res.ok) throw new Error(res.error);
+    setRobotBackendForTests(instantBackend);
+    const batchId = crypto.randomUUID();
+    expect((await enqueueRobotBatch(u.id, res.robot.id, [{ q: 'a' }], { batchId, offset: 0, total: 2 })).ok).toBe(true);
+    expect(await enqueueRobotBatch(u.id, res.robot.id, [{}], { batchId, offset: 1, total: 2 })).toMatchObject({ ok: false, error: 'missing_input' });
+    expect(await getRobotBatch(u.id, batchId)).toBeNull();
   });
 });

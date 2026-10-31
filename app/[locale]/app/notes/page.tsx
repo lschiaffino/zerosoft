@@ -2,6 +2,8 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { pathWithQuery } from '@/lib/return-path';
 import { aiEnabled } from '@/lib/ai';
+import { noteAccessGate } from '@/lib/notes-access';
+import { notesSemanticEnabled } from '@/lib/notes-semantic';
 import { listNotebooks, listNotes, listTags, noteOwner } from '@/lib/notes';
 import { getNoteForViewer, listSharedWithMe } from '@/lib/notes-shares';
 import { listNoteTemplates, listSavedSearches } from '@/lib/notes-library';
@@ -17,7 +19,7 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
 
 export default async function NotesPage(props: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ note?: string; new?: string; view?: string; search?: string; q?: string; template?: string }>;
+  searchParams: Promise<{ note?: string; new?: string; view?: string; search?: string; q?: string; template?: string; requests?: string }>;
 }) {
   const { locale } = await props.params;
   const sp = await props.searchParams;
@@ -43,6 +45,10 @@ export default async function NotesPage(props: {
   // ?template=<id> (⌘K) crea una nota desde una plantilla propia.
   const template = sp.template ? ((await listNoteTemplates(owner)).find((x) => x.id === sp.template) ?? null) : null;
 
+  // Link a una nota del workspace sin permiso: se puede pedir acceso (sin ver nada de adentro).
+  const denied = sp.note && !note ? await noteAccessGate(owner, String(sp.note)) : null;
+  const view = sp.view === 'home' || sp.view === 'tasks' ? sp.view : null;
+
   return (
     <NotesApp
       locale={locale}
@@ -51,7 +57,10 @@ export default async function NotesPage(props: {
       initialNotebooks={notebooks}
       initialTags={tags}
       initialNote={note}
-      initialFilter={shared ? { kind: 'shared' } : undefined}
+      initialFilter={shared ? { kind: 'shared' } : view ? { kind: view } : undefined}
+      initialDenied={denied ? { id: String(sp.note), status: denied.status } : null}
+      openRequests={sp.requests === '1'}
+      semanticAvailable={notesSemanticEnabled()}
       initialSearches={searches}
       initialQuery={initialQuery}
       initialSearchId={savedSearch?.id ?? null}

@@ -37,6 +37,8 @@ export function NotesModal({
       className={`ui-modal${wide ? ' ui-modal-wide' : ''} ${className}`}
       aria-labelledby={titleId}
       onCancel={(e) => {
+        // Cancelar el selector de archivos también dispara `cancel` y sube hasta acá: no es cerrar el modal.
+        if (e.target !== e.currentTarget) return;
         e.preventDefault();
         onClose();
       }}

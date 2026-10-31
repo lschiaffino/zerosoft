@@ -30,7 +30,7 @@
     "minutes": "{used} de {limit} min",
     "minutesUnlimited": "{used} min",
     "runs": "{count, plural, one {# execução} other {# execuções}}",
-    "perHour": "Até {count} execuções por hora · uma execução por vez por workspace",
+    "perHour": "Até {count} execuções por hora · {concurrency, plural, one {# execução} other {# execuções}} ao mesmo tempo neste workspace",
     "byRobotTitle": "Por robô neste mês",
     "byRobotName": "Robô",
     "byRobotRuns": "Execuções",
@@ -400,15 +400,16 @@
     "refresh": "Atualizar",
     "autoRefresh": "Atualiza enquanto houver execuções na fila.",
     "batch": "Lote",
-    "relearned": "O passo {step} não encontrava mais seu seletor e achou o mesmo elemento de novo: {selector}.",
-    "relearnedField": "Passo {step}: a coluna {field} ficou em branco e foi encontrada de novo com: {selector}.",
+    "relearned": "O passo {step} não encontrava mais seu seletor. O robô usou o elemento mais parecido: {selector}. Confira os dados desta execução.",
+    "relearnedField": "Passo {step}: a coluna {field} voltou em branco. O robô usou o elemento mais parecido de cada linha: {selector}. Confira os dados desta execução.",
     "relearnedSaved": "Salvo no robô; o seletor antigo fica como alternativo.",
-    "relearnedNotSaved": "Usado só nesta execução.",
+    "relearnedNotSaved": "Não foi salvo no robô.",
     "cancelQueued": "Tirar da fila",
     "cancelConfirm": "Tirar esta execução da fila?",
     "cancelYes": "Tirar",
     "cancelNo": "Voltar",
-    "cancelDone": "Execução fora da fila."
+    "cancelDone": "Execução fora da fila.",
+    "relearnedAction": "O passo {step} não encontrava mais seu seletor. O robô agiu sobre o único elemento com o mesmo nome: {selector}. Confira e torne-o principal se estiver certo."
   },
   "settings": {
     "enabled": "Permitir execuções automáticas",
@@ -491,7 +492,7 @@
     "retentionDays": "{count, plural, one {# dia} other {# dias}}",
     "pausedByFailures": "As execuções automáticas foram pausadas em {date} depois de várias execuções com falha seguidas. Confira a aba Execuções e ligue-as de novo.",
     "selfHealTitle": "Encontrar elementos de novo quando o site muda",
-    "selfHealHint": "Cada execução boa lembra como são seus elementos. Se um seletor para de funcionar, o robô procura o elemento mais parecido e só usa se um ganhar com clareza. Se a execução terminar bem, salva o seletor novo e a execução avisa.",
+    "selfHealHint": "Desligado por padrão. Cada execução boa lembra como são seus elementos nesse site. Se um seletor para de funcionar em passos que leem dados, o robô usa o elemento mais parecido quando um ganha com clareza e salva se a execução terminar bem. Em cliques, campos e opções só usa um elemento com o mesmo nome visível e deixa a mudança para você conferir. Passos com login e campos de senha nunca mudam.",
     "selfHeal": "Reaprender seletores sozinho"
   },
   "errors": {
@@ -529,7 +530,11 @@
     "step_not_found": "Esse passo não está mais no robô.",
     "too_many_inputs": "Envie entre 1 e 1.000 linhas.",
     "admin_only_login": "Logins, sessões salvas e envios com credenciais são para admins e owners do workspace.",
-    "not_queued": "Essa execução não está mais na fila."
+    "not_queued": "Essa execução não está mais na fila.",
+    "credential_misuse": "Passo {index}: uma credencial só pode ir no valor de um passo Preencher, nunca em um seletor, URL, texto ou script.",
+    "batch_too_large": "O lote passa de 64 MB de entradas.",
+    "no_crm_access": "Você precisa de acesso ao CRM para enviar linhas para lá.",
+    "outside_recipient": "Os emails de mudanças só podem ir para pessoas deste workspace."
   },
   "paste": {
     "title": "Colar passos gravados",
@@ -581,7 +586,8 @@
       "pickNext": "Clique no botão Próximo ou Carregar mais.",
       "listCount": "Lista: {count} itens",
       "sent": "enviados ao editor",
-      "sendFail": "não foi possível enviar, copie"
+      "sendFail": "não foi possível enviar, copie",
+      "keepQuery": "Manter parâmetros da URL"
     },
     "codeTitle": "Sem barra de favoritos",
     "extractTitle": "Extrair enquanto grava",
@@ -663,7 +669,7 @@
   "bulk": {
     "button": "Executar em lote",
     "title": "Executar com muitas entradas",
-    "desc": "Envie um CSV com uma linha por execução. Cada linha vira uma execução na fila, até {max}.",
+    "desc": "Envie um CSV com uma linha por execução, até {max}. Nada começa até todas as linhas serem enviadas.",
     "file": "Arquivo CSV",
     "paste": "Ou cole o CSV",
     "map": "Coluna para cada entrada",
@@ -677,8 +683,12 @@
     "parseError": "Não foi possível ler o CSV: a primeira linha precisa ter os nomes das colunas.",
     "cancel": "Cancelar",
     "preview": "Primeiras linhas",
-    "progress": "Na fila {done, number} de {total, number}…",
-    "partial": "{done, number} de {total, number} na fila. Comece de novo para continuar dali."
+    "progress": "Enviadas {done, number} de {total, number}…",
+    "nothingStarted": "Nenhuma execução começou. Corrija e coloque na fila de novo.",
+    "rowMissing": "Linha {row}: “{name}” é obrigatório. Nada foi enviado.",
+    "estimate": "Cerca de {minutes, number} minutos de navegador a {seconds} s por execução, e pelo menos {hours, number} h com {concurrency} ao mesmo tempo.",
+    "estimateOver": "Restam {left, number} minutos este mês. O lote pausa quando acabam e continua quando houver minutos de novo.",
+    "expiry": "Linhas ainda aguardando depois de 45 dias são descartadas."
   },
   "data": {
     "title": "Dados entre execuções",
@@ -838,7 +848,7 @@
     "desc": "Faça a tarefa no site. Os passos aparecem aqui conforme você avança. Nada entra no robô até você adicionar. A gravação dura uma hora.",
     "bookmarkletLabel": "Com um favorito",
     "bookmarklet": "Gravar este robô",
-    "bookmarkletHint": "Arraste para a barra de favoritos e clique nele no site. Clique de novo depois de cada carregamento de página. Este link só serve para esta gravação. Sites com política de segurança estrita podem bloqueá-lo: neles, use a extensão.",
+    "bookmarkletHint": "Arraste para a barra de favoritos e clique nele no site. Clique de novo depois de cada carregamento de página. Sites com política de segurança estrita podem bloqueá-lo: neles, use a extensão. Risco: o site que você grava pode ler este link e enviar passos falsos até você fechar esta janela, então confira cada passo abaixo antes de adicionar.",
     "extensionLabel": "Com a extensão do Chrome",
     "copyCode": "Copiar código de gravação",
     "copied": "Copiado",
@@ -850,7 +860,9 @@
     "append": "Depois dos passos atuais",
     "replace": "Substituindo os passos atuais",
     "add": "Adicionar {count, plural, =0 {passos} one {# passo} other {# passos}}",
-    "cancel": "Fechar"
+    "cancel": "Fechar",
+    "reviewStep": "usa um login, confira",
+    "reviewConfirm": "Conferi os passos marcados"
   },
   "batches": {
     "title": "Lotes",
@@ -859,7 +871,9 @@
     "confirmTitle": "Cancelar este lote?",
     "confirmBody": "{count, plural, one {# execução na fila não vai começar} other {# execuções na fila não vão começar}}. As que já terminaram ou estão rodando continuam como estão.",
     "keep": "Continuar rodando",
-    "confirm": "Cancelar o restante"
+    "confirm": "Cancelar o restante",
+    "paused": "em pausa: não há minutos este mês. Continua quando houver minutos.",
+    "open": "Ver execuções"
   },
   "workspace": {
     "concurrencyTitle": "Execuções ao mesmo tempo",

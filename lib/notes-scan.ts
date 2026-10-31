@@ -140,3 +140,83 @@ export function defaultQuad(w: number, h: number): Pt[] {
     { x: mx, y: h - my },
   ];
 }
+
+/**
+ * Bordes de la hoja: umbral de Otsu sobre una copia chica, la mancha clara más
+ * grande y sus cuatro esquinas. Null si no hay una hoja clara sobre un fondo
+ * más oscuro (quedan las esquinas de fábrica). `px` en RGBA.
+ */
+export function detectQuad(px: Pixels, maxSide = 240): Pt[] | null {
+  const scale = Math.min(1, maxSide / Math.max(px.width, px.height));
+  const w = Math.max(1, Math.round(px.width * scale));
+  const h = Math.max(1, Math.round(px.height * scale));
+  const gray = new Uint8Array(w * h);
+  const hist = new Uint32Array(256);
+  for (let y = 0; y < h; y++) {
+    const sy = Math.min(px.height - 1, Math.floor(y / scale));
+    for (let x = 0; x < w; x++) {
+      const sx = Math.min(px.width - 1, Math.floor(x / scale));
+      const i = (sy * px.width + sx) * 4;
+      const g = Math.round(0.299 * px.data[i] + 0.587 * px.data[i + 1] + 0.114 * px.data[i + 2]);
+      gray[y * w + x] = g;
+      hist[g]++;
+    }
+  }
+  // Otsu: el corte que más separa las dos clases.
+  const total = w * h;
+  let sum = 0;
+  for (let i = 0; i < 256; i++) sum += i * hist[i];
+  let sumB = 0;
+  let wB = 0;
+  let best = -1;
+  let cut = 128;
+  for (let i = 0; i < 256; i++) {
+    wB += hist[i];
+    if (!wB) continue;
+    const wF = total - wB;
+    if (!wF) break;
+    sumB += i * hist[i];
+    const diff = sumB / wB - (sum - sumB) / wF;
+    const between = wB * wF * diff * diff;
+    if (between > best) {
+      best = between;
+      cut = i;
+    }
+  }
+  // La mancha clara más grande (4 vecinos).
+  const seen = new Uint8Array(total);
+  const stack: number[] = [];
+  let bestPixels: number[] = [];
+  for (let start = 0; start < total; start++) {
+    if (seen[start] || gray[start] <= cut) continue;
+    const pixels: number[] = [];
+    stack.push(start);
+    seen[start] = 1;
+    while (stack.length) {
+      const c = stack.pop()!;
+      pixels.push(c);
+      const x = c % w;
+      const y = (c - x) / w;
+      if (x > 0 && !seen[c - 1] && gray[c - 1] > cut) { seen[c - 1] = 1; stack.push(c - 1); }
+      if (x < w - 1 && !seen[c + 1] && gray[c + 1] > cut) { seen[c + 1] = 1; stack.push(c + 1); }
+      if (y > 0 && !seen[c - w] && gray[c - w] > cut) { seen[c - w] = 1; stack.push(c - w); }
+      if (y < h - 1 && !seen[c + w] && gray[c + w] > cut) { seen[c + w] = 1; stack.push(c + w); }
+    }
+    if (pixels.length > bestPixels.length) bestPixels = pixels;
+  }
+  // Muy chica o casi toda la foto: no es una hoja recortable.
+  if (bestPixels.length < total * 0.15 || bestPixels.length > total * 0.97) return null;
+  let tl = { v: Infinity, x: 0, y: 0 };
+  let br = { v: -Infinity, x: 0, y: 0 };
+  let tr = { v: -Infinity, x: 0, y: 0 };
+  let bl = { v: Infinity, x: 0, y: 0 };
+  for (const c of bestPixels) {
+    const x = c % w;
+    const y = (c - x) / w;
+    if (x + y < tl.v) tl = { v: x + y, x, y };
+    if (x + y > br.v) br = { v: x + y, x, y };
+    if (x - y > tr.v) tr = { v: x - y, x, y };
+    if (x - y < bl.v) bl = { v: x - y, x, y };
+  }
+  return [tl, tr, br, bl].map((p) => ({ x: p.x / scale, y: p.y / scale }));
+}

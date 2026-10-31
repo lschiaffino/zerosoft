@@ -17,7 +17,10 @@ export async function GET(req: Request, props: { params: Promise<{ id: string }>
     offset: Number(sp.get('offset')) || undefined,
   });
   if (!batch) return apiError(404, 'not_found', 'Batch not found.');
+  const offset = Number(sp.get('offset')) || 0;
+  const next = offset + batch.runs.length;
   return NextResponse.json({
+    nextOffset: next < batch.total ? next : null,
     batchId: batch.id,
     robotId: batch.robotId,
     total: batch.total,

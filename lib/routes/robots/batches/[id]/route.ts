@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { cancelRobotBatch, getRobotBatch, getRobotRow, getRobotWorkspaceConfig } from '@/lib/robots';
-import { canRunRobot, forbidden, notFound, unauthorized } from '@/lib/robots-http';
+import { batchActor, cancelRobotBatch, getRobotBatch, getRobotRow, getRobotWorkspaceConfig } from '@/lib/robots';
+import { canEditRobots, canRunRobot, forbidden, notFound, realUserId, unauthorized } from '@/lib/robots-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** Cancela lo que sigue en cola del lote. Quien puede correr el robot. */
+/** Cancela lo que sigue en cola del lote. Admins, o quien lanzó el lote. */
 export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params;
   const user = await getCurrentUser();
@@ -15,5 +15,6 @@ export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: s
   if (!batch) return notFound();
   const row = await getRobotRow(user.id, batch.robotId);
   if (!row || !canRunRobot(user, row, await getRobotWorkspaceConfig(user.id))) return forbidden();
+  if (!canEditRobots(user) && (await batchActor(user.id, id)) !== realUserId(user)) return forbidden();
   return NextResponse.json({ canceled: (await cancelRobotBatch(user.id, id)) ?? 0 });
 }

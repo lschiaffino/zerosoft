@@ -233,6 +233,7 @@ export interface RecorderLabels {
   /** Grabación en vivo: los pasos llegaron al editor, o no se pudieron mandar. */
   sent?: string;
   sendFail?: string;
+  keepQuery?: string;
 }
 
 /** Destino de la grabación en vivo: los pasos se mandan solos a la grabación abierta en el editor. */
@@ -261,6 +262,7 @@ export function recorderLabels(t: (key: string, values?: Record<string, string>)
     listCount: t('panel.listCount', { count: '{count}' }),
     sent: t('panel.sent'),
     sendFail: t('panel.sendFail'),
+    keepQuery: t('panel.keepQuery'),
   };
 }
 
@@ -293,7 +295,18 @@ if (CFG && CFG.state && Array.isArray(CFG.state.steps)) state = CFG.state;
 if (!state || !Array.isArray(state.steps)) state = { steps: [], last: '' };
 // Un clic o un Enter recién hecho explica el cambio de página: repetirlo sería un goto de más.
 var acted = state.at && Date.now() - state.at < 10000;
-if (state.last !== location.href && !(acted && state.steps.length)) state.steps.push({ type: 'goto', url: location.href });
+// Los parámetros de una URL suelen llevar tokens o datos: no se graban salvo que la persona los pida.
+function pageUrl() { return state.keepQuery || !location.origin ? location.href : location.origin + location.pathname; }
+if (state.last !== location.href && !(acted && state.steps.length)) state.steps.push({ type: 'goto', url: pageUrl() });
+function clean(v) { return typeof v === 'string' ? v.replace(/\{\{/g, '{ {') : v; }
+function cleanStep(step) {
+  Object.keys(step).forEach(function (k) {
+    if (k === 'value' && step[k] === ${JSON.stringify(PASSWORD_PLACEHOLDER)}) return;
+    if (typeof step[k] === 'string') step[k] = clean(step[k]);
+    else if (Array.isArray(step[k])) step[k] = step[k].map(clean);
+  });
+  return step;
+}
 function send() {
   if (!LIVE) return;
   clearTimeout(sendTimer);
@@ -406,6 +419,7 @@ function capture(t) {
 }
 function inPanel(el) { return host && (el === host || host.contains(el)); }
 function push(step) {
+  cleanStep(step);
   var prev = state.steps[state.steps.length - 1];
   if (prev && step.type === 'fill' && prev.type === 'fill' && prev.selector === step.selector) { prev.value = step.value; save(); return; }
   if (state.steps.length >= 100) return;
@@ -424,18 +438,26 @@ function secret(el) {
   var ac = (el.getAttribute('autocomplete') || '').toLowerCase();
   if (/current-password|new-password|one-time-code|cc-number|cc-csc/.test(ac)) return true;
   try { var cs = getComputedStyle(el); var ts = cs.getPropertyValue('-webkit-text-security') || cs.webkitTextSecurity || ''; if (ts && ts !== 'none') return true; } catch (e) {}
-  var names = ((el.getAttribute('name') || '') + ' ' + (el.id || '') + ' ' + (el.getAttribute('aria-label') || '')).toLowerCase();
-  if (/passw|pwd|contrase|senha/.test(names)) return true;
-  var numeric = (el.getAttribute('inputmode') || '').toLowerCase() === 'numeric' || type === 'tel' || type === 'number';
-  return numeric && /(^|[^a-z])(pin|otp|cvv|cvc|card|token|code)/.test(names);
+  var lab = '';
+  try { if (el.labels && el.labels[0]) lab = el.labels[0].textContent || ''; } catch (e) {}
+  var names = ((el.getAttribute('name') || '') + ' ' + (el.id || '') + ' ' + (el.getAttribute('aria-label') || '') + ' ' + (el.getAttribute('placeholder') || '') + ' ' + lab).toLowerCase();
+  if (/passw|(^|[^a-z])pass([^a-z]|$)|pwd|contrase|senha|clave|secret|token|api[ _-]?key|apikey|ssn|(^|[^a-z])(dni|cpf|cuit|cuil|cbu|iban|cvv|cvc|otp|pin)([^a-z]|$)|card|tarjeta|cart[aã]o|seguridad social/.test(names)) return true;
+  if (/cc-|password|one-time/.test(ac)) return true;
+  // Si no se sabe y el valor parece un dato sensible, también se enmascara.
+  var v = String(el.value || '');
+  var digits = v.replace(/[\\s-]/g, '');
+  if (/^\\d{13,19}$/.test(digits) || /^\\d{3}-\\d{2}-\\d{4}$/.test(v)) return true;
+  return v.length >= 24 && !/\\s/.test(v) && /[0-9]/.test(v) && /[A-Za-z]/.test(v) && !/^https?:/.test(v);
 }
 document.addEventListener('focusin', function (e) { markPw(e.target); }, true);
 document.addEventListener('mouseover', function (e) {
-  if (!mode) return;
+  if (!mode || e.isTrusted === false) return;
   var t = e.target; if (!t || t.nodeType !== 1 || inPanel(t)) return;
   outline(t);
 }, true);
+// La página puede disparar eventos falsos: solo cuenta lo que hizo la persona.
 document.addEventListener('click', function (e) {
+  if (e.isTrusted === false) return;
   var t = e.target; if (!t || t.nodeType !== 1 || inPanel(t)) return;
   // Captura de datos: el clic marca qué extraer y no llega a la página.
   if (mode) { e.preventDefault(); e.stopPropagation(); if (e.stopImmediatePropagation) e.stopImmediatePropagation(); capture(t); return; }
@@ -446,6 +468,7 @@ document.addEventListener('click', function (e) {
   push(withAlts({ type: 'click', selector: s.selector, text: s.text || '' }, s));
 }, true);
 document.addEventListener('change', function (e) {
+  if (e.isTrusted === false) return;
   var el = e.target; if (!el || el.nodeType !== 1 || inPanel(el)) return;
   var tag = el.tagName.toLowerCase();
   if (tag === 'select') { push({ type: 'select', selector: sel(el).selector, value: el.value }); return; }
@@ -458,6 +481,7 @@ document.addEventListener('change', function (e) {
   }
 }, true);
 document.addEventListener('keydown', function (e) {
+  if (e.isTrusted === false) return;
   if (mode && e.key === 'Escape') { e.preventDefault(); setMode(null); return; }
   var el = e.target; markPw(el); if (e.key !== 'Enter' || !el || el.nodeType !== 1 || inPanel(el)) return;
   var tag = el.tagName.toLowerCase(); if (tag !== 'input') return;
@@ -483,7 +507,25 @@ q('.c').addEventListener('click', function () {
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function () { prompt(L.copy, text); });
   else { prompt(L.copy, text); }
 });
-q('.x').addEventListener('click', function () { state = { steps: [{ type: 'goto', url: location.href }], last: location.href }; save(); });
+q('.x').addEventListener('click', function () { state = { steps: [{ type: 'goto', url: pageUrl() }], last: location.href, keepQuery: state.keepQuery }; save(); });
+try {
+var kq = document.createElement('label');
+kq.style.cssText = 'display:flex;gap:6px;align-items:center;margin-top:6px;font-size:12px';
+var kqi = document.createElement('input');
+kqi.type = 'checkbox';
+kqi.checked = !!state.keepQuery;
+kqi.className = 'kq';
+kqi.addEventListener('change', function (e) {
+  if (e.isTrusted === false) { kqi.checked = !!state.keepQuery; return; }
+  state.keepQuery = kqi.checked;
+  // También la primera URL de esta página, que ya se anotó.
+  for (var i = state.steps.length - 1; i >= 0; i--) { if (state.steps[i].type === 'goto') { state.steps[i].url = pageUrl(); break; } }
+  save();
+});
+kq.appendChild(kqi);
+kq.appendChild(document.createTextNode(L.keepQuery || 'Keep URL parameters'));
+q('.p').appendChild(kq);
+} catch (e) {}
 q('.q').addEventListener('click', function () {
   host.style.display = 'none';
   try { if (CFG && chrome && chrome.runtime && chrome.runtime.id) chrome.runtime.sendMessage({ zsStop: true }); } catch (e) {}

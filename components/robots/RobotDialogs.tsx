@@ -1,11 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useFormatter, useTranslations } from 'next-intl';
+import { parseDbUtc } from '@/lib/utils';
 import { parseCsv } from '@/lib/robots-csv';
-import type { RobotBatchSummary } from '@/lib/robots';
+import type { RobotBatchSummary, RobotUsage } from '@/lib/robots';
 import { recorderBookmarklet, recorderLabels } from '@/lib/robots-recorder';
-import { MAX_BATCH_INPUTS, MAX_BULK_INPUTS, type RobotInputDef, type RobotStep } from '@/lib/robots-schema';
+import { MAX_BATCH_BYTES, MAX_BATCH_INPUTS, MAX_BULK_INPUTS, type RobotInputDef, type RobotStep } from '@/lib/robots-schema';
 import { errorText, RobotDialog } from './robots-ui';
 
 /** Resumen corto de un paso ("Ir a URL · https://…") para las vistas previas. */
@@ -176,12 +177,17 @@ export function BulkRunDialog({
   robotId,
   inputs,
   onQueued,
+  usage,
+  avgRunMs,
 }: {
   open: boolean;
   onClose: () => void;
   robotId: string;
   inputs: RobotInputDef[];
   onQueued: (count: number) => void;
+  usage: RobotUsage;
+  /** Duración media de las corridas buenas (null si todavía no hay). */
+  avgRunMs: number | null;
 }) {
   const t = useTranslations('robots.bulk');
   const tr = useTranslations('robots');
@@ -225,8 +231,23 @@ export function BulkRunDialog({
     });
     // En partes de hasta 1.000 filas y 3,5 MB (Vercel corta a 4,5 MB). Reintentar sigue desde la que falló:
     // mismo batchId y offset, y el servidor no duplica lo que ya entró.
-    const batchId = batch.current?.key === text ? batch.current.id : crypto.randomUUID();
-    batch.current = { key: text, id: batchId, offset: batch.current?.key === text ? batch.current.offset : 0 };
+    // Antes de subir nada: todas las filas tienen lo obligatorio.
+    const missingAt = values.findIndex((v) => inputs.some((d) => d.required && !d.default && !v[d.name]));
+    if (missingAt >= 0) {
+      const d = inputs.find((x) => x.required && !x.default && !values[missingAt][x.name]);
+      setBusy(false);
+      setError(t('rowMissing', { row: missingAt + 1, name: d?.label || d?.name || '' }));
+      return;
+    }
+    if (JSON.stringify(values).length > MAX_BATCH_BYTES) {
+      setBusy(false);
+      setError(tr('errors.batch_too_large'));
+      return;
+    }
+    // Otro CSV u otro mapeo es otro lote. Lo subido de un intento anterior no arranca nunca: el servidor lo descarta.
+    const key = JSON.stringify([text, inputs.map((d) => columnFor(d))]);
+    const batchId = batch.current?.key === key ? batch.current.id : crypto.randomUUID();
+    batch.current = { key, id: batchId, offset: batch.current?.key === key ? batch.current.offset : 0 };
     let total = 0;
     let offset = batch.current.offset;
     while (offset < values.length) {
@@ -241,13 +262,13 @@ export function BulkRunDialog({
       const res = await fetch(`/api/robots/${robotId}/bulk`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ inputs: chunk, batchId, offset }),
+        body: JSON.stringify({ inputs: chunk, batchId, offset, total: values.length }),
       }).catch(() => null);
       const data = (await res?.json().catch(() => null)) as { total?: number; error?: string; name?: string; index?: number } | null;
       if (!res?.ok || !data?.total) {
         setBusy(false);
         setProgress(null);
-        setError(offset > 0 ? `${t('partial', { done: offset, total: values.length })} ${errorText(tr, data?.error, { name: data?.name ?? '' })}` : errorText(tr, data?.error, { name: data?.name ?? '' }));
+        setError(`${errorText(tr, data?.error, { name: data?.name ?? '' })} ${t('nothingStarted')}`);
         return;
       }
       total = data.total;
@@ -288,6 +309,9 @@ export function BulkRunDialog({
           <p className="robots-muted robots-small" role="status">
             {t('progress', { done: progress.done, total: progress.total })}
           </p>
+        )}
+        {body.length > 0 && (
+          <BatchEstimate rows={body.length} usage={usage} avgRunMs={avgRunMs} />
         )}
         <div className="ui-field">
           <label className="label" htmlFor={`${uid}-file`}>
@@ -572,6 +596,22 @@ export function AiBuilderDialog({ open, onClose, onCreate }: { open: boolean; on
   );
 }
 
+/** Cuánto va a tardar y gastar un lote, antes de arrancarlo. */
+function BatchEstimate({ rows, usage, avgRunMs }: { rows: number; usage: RobotUsage; avgRunMs: number | null }) {
+  const t = useTranslations('robots.bulk');
+  const seconds = (avgRunMs ?? 30_000) / 1000;
+  const minutes = Math.ceil((rows * seconds) / 60);
+  const hours = Math.max(1, Math.ceil(minutes / Math.max(usage.concurrency, 1) / 60));
+  const left = usage.minutesLimit === null ? null : Math.max(0, Math.floor(usage.minutesLimit - usage.minutesUsed));
+  return (
+    <div className="robots-small" data-testid="robots-batch-estimate">
+      <p className="robots-muted">{t('estimate', { minutes, hours, seconds: Math.round(seconds), concurrency: usage.concurrency })}</p>
+      {left !== null && minutes > left && <p className="robots-note-warn">{t('estimateOver', { left })}</p>}
+      <p className="robots-muted">{t('expiry')}</p>
+    </div>
+  );
+}
+
 /**
  * Grabar en vivo: abre una grabación y muestra los pasos a medida que llegan
  * del sitio (bookmarklet de esta grabación o extensión). Nada entra al robot
@@ -594,6 +634,8 @@ export function RecordDialog({
   const summary = useStepSummary();
   const [rec, setRec] = useState<{ id: string; token: string; sendUrl: string } | null>(null);
   const [steps, setSteps] = useState<RobotStep[]>([]);
+  const [review, setReview] = useState<number[]>([]);
+  const [reviewed, setReviewed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [mode, setMode] = useState<'append' | 'replace'>('append');
@@ -605,6 +647,8 @@ export function RecordDialog({
     let timer: ReturnType<typeof setInterval> | null = null;
     let id: string | null = null;
     setSteps([]);
+    setReview([]);
+    setReviewed(false);
     setError(null);
     setRec(null);
     void (async () => {
@@ -619,9 +663,11 @@ export function RecordDialog({
       setRec({ id: data.id, token: data.token, sendUrl: data.sendUrl });
       timer = setInterval(() => {
         void fetch(`/api/robots/recordings/${data.id}`)
-          .then((r) => (r.ok ? (r.json() as Promise<{ steps: RobotStep[] }>) : null))
+          .then((r) => (r.ok ? (r.json() as Promise<{ steps: RobotStep[]; review?: number[] }>) : null))
           .then((d) => {
-            if (alive && d) setSteps(d.steps);
+            if (!alive || !d) return;
+            setSteps(d.steps);
+            setReview(d.review ?? []);
           })
           .catch(() => {});
       }, 1500);
@@ -660,7 +706,7 @@ export function RecordDialog({
           <button
             type="button"
             className="btn btn-primary"
-            disabled={!steps.length}
+            disabled={!steps.length || (review.length > 0 && !reviewed)}
             onClick={() => onAdd(steps, mode)}
           >
             {t('add', { count: steps.length })}
@@ -703,10 +749,19 @@ export function RecordDialog({
               <p className="robots-small robots-muted">{steps.length ? t('received', { count: steps.length }) : t('waiting')}</p>
               {steps.length > 0 && (
                 <ol className="robots-run-extras" data-testid="robots-record-steps">
-                  {steps.slice(-8).map((s, i) => (
-                    <li key={i}>{summary(s)}</li>
+                  {steps.map((s, i) => (
+                    <li key={i} className={review.includes(i) ? 'robots-log-warn' : undefined}>
+                      {summary(s)}
+                      {review.includes(i) ? ` · ${t('reviewStep')}` : ''}
+                    </li>
                   ))}
                 </ol>
+              )}
+              {review.length > 0 && (
+                <label className="robots-inline">
+                  <input type="checkbox" checked={reviewed} onChange={(e) => setReviewed(e.target.checked)} />
+                  <span>{t('reviewConfirm')}</span>
+                </label>
               )}
             </div>
             <fieldset className="robots-radios">
@@ -729,6 +784,7 @@ export function RecordDialog({
 export function BatchesPanel({ robotId, initial, canRun, refreshKey }: { robotId: string; initial: RobotBatchSummary[]; canRun: boolean; refreshKey: number }) {
   const t = useTranslations('robots.batches');
   const tr = useTranslations('robots');
+  const format = useFormatter();
   const [batches, setBatches] = useState(initial);
   const [confirm, setConfirm] = useState<RobotBatchSummary | null>(null);
   const [busy, setBusy] = useState(false);
@@ -776,9 +832,20 @@ export function BatchesPanel({ robotId, initial, canRun, refreshKey }: { robotId
         {batches.map((b) => (
           <li key={b.id} className="robots-batch" data-testid="robots-batch">
             <span className="robots-small">
+              <span suppressHydrationWarning>{format.dateTime(parseDbUtc(b.createdAt), { dateStyle: 'medium', timeStyle: 'short' })}</span>
+              {' · '}
               {t('progress', { done: b.counts.success + b.counts.failed, total: b.total, failed: b.counts.failed })}
+              {b.paused && <span className="robots-note-warn"> · {t('paused')}</span>}
+              {b.firstRunId && (
+                <>
+                  {' · '}
+                  <a className="robots-link" href={`?tab=runs&run=${b.firstRunId}`}>
+                    {t('open')}
+                  </a>
+                </>
+              )}
             </span>
-            {canRun && b.counts.queued > 0 && (
+            {canRun && b.canCancel && b.counts.queued > 0 && (
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirm(b)}>
                 {t('cancel')}
               </button>

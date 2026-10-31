@@ -3,6 +3,7 @@
  */
 import type { DocsBlock } from './docs-types';
 import { findFileBlock, isFileBlockType } from './docs-files';
+import { readBytesCapped } from './notes-clip';
 import { fileBlockResponse } from './upload-serve';
 import { ENEX_HEAD, ENEX_TAIL, enexResource, noteToEnex, type EnexResourceOut } from './notes-export';
 import { noteFileHref, type NoteDetail } from './notes-types';
@@ -10,12 +11,14 @@ import { noteFileHref, type NoteDetail } from './notes-types';
 /** Tope de adjuntos embebidos por export (lo que pasa queda como link). */
 export const ENEX_EMBED_BUDGET = 60 * 1024 * 1024;
 
-async function readFileBlock(blocks: DocsBlock[], blockId: string): Promise<Uint8Array | null> {
+async function readFileBlock(blocks: DocsBlock[], blockId: string, max: number): Promise<Uint8Array | null> {
   const block = findFileBlock(blocks, blockId);
   if (!block) return null;
   const res = await fileBlockResponse(block, { download: true }).catch(() => null);
   if (!res || !res.ok) return null;
-  return new Uint8Array(await res.arrayBuffer());
+  // Lo que no entra en el presupuesto queda como link.
+  const bytes = await readBytesCapped(res, max);
+  return bytes ? new Uint8Array(bytes) : null;
 }
 
 /**
@@ -38,7 +41,7 @@ export function enexStream(
             for (const b of note.content) {
               if (!isFileBlockType(b.type) || !b.url) continue;
               if ((b.size ?? 0) > budget) continue;
-              const bytes = await readFileBlock(note.content, b.id);
+              const bytes = await readFileBlock(note.content, b.id, budget);
               if (!bytes || bytes.length > budget) continue;
               budget -= bytes.length;
               files.set(b.id, enexResource(bytes, b.mime || 'application/octet-stream', b.name || 'file'));

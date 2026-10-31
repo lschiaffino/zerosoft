@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/session';
 import { noteEditable, noteOwner } from '@/lib/notes';
 import { resolveNoteAccess } from '@/lib/notes-shares';
 import { MAX_UPLOAD_SIZE, saveUpload, UploadError } from '@/lib/uploads';
+import { NOTES_MAX_BLOB_UPLOAD } from '@/lib/notes-types';
 import { cleanFileName, type DocsUploadConfig, type DocsUploadResult } from '@/lib/docs-files';
 import { jsonError, limitWrites } from '@/lib/write-limit';
 
@@ -10,8 +11,8 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * Cómo sube el editor en Notes: siempre por este servidor (que guarda en
- * Blob o en disco), hasta MAX_UPLOAD_SIZE. Lo pide el editor al abrir la nota.
+ * Cómo sube el editor en Notes: con Blob, directo del navegador (.../files/blob);
+ * sin Blob, por este servidor hasta MAX_UPLOAD_SIZE. Lo pide el editor al abrir la nota.
  */
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -19,7 +20,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   if (!user) return jsonError(401, 'unauthorized');
   const access = await resolveNoteAccess(noteOwner(user), id);
   if (!access) return jsonError(404, 'not_found');
-  return NextResponse.json<DocsUploadConfig>({ mode: 'server', max: MAX_UPLOAD_SIZE });
+  return NextResponse.json<DocsUploadConfig>(process.env.BLOB_READ_WRITE_TOKEN && access.row.locked == null ? { mode: 'blob', max: NOTES_MAX_BLOB_UPLOAD } : { mode: 'server', max: MAX_UPLOAD_SIZE });
 }
 
 /**
@@ -43,6 +44,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (state === 'not_found') return jsonError(404, 'not_found');
   if (state === 'trashed') return jsonError(409, 'note_trashed');
 
+  if (Number(req.headers.get('content-length') ?? 0) > MAX_UPLOAD_SIZE + 64 * 1024) return jsonError(413, 'file_too_large');
   const form = await req.formData().catch(() => null);
   const file = form?.get('file');
   if (!(file instanceof Blob) || file.size === 0) return jsonError(400, 'invalid_input');

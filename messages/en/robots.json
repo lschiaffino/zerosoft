@@ -30,7 +30,7 @@
     "minutes": "{used} of {limit} min",
     "minutesUnlimited": "{used} min",
     "runs": "{count, plural, one {# run} other {# runs}}",
-    "perHour": "Up to {count} runs per hour · one run at a time per workspace",
+    "perHour": "Up to {count} runs per hour · {concurrency, plural, one {# run} other {# runs}} at a time in this workspace",
     "byRobotTitle": "By robot this month",
     "byRobotName": "Robot",
     "byRobotRuns": "Runs",
@@ -400,15 +400,16 @@
     "refresh": "Refresh",
     "autoRefresh": "Updating while runs wait in the queue.",
     "batch": "Bulk",
-    "relearned": "Step {step} no longer matched its selector and found the same element again: {selector}.",
-    "relearnedField": "Step {step}: column {field} was blank and was found again with: {selector}.",
+    "relearned": "Step {step} no longer matched its selector. The robot used the most similar element: {selector}. Check the data of this run.",
+    "relearnedField": "Step {step}: column {field} came back blank. The robot used the most similar element in each row: {selector}. Check the data of this run.",
     "relearnedSaved": "Saved in the robot; the old selector stays as an alternative.",
-    "relearnedNotSaved": "Used in this run only.",
+    "relearnedNotSaved": "Not saved in the robot.",
     "cancelQueued": "Remove from queue",
     "cancelConfirm": "Remove this run from the queue?",
     "cancelYes": "Remove",
     "cancelNo": "Back",
-    "cancelDone": "Run removed from the queue."
+    "cancelDone": "Run removed from the queue.",
+    "relearnedAction": "Step {step} no longer matched its selector. The robot acted on the only element with the same name: {selector}. Review it and make it the main selector if it is right."
   },
   "settings": {
     "enabled": "Allow automatic runs",
@@ -491,7 +492,7 @@
     "retentionDays": "{count, plural, one {# day} other {# days}}",
     "pausedByFailures": "Automatic runs were paused on {date} after several failed runs in a row. Check the Runs tab, then turn them back on.",
     "selfHealTitle": "Find elements again when the site changes",
-    "selfHealHint": "Each good run remembers what its elements look like. If a selector stops matching, the robot looks for the most similar element and only uses it when one clearly wins. If the run succeeds, the new selector is saved and the run says so.",
+    "selfHealHint": "Off by default. Each good run remembers what its elements look like on that site. If a selector stops matching on steps that read data, the robot uses the most similar element when one clearly wins and saves it if the run succeeds. On clicks, fields and selects it only uses an element with the same visible name and leaves the change for you to review. Steps with logins and password fields are never changed.",
     "selfHeal": "Re-learn selectors automatically"
   },
   "errors": {
@@ -529,7 +530,11 @@
     "step_not_found": "That step is no longer in the robot.",
     "too_many_inputs": "Send between 1 and 1,000 rows.",
     "admin_only_login": "Logins, saved sessions and destinations with credentials are for workspace admins and owners.",
-    "not_queued": "That run is no longer in the queue."
+    "not_queued": "That run is no longer in the queue.",
+    "credential_misuse": "Step {index}: a credential can only go in the value of a Fill field step, never in a selector, URL, text or script.",
+    "batch_too_large": "The batch is larger than 64 MB of inputs.",
+    "no_crm_access": "You need access to the CRM to send rows there.",
+    "outside_recipient": "Change emails can only go to people in this workspace."
   },
   "paste": {
     "title": "Paste recorded steps",
@@ -581,7 +586,8 @@
       "pickNext": "Click the Next or Load more button.",
       "listCount": "List: {count} items",
       "sent": "sent to the editor",
-      "sendFail": "could not send, copy them instead"
+      "sendFail": "could not send, copy them instead",
+      "keepQuery": "Keep URL parameters"
     },
     "codeTitle": "No bookmarks bar",
     "extractTitle": "Extract while you record",
@@ -663,7 +669,7 @@
   "bulk": {
     "button": "Bulk run",
     "title": "Run with many inputs",
-    "desc": "Upload a CSV with one row per run. Each row becomes a run in the queue, up to {max}.",
+    "desc": "Upload a CSV with one row per run, up to {max}. Nothing starts until all rows are uploaded.",
     "file": "CSV file",
     "paste": "Or paste the CSV",
     "map": "Column for each input",
@@ -677,8 +683,12 @@
     "parseError": "Could not read the CSV: the first row must have the column names.",
     "cancel": "Cancel",
     "preview": "First rows",
-    "progress": "Queued {done, number} of {total, number}…",
-    "partial": "{done, number} of {total, number} queued. Start again to continue from there."
+    "progress": "Uploaded {done, number} of {total, number}…",
+    "nothingStarted": "No run started. Fix it and queue again.",
+    "rowMissing": "Row {row}: “{name}” is required. Nothing was uploaded.",
+    "estimate": "About {minutes, number} browser minutes at {seconds} s per run, and at least {hours, number} h with {concurrency} at once.",
+    "estimateOver": "You have {left, number} minutes left this month. The batch pauses when they run out and continues when there are minutes again.",
+    "expiry": "Rows still waiting after 45 days are dropped."
   },
   "data": {
     "title": "Data across runs",
@@ -838,7 +848,7 @@
     "desc": "Do the task on the site. Steps show up here as you go. Nothing reaches the robot until you add them. The recording lasts one hour.",
     "bookmarkletLabel": "With a bookmark",
     "bookmarklet": "Record this robot",
-    "bookmarkletHint": "Drag it to the bookmarks bar and click it on the site. Click it again after each page load. This link only works for this recording. Sites with a strict security policy can block it: use the extension there.",
+    "bookmarkletHint": "Drag it to the bookmarks bar and click it on the site. Click it again after each page load. Sites with a strict security policy can block it: use the extension there. Risk: the site you record can read this link and send fake steps until you close this window, so check every step below before adding it.",
     "extensionLabel": "With the Chrome extension",
     "copyCode": "Copy recording code",
     "copied": "Copied",
@@ -850,7 +860,9 @@
     "append": "After the current steps",
     "replace": "Replacing the current steps",
     "add": "Add {count, plural, =0 {steps} one {# step} other {# steps}}",
-    "cancel": "Close"
+    "cancel": "Close",
+    "reviewStep": "uses a login, check it",
+    "reviewConfirm": "I checked the marked steps"
   },
   "batches": {
     "title": "Batches",
@@ -859,7 +871,9 @@
     "confirmTitle": "Cancel this batch?",
     "confirmBody": "{count, plural, one {# queued run} other {# queued runs}} will not start. Runs already finished or running stay as they are.",
     "keep": "Keep running",
-    "confirm": "Cancel the rest"
+    "confirm": "Cancel the rest",
+    "paused": "paused: no minutes left this month. It continues when minutes are available.",
+    "open": "See runs"
   },
   "workspace": {
     "concurrencyTitle": "Runs at once",

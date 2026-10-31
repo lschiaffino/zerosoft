@@ -4,6 +4,9 @@
 import type { DocsBlock } from './docs-types';
 import { databaseTable } from './docs-database';
 
+/** Tope de la subida directa del navegador a Blob en Notes. */
+export const NOTES_MAX_BLOB_UPLOAD = 100 * 1024 * 1024;
+
 export type NotesSort = 'updated' | 'created' | 'title';
 export const NOTES_SORTS: readonly NotesSort[] = ['updated', 'created', 'title'];
 
@@ -337,6 +340,8 @@ export function clipBookmarklet(origin: string, locale: string): string {
   const base = `${origin}/${locale}/app/notes/clip`;
   return (
     'javascript:(function(){var s=window.getSelection?String(window.getSelection()):"";' +
-    `window.open("${base}?url="+encodeURIComponent(location.href)+"&title="+encodeURIComponent(document.title)+"&selection="+encodeURIComponent(s.slice(0,4000)),"zsclip","width=520,height=600");})();`
+    `var w=window.open("${base}?url="+encodeURIComponent(location.href)+"&title="+encodeURIComponent(document.title)+"&selection="+encodeURIComponent(s.slice(0,4000)),"zsclip","width=560,height=680");` +
+    // La ventana avisa que está lista y recibe la página como la ve la persona (también con sesión).
+    `window.addEventListener("message",function(e){if(e.source===w&&e.data==="zs-clip-ready")w.postMessage({zsClipHtml:new TextDecoder().decode(new TextEncoder().encode(document.documentElement.outerHTML).slice(0,2000000))},"${origin}");});})();`
   );
 }

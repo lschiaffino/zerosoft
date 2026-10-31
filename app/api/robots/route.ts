@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { createRobot, getRobotWorkspaceConfig, getUsage, listRobots } from '@/lib/robots';
 import { ROBOT_TEMPLATES, robotCreateSchema } from '@/lib/robots-schema';
-import { canEditRobots, forbidden, isRobotBuilder, memberPatchError, realUserId, robotError, unauthorized } from '@/lib/robots-http';
+import { canEditRobots, forbidden, isRobotBuilder, memberPatchError, memberSettingsError, realUserId, robotError, unauthorized } from '@/lib/robots-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,7 +26,9 @@ export async function POST(req: NextRequest) {
   const parsed = robotCreateSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return robotError(400, 'invalid_input');
   if (!canEditRobots(user)) {
-    const denied = memberPatchError({ steps: parsed.data.steps, import: parsed.data.import });
+    const denied =
+      memberPatchError({ steps: parsed.data.steps, import: parsed.data.import }) ??
+      (await memberSettingsError(user, user.id, (parsed.data.import as { settings?: unknown } | undefined)?.settings));
     if (denied) return robotError(403, denied);
     const tpl = parsed.data.template ? ROBOT_TEMPLATES.find((t) => t.key === parsed.data.template) : null;
     if (tpl) {

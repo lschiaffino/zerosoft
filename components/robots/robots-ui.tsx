@@ -56,7 +56,7 @@ export function UsageMeter({ usage }: { usage: RobotUsage }) {
           <span style={{ width: `${pct}%` }} />
         </div>
       )}
-      <p className="robots-muted robots-small">{t('usage.perHour', { count: usage.runsPerHour })}</p>
+      <p className="robots-muted robots-small">{t('usage.perHour', { count: usage.runsPerHour, concurrency: usage.concurrency })}</p>
     </div>
   );
 }

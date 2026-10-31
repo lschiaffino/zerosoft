@@ -19,7 +19,7 @@ export default async function RobotEditorPage(props: { params: Promise<{ locale:
     getRobotWorkspaceConfig(user.id),
     listRobotRuns(user.id, id, 50, robotViewer(user)),
     getUsage(user.id),
-    listRobotBatches(user.id, id),
+    listRobotBatches(user.id, id, robotViewer(user)),
   ]);
   if (!row) notFound();
   return (

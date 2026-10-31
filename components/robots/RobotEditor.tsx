@@ -95,7 +95,10 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
   const [toast, setToast] = useState<string | null>(null);
   const [runs, setRuns] = useState(initialRuns);
   const [usage, setUsage] = useState(initialUsage);
-  const [selectedRun, setSelectedRun] = useState<string | null>(initialRuns[0]?.id ?? null);
+  const [selectedRun, setSelectedRun] = useState<string | null>(() => {
+    const wanted = params.get('run');
+    return wanted && initialRuns.some((r) => r.id === wanted) ? wanted : (initialRuns[0]?.id ?? null);
+  });
   const [tab, setTabState] = useState<Tab>(() => tabFromParam(params.get('tab')));
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
@@ -946,6 +949,11 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
           onClose={() => setBulkOpen(false)}
           robotId={robot.id}
           inputs={inputs}
+          usage={usage}
+          avgRunMs={(() => {
+            const done = runs.filter((r) => r.status === 'success' && r.durationMs);
+            return done.length ? done.reduce((a, r) => a + (r.durationMs ?? 0), 0) / done.length : null;
+          })()}
           onQueued={(count) => {
             setBulkOpen(false);
             setToast(t('bulk.queued', { count }));

@@ -19,12 +19,17 @@ import { rateLimit } from './rate-limit';
 import { getRobotBackend, robotBackendName, type RobotBackendName } from './robots-runner';
 import { open, seal } from './secret-box';
 import { recordRobotOutcome } from './robots-alerts';
+import { PASSWORD_PLACEHOLDER as RECORDER_PASSWORD_PLACEHOLDER } from './robots-recorder';
 import { diffRobotOutputs, stableJson } from './robots-diff';
 import { geoOptions } from './robots-geo';
 import { mergeDataset, rowsOf, toRowObject, type DatasetMergeResult } from './robots-dataset';
 import type { DestinationResult } from './robots-destinations';
 import {
+  CREDENTIAL_TEMPLATE,
+  credentialMisuse,
   DEFAULT_PAUSE_AFTER,
+  isSimpleSelector,
+  MAX_BATCH_BYTES,
   MAX_AI_COLUMN_ROWS,
   datasetVariable,
   parseRobotSettings,
@@ -356,7 +361,7 @@ export async function listRobots(workspaceId: string): Promise<RobotListItem[]> 
 
 export type RobotWriteResult =
   | { ok: true; robot: RobotDto; /** Destinatarios del email de cambios que no son del workspace (se descartaron). */ droppedRecipients?: string[] }
-  | { ok: false; error: RobotErrorCode | 'not_found' | 'unknown_template' | 'invalid_settings' | 'invalid_import'; index?: number };
+  | { ok: false; error: RobotErrorCode | 'not_found' | 'unknown_template' | 'invalid_settings' | 'invalid_import' | 'credential_misuse'; index?: number };
 
 function nextRun(schedule: RobotSchedule, enabled: boolean, from = new Date()): string | null {
   if (!schedule || !enabled) return null;
@@ -420,8 +425,8 @@ export async function createRobot(
       inputs = iv.inputs;
     }
   }
-  // Los robots nuevos arrancan con el autoaprendizaje prendido (los anteriores siguen como estaban).
-  if (input.import === undefined) settings = { selfHeal: true, ...settings };
+  const misuse = credentialMisuse(steps);
+  if (misuse !== null) return { ok: false, error: 'credential_misuse', index: misuse };
   const id = crypto.randomUUID();
   const ts = nowIso();
   // Los robots nuevos arrancan habilitados pero el schedule de una plantilla
@@ -492,6 +497,8 @@ export async function updateRobot(
   if (patch.steps !== undefined) {
     const v = validateSteps(patch.steps);
     if (!v.ok) return v;
+    const misuse = credentialMisuse(v.steps);
+    if (misuse !== null) return { ok: false, error: 'credential_misuse', index: misuse };
     steps = JSON.stringify(v.steps);
   }
   let inputs = row.inputs;
@@ -540,9 +547,17 @@ export async function updateRobot(
       id,
       workspaceId,
     );
+  // Apagar el autoaprendizaje borra lo que recordaba de las páginas.
+  if (patch.settings !== undefined && parseRobotSettings(parseJson<unknown>(settings, {})).selfHeal !== true) {
+    await getDb().prepare('DELETE FROM robot_selector_prints WHERE robot_id = ?').run(id);
+  }
   // Apagar "guardar sesión" borra la sesión guardada.
   if (patch.persistSession === false) await clearRobotSession(workspaceId, id);
   return { ok: true, robot: (await getRobot(workspaceId, id))!, ...(droppedRecipients.length ? { droppedRecipients } : {}) };
+}
+
+export async function setRobotOwner(workspaceId: string, id: string, personId: string): Promise<void> {
+  await getDb().prepare('UPDATE robots SET created_by = ? WHERE id = ? AND user_id = ?').run(personId, id, workspaceId);
 }
 
 export async function deleteRobot(workspaceId: string, id: string): Promise<boolean> {
@@ -697,7 +712,8 @@ export type RunErrorCode =
   | 'busy'
   | 'missing_input'
   | 'missing_credential'
-  | 'no_steps';
+  | 'no_steps'
+  | 'admin_only_login';
 
 /**
  * Credenciales usadas en los pasos ({{credentials.<name>.campo}}), en claro
@@ -898,32 +914,75 @@ async function failRun(
   return true;
 }
 
-/** Edad máxima en cola de una corrida de un lote (ROBOTS_BATCH_QUEUE_MAX_AGE_H, 14 días): un lote grande tarda. */
+/** Edad máxima en cola de una corrida de un lote (ROBOTS_BATCH_QUEUE_MAX_AGE_H, 45 días): alcanza para un cambio de mes sin minutos. */
 export function batchQueueMaxAgeMs(): number {
-  return envInt('ROBOTS_BATCH_QUEUE_MAX_AGE_H', 336) * 3_600_000;
+  return envInt('ROBOTS_BATCH_QUEUE_MAX_AGE_H', 1080) * 3_600_000;
 }
 
-/** Corridas en cola más viejas que queueMaxAgeMs() (o batchQueueMaxAgeMs() si son de un lote): fallidas con queue_expired. */
+/** ¿El workspace se quedó sin minutos este mes? */
+export async function robotQuotaExhausted(workspaceId: string): Promise<boolean> {
+  const limit = freeMinutesPerMonth();
+  return limit !== null && limit * 60_000 - (await usedMs(workspaceId)) <= 0;
+}
+
+/**
+ * Corridas en cola demasiado viejas: fallidas con queue_expired. Las sueltas
+ * avisan una por una; las de un lote se cierran juntas, sin un evento por fila
+ * (se ven en el avance del lote).
+ */
 export async function expireQueuedRobotRuns(workspaceId?: string, now = Date.now()): Promise<number> {
   const cutoff = new Date(now - queueMaxAgeMs()).toISOString();
   const batchCutoff = new Date(now - batchQueueMaxAgeMs()).toISOString();
-  const rows = (await getDb()
+  const db = getDb();
+  const ts = nowIso();
+  const bulk = await db
+    .prepare(
+      `UPDATE robot_runs SET status = 'failed', error = 'queue_expired', started_at = COALESCE(started_at, ?), finished_at = ?, duration_ms = 0
+       WHERE status = 'queued' AND batch_id IS NOT NULL AND created_at < ?${workspaceId ? ' AND user_id = ?' : ''}`,
+    )
+    .run(...(workspaceId ? [ts, ts, batchCutoff, workspaceId] : [ts, ts, batchCutoff]));
+  const rows = (await db
     .prepare(
       `SELECT r.id, r.trigger, r.user_id, b.id AS robot_id, b.name AS robot_name FROM robot_runs r JOIN robots b ON b.id = r.robot_id
-       WHERE r.status = 'queued' AND r.created_at < (CASE WHEN r.batch_id IS NULL THEN ? ELSE ? END)${workspaceId ? ' AND r.user_id = ?' : ''} LIMIT 200`,
+       WHERE r.status = 'queued' AND r.batch_id IS NULL AND r.created_at < ?${workspaceId ? ' AND r.user_id = ?' : ''} LIMIT 200`,
     )
-    .all(...(workspaceId ? [cutoff, batchCutoff, workspaceId] : [cutoff, batchCutoff]))) as Array<{
+    .all(...(workspaceId ? [cutoff, workspaceId] : [cutoff]))) as Array<{
     id: string;
     trigger: RobotRunTrigger;
     user_id: string;
     robot_id: string;
     robot_name: string;
   }>;
-  let n = 0;
+  let n = bulk.changes;
   for (const r of rows) {
     if (await failRun({ id: r.robot_id, name: r.robot_name, user_id: r.user_id }, r, 'queue_expired', 'queued')) n++;
   }
   return n;
+}
+
+/** Rol de una persona en el workspace; null si no es de él (se fue, o es el sistema). */
+async function personRole(workspaceId: string, personId: string | null | undefined): Promise<string | null> {
+  if (!personId) return null;
+  if (personId === workspaceId) return 'owner';
+  const row = (await getDb()
+    .prepare('SELECT m.role FROM teams t JOIN team_members m ON m.team_id = t.id WHERE t.owner_id = ? AND m.user_id = ? LIMIT 1')
+    .get(workspaceId, personId)) as { role: string } | undefined;
+  return row?.role ?? null;
+}
+
+/**
+ * Al arrancar cualquier corrida (manual, programada, en cola, Flow): un robot que
+ * usa un login no corre si lo armó, o lo lanzó, alguien que hoy no es admin. Los
+ * pasos pueden haber cambiado desde que se puso en cola.
+ */
+async function loginAllowed(row: RobotRow, actorId: string | null | undefined): Promise<boolean> {
+  const { robotUsesLogin } = await import('./robots-http');
+  if (!robotUsesLogin(row)) return true;
+  for (const person of [row.created_by, actorId]) {
+    const role = await personRole(row.user_id, person);
+    if (role === 'member' || role === 'guest') return false;
+  }
+  return true;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -961,6 +1020,7 @@ export async function startRobotRun(
   if (robot.steps.length === 0) return { ok: false, error: 'no_steps' };
   const backend = getRobotBackend();
   if (!backend) return { ok: false, error: 'runner_unavailable' };
+  if (!(await loginAllowed(row, opts.actorId))) return { ok: false, error: 'admin_only_login' };
   const resolved = resolveInputs(robot.inputs, values);
   if (!resolved.ok) return { ok: false, error: 'missing_input', name: resolved.name };
   const creds = await resolveRobotCredentials(workspaceId, robot.steps);
@@ -1044,14 +1104,15 @@ async function loadPrints(robotId: string): Promise<Record<string, unknown>> {
   return out;
 }
 
-/** Cifradas y sin secretos: guardan texto de la página, que puede ser de un sitio con login. No salen por ningún lado. */
-async function savePrints(robotId: string, prints: Record<string, unknown>, secrets: string[]): Promise<void> {
+/** Cifradas y sin secretos: guardan texto de la página, que puede ser de un sitio con login. Solo se escriben si cambiaron. */
+async function savePrints(robotId: string, prints: Record<string, unknown>, known: Record<string, unknown>, secrets: string[]): Promise<void> {
   const db = getDb();
   const ts = nowIso();
   for (const [selector, print] of Object.entries(prints).slice(0, MAX_PRINTS)) {
     if (selector.length > 500) continue;
-    const json = JSON.stringify(secrets.length ? redact(print, secrets) : print);
-    if (json.length > 20_000) continue;
+    const clean = secrets.length ? redact(print, secrets) : print;
+    const json = JSON.stringify(clean);
+    if (json.length > 20_000 || json === JSON.stringify(known[selector])) continue;
     await db
       .prepare(
         `INSERT INTO robot_selector_prints (robot_id, selector, print, updated_at) VALUES (?, ?, ?, ?)
@@ -1061,14 +1122,17 @@ async function savePrints(robotId: string, prints: Record<string, unknown>, secr
   }
 }
 
+/** Solo los pasos que leen se guardan solos. Los de acción quedan para que una persona los revise. */
+const AUTO_SAVE_TYPES = new Set(['wait', 'extract', 'extract_table', 'extract_list', 'scroll']);
+
 /**
- * Corrida buena con selectores reencontrados: quedan en los pasos del robot y
- * el viejo pasa a alternativo. Compare-and-set contra updated_at: si alguien
- * editó el robot mientras corría, no se pisa (queda el botón de la corrida).
- * Selectores con plantillas ({{...}}) no se tocan.
+ * Corrida buena con selectores de lectura reencontrados: quedan en los pasos y el
+ * viejo pasa a alternativo. Lo que llega se valida otra vez: solo selectores
+ * simples, sin plantillas. Guardar nunca cambia si el robot usa credenciales.
+ * Compare-and-set contra updated_at: si alguien editó el robot mientras corría, no se pisa.
  */
 async function saveRelearned(row: RobotRow, healed: RobotHealed[]): Promise<RobotHealed[]> {
-  const list = healed.filter((h) => h.relearned);
+  const list = healed.filter((h) => h.relearned && !h.review && isSimpleSelector(h.to || 'a'));
   if (!list.length) return healed;
   const steps = parseJson<Array<Record<string, unknown>>>(row.steps, []);
   const saved = new Set<RobotHealed>();
@@ -1080,7 +1144,7 @@ async function saveRelearned(row: RobotRow, healed: RobotHealed[]): Promise<Robo
   };
   for (const h of list) {
     const step = stepAt(h.step);
-    if (!step) continue;
+    if (!step || !AUTO_SAVE_TYPES.has(String(step.type))) continue;
     if (h.field) {
       const field = (Array.isArray(step.fields) ? (step.fields as Array<Record<string, unknown>>) : []).find((f) => f.name === h.field);
       if (!field || String(field.selector ?? '').includes('{{')) continue;
@@ -1089,7 +1153,7 @@ async function saveRelearned(row: RobotRow, healed: RobotHealed[]): Promise<Robo
       continue;
     }
     const old = String(step.selector ?? '');
-    if (old.includes('{{')) continue;
+    if (old.includes('{{') || !h.to) continue;
     if (old === h.to) {
       saved.add(h);
       continue;
@@ -1102,9 +1166,11 @@ async function saveRelearned(row: RobotRow, healed: RobotHealed[]): Promise<Robo
   if (!saved.size) return healed;
   const v = validateSteps(steps);
   if (!v.ok) return healed;
+  const next = JSON.stringify(v.steps);
+  if (CREDENTIAL_TEMPLATE.test(next) !== CREDENTIAL_TEMPLATE.test(row.steps)) return healed;
   const res = await getDb()
     .prepare('UPDATE robots SET steps = ?, updated_at = ? WHERE id = ? AND updated_at = ?')
-    .run(JSON.stringify(v.steps), nowIso(), row.id, row.updated_at);
+    .run(next, nowIso(), row.id, row.updated_at);
   if (res.changes !== 1) return healed;
   return healed.map((h) => (saved.has(h) ? { ...h, saved: true } : h));
 }
@@ -1174,7 +1240,7 @@ async function executeClaimedRun(
   const exports: RobotRunExports = {};
   if (Array.isArray(result.healed) && result.healed.length) exports.healed = result.healed.slice(0, 50);
   if (selfHeal && status === 'success') {
-    if (result.prints) await savePrints(robot.id, result.prints, secrets).catch(() => {});
+    if (result.prints) await savePrints(robot.id, result.prints, selfHeal.prints, secrets).catch(() => {});
     if (exports.healed) exports.healed = await saveRelearned(row, exports.healed).catch(() => exports.healed);
   }
   if (settings.country || geo.proxy) exports.geo = { country: settings.country ?? '', proxy: !!geo.proxy };
@@ -1410,9 +1476,14 @@ async function claimForDrain(run: RobotRunRow): Promise<(() => Promise<unknown>)
   const backend = getRobotBackend();
   if (!backend) return null;
   if (run.trigger !== 'manual' && row.enabled !== 1) return (await failRun(row, run, 'disabled', 'queued')) ? true : null;
+  if (!(await loginAllowed(row, run.created_by))) return (await failRun(row, run, 'admin_only_login', 'queued')) ? true : null;
   const robot = toRobotDto(row);
   const timeoutMs = await effectiveTimeoutMs(run.user_id, robot);
-  if (timeoutMs === null) return (await failRun(row, run, 'quota_exceeded', 'queued')) ? true : null;
+  if (timeoutMs === null) {
+    // Sin minutos, un lote queda en pausa: sigue el mes que viene o cuando se amplíe la cuota.
+    if (run.batch_id) return null;
+    return (await failRun(row, run, 'quota_exceeded', 'queued')) ? true : null;
+  }
   if (!(await claimQueuedRun(run.user_id, run.id, timeoutMs, backend.name))) return null;
   const creds = await resolveRobotCredentials(run.user_id, robot.steps);
   if (!creds.ok) {
@@ -1440,7 +1511,8 @@ async function pickQueuedRuns(concurrency: number, ws?: string): Promise<RobotRu
     const solo = (await db
       .prepare("SELECT * FROM robot_runs WHERE user_id = ? AND status = 'queued' AND batch_id IS NULL ORDER BY created_at, rowid LIMIT ?")
       .all(user_id, slots)) as RobotRunRow[];
-    const rest = solo.length >= slots
+    // Sin minutos, las de lotes esperan sin ocupar un lugar en la pasada.
+    const rest = solo.length >= slots || (await robotQuotaExhausted(user_id))
       ? []
       : ((await db
           .prepare("SELECT * FROM robot_runs WHERE user_id = ? AND status = 'queued' AND batch_id IS NOT NULL ORDER BY created_at, rowid LIMIT ?")
@@ -1508,7 +1580,8 @@ export async function runDueRobots(now: Date = new Date(), limit = 100, budgetMs
   const concurrency = cronConcurrency();
   const t0 = Date.now();
   // Primero la cola (corridas que esperaban turno), después los schedules.
-  let ran = await drainRobotQueue({ budgetMs, concurrency });
+  // Hasta la mitad del tiempo: la cola no puede dejar sin correr a los programados de otros workspaces.
+  let ran = await drainRobotQueue({ budgetMs: Math.floor(budgetMs / 2), concurrency });
   if (budgetMs - (Date.now() - t0) < 60_000) return ran;
   let attempted = 0;
   while (attempted < limit) {
@@ -1586,10 +1659,10 @@ export function bulkPerHour(): number {
   return envInt('ROBOTS_BULK_PER_HOUR', 10);
 }
 
-export type BatchErrorCode = RunErrorCode | 'too_many_inputs';
+export type BatchErrorCode = RunErrorCode | 'too_many_inputs' | 'batch_too_large';
 
 export type EnqueueBatchResult =
-  | { ok: true; batchId: string; total: number; runs: RobotRunDto[] }
+  | { ok: true; batchId: string; total: number; /** Ya está en la cola (si no, espera las partes que faltan). */ committed: boolean; runs: RobotRunDto[] }
   | { ok: false; error: BatchErrorCode; name?: string; index?: number };
 
 /** Id estable de la fila de un lote en partes: reenviar la misma parte no agrega corridas. */
@@ -1611,17 +1684,19 @@ export async function enqueueRobotBatch(
   workspaceId: string,
   robotId: string,
   inputs: Array<Record<string, unknown>>,
-  opts: { actorId?: string | null; batchId?: string; offset?: number } = {},
+  opts: { actorId?: string | null; batchId?: string; offset?: number; total?: number } = {},
 ): Promise<EnqueueBatchResult> {
   if (inputs.length === 0 || inputs.length > MAX_BULK_INPUTS) return { ok: false, error: 'too_many_inputs' };
   const offset = opts.offset ?? 0;
   if (offset + inputs.length > MAX_BATCH_INPUTS) return { ok: false, error: 'too_many_inputs' };
+  if (opts.batchId && (!opts.total || offset + inputs.length > opts.total)) return { ok: false, error: 'too_many_inputs' };
   const row = await getRobotRow(workspaceId, robotId);
   if (!row) return { ok: false, error: 'not_found' };
   if (row.enabled !== 1) return { ok: false, error: 'disabled' };
   const robot = toRobotDto(row);
   if (robot.steps.length === 0) return { ok: false, error: 'no_steps' };
   if (!getRobotBackend()) return { ok: false, error: 'runner_unavailable' };
+  if (!(await loginAllowed(row, opts.actorId))) return { ok: false, error: 'admin_only_login' };
   const resolved: Array<Record<string, unknown>> = [];
   for (let i = 0; i < inputs.length; i++) {
     const r = resolveInputs(robot.inputs, inputs[i]);
@@ -1635,7 +1710,8 @@ export async function enqueueRobotBatch(
   const batchId = opts.batchId ?? crypto.randomUUID();
   // Un id de lote solo vale para su workspace y su robot.
   const existing = opts.batchId
-    ? ((await db.prepare('SELECT user_id, robot_id FROM robot_runs WHERE batch_id = ? LIMIT 1').get(batchId)) as { user_id: string; robot_id: string } | undefined)
+    ? (((await db.prepare('SELECT user_id, robot_id FROM robot_runs WHERE batch_id = ? LIMIT 1').get(batchId)) ??
+        (await db.prepare('SELECT user_id, robot_id FROM robot_batch_items WHERE batch_id = ? LIMIT 1').get(batchId))) as { user_id: string; robot_id: string } | undefined)
     : undefined;
   if (existing && (existing.user_id !== workspaceId || existing.robot_id !== robotId)) return { ok: false, error: 'not_found' };
   // El rate limit cuenta lotes, no partes.
@@ -1644,32 +1720,59 @@ export async function enqueueRobotBatch(
     if (!rl.ok) return { ok: false, error: 'rate_limited' };
   }
   await expireQueuedRobotRuns(workspaceId);
+  const wanted = opts.total ?? resolved.length;
   const depth = (await db
-    .prepare("SELECT COUNT(*) AS n FROM robot_runs WHERE user_id = ? AND status = 'queued'")
-    .get(workspaceId)) as { n: number };
-  if (Number(depth.n) + resolved.length > maxBulkQueued()) return { ok: false, error: 'busy' };
-  // Mismo instante para las de una parte: el orden FIFO lo da el rowid (en orden de entrada).
+    .prepare("SELECT COUNT(*) AS n FROM robot_runs WHERE user_id = ? AND status = 'queued' AND (batch_id IS NULL OR batch_id != ?)")
+    .get(workspaceId, batchId)) as { n: number };
+  if (Number(depth.n) + wanted > maxBulkQueued()) return { ok: false, error: 'busy' };
   const ts = nowIso();
-  for (let i = 0; i < resolved.length; i += 100) {
-    const chunk = resolved.slice(i, i + 100);
-    const args: unknown[] = [];
-    for (let k = 0; k < chunk.length; k++) {
-      const id = opts.batchId ? await batchRunId(batchId, offset + i + k) : crypto.randomUUID();
-      args.push(id, robot.id, workspaceId, JSON.stringify(chunk[k]).slice(0, 100_000), opts.actorId ?? null, batchId, ts);
+  const rows = [];
+  for (let k = 0; k < resolved.length; k++) {
+    rows.push({ id: opts.batchId ? await batchRunId(batchId, offset + k) : crypto.randomUUID(), input: JSON.stringify(resolved[k]).slice(0, 100_000), position: offset + k });
+  }
+  if (opts.batchId) {
+    // En partes: las filas esperan aparte. Nada arranca hasta que llegó todo el lote y pasó la validación.
+    const bytes = (await db.prepare('SELECT COALESCE(SUM(LENGTH(input)), 0) AS n FROM robot_batch_items WHERE batch_id = ?').get(batchId)) as { n: number };
+    if (Number(bytes.n) + rows.reduce((a, r) => a + r.input.length, 0) > MAX_BATCH_BYTES) return { ok: false, error: 'batch_too_large' };
+    for (let i = 0; i < rows.length; i += 100) {
+      const chunk = rows.slice(i, i + 100);
+      await db
+        .prepare(
+          `INSERT OR IGNORE INTO robot_batch_items (id, batch_id, position, robot_id, user_id, input, created_by, created_at)
+           VALUES ${chunk.map(() => '(?, ?, ?, ?, ?, ?, ?, ?)').join(', ')}`,
+        )
+        .run(...(chunk.flatMap((r) => [r.id, batchId, r.position, robot.id, workspaceId, r.input, opts.actorId ?? null, ts]) as string[]));
     }
+    const held = (await db.prepare('SELECT COUNT(*) AS n FROM robot_batch_items WHERE batch_id = ?').get(batchId)) as { n: number };
+    const committed = (await db.prepare('SELECT COUNT(*) AS n FROM robot_runs WHERE batch_id = ?').get(batchId)) as { n: number };
+    if (Number(committed.n) >= wanted) return { ok: true, batchId, total: Number(committed.n), committed: true, runs: [] };
+    if (Number(held.n) < wanted) return { ok: true, batchId, total: Number(held.n), committed: false, runs: [] };
+    // Una sola sentencia: entran todas o ninguna.
     await db
       .prepare(
         `INSERT OR IGNORE INTO robot_runs (id, robot_id, user_id, status, trigger, input, created_by, batch_id, created_at)
+         SELECT id, robot_id, user_id, 'queued', 'api', input, created_by, batch_id, ? FROM robot_batch_items WHERE batch_id = ? ORDER BY position`,
+      )
+      .run(nowIso(), batchId);
+    await db.prepare('DELETE FROM robot_batch_items WHERE batch_id = ?').run(batchId);
+    kickRobotQueue(workspaceId);
+    return { ok: true, batchId, total: wanted, committed: true, runs: [] };
+  }
+  // Mismo instante para todas: el orden FIFO lo da el rowid (en orden de entrada).
+  for (let i = 0; i < rows.length; i += 100) {
+    const chunk = rows.slice(i, i + 100);
+    await db
+      .prepare(
+        `INSERT INTO robot_runs (id, robot_id, user_id, status, trigger, input, created_by, batch_id, created_at)
          VALUES ${chunk.map(() => "(?, ?, ?, 'queued', 'api', ?, ?, ?, ?)").join(', ')}`,
       )
-      .run(...(args as string[]));
+      .run(...(chunk.flatMap((r) => [r.id, robot.id, workspaceId, r.input, opts.actorId ?? null, batchId, ts]) as string[]));
   }
   kickRobotQueue(workspaceId);
   const runs = (await db
-    .prepare('SELECT * FROM robot_runs WHERE batch_id = ? AND user_id = ? ORDER BY created_at, rowid LIMIT ? OFFSET ?')
-    .all(batchId, workspaceId, resolved.length, offset)) as RobotRunRow[];
-  const total = (await db.prepare('SELECT COUNT(*) AS n FROM robot_runs WHERE batch_id = ? AND user_id = ?').get(batchId, workspaceId)) as { n: number };
-  return { ok: true, batchId, total: Number(total.n), runs: runs.map(toRunDto) };
+    .prepare('SELECT * FROM robot_runs WHERE batch_id = ? AND user_id = ? ORDER BY created_at, rowid')
+    .all(batchId, workspaceId)) as RobotRunRow[];
+  return { ok: true, batchId, total: runs.length, committed: true, runs: runs.map(toRunDto) };
 }
 
 export interface RobotBatchDto {
@@ -1724,28 +1827,57 @@ export interface RobotBatchSummary {
   total: number;
   counts: Record<RobotRunStatus, number>;
   createdAt: string;
+  /** Primera corrida, para abrirla desde el lote. */
+  firstRunId: string | null;
+  /** En pausa: quedan filas y el workspace no tiene minutos. */
+  paused: boolean;
+  /** Quien mira puede cancelar lo que falta: admins, o quien lanzó el lote. */
+  canCancel: boolean;
 }
 
 /** Lotes recientes del robot, con su avance (sin los datos de las corridas). */
-export async function listRobotBatches(workspaceId: string, robotId: string, limit = 10): Promise<RobotBatchSummary[]> {
+export async function listRobotBatches(workspaceId: string, robotId: string, viewer?: RobotViewer, limit = 10): Promise<RobotBatchSummary[]> {
   const rows = (await getDb()
     .prepare(
-      `SELECT batch_id, status, COUNT(*) AS n, MIN(created_at) AS created_at FROM robot_runs
+      `SELECT batch_id, status, COUNT(*) AS n, MIN(created_at) AS created_at, MIN(id) AS any_id, MIN(created_by) AS created_by FROM robot_runs
        WHERE robot_id = ? AND user_id = ? AND batch_id IN (
          SELECT batch_id FROM robot_runs WHERE robot_id = ? AND user_id = ? AND batch_id IS NOT NULL
          GROUP BY batch_id ORDER BY MIN(created_at) DESC LIMIT ?
        ) GROUP BY batch_id, status`,
     )
-    .all(robotId, workspaceId, robotId, workspaceId, limit)) as Array<{ batch_id: string; status: RobotRunStatus; n: number; created_at: string }>;
+    .all(robotId, workspaceId, robotId, workspaceId, limit)) as Array<{ batch_id: string; status: RobotRunStatus; n: number; created_at: string; any_id: string; created_by: string | null }>;
+  const exhausted = await robotQuotaExhausted(workspaceId);
   const by = new Map<string, RobotBatchSummary>();
   for (const r of rows) {
-    const b = by.get(r.batch_id) ?? { id: r.batch_id, total: 0, counts: { queued: 0, running: 0, success: 0, failed: 0 }, createdAt: r.created_at };
+    const b =
+      by.get(r.batch_id) ??
+      ({
+        id: r.batch_id,
+        total: 0,
+        counts: { queued: 0, running: 0, success: 0, failed: 0 },
+        createdAt: r.created_at,
+        firstRunId: r.any_id,
+        paused: false,
+        canCancel: !viewer || viewer.admin || r.created_by === viewer.personId,
+      } satisfies RobotBatchSummary);
     b.counts[r.status] = Number(r.n);
     b.total += Number(r.n);
     if (r.created_at < b.createdAt) b.createdAt = r.created_at;
     by.set(r.batch_id, b);
   }
+  for (const b of by.values()) b.paused = exhausted && b.counts.queued > 0;
   return [...by.values()].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+}
+
+/** Quién lanzó el lote o la corrida (para cancelar: admins o esa persona). */
+export async function batchActor(workspaceId: string, batchId: string): Promise<string | null> {
+  const row = (await getDb().prepare('SELECT created_by FROM robot_runs WHERE batch_id = ? AND user_id = ? LIMIT 1').get(batchId, workspaceId)) as { created_by: string | null } | undefined;
+  return row?.created_by ?? null;
+}
+
+export async function runActor(workspaceId: string, runId: string): Promise<string | null> {
+  const row = (await getDb().prepare('SELECT created_by FROM robot_runs WHERE id = ? AND user_id = ?').get(runId, workspaceId)) as { created_by: string | null } | undefined;
+  return row?.created_by ?? null;
 }
 
 /** Cancela lo que sigue en cola de un lote. Lo que ya corrió o está corriendo no se toca. */
@@ -1824,6 +1956,21 @@ export async function deleteRobotRecording(workspaceId: string, id: string, pers
   return res.changes > 0;
 }
 
+/**
+ * Lo grabado viene de un sitio: cualquier {{ es texto, no una plantilla. La única
+ * excepción es el marcador de contraseña en el valor de un fill, y lo revisa una
+ * persona antes de agregarlo (stepsNeedingReview).
+ */
+export function neutralizeRecorded(steps: unknown): unknown {
+  const clean = (v: unknown, key = ''): unknown => {
+    if (typeof v === 'string') return key === 'value' && v === RECORDER_PASSWORD_PLACEHOLDER ? v : v.replace(/\{\{/g, '{ {');
+    if (Array.isArray(v)) return v.map((x) => clean(x));
+    if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, clean(x, k)]));
+    return v;
+  };
+  return clean(steps);
+}
+
 export type PushRecordingResult = { ok: true; count: number } | { ok: false; error: 'not_found' | 'invalid_steps' };
 
 /**
@@ -1839,7 +1986,7 @@ export async function pushRobotRecording(id: string, token: string, steps: unkno
   const a = Buffer.from(await tokenHash(token));
   const b = Buffer.from(row?.token_hash ?? '0'.repeat(64));
   if (!row || a.length !== b.length || !timingSafeEqual(a, b) || row.expires_at < nowIso()) return { ok: false, error: 'not_found' };
-  const v = validateSteps(steps);
+  const v = validateSteps(neutralizeRecorded(steps));
   if (!v.ok) return { ok: false, error: 'invalid_steps' };
   await getDb().prepare('UPDATE robot_recordings SET steps = ?, updated_at = ? WHERE id = ?').run(seal(JSON.stringify(v.steps)), nowIso(), id);
   return { ok: true, count: v.steps.length };
@@ -1876,6 +2023,18 @@ export async function pruneRobotRuns(now = Date.now(), batch = 500): Promise<num
   const db = getDb();
   const fallback = defaultRetentionDays();
   await db.prepare('DELETE FROM robot_recordings WHERE expires_at < ?').run(new Date(now).toISOString()).catch(() => {});
+  // Lotes que nunca terminaron de subirse.
+  await db.prepare('DELETE FROM robot_batch_items WHERE created_at < ?').run(new Date(now - 86_400_000).toISOString()).catch(() => {});
+  // Las huellas guardan texto de la página: duran lo mismo que las corridas.
+  await db
+    .prepare(
+      `DELETE FROM robot_selector_prints WHERE robot_id IN (SELECT id FROM robots) AND updated_at < (
+         SELECT strftime('%Y-%m-%dT%H:%M:%fZ', ?, '-' || (CASE WHEN b.retention_days > 0 THEN b.retention_days ELSE ? END) || ' days')
+         FROM robots b WHERE b.id = robot_selector_prints.robot_id
+       )`,
+    )
+    .run(new Date(now).toISOString(), fallback)
+    .catch(() => {});
   const rows = (await db
     .prepare(
       `SELECT r.id, r.screenshots, r.failure, r.output FROM robot_runs r JOIN robots b ON b.id = r.robot_id

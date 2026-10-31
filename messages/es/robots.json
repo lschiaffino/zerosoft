@@ -30,7 +30,7 @@
     "minutes": "{used} de {limit} min",
     "minutesUnlimited": "{used} min",
     "runs": "{count, plural, one {# corrida} other {# corridas}}",
-    "perHour": "Hasta {count} corridas por hora · una corrida a la vez por workspace",
+    "perHour": "Hasta {count} corridas por hora · {concurrency, plural, one {# corrida} other {# corridas}} a la vez en este workspace",
     "byRobotTitle": "Por robot este mes",
     "byRobotName": "Robot",
     "byRobotRuns": "Corridas",
@@ -400,15 +400,16 @@
     "refresh": "Actualizar",
     "autoRefresh": "Se actualiza mientras haya corridas en cola.",
     "batch": "Lote",
-    "relearned": "El paso {step} ya no encontraba su selector y volvió a dar con el mismo elemento: {selector}.",
-    "relearnedField": "Paso {step}: la columna {field} quedó en blanco y se volvió a encontrar con: {selector}.",
+    "relearned": "El paso {step} ya no encontraba su selector. El robot usó el elemento más parecido: {selector}. Revisá los datos de esta corrida.",
+    "relearnedField": "Paso {step}: la columna {field} volvió en blanco. El robot usó el elemento más parecido de cada fila: {selector}. Revisá los datos de esta corrida.",
     "relearnedSaved": "Guardado en el robot; el selector viejo queda como alternativo.",
-    "relearnedNotSaved": "Se usó solo en esta corrida.",
+    "relearnedNotSaved": "No se guardó en el robot.",
     "cancelQueued": "Sacar de la cola",
     "cancelConfirm": "¿Sacar esta corrida de la cola?",
     "cancelYes": "Sacar",
     "cancelNo": "Volver",
-    "cancelDone": "Corrida fuera de la cola."
+    "cancelDone": "Corrida fuera de la cola.",
+    "relearnedAction": "El paso {step} ya no encontraba su selector. El robot actuó sobre el único elemento con el mismo nombre: {selector}. Revisalo y hacelo principal si está bien."
   },
   "settings": {
     "enabled": "Permitir corridas automáticas",
@@ -491,7 +492,7 @@
     "retentionDays": "{count, plural, one {# día} other {# días}}",
     "pausedByFailures": "Las corridas automáticas se pausaron el {date} después de varias corridas fallidas seguidas. Revisá la pestaña Corridas y volvé a prenderlas.",
     "selfHealTitle": "Volver a encontrar elementos cuando el sitio cambia",
-    "selfHealHint": "Cada corrida buena recuerda cómo son sus elementos. Si un selector deja de andar, el robot busca el elemento más parecido y solo lo usa si uno gana claro. Si la corrida termina bien, guarda el selector nuevo y la corrida lo avisa.",
+    "selfHealHint": "Apagado por defecto. Cada corrida buena recuerda cómo son sus elementos en ese sitio. Si un selector deja de andar en pasos que leen datos, el robot usa el elemento más parecido cuando uno gana claro y lo guarda si la corrida termina bien. En clics, campos y opciones solo usa un elemento con el mismo nombre visible y deja el cambio para que lo revises. Los pasos con login y los campos de contraseña nunca cambian.",
     "selfHeal": "Reaprender selectores solo"
   },
   "errors": {
@@ -529,7 +530,11 @@
     "step_not_found": "Ese paso ya no está en el robot.",
     "too_many_inputs": "Mandá entre 1 y 1.000 filas.",
     "admin_only_login": "Los logins, las sesiones guardadas y los envíos con credenciales son para admins y owners del workspace.",
-    "not_queued": "Esa corrida ya no está en la cola."
+    "not_queued": "Esa corrida ya no está en la cola.",
+    "credential_misuse": "Paso {index}: una credencial solo puede ir en el valor de un paso Completar, nunca en un selector, una URL, un texto o un script.",
+    "batch_too_large": "El lote pasa los 64 MB de entradas.",
+    "no_crm_access": "Necesitás acceso al CRM para mandar filas ahí.",
+    "outside_recipient": "Los emails de cambios solo pueden ir a personas de este workspace."
   },
   "paste": {
     "title": "Pegar pasos grabados",
@@ -581,7 +586,8 @@
       "pickNext": "Tocá el botón Siguiente o Cargar más.",
       "listCount": "Lista: {count} elementos",
       "sent": "enviados al editor",
-      "sendFail": "no se pudieron enviar, copialos"
+      "sendFail": "no se pudieron enviar, copialos",
+      "keepQuery": "Conservar parámetros de la URL"
     },
     "codeTitle": "Sin barra de favoritos",
     "extractTitle": "Extraer mientras grabás",
@@ -663,7 +669,7 @@
   "bulk": {
     "button": "Correr en lote",
     "title": "Correr con muchas entradas",
-    "desc": "Subí un CSV con una fila por corrida. Cada fila es una corrida en la cola, hasta {max}.",
+    "desc": "Subí un CSV con una fila por corrida, hasta {max}. Nada arranca hasta que se suban todas las filas.",
     "file": "Archivo CSV",
     "paste": "O pegá el CSV",
     "map": "Columna para cada entrada",
@@ -677,8 +683,12 @@
     "parseError": "No se pudo leer el CSV: la primera fila tiene que tener los nombres de las columnas.",
     "cancel": "Cancelar",
     "preview": "Primeras filas",
-    "progress": "En cola {done, number} de {total, number}…",
-    "partial": "{done, number} de {total, number} en cola. Volvé a empezar para seguir desde ahí."
+    "progress": "Subidas {done, number} de {total, number}…",
+    "nothingStarted": "No arrancó ninguna corrida. Corregilo y volvé a ponerlo en cola.",
+    "rowMissing": "Fila {row}: “{name}” es obligatorio. No se subió nada.",
+    "estimate": "Unos {minutes, number} minutos de navegador a {seconds} s por corrida, y al menos {hours, number} h con {concurrency} a la vez.",
+    "estimateOver": "Te quedan {left, number} minutos este mes. El lote se pausa cuando se acaban y sigue cuando vuelva a haber minutos.",
+    "expiry": "Las filas que sigan esperando después de 45 días se descartan."
   },
   "data": {
     "title": "Datos entre corridas",
@@ -838,7 +848,7 @@
     "desc": "Hacé la tarea en el sitio. Los pasos aparecen acá a medida que los hacés. Nada entra al robot hasta que los agregues. La grabación dura una hora.",
     "bookmarkletLabel": "Con un favorito",
     "bookmarklet": "Grabar este robot",
-    "bookmarkletHint": "Arrastralo a la barra de favoritos y tocalo en el sitio. Volvé a tocarlo después de cada carga de página. Este link solo sirve para esta grabación. Los sitios con una política de seguridad estricta pueden bloquearlo: ahí usá la extensión.",
+    "bookmarkletHint": "Arrastralo a la barra de favoritos y tocalo en el sitio. Volvé a tocarlo después de cada carga de página. Los sitios con una política de seguridad estricta pueden bloquearlo: ahí usá la extensión. Riesgo: el sitio que grabás puede leer este link y mandar pasos falsos hasta que cierres esta ventana, así que revisá cada paso de abajo antes de agregarlo.",
     "extensionLabel": "Con la extensión de Chrome",
     "copyCode": "Copiar código de grabación",
     "copied": "Copiado",
@@ -850,7 +860,9 @@
     "append": "Después de los pasos actuales",
     "replace": "Reemplazando los pasos actuales",
     "add": "Agregar {count, plural, =0 {pasos} one {# paso} other {# pasos}}",
-    "cancel": "Cerrar"
+    "cancel": "Cerrar",
+    "reviewStep": "usa un login, revisalo",
+    "reviewConfirm": "Revisé los pasos marcados"
   },
   "batches": {
     "title": "Lotes",
@@ -859,7 +871,9 @@
     "confirmTitle": "¿Cancelar este lote?",
     "confirmBody": "{count, plural, one {# corrida en cola no va a arrancar} other {# corridas en cola no van a arrancar}}. Las que ya terminaron o están corriendo quedan como están.",
     "keep": "Seguir corriendo",
-    "confirm": "Cancelar lo que falta"
+    "confirm": "Cancelar lo que falta",
+    "paused": "en pausa: no quedan minutos este mes. Sigue cuando haya minutos.",
+    "open": "Ver corridas"
   },
   "workspace": {
     "concurrencyTitle": "Corridas a la vez",

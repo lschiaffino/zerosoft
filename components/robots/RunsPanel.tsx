@@ -431,7 +431,9 @@ function RunExtras({ run, onApplyFix }: { run: RobotRunDto; onApplyFix?: (fix: S
               return (
                 <li key={`${h.step}-${h.field ?? ''}`}>
                   <span>
-                    {h.relearned
+                    {h.review
+                      ? t('relearnedAction', { step: h.step, selector: h.to })
+                      : h.relearned
                       ? t(h.field ? 'relearnedField' : 'relearned', { step: h.step, selector: h.to, field: h.field ?? '' })
                       : t('healed', { step: h.step, selector: h.to })}
                   </span>{' '}

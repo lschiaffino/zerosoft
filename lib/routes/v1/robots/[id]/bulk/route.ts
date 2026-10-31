@@ -26,14 +26,15 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
   }
   const parsed = robotBulkSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
-    return apiError(400, 'invalid_input', `Body must be { "inputs": object[], "batchId"?: uuid, "offset"?: number } with 1 to ${MAX_BULK_INPUTS} items per request and ${MAX_BATCH_INPUTS} per batch.`);
+    return apiError(400, 'invalid_input', `Body must be { "inputs": object[], "batchId"?: uuid, "offset"?: number, "total"?: number } with 1 to ${MAX_BULK_INPUTS} items per request and ${MAX_BATCH_INPUTS} per batch. With batchId, send "total" too.`);
   }
-  const res = await enqueueRobotBatch(auth.user.id, id, parsed.data.inputs, { actorId: auth.personId, batchId: parsed.data.batchId, offset: parsed.data.offset });
+  const res = await enqueueRobotBatch(auth.user.id, id, parsed.data.inputs, { actorId: auth.personId, batchId: parsed.data.batchId, offset: parsed.data.offset, total: parsed.data.total });
   if (!res.ok) return robotApiError(res.error, { name: res.name, index: res.index });
   return NextResponse.json(
     {
       batchId: res.batchId,
       total: res.total,
+      committed: res.committed,
       runs: res.runs.map((r) => ({ id: r.id, status: r.status, input: r.input })),
     },
     { status: 202 },

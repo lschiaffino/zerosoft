@@ -4,6 +4,10 @@
 
 export type NotesFilter =
   | { kind: 'all' }
+  /** Inicio con widgets. */
+  | { kind: 'home' }
+  /** Tareas de todas las notas, por vencimiento. */
+  | { kind: 'tasks' }
   | { kind: 'pinned' }
   | { kind: 'trash' }
   /** Notas de compañeros compartidas conmigo (directas o por libreta). */

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { deleteRobot, getRobot, getRobotRow, getRobotWorkspaceConfig, updateRobot } from '@/lib/robots';
+import { deleteRobot, getRobot, getRobotRow, getRobotWorkspaceConfig, setRobotOwner, updateRobot } from '@/lib/robots';
 import { robotUpdateSchema } from '@/lib/robots-schema';
-import { canEditRobot, canEditRobots, forbidden, memberPatchError, notFound, realUserId, robotError, unauthorized } from '@/lib/robots-http';
+import { canEditRobot, canEditRobots, forbidden, memberPatchError, memberSettingsError, notFound, realUserId, robotError, robotUsesLogin, unauthorized } from '@/lib/robots-http';
 import { requestLocale } from '@/lib/request-locale';
 
 export const runtime = 'nodejs';
@@ -31,7 +31,7 @@ export async function PATCH(req: NextRequest, props: Ctx) {
   const parsed = robotUpdateSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return robotError(400, 'invalid_input');
   if (!canEditRobots(user)) {
-    const denied = memberPatchError(parsed.data);
+    const denied = memberPatchError(parsed.data) ?? (await memberSettingsError(user, user.id, parsed.data.settings));
     if (denied) return robotError(403, denied);
   }
   // Los avisos por email salen en el idioma de quien guardó el robot.
@@ -40,6 +40,10 @@ export async function PATCH(req: NextRequest, props: Ctx) {
   if (!res.ok) {
     if (res.error === 'not_found') return notFound();
     return robotError(400, res.error, { index: res.index });
+  }
+  // Un admin que agrega un login se hace cargo del robot: al correr se mira quién lo armó.
+  if (canEditRobots(user) && row.created_by !== realUserId(user) && robotUsesLogin((await getRobotRow(user.id, id)) ?? row) && !robotUsesLogin(row)) {
+    await setRobotOwner(user.id, id, realUserId(user));
   }
   return NextResponse.json({ robot: res.robot, ...(res.droppedRecipients ? { droppedRecipients: res.droppedRecipients } : {}) });
 }
