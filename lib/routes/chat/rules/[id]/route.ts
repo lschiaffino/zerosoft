@@ -20,7 +20,7 @@ async function canAccessRule(
   if (!rule) return { ok: false, rule: null, widget: null };
   const widget = await getChatWidget(rule.widget_id);
   if (!widget) return { ok: false, rule: null, widget: null };
-  if (!canAccessWidget(widget, user)) {
+  if (!await canAccessWidget(widget, user)) {
     return { ok: false, rule: null, widget: null };
   }
   return { ok: true, rule, widget };
@@ -75,6 +75,7 @@ export async function PATCH(req: Request, props: { params: Promise<{ id: string 
     assignTo: body.assignTo === null ? null : typeof body.assignTo === 'string' ? body.assignTo : undefined,
     teamRoundRobin: typeof body.teamRoundRobin === 'boolean' ? body.teamRoundRobin : undefined,
     assignTeamId: body.assignTeamId === null || body.assignTeamId === '' ? null : typeof body.assignTeamId === 'string' ? body.assignTeamId : undefined,
+    requiredSkill: body.requiredSkill === null ? null : typeof body.requiredSkill === 'string' ? body.requiredSkill : undefined,
     position: typeof body.position === 'number' ? body.position : undefined,
     active: typeof body.active === 'boolean' ? body.active : undefined,
   });

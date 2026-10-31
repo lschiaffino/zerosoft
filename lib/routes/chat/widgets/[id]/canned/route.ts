@@ -3,21 +3,16 @@ import { getCurrentUser } from '@/lib/session';
 import { createCannedResponse, getChatWidget, getCannedResponse, listCannedResponses } from '@/lib/chat-data';
 import { setCannedActions, type CannedActions } from '@/lib/chat-inbox';
 
-export const dynamic = 'force-dynamic';
+import { canAccessWidget } from '@/lib/chat-access';
 
-function canAccess(widget: Awaited<ReturnType<typeof getChatWidget>>, user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>) {
-  if (!widget) return false;
-  if (widget.user_id === user.id) return true;
-  if (widget.team_id && user.team?.id === widget.team_id) return true;
-  return false;
-}
+export const dynamic = 'force-dynamic';
 
 export async function GET(_req: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const widget = await getChatWidget(params.id);
-  if (!canAccess(widget, user)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  if (!await canAccessWidget(widget, user)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
   const responses = await listCannedResponses(params.id);
   return NextResponse.json({ responses });
@@ -28,7 +23,7 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const widget = await getChatWidget(params.id);
-  if (!canAccess(widget, user)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  if (!await canAccessWidget(widget, user)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
   let body: Record<string, unknown>;
   try {

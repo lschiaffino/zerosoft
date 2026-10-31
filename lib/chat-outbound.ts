@@ -18,6 +18,8 @@ function nowIso(): string {
 }
 
 export const OUTBOUND_KINDS = ['chat', 'survey'] as const;
+/** Cómo se muestra en la página: tarjeta de chat, barra, post, checklist o tour guiado. Las encuestas son siempre 'message'. */
+export const OUTBOUND_FORMATS = ['message', 'banner', 'post', 'checklist', 'tour'] as const;
 export const OUTBOUND_URL_MATCH = ['any', 'contains', 'equals'] as const;
 export const OUTBOUND_AUDIENCES = ['all', 'new', 'returning', 'identified'] as const;
 export const OUTBOUND_BODY_MAX = 1000;
@@ -27,6 +29,7 @@ export interface ChatOutboundRow {
   widget_id: string;
   name: string;
   kind: (typeof OUTBOUND_KINDS)[number];
+  format: (typeof OUTBOUND_FORMATS)[number];
   body: string;
   url_match: (typeof OUTBOUND_URL_MATCH)[number];
   url_value: string;
@@ -49,6 +52,7 @@ export interface ChatOutbound extends ChatOutboundRow {
 export interface OutboundInput {
   name?: unknown;
   kind?: unknown;
+  format?: unknown;
   body?: unknown;
   urlMatch?: unknown;
   urlValue?: unknown;
@@ -73,6 +77,11 @@ export function cleanOutbound(input: OutboundInput, partial: boolean): Partial<O
     const kind = pick(input.kind, OUTBOUND_KINDS);
     if (!kind) throw new ChatCollabError('invalid_input');
     out.kind = kind;
+  }
+  if (input.format !== undefined) {
+    const format = pick(input.format, OUTBOUND_FORMATS);
+    if (!format) throw new ChatCollabError('invalid_input');
+    out.format = format;
   }
   if (input.body !== undefined) {
     if (typeof input.body !== 'string') throw new ChatCollabError('invalid_input');
@@ -134,10 +143,10 @@ export async function createOutbound(widgetId: string, userId: string, input: Ou
   const now = nowIso();
   await getDb()
     .prepare(
-      `INSERT INTO chat_outbound (id, widget_id, name, kind, body, url_match, url_value, delay_seconds, audience, active, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO chat_outbound (id, widget_id, name, kind, format, body, url_match, url_value, delay_seconds, audience, active, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, widgetId, v.name!, v.kind ?? 'chat', v.body ?? '', v.url_match ?? 'any', v.url_value ?? '', v.delay_seconds ?? 0, v.audience ?? 'all', active, userId, now, now);
+    .run(id, widgetId, v.name!, v.kind ?? 'chat', v.kind === 'survey' ? 'message' : (v.format ?? 'message'), v.body ?? '', v.url_match ?? 'any', v.url_value ?? '', v.delay_seconds ?? 0, v.audience ?? 'all', active, userId, now, now);
   return (await getOutbound(id))!;
 }
 
@@ -167,6 +176,7 @@ export async function deleteOutbound(id: string): Promise<boolean> {
 export interface PublicOutbound {
   id: string;
   kind: ChatOutboundRow['kind'];
+  format: ChatOutboundRow['format'];
   body: string;
   urlMatch: ChatOutboundRow['url_match'];
   urlValue: string;
@@ -188,6 +198,7 @@ export async function listPublicOutbound(widgetId: string): Promise<PublicOutbou
     from: (r.author_name ?? '').trim().split(/\s+/)[0] ? `${(r.author_name ?? '').trim().split(/\s+/)[0]} · ${r.widget_name}` : r.widget_name,
     id: r.id,
     kind: r.kind,
+    format: r.kind === 'survey' ? 'message' : (r.format ?? 'message'),
     body: r.body,
     urlMatch: r.url_match,
     urlValue: r.url_value,

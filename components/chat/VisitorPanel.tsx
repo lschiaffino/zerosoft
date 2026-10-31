@@ -1,5 +1,6 @@
 'use client';
 
+import VisitorProfile from './VisitorProfile';
 import { useMounted } from './ClientTime';
 import { useState } from 'react';
 import { Link } from '@/i18n/navigation';
@@ -213,6 +214,9 @@ export default function VisitorPanel({ conversation }: VisitorPanelProps) {
             {crmNotice.text}
           </p>
         )}
+      </section>
+      <section className="chat-details-section">
+        <VisitorProfile visitorId={visitor.id} />
       </section>
     </>
   );

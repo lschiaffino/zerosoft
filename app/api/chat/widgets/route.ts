@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+import { listAccessibleChatWidgets } from '@/lib/chat-access';
 import { getCurrentUser } from '@/lib/session';
-import { createChatWidget, listChatWidgets } from '@/lib/chat-data';
+import { createChatWidget } from '@/lib/chat-data';
 import { widgetCreateSchema } from '@/lib/chat-schema';
 
 export const dynamic = 'force-dynamic';
@@ -8,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  const widgets = await listChatWidgets(user.id, user.team?.id ?? null);
+  const widgets = await listAccessibleChatWidgets(user);
   return NextResponse.json({ widgets });
 }
 

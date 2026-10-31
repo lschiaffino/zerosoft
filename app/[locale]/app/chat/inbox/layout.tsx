@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
+import { listAccessibleChatWidgets } from '@/lib/chat-access';
 import { getTranslations } from 'next-intl/server';
 import { realUserId, requireUser } from '@/lib/session';
-import { isChatAgentAway, listChatAgents, listChatWidgets } from '@/lib/chat-data';
+import { isChatAgentAway, listChatAgents } from '@/lib/chat-data';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import InboxShell from '@/components/chat/InboxShell';
@@ -20,7 +21,7 @@ export default async function ChatInboxLayout(props: { children: ReactNode; para
   const { locale } = await props.params;
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'chat' });
-  const widgets = await listChatWidgets(user.id, user.team?.id ?? null);
+  const widgets = await listAccessibleChatWidgets(user);
 
   if (widgets.length === 0) {
     return (

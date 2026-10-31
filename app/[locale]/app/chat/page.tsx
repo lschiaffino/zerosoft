@@ -1,10 +1,10 @@
 import { getTranslations } from 'next-intl/server';
+import { listAccessibleChatWidgets } from '@/lib/chat-access';
 import { Link } from '@/i18n/navigation';
 import { realUserId, requireUser } from '@/lib/session';
 import {
   countChatConversations,
   listChatConversations,
-  listChatWidgets,
   reopenExpiredSnoozesThrottled,
 } from '@/lib/chat-data';
 import { formatNumber } from '@/lib/utils';
@@ -24,7 +24,7 @@ export default async function ChatOverviewPage(props: { params: Promise<{ locale
 
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'chat' });
-  const widgets = await listChatWidgets(user.id, user.team?.id ?? null);
+  const widgets = await listAccessibleChatWidgets(user);
   const widgetIds = widgets.map((w) => w.id);
 
   if (widgets.length === 0) {

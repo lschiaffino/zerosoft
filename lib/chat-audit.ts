@@ -8,6 +8,11 @@ import { getDb } from './db';
 
 export type ChatAuditAction =
   | 'export.csv'
+  | 'campaign.created'
+  | 'campaign.sent'
+  | 'import.done'
+  | 'routing.updated'
+  | 'widget.access'
   | 'export.json'
   | 'team.created'
   | 'team.updated'

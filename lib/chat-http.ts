@@ -3,8 +3,9 @@
  * datos), la persona real, sus widgets y los agentes. Server-only.
  */
 import { NextResponse } from 'next/server';
+import { listAccessibleChatWidgets } from './chat-access';
 import { getCurrentUser, isWorkspaceAdmin, realUserId, type SessionUser } from './session';
-import { listChatAgents, listChatWidgets, type ChatAgent } from './chat-data';
+import { listChatAgents, type ChatAgent } from './chat-data';
 import { ChatCollabError } from './chat-collab';
 import { limitWrites } from './write-limit';
 import type { ChatWidgetRow } from './db';
@@ -34,7 +35,7 @@ export async function chatSession(opts: { write?: boolean; admin?: boolean } = {
     const limited = await limitWrites('chat', me);
     if (limited) return limited;
   }
-  const widgets = await listChatWidgets(user.id, user.team?.id ?? null);
+  const widgets = await listAccessibleChatWidgets(user);
   const agents = await listChatAgents(user.id, user.team?.id ?? null);
   return { user, ws: user.id, me, isAdmin, widgets, agents };
 }

@@ -7,7 +7,9 @@
     "reports": "Reports",
     "widgets": "Widgets",
     "teams": "Teams",
-    "views": "Views"
+    "views": "Views",
+    "companies": "Companies",
+    "campaigns": "Campaigns"
   },
   "overview": {
     "title": "Chat",
@@ -83,7 +85,19 @@
       "auto": "Automatic",
       "en": "English",
       "es": "Spanish",
-      "pt": "Portuguese"
+      "pt": "Portuguese",
+      "fr": "French",
+      "de": "German",
+      "it": "Italian",
+      "nl": "Dutch",
+      "pl": "Polish",
+      "sv": "Swedish",
+      "ru": "Russian",
+      "tr": "Turkish",
+      "ja": "Japanese",
+      "ko": "Korean",
+      "zh": "Chinese",
+      "id": "Indonesian"
     },
     "attributesTitle": "Conversation attributes",
     "attributesSub": "Fields your team fills in on each conversation, like reason or plan. Required ones must be set before resolving.",
@@ -431,7 +445,8 @@
     "canned": "Saved replies",
     "sla": "SLA",
     "outbound": "Outbound",
-    "email": "Email"
+    "email": "Email",
+    "access": "Access"
   },
   "reports": {
     "title": "Reports",
@@ -580,7 +595,10 @@
     "reply": "Reply",
     "agentFormSend": "Send",
     "agentFormRequired": "Fill in the required fields.",
-    "agentFormChoose": "Choose…"
+    "agentFormChoose": "Choose…",
+    "tourNext": "Next",
+    "tourDone": "Done",
+    "checklistProgress": "{done} of {total} done"
   },
   "bulk": {
     "label": "Bulk actions",
@@ -807,7 +825,11 @@
     "kind": "Type",
     "kinds": {
       "chat": "Chat message",
-      "survey": "Survey"
+      "survey": "Survey",
+      "banner": "Banner",
+      "post": "Post",
+      "checklist": "Checklist",
+      "tour": "Product tour"
     },
     "where": "Page",
     "anyPage": "Any page",
@@ -845,7 +867,13 @@
     "needsBody": "Write the message before turning it on.",
     "deleteTitle": "Delete message",
     "deleteBody": "Delete {name}? Its counts and survey answers are deleted too.",
-    "adminOnly": "Only workspace admins create and edit outbound messages."
+    "adminOnly": "Only workspace admins create and edit outbound messages.",
+    "hints": {
+      "banner": "A bar across the top of the page, once per visitor.",
+      "post": "First line is the title, the rest the text. Opens in the center of the page.",
+      "checklist": "First line is the title, then one item per line. Progress is saved in the visitor’s browser.",
+      "tour": "One step per line: CSS selector | text. For example: #pricing | See the plans here. Steps whose element isn’t on the page are skipped."
+    }
   },
   "emailChannel": {
     "title": "Email",
@@ -876,5 +904,159 @@
     "invalidId": "Write an ID like WEB-12.",
     "noProject": "Pick a team you have access to.",
     "noProjects": "You have no Track teams yet."
+  },
+  "access": {
+    "title": "Who can see this inbox",
+    "sub": "Open by default to the whole workspace. Restrict it and only admins and the people you pick can see its conversations, reports and settings.",
+    "adminOnly": "Only workspace admins can change this.",
+    "restricted": "Restrict this inbox",
+    "members": "People with access",
+    "membersHelp": "Admins always have access. Rules only assign to people on this list.",
+    "saved": "Saved"
+  },
+  "routing": {
+    "title": "Skills and capacity",
+    "sub": "A rule with a required skill goes only to people with that skill. Capacity is the most open conversations someone gets from round robin.",
+    "person": "Person",
+    "skills": "Skills",
+    "capacity": "Capacity",
+    "skillsPlaceholder": "billing, english",
+    "noLimit": "No limit",
+    "skillsOf": "Skills of {name}",
+    "capacityOf": "Capacity of {name}",
+    "saved": "Saved",
+    "requiredSkill": "Required skill",
+    "skillPlaceholder": "billing",
+    "requiredSkillHint": "Spreads among available people with this skill, under their capacity. If nobody qualifies, the next rule runs."
+  },
+  "companies": {
+    "title": "Companies",
+    "sub": "Group people by company and keep their plan and notes.",
+    "listLabel": "Companies",
+    "add": "New company",
+    "empty": "No companies yet",
+    "emptySub": "Create one and pick it on a person’s profile.",
+    "adminOnly": "Only admins can change this.",
+    "newTitle": "New company",
+    "editTitle": "Edit company",
+    "create": "Create company",
+    "deleteTitle": "Delete company?",
+    "deleteBody": "“{name}” will be deleted. Its people stay, without a company.",
+    "name": "Name",
+    "domain": "Domain",
+    "plan": "Plan",
+    "notes": "Notes",
+    "people": "People",
+    "company": "Company",
+    "none": "No company",
+    "createFirst": "Create a company",
+    "attributes": "Attributes",
+    "attributeName": "Name",
+    "attributeValue": "Value",
+    "addAttribute": "Add",
+    "removeAttribute": "Remove {name}"
+  },
+  "reportsCustom": {
+    "title": "Custom reports",
+    "sub": "Pick a metric and how to group it. Saved reports run over the inboxes each person can see.",
+    "listLabel": "Saved reports",
+    "add": "New report",
+    "empty": "No custom reports yet",
+    "emptySub": "For example: first response by team, last 30 days.",
+    "adminOnly": "Only admins can change this.",
+    "newTitle": "New report",
+    "editTitle": "Edit report",
+    "create": "Create report",
+    "deleteTitle": "Delete report?",
+    "deleteBody": "“{name}” will be deleted.",
+    "name": "Name",
+    "metric": "Metric",
+    "groupBy": "Group by",
+    "range": "Last days",
+    "widget": "Widget",
+    "allWidgets": "All widgets",
+    "days": "{days} days",
+    "none": "None",
+    "total": "{count, plural, one {# conversation} other {# conversations}} in the range",
+    "back": "Back to reports",
+    "metrics": {
+      "conversations": "Conversations",
+      "resolved": "Resolved",
+      "resolution_rate": "Resolution rate",
+      "first_response": "Average first response",
+      "resolution_time": "Average resolution time",
+      "csat": "Average CSAT",
+      "messages": "Messages"
+    },
+    "groups": {
+      "day": "Day",
+      "week": "Week",
+      "tag": "Tag",
+      "widget": "Widget",
+      "team": "Team",
+      "channel": "Channel",
+      "priority": "Priority",
+      "status": "Status",
+      "assignee": "Assignee",
+      "company": "Company"
+    }
+  },
+  "campaigns": {
+    "title": "Campaigns",
+    "sub": "Email the people of a widget. Each email has an unsubscribe link and people who left aren’t emailed again.",
+    "listLabel": "Campaigns",
+    "add": "New campaign",
+    "empty": "No campaigns yet",
+    "emptySub": "Write one and send it to people with a known email.",
+    "adminOnly": "Only workspace admins can create and send campaigns.",
+    "newTitle": "New campaign",
+    "editTitle": "Edit campaign",
+    "create": "Create draft",
+    "deleteTitle": "Delete campaign?",
+    "deleteBody": "“{name}” will be deleted, with its results.",
+    "name": "Name",
+    "widget": "Widget",
+    "audience": "Audience",
+    "subject": "Subject",
+    "body": "Message",
+    "bodyHelp": "You can use '{{first_name|there}}', '{{name}}' and '{{email}}'. A sent campaign can only be renamed.",
+    "status": "Status",
+    "results": "Results",
+    "counts": "{sent} of {total} sent, {failed} failed",
+    "send": "Send",
+    "confirmTitle": "Send campaign?",
+    "confirmBody": "“{name}” goes to {count, plural, one {# person} other {# people}}. This can’t be undone.",
+    "missingBody": "Add a subject and a message before sending.",
+    "audiences": {
+      "all": "Everyone with an email",
+      "verified": "Verified emails only"
+    },
+    "statuses": {
+      "draft": "Draft",
+      "sending": "Sending",
+      "sent": "Sent"
+    }
+  },
+  "importer": {
+    "title": "Import conversations",
+    "sub": "Bring your history from Intercom or Crisp with the JSON of their APIs. Imported conversations don’t run rules or the bot, and importing a file twice doesn’t duplicate.",
+    "widget": "Into widget",
+    "file": "JSON file",
+    "fileHelp": "Intercom: GET /conversations/'{id}' results. Crisp: conversations with session_id and messages. Up to 20 MB and 2,000 conversations.",
+    "submit": "Import",
+    "done": "{imported} imported, {skipped} already there, {messages} messages.",
+    "invalid_file": "That file isn’t valid JSON.",
+    "nothing_to_import": "No Intercom or Crisp conversations with messages in that file.",
+    "file_too_large": "The file is over 20 MB.",
+    "adminOnly": "Only workspace admins can import.",
+    "noWidgets": "Create a widget first."
+  },
+  "insights": {
+    "title": "Topics and CX score",
+    "sub": "{count, plural, one {# conversation} other {# conversations}} in this range. Computed from words and timings, without AI.",
+    "cxScore": "CX score",
+    "cxHelp": "Uses CSAT when there is one; otherwise first response speed and whether it was resolved.",
+    "topic": "Topic",
+    "noTopics": "Not enough conversations to find topics."
   }
 }

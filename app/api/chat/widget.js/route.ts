@@ -646,7 +646,138 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     obCard.style.display = 'none';
     obShown = null;
   }
+  // Contenido en la página: barra, post, checklist y tour. El texto va siempre como texto (dom), nunca como HTML.
+  function obLines(m) {
+    return String(m.body || '').split('\\n').map(function (l) { return l.trim(); }).filter(Boolean);
+  }
+  function obCloseBtn(fn, color) {
+    var x = dom('button', { type: 'button', 'aria-label': T('close'), style: 'background:none;border:none;color:' + (color || '#888') + ';cursor:pointer;font-size:18px;line-height:1;padding:0 4px;' }, ['×']);
+    x.addEventListener('click', fn);
+    return x;
+  }
+  function obBanner(m) {
+    var bar = dom('div', { role: 'status', 'data-zs-banner': m.id, style: 'position:fixed;top:0;left:0;right:0;z-index:2147483646;display:flex;align-items:center;gap:12px;justify-content:center;padding:10px 14px;background:' + COLOR + ';color:#fff;font:14px/1.4 system-ui,-apple-system,sans-serif;' }, [
+      dom('span', { style: 'flex:1;text-align:center;word-break:break-word;' }, [m.body]),
+    ]);
+    bar.appendChild(obCloseBtn(function () { if (bar.parentNode) bar.parentNode.removeChild(bar); }, '#fff'));
+    root.appendChild(bar);
+  }
+  function obPost(m) {
+    var lines = String(m.body || '').split('\\n');
+    var title = lines.shift() || '';
+    var overlay = dom('div', { 'data-zs-post': m.id, role: 'dialog', 'aria-modal': 'true', 'aria-label': title, style: 'position:fixed;inset:0;z-index:2147483646;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:16px;' });
+    var card = dom('div', { style: 'background:#fff;color:#111;max-width:480px;width:100%;max-height:80vh;overflow:auto;border-radius:10px;padding:20px;box-sizing:border-box;font:14px/1.5 system-ui,-apple-system,sans-serif;' });
+    function close() {
+      document.removeEventListener('keydown', onKey);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      // Lo que interrumpe va de a uno: lo siguiente aparece al cerrar este.
+      obEvaluate();
+    }
+    function onKey(e) { if (e.key === 'Escape') close(); }
+    var head = dom('div', { style: 'display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;' }, [dom('strong', { style: 'flex:1;font-size:17px;' }, [title])]);
+    var x = obCloseBtn(close);
+    head.appendChild(x);
+    card.appendChild(head);
+    card.appendChild(dom('p', { style: 'margin:0;white-space:pre-wrap;word-break:break-word;' }, [lines.join('\\n').trim()]));
+    overlay.appendChild(card);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', onKey);
+    root.appendChild(overlay);
+    x.focus();
+  }
+  function obChecklist(m) {
+    var key = 'zs_chat_cl_' + m.id;
+    var lines = obLines(m);
+    var title = lines.length > 1 ? lines.shift() : '';
+    var done = {};
+    try { done = JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch (e) {}
+    obCard.innerHTML = '';
+    obCard.setAttribute('data-zs-checklist', m.id);
+    var head = dom('div', { style: 'display:flex;align-items:center;gap:8px;margin-bottom:8px;' }, [dom('strong', { style: 'flex:1;font-size:14px;' }, [title || m.from || ''])]);
+    head.appendChild(obCloseBtn(obClose));
+    obCard.appendChild(head);
+    var progress = dom('div', { style: 'font-size:12px;color:#666;margin-bottom:8px;' });
+    function paintProgress() {
+      var n = 0;
+      lines.forEach(function (_, i) { if (done[i]) n++; });
+      progress.textContent = T('checklistProgress', { done: n, total: lines.length });
+    }
+    obCard.appendChild(progress);
+    lines.forEach(function (line, i) {
+      var box = dom('input', { type: 'checkbox', style: 'margin:2px 8px 0 0;flex:none;' });
+      box.checked = !!done[i];
+      box.addEventListener('change', function () {
+        done[i] = box.checked;
+        try { localStorage.setItem(key, JSON.stringify(done)); } catch (e) {}
+        paintProgress();
+      });
+      obCard.appendChild(dom('label', { style: 'display:flex;align-items:flex-start;font-size:13px;margin-bottom:6px;cursor:pointer;word-break:break-word;' }, [box, dom('span', {}, [line])]));
+    });
+    paintProgress();
+    obCard.style.display = 'block';
+  }
+  function obTour(m) {
+    // Una línea por paso: "selector CSS | texto". Los pasos cuyo elemento no está en la página se saltean.
+    var steps = obLines(m).map(function (l) {
+      var cut = l.indexOf('|');
+      return cut > 0 ? { sel: l.slice(0, cut).trim(), text: l.slice(cut + 1).trim() } : { sel: '', text: l };
+    });
+    var tip = dom('div', { role: 'dialog', 'data-zs-tour': m.id, style: 'position:fixed;z-index:2147483647;background:#fff;color:#111;max-width:300px;box-sizing:border-box;padding:12px 14px;border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,0.25);font:14px/1.4 system-ui,-apple-system,sans-serif;' });
+    var i = -1;
+    var lit = null;
+    var prevOutline = '';
+    function unlight() { if (lit) lit.style.outline = prevOutline; lit = null; }
+    function end() {
+      unlight();
+      document.removeEventListener('keydown', onKey);
+      if (tip.parentNode) tip.parentNode.removeChild(tip);
+      obEvaluate();
+    }
+    function onKey(e) { if (e.key === 'Escape') end(); }
+    function find(sel) {
+      if (!sel) return null;
+      try { return document.querySelector(sel); } catch (e) { return null; }
+    }
+    function next() {
+      unlight();
+      i++;
+      while (i < steps.length && steps[i].sel && !find(steps[i].sel)) i++;
+      if (i >= steps.length) { end(); return; }
+      var el = find(steps[i].sel);
+      tip.innerHTML = '';
+      var last = i === steps.length - 1;
+      var go = dom('button', { type: 'button', style: 'background:' + COLOR + ';color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;' }, [T(last ? 'tourDone' : 'tourNext')]);
+      go.addEventListener('click', next);
+      var row = dom('div', { style: 'display:flex;justify-content:flex-end;gap:6px;align-items:center;margin-top:8px;' }, [obCloseBtn(end), go]);
+      tip.appendChild(dom('p', { style: 'margin:0;word-break:break-word;' }, [steps[i].text]));
+      tip.appendChild(row);
+      if (el) {
+        if (el.scrollIntoView) el.scrollIntoView({ block: 'center' });
+        prevOutline = el.style.outline;
+        el.style.outline = '2px solid ' + COLOR;
+        lit = el;
+        var r = el.getBoundingClientRect();
+        var w = Math.min(300, window.innerWidth - 16);
+        tip.style.width = w + 'px';
+        tip.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
+        tip.style.top = (r.bottom + 140 < window.innerHeight ? r.bottom + 8 : Math.max(8, r.top - 130)) + 'px';
+        tip.style.transform = '';
+      } else {
+        tip.style.left = '50%';
+        tip.style.top = '30%';
+        tip.style.transform = 'translateX(-50%)';
+      }
+      go.focus();
+    }
+    document.addEventListener('keydown', onKey);
+    root.appendChild(tip);
+    next();
+  }
   function obRender(m) {
+    if (m.format === 'banner') { obBanner(m); obShown = null; obEvaluate(); return; }
+    if (m.format === 'post') { obPost(m); obShown = null; return; }
+    if (m.format === 'tour') { obTour(m); obShown = null; return; }
+    if (m.format === 'checklist') { obChecklist(m); return; }
     obCard.innerHTML = '';
     var x = dom('button', { type: 'button', 'aria-label': T('close'), style: 'float:right;background:none;border:none;color:#888;cursor:pointer;font-size:16px;line-height:1;padding:0 0 0 8px;' }, ['×']);
     x.addEventListener('click', obClose);
@@ -705,7 +836,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
       var m = obMessages[i];
       if (seenIds.indexOf(m.id) >= 0) continue;
       // Un mensaje para empezar a chatear no interrumpe una conversación en curso.
-      if (m.kind === 'chat' && conversationId) continue;
+      if (m.kind === 'chat' && (!m.format || m.format === 'message') && conversationId) continue;
       if (!obUrlMatches(m) || !obAudience(m)) continue;
       (function (msg) {
         obTimer = setTimeout(function () {
@@ -1093,6 +1224,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
           return;
         }
         conversationId = data.conversation ? data.conversation.id : null;
+        if (open) openStream();
         // Con una conversación abierta el formulario pre-chat ya se completó.
         if (conversationId) formWrap.style.display = 'none';
         if (!conversationId) {
@@ -1307,6 +1439,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
         }
         clearPreview();
         adoptConversation(data.conversation);
+        openStream();
         appendMessage({ id: data.message.id, body: data.message.body || '', sender_type: 'visitor', attachments: messageAttachments(data.message) });
         if (data.message.id) lastMessageId = data.message.id;
         if (data.bot) {
@@ -1328,13 +1461,41 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     btn.setAttribute('aria-label', T('closeChat'));
     messages.innerHTML = '';
     loadMessages();
-    if (!pollTimer) pollTimer = setInterval(poll, 5000);
+    startPolling();
+    openStream();
+  }
+
+  // Tiempo real: el stream solo avisa que algo cambió y el widget relee.
+  // Con el stream conectado el polling queda de respaldo, cada 20 s.
+  var stream = null;
+  var streamLive = false;
+  function startPolling() {
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(poll, streamLive ? 20000 : 5000);
+  }
+  function openStream() {
+    if (stream || !conversationId || typeof EventSource === 'undefined') return;
+    stream = new EventSource(ORIGIN + '/api/chat/stream?widgetId=' + encodeURIComponent(WIDGET_ID) + '&visitorId=' + encodeURIComponent(visitorId));
+    stream.addEventListener('ready', function () { streamLive = true; if (open) startPolling(); });
+    stream.addEventListener('events', function () { poll(); pollTyping(); });
+    stream.onerror = function () {
+      streamLive = false;
+      if (open) startPolling();
+      // Un visitante sin conversación recibe 404: se reabre cuando escriba.
+      if (stream && stream.readyState === 2) stream = null;
+    };
+  }
+  function closeStream() {
+    if (stream) stream.close();
+    stream = null;
+    streamLive = false;
   }
 
   function closeChat() {
     open = false;
     box.style.display = 'none';
     btn.setAttribute('aria-label', T('openChat'));
+    closeStream();
     if (pollTimer) {
       clearInterval(pollTimer);
       pollTimer = null;

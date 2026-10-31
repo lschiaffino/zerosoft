@@ -17,7 +17,7 @@ export async function GET(_req: Request, props: Ctx) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const widget = await getChatWidget(id);
-  if (!canAccessWidget(widget, user)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  if (!await canAccessWidget(widget, user)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   return NextResponse.json({ messages: await listOutbound(id) });
 }
 
@@ -27,7 +27,7 @@ export async function POST(req: Request, props: Ctx) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const widget = await getChatWidget(id);
-  if (!canAccessWidget(widget, user)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  if (!await canAccessWidget(widget, user)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   // Lo que se muestra en el sitio de todos los visitantes: solo admins.
   if (!isWorkspaceAdmin(user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const limited = await limitWrites('chat', realUserId(user));

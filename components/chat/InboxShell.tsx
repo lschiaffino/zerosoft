@@ -1,5 +1,6 @@
 'use client';
 
+import { useChatStream } from './useChatStream';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -101,7 +102,7 @@ export default function InboxShell({
   const teamParam = params.get('team');
   const followingParam = params.get('following') === '1';
 
-  const [status, setStatus] = useState<InboxStatus>('open');
+  const [status, setStatus] = useState<InboxStatus>(params.get('q') ? 'all' : 'open');
   const [assignee, setAssignee] = useState<InboxAssignee>('any');
   const [assigneeId, setAssigneeId] = useState<string | undefined>(undefined);
   const [teamId, setTeamId] = useState('');
@@ -110,8 +111,8 @@ export default function InboxShell({
   const [following, setFollowing] = useState(false);
   const [view, setView] = useState<SavedView | null>(null);
   const [viewMissing, setViewMissing] = useState(false);
-  const [q, setQ] = useState('');
-  const [debouncedQ, setDebouncedQ] = useState('');
+  const [q, setQ] = useState(params.get('q') ?? '');
+  const [debouncedQ, setDebouncedQ] = useState(params.get('q') ?? '');
   const [tag, setTag] = useState('');
   const [tags, setTags] = useState<Array<{ tag: string; count: number }>>([]);
   const [rows, setRows] = useState<ChatConversationListRow[]>([]);
@@ -270,11 +271,18 @@ export default function InboxShell({
 
   useEffect(() => {
     // Con la pestaña oculta también se consulta (más lento), así suena el aviso.
+    let tick = 0;
     const id = setInterval(() => {
+      tick += 1;
+      // Con el stream conectado la lista se refresca por aviso; esto queda de respaldo.
+      if (streamLive.current && tick % 6 !== 0) return;
       if (document.visibilityState === 'visible' || soundEnabled()) refresh();
     }, 10_000);
     return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh]);
+
+  const streamLive = useChatStream('/api/chat/stream', () => refresh());
 
   useKeyShortcut('/', () => searchRef.current?.focus());
   // Con una conversación abierta J/K los maneja la conversación (siguiente y anterior).

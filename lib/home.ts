@@ -1,4 +1,5 @@
 import { cache } from 'react';
+import { listAccessibleChatWidgets } from './chat-access';
 import { getDb } from '@/lib/db';
 import { listTasks } from '@/lib/crm';
 import { ownerScopeSql, sessionScope } from '@/lib/crm-visibility';
@@ -9,7 +10,6 @@ import { listLinks } from '@/lib/links';
 import { viewerOf } from '@/lib/link-folders';
 import { boardViewer, boardVisibleSql } from '@/lib/board-access';
 import { chatAccessSql, groupsViewer } from '@/lib/groups-access';
-import { listChatWidgets } from '@/lib/chat-data';
 import { dayRangeUtc, getUserTimeZone } from '@/lib/user-tz';
 import { normalizeWorkspaceMode, type WorkspaceMode } from '@/lib/workspace-mode';
 import type { TeamRole } from '@/lib/teams';
@@ -201,7 +201,7 @@ export async function homeUnread(user: HomeUser): Promise<{ chat: number | null;
   // Cada parte por su lado: si falla Groups (p. ej. no se resuelve el acceso), el número
   // de Chat se muestra igual y el error queda solo en la fila de Groups (null).
   const chat = async () => {
-    const widgetIds = (await listChatWidgets(user.id, user.team?.id ?? null)).map((w) => w.id);
+    const widgetIds = (await listAccessibleChatWidgets(user)).map((w) => w.id);
     if (widgetIds.length === 0) return 0;
     const row = (await db
       .prepare(

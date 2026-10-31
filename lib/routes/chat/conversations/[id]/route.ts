@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { canAccessConversation } from '@/lib/chat-access';
+import { canAccessConversation, agentsWithWidgetAccess } from '@/lib/chat-access';
 import {
   getChatConversationWithVisitor,
   getChatWidget,
@@ -50,6 +50,9 @@ export async function PATCH(req: Request, props: { params: Promise<{ id: string 
   const widget = before ? await getChatWidget(before.widget_id) : undefined;
   if (parsed.data.assignedTo && before) {
     if (!widget || !(await isChatAgentOfWidget(widget, parsed.data.assignedTo))) {
+      return NextResponse.json({ error: 'invalid_assignee' }, { status: 400 });
+    }
+    if ((await agentsWithWidgetAccess(widget, [{ id: parsed.data.assignedTo }])).length === 0) {
       return NextResponse.json({ error: 'invalid_assignee' }, { status: 400 });
     }
   }

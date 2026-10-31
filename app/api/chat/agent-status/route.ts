@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+import { listAccessibleChatWidgets } from '@/lib/chat-access';
 import { getCurrentUser, realUserId } from '@/lib/session';
-import { isChatAgentAway, listChatWidgets, setChatAgentAway } from '@/lib/chat-data';
+import { isChatAgentAway, setChatAgentAway } from '@/lib/chat-data';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +22,7 @@ export async function PUT(req: Request) {
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const body = (await req.json().catch(() => null)) as { away?: unknown; reassign?: unknown } | null;
   if (typeof body?.away !== 'boolean') return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
-  const widgets = body.away && body.reassign === true ? await listChatWidgets(user.id, user.team?.id ?? null) : [];
+  const widgets = body.away && body.reassign === true ? await listAccessibleChatWidgets(user) : [];
   const result = await setChatAgentAway(realUserId(user), body.away, { reassign: body.reassign === true, widgets });
   return NextResponse.json(result);
 }

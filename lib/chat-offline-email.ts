@@ -26,7 +26,7 @@ import pt from '@/messages/pt/chat.json';
 
 type EmailStrings = typeof en.offlineEmail;
 
-const STRINGS: Record<WidgetLocale, EmailStrings> = {
+const STRINGS: Record<'en' | 'es' | 'pt', EmailStrings> & Partial<Record<WidgetLocale, EmailStrings>> = {
   en: en.offlineEmail,
   es: { ...en.offlineEmail, ...es.offlineEmail },
   pt: { ...en.offlineEmail, ...pt.offlineEmail },

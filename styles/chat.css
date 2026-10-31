@@ -953,3 +953,18 @@ body:has(.chat-composer) #zs-chat-root { display: none !important; }
 
 /* Equipos y Vistas: el encabezado de la sección solo lleva la acción. */
 #chat-teams-title + *, #chat-views-title + * { margin-left: auto; }
+
+/* Atributos de la persona, reportes propios e insights */
+.chat-visitor-profile { margin-top: 4px; }
+.chat-attr-list { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 4px; }
+.chat-attr-list li { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; overflow-wrap: anywhere; }
+.chat-attr-list li button { margin-left: auto; flex: none; }
+.chat-attr-add { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chat-attr-add .input { flex: 1 1 110px; min-width: 0; }
+.chat-custom-bar-cell { width: 40%; min-width: 60px; }
+.chat-custom-bar { display: block; height: 8px; background: var(--accent, currentColor); border-radius: 2px; min-width: 1px; }
+.chat-insights-score { margin: 8px 0 2px; font-size: 14px; }
+.chat-insights-score strong { font-size: 24px; }
+@media (max-width: 640px) {
+  .chat-custom-bar-cell { display: none; }
+}

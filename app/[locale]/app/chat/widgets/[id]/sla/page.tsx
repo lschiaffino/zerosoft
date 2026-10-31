@@ -26,7 +26,7 @@ export default async function WidgetSlaPage(
   const user = await requireUser(locale);
   const widget = await getChatWidget(id);
 
-  if (!widget || !canAccessWidget(widget, user)) {
+  if (!widget || !await canAccessWidget(widget, user)) {
     notFound();
   }
 

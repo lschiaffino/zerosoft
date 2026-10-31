@@ -12,6 +12,7 @@ interface Outbound {
   id: string;
   name: string;
   kind: 'chat' | 'survey';
+  format: 'message' | 'banner' | 'post' | 'checklist' | 'tour';
   body: string;
   url_match: 'any' | 'contains' | 'equals';
   url_value: string;
@@ -27,6 +28,7 @@ interface Outbound {
 interface Form {
   name: string;
   kind: Outbound['kind'];
+  format: Outbound['format'];
   body: string;
   urlMatch: Outbound['url_match'];
   urlValue: string;
@@ -35,7 +37,7 @@ interface Form {
   active: boolean;
 }
 
-const EMPTY: Form = { name: '', kind: 'chat', body: '', urlMatch: 'any', urlValue: '', delaySeconds: '0', audience: 'all', active: false };
+const EMPTY: Form = { name: '', kind: 'chat', format: 'message', body: '', urlMatch: 'any', urlValue: '', delaySeconds: '0', audience: 'all', active: false };
 
 /**
  * Mensajes salientes del widget: un mensaje proactivo (si el visitante
@@ -94,6 +96,7 @@ export default function OutboundClient({ widgetId, canManage = true }: { widgetI
     setForm({
       name: r.name,
       kind: r.kind,
+      format: r.format ?? 'message',
       body: r.body,
       urlMatch: r.url_match,
       urlValue: r.url_value,
@@ -118,7 +121,8 @@ export default function OutboundClient({ widgetId, canManage = true }: { widgetI
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: form.name.trim(),
-          kind: form.kind,
+          kind: form.kind === 'chat' ? 'chat' : 'survey',
+          format: form.kind === 'survey' ? 'message' : form.format,
           body: form.body,
           urlMatch: form.urlMatch,
           urlValue: form.urlValue,
@@ -244,7 +248,7 @@ export default function OutboundClient({ widgetId, canManage = true }: { widgetI
                       <span className="chat-row-button">{r.name}</span>
                     )}
                   </td>
-                  <td data-label={t('outbound.kind')}>{t(`outbound.kinds.${r.kind}`)}</td>
+                  <td data-label={t('outbound.kind')}>{r.kind === 'survey' || !r.format || r.format === 'message' ? t(`outbound.kinds.${r.kind}`) : t(`outbound.kinds.${r.format}`)}</td>
                   <td data-label={t('outbound.where')}>
                     <span>
                       {where(r)}
@@ -320,9 +324,21 @@ export default function OutboundClient({ widgetId, canManage = true }: { widgetI
               <label className="label" htmlFor="ob-kind">
                 {t('outbound.kind')}
               </label>
-              <select id="ob-kind" className="select" value={form.kind} onChange={(e) => setForm((f) => ({ ...f, kind: e.target.value as Form['kind'] }))}>
+              <select
+                id="ob-kind"
+                className="select"
+                value={form.kind === 'survey' ? 'survey' : form.format === 'message' ? 'chat' : form.format}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setForm((f) => (v === 'survey' ? { ...f, kind: 'survey', format: 'message' } : v === 'chat' ? { ...f, kind: 'chat', format: 'message' } : { ...f, kind: 'chat', format: v as Form['format'] }));
+                }}
+              >
                 <option value="chat">{t('outbound.kinds.chat')}</option>
                 <option value="survey">{t('outbound.kinds.survey')}</option>
+                <option value="banner">{t('outbound.kinds.banner')}</option>
+                <option value="post">{t('outbound.kinds.post')}</option>
+                <option value="checklist">{t('outbound.kinds.checklist')}</option>
+                <option value="tour">{t('outbound.kinds.tour')}</option>
               </select>
             </div>
           </div>
@@ -339,7 +355,7 @@ export default function OutboundClient({ widgetId, canManage = true }: { widgetI
               placeholder={form.kind === 'survey' ? t('outbound.questionPlaceholder') : t('outbound.messagePlaceholder')}
               onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
             />
-            <p className="ui-help">{form.kind === 'survey' ? t('outbound.surveyHint') : t('outbound.chatHint')}</p>
+            <p className="ui-help">{form.kind === 'survey' ? t('outbound.surveyHint') : form.format === 'message' ? t('outbound.chatHint') : t(`outbound.hints.${form.format}`)}</p>
           </div>
           <div className="ui-fields-2">
             <div className="ui-field">

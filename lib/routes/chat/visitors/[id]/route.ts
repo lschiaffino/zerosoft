@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { cleanVisitorAttributes, getCompany, setVisitorProfile } from '@/lib/chat-companies';
 import { canAccessWidget } from '@/lib/chat-access';
 import { getCurrentUser } from '@/lib/session';
 import {
@@ -18,7 +19,7 @@ async function canAccessVisitor(
   if (!visitor) return { ok: false, visitor: null };
   const widget = await getChatWidget(visitor.widget_id);
   if (!widget) return { ok: false, visitor: null };
-  if (!canAccessWidget(widget, user)) {
+  if (!await canAccessWidget(widget, user)) {
     return { ok: false, visitor: null };
   }
   return { ok: true, visitor };
@@ -54,6 +55,22 @@ export async function PATCH(req: Request, props: { params: Promise<{ id: string 
     typeof body.metadata === 'object' && body.metadata !== null
       ? (body.metadata as Record<string, unknown>)
       : undefined;
+
+  // Empresa (del workspace) y atributos propios.
+  if (body.companyId !== undefined || body.attributes !== undefined) {
+    const companyId = body.companyId === null || body.companyId === '' ? null : typeof body.companyId === 'string' ? body.companyId : undefined;
+    if (companyId && !(await getCompany(user.id, companyId))) return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
+    let attributes: Record<string, string> | undefined;
+    if (body.attributes !== undefined) {
+      try {
+        attributes = cleanVisitorAttributes(body.attributes);
+      } catch {
+        return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
+      }
+    }
+    await setVisitorProfile(params.id, { companyId, attributes });
+    return NextResponse.json(await getChatVisitor(params.id));
+  }
 
   const updated = await updateChatVisitor(params.id, {
     name: typeof body.name === 'string' ? body.name : undefined,

@@ -7595,6 +7595,89 @@ export const MIGRATIONS: Migration[] = [
       ]);
     },
   },
+  {
+    // Chat: permisos por bandeja, ruteo por habilidad y carga, contenido en la app,
+    // reportes propios, empresas y atributos, campañas por email.
+    id: '147_chat_parity_inbox_routing_content',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE chat_widgets ADD COLUMN restricted INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE chat_assignment_rules ADD COLUMN required_skill TEXT');
+      await addColumn(client, "ALTER TABLE chat_outbound ADD COLUMN format TEXT NOT NULL DEFAULT 'message'");
+      await addColumn(client, 'ALTER TABLE chat_visitors ADD COLUMN company_id TEXT');
+      await addColumn(client, 'ALTER TABLE chat_visitors ADD COLUMN attributes TEXT');
+      await addColumn(client, 'ALTER TABLE chat_visitors ADD COLUMN unsubscribed_at TEXT');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS chat_widget_access (
+          widget_id TEXT NOT NULL REFERENCES chat_widgets(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          PRIMARY KEY (widget_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_widget_access_user ON chat_widget_access(user_id);
+        CREATE TABLE IF NOT EXISTS chat_agent_routing (
+          workspace_id TEXT NOT NULL,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          skills TEXT NOT NULL DEFAULT '[]',
+          capacity INTEGER,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (workspace_id, user_id)
+        );
+        CREATE TABLE IF NOT EXISTS chat_saved_reports (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          created_by TEXT,
+          name TEXT NOT NULL,
+          metric TEXT NOT NULL,
+          group_by TEXT NOT NULL,
+          range_days INTEGER NOT NULL DEFAULT 30,
+          widget_id TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_saved_reports_ws ON chat_saved_reports(workspace_id, name);
+        CREATE TABLE IF NOT EXISTS chat_companies (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          domain TEXT,
+          plan TEXT,
+          notes TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_companies_ws ON chat_companies(workspace_id, name);
+        CREATE INDEX IF NOT EXISTS idx_chat_visitors_company ON chat_visitors(company_id);
+        CREATE TABLE IF NOT EXISTS chat_campaigns (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          widget_id TEXT NOT NULL REFERENCES chat_widgets(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          subject TEXT NOT NULL DEFAULT '',
+          body TEXT NOT NULL DEFAULT '',
+          audience TEXT NOT NULL DEFAULT 'all',
+          status TEXT NOT NULL DEFAULT 'draft',
+          total INTEGER NOT NULL DEFAULT 0,
+          sent INTEGER NOT NULL DEFAULT 0,
+          failed INTEGER NOT NULL DEFAULT 0,
+          created_by TEXT,
+          sent_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_campaigns_ws ON chat_campaigns(workspace_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_chat_campaigns_status ON chat_campaigns(status);
+        CREATE TABLE IF NOT EXISTS chat_campaign_recipients (
+          campaign_id TEXT NOT NULL REFERENCES chat_campaigns(id) ON DELETE CASCADE,
+          visitor_id TEXT NOT NULL REFERENCES chat_visitors(id) ON DELETE CASCADE,
+          email TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          claimed_at TEXT,
+          sent_at TEXT,
+          PRIMARY KEY (campaign_id, visitor_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_campaign_rec ON chat_campaign_recipients(campaign_id, status);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

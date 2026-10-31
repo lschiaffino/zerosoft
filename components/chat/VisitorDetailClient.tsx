@@ -1,5 +1,6 @@
 'use client';
 
+import VisitorProfile from './VisitorProfile';
 import ClientTime from './ClientTime';
 import { useState } from 'react';
 import { Link } from '@/i18n/navigation';
@@ -114,6 +115,10 @@ export default function VisitorDetailClient({ initialVisitor }: VisitorDetailCli
               <dd className="data">{visitor.total_messages}</dd>
             </div>
           </dl>
+        </section>
+
+        <section className="panel chat-person-panel">
+          <VisitorProfile visitorId={visitor.id} />
         </section>
 
         <section className="panel chat-person-panel" aria-labelledby="chat-person-notes">

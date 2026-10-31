@@ -17,7 +17,7 @@ async function guard(id: string): Promise<{ res: NextResponse } | { widgetId: st
   if (!user) return { res: NextResponse.json({ error: 'unauthorized' }, { status: 401 }) };
   if (!isWorkspaceAdmin(user)) return { res: NextResponse.json({ error: 'forbidden' }, { status: 403 }) };
   const widget = await getChatWidget(id);
-  if (!canAccessWidget(widget, user)) return { res: NextResponse.json({ error: 'not_found' }, { status: 404 }) };
+  if (!await canAccessWidget(widget, user)) return { res: NextResponse.json({ error: 'not_found' }, { status: 404 }) };
   return { widgetId: id };
 }
 

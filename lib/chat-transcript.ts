@@ -15,7 +15,7 @@ import pt from '@/messages/pt/chat.json';
 
 type TranscriptStrings = typeof en.transcript;
 
-const STRINGS: Record<WidgetLocale, TranscriptStrings> = {
+const STRINGS: Record<'en' | 'es' | 'pt', TranscriptStrings> & Partial<Record<WidgetLocale, TranscriptStrings>> = {
   en: en.transcript,
   es: { ...en.transcript, ...es.transcript },
   pt: { ...en.transcript, ...pt.transcript },

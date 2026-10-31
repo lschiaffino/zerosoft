@@ -1,4 +1,5 @@
 import { listOwnerSpacePeople } from './workspace';
+import type { WidgetLocaleSetting } from './chat-widget-i18n';
 import { getDb, getUserById } from './db';
 import { withVisibleContent } from './docs-visible';
 import { emitChatEvent, emitConversationChanges, toApiMessage } from './chat-api';
@@ -87,7 +88,7 @@ export interface WidgetCreatePayload {
   botSource?: 'canned' | 'docs' | 'ai' | 'agent';
   officeHours?: OfficeHoursConfig | null;
   helpEnabled?: boolean;
-  locale?: 'auto' | 'en' | 'es' | 'pt';
+  locale?: WidgetLocaleSetting;
   /** Minutos sin leer antes de avisar por email al visitante (0 = nunca). */
   offlineEmailMinutes?: number;
   /** Atributos de conversación (lib/chat-attributes.ts). */
@@ -105,7 +106,7 @@ export interface WidgetUpdatePayload {
   botSource?: 'canned' | 'docs' | 'ai' | 'agent';
   officeHours?: OfficeHoursConfig | null;
   helpEnabled?: boolean;
-  locale?: 'auto' | 'en' | 'es' | 'pt';
+  locale?: WidgetLocaleSetting;
   /** Minutos sin leer antes de avisar por email al visitante (0 = nunca). */
   offlineEmailMinutes?: number;
   /** Atributos de conversación (lib/chat-attributes.ts). */
@@ -1368,6 +1369,16 @@ export async function setChatAgentAway(
   return { away, reassigned };
 }
 
+/** Habilidades guardadas (JSON) como lista normalizada. */
+export function parseSkills(raw: string | null | undefined): string[] {
+  try {
+    const v = JSON.parse(raw ?? '[]') as unknown;
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string').map((x) => x.trim().toLowerCase()).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Siguiente agente del round-robin: el de menos carga ACTIVA (open/pending),
  * no el histórico (si no, un agente nuevo absorbería todas las entrantes
@@ -1379,7 +1390,7 @@ export async function pickRoundRobinAgent(
   conversationId: string,
   candidates: ChatAgent[],
 ): Promise<string | null> {
-  const available = candidates.filter((a) => !a.away);
+  let available = candidates.filter((a) => !a.away);
   if (available.length === 0) return null;
   const rows = (await getDb()
     .prepare(
@@ -1392,6 +1403,15 @@ export async function pickRoundRobinAgent(
     )
     .all(widgetId, conversationId)) as Array<{ assigned_to: string; active: number; last_at: string | null }>;
   const stats = new Map(rows.map((r) => [r.assigned_to, r]));
+  // Límite de carga (chat_agent_routing): quien llegó a su tope no recibe más.
+  const limits = (await getDb()
+    .prepare('SELECT user_id, capacity FROM chat_agent_routing WHERE workspace_id = (SELECT user_id FROM chat_widgets WHERE id = ?) AND capacity IS NOT NULL')
+    .all(widgetId)) as Array<{ user_id: string; capacity: number }>;
+  if (limits.length > 0) {
+    const cap = new Map(limits.map((l) => [l.user_id, Number(l.capacity)]));
+    available = available.filter((a) => !cap.has(a.id) || Number(stats.get(a.id)?.active ?? 0) < (cap.get(a.id) as number));
+    if (available.length === 0) return null;
+  }
   const sorted = [...available].sort((a, b) => {
     const sa = stats.get(a.id);
     const sb = stats.get(b.id);
@@ -1418,6 +1438,7 @@ export interface AssignmentRulePayload {
   assignTeamId?: string | null;
   /** Con equipo: repartir entre sus miembros. */
   teamRoundRobin?: boolean;
+  requiredSkill?: string | null;
   position?: number;
   active?: boolean;
 }
@@ -1450,7 +1471,7 @@ export async function createAssignmentRule(
 
   await db
     .prepare(
-      'INSERT INTO chat_assignment_rules (id, widget_id, name, match_type, match_value, assign_to, assign_team_id, team_round_robin, position, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO chat_assignment_rules (id, widget_id, name, match_type, match_value, assign_to, assign_team_id, team_round_robin, required_skill, position, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     )
     .run(
       id,
@@ -1461,6 +1482,7 @@ export async function createAssignmentRule(
       payload.assignTo ?? null,
       payload.assignTeamId ?? null,
       payload.teamRoundRobin && payload.assignTeamId ? 1 : 0,
+      payload.requiredSkill?.trim().toLowerCase() || null,
       position,
       payload.active === false ? 0 : 1,
       now,
@@ -1512,6 +1534,10 @@ export async function updateAssignmentRule(
   if (payload.active !== undefined) {
     fields.push('active = ?');
     args.push(payload.active ? 1 : 0);
+  }
+  if (payload.requiredSkill !== undefined) {
+    fields.push('required_skill = ?');
+    args.push(payload.requiredSkill?.trim().toLowerCase() || null);
   }
 
   if (fields.length > 0) {
@@ -1578,6 +1604,15 @@ export async function applyAssignmentRules(
   teamMembers: ChatAgent[],
 ): Promise<string | null> {
   const db = getDb();
+  // Bandeja restringida: solo reciben conversaciones quienes pueden verla.
+  const restrictedWidget = (await db.prepare('SELECT user_id, restricted FROM chat_widgets WHERE id = ?').get(widgetId)) as { user_id: string; restricted: number } | undefined;
+  if (Number(restrictedWidget?.restricted ?? 0) === 1) {
+    const allowed = new Set(
+      ((await db.prepare('SELECT user_id FROM chat_widget_access WHERE widget_id = ?').all(widgetId)) as Array<{ user_id: string }>).map((r) => r.user_id),
+    );
+    allowed.add(restrictedWidget!.user_id);
+    teamMembers = teamMembers.filter((m) => allowed.has(m.id));
+  }
   // No pisar una asignación existente (manual o previa): las reglas solo
   // auto-asignan conversaciones sin dueño.
   const current = await getChatConversation(conversationId);
@@ -1627,7 +1662,18 @@ export async function applyAssignmentRules(
       }
     }
 
-    if ((rule.match_type === 'round_robin' || (teamId && rule.team_round_robin === 1)) && candidates.length > 0) {
+    // Ruteo por habilidad: la regla reparte solo entre quienes tienen la habilidad.
+    const skill = rule.required_skill?.trim().toLowerCase();
+    if (skill) {
+      const skilled = (await db
+        .prepare('SELECT user_id, skills FROM chat_agent_routing WHERE workspace_id = (SELECT user_id FROM chat_widgets WHERE id = ?)')
+        .all(widgetId)) as Array<{ user_id: string; skills: string }>;
+      const ids = new Set(skilled.filter((r) => parseSkills(r.skills).includes(skill)).map((r) => r.user_id));
+      candidates = candidates.filter((m) => ids.has(m.id));
+      assignTo = null;
+    }
+
+    if ((skill || rule.match_type === 'round_robin' || (teamId && rule.team_round_robin === 1)) && candidates.length > 0) {
       // Saltea a los ausentes; si están todos ausentes, la regla no asigna
       // y sigue la próxima (salvo que asigne un equipo).
       assignTo = await pickRoundRobinAgent(widgetId, conversationId, candidates);

@@ -12,7 +12,7 @@ export async function GET(_req: Request, props: { params: Promise<{ id: string }
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const widget = await getChatWidget(params.id);
-  if (!canAccessWidget(widget, user)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  if (!await canAccessWidget(widget, user)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   return NextResponse.json(widget);
 }
 
@@ -21,7 +21,7 @@ export async function PATCH(req: Request, props: { params: Promise<{ id: string 
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const widget = await getChatWidget(params.id);
-  if (!canAccessWidget(widget, user)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  if (!await canAccessWidget(widget, user)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
   let raw: unknown;
   try {
@@ -52,7 +52,7 @@ export async function DELETE(_req: Request, props: { params: Promise<{ id: strin
   // Borrar configuración compartida del workspace: solo owner/admin.
   if (!isWorkspaceAdmin(user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const widget = await getChatWidget(params.id);
-  if (!canAccessWidget(widget, user)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  if (!await canAccessWidget(widget, user)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   await deleteChatWidget(params.id);
   return NextResponse.json({ ok: true });
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
+import { listAccessibleChatWidgets } from '@/lib/chat-access';
 import { getCurrentUser } from '@/lib/session';
-import { listChatWidgets } from '@/lib/chat-data';
 import { chatReportToCsv, getChatRangeReport, parseReportRange } from '@/lib/chat-inbox';
 
 export const dynamic = 'force-dynamic';
@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const sp = new URL(req.url).searchParams;
   const range = parseReportRange(sp.get('from'), sp.get('to'));
-  const widgets = await listChatWidgets(user.id, user.team?.id ?? null);
+  const widgets = await listAccessibleChatWidgets(user);
   const report = await getChatRangeReport(widgets.map((w) => w.id), range);
   if (sp.get('format') === 'csv') {
     const csv = chatReportToCsv(report, { unassigned: 'Unassigned', total: 'Total' });

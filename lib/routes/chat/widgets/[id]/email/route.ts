@@ -16,7 +16,7 @@ export async function GET(_req: Request, props: { params: Promise<{ id: string }
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const widget = await getChatWidget(id);
-  if (!canAccessWidget(widget, user)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  if (!await canAccessWidget(widget, user)) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   const address = inboundAddress('inbox', id);
   const signed = !!process.env.RESEND_WEBHOOK_SECRET?.trim() || inboundFake();
   return NextResponse.json({ enabled: !!address && signed, address, webhookPath: '/api/chat/inbound-email' });

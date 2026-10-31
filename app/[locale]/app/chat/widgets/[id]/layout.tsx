@@ -23,7 +23,7 @@ export default async function WidgetLayout(props: { children: ReactNode; params:
   const { locale, id } = await props.params;
   const user = await requireUser(locale);
   const widget = await getChatWidget(id);
-  if (!widget || !canAccessWidget(widget, user)) notFound();
+  if (!widget || !await canAccessWidget(widget, user)) notFound();
 
   const t = await getTranslations({ locale, namespace: 'chat' });
   const open = await countChatConversations([widget.id], { status: 'open' });
@@ -57,6 +57,7 @@ export default async function WidgetLayout(props: { children: ReactNode; params:
             { key: 'sla', href: `${base}/sla`, label: t('widgetNav.sla') },
             { key: 'outbound', href: `${base}/outbound`, label: t('widgetNav.outbound') },
             { key: 'email', href: `${base}/email`, label: t('widgetNav.email') },
+            { key: 'access', href: `${base}/access`, label: t('widgetNav.access') },
           ]}
         >
           {props.children}
