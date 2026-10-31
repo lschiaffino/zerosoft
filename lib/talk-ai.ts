@@ -335,15 +335,19 @@ export function neutralizeAgentText(text: string): string {
   let out = text;
   for (let i = 0; i < 50; i++) {
     const next = out
-      .replace(/<((?:https?:\/\/|mailto:)[^>|\s]+)\|([^>\n]*)>/gi, '$2 ($1)')
-      .replace(/\[([^\]\n]*)\]\(((?:https?:\/\/|mailto:)[^)\s]+)\)/gi, '$1 ($2)')
+      // La etiqueta puede venir en varias líneas: el destino se muestra igual (el renderer las acepta).
+      .replace(/<((?:https?:\/\/|mailto:)[^>|\s]+)\|([^>]*)>/gi, (_m, url: string, label: string) => `${label.replace(/\s*\n\s*/g, ' ')} (${url})`)
+      .replace(/\[([^\]]*)\]\(((?:https?:\/\/|mailto:)[^)\s]+)\)/gi, (_m, label: string, url: string) => `${label.replace(/\s*\n\s*/g, ' ')} (${url})`)
+      // Un token con etiqueta llega hasta el primer ">", aunque la etiqueta traiga "<" (`<!channel|a<b>`).
+      .replace(/<[@#!][^>\n]*\|[^>]*>/g, '')
       .replace(/<[@#!][^<>\n]*>/g, '')
       .replace(/(^|[^\p{L}\p{N}_])@(channel|canal|everyone|todos|here|aquí|aqui)(?![\p{L}\p{N}_-])/giu, '$1$2');
     if (next === out) break;
     out = next;
   }
   // Por las dudas (texto armado para pasar el tope de vueltas): sin "<@", "<#" ni "<!" no hay token posible.
-  return out.replace(/<(?=[@#!])/g, '').trim().slice(0, AGENT_REPLY_MAX);
+  // `<<!x` deja otro "<" pegado al "!": se sacan todos los de la tira.
+  return out.replace(/<+(?=[@#!])/g, '').trim().slice(0, AGENT_REPLY_MAX);
 }
 
 export interface TalkAgentResult {
@@ -461,11 +465,6 @@ const RECAP_FAILED: Record<string, string> = {
   es: 'No se pudo armar el recap de hoy. Podés hacerlo desde Recap.',
   pt: 'Não foi possível fazer o resumo de hoje. Você pode fazer em Recap.',
 };
-const RECAP_OFF: Record<string, string> = {
-  en: "The daily recap is off because AI isn't available in this workspace.",
-  es: 'El recap diario se apagó porque la IA no está disponible en este workspace.',
-  pt: 'O resumo diário foi desligado porque a IA não está disponível neste workspace.',
-};
 
 export const RECAP_RUN_LIMIT = 12;
 export const RECAP_WORKSPACE_LIMIT = 3;
@@ -508,11 +507,9 @@ async function runRecap(r: RecapRow, dueAt: string, now: Date): Promise<boolean>
     return true;
   } catch (err) {
     if (err instanceof TalkError) return false; // Sin mensajes en el día: no hay nada que avisar.
-    if (err instanceof AiError && err.code === 'ai_disabled') {
-      await db.prepare('UPDATE talk_prefs SET recap_daily = 0, recap_next_at = NULL, recap_due_at = NULL WHERE workspace_id = ? AND user_id = ?').run(r.workspace_id, r.user_id);
-      await recapNotice(r, RECAP_OFF[locale] ?? RECAP_OFF.en, `off:${dueAt}`);
-      return false;
-    }
+    // IA apagada en toda la plataforma (sin proveedor, AI_ENABLED=false): es pasajero y no lo eligió nadie.
+    // La suscripción queda y la fila ya pasó a mañana; cuando vuelva la IA, el recap sigue solo.
+    if (err instanceof AiError && err.code === 'ai_disabled') return false;
     if (!(err instanceof AiError)) console.error('[talk] recap', err);
     // Límite de uso o falla pasajera: se reintenta esa mañana; si se acaba la ventana, se avisa.
     const retryAt = now.getTime() + RECAP_RETRY_MS;
@@ -538,14 +535,20 @@ export async function sendDailyRecaps(opts: { limit?: number; perWorkspace?: num
   const now = opts.now ?? new Date();
   const started = Date.now();
   const budget = opts.budgetMs ?? 15_000;
+  const limit = Math.max(1, Math.floor(opts.limit ?? RECAP_RUN_LIMIT));
+  const perWorkspace = Math.max(1, Math.floor(opts.perWorkspace ?? RECAP_WORKSPACE_LIMIT));
   const due = (await db
     .prepare(
-      `SELECT p.workspace_id, p.user_id, p.recap_next_at, p.recap_due_at, p.locale, COALESCE(NULLIF(pr.timezone, ''), p.recap_tz, '') AS timezone
-       FROM talk_prefs p LEFT JOIN talk_profiles pr ON pr.workspace_id = p.workspace_id AND pr.user_id = p.user_id
-       WHERE p.recap_daily = 1 AND p.recap_next_at <= ? ORDER BY p.recap_next_at LIMIT 300`,
+      // Primero el tope por workspace y después el orden: un workspace con miles vencidos no llena la tanda.
+      `SELECT workspace_id, user_id, recap_next_at, recap_due_at, locale, timezone FROM (
+         SELECT p.workspace_id, p.user_id, p.recap_next_at, p.recap_due_at, p.locale, COALESCE(NULLIF(pr.timezone, ''), p.recap_tz, '') AS timezone,
+           ROW_NUMBER() OVER (PARTITION BY p.workspace_id ORDER BY p.recap_next_at, p.user_id) AS rn
+         FROM talk_prefs p LEFT JOIN talk_profiles pr ON pr.workspace_id = p.workspace_id AND pr.user_id = p.user_id
+         WHERE p.recap_daily = 1 AND p.recap_next_at <= ?
+       ) WHERE rn <= ? ORDER BY rn, recap_next_at LIMIT ?`,
     )
-    .all(now.toISOString())) as RecapRow[];
-  const batch = fairRecapBatch(due, opts.limit ?? RECAP_RUN_LIMIT, opts.perWorkspace ?? RECAP_WORKSPACE_LIMIT);
+    .all(now.toISOString(), perWorkspace, limit)) as RecapRow[];
+  const batch = fairRecapBatch(due, limit, perWorkspace);
   let sent = 0;
   let skipped = 0;
   for (let i = 0; i < batch.length; i += RECAP_CONCURRENCY) {

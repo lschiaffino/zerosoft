@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslations } from 'next-intl';
-import { decodeMentions, encodeMentions } from '@/lib/talk-markdown';
+import { agentKeySpent, decodeMentions, encodeMentions } from '@/lib/talk-markdown';
 import { searchEmoji } from '@/lib/talk-emoji';
 import { parseRemindCommand } from '@/lib/talk-time';
 import type { TalkChannelDto, TalkFileDto, TalkMessageDto } from '@/lib/talk';
@@ -288,8 +288,9 @@ export default function Composer({ channel, parentId, initialDraft = '', focusKe
         else if (!parentId) ctx.openThread(res.message.id);
         return true;
       } catch (err) {
-        // El servidor contestó (rechazo, IA apagada): terminó. Sin respuesta, la clave queda para reintentar.
-        if (err instanceof TalkApiError) agentKey.current = null;
+        // Solo un rechazo (4xx) cierra el envío. Un 5xx o un 504 puede llegar después de que el servidor
+        // publicó y pagó: la clave queda para que el reintento devuelva lo que ya hizo.
+        if (err instanceof TalkApiError && agentKeySpent(err.status)) agentKey.current = null;
         throw err;
       } finally {
         setSending(false);
