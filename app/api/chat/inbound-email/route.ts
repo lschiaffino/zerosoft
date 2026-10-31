@@ -12,6 +12,7 @@ import {
   type SkipReason,
 } from '@/lib/chat-email';
 import { parseHiringAddress, processHiringInbound } from '@/lib/hiring/comms';
+import { parseNotesAddress, processNotesInbound } from '@/lib/notes-email';
 
 export const dynamic = 'force-dynamic';
 
@@ -90,6 +91,13 @@ export async function POST(req: Request) {
   if (hiringApp) {
     const hiring = await processHiringInbound(hiringApp, { emailId, from, subject: typeof d.subject === 'string' ? d.subject : '', text, headers, authentication });
     return NextResponse.json({ ok: true, hiring: hiring.status, ...(hiring.reason ? { reason: hiring.reason } : {}) });
+  }
+
+  // Notes: notes+<token>@… crea una nota con el email.
+  const notesToken = parseNotesAddress(recipients);
+  if (notesToken) {
+    const notes = await processNotesInbound(notesToken, { emailId, from, subject: typeof d.subject === 'string' ? d.subject : '', text, headers, attachments, authentication, skippedCount: skippedAttachments.length });
+    return NextResponse.json({ ok: true, notes: notes.status, ...(notes.status === 'skipped' ? { reason: notes.reason } : {}) });
   }
 
   const result = await processInboundEmail(

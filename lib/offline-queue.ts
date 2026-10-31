@@ -108,6 +108,12 @@ export function isOfflineCacheName(name: string): boolean {
  */
 export async function clearOfflineData(owner?: { userId: string; ws: string }): Promise<void> {
   if (typeof window === 'undefined') return;
+  try {
+    // Borrador del bloc de Notes (components/notes/NotesHome.tsx): no queda para quien entre después.
+    localStorage.removeItem('zs:notes:scratch-draft');
+  } catch {
+    // Sin almacenamiento: nada que borrar.
+  }
   if (owner) {
     const { clearRecData } = await import('@/components/rec/recStore');
     await clearRecData(owner.userId, owner.ws).catch(() => undefined);

@@ -8,7 +8,9 @@
  * recordatorio mientras tanto, el claim viejo no lo pisa. Las notas en la
  * papelera no avisan.
  */
+import { personAppAccess } from './api-auth';
 import { getDb } from './db';
+import { canUseApp } from './workspace';
 import { escapeHtml, formatWhen, renderBrandedHtml, sendEmail } from './email';
 import { createNotification } from './notifications';
 import { siteUrl } from './board-urls';
@@ -156,20 +158,24 @@ export async function fireNoteReminders(opts: { limit?: number; now?: Date } = {
   const now = (opts.now ?? new Date()).toISOString();
   const rows = (await db
     .prepare(
-      `SELECT r.note_id, r.person_id, r.remind_at, r.timezone, r.locale, n.title, n.body_text, u.email
+      `SELECT r.note_id, r.person_id, r.remind_at, r.timezone, r.locale, n.title, n.body_text, u.email, n.person_id AS note_owner, n.workspace_id
        FROM note_reminders r
        JOIN notes n ON n.id = r.note_id
        LEFT JOIN users u ON u.id = r.person_id
        WHERE r.sent_at IS NULL AND r.remind_at <= ? AND n.trashed_at IS NULL
        ORDER BY r.remind_at ASC LIMIT ?`,
     )
-    .all(now, Math.min(Math.max(opts.limit ?? 200, 1), 1000))) as DueReminder[];
+    .all(now, Math.min(Math.max(opts.limit ?? 200, 1), 1000))) as Array<DueReminder & { note_owner: string; workspace_id: string }>;
   let fired = 0;
   for (const r of rows) {
     const claimed = await db
       .prepare('UPDATE note_reminders SET sent_at = ? WHERE note_id = ? AND sent_at IS NULL AND remind_at = ?')
       .run(now, r.note_id, r.remind_at);
     if (!claimed.changes) continue;
+    // El texto de la nota solo le llega a quien hoy es su dueño y sigue en el workspace.
+    if (r.person_id !== r.note_owner) continue;
+    const access = await personAppAccess(r.workspace_id, r.person_id).catch(() => null);
+    if (!access || !canUseApp({ role: access.role, apps: access.apps as never }, 'notes')) continue;
     fired++;
     const s = STRINGS[reminderLocale(r.locale)];
     const title = r.title.trim() || s.untitled;

@@ -19,7 +19,9 @@
     "trash": "Papelera",
     "shared": "Compartidas conmigo",
     "savedSearches": "Búsquedas guardadas",
-    "exportAll": "Exportar todas las notas"
+    "exportAll": "Exportar todas las notas",
+    "home": "Inicio",
+    "tasks": "Tareas"
   },
   "notebooks": {
     "new": "Nueva libreta",
@@ -58,7 +60,10 @@
     "clearSearch": "Borrar búsqueda",
     "emptySharedTitle": "Todavía no te compartieron nada",
     "emptySharedBody": "Cuando alguien del equipo te comparta una nota o una libreta, aparece acá.",
-    "sharedBy": "de {name}"
+    "sharedBy": "de {name}",
+    "semantic": "Buscar por significado",
+    "semanticHint": "Encuentra notas por lo que dicen, aunque usen otras palabras. Usa tu cuota de IA.",
+    "semanticDegraded": "La búsqueda por significado no está disponible ahora: estos resultados coinciden solo por palabras clave."
   },
   "trash": {
     "confirmDelete": "¿Borrar esta nota para siempre? No se puede deshacer.",
@@ -145,7 +150,25 @@
     "copied": "Copiado",
     "source": "Fuente",
     "saveHint": "⌘↵ para guardar",
-    "touchInstall": "El recorte se instala desde la computadora. Copiá el código para pegarlo allá como favorito."
+    "touchInstall": "El recorte se instala desde la computadora. Copiá el código para pegarlo allá como favorito.",
+    "modeLabel": "Qué guardar",
+    "modes": {
+      "article": "Artículo",
+      "page": "Página entera",
+      "selection": "Selección",
+      "bookmark": "Marcador",
+      "screenshot": "Captura"
+    },
+    "modeHints": {
+      "article": "El texto principal y las imágenes, sin menús ni publicidad.",
+      "page": "Todo lo que hay en la página, como texto e imágenes.",
+      "selection": "Solo el texto que marcaste.",
+      "bookmark": "Solo el link.",
+      "screenshot": "Elegí una pestaña o ventana y guardá lo que muestra."
+    },
+    "fetchError": "No pudimos leer esa página. Abrila y usá el bookmarklet, o guardala como marcador.",
+    "emptyPage": "Esa página no tiene texto para guardar.",
+    "screenshotCancelled": "Se canceló la captura. No se guardó nada."
   },
   "public": {
     "notFound": "Nota no encontrada",
@@ -448,7 +471,10 @@
     "confirmDiscard": "¿Descartar esta grabación?",
     "tooBig": "La grabación pasa los 10 MB y no se puede agregar.",
     "savedLocal": "Grabación guardada en este dispositivo. Se agrega a la nota cuando vuelva la conexión.",
-    "addedLater": "Grabación agregada a la nota."
+    "addedLater": "Grabación agregada a la nota.",
+    "addPage": "Sumar otra página",
+    "scanPages": "{count, plural, one {# página} other {# páginas}}",
+    "scanTooBig": "El escaneo es muy grande para subirlo (tope de 100 MB). Tus páginas siguen acá. Probá con menos páginas."
   },
   "signOut": {
     "title": "{count, plural, one {# cambio de Notes todavía no se subió} other {# cambios de Notes todavía no se subieron}}",
@@ -459,5 +485,180 @@
     "download": "Bajar los cambios pendientes",
     "confirm": "Cerrar sesión igual",
     "cancel": "Cancelar"
+  },
+  "tasks": {
+    "setDue": "Fecha y responsable",
+    "due": "Vence",
+    "assignee": "Responsable",
+    "nobody": "Nadie",
+    "assignHint": "Asignar comparte la nota con esa persona, con permiso de edición.",
+    "error": "No pudimos cargar tus tareas.",
+    "retry": "Reintentar",
+    "loading": "Cargando tareas",
+    "emptyTitle": "Todavía no hay tareas",
+    "emptyBody": "Sumá una lista de tareas a cualquier nota y aparecen acá.",
+    "showDone": "Ver {count, plural, one {# tarea hecha} other {# tareas hechas}}",
+    "untitled": "Sin título",
+    "groups": {
+      "overdue": "Vencidas",
+      "today": "Hoy",
+      "upcoming": "Próximas",
+      "noDate": "Sin fecha",
+      "done": "Hechas"
+    },
+    "notSaved": "Primero se está guardando este ítem. Probá asignarlo de nuevo en un momento."
+  },
+  "home": {
+    "title": "Inicio",
+    "customize": "Personalizar",
+    "done": "Listo",
+    "addWidget": "Sumar un widget",
+    "moveUp": "Subir {name}",
+    "moveDown": "Bajar {name}",
+    "hide": "Ocultar {name}",
+    "loading": "Cargando",
+    "saving": "Guardando",
+    "saved": "Guardado",
+    "saveError": "No se pudo guardar",
+    "error": "No pudimos cargar tu inicio.",
+    "retry": "Reintentar",
+    "noWidgets": "No hay widgets. Tocá Personalizar para sumar.",
+    "scratchPlaceholder": "Anotá algo. Queda acá hasta que lo pases a una nota.",
+    "scratchToNote": "Guardar como nota",
+    "tasksEmpty": "No hay tareas abiertas.",
+    "recentEmpty": "Todavía no hay notas.",
+    "pinnedEmpty": "No hay notas fijadas.",
+    "sharedEmpty": "Nadie te compartió nada.",
+    "eventsEmpty": "No hay reservas de Cal en los próximos 14 días.",
+    "eventNoteAction": "Crear una nota de reunión",
+    "notebooksEmpty": "Todavía no hay libretas.",
+    "tagsEmpty": "Todavía no hay etiquetas.",
+    "searchesEmpty": "No hay búsquedas guardadas.",
+    "widgets": {
+      "scratch": "Bloc rápido",
+      "tasks": "Tareas",
+      "recent": "Notas recientes",
+      "pinned": "Fijadas",
+      "shared": "Compartidas conmigo",
+      "events": "Próximas reuniones",
+      "notebooks": "Libretas",
+      "tags": "Etiquetas",
+      "searches": "Búsquedas guardadas"
+    },
+    "eventNote": {
+      "when": "Cuándo",
+      "agenda": "Temario",
+      "notes": "Notas",
+      "actions": "Pendientes",
+      "with": "Con"
+    }
+  },
+  "access": {
+    "title": "No tenés acceso a esta nota",
+    "body": "Pedile acceso a quien la creó. Le llega un aviso y elige si podés verla o editarla.",
+    "pending": "Pedido enviado. Te va a llegar un aviso cuando responda.",
+    "denied": "Rechazaron tu pedido. Podés volver a pedirlo.",
+    "request": "Pedir acceso",
+    "requestAgain": "Pedir de nuevo",
+    "error": "No se pudo enviar. Probá de nuevo.",
+    "requests": "Pedidos de acceso",
+    "approveView": "Puede ver",
+    "approveEdit": "Puede editar",
+    "deny": "Rechazar",
+    "deniedWait": "Rechazaron tu pedido. Podés volver a pedirlo mañana."
+  },
+  "email": {
+    "title": "Email a Notes",
+    "lead": "Reenviá un email a esta dirección y se vuelve una nota en tu cuenta, con sus adjuntos.",
+    "loading": "Cargando",
+    "error": "No pudimos cargar tu dirección.",
+    "unavailable": "Este workspace no tiene un dominio de entrada configurado. Quien lo administra tiene que configurar el mismo dominio que usa Chat.",
+    "address": "Tu dirección de Notes",
+    "copy": "Copiar",
+    "copied": "Copiada",
+    "tipSubject": "El asunto es el título. Terminalo con @libreta y #etiqueta para ordenarla, por ejemplo: Factura @Finanzas #recibos",
+    "tipAttachments": "El texto de los PDF comunes se puede buscar. Las imágenes, solo si un admin prendió su lectura.",
+    "rotate": "Pedir otra dirección",
+    "rotateHint": "La dirección actual deja de funcionar. Quien tenga la dirección puede sumar notas a tu cuenta.",
+    "attachmentsNotSaved": "Adjuntos que no se guardaron: {names}"
+  },
+  "admin": {
+    "title": "Consola del equipo",
+    "lead": "Cómo usa Notes el equipo. Las notas privadas siguen privadas: ves cantidades, no contenido.",
+    "loading": "Cargando",
+    "error": "No pudimos cargar la consola.",
+    "retry": "Reintentar",
+    "people": "Personas",
+    "person": "Persona",
+    "notes": "Notas",
+    "notebooks": "Libretas",
+    "shares": "Compartidas",
+    "links": "Links públicos",
+    "lastUpdate": "Última edición",
+    "never": "Nunca",
+    "publicLinks": "Links públicos",
+    "noLinks": "Ninguna nota tiene link público.",
+    "untitled": "Sin título",
+    "disableLink": "Apagar link",
+    "transfer": "Pasar notas",
+    "transferHint": "Cuando alguien se va del workspace, pasa sus notas, libretas, plantillas, búsquedas guardadas y recordatorios a otra persona que siga, que no seas vos, o a vos si no hay nadie más. Quién puede leer qué no cambia: una libreta con compartidos queda aparte con un sufijo; solo se unen las de igual nombre sin compartir. Las notas bloqueadas siguen bloqueadas. Cada pase queda registrado.",
+    "from": "De",
+    "to": "A",
+    "transferAction": "Pasar",
+    "transferConfirm": "Confirmar",
+    "transferDone": "Notas transferidas.",
+    "noFormer": "Nadie que se haya ido tiene notas acá.",
+    "ocrTitle": "Leer imágenes y escaneos",
+    "ocrLabel": "Leer el texto de imágenes y PDF escaneados que se sumen de ahora en más",
+    "ocrHint": "Apagado por defecto. Prendido, las imágenes y los PDF escaneados que se sumen a las notas de ahora en más se mandan al modelo de IA y usan la cuota de IA del workspace. Los archivos que ya están en las notas no se leen, aunque edites la nota, y apagarlo corta lo que estaba esperando. El texto de los PDF comunes que se sumen de ahora en más siempre se puede buscar, sin modelo.",
+    "auditTitle": "Actividad",
+    "auditTransfer": "Pasó notas",
+    "auditLink": "Apagó un link público",
+    "auditOcrOn": "Prendió la lectura de imágenes y escaneos",
+    "auditOcrOff": "Apagó la lectura de imágenes y escaneos"
+  },
+  "annotate": {
+    "open": "Anotar imagen o PDF",
+    "none": "Esta nota no tiene imágenes ni PDF guardados.",
+    "title": "Anotar",
+    "close": "Cerrar",
+    "undo": "Deshacer",
+    "save": "Guardar una copia",
+    "tools": "Herramientas",
+    "color": "Color",
+    "textLabel": "Texto a sumar",
+    "addText": "Sumar",
+    "loading": "Cargando archivo",
+    "loadError": "No se pudo abrir el archivo.",
+    "saveError": "No se pudo guardar la copia.",
+    "untitledFile": "Archivo sin nombre",
+    "suffix": "anotado",
+    "pageLabel": "Página {page}",
+    "tool": {
+      "pen": "Lápiz",
+      "highlight": "Resaltador",
+      "box": "Recuadro",
+      "text": "Texto"
+    },
+    "tooBig": "La copia es muy grande para subirla. Tus marcas siguen acá.",
+    "truncated": "Solo se pueden anotar las primeras {max} de {total} páginas. La copia guardada conserva todas."
+  },
+  "transcribe": {
+    "open": "Transcribir audio",
+    "none": "Esta nota no tiene grabaciones guardadas.",
+    "working": "Transcribiendo el audio. Puede tardar un minuto.",
+    "done": "Transcripción agregada a la nota.",
+    "disabled": "La transcripción no está configurada en este workspace.",
+    "error": "No se pudo transcribir el audio.",
+    "heading": "Transcripción",
+    "speaker": "Persona {speaker}",
+    "tooLarge": "Esta grabación pasa los 25 MB, el tope para transcribir."
+  },
+  "fileText": {
+    "failed": "No se pudo leer para la búsqueda: {names}.",
+    "retry": "Reintentar",
+    "unnamed": "Archivo sin nombre",
+    "ocrOff": "Leer imágenes y escaneos está apagado en este workspace, así que esos archivos no se reintentaron. Un admin puede prenderlo en los ajustes de Notes.",
+    "tooLarge": "Pasan el tope de lectura de 12 MB y no se pueden buscar: {names}."
   }
 }

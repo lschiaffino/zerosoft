@@ -1,6 +1,7 @@
 'use client';
 
-import { forwardRef, useLayoutEffect, useMemo, useRef } from 'react';
+import { useContext, forwardRef, useLayoutEffect, useMemo, useRef } from 'react';
+import { DocsTodoAccessory } from './DocsTodoAccessory';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { DocsBlock, DocsBlockType, DocsButtonConfig } from '@/lib/docs-types';
@@ -522,10 +523,17 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
           onFocus={() => onFocus(index)}
           onClick={onLinkClick}
         />
+        {isCheck && <TodoAccessorySlot block={block} />}
       </div>
     );
   },
 );
+
+/** Lo que la app quiera mostrar al lado del todo (ver DocsTodoAccessory). */
+function TodoAccessorySlot({ block }: { block: DocsBlock }) {
+  const render = useContext(DocsTodoAccessory);
+  return render ? <>{render(block)}</> : null;
+}
 
 DocsBlockEditor.displayName = 'DocsBlockEditor';
 

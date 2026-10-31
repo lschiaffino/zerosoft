@@ -1,20 +1,23 @@
 'use client';
 
+import { DocsUploadError, uploadDocsFile } from '@/lib/docs-upload-client';
 import { useEffect, useRef, useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import type { DocsBlock } from '@/lib/docs-types';
-import { fileBlockFromUpload, type DocsUploadResult } from '@/lib/docs-files';
-import { defaultQuad, enhanceDocument, outputSize, warpQuad, type Pt } from '@/lib/notes-scan';
+import { fileBlockFromUpload } from '@/lib/docs-files';
+import { defaultQuad, detectQuad, enhanceDocument, outputSize, warpQuad, type Pt } from '@/lib/notes-scan';
 import { NotesModal } from './NotesModal';
 import NotesIcon from './NotesIcon';
 
 /** Sube un archivo a la nota y devuelve el bloque listo para insertar. */
 export async function uploadToNote(noteId: string, file: File, kind?: 'audio' | 'image'): Promise<DocsBlock | null> {
-  const body = new FormData();
-  body.append('file', file);
-  const res = await fetch(`/api/notes/${encodeURIComponent(noteId)}/files`, { method: 'POST', body }).catch(() => null);
-  if (!res?.ok) return null;
-  return fileBlockFromUpload((await res.json()) as DocsUploadResult, kind);
+  try {
+    return fileBlockFromUpload(await uploadDocsFile(file, { uploadUrl: `/api/notes/${encodeURIComponent(noteId)}/files` }), kind);
+  } catch (err) {
+    // Muy grande: lo avisa quien llamó, con lo hecho todavía en pantalla.
+    if (err instanceof DocsUploadError && err.code === 'file_too_large') throw err;
+    return null;
+  }
 }
 
 function pickMime(): { mime: string; ext: string } | null {
@@ -211,6 +214,19 @@ function loadImage(file: File): Promise<HTMLImageElement> {
  * esquinas de la hoja (arrastrables o con flechas), enderezado y limpieza
  * para leer. El resultado entra como imagen al final de la nota.
  */
+/** Busca los bordes de la hoja en una copia chica de la foto. */
+function detectedQuad(img: HTMLImageElement): Pt[] | null {
+  const scale = Math.min(1, 320 / Math.max(img.naturalWidth, img.naturalHeight));
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(img.naturalWidth * scale));
+  c.height = Math.max(1, Math.round(img.naturalHeight * scale));
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return null;
+  ctx.drawImage(img, 0, 0, c.width, c.height);
+  const quad = detectQuad(ctx.getImageData(0, 0, c.width, c.height));
+  return quad ? quad.map((p) => ({ x: p.x / scale, y: p.y / scale })) : null;
+}
+
 export function ScanDialog({
   noteId,
   onInsert,
@@ -228,6 +244,7 @@ export function ScanDialog({
   const [quad, setQuad] = useState<Pt[]>([]);
   const [enhance, setEnhance] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [pages, setPages] = useState<Blob[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const drag = useRef<number | null>(null);
@@ -237,7 +254,7 @@ export function ScanDialog({
     try {
       const loaded = await loadImage(file);
       setImg(loaded);
-      setQuad(defaultQuad(loaded.naturalWidth, loaded.naturalHeight));
+      setQuad(detectedQuad(loaded) ?? defaultQuad(loaded.naturalWidth, loaded.naturalHeight));
     } catch {
       onError(t('uploadError'));
     }
@@ -252,33 +269,71 @@ export function ScanDialog({
     };
   }
 
-  async function add() {
+  /** La foto actual, enderezada y limpia. */
+  async function currentPage(): Promise<Blob> {
+    if (!img) throw new Error('image');
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('canvas');
+    ctx.drawImage(img, 0, 0);
+    const src = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const { w, h } = outputSize(quad);
+    let out = warpQuad(src, quad, w, h);
+    if (enhance) out = enhanceDocument(out);
+    const outCanvas = document.createElement('canvas');
+    outCanvas.width = w;
+    outCanvas.height = h;
+    outCanvas.getContext('2d')?.putImageData(new ImageData(new Uint8ClampedArray(out.data), w, h), 0, 0);
+    const blob = await new Promise<Blob | null>((r) => outCanvas.toBlob(r, 'image/jpeg', 0.88));
+    if (!blob) throw new Error('blob');
+    return blob;
+  }
+
+  /** Guarda esta página y pide la siguiente. */
+  async function addPage() {
     if (!img || busy) return;
     setBusy(true);
     try {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('canvas');
-      ctx.drawImage(img, 0, 0);
-      const src = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const { w, h } = outputSize(quad);
-      let out = warpQuad(src, quad, w, h);
-      if (enhance) out = enhanceDocument(out);
-      const outCanvas = document.createElement('canvas');
-      outCanvas.width = w;
-      outCanvas.height = h;
-      outCanvas.getContext('2d')?.putImageData(new ImageData(new Uint8ClampedArray(out.data), w, h), 0, 0);
-      const blob = await new Promise<Blob | null>((r) => outCanvas.toBlob(r, 'image/jpeg', 0.88));
-      if (!blob) throw new Error('blob');
-      const name = `${t('scanName', { date: format.dateTime(new Date(), { dateStyle: 'medium', timeStyle: 'short' }) }).replace(/[/:\\]/g, '-')}.jpg`;
-      const block = await uploadToNote(noteId, new File([blob], name, { type: 'image/jpeg' }), 'image');
+      const blob = await currentPage();
+      setPages((p) => [...p, blob]);
+      setImg(null);
+      setQuad([]);
+      fileRef.current?.click();
+    } catch {
+      onError(t('uploadError'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function add() {
+    if ((!img && !pages.length) || busy) return;
+    setBusy(true);
+    try {
+      const all = img ? [...pages, await currentPage()] : pages;
+      const stem = t('scanName', { date: format.dateTime(new Date(), { dateStyle: 'medium', timeStyle: 'short' }) }).replace(/[/:\\]/g, '-');
+      let block: DocsBlock | null;
+      if (all.length === 1) {
+        block = await uploadToNote(noteId, new File([all[0]], `${stem}.jpg`, { type: 'image/jpeg' }), 'image');
+      } else {
+        // Varias páginas: un solo PDF.
+        const { PDFDocument } = await import('pdf-lib');
+        const pdf = await PDFDocument.create();
+        for (const page of all) {
+          const image = await pdf.embedJpg(await page.arrayBuffer());
+          pdf.addPage([image.width, image.height]).drawImage(image, { x: 0, y: 0, width: image.width, height: image.height });
+        }
+        const uploaded = await uploadToNote(noteId, new File([(await pdf.save()) as BlobPart], `${stem}.pdf`, { type: 'application/pdf' }));
+        block = uploaded ? { ...uploaded, type: 'pdf' } : null;
+      }
       if (!block) throw new Error('upload');
       onInsert([block, { id: crypto.randomUUID(), type: 'paragraph', content: '' }]);
       onClose();
-    } catch {
-      onError(t('uploadError'));
+    } catch (err) {
+      // El diálogo queda abierto con las páginas: no se pierde el escaneo.
+      onError(err instanceof DocsUploadError ? t('scanTooBig') : t('uploadError'));
     } finally {
       setBusy(false);
     }
@@ -294,14 +349,18 @@ export function ScanDialog({
       wide
       className="notes-scan"
       footer={
-        img ? (
+        img || pages.length ? (
           <>
+            {pages.length > 0 && <span className="notes-scan-count num">{t('scanPages', { count: pages.length + (img ? 1 : 0) })}</span>}
             <label className="notes-scan-enhance">
               <input type="checkbox" checked={enhance} onChange={(e) => setEnhance(e.target.checked)} />
               {t('enhance')}
             </label>
             <button type="button" className="btn btn-ghost" onClick={() => fileRef.current?.click()}>
               {t('retake')}
+            </button>
+            <button type="button" className="btn" onClick={() => void addPage()} disabled={busy || !img}>
+              {t('addPage')}
             </button>
             <button type="button" className="btn btn-primary" onClick={() => void add()} aria-busy={busy} disabled={busy}>
               {busy ? t('uploading') : t('add')}

@@ -323,6 +323,8 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
       { group, label: t('newEventType'), meta: '', href: '/app/calendar/event-types/new' },
       { group, label: t('newFlow'), meta: '', href: '/app/flow' },
       { group, label: tNotes('actions.newNote'), meta: '', href: '/app/notes?new=1' },
+      { group, label: tNotes('nav.tasks'), meta: 'Notes', href: '/app/notes?view=tasks' },
+      { group, label: tNotes('nav.home'), meta: 'Notes', href: '/app/notes?view=home' },
       { group, label: tBoard('list.new'), meta: '', href: '/app/board?new=1' },
       { group, label: t('newAgent'), meta: '', href: '/app/agents' },
       { group, label: t('newRobot'), meta: '', href: '/app/robots?new=1' },

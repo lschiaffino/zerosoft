@@ -166,7 +166,7 @@ export async function hybridRank<K extends string>(
   docs: Array<Doc<K>>,
   query: string,
   k = 5,
-  opts: { fake?: boolean } = {},
+  opts: { fake?: boolean; onFallback?: () => void } = {},
 ): Promise<Array<{ kind: K; title: string; text: string; source?: string; score: number }>> {
   const lexical = rankKnowledge(docs, query, 20);
   const q = query.trim();
@@ -210,6 +210,7 @@ export async function hybridRank<K extends string>(
       });
   } catch (err) {
     console.warn('[agents-semantic] falling back to keywords', err instanceof Error ? err.message : err);
+    opts.onFallback?.();
     return lexical.slice(0, k);
   }
 }

@@ -76,6 +76,23 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-10-30-notes-parity-tasks-home',
+    date: '2026-10-30',
+    title: {
+      en: 'Notes: tasks with due dates, a Home you arrange and search inside PDFs',
+      es: 'Notes: tareas con fecha, un Inicio a medida y búsqueda dentro de PDF',
+      pt: 'Notes: tarefas com prazo, um Início do seu jeito e busca dentro de PDFs',
+    },
+    items: [
+      { product: 'notes', en: 'Any checklist item can have a due date and an assignee, and a Tasks view lists them all by Overdue, Today, Upcoming and No date.', es: 'Cualquier ítem de una lista puede tener fecha y responsable, y la vista de Tareas los junta en Vencidas, Hoy, Próximas y Sin fecha.', pt: 'Qualquer item de lista pode ter prazo e responsável, e a visão de Tarefas reúne tudo em Atrasadas, Hoje, Próximas e Sem prazo.' },
+      { product: 'notes', en: 'Home has nine widgets you add, hide and reorder, including a scratch pad and a meeting note from any Cal booking.', es: 'El Inicio tiene nueve widgets que sumás, ocultás y ordenás, con un bloc rápido y una nota de reunión desde cualquier reserva de Cal.', pt: 'O Início tem nove widgets que você adiciona, oculta e ordena, com um bloco rápido e uma nota de reunião a partir de qualquer reserva do Cal.' },
+      { product: 'notes', en: 'Search finds text inside PDFs. Admins can turn on reading images and scans with AI for new files. A new button searches by meaning.', es: 'La búsqueda encuentra texto dentro de PDF. Los admins pueden prender la lectura con IA de imágenes y escaneos nuevos. Un botón nuevo busca por significado.', pt: 'A busca encontra texto dentro de PDFs. Admins podem ligar a leitura com IA de imagens e digitalizações novas. Um botão novo busca por significado.' },
+      { product: 'notes', en: 'The web clipper saves the article, the full page, a selection, a bookmark or a screenshot.', es: 'El recorte web guarda el artículo, la página entera, una selección, un marcador o una captura.', pt: 'O recorte da web salva o artigo, a página inteira, uma seleção, um favorito ou uma captura.' },
+      { product: 'notes', en: 'Annotate images and PDFs, transcribe recordings, and scan several pages into one PDF with the edges found for you.', es: 'Anotá imágenes y PDF, transcribí grabaciones y escaneá varias páginas a un PDF con los bordes detectados solos.', pt: 'Anote imagens e PDFs, transcreva gravações e digitalize várias páginas em um PDF com as bordas detectadas sozinhas.' },
+      { product: 'notes', en: 'Teammates can request access from a note link, admins get a team console, and there is a public API and an MCP server.', es: 'Tus compañeros pueden pedir acceso desde el link de una nota, los admins tienen una consola del equipo, y hay API pública y servidor MCP.', pt: 'Colegas podem pedir acesso pelo link de uma nota, admins têm um console da equipe, e há API pública e servidor MCP.' },
+    ],
+  },
+  {
     id: 'chat-realtime-permissions-campaigns',
     date: '2026-10-30',
     title: { en: 'Chat: real time, inbox permissions and campaigns', es: 'Chat: tiempo real, permisos por bandeja y campañas', pt: 'Chat: tempo real, permissões por caixa e campanhas' },

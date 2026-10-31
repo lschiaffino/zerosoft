@@ -1,6 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { setTopbarLabel } from '@/components/app/AppTopbar';
+import NotesHome from './NotesHome';
+import { NotesTasksList } from './NoteTasks';
+import { NoteAccessGate } from './NoteAccess';
 import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import EmptyState from '@/components/ui/EmptyState';
@@ -70,6 +74,12 @@ interface Props {
   initialNote: NoteDetail | null;
   /** Filtro inicial de la lista (p. ej. "Compartidas conmigo" desde un aviso). */
   initialFilter?: NotesFilter;
+  /** El link abierto es de una nota del workspace sin permiso: se puede pedir acceso. */
+  initialDenied?: { id: string; status: 'can_request' | 'pending' | 'denied' | 'denied_wait' } | null;
+  /** Aviso de un pedido de acceso: abre Compartir en la nota. */
+  openRequests?: boolean;
+  /** Hay IA para buscar por significado. */
+  semanticAvailable?: boolean;
   initialSearches?: SavedSearchInfo[];
   /** Búsqueda con la que abre (?q= o una búsqueda guardada de ⌘K). */
   initialQuery?: string;
@@ -118,6 +128,9 @@ export default function NotesApp({
   initialTags,
   initialNote,
   initialFilter,
+  initialDenied = null,
+  openRequests = false,
+  semanticAvailable = false,
   initialSearches = [],
   initialQuery = '',
   initialSearchId = null,
@@ -138,7 +151,10 @@ export default function NotesApp({
   const [searches, setSearches] = useState<SavedSearchInfo[]>(initialSearches);
   const [activeSearch, setActiveSearch] = useState<string | null>(initialSearchId);
   const [note, setNote] = useState<NoteDetail | null>(initialNote);
-  const [pane, setPane] = useState<Pane>(initialNote ? 'editor' : 'list');
+  const [pane, setPane] = useState<Pane>(initialNote || initialDenied ? 'editor' : 'list');
+  const denied = note ? null : initialDenied;
+  const [semantic, setSemantic] = useState(false);
+  const [semanticDegraded, setSemanticDegraded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadedKey, setLoadedKey] = useState(() => listKey(initialFilter ?? { kind: 'all' }, 'updated'));
   const [listError, setListError] = useState(false);
@@ -369,10 +385,12 @@ export default function NotesApp({
     setLoading(true);
     try {
       if (offlineRef.current) throw new TypeError('offline');
-      const res = await fetch(`/api/notes?${filterQuery(filter, q, sort)}`);
+      const useSemantic = semantic && q.trim().length > 0;
+      const res = await fetch(useSemantic ? `/api/notes/semantic?q=${encodeURIComponent(q.trim())}` : `/api/notes?${filterQuery(filter, q, sort)}`);
       if (!res.ok) throw new Error(String(res.status));
-      const data = (await res.json()) as { notes: NoteSummary[] };
+      const data = (await res.json()) as { notes: NoteSummary[]; degraded?: boolean };
       if (seq === reqSeq.current) {
+        setSemanticDegraded(Boolean(useSemantic && data.degraded));
         setNotes(data.notes);
         if (dropStaleNote.current) {
           dropStaleNote.current = false;
@@ -392,7 +410,7 @@ export default function NotesApp({
     } finally {
       if (seq === reqSeq.current) setLoading(false);
     }
-  }, [filter, q, sort, listFromDevice]);
+  }, [filter, q, sort, semantic, listFromDevice]);
 
   /**
    * Cambios rechazados → notas nuevas: el texto en claro, o la bloqueada con
@@ -634,14 +652,23 @@ export default function NotesApp({
     if (!q.trim()) setHighlight([]);
   }, [q]);
 
+  // La banda de arriba nombra Inicio y Tareas (la ruta es la misma que Todas las notas).
+  useEffect(() => {
+    setTopbarLabel('/app/notes', filter.kind === 'home' ? t('nav.home') : filter.kind === 'tasks' ? t('nav.tasks') : null);
+    return () => setTopbarLabel('', null);
+  }, [filter.kind, t]);
+
   // URL compartible (?note=<id>) sin navegar.
   useEffect(() => {
     const url = new URL(window.location.href);
     if (note) url.searchParams.set('note', note.id);
-    else url.searchParams.delete('note');
-    for (const k of ['new', 'search', 'template', 'q']) url.searchParams.delete(k);
+    // El pedido de acceso sobrevive a recargar.
+    else if (!denied) url.searchParams.delete('note');
+    if (filter.kind === 'home' || filter.kind === 'tasks') url.searchParams.set('view', filter.kind);
+    else if (filter.kind !== 'shared') url.searchParams.delete('view');
+    for (const k of ['new', 'search', 'template', 'q', 'requests']) url.searchParams.delete(k);
     window.history.replaceState(null, '', url.toString());
-  }, [note]);
+  }, [note, denied, filter.kind]);
 
   // La selección sale de la lista visible (filtrar o borrar la achica).
   useEffect(() => {
@@ -1356,6 +1383,8 @@ export default function NotesApp({
 
   const listTitle = useMemo(() => {
     if (activeSearch) return searches.find((s) => s.id === activeSearch)?.name ?? t('nav.savedSearches');
+    if (filter.kind === 'home') return t('nav.home');
+    if (filter.kind === 'tasks') return t('nav.tasks');
     if (filter.kind === 'pinned') return t('nav.pinned');
     if (filter.kind === 'trash') return t('nav.trash');
     if (filter.kind === 'shared') return t('nav.shared');
@@ -1394,7 +1423,7 @@ export default function NotesApp({
   const showSkeleton = loading && loadedKey !== listKey(filter, sort);
   const empty = emptyKind(filter, q);
   const inTrash = filter.kind === 'trash';
-  const navItem = (f: NotesFilter, label: string, icon?: 'pin' | 'trash' | 'users') => (
+  const navItem = (f: NotesFilter, label: string, icon?: 'pin' | 'trash' | 'users' | 'home' | 'clock') => (
     <button
       type="button"
       className="notes-nav-item"
@@ -1409,7 +1438,7 @@ export default function NotesApp({
   const activeSearchQuery = activeSearch ? searches.find((s) => s.id === activeSearch)?.query : null;
 
   return (
-    <div className="notes-app" data-pane={pane} data-focus={focusMode ? 'true' : undefined} data-offline={offline ? 'true' : undefined}>
+    <div className="notes-app" data-home={filter.kind === 'home' ? 'true' : undefined} data-pane={pane} data-focus={focusMode ? 'true' : undefined} data-offline={offline ? 'true' : undefined}>
       {/* ---------- Libretas / filtros ---------- */}
       <aside className="notes-nav" aria-label={t('nav.label')}>
         <div className="notes-nav-top">
@@ -1424,6 +1453,8 @@ export default function NotesApp({
           </button>
         </div>
         <nav className="notes-nav-list" aria-label={t('nav.label')}>
+          {navItem({ kind: 'home' }, t('nav.home'), 'home')}
+          {navItem({ kind: 'tasks' }, t('nav.tasks'), 'clock')}
           {navItem({ kind: 'all' }, t('nav.all'))}
           {navItem({ kind: 'pinned' }, t('nav.pinned'), 'pin')}
           {navItem({ kind: 'shared' }, t('nav.shared'), 'users')}
@@ -1536,6 +1567,75 @@ export default function NotesApp({
       </aside>
 
       {/* ---------- Lista ---------- */}
+      {filter.kind === 'home' ? (
+        <div className="notes-home-pane">
+          <button type="button" className="btn btn-ghost btn-sm notes-pane-back" onClick={() => setPane('nav')}>
+            <NotesIcon name="back" size={14} />
+            {t('nav.label')}
+          </button>
+          <NotesHome
+            notebooks={notebooks}
+            tags={tags}
+            searches={searches}
+            onOpenNote={(id) => {
+              setFilter({ kind: 'all' });
+              void openNote(id);
+            }}
+            onChoose={choose}
+            onPickSearch={(s) => {
+              setFilter({ kind: 'all' });
+              setQ(s.query);
+              setActiveSearch(s.id);
+            }}
+            onNewNote={async (title, text) => {
+              const res = await fetch('/api/notes', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                  title,
+                  content: text
+                    .split(/\n{2,}/)
+                    .slice(0, 500)
+                    .map((part) => ({ id: crypto.randomUUID(), type: 'paragraph', content: part.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>') })),
+                }),
+              }).catch(() => null);
+              if (!res?.ok) {
+                setToast(t('editor.actionError'));
+                return false;
+              }
+              const created = (await res.json()) as { id: string };
+              setFilter({ kind: 'all' });
+              void openNote(created.id);
+              return true;
+            }}
+          />
+        </div>
+      ) : (
+        <>
+      {filter.kind === 'tasks' ? (
+        <div className="notes-list" role="region" aria-label={t('nav.tasks')}>
+          <div className="notes-list-head">
+            <button type="button" className="btn btn-ghost btn-sm notes-pane-back" onClick={() => setPane('nav')}>
+              <NotesIcon name="back" size={14} />
+              {t('nav.label')}
+            </button>
+            <div className="notes-list-title">
+              <h1>{t('nav.tasks')}</h1>
+            </div>
+          </div>
+          <div className="notes-list-items">
+            <NotesTasksList
+              activeNoteId={note?.id ?? null}
+              onOpen={(id) => void openNote(id)}
+              onChanged={(id) => {
+                if (note?.id === id) {
+                  void reloadNote(id);
+                }
+              }}
+            />
+          </div>
+        </div>
+      ) : (
       <div className="notes-list" role="region" aria-label={listTitle}>
         <div className="notes-list-head">
           <button type="button" className="notes-back" onClick={() => setPane('nav')}>
@@ -1642,6 +1742,18 @@ export default function NotesApp({
                 </kbd>
               )}
             </label>
+            {semanticAvailable && !offline && (
+              <button
+                type="button"
+                className={`btn btn-ghost btn-sm btn-icon${semantic ? ' is-on' : ''}`}
+                aria-pressed={semantic}
+                onClick={() => setSemantic((v) => !v)}
+                aria-label={t('list.semantic')}
+                title={t('list.semanticHint')}
+              >
+                <NotesIcon name="sparkle" size={14} />
+              </button>
+            )}
             {q.trim() && !activeSearch && !offline && (
               <button
                 type="button"
@@ -1694,6 +1806,11 @@ export default function NotesApp({
               )}
             </div>
           </div>
+          {semantic && semanticDegraded && (
+            <p className="notes-home-hint" role="status" data-testid="semantic-degraded">
+              {t('list.semanticDegraded')}
+            </p>
+          )}
           <div className="notes-list-meta">
             <span className="notes-list-count">{q.trim() ? t('list.resultCount', { count: notes.length }) : t('list.count', { count: notes.length })}</span>
             <select
@@ -1933,6 +2050,7 @@ export default function NotesApp({
         </div>
       </div>
 
+      )}
       {/* ---------- Editor ---------- */}
       <div className="notes-editor">
         {note && conflict?.id === note.id && (
@@ -1985,7 +2103,10 @@ export default function NotesApp({
             focusMode={focusMode}
             onToggleFocus={() => setFocusMode((v) => !v)}
             highlight={highlight}
+            openShare={openRequests && note.id === initialNote?.id}
           />
+        ) : denied ? (
+          <NoteAccessGate key={denied.id} noteId={denied.id} initial={denied.status} />
         ) : (
           <div className="notes-editor-empty">
             {notes.length > 0 && (
@@ -2000,6 +2121,9 @@ export default function NotesApp({
           </div>
         )}
       </div>
+
+        </>
+      )}
 
       {sharingNotebook && (
         <NotebookShareDrawer notebookId={sharingNotebook.id} name={sharingNotebook.name} onClose={() => setSharingNotebook(null)} />

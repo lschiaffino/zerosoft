@@ -7717,6 +7717,89 @@ export const MIGRATIONS: Migration[] = [
       for (const [name, body] of triggers) await client.execute(`CREATE TRIGGER IF NOT EXISTS ${name} ${body}`);
     },
   },
+  {
+    // Notes: tareas con fecha y responsable (por bloque todo), pedidos de acceso,
+    // preferencias por persona (inicio, bloc rápido, dirección de email) y el
+    // texto de imágenes y PDF para la búsqueda (cola con claim por fila).
+    id: '148_notes_parity_tasks_home_files',
+    up: async (client) => {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS note_tasks (
+          note_id TEXT NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+          block_id TEXT NOT NULL,
+          due_date TEXT,
+          assignee_id TEXT,
+          notified_at TEXT,
+          PRIMARY KEY (note_id, block_id)
+        )
+      `);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_note_tasks_assignee ON note_tasks(assignee_id)');
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_note_tasks_due ON note_tasks(due_date, notified_at)');
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS note_access_requests (
+          id TEXT PRIMARY KEY,
+          note_id TEXT NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+          requester_id TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          created_at TEXT NOT NULL,
+          decided_at TEXT,
+          UNIQUE (note_id, requester_id)
+        )
+      `);
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS note_prefs (
+          workspace_id TEXT NOT NULL,
+          person_id TEXT NOT NULL,
+          home TEXT,
+          scratch TEXT NOT NULL DEFAULT '',
+          email_token TEXT UNIQUE,
+          semantic_at TEXT,
+          semantic_warmed_at TEXT,
+          PRIMARY KEY (workspace_id, person_id)
+        )
+      `);
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS note_email_received (
+          email_id TEXT PRIMARY KEY,
+          note_id TEXT,
+          created_at TEXT NOT NULL
+        )
+      `);
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS note_file_text (
+          note_id TEXT NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+          block_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          attempts INTEGER NOT NULL DEFAULT 0,
+          text TEXT NOT NULL DEFAULT '',
+          claimed_at TEXT,
+          queued_at TEXT NOT NULL DEFAULT '',
+          error TEXT,
+          PRIMARY KEY (note_id, block_id)
+        )
+      `);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_note_file_text_queue ON note_file_text(status, workspace_id, queued_at)');
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS note_workspace_settings (
+          workspace_id TEXT PRIMARY KEY,
+          ocr_enabled_at TEXT
+        )
+      `);
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS note_admin_audit (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          actor_id TEXT NOT NULL,
+          action TEXT NOT NULL,
+          detail TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL
+        )
+      `);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_note_admin_audit ON note_admin_audit(workspace_id, created_at)');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
