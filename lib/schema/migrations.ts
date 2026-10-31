@@ -7595,6 +7595,128 @@ export const MIGRATIONS: Migration[] = [
       ]);
     },
   },
+  {
+    // Chat: permisos por bandeja, ruteo por habilidad y carga, contenido en la app,
+    // reportes propios, empresas y atributos, campañas por email.
+    id: '147_chat_parity_inbox_routing_content',
+    async up(client) {
+      await addColumn(client, 'ALTER TABLE chat_widgets ADD COLUMN restricted INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE chat_assignment_rules ADD COLUMN required_skill TEXT');
+      await addColumn(client, "ALTER TABLE chat_outbound ADD COLUMN format TEXT NOT NULL DEFAULT 'message'");
+      await addColumn(client, 'ALTER TABLE chat_visitors ADD COLUMN company_id TEXT');
+      await addColumn(client, 'ALTER TABLE chat_visitors ADD COLUMN attributes TEXT');
+      await addColumn(client, 'ALTER TABLE chat_visitors ADD COLUMN unsubscribed_at TEXT');
+      await addColumn(client, 'ALTER TABLE chat_visitors ADD COLUMN campaign_opt_in_at TEXT');
+      await addColumn(client, 'ALTER TABLE chat_outbound ADD COLUMN expires_at TEXT');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS chat_widget_access (
+          widget_id TEXT NOT NULL REFERENCES chat_widgets(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          PRIMARY KEY (widget_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_widget_access_user ON chat_widget_access(user_id);
+        CREATE TABLE IF NOT EXISTS chat_agent_routing (
+          workspace_id TEXT NOT NULL,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          skills TEXT NOT NULL DEFAULT '[]',
+          capacity INTEGER,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (workspace_id, user_id)
+        );
+        CREATE TABLE IF NOT EXISTS chat_saved_reports (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          created_by TEXT,
+          name TEXT NOT NULL,
+          metric TEXT NOT NULL,
+          group_by TEXT NOT NULL,
+          range_days INTEGER NOT NULL DEFAULT 30,
+          widget_id TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_saved_reports_ws ON chat_saved_reports(workspace_id, name);
+        CREATE TABLE IF NOT EXISTS chat_companies (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          domain TEXT,
+          plan TEXT,
+          notes TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_companies_ws ON chat_companies(workspace_id, name);
+        CREATE INDEX IF NOT EXISTS idx_chat_visitors_company ON chat_visitors(company_id);
+        CREATE TABLE IF NOT EXISTS chat_campaigns (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          widget_id TEXT NOT NULL REFERENCES chat_widgets(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          subject TEXT NOT NULL DEFAULT '',
+          body TEXT NOT NULL DEFAULT '',
+          audience TEXT NOT NULL DEFAULT 'all',
+          status TEXT NOT NULL DEFAULT 'draft',
+          total INTEGER NOT NULL DEFAULT 0,
+          sent INTEGER NOT NULL DEFAULT 0,
+          failed INTEGER NOT NULL DEFAULT 0,
+          created_by TEXT,
+          sent_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_campaigns_ws ON chat_campaigns(workspace_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_chat_campaigns_status ON chat_campaigns(status);
+        CREATE TABLE IF NOT EXISTS chat_campaign_recipients (
+          campaign_id TEXT NOT NULL REFERENCES chat_campaigns(id) ON DELETE CASCADE,
+          visitor_id TEXT NOT NULL REFERENCES chat_visitors(id) ON DELETE CASCADE,
+          email TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          attempts INTEGER NOT NULL DEFAULT 0,
+          next_attempt_at TEXT,
+          claimed_at TEXT,
+          sent_at TEXT,
+          PRIMARY KEY (campaign_id, visitor_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_campaign_rec ON chat_campaign_recipients(campaign_id, status);
+        CREATE TABLE IF NOT EXISTS chat_campaign_usage (
+          workspace_id TEXT NOT NULL,
+          day TEXT NOT NULL,
+          used INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (workspace_id, day)
+        );
+        CREATE TABLE IF NOT EXISTS chat_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          conversation_id TEXT NOT NULL,
+          widget_id TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+      // Feed del tiempo real: cualquier escritura queda anotada (lib/chat-realtime.ts).
+      // OJO: un trigger vive con su tabla. Una migración que reconstruya chat_messages,
+      // chat_conversations, chat_typing o chat_presence (crear _new, copiar, DROP, RENAME)
+      // los pierde y Chat queda sin tiempo real sin ningún error: hay que recrearlos en esa
+      // misma migración. tests/unit/chat-events-triggers.test.ts falla si faltan.
+      const widgetOf = (conversation: string) => `(SELECT widget_id FROM chat_conversations WHERE id = ${conversation})`;
+      const note = (conversation: string) =>
+        `INSERT INTO chat_events (conversation_id, widget_id) SELECT ${conversation}, ${widgetOf(conversation)} WHERE ${widgetOf(conversation)} IS NOT NULL;`;
+      const triggers: Array<[string, string]> = [
+        ['chat_events_msg_ins', `AFTER INSERT ON chat_messages BEGIN ${note('NEW.conversation_id')} END`],
+        // Marcar leídos toca muchas filas de una: un solo aviso por conversación y segundo.
+        ['chat_events_msg_read', `AFTER UPDATE OF read_at ON chat_messages WHEN OLD.read_at IS NULL AND NEW.read_at IS NOT NULL BEGIN INSERT INTO chat_events (conversation_id, widget_id) SELECT NEW.conversation_id, ${widgetOf('NEW.conversation_id')} WHERE ${widgetOf('NEW.conversation_id')} IS NOT NULL AND NOT EXISTS (SELECT 1 FROM chat_events e WHERE e.id = (SELECT MAX(id) FROM chat_events) AND e.conversation_id = NEW.conversation_id AND e.created_at = datetime('now')); END`],
+        ['chat_events_msg_upd', `AFTER UPDATE ON chat_messages WHEN NOT (OLD.read_at IS NULL AND NEW.read_at IS NOT NULL) BEGIN ${note('NEW.conversation_id')} END`],
+        ['chat_events_conv_ins', `AFTER INSERT ON chat_conversations BEGIN ${note('NEW.id')} END`],
+        ['chat_events_conv_upd', `AFTER UPDATE ON chat_conversations BEGIN ${note('NEW.id')} END`],
+        ['chat_events_typing_ins', `AFTER INSERT ON chat_typing BEGIN ${note('NEW.conversation_id')} END`],
+        ['chat_events_typing_upd', `AFTER UPDATE ON chat_typing WHEN OLD.expires_at < strftime('%Y-%m-%dT%H:%M:%fZ', 'now') BEGIN ${note('NEW.conversation_id')} END`],
+        ['chat_events_typing_del', `AFTER DELETE ON chat_typing BEGIN ${note('OLD.conversation_id')} END`],
+        ['chat_events_presence_ins', `AFTER INSERT ON chat_presence BEGIN ${note('NEW.conversation_id')} END`],
+        ['chat_events_presence_upd', `AFTER UPDATE OF typing ON chat_presence WHEN OLD.typing != NEW.typing BEGIN ${note('NEW.conversation_id')} END`],
+        ['chat_events_presence_del', `AFTER DELETE ON chat_presence BEGIN ${note('OLD.conversation_id')} END`],
+      ];
+      for (const [name, body] of triggers) await client.execute(`CREATE TRIGGER IF NOT EXISTS ${name} ${body}`);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

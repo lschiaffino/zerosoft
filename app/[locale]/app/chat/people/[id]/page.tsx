@@ -18,7 +18,7 @@ export default async function ChatVisitorPage(props: { params: Promise<{ locale:
   if (!visitor) notFound();
 
   const widget = await getChatWidget(visitor.widget_id);
-  if (!widget || !canAccessWidget(widget, user)) notFound();
+  if (!widget || !await canAccessWidget(widget, user)) notFound();
 
   return (
     <div className="ui-page">

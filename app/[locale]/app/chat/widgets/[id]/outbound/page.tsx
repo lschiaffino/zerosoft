@@ -12,7 +12,7 @@ export default async function WidgetOutboundPage(props: { params: Promise<{ loca
   const { locale, id } = await props.params;
   const user = await requireUser(locale);
   const widget = await getChatWidget(id);
-  if (!widget || !canAccessWidget(widget, user)) notFound();
+  if (!widget || !await canAccessWidget(widget, user)) notFound();
   return (
     <Suspense fallback={null}>
       <OutboundClient widgetId={widget.id} canManage={isWorkspaceAdmin(user)} />

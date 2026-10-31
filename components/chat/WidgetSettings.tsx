@@ -29,6 +29,8 @@ import {
   type WidgetFormValues,
 } from './widget-form-model';
 
+const WIDGET_LOCALES = ['en', 'es', 'pt', 'fr', 'de', 'it', 'nl', 'pl', 'sv', 'ru', 'tr', 'ja', 'ko', 'zh', 'id'] as const;
+
 const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 /** Lunes primero en la grilla; el índice guardado sigue siendo Date.getDay. */
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
@@ -236,7 +238,7 @@ export default function WidgetSettings({
                 value={values.locale}
                 onChange={(e) => set('locale', e.target.value as WidgetFormValues['locale'])}
               >
-                {(['auto', 'en', 'es', 'pt'] as const).map((l) => (
+                {(['auto', ...WIDGET_LOCALES] as const).map((l) => (
                   <option key={l} value={l}>
                     {t(`widgetForm.locales.${l}`)}
                   </option>

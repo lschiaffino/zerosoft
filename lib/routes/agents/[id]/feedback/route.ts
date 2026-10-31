@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { canSeeAgentConversation } from '@/lib/chat-access';
 import { z } from 'zod';
 import { getCurrentUser } from '@/lib/session';
 import { setMessageFeedback } from '@/lib/agents';
@@ -22,6 +23,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if (!(await visibleAgentRow(user, id))) return notFound();
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return agentError(400, 'invalid_input');
+  if (!(await canSeeAgentConversation(user, parsed.data.conversationId))) return notFound();
   const ok = await setMessageFeedback(user.id, id, { ...parsed.data, createdBy: realUserId(user) });
   if (!ok) return notFound();
   return NextResponse.json({ ok: true });

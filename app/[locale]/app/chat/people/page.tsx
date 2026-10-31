@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
+import { listAccessibleChatWidgets } from '@/lib/chat-access';
 import { requireUser } from '@/lib/session';
-import { listChatWidgets } from '@/lib/chat-data';
 import PageHeader from '@/components/ui/PageHeader';
 import PeopleClient from '@/components/chat/PeopleClient';
 
@@ -11,7 +11,7 @@ export default async function ChatPeoplePage(props: { params: Promise<{ locale: 
 
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'chat' });
-  const widgets = await listChatWidgets(user.id, user.team?.id ?? null);
+  const widgets = await listAccessibleChatWidgets(user);
 
   return (
     <div className="ui-page">

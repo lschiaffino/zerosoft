@@ -1,4 +1,5 @@
 import { getDb } from './db';
+import { filterWidgetAudience } from './chat-audience';
 import type { ChatCannedResponseRow, ChatConversationRow } from './db';
 import {
   getChatConversation,
@@ -153,7 +154,7 @@ export async function applyCannedMacro(
     else {
       const target = actions.assignTo === 'me' ? actingUserId : actions.assignTo;
       const widget = await getChatWidget(conversation.widget_id);
-      const agents = widget ? await listChatAgents(widget.user_id, widget.team_id) : [];
+      const agents = widget ? await filterWidgetAudience(widget, await listChatAgents(widget.user_id, widget.team_id)) : [];
       // Solo agentes del workspace del widget (un id de otro workspace se ignora).
       if (agents.some((a) => a.id === target)) patch.assignedTo = target;
     }
@@ -223,7 +224,7 @@ export async function applyBulkAction(
     case 'assign': {
       if (action.assignedTo) {
         const widget = await getChatWidget(conversation.widget_id);
-        const agents = widget ? await listChatAgents(widget.user_id, widget.team_id) : [];
+        const agents = widget ? await filterWidgetAudience(widget, await listChatAgents(widget.user_id, widget.team_id)) : [];
         if (!agents.some((a) => a.id === action.assignedTo)) return null;
       }
       return (await updateChatConversation(conversation.id, { assignedTo: action.assignedTo })) ?? null;

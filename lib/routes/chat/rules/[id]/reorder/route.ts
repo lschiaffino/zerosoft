@@ -14,7 +14,7 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
   if (!rule) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   const widget = await getChatWidget(rule.widget_id);
   if (!widget) return NextResponse.json({ error: 'not_found' }, { status: 404 });
-  if (!canAccessWidget(widget, user)) {
+  if (!await canAccessWidget(widget, user)) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
 

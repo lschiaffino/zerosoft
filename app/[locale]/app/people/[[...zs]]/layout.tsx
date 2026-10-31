@@ -14,7 +14,7 @@ export default async function Layout(props: { children: ReactNode; params: Promi
   const profile = section?.startsWith('emp_');
   if (profile || (section === 'reviews' && id)) {
     const ctx = await sessionCtx(await requireUser(locale));
-    if (profile && !(await getEmployee(ctx, section as string))) notFound();
+    if (profile && !(await getEmployee(ctx, section as string, { audit: false }))) notFound();
     if (section === 'reviews' && id && !(await getCycle(ctx, id))) notFound();
   }
   return props.children;

@@ -1450,6 +1450,8 @@ export interface TrackIssueActivityRow {
 
 export interface ChatWidgetRow {
   id: string;
+  /** 1 = solo admins y quienes están en chat_widget_access. */
+  restricted?: number;
   team_id: string | null;
   user_id: string;
   name: string;
@@ -1477,6 +1479,11 @@ export interface ChatWidgetRow {
 
 export interface ChatVisitorRow {
   id: string;
+  company_id?: string | null;
+  /** JSON { clave: valor } de atributos propios. */
+  attributes?: string | null;
+  unsubscribed_at?: string | null;
+  campaign_opt_in_at?: string | null;
   widget_id: string;
   external_id: string;
   email: string | null;
@@ -1557,6 +1564,8 @@ export interface ChatAssignmentRuleRow {
   assign_team_id?: string | null;
   /** 1 = reparte entre los miembros del equipo (round robin), aunque la condición sea por palabra u horario. */
   team_round_robin?: 0 | 1;
+  /** Habilidad que hay que tener para recibir esta conversación (chat_agent_routing). */
+  required_skill?: string | null;
   position: number;
   active: 0 | 1;
   created_at: string;

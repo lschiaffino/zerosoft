@@ -1,5 +1,6 @@
 'use client';
 
+import { useChatStream } from './useChatStream';
 import ClientTime from './ClientTime';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -340,11 +341,16 @@ export default function ConversationClient({
     fetchTags();
     markRead();
     void heartbeat();
+    let tick = 0;
     const interval = setInterval(() => {
       if (document.visibilityState !== 'visible') return;
-      fetchMessages();
-      fetchTyping();
-      fetchConversation();
+      tick += 1;
+      // Con el stream conectado los datos llegan por aviso: esto queda de respaldo.
+      if (!streamLive.current || tick % 5 === 0) {
+        fetchMessages();
+        fetchTyping();
+        fetchConversation();
+      }
       void heartbeat();
     }, 3000);
     return () => {
@@ -354,6 +360,12 @@ export default function ConversationClient({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]);
+
+  const streamLive = useChatStream(conversationId, () => {
+    fetchMessages();
+    fetchTyping();
+    fetchConversation();
+  });
 
   // Bajar al último mensaje solo cuando llega uno nuevo, y scrolleando el
   // contenedor del hilo (scrollIntoView movía toda la página y además se

@@ -6,6 +6,7 @@
  * Las corridas salen de agent_runs (056); antes de esa migración no hay.
  */
 import { getDb } from './db';
+import { agentConversationVisibleSql, chatConversationVisibleSql } from './chat-audience';
 import { clusterTopics, type TopicClusters } from './agents-topics';
 
 export const ANALYTICS_RANGES = [7, 30, 90] as const;
@@ -72,8 +73,21 @@ export async function getAgentAnalytics(
   agentId: string,
   days: AnalyticsRange = 30,
   now = new Date(),
+  /** Persona sin rol de admin: sin lo de bandejas de Chat que no ve. */
+  viewerId?: string,
 ): Promise<AgentAnalytics> {
   const db = getDb();
+  const vis = (column: string) => {
+    if (!viewerId) return { sql: '', args: [] as string[] };
+    const v = column.includes('chat_conversation_id') ? chatConversationVisibleSql(column, viewerId) : agentConversationVisibleSql(column, viewerId);
+    return { sql: ` AND ${v.sql}`, args: v.args };
+  };
+  const vc = vis('c.chat_conversation_id');
+  const vbare = vis('chat_conversation_id');
+  const vr = vis('conversation_id');
+  const vt = vis('t.conversation_id');
+  const vf = vis('f.conversation_id');
+  const ve = vis('e.conversation_id');
   const from = new Date(now.getTime() - days * 86_400_000).toISOString();
 
   const conv = (await db
@@ -90,10 +104,10 @@ export async function getAgentAnalytics(
              ELSE EXISTS (SELECT 1 FROM agent_messages m WHERE m.conversation_id = c.id AND m.role = 'assistant' AND m.author_id IS NULL)
            END AS answered
          FROM agent_conversations c
-         WHERE c.user_id = ? AND c.agent_id = ? AND c.channel != 'playground' AND c.created_at >= ?
+         WHERE c.user_id = ? AND c.agent_id = ? AND c.channel != 'playground' AND c.created_at >= ?${vc.sql}
        )`,
     )
-    .get(workspaceId, agentId, from)) as { total: number; handed_off: number; answered: number; resolved: number };
+    .get(workspaceId, agentId, from, ...vc.args)) as { total: number; handed_off: number; answered: number; resolved: number };
 
   const channels = (await db
     .prepare(
@@ -108,19 +122,19 @@ export async function getAgentAnalytics(
              ELSE EXISTS (SELECT 1 FROM agent_messages m WHERE m.conversation_id = c.id AND m.role = 'assistant' AND m.author_id IS NULL)
            END AS answered
          FROM agent_conversations c
-         WHERE c.user_id = ? AND c.agent_id = ? AND c.channel != 'playground' AND c.created_at >= ?
+         WHERE c.user_id = ? AND c.agent_id = ? AND c.channel != 'playground' AND c.created_at >= ?${vc.sql}
        )
        GROUP BY ch ORDER BY conversations DESC`,
     )
-    .all(workspaceId, agentId, from)) as Array<{ channel: string; conversations: number; handed_off: number; resolved: number }>;
+    .all(workspaceId, agentId, from, ...vc.args)) as Array<{ channel: string; conversations: number; handed_off: number; resolved: number }>;
 
   const reasons = (await db
     .prepare(
       `SELECT COALESCE(handoff_reason, '') AS reason, COUNT(*) AS n FROM agent_runs
-       WHERE user_id = ? AND agent_id = ? AND channel != 'playground' AND status = 'handoff' AND created_at >= ?
+       WHERE user_id = ? AND agent_id = ? AND channel != 'playground' AND status = 'handoff' AND created_at >= ?${vr.sql}
        GROUP BY reason ORDER BY n DESC LIMIT 200`,
     )
-    .all(workspaceId, agentId, from)) as Array<{ reason: string; n: number }>;
+    .all(workspaceId, agentId, from, ...vr.args)) as Array<{ reason: string; n: number }>;
   const reasonMap = new Map<string, { kind: 'keyword' | 'model_failure' | 'agent'; reason: string; count: number }>();
   for (const r of reasons) {
     const raw = r.reason.trim();
@@ -135,9 +149,9 @@ export async function getAgentAnalytics(
   const scores = (await db
     .prepare(
       `SELECT csat, sentiment, topic, score, reviewed_at FROM agent_conversations
-       WHERE user_id = ? AND agent_id = ? AND channel != 'playground' AND created_at >= ? AND scored_at IS NOT NULL LIMIT 5000`,
+       WHERE user_id = ? AND agent_id = ? AND channel != 'playground' AND created_at >= ?${vbare.sql} AND scored_at IS NOT NULL LIMIT 5000`,
     )
-    .all(workspaceId, agentId, from)) as Array<{ csat: number | null; sentiment: string | null; topic: string | null; score: string | null; reviewed_at: string | null }>;
+    .all(workspaceId, agentId, from, ...vbare.args)) as Array<{ csat: number | null; sentiment: string | null; topic: string | null; score: string | null; reviewed_at: string | null }>;
   const sentiment = { positive: 0, neutral: 0, negative: 0 };
   const topicsAi = new Map<string, { topic: string; count: number; csat: number }>();
   const criteria = new Map<string, { criterion: string; pass: number; fail: number }>();
@@ -183,9 +197,9 @@ export async function getAgentAnalytics(
   const runs = (await db
     .prepare(
       `SELECT COUNT(*) AS total, COALESCE(SUM(CASE WHEN status = 'step_limit' THEN 1 ELSE 0 END), 0) AS step_limits
-       FROM agent_runs WHERE user_id = ? AND agent_id = ? AND channel != 'playground' AND created_at >= ?`,
+       FROM agent_runs WHERE user_id = ? AND agent_id = ? AND channel != 'playground' AND created_at >= ?${vr.sql}`,
     )
-    .get(workspaceId, agentId, from)) as { total: number; step_limits: number };
+    .get(workspaceId, agentId, from, ...vr.args)) as { total: number; step_limits: number };
 
   const tools = (await db
     .prepare(
@@ -193,33 +207,33 @@ export async function getAgentAnalytics(
          COALESCE(SUM(CASE WHEN t.error IS NOT NULL THEN 1 ELSE 0 END), 0) AS errors,
          COALESCE(AVG(t.duration_ms), 0) AS avg_ms,
          (SELECT e.error FROM agent_tool_calls e JOIN agent_conversations ec ON ec.id = e.conversation_id
-          WHERE e.agent_id = t.agent_id AND e.tool = t.tool AND e.error IS NOT NULL AND ec.channel != 'playground' AND e.created_at >= ?
+          WHERE e.agent_id = t.agent_id AND e.tool = t.tool AND e.error IS NOT NULL AND ec.channel != 'playground' AND e.created_at >= ?${ve.sql}
           ORDER BY e.created_at DESC LIMIT 1) AS last_error
        FROM agent_tool_calls t
        JOIN agent_conversations c ON c.id = t.conversation_id
-       WHERE t.user_id = ? AND t.agent_id = ? AND c.channel != 'playground' AND t.created_at >= ?
+       WHERE t.user_id = ? AND t.agent_id = ? AND c.channel != 'playground' AND t.created_at >= ?${vt.sql}
        GROUP BY t.tool
        ORDER BY errors DESC, calls DESC`,
     )
-    .all(from, workspaceId, agentId, from)) as Array<{ tool: string; calls: number; errors: number; avg_ms: number; last_error: string | null }>;
+    .all(from, ...ve.args, workspaceId, agentId, from, ...vt.args)) as Array<{ tool: string; calls: number; errors: number; avg_ms: number; last_error: string | null }>;
 
   const feedback = (await db
     .prepare(
       `SELECT COALESCE(SUM(CASE WHEN f.rating = 1 THEN 1 ELSE 0 END), 0) AS up,
               COALESCE(SUM(CASE WHEN f.rating = -1 THEN 1 ELSE 0 END), 0) AS down
        FROM agent_feedback f JOIN agent_conversations c ON c.id = f.conversation_id
-       WHERE f.user_id = ? AND f.agent_id = ? AND c.channel != 'playground' AND f.created_at >= ?`,
+       WHERE f.user_id = ? AND f.agent_id = ? AND c.channel != 'playground' AND f.created_at >= ?${vf.sql}`,
     )
-    .get(workspaceId, agentId, from)) as { up: number; down: number };
+    .get(workspaceId, agentId, from, ...vf.args)) as { up: number; down: number };
 
   // Temas: el título es el primer mensaje del visitante (hasta 80 caracteres).
   const docs = (await db
     .prepare(
       `SELECT title, handed_off FROM agent_conversations
-       WHERE user_id = ? AND agent_id = ? AND channel != 'playground' AND created_at >= ?
+       WHERE user_id = ? AND agent_id = ? AND channel != 'playground' AND created_at >= ?${vbare.sql}
        ORDER BY created_at DESC LIMIT 2000`,
     )
-    .all(workspaceId, agentId, from)) as Array<{ title: string; handed_off: number }>;
+    .all(workspaceId, agentId, from, ...vbare.args)) as Array<{ title: string; handed_off: number }>;
 
   const total = Number(conv?.total ?? 0);
   const handedOff = Number(conv?.handed_off ?? 0);

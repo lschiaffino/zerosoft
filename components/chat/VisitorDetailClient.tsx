@@ -1,5 +1,6 @@
 'use client';
 
+import VisitorProfile from './VisitorProfile';
 import ClientTime from './ClientTime';
 import { useState } from 'react';
 import { Link } from '@/i18n/navigation';
@@ -99,7 +100,10 @@ export default function VisitorDetailClient({ initialVisitor }: VisitorDetailCli
             {visitor.email && (
               <div>
                 <dt>{t('visitorPanel.email')}</dt>
-                <dd className="data">{visitor.email}</dd>
+                <dd className="data chat-email">
+                  {visitor.email.split('@')[0]}
+                  <wbr />@{visitor.email.split('@').slice(1).join('@')}
+                </dd>
                 <dd className="ui-help">
                   {visitor.email_verified === 1 ? t('visitorPanel.emailVerified') : t('visitorPanel.emailUnverified')}
                 </dd>
@@ -114,6 +118,10 @@ export default function VisitorDetailClient({ initialVisitor }: VisitorDetailCli
               <dd className="data">{visitor.total_messages}</dd>
             </div>
           </dl>
+        </section>
+
+        <section className="panel chat-person-panel">
+          <VisitorProfile visitorId={visitor.id} />
         </section>
 
         <section className="panel chat-person-panel" aria-labelledby="chat-person-notes">

@@ -6,6 +6,7 @@
  * para el filtro por rol y app.
  */
 import { z } from 'zod';
+import { listAccessibleChatWidgets } from '../chat-access';
 import type { SessionUser } from '../session';
 import { getDb } from '../db';
 import { appFromPath, ensureWorkspace, listTeamPeople, userCanUseApp } from '../workspace';
@@ -800,7 +801,7 @@ const comms: AssistantTool[] = [
     description: 'Recent Chat (website live chat) conversations, optionally only open ones.',
     input: z.object({ status: z.enum(['open', 'closed', 'snoozed']).optional() }),
     run: async (ctx, { status }) => {
-      const widgets = await listChatWidgets(ctx.workspaceId, teamOf(ctx.user));
+      const widgets = await listAccessibleChatWidgets(ctx.user);
       if (!widgets.length) return { conversations: [], note: 'No chat widgets yet.' };
       const rows = await listChatConversations(widgets.map((w) => w.id), { status, limit: 20, teamId: teamOf(ctx.user) } as Parameters<typeof listChatConversations>[1]);
       return { conversations: rows.map((c) => ({ ...pick(c, ['id', 'status', 'visitor_name', 'visitor_email', 'last_message_at', 'subject']), href: `/app/chat/inbox?c=${c.id}` })) };

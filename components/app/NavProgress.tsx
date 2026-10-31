@@ -28,6 +28,8 @@ export default function NavProgress() {
       const a = e.target instanceof Element ? e.target.closest<HTMLAnchorElement>('a[href]') : null;
       if (!a || a.target === '_blank' || a.hasAttribute('download')) return;
       const url = new URL(a.href, window.location.href);
+      // Las exportaciones son descargas sin atributo download: la página no cambia.
+      if (url.pathname.startsWith('/api/')) return;
       if (url.origin !== window.location.origin) return;
       if (url.pathname === window.location.pathname && url.search === window.location.search) return;
       setPending(true);

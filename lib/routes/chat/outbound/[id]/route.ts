@@ -16,7 +16,7 @@ async function guard(id: string) {
   if (!user) return { error: NextResponse.json({ error: 'unauthorized' }, { status: 401 }) };
   const message = await getOutbound(id);
   const widget = message ? await getChatWidget(message.widget_id) : undefined;
-  if (!message || !canAccessWidget(widget, user)) return { error: NextResponse.json({ error: 'not_found' }, { status: 404 }) };
+  if (!message || !await canAccessWidget(widget, user)) return { error: NextResponse.json({ error: 'not_found' }, { status: 404 }) };
   return { user, message };
 }
 

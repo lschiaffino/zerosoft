@@ -9,6 +9,7 @@
  * escriben no se ejecutan) y la conversación temporal se borra al terminar.
  * Server-only.
  */
+import { chatConversationVisibleSql } from './chat-audience';
 import { z } from 'zod';
 import { getDb } from './db';
 import type { AgentConversationRow, AgentRow } from './db';
@@ -125,16 +126,18 @@ export interface ReplayCandidateDto {
 }
 
 /** Conversaciones reales recientes (sin el playground) con al menos un mensaje del visitante. */
-export async function listReplayCandidates(workspaceId: string, agentId: string, limit = 10): Promise<ReplayCandidateDto[]> {
+export async function listReplayCandidates(workspaceId: string, agentId: string, limit = 10, viewerId?: string): Promise<ReplayCandidateDto[]> {
+  // El título es el primer mensaje del visitante: sin acceso a la bandeja, no se lista.
+  const visible = viewerId ? chatConversationVisibleSql('c.chat_conversation_id', viewerId) : null;
   const rows = (await getDb()
     .prepare(
       `SELECT c.id, c.title, c.channel, c.updated_at FROM agent_conversations c
        WHERE c.user_id = ? AND c.agent_id = ? AND c.channel != 'playground'
          AND (EXISTS (SELECT 1 FROM agent_messages m WHERE m.conversation_id = c.id AND m.role = 'user')
-           OR EXISTS (SELECT 1 FROM chat_messages m WHERE m.conversation_id = c.chat_conversation_id AND m.sender_type = 'visitor'))
+           OR EXISTS (SELECT 1 FROM chat_messages m WHERE m.conversation_id = c.chat_conversation_id AND m.sender_type = 'visitor'))${visible ? ` AND ${visible.sql}` : ''}
        ORDER BY c.updated_at DESC LIMIT ?`,
     )
-    .all(workspaceId, agentId, Math.min(Math.max(limit, 1), 20))) as Array<{ id: string; title: string; channel: string; updated_at: string }>;
+    .all(workspaceId, agentId, ...(visible?.args ?? []), Math.min(Math.max(limit, 1), 20))) as Array<{ id: string; title: string; channel: string; updated_at: string }>;
   return rows.map((r) => ({ id: r.id, title: r.title, channel: r.channel, updatedAt: r.updated_at }));
 }
 

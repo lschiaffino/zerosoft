@@ -1,3 +1,4 @@
+import { createClient } from '@libsql/client';
 import { expect, test, type Page } from '@playwright/test';
 
 /** Regresiones de la auditoría de UI: arreglos compartidos y errores funcionales. */
@@ -191,4 +192,22 @@ test('Sin errores de hidratación en Link y Books', async ({ page }) => {
     await page.goto(`/${path}`, { waitUntil: 'networkidle' });
   }
   expect(errors).toEqual([]);
+});
+
+test('abrir un perfil de People deja una sola fila en la auditoría de datos personales', async ({ page, request }) => {
+  const created = await request.post('/api/people/employees', { data: { name: `Auditada ${uid()}` } });
+  expect(created.ok()).toBe(true);
+  const { employee } = (await created.json()) as { employee: { id: string } };
+  const views = async () => {
+    const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+    try {
+      const { rows } = await db.execute({ sql: "SELECT COUNT(*) AS n FROM people_audit WHERE employee_id = ? AND action = 'view' AND field = 'personal'", args: [employee.id] });
+      return Number(rows[0].n);
+    } finally {
+      db.close();
+    }
+  };
+  const before = await views();
+  await page.goto(`/es/app/people/${employee.id}`, { waitUntil: 'networkidle' });
+  expect((await views()) - before).toBe(1);
 });

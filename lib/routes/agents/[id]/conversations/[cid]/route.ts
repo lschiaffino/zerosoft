@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { canSeeAgentConversation } from '@/lib/chat-access';
 import { z } from 'zod';
 import { addTeammateReply, getConversationDetail, getConversationRow } from '@/lib/agents';
 import { agentError, agentRouteContext, notFound, realUserId } from '@/lib/agents-http';
@@ -17,6 +18,7 @@ export async function GET(_req: NextRequest, props: Ctx) {
   const ctx = await agentRouteContext(id);
   if ('res' in ctx) return ctx.res;
   const { user } = ctx;
+  if (!(await canSeeAgentConversation(user, cid))) return notFound();
   const detail = await getConversationDetail(user.id, id, cid, user.actingUser?.id ?? user.id);
   if (!detail) return notFound();
   const row = await getConversationRow(cid);
@@ -58,6 +60,7 @@ export async function PATCH(req: NextRequest, props: Ctx) {
   if (!parsed.success) return agentError(400, 'invalid_input');
   const conv = await getConversationRow(cid);
   if (!conv || conv.user_id !== ctx.user.id || conv.agent_id !== id) return notFound();
+  if (!(await canSeeAgentConversation(ctx.user, cid))) return notFound();
   if (parsed.data.block) {
     const res = await blockConversationVisitor(ctx.user.id, id, conv, ctx.personId);
     if (!res.ok) return agentError(400, res.error);

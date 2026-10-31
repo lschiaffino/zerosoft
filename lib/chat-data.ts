@@ -1,5 +1,7 @@
 import { listOwnerSpacePeople } from './workspace';
+import type { WidgetLocaleSetting } from './chat-widget-i18n';
 import { getDb, getUserById } from './db';
+import { filterWidgetAudience, isRestricted, personCanSeeWidget } from './chat-audience';
 import { withVisibleContent } from './docs-visible';
 import { emitChatEvent, emitConversationChanges, toApiMessage } from './chat-api';
 import { inlineHtmlToText } from './docs-markdown';
@@ -87,7 +89,7 @@ export interface WidgetCreatePayload {
   botSource?: 'canned' | 'docs' | 'ai' | 'agent';
   officeHours?: OfficeHoursConfig | null;
   helpEnabled?: boolean;
-  locale?: 'auto' | 'en' | 'es' | 'pt';
+  locale?: WidgetLocaleSetting;
   /** Minutos sin leer antes de avisar por email al visitante (0 = nunca). */
   offlineEmailMinutes?: number;
   /** Atributos de conversación (lib/chat-attributes.ts). */
@@ -105,7 +107,7 @@ export interface WidgetUpdatePayload {
   botSource?: 'canned' | 'docs' | 'ai' | 'agent';
   officeHours?: OfficeHoursConfig | null;
   helpEnabled?: boolean;
-  locale?: 'auto' | 'en' | 'es' | 'pt';
+  locale?: WidgetLocaleSetting;
   /** Minutos sin leer antes de avisar por email al visitante (0 = nunca). */
   offlineEmailMinutes?: number;
   /** Atributos de conversación (lib/chat-attributes.ts). */
@@ -530,14 +532,24 @@ async function applyVisitorIdentity(existing: ChatVisitorRow, payload?: VisitorP
   if (isReservedVisitorKey(existing.external_id)) return existing;
   if (payload?.verified && payload.email) {
     await db
-      .prepare('UPDATE chat_visitors SET email = ?, name = COALESCE(?, name), email_verified = 1 WHERE id = ?')
-      .run(payload.email, payload.name ?? null, existing.id);
+      .prepare(
+        `UPDATE chat_visitors SET name = COALESCE(?, name), email_verified = 1,
+           campaign_opt_in_at = CASE WHEN LOWER(COALESCE(email, '')) = LOWER(?) THEN campaign_opt_in_at ELSE NULL END,
+           email = ?
+         WHERE id = ?`,
+      )
+      .run(payload.name ?? null, payload.email, payload.email, existing.id);
   } else if (existing.email_verified === 1 || !(payload?.email || payload?.name)) {
     return existing;
   } else {
     await db
-      .prepare('UPDATE chat_visitors SET email = COALESCE(?, email), name = COALESCE(?, name) WHERE id = ?')
-      .run(payload.email ?? null, payload.name ?? null, existing.id);
+      .prepare(
+        `UPDATE chat_visitors SET name = COALESCE(?, name),
+           campaign_opt_in_at = CASE WHEN ? IS NULL OR LOWER(COALESCE(email, '')) = LOWER(?) THEN campaign_opt_in_at ELSE NULL END,
+           email = COALESCE(?, email)
+         WHERE id = ?`,
+      )
+      .run(payload.name ?? null, payload.email ?? null, payload.email ?? null, payload.email ?? null, existing.id);
   }
   return (await db.prepare('SELECT * FROM chat_visitors WHERE id = ?').get(existing.id)) as ChatVisitorRow;
 }
@@ -683,6 +695,8 @@ export async function updateChatVisitor(
     if (email !== existing.email) {
       fields.push('email_verified = ?');
       args.push(email && payload.emailVerified ? 1 : 0);
+      // El consentimiento era de la dirección anterior.
+      fields.push('campaign_opt_in_at = NULL');
     }
   }
   if (payload.notes !== undefined) {
@@ -1248,6 +1262,8 @@ async function emitConversationEvents(before: ChatConversationRow, after: ChatCo
   if (!resolved && !assigned) return;
   const widget = await getChatWidget(after.widget_id);
   if (!widget) return;
+  // Bandeja restringida: lo de adentro no sale a Flow (los flows los ve otra gente).
+  if (isRestricted(widget)) return;
   const { emitEvent } = await import('./events');
   const base = conversationEventBase(after, widget);
   if (assigned) {
@@ -1344,7 +1360,7 @@ export async function setChatAgentAway(
   let reassigned = 0;
   if (away && opts.reassign && opts.widgets?.length) {
     for (const widget of opts.widgets) {
-      const agents = (await listChatAgents(widget.user_id, widget.team_id)).filter((a) => a.id !== userId);
+      const agents = await filterWidgetAudience(widget, (await listChatAgents(widget.user_id, widget.team_id)).filter((a) => a.id !== userId));
       const rows = (await db
         .prepare(
           `SELECT id FROM chat_conversations
@@ -1368,6 +1384,16 @@ export async function setChatAgentAway(
   return { away, reassigned };
 }
 
+/** Habilidades guardadas (JSON) como lista normalizada. */
+export function parseSkills(raw: string | null | undefined): string[] {
+  try {
+    const v = JSON.parse(raw ?? '[]') as unknown;
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string').map((x) => x.trim().toLowerCase()).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Siguiente agente del round-robin: el de menos carga ACTIVA (open/pending),
  * no el histórico (si no, un agente nuevo absorbería todas las entrantes
@@ -1379,7 +1405,7 @@ export async function pickRoundRobinAgent(
   conversationId: string,
   candidates: ChatAgent[],
 ): Promise<string | null> {
-  const available = candidates.filter((a) => !a.away);
+  let available = candidates.filter((a) => !a.away);
   if (available.length === 0) return null;
   const rows = (await getDb()
     .prepare(
@@ -1392,6 +1418,24 @@ export async function pickRoundRobinAgent(
     )
     .all(widgetId, conversationId)) as Array<{ assigned_to: string; active: number; last_at: string | null }>;
   const stats = new Map(rows.map((r) => [r.assigned_to, r]));
+  // Límite de carga (chat_agent_routing): quien llegó a su tope no recibe más.
+  const limits = (await getDb()
+    .prepare('SELECT user_id, capacity FROM chat_agent_routing WHERE workspace_id = (SELECT user_id FROM chat_widgets WHERE id = ?) AND capacity IS NOT NULL')
+    .all(widgetId)) as Array<{ user_id: string; capacity: number }>;
+  if (limits.length > 0) {
+    // La carga es de la persona: cuenta sus conversaciones activas en todos los widgets del workspace.
+    const open = (await getDb()
+      .prepare(
+        `SELECT c.assigned_to, COUNT(*) AS n FROM chat_conversations c JOIN chat_widgets w ON w.id = c.widget_id
+         WHERE w.user_id = (SELECT user_id FROM chat_widgets WHERE id = ?) AND c.assigned_to IS NOT NULL AND c.id != ? AND c.status IN ('open', 'pending')
+         GROUP BY c.assigned_to`,
+      )
+      .all(widgetId, conversationId)) as Array<{ assigned_to: string; n: number }>;
+    const load = new Map(open.map((r) => [r.assigned_to, Number(r.n)]));
+    const cap = new Map(limits.map((l) => [l.user_id, Number(l.capacity)]));
+    available = available.filter((a) => !cap.has(a.id) || (load.get(a.id) ?? 0) < (cap.get(a.id) as number));
+    if (available.length === 0) return null;
+  }
   const sorted = [...available].sort((a, b) => {
     const sa = stats.get(a.id);
     const sb = stats.get(b.id);
@@ -1404,7 +1448,8 @@ export async function pickRoundRobinAgent(
 
 /** El usuario atiende el widget (owner en un workspace personal o miembro del team). */
 export async function isChatAgentOfWidget(widget: ChatWidgetRow, userId: string): Promise<boolean> {
-  return (await listChatAgents(widget.user_id, widget.team_id)).some((a) => a.id === userId);
+  if (!(await listChatAgents(widget.user_id, widget.team_id)).some((a) => a.id === userId)) return false;
+  return personCanSeeWidget(widget, userId);
 }
 
 // ---------- Assignment rules ----------
@@ -1418,6 +1463,7 @@ export interface AssignmentRulePayload {
   assignTeamId?: string | null;
   /** Con equipo: repartir entre sus miembros. */
   teamRoundRobin?: boolean;
+  requiredSkill?: string | null;
   position?: number;
   active?: boolean;
 }
@@ -1450,7 +1496,7 @@ export async function createAssignmentRule(
 
   await db
     .prepare(
-      'INSERT INTO chat_assignment_rules (id, widget_id, name, match_type, match_value, assign_to, assign_team_id, team_round_robin, position, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO chat_assignment_rules (id, widget_id, name, match_type, match_value, assign_to, assign_team_id, team_round_robin, required_skill, position, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     )
     .run(
       id,
@@ -1461,6 +1507,7 @@ export async function createAssignmentRule(
       payload.assignTo ?? null,
       payload.assignTeamId ?? null,
       payload.teamRoundRobin && payload.assignTeamId ? 1 : 0,
+      payload.requiredSkill?.trim().toLowerCase() || null,
       position,
       payload.active === false ? 0 : 1,
       now,
@@ -1512,6 +1559,10 @@ export async function updateAssignmentRule(
   if (payload.active !== undefined) {
     fields.push('active = ?');
     args.push(payload.active ? 1 : 0);
+  }
+  if (payload.requiredSkill !== undefined) {
+    fields.push('required_skill = ?');
+    args.push(payload.requiredSkill?.trim().toLowerCase() || null);
   }
 
   if (fields.length > 0) {
@@ -1578,6 +1629,9 @@ export async function applyAssignmentRules(
   teamMembers: ChatAgent[],
 ): Promise<string | null> {
   const db = getDb();
+  // Bandeja restringida: solo reciben conversaciones quienes pueden verla.
+  const audienceWidget = await getChatWidget(widgetId);
+  if (audienceWidget) teamMembers = await filterWidgetAudience(audienceWidget, teamMembers);
   // No pisar una asignación existente (manual o previa): las reglas solo
   // auto-asignan conversaciones sin dueño.
   const current = await getChatConversation(conversationId);
@@ -1627,7 +1681,18 @@ export async function applyAssignmentRules(
       }
     }
 
-    if ((rule.match_type === 'round_robin' || (teamId && rule.team_round_robin === 1)) && candidates.length > 0) {
+    // Ruteo por habilidad: la regla reparte solo entre quienes tienen la habilidad.
+    const skill = rule.required_skill?.trim().toLowerCase();
+    if (skill) {
+      const skilled = (await db
+        .prepare('SELECT user_id, skills FROM chat_agent_routing WHERE workspace_id = (SELECT user_id FROM chat_widgets WHERE id = ?)')
+        .all(widgetId)) as Array<{ user_id: string; skills: string }>;
+      const ids = new Set(skilled.filter((r) => parseSkills(r.skills).includes(skill)).map((r) => r.user_id));
+      candidates = candidates.filter((m) => ids.has(m.id));
+      assignTo = null;
+    }
+
+    if ((skill || rule.match_type === 'round_robin' || (teamId && rule.team_round_robin === 1)) && candidates.length > 0) {
       // Saltea a los ausentes; si están todos ausentes, la regla no asigna
       // y sigue la próxima (salvo que asigne un equipo).
       assignTo = await pickRoundRobinAgent(widgetId, conversationId, candidates);
@@ -2436,7 +2501,7 @@ export async function submitConversationCsat(
   const conv = await getChatConversation(conversationId);
   if (conv && res.changes === 1) {
     const widget = await getChatWidget(conv.widget_id);
-    if (widget) {
+    if (widget && !isRestricted(widget)) {
       const { emitEvent } = await import('./events');
       await emitEvent(widget.user_id, 'conversation.rated', {
         ...conversationEventBase(conv, widget),

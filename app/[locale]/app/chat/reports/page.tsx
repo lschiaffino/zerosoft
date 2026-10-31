@@ -1,9 +1,12 @@
 import { getTranslations } from 'next-intl/server';
+import { listAccessibleChatWidgets } from '@/lib/chat-access';
 import { isWorkspaceAdmin, requireUser } from '@/lib/session';
-import { listChatWidgets, parseOfficeHours } from '@/lib/chat-data';
+import { parseOfficeHours } from '@/lib/chat-data';
 import { getChatRangeReport, parseReportRange } from '@/lib/chat-inbox';
 import { getChatBreakdownReport, type BreakdownRow } from '@/lib/chat-reports';
 import { formatNumber } from '@/lib/utils';
+import { Link } from '@/i18n/navigation';
+import { getChatInsights } from '@/lib/chat-insights';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 
@@ -32,12 +35,13 @@ export default async function ChatReportsPage(props: {
 
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'chat' });
-  const widgets = await listChatWidgets(user.id, user.team?.id ?? null);
+  const widgets = await listAccessibleChatWidgets(user);
   const range = parseReportRange(sp.from, sp.to);
   const report = await getChatRangeReport(widgets.map((w) => w.id), range);
   // Horas pico en la zona del horario de atención del primer widget que la tenga (si no, UTC).
   const timeZone = widgets.map((w) => parseOfficeHours(w.office_hours)?.timezone).find(Boolean) ?? 'UTC';
   const breakdown = await getChatBreakdownReport(widgets.map((w) => w.id), range, { timeZone });
+  const insights = await getChatInsights(widgets.map((w) => w.id), range);
   const pct = (n: number, d: number) => (d > 0 ? `${formatNumber(Math.round((n / d) * 100), locale)}%` : '–');
   const maxHour = Math.max(1, ...breakdown.hours.flat());
   const days = [1, 2, 3, 4, 5, 6, 0];
@@ -120,6 +124,12 @@ export default async function ChatReportsPage(props: {
         description={t('reports.subtitle')}
         actions={
           <>
+            <Link className="btn btn-ghost" href="/app/chat/import">
+              {t('importer.title')}
+            </Link>
+            <Link className="btn btn-secondary" href="/app/chat/reports/custom">
+              {t('reportsCustom.title')}
+            </Link>
             <a className="btn btn-secondary" href={csvHref} download>
               {t('reports.exportCsv')}
             </a>
@@ -342,6 +352,47 @@ export default async function ChatReportsPage(props: {
           </table>
         </div>
         <p className="ui-help">{t('reports.hoursNote', { zone: breakdown.timeZone })}</p>
+      </section>
+      <section className="chat-pane" aria-labelledby="chat-insights-title">
+        <div className="chat-pane-head">
+          <h2 id="chat-insights-title" className="ui-section-title">
+            {t('insights.title')}
+          </h2>
+        </div>
+        <p className="ui-help">{t('insights.sub', { count: insights.analyzed })}</p>
+        <p className="chat-insights-score">
+          <span className="chat-quiet">{t('insights.cxScore')}</span> <strong className="data">{insights.cxScore ?? '–'}</strong>
+          <span className="chat-quiet"> / 100</span>
+        </p>
+        <p className="ui-help">{t('insights.cxHelp')}</p>
+        {insights.topics.length === 0 ? (
+          <p className="chat-quiet">{t('insights.noTopics')}</p>
+        ) : (
+          <div className="table-wrap chat-stack">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th scope="col">{t('insights.topic')}</th>
+                  <th scope="col" className="num">
+                    {t('reports.conversations')}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {insights.topics.map((x) => (
+                  <tr key={x.term}>
+                    <td>
+                      <Link className="cell-link" href={`/app/chat/inbox?q=${encodeURIComponent(x.term)}&status=all`}>
+                        {x.term}
+                      </Link>
+                    </td>
+                    <td className="num data">{formatNumber(x.conversations, locale)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </div>
   );

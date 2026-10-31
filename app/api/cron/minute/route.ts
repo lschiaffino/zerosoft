@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fireDueTasks } from '@/lib/crm';
 import { processFlowQueue } from '@/lib/flow-worker';
 import { sendOfflineReplyEmails } from '@/lib/chat-offline-email';
+import { processChatCampaigns } from '@/lib/chat-campaigns';
+import { pruneChatEvents } from '@/lib/chat-realtime';
 import { fireNoteReminders } from '@/lib/notes-reminders';
 import { fireDocReminders } from '@/lib/docs-reminders';
 import { fireIssueReminders, sendImmediateTrackEmails } from '@/lib/track-notify';
@@ -62,6 +64,8 @@ export async function GET(req: NextRequest) {
   // Reintentos de webhooks con backoff (1m, 5m, 30m…): claim por entrega en claimed_until.
   const webhookRetries = await retryDueWebhooks(100).catch(() => null);
   const chatEmails = await sendOfflineReplyEmails({ limit: 200 }).catch(() => null);
+  const chatCampaigns = await processChatCampaigns({ limit: 90 }).catch(() => null);
+  await pruneChatEvents().catch(() => null);
   const noteReminders = await fireNoteReminders({ limit: 200 }).catch(() => null);
   const docReminders = await fireDocReminders({ limit: 200 }).catch(() => null);
   const trackReminders = await fireIssueReminders({ limit: 200 }).catch(() => null);
@@ -100,5 +104,5 @@ export async function GET(req: NextRequest) {
   const imports = await processImportJobs({ budgetMs: Math.max(5_000, IMPORT_BUDGET_MS - (Date.now() - start)) }).catch(() => null);
   // Imports del CRM con lo que queda de los 300 s (dejando margen).
   const crmImports = await processCrmImportJobs({ budgetMs: Math.max(0, CRM_IMPORT_BUDGET_MS - (Date.now() - start)) }).catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, noteReminders, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, groups, voice, crmAiRuns, docsEvents, docsSync, rec, shopExpired, talk, social, agentSitemaps, agentPages, agentSources, agentEmbeddings, flow, imports, crmImports });
+  return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, chatCampaigns, noteReminders, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, groups, voice, crmAiRuns, docsEvents, docsSync, rec, shopExpired, talk, social, agentSitemaps, agentPages, agentSources, agentEmbeddings, flow, imports, crmImports });
 }

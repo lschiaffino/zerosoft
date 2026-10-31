@@ -20,7 +20,7 @@ async function canAccessResponse(
   const widget = await getChatWidget(response.widget_id);
   // canAccessWidget: antes `widget.team_id !== user.team?.id` dejaba pasar a
   // cualquier usuario sin team sobre widgets personales ajenos (null === null).
-  if (!canAccessWidget(widget, user)) return { ok: false, response: null };
+  if (!await canAccessWidget(widget, user)) return { ok: false, response: null };
   return { ok: true, response };
 }
 

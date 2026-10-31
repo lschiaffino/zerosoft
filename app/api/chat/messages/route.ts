@@ -22,6 +22,7 @@ import { afterVisitorMessage } from '@/lib/chat-visitor-message';
 import { visitorMessageLimitsSchema } from '@/lib/chat-schema';
 import { startFromOutbound } from '@/lib/chat-outbound-start';
 import { cleanPublicVisitorKey } from '@/lib/chat-visitor-key';
+import { setCampaignOptIn } from '@/lib/chat-companies';
 
 export const dynamic = 'force-dynamic';
 
@@ -99,6 +100,10 @@ export async function POST(req: Request) {
   const verified = await verifyVisitorIdentity(widgetId, identity.email, body.userHash);
   if (!identity.email && answers.email) identity.email = answers.email;
   let visitor = await getOrCreateChatVisitor(widgetId, visitorExternalId, { ...identity, verified });
+  // Consentimiento para campañas: solo si el sitio firmó la identidad. Sin firma cualquiera podría anotar un email ajeno.
+  if (verified && body.campaignOptIn === true && !visitor.campaign_opt_in_at && visitor.email === identity.email?.toLowerCase()) {
+    await setCampaignOptIn(visitor.id, true);
+  }
   // Respuestas del formulario y la página desde la que escribe (panel del inbox).
   visitor = await saveVisitorContext(visitor, {
     form: answers.entries.length > 0 ? Object.fromEntries(answers.entries.map((e) => [e.label, e.value])) : undefined,

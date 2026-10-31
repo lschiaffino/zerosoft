@@ -23,11 +23,12 @@ interface RuleForm {
   assignTo: string;
   teamId: string;
   teamRoundRobin: boolean;
+  requiredSkill: string;
   active: boolean;
 }
 
 function emptyForm(): RuleForm {
-  return { name: '', matchType: 'all', matchValue: '', assignTo: '', teamId: '', teamRoundRobin: false, active: true };
+  return { name: '', matchType: 'all', matchValue: '', assignTo: '', teamId: '', teamRoundRobin: false, requiredSkill: '', active: true };
 }
 
 /**
@@ -75,6 +76,7 @@ export default function RulesClient({ widgetId, agents, teams = [], timeZone }: 
       assignTo: rule.assign_to ?? '',
       teamId: rule.assign_team_id ?? '',
       teamRoundRobin: rule.team_round_robin === 1,
+      requiredSkill: rule.required_skill ?? '',
       active: rule.active === 1,
     });
   }
@@ -102,6 +104,7 @@ export default function RulesClient({ widgetId, agents, teams = [], timeZone }: 
         assignTo: form.matchType === 'round_robin' || (form.teamId && form.teamRoundRobin) ? null : form.assignTo || null,
         assignTeamId: form.teamId || null,
         teamRoundRobin: !!form.teamId && form.teamRoundRobin,
+        requiredSkill: form.requiredSkill.trim() || null,
         active: form.active,
       };
       const isNew = editingId === 'new';
@@ -403,6 +406,20 @@ export default function RulesClient({ widgetId, agents, teams = [], timeZone }: 
               )}
             </div>
           )}
+          <div className="ui-field">
+            <label className="label" htmlFor="rule-skill">
+              {t('routing.requiredSkill')}
+            </label>
+            <input
+              id="rule-skill"
+              className="input"
+              maxLength={40}
+              value={form.requiredSkill}
+              placeholder={t('routing.skillPlaceholder')}
+              onChange={(e) => setForm((f) => ({ ...f, requiredSkill: e.target.value }))}
+            />
+            <p className="ui-help">{t('routing.requiredSkillHint')}</p>
+          </div>
           {form.matchType === 'keyword' && (
             <div className="ui-field">
               <label className="label" htmlFor="rule-keyword">

@@ -1,4 +1,5 @@
 import { getDb } from '@/lib/db';
+import { roleAtLeast } from '@/lib/teams';
 import { likeContains } from '@/lib/track-views';
 import { trackVisibleSql } from '@/lib/track-access';
 import { boardViewer, boardVisibleSql } from '@/lib/board-access';
@@ -43,6 +44,9 @@ export interface AppSearchItem {
     | 'chatViews'
     | 'chatTeams'
     | 'chatOutbound'
+    | 'chatCompanies'
+    | 'chatReports'
+    | 'chatCampaigns'
     | 'flows'
     | 'agents'
     | 'robots'
@@ -106,7 +110,11 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
   const visible = trackVisibleSql('p', user.actingUser?.id ?? user.id);
   const projectWhere = teamId ? `p.team_id = ? AND ${visible.sql}` : `(p.team_id IS NULL AND p.owner_id = ? AND ${visible.sql})`;
   const projectArgs = [teamId ?? user.id, ...visible.args];
-  const widgetWhere = teamId ? 'team_id = ?' : 'user_id = ?';
+  // Bandejas restringidas: solo para admins y quien está en su lista (lib/chat-access.ts).
+  const widgetVisible = user.role && roleAtLeast(user.role, 'admin')
+    ? ''
+    : ` AND (restricted = 0 OR id IN (SELECT widget_id FROM chat_widget_access WHERE user_id = '${(user.actingUser?.id ?? user.id).replace(/'/g, "''")}'))`;
+  const widgetWhere = `${teamId ? 'team_id = ?' : 'user_id = ?'}${widgetVisible}`;
   // Pizarras: las restringidas solo para quien tiene acceso, como la lista.
   const boardsVisible = boardVisibleSql(boardViewer(user));
   const boardFolders = await all(`SELECT id, name AS label FROM board_folders WHERE workspace_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT ?`, user.id, like);
@@ -430,7 +438,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
 
   // Chat: conversaciones (asunto, visitante o texto), personas, vistas guardadas y equipos.
   const chatWidgets = `SELECT id FROM chat_widgets WHERE ${widgetWhere}`;
-  const [chatConversations, chatPeople, chatViews, chatTeams, chatOutbound] = await Promise.all([
+  const [chatConversations, chatPeople, chatViews, chatTeams, chatOutbound, chatCompanies, chatReports, chatCampaigns] = await Promise.all([
     all(
       `SELECT c.id, COALESCE(NULLIF(v.name, ''), NULLIF(v.email, ''), NULLIF(c.subject, ''), 'Visitor') AS label,
               COALESCE(NULLIF(c.subject, ''), substr((SELECT m.body FROM chat_messages m WHERE m.conversation_id = c.id AND m.deleted_at IS NULL ORDER BY m.created_at DESC LIMIT 1), 1, 80)) AS meta
@@ -464,6 +472,9 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       teamId ?? user.id,
       like,
     ),
+    all(`SELECT id, name AS label, domain AS meta FROM chat_companies WHERE workspace_id = ? AND (name LIKE ? ESCAPE '\\' OR domain LIKE ? ESCAPE '\\') ORDER BY name LIMIT ?`, user.id, like, like),
+    all(`SELECT id, name AS label FROM chat_saved_reports WHERE workspace_id = ? AND (widget_id IS NULL OR widget_id IN (${chatWidgets})) AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT ?`, user.id, teamId ?? user.id, like),
+    all(`SELECT id, name AS label FROM chat_campaigns WHERE widget_id IN (${chatWidgets}) AND name LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?`, teamId ?? user.id, like),
   ]);
 
   const map = (rows: Row[], group: AppSearchItem['group'], href: (id: string) => string): AppSearchItem[] =>
@@ -513,6 +524,9 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ...map(chatPeople, 'chatPeople', (id) => `/app/chat/people/${id}`),
     ...map(chatViews, 'chatViews', (id) => `/app/chat/inbox?view=${id}`),
     ...map(chatTeams, 'chatTeams', (id) => `/app/chat/inbox?team=${id}`),
+    ...map(chatCompanies, 'chatCompanies', (id) => `/app/chat/companies?open=${id}`),
+    ...map(chatReports, 'chatReports', (id) => `/app/chat/reports/custom?report=${id}`),
+    ...map(chatCampaigns, 'chatCampaigns', (id) => `/app/chat/campaigns?open=${id}`),
     ...chatOutbound.map((r) => ({ id: r.id, group: 'chatOutbound' as const, label: r.label, meta: '', href: `/app/chat/widgets/${r.meta}/outbound?open=${r.id}` })),
     ...map(flows, 'flows', (id) =>
       id.startsWith('folder:') ? `/app/flow?folder=${id.slice(7)}` : id.startsWith('var:') ? '/app/flow/variables' : `/app/flow/${id}`,

@@ -2,9 +2,12 @@ import { notFound } from 'next/navigation';
 import { realUserId, requireUser } from '@/lib/session';
 import {
   getChatConversationWithVisitor,
+  getChatWidget,
   listChatMessagesWithUsers,
   listChatAgents,
 } from '@/lib/chat-data';
+import { canAccessConversation } from '@/lib/chat-access';
+import { filterWidgetAudience } from '@/lib/chat-audience';
 import ConversationClient from '@/components/chat/ConversationClient';
 import { isFollowing, listChatTeams } from '@/lib/chat-collab';
 
@@ -20,16 +23,17 @@ export default async function ChatConversationPage(
 
   const user = await requireUser(locale);
 
+  // Workspace y lista de la bandeja restringida, antes de leer nada de la conversación.
+  const access = await canAccessConversation(id, user);
+  if (!access.ok) notFound();
+
   const conversation = await getChatConversationWithVisitor(id);
   if (!conversation) notFound();
 
-  // Ensure the conversation belongs to the user's workspace.
-  const isOwner = conversation.widget_user_id === user.id;
-  const isTeamWidget = user.team?.id && conversation.widget_team_id === user.team.id;
-  if (!isOwner && !isTeamWidget) notFound();
-
   const messages = await listChatMessagesWithUsers(id);
-  const agents = await listChatAgents(conversation.widget_user_id, conversation.widget_team_id);
+  const widget = await getChatWidget(conversation.widget_id);
+  const allAgents = await listChatAgents(conversation.widget_user_id, conversation.widget_team_id);
+  const agents = widget ? await filterWidgetAudience(widget, allAgents) : allAgents;
   const me = user.actingUser ?? user;
   const teams = (await listChatTeams(conversation.widget_user_id)).map((x) => ({ id: x.id, name: x.name }));
   const following = await isFollowing(id, realUserId(user));
