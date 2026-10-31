@@ -14,7 +14,7 @@ import { copyToClipboard } from './RecCopy';
 import { uploadAsset, uploadWhole } from './liveUpload';
 import RecPending from './RecPending';
 import { canvasToBlob, snapshot } from './recorder-media';
-import { isRecVideoType } from '@/lib/rec-schema';
+import { isRecVideoType, recMoveNotice } from '@/lib/rec-schema';
 import { RecMoveDialog, RecNameDialog, notifyRecChanged, type MoveTarget, type RecFolder, type RecSpaceItem } from './RecDialogs';
 import RecSpaceMembers from './RecSpaceMembers';
 
@@ -238,7 +238,7 @@ export default function RecLibrary({
             : scope.kind === 'archived' || scope.kind === 'later'
               ? true
               : !target.folderId && !target.spaceId && target.space === (scope.kind === 'workspace' ? 'workspace' : 'personal');
-      setVideos((prev) => (stays ? prev.map((x) => (x.id === moving.id ? { ...x, folderId: target.folderId, space: target.space } : x)) : prev.filter((x) => x.id !== moving.id)));
+      setVideos((prev) => (stays ? prev.map((x) => (x.id === moving.id ? { ...x, folderId: target.folderId, space: target.space, spaceId: target.spaceId ?? null, privacy: recMoveNotice(x, target) === 'becomes_people' ? 'people' : x.privacy } : x)) : prev.filter((x) => x.id !== moving.id)));
       setMoving(null);
       setToast(t('moved'));
     }
@@ -604,7 +604,7 @@ export default function RecLibrary({
                           <button type="button" role="menuitem" className="rec-menu-item" onClick={() => (setMenu(null), setRenaming(v))}>
                             {t('rename')}
                           </button>
-                          <button type="button" role="menuitem" className="rec-menu-item" onClick={() => (setMenu(null), setMoving(v))}>
+                          <button type="button" role="menuitem" className="rec-menu-item" onClick={() => (setMenu(null), setError(null), setMoving(v))}>
                             {t('moveTo')}
                           </button>
                           <button type="button" role="menuitem" className="rec-menu-item" data-testid="rec-card-archive" onClick={() => (setMenu(null), void setArchived(v, !v.archived))}>
@@ -710,6 +710,8 @@ export default function RecLibrary({
         folders={folders}
         spaces={initialSpaces}
         current={{ space: moving?.space ?? 'personal', folderId: moving?.folderId ?? null, spaceId: moving?.spaceId ?? null }}
+        privacy={moving?.privacy}
+        error={moving ? error : null}
         busy={busy}
         onMove={(m) => void move(m)}
         onClose={() => setMoving(null)}
