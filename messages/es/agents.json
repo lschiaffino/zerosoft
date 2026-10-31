@@ -79,6 +79,9 @@
     "enabled": "Agente activo",
     "shortcut": "Guardá con ⌘S o Ctrl+S.",
     "loading": "Cargando agente",
+    "duplicate": "Duplicar agente",
+    "duplicateBody": "Crea una copia con las mismas instrucciones, conocimiento, herramientas y ajustes. No se copian el link público, el número de voz, las integraciones, los headers secretos ni los servidores MCP, ni las conversaciones.",
+    "duplicateName": "{name} (copia)",
     "dangerTitle": "Eliminar agente",
     "dangerBody": "Borra el agente, sus conversaciones y registros. Los widgets de Chat que lo usaban vuelven al bot de AI."
   },

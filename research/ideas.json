@@ -1404,7 +1404,7 @@
   },
   {
     "title": "Agents: Export, import and duplicate an agent with its configuration",
-    "description": "Chatbase lets you duplicate agents and Voiceflow exports environments (https://www.chatbase.co/docs/user-guides/chatbot/settings.md, https://www.voiceflow.com/docs/documentation/deploy/environments/overview.md). There is no way to copy an agent here: to try new instructions safely you rebuild it by hand, and there is no backup before a big edit. First scope: Duplicate in the agent menu, and export/import as JSON with instructions, knowledge selection, tools config, handoff, guardrails and tests (secrets excluded and listed as missing on import).",
+    "description": "Chatbase lets you duplicate agents and Voiceflow exports environments (https://www.chatbase.co/docs/user-guides/chatbot/settings.md, https://www.voiceflow.com/docs/documentation/deploy/environments/overview.md). There is no way to copy an agent here: to try new instructions safely you rebuild it by hand, and there is no backup before a big edit. First scope: Duplicate in the agent menu, and export/import as JSON with instructions, knowledge selection, tools config, handoff, guardrails and tests (secrets excluded and listed as missing on import). Duplicate shipped; JSON export and import are still open.",
     "product": "agents",
     "kind": "idea"
   },
@@ -2269,7 +2269,9 @@
     "title": "Agents: Index the 7-day stats queries and stop loading them in the Flow editor",
     "description": "listAgents (lib/agents.ts:157-176) aggregates agent_conversations with WHERE user_id AND created_at and agent_feedback with WHERE user_id, but both tables only have agent_id indexes. EXPLAIN QUERY PLAN shows a SCAN of each table, so the cost grows with every conversation. The Flow editor page (app/[locale]/app/flow/[id]/page.tsx:27-30) loads the full listAgents, stats included, just for a picker. First scope: a migration adding agent_conversations(user_id, created_at) and agent_feedback(user_id, agent_id), plus a light listAgentOptions for the pickers.\n\nPriority: medium. Effort: S.",
     "product": "agents",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-31-agents-duplicate"
   },
   {
     "title": "Link: Daily click rollups for analytics and record clicks after the redirect",
@@ -2404,5 +2406,29 @@
     "parity": "masking",
     "status": "done",
     "changelog": "2026-10-25-groups-platform"
+  },
+  {
+    "title": "Agents: Export and import an agent as a JSON file",
+    "description": "Chatbase and Voiceflow let teams move agent configuration between workspaces (https://www.voiceflow.com/docs/documentation/deploy/environments/overview.md). Duplicate now copies an agent inside a workspace (lib/agents.ts duplicateAgent), but there is no file to back up before a big edit or to share a template. First scope: Export button in agent Settings that downloads instructions, knowledge selection, tools, handoff, guardrails and saved tests as JSON without secrets, and an Import button on the agents list that creates a new agent and lists what must be reconnected.",
+    "product": "agents",
+    "kind": "idea"
+  },
+  {
+    "title": "Agents: Add custom guidance rules that apply by audience or topic",
+    "description": "Intercom Fin has Guidance, short rules that apply only when a condition matches, such as the customer's plan or topic (https://www.intercom.com/help/en/articles/10444459-fin-guidance). Here the only free-form text is one Instructions field plus procedures (lib/agents-procedures.ts), so every rule is always in the prompt. A small team with a paid plan and a free plan needs different answers about refunds. First scope: a list of rules with a condition text and an instruction, matched per message by keywords, and a count of how often each fired in the analytics tab.",
+    "product": "agents",
+    "kind": "idea"
+  },
+  {
+    "title": "Agents: Show a preview of which knowledge source answered each reply",
+    "description": "Fin shows the content used to produce each answer in the conversation view so admins can fix the source (https://www.intercom.com/help/en/articles/8205718-fin-resolutions). We cite sources to the visitor (lib/agents-semantic.ts) but the conversation view in components/agents/AgentConversations.tsx does not list which chunks were retrieved. First scope: store the retrieved source ids per assistant message and render them under the reply with a link to open the Docs page or file.",
+    "product": "agents",
+    "kind": "idea"
+  },
+  {
+    "title": "Agents: Add a bulk re-run of saved tests across all agents from one screen",
+    "description": "Fin lets teams test changes against many past conversations before turning them on (https://www.eesel.ai/blog/intercom-fin-ai-explained). Saved tests exist per agent (components/agents/AgentTests.tsx) but each agent must be opened one by one. First scope: a Tests overview on the agents home that runs all tests for the selected agents and shows pass or fail counts with a link to each failing case.",
+    "product": "agents",
+    "kind": "idea"
   }
 ]

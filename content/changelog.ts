@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-31-agents-duplicate',
+    date: '2026-10-31',
+    title: {
+      en: 'Agents: duplicate an agent',
+      es: 'Agents: duplicar un agente',
+      pt: 'Agents: duplicar um agente',
+    },
+    items: [
+      {
+        product: 'agents',
+        en: 'Duplicate an agent from its Settings tab to try new instructions on a copy. The copy keeps instructions, knowledge, tools, handoff and guardrails; the public link, integrations, secret headers and MCP servers stay with the original.',
+        es: 'Duplicá un agente desde su pestaña Ajustes para probar instrucciones nuevas en una copia. La copia conserva instrucciones, conocimiento, herramientas, derivación y guardarraíles; el link público, las integraciones, los headers secretos y los servidores MCP quedan en el original.',
+        pt: 'Duplique um agente na aba Ajustes para testar novas instruções em uma cópia. A cópia mantém instruções, conhecimento, ferramentas, transferência e guardrails; o link público, as integrações, os headers secretos e os servidores MCP ficam no original.',
+      },
+    ],
+  },
+  {
     id: '2026-10-31-pulido-interfaz',
     date: '2026-10-31',
     title: {

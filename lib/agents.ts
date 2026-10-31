@@ -337,6 +337,48 @@ export async function createAgent(
   return (await getAgent(workspaceId, id)) as AgentDto;
 }
 
+/** Columnas que un duplicado no hereda: identidad, canales con dueño único y secretos. */
+const DUPLICATE_RESET: Record<string, unknown> = {
+  public_handle: null,
+  voice_number: null,
+  embed_claimed_until: null,
+  integrations: null,
+  access: null,
+  http_secrets: '[]',
+  mcp_servers: '[]',
+  draft: null,
+  published_version_id: null,
+  ab_test: null,
+};
+
+/**
+ * Copia un agente con su configuración (instrucciones, conocimiento, herramientas,
+ * derivación, guardarraíles y ajustes). No copia handle público, número de voz,
+ * integraciones, headers secretos ni servidores MCP (llevan credenciales), ni
+ * conversaciones. Null si el agente no es del workspace.
+ */
+export async function duplicateAgent(workspaceId: string, id: string, createdBy: string, name?: string): Promise<AgentDto | null> {
+  const row = await getAgentRow(workspaceId, id);
+  if (!row) return null;
+  const newId = crypto.randomUUID();
+  const ts = nowIso();
+  const copy: Record<string, unknown> = {
+    ...(withDraft(row) as unknown as Record<string, unknown>),
+    ...DUPLICATE_RESET,
+    id: newId,
+    name: (name?.trim() || `${row.name} (copy)`).slice(0, 80),
+    created_by: createdBy,
+    created_at: ts,
+    updated_at: ts,
+  };
+  const cols = Object.keys(copy);
+  await getDb()
+    .prepare(`INSERT INTO agents (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`)
+    .run(...cols.map((c) => (copy[c] ?? null) as string | number | null));
+  await recordAgentChange(workspaceId, newId, createdBy, 'create', { duplicatedFrom: id });
+  return getAgent(workspaceId, newId);
+}
+
 /** Verifica que todo lo referenciado en la config sea del workspace. */
 /**
  * Docs: el agente trabaja con los permisos de una persona (tools.docsActorId).
