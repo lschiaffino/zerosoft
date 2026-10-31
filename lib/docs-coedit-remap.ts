@@ -22,6 +22,7 @@
  * pantallas reciben el resultado por operaciones, así nada se mueve dos veces.
  */
 import { apply, diff, tokens, transformIndex, type TextOp } from './docs-ot';
+import type { CoeditMark } from './docs-coedit-shared';
 
 /** Operación de otra persona tal como se aplicó en esta pantalla. */
 export interface RemoteTrace {
@@ -39,6 +40,64 @@ export interface RemoteTrace {
    * es un corte. Sin el dato, se toma como corte.
    */
   tailOwn?: boolean;
+  /** Cambios de estructura que dice la operación. Sin el campo (pestaña vieja, guardado): se reconocen por el texto. */
+  marks?: CoeditMark[];
+  /** Ya se resolvió su corte marcado: una fusión siguiente no mueve lo que se escriba después. */
+  done?: boolean;
+}
+
+/** Largo en texto de un HTML-lite, como lo mide un corte marcado. */
+export function plainLength(html: string): number {
+  return plainOf(html).text.length;
+}
+
+/**
+ * El corte que dice una marca: los últimos `tail` caracteres de texto que borró
+ * la operación. Lo que borró antes es un borrado común (una palabra, una letra)
+ * y lo que conservó entre medio de la cola es texto que la otra persona no tenía.
+ */
+export function markedSpan(prev: string, op: TextOp, tail: number): NonNullable<ReturnType<typeof deletedSpan>> | null {
+  const pieces: Array<{ start: number; at: number; text: string; keptAfter: string }> = [];
+  let i = 0;
+  let out = 0;
+  for (const c of op) {
+    if (typeof c === 'string') {
+      out += c.length;
+    } else if (c > 0) {
+      if (pieces.length) pieces[pieces.length - 1].keptAfter += prev.slice(i, i + c);
+      i += c;
+      out += c;
+    } else {
+      const last = pieces[pieces.length - 1];
+      if (last && !last.keptAfter && last.start + last.text.length === i) last.text += prev.slice(i, i - c);
+      else pieces.push({ start: i, at: out, text: prev.slice(i, i - c), keptAfter: '' });
+      i -= c;
+    }
+  }
+  if (!pieces.length) return null;
+  let need = tail;
+  let k = pieces.length;
+  while (k > 0 && need > 0) {
+    k--;
+    need -= plainOf(pieces[k].text).text.length;
+  }
+  // El primer tramo de la cola puede empezar con algo que se borró de verdad en la misma operación.
+  const first = pieces[k];
+  let firstText = first.text;
+  if (need < 0) {
+    const pl = plainOf(first.text);
+    firstText = first.text.slice(pl.at[-need] ?? 0);
+  }
+  let text = firstText;
+  let keptAt: number | null = null;
+  let keptLen = 0;
+  for (let j = k; j < pieces.length - 1; j++) {
+    const kept = pieces[j].keptAfter;
+    keptLen += kept.length;
+    if (keptAt === null && !isMarkup(kept)) keptAt = text.length;
+    text += pieces[j + 1].text;
+  }
+  return { start: first.start + (first.text.length - firstText.length), at: first.at, text, keptAt, keptLen };
 }
 
 /**
@@ -86,6 +145,16 @@ export interface RemapResult<B extends RemapBlock> {
   caret: RemapCaret | null;
   /** Bloques que cambiaron de texto o salieron (para mandar las operaciones). */
   touched: string[];
+}
+
+/** Letras (sin contar espacios) que tiene que tener una cola para reconocerla dentro de un bloque nuevo con más texto. */
+const MIN_TAIL = 3;
+
+/** Largo del final común de dos textos. */
+function commonSuffix(a: string, b: string): number {
+  let n = 0;
+  while (n < a.length && n < b.length && a[a.length - 1 - n] === b[b.length - 1 - n]) n++;
+  return n;
 }
 
 /** Solo formato (tags), sin texto. */
@@ -226,7 +295,82 @@ export function remapStructure<B extends RemapBlock>(
     touched.add(id);
   };
 
-  // Partir: bloques nuevos (no estaban acá) después de uno que sí estaba. Pueden ser varios
+  /** Pasa lo propio (lo que quedó después del corte en `p`) a su lugar dentro de `run`. */
+  const moveOrphan = (p: B, run: B[], t: RemoteTrace, sp: NonNullable<ReturnType<typeof deletedSpan>>, spText: string, matched: number): boolean => {
+    const pText = str(p)!;
+    const plains = run.map((b) => plainOf(str(b)!));
+    const joined = plains.map((x) => x.text).join('');
+    let cut: number;
+    try {
+      const after = apply(t.prev, t.op);
+      // Sin texto propio en el medio, lo que quedó del tramo (formato) se queda arriba.
+      cut = transformIndex(sp.at + (sp.keptAt === null ? sp.keptLen : 0), diff(after, pText));
+    } catch {
+      return false;
+    }
+    const orphan = pText.slice(cut);
+    // Dónde va: donde se escribía (lo conservado en el medio del corte), o al final de la
+    // cola cortada (lo que la otra persona escribió en los bloques nuevos queda en su lugar).
+    const tailAt = joined.length - matched;
+    const keptPlain = sp.keptAt === null ? spText.length : plainOf(sp.text.slice(0, sp.keptAt)).text.length;
+    let pos = Math.min(joined.length, tailAt + Math.max(0, keptPlain - (spText.length - matched)));
+    // El bloque del tramo donde cae esa posición (en un borde, el de antes: el que termina con la cola).
+    let k = 0;
+    while (k < run.length - 1 && pos > plains[k].text.length) {
+      pos -= plains[k].text.length;
+      k++;
+    }
+    const n = run[k];
+    const nText = str(n)!;
+    const at = plains[k].at[Math.min(pos, plains[k].text.length)];
+    if (orphan) {
+      setContent(p.id, pText.slice(0, cut));
+      setContent(n.id, nText.slice(0, at) + orphan + nText.slice(at));
+    }
+    if (outCaret && outCaret.block === p.id && outCaret.index >= cut) outCaret = { block: n.id, index: at + (outCaret.index - cut) };
+    return !!orphan;
+  };
+
+  // Partir con marca: la operación dice qué bloque es el nuevo y cuánto se llevó. No se adivina.
+  let caretMoved = false;
+  for (const x of traces) {
+    if (x.done || !x.own) continue;
+    for (const m of x.marks ?? []) {
+      if (m.k !== 'split') continue;
+      const pAt = blocks.findIndex((b) => b.id === x.block);
+      const nAt = blocks.findIndex((b) => b.id === m.to);
+      // La estructura todavía no llegó: la marca espera.
+      if (pAt < 0 || nAt < 0 || str(blocks[pAt]) === null || str(blocks[nAt]) === null) continue;
+      x.done = true;
+      const found = markedSpan(x.prev, x.op, m.tail);
+      if (!found) continue;
+      // La cola terminó en el primer bloque desde `to` que la tiene al final (la otra persona pudo partir de nuevo).
+      let run = [blocks[nAt]];
+      let best = found;
+      let text = plainOf(found.text).text;
+      let matched = 0;
+      for (let e = nAt; e < blocks.length && e < nAt + 32 && str(blocks[e]) !== null; e++) {
+        const candidate = blocks.slice(nAt, e + 1);
+        const joined = candidate.map((b) => plainOf(str(b)!).text).join('');
+        const v = shiftedSpans(x.prev, found)
+          .map((s) => ({ s, t: plainOf(s.text).text }))
+          .find((c) => c.t && joined.endsWith(c.t));
+        if (v) {
+          run = candidate;
+          best = v.s;
+          text = v.t;
+          matched = v.t.length;
+          break;
+        }
+      }
+      const before = outCaret;
+      moveOrphan(blocks[pAt], run, x, best, text, matched);
+      if (outCaret !== before) caretMoved = true;
+    }
+  }
+
+  // Partir sin marca (pestaña vieja o cambio por guardado): se reconoce por el texto.
+  // Bloques nuevos (no estaban acá) después de uno que sí estaba. Pueden ser varios
   // seguidos (la otra persona partió dos veces antes de que llegara la estructura): la cola
   // cortada puede estar en cualquiera de ellos, o repartida entre varios. El bloque cortado
   // puede no ser el de justo antes: los bloques que se partieron acá (Enter propio) quedan
@@ -243,6 +387,8 @@ export function remapStructure<B extends RemapBlock>(
     if (!joined) continue;
     let span: ReturnType<typeof deletedSpan> = null;
     let spText = '';
+    /** Largo del final de lo borrado que está al final de los bloques nuevos. */
+    let matched = 0;
     let t: RemoteTrace | null = null;
     let p: B | null = null;
     /** Bloques entre el cortado y los nuevos (los más cercanos primero). */
@@ -253,54 +399,36 @@ export function remapStructure<B extends RemapBlock>(
       // Un corte: la operación se llevó la cola (lo que quedó después es solo lo propio)
       // y esa cola es el final de los bloques nuevos (allá se escribe antes de ella).
       t = latest(cand.id, (x) => {
-        if (!x.own || x.tailOwn === false) return false;
+        if (x.marks || !x.own || x.tailOwn === false) return false;
         // Entre el bloque cortado y los nuevos solo puede haber bloques que se partieron acá
         // después del corte (Enter propio) o vacíos: un bloque de antes no es parte de este corte.
         if (between.some((b) => str(b) !== '' && (bornAt(b.id) ?? -Infinity) < x.at - 1000)) return false;
         const found = deletedSpan(x.prev, x.op);
         if (!found) return false;
+        // Cuánto del final de lo borrado es el final de los bloques nuevos (la cola que se mudó).
+        // Lo de antes pudo borrarse de verdad en la misma operación (borrar una palabra y Enter).
+        let best: { v: NonNullable<typeof found>; text: string; m: number } | null = null;
         for (const v of shiftedSpans(x.prev, found)) {
-          spText = plainOf(v.text).text;
-          if (spText.trim() && joined.endsWith(spText)) {
-            span = v;
-            return true;
-          }
+          const text = plainOf(v.text).text;
+          const m = commonSuffix(text, joined);
+          if (!best || m > best.m) best = { v, text, m };
         }
-        return false;
+        if (!best || !best.text.trim()) return false;
+        // Una cola corta (una o dos letras) se confunde con cualquier bloque que termine igual: solo
+        // cuenta si es todo el bloque nuevo (allá no se escribió nada más).
+        const enough = best.m >= MIN_TAIL ? best.text.slice(best.text.length - best.m).trim().length >= MIN_TAIL : best.m === best.text.length && joined === best.text;
+        if (!enough) return false;
+        span = best.v;
+        spText = best.text;
+        matched = best.m;
+        return true;
       });
       if (t) p = cand;
       else between.push(cand);
     }
     const sp = span as ReturnType<typeof deletedSpan>;
     if (!t || !sp || !p) continue;
-    const pText = str(p)!;
-    let cut: number;
-    try {
-      const after = apply(t.prev, t.op);
-      // Sin texto propio en el medio, lo que quedó del tramo (formato) se queda arriba.
-      cut = transformIndex(sp.at + (sp.keptAt === null ? sp.keptLen : 0), diff(after, pText));
-    } catch {
-      continue;
-    }
-    const orphan = pText.slice(cut);
-    if (!orphan) continue;
-    // Dónde va: donde se escribía (lo conservado en el medio del corte), o al final de la
-    // cola cortada (lo que la otra persona escribió en los bloques nuevos queda en su lugar).
-    const tailAt = joined.lastIndexOf(spText);
-    const keptPlain = sp.keptAt === null ? spText.length : plainOf(sp.text.slice(0, sp.keptAt)).text.length;
-    let pos = Math.min(joined.length, tailAt + keptPlain);
-    // El bloque del tramo donde cae esa posición (en un borde, el de antes: el que termina con la cola).
-    let k = 0;
-    while (k < run.length - 1 && pos > plains[k].text.length) {
-      pos -= plains[k].text.length;
-      k++;
-    }
-    const n = run[k];
-    const nText = str(n)!;
-    const at = plains[k].at[Math.min(pos, plains[k].text.length)];
-    setContent(p.id, pText.slice(0, cut));
-    setContent(n.id, nText.slice(0, at) + orphan + nText.slice(at));
-    if (outCaret && outCaret.block === p.id && outCaret.index >= cut) outCaret = { block: n.id, index: at + (outCaret.index - cut) };
+    moveOrphan(p, run, t, sp, spText, matched);
     i = end - 1;
   }
 
@@ -316,7 +444,8 @@ export function remapStructure<B extends RemapBlock>(
       const x = traces[i];
       if (x.block === p.id) continue;
       const ins = singleInsert(x.op);
-      if (!ins || ins.text.length < 2) continue;
+      const marked = x.marks?.find((m): m is Extract<CoeditMark, { k: 'merge' }> => m.k === 'merge' && m.from === p.id);
+      if (!ins || (!marked && ins.text.length < 2)) continue;
       const q = blocks.find((b) => b.id === x.block);
       const qText = str(q);
       if (!q || qText === null) continue;
@@ -329,7 +458,8 @@ export function remapStructure<B extends RemapBlock>(
       } catch {
         continue;
       }
-      for (let k = 0; k + 2 <= ins.text.length && !found; k++) {
+      const firstK = marked && marked.len <= ins.text.length ? ins.text.length - marked.len : 0;
+      for (let k = firstK; (marked ? k < ins.text.length : k + 2 <= ins.text.length) && !found; k++) {
         const copy = ins.text.slice(k);
         if (diff(copy, pText).some((c) => typeof c === 'number' && c < 0)) continue;
         // Lo que se escribió después en el mismo borde puede quedar antes o después del índice.
@@ -350,6 +480,6 @@ export function remapStructure<B extends RemapBlock>(
     if (outCaret && outCaret.block === p.id) outCaret = { block: found.q.id, index: found.at + outCaret.index };
   }
 
-  if (!touched.size) return null;
+  if (!touched.size && !caretMoved) return null;
   return { blocks, caret: outCaret, touched: [...touched] };
 }

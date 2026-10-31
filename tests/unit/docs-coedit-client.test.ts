@@ -313,3 +313,46 @@ describe('CoeditEngine', () => {
     expect(server.text).toBe('ba');
   });
 });
+
+describe('marcas de estructura', () => {
+  const setup = () => {
+    const texts = new Map([['p', 'alpha beta']]);
+    const sent: Array<{ marks?: unknown }[]> = [];
+    const engine = new CoeditEngine(
+      'sess-marks',
+      { get: (b) => texts.get(b) ?? null, set: (b, t) => void texts.set(b, t), busy: () => false },
+      { send: async (items) => (sent.push(items), []), snapshot: async () => ({}) },
+      { throttleMs: 100000 },
+    );
+    engine.register([{ id: 'p', text: 'alpha beta', rev: 1 }]);
+    return { engine, texts, sent };
+  };
+
+  it('la marca sale una sola vez, con la operación del corte; las demás llevan lista vacía', async () => {
+    const { engine, texts, sent } = setup();
+    engine.mark('p', { k: 'split', to: 'n', tail: 5 });
+    texts.set('p', 'alpha');
+    await engine.flush();
+    expect(sent[0][0].marks).toEqual([{ k: 'split', to: 'n', tail: 5 }]);
+    engine.stop();
+  });
+
+  it('sin cambio de texto la marca se descarta (no se pega a la próxima tecla)', async () => {
+    const { engine, sent, texts } = setup();
+    engine.mark('p', { k: 'split', to: 'n', tail: 5 });
+    await engine.flush();
+    expect(sent.length).toBe(0);
+    texts.set('p', 'alpha beta!');
+    await engine.flush();
+    expect(sent[0][0].marks).toEqual([]);
+    engine.stop();
+  });
+
+  it('un bloque que no viaja por operaciones no guarda marca', async () => {
+    const { engine, sent } = setup();
+    engine.mark('otro', { k: 'split', to: 'n', tail: 5 });
+    await engine.marksSent(50);
+    expect(sent.length).toBe(0);
+    engine.stop();
+  });
+});

@@ -52,9 +52,31 @@ export function hasUnsafeMarkup(html: string): boolean {
   return UNSAFE_MARKUP_RE.test(html);
 }
 
+/**
+ * Lo que la operación lleva de un cambio de estructura hecho en el editor:
+ * - `split`: Enter (o pegar) sacó de este bloque una cola de `tail` caracteres
+ *   de texto (lib/docs-coedit-remap.ts plainLength) hacia el bloque nuevo `to`;
+ * - `merge`: Backspace sumó a este bloque una copia de `len` caracteres de HTML
+ *   del bloque `from`, que se va.
+ */
+export type CoeditMark = { k: 'split'; to: string; tail: number } | { k: 'merge'; from: string; len: number };
+
 /** Evento del feed en vivo de una página, tal como llega al navegador. */
 export type CoeditEvent =
-  | { id?: number; kind: 'op'; block: string; rev: number; session: string | null; seq: string | null; user: string | null; op: TextOp; hb: string; ha: string }
+  | {
+      id?: number;
+      kind: 'op';
+      block: string;
+      rev: number;
+      session: string | null;
+      seq: string | null;
+      user: string | null;
+      op: TextOp;
+      hb: string;
+      ha: string;
+      /** Sin el campo: pestaña vieja o cambio por guardado (se reconoce el corte por el texto). Lista vacía: no hubo cambio de estructura. */
+      marks?: CoeditMark[];
+    }
   | {
       id?: number;
       kind: 'cursor';
@@ -86,6 +108,8 @@ export interface CoeditOpItem {
   seq: string;
   /** Texto base completo (solo al reconectar o después de un desfase): el servidor fusiona contra él. */
   base?: string;
+  /** Cambios de estructura que viajan con esta operación (lista vacía: ninguno). */
+  marks?: CoeditMark[];
 }
 
 export type CoeditOpStatus = 'ok' | 'dup' | 'resync' | 'gone' | 'unsupported' | 'too_large';

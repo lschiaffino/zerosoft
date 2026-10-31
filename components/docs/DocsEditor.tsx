@@ -2073,6 +2073,7 @@ export default function DocsEditor({
       }
       const newBlock = setIndent({ id: crypto.randomUUID(), type: newType, content: after }, newIndent);
       if (newType === 'todo') newBlock.checked = false;
+      coeditStructure?.markSplit?.(block.id, newBlock.id, after);
 
       setBlocks((prev) => {
         const next = [...prev];
@@ -2085,7 +2086,7 @@ export default function DocsEditor({
       setFocusIndex(at);
       setFocusTick((v) => v + 1);
     },
-    [blocks, convertBlock, indentBlocks, triggerSave, setBlocks, domHtml],
+    [blocks, convertBlock, indentBlocks, triggerSave, setBlocks, domHtml, coeditStructure],
   );
 
   /** Inserta un '\n' dentro del bloque en la posición del caret (offset plano). */
@@ -2112,6 +2113,7 @@ export default function DocsEditor({
       // Cmd/Ctrl+Enter: sale del bloque; el texto tras el caret va a un párrafo nuevo.
       if (exit) {
         const paraBlock: DocsBlock = { id: crypto.randomUUID(), type: 'paragraph', content: after };
+        coeditStructure?.markSplit?.(block.id, paraBlock.id, after);
         setBlocks((prev) => {
           const next = [...prev];
           next[index] = { ...next[index], content: before };
@@ -2151,7 +2153,7 @@ export default function DocsEditor({
       // Caso normal: newline dentro del mismo bloque.
       insertSoftNewline(index, caret);
     },
-    [blocks, convertBlock, insertSoftNewline, triggerSave, setBlocks],
+    [blocks, convertBlock, insertSoftNewline, triggerSave, setBlocks, coeditStructure],
   );
 
   /** Backspace con caret al inicio: fusiona con el bloque anterior (o borra divider). */
@@ -2201,6 +2203,7 @@ export default function DocsEditor({
         const prevHtml = domHtml(prevIndex, prev.content);
         const join = htmlToFlatText(prevHtml).length;
         const html = domHtml(index, block.content);
+        coeditStructure?.markMerge?.(prev.id, block.id, html);
         setBlocks((all) => {
           const next = [...all];
           next[prevIndex] = { ...next[prevIndex], content: prevHtml + html };
@@ -2222,7 +2225,7 @@ export default function DocsEditor({
       }
       return false;
     },
-    [blocks, convertBlock, hidden, indentBlocks, removeBlock, triggerSave, setBlocks, domHtml],
+    [blocks, convertBlock, hidden, indentBlocks, removeBlock, triggerSave, setBlocks, domHtml, coeditStructure],
   );
 
   /**
@@ -2987,6 +2990,7 @@ export default function DocsEditor({
         ? [setIndent({ id: crypto.randomUUID(), type: 'paragraph', content: after }, base)]
         : [];
       const head = keepCurrent ? [{ ...block, content: before }] : [];
+      if (keepCurrent && tail[0]) coeditStructure?.markSplit?.(block.id, tail[0].id, after);
       const next = normalizeIndents([...blocks.slice(0, index), ...head, ...placed, ...tail, ...blocks.slice(index + 1)]);
       commitBlocks(next);
       const lastIndex = index + head.length + placed.length - 1;
@@ -2997,7 +3001,7 @@ export default function DocsEditor({
         setFocusTick((v) => v + 1);
       }
     },
-    [blocks, commitBlocks],
+    [blocks, commitBlocks, coeditStructure],
   );
 
   /** Importa un .md o .docx: el server lo convierte en bloques y se agregan al final. */

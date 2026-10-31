@@ -74,14 +74,14 @@ export function useDocsCoedit(o: CoeditOptions): {
   if (!engineRef.current || engineRef.current.session !== o.session) {
     engineRef.current?.stop();
     // Cambios pendientes de pintar (varias operaciones en el mismo instante van juntas).
-    const overlay = new Map<string, { text: string; steps: Array<{ op: TextOp; prev: string }> }>();
+    const overlay = new Map<string, { text: string; steps: Array<{ op: TextOp; prev: string; stay?: boolean }> }>();
     let scheduled = false;
     const paint = () => {
       scheduled = false;
       const api = opts.current.editorApi.current;
       if (!api || !overlay.size) return;
       const changes: Record<string, string> = {};
-      const steps: Record<string, Array<{ op: TextOp; prev: string }>> = {};
+      const steps: Record<string, Array<{ op: TextOp; prev: string; stay?: boolean }>> = {};
       for (const [id, v] of overlay) {
         // Defensa en profundidad: el servidor ya no reparte HTML que el editor no admite; si llegara, se sanea antes de pintarlo.
         changes[id] = hasUnsafeMarkup(v.text) ? sanitizeHtml(v.text) : v.text;
@@ -93,9 +93,9 @@ export function useDocsCoedit(o: CoeditOptions): {
     };
     const screen: CoeditScreen = {
       get: (block) => overlay.get(block)?.text ?? opts.current.editorApi.current?.blockText(block) ?? null,
-      set: (block, text, op, prev) => {
+      set: (block, text, op, prev, stay) => {
         const cur = overlay.get(block);
-        overlay.set(block, { text, steps: [...(cur?.steps ?? []), { op, prev }] });
+        overlay.set(block, { text, steps: [...(cur?.steps ?? []), { op, prev, ...(stay ? { stay } : {}) }] });
         if (!scheduled) {
           scheduled = true;
           queueMicrotask(paint);
@@ -123,6 +123,12 @@ export function useDocsCoedit(o: CoeditOptions): {
       onError: (c) => opts.current.onSendError?.(c),
       onOk: () => opts.current.onSendOk?.(),
       onUnmanaged: (block, reason) => opts.current.onUnmanaged?.(block, reason),
+      onStructureMark: () => {
+        // Sin cambio de estructura nuevo: la fusión contra sí misma solo reubica lo propio.
+        const api = opts.current.editorApi.current;
+        const snap = api?.snapshot();
+        if (api && snap) api.applyRemote(snap, snap);
+      },
     });
   }
 
