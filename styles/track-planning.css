@@ -60,6 +60,7 @@
 .tp-plan-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .tp-plan-side { display: flex; flex-direction: column; gap: 20px; position: sticky; top: calc(var(--band-h, 48px) + 24px); min-width: 0; }
 .tp-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--brand-gray-2); }
+.tp-crumbs > * { min-width: 0; overflow-wrap: anywhere; }
 .tp-crumbs a { color: var(--brand-gray-1); text-decoration: none; }
 .tp-crumbs a:hover { color: var(--ink); text-decoration: underline; }
 .tp-plan-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
@@ -418,4 +419,11 @@
 .tp-chip-dots {
   display: inline-flex;
   gap: 2px;
+}
+
+/* Roadmap, "Sin fechas": nombre y ayuda; la grilla de cinco columnas es de las listas. */
+.tp-roadmap .tp-row { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); grid-template-areas: none; }
+.tp-roadmap .tp-row-link { grid-area: auto; }
+@media (max-width: 720px) {
+  .tp-roadmap .tp-row { grid-template-columns: minmax(0, 1fr); gap: 2px; padding-block: 8px; }
 }

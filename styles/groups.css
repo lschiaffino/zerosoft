@@ -359,7 +359,7 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-pick-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gr-vars { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
 .gr-preview { display: flex; flex-direction: column; gap: 6px; }
-.gr-preview .gr-bubble { max-width: 520px; background: color-mix(in srgb, var(--c-groups) 9%, var(--bg)); }
+.gr-preview .gr-bubble { color: var(--ink); max-width: 520px; background: color-mix(in srgb, var(--c-groups) 9%, var(--bg)); }
 .gr-broadcast { display: flex; flex-direction: column; gap: 16px; align-items: flex-start; }
 .gr-broadcast > .table-wrap { align-self: stretch; }
 .gr-progress { align-self: stretch; height: 6px; background: var(--brand-enamel); border-radius: var(--radius-1); overflow: hidden; }

@@ -46,7 +46,7 @@ function PromptList({ kind, initial }: { kind: VoicePromptKind; initial: VoicePr
     const data = (await res?.json().catch(() => null)) as (VoicePrompt & { error?: string }) | null;
     setBusy(false);
     if (!res?.ok || !data?.id) {
-      setError(data?.error ?? 'network');
+      setError(data?.error ?? (res ? 'generic' : 'network'));
       return;
     }
     setList((l) => (editing.id ? l.map((x) => (x.id === data.id ? data : x)) : [...l, data]).sort((a, b) => a.name.localeCompare(b.name)));

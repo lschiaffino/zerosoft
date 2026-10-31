@@ -71,7 +71,7 @@ export default function EnhancedNotes({
     const data = (await res?.json().catch(() => null)) as { created?: Array<{ id: string; label: string }>; error?: string } | null;
     setBusy(null);
     if (!res?.ok || !data?.created) {
-      setError(data?.error ?? 'network');
+      setError(data?.error ?? (res ? 'generic' : 'network'));
       return;
     }
     setSent((prev) => ({ ...prev, [target]: data.created }));

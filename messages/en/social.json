@@ -222,7 +222,8 @@
     "done_retry": "Retrying",
     "reschedule": "Reschedule",
     "rescheduleLabel": "New date and time",
-    "done_reschedule": "Rescheduled"
+    "done_reschedule": "Rescheduled",
+    "noAccounts": "This post has no accounts yet. Edit it to choose where it goes out."
   },
   "events": {
     "created": "{name} created it",

@@ -119,7 +119,7 @@ export function useDictation() {
       const data = (await res?.json().catch(() => null)) as (DictationResult & { error?: string }) | null;
       set('idle');
       if (!res?.ok || !data || data.error) {
-        setError(data?.error ?? 'network');
+        setError(data?.error ?? (res ? 'generic' : 'network'));
         return null;
       }
       if (!data.text) {
@@ -161,7 +161,7 @@ export function useDictation() {
       const data = (await res?.json().catch(() => null)) as { text?: string; instruction?: string; transform?: string | null; error?: string } | null;
       set('idle');
       if (!res?.ok || !data?.text) {
-        setError(data?.error ?? 'network');
+        setError(data?.error ?? (res ? 'generic' : 'network'));
         return null;
       }
       return { text: data.text, instruction: data.instruction ?? '', transform: data.transform ?? null };

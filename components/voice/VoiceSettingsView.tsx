@@ -33,7 +33,6 @@ interface Props {
   transforms: VoicePrompt[];
   workspace: VoiceWorkspaceSettings;
   isAdmin: boolean;
-  builtinSections: Record<string, string[]>;
   provider: string;
   apiBase: string;
 }
@@ -57,7 +56,7 @@ export default function VoiceSettingsView(props: Props) {
       <SettingsTabs mode="query" param="tab" layout="top" label={t('title')} items={tabs.map((k) => ({ key: k, label: t(`tabs.${k}`) }))}>
         {tab === 'dictation' && <DictationSettings initial={props.settings} />}
         {tab === 'dictionary' && <DictionarySettings initial={props.dictionary} isAdmin={props.isAdmin} />}
-        {tab === 'templates' && <TemplatesSettings initial={props.templates} builtinSections={props.builtinSections} />}
+        {tab === 'templates' && <TemplatesSettings initial={props.templates} />}
         {tab === 'prompts' && <PromptsSettings recipes={props.recipes} transforms={props.transforms} />}
         {tab === 'meetings' && <MeetingsSettings initial={props.settings} workspace={props.workspace} canEditWorkspace={props.isAdmin} />}
         {tab === 'team' && props.isAdmin && <TeamUsage />}
@@ -204,7 +203,7 @@ function DictionarySettings({ initial, isAdmin }: { initial: VoiceDictionaryEntr
     const data = (await res?.json().catch(() => null)) as (VoiceDictionaryEntry & { error?: string }) | null;
     setBusy(false);
     if (!res?.ok || !data?.id) {
-      setError(data?.error ?? 'network');
+      setError(data?.error ?? (res ? 'generic' : 'network'));
       return;
     }
     setEntries((list) => [...list, data]);
@@ -301,7 +300,7 @@ function DictionarySettings({ initial, isAdmin }: { initial: VoiceDictionaryEntr
   );
 }
 
-function TemplatesSettings({ initial, builtinSections }: { initial: VoiceTemplate[]; builtinSections: Record<string, string[]> }) {
+function TemplatesSettings({ initial }: { initial: VoiceTemplate[] }) {
   const t = useTranslations('voice.settings.templates');
   const tTpl = useTranslations('voice.templates.builtin');
   const tErr = useTranslations('voice.errors');
@@ -324,7 +323,7 @@ function TemplatesSettings({ initial, builtinSections }: { initial: VoiceTemplat
     const data = (await res?.json().catch(() => null)) as (VoiceTemplate & { error?: string }) | null;
     setBusy(false);
     if (!res?.ok || !data?.id) {
-      setError(data?.error ?? 'network');
+      setError(data?.error ?? (res ? 'generic' : 'network'));
       return;
     }
     setList((l) => (editing.id ? l.map((x) => (x.id === data.id ? data : x)) : [...l, data]));
@@ -423,7 +422,7 @@ function TemplatesSettings({ initial, builtinSections }: { initial: VoiceTemplat
             <li key={k} className="vc-row">
               <span className="vc-row-main">
                 <span className="vc-row-title">{tTpl(k)}</span>
-                <span className="vc-muted vc-row-meta">{(builtinSections[k] ?? []).join(' · ')}</span>
+                <span className="vc-muted vc-row-meta">{t(`builtinSections.${k}`)}</span>
               </span>
             </li>
           ))}

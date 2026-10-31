@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { ProjectDto } from '@/lib/analytics/types';
-import { ApiError, api, notifyChanged } from './client';
+import { ApiError, apiErrorText, api, notifyChanged } from './client';
 
 const RETENTION = [30, 90, 180, 365, 730];
 
@@ -109,7 +109,7 @@ zs.identify('user-123', { email: 'ana@example.com' });`;
       notifyChanged();
       router.refresh();
     } catch (err) {
-      setMsg({ ok: false, text: err instanceof ApiError ? tc('errorCode', { code: err.code }) : tc('error') });
+      setMsg({ ok: false, text: apiErrorText(err, tc) });
     } finally {
       setBusy(false);
     }

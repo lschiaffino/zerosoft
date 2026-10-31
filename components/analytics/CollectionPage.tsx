@@ -8,7 +8,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import NameDialog from './NameDialog';
 import RecordList, { type RecordItem } from './RecordList';
-import { ApiError, api, notifyChanged, setProjectCookie } from './client';
+import { ApiError, apiErrorText, api, notifyChanged, setProjectCookie } from './client';
 
 export type CollectionKind = 'insights' | 'dashboards' | 'flags' | 'cohorts' | 'projects';
 
@@ -94,7 +94,7 @@ export default function CollectionPage({
         router.push(`/app/analytics/${kind}/${created.id}`);
       }
     } catch (err) {
-      setError(err instanceof ApiError ? tc('errorCode', { code: err.code }) : tc('error'));
+      setError(apiErrorText(err, tc));
     } finally {
       setBusy(false);
     }

@@ -499,7 +499,8 @@
   }
   .flow-table tbody tr:hover { background: none; }
   .flow-table td { display: block; height: auto; min-width: 0; padding: 0; border: 0; }
-  .flow-table .flow-ellipsis { max-width: 100%; }
+  .flow-table .flow-ellipsis { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+  .flow-table .flow-name-cell { display: flex; max-width: 100%; }
 
   /* Flows: nombre, disparador, y abajo la última corrida y el switch. */
   .flow-table-flows td:nth-child(1),

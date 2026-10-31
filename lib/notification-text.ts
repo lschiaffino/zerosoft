@@ -56,6 +56,8 @@ export interface NotificationTextLabels {
   socialFailed?: string;
   socialPartial?: string;
   socialAssigned?: string;
+  /** Chat: "Mensaje nuevo de {actor}". */
+  chatMessage?: string;
 }
 
 export interface NotificationLike {
@@ -159,6 +161,12 @@ export function notificationTitle(n: NotificationLike, L: NotificationTextLabels
     const vars = { actor, title: String(meta.title || L.untitled) };
     if (n.type === 'design_comment' && L.designComment) return fill(L.designComment, vars);
     if (n.type === 'design_share' && L.designShare) return fill(L.designShare, vars);
+  }
+
+  if (source === 'chat_conversation' && n.type === 'chat_message' && L.chatMessage) {
+    // Los avisos viejos no tienen meta: el nombre sale del título de respaldo.
+    const name = meta.actorName || /^New message from (.+)$/.exec(n.title)?.[1];
+    if (name) return fill(L.chatMessage, { actor: String(name) });
   }
 
   if (source === 'social_post' || source === 'social_inbox') {

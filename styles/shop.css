@@ -225,6 +225,13 @@ a.shop-rowtext:hover .shop-rowtitle,
 .shop-section {
   margin-top: 32px;
 }
+/* Sección con borde sin .ui-section-body: el aire lo pone ella. */
+section.ui-section.shop-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+}
 .shop-foot {
   margin-top: 16px;
 }
@@ -616,4 +623,19 @@ a.shop-rowtext:hover .shop-rowtitle,
   .shop-ellipsis {
     max-width: 120px;
   }
+}
+
+/* Celular: el producto conserva un ancho legible y la tabla se desplaza dentro de su marco. */
+@media (max-width: 720px) {
+  .shop-rowtitle { display: block; min-width: 136px; overflow-wrap: break-word; }
+}
+
+/* Ajustes: los campos no se pegan al borde de la tarjeta. */
+.panel.shop-panel { padding: 20px; }
+
+/* Celular: el cliente va debajo del número y la última columna entra sin desplazar. */
+.shop-show-xs { display: none; }
+@media (max-width: 520px) {
+  .shop-hide-xs { display: none; }
+  .shop-show-xs { display: block; font-weight: 400; font-size: 0.8125rem; color: var(--brand-gray-2); overflow-wrap: anywhere; }
 }

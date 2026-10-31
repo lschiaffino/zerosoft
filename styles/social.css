@@ -71,7 +71,7 @@
 .sc-item:hover { background: var(--ui-hover); }
 .sc-item[aria-current='true'] { background: var(--bg-soft); box-shadow: inset 3px 0 0 var(--c-social); }
 .sc-item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.sc-item-text { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.sc-item-text { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: break-word; }
 .sc-item-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; text-align: right; }
 
 /* ---------- Compositor ---------- */
@@ -115,6 +115,8 @@
 
 /* ---------- Detalle ---------- */
 
+.sc-panel > * + * { margin-top: 12px; }
+.sc-detail form.sc-row { align-items: flex-end; }
 .sc-detail { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 340px); gap: 20px; align-items: start; }
 .sc-targets { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--line); border-radius: var(--radius-1); }
 .sc-target { padding: 12px 14px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; min-width: 0; }

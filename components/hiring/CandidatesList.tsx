@@ -127,7 +127,7 @@ export default function CandidatesList({
                   </label>
                 </th>
                 <th scope="col">{t('candidates.colName')}</th>
-                <th scope="col">{t('candidates.colJob')}</th>
+                <th scope="col" className="hr-hide-sm">{t('candidates.colJob')}</th>
                 <th scope="col" className="hr-hide-sm">
                   {t('candidates.colSource')}
                 </th>
@@ -160,9 +160,10 @@ export default function CandidatesList({
                     <Link href={`/app/hiring/candidates/${a.candidateId}?app=${a.id}`} className="hr-rowlink">
                       <span className="hr-rowtitle">{a.name}</span>
                       <span className="hr-rowmeta">{[a.email, ...a.tags].join(' · ')}</span>
+                      <span className="hr-rowmeta hr-show-sm">{`${a.jobTitle} · ${a.stageName}`}</span>
                     </Link>
                   </th>
-                  <td>
+                  <td className="hr-hide-sm">
                     <span className="hr-rowtitle">{a.jobTitle}</span>
                     <span className="hr-rowmeta">
                       {a.stageName} {a.status !== 'active' && <AppStatusBadge status={a.status} />}

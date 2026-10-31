@@ -7,7 +7,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { DashboardDto, InsightDto, InsightResult } from '@/lib/analytics/types';
-import { ApiError, api, notifyChanged, runQuery } from './client';
+import { ApiError, apiErrorText, api, notifyChanged, runQuery } from './client';
 import InsightResultView from './InsightResultView';
 import NameDialog from './NameDialog';
 
@@ -66,7 +66,7 @@ export default function DashboardView({ projectId, dashboard, insights, allInsig
       router.refresh();
       return true;
     } catch (err) {
-      setError(err instanceof ApiError ? tc('errorCode', { code: err.code }) : tc('error'));
+      setError(apiErrorText(err, tc));
       return false;
     } finally {
       setBusy(false);

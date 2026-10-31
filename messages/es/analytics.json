@@ -23,12 +23,12 @@
     "copied": "Copiado",
     "actions": "Acciones",
     "error": "Algo salió mal. Probá de nuevo.",
-    "errorCode": "No funcionó ({code}). Probá de nuevo.",
     "loading": "Cargando Analytics…",
     "pageErrorTitle": "Esta página no cargó",
     "pageErrorBody": "Algo falló al cargar Analytics. Tus datos están bien. Probá de nuevo.",
     "retry": "Reintentar",
-    "backHome": "Volver a web analytics"
+    "backHome": "Volver a web analytics",
+    "errorInvalid": "No se pudo hacer con esos datos. Revisalos y probá de nuevo."
   },
   "noProject": {
     "title": "Creá tu primer proyecto",

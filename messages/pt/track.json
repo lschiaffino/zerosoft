@@ -340,7 +340,8 @@
     "boardReply": "{actor} respondeu em {title}",
     "groupsMention": "{actor} mencionou você em {title}",
     "groupsAssigned": "{actor} atribuiu {title} a você",
-    "groupsAutoAssigned": "Chat de WhatsApp novo para você: {title}"
+    "groupsAutoAssigned": "Chat de WhatsApp novo para você: {title}",
+    "chatMessage": "Nova mensagem de {actor}"
   },
   "errors": {
     "invalid_slug": "Slug inválido. Use letras minúsculas, números e hífens.",

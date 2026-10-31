@@ -384,6 +384,7 @@ function FilterSelect({
 }
 
 function RangeSelector({ range }: { range: ReportRangeLabel }) {
+  const tBucket = useTranslations('crm.reportBuilder.buckets');
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -403,7 +404,7 @@ function RangeSelector({ range }: { range: ReportRangeLabel }) {
           className={`report-tab${r === range ? ' active' : ''}`}
           onClick={() => setRange(r)}
         >
-          {r}
+          {r === 'quarter' ? tBucket('quarter') : r}
         </button>
       ))}
     </div>
@@ -411,6 +412,7 @@ function RangeSelector({ range }: { range: ReportRangeLabel }) {
 }
 
 function BucketSelector({ bucket }: { bucket: ReportBucket }) {
+  const tBucket = useTranslations('crm.reportBuilder.buckets');
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -430,7 +432,7 @@ function BucketSelector({ bucket }: { bucket: ReportBucket }) {
           className={`report-tab${b === bucket ? ' active' : ''}`}
           onClick={() => setBucket(b)}
         >
-          {b}
+          {tBucket(b)}
         </button>
       ))}
     </div>

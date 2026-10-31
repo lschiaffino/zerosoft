@@ -13,6 +13,7 @@ import DesignPanel from './DesignPanel';
 import SettingsPanel from './SettingsPanel';
 import TranslatePanel from './TranslatePanel';
 import SharePanel from './SharePanel';
+import TitleInput from '@/components/ui/TitleInput';
 
 const PANELS = ['build', 'logic', 'design', 'settings', 'translate'] as const;
 type Panel = (typeof PANELS)[number] | 'share';
@@ -112,11 +113,11 @@ export default function FormBuilder({ initial, tab, me, admin, crmApp, brandColo
           <label className="sr-only" htmlFor="fm-name">
             {t('builder.name')}
           </label>
-          <input
+          <TitleInput
             id="fm-name"
             className="fm-name"
             value={state.name}
-            onChange={(e) => update('name', e.target.value)}
+            onValueChange={(v) => update('name', v)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();

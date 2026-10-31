@@ -230,7 +230,8 @@
 .an-timeline { margin: 0 0 8px; padding: 0; list-style: none; display: flex; flex-direction: column; }
 .an-timeline li { padding: 8px 0; border-bottom: 1px solid var(--line); }
 .an-timeline .an-props { margin-top: 8px; }
-.an-timeline-event { font-weight: 500; white-space: nowrap; }
+.an-timeline li { min-width: 0; overflow-wrap: anywhere; }
+.an-timeline-event { font-weight: 500; overflow-wrap: anywhere; }
 
 /* ---------- Cohortes, flags, ajustes ---------- */
 .an-cohort { max-width: 760px; }
@@ -264,4 +265,9 @@
   .an-stat { border-right: 0; border-bottom: 1px solid var(--line); }
   .an-actions .btn { padding-left: 6px; padding-right: 6px; }
   .an-props { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Celular: la segunda columna no se reduce a una palabra por línea; la tabla se desplaza dentro de su marco. */
+@media (max-width: 600px) {
+  .an-page .table td.an-muted { min-width: 140px; }
 }

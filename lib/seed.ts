@@ -14,6 +14,13 @@ import {
 import { createDocPage } from './docs';
 import { createProject, createIssue } from './track-data';
 import { createEventType, getOrCreateCalendarUser, setAvailability } from './calendar';
+import { seedLocale as requestLocale, type SeedLocale } from './seed-locale';
+
+const CRM_SEED: Record<SeedLocale, { pipeline: string; stages: [string, string, string, string, string]; jobTitle: string; deal: string; description: string; country: string }> = {
+  en: { pipeline: 'Sales', stages: ['Lead', 'Contacted', 'Demo', 'Won', 'Lost'], jobTitle: 'Head of Operations', deal: 'Acme Corp: Team plan', description: 'Demo deal created automatically. Drag it across stages on the board.', country: 'United States' },
+  es: { pipeline: 'Ventas', stages: ['Lead', 'Contactado', 'Demo', 'Ganado', 'Perdido'], jobTitle: 'Responsable de operaciones', deal: 'Acme Corp: plan Team', description: 'Deal de ejemplo creado automáticamente. Arrastralo entre etapas en el tablero.', country: 'Estados Unidos' },
+  pt: { pipeline: 'Vendas', stages: ['Lead', 'Contatado', 'Demo', 'Ganho', 'Perdido'], jobTitle: 'Responsável de operações', deal: 'Acme Corp: plano Team', description: 'Deal de exemplo criado automaticamente. Arraste entre as etapas no quadro.', country: 'Estados Unidos' },
+};
 
 async function seedCrm(userId: string) {
   // Idempotente: si el workspace ya tiene pipelines (p. ej. `npm run seed`
@@ -22,12 +29,13 @@ async function seedCrm(userId: string) {
     .prepare('SELECT 1 AS x FROM crm_pipelines WHERE user_id = ? LIMIT 1')
     .get(userId);
   if (existing) return;
-  const pipeline = await createPipeline(userId, 'Sales');
-  const lead = await createStage(userId, pipeline.id, { name: 'Lead', probability: 10 });
-  const contacted = await createStage(userId, pipeline.id, { name: 'Contacted', probability: 30 });
-  const demo = await createStage(userId, pipeline.id, { name: 'Demo', probability: 60 });
-  const won = await createStage(userId, pipeline.id, { name: 'Won', probability: 100 });
-  const lost = await createStage(userId, pipeline.id, { name: 'Lost', probability: 0 });
+  const copy = CRM_SEED[await requestLocale()];
+  const pipeline = await createPipeline(userId, copy.pipeline);
+  const lead = await createStage(userId, pipeline.id, { name: copy.stages[0], probability: 10 });
+  const contacted = await createStage(userId, pipeline.id, { name: copy.stages[1], probability: 30 });
+  const demo = await createStage(userId, pipeline.id, { name: copy.stages[2], probability: 60 });
+  const won = await createStage(userId, pipeline.id, { name: copy.stages[3], probability: 100 });
+  const lost = await createStage(userId, pipeline.id, { name: copy.stages[4], probability: 0 });
   if (won) await updateStage(userId, won.id, { isWon: true });
   if (lost) await updateStage(userId, lost.id, { isLost: true });
 
@@ -38,7 +46,7 @@ async function seedCrm(userId: string) {
     employees: 42,
     website: 'https://acme.com',
     city: 'San Francisco',
-    country: 'United States',
+    country: copy.country,
     lifecycleStage: 'customer',
   });
 
@@ -47,7 +55,7 @@ async function seedCrm(userId: string) {
     lastName: 'Doe',
     email: 'john.doe@acme.com',
     phone: '+1 415 555 0132',
-    jobTitle: 'Head of Operations',
+    jobTitle: copy.jobTitle,
     lifecycleStage: 'customer',
     leadStatus: 'open',
     source: 'referral',
@@ -58,12 +66,12 @@ async function seedCrm(userId: string) {
     await createDeal(userId, {
       pipelineId: pipeline.id,
       stageId: demo?.id ?? lead.id,
-      name: 'Acme Corp — Team plan',
+      name: copy.deal,
       amount: 1200,
       currency: 'USD',
       priority: 'high',
       source: 'referral',
-      description: 'Demo deal created automatically. Drag it across stages on the board.',
+      description: copy.description,
       contactIds: [contact.id],
     });
   }
@@ -85,30 +93,6 @@ async function seedDocs(userId: string) {
   });
 }
 
-type SeedLocale = 'en' | 'es' | 'pt';
-
-/**
- * Idioma de la request que dispara el seed (header de next-intl, cookie o
- * Accept-Language). Fuera de una request (scripts) queda en inglés.
- */
-async function requestLocale(): Promise<SeedLocale> {
-  const pick = (v: string | null | undefined): SeedLocale | null => {
-    const l = (v ?? '').slice(0, 2).toLowerCase();
-    return l === 'es' || l === 'pt' || l === 'en' ? l : null;
-  };
-  try {
-    const { cookies, headers } = await import('next/headers');
-    const h = await headers();
-    return (
-      pick(h.get('x-next-intl-locale')) ??
-      pick((await cookies()).get('NEXT_LOCALE')?.value) ??
-      pick(h.get('accept-language')) ??
-      'en'
-    );
-  } catch {
-    return 'en';
-  }
-}
 
 const TRACK_SEED: Record<SeedLocale, { name: string; description: string; issues: [string, 'high' | 'medium' | 'low'][] }> = {
   en: {

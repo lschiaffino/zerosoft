@@ -2819,6 +2819,7 @@ a.track-board-card-title:hover {
 .track-access-name {
   flex: 1;
   min-width: 0;
+  overflow-wrap: break-word;
   font-weight: 500;
 }
 
@@ -2872,6 +2873,7 @@ a.track-board-card-title:hover {
 
 .track-audit-row {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 2px;
   padding: 8px 0;
   font-size: 0.875rem;
@@ -2879,6 +2881,7 @@ a.track-board-card-title:hover {
 }
 
 .track-audit-row a {
+  overflow-wrap: anywhere;
   color: var(--ink);
 }
 

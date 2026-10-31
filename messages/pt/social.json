@@ -222,7 +222,8 @@
     "done_retry": "Tentando de novo",
     "reschedule": "Reagendar",
     "rescheduleLabel": "Nova data e hora",
-    "done_reschedule": "Reagendada"
+    "done_reschedule": "Reagendada",
+    "noAccounts": "Esta publicação ainda não tem contas. Edite para escolher onde sai."
   },
   "events": {
     "created": "{name} criou",

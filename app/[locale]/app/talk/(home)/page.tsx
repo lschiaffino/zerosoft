@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { renderTalk } from './talk-page';
+import { renderTalk } from '../talk-page';
 
 export const dynamic = 'force-dynamic';
 

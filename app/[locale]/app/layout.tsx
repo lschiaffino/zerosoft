@@ -36,6 +36,8 @@ import '@/styles/color.css';
 import '@/styles/voice-host.css';
 import '@/styles/workspace.css';
 import '@/styles/assistant.css';
+import NavProgress from '@/components/app/NavProgress';
+import { Suspense } from 'react';
 
 export const dynamic = 'force-dynamic';
 
@@ -595,6 +597,7 @@ export default async function AppLayout(
                 noteTaskAssigned: tTrack.raw('notifications.noteTaskAssigned') as string,
                 noteTaskDue: tTrack.raw('notifications.noteTaskDue') as string,
                 noteTransfer: tTrack.raw('notifications.noteTransfer') as string,
+                chatMessage: tTrack.raw('notifications.chatMessage') as string,
                 docConflict: tTrack.raw('notifications.docConflict') as string,
                 boardMention: tTrack.raw('notifications.boardMention') as string,
                 boardReply: tTrack.raw('notifications.boardReply') as string,
@@ -624,6 +627,9 @@ export default async function AppLayout(
           }}
         />
         <div className="app-main-scroll">
+          <Suspense fallback={null}>
+            <NavProgress />
+          </Suspense>
           <main className="app-content">{children}</main>
         </div>
         <CommandSearch />

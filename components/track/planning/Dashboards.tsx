@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent, type KeyboardEvent, useRef } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
@@ -11,6 +11,7 @@ import type { InsightResult } from '@/lib/track-planning-core';
 import type { InsightQuery } from '@/lib/track-planning-schema';
 import { api, fmtWhen, LoadingRows, Modal } from './shared';
 import { InsightView } from './Insights';
+import TitleInput from '@/components/ui/TitleInput';
 
 /** Dashboards del workspace y personales. */
 export function DashboardsList() {
@@ -176,6 +177,15 @@ export function DashboardPage({ dashboardId }: { dashboardId: string }) {
   const [data, setData] = useState<{ dashboard: DashboardSummary; widgets: WidgetWithResult[]; canDelete: boolean } | null>(null);
   const [state, setState] = useState<'loading' | 'ok' | 'missing' | 'error'>('loading');
   const [name, setName] = useState('');
+  // Esc descarta: el blur que le sigue no guarda (leería el borrador de antes de restaurarlo).
+  const cancelled = useRef(false);
+  const unlessCancelled = (fn: () => void) => () => {
+    if (cancelled.current) {
+      cancelled.current = false;
+      return;
+    }
+    fn();
+  };
   const [teams, setTeams] = useState<Array<{ id: string; name: string }>>([]);
   const [confirm, setConfirm] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -216,11 +226,12 @@ export function DashboardPage({ dashboardId }: { dashboardId: string }) {
       />
     );
   const d = data.dashboard;
-  const enter = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+  const enter = (e: KeyboardEvent<HTMLElement>) => {
+    if (e.key === 'Enter') (e.target as HTMLElement).blur();
     if (e.key === 'Escape') {
+      cancelled.current = true;
       setName(d.name);
-      (e.target as HTMLInputElement).blur();
+      (e.target as HTMLElement).blur();
     }
   };
   return (
@@ -230,13 +241,13 @@ export function DashboardPage({ dashboardId }: { dashboardId: string }) {
         <span aria-hidden="true">›</span>
         <span>{d.name}</span>
       </nav>
-      <input
+      <TitleInput
         className="tp-title-input"
         aria-label={t('dashboards.nameLabel')}
         value={name}
         maxLength={200}
-        onChange={(e) => setName(e.target.value)}
-        onBlur={() => (name.trim() && name.trim() !== d.name ? void patch({ name: name.trim() }) : setName(d.name))}
+        onValueChange={setName}
+        onBlur={unlessCancelled(() => (name.trim() && name.trim() !== d.name ? void patch({ name: name.trim() }) : setName(d.name)))}
         onKeyDown={enter}
         data-testid="tp-dashboard-name"
       />

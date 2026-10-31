@@ -79,6 +79,19 @@ const INTERACTIVE = 'button, a[href], input, textarea, select, [role="button"], 
  * guardar, adjuntar…) o queda fuera de la pantalla; si todas chocan, no se
  * muestra (el atajo sigue andando).
  */
+/** ¿Hay texto de este elemento en ese punto? El botón no se apoya sobre un título ni una migaja. */
+function hasTextAt(el: Element, x: number, y: number): boolean {
+  for (const node of el.childNodes) {
+    if (node.nodeType !== Node.TEXT_NODE || !node.nodeValue?.trim()) continue;
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    for (const r of range.getClientRects()) {
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return true;
+    }
+  }
+  return false;
+}
+
 function useBarPosition(field: HTMLElement | null, barRef: RefObject<HTMLButtonElement | null>): { top: number; left: number } | null {
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   useEffect(() => {
@@ -96,8 +109,11 @@ function useBarPosition(field: HTMLElement | null, barRef: RefObject<HTMLButtonE
         { top: r.top - BAR - GAP, left: r.left },
         { top: r.bottom + GAP, left: r.left },
       ];
+      // Dentro de un diálogo el botón queda dentro del diálogo: afuera flota sobre la página atenuada.
+      const modal = field.closest('dialog, [role="dialog"], [aria-modal="true"]')?.getBoundingClientRect() ?? null;
       const free = (c: { top: number; left: number }) => {
         if (c.top < 4 || c.left < 4 || c.top + BAR > vh - 4 || c.left + BAR > vw - 4) return false;
+        if (modal && (c.top < modal.top || c.left < modal.left || c.top + BAR > modal.bottom || c.left + BAR > modal.right)) return false;
         // Con un margen alrededor: tampoco se apoya sobre el borde de otro campo o botón.
         const m = 4;
         const points = [
@@ -116,6 +132,7 @@ function useBarPosition(field: HTMLElement | null, barRef: RefObject<HTMLButtonE
             if (el === barRef.current || barRef.current?.contains(el)) continue;
             if (el === field || field.contains(el)) return false;
             if (el.closest(INTERACTIVE)) return false;
+            if (hasTextAt(el, x, y)) return false;
           }
         }
         return true;
@@ -190,7 +207,7 @@ function TransformsMenu({
     const data = (await res?.json().catch(() => null)) as { text?: string; error?: string } | null;
     setBusy(null);
     if (!res?.ok || !data?.text) {
-      onDone(tErr(voiceErrorKey(data?.error ?? 'network')));
+      onDone(tErr(voiceErrorKey(data?.error ?? (res ? 'generic' : 'network'))));
       onClose();
       return;
     }

@@ -16,6 +16,7 @@ import EnvelopeDetail from '@/components/sign/EnvelopeDetail';
 import TemplatesList from '@/components/sign/TemplatesList';
 import TemplateEditor from '@/components/sign/TemplateEditor';
 import EmptyState from '@/components/ui/EmptyState';
+import MinimalProductSettings from '@/components/app/ProductSettingsShell';
 
 export const dynamic = 'force-dynamic';
 
@@ -95,6 +96,10 @@ export default async function SignPage(props: Props) {
         return <EnvelopeEditor initial={dto} maxMb={MAX_MB} />;
       }
       return <EnvelopeDetail env={dto} />;
+    }
+    case 'settings': {
+      if (id) notFound();
+      return <MinimalProductSettings locale={locale} product="sign" />;
     }
     case 'templates': {
       if (!id) {

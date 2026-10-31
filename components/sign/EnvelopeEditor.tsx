@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
+import TitleInput from '@/components/ui/TitleInput';
 import type { EnvelopeDto } from '@/lib/sign/core';
 import FieldPlacer, { newKey, type PlacedField } from './FieldPlacer';
 import { api, SignDialog, useErrorText, useToast } from './ui';
@@ -171,16 +172,13 @@ export default function EnvelopeEditor({ initial, maxMb }: { initial: EnvelopeDt
       <PageHeader
         back={{ href: '/app/sign', label: t('nav.envelopes') }}
         title={
-          <input
+          <TitleInput
             className="sg-title-input"
             aria-label={t('editor.titleLabel')}
             value={title}
             maxLength={200}
-            onChange={(e) => setTitle(e.target.value)}
+            onValueChange={setTitle}
             onBlur={saveTitle}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
-            }}
           />
         }
         description={t('editor.draftDesc')}

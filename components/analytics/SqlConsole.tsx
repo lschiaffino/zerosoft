@@ -6,7 +6,7 @@ import { useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import { VIRTUAL_COLUMNS, VIRTUAL_TABLES } from '@/lib/analytics/sql-safe';
 import type { InsightDto, InsightResult, SqlQuery } from '@/lib/analytics/types';
-import { ApiError, api, notifyChanged, runQuery } from './client';
+import { ApiError, apiErrorText, api, notifyChanged, runQuery } from './client';
 import { SqlForm } from './InsightEditor';
 import InsightResultView from './InsightResultView';
 import NameDialog from './NameDialog';
@@ -53,7 +53,7 @@ export default function SqlConsole({ projectId }: { projectId: string }) {
       notifyChanged();
       router.push(`/app/analytics/insights/${insight.id}`);
     } catch (err) {
-      setError(err instanceof ApiError ? tc('errorCode', { code: err.code }) : tc('error'));
+      setError(apiErrorText(err, tc));
     } finally {
       setSaving(false);
       setAsking(false);
