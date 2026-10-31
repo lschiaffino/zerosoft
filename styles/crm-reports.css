@@ -287,3 +287,7 @@ a.report-type-tab { text-decoration: none; display: inline-block; }
   /* En pantallas chicas la vista previa va arriba de los controles. */
   .rb-main { order: -1; }
 }
+
+@media (max-width: 640px) {
+  .rb-list-table { min-width: 560px; }
+}

@@ -11,6 +11,7 @@
  * etapa pide propiedades que faltan, el pedido queda aprobado hasta que quien
  * lo pidió mueva el deal.
  */
+import { localized } from './notification-copy';
 import { getDb, type CrmApprovalRuleRow, type CrmDealApprovalRow, type CrmDealRow, type Db } from './db';
 import { isWorkspacePerson } from './crm-refs';
 import { getCurrencyContext } from './crm-currency';
@@ -331,7 +332,7 @@ export async function requestApproval(
     await createNotification({
       userId: approverId,
       type: 'crm_approval',
-      title: `${requester.name || 'Someone'} asks to move ${deal.name} to ${approval.stage_name}`,
+      title: localized('approvalRequested', { actor: requester.name || undefined, deal: deal.name, stage: approval.stage_name }),
       body: note.slice(0, 140) || undefined,
       href: `/app/crm/deals/${dealId}`,
       sourceType: 'crm_deal',
@@ -392,10 +393,11 @@ export async function decideApproval(
     await createNotification({
       userId: approval.requested_by,
       type: 'crm_approval',
-      title:
-        decision === 'approve'
-          ? `${actor.name || actor.email} approved moving ${approval.deal_name} to ${approval.stage_name}`
-          : `${actor.name || actor.email} rejected moving ${approval.deal_name} to ${approval.stage_name}`,
+      title: localized(decision === 'approve' ? 'approvalApproved' : 'approvalRejected', {
+        actor: actor.name || actor.email,
+        deal: approval.deal_name,
+        stage: approval.stage_name,
+      }),
       body: note.slice(0, 140) || undefined,
       href: `/app/crm/deals/${approval.deal_id}`,
       sourceType: 'crm_deal',

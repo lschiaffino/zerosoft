@@ -1019,7 +1019,7 @@ export function PurchaseOrderEditor({
               <tbody>
                 {lines.map((l, i) => (
                   <tr key={l.key}>
-                    <td>
+                    <td data-label={t('editor.colItem')}>
                       <select
                         className="select bk-cell"
                         aria-label={t('editor.colItem')}
@@ -1037,16 +1037,16 @@ export function PurchaseOrderEditor({
                         ))}
                       </select>
                     </td>
-                    <td>
+                    <td data-label={t('editor.colDescription')}>
                       <input className="input bk-cell bk-cell-wide" aria-label={t('editor.colDescription')} value={l.description} onChange={(e) => setLine(l.key, { description: e.target.value })} />
                     </td>
-                    <td>
+                    <td data-label={t('editor.colQty')}>
                       <input className="input num bk-cell bk-cell-xs" inputMode="decimal" aria-label={t('editor.colQty')} value={l.quantity} onChange={(e) => setLine(l.key, { quantity: e.target.value })} />
                     </td>
-                    <td>
+                    <td data-label={t('po.unitCost')}>
                       <MoneyInput value={l.unitCost} onChange={(v) => setLine(l.key, { unitCost: v })} currency={currency} label={t('po.unitCost')} />
                     </td>
-                    <td>
+                    <td data-label={t('editor.colTax')}>
                       <select className="select bk-cell" aria-label={t('editor.colTax')} value={l.taxRateId} onChange={(e) => setLine(l.key, { taxRateId: e.target.value })}>
                         <option value="">{t('editor.noTax')}</option>
                         {taxes.map((x) => (

@@ -421,6 +421,16 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-1);
   cursor: pointer;
+  max-width: min(100%, 240px);
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.track-qc-team-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .track-qc-team:hover {

@@ -477,8 +477,8 @@ body:has(.chat-composer) #zs-chat-root { display: none !important; }
 .chat-details-label { font-family: var(--font-ui); font-size: 0.8125rem; font-weight: 600; color: var(--ink); }
 .chat-details .select { background-color: var(--bg); }
 
-.chat-dl { display: grid; gap: 10px; margin: 0; font-size: 0.8125rem; }
-.chat-dl > div { display: flex; flex-direction: column; gap: 2px; }
+.chat-dl { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; margin: 0; font-size: 0.8125rem; }
+.chat-dl > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .chat-dl dt { color: var(--brand-gray-2); }
 .chat-dl dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
 .chat-dl dd a { color: inherit; text-underline-offset: 3px; }
@@ -594,6 +594,7 @@ body:has(.chat-composer) #zs-chat-root { display: none !important; }
   border: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
   border-radius: var(--radius-1);
 }
+.chat-swatch-sm, .chat-swatch-lg { outline: 1px solid var(--brand-gray-2); outline-offset: -1px; }
 .chat-swatch-sm { width: 12px; height: 12px; }
 .chat-swatch-lg { width: 20px; height: 20px; }
 
@@ -970,3 +971,5 @@ body:has(.chat-composer) #zs-chat-root { display: none !important; }
 }
 /* Un email corta antes de la arroba, no a mitad de palabra. */
 .chat-dl dd.chat-email { overflow-wrap: break-word; word-break: normal; }
+/* Email en tablas: parte antes del @ (<wbr>) y, si sigue sin entrar, en cualquier letra. */
+.chat-email, .chat-stack a.cell-link { overflow-wrap: anywhere; }

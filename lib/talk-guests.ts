@@ -24,6 +24,7 @@ import {
   TalkError,
   addMembers,
   emitTalkEvent,
+  getChannelDto,
   nowIso,
   readableChannel,
   talkActor,
@@ -76,6 +77,24 @@ export interface TalkWorkspaceOption {
   id: string;
   name: string;
   guest: boolean;
+}
+
+export type TalkChannelRoute = { kind: 'here' } | { kind: 'switch'; workspaceId: string } | { kind: 'missing' };
+
+/**
+ * Qué hacer con un link a un canal: abrirlo acá, cambiar a otro workspace de
+ * Talk de la persona (el suyo o uno donde es invitada) o responder 404. Un
+ * canal de un workspace ajeno, o uno que no puede leer, da lo mismo que un id
+ * inventado: 'missing'. Es la única búsqueda de canales sin filtro de workspace.
+ */
+export async function resolveTalkChannelRoute(user: SessionUser, channelId: string): Promise<TalkChannelRoute> {
+  const actor = await resolveTalkActor(user);
+  if (await getChannelDto(actor, channelId)) return { kind: 'here' };
+  const row = (await getDb().prepare('SELECT workspace_id FROM talk_channels WHERE id = ?').get(channelId)) as { workspace_id: string } | undefined;
+  if (!row || row.workspace_id === actor.workspaceId) return { kind: 'missing' };
+  const other = await resolveTalkActor(user, { workspaceId: row.workspace_id });
+  if (other.workspaceId !== row.workspace_id || !(await getChannelDto(other, channelId))) return { kind: 'missing' };
+  return { kind: 'switch', workspaceId: row.workspace_id };
 }
 
 /** Workspaces de Talk de la persona: el de su sesión y los que la invitaron. */

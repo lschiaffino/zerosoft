@@ -20,7 +20,7 @@ import {
 import { PriorityIcon, StatusDot } from '@/components/track/glyphs';
 import TrackIcon, { type TrackIconName } from '@/components/track/TrackIcon';
 import { SETTINGS_SECTION_KEYS, settingsSectionHref } from '@/lib/settings-nav';
-import { PRODUCT_CONFIG, PRODUCT_KEYS, productSettingsHref } from '@/lib/products';
+import { hrefAllowed, PRODUCT_CONFIG, PRODUCT_KEYS, productSettingsHref, type AllowedApps, type ProductKey } from '@/lib/products';
 import { RIVALS } from '@/components/site/catalog';
 import { IMPORT_SOURCES, importHubHref } from '@/lib/import-registry';
 
@@ -35,6 +35,8 @@ interface ResultItem {
   action?: CommandAction;
   /** Otras palabras con las que se encuentra (sinónimos, otros idiomas). */
   keywords?: string;
+  /** App de destino cuando la ruta no la dice (hub de importación). */
+  app?: ProductKey;
 }
 
 /** Minúsculas y sin tildes: "Facturación" encuentra "facturacion". */
@@ -222,7 +224,7 @@ function useGroupLabel(t: (key: string) => string) {
  * evento 'zs:open-search' (botón de la sidebar). Busca en todos los productos
  * usando la API unificada /api/search.
  */
-export default function CommandSearch() {
+export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: AllowedApps }) {
   const t = useTranslations('common.sidebar');
   const locale = useLocale();
   const tNotes = useTranslations('notes');
@@ -379,6 +381,7 @@ export default function CommandSearch() {
         meta: '',
         href: importHubHref({ source: s.id }),
         keywords: tSettingsCmdk('keywords.import'),
+        app: s.app,
       })),
     ],
     [tSections, tSettingsCmdk],
@@ -438,7 +441,7 @@ export default function CommandSearch() {
       const active = document.activeElement as HTMLElement | null;
       if (!prevFocusRef.current && active && !active.closest('.cmdk')) prevFocusRef.current = active;
       setQ('');
-      setItems(actionItems);
+      setItems(actionItems.filter((a) => hrefAllowed(allowedApps, a.href, a.app)));
       setSel(0);
       setTimeout(() => inputRef.current?.focus(), 30);
       // Esc cierra aunque el foco todavía no llegó al input (p. ej. abierta desde el switcher, cuyo ítem se desmontó).
@@ -460,7 +463,7 @@ export default function CommandSearch() {
       setAnchor(null);
       window.dispatchEvent(new Event(CMDK_CLOSED_EVENT));
     }
-  }, [open, actionItems]);
+  }, [open, actionItems, allowedApps]);
 
   // Acciones en contexto de la página (se consultan en cada render: nunca viejas).
   const context = open ? getCommandContext() : null;
@@ -523,7 +526,7 @@ export default function CommandSearch() {
   const search = useCallback(
     async (query: string) => {
       if (!query.trim()) {
-        setItems(actionItems);
+        setItems(actionItems.filter((a) => hrefAllowed(allowedApps, a.href, a.app)));
         setLoading(false);
         return;
       }
@@ -547,7 +550,7 @@ export default function CommandSearch() {
           return a.keywords.split(',').some((k) => fold(k.trim()).startsWith(needle)) ? 1 : -1;
         };
         const byGroup = (a: ResultItem, b: ResultItem) => groupOrder.indexOf(a.group) - groupOrder.indexOf(b.group);
-        const matchingActions = [...appItems, ...actionItems, ...settingsItems].filter((a) => rankItem(a) >= 0);
+        const matchingActions = [...appItems, ...actionItems, ...settingsItems].filter((a) => rankItem(a) >= 0 && hrefAllowed(allowedApps, a.href, a.app));
         const results = [...(data.items ?? [])].sort(byGroup);
         setItems(
           matchingActions.some((a) => rankItem(a) < 2)
@@ -561,7 +564,7 @@ export default function CommandSearch() {
         setSel(0);
       }
     },
-    [appItems, actionItems, settingsItems, groupOrder, locale],
+    [appItems, actionItems, settingsItems, groupOrder, locale, allowedApps],
   );
 
   useEffect(() => {

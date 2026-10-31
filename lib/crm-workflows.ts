@@ -2,6 +2,7 @@
  * CRM Workflows — motor de automatizaciones con triggers y acciones.
  * Server-only.
  */
+import { localized } from './notification-copy';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createNotification } from './notifications';
 import { safeFetch } from './safe-fetch';
@@ -702,7 +703,7 @@ async function executeAction(
         await createNotification({
           userId,
           type: 'assigned',
-          title: 'Workflow notification',
+          title: localized('workflowNotification'),
           body: renderTemplate(message, ctx),
           sourceType: 'workflow',
           sourceId: workflowId,

@@ -1,5 +1,6 @@
 'use client';
 
+import { useMounted } from '@/components/ui/useMounted';
 import { useEffect, useId, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -237,6 +238,7 @@ export function PollDetail({ poll: initial, pollUrl, canManage = true }: { poll:
     return m;
   }, [poll]);
   const best = Math.max(0, ...tally.values());
+  const mounted = useMounted();
   const day = new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric', month: 'short' });
   const time = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' });
 
@@ -414,7 +416,7 @@ export function PollDetail({ poll: initial, pollUrl, canManage = true }: { poll:
                   return (
                     <tr key={o.id} className={n > 0 && n === best ? 'cal-poll-best' : undefined}>
                       <td className="data">
-                        {day.format(d)} · {time.format(d)}
+                        {mounted ? `${day.format(d)} · ${time.format(d)}` : ''}
                       </td>
                       <td className="num data" data-label={t('polls.votes')}>
                         {n}

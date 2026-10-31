@@ -1,5 +1,6 @@
 'use client';
 
+import { useMounted } from '@/components/ui/useMounted';
 import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -23,6 +24,7 @@ export default function PersonsList({
 }) {
   const t = useTranslations('analytics.persons');
   const locale = useLocale();
+  const mounted = useMounted();
   const [q, setQ] = useState('');
   const [persons, setPersons] = useState(initial);
   const [hasMore, setHasMore] = useState(initialHasMore);
@@ -110,7 +112,7 @@ export default function PersonsList({
                     {p.isIdentified && <span className="badge badge-outline an-badge">{t('identified')}</span>}
                   </td>
                   <td className="an-mono an-ellipsis an-hide-sm">{p.distinctIds[0] ?? ''}</td>
-                  <td className="an-muted an-nowrap">{fmtTime(p.lastSeen, locale)}</td>
+                  <td className="an-muted an-nowrap">{(mounted ? fmtTime(p.lastSeen, locale) : '')}</td>
                 </tr>
               ))}
             </tbody>

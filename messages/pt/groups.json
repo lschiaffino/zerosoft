@@ -414,7 +414,8 @@
     "cancel": "Cancelar envio em massa",
     "cancelTitle": "Cancelar o que falta deste envio em massa?",
     "cancelBody": "{n} mensagens que ainda não saíram serão canceladas. O que já foi enviado continua enviado.",
-    "failedN": "{n} falharam"
+    "failedN": "{n} falharam",
+    "noNumbersBody": "Conecte um número de WhatsApp para fazer envios aos seus grupos."
   },
   "broadcastStatus": {
     "scheduled": "Agendado",
@@ -979,7 +980,7 @@
       "one": "Um grupo",
       "csv": "Vários de um CSV"
     },
-    "fixedMembers": "{n} membros fixos",
+    "fixedMembers": "{n, plural, one {# membro fixo} other {# membros fixos}}",
     "extraPhones": "Participantes extras (opcional)",
     "csvHelp": "Primeira linha com as colunas: {columns}. Um grupo por linha, até 50.",
     "sameName": "O do modelo",

@@ -13,6 +13,7 @@
  * BOOKS_PAYMENTS_FAKE=1: sin salir a internet. El checkout vuelve directo a
  * la factura pública y el pago lo marca un webhook firmado.
  */
+import { localized, type NotificationText } from './notification-copy';
 import { getDb } from './db';
 import { safeFetch } from './safe-fetch';
 import { open as openSecret, seal } from './secret-box';
@@ -238,7 +239,7 @@ async function remember(provider: string, ws: string, eventId: string): Promise<
 
 const systemActor = (ws: string): BooksActor => ({ ws, person: ws, admin: true, role: 'accountant' });
 
-async function warn(ws: string, title: string, body: string, href: string, sourceId: string): Promise<void> {
+async function warn(ws: string, title: NotificationText, body: NotificationText, href: string, sourceId: string): Promise<void> {
   const { notifyStaff } = await import('./books-integrations');
   await notifyStaff(ws, title, body, href, sourceId);
 }
@@ -259,11 +260,11 @@ export async function applyProviderPayment(
   const d = await getDocRow(ws, invoiceId);
   const label = d?.number_label || invoiceId;
   if (!d || d.doc_type !== 'invoice') {
-    await warn(ws, 'Online payment for an unknown invoice', `${input.method} ${input.providerRef}: ${input.amount} ${input.currency}. Record it by hand.`, '/app/books/invoices', input.providerRef);
+    await warn(ws, localized('paymentUnknown'), localized('paymentUnknownBody', { method: input.method, ref: input.providerRef, amount: input.amount, currency: input.currency }), '/app/books/invoices', input.providerRef);
     return { kind: 'ignored', reason: 'unknown_invoice' };
   }
   if (input.currency.toUpperCase() !== d.currency) {
-    await warn(ws, `Online payment in another currency for ${label}`, `${input.method} charged ${input.amount} ${input.currency}; the invoice is in ${d.currency}. Record it by hand.`, `/app/books/invoices/${d.id}`, d.id);
+    await warn(ws, localized('paymentCurrency', { label }), localized('paymentCurrencyBody', { method: input.method, amount: input.amount, currency: input.currency, invoiceCurrency: d.currency }), `/app/books/invoices/${d.id}`, d.id);
     return { kind: 'ignored', reason: 'currency' };
   }
   if (!(input.amount > 0)) return { kind: 'ignored', reason: 'amount' };
@@ -316,8 +317,8 @@ export async function applyProviderPayment(
     await audit({ ws, person: null }, 'payment.unapplied', 'invoice', d.id, `${excess} ${d.currency} ${input.providerRef}`);
     await warn(
       ws,
-      `Online payment above the balance of ${label}`,
-      `${input.method} charged ${formatMoney(input.amount, d.currency)}; ${formatMoney(apply, d.currency)} went to the invoice and ${formatMoney(excess, d.currency)} is a customer credit to refund or apply.`,
+      localized('paymentOver', { label }),
+      localized('paymentOverBody', { method: input.method, amount: formatMoney(input.amount, d.currency), applied: formatMoney(apply, d.currency), excess: formatMoney(excess, d.currency) }),
       `/app/books/invoices/${d.id}`,
       d.id,
     );

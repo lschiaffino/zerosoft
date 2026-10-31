@@ -1,4 +1,7 @@
-import { Suspense, type ReactNode } from 'react';
+import { RETURN_PATH_HEADER } from '@/lib/return-path';
+import { headers } from 'next/headers';
+import { notFound } from 'next/navigation';
+import type { ReactNode } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { listLabels, listNumbers, listPeople, listPropertyDefs } from '@/lib/groups';
@@ -26,6 +29,8 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
   ]);
 
   if (numbers.length === 0) {
+    // Sin números no se renderiza la página hija: un id en la ruta no puede existir.
+    if (/\/inbox\/[^/?#]+/.test((await headers()).get(RETURN_PATH_HEADER) ?? '')) notFound();
     return (
       <div className="ui-page">
         <PageHeader title={t('inbox.title')} />
@@ -40,7 +45,7 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
   }
 
   return (
-    <Suspense fallback={null}>
+    <>
       <InboxShell
         labels={labels.map((l) => ({ id: l.id, name: l.name, color: l.color }))}
         people={people}
@@ -51,6 +56,6 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
       >
         {props.children}
       </InboxShell>
-    </Suspense>
+    </>
   );
 }

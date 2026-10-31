@@ -5,6 +5,7 @@
  * devolución de equipos, entrevista de salida y, si HR lo elige, "sacar del
  * workspace" por el flujo de siempre (teams.removeMember → personRemoved).
  */
+import { localized } from './notification-copy';
 import { getDb } from './db';
 import { isManagerOf, isSelf } from './people-access';
 import { dueDateFor, isIsoDate } from './people-time';
@@ -154,7 +155,7 @@ export async function startChecklist(ctx: PeopleCtx, employeeId: string, templat
   // Avisos: cada persona con tareas; IT y HR van a HR.
   const hr = plan.some((t) => t.assignee === 'it' || t.assignee === 'hr') ? await hrPeople(ctx.ws) : [];
   await notifyPeople([...new Set([...plan.map((t) => t.assigneeId), ...hr])], {
-    title: `${tpl.kind === 'offboarding' ? 'Offboarding' : 'Onboarding'} tasks for ${emp.name}`,
+    title: localized(tpl.kind === 'offboarding' ? 'peopleOffboarding' : 'peopleOnboarding', { name: emp.name }),
     href: `/app/people/${employeeId}?tab=onboarding`,
     sourceId: id,
   });

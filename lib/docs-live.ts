@@ -6,6 +6,7 @@
  * demás y, si la página cambió, la versión nueva para fusionarla en el editor
  * (lib/docs-merge.ts). Sin websockets: anda igual en Vercel y en un servidor propio.
  */
+import { localized } from './notification-copy';
 import { getDb, type DocsPageRow } from './db';
 import { createNotification } from './notifications';
 import type { SessionUser } from './session';
@@ -123,7 +124,7 @@ export async function notifyDocsSuggestions(page: DocsPageRow, user: SessionUser
   await createNotification({
     userId: target,
     type: 'comment',
-    title: `${who} suggested ${count === 1 ? 'an edit' : `${count} edits`} in ${page.title || 'Untitled'}`,
+    title: localized(count === 1 ? 'docsSuggestedOne' : 'docsSuggestedMany', { who, count, title: page.title || undefined }),
     href: `/app/docs/${page.id}`,
     sourceType: 'docs_page',
     sourceId: page.id,

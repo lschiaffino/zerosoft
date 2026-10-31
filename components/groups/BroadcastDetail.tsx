@@ -1,5 +1,6 @@
 'use client';
 
+import { useMounted } from '@/components/ui/useMounted';
 import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -12,6 +13,7 @@ import { parseDbUtc } from '@/lib/utils';
 export default function BroadcastDetail({ initial }: { initial: { broadcast: BroadcastDto; recipients: RecipientDto[] } }) {
   const t = useTranslations('groups');
   const locale = useLocale();
+  const mounted = useMounted();
   const errText = useErrorText();
   const [toast, showToast] = useToast();
   const [data, setData] = useState(initial);
@@ -54,7 +56,7 @@ export default function BroadcastDetail({ initial }: { initial: { broadcast: Bro
         </div>
         <div>
           <span className="label">{t('broadcasts.colWhen')}</span>
-          <strong>{parseDbUtc(b.scheduledAt).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })}</strong>
+          <strong>{(mounted ? parseDbUtc(b.scheduledAt).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' }) : '')}</strong>
         </div>
         <div>
           <span className="label">{t('recipientStatus.sent')}</span>

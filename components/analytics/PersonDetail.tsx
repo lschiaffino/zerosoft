@@ -1,5 +1,6 @@
 'use client';
 
+import { useMounted } from '@/components/ui/useMounted';
 import { Fragment, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
@@ -13,6 +14,7 @@ export default function PersonDetail({ person, events: initial, canDelete }: { p
   const t = useTranslations('analytics.persons');
   const tc = useTranslations('analytics.common');
   const locale = useLocale();
+  const mounted = useMounted();
   const router = useRouter();
   const [events, setEvents] = useState(initial);
   const [hasMore, setHasMore] = useState(initial.length >= 100);
@@ -76,7 +78,7 @@ export default function PersonDetail({ person, events: initial, canDelete }: { p
             ))}
           </ul>
           <p className="an-muted an-small">
-            {t('firstSeen', { date: fmtTime(person.createdAt, locale) })} · {t('lastSeenAt', { date: fmtTime(person.lastSeen, locale) })}
+            {t('firstSeen', { date: (mounted ? fmtTime(person.createdAt, locale) : '') })} · {t('lastSeenAt', { date: (mounted ? fmtTime(person.lastSeen, locale) : '') })}
           </p>
         </section>
         <section className="an-panel" aria-labelledby="an-timeline-h">
@@ -92,7 +94,7 @@ export default function PersonDetail({ person, events: initial, canDelete }: { p
                   <button type="button" className="an-row-button" aria-expanded={open === e.id} onClick={() => setOpen(open === e.id ? null : e.id)}>
                     <span className="an-timeline-event">{e.event}</span>
                     <span className="an-muted an-ellipsis">{e.pathname ?? ''}</span>
-                    <span className="an-muted an-nowrap an-small">{fmtTime(e.ts, locale)}</span>
+                    <span className="an-muted an-nowrap an-small">{(mounted ? fmtTime(e.ts, locale) : '')}</span>
                   </button>
                   {open === e.id && (
                     <dl className="an-props">

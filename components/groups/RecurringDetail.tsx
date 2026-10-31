@@ -1,5 +1,6 @@
 'use client';
 
+import { useMounted } from '@/components/ui/useMounted';
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -35,6 +36,7 @@ export default function RecurringDetail({
 }) {
   const t = useTranslations('groups');
   const locale = useLocale();
+  const mounted = useMounted();
   const router = useRouter();
   const errText = useErrorText();
   const ruleText = useRuleText();
@@ -96,7 +98,7 @@ export default function RecurringDetail({
         <div className={`gr-banner${rec.status === 'active' ? '' : ' is-bad'}`} role="status">
           <span>
             {rec.status === 'active' && rec.nextRunAt
-              ? t('recurring.nextRun', { when: parseDbUtc(rec.nextRunAt).toLocaleString(locale, { dateStyle: 'full', timeStyle: 'short' }) })
+              ? t('recurring.nextRun', { when: (mounted ? parseDbUtc(rec.nextRunAt).toLocaleString(locale, { dateStyle: 'full', timeStyle: 'short' }) : '') })
               : t(`recurring.status.${rec.status}`)}{' '}
             · {ruleText(rec.rule)}
           </span>
@@ -148,7 +150,7 @@ export default function RecurringDetail({
               {runs.map((r) => (
                 <li key={r.id}>
                   <span>
-                    <Link href={`/app/groups/broadcasts/${r.id}`}>{parseDbUtc(r.scheduledAt).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })}</Link>
+                    <Link href={`/app/groups/broadcasts/${r.id}`}>{(mounted ? parseDbUtc(r.scheduledAt).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' }) : '')}</Link>
                   </span>
                   <span className="ui-help">
                     {t(`broadcastStatus.${r.status}`)} · {r.sent + r.failed}/{r.total}

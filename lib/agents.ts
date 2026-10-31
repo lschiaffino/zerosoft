@@ -11,6 +11,7 @@
  * - Límites: por conversación y por workspace (además del rate limit de AI).
  * Server-only.
  */
+import { localized } from './notification-copy';
 import { generateText, isStepCount, streamText, type ModelMessage, type StepResult, type ToolSet } from 'ai';
 import { chatConversationVisibleSql } from './chat-audience';
 import { getDb } from './db';
@@ -1763,7 +1764,7 @@ async function notifyVisitorWaiting(agent: AgentRow, conversationId: string, tex
   await createNotification({
     userId: agent.user_id,
     type: 'chat_message',
-    title: `${agent.name}: a visitor is waiting for a reply`,
+    title: localized('agentWaiting', { agent: agent.name }),
     body: text.replace(/\s+/g, ' ').slice(0, 140),
     href: `/app/agents/${agent.id}?tab=conversations&c=${conversationId}`,
     sourceType: 'agent_conversation',
@@ -1794,7 +1795,7 @@ async function publicModelFailureHandoff(
   await createNotification({
     userId: agent.user_id,
     type: 'chat_message',
-    title: `${agent.name}: the AI model failed, a visitor needs a human`,
+    title: localized('agentModelFailed', { agent: agent.name }),
     body: lastUser.replace(/\s+/g, ' ').slice(0, 140),
     href: `/app/agents/${agent.id}?tab=conversations&c=${conversation.id}`,
     sourceType: 'agent_conversation',

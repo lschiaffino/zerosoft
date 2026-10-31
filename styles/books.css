@@ -215,7 +215,9 @@ a.bk-rowtext:hover .bk-rowtitle {
     padding: 12px 0;
     border-bottom: 1px solid var(--line);
   }
+  /* height: auto: el alto fijo de .table td hacía que los campos se pisaran con su etiqueta. */
   .bk-lines td {
+    height: auto;
     padding: 4px 0;
     border: 0;
   }
@@ -726,4 +728,9 @@ tr[data-archived] {
 .bk-inline-field {
   display: inline-flex;
   align-items: center;
+}
+
+/* 390: columnas con su ancho y scroll dentro de la tabla, sin apretar cada celda en muchas líneas. */
+@media (max-width: 640px) {
+  .bk-table:not(.bk-lines) { min-width: 520px; }
 }

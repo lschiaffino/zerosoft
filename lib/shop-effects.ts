@@ -7,6 +7,7 @@
  * Los eventos llevan datos del cliente: solo los reciben los flows creados
  * por alguien que hoy usa Shop en el workspace.
  */
+import { localized, type NotificationText } from './notification-copy';
 import { getDb } from './db';
 import { escapeHtml, namedSender, renderBrandedHtml, sendEmail } from './email';
 import { personAppAccess } from './api-auth';
@@ -78,7 +79,7 @@ async function staffToNotify(ws: string): Promise<string[]> {
   }
 }
 
-export async function notifyStaff(ws: string, title: string, body: string, href: string, sourceId: string): Promise<void> {
+export async function notifyStaff(ws: string, title: NotificationText, body: NotificationText, href: string, sourceId: string): Promise<void> {
   try {
     const { createNotification } = await import('./notifications');
     for (const userId of await staffToNotify(ws)) {
@@ -207,7 +208,7 @@ export async function onOrderCreated(store: StoreRow, o: OrderRow, items: OrderI
   if (o.payment_method === 'manual') {
     const settings = normalizeSettings(parseJson(store.settings, {}));
     if (settings.emailConfirmation) await sendOrderEmail(store, o, items, 'pending').catch(() => undefined);
-    await notifyStaff(store.workspace_id, `New order #${o.number} waiting for transfer`, `${o.email} · ${formatMoney(o.total_cents, o.currency)}`, `/app/shop/orders/${o.id}`, o.id);
+    await notifyStaff(store.workspace_id, localized('orderAwaitingTransfer', { number: o.number }), `${o.email} · ${formatMoney(o.total_cents, o.currency)}`, `/app/shop/orders/${o.id}`, o.id);
   }
 }
 
@@ -215,7 +216,7 @@ export async function onOrderPaid(store: StoreRow, o: OrderRow, items: OrderItem
   const settings = normalizeSettings(parseJson(store.settings, {}));
   if (settings.emailConfirmation) await sendOrderEmail(store, o, items, 'confirmation').catch((err) => console.error('[shop] email failed', err));
   await syncCrm(store, o, items);
-  await notifyStaff(store.workspace_id, `Order #${o.number} paid`, `${o.email} · ${formatMoney(o.total_cents, o.currency)}`, `/app/shop/orders/${o.id}`, o.id);
+  await notifyStaff(store.workspace_id, localized('orderPaid', { number: o.number }), `${o.email} · ${formatMoney(o.total_cents, o.currency)}`, `/app/shop/orders/${o.id}`, o.id);
   await emit(store, 'shop.order.paid', orderPayload(store, o, items));
   // Books: factura emitida y cobrada por el pedido, si el workspace lo activó (lib/books-integrations.ts).
   await import('./books-integrations').then((m) => m.onShopOrderPaid(store.workspace_id, o.id)).catch(() => undefined);
@@ -248,8 +249,8 @@ export async function onLowStock(
   const first = fresh[0];
   await notifyStaff(
     store.workspace_id,
-    fresh.length === 1 ? `Low stock: ${first.product}${first.variant && first.variant !== 'Default' ? ` (${first.variant})` : ''}` : `Low stock on ${fresh.length} items`,
-    fresh.length === 1 ? `${first.available} left` : fresh.map((r) => `${r.product} (${r.available})`).join(', ').slice(0, 200),
+    fresh.length === 1 ? localized('lowStockOne', { product: `${first.product}${first.variant && first.variant !== 'Default' ? ` (${first.variant})` : ''}` }) : localized('lowStockMany', { count: fresh.length }),
+    fresh.length === 1 ? localized('lowStockLeft', { count: first.available }) : fresh.map((r) => `${r.product} (${r.available})`).join(', ').slice(0, 200),
     '/app/shop/inventory?low=1',
     first.variantId,
   );

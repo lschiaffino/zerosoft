@@ -781,3 +781,8 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
     mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent);
   }
 }
+
+/* 390: columnas con su ancho y scroll en la tabla; la tabla de tickets se apila aparte. */
+@media (max-width: 640px) {
+  .gr-table:not(.gr-tickets-table) { min-width: 560px; }
+}

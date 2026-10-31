@@ -586,7 +586,7 @@ export function JournalNew({ accounts, currency, lockDate }: { accounts: Array<{
             <tbody>
               {lines.map((l) => (
                 <tr key={l.key}>
-                  <td>
+                  <td data-label={t('journal.account')}>
                     <select className="select bk-cell" aria-label={t('journal.account')} value={l.accountId} onChange={(e) => setLine(l.key, { accountId: e.target.value })}>
                       <option value="">{t('banking.pickAccount')}</option>
                       {accounts.map((a) => (
@@ -596,13 +596,13 @@ export function JournalNew({ accounts, currency, lockDate }: { accounts: Array<{
                       ))}
                     </select>
                   </td>
-                  <td>
+                  <td data-label={t('editor.colDescription')}>
                     <input className="input bk-cell bk-cell-wide" aria-label={t('editor.colDescription')} value={l.description} onChange={(e) => setLine(l.key, { description: e.target.value })} />
                   </td>
-                  <td>
+                  <td data-label={t('journal.debit')}>
                     <MoneyInput value={l.debit} onChange={(v) => setLine(l.key, { debit: v, ...(v ? { credit: null } : {}) })} currency={currency} label={t('journal.debit')} />
                   </td>
-                  <td>
+                  <td data-label={t('journal.credit')}>
                     <MoneyInput value={l.credit} onChange={(v) => setLine(l.key, { credit: v, ...(v ? { debit: null } : {}) })} currency={currency} label={t('journal.credit')} />
                   </td>
                   <td>

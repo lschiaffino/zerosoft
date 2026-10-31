@@ -4,6 +4,9 @@ const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // El <title> va siempre en el <head>: con metadata en streaming cae en el <body> y compite
+  // con la hidratación (error #418 intermitente en rutas con loading.tsx).
+  htmlLimitedBots: /.*/,
   reactStrictMode: true,
   // geoip-lite reads its .dat data files from paths relative to its own
   // __dirname at require time, which breaks when webpack bundles it.

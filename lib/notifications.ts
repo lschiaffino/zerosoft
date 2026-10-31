@@ -4,14 +4,16 @@
  */
 import { getDb } from './db';
 import type { NotificationRow } from './db';
+import { localized, renderForRecipient, type NotificationText } from './notification-copy';
 
 export type NotificationType = 'mention' | 'assigned' | 'status_change' | 'issue_update' | 'comment' | 'subtask' | 'relation' | 'chat_message' | 'email_activity' | 'crm_quote' | 'crm_form' | 'crm_lead' | 'crm_approval' | 'crm_document' | 'crm_video' | 'roadmap_status' | 'note_reminder' | 'track_reminder' | 'groups_sla' | 'groups_reminder' | 'project_update' | 'docs_reminder' | 'db_automation' | 'talk_mention' | 'talk_dm' | 'talk_thread' | 'talk_keyword' | 'talk_message' | 'talk_reminder' | 'rec_view' | 'rec_comment' | 'design_comment' | 'design_share' | 'workspace_access' | 'shop_order' | 'social_approval' | 'social_approved' | 'social_rejected' | 'social_failed' | 'social_assigned' | 'hiring_activity' | 'people' | 'books_invoice' | 'sign_activity' | 'forms_response';
 
 export interface NotificationCreatePayload {
   userId: string;
   type: NotificationType;
-  title: string;
-  body?: string;
+  /** Texto hecho o localized(clave, vars), que se escribe en el idioma de quien lo recibe. */
+  title: NotificationText;
+  body?: NotificationText;
   href?: string;
   sourceType: string;
   sourceId: string;
@@ -39,6 +41,7 @@ export async function createNotification(payload: NotificationCreatePayload): Pr
   const db = getDb();
   const id = crypto.randomUUID();
   const now = nowIso();
+  const [title, body] = await renderForRecipient(payload.userId, [payload.title, payload.body]);
   await db
     .prepare(
       'INSERT INTO notifications (id, user_id, type, title, body, href, read_at, source_type, source_id, meta, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -47,8 +50,8 @@ export async function createNotification(payload: NotificationCreatePayload): Pr
       id,
       payload.userId,
       payload.type,
-      payload.title,
-      payload.body ?? null,
+      title ?? '',
+      body ?? null,
       payload.href ?? null,
       null,
       payload.sourceType,
@@ -241,7 +244,7 @@ export async function createIssueStatusChangedNotifications(args: {
       userId,
       type: 'status_change',
       title: `${issue.identifier}: status changed to ${newStatus || '—'}`,
-      body: `${actorName(actor)} changed status from ${oldStatus || '—'} to ${newStatus || '—'}`,
+      body: localized('statusChangedBody', { actor: actorName(actor), from: oldStatus || '—', to: newStatus || '—' }),
       href: issueHref(issue.id),
       sourceType: 'track_issue',
       sourceId: issue.id,
@@ -434,7 +437,7 @@ export async function createChatNoteMentionNotification(args: {
   await createNotification({
     userId: mentionedUserId,
     type: 'mention',
-    title: `${actorName(actor)} mentioned you in a conversation note`,
+    title: localized('chatNoteMention', { actor: actorName(actor) }),
     body: body.slice(0, 140),
     href: `/app/chat/inbox/${conversationId}`,
     sourceType: 'chat_conversation',

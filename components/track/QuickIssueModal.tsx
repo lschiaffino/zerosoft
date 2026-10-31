@@ -619,8 +619,10 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
                 onClick={(e) => openCommandMenu('team', { anchor: e.currentTarget })}
                 data-testid="track-qc-team"
               >
-                {project?.icon ? `${project.icon} ` : ''}
-                {project?.name}
+                <span className="track-qc-team-name">
+                  {project?.icon ? `${project.icon} ` : ''}
+                  {project?.name}
+                </span>
                 <TrackIcon name="chevronDown" size={12} />
               </button>
             ) : (

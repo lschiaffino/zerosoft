@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useMounted } from '@/components/ui/useMounted';
 import { useTranslations } from 'next-intl';
 import type { RoadmapItemRow } from '@/lib/db';
 import { formatDateTime } from '@/lib/utils';
@@ -24,6 +25,7 @@ export default function RoadmapAdminList({
   targets: Array<{ id: string; title: string }>;
   locale: string;
 }) {
+  const mounted = useMounted();
   const t = useTranslations('roadmap');
   const tp = useTranslations('feedbackBoard.product');
   const ts = useTranslations('settings.admin');
@@ -82,7 +84,7 @@ export default function RoadmapAdminList({
               </span>
             ),
           },
-          { key: 'created', header: ts('colCreated'), cell: (i) => formatDateTime(i.created_at, locale), data: true },
+          { key: 'created', header: ts('colCreated'), cell: (i) => (mounted ? formatDateTime(i.created_at, locale) : ''), data: true },
         ]}
       />
 

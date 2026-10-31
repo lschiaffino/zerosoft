@@ -1,3 +1,6 @@
+import { RETURN_PATH_HEADER } from '@/lib/return-path';
+import { headers } from 'next/headers';
+import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { listAccessibleChatWidgets } from '@/lib/chat-access';
 import { filterWidgetAudience } from '@/lib/chat-audience';
@@ -9,7 +12,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import InboxShell from '@/components/chat/InboxShell';
 import NewWidgetButton from '@/components/chat/NewWidgetButton';
 import { listChatTeams } from '@/lib/chat-collab';
-import { Suspense } from 'react';
+
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +28,8 @@ export default async function ChatInboxLayout(props: { children: ReactNode; para
   const widgets = await listAccessibleChatWidgets(user);
 
   if (widgets.length === 0) {
+    // Sin widgets no se renderiza la página hija: un id en la ruta no puede existir.
+    if (/\/inbox\/[^/?#]+/.test((await headers()).get(RETURN_PATH_HEADER) ?? '')) notFound();
     return (
       <div className="ui-page">
         <PageHeader title={t('inbox.title')} />
@@ -48,10 +53,10 @@ export default async function ChatInboxLayout(props: { children: ReactNode; para
   const teams = (await listChatTeams(user.id)).map((x) => ({ id: x.id, name: x.name }));
 
   return (
-    <Suspense fallback={null}>
+    <>
       <InboxShell widgetIds={widgets.map((w) => w.id)} currentUserId={realUserId(user)} agents={agents} teams={teams} initialAway={away}>
         {props.children}
       </InboxShell>
-    </Suspense>
+    </>
   );
 }

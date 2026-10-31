@@ -54,7 +54,7 @@ export default async function GroupsBroadcastsPage(props: { params: Promise<{ lo
       {broadcasts.length === 0 ? (
         <EmptyState
           title={t('broadcasts.emptyTitle')}
-          body={numbers.length ? t('broadcasts.emptyBody') : t('list.noNumbersBody')}
+          body={numbers.length ? t('broadcasts.emptyBody') : t('broadcasts.noNumbersBody')}
           action={
             numbers.length
               ? { label: t('broadcasts.new'), href: '/app/groups/broadcasts/new' }

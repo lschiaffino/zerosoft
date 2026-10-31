@@ -5,6 +5,7 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { DEMO_EMAIL, DEMO_MODE, requireUser } from '@/lib/session';
 import { RETURN_PATH_HEADER } from '@/lib/return-path';
+import { PRODUCT_KEYS } from '@/lib/products';
 import { listMyWorkspaces, userCanUseApp } from '@/lib/workspace';
 import type { SwitcherEntry } from '@/components/app/WorkspaceSwitcher';
 import OfflineIdentity from '@/components/app/OfflineIdentity';
@@ -628,7 +629,7 @@ export default async function AppLayout(
           </Suspense>
           <main className="app-content">{children}</main>
         </div>
-        <CommandSearch />
+        <CommandSearch allowedApps={user.role === 'owner' ? '*' : PRODUCT_KEYS.filter((key) => userCanUseApp(user, key))} />
         {/* Asistente de la plataforma: ⌘J o el botón de la banda, en toda la app. */}
         <AssistantPanel />
         {/* Dictado en toda la app y avisos de reunión: solo para quien tiene Voice en este workspace. */}

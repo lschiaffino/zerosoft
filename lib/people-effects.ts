@@ -4,6 +4,7 @@
  * automatización de cualquiera), avisos dentro de la app (sin datos
  * sensibles en el título ni en el cuerpo) y a quién avisar. Nunca tira.
  */
+import type { NotificationText } from './notification-copy';
 import { getDb } from './db';
 
 export type PeopleEventType = 'people.hired' | 'people.timeoff.approved' | 'people.offboarded';
@@ -28,13 +29,15 @@ export async function emitPeopleEvent(ws: string, type: PeopleEventType, data: R
 }
 
 /** Aviso dentro de la app. El título no lleva datos sensibles (ni tipo de licencia ni montos). */
-export async function notifyPeople(userIds: Array<string | null | undefined>, n: { title: string; body?: string; href: string; sourceId: string }): Promise<void> {
+const clip = (text: NotificationText, max: number): NotificationText => (typeof text === 'string' ? text.slice(0, max) : text);
+
+export async function notifyPeople(userIds: Array<string | null | undefined>, n: { title: NotificationText; body?: NotificationText; href: string; sourceId: string }): Promise<void> {
   const ids = [...new Set(userIds.filter((x): x is string => Boolean(x)))];
   if (!ids.length) return;
   try {
     const { createNotification } = await import('./notifications');
     for (const userId of ids) {
-      await createNotification({ userId, type: 'people', title: n.title.slice(0, 200), body: n.body?.slice(0, 500), href: n.href, sourceType: 'people', sourceId: n.sourceId });
+      await createNotification({ userId, type: 'people', title: clip(n.title, 200), body: n.body === undefined ? undefined : clip(n.body, 500), href: n.href, sourceType: 'people', sourceId: n.sourceId });
     }
   } catch (err) {
     console.error('[people] notify failed', err instanceof Error ? err.message : 'error');

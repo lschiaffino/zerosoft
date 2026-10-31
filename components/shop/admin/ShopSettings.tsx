@@ -518,7 +518,7 @@ function LocationsTab({ initial, lowStock }: { initial: LocationDto[]; lowStock:
   const [name, setName] = useState('');
   const [low, setLow] = useState(String(lowStock));
   return (
-    <div className="ui-section">
+    <div className="ui-section ui-section-body">
       <ul className="shop-items">
         {initial.map((l) => (
           <li key={l.id}>
@@ -576,7 +576,7 @@ function NotificationsTab({ store }: { store: StoreDto }) {
   const [s, setS] = useState(store.settings);
   return (
     <form
-      className="ui-section"
+      className="ui-section ui-section-body"
       onSubmit={(e) => {
         e.preventDefault();
         void run('/api/shop/store', 'PATCH', { settings: s });

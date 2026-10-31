@@ -414,7 +414,8 @@
     "cancel": "Cancel broadcast",
     "cancelTitle": "Cancel the rest of this broadcast?",
     "cancelBody": "{n} messages that have not gone out yet are cancelled. What was sent stays sent.",
-    "failedN": "{n} failed"
+    "failedN": "{n} failed",
+    "noNumbersBody": "Connect a WhatsApp number to send broadcasts to your groups."
   },
   "broadcastStatus": {
     "scheduled": "Scheduled",
@@ -979,7 +980,7 @@
       "one": "One group",
       "csv": "Many from a CSV"
     },
-    "fixedMembers": "{n} fixed members",
+    "fixedMembers": "{n, plural, one {# fixed member} other {# fixed members}}",
     "extraPhones": "Extra participants (optional)",
     "csvHelp": "First row with the columns: {columns}. One group per row, up to 50.",
     "sameName": "Same as the template",

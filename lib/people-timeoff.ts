@@ -6,6 +6,7 @@
  * muestra "fuera de la oficina" mientras dura (el cron de cada hora la
  * prende el día que empieza). Server-only.
  */
+import { localized } from './notification-copy';
 import { getDb } from './db';
 import { canApprove, canRequestFor, canSeeSensitive, isSelf } from './people-access';
 import {
@@ -359,7 +360,7 @@ export async function createRequest(
   const to = mgr?.user_id ? [mgr.user_id] : await hrPeople(ctx.ws);
   await notifyPeople(
     to.filter((u) => u !== emp.user_id),
-    { title: `${emp.name} requested time off`, body: `${start}${end !== start ? ` to ${end}` : ''} · ${days} day(s)`, href: '/app/people/time-off?tab=approvals', sourceId: id },
+    { title: localized('timeOffRequested', { name: emp.name }), body: localized('timeOffRequestedBody', { range: end !== start ? `${start} - ${end}` : start, days }), href: '/app/people/time-off?tab=approvals', sourceId: id },
   );
   return toDto(ctx, (await getRequestRow(ctx.ws, id))!);
 }
@@ -385,8 +386,8 @@ export async function decideRequest(ctx: PeopleCtx, id: string, decision: 'appro
     });
   }
   await notifyPeople([emp?.user_id], {
-    title: status === 'approved' ? 'Your time off was approved' : 'Your time off was declined',
-    body: `${r.start_date}${r.end_date !== r.start_date ? ` to ${r.end_date}` : ''}`,
+    title: localized(status === 'approved' ? 'timeOffApproved' : 'timeOffDeclined'),
+    body: r.end_date !== r.start_date ? localized('dateRange', { start: r.start_date, end: r.end_date }) : r.start_date,
     href: '/app/people/time-off',
     sourceId: id,
   });

@@ -13,6 +13,7 @@
  * (performAgentAction) recién cuando lo aprueban en Conversaciones.
  * Server-only.
  */
+import { localized } from './notification-copy';
 import { tool, type Tool } from 'ai';
 import { withVisibleContent } from './docs-visible';
 import { z } from 'zod';
@@ -1074,7 +1075,7 @@ export async function buildAgentTools(ctx: AgentRunContext): Promise<BuiltAgentT
         await createNotification({
           userId: workspaceId,
           type: 'chat_message',
-          title: `${agent.name}: a visitor needs a human`,
+          title: localized('agentNeedsHuman', { agent: agent.name }),
           body: reason.slice(0, 140),
           href: `/app/agents/${agent.id}?tab=conversations&c=${ctx.conversation.id}`,
           sourceType: 'agent_conversation',

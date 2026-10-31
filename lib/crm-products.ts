@@ -11,6 +11,7 @@
  *   un quote enviado vence (expires_at < hoy UTC). La página pública /q/<token>
  *   no muestra borradores.
  */
+import { localized } from './notification-copy';
 import { dealScopeSql, type OwnerScope } from './crm-visibility';
 import { createHmac, randomBytes } from 'node:crypto';
 import { CrmRefError } from './crm-refs';
@@ -855,8 +856,8 @@ async function onQuoteResponded(
     await createNotification({
       userId: deal?.owner_id ?? userId,
       type: 'crm_quote',
-      title: outcome === 'accepted' ? `Quote ${q.number} accepted` : `Quote ${q.number} declined`,
-      body: outcome === 'accepted' ? `${signer} accepted ${q.title} (${money})` : `${q.title} (${money})`,
+      title: localized(outcome === 'accepted' ? 'quoteAccepted' : 'quoteDeclined', { number: q.number }),
+      body: outcome === 'accepted' ? localized('quoteAcceptedBody', { signer, title: q.title, money }) : `${q.title} (${money})`,
       href: `/app/crm/quotes/${q.id}`,
       sourceType: 'crm_quote',
       sourceId: q.id,

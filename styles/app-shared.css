@@ -241,6 +241,17 @@
 }
 .fb { display: flex; flex-direction: column; gap: 20px; }
 .table-wrap { position: relative; min-width: 0; max-width: 100%; }
+/* Tabla que sigue a un costado (390): sombra en el borde con contenido oculto. Las capas
+   "local" se mueven con el contenido y tapan la sombra cuando ya no hay nada más que ver. */
+@media (max-width: 640px) {
+  .table-wrap {
+    background:
+      linear-gradient(to right, var(--bg) 40%, transparent) left / 24px 100% no-repeat local,
+      linear-gradient(to left, var(--bg) 40%, transparent) right / 24px 100% no-repeat local,
+      linear-gradient(to right, color-mix(in srgb, var(--ink) 16%, transparent), transparent) left / 10px 100% no-repeat scroll,
+      linear-gradient(to left, color-mix(in srgb, var(--ink) 16%, transparent), transparent) right / 10px 100% no-repeat scroll;
+  }
+}
 
 /* Botón de archivo de los importadores (CRM, Track, Notion). */
 .imp-file { cursor: pointer; align-self: flex-start; }

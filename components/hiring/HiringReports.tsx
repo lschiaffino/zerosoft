@@ -35,7 +35,7 @@ export default function HiringReports({ report, jobs }: { report: HiringReport; 
         <div className="panel hr-stat">
           <span className="hr-stat-label">{t('reports.timeToHire')}</span>
           <span className="hr-stat-value" data-testid="hr-time-to-hire">
-            {report.timeToHire.avgDays == null ? '·' : t('reports.days', { days: report.timeToHire.avgDays })}
+            {report.timeToHire.avgDays == null ? t('reports.noData') : t('reports.days', { days: report.timeToHire.avgDays })}
           </span>
           <span className="hr-stat-sub">{t('reports.median', { days: report.timeToHire.medianDays ?? '·', hires: report.timeToHire.hires })}</span>
         </div>

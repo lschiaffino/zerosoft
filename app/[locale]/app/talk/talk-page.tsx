@@ -2,9 +2,8 @@ import { setRequestLocale } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { pathWithQuery } from '@/lib/return-path';
 import { redirect } from 'next/navigation';
-import { getChannelRow, openDm, TalkError } from '@/lib/talk';
-import { resolveTalkActor } from '@/lib/talk-guests';
-import { getDb } from '@/lib/db';
+import { openDm, TalkError } from '@/lib/talk';
+import { resolveTalkActor, resolveTalkChannelRoute } from '@/lib/talk-guests';
 import { loadTalkBootstrap } from '@/lib/talk-boot';
 import TalkApp from '@/components/talk/TalkApp';
 import type { TalkView } from '@/components/talk/talk-context';
@@ -18,10 +17,10 @@ export async function renderTalk(locale: string, channelId: string | null, sp: R
   const user = await requireUser(locale, pathWithQuery(path, sp as Record<string, string>));
   const actor = await resolveTalkActor(user);
   // Link a un canal de otro workspace de Talk de la persona (el suyo o uno donde es invitada): se cambia ahí.
-  if (channelId && !(await getChannelRow(actor.workspaceId, channelId))) {
-    const row = (await getDb().prepare('SELECT workspace_id FROM talk_channels WHERE id = ?').get(channelId)) as { workspace_id: string } | undefined;
-    if (row && row.workspace_id !== actor.workspaceId && (await resolveTalkActor(user, { workspaceId: row.workspace_id })).workspaceId === row.workspace_id) {
-      redirect(`/api/talk/workspace?ws=${encodeURIComponent(row.workspace_id)}&next=${encodeURIComponent(pathWithQuery(path, sp as Record<string, string>))}`);
+  if (channelId) {
+    const route = await resolveTalkChannelRoute(user, channelId);
+    if (route.kind === 'switch') {
+      redirect(`/api/talk/workspace?ws=${encodeURIComponent(route.workspaceId)}&next=${encodeURIComponent(pathWithQuery(path, sp as Record<string, string>))}`);
     }
   }
   const one0 = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? null;

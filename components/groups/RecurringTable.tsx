@@ -1,5 +1,6 @@
 'use client';
 
+import { useMounted } from '@/components/ui/useMounted';
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -13,6 +14,7 @@ import { parseDbUtc } from '@/lib/utils';
 export default function RecurringTable({ initial }: { initial: RecurringDto[] }) {
   const t = useTranslations('groups');
   const locale = useLocale();
+  const mounted = useMounted();
   const errText = useErrorText();
   const ruleText = useRuleText();
   const [toast, showToast] = useToast();
@@ -77,7 +79,7 @@ export default function RecurringTable({ initial }: { initial: RecurringDto[] })
                 <td className="gr-hide-sm ui-help">{ruleText(r.rule)}</td>
                 <td>
                   {r.status === 'active' && r.nextRunAt ? (
-                    <time dateTime={r.nextRunAt}>{parseDbUtc(r.nextRunAt).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })}</time>
+                    <time dateTime={r.nextRunAt}>{(mounted ? parseDbUtc(r.nextRunAt).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' }) : '')}</time>
                   ) : (
                     <span className="badge badge-outline">{t(`recurring.status.${r.status}`)}</span>
                   )}

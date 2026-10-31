@@ -1,3 +1,4 @@
+import { localized } from './notification-copy';
 import type { ModelMessage } from 'ai';
 import { withVisibleContent } from './docs-visible';
 import { getDb } from './db';
@@ -196,7 +197,7 @@ export async function markHandoff(
     await createNotification({
       userId,
       type: 'chat_message',
-      title: 'A visitor needs a human (AI handoff)',
+      title: localized('aiHandoff'),
       body: widget.name,
       href: `/app/chat/inbox/${conversation.id}`,
       sourceType: 'chat_conversation',

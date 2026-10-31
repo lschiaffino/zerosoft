@@ -10,6 +10,7 @@
  * - La persona evaluada ve su autoevaluación y, con el ciclo cerrado, la de su
  *   manager. Las de pares no las ve nunca con nombre.
  */
+import { localized } from './notification-copy';
 import { getDb } from './db';
 import { canSeeOneOnOne, canSeeSensitive, isManagerOf, isSelf } from './people-access';
 import { isIsoDate } from './people-time';
@@ -208,7 +209,7 @@ export async function launchCycle(ctx: PeopleCtx, id: string, employeeIds?: stri
       }
     }
   }
-  await notifyPeople([...reviewers], { title: `Review cycle started: ${cycle.name}`, href: '/app/people/reviews', sourceId: id });
+  await notifyPeople([...reviewers], { title: localized('reviewCycle', { name: cycle.name }), href: '/app/people/reviews', sourceId: id });
   return (await getCycle(ctx, id))!;
 }
 

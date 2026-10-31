@@ -1,7 +1,8 @@
 import { Suspense } from 'react';
 import { notFound, redirect } from 'next/navigation';
 import { requireUser } from '@/lib/session';
-import { getDb } from '@/lib/db';
+import { getAccessiblePlan } from '@/lib/track-plans';
+import { canAccessTrackProject, getProject } from '@/lib/track-data';
 import { teamPath } from '@/lib/track-routes';
 import PlanPage from '@/components/track/planning/PlanPage';
 
@@ -16,14 +17,12 @@ export default async function Page(props: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale, id } = await props.params;
-  await requireUser(locale);
-  const db = getDb();
-  const plan = await db.prepare('SELECT id FROM track_plans WHERE id = ?').get(id);
+  const user = await requireUser(locale);
+  // Con el filtro de workspace: un id de otro workspace responde igual que uno inventado.
+  const plan = await getAccessiblePlan(id, { teamId: user.team?.id ?? null, ownerId: user.id });
   if (!plan) {
-    const team = (await db.prepare('SELECT id, slug FROM track_projects WHERE id = ?').get(id)) as
-      | { id: string; slug: string }
-      | undefined;
-    if (team) {
+    const team = await getProject(id);
+    if (team && (await canAccessTrackProject(team, user.team?.id ?? null, user.id))) {
       const sp = new URLSearchParams();
       for (const [k, v] of Object.entries((await props.searchParams) ?? {})) {
         if (typeof v === 'string') sp.set(k, v);

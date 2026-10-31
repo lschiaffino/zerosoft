@@ -1,5 +1,6 @@
 'use client';
 
+import { useMounted } from '@/components/ui/useMounted';
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { mediaKind, previewToken } from '@/lib/groups-rules';
@@ -83,8 +84,9 @@ export function useMediaText() {
 export function useRelativeTime() {
   const t = useTranslations('groups.time');
   const locale = useLocale();
+  const mounted = useMounted();
   return (iso: string | null | undefined, now = Date.now()) => {
-    if (!iso) return '';
+    if (!iso || !mounted) return '';
     const diff = Math.max(0, now - parseDbUtc(iso).getTime());
     const min = Math.floor(diff / 60_000);
     if (min < 1) return t('now');

@@ -10,6 +10,7 @@
  * ganado si estaba abierto. Con CRM_APPS_FAKE=1 la sesión es de prueba
  * (fake_<id>) y Checkout vuelve directo a la página.
  */
+import { localized } from './notification-copy';
 import { getDb, type CrmQuoteRow } from './db';
 import { isZeroDecimal } from './calendar-price';
 import { AppError, appsFake, markDealWon, stripeRequest, stripeSecretFor } from './crm-apps';
@@ -155,7 +156,7 @@ async function onQuotePaid(q: CrmQuoteRow): Promise<void> {
     await createNotification({
       userId: deal?.owner_id ?? userId,
       type: 'crm_quote',
-      title: `Quote ${q.number} paid`,
+      title: localized('quotePaid', { number: q.number }),
       body: `${q.title} (${money})`,
       href: `/app/crm/quotes/${q.id}`,
       sourceType: 'crm_quote',

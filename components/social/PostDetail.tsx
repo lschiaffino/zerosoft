@@ -1,5 +1,6 @@
 'use client';
 
+import { useMounted } from '@/components/ui/useMounted';
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -17,6 +18,7 @@ export default function PostDetail({ post, events }: { post: PostDto; events: Po
   const tEv = useTranslations('social.events');
   const tErr = useTranslations('social.publishErrors');
   const locale = useLocale();
+  const mounted = useMounted();
   const router = useRouter();
   const errorText = useErrorText();
   const [toast, showToast] = useToast();
@@ -81,9 +83,9 @@ export default function PostDetail({ post, events }: { post: PostDto; events: Po
             <StatusTag status={post.status} />
             <span className="sc-muted sc-grow">
               {post.publishedAt
-                ? t('publishedAt', { when: fmtDateTime(post.publishedAt, locale) })
+                ? t('publishedAt', { when: (mounted ? fmtDateTime(post.publishedAt, locale) : '') })
                 : post.scheduledAt
-                  ? t('scheduledFor', { when: fmtDateTime(post.scheduledAt, locale) })
+                  ? t('scheduledFor', { when: (mounted ? fmtDateTime(post.scheduledAt, locale) : '') })
                   : t('noDate')}
             </span>
             {post.canEdit && (
@@ -181,7 +183,7 @@ export default function PostDetail({ post, events }: { post: PostDto; events: Po
                     {t('viewLive')}
                   </a>
                 )}
-                {tg.status === 'retry' && tg.nextAttemptAt && <p className="sc-muted sc-small">{t('retrying', { n: tg.attempts, when: fmtDateTime(tg.nextAttemptAt, locale) })}</p>}
+                {tg.status === 'retry' && tg.nextAttemptAt && <p className="sc-muted sc-small">{t('retrying', { n: tg.attempts, when: (mounted ? fmtDateTime(tg.nextAttemptAt, locale) : '') })}</p>}
                 {tg.errorCode && (
                   <p className="sc-error" data-testid="target-error">
                     {tErr.has(tg.errorCode) ? tErr(tg.errorCode) : tErr('generic')}
@@ -234,7 +236,7 @@ export default function PostDetail({ post, events }: { post: PostDto; events: Po
                   {tEv.has(e.kind) ? tEv(e.kind, { name: e.personName ?? '' }) : e.kind}
                   {e.body && (e.kind === 'approved' || e.kind === 'rejected') ? `: ${e.body}` : ''}
                 </span>
-                <span className="sc-muted sc-small">{fmtDateTime(e.createdAt, locale)}</span>
+                <span className="sc-muted sc-small">{(mounted ? fmtDateTime(e.createdAt, locale) : '')}</span>
               </li>
             ))}
           </ol>

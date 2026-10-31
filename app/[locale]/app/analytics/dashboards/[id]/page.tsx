@@ -4,7 +4,8 @@ import { getTranslations } from 'next-intl/server';
 import DashboardView from '@/components/analytics/DashboardView';
 import SyncProject from '@/components/analytics/SyncProject';
 import { analyticsPage } from '@/lib/analytics/page';
-import { getDb } from '@/lib/db';
+import { recordProjectId } from '@/lib/analytics/guard';
+import { requireUser } from '@/lib/session';
 import { getDashboard, listInsights } from '@/lib/analytics/records';
 
 export const dynamic = 'force-dynamic';
@@ -18,10 +19,10 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
 /** Un tablero con sus insights. */
 export default async function AnalyticsDashboardPage(props: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await props.params;
-  const owner = (await getDb().prepare('SELECT project_id FROM analytics_dashboards WHERE id = ?').get(id)) as { project_id: string } | undefined;
-  if (!owner) notFound();
-  const ctx = await analyticsPage(locale, owner.project_id);
-  if (!ctx.project || ctx.project.id !== owner.project_id) notFound();
+  const ownerProject = await recordProjectId('dashboards', id, (await requireUser(locale)).id);
+  if (!ownerProject) notFound();
+  const ctx = await analyticsPage(locale, ownerProject);
+  if (!ctx.project || ctx.project.id !== ownerProject) notFound();
   const dashboard = await getDashboard(ctx.project.id, id);
   if (!dashboard) notFound();
   const all = await listInsights(ctx.project.id);

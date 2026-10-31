@@ -38,6 +38,24 @@ export const CHANGELOG: ChangelogEntry[] = [
     },
     items: [
       {
+        product: 'chat',
+        en: 'Long emails in Chat people no longer widen the page at 390 px, and the alerts panel takes the keyboard focus when it opens.',
+        es: 'Los emails largos en las personas de Chat ya no ensanchan la página a 390 px, y el panel de avisos toma el foco del teclado al abrirse.',
+        pt: 'E-mails longos nas pessoas do Chat não alargam mais a página a 390 px, e o painel de avisos recebe o foco do teclado ao abrir.',
+      },
+      {
+        product: 'forms',
+        en: 'Esc discards what you typed in the title of a form, an envelope or an insight.',
+        es: 'Esc descarta lo que escribiste en el título de un formulario, un sobre o un insight.',
+        pt: 'Esc descarta o que você digitou no título de um formulário, um envelope ou um insight.',
+      },
+      {
+        product: 'crm',
+        en: 'Notifications about quotes, leads, forms, orders, invoices and time off arrive in your language.',
+        es: 'Los avisos de cotizaciones, leads, formularios, pedidos, facturas y días libres llegan en tu idioma.',
+        pt: 'Os avisos de orçamentos, leads, formulários, pedidos, faturas e folgas chegam no seu idioma.',
+      },
+      {
         product: 'sign',
         en: 'Sign now has its own settings page, linked from Settings.',
         es: 'Sign ahora tiene su página de ajustes, enlazada desde Ajustes.',
