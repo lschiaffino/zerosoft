@@ -12,6 +12,7 @@ import { createActivity, parseCustom } from './crm';
 import { sendEmail } from './email';
 import { emitEvent } from './events';
 import { createNotification } from './notifications';
+import { localized, type NotificationText } from './notification-copy';
 import { getIntegration, getValidAccessToken } from './integrations';
 import { buildMime, gmailMessageIdHeader, gmailSend, scopeAllowsSend } from './gmail';
 
@@ -435,7 +436,7 @@ async function emailByToken(token: string): Promise<CrmEmailRow | null> {
   return ((await getDb().prepare('SELECT * FROM crm_emails WHERE tracking_token = ?').get(token)) as CrmEmailRow | undefined) ?? null;
 }
 
-async function notifyOwner(email: CrmEmailRow, title: string, body: string): Promise<void> {
+async function notifyOwner(email: CrmEmailRow, title: NotificationText, body: string): Promise<void> {
   const contact = (await getDb()
     .prepare('SELECT owner_id, first_name, last_name, email FROM crm_contacts WHERE id = ? AND user_id = ?')
     .get(email.contact_id, email.user_id)) as { owner_id: string | null } | undefined;
@@ -521,7 +522,7 @@ export async function recordTrackingHit(
     const subject = email.subject || '(no subject)';
     await notifyOwner(
       email,
-      kind === 'open' ? `${email.to_emails} opened "${subject}"` : `${email.to_emails} clicked a link in "${subject}"`,
+      localized(kind === 'open' ? 'emailOpened' : 'emailClicked', { to: email.to_emails, subject }),
       kind === 'click' ? url : '',
     );
   }

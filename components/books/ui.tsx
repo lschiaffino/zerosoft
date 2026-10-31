@@ -1,5 +1,6 @@
 'use client';
 
+import { useMounted } from '@/components/ui/useMounted';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { formatMoney, parseAmountLocal, toInputString } from '@/lib/books-money';
@@ -39,15 +40,16 @@ export function useMoney(currency: string) {
 
 export function useDate() {
   const locale = useLocale();
+  const mounted = useMounted();
   return useCallback(
     (value: string | null | undefined, withTime = false) => {
-      if (!value) return '';
+      if (!value || (withTime && !mounted)) return '';
       const iso = /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00Z` : value.includes('T') ? value : `${value.replace(' ', 'T')}Z`;
       const d = new Date(iso);
       if (Number.isNaN(d.getTime())) return value;
       return d.toLocaleString(locale, withTime ? { dateStyle: 'medium', timeStyle: 'short' } : { dateStyle: 'medium', timeZone: 'UTC' });
     },
-    [locale],
+    [locale, mounted],
   );
 }
 

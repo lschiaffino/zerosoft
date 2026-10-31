@@ -7,6 +7,7 @@
  * el pedido pasa de pending a paid con compare-and-set y recién ahí se
  * descuenta el stock. Un pedido online sin pagar vence (cron) y libera todo.
  */
+import { localized } from './notification-copy';
 import { randomBytes } from 'crypto';
 import { getDb } from './db';
 import {
@@ -612,7 +613,7 @@ async function recordPaymentAfterCancel(ws: string, orderId: string, opts: { pay
   const { formatMoney } = await import('./shop-money');
   await addOrderEvent(o, 'paid', `Payment received after the order was cancelled (${opts.source}): refund ${formatMoney(o.total_cents, o.currency)} to the customer.`);
   const { notifyStaff } = await import('./shop-effects');
-  await notifyStaff(ws, `Order #${o.number} was paid after it was cancelled`, `Refund ${formatMoney(o.total_cents, o.currency)} to ${o.email}`, `/app/shop/orders/${o.id}`, o.id);
+  await notifyStaff(ws, localized('orderPaidAfterCancel', { number: o.number }), localized('orderRefundBody', { amount: formatMoney(o.total_cents, o.currency), email: o.email }), `/app/shop/orders/${o.id}`, o.id);
   return 'after_cancel';
 }
 

@@ -5,6 +5,7 @@
  * ("leí la política"). Las políticas y el manual pueden ser páginas de Docs.
  * Sign no está en main: no hay pedido de firma electrónica.
  */
+import { localized } from './notification-copy';
 import { getDb } from './db';
 import { deleteUploads, saveUpload, UploadError } from './uploads';
 import { canSeeDocument, isSelf } from './people-access';
@@ -156,7 +157,7 @@ async function insertDocument(
       : ((await db().prepare("SELECT user_id FROM people_employees WHERE workspace_id = ? AND status != 'terminated' AND user_id IS NOT NULL").all(ctx.ws)) as Array<{ user_id: string }>).map((r) => r.user_id);
     await notifyPeople(
       targets.filter((u) => u !== ctx.personId),
-      { title: d.requiresAck ? `Please read: ${title}` : `New document: ${title}`, href: employeeId ? `/app/people/${employeeId}?tab=documents` : '/app/people/welcome', sourceId: id },
+      { title: localized(d.requiresAck ? 'peopleDocRead' : 'peopleDocNew', { title }), href: employeeId ? `/app/people/${employeeId}?tab=documents` : '/app/people/welcome', sourceId: id },
     );
   }
   const counts = new Map<string, number>();

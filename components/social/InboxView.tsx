@@ -1,5 +1,6 @@
 'use client';
 
+import { useMounted } from '@/components/ui/useMounted';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
@@ -28,6 +29,7 @@ export default function InboxView({
 }) {
   const t = useTranslations('social.inbox');
   const locale = useLocale();
+  const mounted = useMounted();
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
@@ -150,7 +152,7 @@ export default function InboxView({
                   <span className="sc-item-text">{i.text || t('noText')}</span>
                 </div>
                 <div className="sc-item-side">
-                  <span className="sc-muted sc-small">{fmtDateTime(i.receivedAt, locale)}</span>
+                  <span className="sc-muted sc-small">{(mounted ? fmtDateTime(i.receivedAt, locale) : '')}</span>
                   {i.status === 'done' && <span className="sc-status" data-s="published">{t('done')}</span>}
                 </div>
               </button>
@@ -176,7 +178,7 @@ export default function InboxView({
               {selected.replies.map((r) => (
                 <div key={r.id} className="sc-bubble" data-us="true" data-testid="inbox-reply">
                   <div className="sc-muted sc-small">
-                    {r.personName} · {fmtDateTime(r.createdAt, locale)}
+                    {r.personName} · {(mounted ? fmtDateTime(r.createdAt, locale) : '')}
                   </div>
                   {r.text}
                   {r.status === 'failed' && <div className="sc-error">{t('replyFailed', { error: r.error ?? '' })}</div>}

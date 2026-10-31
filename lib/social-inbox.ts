@@ -4,6 +4,7 @@
  * el webhook de Meta (páginas e Instagram), con la firma verificada con el
  * app secret. Server-only.
  */
+import { localized } from './notification-copy';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { getDb } from './db';
 import { createNotification } from './notifications';
@@ -186,7 +187,7 @@ export async function assignInbox(actor: SocialActor, id: string, personId: stri
     await createNotification({
       userId: personId,
       type: 'social_assigned',
-      title: row.text.slice(0, 60) || 'Social inbox',
+      title: row.text.slice(0, 60) || localized('socialInbox'),
       href: `/app/social/inbox?item=${id}`,
       sourceType: 'social_inbox',
       sourceId: id,

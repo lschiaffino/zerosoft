@@ -11,6 +11,7 @@
  *
  * Nada de lo que es aviso tira: el documento ya quedó guardado.
  */
+import { localized, type NotificationText } from './notification-copy';
 import { getDb } from './db';
 import { assertCan, audit, createContact, ensureBooks, getContactRow, listTaxRates, type SettingsRow } from './books';
 import { approveDocument, createDraft, getDocRow, getDocument, publicUrl, recordPayment, type DocDto, type DocRow } from './books-docs';
@@ -60,7 +61,7 @@ async function emit(ws: string, type: 'books.invoice.paid' | 'books.invoice.over
   }
 }
 
-export async function notifyStaff(ws: string, title: string, body: string, href: string, sourceId: string): Promise<void> {
+export async function notifyStaff(ws: string, title: NotificationText, body: NotificationText, href: string, sourceId: string): Promise<void> {
   try {
     const { listOwnerSpacePeople } = await import('./workspace');
     const { createNotification } = await import('./notifications');
@@ -75,7 +76,7 @@ export async function notifyStaff(ws: string, title: string, body: string, href:
 export async function onInvoicePaid(ws: string, d: DocDto): Promise<void> {
   const last = d.payments[d.payments.length - 1];
   await emit(ws, 'books.invoice.paid', { ...invoicePayload(d), payment: last ? { amount: last.amount, method: last.method, date: last.date } : null });
-  await notifyStaff(ws, `Invoice ${d.numberLabel} paid`, `${d.contactName} · ${formatMoney(d.total, d.currency)}`, `/app/books/invoices/${d.id}`, d.id);
+  await notifyStaff(ws, localized('invoicePaid', { number: d.numberLabel }), `${d.contactName} · ${formatMoney(d.total, d.currency)}`, `/app/books/invoices/${d.id}`, d.id);
 }
 
 export async function onInvoiceOverdue(ws: string, d: DocDto, daysOverdue: number): Promise<void> {
@@ -414,7 +415,7 @@ export async function postShopOrder(ws: string, orderId: string): Promise<string
       docId = await findDoc();
       if (!docId) return null;
     }
-    if (built.warning) await notifyStaff(ws, `Shop order #${String(o.number)}: tax rate not found in Books`, `The tax went to the sales tax account without a rate. Add a ${rateBps / 100}% rate in Books › Settings › Taxes for future orders.`, `/app/books/invoices/${docId}`, docId);
+    if (built.warning) await notifyStaff(ws, localized('shopTaxMissing', { number: String(o.number) }), localized('shopTaxMissingBody', { rate: rateBps / 100 }), `/app/books/invoices/${docId}`, docId);
   }
   // Aprobar (si quedó borrador) y cobrar (si quedó saldo): los dos idempotentes.
   let row = await getDocRow(ws, docId);

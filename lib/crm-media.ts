@@ -14,6 +14,7 @@
  * Los archivos se sirven por URL pública del almacenamiento (como los
  * adjuntos); el seguimiento cuenta las aperturas por la página del token.
  */
+import { localized } from './notification-copy';
 import { createHash, randomBytes } from 'crypto';
 import { getDb } from './db';
 import { deleteUploads } from './uploads';
@@ -317,7 +318,7 @@ export async function trackDocumentView(
     await createNotification({
       userId: who?.owner ?? link.created_by ?? link.user_id,
       type: 'crm_document',
-      title: `${who?.label ?? 'Someone'} opened "${link.name}"`,
+      title: localized('documentOpened', { who: who?.label, name: link.name }),
       href: `/app/crm/documents/${link.document_id}`,
       sourceType: 'crm_document',
       sourceId: link.document_id,
@@ -539,7 +540,7 @@ export async function trackVideoView(
     await createNotification({
       userId: who?.owner ?? v.created_by ?? v.user_id,
       type: 'crm_video',
-      title: `${who?.label ?? 'Someone'} is watching "${v.title}"`,
+      title: localized('videoWatching', { who: who?.label, name: v.title }),
       href: `/app/crm/videos/${v.id}`,
       sourceType: 'crm_video',
       sourceId: v.id,

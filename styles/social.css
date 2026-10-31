@@ -166,3 +166,9 @@
   .sc-item { flex-wrap: wrap; }
   .sc-item-side { align-items: flex-start; text-align: left; flex-direction: row; flex-wrap: wrap; }
 }
+
+/* 390: nombre a lo ancho y los datos abajo; en fila, un nombre largo pisaba la fecha. */
+@media (max-width: 640px) {
+  .sc-item { flex-wrap: wrap; }
+  .sc-item-main { flex-basis: 100%; overflow-wrap: anywhere; }
+}
