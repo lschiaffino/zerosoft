@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useEffect, useRef, useState } from 'react';
 import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
@@ -403,7 +404,7 @@ export default function MeetingsHome(props: Props) {
                 <span className="vc-upcoming-text">
                   <strong>{e.title || t('untitled')}</strong>
                   <span className="vc-muted" suppressHydrationWarning>
-                    {format.dateTime(new Date(e.startsAt), { weekday: 'short', hour: 'numeric', minute: '2-digit' })} · {t(`provider.${e.provider}`)}
+                    <LocalText>{format.dateTime(new Date(e.startsAt), { weekday: 'short', hour: 'numeric', minute: '2-digit' })}</LocalText> · {t(`provider.${e.provider}`)}
                     {e.attendees.length > 0 && ` · ${e.attendees.map((a) => a.name || a.email).slice(0, 2).join(', ')}${e.attendees.length > 2 ? ` +${e.attendees.length - 2}` : ''}`}
                   </span>
                 </span>
@@ -559,7 +560,7 @@ export default function MeetingsHome(props: Props) {
                     <a href={`/${locale}/m/${m.token}`} className="vc-row-main">
                       <span className="vc-row-title">{m.title || t('untitled')}</span>
                       <span className="vc-muted vc-row-meta" suppressHydrationWarning>
-                        {t('sharedBy', { name: m.ownerName })} · {format.dateTime(new Date(m.startedAt), { dateStyle: 'medium', timeStyle: 'short' })}
+                        {t('sharedBy', { name: m.ownerName })} · <LocalText>{format.dateTime(new Date(m.startedAt), { dateStyle: 'medium', timeStyle: 'short' })}</LocalText>
                         {m.durationMs > 0 && ` · ${formatDuration(m.durationMs)}`}
                       </span>
                     </a>
@@ -606,7 +607,7 @@ export default function MeetingsHome(props: Props) {
                     <Link href={`/app/voice/meetings/${s.id}`} className="vc-row-main">
                       <span className="vc-row-title">{s.title || t('untitled')}</span>
                       <span className="vc-muted vc-row-meta" suppressHydrationWarning>
-                        {format.dateTime(new Date(s.startedAt), { dateStyle: 'medium', timeStyle: 'short' })}
+                        <LocalText>{format.dateTime(new Date(s.startedAt), { dateStyle: 'medium', timeStyle: 'short' })}</LocalText>
                         {s.durationMs > 0 && ` · ${formatDuration(s.durationMs)}`}
                         {s.status === 'recording' && ` · ${t('statusRecording')}`}
                         {s.status === 'processing' && ` · ${t('statusProcessing')}`}

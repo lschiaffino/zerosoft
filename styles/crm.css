@@ -663,9 +663,20 @@ tr:hover .cell-quick { opacity: 0.8; }
   border-radius: var(--radius-1);
   padding: 20px;
   width: min(520px, 100%);
+  /* En un teléfono (o con el teclado abierto) el contenido scrollea adentro: los botones no quedan fuera de la pantalla. */
+  max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+@media (max-width: 480px) {
+  .modal-overlay { padding: 12px; }
+  .modal-card { padding: 16px; max-height: calc(100dvh - 24px); }
 }
 
 .modal-title { font-size: 1.3rem; font-weight: 500; letter-spacing: -0.01em; }

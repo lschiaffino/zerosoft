@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -375,7 +376,7 @@ export default function MeetingView({ initial, templates, folders, transcription
           }}
         />
         <p className="vc-muted" suppressHydrationWarning>
-          {format.dateTime(new Date(d.startedAt), { dateStyle: 'full', timeStyle: 'short' })}
+          <LocalText>{format.dateTime(new Date(d.startedAt), { dateStyle: 'full', timeStyle: 'short' })}</LocalText>
           {(rec.state === 'recording' ? rec.elapsed : d.durationMs) > 0 && ` · ${formatDuration(rec.state === 'recording' ? rec.elapsed : d.durationMs)}`}
           {d.contact && ` · ${d.contact.name}`}
           {d.share && ` · ${t('sharedBadge')}`}
