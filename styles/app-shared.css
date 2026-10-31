@@ -621,3 +621,10 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
   .stat-card .stat-num-small { font-size: 1.25rem; line-height: 1.2; white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
   .stat-card { padding: 16px; }
 }
+
+/* En tarjeta cada valor tiene su fila: los topes pensados para columnas de tabla ya no corren. */
+@media (max-width: 640px) {
+  .table-stack .an-ellipsis,
+  .table-stack .bk-ellipsis { max-width: none; }
+  .table-stack a.cell-link { white-space: normal; overflow-wrap: anywhere; }
+}
