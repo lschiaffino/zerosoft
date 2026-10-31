@@ -13,7 +13,8 @@ import * as m7 from '@/lib/routes/robots/batches/[id]/route';
 import * as m8 from '@/lib/routes/robots/recordings/[id]/route';
 import * as m9 from '@/lib/routes/robots/recordings/[id]/steps/route';
 import * as m10 from '@/lib/routes/robots/runs/[id]/route';
-import * as m11 from '@/lib/routes/robots/runs/[id]/fix/route';
+import * as m11 from '@/lib/routes/robots/runs/[id]/approve/route';
+import * as m12 from '@/lib/routes/robots/runs/[id]/fix/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -30,7 +31,8 @@ const d = createDispatcher('zsPath', [
   { pattern: 'recordings/[id]', mod: m8 }, // lib/routes/robots/recordings/[id]
   { pattern: 'recordings/[id]/steps', mod: m9 }, // lib/routes/robots/recordings/[id]/steps
   { pattern: 'runs/[id]', mod: m10 }, // lib/routes/robots/runs/[id]
-  { pattern: 'runs/[id]/fix', mod: m11 }, // lib/routes/robots/runs/[id]/fix
+  { pattern: 'runs/[id]/approve', mod: m11 }, // lib/routes/robots/runs/[id]/approve
+  { pattern: 'runs/[id]/fix', mod: m12 }, // lib/routes/robots/runs/[id]/fix
 ]);
 
 export const GET = d.GET;

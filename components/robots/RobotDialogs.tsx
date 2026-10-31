@@ -601,11 +601,13 @@ function BatchEstimate({ rows, usage, avgRunMs }: { rows: number; usage: RobotUs
   const t = useTranslations('robots.bulk');
   const seconds = (avgRunMs ?? 30_000) / 1000;
   const minutes = Math.ceil((rows * seconds) / 60);
-  const hours = Math.max(1, Math.ceil(minutes / Math.max(usage.concurrency, 1) / 60));
+  // Tiempo de reloj: los minutos repartidos entre las corridas a la vez.
+  const wallMinutes = Math.ceil(minutes / Math.max(usage.concurrency, 1));
+  const wall = wallMinutes < 60 ? t('wallMinutes', { count: wallMinutes }) : t('wallHours', { count: Math.ceil(wallMinutes / 60) });
   const left = usage.minutesLimit === null ? null : Math.max(0, Math.floor(usage.minutesLimit - usage.minutesUsed));
   return (
     <div className="robots-small" data-testid="robots-batch-estimate">
-      <p className="robots-muted">{t('estimate', { minutes, hours, seconds: Math.round(seconds), concurrency: usage.concurrency })}</p>
+      <p className="robots-muted">{t('estimate', { minutes, wall, seconds: Math.round(seconds), concurrency: usage.concurrency })}</p>
       {left !== null && minutes > left && <p className="robots-note-warn">{t('estimateOver', { left })}</p>}
       <p className="robots-muted">{t('expiry')}</p>
     </div>
@@ -758,7 +760,7 @@ export function RecordDialog({
                 </ol>
               )}
               {review.length > 0 && (
-                <label className="robots-inline">
+                <label className="robots-inline robots-review-tick">
                   <input type="checkbox" checked={reviewed} onChange={(e) => setReviewed(e.target.checked)} />
                   <span>{t('reviewConfirm')}</span>
                 </label>
@@ -824,7 +826,7 @@ export function BatchesPanel({ robotId, initial, canRun, refreshKey }: { robotId
 
   if (!batches.length) return null;
   return (
-    <section className="robots-block" aria-labelledby="robots-batches-title">
+    <section className="robots-block robots-batches-block" aria-labelledby="robots-batches-title">
       <h3 className="robots-h3" id="robots-batches-title">
         {t('title')}
       </h3>

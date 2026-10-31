@@ -409,7 +409,10 @@
     "cancelYes": "Sacar",
     "cancelNo": "Volver",
     "cancelDone": "Corrida fuera de la cola.",
-    "relearnedAction": "El paso {step} ya no encontraba su selector. El robot actuó sobre el único elemento con el mismo nombre: {selector}. Revisalo y hacelo principal si está bien."
+    "relearnedAction": "El paso {step} ya no encontraba su selector y no se hizo ningún clic ni se escribió nada. Reemplazo sugerido, el único elemento con el mismo nombre: {selector}. Aprobalo si está bien.",
+    "approveSuggestion": "Aprobar y guardar",
+    "suggestionApproved": "Aprobado y guardado en el robot.",
+    "credentialNotAllowed": "El paso {step} usa una credencial fuera del valor de un campo Completar, y no se mandó a la página. Las credenciales ahora solo funcionan como valor de un paso Completar. Abrí la pestaña Pasos y sacala de la URL, el selector, el texto o el script."
   },
   "settings": {
     "enabled": "Permitir corridas automáticas",
@@ -492,7 +495,7 @@
     "retentionDays": "{count, plural, one {# día} other {# días}}",
     "pausedByFailures": "Las corridas automáticas se pausaron el {date} después de varias corridas fallidas seguidas. Revisá la pestaña Corridas y volvé a prenderlas.",
     "selfHealTitle": "Volver a encontrar elementos cuando el sitio cambia",
-    "selfHealHint": "Apagado por defecto. Cada corrida buena recuerda cómo son sus elementos en ese sitio. Si un selector deja de andar en pasos que leen datos, el robot usa el elemento más parecido cuando uno gana claro y lo guarda si la corrida termina bien. En clics, campos y opciones solo usa un elemento con el mismo nombre visible y deja el cambio para que lo revises. Los pasos con login y los campos de contraseña nunca cambian.",
+    "selfHealHint": "Apagado por defecto. Cada corrida buena recuerda cómo son sus elementos en ese sitio. Si un selector deja de andar en pasos que leen datos, el robot usa el elemento más parecido cuando uno gana claro y lo guarda si la corrida termina bien. Los clics, campos y opciones nunca actúan sobre un elemento encontrado: el paso falla y la corrida sugiere un reemplazo para que lo apruebes. Los pasos con login y los campos de contraseña nunca cambian.",
     "selfHeal": "Reaprender selectores solo"
   },
   "errors": {
@@ -534,7 +537,9 @@
     "credential_misuse": "Paso {index}: una credencial solo puede ir en el valor de un paso Completar, nunca en un selector, una URL, un texto o un script.",
     "batch_too_large": "El lote pasa los 64 MB de entradas.",
     "no_crm_access": "Necesitás acceso al CRM para mandar filas ahí.",
-    "outside_recipient": "Los emails de cambios solo pueden ir a personas de este workspace."
+    "outside_recipient": "Los emails de cambios solo pueden ir a personas de este workspace.",
+    "save_first": "Primero guardá tus cambios.",
+    "suggestion_stale": "El paso cambió desde esa corrida. Volvé a correr el robot."
   },
   "paste": {
     "title": "Pegar pasos grabados",
@@ -686,9 +691,11 @@
     "progress": "Subidas {done, number} de {total, number}…",
     "nothingStarted": "No arrancó ninguna corrida. Corregilo y volvé a ponerlo en cola.",
     "rowMissing": "Fila {row}: “{name}” es obligatorio. No se subió nada.",
-    "estimate": "Unos {minutes, number} minutos de navegador a {seconds} s por corrida, y al menos {hours, number} h con {concurrency} a la vez.",
+    "estimate": "Unos {minutes, plural, one {# minuto} other {# minutos}} de navegador a {seconds} s por corrida, y al menos {wall} con {concurrency} a la vez.",
     "estimateOver": "Te quedan {left, number} minutos este mes. El lote se pausa cuando se acaban y sigue cuando vuelva a haber minutos.",
-    "expiry": "Las filas que sigan esperando después de 45 días se descartan."
+    "expiry": "Las filas que sigan esperando después de 45 días se descartan.",
+    "wallMinutes": "{count, plural, one {# minuto} other {# minutos}}",
+    "wallHours": "{count, plural, one {# hora} other {# horas}}"
   },
   "data": {
     "title": "Datos entre corridas",
@@ -884,5 +891,15 @@
     "members": "Dejar que los members armen y corran robots",
     "adminOnly": "Solo los admins y owners del workspace pueden cambiar esto.",
     "saved": "Guardado"
+  },
+  "notices": {
+    "batchPaused": {
+      "title": "{name}: lote en pausa",
+      "body": "{count} corridas esperan porque este workspace se quedó sin minutos de robots este mes. Siguen cuando vuelva a haber minutos."
+    },
+    "credentialMisuse": {
+      "title": "{name}: un paso necesita un cambio",
+      "body": "El paso {step} usa una credencial fuera del valor de un campo Completar, así que el robot se frena ahí. Sacala de la URL, el selector, el texto o el script. Este robot no va a volver a mandar este aviso."
+    }
   }
 }

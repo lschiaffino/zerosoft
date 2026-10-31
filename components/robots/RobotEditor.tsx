@@ -326,6 +326,27 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
     setToast(t('paste.imported', { count: res.steps.length }));
   }
 
+  async function approveSuggestion(runId: string, step: string) {
+    if (dirty) {
+      setError(t('errors.save_first'));
+      return;
+    }
+    const res = await fetch(`/api/robots/runs/${runId}/approve`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ step }),
+    }).catch(() => null);
+    const data = (await res?.json().catch(() => null)) as { robot?: RobotDto; error?: string } | null;
+    if (!res?.ok || !data?.robot) {
+      setError(errorText(t, data?.error));
+      return;
+    }
+    setRobot(data.robot);
+    setSteps(data.robot.steps);
+    setToast(t('runs.suggestionApproved'));
+    await refreshRuns();
+  }
+
   async function cancelQueued(id: string) {
     const res = await fetch(`/api/robots/runs/${id}`, { method: 'DELETE' }).catch(() => null);
     if (!res?.ok) {
@@ -574,6 +595,7 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
             robotName={robot.name}
             onApplyFix={canEdit ? applyFix : undefined}
             onCancelQueued={canRun ? cancelQueued : undefined}
+            onApproveSuggestion={canEdit ? approveSuggestion : undefined}
             toolbar={
               <>
                 <p className="robots-muted robots-small">{pending ? t('runs.autoRefresh') : ''}</p>

@@ -16,11 +16,14 @@ import {
   getRobotWorkspaceConfig,
   listRobotBatches,
   neutralizeRecorded,
+  approveSuggestedSelector,
+  syncPausedBatchNotices,
   pushRobotRecording,
   setRobotWorkspaceConfig,
   startRobotRun,
   updateRobot,
 } from '@/lib/robots';
+import { noticeRecipient } from '@/lib/robots-alerts';
 import { canEditRobot, canRunRobot, isRobotBuilder, memberPatchError, robotUsesLogin } from '@/lib/robots-http';
 import { recorderExtensionFiles, storedZip } from '@/lib/robots-recorder-extension';
 import { buildRecorderScript, PASSWORD_PLACEHOLDER } from '@/lib/robots-recorder';
@@ -154,9 +157,16 @@ describe('corridas a la vez', () => {
     }
     const res = await enqueueRobotBatch(small.id, rSmall.id, [{ q: 'mine' }]);
     expect(res.ok).toBe(true);
-    await drainRobotQueue({ budgetMs: 1, concurrency: 2 });
-    const batch = await getRobotBatch(small.id, res.ok ? res.batchId : '');
+    // El orden entre workspaces es al azar y la base de los tests tiene otros: pocas pasadas alcanzan.
+    let batch = await getRobotBatch(small.id, res.ok ? res.batchId : '');
+    for (let i = 0; i < 60 && batch?.counts.success !== 1; i++) {
+      await drainRobotQueue({ budgetMs: 1, concurrency: 2 });
+      batch = await getRobotBatch(small.id, res.ok ? res.batchId : '');
+    }
     expect(batch?.counts.success).toBe(1);
+    // Y el lote grande sigue casi entero: no hubo que vaciarlo antes.
+    const big2 = await getRobotBatch(big.id, 'b1', undefined, { limit: 1 });
+    expect(big2?.counts.queued).toBeGreaterThan(500);
   });
 });
 
@@ -492,6 +502,119 @@ describe('autoaprendizaje', () => {
     await startRobotRun(u.id, id, undefined, { trigger: 'manual' });
     const row = (await getDb().prepare('SELECT updated_at FROM robot_selector_prints WHERE robot_id = ?').get(id)) as { updated_at: string };
     expect(row.updated_at).toBe('marker');
+  });
+});
+
+describe('sugerencias de pasos de acción', () => {
+  async function failedWithSuggestion(to = 'button.x') {
+    const u = await makeUser();
+    const res = await createRobot(u.id, u.id, { name: 'A', steps: [{ type: 'click', selector: '#save', text: '' }] });
+    if (!res.ok) throw new Error(res.error);
+    setRobotBackendForTests({
+      name: 'local',
+      run: async () => ({ status: 'failed', error: '1: action_timeout', vars: {}, logs: [], screenshots: [], pages: 1, healed: [{ step: '1', from: '#save', to, relearned: true, review: true }] }),
+    });
+    const run = await startRobotRun(u.id, res.robot.id, undefined, { trigger: 'manual' });
+    if (!run.ok) throw new Error(run.error);
+    return { u, id: res.robot.id, runId: run.run.id };
+  }
+
+  it('el intérprete no actúa sobre el elemento: falla y sugiere', async () => {
+    const clicks: string[] = [];
+    const page = {
+      url: () => 'https://a.test/',
+      locator: (sel: string) => {
+        const loc = { first: () => loc, count: async () => 0, click: async () => { clicks.push(sel); throw new Error('Timeout exceeded'); } };
+        return loc;
+      },
+      waitForTimeout: async () => {},
+      screenshot: async () => new Uint8Array(),
+      evaluate: async () => '{}',
+    } as unknown as RobotPage;
+    const res = await robotInterpreter(page, [{ type: 'click', selector: '#save', text: '' }], {}, {
+      deadline: Date.now() + 8000,
+      checkUrl: async () => null,
+      selfHeal: {
+        prints: { '#save': { t: 'button', nm: 'Save', a: {}, o: 'https://a.test' } },
+        evaluate: async () => JSON.stringify({ parts: [{ t: 'button', id: 'save-2' }] }),
+      },
+    });
+    expect(res.status).toBe('failed');
+    expect(clicks).toEqual(['#save']);
+    expect(res.healed).toEqual([{ step: '1', from: '#save', to: 'button#save-2', relearned: true, review: true }]);
+  });
+
+  it('aprobar guarda el selector y el viejo queda de alternativo; dos veces no', async () => {
+    const { u, id, runId } = await failedWithSuggestion();
+    expect((await getRobot(u.id, id))?.steps[0]).toMatchObject({ selector: '#save' });
+    expect((await approveSuggestedSelector(u.id, runId, '1')).ok).toBe(true);
+    expect((await getRobot(u.id, id))?.steps[0]).toMatchObject({ selector: 'button.x', fallbacks: ['#save'] });
+    expect(await approveSuggestedSelector(u.id, runId, '1')).toMatchObject({ ok: false, error: 'not_found' });
+  });
+
+  it('bloqueado: otro workspace, paso cambiado, valor hostil', async () => {
+    const { u, id, runId } = await failedWithSuggestion();
+    const other = await makeUser();
+    expect(await approveSuggestedSelector(other.id, runId, '1')).toMatchObject({ ok: false, error: 'not_found' });
+    await updateRobot(u.id, id, { steps: [{ type: 'click', selector: '#other', text: '' }] });
+    expect(await approveSuggestedSelector(u.id, runId, '1')).toMatchObject({ ok: false, error: 'stale' });
+    const bad = await failedWithSuggestion('a, b[title="{{credentials.Q.password}}"]');
+    expect(await approveSuggestedSelector(bad.u.id, bad.runId, '1')).toMatchObject({ ok: false, error: 'not_found' });
+  });
+});
+
+describe('avisos', () => {
+  const notices = async (userId: string) =>
+    (await getDb().prepare("SELECT title, body, href FROM notifications WHERE user_id = ? AND source_type = 'robot'").all(userId)) as Array<{ title: string; body: string; href: string }>;
+
+  it('lote en pausa: un aviso a quien lo lanzó, una vez por pausa, con link', async () => {
+    const u = await makeUser();
+    const r = await robotIn(u.id, true);
+    setRobotBackendForTests(instantBackend);
+    const res = await enqueueRobotBatch(u.id, r.id, [{ q: '1' }, { q: '2' }], { actorId: u.id });
+    if (!res.ok) throw new Error(res.error);
+    expect(await syncPausedBatchNotices(u.id)).toBe(0);
+    vi.stubEnv('ROBOTS_FREE_MINUTES_PER_MONTH', '1');
+    await getDb().prepare('INSERT INTO robot_usage (user_id, month, runs, ms) VALUES (?, ?, 1, ?)').run(u.id, new Date().toISOString().slice(0, 7), 120_000);
+    await drainRobotQueue({ workspaceId: u.id, budgetMs: 600_000, concurrency: 2 });
+    await drainRobotQueue({ workspaceId: u.id, budgetMs: 600_000, concurrency: 2 });
+    const list = await notices(u.id);
+    expect(list.length).toBe(1);
+    expect(list[0].href).toBe(`/app/robots/${r.id}?tab=runs`);
+    // Vuelven los minutos y otra pausa: otro aviso.
+    vi.stubEnv('ROBOTS_FREE_MINUTES_PER_MONTH', '100');
+    expect(await syncPausedBatchNotices(u.id)).toBe(0);
+    vi.stubEnv('ROBOTS_FREE_MINUTES_PER_MONTH', '1');
+    expect(await syncPausedBatchNotices(u.id)).toBe(1);
+  });
+
+  it('el aviso no va a quien perdió acceso a Robots: va al dueño', async () => {
+    const owner = await makeUser();
+    const m = await makeUser();
+    const team = crypto.randomUUID();
+    await getDb().prepare('INSERT INTO teams (id, name, slug, owner_id) VALUES (?, ?, ?, ?)').run(team, 'T', `t-${team}`, owner.id);
+    await getDb().prepare(`INSERT INTO team_members (team_id, user_id, role, apps) VALUES (?, ?, 'member', '["crm"]')`).run(team, m.id);
+    expect(await noticeRecipient(owner.id, m.id)).toBe(owner.id);
+    await getDb().prepare(`UPDATE team_members SET apps = '["robots"]' WHERE user_id = ?`).run(m.id);
+    expect(await noticeRecipient(owner.id, m.id)).toBe(m.id);
+    expect(await noticeRecipient(owner.id, 'se-fue')).toBe(owner.id);
+  });
+
+  it('credencial fuera de un fill: no pausa ni suma fallas, un solo aviso por robot', async () => {
+    const u = await makeUser();
+    const r = await robotIn(u.id);
+    await updateRobot(u.id, r.id, { enabled: true, pauseAfter: 1 });
+    setRobotBackendForTests({
+      name: 'local',
+      run: async () => ({ status: 'failed', error: '2: credential_not_allowed', vars: {}, logs: [], screenshots: [], pages: 0 }),
+    });
+    for (let i = 0; i < 3; i++) await startRobotRun(u.id, r.id, undefined, { trigger: 'schedule' });
+    const row = await getRobotRow(u.id, r.id);
+    expect(row?.enabled).toBe(1);
+    expect(Number(row?.consecutive_failures ?? 0)).toBe(0);
+    const list = await notices(u.id);
+    expect(list.length).toBe(1);
+    expect(list[0].body).toContain('Step 2');
   });
 });
 

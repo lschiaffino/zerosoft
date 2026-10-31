@@ -122,7 +122,7 @@ export interface RobotHealed {
   field?: string;
   /** Ya quedó guardado en los pasos del robot. */
   saved?: boolean;
-  /** Paso de acción: se usó en esta corrida y una persona decide si queda. */
+  /** Paso de acción: sugerencia que no se usó. El paso falló y una persona decide si queda. */
   review?: boolean;
 }
 
@@ -308,7 +308,9 @@ export async function robotInterpreter(
   const clip = (v: string, n = 5000) => (v.length > n ? v.slice(0, n) : v);
 
   /** Último selector alternativo que usó un paso (autorreparación); lo lee runList. */
-  let lastHeal: { from: string; to: string; relearned?: boolean; review?: boolean } | null = null;
+  let lastHeal: { from: string; to: string; relearned?: boolean } | null = null;
+  /** Reemplazo sugerido para un paso de acción: no se usa, se muestra si el paso falla. */
+  let lastSuggestion: { from: string; to: string } | null = null;
   const healed: RobotHealed[] = [];
   const prints: Record<string, unknown> = {};
   /** Columnas de una lista que reencontró la huella en este paso; las lee runList. */
@@ -440,9 +442,10 @@ export async function robotInterpreter(
 
   /**
    * Si el selector no está y hay huella, espera un poco (la página puede estar
-   * cargando) y busca el elemento. Extracción: el más parecido. Acción: el único
-   * con el mismo nombre visible, y queda para que una persona lo revise. Si no
-   * aparece nada claro, sigue con el original y el paso falla como siempre.
+   * cargando) y busca el elemento. Lectura: usa el más parecido. Acción: nunca
+   * actúa sobre lo que encontró; anota el único con el mismo nombre visible como
+   * sugerencia y el paso falla con el selector original, para que lo apruebe una
+   * persona. Si no aparece nada claro, el paso falla como siempre.
    */
   const relearn = async (s: InterpreterStep, selector: string, ctx: Record<string, unknown>): Promise<string> => {
     if (!opts.selfHeal?.evaluate || !selector) return selector;
@@ -477,7 +480,11 @@ export async function robotInterpreter(
     const res = await evalJson<{ parts: unknown }>(isAction ? relearnActionExpr(pr) : relearnExpr(pr));
     const to = res ? buildSelector(res.parts) : null;
     if (!to) return selector;
-    lastHeal = { from: selector, to, relearned: true, ...(isAction ? { review: true } : {}) };
+    if (isAction) {
+      lastSuggestion = { from: selector, to };
+      return selector;
+    }
+    lastHeal = { from: selector, to, relearned: true };
     return to;
   };
 
@@ -678,6 +685,7 @@ export async function robotInterpreter(
     void _value;
     if (/\{\{[^{}]*\bcredentials\b/.test(JSON.stringify(s.type === 'fill' ? withoutValue : s))) fail('credential_not_allowed');
     lastHeal = null;
+    lastSuggestion = null;
     lastFieldHeals = [];
     let selector = await heal(s, ctx, render(str(s.selector), ctx).trim());
     selector = await relearn(s, selector, ctx);
@@ -1167,6 +1175,11 @@ export async function robotInterpreter(
                 ? 'action_timeout'
                 : 'action_failed';
         const msg = err instanceof Error && !(err instanceof RobotError) ? err.message.split('\n')[0].slice(0, 300) : undefined;
+        if (lastSuggestion) {
+          const sug: { from: string; to: string } = lastSuggestion;
+          healed.push({ step: label, from: sug.from, to: sug.to, relearned: true, review: true });
+          lastSuggestion = null;
+        }
         if (s.continueOnError === true && !FATAL.test(code)) {
           warnings += 1;
           logs.push({ step: label, type: s.type, status: 'warning', ms: Date.now() - started, error: code, detail: msg });
@@ -1178,8 +1191,8 @@ export async function robotInterpreter(
         throw new RobotError(`${label}: ${code}`);
       }
       if (lastHeal) {
-        const h: { from: string; to: string; relearned?: boolean; review?: boolean } = lastHeal;
-        healed.push({ step: label, from: h.from, to: h.to, ...(h.relearned ? { relearned: true } : {}), ...(h.review ? { review: true } : {}) });
+        const h: { from: string; to: string; relearned?: boolean } = lastHeal;
+        healed.push({ step: label, from: h.from, to: h.to, ...(h.relearned ? { relearned: true } : {}) });
         out.detail = `${out.detail ?? ''} · healed: ${h.to}`.trim();
         lastHeal = null;
       }

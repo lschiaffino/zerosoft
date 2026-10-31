@@ -409,7 +409,10 @@
     "cancelYes": "Tirar",
     "cancelNo": "Voltar",
     "cancelDone": "Execução fora da fila.",
-    "relearnedAction": "O passo {step} não encontrava mais seu seletor. O robô agiu sobre o único elemento com o mesmo nome: {selector}. Confira e torne-o principal se estiver certo."
+    "relearnedAction": "O passo {step} não encontrava mais seu seletor e nada foi clicado nem digitado. Substituto sugerido, o único elemento com o mesmo nome: {selector}. Aprove se estiver certo.",
+    "approveSuggestion": "Aprovar e salvar",
+    "suggestionApproved": "Aprovado e salvo no robô.",
+    "credentialNotAllowed": "O passo {step} usa uma credencial fora do valor de um campo Preencher, e ela não foi enviada à página. As credenciais agora só funcionam como valor de um passo Preencher. Abra a aba Passos e tire-a da URL, do seletor, do texto ou do script."
   },
   "settings": {
     "enabled": "Permitir execuções automáticas",
@@ -492,7 +495,7 @@
     "retentionDays": "{count, plural, one {# dia} other {# dias}}",
     "pausedByFailures": "As execuções automáticas foram pausadas em {date} depois de várias execuções com falha seguidas. Confira a aba Execuções e ligue-as de novo.",
     "selfHealTitle": "Encontrar elementos de novo quando o site muda",
-    "selfHealHint": "Desligado por padrão. Cada execução boa lembra como são seus elementos nesse site. Se um seletor para de funcionar em passos que leem dados, o robô usa o elemento mais parecido quando um ganha com clareza e salva se a execução terminar bem. Em cliques, campos e opções só usa um elemento com o mesmo nome visível e deixa a mudança para você conferir. Passos com login e campos de senha nunca mudam.",
+    "selfHealHint": "Desligado por padrão. Cada execução boa lembra como são seus elementos nesse site. Se um seletor para de funcionar em passos que leem dados, o robô usa o elemento mais parecido quando um ganha com clareza e salva se a execução terminar bem. Cliques, campos e opções nunca agem sobre um elemento encontrado: o passo falha e a execução sugere um substituto para você aprovar. Passos com login e campos de senha nunca mudam.",
     "selfHeal": "Reaprender seletores sozinho"
   },
   "errors": {
@@ -534,7 +537,9 @@
     "credential_misuse": "Passo {index}: uma credencial só pode ir no valor de um passo Preencher, nunca em um seletor, URL, texto ou script.",
     "batch_too_large": "O lote passa de 64 MB de entradas.",
     "no_crm_access": "Você precisa de acesso ao CRM para enviar linhas para lá.",
-    "outside_recipient": "Os emails de mudanças só podem ir para pessoas deste workspace."
+    "outside_recipient": "Os emails de mudanças só podem ir para pessoas deste workspace.",
+    "save_first": "Salve suas alterações primeiro.",
+    "suggestion_stale": "O passo mudou desde essa execução. Rode o robô de novo."
   },
   "paste": {
     "title": "Colar passos gravados",
@@ -686,9 +691,11 @@
     "progress": "Enviadas {done, number} de {total, number}…",
     "nothingStarted": "Nenhuma execução começou. Corrija e coloque na fila de novo.",
     "rowMissing": "Linha {row}: “{name}” é obrigatório. Nada foi enviado.",
-    "estimate": "Cerca de {minutes, number} minutos de navegador a {seconds} s por execução, e pelo menos {hours, number} h com {concurrency} ao mesmo tempo.",
+    "estimate": "Cerca de {minutes, plural, one {# minuto} other {# minutos}} de navegador a {seconds} s por execução, e pelo menos {wall} com {concurrency} ao mesmo tempo.",
     "estimateOver": "Restam {left, number} minutos este mês. O lote pausa quando acabam e continua quando houver minutos de novo.",
-    "expiry": "Linhas ainda aguardando depois de 45 dias são descartadas."
+    "expiry": "Linhas ainda aguardando depois de 45 dias são descartadas.",
+    "wallMinutes": "{count, plural, one {# minuto} other {# minutos}}",
+    "wallHours": "{count, plural, one {# hora} other {# horas}}"
   },
   "data": {
     "title": "Dados entre execuções",
@@ -884,5 +891,15 @@
     "members": "Deixar os members montar e rodar robôs",
     "adminOnly": "Só admins e owners do workspace podem mudar isto.",
     "saved": "Salvo"
+  },
+  "notices": {
+    "batchPaused": {
+      "title": "{name}: lote em pausa",
+      "body": "{count} execuções aguardam porque este workspace ficou sem minutos de robôs este mês. Continuam quando houver minutos de novo."
+    },
+    "credentialMisuse": {
+      "title": "{name}: um passo precisa de mudança",
+      "body": "O passo {step} usa uma credencial fora do valor de um campo Preencher, então o robô para ali. Tire-a da URL, do seletor, do texto ou do script. Este robô não vai enviar este aviso de novo."
+    }
   }
 }

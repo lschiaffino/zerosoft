@@ -45,9 +45,9 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         product: 'robots',
-        en: 'Optional setting: when a site changes its HTML, steps that read data use the most similar element and save it. Clicks and fields use an element with the same visible name and leave the change for you to review.',
-        es: 'Ajuste opcional: cuando un sitio cambia su HTML, los pasos que leen datos usan el elemento más parecido y lo guardan. Los clics y campos usan un elemento con el mismo nombre visible y dejan el cambio para que lo revises.',
-        pt: 'Ajuste opcional: quando um site muda o HTML, os passos que leem dados usam o elemento mais parecido e salvam. Cliques e campos usam um elemento com o mesmo nome visível e deixam a mudança para você conferir.',
+        en: 'Optional setting: when a site changes its HTML, steps that read data use the most similar element and save it. Clicks and fields stop and suggest a replacement for you to approve.',
+        es: 'Ajuste opcional: cuando un sitio cambia su HTML, los pasos que leen datos usan el elemento más parecido y lo guardan. Los clics y campos se frenan y sugieren un reemplazo para que lo apruebes.',
+        pt: 'Ajuste opcional: quando um site muda o HTML, os passos que leem dados usam o elemento mais parecido e salvam. Cliques e campos param e sugerem um substituto para você aprovar.',
       },
       {
         product: 'robots',

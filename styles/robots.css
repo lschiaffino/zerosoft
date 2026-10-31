@@ -432,3 +432,5 @@
 .robots-batches { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .robots-batch { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 6px 0; border-bottom: 1px solid var(--line, var(--border)); }
 .robots-recorder-list { margin: 0; padding-left: 20px; }
+.robots-batches-block { margin-top: 24px; }
+.robots-review-tick { margin-top: 8px; }

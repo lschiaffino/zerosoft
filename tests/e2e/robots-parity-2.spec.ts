@@ -159,7 +159,7 @@ async function member(browser: Browser, baseURL: string) {
   await sql("UPDATE users SET onboarded_at = datetime('now') WHERE id = ?", [me]);
   await sql(`INSERT INTO team_members (team_id, user_id, role, apps) VALUES (?, ?, 'member', '["robots"]')`, [team, me]);
   await sql('UPDATE users SET active_team_id = ? WHERE id = ?', [team, me]);
-  return { ctx, page: p };
+  return { ctx, page: p, email };
 }
 
 test('robots: reaprende selectores cuando el sitio cambia, lo guarda y lo muestra', async ({ page }) => {
@@ -289,13 +289,94 @@ test('robots: nunca cambia Guardar por Borrar cuenta; con el mismo nombre actúa
   layout = 'b';
   received.length = 0;
   const healed = await runNow(page, same);
-  expect(healed.status).toBe('success');
-  expect(received.join()).toContain('did=ok');
-  expect(healed.exports.healed?.[0]).toMatchObject({ relearned: true, review: true });
-  expect(healed.exports.healed?.[0].saved).toBeUndefined();
+  // Mismo nombre: igual no se toca. Falla, sugiere, y una persona aprueba.
+  expect(healed.status).toBe('failed');
+  expect(received.join()).not.toContain('did=ok');
+  expect(healed.exports.healed?.[0]).toMatchObject({ relearned: true, review: true, to: expect.stringContaining('save-2') });
   expect((await stepsOf(page, same))[1].selector).toBe('#save');
   await page.goto(`/en/app/robots/${same}?tab=runs&run=${healed.id}`, { waitUntil: 'networkidle' });
-  await expect(page.getByText(/only element with the same name/).first()).toBeVisible();
+  await expect(page.getByText(/nothing was clicked or typed/).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Approve and save' }).click();
+  await expect(page.getByText('Approved and saved in the robot.').first()).toBeVisible();
+  expect(String((await stepsOf(page, same))[1].selector)).toContain('save-2');
+  expect((await stepsOf(page, same))[1].fallbacks).toContain('#save');
+  const after = await runNow(page, same);
+  expect(after.status).toBe('success');
+  expect(received.join()).toContain('did=ok');
+});
+
+test('robots: lote en pausa avisa una vez con link, y el panel lo muestra', async ({ page, browser, baseURL }) => {
+  // Otro workspace: sin minutos no afecta a las demás pruebas. Se llega al límite por la base.
+  const owner = await member(browser, baseURL!);
+  const req = owner.ctx.request;
+  await sql("DELETE FROM team_members WHERE user_id = (SELECT id FROM users WHERE email = ?)", [owner.email]);
+  await sql('UPDATE users SET active_team_id = NULL WHERE email = ?', [owner.email]);
+  try {
+    const me = String((await sql('SELECT id FROM users WHERE email = ?', [owner.email]))[0].id);
+    const created = await req.post('/api/robots', { data: { name: 'Paused e2e', steps: [{ type: 'goto', url: `${SITE}/shop?q={{inputs.q}}` }], inputs: [{ name: 'q', label: 'Q', kind: 'text' }] } });
+    expect(created.status(), await created.text()).toBe(201);
+    const { id } = (await created.json()) as { id: string };
+    const month = new Date().toISOString().slice(0, 7);
+    await sql('INSERT OR REPLACE INTO robot_usage (user_id, month, runs, ms) VALUES (?, ?, 1, ?)', [me, month, 999 * 60_000]);
+    await sql(
+      "INSERT INTO robot_runs (id, robot_id, user_id, status, trigger, input, created_by, batch_id, created_at) VALUES (?, ?, ?, 'queued', 'api', '{\"q\":\"x\"}', ?, 'paused-batch', ?)",
+      [`paused-${Date.now()}`, id, me, me, new Date().toISOString()],
+    );
+    for (let i = 0; i < 2; i++) expect((await page.request.get('/api/cron/robots', { headers: { authorization: 'Bearer e2e-cron' }, timeout: 120_000 })).ok()).toBe(true);
+    const list = await sql("SELECT href FROM notifications WHERE user_id = ? AND source_type = 'robot'", [me]);
+    expect(list.length).toBe(1);
+    expect(String(list[0].href)).toBe(`/app/robots/${id}?tab=runs`);
+    await owner.page.goto(`/en/app/robots/${id}?tab=runs`, { waitUntil: 'networkidle' });
+    await expect(owner.page.getByTestId('robots-batch')).toContainText('paused: no minutes left');
+  } finally {
+    await owner.ctx.close();
+  }
+});
+
+test('robots: pantalla de lotes, estimación y revisión en claro, oscuro y 390px', async ({ page, context, baseURL }, testInfo) => {
+  test.setTimeout(180_000);
+  const { id } = (await (
+    await page.request.post('/api/robots', { data: { name: 'Look e2e', steps: [{ type: 'goto', url: `${SITE}/shop?q={{inputs.q}}` }], inputs: [{ name: 'q', label: 'Q', kind: 'text' }] } })
+  ).json()) as { id: string };
+  const batch = (await (await page.request.post(`/api/robots/${id}/bulk`, { data: { inputs: Array.from({ length: 20 }, (_, i) => ({ q: String(i) })) } })).json()) as { batchId: string };
+  for (const theme of ['light', 'dark'] as const) {
+    for (const width of [1280, 390]) {
+      await context.addCookies([{ name: 'zs_theme', value: theme, url: baseURL! }]);
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto(`/en/app/robots/${id}?tab=runs`, { waitUntil: 'networkidle' });
+      await page.screenshot({ path: testInfo.outputPath(`look-batches-${theme}-${width}.png`), fullPage: true });
+      await page.getByRole('button', { name: 'Bulk run' }).click();
+      await page.getByRole('dialog').getByLabel('Or paste the CSV').fill('q\na\nb\nc');
+      await expect(page.getByTestId('robots-batch-estimate')).toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath(`look-estimate-${theme}-${width}.png`) });
+      await page.keyboard.press('Escape');
+      const { scroll, inner } = await page.evaluate(() => ({ scroll: document.scrollingElement!.scrollWidth, inner: window.innerWidth }));
+      expect(scroll).toBeLessThanOrEqual(inner + 1);
+    }
+  }
+  await page.request.delete(`/api/robots/batches/${batch.batchId}`);
+  // Revisión: un paso marcado en el diálogo de grabación.
+  for (const theme of ['light', 'dark'] as const) {
+    for (const width of [1280, 390]) {
+      await context.addCookies([{ name: 'zs_theme', value: theme, url: baseURL! }]);
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto(`/en/app/robots/${id}`, { waitUntil: 'networkidle' });
+      await page.getByRole('button', { name: 'Record steps', exact: true }).click();
+      const rows = async () => sql('SELECT id FROM robot_recordings WHERE robot_id = ? ORDER BY updated_at DESC LIMIT 1', [id]);
+      await expect(page.getByRole('dialog').getByTestId('robots-record-bookmarklet')).toBeVisible();
+      await expect.poll(async () => (await rows()).length).toBeGreaterThan(0);
+      const recId = String((await rows())[0].id);
+      const href = (await page.getByTestId('robots-record-bookmarklet').getAttribute('href'))!;
+      const token = /%22token%22%3A%22([^%]+)%22/.exec(href)?.[1] ?? '';
+      await page.request.post(`/api/robots/recordings/${recId}/steps`, {
+        headers: { 'content-type': 'text/plain' },
+        data: JSON.stringify({ token, steps: [{ type: 'goto', url: `${SITE}/form` }, { type: 'fill', selector: '#pass', value: '{{credentials.LOGIN.password}}' }] }),
+      });
+      await expect(page.getByLabel('I checked the marked steps')).toBeVisible({ timeout: 10_000 });
+      await page.screenshot({ path: testInfo.outputPath(`look-review-${theme}-${width}.png`) });
+      await page.keyboard.press('Escape');
+    }
+  }
 });
 
 test('robots: no cura entre orígenes', async ({ page }) => {

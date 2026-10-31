@@ -39,7 +39,7 @@ Las tablas de abajo son la foto del 22-10. Desde esta tanda (estado vivo en
 ## Actualización 2026-10-31 (tanda de paridad, migración 149)
 
 - **Grabador:** grabación en vivo desde el editor (`robot_recordings`, token por grabación) y extensión de Chrome generada al vuelo (`lib/robots-recorder-extension.ts`). No está en la Chrome Web Store: **parcial**.
-- **Autoaprendizaje (opcional, apagado por defecto):** huellas por selector y origen (`robot_selector_prints`, cifradas). Pasos que leen: elemento más parecido, se guarda. Pasos de acción: solo mismo nombre visible, queda para revisar. **parcial**.
+- **Autoaprendizaje (opcional, apagado por defecto):** huellas por selector y origen (`robot_selector_prints`, cifradas). Pasos que leen: elemento más parecido, se guarda. Pasos de acción: no actúan; el paso falla y sugiere el único con el mismo nombre visible, que una persona aprueba. **parcial**.
 - **Cola:** hasta 5 corridas a la vez por workspace (`robot_runtime`, clave `config:<workspace>`), sueltas antes que lotes y selección sin que un workspace tape a otro.
 - **Lotes:** hasta 50.000 entradas en partes idempotentes de 1.000; nada arranca hasta la última parte y se pausan sin minutos. **Parcial** con la cuota por defecto.
 - **Roles:** ajuste de workspace para que los members armen robots y corran los que no usan login.

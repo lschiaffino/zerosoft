@@ -500,6 +500,8 @@ export async function updateRobot(
     const misuse = credentialMisuse(v.steps);
     if (misuse !== null) return { ok: false, error: 'credential_misuse', index: misuse };
     steps = JSON.stringify(v.steps);
+    // Si vuelve a romperse, corresponde otro aviso.
+    await getDb().prepare('DELETE FROM robot_runtime WHERE key = ?').run(`cred_notice:${id}`);
   }
   let inputs = row.inputs;
   if (patch.inputs !== undefined) {
@@ -1175,6 +1177,74 @@ async function saveRelearned(row: RobotRow, healed: RobotHealed[]): Promise<Robo
   return healed.map((h) => (saved.has(h) ? { ...h, saved: true } : h));
 }
 
+export type ApproveResult = { ok: true; robot: RobotDto } | { ok: false; error: 'not_found' | 'stale' };
+
+/**
+ * Una persona aprueba el selector sugerido para un paso de acción: queda en el
+ * robot y el viejo pasa a alternativo. Solo lo que la corrida sugirió, si el paso
+ * sigue igual, no usa un login y el selector es simple.
+ */
+export async function approveSuggestedSelector(workspaceId: string, runId: string, stepLabel: string): Promise<ApproveResult> {
+  const db = getDb();
+  const run = (await db.prepare('SELECT robot_id, exports FROM robot_runs WHERE id = ? AND user_id = ?').get(runId, workspaceId)) as
+    | { robot_id: string; exports: string | null }
+    | undefined;
+  if (!run) return { ok: false, error: 'not_found' };
+  const exportsData = parseJson<RobotRunExports>(run.exports, {});
+  const h = (exportsData.healed ?? []).find((x) => x.step === stepLabel && x.review && !x.saved && !x.field);
+  const row = await getRobotRow(workspaceId, run.robot_id);
+  if (!h || !row || !isSimpleSelector(h.to) || !h.to) return { ok: false, error: 'not_found' };
+  const steps = parseJson<Array<Record<string, unknown>>>(row.steps, []);
+  const parts = stepLabel.split('.').map(Number);
+  const top = steps[parts[0] - 1];
+  const step = parts.length === 1 ? top : parts.length === 3 && Array.isArray(top?.steps) ? (top.steps as Array<Record<string, unknown>>)[parts[2] - 1] : undefined;
+  if (!step || String(step.selector ?? '') !== h.from || CREDENTIAL_TEMPLATE.test(JSON.stringify(step))) return { ok: false, error: 'stale' };
+  step.selector = h.to;
+  const alts = (Array.isArray(step.fallbacks) ? (step.fallbacks as string[]) : []).filter((x) => x !== h.to && x !== h.from);
+  step.fallbacks = [h.from, ...alts].slice(0, 4);
+  const v = validateSteps(steps);
+  if (!v.ok) return { ok: false, error: 'stale' };
+  const res = await db.prepare('UPDATE robots SET steps = ?, updated_at = ? WHERE id = ? AND updated_at = ?').run(JSON.stringify(v.steps), nowIso(), row.id, row.updated_at);
+  if (res.changes !== 1) return { ok: false, error: 'stale' };
+  exportsData.healed = (exportsData.healed ?? []).map((x) => (x === h ? { ...x, saved: true } : x));
+  await db.prepare('UPDATE robot_runs SET exports = ? WHERE id = ?').run(JSON.stringify(exportsData), runId);
+  return { ok: true, robot: (await getRobot(workspaceId, row.id))! };
+}
+
+/**
+ * Lote en pausa por falta de minutos: un aviso a quien lo lanzó, una vez por
+ * pausa. Si volvió a haber minutos, se olvida para avisar en la próxima pausa.
+ */
+export async function syncPausedBatchNotices(workspaceId: string): Promise<number> {
+  const db = getDb();
+  const prefix = `batch_paused:${workspaceId}:`;
+  if (!(await robotQuotaExhausted(workspaceId))) {
+    await db.prepare('DELETE FROM robot_runtime WHERE key >= ? AND key < ?').run(prefix, `${prefix}\uffff`);
+    return 0;
+  }
+  const rows = (await db
+    .prepare(
+      `SELECT batch_id, MIN(robot_id) AS robot_id, MIN(created_by) AS created_by, COUNT(*) AS n FROM robot_runs
+       WHERE user_id = ? AND status = 'queued' AND batch_id IS NOT NULL GROUP BY batch_id LIMIT 50`,
+    )
+    .all(workspaceId)) as Array<{ batch_id: string; robot_id: string; created_by: string | null; n: number }>;
+  let sent = 0;
+  for (const b of rows) {
+    const res = await db
+      .prepare('INSERT OR IGNORE INTO robot_runtime (key, value, updated_at) VALUES (?, ?, ?)')
+      .run(`${prefix}${b.batch_id}`, '1', nowIso());
+    if (res.changes !== 1) continue;
+    const row = await getRobotRow(workspaceId, b.robot_id);
+    if (!row) continue;
+    const { noticeRecipient, sendRobotNotice } = await import('./robots-alerts');
+    const to = await noticeRecipient(workspaceId, b.created_by);
+    if (!to) continue;
+    await sendRobotNotice(row, to, 'batchPaused', `/app/robots/${row.id}?tab=runs`, `batch:${b.batch_id}`, { count: Number(b.n) });
+    sent++;
+  }
+  return sent;
+}
+
 /** Ejecuta una corrida ya reclamada ('running') y guarda el resultado. */
 async function executeClaimedRun(
   row: RobotRow,
@@ -1501,6 +1571,7 @@ async function pickQueuedRuns(concurrency: number, ws?: string): Promise<RobotRu
     .all(...(ws ? [ws] : []))) as Array<{ user_id: string }>;
   const picked: RobotRunRow[] = [];
   for (const { user_id } of spaces) {
+    await syncPausedBatchNotices(user_id).catch(() => 0);
     const left = concurrency - picked.length;
     if (left <= 0) break;
     const running = (await db

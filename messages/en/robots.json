@@ -409,7 +409,10 @@
     "cancelYes": "Remove",
     "cancelNo": "Back",
     "cancelDone": "Run removed from the queue.",
-    "relearnedAction": "Step {step} no longer matched its selector. The robot acted on the only element with the same name: {selector}. Review it and make it the main selector if it is right."
+    "relearnedAction": "Step {step} no longer matched its selector and nothing was clicked or typed. Suggested replacement, the only element with the same name: {selector}. Approve it if it is right.",
+    "approveSuggestion": "Approve and save",
+    "suggestionApproved": "Approved and saved in the robot.",
+    "credentialNotAllowed": "Step {step} uses a credential outside a Fill field value, and it was not sent to the page. Credentials now only work as the value of a Fill field step. Open the Steps tab and take it out of the URL, selector, text or script."
   },
   "settings": {
     "enabled": "Allow automatic runs",
@@ -492,7 +495,7 @@
     "retentionDays": "{count, plural, one {# day} other {# days}}",
     "pausedByFailures": "Automatic runs were paused on {date} after several failed runs in a row. Check the Runs tab, then turn them back on.",
     "selfHealTitle": "Find elements again when the site changes",
-    "selfHealHint": "Off by default. Each good run remembers what its elements look like on that site. If a selector stops matching on steps that read data, the robot uses the most similar element when one clearly wins and saves it if the run succeeds. On clicks, fields and selects it only uses an element with the same visible name and leaves the change for you to review. Steps with logins and password fields are never changed.",
+    "selfHealHint": "Off by default. Each good run remembers what its elements look like on that site. If a selector stops matching on steps that read data, the robot uses the most similar element when one clearly wins and saves it if the run succeeds. Clicks, fields and selects never act on a found element: the step fails and the run suggests a replacement for you to approve. Steps with logins and password fields are never changed.",
     "selfHeal": "Re-learn selectors automatically"
   },
   "errors": {
@@ -534,7 +537,9 @@
     "credential_misuse": "Step {index}: a credential can only go in the value of a Fill field step, never in a selector, URL, text or script.",
     "batch_too_large": "The batch is larger than 64 MB of inputs.",
     "no_crm_access": "You need access to the CRM to send rows there.",
-    "outside_recipient": "Change emails can only go to people in this workspace."
+    "outside_recipient": "Change emails can only go to people in this workspace.",
+    "save_first": "Save your changes first.",
+    "suggestion_stale": "The step changed since that run. Run the robot again."
   },
   "paste": {
     "title": "Paste recorded steps",
@@ -686,9 +691,11 @@
     "progress": "Uploaded {done, number} of {total, number}…",
     "nothingStarted": "No run started. Fix it and queue again.",
     "rowMissing": "Row {row}: “{name}” is required. Nothing was uploaded.",
-    "estimate": "About {minutes, number} browser minutes at {seconds} s per run, and at least {hours, number} h with {concurrency} at once.",
+    "estimate": "About {minutes, plural, one {# browser minute} other {# browser minutes}} at {seconds} s per run, and at least {wall} with {concurrency} at once.",
     "estimateOver": "You have {left, number} minutes left this month. The batch pauses when they run out and continues when there are minutes again.",
-    "expiry": "Rows still waiting after 45 days are dropped."
+    "expiry": "Rows still waiting after 45 days are dropped.",
+    "wallMinutes": "{count, plural, one {# minute} other {# minutes}}",
+    "wallHours": "{count, plural, one {# hour} other {# hours}}"
   },
   "data": {
     "title": "Data across runs",
@@ -884,5 +891,15 @@
     "members": "Let members build and run robots",
     "adminOnly": "Only workspace admins and owners can change this.",
     "saved": "Saved"
+  },
+  "notices": {
+    "batchPaused": {
+      "title": "{name}: batch paused",
+      "body": "{count} runs are waiting because this workspace has no robot minutes left this month. They continue when there are minutes again."
+    },
+    "credentialMisuse": {
+      "title": "{name}: a step needs a change",
+      "body": "Step {step} uses a credential outside a Fill field value, so the robot stops there. Take it out of the URL, selector, text or script. This robot will not send this notice again."
+    }
   }
 }
