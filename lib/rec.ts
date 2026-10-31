@@ -830,6 +830,10 @@ export async function updateVideo(a: RecActor, id: string, patch: RecVideoPatch)
     set('privacy', patch.privacy === 'link' ? 'link' : 'workspace');
     set('people_only', patch.privacy === 'people' ? 1 : 0);
   }
+  // Igual que al borrar un espacio: "solo workspace" adentro era solo para sus miembros y en un video personal abriría a todos.
+  else if (v.space_id && v.privacy === 'workspace' && !v.people_only && finalSpace === 'personal') {
+    set('people_only', 1);
+  }
   if (patch.allowedEmails !== undefined) {
     if (cleanEmails(patch.allowedEmails.slice(0, MAX_REC_ALLOWED)).length < new Set(cleanEmails(patch.allowedEmails)).size || patch.allowedEmails.length > MAX_REC_ALLOWED) throw new RecError('allowed_full');
     set('allowed_emails', JSON.stringify(cleanEmails(patch.allowedEmails)));

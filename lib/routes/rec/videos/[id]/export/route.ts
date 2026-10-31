@@ -28,6 +28,8 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
       const rows = await listProjectMetas(s.user.team?.id ?? null, s.user.id);
       projects = rows.map((p) => ({ id: p.id, name: p.name }));
     }
+    // Abrir un video más cerrado es decisión de quien lo administra: el resto no ve destinos.
+    if (exportWidens(v) && !canManage(actor, v)) return recJson({ docs: false, projects: [], widens: true });
     return recJson({ docs, projects, widens: exportWidens(v) });
   } catch (err) {
     return recFail(err);
@@ -57,6 +59,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     const { v, content } = await exportableVideo(actor, id, (row) => canManage(actor, row));
     // Un video más cerrado que el destino no se copia sin que la persona lo confirme.
     const widens = exportWidens(v);
+    if (widens && !canManage(actor, v)) return recJson({ error: 'forbidden' }, 403);
     if (widens && !parsed.data.confirmWiden) return recJson({ error: 'export_widens' }, 409);
     const t = await getTranslations({ locale, namespace: 'rec.export' });
     const url = recShareUrl(locale, v.share_id);

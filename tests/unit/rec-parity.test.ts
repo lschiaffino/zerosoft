@@ -545,6 +545,21 @@ describe('borrar un espacio no abre nada', () => {
   });
 });
 
+describe('sacar un video de un espacio cerrado', () => {
+  it('a Mis videos no lo abre al workspace, y a un cambio explícito de privacidad sí le hace caso', async () => {
+    const s = await createSpace(member, 'Mudanza');
+    const v = await ready(member, 'Se muda', { spaceId: s.id });
+    await updateVideo(member, v.id, { privacy: 'workspace' });
+    await updateVideo(member, v.id, { space: 'personal' });
+    const moved = (await getPublicVideoRow(v.share_id))!;
+    expect(moved.space_id).toBeNull();
+    expect(moved.people_only).toBe(1);
+    expect(publicAccess(moved, { ws: owner.ws, userId: 'rp-mate' }, null)).toBe('forbidden');
+    await updateVideo(member, v.id, { privacy: 'workspace' });
+    expect((await getPublicVideoRow(v.share_id))!.people_only).toBe(0);
+  });
+});
+
 describe('exportar', () => {
   it('avisa si el video es más cerrado que el destino', async () => {
     const general = await ready(owner, 'General', { space: 'workspace' });
