@@ -855,6 +855,24 @@ test('ningún 404 en las pantallas de permisos y en la documentación', async ({
   await ctx.close();
 });
 
+test('un nombre largo sin espacios no se sale del diálogo de desconectar', async ({ browser }) => {
+  const ctx = await asPerson(browser, null, { width: 390, height: 844 });
+  const page = await ctx.newPage();
+  const name = `Long${'x'.repeat(76)}`;
+  await connect(page, 'read write', name);
+  await page.goto('/en/app/settings/api');
+  await page.locator('#connected').getByRole('button', { name: `Disconnect ${name}` }).click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toBeVisible();
+  await page.waitForTimeout(400);
+  const overflow = await dialog.evaluate((d) => d.scrollWidth - d.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+  const box = (await dialog.boundingBox())!;
+  expect(box.x + box.width).toBeLessThanOrEqual(390);
+  await page.keyboard.press('Escape');
+  await ctx.close();
+});
+
 test('la conexión queda encontrable desde Conexiones, y el vacío lleva a cómo conectar', async ({ page }) => {
   await page.goto('/en/app/settings/connections');
   await page.getByRole('link', { name: 'Claude and other connected apps' }).click();
