@@ -556,7 +556,16 @@
       "cancel": "Cancelar"
     },
     "rolesLegend": "Qué puede hacer cada rol",
-    "rolesLegendApps": "Dentro de cada app hay acciones solo para admins, como borrar pipelines o cambiar los ajustes de la app. Si necesitás una, pedísela a un admin."
+    "rolesLegendApps": "Dentro de cada app hay acciones solo para admins, como borrar pipelines o cambiar los ajustes de la app. Si necesitás una, pedísela a un admin.",
+    "guestOf": {
+      "title": "Workspaces donde sos invitado",
+      "desc": "Un invitado no entra al workspace. Abrís lo que te comparten desde su link, tus avisos o Docs.",
+      "leave": "Dejar de ser invitado",
+      "openDocs": "Abrir Docs",
+      "error": "No se pudo. Probá de nuevo.",
+      "confirmTitle": "¿Dejar de ser invitado de {workspace}?",
+      "confirmBody": "Perdés lo que te compartieron persona a persona. Para volver, alguien te tiene que invitar de nuevo."
+    }
   },
   "teamsForm": {
     "createTitle": "Crear un equipo",
@@ -702,7 +711,6 @@
     "title": "No tenés acceso a {app} acá",
     "body": "Un admin de {workspace} te lo puede habilitar en Ajustes › Miembros.",
     "back": "Volver a las apps",
-    "bodyGuest": "Entraste a {workspace} como invitado: ves lo que te comparten. Un admin te puede hacer miembro para usar {app}.",
     "request": "Pedir acceso",
     "sending": "Enviando…",
     "sent": "Pedido enviado. Al owner y a los admins les llegó un aviso.",
@@ -842,7 +850,8 @@
       },
       "invalid": "Estos no son emails válidos: {list}",
       "limited": "Llegaste al límite de invitaciones por ahora. Invitá al resto más tarde desde Ajustes › Miembros."
-    }
+    },
+    "notYou": "¿No sos vos? Salir"
   },
   "profileForm": {
     "title": "Tus datos",

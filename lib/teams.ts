@@ -157,6 +157,16 @@ export async function joinedWorkspace(userId: string): Promise<{ id: string; nam
   return row ?? null;
 }
 
+/** Workspaces donde la persona es guest (no van al switcher: un guest no entra). */
+export async function listGuestWorkspaces(userId: string): Promise<Array<{ id: string; name: string }>> {
+  return (await getDb()
+    .prepare(
+      `SELECT t.id, t.name FROM team_members m JOIN teams t ON t.id = m.team_id
+       WHERE m.user_id = ? AND m.role = 'guest' AND t.owner_id != ? ORDER BY t.name COLLATE NOCASE, t.id`,
+    )
+    .all(userId, userId)) as Array<{ id: string; name: string }>;
+}
+
 /**
  * Crea un equipo aparte del owner (como antes de 128: sus datos de Track y
  * Chat cuelgan de su id). La app ya no lo usa para "crear un equipo": eso es

@@ -330,3 +330,7 @@ body:has(.wl-page) .zs-support-launcher { display: none; }
 .ws-roles dl > div { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 12px; }
 .ws-roles dd { margin: 0; }
 @media (max-width: 520px) { .ws-roles dl > div { grid-template-columns: 1fr; gap: 2px; } }
+.wl-signout { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
+.wl-signout:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.ws-guest-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.ws-guest-name { margin: 0; min-width: 0; overflow-wrap: anywhere; }

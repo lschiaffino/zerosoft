@@ -36,7 +36,7 @@ una regla, actualizá esta tabla. Revisado: 2026-10-31.
 | Revocar o reenviar invitaciones | Sí | Sí | No | No |
 | Cambiar rol, apps y subequipos de alguien | Sí (a cualquiera menos a sí) | Solo a members y guests | No | No |
 | Sacar a alguien | Sí | Solo members y guests | No | No |
-| Salir del workspace | No (el owner no sale) | Sí | Sí | Sí |
+| Salir del workspace | No (el owner no sale) | Sí, en Miembros | Sí, en Miembros | Sí, en Ajustes › Miembros de su cuenta (`/api/teams/guest-of`) |
 | Subequipos (crear, editar, borrar) | Sí | Sí | Solo ver | No |
 | Aprobar pedidos de ingreso por dominio | Sí | Sí | No | No |
 | Recibir "pide acceso" y "pide sumarse" | Sí | Sí | No | No |
@@ -66,7 +66,7 @@ excepciones. "Admin" incluye al owner.
 |---|---|---|---|
 | CRM | Crea, edita y borra contactos, empresas y deals dentro de su visibilidad; crea pipelines y campos | Ajustes, equipos de venta, reglas, cuotas, workflows, importar/exportar, acciones en lote, papelera, borrar pipelines, etapas y campos, permisos de campos | Visibilidad del member: todo, solo lo suyo o lo de su equipo (ajuste del workspace). Campos ocultos o de solo lectura por rol |
 | Chat | Responde conversaciones, crea inboxes y cambia su configuración | Borrar y renombrar inboxes, equipos, ruteo, campañas, importar, exportar, auditoría, salientes | Inboxes restringidos: solo admins y la lista del inbox |
-| Track | Crea y edita issues, proyectos y labels | Borrar issues y proyectos, ajustes del proyecto, estados, labels, hitos, ciclos, integraciones, auditoría, accesos | Proyectos privados: solo su lista (los admins los ven listados). Invitados de Track por email ven solo sus proyectos |
+| Track | Crea y edita issues; crea proyectos y labels | Borrar issues y proyectos, ajustes del proyecto, estados, editar y borrar labels, hitos, ciclos, integraciones, auditoría, accesos | Proyectos privados: solo su lista (los admins los ven listados). Invitados de Track por email ven solo sus proyectos |
 | Docs | Según el rol de miembro de la página (por defecto acceso total); manda a la papelera | Borrado definitivo, ajustes (exportar, publicar, invitados), auditoría, sitio y dominio | Teamspaces cerrados o privados: ni los admins entran sin sumarse. Guests: solo páginas compartidas |
 | Cal | Ve sus reservas (host o co-host); crea y edita tipos de evento | Ve todas las reservas, borrar tipos de evento, routing, workflows, marca, pagos, SMS, Zoom, actividad, agendar por otros | Encuestas: quien la creó o un admin |
 | Link | Crea y edita links | Borrar links, dominios, carpetas, bio, integraciones, exportar | Plantillas y comentarios: quien los creó o un admin |
@@ -91,13 +91,14 @@ excepciones. "Admin" incluye al owner.
 
 ## Verificado
 
-- Workspace: pruebas unitarias (`tests/unit/workspace-teams*.test.ts`,
-  `tests/unit/workspace-access-request.test.ts`) y e2e por rol
-  (`tests/e2e/workspace-roles.spec.ts`, `workspace-teams.spec.ts`,
-  `invite-signup.spec.ts`).
-- Apps: la tabla sale de leer las rutas y helpers; CRM, Docs, Track, Link y
-  Talk tienen e2e de acceso por app (`workspace-teams.spec.ts`). Social, Shop,
-  Rec, Sign y Hiring salen de los comentarios de cabecera y algunas rutas:
+- **Workspace, en navegador y con pruebas:** `tests/e2e/workspace-roles.spec.ts`
+  (por rol), `workspace-teams.spec.ts`, `invite-signup.spec.ts` y
+  `tests/unit/workspace-*.test.ts`.
+- **Corte por app, en navegador:** `workspace-teams.spec.ts` prueba a una persona
+  con CRM y Docs sin Track ni Link (HTML, RSC, búsqueda, inicio, v1 y MCP).
+- **Tabla de apps, sin pasada en navegador:** sale de leer rutas y helpers, no de
+  probar cada acción con cada rol. Social, Shop, Rec, Sign, Forms, Hiring, Voice
+  y Analytics salen sobre todo de comentarios de cabecera y algunas rutas:
   revisarlos antes de publicarlos como garantía.
 
 ## Por decidir

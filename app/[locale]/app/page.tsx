@@ -79,7 +79,7 @@ export default async function PlatformHomePage(props: {
         <div className="home-blocked" role="status" data-testid="home-blocked">
           <p className="home-blocked-title">{tAccess('title', { app: PRODUCT_CONFIG[blocked].name })}</p>
           <p className="home-blocked-body">
-            {tAccess(user.role === 'guest' ? 'bodyGuest' : 'body', { app: PRODUCT_CONFIG[blocked].name, workspace: user.workspace?.name ?? '' })}
+            {tAccess('body', { app: PRODUCT_CONFIG[blocked].name, workspace: user.workspace?.name ?? '' })}
           </p>
           {user.actingUser && (
             <RequestAccessButton

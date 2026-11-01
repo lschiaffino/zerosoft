@@ -14,11 +14,11 @@ const schema = z.object({ app: z.string().max(20) });
 /**
  * POST { app }: pedirle a quien administra el workspace activo acceso a una
  * app que no tengo (pantalla "no tenés acceso"). Llega como aviso al owner y
- * a los admins. Un pedido por app cada 24 horas; repetirlo responde ok sin
+ * a los admins. Un pedido por app por día (UTC); repetirlo responde ok sin
  * volver a avisar.
  */
 export async function POST(req: NextRequest) {
-  const ctx = await teamsCtx('guest');
+  const ctx = await teamsCtx();
   if (isResponse(ctx)) return ctx;
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success || !isProductKey(parsed.data.app)) return teamsError('invalid_input');

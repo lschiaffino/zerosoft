@@ -169,3 +169,8 @@ body:has(.asst-panel) .fl-root { right: calc(min(440px, 100vw) + 20px); }
 @media (prefers-reduced-motion: reduce) {
   .asst-tool > summary::before { transition: none; }
 }
+
+/* Teléfono: el campo del inicio ocupa el ancho y el botón va abajo. */
+@media (max-width: 480px) {
+  .asst-home-form { flex-direction: column; align-items: stretch; }
+}

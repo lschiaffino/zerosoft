@@ -59,6 +59,7 @@ test('cuenta personal con datos de ejemplo: cae en la app elegida y el inicio en
     await p.goto('/en/app', { waitUntil: 'networkidle' });
     await p.waitForURL(/\/en\/app\/welcome/);
     await expect(p.getByText(/^Signed in as/)).toBeVisible();
+    await expect(p.getByRole('button', { name: 'Not you? Sign out' })).toBeVisible();
     await p.getByText('Just me').click();
     await p.getByRole('button', { name: 'Continue' }).click();
     await p.getByLabel('Your name').fill('Sol');
@@ -127,8 +128,8 @@ test('member con CRM y Docs: app bloqueada, pide acceso y el owner lo habilita d
   }
 });
 
-test('admin: invita members pero no nombra admins ni toca al owner; 390px oscuro sin scroll horizontal', async ({ browser }) => {
-  const { ctx, p, team } = await join(browser, 'admin', '*', { width: 390, dark: true });
+test('admin: invita members pero no nombra admins ni toca al owner; 320px oscuro sin scroll horizontal', async ({ browser }) => {
+  const { ctx, p, team } = await join(browser, 'admin', '*', { width: 320, dark: true });
   try {
     await expect(p.getByRole('heading', { name: `Welcome to ${team.name}` })).toBeVisible();
     await p.getByRole('button', { name: `Go to ${team.name}` }).click();
@@ -149,17 +150,92 @@ test('admin: invita members pero no nombra admins ni toca al owner; 390px oscuro
   }
 });
 
-test('guest: el onboarding corto dice que llega a su propio workspace y ve lo compartido', async ({ browser }) => {
-  const { ctx, p, team } = await join(browser, 'guest', '*');
+test('guest: el onboarding corto lo explica, abre lo compartido, no ve el resto y se puede ir', async ({ browser, page }) => {
+  const { ctx, p, team, email } = await join(browser, 'guest', '*');
   try {
     await expect(p.getByText(`You joined ${team.name} as a guest`)).toBeVisible();
     await expect(p.getByRole('button', { name: `Go to ${team.name}` })).toHaveCount(0);
     await p.getByRole('button', { name: 'Continue' }).click();
+    await p.waitForURL(/\/en\/app\/docs/);
+    // Una página compartida se abre; otra del mismo workspace, no.
+    const title = `Compartida ${uid()}`;
+    const shared = (await (await page.request.post('/api/docs/pages', { data: { title } })).json()) as { id: string };
+    const hidden = (await (await page.request.post('/api/docs/pages', { data: { title: `Privada ${uid()}` } })).json()) as { id: string };
+    expect((await page.request.post(`/api/docs/pages/${shared.id}/share`, { data: { kind: 'user', email, role: 'view' } })).status()).toBe(201);
+    await p.goto(`/en/app/docs/${shared.id}`, { waitUntil: 'networkidle' });
+    await expect(p.getByText(title).first()).toBeVisible();
+    expect((await p.request.get(`/api/docs/pages/${hidden.id}`)).ok()).toBe(false);
+    // El workspace no aparece en su switcher, pero sí en Ajustes, y puede irse.
+    await p.goto('/en/app/settings/members', { waitUntil: 'networkidle' });
+    await expect(p.locator('[data-testid="member-row"][data-email="demo@zerosoft.ai"]')).toHaveCount(0);
+    await expect(p.getByTestId('guest-of')).toContainText(team.name);
+    await p.getByRole('button', { name: 'Stop being a guest' }).click();
+    await p.getByRole('alertdialog').getByRole('button', { name: 'Stop being a guest' }).click();
+    await expect(p.getByTestId('guest-of')).toHaveCount(0);
+    expect((await p.request.get(`/api/docs/pages/${shared.id}`)).ok()).toBe(false);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('sitio: Empezar gratis lleva a entrar con Google o código, y una cuenta nueva cae en el onboarding', async ({ browser }) => {
+  const ctx = await as(browser, 'session');
+  const p = await ctx.newPage();
+  try {
+    await p.goto('/en', { waitUntil: 'networkidle' });
+    await p.getByRole('link', { name: 'Start free' }).first().click();
+    await p.waitForURL(/\/en\/auth\/signin/);
+    await expect(p.getByRole('button', { name: /Google/ })).toBeVisible();
+    await expect(p.getByLabel(/email/i).first()).toBeVisible();
+    expect(await overflow(p)).toBeLessThanOrEqual(0);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('admin desde la UI: invita en lote, revoca, cambia roles y saca a un member; quien sale pierde el acceso', async ({ browser }) => {
+  test.setTimeout(150_000);
+  const admin = await join(browser, 'admin', '*');
+  const mem = await join(browser, 'member', '*');
+  try {
+    const { p } = admin;
+    await p.getByRole('button', { name: /^Go to/ }).click();
     await p.waitForURL(/\/en\/app$/);
-    // En su workspace propio es owner: no ve los miembros del workspace que lo invitó.
+    await mem.p.getByRole('button', { name: /^Go to/ }).click();
+    await mem.p.waitForURL(/\/en\/app$/);
+    await p.goto('/en/app/settings/members', { waitUntil: 'networkidle' });
+    // Lote con un email inválido: cada uno dice cómo salió.
+    const a = `lote-a-${uid()}@roles-e2e.io`;
+    const b = `lote-b-${uid()}@roles-e2e.io`;
+    await p.getByLabel('Emails').fill(`${a}, ${b}, no-es-un-email`);
+    await p.getByRole('button', { name: 'Send invitations' }).click();
+    await expect(p.getByTestId('invite-result')).toHaveCount(2);
+    await expect(p.getByText('no-es-un-email')).toBeVisible();
+    await expect(p.getByTestId('invite-row').filter({ hasText: a })).toBeVisible();
+    // Un admin no ofrece nombrar admins; al owner no lo puede tocar.
+    const row = p.locator('tr', { has: p.locator(`[data-email="${mem.email}"]`) });
+    const select = row.getByRole('combobox');
+    await expect(select.locator('option', { hasText: 'Admin' })).toHaveCount(0);
+    const roleOf = async () => String((await sql('SELECT role FROM team_members WHERE team_id = ? AND user_id = (SELECT id FROM users WHERE email = ?)', [admin.team.id, mem.email]))[0].role);
+    await select.selectOption('guest');
+    await expect.poll(roleOf).toBe('guest');
+    await select.selectOption('member');
+    await expect.poll(roleOf).toBe('member');
+    expect((await p.request.delete('/api/teams/members/demo')).status()).toBe(403);
+    // Sacar: el acceso se corta en el pedido siguiente.
+    await row.getByRole('button', { name: 'Remove' }).click();
+    await p.getByRole('alertdialog').getByRole('button', { name: 'Remove' }).click();
+    await expect(p.locator(`[data-email="${mem.email}"]`)).toHaveCount(0);
+    await mem.p.goto('/en/app/settings/members', { waitUntil: 'networkidle' });
+    await expect(mem.p.locator('[data-testid="member-row"][data-email="demo@zerosoft.ai"]')).toHaveCount(0);
+    // Salir por su cuenta: el admin deja el workspace y vuelve al suyo.
+    await p.getByRole('button', { name: 'Leave workspace' }).click();
+    await p.getByRole('alertdialog').getByRole('button', { name: 'Leave workspace' }).click();
+    await p.waitForURL(/\/en\/app/);
     await p.goto('/en/app/settings/members', { waitUntil: 'networkidle' });
     await expect(p.locator('[data-testid="member-row"][data-email="demo@zerosoft.ai"]')).toHaveCount(0);
   } finally {
-    await ctx.close();
+    await admin.ctx.close();
+    await mem.ctx.close();
   }
 });

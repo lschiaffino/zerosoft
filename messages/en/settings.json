@@ -556,7 +556,16 @@
       "cancel": "Cancel"
     },
     "rolesLegend": "What each role can do",
-    "rolesLegendApps": "Inside each app some actions are for admins only, like deleting pipelines or changing the app’s settings. If you need one, ask an admin."
+    "rolesLegendApps": "Inside each app some actions are for admins only, like deleting pipelines or changing the app’s settings. If you need one, ask an admin.",
+    "guestOf": {
+      "title": "Workspaces where you are a guest",
+      "desc": "A guest doesn’t enter the workspace. You open what people share with you from its link, your notifications or Docs.",
+      "leave": "Stop being a guest",
+      "openDocs": "Open Docs",
+      "error": "That didn’t work. Try again.",
+      "confirmTitle": "Stop being a guest of {workspace}?",
+      "confirmBody": "You lose what they shared with you person to person. To come back, someone has to invite you again."
+    }
   },
   "teamsForm": {
     "createTitle": "Create a team",
@@ -702,7 +711,6 @@
     "title": "You don't have access to {app} here",
     "body": "An admin of {workspace} can turn {app} on for you in Settings › Members.",
     "back": "Back to apps",
-    "bodyGuest": "You joined {workspace} as a guest: you see what people share with you. An admin can make you a member to use {app}.",
     "request": "Ask for access",
     "sending": "Sending…",
     "sent": "Request sent. The owner and admins got a notification.",
@@ -842,7 +850,8 @@
       },
       "invalid": "These are not valid emails: {list}",
       "limited": "You reached the invitation limit for now. Invite the rest later from Settings › Members."
-    }
+    },
+    "notYou": "Not you? Sign out"
   },
   "profileForm": {
     "title": "Your details",

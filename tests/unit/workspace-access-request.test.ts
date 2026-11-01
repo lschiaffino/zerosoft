@@ -88,16 +88,6 @@ describe('pedir acceso a una app', () => {
     expect((await post({ app: 'crm' })).status).toBe(401);
   });
 
-  it('un guest también puede pedir (el admin decide si lo hace miembro)', async () => {
-    const owner = await makeUser('arg');
-    const team = await ensureWorkspace(owner.id);
-    const g = await makeUser('arh');
-    await addMember(team.id, g.id, 'guest');
-    await actAs(owner, g, 'guest');
-    expect((await post({ app: 'docs' })).status).toBe(200);
-    expect(await inbox(owner.id)).toHaveLength(1);
-  });
-
   it('pedir sumarse por dominio avisa a owner y admins una sola vez', async () => {
     const owner = await makeUser('arj');
     const team = await ensureWorkspace(owner.id);

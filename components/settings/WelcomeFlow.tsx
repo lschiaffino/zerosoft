@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { signOut } from 'next-auth/react';
 import { useLocale, useTranslations } from 'next-intl';
 import Logo from '@/components/brand/Logo';
 import ProductGlyph from '@/components/brand/ProductGlyph';
@@ -81,7 +82,8 @@ function InvitedWelcome({ workspaceName, name: initialName, timeZone, guest }: {
       setError(t('error'));
       return;
     }
-    window.location.assign(`/${lang}/app`);
+    // Un guest no entra al workspace: lo compartido se abre desde Docs de su cuenta.
+    window.location.assign(`/${lang}/app${guest ? '/docs' : ''}`);
   }
 
   return (
@@ -528,7 +530,14 @@ export default function WelcomeFlow(props: {
           </button>
         </div>
       </div>
-      {step === 'use' && <p className="wl-foot">{t('signedInAs', { email: props.email })}</p>}
+      {step === 'use' && (
+        <p className="wl-foot">
+          {t('signedInAs', { email: props.email })}{' '}
+          <button type="button" className="wl-signout" onClick={() => void signOut({ callbackUrl: `/${locale}/auth/signin` })}>
+            {t('notYou')}
+          </button>
+        </p>
+      )}
     </form>
   );
 }
