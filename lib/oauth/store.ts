@@ -417,6 +417,8 @@ export async function listConnectedClients(userId: string): Promise<ConnectedCli
        LEFT JOIN oauth_clients c ON c.client_id = g.client_id
        LEFT JOIN teams t ON t.id = g.team_id
        WHERE g.user_id = ? AND g.revoked_at IS NULL
+         -- Aprobada pero sin canjear el código (el cliente falló): todavía no es una conexión.
+         AND EXISTS (SELECT 1 FROM oauth_tokens tk WHERE tk.grant_id = g.id)
        ORDER BY COALESCE(g.last_used_at, g.created_at) DESC`,
     )
     .all(userId)) as Array<{
