@@ -39,9 +39,9 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         product: 'platform',
-        en: 'When an app is off for you in a workspace, Ask for access sends a notification to the owner and the admins. The notification opens your access in Settings › Members.',
-        es: 'Cuando una app no está habilitada para vos en un workspace, Pedir acceso le manda un aviso al owner y a los admins. El aviso abre tu acceso en Ajustes › Miembros.',
-        pt: 'Quando um app não está ativo para você em um workspace, Pedir acesso envia um aviso ao owner e aos admins. O aviso abre seu acesso em Configurações › Membros.',
+        en: 'When an app is off for you in a workspace, Ask for access sends a notification to the owner and the admins. The notification opens your access in Settings › Members, and you hear back when it’s turned on.',
+        es: 'Cuando una app no está habilitada para vos en un workspace, Pedir acceso le manda un aviso al owner y a los admins. El aviso abre tu acceso en Ajustes › Miembros, y te enterás cuando te lo dan.',
+        pt: 'Quando um app não está ativo para você em um workspace, Pedir acesso envia um aviso ao owner e aos admins. O aviso abre seu acesso em Configurações › Membros, e você fica sabendo quando for ativado.',
       },
       {
         product: 'platform',
@@ -51,9 +51,9 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         product: 'platform',
-        en: 'Settings › Members explains each role, Settings lists only the apps you have, and Settings › Workspace says how to leave, hand over or close a workspace.',
-        es: 'Ajustes › Miembros explica cada rol, Ajustes lista solo las apps que tenés y Ajustes › Workspace dice cómo salir, pasar o cerrar un workspace.',
-        pt: 'Configurações › Membros explica cada papel, Configurações lista só os apps que você tem e Configurações › Workspace diz como sair, passar ou encerrar um workspace.',
+        en: 'Settings › Members explains each role, and Settings lists only the apps you have.',
+        es: 'Ajustes › Miembros explica cada rol y Ajustes lista solo las apps que tenés.',
+        pt: 'Configurações › Membros explica cada papel e Configurações lista só os apps que você tem.',
       },
     ],
   },

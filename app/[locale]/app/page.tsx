@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { isWorkspaceAdmin, requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, requireUser, userCanUseApp } from '@/lib/session';
 import { dayPart, getWorkspaceMode, homeCanUse, normalizeTaskScope } from '@/lib/home';
 import { getUserTimeZone } from '@/lib/user-tz';
 import { featuredApps, moreAppsByCategory, showTeamUi } from '@/lib/workspace-mode';
@@ -59,7 +59,8 @@ export default async function PlatformHomePage(props: {
     .map((g) => ({ ...g, apps: g.apps.filter(can) }))
     .filter((g) => g.apps.length > 0);
   const blockedKey = (await props.searchParams).blocked;
-  const blocked = typeof blockedKey === 'string' && blockedKey in PRODUCT_CONFIG ? (blockedKey as ProductKey) : null;
+  // El link puede quedar viejo: si ya tiene la app (se la dieron), no hay nada que avisar.
+  const blocked = typeof blockedKey === 'string' && blockedKey in PRODUCT_CONFIG && !userCanUseApp(user, blockedKey as ProductKey) ? (blockedKey as ProductKey) : null;
   const tAccess = blocked ? await getTranslations({ locale, namespace: 'settings.access' }) : null;
 
   const appCard = (k: ProductKey) => (
@@ -84,7 +85,7 @@ export default async function PlatformHomePage(props: {
           {user.actingUser && (
             <RequestAccessButton
               app={blocked}
-              labels={{ request: tAccess('request'), sending: tAccess('sending'), sent: tAccess('sent'), error: tAccess('error') }}
+              labels={{ request: tAccess('request'), sending: tAccess('sending'), sent: tAccess('sent'), already: tAccess('already'), hasAccess: tAccess('hasAccess'), limited: tAccess('limited'), error: tAccess('error') }}
             />
           )}
         </div>

@@ -462,10 +462,9 @@
       "guest": "Invitado"
     },
     "roleHelp": {
-      "member": "Usa las apps que le habilites, con los mismos datos que el resto del equipo.",
+      "member": "Usa las apps que le habilites. Lo que ve en cada una depende de cómo esté compartido.",
       "admin": "Como un miembro, y además invita gente, cambia roles y edita la configuración.",
-      "guest": "No entra al workspace: solo ve lo que le compartas, página por página.",
-      "owner": "Creó el workspace. Usa todas las apps y es la única persona que gestiona a los admins. No puede salir."
+      "guest": "No entra al workspace: solo ve lo que le compartas, como una página de Docs."
     },
     "apps": "Apps",
     "allApps": "Todas las apps",
@@ -540,7 +539,8 @@
       "invalid_emails": "Ninguno es un email válido.",
       "owner_cant_leave": "El owner no puede salir del workspace.",
       "cant_change_own_role": "No podés cambiar tu propio rol.",
-      "not_found": "Esa persona o invitación ya no existe. Recargá la página."
+      "not_found": "Esa persona o invitación ya no existe. Recargá la página.",
+      "wrong_workspace": "Cambiaste de workspace en otra pestaña. Recargá y probá de nuevo."
     },
     "approve": "Aprobar",
     "allowAnyEmail": "Permitir otro email",
@@ -565,6 +565,18 @@
       "error": "No se pudo. Probá de nuevo.",
       "confirmTitle": "¿Dejar de ser invitado de {workspace}?",
       "confirmBody": "Perdés lo que te compartieron persona a persona. Para volver, alguien te tiene que invitar de nuevo."
+    },
+    "roleLegend": {
+      "owner": "Usa todas las apps. Es la única persona que nombra, cambia o saca admins. No puede salir del workspace.",
+      "admin": "Usa las apps que tiene habilitadas. Además invita gente, cambia el rol y las apps de miembros e invitados y edita los ajustes del workspace.",
+      "member": "Usa las apps que tiene habilitadas. Lo que ve en cada una depende de cómo esté compartido.",
+      "guest": "No entra al workspace. Solo ve lo que le comparten, como una página de Docs."
+    },
+    "requestWorkspace": {
+      "body": "Este pedido es de {workspace}, que no es tu workspace activo. Su acceso se abre ahí.",
+      "switch": "Cambiar a {workspace}",
+      "error": "No se pudo cambiar. Probá de nuevo.",
+      "gone": "Este pedido es de un workspace del que ya no sos parte."
     }
   },
   "teamsForm": {
@@ -674,11 +686,11 @@
     "joinApproval": "Un admin aprueba a cada persona antes de que entre",
     "joinRole": "Entran como miembros con estas apps:",
     "dangerTitle": "Propiedad y cierre",
-    "dangerDesc": "Lo que cambia quién es dueño del workspace o lo cierra.",
+    "dangerDesc": "Lo que todavía no está en el producto y qué hacer mientras tanto.",
     "transferTitle": "Transferir la propiedad",
     "transferBody": "Todavía no se puede transferir la propiedad desde la app. Mientras tanto, hacé admin a la próxima persona en Ajustes › Miembros: los admins invitan, cambian roles y editan estos ajustes.",
     "closeTitle": "Borrar el workspace",
-    "closeBody": "Todavía no hay un botón para borrarlo. Escribí a privacy@zerosoft.ai desde {email} y lo cerramos: sus datos se pueden exportar durante 30 días y después se borran, como dice la Política de privacidad.",
+    "closeBody": "Todavía no se puede cerrar un workspace desde el producto. Para pedirlo, escribí a hola@zerosoft.ai desde {email} y te respondemos a mano.",
     "leaveTitle": "Salir de {workspace}",
     "leaveBody": "Perdés el acceso a sus apps al instante. Lo que creaste queda en el workspace.",
     "leaveCta": "Salir desde Miembros"
@@ -714,14 +726,17 @@
     "request": "Pedir acceso",
     "sending": "Enviando…",
     "sent": "Pedido enviado. Al owner y a los admins les llegó un aviso.",
-    "error": "No se pudo enviar el pedido. Probá de nuevo."
+    "error": "No se pudo enviar el pedido. Probá de nuevo.",
+    "already": "Ya lo pediste hoy. El owner y los admins tienen tu pedido.",
+    "hasAccess": "Ya tenés esta app. Abrila desde tus apps.",
+    "limited": "Demasiados pedidos en la última hora. Esperá un rato y volvé a pedirlo."
   },
   "invite": {
     "metaTitle": "Invitación",
     "title": "Sumate a {workspace}",
     "sub": "{inviter} te invitó a zerosoft.",
     "roleLine": {
-      "member": "Vas a usar las mismas apps y datos que el resto del equipo.",
+      "member": "Vas a usar las apps del workspace. Lo que ves en cada una depende de cómo esté compartido.",
       "admin": "Entrás como admin: podés invitar gente y cambiar la configuración.",
       "guest": "Entrás como invitado: solo ves lo que te compartan."
     },
@@ -836,7 +851,8 @@
       "titleNoName": "Te damos la bienvenida a zerosoft",
       "sub": "Dos datos y entrás.",
       "go": "Ir a {workspace}",
-      "guestSub": "Entraste a {workspace} como invitado: abrís lo que te comparten desde su link o desde tus avisos. Vas a llegar a tu propio workspace."
+      "guestSub": "Entraste a {workspace} como invitado: abrís lo que te comparten desde su link o desde tus avisos. Vas a llegar a tu propio workspace.",
+      "guestTitle": "Sos invitado de {workspace}"
     },
     "results": {
       "title": "Casi listo",

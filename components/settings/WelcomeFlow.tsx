@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { signOut } from 'next-auth/react';
+import { clearOfflineData } from '@/lib/offline-queue';
 import { useLocale, useTranslations } from 'next-intl';
 import Logo from '@/components/brand/Logo';
 import ProductGlyph from '@/components/brand/ProductGlyph';
@@ -47,8 +48,26 @@ function timeZones(current: string): string[] {
   }
 }
 
+/** La cuenta con la que se entró y cómo salir: en cada paso, por si es otra. Sale igual que desde el sidebar. */
+function SignedInAs({ email }: { email: string }) {
+  const t = useTranslations('settings.welcome');
+  const locale = useLocale();
+  return (
+    <p className="wl-foot">
+      {t('signedInAs', { email })}{' '}
+      <button
+        type="button"
+        className="wl-signout"
+        onClick={() => void clearOfflineData().finally(() => signOut({ callbackUrl: `/${locale}/auth/signin` }))}
+      >
+        {t('notYou')}
+      </button>
+    </p>
+  );
+}
+
 /** Mini onboarding de quien entra por una invitación: nombre, idioma y zona. */
-function InvitedWelcome({ workspaceName, name: initialName, timeZone, guest }: { workspaceName: string; name: string; timeZone: string; guest: boolean }) {
+function InvitedWelcome({ workspaceName, name: initialName, email, timeZone, guest }: { workspaceName: string; name: string; email: string; timeZone: string; guest: boolean }) {
   const t = useTranslations('settings.welcome');
   const locale = useLocale();
   const [name, setName] = useState(initialName);
@@ -90,7 +109,7 @@ function InvitedWelcome({ workspaceName, name: initialName, timeZone, guest }: {
     <form className="wl-card" onSubmit={submit} aria-labelledby="wl-title">
       <Logo variant="symbol" tone="current" height={28} title="" />
       <h1 id="wl-title" className="wl-title">
-        {workspaceName ? t('invited.title', { workspace: workspaceName }) : t('invited.titleNoName')}
+        {!workspaceName ? t('invited.titleNoName') : guest ? t('invited.guestTitle', { workspace: workspaceName }) : t('invited.title', { workspace: workspaceName })}
       </h1>
       <p className="wl-sub">{guest && workspaceName ? t('invited.guestSub', { workspace: workspaceName }) : t('invited.sub')}</p>
       <div className="ui-field">
@@ -131,6 +150,7 @@ function InvitedWelcome({ workspaceName, name: initialName, timeZone, guest }: {
       <button type="submit" className="btn btn-primary btn-block" disabled={!name.trim() || busy} aria-busy={busy || undefined}>
         {workspaceName && !guest ? t('invited.go', { workspace: workspaceName }) : t('continue')}
       </button>
+      <SignedInAs email={email} />
     </form>
   );
 }
@@ -177,7 +197,7 @@ export default function WelcomeFlow(props: {
     heading.current?.focus();
   }, [step]);
 
-  if (props.kind === 'invited') return <InvitedWelcome workspaceName={props.workspaceName} name={props.name} timeZone={props.timeZone} guest={Boolean(props.guest)} />;
+  if (props.kind === 'invited') return <InvitedWelcome workspaceName={props.workspaceName} name={props.name} email={props.email} timeZone={props.timeZone} guest={Boolean(props.guest)} />;
 
   const chosenTool = TOOLS.find((x) => x.key === tool);
   const apps: ProductKey[] = (() => {
@@ -530,14 +550,7 @@ export default function WelcomeFlow(props: {
           </button>
         </div>
       </div>
-      {step === 'use' && (
-        <p className="wl-foot">
-          {t('signedInAs', { email: props.email })}{' '}
-          <button type="button" className="wl-signout" onClick={() => void signOut({ callbackUrl: `/${locale}/auth/signin` })}>
-            {t('notYou')}
-          </button>
-        </p>
-      )}
+      <SignedInAs email={props.email} />
     </form>
   );
 }

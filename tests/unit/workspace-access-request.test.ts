@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server';
 import { getDb, type UserRow } from '@/lib/db';
 import { addMember, requestToJoin } from '@/lib/teams';
 import { ensureWorkspace, updateWorkspace } from '@/lib/workspace';
+import { grantedApps } from '@/lib/workspace-access-request';
 import { makeUser } from './helpers';
 
 /** Sesión simulada como lib/session (persona real, owner del workspace, rol, apps y ficha). */
@@ -14,6 +15,7 @@ vi.mock('@/lib/session', () => ({
 }));
 
 const route = await import('@/app/api/teams/access-request/route');
+const member = await import('@/lib/routes/teams/members/[userId]/route');
 
 beforeEach(() => {
   session.user = null;
@@ -62,15 +64,23 @@ describe('pedir acceso a una app', () => {
       const [n] = await inbox(id);
       expect(n.title).toContain('CRM');
       expect(n.title).toContain(carla.name ?? carla.email);
-      expect(n.href).toBe(`/app/settings/members?person=${carla.id}`);
+      expect(n.href).toBe(`/app/settings/members?person=${carla.id}&ws=${team.id}`);
     }
     expect(await inbox(other.id)).toEqual([]);
 
     // Repetir el mismo pedido no vuelve a avisar.
     expect(await (await post({ app: 'crm' })).json()).toEqual({ ok: true, already: true });
     expect(await inbox(owner.id)).toHaveLength(1);
-    // Otra app sí.
+    // Otra app, con el pedido anterior sin leer: el mismo aviso nombra las dos.
     await post({ app: 'track' });
+    const merged = await inbox(owner.id);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].title).toContain('CRM');
+    expect(merged[0].title).toContain('Track');
+    // Ya leído: el pedido siguiente es un aviso nuevo.
+    await getDb().prepare("UPDATE notifications SET read_at = datetime('now') WHERE user_id = ?").run(owner.id);
+    await post({ app: 'docs' }).then((r) => expect(r.status).toBe(409));
+    await post({ app: 'link' });
     expect(await inbox(owner.id)).toHaveLength(2);
   });
 
@@ -86,6 +96,34 @@ describe('pedir acceso a una app', () => {
     expect((await post({ app: 'nope' })).status).toBe(400);
     session.user = null;
     expect((await post({ app: 'crm' })).status).toBe(401);
+  });
+
+  it('dar apps nuevas le avisa a la persona, con el nombre del workspace; quitar o repetir no; otro workspace no se toca', async () => {
+    const owner = await makeUser('arp');
+    const team = await ensureWorkspace(owner.id);
+    await updateWorkspace(team.id, { name: 'Acme' });
+    const m = await makeUser('arq');
+    await addMember(team.id, m.id, 'member', { apps: ['docs'] });
+    await actAs(owner, owner, 'owner');
+    const patch = (body: unknown) =>
+      member.PATCH(new NextRequest(`http://localhost/api/teams/members/${m.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }) as never, {
+        params: Promise.resolve({ userId: m.id }),
+      });
+    // La pantalla cree estar en otro workspace: 409 y no cambia nada.
+    expect((await patch({ apps: ['docs', 'crm'], workspaceId: 'ws_otro' })).status).toBe(409);
+    expect(await inbox(m.id)).toEqual([]);
+    expect((await patch({ apps: ['docs', 'crm'], workspaceId: team.id })).status).toBe(200);
+    const [n] = await inbox(m.id);
+    expect(n.title).toContain('CRM');
+    expect(n.title).toContain('Acme');
+    expect(n.title).not.toContain('Docs');
+    expect(n.href).toBe('/app');
+    await patch({ apps: ['docs', 'crm'] });
+    await patch({ apps: ['docs'] });
+    expect(await inbox(m.id)).toHaveLength(1);
+    await patch({ apps: '*' });
+    expect(await inbox(m.id)).toHaveLength(2);
+    expect(grantedApps('*', ['crm'])).toEqual([]);
   });
 
   it('pedir sumarse por dominio avisa a owner y admins una sola vez', async () => {

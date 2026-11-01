@@ -462,10 +462,9 @@
       "guest": "Guest"
     },
     "roleHelp": {
-      "member": "Uses the apps you allow, with the same data as the rest of the team.",
+      "member": "Uses the apps you allow. What they see in each one depends on how it’s shared.",
       "admin": "Like a member, and can also invite people, change roles and edit settings.",
-      "guest": "Does not enter the workspace: only sees what you share with them, page by page.",
-      "owner": "Created the workspace. Uses every app and is the only one who can manage admins. Can’t leave it."
+      "guest": "Does not enter the workspace: only sees what you share with them, such as a Docs page."
     },
     "apps": "Apps",
     "allApps": "All apps",
@@ -540,7 +539,8 @@
       "invalid_emails": "None of those are valid emails.",
       "owner_cant_leave": "The owner can't leave the workspace.",
       "cant_change_own_role": "You can't change your own role.",
-      "not_found": "That person or invitation no longer exists. Reload the page."
+      "not_found": "That person or invitation no longer exists. Reload the page.",
+      "wrong_workspace": "You switched workspace in another tab. Reload and try again."
     },
     "approve": "Approve",
     "allowAnyEmail": "Allow another email",
@@ -565,6 +565,18 @@
       "error": "That didn’t work. Try again.",
       "confirmTitle": "Stop being a guest of {workspace}?",
       "confirmBody": "You lose what they shared with you person to person. To come back, someone has to invite you again."
+    },
+    "roleLegend": {
+      "owner": "Uses every app. The only one who can name, change or remove admins. Can’t leave the workspace.",
+      "admin": "Uses the apps turned on for them. Also invites people, changes the role and apps of members and guests, and edits workspace settings.",
+      "member": "Uses the apps turned on for them. What they see in each one depends on how it’s shared.",
+      "guest": "Doesn’t enter the workspace. Only sees what people share with them, such as a Docs page."
+    },
+    "requestWorkspace": {
+      "body": "This request is from {workspace}, which isn’t your active workspace. Their access opens there.",
+      "switch": "Switch to {workspace}",
+      "error": "Couldn’t switch. Try again.",
+      "gone": "This request is from a workspace you’re no longer part of."
     }
   },
   "teamsForm": {
@@ -674,11 +686,11 @@
     "joinApproval": "An admin approves each person before they join",
     "joinRole": "They join as members with these apps:",
     "dangerTitle": "Ownership and closing",
-    "dangerDesc": "What changes who owns the workspace or ends it.",
+    "dangerDesc": "What isn’t in the product yet, and what to do meanwhile.",
     "transferTitle": "Transfer ownership",
     "transferBody": "You can’t transfer ownership from the app yet. Meanwhile, make the next person an admin in Settings › Members: admins invite, change roles and edit these settings.",
     "closeTitle": "Delete the workspace",
-    "closeBody": "There’s no delete button yet. Write to privacy@zerosoft.ai from {email} and we close the workspace: its data stays exportable for 30 days and is then deleted, as the Privacy Policy says.",
+    "closeBody": "Closing a workspace isn’t available in the product yet. To ask for it, write to hola@zerosoft.ai from {email} and we’ll reply by hand.",
     "leaveTitle": "Leave {workspace}",
     "leaveBody": "You lose access to its apps right away. What you created stays in the workspace.",
     "leaveCta": "Leave in Members"
@@ -714,14 +726,17 @@
     "request": "Ask for access",
     "sending": "Sending…",
     "sent": "Request sent. The owner and admins got a notification.",
-    "error": "Couldn’t send the request. Try again."
+    "error": "Couldn’t send the request. Try again.",
+    "already": "You already asked today. The owner and admins have your request.",
+    "hasAccess": "You already have this app. Open it from your apps.",
+    "limited": "Too many requests in the last hour. Wait a while and ask again."
   },
   "invite": {
     "metaTitle": "Invitation",
     "title": "Join {workspace}",
     "sub": "{inviter} invited you to zerosoft.",
     "roleLine": {
-      "member": "You'll use the same apps and data as the rest of the team.",
+      "member": "You’ll use the workspace’s apps. What you see in each one depends on how it’s shared.",
       "admin": "You'll join as an admin: you can invite people and change settings.",
       "guest": "You'll join as a guest: you only see what they share with you."
     },
@@ -836,7 +851,8 @@
       "titleNoName": "Welcome to zerosoft",
       "sub": "Two details and you are in.",
       "go": "Go to {workspace}",
-      "guestSub": "You joined {workspace} as a guest: you open what people share with you from its link or from your notifications. Your own workspace is where you land."
+      "guestSub": "You joined {workspace} as a guest: you open what people share with you from its link or from your notifications. Your own workspace is where you land.",
+      "guestTitle": "You’re a guest of {workspace}"
     },
     "results": {
       "title": "Almost there",

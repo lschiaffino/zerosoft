@@ -1336,3 +1336,10 @@ td.cell-actions > * + * { margin-left: 4px; }
   .home-row { flex-wrap: wrap; gap: 0 12px; }
   .home-row-meta { max-width: 100%; white-space: normal; }
 }
+
+/* Inicio: el contenido termina antes del botón de feedback fijo (no tapa fechas ni tarjetas al scrollear).
+   En teléfono el botón es una pestaña del ancho del margen y no hace falta. */
+@media (min-width: 761px) {
+  .app-home { padding-right: 36px; }
+  body:has(.fl-root.has-support) .app-home { padding-right: 104px; }
+}

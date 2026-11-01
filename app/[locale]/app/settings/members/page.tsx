@@ -3,9 +3,10 @@ import { headers } from 'next/headers';
 import { getDb } from '@/lib/db';
 import { realUserId, requireUser, userCanUseApp } from '@/lib/session';
 import { settingsSectionMetadata } from '@/lib/settings-meta';
-import { ensureWorkspace } from '@/lib/workspace';
+import { ensureWorkspace, listMyWorkspaces } from '@/lib/workspace';
 import { loadDirectory } from '@/lib/workspace-directory';
-import { listGuestWorkspaces } from '@/lib/teams';
+import { getTeamById, listGuestWorkspaces } from '@/lib/teams';
+import RequestWorkspaceNotice from '@/components/settings/RequestWorkspaceNotice';
 import GuestOfPanel from '@/components/settings/GuestOfPanel';
 import MembersPanel from '@/components/settings/MembersPanel';
 import { emailLoginEnabled } from '@/lib/email-login';
@@ -26,8 +27,9 @@ async function base(): Promise<string> {
 }
 
 /** Ajustes › Miembros: invitar por email, roles, apps permitidas, subequipos y quién sale. Un solo lugar para todas las apps. */
-export default async function MembersSettingsPage(props: { params: Promise<{ locale: string }> }) {
+export default async function MembersSettingsPage(props: { params: Promise<{ locale: string }>; searchParams: Promise<{ person?: string; ws?: string }> }) {
   const { locale } = await props.params;
+  const { person, ws } = await props.searchParams;
   const user = await requireUser(locale);
   const team = user.workspace ?? (await ensureWorkspace(user.id));
   const dir = await loadDirectory(team, user.role, await base());
@@ -37,11 +39,22 @@ export default async function MembersSettingsPage(props: { params: Promise<{ loc
     | { created_at: string; onboarded_at: string | null }
     | undefined;
   const legacyNotice = user.role === 'owner' && team.keyed_by === 'owner' && Boolean(owner && owner.onboarded_at === owner.created_at);
+  const real = user.actingUser ?? user;
   const guestOf = await listGuestWorkspaces(realUserId(user));
+  // Aviso de "pide acceso" (?person=&ws=): su acceso solo se abre en el workspace del pedido.
+  const sameWorkspace = Boolean(person && ws && ws === team.id);
+  let other: { teamId: string | null; workspace: string; canSwitch: boolean } | null = null;
+  if (person && ws && !sameWorkspace) {
+    const own = await ensureWorkspace(real.id);
+    const entry = ws === own.id ? { teamId: null } : (await listMyWorkspaces(real)).find((e) => e.teamId === ws);
+    const target = entry ? await getTeamById(ws) : null;
+    other = entry && target ? { teamId: entry.teamId, workspace: target.name, canSwitch: true } : { teamId: null, workspace: '', canSwitch: false };
+  }
   return (
     <>
+      {other && <RequestWorkspaceNotice {...other} />}
       <GuestOfPanel workspaces={guestOf} />
-      <MembersPanel initial={dir} me={realUserId(user)} role={user.role} legacyNotice={legacyNotice} peopleLinks={userCanUseApp(user, 'people')} emailLogin={emailLoginEnabled()} />
+      <MembersPanel openPerson={sameWorkspace ? (person ?? null) : null} initial={dir} me={realUserId(user)} role={user.role} legacyNotice={legacyNotice} peopleLinks={userCanUseApp(user, 'people')} emailLogin={emailLoginEnabled()} />
     </>
   );
 }

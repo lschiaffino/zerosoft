@@ -581,6 +581,8 @@ export default async function AppLayout(
               markRead: tTrack('notifications.markRead'),
               markAllRead: tTrack('notifications.markAllRead'),
               empty: tTrack('notifications.empty'),
+              loading: tTrack('notifications.loading'),
+              loadError: tTrack('notifications.loadError'),
               text: {
                 someone: tTrack('inbox.someone'),
                 untitled: tTrack('notifications.untitled'),

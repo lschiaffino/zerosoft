@@ -341,7 +341,9 @@
     "groupsMention": "{actor} te mencionó en {title}",
     "groupsAssigned": "{actor} te asignó {title}",
     "groupsAutoAssigned": "Chat de WhatsApp nuevo para vos: {title}",
-    "chatMessage": "Mensaje nuevo de {actor}"
+    "chatMessage": "Mensaje nuevo de {actor}",
+    "loading": "Cargando avisos…",
+    "loadError": "No se pudieron cargar los avisos. Volvé a abrir para reintentar."
   },
   "errors": {
     "invalid_slug": "Slug inválido. Usá letras minúsculas, números y guiones.",

@@ -56,5 +56,7 @@
   "reviewCycle": "Review cycle started: {name}",
   "appAccessRequest": "{who} asks for access to {app}",
   "appAccessRequestBody": "Turn it on in Settings › Members of {workspace}.",
-  "joinRequest": "{who} asks to join {workspace}"
+  "joinRequest": "{who} asks to join {workspace}",
+  "appAccessGranted": "{who} gave you access to {app} in {workspace}",
+  "appAccessGrantedAll": "{who} gave you access to every app in {workspace}"
 }

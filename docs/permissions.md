@@ -44,7 +44,7 @@ una regla, actualizá esta tabla. Revisado: 2026-10-31.
 | Webhooks | Sí | Si tiene todas las apps | No | No |
 | Importar | Sí | Sí | Solo archivos de Docs | No |
 | Transferir la propiedad | Todavía no existe (Ajustes › Workspace lo dice) | No | No | No |
-| Borrar el workspace | Todavía no hay botón: por email a privacy@ (Ajustes › Workspace) | No | No | No |
+| Cerrar el workspace | Todavía no está en el producto: se pide por email y se responde a mano (Ajustes › Workspace) | No | No | No |
 
 Rutas: `app/api/teams/*`, `lib/routes/teams/*`, `canManage` en
 `lib/teams-http.ts`, `app/api/keys`, `app/api/webhooks`, `lib/import-http.ts`.
@@ -80,14 +80,14 @@ excepciones. "Admin" incluye al owner.
 | People | Edita sus campos de autoservicio; managers aprueban licencias de su línea | Nombrar admins de RR. HH. | Compensación: RR. HH. y la persona. Desempeño: también su línea |
 | Books | Lector por defecto; un admin lo hace ventas o contador | Roles, pagos, factura electrónica | Admins son siempre contador |
 | Design | Sus diseños y los compartidos | Plantillas del workspace, kit de marca | Diseños privados: ni los admins los ven |
-| Rec | Sus videos y los de sus espacios | Gestionar videos del workspace y todos los espacios | |
+| Rec | Ve sus videos, los del workspace que no están en un espacio y los de sus espacios | Gestionar videos del workspace y todos los espacios | `visibleSql` en `lib/rec.ts` |
 | Sign | Sus sobres y los que firma | Ver y gestionar todos | |
-| Forms | Sus formularios, los compartidos y donde está sumado | Ver todos, ajustes | |
-| Hiring | Lo de los puestos donde está en el equipo de selección | Ajustes, ver todo | Aprobar ofertas: hiring manager o admin |
+| Forms | Los compartidos con el workspace (`sharing='workspace'`, el valor por defecto), los suyos y donde está sumado | Ver todos, ajustes | |
+| Hiring | Ve la lista de puestos del workspace, sin candidatos salvo que gestione el puesto (`listJobs`); crea puestos solo si un admin lo habilita (`members_create_jobs`, `canCreateJobs`) | Ajustes, ver todo | Candidatos: equipo del puesto y admins. Aprobar ofertas: hiring manager o admin |
 | Social | Publica directo o como borrador (aprobación), en las cuentas que le dieron | Conectar cuentas, dar acceso, aprobar | |
-| Shop | Gestiona la tienda | Handle, publicar, moneda, reembolsos | |
+| Shop | Gestiona la tienda | Handle, publicar, moneda, reembolsos, credenciales de pago (`savePayments`, `lib/shop-payments.ts`) | |
 | Analytics | Usa los proyectos | Proyectos, claves, ajustes, borrar personas | |
-| Voice | Sus sesiones | Ajustes del workspace, uso, diccionario compartido | Sesiones privadas de quien graba |
+| Voice | Sus sesiones; comparte sus reuniones por link (workspace, personas o cualquiera con el link); manda a Slack | Ajustes del workspace, uso, diccionario compartido, mandar a Notion (la credencial escribe con el acceso de quien la cargó) | Sesiones privadas de quien graba, salvo lo que comparte por link |
 
 ## Verificado
 

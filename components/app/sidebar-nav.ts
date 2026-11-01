@@ -249,6 +249,8 @@ export interface SidebarLabels {
     markRead: string;
     markAllRead: string;
     empty: string;
+    loading: string;
+    loadError: string;
     text: NotificationTextLabels;
   };
 }

@@ -56,5 +56,7 @@
   "reviewCycle": "Ciclo de avaliação iniciado: {name}",
   "appAccessRequest": "{who} pede acesso ao {app}",
   "appAccessRequestBody": "Ative em Configurações › Membros de {workspace}.",
-  "joinRequest": "{who} pede para entrar em {workspace}"
+  "joinRequest": "{who} pede para entrar em {workspace}",
+  "appAccessGranted": "{who} deu a você acesso a {app} em {workspace}",
+  "appAccessGrantedAll": "{who} deu a você acesso a todos os apps em {workspace}"
 }

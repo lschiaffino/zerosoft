@@ -100,6 +100,7 @@ function GroupsPicker({
  * (copiar link, reenviar, revocar). Los cambios se ven sin recargar.
  */
 export default function MembersPanel({
+  openPerson = null,
   initial: initialDir,
   me,
   role,
@@ -107,6 +108,8 @@ export default function MembersPanel({
   peopleLinks = false,
   emailLogin = false,
 }: {
+  /** Abrir el acceso de esta persona al entrar (aviso de "pide acceso", ya validado contra el workspace). */
+  openPerson?: string | null;
   initial: DirectoryDto;
   me: string;
   role: Role;
@@ -185,11 +188,10 @@ export default function MembersPanel({
     setEditGroups(m.groupIds);
   }
 
-  // ?person=<id> (el aviso de "pide acceso"): abre su acceso para editarlo, una vez.
+  // El aviso de "pide acceso": la página ya comprobó que es de este workspace.
   useEffect(() => {
     if (!admin) return;
-    const id = new URLSearchParams(window.location.search).get('person');
-    const m = id ? initialDir.members.find((x) => x.userId === id) : undefined;
+    const m = openPerson ? initialDir.members.find((x) => x.userId === openPerson) : undefined;
     if (m && m.userId !== me && canManage(role, m.role)) openEdit(m);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -198,7 +200,7 @@ export default function MembersPanel({
     if (!editing) return;
     const res = await call(`/api/teams/members/${encodeURIComponent(editing.userId)}`, {
       method: 'PATCH',
-      body: JSON.stringify({ apps: editApps, groupIds: editGroups }),
+      body: JSON.stringify({ apps: editApps, groupIds: editGroups, workspaceId: dir.team.id }),
     });
     if (!res) return;
     setEditing(null);
@@ -467,7 +469,7 @@ export default function MembersPanel({
             {(['owner', 'admin', 'member', 'guest'] as const).map((r) => (
               <div key={r}>
                 <dt className="st-strong">{t(`roles.${r}`)}</dt>
-                <dd className="ui-help">{t(`roleHelp.${r}`)}</dd>
+                <dd className="ui-help">{t(`roleLegend.${r}`)}</dd>
               </div>
             ))}
           </dl>
