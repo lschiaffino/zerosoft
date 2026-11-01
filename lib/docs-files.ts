@@ -20,8 +20,11 @@ export const DOCS_MAX_UPLOAD = 50 * 1024 * 1024;
 /**
  * Tope con Vercel Blob: el navegador sube directo al storage (subida de
  * cliente, en partes para lo grande); el servidor solo firma el permiso.
+ * Igual que Notes: 100 MB por archivo, con un tope de permisos por persona.
  */
-export const DOCS_MAX_BLOB_UPLOAD = 5 * 1024 * 1024 * 1024;
+export const DOCS_MAX_BLOB_UPLOAD = 100 * 1024 * 1024;
+/** Permisos de subida directa que firma una persona por minuto (como Notes). */
+export const DOCS_BLOB_TOKENS_PER_MINUTE = 30;
 
 /** Cómo sube el editor: directo a Blob o por el servidor (y hasta cuánto). */
 export interface DocsUploadConfig {

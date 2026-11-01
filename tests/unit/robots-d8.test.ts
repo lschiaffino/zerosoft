@@ -56,6 +56,7 @@ function fakePage(opts: { failures?: Record<string, number>; evaluate?: (expr: s
         actions.push(`click:${sel}`);
       },
       fill: async (v) => void actions.push(`fill:${sel}=${v}`),
+      elementHandle: async () => ({ ownerFrame: async () => ({ url: () => 'https://a.test/login' }), fill: async (v: string) => void actions.push(`fill:${sel}=${v}`) }),
       selectOption: async (v) => [v],
       press: async (k) => void actions.push(`press:${k}`),
       innerText: async () => 'text',
@@ -105,8 +106,8 @@ describe('robots: credenciales', () => {
     const res = await robotInterpreter(
       page,
       steps([
-        { type: 'fill', selector: '#user', value: '{{credentials.login.username}}' },
-        { type: 'fill', selector: '#pass', value: '{{credentials.login.password}}' },
+        { type: 'fill', selector: '#user', value: '{{credentials.login.username}}', origin: 'https://a.test' },
+        { type: 'fill', selector: '#pass', value: '{{credentials.login.password}}', origin: 'https://a.test' },
       ]),
       {},
       opts({ credentials: { login: { username: 'ada', password: 'hunter2-secret' } } }),

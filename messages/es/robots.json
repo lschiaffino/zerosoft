@@ -231,7 +231,8 @@
       "aiFields": "Campos de cada fila",
       "aiFieldName": "Columna",
       "aiFieldDesc": "Descripción (opcional)",
-      "aiScope": "Solo dentro de este selector (opcional)"
+      "aiScope": "Solo dentro de este selector (opcional)",
+      "origin": "Sitio del login"
     },
     "modes": {
       "text": "Texto del primer resultado",
@@ -253,7 +254,7 @@
       "Listas: un Extraer con “Todos los resultados” sobre “.item a” devuelve el texto de cada link; agregá el atributo href para obtener las URLs."
     ],
     "fileHint": "El archivo se guarda y queda la URL en {example}.",
-    "credentialsTip": "Usá {example} con una credencial guardada. El valor nunca aparece en logs ni capturas.",
+    "credentialsTip": "Usá {example} con una credencial guardada. El valor no aparece en logs ni en datos extraídos. Escribilo en un campo de contraseña: una captura puede mostrar cualquier otro campo.",
     "credentialsLink": "Abrir Credenciales",
     "addType": "Tipo de paso",
     "options": "Opciones del paso {num}",
@@ -280,13 +281,14 @@
       "load_more": "Botón Cargar más",
       "scroll": "Scroll infinito"
     },
-    "fallbacksHint": "Se prueban en orden cuando el selector principal no está en la página. El log de la corrida dice cuál sirvió.",
+    "fallbacksHint": "Se prueban en orden cuando el selector principal no está en la página. En clics, campos y selects, un alternativo solo se usa si da con el elemento grabado (misma etiqueta, tipo y nombre visible), y nunca en un paso con login. El log de la corrida dice cuál sirvió.",
     "fallbacksShow": "Selectores alternativos",
     "instructionPlaceholder": "Cada producto con su nombre, precio y link",
     "aiHint": "La IA lee el texto de la página al terminar la corrida y completa la variable como filas. Los pasos siguientes de la misma corrida todavía no la ven.",
     "scrollHint": "Baja hasta el final y espera, hasta que no cargan filas nuevas o después de {max} bajadas.",
     "moreHint": "Hace clic en el botón hasta que desaparece, no cargan filas nuevas o después de {max} clics, y lee todas las filas.",
-    "loadMoreDefault": "Cargar más"
+    "loadMoreDefault": "Cargar más",
+    "originHint": "El login solo se escribe en este sitio. Pegá la dirección de la página de login. Vacío usa el sitio del último paso Ir a URL con dirección fija. Un dominio y su www. cuentan como el mismo sitio. Si el campo termina en cualquier otro sitio (después de una redirección o dentro de un iframe, por ejemplo), el paso falla sin escribirlo."
   },
   "inputs": {
     "title": "Entradas",
@@ -412,7 +414,15 @@
     "relearnedAction": "El paso {step} ya no encontraba su selector y no se hizo ningún clic ni se escribió nada. Reemplazo sugerido, el único elemento con el mismo nombre: {selector}. Aprobalo si está bien.",
     "approveSuggestion": "Aprobar y guardar",
     "suggestionApproved": "Aprobado y guardado en el robot.",
-    "credentialNotAllowed": "El paso {step} usa una credencial fuera del valor de un campo Completar, y no se mandó a la página. Las credenciales ahora solo funcionan como valor de un paso Completar. Abrí la pestaña Pasos y sacala de la URL, el selector, el texto o el script."
+    "credentialNotAllowed": "El paso {step} usa una credencial fuera del valor de un paso Completar, y no se mandó a la página. Dentro de los pasos de un robot, una credencial solo funciona como valor de un paso Completar. Abrí la pestaña Pasos y sacala de la URL, el selector, el texto o el script.",
+    "credentialHidden": "El paso {step} no escribió el login porque la página no estaba en el sitio permitido. Solo quien armó este robot o un admin puede ver el detalle.",
+    "credentialOrigin": "El paso {step} no escribió el login. La página estaba en {here} y este paso solo permite {bound}. Si {here} es correcto, escribilo en Sitio del login del paso {step}, en la pestaña Pasos.",
+    "credentialScript": "El paso {step} puede leer lo que se escribió en un campo y este robot usa un login, así que la corrida se frenó antes de abrir el navegador. Abrí la pestaña Pasos y sacá ese paso (Ejecutar JavaScript, o leer el atributo value), o dejá de usar el login en este robot.",
+    "credentialNoSite": "El paso {step} no escribió el login porque este robot no tiene un sitio fijo: la dirección de su paso Ir a URL usa una variable. La página estaba en {here}. Para permitirlo, escribí ese sitio en Sitio del login del paso {step}, en la pestaña Pasos.",
+    "useSite": "Usar este sitio",
+    "useSiteTitle": "¿Escribir este login en {here}?",
+    "useSiteBody": "De ahora en más, el paso {step} escribe el login en {here}. Confirmá solo si reconocés este sitio.",
+    "useSiteDone": "Guardado. Corré el robot de nuevo para usar {here}."
   },
   "settings": {
     "enabled": "Permitir corridas automáticas",
@@ -476,7 +486,7 @@
     "sessionTitle": "Sesión",
     "timeoutTitle": "Tiempo máximo",
     "credentialsTitle": "Credenciales",
-    "credentialsDesc": "Los logins se guardan cifrados en Credenciales, que Robots comparte con Flow. Los pasos los usan sin que el valor aparezca en logs ni capturas.",
+    "credentialsDesc": "Los logins se guardan cifrados en Credenciales, que Robots comparte con Flow. Los pasos los usan sin que el valor aparezca en logs ni en datos extraídos. Una captura puede mostrar un valor escrito en un campo que no sea de contraseña.",
     "credentialsOpen": "Abrir Credenciales",
     "globalSettings": "Ir a Ajustes globales",
     "usageTitle": "Uso y runner",
@@ -539,7 +549,11 @@
     "no_crm_access": "Necesitás acceso al CRM para mandar filas ahí.",
     "outside_recipient": "Los emails de cambios solo pueden ir a personas de este workspace.",
     "save_first": "Primero guardá tus cambios.",
-    "suggestion_stale": "El paso cambió desde esa corrida. Volvé a correr el robot."
+    "suggestion_stale": "El paso cambió desde esa corrida. Volvé a correr el robot.",
+    "invalid_login_site": "Paso {index}: Sitio del login tiene que ser una dirección web, como https://login.example.com.",
+    "credential_with_script": "El paso {index} puede leer lo que se escribió en un campo y este robot usa un login. Sacá ese paso (Ejecutar JavaScript, o leer el atributo value) o dejá de usar el login en este robot.",
+    "takeover_required": "Este robot usa un login y lo armó alguien que ya no es admin, así que no corre hasta que un admin se haga cargo de sus pasos. Tocá Correr robot y confirmá.",
+    "takeover_stale": "El robot cambió desde que abriste esto. Recargá y probá de nuevo."
   },
   "paste": {
     "title": "Pegar pasos grabados",
@@ -692,10 +706,13 @@
     "nothingStarted": "No arrancó ninguna corrida. Corregilo y volvé a ponerlo en cola.",
     "rowMissing": "Fila {row}: “{name}” es obligatorio. No se subió nada.",
     "estimate": "Unos {minutes, plural, one {# minuto} other {# minutos}} de navegador a {seconds} s por corrida, y al menos {wall} con {concurrency} a la vez.",
-    "estimateOver": "Te quedan {left, number} minutos este mes. El lote se pausa cuando se acaban y sigue cuando vuelva a haber minutos.",
-    "expiry": "Las filas que sigan esperando después de 45 días se descartan.",
+    "expiry": "Las filas que sigan esperando después de {age} se descartan, y te llega un aviso.",
     "wallMinutes": "{count, plural, one {# minuto} other {# minutos}}",
-    "wallHours": "{count, plural, one {# hora} other {# horas}}"
+    "wallHours": "{count, plural, one {# hora} other {# horas}}",
+    "cover": "Los {left, number} minutos que te quedan este mes alcanzan para unas {covered, number} de estas {rows, number} filas. El resto espera en la cola hasta que vuelva a haber minutos.",
+    "coverAll": "Los {left, number} minutos que te quedan este mes alcanzan para las {rows, number} filas.",
+    "days": "{count, plural, one {# día} other {# días}}",
+    "hours": "{count, plural, one {# hora} other {# horas}}"
   },
   "data": {
     "title": "Datos entre corridas",
@@ -899,7 +916,30 @@
     },
     "credentialMisuse": {
       "title": "{name}: un paso necesita un cambio",
-      "body": "El paso {step} usa una credencial fuera del valor de un campo Completar, así que el robot se frena ahí. Sacala de la URL, el selector, el texto o el script. Este robot no va a volver a mandar este aviso."
+      "body": "El paso {step} usa una credencial fuera del valor de un campo Completar, así que el robot se frena antes de abrir el navegador. Sacala de la URL, el selector, el texto o el script. Las corridas programadas se pausan después de 3 que fallen así. Este robot no va a volver a mandar este aviso."
+    },
+    "batchExpired": {
+      "title": "{name}: filas del lote descartadas",
+      "body": "{count} filas de un lote esperaron más de {age} en la cola y se descartaron sin correr. Volvé a ponerlas en cola para correrlas.",
+      "bodyOne": "1 fila de un lote esperó más de {age} en la cola y se descartó sin correr. Volvé a ponerla en cola para correrla.",
+      "days": "{count} días",
+      "dayOne": "1 día",
+      "hours": "{count} horas",
+      "hourOne": "1 hora"
+    },
+    "credentialScript": {
+      "title": "{name}: un paso puede leer el login",
+      "body": "El paso {step} puede leer lo que se escribió en un campo y este robot usa un login, así que el robot se frena antes de abrir el navegador. Sacá ese paso (Ejecutar JavaScript, o leer el atributo value). Las corridas programadas se pausan después de 3 que fallen así. Este robot no va a volver a mandar este aviso."
+    },
+    "takeover": {
+      "title": "{name}: un admin se hizo cargo de este robot",
+      "body": "{actor} se hizo cargo de los pasos de este robot, que ahora corre a su nombre. Ya no figura como tuyo."
     }
+  },
+  "takeover": {
+    "title": "¿Te hacés cargo de los pasos de este robot?",
+    "body": "{creator} armó este robot y ya no es admin. Si seguís, te hacés cargo de sus pasos: corren con el login de este workspace a tu nombre, y a {creator} le llega un aviso. Revisá la pestaña Pasos si no sabés qué hacen. Las corridas programadas que estaban en pausa siguen en pausa hasta que las vuelvas a prender.",
+    "confirm": "Hacerme cargo y correr",
+    "cancel": "Cancelar"
   }
 }

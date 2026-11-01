@@ -1,6 +1,7 @@
 'use client';
 
 import LocalText from '@/components/ui/LocalText';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import type { CrmDashboardWidgetRow } from '@/lib/db';
@@ -1198,37 +1199,16 @@ export default function DashboardsView({
         </div>
       )}
 
-      {confirmingDelete && active && (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-label={t('confirmDeleteTitle')}
-        >
-          <div className="modal-card">
-            <h2 className="modal-title">{t('confirmDeleteTitle')}</h2>
-            <p className="muted">
-              {t('confirmDelete', { name: active.name, count: active.widgets.length })}
-            </p>
-            <div className="form-actions">
-              <button
-                type="button"
-                className="btn btn-solid btn-small"
-                onClick={() => void confirmDeleteDashboard()}
-              >
-                {tCrm('common.delete')}
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost btn-small"
-                onClick={() => setConfirmingDelete(false)}
-              >
-                {tCrm('common.cancel')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={confirmingDelete && !!active}
+        danger
+        title={t('confirmDeleteTitle')}
+        body={active ? t('confirmDelete', { name: active.name, count: active.widgets.length }) : null}
+        confirmLabel={tCrm('common.delete')}
+        cancelLabel={tCrm('common.cancel')}
+        onConfirm={() => void confirmDeleteDashboard()}
+        onCancel={() => setConfirmingDelete(false)}
+      />
     </div>
   );
 }

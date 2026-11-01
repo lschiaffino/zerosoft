@@ -91,7 +91,19 @@ const opts = { deadline: Date.now() + 60_000, checkUrl: async () => null };
 describe('robots: autorreparación con selectores alternativos', () => {
   it('usa el alternativo cuando el principal no está y lo deja en el log', async () => {
     const { page, actions } = countPage({ '#new-btn': 1 });
-    const res = await robotInterpreter(page, steps([{ type: 'click', selector: '#old-btn', fallbacks: ['#missing', '#new-btn'] }]), {}, opts);
+    // Una acción solo usa un alternativo que sea el mismo elemento grabado (etiqueta, tipo y nombre).
+    const base = page.locator;
+    page.locator = (sel) => {
+      const l = base(sel);
+      const same = { ...l, evaluate: async <R,>() => ({ t: 'button', type: '', nm: 'Go', pw: false }) as unknown as R };
+      return { ...same, first: () => same };
+    };
+    const res = await robotInterpreter(
+      page,
+      steps([{ type: 'click', selector: '#old-btn', fallbacks: ['#missing', '#new-btn'], identity: { tag: 'button', type: '', name: 'Go' } }]),
+      {},
+      opts,
+    );
     expect(res.status).toBe('success');
     expect(actions).toContain('click:#new-btn');
     expect(res.healed).toEqual([{ step: '1', from: '#old-btn', to: '#new-btn' }]);

@@ -159,7 +159,7 @@ const parity: ProductParity = {
     }),
     row('esign', 'documents', ['E-signature', 'Firma electrónica', 'Assinatura eletrônica'], 'missing', {
       weight: 2,
-      detail: ['There is no Sign app yet; use read confirmations', 'Todavía no hay app Sign; se usa la confirmación de lectura', 'Ainda não há app Sign; use a confirmação de leitura'],
+      detail: ['People has no signing flow of its own yet: it uses read confirmations, and documents to sign go through the Sign app', 'People todavía no tiene firma propia: usa confirmación de lectura, y lo que hay que firmar se manda desde la app Sign', 'O People ainda não tem assinatura própria: usa confirmação de leitura, e o que precisa de assinatura sai pelo app Sign'],
     }),
     // Desempeño
     row('review-cycles', 'performance', ['Review cycles', 'Ciclos de evaluación', 'Ciclos de avaliação'], 'have', {

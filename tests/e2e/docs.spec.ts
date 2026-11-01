@@ -45,6 +45,8 @@ test('Docs: Compartir agrupa Personas y Publicar; la IA va en Avanzado; Esc cier
   await expect(dialog.getByRole('heading', { name: 'People' })).toBeVisible();
   await expect(dialog.getByRole('heading', { name: 'Publish' })).toBeVisible();
   await expect(dialog.getByRole('combobox', { name: 'Email, member or team' })).toBeFocused();
+  // Con foco al abrir, pero sin la lista de sugerencias tapando el resto del diálogo.
+  await expect(dialog.getByRole('listbox')).toHaveCount(0);
 
   // "La IA puede usarla" está detrás de Avanzado.
   const ai = dialog.getByRole('switch', { name: /AI can use it/ });

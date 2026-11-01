@@ -172,6 +172,34 @@ test.describe('marcadores', () => {
     await expect(opts).toBeFocused();
   });
 
+  test('"Más": el menú de un marcador no pierde el foco, Tab afuera lo cierra y al cambiar el ancho se cierra sin perder el foco', async ({ page, request }) => {
+    const ch = await newChannel(request);
+    for (let i = 0; i < 12; i++) await ok(request.post(`/api/talk/channels/${ch.id}/bookmarks`, { data: { url: `https://example.com/${i}`, title: `Marcador largo número ${i}` } }));
+    await page.setViewportSize({ width: 390, height: 800 });
+    await openChannel(page, ch.id);
+    const moreBtn = page.getByTestId('talk-bookmark-overflow-btn');
+    await moreBtn.click();
+    const extra = page.getByTestId('talk-bookmark-overflow');
+    await expect(extra.getByRole('link').first()).toBeFocused();
+    // Opciones de un marcador de adentro de "Más": el foco queda en el menú (antes volvía al primer link).
+    await extra.getByRole('button', { name: 'Options for Marcador largo número 11' }).click();
+    await expect(page.getByRole('menuitem', { name: 'Edit' })).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(page.getByRole('menuitem', { name: 'Delete' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('menu')).toHaveCount(0);
+    // Sigue abierto con el foco en el marcador; Tab hasta salir de "Más" lo cierra.
+    await expect(extra).toBeVisible();
+    for (let i = 0; i < 40 && (await extra.count()); i++) await page.keyboard.press('Tab');
+    await expect(extra).toHaveCount(0);
+    // Cambiar el ancho con el menú abierto lo cierra y el foco vuelve a "Más".
+    await moreBtn.click();
+    await expect(extra.getByRole('link').first()).toBeFocused();
+    await page.setViewportSize({ width: 360, height: 800 });
+    await expect(extra).toHaveCount(0);
+    await expect(moreBtn).toBeFocused();
+  });
+
   test('390 px y oscuro sin scroll horizontal', async ({ page, request }) => {
     const ch = await newChannel(request);
     for (let i = 0; i < 6; i++) await ok(request.post(`/api/talk/channels/${ch.id}/bookmarks`, { data: { url: `https://example.com/${i}`, title: `Marcador largo número ${i}` } }));
