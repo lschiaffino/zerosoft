@@ -219,3 +219,19 @@ test('índices con datos estructurados y descripciones que entran en el buscador
   }
 });
 
+test('/feed sigue siendo de los links cortos: un link con ese slug resuelve', async ({ request }) => {
+  const made = await request.post('/api/links', { data: { url: 'https://example.com/feed-target', slug: 'feed' } });
+  expect(made.ok(), await made.text()).toBe(true);
+  const { id } = (await made.json()) as { id: string };
+  const res = await request.get('/feed', { maxRedirects: 0 });
+  expect(res.status()).toBeGreaterThanOrEqual(301);
+  expect(res.status()).toBeLessThan(400);
+  expect(res.headers().location).toContain('example.com/feed-target');
+  await request.delete(`/api/links/${id}`);
+});
+
+test('/favicon.ico existe', async ({ request }) => {
+  const res = await request.get('/favicon.ico');
+  expect(res.status()).toBe(200);
+});
+

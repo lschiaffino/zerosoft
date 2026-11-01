@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import PostGrid from '@/components/blog/PostGrid';
+import PostMore from '@/components/blog/PostMore';
 import type { PostMeta } from '@/lib/blog';
 
 /** Posts de la primera tanda y de cada "Ver más". */
@@ -18,12 +19,9 @@ export default async function PostPages({ posts, locale }: { posts: PostMeta[]; 
     <>
       <PostGrid posts={page} locale={locale} />
       {rest.length > 0 && (
-        <details className="blog-more">
-          <summary className="btn btn-outline">{t('more', { count: rest.length })}</summary>
-          <div className="blog-more-body">
-            <PostPages posts={rest} locale={locale} />
-          </div>
-        </details>
+        <PostMore label={t('more', { count: rest.length })}>
+          <PostPages posts={rest} locale={locale} />
+        </PostMore>
       )}
     </>
   );

@@ -48,6 +48,11 @@
 
 .lp-notes { margin-top: 20px; font-family: var(--font-data); font-size: 13px; color: var(--brand-gray-2); }
 .lp-notes-end { white-space: nowrap; }
+/* En el teléfono, una línea por dato: un separador nunca queda colgando al final. */
+@media (max-width: 620px) {
+  .lp-notes-start { display: block; }
+  .lp-notes-sep { display: none; }
+}
 @media (max-width: 340px) { .lp-notes-end { white-space: normal; } }
 .lp-notes a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 
@@ -461,10 +466,10 @@
 .pline-list,
 .showcase-tabs {
   background:
-    linear-gradient(to right, var(--bg) 40%, transparent) left / 24px 100% no-repeat local,
-    linear-gradient(to left, var(--bg) 40%, transparent) right / 24px 100% no-repeat local,
-    linear-gradient(to right, color-mix(in srgb, var(--ink) 18%, transparent), transparent) left / 12px 100% no-repeat scroll,
-    linear-gradient(to left, color-mix(in srgb, var(--ink) 18%, transparent), transparent) right / 12px 100% no-repeat scroll;
+    linear-gradient(to right, var(--bg) 60%, transparent) left / 40px 100% no-repeat local,
+    linear-gradient(to left, var(--bg) 60%, transparent) right / 40px 100% no-repeat local,
+    linear-gradient(to right, color-mix(in srgb, var(--ink) 9%, transparent), color-mix(in srgb, var(--ink) 3%, transparent) 45%, transparent) left / 28px 100% no-repeat scroll,
+    linear-gradient(to left, color-mix(in srgb, var(--ink) 9%, transparent), color-mix(in srgb, var(--ink) 3%, transparent) 45%, transparent) right / 28px 100% no-repeat scroll;
 }
 .pline-list li { position: relative; flex: 0 0 auto; }
 .pline-link {
@@ -622,6 +627,12 @@
 .parity-beyond .parity-list li { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
 .parity-beyond .parity-h3 { margin-bottom: 12px; }
 .parity-missing { margin-top: 48px; border-top: var(--stroke-rule) solid var(--brand-ink); max-width: 960px; }
+.parity-all { margin-top: 48px; border-top: var(--stroke-rule) solid var(--brand-ink); }
+.parity-all summary { display: flex; align-items: center; gap: 12px; padding: 20px 0; cursor: pointer; list-style: none; font-size: 1.375rem; font-weight: 700; }
+.parity-all summary::-webkit-details-marker { display: none; }
+.parity-all-count { font-size: 14px; font-weight: 500; color: var(--brand-gray-2); }
+.parity-all summary .faq-plus { margin-left: auto; }
+.parity-all[open] .faq-plus::after { transform: rotate(0deg); }
 .parity-missing summary {
   display: flex;
   align-items: center;

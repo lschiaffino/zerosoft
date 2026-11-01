@@ -27,7 +27,8 @@ const nextConfig = {
     const renamed = [['open-source-no-es-gratis-es-libre', 'gratis-vs-libre']];
     return [
       // Los lectores de feeds prueban estas rutas en la raíz: el feed real vive en /en/blog.
-      ...['/rss.xml', '/feed.xml', '/feed'].map((source) => ({ source, destination: '/en/blog/rss.xml', permanent: true })),
+      // Solo rutas con punto: una sin punto (como /feed) puede ser el slug de un link corto en cualquier dominio.
+      ...['/rss.xml', '/feed.xml'].map((source) => ({ source, destination: '/en/blog/rss.xml', permanent: true })),
       { source: '/atom.xml', destination: '/en/blog/atom.xml', permanent: true },
       ...renamed.flatMap(([from, to]) => [
         { source: `/:locale(en|es|pt)/blog/${from}`, destination: `/:locale/blog/${to}`, permanent: true },

@@ -517,8 +517,9 @@
 .blog-related { padding-top: 0; padding-bottom: 0; }
 .blog-topics { margin-bottom: 48px; }
 .blog-topics-end { margin: 64px 0 0; }
-.blog-more { margin-top: 40px; }
-.blog-more > summary { list-style: none; cursor: pointer; width: fit-content; margin: 0 auto; }
+.blog-more { margin-top: 40px; text-align: center; }
+.blog-more-body { text-align: left; }
+.blog-more > summary { list-style: none; cursor: pointer; }
 .blog-more > summary::-webkit-details-marker { display: none; }
 .blog-more[open] > summary { display: none; }
 .blog-more[open] { margin-top: 40px; }
@@ -574,10 +575,10 @@
     margin: 0 -16px;
     padding: 0 16px 2px;
     background:
-      linear-gradient(to right, var(--bg) 40%, transparent) left / 24px 100% no-repeat local,
-      linear-gradient(to left, var(--bg) 40%, transparent) right / 24px 100% no-repeat local,
-      linear-gradient(to right, color-mix(in srgb, var(--ink) 18%, transparent), transparent) left / 12px 100% no-repeat scroll,
-      linear-gradient(to left, color-mix(in srgb, var(--ink) 18%, transparent), transparent) right / 12px 100% no-repeat scroll;
+      linear-gradient(to right, var(--bg) 60%, transparent) left / 40px 100% no-repeat local,
+      linear-gradient(to left, var(--bg) 60%, transparent) right / 40px 100% no-repeat local,
+      linear-gradient(to right, color-mix(in srgb, var(--ink) 9%, transparent), color-mix(in srgb, var(--ink) 3%, transparent) 45%, transparent) left / 28px 100% no-repeat scroll,
+      linear-gradient(to left, color-mix(in srgb, var(--ink) 9%, transparent), color-mix(in srgb, var(--ink) 3%, transparent) 45%, transparent) right / 28px 100% no-repeat scroll;
   }
   .blog-topics .blog-tags::-webkit-scrollbar { display: none; }
   .blog-topics .blog-tags li { flex: none; }
@@ -650,6 +651,7 @@ section.status-note-block { padding: 24px; }
 
 /* ---------- 404 ---------- */
 
+.read-hero.nf-root { border-bottom: 0; }
 .nf-hero { padding-top: 8px; padding-bottom: 56px; margin-bottom: 0; border-bottom: 0; }
 /* Aire blanco entre la banda del header y el cartel. */
 .nf .sign-band { margin-top: 32px; }

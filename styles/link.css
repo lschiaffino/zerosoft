@@ -620,6 +620,7 @@ section.lk-block { padding-bottom: 0; }
   .lk-rule, .lk-rule-ab { grid-template-columns: 24px minmax(0, 1fr); }
   .lk-rule > :not(.lk-rule-n) { grid-column: 2; }
   .lk-route { flex-wrap: wrap; row-gap: 4px; }
+  .lk-route > .lk-route-name:first-child { flex-shrink: 1; max-width: 100%; }
   .lk-search { max-width: none; flex-basis: 100%; }
   .lk-danger-delete, .lk-danger-delete .input { width: 100%; }
   .lk-panel { padding: 16px; }

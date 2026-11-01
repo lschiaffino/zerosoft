@@ -101,7 +101,8 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
             </a>
           </div>
           <p className="lp-notes">
-            {h('hero.note1')} ·{' '}
+            <span className="lp-notes-start">{h('hero.note1')}</span>
+            <span className="lp-notes-sep"> · </span>
             <span className="lp-notes-end">
               {h('hero.note2')} ·{' '}
               <a href={GITHUB_URL} target="_blank" rel="noreferrer">

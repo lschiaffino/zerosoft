@@ -600,7 +600,7 @@ function FailureCapture({
         )}
       </dl>
       {failure.matched === false && !/^credential_/.test(String(failure.error ?? '')) && <p className="ui-help">{t('notMatched')}</p>}
-      {onApplyFix && failure.dom && (
+      {onApplyFix && failure.dom && failure.url !== 'about:blank' && (
         <div className="robots-fix" aria-live="polite">
           {!fix && (
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => void suggest()} disabled={fixing} aria-busy={fixing || undefined}>
