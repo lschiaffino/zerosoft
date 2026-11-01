@@ -102,7 +102,8 @@ async function startAuthorization(page: Page, scope = 'read write', clientName =
     resource: resource.resource,
   }).toString();
   await page.goto(u.toString());
-  await expect(page.getByRole('heading', { name: new RegExp(clientName) })).toBeVisible();
+  // El título corta los nombres largos: alcanza con el principio.
+  await expect(page.getByRole('heading', { name: new RegExp(clientName.slice(0, 30)) })).toBeVisible();
   return { meta, resource, cb, client, verifier, state };
 }
 
