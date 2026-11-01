@@ -1,7 +1,8 @@
 {
   "meta": {
     "tagline": "Vinte e quatro apps open source para o seu time.",
-    "description": "CRM, chat de suporte, agentes de IA, automações, robôs de navegador, projetos, links, docs, notas, agenda e quadro branco. Open source (AGPLv3): rode no seu servidor por $0 ou use a zerosoft Cloud, com plano grátis e cobrança por uso."
+    "description": "CRM, chat de suporte, agentes de IA, automações, robôs de navegador, projetos, links, docs, notas, agenda e quadro branco. Open source (AGPLv3): rode no seu servidor por $0 ou use a zerosoft Cloud, com plano grátis e cobrança por uso.",
+    "homeTitle": "zerosoft: apps open source para empresas, do CRM aos docs"
   },
   "header": {
     "products": "Produtos",
@@ -354,7 +355,26 @@
     "titleDim": "Como construímos a zerosoft, e por quê.",
     "readingTime": "min de leitura",
     "back": "← Todos os posts",
-    "empty": "Ainda não há posts. Volte em breve."
+    "empty": "Ainda não há posts. Volte em breve.",
+    "metaTitle": "Blog: guias, migrações e software open source",
+    "metaDescription": "Como migrar do HubSpot, Notion, Linear, Calendly ou Bitly, guias de cada app da zerosoft e como construímos uma suíte open source.",
+    "tagsTitle": "Temas",
+    "tagTitle": "Posts sobre {tag}",
+    "tagMetaDescription": "{count} posts do blog da zerosoft sobre {tag}: guias, migrações e notas de como construímos os apps.",
+    "tagLead": "{count} posts.",
+    "authorTitle": "Posts de {name}",
+    "authorMetaDescription": "Tudo o que {name} publicou no blog da zerosoft: {count} posts.",
+    "authorLead": "Estes posts são escritos pelo time da zerosoft. Até agora, {count}.",
+    "relatedTitle": "Continue lendo",
+    "updated": "Atualizado em {date}",
+    "feeds": "Feeds",
+    "tagsLabel": "Tags",
+    "productLead": "{name} é o app da zerosoft de que este post fala.",
+    "productCta": "A página do {name}",
+    "compareCta": "{name} vs {competitor}",
+    "crumbHome": "Início",
+    "crumbs": "Trilha de navegação",
+    "by": "por {name}"
   },
   "footer": {
     "tagline": "Feito de zeros.",
@@ -382,7 +402,8 @@
     "starCta": "Dê uma estrela no GitHub",
     "feedback": "Feedback",
     "videos": "Vídeos",
-    "desktopApp": "App de desktop"
+    "desktopApp": "App de desktop",
+    "compare": "Comparações"
   },
   "home": {
     "hero": {
@@ -539,7 +560,7 @@
       "label": "Desenvolvedores",
       "title": "Uma API de verdade.",
       "titleDim": "E webhooks assinados.",
-      "p": "Crie uma chave nas configurações e use Link, CRM, Cal e Agents via REST. Assine eventos e verifique cada entrega com uma assinatura HMAC.",
+      "p": "Crie uma chave nas configurações e use Link, CRM, Cal, Track, Docs, Chat, Agents e mais por REST. Assine eventos e verifique cada entrega com uma assinatura HMAC.",
       "b1t": "API REST v1",
       "b1": "Links; contatos, empresas, negócios, tarefas, pipelines, produtos e cotações do CRM; tipos de evento e agendamentos do Cal; e mensagens para os seus agentes.",
       "b2t": "Chaves pessoais",

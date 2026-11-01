@@ -1,11 +1,11 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { staticPageMetadata } from '@/lib/seo-pages';
 import VideoPlayer from '@/components/VideoPlayer';
 import '@/styles/pages.css';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
-  const t = await getTranslations({ locale, namespace: 'videos' });
-  return { title: t('meta.title'), description: t('meta.description') };
+  return staticPageMetadata('videos', locale);
 }
 
 /** Videos en public/videos/<id>.mp4 + <id>.jpg (grabaciones reales del app). */

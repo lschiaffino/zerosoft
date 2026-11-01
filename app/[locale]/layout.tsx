@@ -1,6 +1,7 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { IBM_Plex_Mono, Space_Grotesk } from 'next/font/google';
 import { routing } from '@/i18n/routing';
+import { siteOrigin, siteVerification } from '@/lib/seo';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ChromeGate from '@/components/ChromeGate';
@@ -56,7 +57,10 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
       template: '%s · zerosoft',
     },
     description: t('description'),
-    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
+    // Sin NEXT_PUBLIC_SITE_URL, el dominio de producción: un canonical a localhost desindexaría el sitio.
+    metadataBase: new URL(siteOrigin()),
+    // Verificación de Search Console y Bing Webmaster Tools por meta tag (docs/seo.md).
+    verification: siteVerification(),
     // Título y descripción los completa Next con los de cada página; la que quiere otra imagen pone su openGraph.
     openGraph: {
       type: 'website',

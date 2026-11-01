@@ -1,4 +1,5 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { staticPageMetadata } from '@/lib/seo-pages';
 import { Link } from '@/i18n/navigation';
 import ChangelogList from '@/components/ChangelogList';
 import { getUnifiedChangelog } from '@/lib/changelog';
@@ -9,18 +10,9 @@ import '@/styles/changelog.css';
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
   const t = await getTranslations({ locale, namespace: 'changelog' });
-  const title = t('metaTitle');
-  const description = t('metaDescription');
-  return {
-    title,
-    description,
-    alternates: {
-      canonical: `/${locale}/changelog`,
-      types: { 'application/atom+xml': [{ url: `/${locale}/changelog/feed.xml`, title: t('feedTitle') }] },
-    },
-    openGraph: { title, description, type: 'website', url: `/${locale}/changelog`, images: ['/api/og/changelog'] },
-    twitter: { card: 'summary_large_image', title, description, images: ['/api/og/changelog'] },
-  };
+  return staticPageMetadata('changelog', locale, {
+    alternates: { types: { 'application/atom+xml': [{ url: `/${locale}/changelog/feed.xml`, title: t('feedTitle') }] } },
+  });
 }
 
 /**

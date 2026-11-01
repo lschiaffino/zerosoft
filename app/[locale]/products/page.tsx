@@ -1,4 +1,5 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { staticPageMetadata } from '@/lib/seo-pages';
 import { Link } from '@/i18n/navigation';
 import SuiteGrid from '@/components/site/SuiteGrid';
 import SectionSign from '@/components/site/SectionSign';
@@ -14,8 +15,7 @@ import '@/styles/pages.css';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
-  const t = await getTranslations({ locale, namespace: 'pages.products' });
-  return { title: t('meta.title'), description: t('meta.description') };
+  return staticPageMetadata('products', locale);
 }
 
 /** /products: el cero, las once apps y los precios. */
