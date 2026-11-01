@@ -7995,6 +7995,102 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    id: '171_analytics_parity',
+    up: async (client) => {
+      await client.executeMultiple(`
+        ALTER TABLE analytics_projects ADD COLUMN test_filters TEXT NOT NULL DEFAULT '[]';
+        ALTER TABLE analytics_flags ADD COLUMN groups TEXT NOT NULL DEFAULT '[]';
+        ALTER TABLE analytics_flags ADD COLUMN payloads TEXT NOT NULL DEFAULT '{}';
+        CREATE TABLE IF NOT EXISTS analytics_annotations (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+          day TEXT NOT NULL,
+          content TEXT NOT NULL,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_annotations_project ON analytics_annotations(project_id, day);
+        CREATE TABLE IF NOT EXISTS analytics_actions (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          steps TEXT NOT NULL DEFAULT '[]',
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_actions_project ON analytics_actions(project_id, updated_at);
+        CREATE TABLE IF NOT EXISTS analytics_shares (
+          id TEXT PRIMARY KEY,
+          token TEXT NOT NULL UNIQUE,
+          project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+          insight_id TEXT REFERENCES analytics_insights(id) ON DELETE CASCADE,
+          dashboard_id TEXT REFERENCES analytics_dashboards(id) ON DELETE CASCADE,
+          created_by TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_shares_project ON analytics_shares(project_id);
+        CREATE TABLE IF NOT EXISTS analytics_alerts (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+          insight_id TEXT NOT NULL REFERENCES analytics_insights(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          series_index INTEGER NOT NULL DEFAULT 0,
+          condition TEXT NOT NULL,
+          threshold REAL NOT NULL,
+          frequency TEXT NOT NULL DEFAULT 'daily',
+          enabled INTEGER NOT NULL DEFAULT 1,
+          subscribers TEXT NOT NULL DEFAULT '[]',
+          state TEXT NOT NULL DEFAULT 'ok',
+          last_value REAL,
+          next_check_at INTEGER NOT NULL DEFAULT 0,
+          claimed_at INTEGER,
+          last_checked_at INTEGER,
+          last_fired_at INTEGER,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_alerts_due ON analytics_alerts(enabled, next_check_at);
+        CREATE INDEX IF NOT EXISTS idx_analytics_alerts_project ON analytics_alerts(project_id, updated_at);
+        CREATE TABLE IF NOT EXISTS analytics_experiments (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+          flag_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          hypothesis TEXT NOT NULL DEFAULT '',
+          metrics TEXT NOT NULL DEFAULT '[]',
+          status TEXT NOT NULL DEFAULT 'draft',
+          started_at INTEGER,
+          ended_at INTEGER,
+          conclusion TEXT,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_experiments_project ON analytics_experiments(project_id, updated_at);
+        CREATE TABLE IF NOT EXISTS analytics_cohort_members (
+          cohort_id TEXT NOT NULL REFERENCES analytics_cohorts(id) ON DELETE CASCADE,
+          project_id TEXT NOT NULL,
+          person_key TEXT NOT NULL,
+          PRIMARY KEY (cohort_id, person_key)
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_cohort_members_project ON analytics_cohort_members(project_id);
+        CREATE TABLE IF NOT EXISTS analytics_event_defs (
+          project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+          event TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          verified INTEGER NOT NULL DEFAULT 0,
+          hidden INTEGER NOT NULL DEFAULT 0,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (project_id, event)
+        );
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

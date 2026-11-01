@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { propertyFilterSchema } from '@/lib/analytics/types';
 import { deleteProject, toProjectDto, updateProject } from '@/lib/analytics/projects';
 import { actorProject, aError, analyticsActor, canManageAnalytics, isResponse, readJson } from '@/lib/analytics/http';
 
@@ -16,6 +17,7 @@ const patchSchema = z.object({
   autocapture: z.boolean().optional(),
   retentionDays: z.number().int().min(1).max(3650).optional(),
   tzOffsetMin: z.number().int().min(-720).max(840).optional(),
+  testFilters: z.array(propertyFilterSchema).max(20).optional(),
 });
 
 export async function GET(req: NextRequest, ctx: Ctx) {

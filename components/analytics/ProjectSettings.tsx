@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import type { ProjectDto } from '@/lib/analytics/types';
+import type { ProjectDto, PropertyFilter } from '@/lib/analytics/types';
+import { FilterList, cleanFilters, useProjectMeta } from './Filters';
 import { ApiError, apiErrorText, api, notifyChanged } from './client';
 
 const RETENTION = [30, 90, 180, 365, 730];
@@ -249,6 +250,9 @@ zs.identify('user-123', { email: 'ana@example.com' });`;
         </fieldset>
       </form>
 
+      <InternalFilters project={project} canManage={canManage} />
+      <IntegrationGuides origin={origin} publicKey={project.publicKey} />
+
       {canManage && (
         <section className="ui-section ui-section-danger" aria-labelledby="an-danger">
           <div className="ui-section-head">
@@ -288,5 +292,90 @@ zs.identify('user-123', { email: 'ana@example.com' });`;
         }}
       />
     </div>
+  );
+}
+
+/** Quién es gente interna o de prueba: se saca de los insights que lo piden. */
+function InternalFilters({ project, canManage }: { project: ProjectDto; canManage: boolean }) {
+  const t = useTranslations('analytics.settings');
+  const tc = useTranslations('analytics.common');
+  const router = useRouter();
+  const meta = useProjectMeta(project.id);
+  const [filters, setFilters] = useState<PropertyFilter[]>(project.testFilters);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const save = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      await api(`/api/analytics/projects/${project.id}`, { method: 'PATCH', body: { testFilters: cleanFilters(filters) } });
+      setMsg({ ok: true, text: t('saved') });
+      router.refresh();
+    } catch {
+      setMsg({ ok: false, text: tc('error') });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section className="ui-section" aria-labelledby="an-internal-title" id="an-internal">
+      <div className="ui-section-head">
+        <h2 id="an-internal-title" className="ui-section-title">
+          {t('internalTitle')}
+        </h2>
+        <p className="ui-section-desc">{canManage ? t('internalDesc') : t('adminsOnly')}</p>
+      </div>
+      <fieldset className="ui-section-body ui-fields" disabled={!canManage}>
+        <p className="an-note">{t('internalExample')}</p>
+        <FilterList filters={filters} onChange={setFilters} meta={meta} />
+        {canManage && (
+          <div className="an-row">
+            <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => void save()}>
+              {tc('save')}
+            </button>
+            {msg && (
+              <span className={msg.ok ? 'an-saved' : 'ui-error'} role={msg.ok ? 'status' : 'alert'}>
+                {msg.text}
+              </span>
+            )}
+          </div>
+        )}
+      </fieldset>
+    </section>
+  );
+}
+
+/** Guías: proxy inverso, SDKs de PostHog apuntados acá y flags evaluados en tu servidor. */
+function IntegrationGuides({ origin, publicKey }: { origin: string; publicKey: string }) {
+  const t = useTranslations('analytics.settings');
+  const host = origin || 'https://zerosoft.ai';
+  const hostName = host.replace(/^https?:\/\//, '');
+  const nextProxy = `// next.config.js\nasync rewrites() {\n  return [\n    { source: '/z/zs.js', destination: '${host}/zs.js' },\n    { source: '/z/api/ingest/:path*', destination: '${host}/api/ingest/:path*' },\n  ];\n}`;
+  const nginx = `location /z/ {\n  proxy_pass ${host}/;\n  proxy_set_header Host ${hostName};\n  proxy_set_header X-Forwarded-For $remote_addr;\n  proxy_ssl_server_name on;\n}`;
+  const useProxy = `<script src="/z/zs.js" defer></script>\n<script>\n  window.zs = window.zs || [];\n  zs.push(['init', '${publicKey}', { api_host: location.origin + '/z' }]);\n</script>`;
+  const node = `import { PostHog } from 'posthog-node';\n\nconst client = new PostHog('${publicKey}', { host: '${host}/api/ingest' });\nclient.capture({ distinctId: 'user-123', event: 'order_paid', properties: { total: 42 } });\nawait client.shutdown();`;
+  const defs = `curl ${host}/api/ingest/flag-definitions \\\n  -H "Authorization: Bearer zss_…"`;
+  return (
+    <section className="ui-section" aria-labelledby="an-guides">
+      <div className="ui-section-head">
+        <h2 id="an-guides" className="ui-section-title">
+          {t('guidesTitle')}
+        </h2>
+        <p className="ui-section-desc">{t('guidesDesc')}</p>
+      </div>
+      <div className="ui-section-body">
+        <h3 className="an-h4">{t('proxyTitle')}</h3>
+        <p className="an-note">{t('proxyDesc')}</p>
+        <CopyBlock code={nextProxy} label={t('proxyNext')} />
+        <CopyBlock code={nginx} label={t('proxyNginx')} />
+        <CopyBlock code={useProxy} label={t('proxyUse')} />
+        <h3 className="an-h4">{t('sdkTitle')}</h3>
+        <p className="an-note">{t('sdkDesc')}</p>
+        <CopyBlock code={node} label={t('sdkTitle')} />
+        <h3 className="an-h4">{t('localEvalTitle')}</h3>
+        <p className="an-note">{t('localEvalDesc')}</p>
+        <CopyBlock code={defs} label={t('localEvalTitle')} />
+      </div>
+    </section>
   );
 }

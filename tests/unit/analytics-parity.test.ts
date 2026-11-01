@@ -1,0 +1,617 @@
+import { beforeAll, describe, expect, it } from 'vitest';
+import { getDb, upsertUser } from '@/lib/db';
+import { nanoid } from 'nanoid';
+import { parseIngestBody } from '@/lib/analytics/ingest-core';
+import { storeEvents } from '@/lib/analytics/ingest';
+import { createProject, updateProject, getProject, type ProjectRow } from '@/lib/analytics/projects';
+import {
+  applyFormula,
+  collapsePath,
+  computeLifecycle,
+  conversionStats,
+  correlate,
+  csvCell,
+  formulaValue,
+  meanStats,
+  oddsRatio,
+  parseFormula,
+  percentile,
+  resultRows,
+  sampleRatioMismatch,
+  stickinessHistogram,
+} from '@/lib/analytics/compute-more';
+import { runCorrelation, runFunnel, runInsight, runLifecycle, runPaths, runRetention, runStickiness, runTrends } from '@/lib/analytics/query';
+import { addCohortMembers, createAction, createAnnotation, createShare, listAnnotations, parseMemberList, revokeShare, saveEventDefinition, shareByToken, hiddenEvents, listEventDefinitions } from '@/lib/analytics/records-more';
+import { createCohort, createFlag, createInsight, deleteFlag, getCohort } from '@/lib/analytics/records';
+import { countPersons, listPersons } from '@/lib/analytics/persons';
+import { decideFlagsFull, forgetFlagsCache } from '@/lib/analytics/flags';
+import { evaluateFlag } from '@/lib/analytics/flags-core';
+import { createExperiment, experimentResults, getExperiment, setExperimentStatus, shipVariant, experimentsUsingFlag } from '@/lib/analytics/experiments';
+import { alertFires, createAlert, deleteAlert, listAlerts, runAlertsCron } from '@/lib/analytics/alerts';
+import { publicResult, publicShareView } from '@/lib/analytics/share-view';
+import { runAnalyticsCron } from '@/lib/analytics/cron';
+import { cohortDefinitionSchema, insightQuerySchema, trendsQuerySchema, type FunnelResult } from '@/lib/analytics/types';
+import { recordProject } from '@/lib/analytics/http';
+
+const DAY = 86_400_000;
+const NOW = Date.now();
+
+interface Ev {
+  event: string;
+  distinct_id: string;
+  ts?: number;
+  properties?: Record<string, unknown>;
+  $set?: Record<string, unknown>;
+}
+
+async function ingest(project: ProjectRow, events: Ev[]) {
+  const body = JSON.stringify({
+    api_key: project.public_key,
+    batch: events.map((e) => ({ event: e.event, distinct_id: e.distinct_id, timestamp: new Date(e.ts ?? NOW - 1000).toISOString(), properties: { ...e.properties, ...(e.$set ? { $set: e.$set } : {}) } })),
+  });
+  const parsed = parseIngestBody(body);
+  if (!parsed.ok) throw new Error(parsed.error);
+  const fresh = (await getProject(project.workspace_id, project.id))!;
+  return storeEvents(fresh, parsed.events, null);
+}
+
+async function newProject(name = 'P') {
+  const user = await upsertUser(`an-parity-${nanoid(8)}@test.dev`);
+  const project = await createProject(user.id, user.id, name);
+  return { user, project };
+}
+
+describe('analytics: fórmulas', () => {
+  it('respeta precedencia y paréntesis, y dividir por 0 da 0', () => {
+    const f = parseFormula('(A + B) / 2 * 100')!;
+    expect(formulaValue(f, [1, 3])).toBe(200);
+    expect(formulaValue(parseFormula('A / B')!, [1, 0])).toBe(0);
+    expect(formulaValue(parseFormula('-A + 1')!, [3])).toBe(-2);
+    expect(applyFormula(parseFormula('A/B')!, [[1, 2], [2, 4]], 2)).toEqual([0.5, 0.5]);
+  });
+  it('rechaza lo que no es una fórmula (nada de código ni letras fuera de A-E)', () => {
+    for (const bad of ['process.exit()', 'A +', '(A', 'Z', 'A B', '', '1..2', 'A; DROP']) expect(parseFormula(bad), bad).toBeNull();
+  });
+});
+
+describe('analytics: cálculos puros', () => {
+  it('percentiles por interpolación', () => {
+    expect(percentile([1, 2, 3, 4], 0.5)).toBe(2.5);
+    expect(percentile([], 0.9)).toBe(0);
+    expect(percentile([10], 0.99)).toBe(10);
+  });
+  it('stickiness: histograma por cantidad de intervalos', () => {
+    expect(stickinessHistogram([1, 1, 2, 5], 3)).toEqual([2, 1, 1]);
+  });
+  it('ciclo de vida: nuevo, sigue, vuelve y deja', () => {
+    const buckets = ['2026-01-01', '2026-01-02', '2026-01-03', '2026-01-04', '2026-01-05'];
+    const rows = [
+      // a: nuevo el 2, sigue el 3, deja el 4, vuelve el 5.
+      { person: 'a', bucket: '2026-01-02' },
+      { person: 'a', bucket: '2026-01-03' },
+      { person: 'a', bucket: '2026-01-05' },
+      // b: venía de antes del rango (activo en la cubeta 0), deja el 2.
+      { person: 'b', bucket: '2026-01-01' },
+    ];
+    const first = new Map([
+      ['a', '2026-01-02'],
+      ['b', '2025-12-01'],
+    ]);
+    const c = computeLifecycle(rows, first, buckets);
+    expect(c.new).toEqual([1, 0, 0, 0]);
+    expect(c.returning).toEqual([0, 1, 0, 0]);
+    expect(c.dormant).toEqual([-1, 0, -1, 0]);
+    expect(c.resurrecting).toEqual([0, 0, 0, 1]);
+  });
+  it('correlación: odds ratio y orden', () => {
+    expect(oddsRatio(9, 1, 10, 10).odds).toBeGreaterThan(1);
+    expect(oddsRatio(1, 9, 10, 10).odds).toBeLessThan(1);
+    expect(oddsRatio(9, 1, 10, 10).significant).toBe(true);
+    expect(oddsRatio(1, 1, 2, 2).significant).toBe(false);
+    const c = new Set(['a', 'b', 'c']);
+    const d = new Set(['x', 'y']);
+    const r = correlate(
+      [
+        { person: 'a', name: 'good' },
+        { person: 'b', name: 'good' },
+        { person: 'c', name: 'good' },
+        { person: 'x', name: 'bad' },
+        { person: 'y', name: 'bad' },
+        { person: 'stranger', name: 'bad' },
+      ],
+      c,
+      d,
+      'event',
+    );
+    expect(r.positive[0].name).toBe('good');
+    expect(r.negative[0].name).toBe('bad');
+    expect(r.negative[0].dropped).toBe(2);
+  });
+  it('junta ids en los caminos', () => {
+    expect(collapsePath('/orders/123/items/9f8a7b6c5d4e')).toBe('/orders/:id/items/:id');
+    expect(collapsePath('/pricing')).toBe('/pricing');
+  });
+  it('experimentos: la variante mucho mejor gana y el cálculo es repetible', () => {
+    const v = [
+      { key: 'control', exposed: 1000, conversions: 100 },
+      { key: 'test', exposed: 1000, conversions: 200 },
+    ];
+    const a = conversionStats(v);
+    expect(a[1].chanceBest).toBeGreaterThan(0.99);
+    expect(a[1].uplift).toBeCloseTo(1);
+    expect(a[0].uplift).toBeNull();
+    expect(a[1].low).toBeLessThan(0.2);
+    expect(a[1].high).toBeGreaterThan(0.2);
+    expect(conversionStats(v)).toEqual(a);
+    // Sin diferencia, nadie está seguro.
+    const even = conversionStats([
+      { key: 'control', exposed: 100, conversions: 10 },
+      { key: 'test', exposed: 100, conversions: 10 },
+    ]);
+    expect(even[1].chanceBest).toBeGreaterThan(0.35);
+    expect(even[1].chanceBest).toBeLessThan(0.65);
+    const m = meanStats([
+      { key: 'control', exposed: 500, sum: 500, sumSquares: 1000 },
+      { key: 'test', exposed: 500, sum: 1000, sumSquares: 3000 },
+    ]);
+    expect(m[1].chanceBest).toBeGreaterThan(0.99);
+    expect(m[1].rate).toBe(2);
+  });
+  it('detecta un reparto que no coincide con el flag', () => {
+    expect(sampleRatioMismatch([500, 500], [0.5, 0.5])).toBe(false);
+    expect(sampleRatioMismatch([800, 200], [0.5, 0.5])).toBe(true);
+    expect(sampleRatioMismatch([8, 2], [0.5, 0.5])).toBe(false);
+  });
+  it('CSV: comillas y sin fórmulas de Excel', () => {
+    expect(csvCell('a,b')).toBe('"a,b"');
+    expect(csvCell('=HYPERLINK("x")')).toBe(`"'=HYPERLINK(""x"")"`);
+    expect(csvCell('@cmd')).toBe("'@cmd");
+    expect(csvCell(-5)).toBe('-5');
+    expect(csvCell(null)).toBe('');
+    expect(resultRows({ kind: 'lifecycle', interval: 'day', buckets: ['d'], new: [1], returning: [2], resurrecting: [3], dormant: [-4], truncated: false })).toEqual([
+      ['bucket', 'new', 'returning', 'resurrecting', 'dormant'],
+      ['d', 1, 2, 3, -4],
+    ]);
+  });
+  it('lo guardado antes sigue parseando con los valores nuevos por defecto', () => {
+    const old = insightQuerySchema.parse({ kind: 'trends', series: [{ event: '$pageview', math: 'unique' }], display: 'bar' });
+    expect(old.kind === 'trends' && old.excludeInternal).toBe(false);
+    expect(cohortDefinitionSchema.parse({ properties: [], behavior: { event: 'x' } }).type).toBe('dynamic');
+    expect(trendsQuerySchema.safeParse({ kind: 'trends', series: [{ event: 'x', math: 'evil' }] }).success).toBe(false);
+  });
+});
+
+describe('analytics: tendencias con matemáticas', () => {
+  let p: ProjectRow;
+  beforeAll(async () => {
+    ({ project: p } = await newProject());
+    await ingest(p, [
+      { event: 'order', distinct_id: 'a', properties: { total: 10, $session_id: 's1', $groups: { company: 'acme' } } },
+      { event: 'order', distinct_id: 'a', properties: { total: 30, $session_id: 's1', $groups: { company: 'acme' } } },
+      { event: 'order', distinct_id: 'b', properties: { total: '20', $session_id: 's2', $groups: { company: 'beta' } } },
+      { event: 'order', distinct_id: 'c', properties: { total: 'not a number', $session_id: 's3' } },
+      { event: 'view', distinct_id: 'a' },
+      { event: 'view', distinct_id: 'b' },
+    ]);
+  });
+  const trend = (series: Array<Record<string, unknown>>, extra: Record<string, unknown> = {}) => trendsQuerySchema.parse({ kind: 'trends', series, ...extra, dateRange: { from: '-2d' } });
+
+  it('suma, promedio, mínimo, máximo y percentil ignoran lo que no es número', async () => {
+    const r = await runTrends(
+      p,
+      trend([
+        { event: 'order', math: 'sum', mathProperty: 'total' },
+        { event: 'order', math: 'avg', mathProperty: 'total' },
+        { event: 'order', math: 'min', mathProperty: 'total' },
+        { event: 'order', math: 'max', mathProperty: 'total' },
+        { event: 'order', math: 'median', mathProperty: 'total' },
+      ]),
+    );
+    expect(r.series.map((s) => s.total)).toEqual([60, 20, 10, 30, 20]);
+    expect(r.series[0].label).toContain('sum of total');
+  });
+  it('sesiones, por persona y grupos únicos', async () => {
+    const r = await runTrends(
+      p,
+      trend([
+        { event: 'order', math: 'sessions' },
+        { event: 'order', math: 'per_user' },
+        { event: 'order', math: 'unique_group', groupType: 'company' },
+      ]),
+    );
+    expect(r.series[0].total).toBe(3);
+    expect(r.series[1].total).toBeCloseTo(1.33, 1);
+    expect(r.series[2].total).toBe(2);
+  });
+  it('pide la propiedad cuando hace falta', async () => {
+    await expect(runTrends(p, trend([{ event: 'order', math: 'sum' }]))).rejects.toMatchObject({ code: 'math_property_required' });
+    await expect(runTrends(p, trend([{ event: 'order', math: 'median' }]))).rejects.toMatchObject({ code: 'math_property_required' });
+  });
+  it('fórmula entre series', async () => {
+    const r = await runTrends(p, trend([{ event: 'order' }, { event: 'view' }], { formula: 'A / B' }));
+    expect(r.series).toHaveLength(1);
+    expect(r.series[0].total).toBe(2);
+    await expect(runTrends(p, trend([{ event: 'order' }], { formula: 'A +' }))).rejects.toMatchObject({ code: 'invalid_formula' });
+  });
+  it('acciones: varios pasos con OR y un filtro de URL; una acción borrada no cuenta nada', async () => {
+    const a = await createAction(p.id, 'x', { name: 'Bought or viewed', description: '', steps: [{ event: 'order', urlContains: null, filters: [] }, { event: 'view', urlContains: null, filters: [] }] });
+    const r = await runTrends(p, trend([{ event: `@action:${a.id}` }]));
+    expect(r.series[0].total).toBe(6);
+    expect(r.series[0].label).toBe('Bought or viewed');
+    const none = await runTrends(p, trend([{ event: '@action:missing' }]));
+    expect(none.series[0].total).toBe(0);
+    // Una acción de otro proyecto no se puede usar.
+    const { project: other } = await newProject();
+    const outsider = await runTrends(other, trend([{ event: `@action:${a.id}` }]));
+    expect(outsider.series[0].total).toBe(0);
+  });
+  it('filtro de gente interna, solo si la consulta lo pide', async () => {
+    const u = (await getDb().prepare('SELECT workspace_id FROM analytics_projects WHERE id = ?').get(p.id)) as { workspace_id: string };
+    await updateProject(u.workspace_id, p.id, { testFilters: [{ key: 'distinct_id', op: 'neq', value: 'a', type: 'event' }] });
+    const fresh = (await getProject(u.workspace_id, p.id))!;
+    const on = await runTrends(fresh, trend([{ event: 'view' }], { excludeInternal: true }));
+    const off = await runTrends(fresh, trend([{ event: 'view' }], { excludeInternal: false }));
+    expect(on.series[0].total).toBe(1);
+    expect(off.series[0].total).toBe(2);
+  });
+});
+
+describe('analytics: stickiness, ciclo de vida, embudos y caminos sobre datos', () => {
+  let p: ProjectRow;
+  beforeAll(async () => {
+    ({ project: p } = await newProject());
+    await ingest(p, [
+      { event: 'use', distinct_id: 'daily', ts: NOW - 2 * DAY },
+      { event: 'use', distinct_id: 'daily', ts: NOW - DAY },
+      { event: 'use', distinct_id: 'daily', ts: NOW - 1000 },
+      { event: 'use', distinct_id: 'once', ts: NOW - DAY },
+      { event: 'signup', distinct_id: 'conv1', ts: NOW - 3000, properties: { $groups: { company: 'acme' } } },
+      { event: 'video', distinct_id: 'conv1', ts: NOW - 2500 },
+      { event: 'paid', distinct_id: 'conv1', ts: NOW - 2000, properties: { $groups: { company: 'acme' } } },
+      { event: 'signup', distinct_id: 'conv2', ts: NOW - 3000, properties: { $groups: { company: 'acme' } } },
+      { event: 'video', distinct_id: 'conv2', ts: NOW - 2500 },
+      { event: 'paid', distinct_id: 'conv2', ts: NOW - 2000 },
+      { event: 'signup', distinct_id: 'drop1', ts: NOW - 3000, properties: { $groups: { company: 'beta' } } },
+      { event: 'error', distinct_id: 'drop1', ts: NOW - 2500 },
+      { event: 'signup', distinct_id: 'drop2', ts: NOW - 3000 },
+      { event: 'error', distinct_id: 'drop2', ts: NOW - 2500 },
+      { event: '$pageview', distinct_id: 'nav', ts: NOW - 4000, properties: { $session_id: 'n', $pathname: '/orders/123' } },
+      { event: 'clicked', distinct_id: 'nav', ts: NOW - 3500, properties: { $session_id: 'n' } },
+      { event: '$pageview', distinct_id: 'nav', ts: NOW - 3000, properties: { $session_id: 'n', $pathname: '/thanks' } },
+    ]);
+  });
+
+  it('stickiness cuenta días activos por persona', async () => {
+    const r = await runStickiness(p, { kind: 'stickiness', series: [{ event: 'use', filters: [] }], interval: 'day', dateRange: { from: '-7d' }, filters: [], excludeInternal: false });
+    expect(r.series[0].total).toBe(2);
+    expect(r.series[0].data[0]).toBe(1);
+    expect(r.series[0].data[2]).toBe(1);
+    expect(r.intervals).toBe(7);
+  });
+  it('ciclo de vida sobre eventos reales', async () => {
+    const r = await runLifecycle(p, { kind: 'lifecycle', event: 'use', eventFilters: [], interval: 'day', dateRange: { from: '-7d' }, filters: [], excludeInternal: false });
+    expect(r.buckets).toHaveLength(7);
+    expect(r.new.reduce((a, b) => a + b, 0)).toBe(2);
+    expect(r.returning.reduce((a, b) => a + b, 0)).toBe(2);
+    // "once" dejó de venir hoy; "daily" sigue.
+    expect(r.dormant[r.dormant.length - 1]).toBe(-1);
+  });
+  const funnel = { kind: 'funnel' as const, steps: [{ event: 'signup', filters: [] }, { event: 'paid', filters: [] }], windowDays: 14, dateRange: { from: '-7d' }, filters: [], excludeInternal: false };
+  it('embudo por grupo: cuenta empresas, no personas', async () => {
+    const r = await runFunnel(p, { ...funnel, groupType: 'company' });
+    expect(r.steps[0].count).toBe(2);
+    expect(r.steps[1].count).toBe(1);
+  });
+  it('correlación: el video empuja, el error aleja, y los pasos no cuentan', async () => {
+    const r = await runCorrelation(p, { kind: 'correlation', funnel, source: 'events' });
+    expect(r.convertedPeople).toBe(2);
+    expect(r.droppedPeople).toBe(2);
+    expect(r.positive.map((x) => x.name)).toContain('video');
+    expect(r.negative.map((x) => x.name)).toContain('error');
+    expect([...r.positive, ...r.negative].map((x) => x.name)).not.toContain('signup');
+  });
+  it('caminos con eventos propios, final y ids juntados', async () => {
+    const pages = await runPaths(p, { kind: 'paths', dateRange: { from: '-7d' }, steps: 4, source: 'pageviews', collapseIds: true });
+    expect(pages.topPaths[0].path).toEqual(['/orders/:id', '/thanks']);
+    const all = await runPaths(p, { kind: 'paths', dateRange: { from: '-7d' }, steps: 4, source: 'all', collapseIds: false, endPath: '/thanks' });
+    expect(all.topPaths[0].path).toEqual(['/orders/123', 'clicked', '/thanks']);
+    const none = await runPaths(p, { kind: 'paths', dateRange: { from: '-7d' }, steps: 4, source: 'pageviews', collapseIds: false, endPath: '/nope' });
+    expect(none.sessions).toBe(0);
+  });
+  it('retención acepta acciones', async () => {
+    const a = await createAction(p.id, 'x', { name: 'Use', description: '', steps: [{ event: 'use', urlContains: null, filters: [] }] });
+    const r = await runRetention(p, { kind: 'retention', startEvent: `@action:${a.id}`, returnEvent: `@action:${a.id}`, period: 'day', periods: 4, filters: [], excludeInternal: false });
+    expect(r.cohorts.some((c) => c.size > 0)).toBe(true);
+  });
+});
+
+describe('analytics: cohortes', () => {
+  let p: ProjectRow;
+  beforeAll(async () => {
+    ({ project: p } = await newProject());
+    await ingest(p, [
+      { event: 'buy', distinct_id: 'ana', $set: { email: 'ana@acme.com', plan: 'pro' } },
+      { event: 'buy', distinct_id: 'ana' },
+      { event: 'view', distinct_id: 'bob', $set: { email: 'bob@acme.com', plan: 'free' } },
+      { event: 'view', distinct_id: 'cid', $set: { email: 'cid@other.com', plan: 'free' } },
+    ]);
+  });
+  const count = (id: string, def: Parameters<typeof countPersons>[1]) => countPersons(p.id, def, Date.now(), id);
+
+  it('grupos con OR, reglas con AND y "no hizo"', async () => {
+    const orDef = cohortDefinitionSchema.parse({
+      groups: [
+        { properties: [{ key: 'plan', op: 'eq', value: 'pro' }] },
+        { properties: [{ key: 'email', op: 'contains', value: 'other.com' }] },
+      ],
+    });
+    expect(await count('x', orDef)).toBe(2);
+    const andDef = cohortDefinitionSchema.parse({ groups: [{ properties: [{ key: 'plan', op: 'eq', value: 'free' }], behaviors: [{ event: 'view', days: 7, minCount: 1 }] }] });
+    expect(await count('x', andDef)).toBe(2);
+    const notDef = cohortDefinitionSchema.parse({ groups: [{ behaviors: [{ event: 'buy', days: 7, minCount: 1, negate: true }] }] });
+    expect(await count('x', notDef)).toBe(2);
+    const minDef = cohortDefinitionSchema.parse({ groups: [{ behaviors: [{ event: 'buy', days: 7, minCount: 2 }] }] });
+    expect(await count('x', minDef)).toBe(1);
+  });
+  it('una cohorte vieja (propiedades y una regla) sigue andando', async () => {
+    const def = cohortDefinitionSchema.parse({ properties: [{ key: 'plan', op: 'eq', value: 'pro' }], behavior: { event: 'buy', days: 7, minCount: 1 } });
+    expect(await count('x', def)).toBe(1);
+  });
+  it('estática: por distinct_id, por email sin distinguir mayúsculas; lo ajeno se cuenta y no entra', async () => {
+    const c = await createCohort(p.id, 'x', { name: 'List', definition: cohortDefinitionSchema.parse({ type: 'static' }) });
+    const res = await addCohortMembers(p.id, c.id, ['ana', 'BOB@acme.com', 'nobody', 'nobody']);
+    expect(res).toEqual({ added: 2, notFound: 1 });
+    expect(await count(c.id, c.definition)).toBe(2);
+    const listed = await listPersons(p.id, { cohort: c.definition, cohortId: c.id });
+    expect(listed.persons).toHaveLength(2);
+    // Repetir no suma.
+    expect((await addCohortMembers(p.id, c.id, ['ana'])).added).toBe(0);
+    // Una persona de otro proyecto no se puede sumar.
+    const { project: other } = await newProject();
+    await ingest(other, [{ event: 'x', distinct_id: 'stranger' }]);
+    expect(await addCohortMembers(p.id, c.id, ['stranger'])).toEqual({ added: 0, notFound: 1 });
+    // Sirve como filtro en una tendencia.
+    const r = await runTrends(p, trendsQuerySchema.parse({ kind: 'trends', series: [{ event: 'buy' }], cohortId: c.id, dateRange: { from: '-2d' } }));
+    expect(r.series[0].total).toBe(2);
+    expect((await getCohort(p.id, c.id))?.definition.type).toBe('static');
+  });
+  it('lee listas pegadas o en CSV', () => {
+    expect(parseMemberList('email,name\na@b.c,Ana\n"d@e.f",Di\n\n')).toEqual(['a@b.c', 'd@e.f']);
+  });
+});
+
+describe('analytics: flags con grupos y payloads', () => {
+  it('el primer grupo que aplica decide; quien queda fuera del % sigue al siguiente; se puede forzar variante', () => {
+    const base = { key: 'f', active: true, rollout: 100, conditions: [], variants: [{ key: 'a', rollout: 50 }, { key: 'b', rollout: 50 }] };
+    const v = evaluateFlag(
+      {
+        ...base,
+        groups: [
+          { conditions: [{ key: 'plan', op: 'eq', value: 'pro', type: 'person' }], cohortId: null, rollout: 100, variant: 'b' },
+          { conditions: [], cohortId: null, rollout: 0, variant: null },
+        ],
+      },
+      'u',
+      { plan: 'pro' },
+    );
+    expect(v).toBe('b');
+    expect(evaluateFlag({ ...base, groups: [{ conditions: [{ key: 'plan', op: 'eq', value: 'pro', type: 'person' }], cohortId: null, rollout: 100, variant: null }, { conditions: [], cohortId: null, rollout: 0, variant: null }] }, 'u', { plan: 'free' })).toBe(false);
+    expect(evaluateFlag({ ...base, variants: [], groups: [{ conditions: [], cohortId: 'c1', rollout: 100, variant: null }] }, 'u', {}, new Set())).toBe(false);
+    expect(evaluateFlag({ ...base, variants: [], groups: [{ conditions: [], cohortId: 'c1', rollout: 100, variant: null }] }, 'u', {}, new Set(['c1']))).toBe(true);
+  });
+  it('decide trae payloads y entiende cohortes', async () => {
+    const { project: p } = await newProject();
+    await ingest(p, [{ event: 'x', distinct_id: 'vip', $set: { plan: 'pro' } }, { event: 'x', distinct_id: 'nope', $set: { plan: 'free' } }]);
+    const cohort = await createCohort(p.id, 'u', { name: 'Pros', definition: cohortDefinitionSchema.parse({ groups: [{ properties: [{ key: 'plan', op: 'eq', value: 'pro' }] }] }) });
+    const flag = await createFlag(p.id, 'u', { key: 'promo', name: '', active: true, rollout: 100, variants: [], conditions: [], groups: [{ conditions: [], cohortId: cohort.id, rollout: 100, variant: null }], payloads: { true: '{"color":"green"}' } });
+    expect(typeof flag).toBe('object');
+    forgetFlagsCache(p.id);
+    const vip = await decideFlagsFull(p.id, 'vip');
+    expect(vip.flags.promo).toBe(true);
+    expect(vip.payloads.promo).toEqual({ color: 'green' });
+    const nope = await decideFlagsFull(p.id, 'nope');
+    expect(nope.flags.promo).toBe(false);
+    expect(nope.payloads.promo).toBeUndefined();
+  });
+});
+
+describe('analytics: experimentos', () => {
+  it('mide cada variante después de la exposición, deja afuera a quien vio dos y no permite borrar el flag', async () => {
+    const { project: p } = await newProject();
+    const flag = await createFlag(p.id, 'u', { key: 'exp', name: '', active: false, rollout: 100, variants: [{ key: 'control', rollout: 50 }, { key: 'test', rollout: 50 }], conditions: [], groups: [], payloads: {} });
+    if (typeof flag === 'string') throw new Error(flag);
+    const started = NOW - 60_000;
+    const x = await createExperiment(p.id, 'u', { name: 'E', hypothesis: '', flagId: flag.id, metrics: [{ event: 'paid', filters: [], type: 'conversion', mathProperty: null }, { event: 'paid', filters: [], type: 'mean', mathProperty: 'total' }] });
+    if (typeof x === 'string') throw new Error(x);
+    expect(await experimentsUsingFlag(p.id, flag.id)).toBe(1);
+    expect((await experimentResults(p.id, x)).exposedTotal).toBe(0);
+    await setExperimentStatus(p.id, x.id, 'start', started);
+    expect(await setExperimentStatus(p.id, x.id, 'start', started)).toBe('invalid_state');
+    const exp = (d: string, v: string, ts: number): Ev => ({ event: '$feature_flag_called', distinct_id: d, ts, properties: { $feature_flag: 'exp', $feature_flag_response: v } });
+    const t = started + 1000;
+    await ingest(p, [
+      // Pagó antes de ver el flag: no cuenta.
+      { event: 'paid', distinct_id: 'early', ts: t, properties: { total: 100 } },
+      exp('early', 'control', t + 1000),
+      exp('c1', 'control', t),
+      exp('t1', 'test', t),
+      { event: 'paid', distinct_id: 't1', ts: t + 2000, properties: { total: 50 } },
+      { event: 'paid', distinct_id: 't1', ts: t + 3000, properties: { total: 10 } },
+      // Vio las dos variantes.
+      exp('both', 'control', t),
+      exp('both', 'test', t + 1),
+      // Otro flag y una variante que no existe no cuentan.
+      { event: '$feature_flag_called', distinct_id: 'other', ts: t, properties: { $feature_flag: 'zzz', $feature_flag_response: 'test' } },
+      exp('forged', 'hacked', t),
+    ]);
+    const fresh = (await getExperiment(p.id, x.id))!;
+    const r = await experimentResults(p.id, fresh);
+    expect(r.exposedTotal).toBe(3);
+    expect(r.multipleVariants).toBe(1);
+    const conv = r.metrics[0].variants;
+    expect(conv.map((v) => v.key)).toEqual(['control', 'test']);
+    expect(conv[0]).toMatchObject({ exposed: 2, value: 0 });
+    expect(conv[1]).toMatchObject({ exposed: 1, value: 1 });
+    expect(r.metrics[1].variants[1].value).toBe(60);
+    // Con tan poca gente no se declara ganador.
+    expect(r.metrics[0].winner).toBeNull();
+    await setExperimentStatus(p.id, x.id, 'stop');
+    expect(await shipVariant(p.id, x.id, 'nope')).toBe('invalid_variant');
+    const done = await shipVariant(p.id, x.id, 'test');
+    expect(typeof done === 'object' && done?.conclusion).toBe('test');
+    forgetFlagsCache(p.id);
+    expect((await decideFlagsFull(p.id, 'anyone')).flags.exp).toBe('test');
+    await deleteFlag(p.id, 'none');
+  });
+  it('rechaza un flag sin variantes', async () => {
+    const { project: p } = await newProject();
+    const flag = await createFlag(p.id, 'u', { key: 'plain', name: '', active: true, rollout: 100, variants: [], conditions: [], groups: [], payloads: {} });
+    if (typeof flag === 'string') throw new Error(flag);
+    expect(await createExperiment(p.id, 'u', { name: 'E', hypothesis: '', flagId: flag.id, metrics: [{ event: 'x', filters: [], type: 'conversion', mathProperty: null }] })).toBe('flag_not_multivariate');
+    expect(await createExperiment(p.id, 'u', { name: 'E', hypothesis: '', flagId: 'missing', metrics: [{ event: 'x', filters: [], type: 'conversion', mathProperty: null }] })).toBe('flag_not_found');
+  });
+});
+
+describe('analytics: links públicos', () => {
+  it('muestra el resultado sin la consulta ni ids de personas, y revocar corta al instante', async () => {
+    const { project: p } = await newProject();
+    await ingest(p, [{ event: 'signup', distinct_id: 'secret-person@acme.com' }]);
+    const insight = await createInsight(p.id, 'u', {
+      name: 'Funnel',
+      query: insightQuerySchema.parse({ kind: 'funnel', steps: [{ event: 'signup', filters: [{ key: 'email', op: 'neq', value: 'hidden-filter@acme.com', type: 'person' }] }, { event: 'paid' }] }),
+    });
+    const share = await createShare(p.id, 'u', { insightId: insight.id });
+    expect(share.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    const view = await publicShareView(share.token);
+    const json = JSON.stringify(view);
+    expect(view?.tiles[0].result?.kind).toBe('funnel');
+    expect((view?.tiles[0].result as FunnelResult).steps[0].count).toBe(1);
+    expect(json).not.toContain('secret-person');
+    expect(json).not.toContain('hidden-filter');
+    await revokeShare(p.id, share.id);
+    expect(await publicShareView(share.token)).toBeNull();
+    expect(await shareByToken('nope')).toBeNull();
+    expect(publicResult({ kind: 'funnel', steps: [], droppedPersons: [['x']], truncated: false })).toMatchObject({ droppedPersons: [[]] });
+  });
+  it('un tablero muestra solo sus insights; borrar el proyecto apaga el link', async () => {
+    const { user, project: p } = await newProject();
+    const a = await createInsight(p.id, 'u', { name: 'On board', query: insightQuerySchema.parse({ kind: 'trends', series: [{ event: 'x' }] }) });
+    await createInsight(p.id, 'u', { name: 'Not on board', query: insightQuerySchema.parse({ kind: 'trends', series: [{ event: 'y' }] }) });
+    const { createDashboard, updateDashboard } = await import('@/lib/analytics/records');
+    const d = await createDashboard(p.id, 'u', { name: 'Board' });
+    await updateDashboard(p.id, d.id, { insightIds: [a.id] });
+    const share = await createShare(p.id, 'u', { dashboardId: d.id });
+    const view = await publicShareView(share.token);
+    expect(view?.tiles.map((t) => t.name)).toEqual(['On board']);
+    await getDb().prepare('UPDATE analytics_projects SET deleted_at = ? WHERE id = ?').run(Date.now(), p.id);
+    expect(await publicShareView(share.token)).toBeNull();
+    expect(user.id).toBeTruthy();
+  });
+  it('un id de otro workspace responde 404 por la guarda de registros', async () => {
+    const { project: p } = await newProject();
+    const { user: stranger } = await newProject();
+    const share = await createShare(p.id, 'u', { insightId: undefined });
+    const res = await recordProject({ workspaceId: stranger.id, personId: stranger.id, role: 'owner', user: null }, 'analytics_shares', share.id);
+    expect('status' in res && (res as Response).status).toBe(404);
+  });
+});
+
+describe('analytics: alertas', () => {
+  it('dispara por umbral o porcentaje; sin base no dispara', () => {
+    expect(alertFires('above', 10, 11, null)).toBe(true);
+    expect(alertFires('above', 10, 10, null)).toBe(false);
+    expect(alertFires('below', 10, 9, null)).toBe(true);
+    expect(alertFires('increase_pct', 50, 200, 100)).toBe(true);
+    expect(alertFires('increase_pct', 50, 200, null)).toBe(false);
+    expect(alertFires('increase_pct', 50, 200, 0)).toBe(false);
+    expect(alertFires('decrease_pct', 50, 40, 100)).toBe(true);
+  });
+
+  async function setup() {
+    const { user, project: p } = await newProject();
+    const insight = await createInsight(p.id, user.id, { name: 'Daily', query: insightQuerySchema.parse({ kind: 'trends', series: [{ event: 'sale' }] }) });
+    await ingest(p, [
+      { event: 'sale', distinct_id: 'a', ts: NOW - DAY },
+      { event: 'sale', distinct_id: 'b', ts: NOW - DAY },
+      { event: 'sale', distinct_id: 'c', ts: NOW - DAY },
+    ]);
+    return { user, p, insight };
+  }
+  const notices = async (userId: string) => (await getDb().prepare("SELECT title FROM notifications WHERE user_id = ? AND type = 'analytics_alert'").all(userId)) as Array<{ title: string }>;
+
+  it('avisa una vez al dispararse, no repite mientras siga y vuelve a avisar tras normalizarse', async () => {
+    const { user, p, insight } = await setup();
+    const alert = await createAlert(p.id, user.id, { name: 'Ventas altas', insightId: insight.id, seriesIndex: 0, condition: 'above', threshold: 2, frequency: 'daily', enabled: true, subscribers: [] });
+    if (typeof alert === 'string') throw new Error(alert);
+    expect((await runAlertsCron({ now: NOW })).fired).toBeGreaterThanOrEqual(1);
+    expect(await notices(user.id)).toHaveLength(1);
+    expect((await notices(user.id))[0].title).toContain('Ventas altas');
+    const after = (await listAlerts(p.id))[0];
+    expect(after.state).toBe('firing');
+    expect(after.lastValue).toBe(3);
+    // Ya corrió: no le toca hasta mañana.
+    await runAlertsCron({ now: NOW + 1000 });
+    expect(await notices(user.id)).toHaveLength(1);
+    // Vence, sigue arriba: no repite.
+    await getDb().prepare('UPDATE analytics_alerts SET next_check_at = 0 WHERE id = ?').run(alert.id);
+    await runAlertsCron({ now: NOW + 2000 });
+    expect(await notices(user.id)).toHaveLength(1);
+    // Se normaliza y vuelve a dispararse: un aviso más.
+    await getDb().prepare("UPDATE analytics_alerts SET next_check_at = 0, state = 'ok' WHERE id = ?").run(alert.id);
+    await runAlertsCron({ now: NOW + 3000 });
+    expect(await notices(user.id)).toHaveLength(2);
+    expect(await deleteAlert(p.id, alert.id)).toBe(true);
+  });
+  it('una alerta reclamada por otra corrida no se corre dos veces', async () => {
+    const { user, p, insight } = await setup();
+    const alert = await createAlert(p.id, user.id, { name: 'A', insightId: insight.id, seriesIndex: 0, condition: 'above', threshold: 0, frequency: 'daily', enabled: true, subscribers: [] });
+    if (typeof alert === 'string') throw new Error(alert);
+    await getDb().prepare('UPDATE analytics_alerts SET claimed_at = ? WHERE id = ?').run(NOW, alert.id);
+    await runAlertsCron({ now: NOW + 1000 });
+    expect(await notices(user.id)).toHaveLength(0);
+  });
+  it('no avisa a quien no es del workspace; solo tendencias; tope por proyecto', async () => {
+    const { user, p, insight } = await setup();
+    const { user: stranger } = await newProject();
+    const alert = await createAlert(p.id, user.id, { name: 'A', insightId: insight.id, seriesIndex: 0, condition: 'above', threshold: 0, frequency: 'daily', enabled: true, subscribers: [stranger.id] });
+    if (typeof alert === 'string') throw new Error(alert);
+    await runAlertsCron({ now: NOW });
+    expect(await notices(stranger.id)).toHaveLength(0);
+    const funnel = await createInsight(p.id, user.id, { name: 'F', query: insightQuerySchema.parse({ kind: 'funnel', steps: [{ event: 'a' }, { event: 'b' }] }) });
+    expect(await createAlert(p.id, user.id, { name: 'B', insightId: funnel.id, seriesIndex: 0, condition: 'above', threshold: 1, frequency: 'daily', enabled: true, subscribers: [] })).toBe('insight_not_found');
+    expect(await createAlert(p.id, user.id, { name: 'B', insightId: 'other', seriesIndex: 0, condition: 'above', threshold: 1, frequency: 'daily', enabled: true, subscribers: [] })).toBe('insight_not_found');
+  });
+});
+
+describe('analytics: anotaciones, datos y borrado', () => {
+  it('anotaciones por fecha; definiciones ocultan de los selectores', async () => {
+    const { project: p } = await newProject();
+    await createAnnotation(p.id, 'u', { date: '2026-10-01', content: 'Launch' });
+    expect((await listAnnotations(p.id))[0].content).toBe('Launch');
+    await ingest(p, [{ event: 'noise', distinct_id: 'a' }]);
+    await saveEventDefinition(p.id, 'noise', { description: 'Ruido', verified: false, hidden: true });
+    expect(await hiddenEvents(p.id)).toContain('noise');
+    expect((await listEventDefinitions(p.id)).find((d) => d.event === 'noise')).toMatchObject({ description: 'Ruido', hidden: true, count30d: 1 });
+  });
+  it('borrar un proyecto no deja nada de lo nuevo', async () => {
+    const { user, project: p } = await newProject();
+    const insight = await createInsight(p.id, user.id, { name: 'I', query: insightQuerySchema.parse({ kind: 'trends', series: [{ event: 'x' }] }) });
+    await createShare(p.id, user.id, { insightId: insight.id });
+    await createAnnotation(p.id, user.id, { date: '2026-10-01', content: 'x' });
+    await createAction(p.id, user.id, { name: 'a', description: '', steps: [] });
+    await createAlert(p.id, user.id, { name: 'a', insightId: insight.id, seriesIndex: 0, condition: 'above', threshold: 1, frequency: 'daily', enabled: true, subscribers: [] });
+    await saveEventDefinition(p.id, 'x', { description: '', verified: false, hidden: false });
+    await getDb().prepare('UPDATE analytics_projects SET deleted_at = ? WHERE id = ?').run(Date.now(), p.id);
+    // El cron purga de a 5 proyectos borrados: los de otros tests pueden ir antes.
+    for (let i = 0; i < 6; i++) await runAnalyticsCron({ budgetMs: 15_000 });
+    for (const table of ['analytics_shares', 'analytics_annotations', 'analytics_actions', 'analytics_alerts', 'analytics_event_defs', 'analytics_projects']) {
+      const col = table === 'analytics_projects' ? 'id' : 'project_id';
+      const r = (await getDb().prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE ${col} = ?`).get(p.id)) as { n: number };
+      expect(Number(r.n), table).toBe(0);
+    }
+  });
+  it('un insight SQL sigue corriendo por el despacho', async () => {
+    const { project: p } = await newProject();
+    await expect(runInsight(p, { kind: 'stickiness', series: [{ event: 'x', filters: [] }], interval: 'week', dateRange: { from: '-14d' }, filters: [], excludeInternal: false })).resolves.toMatchObject({ kind: 'stickiness' });
+  });
+});

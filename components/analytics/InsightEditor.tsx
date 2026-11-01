@@ -12,17 +12,21 @@ import type {
   InsightQuery,
   InsightResult,
   PathsQuery,
+  LifecycleQuery,
   RetentionQuery,
   SqlQuery,
+  StickinessQuery,
   TrendsQuery,
 } from '@/lib/analytics/types';
+import { PROPERTY_MATHS, SERIES_MATHS, TREND_DISPLAYS, type InsightQuery as AnyQuery, type SeriesMath } from '@/lib/analytics/types';
+import { AlertsPanel, CorrelationPanel, ShareDialog, downloadCsv } from './InsightPanels';
 import { ApiError, apiErrorText, api, notifyChanged, runQuery } from './client';
 import { EventInput, FilterList, cleanFilters, useProjectMeta, type ProjectMeta } from './Filters';
 import InsightResultView from './InsightResultView';
 import NameDialog from './NameDialog';
-import RangeSelect from './RangeSelect';
+import { DateRangePicker } from './RangeSelect';
 
-const DEFAULTS: { trends: TrendsQuery; funnel: FunnelQuery; retention: RetentionQuery; paths: PathsQuery; sql: SqlQuery } = {
+const DEFAULTS: { trends: TrendsQuery; funnel: FunnelQuery; retention: RetentionQuery; paths: PathsQuery; sql: SqlQuery; stickiness: StickinessQuery; lifecycle: LifecycleQuery } = {
   trends: {
     kind: 'trends',
     series: [{ event: '$pageview', math: 'total', filters: [] }],
@@ -33,6 +37,8 @@ const DEFAULTS: { trends: TrendsQuery; funnel: FunnelQuery; retention: Retention
     filters: [],
     cohortId: null,
     display: 'line',
+    formula: null,
+    excludeInternal: false,
   },
   funnel: {
     kind: 'funnel',
@@ -44,9 +50,13 @@ const DEFAULTS: { trends: TrendsQuery; funnel: FunnelQuery; retention: Retention
     dateRange: { from: '-30d' },
     filters: [],
     cohortId: null,
+    groupType: null,
+    excludeInternal: false,
   },
-  retention: { kind: 'retention', startEvent: '$pageview', returnEvent: '$pageview', period: 'week', periods: 8, filters: [], cohortId: null },
-  paths: { kind: 'paths', dateRange: { from: '-7d' }, startPath: null, steps: 4 },
+  retention: { kind: 'retention', startEvent: '$pageview', returnEvent: '$pageview', period: 'week', periods: 8, filters: [], cohortId: null, excludeInternal: false },
+  paths: { kind: 'paths', dateRange: { from: '-7d' }, startPath: null, endPath: null, steps: 4, source: 'pageviews', collapseIds: false },
+  stickiness: { kind: 'stickiness', series: [{ event: '$pageview', filters: [] }], interval: 'day', dateRange: { from: '-30d' }, filters: [], cohortId: null, excludeInternal: false },
+  lifecycle: { kind: 'lifecycle', event: '$pageview', eventFilters: [], interval: 'day', dateRange: { from: '-30d' }, filters: [], cohortId: null, excludeInternal: false },
   sql: { kind: 'sql', sql: "SELECT event, count() AS n FROM events WHERE timestamp > (strftime('%s','now') - 7*86400) * 1000 GROUP BY event ORDER BY n DESC" },
 };
 
@@ -64,6 +74,10 @@ function clean(q: InsightQuery): InsightQuery {
       return { ...q, filters: cleanFilters(q.filters), steps: q.steps.map((s) => ({ ...s, event: s.event.trim() || '*', filters: cleanFilters(s.filters) })) };
     case 'retention':
       return { ...q, filters: cleanFilters(q.filters), startEvent: q.startEvent.trim() || '$pageview', returnEvent: q.returnEvent.trim() || '$pageview' };
+    case 'stickiness':
+      return { ...q, filters: cleanFilters(q.filters), series: q.series.map((s) => ({ ...s, event: s.event.trim() || '*', filters: cleanFilters(s.filters) })) };
+    case 'lifecycle':
+      return { ...q, filters: cleanFilters(q.filters), eventFilters: cleanFilters(q.eventFilters), event: q.event.trim() || '$pageview' };
     default:
       return q;
   }
@@ -71,12 +85,11 @@ function clean(q: InsightQuery): InsightQuery {
 
 function CohortSelect({ value, onChange, cohorts }: { value: string | null | undefined; onChange: (v: string | null) => void; cohorts: Array<{ id: string; name: string }> }) {
   const t = useTranslations('analytics.editor');
-  if (!cohorts.length) return null;
   return (
     <label className="ui-field an-inline-field">
       <span className="label">{t('cohort')}</span>
-      <select className="select" value={value ?? ''} onChange={(e) => onChange(e.target.value || null)}>
-        <option value="">{t('everyone')}</option>
+      <select className="select" value={value ?? ''} disabled={!cohorts.length} onChange={(e) => onChange(e.target.value || null)}>
+        <option value="">{cohorts.length ? t('everyone') : t('noCohorts')}</option>
         {cohorts.map((c) => (
           <option key={c.id} value={c.id}>
             {c.name}
@@ -87,7 +100,27 @@ function CohortSelect({ value, onChange, cohorts }: { value: string | null | und
   );
 }
 
-function TrendsForm({ q, set, meta, cohorts }: { q: TrendsQuery; set: (q: TrendsQuery) => void; meta: ProjectMeta; cohorts: Array<{ id: string; name: string }> }) {
+/** Excluir gente interna: si el proyecto no definió quién es, se ve apagado y dice dónde se define. */
+function InternalToggle({ value, onChange, available }: { value: boolean; onChange: (v: boolean) => void; available: boolean }) {
+  const t = useTranslations('analytics.editor');
+  return (
+    <div className="an-form-tight">
+      <label className="ui-check">
+        <input type="checkbox" checked={value && available} disabled={!available} onChange={(e) => onChange(e.target.checked)} /> {t('excludeInternal')}
+      </label>
+      {!available && (
+        <span className="ui-help">
+          {t('excludeInternalOff')}{' '}
+          <Link href="/app/analytics/settings#an-internal" className="an-link">
+            {t('settingsLink')}
+          </Link>
+        </span>
+      )}
+    </div>
+  );
+}
+
+function TrendsForm({ q, set, meta, cohorts, internal }: { q: TrendsQuery; set: (q: TrendsQuery) => void; meta: ProjectMeta; cohorts: Array<{ id: string; name: string }>; internal: boolean }) {
   const t = useTranslations('analytics.editor');
   const letters = 'ABCDE';
   return (
@@ -106,10 +139,13 @@ function TrendsForm({ q, set, meta, cohorts }: { q: TrendsQuery; set: (q: Trends
               className="select"
               aria-label={t('math')}
               value={s.math}
-              onChange={(e) => set({ ...q, series: q.series.map((x, j) => (j === i ? { ...x, math: e.target.value as 'total' | 'unique' } : x)) })}
+              onChange={(e) => set({ ...q, series: q.series.map((x, j) => (j === i ? { ...x, math: e.target.value as SeriesMath } : x)) })}
             >
-              <option value="total">{t('mathTotal')}</option>
-              <option value="unique">{t('mathUnique')}</option>
+              {SERIES_MATHS.map((m) => (
+                <option key={m} value={m}>
+                  {t(`maths.${m}`)}
+                </option>
+              ))}
             </select>
             {q.series.length > 1 && (
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ ...q, series: q.series.filter((_, j) => j !== i) })}>
@@ -117,6 +153,26 @@ function TrendsForm({ q, set, meta, cohorts }: { q: TrendsQuery; set: (q: Trends
               </button>
             )}
           </div>
+          {PROPERTY_MATHS.includes(s.math) && (
+            <input
+              className="input"
+              aria-label={t('mathProperty')}
+              placeholder={t('mathProperty')}
+              list="an-breakdown-keys"
+              required
+              value={s.mathProperty ?? ''}
+              onChange={(e) => set({ ...q, series: q.series.map((x, j) => (j === i ? { ...x, mathProperty: e.target.value || undefined } : x)) })}
+            />
+          )}
+          {s.math === 'unique_group' && (
+            <input
+              className="input"
+              aria-label={t('groupType')}
+              placeholder={t('groupTypePlaceholder')}
+              value={s.groupType ?? ''}
+              onChange={(e) => set({ ...q, series: q.series.map((x, j) => (j === i ? { ...x, groupType: e.target.value || undefined } : x)) })}
+            />
+          )}
           <FilterList filters={s.filters} onChange={(filters) => set({ ...q, series: q.series.map((x, j) => (j === i ? { ...x, filters } : x)) })} meta={meta} />
         </fieldset>
       ))}
@@ -126,7 +182,7 @@ function TrendsForm({ q, set, meta, cohorts }: { q: TrendsQuery; set: (q: Trends
         </button>
       )}
       <div className="an-row an-wrap">
-        <RangeSelect value={q.dateRange.from} onChange={(from) => set({ ...q, dateRange: { from } })} />
+        <DateRangePicker value={q.dateRange} onChange={(dateRange) => set({ ...q, dateRange })} />
         <select className="select" aria-label={t('interval')} value={q.interval} onChange={(e) => set({ ...q, interval: e.target.value as TrendsQuery['interval'] })}>
           {(['hour', 'day', 'week', 'month'] as const).map((iv) => (
             <option key={iv} value={iv}>
@@ -135,7 +191,7 @@ function TrendsForm({ q, set, meta, cohorts }: { q: TrendsQuery; set: (q: Trends
           ))}
         </select>
         <select className="select" aria-label={t('display')} value={q.display} onChange={(e) => set({ ...q, display: e.target.value as TrendsQuery['display'] })}>
-          {(['line', 'bar', 'number', 'table'] as const).map((d) => (
+          {TREND_DISPLAYS.map((d) => (
             <option key={d} value={d}>
               {t(`displays.${d}`)}
             </option>
@@ -145,6 +201,19 @@ function TrendsForm({ q, set, meta, cohorts }: { q: TrendsQuery; set: (q: Trends
           <input type="checkbox" checked={q.compare} onChange={(e) => set({ ...q, compare: e.target.checked })} /> {t('compare')}
         </label>
       </div>
+      <label className="ui-field">
+        <span className="label">{t('formula')}</span>
+        <input
+          className="input an-mono"
+          placeholder="A / B * 100"
+          value={q.formula ?? ''}
+          maxLength={200}
+          disabled={Boolean(q.breakdown)}
+          onChange={(e) => set({ ...q, formula: e.target.value || null })}
+          spellCheck={false}
+        />
+        <span className="ui-help">{q.breakdown ? t('formulaOff') : t('formulaHelp')}</span>
+      </label>
       <div className="an-row an-wrap">
         <span className="label">{t('breakdown')}</span>
         <select
@@ -175,11 +244,12 @@ function TrendsForm({ q, set, meta, cohorts }: { q: TrendsQuery; set: (q: Trends
         <FilterList filters={q.filters} onChange={(filters) => set({ ...q, filters })} meta={meta} />
         <CohortSelect value={q.cohortId} onChange={(cohortId) => set({ ...q, cohortId })} cohorts={cohorts} />
       </details>
+      <InternalToggle value={q.excludeInternal} onChange={(excludeInternal) => set({ ...q, excludeInternal })} available={internal} />
     </div>
   );
 }
 
-function FunnelForm({ q, set, meta, cohorts }: { q: FunnelQuery; set: (q: FunnelQuery) => void; meta: ProjectMeta; cohorts: Array<{ id: string; name: string }> }) {
+function FunnelForm({ q, set, meta, cohorts, internal }: { q: FunnelQuery; set: (q: FunnelQuery) => void; meta: ProjectMeta; cohorts: Array<{ id: string; name: string }>; internal: boolean }) {
   const t = useTranslations('analytics.editor');
   return (
     <div className="an-form">
@@ -205,7 +275,7 @@ function FunnelForm({ q, set, meta, cohorts }: { q: FunnelQuery; set: (q: Funnel
         </button>
       )}
       <div className="an-row an-wrap">
-        <RangeSelect value={q.dateRange.from} onChange={(from) => set({ ...q, dateRange: { from } })} />
+        <DateRangePicker value={q.dateRange} onChange={(dateRange) => set({ ...q, dateRange })} />
         <label className="ui-field an-inline-field">
           <span className="label">{t('window')}</span>
           <input
@@ -217,17 +287,28 @@ function FunnelForm({ q, set, meta, cohorts }: { q: FunnelQuery; set: (q: Funnel
             onChange={(e) => set({ ...q, windowDays: Math.min(90, Math.max(1, Number(e.target.value) || 1)) })}
           />
         </label>
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('countBy')}</span>
+          <input
+            className="input"
+            placeholder={t('countByPeople')}
+            value={q.groupType ?? ''}
+            maxLength={100}
+            onChange={(e) => set({ ...q, groupType: e.target.value || null })}
+          />
+        </label>
       </div>
       <details className="an-more">
         <summary>{t('globalFilters')}</summary>
         <FilterList filters={q.filters} onChange={(filters) => set({ ...q, filters })} meta={meta} />
         <CohortSelect value={q.cohortId} onChange={(cohortId) => set({ ...q, cohortId })} cohorts={cohorts} />
       </details>
+      <InternalToggle value={q.excludeInternal} onChange={(excludeInternal) => set({ ...q, excludeInternal })} available={internal} />
     </div>
   );
 }
 
-function RetentionForm({ q, set, meta, cohorts }: { q: RetentionQuery; set: (q: RetentionQuery) => void; meta: ProjectMeta; cohorts: Array<{ id: string; name: string }> }) {
+function RetentionForm({ q, set, meta, cohorts, internal }: { q: RetentionQuery; set: (q: RetentionQuery) => void; meta: ProjectMeta; cohorts: Array<{ id: string; name: string }>; internal: boolean }) {
   const t = useTranslations('analytics.editor');
   return (
     <div className="an-form">
@@ -256,6 +337,87 @@ function RetentionForm({ q, set, meta, cohorts }: { q: RetentionQuery; set: (q: 
         <FilterList filters={q.filters} onChange={(filters) => set({ ...q, filters })} meta={meta} />
         <CohortSelect value={q.cohortId} onChange={(cohortId) => set({ ...q, cohortId })} cohorts={cohorts} />
       </details>
+      <InternalToggle value={q.excludeInternal} onChange={(excludeInternal) => set({ ...q, excludeInternal })} available={internal} />
+    </div>
+  );
+}
+
+function StickinessForm({ q, set, meta, cohorts, internal }: { q: StickinessQuery; set: (q: StickinessQuery) => void; meta: ProjectMeta; cohorts: Array<{ id: string; name: string }>; internal: boolean }) {
+  const t = useTranslations('analytics.editor');
+  return (
+    <div className="an-form">
+      <p className="an-note">{t('stickyHelp')}</p>
+      {q.series.map((s, i) => (
+        <fieldset key={i} className="an-series">
+          <legend className="an-series-legend">
+            <span className={`an-s${i % 6}`}>
+              <i className="an-swatch" aria-hidden="true" />
+            </span>{' '}
+            {t('seriesN', { n: 'ABCDE'[i] })}
+          </legend>
+          <div className="an-row">
+            <EventInput value={s.event} onChange={(event) => set({ ...q, series: q.series.map((x, j) => (j === i ? { ...x, event } : x)) })} meta={meta} label={t('event')} />
+            {q.series.length > 1 && (
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ ...q, series: q.series.filter((_, j) => j !== i) })}>
+                {t('removeSeries')}
+              </button>
+            )}
+          </div>
+          <FilterList filters={s.filters} onChange={(filters) => set({ ...q, series: q.series.map((x, j) => (j === i ? { ...x, filters } : x)) })} meta={meta} />
+        </fieldset>
+      ))}
+      {q.series.length < 5 && (
+        <button type="button" className="btn btn-sm" onClick={() => set({ ...q, series: [...q.series, { event: '$pageview', filters: [] }] })}>
+          + {t('addSeries')}
+        </button>
+      )}
+      <div className="an-row an-wrap">
+        <DateRangePicker value={q.dateRange} onChange={(dateRange) => set({ ...q, dateRange })} />
+        <select className="select" aria-label={t('interval')} value={q.interval} onChange={(e) => set({ ...q, interval: e.target.value as StickinessQuery['interval'] })}>
+          {(['day', 'week', 'month'] as const).map((iv) => (
+            <option key={iv} value={iv}>
+              {t(`intervals.${iv}`)}
+            </option>
+          ))}
+        </select>
+      </div>
+      <details className="an-more">
+        <summary>{t('globalFilters')}</summary>
+        <FilterList filters={q.filters} onChange={(filters) => set({ ...q, filters })} meta={meta} />
+        <CohortSelect value={q.cohortId} onChange={(cohortId) => set({ ...q, cohortId })} cohorts={cohorts} />
+      </details>
+      <InternalToggle value={q.excludeInternal} onChange={(excludeInternal) => set({ ...q, excludeInternal })} available={internal} />
+    </div>
+  );
+}
+
+function LifecycleForm({ q, set, meta, cohorts, internal }: { q: LifecycleQuery; set: (q: LifecycleQuery) => void; meta: ProjectMeta; cohorts: Array<{ id: string; name: string }>; internal: boolean }) {
+  const t = useTranslations('analytics.editor');
+  return (
+    <div className="an-form">
+      <p className="an-note">{t('lifeHelp')}</p>
+      <fieldset className="an-series">
+        <div className="an-row">
+          <EventInput value={q.event} onChange={(event) => set({ ...q, event })} meta={meta} label={t('event')} />
+        </div>
+        <FilterList filters={q.eventFilters} onChange={(eventFilters) => set({ ...q, eventFilters })} meta={meta} />
+      </fieldset>
+      <div className="an-row an-wrap">
+        <DateRangePicker value={q.dateRange} onChange={(dateRange) => set({ ...q, dateRange })} />
+        <select className="select" aria-label={t('interval')} value={q.interval} onChange={(e) => set({ ...q, interval: e.target.value as LifecycleQuery['interval'] })}>
+          {(['day', 'week', 'month'] as const).map((iv) => (
+            <option key={iv} value={iv}>
+              {t(`intervals.${iv}`)}
+            </option>
+          ))}
+        </select>
+      </div>
+      <details className="an-more">
+        <summary>{t('globalFilters')}</summary>
+        <FilterList filters={q.filters} onChange={(filters) => set({ ...q, filters })} meta={meta} />
+        <CohortSelect value={q.cohortId} onChange={(cohortId) => set({ ...q, cohortId })} cohorts={cohorts} />
+      </details>
+      <InternalToggle value={q.excludeInternal} onChange={(excludeInternal) => set({ ...q, excludeInternal })} available={internal} />
     </div>
   );
 }
@@ -265,16 +427,30 @@ function PathsForm({ q, set }: { q: PathsQuery; set: (q: PathsQuery) => void }) 
   return (
     <div className="an-form">
       <div className="an-row an-wrap">
-        <RangeSelect value={q.dateRange.from} onChange={(from) => set({ ...q, dateRange: { from } })} />
+        <DateRangePicker value={q.dateRange} onChange={(dateRange) => set({ ...q, dateRange })} />
         <label className="ui-field an-inline-field">
           <span className="label">{t('startPath')}</span>
           <input className="input" placeholder="/pricing" value={q.startPath ?? ''} onChange={(e) => set({ ...q, startPath: e.target.value || null })} maxLength={500} />
+        </label>
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('endPath')}</span>
+          <input className="input" placeholder="/thanks" value={q.endPath ?? ''} onChange={(e) => set({ ...q, endPath: e.target.value || null })} maxLength={500} />
+        </label>
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('pathSource')}</span>
+          <select className="select" value={q.source} onChange={(e) => set({ ...q, source: e.target.value as PathsQuery['source'] })}>
+            <option value="pageviews">{t('pathSources.pageviews')}</option>
+            <option value="all">{t('pathSources.all')}</option>
+          </select>
         </label>
         <label className="ui-field an-inline-field">
           <span className="label">{t('pathSteps')}</span>
           <input className="input an-num-input" type="number" min={2} max={6} value={q.steps} onChange={(e) => set({ ...q, steps: Math.min(6, Math.max(2, Number(e.target.value) || 2)) })} />
         </label>
       </div>
+      <label className="ui-check">
+        <input type="checkbox" checked={q.collapseIds} onChange={(e) => set({ ...q, collapseIds: e.target.checked })} /> {t('collapseIds')}
+      </label>
       <p className="an-note">{t('pathsNote')}</p>
     </div>
   );
@@ -305,7 +481,7 @@ export function SqlForm({ q, set, onRun }: { q: SqlQuery; set: (q: SqlQuery) => 
   );
 }
 
-const KINDS: InsightKind[] = ['trends', 'funnel', 'retention', 'paths', 'sql'];
+const KINDS: InsightKind[] = ['trends', 'funnel', 'retention', 'paths', 'stickiness', 'lifecycle', 'sql'];
 
 /**
  * Editor de un insight (como "New insight" de PostHog): tipo, definición,
@@ -317,7 +493,13 @@ export default function InsightEditor({
   initialKind,
   dashboards,
   cohorts,
+  hasInternalFilters = false,
+  canShare = false,
+  annotations = [],
 }: {
+  hasInternalFilters?: boolean;
+  canShare?: boolean;
+  annotations?: Array<{ date: string; content: string }>;
   projectId: string;
   insight: InsightDto | null;
   initialKind?: InsightKind;
@@ -329,6 +511,7 @@ export default function InsightEditor({
   const router = useRouter();
   const meta = useProjectMeta(projectId);
   const [drafts, setDrafts] = useState(() => (insight ? { ...DEFAULTS, [insight.kind]: insight.query } : DEFAULTS));
+  const [sharing, setSharing] = useState(false);
   const [kind, setKind] = useState<InsightKind>(insight?.kind ?? initialKind ?? 'trends');
   const [result, setResult] = useState<InsightResult | null>(null);
   const [running, setRunning] = useState(false);
@@ -396,6 +579,20 @@ export default function InsightEditor({
     }
   };
 
+  const duplicate = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const { insight: created } = await api<{ insight: InsightDto }>('/api/analytics/insights', { body: { projectId, name: t('copyName', { name: (name || t('untitled')).slice(0, 180) }), query: cleaned as AnyQuery } });
+      notifyChanged();
+      router.push(`/app/analytics/insights/${created.id}`);
+    } catch (err) {
+      setError(apiErrorText(err, tc));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const addToDashboard = async (dashboardId: string) => {
     if (!insight) return;
     const d = dashboards.find((x) => x.id === dashboardId);
@@ -430,16 +627,33 @@ export default function InsightEditor({
         }
         actions={
           <>
-            {insight && dashboards.length > 0 && (
+            {result && (
+              <button type="button" className="btn" onClick={() => downloadCsv(result, name || t(`kinds.${kind}`))}>
+                {t('exportCsv')}
+              </button>
+            )}
+            {insight && (
+              <button type="button" className="btn" disabled={saving} onClick={() => void duplicate()}>
+                {t('duplicate')}
+              </button>
+            )}
+            {insight && (
+              <button type="button" className="btn" disabled={!canShare} title={canShare ? undefined : t('shareAdminsOnly')} onClick={() => setSharing(true)}>
+                {t('share')}
+              </button>
+            )}
+            {insight && (
               <select
                 className="select"
                 aria-label={t('addToDashboard')}
                 value=""
+                disabled={!dashboards.length}
+                title={dashboards.length ? undefined : t('noDashboards')}
                 onChange={(e) => {
                   if (e.target.value) void addToDashboard(e.target.value);
                 }}
               >
-                <option value="">{t('addToDashboard')}</option>
+                <option value="">{dashboards.length ? t('addToDashboard') : t('noDashboards')}</option>
                 {dashboards.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.name}
@@ -473,9 +687,11 @@ export default function InsightEditor({
       </div>
       <div className="an-editor-grid">
         <section className="an-editor-def" aria-label={t('definition')}>
-          {query.kind === 'trends' && <TrendsForm q={query} set={set} meta={meta} cohorts={cohorts} />}
-          {query.kind === 'funnel' && <FunnelForm q={query} set={set} meta={meta} cohorts={cohorts} />}
-          {query.kind === 'retention' && <RetentionForm q={query} set={set} meta={meta} cohorts={cohorts} />}
+          {query.kind === 'trends' && <TrendsForm q={query} set={set} meta={meta} cohorts={cohorts} internal={hasInternalFilters} />}
+          {query.kind === 'funnel' && <FunnelForm q={query} set={set} meta={meta} cohorts={cohorts} internal={hasInternalFilters} />}
+          {query.kind === 'retention' && <RetentionForm q={query} set={set} meta={meta} cohorts={cohorts} internal={hasInternalFilters} />}
+          {query.kind === 'stickiness' && <StickinessForm q={query} set={set} meta={meta} cohorts={cohorts} internal={hasInternalFilters} />}
+          {query.kind === 'lifecycle' && <LifecycleForm q={query} set={set} meta={meta} cohorts={cohorts} internal={hasInternalFilters} />}
           {query.kind === 'paths' && <PathsForm q={query} set={set} />}
           {query.kind === 'sql' && <SqlForm q={query} set={set} onRun={() => void run()} />}
           {query.kind === 'sql' && (
@@ -501,6 +717,7 @@ export default function InsightEditor({
               result={result}
               display={query.kind === 'trends' ? query.display : 'line'}
               peopleHref={(ids) => `/app/analytics/persons?ids=${encodeURIComponent(ids.join(','))}`}
+              annotations={annotations}
             />
           )}
           {!running && !result && !error && kind === 'sql' && <p className="an-muted">{t('runHint')}</p>}
@@ -513,6 +730,12 @@ export default function InsightEditor({
           )}
         </section>
       </div>
+      {query.kind === 'funnel' && <CorrelationPanel projectId={projectId} funnel={cleaned as FunnelQuery} />}
+      {insight && insight.kind === 'trends' && result?.kind === 'trends' && (
+        <AlertsPanel projectId={projectId} insightId={insight.id} insightName={insight.name} seriesLabels={result.series.map((s) => s.label)} />
+      )}
+      {insight && insight.kind !== 'trends' && <p className="an-note">{t('alertsTrendsOnly')}</p>}
+      {insight && <ShareDialog open={sharing} onClose={() => setSharing(false)} projectId={projectId} target={{ insightId: insight.id }} />}
       <NameDialog
         open={askName}
         title={t('saveAs')}

@@ -9,7 +9,8 @@ import { customAlphabet, nanoid } from 'nanoid';
 import { getDb } from '../db';
 import { sha256 } from '../api-auth';
 import { normalizeDomains } from './ingest-core';
-import type { ProjectDto } from './types';
+import { z } from 'zod';
+import { propertyFilterSchema, type ProjectDto, type PropertyFilter } from './types';
 
 export const PROJECT_COOKIE = 'zs_analytics_project';
 const keyId = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 28);
@@ -27,6 +28,7 @@ export interface ProjectRow {
   autocapture: number;
   retention_days: number;
   tz_offset_min: number;
+  test_filters: string;
   rolled_through: string | null;
   dirty_from: string | null;
   deleted_at: number | null;
@@ -45,6 +47,15 @@ export function parseDomainList(raw: string | null | undefined): string[] {
   }
 }
 
+export function parseTestFilters(raw: string | null | undefined): PropertyFilter[] {
+  try {
+    const parsed = z.array(propertyFilterSchema).max(20).safeParse(JSON.parse(raw ?? '[]'));
+    return parsed.success ? parsed.data : [];
+  } catch {
+    return [];
+  }
+}
+
 export function toProjectDto(r: ProjectRow): ProjectDto {
   return {
     id: r.id,
@@ -57,6 +68,7 @@ export function toProjectDto(r: ProjectRow): ProjectDto {
     autocapture: r.autocapture === 1,
     retentionDays: Number(r.retention_days),
     tzOffsetMin: Number(r.tz_offset_min),
+    testFilters: parseTestFilters(r.test_filters),
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -98,6 +110,7 @@ export interface ProjectPatch {
   autocapture?: boolean;
   retentionDays?: number;
   tzOffsetMin?: number;
+  testFilters?: PropertyFilter[];
 }
 
 export async function updateProject(workspaceId: string, id: string, patch: ProjectPatch): Promise<ProjectRow | null> {
@@ -112,6 +125,10 @@ export async function updateProject(workspaceId: string, id: string, patch: Proj
   if (patch.allowedDomains !== undefined) {
     sets.push('allowed_domains = ?');
     args.push(JSON.stringify(normalizeDomains(patch.allowedDomains)));
+  }
+  if (patch.testFilters !== undefined) {
+    sets.push('test_filters = ?');
+    args.push(JSON.stringify(patch.testFilters));
   }
   if (patch.respectDnt !== undefined) {
     sets.push('respect_dnt = ?');

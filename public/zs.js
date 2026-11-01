@@ -6,7 +6,7 @@
  *
  * API: zs.init(key, opts), zs.capture(event, props), zs.identify(id, props),
  * zs.alias(alias), zs.group(type, key, props), zs.register(props), zs.reset(),
- * zs.isFeatureEnabled(key), zs.getFeatureFlag(key), zs.onFeatureFlags(fn),
+ * zs.isFeatureEnabled(key), zs.getFeatureFlag(key), zs.getFeatureFlagPayload(key), zs.onFeatureFlags(fn),
  * zs.reloadFeatureFlags(), zs.getDistinctId(), zs.optOut(), zs.optIn().
  *
  * Captura sola: $pageview (también en apps de una página), y si el proyecto
@@ -199,6 +199,7 @@
         return null;
       }
       state.flags = r.featureFlags || {};
+      state.flagPayloads = r.featureFlagPayloads || {};
       if (r.config && r.config.autocapture === false) cfg.autocapture = false;
       startAutocapture();
       var cbs = state.flagCbs.slice();
@@ -212,8 +213,21 @@
       return state.flags;
     });
   }
+  // Una vez por flag, valor y carga de página: es lo que usan los experimentos para saber quién vio qué.
+  var flagCalls = {};
   function getFeatureFlag(k) {
-    return state.flags ? state.flags[k] : undefined;
+    var v = state.flags ? state.flags[k] : undefined;
+    if (v !== undefined && cfg.key) {
+      var mark = k + ':' + v + ':' + state.distinctId;
+      if (!flagCalls[mark]) {
+        flagCalls[mark] = true;
+        capture('$feature_flag_called', { $feature_flag: String(k), $feature_flag_response: v });
+      }
+    }
+    return v;
+  }
+  function getFeatureFlagPayload(k) {
+    return state.flagPayloads ? state.flagPayloads[k] : undefined;
   }
   function isFeatureEnabled(k) {
     var v = getFeatureFlag(k);
@@ -381,6 +395,7 @@
     },
     isFeatureEnabled: isFeatureEnabled,
     getFeatureFlag: getFeatureFlag,
+    getFeatureFlagPayload: getFeatureFlagPayload,
     onFeatureFlags: onFeatureFlags,
     reloadFeatureFlags: loadFlags,
     optOut: function () {

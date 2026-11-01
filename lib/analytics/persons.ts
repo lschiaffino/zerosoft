@@ -36,6 +36,7 @@ const IDS = `(SELECT group_concat(distinct_id, char(1)) FROM (SELECT distinct_id
 export interface PersonsQuery {
   q?: string | null;
   cohort?: CohortDefinition | null;
+  cohortId?: string | null;
   ids?: string[] | null;
   limit?: number;
   offset?: number;
@@ -53,7 +54,7 @@ export async function listPersons(projectId: string, opts: PersonsQuery = {}, no
     args.push(likeContains(q), likeContains(q));
   }
   if (opts.cohort) {
-    const sub = cohortSql(projectId, opts.cohort, now);
+    const sub = cohortSql(projectId, opts.cohort, now, opts.cohortId ?? undefined);
     parts.push(`p.id IN (${sub.sql})`);
     args.push(...sub.args);
   }
@@ -69,8 +70,8 @@ export async function listPersons(projectId: string, opts: PersonsQuery = {}, no
   return { persons: rows.slice(0, limit).map(toPerson), hasMore: rows.length > limit };
 }
 
-export async function countPersons(projectId: string, cohort: CohortDefinition, now = Date.now()): Promise<number> {
-  const sub = cohortSql(projectId, cohort, now);
+export async function countPersons(projectId: string, cohort: CohortDefinition, now = Date.now(), cohortId?: string): Promise<number> {
+  const sub = cohortSql(projectId, cohort, now, cohortId);
   const row = (await getDb().prepare(`SELECT COUNT(*) AS n FROM (${sub.sql})`).get(...sub.args)) as { n: number } | undefined;
   return Number(row?.n ?? 0);
 }

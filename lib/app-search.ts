@@ -68,6 +68,9 @@ export interface AppSearchItem {
     | 'analyticsDashboards'
     | 'analyticsFlags'
     | 'analyticsCohorts'
+    | 'analyticsActions'
+    | 'analyticsExperiments'
+    | 'analyticsAlerts'
     | 'analyticsProjects'
     | 'socialPosts'
     | 'socialLibrary';
@@ -432,7 +435,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       user.id,
       like,
     );
-  const [anInsights, anDashboards, anFlags, anCohorts, anProjects] = await Promise.all([
+  const [anInsights, anDashboards, anFlags, anCohorts, anProjects, anActions, anExperiments, anAlerts] = await Promise.all([
     analyticsIn('analytics_insights'),
     analyticsIn('analytics_dashboards'),
     // Flags: por clave o descripción (se muestra la descripción si hay).
@@ -445,6 +448,9 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ),
     analyticsIn('analytics_cohorts'),
     all(`SELECT id, name AS label FROM analytics_projects WHERE workspace_id = ? AND deleted_at IS NULL AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT ?`, user.id, like),
+    analyticsIn('analytics_actions'),
+    analyticsIn('analytics_experiments'),
+    analyticsIn('analytics_alerts'),
   ]);
 
   // Chat: conversaciones (asunto, visitante o texto), personas, vistas guardadas y equipos.
@@ -582,6 +588,9 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ...map(anDashboards, 'analyticsDashboards', (id) => `/app/analytics/dashboards/${id}`),
     ...map(anFlags, 'analyticsFlags', (id) => `/app/analytics/flags/${id}`),
     ...map(anCohorts, 'analyticsCohorts', (id) => `/app/analytics/cohorts?open=${id}`),
+    ...map(anActions, 'analyticsActions', (id) => `/app/analytics/actions/${id}`),
+    ...map(anExperiments, 'analyticsExperiments', (id) => `/app/analytics/experiments/${id}`),
+    ...map(anAlerts, 'analyticsAlerts', () => `/app/analytics/alerts`),
     ...map(anProjects, 'analyticsProjects', (id) => `/app/analytics/settings?project=${id}`),
   ];
 }

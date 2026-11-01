@@ -198,6 +198,12 @@ export interface SidebarLabels {
     persons: string;
     cohorts: string;
     flags: string;
+    experiments: string;
+    actions: string;
+    alerts: string;
+    annotations: string;
+    data: string;
+    groups: string;
     sql: string;
     projects: string;
     newInsight: string;
@@ -839,6 +845,7 @@ export function buildNav(
             // Los tableros cuelgan del ítem (AnalyticsBranch en el hueco #side-branch), como en PostHog.
             { href: '/app/analytics/dashboards', label: a.dashboards, active: at('/app/analytics/dashboards'), icon: 'dashboards', branch: true },
             { href: '/app/analytics/sql', label: a.sql, active: at('/app/analytics/sql'), icon: 'sql' },
+            { href: '/app/analytics/alerts', label: a.alerts, active: at('/app/analytics/alerts'), icon: 'bell' },
           ],
         },
         {
@@ -846,7 +853,16 @@ export function buildNav(
           items: [
             { href: '/app/analytics/persons', label: a.persons, active: at('/app/analytics/persons'), icon: 'contacts' },
             { href: '/app/analytics/cohorts', label: a.cohorts, active: at('/app/analytics/cohorts'), icon: 'groups' },
+            { href: '/app/analytics/groups', label: a.groups, active: at('/app/analytics/groups'), icon: 'building' },
             { href: '/app/analytics/flags', label: a.flags, active: at('/app/analytics/flags'), icon: 'flag' },
+            { href: '/app/analytics/experiments', label: a.experiments, active: at('/app/analytics/experiments'), icon: 'experiment' },
+          ],
+        },
+        {
+          items: [
+            { href: '/app/analytics/actions', label: a.actions, active: at('/app/analytics/actions'), icon: 'bolt' },
+            { href: '/app/analytics/data', label: a.data, active: at('/app/analytics/data'), icon: 'database' },
+            { href: '/app/analytics/annotations', label: a.annotations, active: at('/app/analytics/annotations'), icon: 'note' },
           ],
         },
         {

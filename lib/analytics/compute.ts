@@ -180,6 +180,8 @@ export interface FunnelComputed {
   medians: Array<number | null>;
   /** Personas que llegaron al paso i y no al i+1. */
   dropped: string[][];
+  /** Personas que llegaron al último paso. */
+  converted: string[];
 }
 
 function median(xs: number[]): number | null {
@@ -199,6 +201,7 @@ export function computeFunnel(rows: FunnelRow[], nSteps: number, windowMs: numbe
   const counts = new Array(nSteps).fill(0);
   const gaps: number[][] = Array.from({ length: nSteps }, () => []);
   const dropped: string[][] = Array.from({ length: nSteps }, () => []);
+  const converted: string[] = [];
 
   let i = 0;
   while (i < rows.length) {
@@ -234,8 +237,9 @@ export function computeFunnel(rows: FunnelRow[], nSteps: number, windowMs: numbe
       if (s > 0) gaps[s].push(bestTimes[s] - bestTimes[s - 1]);
     }
     if (best < nSteps && dropped[best - 1].length < droppedLimit) dropped[best - 1].push(person);
+    if (best === nSteps) converted.push(person);
   }
-  return { counts, medians: gaps.map((g, s) => (s === 0 ? null : median(g))), dropped };
+  return { counts, medians: gaps.map((g, s) => (s === 0 ? null : median(g))), dropped, converted };
 }
 
 // ---------- Retención ----------
@@ -303,6 +307,7 @@ export function computePaths(
   steps: number,
   startPath: string | null,
   limit = 30,
+  endPath: string | null = null,
 ): { links: Array<{ step: number; from: string; to: string; count: number }>; topPaths: Array<{ path: string[]; count: number }>; sessions: number } {
   const bySession = new Map<string, Array<{ path: string; ts: number }>>();
   for (const r of rows) {
@@ -325,7 +330,13 @@ export function computePaths(
       from = seq.indexOf(startPath);
       if (from < 0) continue;
     }
-    const path = seq.slice(from, from + steps);
+    let path = seq.slice(from, from + steps);
+    // Con un final: solo las sesiones que llegan ahí, cortadas en esa página.
+    if (endPath) {
+      const end = seq.indexOf(endPath, from);
+      if (end < 0) continue;
+      path = seq.slice(Math.max(from, end - steps + 1), end + 1);
+    }
     if (!path.length) continue;
     sessions++;
     for (let s = 0; s + 1 < path.length; s++) {

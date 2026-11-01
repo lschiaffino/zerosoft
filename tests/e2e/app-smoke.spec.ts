@@ -755,6 +755,35 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await ok(request.delete(`/api/analytics/cohorts/${i.id}`))),
   },
   {
+    app: 'Analytics actions',
+    list: '/en/app/analytics/actions',
+    create: async (request, name) => {
+      const projectId = await analyticsProject(request);
+      return { id: (await ok<{ action: { id: string } }>(request.post('/api/analytics/actions', { data: { projectId, name, steps: [{ event: '$pageview' }] } }))).action.id, name };
+    },
+    detail: (i) => `/en/app/analytics/actions/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/analytics/actions/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/analytics/actions/${i.id}`))),
+  },
+  {
+    app: 'Analytics experiments',
+    list: '/en/app/analytics/experiments',
+    create: async (request, name) => {
+      const projectId = await analyticsProject(request);
+      const key = `exp-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`.slice(0, 90);
+      const { flag } = await ok<{ flag: { id: string } }>(
+        request.post('/api/analytics/flags', { data: { projectId, key, active: false, variants: [{ key: 'control', rollout: 50 }, { key: 'test', rollout: 50 }] } }),
+      );
+      const { experiment } = await ok<{ experiment: { id: string } }>(
+        request.post('/api/analytics/experiments', { data: { projectId, name, flagId: flag.id, metrics: [{ event: '$pageview' }] } }),
+      );
+      return { id: experiment.id, name };
+    },
+    detail: (i) => `/en/app/analytics/experiments/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/analytics/experiments/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/analytics/experiments/${i.id}`))),
+  },
+  {
     app: 'Analytics projects',
     list: '/en/app/analytics/projects',
     create: async (request, name) => {

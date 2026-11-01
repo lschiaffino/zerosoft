@@ -53,5 +53,7 @@
   "dateRange": "{start} a {end}",
   "peopleDocRead": "Para leer: {title}",
   "peopleDocNew": "Documento nuevo: {title}",
-  "reviewCycle": "Empezó el ciclo de evaluación: {name}"
+  "reviewCycle": "Empezó el ciclo de evaluación: {name}",
+  "analyticsAlertTitle": "Alerta: {name}",
+  "analyticsAlertBody": "Valor {value} en {insight}"
 }

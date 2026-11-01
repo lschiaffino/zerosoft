@@ -12,7 +12,7 @@ import { clientIp } from '../rate-limit';
 import { INGEST_LIMITS, originAllowed, parseIngestBody } from './ingest-core';
 import { requestContext, storeEvents } from './ingest';
 import { parseDomainList, projectByKey, type ProjectRow } from './projects';
-import { decideFlags } from './flags';
+import { decideFlagsFull, projectFlags } from './flags';
 import { deletePerson, personIdByDistinctId } from './persons';
 
 /** Pedidos por minuto por proyecto (cada pedido trae hasta 200 eventos). */
@@ -154,14 +154,54 @@ export async function handleDecide(req: Request): Promise<Response> {
   if (block) return block;
   const distinctId = typeof body.distinct_id === 'string' ? body.distinct_id.slice(0, INGEST_LIMITS.maxDistinctId) : '';
   const overrides = body.person_properties && typeof body.person_properties === 'object' && !Array.isArray(body.person_properties) ? (body.person_properties as Record<string, unknown>) : {};
-  const featureFlags = distinctId ? await decideFlags(r.project.id, distinctId, overrides) : {};
+  const { flags: featureFlags, payloads } = distinctId ? await decideFlagsFull(r.project.id, distinctId, overrides) : { flags: {}, payloads: {} };
   return reply(req, 200, {
     featureFlags,
+    featureFlagPayloads: payloads,
     config: {
       autocapture: r.project.autocapture === 1,
       respectDnt: r.project.respect_dnt === 1,
     },
   });
+}
+
+/**
+ * Definiciones de los flags para evaluar en tu servidor sin ir a la red en cada
+ * chequeo. Solo con la key secreta: incluye las condiciones de segmentación.
+ */
+export async function handleFlagDefinitions(req: Request): Promise<Response> {
+  const pre = precheck(req);
+  if (pre) return pre;
+  const bearer = extractBearer(req);
+  if (!bearer?.startsWith('zss_')) return reply(req, 401, { error: 'secret_key_required' });
+  const project = await projectByKey(bearer, 'secret');
+  if (!project) return reply(req, 401, { error: 'invalid_key' });
+  const block = await limited(req, 'adefs', project.id, 120);
+  if (block) return block;
+  const flags = await projectFlags(project.id);
+  return reply(req, 200, { flags, hash: 'sha1(key.distinct_id) first 15 hex / 0xfffffffffffffff; variants add the salt "variant"' });
+}
+
+/**
+ * /flags de los SDKs de PostHog: además de featureFlags, el mapa `flags` con la
+ * forma que espera la versión 2 de su protocolo.
+ */
+export async function handleSdkFlags(req: Request): Promise<Response> {
+  const res = await handleDecide(req);
+  if (res.status !== 200) return res;
+  const body = (await res.json()) as { featureFlags: Record<string, boolean | string>; featureFlagPayloads: Record<string, unknown>; config: unknown };
+  const flags: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(body.featureFlags)) {
+    const payload = body.featureFlagPayloads[key];
+    flags[key] = {
+      key,
+      enabled: value !== false,
+      variant: typeof value === 'string' ? value : null,
+      reason: { code: value === false ? 'no_condition_match' : 'condition_match', description: '' },
+      metadata: { id: 0, version: 1, payload: payload === undefined ? null : JSON.stringify(payload) },
+    };
+  }
+  return reply(req, 200, { ...body, flags, errorsWhileComputingFlags: false, requestId: '' });
 }
 
 /** Borra la persona de un distinct_id con todos sus eventos. Solo con la key secreta. */

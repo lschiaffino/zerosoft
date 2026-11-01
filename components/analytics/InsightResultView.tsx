@@ -2,8 +2,9 @@
 
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
-import type { FunnelResult, InsightResult, PathsResult, RetentionResult, SqlResult, TrendsResult } from '@/lib/analytics/types';
+import type { FunnelResult, InsightResult, PathsResult, RetentionResult, SqlResult, TrendDisplay, TrendsResult } from '@/lib/analytics/types';
 import Chart from './Chart';
+import { Lifecycle, PathsSankey, Stickiness } from './ResultCharts';
 import { bucketLabel, delta, fmtDuration, fmtNumber, fmtPercent } from './client';
 
 function seriesName(s: { label: string; breakdownValue: string | null }, other: string, none: string): string {
@@ -12,7 +13,43 @@ function seriesName(s: { label: string; breakdownValue: string | null }, other: 
   return `${s.label} · ${v}`;
 }
 
-function Trends({ r, display }: { r: TrendsResult; display: 'line' | 'bar' | 'number' | 'table' }) {
+/** Suma acumulada, para la vista "Acumulado". */
+const running = (data: number[]) => {
+  let acc = 0;
+  return data.map((v) => Math.round((acc += v) * 100) / 100);
+};
+
+/** Torta de los totales: un anillo por porciones, con la leyenda al lado. */
+function Pie({ items, summary }: { items: Array<{ label: string; value: number }>; summary: string }) {
+  const locale = useLocale();
+  const total = items.reduce((a, x) => a + Math.max(x.value, 0), 0) || 1;
+  let acc = 0;
+  const R = 15.915; // circunferencia 100: el largo del trazo es el porcentaje.
+  return (
+    <div className="an-pie">
+      <svg viewBox="0 0 42 42" className="an-pie-svg" role="img" aria-label={summary}>
+        {items.map((x, i) => {
+          const pct = (Math.max(x.value, 0) / total) * 100;
+          const el = <circle key={i} className={`an-pie-slice an-s${i % 6}`} cx="21" cy="21" r={R} fill="none" strokeDasharray={`${pct} ${100 - pct}`} strokeDashoffset={25 - acc} />;
+          acc += pct;
+          return el;
+        })}
+      </svg>
+      <ul className="an-pie-legend" role="list">
+        {items.map((x, i) => (
+          <li key={i} className={`an-s${i % 6}`}>
+            <i className="an-swatch" aria-hidden="true" />
+            <span className="an-pie-name">{x.label}</span>
+            <span className="an-mono">{fmtNumber(x.value, locale)}</span>
+            <span className="an-muted an-small">{fmtPercent(Math.max(x.value, 0) / total, locale)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function Trends({ r, display, annotations }: { r: TrendsResult; display: TrendDisplay; annotations?: Array<{ date: string; content: string }> }) {
   const t = useTranslations('analytics.result');
   const locale = useLocale();
   const labels = r.buckets.map((b) => bucketLabel(b, locale));
@@ -36,11 +73,22 @@ function Trends({ r, display }: { r: TrendsResult; display: 'line' | 'bar' | 'nu
             );
           })}
         </div>
-      ) : display === 'table' ? null : (
+      ) : display === 'table' ? null : display === 'pie' ? (
+        <Pie items={r.series.map((s, i) => ({ label: names[i], value: s.total }))} summary={t('trendSummary', { total: fmtNumber(total, locale) })} />
+      ) : (
         <Chart
-          kind={display === 'bar' ? 'bar' : 'line'}
+          kind={display === 'bar' ? 'bar' : display === 'area' ? 'area' : 'line'}
+          annotations={(annotations ?? []).flatMap((a) => {
+            // La anotación cae en la cubeta de su día (o en la semana o mes que lo contiene).
+            const index = r.buckets.findIndex((b, i) => b.slice(0, 10) <= a.date && (i + 1 < r.buckets.length ? a.date < r.buckets[i + 1].slice(0, 10) || b.slice(0, 10) === a.date : true));
+            return index >= 0 && a.date >= r.buckets[0].slice(0, 10) ? [{ index, text: a.content }] : [];
+          })}
           labels={labels}
-          series={r.series.map((s, i) => ({ label: names[i], data: s.data, compare: s.compare }))}
+          series={r.series.map((s, i) => ({
+            label: names[i],
+            data: display === 'cumulative' ? running(s.data) : s.data,
+            compare: s.compare && (display === 'cumulative' ? running(s.compare) : s.compare),
+          }))}
           summary={t('trendSummary', { total: fmtNumber(total, locale) })}
         />
       )}
@@ -185,6 +233,7 @@ function Paths({ r }: { r: PathsResult }) {
   return (
     <div className="an-result">
       <p className="an-note">{t('pathsSessions', { count: r.sessions })}</p>
+      <PathsSankey r={r} />
       <div className="an-paths">
         {steps.map((s) => {
           const links = r.links.filter((l) => l.step === s).slice(0, 8);
@@ -275,14 +324,16 @@ export default function InsightResultView({
   result,
   display = 'line',
   peopleHref,
+  annotations,
 }: {
   result: InsightResult;
-  display?: 'line' | 'bar' | 'number' | 'table';
+  display?: TrendDisplay;
   peopleHref?: (ids: string[]) => string;
+  annotations?: Array<{ date: string; content: string }>;
 }) {
   switch (result.kind) {
     case 'trends':
-      return <Trends r={result} display={display} />;
+      return <Trends r={result} display={display} annotations={annotations} />;
     case 'funnel':
       return <Funnel r={result} peopleHref={peopleHref} />;
     case 'retention':
@@ -291,5 +342,9 @@ export default function InsightResultView({
       return <Paths r={result} />;
     case 'sql':
       return <Sql r={result} />;
+    case 'stickiness':
+      return <Stickiness r={result} />;
+    case 'lifecycle':
+      return <Lifecycle r={result} />;
   }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { flagKeySchema, flagVariantSchema, propertyFilterSchema } from '@/lib/analytics/types';
+import { flagGroupSchema, flagKeySchema, flagPayloadsSchema, flagVariantSchema, propertyFilterSchema } from '@/lib/analytics/types';
+import { experimentsUsingFlag } from '@/lib/analytics/experiments';
 import { variantsValid } from '@/lib/analytics/flags-core';
 import { deleteFlag, getFlag, updateFlag } from '@/lib/analytics/records';
 import { aError, analyticsActor, isResponse, readJson, recordProject } from '@/lib/analytics/http';
@@ -17,6 +18,8 @@ const patchSchema = z.object({
   rollout: z.number().int().min(0).max(100).optional(),
   variants: z.array(flagVariantSchema).max(10).optional(),
   conditions: z.array(propertyFilterSchema.extend({ type: z.literal('person').default('person') })).max(10).optional(),
+  groups: z.array(flagGroupSchema).max(10).optional(),
+  payloads: flagPayloadsSchema.optional(),
 });
 
 export async function GET(req: NextRequest, ctx: Ctx) {
@@ -48,6 +51,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   const project = await recordProject(actor, 'analytics_flags', id);
   if (isResponse(project)) return project;
+  if (await experimentsUsingFlag(project.id, id)) return aError(409, 'flag_in_use');
   await deleteFlag(project.id, id);
   return NextResponse.json({ ok: true });
 }
