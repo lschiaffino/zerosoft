@@ -82,6 +82,8 @@ export interface ParsedVariant {
   compareAtCents: number | null;
   weightGrams: number;
   trackInventory: boolean;
+  /** Shopify: Variant Inventory Policy = continue. */
+  continueSelling?: boolean;
   stock: number | null;
   imageSrc: string | null;
 }
@@ -152,6 +154,7 @@ function parseShopify(rows: string[][]): ParseResult {
     sku: col(header, 'Variant SKU'),
     grams: col(header, 'Variant Grams'),
     tracker: col(header, 'Variant Inventory Tracker'),
+    policy: col(header, 'Variant Inventory Policy'),
     qty: col(header, 'Variant Inventory Qty', 'Inventory Qty'),
     price: col(header, 'Variant Price', 'Price'),
     compare: col(header, 'Variant Compare At Price', 'Compare At Price'),
@@ -222,7 +225,7 @@ function parseShopify(rows: string[][]): ParseResult {
       compareAtCents: compare != null && compare > price ? compare : null,
       weightGrams: grams(cell(row, c.grams), false),
       trackInventory: tracked,
-      continueSelling: false,
+      continueSelling: c.policy >= 0 && cell(row, c.policy).toLowerCase() === 'continue',
       stock: qtyRaw && /^-?\d+$/.test(qtyRaw) ? Math.max(0, Number(qtyRaw)) : null,
       imageSrc: cell(row, c.variantImage) || null,
     });
@@ -344,6 +347,7 @@ export function toProductInput(p: ParsedProduct, images: string[]): ProductInput
     compareAtCents: v.compareAtCents,
     weightGrams: v.weightGrams,
     trackInventory: v.trackInventory,
+    continueSelling: v.continueSelling === true,
   }));
   return {
     title: p.title,
@@ -416,7 +420,7 @@ export interface ExportProduct {
   seoTitle: string;
   seoDescription: string;
   requiresShipping: boolean;
-  variants: Array<{ options: string[]; sku: string; barcode: string; priceCents: number; compareAtCents: number | null; weightGrams: number; trackInventory: boolean; stock: number }>;
+  variants: Array<{ options: string[]; sku: string; barcode: string; priceCents: number; compareAtCents: number | null; weightGrams: number; trackInventory: boolean; continueSelling?: boolean; stock: number }>;
 }
 
 /** Descripción guardada (párrafos con HTML en línea) → Body (HTML). */
@@ -458,7 +462,7 @@ export function exportShopifyCsv(products: ExportProduct[], absolute: (url: stri
         v ? String(v.weightGrams) : '',
         v ? (v.trackInventory ? 'shopify' : '') : '',
         v ? String(v.stock) : '',
-        v ? 'deny' : '',
+        v ? (v.continueSelling ? 'continue' : 'deny') : '',
         v ? 'manual' : '',
         v ? centsToInput(v.priceCents) : '',
         v && v.compareAtCents != null ? centsToInput(v.compareAtCents) : '',
