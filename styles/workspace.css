@@ -349,3 +349,5 @@ body:has(.wl-page) .zs-support-launcher { display: none; }
 .ws-members td .ws-cell-muted { min-width: 72px; }
 .ws-members .ws-person { min-width: 170px; }
 .ws-members .ws-person-email { max-width: 150px; }
+.ws-members .ws-person { min-width: 150px; }
+.ws-members .ws-person-email { max-width: 130px; }
