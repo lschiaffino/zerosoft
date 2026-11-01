@@ -222,6 +222,7 @@ function parseShopify(rows: string[][]): ParseResult {
       compareAtCents: compare != null && compare > price ? compare : null,
       weightGrams: grams(cell(row, c.grams), false),
       trackInventory: tracked,
+      continueSelling: false,
       stock: qtyRaw && /^-?\d+$/.test(qtyRaw) ? Math.max(0, Number(qtyRaw)) : null,
       imageSrc: cell(row, c.variantImage) || null,
     });

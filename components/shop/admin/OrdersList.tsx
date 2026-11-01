@@ -41,7 +41,7 @@ export default function OrdersList({ initial, total, currency, q, status, canAdm
         description={t('orders.desc')}
         actions={
           <>
-            {canAdmin && initial.length > 0 && <a className="btn btn-secondary" href="/api/shop/reports/export?type=orders">{t('reports.exportOrders')}</a>}
+            {canAdmin && initial.length > 0 && <a className="btn btn-secondary" href="/api/shop/reports/export?type=orders" download>{t('reports.exportOrders')}</a>}
             <Link className="btn btn-primary" href="/app/shop/orders/new">{t('drafts.new')}</Link>
           </>
         }

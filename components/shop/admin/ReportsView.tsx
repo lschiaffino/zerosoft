@@ -12,7 +12,7 @@ function Table({ id, title, rows, amountLabel, showQty, exportType, days, money,
     <section className="panel shop-panel" aria-labelledby={id} data-testid={`report-${id}`}>
       <div className="shop-panel-head">
         <h2 className="shop-panel-title" id={id}>{title}</h2>
-        {exportType && rows.length > 0 && <a href={`/api/shop/reports/export?type=${exportType}&days=${days}`} className="btn btn-ghost btn-sm">{t('reports.exportCsv')}</a>}
+        {exportType && rows.length > 0 && <a href={`/api/shop/reports/export?type=${exportType}&days=${days}`} className="btn btn-ghost btn-sm" download>{t('reports.exportCsv')}</a>}
       </div>
       {rows.length === 0 ? (
         <p className="ui-help">{t('reports.noData')}</p>
@@ -58,8 +58,8 @@ export default function ReportsView({ reports, currency, canAdmin }: { reports: 
         actions={
           canAdmin ? (
             <>
-              <a className="btn btn-secondary" href={`/api/shop/reports/export?type=orders&days=${d}`}>{t('reports.exportOrders')}</a>
-              <a className="btn btn-secondary" href="/api/shop/reports/export?type=customers">{t('reports.exportCustomers')}</a>
+              <a className="btn btn-secondary" href={`/api/shop/reports/export?type=orders&days=${d}`} download>{t('reports.exportOrders')}</a>
+              <a className="btn btn-secondary" href="/api/shop/reports/export?type=customers" download>{t('reports.exportCustomers')}</a>
             </>
           ) : undefined
         }

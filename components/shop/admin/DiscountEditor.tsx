@@ -231,7 +231,7 @@ export default function DiscountEditor({ discount, currency, products = [], coll
       <ConfirmDialog
         open={confirm}
         danger
-        title={t('discounts.deleteTitle', { code: discount?.method === 'automatic' ? discount.title : (discount?.code ?? '') })}
+        title={t('discounts.deleteTitle', { code: (discount?.method === 'automatic' ? discount.title : discount?.code) ?? '' })}
         body={t('discounts.deleteBody')}
         confirmLabel={t('editor.delete')}
         cancelLabel={t('common.cancel')}
