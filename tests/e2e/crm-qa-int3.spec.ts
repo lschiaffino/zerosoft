@@ -111,11 +111,14 @@ test.describe('a 390px', () => {
     const menu = page.getByRole('menu', { name: 'Move to…' });
     await expect(menu).toBeVisible();
     await insideViewport(menu);
-    const c = (await card.boundingBox())!;
-    const m = (await menu.boundingBox())!;
-    // Pegado a la card: arriba o abajo, a menos de 16px de su borde.
-    const gap = m.y >= c.y ? m.y - (c.y + c.height) : c.y - (m.y + m.height);
-    expect(Math.abs(gap)).toBeLessThanOrEqual(16);
+    // Pegado a la card: arriba o abajo, a menos de 16px de su borde (poll: el foco pudo dejar andando un scroll suave).
+    await expect
+      .poll(async () => {
+        const c = (await card.boundingBox())!;
+        const m = (await menu.boundingBox())!;
+        return Math.abs(m.y >= c.y ? m.y - (c.y + c.height) : c.y - (m.y + m.height));
+      })
+      .toBeLessThanOrEqual(16);
     await page.keyboard.press('Escape');
     await expect(menu).toBeHidden();
   });

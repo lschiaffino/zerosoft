@@ -592,10 +592,20 @@ test('traspaso: solo de quien se fue, con confirmación; a quien sigue no se le 
   expect(self.status()).toBe(403);
 
   await page.goto('/en/app/rec/settings');
-  await expect(page.getByTestId('rec-transfer-from').locator('option')).toHaveCount(2);
-  await page.getByTestId('rec-transfer-from').selectOption(leaver);
-  // No hay nadie más: quien hace el pase lo recibe.
-  await page.getByTestId('rec-transfer-to').selectOption({ index: 1 });
+  const fromSelect = page.getByTestId('rec-transfer-from');
+  await expect(fromSelect.locator(`option[value="${leaver}"]`)).toHaveCount(1);
+  // Quien sigue en el workspace nunca figura como origen, y la dueña tampoco.
+  const owners = await fromSelect.locator('option').evaluateAll((els) => els.map((o) => (o as HTMLOptionElement).value).filter(Boolean));
+  expect(owners).not.toContain(me);
+  await fromSelect.selectOption(leaver);
+  // Destino: quien hace el pase solo se lo puede quedar si no hay nadie más (la API rechaza el resto).
+  const toSelect = page.getByTestId('rec-transfer-to');
+  await expect(toSelect.locator('option').nth(1)).toBeAttached();
+  const targets = await toSelect.locator('option').evaluateAll((els) => els.map((o) => (o as HTMLOptionElement).value).filter(Boolean));
+  const { people } = await ok<{ people: Array<{ id: string }> }>(request.get('/api/rec/settings'));
+  if (people.some((p) => p.id !== me)) expect(targets).not.toContain(me);
+  const receiver = targets[0];
+  await toSelect.selectOption(receiver);
   await page.getByTestId('rec-transfer-go').click();
   const dialog = page.getByRole('alertdialog').filter({ hasText: 'Transfer this content?' });
   await expect(dialog).toContainText('1 video');
@@ -612,5 +622,5 @@ test('traspaso: solo de quien se fue, con confirmación; a quien sigue no se le 
   await dialog.getByRole('button', { name: 'Transfer' }).click();
   await expect(page.getByTestId('rec-settings-toast')).toContainText('Transferred 1 video');
   const { video } = await ok<{ video: { createdBy: string } }>(request.get(`/api/rec/videos/${v.id}`));
-  expect(video.createdBy).toBe(me);
+  expect(video.createdBy).toBe(receiver);
 });

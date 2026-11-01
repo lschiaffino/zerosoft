@@ -72,8 +72,11 @@ test('Gmail: panel del remitente, crear contacto, registrar y trackear', async (
     const extensionId = sw.url().split('/')[2];
 
     // Opciones: URL de la app + token.
-    const options = await context.newPage();
-    await options.goto(`chrome-extension://${extensionId}/options.html`);
+    // Al instalarse, la extensión misma abre esta página (background.js): se usa esa. Abrir otra con goto
+    // competía con esa navegación ("interrupted by another navigation").
+    const optionsUrl = `chrome-extension://${extensionId}/options.html`;
+    const options = context.pages().find((p) => p.url() === optionsUrl) ?? (await context.waitForEvent('page', { predicate: (p) => p.url() === optionsUrl, timeout: 15_000 }));
+    await options.waitForLoadState();
     await options.getByLabel('App URL').fill(baseURL!);
     await options.getByLabel('Personal API token').fill(key);
     await options.getByRole('button', { name: 'Save and connect' }).click();

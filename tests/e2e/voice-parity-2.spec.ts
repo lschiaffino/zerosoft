@@ -31,8 +31,10 @@ async function meetingWithNotes(page: Page, title: string): Promise<string> {
 test('calendario: eventos de Google con asistentes, brief, tomar notas y aviso previo', async ({ page }) => {
   await page.goto('/en/app/calendar/settings?tab=connections', { waitUntil: 'networkidle' });
   const google = page.locator('.cal-conn').filter({ hasText: 'Google Calendar' });
-  if (await google.getByRole('button', { name: 'Connect' }).isVisible()) {
-    await google.getByRole('button', { name: 'Connect' }).click();
+  // exact: "Connect" también matchea "Disconnect", y si otro test ya conectó Google esto lo desconectaba.
+  const connect = google.getByRole('button', { name: 'Connect', exact: true });
+  if (await connect.isVisible()) {
+    await connect.click();
     await expect(page.getByText('Google Calendar connected.')).toBeVisible();
   }
 

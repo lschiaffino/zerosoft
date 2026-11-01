@@ -93,10 +93,15 @@ test('Tareas: fecha desde el editor, vista por vencimiento y marcar hecha', asyn
   await expect(overdue.getByText(later)).toBeVisible();
   // Al marcarla pasa a Hechas, plegada: click y no check, que espera ver el tilde.
   await overdue.getByRole('checkbox', { name: later }).click();
-  await expect(page.getByRole('button', { name: /Show 1 completed task/ })).toBeVisible();
+  // Otras pruebas pueden haber dejado tareas hechas en este workspace: se cuenta solo que está plegada y que al desplegar aparece.
+  const showDone = page.getByRole('button', { name: /Show \d+ completed tasks?/ });
+  await expect(showDone).toBeVisible();
+  await expect(page.locator('.notes-tasks-group', { hasText: later })).toHaveCount(0);
   await expect
     .poll(async () => ((await (await request.get(`/api/notes/${note.id}`)).json()) as { content: Array<{ checked?: boolean }> }).content[0].checked)
     .toBe(true);
+  await showDone.click();
+  await expect(page.locator('.notes-tasks-group').getByRole('checkbox', { name: later })).toBeChecked();
   // La fecha sobrevive al autoguardado del editor.
   await page.reload();
   await expect(page.locator('.note-task-chip.is-set')).toBeVisible();

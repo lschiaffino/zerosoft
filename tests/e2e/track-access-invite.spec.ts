@@ -21,8 +21,15 @@ test('sin nadie más en el workspace, se puede invitar desde Acceso', async ({ p
   const email = `invitee-${Date.now()}@example.com`;
   await page.getByRole('textbox', { name: 'Invite someone to the workspace' }).fill(email);
   await page.getByRole('button', { name: 'Send invitation' }).click();
-  await expect(page.getByTestId('track-access-invited').or(page.getByRole('alert'))).toBeVisible();
+  // Los e2e corren sin proveedor de email (RESEND_API_KEY vacío en playwright.config.ts): la invitación
+  // queda creada sin mandar el mail (`skipped`). La pantalla lo tiene que decir y dar el camino al link.
+  await expect(page.getByRole('alert').filter({ hasText: 'The invitation could not be sent' })).toContainText('copy its link in Platform settings');
+  await expect(page.getByTestId('track-access-invited')).toHaveCount(0);
   await expect(page.getByTestId('track-access-pending')).toContainText(email);
+  const { rows } = (await (await request.get('/api/teams/invites')).json()) as { rows: Array<{ email: string; emailStatus: string; url: string }> };
+  const row = rows.find((r) => r.email === email);
+  expect(row?.emailStatus).toBe('skipped');
+  expect(row?.url).toContain('/invite/');
   const scroll = await page.evaluate(() => document.scrollingElement!.scrollWidth);
   expect(scroll).toBeLessThanOrEqual(1281);
 });
