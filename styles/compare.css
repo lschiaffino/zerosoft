@@ -76,3 +76,6 @@
   .cmp-index td.num { text-align: left; }
   .cmp-links { margin-top: 6px; }
 }
+
+/* El nombre de una comparación puede ser más largo que la pantalla: el botón pasa a dos líneas. */
+.cmp-page .btn { max-width: 100%; height: auto; white-space: normal; text-align: left; }
