@@ -30,6 +30,7 @@
   "socialInbox": "Social inbox",
   "orderPaid": "Order #{number} paid",
   "orderAwaitingTransfer": "New order #{number} waiting for transfer",
+  "orderReturnRequested": "Return requested on order #{number}",
   "orderPaidAfterCancel": "Order #{number} was paid after it was cancelled",
   "orderRefundBody": "Refund {amount} to {email}",
   "lowStockOne": "Low stock: {product}",

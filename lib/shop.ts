@@ -9,6 +9,7 @@
  * la misma unidad.
  */
 import { randomBytes } from 'crypto';
+import { z } from 'zod';
 import { getDb } from './db';
 import { sanitizeDocsHtml } from './docs-sanitize';
 import { open as openSecret } from './secret-box';
@@ -401,6 +402,7 @@ export interface VariantDto {
   compareAtCents: number | null;
   weightGrams: number;
   trackInventory: boolean;
+  continueSelling: boolean;
   imageUrl: string | null;
   /** Disponible para vender (available − reserved, todas las ubicaciones). */
   stock: number;
@@ -454,6 +456,7 @@ function variantDto(v: VariantRow, inv: Array<{ location_id: string; available: 
     compareAtCents: v.compare_at_cents,
     weightGrams: v.weight_grams,
     trackInventory: v.track_inventory === 1,
+    continueSelling: Number((v as unknown as { continue_selling?: number }).continue_selling ?? 0) === 1,
     imageUrl: v.image_url,
     stock: inv.reduce((s, r) => s + Math.max(0, r.available - r.reserved), 0),
     inventory: inv.map((r) => ({ locationId: r.location_id, available: r.available, reserved: r.reserved })),
@@ -708,20 +711,20 @@ async function writeVariants(actor: ShopActor, productId: string, options: Produ
       keep.add(v.id);
       await db
         .prepare(
-          `UPDATE shop_variants SET title = ?, options = ?, sku = ?, barcode = ?, price_cents = ?, compare_at_cents = ?, weight_grams = ?, track_inventory = ?, position = ?, image_url = ?
+          `UPDATE shop_variants SET title = ?, options = ?, sku = ?, barcode = ?, price_cents = ?, compare_at_cents = ?, weight_grams = ?, track_inventory = ?, continue_selling = ?, position = ?, image_url = ?
            WHERE id = ? AND product_id = ?`,
         )
-        .run(title, JSON.stringify(values), v.sku, v.barcode, v.priceCents, compare, v.weightGrams, v.trackInventory ? 1 : 0, i, v.imageUrl ?? null, v.id, productId);
+        .run(title, JSON.stringify(values), v.sku, v.barcode, v.priceCents, compare, v.weightGrams, v.trackInventory ? 1 : 0, v.continueSelling ? 1 : 0, i, v.imageUrl ?? null, v.id, productId);
       continue;
     }
     const vid = newId('var');
     keep.add(vid);
     await db
       .prepare(
-        `INSERT INTO shop_variants (id, product_id, workspace_id, title, options, sku, barcode, price_cents, compare_at_cents, weight_grams, track_inventory, position, image_url)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO shop_variants (id, product_id, workspace_id, title, options, sku, barcode, price_cents, compare_at_cents, weight_grams, track_inventory, continue_selling, position, image_url)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(vid, productId, actor.ws, title, JSON.stringify(values), v.sku, v.barcode, v.priceCents, compare, v.weightGrams, v.trackInventory ? 1 : 0, i, v.imageUrl ?? null);
+      .run(vid, productId, actor.ws, title, JSON.stringify(values), v.sku, v.barcode, v.priceCents, compare, v.weightGrams, v.trackInventory ? 1 : 0, v.continueSelling ? 1 : 0, i, v.imageUrl ?? null);
     await db.prepare('INSERT OR IGNORE INTO shop_inventory (variant_id, location_id, workspace_id, available, reserved) VALUES (?, ?, ?, 0, 0)').run(vid, loc, actor.ws);
     if (v.initialStock && v.initialStock > 0) {
       await adjustInventory(actor, { variantId: vid, locationId: loc, delta: v.initialStock, reason }, { skipRevalidate: true });
@@ -759,6 +762,7 @@ export async function updateProduct(actor: ShopActor, id: string, patch: Product
         compareAtCents: v.compareAtCents,
         weightGrams: v.weightGrams,
         trackInventory: v.trackInventory,
+        continueSelling: v.continueSelling,
         imageUrl: v.imageUrl,
       })),
     collectionIds: patch.collectionIds,
@@ -824,6 +828,7 @@ export function generateVariants(options: ProductOption[], base: { priceCents: n
     compareAtCents: null,
     weightGrams: 0,
     trackInventory: true,
+    continueSelling: false,
   }));
 }
 
@@ -1070,6 +1075,8 @@ export async function checkLowStock(ws: string, variantIds: string[]): Promise<v
 export interface ReserveLine {
   variantId: string;
   quantity: number;
+  /** Se vende aunque no alcance: si no hay stock, se reserva igual en la ubicación por defecto. */
+  continueSelling?: boolean;
 }
 
 /**
@@ -1103,6 +1110,12 @@ export async function reserveStock(ws: string, lines: Array<ReserveLine & { trac
         break;
       }
     }
+    if (!got && line.continueSelling) {
+      const loc = await defaultLocation(ws);
+      await db.prepare('INSERT OR IGNORE INTO shop_inventory (variant_id, location_id, workspace_id, available, reserved) VALUES (?, ?, ?, 0, 0)').run(line.variantId, loc, ws);
+      await db.prepare('UPDATE shop_inventory SET reserved = reserved + ? WHERE variant_id = ? AND location_id = ?').run(line.quantity, line.variantId, loc);
+      got = loc;
+    }
     if (!got) {
       for (const d of done) await releaseLine(d.variantId, d.locationId, d.quantity);
       throw new ShopError('out_of_stock', 409, { variantId: line.variantId });
@@ -1124,6 +1137,8 @@ export interface StockItem {
   location_id: string | null;
   quantity: number;
   track_inventory: number;
+  /** La variante se vende sin stock: el descuento no exige disponible. */
+  backorder?: number;
 }
 
 /** Libera lo reservado por un pedido (no pagado que se cancela o vence). */
@@ -1144,7 +1159,11 @@ export async function commitStock(ws: string, orderId: string, items: StockItem[
   const failed: string[] = [];
   for (const it of items) {
     if (!it.track_inventory || !it.variant_id || !it.location_id) continue;
-    const res = fromReserved
+    const res = it.backorder
+      ? await db
+          .prepare(`UPDATE shop_inventory SET available = available - ?${fromReserved ? ', reserved = MAX(reserved - ?, 0)' : ''} WHERE variant_id = ? AND location_id = ?`)
+          .run(...(fromReserved ? [it.quantity, it.quantity] : [it.quantity]), it.variant_id, it.location_id)
+      : fromReserved
       ? await db
           .prepare('UPDATE shop_inventory SET available = available - ?, reserved = MAX(reserved - ?, 0) WHERE variant_id = ? AND location_id = ? AND available >= ?')
           .run(it.quantity, it.quantity, it.variant_id, it.location_id, it.quantity)
@@ -1396,7 +1415,8 @@ export async function listShippingRates(ws: string): Promise<ShippingRate[]> {
   return rows.map((r) => ({
     id: String(r.id),
     name: String(r.name),
-    kind: r.kind === 'weight' ? 'weight' : 'flat',
+    kind: r.kind === 'weight' || r.kind === 'pickup' ? r.kind : 'flat',
+    note: String(r.note ?? ''),
     countries: parseJson<string[]>(r.countries, []),
     priceCents: Number(r.price_cents),
     minWeightG: r.min_weight_g == null ? null : Number(r.min_weight_g),
@@ -1410,12 +1430,15 @@ export async function replaceShippingRates(actor: ShopActor, raw: unknown): Prom
   if (!parsed.success) throw new ShopError('invalid_input');
   const store = await ensureStore(actor.ws);
   const db = getDb();
+  // Se valida todo antes de borrar: un rango inválido no puede dejar la tienda sin tarifas.
+  for (const r of parsed.data) {
+    if (r.kind === 'weight' && r.minWeightG != null && r.maxWeightG != null && r.minWeightG > r.maxWeightG) throw new ShopError('invalid_weight_range');
+  }
   await db.prepare('DELETE FROM shop_shipping_rates WHERE workspace_id = ?').run(actor.ws);
   for (const [i, r] of parsed.data.entries()) {
-    if (r.kind === 'weight' && r.minWeightG != null && r.maxWeightG != null && r.minWeightG > r.maxWeightG) throw new ShopError('invalid_weight_range');
     await db
       .prepare(
-        'INSERT INTO shop_shipping_rates (id, workspace_id, name, kind, countries, price_cents, min_weight_g, max_weight_g, free_over_cents, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO shop_shipping_rates (id, workspace_id, name, kind, countries, price_cents, min_weight_g, max_weight_g, free_over_cents, position, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       )
       .run(
         r.id && /^ship_[A-Za-z0-9_-]{6,20}$/.test(r.id) ? r.id : newId('ship'),
@@ -1428,6 +1451,7 @@ export async function replaceShippingRates(actor: ShopActor, raw: unknown): Prom
         r.kind === 'weight' ? r.maxWeightG : null,
         r.freeOverCents == null ? null : roundToCurrency(r.freeOverCents, store.currency),
         i,
+        r.kind === 'pickup' ? r.note : '',
       );
   }
   return listShippingRates(actor.ws);
@@ -1475,7 +1499,7 @@ function discountDto(r: Record<string, unknown>): DiscountDto {
   return {
     id: String(r.id),
     code: String(r.code),
-    kind: (['percent', 'fixed', 'free_shipping'].includes(String(r.kind)) ? r.kind : 'percent') as DiscountDto['kind'],
+    kind: (['percent', 'fixed', 'free_shipping', 'bxgy'].includes(String(r.kind)) ? r.kind : 'percent') as DiscountDto['kind'],
     value: Number(r.value),
     minOrderCents: Number(r.min_order_cents),
     usageLimit: r.usage_limit == null ? null : Number(r.usage_limit),
@@ -1484,7 +1508,33 @@ function discountDto(r: Record<string, unknown>): DiscountDto {
     endsAt: (r.ends_at as string | null) ?? null,
     active: Number(r.active) === 1,
     createdAt: String(r.created_at),
+    method: r.method === 'automatic' ? 'automatic' : 'code',
+    title: String(r.title ?? ''),
+    minQuantity: Number(r.min_quantity ?? 0),
+    buyQuantity: Number(r.buy_quantity ?? 0),
+    getQuantity: Number(r.get_quantity ?? 0),
+    scope: parseJson<{ productIds?: string[]; collectionIds?: string[] }>(r.scope, {}),
+    oncePerCustomer: Number(r.once_per_customer ?? 0) === 1,
   };
+}
+
+/** Descuentos automáticos activos de la tienda (los candidatos de cada carrito). */
+export async function listAutomaticDiscounts(ws: string): Promise<DiscountDto[]> {
+  const rows = (await getDb().prepare("SELECT * FROM shop_discounts WHERE workspace_id = ? AND method = 'automatic' AND active = 1 LIMIT 50").all(ws)) as Array<Record<string, unknown>>;
+  return rows.map(discountDto);
+}
+
+/** Productos a los que aplica un descuento (null = todo el pedido). */
+export async function discountEligibleProducts(ws: string, d: Pick<DiscountDto, 'scope'>): Promise<Set<string> | null> {
+  const products = d.scope?.productIds ?? [];
+  const collections = d.scope?.collectionIds ?? [];
+  if (!products.length && !collections.length) return null;
+  const out = new Set(products);
+  for (const id of collections.slice(0, 100)) {
+    const c = await getCollectionRow(ws, id);
+    if (c) for (const pid of await collectionProductIds(ws, c, true)) out.add(pid);
+  }
+  return out;
 }
 
 export async function listDiscounts(ws: string, opts: { q?: string } = {}): Promise<DiscountDto[]> {
@@ -1509,6 +1559,8 @@ export async function findDiscountByCode(ws: string, code: string): Promise<Disc
 function cleanDiscount(input: DiscountInput): DiscountInput {
   if (input.kind === 'percent' && (input.value < 1 || input.value > 10_000)) throw new ShopError('invalid_value');
   if (input.kind === 'fixed' && input.value < 1) throw new ShopError('invalid_value');
+  if (input.kind === 'bxgy' && (input.value < 1 || input.value > 10_000 || input.buyQuantity < 1 || input.getQuantity < 1)) throw new ShopError('invalid_value');
+  if (input.method === 'automatic' && !input.title) throw new ShopError('invalid_name');
   const norm = (d: string | null) => {
     if (!d) return null;
     const t = Date.parse(d);
@@ -1535,10 +1587,10 @@ export async function createDiscount(actor: ShopActor, raw: unknown): Promise<Di
   const ts = nowDb();
   await getDb()
     .prepare(
-      `INSERT INTO shop_discounts (id, workspace_id, code, kind, value, min_order_cents, usage_limit, used_count, starts_at, ends_at, active, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
+      `INSERT INTO shop_discounts (id, workspace_id, code, kind, value, min_order_cents, usage_limit, used_count, starts_at, ends_at, active, created_at, updated_at, method, title, min_quantity, buy_quantity, get_quantity, scope, once_per_customer)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, actor.ws, d.code, d.kind, d.value, d.minOrderCents, d.usageLimit, d.startsAt, d.endsAt, d.active ? 1 : 0, ts, ts);
+    .run(id, actor.ws, d.code, d.kind, d.value, d.minOrderCents, d.usageLimit, d.startsAt, d.endsAt, d.active ? 1 : 0, ts, ts, d.method, d.title, d.minQuantity, d.buyQuantity, d.getQuantity, JSON.stringify(d.scope), d.oncePerCustomer ? 1 : 0);
   return (await getDiscount(actor.ws, id))!;
 }
 
@@ -1555,10 +1607,10 @@ export async function updateDiscount(actor: ShopActor, id: string, raw: unknown)
   }
   await getDb()
     .prepare(
-      `UPDATE shop_discounts SET code = ?, kind = ?, value = ?, min_order_cents = ?, usage_limit = ?, starts_at = ?, ends_at = ?, active = ?, updated_at = ?
+      `UPDATE shop_discounts SET code = ?, kind = ?, value = ?, min_order_cents = ?, usage_limit = ?, starts_at = ?, ends_at = ?, active = ?, updated_at = ?, method = ?, title = ?, min_quantity = ?, buy_quantity = ?, get_quantity = ?, scope = ?, once_per_customer = ?
        WHERE id = ? AND workspace_id = ?`,
     )
-    .run(d.code, d.kind, d.value, d.minOrderCents, d.usageLimit, d.startsAt, d.endsAt, d.active ? 1 : 0, nowDb(), id, actor.ws);
+    .run(d.code, d.kind, d.value, d.minOrderCents, d.usageLimit, d.startsAt, d.endsAt, d.active ? 1 : 0, nowDb(), d.method, d.title, d.minQuantity, d.buyQuantity, d.getQuantity, JSON.stringify(d.scope), d.oncePerCustomer ? 1 : 0, id, actor.ws);
   return (await getDiscount(actor.ws, id))!;
 }
 
@@ -1586,6 +1638,8 @@ export interface CustomerDto {
   email: string;
   name: string;
   phone: string;
+  tags: string[];
+  note: string;
   ordersCount: number;
   totalSpentCents: number;
   crmContactId: string | null;
@@ -1595,6 +1649,8 @@ export interface CustomerDto {
 
 function customerDto(r: Record<string, unknown>): CustomerDto {
   return {
+    tags: parseJson<string[]>(r.tags, []),
+    note: String(r.note ?? ''),
     id: String(r.id),
     email: String(r.email),
     name: String(r.name ?? ''),
@@ -1623,6 +1679,18 @@ export async function getCustomer(ws: string, id: string): Promise<CustomerDto |
 }
 
 /** Cliente del pedido (por email; cuentas opcionales: el checkout es como invitado). */
+const customerPatch = z.object({ tags: z.array(z.string().trim().min(1).max(40)).max(30).optional(), note: z.string().max(2000).optional() });
+
+export async function updateCustomer(actor: ShopActor, id: string, raw: unknown): Promise<CustomerDto> {
+  const parsed = customerPatch.safeParse(raw);
+  if (!parsed.success) throw new ShopError('invalid_input');
+  const cur = await getCustomer(actor.ws, id);
+  if (!cur) throw new ShopError('not_found', 404);
+  const tags = parsed.data.tags ? [...new Set(parsed.data.tags)] : cur.tags;
+  await getDb().prepare('UPDATE shop_customers SET tags = ?, note = ?, updated_at = ? WHERE id = ? AND workspace_id = ?').run(JSON.stringify(tags), parsed.data.note ?? cur.note, nowDb(), id, actor.ws);
+  return (await getCustomer(actor.ws, id))!;
+}
+
 export async function upsertCustomer(ws: string, input: { email: string; name: string; phone: string }): Promise<string> {
   const db = getDb();
   const email = input.email.trim().toLowerCase();
@@ -1641,7 +1709,7 @@ export async function upsertCustomer(ws: string, input: { email: string; name: s
 // ---------- Búsqueda (⌘K) ----------
 
 export interface ShopSearchHit {
-  kind: 'product' | 'order' | 'collection' | 'discount' | 'customer';
+  kind: 'product' | 'order' | 'collection' | 'discount' | 'customer' | 'page' | 'purchase-order';
   id: string;
   label: string;
   meta: string;
@@ -1653,7 +1721,7 @@ export async function searchShop(ws: string, q: string): Promise<ShopSearchHit[]
   const db = getDb();
   const l = likeEsc(term);
   const num = /^#?(\d{1,9})$/.exec(term)?.[1];
-  const [products, orders, collections, discounts, customers] = await Promise.all([
+  const [products, orders, collections, discounts, customers, pages, pos] = await Promise.all([
     db
       .prepare("SELECT id, title, status FROM shop_products WHERE workspace_id = ? AND title LIKE ? ESCAPE '\\' ORDER BY updated_at DESC LIMIT 6")
       .all(ws, l) as Promise<Array<{ id: string; title: string; status: string }>>,
@@ -1671,6 +1739,8 @@ export async function searchShop(ws: string, q: string): Promise<ShopSearchHit[]
     db
       .prepare("SELECT id, email, name FROM shop_customers WHERE workspace_id = ? AND (email LIKE ? ESCAPE '\\' OR name LIKE ? ESCAPE '\\') ORDER BY updated_at DESC LIMIT 4")
       .all(ws, l, l) as Promise<Array<{ id: string; email: string; name: string }>>,
+    db.prepare("SELECT id, title, kind FROM shop_pages WHERE workspace_id = ? AND title LIKE ? ESCAPE '\\' ORDER BY updated_at DESC LIMIT 4").all(ws, l) as Promise<Array<{ id: string; title: string; kind: string }>>,
+    db.prepare("SELECT id, number, supplier FROM shop_purchase_orders WHERE workspace_id = ? AND supplier LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT 4").all(ws, l) as Promise<Array<{ id: string; number: number; supplier: string }>>,
   ]);
   return [
     ...products.map((p) => ({ kind: 'product' as const, id: p.id, label: p.title, meta: p.status })),
@@ -1678,6 +1748,8 @@ export async function searchShop(ws: string, q: string): Promise<ShopSearchHit[]
     ...collections.map((c) => ({ kind: 'collection' as const, id: c.id, label: c.title, meta: '' })),
     ...discounts.map((d) => ({ kind: 'discount' as const, id: d.id, label: d.code, meta: '' })),
     ...customers.map((c) => ({ kind: 'customer' as const, id: c.id, label: c.name || c.email, meta: c.name ? c.email : '' })),
+    ...pages.map((x) => ({ kind: 'page' as const, id: x.id, label: x.title, meta: x.kind })),
+    ...pos.map((x) => ({ kind: 'purchase-order' as const, id: x.id, label: `PO-${x.number}`, meta: x.supplier })),
   ];
 }
 

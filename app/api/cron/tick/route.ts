@@ -1,3 +1,4 @@
+import { sendAbandonedEmails } from '@/lib/shop-abandoned';
 import { runVoiceCron } from '@/lib/voice-jobs';
 import { applyRetention } from '@/lib/talk-admin';
 import { NextRequest, NextResponse } from 'next/server';
@@ -156,6 +157,8 @@ export async function GET(req: NextRequest) {
   // Agents: eventos ya procesados de Slack/Messenger/Instagram de más de 3 días.
   await import('@/lib/agents-channels').then((m) => m.pruneChannelEvents()).catch(() => null);
   // Agents: picos de la última hora → email al dueño (con throttle por agente).
+  // Shop: recordatorios de checkouts abandonados (reclama cada fila; topes por tienda y de tiempo).
+  const shopAbandoned = await sendAbandonedEmails().catch(() => null);
   const agentAlerts = await checkAgentAlerts().catch(() => null);
   // Agents: puntaje con AI y memoria de las conversaciones inactivas (claim por fila), y redacción de datos personales.
   const agentQuality = await processIdleConversations({ limit: 40, budgetMs: 40_000 }).catch(() => null);
@@ -173,6 +176,6 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, linkHistory, analytics, peopleOoo, hiring, sign, books, forms, trashPurged, boardTrashPurged, boardEventsPruned, boardSearchBackfill,
+  return NextResponse.json({ shopAbandoned, reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, linkHistory, analytics, peopleOoo, hiring, sign, books, forms, trashPurged, boardTrashPurged, boardEventsPruned, boardSearchBackfill,
     docsDomainsPurged, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, agentQuality, agentRedacted, robots, ideas });
 }

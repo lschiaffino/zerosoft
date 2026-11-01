@@ -103,6 +103,12 @@ del pedido. El pago lo marca un webhook **firmado de verdad** con el secreto
 guardado (los e2e lo firman como Stripe) o "Marcar pagado". En Mercado Pago, un
 `data.id` `fake<idDelPedido>` simula un pago aprobado por el total.
 
+## Pagar un pedido desde su página
+
+Una factura de un borrador (`source = draft`) se puede pagar con cualquier medio
+online de la tienda desde la página del pedido; un pedido online solo reintenta
+su propio medio, porque su total pudo llevar el descuento de ese medio.
+
 ## Lo que no hace todavía
 
 - Dominio propio para la tienda (vive en `/store/<handle>`).

@@ -5,7 +5,7 @@
  */
 export const APP_SECTIONS = {
   sign: ['new', 'envelopes', 'templates', 'settings'],
-  shop: ['orders', 'products', 'collections', 'inventory', 'customers', 'discounts', 'analytics', 'settings'],
+  shop: ['orders', 'products', 'collections', 'inventory', 'customers', 'discounts', 'analytics', 'settings', 'returns', 'abandoned', 'reports', 'pages', 'purchase-orders'],
   books: ['invoices', 'credit-notes', 'bills', 'recurring', 'quotes', 'contacts', 'items', 'expenses', 'purchase-orders', 'banking', 'accounts', 'journal', 'reports', 'settings'],
   people: ['me', 'u', 'org', 'time-off', 'onboarding', 'reviews', 'reports', 'settings', 'welcome'],
   hiring: ['jobs', 'candidates', 'reports', 'templates', 'settings'],
@@ -23,7 +23,7 @@ export function isAppSection(app: keyof typeof APP_SECTIONS, section: string | u
 /** Secciones de una sola pantalla: /app/sign/settings/x no existe. */
 const NO_ID: Record<keyof typeof APP_SECTIONS, readonly string[]> = {
   sign: ['new', 'settings'],
-  shop: ['inventory', 'analytics', 'settings'],
+  shop: ['inventory', 'analytics', 'settings', 'returns', 'abandoned', 'reports', 'purchase-orders'],
   books: ['quotes', 'accounts', 'settings'],
   people: ['org', 'time-off', 'reports', 'settings', 'welcome'],
   hiring: ['reports', 'templates', 'settings'],

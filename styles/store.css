@@ -758,3 +758,76 @@
   background: var(--sf-ink);
   border-color: var(--sf-ink);
 }
+
+/* Pedidos, retiro, páginas y filtros */
+.sf-block {
+  display: block;
+}
+.sf-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sf-narrow .sf-desc {
+  overflow-wrap: anywhere;
+}
+.sf-articles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.sf-article-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+.sf-whatsapp {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 20;
+  padding: 10px 14px;
+  background: #128c4b;
+  color: #fff;
+  border-radius: 6px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.sf-whatsapp:hover,
+.sf-whatsapp:focus-visible {
+  background: #0e6f3b;
+  color: #fff;
+}
+.sf-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin: 0 0 16px;
+}
+.sf-filters .sf-field {
+  margin: 0;
+  flex: 0 1 180px;
+  min-width: 0;
+}
+.sf-filters .sf-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+}
+.sf-orders {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.sf-orders li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--sf-line, #e5e5e5);
+}
