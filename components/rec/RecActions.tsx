@@ -98,7 +98,7 @@ export default function RecActions({ video }: { video: RecVideoDto }) {
   if (none) return null;
 
   return (
-    <div className="rec-actions" data-testid="rec-actions">
+    <div className="rec-export" data-testid="rec-actions">
       <h2 className="rec-h">{t('title')}</h2>
       <p className="ui-help">{t('help')}</p>
       <div className="rec-actions-row">

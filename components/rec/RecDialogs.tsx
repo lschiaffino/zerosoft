@@ -168,6 +168,8 @@ export function RecMoveDialog({
   ];
   const chosen = options.find((x) => x.k === sel);
   const notice = privacy && chosen && chosen.k !== curKey ? recMoveNotice({ spaceId: current.spaceId ?? null, privacy }, chosen.target) : null;
+  // Si el aviso ya dice que no se puede, Mover no se ofrece; y el error no repite al aviso.
+  const blocked = notice === 'needs_privacy';
   return (
     <dialog
       ref={ref}
@@ -186,7 +188,7 @@ export function RecMoveDialog({
           onSubmit={(e) => {
             e.preventDefault();
             const o = options.find((x) => x.k === sel);
-            if (o) onMove(o.target);
+            if (o && !blocked) onMove(o.target);
           }}
         >
           <div className="ui-modal-head">
@@ -210,7 +212,7 @@ export function RecMoveDialog({
                 {t(notice === 'needs_privacy' ? 'moveNeedsPrivacy' : 'moveBecomesPeople')}
               </p>
             )}
-            {error && (
+            {error && !blocked && (
               <p className="ui-error" role="alert" data-testid="rec-move-error">
                 {error}
               </p>
@@ -220,7 +222,7 @@ export function RecMoveDialog({
             <button type="button" className="btn btn-sm" onClick={onClose}>
               {tc('cancel')}
             </button>
-            <button type="submit" className="btn btn-primary btn-sm" disabled={busy} data-testid="rec-move-submit">
+            <button type="submit" className="btn btn-primary btn-sm" disabled={busy || blocked} data-testid="rec-move-submit">
               {t('move')}
             </button>
           </div>

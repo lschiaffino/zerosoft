@@ -49,6 +49,7 @@
     "noMatchBody": "Probá con otra búsqueda o sacá el filtro."
   },
   "templates": {
+    "seeAll": "Ver las {count}",
     "title": "Plantillas",
     "subtitle": "Flows listos. Usá uno y ajustá los detalles.",
     "use": "Usar plantilla",

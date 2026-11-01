@@ -80,6 +80,7 @@
     "preview": "Pré-visualizar"
   },
   "assoc": {
+    "noneToAdd": "Não há mais nada para vincular. Crie um registro primeiro.",
     "associate": "Associar",
     "associating": "Associando…",
     "pickDeal": "Selecione um negócio…",

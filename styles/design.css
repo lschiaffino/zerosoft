@@ -18,7 +18,7 @@ body:has(.dz-editor) .fl-root { display: none; }
 /* ---------- Inicio ---------- */
 
 .dz-home { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
-.dz-presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.dz-presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
 .dz-presets-dialog { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
 .dz-preset {
   display: flex;

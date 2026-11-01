@@ -34,7 +34,7 @@
 }
 
 /* El launcher de feedback no tapa el panel. */
-body:has(.asst-panel) .fl-root { right: calc(min(440px, 100vw) + 20px); }
+body:has(.asst-panel) .fl-root { right: min(440px, 100vw); }
 @media (max-width: 760px) {
   body:has(.asst-panel) .fl-root { visibility: hidden; pointer-events: none; }
 }
@@ -113,7 +113,7 @@ body:has(.asst-panel) .fl-root { right: calc(min(440px, 100vw) + 20px); }
 .asst-context, .asst-foot { margin: 0; font-size: 0.75rem; }
 
 /* ---------- Página /app/assistant ---------- */
-.asst-page { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 0; min-height: calc(100dvh - var(--band-h, 48px) - 48px); border: 1px solid var(--line); border-radius: var(--r-xs); }
+.asst-page { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 0; height: max(440px, calc(100dvh - var(--band-h, 48px) - 188px)); overflow: hidden; border: 1px solid var(--line); border-radius: var(--r-xs); }
 .asst-page-side { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); }
 .asst-page-side-head { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-bottom: 1px solid var(--line); }
 .asst-page-list { list-style: none; margin: 0; padding: 4px; overflow-y: auto; flex: 1; }

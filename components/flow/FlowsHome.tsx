@@ -44,6 +44,8 @@ export default function FlowsHome({ flows: initial, folders: initialFolders, can
   const t = useTranslations('flow');
   const locale = useLocale();
   const [retention, setRetention] = useState(initialSettings.retentionDays);
+  // En el teléfono, las primeras plantillas y "Ver todas" (styles/flow.css).
+  const [allTemplates, setAllTemplates] = useState(false);
   const [settingsState, setSettingsState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const format = useFormatter();
   const now = useNow({ updateInterval: 30_000 });
@@ -788,7 +790,7 @@ export default function FlowsHome({ flows: initial, folders: initialFolders, can
           </h2>
           <p className="ui-help">{t('templates.subtitle')}</p>
         </div>
-        <ul className="flow-templates">
+        <ul className={`flow-templates${allTemplates ? ' is-all' : ''}`}>
           {FLOW_TEMPLATES.map((tpl) => (
             <li className="flow-template" key={tpl.key}>
               <div className="flow-template-text">
@@ -810,6 +812,11 @@ export default function FlowsHome({ flows: initial, folders: initialFolders, can
             </li>
           ))}
         </ul>
+        {!allTemplates && FLOW_TEMPLATES.length > 6 && (
+          <button type="button" className="btn btn-secondary btn-sm flow-templates-all" onClick={() => setAllTemplates(true)}>
+            {t('templates.seeAll', { count: FLOW_TEMPLATES.length })}
+          </button>
+        )}
       </section>
 
       <section className="flow-block" aria-labelledby="flow-settings-title">

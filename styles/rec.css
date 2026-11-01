@@ -450,7 +450,7 @@ section.rec-pending { padding-top: 14px; padding-bottom: 14px; }
 .rec-edit-seg.cut .rec-edit-seg-text { text-decoration: line-through; color: var(--dim); }
 h3.rec-h { margin-top: 8px; }
 /* Acciones */
-.rec-actions { display: flex; flex-direction: column; gap: 8px; padding-top: 16px; border-top: 1px solid var(--line); }
+.rec-export { display: flex; flex-direction: column; gap: 8px; padding-top: 16px; border-top: 1px solid var(--line); }
 .rec-actions-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .rec-actions-select { width: auto; max-width: 100%; min-width: 0; flex: 0 1 200px; }
 /* Pedidos de acceso */
