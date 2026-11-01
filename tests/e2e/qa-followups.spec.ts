@@ -213,12 +213,12 @@ test('robots: el admin se hace cargo solo si confirma, y el diálogo nombra a qu
   // Guardar no transfiere.
   expect((await request.patch(`/api/robots/${id}`, { data: { name: 'Renamed' } })).ok()).toBe(true);
   await page.goto(`/en/app/robots/${id}`, { waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: 'Run', exact: true }).first().click();
+  await page.getByRole('button', { name: 'Run robot', exact: true }).first().click();
   const dialog = page.getByRole('alertdialog');
   await expect(dialog).toContainText('Ana Creator');
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   await expect(page.getByText(/does not run until an admin takes over/).first()).toBeVisible();
-  await page.getByRole('button', { name: 'Run', exact: true }).first().click();
+  await page.getByRole('button', { name: 'Run robot', exact: true }).first().click();
   await dialog.getByRole('button', { name: 'Take over and run' }).click();
   await expect(dialog).toBeHidden();
   await expect(page.locator('.robots-run-error')).toHaveCount(0);

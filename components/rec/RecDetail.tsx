@@ -353,7 +353,7 @@ export default function RecDetail({
           {video.expiresAt ? ` · ${t('badgeExpires', { date: new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(parseDbUtc(video.expiresAt)) })}` : ''}
         </span>
       </div>
-      {error && (
+      {error && !moving && (
         <p className="ui-error" role="alert">
           {error}
         </p>

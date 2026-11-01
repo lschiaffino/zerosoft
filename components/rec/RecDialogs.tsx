@@ -206,7 +206,7 @@ export function RecMoveDialog({
             </fieldset>
             <p className="ui-help">{t('moveHelp')}</p>
             {notice && (
-              <p className="ui-help" data-testid="rec-move-notice">
+              <p className="rec-move-notice" data-testid="rec-move-notice">
                 {t(notice === 'needs_privacy' ? 'moveNeedsPrivacy' : 'moveBecomesPeople')}
               </p>
             )}

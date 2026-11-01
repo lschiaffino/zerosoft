@@ -475,7 +475,7 @@ export default function RecLibrary({
           aria-busy={loading || undefined}
         />
       </div>
-      {error && (
+      {error && !moving && (
         <p className="ui-error" role="alert">
           {error}
         </p>

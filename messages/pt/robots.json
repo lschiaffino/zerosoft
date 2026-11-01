@@ -551,7 +551,7 @@
     "suggestion_stale": "O passo mudou desde essa execução. Rode o robô de novo.",
     "invalid_login_site": "Passo {index}: Site do login precisa ser um endereço web, como https://login.example.com.",
     "credential_with_script": "O passo {index} pode ler o que foi digitado em um campo e este robô usa um login. Tire esse passo (Executar JavaScript, ou ler o atributo value) ou deixe de usar o login neste robô.",
-    "takeover_required": "Este robô usa um login e foi montado por alguém que não é mais admin, então não roda até que um admin assuma seus passos. Toque em Rodar neste robô e confirme.",
+    "takeover_required": "Este robô usa um login e foi montado por alguém que não é mais admin, então não roda até que um admin assuma seus passos. Toque em Rodar robô e confirme.",
     "takeover_stale": "O robô mudou desde que você abriu isto. Recarregue e tente de novo."
   },
   "paste": {

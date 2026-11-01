@@ -551,7 +551,7 @@
     "suggestion_stale": "El paso cambió desde esa corrida. Volvé a correr el robot.",
     "invalid_login_site": "Paso {index}: Sitio del login tiene que ser una dirección web, como https://login.example.com.",
     "credential_with_script": "El paso {index} puede leer lo que se escribió en un campo y este robot usa un login. Sacá ese paso (Ejecutar JavaScript, o leer el atributo value) o dejá de usar el login en este robot.",
-    "takeover_required": "Este robot usa un login y lo armó alguien que ya no es admin, así que no corre hasta que un admin se haga cargo de sus pasos. Tocá Correr en este robot y confirmá.",
+    "takeover_required": "Este robot usa un login y lo armó alguien que ya no es admin, así que no corre hasta que un admin se haga cargo de sus pasos. Tocá Correr robot y confirmá.",
     "takeover_stale": "El robot cambió desde que abriste esto. Recargá y probá de nuevo."
   },
   "paste": {

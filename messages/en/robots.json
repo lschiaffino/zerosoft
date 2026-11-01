@@ -551,7 +551,7 @@
     "suggestion_stale": "The step changed since that run. Run the robot again.",
     "invalid_login_site": "Step {index}: Login site has to be a web address, like https://login.example.com.",
     "credential_with_script": "Step {index} can read what was typed in a field, and this robot uses a login. Remove that step (Run JavaScript, or reading the value attribute) or stop using the login in this robot.",
-    "takeover_required": "This robot uses a login and was built by someone who is no longer an admin, so it does not run until an admin takes over its steps. Press Run in this robot and confirm.",
+    "takeover_required": "This robot uses a login and was built by someone who is no longer an admin, so it does not run until an admin takes over its steps. Press Run robot and confirm.",
     "takeover_stale": "The robot changed since you opened this. Reload and try again."
   },
   "paste": {
