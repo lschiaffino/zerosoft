@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-01-notes-duplicar',
+    date: '2026-11-01',
+    title: {
+      en: 'Notes: duplicate a note',
+      es: 'Notes: duplicar una nota',
+      pt: 'Notes: duplicar uma nota',
+    },
+    items: [
+      {
+        product: 'notes',
+        en: 'Notes: the note menu has a new Duplicate action that copies the content, tags and notebook into a new note. Deleting the original forever no longer removes attachments that a copy still uses.',
+        es: 'Notes: el menú de la nota tiene la acción Duplicar, que copia el contenido, las etiquetas y la libreta en una nota nueva. Borrar el original para siempre ya no elimina los adjuntos que una copia sigue usando.',
+        pt: 'Notes: o menu da nota tem a ação Duplicar, que copia o conteúdo, as etiquetas e o caderno para uma nota nova. Apagar o original de vez não remove mais os anexos que uma cópia ainda usa.',
+      },
+    ],
+  },
+  {
     id: '2026-10-31-robots-paridad',
     date: '2026-10-31',
     title: {
