@@ -10,7 +10,7 @@ import {
 
 /**
  * Subida de un archivo del editor de Docs. Con Vercel Blob el navegador sube
- * directo al storage (hasta 5 GB, en partes si es grande) y el servidor solo
+ * directo al storage (hasta 100 MB, en partes si es grande) y el servidor solo
  * firma el permiso (/api/docs/pages/<id>/files/blob); sin Blob (servidor
  * propio) va por multipart a la ruta de la página, que lo guarda en disco.
  * Notes pasa su propia ruta: como no publica una config, sube por el servidor.

@@ -29,6 +29,41 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-31-correcciones-qa',
+    date: '2026-10-31',
+    title: {
+      en: 'Clearer batch estimates, moving videos and dates in your time zone',
+      es: 'Lotes más claros, mover videos y fechas en tu zona horaria',
+      pt: 'Lotes mais claros, mover vídeos e datas no seu fuso horário',
+    },
+    items: [
+      {
+        product: 'robots',
+        en: 'The bulk run dialog says how many rows your remaining minutes cover. Rows that wait too long in the queue now send a notice when they are dropped.',
+        es: 'El diálogo de corrida en lote dice cuántas filas cubren los minutos que te quedan. Las filas que esperan demasiado en la cola ahora mandan un aviso cuando se descartan.',
+        pt: 'O diálogo de execução em lote diz quantas linhas os minutos restantes cobrem. As linhas que esperam demais na fila agora enviam um aviso quando são descartadas.',
+      },
+      {
+        product: 'talk',
+        en: 'Daily recaps stay on when AI is temporarily unavailable and resume on their own. Retrying /ask after a timeout returns the first answer instead of posting a second one.',
+        es: 'Los recaps diarios siguen activos si la IA no está disponible por un rato y vuelven solos. Reintentar /ask después de un timeout devuelve la primera respuesta en lugar de publicar otra.',
+        pt: 'Os resumos diários continuam ativos se a IA ficar indisponível por um tempo e voltam sozinhos. Tentar /ask de novo depois de um timeout devolve a primeira resposta em vez de publicar outra.',
+      },
+      {
+        product: 'rec',
+        en: 'The move dialog warns when a video changes to Only specific people and shows move errors inside the dialog.',
+        es: 'El diálogo de mover avisa cuando un video pasa a Solo personas puntuales y muestra los errores adentro del diálogo.',
+        pt: 'O diálogo de mover avisa quando um vídeo passa para Só pessoas específicas e mostra os erros dentro do diálogo.',
+      },
+      {
+        product: 'crm',
+        en: 'Dates in CRM lists stay on the right day, and times in Docs, Board, Link, Voice and CRM groups use your time zone.',
+        es: 'Las fechas de las listas del CRM quedan en el día correcto, y las horas de Docs, Board, Link, Voice y los grupos del CRM usan tu zona horaria.',
+        pt: 'As datas das listas do CRM ficam no dia certo, e os horários de Docs, Board, Link, Voice e grupos do CRM usam seu fuso horário.',
+      },
+    ],
+  },
+  {
     id: '2026-10-31-robots-paridad',
     date: '2026-10-31',
     title: {
