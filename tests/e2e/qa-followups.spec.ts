@@ -225,6 +225,8 @@ test('robots: el admin se hace cargo solo si confirma, y el diálogo nombra a qu
   await expect.poll(async () => ((await (await request.get(`/api/robots/${id}/runs`)).json()) as { runs: unknown[] }).runs.length, { timeout: 30_000 }).toBeGreaterThan(0);
   const notes = await rows("SELECT title FROM notifications WHERE user_id = ? AND type = 'robot_notice'", [creator]);
   expect(notes.length).toBe(1);
+  // No deja una persona de más en el workspace demo: otras suites cuentan a quienes hay.
+  await sql('DELETE FROM team_members WHERE user_id = ?', [creator]);
 });
 
 /** Errores de hidratación (#418, #423, #425) en la consola de la página. */
