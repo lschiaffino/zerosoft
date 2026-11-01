@@ -165,6 +165,8 @@ export default defineConfig({
       BOOKS_PAYMENTS_FAKE: '1',
       // Sign (y cualquier email sin Resend): captura de emails para leer el código y el link de firma.
       EMAIL_CAPTURE_FILE: mailFile,
+      // Sin Resend real aunque .env.local lo traiga: ningún e2e manda mails de verdad.
+      RESEND_API_KEY: '',
       AI_GATEWAY_API_KEY: '',
       VERCEL_OIDC_TOKEN: '',
     },

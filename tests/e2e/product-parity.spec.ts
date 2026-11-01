@@ -72,7 +72,7 @@ test('/es/products/voice es una app real', async ({ page }) => {
   await expect(page.locator('.pd-building')).toHaveCount(0);
   await expect(page.locator('#parity .parity-num .data')).not.toHaveText('0%');
   await expect(page.locator('.pd-actions .btn-primary')).toHaveAttribute('href', /\/app\/voice/);
-  await expect(page.locator('main')).toContainText('Está en camino');
+  await expect(page.locator('main')).toContainText('está en camino');
 });
 
 // Design (como Canva) sale como app real: la landing lleva a la app.
