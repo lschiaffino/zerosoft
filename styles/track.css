@@ -2925,3 +2925,29 @@ a.track-board-card-title:hover {
     height: 240px;
   }
 }
+
+/* Teléfono: el título y el aviso a todo el ancho; la hora y Posponer abajo, sin cortarse. */
+@media (max-width: 599px) {
+  .track-inbox-item {
+    grid-template-columns: 8px minmax(0, 1fr) auto;
+    row-gap: 2px;
+    align-items: start;
+  }
+
+  .track-inbox-mark {
+    margin-top: 6px;
+  }
+
+  .track-inbox-link {
+    grid-column: 2 / -1;
+  }
+
+  .track-inbox-time {
+    grid-column: 2;
+    align-self: center;
+  }
+
+  .track-inbox-snooze.track-inline-trigger {
+    margin-inline: 0;
+  }
+}
