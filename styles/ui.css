@@ -504,15 +504,6 @@ select.select,
   .ui-tabs { gap: 2px; }
   .ui-tabs .ui-tab { padding-left: 8px; padding-right: 8px; }
 }
-/* Pestañas que no entran: sombra en el borde donde sigue la lista (como .table-wrap). Si entran, no se ve nada. */
-.ui-tabs,
-.pline-list {
-  background:
-    linear-gradient(to right, var(--bg) 40%, transparent) left / 24px 100% no-repeat local,
-    linear-gradient(to left, var(--bg) 40%, transparent) right / 24px 100% no-repeat local,
-    linear-gradient(to right, color-mix(in srgb, var(--ink) 18%, transparent), transparent) left / 12px 100% no-repeat scroll,
-    linear-gradient(to left, color-mix(in srgb, var(--ink) 18%, transparent), transparent) right / 12px 100% no-repeat scroll;
-}
 .ui-tab {
   position: relative;
   display: inline-flex;

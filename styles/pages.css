@@ -457,6 +457,15 @@
 }
 .pline-list { list-style: none; display: flex; overflow-x: auto; scrollbar-width: none; }
 .pline-list::-webkit-scrollbar { display: none; }
+/* Lo que no entra: sombra en el borde donde sigue la lista. */
+.pline-list,
+.showcase-tabs {
+  background:
+    linear-gradient(to right, var(--bg) 40%, transparent) left / 24px 100% no-repeat local,
+    linear-gradient(to left, var(--bg) 40%, transparent) right / 24px 100% no-repeat local,
+    linear-gradient(to right, color-mix(in srgb, var(--ink) 18%, transparent), transparent) left / 12px 100% no-repeat scroll,
+    linear-gradient(to left, color-mix(in srgb, var(--ink) 18%, transparent), transparent) right / 12px 100% no-repeat scroll;
+}
 .pline-list li { position: relative; flex: 0 0 auto; }
 .pline-link {
   position: relative;
