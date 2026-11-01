@@ -26,6 +26,8 @@ import ProductLinks from '@/components/site/ProductLinks';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import { GITHUB_URL, INCUMBENTS, PRODUCT_NAMES, annualCost } from '@/components/site/catalog';
 import { PRODUCT_CONFIG } from '@/lib/products';
+import { staticPageMetadata } from '@/lib/seo-pages';
+import { faqLd, graphLd, jsonLdString, organizationLd, websiteLd } from '@/lib/seo';
 import '@/styles/pages.css';
 
 const SHOWCASE = [
@@ -43,6 +45,11 @@ const SHOWCASE = [
 const STACK_ORDER = ['crm', 'chat', 'cal', 'docs', 'track', 'link'] as const;
 
 const FAQ = ['1', '2', '3', '4', '5', '6', '7'] as const;
+
+export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
+  const { locale } = await props.params;
+  return staticPageMetadata('home', locale);
+}
 
 export default function HomePage(props: { params: Promise<{ locale: string }> }) {
   const { locale } = use(props.params);
@@ -63,6 +70,19 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
 
   return (
     <main id="top" className="lp">
+      {/* La organización, el sitio y las preguntas del home (las mismas que se ven abajo). */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdString(
+            graphLd([
+              organizationLd(),
+              websiteLd(t('meta.description')),
+              faqLd(FAQ.map((n) => ({ q: h(`faq.q${n}`), a: h(`faq.a${n}`) }))),
+            ]),
+          ),
+        }}
+      />
       {/* Primer viewport: la tesis y el plano vivo de la suite. */}
       <section className="lp-hero" aria-labelledby="lp-title">
         <div className="lp-hero-copy">

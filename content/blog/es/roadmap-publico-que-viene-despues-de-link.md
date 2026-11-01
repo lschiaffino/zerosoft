@@ -40,4 +40,4 @@ Los trimestres son trimestres, no días. Si algo se atrasa, lo actualizamos en e
 
 ## Cómo seguirlo
 
-El roadmap vive en [/roadmap](/roadmap) y en los issues del repositorio. Podés votar, proponer funciones o mandar un PR, que es la forma más rápida de mover una prioridad.
+El roadmap vive en [/feedback-board/roadmap](/feedback-board/roadmap) y en los issues del repositorio. Podés votar, proponer funciones o mandar un PR, que es la forma más rápida de mover una prioridad.

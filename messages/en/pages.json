@@ -1,7 +1,7 @@
 {
   "products": {
     "meta": {
-      "title": "Products",
+      "title": "24 open-source business apps: CRM, chat, docs and more",
       "description": "Twenty-four apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics, Social, Hiring, People, Books, Sign and Forms. Open source for your server, or on zerosoft Cloud with a free plan and pay as you go."
     },
     "hero": {
@@ -90,7 +90,7 @@
         },
         "f5": {
           "q": "What is missing compared with Dub?",
-          "a": "Lead and sale tracking per click, a partner program, official SDKs, an MCP server and a CLI, one-click DNS setup and link cloaking. Routing by country or device, A/B destinations, QR codes with logo and colors, folder permissions and bulk actions are already in Link."
+          "a": "Official SDKs, a partner and affiliate program, a CLI, one-click DNS setup, SAML SSO, SCIM and a Raycast extension. Zapier and Make receive events through their catch hooks, but there is no published app for them yet."
         }
       },
       "cta": {
@@ -180,11 +180,11 @@
         },
         "f3": {
           "q": "Where do I see my work?",
-          "a": "In My tasks and in the inbox, which collects mentions, assignments and changes to your issues."
+          "a": "In My issues and in the inbox, which collects mentions, assignments and changes to your issues."
         },
         "f4": {
           "q": "Does it have an API or webhooks?",
-          "a": "Not yet. API v1 covers Link, CRM, Cal and Agents. Meanwhile, Flow can create issues when something happens in another app."
+          "a": "Yes. REST API v1 covers issues, comments, teams, cycles, statuses, labels and people, with scoped keys. Webhooks for issues, comments and teams arrive signed, with retries and a delivery log. There is also an MCP server."
         },
         "f5": {
           "q": "How do I self-host it?",
@@ -274,7 +274,7 @@
         },
         "f2": {
           "q": "Does it send email from my account?",
-          "a": "Yes, from your connected Gmail, with templates, open and click tracking, and sequences. Sequence steps go out within the hour they are due. On your own server, connecting Gmail needs your own Google OAuth client."
+          "a": "Yes, from your connected Gmail or Outlook, with templates and open and click tracking. Sequences send from Gmail only, within the hour each step is due. On your own server, connecting Gmail needs your own Google OAuth client, and Outlook needs an app in Microsoft Entra ID."
         },
         "f3": {
           "q": "Can I limit what each rep sees?",
@@ -286,7 +286,7 @@
         },
         "f5": {
           "q": "What is missing compared to HubSpot?",
-          "a": "Quotes have no e-signature or payment collection. Forms have no multi-step pages, conditional fields or file uploads. On phones, tables scroll sideways instead of switching to cards."
+          "a": "A native app on the App Store and Google Play (there is an installable app that works offline), a notetaker that joins and records the call, and a directory of third-party apps. The Gmail extension is not on the Chrome Web Store yet, and there is no Outlook add-in."
         }
       },
       "cta": {
@@ -372,7 +372,7 @@
         },
         "f2": {
           "q": "Which calendars does it sync with?",
-          "a": "Google Calendar: busy times block slots and every booking creates the event with a Meet link. Outlook and iCloud are not supported yet. On your own server, the Google connection needs your own OAuth client."
+          "a": "Google Calendar, Outlook (Microsoft 365) and iCloud: you choose which calendars are checked for conflicts and which one receives bookings, with a Meet link on Google and a Teams link on Outlook. iCloud connects with an app password. On your own server, Google needs your own OAuth client and Outlook an app in Microsoft Entra ID."
         },
         "f3": {
           "q": "Does it work for a team?",
@@ -384,7 +384,7 @@
         },
         "f5": {
           "q": "What is missing compared to Calendly?",
-          "a": "Group or collective events, SMS reminders and Outlook or iCloud calendars. Stripe payments, email workflows and reusable schedules are already in Cal."
+          "a": "iOS and Android apps, meeting packages with payment links and invoices, admin-managed event types, SSO and SCIM, a browser extension, a notetaker and an assistant that schedules by email. Payments lack PayPal, and booking pages cannot be served on your own domain yet."
         }
       },
       "cta": {
@@ -470,19 +470,19 @@
         },
         "f2": {
           "q": "Can several people edit at once?",
-          "a": "Not in real time. If two people edit the same page at the same time, the second one to save gets a warning and chooses between loading the new version or overwriting it. Each page keeps up to 50 versions you can restore."
+          "a": "Yes, in beta: you turn it on per workspace in the Docs settings. Text blocks are edited keystroke by keystroke, with live cursors and presence. Blocks with links to pages or over 20,000 characters, the title and database cells merge on save, as everything does without the beta. Each page keeps up to 50 versions you can restore."
         },
         "f3": {
           "q": "Can I publish a page on the web?",
-          "a": "Yes. The pages you publish form a public help center at /h/ plus your handle, with collections, search and a vote per article. On zerosoft Cloud there is no custom domain yet. For a single person, share the page as view only."
+          "a": "Yes. The pages you publish form a public site with collections, search and a vote per article, at /h/ plus your handle or on your own domain (one per workspace, like docs.yourcompany.com). For a single person, share the page as view only."
         },
         "f4": {
           "q": "What do databases have?",
-          "a": "Typed properties (text, number, select, multi-select, status, date, person, checkbox, URL, email, phone, created and edited time), table, board and gallery views with filters, sorting and grouping, and rows that open as pages. Relations, rollups, formulas and calendar or timeline views are not there yet."
+          "a": "Typed properties (text, number, select, status, date, person, files, formula, relation, rollup, button, unique ID and more), table, board, gallery, list, calendar and timeline views with filters, sorting and grouping, and rows that open as pages. Dates are single days and numbers have no currency format. Chart, form and map views are not there yet."
         },
         "f5": {
           "q": "Does it have a public API?",
-          "a": "Not yet. API v1 covers Link, CRM, Cal and Agents. If you self-host, pages are stored as JSON in your SQLite database."
+          "a": "Yes. /api/v1/docs covers pages, blocks, databases, rows, search and comments, with docs:read and docs:write keys. There are also signed webhooks and an MCP server. If you self-host, pages are stored as JSON in your SQLite database."
         }
       },
       "cta": {
@@ -568,7 +568,7 @@
         },
         "f2": {
           "q": "Does it handle email or WhatsApp?",
-          "a": "Not yet. Chat has one channel: the website widget."
+          "a": "Email yes: you forward your support address to the widget's and answer from the inbox. Replies go out from the app address, not from your domain yet, and forwarding was tested with the payload in Resend's docs, not against live Resend. WhatsApp is not in Chat yet; Groups handles it."
         },
         "f3": {
           "q": "How does the bot work?",
@@ -580,7 +580,7 @@
         },
         "f5": {
           "q": "What is missing compared to Intercom?",
-          "a": "Proactive messages, a public API with webhooks, and conversation export. Internal notes with mentions, tags, macros, the help center and reports per agent or by date range are already in Chat."
+          "a": "WhatsApp, Instagram, Messenger and SMS in the inbox, phone and voice, an app store, native apps for the team, a mobile SDK for the messenger, and a multilingual or private help center."
         }
       },
       "cta": {
@@ -677,7 +677,7 @@
         },
         "f5": {
           "q": "What is missing compared to Periskope?",
-          "a": "Still to come: a native mobile app, voice calls, round-robin assignment and per-label access for members. Periskope also uses AI to tell questions from comments; Groups flags by time without reply."
+          "a": "Native apps on the App Store and Google Play (there is an installable app with push), and calling or recording from Groups: providers do not expose the audio, so only the Cloud API call log remains. There is also no app in the Zapier directory and no contacts or properties endpoints in the API, and the MCP server has 9 tools against 56."
         }
       },
       "cta": {
@@ -755,11 +755,11 @@
         },
         "f3": {
           "q": "Where does it talk to my customers?",
-          "a": "In the Chat widget on your site, on its own public page and through API v1 (agents:run scope) from your app."
+          "a": "In the Chat widget on your site, on its own public page, by email (with Chat's inbound email set up) and through API v1 (agents:run scope). Also on WhatsApp through Groups, on Slack, Messenger and Instagram with your own app, and by phone on a Twilio number assigned by the instance admin."
         },
         "f4": {
           "q": "Can it change my data?",
-          "a": "Only through the tools you turn on, and only inside your workspace. To book a meeting it needs a slot it offered itself and the visitor’s confirmation."
+          "a": "Only through the tools you turn on. Suite tools act inside your workspace; outside it, it only calls the domains you allow and your MCP servers. Tools that write can require human approval. To book a meeting it needs a slot it offered itself and the visitor’s confirmation."
         },
         "f5": {
           "q": "Can I bring my Fin setup?",
@@ -849,7 +849,7 @@
         },
         "f5": {
           "q": "What is missing compared to Zapier?",
-          "a": "The number of integrations. Flow has nodes for Slack, Google Sheets, Gmail, Stripe, Notion, Discord and Telegram; Zapier connects thousands of apps. For the rest, Flow speaks HTTP: if a service has an API or webhooks, you connect it with an HTTP request."
+          "a": "Not yet in Flow: one-click OAuth connections (credentials are pasted by hand), instant triggers from third-party apps, an MCP server, a public API for flows and runs, SAML SSO, an audit log and a way to restrict apps. The catalog is also small: nodes for Slack, Google Sheets, Gmail, Stripe, Notion, Discord and Telegram, and HTTP for the rest."
         }
       },
       "cta": {
@@ -935,7 +935,7 @@
         },
         "f5": {
           "q": "What is missing compared with Browse AI?",
-          "a": "Picking what to extract by clicking on the page (today you write CSS selectors), prebuilt robots for popular sites, robots generated by AI from a URL, residential proxies by country, captcha handling and self-healing when a site changes its layout."
+          "a": "Solving captchas and Cloudflare. With less scope: runs of 180 seconds and 20 pages (Browse AI allows 60 minutes), 8 prebuilt robots (Browse AI offers over 250), residential proxies only with a provider set up on your server, and a recording extension you install by hand. Self-healing is optional and does not relearn actions on its own. The Sheets and Airtable sync was validated with a fake provider."
         }
       },
       "cta": {
@@ -1005,7 +1005,7 @@
       "faq": {
         "f1": {
           "q": "Who can read my notes?",
-          "a": "Only you. If you share a note, anyone with the link can read it, and you can switch the link off at any time."
+          "a": "Only you, until you share it. You can give a teammate view or edit access, share its notebook or turn on a public read-only link, which you can switch off at any time."
         },
         "f2": {
           "q": "How do I save things from the web?",
@@ -1021,7 +1021,7 @@
         },
         "f5": {
           "q": "Can I import from Evernote?",
-          "a": "There is no importer yet. You can paste your notes or use the clipper to save web pages."
+          "a": "Yes. Import .enex files: up to 20 files of 4 MB and 500 notes per file, with attachments."
         }
       },
       "cta": {
@@ -1076,11 +1076,11 @@
       "faq": {
         "f1": {
           "q": "Who can edit a board?",
-          "a": "Your whole workspace. If you share it by link, everyone else can only view it."
+          "a": "Your whole workspace, or only the people you invite, with edit or view access per person. By link, there is a read-only one and an edit one for guests without an account, which you can switch off at any time."
         },
         "f2": {
           "q": "Does it save itself?",
-          "a": "Yes, as you draw. If someone changed it elsewhere, it lets you know and you choose which version to keep."
+          "a": "Yes, as you draw: changes travel live and are saved 1.2 seconds after the last one. What someone else changes merges per element, and it only asks you when someone deleted what another person edited."
         },
         "f3": {
           "q": "Can I paste images?",
@@ -1166,7 +1166,7 @@
         },
         "f2": {
           "q": "Is there a desktop app?",
-          "a": "It is on the way. Its source code is already in the repository (dictation into any program and system audio for meetings, on Mac and Windows), but there are no signed downloads yet."
+          "a": "There is no published version yet. The code is in the repository: dictation into any program and system audio for meetings, on Mac and Windows. The download appears at /download with the first version, unsigned at the start."
         },
         "f3": {
           "q": "Where is the audio processed?",
@@ -1178,7 +1178,7 @@
         },
         "f5": {
           "q": "What is missing compared to Wispr Flow + Granola?",
-          "a": "The signed desktop and mobile apps, voice commands to rewrite text, calendar reminders from Google or Outlook, folders and share links. The parity table above lists every capability we measure."
+          "a": "iPhone and Android apps, signed downloads of the desktop app, whisper mode, dictation that recognizes code and names on screen, and SSO with SCIM. The parity table above lists every capability we measure."
         }
       },
       "cta": {
@@ -1259,11 +1259,11 @@
         },
         "f4": {
           "q": "Who can watch a video?",
-          "a": "Anyone with the link, or only signed-in members of your workspace. You can add a password and an expiry date and turn comments on or off. Turning downloads off removes the download button, but a video that streams can still be captured."
+          "a": "Anyone with the link, signed-in members of your workspace or of a space, or only the emails you list. You can add a password and an expiry date and turn comments on or off. Turning downloads off removes the download button, but a video that streams can still be captured. On a public Blob store, anyone with the file URL can read it; the app never shows that URL."
         },
         "f5": {
           "q": "What is missing compared to Loom?",
-          "a": "The desktop app, the Chrome extension and mobile apps, drawing on screen, background blur, joining clips, editing by transcript, custom branding and the Slack, Jira and Gmail integrations. The parity table above has the full list."
+          "a": "The desktop app, the Chrome extension and mobile apps, meeting recording, virtual backgrounds and blur, drawing on screen, the Jira, Confluence, GitHub and Gmail integrations, a Slack app, and SSO with SCIM. Joining clips and editing by transcript only work on WebM recordings. The parity table above has the full list."
         }
       },
       "cta": {
@@ -1336,7 +1336,7 @@
         },
         "f2": {
           "q": "Does it have calls like Slack huddles?",
-          "a": "Not yet. Audio and video calls come in a later stage."
+          "a": "Yes, in channels and DMs: audio and camera browser to browser for up to 15 people, with screen sharing. The camera was only verified with simulated video, not a real camera, and strict networks need a TURN server. AI notes and drawing on the screen are not there yet."
         },
         "f3": {
           "q": "Will I be able to bring my Slack messages?",
@@ -1344,11 +1344,11 @@
         },
         "f4": {
           "q": "Does it work with people from other companies?",
-          "a": "Talk is meant for the people in your workspace. Channels shared with other organizations, like Slack Connect, are not in the initial plan."
+          "a": "Yes, as guests: you invite them by email to specific channels and they do not see other channels, the directory or other apps. Channels shared with other organizations, like Slack Connect, are not there yet."
         },
         "f5": {
           "q": "What is missing compared with Slack?",
-          "a": "Calls, canvases and lists, marketplace apps, channels shared with other organizations, guests, AI summaries and desktop and mobile apps. The parity table lists it row by row."
+          "a": "Mobile apps with push, an app marketplace, channels shared with other companies, and SSO with SCIM. There is less scope in the API (no buttons or modals), canvases (one per channel or DM) and the desktop app (no published version, no Linux). Recaps and /ask were only tested against a fake AI model. The parity table lists it row by row."
         }
       },
       "cta": {
@@ -1612,7 +1612,7 @@
     },
     "social": {
       "meta": {
-        "title": "Social: open source social media management, a Hootsuite alternative",
+        "title": "Social: open-source Hootsuite alternative",
         "description": "Schedule posts to Facebook, Instagram, LinkedIn, X, TikTok, YouTube, Threads and Bluesky, answer comments and messages from one inbox, approve your team's posts and measure what works. Open source alternative to Hootsuite."
       },
       "hero": {
@@ -1762,11 +1762,11 @@
         },
         "f4": {
           "q": "Can people sign documents?",
-          "a": "Not yet. You can share contracts and policies privately and ask people to confirm they read them. E-signature is not available."
+          "a": "Not from People yet. You can share contracts and policies privately and ask people to confirm they read them. To get a signature, send the PDF from Sign, a separate app in the suite."
         },
         "f5": {
           "q": "What is missing compared to BambooHR?",
-          "a": "Payroll, benefits, applicant tracking (that is a separate app), e-signatures, surveys like eNPS, time tracking and a mobile app. The parity table above has the full list."
+          "a": "Payroll, benefits, applicant tracking (that is a separate app), e-signatures from People (Sign is a separate app), surveys like eNPS, time tracking and a mobile app. The parity table above has the full list."
         }
       },
       "cta": {
@@ -1852,7 +1852,7 @@
         },
         "f5": {
           "q": "What is missing compared to Workable?",
-          "a": "Job board multiposting, a sourcing database, video interviews, assessments, SMS and an HRIS. The parity table above has the full list."
+          "a": "Job board multiposting, a sourcing database, video interviews, assessments, SMS and an automatic handoff to People on hire (there is a Flow event). The parity table above has the full list."
         }
       },
       "cta": {
@@ -2641,7 +2641,7 @@
   },
   "status": {
     "meta": {
-      "title": "Status",
+      "title": "zerosoft.ai status",
       "description": "What runs zerosoft.ai and how we will report its health. No made-up numbers."
     },
     "title": "Status.",
@@ -2705,13 +2705,13 @@
   },
   "docs": {
     "meta": {
-      "title": "API docs",
-      "description": "The zerosoft REST API for Link, CRM, Cal and Agents. Personal keys with scopes and JSON responses."
+      "title": "zerosoft REST API docs",
+      "description": "The zerosoft REST API: Link, CRM, Cal, Track, Docs, Chat, Agents and more. Personal keys with scopes, JSON responses and signed webhooks."
     },
     "label": "API",
     "title": "The zerosoft API.",
     "titleDim": "REST and JSON.",
-    "intro": "Link, CRM, Cal and Agents expose a REST API with JSON responses and personal keys.",
+    "intro": "Link, CRM, Cal, Track, Docs, Chat, Agents and most other apps expose a REST API with JSON responses and personal keys.",
     "baseLabel": "Base URL",
     "authTitle": "Authentication",
     "authDesc": "Every request needs an API key, sent as a Bearer token. For browser sessions the Google OAuth flow creates the session cookie.",
@@ -3591,5 +3591,69 @@
     "mobileTitle": "On your phone",
     "mobileBody": "Open zerosoft.ai/app in Safari or Chrome and add it to the home screen: it opens like an app, with every zerosoft app. Native iOS and Android builds are not in the stores yet.",
     "openApp": "Open in the browser"
+  },
+  "compare": {
+    "crumb": "Compare",
+    "index": {
+      "meta": {
+        "title": "Open-source alternatives, compared feature by feature",
+        "description": "Each zerosoft app next to the product it replaces: HubSpot, Notion, Linear, Calendly, Intercom, Slack and more. Parity counted from our own tables, with what is still missing."
+      },
+      "title": "Compare.",
+      "titleDim": "Each app next to the product it replaces.",
+      "lead": "One row per app. The percentage comes from the same parity table as the product page: what we have counts 1, a partial capability 0.5 and a missing one 0, with double weight for the core ones. It is our own count, checked against the code on the date shown.",
+      "caption": "zerosoft apps compared with the product each one replaces",
+      "col": {
+        "app": "App",
+        "competitor": "Compared with",
+        "parity": "Parity",
+        "counts": "Included · partial · missing",
+        "reviewed": "Reviewed",
+        "pages": "Pages"
+      },
+      "vsLink": "{name} vs {competitor}",
+      "altLink": "{competitor} alternative"
+    },
+    "vs": {
+      "metaTitle": "zerosoft {name} vs {competitor}: feature-by-feature comparison",
+      "metaDescription": "{name} covers {percent}% of the {count} {competitor} capabilities we measure: {have} included, {partial} partial, {missing} missing. Open source, $0 on your server.",
+      "title": "{name} vs {competitor}",
+      "lead": "{name} is the zerosoft app that replaces {competitor}. By our count it covers {percent}% of the {count} {competitor} capabilities we measure: {have} included, {partial} partial and {missing} missing. The table comes from the same data as the product page and was last checked against the code on {date}.",
+      "glanceTitle": "At a glance",
+      "glance": {
+        "parity": "Parity with {competitor}",
+        "price": "{competitor} at list price",
+        "ours": "{name}",
+        "oursValue": "$0 on your server (AGPLv3). On zerosoft Cloud: free plan, then usage. Seats are not billed.",
+        "license": "License of {name}",
+        "licenseValue": "AGPLv3, source on GitHub",
+        "reviewed": "Last reviewed"
+      },
+      "tableTitle": "Capability by capability.",
+      "tableTitleDim": "Our count, from the code.",
+      "altCta": "{competitor} alternative: what you get and what is missing"
+    },
+    "alt": {
+      "metaTitle": "Open-source {competitor} alternative: zerosoft {name}",
+      "metaDescription": "zerosoft {name} is an open-source {competitor} alternative: $0 on your server, free plan on zerosoft Cloud. It covers {percent}% of what we measure in {competitor}.",
+      "title": "{competitor} alternative",
+      "titleDim": "zerosoft {name}, open source.",
+      "lead": "{name} does the core of what {competitor} does. It runs on your server for $0 under AGPLv3, or on zerosoft Cloud with a free plan and usage-based pricing, with no charge per seat. By our count it covers {percent}% of the {count} {competitor} capabilities we measure.",
+      "getTitle": "What you get",
+      "gapsTitle": "What is still missing",
+      "gapsLead": "Capabilities {competitor} has that {name} lacks or only covers in part. Vote on the public board for the ones you need.",
+      "gapsNone": "Every {competitor} capability we measure is included.",
+      "beyondTitle": "What {name} adds",
+      "priceTitle": "Price",
+      "moveTitle": "Moving from {competitor}",
+      "vsCta": "See the full comparison table",
+      "partial": "partial",
+      "missing": "missing"
+    },
+    "faqTitle": "Questions.",
+    "relatedTitle": "Guides and posts",
+    "otherTitle": "Other comparisons",
+    "tryCta": "Try {name}",
+    "productCta": "The {name} page"
   }
 }

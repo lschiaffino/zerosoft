@@ -1,7 +1,8 @@
 {
   "meta": {
     "tagline": "Twenty-four open-source apps for your team.",
-    "description": "CRM, support chat, AI agents, automations, browser robots, projects, links, docs, notes, scheduling and a whiteboard. Open source (AGPLv3): run them on your server for $0 or use zerosoft Cloud, with a free plan and usage-based pricing."
+    "description": "CRM, support chat, AI agents, automations, browser robots, projects, links, docs, notes, scheduling and a whiteboard. Open source (AGPLv3): run them on your server for $0 or use zerosoft Cloud, with a free plan and usage-based pricing.",
+    "homeTitle": "zerosoft: open-source business apps, from CRM to docs"
   },
   "header": {
     "products": "Products",
@@ -354,7 +355,26 @@
     "titleDim": "How we build zerosoft, and why.",
     "readingTime": "min read",
     "back": "← All posts",
-    "empty": "No posts yet. Come back soon."
+    "empty": "No posts yet. Come back soon.",
+    "metaTitle": "Blog: guides, migrations and open-source software",
+    "metaDescription": "How to move from HubSpot, Notion, Linear, Calendly or Bitly, guides for each zerosoft app, and how we build an open-source suite.",
+    "tagsTitle": "Topics",
+    "tagTitle": "Posts about {tag}",
+    "tagMetaDescription": "{count} zerosoft blog posts about {tag}: guides, migrations and notes on how we build the apps.",
+    "tagLead": "{count} posts.",
+    "authorTitle": "Posts by {name}",
+    "authorMetaDescription": "Everything {name} has published on the zerosoft blog: {count} posts.",
+    "authorLead": "The zerosoft team writes these posts. {count} posts so far.",
+    "relatedTitle": "Keep reading",
+    "updated": "Updated {date}",
+    "feeds": "Feeds",
+    "tagsLabel": "Tags",
+    "productLead": "{name} is the zerosoft app this post is about.",
+    "productCta": "The {name} page",
+    "compareCta": "{name} vs {competitor}",
+    "crumbHome": "Home",
+    "crumbs": "Breadcrumb",
+    "by": "by {name}"
   },
   "footer": {
     "tagline": "Made of zeros.",
@@ -382,7 +402,8 @@
     "starCta": "Star on GitHub",
     "feedback": "Feedback",
     "videos": "Videos",
-    "desktopApp": "Desktop app"
+    "desktopApp": "Desktop app",
+    "compare": "Comparisons"
   },
   "home": {
     "hero": {
@@ -539,7 +560,7 @@
       "label": "Developers",
       "title": "A real API.",
       "titleDim": "And signed webhooks.",
-      "p": "Create a key in settings and use Link, CRM, Cal and Agents over REST. Subscribe to events and verify every delivery with an HMAC signature.",
+      "p": "Create a key in settings and use Link, CRM, Cal, Track, Docs, Chat, Agents and more over REST. Subscribe to events and verify every delivery with an HMAC signature.",
       "b1t": "REST API v1",
       "b1": "Links; CRM contacts, companies, deals, tasks, pipelines, products and quotes; Cal event types and bookings; and messages to your agents.",
       "b2t": "Personal API keys",
