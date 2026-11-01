@@ -605,9 +605,9 @@ test('claro y oscuro; borrar actualiza la lista sin recargar; borrar la persona 
   const remaining = page.getByTestId('an-recording-row').first();
   await remaining.getByRole('button', { name: /Delete recording/ }).focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('alertdialog')).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
 
   // Borrar a la persona borra sus grabaciones.
   const [p] = await sql(
