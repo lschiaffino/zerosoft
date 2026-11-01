@@ -33,7 +33,7 @@ export default async function MembersSettingsPage(props: { params: Promise<{ loc
   const { person, ws } = await props.searchParams;
   const user = await requireUser(locale);
   const team = user.workspace ?? (await ensureWorkspace(user.id));
-  const dir = await loadDirectory(team, user.role, await base());
+  const dir = await loadDirectory(team, user.role, await base(), user.apps ?? '*', realUserId(user));
   // Owner de antes de 128 (onboarded_at = created_at) con un workspace nuevo: lo que tenía
   // solo para él (Track, Chat…) lo va a ver quien entre. Se avisa al invitar.
   const owner = (await getDb().prepare('SELECT created_at, onboarded_at FROM users WHERE id = ?').get(team.owner_id)) as

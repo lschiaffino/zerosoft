@@ -418,6 +418,7 @@
     "credentialHidden": "Step {step} did not type the login because the page was not on the site allowed for it. Only the person who built this robot or an admin can see the details.",
     "credentialOrigin": "Step {step} did not type the login. The page was on {here}, and this step only allows {bound}. If {here} is right, enter it in Login site on step {step} in the Steps tab.",
     "credentialScript": "Step {step} can read what was typed in a field, and this robot uses a login, so the run stopped before opening the browser. Open the Steps tab and remove that step (Run JavaScript, or reading the value attribute), or stop using the login in this robot.",
+    "credentialNoPage": "Step {step} did not type the login because the robot had not opened any page yet. Add a Go to URL step before it, with the address of the site.",
     "credentialNoSite": "Step {step} did not type the login because this robot has no fixed site: its Go to URL address uses a variable. The page was on {here}. To allow it, enter that site in Login site on step {step} in the Steps tab.",
     "useSite": "Use this site",
     "useSiteTitle": "Type this login on {here}?",

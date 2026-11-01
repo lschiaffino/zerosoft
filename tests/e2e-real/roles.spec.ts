@@ -175,12 +175,12 @@ test('la pestaña que perdió el workspace no escribe en otro lado y lo dice; la
     expect(status).toBe(401);
     expect(Number((await sql('SELECT COUNT(*) AS c FROM docs_pages WHERE user_id = ?', [mel.id]))[0].c)).toBe(before);
     await expect(mel.page.getByTestId('workspace-guard')).toBeVisible();
-    await mel.page.getByTestId('workspace-guard').getByRole('button').click();
-    await mel.page.waitForLoadState('networkidle');
+    await expect(mel.page.getByTestId('workspace-guard')).toContainText('no longer have access');
+    await mel.page.getByTestId('workspace-guard').getByRole('link', { name: 'Go to Home' }).click();
+    await mel.page.waitForURL(/\/en\/app$/);
     // Recargada, escribe en su workspace como siempre.
     const ok = await mel.page.evaluate(async () => (await fetch('/api/docs/pages', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: 'Mía' }) })).status);
     expect(ok).toBe(201);
-    await mel.page.goto('/en/app', { waitUntil: 'networkidle' });
     await expect(mel.page.getByTestId('home-lost-access')).toContainText('removed you');
     await expect(async () => {
       await mel.page.reload({ waitUntil: 'networkidle' });
@@ -272,6 +272,177 @@ test('invitación revocada con la página abierta: al volver a la pestaña ya no
     await late.page.evaluate(() => window.dispatchEvent(new Event('focus')));
     await expect(late.page.getByRole('heading', { name: 'This invitation no longer works' })).toBeVisible();
     await expect(late.page.getByRole('button', { name: /^Join/ })).toHaveCount(0);
+  } finally {
+    await closeAll(olga, late);
+  }
+});
+
+test('permisos de sueldos: un admin sin marca no cambia el email ni el período de una ficha con sueldo', async ({ browser }) => {
+  const olga = await owner(browser);
+  const ada = await join(browser, olga, 'Ada', 'admin', '*');
+  try {
+    await olga.ctx.request.get('/api/people/me');
+    const { employee } = (await (await olga.ctx.request.post('/api/people/employees', { data: { name: 'Sin cuenta' } })).json()) as { employee: { id: string } };
+    expect((await olga.ctx.request.post(`/api/people/employees/${employee.id}/compensation`, { data: { amount: 5000, currency: 'USD', period: 'month', effectiveDate: '2026-01-01' } })).ok()).toBe(true);
+    const adaPatch = (data: unknown) => ada.ctx.request.patch(`/api/people/employees/${employee.id}`, { data });
+    expect((await adaPatch({ workEmail: `alt-${uid()}@real-e2e.io` })).status()).toBe(403);
+    expect((await adaPatch({ payPeriod: 'weekly' })).status()).toBe(403);
+    // El resto de la ficha sigue siendo suyo, y el período no le llega.
+    expect((await adaPatch({ jobTitle: 'Analista' })).ok()).toBe(true);
+    const seen = (await (await ada.ctx.request.get(`/api/people/employees/${employee.id}`)).json()) as { employee?: { payPeriod?: string }; payPeriod?: string };
+    expect(seen.employee?.payPeriod ?? seen.payPeriod ?? '').toBe('');
+    expect((await ada.ctx.request.get(`/api/people/employees/${employee.id}/compensation`)).status()).toBe(403);
+    // Una ficha nueva sin sueldo se puede completar como siempre (alta de un ingreso).
+    const { employee: fresh } = (await (await ada.ctx.request.post('/api/people/employees', { data: { name: 'Ingreso' } })).json()) as { employee: { id: string } };
+    expect((await ada.ctx.request.patch(`/api/people/employees/${fresh.id}`, { data: { workEmail: `ingreso-${uid()}@real-e2e.io` } })).ok()).toBe(true);
+    // El owner sí puede corregir el email de la ficha con sueldo.
+    expect((await olga.ctx.request.patch(`/api/people/employees/${employee.id}`, { data: { workEmail: `bien-${uid()}@real-e2e.io` } })).ok()).toBe(true);
+  } finally {
+    await closeAll(olga, ada);
+  }
+});
+
+test('permisos de admins: invitaciones ajenas y ajustes de ingreso por dominio', async ({ browser }) => {
+  const olga = await owner(browser);
+  const lia = await join(browser, olga, 'Lia', 'admin', ['docs']);
+  const ada = await join(browser, olga, 'Ada', 'admin', '*');
+  try {
+    const invite = async (by: Person, data: Record<string, unknown>) => {
+      const res = await by.ctx.request.post('/api/teams/invites', { data: { emails: `i-${uid()}@real-e2e.io`, ...data } });
+      expect(res.status()).toBe(201);
+      return ((await res.json()) as { results: Array<{ inviteId: string }> }).results[0].inviteId;
+    };
+    const wide = await invite(olga, { apps: '*' });
+    const narrow = await invite(olga, { apps: ['docs'] });
+    const mine = await invite(lia, { apps: ['docs'] });
+    const post = (who: Person, id: string, data: unknown) => who.ctx.request.post(`/api/teams/invites/${id}`, { data });
+
+    // Una invitación con más apps que las mías: ni reenviar ni ver el link, con ningún cuerpo.
+    expect((await post(lia, wide, {})).status()).toBe(403);
+    expect((await post(lia, wide, { action: 'resend', allowAnyEmail: true })).status()).toBe(403);
+    const list = (await (await lia.ctx.request.get('/api/teams/invites')).json()) as { invites: Array<{ id: string; url?: string; canResend: boolean; canAllowAnyEmail: boolean }> };
+    const row = (id: string) => list.invites.find((i) => i.id === id)!;
+    expect(row(wide).url).toBeUndefined();
+    expect(row(wide).canResend).toBe(false);
+    expect(row(narrow).url).toBeTruthy();
+
+    // Abrirla a otro email: quien la hizo o el owner, aunque tenga las apps.
+    expect(row(narrow).canAllowAnyEmail).toBe(false);
+    expect((await post(lia, narrow, { allowAnyEmail: true })).status()).toBe(403);
+    expect((await post(ada, narrow, { allowAnyEmail: true })).status()).toBe(403);
+    expect(row(mine).canAllowAnyEmail).toBe(true);
+    expect((await post(lia, mine, { allowAnyEmail: true })).ok()).toBe(true);
+
+    // Ingreso por dominio: con el ajuste en todas las apps, no lo prende ni lo abre.
+    const ws = (who: Person, data: unknown) => who.ctx.request.patch('/api/teams/workspace', { data });
+    const domains = ['real-e2e.io'];
+    expect((await ws(lia, { allowedDomains: domains, joinApproval: false })).status()).toBe(403);
+    expect((await ws(lia, { allowedDomains: domains, joinApps: '*' })).status()).toBe(403);
+    expect((await ws(lia, { allowedDomains: domains, joinApps: ['docs', 'crm'] })).status()).toBe(403);
+    // Con sus apps sí. Y después de eso no puede ampliarlas ni cambiar lo que dejó el owner por encima.
+    expect((await ws(lia, { allowedDomains: domains, joinApps: ['docs'], joinApproval: false })).ok()).toBe(true);
+    expect((await ws(lia, { joinApps: '*' })).status()).toBe(403);
+    expect((await ws(olga, { joinApps: '*' })).ok()).toBe(true);
+    expect((await ws(lia, { joinApproval: true })).status()).toBe(403);
+    // Sacar el dominio achica: se puede.
+    expect((await ws(lia, { allowedDomains: [] })).ok()).toBe(true);
+    // Lo demás de la ficha no se traba.
+    expect((await ws(lia, { name: 'Acme QA' })).ok()).toBe(true);
+
+    // Su pantalla no muestra "Todas las apps" tildada en el ingreso por dominio.
+    await lia.page.goto('/en/app/settings/workspace', { waitUntil: 'networkidle' });
+    await expect(lia.page.getByRole('checkbox', { name: 'All apps' })).toHaveCount(0);
+    await expect(lia.page.getByRole('checkbox', { name: 'Docs' })).toBeChecked();
+  } finally {
+    await closeAll(olga, lia, ada);
+  }
+});
+
+test('una server action de la pestaña que quedó atrás avisa: Docs y CRM, al cambiar en otra pestaña y al perder el acceso', async ({ browser }) => {
+  const olga = await owner(browser);
+  const ada = await join(browser, olga, 'Ada', 'admin', '*');
+  const mel = await join(browser, olga, 'Mel', 'member', '*');
+  try {
+    const count = async (id: string) => Number((await sql('SELECT COUNT(*) AS c FROM docs_pages WHERE user_id = ?', [id]))[0].c);
+    const guard = ada.page.getByTestId('workspace-guard');
+
+    // Docs: cambia en otra pestaña (misma sesión) y el botón de esta no hace nada callado.
+    await ada.page.goto('/en/app/docs', { waitUntil: 'networkidle' });
+    expect((await ada.ctx.request.post('/api/teams/switch', { data: { teamId: null } })).ok()).toBe(true);
+    const before = [await count(ada.id), await count(olga.id)];
+    await ada.page.getByRole('button', { name: /New page/ }).first().click();
+    await expect(guard).toContainText('changed in another tab');
+    expect([await count(ada.id), await count(olga.id)]).toEqual(before);
+    // Volver no recarga: lo escrito sigue y se puede reintentar.
+    await guard.getByRole('button', { name: /Switch back to/ }).click();
+    await expect(guard).toHaveCount(0);
+    await ada.page.getByRole('button', { name: /New page/ }).first().click();
+    await ada.page.waitForURL(/\/app\/docs\/[^/?]+/);
+    expect(await count(olga.id)).toBe(before[1] + 1);
+
+    // CRM: quitar el contacto de un lead.
+    const contact = (await (await olga.ctx.request.post('/api/crm/contacts', { data: { firstName: 'Ana', lastName: uid() } })).json()) as { id: string; firstName?: string; lastName?: string };
+    const lead = (await (await olga.ctx.request.post('/api/crm/leads', { data: { name: `Lead ${uid()}`, contactId: contact.id } })).json()) as { id: string };
+    await ada.page.goto(`/en/app/crm/leads/${lead.id}`, { waitUntil: 'networkidle' });
+    expect((await ada.ctx.request.post('/api/teams/switch', { data: { teamId: null } })).ok()).toBe(true);
+    await ada.page.getByRole('button', { name: /^Remove Ana/ }).first().click();
+    await expect(guard).toContainText('changed in another tab');
+    const row = (await sql('SELECT contact_id FROM crm_leads WHERE id = ?', [lead.id]))[0];
+    expect(row.contact_id).toBe(contact.id);
+
+    // Perder el acceso: Docs y CRM dicen eso y ofrecen salir.
+    const melGuard = mel.page.getByTestId('workspace-guard');
+    await mel.page.goto('/en/app/docs', { waitUntil: 'networkidle' });
+    expect((await olga.ctx.request.delete(`/api/teams/members/${mel.id}`)).ok()).toBe(true);
+    const melBefore = await count(mel.id);
+    await mel.page.getByRole('button', { name: /New page/ }).first().click();
+    await expect(melGuard).toContainText('no longer have access');
+    expect(await count(mel.id)).toBe(melBefore);
+  } finally {
+    await closeAll(olga, ada, mel);
+  }
+});
+
+test('pedido respondido en parte: el aviso dice lo que falta y la fila de Miembros lo muestra', async ({ browser }) => {
+  const olga = await owner(browser);
+  const mel = await join(browser, olga, 'Mel', 'member', ['docs']);
+  try {
+    for (const app of ['track', 'link']) expect((await mel.ctx.request.post('/api/teams/access-request', { data: { app } })).ok()).toBe(true);
+    const unread = async () => ((await (await olga.ctx.request.get('/api/notifications?type=workspace_access&unreadOnly=1&limit=20')).json()) as { rows: Array<{ id: string; title: string }> }).rows;
+    const [n] = await unread();
+    expect(n.title).toContain('Track');
+    expect(n.title).toContain('Link');
+    expect((await olga.ctx.request.patch(`/api/teams/members/${mel.id}`, { data: { apps: ['docs', 'track'] } })).ok()).toBe(true);
+    const [after] = await unread();
+    expect(after.title).toContain('Link');
+    expect(after.title).not.toContain('Track');
+
+    // Con el aviso leído, el pedido sigue a la vista y abre el diálogo.
+    expect((await olga.ctx.request.patch(`/api/notifications/${after.id}`, { data: { read: true } })).ok()).toBe(true);
+    await olga.page.goto('/en/app/settings/members', { waitUntil: 'networkidle' });
+    await olga.page.getByTestId('request-marker').click();
+    await expect(olga.page.getByTestId('request-line')).toContainText('Link');
+    await expect(olga.page.getByRole('dialog').getByRole('checkbox', { name: /^Link/ })).toBeChecked();
+  } finally {
+    await closeAll(olga, mel);
+  }
+});
+
+test('"No sos vos" después de aceptar dice que esa cuenta ya entró y deja salir del workspace', async ({ browser }) => {
+  const olga = await owner(browser);
+  const late = await signIn(browser, 'Late');
+  try {
+    const res = await olga.ctx.request.post('/api/teams/invites', { data: { emails: late.email } });
+    const { results } = (await res.json()) as { results: Array<{ url: string }> };
+    await late.page.goto(new URL(results[0].url).pathname, { waitUntil: 'networkidle' });
+    await late.page.getByRole('button', { name: /^Join/ }).click();
+    await late.page.waitForURL(/welcome/);
+    await late.page.getByRole('button', { name: 'Not you? Sign out' }).click();
+    await expect(late.page.getByTestId('welcome-not-you')).toContainText('You already joined');
+    await late.page.getByRole('button', { name: /^Leave .* and sign out/ }).click();
+    await late.page.waitForURL(/\/auth\/signin/);
+    const left = await sql('SELECT 1 AS x FROM team_members WHERE team_id = ? AND user_id = ?', [olga.teamId, late.id]);
+    expect(left).toEqual([]);
   } finally {
     await closeAll(olga, late);
   }

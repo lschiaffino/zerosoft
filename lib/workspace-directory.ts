@@ -5,9 +5,9 @@ import type { ProductKey } from './products';
  * subequipos del workspace, en una forma que sirve igual al server component
  * y a GET /api/teams/members.
  */
-import type { TeamRow } from './db';
+import type { TeamInviteRow, TeamRow } from './db';
 import { inviteExpired, listPendingInvites, normalizeInviteRole, type TeamRole } from './teams';
-import { listTeamPeople, parseApps, type AppAccess, type WorkspaceRole } from './workspace';
+import { canGrantApps, listTeamPeople, parseApps, type AppAccess, type WorkspaceRole } from './workspace';
 import { listGroups } from './workspace-groups';
 import { inviteUrl } from './workspace-invites';
 
@@ -42,6 +42,10 @@ export interface InviteDto {
   kind: 'invite' | 'request';
   /** Se puede aceptar con otro email (el admin lo permitió al reenviar). */
   anyEmail: boolean;
+  /** Puede reenviarla (ve el link): la podría haber hecho. */
+  canResend: boolean;
+  /** Puede abrirla a otro email: quien la hizo o el owner. */
+  canAllowAnyEmail: boolean;
 }
 
 export interface GroupDto {
@@ -63,7 +67,17 @@ export interface DirectoryDto {
   groups: GroupDto[];
 }
 
-export async function loadDirectory(team: TeamRow, viewerRole: TeamRole, base: string): Promise<DirectoryDto> {
+/**
+ * ¿Esta persona puede reenviar una invitación o ver su link? Solo si podría
+ * haberla hecho: un admin no maneja invitaciones de admins ni con apps que no tiene.
+ */
+export function canHandleInvite(role: TeamRole, apps: AppAccess, invite: Pick<TeamInviteRow, 'role' | 'apps'>): boolean {
+  if (role === 'owner') return true;
+  if (normalizeInviteRole(invite.role) === 'admin') return false;
+  return normalizeInviteRole(invite.role) === 'guest' || canGrantApps(apps, parseApps(invite.apps));
+}
+
+export async function loadDirectory(team: TeamRow, viewerRole: TeamRole, base: string, viewerApps: AppAccess = '*', viewerId?: string): Promise<DirectoryDto> {
   const admin = viewerRole === 'owner' || viewerRole === 'admin';
   const [people, invites, groups, requests] = await Promise.all([
     listTeamPeople(team, { includeGuests: true }),
@@ -107,7 +121,9 @@ export async function loadDirectory(team: TeamRow, viewerRole: TeamRole, base: s
         expiresAt: i.expires_at,
         expired: inviteExpired(i),
         createdAt: i.created_at,
-        url: i.kind === 'request' ? undefined : inviteUrl(base, i.token, i.locale ?? 'en'),
+        url: i.kind === 'request' || !canHandleInvite(viewerRole, viewerApps, i) ? undefined : inviteUrl(base, i.token, i.locale ?? 'en'),
+        canResend: i.kind !== 'request' && canHandleInvite(viewerRole, viewerApps, i),
+        canAllowAnyEmail: i.kind !== 'request' && normalizeInviteRole(i.role) !== 'admin' && (viewerRole === 'owner' || (i.invited_by === viewerId && canHandleInvite(viewerRole, viewerApps, i))),
         kind: i.kind === 'request' ? 'request' : 'invite',
         anyEmail: Number(i.any_email ?? 0) === 1,
       };

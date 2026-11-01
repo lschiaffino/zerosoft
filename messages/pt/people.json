@@ -567,6 +567,7 @@
     "storage_unavailable": "O armazenamento de arquivos não está disponível agora.",
     "file_type_not_allowed": "Esse tipo de arquivo não é permitido.",
     "cannot_remove": "Só owner e admins do workspace removem pessoas do workspace, e um admin não remove outro admin. O perfil não mudou.",
-    "rate_limited": "Remoções demais por agora. Tente daqui a pouco."
+    "rate_limited": "Remoções demais por agora. Tente daqui a pouco.",
+    "work_email_locked": "Este perfil tem salário: só o owner ou um admin de RH podem mudar o email de trabalho."
   }
 }

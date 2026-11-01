@@ -714,7 +714,10 @@ export default function RecLibrary({
         error={moving ? error : null}
         busy={busy}
         onMove={(m) => void move(m)}
-        onClose={() => setMoving(null)}
+        onClose={() => {
+          setMoving(null);
+          setError(null);
+        }}
       />
       <ConfirmDialog
         open={deleting !== null}

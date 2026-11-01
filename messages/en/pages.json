@@ -2,7 +2,7 @@
   "products": {
     "meta": {
       "title": "24 open-source business apps: CRM, chat, docs and more",
-      "description": "Twenty-four apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics, Social, Hiring, People, Books, Sign and Forms. Open source for your server, or on zerosoft Cloud with a free plan and pay as you go."
+      "description": "Twenty-four open-source apps, from CRM and support chat to docs, invoicing and forms. On your own server or on zerosoft Cloud with a free plan."
     },
     "hero": {
       "title1": "Twenty-four apps.",
@@ -607,7 +607,7 @@
     "groups": {
       "meta": {
         "title": "Groups: open-source WhatsApp team inbox and group manager",
-        "description": "A shared inbox for WhatsApp chats and groups: assignment, notes, tickets by emoji, SLAs, broadcasts and bulk group management, linked to your CRM. An open-source Periskope alternative."
+        "description": "Shared inbox for WhatsApp chats and groups: assignment, notes, tickets, SLAs and broadcasts, linked to your CRM. An open-source Periskope alternative."
       },
       "hero": {
         "sub": "One inbox for every WhatsApp chat and customer group. Assign, answer, turn messages into tickets and manage hundreds of groups at once, with each group on its CRM record."
@@ -1106,7 +1106,7 @@
     "voice": {
       "meta": {
         "title": "Voice: open-source voice dictation and meeting notes",
-        "description": "Dictate into any zerosoft field and take meeting notes with live transcripts, AI summaries, decisions and tasks. An open-source alternative to Wispr Flow and Granola."
+        "description": "Dictate into any zerosoft field and take meeting notes with transcripts, AI summaries and tasks. An open-source alternative to Wispr Flow and Granola."
       },
       "hero": {
         "sub": "Hold a key, talk and the clean text lands where you were typing. Record a call from your browser, jot a few lines and AI writes the notes with the transcript, in the same suite as your CRM, Docs and Track."
@@ -1276,7 +1276,7 @@
     "talk": {
       "meta": {
         "title": "Talk: open source team messaging, a Slack alternative",
-        "description": "Public and private channels, direct messages, threads, mentions, search and notifications for your team, in the same suite as your CRM, Track and Docs. Open source alternative to Slack."
+        "description": "Channels, direct messages, threads, mentions and search for your team, next to your CRM, Track and Docs. An open-source alternative to Slack."
       },
       "hero": {
         "sub": "Your team's messaging: public and private channels, direct messages and threads, with the same people as your workspace and links to issues, deals and pages that show their status."
@@ -1361,7 +1361,7 @@
     "shop": {
       "meta": {
         "title": "Shop: open-source online store with Stripe and Mercado Pago",
-        "description": "Sell online with products, variants, stock per location, discount codes, shipping rates and checkout with Stripe or Mercado Pago. An open-source alternative to Shopify and Tiendanube."
+        "description": "Sell online with variants, stock per location, discounts, shipping and checkout with Stripe or Mercado Pago. An open-source alternative to Shopify."
       },
       "hero": {
         "sub": "Load your catalog or import it from Shopify or Tiendanube, pick a theme and publish. Customers buy as guests with a card, Mercado Pago or a bank transfer, and every order lands in your CRM."
@@ -1442,7 +1442,7 @@
     "design": {
       "meta": {
         "title": "Design: open-source graphic design",
-        "description": "Make social posts, presentations, documents and logos from templates, with your brand kit, comments and export to PNG, JPG and PDF. An open-source alternative to Canva."
+        "description": "Make social posts, presentations and logos from templates, with your brand kit and export to PNG, JPG and PDF. An open-source alternative to Canva."
       },
       "hero": {
         "sub": "Pick a size or a template, change the text, drop in your images and your brand colors, and download it as PNG, JPG or PDF. Your team comments right on the canvas."
@@ -1527,7 +1527,7 @@
     "analytics": {
       "meta": {
         "title": "Analytics: open-source product analytics",
-        "description": "Events from a small JS snippet, trends, funnels, retention, people, dashboards, feature flags and a web analytics overview. An open-source alternative to PostHog."
+        "description": "Events from a small JS snippet, trends, funnels, retention, dashboards, feature flags and web analytics. An open-source alternative to PostHog."
       },
       "hero": {
         "sub": "Paste one script and see who visits, what they click and where they drop off. Trends, funnels and retention on your own events, feature flags with a rollout percentage, and a read-only SQL editor scoped to your project."
@@ -1613,7 +1613,7 @@
     "social": {
       "meta": {
         "title": "Social: open-source Hootsuite alternative",
-        "description": "Schedule posts to Facebook, Instagram, LinkedIn, X, TikTok, YouTube, Threads and Bluesky, answer comments and messages from one inbox, approve your team's posts and measure what works. Open source alternative to Hootsuite."
+        "description": "Schedule posts to eight networks, answer comments from one inbox, approve your team's posts and measure what works. An open-source alternative to Hootsuite."
       },
       "hero": {
         "sub": "Plan, publish and answer on social media with your team: one composer for every network, a shared calendar, approvals, a unified inbox and analytics. Each network is built on its official API and is being verified with live accounts."
@@ -1698,7 +1698,7 @@
     "people": {
       "meta": {
         "title": "People: open-source HR with time off, onboarding and reviews",
-        "description": "Employee directory, org chart, time off with accrual and approvals, onboarding checklists, documents, reviews and salary history. An open-source alternative to BambooHR."
+        "description": "Directory, org chart, time off with approvals, onboarding checklists, documents and reviews. An open-source alternative to BambooHR."
       },
       "hero": {
         "sub": "Every person in your workspace gets a profile. Track time off with real balances, run onboarding from templates, keep documents private and run review cycles, all next to the apps your team already uses."
@@ -1779,7 +1779,7 @@
     "hiring": {
       "meta": {
         "title": "Hiring: open-source applicant tracking with a careers page",
-        "description": "Jobs from templates, a careers page with Google for Jobs data, a candidate pipeline, scorecards, interviews scheduled with Cal and offers your candidates accept online. An open-source alternative to Workable."
+        "description": "Jobs, a careers page, a candidate pipeline, scorecards, interviews booked with Cal and offers accepted online. An open-source alternative to Workable."
       },
       "hero": {
         "sub": "Publish jobs on your own careers page, move candidates through a kanban, collect scorecards from your interviewers and send offers, with candidate data visible only to each job's hiring team."
@@ -1865,7 +1865,7 @@
     "sign": {
       "meta": {
         "title": "Sign: open-source electronic signatures with an audit trail",
-        "description": "Send PDFs for signature with signing order, email codes, templates and bulk send. Every envelope ends with a certificate of completion and SHA-256 hashes. An open-source alternative to DocuSign."
+        "description": "Send PDFs for signature with signing order, email codes and templates. Each envelope ends with a certificate. An open-source alternative to DocuSign."
       },
       "hero": {
         "sub": "Upload a PDF or pick a Docs page, place fields for each person, set the order and send. Recipients sign from their phone without an account, and everyone gets the signed copy with its audit trail."
@@ -1951,7 +1951,7 @@
     "books": {
       "meta": {
         "title": "Books: open-source invoicing and accounting, a Xero alternative",
-        "description": "Invoices with taxes per line, online payment with Stripe or Mercado Pago, bills, expenses, bank reconciliation and double-entry accounting for small businesses in Latin America. An open-source alternative to Xero and QuickBooks."
+        "description": "Invoices, online payments, bills, expenses, bank reconciliation and double-entry accounting for small businesses. An open-source alternative to Xero."
       },
       "hero": {
         "sub": "Invoice in your currency with VAT per line, get paid online, load your bills and receipts, import your bank statement and reconcile it. Every document posts its own double-entry journal."
@@ -2032,7 +2032,7 @@
     "forms": {
       "meta": {
         "title": "Forms: open-source forms and surveys, a Typeform alternative",
-        "description": "Forms and surveys that ask one question at a time, with logic, quizzes, NPS, file upload, themes, embeds and a responses table with a summary per question. An open-source alternative to Typeform, Google Forms and Tally."
+        "description": "Forms and surveys that ask one question at a time, with logic, quizzes, NPS and embeds. An open-source alternative to Typeform and Google Forms."
       },
       "hero": {
         "sub": "Build a form from a template, add logic and your colors, share a link or embed it, and read the answers in a table, a summary per question and a CSV. Every response can reach your CRM and your automations."
@@ -3597,7 +3597,7 @@
     "index": {
       "meta": {
         "title": "Open-source alternatives, compared feature by feature",
-        "description": "Each zerosoft app next to the product it replaces: HubSpot, Notion, Linear, Calendly, Intercom, Slack and more. Parity counted from our own tables, with what is still missing."
+        "description": "Each zerosoft app next to the product it replaces: HubSpot, Notion, Linear, Slack and more. Parity counted from our tables, with what is still missing."
       },
       "title": "Compare.",
       "titleDim": "Each app next to the product it replaces.",

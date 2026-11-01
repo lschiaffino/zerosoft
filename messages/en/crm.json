@@ -80,6 +80,7 @@
     "preview": "Preview"
   },
   "assoc": {
+    "noneToAdd": "Nothing left to link. Create a record first.",
     "associate": "Associate",
     "associating": "Associating…",
     "pickDeal": "Select a deal…",
@@ -3593,7 +3594,8 @@
     "failed": "{count, plural, one {# change} other {# changes}} could not be saved after reconnecting.",
     "savedOffline": "Saved offline. It syncs when the connection is back.",
     "retry": "Sync now",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "blocked": "{count, plural, one {# change is} other {# changes are}} waiting: made in another workspace or before your session ended. Switch back to that workspace to send them."
   },
   "extension": {
     "title": "Chrome extension for Gmail",

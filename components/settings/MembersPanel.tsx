@@ -83,7 +83,7 @@ export function AppsPicker({
           ))}
         </div>
       )}
-      {limited && <p className="ui-help">{t('appsLimitHelp')}</p>}
+      {limited && <p className="ui-help">{t(all ? 'appsLimitAllHelp' : 'appsLimitHelp')}</p>}
       {!all && list.length === 0 && <p className="ui-help">{t('noAppsHelp')}</p>}
     </fieldset>
   );
@@ -486,7 +486,21 @@ export default function MembersPanel({
                   t(`roles.${m.role}`)
                 ),
             },
-            { key: 'apps', header: t('colApps'), cell: (m) => <span className="ws-cell-muted">{appsLabel(m.apps, m.role)}</span> },
+            {
+              key: 'apps',
+              header: t('colApps'),
+              cell: (m) => (
+                <>
+                  <span className="ws-cell-muted">{appsLabel(m.apps, m.role)}</span>
+                  {/* El pedido sigue a la vista aunque el aviso ya se haya leído. */}
+                  {answerable(m).length > 0 && canManage(role, m.role) && (
+                    <button type="button" className="ws-link-btn ws-requested-marker" onClick={() => openEdit(m, true)} data-testid="request-marker">
+                      {t('requestedMarker', { apps: answerable(m).map((a) => PRODUCT_CONFIG[a].name).join(', ') })}
+                    </button>
+                  )}
+                </>
+              ),
+            },
             {
               key: 'teams',
               header: t('colTeams'),
@@ -558,7 +572,7 @@ export default function MembersPanel({
                       <wbr />@{i.email.split('@').slice(1).join('@')}
                     </span>
                     {/* Permitir otro email: un link chico debajo, así la fila no se sale a 1280. */}
-                    {i.kind !== 'request' && !i.anyEmail && i.role !== 'admin' && (
+                    {i.canAllowAnyEmail && !i.anyEmail && (
                       <button type="button" className="ws-link-btn" onClick={() => void resend(i, true)} disabled={busy} title={t('allowAnyEmailHelp')}>
                         {t('allowAnyEmail')}
                       </button>
@@ -616,9 +630,11 @@ export default function MembersPanel({
                     ) : (
                       <>
                         {i.url && !i.expired && <CopyButton text={i.url} label={t('copyLink')} className="btn btn-ghost btn-sm" />}
+                        {i.canResend && (
                         <button type="button" className="btn btn-ghost btn-sm" onClick={() => void resend(i)} disabled={busy}>
                           {t('resend')}
                         </button>
+                        )}
                       </>
                     )}
                     <button

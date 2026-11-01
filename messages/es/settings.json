@@ -586,7 +586,9 @@
     "appsLimitHelp": "Solo podés habilitar apps que tenés.",
     "denyRequest": "Rechazar pedido",
     "requestLine": "{name} pidió {apps}.",
-    "rolesLegendAppsAdmin": "Dentro de cada app hay acciones solo para admins, como borrar pipelines o cambiar los ajustes de la app."
+    "rolesLegendAppsAdmin": "Dentro de cada app hay acciones solo para admins, como borrar pipelines o cambiar los ajustes de la app.",
+    "appsLimitAllHelp": "Esta persona tiene todas las apps. Podés limitarla a las que tenés.",
+    "requestedMarker": "Pidió {apps}"
   },
   "teamsForm": {
     "createTitle": "Crear un equipo",
@@ -742,8 +744,12 @@
     "limited": "Demasiados pedidos en la última hora. Esperá un rato y volvé a pedirlo.",
     "bodyAdmin": "El owner de {workspace} te puede habilitar {app} en Ajustes › Miembros.",
     "guardTitle": "Este cambio no se guardó",
-    "guardBody": "Ya no tenés acceso a este workspace, o cambiaste de workspace en otra pestaña. Recargá para seguir.",
-    "guardReload": "Recargar"
+    "guardSwitched": "Esta pestaña está en {workspace} y tu workspace activo cambió en otra pestaña. No se guardó nada. Lo que escribiste sigue acá.",
+    "guardGone": "Ya no tenés acceso a {workspace}. No se guardó nada. Copiá lo que hayas escrito antes de salir de esta página.",
+    "guardSwitchBack": "Volver a {workspace}",
+    "guardStay": "Ir a mi workspace activo",
+    "guardHome": "Ir al inicio",
+    "guardSwitchError": "No se pudo volver. Probá de nuevo."
   },
   "invite": {
     "metaTitle": "Invitación",
@@ -763,7 +769,7 @@
     "useAccount": "Entrá con {email}: con Google o con un código por email.",
     "expires": "El link vence el {date}.",
     "invalidTitle": "Esta invitación ya no sirve",
-    "invalidDesc": "Ya se usó o la revocaron. Pedile una nueva a quien te invitó.",
+    "invalidDesc": "Ya se usó o la revocaron. Si la aceptaste, entrá con esa cuenta. Si no, pedile una nueva a quien te invitó.",
     "expiredTitle": "Esta invitación venció",
     "expiredDesc": "Las invitaciones duran 14 días. Pedile a quien te invitó que te la reenvíe.",
     "alreadyTitle": "Ya estás en {workspace}",
@@ -882,7 +888,10 @@
       "limited": "Llegaste al límite de invitaciones por ahora. Invitá al resto más tarde desde Ajustes › Miembros."
     },
     "notYou": "¿No sos vos? Salir",
-    "stepFirst": "Paso 1"
+    "stepFirst": "Paso 1",
+    "notYouJoined": "Ya te sumaste a {workspace} con {email}. Cerrar sesión no lo deshace. Para sacar esta cuenta de {workspace}, salí ahora; para volver con otra cuenta vas a necesitar una invitación nueva.",
+    "notYouLeave": "Salir de {workspace} y cerrar sesión",
+    "notYouStay": "Solo cerrar sesión"
   },
   "profileForm": {
     "title": "Tus datos",

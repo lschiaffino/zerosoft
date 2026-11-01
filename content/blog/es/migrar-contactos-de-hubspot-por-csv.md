@@ -47,7 +47,7 @@ Con los encabezados típicos de HubSpot, algunos se mapean solos y otros piden u
 - Suelen mapearse solos: `First Name`, `Last Name`, `Email`, `Job Title`, `City`, `Lifecycle Stage`, `Lead Status`, `Industry`, `Company name`.
 - Suelen pedir mapeo manual: `Phone Number`, `Country/Region`, `Website URL`, `Company Domain Name`, `Number of Employees`.
 
-Lo que dejes en "— ignorar —" se descarta. `Record ID` y compañía pueden quedar ignorados.
+Lo que dejes en "Ignorar esta columna" se descarta. `Record ID` y compañía pueden quedar ignorados.
 
 ### Los valores de enum: la trampa silenciosa
 

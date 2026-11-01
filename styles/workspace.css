@@ -338,7 +338,8 @@ body:has(.wl-page) .zs-support-launcher { display: none; }
 .ws-request-notice p { margin: 0; }
 .ws-request-line { margin: 0 0 12px; font-size: 0.875rem; }
 .ws-app-requested { color: var(--ink-2); font-size: 0.75rem; }
-.ws-guard { position: fixed; left: 50%; top: 56px; z-index: 99995; transform: translateX(-50%); width: min(440px, calc(100vw - 32px)); display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 12px 14px; background: var(--bg); border: 1px solid var(--ink); border-radius: var(--r-xs); }
+.ws-guard { position: sticky; top: calc(var(--band-h, 48px) + 8px); z-index: 50; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 0 0 16px; padding: 12px 14px; background: var(--bg); border: 1px solid var(--ink); border-radius: var(--r-xs); }
+.ws-guard-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .ws-guard p { margin: 0; }
 .ws-guard-title { font-weight: 500; }
 .ws-guard-body { color: var(--ink-2); font-size: 0.875rem; }
@@ -351,3 +352,6 @@ body:has(.wl-page) .zs-support-launcher { display: none; }
 .ws-members .ws-person-email { max-width: 150px; }
 .ws-members .ws-person { min-width: 150px; }
 .ws-members .ws-person-email { max-width: 130px; }
+.ws-requested-marker { display: block; margin-top: 2px; text-align: left; }
+.ws-switcher-name-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.wl-notyou-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }

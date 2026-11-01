@@ -722,7 +722,10 @@ export default function RecDetail({
         onMove={async (m) => {
           if (await patch({ folderId: m.folderId, space: m.space, spaceId: m.spaceId ?? null }, t('moved'))) setMoving(false);
         }}
-        onClose={() => setMoving(false)}
+        onClose={() => {
+          setMoving(false);
+          setError(null);
+        }}
       />
       <ConfirmDialog
         open={deleting}

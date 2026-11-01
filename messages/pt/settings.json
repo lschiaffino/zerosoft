@@ -586,7 +586,9 @@
     "appsLimitHelp": "Você só pode ativar apps que você tem.",
     "denyRequest": "Recusar pedido",
     "requestLine": "{name} pediu {apps}.",
-    "rolesLegendAppsAdmin": "Dentro de cada app há ações só para admins, como excluir pipelines ou mudar as configurações do app."
+    "rolesLegendAppsAdmin": "Dentro de cada app há ações só para admins, como excluir pipelines ou mudar as configurações do app.",
+    "appsLimitAllHelp": "Esta pessoa tem todos os apps. Você pode limitar aos que você tem.",
+    "requestedMarker": "Pediu {apps}"
   },
   "teamsForm": {
     "createTitle": "Criar uma equipe",
@@ -742,8 +744,12 @@
     "limited": "Muitos pedidos na última hora. Espere um pouco e peça de novo.",
     "bodyAdmin": "O owner de {workspace} pode ativar o {app} para você em Configurações › Membros.",
     "guardTitle": "Esta mudança não foi salva",
-    "guardBody": "Você não tem mais acesso a este workspace, ou mudou de workspace em outra aba. Recarregue para continuar.",
-    "guardReload": "Recarregar"
+    "guardSwitched": "Esta aba está em {workspace} e seu workspace ativo mudou em outra aba. Nada foi salvo. O que você digitou continua aqui.",
+    "guardGone": "Você não tem mais acesso a {workspace}. Nada foi salvo. Copie o que digitou antes de sair desta página.",
+    "guardSwitchBack": "Voltar para {workspace}",
+    "guardStay": "Ir para meu workspace ativo",
+    "guardHome": "Ir para o início",
+    "guardSwitchError": "Não foi possível voltar. Tente de novo."
   },
   "invite": {
     "metaTitle": "Convite",
@@ -763,7 +769,7 @@
     "useAccount": "Entre com {email}: pelo Google ou com um código por email.",
     "expires": "O link vence em {date}.",
     "invalidTitle": "Este convite não funciona mais",
-    "invalidDesc": "Já foi usado ou revogado. Peça um novo a quem convidou você.",
+    "invalidDesc": "Já foi usado ou revogado. Se você aceitou, entre com essa conta. Se não, peça um novo a quem convidou você.",
     "expiredTitle": "Este convite venceu",
     "expiredDesc": "Os convites duram 14 dias. Peça a quem convidou você para reenviar.",
     "alreadyTitle": "Você já está em {workspace}",
@@ -882,7 +888,10 @@
       "limited": "Você chegou ao limite de convites por agora. Convide o resto mais tarde em Configurações › Membros."
     },
     "notYou": "Não é você? Sair",
-    "stepFirst": "Passo 1"
+    "stepFirst": "Passo 1",
+    "notYouJoined": "Você já entrou em {workspace} com {email}. Sair da sessão não desfaz isso. Para tirar esta conta de {workspace}, saia agora; para voltar com outra conta, será preciso um novo convite.",
+    "notYouLeave": "Sair de {workspace} e encerrar a sessão",
+    "notYouStay": "Só encerrar a sessão"
   },
   "profileForm": {
     "title": "Seus dados",

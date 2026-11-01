@@ -156,7 +156,7 @@ export default function WorkspaceSwitcher({
         <span className="ws-switcher-lines">
           <span className="side-user-name ws-switcher-name">
             {current.logoUrl && <Mark name={label(current)} logoUrl={current.logoUrl} small />}
-            {label(current)}
+            <span className="ws-switcher-name-text">{label(current)}</span>
           </span>
           {/* Si el workspace se llama como la persona, abajo va el email (no "Pablo / Pablo"). */}
           <span className="side-user-mail">{person.trim().toLowerCase() === label(current).trim().toLowerCase() ? email : person}</span>

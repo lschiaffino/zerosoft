@@ -140,15 +140,33 @@ export async function resolveRequests(
       .run(status, now, resolvedBy, teamId, personId, app);
     if (res.changes > 0) closed.push(app);
   }
-  if (closed.length && pending.length === closed.length) {
-    await db
-      .prepare(
-        `UPDATE notifications SET read_at = ? WHERE type = 'workspace_access' AND source_type = 'workspace' AND source_id = ? AND read_at IS NULL
-         AND json_extract(meta, '$.requestedBy') = ? AND json_extract(meta, '$.apps') IS NOT NULL`,
-      )
-      .run(now, teamId, personId);
-  }
+  if (closed.length) await refreshRequestNotices(teamId, personId, pending.filter((a) => !closed.includes(a)), now);
   return closed;
+}
+
+/**
+ * Los avisos sin leer dicen solo lo que sigue pendiente: si ya no queda nada de
+ * lo que le tocaba a esa persona, se dan por leídos.
+ */
+async function refreshRequestNotices(teamId: string, personId: string, remaining: string[], now: string): Promise<void> {
+  const db = getDb();
+  const rows = (await db
+    .prepare(
+      `SELECT id, user_id, meta FROM notifications WHERE type = 'workspace_access' AND source_type = 'workspace' AND source_id = ? AND read_at IS NULL
+       AND json_extract(meta, '$.requestedBy') = ? AND json_extract(meta, '$.apps') IS NOT NULL`,
+    )
+    .all(teamId, personId)) as Array<{ id: string; user_id: string; meta: string }>;
+  if (!rows.length) return;
+  const who = (await db.prepare('SELECT name, email FROM users WHERE id = ?').get(personId)) as { name: string | null; email: string } | undefined;
+  for (const row of rows) {
+    const apps = ((JSON.parse(row.meta) as { apps?: string[] }).apps ?? []).filter((a) => remaining.includes(a));
+    if (!apps.length) {
+      await db.prepare('UPDATE notifications SET read_at = ? WHERE id = ?').run(now, row.id);
+      continue;
+    }
+    const [title] = await renderForRecipient(row.user_id, [localized('appAccessRequest', { who: who?.name?.trim() || who?.email || '', app: appNames(apps) })]);
+    await db.prepare('UPDATE notifications SET title = ?, meta = ? WHERE id = ?').run(title ?? '', JSON.stringify({ apps, requestedBy: personId }), row.id);
+  }
 }
 
 /** Aviso a owner y admins de que alguien de su dominio pidió sumarse. */

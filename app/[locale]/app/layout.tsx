@@ -638,7 +638,24 @@ export default async function AppLayout(
           <Suspense fallback={null}>
             <NavProgress />
           </Suspense>
-          <main className="app-content">{children}</main>
+          <main className="app-content">
+            {user.workspace && (
+              <WorkspaceGuard
+                workspaceId={user.workspace.id}
+                workspaceName={user.workspace.name}
+                labels={{
+                  title: tGuard('guardTitle'),
+                  switched: tGuard('guardSwitched', { workspace: user.workspace.name }),
+                  gone: tGuard('guardGone', { workspace: user.workspace.name }),
+                  switchBack: tGuard.raw('guardSwitchBack') as string,
+                  reload: tGuard('guardStay'),
+                  home: tGuard('guardHome'),
+                  switchError: tGuard('guardSwitchError'),
+                }}
+              />
+            )}
+            {children}
+          </main>
         </div>
         <CommandSearch allowedApps={user.role === 'owner' ? '*' : PRODUCT_KEYS.filter((key) => userCanUseApp(user, key))} />
         {/* Asistente de la plataforma: ⌘J o el botón de la banda, en toda la app. */}
@@ -654,12 +671,6 @@ export default async function AppLayout(
         <Suspense fallback={null}>
           <ActiveTabIntoView />
         </Suspense>
-        {user.workspace && (
-          <WorkspaceGuard
-            workspaceId={user.workspace.id}
-            labels={{ title: tGuard('guardTitle'), body: tGuard('guardBody'), reload: tGuard('guardReload') }}
-          />
-        )}
         {supportId && (
           <SupportIdentify
             email={supportEmail}

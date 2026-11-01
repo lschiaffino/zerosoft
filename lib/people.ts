@@ -589,7 +589,7 @@ export async function getEmployee(ctx: PeopleCtx, id: string, opts: { via?: stri
     pronouns: r.pronouns,
     bio: r.bio,
     endDate: v.hr || isSelf(v, id) ? r.end_date : null,
-    payPeriod: v.hr ? r.pay_period : '',
+    payPeriod: v.comp === true ? r.pay_period : '',
     birthday: birth ? birth.slice(5) : null,
     custom,
     personal,
@@ -738,7 +738,7 @@ export async function createEmployee(ctx: PeopleCtx, input: EmployeeInput & { on
       managerId,
       startDate,
       input.employmentType ? normalizeValue('employmentType', input.employmentType)! : 'full_time',
-      input.payPeriod ? normalizeValue('payPeriod', input.payPeriod)! : 'monthly',
+      input.payPeriod && ctx.viewer.comp === true ? normalizeValue('payPeriod', input.payPeriod)! : 'monthly',
       status,
       str(input.pronouns, 40),
       str(input.bio, 2000),
@@ -779,6 +779,10 @@ async function cleanCustom(ws: string, input: Record<string, unknown>, base: Rec
   return out;
 }
 
+async function hasCompensationRows(ws: string, employeeId: string): Promise<boolean> {
+  return Boolean(await db().prepare('SELECT 1 AS x FROM people_compensation WHERE workspace_id = ? AND employee_id = ? LIMIT 1').get(ws, employeeId));
+}
+
 /**
  * Cambia una ficha. Cada campo pide su permiso (canEditField): HR todo, la
  * persona sus datos de contacto y personales. Los cambios a lo sensible
@@ -795,6 +799,13 @@ export async function updateEmployee(ctx: PeopleCtx, id: string, input: Employee
     const col = JOB_COLUMNS[key] ?? ({ phone: 'phone', pronouns: 'pronouns', bio: 'bio' } as Record<string, keyof EmployeeRow>)[key];
     if (!col) continue;
     const v = normalizeValue(key, value);
+    // El período de pago va con el sueldo: quien no lo lee, tampoco lo cambia.
+    if (key === 'payPeriod' && ctx.viewer.comp !== true) throw new PeopleError('forbidden', 403);
+    // El email de trabajo enlaza la ficha con la cuenta que entre con ese email (linkOrCreate) y esa
+    // persona ve el sueldo: en una ficha con sueldo solo lo cambia quien ya puede leerlo.
+    if (key === 'workEmail' && (v ?? '') !== (r.work_email ?? '') && ctx.viewer.comp !== true && (await hasCompensationRows(ctx.ws, id))) {
+      throw new PeopleError('work_email_locked', 403);
+    }
     if (key === 'managerId') {
       // Nadie se elige su propio manager (así no se saca de la cadena de aprobación); el owner sí.
       if (isSelf(ctx.viewer, id) && !ctx.viewer.wsOwner && (v ?? null) !== (r.manager_id ?? null)) throw new PeopleError('forbidden', 403);

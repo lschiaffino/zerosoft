@@ -48,18 +48,47 @@ function timeZones(current: string): string[] {
   }
 }
 
-/** La cuenta con la que se entró y cómo salir: en cada paso, por si es otra. Sale igual que desde el sidebar. */
-function SignedInAs({ email }: { email: string }) {
+/**
+ * La cuenta con la que se entró y cómo salir, en cada paso. Sale igual que desde
+ * el sidebar. Si ya aceptó una invitación, primero lo dice: esa cuenta quedó en el
+ * workspace, y salir de la sesión no la saca.
+ */
+function SignedInAs({ email, joined }: { email: string; joined?: { id: string; name: string; guest: boolean } | null }) {
   const t = useTranslations('settings.welcome');
   const locale = useLocale();
+  const [asking, setAsking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const signOutNow = () => void clearOfflineData().finally(() => signOut({ callbackUrl: `/${locale}/auth/signin` }));
+
+  async function leaveAndSignOut() {
+    if (!joined) return;
+    setBusy(true);
+    const res = joined.guest
+      ? await fetch('/api/teams/guest-of', { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ teamId: joined.id }) }).catch(() => null)
+      : await fetch('/api/teams/members/self', { method: 'DELETE' }).catch(() => null);
+    if (!res?.ok) setBusy(false);
+    else signOutNow();
+  }
+
+  if (asking && joined) {
+    return (
+      <div className="wl-notice" role="status" data-testid="welcome-not-you">
+        <p>{t('notYouJoined', { workspace: joined.name, email })}</p>
+        <div className="wl-notyou-actions">
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => void leaveAndSignOut()} disabled={busy}>
+            {t('notYouLeave', { workspace: joined.name })}
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={signOutNow} disabled={busy}>
+            {t('notYouStay')}
+          </button>
+        </div>
+      </div>
+    );
+  }
   return (
     <p className="wl-foot">
       {t('signedInAs', { email })}{' '}
-      <button
-        type="button"
-        className="wl-signout"
-        onClick={() => void clearOfflineData().finally(() => signOut({ callbackUrl: `/${locale}/auth/signin` }))}
-      >
+      <button type="button" className="wl-signout" onClick={() => (joined ? setAsking(true) : signOutNow())}>
         {t('notYou')}
       </button>
     </p>
@@ -67,7 +96,7 @@ function SignedInAs({ email }: { email: string }) {
 }
 
 /** Mini onboarding de quien entra por una invitación: nombre, idioma y zona. */
-function InvitedWelcome({ workspaceName, name: initialName, email, timeZone, guest }: { workspaceName: string; name: string; email: string; timeZone: string; guest: boolean }) {
+function InvitedWelcome({ workspaceId, workspaceName, name: initialName, email, timeZone, guest }: { workspaceId: string; workspaceName: string; name: string; email: string; timeZone: string; guest: boolean }) {
   const t = useTranslations('settings.welcome');
   const locale = useLocale();
   const [name, setName] = useState(initialName);
@@ -150,7 +179,7 @@ function InvitedWelcome({ workspaceName, name: initialName, email, timeZone, gue
       <button type="submit" className="btn btn-primary btn-block" disabled={!name.trim() || busy} aria-busy={busy || undefined}>
         {workspaceName && !guest ? t('invited.go', { workspace: workspaceName }) : t('continue')}
       </button>
-      <SignedInAs email={email} />
+      <SignedInAs email={email} joined={workspaceId ? { id: workspaceId, name: workspaceName, guest } : null} />
     </form>
   );
 }
@@ -163,6 +192,8 @@ function InvitedWelcome({ workspaceName, name: initialName, email, timeZone, gue
 export default function WelcomeFlow(props: {
   kind: 'full' | 'invited';
   workspaceName: string;
+  /** El workspace que lo invitó (para "No sos vos"). */
+  workspaceId?: string;
   /** Entró como guest: no usa las apps del workspace, solo lo que le comparten. */
   guest?: boolean;
   name: string;
@@ -197,7 +228,7 @@ export default function WelcomeFlow(props: {
     heading.current?.focus();
   }, [step]);
 
-  if (props.kind === 'invited') return <InvitedWelcome workspaceName={props.workspaceName} name={props.name} email={props.email} timeZone={props.timeZone} guest={Boolean(props.guest)} />;
+  if (props.kind === 'invited') return <InvitedWelcome workspaceId={props.workspaceId ?? ''} workspaceName={props.workspaceName} name={props.name} email={props.email} timeZone={props.timeZone} guest={Boolean(props.guest)} />;
 
   const chosenTool = TOOLS.find((x) => x.key === tool);
   const apps: ProductKey[] = (() => {

@@ -567,6 +567,7 @@
     "storage_unavailable": "File storage is not available right now.",
     "file_type_not_allowed": "That file type is not allowed.",
     "cannot_remove": "Only workspace owners and admins remove people from the workspace, and an admin cannot remove another admin. The profile was not changed.",
-    "rate_limited": "Too many removals for now. Try again in a while."
+    "rate_limited": "Too many removals for now. Try again in a while.",
+    "work_email_locked": "This record has a salary: only the owner or an HR admin can change its work email."
   }
 }

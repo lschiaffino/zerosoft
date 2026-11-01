@@ -40,7 +40,7 @@ export default function WorkspacePanel({ initial: init, canEdit }: { initial: Wo
   const t = useTranslations('settings.workspaceForm');
   const router = useRouter();
   const [ws, setWs] = useState(init);
-  const [joinApps, setJoinApps] = useState<'*' | ProductKey[]>(init.joinApps);
+  const [joinApps, setJoinApps] = useState<'*' | ProductKey[]>(init.viewerApps !== '*' && init.joinApps === '*' ? init.viewerApps : init.joinApps);
   const [logoBusy, setLogoBusy] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);

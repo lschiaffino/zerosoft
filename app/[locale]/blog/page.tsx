@@ -1,6 +1,6 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { getAllPosts, getTags } from '@/lib/blog';
-import PostGrid from '@/components/blog/PostGrid';
+import PostPages from '@/components/blog/PostPages';
 import TagList from '@/components/blog/TagList';
 import { staticPageMetadata } from '@/lib/seo-pages';
 import { absoluteUrl, breadcrumbLd, graphLd, jsonLdString, localePath } from '@/lib/seo';
@@ -69,7 +69,7 @@ export default async function BlogIndexPage(props: { params: Promise<{ locale: s
             <TagList tags={tags} label={t('tagsTitle')} />
           </section>
         )}
-        <PostGrid posts={posts} locale={locale} />
+        <PostPages posts={posts} locale={locale} />
       </div>
     </main>
   );

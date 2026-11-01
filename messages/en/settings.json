@@ -586,7 +586,9 @@
     "appsLimitHelp": "You can only turn on apps you have.",
     "denyRequest": "Deny request",
     "requestLine": "{name} asked for {apps}.",
-    "rolesLegendAppsAdmin": "Inside each app some actions are for admins only, like deleting pipelines or changing the app's settings."
+    "rolesLegendAppsAdmin": "Inside each app some actions are for admins only, like deleting pipelines or changing the app's settings.",
+    "appsLimitAllHelp": "This person has every app. You can narrow it to the apps you have.",
+    "requestedMarker": "Requested {apps}"
   },
   "teamsForm": {
     "createTitle": "Create a team",
@@ -742,8 +744,12 @@
     "limited": "Too many requests in the last hour. Wait a while and ask again.",
     "bodyAdmin": "The owner of {workspace} can turn {app} on for you in Settings › Members.",
     "guardTitle": "This change wasn't saved",
-    "guardBody": "You no longer have access to this workspace, or you switched workspace in another tab. Reload to continue.",
-    "guardReload": "Reload"
+    "guardSwitched": "This tab is on {workspace}, and your active workspace changed in another tab. Nothing was saved. What you typed is still here.",
+    "guardGone": "You no longer have access to {workspace}. Nothing was saved. Copy anything you typed before you leave this page.",
+    "guardSwitchBack": "Switch back to {workspace}",
+    "guardStay": "Go to my active workspace",
+    "guardHome": "Go to Home",
+    "guardSwitchError": "Couldn't switch back. Try again."
   },
   "invite": {
     "metaTitle": "Invitation",
@@ -763,7 +769,7 @@
     "useAccount": "Sign in with {email}: with Google or with a code by email.",
     "expires": "The link expires on {date}.",
     "invalidTitle": "This invitation no longer works",
-    "invalidDesc": "It was already used or revoked. Ask whoever invited you for a new one.",
+    "invalidDesc": "It was already used or revoked. If you accepted it, sign in with that account. If not, ask whoever invited you for a new one.",
     "expiredTitle": "This invitation expired",
     "expiredDesc": "Invitations last 14 days. Ask whoever invited you to resend it.",
     "alreadyTitle": "You're already in {workspace}",
@@ -882,7 +888,10 @@
       "limited": "You reached the invitation limit for now. Invite the rest later from Settings › Members."
     },
     "notYou": "Not you? Sign out",
-    "stepFirst": "Step 1"
+    "stepFirst": "Step 1",
+    "notYouJoined": "You already joined {workspace} with {email}. Signing out doesn't undo that. To remove this account from {workspace}, leave it now; to come back with another account you'll need a new invitation.",
+    "notYouLeave": "Leave {workspace} and sign out",
+    "notYouStay": "Only sign out"
   },
   "profileForm": {
     "title": "Your details",

@@ -338,7 +338,8 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
                     ))}
                   </select>
                 </Field>
-                <Field label={t('fields.payPeriod')} htmlFor="pe-pay">
+                {e.can.editCompensation && (
+                  <Field label={t('fields.payPeriod')} htmlFor="pe-pay">
                   <select id="pe-pay" name="payPeriod" className="select" defaultValue={e.payPeriod || 'monthly'}>
                     {(['monthly', 'semimonthly', 'biweekly', 'weekly'] as const).map((d) => (
                       <option key={d} value={d}>
@@ -347,6 +348,7 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
                     ))}
                   </select>
                 </Field>
+                )}
                 {fields.map((f) => (
                   <Field key={f.id} label={f.label} htmlFor={`pe-c-${f.id}`}>
                     {f.kind === 'select' ? (

@@ -35,7 +35,7 @@
  * - notificationclick: abre (o enfoca) el chat del aviso.
  * - La bandeja de Groups no se cachea: siempre se ve al día.
  */
-const VERSION = 'zs-app-v4';
+const VERSION = 'zs-app-v5';
 const PAGES = `${VERSION}-pages`;
 const META = `${VERSION}-meta`;
 const USER_KEY = '/__zs-user';
@@ -44,6 +44,7 @@ const DB_NAME = 'zs-offline';
 const STORE = 'queue';
 const SYNC_TAG = 'zs-crm-queue';
 const QUEUED_HEADER = 'x-zs-queued';
+const WORKSPACE_HEADER = 'x-zs-workspace';
 
 const NEVER_QUEUE = [
   '/api/crm/emails',
@@ -70,18 +71,29 @@ async function replayQueue(store, doFetch) {
   const items = (await store.all()).sort((a, b) => a.createdAt - b.createdAt || a.id - b.id);
   let done = 0;
   let failed = 0;
+  const blocked = new Set();
   for (let i = 0; i < items.length; i += 1) {
+    const key = items[i].workspace || '';
+    if (blocked.has(key)) continue;
     let res;
     try {
       res = await doFetch(items[i]);
     } catch {
       return { done, failed, remaining: items.length - i };
     }
+    // Sin sesión o con otro workspace activo: el item no se pierde ni se escribe en otro lado.
+    // Queda, y lo que sigue del mismo workspace espera para no cambiar el orden.
+    if (res.status === 401) {
+      blocked.add(key);
+      continue;
+    }
     await store.remove(items[i].id);
     if (res.ok) done += 1;
     else failed += 1;
   }
-  return { done, failed, remaining: 0 };
+  let remaining = 0;
+  for (const it of items) if (blocked.has(it.workspace || '')) remaining += 1;
+  return blocked.size ? { done, failed, remaining, blocked: true } : { done, failed, remaining: 0 };
 }
 
 // El CRM entero, Notes y el inicio de la app (/app, sin subruta). Notes
@@ -168,7 +180,10 @@ function replay() {
     const result = await replayQueue(idbStore, (item) =>
       fetch(item.url, {
         method: item.method,
-        headers: item.contentType ? { 'content-type': item.contentType } : {},
+        headers: {
+          ...(item.contentType ? { 'content-type': item.contentType } : {}),
+          ...(item.workspace ? { [WORKSPACE_HEADER]: item.workspace } : {}),
+        },
         body: item.body === null ? undefined : item.body,
         credentials: 'same-origin',
       }),
@@ -347,6 +362,8 @@ async function queueOrSend(request) {
       url: clone.url,
       method: clone.method,
       contentType: clone.headers.get('content-type'),
+      // El workspace de la pestaña que escribió: al reenviar se exige el mismo.
+      workspace: clone.headers.get(WORKSPACE_HEADER),
       body: body === '' ? null : body,
       createdAt: Date.now(),
     });

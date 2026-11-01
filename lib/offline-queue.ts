@@ -44,6 +44,8 @@ export interface QueuedRequest {
   url: string;
   method: string;
   contentType: string | null;
+  /** Workspace de la pestaña que escribió: al reenviar se exige el mismo. */
+  workspace?: string | null;
   body: string | null;
   createdAt: number;
 }
@@ -57,12 +59,16 @@ export interface ReplayResult {
   done: number;
   failed: number;
   remaining: number;
+  /** Quedaron cambios que este workspace no puede enviar (401). */
+  blocked?: boolean;
 }
 
 /**
  * Reenvía la cola en orden. Si se corta la red se detiene (lo que falta queda
  * para la próxima). Una respuesta HTTP (aunque sea 4xx/5xx) saca el item: el
- * servidor ya decidió y reintentarlo daría el mismo resultado.
+ * servidor ya decidió y reintentarlo daría el mismo resultado. Salvo un 401:
+ * sin sesión o con otro workspace activo, el cambio queda en la cola (y lo que
+ * sigue de ese workspace espera) hasta que la persona vuelva a él.
  */
 export async function replayQueue(
   store: QueueStore,
@@ -71,18 +77,27 @@ export async function replayQueue(
   const items = (await store.all()).sort((a, b) => a.createdAt - b.createdAt || a.id - b.id);
   let done = 0;
   let failed = 0;
+  const blocked = new Set<string>();
   for (let i = 0; i < items.length; i += 1) {
+    const key = items[i].workspace || '';
+    if (blocked.has(key)) continue;
     let res: { ok: boolean; status: number };
     try {
       res = await doFetch(items[i]);
     } catch {
       return { done, failed, remaining: items.length - i };
     }
+    if (res.status === 401) {
+      blocked.add(key);
+      continue;
+    }
     await store.remove(items[i].id);
     if (res.ok) done += 1;
     else failed += 1;
   }
-  return { done, failed, remaining: 0 };
+  let remaining = 0;
+  for (const it of items) if (blocked.has(it.workspace || '')) remaining += 1;
+  return blocked.size ? { done, failed, remaining, blocked: true } : { done, failed, remaining: 0 };
 }
 
 /** La respuesta es del service worker: el cambio quedó en la cola offline. */

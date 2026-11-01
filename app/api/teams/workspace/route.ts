@@ -46,9 +46,16 @@ export async function PATCH(req: NextRequest) {
   if (isResponse(ctx)) return ctx;
   const parsed = patchSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return teamsError('invalid_input');
-  if (parsed.data.joinApps !== undefined && !canGrantApps(ctx.user.apps ?? '*', parseApps(parsed.data.joinApps), joinSettings(ctx.team).apps)) {
-    return teamsError('apps_not_yours', 403);
-  }
+  // El ingreso por dominio da apps sin invitar a nadie. Quien tiene apps limitadas no puede dejarlo
+  // dando más que las suyas: se mira cómo queda el ajuste entero, no el campo que cambió.
+  const before = joinSettings(ctx.team);
+  const domainsBefore = parseDomains(ctx.team.allowed_domains);
+  const domainsAfter = parsed.data.allowedDomains ?? domainsBefore;
+  const appsAfter = parsed.data.joinApps !== undefined ? parseApps(parsed.data.joinApps) : before.apps;
+  const approvalAfter = parsed.data.joinApproval ?? before.approval;
+  const touched =
+    JSON.stringify(domainsAfter) !== JSON.stringify(domainsBefore) || JSON.stringify(appsAfter) !== JSON.stringify(before.apps) || approvalAfter !== before.approval;
+  if (touched && domainsAfter.length > 0 && !canGrantApps(ctx.user.apps ?? '*', appsAfter)) return teamsError('apps_not_yours', 403);
   // Los dominios solo los habilita alguien con email de ese dominio (Google lo verificó al entrar).
   const err = await updateWorkspace(ctx.team.id, { ...parsed.data, editorEmail: parsed.data.allowedDomains ? ctx.real.email : undefined });
   if (err) return teamsError(err, err === 'slug_taken' ? 409 : 400);
