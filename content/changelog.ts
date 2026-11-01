@@ -29,6 +29,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-31-pedir-acceso',
+    date: '2026-10-31',
+    title: {
+      en: 'Ask for access to an app and see what each role can do',
+      es: 'Pedí acceso a una app y mirá qué puede hacer cada rol',
+      pt: 'Peça acesso a um app e veja o que cada papel pode fazer',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'When an app is off for you in a workspace, Ask for access sends a notification to the owner and the admins. The notification opens your access in Settings › Members.',
+        es: 'Cuando una app no está habilitada para vos en un workspace, Pedir acceso le manda un aviso al owner y a los admins. El aviso abre tu acceso en Ajustes › Miembros.',
+        pt: 'Quando um app não está ativo para você em um workspace, Pedir acesso envia um aviso ao owner e aos admins. O aviso abre seu acesso em Configurações › Membros.',
+      },
+      {
+        product: 'platform',
+        en: 'Requests to join by email domain also reach the owner and the admins as a notification.',
+        es: 'Los pedidos para sumarse por dominio de email también les llegan al owner y a los admins como aviso.',
+        pt: 'Os pedidos para entrar pelo domínio do email também chegam ao owner e aos admins como aviso.',
+      },
+      {
+        product: 'platform',
+        en: 'Settings › Members explains each role, Settings lists only the apps you have, and Settings › Workspace says how to leave, hand over or close a workspace.',
+        es: 'Ajustes › Miembros explica cada rol, Ajustes lista solo las apps que tenés y Ajustes › Workspace dice cómo salir, pasar o cerrar un workspace.',
+        pt: 'Configurações › Membros explica cada papel, Configurações lista só os apps que você tem e Configurações › Workspace diz como sair, passar ou encerrar um workspace.',
+      },
+    ],
+  },
+  {
     id: '2026-10-31-robots-paridad',
     date: '2026-10-31',
     title: {

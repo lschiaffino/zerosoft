@@ -9,6 +9,7 @@ import { PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import PageHeader from '@/components/ui/PageHeader';
 import HomeAsk from '@/components/assistant/HomeAsk';
+import RequestAccessButton from '@/components/app/RequestAccessButton';
 import {
   CalBookingsBlock,
   CrmTasksBlock,
@@ -77,7 +78,15 @@ export default async function PlatformHomePage(props: {
       {blocked && tAccess && (
         <div className="home-blocked" role="status" data-testid="home-blocked">
           <p className="home-blocked-title">{tAccess('title', { app: PRODUCT_CONFIG[blocked].name })}</p>
-          <p className="home-blocked-body">{tAccess('body', { app: PRODUCT_CONFIG[blocked].name, workspace: user.workspace?.name ?? '' })}</p>
+          <p className="home-blocked-body">
+            {tAccess(user.role === 'guest' ? 'bodyGuest' : 'body', { app: PRODUCT_CONFIG[blocked].name, workspace: user.workspace?.name ?? '' })}
+          </p>
+          {user.actingUser && (
+            <RequestAccessButton
+              app={blocked}
+              labels={{ request: tAccess('request'), sending: tAccess('sending'), sent: tAccess('sent'), error: tAccess('error') }}
+            />
+          )}
         </div>
       )}
 

@@ -147,13 +147,13 @@ export async function listMemberTeams(userId: string): Promise<Array<TeamRow & {
  * (cualquier rol, también guest), o null. El onboarding lo usa para dar la
  * versión corta a quien llegó invitado, sin depender de ?invited=1.
  */
-export async function joinedWorkspace(userId: string): Promise<{ id: string; name: string } | null> {
+export async function joinedWorkspace(userId: string): Promise<{ id: string; name: string; role: string } | null> {
   const row = (await getDb()
     .prepare(
-      `SELECT t.id, t.name FROM team_members m JOIN teams t ON t.id = m.team_id
+      `SELECT t.id, t.name, m.role FROM team_members m JOIN teams t ON t.id = m.team_id
        WHERE m.user_id = ? AND t.owner_id != ? ORDER BY m.created_at DESC, t.id LIMIT 1`,
     )
-    .get(userId, userId)) as { id: string; name: string } | undefined;
+    .get(userId, userId)) as { id: string; name: string; role: string } | undefined;
   return row ?? null;
 }
 
@@ -430,6 +430,9 @@ export async function requestToJoin(team: TeamRow, userId: string, email: string
        VALUES (?, ?, ?, ?, 'member', '', ?, ?, 'request', ?)`,
     )
     .run(id, team.id, email.trim().toLowerCase(), newToken(), expires, serializeApps(apps), userId);
+  // Aviso a owner y admins (solo con el pedido nuevo, no al repetirlo).
+  const { notifyJoinRequest } = await import('./workspace-access-request');
+  await notifyJoinRequest(team, { id: userId, email }).catch(() => undefined);
   return (await db.prepare('SELECT * FROM team_invites WHERE id = ?').get(id)) as TeamInviteRow;
 }
 

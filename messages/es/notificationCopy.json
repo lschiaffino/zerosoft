@@ -53,5 +53,8 @@
   "dateRange": "{start} a {end}",
   "peopleDocRead": "Para leer: {title}",
   "peopleDocNew": "Documento nuevo: {title}",
-  "reviewCycle": "Empezó el ciclo de evaluación: {name}"
+  "reviewCycle": "Empezó el ciclo de evaluación: {name}",
+  "appAccessRequest": "{who} pide acceso a {app}",
+  "appAccessRequestBody": "Activalo en Ajustes › Miembros de {workspace}.",
+  "joinRequest": "{who} pide sumarse a {workspace}"
 }

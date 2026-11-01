@@ -47,7 +47,7 @@ function timeZones(current: string): string[] {
 }
 
 /** Mini onboarding de quien entra por una invitación: nombre, idioma y zona. */
-function InvitedWelcome({ workspaceName, name: initialName, timeZone }: { workspaceName: string; name: string; timeZone: string }) {
+function InvitedWelcome({ workspaceName, name: initialName, timeZone, guest }: { workspaceName: string; name: string; timeZone: string; guest: boolean }) {
   const t = useTranslations('settings.welcome');
   const locale = useLocale();
   const [name, setName] = useState(initialName);
@@ -90,7 +90,7 @@ function InvitedWelcome({ workspaceName, name: initialName, timeZone }: { worksp
       <h1 id="wl-title" className="wl-title">
         {workspaceName ? t('invited.title', { workspace: workspaceName }) : t('invited.titleNoName')}
       </h1>
-      <p className="wl-sub">{t('invited.sub')}</p>
+      <p className="wl-sub">{guest && workspaceName ? t('invited.guestSub', { workspace: workspaceName }) : t('invited.sub')}</p>
       <div className="ui-field">
         <label className="label" htmlFor="wl-name">
           {t('yourName')}
@@ -127,7 +127,7 @@ function InvitedWelcome({ workspaceName, name: initialName, timeZone }: { worksp
         </p>
       )}
       <button type="submit" className="btn btn-primary btn-block" disabled={!name.trim() || busy} aria-busy={busy || undefined}>
-        {workspaceName ? t('invited.go', { workspace: workspaceName }) : t('continue')}
+        {workspaceName && !guest ? t('invited.go', { workspace: workspaceName }) : t('continue')}
       </button>
     </form>
   );
@@ -141,6 +141,8 @@ function InvitedWelcome({ workspaceName, name: initialName, timeZone }: { worksp
 export default function WelcomeFlow(props: {
   kind: 'full' | 'invited';
   workspaceName: string;
+  /** Entró como guest: no usa las apps del workspace, solo lo que le comparten. */
+  guest?: boolean;
   name: string;
   email: string;
   timeZone: string;
@@ -173,7 +175,7 @@ export default function WelcomeFlow(props: {
     heading.current?.focus();
   }, [step]);
 
-  if (props.kind === 'invited') return <InvitedWelcome workspaceName={props.workspaceName} name={props.name} timeZone={props.timeZone} />;
+  if (props.kind === 'invited') return <InvitedWelcome workspaceName={props.workspaceName} name={props.name} timeZone={props.timeZone} guest={Boolean(props.guest)} />;
 
   const chosenTool = TOOLS.find((x) => x.key === tool);
   const apps: ProductKey[] = (() => {

@@ -38,6 +38,7 @@ export default async function WorkspaceSettingsPage(props: { params: Promise<{ l
         joinApps: joinSettings(team).apps,
         joinApproval: joinSettings(team).approval,
         editorDomain: emailDomain((user.actingUser ?? user).email),
+        viewerIsOwner: user.role === 'owner',
       }}
     />
   );

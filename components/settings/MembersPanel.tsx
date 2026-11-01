@@ -1,7 +1,7 @@
 'use client';
 
 import LocalText from '@/components/ui/LocalText';
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import CopyButton from '@/components/link/CopyButton';
@@ -185,6 +185,15 @@ export default function MembersPanel({
     setEditGroups(m.groupIds);
   }
 
+  // ?person=<id> (el aviso de "pide acceso"): abre su acceso para editarlo, una vez.
+  useEffect(() => {
+    if (!admin) return;
+    const id = new URLSearchParams(window.location.search).get('person');
+    const m = id ? initialDir.members.find((x) => x.userId === id) : undefined;
+    if (m && m.userId !== me && canManage(role, m.role)) openEdit(m);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function saveEdit() {
     if (!editing) return;
     const res = await call(`/api/teams/members/${encodeURIComponent(editing.userId)}`, {
@@ -336,7 +345,7 @@ export default function MembersPanel({
           role !== 'owner' && meMember ? (
             <div className="st-actions">
               <p className="ui-section-note">{t('leaveNote', { workspace: dir.team.name })}</p>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setLeaving(true)}>
+              <button type="button" id="leave" className="btn btn-secondary btn-sm" onClick={() => setLeaving(true)}>
                 {t('leave')}
               </button>
             </div>
@@ -452,6 +461,18 @@ export default function MembersPanel({
           ]}
         />
         {dir.members.length <= 1 && admin && <p className="ui-help ws-alone">{t('alone')}</p>}
+        <details className="ws-roles" data-testid="roles-legend">
+          <summary>{t('rolesLegend')}</summary>
+          <dl>
+            {(['owner', 'admin', 'member', 'guest'] as const).map((r) => (
+              <div key={r}>
+                <dt className="st-strong">{t(`roles.${r}`)}</dt>
+                <dd className="ui-help">{t(`roleHelp.${r}`)}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="ui-help">{t('rolesLegendApps')}</p>
+        </details>
       </FormSection>
 
       {admin && (

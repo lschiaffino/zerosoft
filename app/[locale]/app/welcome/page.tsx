@@ -39,6 +39,7 @@ export default async function WelcomePage(props: { params: Promise<{ locale: str
     <WelcomeFlow
       kind={invited ? 'invited' : 'full'}
       workspaceName={user.actingUser ? (user.workspace?.name ?? '') : (joined?.name ?? '')}
+      guest={!user.actingUser && joined?.role === 'guest'}
       name={real.name ?? ''}
       email={real.email}
       timeZone={real.time_zone ?? tz}

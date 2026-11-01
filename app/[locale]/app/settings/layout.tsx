@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { getTranslations } from 'next-intl/server';
-import { requireUser } from '@/lib/session';
+import { requireUser, userCanUseApp } from '@/lib/session';
 import { isAdminEmail } from '@/lib/feedback';
 import { settingsSections } from '@/lib/settings-nav';
 import { PRODUCT_CONFIG } from '@/lib/products';
@@ -23,7 +23,8 @@ export default async function SettingsLayout(props: { children: ReactNode; param
   const groups = settingsSections(isAdmin).map((g) => ({
     key: g.key,
     label: t(`groups.${g.key}`),
-    items: g.items.map((i) => ({
+    // Productos: solo los ajustes de las apps que la persona tiene en este workspace.
+    items: g.items.filter((i) => !i.product || userCanUseApp(user, i.product)).map((i) => ({
       key: i.key,
       href: i.href,
       match: i.match,

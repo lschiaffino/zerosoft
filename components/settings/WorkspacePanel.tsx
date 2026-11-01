@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import FormSection from '@/components/ui/FormSection';
 import { WORKSPACE_SIZES_LIST } from '@/lib/workspace-mode';
 import type { ProductKey } from '@/lib/products';
@@ -21,6 +21,8 @@ export interface WorkspaceFormDto {
   joinApproval: boolean;
   /** Dominio del email de quien mira: el único que puede habilitar. */
   editorDomain: string;
+  /** Quien mira es el owner (cerrar y transferir) o alguien que se puede ir. */
+  viewerIsOwner: boolean;
 }
 
 function initial(name: string): string {
@@ -230,6 +232,31 @@ export default function WorkspacePanel({ initial: init, canEdit }: { initial: Wo
         </label>
         <p className="ui-help">{t('joinRole')}</p>
         <AppsPicker value={joinApps} onChange={setJoinApps} idPrefix="ws-join-app" />
+      </FormSection>
+
+      <FormSection title={t('dangerTitle')} description={t('dangerDesc')} tone="danger" id="danger">
+        {ws.viewerIsOwner ? (
+          <div className="ws-danger" data-testid="ws-danger-owner">
+            <div>
+              <p className="st-strong">{t('transferTitle')}</p>
+              <p className="ui-help">{t('transferBody')}</p>
+            </div>
+            <div>
+              <p className="st-strong">{t('closeTitle')}</p>
+              <p className="ui-help">{t('closeBody', { email: ws.ownerEmail })}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="ws-danger" data-testid="ws-danger-member">
+            <div>
+              <p className="st-strong">{t('leaveTitle', { workspace: ws.name })}</p>
+              <p className="ui-help">{t('leaveBody')}</p>
+            </div>
+            <Link href="/app/settings/members#leave" className="btn btn-secondary btn-sm">
+              {t('leaveCta')}
+            </Link>
+          </div>
+        )}
       </FormSection>
     </>
   );

@@ -464,7 +464,8 @@
     "roleHelp": {
       "member": "Usa las apps que le habilites, con los mismos datos que el resto del equipo.",
       "admin": "Como un miembro, y además invita gente, cambia roles y edita la configuración.",
-      "guest": "No entra al workspace: solo ve lo que le compartas, página por página."
+      "guest": "No entra al workspace: solo ve lo que le compartas, página por página.",
+      "owner": "Creó el workspace. Usa todas las apps y es la única persona que gestiona a los admins. No puede salir."
     },
     "apps": "Apps",
     "allApps": "Todas las apps",
@@ -553,7 +554,9 @@
       "body": "El link deja de servir en el acto. Podés volver a invitar a esta persona después.",
       "confirm": "Revocar",
       "cancel": "Cancelar"
-    }
+    },
+    "rolesLegend": "Qué puede hacer cada rol",
+    "rolesLegendApps": "Dentro de cada app hay acciones solo para admins, como borrar pipelines o cambiar los ajustes de la app. Si necesitás una, pedísela a un admin."
   },
   "teamsForm": {
     "createTitle": "Crear un equipo",
@@ -660,7 +663,16 @@
       "domain_not_yours": "Solo podés habilitar el dominio de tu propio email."
     },
     "joinApproval": "Un admin aprueba a cada persona antes de que entre",
-    "joinRole": "Entran como miembros con estas apps:"
+    "joinRole": "Entran como miembros con estas apps:",
+    "dangerTitle": "Propiedad y cierre",
+    "dangerDesc": "Lo que cambia quién es dueño del workspace o lo cierra.",
+    "transferTitle": "Transferir la propiedad",
+    "transferBody": "Todavía no se puede transferir la propiedad desde la app. Mientras tanto, hacé admin a la próxima persona en Ajustes › Miembros: los admins invitan, cambian roles y editan estos ajustes.",
+    "closeTitle": "Borrar el workspace",
+    "closeBody": "Todavía no hay un botón para borrarlo. Escribí a privacy@zerosoft.ai desde {email} y lo cerramos: sus datos se pueden exportar durante 30 días y después se borran, como dice la Política de privacidad.",
+    "leaveTitle": "Salir de {workspace}",
+    "leaveBody": "Perdés el acceso a sus apps al instante. Lo que creaste queda en el workspace.",
+    "leaveCta": "Salir desde Miembros"
   },
   "switcher": {
     "label": "Workspace: {name}. Cambiar de workspace",
@@ -689,7 +701,12 @@
   "access": {
     "title": "No tenés acceso a {app} acá",
     "body": "Un admin de {workspace} te lo puede habilitar en Ajustes › Miembros.",
-    "back": "Volver a las apps"
+    "back": "Volver a las apps",
+    "bodyGuest": "Entraste a {workspace} como invitado: ves lo que te comparten. Un admin te puede hacer miembro para usar {app}.",
+    "request": "Pedir acceso",
+    "sending": "Enviando…",
+    "sent": "Pedido enviado. Al owner y a los admins les llegó un aviso.",
+    "error": "No se pudo enviar el pedido. Probá de nuevo."
   },
   "invite": {
     "metaTitle": "Invitación",
@@ -810,7 +827,8 @@
       "title": "Te damos la bienvenida a {workspace}",
       "titleNoName": "Te damos la bienvenida a zerosoft",
       "sub": "Dos datos y entrás.",
-      "go": "Ir a {workspace}"
+      "go": "Ir a {workspace}",
+      "guestSub": "Entraste a {workspace} como invitado: abrís lo que te comparten desde su link o desde tus avisos. Vas a llegar a tu propio workspace."
     },
     "results": {
       "title": "Casi listo",
