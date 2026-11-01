@@ -306,6 +306,7 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
                   )}
                   <Link href={n.href ?? '/app/track'} className="track-inbox-link">
                     <span className="track-inbox-text">{notificationTitle(n, textLabels)}</span>
+                    {n.source_type === 'robot' && n.body && <span className="track-inbox-body">{n.body}</span>}
                     {meta.projectName && <span className="track-inbox-project">{meta.projectName}</span>}
                   </Link>
                   {tab === 'snoozed' && n.snoozed_until ? (

@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
+import { recMoveNotice, type RecPrivacy } from '@/lib/rec-schema';
 
 /** Evento que avisa al sidebar que cambiaron videos o carpetas (crear, renombrar, mover, borrar). */
 export const REC_CHANGED = 'zs:rec-changed';
@@ -127,6 +128,8 @@ export function RecMoveDialog({
   folders,
   spaces = [],
   current,
+  privacy,
+  error,
   busy,
   onMove,
   onClose,
@@ -135,6 +138,10 @@ export function RecMoveDialog({
   folders: RecFolder[];
   spaces?: RecSpaceItem[];
   current: MoveTarget;
+  /** Quién puede verlo hoy: el diálogo avisa si mover cambia eso o no se puede. */
+  privacy?: RecPrivacy;
+  /** Error del último intento, adentro del diálogo (el de la página queda tapado). */
+  error?: string | null;
   busy?: boolean;
   onMove: (t: MoveTarget) => void;
   onClose: () => void;
@@ -159,6 +166,8 @@ export function RecMoveDialog({
       ...folders.filter((f) => f.space_id === s.id).map((f) => ({ k: f.id, label: f.name, target: { space: 'workspace' as const, folderId: f.id, spaceId: s.id }, group: 'workspace' as const })),
     ]),
   ];
+  const chosen = options.find((x) => x.k === sel);
+  const notice = privacy && chosen && chosen.k !== curKey ? recMoveNotice({ spaceId: current.spaceId ?? null, privacy }, chosen.target) : null;
   return (
     <dialog
       ref={ref}
@@ -196,6 +205,16 @@ export function RecMoveDialog({
               ))}
             </fieldset>
             <p className="ui-help">{t('moveHelp')}</p>
+            {notice && (
+              <p className="rec-move-notice" data-testid="rec-move-notice">
+                {t(notice === 'needs_privacy' ? 'moveNeedsPrivacy' : 'moveBecomesPeople')}
+              </p>
+            )}
+            {error && (
+              <p className="ui-error" role="alert" data-testid="rec-move-error">
+                {error}
+              </p>
+            )}
           </div>
           <div className="ui-modal-foot">
             <button type="button" className="btn btn-sm" onClick={onClose}>

@@ -149,10 +149,15 @@ export default function RecDetail({
       await fail(res);
       return false;
     }
-    const { video: v } = (await res.json()) as { video: RecVideoDto };
+    const { video: v } = ((await res.json().catch(() => null)) ?? { video: null }) as { video: RecVideoDto | null };
+    changed();
+    if (!v) {
+      // El cambio quedó hecho pero esta persona ya no lo ve (un admin que lo mandó a los videos de quien lo grabó).
+      router.push(`/${locale}/app/rec`);
+      return true;
+    }
     setVideo(v);
     if (okToast) setToast(okToast);
-    changed();
     return true;
   }
 
@@ -330,7 +335,7 @@ export default function RecDetail({
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRenaming(true)} data-testid="rec-rename">
               {t('rename')}
             </button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMoving(true)}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => (setError(null), setMoving(true))}>
               {t('move')}
             </button>
             <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => void patch({ archived: !video.archived }, video.archived ? t('restored') : t('archivedToast'))} data-testid="rec-archive">
@@ -348,7 +353,7 @@ export default function RecDetail({
           {video.expiresAt ? ` · ${t('badgeExpires', { date: new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(parseDbUtc(video.expiresAt)) })}` : ''}
         </span>
       </div>
-      {error && (
+      {error && !moving && (
         <p className="ui-error" role="alert">
           {error}
         </p>
@@ -711,6 +716,8 @@ export default function RecDetail({
         folders={folders}
         spaces={spaces}
         current={{ space: video.space, folderId: video.folderId, spaceId: video.spaceId }}
+        privacy={video.privacy}
+        error={moving ? error : null}
         busy={busy}
         onMove={async (m) => {
           if (await patch({ folderId: m.folderId, space: m.space, spaceId: m.spaceId ?? null }, t('moved'))) setMoving(false);

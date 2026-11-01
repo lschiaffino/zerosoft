@@ -348,6 +348,8 @@ test('robots: pantalla de lotes, estimación y revisión en claro, oscuro y 390p
       await page.getByRole('button', { name: 'Bulk run' }).click();
       await page.getByRole('dialog').getByLabel('Or paste the CSV').fill('q\na\nb\nc');
       await expect(page.getByTestId('robots-batch-estimate')).toBeVisible();
+      // La espera sale de ROBOTS_BATCH_QUEUE_MAX_AGE_H, no de un número fijo en el texto.
+      await expect(page.getByTestId('robots-batch-estimate')).toContainText(/Rows still waiting after \d+ (days|hours) are dropped/);
       await page.screenshot({ path: testInfo.outputPath(`look-estimate-${theme}-${width}.png`) });
       await page.keyboard.press('Escape');
       const { scroll, inner } = await page.evaluate(() => ({ scroll: document.scrollingElement!.scrollWidth, inner: window.innerWidth }));

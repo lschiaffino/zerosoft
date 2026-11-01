@@ -7996,8 +7996,25 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Robots: quién se hizo cargo de un robot con login y quién eligió el sitio de un login. Tabla nueva, sin tocar datos.
+    id: '161_robot_audit',
+    up: async (client) => {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS robot_audit (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          robot_id TEXT NOT NULL,
+          actor_id TEXT NOT NULL,
+          action TEXT NOT NULL,
+          detail TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL
+        )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_robot_audit_robot ON robot_audit (robot_id, created_at)');
+    },
+  },
+  {
     // MCP unificado y su login OAuth (lib/oauth): clientes, pedidos, conexiones, tokens (solo hash) y auditoría.
-    id: '160_mcp_oauth',
+    id: '162_mcp_oauth',
     async up(client) {
       await client.executeMultiple(`
         CREATE TABLE IF NOT EXISTS oauth_clients (

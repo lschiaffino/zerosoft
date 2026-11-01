@@ -5,6 +5,7 @@ import { useFormatter, useTranslations } from 'next-intl';
 import type { RobotRunDto } from '@/lib/robots';
 import { csvFilename, valueToCsv } from '@/lib/robots-csv';
 import EmptyState from '@/components/ui/EmptyState';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { errorText, StatusBadge } from './robots-ui';
 
 /** Arreglo propuesto para un paso: índice en el robot (y en el loop) y el selector o texto nuevo. */
@@ -79,6 +80,7 @@ export default function RunsPanel({
   toolbar,
   onCancelQueued,
   onApproveSuggestion,
+  onUseLoginSite,
 }: {
   runs: RobotRunDto[];
   selectedId: string | null;
@@ -97,6 +99,8 @@ export default function RunsPanel({
   onCancelQueued?: (id: string) => Promise<void>;
   /** Aprobar el selector sugerido para un paso de acción: queda guardado en el robot. */
   onApproveSuggestion?: (runId: string, step: string) => Promise<void>;
+  /** Aprobar como sitio del login el destino que encontró una corrida frenada. */
+  onUseLoginSite?: (runId: string, step: string) => Promise<boolean>;
 }) {
   const t = useTranslations('robots.runs');
   const format = useFormatter();
@@ -155,7 +159,7 @@ export default function RunsPanel({
             <span className="ui-skeleton ui-skeleton-row" />
           </div>
         ) : run ? (
-          <RunDetail run={run} robotName={robotName} onApplyFix={onApplyFix} onCancelQueued={onCancelQueued} onApproveSuggestion={onApproveSuggestion} />
+          <RunDetail run={run} robotName={robotName} onApplyFix={onApplyFix} onCancelQueued={onCancelQueued} onApproveSuggestion={onApproveSuggestion} onUseLoginSite={onUseLoginSite} />
         ) : (
           <p className="robots-run-body robots-muted">{t('select')}</p>
         )}
@@ -165,18 +169,69 @@ export default function RunsPanel({
   );
 }
 
+/**
+ * Login frenado: dice a qué sitio llegó la página y dónde se escribe. "Usar este
+ * sitio" es una persona aprobando un destino, por eso pide confirmación.
+ */
+function LoginSiteBlocked({ run, onUse }: { run: RobotRunDto; onUse?: (runId: string, step: string) => Promise<boolean> }) {
+  const t = useTranslations('robots.runs');
+  const [asking, setAsking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const log = run.logs.find((l) => l.error === 'credential_origin' || l.error === 'credential_no_site');
+  const step = log?.step ?? String(run.error).split(':')[0];
+  const [here = '?', bound = '?'] = String(log?.detail ?? '').split(' ≠ ');
+  const noSite = /credential_no_site/.test(String(run.error));
+  // Sin permiso para ver datos, el detalle llega vacío: la frase no nombra sitios.
+  if (run.dataHidden) return <span>{t('credentialHidden', { step })}</span>;
+  return (
+    <span>
+      {noSite ? t('credentialNoSite', { step, here }) : t('credentialOrigin', { step, here, bound })}{' '}
+      {done ? (
+        <span className="robots-muted">{t('useSiteDone', { here })}</span>
+      ) : (
+        onUse &&
+        here !== '?' && (
+          <button type="button" className="btn btn-ghost btn-sm" data-testid="robots-use-site" onClick={() => setAsking(true)}>
+            {t('useSite')}
+          </button>
+        )
+      )}
+      <ConfirmDialog
+        open={asking}
+        busy={busy}
+        title={t('useSiteTitle', { here })}
+        body={t('useSiteBody', { here, step })}
+        confirmLabel={t('useSite')}
+        cancelLabel={t('cancelNo')}
+        onCancel={() => setAsking(false)}
+        onConfirm={() => {
+          setBusy(true);
+          void (onUse ? onUse(run.id, step) : Promise.resolve(false)).then((ok) => {
+            setBusy(false);
+            setAsking(false);
+            setDone(ok);
+          });
+        }}
+      />
+    </span>
+  );
+}
+
 function RunDetail({
   run,
   robotName,
   onApplyFix,
   onCancelQueued,
   onApproveSuggestion,
+  onUseLoginSite,
 }: {
   run: RobotRunDto;
   robotName: string;
   onApplyFix?: (fix: StepFix) => void;
   onCancelQueued?: (id: string) => Promise<void>;
   onApproveSuggestion?: (runId: string, step: string) => Promise<void>;
+  onUseLoginSite?: (runId: string, step: string) => Promise<boolean>;
 }) {
   const t = useTranslations('robots.runs');
   const tTypes = useTranslations('robots.steps.types');
@@ -207,6 +262,10 @@ function RunDetail({
           <strong>{t('error')}</strong>
           {/credential_not_allowed/.test(run.error) ? (
             <span>{t('credentialNotAllowed', { step: run.error.split(':')[0] })}</span>
+          ) : /credential_with_script/.test(run.error) ? (
+            <span>{t('credentialScript', { step: run.error.split(':')[0] })}</span>
+          ) : /credential_(origin|no_site)/.test(run.error) ? (
+            <LoginSiteBlocked run={run} onUse={onUseLoginSite} />
           ) : (
             <span className="data">{run.error}</span>
           )}

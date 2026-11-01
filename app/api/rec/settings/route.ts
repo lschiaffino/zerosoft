@@ -15,7 +15,10 @@ export async function GET(req: NextRequest) {
   if (!s.actor.admin) return recJson({ settings, admin: false });
   const days = Number(req.nextUrl.searchParams.get('previewDays'));
   const preview = (REC_RETENTION_OPTIONS as readonly number[]).includes(days) ? await retentionPreview(s.actor, days) : null;
-  return recJson({ settings, admin: true, owners: await listContentOwners(s.actor, await recCurrentPeople(s.user)), people: await recPeople(s.user), preview });
+  // Destinos del traspaso, con la regla de transferContent: quien lo hace solo se lo queda si no hay nadie más.
+  const all = await recPeople(s.user);
+  const others = all.filter((p) => p.id !== s.actor.actor);
+  return recJson({ settings, admin: true, owners: await listContentOwners(s.actor, await recCurrentPeople(s.user)), people: others.length ? others : all, preview });
 }
 
 const schema = z
