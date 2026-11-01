@@ -127,7 +127,7 @@
     "people": "Pessoas",
     "dayN": "Dia {n}",
     "weekN": "Semana {n}",
-    "pathsSessions": "{count, plural, one {# sessão} other {# sessões}} com pageviews.",
+    "pathsSessions": "{count, plural, one {# sessão} other {# sessões}}.",
     "stepN": "Etapa {n}",
     "stepArrow": "Da etapa {from} à {to}",
     "topPaths": "Caminhos mais comuns",
@@ -323,7 +323,8 @@
     "pathSources": {
       "pageviews": "Só páginas",
       "all": "Páginas e eventos próprios"
-    }
+    },
+    "pathsNoteAll": "Os caminhos seguem páginas e seus eventos em cada sessão. Mostram o próximo passo mais comum."
   },
   "sql": {
     "title": "SQL",

@@ -63,7 +63,8 @@ export default function Chart({
   const x = (i: number) => (kind === 'bar' ? pad.l + stepX * i + stepX / 2 : pad.l + i * stepX);
   const narrow = W < 600;
   const every = Math.max(1, Math.ceil(n / (narrow ? 3 : 8)));
-  const xTicks = n ? [...new Set([...Array.from({ length: n }, (_, i) => i).filter((i) => i % every === 0), n - 1])] : [];
+  // La última etiqueta siempre va; la anterior se saca si quedaría encima.
+  const xTicks = n ? [...new Set([...Array.from({ length: n }, (_, i) => i).filter((i) => i % every === 0 && (i === 0 || n - 1 - i >= Math.ceil(every * 0.7))), n - 1])] : [];
   const barW = kind === 'bar' ? Math.max(2, (stepX * 0.8) / Math.max(series.length, 1)) : 0;
   const fmt = (v: number) => (v >= 10_000 ? `${Math.round(v / 1000)}k` : String(Math.round(v * 100) / 100));
   const tipValue = (v: number | undefined) => new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(v ?? 0);

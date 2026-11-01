@@ -7,6 +7,7 @@ import { Link } from '@/i18n/navigation';
 import { publicShareView } from '@/lib/analytics/share-view';
 import { clientIp, rateLimit } from '@/lib/rate-limit';
 import { headers } from 'next/headers';
+import '@/styles/app-shared.css';
 import '@/styles/analytics.css';
 
 export const dynamic = 'force-dynamic';

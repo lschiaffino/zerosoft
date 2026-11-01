@@ -127,7 +127,7 @@
     "people": "People",
     "dayN": "Day {n}",
     "weekN": "Week {n}",
-    "pathsSessions": "{count, plural, one {# session} other {# sessions}} with pageviews.",
+    "pathsSessions": "{count, plural, one {# session} other {# sessions}}.",
     "stepN": "Step {n}",
     "stepArrow": "Step {from} to {to}",
     "topPaths": "Most common paths",
@@ -323,7 +323,8 @@
     "pathSources": {
       "pageviews": "Pages only",
       "all": "Pages and custom events"
-    }
+    },
+    "pathsNoteAll": "Paths follow pages and your own events within each session. They show the most common next step."
   },
   "sql": {
     "title": "SQL",

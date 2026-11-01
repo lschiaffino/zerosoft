@@ -317,6 +317,9 @@ test('link público: se ve sin sesión, sin la consulta ni personas, y revocar l
   const embed = await pub.goto(`${url}?embed=1`, { waitUntil: 'networkidle' });
   expect(embed?.headers()['x-frame-options']).toBeUndefined();
   await expect(pub.locator('.an-share-public.is-embed')).toBeVisible();
+  // Embebido va sin el marco del sitio.
+  await expect(pub.locator('footer')).toHaveCount(0);
+  await expect(pub.locator('header')).toHaveCount(0);
   expect(errors, errors.join('\n')).toEqual([]);
 
   await dialog.getByRole('button', { name: 'Revoke' }).click();

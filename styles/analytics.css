@@ -327,3 +327,6 @@
 
 /* El selector de las acciones de la cabecera no ocupa toda la fila. */
 .an-header-select { width: auto; max-width: 220px; }
+
+/* Bloques seguidos dentro de un panel. */
+.an-panel > .an-code + .an-code, .an-panel > .an-code + form { margin-top: 8px; }

@@ -140,23 +140,27 @@ export function PathsSankey({ r }: { r: PathsResult }) {
   const COLS = steps.length + 1;
   const MAX_NODES = 7;
   const W = Math.max(640, COLS * 190);
-  const H = 340;
   const NODE_W = 10;
   const colX = (c: number) => (COLS === 1 ? 0 : ((W - 150 - NODE_W) * c) / (COLS - 1));
   // Nodos de cada columna: los de más sesiones.
-  const totals: Array<Map<string, number>> = Array.from({ length: COLS }, () => new Map());
+  // El alto de un nodo es lo mayor entre lo que entra y lo que sale: esas sesiones son las mismas.
+  const inOf: Array<Map<string, number>> = Array.from({ length: COLS }, () => new Map());
+  const outOf: Array<Map<string, number>> = Array.from({ length: COLS }, () => new Map());
   for (const l of r.links) {
     const c = steps.indexOf(l.step);
-    totals[c].set(l.from, (totals[c].get(l.from) ?? 0) + l.count);
-    totals[c + 1].set(l.to, (totals[c + 1].get(l.to) ?? 0) + l.count);
+    outOf[c].set(l.from, (outOf[c].get(l.from) ?? 0) + l.count);
+    inOf[c + 1].set(l.to, (inOf[c + 1].get(l.to) ?? 0) + l.count);
   }
-  const positions = totals.map((m) => {
-    const list = [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, MAX_NODES);
-    return list;
+  const positions = inOf.map((m, c) => {
+    const names = new Set([...m.keys(), ...outOf[c].keys()]);
+    const list: Array<[string, number]> = [...names].map((name) => [name, Math.max(m.get(name) ?? 0, outOf[c].get(name) ?? 0)]);
+    return list.sort((a, b) => b[1] - a[1]).slice(0, MAX_NODES);
   });
   const maxSum = Math.max(1, ...positions.map((p) => p.reduce((a, x) => a + x[1], 0)));
+  const maxNodes = Math.max(1, ...positions.map((p) => p.length));
   const GAP = 14;
-  const scale = (H - GAP * MAX_NODES) / maxSum;
+  const scale = Math.min(280 / maxSum, 12);
+  const H = Math.ceil(maxSum * scale + GAP * maxNodes + 8);
   const place: Array<Map<string, { y: number; h: number; inY: number; outY: number }>> = positions.map((list) => {
     const m = new Map<string, { y: number; h: number; inY: number; outY: number }>();
     let y = 0;

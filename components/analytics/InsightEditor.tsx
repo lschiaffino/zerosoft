@@ -451,7 +451,7 @@ function PathsForm({ q, set }: { q: PathsQuery; set: (q: PathsQuery) => void }) 
       <label className="ui-check">
         <input type="checkbox" checked={Boolean(q.collapseIds)} onChange={(e) => set({ ...q, collapseIds: e.target.checked })} /> {t('collapseIds')}
       </label>
-      <p className="an-note">{t('pathsNote')}</p>
+      <p className="an-note">{(q.source ?? 'pageviews') === 'all' ? t('pathsNoteAll') : t('pathsNote')}</p>
     </div>
   );
 }
