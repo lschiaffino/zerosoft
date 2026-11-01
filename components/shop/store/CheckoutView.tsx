@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { formatMoney } from '@/lib/shop-money';
 import { fmt, type StorefrontStrings } from '@/lib/shop-i18n';
 import { clearCart } from './cart-store';
@@ -20,11 +20,13 @@ export default function CheckoutView({
   locale,
   t,
   manualLabel,
+  askTaxId = false,
 }: {
   handle: string;
   locale: string;
   t: StorefrontStrings;
   manualLabel: string;
+  askTaxId?: boolean;
 }) {
   const [email, setEmail] = useState('');
   const [addr, setAddr] = useState({ name: '', line1: '', line2: '', city: '', region: '', postalCode: '', country: '', phone: '' });
@@ -33,6 +35,10 @@ export default function CheckoutView({
   const [code, setCode] = useState<string | null>(null);
   const [method, setMethod] = useState<Method | null>(null);
   const [note, setNote] = useState('');
+  const [taxId, setTaxId] = useState('');
+  const [contactName, setContactName] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const savedProgress = useRef('');
   const [busy, setBusy] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   // La región solo cambia el impuesto: se re-precia cuando la persona deja de escribir, no en cada tecla.
@@ -42,8 +48,8 @@ export default function CheckoutView({
     return () => window.clearTimeout(id);
   }, [addr.region]);
   const priceOpts = useMemo(
-    () => ({ address: addr.country ? { country: addr.country, region } : null, shippingRateId: rateId, discountCode: code }),
-    [addr.country, region, rateId, code],
+    () => ({ address: addr.country ? { country: addr.country, region } : null, shippingRateId: rateId, discountCode: code, paymentMethod: method }),
+    [addr.country, region, rateId, code, method],
   );
   const { lines, cart, methods, error, loading } = usePricedCart(handle, priceOpts);
   const money = (c: number) => formatMoney(c, cart?.currency ?? 'USD', locale);
@@ -56,6 +62,20 @@ export default function CheckoutView({
   }, [locale]);
   const chosen: Method | null = method && methods.includes(method) ? method : ((methods[0] as Method | undefined) ?? null);
   const needsShipping = cart?.totals.needsShipping ?? true;
+  const needsAddress = cart?.totals.needsAddress ?? true;
+  const isPickup = needsShipping && !needsAddress;
+  // Al dejar el email se guarda el carrito, para poder retomarlo después (una vez por email y carrito).
+  const saveProgress = () => {
+    if (!lines?.length || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return;
+    const key = JSON.stringify([email.trim().toLowerCase(), lines]);
+    if (savedProgress.current === key) return;
+    savedProgress.current = key;
+    void fetch(`/api/shop/public/${handle}/checkout-progress`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email, name: addr.name || contactName, lines, website: (document.getElementById('sf-website') as HTMLInputElement | null)?.value || undefined }),
+    }).catch(() => undefined);
+  };
   const errText = (c: string) => (t.errors as Record<string, string>)[c] ?? t.errors.generic;
 
   if (lines && lines.length === 0) {
@@ -82,11 +102,14 @@ export default function CheckoutView({
         body: JSON.stringify({
           email,
           lines,
-          address: needsShipping ? addr : null,
+          address: needsAddress && needsShipping ? addr : null,
           shippingRateId: cart?.totals.shipping?.id ?? null,
           discountCode: code,
           paymentMethod: chosen,
           note,
+          taxId,
+          contactName,
+          contactPhone,
           website: (document.getElementById('sf-website') as HTMLInputElement | null)?.value || undefined,
         }),
       });
@@ -129,11 +152,30 @@ export default function CheckoutView({
             <legend>{t.contact}</legend>
             <label className="sf-field">
               <span>{t.email}</span>
-              <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={saveProgress} />
             </label>
             <p className="sf-muted">{t.guestNote}</p>
+            {askTaxId && (
+              <label className="sf-field">
+                <span>{t.taxId}</span>
+                <input required maxLength={30} autoComplete="off" value={taxId} onChange={(e) => setTaxId(e.target.value)} name="taxId" />
+              </label>
+            )}
           </fieldset>
-          {needsShipping && (
+          {isPickup && (
+            <fieldset className="sf-fieldset">
+              <legend>{t.pickupContact}</legend>
+              <label className="sf-field">
+                <span>{t.fullName}</span>
+                <input required autoComplete="name" maxLength={120} value={contactName} onChange={(e) => setContactName(e.target.value)} name="contactName" />
+              </label>
+              <label className="sf-field">
+                <span>{t.phone} {t.optional}</span>
+                <input type="tel" autoComplete="tel" maxLength={40} value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
+              </label>
+            </fieldset>
+          )}
+          {needsShipping && needsAddress && (
             <fieldset className="sf-fieldset">
               <legend>{t.shippingAddress}</legend>
               {field('name', t.fullName, { required: true, autoComplete: 'name' })}
@@ -161,15 +203,23 @@ export default function CheckoutView({
           {needsShipping && (
             <fieldset className="sf-fieldset">
               <legend>{t.shippingMethod}</legend>
-              {!addr.country && <p className="sf-muted">{t.chooseCountryFirst}</p>}
+              {!addr.country && needsAddress && <p className="sf-muted">{t.chooseCountryFirst}</p>}
               {addr.country && cart && cart.totals.shippingOptions.length === 0 && <p className="sf-warn">{t.errors.no_shipping_rate}</p>}
               {cart?.totals.shippingOptions.map((o) => (
                 <label key={o.id} className="sf-radio">
                   <input type="radio" name="rate" checked={cart.totals.shipping?.id === o.id} onChange={() => setRateId(o.id)} />
-                  <span>{o.name}</span>
+                  <span>
+                    {o.name}
+                    {o.pickup && <span className="sf-muted sf-block">{o.note || t.pickup}</span>}
+                  </span>
                   <strong>{o.priceCents === 0 ? t.free : money(o.priceCents)}</strong>
                 </label>
               ))}
+              {isPickup && (
+                <button type="button" className="sf-link" onClick={() => setRateId(null)}>
+                  {t.shipInstead}
+                </button>
+              )}
             </fieldset>
           )}
           <fieldset className="sf-fieldset">
@@ -198,6 +248,7 @@ export default function CheckoutView({
                 {l.title}
                 {l.variantTitle ? ` (${l.variantTitle})` : ''} × {l.quantity}
                 {l.short && <span className="sf-warn"> {l.stock ? fmt(t.onlyLeft, { n: l.stock }) : t.soldOut}</span>}
+                {l.backorder && <span className="sf-muted sf-block">{t.backorder}</span>}
               </span>
               <span>{money(l.totalCents)}</span>
             </p>
@@ -212,7 +263,7 @@ export default function CheckoutView({
             </button>
           </div>
           {cart?.discount?.error && (
-            <p className="sf-warn" role="alert">
+            <p className={cart.discount.error === 'discount_auto_better' ? 'sf-muted' : 'sf-warn'} role="alert">
               {errText(cart.discount.error)}
             </p>
           )}
@@ -222,12 +273,18 @@ export default function CheckoutView({
                 <span>{t.subtotal}</span>
                 <span>{money(cart.totals.subtotalCents)}</span>
               </p>
-              {cart.totals.discountCents > 0 && (
+              {cart.totals.discountCents - cart.totals.paymentDiscountCents > 0 && (
                 <p className="sf-row" data-testid="sf-discount">
                   <span>
-                    {t.discount} ({cart.discount?.code})
+                    {t.discount} ({cart.applied?.label ?? cart.discount?.code})
                   </span>
-                  <span>−{money(cart.totals.discountCents)}</span>
+                  <span>−{money(cart.totals.discountCents - cart.totals.paymentDiscountCents)}</span>
+                </p>
+              )}
+              {cart.totals.paymentDiscountCents > 0 && (
+                <p className="sf-row" data-testid="sf-payment-discount">
+                  <span>{t.paymentDiscount}</span>
+                  <span>−{money(cart.totals.paymentDiscountCents)}</span>
                 </p>
               )}
               {needsShipping && (
@@ -253,7 +310,7 @@ export default function CheckoutView({
               {errText(submitError ?? error ?? 'generic')}
             </p>
           )}
-          <button type="submit" className="sf-btn sf-btn-primary sf-btn-block" disabled={busy || !chosen || !cart || cart.lines.some((l) => l.short)}>
+          <button type="submit" className="sf-btn sf-btn-primary sf-btn-block" disabled={busy || !chosen || !cart || cart.lines.some((l) => l.short)} data-testid="sf-place-order">
             {busy ? t.placing : t.placeOrder}
           </button>
         </aside>

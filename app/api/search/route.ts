@@ -196,10 +196,10 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  const SHOP_GROUP = { product: 'shopProducts', order: 'shopOrders', collection: 'shopCollections', discount: 'shopDiscounts', customer: 'shopCustomers' } as const;
-  const SHOP_PATH = { product: 'products', order: 'orders', collection: 'collections', discount: 'discounts', customer: 'customers' } as const;
+  const SHOP_GROUP = { product: 'shopProducts', order: 'shopOrders', collection: 'shopCollections', discount: 'shopDiscounts', customer: 'shopCustomers', page: 'shopPages', 'purchase-order': 'shopPurchaseOrders' } as const;
+  const SHOP_PATH = { product: 'products', order: 'orders', collection: 'collections', discount: 'discounts', customer: 'customers', page: 'pages', 'purchase-order': 'purchase-orders' } as const;
   for (const s of shop) {
-    items.push({ id: `${s.kind}:${s.id}`, group: SHOP_GROUP[s.kind], label: s.label, meta: s.meta, href: `/app/shop/${SHOP_PATH[s.kind]}/${s.id}` });
+    items.push({ id: `${s.kind}:${s.id}`, group: SHOP_GROUP[s.kind], label: s.label, meta: s.meta, href: s.kind === 'purchase-order' ? '/app/shop/purchase-orders' : `/app/shop/${SHOP_PATH[s.kind]}/${s.id}` });
   }
 
   for (const h of hiring) {

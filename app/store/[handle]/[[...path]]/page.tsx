@@ -2,7 +2,12 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { publishedStore, storefrontCollection, storefrontHome, storefrontProduct, type PublicStore } from '@/lib/shop-storefront';
+import { publishedStore, relatedProducts, storefrontCollection, storefrontHome, storefrontProduct, type PublicStore } from '@/lib/shop-storefront';
+import { storefrontPage, storefrontPages } from '@/lib/shop-pages';
+import { normalizeSettings, parseJson } from '@/lib/shop-schema';
+import CollectionProducts from '@/components/shop/store/CollectionProducts';
+import RecoverCart from '@/components/shop/store/RecoverCart';
+import AccountView from '@/components/shop/store/AccountView';
 import { storefrontStrings } from '@/lib/shop-i18n';
 import { isZeroDecimalCurrency } from '@/lib/shop-money';
 import ProductGrid from '@/components/shop/store/ProductGrid';
@@ -64,7 +69,13 @@ export async function generateMetadata(props: { params: Promise<Params> }): Prom
     const c = await storefrontCollection(store.row.workspace_id, slug);
     return { ...base, title: c ? `${c.collection.title} · ${site}` : site };
   }
-  const titles: Record<string, string> = { cart: t.cartTitle, checkout: t.checkoutTitle, search: t.searchTitle, orders: t.orderStatus };
+  if ((kind === 'pages' || kind === 'blog') && slug && SEG.test(slug)) {
+    const page = await storefrontPage(store.row.workspace_id, kind === 'blog' ? 'article' : 'page', slug);
+    if (!page) return { title: site };
+    return { ...base, title: `${page.seoTitle || page.title} · ${site}`, description: page.seoDescription || page.excerpt || undefined };
+  }
+  if (kind === 'blog' && !slug) return { ...base, title: `${t.blog} · ${site}` };
+  const titles: Record<string, string> = { cart: t.cartTitle, checkout: t.checkoutTitle, search: t.searchTitle, orders: t.orderStatus, account: t.accountTitle, recover: t.cartTitle };
   if (kind && titles[kind]) return { title: `${titles[kind]} · ${site}`, robots: { index: false } };
   return {
     ...base,
@@ -144,11 +155,18 @@ export default async function StorePage(props: { params: Promise<Params> }) {
   if (kind === 'products' && slug && SEG.test(slug)) {
     const product = await storefrontProduct(store.row, slug);
     if (!product) notFound();
+    const related = await relatedProducts(store.row.workspace_id, product.id, product.productType);
     return (
       <>
         <ViewBeacon handle={h} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: productJsonLd(store, product) }} />
         <ProductView handle={h} product={product} currency={currency} locale={locale} t={t} />
+        {related.length > 0 && (
+          <section className="sf-section" data-testid="sf-related">
+            <h2 className="sf-h2">{t.related}</h2>
+            <ProductGrid handle={h} products={related} currency={currency} locale={locale} t={t} />
+          </section>
+        )}
       </>
     );
   }
@@ -161,13 +179,59 @@ export default async function StorePage(props: { params: Promise<Params> }) {
         <ViewBeacon handle={h} />
         <h1 className="sf-h1">{c.collection.title}</h1>
         {c.collection.descriptionHtml && <div className="sf-desc" dangerouslySetInnerHTML={{ __html: c.collection.descriptionHtml }} />}
-        {c.products.length ? <ProductGrid handle={h} products={c.products} currency={currency} locale={locale} t={t} /> : <p className="sf-muted">{t.noProducts}</p>}
+        {c.products.length ? <CollectionProducts handle={h} products={c.products} currency={currency} locale={locale} t={t} /> : <p className="sf-muted">{t.noProducts}</p>}
       </section>
     );
   }
 
   if (kind === 'cart' && !slug) return <CartView handle={h} locale={locale} t={t} />;
-  if (kind === 'checkout' && !slug) return <CheckoutView handle={h} locale={locale} t={t} manualLabel={store.manualLabel} />;
+  if (kind === 'checkout' && !slug) return <CheckoutView handle={h} locale={locale} t={t} manualLabel={store.manualLabel} askTaxId={normalizeSettings(parseJson(store.row.settings, {})).askTaxId} />;
+  if (kind === 'recover' && slug && /^[A-Za-z0-9_-]{16,64}$/.test(slug)) return <RecoverCart handle={h} token={slug} t={t} />;
+  if (kind === 'account' && (!slug || /^[A-Za-z0-9_-]{20,64}$/.test(slug))) return <AccountView handle={h} token={slug ?? null} locale={locale} t={t} />;
+  if (kind === 'pages' && slug && SEG.test(slug)) {
+    const page = await storefrontPage(store.row.workspace_id, 'page', slug);
+    if (!page) notFound();
+    return (
+      <section className="sf-section sf-narrow">
+        <ViewBeacon handle={h} />
+        <h1 className="sf-h1">{page.title}</h1>
+        <div className="sf-desc" dangerouslySetInnerHTML={{ __html: page.html }} />
+      </section>
+    );
+  }
+  if (kind === 'blog' && !slug) {
+    const articles = await storefrontPages(store.row.workspace_id, 'article');
+    return (
+      <section className="sf-section sf-narrow">
+        <ViewBeacon handle={h} />
+        <h1 className="sf-h1">{t.blog}</h1>
+        {articles.length === 0 ? (
+          <p className="sf-muted">{t.noArticles}</p>
+        ) : (
+          <ul className="sf-articles">
+            {articles.map((a) => (
+              <li key={a.handle}>
+                <Link href={`/store/${h}/blog/${a.handle}`} className="sf-article-title">{a.title}</Link>
+                {a.excerpt && <p className="sf-muted">{a.excerpt}</p>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    );
+  }
+  if (kind === 'blog' && slug && SEG.test(slug)) {
+    const article = await storefrontPage(store.row.workspace_id, 'article', slug);
+    if (!article) notFound();
+    return (
+      <article className="sf-section sf-narrow">
+        <ViewBeacon handle={h} />
+        <p><Link href={`/store/${h}/blog`}>{t.blog}</Link></p>
+        <h1 className="sf-h1">{article.title}</h1>
+        <div className="sf-desc" dangerouslySetInnerHTML={{ __html: article.html }} />
+      </article>
+    );
+  }
   if (kind === 'search' && !slug) {
     return (
       <Suspense>

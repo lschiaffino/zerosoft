@@ -84,8 +84,164 @@ a.shop-rowtext:hover .shop-rowtitle,
   text-decoration: underline;
   cursor: pointer;
 }
-.shop-low {
-  margin-left: 8px;
+.shop-stock-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  white-space: nowrap;
+}
+.shop-row-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.shop-note {
+  margin: 0 0 16px;
+}
+.shop-subnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0 0 16px;
+  border-bottom: 1px solid var(--line);
+}
+.shop-subnav a {
+  padding: 6px 0;
+  margin-bottom: -1px;
+  color: var(--ink-muted, inherit);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+.shop-subnav a:hover {
+  color: var(--ink);
+}
+.shop-subnav a[aria-current='page'] {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+.shop-self-start {
+  align-self: flex-start;
+}
+.shop-picklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius, 6px);
+  overflow: hidden;
+}
+.shop-picklist > li.ui-help {
+  padding: 8px 12px;
+}
+.shop-pick {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.shop-pick:hover {
+  background: var(--bg-hover, var(--bg-soft));
+}
+.shop-pick:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.shop-draft-lines li {
+  flex-wrap: wrap;
+}
+.shop-inline-money {
+  flex: 0 1 120px;
+  min-width: 90px;
+}
+.shop-inline-money .input {
+  width: 100%;
+}
+.shop-stack-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.shop-stack-actions .btn {
+  width: 100%;
+  justify-content: center;
+}
+.shop-qty-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+}
+.shop-qty-row .shop-rowtext {
+  min-width: 0;
+}
+.shop-return {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.shop-return:first-of-type {
+  border-top: 0;
+}
+.shop-return-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.shop-return-items {
+  margin: 0;
+  padding-left: 18px;
+}
+.shop-return-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.shop-po-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+.shop-po-line > .ui-field:first-child {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.shop-po-line .select,
+.shop-po-line > .ui-field:first-child .input {
+  width: 100%;
+}
+.shop-format-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.shop-scope {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+.shop-scope .select {
+  width: 100%;
+  height: auto;
 }
 
 /* Editor en dos columnas */

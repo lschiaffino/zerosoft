@@ -23,8 +23,10 @@ export default function ShopSettings({
   canAdmin,
   tab,
   storeUrl,
+  feedUrl,
 }: {
   storeUrl: string;
+  feedUrl: string;
   store: StoreDto;
   payments: PaymentsView | null;
   locations: LocationDto[];
@@ -39,9 +41,9 @@ export default function ShopSettings({
     <div className="app-page ui-page shop-page">
       <PageHeader title={t('nav.settings')} description={t('settings.desc')} />
       <SettingsTabs mode="query" param="tab" items={TABS.map((k) => ({ key: k, label: t(`settings.tabs.${k}`) }))}>
-        {active === 'store' && <StoreTab store={store} storeUrl={storeUrl} canAdmin={canAdmin} />}
+        {active === 'store' && <StoreTab store={store} storeUrl={storeUrl} canAdmin={canAdmin} feedUrl={feedUrl} />}
         {active === 'theme' && <ThemeTab store={store} />}
-        {active === 'payments' && (canAdmin && payments ? <PaymentsTab initial={payments} /> : <p className="ui-help">{t('settings.adminOnly')}</p>)}
+        {active === 'payments' && (canAdmin && payments ? <PaymentsTab initial={payments} store={store} /> : <p className="ui-help">{t('settings.adminOnly')}</p>)}
         {active === 'shipping' && <ShippingTab initial={shipping} currency={store.currency} />}
         {active === 'taxes' && <TaxesTab initial={taxes} included={store.taxIncluded} />}
         {active === 'locations' && <LocationsTab initial={locations} lowStock={store.lowStock} />}
@@ -72,9 +74,11 @@ function useSaver() {
   return { run, busy, toast, push };
 }
 
-function StoreTab({ store, storeUrl, canAdmin }: { store: StoreDto; storeUrl: string; canAdmin: boolean }) {
+function StoreTab({ store, storeUrl, canAdmin, feedUrl }: { store: StoreDto; storeUrl: string; canAdmin: boolean; feedUrl: string }) {
   const t = useTranslations('shop');
-  const { run, busy, toast } = useSaver();
+  const { run, busy, toast, push } = useSaver();
+  const [whatsapp, setWhatsapp] = useState(store.brand.whatsapp ?? '');
+  const [askTaxId, setAskTaxId] = useState(store.settings.askTaxId);
   const [name, setName] = useState(store.name);
   const [handle, setHandle] = useState(store.handle);
   const [currency, setCurrency] = useState(store.currency);
@@ -84,7 +88,7 @@ function StoreTab({ store, storeUrl, canAdmin }: { store: StoreDto; storeUrl: st
   const save = (e: FormEvent) => {
     e.preventDefault();
     // Dirección, moneda y publicar son de admins (el servidor también lo exige).
-    void run('/api/shop/store', 'PATCH', { name, locale, contactEmail: email, ...(canAdmin ? { handle, currency, published } : {}) });
+    void run('/api/shop/store', 'PATCH', { name, locale, contactEmail: email, brand: { whatsapp }, settings: { askTaxId }, ...(canAdmin ? { handle, currency, published } : {}) });
   };
   const url = storeUrl;
   return (
@@ -124,6 +128,25 @@ function StoreTab({ store, storeUrl, canAdmin }: { store: StoreDto; storeUrl: st
         <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         <span className="ui-help">{t('settings.contactEmailHelp')}</span>
       </label>
+      <label className="ui-field">
+        <span className="label">{t('settings.whatsapp')}</span>
+        <input className="input data" inputMode="tel" maxLength={20} value={whatsapp} placeholder="5491122334455" onChange={(e) => setWhatsapp(e.target.value)} name="whatsapp" />
+        <span className="ui-help">{t('settings.whatsappHelp')}</span>
+      </label>
+      <label className="ui-check">
+        <input type="checkbox" checked={askTaxId} onChange={(e) => setAskTaxId(e.target.checked)} name="askTaxId" />
+        <span>{t('settings.askTaxId')}</span>
+      </label>
+      <div className="ui-field">
+        <span className="label">{t('settings.feedUrl')}</span>
+        <div className="ui-input-group">
+          <input className="input data" readOnly value={feedUrl} aria-label={t('settings.feedUrl')} />
+          <button type="button" className="btn btn-secondary" onClick={() => void navigator.clipboard?.writeText(feedUrl).then(() => push(t('common.copied')))}>
+            {t('common.copy')}
+          </button>
+        </div>
+        <span className="ui-help">{t('settings.feedHelp')}</span>
+      </div>
       <label className="ui-switch shop-switch">
         <input type="checkbox" role="switch" checked={published} disabled={!canAdmin} onChange={(e) => setPublished(e.target.checked)} name="published" />
         <span>{t('settings.published')}</span>
@@ -239,13 +262,16 @@ function ThemeTab({ store }: { store: StoreDto }) {
   );
 }
 
-function PaymentsTab({ initial }: { initial: PaymentsView }) {
+function PaymentsTab({ initial, store }: { initial: PaymentsView; store: StoreDto }) {
   const t = useTranslations('shop');
   const { run, busy, toast, push } = useSaver();
   const [view, setView] = useState(initial);
   const [stripe, setStripe] = useState({ secretKey: '', webhookSecret: '' });
   const [mp, setMp] = useState({ accessToken: '', webhookSecret: '' });
   const [manual, setManual] = useState(initial.manual);
+  const pd = store.settings.paymentDiscounts;
+  const [discounts, setDiscounts] = useState({ stripe: String(pd.stripe / 100), mercadopago: String(pd.mercadopago / 100), manual: String(pd.manual / 100) });
+  const pctToBps = (v: string) => Math.round((Number(v.replace(',', '.')) || 0) * 100);
   const save = async (patch: Record<string, unknown>) => {
     const res = await run('/api/shop/payments', 'PUT', patch);
     if (res?.payments) {
@@ -355,9 +381,33 @@ function PaymentsTab({ initial }: { initial: PaymentsView }) {
             <span className="label">{t('settings.manualInstructions')}</span>
             <textarea className="textarea" rows={4} maxLength={2000} value={manual.instructions} placeholder={t('settings.manualInstructionsPh')} onChange={(e) => setManual({ ...manual, instructions: e.target.value })} />
           </label>
-          <button type="submit" className="btn btn-primary" disabled={busy}>
-            {t('common.save')}
-          </button>
+          <div className="shop-actions-row">
+            <button type="submit" className="btn btn-primary" disabled={busy}>
+              {t('common.save')}
+            </button>
+          </div>
+        </form>
+      </section>
+      <section className="panel shop-panel">
+        <h2 className="shop-panel-title">{t('settings.paymentDiscounts')}</h2>
+        <p className="ui-help">{t('settings.paymentDiscountsHelp')}</p>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void run('/api/shop/store', 'PATCH', { settings: { paymentDiscounts: { stripe: pctToBps(discounts.stripe), mercadopago: pctToBps(discounts.mercadopago), manual: pctToBps(discounts.manual) } } });
+          }}
+        >
+          <div className="shop-po-line">
+            {(['stripe', 'mercadopago', 'manual'] as const).map((m) => (
+              <label key={m} className="ui-field">
+                <span className="label">{m === 'stripe' ? 'Stripe' : m === 'mercadopago' ? 'Mercado Pago' : t('settings.manualTitle')} (%)</span>
+                <input className="input shop-num-input" inputMode="decimal" value={discounts[m]} onChange={(e) => setDiscounts({ ...discounts, [m]: e.target.value })} name={`pd-${m}`} />
+              </label>
+            ))}
+          </div>
+          <div className="shop-actions-row">
+            <button type="submit" className="btn btn-primary" disabled={busy}>{t('common.save')}</button>
+          </div>
         </form>
       </section>
       <p className="ui-help">{t('settings.paymentsDocs')}</p>
@@ -379,6 +429,7 @@ function ShippingTab({ initial, currency }: { initial: ShippingRate[]; currency:
         id: r.id,
         name: r.name,
         kind: r.kind,
+        note: r.kind === 'pickup' ? (r.note ?? '') : '',
         countries: r.countriesText.split(/[\s,]+/).map((c) => c.trim().toUpperCase()).filter((c) => /^[A-Z]{2}$/.test(c)),
         priceCents: r.priceCents,
         minWeightG: r.kind === 'weight' ? r.minWeightG : null,
@@ -402,9 +453,10 @@ function ShippingTab({ initial, currency }: { initial: ShippingRate[]; currency:
             </label>
             <label className="ui-field">
               <span className="label">{t('settings.rateKind')}</span>
-              <select className="select" value={r.kind} onChange={(e) => set(i, { kind: e.target.value as 'flat' | 'weight' })}>
+              <select className="select" value={r.kind} onChange={(e) => set(i, { kind: e.target.value as 'flat' | 'weight' | 'pickup' })}>
                 <option value="flat">{t('settings.kindFlat')}</option>
                 <option value="weight">{t('settings.kindWeight')}</option>
+                <option value="pickup">{t('settings.kindPickup')}</option>
               </select>
             </label>
           </div>
@@ -430,10 +482,16 @@ function ShippingTab({ initial, currency }: { initial: ShippingRate[]; currency:
               </label>
             </div>
           )}
+          {r.kind === 'pickup' && (
+            <label className="ui-field">
+              <span className="label">{t('settings.pickupNote')}</span>
+              <textarea className="textarea" rows={2} maxLength={400} value={r.note ?? ''} placeholder={t('settings.pickupNotePh')} onChange={(e) => set(i, { note: e.target.value })} />
+            </label>
+          )}
           <label className="ui-field">
-            <span className="label">{t('settings.countries')}</span>
-            <input className="input data" value={r.countriesText} placeholder="AR, UY, CL" onChange={(e) => set(i, { countriesText: e.target.value })} />
-            <span className="ui-help">{t('settings.countriesHelp')}</span>
+            <span className="label">{r.kind === 'pickup' ? t('settings.pickupCountry') : t('settings.countries')}</span>
+            <input className="input data" value={r.countriesText} placeholder={r.kind === 'pickup' ? 'AR' : 'AR, UY, CL'} onChange={(e) => set(i, { countriesText: e.target.value })} />
+            <span className="ui-help">{r.kind === 'pickup' ? t('settings.pickupCountryHelp') : t('settings.countriesHelp')}</span>
           </label>
           <p className="ui-help">
             {money(r.priceCents)}
@@ -448,7 +506,7 @@ function ShippingTab({ initial, currency }: { initial: ShippingRate[]; currency:
         <button
           type="button"
           className="btn btn-secondary"
-          onClick={() => setRates([...rates, { id: '', name: '', kind: 'flat', countries: [], countriesText: '', priceCents: 0, minWeightG: null, maxWeightG: null, freeOverCents: null }])}
+          onClick={() => setRates([...rates, { id: '', name: '', kind: 'flat', note: '', countries: [], countriesText: '', priceCents: 0, minWeightG: null, maxWeightG: null, freeOverCents: null }])}
         >
           {t('settings.addRate')}
         </button>
@@ -576,12 +634,13 @@ function NotificationsTab({ store }: { store: StoreDto }) {
   const [s, setS] = useState(store.settings);
   return (
     <form
-      className="ui-section ui-section-body"
+      className="ui-section"
       onSubmit={(e) => {
         e.preventDefault();
         void run('/api/shop/store', 'PATCH', { settings: s });
       }}
     >
+      <div className="ui-section-body">
       <label className="ui-check">
         <input type="checkbox" checked={s.emailConfirmation} onChange={(e) => setS({ ...s, emailConfirmation: e.target.checked })} />
         <span>{t('settings.emailConfirmation')}</span>
@@ -599,10 +658,31 @@ function NotificationsTab({ store }: { store: StoreDto }) {
         <input className="input shop-num-input" type="number" min={15} max={10080} value={s.holdMinutes} onChange={(e) => setS({ ...s, holdMinutes: Number(e.target.value) || 60 })} />
         <span className="ui-help">{t('settings.holdHelp')}</span>
       </label>
+      <label className="ui-check">
+        <input type="checkbox" checked={s.emailAbandoned} onChange={(e) => setS({ ...s, emailAbandoned: e.target.checked })} name="emailAbandoned" />
+        <span>{t('settings.emailAbandoned')}</span>
+      </label>
+      {s.emailAbandoned ? (
+        <label className="ui-field">
+          <span className="label">{t('settings.abandonedHours')}</span>
+          <input className="input shop-num-input" type="number" min={1} max={72} value={s.abandonedHours} onChange={(e) => setS({ ...s, abandonedHours: Number(e.target.value) || 4 })} />
+          <span className="ui-help">{t('settings.abandonedHelp')}</span>
+        </label>
+      ) : (
+        <p className="ui-help">{t('settings.abandonedOffHelp')}</p>
+      )}
+      <label className="ui-field">
+        <span className="label">{t('settings.returnsDays')}</span>
+        <input className="input shop-num-input" type="number" min={0} max={365} value={s.returnsDays} onChange={(e) => setS({ ...s, returnsDays: Math.max(0, Number(e.target.value) || 0) })} name="returnsDays" />
+        <span className="ui-help">{t('settings.returnsHelp')}</span>
+      </label>
       <p className="ui-help">{t('settings.emailFrom')}</p>
-      <button type="submit" className="btn btn-primary" aria-busy={busy} disabled={busy}>
-        {t('common.save')}
-      </button>
+      </div>
+      <div className="ui-section-foot">
+        <button type="submit" className="btn btn-primary" aria-busy={busy} disabled={busy}>
+          {t('common.save')}
+        </button>
+      </div>
       {toast}
     </form>
   );

@@ -22,7 +22,7 @@ export interface ShopActor {
   admin: boolean;
 }
 
-export const ORDER_STATUSES = ['pending', 'paid', 'fulfilled', 'cancelled', 'refunded'] as const;
+export const ORDER_STATUSES = ['draft', 'pending', 'paid', 'fulfilled', 'cancelled', 'refunded'] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 export const PRODUCT_STATUSES = ['draft', 'active', 'archived'] as const;
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
@@ -69,6 +69,8 @@ export interface StoreBrand {
   heroTitle: string;
   heroText: string;
   announcement: string;
+  /** Número de WhatsApp con código de país, solo dígitos: botón en la tienda. */
+  whatsapp: string;
 }
 
 export const DEFAULT_BRAND: StoreBrand = {
@@ -79,6 +81,7 @@ export const DEFAULT_BRAND: StoreBrand = {
   heroTitle: '',
   heroText: '',
   announcement: '',
+  whatsapp: '',
 };
 
 export interface StoreSettings {
@@ -88,9 +91,29 @@ export interface StoreSettings {
   crmSync: boolean;
   /** Minutos que un pedido online espera el pago (después se libera el stock). */
   holdMinutes: number;
+  /** Recordatorio por email a quien dejó el checkout a medias (hay que activarlo). */
+  emailAbandoned: boolean;
+  /** Horas de espera antes del recordatorio. */
+  abandonedHours: number;
+  /** Días para pedir una devolución desde la página del pedido (0 = no se puede). */
+  returnsDays: number;
+  /** Pedir DNI, CUIT o CPF en el checkout. */
+  askTaxId: boolean;
+  /** Descuento por medio de pago, en puntos básicos. */
+  paymentDiscounts: { stripe: number; mercadopago: number; manual: number };
 }
 
-export const DEFAULT_SETTINGS: StoreSettings = { emailConfirmation: true, emailShipped: true, crmSync: true, holdMinutes: 60 };
+export const DEFAULT_SETTINGS: StoreSettings = {
+  emailConfirmation: true,
+  emailShipped: true,
+  crmSync: true,
+  holdMinutes: 60,
+  emailAbandoned: false,
+  abandonedHours: 4,
+  returnsDays: 0,
+  askTaxId: false,
+  paymentDiscounts: { stripe: 0, mercadopago: 0, manual: 0 },
+};
 
 export function parseJson<T>(raw: unknown, fallback: T): T {
   if (raw == null || raw === '') return fallback;
@@ -113,17 +136,27 @@ export function normalizeBrand(raw: unknown): StoreBrand {
     heroTitle: typeof b.heroTitle === 'string' ? b.heroTitle.slice(0, 120) : '',
     heroText: typeof b.heroText === 'string' ? b.heroText.slice(0, 400) : '',
     announcement: typeof b.announcement === 'string' ? b.announcement.slice(0, 160) : '',
+    whatsapp: typeof b.whatsapp === 'string' ? b.whatsapp.replace(/\D/g, '').slice(0, 15) : '',
   };
 }
 
 export function normalizeSettings(raw: unknown): StoreSettings {
   const s = (raw && typeof raw === 'object' ? raw : {}) as Partial<StoreSettings>;
   const hold = Number(s.holdMinutes);
+  const hours = Number(s.abandonedHours);
+  const days = Number(s.returnsDays);
+  const bps = (v: unknown) => Math.min(5000, Math.max(0, Math.trunc(Number(v) || 0)));
+  const pd = (s.paymentDiscounts && typeof s.paymentDiscounts === 'object' ? s.paymentDiscounts : {}) as Partial<StoreSettings['paymentDiscounts']>;
   return {
     emailConfirmation: s.emailConfirmation !== false,
     emailShipped: s.emailShipped !== false,
     crmSync: s.crmSync !== false,
     holdMinutes: Number.isFinite(hold) ? Math.min(7 * 24 * 60, Math.max(15, Math.round(hold))) : 60,
+    emailAbandoned: s.emailAbandoned === true,
+    abandonedHours: Number.isFinite(hours) && s.abandonedHours != null ? Math.min(72, Math.max(1, Math.round(hours))) : 4,
+    returnsDays: Number.isFinite(days) ? Math.min(365, Math.max(0, Math.round(days))) : 0,
+    askTaxId: s.askTaxId === true,
+    paymentDiscounts: { stripe: bps(pd.stripe), mercadopago: bps(pd.mercadopago), manual: bps(pd.manual) },
   };
 }
 
@@ -166,6 +199,8 @@ export const variantInputSchema = z.object({
   compareAtCents: money.optional(),
   weightGrams: z.number().int().min(0).max(1_000_000).default(0),
   trackInventory: z.boolean().default(true),
+  /** Seguir vendiendo sin stock (el disponible puede quedar negativo). */
+  continueSelling: z.boolean().default(false),
   imageUrl: z.string().max(2000).nullable().optional(),
   /** Stock inicial (solo variantes nuevas), en la ubicación por defecto. */
   initialStock: z.number().int().min(0).max(1_000_000).optional(),
@@ -224,21 +259,29 @@ export const discountInputSchema = z.object({
     .min(2)
     .max(40)
     .regex(/^[A-Za-z0-9_-]+$/),
-  kind: z.enum(['percent', 'fixed', 'free_shipping']),
-  /** percent: puntos básicos (1500 = 15 %); fixed: cents. */
+  kind: z.enum(['percent', 'fixed', 'free_shipping', 'bxgy']),
+  /** percent y bxgy: puntos básicos (1500 = 15 %); fixed: cents. */
   value: z.number().int().min(0).max(1_000_000_000).default(0),
   minOrderCents: z.number().int().min(0).max(1_000_000_000).default(0),
   usageLimit: z.number().int().min(1).max(1_000_000).nullable().default(null),
   startsAt: z.string().max(40).nullable().default(null),
   endsAt: z.string().max(40).nullable().default(null),
   active: z.boolean().default(true),
+  method: z.enum(['code', 'automatic']).default('code'),
+  title: z.string().trim().max(80).default(''),
+  minQuantity: z.number().int().min(0).max(9999).default(0),
+  buyQuantity: z.number().int().min(0).max(999).default(0),
+  getQuantity: z.number().int().min(0).max(999).default(0),
+  scope: z.object({ productIds: z.array(z.string().max(80)).max(500).default([]), collectionIds: z.array(z.string().max(80)).max(100).default([]) }).default({ productIds: [], collectionIds: [] }),
+  oncePerCustomer: z.boolean().default(false),
 });
 export type DiscountInput = z.infer<typeof discountInputSchema>;
 
 export const shippingRateInputSchema = z.object({
   id: z.string().max(80).optional(),
   name: z.string().trim().min(1).max(80),
-  kind: z.enum(['flat', 'weight']).default('flat'),
+  kind: z.enum(['flat', 'weight', 'pickup']).default('flat'),
+  note: z.string().trim().max(400).default(''),
   countries: z.array(z.string().regex(COUNTRY_RE)).max(250).default([]),
   priceCents: z.number().int().min(0).max(100_000_000),
   minWeightG: z.number().int().min(0).max(10_000_000).nullable().default(null),
@@ -274,6 +317,10 @@ export const checkoutSchema = z.object({
   discountCode: z.string().trim().max(40).nullable().optional(),
   paymentMethod: z.enum(PAYMENT_METHODS),
   note: z.string().max(1000).default(''),
+  /** Retiro en un local: quién retira (sin dirección). */
+  contactName: z.string().trim().max(120).default(''),
+  contactPhone: z.string().trim().max(40).default(''),
+  taxId: z.string().trim().max(30).default(''),
   /** Campo trampa: los bots lo completan. */
   website: z.string().max(200).optional(),
 });

@@ -40,6 +40,7 @@ export interface ProductCard {
   maxPriceCents: number;
   compareAtCents: number | null;
   available: boolean;
+  createdAt: string;
 }
 
 function cardsFrom(rows: Array<Record<string, unknown>>): ProductCard[] {
@@ -52,6 +53,7 @@ function cardsFrom(rows: Array<Record<string, unknown>>): ProductCard[] {
     maxPriceCents: Number(r.max_price ?? 0),
     compareAtCents: r.compare_at == null ? null : Number(r.compare_at),
     available: Number(r.available ?? 0) > 0,
+    createdAt: String(r.created_at ?? ''),
   }));
 }
 
@@ -59,7 +61,8 @@ const CARD_SQL = `SELECT p.id, p.handle, p.title, p.images, p.created_at,
   (SELECT MIN(price_cents) FROM shop_variants v WHERE v.product_id = p.id) AS min_price,
   (SELECT MAX(price_cents) FROM shop_variants v WHERE v.product_id = p.id) AS max_price,
   (SELECT compare_at_cents FROM shop_variants v WHERE v.product_id = p.id ORDER BY price_cents ASC LIMIT 1) AS compare_at,
-  (SELECT COUNT(*) FROM shop_variants v WHERE v.product_id = p.id AND (v.track_inventory = 0 OR EXISTS (
+  p.product_type, p.vendor, p.tags,
+  (SELECT COUNT(*) FROM shop_variants v WHERE v.product_id = p.id AND (v.track_inventory = 0 OR v.continue_selling = 1 OR EXISTS (
      SELECT 1 FROM shop_inventory i WHERE i.variant_id = v.id AND i.available - i.reserved > 0))) AS available
   FROM shop_products p`;
 
@@ -83,6 +86,20 @@ export async function storefrontProducts(ws: string, opts: { ids?: string[]; q?:
   // Colección manual: el orden de la colección.
   if (opts.ids) return opts.ids.map((id) => cards.find((c) => c.id === id)).filter((c): c is ProductCard => Boolean(c));
   return cards;
+}
+
+/** Productos parecidos para la página de producto: misma colección o mismo tipo, sin el propio. */
+export async function relatedProducts(ws: string, productId: string, productType: string, limit = 4): Promise<ProductCard[]> {
+  const rows = (await getDb()
+    .prepare(
+      `SELECT DISTINCT p.id FROM shop_products p
+       LEFT JOIN shop_collection_products cp ON cp.product_id = p.id
+       WHERE p.workspace_id = ? AND p.status = 'active' AND p.id != ?
+         AND (cp.collection_id IN (SELECT collection_id FROM shop_collection_products WHERE product_id = ?) OR (? != '' AND p.product_type = ?))
+       LIMIT ?`,
+    )
+    .all(ws, productId, productId, productType, productType, limit)) as Array<{ id: string }>;
+  return rows.length ? storefrontProducts(ws, { ids: rows.map((r) => r.id) }) : [];
 }
 
 export interface PublicVariant {
@@ -145,7 +162,7 @@ export async function storefrontProduct(store: StoreRow, handle: string): Promis
         priceCents: Number(v.price_cents),
         compareAtCents: v.compare_at_cents == null ? null : Number(v.compare_at_cents),
         sku: String(v.sku ?? ''),
-        available: !track || free > 0,
+        available: !track || free > 0 || Number(v.continue_selling ?? 0) === 1,
         low: track && free > 0 && free <= store.low_stock,
         imageUrl: (v.image_url as string | null) ?? null,
       };
@@ -190,6 +207,8 @@ export async function storefrontHome(ws: string): Promise<{ featured: Array<{ co
 /** sitemap.xml de la tienda: portada, colecciones publicadas y productos activos. */
 export async function storefrontSitemap(store: StoreRow, base: string): Promise<string> {
   const db = getDb();
+  const { sitemapPages } = await import('./shop-pages');
+  const pages = await sitemapPages(store.workspace_id);
   const [products, collections] = await Promise.all([
     db.prepare("SELECT handle, updated_at FROM shop_products WHERE workspace_id = ? AND status = 'active' ORDER BY updated_at DESC LIMIT 5000").all(store.workspace_id) as Promise<
       Array<{ handle: string; updated_at: string }>
@@ -207,6 +226,7 @@ export async function storefrontSitemap(store: StoreRow, base: string): Promise<
     url(root, store.updated_at),
     ...collections.map((c) => url(`${root}/collections/${encodeURIComponent(c.handle)}`, c.updated_at)),
     ...products.map((p) => url(`${root}/products/${encodeURIComponent(p.handle)}`, p.updated_at)),
+    ...pages.map((p) => url(`${root}/${p.kind === 'article' ? 'blog' : 'pages'}/${encodeURIComponent(p.handle)}`, p.updated_at)),
     '</urlset>',
   ].join('\n');
 }

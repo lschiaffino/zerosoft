@@ -286,6 +286,7 @@ export default async function AppLayout(
                 { href: '/app/shop/inventory', label: tShop('nav.inventory') },
                 { href: '/app/shop/customers', label: tShop('nav.customers') },
                 { href: '/app/shop/discounts', label: tShop('nav.discounts') },
+                { href: '/app/shop/pages', label: tShop('nav.pages') },
                 { href: '/app/shop/analytics', label: tShop('nav.analytics') },
                 { href: '/app/analytics', label: tAnalytics('sidebar.web') },
                 { href: '/app/analytics/events', label: tAnalytics('sidebar.events') },
