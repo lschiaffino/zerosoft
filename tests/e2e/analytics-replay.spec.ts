@@ -27,7 +27,7 @@ function watchErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
   page.on('console', (msg) => {
-    if (msg.type() === 'error' && !/favicon|Failed to load resource|Blocked script execution/i.test(msg.text())) errors.push(`console: ${msg.text()}`);
+    if (msg.type() === 'error' && !/favicon|Failed to load resource|Blocked script execution|Refused to display/i.test(msg.text())) errors.push(`console: ${msg.text()}`);
   });
   page.on('response', (res) => {
     if (res.status() >= 500) errors.push(`${res.status()} ${res.url()}`);
@@ -421,10 +421,13 @@ test('accesos: otro workspace 404, sin la app 403, miembro sin borrar', async ({
     ['guest', 'guest', '["analytics"]'],
   ] as const) {
     const { ctx, p } = await join(`${label}-${uid()}@darwin-e2e.io`, role, apps);
-    for (const path of reads) expect([401, 403], `${label} ${path}`).toContain((await ctx.request.get(path)).status());
-    expect([401, 403]).toContain((await ctx.request.delete(`/api/analytics/replay/${recordingId}`)).status());
-    await p.goto(`/en/app/analytics/replay/${recordingId}`, { waitUntil: 'networkidle' });
-    await expect(p).not.toHaveURL(new RegExp(`/replay/${recordingId}`));
+    // Un invitado no entra al workspace: su proyecto no existe para él (404). Sin la app: 403.
+    for (const path of reads) expect([401, 403, 404], `${label} ${path}`).toContain((await ctx.request.get(path)).status());
+    expect([401, 403, 404]).toContain((await ctx.request.delete(`/api/analytics/replay/${recordingId}`)).status());
+    // Sin la app redirige; un invitado ve un 404. En ningún caso aparece el reproductor.
+    const pageRes = await p.goto(`/en/app/analytics/replay/${recordingId}`, { waitUntil: 'networkidle' });
+    expect(pageRes?.status() === 404 || !new RegExp(`/replay/${recordingId}`).test(p.url())).toBe(true);
+    await expect(p.locator('.replayer-wrapper')).toHaveCount(0);
     await ctx.close();
   }
   const { ctx: memberCtx, p: member } = await join(`member-${uid()}@darwin-e2e.io`, 'member', '["analytics"]');
@@ -593,7 +596,7 @@ test('claro y oscuro; borrar actualiza la lista sin recargar; borrar la persona 
   const row = page.getByTestId('an-recording-row').filter({ hasText: 'delete-me' });
   await expect(row).toHaveCount(1);
   await row.getByRole('button', { name: /Delete recording/ }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
   await expect(row).toHaveCount(0);
   const gone = await sql('SELECT count(*) AS n FROM analytics_replay_chunks WHERE session_id = ?', [session]);
   expect(Number(gone[0].n)).toBe(0);

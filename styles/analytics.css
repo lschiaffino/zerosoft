@@ -324,3 +324,6 @@
 .an-share-head { display: flex; flex-direction: column; gap: 6px; }
 .an-share-title { margin: 0; font-size: 1.5rem; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
 .an-share-foot { font-size: 0.8125rem; }
+
+/* El selector de las acciones de la cabecera no ocupa toda la fila. */
+.an-header-select { width: auto; max-width: 220px; }

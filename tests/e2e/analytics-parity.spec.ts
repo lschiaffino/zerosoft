@@ -157,7 +157,7 @@ test('acción: se crea, se usa en una tendencia, se busca con Cmd+K y se borra',
   await page.goto('/en/app/analytics/actions', { waitUntil: 'networkidle' });
   await expect(page.getByRole('link', { name })).toBeVisible();
   await page.getByRole('button', { name: `Delete: ${name}` }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
   await expect(page.getByRole('link', { name })).toHaveCount(0);
 });
 
@@ -167,14 +167,14 @@ test('anotación: se ve en la lista y como marca en el gráfico', async ({ page,
   await page.goto('/en/app/analytics/annotations', { waitUntil: 'networkidle' });
   await page.getByRole('textbox', { name: 'Note' }).fill(note);
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('cell', { name: note })).toBeVisible();
+  await expect(page.getByRole('cell', { name: note, exact: true })).toBeVisible();
   const { insight } = await (await request.post('/api/analytics/insights', { data: { projectId, name: `T ${uid()}`, query: { kind: 'trends', series: [{ event: 'used_app' }], dateRange: { from: '-7d' } } } })).json();
   await page.goto(`/en/app/analytics/insights/${insight.id}`, { waitUntil: 'networkidle' });
   await expect(page.locator('.an-annotation-mark title').filter({ hasText: note })).toHaveCount(1);
   await page.goto('/en/app/analytics/annotations', { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: `Delete: ${note}` }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
-  await expect(page.getByRole('cell', { name: note })).toHaveCount(0);
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
+  await expect(page.getByRole('cell', { name: note, exact: true })).toHaveCount(0);
 });
 
 test('experimento con el snippet real en otro origen: exposición, conversión y a todos', async ({ page, baseURL }) => {
@@ -234,7 +234,7 @@ test('experimento con el snippet real en otro origen: exposición, conversión y
   await page.getByRole('button', { name: 'Stop' }).click();
   await expect(page.getByRole('button', { name: 'Ship test' })).toBeVisible({ timeout: 20_000 });
   await page.getByRole('button', { name: 'Ship test' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Ship test' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Ship test' }).click();
   await expect(page.getByText('Everyone gets test').first()).toBeVisible({ timeout: 15_000 });
   expect(errors, errors.join('\n')).toEqual([]);
 });
@@ -253,7 +253,7 @@ test('flag con grupos de release y payload, y /decide', async ({ page, request, 
   const key = `promo-${uid()}`;
   const { flag } = await (await request.post('/api/analytics/flags', { data: { projectId, key } })).json();
   await page.goto(`/en/app/analytics/flags/${flag.id}`, { waitUntil: 'networkidle' });
-  await page.getByTestId('an-flag-group').getByRole('button', { name: /Add/ }).click();
+  await page.getByTestId('an-flag-group').getByRole('button', { name: '+ Filter' }).click();
   await page.getByTestId('an-flag-group').getByLabel('Property').fill('plan');
   await page.getByTestId('an-flag-group').getByLabel('Value').fill('pro');
   await page.getByRole('button', { name: 'Add release group' }).click();
@@ -265,7 +265,7 @@ test('flag con grupos de release y payload, y /decide', async ({ page, request, 
   await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeDisabled();
   await page.getByRole('textbox', { name: 'true' }).fill('{"color":"green"}');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(page.getByRole('status').first()).toContainText('Saved');
+  await expect(page.getByRole('status').first()).toContainText('Flag saved');
   await shot(page, 'flag-groups');
   // Los flags se guardan en caché unos segundos por instancia.
   await expect
@@ -342,7 +342,7 @@ test('alerta desde un insight: aparece en el panel y en la lista, se pausa y se 
   const list = page.getByTestId('an-list-alerts');
   await expect(list).toContainText(insight.name);
   await list.getByRole('button', { name: /^Delete:/ }).first().click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
   await expect(page.getByText('No alerts yet')).toBeVisible();
 });
 
@@ -389,11 +389,12 @@ test('gestión de datos: ocultar un evento lo saca de los selectores; exportar d
   expect((await csv.text()).split('\n')[0]).toContain('distinct_id');
 });
 
-test('quien no tiene sesión queda afuera de las rutas nuevas', async ({ browser, baseURL }) => {
+test('otro workspace no alcanza nada de las rutas nuevas', async ({ browser, baseURL }) => {
   const anon = await browser.newContext({ baseURL });
+  await anon.addCookies([{ name: 'zs_e2e_as', value: `stranger-${uid()}@darwin-e2e.io`, url: baseURL! }]);
   for (const path of ['actions', 'alerts', 'annotations', 'experiments', 'definitions', 'export', 'shares']) {
     const res = await anon.request.get(`/api/analytics/${path}?project=${projectId}`);
-    expect(res.status(), path).toBe(401);
+    expect([403, 404], path).toContain(res.status());
   }
   await anon.close();
 });

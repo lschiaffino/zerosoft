@@ -644,7 +644,7 @@ export default function InsightEditor({
             )}
             {insight && (
               <select
-                className="select"
+                className="select an-header-select"
                 aria-label={t('addToDashboard')}
                 value=""
                 disabled={!dashboards.length}

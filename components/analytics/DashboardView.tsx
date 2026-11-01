@@ -159,7 +159,7 @@ export default function DashboardView({
         actions={
           <>
             <select
-              className="select"
+              className="select an-header-select"
               aria-label={t('addInsight')}
               value=""
               disabled={!available.length}

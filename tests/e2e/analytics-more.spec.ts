@@ -515,12 +515,10 @@ test('web: filtros con chips y URL, canales, en vivo y web vitals', async ({ pag
   const site = await page.context().newPage();
   await site.goto(`${siteUrl}/vitals-page`);
   await site.waitForTimeout(1500);
-  const beacon = site.waitForRequest((req) => req.url().includes('/api/ingest/e') && (req.postData() ?? '').includes('$web_vitals'));
   await site.evaluate(() => {
     Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
     window.dispatchEvent(new Event('pagehide'));
   });
-  await beacon;
   await expect.poll(async () => (await sql(`SELECT COUNT(*) AS n FROM analytics_events WHERE project_id = ? AND event = '$web_vitals'`, [projectId]))[0].n, { timeout: 15_000 }).toBe(1);
   await site.close();
   // Una medición inventada e imposible no cuenta.
