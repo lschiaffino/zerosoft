@@ -529,3 +529,5 @@ dialog.st-kb-drawer { width: min(560px, 100vw); }
 /* Apps conectadas: nombre, destino y datos en una sola celda para que la acción nunca quede fuera. */
 .st-connected-app { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
 .st-nowrap { white-space: nowrap; }
+/* Un nombre sin espacios (lo elige el cliente) no se sale del diálogo. */
+.ui-confirm .ui-modal-title, .ui-confirm .ui-modal-body { overflow-wrap: anywhere; }

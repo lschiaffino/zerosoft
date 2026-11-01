@@ -121,6 +121,11 @@ describe('lo que sobrevive a la conexión se hace desde la web', () => {
     'PATCH /api/books/settings/payments',
     'POST /api/crm/apps/[app]',
     'POST /api/boards/[id]/share',
+    'POST /api/teams/invites',
+    'POST /api/groups/numbers',
+    'PATCH /api/groups/numbers/[id]',
+    'POST /api/import/jobs',
+    'POST /api/crm/import/jobs',
   ])('%s', (k) => {
     expect(inCatalog.has(k), k).toBe(false);
     expect(WEB_ONLY.some((o) => `${o.method} ${o.path}` === k), k).toBe(true);
@@ -147,6 +152,13 @@ describe('clase de cada operación', () => {
     'POST /api/books/documents/[id]/send',
     'POST /api/crm/emails',
     'POST /api/chat/campaigns',
+    'POST /api/sign/envelopes/[id]/actions',
+    'POST /api/shop/orders/[id]/mark-paid',
+    'POST /api/people/cycles/[id]/launch',
+    'POST /api/track/access',
+    'PATCH /api/flow/flows/[id]',
+    'POST /api/crm/workflows/[id]/toggle',
+    'PATCH /api/robots/[id]',
   ])('por efecto: %s pide confirmación', (k) => {
     expect(OPERATIONS.find((o) => `${o.method} ${o.path}` === k)?.access, k).toBe('destructive');
   });
@@ -156,7 +168,7 @@ describe('clase de cada operación', () => {
   });
 
   it('exportaciones y datos sensibles quedan en la auditoría', () => {
-    for (const k of ['GET /api/crm/export', 'GET /api/people/export', 'GET /api/people/employees/[id]/compensation']) {
+    for (const k of ['GET /api/crm/export', 'GET /api/people/export', 'GET /api/people/employees/[id]/compensation', 'GET /api/hiring/candidates/[id]/resume', 'GET /api/chat/conversations/[id]/transcript', 'GET /api/people/employees/[id]']) {
       expect(OPERATIONS.find((o) => `${o.method} ${o.path}` === k)?.audit, k).toBe(true);
     }
   });
@@ -187,7 +199,7 @@ describe('clase de cada operación', () => {
   });
 
   it('lo sensible del equipo está marcado destructivo', () => {
-    for (const k of ['POST /api/teams/invites', 'PATCH /api/teams/members/[userId]', 'PATCH /api/teams/workspace']) {
+    for (const k of ['PATCH /api/teams/members/[userId]', 'PATCH /api/teams/workspace']) {
       const op = OPERATIONS.find((o) => `${o.method} ${o.path}` === k);
       expect(op?.access, k).toBe('destructive');
     }

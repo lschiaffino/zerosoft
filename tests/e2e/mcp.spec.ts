@@ -232,7 +232,13 @@ test('el pedido de autorización valida antes de mostrar nada', async ({ page })
   expect(wrong.headers.get('location')).toContain('/oauth/error?reason=redirect');
   expect((await go({ ...base, client_id: 'nope' })).headers.get('location')).toContain('/oauth/error?reason=client');
   // PKCE obligatorio, solo S256, y solo este recurso.
-  const bads: Array<Record<string, string>> = [{ code_challenge: '' }, { code_challenge_method: 'plain' }, { resource: 'https://other.example/mcp' }, { scope: 'admin' }, { response_type: 'token' }];
+  const bads: Array<Record<string, string>> = [{ code_challenge: '' }, { code_challenge_method: 'plain' }, { resource: 'https://other.example/mcp' }, { response_type: 'token' }];
+  // Un scope inválido, con el redirect ya validado, vuelve al cliente con el error.
+  const scoped = await go({ ...base, scope: 'admin', state: 's1' });
+  const back = new URL(scoped.headers.get('location')!);
+  expect(back.origin).toBe('https://client.example');
+  expect(back.searchParams.get('error')).toBe('invalid_scope');
+  expect(back.searchParams.get('state')).toBe('s1');
   for (const bad of bads) {
     const r = await go({ ...base, ...bad });
     expect(r.status, JSON.stringify(bad)).toBe(302);
@@ -414,7 +420,7 @@ test('login completo, herramientas, y operaciones en muchas apps vistas en el na
 
     if (c.update) {
       const renamed = `${name} v2`;
-      const updated = await mcp.op(c.update[0], { path: { id }, body: c.update[1](renamed) });
+      const updated = await mcp.op(c.update[0], { path: { id }, body: c.update[1](renamed) }, { confirm: true });
       expect(updated.ok, `${c.app} update: ${JSON.stringify(updated)}`).toBe(true);
       await page.goto(c.list);
       await expect(page.getByText(renamed).first(), `${c.app}: se ve el cambio`).toBeVisible({ timeout: 20_000 });
@@ -524,6 +530,15 @@ test('solo lectura: nunca recibe algo que le permita escribir', async ({ browser
   expect(read.ok, JSON.stringify(read)).toBe(true);
   expect(JSON.stringify(read.data)).not.toMatch(/\bfh_[A-Za-z0-9_-]{8,}/);
   expect(JSON.stringify(read.data)).not.toContain('/api/flow/hooks/');
+  // Leer y volver a guardar el grafo funciona, y una credencial se ve en la lista sin su valor.
+  const writer = await connect(page, 'read write', `Graph ${uid()}`);
+  const graphMcp = new Mcp(writer.tokens.access_token);
+  const flowFull = await graphMcp.op('flow.flows.get', { path: { id: flow.id } });
+  const saved = await graphMcp.op('flow.flows.update', { path: { id: flow.id }, body: { graph: flowFull.data.flow.graph } }, { confirm: true });
+  expect(saved.ok, JSON.stringify(saved)).toBe(true);
+  const creds = await mcp.op('flow.credentials.list');
+  expect(creds.ok, JSON.stringify(creds)).toBe(true);
+  expect(Array.isArray(creds.data.credentials)).toBe(true);
   // Sin efectos de un cambio de workspace en la conexión.
   expect((await mcp.json('switch_workspace', { teamId: null })).error).toBe('reconnect_to_switch');
   await ctx.close();
@@ -583,11 +598,8 @@ test('roles: owner, admin, member con apps limitadas y alguien de afuera', async
   expect(whoMember.role).toBe('member');
   expect(whoMember.workspace.id).toBe(team_id);
 
-  // Invitar como miembro funciona, y el link no vuelve: le llega a la persona por email.
-  const invited = await adminMcp.op('teams.invites.create', { body: { emails: `inv${tag}@mcp.example.com`, role: 'member' } }, { confirm: true });
-  expect(invited.ok, JSON.stringify(invited)).toBe(true);
-  expect(JSON.stringify(invited.data)).not.toMatch(/\/invite\/[A-Za-z0-9_-]{8,}/);
-  expect((await adminMcp.op('teams.invites.create', { body: { emails: `inv2${tag}@mcp.example.com`, role: 'admin' } }, { confirm: true })).error?.error).toBe('web_only');
+  // Invitar se hace desde la web, con cualquier rol: es un acceso que sobrevive a la conexión.
+  expect((await adminMcp.op('teams.invites.create', { body: { emails: `inv${tag}@mcp.example.com`, role: 'member' } }, { confirm: true })).error?.error).toBe('web_only');
 
   // Lo creado en el workspace lo ven los que están.
   const secret = `Secret ${tag}`;
@@ -711,7 +723,7 @@ test('CLI: login, descubrir, CRUD en muchas apps, salida y códigos', async ({ p
     const got = await cli(sub(c.get!), env);
     expect(got.code, `${c.app}: ${got.stdout} ${got.stderr}`).toBe(0);
     const renamed = `${name} v2`;
-    const up = await cli(sub(c.update!(renamed)), env);
+    const up = await cli([...sub(c.update!(renamed)), '--confirm'], env);
     expect(up.code, `${c.app}: ${up.stdout} ${up.stderr}`).toBe(0);
     await page.goto(c.list);
     await expect(page.getByText(renamed).first(), `${c.app}: se ve el cambio`).toBeVisible({ timeout: 20_000 });

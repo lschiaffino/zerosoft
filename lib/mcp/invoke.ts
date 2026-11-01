@@ -15,7 +15,8 @@ import type { Operation } from './catalog';
 import { credentialAllows, personCanUseApp, resolvePerson, type McpCaller, type ResolvedPerson } from './caller';
 import { runAsDelegated } from './identity';
 import { ROUTE_TABLE } from './route-table.generated';
-import { REDACTED, scrubLooseText, scrubSecrets } from './scrub';
+import { refusedByFieldPolicy } from './field-policy';
+import { REDACTED, scrubForPath, scrubLooseText } from './scrub';
 
 /** Lo que se devuelve al modelo por llamada (el resto se pagina). */
 export const MAX_OUTPUT_CHARS = 60_000;
@@ -74,18 +75,18 @@ export interface InvokeResult {
 /** Binarios que pueden volver en base64. Un JSON o un texto disfrazado de binario, no. */
 const INLINE_BINARY = /^(image\/(png|jpe?g|gif|webp|avif)|application\/pdf|audio\/[a-z0-9.+-]+|video\/[a-z0-9.+-]+)$/;
 
-/** Reglas sobre la entrada que dependen del valor, no solo de la operación. */
+/** Un campo que vuelve con la marca de valor tapado pisaría el secreto de verdad. Tiene que ser el valor entero. */
+function hasRedactedField(value: unknown, depth = 0): boolean {
+  if (value === REDACTED) return true;
+  if (depth > 20 || !value || typeof value !== 'object') return false;
+  return Object.values(value as Record<string, unknown>).some((v) => hasRedactedField(v, depth + 1));
+}
+
 function assertPolicy(op: Operation, body: unknown): void {
-  const key = `${op.method} ${op.path}`;
-  if (key === 'POST /api/teams/invites' || key === 'PATCH /api/teams/members/[userId]') {
-    const role = (body as { role?: unknown } | null)?.role;
-    if (role === 'admin' || role === 'owner') {
-      throw new OperationError('web_only', 'Giving someone the admin or owner role is done in zerosoft: Settings, Members. Member invitations work here, and the person gets the link by email.', { where: 'Settings, Members' });
-    }
-  }
-  // Devolver lo que salió tapado pisaría el secreto de verdad con el texto de la marca.
-  if (body !== undefined && JSON.stringify(body)?.includes(REDACTED)) {
-    throw new OperationError('invalid_arguments', `The body contains ${REDACTED}, a value hidden from this connection. Leave that field out so it keeps its current value.`);
+  const refused = refusedByFieldPolicy(op, body);
+  if (refused) throw new OperationError('web_only', refused.message, { where: refused.where });
+  if (hasRedactedField(body)) {
+    throw new OperationError('invalid_arguments', `A field in the body is ${REDACTED}, a value hidden from this connection. Leave that field out so it keeps its current value.`);
   }
 }
 
@@ -299,7 +300,7 @@ export async function invokeOperation(outer: Request, caller: McpCaller, op: Ope
   }
   // 2. La persona, ahora: si salió del workspace o ya no tiene la app, se corta acá.
   const person = await resolvePerson(caller);
-  if (!person) throw new OperationError('workspace_access_lost', 'You are no longer part of this workspace. Use switch_workspace or reconnect.');
+  if (!person) throw new OperationError('workspace_access_lost', 'You are no longer part of this workspace. Reconnect and pick another one.');
   if (!personCanUseApp(person, op.app)) throw new OperationError('app_not_available', `You do not have access to ${op.app} in this workspace.`);
   // 3. Lo destructivo pide que el cliente lo confirme explícitamente.
   if (op.access === 'destructive' && opts.confirm !== true) {
@@ -364,13 +365,13 @@ export async function invokeOperation(outer: Request, caller: McpCaller, op: Ope
       return { ok: false, status: 500, contentType: null, data: { error: 'server_error' } };
     }
     if (shouldAudit(op)) await writeAudit(caller, person, op, res.status, Date.now() - started);
-    return await Promise.race([interpretResponse(res, opts), deadline]);
+    return await Promise.race([interpretResponse(res, opts, op.path), deadline]);
   } finally {
     clearTimeout(timer);
   }
 }
 
-async function interpretResponse(res: Response, opts: InvokeOptions): Promise<InvokeResult> {
+async function interpretResponse(res: Response, opts: InvokeOptions, path: string): Promise<InvokeResult> {
   const type = res.headers.get('content-type');
   const base = { ok: res.ok, status: res.status, contentType: type };
   if (res.status >= 300 && res.status < 400) {
@@ -389,7 +390,7 @@ async function interpretResponse(res: Response, opts: InvokeOptions): Promise<In
     } catch {
       return { ...base, data: scrubLooseText(text).slice(0, MAX_OUTPUT_CHARS), truncated: capped || text.length > MAX_OUTPUT_CHARS };
     }
-    const clean = scrubSecrets(parsed);
+    const clean = scrubForPath(path, parsed);
     return { ...base, ...paginate(clean, opts), ...(capped ? { truncated: true } : {}) };
   }
   if (isText) {

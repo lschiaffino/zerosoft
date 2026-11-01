@@ -20,8 +20,8 @@ export type OAuthScope = (typeof SCOPES)[number];
 export const DEVICE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code';
 const ALLOWED_GRANTS = ['authorization_code', 'refresh_token', DEVICE_GRANT];
 
-/** Un refresh recién rotado se puede repetir este rato: dos pedidos en paralelo de la misma conexión no son un robo. */
-export const REFRESH_GRACE_MS = 30_000;
+/** Un refresh recién rotado se puede repetir una vez, este rato: dos pedidos en paralelo de la misma conexión no son un robo. */
+export const REFRESH_GRACE_MS = 10_000;
 
 export const ACCESS_PREFIX = 'zsat_';
 export const REFRESH_PREFIX = 'zsrt_';
@@ -224,11 +224,11 @@ export function authorizationRedirect(redirectUri: string, params: Record<string
 }
 
 /** Crea la conexión. Todavía no toca las anteriores: eso pasa cuando el cliente canjea (retireOtherGrants). */
-export async function createGrant(input: { userId: string; clientId: string; teamId: string | null; scope: string; resource: string; via: 'code' | 'device' }): Promise<string> {
+export async function createGrant(input: { userId: string; clientId: string; teamId: string | null; scope: string; resource: string; via: 'code' | 'device'; redirectUri?: string | null }): Promise<string> {
   const id = `zsg_${randomToken(18)}`;
   await getDb()
-    .prepare('INSERT INTO oauth_grants (id, user_id, client_id, team_id, scope, resource, via) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .run(id, input.userId, input.clientId, input.teamId, input.scope, input.resource, input.via);
+    .prepare('INSERT INTO oauth_grants (id, user_id, client_id, team_id, scope, resource, via, redirect_uri) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(id, input.userId, input.clientId, input.teamId, input.scope, input.resource, input.via, input.redirectUri ?? null);
   return id;
 }
 
@@ -247,7 +247,7 @@ export async function approveAuthRequest(req: AuthRequest, input: { userId: stri
     .prepare('UPDATE oauth_auth_requests SET code_hash = ?, expires_at = ? WHERE id = ? AND code_hash IS NULL AND consumed_at IS NULL')
     .run(hashToken(code), isoIn(CODE_TTL_SEC), req.id);
   if (!claimed.changes) return null;
-  const grantId = await createGrant({ userId: input.userId, clientId: req.client_id, teamId: input.teamId, scope: input.scope, resource: req.resource, via: 'code' });
+  const grantId = await createGrant({ userId: input.userId, clientId: req.client_id, teamId: input.teamId, scope: input.scope, resource: req.resource, via: 'code', redirectUri: req.redirect_uri });
   await getDb().prepare('UPDATE oauth_auth_requests SET grant_id = ? WHERE id = ?').run(grantId, req.id);
   return code;
 }
@@ -339,17 +339,21 @@ export async function refreshTokens(input: { refreshToken: string; clientId: str
   if (row.used_at && Date.now() - new Date(row.used_at).getTime() > REFRESH_GRACE_MS) throw await reuse();
   if (expired(row.expires_at)) throw new TokenError('invalid_grant', 'The refresh token expired.');
   assertResource(input.resource, grant.resource);
-  // Puede pedir menos de lo que tiene este refresh, nunca más. Sin scope, sigue con el suyo.
-  const current = (row.scope ?? grant.scope).split(' ');
+  // Puede pedir menos de lo que tiene este refresh, nunca más. Sin scope (o en blanco), sigue con el suyo.
+  const current = (row.scope || grant.scope).split(' ').filter(Boolean);
   let scope = current.join(' ');
-  if (input.scope) {
-    const asked = parseScope(input.scope);
-    if (!asked) throw new TokenError('invalid_scope', 'Unknown scope.');
-    const wanted = input.scope.split(/\s+/).filter(Boolean);
+  const wanted = (input.scope ?? '').split(/\s+/).filter(Boolean);
+  if (wanted.length) {
+    if (!parseScope(wanted.join(' '))) throw new TokenError('invalid_scope', 'Unknown scope.');
     if (wanted.some((w) => !current.includes(w))) throw new TokenError('invalid_scope', 'A refresh cannot widen the scope.');
     scope = SCOPES.filter((s) => wanted.includes(s)).join(' ');
   }
-  if (!row.used_at) await db.prepare(`UPDATE oauth_tokens SET used_at = ? WHERE token_hash = ? AND used_at IS NULL`).run(new Date().toISOString(), row.token_hash);
+  // El primero lo gasta. Otro enseguida es el paralelo: una repetición, y solo una.
+  const first = await db.prepare(`UPDATE oauth_tokens SET used_at = ? WHERE token_hash = ? AND used_at IS NULL`).run(new Date().toISOString(), row.token_hash);
+  if (!first.changes) {
+    const replay = await db.prepare(`UPDATE oauth_tokens SET replays = replays + 1 WHERE token_hash = ? AND replays = 0`).run(row.token_hash);
+    if (!replay.changes) throw await reuse();
+  }
   return issueTokens(grant.id, scope);
 }
 
@@ -366,6 +370,7 @@ export interface GrantRow {
   last_used_at: string | null;
   revoked_at: string | null;
   via?: 'code' | 'device' | null;
+  redirect_uri?: string | null;
 }
 
 export async function activeGrant(id: string): Promise<GrantRow | null> {
@@ -392,7 +397,8 @@ export async function grantForAccessToken(raw: string): Promise<GrantRow | null>
   // Último uso con grano de un minuto: sin una escritura por pedido.
   const last = grant.last_used_at ? new Date(`${grant.last_used_at}Z`).getTime() : 0;
   if (Date.now() - last > 60_000) await db.prepare(`UPDATE oauth_grants SET last_used_at = datetime('now') WHERE id = ?`).run(grant.id);
-  return row.scope ? { ...grant, scope: row.scope } : grant;
+  // Un valor vacío nunca vale por el de la conexión: esta token no tiene más que lo suyo.
+  return row.scope === null ? grant : { ...grant, scope: row.scope };
 }
 
 /** Revocación (RFC 7009): el dueño del token puede cortarlo; siempre responde bien. */
@@ -425,7 +431,7 @@ export interface ConnectedClient {
 export async function listConnectedClients(userId: string): Promise<ConnectedClient[]> {
   const rows = (await getDb()
     .prepare(
-      `SELECT g.id, g.scope, g.team_id, g.created_at, g.last_used_at, g.via, c.name, c.client_uri, c.redirect_uris, t.name AS team_name,
+      `SELECT g.id, g.scope, g.team_id, g.created_at, g.last_used_at, g.via, g.redirect_uri, c.name, c.client_uri, t.name AS team_name,
               (SELECT COUNT(*) FROM mcp_audit_log a WHERE a.grant_id = g.id AND a.access != 'read') AS writes
        FROM oauth_grants g
        LEFT JOIN oauth_clients c ON c.client_id = g.client_id
@@ -444,7 +450,7 @@ export async function listConnectedClients(userId: string): Promise<ConnectedCli
     via: string | null;
     name: string | null;
     client_uri: string | null;
-    redirect_uris: string | null;
+    redirect_uri: string | null;
     team_name: string | null;
     writes: number;
   }>;
@@ -452,7 +458,7 @@ export async function listConnectedClients(userId: string): Promise<ConnectedCli
     id: r.id,
     clientName: r.name ?? 'Unnamed client',
     clientUri: r.client_uri,
-    origin: r.via === 'device' ? { kind: 'device' } : redirectOrigin(r.redirect_uris),
+    origin: r.via === 'device' ? { kind: 'device' } : redirectOrigin(r.redirect_uri),
     scope: r.scope,
     teamId: r.team_id,
     workspaceName: r.team_name,
@@ -462,11 +468,11 @@ export async function listConnectedClients(userId: string): Promise<ConnectedCli
   }));
 }
 
-function redirectOrigin(raw: string | null): ConnectedClient['origin'] {
+/** La dirección que usó esta conexión al aprobarse, no la primera que registró el cliente. */
+function redirectOrigin(redirectUri: string | null): ConnectedClient['origin'] {
   try {
-    const first = (JSON.parse(raw ?? '[]') as string[])[0];
-    if (!first) return { kind: 'device' };
-    const host = new URL(first).hostname;
+    if (!redirectUri) return { kind: 'local' };
+    const host = new URL(redirectUri).hostname;
     return isLoopbackHost(host) ? { kind: 'local' } : { kind: 'host', host };
   } catch {
     return { kind: 'local' };

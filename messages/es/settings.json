@@ -1086,7 +1086,8 @@
     "deviceConfirm": "Fijate que sea el código que muestra tu terminal. Si no lo es, cerrá esta página.",
     "invalidTitle": "Este pedido de conexión no es válido",
     "invalidBody": "No se conectó nada. Empezá de nuevo desde la app, o avisale a quien la hace.",
-    "invalidCode": "Motivo: {code}"
+    "invalidCode": "Motivo: {code}",
+    "noteKeeps": "Desconectar corta esta app. Lo que creó queda, y las automatizaciones que prendió siguen corriendo hasta que las apagues."
   },
   "connected": {
     "title": "Apps conectadas",

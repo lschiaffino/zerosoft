@@ -236,7 +236,7 @@ async function callTool(req: Request, caller: McpCaller, name: string, args: Rec
 
   switch (name) {
     case 'whoami': {
-      if (!person) return toolError('workspace_access_lost', 'You are no longer part of this workspace. Use switch_workspace or reconnect.');
+      if (!person) return toolError('workspace_access_lost', 'You are no longer part of this workspace. Reconnect and pick another one.');
       return namesText('whoami', {
         person: { id: person.person.id, email: person.person.email, name: person.person.name },
         workspace: { id: person.workspace.id, name: person.workspace.name, owner: person.owner.email },
@@ -253,7 +253,7 @@ async function callTool(req: Request, caller: McpCaller, name: string, args: Rec
       // Ya no se ofrece. Queda la respuesta para quien lo llame de memoria: una conexión no cruza workspaces.
       return toolError('reconnect_to_switch', 'A connection stays in the workspace chosen when it was approved. To work in another one, the person reconnects and picks it on the permissions screen.');
     case 'list_apps': {
-      if (!person) return toolError('workspace_access_lost', 'You are no longer part of this workspace. Use switch_workspace or reconnect.');
+      if (!person) return toolError('workspace_access_lost', 'You are no longer part of this workspace. Reconnect and pick another one.');
       const counts = new Map<string, { read: number; write: number; destructive: number }>();
       for (const op of OPERATIONS) {
         if (!allowed(op)) continue;

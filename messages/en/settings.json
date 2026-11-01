@@ -1086,7 +1086,8 @@
     "deviceConfirm": "Check that this is the code your terminal is showing. If it is not, close this page.",
     "invalidTitle": "This connection request is not valid",
     "invalidBody": "Nothing was connected. Start again from the app, or tell whoever makes it.",
-    "invalidCode": "Reason: {code}"
+    "invalidCode": "Reason: {code}",
+    "noteKeeps": "Disconnecting stops this app. What it created stays, and automations it turned on keep running until you turn them off."
   },
   "connected": {
     "title": "Connected apps",

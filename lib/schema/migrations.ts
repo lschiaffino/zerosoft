@@ -8061,6 +8061,7 @@ export const MIGRATIONS: Migration[] = [
           scope TEXT NOT NULL,
           resource TEXT NOT NULL,
           via TEXT NOT NULL DEFAULT 'code',
+          redirect_uri TEXT,
           created_at TEXT NOT NULL DEFAULT (datetime('now')),
           last_used_at TEXT,
           revoked_at TEXT
@@ -8072,6 +8073,7 @@ export const MIGRATIONS: Migration[] = [
           kind TEXT NOT NULL CHECK (kind IN ('access', 'refresh')),
           expires_at TEXT NOT NULL,
           used_at TEXT,
+          replays INTEGER NOT NULL DEFAULT 0,
           scope TEXT,
           created_at TEXT NOT NULL DEFAULT (datetime('now'))
         );

@@ -7,7 +7,8 @@ import { authenticate, credentialAllows, type McpCaller } from '@/lib/mcp/caller
 import { getOperation } from '@/lib/mcp/catalog';
 import { runAsDelegated } from '@/lib/mcp/identity';
 import { buildRoute, invokeOperation, normalizeArgs, OperationError, paginate } from '@/lib/mcp/invoke';
-import { isSecretKey, scrubLooseText, scrubSecrets, scrubText } from '@/lib/mcp/scrub';
+import { refusedByFieldPolicy } from '@/lib/mcp/field-policy';
+import { isSecretKey, REDACTED, scrubForPath, scrubLooseText, scrubSecrets, scrubText } from '@/lib/mcp/scrub';
 import { handleMcpPost, originAllowed, wrapUntrusted } from '@/lib/mcp/server';
 import {
   activeGrant,
@@ -177,6 +178,9 @@ describe('refresh con rotación', () => {
     expect(await grantForAccessToken(a.access_token)).toBeTruthy();
     expect(await grantForAccessToken(b.access_token)).toBeTruthy();
     expect((await grantForAccessToken(a.access_token))?.id).toBe((await grantForAccessToken(b.access_token))?.id);
+    // Una sola repetición: la tercera es reuso, aunque siga dentro de la ventana.
+    await expect(refreshTokens(base)).rejects.toMatchObject({ code: 'invalid_grant' });
+    expect(await grantForAccessToken(a.access_token)).toBeNull();
   });
 
   it('pedir menos scope se respeta en el token, y el permiso no vuelve a subir con ese refresh', async () => {
@@ -188,6 +192,22 @@ describe('refresh con rotación', () => {
     const write = await callTool(narrowed.access_token, 'invoke_operation', { operation: 'crm.companies.create', args: { body: { name: 'No' } } });
     expect(JSON.parse(write.content[0].text).error).toBe('insufficient_scope');
     await expect(refreshTokens({ refreshToken: narrowed.refresh_token, clientId: client.client_id, resource: null, scope: 'read write' })).rejects.toMatchObject({ code: 'invalid_scope' });
+  });
+
+  it('un scope en blanco es el del token, nunca más que eso', async () => {
+    const u = await person('blank');
+    const { client, tokens } = await connect(u.id);
+    const narrowed = await refreshTokens({ refreshToken: tokens.refresh_token, clientId: client.client_id, resource: null, scope: 'read' });
+    const blank = await refreshTokens({ refreshToken: narrowed.refresh_token, clientId: client.client_id, resource: null, scope: ' ' });
+    expect(blank.scope).toBe('read');
+    expect((await grantForAccessToken(blank.access_token))?.scope).toBe('read');
+    const row = (await getDb().prepare('SELECT scope FROM oauth_tokens WHERE token_hash = ?').get(hashToken(blank.access_token))) as { scope: string };
+    expect(row.scope).toBe('read');
+    // Un valor vacío en la base no se ensancha al de la conexión.
+    await getDb().prepare(`UPDATE oauth_tokens SET scope = '' WHERE token_hash = ?`).run(hashToken(blank.access_token));
+    expect((await grantForAccessToken(blank.access_token))?.scope).toBe('');
+    const write = await callTool(blank.access_token, 'invoke_operation', { operation: 'crm.companies.create', args: { body: { name: 'No' } } });
+    expect(JSON.parse(write.content[0].text).error).toBe('insufficient_scope');
   });
 
   it('rota, y reusar el viejo pasada la ventana revoca la conexión', async () => {
@@ -235,6 +255,16 @@ describe('revocación y conexiones', () => {
     expect(await revokeOwnGrant(u.id, list[0].id)).toBe(true);
     expect(await grantForAccessToken(tokens.access_token)).toBeNull();
     expect(await activeGrant(list[0].id)).toBeNull();
+  });
+
+  it('Ajustes muestra la dirección que usó esta conexión, no la primera que registró el cliente', async () => {
+    const u = await person('usedredirect');
+    const client = await registerClient({ redirect_uris: ['http://127.0.0.1/callback', 'https://real.example/cb'] });
+    const v = verifier();
+    const reqId = await createAuthRequest({ client_id: client.client_id, redirect_uri: 'https://real.example/cb', scope: 'read', state: null, code_challenge: challenge(v), resource: mcpResourceUrl() });
+    const code = (await approveAuthRequest((await openAuthRequest(reqId))!, { userId: u.id, teamId: null, scope: 'read' }))!;
+    await exchangeCode({ code, clientId: client.client_id, redirectUri: 'https://real.example/cb', verifier: v, resource: null });
+    expect((await listConnectedClients(u.id))[0].origin).toEqual({ kind: 'host', host: 'real.example' });
   });
 
   it('reconectar corta la conexión anterior recién cuando el nuevo código se canjea', async () => {
@@ -380,19 +410,36 @@ describe('permisos sobre operaciones reales', () => {
     expect(JSON.parse(found.content[0].text).doneInTheWebApp.map((o: { id: string }) => o.id)).toContain('webhooks.create');
   });
 
-  it('invitar como admin o dueño se hace desde la web', async () => {
+  it('invitar se hace desde la web, con cualquier rol', async () => {
     const u = await person('invite');
     const { tokens } = await connect(u.id);
-    for (const role of ['admin', 'owner']) {
+    for (const role of ['member', 'admin', 'owner']) {
       const r = await callTool(tokens.access_token, 'invoke_operation', { operation: 'teams.invites.create', args: { body: { emails: 'a@example.com', role } }, confirm: true });
       expect(JSON.parse(r.content[0].text).error, role).toBe('web_only');
     }
   });
 
+  it('el link de firma no se pide por acá, y mandar pide confirm', async () => {
+    const u = await person('sign');
+    const { tokens } = await connect(u.id);
+    const send = await callTool(tokens.access_token, 'invoke_operation', { operation: 'sign.envelopes.actions.create', args: { path: { id: 'x' }, body: { action: 'send' } } });
+    expect(JSON.parse(send.content[0].text).error).toBe('confirmation_required');
+    const link = await callTool(tokens.access_token, 'invoke_operation', { operation: 'sign.envelopes.actions.create', args: { path: { id: 'x' }, body: { action: 'sign_link' } }, confirm: true });
+    expect(JSON.parse(link.content[0].text).error).toBe('web_only');
+  });
+
+  it('un texto con la palabra en el medio se guarda; el valor tapado entero no', async () => {
+    const u = await person('placeholder');
+    const { tokens } = await connect(u.id);
+    const r = await callTool(tokens.access_token, 'invoke_operation', { operation: 'crm.companies.create', args: { body: { name: 'Name [redacted] per GDPR' } } });
+    expect(r.isError).toBeFalsy();
+    expect(r.content[0].text).toContain('Name [redacted] per GDPR');
+  });
+
   it('devolver un valor tapado no pisa el secreto', async () => {
     const u = await person('redacted');
     const { tokens } = await connect(u.id);
-    const r = await callTool(tokens.access_token, 'invoke_operation', { operation: 'crm.companies.create', args: { body: { name: '[redacted]' } } });
+    const r = await callTool(tokens.access_token, 'invoke_operation', { operation: 'crm.companies.create', args: { body: { name: REDACTED } } });
     expect(JSON.parse(r.content[0].text).error).toBe('invalid_arguments');
   });
 
@@ -500,6 +547,29 @@ describe('identidad delegada', () => {
   });
 });
 
+describe('campos que no se aceptan', () => {
+  const op = (method: string, path: string) => ({ method, path }) as never;
+  it('una URL que el servidor llama o la key de un tercero, en cualquier nivel; lo demás del form pasa', () => {
+    expect(refusedByFieldPolicy(op('PATCH', '/api/forms/[id]'), { settings: { webhookUrl: 'https://x.example' } })).toBeTruthy();
+    expect(refusedByFieldPolicy(op('PATCH', '/api/forms/[id]'), { settings: { rotateWebhookSecret: true } })).toBeTruthy();
+    expect(refusedByFieldPolicy(op('PATCH', '/api/forms/[id]'), { title: 'Otro', settings: { redirectUrl: 'https://x.example', webhookUrl: '' } })).toBeNull();
+    expect(refusedByFieldPolicy(op('POST', '/api/x'), { a: [{ b: { apiKey: 'k' } }] })).toBeTruthy();
+  });
+
+  it('webhooks en Cal no; email sí', () => {
+    const w = op('PUT', '/api/calendar/event-types/[id]/workflows');
+    expect(refusedByFieldPolicy(w, { steps: [{ channel: 'webhook', url: 'https://x.example' }] })).toBeTruthy();
+    expect(refusedByFieldPolicy(w, { steps: [{ channel: 'email', body: 'hola' }] })).toBeNull();
+  });
+
+  it('una automatización sí lleva sus URLs: es de clase destructiva', () => {
+    expect(refusedByFieldPolicy(op('PATCH', '/api/flow/flows/[id]'), { graph: { nodes: [{ config: { webhookUrl: 'https://x.example' } }] } })).toBeNull();
+    expect(getOperation('flow.flows.update')?.access).toBe('destructive');
+    expect(getOperation('crm.workflows.toggle')?.access).toBe('destructive');
+    expect(getOperation('robots.update')?.access).toBe('destructive');
+  });
+});
+
 describe('construcción de la ruta', () => {
   const op = getOperation('crm.deals.update')!;
   it('rechaza traversal y codifica', () => {
@@ -542,18 +612,18 @@ describe('salida', () => {
       verify_token: 'dns',
       note: `mirá ${fake} acá`,
     }) as Record<string, unknown>;
-    expect(out.access_token).toBe('[redacted]');
-    expect(out.refreshToken).toBe('[redacted]');
-    expect(out.apiKey).toBe('[redacted]');
-    expect(out.client_secret).toBe('[redacted]');
-    expect(out.password).toBe('[redacted]');
-    expect(out.token_enc).toBe('[redacted]');
-    expect(out.nested).toEqual([{ webhookSecret: '[redacted]', name: 'ok' }]);
+    expect(out.access_token).toBe(REDACTED);
+    expect(out.refreshToken).toBe(REDACTED);
+    expect(out.apiKey).toBe(REDACTED);
+    expect(out.client_secret).toBe(REDACTED);
+    expect(out.password).toBe(REDACTED);
+    expect(out.token_enc).toBe(REDACTED);
+    expect(out.nested).toEqual([{ webhookSecret: REDACTED, name: 'ok' }]);
     expect(out.hasSecret).toBe(true);
     expect(out.secret).toBeNull();
     expect(out.max_tokens).toBe(100);
     expect(out.verify_token).toBe('dns');
-    expect(out.note).toBe('mirá [redacted] acá');
+    expect(out.note).toBe(`mirá ${REDACTED} acá`);
     expect(isSecretKey('name')).toBe(false);
   });
 
@@ -561,17 +631,55 @@ describe('salida', () => {
     const out = scrubSecrets({
       token: ['fh', 'a'.repeat(32)].join('_'),
       tokens: { a: 'b' },
-      trigger: { webhookUrl: 'https://zerosoft.ai/api/flow/hooks/abc' },
-      note: `usá https://zerosoft.ai/api/flow/hooks/${'a'.repeat(32)} o ${['zth', 'b'.repeat(48)].join('_')}`,
-      invite: `https://zerosoft.ai/en/invite/${'c'.repeat(24)}`,
-      sign: `https://zerosoft.ai/es/sign/${'d'.repeat(24)}`,
+      trigger: { webhookUrl: 'https://zerosoft.test/api/flow/hooks/abc' },
+      note: `usá https://zerosoft.test/api/flow/hooks/${'a'.repeat(32)} o ${['zth', 'b'.repeat(48)].join('_')}`,
+      invite: `https://zerosoft.test/en/invite/${'c'.repeat(24)}`,
+      sign: `https://zerosoft.test/es/sign/${'d'.repeat(24)}`,
       slack: 'https://hooks.slack.com/services/T0/B0/xyz',
-      normal: 'https://zerosoft.ai/en/app/crm/contacts/abc',
+      normal: 'https://zerosoft.test/en/app/crm/contacts/abc',
     }) as Record<string, unknown>;
-    expect(out.token).toBe('[redacted]');
-    expect(out.tokens).toBe('[redacted]');
+    expect(out.token).toBe(REDACTED);
+    expect(out.tokens).toBe(REDACTED);
     expect(JSON.stringify(out)).not.toMatch(/fh_a|zth_b|hooks\/a|invite\/c|sign\/d|slack\.com/);
-    expect(out.normal).toBe('https://zerosoft.ai/en/app/crm/contacts/abc');
+    expect(out.normal).toBe('https://zerosoft.test/en/app/crm/contacts/abc');
+  });
+
+  it('lo que no es credencial pasa', () => {
+    const urls = [
+      'https://docs.google.com/document/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/edit',
+      'https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view',
+      'https://github.com/org/repo/blob/main/d/abcdefghijklmnopqrst',
+      'https://cliente.example/invite/abcdefghijklmnopqrstuvwx?token=abc',
+    ];
+    for (const u of urls) expect(scrubText(u), u).toBe(u);
+    for (const k of ['authorization_status', 'pass_rate', 'cookie_consent', 'secretary', 'tokenizer', 'credentialId', 'otpRequired', 'hasSecret', 'secret_set', 'token_count']) {
+      expect(isSecretKey(k), k).toBe(false);
+    }
+    expect(scrubText('risk-management-plan-review-long')).toBe('risk-management-plan-review-long');
+    expect(scrubText('sk-learn-pipeline-stage-name-long')).toBe('sk-learn-pipeline-stage-name-long');
+    expect(scrubSecrets({ tokens: { input: 5, output: 7 } })).toEqual({ tokens: { input: 5, output: 7 } });
+    expect(scrubSecrets({ tokens: 12 })).toEqual({ tokens: 12 });
+  });
+
+  it('valores públicos por ruta; secretos por ruta', () => {
+    expect(scrubForPath('/api/links/publishable-key', { key: 'pub_abc' })).toEqual({ key: 'pub_abc' });
+    expect(scrubForPath('/api/calendar/polls', { polls: [{ token: 'poll1234' }] })).toEqual({ polls: [{ token: 'poll1234' }] });
+    expect(scrubForPath('/api/crm/forms/[id]', { token: 'form1234' })).toEqual({ token: 'form1234' });
+    expect(scrubForPath('/api/flow/credentials', { credentials: [{ id: 'c1', name: 'Mail', secret: 'x' }] })).toEqual({ credentials: [{ id: 'c1', name: 'Mail', secret: REDACTED }] });
+    expect(scrubForPath('/api/notes/email-address', { address: 'n-abc@in.zerosoft.ai' })).toEqual({ address: REDACTED });
+    expect(scrubForPath('/api/links/shares', { shares: [{ id: 's', path: '/s/abc' }] })).toEqual({ shares: [{ id: 's', path: REDACTED }] });
+    expect(scrubForPath('/api/crm/contacts', { token: 'x' })).toEqual({ token: REDACTED });
+  });
+
+  it('las URLs de capacidad también relativas, y con el token en la query', () => {
+    const tok = 'a'.repeat(24);
+    expect(scrubText(`url /en/sign/${tok}`)).toBe(`url ${REDACTED}`);
+    expect(scrubText(JSON.stringify({ url: `/en/sign/${tok}` }))).not.toContain(tok);
+    expect(scrubText(`https://zerosoft.test/en/x?t=${tok}`)).toBe(REDACTED);
+    expect(scrubText(`https://zerosoft.test/en/x?a=1&share=${tok}`)).toBe(REDACTED);
+    expect(scrubText(`/en/x?token=${tok}`)).toBe(REDACTED);
+    expect(scrubText('/en/app/crm/contacts/abc')).toBe('/en/app/crm/contacts/abc');
+    for (const k of ['signature', 'sessionId', 'stripeKey', 'encryptionKey']) expect(isSecretKey(k), k).toBe(true);
   });
 
   it('bajo un nombre secreto se tapa también lo que no es texto', () => {
@@ -590,7 +698,7 @@ describe('salida', () => {
       publishable_key: 'pub_123',
       hasSecret: true,
     }) as Record<string, unknown>;
-    for (const k of ['credentials', 'secrets', 'smtp_pass', 'dsn', 'hmac', 'auth', 'pin_otp', 'api_key_preview']) expect(out[k], k).toBe('[redacted]');
+    for (const k of ['credentials', 'secrets', 'smtp_pass', 'dsn', 'hmac', 'auth', 'pin_otp', 'api_key_preview']) expect(out[k], k).toBe(REDACTED);
     expect(out.api_key_hint).toBe('abcd');
     expect(out.token_count).toBe(12);
     expect(out.input_tokens).toBe(5);
@@ -615,7 +723,7 @@ describe('salida', () => {
       ['AKIA', 'ABCDEFGHIJKLMNOP'].join(''),
       ['eyJhbGciOiJIUzI1NiJ9', 'eyJzdWIiOiIxMjM0NTY3ODkwIn0', 'abcdefghijklmnop'].join('.'),
     ];
-    for (const s of samples) expect(scrubText(`x ${s} y`), s).toBe('x [redacted] y');
+    for (const s of samples) expect(scrubText(`x ${s} y`), s).toBe(`x ${REDACTED} y`);
   });
 
   it('un texto hostil no puede cerrar la etiqueta', () => {

@@ -146,6 +146,7 @@ export default function ConsentForm({
         <li>{t('noteSame')}</li>
         <li>{t('noteOut')}</li>
         <li>{t('noteRevoke')}</li>
+        <li>{t('noteKeeps')}</li>
       </ul>
 
       {error && <p className="ui-error" role="alert">{error}</p>}
