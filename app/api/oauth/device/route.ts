@@ -27,10 +27,12 @@ export async function POST(req: NextRequest) {
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: 'invalid_request' }, { status: 400 });
   const row = await pendingDeviceByUserCode(parsed.data.code);
+  // Tipear mal el código es normal en esta pantalla: se responde sin un 404 en la consola.
+  if (!row && parsed.data.decision === 'lookup') return NextResponse.json({ found: false });
   if (!row) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   if (parsed.data.decision === 'lookup') {
     const client = await getClient(row.client_id);
-    return NextResponse.json({ clientName: client?.name ?? 'Unnamed client', scope: row.scope });
+    return NextResponse.json({ found: true, clientName: client?.name ?? 'Unnamed client', scope: row.scope });
   }
   if (parsed.data.decision === 'deny') {
     await decideDevice(row, { approve: false });

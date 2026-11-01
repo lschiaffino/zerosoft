@@ -76,7 +76,11 @@ export default async function McpDocsPage(props: { params: Promise<{ locale: str
         <pre className="code-block"><code>{'cd cli && npm link\n# or: node cli/bin/zerosoft.mjs --help'}</code></pre>
         <p className="code-label">{c.cliExamplesLabel}</p>
         <pre className="code-block"><code>{CLI_EXAMPLES}</code></pre>
-        <p>{c.cliHeadless}</p>
+        <p>
+          {c.cliHeadless.split('zerosoft login --device').flatMap((part, i) =>
+            i === 0 ? [part] : [<code key={i} className="mcp-docs-cmd">zerosoft login --device</code>, part],
+          )}
+        </p>
       </section>
 
       <section id="how" className="mcp-docs-section">

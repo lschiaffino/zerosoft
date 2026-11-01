@@ -51,12 +51,12 @@ export const MCP_DOCS: Record<'en' | 'es' | 'pt', McpDocsCopy> = {
     ],
     accessTitle: 'What it can do',
     accessBody: [
-      'Passing to another workspace takes reconnecting: a connection stays in the workspace you chose when you approved it.',
-      'Clients must use an https or local redirect address. Custom URL schemes are not supported.',
       'It can do what you can do, nothing more. If your role, your app access or a private channel stops you in the app, it stops Claude too.',
       'In the permissions screen you choose read and write, or read only, and the workspace. Destructive operations ask for an explicit confirmation from the client.',
       'See and disconnect your connected apps in Settings, API and webhooks. Changes made through a connection are recorded with the person, the app and the operation.',
       'What comes back from zerosoft may include text written by other people, such as customer messages or emails. It reaches Claude marked as data, not as instructions. Still, review what Claude proposes before it sends or deletes something.',
+      'Passing to another workspace takes reconnecting: a connection stays in the workspace you chose when you approved it.',
+      'Clients must use an https or local redirect address. Custom URL schemes are not supported.',
     ],
     outTitle: 'What stays out',
     outBody: [
@@ -98,12 +98,12 @@ export const MCP_DOCS: Record<'en' | 'es' | 'pt', McpDocsCopy> = {
     ],
     accessTitle: 'Qué puede hacer',
     accessBody: [
-      'Pasar a otro workspace pide volver a conectar: una conexión queda en el workspace que elegiste al aprobarla.',
-      'Los clientes tienen que usar una dirección de vuelta https o local. Los esquemas de URL propios no están soportados.',
       'Puede hacer lo que vos podés hacer, nada más. Si tu rol, tu acceso por app o un canal privado te frenan en la app, también frenan a Claude.',
       'En la pantalla de permisos elegís leer y escribir, o solo lectura, y el workspace. Las operaciones destructivas piden una confirmación explícita del cliente.',
       'Mirá y desconectá tus apps conectadas en Ajustes, API y webhooks. Los cambios hechos por una conexión quedan registrados con la persona, la app y la operación.',
       'Lo que vuelve de zerosoft puede traer texto escrito por otras personas, como mensajes de clientes o emails. Le llega a Claude marcado como dato, no como instrucción. Igual, revisá lo que Claude propone antes de que envíe o borre algo.',
+      'Pasar a otro workspace pide volver a conectar: una conexión queda en el workspace que elegiste al aprobarla.',
+      'Los clientes tienen que usar una dirección de vuelta https o local. Los esquemas de URL propios no están soportados.',
     ],
     outTitle: 'Qué queda afuera',
     outBody: [
@@ -145,12 +145,12 @@ export const MCP_DOCS: Record<'en' | 'es' | 'pt', McpDocsCopy> = {
     ],
     accessTitle: 'O que pode fazer',
     accessBody: [
-      'Passar para outro workspace exige conectar de novo: uma conexão fica no workspace que você escolheu ao aprová-la.',
-      'Os clientes precisam usar um endereço de retorno https ou local. Esquemas de URL próprios não são suportados.',
       'Pode fazer o que você pode fazer, nada mais. Se seu papel, seu acesso por app ou um canal privado param você no app, também param o Claude.',
       'Na tela de permissões você escolhe ler e escrever, ou somente leitura, e o workspace. As operações destrutivas pedem uma confirmação explícita do cliente.',
       'Veja e desconecte seus apps conectados em Ajustes, API e webhooks. As alterações feitas por uma conexão ficam registradas com a pessoa, o app e a operação.',
       'O que volta da zerosoft pode trazer texto escrito por outras pessoas, como mensagens de clientes ou emails. Chega ao Claude marcado como dado, não como instrução. Mesmo assim, revise o que o Claude propõe antes que ele envie ou apague algo.',
+      'Passar para outro workspace exige conectar de novo: uma conexão fica no workspace que você escolheu ao aprová-la.',
+      'Os clientes precisam usar um endereço de retorno https ou local. Esquemas de URL próprios não são suportados.',
     ],
     outTitle: 'O que fica de fora',
     outBody: [

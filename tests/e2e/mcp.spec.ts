@@ -227,11 +227,10 @@ test('el pedido de autorización valida antes de mostrar nada', async ({ page })
   const base = { response_type: 'code', client_id: reg.client_id, redirect_uri: 'https://client.example/cb', code_challenge: 'a'.repeat(43), code_challenge_method: 'S256', resource: ENDPOINT };
   const go = (p: Record<string, string>) => fetch(`${meta.authorization_endpoint}?${new URLSearchParams(p)}`, { redirect: 'manual' });
 
-  // Sin redirect válido no se redirige a ningún lado.
+  // Inválido: siempre a una página nuestra, nunca a una URI que registró cualquiera.
   const wrong = await go({ ...base, redirect_uri: 'https://evil.example/cb' });
-  expect(wrong.status).toBe(400);
-  expect(wrong.headers.get('location')).toBeNull();
-  expect((await go({ ...base, client_id: 'nope' })).status).toBe(400);
+  expect(wrong.headers.get('location')).toContain('/oauth/error?reason=redirect');
+  expect((await go({ ...base, client_id: 'nope' })).headers.get('location')).toContain('/oauth/error?reason=client');
   // PKCE obligatorio, solo S256, y solo este recurso.
   const bads: Array<Record<string, string>> = [{ code_challenge: '' }, { code_challenge_method: 'plain' }, { resource: 'https://other.example/mcp' }, { scope: 'admin' }, { response_type: 'token' }];
   for (const bad of bads) {
@@ -466,6 +465,14 @@ test('fallos: vencido, revocado, reuso de refresh, audiencia ajena', async ({ br
   expect(r1.status).toBe(200);
   const next = (await r1.json()) as Tokens;
   expect(next.refresh_token).not.toBe(a.tokens.refresh_token);
+  // Repetirlo enseguida es un refresh en paralelo: da tokens de la misma conexión y no la corta.
+  expect((await refresh(a.tokens.refresh_token)).status).toBe(200);
+  expect((await new Mcp(next.access_token).raw('tools/list')).status).toBe(200);
+  // Pasada la ventana es reuso.
+  const hash = createHash('sha256').update(a.tokens.refresh_token).digest('hex');
+  const replay = db();
+  await replay.execute({ sql: 'UPDATE oauth_tokens SET used_at = ? WHERE token_hash = ?', args: [new Date(Date.now() - 60_000).toISOString(), hash] });
+  replay.close();
   expect((await refresh(a.tokens.refresh_token)).status).toBe(400);
   // El reuso cortó la conexión entera.
   const after = await new Mcp(next.access_token).raw('tools/list');
@@ -821,11 +828,17 @@ test('ningún 404 en las pantallas de permisos y en la documentación', async ({
   page.on('response', (r) => {
     if (r.status() === 404) missing.push(r.url());
   });
+  page.on('console', (m) => {
+    if (m.type() === 'error') missing.push(`${m.text()} ${m.location().url}`);
+  });
   const s = await startAuthorization(page);
   await page.waitForLoadState('networkidle');
   s.cb.close();
   await page.goto('/en/docs/mcp', { waitUntil: 'networkidle' });
   await page.goto('/en/oauth/device', { waitUntil: 'networkidle' });
+  await page.getByLabel('Code').fill('WRONG-CODE');
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page.locator('.ui-error')).toBeVisible();
   expect(missing).toEqual([]);
   await ctx.close();
 });

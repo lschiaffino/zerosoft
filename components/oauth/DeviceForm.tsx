@@ -36,11 +36,12 @@ export default function DeviceForm({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ code: value, decision: 'lookup' }),
       });
-      if (!res.ok) {
+      const data = res.ok ? ((await res.json()) as { found: boolean; clientName: string; scope: string }) : null;
+      if (data?.found) setFound(data);
+      else {
         setError(t(res.status === 429 ? 'errorTooMany' : 'errorCode'));
         input.current?.focus();
       }
-      else setFound((await res.json()) as { clientName: string; scope: string });
     } catch {
       setError(t('errorGeneric'));
     }
