@@ -1,9 +1,11 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { getAllPosts, getTags, TAG_MIN_POSTS } from '@/lib/blog';
+import { getAllPosts, getTags } from '@/lib/blog';
 import PostGrid from '@/components/blog/PostGrid';
 import TagList from '@/components/blog/TagList';
 import { staticPageMetadata } from '@/lib/seo-pages';
 import { absoluteUrl, breadcrumbLd, graphLd, jsonLdString, localePath } from '@/lib/seo';
+
+const INDEX_TAG_MIN_POSTS = 3;
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
@@ -23,8 +25,8 @@ export default async function BlogIndexPage(props: { params: Promise<{ locale: s
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'common.blog' });
   const posts = getAllPosts(locale);
-  // Solo los temas con más de un post: los demás son páginas finas.
-  const tags = getTags(locale).filter((tag) => tag.count >= TAG_MIN_POSTS);
+  // Los temas con más posts; el resto se llega desde cada post y desde la página de un tema.
+  const tags = getTags(locale).filter((tag) => tag.count >= INDEX_TAG_MIN_POSTS);
 
   const ld = graphLd([
     breadcrumbLd(locale, [

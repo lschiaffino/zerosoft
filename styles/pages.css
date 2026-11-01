@@ -56,6 +56,10 @@
 .hero-field.has-caption { display: flex; flex-direction: column; margin: 0; }
 .hero-field.has-caption .zero-torus { flex: 1; min-height: 0; height: auto; }
 .hero-fig-cap { justify-content: center; gap: 8px 32px; flex-wrap: wrap; margin-top: 0; }
+/* En el teléfono, siempre en dos líneas: con la fuente real no entra en una y el salto movía la página (CLS). */
+@media (max-width: 640px) {
+  .hero-fig-cap { flex-direction: column; align-items: center; }
+}
 @media (max-width: 860px) {
   .hero-field { height: 260px; }
 }

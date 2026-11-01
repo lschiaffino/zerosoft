@@ -3631,7 +3631,7 @@
       },
       "tableTitle": "Capability by capability.",
       "tableTitleDim": "Our count, from the code.",
-      "altCta": "Why teams switch from {competitor}"
+      "altCta": "{competitor} alternative: what you get and what is missing"
     },
     "alt": {
       "metaTitle": "Open-source {competitor} alternative: zerosoft {name}",

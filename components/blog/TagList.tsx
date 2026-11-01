@@ -10,7 +10,7 @@ export default function TagList({ tags, label, current, counts = true }: { tags:
         <li key={tag.slug}>
           <Link href={`/blog/tag/${tag.slug}`} aria-current={tag.slug === current ? 'page' : undefined}>
             {tag.label}
-            {counts && <span className="blog-tag-count data">{tag.count}</span>}
+            {counts && <span className="blog-tag-count">{tag.count}</span>}
           </Link>
         </li>
       ))}

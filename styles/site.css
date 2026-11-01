@@ -514,7 +514,8 @@
 }
 .blog-tags a:hover { border-color: var(--ink); }
 .blog-tags a[aria-current="page"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-.blog-tag-count { font-size: 12px; color: var(--brand-gray-2); }
+/* En la fuente del texto, que viene precargada: la mono llega tarde y al cambiar reacomodaba toda la lista (CLS). */
+.blog-tag-count { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--brand-gray-2); }
 .blog-tags a[aria-current="page"] .blog-tag-count { color: inherit; opacity: 0.7; }
 
 .prose table { display: block; width: 100%; overflow-x: auto; border-collapse: collapse; margin: 1.4em 0 1.8em; font-size: 15px; }

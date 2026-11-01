@@ -169,6 +169,29 @@ test('un tag que no existe en ese idioma lleva al blog; uno que no existe en nin
   expect(res?.status()).toBe(404);
 });
 
+test('el blog y el home no se mueven al cargar (CLS menor a 0,1 a 390 px)', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  for (const path of ['/en/blog', '/en']) {
+    const page = await ctx.newPage();
+    await page.addInitScript(() => {
+      const w = window as unknown as { __cls: number };
+      w.__cls = 0;
+      new PerformanceObserver((list) => {
+        for (const e of list.getEntries() as unknown as { value: number; hadRecentInput: boolean }[]) {
+          if (!e.hadRecentInput) w.__cls += e.value;
+        }
+      }).observe({ type: 'layout-shift', buffered: true });
+    });
+    await page.goto(path, { waitUntil: 'load' });
+    await page.evaluate(() => document.fonts.ready);
+    await page.waitForTimeout(1500);
+    const cls = await page.evaluate(() => (window as unknown as { __cls: number }).__cls);
+    expect(cls, path).toBeLessThan(0.1);
+    await page.close();
+  }
+  await ctx.close();
+});
+
 test('una comparación que no existe da 404', async ({ page }) => {
   const res = await page.goto('/en/compare/zerosoft-vs-nadie');
   expect(res?.status()).toBe(404);
