@@ -8,7 +8,7 @@ import { getOperation } from '@/lib/mcp/catalog';
 import { runAsDelegated } from '@/lib/mcp/identity';
 import { buildRoute, invokeOperation, normalizeArgs, OperationError, paginate } from '@/lib/mcp/invoke';
 import { refusedByFieldPolicy } from '@/lib/mcp/field-policy';
-import { isSecretKey, REDACTED, scrubForPath, scrubLooseText, scrubSecrets, scrubText } from '@/lib/mcp/scrub';
+import { isSecretKey, looksLikeToken, REDACTED, scrubForPath, scrubLooseText, scrubSecrets, scrubText } from '@/lib/mcp/scrub';
 import { handleMcpPost, originAllowed, wrapUntrusted } from '@/lib/mcp/server';
 import {
   activeGrant,
@@ -44,6 +44,10 @@ vi.mock('next-auth', async (orig) => ({ ...(await orig<object>()), getServerSess
 
 process.env.NEXTAUTH_URL = 'https://zerosoft.test';
 process.env.RATE_LIMIT_DISABLED = 'true';
+
+/** Con la forma de un token de verdad (randomBytes(24).toString('base64url')). */
+const SIGN_TOKEN = 'Xq7Lm2Pz9Rt4Vb8Nc1Kd6Wf3Hs0Jg5Ay';
+const HTTP_NODE = 'action.http';
 
 const verifier = () => randomBytes(48).toString('base64url');
 const challenge = (v: string) => createHash('sha256').update(v).digest('base64url');
@@ -428,12 +432,79 @@ describe('permisos sobre operaciones reales', () => {
     expect(JSON.parse(link.content[0].text).error).toBe('web_only');
   });
 
-  it('un texto con la palabra en el medio se guarda; el valor tapado entero no', async () => {
+  it('un texto con [redacted] se guarda; la marca nuestra, en cualquier parte, no', async () => {
     const u = await person('placeholder');
     const { tokens } = await connect(u.id);
     const r = await callTool(tokens.access_token, 'invoke_operation', { operation: 'crm.companies.create', args: { body: { name: 'Name [redacted] per GDPR' } } });
     expect(r.isError).toBeFalsy();
     expect(r.content[0].text).toContain('Name [redacted] per GDPR');
+    for (const name of [REDACTED, `see ${REDACTED} here`]) {
+      const refused = await callTool(tokens.access_token, 'invoke_operation', { operation: 'crm.companies.create', args: { body: { name } } });
+      const body = JSON.parse(refused.content[0].text);
+      expect(body.error).toBe('invalid_arguments');
+      expect(body.message).toContain('in zerosoft');
+    }
+  });
+
+  it.each([
+    ['Notes', 'notes.create', 'notes.get', 'notes.update'],
+  ])('%s: leer, editar y guardar no pisa un link nuestro con la marca', async (_app, create, get, update) => {
+    const u = await person('roundtrip');
+    const { tokens } = await connect(u.id);
+    const link = `https://zerosoft.test/en/sign/${SIGN_TOKEN}`;
+    const content = [{ id: 'b1', type: 'paragraph', content: `Firmá acá: ${link}` }];
+    const created = await callTool(tokens.access_token, 'invoke_operation', { operation: create, args: { body: { title: 'Con link' } } });
+    expect(created.isError, created.content[0].text).toBeFalsy();
+    const openEnvelope = (t: string) => JSON.parse(t.slice(t.indexOf('\n') + 1, t.lastIndexOf('\n'))) as { data: Record<string, unknown> };
+    const made = openEnvelope(created.content[0].text).data;
+    const id = String(made.id ?? (made.page as { id?: string } | undefined)?.id ?? (made.note as { id?: string } | undefined)?.id);
+    const filled = await callTool(tokens.access_token, 'invoke_operation', { operation: update, args: { path: { id }, body: { content } } });
+    expect(filled.isError, filled.content[0].text).toBeFalsy();
+    const read = await callTool(tokens.access_token, 'invoke_operation', { operation: get, args: { path: { id } } });
+    expect(read.content[0].text).toContain(REDACTED);
+    expect(read.content[0].text).not.toContain(SIGN_TOKEN);
+    const edited = `Firmá ya: ${REDACTED}`;
+    const write = await callTool(tokens.access_token, 'invoke_operation', { operation: update, args: { path: { id }, body: { content: [{ id: 'b1', type: 'paragraph', content: edited }] } } });
+    expect(JSON.parse(write.content[0].text).error).toBe('invalid_arguments');
+    // Lo guardado sigue con el link original.
+    const stored = await getDb().prepare(`SELECT 1 AS ok FROM ${create.startsWith('notes') ? 'notes' : 'docs_pages'} WHERE id = ? AND content LIKE ?`).get(id, `%${SIGN_TOKEN}%`);
+    expect(stored).toBeTruthy();
+  });
+
+  it('el webhook de una automatización de Docs se rechaza; otra acción con el mismo cuerpo pasa', async () => {
+    const u = await person('dbhook');
+    const { tokens } = await connect(u.id);
+    const page = await callTool(tokens.access_token, 'invoke_operation', { operation: 'v1.docs.pages.create', args: { body: { title: 'DB' } } });
+    expect(page.isError, page.content[0].text).toBeFalsy();
+    const automation = (action: unknown) => ({ ops: [{ op: 'set_automations', automations: [{ id: 'a1', name: 'A', enabled: true, trigger: { type: 'row_added' }, actions: [action] }] }] });
+    const opArgs = (action: unknown) => ({ operation: 'docs.databases.post', args: { path: { pageId: 'p', blockId: 'b' }, body: automation(action) } });
+    // El cuerpo válido llega al handler (404 de esa base), o sea que no lo frena la política.
+    const allowed = await callTool(tokens.access_token, 'invoke_operation', opArgs({ id: 'x1', type: 'open_url', url: 'https://example.com' }));
+    expect(allowed.content[0].text).toContain('<untrusted_data');
+    const webhook = await callTool(tokens.access_token, 'invoke_operation', opArgs({ id: 'x1', type: 'webhook', url: 'https://example.com/hook' }));
+    expect(JSON.parse(webhook.content[0].text).error).toBe('web_only');
+  });
+
+  it('prender un flow con un paso HTTP pide confirm; el grafo se guarda como vino', async () => {
+    const u = await person('flowhttp');
+    const { tokens } = await connect(u.id);
+    const created = await callTool(tokens.access_token, 'invoke_operation', { operation: 'flow.flows.create', args: { body: { name: 'Sale afuera' } } });
+    const t = created.content[0].text;
+    const flow = JSON.parse(t.slice(t.indexOf('\n') + 1, t.lastIndexOf('\n'))).data as { id: string; graph: { nodes: Array<Record<string, unknown>>; edges: Array<Record<string, unknown>> } };
+    const trigger = flow.graph.nodes[0];
+    const graph = {
+      nodes: [trigger, { id: 'http1', type: HTTP_NODE, position: { x: 200, y: 0 }, config: { url: 'https://example.com/hook', method: 'POST' } }],
+      edges: [{ id: 'e1', source: trigger.id, target: 'http1' }],
+    };
+    const noConfirm = await callTool(tokens.access_token, 'invoke_operation', { operation: 'flow.flows.update', args: { path: { id: flow.id }, body: { graph, enabled: true } } });
+    expect(JSON.parse(noConfirm.content[0].text).error).toBe('confirmation_required');
+    const row0 = (await getDb().prepare('SELECT enabled FROM flow_flows WHERE id = ?').get(flow.id)) as { enabled: number };
+    expect(row0.enabled).toBe(0);
+    const confirmed = await callTool(tokens.access_token, 'invoke_operation', { operation: 'flow.flows.update', args: { path: { id: flow.id }, body: { graph, enabled: true } }, confirm: true });
+    expect(confirmed.isError, confirmed.content[0].text).toBeFalsy();
+    const row = (await getDb().prepare('SELECT enabled, graph FROM flow_flows WHERE id = ?').get(flow.id)) as { enabled: number; graph: string };
+    expect(row.enabled).toBe(1);
+    expect(row.graph).toContain('https://example.com/hook');
   });
 
   it('devolver un valor tapado no pisa el secreto', async () => {
@@ -556,6 +627,24 @@ describe('campos que no se aceptan', () => {
     expect(refusedByFieldPolicy(op('POST', '/api/x'), { a: [{ b: { apiKey: 'k' } }] })).toBeTruthy();
   });
 
+  it('los datos de un invitado no se pasan a una URL puesta desde acá', () => {
+    expect(refusedByFieldPolicy(op('POST', '/api/calendar/routing'), { passAnswers: true })).toBeTruthy();
+    expect(refusedByFieldPolicy(op('PATCH', '/api/calendar/event-types/[id]'), { rules: { redirectPassDetails: true } })).toBeTruthy();
+    expect(refusedByFieldPolicy(op('POST', '/api/calendar/routing'), { title: 'A', passAnswers: false })).toBeNull();
+    // Al crear viene prendido por defecto: lo que no se acepta es la URL.
+    expect(refusedByFieldPolicy(op('POST', '/api/calendar/routing'), { fallbackUrl: 'https://x.example' })).toBeTruthy();
+    expect(refusedByFieldPolicy(op('POST', '/api/calendar/routing/[id]/rules'), { targetUrl: 'https://x.example' })).toBeTruthy();
+    expect(refusedByFieldPolicy(op('PATCH', '/api/calendar/event-types/[id]'), { rules: { redirectUrl: 'https://x.example' } })).toBeTruthy();
+    expect(refusedByFieldPolicy(op('PATCH', '/api/links/[id]'), { url: 'https://x.example' })).toBeNull();
+  });
+
+  it('un invitado de Track se suma desde la web; lo demás de acceso pasa', () => {
+    const access = op('POST', '/api/track/access');
+    expect(refusedByFieldPolicy(access, { action: 'setGuest', email: 'a@example.com', projectIds: ['p'] })).toBeTruthy();
+    expect(refusedByFieldPolicy(access, { action: 'addMember', projectId: 'p', userId: 'u' })).toBeNull();
+    expect(refusedByFieldPolicy(access, { action: 'removeGuest', email: 'a@example.com' })).toBeNull();
+  });
+
   it('webhooks en Cal no; email sí', () => {
     const w = op('PUT', '/api/calendar/event-types/[id]/workflows');
     expect(refusedByFieldPolicy(w, { steps: [{ channel: 'webhook', url: 'https://x.example' }] })).toBeTruthy();
@@ -633,14 +722,14 @@ describe('salida', () => {
       tokens: { a: 'b' },
       trigger: { webhookUrl: 'https://zerosoft.test/api/flow/hooks/abc' },
       note: `usá https://zerosoft.test/api/flow/hooks/${'a'.repeat(32)} o ${['zth', 'b'.repeat(48)].join('_')}`,
-      invite: `https://zerosoft.test/en/invite/${'c'.repeat(24)}`,
-      sign: `https://zerosoft.test/es/sign/${'d'.repeat(24)}`,
+      invite: `https://zerosoft.test/en/invite/${SIGN_TOKEN}`,
+      sign: `https://zerosoft.test/es/sign/${SIGN_TOKEN}`,
       slack: 'https://hooks.slack.com/services/T0/B0/xyz',
       normal: 'https://zerosoft.test/en/app/crm/contacts/abc',
     }) as Record<string, unknown>;
     expect(out.token).toBe(REDACTED);
     expect(out.tokens).toBe(REDACTED);
-    expect(JSON.stringify(out)).not.toMatch(/fh_a|zth_b|hooks\/a|invite\/c|sign\/d|slack\.com/);
+    expect(JSON.stringify(out)).not.toMatch(/fh_a|zth_b|hooks\/a|Xq7Lm2|slack\.com/);
     expect(out.normal).toBe('https://zerosoft.test/en/app/crm/contacts/abc');
   });
 
@@ -672,14 +761,40 @@ describe('salida', () => {
   });
 
   it('las URLs de capacidad también relativas, y con el token en la query', () => {
-    const tok = 'a'.repeat(24);
+    const tok = SIGN_TOKEN;
     expect(scrubText(`url /en/sign/${tok}`)).toBe(`url ${REDACTED}`);
     expect(scrubText(JSON.stringify({ url: `/en/sign/${tok}` }))).not.toContain(tok);
     expect(scrubText(`https://zerosoft.test/en/x?t=${tok}`)).toBe(REDACTED);
     expect(scrubText(`https://zerosoft.test/en/x?a=1&share=${tok}`)).toBe(REDACTED);
     expect(scrubText(`/en/x?token=${tok}`)).toBe(REDACTED);
     expect(scrubText('/en/app/crm/contacts/abc')).toBe('/en/app/crm/contacts/abc');
-    for (const k of ['signature', 'sessionId', 'stripeKey', 'encryptionKey']) expect(isSecretKey(k), k).toBe(true);
+    for (const k of ['signature', 'stripeKey', 'encryptionKey']) expect(isSecretKey(k), k).toBe(true);
+    for (const k of ['sessionId', '$session_id']) expect(isSecretKey(k), k).toBe(false);
+  });
+
+  it('un texto común queda igual; los tokens de cada generador se tapan', () => {
+    for (const t of ['/d/quarterly-report-2026-final', '/view/annual-report-2026-q3', '/watch/how-to-onboard-new-people', '/app/calendar?t=week', '/n/internationalization-guide', 'https://zerosoft.test/en/app/calendar?t=week']) {
+      expect(scrubText(t), t).toBe(t);
+    }
+    const tokens = [
+      randomBytes(24).toString('base64url'),
+      randomBytes(16).toString('hex'),
+      randomBytes(12).toString('base64url'),
+      crypto.randomUUID(),
+      crypto.randomUUID().replace(/-/g, '').slice(0, 20),
+      'V1StGXR8_Z5jdHi6B-myT3xQ',
+    ];
+    for (const t of tokens) {
+      expect(looksLikeToken(t), t).toBe(true);
+      expect(scrubText(`/en/sign/${t}`), t).toBe(REDACTED);
+      expect(scrubText(`https://zerosoft.test/en/d/${t}`), t).toBe(REDACTED);
+    }
+  });
+
+  it('un link en Markdown queda balanceado', () => {
+    const url = `https://zerosoft.test/en/sign/${SIGN_TOKEN}`;
+    expect(scrubText(`[firmar](${url})`)).toBe(`[firmar](${REDACTED})`);
+    expect(scrubText(`[${url}](${url})`)).toBe(`[${REDACTED}](${REDACTED})`);
   });
 
   it('bajo un nombre secreto se tapa también lo que no es texto', () => {

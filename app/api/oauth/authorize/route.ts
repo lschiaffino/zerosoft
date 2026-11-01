@@ -6,6 +6,7 @@ import {
   canonicalResource,
   createAuthRequest,
   getClient,
+  isLoopbackHost,
   issuerUrl,
   mcpResourceUrl,
   parseScope,
@@ -36,8 +37,12 @@ export async function GET(req: NextRequest) {
   const challenge = q.get('code_challenge') ?? '';
   if (q.get('code_challenge_method') !== 'S256' || !/^[A-Za-z0-9_-]{43}$/.test(challenge)) return invalid('pkce');
   const scopes = parseScope(q.get('scope'));
-  // El redirect ya está validado contra el cliente: que el cliente no quede esperando.
-  if (!scopes) return NextResponse.redirect(authorizationRedirect(redirectUri, { error: 'invalid_scope', error_description: 'Supported scopes: read, write.', state }), 302);
+  if (!scopes) {
+    // Una app local está esperando en loopback y ese redirect no lleva a nadie a ningún lado.
+    // Un https lo pudo registrar cualquiera: sin login todavía, no se redirige ahí.
+    if (!isLoopbackHost(new URL(redirectUri).hostname)) return invalid('scope');
+    return NextResponse.redirect(authorizationRedirect(redirectUri, { error: 'invalid_scope', error_description: 'Supported scopes: read, write.', state }), 302);
+  }
   // RFC 8707: el token sale atado a este recurso. Otro recurso no se autoriza.
   const expected = canonicalResource(mcpResourceUrl()) as string;
   if (canonicalResource(q.get('resource') ?? mcpResourceUrl()) !== expected) return invalid('resource');

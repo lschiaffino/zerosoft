@@ -8094,6 +8094,11 @@ export const MIGRATIONS: Migration[] = [
         );
         CREATE INDEX IF NOT EXISTS idx_mcp_audit_user ON mcp_audit_log (user_id, at);
       `);
+      // Una base que ya tenía estas tablas (CREATE IF NOT EXISTS no las toca) queda igual que una nueva.
+      await addColumn(client, `ALTER TABLE oauth_grants ADD COLUMN via TEXT NOT NULL DEFAULT 'code'`);
+      await addColumn(client, 'ALTER TABLE oauth_grants ADD COLUMN redirect_uri TEXT');
+      await addColumn(client, 'ALTER TABLE oauth_tokens ADD COLUMN scope TEXT');
+      await addColumn(client, 'ALTER TABLE oauth_tokens ADD COLUMN replays INTEGER NOT NULL DEFAULT 0');
     },
   },
 ];

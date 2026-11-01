@@ -75,18 +75,21 @@ export interface InvokeResult {
 /** Binarios que pueden volver en base64. Un JSON o un texto disfrazado de binario, no. */
 const INLINE_BINARY = /^(image\/(png|jpe?g|gif|webp|avif)|application\/pdf|audio\/[a-z0-9.+-]+|video\/[a-z0-9.+-]+)$/;
 
-/** Un campo que vuelve con la marca de valor tapado pisaría el secreto de verdad. Tiene que ser el valor entero. */
-function hasRedactedField(value: unknown, depth = 0): boolean {
-  if (value === REDACTED) return true;
-  if (depth > 20 || !value || typeof value !== 'object') return false;
-  return Object.values(value as Record<string, unknown>).some((v) => hasRedactedField(v, depth + 1));
+/** Un texto que trae la marca, entera o en el medio, pisaría lo que quedó tapado: se guardaría la marca para siempre. */
+function hasRedactedMark(value: unknown, depth = 0): boolean {
+  if (typeof value === 'string') return value.includes(REDACTED);
+  if (depth > 40 || !value || typeof value !== 'object') return false;
+  return Object.entries(value as Record<string, unknown>).some(([k, v]) => k.includes(REDACTED) || hasRedactedMark(v, depth + 1));
 }
 
 function assertPolicy(op: Operation, body: unknown): void {
   const refused = refusedByFieldPolicy(op, body);
   if (refused) throw new OperationError('web_only', refused.message, { where: refused.where });
-  if (hasRedactedField(body)) {
-    throw new OperationError('invalid_arguments', `A field in the body is ${REDACTED}, a value hidden from this connection. Leave that field out so it keeps its current value.`);
+  if (hasRedactedMark(body)) {
+    throw new OperationError(
+      'invalid_arguments',
+      `The body contains ${REDACTED}, which stands for something hidden from this connection, such as a private link. Saving it would replace the original. Change only the fields around it, leaving that field out, or make this edit in zerosoft.`,
+    );
   }
 }
 

@@ -234,10 +234,14 @@ test('el pedido de autorización valida antes de mostrar nada', async ({ page })
   expect((await go({ ...base, client_id: 'nope' })).headers.get('location')).toContain('/oauth/error?reason=client');
   // PKCE obligatorio, solo S256, y solo este recurso.
   const bads: Array<Record<string, string>> = [{ code_challenge: '' }, { code_challenge_method: 'plain' }, { resource: 'https://other.example/mcp' }, { response_type: 'token' }];
-  // Un scope inválido, con el redirect ya validado, vuelve al cliente con el error.
+  // Un scope inválido: a un https registrado no se redirige sin login, va a nuestra página.
   const scoped = await go({ ...base, scope: 'admin', state: 's1' });
-  const back = new URL(scoped.headers.get('location')!);
-  expect(back.origin).toBe('https://client.example');
+  expect(scoped.headers.get('location')).toContain('/oauth/error?reason=scope');
+  // A una app local sí, que está esperando en loopback.
+  const local = (await (await fetch(meta.registration_endpoint, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ redirect_uris: ['http://127.0.0.1:9/callback'] }) })).json()) as { client_id: string };
+  const localBack = await go({ ...base, client_id: local.client_id, redirect_uri: 'http://127.0.0.1:9/callback', scope: 'admin', state: 's1' });
+  const back = new URL(localBack.headers.get('location')!);
+  expect(back.origin).toBe('http://127.0.0.1:9');
   expect(back.searchParams.get('error')).toBe('invalid_scope');
   expect(back.searchParams.get('state')).toBe('s1');
   for (const bad of bads) {
@@ -516,6 +520,29 @@ test('fallos: vencido, revocado, reuso de refresh, audiencia ajena', async ({ br
   expect((await keyMcp.op('docs.pages.list')).error?.error).toBe('insufficient_scope');
   client.close();
   await ctx.close();
+});
+
+test('leer, editar y guardar una página con un link nuestro no lo pisa', async ({ page }) => {
+  const { tokens } = await connect(page, 'read write', `Round ${uid()}`);
+  const mcp = new Mcp(tokens.access_token);
+  const token = 'Xq7Lm2Pz9Rt4Vb8Nc1Kd6Wf3Hs0Jg5Ay';
+  const link = `${BASE}/en/sign/${token}`;
+  const made = await mcp.op('docs.pages.create', { body: { title: `Link ${uid()}` } });
+  expect(made.ok, JSON.stringify(made)).toBe(true);
+  const id = made.data.id;
+  const filled = await mcp.op('docs.pages.update', { path: { id }, body: { content: [{ id: 'b1', type: 'paragraph', content: `Firmá: ${link}` }] } });
+  expect(filled.ok, JSON.stringify(filled)).toBe(true);
+  const read = await mcp.op('docs.pages.get', { path: { id } });
+  const text = JSON.stringify(read.data);
+  expect(text).toContain('[redacted by zerosoft]');
+  expect(text).not.toContain(token);
+  const edited = await mcp.op('docs.pages.update', { path: { id }, body: { content: [{ id: 'b1', type: 'paragraph', content: 'Firmá ya: [redacted by zerosoft]' }] } });
+  expect(edited.error?.error).toBe('invalid_arguments');
+  // Sigue guardado el link original, y [redacted] a secas se puede escribir.
+  const stored = await page.request.get(`/api/docs/pages/${id}`);
+  expect(await stored.text()).toContain(token);
+  const plain = await mcp.op('docs.pages.update', { path: { id }, body: { title: 'Nombre [redacted] por GDPR' } });
+  expect(plain.ok, JSON.stringify(plain)).toBe(true);
 });
 
 test('solo lectura: nunca recibe algo que le permita escribir', async ({ browser }) => {

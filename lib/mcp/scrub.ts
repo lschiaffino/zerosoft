@@ -28,7 +28,7 @@ const SECRET_WORDS = new Set([
 ]);
 const SECRET_PAIRS = new Set([
   'api key', 'private key', 'signing key', 'client key', 'auth key', 'write key', 'stripe key', 'encryption key', 'secret key', 'access key',
-  'session id', 'webhook url', 'hook url', 'invite url',
+  'webhook url', 'hook url', 'invite url',
 ]);
 
 /** Después del nombre secreto no cambian lo que es: token_hash, secret_value, password_enc. */
@@ -86,7 +86,9 @@ const SECRET_VALUE: RegExp[] = [
 
 // ---------- URLs que son una credencial ----------
 
-const URL_END = `[^\\s"'<>)]*`;
+// Sin corchetes ni paréntesis: un link en Markdown queda balanceado.
+const URL_END = `[^\\s"'<>()\\[\\]]*`;
+const URL_CHAR = `[^\\s"'<>()\\[\\]]`;
 /** Páginas con [token]: quien tiene el link firma, aprueba o entra sin sesión. */
 const TOKEN_PAGES = 'm|sign|d|q|b/e|b|n|invite|view|watch|stats|flow/approve|flow/form|book/manage|app/docs/invite';
 const TOKEN_APIS = 'flow/(?:hooks|resume|approvals)|talk/hooks|groups/webhook|boards/guest|crm/(?:d|v|t/[cuo])|calendar/poll-votes|books/public|sign/public|crm/quotes/public';
@@ -105,31 +107,60 @@ function ownHosts(): string {
   return [...hosts].map(escapeRe).join('|');
 }
 
-let cached: { hosts: string; patterns: RegExp[] } | null = null;
+/**
+ * ¿Es un token o un texto? Los tokens salen de randomBytes(n).toString('base64url'
+ * o 'hex'), nanoid y randomUUID: largos, sin palabras. quarterly-report-2026-final
+ * y how-to-onboard-new-people son slugs, y week no es nada.
+ */
+export function looksLikeToken(value: string): boolean {
+  if (value.length < 16) return false;
+  if (/^[0-9a-f]{16,}$/i.test(value) || /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value)) return true;
+  const parts = value.split(/[-_]+/).filter(Boolean);
+  const isWordy = parts.every((p) => /^[A-Z]?[a-z]+\d{0,4}$/.test(p) || /^\d{1,8}$/.test(p));
+  return !isWordy;
+}
+
+interface CapabilityPatterns {
+  hosts: string;
+  always: RegExp[];
+  /** El grupo 1 es el valor que tiene que parecer un token. */
+  ifToken: RegExp[];
+}
+
+let cached: CapabilityPatterns | null = null;
 
 /** Solo sobre nuestro dominio (absoluto o relativo) y los hooks de terceros conocidos. Otro host pasa. */
-function capabilityUrls(): RegExp[] {
+function capabilityUrls(): CapabilityPatterns {
   const hosts = ownHosts();
-  if (cached?.hosts === hosts) return cached.patterns;
+  if (cached?.hosts === hosts) return cached;
   const own = `(?:https?://(?:${hosts}))`;
   const start = `(?:${own}|(?<![\\w/.:-]))`;
-  const patterns = [
-    new RegExp(`${start}/(?:(?:en|es|pt)/)?(?:${TOKEN_PAGES})/[A-Za-z0-9_-]{16,}${URL_END}`, 'g'),
-    new RegExp(`${start}/api/(?:${TOKEN_APIS})/[^\\s"'<>)]+`, 'g'),
-    new RegExp(`${start}/[^\\s"'<>)?]*\\?(?:[^\\s"'<>)]*&)?(?:t|share|token)=[^\\s"'<>)]+`, 'g'),
-    /https?:\/\/hooks\.slack\.com\/[^\s"'<>)]+/g,
-    /https?:\/\/(?:[a-z]+\.)?discord(?:app)?\.com\/api\/webhooks\/[^\s"'<>)]+/g,
-    /https?:\/\/[^\s"'<>:/@]+:[^\s"'<>@/]+@[^\s"'<>)]+/g,
-  ];
-  cached = { hosts, patterns };
-  return patterns;
+  cached = {
+    hosts,
+    ifToken: [
+      new RegExp(`${start}/(?:(?:en|es|pt)/)?(?:${TOKEN_PAGES})/([A-Za-z0-9_-]{16,})${URL_END}`, 'g'),
+      new RegExp(`${start}/[^\\s"'<>()\\[\\]?]*\\?(?:${URL_CHAR}*&)?(?:t|share|token)=([A-Za-z0-9_-]+)${URL_END}`, 'g'),
+    ],
+    always: [
+      new RegExp(`${start}/api/(?:${TOKEN_APIS})/${URL_CHAR}+`, 'g'),
+      /https?:\/\/hooks\.slack\.com\/[^\s"'<>()[\]]+/g,
+      /https?:\/\/(?:[a-z]+\.)?discord(?:app)?\.com\/api\/webhooks\/[^\s"'<>()[\]]+/g,
+      /https?:\/\/[^\s"'<>:/@]+:[^\s"'<>@/]+@[^\s"'<>()[\]]+/g,
+    ],
+  };
+  return cached;
 }
 
 export function scrubText(text: string): string {
   let out = text;
-  for (const re of [...SECRET_VALUE, ...capabilityUrls()]) {
+  const urls = capabilityUrls();
+  for (const re of [...SECRET_VALUE, ...urls.always]) {
     re.lastIndex = 0;
     out = out.replace(re, REDACTED);
+  }
+  for (const re of urls.ifToken) {
+    re.lastIndex = 0;
+    out = out.replace(re, (match, value: string) => (looksLikeToken(value) ? REDACTED : match));
   }
   return out;
 }

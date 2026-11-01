@@ -39,7 +39,17 @@ const REFUSED_FIELDS = new Set([
   'smtpPassword',
   'smtp_pass',
   'headerValue',
+  // Le suman datos de un invitado a una URL: siguen andando después de desconectar.
+  'redirectPassDetails',
+  'passAnswers',
 ]);
+
+/** Campos que solo se rechazan en esas rutas: la URL a la que van los datos de otra persona. */
+const REFUSED_BY_ROUTE: Array<[RegExp, string[]]> = [
+  // Sus respuestas viajan a esta URL (pass_answers viene prendido por defecto al crear).
+  [/^\/api\/calendar\/routing(\/|$)/, ['fallbackUrl', 'targetUrl']],
+  [/^\/api\/(v1\/)?calendar\/event-types(\/|$)/, ['redirectUrl']],
+];
 
 /**
  * Armar una automatización es un uso central: el grafo de un flow lleva sus
@@ -48,31 +58,38 @@ const REFUSED_FIELDS = new Set([
  */
 const AUTOMATIONS = /^\/api\/(flow\/flows|crm\/workflows|robots)(\/|$)/;
 
-function findRefusedField(value: unknown, depth = 0): string | null {
-  if (depth > 20 || !value || typeof value !== 'object') return null;
+function findRefusedField(value: unknown, names: ReadonlySet<string>, depth = 0): string | null {
+  if (depth > 40 || !value || typeof value !== 'object') return null;
   if (Array.isArray(value)) {
     for (const item of value) {
-      const hit = findRefusedField(item, depth + 1);
+      const hit = findRefusedField(item, names, depth + 1);
       if (hit) return hit;
     }
     return null;
   }
   for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-    if (REFUSED_FIELDS.has(k) && v !== undefined && v !== null && v !== '' && v !== false) return k;
-    const hit = findRefusedField(v, depth + 1);
+    if (names.has(k) && v !== undefined && v !== null && v !== '' && v !== false) return k;
+    const hit = findRefusedField(v, names, depth + 1);
     if (hit) return hit;
   }
   return null;
+}
+
+/** Un paso o una acción que llama a una URL: { type: 'webhook', url } en Docs, { channel: 'webhook' } en Cal. */
+function hasWebhookStep(value: unknown, depth = 0): boolean {
+  if (depth > 40 || !value || typeof value !== 'object') return false;
+  if (Array.isArray(value)) return value.some((v) => hasWebhookStep(v, depth + 1));
+  const o = value as Record<string, unknown>;
+  if (o.type === 'webhook' || o.channel === 'webhook') return true;
+  return Object.values(o).some((v) => hasWebhookStep(v, depth + 1));
 }
 
 /** Reglas que dependen del valor. Clave: "METHOD /api/ruta". */
 const VALUE_RULES: Record<string, (body: Record<string, unknown>) => FieldRefusal | null> = {
   'POST /api/sign/envelopes/[id]/actions': (b) =>
     b.action === 'sign_link' ? { message: 'A signing link works without a session, so it is opened from zerosoft: Sign, the envelope.', where: 'Sign, the envelope' } : null,
-  'PUT /api/calendar/event-types/[id]/workflows': (b) =>
-    JSON.stringify(b.steps ?? b.workflows ?? b).includes('"channel":"webhook"')
-      ? { message: 'A webhook step is added in zerosoft: Cal, the event type. Email and SMS steps work here.', where: 'Cal, the event type' }
-      : null,
+  'POST /api/track/access': (b) =>
+    b.action === 'setGuest' ? { message: 'Adding a guest gives lasting access, so it is done in zerosoft: Track, project access. The other access changes work here.', where: 'Track, project access' } : null,
   'PATCH /api/teams/members/[userId]': (b) =>
     b.role === 'admin' || b.role === 'owner' ? { message: 'Giving someone the admin or owner role is done in zerosoft: Settings, Members.', where: 'Settings, Members' } : null,
 };
@@ -82,7 +99,11 @@ export function refusedByFieldPolicy(op: Pick<Operation, 'method' | 'path'>, bod
   const byValue = VALUE_RULES[`${op.method} ${op.path}`]?.(asObject);
   if (byValue) return byValue;
   if (AUTOMATIONS.test(op.path)) return null;
-  const field = findRefusedField(body);
+  if (hasWebhookStep(body)) {
+    return { message: 'A webhook step calls an address with your data and keeps running after you disconnect, so it is added in zerosoft. Other steps and actions work here.', where: 'the settings of this item in zerosoft' };
+  }
+  const byRoute = REFUSED_BY_ROUTE.filter(([re]) => re.test(op.path)).flatMap(([, names]) => names);
+  const field = findRefusedField(body, REFUSED_FIELDS) ?? (byRoute.length ? findRefusedField(body, new Set(byRoute)) : null);
   if (!field) return null;
   return {
     message: `The field ${field} holds an address the server would call, or the key of another service, so it is set in zerosoft. The rest of this operation works here without it.`,
