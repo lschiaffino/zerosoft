@@ -12,7 +12,7 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,48 +22,50 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
-      - run: npx vitest run tests/unit/mcp-catalog.test.ts tests/unit/mcp-oauth.test.ts tests/unit/mcp-cli.test.ts
-      - name: Build with the lazy imports
+      - run: npm test
+      - run: npm run build
         env:
           NEXTAUTH_SECRET: ci-build-secret
-        run: |
-          sudo apt-get install -y time >/dev/null
-          /usr/bin/time -v npx next build > /tmp/build.log 2>&1 || { tail -40 /tmp/build.log; exit 1; }
-          grep -E 'Compiled|Elapsed|Maximum resident' /tmp/build.log
-      - name: Measure MCP weight
-        run: |
-          node -e "
-          const fs=require('fs'),path=require('path');
-          const m=JSON.parse(fs.readFileSync('.next/routes-manifest.json','utf8'));
-          console.log('dynamicRoutes',m.dynamicRoutes.length,'estimated vercel routes',95+3*m.dynamicRoutes.length);
-          const size=(f)=>{const n=f+'.nft.json';const j=JSON.parse(fs.readFileSync(n,'utf8'));let t=fs.statSync(f).size;for(const x of j.files){try{const s=fs.statSync(path.resolve(path.dirname(f),x));if(s.isFile())t+=s.size}catch{}}return t};
-          const walk=(d,o=[])=>{for(const e of fs.readdirSync(d,{withFileTypes:true})){const p=path.join(d,e.name);if(e.isDirectory())walk(p,o);else if(e.name==='route.js'||e.name==='page.js')o.push(p)}return o};
-          const r=walk('.next/server/app').filter(f=>fs.existsSync(f+'.nft.json')).map(f=>[size(f),f]).sort((a,b)=>b[0]-a[0]);
-          console.log(r.slice(0,8).map(([s,f])=>(s/1048576).toFixed(1)+' MB '+f).join('\\n'));
-          console.log('api/mcp', ((r.find(x=>x[1].endsWith('api/mcp/route.js'))||[0])[0]/1048576).toFixed(1),'MB');
-          console.log('server chunks',fs.readdirSync('.next/server/chunks').length);
-          "
-          du -sh .next/server .next/server/chunks
+      # En un tar: .next es una carpeta oculta y lleva symlinks, que el artifact no conserva sueltos.
+      - run: tar -cf next-build.tar --exclude=.next/cache .next
+      - uses: actions/upload-artifact@v4
+        with:
+          name: next-build
+          path: next-build.tar
+          retention-days: 1
+          compression-level: 1
+
+  e2e:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: next-build
+      - run: tar -xf next-build.tar && rm next-build.tar
       - run: npx playwright install --with-deps chromium
-      - name: MCP e2e
-        run: mkdir -p mcp-shots && npx playwright test tests/e2e/mcp.spec.ts --workers=1 --retries=0
+      # Un worker por shard: los tests comparten el workspace demo de la base de cada corrida.
+      - run: npx playwright test --shard=${{ matrix.shard }}/4
         env:
           CI: 'true'
-          MCP_SHOTS_DIR: mcp-shots
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: ${{ !success() }}
         with:
-          name: mcp-shots
-          path: mcp-shots/
-          retention-days: 7
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
           path: |
             playwright-report/
             test-results/
-          include-hidden-files: true
           retention-days: 7
 
   docker:
@@ -80,3 +82,16 @@ jobs:
           for i in $(seq 1 30); do curl -sf http://localhost:3000/en >/dev/null && break; sleep 2; done
           curl -sf -o /dev/null -w "%{http_code}\n" http://localhost:3000/en
           docker logs zs | tail -20
+
+  # Nombre estable para exigir un solo check, sea cual sea la cantidad de shards.
+  ci-result:
+    name: CI result
+    needs: [check, e2e, docker]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "check=${{ needs.check.result }} e2e=${{ needs.e2e.result }} docker=${{ needs.docker.result }}"
+          test "${{ needs.check.result }}" = success
+          test "${{ needs.e2e.result }}" = success
+          test "${{ needs.docker.result }}" = success
