@@ -23,22 +23,11 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npx vitest run tests/unit/mcp-catalog.test.ts tests/unit/mcp-oauth.test.ts tests/unit/mcp-cli.test.ts
-      - name: Baseline build without the lazy imports
-        env:
-          NEXTAUTH_SECRET: ci-build-secret
-        run: |
-          sudo apt-get install -y time >/dev/null
-          cp lib/mcp/route-table.generated.ts /tmp/route-table.ts
-          printf 'export const ROUTE_TABLE: Record<string, () => Promise<unknown>> = {};\n' > lib/mcp/route-table.generated.ts
-          rm -rf .next
-          /usr/bin/time -v npx next build 2>&1 | grep -E 'Compiled|Elapsed|Maximum resident' || true
-          du -sh .next/server || true
-          cp /tmp/route-table.ts lib/mcp/route-table.generated.ts
-          rm -rf .next
       - name: Build with the lazy imports
         env:
           NEXTAUTH_SECRET: ci-build-secret
         run: |
+          sudo apt-get install -y time >/dev/null
           /usr/bin/time -v npx next build > /tmp/build.log 2>&1 || { tail -40 /tmp/build.log; exit 1; }
           grep -E 'Compiled|Elapsed|Maximum resident' /tmp/build.log
       - name: Measure MCP weight
@@ -74,6 +63,7 @@ jobs:
           path: |
             playwright-report/
             test-results/
+          include-hidden-files: true
           retention-days: 7
 
   docker:

@@ -202,8 +202,6 @@ const tmpEnv = () => ({ ZEROSOFT_CONFIG_DIR: fs.mkdtempSync(path.join(os.tmpdir(
 
 // ---------- Tests ----------
 
-test.describe.configure({ mode: 'serial' });
-
 test('metadatos de descubrimiento', async () => {
   for (const p of ['/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/api/mcp', '/.well-known/oauth-authorization-server']) {
     const res = await fetch(`${BASE}${p}`);
@@ -387,6 +385,8 @@ test('login completo, herramientas, y operaciones en muchas apps vistas en el na
 
     const blocked = await mcp.op(c.remove, { path: { id } });
     expect(blocked.error?.error, c.app).toBe('confirmation_required');
+    // Una nota se borra en dos pasos, como en la app: papelera y después definitivo.
+    if (c.app === 'notes') expect((await mcp.op('notes.update', { path: { id }, body: { trashed: true } })).ok).toBe(true);
     const removed = await mcp.op(c.remove, { path: { id } }, { confirm: true });
     expect(removed.ok, `${c.app} delete: ${JSON.stringify(removed)}`).toBe(true);
     await page.goto(c.list);
@@ -632,6 +632,7 @@ test('CLI: login, descubrir, CRUD en muchas apps, salida y códigos', async ({ p
     const noConfirm = await cli(sub(c.del), env);
     expect(noConfirm.code, c.app).toBe(2);
     expect(noConfirm.stderr).toContain('destructive');
+    if (c.app === 'notes') expect((await cli(sub(['notes', 'update', 'ID', '--trashed', 'true']), env)).code).toBe(0);
     const del = await cli([...sub(c.del), '--confirm'], env);
     expect(del.code, `${c.app}: ${del.stdout} ${del.stderr}`).toBe(0);
     await page.goto(c.list);
