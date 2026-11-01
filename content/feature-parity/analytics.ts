@@ -96,9 +96,9 @@ const parity: ProductParity = {
     }),
     row('sdks', 'ingest', ['SDKs for other platforms', 'SDKs para otras plataformas', 'SDKs para outras plataformas'], 'partial', {
       detail: [
-        'Browser JavaScript, plain HTTP and the PostHog capture and flags routes. No SDKs of our own for servers or mobile',
-        'JavaScript de navegador, HTTP y las rutas de captura y flags de PostHog. Sin SDKs propios de servidor ni mobile',
-        'JavaScript de navegador, HTTP e as rotas de captura e flags do PostHog. Sem SDKs próprios de servidor nem mobile',
+        'Browser JavaScript and plain HTTP. The posthog-node SDK works against our host for capture, identify, flags and payloads; other PostHog SDKs were not tried. No SDKs of our own for servers or mobile',
+        'JavaScript de navegador y HTTP. El SDK posthog-node funciona contra nuestro host para captura, identify, flags y payloads; otros SDKs de PostHog no se probaron. Sin SDKs propios de servidor ni mobile',
+        'JavaScript de navegador e HTTP. O SDK posthog-node funciona com nosso host para captura, identify, flags e payloads; outros SDKs do PostHog não foram testados. Sem SDKs próprios de servidor nem mobile',
       ],
     }),
     row('group-analytics', 'ingest', ['Group analytics', 'Analítica por grupos', 'Analytics por grupos'], 'partial', {

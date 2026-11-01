@@ -1,3 +1,4 @@
+import { gzipSync } from 'zlib';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { getDb, upsertUser } from '@/lib/db';
 import { nanoid } from 'nanoid';
@@ -205,6 +206,17 @@ describe('analytics: bots', () => {
     expect(human.stored).toBe(1);
     const n = (await getDb().prepare('SELECT COUNT(*) AS n FROM analytics_events WHERE project_id = ?').get(p.id)) as { n: number };
     expect(Number(n.n)).toBe(1);
+  });
+});
+
+describe('analytics: lotes en gzip de los SDKs de servidor', () => {
+  it('guarda lo que llega comprimido y corta una bomba de compresión', async () => {
+    const { project: p } = await newProject();
+    const post = (body: Buffer) => handleCapture(new Request('http://x/api/ingest/batch', { method: 'POST', headers: { 'content-encoding': 'gzip', origin: 'http://shop.test' }, body }));
+    const ok = await post(gzipSync(JSON.stringify({ api_key: p.public_key, batch: [{ event: 'gz', distinct_id: 'a' }] })));
+    expect((await ok.json()).stored).toBe(1);
+    const bomb = await post(gzipSync(JSON.stringify({ api_key: p.public_key, event: 'x', distinct_id: 'a', properties: { pad: 'a'.repeat(5_000_000) } })));
+    expect(bomb.status).toBe(413);
   });
 });
 

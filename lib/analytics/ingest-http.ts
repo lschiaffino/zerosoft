@@ -5,6 +5,7 @@
  * de personas y un batch de escritura. CORS abierto (el snippet corre en el
  * sitio del cliente); el origen se controla con la lista de dominios.
  */
+import { gunzipSync } from 'zlib';
 import { NextResponse } from 'next/server';
 import { extractBearer } from '../api-auth';
 import { ensureMigrated, getClient } from '../db';
@@ -66,6 +67,18 @@ export function preflight(req: Request): Response {
 async function readBody(req: Request): Promise<string | null> {
   const len = Number(req.headers.get('content-length') ?? 0);
   if (len > INGEST_LIMITS.maxBodyBytes) return null;
+  // Los SDKs de servidor mandan gzip. El tope vale para lo descomprimido también.
+  const gzipped = /gzip/i.test(req.headers.get('content-encoding') ?? '') || /gzip/i.test(new URL(req.url).searchParams.get('compression') ?? '');
+  if (gzipped) {
+    const raw = Buffer.from(await req.arrayBuffer().catch(() => new ArrayBuffer(0)));
+    if (raw.length > INGEST_LIMITS.maxBodyBytes) return null;
+    try {
+      return gunzipSync(raw, { maxOutputLength: INGEST_LIMITS.maxBodyBytes }).toString('utf8');
+    } catch (err) {
+      if ((err as { code?: string }).code === 'ERR_BUFFER_TOO_LARGE') return null;
+      return raw.toString('utf8');
+    }
+  }
   const text = await req.text().catch(() => '');
   return text.length > INGEST_LIMITS.maxBodyBytes ? null : text;
 }
