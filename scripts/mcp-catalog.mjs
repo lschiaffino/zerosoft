@@ -2,7 +2,7 @@
 /**
  * Genera el catálogo de operaciones del MCP unificado (docs/mcp.md):
  *   lib/mcp/catalog.generated.ts     operaciones con esquema, clase y calidad (JSON en un string: tsc no lo infiere)
- *   lib/mcp/route-table.generated.ts carga perezosa del handler real de cada ruta
+ *   lib/mcp/route-table.generated.ts y lib/mcp/routes/ carga perezosa, por familia, del handler real de cada ruta
  *
  * Lee con el compilador de TypeScript cada route handler de app/api y
  * lib/routes: métodos exportados, parámetros de path, query (searchParams) y
@@ -753,18 +753,45 @@ for (const file of files) {
 
 ops.sort((a, b) => a.id.localeCompare(b.id));
 
+// Un import perezoso por familia, no por ruta: unos 1.100 chunks asíncronos dejaban al build
+// de webpack al borde del límite de memoria. Abrir una operación carga su familia.
 const used = [...new Set(ops.map((o) => o.path))].sort();
+const familyOf = (u) => u.split('/')[2];
+const families = [...new Set(used.map(familyOf))].sort();
+const routesDir = path.join(ROOT, 'lib/mcp/routes');
+fs.rmSync(routesDir, { recursive: true, force: true });
+fs.mkdirSync(routesDir, { recursive: true });
+const moduleName = (family) => family.replace(/[^a-z0-9]+/gi, '-');
+for (const family of families) {
+  const members = used.filter((u) => familyOf(u) === family);
+  const file = [
+    '// Generado por scripts/mcp-catalog.mjs: no editar a mano.',
+    ...members.map((u, i) => `import * as r${i} from ${JSON.stringify(`@/${routeFiles[u].replace(/\.tsx?$/, '')}`)};`),
+    '',
+    'export const routes: Record<string, unknown> = {',
+    ...members.map((u, i) => `  ${JSON.stringify(u)}: r${i},`),
+    '};',
+    '',
+  ];
+  fs.writeFileSync(path.join(routesDir, `${moduleName(family)}.generated.ts`), file.join('\n'));
+}
 const lines = [
   '// Generado por scripts/mcp-catalog.mjs: no editar a mano.',
   '// Carga perezosa del handler real de cada ruta del catálogo: el MCP solo puede llegar a estas.',
   '',
-  'export const ROUTE_TABLE: Record<string, () => Promise<unknown>> = {',
+  'type Family = () => Promise<{ routes: Record<string, unknown> }>;',
+  '',
+  'const FAMILIES: Record<string, Family> = {',
+  ...families.map((f) => `  ${JSON.stringify(f)}: () => import(${JSON.stringify(`./routes/${moduleName(f)}.generated`)}),`),
+  '};',
+  '',
+  'const PATHS: string[] = ' + JSON.stringify(used) + ';',
+  '',
+  'export const ROUTE_TABLE: Record<string, () => Promise<unknown>> = Object.fromEntries(',
+  "  PATHS.map((path) => [path, async () => (await FAMILIES[path.split('/')[2]]()).routes[path]]),",
+  ');',
+  '',
 ];
-for (const u of used) {
-  const f = routeFiles[u].replace(/\.tsx?$/, '');
-  lines.push(`  ${JSON.stringify(u)}: () => import(${JSON.stringify(`@/${f}`)}),`);
-}
-lines.push('};', '');
 fs.writeFileSync(path.join(ROOT, 'lib/mcp/route-table.generated.ts'), lines.join('\n'));
 
 const catalog = {

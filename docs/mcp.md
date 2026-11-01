@@ -11,7 +11,7 @@ Un endpoint, `POST /api/mcp`, llega a todas las apps con la identidad de la pers
 | Ejecutar una operación | `lib/mcp/invoke.ts` |
 | Identidad delegada (AsyncLocalStorage) | `lib/mcp/identity.ts`, leída por `lib/session.ts` y `requireApiUser` |
 | Secretos fuera de las respuestas | `lib/mcp/scrub.ts` |
-| Catálogo generado | `lib/mcp/catalog.generated.ts`, `lib/mcp/route-table.generated.ts` |
+| Catálogo generado | `lib/mcp/catalog.generated.ts`, `lib/mcp/route-table.generated.ts`, `lib/mcp/routes/` (un import perezoso por familia, por la memoria del build) |
 | Exclusiones y correcciones de clase | `lib/mcp/excludes.mjs` |
 | Esquemas a mano | `lib/mcp/hand-schemas.mjs` |
 | Servidor OAuth | `lib/oauth/`, `app/api/oauth/*`, `app/.well-known/*` |
