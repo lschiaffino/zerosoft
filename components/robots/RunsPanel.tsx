@@ -646,7 +646,7 @@ function FailureCapture({
           <figcaption>{t('screenshot')}</figcaption>
         </figure>
       )}
-      {failure.dom && (
+      {failure.dom && failure.url !== 'about:blank' && (
         <div className="robots-var">
           <span className="robots-var-name">{failure.matched ? t('domElement') : t('domPage')}</span>
           <pre className="robots-json data">{failure.dom}</pre>

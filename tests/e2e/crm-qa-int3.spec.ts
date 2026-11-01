@@ -55,7 +55,8 @@ test.describe('a 390px', () => {
     );
     await page.goto('/en/app/crm/contacts', { waitUntil: 'networkidle' });
     const card = page.locator('.crm-cards tbody tr').filter({ hasText: last });
-    await expect(card.getByText('+54 9 11 5555-0100')).toBeVisible();
+    // En la tarjeta el teléfono va como ícono (una sola línea); el número formateado se ve en la ficha, abajo.
+    await expect(card.getByRole('link', { name: 'Call' }).first()).toBeVisible();
     await card.getByRole('link', { name: 'Call' }).first().evaluate((a) => a.addEventListener('click', (e) => e.preventDefault()));
     await card.getByRole('link', { name: 'Call' }).first().click();
     const log = page.getByRole('form', { name: 'Log this touch' });

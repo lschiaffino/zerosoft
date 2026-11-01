@@ -3255,13 +3255,13 @@ section.pb-body, section.pb-qs, section.pb-runs { padding: 0; }
   /* El teléfono va en un div propio: que llene la línea para que sus botones queden bajo el del email. */
   .crm-cards tbody td.cell-sub { max-width: none; margin-top: 0; }
   /* Contactos: teléfono, WhatsApp y email en una sola línea de íconos, con el email de texto al lado. */
-  .crm-cards tbody tr:has(.card-contact-email, .card-contact-phone) { grid-template-columns: 32px auto auto minmax(0, 1fr) auto; }
-  .crm-cards tbody tr:has(.card-contact-email, .card-contact-phone) td[data-card='main'] { grid-column: 2 / 5; }
-  .crm-cards tbody tr:has(.card-contact-email, .card-contact-phone) td[data-card='state'] { grid-column: 5; }
-  .crm-cards tbody td.card-contact-phone { grid-column: 2; grid-row: 2; }
+  .crm-cards tbody tr:has(.card-contact-email, .card-contact-phone) { grid-template-columns: 32px auto minmax(0, 1fr) auto; }
+  .crm-cards tbody tr:has(.card-contact-email, .card-contact-phone) td[data-card='main'] { grid-column: 2 / 4; }
+  .crm-cards tbody tr:has(.card-contact-email, .card-contact-phone) td[data-card='state'] { grid-column: 4; }
+  .crm-cards tbody td.card-contact-phone { grid-column: 2; grid-row: 2; padding-right: 0; }
   .crm-cards tbody td.card-contact-phone > .cell-inline { display: none; }
-  .crm-cards tbody td.card-contact-email { grid-column: 3 / -1; grid-row: 2; }
-  .crm-cards tbody tr:not(:has(.card-contact-phone .cell-quick)) td.card-contact-email { grid-column: 2 / -1; }
+  .crm-cards tbody td.card-contact-email { grid-column: 3 / -1; grid-row: 2; padding-left: 0; }
+  .crm-cards tbody tr:not(:has(.card-contact-phone .cell-quick)) td.card-contact-email { grid-column: 2 / -1; padding-left: 8px; }
   .crm-cards tbody td.card-contact-email > .cell-quick { order: -1; margin-left: 0; }
   .crm-cards tbody td.card-contact-email > .cell-inline { order: 0; }
   .crm-cards tbody td.card-contact-phone .phone-touch.is-compact { margin-left: 0; }

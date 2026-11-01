@@ -625,9 +625,10 @@
 .parity-list li > a { grid-column: 3; white-space: nowrap; }
 .parity-list li span { color: var(--brand-gray-1); font-size: 14px; line-height: 1.5; }
 .parity-beyond .parity-list li { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
+section.parity-beyond { padding-top: 0; padding-bottom: 0; margin-top: 48px; }
 .parity-beyond .parity-h3 { margin-bottom: 12px; }
 .parity-missing { margin-top: 48px; border-top: var(--stroke-rule) solid var(--brand-ink); max-width: 960px; }
-.parity-all { margin-top: 48px; border-top: var(--stroke-rule) solid var(--brand-ink); }
+.parity-all { border-bottom: 1px solid var(--line); }
 .parity-all summary { display: flex; align-items: center; gap: 12px; padding: 20px 0; cursor: pointer; list-style: none; font-size: 1.375rem; font-weight: 700; }
 .parity-all summary::-webkit-details-marker { display: none; }
 .parity-all-count { font-size: 14px; font-weight: 500; color: var(--brand-gray-2); }
