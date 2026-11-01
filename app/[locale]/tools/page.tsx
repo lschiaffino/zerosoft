@@ -1,22 +1,14 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { staticPageMetadata } from '@/lib/seo-pages';
 import { Link } from '@/i18n/navigation';
 import Icon from '@/components/site/Icon';
 import BrandSymbol from '@/components/brand/BrandSymbol';
-import { jsonLd, localizedAlternates, siteUrl, TOOL_GROUPS, TOOLS, type ToolDef } from '@/lib/tools/registry';
+import { jsonLd, siteUrl, TOOL_GROUPS, TOOLS, type ToolDef } from '@/lib/tools/registry';
 import '@/styles/tools.css';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
-  const t = await getTranslations({ locale, namespace: 'tools.hub' });
-  const title = t('metaTitle');
-  const description = t('metaDescription');
-  return {
-    title,
-    description,
-    alternates: localizedAlternates('/tools', locale),
-    openGraph: { title, description, type: 'website', url: `/${locale}/tools`, images: ['/api/og/tool/hub'] },
-    twitter: { card: 'summary_large_image', title, description, images: ['/api/og/tool/hub'] },
-  };
+  return staticPageMetadata('tools', locale);
 }
 
 function kindKey(tool: ToolDef): 'ai' | 'server' | 'local' {

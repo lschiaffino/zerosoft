@@ -1,42 +1,21 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import ProductPage from '@/components/products/ProductPage';
+import { pageMetadata } from '@/lib/seo';
 import { PRODUCT_KEYS, isProductKey } from '@/lib/products';
 import '@/styles/pages.css';
 
-export async function generateMetadata(
-  props: {
-    params: Promise<{ locale: string; product: string }>;
-  }
-) {
-  const params = await props.params;
-
-  const {
-    locale,
-    product
-  } = params;
-
+export async function generateMetadata(props: { params: Promise<{ locale: string; product: string }> }) {
+  const { locale, product } = await props.params;
   if (!isProductKey(product)) return {};
   const t = await getTranslations({ locale, namespace: `pages.products.${product}.meta` });
-  const title = t('title');
-  const description = t('description');
-  return {
-    title,
-    description,
-    openGraph: {
-      title,
-      description,
-      type: 'website',
-      url: `/${locale}/products/${product}`,
-      images: [`/api/og/product/${product}`],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title,
-      description,
-      images: [`/api/og/product/${product}`],
-    },
-  };
+  return pageMetadata({
+    locale,
+    path: `/products/${product}`,
+    title: t('title'),
+    description: t('description'),
+    image: `/api/og/product/${product}/${locale}`,
+  });
 }
 
 export function generateStaticParams() {

@@ -1,5 +1,23 @@
 {
-  "extends": ["next/core-web-vitals"],
-  "plugins": ["@typescript-eslint"],
-  "ignorePatterns": ["public/", "scripts/_*", "/desktop/"]
+  "extends": [
+    "next/core-web-vitals"
+  ],
+  "plugins": [
+    "@typescript-eslint"
+  ],
+  "ignorePatterns": [
+    "public/",
+    "scripts/_*",
+    "/desktop/"
+  ],
+  "overrides": [
+    {
+      "files": [
+        "components/shop/**/*.tsx"
+      ],
+      "rules": {
+        "@next/next/no-img-element": "off"
+      }
+    }
+  ]
 }
