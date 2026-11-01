@@ -841,6 +841,15 @@ export function AccessSettings({ isAdmin }: { isAdmin: boolean }) {
   const [guestEmail, setGuestEmail] = useState('');
   const [guestProjects, setGuestProjects] = useState<string[]>([]);
   const [addFor, setAddFor] = useState<Record<string, string>>({});
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviting, setInviting] = useState(false);
+  const [invited, setInvited] = useState<string | null>(null);
+  const [pendingInvites, setPendingInvites] = useState<string[]>([]);
+
+  const loadInvites = useCallback(async () => {
+    const res = await send<{ rows: Array<{ email: string; expired: boolean }> }>('/api/teams/invites', 'GET').catch(() => null);
+    if (res?.ok) setPendingInvites(res.data.rows.filter((r) => !r.expired).map((r) => r.email));
+  }, []);
 
   const load = useCallback(async () => {
     setFailed(false);
@@ -850,7 +859,8 @@ export function AccessSettings({ isAdmin }: { isAdmin: boolean }) {
       return;
     }
     setData(res.data);
-  }, []);
+    void loadInvites();
+  }, [loadInvites]);
   useEffect(() => {
     if (isAdmin) void load();
   }, [isAdmin, load]);
@@ -864,6 +874,30 @@ export function AccessSettings({ isAdmin }: { isAdmin: boolean }) {
     }
     setData(res.data);
     return true;
+  };
+
+  // Para sumar a un team, la persona primero tiene que estar en el workspace: se invita desde acá mismo.
+  const invite = async (e: FormEvent) => {
+    e.preventDefault();
+    const email = inviteEmail.trim();
+    if (!email || inviting) return;
+    setError(null);
+    setInvited(null);
+    setInviting(true);
+    const res = await send<{ results?: Array<{ email: string; status: string }> }>('/api/teams/invites', 'POST', { emails: email, role: 'member' }).catch(() => null);
+    setInviting(false);
+    const status = res?.ok ? res.data.results?.[0]?.status : null;
+    if (status === 'sent') {
+      setInvited(t('access.inviteSent', { email }));
+      setInviteEmail('');
+      void loadInvites();
+    } else if (status === 'member') {
+      setInvited(t('access.inviteAlreadyMember', { email }));
+      setInviteEmail('');
+    } else {
+      setError(res?.status === 429 || status === 'limited' ? t('access.inviteLimited') : res?.status === 400 ? t('access.inviteInvalid') : t('access.inviteFailed'));
+      void loadInvites();
+    }
   };
 
   const peopleById = useMemo(() => new Map((data?.people ?? []).map((p) => [p.id, p])), [data]);
@@ -915,6 +949,32 @@ export function AccessSettings({ isAdmin }: { isAdmin: boolean }) {
           {error}
         </p>
       ) : null}
+      <FormSection title={t('access.inviteTitle')} description={t('access.inviteHelp')}>
+        <form className="track-int-row" onSubmit={(e) => void invite(e)}>
+          <input
+            type="email"
+            className="input track-access-invite-input"
+            value={inviteEmail}
+            onChange={(e) => setInviteEmail(e.target.value)}
+            placeholder={t('access.invitePlaceholder')}
+            aria-label={t('access.inviteTitle')}
+            required
+          />
+          <button type="submit" className="btn btn-primary" disabled={inviting || !inviteEmail.trim()}>
+            {t('access.inviteButton')}
+          </button>
+        </form>
+        {invited ? (
+          <p className="ui-help" role="status" data-testid="track-access-invited">
+            {invited}
+          </p>
+        ) : null}
+        {pendingInvites.length > 0 ? (
+          <p className="ui-help" data-testid="track-access-pending">
+            {t('access.invitesPending', { emails: pendingInvites.join(', ') })}
+          </p>
+        ) : null}
+      </FormSection>
       <FormSection title={t('access.projectsTitle')} description={t('access.projectsHelp')}>
         {data.projects.length === 0 ? (
           <p className="ui-help">{t('access.noProjects')}</p>
@@ -988,7 +1048,11 @@ export function AccessSettings({ isAdmin }: { isAdmin: boolean }) {
                             {t('access.addMember')}
                           </button>
                         </form>
-                      ) : null}
+                      ) : (
+                        <p className="ui-help" data-testid="track-access-no-candidates">
+                          {t('access.noCandidates')}
+                        </p>
+                      )}
                     </div>
                   ) : null}
                 </li>

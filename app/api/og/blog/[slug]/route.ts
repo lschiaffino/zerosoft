@@ -1,16 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getPost } from '@/lib/blog';
-import { generateBlogCoverSVG } from '@/lib/blog-cover';
+import { blogCoverSVG } from '@/lib/blog-cover';
 
 export const dynamic = 'force-static';
 
 export async function GET(_request: Request, props: { params: Promise<{ slug: string }> }) {
   const params = await props.params;
   const { slug } = params;
-  const post = getPost('en', slug);
-  const title = post?.title ?? slug;
-
-  const svg = generateBlogCoverSVG(slug, title, 'hero');
+  const svg = blogCoverSVG(slug);
 
   return new NextResponse(svg, {
     headers: {
