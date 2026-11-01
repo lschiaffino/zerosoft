@@ -77,7 +77,10 @@ const MOVE_MENU_GAP = 4;
 function moveMenuPlace(card: HTMLElement, menuHeight: number): { top: number; left: number } {
   const r = card.getBoundingClientRect();
   const below = r.bottom + MOVE_MENU_GAP;
-  const top = menuHeight > 0 && below + menuHeight > window.innerHeight ? Math.max(8, r.top - menuHeight - MOVE_MENU_GAP) : below;
+  const above = r.top - menuHeight - MOVE_MENU_GAP;
+  const wanted = menuHeight > 0 && below + menuHeight > window.innerHeight ? above : below;
+  // Con la card fuera de la pantalla (scroll en curso) el menú queda en el borde, a la vista.
+  const top = Math.max(8, Math.min(wanted, window.innerHeight - menuHeight - 8));
   return { top, left: Math.max(8, Math.min(r.left + 8, window.innerWidth - 200)) };
 }
 
@@ -154,24 +157,31 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
     function onDown(e: MouseEvent) {
       if (!moveMenuRef.current?.contains(e.target as Node)) setMoveMenuFor(null);
     }
-    // Si la página o el board se mueven, el menú sigue a la card (el scroll suave de llevarle
-    // el foco puede seguir andando al abrir); se cierra recién cuando la card sale de la pantalla.
+    // Un scroll solo mueve el menú con la card: el scroll suave de llevarle el foco puede seguir
+    // andando al abrir, y con la card todavía afuera de la pantalla no es motivo para cerrar.
     function onScroll(e: Event) {
       if (moveMenuRef.current?.contains(e.target as Node)) return;
       const card = moveCardEl.current;
-      const r = card?.getBoundingClientRect();
-      if (!card?.isConnected || !r || r.bottom <= 0 || r.top >= window.innerHeight || r.right <= 0 || r.left >= window.innerWidth) {
+      if (!card?.isConnected) {
         setMoveMenuFor(null);
         return;
       }
       setMoveMenuPos(moveMenuPlace(card, moveMenuRef.current?.offsetHeight ?? 0));
     }
+    // Quien scrollea con la rueda o el dedo fuera del menú ya está en otra cosa: se cierra.
+    function onUserScroll(e: Event) {
+      if (!moveMenuRef.current?.contains(e.target as Node)) setMoveMenuFor(null);
+    }
     const onResize = () => setMoveMenuFor(null);
     document.addEventListener('mousedown', onDown);
     window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('wheel', onUserScroll, { capture: true, passive: true });
+    window.addEventListener('touchmove', onUserScroll, { capture: true, passive: true });
     window.addEventListener('resize', onResize);
     return () => {
       document.removeEventListener('mousedown', onDown);
+      window.removeEventListener('wheel', onUserScroll, { capture: true });
+      window.removeEventListener('touchmove', onUserScroll, { capture: true });
       window.removeEventListener('scroll', onScroll, true);
       window.removeEventListener('resize', onResize);
     };

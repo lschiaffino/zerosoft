@@ -621,6 +621,9 @@ test('traspaso: solo de quien se fue, con confirmación; a quien sigue no se le 
   }
   await dialog.getByRole('button', { name: 'Transfer' }).click();
   await expect(page.getByTestId('rec-settings-toast')).toContainText('Transferred 1 video');
-  const { video } = await ok<{ video: { createdBy: string } }>(request.get(`/api/rec/videos/${v.id}`));
-  expect(video.createdBy).toBe(receiver);
+  // Directo en la base: un video personal pasa a ser de quien lo recibe, y si es otra persona la API ya no se lo da a la dueña.
+  const after = db();
+  const owner = (await after.execute({ sql: 'SELECT created_by FROM rec_videos WHERE id = ?', args: [v.id] })).rows[0].created_by;
+  after.close();
+  expect(owner).toBe(receiver);
 });
