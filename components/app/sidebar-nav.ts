@@ -198,6 +198,9 @@ export interface SidebarLabels {
     persons: string;
     cohorts: string;
     flags: string;
+    /** Session replay y heatmaps (opcionales: los tests viejos arman labels sin estas claves). */
+    recordings?: string;
+    heatmaps?: string;
     sql: string;
     projects: string;
     newInsight: string;
@@ -847,6 +850,8 @@ export function buildNav(
             { href: '/app/analytics/persons', label: a.persons, active: at('/app/analytics/persons'), icon: 'contacts' },
             { href: '/app/analytics/cohorts', label: a.cohorts, active: at('/app/analytics/cohorts'), icon: 'groups' },
             { href: '/app/analytics/flags', label: a.flags, active: at('/app/analytics/flags'), icon: 'flag' },
+            ...(a.recordings ? [{ href: '/app/analytics/replay', label: a.recordings, active: at('/app/analytics/replay'), icon: 'rec' as const }] : []),
+            ...(a.heatmaps ? [{ href: '/app/analytics/heatmaps', label: a.heatmaps, active: at('/app/analytics/heatmaps'), icon: 'reports' as const }] : []),
           ],
         },
         {

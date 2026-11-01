@@ -11,6 +11,7 @@ const TABLES = {
   dashboards: 'analytics_dashboards',
   persons: 'analytics_persons',
   cohorts: 'analytics_cohorts',
+  recordings: 'analytics_replay_recordings',
 } as const;
 
 export type AnalyticsRecordKind = keyof typeof TABLES;

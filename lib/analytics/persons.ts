@@ -7,6 +7,7 @@ import { getDb } from '../db';
 import { likeContains } from '../track-views';
 import { cohortSql, type Arg } from './sql-build';
 import { toLiveEvent } from './query';
+import { deleteRecordingsOf } from './replay';
 import type { CohortDefinition, LiveEvent, PersonRow } from './types';
 
 type Row = Record<string, unknown>;
@@ -125,6 +126,7 @@ export async function deletePerson(projectId: string, personId: string): Promise
       if (res.changes < 5000) break;
     }
     await db.prepare(`DELETE FROM analytics_sessions WHERE project_id = ? AND distinct_id IN (${marks})`).run(projectId, ...chunk);
+    await deleteRecordingsOf(projectId, chunk);
   }
   await db.prepare('DELETE FROM analytics_person_ids WHERE project_id = ? AND person_id = ?').run(projectId, personId);
   await db.prepare('DELETE FROM analytics_persons WHERE id = ? AND project_id = ?').run(personId, projectId);

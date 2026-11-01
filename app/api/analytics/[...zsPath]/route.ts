@@ -9,6 +9,8 @@ import * as m3 from '@/lib/routes/analytics/insights/[id]/route';
 import * as m4 from '@/lib/routes/analytics/persons/[id]/route';
 import * as m5 from '@/lib/routes/analytics/projects/[id]/route';
 import * as m6 from '@/lib/routes/analytics/projects/[id]/secret/route';
+import * as m7 from '@/lib/routes/analytics/replay/[id]/route';
+import * as m8 from '@/lib/routes/analytics/replay/[id]/chunks/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,6 +23,8 @@ const d = createDispatcher('zsPath', [
   { pattern: 'persons/[id]', mod: m4 }, // lib/routes/analytics/persons/[id]
   { pattern: 'projects/[id]', mod: m5 }, // lib/routes/analytics/projects/[id]
   { pattern: 'projects/[id]/secret', mod: m6 }, // lib/routes/analytics/projects/[id]/secret
+  { pattern: 'replay/[id]', mod: m7 }, // lib/routes/analytics/replay/[id]
+  { pattern: 'replay/[id]/chunks', mod: m8 }, // lib/routes/analytics/replay/[id]/chunks
 ]);
 
 export const GET = d.GET;

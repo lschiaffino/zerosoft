@@ -10,6 +10,7 @@
  */
 import { getDb } from '../db';
 import { bucketOf } from './compute';
+import { purgeProjectRecordings, runReplayRetention } from './replay';
 
 const DAY = 86_400_000;
 const CLAIM_MS = 10 * 60_000;
@@ -35,6 +36,7 @@ export interface AnalyticsCronResult {
   rolledDays: number;
   purgedEvents: number;
   deletedProjects: number;
+  purgedRecordings?: number;
 }
 
 export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number } = {}): Promise<AnalyticsCronResult> {
@@ -76,6 +78,11 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
       await db.prepare('UPDATE analytics_projects SET rollup_claimed_at = NULL WHERE id = ?').run(id);
       return;
     }
+    // Las grabaciones pesan: también por tandas, antes de soltar el proyecto.
+    if (!(await purgeProjectRecordings(id, left))) {
+      await db.prepare('UPDATE analytics_projects SET rollup_claimed_at = NULL WHERE id = ?').run(id);
+      return;
+    }
     // Todo explícito (no depende de que las FK en cascada estén prendidas).
     await db.prepare('DELETE FROM analytics_dashboard_items WHERE dashboard_id IN (SELECT id FROM analytics_dashboards WHERE project_id = ?)').run(id);
     for (const table of [
@@ -88,11 +95,19 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
       'analytics_sessions',
       'analytics_groups',
       'analytics_daily',
+      'analytics_replay_daily',
     ]) {
       await db.prepare(`DELETE FROM ${table} WHERE project_id = ?`).run(id);
     }
     await db.prepare('DELETE FROM analytics_projects WHERE id = ?').run(id);
     out.deletedProjects++;
+  }
+
+  // 1b. Retención de replay: es dato personal, va antes del rollup pero con su propia porción del presupuesto.
+  try {
+    out.purgedRecordings = await runReplayRetention({ now, budgetMs: Math.min(left(), Math.max(1000, budget / 5)) });
+  } catch (err) {
+    console.error('[analytics cron] replay', err);
   }
 
   // 2. Rollup diario: hasta ayer (día local del proyecto), 31 días por corrida.

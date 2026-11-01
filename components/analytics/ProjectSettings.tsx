@@ -6,6 +6,7 @@ import { useRouter } from '@/i18n/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { ProjectDto } from '@/lib/analytics/types';
 import { ApiError, apiErrorText, api, notifyChanged } from './client';
+import ReplaySettings from './replay/ReplaySettings';
 
 const RETENTION = [30, 90, 180, 365, 730];
 
@@ -248,6 +249,8 @@ zs.identify('user-123', { email: 'ana@example.com' });`;
           )}
         </fieldset>
       </form>
+
+      <ReplaySettings project={project} canManage={canManage} />
 
       {canManage && (
         <section className="ui-section ui-section-danger" aria-labelledby="an-danger">

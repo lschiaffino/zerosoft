@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import type { LiveEvent } from '@/lib/analytics/types';
 import { api, fmtTime } from './client';
 import { EventInput, useProjectMeta } from './Filters';
+import { RecordingLink, useSessionRecordings } from './replay/RecordingLink';
 
 const POLL_MS = 3000;
 
@@ -25,6 +26,7 @@ export default function LiveEvents({ projectId, initial }: { projectId: string; 
   const [error, setError] = useState(false);
   const [older, setOlder] = useState(initial.length >= 100);
   const latest = useRef(initial[0]?.id ?? 0);
+  const recordings = useSessionRecordings(projectId, events);
   const applied = useRef('');
 
   const q = (params: Record<string, string>) => {
@@ -127,7 +129,10 @@ export default function LiveEvents({ projectId, initial }: { projectId: string; 
                     </td>
                     <td className="an-mono an-ellipsis" data-label={t('person')}>{e.distinctId}</td>
                     <td className="an-hide-sm an-ellipsis" data-label={t('url')}>{e.pathname ?? e.url ?? ''}</td>
-                    <td className="an-muted" data-label={t('time')}>{(mounted ? fmtTime(e.ts, locale) : '')}</td>
+                    <td className="an-muted" data-label={t('time')}>
+                      {mounted ? fmtTime(e.ts, locale) : ''}
+                      <RecordingLink recordings={recordings} sessionId={e.properties.$session_id} />
+                    </td>
                   </tr>
                   {open === e.id && (
                     <tr className="an-live-detail">

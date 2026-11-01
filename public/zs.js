@@ -8,17 +8,23 @@
  * zs.alias(alias), zs.group(type, key, props), zs.register(props), zs.reset(),
  * zs.isFeatureEnabled(key), zs.getFeatureFlag(key), zs.onFeatureFlags(fn),
  * zs.reloadFeatureFlags(), zs.getDistinctId(), zs.optOut(), zs.optIn().
+ * init acepta disable_session_recording: true para no grabar nunca en esta página.
  *
  * Captura sola: $pageview (también en apps de una página), y si el proyecto
  * tiene autocapture, clicks en links y botones, cambios en campos (nunca su
  * valor) y envíos de formularios. Nada de inputs de contraseña ni elementos
  * con la clase zs-no-capture. Guarda un id anónimo en localStorage.
+ *
+ * Session replay y heatmaps quedan apagados salvo que un admin los prenda en el
+ * proyecto; recién ahí se carga zs-replay.js. En un iframe con sandbox sin
+ * allow-same-origin (como la vista de heatmaps) no se captura nada.
  */
 (function () {
   'use strict';
   var w = window;
   var d = document;
   if (w.zs && w.zs.__loaded) return;
+  var sandboxedFrame = w.self !== w.top && w.origin === 'null';
   var queue = Array.isArray(w.zs) ? w.zs : [];
 
   var cfg = { key: null, host: '', autocapture: true, pageviews: true, debug: false };
@@ -126,6 +132,7 @@
     if (!event || state.optedOut || !cfg.key) return;
     var p = assign(assign(pageProps(), state.props), props || {});
     p.$session_id = session();
+    if (replay.win) p.$window_id = replay.win;
     if (Object.keys(state.groups).length) p.$groups = assign({}, state.groups);
     var ev = { event: String(event), distinct_id: state.distinctId, properties: p, timestamp: new Date().toISOString(), uuid: uuid() };
     if (p.$set) {
@@ -179,6 +186,7 @@
   }
 
   function reset() {
+    flushReplay(false);
     state.distinctId = uuid();
     state.identified = false;
     state.props = {};
@@ -200,7 +208,12 @@
       }
       state.flags = r.featureFlags || {};
       if (r.config && r.config.autocapture === false) cfg.autocapture = false;
+      if (r.config && r.config.heatmaps === true && cfg.autocapture) {
+        state.heatmaps = true;
+        startHeatmaps();
+      }
       startAutocapture();
+      if (r.config && r.config.replay) startReplay(r.config.replay);
       var cbs = state.flagCbs.slice();
       cbs.forEach(function (cb) {
         try {
@@ -264,13 +277,17 @@
       'click',
       function (e) {
         var el = clickable(e.target);
+        // Con heatmaps también cuentan los clics fuera de links y botones (sin su texto).
+        var plain = !el && state.heatmaps && e.target && e.target.tagName;
+        if (plain) el = e.target;
         if (!el || skip(el)) return;
         var p = describe(el);
         p.$event_type = 'click';
-        if (el.tagName !== 'INPUT') {
+        if (el.tagName !== 'INPUT' && !plain) {
           var text = safeText(el);
           if (text) p.$el_text = text;
         }
+        if (state.heatmaps) assign(p, clickCoords(e));
         capture('$autocapture', p);
       },
       true,
@@ -304,9 +321,271 @@
     );
   }
 
+  // ---------- Heatmaps ----------
+  // Solo si el proyecto los prendió. Posición de cada clic y, al salir de la
+  // página, hasta dónde llegó el scroll (por vista: si la pestaña vuelve y baja
+  // más, otro $pageleave con el mismo $pageview_id; al leer gana el mayor).
+  var leave = { on: false, max: 0, sent: 0, view: '', path: '', url: '' };
+  function docHeight() {
+    var de = d.documentElement;
+    return Math.max(de.scrollHeight, d.body ? d.body.scrollHeight : 0);
+  }
+  function clickCoords(e) {
+    // Un clic de teclado no tiene posición.
+    if (!e.detail && !e.pageX && !e.pageY) return {};
+    var de = d.documentElement;
+    var width = Math.max(de.scrollWidth, de.clientWidth) || 1;
+    return {
+      $click_x: Math.round((e.pageX / width) * 10000) / 10000,
+      $click_y: Math.round(e.pageY),
+      $viewport_width: w.innerWidth,
+      $document_height: docHeight(),
+    };
+  }
+  function trackScroll() {
+    var h = docHeight() || 1;
+    var pct = Math.min(100, Math.round(((w.pageYOffset + w.innerHeight) / h) * 100));
+    if (pct > leave.max) leave.max = pct;
+  }
+  function resetLeave() {
+    leave.max = 0;
+    leave.sent = 0;
+    leave.view = uuid();
+    leave.path = w.location.pathname;
+    leave.url = w.location.href;
+    trackScroll();
+  }
+  function sendLeave() {
+    if (!leave.on) return;
+    if (leave.path === w.location.pathname) trackScroll();
+    if (leave.max <= leave.sent) return;
+    leave.sent = leave.max;
+    capture('$pageleave', {
+      $current_url: leave.url,
+      $pathname: leave.path,
+      $pageview_id: leave.view,
+      $max_scroll_pct: leave.max,
+      $viewport_width: w.innerWidth,
+      $viewport_height: w.innerHeight,
+      $document_height: docHeight(),
+    });
+  }
+  function startHeatmaps() {
+    if (leave.on) return;
+    leave.on = true;
+    resetLeave();
+    w.addEventListener('scroll', trackScroll, { passive: true });
+  }
+
+  // ---------- Session replay ----------
+  // Solo si el proyecto lo prendió: recién ahí se baja el grabador (zs-replay.js,
+  // rrweb). Los campos siempre van enmascarados. Los chunks van en gzip si el
+  // navegador puede, numerados por sesión y pestaña: un reintento no duplica.
+  var REPLAY_FLUSH_MS = 8000;
+  var REPLAY_CHUNK_CHARS = 256 * 1024;
+  var REPLAY_MAX_CHARS = 5 * 1024 * 1024;
+  var replay = { started: false, dead: false, stop: null, conf: null, sid: null, win: null, seq: 0, buf: [], chars: 0, timer: null, queue: [], sending: false, skip: false, waiting: false };
+
+  function sessionGet(k) {
+    try {
+      return JSON.parse(w.sessionStorage.getItem('zs_' + cfg.key + '_' + k) || 'null');
+    } catch (e) {
+      return null;
+    }
+  }
+  function sessionSet(k, v) {
+    try {
+      w.sessionStorage.setItem('zs_' + cfg.key + '_' + k, JSON.stringify(v));
+    } catch (e) {
+      /* sin sessionStorage */
+    }
+  }
+  function sampleBucket(s) {
+    var h = 0;
+    for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+    return Math.abs(h) % 100;
+  }
+  function replaySession(id) {
+    replay.sid = id;
+    var saved = sessionGet('rseq');
+    replay.seq = saved && saved.s === id ? saved.n : 0;
+    replay.skip = sampleBucket(id) >= replay.conf.sampleRate;
+  }
+  function stopReplay() {
+    replay.dead = true;
+    replay.buf = [];
+    replay.chars = 0;
+    replay.queue = [];
+    if (replay.timer) clearTimeout(replay.timer);
+    if (replay.stop) {
+      try {
+        replay.stop();
+      } catch (e) {
+        /* el grabador ya paró */
+      }
+    }
+    replay.stop = null;
+  }
+  function replayPump() {
+    if (replay.sending || replay.dead || !replay.queue.length || !w.fetch) return;
+    replay.sending = true;
+    var item = replay.queue[0];
+    var done = function (again) {
+      replay.sending = false;
+      if (again) setTimeout(replayPump, again);
+      else replayPump();
+    };
+    var fail = function () {
+      item.tries++;
+      if (item.tries >= 4) {
+        replay.queue.shift();
+        done(0);
+      } else done(item.tries * 3000);
+    };
+    var url = cfg.host + '/api/ingest/replay?k=' + encodeURIComponent(cfg.key);
+    var payload = w.CompressionStream
+      ? new Response(new Blob([item.body]).stream().pipeThrough(new w.CompressionStream('gzip'))).arrayBuffer()
+      : Promise.resolve(item.body);
+    payload
+      .then(function (body) {
+        return w.fetch(url, { method: 'POST', body: body, headers: { 'content-type': 'text/plain' }, credentials: 'omit', keepalive: (body.byteLength || body.length) < 60000 });
+      })
+      .then(function (res) {
+        if (res.ok) {
+          replay.queue.shift();
+          done(0);
+        } else if (res.status >= 500) fail();
+        else if (res.status === 429 && !res.headers.get('retry-after')) fail();
+        else if (res.status === 429) {
+          return res.json().then(function (j) {
+            // Límite por minuto: se reintenta. Cupo del día: se deja de grabar.
+            if (j && j.error === 'rate_limited') fail();
+            else stopReplay();
+          });
+        } else stopReplay();
+        return null;
+      })
+      .catch(fail);
+  }
+  function flushReplay(leaving) {
+    if (replay.timer) {
+      clearTimeout(replay.timer);
+      replay.timer = null;
+    }
+    if (!replay.buf.length || replay.dead || !cfg.key) return;
+    var body =
+      '{"session_id":' + JSON.stringify(replay.sid) + ',"window_id":' + JSON.stringify(replay.win) + ',"seq":' + replay.seq + ',"distinct_id":' + JSON.stringify(state.distinctId) +
+      ',"sent_at":' + now() + ',"events":[' + replay.buf.join(',') + ']}';
+    replay.seq++;
+    sessionSet('rseq', { s: replay.sid, n: replay.seq });
+    replay.buf = [];
+    replay.chars = 0;
+    // Al salir no hay tiempo de comprimir: un chunk chico sale plano por sendBeacon.
+    if (leaving && body.length < 60000 && !replay.queue.length && w.navigator.sendBeacon) {
+      try {
+        if (w.navigator.sendBeacon(cfg.host + '/api/ingest/replay?k=' + encodeURIComponent(cfg.key), new Blob([body], { type: 'text/plain' }))) return;
+      } catch (e) {
+        /* sigue por la cola */
+      }
+    }
+    if (replay.queue.length >= 20) {
+      stopReplay();
+      return;
+    }
+    replay.queue.push({ body: body, tries: 0 });
+    replayPump();
+  }
+  var REPLAY_ACTIVE = { 1: 1, 2: 1, 3: 1, 5: 1, 6: 1, 7: 1, 12: 1 };
+  function onReplayEvent(ev) {
+    if (replay.dead) return;
+    var active = ev.type === 3 && ev.data && REPLAY_ACTIVE[ev.data.source];
+    var s = store('session');
+    var expired = !s || s.id !== replay.sid || now() - s.last > SESSION_MS;
+    if (active && expired) {
+      // La persona volvió después de la sesión anterior: grabación nueva, con su foto inicial.
+      flushReplay(false);
+      replaySession(session());
+      replay.waiting = true;
+      setTimeout(function () {
+        if (!replay.dead && !replay.skip && w.rrwebRecord && w.rrwebRecord.record) w.rrwebRecord.record.takeFullSnapshot(true);
+      }, 0);
+      return;
+    }
+    if (active) session();
+    // Una pestaña quieta no sigue mandando mutaciones para siempre.
+    if (expired && ev.type !== 2 && ev.type !== 4) return;
+    if (replay.skip) return;
+    if (replay.waiting) {
+      if (ev.type !== 4 && ev.type !== 2) return;
+      replay.waiting = false;
+    }
+    var str;
+    try {
+      str = JSON.stringify(ev);
+    } catch (e) {
+      return;
+    }
+    if (str.length > REPLAY_MAX_CHARS) {
+      stopReplay();
+      return;
+    }
+    if (replay.chars + str.length > REPLAY_MAX_CHARS) flushReplay(false);
+    replay.buf.push(str);
+    replay.chars += str.length;
+    if (replay.chars >= REPLAY_CHUNK_CHARS) flushReplay(false);
+    else if (!replay.timer) replay.timer = setTimeout(function () { flushReplay(false); }, REPLAY_FLUSH_MS);
+  }
+  function beginRecording() {
+    if (replay.dead || !w.rrwebRecord || !w.rrwebRecord.record || state.optedOut) return;
+    try {
+      replay.stop = w.rrwebRecord.record({
+        emit: onReplayEvent,
+        maskAllInputs: true,
+        maskTextSelector: replay.conf.maskAllText ? '*' : null,
+        blockClass: /(^|\s)(zs-no-capture|ph-no-capture)(\s|$)/,
+        ignoreClass: 'zs-no-capture',
+        slimDOMOptions: 'all',
+        inlineStylesheet: true,
+        collectFonts: false,
+        recordCanvas: false,
+        recordCrossOriginIframes: false,
+        sampling: { mousemove: 100, scroll: 150, input: 'last' },
+      });
+    } catch (e) {
+      stopReplay();
+    }
+  }
+  function startReplay(conf) {
+    if (replay.started || !conf || !conf.enabled || cfg.noReplay || state.optedOut) return;
+    replay.started = true;
+    replay.conf = { sampleRate: Number(conf.sampleRate) || 100, maskAllText: conf.maskAllText !== false };
+    var win = sessionGet('window');
+    if (!win) {
+      win = uuid();
+      sessionSet('window', win);
+    }
+    replay.win = win;
+    replaySession(session());
+    // Sesión fuera de la muestra: en esta carga de página no se baja el grabador.
+    if (replay.skip) return;
+    if (w.rrwebRecord) beginRecording();
+    else loadRecorder();
+  }
+  function loadRecorder() {
+    var s = d.createElement('script');
+    s.src = cfg.host + '/zs-replay.js';
+    s.async = true;
+    s.onload = beginRecording;
+    (d.head || d.documentElement).appendChild(s);
+  }
+
   // ---------- Páginas ----------
   var lastPath = null;
   function pageview() {
+    if (leave.on && leave.path !== w.location.pathname) {
+      sendLeave();
+      resetLeave();
+    }
     if (!cfg.pageviews) return;
     var path = w.location.pathname + w.location.search;
     if (path === lastPath) return;
@@ -328,7 +607,7 @@
   }
 
   function init(key, opts) {
-    if (state.ready || !key) return;
+    if (state.ready || !key || sandboxedFrame) return;
     opts = opts || {};
     cfg.key = String(key);
     // Con init inline (sync) currentScript es ese script, sin src: se busca el de zs.js.
@@ -344,6 +623,7 @@
     if (opts.autocapture === false) cfg.autocapture = false;
     if (opts.capture_pageview === false) cfg.pageviews = false;
     cfg.debug = !!opts.debug;
+    cfg.noReplay = opts.disable_session_recording === true;
     state.optedOut = !!store('optout');
     var saved = store('id');
     state.distinctId = saved && saved.id ? saved.id : uuid();
@@ -354,10 +634,16 @@
     state.ready = true;
     // Al salir, lo que quede en el buffer va por sendBeacon.
     w.addEventListener('visibilitychange', function () {
-      if (d.visibilityState === 'hidden') flush(true);
+      if (d.visibilityState === 'hidden') {
+        sendLeave();
+        flush(true);
+        flushReplay(true);
+      }
     });
     w.addEventListener('pagehide', function () {
+      sendLeave();
       flush(true);
+      flushReplay(true);
     });
     loadFlags();
     watchHistory();
@@ -386,6 +672,7 @@
     optOut: function () {
       state.optedOut = true;
       state.buffer = [];
+      if (replay.started) stopReplay();
       store('optout', true);
     },
     optIn: function () {
