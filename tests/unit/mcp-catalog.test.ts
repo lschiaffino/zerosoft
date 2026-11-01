@@ -117,6 +117,22 @@ describe('clase de cada operación', () => {
     expect(reads.sort()).toEqual(['POST /api/analytics/query', 'POST /api/crm/email-templates/preview']);
   });
 
+  it('un GET que cambia datos de la persona no es lectura', () => {
+    for (const k of [
+      'GET /api/chat/conversations',
+      'GET /api/crm/quotes',
+      'GET /api/crm/quotes/[id]',
+      'GET /api/v1/crm/quotes',
+      'GET /api/hiring/applications/[id]/interviews',
+      'GET /api/talk/bootstrap',
+      'GET /api/talk/huddles',
+      'GET /api/people/settings',
+      'GET /api/notes/semantic',
+    ]) {
+      expect(OPERATIONS.find((o) => `${o.method} ${o.path}` === k)?.access, k).toBe('write');
+    }
+  });
+
   it('lo sensible del equipo está marcado destructivo', () => {
     for (const k of ['POST /api/teams/invites', 'PATCH /api/teams/members/[userId]', 'PATCH /api/teams/workspace', 'POST /api/webhooks']) {
       const op = OPERATIONS.find((o) => `${o.method} ${o.path}` === k);

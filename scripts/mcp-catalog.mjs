@@ -430,28 +430,29 @@ function reachesAuth(fnNode, depth = 0) {
 /** SQL de escritura alcanzable (profundidad acotada), sin entrar a la sesión ni a los ayudantes HTTP. */
 const SESSION_FILES = /\/lib\/(session|teams|workspace|seed|rate-limit|db|api-auth)\.ts$|-http\.ts$|\/http\.ts$|-session\.ts$/;
 function reachesMutation(fnNode, depth = 0) {
-  if (!fnNode) return false;
+  if (!fnNode) return [];
   if (mutMemo.has(fnNode)) return mutMemo.get(fnNode);
-  mutMemo.set(fnNode, false);
-  let found = false;
+  const hits = new Set();
+  mutMemo.set(fnNode, []);
   const SQL = /^\s*(INSERT|UPDATE|DELETE\s+FROM|REPLACE)\b/;
+  const label = (text, n) => `${text.replace(/\s+/g, ' ').trim().slice(0, 70)} @${path.basename(n.getSourceFile().fileName)}`;
   const visit = (n) => {
-    if (found) return;
-    if (ts.isStringLiteralLike(n) && SQL.test(n.text)) { found = n.text.replace(/\s+/g, ' ').slice(0, 60) + ' @' + path.basename(n.getSourceFile().fileName); return; }
-    if (ts.isTemplateExpression(n) && SQL.test(n.head.text)) { found = n.head.text.replace(/\s+/g, ' ').slice(0, 60) + ' @' + path.basename(n.getSourceFile().fileName); return; }
+    if (ts.isStringLiteralLike(n) && SQL.test(n.text)) hits.add(label(n.text, n));
+    if (ts.isTemplateExpression(n) && SQL.test(n.head.text)) hits.add(label(n.head.text, n));
     if (ts.isCallExpression(n) && depth < 4) {
       const id = callId(n);
       if (id) {
         const d = declOf(id);
         const sf = d?.getSourceFile();
-        if (d && isProjectFile(sf) && !SESSION_FILES.test(sf.fileName)) { const hit = reachesMutation(fnBodyOf(d), depth + 1); if (hit) { found = hit; return; } }
+        if (d && isProjectFile(sf) && !SESSION_FILES.test(sf.fileName)) for (const h of reachesMutation(fnBodyOf(d), depth + 1)) hits.add(h);
       }
     }
     ts.forEachChild(n, visit);
   };
   visit(fnNode);
-  mutMemo.set(fnNode, found);
-  return found;
+  const out = [...hits];
+  mutMemo.set(fnNode, out);
+  return out;
 }
 
 const textOf = (n) => n.getText();
@@ -687,9 +688,9 @@ for (const file of files) {
     if (ACCESS_OVERRIDES[key]) access = ACCESS_OVERRIDES[key];
     else if (method === 'DELETE') access = 'destructive';
     else if (method === 'GET') {
-      const hit = reachesMutation(fn);
-      if (hit) mutatingGets.push(`${key}  <- ${hit}`);
-      access = hit && !MUTATING_GET_OK.has(key) ? 'write' : 'read';
+      const hits = reachesMutation(fn);
+      if (hits.length) mutatingGets.push(`${key}${MUTATING_GET_OK.has(key) ? ' [OK]' : ''}\n    ${hits.join('\n    ')}`);
+      access = hits.length && !MUTATING_GET_OK.has(key) ? 'write' : 'read';
     }
     else if (READ_POST.has(key)) access = 'read';
     else if (/^(delete|remove|purge|erase|wipe|destroy|bulk-delete|clear|reset|void|cancel|unpublish|disconnect|revoke|merge)/.test(last)) access = 'destructive';

@@ -27,7 +27,7 @@ NODE_OPTIONS=--max-old-space-size=6144 node scripts/mcp-catalog.mjs
 
 `tests/unit/mcp-catalog.test.ts` falla si una ruta no está en el catálogo ni en las exclusiones. Una ruta nueva entra sola al regenerar, así que si no debe estar al alcance de un token (cron, webhook, login, algo con secreto en la URL) hay que sumarla a `EXCLUDE_RULES` con su razón **antes** de regenerar. Una operación sin sesión detectada hace fallar el test hasta decidir qué es (`NO_SESSION_OK`).
 
-Clase de cada operación: DELETE es destructiva, GET es lectura salvo que se alcance SQL de escritura, lo demás es escritura. Lo desconocido nunca es lectura. Un POST que solo lee va a `READ_POST` y un GET con escritura inocua (sembrar defaults, auditoría) a `MUTATING_GET_OK`, después de leer el handler.
+Clase de cada operación: DELETE es destructiva, GET es lectura salvo que se alcance SQL de escritura, lo demás es escritura. Lo desconocido nunca es lectura. Un POST que solo lee va a `READ_POST` y un GET que solo escribe auditoría o siembra defaults (o refresca un token o un cache) a `MUTATING_GET_OK`, después de mirar todo el SQL que alcanza con `--report`. Un GET que cambia datos de la persona queda como escritura. La búsqueda de SQL tiene profundidad acotada: una escritura más honda se puede escapar.
 
 ## Modelo de seguridad
 
