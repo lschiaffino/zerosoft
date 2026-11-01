@@ -71,7 +71,7 @@ export function decideOutcome(opts: {
 const NOT_A_FAILURE = new Set(['disabled']);
 
 /** Errores de configuración: no se arreglan solos, repetirlos no sirve. */
-const CONFIG_ERROR = /^(?:[\d.]+:\s*)?(credential_not_allowed|credential_origin|admin_only_login|missing_credential|missing_input|no_steps)$/;
+const CONFIG_ERROR = /^(?:[\d.]+:\s*)?(credential_not_allowed|credential_with_script|credential_origin|credential_no_site|takeover_required|admin_only_login|missing_credential|missing_input|no_steps)$/;
 
 /** Fallas automáticas iguales seguidas que pausan el schedule aunque el robot diga "nunca pausar". */
 export const SAME_ERROR_PAUSE = 3;
@@ -111,21 +111,25 @@ export async function noticeRecipient(workspaceId: string, personId: string | nu
 export async function sendRobotNotice(
   row: Pick<RobotRow, 'id' | 'name' | 'alert_locale'>,
   to: string,
-  key: 'batchPaused' | 'credentialMisuse' | 'batchExpired',
+  key: 'batchPaused' | 'credentialMisuse' | 'credentialScript' | 'batchExpired' | 'takeover',
   href: string,
   sourceId: string,
-  values: { count?: number; step?: string; age?: { unit: 'days' | 'hours'; count: number } },
+  values: { count?: number; step?: string; actor?: string; age?: { unit: 'days' | 'hours'; count: number } },
 ): Promise<void> {
   const locale = row.alert_locale === 'es' || row.alert_locale === 'pt' ? row.alert_locale : 'en';
-  const notices = NOTICE_MESSAGES[locale].notices as Record<string, { title: string; body: string; days?: string; hours?: string }>;
-  const texts = notices[key] ?? (NOTICE_MESSAGES.en.notices as Record<string, { title: string; body: string }>)[key];
-  const ageText = values.age ? (values.age.unit === 'days' ? (texts.days ?? '{count} days') : (texts.hours ?? '{count} hours')).replace('{count}', String(values.age.count)) : '';
+  type Notice = { title: string; body: string; bodyOne?: string; days?: string; dayOne?: string; hours?: string; hourOne?: string };
+  const notices = NOTICE_MESSAGES[locale].notices as Record<string, Notice>;
+  const texts = notices[key] ?? (NOTICE_MESSAGES.en.notices as Record<string, Notice>)[key];
+  const age = values.age;
+  const ageTemplate = !age ? '' : age.unit === 'days' ? (age.count === 1 ? texts.dayOne : texts.days) : age.count === 1 ? texts.hourOne : texts.hours;
+  const ageText = age ? (ageTemplate ?? '').replace('{count}', String(age.count)) : '';
+  const body = values.count === 1 && texts.bodyOne ? texts.bodyOne : texts.body;
   const { createNotification } = await import('./notifications');
   await createNotification({
     userId: to,
     type: 'robot_notice',
     title: texts.title.replace('{name}', row.name),
-    body: texts.body.replace('{count}', String(values.count ?? '')).replace('{step}', values.step ?? '').replace('{age}', ageText),
+    body: body.replace('{count}', String(values.count ?? '')).replace('{step}', values.step ?? '').replace('{age}', ageText).replace('{actor}', values.actor ?? ''),
     href,
     sourceType: 'robot',
     sourceId,
@@ -133,6 +137,7 @@ export async function sendRobotNotice(
 }
 
 async function credentialNotice(workspaceId: string, robotId: string, error: string): Promise<void> {
+  const key = /credential_with_script/.test(error) ? 'credentialScript' : 'credentialMisuse';
   const db = getDb();
   const res = await db
     .prepare('INSERT OR IGNORE INTO robot_runtime (key, value, updated_at) VALUES (?, ?, ?)')
@@ -141,7 +146,7 @@ async function credentialNotice(workspaceId: string, robotId: string, error: str
   const row = (await db.prepare('SELECT * FROM robots WHERE id = ? AND user_id = ?').get(robotId, workspaceId)) as RobotRow | undefined;
   if (!row) return;
   const to = await noticeRecipient(workspaceId, row.created_by);
-  if (to) await sendRobotNotice(row, to, 'credentialMisuse', `/app/robots/${robotId}`, `credential:${robotId}`, { step: error.split(':')[0] });
+  if (to) await sendRobotNotice(row, to, key, `/app/robots/${robotId}`, `credential:${robotId}`, { step: error.split(':')[0] });
 }
 
 /**
@@ -164,7 +169,7 @@ export async function recordRobotOutcome(
     // Una credencial fuera de un campo no se arregla sola: no cuenta para la pausa ni manda
     // una alerta por corrida. Un solo aviso por robot, que dice qué cambiar.
     // Pero si es automática y se repite, el schedule se pausa sin otro aviso.
-    if (/credential_not_allowed/.test(run.error ?? '')) {
+    if (/credential_not_allowed|credential_with_script/.test(run.error ?? '')) {
       await credentialNotice(workspaceId, robotId, run.error ?? '');
       if (run.trigger === 'manual') return 'none';
       await db
@@ -220,9 +225,10 @@ export async function recordRobotOutcome(
   }
 }
 
-async function recipient(row: RobotRow): Promise<string | null> {
+async function recipient(row: RobotRow, error?: string | null): Promise<string | null> {
   const db = getDb();
-  for (const id of [row.created_by, row.user_id]) {
+  // Lo de un creador sin permiso lo resuelve un admin: el aviso no va a esa persona.
+  for (const id of /admin_only_login/.test(error ?? '') ? [row.user_id] : [row.created_by, row.user_id]) {
     if (!id) continue;
     const u = (await db.prepare('SELECT email FROM users WHERE id = ?').get(id)) as { email: string } | undefined;
     if (u?.email) return u.email;
@@ -239,7 +245,7 @@ async function sendRobotAlert(
   run: { id: string; trigger: RobotRunTrigger; error: string | null },
   kind: 'failed' | 'paused',
 ): Promise<void> {
-  const to = await recipient(row);
+  const to = await recipient(row, run.error);
   if (!to) return;
   const locale: MailLocale = row.alert_locale === 'es' || row.alert_locale === 'pt' ? row.alert_locale : 'en';
   const s = STRINGS[locale];

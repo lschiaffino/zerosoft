@@ -253,7 +253,14 @@ describe('TOTP', () => {
       const base = page.locator;
       page.locator = (sel) => {
         const l = base(sel);
-        return { ...l, first: () => ({ ...l, fill: async (v: string) => void filled.push(v) }) };
+        return {
+          ...l,
+          first: () => ({
+            ...l,
+            fill: async (v: string) => void filled.push(v),
+            elementHandle: async () => ({ ownerFrame: async () => ({ url: () => 'https://shop.test/p1' }), fill: async (v: string) => void filled.push(v) }),
+          }),
+        };
       };
       const res = await robotInterpreter(
         page,

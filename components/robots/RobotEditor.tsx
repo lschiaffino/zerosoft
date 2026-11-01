@@ -36,6 +36,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import FormSection from '@/components/ui/FormSection';
 import StepList from './StepList';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import RunsPanel, { type StepFix } from './RunsPanel';
 import DataPanel from './DataPanel';
 import IntegrationsPanel from './IntegrationsPanel';
@@ -233,6 +234,9 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
     setRunOpen(true);
   }
 
+  const [takeover, setTakeover] = useState<{ creator: { id: string; name: string }; values: Record<string, string> } | null>(null);
+  const [takingOver, setTakingOver] = useState(false);
+
   async function run(values: Record<string, string>) {
     if (canEdit && dirty && !(await save())) {
       setRunOpen(false);
@@ -246,9 +250,14 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ inputs: values }),
     }).catch(() => null);
-    const data = (await res?.json().catch(() => null)) as { run?: RobotRunDto; error?: string; name?: string; index?: number } | null;
+    const data = (await res?.json().catch(() => null)) as { run?: RobotRunDto; error?: string; name?: string; index?: number; creator?: { id: string; name: string } } | null;
     setRunning(false);
     setRunOpen(false);
+    if (data?.error === 'takeover_required' && data.creator) {
+      // No corre hasta que un admin confirme: el diálogo nombra a quien lo armó.
+      setTakeover({ creator: data.creator, values });
+      return;
+    }
     if (!res?.ok || !data?.run) {
       setError(errorText(t, data?.error, { name: data?.name ?? '', index: (data?.index ?? 0) + 1 }));
       return;
@@ -324,6 +333,48 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
     setPasteText('');
     setPasteError(null);
     setToast(t('paste.imported', { count: res.steps.length }));
+  }
+
+  /** El admin confirmó: se hace cargo de los pasos (queda en la auditoría y se avisa) y corre. */
+  async function confirmTakeover() {
+    if (!takeover) return;
+    setTakingOver(true);
+    const res = await fetch(`/api/robots/${robot.id}/takeover`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ creatorId: takeover.creator.id }),
+    }).catch(() => null);
+    const data = (await res?.json().catch(() => null)) as { robot?: RobotDto; error?: string; index?: number } | null;
+    setTakingOver(false);
+    const values = takeover.values;
+    setTakeover(null);
+    if (!res?.ok || !data?.robot) {
+      setError(errorText(t, data?.error, { index: (data?.index ?? 0) + 1 }));
+      return;
+    }
+    setRobot(data.robot);
+    void run(values);
+  }
+
+  /** "Usar este sitio" desde una corrida: lo aprueba una persona en el diálogo de confirmación. */
+  async function applyLoginSite(runId: string, step: string): Promise<boolean> {
+    if (dirty) {
+      setError(t('errors.save_first'));
+      return false;
+    }
+    const res = await fetch(`/api/robots/runs/${runId}/login-site`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ step }),
+    }).catch(() => null);
+    const data = (await res?.json().catch(() => null)) as { robot?: RobotDto; error?: string } | null;
+    if (!res?.ok || !data?.robot) {
+      setError(errorText(t, data?.error));
+      return false;
+    }
+    setRobot(data.robot);
+    setSteps(data.robot.steps);
+    return true;
   }
 
   async function approveSuggestion(runId: string, step: string) {
@@ -596,6 +647,7 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
             onApplyFix={canEdit ? applyFix : undefined}
             onCancelQueued={canRun ? cancelQueued : undefined}
             onApproveSuggestion={canEdit ? approveSuggestion : undefined}
+            onUseLoginSite={canEdit ? applyLoginSite : undefined}
             toolbar={
               <>
                 <p className="robots-muted robots-small">{pending ? t('runs.autoRefresh') : ''}</p>
@@ -814,6 +866,20 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
         )}
       </div>
 
+      <ConfirmDialog
+        open={!!takeover}
+        busy={takingOver}
+        danger
+        title={t('takeover.title')}
+        body={t('takeover.body', { creator: takeover?.creator.name ?? '' })}
+        confirmLabel={t('takeover.confirm')}
+        cancelLabel={t('takeover.cancel')}
+        onConfirm={() => void confirmTakeover()}
+        onCancel={() => {
+          setTakeover(null);
+          setError(t('errors.takeover_required'));
+        }}
+      />
       <RobotDialog
         open={pasteOpen}
         onClose={() => setPasteOpen(false)}

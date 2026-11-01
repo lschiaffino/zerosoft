@@ -57,6 +57,8 @@ export function canRunRobot(
 export function memberPatchError(patch: { steps?: unknown; persistSession?: boolean; settings?: unknown; import?: unknown }): string | null {
   const text = JSON.stringify([patch.steps ?? null, patch.import ?? null]);
   if (/\{\{[^{}]*\bcredentials\b/.test(text)) return 'admin_only_login';
+  // El sitio de un login lo elige un admin: un member no lo deja preparado.
+  if (/"origin"\s*:\s*"[^"]/.test(text)) return 'admin_only_login';
   if (patch.persistSession === true) return 'admin_only_login';
   const settings = JSON.stringify([patch.settings ?? null, patch.import ?? null]);
   if (/"kind"\s*:\s*"(sheets|airtable|s3)"/.test(settings)) return 'admin_only_login';
@@ -112,6 +114,7 @@ export function runErrorStatus(code: string): number {
     case 'busy':
       return 409;
     case 'admin_only_login':
+    case 'takeover_required':
       return 403;
     case 'runner_unavailable':
       return 503;

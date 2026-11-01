@@ -21,6 +21,7 @@ import {
   pushRobotRecording,
   setRobotWorkspaceConfig,
   startRobotRun,
+  takeOverLoginRobot,
   updateRobot,
 } from '@/lib/robots';
 import { noticeRecipient } from '@/lib/robots-alerts';
@@ -646,7 +647,7 @@ describe('credenciales fuera de un fill', () => {
     expect(JSON.stringify(res)).not.toContain('hunter2');
   });
 
-  it('un robot con login armado por un member no corre por el cron; si lo corre un admin, se hace cargo', async () => {
+  it('un robot con login armado por un member no corre por el cron; un admin tiene que hacerse cargo a propósito', async () => {
     const owner = await makeUser();
     const m = await makeUser();
     const team = crypto.randomUUID();
@@ -658,10 +659,11 @@ describe('credenciales fuera de un fill', () => {
     await getDb().prepare('UPDATE robots SET steps = ? WHERE id = ?').run(JSON.stringify([{ type: 'fill', selector: '#p', value: '{{credentials.L.password}}' }]), res.robot.id);
     setRobotBackendForTests(instantBackend);
     expect(await startRobotRun(owner.id, res.robot.id, undefined, { trigger: 'schedule' })).toMatchObject({ ok: false, error: 'admin_only_login' });
-    // El admin que lo corre a mano queda como quien lo armó: ya no es un 403 (acá falta la credencial).
-    expect(await startRobotRun(owner.id, res.robot.id, undefined, { trigger: 'manual', actorId: owner.id })).toMatchObject({ ok: false, error: 'missing_credential' });
-    const row = (await getDb().prepare('SELECT created_by FROM robots WHERE id = ?').get(res.robot.id)) as { created_by: string };
-    expect(row.created_by).toBe(owner.id);
+    // Correrlo sin confirmar no cambia nada: pide hacerse cargo y nombra a quien lo armó.
+    expect(await startRobotRun(owner.id, res.robot.id, undefined, { trigger: 'manual', actorId: owner.id })).toMatchObject({ ok: false, error: 'takeover_required', creator: { id: m.id } });
+    const before = (await getDb().prepare('SELECT created_by FROM robots WHERE id = ?').get(res.robot.id)) as { created_by: string };
+    expect(before.created_by).toBe(m.id);
+    expect(await takeOverLoginRobot(owner.id, res.robot.id, owner.id, m.id)).toMatchObject({ ok: true });
     expect(await startRobotRun(owner.id, res.robot.id, undefined, { trigger: 'schedule' })).toMatchObject({ ok: false, error: 'missing_credential' });
   });
 });

@@ -56,6 +56,7 @@ function fakePage(opts: { failures?: Record<string, number>; evaluate?: (expr: s
         actions.push(`click:${sel}`);
       },
       fill: async (v) => void actions.push(`fill:${sel}=${v}`),
+      elementHandle: async () => ({ ownerFrame: async () => ({ url: () => 'https://a.test/login' }), fill: async (v: string) => void actions.push(`fill:${sel}=${v}`) }),
       selectOption: async (v) => [v],
       press: async (k) => void actions.push(`press:${k}`),
       innerText: async () => 'text',
@@ -102,7 +103,6 @@ const opts = (extra: Partial<Parameters<typeof robotInterpreter>[3]> = {}) => ({
 describe('robots: credenciales', () => {
   it('resuelve {{credentials.<name>.x}} en el intérprete', async () => {
     const { page, actions } = fakePage();
-    page.url = () => 'https://a.test/login';
     const res = await robotInterpreter(
       page,
       steps([

@@ -130,7 +130,23 @@ const heal = {
 };
 
 /** Origen (https://host[:puerto]) donde se grabó o configuró un login. */
-export const ORIGIN_RE = /^https?:\/\/[a-z0-9.-]+(?::\d{1,5})?$/i;
+export const ORIGIN_RE = /^https?:\/\/[a-z0-9._-]+(?::\d{1,5})?$/i;
+
+/**
+ * Lo que se pega en "Sitio del login" (`https://site/login`, `site.com`) pasa a su
+ * origen, sin el puerto por defecto. Vacío si no hay nada; null si no es una dirección web.
+ */
+export function normalizeLoginSite(raw: string): string | null {
+  const v = raw.trim();
+  if (!v) return '';
+  try {
+    const u = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(v) ? v : `https://${v}`);
+    if ((u.protocol !== 'http:' && u.protocol !== 'https:') || u.username || u.password) return null;
+    return ORIGIN_RE.test(u.origin) ? u.origin : null;
+  } catch {
+    return null;
+  }
+}
 
 const gotoStep = z.object({ type: z.literal('goto'), url: template.min(1), ...retry });
 const clickStep = z.object({
@@ -145,7 +161,18 @@ const fillStep = z.object({
   selector: selector.min(1),
   value: template.default(''),
   /** Sitio donde va el login: un fill con credencial falla en otro origen (p. ej. después de una redirección). */
-  origin: z.union([z.string().trim().max(200).regex(ORIGIN_RE), z.literal('')]).optional(),
+  origin: z
+    .string()
+    .max(500)
+    .transform((v, ctx) => {
+      const site = normalizeLoginSite(v);
+      if (site === null) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'invalid_login_site' });
+        return z.NEVER;
+      }
+      return site;
+    })
+    .optional(),
   ...heal,
   ...retry,
 });
@@ -341,6 +368,7 @@ export type RobotSchedule = z.infer<typeof robotScheduleSchema>;
 
 export type RobotErrorCode =
   | 'invalid_steps'
+  | 'invalid_login_site'
   | 'too_many_steps'
   | 'invalid_inputs'
   | 'duplicate_input'
@@ -356,6 +384,20 @@ export function countSteps(steps: readonly RobotStep[]): number {
 
 export type StepsValidation = { ok: true; steps: RobotStep[] } | { ok: false; error: RobotErrorCode; index?: number };
 
+/** "Sitio del login" solo vale en un fill con credencial: sin eso no se guarda (nadie lo deja preparado para después). */
+function withoutUnusedSite(step: RobotStep): RobotStep {
+  const clean = <T extends { type: string }>(s: T): T => {
+    const f = s as unknown as { type: string; value?: string; origin?: string };
+    if (f.type !== 'fill' || f.origin === undefined) return s;
+    if (f.origin && CREDENTIAL_TEMPLATE.test(f.value ?? '')) return s;
+    const { origin: _origin, ...rest } = f;
+    void _origin;
+    return rest as unknown as T;
+  };
+  if (step.type !== 'loop_over') return clean(step);
+  return { ...step, steps: step.steps.map(clean) };
+}
+
 export function validateSteps(input: unknown): StepsValidation {
   if (!Array.isArray(input)) return { ok: false, error: 'invalid_steps' };
   if (input.length > MAX_ROBOT_STEPS) return { ok: false, error: 'too_many_steps' };
@@ -368,8 +410,11 @@ export function validateSteps(input: unknown): StepsValidation {
       }
     }
     const parsed = robotStepSchema.safeParse(raw);
-    if (!parsed.success) return { ok: false, error: 'invalid_steps', index: i };
-    out.push(parsed.data);
+    if (!parsed.success) {
+      const site = parsed.error.issues.some((x) => x.path.includes('origin'));
+      return { ok: false, error: site ? 'invalid_login_site' : 'invalid_steps', index: i };
+    }
+    out.push(withoutUnusedSite(parsed.data));
   }
   if (countSteps(out) > MAX_ROBOT_STEPS) return { ok: false, error: 'too_many_steps' };
   // Campos de extract_list sin nombres repetidos (serían columnas pisadas).
@@ -1085,6 +1130,31 @@ export function credentialMisuse(steps: readonly unknown[]): number | null {
   };
   const i = steps.findIndex(bad);
   return i < 0 ? null : i;
+}
+
+/**
+ * Un robot con login no puede tener un paso que lea lo que se escribió: el script
+ * (evaluate) o leer el atributo value (hay sitios que copian ahí lo escrito).
+ * Devuelve el índice del primero, o null.
+ */
+export function credentialScriptConflict(steps: readonly unknown[]): number | null {
+  if (!CREDENTIAL_TEMPLATE.test(JSON.stringify(steps))) return null;
+  const isValue = (v: unknown) => typeof v === 'string' && v.trim().toLowerCase() === 'value';
+  const reads = (step: unknown): boolean => {
+    if (!step || typeof step !== 'object') return false;
+    const s = step as { type?: unknown; attribute?: unknown; fields?: unknown; steps?: unknown };
+    if (s.type === 'evaluate') return true;
+    if (s.type === 'extract' && isValue(s.attribute)) return true;
+    if (s.type === 'extract_list' && Array.isArray(s.fields) && s.fields.some((f) => isValue((f as { attribute?: unknown } | null)?.attribute))) return true;
+    return Array.isArray(s.steps) && s.steps.some(reads);
+  };
+  const i = steps.findIndex(reads);
+  return i < 0 ? null : i;
+}
+
+/** Selector que entra a un iframe: en un login grabado no se acepta. */
+export function entersFrame(selector: unknown): boolean {
+  return typeof selector === 'string' && />>|internal:/i.test(selector);
 }
 
 const SIMPLE_PART = String.raw`[a-z][a-z0-9-]*(?:#[A-Za-z][\w-]*)?(?:\.[A-Za-z][\w-]*)*(?:\[[a-z-]+="[\w .:/@-]+"\])?(?::nth-of-type\(\d+\))?`;

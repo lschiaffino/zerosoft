@@ -288,7 +288,7 @@
     "scrollHint": "Desce até o final e espera, até não carregarem linhas novas ou depois de {max} rolagens.",
     "moreHint": "Clica no botão até ele sumir, não carregarem linhas novas ou depois de {max} cliques, e lê todas as linhas.",
     "loadMoreDefault": "Carregar mais",
-    "originHint": "O login só é digitado neste site. Vazio usa o site do último passo Ir para URL com endereço fixo. Se a página terminar em outro site (depois de um redirecionamento, por exemplo), o passo falha sem digitá-lo."
+    "originHint": "O login só é digitado neste site. Cole o endereço da página de login. Vazio usa o site do último passo Ir para URL com endereço fixo. Um domínio e seu www. contam como o mesmo site. Se o campo terminar em qualquer outro site (depois de um redirecionamento ou dentro de um iframe, por exemplo), o passo falha sem digitá-lo."
   },
   "inputs": {
     "title": "Entradas",
@@ -414,8 +414,14 @@
     "relearnedAction": "O passo {step} não encontrava mais seu seletor e nada foi clicado nem digitado. Substituto sugerido, o único elemento com o mesmo nome: {selector}. Aprove se estiver certo.",
     "approveSuggestion": "Aprovar e salvar",
     "suggestionApproved": "Aprovado e salvo no robô.",
-    "credentialNotAllowed": "O passo {step} usa uma credencial fora do valor de um campo Preencher, e ela não foi enviada à página. As credenciais agora só funcionam como valor de um passo Preencher. Abra a aba Passos e tire-a da URL, do seletor, do texto ou do script.",
-    "credentialOrigin": "O passo {step} ia digitar um login em um site diferente do configurado, então ele não foi enviado. Se a página de login mudou, grave o login de novo ou preencha o Site do login nesse passo."
+    "credentialNotAllowed": "O passo {step} usa uma credencial fora do valor de um passo Preencher, e ela não foi enviada à página. Dentro dos passos de um robô, uma credencial só funciona como valor de um passo Preencher. Abra a aba Passos e tire-a da URL, do seletor, do texto ou do script.",
+    "credentialOrigin": "O passo {step} não digitou o login. A página estava em {here} e este passo só permite {bound}. Se {here} estiver certo, digite-o em Site do login do passo {step}, na aba Passos.",
+    "credentialScript": "O passo {step} pode ler o que foi digitado em um campo e este robô usa um login, então a execução parou antes de abrir o navegador. Abra a aba Passos e tire esse passo (Executar JavaScript, ou ler o atributo value), ou deixe de usar o login neste robô.",
+    "credentialNoSite": "O passo {step} não digitou o login porque este robô não tem um site fixo: o endereço do seu passo Ir para URL usa uma variável. A página estava em {here}. Para permitir, digite esse site em Site do login do passo {step}, na aba Passos.",
+    "useSite": "Usar este site",
+    "useSiteTitle": "Digitar este login em {here}?",
+    "useSiteBody": "A partir de agora, o passo {step} digita o login em {here}. Confirme só se reconhecer este site.",
+    "useSiteDone": "Salvo. Rode o robô de novo para usar {here}."
   },
   "settings": {
     "enabled": "Permitir execuções automáticas",
@@ -542,7 +548,11 @@
     "no_crm_access": "Você precisa de acesso ao CRM para enviar linhas para lá.",
     "outside_recipient": "Os emails de mudanças só podem ir para pessoas deste workspace.",
     "save_first": "Salve suas alterações primeiro.",
-    "suggestion_stale": "O passo mudou desde essa execução. Rode o robô de novo."
+    "suggestion_stale": "O passo mudou desde essa execução. Rode o robô de novo.",
+    "invalid_login_site": "Passo {index}: Site do login precisa ser um endereço web, como https://login.example.com.",
+    "credential_with_script": "O passo {index} pode ler o que foi digitado em um campo e este robô usa um login. Tire esse passo (Executar JavaScript, ou ler o atributo value) ou deixe de usar o login neste robô.",
+    "takeover_required": "Este robô usa um login e foi montado por alguém que não é mais admin, então não roda até que um admin assuma seus passos. Toque em Rodar neste robô e confirme.",
+    "takeover_stale": "O robô mudou desde que você abriu isto. Recarregue e tente de novo."
   },
   "paste": {
     "title": "Colar passos gravados",
@@ -910,8 +920,25 @@
     "batchExpired": {
       "title": "{name}: linhas do lote descartadas",
       "body": "{count} linhas de um lote esperaram mais de {age} na fila e foram descartadas sem rodar. Coloque-as na fila de novo para rodá-las.",
+      "bodyOne": "1 linha de um lote esperou mais de {age} na fila e foi descartada sem rodar. Coloque-a na fila de novo para rodá-la.",
       "days": "{count} dias",
-      "hours": "{count} horas"
+      "dayOne": "1 dia",
+      "hours": "{count} horas",
+      "hourOne": "1 hora"
+    },
+    "credentialScript": {
+      "title": "{name}: um passo pode ler o login",
+      "body": "O passo {step} pode ler o que foi digitado em um campo e este robô usa um login, então o robô para antes de abrir o navegador. Tire esse passo (Executar JavaScript, ou ler o atributo value). As execuções agendadas pausam depois de 3 que falhem assim. Este robô não vai enviar este aviso de novo."
+    },
+    "takeover": {
+      "title": "{name}: um admin assumiu este robô",
+      "body": "{actor} assumiu os passos deste robô, que agora roda em nome dessa pessoa. Ele não aparece mais como seu."
     }
+  },
+  "takeover": {
+    "title": "Assumir os passos deste robô?",
+    "body": "{creator} montou este robô e não é mais admin. Se continuar, você assume os passos: eles rodam com o login deste workspace em seu nome, e {creator} recebe um aviso. Revise a aba Passos se não souber o que fazem. As execuções agendadas que estavam em pausa continuam em pausa até você ligá-las de novo.",
+    "confirm": "Assumir e rodar",
+    "cancel": "Cancelar"
   }
 }

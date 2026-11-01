@@ -24,6 +24,15 @@ async function sql(statement: string, args: Array<string | number | null> = []) 
   }
 }
 
+async function rows(statement: string, args: Array<string | number | null> = []) {
+  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  try {
+    return (await db.execute({ sql: statement, args })).rows as unknown as Array<Record<string, unknown>>;
+  } finally {
+    db.close();
+  }
+}
+
 const html = (body: string) => `<!doctype html><html><head><title>t</title></head><body>${body}</body></html>`;
 
 test.beforeAll(async () => {
@@ -44,6 +53,9 @@ test.beforeAll(async () => {
     }
     res.writeHead(200, { 'content-type': 'text/html' });
     if (req.url === '/login') return res.end(html('<form method="post" action="/sent"><input id="pw" name="pw" type="password"><button id="go">Go</button></form>'));
+    if (req.url === '/meta') return res.end(`<!doctype html><html><head><meta http-equiv="refresh" content="1;url=http://localhost:${B}/login"></head><body><p>loading</p></body></html>`);
+    if (req.url === '/js') return res.end(html(`<p>loading</p><script>setTimeout(()=>location.replace('http://localhost:${B}/login'),800)</script>`));
+    if (req.url === '/frame') return res.end(html(`<iframe id="f" src="http://localhost:${B}/login" width="400" height="200"></iframe>`));
     if (req.url === '/danger') return res.end(html('<button class="btn" onclick="fetch(\'/deleted\',{method:\'POST\'})">Delete account</button>'));
     if (req.url === '/same') return res.end(html('<button class="btn" name="save" onclick="fetch(\'/saved\',{method:\'POST\'})">Save</button>'));
     res.end(html('<h1>home</h1>'));
@@ -116,7 +128,7 @@ test('robots: el login no se escribe si una redirección lleva a otro origen, y 
   expect(bad.error).toBe('2: credential_origin');
   expect(received.join()).not.toContain('QA-SECRET');
   await page.goto(`/en/app/robots/${id}?tab=runs`, { waitUntil: 'networkidle' });
-  await expect(page.locator('.robots-run-error').first()).toContainText('different site');
+  await expect(page.locator('.robots-run-error').first()).toContainText('did not type the login');
   // En el sitio configurado, el mismo login llega.
   const { run: good } = await run(request, [
     { type: 'goto', url: `http://127.0.0.1:${A}/login` },
@@ -126,6 +138,93 @@ test('robots: el login no se escribe si una redirección lleva a otro origen, y 
   ]);
   expect(good.status, good.error ?? '').toBe('success');
   expect(received.join()).toContain('/sent:pw=QA-SECRET-pw');
+});
+
+test('robots: un meta refresh, un location.replace o un iframe de otro origen no reciben el login', async ({ request }) => {
+  test.setTimeout(240_000);
+  const name = await credential(request);
+  const fill = { type: 'fill', selector: '#pw', value: `{{credentials.${name}.password}}` };
+  for (const path of ['/meta', '/js']) {
+    received.length = 0;
+    const { run: blocked } = await run(request, [{ type: 'goto', url: `http://127.0.0.1:${A}${path}` }, fill, { type: 'click', selector: '#go', text: '' }, { type: 'wait', ms: 300 }]);
+    expect(blocked.status, path).toBe('failed');
+    expect(blocked.error, path).toBe('2: credential_origin');
+    expect(blocked.logs.at(-1)?.detail, path).toContain(`http://localhost:${B}`);
+    expect(received.join(), path).not.toContain('QA-SECRET');
+  }
+  received.length = 0;
+  const frame = 'iframe#f >> internal:control=enter-frame >> ';
+  const { run: framed } = await run(request, [
+    { type: 'goto', url: `http://127.0.0.1:${A}/frame` },
+    { ...fill, selector: `${frame}#pw` },
+    { type: 'click', selector: `${frame}#go`, text: '' },
+    { type: 'wait', ms: 300 },
+  ]);
+  expect(framed.error).toBe('2: credential_origin');
+  expect(received.join()).not.toContain('QA-SECRET');
+});
+
+test('robots: la corrida frenada nombra el destino y "Usar este sitio" lo guarda después de confirmar', async ({ request, page }) => {
+  test.setTimeout(180_000);
+  const name = await credential(request);
+  const { id, run: blocked } = await run(request, [
+    { type: 'goto', url: `http://127.0.0.1:${A}/redirect-login` },
+    { type: 'fill', selector: '#pw', value: `{{credentials.${name}.password}}` },
+  ]);
+  expect(blocked.error).toBe('2: credential_origin');
+  await page.goto(`/en/app/robots/${id}?tab=runs`, { waitUntil: 'networkidle' });
+  const box = page.locator('.robots-run-error').first();
+  await expect(box).toContainText(`http://localhost:${B}`);
+  await expect(box).toContainText('Login site on step 2');
+  await box.getByTestId('robots-use-site').click();
+  const dialog = page.getByRole('dialog').or(page.getByRole('alertdialog')).filter({ hasText: `http://localhost:${B}` });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Use this site' }).click();
+  await expect(box).toContainText('Saved');
+  const saved = (await (await request.get(`/api/robots/${id}`)).json()) as { robot: { steps: Array<{ origin?: string }> } };
+  expect(saved.robot.steps[1].origin).toBe(`http://localhost:${B}`);
+  const again = await request.post(`/api/robots/run/${id}`, { data: {} });
+  expect(((await again.json()) as { run: { status: string } }).run.status).toBe('success');
+});
+
+test('robots: el admin se hace cargo solo si confirma, y el diálogo nombra a quien lo armó', async ({ request, page }) => {
+  test.setTimeout(180_000);
+  const name = await credential(request);
+  const made = await request.post('/api/robots', {
+    data: {
+      name: `Takeover ${uid()}`,
+      steps: [
+        { type: 'goto', url: `http://127.0.0.1:${A}/login` },
+        { type: 'fill', selector: '#pw', value: `{{credentials.${name}.password}}` },
+      ],
+    },
+  });
+  expect(made.ok(), await made.text()).toBe(true);
+  const { id } = (await made.json()) as { id: string };
+  // Quien lo armó ahora es member del workspace.
+  const creator = `qa-creator-${uid()}`;
+  await sql('INSERT INTO users (id, email, name) VALUES (?, ?, ?)', [creator, `${creator}@darwin-e2e.io`, 'Ana Creator']);
+  await sql("INSERT INTO team_members (team_id, user_id, role) VALUES ((SELECT id FROM teams WHERE owner_id = 'demo' ORDER BY created_at, id LIMIT 1), ?, 'member')", [creator]);
+  await sql('UPDATE robots SET created_by = ? WHERE id = ?', [creator, id]);
+  // Sin confirmar, la API rechaza y explica.
+  const refused = await request.post(`/api/robots/run/${id}`, { data: {} });
+  expect(refused.status()).toBe(403);
+  expect(((await refused.json()) as { error: string }).error).toBe('takeover_required');
+  // Guardar no transfiere.
+  expect((await request.patch(`/api/robots/${id}`, { data: { name: 'Renamed' } })).ok()).toBe(true);
+  await page.goto(`/en/app/robots/${id}`, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'Run', exact: true }).first().click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toContainText('Ana Creator');
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.getByText(/does not run until an admin takes over/).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Run', exact: true }).first().click();
+  await dialog.getByRole('button', { name: 'Take over and run' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.locator('.robots-run-error')).toHaveCount(0);
+  await expect.poll(async () => ((await (await request.get(`/api/robots/${id}/runs`)).json()) as { runs: unknown[] }).runs.length, { timeout: 30_000 }).toBeGreaterThan(0);
+  const notes = await rows("SELECT title FROM notifications WHERE user_id = ? AND type = 'robot_notice'", [creator]);
+  expect(notes.length).toBe(1);
 });
 
 /** Errores de hidratación (#418, #423, #425) en la consola de la página. */

@@ -288,7 +288,7 @@
     "scrollHint": "Baja hasta el final y espera, hasta que no cargan filas nuevas o después de {max} bajadas.",
     "moreHint": "Hace clic en el botón hasta que desaparece, no cargan filas nuevas o después de {max} clics, y lee todas las filas.",
     "loadMoreDefault": "Cargar más",
-    "originHint": "El login solo se escribe en este sitio. Vacío usa el sitio del último paso Ir a URL con dirección fija. Si la página termina en otro sitio (después de una redirección, por ejemplo), el paso falla sin escribirlo."
+    "originHint": "El login solo se escribe en este sitio. Pegá la dirección de la página de login. Vacío usa el sitio del último paso Ir a URL con dirección fija. Un dominio y su www. cuentan como el mismo sitio. Si el campo termina en cualquier otro sitio (después de una redirección o dentro de un iframe, por ejemplo), el paso falla sin escribirlo."
   },
   "inputs": {
     "title": "Entradas",
@@ -414,8 +414,14 @@
     "relearnedAction": "El paso {step} ya no encontraba su selector y no se hizo ningún clic ni se escribió nada. Reemplazo sugerido, el único elemento con el mismo nombre: {selector}. Aprobalo si está bien.",
     "approveSuggestion": "Aprobar y guardar",
     "suggestionApproved": "Aprobado y guardado en el robot.",
-    "credentialNotAllowed": "El paso {step} usa una credencial fuera del valor de un campo Completar, y no se mandó a la página. Las credenciales ahora solo funcionan como valor de un paso Completar. Abrí la pestaña Pasos y sacala de la URL, el selector, el texto o el script.",
-    "credentialOrigin": "El paso {step} iba a escribir un login en un sitio distinto del que se configuró, así que no se mandó. Si la página de login cambió, grabá el login de nuevo o completá el Sitio del login en ese paso."
+    "credentialNotAllowed": "El paso {step} usa una credencial fuera del valor de un paso Completar, y no se mandó a la página. Dentro de los pasos de un robot, una credencial solo funciona como valor de un paso Completar. Abrí la pestaña Pasos y sacala de la URL, el selector, el texto o el script.",
+    "credentialOrigin": "El paso {step} no escribió el login. La página estaba en {here} y este paso solo permite {bound}. Si {here} es correcto, escribilo en Sitio del login del paso {step}, en la pestaña Pasos.",
+    "credentialScript": "El paso {step} puede leer lo que se escribió en un campo y este robot usa un login, así que la corrida se frenó antes de abrir el navegador. Abrí la pestaña Pasos y sacá ese paso (Ejecutar JavaScript, o leer el atributo value), o dejá de usar el login en este robot.",
+    "credentialNoSite": "El paso {step} no escribió el login porque este robot no tiene un sitio fijo: la dirección de su paso Ir a URL usa una variable. La página estaba en {here}. Para permitirlo, escribí ese sitio en Sitio del login del paso {step}, en la pestaña Pasos.",
+    "useSite": "Usar este sitio",
+    "useSiteTitle": "¿Escribir este login en {here}?",
+    "useSiteBody": "De ahora en más, el paso {step} escribe el login en {here}. Confirmá solo si reconocés este sitio.",
+    "useSiteDone": "Guardado. Corré el robot de nuevo para usar {here}."
   },
   "settings": {
     "enabled": "Permitir corridas automáticas",
@@ -542,7 +548,11 @@
     "no_crm_access": "Necesitás acceso al CRM para mandar filas ahí.",
     "outside_recipient": "Los emails de cambios solo pueden ir a personas de este workspace.",
     "save_first": "Primero guardá tus cambios.",
-    "suggestion_stale": "El paso cambió desde esa corrida. Volvé a correr el robot."
+    "suggestion_stale": "El paso cambió desde esa corrida. Volvé a correr el robot.",
+    "invalid_login_site": "Paso {index}: Sitio del login tiene que ser una dirección web, como https://login.example.com.",
+    "credential_with_script": "El paso {index} puede leer lo que se escribió en un campo y este robot usa un login. Sacá ese paso (Ejecutar JavaScript, o leer el atributo value) o dejá de usar el login en este robot.",
+    "takeover_required": "Este robot usa un login y lo armó alguien que ya no es admin, así que no corre hasta que un admin se haga cargo de sus pasos. Tocá Correr en este robot y confirmá.",
+    "takeover_stale": "El robot cambió desde que abriste esto. Recargá y probá de nuevo."
   },
   "paste": {
     "title": "Pegar pasos grabados",
@@ -910,8 +920,25 @@
     "batchExpired": {
       "title": "{name}: filas del lote descartadas",
       "body": "{count} filas de un lote esperaron más de {age} en la cola y se descartaron sin correr. Volvé a ponerlas en cola para correrlas.",
+      "bodyOne": "1 fila de un lote esperó más de {age} en la cola y se descartó sin correr. Volvé a ponerla en cola para correrla.",
       "days": "{count} días",
-      "hours": "{count} horas"
+      "dayOne": "1 día",
+      "hours": "{count} horas",
+      "hourOne": "1 hora"
+    },
+    "credentialScript": {
+      "title": "{name}: un paso puede leer el login",
+      "body": "El paso {step} puede leer lo que se escribió en un campo y este robot usa un login, así que el robot se frena antes de abrir el navegador. Sacá ese paso (Ejecutar JavaScript, o leer el atributo value). Las corridas programadas se pausan después de 3 que fallen así. Este robot no va a volver a mandar este aviso."
+    },
+    "takeover": {
+      "title": "{name}: un admin se hizo cargo de este robot",
+      "body": "{actor} se hizo cargo de los pasos de este robot, que ahora corre a su nombre. Ya no figura como tuyo."
     }
+  },
+  "takeover": {
+    "title": "¿Te hacés cargo de los pasos de este robot?",
+    "body": "{creator} armó este robot y ya no es admin. Si seguís, te hacés cargo de sus pasos: corren con el login de este workspace a tu nombre, y a {creator} le llega un aviso. Revisá la pestaña Pasos si no sabés qué hacen. Las corridas programadas que estaban en pausa siguen en pausa hasta que las vuelvas a prender.",
+    "confirm": "Hacerme cargo y correr",
+    "cancel": "Cancelar"
   }
 }

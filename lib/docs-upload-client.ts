@@ -30,7 +30,7 @@ function uploadConfig(uploadUrl: string): Promise<DocsUploadConfig> {
 }
 
 export class DocsUploadError extends Error {
-  constructor(public code: 'file_too_large' | 'file_type_not_allowed' | 'storage_unavailable' | 'failed') {
+  constructor(public code: 'file_too_large' | 'file_type_not_allowed' | 'storage_unavailable' | 'rate_limited' | 'failed') {
     super(code);
   }
 }
@@ -62,6 +62,15 @@ export async function uploadDocsFile(
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
       if (/content type|file_type_not_allowed|not allowed/i.test(msg)) throw new DocsUploadError('file_type_not_allowed');
+      // La librería esconde la respuesta del permiso: se pregunta de nuevo para saber si fue el tope por persona.
+      if (/client token/i.test(msg)) {
+        const probe = await fetch(`${opts.uploadUrl}/blob`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ type: 'blob.generate-client-token', payload: { pathname: '', callbackUrl: '', multipart: false, clientPayload: null } }),
+        }).catch(() => null);
+        if (probe?.status === 429) throw new DocsUploadError('rate_limited');
+      }
       throw new DocsUploadError('failed');
     }
   }
@@ -70,7 +79,7 @@ export async function uploadDocsFile(
   const res = await fetch(opts.uploadUrl, { method: 'POST', body });
   if (!res.ok) {
     const code = ((await res.json().catch(() => null)) as { error?: string } | null)?.error;
-    if (code === 'file_type_not_allowed' || code === 'storage_unavailable' || code === 'file_too_large') throw new DocsUploadError(code);
+    if (code === 'file_type_not_allowed' || code === 'storage_unavailable' || code === 'file_too_large' || code === 'rate_limited') throw new DocsUploadError(code);
     throw new DocsUploadError('failed');
   }
   return (await res.json()) as DocsUploadResult;

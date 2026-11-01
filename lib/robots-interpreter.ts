@@ -27,6 +27,15 @@ export interface RobotLocator {
   waitFor(opts?: { state?: 'attached' | 'visible'; timeout?: number }): Promise<void>;
   scrollIntoViewIfNeeded(opts?: { timeout?: number }): Promise<void>;
   setInputFiles?(files: { name: string; mimeType: string; buffer: unknown }, opts?: { timeout?: number }): Promise<void>;
+  /** El elemento mismo: un login se escribe en él, no en lo que el selector encuentre después. */
+  elementHandle?(opts?: { timeout?: number }): Promise<RobotElementHandle | null>;
+}
+
+/** Atado a su documento: si la página navega, deja de servir en vez de escribir en la nueva. */
+export interface RobotElementHandle {
+  /** El navegador sabe de qué frame es (la página no lo puede falsear). */
+  ownerFrame(): Promise<{ url(): string } | null>;
+  fill(value: string, opts?: { timeout?: number }): Promise<void>;
 }
 
 export interface RobotDownload {
@@ -597,6 +606,37 @@ export async function robotInterpreter(
     }
   };
 
+  /** Mismo sitio: esquema, host y puerto, con el dominio y www. como uno solo. Vacío si no es http(s). */
+  const siteKey = (v: string): string => {
+    try {
+      const u = new URL(v);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
+      return `${u.protocol}//${u.host.toLowerCase().replace(/^www\./, '')}`;
+    } catch {
+      return '';
+    }
+  };
+  /** Origen para mostrar (nunca la URL entera: puede traer tokens). */
+  const originOf = (v: string): string => {
+    try {
+      return new URL(v).origin;
+    } catch {
+      return '';
+    }
+  };
+  /** Una contraseña o secreto de esta corrida dentro de un texto que va a salir hacia la página o la red. */
+  const carriesSecret = (text: string): boolean => {
+    for (const cred of Object.values(opts.credentials ?? {})) {
+      for (const [field, value] of Object.entries(cred)) {
+        if (field === 'username' || typeof value !== 'string' || value.length < 6) continue;
+        if (text.includes(value) || text.includes(encodeURIComponent(value))) return true;
+      }
+    }
+    return false;
+  };
+  /** Esta corrida usa un login: ningún paso puede leer lo que se escribió en un campo. */
+  const usesLogin = Object.keys(opts.credentials ?? {}).length > 0;
+
   /** Sitio del último goto con dirección fija: ahí van los logins si el paso no dice otro. */
   let credOrigin = '';
   /** Detalle del último error propio (sin datos de la página que no sean el origen). */
@@ -784,6 +824,7 @@ export async function robotInterpreter(
       case 'goto': {
         const url = render(s.url, ctx).trim();
         if (!/^https?:\/\//i.test(url)) fail('invalid_url');
+        if (carriesSecret(url)) fail('credential_not_allowed');
         const blocked = await opts.checkUrl(url);
         if (blocked) fail(blocked);
         pages += 1;
@@ -820,20 +861,27 @@ export async function robotInterpreter(
       case 'fill': {
         if (!selector) fail('missing_selector');
         if (/\{\{[^{}]*\bcredentials\b/.test(str(s.value))) {
-          // Después de una redirección la página puede ser de otro sitio: ahí no se escribe el login.
-          const bound = (str(s.origin).trim() || credOrigin).toLowerCase();
-          let here = '';
-          try {
-            here = new URL(page.url()).origin.toLowerCase();
-          } catch {
-            here = '';
+          // Una redirección, un meta refresh o un location.replace pueden pasar mientras se espera
+          // el campo, y el campo puede estar en un iframe. Por eso primero el elemento, después el
+          // origen de SU frame (lo sabe el navegador) y se escribe en ese elemento: si la página
+          // navega en el medio, el elemento ya no sirve y el login no llega a la nueva.
+          const bound = str(s.origin).trim() || credOrigin;
+          const loc = page.locator(selector).first();
+          const handle = loc.elementHandle ? await loc.elementHandle({ timeout: timeout() }) : null;
+          const frame = handle ? await handle.ownerFrame() : null;
+          const here = frame ? frame.url() : '';
+          if (!handle || !bound || !siteKey(here) || siteKey(here) !== siteKey(bound)) {
+            failDetail = `${originOf(here) || '?'} ≠ ${originOf(bound) || '?'}`;
+            fail(bound ? 'credential_origin' : 'credential_no_site');
           }
-          if (!bound || here !== bound) {
-            failDetail = `${here || '?'} ≠ ${bound || '?'}`;
-            fail('credential_origin');
-          }
+          await handle!.fill(render(s.value, ctx), { timeout: timeout() });
+          return { detail: selector };
         }
-        await page.locator(selector).first().fill(render(s.value, ctx), { timeout: timeout() });
+        {
+          const value = render(s.value, ctx);
+          if (carriesSecret(value)) fail('credential_not_allowed');
+          await page.locator(selector).first().fill(value, { timeout: timeout() });
+        }
         return { detail: selector };
       }
       case 'select': {
@@ -862,6 +910,8 @@ export async function robotInterpreter(
         if (!selector) fail('missing_selector');
         const name = str(s.name);
         const attr = str(s.attribute).trim();
+        // Algunos sitios copian lo escrito al atributo value: con un login no se lee.
+        if (usesLogin && attr.toLowerCase() === 'value') fail('credential_with_script');
         const loc = page.locator(selector);
         let value: unknown;
         if (s.mode === 'all') {
@@ -926,6 +976,7 @@ export async function robotInterpreter(
       case 'extract_list': {
         if (!selector) fail('missing_selector');
         const name = str(s.name);
+        if (usesLogin && (Array.isArray(s.fields) ? (s.fields as Array<Record<string, unknown>>) : []).some((f) => str(f.attribute).trim().toLowerCase() === 'value')) fail('credential_with_script');
         const fields = (Array.isArray(s.fields) ? (s.fields as Array<Record<string, unknown>>) : [])
           .slice(0, 20)
           .map((f) => {
@@ -1091,6 +1142,8 @@ export async function robotInterpreter(
         return { detail: `${name}.pdf (${buf.length} B)` };
       }
       case 'evaluate': {
+        // Un script después de un fill puede leer el valor y mandarlo a cualquier lado.
+        if (usesLogin) fail('credential_with_script');
         const name = str(s.name);
         const script = render(str(s.script), ctx);
         // Corre en la página (no en el servidor). Texto, no función: la CSP del sitio no lo bloquea.
@@ -1195,10 +1248,10 @@ export async function robotInterpreter(
   };
 
   /** Errores que cortan la corrida aunque el paso tenga continueOnError. */
-  const FATAL = /^(timeout|step_limit|page_crashed)$/;
+  const FATAL = /^(timeout|step_limit|page_crashed|credential_origin|credential_no_site|credential_with_script)$/;
 
   /** Errores que no se arreglan reintentando el paso. */
-  const NO_RETRY = /^(credential_not_allowed|credential_origin|timeout|page_crashed|page_limit|step_limit|invalid_url|private_host|https_required|unresolvable_host|missing_selector|missing_attribute|missing_fields|missing_totp_secret|invalid_key|unknown_step|file_limit|file_too_large|unsupported|result_too_large)$/;
+  const NO_RETRY = /^(credential_not_allowed|credential_origin|credential_no_site|credential_with_script|timeout|page_crashed|page_limit|step_limit|invalid_url|private_host|https_required|unresolvable_host|missing_selector|missing_attribute|missing_fields|missing_totp_secret|invalid_key|unknown_step|file_limit|file_too_large|unsupported|result_too_large)$/;
 
   /** Ejecuta un paso con sus reintentos (retries + retryDelayMs). */
   const runWithRetries = async (s: InterpreterStep, ctx: Record<string, unknown>): Promise<Outcome & { attempts: number }> => {
