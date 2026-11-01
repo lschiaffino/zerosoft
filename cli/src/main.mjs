@@ -40,7 +40,7 @@ Setup
 
 Options
   --json           Output JSON (the default when piped)
-  --url <url>      Server (default https://zerosoft.ai, or ZEROSOFT_URL)
+  --server <url>   Server (default https://zerosoft.ai, or ZEROSOFT_URL)
   --help           Help for any command
   --version        CLI version
 
@@ -48,7 +48,7 @@ Environment
   ZEROSOFT_API_KEY  Use an API key instead of signing in (for CI)
 
 Exit codes: 0 ok, 1 failed, 2 usage, 3 signed out, 4 no permission or not found, 5 rate limited.`,
-  login: `zerosoft login [--device] [--read-only] [--no-open] [--url <url>]
+  login: `zerosoft login [--device] [--read-only] [--no-open] [--server <url>]
 
 Signs in through your browser and stores the token in the OS keychain, or in a
 0600 file if there is none.
@@ -56,7 +56,7 @@ Signs in through your browser and stores the token in the OS keychain, or in a
   --device      No browser on this machine: shows a code to approve elsewhere
   --read-only   Ask only for read access
   --no-open     Print the sign-in URL without opening a browser`,
-  logout: `zerosoft logout [--url <url>]\n\nDisconnects this device on the server and deletes the local token.`,
+  logout: `zerosoft logout [--server <url>]\n\nDisconnects this device on the server and deletes the local token.`,
   whoami: `zerosoft whoami [--json]\n\nThe signed-in person, the workspace, the role and the apps.`,
   workspaces: `zerosoft workspaces [--json]\n\nThe workspaces you belong to.`,
   switch: `zerosoft switch <teamId|own>\n\nMoves this device to another workspace. Your browser stays where it is.`,
@@ -75,7 +75,7 @@ Destructive operations need --confirm.
   --input file.json     The input from a file, or - for stdin
   --offset, --limit-page  Continue a long result, from page.nextOffset
   --file field=path     Attach a file to a multipart operation (repeatable)`,
-  setup: `zerosoft setup claude [--url <url>]\n\nPrints the commands that connect Claude Code and claude.ai to this server.`,
+  setup: `zerosoft setup claude [--server <url>]\n\nPrints the commands that connect Claude Code and claude.ai to this server.`,
 };
 
 function log(msg) {
@@ -136,7 +136,7 @@ async function readInput(flags) {
   return input;
 }
 
-const RESERVED_FLAGS = new Set(['json', 'json-input', 'input', 'confirm', 'offset', 'limit-page', 'help', 'url', 'file']);
+const RESERVED_FLAGS = new Set(['json', 'json-input', 'input', 'confirm', 'offset', 'limit-page', 'help', 'server', 'file']);
 
 function filesFrom(flags) {
   const raw = flags.file === undefined ? [] : Array.isArray(flags.file) ? flags.file : [flags.file];
@@ -262,7 +262,7 @@ export async function main(argv) {
     process.stdout.write(`${HELP[rest[0]] ?? HELP.main}\n`);
     return;
   }
-  const baseUrl = baseUrlFrom(typeof flags.url === 'string' ? flags.url : undefined);
+  const baseUrl = baseUrlFrom(typeof flags.server === 'string' ? flags.server : undefined);
   const client = new McpClient(baseUrl);
   switch (command) {
     case 'login':

@@ -288,8 +288,14 @@ async function callTool(req: Request, caller: McpCaller, name: string, args: Rec
     }
     case 'get_operation_schema': {
       const op = getOperation(args.operation);
-      if (!op || !allowed(op)) return toolError('not_found', 'No such operation available to this connection. Use search_operations.');
-      return okText({ ...summarize(op), doc: op.doc, inputSchema: op.inputSchema, annotations: operationAnnotations(op) });
+      if (!op || !person || !personCanUseApp(person, op.app)) return toolError('not_found', 'No such operation available to this connection. Use search_operations.');
+      return okText({
+        ...summarize(op),
+        doc: op.doc,
+        inputSchema: op.inputSchema,
+        annotations: operationAnnotations(op),
+        ...(credentialAllows(caller, op) ? {} : { availableToThisConnection: false, reason: 'This connection cannot run this operation: it is read-only or the key has no scope for it.' }),
+      });
     }
     case 'invoke_operation': {
       const op = getOperation(args.operation);

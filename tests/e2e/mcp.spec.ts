@@ -578,7 +578,7 @@ test('Ajustes: lista las conexiones y desconectar corta en el momento', async ({
   await expect(row).toBeVisible();
   expect((await mcp.raw('tools/list')).status).toBe(200);
   await row.getByRole('button', { name: new RegExp(`Disconnect ${name}`) }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Disconnect' }).click();
   await expect(page.locator('tr', { hasText: name })).toHaveCount(0);
   expect((await mcp.raw('tools/list')).status).toBe(401);
   await page.reload();
@@ -698,7 +698,8 @@ test('CLI: login de dispositivo y solo lectura', async ({ page }) => {
   expect(done.code, done.stderr).toBe(0);
   expect(done.stderr).toContain('read only');
   const write = await cli(['crm', 'companies', 'create', '--name', 'Nope'], env);
-  expect(write.code).toBe(4);
+  expect(write.code, `${write.stdout} ${write.stderr}`).toBe(4);
+  expect(write.stderr).toContain('read-only');
   expect((await cli(['crm', 'companies', 'list'], env)).code).toBe(0);
 });
 
@@ -740,7 +741,7 @@ test('las pantallas se ven bien a 390 y 1280, en claro y oscuro', async ({ brows
       const disconnect = panel.getByRole('button', { name: /^Disconnect / }).first();
       await expect(disconnect).toBeInViewport({ ratio: 1 });
       await disconnect.click();
-      await expect(page.getByRole('dialog')).toBeVisible();
+      await expect(page.getByRole('alertdialog')).toBeVisible();
       await shot(page, `settings-confirm-${tag}`);
       await page.keyboard.press('Escape');
       await page.goto('/en/docs/mcp');
