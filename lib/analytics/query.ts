@@ -17,7 +17,7 @@ import {
   computeRetention,
   periodLabel,
   periodOf,
-  previousRange,
+  previousAligned,
   resolveRange,
   type FunnelRow,
 } from './compute';
@@ -277,7 +277,7 @@ async function trendOnce(project: ProjectRow, q: TrendsQuery, range: { from: num
     const filters = [...internalFilters(project, q.excludeInternal), ...q.filters, ...s.filters];
     const label = seriesLabel(s.event, s, actions);
     const isAction = s.event.startsWith(ACTION_PREFIX);
-    if (!filters.length && !q.breakdown && !cohort && !isAction && (s.math === 'total' || s.math === 'unique')) {
+    if (!filters.length && !q.breakdown && !cohort && !isAction && s.math === 'total') {
       const data = await trendFromRollup(project, s.event, s.math, q.interval, range, buckets);
       if (data) {
         usedRollup = true;
@@ -330,7 +330,7 @@ export async function runTrends(project: ProjectRow, q: TrendsQuery, now = Date.
   const cur = await trendOnce(project, q, range, now);
   const series = cur.series.map((s) => ({ ...s }) as TrendsResult['series'][number]);
   if (q.compare) {
-    const prev = await trendOnce(project, q, previousRange(range), now);
+    const prev = await trendOnce(project, q, previousAligned(range, q.interval, Number(project.tz_offset_min)), now);
     for (const s of series) {
       const match = prev.series.find((p) => p.label === s.label && p.breakdownValue === s.breakdownValue);
       const data = match?.data ?? [];
@@ -656,7 +656,7 @@ export async function runWeb(project: ProjectRow, q: WebQuery, now = Date.now())
   const tz = Number(project.tz_offset_min);
   const off = offMs(project);
   const range = resolveRange(q.dateRange, now, tz);
-  const prev = previousRange(range);
+  const prev = previousAligned(range, range.to - range.from <= 2 * DAY ? 'hour' : 'day', tz);
   const interval = range.to - range.from <= 2 * DAY ? 'hour' : 'day';
   const buckets = bucketList(range.from, range.to, interval, tz);
   const filter = webFiltersSql(q.filters ?? []);

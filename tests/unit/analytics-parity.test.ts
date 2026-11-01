@@ -32,6 +32,10 @@ import { publicResult, publicShareView } from '@/lib/analytics/share-view';
 import { runAnalyticsCron } from '@/lib/analytics/cron';
 import { cohortDefinitionSchema, insightQuerySchema, trendsQuerySchema, type FunnelResult } from '@/lib/analytics/types';
 import { recordProject } from '@/lib/analytics/http';
+import { bucketList, previousAligned } from '@/lib/analytics/compute';
+import { isBotUserAgent } from '@/lib/analytics/bots';
+import { handleCapture } from '@/lib/analytics/ingest-http';
+
 
 const DAY = 86_400_000;
 const NOW = Date.now();
@@ -178,6 +182,81 @@ describe('analytics: cálculos puros', () => {
     expect(old.kind === 'trends' && Boolean(old.excludeInternal)).toBe(false);
     expect(cohortDefinitionSchema.parse({ properties: [], behavior: { event: 'x' } }).type).toBeUndefined();
     expect(trendsQuerySchema.safeParse({ kind: 'trends', series: [{ event: 'x', math: 'evil' }] }).success).toBe(false);
+  });
+});
+
+describe('analytics: bots', () => {
+  it('reconoce crawlers y deja pasar navegadores y SDKs', () => {
+    expect(isBotUserAgent('Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)')).toBe(true);
+    expect(isBotUserAgent('Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2)')).toBe(true);
+    expect(isBotUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36')).toBe(false);
+    expect(isBotUserAgent('posthog-node/4.0')).toBe(false);
+    expect(isBotUserAgent(null)).toBe(false);
+  });
+  it('lo que manda un crawler con la key pública no se guarda; un navegador sí', async () => {
+    const { project: p } = await newProject();
+    const send = (ua: string) =>
+      handleCapture(
+        new Request('http://x/api/ingest/e', { method: 'POST', headers: { 'user-agent': ua, origin: 'http://shop.test' }, body: JSON.stringify({ api_key: p.public_key, event: 'pv', distinct_id: 'v' }) }),
+      );
+    const bot = await (await send('Googlebot/2.1')).json();
+    expect(bot).toMatchObject({ stored: 0, reason: 'bot' });
+    const human = await (await send('Mozilla/5.0 Chrome/130.0 Safari/537.36')).json();
+    expect(human.stored).toBe(1);
+    const n = (await getDb().prepare('SELECT COUNT(*) AS n FROM analytics_events WHERE project_id = ?').get(p.id)) as { n: number };
+    expect(Number(n.n)).toBe(1);
+  });
+});
+
+describe('analytics: comparar con el período anterior', () => {
+  const at = (s: string) => Date.parse(s);
+  it('corre cubetas enteras: 7 días que terminan ahora contra los mismos 7 días a la misma hora', () => {
+    const r = { from: at('2026-10-26T00:00:00Z'), to: at('2026-11-01T15:30:00Z') };
+    expect(previousAligned(r, 'day')).toEqual({ from: at('2026-10-19T00:00:00Z'), to: at('2026-10-25T15:30:00Z') });
+    expect(bucketList(previousAligned(r, 'day').from, previousAligned(r, 'day').to, 'day')).toHaveLength(7);
+  });
+  it('meses de distinto largo: corta en el último día, sin saltar de mes', () => {
+    const r = { from: at('2026-03-01T00:00:00Z'), to: at('2026-03-31T12:00:00Z') };
+    expect(previousAligned(r, 'month')).toEqual({ from: at('2026-02-01T00:00:00Z'), to: at('2026-02-28T12:00:00Z') });
+  });
+  it('respeta la zona del proyecto: el corte es medianoche local', () => {
+    const off = -180;
+    const r = { from: at('2026-10-30T03:00:00Z'), to: at('2026-10-31T15:00:00Z') };
+    const p = previousAligned(r, 'day', off);
+    expect(p).toEqual({ from: at('2026-10-28T03:00:00Z'), to: at('2026-10-29T15:00:00Z') });
+    expect(bucketList(p.from, p.to, 'day', off)).toEqual(['2026-10-28', '2026-10-29']);
+  });
+  it('sobre eventos: cada cubeta frente a su equivalente y los totales contados a mano', async () => {
+    const { project: p } = await newProject();
+    // Hoy 3 eventos en dos cubetas de los últimos 2 días; los 2 días anteriores, 1 y 2. Uno afuera de todo.
+    const dayStart = Math.floor(NOW / DAY) * DAY;
+    await ingest(p, [
+      { event: 'e', distinct_id: 'a', ts: dayStart + 1000 > NOW ? NOW - 1 : dayStart + 1000 },
+      { event: 'e', distinct_id: 'a', ts: dayStart - DAY + 1000 },
+      { event: 'e', distinct_id: 'b', ts: dayStart - DAY + 2000 },
+      { event: 'e', distinct_id: 'a', ts: dayStart - 2 * DAY + 1000 },
+      { event: 'e', distinct_id: 'a', ts: dayStart - 3 * DAY + 1000 },
+      { event: 'e', distinct_id: 'b', ts: dayStart - 3 * DAY + 2000 },
+      { event: 'e', distinct_id: 'z', ts: dayStart - 9 * DAY },
+    ]);
+    const r = await runTrends(p, trendsQuerySchema.parse({ kind: 'trends', series: [{ event: 'e' }], compare: true, dateRange: { from: '-2d' } }), NOW);
+    expect(r.series[0].data).toEqual([2, 1]);
+    expect(r.series[0].total).toBe(3);
+    expect(r.series[0].compare).toEqual([2, 1]);
+    expect(r.series[0].compareTotal).toBe(3);
+  });
+  it('únicos del rango no son la suma de los días, aunque haya rollups', async () => {
+    const { project: p, user } = await newProject();
+    const dayStart = Math.floor(NOW / DAY) * DAY;
+    await ingest(p, [
+      { event: 'e', distinct_id: 'a', ts: dayStart - 2 * DAY + 1000 },
+      { event: 'e', distinct_id: 'a', ts: dayStart - DAY + 1000 },
+    ]);
+    for (let i = 0; i < 3; i++) await runAnalyticsCron({ budgetMs: 10_000, now: NOW });
+    const fresh = (await getProject(user.id, p.id))!;
+    const r = await runTrends(fresh, trendsQuerySchema.parse({ kind: 'trends', series: [{ event: 'e', math: 'unique' }], dateRange: { from: '-3d' } }), NOW);
+    expect(r.series[0].data.reduce((x, y) => x + y, 0)).toBe(2);
+    expect(r.series[0].total).toBe(1);
   });
 });
 

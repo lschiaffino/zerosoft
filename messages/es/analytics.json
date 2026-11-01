@@ -640,7 +640,8 @@
     "converted": "Convirtieron ({total})",
     "dropped": "Abandonaron ({total})",
     "weak": "poca gente, puede ser casualidad",
-    "truncated": "Con una muestra: los datos eran demasiados para leerlos enteros."
+    "truncated": "Con una muestra: los datos eran demasiados para leerlos enteros.",
+    "compared": "Se comparó a {converted} que convirtieron con {dropped} que abandonaron."
   },
   "experiments": {
     "title": "Experimentos",

@@ -29,6 +29,41 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-01-analytics-replay-experimentos',
+    date: '2026-11-01',
+    title: {
+      en: 'Analytics: session replay, experiments, surveys and error tracking',
+      es: 'Analytics: session replay, experimentos, encuestas y errores',
+      pt: 'Analytics: session replay, experimentos, pesquisas e erros',
+    },
+    items: [
+      {
+        product: 'analytics',
+        en: 'New insights: stickiness, lifecycle and funnel correlation. Trends add sums, averages, percentiles, per-person counts, formulas between series and area, pie and cumulative views. Paths show a flow diagram and can include your own events.',
+        es: 'Insights nuevos: stickiness, ciclo de vida y correlación en embudos. Las tendencias suman sumas, promedios, percentiles, conteos por persona, fórmulas entre series y vistas de área, torta y acumulado. Los caminos muestran un diagrama de flujo y pueden incluir tus eventos.',
+        pt: 'Novos insights: stickiness, ciclo de vida e correlação em funis. As tendências ganham somas, médias, percentis, contagens por pessoa, fórmulas entre séries e visões de área, pizza e acumulado. Os caminhos mostram um diagrama de fluxo e podem incluir seus eventos.',
+      },
+      {
+        product: 'analytics',
+        en: 'Experiments on feature flags with exposure tracking and a chance of being best for each variant. Flags gain ordered release groups, cohorts and payloads. Cohorts gain rule groups, "did not do" and static lists.',
+        es: 'Experimentos sobre feature flags con registro de exposición y chance de ser la mejor para cada variante. Los flags suman grupos de release en orden, cohortes y payloads. Las cohortes suman grupos de reglas, "no hizo" y listas estáticas.',
+        pt: 'Experimentos em feature flags com registro de exposição e chance de ser a melhor para cada variante. Os flags ganham grupos de release em ordem, coortes e payloads. As coortes ganham grupos de regras, "não fez" e listas estáticas.',
+      },
+      {
+        product: 'analytics',
+        en: 'Session replay, heatmaps, error tracking and web vitals, all off until an admin turns them on per project. Popover surveys, an LLM page that reads PostHog event names, alerts with in-app notices, public links for insights and dashboards, actions, annotations and data management.',
+        es: 'Session replay, mapas de calor, errores y web vitals, todo apagado hasta que un admin lo prende por proyecto. Encuestas en popover, una página de LLM que lee los nombres de eventos de PostHog, alertas con avisos en la app, links públicos de insights y tableros, acciones, anotaciones y gestión de datos.',
+        pt: 'Session replay, mapas de calor, erros e web vitals, tudo desligado até um admin ligar por projeto. Pesquisas em popover, uma página de LLM que lê os nomes de eventos do PostHog, alertas com avisos no app, links públicos de insights e painéis, ações, anotações e gestão de dados.',
+      },
+      {
+        product: 'analytics',
+        en: 'More accurate numbers: comparisons now line up with the same hours of the previous period, unique users over a range count each person once, and known crawlers are left out of browser traffic.',
+        es: 'Números más exactos: las comparaciones se alinean con las mismas horas del período anterior, los usuarios únicos de un rango cuentan a cada persona una vez y los crawlers conocidos quedan fuera del tráfico del navegador.',
+        pt: 'Números mais exatos: as comparações se alinham com as mesmas horas do período anterior, os usuários únicos de um período contam cada pessoa uma vez e os crawlers conhecidos ficam fora do tráfego do navegador.',
+      },
+    ],
+  },
+  {
     id: '2026-10-31-correcciones-qa',
     date: '2026-10-31',
     title: {

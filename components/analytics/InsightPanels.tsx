@@ -344,6 +344,9 @@ export function CorrelationPanel({ projectId, funnel }: { projectId: string; fun
           {tc('error')}
         </p>
       )}
+      {result && (
+        <p className="an-note">{t('compared', { converted: fmtNumber(result.convertedPeople, locale), dropped: fmtNumber(result.droppedPeople, locale) })}</p>
+      )}
       {result && rows.length === 0 && <p className="an-muted">{t('nothing')}</p>}
       {result && rows.length > 0 && (
         <div className="table-wrap">

@@ -640,7 +640,8 @@
     "converted": "Converteram ({total})",
     "dropped": "Desistiram ({total})",
     "weak": "poucas pessoas, pode ser acaso",
-    "truncated": "Com uma amostra: os dados eram demais para ler inteiros."
+    "truncated": "Com uma amostra: os dados eram demais para ler inteiros.",
+    "compared": "Comparamos {converted} que converteram com {dropped} que desistiram."
   },
   "experiments": {
     "title": "Experimentos",

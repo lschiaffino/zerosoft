@@ -640,7 +640,8 @@
     "converted": "Converted ({total})",
     "dropped": "Dropped ({total})",
     "weak": "few people, could be chance",
-    "truncated": "Based on a sample: the data was too large to read whole."
+    "truncated": "Based on a sample: the data was too large to read whole.",
+    "compared": "Compared {converted} who converted with {dropped} who dropped."
   },
   "experiments": {
     "title": "Experiments",

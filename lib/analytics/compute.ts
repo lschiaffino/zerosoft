@@ -47,6 +47,29 @@ export function previousRange(r: { from: number; to: number }): { from: number; 
   return { from: r.from - len, to: r.from - 1 };
 }
 
+/**
+ * El período anterior comparable: las mismas cubetas enteras corridas hacia
+ * atrás. Con un rango de 7 días que termina ahora, compara los mismos 7 días
+ * cortados a la misma hora, y cada cubeta cae frente a su equivalente.
+ */
+export function previousAligned(r: { from: number; to: number }, interval: Interval, offsetMin = 0): { from: number; to: number } {
+  const n = bucketList(r.from, r.to, interval, offsetMin).length;
+  if (interval === 'month') {
+    const off = offsetMin * 60_000;
+    const back = (ts: number) => {
+      const d = new Date(ts + off);
+      const target = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - n, 1));
+      const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+      target.setUTCDate(Math.min(d.getUTCDate(), lastDay));
+      target.setUTCHours(d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds(), d.getUTCMilliseconds());
+      return target.getTime() - off;
+    };
+    return { from: back(r.from), to: back(r.to) };
+  }
+  const unit = interval === 'hour' ? HOUR : interval === 'day' ? DAY : 7 * DAY;
+  return { from: r.from - n * unit, to: r.to - n * unit };
+}
+
 // ---------- Cubetas ----------
 
 function iso(ms: number): string {

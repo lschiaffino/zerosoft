@@ -1,4 +1,5 @@
-import type { Localized, ParityRow, ParityStatus, ProductParity } from './types';
+import type { Localized, ParityArea, ParityRow, ParityStatus, ProductParity } from './types';
+import benchmark from './analytics-benchmark.json';
 
 type L = [en: string, es: string, pt: string];
 const loc = ([en, es, pt]: L): Localized => ({ en, es, pt });
@@ -22,15 +23,19 @@ function row(
 }
 
 /**
- * Analytics contra PostHog (2026-10-29). Primera versión: proyectos con key
+ * Analytics contra PostHog. Las filas de abajo son las primeras; el resto sale de
+ * analytics-benchmark.json, una fila por cada capacidad de la documentación de
+ * PostHog (fuentes en docs/benchmark/analytics.md). Primera versión: proyectos con key
  * pública, snippet de JS, ingesta por lotes, tendencias, embudos, retención,
  * caminos, personas, cohortes, tableros, feature flags, SQL de solo lectura y
  * analítica web, sobre la misma base libsql que el resto de la suite. Los
  * límites de escala están en la fila `scale`. Los ids son estables.
  */
+const BASE_AREAS = new Set(['ingest', 'privacy', 'insights', 'people', 'flags', 'web', 'data', 'more']);
+
 const parity: ProductParity = {
   competitor: 'PostHog',
-  lastReviewed: '2026-10-29',
+  lastReviewed: '2026-11-01',
   areas: [
     { id: 'ingest', label: loc(['Capture and SDKs', 'Captura y SDKs', 'Captura e SDKs']) },
     { id: 'privacy', label: loc(['Privacy and limits', 'Privacidad y límites', 'Privacidade e limites']) },
@@ -40,6 +45,7 @@ const parity: ProductParity = {
     { id: 'web', label: loc(['Web analytics', 'Analítica web', 'Analytics web']) },
     { id: 'data', label: loc(['Data and platform', 'Datos y plataforma', 'Dados e plataforma']) },
     { id: 'more', label: loc(['Other products', 'Otros productos', 'Outros produtos']) },
+    ...(benchmark.areas as ParityArea[]).filter((a) => !BASE_AREAS.has(a.id) && a.id !== 'tours'),
   ],
   rows: [
     // Captura
@@ -90,19 +96,25 @@ const parity: ProductParity = {
     }),
     row('sdks', 'ingest', ['SDKs for other platforms', 'SDKs para otras plataformas', 'SDKs para outras plataformas'], 'partial', {
       detail: [
-        'Browser JavaScript and plain HTTP only. The endpoint accepts PostHog-style batches with api_key or token, but there are no server or mobile SDKs',
-        'Solo JavaScript de navegador y HTTP. El endpoint acepta lotes al estilo PostHog con api_key o token, pero no hay SDKs de servidor ni mobile',
-        'Só JavaScript de navegador e HTTP. O endpoint aceita lotes no estilo PostHog com api_key ou token, mas não há SDKs de servidor nem mobile',
+        'Browser JavaScript, plain HTTP and the PostHog capture and flags routes. No SDKs of our own for servers or mobile',
+        'JavaScript de navegador, HTTP y las rutas de captura y flags de PostHog. Sin SDKs propios de servidor ni mobile',
+        'JavaScript de navegador, HTTP e as rotas de captura e flags do PostHog. Sem SDKs próprios de servidor nem mobile',
       ],
     }),
     row('group-analytics', 'ingest', ['Group analytics', 'Analítica por grupos', 'Analytics por grupos'], 'partial', {
       detail: [
-        'group() stores the group with its properties and tags later events, but insights cannot count by group yet',
-        'group() guarda el grupo con sus propiedades y marca los eventos siguientes, pero los insights todavía no cuentan por grupo',
-        'group() guarda o grupo com suas propriedades e marca os eventos seguintes, mas os insights ainda não contam por grupo',
+        'group() stores groups and tags events; trends count unique groups, funnels count by group and there is a group list. No group pages, group filters or retention by group',
+        'group() guarda grupos y marca eventos; las tendencias cuentan grupos únicos, los embudos cuentan por grupo y hay una lista de grupos. Sin páginas de grupo, filtros de grupo ni retención por grupo',
+        'group() guarda grupos e marca eventos; as tendências contam grupos únicos, os funis contam por grupo e há uma lista de grupos. Sem páginas de grupo, filtros de grupo nem retenção por grupo',
       ],
     }),
-    row('reverse-proxy', 'ingest', ['Reverse proxy guide', 'Guía de proxy inverso', 'Guia de proxy reverso'], 'missing'),
+    row('reverse-proxy', 'ingest', ['Reverse proxy guide', 'Guía de proxy inverso', 'Guia de proxy reverso'], 'have', {
+      detail: [
+        'Guides for Next.js and nginx in project settings; the snippet and ingest were exercised through a real proxy on another origin',
+        'Guías para Next.js y nginx en los ajustes del proyecto; el snippet y la ingesta se probaron a través de un proxy real en otro origen',
+        'Guias para Next.js e nginx nas configurações do projeto; o snippet e a ingestão foram testados através de um proxy real em outra origem',
+      ],
+    }),
 
     // Privacidad
     row('dnt', 'privacy', ['Respect Do Not Track', 'Respetar Do Not Track', 'Respeitar Do Not Track'], 'have', {
@@ -157,9 +169,9 @@ const parity: ProductParity = {
     }),
     row('paths', 'insights', ['User paths', 'Caminos de usuarios', 'Caminhos de usuários'], 'partial', {
       detail: [
-        'Top transitions per step and top full paths as tables, from page views only. No Sankey diagram',
-        'Las transiciones principales por paso y los caminos más comunes en tablas, solo con páginas vistas. Sin diagrama Sankey',
-        'As principais transições por etapa e os caminhos mais comuns em tabelas, só com visualizações de página. Sem diagrama Sankey',
+        'Sankey diagram and tables, with page views or custom events, a start and an end, and ids grouped in URLs. No path cleaning rules or exclusions',
+        'Diagrama Sankey y tablas, con páginas vistas o eventos propios, inicio y final, e ids juntados en las URLs. Sin reglas de limpieza de caminos ni exclusiones',
+        'Diagrama Sankey e tabelas, com visualizações de página ou eventos próprios, início e fim, e ids agrupados nas URLs. Sem regras de limpeza de caminhos nem exclusões',
       ],
     }),
     row('sql', 'insights', ['SQL queries', 'Consultas SQL', 'Consultas SQL'], 'partial', {
@@ -171,10 +183,34 @@ const parity: ProductParity = {
       ],
     }),
     row('dashboards', 'insights', ['Dashboards', 'Tableros', 'Painéis'], 'have', { weight: 2 }),
-    row('stickiness-lifecycle', 'insights', ['Stickiness and lifecycle', 'Stickiness y ciclo de vida', 'Stickiness e ciclo de vida'], 'missing'),
-    row('correlation', 'insights', ['Funnel correlation analysis', 'Análisis de correlación en embudos', 'Análise de correlação em funis'], 'missing'),
-    row('alerts', 'insights', ['Alerts on insights', 'Alertas sobre insights', 'Alertas sobre insights'], 'missing'),
-    row('sharing', 'insights', ['Public sharing and embeds', 'Compartir y embeber en público', 'Compartilhar e embutir em público'], 'missing'),
+    row('stickiness-lifecycle', 'insights', ['Stickiness and lifecycle', 'Stickiness y ciclo de vida', 'Stickiness e ciclo de vida'], 'have', {
+      detail: [
+        'Both insight kinds, by day, week or month, checked against events sent through the real API',
+        'Los dos tipos de insight, por día, semana o mes, comprobados contra eventos enviados por la API real',
+        'Os dois tipos de insight, por dia, semana ou mês, verificados contra eventos enviados pela API real',
+      ],
+    }),
+    row('correlation', 'insights', ['Funnel correlation analysis', 'Análisis de correlación en embudos', 'Análise de correlação em funis'], 'partial', {
+      detail: [
+        'Events and person properties, with odds ratios. No event property correlation or per-step analysis',
+        'Eventos y propiedades de la persona, con odds ratio. Sin correlación por propiedades de evento ni análisis por paso',
+        'Eventos e propriedades da pessoa, com odds ratio. Sem correlação por propriedades de evento nem análise por etapa',
+      ],
+    }),
+    row('alerts', 'insights', ['Alerts on insights', 'Alertas sobre insights', 'Alertas sobre insights'], 'partial', {
+      detail: [
+        'Thresholds and percentage changes on trends insights, hourly or daily, with in-app notices. No email or Slack delivery',
+        'Umbrales y cambios porcentuales sobre insights de tendencias, por hora o por día, con avisos en la app. Sin envío por email ni Slack',
+        'Limites e variações percentuais em insights de tendências, por hora ou por dia, com avisos no app. Sem envio por email nem Slack',
+      ],
+    }),
+    row('sharing', 'insights', ['Public sharing and embeds', 'Compartir y embeber en público', 'Compartilhar e embutir em público'], 'partial', {
+      detail: [
+        'Revocable public links and iframe embeds for insights and dashboards, with results only. No password or whitelabel options',
+        'Links públicos revocables e iframes para insights y tableros, solo con resultados. Sin contraseña ni marca blanca',
+        'Links públicos revogáveis e iframes para insights e painéis, só com resultados. Sem senha nem marca branca',
+      ],
+    }),
 
     // Personas
     row('persons', 'people', ['Persons with properties and timeline', 'Personas con propiedades y línea de tiempo', 'Pessoas com propriedades e linha do tempo'], 'have', {
@@ -183,9 +219,9 @@ const parity: ProductParity = {
     }),
     row('cohorts', 'people', ['Cohorts', 'Cohortes', 'Coortes'], 'partial', {
       detail: [
-        'Person-property filters plus one behavioral rule (did an event at least N times in the last D days). No nested groups or static CSV cohorts',
-        'Filtros de propiedades más una regla de comportamiento (hizo un evento al menos N veces en los últimos D días). Sin grupos anidados ni cohortes estáticas por CSV',
-        'Filtros de propriedades mais uma regra de comportamento (fez um evento pelo menos N vezes nos últimos D dias). Sem grupos aninhados nem coortes estáticas por CSV',
+        'Rule groups joined with OR, did and did not do, static lists by CSV and from a list of people. No sequence rules or cohorts of cohorts',
+        'Grupos de reglas con O, hizo y no hizo, listas estáticas por CSV y desde una lista de personas. Sin reglas de secuencia ni cohortes de cohortes',
+        'Grupos de regras com OU, fez e não fez, listas estáticas por CSV e a partir de uma lista de pessoas. Sem regras de sequência nem coortes de coortes',
       ],
     }),
 
@@ -196,15 +232,21 @@ const parity: ProductParity = {
     }),
     row('flags-targeting', 'flags', ['Targeting by person properties', 'Segmentación por propiedades de la persona', 'Segmentação por propriedades da pessoa'], 'partial', {
       detail: [
-        'One set of conditions joined with AND. No multiple release groups, payloads, local evaluation or early access management',
-        'Un solo conjunto de condiciones con AND. Sin varios grupos de release, payloads, evaluación local ni early access',
-        'Um só conjunto de condições com AND. Sem vários grupos de release, payloads, avaliação local nem early access',
+        'Ordered release groups with person properties, a cohort, a rollout and a forced variant, plus payloads. No group targeting, GeoIP operators or flag dependencies',
+        'Grupos de release en orden con propiedades de la persona, una cohorte, un porcentaje y una variante forzada, más payloads. Sin segmentar por grupos, operadores GeoIP ni dependencias entre flags',
+        'Grupos de release em ordem com propriedades da pessoa, uma coorte, uma porcentagem e uma variante forçada, mais payloads. Sem segmentar por grupos, operadores GeoIP nem dependências entre flags',
       ],
     }),
     row('flags-decide', 'flags', ['Decide endpoint and snippet helpers', 'Endpoint decide y helpers del snippet', 'Endpoint decide e helpers do snippet'], 'have', {
       detail: ['POST /api/ingest/decide, isFeatureEnabled, getFeatureFlag and onFeatureFlags', 'POST /api/ingest/decide, isFeatureEnabled, getFeatureFlag y onFeatureFlags', 'POST /api/ingest/decide, isFeatureEnabled, getFeatureFlag e onFeatureFlags'],
     }),
-    row('experiments', 'flags', ['Experiments (A/B test analysis)', 'Experimentos (análisis de A/B)', 'Experimentos (análise de A/B)'], 'missing'),
+    row('experiments', 'flags', ['Experiments (A/B test analysis)', 'Experimentos (análisis de A/B)', 'Experimentos (análise de A/B)'], 'partial', {
+      detail: [
+        'Bayesian analysis of conversion and average metrics on a flag, exposure tracking, sample mismatch warning and rolling out a winner. No frequentist engine, ratio metrics, holdouts or shared metrics',
+        'Análisis bayesiano de conversión y promedio sobre un flag, registro de exposición, aviso de reparto desparejo y pasar a la ganadora. Sin motor frecuentista, métricas de razón, holdouts ni métricas compartidas',
+        'Análise bayesiana de conversão e média sobre um flag, registro de exposição, aviso de divisão desigual e passar para a vencedora. Sem motor frequentista, métricas de razão, holdouts nem métricas compartilhadas',
+      ],
+    }),
 
     // Web
     row('web-overview', 'web', ['Web analytics overview', 'Resumen de analítica web', 'Resumo de analytics web'], 'have', {
@@ -215,7 +257,13 @@ const parity: ProductParity = {
         'Visitantes, visualizações, sessões, rejeição e duração média, com páginas, páginas de entrada, referências, fontes UTM, países, dispositivos, navegadores e sistemas',
       ],
     }),
-    row('heatmaps', 'web', ['Heatmaps', 'Mapas de calor', 'Mapas de calor'], 'missing'),
+    row('heatmaps', 'web', ['Heatmaps', 'Mapas de calor', 'Mapas de calor'], 'partial', {
+      detail: [
+        'Clicks, most clicked elements and scroll depth per page and viewport, opt-in per project. No rage clicks or in-page view',
+        'Clics, elementos más clicados y profundidad de scroll por página y ancho, a elección por proyecto. Sin clics de bronca ni vista dentro de la página',
+        'Cliques, elementos mais clicados e profundidade de scroll por página e largura, opcional por projeto. Sem cliques de raiva nem visão dentro da página',
+      ],
+    }),
     row('toolbar', 'web', ['Toolbar on your site', 'Toolbar en tu sitio', 'Toolbar no seu site'], 'missing'),
 
     // Datos y plataforma
@@ -240,13 +288,37 @@ const parity: ProductParity = {
     row('pipelines', 'data', ['CDP destinations and pipelines', 'Destinos CDP y pipelines', 'Destinos CDP e pipelines'], 'missing'),
 
     // Otros productos de PostHog
-    row('session-replay', 'more', ['Session replay', 'Session replay', 'Session replay'], 'missing', {
+    row('session-replay', 'more', ['Session replay', 'Session replay', 'Session replay'], 'partial', {
       weight: 2,
-      detail: ['Not built: Analytics does not record the screen', 'No está hecho: Analytics no graba la pantalla', 'Não foi feito: o Analytics não grava a tela'],
+      detail: [
+        'Web recording with rrweb, opt-in per project, masked inputs, list with filters and a player with timeline and events. No console or network logs, playlists, or mobile',
+        'Grabación web con rrweb, a elección por proyecto, campos enmascarados, lista con filtros y reproductor con línea de tiempo y eventos. Sin logs de consola ni de red, listas de reproducción ni mobile',
+        'Gravação web com rrweb, opcional por projeto, campos mascarados, lista com filtros e player com linha do tempo e eventos. Sem logs de console nem de rede, playlists nem mobile',
+      ],
     }),
-    row('surveys', 'more', ['Surveys', 'Encuestas', 'Pesquisas'], 'missing'),
-    row('error-tracking', 'more', ['Error tracking', 'Seguimiento de errores', 'Rastreamento de erros'], 'missing'),
-    row('llm-observability', 'more', ['LLM observability', 'Observabilidad de LLMs', 'Observabilidade de LLMs'], 'missing'),
+    row('surveys', 'more', ['Surveys', 'Encuestas', 'Pesquisas'], 'partial', {
+      detail: [
+        'Popover surveys with open, rating and choice questions, targeting, sampling, preview and results with CSV. No branching, link or email surveys',
+        'Encuestas en popover con preguntas abiertas, de puntaje y de opción, segmentación, muestreo, vista previa y resultados con CSV. Sin ramificación ni encuestas por link o email',
+        'Pesquisas em popover com perguntas abertas, de nota e de opção, segmentação, amostragem, prévia e resultados com CSV. Sem ramificação nem pesquisas por link ou email',
+      ],
+    }),
+    row('error-tracking', 'more', ['Error tracking', 'Seguimiento de errores', 'Rastreamento de erros'], 'partial', {
+      detail: [
+        'Captures uncaught errors from the snippet, groups them with a server fingerprint and has status, assignee and regressions. No source maps or SDKs for other platforms',
+        'Captura errores sin atrapar del snippet, los agrupa con una huella del servidor y tiene estado, responsable y regresiones. Sin source maps ni SDKs para otras plataformas',
+        'Captura erros não tratados do snippet, agrupa com uma impressão do servidor e tem estado, responsável e regressões. Sem source maps nem SDKs para outras plataformas',
+      ],
+    }),
+    row('llm-observability', 'more', ['LLM observability', 'Observabilidad de LLMs', 'Observabilidade de LLMs'], 'partial', {
+      detail: [
+        'Generations by model with tokens, reported cost, latency, errors and traces, from PostHog event names. No SDK wrappers or evaluations',
+        'Generaciones por modelo con tokens, costo informado, latencia, errores y trazas, con los nombres de eventos de PostHog. Sin wrappers de SDK ni evaluaciones',
+        'Gerações por modelo com tokens, custo informado, latência, erros e traces, com os nomes de eventos do PostHog. Sem wrappers de SDK nem avaliações',
+      ],
+    }),
+    // Lo que PostHog no confirma en su documentación no cuenta ni se publica (queda en docs/benchmark/analytics.md).
+    ...(benchmark.rows as ParityRow[]).filter((r) => r.competitorHas || r.status !== 'missing'),
   ],
 };
 

@@ -27,7 +27,7 @@ function watchErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
   page.on('console', (msg) => {
-    if (msg.type() === 'error' && !/favicon|Failed to load resource/i.test(msg.text())) errors.push(`console: ${msg.text()}`);
+    if (msg.type() === 'error' && !/favicon|Failed to load resource|Blocked script execution/i.test(msg.text())) errors.push(`console: ${msg.text()}`);
   });
   page.on('response', (res) => {
     if (res.status() >= 500) errors.push(`${res.status()} ${res.url()}`);
@@ -142,6 +142,11 @@ test('apagado por defecto: nada se graba y la página explica cómo prenderlo', 
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
+// Cada test mira el proyecto de esta suite, aunque otras suites hayan creado proyectos antes.
+test.beforeEach(async ({ page, baseURL }) => {
+  if (projectId) await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
+});
+
 test('prender desde los ajustes, grabar en otro origen y reproducir', async ({ page, request }) => {
   test.setTimeout(240_000);
   const errors = watchErrors(page);
@@ -218,7 +223,7 @@ test('prender desde los ajustes, grabar en otro origen y reproducir', async ({ p
   const frame = page.frameLocator('.replayer-wrapper iframe');
   await expect(frame.locator('#buy')).toHaveText('Buy now');
   await expect(frame.locator('#site-title')).toHaveText('Shop');
-  await expect(frame.locator('#private-block')).not.toContainText('Private customer note');
+  await expect(frame.locator('body')).not.toContainText('Private customer note');
 
   // Eventos de la sesión, marcas y sincronía.
   const list = page.getByTestId('an-replay-events');
@@ -376,7 +381,8 @@ test('grabación hostil: el <script> y los manejadores inline no corren', async 
 test('accesos: otro workspace 404, sin la app 403, miembro sin borrar', async ({ browser, request, baseURL }) => {
   test.setTimeout(120_000);
   // Otro workspace: la misma grabación no existe.
-  const stranger = await browserAs(browser, baseURL!, `stranger-${uid()}@darwin-e2e.io`);
+  const strangerEmail = `stranger-${uid()}@darwin-e2e.io`;
+  const stranger = await browserAs(browser, baseURL!, strangerEmail);
   for (const path of [`/api/analytics/replay/${recordingId}`, `/api/analytics/replay/${recordingId}/chunks`]) {
     expect((await stranger.request.get(path)).status(), path).toBe(404);
   }
@@ -384,9 +390,10 @@ test('accesos: otro workspace 404, sin la app 403, miembro sin borrar', async ({
   expect((await stranger.request.get(`/api/analytics/replay?project=${projectId}`)).status()).toBe(404);
   expect((await stranger.request.get(`/api/analytics/replay/sessions?project=${projectId}&ids=${sessionId}`)).status()).toBe(404);
   expect((await stranger.request.get(`/api/analytics/heatmaps?project=${projectId}`)).status()).toBe(404);
+  await sql("UPDATE users SET onboarded_at = datetime('now') WHERE email = ?", [strangerEmail]);
   const strangerPage = await stranger.newPage();
   const res = await strangerPage.goto(`/en/app/analytics/replay/${recordingId}`);
-  expect(res?.status()).toBe(404);
+  expect(`${res?.status()} ${strangerPage.url()}`).toMatch(/^404 /);
   await stranger.close();
 
   // Del workspace pero sin la app, o guest: afuera. Miembro con la app: mira pero no borra.

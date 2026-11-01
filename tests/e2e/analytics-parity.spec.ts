@@ -50,6 +50,11 @@ test.beforeAll(async ({ request }) => {
   await send(request, 'signup', 'ana', { $set: { email: 'ana@acme.com', plan: 'pro' } });
   await send(request, 'signup', 'bob', { $set: { email: 'bob@acme.com', plan: 'free' } });
   await send(request, 'paid', 'ana', { total: 100 });
+  // Dos que convierten y dos que no, para que la correlación tenga con qué contar.
+  await send(request, 'signup', 'carla', { $set: { email: 'carla@acme.com', plan: 'pro' } });
+  await send(request, 'paid', 'carla', { total: 50 });
+  await send(request, 'signup', 'dan', { $set: { email: 'dan@acme.com', plan: 'free' } });
+  for (const who of ['ana', 'carla']) await send(request, 'watched_demo', who);
 });
 
 test('stickiness, ciclo de vida, matemáticas, fórmula y CSV en el editor', async ({ page, baseURL }) => {
@@ -60,32 +65,31 @@ test('stickiness, ciclo de vida, matemáticas, fórmula y CSV en el editor', asy
   const result = page.getByTestId('an-result');
 
   // Suma de una propiedad.
-  await page.getByRole('textbox', { name: 'Event' }).first().fill('used_app');
-  await page.getByRole('combobox', { name: 'Math' }).first().selectOption('sum');
+  await page.getByRole('combobox', { name: 'Event' }).first().fill('used_app');
+  await page.getByRole('combobox', { name: 'Aggregation' }).first().selectOption('sum');
   await expect(page.getByLabel('Numeric property, e.g. total').first()).toBeVisible();
   await page.getByLabel('Numeric property, e.g. total').first().fill('total');
-  await page.getByRole('combobox', { name: 'Chart type' }).selectOption('number').catch(() => null);
-  await expect(result).toContainText('sum of total', { timeout: 10_000 });
+    await expect(result).toContainText('sum of total', { timeout: 10_000 });
 
   // Fórmula entre dos series.
-  await page.getByRole('combobox', { name: 'Math' }).first().selectOption('total');
-  await page.getByRole('button', { name: /Add series/ }).click();
-  await page.getByRole('textbox', { name: 'Event' }).nth(1).fill('signup');
+  await page.getByRole('combobox', { name: 'Aggregation' }).first().selectOption('total');
+  await page.getByRole('button', { name: '+ Series' }).click();
+  await page.getByRole('combobox', { name: 'Event' }).nth(1).fill('signup');
   await page.getByLabel('Formula').fill('A / B');
   await expect(result).toContainText('A / B', { timeout: 10_000 });
   await page.getByLabel('Formula').fill('A +');
-  await expect(page.getByRole('alert')).toContainText('formula is not valid', { timeout: 10_000 });
+  await expect(page.getByTestId('an-result').getByRole('alert')).toContainText('formula is not valid', { timeout: 10_000 });
   await page.getByLabel('Formula').fill('');
 
   // Stickiness.
   await page.getByRole('tab', { name: 'Stickiness' }).click();
-  await page.getByRole('textbox', { name: 'Event' }).first().fill('used_app');
+  await page.getByRole('combobox', { name: 'Event' }).first().fill('used_app');
   await expect(result.getByRole('rowheader', { name: '3 days' })).toBeVisible({ timeout: 10_000 });
   await shot(page, 'insight-stickiness');
 
   // Ciclo de vida.
   await page.getByRole('tab', { name: 'Lifecycle' }).click();
-  await page.getByRole('textbox', { name: 'Event' }).first().fill('used_app');
+  await page.getByRole('combobox', { name: 'Event' }).first().fill('used_app');
   await expect(result.getByRole('columnheader', { name: 'Came back' })).toBeVisible({ timeout: 10_000 });
   await shot(page, 'insight-lifecycle');
 
@@ -110,7 +114,9 @@ test('correlación en un embudo y embudo guardado como cohorte estática', async
   await page.goto(`/en/app/analytics/insights/${insight.id}`, { waitUntil: 'networkidle' });
   const panel = page.getByTestId('an-correlation');
   await panel.getByRole('button', { name: 'Analyze' }).click();
-  await expect(panel).toContainText('Converted (1)', { timeout: 15_000 });
+  await expect(panel).toContainText('Converted (2)', { timeout: 15_000 });
+  await expect(panel).toContainText('Dropped (2)');
+  await expect(panel.getByRole('cell', { name: /watched_demo/ })).toBeVisible();
   await panel.getByRole('combobox').selectOption('properties');
   await expect(panel.getByRole('cell', { name: /plan = pro/ })).toBeVisible({ timeout: 15_000 });
   await shot(page, 'funnel-correlation');
@@ -123,7 +129,7 @@ test('correlación en un embudo y embudo guardado como cohorte estática', async
   await page.getByRole('textbox', { name: 'Cohort name' }).fill(name);
   await page.getByRole('button', { name: 'Save as cohort' }).last().click();
   await expect(page).toHaveURL(/cohorts\?open=/, { timeout: 15_000 });
-  await expect(page.getByTestId('an-cohort-editor')).toContainText('1');
+  await expect(page.getByTestId('an-cohort-editor')).toContainText('2 people');
   await expect(page.getByRole('link', { name })).toBeVisible();
 });
 
@@ -136,14 +142,14 @@ test('acción: se crea, se usa en una tendencia, se busca con Cmd+K y se borra',
   await page.getByRole('dialog').getByRole('textbox').fill(name);
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/actions\/aa_/, { timeout: 15_000 });
-  await page.getByRole('textbox', { name: 'Event' }).first().fill('paid');
+  await page.getByRole('combobox', { name: 'Event' }).first().fill('paid');
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByRole('status')).toContainText('Saved');
   const id = page.url().split('/').pop()!;
 
   const res = await request.post('/api/analytics/query', { data: { projectId, query: { kind: 'trends', series: [{ event: `@action:${id}` }], dateRange: { from: '-7d' } } } });
   const { result } = await res.json();
-  expect(result.series[0]).toMatchObject({ label: name, total: 1 });
+  expect(result.series[0]).toMatchObject({ label: name, total: 2 });
 
   const search = await request.get(`/api/search?q=${encodeURIComponent(name)}`);
   if (search.ok()) expect(JSON.stringify(await search.json())).toContain(name);
@@ -182,7 +188,7 @@ test('experimento con el snippet real en otro origen: exposición, conversión y
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/experiments\/ax_/, { timeout: 15_000 });
   await expect(page.getByTestId('an-experiment-results')).toContainText('once the experiment starts');
-  await page.getByRole('textbox', { name: 'Event' }).first().fill('bought');
+  await page.getByRole('combobox', { name: 'Event' }).first().fill('bought');
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByRole('status').first()).toContainText('Saved');
   await page.getByRole('button', { name: 'Start' }).click();

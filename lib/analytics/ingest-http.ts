@@ -9,6 +9,7 @@ import { NextResponse } from 'next/server';
 import { extractBearer } from '../api-auth';
 import { ensureMigrated, getClient } from '../db';
 import { clientIp } from '../rate-limit';
+import { isBotUserAgent } from './bots';
 import { INGEST_LIMITS, originAllowed, parseIngestBody } from './ingest-core';
 import { requestContext, storeEvents } from './ingest';
 import { parseDomainList, projectByKey, type ProjectRow } from './projects';
@@ -128,6 +129,8 @@ export async function handleCapture(req: Request): Promise<Response> {
   if (!parsed.ok) return reply(req, 400, { error: parsed.error });
   const r = await resolveProject(req, parsed.apiKey);
   if ('res' in r) return r.res;
+  // Bots conocidos: lo que manda un crawler desde el navegador no se guarda.
+  if (!r.secret && isBotUserAgent(req.headers.get('user-agent'))) return reply(req, 200, { status: 1, stored: 0, dropped: parsed.events.length, reason: 'bot' });
   // Do Not Track / GPC del navegador: con el ajuste prendido no se guarda nada.
   if (!r.secret && r.project.respect_dnt === 1 && dntOn(req)) return reply(req, 200, { status: 1, stored: 0, dropped: parsed.events.length, reason: 'dnt' });
   const block = await limited(req, 'aingest', r.project.id, INGEST_RPM);

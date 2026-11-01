@@ -182,8 +182,11 @@ test('encuestas: crear desde la UI, editar, vista previa y estado', async ({ pag
 
   // ⌘K la encuentra.
   await page.keyboard.press('ControlOrMeta+k');
-  await page.getByRole('combobox').first().fill('Launch NPS');
-  await expect(page.getByRole('option', { name: /Launch NPS/ }).first()).toBeVisible();
+  const searchDialog = page.getByRole('dialog', { name: 'Search' });
+  await expect(searchDialog).toBeVisible();
+  await searchDialog.getByRole('combobox').click();
+  await searchDialog.getByRole('combobox').pressSequentially('Launch NPS');
+  await expect(searchDialog.getByRole('option', { name: /Launch NPS/ }).first()).toBeVisible();
   await page.keyboard.press('Escape');
   await shots(page, 'survey-editor');
 });
@@ -316,8 +319,8 @@ test('errores: capturar, agrupar, huella del servidor, estado, responsable y reg
   await page.goto('/en/app/analytics/settings', { waitUntil: 'networkidle' });
   await page.getByTestId('an-capture-exceptions').check();
   await page.getByTestId('an-web-vitals').check();
-  await page.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByRole('status').filter({ hasText: /saved/i })).toBeVisible();
+  await page.getByRole('button', { name: 'Save' }).first().click();
+  await expect(page.getByRole('status').filter({ hasText: /saved/i }).first()).toBeVisible();
   expect(await decideConfig(request)).toMatchObject({ captureExceptions: true, webVitals: true });
 
   const site = await page.context().newPage();
@@ -452,7 +455,7 @@ test('LLM: ejemplo vacío, valores limpios, por modelo, trazas y detalle', async
       api_key: publicKey,
       batch: [
         gen({ $ai_model: 'gpt-x', $ai_provider: 'openai', $ai_input_tokens: 100, $ai_output_tokens: 50, $ai_total_cost_usd: 0.5, $ai_latency: 1, $ai_trace_id: 't-1', $ai_input: '<script>window.__pwned=1</script> hi' }),
-        gen({ $ai_model: 'gpt-x', $ai_provider: 'openai', $ai_input_tokens: 100, $ai_output_tokens: 50, $ai_total_cost_usd: 0.5, $ai_latency: 3, $ai_trace_id: 't-1', $ai_is_error: true }),
+        gen({ $ai_model: 'gpt-x', $ai_provider: 'openai', $ai_input_tokens: 100, $ai_output_tokens: 50, $ai_total_cost_usd: 0.5, $ai_latency: 3, $ai_trace_id: 't-1', $ai_is_error: true, $ai_input: '<script>window.__pwned=1</script> hi' }),
         gen({ $ai_model: 'claude-y', $ai_provider: 'anthropic', $ai_input_tokens: -500, $ai_output_tokens: 'abc', $ai_total_cost_usd: 1e30, $ai_latency: 'slow' }),
       ],
     }),
