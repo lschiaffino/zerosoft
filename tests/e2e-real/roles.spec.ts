@@ -38,7 +38,7 @@ interface Person {
 /** Cuenta nueva con sesión real. `onboarded`: ya pasó el onboarding. */
 async function signIn(browser: Browser, name: string): Promise<Person> {
   const baseURL = test.info().project.use.baseURL as string;
-  const email = `${name}-${uid()}@real-e2e.io`;
+  const email = `${name.toLowerCase()}-${uid()}@real-e2e.io`;
   ip += 1;
   const ctx = await browser.newContext({ baseURL, viewport: { width: 1280, height: 860 }, extraHTTPHeaders: { 'x-forwarded-for': `10.20.${ip % 250}.7` } });
   const sent = await ctx.request.post('/api/auth/email-code', { data: { email, locale: 'en' } });
@@ -101,6 +101,9 @@ test('la campana abre el pedido aunque ya esté en Miembros; Esc y recargar no l
     await expect(page).toHaveURL(/\/app\/settings\/members$/);
     await page.reload({ waitUntil: 'networkidle' });
     await expect(page.getByRole('dialog')).toHaveCount(0);
+    // Quitar sigue a la vista a 1280: la tabla no scrollea por dentro.
+    const wrap = page.locator('.ws-members').first();
+    expect(await wrap.evaluate((e) => e.scrollWidth - e.clientWidth)).toBeLessThanOrEqual(0);
     // "Edit access" también cierra con Esc desde que abre.
     await page.locator('tr', { has: page.locator(`[data-email="${mel.email}"]`) }).getByRole('button', { name: 'Edit access' }).click();
     await expect(page.getByRole('dialog')).toBeVisible();

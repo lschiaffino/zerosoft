@@ -113,10 +113,10 @@ test('member con CRM y Docs: app bloqueada, pide acceso y el owner lo habilita d
     await expect(p.getByTestId('home-blocked')).toContainText("You don't have access to Track here");
     await p.getByRole('button', { name: 'Ask for access' }).click();
     await expect(p.getByTestId('access-requested')).toContainText('Request sent');
-    // Pedirlo otra vez el mismo día lo dice.
+    // "Enviado" sobrevive a recargar.
     await p.reload({ waitUntil: 'networkidle' });
-    await p.getByRole('button', { name: 'Ask for access' }).click();
-    await expect(p.getByTestId('access-requested')).toContainText('You already asked today');
+    await expect(p.getByTestId('access-requested')).toContainText('Request sent');
+    expect(await (await p.request.post('/api/teams/access-request', { data: { app: 'track' } })).json()).toEqual({ ok: true, already: true });
 
     // El owner (demo) recibe el aviso y el link abre el acceso de esa persona.
     const inbox = (await (await page.request.get('/api/notifications?type=workspace_access&limit=50')).json()) as { rows: Array<{ title: string; href: string }> };

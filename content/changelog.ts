@@ -45,6 +45,12 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         product: 'platform',
+        en: 'Salaries and the payroll export in People are now for the owner, the HR admins the owner names, and each person.',
+        es: 'Los sueldos y la exportación de nómina de People ahora son del owner, los HR admins que nombra y cada persona.',
+        pt: 'Os salários e a exportação da folha no People agora são do owner, dos admins de RH que ele nomeia e de cada pessoa.',
+      },
+      {
+        product: 'platform',
         en: 'Requests to join by email domain also reach the owner and the admins as a notification.',
         es: 'Los pedidos para sumarse por dominio de email también les llegan al owner y a los admins como aviso.',
         pt: 'Os pedidos para entrar pelo domínio do email também chegam ao owner e aos admins como aviso.',
