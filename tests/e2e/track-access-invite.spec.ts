@@ -24,6 +24,7 @@ test('sin nadie más en el workspace, se puede invitar desde Acceso', async ({ p
   // Los e2e corren sin proveedor de email (RESEND_API_KEY vacío en playwright.config.ts): la invitación
   // queda creada sin mandar el mail (`skipped`). La pantalla lo tiene que decir y dar el camino al link.
   await expect(page.getByRole('alert').filter({ hasText: 'The invitation could not be sent' })).toContainText('copy its link in Platform settings');
+  await expect(page.getByTestId('track-access-invite-copy')).toBeVisible();
   await expect(page.getByTestId('track-access-invited')).toHaveCount(0);
   await expect(page.getByTestId('track-access-pending')).toContainText(email);
   const { rows } = (await (await request.get('/api/teams/invites')).json()) as { rows: Array<{ email: string; emailStatus: string; url: string }> };
@@ -32,4 +33,28 @@ test('sin nadie más en el workspace, se puede invitar desde Acceso', async ({ p
   expect(row?.url).toContain('/invite/');
   const scroll = await page.evaluate(() => document.scrollingElement!.scrollWidth);
   expect(scroll).toBeLessThanOrEqual(1281);
+});
+
+test('Acceso explica el team visible para todos y suma gente al privado', async ({ page, request }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const name = `Equipo ${Date.now()}`;
+  const created = await request.post('/api/track/projects', { data: { name } });
+  expect(created.ok()).toBe(true);
+  const { id } = (await created.json()) as { id: string };
+  const access = async () => (await (await request.get('/api/track/access')).json()) as { people: Array<{ id: string }>; me: string };
+  await page.goto(`/en/app/track/settings?tab=access`, { waitUntil: 'load' });
+  const row = page.getByTestId('track-access-project').filter({ hasText: name });
+  // Visible para todo el workspace: no hay a quién sumar, y la pantalla lo dice.
+  await expect(row).toContainText('Everyone in the workspace is already on this team');
+
+  const vis = await request.post('/api/track/access', { data: { action: 'visibility', projectId: id, visibility: 'private' } });
+  expect(vis.ok()).toBe(true);
+  const { people, me } = await access();
+  const other = people.find((p) => p.id !== me);
+  await page.reload({ waitUntil: 'load' });
+  if (other) {
+    const form = page.getByTestId('track-access-project').filter({ hasText: name }).getByRole('button', { name: 'Add member' });
+    await form.click();
+    await expect(page.getByTestId('track-access-project').filter({ hasText: name })).toContainText('2 members');
+  }
 });
