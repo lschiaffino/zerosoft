@@ -19,6 +19,8 @@ const patchSchema = z.object({
   replaySampleRate: z.number().int().min(1).max(100).optional(),
   replayMaskText: z.boolean().optional(),
   heatmapsEnabled: z.boolean().optional(),
+  captureExceptions: z.boolean().optional(),
+  webVitals: z.boolean().optional(),
   retentionDays: z.number().int().min(1).max(3650).optional(),
   tzOffsetMin: z.number().int().min(-720).max(840).optional(),
   testFilters: z.array(propertyFilterSchema).max(20).optional(),

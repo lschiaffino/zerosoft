@@ -43,6 +43,7 @@ function CopyBlock({ code, label }: { code: string; label: string }) {
 export default function ProjectSettings({ project, canManage }: { project: ProjectDto; canManage: boolean }) {
   const t = useTranslations('analytics.settings');
   const tc = useTranslations('analytics.common');
+  const tm = useTranslations('analyticsMore.settings');
   const router = useRouter();
   const [origin, setOrigin] = useState('https://zerosoft.ai');
   useEffect(() => setOrigin(window.location.origin), []);
@@ -52,6 +53,8 @@ export default function ProjectSettings({ project, canManage }: { project: Proje
     respectDnt: project.respectDnt,
     anonymizeIp: project.anonymizeIp,
     autocapture: project.autocapture,
+    captureExceptions: project.captureExceptions,
+    webVitals: project.webVitals,
     retentionDays: project.retentionDays,
     tzOffsetMin: project.tzOffsetMin,
   });
@@ -67,6 +70,8 @@ export default function ProjectSettings({ project, canManage }: { project: Proje
       respectDnt: project.respectDnt,
       anonymizeIp: project.anonymizeIp,
       autocapture: project.autocapture,
+      captureExceptions: project.captureExceptions,
+      webVitals: project.webVitals,
       retentionDays: project.retentionDays,
       tzOffsetMin: project.tzOffsetMin,
     });
@@ -103,6 +108,8 @@ zs.identify('user-123', { email: 'ana@example.com' });`;
           respectDnt: form.respectDnt,
           anonymizeIp: form.anonymizeIp,
           autocapture: form.autocapture,
+          captureExceptions: form.captureExceptions,
+          webVitals: form.webVitals,
           retentionDays: form.retentionDays,
           tzOffsetMin: form.tzOffsetMin,
         },
@@ -201,6 +208,14 @@ zs.identify('user-123', { email: 'ana@example.com' });`;
             <input type="checkbox" checked={form.autocapture} onChange={(e) => setForm({ ...form, autocapture: e.target.checked })} /> {t('autocapture')}
           </label>
           <p className="ui-help">{t('autocaptureHelp')}</p>
+          <label className="ui-check">
+            <input type="checkbox" checked={form.captureExceptions} onChange={(e) => setForm({ ...form, captureExceptions: e.target.checked })} data-testid="an-capture-exceptions" /> {tm('captureExceptions')}
+          </label>
+          <p className="ui-help">{tm('captureExceptionsHelp')}</p>
+          <label className="ui-check">
+            <input type="checkbox" checked={form.webVitals} onChange={(e) => setForm({ ...form, webVitals: e.target.checked })} data-testid="an-web-vitals" /> {tm('webVitals')}
+          </label>
+          <p className="ui-help">{tm('webVitalsHelp')}</p>
           <label className="ui-check">
             <input type="checkbox" checked={form.respectDnt} onChange={(e) => setForm({ ...form, respectDnt: e.target.checked })} /> {t('respectDnt')}
           </label>

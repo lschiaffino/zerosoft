@@ -14,6 +14,7 @@ const TABLES = {
   actions: 'analytics_actions',
   experiments: 'analytics_experiments',
   recordings: 'analytics_replay_recordings',
+  surveys: 'analytics_surveys',
 } as const;
 
 export type AnalyticsRecordKind = keyof typeof TABLES;

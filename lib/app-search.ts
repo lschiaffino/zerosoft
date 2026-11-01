@@ -67,6 +67,7 @@ export interface AppSearchItem {
     | 'analyticsInsights'
     | 'analyticsDashboards'
     | 'analyticsFlags'
+    | 'analyticsSurveys'
     | 'analyticsCohorts'
     | 'analyticsActions'
     | 'analyticsExperiments'
@@ -435,7 +436,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       user.id,
       like,
     );
-  const [anInsights, anDashboards, anFlags, anCohorts, anProjects, anActions, anExperiments, anAlerts] = await Promise.all([
+  const [anInsights, anDashboards, anFlags, anCohorts, anProjects, anActions, anExperiments, anAlerts, anSurveys] = await Promise.all([
     analyticsIn('analytics_insights'),
     analyticsIn('analytics_dashboards'),
     // Flags: por clave o descripción (se muestra la descripción si hay).
@@ -451,6 +452,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     analyticsIn('analytics_actions'),
     analyticsIn('analytics_experiments'),
     analyticsIn('analytics_alerts'),
+    analyticsIn('analytics_surveys'),
   ]);
 
   // Chat: conversaciones (asunto, visitante o texto), personas, vistas guardadas y equipos.
@@ -591,6 +593,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ...map(anActions, 'analyticsActions', (id) => `/app/analytics/actions/${id}`),
     ...map(anExperiments, 'analyticsExperiments', (id) => `/app/analytics/experiments/${id}`),
     ...map(anAlerts, 'analyticsAlerts', () => `/app/analytics/alerts`),
+    ...map(anSurveys, 'analyticsSurveys', (id) => `/app/analytics/surveys/${id}`),
     ...map(anProjects, 'analyticsProjects', (id) => `/app/analytics/settings?project=${id}`),
   ];
 }

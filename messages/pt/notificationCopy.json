@@ -55,5 +55,6 @@
   "peopleDocNew": "Novo documento: {title}",
   "reviewCycle": "Ciclo de avaliação iniciado: {name}",
   "analyticsAlertTitle": "Alerta: {name}",
-  "analyticsAlertBody": "Valor {value} em {insight}"
+  "analyticsAlertBody": "Valor {value} em {insight}",
+  "analyticsRegression": "Um erro resolvido voltou a aparecer: {title}"
 }

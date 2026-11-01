@@ -27,6 +27,7 @@ import { parseTestFilters } from './projects';
 import { checkSql, SQL_MAX_ROWS, wrapSql } from './sql-safe';
 import { runReadOnly, SqlRunError } from './sql-run';
 import { getCohort, loadActions, type ActionMap } from './records';
+import { channelSql, webFiltersSql } from './web-core';
 import type { ProjectRow } from './projects';
 import { ACTION_PREFIX, PROPERTY_MATHS } from './types';
 import type {
@@ -658,20 +659,25 @@ export async function runWeb(project: ProjectRow, q: WebQuery, now = Date.now())
   const prev = previousRange(range);
   const interval = range.to - range.from <= 2 * DAY ? 'hour' : 'day';
   const buckets = bucketList(range.from, range.to, interval, tz);
-  const pv = `e.project_id = ? AND e.event = '$pageview' AND e.ts >= ? AND e.ts <= ?`;
+  const filter = webFiltersSql(q.filters ?? []);
+  const pv = `e.project_id = ? AND e.event = '$pageview' AND e.ts >= ? AND e.ts <= ?${filter.sql ? ` AND ${filter.sql}` : ''}`;
+  const pvArgs = (r: { from: number; to: number }): Arg[] => [project.id, r.from, r.to, ...filter.args];
   const join = personJoins(false);
+  /** Con filtros, las sesiones son las que tuvieron un pageview que los cumple. */
+  const sessionFilter = (r: { from: number; to: number }): Frag =>
+    filter.sql ? { sql: ` AND id IN (SELECT e.session_id FROM analytics_events e WHERE ${pv} AND e.session_id IS NOT NULL)`, args: pvArgs(r) } : { sql: '', args: [] };
 
   const stats = async (r: { from: number; to: number }) => {
     const [a, s] = await Promise.all([
       getDb()
         .prepare(`SELECT COUNT(DISTINCT ${PERSON_KEY}) AS visitors, COUNT(*) AS pageviews FROM analytics_events e ${join} WHERE ${pv}`)
-        .get(project.id, r.from, r.to) as Promise<{ visitors: number; pageviews: number } | undefined>,
+        .get(...pvArgs(r)) as Promise<{ visitors: number; pageviews: number } | undefined>,
       getDb()
         .prepare(
           `SELECT COUNT(*) AS sessions, SUM(CASE WHEN pageviews <= 1 THEN 1 ELSE 0 END) AS bounces, AVG(ended_at - started_at) AS dur
-           FROM analytics_sessions WHERE project_id = ? AND started_at >= ? AND started_at <= ? AND pageviews > 0`,
+           FROM analytics_sessions WHERE project_id = ? AND started_at >= ? AND started_at <= ? AND pageviews > 0${sessionFilter(r).sql}`,
         )
-        .get(project.id, r.from, r.to) as Promise<{ sessions: number; bounces: number | null; dur: number | null } | undefined>,
+        .get(project.id, r.from, r.to, ...sessionFilter(r).args) as Promise<{ sessions: number; bounces: number | null; dur: number | null } | undefined>,
     ]);
     const sessions = Number(s?.sessions ?? 0);
     return {
@@ -687,22 +693,22 @@ export async function runWeb(project: ProjectRow, q: WebQuery, now = Date.now())
     all(
       `SELECT COALESCE(${col}, '(none)') AS key, COUNT(DISTINCT ${PERSON_KEY}) AS visitors, COUNT(*) AS views FROM analytics_events e ${join}
        WHERE ${pv} GROUP BY 1 ORDER BY visitors DESC, views DESC LIMIT 10`,
-      [project.id, range.from, range.to],
+      pvArgs(range),
     ).then((rows) => rows.map((r) => ({ key: String(r.key), visitors: Number(r.visitors), views: Number(r.views) })));
 
-  const [cur, before, chart, pages, entries, referrers, utmSources, countries, devices, browsers, os] = await Promise.all([
+  const [cur, before, chart, pages, entries, referrers, utmSources, countries, devices, browsers, os, hosts, channels] = await Promise.all([
     stats(range),
     q.compare ? stats(prev) : Promise.resolve(null),
     all(
       `SELECT ${bucketSql(interval)} AS bucket, COUNT(DISTINCT ${PERSON_KEY}) AS visitors, COUNT(*) AS views FROM analytics_events e ${join}
        WHERE ${pv} GROUP BY 1`,
-      [off, project.id, range.from, range.to],
+      [off, ...pvArgs(range)],
     ),
     top('e.pathname'),
     all(
       `SELECT COALESCE(entry_path, '(none)') AS key, COUNT(DISTINCT distinct_id) AS visitors, COUNT(*) AS views FROM analytics_sessions
-       WHERE project_id = ? AND started_at >= ? AND started_at <= ? AND pageviews > 0 GROUP BY 1 ORDER BY visitors DESC LIMIT 10`,
-      [project.id, range.from, range.to],
+       WHERE project_id = ? AND started_at >= ? AND started_at <= ? AND pageviews > 0${sessionFilter(range).sql} GROUP BY 1 ORDER BY visitors DESC LIMIT 10`,
+      [project.id, range.from, range.to, ...sessionFilter(range).args],
     ).then((rows) => rows.map((r) => ({ key: String(r.key), visitors: Number(r.visitors), views: Number(r.views) }))),
     top('e.referring_domain'),
     top('e.utm_source'),
@@ -710,7 +716,13 @@ export async function runWeb(project: ProjectRow, q: WebQuery, now = Date.now())
     top('e.device'),
     top('e.browser'),
     top('e.os'),
+    top('e.host'),
+    top(channelSql('e')),
   ]);
+  // Sin pageviews en el período: ¿el proyecto recibió alguno alguna vez? Cambia lo que se le dice a la persona.
+  const hasPageviews =
+    cur.pageviews > 0 ||
+    !!(await getDb().prepare(`SELECT 1 AS ok FROM analytics_events WHERE project_id = ? AND event = '$pageview' LIMIT 1`).get(project.id));
   const stat = (k: keyof typeof cur) => ({ value: cur[k], previous: before ? before[k] : null });
   return {
     kind: 'web',
@@ -732,6 +744,9 @@ export async function runWeb(project: ProjectRow, q: WebQuery, now = Date.now())
     devices,
     browsers,
     os,
+    hosts,
+    channels,
+    hasPageviews,
   };
 }
 

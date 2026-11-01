@@ -55,5 +55,6 @@
   "peopleDocNew": "New document: {title}",
   "reviewCycle": "Review cycle started: {name}",
   "analyticsAlertTitle": "Alert: {name}",
-  "analyticsAlertBody": "Value {value} on {insight}"
+  "analyticsAlertBody": "Value {value} on {insight}",
+  "analyticsRegression": "Error is back after being resolved: {title}"
 }

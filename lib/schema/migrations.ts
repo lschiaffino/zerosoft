@@ -8010,12 +8010,18 @@ export const MIGRATIONS: Migration[] = [
           created_at TEXT NOT NULL
         )`);
       await client.execute('CREATE INDEX IF NOT EXISTS idx_robot_audit_robot ON robot_audit (robot_id, created_at)');
-    id: '171_analytics_parity',
+    },
+  },
+  {
+    id: '180_analytics_parity',
     up: async (client) => {
+      const addCol = (c: Client, sql: string) => c.execute(sql).catch((err: unknown) => {
+        if (!/duplicate column/i.test(String(err))) throw err;
+      });
+      await addCol(client, 'ALTER TABLE analytics_projects ADD COLUMN test_filters TEXT NOT NULL DEFAULT \'[]\'');
+      await addCol(client, 'ALTER TABLE analytics_flags ADD COLUMN groups TEXT NOT NULL DEFAULT \'[]\'');
+      await addCol(client, 'ALTER TABLE analytics_flags ADD COLUMN payloads TEXT NOT NULL DEFAULT \'{}\'');
       await client.executeMultiple(`
-        ALTER TABLE analytics_projects ADD COLUMN test_filters TEXT NOT NULL DEFAULT '[]';
-        ALTER TABLE analytics_flags ADD COLUMN groups TEXT NOT NULL DEFAULT '[]';
-        ALTER TABLE analytics_flags ADD COLUMN payloads TEXT NOT NULL DEFAULT '{}';
         CREATE TABLE IF NOT EXISTS analytics_annotations (
           id TEXT PRIMARY KEY,
           project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
@@ -8101,8 +8107,13 @@ export const MIGRATIONS: Migration[] = [
           hidden INTEGER NOT NULL DEFAULT 0,
           updated_at TEXT NOT NULL,
           PRIMARY KEY (project_id, event)
+        );
+      `);
+    },
+  },
+  {
     // Analytics: session replay y heatmaps. Todo apagado por defecto: un proyecto existente no cambia hasta que un admin lo prende.
-    id: '172_analytics_replay',
+    id: '181_analytics_replay',
     up: async (client) => {
       await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN replay_enabled INTEGER NOT NULL DEFAULT 0');
       await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN replay_sample_rate INTEGER NOT NULL DEFAULT 100');
@@ -8152,6 +8163,49 @@ export const MIGRATIONS: Migration[] = [
           PRIMARY KEY (project_id, day)
         );
       `);
+    },
+  },
+  {
+    id: '182_analytics_more',
+    up: async (client) => {
+      // Encuestas, estado de los errores agrupados y dos ajustes del proyecto (apagados por defecto).
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS analytics_surveys (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'draft',
+          presentation TEXT NOT NULL DEFAULT 'popover',
+          questions TEXT NOT NULL DEFAULT '[]',
+          appearance TEXT NOT NULL DEFAULT '{}',
+          targeting TEXT NOT NULL DEFAULT '{}',
+          start_at INTEGER,
+          end_at INTEGER,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_surveys_project ON analytics_surveys(project_id, updated_at);
+        CREATE INDEX IF NOT EXISTS idx_analytics_surveys_running ON analytics_surveys(project_id, status);
+
+        CREATE TABLE IF NOT EXISTS analytics_error_issues (
+          project_id TEXT NOT NULL,
+          fingerprint TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'open',
+          assignee_id TEXT,
+          resolved_at INTEGER,
+          regressed_at INTEGER,
+          checked_at INTEGER,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (project_id, fingerprint)
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_error_issues_status ON analytics_error_issues(status, checked_at);
+      `);
+      for (const column of ['capture_exceptions', 'web_vitals']) {
+        await client.execute(`ALTER TABLE analytics_projects ADD COLUMN ${column} INTEGER NOT NULL DEFAULT 0`).catch((err: unknown) => {
+          if (!/duplicate column/i.test(String(err))) throw err;
+        });
+      }
     },
   },
 ];

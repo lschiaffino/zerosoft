@@ -30,6 +30,8 @@ export interface ProjectRow {
   replay_sample_rate: number;
   replay_mask_text: number;
   heatmaps_enabled: number;
+  capture_exceptions: number;
+  web_vitals: number;
   retention_days: number;
   tz_offset_min: number;
   test_filters: string;
@@ -74,6 +76,8 @@ export function toProjectDto(r: ProjectRow): ProjectDto {
     replaySampleRate: Number(r.replay_sample_rate ?? 100),
     replayMaskText: r.replay_mask_text !== 0,
     heatmapsEnabled: r.heatmaps_enabled === 1,
+    captureExceptions: r.capture_exceptions === 1,
+    webVitals: r.web_vitals === 1,
     retentionDays: Number(r.retention_days),
     tzOffsetMin: Number(r.tz_offset_min),
     testFilters: parseTestFilters(r.test_filters),
@@ -120,6 +124,8 @@ export interface ProjectPatch {
   replaySampleRate?: number;
   replayMaskText?: boolean;
   heatmapsEnabled?: boolean;
+  captureExceptions?: boolean;
+  webVitals?: boolean;
   retentionDays?: number;
   tzOffsetMin?: number;
   testFilters?: PropertyFilter[];
@@ -169,6 +175,14 @@ export async function updateProject(workspaceId: string, id: string, patch: Proj
   if (patch.heatmapsEnabled !== undefined) {
     sets.push('heatmaps_enabled = ?');
     args.push(patch.heatmapsEnabled ? 1 : 0);
+  }
+  if (patch.captureExceptions !== undefined) {
+    sets.push('capture_exceptions = ?');
+    args.push(patch.captureExceptions ? 1 : 0);
+  }
+  if (patch.webVitals !== undefined) {
+    sets.push('web_vitals = ?');
+    args.push(patch.webVitals ? 1 : 0);
   }
   if (patch.retentionDays !== undefined) {
     sets.push('retention_days = ?');
