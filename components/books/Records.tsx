@@ -11,6 +11,7 @@ import type { ExpenseDto, PoDto, ReceiptExtraction } from '@/lib/books-purchasin
 import type { RecurringDto } from '@/lib/books-recurring';
 import { formatMoney, todayIso } from '@/lib/books-money';
 import { MoneyInput, StatusBadge, api, useDate, useErrorText, useToast } from './ui';
+import { StatementPanel } from './Extras';
 
 type Opt = { id: string; name: string };
 
@@ -24,7 +25,15 @@ export function ContactEditor({
   crm,
   importMode,
   baseCurrency,
+  portalToken = null,
+  canStatement = false,
+  canPortal = false,
+  appUrl = '',
 }: {
+  portalToken?: string | null;
+  canStatement?: boolean;
+  canPortal?: boolean;
+  appUrl?: string;
   baseCurrency: string;
   contact: ContactDto | null;
   documents: DocSummary[];
@@ -57,7 +66,7 @@ export function ContactEditor({
   const [confirm, setConfirm] = useState(false);
   const [crmQ, setCrmQ] = useState('');
   const [crmList, setCrmList] = useState<Array<{ id: string; name: string; country: string; domain: string }> | null>(null);
-  const [tab, setTab] = useState<'details' | 'documents'>(contact && documents.length ? 'details' : 'details');
+  const [tab, setTab] = useState<'details' | 'documents' | 'statement'>('details');
   const typeFor = (c: string) => (c === 'AR' ? 'cuit' : c === 'MX' ? 'rfc' : c === 'BR' ? 'cnpj' : 'other');
 
   useEffect(() => {
@@ -172,10 +181,17 @@ export function ContactEditor({
             <button type="button" role="tab" aria-selected={tab === 'documents'} className="ui-tab" onClick={() => setTab('documents')}>
               {t('contacts.documents', { n: documents.length })}
             </button>
+            {canStatement && (
+              <button type="button" role="tab" aria-selected={tab === 'statement'} className="ui-tab" onClick={() => setTab('statement')}>
+                {t('statement.tab')}
+              </button>
+            )}
           </div>
         </>
       )}
-      {tab === 'documents' && contact ? (
+      {tab === 'statement' && contact ? (
+        <StatementPanel contactId={contact.id} kind={contact.kind} email={contact.email} portalToken={portalToken} canWrite={canPortal} appUrl={appUrl} />
+      ) : tab === 'documents' && contact ? (
         documents.length === 0 ? (
           <p className="ui-help">{t('contacts.noDocuments')}</p>
         ) : (
@@ -1173,21 +1189,29 @@ export function RecurringEditor({
   canWrite,
   baseCurrency,
   customers,
+  suppliers = [],
+  canInvoices = true,
+  canBills = false,
   items,
   taxes,
 }: {
+  suppliers?: Opt[];
+  canInvoices?: boolean;
+  canBills?: boolean;
   rec: RecurringDto | null;
   documents: DocSummary[];
   canWrite: boolean;
   baseCurrency: string;
   customers: Opt[];
-  items: Array<{ id: string; name: string; price: number; taxRateId: string | null }>;
+  items: Array<{ id: string; name: string; price: number; cost?: number; taxRateId: string | null }>;
   taxes: Opt[];
 }) {
   const t = useTranslations('books');
   const locale = useLocale();
   const router = useRouter();
   const date = useDate();
+  const [docType, setDocType] = useState<'invoice' | 'bill'>(rec?.docType ?? (canInvoices ? 'invoice' : 'bill'));
+  const isBill = docType === 'bill';
   const errText = useErrorText();
   const [toast, push] = useToast();
   const [name, setName] = useState(rec?.name ?? '');
@@ -1222,6 +1246,7 @@ export function RecurringEditor({
     e.preventDefault();
     setBusy(true);
     const body = {
+      ...(rec ? {} : { docType }),
       name,
       contactId,
       frequency,
@@ -1278,11 +1303,27 @@ export function RecurringEditor({
               <span className="label">{t('recurring.name')}</span>
               <input className="input" required maxLength={120} autoFocus={!rec} value={name} onChange={(e) => setName(e.target.value)} placeholder={t('recurring.namePh')} />
             </label>
+            {!rec && canInvoices && canBills && (
+              <label className="ui-field">
+                <span className="label">{t('recurring.docType')}</span>
+                <select
+                  className="select"
+                  value={docType}
+                  onChange={(e) => {
+                    setDocType(e.target.value as 'invoice' | 'bill');
+                    setContactId('');
+                  }}
+                >
+                  <option value="invoice">{t('recurring.typeInvoice')}</option>
+                  <option value="bill">{t('recurring.typeBill')}</option>
+                </select>
+              </label>
+            )}
             <label className="ui-field">
-              <span className="label">{t('editor.customer')}</span>
+              <span className="label">{isBill ? t('editor.supplier') : t('editor.customer')}</span>
               <select className="select" required value={contactId} onChange={(e) => setContactId(e.target.value)}>
                 <option value="">{t('editor.pickContact')}</option>
-                {customers.map((c) => (
+                {(isBill ? suppliers : customers).map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
                   </option>
@@ -1386,11 +1427,13 @@ export function RecurringEditor({
               {t('editor.addLine')}
             </button>
           </div>
-          <label className="ui-check">
-            <input type="checkbox" checked={autoSend} onChange={(e) => setAutoSend(e.target.checked)} />
-            <span>{t('recurring.autoSend')}</span>
-          </label>
-          <p className="ui-help">{t('recurring.help')}</p>
+          {!isBill && (
+            <label className="ui-check">
+              <input type="checkbox" checked={autoSend} onChange={(e) => setAutoSend(e.target.checked)} />
+              <span>{t('recurring.autoSend')}</span>
+            </label>
+          )}
+          <p className="ui-help">{isBill ? t('recurring.helpBill') : t('recurring.help')}</p>
         </fieldset>
         {canWrite && (
           <div className="bk-row">

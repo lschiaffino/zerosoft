@@ -17,6 +17,7 @@ import { BooksError, clean, FREQUENCIES, newId, nowDb, parseJson, type BooksActo
 import { addDays, addMonths, daysBetween, isValidDate, todayIso } from './books-money';
 
 export interface RecurringRow {
+  doc_type: string;
   id: string;
   workspace_id: string;
   name: string;
@@ -43,6 +44,7 @@ export interface RecurringTemplate {
   seriesId?: string | null;
   reference?: string;
   notes?: string;
+  taxInclusive?: boolean;
   lines: LineInputDto[];
   /** Día del mes de la primera emisión (31 sigue siendo fin de mes después de febrero). */
   anchorDay?: number;
@@ -64,6 +66,7 @@ export function nextRunDate(frequency: Frequency, interval: number, from: string
 }
 
 export interface RecurringDto {
+  docType: 'invoice' | 'bill';
   id: string;
   name: string;
   contactId: string;
@@ -83,6 +86,7 @@ export interface RecurringDto {
 async function toDto(r: RecurringRow): Promise<RecurringDto> {
   const c = await getContactRow(r.workspace_id, r.contact_id);
   return {
+    docType: r.doc_type === 'bill' ? 'bill' : 'invoice',
     id: r.id,
     name: r.name,
     contactId: r.contact_id,
@@ -109,8 +113,9 @@ export async function getRecurring(ws: string, id: string): Promise<RecurringDto
   return r ? toDto(r) : null;
 }
 
-export async function listRecurring(ws: string, opts: { q?: string } = {}): Promise<RecurringDto[]> {
+export async function listRecurring(ws: string, opts: { q?: string; types?: Array<'invoice' | 'bill'> } = {}): Promise<RecurringDto[]> {
   await ensureBooks(ws);
+  if (opts.types) return (await listRecurring(ws, { q: opts.q })).filter((r) => opts.types!.includes(r.docType));
   const rows = (await getDb()
     .prepare(`SELECT * FROM books_recurring WHERE workspace_id = ?${opts.q ? " AND name LIKE ? ESCAPE '\\'" : ''} ORDER BY status = 'active' DESC, next_date ASC LIMIT 500`)
     .all(...(opts.q ? [ws, `%${opts.q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`] : [ws]))) as RecurringRow[];
@@ -118,6 +123,7 @@ export async function listRecurring(ws: string, opts: { q?: string } = {}): Prom
 }
 
 export interface RecurringInput {
+  docType?: 'invoice' | 'bill';
   name?: string;
   contactId?: string;
   template?: RecurringTemplate;
@@ -136,6 +142,7 @@ function validTemplate(t: RecurringTemplate | undefined): RecurringTemplate {
     fxRate: t.fxRate,
     termsDays: t.termsDays ?? null,
     seriesId: t.seriesId ?? null,
+    taxInclusive: Boolean(t.taxInclusive),
     reference: clean(t.reference ?? '', 120),
     notes: clean(t.notes ?? '', 4000),
     lines: t.lines.map((l) => ({ itemId: l.itemId ?? null, description: clean(l.description ?? '', 1000), quantity: Number(l.quantity ?? 1), unitPrice: l.unitPrice, discountBps: l.discountBps ?? 0, taxRateId: l.taxRateId ?? null, accountId: l.accountId ?? null })),
@@ -150,8 +157,11 @@ async function checkNextDate(ws: string, date: string): Promise<void> {
   if (s.lock_date && date <= s.lock_date) throw new BooksError('period_locked', 409, { lockDate: s.lock_date });
 }
 
+const recurringPerm = (t: string) => (t === 'bill' ? 'bills.write' : 'invoices.write') as 'bills.write' | 'invoices.write';
+
 export async function createRecurring(actor: BooksActor, input: RecurringInput): Promise<RecurringDto> {
-  assertCan(actor, 'invoices.write');
+  const docType = input.docType === 'bill' ? 'bill' : 'invoice';
+  assertCan(actor, recurringPerm(docType));
   await ensureBooks(actor.ws);
   const name = clean(input.name ?? '', 120);
   if (!name) throw new BooksError('invalid_name');
@@ -164,24 +174,24 @@ export async function createRecurring(actor: BooksActor, input: RecurringInput):
   if (input.endDate && (!isValidDate(input.endDate) || input.endDate < nextDate)) throw new BooksError('invalid_end_date');
   const template = validTemplate(input.template);
   // El template tiene que poder armar una factura: se prueba como borrador y se descarta.
-  const probe = await createDraft(actor, { docType: 'invoice', contactId: contact.id, ...template });
+  const probe = await createDraft(actor, { docType, contactId: contact.id, ...template });
   await getDb().prepare("DELETE FROM books_documents WHERE id = ? AND status = 'draft'").run(probe.id);
   const id = newId('rec');
   const ts = nowDb();
   await getDb()
     .prepare(
-      `INSERT INTO books_recurring (id, workspace_id, name, contact_id, template, frequency, interval_count, next_date, end_date, auto_send, status, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)`,
+      `INSERT INTO books_recurring (id, workspace_id, name, contact_id, template, frequency, interval_count, next_date, end_date, auto_send, status, created_by, created_at, updated_at, doc_type)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)`,
     )
-    .run(id, actor.ws, name, contact.id, JSON.stringify({ ...template, anchorDay: Number(nextDate.slice(8, 10)) }), frequency, Math.max(1, Math.min(12, Math.trunc(input.interval ?? 1))), nextDate, input.endDate ?? null, input.autoSend ? 1 : 0, actor.person, ts, ts);
+    .run(id, actor.ws, name, contact.id, JSON.stringify({ ...template, anchorDay: Number(nextDate.slice(8, 10)) }), frequency, Math.max(1, Math.min(12, Math.trunc(input.interval ?? 1))), nextDate, input.endDate ?? null, docType === 'bill' ? 0 : input.autoSend ? 1 : 0, actor.person, ts, ts, docType);
   await audit(actor, 'recurring.create', 'recurring', id, name);
   return (await getRecurring(actor.ws, id))!;
 }
 
 export async function updateRecurring(actor: BooksActor, id: string, input: RecurringInput): Promise<RecurringDto> {
-  assertCan(actor, 'invoices.write');
   const r = await getRecurringRow(actor.ws, id);
   if (!r) throw new BooksError('not_found', 404);
+  assertCan(actor, recurringPerm(r.doc_type));
   const name = input.name !== undefined ? clean(input.name, 120) : r.name;
   if (!name) throw new BooksError('invalid_name');
   const contactId = input.contactId ?? r.contact_id;
@@ -233,12 +243,15 @@ async function runOne(r: RecurringRow, today: string): Promise<'created' | 'skip
   let docId = existing?.id ?? null;
   if (!docId) {
     const { anchorDay: _a, ...docTpl } = tpl;
-    const input: DocInput = { docType: 'invoice', contactId: r.contact_id, issueDate: r.next_date, ...docTpl };
+    const docType = r.doc_type === 'bill' ? 'bill' : 'invoice';
+    // Una factura de proveedor necesita su número: el nombre del recurrente y la fecha, si el modelo no trae uno.
+    const reference = docType === 'bill' ? `${docTpl.reference || r.name} ${r.next_date}`.slice(0, 120) : docTpl.reference;
+    const input: DocInput = { docType, contactId: r.contact_id, issueDate: r.next_date, ...docTpl, reference };
     docId = (await createDraft(actor, input, { recurring_id: r.id })).id;
   }
   const doc = (await getDocRow(r.workspace_id, docId))!;
   if (doc.status === 'draft') await approveDocument(actor, docId, { system: true });
-  if (r.auto_send) {
+  if (r.auto_send && r.doc_type !== 'bill') {
     const fresh = (await getDocRow(r.workspace_id, docId))!;
     const contact = await getContactRow(r.workspace_id, r.contact_id);
     if (!fresh.sent_at && contact?.email) await sendDocument(actor, docId, {}).catch((err) => console.error('[books] recurring send', err instanceof Error ? err.message : err));

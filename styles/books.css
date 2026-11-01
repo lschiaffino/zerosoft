@@ -762,3 +762,75 @@ tr[data-archived] {
     .bk-lines td:last-child:not([data-label]) { justify-self: end; }
   }
 }
+
+/* Lotes, presupuestos financieros, portal */
+.bk-check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  cursor: pointer;
+}
+.bk-check-row input {
+  margin-top: 3px;
+  flex: none;
+}
+.bk-total-sub {
+  color: var(--muted);
+  font-weight: 400;
+}
+.bk-rule-bar {
+  margin: 0 0 12px;
+}
+.bk-grow {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.bk-budget-wrap {
+  overflow-x: auto;
+}
+.bk-budget th[scope='row'] {
+  position: sticky;
+  left: 0;
+  background: var(--bg, var(--surface));
+  z-index: 1;
+}
+.bk-budget-account {
+  min-width: 220px;
+  max-width: 280px;
+}
+.bk-budget-name {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.bk-budget-cell {
+  width: 104px;
+  min-width: 88px;
+}
+.bk-budget-section th {
+  font-weight: 600;
+  background: var(--surface-2, transparent);
+}
+.bk-public-statement {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+.bk-public-decide {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+  width: 100%;
+}
+.bk-public-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.bk-public-table td[data-overdue] {
+  color: var(--bad, inherit);
+}

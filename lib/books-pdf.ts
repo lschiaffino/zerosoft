@@ -13,9 +13,9 @@ import { getDocument, type DocDto } from './books-docs';
 import { bpsToPercent, formatMoney } from './books-money';
 
 const LABELS = {
-  en: { invoice: 'Invoice', credit_note: 'Credit note', bill: 'Bill', billTo: 'Bill to', from: 'From', issued: 'Issue date', due: 'Due date', desc: 'Description', qty: 'Qty', price: 'Unit price', disc: 'Disc.', tax: 'Tax', amount: 'Amount', subtotal: 'Subtotal', discount: 'Discount', total: 'Total', paid: 'Paid', balance: 'Balance due', notes: 'Notes', cae: 'Authorization', caeDue: 'expires', test: 'Test authorization, no fiscal validity', taxId: 'Tax ID', rate: 'Exchange rate', status: { void: 'VOID', paid: 'PAID' } },
-  es: { invoice: 'Factura', credit_note: 'Nota de crédito', bill: 'Factura de proveedor', billTo: 'Cliente', from: 'Emisor', issued: 'Fecha de emisión', due: 'Vencimiento', desc: 'Descripción', qty: 'Cant.', price: 'Precio unit.', disc: 'Desc.', tax: 'IVA', amount: 'Importe', subtotal: 'Subtotal', discount: 'Descuento', total: 'Total', paid: 'Cobrado', balance: 'Saldo', notes: 'Notas', cae: 'CAE', caeDue: 'vence', test: 'Autorización de prueba, sin validez fiscal', taxId: 'CUIT/ID fiscal', rate: 'Tipo de cambio', status: { void: 'ANULADA', paid: 'PAGADA' } },
-  pt: { invoice: 'Fatura', credit_note: 'Nota de crédito', bill: 'Conta a pagar', billTo: 'Cliente', from: 'Emitente', issued: 'Emissão', due: 'Vencimento', desc: 'Descrição', qty: 'Qtd.', price: 'Preço unit.', disc: 'Desc.', tax: 'Imposto', amount: 'Valor', subtotal: 'Subtotal', discount: 'Desconto', total: 'Total', paid: 'Pago', balance: 'Saldo', notes: 'Notas', cae: 'Autorização', caeDue: 'vence', test: 'Autorização de teste, sem validade fiscal', taxId: 'CNPJ/ID fiscal', rate: 'Câmbio', status: { void: 'CANCELADA', paid: 'PAGA' } },
+  en: { invoice: 'Invoice', credit_note: 'Credit note', bill: 'Bill', billTo: 'Bill to', from: 'From', issued: 'Issue date', due: 'Due date', desc: 'Description', qty: 'Qty', price: 'Unit price', disc: 'Disc.', tax: 'Tax', amount: 'Amount', subtotal: 'Subtotal', discount: 'Discount', total: 'Total', paid: 'Paid', balance: 'Balance due', notes: 'Notes', cae: 'Authorization', caeDue: 'expires', test: 'Test authorization, no fiscal validity', taxId: 'Tax ID', rate: 'Exchange rate', incl: 'Includes', status: { void: 'VOID', paid: 'PAID' } },
+  es: { invoice: 'Factura', credit_note: 'Nota de crédito', bill: 'Factura de proveedor', billTo: 'Cliente', from: 'Emisor', issued: 'Fecha de emisión', due: 'Vencimiento', desc: 'Descripción', qty: 'Cant.', price: 'Precio unit.', disc: 'Desc.', tax: 'IVA', amount: 'Importe', subtotal: 'Subtotal', discount: 'Descuento', total: 'Total', paid: 'Cobrado', balance: 'Saldo', notes: 'Notas', cae: 'CAE', caeDue: 'vence', test: 'Autorización de prueba, sin validez fiscal', taxId: 'CUIT/ID fiscal', rate: 'Tipo de cambio', incl: 'Incluye', status: { void: 'ANULADA', paid: 'PAGADA' } },
+  pt: { invoice: 'Fatura', credit_note: 'Nota de crédito', bill: 'Conta a pagar', billTo: 'Cliente', from: 'Emitente', issued: 'Emissão', due: 'Vencimento', desc: 'Descrição', qty: 'Qtd.', price: 'Preço unit.', disc: 'Desc.', tax: 'Imposto', amount: 'Valor', subtotal: 'Subtotal', discount: 'Desconto', total: 'Total', paid: 'Pago', balance: 'Saldo', notes: 'Notas', cae: 'Autorização', caeDue: 'vence', test: 'Autorização de teste, sem validade fiscal', taxId: 'CNPJ/ID fiscal', rate: 'Câmbio', incl: 'Inclui', status: { void: 'CANCELADA', paid: 'PAGA' } },
 } as const;
 
 let blockSeq = 0;
@@ -60,11 +60,11 @@ export async function documentPdf(ws: string, doc: DocDto, locale = 'en'): Promi
   if (doc.status === 'void' || doc.status === 'paid') blocks.push(block('heading', esc(L.status[doc.status]), { level: 2 }));
   const anyDisc = doc.lines.some((l) => l.discountBps);
   const head = [L.desc, L.qty, L.price, ...(anyDisc ? [L.disc] : []), L.tax, L.amount];
-  const rows = doc.lines.map((l) => [l.description, String(l.quantity), money(l.unitPrice), ...(anyDisc ? [l.discountBps ? `${bpsToPercent(l.discountBps)}%` : ''] : []), l.taxBps ? `${bpsToPercent(l.taxBps)}%` : '0%', money(l.net)]);
+  const rows = doc.lines.map((l) => [l.description, String(l.quantity), money(l.unitPrice), ...(anyDisc ? [l.discountBps ? `${bpsToPercent(l.discountBps)}%` : ''] : []), l.taxBps ? `${bpsToPercent(l.taxBps)}%` : '0%', money(doc.taxInclusive ? l.total : l.net)]);
   blocks.push(block('table', '', { rows: [head, ...rows].map((r) => r.map(esc)) }));
   const totals: string[][] = [[L.subtotal, money(doc.subtotal)]];
   if (doc.discountTotal) totals.push([L.discount, `-${money(doc.discountTotal)}`]);
-  for (const r of doc.taxBreakdown) if (r.taxBps) totals.push([`${L.tax} ${bpsToPercent(r.taxBps)}%`, money(r.tax)]);
+  for (const r of doc.taxBreakdown) if (r.taxBps) totals.push([`${doc.taxInclusive ? `${L.incl} ` : ''}${L.tax} ${bpsToPercent(r.taxBps)}%`, money(r.tax)]);
   totals.push([L.total, money(doc.total)]);
   if (doc.docType !== 'credit_note' && doc.paidTotal + doc.creditedTotal > 0 && doc.status !== 'void') {
     totals.push([L.paid, money(doc.paidTotal + doc.creditedTotal)], [L.balance, money(doc.amountDue)]);

@@ -1,6 +1,8 @@
 'use client';
 
 import { SETTINGS_TABS, type SettingsTab } from '@/lib/books-tabs';
+import type { TrackingCategoryDto } from '@/lib/books-accounting';
+import { TrackingSettings } from './Extras';
 import { useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -26,7 +28,11 @@ export default function BooksSettings({
   roles,
   people,
   audit,
+  tracking,
+  canTracking,
 }: {
+  tracking: TrackingCategoryDto[];
+  canTracking: boolean;
   tab: SettingsTab;
   settings: SettingsDto;
   admin: boolean;
@@ -71,6 +77,7 @@ export default function BooksSettings({
       {tab === 'company' && <Company settings={settings} canWrite={canWrite} admin={admin} patch={patch} push={push} />}
       {tab === 'taxes' && <Taxes taxes={taxes} canWrite={canWrite} patch={patch} />}
       {tab === 'series' && <Series series={series} canWrite={canWrite} patch={patch} country={settings.country} />}
+      {tab === 'tracking' && <TrackingSettings categories={tracking} canWrite={canTracking} />}
       {tab === 'reminders' && <Reminders settings={settings} canWrite={canWrite} admin={admin} patch={patch} />}
       {tab === 'payments' && payments && <Payments payments={payments} patch={patch} />}
       {tab === 'einvoice' && einvoice && <EInvoice einvoice={einvoice} patch={patch} />}
@@ -351,6 +358,7 @@ function Reminders({ settings, canWrite, admin, patch }: { settings: SettingsDto
   const [enabled, setEnabled] = useState(settings.reminders.enabled);
   const [days, setDays] = useState(settings.reminders.days.join(', '));
   const [lock, setLock] = useState(settings.lockDate ?? '');
+  const [fiscal, setFiscal] = useState(settings.fiscalStartMonth);
   return (
     <>
       <form
@@ -403,6 +411,35 @@ function Reminders({ settings, canWrite, admin, patch }: { settings: SettingsDto
                 {t('settings.unlock')}
               </button>
             )}
+          </div>
+        )}
+      </form>
+      <form
+        className="panel bk-panel"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void patch({ fiscalStartMonth: fiscal });
+        }}
+      >
+        <h2 className="bk-panel-title">{t('settings.fiscalTitle')}</h2>
+        <p className="ui-help">{t('settings.fiscalHelp')}</p>
+        <fieldset className="bk-fieldset" disabled={!canWrite}>
+          <label className="ui-field">
+            <span className="label">{t('settings.fiscalMonth')}</span>
+            <select className="select" value={fiscal} onChange={(e) => setFiscal(Number(e.target.value))}>
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                <option key={m} value={m}>
+                  {String(m).padStart(2, '0')}
+                </option>
+              ))}
+            </select>
+          </label>
+        </fieldset>
+        {canWrite && (
+          <div className="bk-row">
+            <button type="submit" className="btn btn-primary">
+              {t('common.save')}
+            </button>
           </div>
         )}
       </form>

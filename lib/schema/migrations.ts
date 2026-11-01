@@ -8,6 +8,7 @@ import { shopUp } from './shop-migration';
 import { hiringUp } from './hiring-migration';
 import { peopleUp } from './people-migration';
 import { booksUp } from './books-migration';
+import { booksParityUp } from './books-parity-migration';
 import { signUp } from './sign-migration';
 import { formsUp } from './forms-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
@@ -7994,6 +7995,11 @@ export const MIGRATIONS: Migration[] = [
         );
       `);
     },
+  },
+  {
+    // Books: impuesto incluido, cobros por lote, presupuestos, bienes de uso, reglas bancarias, centros de costo y portal de cliente.
+    id: '183_books_parity',
+    up: booksParityUp,
   },
 ];
 
