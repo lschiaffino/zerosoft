@@ -433,6 +433,10 @@ export interface ProjectDto {
   respectDnt: boolean;
   anonymizeIp: boolean;
   autocapture: boolean;
+  replayEnabled: boolean;
+  replaySampleRate: number;
+  replayMaskText: boolean;
+  heatmapsEnabled: boolean;
   retentionDays: number;
   tzOffsetMin: number;
   /** Filtros que definen gente interna o de prueba (se aplican con excludeInternal). */

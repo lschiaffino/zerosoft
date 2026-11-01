@@ -68,6 +68,7 @@ const RECORD_TABLES = [
   'analytics_alerts',
   'analytics_experiments',
   'analytics_shares',
+  'analytics_replay_recordings',
 ] as const;
 export type RecordTable = (typeof RECORD_TABLES)[number];
 

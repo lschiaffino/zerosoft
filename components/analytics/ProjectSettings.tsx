@@ -7,6 +7,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { ProjectDto, PropertyFilter } from '@/lib/analytics/types';
 import { FilterList, cleanFilters, useProjectMeta } from './Filters';
 import { ApiError, apiErrorText, api, notifyChanged } from './client';
+import ReplaySettings from './replay/ReplaySettings';
 
 const RETENTION = [30, 90, 180, 365, 730];
 
@@ -252,6 +253,7 @@ zs.identify('user-123', { email: 'ana@example.com' });`;
 
       <InternalFilters project={project} canManage={canManage} />
       <IntegrationGuides origin={origin} publicKey={project.publicKey} />
+      <ReplaySettings project={project} canManage={canManage} />
 
       {canManage && (
         <section className="ui-section ui-section-danger" aria-labelledby="an-danger">

@@ -8101,6 +8101,55 @@ export const MIGRATIONS: Migration[] = [
           hidden INTEGER NOT NULL DEFAULT 0,
           updated_at TEXT NOT NULL,
           PRIMARY KEY (project_id, event)
+    // Analytics: session replay y heatmaps. Todo apagado por defecto: un proyecto existente no cambia hasta que un admin lo prende.
+    id: '172_analytics_replay',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN replay_enabled INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN replay_sample_rate INTEGER NOT NULL DEFAULT 100');
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN replay_mask_text INTEGER NOT NULL DEFAULT 1');
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN heatmaps_enabled INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN replay_purged_at INTEGER');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS analytics_replay_recordings (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+          session_id TEXT NOT NULL,
+          window_id TEXT NOT NULL DEFAULT '',
+          distinct_id TEXT NOT NULL,
+          start_ts INTEGER NOT NULL,
+          end_ts INTEGER NOT NULL,
+          clock_skew_ms INTEGER NOT NULL DEFAULT 0,
+          clicks INTEGER NOT NULL DEFAULT 0,
+          active_seconds INTEGER NOT NULL DEFAULT 0,
+          first_url TEXT,
+          pages TEXT NOT NULL DEFAULT '[]',
+          has_snapshot INTEGER NOT NULL DEFAULT 0,
+          chunks INTEGER NOT NULL DEFAULT 0,
+          bytes INTEGER NOT NULL DEFAULT 0,
+          raw_bytes INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_analytics_replay_key ON analytics_replay_recordings(project_id, session_id, window_id);
+        CREATE INDEX IF NOT EXISTS idx_analytics_replay_start ON analytics_replay_recordings(project_id, start_ts);
+        CREATE INDEX IF NOT EXISTS idx_analytics_replay_distinct ON analytics_replay_recordings(project_id, distinct_id);
+        CREATE TABLE IF NOT EXISTS analytics_replay_chunks (
+          recording_id TEXT NOT NULL,
+          project_id TEXT NOT NULL,
+          session_id TEXT NOT NULL,
+          seq INTEGER NOT NULL,
+          bytes INTEGER NOT NULL,
+          raw_bytes INTEGER NOT NULL,
+          data BLOB NOT NULL,
+          created_at INTEGER NOT NULL,
+          PRIMARY KEY (recording_id, seq)
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_replay_chunks_project ON analytics_replay_chunks(project_id);
+        CREATE TABLE IF NOT EXISTS analytics_replay_daily (
+          project_id TEXT NOT NULL,
+          day TEXT NOT NULL,
+          sessions INTEGER NOT NULL DEFAULT 0,
+          bytes INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (project_id, day)
         );
       `);
     },

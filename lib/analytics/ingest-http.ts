@@ -14,6 +14,7 @@ import { requestContext, storeEvents } from './ingest';
 import { parseDomainList, projectByKey, type ProjectRow } from './projects';
 import { decideFlagsFull, projectFlags } from './flags';
 import { deletePerson, personIdByDistinctId } from './persons';
+import { replayConfig } from './replay-core';
 
 /** Pedidos por minuto por proyecto (cada pedido trae hasta 200 eventos). */
 const INGEST_RPM = Number(process.env.ANALYTICS_INGEST_RPM) || 1200;
@@ -50,7 +51,7 @@ export function corsHeaders(req: Request): Record<string, string> {
   };
 }
 
-function reply(req: Request, status: number, body: Record<string, unknown>): NextResponse {
+export function reply(req: Request, status: number, body: Record<string, unknown>): NextResponse {
   return NextResponse.json(body, { status, headers: corsHeaders(req) });
 }
 
@@ -73,7 +74,7 @@ type Resolved = { project: ProjectRow; secret: boolean } | { res: NextResponse }
  * servidores: sin chequeo de origen) o key pública del cuerpo (con la lista de
  * dominios permitidos y Do Not Track).
  */
-async function resolveProject(req: Request, bodyKey: string | null): Promise<Resolved> {
+export async function resolveProject(req: Request, bodyKey: string | null): Promise<Resolved> {
   const bearer = extractBearer(req);
   if (bearer?.startsWith('zss_')) {
     const project = await projectByKey(bearer, 'secret');
@@ -87,7 +88,7 @@ async function resolveProject(req: Request, bodyKey: string | null): Promise<Res
   return { project, secret: false };
 }
 
-function dntOn(req: Request): boolean {
+export function dntOn(req: Request): boolean {
   return req.headers.get('dnt') === '1' || req.headers.get('sec-gpc') === '1';
 }
 
@@ -95,7 +96,7 @@ function dntOn(req: Request): boolean {
  * Tope por proyecto y por IP dentro del proyecto, los dos en un solo viaje a la
  * base (ventanas fijas de un minuto en rate_limits, como lib/rate-limit.ts).
  */
-async function limited(req: Request, bucket: string, projectId: string, rpm: number): Promise<NextResponse | null> {
+export async function limited(req: Request, bucket: string, projectId: string, rpm: number): Promise<NextResponse | null> {
   if (process.env.RATE_LIMIT_DISABLED === 'true') return null;
   const now = Date.now();
   const start = Math.floor(now / 60_000) * 60_000;
@@ -112,7 +113,7 @@ async function limited(req: Request, bucket: string, projectId: string, rpm: num
   return res;
 }
 
-function precheck(req: Request): NextResponse | null {
+export function precheck(req: Request): NextResponse | null {
   return ipPrecheck(clientIp(req)) ? null : reply(req, 429, { error: 'rate_limited' });
 }
 
@@ -161,6 +162,8 @@ export async function handleDecide(req: Request): Promise<Response> {
     config: {
       autocapture: r.project.autocapture === 1,
       respectDnt: r.project.respect_dnt === 1,
+      // Replay y heatmaps: solo si un admin los prendió; con Do Not Track y el ajuste prendido, nunca.
+      ...replayConfig(r.project, !r.secret && r.project.respect_dnt === 1 && dntOn(req)),
     },
   });
 }

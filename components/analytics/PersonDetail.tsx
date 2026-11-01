@@ -1,7 +1,7 @@
 'use client';
 
 import { useMounted } from '@/components/ui/useMounted';
-import { Fragment, useState } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
@@ -10,7 +10,7 @@ import { personLabel, type LiveEvent, type PersonRow } from '@/lib/analytics/typ
 import { api, fmtTime } from './client';
 
 /** Una persona: propiedades, distinct_ids, línea de tiempo de eventos y borrar (admins). */
-export default function PersonDetail({ person, events: initial, canDelete }: { person: PersonRow; events: LiveEvent[]; canDelete: boolean }) {
+export default function PersonDetail({ person, events: initial, canDelete, recordings }: { person: PersonRow; events: LiveEvent[]; canDelete: boolean; recordings?: ReactNode }) {
   const t = useTranslations('analytics.persons');
   const tc = useTranslations('analytics.common');
   const locale = useLocale();
@@ -117,6 +117,7 @@ export default function PersonDetail({ person, events: initial, canDelete }: { p
           )}
         </section>
       </div>
+      {recordings}
       <ConfirmDialog
         open={deleting}
         title={t('deleteTitle', { name })}

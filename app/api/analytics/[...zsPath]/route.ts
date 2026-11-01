@@ -14,7 +14,9 @@ import * as m8 from '@/lib/routes/analytics/insights/[id]/route';
 import * as m9 from '@/lib/routes/analytics/persons/[id]/route';
 import * as m10 from '@/lib/routes/analytics/projects/[id]/route';
 import * as m11 from '@/lib/routes/analytics/projects/[id]/secret/route';
-import * as m12 from '@/lib/routes/analytics/shares/[id]/route';
+import * as m12 from '@/lib/routes/analytics/replay/[id]/route';
+import * as m13 from '@/lib/routes/analytics/replay/[id]/chunks/route';
+import * as m14 from '@/lib/routes/analytics/shares/[id]/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -32,7 +34,9 @@ const d = createDispatcher('zsPath', [
   { pattern: 'persons/[id]', mod: m9 }, // lib/routes/analytics/persons/[id]
   { pattern: 'projects/[id]', mod: m10 }, // lib/routes/analytics/projects/[id]
   { pattern: 'projects/[id]/secret', mod: m11 }, // lib/routes/analytics/projects/[id]/secret
-  { pattern: 'shares/[id]', mod: m12 }, // lib/routes/analytics/shares/[id]
+  { pattern: 'replay/[id]', mod: m12 }, // lib/routes/analytics/replay/[id]
+  { pattern: 'replay/[id]/chunks', mod: m13 }, // lib/routes/analytics/replay/[id]/chunks
+  { pattern: 'shares/[id]', mod: m14 }, // lib/routes/analytics/shares/[id]
 ]);
 
 export const GET = d.GET;

@@ -26,6 +26,10 @@ export interface ProjectRow {
   respect_dnt: number;
   anonymize_ip: number;
   autocapture: number;
+  replay_enabled: number;
+  replay_sample_rate: number;
+  replay_mask_text: number;
+  heatmaps_enabled: number;
   retention_days: number;
   tz_offset_min: number;
   test_filters: string;
@@ -66,6 +70,10 @@ export function toProjectDto(r: ProjectRow): ProjectDto {
     respectDnt: r.respect_dnt === 1,
     anonymizeIp: r.anonymize_ip === 1,
     autocapture: r.autocapture === 1,
+    replayEnabled: r.replay_enabled === 1,
+    replaySampleRate: Number(r.replay_sample_rate ?? 100),
+    replayMaskText: r.replay_mask_text !== 0,
+    heatmapsEnabled: r.heatmaps_enabled === 1,
     retentionDays: Number(r.retention_days),
     tzOffsetMin: Number(r.tz_offset_min),
     testFilters: parseTestFilters(r.test_filters),
@@ -108,6 +116,10 @@ export interface ProjectPatch {
   respectDnt?: boolean;
   anonymizeIp?: boolean;
   autocapture?: boolean;
+  replayEnabled?: boolean;
+  replaySampleRate?: number;
+  replayMaskText?: boolean;
+  heatmapsEnabled?: boolean;
   retentionDays?: number;
   tzOffsetMin?: number;
   testFilters?: PropertyFilter[];
@@ -141,6 +153,22 @@ export async function updateProject(workspaceId: string, id: string, patch: Proj
   if (patch.autocapture !== undefined) {
     sets.push('autocapture = ?');
     args.push(patch.autocapture ? 1 : 0);
+  }
+  if (patch.replayEnabled !== undefined) {
+    sets.push('replay_enabled = ?');
+    args.push(patch.replayEnabled ? 1 : 0);
+  }
+  if (patch.replaySampleRate !== undefined) {
+    sets.push('replay_sample_rate = ?');
+    args.push(Math.min(100, Math.max(1, Math.round(patch.replaySampleRate))));
+  }
+  if (patch.replayMaskText !== undefined) {
+    sets.push('replay_mask_text = ?');
+    args.push(patch.replayMaskText ? 1 : 0);
+  }
+  if (patch.heatmapsEnabled !== undefined) {
+    sets.push('heatmaps_enabled = ?');
+    args.push(patch.heatmapsEnabled ? 1 : 0);
   }
   if (patch.retentionDays !== undefined) {
     sets.push('retention_days = ?');
