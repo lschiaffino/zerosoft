@@ -340,7 +340,7 @@ export function cleanEmails(input: string | string[]): string[] {
 // Overlays: texto, caja y flecha sobre el video (los dibuja el reproductor)
 // ============================================================
 
-export const REC_OVERLAY_KINDS = ['text', 'box', 'arrow'] as const;
+export const REC_OVERLAY_KINDS = ['text', 'box', 'arrow', 'link'] as const;
 export type RecOverlayKind = (typeof REC_OVERLAY_KINDS)[number];
 export const REC_OVERLAY_COLORS = ['#ffffff', '#111111', '#e11d48', '#f59e0b', '#16a34a', '#2563eb'] as const;
 export const MAX_REC_OVERLAYS = 30;
@@ -358,6 +358,8 @@ export interface RecOverlay {
   h: number;
   text: string;
   color: string;
+  /** Solo en 'link': adónde lleva (web, con la misma regla que la llamada a la acción). */
+  url?: string;
 }
 
 function unit(v: unknown, min = 0): number {
@@ -378,8 +380,11 @@ export function cleanOverlays(input: unknown, duration = Infinity): RecOverlay[]
     const start = Math.max(0, Math.min(Number(o.start) || 0, max));
     const end = Math.max(0, Math.min(Number(o.end) || 0, max));
     if (end <= start) continue;
-    const text = kind === 'text' ? String(o.text ?? '').trim().slice(0, 160) : '';
-    if (kind === 'text' && !text) continue;
+    const hasText = kind === 'text' || kind === 'link';
+    const text = hasText ? String(o.text ?? '').trim().slice(0, 160) : '';
+    if (hasText && !text) continue;
+    const url = kind === 'link' ? cleanCtaUrl(String(o.url ?? '')) : null;
+    if (kind === 'link' && !url) continue;
     const color = (REC_OVERLAY_COLORS as readonly string[]).includes(String(o.color)) ? String(o.color) : REC_OVERLAY_COLORS[2];
     out.push({
       id: /^[\w-]{1,40}$/.test(String(o.id ?? '')) ? String(o.id) : `o${out.length + 1}`,
@@ -392,6 +397,7 @@ export function cleanOverlays(input: unknown, duration = Infinity): RecOverlay[]
       h: unit(o.h),
       text,
       color,
+      ...(url ? { url } : {}),
     });
   }
   return out;
@@ -517,3 +523,106 @@ export function sniffImageType(b: Uint8Array): 'image/png' | 'image/jpeg' | 'ima
 /** Destinatarios por día y por workspace del resumen por mail (y con una cuenta de menos de 7 días). */
 export const REC_RECAP_DAILY = 50;
 export const REC_RECAP_DAILY_NEW = 10;
+
+// ============================================================
+// Volver atrás mientras se graba (Live Rewind)
+// ============================================================
+
+/** Tramos del archivo (en ms) que quedan en el video final. */
+export type RecKeep = Array<[number, number]>;
+
+export function keptMs(keep: RecKeep): number {
+  return keep.reduce((n, [a, b]) => n + Math.max(0, b - a), 0);
+}
+
+/** Saca los últimos `ms` de lo que quedaba, aunque cruce varios tramos. */
+export function rewindKeep(keep: RecKeep, ms: number): RecKeep {
+  const out: RecKeep = keep.map(([a, b]) => [a, b]);
+  let left = Math.max(0, ms);
+  while (left > 0 && out.length) {
+    const last = out[out.length - 1];
+    const len = last[1] - last[0];
+    if (len <= left) {
+      left -= len;
+      out.pop();
+    } else {
+      last[1] -= left;
+      left = 0;
+    }
+  }
+  return out;
+}
+
+// ============================================================
+// Etiquetas
+// ============================================================
+
+export const MAX_REC_TAGS = 20;
+
+/** Etiqueta: en minúsculas, sin #, letras, números y guiones. '' si no queda nada. */
+export function cleanTag(raw: string): string {
+  return String(raw ?? '')
+    .normalize('NFC')
+    .toLowerCase()
+    .replace(/^#+/, '')
+    .replace(/[^\p{L}\p{N}\s_-]/gu, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .slice(0, 40);
+}
+
+export function cleanTags(input: unknown): string[] {
+  if (!Array.isArray(input)) return [];
+  const out: string[] = [];
+  for (const raw of input) {
+    const t = cleanTag(String(raw ?? ''));
+    if (t && !out.includes(t)) out.push(t);
+    if (out.length >= MAX_REC_TAGS) break;
+  }
+  return out;
+}
+
+// ============================================================
+// Subtítulos: estilo y traducciones
+// ============================================================
+
+export const REC_CAPTION_SIZES = ['small', 'medium', 'large'] as const;
+export const REC_CAPTION_LOOKS = ['dark', 'light', 'yellow'] as const;
+export const REC_CAPTION_POSITIONS = ['bottom', 'top'] as const;
+
+export interface RecCaptionStyle {
+  size: (typeof REC_CAPTION_SIZES)[number];
+  look: (typeof REC_CAPTION_LOOKS)[number];
+  position: (typeof REC_CAPTION_POSITIONS)[number];
+}
+
+export const DEFAULT_CAPTION_STYLE: RecCaptionStyle = { size: 'medium', look: 'dark', position: 'bottom' };
+
+export function cleanCaptionStyle(input: unknown): RecCaptionStyle {
+  const o = (input ?? {}) as Record<string, unknown>;
+  const pick = <T extends string>(list: readonly T[], v: unknown, d: T): T => ((list as readonly unknown[]).includes(v) ? (v as T) : d);
+  return {
+    size: pick(REC_CAPTION_SIZES, o.size, DEFAULT_CAPTION_STYLE.size),
+    look: pick(REC_CAPTION_LOOKS, o.look, DEFAULT_CAPTION_STYLE.look),
+    position: pick(REC_CAPTION_POSITIONS, o.position, DEFAULT_CAPTION_STYLE.position),
+  };
+}
+
+/** Idiomas a los que se traducen los subtítulos. */
+export const REC_CAPTION_LANGS = ['en', 'es', 'pt', 'fr', 'de', 'it', 'nl', 'pl', 'sv', 'tr', 'ru', 'ar', 'hi', 'ja', 'ko', 'zh', 'id', 'vi'] as const;
+export type RecCaptionLang = (typeof REC_CAPTION_LANGS)[number];
+export const MAX_REC_CAPTION_TRACKS = 8;
+export const MAX_REC_TRANSLATE_SEGMENTS = 1500;
+
+export function isCaptionLang(v: unknown): v is RecCaptionLang {
+  return (REC_CAPTION_LANGS as readonly unknown[]).includes(v);
+}
+
+/** Nombre del idioma en el idioma de la interfaz; si el navegador no lo sabe, el código. */
+export function captionLangName(lang: string, locale: string): string {
+  try {
+    return new Intl.DisplayNames([locale], { type: 'language' }).of(lang) ?? lang;
+  } catch {
+    return lang;
+  }
+}

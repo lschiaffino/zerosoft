@@ -1,22 +1,36 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
-import { REC_MODES, fmtClock, type RecMode } from '@/lib/rec-schema';
+import { REC_MODES, fmtClock, keptMs, rewindKeep, type RecKeep, type RecMode } from '@/lib/rec-schema';
 import { patchWebmDuration } from '@/lib/rec-webm';
 import { encodeGif, type GifFrame } from '@/lib/rec-gif';
 import {
+  INK_COLORS,
+  LOW_LIGHT_FILTER,
   QUALITY,
   audioLevel,
+  cameraBlurSupported,
+  canvasFilterSupported,
   canvasToBlob,
   createTicker,
   drawBubble,
+  drawInk,
+  drawPointer,
+  floatingWindowSupported,
+  inkAlpha,
   mixAudio,
+  openFloatingWindow,
+  setCameraBlur,
   pickAudioMime,
   pickVideoMime,
   recorderSupported,
   screenSupported,
   snapshot,
+  type BubbleFrame,
+  type BubbleShape,
+  type InkStroke,
   type QualityKey,
 } from './recorder-media';
 
@@ -36,6 +50,11 @@ import {
  *   partes; sin él (CRM) se arma el archivo entero al final, con la duración
  *   escrita en el header para poder adelantar.
  * - Al terminar entrega miniatura JPEG y GIF de los primeros segundos.
+ * - Notas para leer mientras se graba (solo las ve quien graba), ventana
+ *   flotante con los controles arriba de cualquier app, forma y marco de la
+ *   burbuja, más luz, y lápiz y puntero sobre la vista previa.
+ * - Con `rewind`, pausado se puede volver atrás: lo sacado se corta del archivo
+ *   al terminar (ver finishRecording).
  */
 
 export interface RecordingResult {
@@ -51,6 +70,8 @@ export interface RecordingResult {
   /** Pista de audio aparte (para transcribir), si se pidió `captureAudioTrack`. */
   audio: Blob | null;
   audioMime: string | null;
+  /** Tramos que quedan si se volvió atrás (ms del archivo); null si no se tocó nada. */
+  keep: RecKeep | null;
 }
 
 export interface RecorderSink {
@@ -73,6 +94,10 @@ interface Bubble {
 const GIF_FRAMES = 12;
 const GIF_EVERY_MS = 250;
 const GIF_WIDTH = 320;
+const NOTES_KEY = 'rec-speaker-notes';
+/** Al retomar después de volver atrás: margen para que el corte caiga en un keyframe (cada 2 s) antes de que hables. */
+const REWIND_LEAD_MS = 2200;
+const FILE_TOOLS_KEY = 'rec-recorder-look';
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -87,6 +112,8 @@ export default function Recorder({
   captureAudioTrack = false,
   onPhase,
   status,
+  rewind = false,
+  canRewind = true,
 }: {
   modes?: readonly RecMode[];
   initialMode?: RecMode;
@@ -97,6 +124,10 @@ export default function Recorder({
   onPhase?: (phase: Phase) => void;
   /** Estado de la subida y de la red, en la barra mientras se graba. */
   status?: ReactNode;
+  /** Ofrecer volver atrás estando en pausa (necesita WebM y una subida que se pueda rearmar). */
+  rewind?: boolean;
+  /** Falso si la grabación ya es muy pesada para rearmarla en el navegador. */
+  canRewind?: boolean;
 }) {
   const t = useTranslations('rec.recorder');
   const [mode, setMode] = useState<RecMode>(initialMode && modes.includes(initialMode) ? initialMode : modes[0]);
@@ -113,6 +144,21 @@ export default function Recorder({
   const [elapsed, setElapsed] = useState(0);
   const [bubble, setBubble] = useState<Bubble>({ x: 0.14, y: 0.78, d: 0.3 });
   const [supported, setSupported] = useState(true);
+  const [notes, setNotes] = useState('');
+  const [showNotes, setShowNotes] = useState(true);
+  const [shape, setShape] = useState<BubbleShape>('circle');
+  const [frame, setFrame] = useState<BubbleFrame>('white');
+  const [lowLight, setLowLight] = useState(false);
+  const [filterOk, setFilterOk] = useState(true);
+  const [blurOk, setBlurOk] = useState(false);
+  const [blur, setBlur] = useState(false);
+  const [drawTools, setDrawTools] = useState(false);
+  const [tool, setTool] = useState<'none' | 'pen' | 'pointer'>('none');
+  const [inkColor, setInkColor] = useState<string>(INK_COLORS[0]);
+  const [floatWin, setFloatWin] = useState<Window | null>(null);
+  const [floatOk, setFloatOk] = useState(false);
+  const [rewound, setRewound] = useState<number[]>([]);
+  const [lead, setLead] = useState(0);
 
   const camStream = useRef<MediaStream | null>(null);
   const micStream = useRef<MediaStream | null>(null);
@@ -141,6 +187,18 @@ export default function Recorder({
   const mimeRef = useRef('');
   const levelBuf = useRef(new Uint8Array(256));
   const sizeRef = useRef({ width: 0, height: 0 });
+  const lookRef = useRef({ shape, frame, lowLight });
+  lookRef.current = { shape, frame, lowLight };
+  const strokes = useRef<InkStroke[]>([]);
+  const pointerAt = useRef<{ x: number; y: number } | null>(null);
+  const toolRef = useRef(tool);
+  toolRef.current = tool;
+  /** Tramos ya cerrados del archivo y dónde arrancó el actual (ms del archivo). */
+  const keepRef = useRef<RecKeep>([]);
+  const segStart = useRef(0);
+  const usedRewind = useRef(false);
+  const history = useRef<RecKeep[]>([]);
+  const leadTimer = useRef<number | null>(null);
   // Los textos de error se leen por ref: el efecto de la vista previa no se re-ejecuta por un `t` nuevo.
   const tRef = useRef(t);
   tRef.current = t;
@@ -148,10 +206,34 @@ export default function Recorder({
   bubbleRef.current = bubble;
   const usesCamera = mode !== 'screen';
   const usesScreen = mode !== 'camera';
+  // Se compone en el lienzo lo que no se puede grabar directo: la burbuja, el lápiz y el filtro de luz.
+  const composited = mode === 'screen_camera' || (mode === 'screen' && drawTools) || (mode === 'camera' && lowLight);
+  const compositedRef = useRef(composited);
+  compositedRef.current = composited;
 
   useEffect(() => {
     setSupported(recorderSupported());
+    setFilterOk(canvasFilterSupported());
+    setFloatOk(floatingWindowSupported());
+    try {
+      setNotes(window.localStorage.getItem(NOTES_KEY) ?? '');
+      const look = JSON.parse(window.localStorage.getItem(FILE_TOOLS_KEY) ?? '{}') as { shape?: BubbleShape; frame?: BubbleFrame; lowLight?: boolean };
+      if (look.shape === 'circle' || look.shape === 'square') setShape(look.shape);
+      if (look.frame && ['white', 'dark', 'accent', 'none'].includes(look.frame)) setFrame(look.frame);
+      if (look.lowLight) setLowLight(true);
+    } catch {
+      // Sin almacenamiento arranca con los valores de siempre.
+    }
   }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(NOTES_KEY, notes);
+      window.localStorage.setItem(FILE_TOOLS_KEY, JSON.stringify({ shape, frame, lowLight }));
+    } catch {
+      // Sin almacenamiento no se recuerda: nada más.
+    }
+  }, [notes, shape, frame, lowLight]);
 
   useEffect(() => {
     onPhase?.(phase);
@@ -175,6 +257,7 @@ export default function Recorder({
 
   useEffect(() => () => {
     if (countdownTimer.current) window.clearTimeout(countdownTimer.current);
+    if (leadTimer.current) window.clearTimeout(leadTimer.current);
     if (recorder.current && recorder.current.state !== 'inactive') {
       cancelled.current = true;
       recorder.current.stop();
@@ -200,6 +283,7 @@ export default function Recorder({
           });
           if (!alive) return stopTracks(cam);
           camStream.current = cam;
+          setBlurOk(cameraBlurSupported(cam.getVideoTracks()[0]));
           if (camVideo.current) {
             camVideo.current.srcObject = cam;
             void camVideo.current.play().catch(() => undefined);
@@ -242,30 +326,57 @@ export default function Recorder({
     if (phase !== 'recording' && phase !== 'paused') return;
     const id = window.setInterval(() => {
       const ms = activeMs.current + (phase === 'recording' ? performance.now() - resumedAt.current : 0);
-      setElapsed(Math.floor(ms / 1000));
+      // Lo sacado al volver atrás no cuenta en el reloj.
+      setElapsed(Math.floor((usedRewind.current ? keptMs(keepRef.current) + Math.max(0, ms - segStart.current) : ms) / 1000));
     }, 250);
     return () => window.clearInterval(id);
   }, [phase]);
 
+  // Desenfoque de fondo del navegador: se pide a la pista de la cámara.
+  useEffect(() => {
+    if (!blurOk) return;
+    void setCameraBlur(camStream.current?.getVideoTracks()[0], blur);
+  }, [blur, blurOk]);
+
+  // La ventana flotante se cierra sola al terminar.
+  useEffect(() => {
+    if (phase !== 'recording' && phase !== 'paused' && floatWin) {
+      floatWin.close();
+      setFloatWin(null);
+    }
+  }, [phase, floatWin]);
+
   const currentActiveMs = () => activeMs.current + (recorder.current?.state === 'recording' ? performance.now() - resumedAt.current : 0);
 
   function previewSource(): HTMLCanvasElement | HTMLVideoElement | null {
-    if (mode === 'screen_camera') return canvasRef.current;
+    if (compositedRef.current) return canvasRef.current;
     if (mode === 'screen') return screenVideo.current;
     return camVideo.current;
   }
 
   function tick() {
     if (meterRef.current) meterRef.current.style.transform = `scaleX(${audioLevel(analyser.current, levelBuf.current).toFixed(2)})`;
-    if (mode === 'screen_camera') {
+    if (compositedRef.current) {
       const c = canvasRef.current;
       const g = c?.getContext('2d');
       const sv = screenVideo.current;
-      if (c && g && sv && sv.videoWidth) {
+      const cam = camVideo.current;
+      const now = performance.now();
+      if (c && g && mode !== 'camera' && sv && sv.videoWidth) {
         g.drawImage(sv, 0, 0, c.width, c.height);
         const b = bubbleRef.current;
-        const cam = camVideo.current;
-        if (cam && camStream.current) drawBubble(g, cam, b.x * c.width, b.y * c.height, b.d * c.height);
+        if (mode === 'screen_camera' && cam && camStream.current) drawBubble(g, cam, b.x * c.width, b.y * c.height, b.d * c.height, lookRef.current);
+      } else if (c && g && mode === 'camera' && cam && cam.videoWidth) {
+        g.save();
+        if ('filter' in g) g.filter = LOW_LIGHT_FILTER;
+        g.drawImage(cam, 0, 0, c.width, c.height);
+        g.restore();
+      }
+      if (c && g) {
+        strokes.current = strokes.current.filter((st) => inkAlpha(st, now) > 0);
+        drawInk(g, strokes.current, c.width, c.height, now);
+        const pa = pointerAt.current;
+        if (pa && toolRef.current === 'pointer') drawPointer(g, pa.x * c.width, pa.y * c.height, c.height);
       }
     }
     if (recorder.current?.state !== 'recording') return;
@@ -349,9 +460,9 @@ export default function Recorder({
     let videoTrack: MediaStreamTrack | undefined;
     let width = 0;
     let height = 0;
-    if (mode === 'screen_camera') {
+    if (composited) {
       const c = canvasRef.current;
-      const settings = screenStream.current?.getVideoTracks()[0]?.getSettings() ?? {};
+      const settings = (mode === 'camera' ? camStream.current : screenStream.current)?.getVideoTracks()[0]?.getSettings() ?? {};
       let w = settings.width || 1280;
       let h = settings.height || 720;
       if (h > q.height) {
@@ -397,6 +508,12 @@ export default function Recorder({
       setPhase('setup');
       return;
     }
+    keepRef.current = [];
+    segStart.current = 0;
+    usedRewind.current = false;
+    history.current = [];
+    setRewound([]);
+    strokes.current = [];
     chunks.current = [];
     audioChunks.current = [];
     gifFrames.current = [];
@@ -448,7 +565,27 @@ export default function Recorder({
     r.pause();
     audioRecorder.current?.pause();
     activeMs.current += performance.now() - resumedAt.current;
+    // El tramo que venía se cierra acá: volver atrás trabaja sobre lo cerrado.
+    if (activeMs.current > segStart.current) keepRef.current = [...keepRef.current, [segStart.current, activeMs.current]];
+    segStart.current = activeMs.current;
     setPhase('paused');
+  }
+
+  function back(seconds: number) {
+    history.current.push(keepRef.current);
+    keepRef.current = rewindKeep(keepRef.current, seconds * 1000);
+    usedRewind.current = true;
+    setRewound((r) => [...r, seconds]);
+    setElapsed(Math.floor(keptMs(keepRef.current) / 1000));
+  }
+
+  function undoBack() {
+    const prev = history.current.pop();
+    if (!prev) return;
+    keepRef.current = prev;
+    setRewound((r) => r.slice(0, -1));
+    if (!history.current.length) usedRewind.current = false;
+    setElapsed(Math.floor(keptMs(keepRef.current) / 1000));
   }
 
   function resume() {
@@ -458,6 +595,23 @@ export default function Recorder({
     audioRecorder.current?.resume();
     resumedAt.current = performance.now();
     setPhase('recording');
+    if (!usedRewind.current) return;
+    // Después de volver atrás el corte tiene que caer en un keyframe: unos segundos de margen
+    // antes de que la persona siga hablando, para que no se pierda nada de lo nuevo.
+    segStart.current = activeMs.current;
+    setLead(Math.ceil(REWIND_LEAD_MS / 1000));
+    const started = performance.now();
+    const step = () => {
+      const left = REWIND_LEAD_MS - (performance.now() - started);
+      if (left <= 0) {
+        leadTimer.current = null;
+        setLead(0);
+        return;
+      }
+      setLead(Math.ceil(left / 1000));
+      leadTimer.current = window.setTimeout(step, 200);
+    };
+    leadTimer.current = window.setTimeout(step, 200);
   }
 
   function stopRecorder(r: MediaRecorder | null): Promise<void> {
@@ -472,6 +626,8 @@ export default function Recorder({
     const r = recorder.current;
     if (!r || r.state === 'inactive') return;
     if (r.state === 'recording') activeMs.current += performance.now() - resumedAt.current;
+    if (activeMs.current > segStart.current) keepRef.current = [...keepRef.current, [segStart.current, activeMs.current]];
+    segStart.current = activeMs.current;
     setPhase('finishing');
     if (!thumb.current) {
       const src = previewSource();
@@ -516,6 +672,7 @@ export default function Recorder({
       gif,
       audio,
       audioMime: audio ? audioType : null,
+      keep: usedRewind.current ? keepRef.current : null,
     });
   }
 
@@ -633,6 +790,81 @@ export default function Recorder({
   };
 
   const live = phase === 'recording' || phase === 'paused' || phase === 'finishing' || phase === 'countdown';
+  const active = phase === 'recording' || phase === 'paused';
+  const canBack = rewind && canRewind && mimeRef.current.startsWith('video/webm');
+
+  // ---------- Lápiz y puntero sobre la vista previa ----------
+  function stagePoint(e: ReactPointerEvent<HTMLElement>) {
+    const r = stageRef.current?.getBoundingClientRect();
+    if (!r || !r.width || !r.height) return null;
+    return { x: clamp((e.clientX - r.left) / r.width, 0, 1), y: clamp((e.clientY - r.top) / r.height, 0, 1) };
+  }
+
+  function onInkDown(e: ReactPointerEvent<HTMLElement>) {
+    const p = stagePoint(e);
+    if (!p || tool !== 'pen') return;
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    strokes.current.push({ points: [p], color: inkColor, doneAt: null });
+  }
+
+  function onInkMove(e: ReactPointerEvent<HTMLElement>) {
+    const p = stagePoint(e);
+    if (!p) return;
+    pointerAt.current = p;
+    const cur = strokes.current[strokes.current.length - 1];
+    if (tool === 'pen' && cur && cur.doneAt === null) cur.points.push(p);
+  }
+
+  function onInkUp() {
+    const cur = strokes.current[strokes.current.length - 1];
+    if (cur && cur.doneAt === null) cur.doneAt = performance.now();
+  }
+
+  async function floatControls() {
+    if (floatWin) {
+      floatWin.close();
+      setFloatWin(null);
+      return;
+    }
+    const win = await openFloatingWindow(360, notes.trim() ? 300 : 96).catch(() => null);
+    if (!win) return;
+    win.addEventListener('pagehide', () => setFloatWin(null), { once: true });
+    setFloatWin(win);
+  }
+
+  const notesPanel = notes.trim() && showNotes && (
+    <div className="rec-notes-live" data-testid="rec-notes-live">
+      <p className="rec-notes-text">{notes}</p>
+    </div>
+  );
+
+  // Los controles van en la barra o, si se pidió, en la ventana flotante.
+  const mainControls = (
+    <>
+      {phase === 'recording' && (
+        <button type="button" className="btn btn-secondary btn-sm" onClick={pause} data-testid="rec-pause" aria-keyshortcuts="Alt+Shift+P" title={t('pauseHint')}>
+          {t('pause')}
+        </button>
+      )}
+      {phase === 'paused' && (
+        <button type="button" className="btn btn-secondary btn-sm" onClick={resume} data-testid="rec-resume">
+          {t('resume')}
+        </button>
+      )}
+      <button
+        type="button"
+        className="btn btn-primary btn-sm"
+        onClick={() => void stop()}
+        disabled={phase === 'finishing'}
+        data-testid="rec-stop"
+        aria-keyshortcuts="Alt+Shift+S"
+        title={t('stopHint')}
+      >
+        {t('stop')}
+      </button>
+    </>
+  );
 
   if (!supported) {
     return (
@@ -717,6 +949,61 @@ export default function Recorder({
               </label>
             )}
           </div>
+          {usesCamera && (
+            <fieldset className="rec-look" data-testid="rec-look">
+              <legend className="label">{t('look')}</legend>
+              <div className="rec-look-row">
+                {mode === 'screen_camera' && (
+                  <>
+                    <div className="ui-field">
+                      <label className="label" htmlFor="rec-shape">
+                        {t('shape')}
+                      </label>
+                      <select id="rec-shape" className="select" value={shape} onChange={(e) => setShape(e.target.value as BubbleShape)} data-testid="rec-shape">
+                        <option value="circle">{t('shapes.circle')}</option>
+                        <option value="square">{t('shapes.square')}</option>
+                      </select>
+                    </div>
+                    <div className="ui-field">
+                      <label className="label" htmlFor="rec-frame">
+                        {t('frame')}
+                      </label>
+                      <select id="rec-frame" className="select" value={frame} onChange={(e) => setFrame(e.target.value as BubbleFrame)} data-testid="rec-frame">
+                        <option value="white">{t('frames.white')}</option>
+                        <option value="dark">{t('frames.dark')}</option>
+                        <option value="accent">{t('frames.accent')}</option>
+                        <option value="none">{t('frames.none')}</option>
+                      </select>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="rec-toggles">
+                <label className="ui-check">
+                  <input type="checkbox" checked={lowLight} disabled={!filterOk} onChange={(e) => setLowLight(e.target.checked)} data-testid="rec-lowlight" />
+                  <span>{t('lowLight')}</span>
+                </label>
+                <label className="ui-check">
+                  <input type="checkbox" checked={blur} disabled={!blurOk} onChange={(e) => setBlur(e.target.checked)} data-testid="rec-blur" />
+                  <span>{t('blur')}</span>
+                </label>
+              </div>
+              {(!blurOk || !filterOk) && <p className="ui-help" data-testid="rec-look-note">{!blurOk ? t('blurNote') : t('filterNote')}</p>}
+            </fieldset>
+          )}
+          {usesScreen && (
+            <label className="ui-check">
+              <input type="checkbox" checked={drawTools || mode === 'screen_camera'} disabled={mode === 'screen_camera'} onChange={(e) => setDrawTools(e.target.checked)} data-testid="rec-drawtools" />
+              <span>{t('drawTools')}</span>
+            </label>
+          )}
+          <div className="ui-field">
+            <label className="label" htmlFor="rec-notes">
+              {t('notes')}
+            </label>
+            <textarea id="rec-notes" className="textarea" rows={3} maxLength={20000} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('notesPlaceholder')} data-testid="rec-notes" />
+            <p className="ui-help">{t('notesHelp')}</p>
+          </div>
           <div className={`rec-setup-preview rec-setup-${mode}`}>
             {usesScreen && <p className="rec-setup-screen">{t('screenHint')}</p>}
           </div>
@@ -743,16 +1030,19 @@ export default function Recorder({
         <div ref={stageRef} className={`rec-stage rec-stage-${mode}`}>
           <video
             ref={camVideo}
-            className={`rec-cam${mode === 'camera' || phase === 'setup' ? '' : ' rec-offscreen'}${phase === 'setup' && mode === 'screen_camera' ? ' rec-cam-bubble' : ''}`}
+            className={`rec-cam${(mode === 'camera' && !(composited && live)) || phase === 'setup' ? '' : ' rec-offscreen'}${phase === 'setup' && mode === 'screen_camera' ? ` rec-cam-bubble rec-cam-${shape} rec-frame-${frame}` : ''}${phase === 'setup' && lowLight ? ' rec-cam-light' : ''}`}
             muted
             playsInline
             aria-label={t('cameraPreview')}
           />
-          <video ref={screenVideo} className={`rec-screen${mode === 'screen' && live ? '' : ' rec-offscreen'}`} muted playsInline aria-hidden="true" />
-          <canvas ref={canvasRef} className={`rec-canvas${mode === 'screen_camera' && live ? '' : ' rec-offscreen'}`} aria-label={t('livePreview')} />
+          <video ref={screenVideo} className={`rec-screen${mode === 'screen' && !composited && live ? '' : ' rec-offscreen'}`} muted playsInline aria-hidden="true" />
+          <canvas ref={canvasRef} className={`rec-canvas${composited && live ? '' : ' rec-offscreen'}`} aria-label={t('livePreview')} />
+          {composited && active && tool !== 'none' && (
+            <div className={`rec-ink-layer rec-ink-${tool}`} onPointerDown={onInkDown} onPointerMove={onInkMove} onPointerUp={onInkUp} onPointerLeave={() => (pointerAt.current = null)} data-testid="rec-ink-layer" />
+          )}
           {mode === 'screen_camera' && live && (
             <div
-              className="rec-bubble-handle"
+              className={`rec-bubble-handle rec-cam-${shape}`}
               style={bubbleStyle}
               tabIndex={0}
               role="group"
@@ -809,34 +1099,93 @@ export default function Recorder({
               </button>
             </span>
           )}
-          {phase === 'recording' && (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={pause} data-testid="rec-pause" aria-keyshortcuts="Alt+Shift+P" title={t('pauseHint')}>
-              {t('pause')}
-            </button>
-          )}
-          {phase === 'paused' && (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={resume} data-testid="rec-resume">
-              {t('resume')}
-            </button>
-          )}
           {!confirmDiscard && (
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmDiscard(true)} disabled={phase === 'finishing'} data-testid="rec-discard">
               {t('discard')}
             </button>
           )}
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            onClick={() => void stop()}
-            disabled={phase === 'finishing'}
-            data-testid="rec-stop"
-            aria-keyshortcuts="Alt+Shift+S"
-            title={t('stopHint')}
-          >
-            {t('stop')}
-          </button>
+          {floatWin ? <span className="rec-float-note muted">{t('floatOpen')}</span> : mainControls}
         </div>
       )}
+
+      {active && (
+        <div className="rec-tools" data-testid="rec-tools">
+          {composited && (
+            <div className="rec-tool-group" role="group" aria-label={t('drawGroup')}>
+              <button type="button" className="btn btn-ghost btn-sm" aria-pressed={tool === 'pen'} onClick={() => setTool(tool === 'pen' ? 'none' : 'pen')} data-testid="rec-tool-pen">
+                {t('pen')}
+              </button>
+              <button type="button" className="btn btn-ghost btn-sm" aria-pressed={tool === 'pointer'} onClick={() => setTool(tool === 'pointer' ? 'none' : 'pointer')} data-testid="rec-tool-pointer">
+                {t('pointer')}
+              </button>
+              {tool === 'pen' &&
+                INK_COLORS.map((c) => (
+                  <button key={c} type="button" className="rec-ink-color" style={{ background: c }} aria-pressed={inkColor === c} aria-label={t(`inkColors.${c.slice(1)}`)} onClick={() => setInkColor(c)} />
+                ))}
+            </div>
+          )}
+          {notes.trim() && (
+            <button type="button" className="btn btn-ghost btn-sm" aria-pressed={showNotes} onClick={() => setShowNotes((v) => !v)} data-testid="rec-notes-toggle">
+              {t('notes')}
+            </button>
+          )}
+          {floatOk ? (
+            <button type="button" className="btn btn-ghost btn-sm" aria-pressed={!!floatWin} onClick={() => void floatControls()} data-testid="rec-float">
+              {t('float')}
+            </button>
+          ) : (
+            <span className="ui-help rec-float-note" data-testid="rec-float-off">
+              {t('floatOff')}
+            </span>
+          )}
+          {composited && tool !== 'none' && <span className="ui-help rec-float-note">{t('drawHelp')}</span>}
+        </div>
+      )}
+
+      {phase === 'paused' && rewind && (
+        <div className="rec-rewind" role="group" aria-label={t('rewind')} data-testid="rec-rewind">
+          {canBack ? (
+            <>
+              <span className="label">{t('rewind')}</span>
+              {[5, 15, 30].map((n) => (
+                <button key={n} type="button" className="btn btn-secondary btn-sm" disabled={keptMs(keepRef.current) <= 0} onClick={() => back(n)} data-testid={`rec-back-${n}`}>
+                  {t('rewindBack', { n })}
+                </button>
+              ))}
+              {rewound.length > 0 && (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={undoBack} data-testid="rec-back-undo">
+                  {t('rewindUndo')}
+                </button>
+              )}
+              <span className="ui-help">{t('rewindHelp')}</span>
+            </>
+          ) : (
+            <span className="ui-help" data-testid="rec-rewind-off">
+              {t('rewindOff')}
+            </span>
+          )}
+        </div>
+      )}
+      {lead > 0 && (
+        <p className="rec-lead" role="status" data-testid="rec-lead">
+          {t('rewindLead', { n: lead })}
+        </p>
+      )}
+      {active && !floatWin && notesPanel}
+      {floatWin &&
+        createPortal(
+          <div className="rec-float" data-testid="rec-float-window">
+            <div className="rec-float-bar">
+              <span className={`rec-dot${phase === 'paused' ? ' paused' : ''}`} aria-hidden="true" />
+              <span className="rec-time data">{fmtClock(elapsed)}</span>
+              <span className="rec-bar-spacer" />
+              {mainControls}
+            </div>
+            {lead > 0 && <p className="rec-lead">{t('rewindLead', { n: lead })}</p>}
+            {notesPanel}
+          </div>,
+          floatWin.document.body,
+        )}
     </div>
   );
 }

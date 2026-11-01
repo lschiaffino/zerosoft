@@ -111,7 +111,31 @@
     "fieldTypeSelect": "Lista",
     "fieldTypeBoolean": "Sí / no",
     "attributeNeedsOptions": "Cada atributo de lista necesita al menos una opción.",
-    "nameAdminOnly": "Solo los admins del workspace renombran un widget: su nombre es el remitente de los emails de Chat."
+    "nameAdminOnly": "Solo los admins del workspace renombran un widget: su nombre es el remitente de los emails de Chat.",
+    "font": "Fuente del messenger",
+    "fonts": {
+      "system": "Sistema",
+      "humanist": "Humanista",
+      "geometric": "Geométrica",
+      "rounded": "Redondeada",
+      "serif": "Con serifa",
+      "slab": "Slab",
+      "mono": "Monoespaciada"
+    },
+    "replyTime": "Tiempo de respuesta visible",
+    "replyTimes": {
+      "off": "No mostrar",
+      "minutes": "Unos minutos",
+      "hour": "Menos de una hora",
+      "day": "Menos de un día"
+    },
+    "attachments": "Quién puede adjuntar archivos",
+    "attachmentModes": {
+      "all": "Todos",
+      "identified": "Solo personas con identidad firmada",
+      "none": "Nadie"
+    },
+    "attachmentsHint": "Vale para los visitantes. Tu equipo siempre puede adjuntar."
   },
   "embed": {
     "title": "Código de instalación",
@@ -383,7 +407,10 @@
     "delete": "Borrar {shortcut}",
     "tagsPlaceholder": "facturacion urgente",
     "newTitle": "Nueva respuesta",
-    "editTitle": "Editar respuesta"
+    "editTitle": "Editar respuesta",
+    "usage": "Usada",
+    "usedTimes": "{count, plural, one {# vez} other {# veces}}",
+    "neverUsed": "Nunca"
   },
   "attachments": {
     "image": "Imagen",
@@ -599,7 +626,13 @@
     "tourNext": "Siguiente",
     "tourDone": "Listo",
     "checklistProgress": "{done} de {total} listos",
-    "dismiss": "Descartar"
+    "dismiss": "Descartar",
+    "searchConversation": "Buscar en la conversación",
+    "searchNoMatches": "Sin resultados",
+    "replyMinutes": "Suele responder en unos minutos",
+    "replyHour": "Suele responder en menos de una hora",
+    "replyDay": "Suele responder en menos de un día",
+    "agentTyping": "Te están escribiendo…"
   },
   "bulk": {
     "label": "Acciones en lote",
@@ -1049,7 +1082,15 @@
     "noRecipients": "Nadie de esta audiencia aceptó recibir campañas.",
     "excludedUnsubscribed": "{count, plural, one {# persona se dio de baja y queda afuera} other {# personas se dieron de baja y quedan afuera}}.",
     "waitingCap": "Límite del día alcanzado: sigue mañana.",
-    "excludedNoOptIn": "{count, plural, one {# persona no aceptó} other {# personas no aceptaron}} recibir campañas y {count, plural, one {queda afuera} other {quedan afuera}}."
+    "excludedNoOptIn": "{count, plural, one {# persona no aceptó} other {# personas no aceptaron}} recibir campañas y {count, plural, one {queda afuera} other {quedan afuera}}.",
+    "schedule": "Programar",
+    "unschedule": "Cancelar programación",
+    "scheduleTitle": "Programar esta campaña",
+    "scheduleWhen": "Enviar el",
+    "scheduleHelp": "En tu zona horaria, hasta 90 días adelante. Sale a quienes tengan consentimiento en ese momento, dentro del tope diario del workspace.",
+    "scheduleInvalid": "Elegí un momento al menos un minuto adelante y dentro de 90 días.",
+    "scheduledFor": "Programada para {when}",
+    "scheduleFailed": "No se envió: {reason}"
   },
   "importer": {
     "title": "Importar conversaciones",
@@ -1074,5 +1115,28 @@
     "cxHelp": "Usa el CSAT si lo hay; si no, la velocidad de la primera respuesta y si se resolvió.",
     "topic": "Tema",
     "noTopics": "Faltan conversaciones para encontrar temas."
+  },
+  "snoozeOptions": {
+    "title": "Opciones de posponer",
+    "help": "Opciones propias en el menú Posponer de la bandeja, junto a las de siempre. Para todos o para un equipo.",
+    "empty": "Todavía no hay opciones propias. La bandeja muestra las de siempre.",
+    "label": "Nombre",
+    "labelPlaceholder": "Hasta el próximo turno",
+    "amount": "Duración",
+    "unit": "Unidad",
+    "unitMinutes": "minutos",
+    "unitHours": "horas",
+    "unitDays": "días",
+    "forWho": "Para",
+    "everyone": "Todos",
+    "team": "Un equipo",
+    "add": "Agregar opción",
+    "remove": "Sacar {label}",
+    "minutes": "{n} min",
+    "hours": "{n} h",
+    "days": "{n} d",
+    "adminOnly": "Las agrega un admin del workspace.",
+    "tooMany": "Llegaste al tope de 20 opciones.",
+    "invalid": "Revisá la duración: hasta 90 días."
   }
 }

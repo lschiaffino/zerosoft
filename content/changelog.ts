@@ -29,6 +29,43 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-01-rec-chat',
+    date: '2026-11-01',
+    title: { en: 'Rec and Chat: more of what Loom and Intercom do', es: 'Rec y Chat: más de lo que hacen Loom e Intercom', pt: 'Rec e Chat: mais do que o Loom e o Intercom fazem' },
+    items: [
+      {
+        product: 'rec',
+        en: 'Recording: notes to read while you talk, floating controls in Chrome and Edge, going back while paused, a pen and a pointer on the preview, and the shape, frame and light of the camera bubble.',
+        es: 'Grabar: notas para leer mientras hablás, controles flotantes en Chrome y Edge, volver atrás en pausa, lápiz y puntero sobre la vista previa, y forma, marco y luz de la burbuja de cámara.',
+        pt: 'Gravar: notas para ler enquanto fala, controles flutuantes no Chrome e no Edge, voltar em pausa, lápis e ponteiro na prévia, e forma, moldura e luz da bolha da câmera.',
+      },
+      {
+        product: 'rec',
+        en: 'Videos: tags in the library and Cmd+K, links on the video, caption styles and translations, and replying to a comment with a video.',
+        es: 'Videos: etiquetas en la biblioteca y Cmd+K, links sobre el video, estilo y traducción de subtítulos y responder un comentario con un video.',
+        pt: 'Vídeos: etiquetas na biblioteca e no Cmd+K, links sobre o vídeo, estilo e tradução de legendas e responder um comentário com um vídeo.',
+      },
+      {
+        product: 'rec',
+        en: 'Admins see workspace usage and an activity log in the Rec settings.',
+        es: 'Los admins ven el uso del workspace y un registro de actividad en los ajustes de Rec.',
+        pt: 'Os admins veem o uso do workspace e um registro de atividade nos ajustes do Rec.',
+      },
+      {
+        product: 'chat',
+        en: 'Messenger: seven fonts, a reply time under the header, search inside the conversation and control over who attaches files. Your site can send person attributes with a signed identity.',
+        es: 'Messenger: siete fuentes, tiempo de respuesta bajo el encabezado, búsqueda dentro de la conversación y control de quién adjunta archivos. Tu sitio puede mandar atributos de la persona con identidad firmada.',
+        pt: 'Messenger: sete fontes, tempo de resposta sob o cabeçalho, busca dentro da conversa e controle de quem anexa arquivos. Seu site pode enviar atributos da pessoa com identidade assinada.',
+      },
+      {
+        product: 'chat',
+        en: 'Inbox: your own snooze options by team and how often each saved reply is used. Campaigns can be scheduled.',
+        es: 'Bandeja: opciones propias de posponer por equipo y cuánto se usa cada respuesta guardada. Las campañas se pueden programar.',
+        pt: 'Caixa de entrada: opções próprias de adiar por equipe e quanto cada resposta salva é usada. As campanhas podem ser programadas.',
+      },
+    ],
+  },
+  {
     id: '2026-10-31-robots-paridad',
     date: '2026-10-31',
     title: {

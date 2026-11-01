@@ -31,6 +31,7 @@ const schema = z.object({
   atSec: z.number().min(0).max(86_400).nullable().optional(),
   parentId: z.string().uuid().nullable().optional(),
   name: z.string().max(80).optional(),
+  replyVideoId: z.string().max(60).nullable().optional(),
 });
 
 /** Comentario o reacción con el segundo del video. Sin login, con el nombre que escribe quien mira. */

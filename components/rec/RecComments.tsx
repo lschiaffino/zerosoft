@@ -19,6 +19,7 @@ export interface RecComment {
   byAuthor: boolean;
   mine: boolean;
   createdAt: string;
+  replyVideo?: { shareId: string; durationSec: number } | null;
 }
 
 interface Me {
@@ -185,6 +186,16 @@ export default function RecComments({
   const rel = (abs: number) => Math.max(0, abs - trimStart);
   const when = (d: string) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(parseDbUtc(d));
 
+  const replyLink = (c: RecComment) =>
+    c.replyVideo && (
+      <a className="rec-reply-video" href={`/${locale}/v/${encodeURIComponent(c.replyVideo.shareId)}`} target="_blank" rel="noopener noreferrer" data-testid="rec-reply-video-link">
+        <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M8 5v14l11-7z" fill="currentColor" />
+        </svg>
+        <span>{t('replyVideoLink', { time: fmtClock(c.replyVideo.durationSec) })}</span>
+      </a>
+    );
+
   return (
     <section className="rec-comments" aria-label={t('title')} data-testid="rec-comments">
       {formOpen && (
@@ -217,11 +228,17 @@ export default function RecComments({
                 <span className="muted rec-comment-date"><LocalText>{when(c.createdAt)}</LocalText></span>
               </div>
               <p className="rec-comment-body">{c.body}</p>
+              {replyLink(c)}
               <div className="rec-comment-actions">
                 {formOpen && (
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => setReplyTo(replyTo === c.id ? null : c.id)}>
                     {t('reply')}
                   </button>
+                )}
+                {formOpen && me.signedIn && (
+                  <a className="btn btn-ghost btn-sm" href={`/${locale}/app/rec/new?replyTo=${encodeURIComponent(shareId)}&parent=${encodeURIComponent(c.id)}`} data-testid="rec-reply-video">
+                    {t('replyVideo')}
+                  </a>
                 )}
                 {(c.mine || moderator) && (
                   <button type="button" className="btn btn-ghost btn-danger btn-sm" onClick={() => void remove(c.id)}>
@@ -240,6 +257,7 @@ export default function RecComments({
                         <span className="muted rec-comment-date"><LocalText>{when(r.createdAt)}</LocalText></span>
                       </div>
                       <p className="rec-comment-body">{r.body}</p>
+                      {replyLink(r)}
                       {(r.mine || moderator) && (
                         <button type="button" className="btn btn-ghost btn-danger btn-sm" onClick={() => void remove(r.id)}>
                           {t('delete')}
@@ -333,9 +351,16 @@ export default function RecComments({
               <input type="checkbox" checked={atNow} onChange={(e) => setAtNow(e.target.checked)} />
               <span>{t('atTime', { time: fmtClock(rel(currentAbs())) })}</span>
             </label>
-            <button type="submit" className="btn btn-primary btn-sm" disabled={busy || !body.trim()} data-testid="rec-comment-send">
-              {t('send')}
-            </button>
+            <span className="rec-comment-send">
+              {me.signedIn && (
+                <a className="btn btn-ghost btn-sm" href={`/${locale}/app/rec/new?replyTo=${encodeURIComponent(shareId)}${atNow ? `&at=${Math.round(currentAbs() * 10) / 10}` : ''}`} data-testid="rec-comment-video">
+                  {t('recordReply')}
+                </a>
+              )}
+              <button type="submit" className="btn btn-primary btn-sm" disabled={busy || !body.trim()} data-testid="rec-comment-send">
+                {t('send')}
+              </button>
+            </span>
           </div>
         </form>
       )}

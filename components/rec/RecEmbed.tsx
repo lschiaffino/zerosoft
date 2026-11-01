@@ -28,6 +28,8 @@ export default function RecEmbed({ video, shareUrl, brand }: { video: RecWatchVi
         trackUrl={`/api/rec/v/${encodeURIComponent(video.shareId)}/track`}
         viewerName={viewerName}
         overlays={video.overlays}
+        captionStyle={video.captionStyle}
+        captionLangs={video.captionLangs}
         noDownload={!video.allowDownload}
         compact
       />

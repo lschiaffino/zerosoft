@@ -9,6 +9,7 @@ import type { OfficeHoursDay } from '@/lib/chat-data';
 import SettingsTabs from '@/components/ui/SettingsTabs';
 import FormSection from '@/components/ui/FormSection';
 import AdvancedSection from '@/components/ui/AdvancedSection';
+import { WIDGET_ATTACHMENT_MODES, WIDGET_FONTS, WIDGET_REPLY_TIMES } from '@/lib/chat-schema';
 import ColorField from './ColorField';
 import EmbedCode from './EmbedCode';
 import IdentityVerification from './IdentityVerification';
@@ -245,6 +246,45 @@ export default function WidgetSettings({
                 ))}
               </select>
               <p className="ui-help">{t('widgetForm.localeHint')}</p>
+            </div>
+            <div className="ui-fields-2">
+              <div className="ui-field">
+                <label className="label" htmlFor={`${uid}-font`}>
+                  {t('widgetForm.font')}
+                </label>
+                <select id={`${uid}-font`} className="select" value={values.font} onChange={(e) => set('font', e.target.value)} data-testid="chat-widget-font">
+                  {WIDGET_FONTS.map((f) => (
+                    <option key={f} value={f}>
+                      {t(`widgetForm.fonts.${f}`)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="ui-field">
+                <label className="label" htmlFor={`${uid}-reply-time`}>
+                  {t('widgetForm.replyTime')}
+                </label>
+                <select id={`${uid}-reply-time`} className="select" value={values.replyTime} onChange={(e) => set('replyTime', e.target.value)} data-testid="chat-widget-reply-time">
+                  {WIDGET_REPLY_TIMES.map((r) => (
+                    <option key={r || 'off'} value={r}>
+                      {t(`widgetForm.replyTimes.${r || 'off'}`)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="ui-field">
+              <label className="label" htmlFor={`${uid}-attachments`}>
+                {t('widgetForm.attachments')}
+              </label>
+              <select id={`${uid}-attachments`} className="select" value={values.visitorAttachments} onChange={(e) => set('visitorAttachments', e.target.value)} data-testid="chat-widget-attachments">
+                {WIDGET_ATTACHMENT_MODES.map((m) => (
+                  <option key={m} value={m}>
+                    {t(`widgetForm.attachmentModes.${m}`)}
+                  </option>
+                ))}
+              </select>
+              <p className="ui-help">{t('widgetForm.attachmentsHint')}</p>
             </div>
             <div className="ui-field">
               <label className="ui-switch">

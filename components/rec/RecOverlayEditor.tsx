@@ -37,9 +37,10 @@ export default function RecOverlayEditor({
         end: Math.min(duration || start + 5, start + 5),
         x: 0.1,
         y: 0.1,
-        w: kind === 'text' ? 0.5 : 0.3,
-        h: kind === 'text' ? 0 : 0.2,
+        w: kind === 'text' || kind === 'link' ? 0.5 : 0.3,
+        h: kind === 'text' || kind === 'link' ? 0 : 0.2,
         text: '',
+        ...(kind === 'link' ? { url: '' } : {}),
         color: REC_OVERLAY_COLORS[2],
       },
     ]);
@@ -68,12 +69,21 @@ export default function RecOverlayEditor({
                 {t('remove')}
               </button>
             </div>
-            {o.kind === 'text' && (
+            {(o.kind === 'text' || o.kind === 'link') && (
               <div className="ui-field">
                 <label className="label" htmlFor={`rec-ov-${o.id}`}>
                   {t('text')}
                 </label>
                 <input id={`rec-ov-${o.id}`} className="input" value={o.text} maxLength={160} onChange={(e) => update(o.id, { text: e.target.value })} data-testid="rec-overlay-text" />
+              </div>
+            )}
+            {o.kind === 'link' && (
+              <div className="ui-field">
+                <label className="label" htmlFor={`rec-ov-u-${o.id}`}>
+                  {t('url')}
+                </label>
+                <input id={`rec-ov-u-${o.id}`} className="input" value={o.url ?? ''} maxLength={2000} placeholder="https://" inputMode="url" onChange={(e) => update(o.id, { url: e.target.value })} data-testid="rec-overlay-url" />
+                <p className="ui-help">{t('urlHelp')}</p>
               </div>
             )}
             <div className="ui-fields ui-fields-2">
@@ -112,7 +122,7 @@ export default function RecOverlayEditor({
               {slider(o, 'x', t('x'))}
               {slider(o, 'y', t('y'))}
               {slider(o, 'w', o.kind === 'arrow' ? t('dx') : t('w'))}
-              {o.kind !== 'text' && slider(o, 'h', o.kind === 'arrow' ? t('dy') : t('h'))}
+              {o.kind !== 'text' && o.kind !== 'link' && slider(o, 'h', o.kind === 'arrow' ? t('dy') : t('h'))}
             </div>
             <fieldset className="rec-overlay-colors">
               <legend className="label">{t('color')}</legend>

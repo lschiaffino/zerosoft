@@ -76,6 +76,8 @@ export default function RecWatch({ video, shareUrl, member, brand }: { video: Re
           viewerName={viewerName}
           onTime={setNow}
           overlays={video.overlays}
+          captionStyle={video.captionStyle}
+          captionLangs={video.captionLangs}
           noDownload={!video.allowDownload && !member}
         />
         <header className="rec-watch-head">

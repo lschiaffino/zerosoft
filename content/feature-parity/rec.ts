@@ -29,7 +29,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Loom',
-  lastReviewed: '2026-10-31',
+  lastReviewed: '2026-11-01',
   areas: [
     { id: 'capture', label: loc(['Recording', 'Grabación', 'Gravação']) },
     { id: 'recorder', label: loc(['Recording tools', 'Herramientas al grabar', 'Ferramentas de gravação']) },
@@ -80,11 +80,11 @@ const parity: ProductParity = {
         'Microfone com seletor, a supressão de ruído do navegador e medidor de nível. Áudio da aba no Chrome e do sistema só onde o navegador compartilha (Windows e ChromeOS): sem app desktop não há áudio do sistema no Mac',
       ],
     }),
-    row('pause-rewind', 'capture', ['Pause, resume and rewind while recording', 'Pausar, retomar y volver atrás mientras se graba', 'Pausar, retomar e voltar enquanto grava'], 'partial', {
+    row('pause-rewind', 'capture', ['Pause, resume and rewind while recording', 'Pausar, retomar y volver atrás mientras se graba', 'Pausar, retomar e voltar durante a gravação'], 'partial', {
       detail: [
-        'Pause and resume with a 3 second countdown before starting. No Live Rewind',
-        'Pausar y seguir, con cuenta regresiva de 3 segundos al empezar. Sin Live Rewind',
-        'Pausar e continuar, com contagem de 3 segundos ao começar. Sem Live Rewind',
+        'Pause and resume with a 3 second countdown before starting. While paused you go back 5, 15 or 30 seconds and undo it; what you remove is cut from the file before the video exists for anyone else. WebM recordings up to 600 MB, and after going back you wait about 2 seconds before speaking so the cut lands on a keyframe. Tested on local storage, not on Vercel Blob in production',
+        'Pausar y retomar con cuenta regresiva de 3 segundos al empezar. En pausa se vuelve 5, 15 o 30 segundos y se puede deshacer; lo sacado se corta del archivo antes de que el video exista para nadie más. Grabaciones WebM de hasta 600 MB, y después de volver se esperan unos 2 segundos antes de hablar para que el corte caiga en un keyframe. Probado con almacenamiento local, no con Vercel Blob en producción',
+        'Pausar e retomar com contagem regressiva de 3 segundos ao começar. Em pausa dá para voltar 5, 15 ou 30 segundos e desfazer; o que sai é cortado do arquivo antes de o vídeo existir para qualquer outra pessoa. Gravações WebM de até 600 MB, e depois de voltar se espera cerca de 2 segundos antes de falar para o corte cair em um keyframe. Testado com armazenamento local, não com Vercel Blob em produção',
       ],
     }),
     row('meeting-recording', 'capture', ['Record meetings', 'Grabar reuniones', 'Gravar reuniões'], 'missing'),
@@ -97,8 +97,31 @@ const parity: ProductParity = {
         '720p, 1080p ou 4K, limitado pela fonte (sua tela ou sua câmera)',
       ],
     }),
-    row('camera-effects', 'recorder', ['Virtual backgrounds, camera frames and blur', 'Fondos virtuales, marcos de cámara y desenfoque', 'Fundos virtuais, molduras de câmera e desfoque'], 'missing'),
-    row('drawing-tool', 'recorder', ['Draw on screen and highlight the mouse', 'Dibujar en pantalla y resaltar el mouse', 'Desenhar na tela e destacar o mouse'], 'missing'),
+    row('camera-effects', 'recorder', ['Virtual backgrounds, camera frames and blur', 'Fondos virtuales, marcos de cámara y desenfoque', 'Fundos virtuais, molduras de câmera e desfoque'], 'partial', {
+      detail: [
+        'Bubble shape (circle or square), frame color or no frame, and a low light boost, drawn into the video. Background blur only where the browser offers it for that camera. No virtual backgrounds and no blur of our own',
+        'Forma de la burbuja (círculo o cuadrada), color del marco o sin marco y más luz para lugares oscuros, dibujados en el video. Desenfoque de fondo solo donde el navegador lo ofrece para esa cámara. Sin fondos virtuales ni desenfoque propio',
+        'Forma da bolha (círculo ou quadrada), cor da moldura ou sem moldura e mais luz para lugares escuros, desenhados no vídeo. Desfoque de fundo só onde o navegador oferece para aquela câmera. Sem fundos virtuais nem desfoque próprio',
+      ],
+    }),
+    row('drawing-tool', 'recorder', ['Draw on screen and highlight the mouse', 'Dibujar en pantalla y resaltar el mouse', 'Desenhar na tela e destacar o mouse'], 'partial', {
+      detail: [
+        'A pen in four colors and a pointer that go into the video, used on the preview of the recording page. Strokes fade after 3 seconds. They do not work on top of other windows or apps: that needs a desktop app or an extension',
+        'Lápiz en cuatro colores y puntero que quedan en el video, usados sobre la vista previa de la página de grabación. Los trazos se desvanecen a los 3 segundos. No funcionan encima de otras ventanas o apps: para eso hace falta app de escritorio o extensión',
+        'Lápis em quatro cores e ponteiro que ficam no vídeo, usados na prévia da página de gravação. Os traços somem depois de 3 segundos. Não funcionam sobre outras janelas ou apps: para isso é preciso app de desktop ou extensão',
+      ],
+    }),
+    row('speaker-notes', 'recorder', ['Speaker notes', 'Notas para leer al grabar', 'Notas para ler ao gravar'], 'have', {
+      detail: [
+        'Notes only you see while recording, remembered in this browser. Floating controls with the notes stay on top of other apps in Chrome and Edge; that window is checked by hand only where the browser offers it',
+        'Notas que solo ves vos mientras grabás, recordadas en este navegador. Los controles flotantes con las notas quedan arriba de otras apps en Chrome y Edge; esa ventana depende de que el navegador la ofrezca',
+        'Notas que só você vê enquanto grava, lembradas neste navegador. Os controles flutuantes com as notas ficam sobre outros apps no Chrome e no Edge; essa janela depende de o navegador oferecer',
+      ],
+    }),
+    row('custom-dimensions', 'recorder', ['Custom recording dimensions', 'Dimensiones de grabación propias', 'Dimensões de gravação próprias'], 'missing'),
+    row('do-not-disturb', 'recorder', ['Do not disturb while recording', 'No molestar al grabar', 'Não perturbe ao gravar'], 'missing'),
+    row('screenshots', 'capture', ['Screenshots', 'Capturas de pantalla', 'Capturas de tela'], 'missing'),
+    row('record-for-agents', 'capture', ['Record for AI agents', 'Grabar para agentes de IA', 'Gravar para agentes de IA'], 'missing'),
 
     // Edición
     row('trim-stitch', 'editing', ['Trim and stitch videos', 'Recortar y unir videos', 'Cortar e unir vídeos'], 'partial', {
@@ -137,6 +160,21 @@ const parity: ProductParity = {
         'Textos, caixas e setas com intervalo de tempo, posição e cor. O player desenha no detalhe, na página compartilhada e ao incorporar; o arquivo baixado não os inclui',
       ],
     }),
+    row('embed-links', 'editing', ['Links in the video', 'Links en el video', 'Links no vídeo'], 'have', {
+      detail: [
+        'A link overlay with a time range and position: viewers click it on the video page, the shared page and embeds. Web links only',
+        'Un link sobre el video con rango de tiempo y posición: se hace clic en la página del video, la compartida y al insertarlo. Solo links web',
+        'Um link sobre o vídeo com intervalo de tempo e posição: dá para clicar na página do vídeo, na compartilhada e ao incorporar. Só links web',
+      ],
+    }),
+    row('stylized-captions', 'editing', ['Stylized captions', 'Subtítulos con estilo', 'Legendas com estilo'], 'have', {
+      detail: [
+        'Size, colors and top or bottom position per video, in the player, the shared page and embeds. Downloaded files do not carry them',
+        'Tamaño, colores y posición arriba o abajo por video, en el reproductor, la página compartida y al insertar. Los archivos descargados no los llevan',
+        'Tamanho, cores e posição em cima ou embaixo por vídeo, no player, na página compartilhada e ao incorporar. Arquivos baixados não as levam',
+      ],
+    }),
+    row('edit-backgrounds', 'editing', ['Backgrounds around the recording', 'Fondos alrededor de la grabación', 'Fundos ao redor da gravação'], 'missing'),
     row('upload-download', 'editing', ['Upload and download videos', 'Subir y descargar videos', 'Enviar e baixar vídeos'], 'have', {
       detail: [
         'Upload a WebM, MP4 or MOV file and download the original',
@@ -239,6 +277,20 @@ const parity: ProductParity = {
         'Com o provedor de transcrição configurado (AI Gateway por padrão, ou OpenAI ou Deepgram com REC_TRANSCRIBE_PROVIDER): transcrição clicável e legendas no idioma falado',
       ],
     }),
+    row('video-replies', 'engagement', ['Reply to a comment with a video', 'Responder un comentario con un video', 'Responder um comentário com um vídeo'], 'have', {
+      detail: [
+        'Signed-in people record a reply from the comments and it is posted with a link to the new video, which has its own privacy',
+        'Las personas con sesión graban una respuesta desde los comentarios y queda publicada con un link al video nuevo, que tiene su propia privacidad',
+        'Pessoas com sessão gravam uma resposta nos comentários e ela fica publicada com um link para o vídeo novo, que tem privacidade própria',
+      ],
+    }),
+    row('translated-captions', 'engagement', ['Captions in other languages', 'Subtítulos en otros idiomas', 'Legendas em outros idiomas'], 'partial', {
+      detail: [
+        'Whoever manages the video translates the captions to 18 languages, up to 8 per video, with the AI quota of the workspace; viewers pick the language in the player. Tested with the test model, not with a real provider. Loom covers more than 50 languages',
+        'Quien administra el video traduce los subtítulos a 18 idiomas, hasta 8 por video, con la cuota de IA del workspace; quien mira elige el idioma en el reproductor. Probado con el modelo de prueba, no con un proveedor real. Loom cubre más de 50 idiomas',
+        'Quem administra o vídeo traduz as legendas para 18 idiomas, até 8 por vídeo, com a cota de IA do workspace; quem assiste escolhe o idioma no player. Testado com o modelo de teste, não com um provedor real. O Loom cobre mais de 50 idiomas',
+      ],
+    }),
     row('notifications', 'engagement', ['Notifications for views, comments and reactions', 'Avisos de vistas, comentarios y reacciones', 'Avisos de visualizações, comentários e reações'], 'have', {
       detail: [
         'The first view of each viewer, and comments and reactions grouped in one notice ("3 new comments") until you read it; can be turned off per video',
@@ -265,6 +317,13 @@ const parity: ProductParity = {
     }),
 
     // IA
+    row('admin-insights', 'analytics', ['Admin insights for the workspace', 'Uso del workspace para admins', 'Uso do workspace para admins'], 'have', {
+      detail: [
+        'Videos, people recording, views, unique viewers and comments of the last 30 days, by person, in the Rec settings. Titles only for videos the admin can open',
+        'Videos, personas que graban, vistas, espectadores únicos y comentarios de los últimos 30 días, por persona, en los ajustes de Rec. Títulos solo de los videos que el admin puede abrir',
+        'Vídeos, pessoas gravando, visualizações, espectadores únicos e comentários dos últimos 30 dias, por pessoa, nos ajustes do Rec. Títulos só dos vídeos que o admin pode abrir',
+      ],
+    }),
     row('ai-title-summary', 'ai', ['AI title and summary', 'Título y resumen con IA', 'Título e resumo com IA'], 'have', {
       weight: 2,
       detail: [
@@ -280,6 +339,7 @@ const parity: ProductParity = {
         'Em vídeos de 60 segundos ou mais, editáveis como linhas "0:00 Intro"',
       ],
     }),
+    row('auto-cta', 'ai', ['Automatic call to action', 'Llamada a la acción automática', 'Chamada para ação automática'], 'missing'),
     row('ai-workflows', 'ai', ['Turn a video into a doc or a task', 'Del video a un documento o una tarea', 'Do vídeo para um documento ou uma tarefa'], 'partial', {
       detail: [
         'One click creates a Docs page or a Track issue with the link, the AI summary, chapters and transcript that you can see. The text is copied as it is, not rewritten by AI. No Jira',
@@ -311,6 +371,13 @@ const parity: ProductParity = {
         'Um espaço compartilhado com todo o workspace e quantos espaços quiser com membros e pastas próprios. Só os membros e os admins do workspace veem um espaço e seus vídeos na biblioteca e no Cmd+K; um vídeo aberto a qualquer pessoa com o link continua aberto',
       ],
     }),
+    row('tags', 'library', ['Video tags', 'Etiquetas de video', 'Etiquetas de vídeo'], 'have', {
+      detail: [
+        'Whoever manages a video adds tags; the library filters by them and search and Cmd+K find them. No suggestions from the transcript',
+        'Quien administra un video le pone etiquetas; la biblioteca filtra por ellas y la búsqueda y Cmd+K las encuentran. Sin sugerencias desde la transcripción',
+        'Quem administra um vídeo adiciona etiquetas; a biblioteca filtra por elas e a busca e o Cmd+K as encontram. Sem sugestões a partir da transcrição',
+      ],
+    }),
     row('video-search', 'library', ['Search videos', 'Buscar videos', 'Buscar vídeos'], 'have', {
       detail: [
         'By title, description and transcript, with matching folders, in the library and in Cmd+K. People who do not manage a video only find text inside its trim',
@@ -327,6 +394,7 @@ const parity: ProductParity = {
         'Os vídeos abertos publicam tags Open Graph e oEmbed, que o Slack lê para montar a prévia. Verificado lendo essas respostas: nunca testado num Slack real. Sem app do Slack',
       ],
     }),
+    row('salesforce-zoom', 'integrations', ['Salesforce and Zoom import', 'Salesforce e importar de Zoom', 'Salesforce e importação do Zoom'], 'missing'),
     row('jira-confluence-github', 'integrations', ['Jira, Confluence and GitHub', 'Jira, Confluence y GitHub', 'Jira, Confluence e GitHub'], 'missing'),
     row('gmail', 'integrations', ['Record and insert from Gmail', 'Grabar e insertar desde Gmail', 'Gravar e inserir pelo Gmail'], 'missing'),
 
@@ -339,6 +407,13 @@ const parity: ProductParity = {
       ],
     }),
     row('sso-scim', 'admin', ['SSO and SCIM', 'SSO y SCIM', 'SSO e SCIM'], 'missing'),
+    row('activity-log', 'admin', ['Activity log', 'Registro de actividad', 'Registro de atividade'], 'have', {
+      detail: [
+        'For admins, in the Rec settings: who changed sharing, retention or content, translated captions, sent a recap or exported or deleted a video. It does not show video titles',
+        'Para admins, en los ajustes de Rec: quién cambió cómo se comparte, la retención o el contenido, tradujo subtítulos, mandó un resumen o exportó o borró un video. No muestra títulos de videos',
+        'Para admins, nos ajustes do Rec: quem mudou o compartilhamento, a retenção ou o conteúdo, traduziu legendas, enviou um resumo ou exportou ou apagou um vídeo. Não mostra títulos de vídeos',
+      ],
+    }),
     row('data-retention', 'admin', ['Data retention and content transfer', 'Retención de datos y traspaso de contenido', 'Retenção de dados e transferência de conteúdo'], 'have', {
       detail: [
         'Per workspace and off by default: deletes videos older than 30 to 730 days, after a confirmation with the count and 7 days of notice. Authors get an in-app notice (a video that ages in later, only when deleted) when those days start and when videos are deleted. Admins can transfer the videos and folders of someone who left to another person',

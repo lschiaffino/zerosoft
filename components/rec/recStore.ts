@@ -52,6 +52,8 @@ export interface RecPendingMeta {
   /** La grabación terminó: están todas las partes, la duración y los extras. */
   done: boolean;
   durationMs?: number;
+  /** Si se volvió atrás: tramos del archivo que quedan (ms). */
+  keep?: Array<[number, number]>;
   width?: number;
   height?: number;
   bytes: number;

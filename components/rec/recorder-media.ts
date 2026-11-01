@@ -106,29 +106,146 @@ export function canvasToBlob(c: HTMLCanvasElement, type: string, quality?: numbe
   });
 }
 
-/** Cámara dentro del círculo de la burbuja, recortada al centro (cover). */
-export function drawBubble(g: CanvasRenderingContext2D, cam: HTMLVideoElement, cx: number, cy: number, d: number) {
+export type BubbleShape = 'circle' | 'square';
+export type BubbleFrame = 'white' | 'dark' | 'accent' | 'none';
+
+export interface BubbleLook {
+  shape: BubbleShape;
+  frame: BubbleFrame;
+  /** Más luz para lugares oscuros. */
+  lowLight: boolean;
+}
+
+export const DEFAULT_LOOK: BubbleLook = { shape: 'circle', frame: 'white', lowLight: false };
+
+const FRAME_COLOR: Record<Exclude<BubbleFrame, 'none'>, string> = {
+  white: 'rgba(255,255,255,0.9)',
+  dark: 'rgba(17,17,17,0.9)',
+  accent: '#e11d48',
+};
+
+/** El lienzo sabe aplicar filtros (Safari no). */
+export function canvasFilterSupported(): boolean {
+  if (typeof document === 'undefined') return false;
+  const g = document.createElement('canvas').getContext('2d');
+  return !!g && 'filter' in g;
+}
+
+export const LOW_LIGHT_FILTER = 'brightness(1.35) contrast(1.05)';
+
+/** Cámara dentro de la burbuja, recortada al centro (cover). */
+export function drawBubble(g: CanvasRenderingContext2D, cam: HTMLVideoElement, cx: number, cy: number, d: number, look: BubbleLook = DEFAULT_LOOK) {
   const vw = cam.videoWidth;
   const vh = cam.videoHeight;
   if (!vw || !vh) return;
   const side = Math.min(vw, vh);
   const sx = (vw - side) / 2;
   const sy = (vh - side) / 2;
+  const path = () => {
+    g.beginPath();
+    if (look.shape === 'square') g.rect(cx - d / 2, cy - d / 2, d, d);
+    else g.arc(cx, cy, d / 2, 0, Math.PI * 2);
+    g.closePath();
+  };
   g.save();
-  g.beginPath();
-  g.arc(cx, cy, d / 2, 0, Math.PI * 2);
-  g.closePath();
+  path();
   g.clip();
   // Espejo, como se ve uno mismo en Loom.
   g.translate(cx + d / 2, cy - d / 2);
   g.scale(-1, 1);
+  if (look.lowLight && 'filter' in g) g.filter = LOW_LIGHT_FILTER;
   g.drawImage(cam, sx, sy, side, side, 0, 0, d, d);
   g.restore();
-  g.beginPath();
-  g.arc(cx, cy, d / 2, 0, Math.PI * 2);
+  if (look.frame === 'none') return;
+  path();
   g.lineWidth = Math.max(2, d / 60);
-  g.strokeStyle = 'rgba(255,255,255,0.9)';
+  g.strokeStyle = FRAME_COLOR[look.frame];
   g.stroke();
+}
+
+/** Un trazo del lápiz, en fracción del cuadro. */
+export interface InkStroke {
+  points: Array<{ x: number; y: number }>;
+  color: string;
+  /** Cuándo se levantó el lápiz (null: se está dibujando). */
+  doneAt: number | null;
+}
+
+export const INK_COLORS = ['#e11d48', '#f59e0b', '#2563eb', '#ffffff'] as const;
+/** Lo dibujado queda este tiempo y después se desvanece. */
+export const INK_HOLD_MS = 3000;
+export const INK_FADE_MS = 800;
+
+/** Opacidad de un trazo según el tiempo; 0 = ya se puede borrar. */
+export function inkAlpha(stroke: Pick<InkStroke, 'doneAt'>, now: number): number {
+  if (stroke.doneAt === null) return 1;
+  const age = now - stroke.doneAt;
+  if (age <= INK_HOLD_MS) return 1;
+  return Math.max(0, 1 - (age - INK_HOLD_MS) / INK_FADE_MS);
+}
+
+export function drawInk(g: CanvasRenderingContext2D, strokes: InkStroke[], w: number, h: number, now: number) {
+  g.save();
+  g.lineCap = 'round';
+  g.lineJoin = 'round';
+  g.lineWidth = Math.max(3, h / 180);
+  for (const s of strokes) {
+    if (s.points.length < 2) continue;
+    g.globalAlpha = inkAlpha(s, now);
+    g.strokeStyle = s.color;
+    g.beginPath();
+    g.moveTo(s.points[0].x * w, s.points[0].y * h);
+    for (const p of s.points.slice(1)) g.lineTo(p.x * w, p.y * h);
+    g.stroke();
+  }
+  g.restore();
+}
+
+/** Círculo que marca el puntero sobre la vista previa. */
+export function drawPointer(g: CanvasRenderingContext2D, x: number, y: number, h: number) {
+  const r = Math.max(14, h / 28);
+  g.save();
+  g.beginPath();
+  g.arc(x, y, r, 0, Math.PI * 2);
+  g.fillStyle = 'rgba(245,158,11,0.35)';
+  g.fill();
+  g.lineWidth = Math.max(2, h / 360);
+  g.strokeStyle = 'rgba(245,158,11,0.9)';
+  g.stroke();
+  g.restore();
+}
+
+/** Desenfoque de fondo de la cámara que ofrece el navegador (hoy, Chrome en algunos sistemas). */
+export function cameraBlurSupported(track: MediaStreamTrack | undefined | null): boolean {
+  const caps = (track?.getCapabilities?.() ?? {}) as Record<string, unknown>;
+  return Array.isArray(caps.backgroundBlur) && (caps.backgroundBlur as unknown[]).includes(true);
+}
+
+export async function setCameraBlur(track: MediaStreamTrack | undefined | null, on: boolean): Promise<boolean> {
+  if (!track || !cameraBlurSupported(track)) return false;
+  try {
+    await track.applyConstraints({ advanced: [{ backgroundBlur: on } as unknown as MediaTrackConstraintSet] });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Ventana flotante del navegador (Document Picture-in-Picture): queda arriba de cualquier app. */
+export function floatingWindowSupported(): boolean {
+  return typeof window !== 'undefined' && 'documentPictureInPicture' in window;
+}
+
+export async function openFloatingWindow(width: number, height: number): Promise<Window | null> {
+  const api = (window as unknown as { documentPictureInPicture?: { requestWindow(o: { width: number; height: number }): Promise<Window> } }).documentPictureInPicture;
+  if (!api) return null;
+  const win = await api.requestWindow({ width, height });
+  // Mismos estilos y tema que la página.
+  for (const node of Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))) win.document.head.appendChild(node.cloneNode(true));
+  const theme = document.documentElement.getAttribute('data-theme');
+  if (theme) win.document.documentElement.setAttribute('data-theme', theme);
+  win.document.body.className = 'rec-float-body';
+  return win;
 }
 
 export const QUALITY = {

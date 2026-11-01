@@ -1,8 +1,8 @@
 'use client';
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { useTranslations } from 'next-intl';
-import { chapterAt, fmtClock, mergeRanges, trimmedDuration, type Range, type RecChapter, type RecOverlay } from '@/lib/rec-schema';
+import { useLocale, useTranslations } from 'next-intl';
+import { captionLangName, chapterAt, fmtClock, mergeRanges, trimmedDuration, type Range, type RecCaptionStyle, type RecChapter, type RecOverlay } from '@/lib/rec-schema';
 
 export interface RecMarker {
   id: string;
@@ -51,10 +51,15 @@ const RecPlayer = forwardRef<
     overlays?: RecOverlay[];
     /** Sin descarga: el menú del navegador no ofrece "guardar video". */
     noDownload?: boolean;
+    captionStyle?: RecCaptionStyle;
+    /** Traducciones disponibles de los subtítulos. */
+    captionLangs?: string[];
   }
 >(function RecPlayer(props, ref) {
-  const { src, captionsSrc, poster, title, durationSec, trimStart, trimEnd, chapters = [], markers = [], cta, trackUrl, viewerName, onTime, compact, overlays = [], noDownload } = props;
+  const { src, captionsSrc, poster, title, durationSec, trimStart, trimEnd, chapters = [], markers = [], cta, trackUrl, viewerName, onTime, compact, overlays = [], noDownload, captionStyle, captionLangs = [] } = props;
   const t = useTranslations('rec.player');
+  const locale = useLocale();
+  const [captionLang, setCaptionLang] = useState('');
   const wrap = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -215,8 +220,24 @@ const RecPlayer = forwardRef<
   useEffect(() => {
     const v = video.current;
     if (!v) return;
-    for (const tr of Array.from(v.textTracks)) tr.mode = captions ? 'showing' : 'hidden';
-  }, [captions, captionsSrc]);
+    for (const tr of Array.from(v.textTracks)) tr.mode = captions && (tr.language || '') === captionLang ? 'showing' : 'hidden';
+  }, [captions, captionsSrc, captionLang, captionLangs]);
+
+  // Arriba o abajo: los subtítulos se ubican cue por cue cuando la pista está cargada.
+  const captionTop = captionStyle?.position === 'top';
+  useEffect(() => {
+    const v = video.current;
+    if (!v) return;
+    const place = () => {
+      for (const tr of Array.from(v.textTracks)) {
+        for (const cue of Array.from(tr.cues ?? [])) (cue as VTTCue).line = captionTop ? 1 : 'auto';
+      }
+    };
+    place();
+    const tracks = Array.from(v.querySelectorAll('track'));
+    tracks.forEach((el) => el.addEventListener('load', place));
+    return () => tracks.forEach((el) => el.removeEventListener('load', place));
+  }, [captionTop, captions, captionLang, captionsSrc]);
 
   function toggle() {
     const v = video.current;
@@ -262,7 +283,7 @@ const RecPlayer = forwardRef<
   return (
     <div
       ref={wrap}
-      className={`rec-player${compact ? ' compact' : ''}${playing ? ' playing' : ''}`}
+      className={`rec-player${compact ? ' compact' : ''}${playing ? ' playing' : ''}${captionStyle ? ` cap-${captionStyle.size} cap-${captionStyle.look}` : ''}`}
       tabIndex={0}
       onKeyDown={onKey}
       aria-label={t('label', { title })}
@@ -285,6 +306,8 @@ const RecPlayer = forwardRef<
           onContextMenu={noDownload ? (e) => e.preventDefault() : undefined}
         >
           {captionsSrc && <track kind="captions" src={captionsSrc} default={false} label={t('captions')} />}
+          {captionsSrc &&
+            captionLangs.map((l) => <track key={l} kind="captions" src={`${captionsSrc}&lang=${l}`} srcLang={l} default={false} label={captionLangName(l, locale)} />)}
         </video>
         {overlays.length > 0 && (
           <div className="rec-overlay-layer" aria-hidden={false}>
@@ -298,6 +321,18 @@ const RecPlayer = forwardRef<
                   </svg>
                 ) : o.kind === 'box' ? (
                   <span key={o.id} className="rec-overlay rec-overlay-box" style={{ left: `${o.x * 100}%`, top: `${o.y * 100}%`, width: `${o.w * 100}%`, height: `${o.h * 100}%`, borderColor: o.color }} data-testid="rec-overlay-shown" />
+                ) : o.kind === 'link' && o.url ? (
+                  <a
+                    key={o.id}
+                    className="rec-overlay rec-overlay-text rec-overlay-link"
+                    href={o.url}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    style={{ left: `${o.x * 100}%`, top: `${o.y * 100}%`, maxWidth: `${Math.max(10, o.w * 100)}%`, background: o.color, color: o.color === '#ffffff' || o.color === '#f59e0b' ? '#111111' : '#ffffff' }}
+                    data-testid="rec-overlay-link"
+                  >
+                    {o.text}
+                  </a>
                 ) : (
                   <span key={o.id} className="rec-overlay rec-overlay-text" style={{ left: `${o.x * 100}%`, top: `${o.y * 100}%`, maxWidth: `${Math.max(10, o.w * 100)}%`, background: o.color, color: o.color === '#ffffff' || o.color === '#f59e0b' ? '#111111' : '#ffffff' }} data-testid="rec-overlay-shown">
                     {o.text}
@@ -429,6 +464,16 @@ const RecPlayer = forwardRef<
           <button type="button" className="btn btn-ghost btn-sm rec-player-btn" aria-pressed={captions} onClick={() => setCaptions((c) => !c)}>
             CC
           </button>
+        )}
+        {captionsSrc && captions && captionLangs.length > 0 && (
+          <select className="select rec-player-lang" value={captionLang} onChange={(e) => setCaptionLang(e.target.value)} aria-label={t('captionLang')} data-testid="rec-caption-lang">
+            <option value="">{t('captionOriginal')}</option>
+            {captionLangs.map((l) => (
+              <option key={l} value={l}>
+                {captionLangName(l, locale)}
+              </option>
+            ))}
+          </select>
         )}
         <button type="button" className="btn btn-ghost btn-sm rec-player-btn" aria-pressed={muted} onClick={() => setMuted((m) => !m)} aria-label={muted ? t('unmute') : t('mute')}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">

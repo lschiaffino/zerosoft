@@ -111,7 +111,31 @@
     "fieldTypeSelect": "List",
     "fieldTypeBoolean": "Yes / no",
     "attributeNeedsOptions": "Each list attribute needs at least one option.",
-    "nameAdminOnly": "Only workspace admins can rename a widget: its name is the sender of Chat emails."
+    "nameAdminOnly": "Only workspace admins can rename a widget: its name is the sender of Chat emails.",
+    "font": "Messenger font",
+    "fonts": {
+      "system": "System",
+      "humanist": "Humanist",
+      "geometric": "Geometric",
+      "rounded": "Rounded",
+      "serif": "Serif",
+      "slab": "Slab",
+      "mono": "Monospace"
+    },
+    "replyTime": "Reply time shown",
+    "replyTimes": {
+      "off": "Do not show",
+      "minutes": "A few minutes",
+      "hour": "Within an hour",
+      "day": "Within a day"
+    },
+    "attachments": "Who can attach files",
+    "attachmentModes": {
+      "all": "Everyone",
+      "identified": "Only people with a signed identity",
+      "none": "Nobody"
+    },
+    "attachmentsHint": "Applies to visitors. Your team can always attach files."
   },
   "embed": {
     "title": "Install code",
@@ -383,7 +407,10 @@
     "delete": "Delete {shortcut}",
     "tagsPlaceholder": "billing urgent",
     "newTitle": "New reply",
-    "editTitle": "Edit reply"
+    "editTitle": "Edit reply",
+    "usage": "Used",
+    "usedTimes": "{count, plural, one {# time} other {# times}}",
+    "neverUsed": "Never"
   },
   "attachments": {
     "image": "Image",
@@ -599,7 +626,13 @@
     "tourNext": "Next",
     "tourDone": "Done",
     "checklistProgress": "{done} of {total} done",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "searchConversation": "Search conversation",
+    "searchNoMatches": "No matches",
+    "replyMinutes": "Usually replies in a few minutes",
+    "replyHour": "Usually replies within an hour",
+    "replyDay": "Usually replies within a day",
+    "agentTyping": "Agent is typing…"
   },
   "bulk": {
     "label": "Bulk actions",
@@ -1049,7 +1082,15 @@
     "noRecipients": "Nobody in this audience has agreed to receive campaigns.",
     "excludedUnsubscribed": "{count, plural, one {# person unsubscribed and is left out} other {# people unsubscribed and are left out}}.",
     "waitingCap": "Daily limit reached: continues tomorrow.",
-    "excludedNoOptIn": "{count, plural, one {# person hasn’t} other {# people haven’t}} agreed to receive campaigns and {count, plural, one {is} other {are}} left out."
+    "excludedNoOptIn": "{count, plural, one {# person hasn’t} other {# people haven’t}} agreed to receive campaigns and {count, plural, one {is} other {are}} left out.",
+    "schedule": "Schedule",
+    "unschedule": "Cancel schedule",
+    "scheduleTitle": "Schedule this campaign",
+    "scheduleWhen": "Send on",
+    "scheduleHelp": "In your time zone, up to 90 days ahead. It goes out to whoever has consent at that moment, within the daily limit of the workspace.",
+    "scheduleInvalid": "Pick a moment at least a minute from now and within 90 days.",
+    "scheduledFor": "Scheduled for {when}",
+    "scheduleFailed": "Not sent: {reason}"
   },
   "importer": {
     "title": "Import conversations",
@@ -1074,5 +1115,28 @@
     "cxHelp": "Uses CSAT when there is one; otherwise first response speed and whether it was resolved.",
     "topic": "Topic",
     "noTopics": "Not enough conversations to find topics."
+  },
+  "snoozeOptions": {
+    "title": "Snooze options",
+    "help": "Your own choices in the Snooze menu of the inbox, next to the standard ones. For everyone or for one team.",
+    "empty": "No options of your own yet. The inbox shows the standard ones.",
+    "label": "Name",
+    "labelPlaceholder": "Until the next shift",
+    "amount": "Duration",
+    "unit": "Unit",
+    "unitMinutes": "minutes",
+    "unitHours": "hours",
+    "unitDays": "days",
+    "forWho": "For",
+    "everyone": "Everyone",
+    "team": "A team",
+    "add": "Add option",
+    "remove": "Remove {label}",
+    "minutes": "{n} min",
+    "hours": "{n} h",
+    "days": "{n} d",
+    "adminOnly": "A workspace admin can add options.",
+    "tooMany": "You reached the limit of 20 options.",
+    "invalid": "Check the duration: up to 90 days."
   }
 }

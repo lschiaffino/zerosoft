@@ -1,6 +1,9 @@
 'use client';
 
-import { patchWebmDuration } from '@/lib/rec-webm';
+import { composeWebm, patchWebmDuration } from '@/lib/rec-webm';
+import type { RecKeep } from '@/lib/rec-schema';
+import { fetchInParts } from './download';
+import { assetsFromVideo } from './recorder-media';
 import { extraKey, forget, loadBlob, loadMeta, partKey, recScope, saveBlob, saveMeta, type RecPendingMeta } from './recStore';
 
 /**
@@ -248,7 +251,7 @@ export class LiveUpload {
   }
 
   /** Corta la grabación: última parte, parte 1 con la duración y los extras, todo guardado en el navegador. */
-  async seal(r: { durationMs: number; width: number; height: number; audio: Blob | null; thumb: Blob | null; gif: Blob | null }): Promise<void> {
+  async seal(r: { durationMs: number; width: number; height: number; audio: Blob | null; thumb: Blob | null; gif: Blob | null; keep?: RecKeep | null }): Promise<void> {
     if (!this.meta.done) {
       const rest = this.buffer.length ? new Blob(this.buffer) : null;
       this.buffer = [];
@@ -262,10 +265,12 @@ export class LiveUpload {
         await saveBlob(partKey(this.meta.videoId, 1), first);
         this.sizes.set(1, first.size);
       }
-      if (r.audio) await saveBlob(extraKey(this.meta.videoId, 'audio'), r.audio).catch(() => undefined);
-      if (r.thumb) await saveBlob(extraKey(this.meta.videoId, 'thumb'), r.thumb).catch(() => undefined);
-      if (r.gif) await saveBlob(extraKey(this.meta.videoId, 'gif'), r.gif).catch(() => undefined);
-      Object.assign(this.meta, { done: true, durationMs: r.durationMs, width: r.width, height: r.height });
+      // Si se volvió atrás, el audio, la miniatura y el GIF del grabador pueden mostrar lo sacado: no se guardan (salen del video ya cortado).
+      const clean = !r.keep;
+      if (r.audio && clean) await saveBlob(extraKey(this.meta.videoId, 'audio'), r.audio).catch(() => undefined);
+      if (r.thumb && clean) await saveBlob(extraKey(this.meta.videoId, 'thumb'), r.thumb).catch(() => undefined);
+      if (r.gif && clean) await saveBlob(extraKey(this.meta.videoId, 'gif'), r.gif).catch(() => undefined);
+      Object.assign(this.meta, { done: true, durationMs: r.durationMs, width: r.width, height: r.height, ...(r.keep ? { keep: r.keep } : {}) });
       await saveMeta(this.meta).catch(() => undefined);
     }
     this.enqueue(1);
@@ -335,6 +340,7 @@ export async function finishRecording(up: LiveUpload, onStatus?: (s: UploadStatu
   try {
     await up.drainAndClose();
     const m = up.info;
+    if (m.keep) m.durationMs = await applyRewind(m);
     const audio = await loadBlob(extraKey(m.videoId, 'audio')).catch(() => undefined);
     if (audio) await retryForever(() => uploadWhole(m.videoId, 'audio', audio, m.mode, m.partBytes)).catch(() => undefined);
     const thumb = await loadBlob(extraKey(m.videoId, 'thumb')).catch(() => undefined);
@@ -353,6 +359,27 @@ export async function finishRecording(up: LiveUpload, onStatus?: (s: UploadStatu
   } finally {
     off();
   }
+}
+
+/**
+ * Volver atrás: rearma el archivo sin lo sacado (sin recodificar) y reemplaza el subido, antes de
+ * que el video exista para nadie más. Miniatura y GIF salen del video ya cortado; sin pista de
+ * audio aparte, la transcripción se hace del archivo final.
+ */
+async function applyRewind(m: { videoId: string; mode: Mode; partBytes: number; keep?: RecKeep; durationMs?: number }): Promise<number> {
+  const file = `/api/rec/videos/${m.videoId}/file?kind=video`;
+  const { blob } = await retryForever(() => fetchInParts(file));
+  const out = composeWebm([{ bytes: new Uint8Array(await blob.arrayBuffer()), keep: m.keep ?? [] }]);
+  if (!out.ok) throw new Error(out.error === 'nothing_left' ? 'edit_nothing_left' : 'cut_failed');
+  await retryForever(() => uploadWhole(m.videoId, 'video', new Blob([out.bytes as Uint8Array<ArrayBuffer>], { type: 'video/webm' }), m.mode, m.partBytes));
+  try {
+    const assets = await assetsFromVideo(file, 0, null);
+    if (assets.thumb) await uploadAsset(m.videoId, 'thumb', assets.thumb, { forTrim: '0:', atSec: assets.thumbAt });
+    if (assets.gif) await uploadAsset(m.videoId, 'gif', assets.gif, { forTrim: '0:' });
+  } catch {
+    // Sin miniatura se muestra el vacío: el video igual sirve.
+  }
+  return out.durationMs;
 }
 
 /** Reintenta lo que falle por red (no los errores definitivos) hasta que salga. */

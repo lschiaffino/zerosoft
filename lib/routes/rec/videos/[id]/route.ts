@@ -3,6 +3,7 @@ import { resummarizeForTrim } from '@/lib/rec-ai';
 import { recAiForcedOff } from '@/lib/rec-ai-flags';
 import { z } from 'zod';
 import { deleteVideo, getVideoRow, toDto, updateVideo } from '@/lib/rec';
+import { recAudit } from '@/lib/rec-admin';
 import { recActor, recFail, recJson } from '@/lib/rec-http';
 
 export const runtime = 'nodejs';
@@ -44,6 +45,8 @@ const patchSchema = z
     trimStart: z.number().min(0).max(86_400),
     trimEnd: z.number().min(0).max(86_400).nullable(),
     commentsRequireAccount: z.boolean(),
+    tags: z.array(z.string().max(60)).max(40),
+    captionStyle: z.object({ size: z.string().max(10), look: z.string().max(10), position: z.string().max(10) }),
   })
   .partial();
 
@@ -55,6 +58,11 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   if (!parsed.success) return recJson({ error: 'invalid_input' }, 400);
   try {
     await updateVideo(s.actor, id, parsed.data);
+    // Quién abrió o cerró un video queda en el registro de actividad (sin título: lo ven los admins).
+    const d = parsed.data;
+    if (d.privacy !== undefined || d.password !== undefined || d.expiresAt !== undefined || d.allowDownload !== undefined || d.allowedEmails !== undefined) {
+      await recAudit(s.actor.ws, s.actor.actor, 'share_change', { video: id, privacy: d.privacy ?? null }).catch(() => undefined);
+    }
     if (parsed.data.trimStart !== undefined || parsed.data.trimEnd !== undefined) {
       const forceOff = await recAiForcedOff();
       after(() => resummarizeForTrim(id, { forceOff }));
@@ -72,6 +80,7 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   try {
     await deleteVideo(s.actor, id);
+    await recAudit(s.actor.ws, s.actor.actor, 'delete_video', { video: id }).catch(() => undefined);
     return new Response(null, { status: 204 });
   } catch (err) {
     return recFail(err);

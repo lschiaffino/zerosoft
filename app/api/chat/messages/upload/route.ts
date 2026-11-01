@@ -41,6 +41,14 @@ export async function POST(req: Request) {
   const widget = await getChatWidget(widgetId);
   if (!widget) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
+  // Quién puede adjuntar lo decide el widget; acá se hace cumplir (el botón del messenger es solo la cara).
+  const attachMode = (widget as { visitor_attachments?: string }).visitor_attachments ?? 'all';
+  if (attachMode === 'none') return NextResponse.json({ error: 'attachments_off' }, { status: 403 });
+  if (attachMode === 'identified') {
+    const who = cleanVisitorIdentity(form.get('email'), form.get('name'));
+    if (!(await verifyVisitorIdentity(widgetId, who.email, form.get('userHash')))) return NextResponse.json({ error: 'attachments_off' }, { status: 403 });
+  }
+
   if (!(file instanceof Blob) || file.size === 0) {
     return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   }
