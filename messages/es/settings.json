@@ -689,7 +689,7 @@
     "dangerDesc": "Lo que todavía no está en el producto y qué hacer mientras tanto.",
     "transferTitle": "Transferir la propiedad",
     "transferBody": "Todavía no se puede transferir la propiedad desde la app. Mientras tanto, hacé admin a la próxima persona en Ajustes › Miembros: los admins invitan, cambian roles y editan estos ajustes.",
-    "closeTitle": "Borrar el workspace",
+    "closeTitle": "Cerrar el workspace",
     "closeBody": "Todavía no se puede cerrar un workspace desde el producto. Para pedirlo, escribí a hola@zerosoft.ai desde {email} y te respondemos a mano.",
     "leaveTitle": "Salir de {workspace}",
     "leaveBody": "Perdés el acceso a sus apps al instante. Lo que creaste queda en el workspace.",

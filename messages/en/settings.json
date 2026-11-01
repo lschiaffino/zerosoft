@@ -689,7 +689,7 @@
     "dangerDesc": "What isn’t in the product yet, and what to do meanwhile.",
     "transferTitle": "Transfer ownership",
     "transferBody": "You can’t transfer ownership from the app yet. Meanwhile, make the next person an admin in Settings › Members: admins invite, change roles and edit these settings.",
-    "closeTitle": "Delete the workspace",
+    "closeTitle": "Close the workspace",
     "closeBody": "Closing a workspace isn’t available in the product yet. To ask for it, write to hola@zerosoft.ai from {email} and we’ll reply by hand.",
     "leaveTitle": "Leave {workspace}",
     "leaveBody": "You lose access to its apps right away. What you created stays in the workspace.",
