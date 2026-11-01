@@ -87,7 +87,7 @@ export const trendsQuerySchema = z.object({
   display: z.enum(TREND_DISPLAYS).default('line'),
   /** Fórmula sobre las series por letra: 'A / B * 100'. */
   formula: z.string().trim().max(200).nullable().optional(),
-  excludeInternal: z.boolean().default(false),
+  excludeInternal: z.boolean().optional(),
 });
 export type TrendsQuery = z.infer<typeof trendsQuerySchema>;
 
@@ -100,7 +100,7 @@ export const funnelQuerySchema = z.object({
   cohortId: z.string().max(64).nullable().optional(),
   /** Contar grupos (empresa, equipo) en lugar de personas. */
   groupType: propertyKeySchema.nullable().optional(),
-  excludeInternal: z.boolean().default(false),
+  excludeInternal: z.boolean().optional(),
 });
 export type FunnelQuery = z.infer<typeof funnelQuerySchema>;
 
@@ -112,7 +112,7 @@ export const retentionQuerySchema = z.object({
   periods: z.number().int().min(2).max(16).default(8),
   filters: filtersSchema,
   cohortId: z.string().max(64).nullable().optional(),
-  excludeInternal: z.boolean().default(false),
+  excludeInternal: z.boolean().optional(),
 });
 export type RetentionQuery = z.infer<typeof retentionQuerySchema>;
 
@@ -123,9 +123,9 @@ export const pathsQuerySchema = z.object({
   endPath: z.string().trim().max(500).nullable().optional(),
   steps: z.number().int().min(2).max(6).default(4),
   /** Solo páginas vistas, o también los eventos propios. */
-  source: z.enum(['pageviews', 'all']).default('pageviews'),
+  source: z.enum(['pageviews', 'all']).optional(),
   /** Junta las URLs que solo cambian en un id numérico o largo (/orders/123 → /orders/:id). */
-  collapseIds: z.boolean().default(false),
+  collapseIds: z.boolean().optional(),
 });
 export type PathsQuery = z.infer<typeof pathsQuerySchema>;
 
@@ -142,7 +142,7 @@ export const stickinessQuerySchema = z.object({
   dateRange: dateRangeSchema.default({ from: '-30d' }),
   filters: filtersSchema,
   cohortId: z.string().max(64).nullable().optional(),
-  excludeInternal: z.boolean().default(false),
+  excludeInternal: z.boolean().optional(),
 });
 export type StickinessQuery = z.infer<typeof stickinessQuerySchema>;
 
@@ -154,7 +154,7 @@ export const lifecycleQuerySchema = z.object({
   dateRange: dateRangeSchema.default({ from: '-30d' }),
   filters: filtersSchema,
   cohortId: z.string().max(64).nullable().optional(),
-  excludeInternal: z.boolean().default(false),
+  excludeInternal: z.boolean().optional(),
 });
 export type LifecycleQuery = z.infer<typeof lifecycleQuerySchema>;
 
@@ -424,9 +424,9 @@ export const cohortDefinitionSchema = z.object({
     .nullable()
     .default(null),
   /** Grupos unidos con OR: dentro de cada uno, todo con AND. Con grupos, los dos campos de arriba no cuentan. */
-  groups: z.array(cohortGroupSchema).max(10).default([]),
+  groups: z.array(cohortGroupSchema).max(10).optional(),
   /** Estática: lista subida o guardada desde una lista de personas. */
-  type: z.enum(['dynamic', 'static']).default('dynamic'),
+  type: z.enum(['dynamic', 'static']).optional(),
 });
 export type CohortDefinition = z.infer<typeof cohortDefinitionSchema>;
 

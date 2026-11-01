@@ -244,7 +244,7 @@ function TrendsForm({ q, set, meta, cohorts, internal }: { q: TrendsQuery; set: 
         <FilterList filters={q.filters} onChange={(filters) => set({ ...q, filters })} meta={meta} />
         <CohortSelect value={q.cohortId} onChange={(cohortId) => set({ ...q, cohortId })} cohorts={cohorts} />
       </details>
-      <InternalToggle value={q.excludeInternal} onChange={(excludeInternal) => set({ ...q, excludeInternal })} available={internal} />
+      <InternalToggle value={Boolean(q.excludeInternal)} onChange={(excludeInternal) => set({ ...q, excludeInternal })} available={internal} />
     </div>
   );
 }
@@ -303,7 +303,7 @@ function FunnelForm({ q, set, meta, cohorts, internal }: { q: FunnelQuery; set: 
         <FilterList filters={q.filters} onChange={(filters) => set({ ...q, filters })} meta={meta} />
         <CohortSelect value={q.cohortId} onChange={(cohortId) => set({ ...q, cohortId })} cohorts={cohorts} />
       </details>
-      <InternalToggle value={q.excludeInternal} onChange={(excludeInternal) => set({ ...q, excludeInternal })} available={internal} />
+      <InternalToggle value={Boolean(q.excludeInternal)} onChange={(excludeInternal) => set({ ...q, excludeInternal })} available={internal} />
     </div>
   );
 }
@@ -337,7 +337,7 @@ function RetentionForm({ q, set, meta, cohorts, internal }: { q: RetentionQuery;
         <FilterList filters={q.filters} onChange={(filters) => set({ ...q, filters })} meta={meta} />
         <CohortSelect value={q.cohortId} onChange={(cohortId) => set({ ...q, cohortId })} cohorts={cohorts} />
       </details>
-      <InternalToggle value={q.excludeInternal} onChange={(excludeInternal) => set({ ...q, excludeInternal })} available={internal} />
+      <InternalToggle value={Boolean(q.excludeInternal)} onChange={(excludeInternal) => set({ ...q, excludeInternal })} available={internal} />
     </div>
   );
 }
@@ -386,7 +386,7 @@ function StickinessForm({ q, set, meta, cohorts, internal }: { q: StickinessQuer
         <FilterList filters={q.filters} onChange={(filters) => set({ ...q, filters })} meta={meta} />
         <CohortSelect value={q.cohortId} onChange={(cohortId) => set({ ...q, cohortId })} cohorts={cohorts} />
       </details>
-      <InternalToggle value={q.excludeInternal} onChange={(excludeInternal) => set({ ...q, excludeInternal })} available={internal} />
+      <InternalToggle value={Boolean(q.excludeInternal)} onChange={(excludeInternal) => set({ ...q, excludeInternal })} available={internal} />
     </div>
   );
 }
@@ -417,7 +417,7 @@ function LifecycleForm({ q, set, meta, cohorts, internal }: { q: LifecycleQuery;
         <FilterList filters={q.filters} onChange={(filters) => set({ ...q, filters })} meta={meta} />
         <CohortSelect value={q.cohortId} onChange={(cohortId) => set({ ...q, cohortId })} cohorts={cohorts} />
       </details>
-      <InternalToggle value={q.excludeInternal} onChange={(excludeInternal) => set({ ...q, excludeInternal })} available={internal} />
+      <InternalToggle value={Boolean(q.excludeInternal)} onChange={(excludeInternal) => set({ ...q, excludeInternal })} available={internal} />
     </div>
   );
 }
@@ -438,7 +438,7 @@ function PathsForm({ q, set }: { q: PathsQuery; set: (q: PathsQuery) => void }) 
         </label>
         <label className="ui-field an-inline-field">
           <span className="label">{t('pathSource')}</span>
-          <select className="select" value={q.source} onChange={(e) => set({ ...q, source: e.target.value as PathsQuery['source'] })}>
+          <select className="select" value={q.source ?? 'pageviews'} onChange={(e) => set({ ...q, source: e.target.value as PathsQuery['source'] })}>
             <option value="pageviews">{t('pathSources.pageviews')}</option>
             <option value="all">{t('pathSources.all')}</option>
           </select>
@@ -449,7 +449,7 @@ function PathsForm({ q, set }: { q: PathsQuery; set: (q: PathsQuery) => void }) 
         </label>
       </div>
       <label className="ui-check">
-        <input type="checkbox" checked={q.collapseIds} onChange={(e) => set({ ...q, collapseIds: e.target.checked })} /> {t('collapseIds')}
+        <input type="checkbox" checked={Boolean(q.collapseIds)} onChange={(e) => set({ ...q, collapseIds: e.target.checked })} /> {t('collapseIds')}
       </label>
       <p className="an-note">{t('pathsNote')}</p>
     </div>

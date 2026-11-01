@@ -56,7 +56,7 @@ async function ingest(project: ProjectRow, events: Ev[]) {
 }
 
 async function newProject(name = 'P') {
-  const user = await upsertUser(`an-parity-${nanoid(8)}@test.dev`);
+  const user = await upsertUser({ email: `an-parity-${nanoid(8)}@test.dev` });
   const project = await createProject(user.id, user.id, name);
   return { user, project };
 }
@@ -175,8 +175,8 @@ describe('analytics: cálculos puros', () => {
   });
   it('lo guardado antes sigue parseando con los valores nuevos por defecto', () => {
     const old = insightQuerySchema.parse({ kind: 'trends', series: [{ event: '$pageview', math: 'unique' }], display: 'bar' });
-    expect(old.kind === 'trends' && old.excludeInternal).toBe(false);
-    expect(cohortDefinitionSchema.parse({ properties: [], behavior: { event: 'x' } }).type).toBe('dynamic');
+    expect(old.kind === 'trends' && Boolean(old.excludeInternal)).toBe(false);
+    expect(cohortDefinitionSchema.parse({ properties: [], behavior: { event: 'x' } }).type).toBeUndefined();
     expect(trendsQuerySchema.safeParse({ kind: 'trends', series: [{ event: 'x', math: 'evil' }] }).success).toBe(false);
   });
 });

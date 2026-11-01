@@ -978,7 +978,11 @@ const analytics: AssistantTool[] = [
                 ? r.cohorts.map((c) => ({ start: c.start, size: c.size, values: c.values }))
                 : r.kind === 'paths'
                   ? r.topPaths.slice(0, 10)
-                  : { columns: r.columns, rows: r.rows.slice(0, 20) };
+                  : r.kind === 'stickiness'
+                    ? r.series.map((s) => ({ label: s.label, total: s.total, byIntervals: s.data }))
+                    : r.kind === 'lifecycle'
+                      ? { buckets: r.buckets, new: r.new, returning: r.returning, resurrecting: r.resurrecting, dormant: r.dormant }
+                      : { columns: r.columns, rows: r.rows.slice(0, 20) };
         return { name: found.name, kind: found.kind, result: summary, href: `/app/analytics/insights/${found.id}` };
       });
     },

@@ -8015,12 +8015,9 @@ export const MIGRATIONS: Migration[] = [
   {
     id: '180_analytics_parity',
     up: async (client) => {
-      const addCol = (c: Client, sql: string) => c.execute(sql).catch((err: unknown) => {
-        if (!/duplicate column/i.test(String(err))) throw err;
-      });
-      await addCol(client, 'ALTER TABLE analytics_projects ADD COLUMN test_filters TEXT NOT NULL DEFAULT \'[]\'');
-      await addCol(client, 'ALTER TABLE analytics_flags ADD COLUMN groups TEXT NOT NULL DEFAULT \'[]\'');
-      await addCol(client, 'ALTER TABLE analytics_flags ADD COLUMN payloads TEXT NOT NULL DEFAULT \'{}\'');
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN test_filters TEXT NOT NULL DEFAULT \'[]\'');
+      await addColumn(client, 'ALTER TABLE analytics_flags ADD COLUMN groups TEXT NOT NULL DEFAULT \'[]\'');
+      await addColumn(client, 'ALTER TABLE analytics_flags ADD COLUMN payloads TEXT NOT NULL DEFAULT \'{}\'');
       await client.executeMultiple(`
         CREATE TABLE IF NOT EXISTS analytics_annotations (
           id TEXT PRIMARY KEY,

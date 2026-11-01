@@ -38,8 +38,9 @@ type Node = { n: number } | { s: number } | { neg: Node } | { op: string; a: Nod
 
 /** Parser descendente: expr = term (+|- term)*; term = factor (*|/ factor)*. null si está mal formada. */
 export function parseFormula(src: string): Node | null {
-  const toks = tokenize(src);
-  if (!toks || !toks.length || toks.length > 200) return null;
+  const parsed = tokenize(src);
+  if (!parsed || !parsed.length || parsed.length > 200) return null;
+  const toks: Tok[] = parsed;
   let p = 0;
   const peek = () => toks[p];
   const isOp = (v: string) => peek()?.t === 'op' && peek()?.v === v;

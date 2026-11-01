@@ -300,7 +300,7 @@ export async function getFlag(projectId: string, id: string): Promise<FlagDto | 
   return r ? toFlag(r) : null;
 }
 
-export async function createFlag(projectId: string, personId: string, input: FlagInput): Promise<FlagDto | 'duplicate_key'> {
+export async function createFlag(projectId: string, personId: string, input: Omit<FlagInput, 'groups' | 'payloads'> & Partial<Pick<FlagInput, 'groups' | 'payloads'>>): Promise<FlagDto | 'duplicate_key'> {
   const id = `af_${nanoid(12)}`;
   const ts = now();
   try {
