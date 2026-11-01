@@ -13,6 +13,8 @@ import { INGEST_LIMITS, originAllowed, parseIngestBody } from './ingest-core';
 import { requestContext, storeEvents } from './ingest';
 import { parseDomainList, projectByKey, type ProjectRow } from './projects';
 import { decideFlags } from './flags';
+import { capSpecialEvents } from './ingest-special';
+import { hasLivePopover, surveysFor } from './surveys';
 import { deletePerson, personIdByDistinctId } from './persons';
 
 /** Pedidos por minuto por proyecto (cada pedido trae hasta 200 eventos). */
@@ -131,7 +133,8 @@ export async function handleCapture(req: Request): Promise<Response> {
   if (block) return block;
   // Un servidor con la key secreta no es el navegador de la persona: sin user agent ni IP del pedido.
   const ctx = r.secret ? null : requestContext(req);
-  const stored = await storeEvents(r.project, parsed.events, ctx);
+  // Tope diario de los eventos especiales (errores, encuestas, vitals, LLM).
+  const stored = await storeEvents(r.project, await capSpecialEvents(r.project.id, parsed.events), ctx);
   return reply(req, 200, { status: 1, stored, dropped: parsed.dropped + (parsed.events.length - stored) });
 }
 
@@ -160,8 +163,34 @@ export async function handleDecide(req: Request): Promise<Response> {
     config: {
       autocapture: r.project.autocapture === 1,
       respectDnt: r.project.respect_dnt === 1,
+      captureExceptions: r.project.capture_exceptions === 1,
+      webVitals: r.project.web_vitals === 1,
+      // Sin encuestas al aire el snippet no hace ningún pedido más.
+      surveys: await hasLivePopover(r.project.id),
     },
   });
+}
+
+/** Encuestas al aire para un distinct_id (el snippet las pide solo si /decide dijo que hay). */
+export async function handleSurveys(req: Request): Promise<Response> {
+  const pre = precheck(req);
+  if (pre) return pre;
+  const text = await readBody(req);
+  if (text === null) return reply(req, 413, { error: 'payload_too_large' });
+  let body: Record<string, unknown>;
+  try {
+    const v = JSON.parse(text || '{}');
+    body = v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+  } catch {
+    return reply(req, 400, { error: 'invalid_json' });
+  }
+  const key = typeof body.api_key === 'string' ? body.api_key : typeof body.token === 'string' ? body.token : null;
+  const r = await resolveProject(req, key);
+  if ('res' in r) return r.res;
+  const block = await limited(req, 'asurveys', r.project.id, DECIDE_RPM);
+  if (block) return block;
+  const distinctId = typeof body.distinct_id === 'string' ? body.distinct_id.slice(0, INGEST_LIMITS.maxDistinctId) : '';
+  return reply(req, 200, { surveys: await surveysFor(r.project.id, distinctId) });
 }
 
 /** Borra la persona de un distinct_id con todos sus eventos. Solo con la key secreta. */

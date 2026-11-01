@@ -7995,6 +7995,49 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    id: '173_analytics_more',
+    up: async (client) => {
+      // Encuestas, estado de los errores agrupados y dos ajustes del proyecto (apagados por defecto).
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS analytics_surveys (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'draft',
+          presentation TEXT NOT NULL DEFAULT 'popover',
+          questions TEXT NOT NULL DEFAULT '[]',
+          appearance TEXT NOT NULL DEFAULT '{}',
+          targeting TEXT NOT NULL DEFAULT '{}',
+          start_at INTEGER,
+          end_at INTEGER,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_surveys_project ON analytics_surveys(project_id, updated_at);
+        CREATE INDEX IF NOT EXISTS idx_analytics_surveys_running ON analytics_surveys(project_id, status);
+
+        CREATE TABLE IF NOT EXISTS analytics_error_issues (
+          project_id TEXT NOT NULL,
+          fingerprint TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'open',
+          assignee_id TEXT,
+          resolved_at INTEGER,
+          regressed_at INTEGER,
+          checked_at INTEGER,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (project_id, fingerprint)
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_error_issues_status ON analytics_error_issues(status, checked_at);
+      `);
+      for (const column of ['capture_exceptions', 'web_vitals']) {
+        await client.execute(`ALTER TABLE analytics_projects ADD COLUMN ${column} INTEGER NOT NULL DEFAULT 0`).catch((err: unknown) => {
+          if (!/duplicate column/i.test(String(err))) throw err;
+        });
+      }
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

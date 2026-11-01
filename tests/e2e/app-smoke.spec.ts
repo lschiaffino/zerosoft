@@ -743,6 +743,17 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await ok(request.delete(`/api/analytics/flags/${i.id}`))),
   },
   {
+    app: 'Analytics surveys',
+    list: '/en/app/analytics/surveys',
+    create: async (request, name) => {
+      const projectId = await analyticsProject(request);
+      return { id: (await ok<{ survey: { id: string } }>(request.post('/api/analytics/surveys', { data: { projectId, name } }))).survey.id, name };
+    },
+    detail: (i) => `/en/app/analytics/surveys/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/analytics/surveys/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/analytics/surveys/${i.id}`))),
+  },
+  {
     app: 'Analytics cohorts',
     list: '/en/app/analytics/cohorts',
     create: async (request, name) => {

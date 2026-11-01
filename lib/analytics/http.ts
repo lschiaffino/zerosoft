@@ -57,7 +57,7 @@ export async function actorProject(actor: AnalyticsActor, id: string | null | un
   return p ?? aError(404, 'project_not_found');
 }
 
-const RECORD_TABLES = ['analytics_insights', 'analytics_dashboards', 'analytics_cohorts', 'analytics_flags', 'analytics_persons'] as const;
+const RECORD_TABLES = ['analytics_insights', 'analytics_dashboards', 'analytics_cohorts', 'analytics_flags', 'analytics_persons', 'analytics_surveys'] as const;
 export type RecordTable = (typeof RECORD_TABLES)[number];
 
 /** Proyecto de un registro (insight, tablero, cohorte, flag, persona) si es del workspace del actor; si no, 404. */

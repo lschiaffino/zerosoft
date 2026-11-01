@@ -85,6 +85,7 @@ export default async function AppLayout(
   const workspaces: SwitcherEntry[] = (await listMyWorkspaces(real).catch(() => [])).map((w) => ({ ...w, current: w.teamId === effective }));
   if (workspaces.length && !workspaces.some((w) => w.current)) workspaces[0].current = true;
   const tTriage = await getTranslations({ locale, namespace: 'trackTriage' });
+  const tAnalyticsMore = await getTranslations({ locale, namespace: 'analyticsMore' });
   // Lecturas independientes en paralelo (en Turso cada query es un RTT).
   const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tSocial, tHiring, tPeople, tBooks, tSign, tForms, tasksDue, serverTz, tPlanning, mode, tCat] =
     await Promise.all([
@@ -294,6 +295,9 @@ export default async function AppLayout(
                 { href: '/app/analytics/persons', label: tAnalytics('sidebar.persons') },
                 { href: '/app/analytics/cohorts', label: tAnalytics('sidebar.cohorts') },
                 { href: '/app/analytics/flags', label: tAnalytics('sidebar.flags') },
+                { href: '/app/analytics/surveys', label: tAnalyticsMore('sidebar.surveys') },
+                { href: '/app/analytics/errors', label: tAnalyticsMore('sidebar.errors') },
+                { href: '/app/analytics/llm', label: tAnalyticsMore('sidebar.llm') },
                 { href: '/app/analytics/sql', label: tAnalytics('sidebar.sql') },
                 { href: '/app/analytics/projects', label: tAnalytics('sidebar.projects') },
                 { href: '/app/social', label: tSocial('sidebar.calendar') },
@@ -517,6 +521,9 @@ export default async function AppLayout(
               persons: tAnalytics('sidebar.persons'),
               cohorts: tAnalytics('sidebar.cohorts'),
               flags: tAnalytics('sidebar.flags'),
+              surveys: tAnalyticsMore('sidebar.surveys'),
+              errors: tAnalyticsMore('sidebar.errors'),
+              llm: tAnalyticsMore('sidebar.llm'),
               sql: tAnalytics('sidebar.sql'),
               projects: tAnalytics('sidebar.projects'),
               newInsight: tAnalytics('sidebar.newInsight'),

@@ -14,6 +14,8 @@ const patchSchema = z.object({
   respectDnt: z.boolean().optional(),
   anonymizeIp: z.boolean().optional(),
   autocapture: z.boolean().optional(),
+  captureExceptions: z.boolean().optional(),
+  webVitals: z.boolean().optional(),
   retentionDays: z.number().int().min(1).max(3650).optional(),
   tzOffsetMin: z.number().int().min(-720).max(840).optional(),
 });

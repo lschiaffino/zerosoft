@@ -71,6 +71,7 @@ export type IconName =
   | 'hiring'
   | 'sign'
   | 'flag'
+  | 'bug'
   | 'sql'
   | 'live'
   | 'people'
@@ -79,6 +80,12 @@ export type IconName =
 
 // Íconos geométricos mínimos (trazo, estilo Feather/Lucide) para el sidebar.
 const PATHS: Record<IconName, ReactNode> = {
+  bug: (
+    <>
+      <rect x="8" y="8" width="8" height="12" rx="4" />
+      <path d="M9 5l1.5 3M15 5l-1.5 3M4 9l4 2M20 9l-4 2M3 14h5M21 14h-5M4 19l4-2M20 19l-4-2" />
+    </>
+  ),
   // Asistente de la plataforma: destello (distinto del robot de "Ask AI" del CRM y Docs).
   assistant: (
     <>

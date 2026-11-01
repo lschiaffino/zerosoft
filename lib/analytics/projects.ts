@@ -25,6 +25,8 @@ export interface ProjectRow {
   respect_dnt: number;
   anonymize_ip: number;
   autocapture: number;
+  capture_exceptions: number;
+  web_vitals: number;
   retention_days: number;
   tz_offset_min: number;
   rolled_through: string | null;
@@ -55,6 +57,8 @@ export function toProjectDto(r: ProjectRow): ProjectDto {
     respectDnt: r.respect_dnt === 1,
     anonymizeIp: r.anonymize_ip === 1,
     autocapture: r.autocapture === 1,
+    captureExceptions: r.capture_exceptions === 1,
+    webVitals: r.web_vitals === 1,
     retentionDays: Number(r.retention_days),
     tzOffsetMin: Number(r.tz_offset_min),
     createdAt: r.created_at,
@@ -96,6 +100,8 @@ export interface ProjectPatch {
   respectDnt?: boolean;
   anonymizeIp?: boolean;
   autocapture?: boolean;
+  captureExceptions?: boolean;
+  webVitals?: boolean;
   retentionDays?: number;
   tzOffsetMin?: number;
 }
@@ -124,6 +130,14 @@ export async function updateProject(workspaceId: string, id: string, patch: Proj
   if (patch.autocapture !== undefined) {
     sets.push('autocapture = ?');
     args.push(patch.autocapture ? 1 : 0);
+  }
+  if (patch.captureExceptions !== undefined) {
+    sets.push('capture_exceptions = ?');
+    args.push(patch.captureExceptions ? 1 : 0);
+  }
+  if (patch.webVitals !== undefined) {
+    sets.push('web_vitals = ?');
+    args.push(patch.webVitals ? 1 : 0);
   }
   if (patch.retentionDays !== undefined) {
     sets.push('retention_days = ?');

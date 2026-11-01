@@ -53,5 +53,6 @@
   "dateRange": "{start} a {end}",
   "peopleDocRead": "Para ler: {title}",
   "peopleDocNew": "Novo documento: {title}",
-  "reviewCycle": "Ciclo de avaliação iniciado: {name}"
+  "reviewCycle": "Ciclo de avaliação iniciado: {name}",
+  "analyticsRegression": "Um erro resolvido voltou a aparecer: {title}"
 }

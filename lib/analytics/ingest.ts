@@ -18,6 +18,7 @@ import {
   type PersonState,
   type RequestContext,
 } from './ingest-core';
+import { normalizeSpecialEvents } from './ingest-special';
 import type { ProjectRow } from './projects';
 
 /** Contexto del pedido: user agent, país y IP (sin headers que pueda inventar el cliente). */
@@ -59,6 +60,7 @@ export async function storeEvents(project: ProjectRow, events: CleanEvent[], ctx
   const maxAge = Math.min(INGEST_LIMITS.maxPastMs, Math.max(1, Number(project.retention_days) || 365) * DAY);
   events = events.filter((e) => validTs(e.ts, now, maxAge));
   if (!events.length) return 0;
+  normalizeSpecialEvents(events);
   await ensureMigrated();
   const pid = project.id;
   const db = getDb();

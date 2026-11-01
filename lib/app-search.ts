@@ -67,6 +67,7 @@ export interface AppSearchItem {
     | 'analyticsInsights'
     | 'analyticsDashboards'
     | 'analyticsFlags'
+    | 'analyticsSurveys'
     | 'analyticsCohorts'
     | 'analyticsProjects'
     | 'socialPosts'
@@ -432,7 +433,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       user.id,
       like,
     );
-  const [anInsights, anDashboards, anFlags, anCohorts, anProjects] = await Promise.all([
+  const [anInsights, anDashboards, anFlags, anCohorts, anProjects, anSurveys] = await Promise.all([
     analyticsIn('analytics_insights'),
     analyticsIn('analytics_dashboards'),
     // Flags: por clave o descripción (se muestra la descripción si hay).
@@ -445,6 +446,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ),
     analyticsIn('analytics_cohorts'),
     all(`SELECT id, name AS label FROM analytics_projects WHERE workspace_id = ? AND deleted_at IS NULL AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT ?`, user.id, like),
+    analyticsIn('analytics_surveys'),
   ]);
 
   // Chat: conversaciones (asunto, visitante o texto), personas, vistas guardadas y equipos.
@@ -582,6 +584,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ...map(anDashboards, 'analyticsDashboards', (id) => `/app/analytics/dashboards/${id}`),
     ...map(anFlags, 'analyticsFlags', (id) => `/app/analytics/flags/${id}`),
     ...map(anCohorts, 'analyticsCohorts', (id) => `/app/analytics/cohorts?open=${id}`),
+    ...map(anSurveys, 'analyticsSurveys', (id) => `/app/analytics/surveys/${id}`),
     ...map(anProjects, 'analyticsProjects', (id) => `/app/analytics/settings?project=${id}`),
   ];
 }

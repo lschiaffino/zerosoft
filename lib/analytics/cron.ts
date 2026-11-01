@@ -10,6 +10,7 @@
  */
 import { getDb } from '../db';
 import { bucketOf } from './compute';
+import { runErrorRegressions } from './errors';
 
 const DAY = 86_400_000;
 const CLAIM_MS = 10 * 60_000;
@@ -35,6 +36,7 @@ export interface AnalyticsCronResult {
   rolledDays: number;
   purgedEvents: number;
   deletedProjects: number;
+  regressions: number;
 }
 
 export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number } = {}): Promise<AnalyticsCronResult> {
@@ -43,7 +45,7 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
   const budget = opts.budgetMs ?? 20_000;
   const left = () => budget - (Date.now() - started);
   const db = getDb();
-  const out: AnalyticsCronResult = { rolledDays: 0, purgedEvents: 0, deletedProjects: 0 };
+  const out: AnalyticsCronResult = { rolledDays: 0, purgedEvents: 0, deletedProjects: 0, regressions: 0 };
 
   // 1. Proyectos borrados: datos por tandas, después la fila (insights, tableros y flags caen en cascada).
   const deleted = (await db
@@ -88,6 +90,8 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
       'analytics_sessions',
       'analytics_groups',
       'analytics_daily',
+      'analytics_surveys',
+      'analytics_error_issues',
     ]) {
       await db.prepare(`DELETE FROM ${table} WHERE project_id = ?`).run(id);
     }
@@ -170,6 +174,14 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
     } catch (err) {
       console.error('[analytics cron] retention', p.id, err);
     }
+  }
+
+  // 4. Errores resueltos que volvieron a aparecer (con lo que quede del presupuesto, hasta 5 s).
+  const regressionsUntil = Date.now() + Math.min(5000, Math.max(0, left()));
+  try {
+    out.regressions = (await runErrorRegressions({ left: () => regressionsUntil - Date.now(), now })).regressions;
+  } catch (err) {
+    console.error('[analytics cron] regressions', err);
   }
   return out;
 

@@ -4,11 +4,15 @@
 import { createDispatcher } from '@/lib/routes/dispatch';
 import * as m0 from '@/lib/routes/analytics/cohorts/[id]/route';
 import * as m1 from '@/lib/routes/analytics/dashboards/[id]/route';
-import * as m2 from '@/lib/routes/analytics/flags/[id]/route';
-import * as m3 from '@/lib/routes/analytics/insights/[id]/route';
-import * as m4 from '@/lib/routes/analytics/persons/[id]/route';
-import * as m5 from '@/lib/routes/analytics/projects/[id]/route';
-import * as m6 from '@/lib/routes/analytics/projects/[id]/secret/route';
+import * as m2 from '@/lib/routes/analytics/errors/[ref]/route';
+import * as m3 from '@/lib/routes/analytics/flags/[id]/route';
+import * as m4 from '@/lib/routes/analytics/insights/[id]/route';
+import * as m5 from '@/lib/routes/analytics/persons/[id]/route';
+import * as m6 from '@/lib/routes/analytics/projects/[id]/route';
+import * as m7 from '@/lib/routes/analytics/projects/[id]/secret/route';
+import * as m8 from '@/lib/routes/analytics/surveys/[id]/route';
+import * as m9 from '@/lib/routes/analytics/surveys/[id]/export/route';
+import * as m10 from '@/lib/routes/analytics/surveys/[id]/results/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,11 +20,15 @@ export const dynamic = 'force-dynamic';
 const d = createDispatcher('zsPath', [
   { pattern: 'cohorts/[id]', mod: m0 }, // lib/routes/analytics/cohorts/[id]
   { pattern: 'dashboards/[id]', mod: m1 }, // lib/routes/analytics/dashboards/[id]
-  { pattern: 'flags/[id]', mod: m2 }, // lib/routes/analytics/flags/[id]
-  { pattern: 'insights/[id]', mod: m3 }, // lib/routes/analytics/insights/[id]
-  { pattern: 'persons/[id]', mod: m4 }, // lib/routes/analytics/persons/[id]
-  { pattern: 'projects/[id]', mod: m5 }, // lib/routes/analytics/projects/[id]
-  { pattern: 'projects/[id]/secret', mod: m6 }, // lib/routes/analytics/projects/[id]/secret
+  { pattern: 'errors/[ref]', mod: m2 }, // lib/routes/analytics/errors/[ref]
+  { pattern: 'flags/[id]', mod: m3 }, // lib/routes/analytics/flags/[id]
+  { pattern: 'insights/[id]', mod: m4 }, // lib/routes/analytics/insights/[id]
+  { pattern: 'persons/[id]', mod: m5 }, // lib/routes/analytics/persons/[id]
+  { pattern: 'projects/[id]', mod: m6 }, // lib/routes/analytics/projects/[id]
+  { pattern: 'projects/[id]/secret', mod: m7 }, // lib/routes/analytics/projects/[id]/secret
+  { pattern: 'surveys/[id]', mod: m8 }, // lib/routes/analytics/surveys/[id]
+  { pattern: 'surveys/[id]/export', mod: m9 }, // lib/routes/analytics/surveys/[id]/export
+  { pattern: 'surveys/[id]/results', mod: m10 }, // lib/routes/analytics/surveys/[id]/results
 ]);
 
 export const GET = d.GET;

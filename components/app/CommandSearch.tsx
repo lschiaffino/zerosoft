@@ -202,6 +202,7 @@ function useGroupOrder() {
         'analyticsInsights',
         'analyticsDashboards',
         'analyticsFlags',
+        'analyticsSurveys',
         'analyticsCohorts',
         'analyticsProjects',
         'assistantChats',

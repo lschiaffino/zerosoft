@@ -116,6 +116,10 @@ export const webQuerySchema = z.object({
   kind: z.literal('web'),
   dateRange: dateRangeSchema.default({ from: '-7d' }),
   compare: z.boolean().default(true),
+  filters: z
+    .array(z.object({ key: z.enum(['path', 'host', 'device', 'country', 'channel', 'referrer', 'utm', 'browser', 'os']), value: z.string().min(1).max(500) }))
+    .max(9)
+    .optional(),
 });
 export type WebQuery = z.infer<typeof webQuerySchema>;
 
@@ -212,6 +216,10 @@ export interface WebResult {
   devices: Array<{ key: string; visitors: number; views: number }>;
   browsers: Array<{ key: string; visitors: number; views: number }>;
   os: Array<{ key: string; visitors: number; views: number }>;
+  hosts: Array<{ key: string; visitors: number; views: number }>;
+  channels: Array<{ key: string; visitors: number; views: number }>;
+  /** ¿El proyecto recibió alguna vez un pageview? (para no pedir el snippet si ya está instalado). */
+  hasPageviews: boolean;
 }
 
 // ---------- Flags y cohortes ----------
@@ -280,6 +288,8 @@ export interface ProjectDto {
   respectDnt: boolean;
   anonymizeIp: boolean;
   autocapture: boolean;
+  captureExceptions: boolean;
+  webVitals: boolean;
   retentionDays: number;
   tzOffsetMin: number;
   createdAt: string;
