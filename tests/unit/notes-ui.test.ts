@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyKind, filterQuery, listKey, sameFilter, stepIndex } from '@/components/notes/notes-ui';
+import { duplicateBody, emptyKind, filterQuery, listKey, sameFilter, stepIndex } from '@/components/notes/notes-ui';
 
 describe('notes ui: filtros y lista', () => {
   it('filterQuery arma la query de /api/notes', () => {
@@ -58,5 +58,22 @@ describe('notes ui: snippet de la lista', () => {
     expect(s).toContain('milk, eggs');
     expect(s).not.toContain('[ ]');
     expect(s).not.toContain('[x]');
+  });
+});
+
+describe('notes ui: duplicar', () => {
+  it('duplicateBody da ids nuevos a cada bloque y conserva etiquetas y libreta', () => {
+    let n = 0;
+    const body = duplicateBody(
+      { content: [{ id: 'a', type: 'paragraph', content: 'x' }, { id: 'b', type: 'todo', content: 'y' }] as unknown as Array<{ id: string }>, tags: ['q4'], notebook_id: 'nb1' },
+      'Copy of Plan',
+      () => `new-${++n}`,
+    );
+    expect(body.title).toBe('Copy of Plan');
+    expect(body.content.map((b) => b.id)).toEqual(['new-1', 'new-2']);
+    expect(body.content[1]).toMatchObject({ type: 'todo', content: 'y' });
+    expect(body.tags).toEqual(['q4']);
+    expect(body.notebook_id).toBe('nb1');
+    expect(body).not.toHaveProperty('pinned');
   });
 });

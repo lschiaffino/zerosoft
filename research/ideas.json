@@ -2404,5 +2404,37 @@
     "parity": "masking",
     "status": "done",
     "changelog": "2026-10-25-groups-platform"
+  },
+  {
+    "title": "Notes: Merge several selected notes into one note",
+    "description": "Evernote lets you select several notes and merge them into one, keeping the first-selected note on top (https://techlearning.com/tl-advisor-blog/9011, an older guide to check against the current app). Today the list selection in components/notes/NotesApp.tsx offers move, tag, pin and trash through app/api/notes/bulk/route.ts, but not merge. Small teams collect meeting fragments in many notes and want one clean page. First scope: a Merge action in the selection bar that concatenates content in selection order, unions tags, keeps the first note and trashes the others, with the existing version history as the undo.",
+    "product": "notes",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Add a Note info panel with word count, dates and links",
+    "description": "Evernote has a Note info command (Ctrl+Shift+I) that shows created and updated dates, size and word count (https://help.evernote.com/hc/en-us/articles/34296687388307). Our editor in components/notes/NoteEditorPane.tsx shows only the save status and has no word or character count. Writers and people drafting posts need the count while typing. First scope: a menu entry and a shortcut that open a small popover with words, characters, reading time, created and updated dates, notebook and source URL.",
+    "product": "notes",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Add a keyboard shortcuts drawer opened with Cmd+/",
+    "description": "Evernote shows all shortcuts in a drawer opened with Cmd+/ or Ctrl+/ and lets you remap them (https://help.evernote.com/hc/en-us/articles/34296687388307). In components/notes/NotesApp.tsx the shortcuts N and / exist but are only discoverable through small kbd hints. First scope: a read-only drawer listing the shortcuts of the list and the editor, opened with Cmd+/ and from the sidebar help menu, in the three languages. Remapping can come later.",
+    "product": "notes",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Insert a table of contents block from the note headings",
+    "description": "Evernote can build a table of contents note that links to other notes, and Notion-style tools offer an in-page contents block (https://techlearning.com/tl-advisor-blog/9011). Our editor supports headings and [[ ]] links in components/notes/NoteBlocksView.tsx but no contents block. Long notes such as meeting logs and guides are hard to navigate. First scope: a /contents slash command that inserts a block listing the note headings as anchor links and updates as headings change.",
+    "product": "notes",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Duplicate a note from its menu",
+    "description": "Evernote and most note apps let you copy a note to start a variation, for example a weekly template (https://help.evernote.com/hc/articles/209004637). Notes had no duplicate action in components/notes/NoteEditorPane.tsx. First scope: a Duplicate entry in the note menu that creates a copy with a Copy of title, same tags and notebook, and opens it.",
+    "product": "notes",
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-11-01-notes-duplicar"
   }
 ]
