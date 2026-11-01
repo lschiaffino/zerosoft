@@ -16,6 +16,8 @@ const nextConfig = {
   // La descarga de la extensión de Chrome arma el zip leyendo extensions/chrome en runtime.
   outputFileTracingIncludes: {
     '/api/crm/extension/download': ['./extensions/chrome/**/*'],
+    // Imágenes OG (lib/og-card.tsx): las fuentes de la marca y los posts del blog, leídos en runtime.
+    '/api/og/[...card]': ['./lib/og-fonts/*.ttf', './content/blog/**/*.md'],
   },
   // El widget de Chat corre embebido en sitios de terceros y llama a estos
   // endpoints públicos (sin cookies). Next responde el preflight OPTIONS solo;

@@ -104,3 +104,12 @@ export function generateProductOGSVG(
     `</svg>`
   );
 }
+
+/**
+ * Solo el campo de ceros (sin textos), como SVG suelto: las tarjetas PNG de
+ * lib/og-card.tsx lo usan de fondo y ponen el texto con fuentes reales.
+ */
+export function zeroFieldSVG(key: string, color = '#f4f4f4', width = 1200, height = 630): string {
+  const field = zeroOfZeros(hash(`product:${key}`), width * 0.8, height / 2, height * 0.84, color);
+  return `<svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">${field}</svg>`;
+}

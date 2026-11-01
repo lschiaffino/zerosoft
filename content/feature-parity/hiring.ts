@@ -190,7 +190,7 @@ const parity: ProductParity = {
       detail: ['Read jobs and the candidates the key can see (hiring:read)', 'Lectura de puestos y de los candidatos que la key puede ver (hiring:read)', 'Leitura de vagas e dos candidatos que a key pode ver (hiring:read)'],
     }),
     row('hris-handoff', 'platform', ['Hand-off to HR on hire', 'Paso a RR. HH. al contratar', 'Passagem para o RH ao contratar'], 'partial', {
-      detail: ['A server hook and a Flow event on every hire; the People app is not built yet', 'Un gancho en el servidor y un evento de Flow en cada contratación; la app People todavía no existe', 'Um gancho no servidor e um evento do Flow a cada contratação; o app People ainda não existe'],
+      detail: ['A server hook and a Flow event on every hire; nothing creates the person in People automatically yet', 'Un gancho en el servidor y un evento de Flow en cada contratación; todavía nada crea a la persona en People solo', 'Um gancho no servidor e um evento do Flow a cada contratação; ainda nada cria a pessoa no People automaticamente'],
     }),
     row('assistant', 'platform', ['AI assistant over your pipeline', 'Asistente sobre tu pipeline', 'Assistente sobre seu pipeline'], 'better', {
       competitorHas: false,

@@ -1,12 +1,12 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { staticPageMetadata } from '@/lib/seo-pages';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import BrandSymbol from '@/components/brand/BrandSymbol';
 import type { ProductKey } from '@/lib/products';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
-  const t = await getTranslations({ locale, namespace: 'pages.status' });
-  return { title: t('meta.title'), description: t('meta.description') };
+  return staticPageMetadata('status', locale);
 }
 
 /** Los servicios de zerosoft.ai; los que son una app llevan su línea. */

@@ -18,7 +18,7 @@ Quando escrevemos este post, o Link era a única app disponível. O plano public
 - **CRM** (Q1 2027): contatos, pipeline e atividades, com API pública desde o primeiro dia.
 - **Cal** (Q2 2027): páginas de agendamento conectadas ao seu calendário.
 
-As três saíram antes das janelas anunciadas. Hoje a suíte tem onze apps (CRM, Chat, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal e Board), todas com o mesmo contrato: código aberto, self-host a $0 e zerosoft Cloud com plano grátis e cobrança pelo uso. O que vem agora está no roadmap público, em [/roadmap](/roadmap).
+As três saíram antes das janelas anunciadas. Hoje a suíte tem onze apps (CRM, Chat, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal e Board), todas com o mesmo contrato: código aberto, self-host a $0 e zerosoft Cloud com plano grátis e cobrança pelo uso. O que vem agora está no roadmap público, em [/feedback-board/roadmap](/feedback-board/roadmap).
 
 ## Como escolhemos a ordem
 
