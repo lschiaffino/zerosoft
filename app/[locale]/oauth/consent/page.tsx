@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
+import Logo from '@/components/brand/Logo';
 import ConsentForm from '@/components/oauth/ConsentForm';
-import { getClient, openAuthRequest } from '@/lib/oauth/store';
+import { getClient, isLoopbackHost, openAuthRequest } from '@/lib/oauth/store';
 import { requireUser } from '@/lib/session';
 import { listMyWorkspaces } from '@/lib/workspace';
 import '@/styles/oauth.css';
@@ -28,6 +29,7 @@ export default async function OAuthConsentPage(props: { params: Promise<{ locale
     return (
       <main className="auth-page oauth-page">
         <div className="auth-card oauth-card">
+          <Logo variant="symbol" tone="current" height={32} title="zerosoft" />
           <h1>{t('expiredTitle')}</h1>
           <p className="auth-sub">{t('expiredBody')}</p>
         </div>
@@ -38,11 +40,12 @@ export default async function OAuthConsentPage(props: { params: Promise<{ locale
   return (
     <main className="auth-page oauth-page">
       <div className="auth-card oauth-card">
+        <Logo variant="symbol" tone="current" height={32} title="zerosoft" />
         <ConsentForm
           mode="code"
           target={pending.id}
           clientName={client.name}
-          redirectHost={new URL(pending.redirect_uri).host}
+          redirectHost={isLoopbackHost(new URL(pending.redirect_uri).hostname) ? null : new URL(pending.redirect_uri).host}
           askedScope={pending.scope}
           personEmail={real.email}
           workspaces={workspaces.map((w) => ({ teamId: w.teamId, name: w.name, own: w.own }))}

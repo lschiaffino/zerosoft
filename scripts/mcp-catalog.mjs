@@ -729,7 +729,8 @@ for (const file of files) {
       access,
       quality,
       session: auth,
-      body: a.form ? 'form' : bodySchema ? 'json' : 'none',
+      // Una ruta puede aceptar las dos cosas (JSON, o multipart con el archivo).
+      body: a.form ? (a.bodySchemas.length || a.typed.length ? 'both' : 'form') : bodySchema ? 'json' : 'none',
       params: pathParams.map((p) => p.name),
       inputSchema: { type: 'object', properties, ...(required.length ? { required } : {}), additionalProperties: false },
       doc: hand?.description ?? (comment || (Object.keys(handlers).length === 1 ? fileComment : '')),

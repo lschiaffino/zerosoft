@@ -1076,7 +1076,8 @@
     "deviceDoneTitle": "Device connected",
     "deviceDoneBody": "You can close this page and go back to your terminal.",
     "deviceDeniedTitle": "Connection cancelled",
-    "deviceDeniedBody": "Nothing was connected. You can close this page."
+    "deviceDeniedBody": "Nothing was connected. You can close this page.",
+    "redirectsLocal": "Returns to an app on this computer"
   },
   "connected": {
     "title": "Connected apps",
@@ -1087,9 +1088,7 @@
     "colClient": "App",
     "colWorkspace": "Workspace",
     "colAccess": "Access",
-    "colCreated": "Connected",
     "colLastUsed": "Last used",
-    "colWrites": "Changes",
     "colActions": "Actions",
     "ownWorkspace": "Your workspace",
     "accessWrite": "Read and write",
@@ -1099,6 +1098,8 @@
     "cancel": "Cancel",
     "confirmTitle": "Disconnect {client}?",
     "confirmBody": "It loses access right away. To use it again you will need to sign in again.",
-    "error": "Could not disconnect it. Try again."
+    "error": "Could not disconnect it. Try again.",
+    "thisComputer": "This computer",
+    "meta": "Connected {date}, {count, plural, =0 {no changes} one {# change} other {# changes}}"
   }
 }

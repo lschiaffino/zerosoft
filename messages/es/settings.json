@@ -1076,7 +1076,8 @@
     "deviceDoneTitle": "Dispositivo conectado",
     "deviceDoneBody": "Podés cerrar esta página y volver a la terminal.",
     "deviceDeniedTitle": "Conexión cancelada",
-    "deviceDeniedBody": "No se conectó nada. Podés cerrar esta página."
+    "deviceDeniedBody": "No se conectó nada. Podés cerrar esta página.",
+    "redirectsLocal": "Vuelve a una app en esta computadora"
   },
   "connected": {
     "title": "Apps conectadas",
@@ -1087,9 +1088,7 @@
     "colClient": "App",
     "colWorkspace": "Workspace",
     "colAccess": "Acceso",
-    "colCreated": "Conectada",
     "colLastUsed": "Último uso",
-    "colWrites": "Cambios",
     "colActions": "Acciones",
     "ownWorkspace": "Tu workspace",
     "accessWrite": "Leer y escribir",
@@ -1099,6 +1098,8 @@
     "cancel": "Cancelar",
     "confirmTitle": "¿Desconectar {client}?",
     "confirmBody": "Pierde el acceso en el momento. Para volver a usarla vas a tener que iniciar sesión de nuevo.",
-    "error": "No se pudo desconectar. Probá de nuevo."
+    "error": "No se pudo desconectar. Probá de nuevo.",
+    "thisComputer": "Esta computadora",
+    "meta": "Conectada el {date}, {count, plural, =0 {sin cambios} one {# cambio} other {# cambios}}"
   }
 }

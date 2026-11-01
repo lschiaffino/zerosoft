@@ -89,7 +89,7 @@ function emit(flags, value, render) {
 
 async function cmdLogin(flags, baseUrl) {
   const scope = flags['read-only'] ? 'read' : 'read write';
-  const headless = flags.device || process.env.SSH_TTY || (process.platform === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY);
+  const headless = flags.device || (!flags['no-open'] && (process.env.SSH_TTY || (process.platform === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY)));
   const creds = headless
     ? await deviceLogin({ baseUrl, scope, log })
     : await browserLogin({ baseUrl, scope, log, open: !flags['no-open'] });

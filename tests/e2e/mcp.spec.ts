@@ -111,6 +111,8 @@ type Started = Awaited<ReturnType<typeof startAuthorization>>;
 async function finishAuthorization(page: Page, s: Started): Promise<Tokens> {
   await page.getByRole('button', { name: 'Allow access' }).click();
   const back = await s.cb.got;
+  // Que el navegador termine de llegar al callback antes de seguir usando la página.
+  await page.waitForURL(/\/callback/);
   s.cb.close();
   expect(back.searchParams.get('state')).toBe(s.state);
   expect(back.searchParams.get('iss')).toBe(s.meta.issuer);
@@ -505,7 +507,7 @@ test('roles: owner, admin, member con apps limitadas y alguien de afuera', async
   const member = await signed(emails.member);
   const out = await signed(emails.out);
   const idOf = async (email: string) => (await client.execute({ sql: 'SELECT id FROM users WHERE email = ?', args: [email] })).rows[0].id as string;
-  await client.execute({ sql: `INSERT INTO team_members (team_id, user_id, role, apps) VALUES (?, ?, 'admin', NULL)`, args: [team_id, await idOf(emails.admin)] });
+  await client.execute({ sql: `INSERT INTO team_members (team_id, user_id, role, apps) VALUES (?, ?, 'admin', '*')`, args: [team_id, await idOf(emails.admin)] });
   await client.execute({ sql: `INSERT INTO team_members (team_id, user_id, role, apps) VALUES (?, ?, 'member', ?)`, args: [team_id, await idOf(emails.member), JSON.stringify(['crm'])] });
   await client.execute({ sql: 'UPDATE users SET active_team_id = ? WHERE email IN (?, ?)', args: [team_id, emails.admin, emails.member] });
 
@@ -684,7 +686,8 @@ test('CLI: login de dispositivo y solo lectura', async ({ page }) => {
   await page.goto(uri);
   await page.getByLabel('Code').fill('WRONG-CODE');
   await page.getByRole('button', { name: 'Continue' }).click();
-  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page.locator('.ui-error')).toBeVisible();
+  await shot(page, 'device-error-1280-light');
   await page.getByLabel('Code').fill(userCode.toLowerCase());
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.getByRole('heading', { name: /zerosoft CLI/ })).toBeVisible();
@@ -711,6 +714,17 @@ test('las pantallas se ven bien a 390 y 1280, en claro y oscuro', async ({ brows
       await page.getByRole('radio', { name: /Read only/ }).focus();
       await shot(page, `consent-focus-${tag}`);
       await page.getByRole('radio', { name: /Read and write/ }).check();
+      await page.getByRole('button', { name: 'Allow access' }).hover();
+      await shot(page, `consent-hover-${tag}`);
+      await page.getByRole('button', { name: 'Cancel' }).focus();
+      await page.keyboard.press('Tab');
+      await shot(page, `consent-button-focus-${tag}`);
+      // Un fallo del servidor al aprobar: se dice en la pantalla y se puede reintentar.
+      await page.route('**/api/oauth/consent', (r) => r.fulfill({ status: 500, body: '{}' }));
+      await page.getByRole('button', { name: 'Allow access' }).click();
+      await expect(page.locator('.ui-error')).toBeVisible();
+      await shot(page, `consent-error-${tag}`);
+      await page.unroute('**/api/oauth/consent');
       await finishAuthorization(page, s);
       await page.goto('/en/oauth/device');
       await shot(page, `device-${tag}`);
@@ -720,11 +734,27 @@ test('las pantallas se ven bien a 390 y 1280, en claro y oscuro', async ({ brows
       await page.goto('/en/app/settings/api');
       await expect(page.getByRole('heading', { name: 'Connected apps' })).toBeVisible();
       await shot(page, `settings-${tag}`);
+      const panel = page.locator('#connected');
+      await panel.screenshot({ path: SHOTS ? path.join(SHOTS, `settings-panel-${tag}.png`) : undefined });
+      // La acción se ve sin scroll lateral, y el diálogo de confirmación.
+      const disconnect = panel.getByRole('button', { name: /^Disconnect / }).first();
+      await expect(disconnect).toBeInViewport({ ratio: 1 });
+      await disconnect.click();
+      await expect(page.getByRole('dialog')).toBeVisible();
+      await shot(page, `settings-confirm-${tag}`);
+      await page.keyboard.press('Escape');
       await page.goto('/en/docs/mcp');
       await shot(page, `docs-${tag}`);
       await ctx.close();
     }
   }
+  // Sin conexiones, y el texto en los tres idiomas.
+  const fresh = await asPerson(browser, `empty${uid()}@mcp.example.com`);
+  const freshPage = await fresh.newPage();
+  await freshPage.goto('/en/app/settings/api');
+  await expect(freshPage.getByText('No connected apps')).toBeVisible();
+  await freshPage.locator('#connected').screenshot({ path: SHOTS ? path.join(SHOTS, 'settings-panel-empty-1280-light.png') : undefined });
+  await fresh.close();
   // Los tres idiomas.
   const ctx = await asPerson(browser, null);
   const page = await ctx.newPage();

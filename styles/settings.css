@@ -525,3 +525,6 @@ dialog.st-kb-drawer { width: min(560px, 100vw); }
   .st-imp-source-cta { justify-self: start; }
   .st-imp-recent-row { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Apps conectadas: nombre, destino y datos en una sola celda para que la acción nunca quede fuera. */
+.st-connected-app { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }

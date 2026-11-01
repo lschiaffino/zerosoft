@@ -10,7 +10,7 @@ import LocalText from '@/components/ui/LocalText';
 import type { ConnectedClient } from '@/lib/oauth/store';
 import { parseDbUtc } from '@/lib/utils';
 
-const fmt = (iso: string, locale: string) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(parseDbUtc(iso));
+const fmt = (iso: string, locale: string) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(parseDbUtc(iso));
 
 /** Ajustes › API: lo que la persona conectó por OAuth (Claude, la CLI). Solo lo suyo, aunque sea admin. */
 export default function ConnectedClientsPanel({ initial }: { initial: ConnectedClient[] }) {
@@ -56,22 +56,23 @@ export default function ConnectedClientsPanel({ initial }: { initial: ConnectedC
             key: 'name',
             header: t('colClient'),
             cell: (c) => (
-              <span className="st-strong">
-                {c.clientName}
-                {c.redirectHost ? <span className="data st-muted"> {c.redirectHost}</span> : null}
+              <span className="st-connected-app">
+                <span className="st-strong">{c.clientName}</span>
+                <span className="st-muted">{c.redirectHost ?? t('thisComputer')}</span>
+                <span className="st-muted">
+                  <LocalText>{t('meta', { date: fmt(c.createdAt, locale), count: c.writes })}</LocalText>
+                </span>
               </span>
             ),
           },
           { key: 'workspace', header: t('colWorkspace'), cell: (c) => c.workspaceName ?? t('ownWorkspace') },
           { key: 'scope', header: t('colAccess'), cell: (c) => t(c.scope.split(' ').includes('write') ? 'accessWrite' : 'accessRead') },
-          { key: 'created', header: t('colCreated'), cell: (c) => <LocalText>{fmt(c.createdAt, locale)}</LocalText>, data: true },
           {
             key: 'used',
             header: t('colLastUsed'),
             cell: (c) => (c.lastUsedAt ? <LocalText>{fmt(c.lastUsedAt, locale)}</LocalText> : <span className="st-muted">{t('never')}</span>),
             data: true,
           },
-          { key: 'writes', header: t('colWrites'), cell: (c) => c.writes, data: true },
           {
             key: 'actions',
             header: <span className="sr-only">{t('colActions')}</span>,

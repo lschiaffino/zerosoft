@@ -141,7 +141,8 @@ function appendQuery(url: URL, query: Record<string, unknown>): void {
 
 function buildBody(op: Operation, body: unknown, files: InvokeArgs['files']): { init: BodyInit | undefined; contentType: string | null } {
   if (op.method === 'GET') return { init: undefined, contentType: null };
-  if (op.body === 'form') {
+  if (files?.length && op.body !== 'form' && op.body !== 'both') throw new OperationError('invalid_arguments', 'This operation does not take files.');
+  if (op.body === 'form' || (op.body === 'both' && files?.length)) {
     const form = new FormData();
     if (body && typeof body === 'object') {
       for (const [k, v] of Object.entries(body as Record<string, unknown>)) {
@@ -158,7 +159,7 @@ function buildBody(op: Operation, body: unknown, files: InvokeArgs['files']): { 
     }
     return { init: form, contentType: null };
   }
-  if (body === undefined) return { init: op.body === 'json' ? '{}' : undefined, contentType: op.body === 'json' ? 'application/json' : null };
+  if (body === undefined) return { init: op.body === 'none' ? undefined : '{}', contentType: op.body === 'none' ? null : 'application/json' };
   const text = JSON.stringify(body);
   if (text.length > MAX_BODY_BYTES) throw new OperationError('invalid_arguments', 'The body is larger than 4 MB.');
   return { init: text, contentType: 'application/json' };

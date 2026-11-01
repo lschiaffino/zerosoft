@@ -15,7 +15,7 @@ export interface Operation {
   access: OperationAccess;
   quality: SchemaQuality;
   session: boolean;
-  body: 'json' | 'form' | 'none';
+  body: 'json' | 'form' | 'both' | 'none';
   params: string[];
   inputSchema: { type: 'object'; properties: Record<string, JsonSchema>; required?: string[]; additionalProperties?: boolean };
   doc: string;

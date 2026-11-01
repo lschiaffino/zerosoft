@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
+import Logo from '@/components/brand/Logo';
 import DeviceForm from '@/components/oauth/DeviceForm';
 import { requireUser } from '@/lib/session';
 import { listMyWorkspaces } from '@/lib/workspace';
@@ -24,6 +25,7 @@ export default async function OAuthDevicePage(props: { params: Promise<{ locale:
   return (
     <main className="auth-page oauth-page">
       <div className="auth-card oauth-card">
+        <Logo variant="symbol" tone="current" height={32} title="zerosoft" />
         <DeviceForm
           initialCode={clean}
           personEmail={real.email}

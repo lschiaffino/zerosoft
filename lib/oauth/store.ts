@@ -74,6 +74,10 @@ export function hasWriteScope(scope: string): boolean {
 
 const LOOPBACK = new Set(['127.0.0.1', 'localhost', '[::1]']);
 
+export function isLoopbackHost(hostname: string): boolean {
+  return LOOPBACK.has(hostname);
+}
+
 /** Solo https o http a loopback, sin fragmento ni credenciales. */
 export function validRedirectUri(raw: unknown): raw is string {
   if (typeof raw !== 'string' || raw.length > 1000) return false;
@@ -444,7 +448,9 @@ export async function listConnectedClients(userId: string): Promise<ConnectedCli
 function redirectHost(raw: string | null): string | null {
   try {
     const first = (JSON.parse(raw ?? '[]') as string[])[0];
-    return first ? new URL(first).hostname : null;
+    if (!first) return null;
+    const host = new URL(first).hostname;
+    return isLoopbackHost(host) ? null : host;
   } catch {
     return null;
   }

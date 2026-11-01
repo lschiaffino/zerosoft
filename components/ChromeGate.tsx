@@ -62,7 +62,9 @@ export default function ChromeGate({
     pathname.startsWith('/feedback-board') ||
     pathname === '/brand' ||
     pathname.startsWith('/brand/') ||
-    pathname.startsWith('/nuevo-branding/')
+    pathname.startsWith('/nuevo-branding/') ||
+    // Pantallas de permisos de OAuth: nada más que la decisión, sin links que la distraigan.
+    pathname.startsWith('/oauth/')
   ) {
     return <>{children}</>;
   }

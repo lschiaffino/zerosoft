@@ -28,7 +28,8 @@ export default function ConsentForm({
   mode: 'code' | 'device';
   target: string;
   clientName: string;
-  redirectHost?: string;
+  /** Adónde vuelve; null = una app en esta misma computadora (loopback); sin definir = dispositivo. */
+  redirectHost?: string | null;
   askedScope: string;
   personEmail: string;
   workspaces: ConsentWorkspace[];
@@ -88,7 +89,7 @@ export default function ConsentForm({
       }}
     >
       <h1>{t('title', { client: clientName })}</h1>
-      {redirectHost ? <p className="oauth-origin">{t('redirectsTo', { host: redirectHost })}</p> : <p className="oauth-origin">{t('deviceOrigin')}</p>}
+      <p className="oauth-origin">{redirectHost ? t('redirectsTo', { host: redirectHost }) : t(redirectHost === null ? 'redirectsLocal' : 'deviceOrigin')}</p>
       <p className="auth-sub oauth-sub">{t('asPerson', { email: personEmail })}</p>
 
       {workspaces.length > 1 && (
