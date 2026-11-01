@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { rateLimit } from '@/lib/rate-limit';
+import { canGrantApps, parseApps } from '@/lib/workspace';
 import { isResponse, publicBase, requestLocale, teamsCtx, teamsError } from '@/lib/teams-http';
 import { loadDirectory } from '@/lib/workspace-directory';
 import { inviteMany } from '@/lib/workspace-invites';
@@ -36,6 +37,8 @@ export async function POST(req: NextRequest) {
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return teamsError('invalid_input');
   if (parsed.data.role === 'admin' && ctx.role !== 'owner') return teamsError('forbidden', 403);
+  const offered = parsed.data.role === 'guest' ? [] : parseApps(parsed.data.apps ?? '*');
+  if (!canGrantApps(ctx.user.apps ?? '*', offered)) return teamsError('apps_not_yours', 403);
   const limit = await rateLimit(`teams:invite:${ctx.realId}`, 30, 3600);
   if (!limit.ok) return teamsError('rate_limited', 429);
   const { results, invalid } = await inviteMany({

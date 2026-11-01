@@ -502,8 +502,8 @@
     "welcomeHint": "Aparece no topo da página de boas-vindas, com o gestor, a equipe, as primeiras tarefas e o que ler.",
     "previewWelcome": "Ver as boas-vindas",
     "hrAdmins": "Admins de RH",
-    "hrAdminsHint": "Admins de RH gerenciam perfis, folgas, documentos, salários, avaliações e relatórios. Owner e admins do workspace são sempre admins de RH.",
-    "implicitHr": "Admin do workspace",
+    "hrAdminsHint": "Admins de RH gerenciam perfis, folgas, documentos, salários, avaliações e relatórios. Salários e a exportação da folha são do owner, dos admins de RH e de cada pessoa. Admins do workspace gerenciam o resto do People sem ver salários. Só o owner nomeia admins de RH.",
+    "implicitHr": "Owner do workspace",
     "onlyAdmins": "Só owner e admins do workspace escolhem admins de RH."
   },
   "welcome": {

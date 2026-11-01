@@ -1341,5 +1341,7 @@ td.cell-actions > * + * { margin-left: 4px; }
    En teléfono el botón es una pestaña del ancho del margen y no hace falta. */
 @media (min-width: 761px) {
   .app-home { padding-right: 36px; }
-  body:has(.fl-root.has-support) .app-home { padding-right: 104px; }
 }
+
+/* Sin ningún bloque (todos vacíos en uso personal): no queda el título solo. */
+.home-section:has(> .home-today:empty) { display: none; }

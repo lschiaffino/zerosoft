@@ -39,9 +39,9 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         product: 'platform',
-        en: 'When an app is off for you in a workspace, Ask for access sends a notification to the owner and the admins. The notification opens your access in Settings › Members, and you hear back when it’s turned on.',
-        es: 'Cuando una app no está habilitada para vos en un workspace, Pedir acceso le manda un aviso al owner y a los admins. El aviso abre tu acceso en Ajustes › Miembros, y te enterás cuando te lo dan.',
-        pt: 'Quando um app não está ativo para você em um workspace, Pedir acesso envia um aviso ao owner e aos admins. O aviso abre seu acesso em Configurações › Membros, e você fica sabendo quando for ativado.',
+        en: 'When an app is off for you in a workspace, Ask for access sends a notification to the owner and the admins. The notification opens your access in Settings › Members, with what you asked for already checked, and you hear back either way.',
+        es: 'Cuando una app no está habilitada para vos en un workspace, Pedir acceso le manda un aviso al owner y a los admins. El aviso abre tu acceso en Ajustes › Miembros, con lo pedido ya tildado, y te enterás de la respuesta.',
+        pt: 'Quando um app não está ativo para você em um workspace, Pedir acesso envia um aviso ao owner e aos admins. O aviso abre seu acesso em Configurações › Membros, com o pedido já marcado, e você fica sabendo da resposta.',
       },
       {
         product: 'platform',

@@ -23,6 +23,8 @@ export interface WorkspaceFormDto {
   editorDomain: string;
   /** Quien mira es el owner (cerrar y transferir) o alguien que se puede ir. */
   viewerIsOwner: boolean;
+  /** Apps de quien edita: no puede ofrecer otras. */
+  viewerApps: '*' | ProductKey[];
 }
 
 function initial(name: string): string {
@@ -231,7 +233,7 @@ export default function WorkspacePanel({ initial: init, canEdit }: { initial: Wo
           <span>{t('joinApproval')}</span>
         </label>
         <p className="ui-help">{t('joinRole')}</p>
-        <AppsPicker value={joinApps} onChange={setJoinApps} idPrefix="ws-join-app" />
+        <AppsPicker value={joinApps} onChange={setJoinApps} idPrefix="ws-join-app" limit={ws.viewerApps} />
       </FormSection>
 
       {ws.viewerIsOwner ? (

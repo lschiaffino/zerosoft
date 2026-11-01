@@ -221,7 +221,15 @@ body:has(.bp-root) .fl-root {
 
 /* ---------- Launcher de feedback (in-app y sitio) ---------- */
 .fl-root { position: fixed; right: 20px; bottom: 20px; z-index: 99990; font-family: var(--sans); }
-.fl-root.has-support { right: 88px; bottom: 26px; }
+/* Con soporte, los dos botones van apilados y miden lo mismo: el contenido deja libre una sola columna. */
+.fl-root.has-support { right: 20px; bottom: 72px; }
+body:has(.fl-root.has-support) #zs-chat-btn {
+  width: var(--bp-launcher-size) !important; height: var(--bp-launcher-size) !important;
+  border-radius: var(--bp-radius) !important; border: 1px solid var(--bp-line) !important;
+  background: var(--bp-bg) !important; color: var(--bp-ink) !important; box-shadow: none !important;
+}
+body:has(.fl-root.has-support) #zs-chat-btn svg { width: 18px; height: 18px; }
+body:has(.fl-root.has-support) #zs-chat-btn:hover { border-color: var(--bp-ink) !important; }
 .fl-root { transition: transform 200ms var(--ease-out-expo, ease-out), opacity 200ms ease-out, visibility 0s linear 0s; }
 .fl-root.is-tucked { transform: translateY(calc(100% + 32px)); opacity: 0; visibility: hidden; pointer-events: none; transition-delay: 0s, 0s, 200ms; }
 @media (prefers-reduced-motion: reduce) { .fl-root { transition: none; } }
@@ -235,6 +243,12 @@ body:has(.bp-root) .fl-root {
 @media (max-width: 760px) {
   .fl-root,
   .fl-root.has-support { right: 0; bottom: 112px; }
+  /* El de soporte también es una pestaña del ancho del margen: no se monta sobre las tarjetas. */
+  body:has(.fl-root.has-support) #zs-chat-btn {
+    right: 0 !important; bottom: 160px !important; width: 16px !important; height: 40px !important;
+    border-right: 0 !important; border-radius: var(--bp-radius) 0 0 var(--bp-radius) !important;
+  }
+  body:has(.fl-root.has-support) #zs-chat-btn svg { width: 10px; height: 10px; }
   .fl-root .fl-button {
     width: 16px;
     height: 40px;

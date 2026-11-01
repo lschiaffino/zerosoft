@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { approveJoinRequest, revokeInvite, setInviteAnyEmail } from '@/lib/teams';
+import { approveJoinRequest, getInvite, revokeInvite, setInviteAnyEmail } from '@/lib/teams';
+import { canGrantApps, parseApps } from '@/lib/workspace';
 import { isResponse, publicBase, teamsCtx, teamsError } from '@/lib/teams-http';
 import { resendInvite } from '@/lib/workspace-invites';
 
@@ -26,6 +27,9 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if (isResponse(ctx)) return ctx;
   const body = (await req.json().catch(() => ({}))) as { action?: string; allowAnyEmail?: boolean };
   if (body.action === 'approve') {
+    // Aprobar da las apps del pedido: quien aprueba tiene que tenerlas.
+    const request = await getInvite(params.id, ctx.team.id);
+    if (request && !canGrantApps(ctx.user.apps ?? '*', parseApps(request.apps))) return teamsError('apps_not_yours', 403);
     if (!(await approveJoinRequest(params.id, ctx.team.id, ctx.realId))) return teamsError('not_found', 404);
     return NextResponse.json({ ok: true });
   }

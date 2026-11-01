@@ -2,7 +2,7 @@ import { cache } from 'react';
 import { getServerSession } from 'next-auth';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { API_PATH_HEADER, RETURN_PATH_HEADER, signInPath } from './return-path';
+import { API_PATH_HEADER, RETURN_PATH_HEADER, signInPath, WORKSPACE_HEADER } from './return-path';
 import { authOptions } from './auth';
 import { getUserByEmail, upsertUser, type TeamRow, type UserRow } from './db';
 import { resolveWorkspace, roleAtLeast, type TeamRole } from './teams';
@@ -127,6 +127,10 @@ async function loadCurrentUser(): Promise<SessionUser | null> {
   const { owner, team, workspace, role, apps } = await resolveWorkspace(real);
   const user: SessionUser =
     owner.id === real.id ? { ...real, team, workspace, role, apps } : { ...owner, actingUser: real, team, workspace, role, apps };
+  // La pestaña escribe pensando en otro workspace (la sacaron, o cambió en otra pestaña): nada se
+  // guarda en el lugar equivocado. Responde como sin sesión y la pestaña avisa y ofrece recargar.
+  const expected = await requestHeader(WORKSPACE_HEADER);
+  if (expected && workspace && expected !== workspace.id) return null;
   // Acceso por app: la API de una app que la persona no tiene en este
   // workspace responde como sin sesión. Las páginas las corta el layout.
   if (user.actingUser) {

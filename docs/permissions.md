@@ -39,7 +39,9 @@ una regla, actualizá esta tabla. Revisado: 2026-10-31.
 | Salir del workspace | No (el owner no sale) | Sí, en Miembros | Sí, en Miembros | Sí, en Ajustes › Miembros de su cuenta (`/api/teams/guest-of`) |
 | Subequipos (crear, editar, borrar) | Sí | Sí | Solo ver | No |
 | Aprobar pedidos de ingreso por dominio | Sí | Sí | No | No |
-| Recibir "pide acceso" y "pide sumarse" | Sí | Sí | No | No |
+| Recibir y responder "pide acceso" | Sí | Solo de members y guests, por apps que tiene | No | No |
+| Recibir "pide sumarse" | Sí | Sí | No | No |
+| Dar apps (invitar, editar acceso, aprobar, apps por dominio) | Todas | Solo las que tiene; puede quitar | No | No |
 | API keys | Ve y revoca todas | Ve y revoca todas | Crea las suyas (scopes de sus apps), ve y revoca solo las suyas | No |
 | Webhooks | Sí | Si tiene todas las apps | No | No |
 | Importar | Sí | Sí | Solo archivos de Docs | No |
@@ -77,7 +79,7 @@ excepciones. "Admin" incluye al owner.
 | Notes | Sus notas | Consola: cortar links públicos, transferir notas de quien se fue | Las notas son privadas de quien las escribe, también para el owner |
 | Talk | Canales públicos, sus privados y DMs; exporta sus canales | Ajustes, exportar canales públicos, invitados, comandos, campos de perfil | Nadie lee DMs ajenos. Invitados de Talk: solo sus canales |
 | Groups | Chats según etiquetas si el acceso por etiqueta está prendido | Ajustes, números, accesos, integraciones, reglas, equipos | Teléfonos enmascarados por rol (nunca para el owner) |
-| People | Edita sus campos de autoservicio; managers aprueban licencias de su línea | Nombrar admins de RR. HH. | Compensación: RR. HH. y la persona. Desempeño: también su línea |
+| People | Edita sus campos de autoservicio; managers aprueban licencias de su línea | Fichas, licencias, documentos, evaluaciones y reportes, sin sueldos | Sueldos y exportación de nómina: owner, HR admins marcados (los nombra solo el owner) y la persona. Un admin sin marca no los lee. Desempeño: también su línea |
 | Books | Lector por defecto; un admin lo hace ventas o contador | Roles, pagos, factura electrónica | Admins son siempre contador |
 | Design | Sus diseños y los compartidos | Plantillas del workspace, kit de marca | Diseños privados: ni los admins los ven |
 | Rec | Ve sus videos, los del workspace que no están en un espacio y los de sus espacios | Gestionar videos del workspace y todos los espacios | `visibleSql` en `lib/rec.ts` |

@@ -3,20 +3,14 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 
+export type RequestNoticeReason = 'switch' | 'notPart' | 'removed' | 'adminOnly' | 'adminsOnly';
+
 /**
- * El aviso de "pide acceso" es de otro workspace que el activo: el acceso de
- * esa persona no se abre acá. Cambia de workspace y recarga (el link conserva
- * ?person=&ws=). Sin `canSwitch` la persona ya no es parte de ese workspace.
+ * Un link de "pide acceso" que no puede abrir el diálogo dice por qué: es de
+ * otro workspace (y se puede cambiar), la persona ya no está o quien mira no
+ * puede editarla. Nunca queda mudo.
  */
-export default function RequestWorkspaceNotice({
-  teamId,
-  workspace,
-  canSwitch,
-}: {
-  teamId: string | null;
-  workspace: string;
-  canSwitch: boolean;
-}) {
+export default function RequestWorkspaceNotice({ teamId, workspace, reason }: { teamId: string | null; workspace: string; reason: RequestNoticeReason }) {
   const t = useTranslations('settings.members.requestWorkspace');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
@@ -38,10 +32,10 @@ export default function RequestWorkspaceNotice({
   }
 
   return (
-    <div className="ws-notice" role="note" data-testid="request-other-workspace">
-      {canSwitch ? (
+    <div className="ws-notice ws-request-notice" role="note" data-testid="request-other-workspace">
+      <p>{t(reason === 'switch' ? 'body' : reason, { workspace })}</p>
+      {reason === 'switch' && (
         <>
-          <p>{t('body', { workspace })}</p>
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => void go()} disabled={busy} aria-busy={busy || undefined}>
             {t('switch', { workspace })}
           </button>
@@ -51,8 +45,6 @@ export default function RequestWorkspaceNotice({
             </p>
           )}
         </>
-      ) : (
-        <p>{t('gone')}</p>
       )}
     </div>
   );

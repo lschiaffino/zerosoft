@@ -233,7 +233,12 @@ export async function markRemovedPerson(ws: string, userId: string): Promise<voi
 }
 
 export async function isHrAdmin(ws: string, personId: string, wsAdmin: boolean): Promise<boolean> {
-  if (wsAdmin || ws === personId) return true;
+  return wsAdmin || (await hasCompensationAccess(ws, personId));
+}
+
+/** Sueldos y nómina: el owner o un HR admin marcado (por el owner). Un admin sin marca, no. */
+export async function hasCompensationAccess(ws: string, personId: string): Promise<boolean> {
+  if (ws === personId) return true;
   return Boolean(
     await db()
       .prepare(
@@ -267,8 +272,9 @@ export async function peopleContext(ws: string, personId: string, wsRole: string
         .get(ws),
     );
   const wsAdmin = wsRole === 'owner' || wsRole === 'admin' || ws === personId;
-  const [hr, me, map, settings] = await Promise.all([
-    isHrAdmin(ws, personId, wsAdmin),
+  const comp = await hasCompensationAccess(ws, personId);
+  const hr = wsAdmin || comp;
+  const [me, map, settings] = await Promise.all([
     db().prepare('SELECT id, manager_id FROM people_employees WHERE workspace_id = ? AND user_id = ?').get(ws, personId) as Promise<{ id: string; manager_id: string | null } | undefined>,
     managerMap(ws),
     db().prepare('SELECT visibility FROM people_settings WHERE workspace_id = ?').get(ws) as Promise<{ visibility: string } | undefined>,
@@ -279,11 +285,15 @@ export async function peopleContext(ws: string, personId: string, wsRole: string
     personId,
     wsAdmin,
     wsRole: ws === personId ? 'owner' : wsRole,
-    viewer: { personId, employeeId, hr, wsOwner: ws === personId, reports: employeeId ? reportsOf(employeeId, map) : new Set() },
+    viewer: { personId, employeeId, hr, comp, wsOwner: ws === personId, reports: employeeId ? reportsOf(employeeId, map) : new Set() },
     visibility: parseJson<VisibilitySettings>(settings?.visibility, {}),
     hasManager: Boolean(me?.manager_id),
     needsSync,
   };
+}
+
+export function requireCompensation(ctx: PeopleCtx): void {
+  if (ctx.viewer.comp !== true) throw new PeopleError('forbidden', 403);
 }
 
 export function requireHr(ctx: PeopleCtx): void {
@@ -474,6 +484,7 @@ export interface EmployeeDto extends EmployeeSummary {
     editSelf: boolean;
     seePersonal: boolean;
     seeCompensation: boolean;
+    editCompensation: boolean;
     seePerformance: boolean;
     seeTimeOff: boolean;
     seeExit: boolean;
@@ -588,6 +599,7 @@ export async function getEmployee(ctx: PeopleCtx, id: string, opts: { via?: stri
       editSelf: isSelf(v, id),
       seePersonal,
       seeCompensation: canSeeSensitive(v, id, 'compensation'),
+      editCompensation: v.comp === true,
       seePerformance: canSeeSensitive(v, id, 'performance'),
       seeTimeOff: canSeeSensitive(v, id, 'timeoff'),
       seeExit: canSeeSensitive(v, id, 'exit'),
@@ -880,8 +892,8 @@ export async function updateSettings(
     await db().prepare('UPDATE people_settings SET countries = ? WHERE workspace_id = ?').run(JSON.stringify(list), ctx.ws);
   }
   if (input.hrAdmins) {
-    // Solo owner y admins del workspace nombran HR admins.
-    if (!ctx.wsAdmin) throw new PeopleError('forbidden', 403);
+    // Solo el owner nombra HR admins: dan acceso a los sueldos.
+    if (ctx.viewer.wsOwner !== true) throw new PeopleError('forbidden', 403);
     const members = new Set((await listOwnerSpacePeople(ctx.ws)).map((p) => p.id));
     const ids = [...new Set(input.hrAdmins.map(String))].filter((id) => members.has(id));
     await db().prepare('DELETE FROM people_hr_admins WHERE workspace_id = ?').run(ctx.ws);
@@ -931,7 +943,7 @@ export async function listCompensation(ctx: PeopleCtx, employeeId: string, via =
 }
 
 export async function addCompensation(ctx: PeopleCtx, employeeId: string, input: Record<string, unknown>): Promise<CompEntry> {
-  requireHr(ctx);
+  requireCompensation(ctx);
   if (!(await getEmployeeRow(ctx.ws, employeeId))) throw new PeopleError('not_found', 404);
   const amount = Number(input.amount);
   if (!Number.isFinite(amount) || amount <= 0 || amount > 1e10) throw new PeopleError('invalid_amount');
@@ -950,7 +962,7 @@ export async function addCompensation(ctx: PeopleCtx, employeeId: string, input:
 }
 
 export async function deleteCompensation(ctx: PeopleCtx, employeeId: string, entryId: string): Promise<boolean> {
-  requireHr(ctx);
+  requireCompensation(ctx);
   const res = await db().prepare('DELETE FROM people_compensation WHERE id = ? AND employee_id = ? AND workspace_id = ?').run(entryId, employeeId, ctx.ws);
   if (res.changes) await audit(ctx, 'change', 'compensation', employeeId);
   return res.changes > 0;
@@ -963,9 +975,9 @@ function csvCell(v: unknown): string {
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-/** CSV de nómina (sin procesar pagos): fichas activas con el sueldo vigente. Solo HR; queda auditado. */
+/** CSV de nómina (sin procesar pagos): fichas activas con el sueldo vigente. Owner y HR admins marcados; queda auditado. */
 export async function payrollCsv(ctx: PeopleCtx, asOf = today()): Promise<string> {
-  requireHr(ctx);
+  requireCompensation(ctx);
   const list = (await rows(ctx.ws)).filter((r) => r.status !== 'terminated' || (r.end_date ?? '') >= asOf.slice(0, 8) + '01');
   const comp = (await db()
     .prepare('SELECT employee_id, effective_date, data FROM people_compensation WHERE workspace_id = ? AND effective_date <= ? ORDER BY effective_date DESC, created_at DESC')

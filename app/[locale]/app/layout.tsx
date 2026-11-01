@@ -21,6 +21,7 @@ import RecorderProvider from '@/components/voice/RecorderProvider';
 import TimezoneCookie from '@/components/app/TimezoneCookie';
 import ActiveTabIntoView from '@/components/app/ActiveTabIntoView';
 import { SupportIdentify } from '@/components/SupportWidget';
+import WorkspaceGuard from '@/components/app/WorkspaceGuard';
 import { supportWidgetId } from '@/lib/support';
 import { signVisitorIdentity } from '@/lib/chat-identity';
 import { getUserTimeZone } from '@/lib/user-tz';
@@ -84,6 +85,7 @@ export default async function AppLayout(
   const effective = user.actingUser ? (user.workspace?.id ?? null) : user.team ? (real.active_team_id ?? null) : null;
   const workspaces: SwitcherEntry[] = (await listMyWorkspaces(real).catch(() => [])).map((w) => ({ ...w, current: w.teamId === effective }));
   if (workspaces.length && !workspaces.some((w) => w.current)) workspaces[0].current = true;
+  const tGuard = await getTranslations({ locale, namespace: 'settings.access' });
   const tTriage = await getTranslations({ locale, namespace: 'trackTriage' });
   // Lecturas independientes en paralelo (en Turso cada query es un RTT).
   const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tSocial, tHiring, tPeople, tBooks, tSign, tForms, tasksDue, serverTz, tPlanning, mode, tCat] =
@@ -652,6 +654,12 @@ export default async function AppLayout(
         <Suspense fallback={null}>
           <ActiveTabIntoView />
         </Suspense>
+        {user.workspace && (
+          <WorkspaceGuard
+            workspaceId={user.workspace.id}
+            labels={{ title: tGuard('guardTitle'), body: tGuard('guardBody'), reload: tGuard('guardReload') }}
+          />
+        )}
         {supportId && (
           <SupportIdentify
             email={supportEmail}

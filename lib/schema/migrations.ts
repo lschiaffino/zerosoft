@@ -8012,6 +8012,23 @@ export const MIGRATIONS: Migration[] = [
       await client.execute('CREATE INDEX IF NOT EXISTS idx_robot_audit_robot ON robot_audit (robot_id, created_at)');
     },
   },
+  {
+    // Pedidos de acceso a una app: pendientes hasta que alguien responde. Tabla nueva, sin tocar datos.
+    id: '162_workspace_access_requests',
+    up: async (client) => {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS workspace_access_requests (
+          team_id TEXT NOT NULL,
+          person_id TEXT NOT NULL,
+          app TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          requested_at TEXT NOT NULL,
+          resolved_at TEXT,
+          resolved_by TEXT,
+          PRIMARY KEY (team_id, person_id, app)
+        )`);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

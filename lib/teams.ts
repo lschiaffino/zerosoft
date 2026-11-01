@@ -64,6 +64,8 @@ async function promotedToMember(teamId: string, userId: string, role: string): P
   if (!team || team.owner_id === userId) return;
   const { personJoined } = await import('./workspace-lifecycle');
   await personJoined({ ownerId: team.owner_id, teamId, userId, role });
+  // Volver a ser del equipo lo lleva de vuelta, salvo que ya esté trabajando en otro workspace ajeno.
+  await getDb().prepare('UPDATE users SET active_team_id = ? WHERE id = ? AND active_team_id IS NULL').run(teamId, userId);
 }
 
 /**

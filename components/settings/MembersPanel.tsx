@@ -29,33 +29,61 @@ function initial(name: string | null, email: string): string {
   return ((name ?? email).trim().charAt(0) || '?').toUpperCase();
 }
 
-/** Selector de apps: "Todas" o una lista. */
-export function AppsPicker({ value, onChange, idPrefix }: { value: Apps; onChange: (v: Apps) => void; idPrefix: string }) {
+/**
+ * Selector de apps: "Todas" o una lista, en el orden del sidebar. `limit`: las
+ * apps de quien edita (nadie da las que no tiene: las que la otra persona ya
+ * tiene se pueden quitar). `requested`: las que pidió, marcadas.
+ */
+export function AppsPicker({
+  value,
+  onChange,
+  idPrefix,
+  order = APP_SWITCHER_ORDER,
+  limit = '*',
+  requested = [],
+}: {
+  value: Apps;
+  onChange: (v: Apps) => void;
+  idPrefix: string;
+  order?: readonly ProductKey[];
+  limit?: Apps;
+  requested?: readonly ProductKey[];
+}) {
   const t = useTranslations('settings.members');
   const all = value === '*';
   const list = all ? [] : value;
+  const limited = limit !== '*';
+  const canAdd = (k: ProductKey) => limit === '*' || limit.includes(k);
+  const visible = order.filter((k) => canAdd(k) || list.includes(k));
   return (
     <fieldset className="st-fieldset ws-apps">
       <legend className="label">{t('apps')}</legend>
-      <label className="ui-check">
-        <input type="checkbox" checked={all} onChange={(e) => onChange(e.target.checked ? '*' : [...APP_SWITCHER_ORDER])} />
-        <span>{t('allApps')}</span>
-      </label>
+      {(!limited || all) && (
+        <label className="ui-check">
+          <input type="checkbox" checked={all} onChange={(e) => onChange(e.target.checked ? [...order] : limited ? [...(limit as ProductKey[])] : [...order])} />
+          <span>{t('allApps')}</span>
+        </label>
+      )}
       {!all && (
         <div className="ws-apps-grid" role="group" aria-label={t('apps')}>
-          {APP_SWITCHER_ORDER.map((key) => (
+          {visible.map((key) => (
             <label key={key} className="ui-check" htmlFor={`${idPrefix}-${key}`}>
               <input
                 id={`${idPrefix}-${key}`}
                 type="checkbox"
                 checked={list.includes(key)}
+                disabled={!list.includes(key) && !canAdd(key)}
                 onChange={(e) => onChange(e.target.checked ? [...list, key] : list.filter((k) => k !== key))}
               />
-              <span>{PRODUCT_CONFIG[key].name}</span>
+              <span>
+                {PRODUCT_CONFIG[key].name}
+                {requested.includes(key) && <span className="ws-app-requested"> {t('requested')}</span>}
+              </span>
             </label>
           ))}
         </div>
       )}
+      {limited && <p className="ui-help">{t('appsLimitHelp')}</p>}
       {!all && list.length === 0 && <p className="ui-help">{t('noAppsHelp')}</p>}
     </fieldset>
   );
@@ -101,6 +129,8 @@ function GroupsPicker({
  */
 export default function MembersPanel({
   openPerson = null,
+  actorApps = '*',
+  appOrder = APP_SWITCHER_ORDER,
   initial: initialDir,
   me,
   role,
@@ -110,6 +140,10 @@ export default function MembersPanel({
 }: {
   /** Abrir el acceso de esta persona al entrar (aviso de "pide acceso", ya validado contra el workspace). */
   openPerson?: string | null;
+  /** Apps de quien edita: no puede dar otras. */
+  actorApps?: Apps;
+  /** Orden del sidebar. */
+  appOrder?: readonly ProductKey[];
   initial: DirectoryDto;
   me: string;
   role: Role;
@@ -132,7 +166,7 @@ export default function MembersPanel({
   // Invitar
   const [emails, setEmails] = useState('');
   const [inviteRole, setInviteRole] = useState<'member' | 'admin' | 'guest'>('member');
-  const [inviteApps, setInviteApps] = useState<Apps>('*');
+  const [inviteApps, setInviteApps] = useState<Apps>(actorApps);
   const [inviteGroups, setInviteGroups] = useState<string[]>([]);
   const [results, setResults] = useState<InviteOutcome[] | null>(null);
   const [invalid, setInvalid] = useState<string[]>([]);
@@ -182,19 +216,32 @@ export default function MembersPanel({
     router.refresh();
   }
 
-  function openEdit(m: MemberDto) {
+  // Sus pedidos que quien edita puede responder (un admin no responde por apps que no tiene).
+  const answerable = (m: MemberDto | null): ProductKey[] => (m?.requestedApps ?? []).filter((a) => actorApps === '*' || actorApps.includes(a));
+
+  function openEdit(m: MemberDto, fromRequest = false) {
+    setError(null);
     setEditing(m);
-    setEditApps(m.apps);
+    const asked = answerable(m);
+    // Desde el aviso, lo pedido ya viene tildado: aprobar es Guardar.
+    setEditApps(fromRequest && m.apps !== '*' && asked.length ? [...new Set([...m.apps, ...asked])] : m.apps);
     setEditGroups(m.groupIds);
   }
 
-  // El aviso de "pide acceso": la página ya comprobó que es de este workspace.
+  function closeEdit() {
+    setEditing(null);
+    // Sin ?person= recargar no vuelve a abrir el diálogo.
+    if (openPerson) router.replace('/app/settings/members', { scroll: false });
+  }
+
+  // El aviso de "pide acceso": la página ya comprobó que es de este workspace. Sigue al link aunque
+  // ya estemos en Miembros (la campana navega sin desmontar esta página).
   useEffect(() => {
-    if (!admin) return;
-    const m = openPerson ? initialDir.members.find((x) => x.userId === openPerson) : undefined;
-    if (m && m.userId !== me && canManage(role, m.role)) openEdit(m);
+    if (!admin || !openPerson) return;
+    const m = initialDir.members.find((x) => x.userId === openPerson);
+    if (m) openEdit(m, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [openPerson]);
 
   async function saveEdit() {
     if (!editing) return;
@@ -203,8 +250,21 @@ export default function MembersPanel({
       body: JSON.stringify({ apps: editApps, groupIds: editGroups, workspaceId: dir.team.id }),
     });
     if (!res) return;
-    setEditing(null);
+    closeEdit();
     await refresh();
+    router.refresh();
+  }
+
+  async function deny() {
+    if (!editing) return;
+    const res = await call('/api/teams/access-request', {
+      method: 'DELETE',
+      body: JSON.stringify({ personId: editing.userId, workspaceId: dir.team.id }),
+    });
+    if (!res) return;
+    closeEdit();
+    await refresh();
+    router.refresh();
   }
 
   async function changeRole(m: MemberDto, next: string) {
@@ -315,7 +375,7 @@ export default function MembersPanel({
             </div>
             {inviteRole !== 'guest' && (
               <>
-                <AppsPicker value={inviteApps} onChange={setInviteApps} idPrefix="ws-inv-app" />
+                <AppsPicker value={inviteApps} onChange={setInviteApps} idPrefix="ws-inv-app" order={appOrder} limit={actorApps} />
                 <GroupsPicker groups={dir.groups} value={inviteGroups} onChange={setInviteGroups} idPrefix="ws-inv-grp" />
               </>
             )}
@@ -473,7 +533,7 @@ export default function MembersPanel({
               </div>
             ))}
           </dl>
-          <p className="ui-help">{t('rolesLegendApps')}</p>
+          <p className="ui-help">{t(admin ? 'rolesLegendAppsAdmin' : 'rolesLegendApps')}</p>
         </details>
       </FormSection>
 
@@ -580,7 +640,7 @@ export default function MembersPanel({
 
       <QuickModal
         open={editing !== null}
-        onClose={() => setEditing(null)}
+        onClose={closeEdit}
         title={t('editTitle', { name: editing?.name || editing?.email || '' })}
         onSubmit={() => void saveEdit()}
         submitLabel={t('save')}
@@ -588,8 +648,20 @@ export default function MembersPanel({
         busy={busy}
         error={editing ? error : null}
         width={520}
+        footExtra={
+          answerable(editing).length > 0 ? (
+            <button type="button" className="btn btn-secondary" onClick={() => void deny()} disabled={busy} data-testid="deny-request">
+              {t('denyRequest')}
+            </button>
+          ) : undefined
+        }
       >
-        <AppsPicker value={editApps} onChange={setEditApps} idPrefix="ws-edit-app" />
+        {answerable(editing).length > 0 && (
+          <p className="ws-request-line" data-testid="request-line">
+            {t('requestLine', { name: editing?.name || editing?.email || '', apps: answerable(editing).map((a) => PRODUCT_CONFIG[a].name).join(', ') })}
+          </p>
+        )}
+        <AppsPicker value={editApps} onChange={setEditApps} idPrefix="ws-edit-app" order={appOrder} limit={actorApps} requested={answerable(editing)} />
         <GroupsPicker groups={dir.groups} value={editGroups} onChange={setEditGroups} idPrefix="ws-edit-grp" />
       </QuickModal>
 

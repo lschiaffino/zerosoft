@@ -470,7 +470,7 @@
     "allApps": "All apps",
     "noApps": "No apps",
     "noAppsHelp": "Without apps the person only sees what is shared with them.",
-    "guestAccess": "Only what is shared",
+    "guestAccess": "Shared only",
     "teams": "Teams",
     "send": "Send invitations",
     "invalidEmails": "These are not valid emails: {list}",
@@ -540,7 +540,8 @@
       "owner_cant_leave": "The owner can't leave the workspace.",
       "cant_change_own_role": "You can't change your own role.",
       "not_found": "That person or invitation no longer exists. Reload the page.",
-      "wrong_workspace": "You switched workspace in another tab. Reload and try again."
+      "wrong_workspace": "You switched workspace in another tab. Reload and try again.",
+      "apps_not_yours": "You can only give access to apps you have yourself."
     },
     "approve": "Approve",
     "allowAnyEmail": "Allow another email",
@@ -567,8 +568,8 @@
       "confirmBody": "You lose what they shared with you person to person. To come back, someone has to invite you again."
     },
     "roleLegend": {
-      "owner": "Uses every app. The only one who can name, change or remove admins. Can’t leave the workspace.",
-      "admin": "Uses the apps turned on for them. Also invites people, changes the role and apps of members and guests, and edits workspace settings.",
+      "owner": "Uses every app and sees salaries in People. The only one who can name, change or remove admins and name HR admins. Can’t leave the workspace.",
+      "admin": "Uses the apps turned on for them. Also invites people, changes the role and apps of members and guests, and edits workspace settings. Sees salaries only if the owner names them HR admin.",
       "member": "Uses the apps turned on for them. What they see in each one depends on how it’s shared.",
       "guest": "Doesn’t enter the workspace. Only sees what people share with them, such as a Docs page."
     },
@@ -576,8 +577,16 @@
       "body": "This request is from {workspace}, which isn’t your active workspace. Their access opens there.",
       "switch": "Switch to {workspace}",
       "error": "Couldn’t switch. Try again.",
-      "gone": "This request is from a workspace you’re no longer part of."
-    }
+      "notPart": "This request is from a workspace you're not part of.",
+      "removed": "This person is no longer in {workspace}, so there's nothing to answer.",
+      "adminOnly": "Only the owner can change an admin's access, and the owner's own access can't be changed.",
+      "adminsOnly": "Only the owner and admins of {workspace} can open someone's access."
+    },
+    "requested": "(requested)",
+    "appsLimitHelp": "You can only turn on apps you have.",
+    "denyRequest": "Deny request",
+    "requestLine": "{name} asked for {apps}.",
+    "rolesLegendAppsAdmin": "Inside each app some actions are for admins only, like deleting pipelines or changing the app's settings."
   },
   "teamsForm": {
     "createTitle": "Create a team",
@@ -634,7 +643,7 @@
     "detailsDesc": "The name and logo everyone sees in the sidebar and in invitations.",
     "name": "Name",
     "slug": "Identifier",
-    "slugPlaceholder": "darwin-ai",
+    "slugPlaceholder": "acme",
     "slugHelp": "Lowercase letters, numbers and hyphens. Unique across zerosoft.",
     "size": "Team size",
     "sizeUnset": "Not set",
@@ -681,7 +690,8 @@
       "file_too_large": "The image is over 2 MB.",
       "storage_unavailable": "File storage is not set up here.",
       "forbidden": "Only the owner and admins can change this.",
-      "domain_not_yours": "You can only allow the domain of your own email."
+      "domain_not_yours": "You can only allow the domain of your own email.",
+      "apps_not_yours": "You can only give access to apps you have yourself."
     },
     "joinApproval": "An admin approves each person before they join",
     "joinRole": "They join as members with these apps:",
@@ -716,7 +726,7 @@
     "createSubmit": "Create and invite",
     "cancel": "Cancel",
     "teamName": "Team name",
-    "teamNamePlaceholder": "Darwin AI",
+    "teamNamePlaceholder": "Acme",
     "createHelp": "Your workspace becomes a team workspace with this name. Your data stays where it is. Next you invite people."
   },
   "access": {
@@ -725,11 +735,15 @@
     "back": "Back to apps",
     "request": "Ask for access",
     "sending": "Sending…",
-    "sent": "Request sent. The owner and admins got a notification.",
+    "sent": "Request sent. We'll tell you when it's answered.",
     "error": "Couldn’t send the request. Try again.",
-    "already": "You already asked today. The owner and admins have your request.",
+    "already": "You already asked today. We'll tell you when it's answered.",
     "hasAccess": "You already have this app. Open it from your apps.",
-    "limited": "Too many requests in the last hour. Wait a while and ask again."
+    "limited": "Too many requests in the last hour. Wait a while and ask again.",
+    "bodyAdmin": "The owner of {workspace} can turn {app} on for you in Settings › Members.",
+    "guardTitle": "This change wasn't saved",
+    "guardBody": "You no longer have access to this workspace, or you switched workspace in another tab. Reload to continue.",
+    "guardReload": "Reload"
   },
   "invite": {
     "metaTitle": "Invitation",
@@ -811,7 +825,7 @@
       "title": "Your team",
       "sub": "This is the workspace your team will share.",
       "name": "Team name",
-      "namePlaceholder": "Darwin AI",
+      "namePlaceholder": "Acme",
       "size": "How many people?",
       "sizes": {
         "1": "Just me",
@@ -849,7 +863,7 @@
     "invited": {
       "title": "Welcome to {workspace}",
       "titleNoName": "Welcome to zerosoft",
-      "sub": "Two details and you are in.",
+      "sub": "Check these details and you're in.",
       "go": "Go to {workspace}",
       "guestSub": "You joined {workspace} as a guest: you open what people share with you from its link or from your notifications. Your own workspace is where you land.",
       "guestTitle": "You’re a guest of {workspace}"
@@ -867,7 +881,8 @@
       "invalid": "These are not valid emails: {list}",
       "limited": "You reached the invitation limit for now. Invite the rest later from Settings › Members."
     },
-    "notYou": "Not you? Sign out"
+    "notYou": "Not you? Sign out",
+    "stepFirst": "Step 1"
   },
   "profileForm": {
     "title": "Your details",

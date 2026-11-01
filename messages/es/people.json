@@ -502,8 +502,8 @@
     "welcomeHint": "Va arriba de la página de bienvenida, con su manager, su equipo, sus primeras tareas y lo que tiene que leer.",
     "previewWelcome": "Ver la bienvenida",
     "hrAdmins": "HR admins",
-    "hrAdminsHint": "Los HR admins gestionan fichas, licencias, documentos, sueldos, evaluaciones y reportes. Owner y admins del workspace son siempre HR admins.",
-    "implicitHr": "Admin del workspace",
+    "hrAdminsHint": "Los HR admins gestionan fichas, licencias, documentos, sueldos, evaluaciones y reportes. Los sueldos y la exportación de nómina son del owner, los HR admins y cada persona. Los admins del workspace gestionan el resto de People sin ver sueldos. Solo el owner nombra HR admins.",
+    "implicitHr": "Owner del workspace",
     "onlyAdmins": "Solo owner y admins del workspace eligen HR admins."
   },
   "welcome": {

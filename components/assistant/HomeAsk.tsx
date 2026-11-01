@@ -13,10 +13,10 @@ import { useAssistantStatus, useSuggestions } from './useAssistantStatus';
 export default function HomeAsk() {
   const t = useTranslations('assistant');
   const router = useRouter();
-  const suggestions = useSuggestions('/app');
   const [draft, setDraft] = useState('');
   const [recent, setRecent] = useState<ConversationSummary[]>([]);
   const { status, error } = useAssistantStatus(true);
+  const suggestions = useSuggestions('/app', status?.webhooks === true);
   const ready = status?.state === 'ready';
 
   useEffect(() => {

@@ -58,5 +58,14 @@
   "appAccessRequestBody": "Activalo en Ajustes › Miembros de {workspace}.",
   "joinRequest": "{who} pide sumarse a {workspace}",
   "appAccessGranted": "{who} te dio acceso a {app} en {workspace}",
-  "appAccessGrantedAll": "{who} te dio acceso a todas las apps en {workspace}"
+  "appAccessGrantedAll": "{who} te dio acceso a todas las apps en {workspace}",
+  "appAccessDenied": "{who} no habilitó {app} en {workspace}",
+  "appAccessDeniedBody": "Podés volver a pedirlo desde la pantalla de la app.",
+  "workspaceRemoved": "{who} te sacó de {workspace}",
+  "workspaceDemotedGuest": "{who} te hizo invitado de {workspace}: solo ves lo que te comparten",
+  "workspaceRoleChanged": "{who} cambió tu rol en {workspace} a {role}",
+  "workspaceChangeAsk": "Preguntale a {who} si tenés dudas.",
+  "roleNameAdmin": "Admin",
+  "roleNameMember": "Miembro",
+  "roleNameGuest": "Invitado"
 }

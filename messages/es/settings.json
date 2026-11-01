@@ -540,7 +540,8 @@
       "owner_cant_leave": "El owner no puede salir del workspace.",
       "cant_change_own_role": "No podés cambiar tu propio rol.",
       "not_found": "Esa persona o invitación ya no existe. Recargá la página.",
-      "wrong_workspace": "Cambiaste de workspace en otra pestaña. Recargá y probá de nuevo."
+      "wrong_workspace": "Cambiaste de workspace en otra pestaña. Recargá y probá de nuevo.",
+      "apps_not_yours": "Solo podés dar acceso a apps que tenés."
     },
     "approve": "Aprobar",
     "allowAnyEmail": "Permitir otro email",
@@ -567,8 +568,8 @@
       "confirmBody": "Perdés lo que te compartieron persona a persona. Para volver, alguien te tiene que invitar de nuevo."
     },
     "roleLegend": {
-      "owner": "Usa todas las apps. Es la única persona que nombra, cambia o saca admins. No puede salir del workspace.",
-      "admin": "Usa las apps que tiene habilitadas. Además invita gente, cambia el rol y las apps de miembros e invitados y edita los ajustes del workspace.",
+      "owner": "Usa todas las apps y ve los sueldos en People. Es la única persona que nombra, cambia o saca admins y nombra HR admins. No puede salir del workspace.",
+      "admin": "Usa las apps que tiene habilitadas. Además invita gente, cambia el rol y las apps de miembros e invitados y edita los ajustes del workspace. Ve sueldos solo si el owner lo nombra HR admin.",
       "member": "Usa las apps que tiene habilitadas. Lo que ve en cada una depende de cómo esté compartido.",
       "guest": "No entra al workspace. Solo ve lo que le comparten, como una página de Docs."
     },
@@ -576,8 +577,16 @@
       "body": "Este pedido es de {workspace}, que no es tu workspace activo. Su acceso se abre ahí.",
       "switch": "Cambiar a {workspace}",
       "error": "No se pudo cambiar. Probá de nuevo.",
-      "gone": "Este pedido es de un workspace del que ya no sos parte."
-    }
+      "notPart": "Este pedido es de un workspace del que no sos parte.",
+      "removed": "Esta persona ya no está en {workspace}: no queda nada por responder.",
+      "adminOnly": "Solo el owner puede cambiar el acceso de un admin, y el del owner no se puede cambiar.",
+      "adminsOnly": "Solo el owner y los admins de {workspace} pueden abrir el acceso de alguien."
+    },
+    "requested": "(pedida)",
+    "appsLimitHelp": "Solo podés habilitar apps que tenés.",
+    "denyRequest": "Rechazar pedido",
+    "requestLine": "{name} pidió {apps}.",
+    "rolesLegendAppsAdmin": "Dentro de cada app hay acciones solo para admins, como borrar pipelines o cambiar los ajustes de la app."
   },
   "teamsForm": {
     "createTitle": "Crear un equipo",
@@ -634,7 +643,7 @@
     "detailsDesc": "El nombre y el logo que todos ven en el sidebar y en las invitaciones.",
     "name": "Nombre",
     "slug": "Identificador",
-    "slugPlaceholder": "darwin-ai",
+    "slugPlaceholder": "acme",
     "slugHelp": "Minúsculas, números y guiones. Único en zerosoft.",
     "size": "Tamaño del equipo",
     "sizeUnset": "Sin definir",
@@ -681,7 +690,8 @@
       "file_too_large": "La imagen pesa más de 2 MB.",
       "storage_unavailable": "Acá no hay almacenamiento de archivos configurado.",
       "forbidden": "Solo el owner y los admins pueden cambiar esto.",
-      "domain_not_yours": "Solo podés habilitar el dominio de tu propio email."
+      "domain_not_yours": "Solo podés habilitar el dominio de tu propio email.",
+      "apps_not_yours": "Solo podés dar acceso a apps que tenés."
     },
     "joinApproval": "Un admin aprueba a cada persona antes de que entre",
     "joinRole": "Entran como miembros con estas apps:",
@@ -716,7 +726,7 @@
     "createSubmit": "Crear e invitar",
     "cancel": "Cancelar",
     "teamName": "Nombre del equipo",
-    "teamNamePlaceholder": "Darwin AI",
+    "teamNamePlaceholder": "Acme",
     "createHelp": "Tu workspace pasa a ser de equipo con este nombre. Tus datos quedan donde están. Después invitás a la gente."
   },
   "access": {
@@ -725,11 +735,15 @@
     "back": "Volver a las apps",
     "request": "Pedir acceso",
     "sending": "Enviando…",
-    "sent": "Pedido enviado. Al owner y a los admins les llegó un aviso.",
+    "sent": "Pedido enviado. Te avisamos cuando lo respondan.",
     "error": "No se pudo enviar el pedido. Probá de nuevo.",
-    "already": "Ya lo pediste hoy. El owner y los admins tienen tu pedido.",
+    "already": "Ya lo pediste hoy. Te avisamos cuando lo respondan.",
     "hasAccess": "Ya tenés esta app. Abrila desde tus apps.",
-    "limited": "Demasiados pedidos en la última hora. Esperá un rato y volvé a pedirlo."
+    "limited": "Demasiados pedidos en la última hora. Esperá un rato y volvé a pedirlo.",
+    "bodyAdmin": "El owner de {workspace} te puede habilitar {app} en Ajustes › Miembros.",
+    "guardTitle": "Este cambio no se guardó",
+    "guardBody": "Ya no tenés acceso a este workspace, o cambiaste de workspace en otra pestaña. Recargá para seguir.",
+    "guardReload": "Recargar"
   },
   "invite": {
     "metaTitle": "Invitación",
@@ -811,7 +825,7 @@
       "title": "Tu equipo",
       "sub": "Este es el workspace que va a compartir tu equipo.",
       "name": "Nombre del equipo",
-      "namePlaceholder": "Darwin AI",
+      "namePlaceholder": "Acme",
       "size": "¿Cuántas personas son?",
       "sizes": {
         "1": "Solo yo",
@@ -849,7 +863,7 @@
     "invited": {
       "title": "Te damos la bienvenida a {workspace}",
       "titleNoName": "Te damos la bienvenida a zerosoft",
-      "sub": "Dos datos y entrás.",
+      "sub": "Revisá estos datos y entrás.",
       "go": "Ir a {workspace}",
       "guestSub": "Entraste a {workspace} como invitado: abrís lo que te comparten desde su link o desde tus avisos. Vas a llegar a tu propio workspace.",
       "guestTitle": "Sos invitado de {workspace}"
@@ -867,7 +881,8 @@
       "invalid": "Estos no son emails válidos: {list}",
       "limited": "Llegaste al límite de invitaciones por ahora. Invitá al resto más tarde desde Ajustes › Miembros."
     },
-    "notYou": "¿No sos vos? Salir"
+    "notYou": "¿No sos vos? Salir",
+    "stepFirst": "Paso 1"
   },
   "profileForm": {
     "title": "Tus datos",

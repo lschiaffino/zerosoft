@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { getDb } from '@/lib/db';
-import { realUserId, requireUser, userCanUseApp } from '@/lib/session';
+import { isWorkspaceAdmin, realUserId, requireUser, userCanUseApp } from '@/lib/session';
+import { featuredApps, moreAppsByCategory } from '@/lib/workspace-mode';
 import { settingsSectionMetadata } from '@/lib/settings-meta';
-import { ensureWorkspace, listMyWorkspaces } from '@/lib/workspace';
+import { ensureWorkspace, listMyWorkspaces, workspaceModeOf } from '@/lib/workspace';
 import { loadDirectory } from '@/lib/workspace-directory';
 import { getTeamById, listGuestWorkspaces } from '@/lib/teams';
 import RequestWorkspaceNotice from '@/components/settings/RequestWorkspaceNotice';
@@ -42,19 +43,31 @@ export default async function MembersSettingsPage(props: { params: Promise<{ loc
   const real = user.actingUser ?? user;
   const guestOf = await listGuestWorkspaces(realUserId(user));
   // Aviso de "pide acceso" (?person=&ws=): su acceso solo se abre en el workspace del pedido.
-  const sameWorkspace = Boolean(person && ws && ws === team.id);
-  let other: { teamId: string | null; workspace: string; canSwitch: boolean } | null = null;
-  if (person && ws && !sameWorkspace) {
-    const own = await ensureWorkspace(real.id);
-    const entry = ws === own.id ? { teamId: null } : (await listMyWorkspaces(real)).find((e) => e.teamId === ws);
-    const target = entry ? await getTeamById(ws) : null;
-    other = entry && target ? { teamId: entry.teamId, workspace: target.name, canSwitch: true } : { teamId: null, workspace: '', canSwitch: false };
+  // Lo que no se pueda abrir lo dice: el link nunca queda mudo.
+  const admin = isWorkspaceAdmin(user);
+  let openPerson: string | null = null;
+  let other: { teamId: string | null; workspace: string; reason: 'switch' | 'notPart' | 'removed' | 'adminOnly' | 'adminsOnly' } | null = null;
+  if (person) {
+    if (!ws || ws !== team.id) {
+      const own = await ensureWorkspace(real.id);
+      const entry = !ws ? null : ws === own.id ? { teamId: null } : (await listMyWorkspaces(real)).find((e) => e.teamId === ws);
+      const target = entry && ws ? await getTeamById(ws) : null;
+      other = entry && target ? { teamId: entry.teamId, workspace: target.name, reason: 'switch' } : { teamId: null, workspace: '', reason: 'notPart' };
+    } else {
+      const target = dir.members.find((m) => m.userId === person);
+      if (!admin) other = { teamId: null, workspace: team.name, reason: 'adminsOnly' };
+      else if (!target) other = { teamId: null, workspace: team.name, reason: 'removed' };
+      else if (target.role === 'owner' || (target.role === 'admin' && user.role !== 'owner') || person === real.id) other = { teamId: null, workspace: team.name, reason: 'adminOnly' };
+      else openPerson = person;
+    }
   }
+  const mode = workspaceModeOf(team);
+  const appOrder = [...featuredApps({ mode }), ...moreAppsByCategory({ mode }).flatMap((g) => g.apps)];
   return (
     <>
       {other && <RequestWorkspaceNotice {...other} />}
       <GuestOfPanel workspaces={guestOf} />
-      <MembersPanel openPerson={sameWorkspace ? (person ?? null) : null} initial={dir} me={realUserId(user)} role={user.role} legacyNotice={legacyNotice} peopleLinks={userCanUseApp(user, 'people')} emailLogin={emailLoginEnabled()} />
+      <MembersPanel openPerson={openPerson} actorApps={user.apps ?? '*'} appOrder={appOrder} initial={dir} me={realUserId(user)} role={user.role} legacyNotice={legacyNotice} peopleLinks={userCanUseApp(user, 'people')} emailLogin={emailLoginEnabled()} />
     </>
   );
 }

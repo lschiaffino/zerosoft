@@ -1,3 +1,5 @@
+import { pendingRequests } from './workspace-access-request';
+import type { ProductKey } from './products';
 /**
  * Lo que muestra Ajustes › Miembros: personas, invitaciones pendientes y
  * subequipos del workspace, en una forma que sirve igual al server component
@@ -10,6 +12,8 @@ import { listGroups } from './workspace-groups';
 import { inviteUrl } from './workspace-invites';
 
 export interface MemberDto {
+  /** Apps que pidió y nadie respondió todavía (solo se cargan para admins). */
+  requestedApps: ProductKey[];
   userId: string;
   name: string | null;
   email: string;
@@ -61,10 +65,11 @@ export interface DirectoryDto {
 
 export async function loadDirectory(team: TeamRow, viewerRole: TeamRole, base: string): Promise<DirectoryDto> {
   const admin = viewerRole === 'owner' || viewerRole === 'admin';
-  const [people, invites, groups] = await Promise.all([
+  const [people, invites, groups, requests] = await Promise.all([
     listTeamPeople(team, { includeGuests: true }),
     admin ? listPendingInvites(team.id) : Promise.resolve([]),
     listGroups(team.owner_id),
+    admin ? pendingRequests(team.id) : Promise.resolve(new Map<string, ProductKey[]>()),
   ]);
   const groupsOf = new Map<string, string[]>();
   for (const g of groups) for (const m of g.members) groupsOf.set(m.user_id, [...(groupsOf.get(m.user_id) ?? []), g.id]);
@@ -79,6 +84,7 @@ export async function loadDirectory(team: TeamRow, viewerRole: TeamRole, base: s
       apps: p.apps,
       groupIds: groupsOf.get(p.user_id) ?? [],
       joinedAt: p.created_at,
+      requestedApps: requests.get(p.user_id) ?? [],
     })),
     invites: invites.map((i) => {
       let groupIds: string[] = [];

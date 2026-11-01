@@ -328,11 +328,11 @@ export default function WelcomeFlow(props: {
       <div className="wl-top">
         <Logo variant="symbol" tone="current" height={28} title="" />
         <p className="wl-progress" aria-live="polite">
-          {t('stepOf', { step: index + 1, total: steps.length })}
+          {step === 'use' ? t('stepFirst') : t('stepOf', { step: index + 1, total: steps.length })}
         </p>
       </div>
       <div className="wl-bar" aria-hidden="true">
-        <span style={{ width: `${((index + 1) / steps.length) * 100}%` }} />
+        <span style={{ width: step === 'use' ? '20%' : `${((index + 1) / steps.length) * 100}%` }} />
       </div>
 
       {step === 'use' && (

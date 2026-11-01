@@ -502,8 +502,8 @@
     "welcomeHint": "Shown at the top of the welcome page, with their manager, team, first tasks and what to read.",
     "previewWelcome": "See the welcome page",
     "hrAdmins": "HR admins",
-    "hrAdminsHint": "HR admins manage profiles, time off, documents, compensation, reviews and reports. Workspace owners and admins are always HR admins.",
-    "implicitHr": "Workspace admin",
+    "hrAdminsHint": "HR admins manage profiles, time off, documents, compensation, reviews and reports. Salaries and the payroll export are for the owner, HR admins and each person. Workspace admins manage the rest of People without seeing salaries. Only the owner names HR admins.",
+    "implicitHr": "Workspace owner",
     "onlyAdmins": "Only workspace owners and admins choose HR admins."
   },
   "welcome": {

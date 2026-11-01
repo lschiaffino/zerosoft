@@ -12,11 +12,14 @@ type State = 'idle' | 'busy' | 'sent' | 'already' | 'hasAccess' | 'limited' | 'e
 export default function RequestAccessButton({
   app,
   labels,
+  alreadyAsked = false,
 }: {
   app: string;
+  /** Ya hay un pedido sin responder. */
+  alreadyAsked?: boolean;
   labels: { request: string; sending: string; sent: string; already: string; hasAccess: string; limited: string; error: string };
 }) {
-  const [state, setState] = useState<State>('idle');
+  const [state, setState] = useState<State>(alreadyAsked ? 'sent' : 'idle');
 
   async function send() {
     if (state === 'busy') return;

@@ -4,7 +4,9 @@
  * asistente, los exports y la API v1. Un solo lugar decide; nadie filtra a mano.
  *
  * Roles dentro de People, encima de los del workspace:
- * - HR: owner y admins del workspace, más quien HR marque como HR admin.
+ * - HR: owner y admins del workspace, más quien el owner marque como HR admin.
+ * - Sueldos y exportación de nómina: el owner, los HR admins marcados y la persona.
+ *   Un admin del workspace sin esa marca no los lee.
  * - Manager: tiene reportes (directos o indirectos) por los links de manager.
  * - Employee: todo miembro con la app.
  */
@@ -29,7 +31,7 @@ export const DEFAULT_VISIBILITY: Record<ConfigurableField, VisibilityLevel> = {
  * Grupos de datos sensibles. Nunca salen a quien no corresponde: ni en la
  * página, ni en la API, ni en ⌘K, ni en el asistente, ni en avisos o exports.
  * - personal: email personal, dirección, documento, fecha de nacimiento completa, contactos de emergencia.
- * - compensation: sueldo e historial (HR y la persona; el manager no).
+ * - compensation: sueldo e historial (owner, HR admin marcado y la persona; ni un admin sin marca ni el manager).
  * - performance: evaluaciones recibidas y objetivos (HR, la persona y su cadena de managers).
  * - timeoff: saldos, tipos e historial de licencias (HR, la persona y su cadena).
  * - exit: entrevista de salida (solo HR).
@@ -43,6 +45,8 @@ export interface PeopleViewer {
   employeeId: string | null;
   /** HR admin (owner, admin del workspace o marcado en People). */
   hr: boolean;
+  /** Lee y cambia sueldos: el owner o un HR admin marcado. */
+  comp?: boolean;
   /** Owner del workspace (no tiene a quién pedirle aprobación). */
   wsOwner?: boolean;
   /** Fichas que le reportan, directa o indirectamente. */
@@ -59,11 +63,11 @@ export function isManagerOf(viewer: PeopleViewer, employeeId: string): boolean {
 
 /** ¿Ve el grupo sensible de esta ficha? */
 export function canSeeSensitive(viewer: PeopleViewer, employeeId: string, group: SensitiveGroup): boolean {
+  if (group === 'compensation') return viewer.comp === true || isSelf(viewer, employeeId);
   if (viewer.hr) return true;
   const self = isSelf(viewer, employeeId);
   switch (group) {
     case 'personal':
-    case 'compensation':
       return self;
     case 'performance':
     case 'timeoff':

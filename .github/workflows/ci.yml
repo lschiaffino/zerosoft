@@ -68,6 +68,33 @@ jobs:
             test-results/
           retention-days: 7
 
+  # Sesiones reales: sin DEMO_MODE, cada rol entra con su código por email.
+  e2e-real:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: next-build
+      - run: tar -xf next-build.tar && rm next-build.tar
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e:real
+      - uses: actions/upload-artifact@v4
+        if: ${{ !success() }}
+        with:
+          name: playwright-report-real
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
   docker:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -86,12 +113,13 @@ jobs:
   # Nombre estable para exigir un solo check, sea cual sea la cantidad de shards.
   ci-result:
     name: CI result
-    needs: [check, e2e, docker]
+    needs: [check, e2e, e2e-real, docker]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - run: |
-          echo "check=${{ needs.check.result }} e2e=${{ needs.e2e.result }} docker=${{ needs.docker.result }}"
+          echo "check=${{ needs.check.result }} e2e=${{ needs.e2e.result }} e2e-real=${{ needs.e2e-real.result }} docker=${{ needs.docker.result }}"
           test "${{ needs.check.result }}" = success
           test "${{ needs.e2e.result }}" = success
+          test "${{ needs.e2e-real.result }}" = success
           test "${{ needs.docker.result }}" = success

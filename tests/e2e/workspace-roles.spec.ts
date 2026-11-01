@@ -164,7 +164,7 @@ test('admin con otro workspace activo: el aviso no abre el acceso ahí; primero 
     await expect(admin.p.getByTestId('request-other-workspace')).toHaveCount(0);
     // Un workspace del que no es parte no dice ni abre nada.
     await mem.p.goto(`/en/app/settings/members?person=${memId}&ws=ws_no_existe`, { waitUntil: 'networkidle' });
-    await expect(mem.p.getByTestId('request-other-workspace')).toContainText('no longer part of');
+    await expect(mem.p.getByTestId('request-other-workspace')).toContainText('not part of');
     await expect(mem.p.getByRole('dialog')).toHaveCount(0);
   } finally {
     await admin.ctx.close();

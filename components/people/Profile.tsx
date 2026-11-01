@@ -276,7 +276,7 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
         {tab === 'timeoff' && <TimeOffSection employeeId={e.id} hr={hr} isSelf={e.can.isSelf} />}
         {tab === 'documents' && <DocumentsSection employeeId={e.id} hr={hr} isSelf={e.can.isSelf} />}
         {tab === 'performance' && <PerformanceSection employeeId={e.id} />}
-        {tab === 'compensation' && <CompensationSection employeeId={e.id} hr={hr} />}
+        {tab === 'compensation' && <CompensationSection employeeId={e.id} hr={e.can.editCompensation} />}
         {tab === 'onboarding' && <OnboardingSection employeeId={e.id} hr={hr} templates={templates} />}
         {tab === 'notes' && <OneOnOneSection employeeId={e.id} name={e.name} />}
       </div>

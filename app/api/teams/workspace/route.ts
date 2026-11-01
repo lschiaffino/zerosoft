@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getTeamById } from '@/lib/teams';
 import { isResponse, teamsCtx, teamsError } from '@/lib/teams-http';
-import { joinSettings, parseDomains, updateWorkspace, workspaceModeOf, WORKSPACE_SIZES } from '@/lib/workspace';
+import { canGrantApps, joinSettings, parseApps, parseDomains, updateWorkspace, WORKSPACE_SIZES, workspaceModeOf } from '@/lib/workspace';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -46,6 +46,9 @@ export async function PATCH(req: NextRequest) {
   if (isResponse(ctx)) return ctx;
   const parsed = patchSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return teamsError('invalid_input');
+  if (parsed.data.joinApps !== undefined && !canGrantApps(ctx.user.apps ?? '*', parseApps(parsed.data.joinApps), joinSettings(ctx.team).apps)) {
+    return teamsError('apps_not_yours', 403);
+  }
   // Los dominios solo los habilita alguien con email de ese dominio (Google lo verificó al entrar).
   const err = await updateWorkspace(ctx.team.id, { ...parsed.data, editorEmail: parsed.data.allowedDomains ? ctx.real.email : undefined });
   if (err) return teamsError(err, err === 'slug_taken' ? 409 : 400);
