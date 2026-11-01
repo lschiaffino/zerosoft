@@ -8,7 +8,7 @@ type T = ReturnType<typeof useTranslations<'robots'>>;
 
 /** Texto de un código de error de la API (robots.errors.*). */
 export function errorText(t: T, code: string | undefined, values: Record<string, string | number> = {}): string {
-  if (code && t.has(`errors.${code}`)) return t(`errors.${code}` as 'errors.generic', values);
+  if (code && t.has(`errors.${code}`)) return t(`errors.${code}` as 'errors.generic', { index: '', name: '', ...values });
   return t('errors.generic');
 }
 

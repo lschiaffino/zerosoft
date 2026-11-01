@@ -265,9 +265,16 @@ export default function ShareDialog({
                   setSuggestOpen(true);
                   setError(null);
                 }}
-                onFocus={() => setSuggestOpen(true)}
+                // Con clic, al escribir o con las flechas: el diálogo abre con foco acá, y una lista abierta
+                // de entrada taparía el resto del diálogo (y un clic ahí invitaría a alguien).
+                onClick={() => setSuggestOpen(true)}
                 onBlur={() => setTimeout(() => setSuggestOpen(false), 120)}
                 onKeyDown={(e) => {
+                  if (!listOpen && !picked && options.length > 0 && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+                    e.preventDefault();
+                    setSuggestOpen(true);
+                    return;
+                  }
                   if (listOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
                     e.preventDefault();
                     const n = options.length;

@@ -1319,7 +1319,9 @@ export default function DocsEditor({
                 ? 'editor.upload.storageUnavailable'
                 : code === 'file_too_large'
                   ? 'editor.upload.tooLarge'
-                  : 'editor.upload.failed';
+                  : code === 'rate_limited'
+                    ? 'editor.upload.rateLimited'
+                    : 'editor.upload.failed';
           setUploadError(t(key, { name: file.name, max: formatFileSize(max) }));
         } finally {
           setUploading((n) => n - 1);

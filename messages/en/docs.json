@@ -138,6 +138,7 @@
       "uploading": "{count, plural, one {Uploading # file...} other {Uploading # files...}}",
       "tooLarge": "\"{name}\" is larger than {max}.",
       "typeNotAllowed": "\"{name}\" is a file type that cannot be uploaded (HTML, SVG and scripts are blocked).",
+      "rateLimited": "Too many uploads in a row. Wait a minute and try \"{name}\" again.",
       "storageUnavailable": "File storage is not configured on this server, so \"{name}\" was not uploaded.",
       "failed": "Could not upload \"{name}\". Try again.",
       "dismiss": "Dismiss",

@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useEffect, useState } from 'react';
 import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -33,7 +34,7 @@ function BriefBody({ brief }: { brief: VoiceBrief }) {
           <span key={m.id}>
             {i > 0 && ', '}
             <Link href={`/app/voice/meetings/${m.id}`}>{m.title || t('untitled')}</Link>{' '}
-            <span suppressHydrationWarning>({format.dateTime(new Date(m.startedAt), { dateStyle: 'medium' })})</span>
+            <span suppressHydrationWarning>(<LocalText>{format.dateTime(new Date(m.startedAt), { dateStyle: 'medium' })}</LocalText>)</span>
           </span>
         ))}
       </p>

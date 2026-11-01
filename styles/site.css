@@ -489,6 +489,62 @@
 }
 .blog-post-meta { font-family: var(--font-data); font-size: 13px; color: var(--brand-gray-2); }
 .blog-post .prose { margin-top: 40px; }
+.blog-index-grid { list-style: none; }
+.blog-index-grid > li { display: flex; min-width: 0; }
+.blog-index-grid > li > .blog-card { flex: 1; min-width: 0; }
+.blog-card:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+
+.blog-feeds { margin-top: 16px; display: flex; gap: 12px; font-family: var(--font-data); font-size: 13px; color: var(--brand-gray-2); }
+.blog-feeds a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+
+.blog-crumbs { display: flex; flex-wrap: wrap; gap: 8px; font-size: 14px; color: var(--brand-gray-2); margin-bottom: 4px; }
+.blog-crumbs a { color: var(--ink); font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
+.blog-post-meta a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+
+/* Sin el aire de las <section> del sitio (globals.css): acá lo da el margen. */
+.blog-topics,
+.blog-related { padding-top: 0; padding-bottom: 0; }
+.blog-topics { margin-bottom: 48px; }
+.blog-topics-end { margin: 64px 0 0; }
+.blog-topics-title { font-size: 13px; font-weight: 600; color: var(--brand-gray-2); margin-bottom: 12px; }
+.blog-tags { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; }
+.blog-tags a {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-size: 14px;
+  color: var(--ink);
+}
+.blog-tags a:hover { border-color: var(--ink); }
+.blog-tags a[aria-current="page"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+/* En la fuente del texto, que viene precargada: la mono llega tarde y al cambiar reacomodaba toda la lista (CLS). */
+.blog-tag-count { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--brand-gray-2); }
+.blog-tags a[aria-current="page"] .blog-tag-count { color: inherit; opacity: 0.7; }
+
+.prose table { display: block; width: 100%; overflow-x: auto; border-collapse: collapse; margin: 1.4em 0 1.8em; font-size: 15px; }
+.prose th, .prose td { border-bottom: 1px solid var(--line); padding: 8px 12px 8px 0; text-align: left; vertical-align: top; }
+.prose th { color: var(--ink); font-weight: 600; }
+.prose img { max-width: 100%; height: auto; }
+
+.blog-post-foot { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 24px; }
+.blog-product { padding: 20px 24px; background: var(--brand-enamel); }
+.blog-product p { font-size: 15px; line-height: 1.5; color: var(--brand-gray-1); margin-bottom: 10px; }
+.blog-product-links { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+.blog-link { color: var(--ink); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; display: inline-flex; align-items: center; gap: 4px; }
+
+.blog-related { margin-top: 80px; }
+.blog-related-title {
+  font-family: var(--font-signage);
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
+  font-size: 1.75rem;
+  margin-bottom: 24px;
+}
+.blog-back-row { margin-top: 56px; }
 
 @media (max-width: 960px) {
   .blog-index-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

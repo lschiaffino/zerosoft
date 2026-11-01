@@ -138,6 +138,7 @@
       "uploading": "{count, plural, one {Enviando # arquivo...} other {Enviando # arquivos...}}",
       "tooLarge": "\"{name}\" tem mais de {max}.",
       "typeNotAllowed": "\"{name}\" é de um tipo que não pode ser enviado (HTML, SVG e scripts são bloqueados).",
+      "rateLimited": "Muitos envios seguidos. Espere um minuto e tente \"{name}\" de novo.",
       "storageUnavailable": "Este servidor não tem o armazenamento de arquivos configurado, então \"{name}\" não foi enviado.",
       "failed": "Não foi possível enviar \"{name}\". Tente de novo.",
       "dismiss": "Fechar",

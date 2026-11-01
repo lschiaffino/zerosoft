@@ -29,6 +29,70 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-31-correcciones-qa',
+    date: '2026-10-31',
+    title: {
+      en: 'Clearer batch estimates, moving videos and dates in your time zone',
+      es: 'Lotes más claros, mover videos y fechas en tu zona horaria',
+      pt: 'Lotes mais claros, mover vídeos e datas no seu fuso horário',
+    },
+    items: [
+      {
+        product: 'robots',
+        en: 'The bulk run dialog says how many rows your remaining minutes cover. Rows that wait too long in the queue now send a notice when they are dropped.',
+        es: 'El diálogo de corrida en lote dice cuántas filas cubren los minutos que te quedan. Las filas que esperan demasiado en la cola ahora mandan un aviso cuando se descartan.',
+        pt: 'O diálogo de execução em lote diz quantas linhas os minutos restantes cobrem. As linhas que esperam demais na fila agora enviam um aviso quando são descartadas.',
+      },
+      {
+        product: 'talk',
+        en: 'Daily recaps stay on when AI is temporarily unavailable and resume on their own. Retrying /ask after a timeout returns the first answer instead of posting a second one.',
+        es: 'Los recaps diarios siguen activos si la IA no está disponible por un rato y vuelven solos. Reintentar /ask después de un timeout devuelve la primera respuesta en lugar de publicar otra.',
+        pt: 'Os resumos diários continuam ativos se a IA ficar indisponível por um tempo e voltam sozinhos. Tentar /ask de novo depois de um timeout devolve a primeira resposta em vez de publicar outra.',
+      },
+      {
+        product: 'rec',
+        en: 'The move dialog warns when a video changes to Only specific people and shows move errors inside the dialog.',
+        es: 'El diálogo de mover avisa cuando un video pasa a Solo personas puntuales y muestra los errores adentro del diálogo.',
+        pt: 'O diálogo de mover avisa quando um vídeo passa para Só pessoas específicas e mostra os erros dentro do diálogo.',
+      },
+      {
+        product: 'crm',
+        en: 'Dates in CRM lists stay on the right day, and times in Docs, Board, Link, Voice and CRM groups use your time zone.',
+        es: 'Las fechas de las listas del CRM quedan en el día correcto, y las horas de Docs, Board, Link, Voice y los grupos del CRM usan tu zona horaria.',
+        pt: 'As datas das listas do CRM ficam no dia certo, e os horários de Docs, Board, Link, Voice e grupos do CRM usam seu fuso horário.',
+      },
+    ],
+  },
+  {
+    id: '2026-10-31-sitio-comparaciones-blog',
+    date: '2026-10-31',
+    title: {
+      en: 'Site: comparison pages for every app, blog topics and feeds, six migration guides',
+      es: 'Sitio: comparaciones de cada app, temas y feeds del blog, seis guías de migración',
+      pt: 'Site: comparações de cada app, temas e feeds do blog, seis guias de migração',
+    },
+    items: [
+      {
+        product: 'site',
+        en: 'Each app has two pages next to the product it replaces: /compare/zerosoft-vs-<competitor> with the full parity table and /compare/<competitor>-alternative with what you get, what is missing and how to move. Both come from the same parity data as the product page, so they update with it.',
+        es: 'Cada app tiene dos páginas al lado del producto que reemplaza: /compare/zerosoft-vs-<competidor> con la tabla de paridad completa y /compare/<competidor>-alternative con lo que tenés, lo que falta y cómo pasarte. Salen de los mismos datos de paridad que la página de producto, así que se actualizan con ella.',
+        pt: 'Cada app tem duas páginas ao lado do produto que substitui: /compare/zerosoft-vs-<concorrente> com a tabela de paridade completa e /compare/<concorrente>-alternative com o que você tem, o que falta e como migrar. Saem dos mesmos dados de paridade da página do produto, então se atualizam com ela.',
+      },
+      {
+        product: 'site',
+        en: 'The blog has topic and author pages, RSS and Atom feeds per language, related posts and a share image per post in its language. New guides: moving from Linear, Calendly, Intercom, Pipedrive, Evernote and Excalidraw.',
+        es: 'El blog tiene páginas por tema y por autor, feeds RSS y Atom por idioma, posts relacionados y una imagen para compartir por post en su idioma. Guías nuevas: cómo pasarte desde Linear, Calendly, Intercom, Pipedrive, Evernote y Excalidraw.',
+        pt: 'O blog tem páginas por tema e por autor, feeds RSS e Atom por idioma, posts relacionados e uma imagem de compartilhamento por post no seu idioma. Guias novos: como migrar do Linear, Calendly, Intercom, Pipedrive, Evernote e Excalidraw.',
+      },
+      {
+        product: 'site',
+        en: 'Every public page has its own title, canonical URL, links to its other languages and a PNG share image. /llms.txt and /llms-full.txt describe the apps, prices and comparisons for AI assistants.',
+        es: 'Cada página pública tiene título propio, URL canónica, links a sus otros idiomas y una imagen PNG para compartir. /llms.txt y /llms-full.txt describen las apps, los precios y las comparaciones para asistentes de IA.',
+        pt: 'Cada página pública tem título próprio, URL canônica, links para os outros idiomas e uma imagem PNG de compartilhamento. /llms.txt e /llms-full.txt descrevem os apps, os preços e as comparações para assistentes de IA.',
+      },
+    ],
+  },
+  {
     id: '2026-10-31-robots-paridad',
     date: '2026-10-31',
     title: {

@@ -19,7 +19,7 @@ import { rateLimit } from './rate-limit';
 import { getRobotBackend, robotBackendName, type RobotBackendName } from './robots-runner';
 import { open, seal } from './secret-box';
 import { recordRobotOutcome } from './robots-alerts';
-import { PASSWORD_PLACEHOLDER as RECORDER_PASSWORD_PLACEHOLDER } from './robots-recorder';
+import { onlyRecorderSteps, PASSWORD_PLACEHOLDER as RECORDER_PASSWORD_PLACEHOLDER } from './robots-recorder';
 import { diffRobotOutputs, stableJson } from './robots-diff';
 import { geoOptions } from './robots-geo';
 import { mergeDataset, rowsOf, toRowObject, type DatasetMergeResult } from './robots-dataset';
@@ -27,6 +27,9 @@ import type { DestinationResult } from './robots-destinations';
 import {
   CREDENTIAL_TEMPLATE,
   credentialMisuse,
+  credentialScriptConflict,
+  entersFrame,
+  normalizeLoginSite,
   DEFAULT_PAUSE_AFTER,
   isSimpleSelector,
   MAX_BATCH_BYTES,
@@ -195,6 +198,8 @@ export interface RobotUsage {
   changeEmailsPerDay: number;
   /** Corridas a la vez de este workspace. */
   concurrency: number;
+  /** Lo que espera una fila de un lote antes de descartarse (ROBOTS_BATCH_QUEUE_MAX_AGE_H). */
+  batchExpiry: { unit: 'days' | 'hours'; count: number };
 }
 
 function nowIso(): string {
@@ -361,7 +366,7 @@ export async function listRobots(workspaceId: string): Promise<RobotListItem[]> 
 
 export type RobotWriteResult =
   | { ok: true; robot: RobotDto; /** Destinatarios del email de cambios que no son del workspace (se descartaron). */ droppedRecipients?: string[] }
-  | { ok: false; error: RobotErrorCode | 'not_found' | 'unknown_template' | 'invalid_settings' | 'invalid_import' | 'credential_misuse'; index?: number };
+  | { ok: false; error: RobotErrorCode | 'not_found' | 'unknown_template' | 'invalid_settings' | 'invalid_import' | 'credential_misuse' | 'credential_with_script'; index?: number };
 
 function nextRun(schedule: RobotSchedule, enabled: boolean, from = new Date()): string | null {
   if (!schedule || !enabled) return null;
@@ -427,6 +432,8 @@ export async function createRobot(
   }
   const misuse = credentialMisuse(steps);
   if (misuse !== null) return { ok: false, error: 'credential_misuse', index: misuse };
+  const script = credentialScriptConflict(steps);
+  if (script !== null) return { ok: false, error: 'credential_with_script', index: script };
   const id = crypto.randomUUID();
   const ts = nowIso();
   // Los robots nuevos arrancan habilitados pero el schedule de una plantilla
@@ -499,6 +506,8 @@ export async function updateRobot(
     if (!v.ok) return v;
     const misuse = credentialMisuse(v.steps);
     if (misuse !== null) return { ok: false, error: 'credential_misuse', index: misuse };
+    const script = credentialScriptConflict(v.steps);
+    if (script !== null) return { ok: false, error: 'credential_with_script', index: script };
     steps = JSON.stringify(v.steps);
     // Si vuelve a romperse, corresponde otro aviso.
     await getDb().prepare('DELETE FROM robot_runtime WHERE key = ?').run(`cred_notice:${id}`);
@@ -601,6 +610,7 @@ export async function getUsage(workspaceId: string): Promise<RobotUsage> {
     proxies: !!(process.env.ROBOTS_PROXY_URL ?? '').trim(),
     changeEmailsPerDay: envInt('ROBOTS_CHANGE_EMAILS_PER_DAY', 24),
     concurrency: (await getRobotWorkspaceConfig(workspaceId)).concurrency,
+    batchExpiry: batchExpiry(),
   };
 }
 
@@ -715,7 +725,10 @@ export type RunErrorCode =
   | 'missing_input'
   | 'missing_credential'
   | 'no_steps'
-  | 'admin_only_login';
+  | 'admin_only_login'
+  | 'takeover_required'
+  | 'credential_misuse'
+  | 'credential_with_script';
 
 /**
  * Credenciales usadas en los pasos ({{credentials.<name>.campo}}), en claro
@@ -755,7 +768,7 @@ async function storeFiles(files: RobotFile[], vars: Record<string, unknown>): Pr
 
 export type StartRunResult =
   | { ok: true; run: RobotRunDto; queued?: boolean }
-  | { ok: false; error: RunErrorCode; name?: string };
+  | { ok: false; error: RunErrorCode; name?: string; index?: number; creator?: { id: string; name: string } };
 
 export type { RobotFile };
 
@@ -921,6 +934,42 @@ export function batchQueueMaxAgeMs(): number {
   return envInt('ROBOTS_BATCH_QUEUE_MAX_AGE_H', 1080) * 3_600_000;
 }
 
+/** Días (u horas, si no llega a un día entero) que espera una fila de un lote: lo que dice la app. */
+export function batchExpiry(): { unit: 'days' | 'hours'; count: number } {
+  const hours = Math.round(batchQueueMaxAgeMs() / 3_600_000);
+  return hours >= 24 && hours % 24 === 0 ? { unit: 'days', count: hours / 24 } : { unit: 'hours', count: Math.max(1, hours) };
+}
+
+/**
+ * Filas de lotes que vencieron en la pasada `ts`: un aviso por lote a quien lo
+ * lanzó, con cuántas se descartaron. Una sola vez por lote.
+ */
+async function noticeExpiredBatches(ts: string): Promise<number> {
+  const db = getDb();
+  const rows = (await db
+    .prepare(
+      `SELECT batch_id, user_id, MIN(robot_id) AS robot_id, MIN(created_by) AS created_by, COUNT(*) AS n FROM robot_runs
+       WHERE status = 'failed' AND error = 'queue_expired' AND batch_id IS NOT NULL AND finished_at = ? GROUP BY batch_id, user_id LIMIT 50`,
+    )
+    .all(ts)) as Array<{ batch_id: string; user_id: string; robot_id: string; created_by: string | null; n: number }>;
+  let sent = 0;
+  const { noticeRecipient, sendRobotNotice } = await import('./robots-alerts');
+  const exp = batchExpiry();
+  for (const b of rows) {
+    const res = await db
+      .prepare('INSERT OR IGNORE INTO robot_runtime (key, value, updated_at) VALUES (?, ?, ?)')
+      .run(`batch_expired:${b.user_id}:${b.batch_id}`, '1', nowIso());
+    if (res.changes !== 1) continue;
+    const row = await getRobotRow(b.user_id, b.robot_id);
+    if (!row) continue;
+    const to = await noticeRecipient(b.user_id, b.created_by);
+    if (!to) continue;
+    await sendRobotNotice(row, to, 'batchExpired', `/app/robots/${row.id}?tab=runs`, `batch-expired:${b.batch_id}`, { count: Number(b.n), age: exp });
+    sent++;
+  }
+  return sent;
+}
+
 /** ¿El workspace se quedó sin minutos este mes? */
 export async function robotQuotaExhausted(workspaceId: string): Promise<boolean> {
   const limit = freeMinutesPerMonth();
@@ -943,6 +992,7 @@ export async function expireQueuedRobotRuns(workspaceId?: string, now = Date.now
        WHERE status = 'queued' AND batch_id IS NOT NULL AND created_at < ?${workspaceId ? ' AND user_id = ?' : ''}`,
     )
     .run(...(workspaceId ? [ts, ts, batchCutoff, workspaceId] : [ts, ts, batchCutoff]));
+  if (bulk.changes > 0) await noticeExpiredBatches(ts).catch(() => undefined);
   const rows = (await db
     .prepare(
       `SELECT r.id, r.trigger, r.user_id, b.id AS robot_id, b.name AS robot_name FROM robot_runs r JOIN robots b ON b.id = r.robot_id
@@ -987,6 +1037,95 @@ async function loginAllowed(row: RobotRow, actorId: string | null | undefined): 
   return true;
 }
 
+/** Lo que frena un login antes de abrir el navegador: la credencial fuera de lugar o un paso que lee lo escrito. */
+function credentialPreflight(steps: readonly unknown[]): { error: 'credential_misuse' | 'credential_with_script'; index: number } | null {
+  const misuse = credentialMisuse(steps);
+  if (misuse !== null) return { error: 'credential_misuse', index: misuse };
+  const script = credentialScriptConflict(steps);
+  if (script !== null) return { error: 'credential_with_script', index: script };
+  return null;
+}
+
+/** Texto que queda en la corrida (`2: credential_not_allowed`), con el número de paso. */
+function preflightRunError(p: { error: 'credential_misuse' | 'credential_with_script'; index: number }): string {
+  return `${p.index + 1}: ${p.error === 'credential_misuse' ? 'credential_not_allowed' : 'credential_with_script'}`;
+}
+
+/** Un admin quiere correr un robot con login armado por alguien que hoy es member: hace falta que se haga cargo. */
+async function pendingTakeover(row: RobotRow, actorId: string | null | undefined): Promise<{ id: string; name: string } | null> {
+  if (!actorId || !row.created_by || row.created_by === actorId) return null;
+  const { robotUsesLogin } = await import('./robots-http');
+  if (!robotUsesLogin(row)) return null;
+  const actor = await personRole(row.user_id, actorId);
+  if (actor !== 'owner' && actor !== 'admin') return null;
+  const creator = await personRole(row.user_id, row.created_by);
+  if (creator !== 'member' && creator !== 'guest') return null;
+  const u = (await getDb().prepare('SELECT name, email FROM users WHERE id = ?').get(row.created_by)) as { name: string | null; email: string } | undefined;
+  return { id: row.created_by, name: u?.name || u?.email || row.created_by };
+}
+
+export type TakeoverResult = { ok: true; robot: RobotDto } | { ok: false; error: 'not_found' | 'takeover_stale' | 'forbidden' | 'credential_misuse' | 'credential_with_script'; index?: number };
+
+/**
+ * Hacerse cargo de un robot con login, a pedido explícito de un admin (confirmado en
+ * el diálogo, que nombra a quien lo armó). Solo si sigue siendo el mismo creador, hoy
+ * member o invitado, y los pasos se pueden correr. Queda en la auditoría y se le avisa a
+ * quien lo armó. No prende el schedule: eso lo hace una persona.
+ */
+export async function takeOverLoginRobot(workspaceId: string, robotId: string, actorId: string, expectedCreator: string): Promise<TakeoverResult> {
+  const row = await getRobotRow(workspaceId, robotId);
+  if (!row) return { ok: false, error: 'not_found' };
+  const actor = await personRole(workspaceId, actorId);
+  if (actor !== 'owner' && actor !== 'admin') return { ok: false, error: 'forbidden' };
+  const pending = await pendingTakeover(row, actorId);
+  if (!pending || pending.id !== expectedCreator) return { ok: false, error: 'takeover_stale' };
+  const blocked = credentialPreflight(parseJson<unknown[]>(row.steps, []));
+  if (blocked) return { ok: false, ...blocked };
+  const db = getDb();
+  const res = await db.prepare('UPDATE robots SET created_by = ? WHERE id = ? AND user_id = ? AND created_by = ?').run(actorId, robotId, workspaceId, expectedCreator);
+  if (res.changes !== 1) return { ok: false, error: 'takeover_stale' };
+  await robotAudit(workspaceId, robotId, actorId, 'takeover', { from: expectedCreator });
+  const who = (await db.prepare('SELECT name, email FROM users WHERE id = ?').get(actorId)) as { name: string | null; email: string } | undefined;
+  const { sendRobotNotice } = await import('./robots-alerts');
+  await sendRobotNotice(row, expectedCreator, 'takeover', `/app/robots/${robotId}`, `takeover:${robotId}:${nowIso()}`, { actor: who?.name || who?.email || '' }).catch(() => undefined);
+  return { ok: true, robot: (await getRobot(workspaceId, robotId))! };
+}
+
+async function robotAudit(workspaceId: string, robotId: string, actorId: string, action: string, detail: Record<string, unknown>): Promise<void> {
+  await getDb()
+    .prepare('INSERT INTO robot_audit (id, workspace_id, robot_id, actor_id, action, detail, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(crypto.randomUUID(), workspaceId, robotId, actorId, action, JSON.stringify(detail), nowIso());
+}
+
+export type LoginSiteResult = { ok: true; robot: RobotDto; origin: string } | { ok: false; error: 'not_found' | 'stale' };
+
+/**
+ * "Usar este sitio" desde una corrida que frenó un login: la persona aprueba el
+ * destino que dice la corrida (no uno que mande el navegador). Solo el paso que
+ * falló, si sigue siendo un fill con credencial y nadie cambió el robot.
+ */
+export async function applyLoginSiteFromRun(workspaceId: string, runId: string, stepLabel: string, actorId: string): Promise<LoginSiteResult> {
+  const db = getDb();
+  const run = (await db.prepare('SELECT robot_id, logs FROM robot_runs WHERE id = ? AND user_id = ?').get(runId, workspaceId)) as { robot_id: string; logs: string | null } | undefined;
+  if (!run) return { ok: false, error: 'not_found' };
+  const log = parseJson<RobotLogEntry[]>(run.logs, []).find((l) => l.step === stepLabel && (l.error === 'credential_origin' || l.error === 'credential_no_site'));
+  const origin = normalizeLoginSite(String(log?.detail ?? '').split(' ≠ ')[0]);
+  const row = await getRobotRow(workspaceId, run.robot_id);
+  if (!log || !origin || !row) return { ok: false, error: 'not_found' };
+  const steps = parseJson<Array<Record<string, unknown>>>(row.steps, []);
+  const parts = stepLabel.split('.').map(Number);
+  const top = steps[parts[0] - 1];
+  const step = parts.length === 1 ? top : parts.length === 3 && Array.isArray(top?.steps) ? (top.steps as Array<Record<string, unknown>>)[parts[2] - 1] : undefined;
+  if (!step || step.type !== 'fill' || !CREDENTIAL_TEMPLATE.test(String(step.value ?? ''))) return { ok: false, error: 'stale' };
+  step.origin = origin;
+  const v = validateSteps(steps);
+  if (!v.ok) return { ok: false, error: 'stale' };
+  const res = await db.prepare('UPDATE robots SET steps = ?, updated_at = ? WHERE id = ? AND updated_at = ?').run(JSON.stringify(v.steps), nowIso(), row.id, row.updated_at);
+  if (res.changes !== 1) return { ok: false, error: 'stale' };
+  await robotAudit(workspaceId, row.id, actorId, 'login_site', { step: stepLabel, origin, run: runId });
+  return { ok: true, origin, robot: (await getRobot(workspaceId, row.id))! };
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
@@ -1022,7 +1161,12 @@ export async function startRobotRun(
   if (robot.steps.length === 0) return { ok: false, error: 'no_steps' };
   const backend = getRobotBackend();
   if (!backend) return { ok: false, error: 'runner_unavailable' };
+  const takeover = await pendingTakeover(row, opts.actorId);
+  if (takeover) return { ok: false, error: 'takeover_required', creator: takeover };
   if (!(await loginAllowed(row, opts.actorId))) return { ok: false, error: 'admin_only_login' };
+  // Una credencial fuera de lugar o un paso que lee lo escrito fallan acá, antes de abrir el navegador.
+  const blocked = credentialPreflight(robot.steps);
+  if (blocked) return { ok: false, ...blocked };
   const resolved = resolveInputs(robot.inputs, values);
   if (!resolved.ok) return { ok: false, error: 'missing_input', name: resolved.name };
   const creds = await resolveRobotCredentials(workspaceId, robot.steps);
@@ -1548,6 +1692,8 @@ async function claimForDrain(run: RobotRunRow): Promise<(() => Promise<unknown>)
   if (run.trigger !== 'manual' && row.enabled !== 1) return (await failRun(row, run, 'disabled', 'queued')) ? true : null;
   if (!(await loginAllowed(row, run.created_by))) return (await failRun(row, run, 'admin_only_login', 'queued')) ? true : null;
   const robot = toRobotDto(row);
+  const blocked = credentialPreflight(robot.steps);
+  if (blocked) return (await failRun(row, run, preflightRunError(blocked), 'queued')) ? true : null;
   const timeoutMs = await effectiveTimeoutMs(run.user_id, robot);
   if (timeoutMs === null) {
     // Sin minutos, un lote queda en pausa: sigue el mes que viene o cuando se amplíe la cuota.
@@ -1571,9 +1717,9 @@ async function pickQueuedRuns(concurrency: number, ws?: string): Promise<RobotRu
     .all(...(ws ? [ws] : []))) as Array<{ user_id: string }>;
   const picked: RobotRunRow[] = [];
   for (const { user_id } of spaces) {
-    await syncPausedBatchNotices(user_id).catch(() => 0);
     const left = concurrency - picked.length;
     if (left <= 0) break;
+    await syncPausedBatchNotices(user_id).catch(() => 0);
     const running = (await db
       .prepare("SELECT COUNT(*) AS n FROM robot_runs WHERE user_id = ? AND status = 'running'")
       .get(user_id)) as { n: number };
@@ -1683,7 +1829,9 @@ export async function runDueRobots(now: Date = new Date(), limit = 100, budgetMs
           .run(next, row.id, row.next_run_at);
         if (res.changes !== 1) return false;
         const r = await startRobotRun(row.user_id, row.id, undefined, { trigger: 'schedule' });
-        if (!r.ok && r.error !== 'not_found' && r.error !== 'disabled') await recordSkippedRun(row, r.error);
+        if (!r.ok && r.error !== 'not_found' && r.error !== 'disabled') {
+          await recordSkippedRun(row, r.error === 'credential_misuse' || r.error === 'credential_with_script' ? preflightRunError({ error: r.error, index: r.index ?? 0 }) : r.error);
+        }
         return r.ok;
       }),
     );
@@ -1701,7 +1849,7 @@ export async function runDueRobots(now: Date = new Date(), limit = 100, budgetMs
  * credencial faltante…) queda en el historial como fallida con el código y
  * emite robot.run.failed: no se pierde en silencio.
  */
-async function recordSkippedRun(row: RobotRow, error: RunErrorCode): Promise<void> {
+async function recordSkippedRun(row: RobotRow, error: string): Promise<void> {
   const id = crypto.randomUUID();
   const ts = nowIso();
   await getDb()
@@ -1767,7 +1915,10 @@ export async function enqueueRobotBatch(
   const robot = toRobotDto(row);
   if (robot.steps.length === 0) return { ok: false, error: 'no_steps' };
   if (!getRobotBackend()) return { ok: false, error: 'runner_unavailable' };
+  if (await pendingTakeover(row, opts.actorId)) return { ok: false, error: 'takeover_required' };
   if (!(await loginAllowed(row, opts.actorId))) return { ok: false, error: 'admin_only_login' };
+  const blocked = credentialPreflight(robot.steps);
+  if (blocked) return { ok: false, ...blocked };
   const resolved: Array<Record<string, unknown>> = [];
   for (let i = 0; i < inputs.length; i++) {
     const r = resolveInputs(robot.inputs, inputs[i]);
@@ -2019,7 +2170,7 @@ export async function getRobotRecording(workspaceId: string, id: string, personI
   if (!row) return null;
   const plain = row.steps.startsWith('[') ? row.steps : open(row.steps);
   const v = validateSteps(parseJson<unknown>(plain, []));
-  return { id: row.id, robotId: row.robot_id, steps: v.ok ? v.steps : [], updatedAt: row.updated_at, expiresAt: row.expires_at };
+  return { id: row.id, robotId: row.robot_id, steps: v.ok && onlyRecorderSteps(v.steps) ? v.steps : [], updatedAt: row.updated_at, expiresAt: row.expires_at };
 }
 
 export async function deleteRobotRecording(workspaceId: string, id: string, personId: string): Promise<boolean> {
@@ -2057,6 +2208,12 @@ export async function pushRobotRecording(id: string, token: string, steps: unkno
   const a = Buffer.from(await tokenHash(token));
   const b = Buffer.from(row?.token_hash ?? '0'.repeat(64));
   if (!row || a.length !== b.length || !timingSafeEqual(a, b) || row.expires_at < nowIso()) return { ok: false, error: 'not_found' };
+  // El grabador no produce scripts, subidas ni loops: lo que llega con eso lo armó la página.
+  if (!onlyRecorderSteps(steps)) return { ok: false, error: 'invalid_steps' };
+  // Tampoco selectores que entran a un iframe, y menos para un login.
+  if ((steps as Array<{ type?: unknown; value?: unknown; selector?: unknown }>).some((s) => s?.type === 'fill' && CREDENTIAL_TEMPLATE.test(String(s.value ?? '')) && entersFrame(s.selector))) {
+    return { ok: false, error: 'invalid_steps' };
+  }
   const v = validateSteps(neutralizeRecorded(steps));
   if (!v.ok) return { ok: false, error: 'invalid_steps' };
   await getDb().prepare('UPDATE robot_recordings SET steps = ?, updated_at = ? WHERE id = ?').run(seal(JSON.stringify(v.steps)), nowIso(), id);

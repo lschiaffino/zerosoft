@@ -1315,9 +1315,16 @@ a.track-issue-link .track-status-glyph {
   overflow: hidden;
 }
 
+.track-table-wrap.is-linear .track-table td.track-col-project {
+  display: block;
+}
+
 .track-table-wrap.is-linear .track-col-project {
   order: 5;
   max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .track-table-wrap.is-linear .track-col-cycle {
@@ -2137,3 +2144,6 @@ body:has(.track-bulk-bar) .fl-root {
 .track-tree-toggle.is-folded {
   transform: rotate(-90deg);
 }
+
+/* El control de status sobresale de su celda a propósito: sin esto, la celda recorta su resaltado. */
+.track-table-wrap.is-linear .track-table td.track-col-status { overflow: visible; }
