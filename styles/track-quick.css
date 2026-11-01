@@ -50,8 +50,7 @@
 }
 
 .track-status-toggle:hover:not(:disabled) {
-  background: var(--ui-hover);
-  border-color: var(--line);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
 .track-status-toggle:focus-visible,
@@ -107,10 +106,10 @@
   cursor: pointer;
 }
 
+/* Translúcido, sin borde: va sobre la fila ya resaltada; un fondo blanco se veía como un parche recortado por la celda. */
 .track-inline-trigger:hover:not(:disabled),
 .track-inline-trigger[aria-expanded='true'] {
-  background: var(--bg);
-  border-color: var(--ui-field);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
 .track-inline-trigger:disabled {
