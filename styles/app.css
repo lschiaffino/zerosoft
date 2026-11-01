@@ -140,28 +140,54 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   background: var(--ink);
 }
 
-/* Switcher de la plataforma: inicio, destacadas en dos columnas y el resto por categoría. */
+/* Switcher de la plataforma: una sola grilla de tres columnas para destacadas y categorías. */
 .band-switcher-panel {
-  width: min(520px, calc(100vw - 32px));
+  --switcher-gap: 8px;
+  width: min(600px, calc(100vw - 32px));
   max-height: calc(100svh - 72px);
   overflow-y: auto;
   padding: 6px;
 }
-.band-menu-section {
-  padding: 10px 10px 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--dim);
+.band-switcher-panel .band-menu-item {
+  height: 32px;
+  gap: 10px;
+  font-size: 1rem;
 }
-.band-menu-featured { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; }
-.band-menu-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px 6px; }
-.band-menu-cat { display: flex; flex-direction: column; min-width: 0; }
-.band-menu-cat-title { padding: 4px 10px 2px; font-size: 0.75rem; color: var(--dim); }
-.band-menu-item-sm { height: 32px; gap: 10px; font-size: 1rem; }
+.band-switcher-panel .band-menu-item[aria-current='page']::after { width: 6px; height: 6px; }
+/* Encabezados con filete, como el menú de productos del sitio. */
+.band-menu-section,
+.band-menu-cat-title {
+  margin: 8px 10px 4px;
+  padding-bottom: 5px;
+  font-family: var(--font-signage);
+  font-stretch: var(--signage-stretch);
+  font-size: 0.875rem;
+  font-weight: var(--signage-weight);
+  line-height: 1.25;
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
+}
+.band-menu-featured {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 var(--switcher-gap);
+}
+/* Columnas CSS, no grilla: cada categoría sube al hueco que deja la anterior y las tres quedan parejas. */
+.band-menu-grid {
+  columns: 3;
+  column-gap: var(--switcher-gap);
+  margin-top: 6px;
+}
+.band-menu-cat {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding-bottom: 6px;
+  break-inside: avoid;
+}
 .band-menu-home { margin-bottom: 2px; }
 .band-menu-search {
   width: 100%;
-  margin-top: 6px;
   font: inherit;
   font-size: 0.875rem;
   color: var(--dim);
@@ -171,11 +197,14 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   border-radius: 0;
   cursor: pointer;
 }
+.band-switcher-panel .band-menu-search { font-size: 0.875rem; }
 .band-menu-search .kbd { margin-left: auto; }
+.band-switcher-panel:focus { outline: none; }
 @media (max-width: 560px) {
   /* En el teléfono el panel se ancla a la pantalla, no al botón (sin scroll horizontal). */
   .band-switcher-panel { position: fixed; top: calc(var(--band-h) + 4px); left: 16px; right: 16px; width: auto; }
-  .band-menu-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .band-menu-featured { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .band-menu-grid { columns: 2; }
 }
 
 .band-crumb { min-width: 0; }
