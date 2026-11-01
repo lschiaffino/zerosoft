@@ -182,6 +182,8 @@ function LoginSiteBlocked({ run, onUse }: { run: RobotRunDto; onUse?: (runId: st
   const step = log?.step ?? String(run.error).split(':')[0];
   const [here = '?', bound = '?'] = String(log?.detail ?? '').split(' ≠ ');
   const noSite = /credential_no_site/.test(String(run.error));
+  // Sin permiso para ver datos, el detalle llega vacío: la frase no nombra sitios.
+  if (run.dataHidden) return <span>{t('credentialHidden', { step })}</span>;
   return (
     <span>
       {noSite ? t('credentialNoSite', { step, here }) : t('credentialOrigin', { step, here, bound })}{' '}
