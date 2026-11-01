@@ -52,6 +52,15 @@ const nextConfig = {
       { key: 'Access-Control-Max-Age', value: '86400' },
     ];
     return [
+      // Pantallas de permisos de OAuth: nunca dentro de un iframe (clickjacking).
+      {
+        source: '/:locale(en|es|pt)/oauth/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
+          { key: 'Referrer-Policy', value: 'no-referrer' },
+        ],
+      },
       {
         source: '/api/chat/:route(identify|messages|csat|read|typing|help|history|outbound|visitor)',
         headers: cors,

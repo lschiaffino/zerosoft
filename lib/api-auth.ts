@@ -4,8 +4,9 @@ import { NextResponse } from 'next/server';
 import { getDb, type ApiKeyRow, type UserRow } from './db';
 import { clientIp, rateLimit } from './rate-limit';
 import { hasScope, parseScopes, serializeScopes, type ApiScope, scopesForApps } from './api-scopes';
-import { normalizeRole, type TeamRole } from './teams';
+import { normalizeRole, resolveWorkspace, type TeamRole } from './teams';
 import { parseApps } from './workspace';
+import { delegatedIdentity } from './mcp/identity';
 
 export function sha256(input: string): string {
   return createHash('sha256').update(input).digest('hex');
@@ -104,6 +105,8 @@ function withRetryAfter(res: NextResponse, resetAt: number): NextResponse {
  * sin ese scope recibe 403 insufficient_scope.
  */
 export async function requireApiUser(req: Request, scope: ApiScope): Promise<ApiAuth> {
+  const delegated = delegatedIdentity();
+  if (delegated) return delegatedApiAuth(delegated, scope);
   const raw = extractBearer(req);
   if (!raw) return { res: apiError(401, 'invalid_key', 'Missing API key. Use Authorization: Bearer zs_…') };
   // Se limita antes de validar: así tampoco se pueden probar keys a fuerza bruta.
@@ -122,6 +125,18 @@ export async function requireApiUser(req: Request, scope: ApiScope): Promise<Api
     return { res: apiError(403, 'insufficient_scope', `This API key is missing the "${scope}" scope.`) };
   }
   return auth;
+}
+
+/** Una operación v1 invocada desde el MCP: la persona vale lo mismo que con una key suya en ese workspace. */
+async function delegatedApiAuth(d: NonNullable<ReturnType<typeof delegatedIdentity>>, scope: ApiScope): Promise<ApiAuth> {
+  const { owner, workspace } = await resolveWorkspace(d.real);
+  const denied = (): ApiAuth => ({ res: apiError(403, 'insufficient_scope', `This connection is missing the "${scope}" scope.`) });
+  if (d.pinnedTeamId && workspace.id !== d.pinnedTeamId) return denied();
+  const access = await personAppAccess(owner.id, d.real.id);
+  if (!access) return denied();
+  const allowed = scopesForApps(d.apiScopes ?? parseScopes('*'), access.apps);
+  if (!hasScope(allowed, scope)) return denied();
+  return { user: owner, personId: d.real.id, role: access.role, scopes: allowed };
 }
 
 // ---------- Key management (session API) ----------

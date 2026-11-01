@@ -9,6 +9,7 @@ import { resolveWorkspace, roleAtLeast, type TeamRole } from './teams';
 import { appFromPath, ensureWorkspace, hasAllApps, userCanUseApp, workspaceTeamId, type AppAccess } from './workspace';
 import type { ProductKey } from './products';
 import { seedUserIfNeeded } from './seed';
+import { delegatedIdentity } from './mcp/identity';
 
 /**
  * DEMO_MODE convierte a todo visitante en el usuario demo compartido. En
@@ -113,6 +114,9 @@ async function e2eIdentity(): Promise<UserRow | 'session' | null> {
 export const getCurrentUser = cache(loadCurrentUser);
 
 async function loadCurrentUser(): Promise<SessionUser | null> {
+  // Una operación del MCP: la persona del token, con los mismos chequeos que su sesión.
+  const delegated = delegatedIdentity();
+  if (delegated) return delegatedUser(delegated);
   let real: UserRow | null;
   const e2e = DEMO_MODE ? await e2eIdentity() : null;
   if (DEMO_MODE && e2e !== 'session') {
@@ -137,6 +141,19 @@ async function loadCurrentUser(): Promise<SessionUser | null> {
       // Las páginas (y su payload RSC) se arman con el workspace propio: nada del ajeno viaja.
       return { ...real, team: null, workspace: await ensureWorkspace(real.id), role: 'owner', apps: '*', blockedApp: page };
     }
+  }
+  return user;
+}
+
+async function delegatedUser(d: NonNullable<ReturnType<typeof delegatedIdentity>>): Promise<SessionUser | null> {
+  const { owner, team, workspace, role, apps } = await resolveWorkspace(d.real);
+  // Fijado a un workspace del que ya no es parte: sin acceso, nunca cae al propio.
+  if (d.pinnedTeamId && workspace.id !== d.pinnedTeamId) return null;
+  const user: SessionUser =
+    owner.id === d.real.id ? { ...d.real, team, workspace, role, apps } : { ...owner, actingUser: d.real, team, workspace, role, apps };
+  if (user.actingUser) {
+    const app = appFromPath(d.apiPath);
+    if (app && !userCanUseApp(user, app)) return null;
   }
   return user;
 }

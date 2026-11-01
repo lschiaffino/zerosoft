@@ -3517,7 +3517,8 @@
     "scope_notes_read": "Leer las notas que puede ver quien creó la clave, y sus tareas.",
     "scope_notes_write": "Crear y editar las notas de quien creó la clave.",
     "formsApiTitle": "Forms",
-    "formsApiDesc": "Formularios y sus respuestas. La key actúa como la persona que la creó y solo ve los formularios que esa persona puede abrir. Scope forms:read."
+    "formsApiDesc": "Formularios y sus respuestas. La key actúa como la persona que la creó y solo ve los formularios que esa persona puede abrir. Scope forms:read.",
+    "mcpCta": "Conectar Claude y la CLI"
   },
   "parityOverview": {
     "title": "Paridad de funciones, app por app.",
