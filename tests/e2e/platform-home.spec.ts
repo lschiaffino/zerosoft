@@ -112,12 +112,12 @@ test('sitio: productos por categoría y la nota de equipos y uso personal', asyn
   await trigger.click();
   const mega = page.locator('#hd-mega');
   await expect(mega.locator('.hd-group-title')).toHaveText(['Vender', 'Atender', 'Automatizar', 'Construir', 'Trabajo diario']);
-  await expect(mega.locator('a.hd-prod')).toHaveCount(19);
+  await expect(mega.locator('a.hd-prod')).toHaveCount(24);
   await expect(mega.locator('.hd-mega-note')).toContainText('Para equipos y para uso personal');
   await page.keyboard.press('Escape');
   const suite = page.locator('#productos .suite');
   await expect(suite.locator('.suite-group')).toHaveCount(5);
-  await expect(suite.locator('.suite-row')).toHaveCount(19);
+  await expect(suite.locator('.suite-row')).toHaveCount(24);
   await expect(suite.locator('.suite-audience')).toContainText('Para equipos y para uso personal');
   // Desde el sitio, Dashboard lleva al inicio (no a Link); desde una landing, a esa app.
   await expect(page.locator('.hd-right a.btn-chrome')).toHaveAttribute('href', '/es/app');
@@ -163,7 +163,7 @@ async function expectHomeAppsStructure(page: import('@playwright/test').Page) {
   await page.keyboard.press('Enter');
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   const more = groups.filter({ has: page.getByRole('button', { name: 'Más apps' }) }).locator('a.side-stop');
-  expect(n + (await more.count())).toBe(19);
+  expect(n + (await more.count())).toBe(24);
 }
 
 test('sidebar del inicio: tus apps a la vista y el resto en "Más apps"', async ({ page }) => {
