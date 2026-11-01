@@ -6,7 +6,7 @@ import { getDb } from '@/lib/db';
 import { ensureLeadStages, listLeads, listLeadsForBoard } from '@/lib/crm-leads';
 import { SOURCES } from '@/lib/crm-constants';
 import { ownerOptions } from '@/lib/crm-owners';
-import { formatDate } from '@/lib/utils';
+import LocalDate from '@/components/ui/LocalDate';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import CrmPager from '@/components/crm/CrmPager';
@@ -180,8 +180,8 @@ export default async function LeadsPage(props: {
                       {l.company_id ? <Link href={`/app/crm/companies/${l.company_id}`}>{l.company_name}</Link> : '—'}
                     </td>
                     <td className="muted hide-sm" data-label={t('leads.columns.owner')}>{ownerName.get(l.owner_id ?? user.id) ?? l.owner_name ?? '—'}</td>
-                    <td className="num muted cell-date hide-sm" data-label={t('leads.columns.lastActivity')}>{l.last_activity_at ? formatDate(l.last_activity_at, locale) : '—'}</td>
-                    <td className="num muted cell-date" data-label={t('leads.columns.created')}>{formatDate(l.created_at, locale)}</td>
+                    <td className="num muted cell-date hide-sm" data-label={t('leads.columns.lastActivity')}>{l.last_activity_at ? <LocalDate value={l.last_activity_at} locale={locale} kind="date" /> : '—'}</td>
+                    <td className="num muted cell-date" data-label={t('leads.columns.created')}><LocalDate value={l.created_at} locale={locale} kind="date" /></td>
                   </tr>
                 ))}
               </tbody>

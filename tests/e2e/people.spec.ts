@@ -54,8 +54,9 @@ async function member(browser: Browser, baseURL: string, name: string, apps = '*
   await sql("UPDATE users SET onboarded_at = datetime('now'), name = ? WHERE id = ?", [name, userId]);
   await sql('INSERT INTO team_members (team_id, user_id, role, apps) VALUES (?, ?, ?, ?)', [demoTeam, userId, 'member', apps]);
   await sql('UPDATE users SET active_team_id = ? WHERE id = ?', [demoTeam, userId]);
-  // Alta por SQL (sin personJoined): su primera visita a People le crea la ficha, como a un miembro de antes de People.
-  if (apps === '*') expect((await ctx.request.get('/api/people/me')).ok()).toBe(true);
+  // Alta por SQL (sin personJoined): como a un miembro de antes de People, la ficha la pide la página con
+  // este POST (PeopleSync). El GET no escribe.
+  if (apps === '*') expect((await ctx.request.post('/api/people/me')).ok()).toBe(true);
   return { ctx, page, userId, name };
 }
 

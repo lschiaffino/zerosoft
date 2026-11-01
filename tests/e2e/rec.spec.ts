@@ -224,6 +224,23 @@ test('biblioteca: carpeta nueva, mover, renombrar y borrar sin recargar; ⌘K', 
   await expect(again).toHaveCount(0);
 });
 
+test('mover: "solo estas personas" avisa y el error se ve adentro del diálogo', async ({ page }) => {
+  await page.goto('/en/app/rec', { waitUntil: 'networkidle' });
+  const body = await makeWebm(page);
+  const title = `People ${uid()}`;
+  const v = await uploadVideo(page.request, body, title);
+  await ok(page.request.patch(`/api/rec/videos/${v.id}`, { data: { privacy: 'people' } }));
+  await page.goto(`/en/app/rec/${v.id}`, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'Move', exact: true }).first().click();
+  const move = page.getByRole('dialog', { name: 'Move video' });
+  await move.getByText('Workspace', { exact: true }).click();
+  await expect(move.getByTestId('rec-move-notice')).toContainText('Only specific people');
+  await move.getByTestId('rec-move-submit').click();
+  await expect(move.getByTestId('rec-move-error')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(move).toBeHidden();
+});
+
 test('compartir: contraseña, vencimiento, solo workspace, comentarios, reacciones y vistas', async ({ page }) => {
   test.setTimeout(90_000);
   await page.goto('/en/app/rec', { waitUntil: 'networkidle' });

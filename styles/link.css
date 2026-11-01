@@ -600,8 +600,8 @@ section.lk-block { padding-bottom: 0; }
 .lk-bio-item[data-on] .lk-bio-label { font-weight: 600; }
 .lk-bio-check { flex: 1; min-width: 0; align-items: center; }
 .lk-bio-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lk-bio-short { font-size: 0.8125rem; color: var(--brand-gray-2); }
-.lk-bio-move { display: flex; }
+.lk-bio-short { flex: 0 1 auto; min-width: 0; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8125rem; color: var(--brand-gray-2); }
+.lk-bio-move { display: flex; flex-shrink: 0; }
 .lk-bio-item[data-hidden]:not([data-on]) .lk-bio-label { color: var(--brand-gray-2); }
 .lk-bio-why { flex-shrink: 0; }
 

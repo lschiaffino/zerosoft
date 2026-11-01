@@ -257,6 +257,8 @@
     "deleteBody": "O vídeo, seus comentários e visualizações são apagados, e o link para de funcionar.",
     "moveTitle": "Mover vídeo",
     "moveHelp": "Os vídeos do workspace ficam visíveis para todo o workspace.",
+    "moveNeedsPrivacy": "Este vídeo está em \"Só pessoas específicas\", que só funciona em Meus vídeos. Mude quem pode ver em Compartilhar e depois mova.",
+    "moveBecomesPeople": "Em Meus vídeos este vídeo passa para \"Só pessoas específicas\": o resto do workspace deixa de vê-lo.",
     "move": "Mover",
     "branchEmpty": "Ainda não há pastas",
     "upload": "Enviar um vídeo",

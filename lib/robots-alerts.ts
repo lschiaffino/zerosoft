@@ -70,6 +70,28 @@ export function decideOutcome(opts: {
 /** Errores que no son fallas del robot (lo apagó alguien): no cuentan. */
 const NOT_A_FAILURE = new Set(['disabled']);
 
+/** Errores de configuración: no se arreglan solos, repetirlos no sirve. */
+const CONFIG_ERROR = /^(?:[\d.]+:\s*)?(credential_not_allowed|credential_with_script|credential_origin|credential_no_site|takeover_required|admin_only_login|missing_credential|missing_input|no_steps)$/;
+
+/** Fallas automáticas iguales seguidas que pausan el schedule aunque el robot diga "nunca pausar". */
+export const SAME_ERROR_PAUSE = 3;
+
+/**
+ * ¿Las últimas SAME_ERROR_PAUSE corridas automáticas fallaron con el mismo error de
+ * configuración? Entonces se pausa el schedule: va a seguir fallando igual.
+ */
+async function repeatedConfigError(workspaceId: string, robotId: string): Promise<boolean> {
+  const rows = (await getDb()
+    .prepare(
+      `SELECT status, error FROM robot_runs WHERE robot_id = ? AND user_id = ? AND trigger <> 'manual' AND status IN ('success', 'failed')
+       ORDER BY created_at DESC, rowid DESC LIMIT ?`,
+    )
+    .all(robotId, workspaceId, SAME_ERROR_PAUSE)) as Array<{ status: string; error: string | null }>;
+  if (rows.length < SAME_ERROR_PAUSE) return false;
+  const first = rows[0].error ?? '';
+  return CONFIG_ERROR.test(first) && rows.every((r) => r.status === 'failed' && (r.error ?? '') === first);
+}
+
 const NOTICE_MESSAGES = { en, es, pt } as const;
 
 /**
@@ -89,19 +111,25 @@ export async function noticeRecipient(workspaceId: string, personId: string | nu
 export async function sendRobotNotice(
   row: Pick<RobotRow, 'id' | 'name' | 'alert_locale'>,
   to: string,
-  key: 'batchPaused' | 'credentialMisuse',
+  key: 'batchPaused' | 'credentialMisuse' | 'credentialScript' | 'batchExpired' | 'takeover',
   href: string,
   sourceId: string,
-  values: { count?: number; step?: string },
+  values: { count?: number; step?: string; actor?: string; age?: { unit: 'days' | 'hours'; count: number } },
 ): Promise<void> {
   const locale = row.alert_locale === 'es' || row.alert_locale === 'pt' ? row.alert_locale : 'en';
-  const texts = NOTICE_MESSAGES[locale].notices[key];
+  type Notice = { title: string; body: string; bodyOne?: string; days?: string; dayOne?: string; hours?: string; hourOne?: string };
+  const notices = NOTICE_MESSAGES[locale].notices as Record<string, Notice>;
+  const texts = notices[key] ?? (NOTICE_MESSAGES.en.notices as Record<string, Notice>)[key];
+  const age = values.age;
+  const ageTemplate = !age ? '' : age.unit === 'days' ? (age.count === 1 ? texts.dayOne : texts.days) : age.count === 1 ? texts.hourOne : texts.hours;
+  const ageText = age ? (ageTemplate ?? '').replace('{count}', String(age.count)) : '';
+  const body = values.count === 1 && texts.bodyOne ? texts.bodyOne : texts.body;
   const { createNotification } = await import('./notifications');
   await createNotification({
     userId: to,
     type: 'robot_notice',
     title: texts.title.replace('{name}', row.name),
-    body: texts.body.replace('{count}', String(values.count ?? '')).replace('{step}', values.step ?? ''),
+    body: body.replace('{count}', String(values.count ?? '')).replace('{step}', values.step ?? '').replace('{age}', ageText).replace('{actor}', values.actor ?? ''),
     href,
     sourceType: 'robot',
     sourceId,
@@ -109,6 +137,7 @@ export async function sendRobotNotice(
 }
 
 async function credentialNotice(workspaceId: string, robotId: string, error: string): Promise<void> {
+  const key = /credential_with_script/.test(error) ? 'credentialScript' : 'credentialMisuse';
   const db = getDb();
   const res = await db
     .prepare('INSERT OR IGNORE INTO robot_runtime (key, value, updated_at) VALUES (?, ?, ?)')
@@ -117,7 +146,7 @@ async function credentialNotice(workspaceId: string, robotId: string, error: str
   const row = (await db.prepare('SELECT * FROM robots WHERE id = ? AND user_id = ?').get(robotId, workspaceId)) as RobotRow | undefined;
   if (!row) return;
   const to = await noticeRecipient(workspaceId, row.created_by);
-  if (to) await sendRobotNotice(row, to, 'credentialMisuse', `/app/robots/${robotId}`, `credential:${robotId}`, { step: error.split(':')[0] });
+  if (to) await sendRobotNotice(row, to, key, `/app/robots/${robotId}`, `credential:${robotId}`, { step: error.split(':')[0] });
 }
 
 /**
@@ -139,9 +168,19 @@ export async function recordRobotOutcome(
     }
     // Una credencial fuera de un campo no se arregla sola: no cuenta para la pausa ni manda
     // una alerta por corrida. Un solo aviso por robot, que dice qué cambiar.
-    if (/credential_not_allowed/.test(run.error ?? '')) {
+    // Pero si es automática y se repite, el schedule se pausa sin otro aviso.
+    if (/credential_not_allowed|credential_with_script/.test(run.error ?? '')) {
       await credentialNotice(workspaceId, robotId, run.error ?? '');
-      return 'none';
+      if (run.trigger === 'manual') return 'none';
+      await db
+        .prepare('UPDATE robots SET consecutive_failures = consecutive_failures + 1 WHERE id = ? AND user_id = ?')
+        .run(robotId, workspaceId);
+      if (!(await repeatedConfigError(workspaceId, robotId))) return 'none';
+      const ts = new Date().toISOString();
+      const res = await db
+        .prepare('UPDATE robots SET enabled = 0, next_run_at = NULL, paused_at = ? WHERE id = ? AND user_id = ? AND enabled = 1')
+        .run(ts, robotId, workspaceId);
+      return res.changes === 1 ? 'pause' : 'none';
     }
     if (run.trigger === 'manual' || NOT_A_FAILURE.has(run.error ?? '')) return 'none';
     await db
@@ -149,11 +188,13 @@ export async function recordRobotOutcome(
       .run(robotId, workspaceId);
     const row = (await db.prepare('SELECT * FROM robots WHERE id = ? AND user_id = ?').get(robotId, workspaceId)) as RobotRow | undefined;
     if (!row) return 'none';
+    // Un robot que dice "nunca pausar" igual se pausa si repite el mismo error de configuración.
+    const stuck = !(Number(row.pause_after) > 0) && (await repeatedConfigError(workspaceId, robotId));
     const action = decideOutcome({
       status: 'failed',
       trigger: run.trigger,
       failures: Number(row.consecutive_failures) || 0,
-      pauseAfter: Number(row.pause_after) || 0,
+      pauseAfter: stuck ? SAME_ERROR_PAUSE : Number(row.pause_after) || 0,
       hasSchedule: !!row.schedule,
       enabled: row.enabled === 1,
       alertsOn: row.failure_alerts === 1,
@@ -184,9 +225,10 @@ export async function recordRobotOutcome(
   }
 }
 
-async function recipient(row: RobotRow): Promise<string | null> {
+async function recipient(row: RobotRow, error?: string | null): Promise<string | null> {
   const db = getDb();
-  for (const id of [row.created_by, row.user_id]) {
+  // Lo de un creador sin permiso lo resuelve un admin: el aviso no va a esa persona.
+  for (const id of /admin_only_login/.test(error ?? '') ? [row.user_id] : [row.created_by, row.user_id]) {
     if (!id) continue;
     const u = (await db.prepare('SELECT email FROM users WHERE id = ?').get(id)) as { email: string } | undefined;
     if (u?.email) return u.email;
@@ -203,7 +245,7 @@ async function sendRobotAlert(
   run: { id: string; trigger: RobotRunTrigger; error: string | null },
   kind: 'failed' | 'paused',
 ): Promise<void> {
-  const to = await recipient(row);
+  const to = await recipient(row, run.error);
   if (!to) return;
   const locale: MailLocale = row.alert_locale === 'es' || row.alert_locale === 'pt' ? row.alert_locale : 'en';
   const s = STRINGS[locale];
