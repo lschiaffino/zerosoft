@@ -23,6 +23,7 @@ const STATIC_PAGES: Array<{ path: string; priority: number; freq: MetadataRoute.
   { path: '/feedback-board', priority: 0.5, freq: 'daily' },
   { path: '/feedback-board/roadmap', priority: 0.5, freq: 'weekly' },
   { path: '/docs', priority: 0.6, freq: 'monthly' },
+  { path: '/docs/mcp', priority: 0.6, freq: 'monthly' },
   { path: '/videos', priority: 0.4, freq: 'monthly' },
   { path: '/security', priority: 0.3, freq: 'yearly' },
   { path: '/privacy', priority: 0.2, freq: 'yearly' },

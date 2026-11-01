@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 import { EXCLUDED, getOperation, OPERATIONS } from '@/lib/mcp/catalog';
 import { ROUTE_TABLE } from '@/lib/mcp/route-table.generated';
 import { DIRECT_TOOLS } from '@/lib/mcp/server';
-// @ts-expect-error módulo .mjs sin tipos, compartido con el generador
 import { excludeReason, NO_SESSION_OK } from '@/lib/mcp/excludes.mjs';
 import { PRODUCT_KEYS } from '@/lib/products';
 

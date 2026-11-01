@@ -7,7 +7,7 @@ const REDACTED = '[redacted]';
 
 // Nombres de campo: *token, *secret, password, api key, private key, credentials, *_enc, cifrados.
 const SECRET_KEY =
-  /(token|secret|password|passwd|passphrase|api_?key|apikey|private_?key|signing_?key|client_?key|auth_?key|credentials?|cookie|session_?id|authorization|bearer|webhook_?url|_enc$|encrypted|ciphertext|otp|verifier)/i;
+  /(token|secret|password|passwd|passphrase|api_?key|apikey|private_?key|signing_?key|client_?key|auth_?key|credentials?|cookie|authorization|bearer|webhook_?url|_enc$|encrypted|ciphertext|(^|_)otp(_|$)|verifier)/i;
 
 // Campos con esas palabras que son públicos o no son credenciales.
 const SAFE_KEY =

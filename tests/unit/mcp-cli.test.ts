@@ -2,13 +2,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-// @ts-expect-error módulos .mjs de la CLI, sin tipos
 import { aliasCandidates, flagValue, parseArgs } from '../../cli/src/args.mjs';
-// @ts-expect-error módulos .mjs de la CLI, sin tipos
 import { baseUrlFrom, exitCodeForStatus } from '../../cli/src/client.mjs';
-// @ts-expect-error módulos .mjs de la CLI, sin tipos
 import { deleteCredentials, loadCredentials, saveCredentials } from '../../cli/src/credentials.mjs';
-// @ts-expect-error módulos .mjs de la CLI, sin tipos
 import { human, table } from '../../cli/src/output.mjs';
 
 describe('argumentos', () => {
@@ -19,7 +15,7 @@ describe('argumentos', () => {
     expect(parseArgs(['--a=b', '--c']).flags).toEqual({ a: 'b', c: true });
     expect(parseArgs(['--confirm', 'x']).positional).toEqual(['x']);
     expect(parseArgs(['--', '--no-flag']).positional).toEqual(['--no-flag']);
-    expect(parseArgs(['--file', 'a', '--file', 'b']).flags.file).toEqual(['a', 'b']);
+    expect((parseArgs(['--file', 'a', '--file', 'b']).flags as unknown as Record<string, unknown>).file).toEqual(['a', 'b']);
     expect(parseArgs(['-h']).flags.help).toBe(true);
   });
 

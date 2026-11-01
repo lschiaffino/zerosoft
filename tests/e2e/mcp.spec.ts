@@ -231,7 +231,8 @@ test('el pedido de autorización valida antes de mostrar nada', async ({ page })
   expect(wrong.headers.get('location')).toBeNull();
   expect((await go({ ...base, client_id: 'nope' })).status).toBe(400);
   // PKCE obligatorio, solo S256, y solo este recurso.
-  for (const bad of [{ code_challenge: '' }, { code_challenge_method: 'plain' }, { resource: 'https://other.example/mcp' }, { scope: 'admin' }, { response_type: 'token' }]) {
+  const bads: Array<Record<string, string>> = [{ code_challenge: '' }, { code_challenge_method: 'plain' }, { resource: 'https://other.example/mcp' }, { scope: 'admin' }, { response_type: 'token' }];
+  for (const bad of bads) {
     const r = await go({ ...base, ...bad });
     expect(r.status, JSON.stringify(bad)).toBe(302);
     expect(new URL(r.headers.get('location')!).searchParams.get('error'), JSON.stringify(bad)).toBeTruthy();
