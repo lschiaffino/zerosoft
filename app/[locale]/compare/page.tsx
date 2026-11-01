@@ -87,9 +87,11 @@ export default async function CompareIndexPage(props: { params: Promise<{ locale
                   <td className="data cmp-cell" data-label={t('index.col.reviewed')}>
                     {formatDay(c.lastReviewed, locale)}
                   </td>
-                  <td className="cmp-links">
-                    <Link href={`/compare/${c.vsSlug}`}>{t('index.vsLink', { name: c.name, competitor: c.competitor })}</Link>
-                    <Link href={`/compare/${c.altSlug}`}>{t('index.altLink', { name: c.name, competitor: c.competitor })}</Link>
+                  <td>
+                    <div className="cmp-links">
+                      <Link href={`/compare/${c.vsSlug}`}>{t('index.vsLink', { name: c.name, competitor: c.competitor })}</Link>
+                      <Link href={`/compare/${c.altSlug}`}>{t('index.altLink', { name: c.name, competitor: c.competitor })}</Link>
+                    </div>
                   </td>
                 </tr>
               ))}

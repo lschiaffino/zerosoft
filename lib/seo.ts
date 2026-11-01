@@ -97,6 +97,9 @@ export interface PageSeo {
 
 export const DEFAULT_OG_IMAGE = '/api/og/home';
 
+/** Hasta este largo, el título lleva el template del layout. */
+export const TITLE_SUFFIX_MAX = 50;
+
 /** Metadata completa de una página pública. */
 export function pageMetadata(seo: PageSeo): Metadata {
   const alternates = alternatesFor(seo.path, seo.locale, seo.locales);
@@ -114,7 +117,8 @@ export function pageMetadata(seo: PageSeo): Metadata {
     images,
   };
   return {
-    title: seo.absoluteTitle ? { absolute: seo.title } : seo.title,
+    // El sufijo " · zerosoft" solo si entra: los buscadores cortan cerca de 60 caracteres.
+    title: seo.absoluteTitle || seo.title.length > TITLE_SUFFIX_MAX ? { absolute: seo.title } : seo.title,
     description: seo.description,
     alternates,
     openGraph:

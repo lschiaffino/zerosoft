@@ -606,7 +606,7 @@
     },
     "groups": {
       "meta": {
-        "title": "Groups: bandeja de WhatsApp para equipos y gestión de grupos, open source",
+        "title": "Groups: bandeja de WhatsApp para equipos, open source",
         "description": "Bandeja compartida para chats y grupos de WhatsApp: asignación, notas, tickets por emoji, SLA, envíos masivos y gestión de grupos en lote, vinculada a tu CRM. Alternativa open source a Periskope."
       },
       "hero": {
@@ -1612,7 +1612,7 @@
     },
     "social": {
       "meta": {
-        "title": "Social: gestión de redes sociales open source, alternativa a Hootsuite",
+        "title": "Social: alternativa open source a Hootsuite",
         "description": "Programá publicaciones en Facebook, Instagram, LinkedIn, X, TikTok, YouTube, Threads y Bluesky, contestá comentarios y mensajes desde una sola bandeja, aprobá lo que publica tu equipo y medí qué funciona. Alternativa open source a Hootsuite."
       },
       "hero": {
@@ -1697,7 +1697,7 @@
     },
     "people": {
       "meta": {
-        "title": "People: RR. HH. open source con licencias, onboarding y evaluaciones",
+        "title": "People: RR. HH. open source, licencias y onboarding",
         "description": "Directorio, organigrama, licencias con devengamiento y aprobaciones, checklists de onboarding, documentos, evaluaciones e historial de sueldos. Una alternativa open source a BambooHR."
       },
       "hero": {
@@ -1950,7 +1950,7 @@
     },
     "books": {
       "meta": {
-        "title": "Books: facturación y contabilidad open source, una alternativa a Xero",
+        "title": "Books: facturación y contabilidad open source",
         "description": "Facturas con impuesto por línea, cobro online con Stripe o Mercado Pago, compras, gastos, conciliación bancaria y contabilidad por partida doble para pymes de Latinoamérica. Una alternativa open source a Xero, QuickBooks y Alegra."
       },
       "hero": {
@@ -2031,7 +2031,7 @@
     },
     "forms": {
       "meta": {
-        "title": "Forms: formularios y encuestas open source, alternativa a Typeform",
+        "title": "Forms: alternativa open source a Typeform",
         "description": "Formularios y encuestas que preguntan de a una, con lógica, quizzes, NPS, archivos adjuntos, temas, embeds y una tabla de respuestas con resumen por pregunta. Una alternativa open source a Typeform, Google Forms y Tally."
       },
       "hero": {

@@ -139,6 +139,36 @@ test('imágenes OG en PNG por página', async ({ request }) => {
   expect((await request.get('/api/og/compare/en/zerosoft-vs-nadie')).status()).toBe(404);
 });
 
+test('el índice del blog no trae las tapas dentro del HTML', async ({ page, request }) => {
+  const html = await (await request.get('/en/blog')).text();
+  expect(html.length).toBeLessThan(1_000_000);
+  const cover = await request.get('/api/og/cover/card/migrar-de-linear-a-track');
+  expect(cover.headers()['content-type']).toContain('image/svg+xml');
+  expect((await request.get('/api/og/cover/card/no-existe')).status()).toBe(404);
+  await page.goto('/es/blog/migrar-de-linear-a-track');
+  const size = await page.locator('.blog-post-cover img').evaluate(async (img: HTMLImageElement) => {
+    await img.decode();
+    return img.naturalWidth;
+  });
+  expect(size).toBeGreaterThan(0);
+});
+
+test('en /compare los dos links quedan dentro de la fila de su app', async ({ page }) => {
+  await page.goto('/es/compare');
+  for (const row of await page.locator('.cmp-index tbody tr').all()) {
+    const box = (await row.boundingBox())!;
+    const links = (await row.locator('.cmp-links').boundingBox())!;
+    expect(links.y + links.height).toBeLessThanOrEqual(box.y + box.height + 1);
+  }
+});
+
+test('un tag que no existe en ese idioma lleva al blog; uno que no existe en ninguno da 404', async ({ page }) => {
+  await page.goto('/es/blog/tag/migration');
+  await expect(page).toHaveURL(/\/es\/blog$/);
+  const res = await page.goto('/es/blog/tag/no-existe-en-ninguno');
+  expect(res?.status()).toBe(404);
+});
+
 test('una comparación que no existe da 404', async ({ page }) => {
   const res = await page.goto('/en/compare/zerosoft-vs-nadie');
   expect(res?.status()).toBe(404);

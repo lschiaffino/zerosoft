@@ -30,7 +30,7 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
         'x-default': absoluteBoardUrl('en'),
       },
     },
-    openGraph: { title, description, type: 'website', url },
+    openGraph: { title, description, type: 'website', url, images: [{ url: '/api/og/home', width: 1200, height: 630, alt: title }] },
   };
 }
 

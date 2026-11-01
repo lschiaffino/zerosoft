@@ -117,7 +117,7 @@ export default async function BlogPostPage(props: { params: Promise<Params> }) {
           </p>
         </header>
         <div className="blog-post-cover" aria-hidden="true">
-          <BlogCover slug={post.slug} title={post.title} variant="hero" />
+          <BlogCover slug={post.slug} variant="hero" />
         </div>
         <div className="prose" dangerouslySetInnerHTML={{ __html: post.html }} />
 

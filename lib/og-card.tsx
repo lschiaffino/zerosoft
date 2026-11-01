@@ -61,7 +61,7 @@ export async function ogCard(input: OgCardInput): Promise<ImageResponse> {
             <div style={{ fontSize: size, lineHeight: 1.04, letterSpacing: size > 70 ? -3 : -1.5, display: 'flex' }}>{title}</div>
             {sub ? <div style={{ fontSize: 30, lineHeight: 1.3, opacity: 0.68, display: 'flex' }}>{sub}</div> : null}
           </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex' }}>
             <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 24, opacity: 0.55 }}>{input.foot ?? 'zerosoft.ai'}</span>
           </div>
         </div>

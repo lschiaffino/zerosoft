@@ -44,7 +44,8 @@ function toBase(u) {
   return `${url.pathname}${url.search}`;
 }
 
-const attr = (tag, name) => new RegExp(`${name}="([^"]*)"`).exec(tag)?.[1] ?? null;
+// Sin distinguir mayúsculas: React escribe hrefLang.
+const attr = (tag, name) => new RegExp(`\\b${name}="([^"]*)"`, 'i').exec(tag)?.[1] ?? null;
 const decode = (s) => s.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#x27;|&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
 
 function parse(html) {

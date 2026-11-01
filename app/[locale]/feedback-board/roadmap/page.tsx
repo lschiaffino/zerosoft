@@ -25,7 +25,7 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
         ...Object.fromEntries(routing.locales.map((l) => [l, absoluteBoardUrl(l, '/roadmap')])),
         'x-default': absoluteBoardUrl('en', '/roadmap'),
       },
-    }, openGraph: { title, description, type: 'website', url } };
+    }, openGraph: { title, description, type: 'website', url, images: [{ url: '/api/og/home', width: 1200, height: 630, alt: title }] } };
 }
 
 /** Roadmap: lo comprometido (planeado, en curso, lanzado). */

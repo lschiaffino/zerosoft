@@ -19,7 +19,7 @@ export default async function PostGrid({ posts, locale, headingLevel = 'h2' }: {
         <li key={post.slug}>
           <Link href={`/blog/${post.slug}`} className="blog-card">
             <div className="blog-card-cover" aria-hidden="true">
-              <BlogCover slug={post.slug} title={post.title} variant="card" />
+              <BlogCover slug={post.slug} variant="card" />
             </div>
             <div className="blog-card-body">
               <p className="blog-card-meta">

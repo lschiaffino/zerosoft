@@ -1,5 +1,5 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { Link } from '@/i18n/navigation';
 import PostGrid from '@/components/blog/PostGrid';
@@ -41,7 +41,11 @@ export default async function BlogTagPage(props: { params: Promise<Params> }) {
   const { locale, tag } = await props.params;
   setRequestLocale(locale);
   const info = tagInfo(locale, tag);
-  if (!info) notFound();
+  if (!info) {
+    // Los tags se escriben en cada idioma: el selector de idioma puede pedir uno que acá no existe.
+    if (tagLocales(tag, 1).length > 0) redirect(`/${locale}/blog`);
+    notFound();
+  }
   const t = await getTranslations({ locale, namespace: 'common.blog' });
   const posts = getPostsByTag(locale, tag);
   const others = getTags(locale).filter((x) => x.count >= TAG_MIN_POSTS && x.slug !== tag);

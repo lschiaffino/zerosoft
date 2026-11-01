@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getTranslations } from 'next-intl/server';
 import { ogCard } from '@/lib/og-card';
-import { getPost, productOfPost } from '@/lib/blog';
+import { getAllSlugs, getPost, productOfPost } from '@/lib/blog';
+import { generateBlogCoverSVG } from '@/lib/blog-cover';
 import { findComparison } from '@/lib/compare';
 import { PRODUCT_CONFIG, PRODUCT_KEYS, isProductKey, productNumber } from '@/lib/products';
 import { getTool } from '@/lib/tools/registry';
@@ -20,6 +21,7 @@ import { isStaticPageKey, staticPageText } from '@/lib/seo-pages';
  *   /api/og/changelog[/<locale>]
  *   /api/og/compare/<locale>/<slug>
  *   /api/og/page/<locale>/<key>     (páginas fijas de lib/seo-pages.ts)
+ *   /api/og/cover/<card|hero>/<slug> (la tapa de un post, en SVG, para la página misma)
  *
  * El home y los ítems del board tienen su ruta propia (home/, board/).
  */
@@ -35,6 +37,17 @@ export async function GET(_req: Request, props: { params: Promise<{ card: string
   const [kind, a, b] = card;
 
   switch (kind) {
+    // Tapa de un post (SVG, lib/blog-cover.ts): determinística por slug, se cachea mucho.
+    case 'cover': {
+      if ((a !== 'card' && a !== 'hero') || !b || getAllSlugs().indexOf(b) < 0) return notFound();
+      return new NextResponse(generateBlogCoverSVG(b, b, a), {
+        headers: {
+          'Content-Type': 'image/svg+xml; charset=utf-8',
+          'Cache-Control': 'public, max-age=604800, s-maxage=2592000, stale-while-revalidate=86400',
+        },
+      });
+    }
+
     case 'product': {
       if (!a || !isProductKey(a)) return notFound();
       const locale = pickLocale(b);

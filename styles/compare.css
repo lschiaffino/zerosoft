@@ -5,7 +5,8 @@
 .cmp-title { max-width: 22ch; }
 .cmp-glyph { display: inline-flex; vertical-align: middle; margin-right: 14px; transform: translateY(-4px); }
 
-.cmp-section { margin-top: 56px; }
+/* Sin el aire de las <section> del sitio (globals.css): acá lo da el margen. */
+.cmp-section { margin-top: 56px; padding-top: 0; padding-bottom: 0; }
 .cmp-last { padding-bottom: 16px; }
 .cmp-h2 {
   font-family: var(--font-signage);

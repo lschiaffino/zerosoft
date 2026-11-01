@@ -606,7 +606,7 @@
     },
     "groups": {
       "meta": {
-        "title": "Groups: caixa de WhatsApp para equipes e gestão de grupos, open source",
+        "title": "Groups: caixa de WhatsApp para equipes, open source",
         "description": "Caixa compartilhada para chats e grupos de WhatsApp: atribuição, notas, tickets por emoji, SLA, envios em massa e gestão de grupos em lote, ligada ao seu CRM. Alternativa open source ao Periskope."
       },
       "hero": {
@@ -1612,7 +1612,7 @@
     },
     "social": {
       "meta": {
-        "title": "Social: gestão de redes sociais open source, alternativa ao Hootsuite",
+        "title": "Social: alternativa open source ao Hootsuite",
         "description": "Agende publicações no Facebook, Instagram, LinkedIn, X, TikTok, YouTube, Threads e Bluesky, responda comentários e mensagens em uma só caixa de entrada, aprove o que o time publica e meça o que funciona. Alternativa open source ao Hootsuite."
       },
       "hero": {
@@ -1950,7 +1950,7 @@
     },
     "books": {
       "meta": {
-        "title": "Books: faturamento e contabilidade open source, uma alternativa ao Xero",
+        "title": "Books: faturamento e contabilidade open source",
         "description": "Faturas com imposto por linha, pagamento online com Stripe ou Mercado Pago, contas a pagar, despesas, conciliação bancária e contabilidade de partida dobrada para pequenas empresas da América Latina. Uma alternativa open source ao Xero e ao QuickBooks."
       },
       "hero": {
@@ -2031,7 +2031,7 @@
     },
     "forms": {
       "meta": {
-        "title": "Forms: formulários e pesquisas open source, alternativa ao Typeform",
+        "title": "Forms: alternativa open source ao Typeform",
         "description": "Formulários e pesquisas que perguntam uma de cada vez, com lógica, quizzes, NPS, envio de arquivos, temas, embeds e uma tabela de respostas com resumo por pergunta. Uma alternativa open source ao Typeform, Google Forms e Tally."
       },
       "hero": {
