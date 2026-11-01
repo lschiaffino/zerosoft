@@ -91,11 +91,11 @@ function menuKeys(e: KeyboardEvent<HTMLElement>, close: () => void) {
     items[(n + items.length) % items.length]?.focus();
   };
   if (e.key === 'ArrowDown') go(i + 1);
-  else if (e.key === 'ArrowUp') go(i - 1);
+  else if (e.key === 'ArrowUp') go(i < 0 ? items.length - 1 : i - 1);
   else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
     // En la grilla del switcher, ←/→ van a la columna de al lado (el más cercano en altura); en una lista, siguiente/anterior.
     const side = sideItem(items, i, e.key === 'ArrowRight' ? 1 : -1);
-    go(side ?? i + (e.key === 'ArrowRight' ? 1 : -1));
+    go(side ?? (i < 0 ? 0 : i + (e.key === 'ArrowRight' ? 1 : -1)));
   }
   else if (e.key === 'Home') go(0);
   else if (e.key === 'End') go(items.length - 1);
@@ -261,6 +261,7 @@ export default function AppSidebar({
   }, [updateOverflow]);
   const switcherRef = useRef<HTMLDivElement>(null);
   const switcherBtn = useRef<HTMLButtonElement>(null);
+  const switcherByKeyboard = useRef(false);
   const newRef = useRef<HTMLDivElement>(null);
   const newBtn = useRef<HTMLButtonElement>(null);
   const menuBtn = useRef<HTMLButtonElement>(null);
@@ -287,10 +288,11 @@ export default function AppSidebar({
     return () => document.removeEventListener('mousedown', onDown);
   }, []);
 
-  // Al abrir un menú, el foco va al primer ítem (o al actual en el switcher).
+  // Al abrir un menú, el foco va al primer ítem. En el switcher va al actual si se abrió con teclado;
+  // con el mouse queda en el panel, para que las flechas funcionen sin pintar un anillo que nadie pidió.
   useEffect(() => {
     if (!switcherOpen) return;
-    const el =
+    const el = !switcherByKeyboard.current ? switcherRef.current?.querySelector<HTMLElement>('.band-switcher-panel') :
       switcherRef.current?.querySelector<HTMLElement>('[role="menuitem"][aria-current="page"]') ??
       switcherRef.current?.querySelector<HTMLElement>('[role="menuitem"]');
     el?.focus();
@@ -350,18 +352,18 @@ export default function AppSidebar({
   const more = moreAppsByCategory({ mode })
     .map((g) => ({ ...g, apps: g.apps.filter(allowed) }))
     .filter((g) => g.apps.length > 0);
-  const switcherItem = (line: ProductKey, small = false) => {
+  const switcherItem = (line: ProductKey) => {
     const key = appProductOf(line);
     return (
       <Link
         key={line}
         href={switcherHref(line)}
         role="menuitem"
-        className={`band-menu-item${small ? ' band-menu-item-sm' : ''}`}
+        className="band-menu-item"
         onClick={() => setSwitcherOpen(false)}
         aria-current={key === product ? 'page' : undefined}
       >
-        <ProductGlyph product={line} size={small ? 12 : 14} />
+        <ProductGlyph product={line} size={14} />
         <span>{PRODUCT_CONFIG[line].name}</span>
         {isBuildingProduct(line) && <span className="app-soon-tag">{labels.soon}</span>}
       </Link>
@@ -426,7 +428,8 @@ export default function AppSidebar({
             ref={switcherBtn}
             type="button"
             className="band-product"
-            onClick={() => {
+            onClick={(e) => {
+              switcherByKeyboard.current = e.detail === 0;
               setSwitcherOpen((v) => !v);
               setNewOpen(false);
             }}
@@ -443,6 +446,7 @@ export default function AppSidebar({
             <div
               className="band-menu-panel band-switcher-panel"
               role="menu"
+              tabIndex={-1}
               aria-label={t('switchProduct')}
               onKeyDown={(e) => menuKeys(e, () => closeSwitcher(true))}
             >
@@ -460,24 +464,19 @@ export default function AppSidebar({
                 {labels.featured}
               </p>
               <div className="band-menu-featured" role="group" aria-label={labels.featured}>
-                {featured.map((line) => switcherItem(line))}
+                {featured.map(switcherItem)}
               </div>
               {more.length > 0 && (
-                <>
-                  <p className="band-menu-section" aria-hidden="true">
-                    {labels.moreApps}
-                  </p>
-                  <div className="band-menu-grid">
-                    {more.map(({ category, apps }) => (
-                      <div key={category} className="band-menu-cat" role="group" aria-label={labels.categories[category]}>
-                        <p className="band-menu-cat-title" aria-hidden="true">
-                          {labels.categories[category]}
-                        </p>
-                        {apps.map((line) => switcherItem(line, true))}
-                      </div>
-                    ))}
-                  </div>
-                </>
+                <div className="band-menu-grid" role="group" aria-label={labels.moreApps}>
+                  {more.map(({ category, apps }) => (
+                    <div key={category} className="band-menu-cat" role="group" aria-label={labels.categories[category]}>
+                      <p className="band-menu-cat-title" aria-hidden="true">
+                        {labels.categories[category]}
+                      </p>
+                      {apps.map(switcherItem)}
+                    </div>
+                  ))}
+                </div>
               )}
               <button
                 type="button"

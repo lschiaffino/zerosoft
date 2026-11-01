@@ -2823,6 +2823,12 @@ a.track-board-card-title:hover {
   font-weight: 500;
 }
 
+.track-access-invite-input {
+  flex: 1;
+  min-width: 0;
+  max-width: 360px;
+}
+
 .track-access-members {
   display: grid;
   gap: 6px;

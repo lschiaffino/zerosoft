@@ -386,7 +386,7 @@
   },
   "home": {
     "hero": {
-      "title1": "Twenty-four apps for your team.",
+      "title1": "<nb>Twenty-four</nb> apps for your team.",
       "title2": "Zero licenses.",
       "sub": "Open-source alternatives to HubSpot, Intercom, Calendly, Linear, Notion and five more products your team pays for every month. Run them on your server for $0 or use them on zerosoft Cloud.",
       "ctaStart": "Start free",

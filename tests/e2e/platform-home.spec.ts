@@ -50,13 +50,19 @@ test('Link vive en /app/links: el switcher y el resumen', async ({ page }) => {
 
 test('switcher: inicio, destacadas, más apps por categoría, teclado y ⌘K', async ({ page }) => {
   await page.goto('/es/app/crm', { waitUntil: 'networkidle' });
-  await page.locator('.band-product').click();
   const menu = page.getByRole('menu', { name: 'Cambiar de app' });
+  // Con el mouse el foco queda en el panel, sin anillo sobre ningún ítem; las flechas igual funcionan.
+  await page.locator('.band-product').click();
+  await expect(menu).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(menu.getByRole('menuitem', { name: 'Inicio' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await page.locator('.band-product').press('Enter');
   await expect(menu).toBeVisible();
   await expect(menu.getByRole('menuitem', { name: 'Inicio' })).toHaveAttribute('href', '/es/app');
   await expect(menu.getByRole('group', { name: 'Destacadas' }).getByRole('menuitem')).toHaveCount(6);
   await expect(menu.getByRole('group', { name: 'Automatizar' }).getByRole('menuitem')).not.toHaveCount(0);
-  // El foco arranca en la app actual y las flechas lo mueven.
+  // Con teclado el foco arranca en la app actual y las flechas lo mueven.
   await expect(menu.getByRole('menuitem', { name: 'CRM' })).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await expect(menu.getByRole('menuitem', { name: 'CRM' })).not.toBeFocused();
@@ -178,7 +184,7 @@ test('sidebar del inicio: tus apps a la vista y el resto en "Más apps"', async 
 test('switcher en el teléfono: ←/→ cruzan entre columnas', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/es/app/crm', { waitUntil: 'networkidle' });
-  await page.locator('.band-product').click();
+  await page.locator('.band-product').press('Enter');
   const menu = page.getByRole('menu', { name: 'Cambiar de app' });
   const crm = menu.getByRole('menuitem', { name: 'CRM' });
   await expect(crm).toBeFocused();

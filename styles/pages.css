@@ -27,10 +27,11 @@
   font-stretch: var(--signage-stretch);
   font-weight: var(--signage-weight);
   font-size: var(--t-display);
-  line-height: 0.92;
+  line-height: 1;
   letter-spacing: -0.01em;
   text-wrap: balance;
 }
+.lp-nowrap { white-space: nowrap; }
 .lp-h1-dim { color: var(--brand-gray-2); }
 
 .lp-sub,
