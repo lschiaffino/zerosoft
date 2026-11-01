@@ -29,6 +29,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-31-sitio-comparaciones-blog',
+    date: '2026-10-31',
+    title: {
+      en: 'Site: comparison pages for every app, blog topics and feeds, six migration guides',
+      es: 'Sitio: comparaciones de cada app, temas y feeds del blog, seis guías de migración',
+      pt: 'Site: comparações de cada app, temas e feeds do blog, seis guias de migração',
+    },
+    items: [
+      {
+        product: 'site',
+        en: 'Each app has two pages next to the product it replaces: /compare/zerosoft-vs-<competitor> with the full parity table and /compare/<competitor>-alternative with what you get, what is missing and how to move. Both come from the same parity data as the product page, so they update with it.',
+        es: 'Cada app tiene dos páginas al lado del producto que reemplaza: /compare/zerosoft-vs-<competidor> con la tabla de paridad completa y /compare/<competidor>-alternative con lo que tenés, lo que falta y cómo pasarte. Salen de los mismos datos de paridad que la página de producto, así que se actualizan con ella.',
+        pt: 'Cada app tem duas páginas ao lado do produto que substitui: /compare/zerosoft-vs-<concorrente> com a tabela de paridade completa e /compare/<concorrente>-alternative com o que você tem, o que falta e como migrar. Saem dos mesmos dados de paridade da página do produto, então se atualizam com ela.',
+      },
+      {
+        product: 'site',
+        en: 'The blog has topic and author pages, RSS and Atom feeds per language, related posts and a share image per post in its language. New guides: moving from Linear, Calendly, Intercom, Pipedrive, Evernote and Excalidraw.',
+        es: 'El blog tiene páginas por tema y por autor, feeds RSS y Atom por idioma, posts relacionados y una imagen para compartir por post en su idioma. Guías nuevas: cómo pasarte desde Linear, Calendly, Intercom, Pipedrive, Evernote y Excalidraw.',
+        pt: 'O blog tem páginas por tema e por autor, feeds RSS e Atom por idioma, posts relacionados e uma imagem de compartilhamento por post no seu idioma. Guias novos: como migrar do Linear, Calendly, Intercom, Pipedrive, Evernote e Excalidraw.',
+      },
+      {
+        product: 'site',
+        en: 'Every public page has its own title, canonical URL, links to its other languages and a PNG share image. /llms.txt and /llms-full.txt describe the apps, prices and comparisons for AI assistants.',
+        es: 'Cada página pública tiene título propio, URL canónica, links a sus otros idiomas y una imagen PNG para compartir. /llms.txt y /llms-full.txt describen las apps, los precios y las comparaciones para asistentes de IA.',
+        pt: 'Cada página pública tem título próprio, URL canônica, links para os outros idiomas e uma imagem PNG de compartilhamento. /llms.txt e /llms-full.txt descrevem os apps, os preços e as comparações para assistentes de IA.',
+      },
+    ],
+  },
+  {
     id: '2026-10-31-robots-paridad',
     date: '2026-10-31',
     title: {

@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { routing } from '@/i18n/routing';
 import { setRequestLocale } from 'next-intl/server';
 import BoardChrome from '@/components/board/BoardChrome';
 import { BoardItemCard } from '@/components/board/BoardItemRow';
@@ -18,7 +19,13 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
   const title = t('meta.roadmapTitle');
   const description = t('meta.roadmapDescription');
   const url = absoluteBoardUrl(locale, '/roadmap');
-  return { title, description, alternates: { canonical: url }, openGraph: { title, description, type: 'website', url } };
+  return { title, description, alternates: {
+      canonical: url,
+      languages: {
+        ...Object.fromEntries(routing.locales.map((l) => [l, absoluteBoardUrl(l, '/roadmap')])),
+        'x-default': absoluteBoardUrl('en', '/roadmap'),
+      },
+    }, openGraph: { title, description, type: 'website', url } };
 }
 
 /** Roadmap: lo comprometido (planeado, en curso, lanzado). */

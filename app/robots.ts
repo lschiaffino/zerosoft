@@ -21,7 +21,15 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
   }
   const base = siteUrl();
   return {
-    rules: [{ userAgent: '*', allow: ['/', '/api/og/'], disallow: ['/api/', '/en/app', '/es/app', '/pt/app'] }],
+    // Buscadores y crawlers de IA (GPTBot, ClaudeBot, PerplexityBot, Google-Extended) leen igual:
+    // el sitio público entero, las imágenes OG y llms.txt. La app, el login y la API, no.
+    rules: [
+      {
+        userAgent: '*',
+        allow: ['/', '/api/og/', '/llms.txt', '/llms-full.txt'],
+        disallow: ['/api/', ...['en', 'es', 'pt'].flatMap((l) => [`/${l}/app`, `/${l}/auth`, `/${l}/invite`, `/${l}/gate`])],
+      },
+    ],
     sitemap: `${base}/sitemap.xml`,
   };
 }

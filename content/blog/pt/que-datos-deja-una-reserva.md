@@ -84,4 +84,4 @@ DELETE FROM calendar_bookings WHERE invitee_email = 'pessoa@exemplo.com';
 - **Retenção automática.** Não existe uma regra do tipo "apagar reservas com mais de 24 meses". As reservas ficam guardadas enquanto você as mantiver.
 - **Exportar as reservas de uma pessoa.** A API lista reservas com busca (`GET /api/v1/calendar/bookings?q=`), o que serve para montar um pedido de acesso, mas não há um botão de "exportar tudo deste email".
 
-Se alguma delas te trava, conte no [feedback board](/feedback). Enquanto isso, o mapa de cópias é o que mais vai te poupar tempo: um pedido de exclusão sem mapa leva uma tarde, e com mapa leva quinze minutos.
+Se alguma delas te trava, conte no [feedback board](/feedback-board). Enquanto isso, o mapa de cópias é o que mais vai te poupar tempo: um pedido de exclusão sem mapa leva uma tarde, e com mapa leva quinze minutos.

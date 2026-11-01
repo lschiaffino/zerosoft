@@ -129,7 +129,7 @@ const parity: ProductParity = {
       detail: ['From a deal or contact; the signed PDF is attached to the record', 'Desde un deal o contacto; el PDF firmado queda adjunto al registro', 'De um negócio ou contato; o PDF assinado fica anexado ao registro'],
     }),
     row('hr', 'integrations', ['Offer letters and HR documents', 'Cartas oferta y documentos de RR. HH.', 'Cartas de oferta e documentos de RH'], 'partial', {
-      detail: ['Hiring offers go out for signature and are accepted when signed; People can link envelopes through the API until its app ships', 'Las ofertas de Hiring salen a firmar y quedan aceptadas al firmarse; People vincula sobres por la API hasta que salga su app', 'As ofertas do Hiring saem para assinatura e ficam aceitas ao assinar; o People vincula envelopes pela API até seu app sair'],
+      detail: ['Hiring offers go out for signature and are accepted when signed; People can link envelopes through the API', 'Las ofertas de Hiring salen a firmar y quedan aceptadas al firmarse; People vincula sobres por la API', 'As ofertas do Hiring saem para assinatura e ficam aceitas ao assinar; o People vincula envelopes pela API'],
     }),
     row('automations', 'integrations', ['Automations on completed and declined', 'Automatizaciones al completar y rechazar', 'Automações ao concluir e recusar'], 'have', { detail: ['Flow triggers', 'Disparadores de Flow', 'Gatilhos do Flow'] }),
     row('api', 'integrations', ['API and webhooks', 'API y webhooks', 'API e webhooks'], 'partial', {

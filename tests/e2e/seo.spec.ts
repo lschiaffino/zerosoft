@@ -1,0 +1,145 @@
+import { expect, test } from '@playwright/test';
+
+/**
+ * SEO del sitio público: cada página con título propio, canonical a sí misma,
+ * hreflang de los tres idiomas con x-default, og:image PNG, JSON-LD válido y
+ * sin scroll horizontal a 390 px. Más sitemap, robots, llms.txt, feeds e
+ * imágenes OG.
+ */
+
+const PATHS = [
+  '',
+  '/products',
+  '/products/crm',
+  '/products/link',
+  '/compare',
+  '/compare/zerosoft-vs-hubspot',
+  '/compare/notion-alternative',
+  '/compare/zerosoft-vs-excalidraw-plus',
+  '/tools',
+  '/blog',
+  '/blog/migrar-de-linear-a-track',
+  '/blog/zerosoft-crm-vs-hubspot',
+  '/blog/author/zerosoft',
+  '/changelog',
+  '/docs',
+  '/download',
+  '/videos',
+  '/terms',
+  '/privacy',
+  '/security',
+];
+
+const LOCALES = ['en', 'es', 'pt'] as const;
+
+test.describe.configure({ mode: 'serial' });
+
+test('títulos únicos, canonical y hreflang en cada página pública', async ({ page }) => {
+  test.setTimeout(600_000);
+  for (const locale of LOCALES) {
+    // Únicos por idioma: entre idiomas los une hreflang.
+    const titles = new Map<string, string>();
+    for (const path of PATHS) {
+      const url = `/${locale}${path}`;
+      const res = await page.goto(url, { waitUntil: 'domcontentloaded' });
+      expect(res?.status(), url).toBe(200);
+
+      const title = await page.title();
+      expect(title.length, `${url} título`).toBeGreaterThan(5);
+      expect(titles.get(title), `${url} repite el título de ${titles.get(title)}`).toBeUndefined();
+      titles.set(title, url);
+
+      const desc = await page.locator('meta[name="description"]').getAttribute('content');
+      expect(desc?.length ?? 0, `${url} description`).toBeGreaterThan(40);
+
+      const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
+      expect(new URL(canonical!).pathname, `${url} canonical`).toBe(url);
+
+      const langs = await page.locator('link[rel="alternate"][hreflang]').evaluateAll((els) =>
+        els.map((e) => [e.getAttribute('hreflang'), new URL(e.getAttribute('href')!).pathname]),
+      );
+      const map = Object.fromEntries(langs);
+      expect(map['x-default'], `${url} x-default`).toBeTruthy();
+      expect(map[locale], `${url} hreflang propio`).toBe(url);
+
+      const og = await page.locator('meta[property="og:image"]').first().getAttribute('content');
+      expect(og, `${url} og:image`).toMatch(/\/api\/og\//);
+
+      const ld = await page.locator('script[type="application/ld+json"]').allTextContents();
+      for (const block of ld) expect(() => JSON.parse(block), `${url} JSON-LD`).not.toThrow();
+      expect(await page.locator('h1').count(), `${url} un h1`).toBe(1);
+    }
+  }
+});
+
+test('sin scroll horizontal a 390 px (claro y oscuro)', async ({ browser }) => {
+  test.setTimeout(600_000);
+  for (const scheme of ['light', 'dark'] as const) {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: scheme });
+    const page = await ctx.newPage();
+    for (const path of PATHS) {
+      const url = `/es${path}`;
+      await page.goto(url, { waitUntil: 'networkidle' });
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(overflow, `${url} (${scheme})`).toBeLessThanOrEqual(0);
+    }
+    await ctx.close();
+  }
+});
+
+test('los temas del índice son indexables y están en el sitemap', async ({ page, request }) => {
+  await page.goto('/es/blog', { waitUntil: 'domcontentloaded' });
+  const href = await page.locator('.blog-tags a').first().getAttribute('href');
+  await page.goto(href!);
+  expect(await page.locator('meta[name="robots"]').count()).toBe(0);
+  const sitemap = await (await request.get('/sitemap.xml')).text();
+  expect(sitemap).toContain(href!);
+});
+
+test('sitemap, robots, llms.txt y feeds', async ({ request }) => {
+  const sitemap = await request.get('/sitemap.xml');
+  expect(sitemap.status()).toBe(200);
+  const xml = await sitemap.text();
+  expect(xml).toContain('/es/compare/zerosoft-vs-hubspot');
+  expect(xml).toContain('hreflang="x-default"');
+  expect(xml).toContain('/pt/blog/migrar-de-calendly-a-cal');
+
+  const robots = await (await request.get('/robots.txt')).text();
+  expect(robots).toContain('Sitemap:');
+  expect(robots).toMatch(/Disallow: \/api\//);
+
+  const llms = await request.get('/llms.txt');
+  expect(llms.status()).toBe(200);
+  expect(llms.headers()['content-type']).toContain('text/markdown');
+  expect(await llms.text()).toMatch(/^# zerosoft\n\n> /);
+  expect((await request.get('/llms-full.txt')).status()).toBe(200);
+
+  const rss = await request.get('/es/blog/rss.xml');
+  expect(rss.status()).toBe(200);
+  expect(await rss.text()).toContain('<rss version="2.0"');
+  const atom = await request.get('/en/blog/atom.xml');
+  expect(await atom.text()).toContain('<feed xmlns="http://www.w3.org/2005/Atom"');
+});
+
+test('imágenes OG en PNG por página', async ({ request }) => {
+  for (const path of [
+    '/api/og/home',
+    '/api/og/product/crm/es',
+    '/api/og/blog/es/migrar-de-linear-a-track',
+    '/api/og/blog/zerosoft-crm-vs-hubspot',
+    '/api/og/compare/pt/zerosoft-vs-notion',
+    '/api/og/page/en/blog',
+    '/api/og/tool/hub/es',
+    '/api/og/changelog/en',
+  ]) {
+    const res = await request.get(path);
+    expect(res.status(), path).toBe(200);
+    expect(res.headers()['content-type'], path).toBe('image/png');
+  }
+  expect((await request.get('/api/og/compare/en/zerosoft-vs-nadie')).status()).toBe(404);
+});
+
+test('una comparación que no existe da 404', async ({ page }) => {
+  const res = await page.goto('/en/compare/zerosoft-vs-nadie');
+  expect(res?.status()).toBe(404);
+});
