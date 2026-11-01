@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { DATE_SLOT, splitAroundDate } from '@/lib/date-slot';
 import { afterAll, describe, expect, it } from 'vitest';
 import { formatDate, formatDateTime } from '@/lib/utils';
 
@@ -21,5 +23,19 @@ describe('fechas en la zona de quien mira', () => {
     expect(formatDate('2026-03-15 01:30:00', 'en')).toBe('Mar 14, 2026');
     expect(formatDateTime('2026-03-15T01:30:00Z', 'en')).toContain('Mar 14, 2026');
     expect(formatDateTime('2026-03-15T01:30:00Z', 'en')).toMatch(/10:30/);
+  });
+});
+
+describe('frase con fecha', () => {
+  it('parte el texto donde dice el mensaje, en cualquier orden de palabras', () => {
+    expect(splitAroundDate(`Until ${DATE_SLOT}`)).toEqual(['Until ', '']);
+    expect(splitAroundDate(`${DATE_SLOT} is the limit`)).toEqual(['', ' is the limit']);
+    expect(splitAroundDate('Sin fecha')).toEqual(['Sin fecha', '']);
+  });
+
+  it('las páginas del servidor no pasan una función a un argumento simple de t.rich', () => {
+    for (const file of ['app/[locale]/app/docs/(home)/page.tsx', 'app/[locale]/app/crm/leads/[id]/page.tsx']) {
+      expect(readFileSync(file, 'utf8'), file).not.toMatch(/t\.rich\([^)]*date: \(\) =>/);
+    }
   });
 });

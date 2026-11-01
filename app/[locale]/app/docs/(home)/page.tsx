@@ -19,6 +19,7 @@ import {
 } from '@/lib/docs-actions';
 import { getDocTemplates } from '@/lib/docs-templates';
 import LocalDate from '@/components/ui/LocalDate';
+import { DATE_SLOT, TextAroundDate } from '@/components/ui/TextAroundDate';
 import Icon from '@/components/app/icons';
 import { Link } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
@@ -199,7 +200,7 @@ export default async function DocsLandingPage(props: {
                     if (!p.verified_at) return <span className="docs-wiki-state">{t('verify.unverified')}</span>;
                     return (
                       <span className={`docs-wiki-state${expired ? ' is-expired' : ' is-ok'}`}>
-                        {expired ? t('verify.expiredBadge') : p.verified_until ? t.rich('verify.until', { date: () => <LocalDate value={p.verified_until} locale={locale} /> }) : t('verify.forever')}
+                        {expired ? t('verify.expiredBadge') : p.verified_until ? <TextAroundDate text={t('verify.until', { date: DATE_SLOT })}><LocalDate value={p.verified_until} locale={locale} /></TextAroundDate> : t('verify.forever')}
                       </span>
                     );
                   },

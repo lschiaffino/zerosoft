@@ -12,6 +12,7 @@ import { fieldAccessFor, redactCustomJson, sessionFieldViewer } from '@/lib/crm-
 import { ownerOptions } from '@/lib/crm-owners';
 import { withActivityFiles } from '@/lib/crm-files';
 import LocalDate from '@/components/ui/LocalDate';
+import { DATE_SLOT, TextAroundDate } from '@/components/ui/TextAroundDate';
 import PageHeader from '@/components/ui/PageHeader';
 import RecordTabs from '@/components/crm/RecordTabs';
 import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
@@ -104,7 +105,7 @@ export default async function LeadPage(props: {
             {lead.contact_id && <Link href={`/app/crm/contacts/${lead.contact_id}`}>{lead.contact_name ?? lead.contact_email}</Link>}
             {lead.company_id && <Link href={`/app/crm/companies/${lead.company_id}`}>{lead.company_name}</Link>}
             <span>{ownerLabel}</span>
-            {lead.converted_at && <span>{t.rich('leads.converted', { date: () => <LocalDate value={lead.converted_at} locale={locale} kind="date" /> })}</span>}
+            {lead.converted_at && <span>{<TextAroundDate text={t('leads.converted', { date: DATE_SLOT })}><LocalDate value={lead.converted_at} locale={locale} kind="date" /></TextAroundDate>}</span>}
             {kind === 'disqualified' && lead.disqualify_reason && (
               <span>{t('leads.disqualify.reasonLabel', { reason: lead.disqualify_reason })}</span>
             )}
