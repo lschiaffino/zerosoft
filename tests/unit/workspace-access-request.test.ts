@@ -231,7 +231,7 @@ describe('nadie da apps que no tiene', () => {
     await updateWorkspace(team.id, { joinApps: ['docs'] });
     await actAs(owner, adl, 'admin', ['docs']);
     const ws = (body: unknown) => wsRoute.PATCH(json('/api/teams/workspace', 'PATCH', body));
-    expect((await ws({ joinApps: ['crm'] })).status).toBe(403);
+    expect((await ws({ allowedDomains: ['acme.io'], joinApps: ['crm'] })).status).toBe(403);
 
     // Aprobar un ingreso con apps que no tiene.
     const asker = await makeUser('gr1j');
