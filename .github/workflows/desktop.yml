@@ -10,6 +10,7 @@ name: desktop
 on:
   push:
     tags: ['desktop-v*']
+  # A mano arma los instaladores como artefactos y no publica nada: publicar es solo con el tag.
   workflow_dispatch:
 
 permissions:
@@ -76,7 +77,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: npx electron-builder ${{ matrix.target }} --publish always ${{ steps.sign.outputs.notarize == 'yes' && '-c.mac.notarize=true' || '-c.mac.notarize=false' }}
+        run: npx electron-builder ${{ matrix.target }} --publish ${{ startsWith(github.ref, 'refs/tags/desktop-v') && 'always' || 'never' }} ${{ steps.sign.outputs.notarize == 'yes' && '-c.mac.notarize=true' || '-c.mac.notarize=false' }}
 
       - name: Instaladores firmados (Windows)
         if: runner.os == 'Windows' && steps.sign.outputs.win == 'yes'
@@ -84,7 +85,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
-        run: npx electron-builder ${{ matrix.target }} --publish always
+        run: npx electron-builder ${{ matrix.target }} --publish ${{ startsWith(github.ref, 'refs/tags/desktop-v') && 'always' || 'never' }}
 
       # Sin certificado: instaladores sin firmar (la página /download explica cómo abrirlos).
       - name: Instaladores sin firmar
@@ -93,7 +94,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-        run: npx electron-builder ${{ matrix.target }} --publish always -c.mac.identity=null -c.mac.notarize=false
+        run: npx electron-builder ${{ matrix.target }} --publish ${{ startsWith(github.ref, 'refs/tags/desktop-v') && 'always' || 'never' }} -c.mac.identity=null -c.mac.notarize=false
 
       - uses: actions/upload-artifact@v4
         if: always()
