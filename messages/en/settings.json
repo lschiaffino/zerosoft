@@ -1100,6 +1100,7 @@
     "confirmBody": "It loses access right away. To use it again you will need to sign in again.",
     "error": "Could not disconnect it. Try again.",
     "thisComputer": "This computer",
-    "meta": "Connected {date}, {count, plural, =0 {no changes} one {# change} other {# changes}}"
+    "connectedOn": "Connected {date}",
+    "changes": "{count, plural, =0 {No changes} one {# change} other {# changes}}"
   }
 }

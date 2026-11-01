@@ -39,9 +39,9 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         product: 'agents',
-        en: 'One connector for Claude Code and claude.ai. You sign in with your normal login, choose the workspace and whether it can write, and Claude acts as you, with your role and permissions. See and disconnect your apps in Settings, API and webhooks.',
-        es: 'Un solo conector para Claude Code y claude.ai. Entrás con tu login de siempre, elegís el workspace y si puede escribir, y Claude actúa como vos, con tu rol y tus permisos. Mirá y desconectá tus apps en Ajustes, API y webhooks.',
-        pt: 'Um único conector para o Claude Code e o claude.ai. Você entra com seu login de sempre, escolhe o workspace e se pode escrever, e o Claude age como você, com seu papel e suas permissões. Veja e desconecte seus apps em Ajustes, API e webhooks.',
+        en: 'One connector for Claude Code. You sign in with your normal login, choose the workspace and whether it can write, and Claude acts as you, with your role and permissions. See and disconnect your apps in Settings, API and webhooks.',
+        es: 'Un solo conector para Claude Code. Entrás con tu login de siempre, elegís el workspace y si puede escribir, y Claude actúa como vos, con tu rol y tus permisos. Mirá y desconectá tus apps en Ajustes, API y webhooks.',
+        pt: 'Um único conector para o Claude Code. Você entra com seu login de sempre, escolhe o workspace e se pode escrever, e o Claude age como você, com seu papel e suas permissões. Veja e desconecte seus apps em Ajustes, API e webhooks.',
       },
       {
         product: 'agents',

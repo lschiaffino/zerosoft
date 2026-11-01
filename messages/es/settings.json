@@ -1100,6 +1100,7 @@
     "confirmBody": "Pierde el acceso en el momento. Para volver a usarla vas a tener que iniciar sesión de nuevo.",
     "error": "No se pudo desconectar. Probá de nuevo.",
     "thisComputer": "Esta computadora",
-    "meta": "Conectada el {date}, {count, plural, =0 {sin cambios} one {# cambio} other {# cambios}}"
+    "connectedOn": "Conectada el {date}",
+    "changes": "{count, plural, =0 {Sin cambios} one {# cambio} other {# cambios}}"
   }
 }

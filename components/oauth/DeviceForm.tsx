@@ -23,6 +23,7 @@ export default function DeviceForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const looked = useRef(false);
+  const input = useRef<HTMLInputElement>(null);
 
   async function lookup(value: string) {
     setBusy(true);
@@ -33,7 +34,10 @@ export default function DeviceForm({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ code: value, decision: 'lookup' }),
       });
-      if (!res.ok) setError(t(res.status === 429 ? 'errorTooMany' : 'errorCode'));
+      if (!res.ok) {
+        setError(t(res.status === 429 ? 'errorTooMany' : 'errorCode'));
+        input.current?.focus();
+      }
       else setFound((await res.json()) as { clientName: string; scope: string });
     } catch {
       setError(t('errorGeneric'));
@@ -84,6 +88,8 @@ export default function DeviceForm({
         <label className="label" htmlFor="oauth-code">{t('deviceCode')}</label>
         <input
           id="oauth-code"
+          ref={input}
+          aria-invalid={Boolean(error)}
           className="input oauth-code"
           value={code}
           onChange={(e) => setCode(e.target.value)}

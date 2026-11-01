@@ -5,6 +5,7 @@
 .oauth-form { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .oauth-origin { margin: 0; font-family: var(--mono); font-size: 12px; color: var(--ink-2); }
 .oauth-sub, .auth-card .auth-sub.oauth-sub { margin: 0; }
+.oauth-card > .auth-sub { margin: 8px 0 0; }
 .oauth-field { margin: 0; }
 .oauth-field .select, .oauth-field .input { width: 100%; }
 .oauth-scopes { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }

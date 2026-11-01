@@ -687,6 +687,8 @@ test('CLI: login de dispositivo y solo lectura', async ({ page }) => {
   await page.getByLabel('Code').fill('WRONG-CODE');
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.locator('.ui-error')).toBeVisible();
+  await expect(page.getByLabel('Code')).toBeFocused();
+  await page.mouse.move(0, 0);
   await shot(page, 'device-error-1280-light');
   await page.getByLabel('Code').fill(userCode.toLowerCase());
   await page.getByRole('button', { name: 'Continue' }).click();
@@ -742,7 +744,7 @@ test('las pantallas se ven bien a 390 y 1280, en claro y oscuro', async ({ brows
       await expect(disconnect).toBeInViewport({ ratio: 1 });
       await disconnect.click();
       await expect(page.getByRole('alertdialog')).toBeVisible();
-      await shot(page, `settings-confirm-${tag}`);
+      if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `settings-confirm-${tag}.png`) });
       await page.keyboard.press('Escape');
       await page.goto('/en/docs/mcp');
       await shot(page, `docs-${tag}`);
@@ -750,8 +752,14 @@ test('las pantallas se ven bien a 390 y 1280, en claro y oscuro', async ({ brows
     }
   }
   // Sin conexiones, y el texto en los tres idiomas.
-  const fresh = await asPerson(browser, `empty${uid()}@mcp.example.com`);
+  const emptyEmail = `empty${uid()}@mcp.example.com`;
+  const fresh = await asPerson(browser, emptyEmail);
   const freshPage = await fresh.newPage();
+  await freshPage.goto('/en/app');
+  // Una cuenta nueva pasa primero por el onboarding: acá ya lo hizo.
+  const seedDb = db();
+  await seedDb.execute({ sql: `UPDATE users SET onboarded_at = datetime('now') WHERE email = ?`, args: [emptyEmail] });
+  seedDb.close();
   await freshPage.goto('/en/app/settings/api');
   await expect(freshPage.getByText('No connected apps')).toBeVisible();
   await freshPage.locator('#connected').screenshot({ path: SHOTS ? path.join(SHOTS, 'settings-panel-empty-1280-light.png') : undefined });

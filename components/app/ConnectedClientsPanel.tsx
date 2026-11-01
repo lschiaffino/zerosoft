@@ -60,17 +60,22 @@ export default function ConnectedClientsPanel({ initial }: { initial: ConnectedC
                 <span className="st-strong">{c.clientName}</span>
                 <span className="st-muted">{c.redirectHost ?? t('thisComputer')}</span>
                 <span className="st-muted">
-                  <LocalText>{t('meta', { date: fmt(c.createdAt, locale), count: c.writes })}</LocalText>
+                  <LocalText>{t('connectedOn', { date: fmt(c.createdAt, locale) })}</LocalText>
                 </span>
               </span>
             ),
           },
           { key: 'workspace', header: t('colWorkspace'), cell: (c) => c.workspaceName ?? t('ownWorkspace') },
-          { key: 'scope', header: t('colAccess'), cell: (c) => t(c.scope.split(' ').includes('write') ? 'accessWrite' : 'accessRead') },
+          { key: 'scope', header: t('colAccess'), cell: (c) => <span className="st-nowrap">{t(c.scope.split(' ').includes('write') ? 'accessWrite' : 'accessRead')}</span> },
           {
             key: 'used',
             header: t('colLastUsed'),
-            cell: (c) => (c.lastUsedAt ? <LocalText>{fmt(c.lastUsedAt, locale)}</LocalText> : <span className="st-muted">{t('never')}</span>),
+            cell: (c) => (
+              <span className="st-connected-app st-nowrap">
+                {c.lastUsedAt ? <LocalText>{fmt(c.lastUsedAt, locale)}</LocalText> : <span className="st-muted">{t('never')}</span>}
+                <span className="st-muted">{t('changes', { count: c.writes })}</span>
+              </span>
+            ),
             data: true,
           },
           {

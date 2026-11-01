@@ -21,9 +21,17 @@ zerosoft apps
 zerosoft ops search "deal move"
 zerosoft ops show crm.deals.update
 zerosoft crm contacts list
-zerosoft track issues create --projectId p1 --title "Fix the invoice"
-zerosoft call crm.deals.update --json '{"path":{"id":"d1"},"body":{"priority":"high"}}'
+zerosoft track issues create \\
+  --projectId p1 --title "Fix the invoice"
+zerosoft call crm.deals.update --json \\
+  '{"path":{"id":"d1"},"body":{"priority":"high"}}'
 zerosoft setup claude`;
+
+/**
+ * claude.ai necesita una URL pública para conectarse: se prende después de probarlo
+ * contra zerosoft.ai ya desplegado, no antes.
+ */
+const CLAUDE_AI_VERIFIED = false;
 
 /** Cómo conectar Claude Code, claude.ai y la CLI. */
 export default async function McpDocsPage(props: { params: Promise<{ locale: string }> }) {
@@ -45,17 +53,20 @@ export default async function McpDocsPage(props: { params: Promise<{ locale: str
       <section id="claude-code" className="mcp-docs-section">
         <h2>{c.claudeCodeTitle}</h2>
         <p>{c.claudeCodeSteps[0]}</p>
-        <pre className="code-block"><code>{`claude mcp add --transport http zerosoft ${endpoint}`}</code></pre>
+        <pre className="code-block"><code>{`claude mcp add --transport http zerosoft \\
+  ${endpoint}`}</code></pre>
         <p>{c.claudeCodeSteps[1]}</p>
       </section>
 
-      <section id="claude-ai" className="mcp-docs-section">
-        <h2>{c.claudeAiTitle}</h2>
-        <p>{c.claudeAiSteps[0]}</p>
-        <p>{c.claudeAiSteps[1]}</p>
-        <pre className="code-block"><code>{endpoint}</code></pre>
-        <p>{c.claudeAiSteps[2]}</p>
-      </section>
+      {CLAUDE_AI_VERIFIED && (
+        <section id="claude-ai" className="mcp-docs-section">
+          <h2>{c.claudeAiTitle}</h2>
+          <p>{c.claudeAiSteps[0]}</p>
+          <p>{c.claudeAiSteps[1]}</p>
+          <pre className="code-block"><code>{endpoint}</code></pre>
+          <p>{c.claudeAiSteps[2]}</p>
+        </section>
+      )}
 
       <section id="cli" className="mcp-docs-section">
         <h2>{c.cliTitle}</h2>

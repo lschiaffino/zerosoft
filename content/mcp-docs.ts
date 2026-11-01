@@ -28,7 +28,7 @@ export interface McpDocsCopy {
 export const MCP_DOCS: Record<'en' | 'es' | 'pt', McpDocsCopy> = {
   en: {
     metaTitle: 'Connect Claude and the CLI',
-    metaDescription: 'Connect Claude Code, claude.ai or the zerosoft CLI to your account with your normal login, and work in all 24 apps as yourself.',
+    metaDescription: 'Connect Claude Code or the zerosoft CLI to your account with your normal login, and work in all 24 apps as yourself.',
     title: 'Connect Claude to zerosoft.',
     titleDim: 'And use it from your terminal.',
     intro: 'One connector reaches all 24 apps. You sign in through the browser with your normal login, with no keys to paste, and Claude acts as you, with your role and permissions.',
@@ -65,7 +65,7 @@ export const MCP_DOCS: Record<'en' | 'es' | 'pt', McpDocsCopy> = {
   },
   es: {
     metaTitle: 'Conectar Claude y la CLI',
-    metaDescription: 'Conectá Claude Code, claude.ai o la CLI de zerosoft a tu cuenta con tu login de siempre, y trabajá en las 24 apps como vos.',
+    metaDescription: 'Conectá Claude Code o la CLI de zerosoft a tu cuenta con tu login de siempre, y trabajá en las 24 apps como vos.',
     title: 'Conectá Claude a zerosoft.',
     titleDim: 'Y usalo desde tu terminal.',
     intro: 'Un solo conector llega a las 24 apps. Entrás por el navegador con tu login de siempre, sin pegar keys, y Claude actúa como vos, con tu rol y tus permisos.',
@@ -102,7 +102,7 @@ export const MCP_DOCS: Record<'en' | 'es' | 'pt', McpDocsCopy> = {
   },
   pt: {
     metaTitle: 'Conectar o Claude e a CLI',
-    metaDescription: 'Conecte o Claude Code, o claude.ai ou a CLI da zerosoft à sua conta com seu login de sempre, e trabalhe nos 24 apps como você.',
+    metaDescription: 'Conecte o Claude Code ou a CLI da zerosoft à sua conta com seu login de sempre, e trabalhe nos 24 apps como você.',
     title: 'Conecte o Claude à zerosoft.',
     titleDim: 'E use pelo seu terminal.',
     intro: 'Um único conector chega aos 24 apps. Você entra pelo navegador com seu login de sempre, sem colar chaves, e o Claude age como você, com seu papel e suas permissões.',
