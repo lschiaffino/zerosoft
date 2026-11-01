@@ -58,3 +58,23 @@ test('Acceso explica el team visible para todos y suma gente al privado', async 
     await expect(page.getByTestId('track-access-project').filter({ hasText: name })).toContainText('2 members');
   }
 });
+
+test('Members del team: invita desde el drawer y dice que un team abierto ya incluye a todos', async ({ page, request }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  const created = await request.post('/api/track/projects', { data: { name: `Drawer ${Date.now()}` } });
+  const project = (await created.json()) as { slug: string };
+  await page.goto(`/en/app/track/team/${project.slug.toUpperCase()}`, { waitUntil: 'load' });
+  await page.getByTestId('track-project-settings').click({ timeout: 60000 });
+  const members = page.getByRole('tab', { name: 'Members' });
+  await members.click();
+  const box = await members.boundingBox();
+  expect(box?.height).toBeLessThan(60);
+  const panel = page.getByTestId('track-team-members');
+  await expect(panel).toContainText('Everyone in the workspace');
+  const email = `drawer-${Date.now()}@example.com`;
+  await panel.getByRole('textbox').fill(email);
+  await panel.getByRole('button', { name: 'Send invitation' }).click();
+  await expect(page.getByTestId('track-access-invite-copy')).toBeVisible();
+  await expect(page.getByTestId('track-access-pending')).toContainText(email);
+  expect(await page.evaluate(() => document.scrollingElement!.scrollWidth)).toBeLessThanOrEqual(391);
+});

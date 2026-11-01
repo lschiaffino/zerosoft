@@ -441,13 +441,15 @@ a.track-request-customer:hover { text-decoration: underline; text-underline-offs
 .track-team-settings .ui-drawer-body { overflow-y: auto; }
 .track-team-general { display: flex; flex-direction: column; gap: 12px; max-width: 420px; }
 .track-key-input { max-width: 120px; text-transform: uppercase; letter-spacing: 0.02em; }
+.track-team-invite { display: grid; gap: 8px; margin: 16px 0; padding-top: 16px; border-top: 1px solid var(--line); }
+.track-team-invite .ui-help, .track-team-invite .ui-error { margin: 0; }
 .track-team-members { list-style: none; margin: 8px 0 12px; padding: 0; border-top: 1px solid var(--line); }
 .track-team-member { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 0.8125rem; }
 .track-team-member-name { color: var(--ink); }
 .track-team-member-email { color: var(--brand-gray-2); font-size: 0.75rem; }
 .track-team-links { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; font-size: 0.875rem; }
 @media (max-width: 640px) {
-  .track-team-settings-body { grid-template-columns: minmax(0, 1fr); }
+  .track-team-settings-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
   .track-team-settings-nav { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); }
   .track-team-settings-tab { white-space: nowrap; }
 }
