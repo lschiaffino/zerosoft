@@ -51,6 +51,36 @@ export function flagValue(raw) {
   return raw;
 }
 
+/** Campos que acepta una operación por nombre, con su esquema. open = el esquema no los lista todos. */
+export function schemaFields(inputSchema) {
+  const fields = new Map();
+  const add = (schema) => {
+    for (const [k, v] of Object.entries(schema?.properties ?? {})) if (!fields.has(k)) fields.set(k, v);
+    for (const alt of schema?.anyOf ?? []) add(alt);
+  };
+  const props = inputSchema?.properties ?? {};
+  add(props.path);
+  add(props.query);
+  add(props.body);
+  const body = props.body;
+  const hasNamedBody = body && (body.properties || body.anyOf);
+  const open = Boolean(body && (!hasNamedBody || body.additionalProperties === true));
+  return { fields, open };
+}
+
+/** Un flag según el tipo de su campo: un teléfono con solo dígitos sigue siendo texto. */
+export function coerceFlag(raw, schema) {
+  if (Array.isArray(raw)) return raw.map((r) => coerceFlag(r, schema?.items ?? schema));
+  if (typeof raw !== 'string') return raw;
+  const types = schema?.type === undefined ? [] : [schema.type].flat();
+  if (raw === 'null' && types.includes('null')) return null;
+  if (types.includes('string')) return raw;
+  if (types.includes('integer') || types.includes('number')) return /^-?\d+(\.\d+)?$/.test(raw) ? Number(raw) : raw;
+  if (types.includes('boolean')) return raw === 'true' ? true : raw === 'false' ? false : raw;
+  if (types.includes('array') && !raw.trim().startsWith('[')) return [coerceFlag(raw, schema.items)];
+  return flagValue(raw);
+}
+
 /** Nombre de la app en la CLI → primer segmento del id de las operaciones. */
 const APP_ALIASES = { cal: 'calendar', calendar: 'calendar', link: 'links', links: 'links', board: 'boards', boards: 'boards' };
 

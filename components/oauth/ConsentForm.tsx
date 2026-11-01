@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 
 export interface ConsentWorkspace {
@@ -9,10 +9,15 @@ export interface ConsentWorkspace {
   own: boolean;
 }
 
+/** El nombre lo eligió el cliente: en el título, corto; entero en el detalle de abajo. */
+const NAME_IN_TITLE = 40;
+const shortName = (name: string) => (name.length > NAME_IN_TITLE ? `${name.slice(0, NAME_IN_TITLE - 1).trimEnd()}…` : name);
+
 /**
  * Qué se le da al cliente, dicho en claro: su nombre (lo eligió el cliente, por
- * eso va con el destino al lado), la cuenta, el workspace y si puede escribir.
- * Enter aprueba; Esc y Cancelar deniegan, nada queda aprobado por defecto.
+ * eso va marcado así y con el destino al lado), la cuenta, el workspace y si
+ * puede escribir. Enter aprueba; Esc y Cancelar deniegan. En un dispositivo
+ * arranca en solo lectura: nadie vio de dónde viene ese pedido.
  */
 export default function ConsentForm({
   mode,
@@ -38,7 +43,7 @@ export default function ConsentForm({
 }) {
   const t = useTranslations('settings.oauth');
   const canWrite = askedScope.split(' ').includes('write');
-  const [scope, setScope] = useState(canWrite ? 'read write' : 'read');
+  const [scope, setScope] = useState(canWrite && mode === 'code' ? 'read write' : 'read');
   const [team, setTeam] = useState(activeTeamId ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,20 +80,32 @@ export default function ConsentForm({
     }
   }
 
+  // Esc cancela desde que abre la página, con el foco donde esté.
+  const decideRef = useRef(decide);
+  decideRef.current = decide;
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') void decideRef.current('deny');
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     void decide('approve');
   }
 
   return (
-    <form
-      className="oauth-form"
-      onSubmit={onSubmit}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') void decide('deny');
-      }}
-    >
-      <h1>{t('title', { client: clientName })}</h1>
+    <form className="oauth-form" onSubmit={onSubmit}>
+      <h1 title={clientName}>{t('title', { client: shortName(clientName) })}</h1>
+      <p className="oauth-origin">{t('selfDeclared', { client: clientName })}</p>
+      {mode === 'device' && (
+        <div className="oauth-alert" role="note">
+          <strong>{t('deviceWarningTitle')}</strong>
+          <span>{t('deviceWarningBody')}</span>
+        </div>
+      )}
       <p className="oauth-origin">{redirectHost ? t('redirectsTo', { host: redirectHost }) : t(redirectHost === null ? 'redirectsLocal' : 'deviceOrigin')}</p>
       <p className="auth-sub oauth-sub">{t('asPerson', { email: personEmail })}</p>
 
@@ -137,7 +154,6 @@ export default function ConsentForm({
         <button type="button" className="btn btn-secondary" onClick={() => void decide('deny')} disabled={busy}>{t('deny')}</button>
         <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? t('working') : t('approve')}</button>
       </div>
-      <p className="oauth-warning">{t('warning')}</p>
     </form>
   );
 }

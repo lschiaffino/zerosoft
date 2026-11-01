@@ -191,19 +191,38 @@ function toCreds(data, clientId, meta) {
   };
 }
 
-/** Rota el refresh token. El viejo queda gastado: hay que guardar el nuevo enseguida. */
+/**
+ * Rota el refresh token. El viejo queda gastado: hay que guardar el nuevo enseguida.
+ * null solo si el servidor dijo invalid_grant. Un 429, un 5xx o la red no borran
+ * nada: son reintentables.
+ */
 export async function refresh(creds, resource) {
-  const { status, data } = await postForm(creds.tokenEndpoint, {
-    grant_type: 'refresh_token',
-    client_id: creds.clientId,
-    refresh_token: creds.refreshToken,
-    resource,
-  });
-  if (status !== 200) return null;
-  return { ...creds, accessToken: data.access_token, refreshToken: data.refresh_token, expiresAt: Date.now() + (data.expires_in ?? 3600) * 1000, scope: data.scope };
+  let res;
+  try {
+    res = await postForm(creds.tokenEndpoint, {
+      grant_type: 'refresh_token',
+      client_id: creds.clientId,
+      refresh_token: creds.refreshToken,
+      resource,
+    });
+  } catch (e) {
+    throw new CliError(`Could not reach the server to renew the session: ${e.message}. Try again.`, 1);
+  }
+  const { status, data } = res;
+  if (status === 200) {
+    return { ...creds, accessToken: data.access_token, refreshToken: data.refresh_token, expiresAt: Date.now() + (data.expires_in ?? 3600) * 1000, scope: data.scope };
+  }
+  if (data.error === 'invalid_grant') return null;
+  throw new CliError(`Could not renew the session (${data.error ?? status}). You are still signed in: try again.`, status === 429 ? 5 : 1);
 }
 
+/** true si el servidor confirmó la revocación. */
 export async function revoke(creds) {
-  if (!creds.revocationEndpoint || !creds.refreshToken) return;
-  await postForm(creds.revocationEndpoint, { token: creds.refreshToken, client_id: creds.clientId }).catch(() => undefined);
+  if (!creds.revocationEndpoint || !creds.refreshToken) return false;
+  try {
+    const { status } = await postForm(creds.revocationEndpoint, { token: creds.refreshToken, client_id: creds.clientId });
+    return status === 200;
+  } catch {
+    return false;
+  }
 }

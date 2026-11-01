@@ -3656,5 +3656,11 @@
     "otherTitle": "Otras comparaciones",
     "tryCta": "Probar {name}",
     "productCta": "La página de {name}"
+  },
+  "docsMcp": {
+    "meta": {
+      "title": "Conectar Claude y la CLI",
+      "description": "Conectá Claude Code o la CLI de zerosoft a tu cuenta con tu login de siempre, y trabajá en las 24 apps como vos."
+    }
   }
 }

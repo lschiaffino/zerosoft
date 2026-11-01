@@ -50,7 +50,7 @@ export default function ConnectedClientsPanel({ initial }: { initial: ConnectedC
         rowKey={(c) => c.id}
         compact
         className="st-table-stack"
-        empty={<EmptyState quiet title={t('emptyTitle')} body={t('emptyBody')} />}
+        empty={<EmptyState quiet title={t('emptyTitle')} body={t('emptyBody')} action={{ label: t('emptyAction'), href: '/docs/mcp' }} />}
         columns={[
           {
             key: 'name',
@@ -58,7 +58,7 @@ export default function ConnectedClientsPanel({ initial }: { initial: ConnectedC
             cell: (c) => (
               <span className="st-connected-app">
                 <span className="st-strong">{c.clientName}</span>
-                <span className="st-muted">{c.redirectHost ?? t('thisComputer')}</span>
+                <span className="st-muted">{c.origin.kind === 'host' ? c.origin.host : t(c.origin.kind === 'device' ? 'originDevice' : 'originLocal')}</span>
                 <span className="st-muted">
                   <LocalText>{t('connectedOn', { date: fmt(c.createdAt, locale) })}</LocalText>
                 </span>

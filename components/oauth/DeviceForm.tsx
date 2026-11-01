@@ -1,10 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import ConsentForm, { type ConsentWorkspace } from './ConsentForm';
 
-/** El código viene de la URL o se tipea, pero siempre pasa por la misma pantalla de permisos. */
+/**
+ * El código viene de la URL o se tipea, y la persona siempre confirma que es el
+ * que ve en su terminal: un link con el código puesto no salta a los permisos.
+ */
 export default function DeviceForm({
   initialCode,
   personEmail,
@@ -22,7 +25,6 @@ export default function DeviceForm({
   const [done, setDone] = useState<'approved' | 'denied' | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const looked = useRef(false);
   const input = useRef<HTMLInputElement>(null);
 
   async function lookup(value: string) {
@@ -44,15 +46,6 @@ export default function DeviceForm({
     }
     setBusy(false);
   }
-
-  useEffect(() => {
-    if (initialCode && !looked.current) {
-      looked.current = true;
-      void lookup(initialCode);
-    }
-    // Solo la primera vez, con el código de la URL.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   if (done) {
     return (
@@ -83,7 +76,7 @@ export default function DeviceForm({
   return (
     <form className="oauth-form" onSubmit={onSubmit}>
       <h1>{t('deviceTitle')}</h1>
-      <p className="auth-sub oauth-sub">{t('deviceBody')}</p>
+      <p className="auth-sub oauth-sub">{t(initialCode ? 'deviceConfirm' : 'deviceBody')}</p>
       <div className="ui-field oauth-field">
         <label className="label" htmlFor="oauth-code">{t('deviceCode')}</label>
         <input

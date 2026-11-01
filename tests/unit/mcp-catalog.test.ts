@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { EXCLUDED, getOperation, OPERATIONS } from '@/lib/mcp/catalog';
+import { EXCLUDED, getOperation, getWebOnly, OPERATIONS, WEB_ONLY, webOnlyMessage } from '@/lib/mcp/catalog';
 import { ROUTE_TABLE } from '@/lib/mcp/route-table.generated';
 import { DIRECT_TOOLS } from '@/lib/mcp/server';
 import { excludeReason, NO_SESSION_OK } from '@/lib/mcp/excludes.mjs';
@@ -107,7 +107,60 @@ describe('lo que nunca entra', () => {
   });
 });
 
+describe('lo que sobrevive a la conexión se hace desde la web', () => {
+  it.each([
+    'POST /api/talk/channels/[id]/hooks',
+    'POST /api/talk/commands',
+    'POST /api/groups/webhooks',
+    'POST /api/webhooks',
+    'POST /api/track/agent-apps',
+    'PUT /api/track/github',
+    'POST /api/chat/widgets/[id]/identity',
+    'PUT /api/shop/payments',
+    'PUT /api/calendar/payments',
+    'PATCH /api/books/settings/payments',
+    'POST /api/crm/apps/[app]',
+    'POST /api/boards/[id]/share',
+  ])('%s', (k) => {
+    expect(inCatalog.has(k), k).toBe(false);
+    expect(WEB_ONLY.some((o) => `${o.method} ${o.path}` === k), k).toBe(true);
+  });
+
+  it('cada una dice dónde hacerla', () => {
+    const op = getWebOnly('webhooks.create');
+    expect(op?.where).toContain('Settings');
+    expect(webOnlyMessage(op!)).toContain('Settings');
+  });
+
+  it('lo del personal de zerosoft tampoco entra', () => {
+    expect(inCatalog.has('PATCH /api/roadmap/[id]')).toBe(false);
+    expect(inCatalog.has('POST /api/roadmap')).toBe(false);
+  });
+});
+
 describe('clase de cada operación', () => {
+  it.each([
+    'POST /api/crm/contacts/bulk',
+    'POST /api/shop/orders/[id]/refund',
+    'POST /api/people/employees/[id]/offboard',
+    'POST /api/groups/broadcasts',
+    'POST /api/books/documents/[id]/send',
+    'POST /api/crm/emails',
+    'POST /api/chat/campaigns',
+  ])('por efecto: %s pide confirmación', (k) => {
+    expect(OPERATIONS.find((o) => `${o.method} ${o.path}` === k)?.access, k).toBe('destructive');
+  });
+
+  it('una lectura que gasta créditos es escritura', () => {
+    expect(OPERATIONS.find((o) => `${o.method} ${o.path}` === 'GET /api/crm/companies/enrich')?.access).toBe('write');
+  });
+
+  it('exportaciones y datos sensibles quedan en la auditoría', () => {
+    for (const k of ['GET /api/crm/export', 'GET /api/people/export', 'GET /api/people/employees/[id]/compensation']) {
+      expect(OPERATIONS.find((o) => `${o.method} ${o.path}` === k)?.audit, k).toBe(true);
+    }
+  });
+
   it('todo DELETE es destructivo', () => {
     expect(OPERATIONS.filter((o) => o.method === 'DELETE' && o.access !== 'destructive').map((o) => o.id)).toEqual([]);
   });
@@ -134,7 +187,7 @@ describe('clase de cada operación', () => {
   });
 
   it('lo sensible del equipo está marcado destructivo', () => {
-    for (const k of ['POST /api/teams/invites', 'PATCH /api/teams/members/[userId]', 'PATCH /api/teams/workspace', 'POST /api/webhooks']) {
+    for (const k of ['POST /api/teams/invites', 'PATCH /api/teams/members/[userId]', 'PATCH /api/teams/workspace']) {
       const op = OPERATIONS.find((o) => `${o.method} ${o.path}` === k);
       expect(op?.access, k).toBe('destructive');
     }

@@ -76,7 +76,9 @@
     "noteMember": "You only see your keys. Owners and admins see the whole workspace's.",
     "noteAdmin": "You see the keys of the whole workspace.",
     "error": "The key could not be created. Try again.",
-    "revokeError": "The key could not be revoked."
+    "revokeError": "The key could not be revoked.",
+    "mcpAccess": "MCP access",
+    "mcpAccessHelp": "Lets this key use the MCP endpoint, within the permissions above. Without it, the key only works with the REST API."
   },
   "webhooks": {
     "title": "Webhooks",
@@ -394,7 +396,8 @@
       "google": "Google Calendar in Cal › Connections",
       "gmail": "Gmail in CRM › Integrations",
       "whatsapp": "WhatsApp numbers in Groups › Numbers",
-      "github": "GitHub in Track › GitHub"
+      "github": "GitHub in Track › GitHub",
+      "apps": "Claude and other connected apps"
     },
     "import": {
       "title": "Import",
@@ -1062,7 +1065,6 @@
     "approve": "Allow access",
     "deny": "Cancel",
     "working": "Working...",
-    "warning": "The client chose its own name. Allow access only if you started this just now.",
     "expiredTitle": "This request is no longer valid",
     "expiredBody": "It expired or was already answered. Start the connection again from your app.",
     "errorExpired": "This request expired. Start the connection again from your app.",
@@ -1077,7 +1079,14 @@
     "deviceDoneBody": "You can close this page and go back to your terminal.",
     "deviceDeniedTitle": "Connection cancelled",
     "deviceDeniedBody": "Nothing was connected. You can close this page.",
-    "redirectsLocal": "Returns to an app on this computer"
+    "redirectsLocal": "Returns to an app on this computer",
+    "selfDeclared": "\"{client}\" is the name this app gave itself. zerosoft has not verified it, even if it looks like a brand you know.",
+    "deviceWarningTitle": "Only approve this if you started it yourself",
+    "deviceWarningBody": "Someone who sends you a link or a code can get into your account this way. If you did not just run this in your terminal, cancel.",
+    "deviceConfirm": "Check that this is the code your terminal is showing. If it is not, close this page.",
+    "invalidTitle": "This connection request is not valid",
+    "invalidBody": "Nothing was connected. Start again from the app, or tell whoever makes it.",
+    "invalidCode": "Reason: {code}"
   },
   "connected": {
     "title": "Connected apps",
@@ -1099,8 +1108,10 @@
     "confirmTitle": "Disconnect {client}?",
     "confirmBody": "It loses access right away. To use it again you will need to sign in again.",
     "error": "Could not disconnect it. Try again.",
-    "thisComputer": "This computer",
     "connectedOn": "Connected {date}",
-    "changes": "{count, plural, =0 {No changes} one {# change} other {# changes}}"
+    "changes": "{count, plural, =0 {No changes} one {# change} other {# changes}}",
+    "originLocal": "App on a computer",
+    "originDevice": "Signed in with a device code",
+    "emptyAction": "How to connect"
   }
 }

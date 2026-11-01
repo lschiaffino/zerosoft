@@ -1,5 +1,5 @@
 // Cliente MCP mínimo sobre HTTP: la CLI no tiene otro camino al servidor que el del modelo.
-import { deleteCredentials, loadCredentials, saveCredentials } from './credentials.mjs';
+import { deleteCredentials, loadCredentials, saveCredentials, withRefreshLock } from './credentials.mjs';
 import { CliError, refresh } from './oauth.mjs';
 
 const PROTOCOL = '2025-11-25';
@@ -26,22 +26,29 @@ export class McpClient {
     this.apiKey = process.env.ZEROSOFT_API_KEY || null;
   }
 
-  async token(force = false) {
+  /** `rejected`: el access token que el servidor acaba de rechazar. */
+  async token(rejected = null) {
     if (this.apiKey) return this.apiKey;
     const creds = loadCredentials(this.baseUrl);
     if (!creds) throw new CliError('You are not signed in. Run `zerosoft login`.', 3);
-    if (!force && creds.expiresAt - SKEW_MS > Date.now()) return creds.accessToken;
-    const next = await refresh(creds, this.endpoint);
-    if (!next) {
-      deleteCredentials(this.baseUrl);
-      throw new CliError('Your session ended. Run `zerosoft login` again.', 3);
-    }
-    saveCredentials(this.baseUrl, next);
-    return next.accessToken;
+    if (!rejected && creds.expiresAt - SKEW_MS > Date.now()) return creds.accessToken;
+    return withRefreshLock(async () => {
+      // Otro comando pudo haber renovado mientras esperábamos.
+      const current = loadCredentials(this.baseUrl);
+      if (!current) throw new CliError('You are not signed in. Run `zerosoft login`.', 3);
+      if (current.accessToken !== rejected && current.expiresAt - SKEW_MS > Date.now()) return current.accessToken;
+      const next = await refresh(current, this.endpoint);
+      if (!next) {
+        deleteCredentials(this.baseUrl);
+        throw new CliError('Your session ended. Run `zerosoft login` again.', 3);
+      }
+      saveCredentials(this.baseUrl, next);
+      return next.accessToken;
+    });
   }
 
-  async rpc(method, params, retried = false) {
-    const token = await this.token(retried);
+  async rpc(method, params, rejected = null) {
+    const token = await this.token(rejected);
     let res;
     try {
       res = await fetch(this.endpoint, {
@@ -58,11 +65,12 @@ export class McpClient {
       throw new CliError(`Could not reach ${this.baseUrl}: ${e.message}`, 1);
     }
     if (res.status === 401) {
-      if (!retried && !this.apiKey) return this.rpc(method, params, true);
+      if (!rejected && !this.apiKey) return this.rpc(method, params, token);
       throw new CliError(this.apiKey ? 'The API key was rejected.' : 'Your session ended. Run `zerosoft login` again.', 3);
     }
     if (res.status === 429) throw new CliError('Too many requests. Try again in a minute.', 5);
     const body = await res.json().catch(() => null);
+    if (res.status === 403 && body?.error?.message) throw new CliError(body.error.message, 4);
     if (!body) throw new CliError(`The server answered ${res.status} without JSON.`, 1);
     if (body.error) throw new CliError(body.error.message ?? 'Server error.', 1);
     return body.result;
@@ -75,7 +83,8 @@ export class McpClient {
     if (result?.structuredContent) return { result: result.structuredContent, isError: Boolean(result.isError) };
     let parsed = null;
     try {
-      parsed = JSON.parse(text);
+      // Lo que trae nombres escritos por otras personas viene marcado como dato: acá no hay modelo, se abre.
+      parsed = JSON.parse(text.startsWith('<untrusted_data') ? text.slice(text.indexOf('\n') + 1, text.lastIndexOf('\n')) : text);
     } catch {
       parsed = text;
     }
@@ -90,6 +99,8 @@ const EXIT_BY_ERROR = {
   app_not_available: 4,
   workspace_access_lost: 4,
   confirmation_required: 2,
+  web_only: 4,
+  reconnect_to_switch: 4,
   not_found: 4,
   rate_limited: 5,
 };

@@ -3,7 +3,7 @@ import { nanoid } from 'nanoid';
 import { NextResponse } from 'next/server';
 import { getDb, type ApiKeyRow, type UserRow } from './db';
 import { clientIp, rateLimit } from './rate-limit';
-import { hasScope, parseScopes, serializeScopes, type ApiScope, scopesForApps } from './api-scopes';
+import { API_SCOPES, hasScope, keyHasMcpAccess, MCP_KEY_SCOPE, parseScopes, serializeScopes, type ApiScope, scopesForApps } from './api-scopes';
 import { normalizeRole, resolveWorkspace, type TeamRole } from './teams';
 import { parseApps } from './workspace';
 import { delegatedIdentity } from './mcp/identity';
@@ -151,6 +151,8 @@ export interface ApiKeyDto {
   created_by_email?: string | null;
   /** Scopes efectivos (todos si la key es anterior a los scopes). */
   scopes: ApiScope[];
+  /** Puede usar el MCP unificado (opt-in al crearla). */
+  mcp: boolean;
 }
 
 /** Generates `zs_<nanoid(32)>`, stores only its sha256. Full key is returned once. */
@@ -159,12 +161,15 @@ export async function createApiKey(
   name: string,
   createdBy: string = userId,
   scopes: readonly string[] | '*' = '*',
+  mcp = false,
 ): Promise<{ id: string; key: string; scopes: ApiScope[] }> {
   const db = getDb();
   const key = `zs_${nanoid(32)}`;
   const id = crypto.randomUUID();
   await db
-  const stored = scopes === '*' ? '*' : serializeScopes(scopes);
+  // Con MCP se guarda la lista explícita: '*' significa "solo v1" para las keys de siempre.
+  const base = scopes === '*' ? '*' : serializeScopes(scopes);
+  const stored = mcp ? `${base === '*' ? API_SCOPES.join(' ') : base} ${MCP_KEY_SCOPE}` : base;
   await db
     .prepare('INSERT INTO api_keys (id, user_id, name, prefix, key_hash, created_by, scopes) VALUES (?, ?, ?, ?, ?, ?, ?)')
     .run(id, userId, name, key.slice(0, 10), sha256(key), createdBy, stored);
@@ -181,7 +186,7 @@ export async function listApiKeys(userId: string, onlyCreatedBy?: string): Promi
        ORDER BY k.created_at DESC`,
     )
     .all(userId, onlyCreatedBy ?? null, onlyCreatedBy ?? null)) as Array<Omit<ApiKeyDto, 'scopes'> & { scopes: string }>;
-  return rows.map((r) => ({ ...r, scopes: parseScopes(r.scopes) }));
+  return rows.map((r) => ({ ...r, scopes: parseScopes(r.scopes), mcp: keyHasMcpAccess(r.scopes) }));
 }
 
 export async function revokeApiKey(userId: string, id: string, onlyCreatedBy?: string): Promise<boolean> {

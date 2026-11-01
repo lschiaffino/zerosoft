@@ -23,7 +23,7 @@ zerosoft apps
 zerosoft ops search "deal move"
 zerosoft ops show crm.deals.update
 zerosoft crm contacts list
-zerosoft crm contacts create --name "Ana"
+zerosoft crm contacts create --firstName Ana --email ana@example.com
 zerosoft crm deals get <id>
 zerosoft track issues create --projectId <id> --title "Fix it"
 zerosoft call crm.deals.update --json '{"path":{"id":"d1"},"body":{"priority":"high"}}'
@@ -32,7 +32,7 @@ zerosoft setup claude                # prints the Claude Code command
 zerosoft logout
 ```
 
-`zerosoft <app> <resource> <verb>` joins the words into an operation id, tries the longest match, and treats what is left as path parameters. `--field value` goes to the path, query or body by name. Use `--limit-page` and `--offset` for the MCP pagination of a long result; `--limit` goes to the operation.
+`zerosoft <app> <resource> <verb>` joins the words into an operation id, tries the longest match, and treats what is left as path parameters. `--field value` goes to the path, query or body by name and follows the type in the schema; an unknown field is an error that lists the valid ones. Use `--limit-page` and `--offset` for the MCP pagination of a long result; `--limit` goes to the operation.
 
 Output is JSON when piped or with `--json`, and a table on a terminal.
 
@@ -48,7 +48,7 @@ Output is JSON when piped or with `--json`, and a table on a terminal.
 | Variable | Use |
 | --- | --- |
 | `ZEROSOFT_URL` | Server (default `https://zerosoft.ai`). Must be https, or http on localhost |
-| `ZEROSOFT_API_KEY` | Use an API key instead of signing in, for CI |
+| `ZEROSOFT_API_KEY` | Use an API key created with MCP access instead of signing in, for CI |
 | `ZEROSOFT_CONFIG_DIR` | Where non-keychain files go (default `~/.config/zerosoft`) |
 | `ZEROSOFT_NO_KEYCHAIN=1` | Always use the 0600 file |
 

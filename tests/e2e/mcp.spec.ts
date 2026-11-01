@@ -155,7 +155,9 @@ class Mcp {
   }
   async json(name: string, args: unknown = {}) {
     const r = await this.tool(name, args);
-    return JSON.parse(r.content[0].text) as Record<string, any>;
+    const text = r.content[0].text;
+    // Lo que trae nombres de otras personas viene en el sobre <untrusted_data>.
+    return JSON.parse(text.startsWith('<untrusted_data') ? text.slice(text.indexOf('\n') + 1, text.lastIndexOf('\n')) : text) as Record<string, any>;
   }
   /** Una operación: abre el sobre <untrusted_data> como lo leería el modelo. */
   async op(operation: string, args: unknown = {}, extra: Record<string, unknown> = {}) {
@@ -235,8 +237,13 @@ test('el pedido de autorización valida antes de mostrar nada', async ({ page })
   for (const bad of bads) {
     const r = await go({ ...base, ...bad });
     expect(r.status, JSON.stringify(bad)).toBe(302);
-    expect(new URL(r.headers.get('location')!).searchParams.get('error'), JSON.stringify(bad)).toBeTruthy();
+    const to = new URL(r.headers.get('location')!);
+    expect(to.origin, JSON.stringify(bad)).toBe(BASE);
+    expect(to.pathname, JSON.stringify(bad)).toContain('/oauth/error');
   }
+  await page.goto('/en/oauth/error?reason=pkce');
+  await expect(page.getByRole('heading', { name: 'This connection request is not valid' })).toBeVisible();
+  await shot(page, 'oauth-error-1280-light');
   const ok = await go(base);
   expect(ok.status).toBe(302);
   expect(ok.headers.get('location')).toContain('/oauth/consent?request=');
@@ -296,6 +303,35 @@ test('sin sesión pasa por el login normal, con código por email, y vuelve a la
   });
   const tokens = (await res.json()) as Tokens;
   expect((await new Mcp(tokens.access_token).json('whoami')).person.email).toBe(email);
+  await ctx.close();
+});
+
+test('Esc cancela apenas abre la pantalla de permisos', async ({ page }) => {
+  const s = await startAuthorization(page);
+  await page.keyboard.press('Escape');
+  const back = await s.cb.got;
+  s.cb.close();
+  expect(back.searchParams.get('error')).toBe('access_denied');
+});
+
+test('un nombre largo no ocupa la pantalla y queda marcado como propio del cliente', async ({ browser }) => {
+  const ctx = await asPerson(browser, null, { width: 390, height: 844 });
+  const page = await ctx.newPage();
+  const name = 'Claude Code Official Verified Enterprise Connector For Your Whole Account Forever';
+  const s = await startAuthorization(page, 'read write', 'Claude Code Official');
+  s.cb.close();
+  const { meta, resource } = await discoverFrom401();
+  const cb = await loopback();
+  const client = (await (await fetch(meta.registration_endpoint, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ client_name: name, redirect_uris: [cb.uri] }) })).json()) as { client_id: string };
+  const u = new URL(meta.authorization_endpoint);
+  u.search = new URLSearchParams({ response_type: 'code', client_id: client.client_id, redirect_uri: cb.uri, code_challenge: 'a'.repeat(43), code_challenge_method: 'S256', resource: resource.resource }).toString();
+  await page.goto(u.toString());
+  const h1 = page.getByRole('heading').first();
+  await expect(h1).toContainText('…');
+  expect((await h1.boundingBox())!.height).toBeLessThan(140);
+  await expect(page.getByText('zerosoft has not verified it')).toBeVisible();
+  await shot(page, 'consent-longname-390-light');
+  cb.close();
   await ctx.close();
 });
 
@@ -455,13 +491,34 @@ test('fallos: vencido, revocado, reuso de refresh, audiencia ajena', async ({ br
 
   // Una API key sigue valiendo como Bearer, y un token inventado no.
   expect((await new Mcp('zsat_inventado').raw('tools/list')).status).toBe(401);
-  const key = await page.request.post('/api/keys', { data: { name: `mcp ${uid()}`, scopes: ['crm:read'] } });
+  // Una key sin el opt-in sigue solo con v1.
+  const plain = await page.request.post('/api/keys', { data: { name: `plain ${uid()}` } });
+  expect((await new Mcp(((await plain.json()) as { key: string }).key).raw('tools/list')).status).toBe(403);
+  const key = await page.request.post('/api/keys', { data: { name: `mcp ${uid()}`, scopes: ['crm:read'], mcp: true } });
   expect(key.status()).toBe(201);
   const keyMcp = new Mcp(((await key.json()) as { key: string }).key);
   expect((await keyMcp.op('crm.contacts.list')).ok).toBe(true);
   expect((await keyMcp.op('crm.contacts.create', { body: { firstName: 'No' } })).error?.error).toBe('insufficient_scope');
   expect((await keyMcp.op('docs.pages.list')).error?.error).toBe('insufficient_scope');
   client.close();
+  await ctx.close();
+});
+
+test('solo lectura: nunca recibe algo que le permita escribir', async ({ browser }) => {
+  const ctx = await asPerson(browser, null);
+  const page = await ctx.newPage();
+  // El disparador de un flow tiene un webhook con su token.
+  const flow = (await (await page.request.post('/api/flow/flows', { data: { name: `Hook ${uid()}` } })).json()) as { id: string };
+  const s = await startAuthorization(page, 'read write', `Cap ${uid()}`);
+  await page.getByRole('radio', { name: /Read only/ }).check();
+  const tokens = await finishAuthorization(page, s);
+  const mcp = new Mcp(tokens.access_token);
+  const read = await mcp.op('flow.flows.get', { path: { id: flow.id } });
+  expect(read.ok, JSON.stringify(read)).toBe(true);
+  expect(JSON.stringify(read.data)).not.toMatch(/\bfh_[A-Za-z0-9_-]{8,}/);
+  expect(JSON.stringify(read.data)).not.toContain('/api/flow/hooks/');
+  // Sin efectos de un cambio de workspace en la conexión.
+  expect((await mcp.json('switch_workspace', { teamId: null })).error).toBe('reconnect_to_switch');
   await ctx.close();
 });
 
@@ -519,6 +576,12 @@ test('roles: owner, admin, member con apps limitadas y alguien de afuera', async
   expect(whoMember.role).toBe('member');
   expect(whoMember.workspace.id).toBe(team_id);
 
+  // Invitar como miembro funciona, y el link no vuelve: le llega a la persona por email.
+  const invited = await adminMcp.op('teams.invites.create', { body: { emails: `inv${tag}@mcp.example.com`, role: 'member' } }, { confirm: true });
+  expect(invited.ok, JSON.stringify(invited)).toBe(true);
+  expect(JSON.stringify(invited.data)).not.toMatch(/\/invite\/[A-Za-z0-9_-]{8,}/);
+  expect((await adminMcp.op('teams.invites.create', { body: { emails: `inv2${tag}@mcp.example.com`, role: 'admin' } }, { confirm: true })).error?.error).toBe('web_only');
+
   // Lo creado en el workspace lo ven los que están.
   const secret = `Secret ${tag}`;
   const created = await adminMcp.op('crm.companies.create', { body: { name: secret } });
@@ -537,9 +600,11 @@ test('roles: owner, admin, member con apps limitadas y alguien de afuera', async
 
   // Lo que un member no puede en la UI tampoco por acá: el handler real responde 403.
   const memberId = await idOf(emails.member);
-  const promote = await memberMcp.op('teams.members.update', { path: { userId: memberId }, body: { role: 'admin' } }, { confirm: true });
-  expect(promote.ok, JSON.stringify(promote)).toBe(false);
-  expect(promote.status).toBe(403);
+  const denied = await memberMcp.op('teams.members.update', { path: { userId: memberId }, body: { apps: ['crm', 'docs'] } }, { confirm: true });
+  expect(denied.ok, JSON.stringify(denied)).toBe(false);
+  expect(denied.status).toBe(403);
+  // Y el rol de admin no se da por acá, ni siquiera siendo admin.
+  expect((await adminMcp.op('teams.members.update', { path: { userId: memberId }, body: { role: 'admin' } }, { confirm: true })).error?.error).toBe('web_only');
   const adminCan = await adminMcp.op('teams.members.update', { path: { userId: memberId }, body: { apps: ['crm', 'docs'] } }, { confirm: true });
   expect(adminCan.ok, JSON.stringify(adminCan)).toBe(true);
   expect((await memberMcp.op('docs.pages.list')).ok).toBe(true);
@@ -549,7 +614,7 @@ test('roles: owner, admin, member con apps limitadas y alguien de afuera', async
   const outRead = await outMcp.op('crm.companies.get', { path: { id: created.data.id } });
   expect(outRead.ok).toBe(false);
   expect(JSON.stringify((await outMcp.op('crm.companies.list')).data)).not.toContain(secret);
-  expect((await outMcp.json('switch_workspace', { teamId: team_id })).error).toBe('not_found');
+  expect((await outMcp.json('switch_workspace', { teamId: team_id })).error).toBe('reconnect_to_switch');
 
   // Sacar a alguien corta la conexión en el momento, sin caer a su workspace propio.
   await client.execute({ sql: 'DELETE FROM team_members WHERE team_id = ? AND user_id = ?', args: [team_id, memberId] });
@@ -596,6 +661,18 @@ test('CLI: login, descubrir, CRUD en muchas apps, salida y códigos', async ({ p
   const who = await cli(['whoami', '--json'], env);
   expect(JSON.parse(who.stdout).person.email).toBe('demo@zerosoft.ai');
   expect(JSON.parse((await cli(['apps'], env)).stdout).apps.length).toBeGreaterThanOrEqual(24);
+  // Campos: uno que no existe dice cuáles hay; un teléfono de dígitos sigue siendo texto; el ejemplo de la ayuda funciona.
+  const unknown = await cli(['crm', 'contacts', 'create', '--nope', 'x'], env);
+  expect(unknown.code).toBe(2);
+  expect(unknown.stderr).toContain('Valid fields');
+  expect(unknown.stderr).toContain('firstName');
+  const phone = await cli(['crm', 'contacts', 'create', '--firstName', 'Ana', '--email', `${uid()}@cli.example.com`, '--phone', '5491155667788'], env);
+  expect(phone.code, phone.stderr).toBe(0);
+  expect(JSON.parse(phone.stdout).data.phone).toBe('5491155667788');
+  const web = await cli(['call', 'webhooks.create', '--json', '{"body":{"url":"https://example.com"}}'], env);
+  expect(web.code).toBe(4);
+  expect(web.stderr).toContain('Settings');
+  expect((await cli(['setup', 'claude'], env)).stdout).not.toContain('claude.ai');
   expect(JSON.parse((await cli(['ops', 'search', 'deal', 'move'], env)).stdout).operations.map((o: any) => o.id)).toContain('crm.deals.move');
   expect(JSON.parse((await cli(['ops', 'show', 'crm.deals.update'], env)).stdout).id).toBe('crm.deals.update');
   expect((await cli(['setup', 'claude'], env)).stdout).toContain(`claude mcp add --transport http zerosoft ${ENDPOINT}`);
@@ -671,6 +748,30 @@ test('CLI: login, descubrir, CRUD en muchas apps, salida y códigos', async ({ p
   expect((await cli(['whoami'], env)).code).toBe(3);
 });
 
+test('CLI: el dispositivo arranca en solo lectura aunque pida escribir', async ({ page }) => {
+  test.setTimeout(90_000);
+  const env = tmpEnv();
+  let userCode = '';
+  let uri = '';
+  const running = cli(['login', '--device'], env, (chunk) => {
+    userCode = /\b([A-Z]{4}-[A-Z]{4})\b/.exec(chunk)?.[1] ?? userCode;
+    uri = /https?:\/\/\S+\/oauth\/device/.exec(chunk)?.[0] ?? uri;
+  });
+  await expect.poll(() => userCode, { timeout: 15_000 }).not.toBe('');
+  await page.goto(uri);
+  await page.getByLabel('Code').fill(userCode);
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page.getByRole('radio', { name: /Read only/ })).toBeChecked();
+  await page.getByRole('button', { name: 'Allow access' }).click();
+  await expect(page.getByRole('heading', { name: 'Device connected' })).toBeVisible();
+  const done = await running;
+  expect(done.code, done.stderr).toBe(0);
+  expect(done.stderr).toContain('read only');
+  // En Ajustes no figura como "esta computadora".
+  await page.goto('/en/app/settings/api');
+  await expect(page.locator('#connected')).toContainText('Signed in with a device code');
+});
+
 test('CLI: login de dispositivo y solo lectura', async ({ page }) => {
   test.setTimeout(120_000);
   const env = tmpEnv();
@@ -683,6 +784,12 @@ test('CLI: login de dispositivo y solo lectura', async ({ page }) => {
     if (u) uri = u[0];
   });
   await expect.poll(() => userCode, { timeout: 15_000 }).not.toBe('');
+  // Un link con el código puesto no salta a los permisos: la persona confirma.
+  await page.goto(`${uri}?code=${userCode}`);
+  await expect(page.getByLabel('Code')).toHaveValue(userCode);
+  await expect(page.getByRole('button', { name: 'Allow access' })).toHaveCount(0);
+  await expect(page.getByText('Check that this is the code')).toBeVisible();
+  await shot(page, 'device-link-1280-light');
   await page.goto(uri);
   await page.getByLabel('Code').fill('WRONG-CODE');
   await page.getByRole('button', { name: 'Continue' }).click();
@@ -694,6 +801,8 @@ test('CLI: login de dispositivo y solo lectura', async ({ page }) => {
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.getByRole('heading', { name: /zerosoft CLI/ })).toBeVisible();
   await expect(page.getByRole('radio', { name: /Read and write/ })).toHaveCount(0);
+  await expect(page.getByText('Only approve this if you started it yourself')).toBeVisible();
+  await shot(page, 'device-consent-1280-light');
   await page.getByRole('button', { name: 'Allow access' }).click();
   await expect(page.getByRole('heading', { name: 'Device connected' })).toBeVisible();
   const done = await running;
@@ -703,6 +812,29 @@ test('CLI: login de dispositivo y solo lectura', async ({ page }) => {
   expect(write.code, `${write.stdout} ${write.stderr}`).toBe(4);
   expect(write.stderr).toContain('read-only');
   expect((await cli(['crm', 'companies', 'list'], env)).code).toBe(0);
+});
+
+test('ningún 404 en las pantallas de permisos y en la documentación', async ({ browser }) => {
+  const ctx = await asPerson(browser, null);
+  const page = await ctx.newPage();
+  const missing: string[] = [];
+  page.on('response', (r) => {
+    if (r.status() === 404) missing.push(r.url());
+  });
+  const s = await startAuthorization(page);
+  await page.waitForLoadState('networkidle');
+  s.cb.close();
+  await page.goto('/en/docs/mcp', { waitUntil: 'networkidle' });
+  await page.goto('/en/oauth/device', { waitUntil: 'networkidle' });
+  expect(missing).toEqual([]);
+  await ctx.close();
+});
+
+test('la conexión queda encontrable desde Conexiones, y el vacío lleva a cómo conectar', async ({ page }) => {
+  await page.goto('/en/app/settings/connections');
+  await page.getByRole('link', { name: 'Claude and other connected apps' }).click();
+  await expect(page).toHaveURL(/\/app\/settings\/api#connected/);
+  await expect(page.getByRole('heading', { name: 'Connected apps' })).toBeVisible();
 });
 
 test('las pantallas se ven bien a 390 y 1280, en claro y oscuro', async ({ browser }) => {
@@ -762,6 +894,7 @@ test('las pantallas se ven bien a 390 y 1280, en claro y oscuro', async ({ brows
   seedDb.close();
   await freshPage.goto('/en/app/settings/api');
   await expect(freshPage.getByText('No connected apps')).toBeVisible();
+  await expect(freshPage.locator('#connected').getByRole('link', { name: 'How to connect' })).toHaveAttribute('href', /\/docs\/mcp$/);
   await freshPage.locator('#connected').screenshot({ path: SHOTS ? path.join(SHOTS, 'settings-panel-empty-1280-light.png') : undefined });
   await fresh.close();
   // Los tres idiomas.

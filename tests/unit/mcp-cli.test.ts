@@ -1,11 +1,12 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { aliasCandidates, flagValue, parseArgs } from '../../cli/src/args.mjs';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { aliasCandidates, coerceFlag, flagValue, parseArgs, schemaFields } from '../../cli/src/args.mjs';
 import { baseUrlFrom, exitCodeForStatus } from '../../cli/src/client.mjs';
-import { deleteCredentials, loadCredentials, saveCredentials } from '../../cli/src/credentials.mjs';
-import { human, table } from '../../cli/src/output.mjs';
+import { deleteCredentials, loadCredentials, saveCredentials, withRefreshLock } from '../../cli/src/credentials.mjs';
+import { human, stripTerminal, table } from '../../cli/src/output.mjs';
+import { refresh, revoke } from '../../cli/src/oauth.mjs';
 
 describe('argumentos', () => {
   it('flags, posicionales y --json en sus dos formas', () => {
@@ -93,5 +94,85 @@ describe('salida', () => {
     expect(human({ rows: [{ id: '1', name: 'Ana' }], total: 1 })).toContain('total: 1');
     expect(human({ a: 1 })).toContain('a  1');
     expect(human(null)).toBe('(empty)');
+  });
+});
+
+describe('valores según el esquema', () => {
+  it('un teléfono con solo dígitos sigue siendo texto', () => {
+    expect(coerceFlag('5491155', { type: 'string' })).toBe('5491155');
+    expect(coerceFlag('5491155', { type: ['string', 'null'] })).toBe('5491155');
+    expect(coerceFlag('null', { type: ['string', 'null'] })).toBeNull();
+    expect(coerceFlag('30', { type: 'integer' })).toBe(30);
+    expect(coerceFlag('true', { type: 'boolean' })).toBe(true);
+    expect(coerceFlag('a', { type: 'array', items: { type: 'string' } })).toEqual(['a']);
+    expect(coerceFlag('5', undefined)).toBe(5);
+  });
+
+  it('junta los campos de path, query, body y sus alternativas', () => {
+    const { fields, open } = schemaFields({
+      properties: {
+        path: { properties: { id: { type: 'string' } } },
+        query: { properties: { q: { type: 'string' } } },
+        body: { anyOf: [{ properties: { a: { type: 'string' } } }, { properties: { b: { type: 'number' } } }] },
+      },
+    });
+    expect([...fields.keys()].sort()).toEqual(['a', 'b', 'id', 'q']);
+    expect(open).toBe(false);
+    expect(schemaFields({ properties: { body: { type: 'object', additionalProperties: true } } }).open).toBe(true);
+  });
+});
+
+describe('sesión de la CLI', () => {
+  const creds = { tokenEndpoint: 'https://z.example/token', revocationEndpoint: 'https://z.example/revoke', clientId: 'c', refreshToken: 'r' };
+  afterEach(() => vi.unstubAllGlobals());
+  const answer = (status: number, body: unknown) => vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(body), { status })));
+
+  it('solo invalid_grant cierra la sesión', async () => {
+    answer(400, { error: 'invalid_grant' });
+    expect(await refresh(creds, 'x')).toBeNull();
+    answer(429, { error: 'rate_limited' });
+    await expect(refresh(creds, 'x')).rejects.toMatchObject({ exitCode: 5 });
+    answer(503, {});
+    await expect(refresh(creds, 'x')).rejects.toMatchObject({ exitCode: 1 });
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('down'); }));
+    await expect(refresh(creds, 'x')).rejects.toThrow(/still|reach/);
+  });
+
+  it('revoke dice si el servidor lo confirmó', async () => {
+    answer(200, {});
+    expect(await revoke(creds)).toBe(true);
+    answer(500, {});
+    expect(await revoke(creds)).toBe(false);
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('down'); }));
+    expect(await revoke(creds)).toBe(false);
+  });
+
+  it('el lock de refresh deja pasar de a uno', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zs-lock-'));
+    process.env.ZEROSOFT_CONFIG_DIR = dir;
+    let inside = 0;
+    let max = 0;
+    await Promise.all(
+      [1, 2, 3].map(() =>
+        withRefreshLock(async () => {
+          inside += 1;
+          max = Math.max(max, inside);
+          await new Promise((r) => setTimeout(r, 30));
+          inside -= 1;
+        }),
+      ),
+    );
+    expect(max).toBe(1);
+    delete process.env.ZEROSOFT_CONFIG_DIR;
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe('terminal', () => {
+  it('saca escapes y controles de lo que imprime', () => {
+    const evil = '\x1b[2J\x1b]0;owned\x07Ana\x07\x08';
+    expect(stripTerminal(evil)).toBe('Ana');
+    expect(human({ name: evil })).not.toContain('\x1b');
+    expect(table([{ name: evil }])).not.toContain('\x1b');
   });
 });

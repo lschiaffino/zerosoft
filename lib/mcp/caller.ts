@@ -4,7 +4,7 @@
  * hacer lo sigue decidiendo el handler real de cada ruta.
  */
 import { extractBearer, personAppAccess, sha256, validateApiKeyAuth } from '../api-auth';
-import { hasScope, parseScopes, type ApiScope } from '../api-scopes';
+import { hasScope, keyHasMcpAccess, parseScopes, type ApiScope } from '../api-scopes';
 import { getDb, type TeamRow, type UserRow } from '../db';
 import { rateLimit, clientIp } from '../rate-limit';
 import { resolveWorkspace, type TeamRole } from '../teams';
@@ -28,7 +28,16 @@ export interface McpCaller {
   rateKey: string;
 }
 
-export type AuthFailure = { status: 401; error: 'invalid_token' | 'missing_token'; description: string } | { status: 429; retryAfter: number };
+export type AuthFailure =
+  | { status: 401; error: 'invalid_token' | 'missing_token'; description: string }
+  | { status: 403; error: 'no_mcp_access'; description: string }
+  | { status: 429; retryAfter: number };
+
+const NO_MCP_ACCESS: AuthFailure = {
+  status: 403,
+  error: 'no_mcp_access',
+  description: 'This API key works with the REST API only. In Settings, API and webhooks, create a key with MCP access, or sign in with OAuth.',
+};
 
 async function failedAttempt(req: Request): Promise<AuthFailure | null> {
   if (process.env.RATE_LIMIT_DISABLED === 'true') return null;
@@ -41,6 +50,7 @@ export async function authenticate(req: Request): Promise<McpCaller | AuthFailur
   const raw = extractBearer(req);
   if (!raw) return { status: 401, error: 'missing_token', description: 'Sign in with OAuth, or use an API key as Bearer.' };
   const caller = raw.startsWith('zs_') ? await fromApiKey(raw) : await fromOAuth(raw);
+  if (caller === 'no_mcp_access') return NO_MCP_ACCESS;
   if (caller) return caller;
   return (await failedAttempt(req)) ?? { status: 401, error: 'invalid_token', description: 'The token is invalid, expired, revoked or for another resource.' };
 }
@@ -68,10 +78,12 @@ async function callerFromGrant(grant: GrantRow): Promise<McpCaller> {
   };
 }
 
-async function fromApiKey(raw: string): Promise<McpCaller | null> {
+async function fromApiKey(raw: string): Promise<McpCaller | 'no_mcp_access' | null> {
   const auth = await validateApiKeyAuth(raw);
   if (!auth) return null;
   const key = (await getDb().prepare('SELECT id, name, scopes FROM api_keys WHERE key_hash = ?').get(sha256(raw))) as { id: string; name: string; scopes: string | null } | undefined;
+  // Una key no gana sola la API de sesión: tiene que haberse creado con acceso al MCP.
+  if (!keyHasMcpAccess(key?.scopes)) return 'no_mcp_access';
   // La key vale en el workspace de su dueño; si la creó un miembro, en el equipo donde está.
   let teamId: string | null = null;
   if (auth.personId !== auth.user.id) {

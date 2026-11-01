@@ -15,7 +15,7 @@ import type { Operation } from './catalog';
 import { credentialAllows, personCanUseApp, resolvePerson, type McpCaller, type ResolvedPerson } from './caller';
 import { runAsDelegated } from './identity';
 import { ROUTE_TABLE } from './route-table.generated';
-import { scrubSecrets, scrubText } from './scrub';
+import { REDACTED, scrubLooseText, scrubSecrets } from './scrub';
 
 /** Lo que se devuelve al modelo por llamada (el resto se pagina). */
 export const MAX_OUTPUT_CHARS = 60_000;
@@ -23,7 +23,7 @@ export const MAX_OUTPUT_CHARS = 60_000;
 const MAX_READ_BYTES = 8 * 1024 * 1024;
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
 const MAX_BINARY_INLINE_BYTES = 256 * 1024;
-export const OPERATION_TIMEOUT_MS = 55_000;
+const OPERATION_TIMEOUT_MS = 55_000;
 
 const READS_PER_MIN = 300;
 const WRITES_PER_MIN = 60;
@@ -37,7 +37,8 @@ export class OperationError extends Error {
       | 'workspace_access_lost'
       | 'confirmation_required'
       | 'rate_limited'
-      | 'timeout',
+      | 'timeout'
+      | 'web_only',
     message: string,
     public extra: Record<string, unknown> = {},
   ) {
@@ -69,6 +70,26 @@ export interface InvokeResult {
   truncated?: boolean;
   message?: string;
 }
+
+/** Binarios que pueden volver en base64. Un JSON o un texto disfrazado de binario, no. */
+const INLINE_BINARY = /^(image\/(png|jpe?g|gif|webp|avif)|application\/pdf|audio\/[a-z0-9.+-]+|video\/[a-z0-9.+-]+)$/;
+
+/** Reglas sobre la entrada que dependen del valor, no solo de la operación. */
+function assertPolicy(op: Operation, body: unknown): void {
+  const key = `${op.method} ${op.path}`;
+  if (key === 'POST /api/teams/invites' || key === 'PATCH /api/teams/members/[userId]') {
+    const role = (body as { role?: unknown } | null)?.role;
+    if (role === 'admin' || role === 'owner') {
+      throw new OperationError('web_only', 'Giving someone the admin or owner role is done in zerosoft: Settings, Members. Member invitations work here, and the person gets the link by email.', { where: 'Settings, Members' });
+    }
+  }
+  // Devolver lo que salió tapado pisaría el secreto de verdad con el texto de la marca.
+  if (body !== undefined && JSON.stringify(body)?.includes(REDACTED)) {
+    throw new OperationError('invalid_arguments', `The body contains ${REDACTED}, a value hidden from this connection. Leave that field out so it keeps its current value.`);
+  }
+}
+
+const shouldAudit = (op: Operation) => op.access !== 'read' || op.audit === true;
 
 const PARAM_VALUE = /^[^/\\\u0000-\u001f\u007f]{1,512}$/;
 
@@ -287,6 +308,7 @@ export async function invokeOperation(outer: Request, caller: McpCaller, op: Ope
   await enforceRate(caller, op);
 
   const { path, query, body } = normalizeArgs(op, args);
+  assertPolicy(op, body);
   const route = buildRoute(op, path);
   const url = new URL(route.url, issuerUrl());
   appendQuery(url, query);
@@ -301,34 +323,51 @@ export async function invokeOperation(outer: Request, caller: McpCaller, op: Ope
   if (ip && ip !== 'unknown') headers.set('x-forwarded-for', ip);
 
   const started = Date.now();
-  let res: Response;
+  // Un solo plazo para el handler y para leer su respuesta. Al vencer se le avisa al handler por req.signal.
+  const abort = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      abort.abort();
+      reject(
+        new OperationError(
+          'timeout',
+          op.access === 'read' ? 'The operation took too long.' : 'The operation took too long and its outcome is unknown. Check whether it happened before trying again.',
+          { outcome: 'unknown' },
+        ),
+      );
+    }, Number(process.env.MCP_OPERATION_TIMEOUT_MS) || OPERATION_TIMEOUT_MS);
+    timer.unref?.();
+  });
   try {
-    const mod = (await loader()) as RouteModule;
-    const handler = mod[op.method];
-    if (!handler) throw new OperationError('invalid_arguments', 'This operation is not available.');
-    const inner = new NextRequest(url, { method: op.method, headers, body: init });
-    const ctx: RouteContext = { params: Promise.resolve(route.params) };
-    const run = runAsDelegated(person.identity(url.pathname), async () => {
-      const out = await handler(inner, ctx);
-      if (!out) throw new Error('empty_response');
-      return out as Response;
-    });
-    const timer = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new OperationError('timeout', 'The operation took too long.')), OPERATION_TIMEOUT_MS).unref?.();
-    });
-    res = await Promise.race([run, timer]);
-  } catch (err) {
-    if (err instanceof OperationError) {
-      if (op.access !== 'read') await writeAudit(caller, person, op, 504, Date.now() - started);
-      throw err;
+    let res: Response;
+    try {
+      const mod = (await Promise.race([loader(), deadline])) as RouteModule;
+      const handler = mod[op.method];
+      if (!handler) throw new OperationError('invalid_arguments', 'This operation is not available.');
+      const inner = new NextRequest(url, { method: op.method, headers, body: init, signal: abort.signal });
+      const ctx: RouteContext = { params: Promise.resolve(route.params) };
+      const run = runAsDelegated(person.identity(url.pathname), async () => {
+        const out = await handler(inner, ctx);
+        if (!out) throw new Error('empty_response');
+        return out as Response;
+      });
+      res = await Promise.race([run, deadline]);
+    } catch (err) {
+      if (err instanceof OperationError) {
+        if (shouldAudit(op)) await writeAudit(caller, person, op, err.code === 'timeout' ? 504 : 400, Date.now() - started);
+        throw err;
+      }
+      // redirect() de Next, por ejemplo: sin detalles internos hacia el modelo.
+      console.error('[mcp] operation failed', op.id, err instanceof Error ? err.name : 'error');
+      if (shouldAudit(op)) await writeAudit(caller, person, op, 500, Date.now() - started);
+      return { ok: false, status: 500, contentType: null, data: { error: 'server_error' } };
     }
-    // redirect() de Next, por ejemplo: sin detalles internos hacia el modelo.
-    console.error('[mcp] operation failed', op.id, err instanceof Error ? err.name : 'error');
-    if (op.access !== 'read') await writeAudit(caller, person, op, 500, Date.now() - started);
-    return { ok: false, status: 500, contentType: null, data: { error: 'server_error' } };
+    if (shouldAudit(op)) await writeAudit(caller, person, op, res.status, Date.now() - started);
+    return await Promise.race([interpretResponse(res, opts), deadline]);
+  } finally {
+    clearTimeout(timer);
   }
-  if (op.access !== 'read') await writeAudit(caller, person, op, res.status, Date.now() - started);
-  return interpretResponse(res, opts);
 }
 
 async function interpretResponse(res: Response, opts: InvokeOptions): Promise<InvokeResult> {
@@ -341,20 +380,20 @@ async function interpretResponse(res: Response, opts: InvokeOptions): Promise<In
   const { bytes, capped } = await readCapped(res);
   const media = (type ?? '').split(';')[0].trim().toLowerCase();
   const isJson = media === 'application/json' || media.endsWith('+json');
-  const isText = media.startsWith('text/') || media === 'application/xml' || media === 'application/javascript' || !media;
+  const isText = media.startsWith('text/') || media === 'application/xml' || media === 'application/javascript' || media === 'image/svg+xml' || !media;
   if (isJson) {
     const text = new TextDecoder().decode(bytes);
     let parsed: unknown;
     try {
       parsed = JSON.parse(text);
     } catch {
-      return { ...base, data: scrubText(text.slice(0, MAX_OUTPUT_CHARS)), truncated: capped || text.length > MAX_OUTPUT_CHARS };
+      return { ...base, data: scrubLooseText(text).slice(0, MAX_OUTPUT_CHARS), truncated: capped || text.length > MAX_OUTPUT_CHARS };
     }
     const clean = scrubSecrets(parsed);
     return { ...base, ...paginate(clean, opts), ...(capped ? { truncated: true } : {}) };
   }
   if (isText) {
-    const text = scrubText(new TextDecoder().decode(bytes));
+    const text = scrubLooseText(new TextDecoder().decode(bytes));
     const offset = Math.max(0, Math.floor(opts.offset ?? 0));
     const slice = text.slice(offset, offset + MAX_OUTPUT_CHARS);
     const next = offset + slice.length < text.length ? offset + slice.length : null;
@@ -364,6 +403,9 @@ async function interpretResponse(res: Response, opts: InvokeOptions): Promise<In
       ...(next !== null || offset ? { page: { offset, limit: slice.length, total: text.length, field: null, nextOffset: next } } : {}),
       ...(capped ? { truncated: true } : {}),
     };
+  }
+  if (!INLINE_BINARY.test(media)) {
+    return { ...base, data: { binary: true, contentType: type, size: bytes.length }, message: 'This file type does not come back through MCP. Download it from zerosoft.' };
   }
   if (bytes.length <= MAX_BINARY_INLINE_BYTES) {
     return { ...base, data: { binary: true, contentType: type, size: bytes.length, base64: Buffer.from(bytes).toString('base64') } };

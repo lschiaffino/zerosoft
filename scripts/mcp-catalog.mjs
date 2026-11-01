@@ -20,7 +20,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const require = createRequire(import.meta.url);
 const ts = require('typescript');
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const { excludeReason, appOfPath, ACCESS_OVERRIDES, READ_POST, MUTATING_GET_OK } = await import(pathToFileURL(path.join(ROOT, 'lib/mcp/excludes.mjs')).href);
+const { excludeReason, webOnlyWhere, destructiveByEffect, auditedRead, appOfPath, ACCESS_OVERRIDES, READ_POST, MUTATING_GET_OK } = await import(pathToFileURL(path.join(ROOT, 'lib/mcp/excludes.mjs')).href);
 const { HAND_SCHEMAS } = await import(pathToFileURL(path.join(ROOT, 'lib/mcp/hand-schemas.mjs')).href);
 
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
@@ -611,6 +611,7 @@ function verbFor(method, segments, hasGet) {
 
 const ops = [];
 const mutatingGets = [];
+const webOnly = [];
 const excluded = [];
 const routeFiles = {};
 const seenIds = new Map();
@@ -635,7 +636,16 @@ for (const file of files) {
   const fileComment = commentAt(text, 0).slice(0, 240);
   for (const method of Object.keys(handlers).sort()) {
     const reason = excludeReason(url, method);
-    if (reason) { excluded.push({ path: url, method, reason }); continue; }
+    if (reason) {
+      excluded.push({ path: url, method, reason });
+      // Hecho desde la web: el id responde con un error que dice dónde, en vez de "no existe".
+      const where = webOnlyWhere(url, method);
+      if (where) {
+        const verbWeb = verbFor(method, segs, Boolean(handlers.GET));
+        webOnly.push({ id: [...segs.filter((x) => !isParam(x)).map(snake).filter(Boolean), ...(verbWeb ? [verbWeb] : [])].join('.'), app: appOfPath(url), method, path: url, where });
+      }
+      continue;
+    }
     const decl = handlers[method];
     const fn = fnBodyOf(decl) ?? decl;
     const a = analyzeHandler(fn);
@@ -686,11 +696,13 @@ for (const file of files) {
     const last = segs[segs.length - 1] ?? '';
     let access;
     if (ACCESS_OVERRIDES[key]) access = ACCESS_OVERRIDES[key];
-    else if (method === 'DELETE') access = 'destructive';
+    else if (method === 'DELETE' || destructiveByEffect(url, method)) access = 'destructive';
     else if (method === 'GET') {
       const hits = reachesMutation(fn);
       if (hits.length) mutatingGets.push(`${key}${MUTATING_GET_OK.has(key) ? ' [OK]' : ''}\n    ${hits.join('\n    ')}`);
-      access = hits.length && !MUTATING_GET_OK.has(key) ? 'write' : 'read';
+      // Gastar créditos de un proveedor nunca es lectura, aunque esté en la lista.
+      const spends = hits.some((h) => h.includes('INTO ai_usage'));
+      access = hits.length && (spends || !MUTATING_GET_OK.has(key)) ? 'write' : 'read';
     }
     else if (READ_POST.has(key)) access = 'read';
     else if (/^(delete|remove|purge|erase|wipe|destroy|bulk-delete|clear|reset|void|cancel|unpublish|disconnect|revoke|merge)/.test(last)) access = 'destructive';
@@ -729,6 +741,7 @@ for (const file of files) {
       access,
       quality,
       session: auth,
+      ...(auditedRead(url, method) ? { audit: true } : {}),
       // Una ruta puede aceptar las dos cosas (JSON, o multipart con el archivo).
       body: a.form ? (a.bodySchemas.length || a.typed.length ? 'both' : 'form') : bodySchema ? 'json' : 'none',
       params: pathParams.map((p) => p.name),
@@ -756,6 +769,7 @@ fs.writeFileSync(path.join(ROOT, 'lib/mcp/route-table.generated.ts'), lines.join
 
 const catalog = {
   operations: ops,
+  webOnly: webOnly.sort((a, b) => a.id.localeCompare(b.id)),
   excluded: excluded.sort((a, b) => (a.path + a.method).localeCompare(b.path + b.method)),
 };
 fs.writeFileSync(

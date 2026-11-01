@@ -76,7 +76,9 @@
     "noteMember": "Ves solo tus keys. Owner y admins ven las de todo el workspace.",
     "noteAdmin": "Ves las keys de todo el workspace.",
     "error": "No se pudo crear la key. Probá de nuevo.",
-    "revokeError": "No se pudo revocar la key."
+    "revokeError": "No se pudo revocar la key.",
+    "mcpAccess": "Acceso al MCP",
+    "mcpAccessHelp": "Deja que esta key use el endpoint MCP, dentro de los permisos de arriba. Sin esto, la key solo sirve para la API REST."
   },
   "webhooks": {
     "title": "Webhooks",
@@ -394,7 +396,8 @@
       "google": "Google Calendar en Cal › Conexiones",
       "gmail": "Gmail en CRM › Integraciones",
       "whatsapp": "Números de WhatsApp en Groups › Números",
-      "github": "GitHub en Track › GitHub"
+      "github": "GitHub en Track › GitHub",
+      "apps": "Claude y otras apps conectadas"
     },
     "import": {
       "title": "Importar",
@@ -1062,7 +1065,6 @@
     "approve": "Permitir acceso",
     "deny": "Cancelar",
     "working": "Un momento...",
-    "warning": "El nombre lo eligió el cliente. Permití el acceso solo si esto lo iniciaste recién.",
     "expiredTitle": "Este pedido ya no vale",
     "expiredBody": "Venció o ya se respondió. Volvé a iniciar la conexión desde tu app.",
     "errorExpired": "Este pedido venció. Volvé a iniciar la conexión desde tu app.",
@@ -1077,7 +1079,14 @@
     "deviceDoneBody": "Podés cerrar esta página y volver a la terminal.",
     "deviceDeniedTitle": "Conexión cancelada",
     "deviceDeniedBody": "No se conectó nada. Podés cerrar esta página.",
-    "redirectsLocal": "Vuelve a una app en esta computadora"
+    "redirectsLocal": "Vuelve a una app en esta computadora",
+    "selfDeclared": "\"{client}\" es el nombre que se puso esta app. zerosoft no lo verificó, aunque se parezca a una marca que conocés.",
+    "deviceWarningTitle": "Aprobá esto solo si lo iniciaste vos",
+    "deviceWarningBody": "Alguien que te manda un link o un código puede entrar a tu cuenta de esta forma. Si no lo acabás de correr en tu terminal, cancelá.",
+    "deviceConfirm": "Fijate que sea el código que muestra tu terminal. Si no lo es, cerrá esta página.",
+    "invalidTitle": "Este pedido de conexión no es válido",
+    "invalidBody": "No se conectó nada. Empezá de nuevo desde la app, o avisale a quien la hace.",
+    "invalidCode": "Motivo: {code}"
   },
   "connected": {
     "title": "Apps conectadas",
@@ -1099,8 +1108,10 @@
     "confirmTitle": "¿Desconectar {client}?",
     "confirmBody": "Pierde el acceso en el momento. Para volver a usarla vas a tener que iniciar sesión de nuevo.",
     "error": "No se pudo desconectar. Probá de nuevo.",
-    "thisComputer": "Esta computadora",
     "connectedOn": "Conectada el {date}",
-    "changes": "{count, plural, =0 {Sin cambios} one {# cambio} other {# cambios}}"
+    "changes": "{count, plural, =0 {Sin cambios} one {# cambio} other {# cambios}}",
+    "originLocal": "App en una computadora",
+    "originDevice": "Entró con un código de dispositivo",
+    "emptyAction": "Cómo conectar"
   }
 }

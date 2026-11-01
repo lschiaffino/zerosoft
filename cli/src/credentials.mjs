@@ -130,3 +130,33 @@ export function saveClientId(baseUrl, clientId) {
   fs.mkdirSync(configDir(), { recursive: true, mode: 0o700 });
   fs.writeFileSync(clientsPath(), JSON.stringify(all, null, 2), { mode: 0o600 });
 }
+
+// Varios comandos en paralelo comparten un solo refresh: gastar dos veces el mismo token revocaría la conexión.
+const LOCK_STALE_MS = 30_000;
+const LOCK_WAIT_MS = 20_000;
+
+export async function withRefreshLock(fn) {
+  fs.mkdirSync(configDir(), { recursive: true, mode: 0o700 });
+  const lock = path.join(configDir(), 'refresh.lock');
+  const started = Date.now();
+  for (;;) {
+    try {
+      fs.closeSync(fs.openSync(lock, 'wx', 0o600));
+      break;
+    } catch (err) {
+      if (err.code !== 'EEXIST') throw err;
+      try {
+        if (Date.now() - fs.statSync(lock).mtimeMs > LOCK_STALE_MS) fs.rmSync(lock, { force: true });
+      } catch {
+        /* otro lo acaba de soltar */
+      }
+      if (Date.now() - started > LOCK_WAIT_MS) break; // Mejor intentar que quedarse colgado.
+      await new Promise((r) => setTimeout(r, 150));
+    }
+  }
+  try {
+    return await fn();
+  } finally {
+    fs.rmSync(lock, { force: true });
+  }
+}

@@ -1,7 +1,7 @@
 // Comandos de la CLI. Códigos de salida: 0 bien, 1 falló, 2 uso, 3 sesión, 4 sin permiso o no existe, 5 rate limit.
 import fs from 'node:fs';
 import path from 'node:path';
-import { aliasCandidates, flagValue, parseArgs } from './args.mjs';
+import { aliasCandidates, coerceFlag, parseArgs, schemaFields } from './args.mjs';
 import { baseUrlFrom, exitCodeForStatus, McpClient } from './client.mjs';
 import { deleteCredentials, loadCredentials, saveCredentials } from './credentials.mjs';
 import { browserLogin, CliError, deviceLogin, revoke } from './oauth.mjs';
@@ -21,7 +21,6 @@ Session
   logout           Disconnect this device
   whoami           Who you are, the workspace and what this device may do
   workspaces       Your workspaces
-  switch <teamId>  Move this device to another workspace ("own" is yours)
 
 Discover and run
   apps             Apps you can use, with their operations
@@ -31,7 +30,7 @@ Discover and run
 
 Shortcuts
   zerosoft crm contacts list --limit 5
-  zerosoft crm contacts create --name "Ana"
+  zerosoft crm contacts create --firstName Ana --email ana@example.com
   zerosoft track issues create --projectId p1 --title "Fix it"
   zerosoft crm deals get <id>
 
@@ -59,7 +58,6 @@ Signs in through your browser and stores the token in the OS keychain, or in a
   logout: `zerosoft logout [--server <url>]\n\nDisconnects this device on the server and deletes the local token.`,
   whoami: `zerosoft whoami [--json]\n\nThe signed-in person, the workspace, the role and the apps.`,
   workspaces: `zerosoft workspaces [--json]\n\nThe workspaces you belong to.`,
-  switch: `zerosoft switch <teamId|own>\n\nMoves this device to another workspace. Your browser stays where it is.`,
   apps: `zerosoft apps [--json]\n\nThe apps you can use in this workspace, with how many operations each has.`,
   ops: `zerosoft ops search <text> [--app <app>] [--access read|write|destructive] [--limit <n>] [--offset <n>]
 zerosoft ops show <operation>
@@ -75,7 +73,7 @@ Destructive operations need --confirm.
   --input file.json     The input from a file, or - for stdin
   --offset, --limit-page  Continue a long result, from page.nextOffset
   --file field=path     Attach a file to a multipart operation (repeatable)`,
-  setup: `zerosoft setup claude [--server <url>]\n\nPrints the commands that connect Claude Code and claude.ai to this server.`,
+  setup: `zerosoft setup claude [--server <url>]\n\nPrints the commands that connect Claude Code to this server.`,
 };
 
 function log(msg) {
@@ -103,17 +101,23 @@ async function cmdLogin(flags, baseUrl) {
 
 async function cmdLogout(flags, baseUrl) {
   const creds = loadCredentials(baseUrl);
-  if (creds) await revoke(creds);
+  const revoked = creds ? await revoke(creds) : true;
   deleteCredentials(baseUrl);
-  if (wantsJson(flags)) printJson({ ok: true });
+  if (!revoked) {
+    process.exitCode = 1;
+    if (wantsJson(flags)) printJson({ ok: false, local: true, revoked: false });
+    log('Signed out on this machine, but the server could not confirm it. Disconnect this device in Settings, API and webhooks.');
+    return;
+  }
+  if (wantsJson(flags)) printJson({ ok: true, revoked: true });
   else log('Signed out.');
 }
 
 async function cmdSetup(positional, flags, baseUrl) {
   if (positional[0] && positional[0] !== 'claude') throw new CliError('Usage: zerosoft setup claude', 2);
   const command = `claude mcp add --transport http zerosoft ${baseUrl}/api/mcp`;
-  if (wantsJson(flags)) return printJson({ claudeCode: command, connectorUrl: `${baseUrl}/api/mcp` });
-  process.stdout.write(`Claude Code:\n  ${command}\n  Then run /mcp inside Claude Code and sign in.\n\nclaude.ai:\n  Settings, Connectors, Add custom connector, and paste ${baseUrl}/api/mcp\n`);
+  if (wantsJson(flags)) return printJson({ claudeCode: command });
+  process.stdout.write(`Claude Code:\n  ${command}\n  claude mcp login zerosoft\n`);
 }
 
 async function readInput(flags) {
@@ -171,16 +175,26 @@ async function runOperation(client, operation, args, flags) {
   if (!result.ok) process.exitCode = exitCodeForStatus(result.status);
 }
 
-function flagsToArgs(flags) {
+/** --campo valor, según el esquema: un campo que no existe es un error que dice cuáles hay. */
+function flagsToArgs(flags, schema) {
+  const { fields, open } = schemaFields(schema.inputSchema);
   const args = {};
-  for (const [k, v] of Object.entries(flags)) if (!RESERVED_FLAGS.has(k)) args[k] = flagValue(v);
+  for (const [k, v] of Object.entries(flags)) {
+    if (RESERVED_FLAGS.has(k)) continue;
+    if (!fields.has(k) && !open) {
+      const valid = [...fields.keys()];
+      throw new CliError(`Unknown field --${k} for ${schema.id}. ${valid.length ? `Valid fields: ${valid.join(', ')}.` : 'It takes no fields.'}`, 2);
+    }
+    args[k] = coerceFlag(v, fields.get(k));
+  }
   return args;
 }
 
 async function cmdCall(positional, flags, client) {
   const operation = positional[0];
   if (!operation) throw new CliError('Usage: zerosoft call <operation> [--json-input ...]', 2);
-  await runOperation(client, operation, { ...(await readInput(flags)), ...flagsToArgs(flags) }, flags);
+  const { result: schema } = await client.tool('get_operation_schema', { operation });
+  await runOperation(client, operation, { ...(await readInput(flags)), ...flagsToArgs(flags, schema) }, flags);
 }
 
 async function cmdOps(positional, flags, client) {
@@ -237,7 +251,7 @@ async function cmdAlias(positional, flags, client) {
   rest.forEach((v, i) => {
     pathArgs[params[i]] = v;
   });
-  const args = { ...(await readInput(flags)), ...flagsToArgs(flags), ...(rest.length ? { path: pathArgs } : {}) };
+  const args = { ...(await readInput(flags)), ...flagsToArgs(flags, schema), ...(rest.length ? { path: pathArgs } : {}) };
   await runOperation(client, schema.id, args, flags);
 }
 
@@ -286,11 +300,6 @@ export async function main(argv) {
     case 'workspaces': {
       const { result } = await client.tool('list_workspaces');
       return emit(flags, result, (r) => table(r.workspaces.map((w) => ({ ...w, current: w.teamId === r.current ? '*' : '' })), ['current', 'teamId', 'name', 'role', 'mode']));
-    }
-    case 'switch': {
-      if (!rest[0]) throw new CliError('Usage: zerosoft switch <teamId|own>', 2);
-      const { result } = await client.tool('switch_workspace', { teamId: rest[0] === 'own' ? null : rest[0] });
-      return emit(flags, result, () => 'Done.');
     }
     case 'apps': {
       const { result } = await client.tool('list_apps');

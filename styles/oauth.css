@@ -15,15 +15,27 @@
 .oauth-scope:has(input:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
 .oauth-scope:hover { border-color: var(--ink-2); }
 .oauth-scope:has(input:checked):hover { border-color: var(--ink); }
-.oauth-scope input { margin-top: 3px; flex-shrink: 0; }
-/* El foco se ve en la tarjeta entera: sin un segundo anillo en el radio. */
+/* Radio propio: el del navegador, sin elegir y en oscuro, parece deshabilitado. El foco se ve en la tarjeta. */
+.oauth-scope input {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin: 3px 0 0;
+  flex-shrink: 0;
+  border: 1.5px solid var(--ink-2);
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+.oauth-scope input:checked { border-color: var(--ink); box-shadow: inset 0 0 0 3px var(--bg), inset 0 0 0 8px var(--ink); }
 .oauth-scope input:focus-visible { outline: none; }
 .oauth-scope > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .oauth-scope .ui-help { margin: 0; }
 .oauth-notes { margin: 0; padding-left: 18px; font-size: 0.8125rem; line-height: 1.5; color: var(--ink-2); }
 .oauth-notes li + li { margin-top: 4px; }
 .oauth-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
-.oauth-warning { margin: 0; font-size: 0.75rem; line-height: 1.5; color: var(--ink-2); }
+.oauth-alert { display: flex; flex-direction: column; gap: 4px; padding: 12px; border: 1px solid var(--ink); border-radius: var(--r-sm); font-size: 0.875rem; line-height: 1.5; }
+.oauth-reason { margin-top: 12px; }
 .oauth-code { font-family: var(--mono); letter-spacing: 0.12em; text-transform: uppercase; }
 @media (max-width: 480px) {
   .oauth-page { align-items: flex-start; padding: 16px; }
@@ -39,5 +51,6 @@
 .mcp-docs-section ul { margin: 0 0 12px; padding-left: 20px; }
 .mcp-docs-section a { color: var(--ink); text-decoration: underline; }
 .mcp-docs-section .code-block { max-width: 100%; margin: 0 0 16px; }
-/* Los comandos se leen enteros, sin scroll lateral a 390. */
-.mcp-docs-section .code-block code { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* Los comandos van cortados a mano donde se pueden copiar: nunca a mitad de un argumento. */
+.mcp-docs-section .code-block { overflow-x: auto; }
+.mcp-docs-section .code-block code { white-space: pre; }

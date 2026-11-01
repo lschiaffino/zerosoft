@@ -1,5 +1,12 @@
 // Salida: JSON si hay pipe o --json, tablas legibles en una terminal.
 
+/** Secuencias de terminal y caracteres de control: un dato de otra persona no maneja esta terminal. */
+const CONTROL = /\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\\\)?|\x1b[@-Z\\\\^_]|[\x00-\x08\x0b-\x1f\x7f-\x9f]/g;
+
+export function stripTerminal(text) {
+  return String(text).replace(CONTROL, '');
+}
+
 export function wantsJson(flags) {
   return Boolean(flags.json === true || !process.stdout.isTTY);
 }
@@ -9,7 +16,7 @@ export function printJson(value) {
 }
 
 const scalar = (v) => v === null || ['string', 'number', 'boolean'].includes(typeof v);
-const cell = (v) => (v === null || v === undefined ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v)).replace(/\s+/g, ' ');
+const cell = (v) => stripTerminal(v === null || v === undefined ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v)).replace(/\s+/g, ' ');
 
 export function table(rows, columns) {
   if (!rows.length) return '(nothing)';
@@ -39,7 +46,7 @@ function pickColumns(rows) {
 /** Lo más legible de una respuesta: la lista más grande como tabla, un objeto como clave y valor. */
 export function human(data) {
   if (data === null || data === undefined) return '(empty)';
-  if (typeof data === 'string') return data;
+  if (typeof data === 'string') return stripTerminal(data);
   if (Array.isArray(data)) {
     if (data.every((r) => r && typeof r === 'object')) return table(data);
     return data.map(cell).join('\n');
@@ -57,5 +64,5 @@ export function human(data) {
       .map(([k, v]) => `${k.padEnd(width)}  ${cell(v)}`)
       .join('\n');
   }
-  return String(data);
+  return stripTerminal(data);
 }

@@ -1,12 +1,13 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { NextRequest } from 'next/server';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { createApiKey } from '@/lib/api-auth';
 import { getDb, upsertUser } from '@/lib/db';
 import { authenticate, credentialAllows, type McpCaller } from '@/lib/mcp/caller';
 import { getOperation } from '@/lib/mcp/catalog';
 import { runAsDelegated } from '@/lib/mcp/identity';
 import { buildRoute, invokeOperation, normalizeArgs, OperationError, paginate } from '@/lib/mcp/invoke';
-import { isSecretKey, scrubSecrets, scrubText } from '@/lib/mcp/scrub';
+import { isSecretKey, scrubLooseText, scrubSecrets, scrubText } from '@/lib/mcp/scrub';
 import { handleMcpPost, originAllowed, wrapUntrusted } from '@/lib/mcp/server';
 import {
   activeGrant,
@@ -168,12 +169,34 @@ describe('código y PKCE', () => {
 });
 
 describe('refresh con rotación', () => {
-  it('rota, y reusar el viejo revoca la conexión', async () => {
+  it('dentro de la ventana, repetir el recién rotado no revoca; un refresh en paralelo sobrevive', async () => {
+    const u = await person('grace');
+    const { client, tokens } = await connect(u.id);
+    const base = { refreshToken: tokens.refresh_token, clientId: client.client_id, resource: null, scope: null };
+    const [a, b] = await Promise.all([refreshTokens(base), refreshTokens(base)]);
+    expect(await grantForAccessToken(a.access_token)).toBeTruthy();
+    expect(await grantForAccessToken(b.access_token)).toBeTruthy();
+    expect((await grantForAccessToken(a.access_token))?.id).toBe((await grantForAccessToken(b.access_token))?.id);
+  });
+
+  it('pedir menos scope se respeta en el token, y el permiso no vuelve a subir con ese refresh', async () => {
+    const u = await person('narrow');
+    const { client, tokens } = await connect(u.id);
+    const narrowed = await refreshTokens({ refreshToken: tokens.refresh_token, clientId: client.client_id, resource: null, scope: 'read' });
+    expect(narrowed.scope).toBe('read');
+    expect((await grantForAccessToken(narrowed.access_token))?.scope).toBe('read');
+    const write = await callTool(narrowed.access_token, 'invoke_operation', { operation: 'crm.companies.create', args: { body: { name: 'No' } } });
+    expect(JSON.parse(write.content[0].text).error).toBe('insufficient_scope');
+    await expect(refreshTokens({ refreshToken: narrowed.refresh_token, clientId: client.client_id, resource: null, scope: 'read write' })).rejects.toMatchObject({ code: 'invalid_scope' });
+  });
+
+  it('rota, y reusar el viejo pasada la ventana revoca la conexión', async () => {
     const u = await person('rotate');
     const { client, tokens } = await connect(u.id);
     const next = await refreshTokens({ refreshToken: tokens.refresh_token, clientId: client.client_id, resource: mcpResourceUrl(), scope: null });
     expect(next.refresh_token).not.toBe(tokens.refresh_token);
     expect(await grantForAccessToken(next.access_token)).toBeTruthy();
+    await getDb().prepare('UPDATE oauth_tokens SET used_at = ? WHERE token_hash = ?').run(new Date(Date.now() - 60_000).toISOString(), hashToken(tokens.refresh_token));
     await expect(refreshTokens({ refreshToken: tokens.refresh_token, clientId: client.client_id, resource: null, scope: null })).rejects.toBeInstanceOf(TokenError);
     expect(await grantForAccessToken(next.access_token)).toBeNull();
     await expect(refreshTokens({ refreshToken: next.refresh_token, clientId: client.client_id, resource: null, scope: null })).rejects.toBeInstanceOf(TokenError);
@@ -212,6 +235,34 @@ describe('revocación y conexiones', () => {
     expect(await revokeOwnGrant(u.id, list[0].id)).toBe(true);
     expect(await grantForAccessToken(tokens.access_token)).toBeNull();
     expect(await activeGrant(list[0].id)).toBeNull();
+  });
+
+  it('reconectar corta la conexión anterior recién cuando el nuevo código se canjea', async () => {
+    const u = await person('retire');
+    const first = await connect(u.id);
+    const v = verifier();
+    const reqId = await createAuthRequest({ client_id: first.client.client_id, redirect_uri: 'https://client.example/cb', scope: 'read', state: null, code_challenge: challenge(v), resource: mcpResourceUrl() });
+    const code = (await approveAuthRequest((await openAuthRequest(reqId))!, { userId: u.id, teamId: null, scope: 'read' }))!;
+    expect(await grantForAccessToken(first.tokens.access_token)).toBeTruthy();
+    await exchangeCode({ code, clientId: first.client.client_id, redirectUri: 'https://client.example/cb', verifier: v, resource: null });
+    expect(await grantForAccessToken(first.tokens.access_token)).toBeNull();
+  });
+
+  it('una aprobación por dispositivo no aparece como una app local', async () => {
+    const u = await person('deviceorigin');
+    const client = await registerClient({ redirect_uris: ['http://127.0.0.1/callback'], grant_types: ['authorization_code', 'refresh_token', 'urn:ietf:params:oauth:grant-type:device_code'] });
+    const started = await createDeviceCode({ clientId: client.client_id, scope: 'read', resource: mcpResourceUrl() });
+    await decideDevice((await pendingDeviceByUserCode(started.userCode))!, { approve: true, userId: u.id, teamId: null, scope: 'read' });
+    await pollDevice({ deviceCode: started.deviceCode, clientId: client.client_id });
+    expect((await listConnectedClients(u.id))[0].origin).toEqual({ kind: 'device' });
+  });
+
+  it('el polling nunca ve "aprobado" sin conexión ni pierde el canje', async () => {
+    const u = await person('devicerace');
+    const client = await registerClient({ grant_types: ['urn:ietf:params:oauth:grant-type:device_code', 'refresh_token'] });
+    const started = await createDeviceCode({ clientId: client.client_id, scope: 'read', resource: mcpResourceUrl() });
+    await getDb().prepare(`UPDATE oauth_device_codes SET status = 'approved' WHERE user_code = ?`).run(started.userCode);
+    await expect(pollDevice({ deviceCode: started.deviceCode, clientId: client.client_id })).rejects.toMatchObject({ code: 'authorization_pending' });
   });
 });
 
@@ -318,6 +369,33 @@ describe('permisos sobre operaciones reales', () => {
     }
   });
 
+  it('lo que se hace desde la web lo dice, no responde "no existe"', async () => {
+    const u = await person('webonly');
+    const { tokens } = await connect(u.id);
+    const r = await callTool(tokens.access_token, 'invoke_operation', { operation: 'webhooks.create', args: { body: { url: 'https://example.com' } } });
+    const body = JSON.parse(r.content[0].text);
+    expect(body.error).toBe('web_only');
+    expect(body.where).toContain('Settings');
+    const found = await callTool(tokens.access_token, 'search_operations', { query: 'webhooks create' });
+    expect(JSON.parse(found.content[0].text).doneInTheWebApp.map((o: { id: string }) => o.id)).toContain('webhooks.create');
+  });
+
+  it('invitar como admin o dueño se hace desde la web', async () => {
+    const u = await person('invite');
+    const { tokens } = await connect(u.id);
+    for (const role of ['admin', 'owner']) {
+      const r = await callTool(tokens.access_token, 'invoke_operation', { operation: 'teams.invites.create', args: { body: { emails: 'a@example.com', role } }, confirm: true });
+      expect(JSON.parse(r.content[0].text).error, role).toBe('web_only');
+    }
+  });
+
+  it('devolver un valor tapado no pisa el secreto', async () => {
+    const u = await person('redacted');
+    const { tokens } = await connect(u.id);
+    const r = await callTool(tokens.access_token, 'invoke_operation', { operation: 'crm.companies.create', args: { body: { name: '[redacted]' } } });
+    expect(JSON.parse(r.content[0].text).error).toBe('invalid_arguments');
+  });
+
   it('lo destructivo pide confirm', async () => {
     const u = await person('confirm');
     const { tokens } = await connect(u.id);
@@ -365,7 +443,11 @@ describe('permisos sobre operaciones reales', () => {
     const team = await createTeam(owner.id, `Team ${id('t')}`);
     const { tokens } = await connect(u.id);
     const r = await callTool(tokens.access_token, 'switch_workspace', { teamId: team.id });
-    expect(JSON.parse(r.content[0].text).error).toBe('not_found');
+    expect(JSON.parse(r.content[0].text).error).toBe('reconnect_to_switch');
+    const list = (await (await handleMcpPost(bearer(tokens.access_token))).json()) as { result: { tools: Array<{ name: string }> } };
+    expect(list.result.tools.map((t) => t.name)).not.toContain('switch_workspace');
+    const row = (await getDb().prepare('SELECT team_id FROM oauth_grants WHERE user_id = ?').get(u.id)) as { team_id: string | null };
+    expect(row.team_id).toBeNull();
   });
 });
 
@@ -377,6 +459,23 @@ describe('API keys', () => {
     expect(credentialAllows(caller, { app: 'docs', access: 'read' })).toBe(false);
     expect(credentialAllows(caller, { app: 'flow', access: 'read' })).toBe(false);
     expect(credentialAllows(caller, { app: 'workspace', access: 'read' })).toBe(false);
+  });
+
+  it('una key de antes, o una sin el opt-in, no llega al MCP', async () => {
+    const u = await person('oldkey');
+    const old = await createApiKey(u.id, 'old');
+    const scoped = await createApiKey(u.id, 'scoped', u.id, ['crm:read']);
+    for (const key of [old.key, scoped.key]) {
+      const res = await handleMcpPost(bearer(key));
+      expect(res.status).toBe(403);
+      expect(JSON.stringify(await res.json())).toContain('MCP access');
+    }
+    const withMcp = await createApiKey(u.id, 'mcp', u.id, ['crm:read'], true);
+    expect((await handleMcpPost(bearer(withMcp.key))).status).toBe(200);
+    const write = await callTool(withMcp.key, 'invoke_operation', { operation: 'crm.companies.create', args: { body: { name: 'No' } } });
+    expect(JSON.parse(write.content[0].text).error).toBe('insufficient_scope');
+    const docs = await callTool(withMcp.key, 'invoke_operation', { operation: 'docs.pages.list' });
+    expect(JSON.parse(docs.content[0].text).error).toBe('insufficient_scope');
   });
 
   it('una key inválida no autentica', async () => {
@@ -456,6 +555,56 @@ describe('salida', () => {
     expect(out.verify_token).toBe('dns');
     expect(out.note).toBe('mirá [redacted] acá');
     expect(isSecretKey('name')).toBe(false);
+  });
+
+  it('una capacidad nunca sale: token pelado, prefijos y URLs', () => {
+    const out = scrubSecrets({
+      token: ['fh', 'a'.repeat(32)].join('_'),
+      tokens: { a: 'b' },
+      trigger: { webhookUrl: 'https://zerosoft.ai/api/flow/hooks/abc' },
+      note: `usá https://zerosoft.ai/api/flow/hooks/${'a'.repeat(32)} o ${['zth', 'b'.repeat(48)].join('_')}`,
+      invite: `https://zerosoft.ai/en/invite/${'c'.repeat(24)}`,
+      sign: `https://zerosoft.ai/es/sign/${'d'.repeat(24)}`,
+      slack: 'https://hooks.slack.com/services/T0/B0/xyz',
+      normal: 'https://zerosoft.ai/en/app/crm/contacts/abc',
+    }) as Record<string, unknown>;
+    expect(out.token).toBe('[redacted]');
+    expect(out.tokens).toBe('[redacted]');
+    expect(JSON.stringify(out)).not.toMatch(/fh_a|zth_b|hooks\/a|invite\/c|sign\/d|slack\.com/);
+    expect(out.normal).toBe('https://zerosoft.ai/en/app/crm/contacts/abc');
+  });
+
+  it('bajo un nombre secreto se tapa también lo que no es texto', () => {
+    const out = scrubSecrets({
+      credentials: { user: 'a', pass: 'b' },
+      secrets: ['x', 'y'],
+      smtp_pass: 'p',
+      dsn: 'postgres://u:p@h/db',
+      hmac: 'abc',
+      auth: { bearer: 'x' },
+      pin_otp: 123456,
+      api_key_preview: 'sk' + '_full_key_that_is_not_a_preview_at_all',
+      api_key_hint: 'abcd',
+      token_count: 12,
+      input_tokens: 5,
+      publishable_key: 'pub_123',
+      hasSecret: true,
+    }) as Record<string, unknown>;
+    for (const k of ['credentials', 'secrets', 'smtp_pass', 'dsn', 'hmac', 'auth', 'pin_otp', 'api_key_preview']) expect(out[k], k).toBe('[redacted]');
+    expect(out.api_key_hint).toBe('abcd');
+    expect(out.token_count).toBe(12);
+    expect(out.input_tokens).toBe(5);
+    expect(out.publishable_key).toBe('pub_123');
+    expect(out.hasSecret).toBe(true);
+  });
+
+  it('también en el texto que no se pudo leer como JSON', () => {
+    const cut = scrubLooseText('{"name":"Ana","access_token":"abc123","client_secret": "x y","max_tokens":5,"has_secret":true,"pas');
+    expect(cut).toContain('"name":"Ana"');
+    expect(cut).not.toContain('abc123');
+    expect(cut).not.toContain('x y');
+    expect(cut).toContain('"max_tokens":5');
+    expect(scrubLooseText('password=hunter2&name=ana')).not.toContain('hunter2');
   });
 
   it('tapa formas de credencial en cualquier texto', () => {

@@ -1,6 +1,6 @@
-import type { Metadata } from 'next';
 import { setRequestLocale } from 'next-intl/server';
 import { MCP_DOCS } from '@/content/mcp-docs';
+import { staticPageMetadata } from '@/lib/seo-pages';
 import { issuerUrl } from '@/lib/oauth/store';
 import '@/styles/api-docs.css';
 import '@/styles/oauth.css';
@@ -9,10 +9,9 @@ function copyFor(locale: string) {
   return MCP_DOCS[locale as keyof typeof MCP_DOCS] ?? MCP_DOCS.en;
 }
 
-export async function generateMetadata(props: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
-  const c = copyFor(locale);
-  return { title: c.metaTitle, description: c.metaDescription };
+  return staticPageMetadata('docsMcp', locale);
 }
 
 const CLI_EXAMPLES = `zerosoft login
@@ -22,9 +21,11 @@ zerosoft ops search "deal move"
 zerosoft ops show crm.deals.update
 zerosoft crm contacts list
 zerosoft track issues create \\
-  --projectId p1 --title "Fix the invoice"
+  --projectId p1 \\
+  --title "Fix the invoice"
 zerosoft call crm.deals.update --json \\
-  '{"path":{"id":"d1"},"body":{"priority":"high"}}'
+  '{"path":{"id":"d1"},
+    "body":{"priority":"high"}}'
 zerosoft setup claude`;
 
 /**
@@ -53,8 +54,8 @@ export default async function McpDocsPage(props: { params: Promise<{ locale: str
       <section id="claude-code" className="mcp-docs-section">
         <h2>{c.claudeCodeTitle}</h2>
         <p>{c.claudeCodeSteps[0]}</p>
-        <pre className="code-block"><code>{`claude mcp add --transport http zerosoft \\
-  ${endpoint}`}</code></pre>
+        <pre className="code-block"><code>{`claude mcp add --transport http \\
+  zerosoft ${endpoint}`}</code></pre>
         <p>{c.claudeCodeSteps[1]}</p>
       </section>
 
@@ -91,6 +92,9 @@ export default async function McpDocsPage(props: { params: Promise<{ locale: str
       <section id="out" className="mcp-docs-section">
         <h2>{c.outTitle}</h2>
         <ul>{c.outBody.map((p) => <li key={p}>{p}</li>)}</ul>
+        <h3>{c.webOnlyTitle}</h3>
+        <p>{c.webOnlyIntro}</p>
+        <ul>{c.webOnly.map((p) => <li key={p}>{p}</li>)}</ul>
       </section>
 
       <section id="keys" className="mcp-docs-section">

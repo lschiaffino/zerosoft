@@ -19,17 +19,43 @@ export interface Operation {
   params: string[];
   inputSchema: { type: 'object'; properties: Record<string, JsonSchema>; required?: string[]; additionalProperties?: boolean };
   doc: string;
+  /** Lectura que igual queda en la auditoría (exportaciones, datos sensibles). */
+  audit?: boolean;
 }
 
-const raw = JSON.parse(CATALOG_JSON) as { operations: Operation[]; excluded: Array<{ path: string; method: string; reason: string }> };
+export interface WebOnlyOperation {
+  id: string;
+  app: string;
+  method: string;
+  path: string;
+  where: string;
+}
+
+const raw = JSON.parse(CATALOG_JSON) as {
+  operations: Operation[];
+  webOnly: WebOnlyOperation[];
+  excluded: Array<{ path: string; method: string; reason: string }>;
+};
 
 export const OPERATIONS = raw.operations;
 export const EXCLUDED = raw.excluded;
+export const WEB_ONLY = raw.webOnly;
 
 const byId = new Map(OPERATIONS.map((o) => [o.id, o]));
 
 export function getOperation(id: unknown): Operation | null {
   return typeof id === 'string' ? (byId.get(id) ?? null) : null;
+}
+
+const webOnlyById = new Map(WEB_ONLY.map((o) => [o.id, o]));
+
+/** Lo que existe pero se hace desde la web, para explicarlo en vez de decir que no existe. */
+export function getWebOnly(id: unknown): WebOnlyOperation | null {
+  return typeof id === 'string' ? (webOnlyById.get(id) ?? null) : null;
+}
+
+export function webOnlyMessage(op: WebOnlyOperation): string {
+  return `${op.id} creates a credential or a shareable link, or stores third-party keys, so it is not available here. The person can do it in zerosoft: ${op.where}.`;
 }
 
 /** Título legible a partir del id: crm.deals.move → "Crm deals move". */
