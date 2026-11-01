@@ -39,6 +39,7 @@ import { purgeExpiredCandidates } from '@/lib/hiring/candidates';
 import { sendFeedbackReminders } from '@/lib/hiring/evaluation';
 import { syncAllInterviews } from '@/lib/hiring/interviews';
 import { peopleTick } from '@/lib/people-timeoff';
+import { applyDueChanges } from '@/lib/people-extras';
 import { runSignCron } from '@/lib/sign/signing';
 import { importResearchIdeas, researchIdeaSchema } from '@/lib/roadmap';
 import researchIdeas from '@/research/ideas.json';
@@ -122,6 +123,7 @@ export async function GET(req: NextRequest) {
   };
   // People: las licencias aprobadas que empiezan hoy ponen "fuera de la oficina" en Talk (claim por pedido).
   const peopleOoo = await peopleTick().catch(() => null);
+  const peopleScheduled = await applyDueChanges().catch(() => null);
   // Books: facturas recurrentes (claim por fila en claimed_until + next_date), vencidas (status con compare-and-set) y
   // recordatorios de pago (reminder_count con compare-and-set).
   const books = await import('@/lib/books-recurring').then((m) => m.runBooksCron({ budgetMs: 20_000 })).catch(() => null);
@@ -173,6 +175,6 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, linkHistory, analytics, peopleOoo, hiring, sign, books, forms, trashPurged, boardTrashPurged, boardEventsPruned, boardSearchBackfill,
+  return NextResponse.json({ peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, linkHistory, analytics, peopleOoo, hiring, sign, books, forms, trashPurged, boardTrashPurged, boardEventsPruned, boardSearchBackfill,
     docsDomainsPurged, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, agentQuality, agentRedacted, robots, ideas });
 }

@@ -12,8 +12,9 @@ import { HOLIDAY_COUNTRIES } from '@/lib/people-time';
 import { api, Dialog, Field, Tabs, useDay, useErrorText, useToast } from './people-ui';
 import { DocumentList, UploadDocumentDialog, useLoad, Loading, LoadError } from './ProfileSections';
 import type { PeopleDocument } from '@/lib/people-docs';
+import type { ChangeRequest } from '@/lib/people-extras';
 
-type TabKey = 'policies' | 'holidays' | 'fields' | 'visibility' | 'documents' | 'access';
+type TabKey = 'policies' | 'holidays' | 'fields' | 'visibility' | 'documents' | 'access' | 'changes';
 
 export interface SettingsProps {
   settings: Settings;
@@ -24,9 +25,93 @@ export interface SettingsProps {
   members: Array<{ id: string; name: string; email: string; role: string }>;
   wsAdmin: boolean;
   tab: string;
+  changesCount?: number;
 }
 
-export default function PeopleSettings({ settings, policies, fields, holidays, seeded, members, wsAdmin, tab: initialTab }: SettingsProps) {
+/** "3=18, 5=20" → niveles por antigüedad. Lo que no se entiende, lo rechaza el servidor. */
+function parseLevels(text: string): Array<{ afterYears: number; daysPerYear: number }> {
+  return text
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .map((x) => {
+      const [a, b] = x.split('=');
+      return { afterYears: Number(a), daysPerYear: Number(b) };
+    });
+}
+
+function ChangesPanel({ approveChanges, onChanged, onError }: { approveChanges: boolean; onChanged: () => void; onError: (code: string | undefined) => void }) {
+  const t = useTranslations('people');
+  const { data, error, reload } = useLoad<{ requests: ChangeRequest[] }>('/api/people/changes');
+  const requests = data?.requests ?? [];
+  const label = (f: string) => (t.has(`fields.${f}`) ? t(`fields.${f}`) : f);
+  const toggle = async (on: boolean) => {
+    const res = await api('/api/people/settings', { method: 'PATCH', json: { approveChanges: on } });
+    if (!res.ok) return onError(res.data.error);
+    onChanged();
+  };
+  const decide = async (id: string, decision: 'approve' | 'deny') => {
+    const res = await api(`/api/people/changes/${id}`, { method: 'PATCH', json: { decision } });
+    if (!res.ok) return onError(res.data.error);
+    reload();
+    onChanged();
+  };
+  return (
+    <section className="ppl-panel" data-testid="people-changes">
+      <h2 className="ppl-panel-title">{t('settings.tabs.changes')}</h2>
+      <label className="ppl-check">
+        <input type="checkbox" checked={approveChanges} onChange={(e) => void toggle(e.target.checked)} />
+        <span>{t('changes.toggle')}</span>
+      </label>
+      <p className="ppl-hint">{t('changes.hint')}</p>
+      {error ? (
+        <LoadError onRetry={reload} />
+      ) : !data ? (
+        <Loading />
+      ) : requests.length === 0 ? (
+        <EmptyState compact quiet body={approveChanges ? t('changes.empty') : t('changes.off')} />
+      ) : (
+        requests.map((r) => (
+          <article key={r.id} className="ppl-review">
+            <h3 className="ppl-review-title">
+              <Link href={`/app/people/${r.employeeId}`}>{r.employeeName}</Link>
+            </h3>
+            <div className="table-wrap">
+              <table className="table table-compact ppl-table">
+                <thead>
+                  <tr>
+                    <th scope="col">{t('changes.field')}</th>
+                    <th scope="col">{t('changes.before')}</th>
+                    <th scope="col">{t('changes.after')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {r.changes.map((c) => (
+                    <tr key={c.field}>
+                      <th scope="row">{label(c.field)}</th>
+                      <td>{c.before}</td>
+                      <td>{c.after}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="ppl-panel-actions">
+              <button type="button" className="btn btn-sm btn-primary" onClick={() => void decide(r.id, 'approve')}>
+                {t('changes.approve')}
+              </button>
+              <button type="button" className="btn btn-sm btn-ghost" onClick={() => void decide(r.id, 'deny')}>
+                {t('changes.deny')}
+              </button>
+            </div>
+          </article>
+        ))
+      )}
+    </section>
+  );
+}
+
+export default function PeopleSettings({ settings, policies, fields, holidays, seeded, members, wsAdmin, tab: initialTab, changesCount = 0 }: SettingsProps) {
   const t = useTranslations('people');
   const router = useRouter();
   const locale = useLocale();
@@ -38,6 +123,7 @@ export default function PeopleSettings({ settings, policies, fields, holidays, s
     { key: 'holidays', label: t('settings.tabs.holidays') },
     { key: 'fields', label: t('settings.tabs.fields') },
     { key: 'visibility', label: t('settings.tabs.visibility') },
+    { key: 'changes', label: t('settings.tabs.changes'), count: changesCount || undefined },
     { key: 'documents', label: t('settings.tabs.documents') },
     { key: 'access', label: t('settings.tabs.access') },
   ];
@@ -62,7 +148,8 @@ export default function PeopleSettings({ settings, policies, fields, holidays, s
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const n = (k: string) => (String(fd.get(k) ?? '') === '' ? null : Number(fd.get(k)));
-    const body = { name: fd.get('name'), kind: fd.get('kind'), accrual: fd.get('accrual'), daysPerYear: n('daysPerYear') ?? 0, carryoverMax: n('carryoverMax'), capDays: n('capDays'), halfDay: fd.get('halfDay') === 'on' };
+    const list = (k: string) => String(fd.get(k) ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+    const body = { name: fd.get('name'), kind: fd.get('kind'), accrual: fd.get('accrual'), daysPerYear: n('daysPerYear') ?? 0, carryoverMax: n('carryoverMax'), capDays: n('capDays'), halfDay: fd.get('halfDay') === 'on', levels: parseLevels(String(fd.get('levels') ?? '')), appliesTo: { departments: list('scopeDepartments'), locations: list('scopeLocations'), countries: list('scopeCountries').map((c) => c.toUpperCase()), types: fd.getAll('scopeTypes').map(String) } };
     const res = policy === 'new' ? await api('/api/people/policies', { method: 'POST', json: body }) : await api(`/api/people/policies/${(policy as Policy).id}`, { method: 'PATCH', json: body });
     if (!res.ok) return push(errText(res.data.error), 'bad');
     setPolicy(null);
@@ -130,6 +217,7 @@ export default function PeopleSettings({ settings, policies, fields, holidays, s
       <PageHeader title={t('settings.title')} description={t('settings.desc')} />
       <Tabs items={tabs} value={tab} onChange={changeTab} label={t('settings.title')} />
       <div className="ppl-tabpanel" role="tabpanel">
+        {tab === 'changes' && <ChangesPanel approveChanges={settings.approveChanges} onChanged={done} onError={(c) => push(errText(c), 'bad')} />}
         {tab === 'policies' && (
           <section className="ppl-panel">
             <div className="ppl-panel-head">
@@ -456,6 +544,32 @@ export default function PeopleSettings({ settings, policies, fields, holidays, s
               <input type="checkbox" name="halfDay" defaultChecked={editing?.halfDay ?? true} />
               <span>{t('settings.allowHalf')}</span>
             </label>
+            <Field label={t('settings.levels')} htmlFor="pol-levels" hint={t('settings.levelsHint')}>
+              <input id="pol-levels" name="levels" className="input" placeholder="3=18, 5=20" defaultValue={(editing?.levels ?? []).map((l) => `${l.afterYears}=${l.daysPerYear}`).join(', ')} />
+            </Field>
+            <fieldset className="ui-fields ppl-scope">
+              <legend className="label">{t('settings.scope')}</legend>
+              <p className="ppl-hint">{t('settings.scopeHint')}</p>
+              <div className="ui-fields-2 ppl-fields">
+                <Field label={t('fields.department')} htmlFor="pol-sd">
+                  <input id="pol-sd" name="scopeDepartments" className="input" defaultValue={(editing?.appliesTo.departments ?? []).join(', ')} />
+                </Field>
+                <Field label={t('fields.location')} htmlFor="pol-sl">
+                  <input id="pol-sl" name="scopeLocations" className="input" defaultValue={(editing?.appliesTo.locations ?? []).join(', ')} />
+                </Field>
+                <Field label={t('fields.country')} htmlFor="pol-sc">
+                  <input id="pol-sc" name="scopeCountries" className="input" placeholder="AR, MX" defaultValue={(editing?.appliesTo.countries ?? []).join(', ')} />
+                </Field>
+              </div>
+              <div className="ppl-scope-types">
+                {(['full_time', 'part_time', 'contractor', 'intern'] as const).map((k) => (
+                  <label key={k} className="ppl-check">
+                    <input type="checkbox" name="scopeTypes" value={k} defaultChecked={(editing?.appliesTo.types ?? []).includes(k)} />
+                    <span>{t(`types.${k}`)}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
           </div>
           <div className="ui-modal-foot">
             <button type="button" className="btn btn-ghost" onClick={() => setPolicy(null)}>

@@ -104,7 +104,9 @@
     "currency": "Currency",
     "period": "Period",
     "salaryPublic": "Show the salary on the careers page",
-    "description": "Description"
+    "description": "Description",
+    "confidential": "Confidential job",
+    "confidentialHelp": "Only the hiring team and admins see it. It stays off the careers page, the job feed and search."
   },
   "jobEditor": {
     "statusChanged": {
@@ -168,7 +170,8 @@
     "expected": "Expected answer",
     "acceptedOptions": "Accepted options",
     "min": "Minimum",
-    "add": "Add question"
+    "add": "Add question",
+    "autoReject": "Reject automatically when the answer does not qualify (the candidate is not told; you can reactivate them)"
   },
   "team": {
     "help": "Recruiters and hiring managers see every candidate of this job. Interviewers only see the candidates they are asked to evaluate. Admins see everything.",
@@ -185,7 +188,9 @@
     "criteriaPlaceholder": "Communication, Role skills, Collaboration",
     "up": "Move {name} up",
     "down": "Move {name} down",
-    "add": "Add stage"
+    "add": "Add stage",
+    "kit": "Interview guide",
+    "kitPlaceholder": "One question per line. Interviewers see them above the scorecard."
   },
   "stageKinds": {
     "applied": "Applied",
@@ -235,7 +240,8 @@
     "desc": "Candidates of the jobs where you are on the hiring team.",
     "search": "Search by name, email or tag",
     "emptyTitle": "No candidates yet",
-    "emptyBody": "Publish a job and share the careers page, or add candidates to a job by hand."
+    "emptyBody": "Publish a job and share the careers page, or add candidates to a job by hand.",
+    "export": "Export CSV"
   },
   "apply": {
     "name": "Full name",
@@ -262,7 +268,17 @@
     "reason": "Reason (internal)",
     "sendEmail": "Send the rejection email",
     "template": "Template",
-    "defaultTemplate": "Default rejection email"
+    "defaultTemplate": "Default rejection email",
+    "reasons": {
+      "experience": "Not enough experience",
+      "skills": "Skills do not match",
+      "salary": "Salary expectations",
+      "location": "Location or availability",
+      "culture": "Not the right fit for the team",
+      "position_filled": "Position filled",
+      "withdrew": "Candidate withdrew",
+      "no_response": "No response"
+    }
   },
   "profile": {
     "deleteData": "Delete candidate data",
@@ -360,7 +376,8 @@
     "submit": "Submit scorecard",
     "hidden": "{count, plural, one {# scorecard from another evaluator is hidden until you submit yours.} other {# scorecards from other evaluators are hidden until you submit yours.}}",
     "none": "No scorecards yet.",
-    "locked": "You already submitted your scorecard for this stage."
+    "locked": "You already submitted your scorecard for this stage.",
+    "kit": "Interview guide"
   },
   "interviews": {
     "schedule": "Send scheduling link",
@@ -469,7 +486,11 @@
     "hires": "Hires",
     "daysOpen": "Days open",
     "active": "Active",
-    "total": "Total"
+    "total": "Total",
+    "rejectReasons": "Rejection reasons",
+    "noRejections": "No rejections in this period.",
+    "reasonKnockout": "Knock-out question",
+    "reasonNone": "No reason given"
   },
   "settings": {
     "title": "Hiring settings",
@@ -493,7 +514,13 @@
     "months": "{count} months without activity",
     "retentionHelp": "Hired candidates and those who agreed to stay for future openings are kept.",
     "consentText": "Consent text on the application form",
-    "membersCreateJobs": "Members with Hiring can create jobs (otherwise only admins)"
+    "membersCreateJobs": "Members with Hiring can create jobs (otherwise only admins)",
+    "approvals": "Approvals",
+    "approvalsHelp": "Choose people in order. Each one decides after the previous one and joins the team of that job as hiring manager, so they can see what they approve. With nobody chosen, no approval is needed.",
+    "jobApprovers": "To publish a new job",
+    "offerApprovers": "To send an offer",
+    "addApprover": "Add a person",
+    "feed": "Job feed in XML, for aggregators that accept one:"
   },
   "errors": {
     "generic": "Something went wrong. Try again.",
@@ -508,15 +535,15 @@
     "invalid_salary": "The minimum salary is above the maximum.",
     "duplicate_question": "Two questions share the same id.",
     "question_options": "A one-option question needs options.",
-    "invalid_member": "That person does not have Hiring in this workspace.",
+    "invalid_member": "That person cannot use Hiring.",
     "duplicate_member": "A person appears twice.",
     "stages_applied_first": "The first stage has to be of type Applied, and only one.",
     "stages_one_hired": "Exactly one stage has to be of type Hired.",
     "stage_not_empty": "A stage you removed still has candidates. Move them first.",
     "invalid_stage": "Pick a stage of this job.",
-    "invalid_email": "Enter a valid email.",
+    "invalid_email": "That email is not valid.",
     "resume_type": "The resume has to be a PDF, DOC or DOCX file.",
-    "resume_size": "The resume can be up to 10 MB.",
+    "resume_size": "The resume is too large (4 MB at most).",
     "resume_required": "Attach a resume.",
     "consent_required": "Consent is required.",
     "invalid_answers": "Answer the required questions.",
@@ -541,7 +568,19 @@
     "own_offer": "Someone else has to approve an offer you prepared.",
     "storage_unavailable": "File storage is not configured.",
     "auth_required": "The email could not be verified.",
-    "offer_in_sign": "This offer went out for signature with Sign. Follow it from the envelope; voiding it brings the offer back to approved."
+    "offer_in_sign": "This offer went out for signature with Sign. Follow it from the envelope; voiding it brings the offer back to approved.",
+    "approval_required": "This job needs approval before it can be published.",
+    "approvals_off": "No approvers are set in Settings.",
+    "not_your_step": "It is not your turn to decide.",
+    "reason_required": "Write a reason to reject.",
+    "email_limit": "Daily email limit reached for this address or workspace. Try again tomorrow.",
+    "csv_columns": "The file needs a header row with Name and Email columns.",
+    "csv_empty": "The file has no rows.",
+    "name_required": "A row has no name.",
+    "duplicate_in_file": "This email is repeated in the file.",
+    "same_job": "That is the same job.",
+    "same_candidate": "That is the same candidate.",
+    "file_too_large": "The file is too large (2 MB at most)."
   },
   "esign": {
     "send": "Send for e-signature with Sign",
@@ -549,5 +588,59 @@
     "sent": "Sent with Sign",
     "open": "Open in Sign",
     "error": "Could not send it with Sign."
+  },
+  "approvals": {
+    "title": "Approval to publish",
+    "waiting": "Waiting for your approval",
+    "request": "Request approval",
+    "approve": "Approve",
+    "reject": "Reject",
+    "reason": "Reason (needed to reject)",
+    "subject": {
+      "job": "Job",
+      "offer": "Offer"
+    },
+    "status": {
+      "pending": "Waiting",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "skipped": "Requested by this person"
+    },
+    "done": {
+      "request": "Approval requested.",
+      "approve": "Approved.",
+      "reject": "Rejected."
+    }
+  },
+  "import": {
+    "button": "Import CSV",
+    "title": "Import candidates",
+    "help": "A CSV with a header row. Name and Email are required; also Phone, Location, Headline, Source and Tags (separated by |). No email goes out to anyone. Check you may store their data before importing.",
+    "file": "CSV file (2 MB, 500 rows at most)",
+    "preview": "Check the file",
+    "confirm": "Import",
+    "back": "Back",
+    "empty": "Choose a file first.",
+    "summary": "{valid, plural, one {# candidate} other {# candidates}} ready to import.",
+    "failed": "Rows that will be skipped",
+    "line": "Line {n}: {error}",
+    "done": "Imported: {added} new, {existing} already on this job."
+  },
+  "copy": {
+    "button": "Copy to another job",
+    "title": "Copy {name} to another job",
+    "job": "Job",
+    "move": "Move: withdraw from the current job",
+    "help": "The new job starts at its first stage and its team can see this candidate.",
+    "confirm": "Copy",
+    "done": "Copied.",
+    "already": "This candidate is already on that job."
+  },
+  "merge": {
+    "button": "Merge",
+    "title": "Merge candidates",
+    "body": "Everything from {drop} moves to {keep}: applications, timeline, documents and tags. This cannot be undone.",
+    "confirm": "Merge",
+    "done": "Merged."
   }
 }

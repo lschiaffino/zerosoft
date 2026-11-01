@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  return withPeople(async (ctx) => pjson({ fields: await listFields(ctx.ws) }));
+  return withPeople(async (ctx) => pjson({ fields: (await listFields(ctx.ws)).filter((f) => ctx.viewer.hr || !f.sensitive) }));
 }
 
 export async function POST(req: NextRequest) {

@@ -97,6 +97,27 @@ export interface AccrualPolicy {
   carryoverMax: number | null;
   /** Saldo máximo: al llegar, deja de devengar; null = sin tope. */
   capDays: number | null;
+  /** Niveles por antigüedad: desde `afterYears` años, se devenga `daysPerYear`. */
+  levels?: AccrualLevel[];
+}
+
+export interface AccrualLevel {
+  afterYears: number;
+  daysPerYear: number;
+}
+
+/** Días por año que corresponden a quien entró en `start`, en la fecha `date`. */
+export function daysPerYearAt(policy: Pick<AccrualPolicy, 'daysPerYear' | 'levels'>, start: string, date: string): number {
+  let out = policy.daysPerYear;
+  let best = -1;
+  for (const l of policy.levels ?? []) {
+    const reached = iso(new Date(Date.UTC(toDate(start).getUTCFullYear() + l.afterYears, toDate(start).getUTCMonth(), toDate(start).getUTCDate())));
+    if (reached <= date && l.afterYears > best) {
+      best = l.afterYears;
+      out = l.daysPerYear;
+    }
+  }
+  return out;
 }
 
 export interface LedgerUse {
@@ -141,6 +162,12 @@ const PERIODS: Record<PayPeriod, number> = { weekly: 52, biweekly: 26, semimonth
  * - per_pay_period: cada fin de período (semanal o quincenal desde el ingreso; quincenal fija = 15 y fin de mes; mensual = fin de mes).
  */
 export function accrualEvents(policy: AccrualPolicy, start: string, to: string, payPeriod: PayPeriod = 'monthly'): Array<{ date: string; days: number }> {
+  const base = baseAccrualEvents(policy, start, to, payPeriod);
+  if (!policy.levels?.length || policy.daysPerYear <= 0) return base;
+  return base.map((e) => ({ date: e.date, days: roundDays((e.days * daysPerYearAt(policy, start, e.date)) / policy.daysPerYear) }));
+}
+
+function baseAccrualEvents(policy: AccrualPolicy, start: string, to: string, payPeriod: PayPeriod): Array<{ date: string; days: number }> {
   const out: Array<{ date: string; days: number }> = [];
   if (policy.accrual === 'none' || !isIsoDate(start) || !isIsoDate(to) || to < start || policy.daysPerYear <= 0) return out;
   const per = policy.daysPerYear;

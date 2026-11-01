@@ -29,6 +29,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-01-people-hiring-parity',
+    date: '2026-11-01',
+    title: { en: 'People and Hiring: approvals, imports and history', es: 'People y Hiring: aprobaciones, importación e historial', pt: 'People e Hiring: aprovações, importação e histórico' },
+    items: [
+      { product: 'people', en: 'Import people from a CSV, with a preview and an error per row.', es: 'Importá personas desde un CSV, con vista previa y un error por fila.', pt: 'Importe pessoas de um CSV, com prévia e um erro por linha.' },
+      { product: 'people', en: 'Job history on each profile, and optional HR approval of changes to personal data.', es: 'Historial de puesto en cada ficha y aprobación opcional de HR para cambios de datos personales.', pt: 'Histórico de cargo em cada perfil e aprovação opcional do RH para alterações de dados pessoais.' },
+      { product: 'people', en: 'eNPS surveys, custom reports, birthdays and anniversaries, and a list of what is waiting for you.', es: 'Encuestas eNPS, reportes a medida, cumpleaños y aniversarios, y una lista de lo que te espera.', pt: 'Pesquisas eNPS, relatórios personalizados, aniversários e tempo de casa, e uma lista do que espera por você.' },
+      { product: 'people', en: 'Time off: more days with tenure and policies by department, location, country or type. Peer reviewers can be added by hand.', es: 'Licencias: más días con la antigüedad y políticas por área, ubicación, país o tipo. Los evaluadores pares se pueden sumar a mano.', pt: 'Folgas: mais dias com o tempo de casa e políticas por departamento, localização, país ou tipo. Avaliadores pares podem ser adicionados à mão.' },
+      { product: 'hiring', en: 'Confidential jobs, and ordered approval chains to publish jobs and send offers.', es: 'Puestos confidenciales y cadenas de aprobación en orden para publicar puestos y enviar ofertas.', pt: 'Vagas confidenciais e cadeias de aprovação em ordem para publicar vagas e enviar ofertas.' },
+      { product: 'hiring', en: 'Import candidates from a CSV, copy or move them between jobs, merge duplicates and export what you can see.', es: 'Importá candidatos desde un CSV, copialos o movelos entre puestos, fusioná duplicados y exportá lo que ves.', pt: 'Importe candidatos de um CSV, copie ou mova entre vagas, mescle duplicados e exporte o que você vê.' },
+      { product: 'hiring', en: 'Knock-out questions can reject on their own, rejection reasons get a report, and each stage can have an interview guide.', es: 'Las preguntas knock-out pueden rechazar solas, los motivos de rechazo tienen reporte y cada etapa puede tener una guía de entrevista.', pt: 'Perguntas eliminatórias podem recusar sozinhas, os motivos de recusa têm relatório e cada etapa pode ter um guia de entrevista.' },
+      { product: 'hiring', en: 'A hire now lands in People as a new profile in onboarding, if your workspace uses People.', es: 'Una contratación ahora queda en People como ficha en onboarding, si tu workspace usa People.', pt: 'Uma contratação agora entra no People como perfil em onboarding, se o seu workspace usa o People.' },
+    ],
+  },
+  {
     id: '2026-10-31-robots-paridad',
     date: '2026-10-31',
     title: {

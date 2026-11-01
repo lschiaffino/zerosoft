@@ -89,6 +89,8 @@ interface SettingsRow {
 }
 
 export interface PeopleSettings {
+  /** Los cambios de datos propios esperan aprobación de HR. */
+  approveChanges: boolean;
   visibility: Record<string, VisibilityLevel>;
   welcome: string;
   handbookPageId: string | null;
@@ -436,7 +438,7 @@ export function readPersonal(raw: string): PersonalData {
   return { ...EMPTY_PERSONAL, ...parseJson<Partial<PersonalData>>(plain, {}) };
 }
 
-function sealPersonal(p: PersonalData): string {
+export function sealPersonal(p: PersonalData): string {
   return seal(JSON.stringify(p));
 }
 
@@ -459,6 +461,8 @@ export interface EmployeeSummary {
 }
 
 export interface EmployeeDto extends EmployeeSummary {
+  /** Hay un pedido de cambio de datos esperando a HR (lo ven HR y la persona). */
+  pendingChange: boolean;
   managerName: string | null;
   pronouns: string;
   bio: string;
@@ -490,6 +494,8 @@ export function photoUrl(row: Pick<EmployeeRow, 'id' | 'photo_url' | 'updated_at
 /** Lo que cualquiera del workspace ve en el directorio (más lo configurable, si corresponde). */
 export function summarize(ctx: PeopleCtx, r: EmployeeRow): EmployeeSummary {
   const see = (f: (typeof CONFIGURABLE_FIELDS)[number]) => canSeeField(ctx.viewer, r.id, f, ctx.visibility);
+  // Que alguien está por irse lo saben HR, esa persona y su cadena de managers.
+  const seeLeaving = ctx.viewer.hr || isSelf(ctx.viewer, r.id) || isManagerOf(ctx.viewer, r.id);
   return {
     id: r.id,
     userId: r.user_id,
@@ -498,7 +504,7 @@ export function summarize(ctx: PeopleCtx, r: EmployeeRow): EmployeeSummary {
     department: r.department,
     workEmail: r.work_email,
     managerId: r.manager_id,
-    status: r.status,
+    status: r.status === 'offboarding' && !seeLeaving ? 'active' : r.status,
     photo: photoUrl(r),
     location: see('location') ? r.location : null,
     phone: see('phone') ? r.phone : null,
@@ -523,8 +529,11 @@ async function rows(ws: string): Promise<EmployeeRow[]> {
 
 export async function listEmployees(ctx: PeopleCtx, f: ListFilters = {}): Promise<EmployeeSummary[]> {
   const q = (f.q ?? '').trim().toLowerCase();
+  // Filtrar por estado (bajas, salidas en curso) es de HR: el resto ve el directorio de gente activa.
+  const status = ctx.viewer.hr ? f.status : '';
+  const includeTerminated = ctx.viewer.hr && f.includeTerminated;
   return (await rows(ctx.ws))
-    .filter((r) => (f.status ? r.status === f.status : f.includeTerminated || r.status !== 'terminated'))
+    .filter((r) => (status ? r.status === status : includeTerminated || r.status !== 'terminated'))
     .map((r) => summarize(ctx, r))
     .filter((e) => {
       if (f.department && e.department !== f.department) return false;
@@ -558,6 +567,8 @@ export async function getEmployee(ctx: PeopleCtx, id: string, opts: { via?: stri
   const r = await getEmployeeRow(ctx.ws, id);
   if (!r) return null;
   const v = ctx.viewer;
+  // La ficha de quien ya se fue queda para HR, la propia persona y su cadena.
+  if (r.status === 'terminated' && !v.hr && !isSelf(v, id) && !isManagerOf(v, id)) return null;
   const [fields, manager, reports] = await Promise.all([
     listFields(ctx.ws),
     r.manager_id ? (db().prepare('SELECT name FROM people_employees WHERE id = ?').get(r.manager_id) as Promise<{ name: string } | undefined>) : Promise.resolve(undefined),
@@ -595,6 +606,7 @@ export async function getEmployee(ctx: PeopleCtx, id: string, opts: { via?: stri
       isManager: isManagerOf(v, id),
     },
     hasAccount: Boolean(r.user_id),
+    pendingChange: (v.hr || isSelf(v, id)) && (await (await extras()).pendingChangeFor(ctx.ws, id)),
   };
 }
 
@@ -772,10 +784,25 @@ async function cleanCustom(ws: string, input: Record<string, unknown>, base: Rec
  * persona sus datos de contacto y personales. Los cambios a lo sensible
  * quedan en la auditoría.
  */
-export async function updateEmployee(ctx: PeopleCtx, id: string, input: EmployeeInput): Promise<EmployeeDto> {
+/** Carga diferida: people-extras importa este módulo. */
+const extras = () => import('./people-extras');
+
+export async function updateEmployee(ctx: PeopleCtx, id: string, rawInput: EmployeeInput): Promise<EmployeeDto> {
   const r = await getEmployeeRow(ctx.ws, id);
   if (!r) throw new PeopleError('not_found', 404);
+  let input = rawInput;
+  // Con la aprobación encendida, teléfono y datos personales de la propia ficha esperan a HR.
+  // Lo demás (pronombres, bio) se aplica. HR edita directo.
+  if (isSelf(ctx.viewer, id) && !ctx.viewer.hr && (input.phone !== undefined || input.personal) && (await extras().then((m) => m.approvalsOn(ctx.ws)))) {
+    for (const key of Object.keys(input.personal ?? {})) if (!canEditField(ctx.viewer, id, key)) throw new PeopleError('forbidden', 403);
+    const personal = input.personal ? cleanPersonal(input.personal, EMPTY_PERSONAL) : undefined;
+    const picked = personal ? Object.fromEntries(Object.keys(input.personal!).map((k) => [k, personal[k as keyof PersonalData]])) : undefined;
+    await (await extras()).queueChange(ctx, id, { ...(input.phone !== undefined ? { phone: normalizeValue('phone', input.phone) ?? '' } : {}), ...(picked ? { personal: picked } : {}) });
+    const { phone: _phone, personal: _personal, ...rest } = input;
+    input = rest;
+  }
   const sets: string[] = [];
+  const jobChanges: Array<{ field: 'jobTitle' | 'department' | 'location' | 'managerId' | 'employmentType' | 'status'; from: string; to: string }> = [];
   const args: Array<string | null> = [];
   for (const [key, value] of Object.entries(input)) {
     if (value === undefined || key === 'custom' || key === 'personal') continue;
@@ -791,6 +818,9 @@ export async function updateEmployee(ctx: PeopleCtx, id: string, input: Employee
     }
     sets.push(`${col} = ?`);
     args.push(v);
+    if (key === 'jobTitle' || key === 'department' || key === 'location' || key === 'managerId' || key === 'employmentType' || key === 'status') {
+      jobChanges.push({ field: key, from: String(r[col] ?? ''), to: v ?? '' });
+    }
   }
   if (input.custom) {
     const fields = await listFields(ctx.ws);
@@ -815,6 +845,7 @@ export async function updateEmployee(ctx: PeopleCtx, id: string, input: Employee
     sets.push('updated_at = ?');
     args.push(nowIso());
     await db().prepare(`UPDATE people_employees SET ${sets.join(', ')} WHERE id = ? AND workspace_id = ?`).run(...args, id, ctx.ws);
+    if (jobChanges.length) await (await extras()).recordJobChanges(ctx.ws, id, ctx.personId, jobChanges);
   }
   return (await getEmployee(ctx, id, { audit: false }))!;
 }
@@ -856,12 +887,13 @@ export async function getSettings(ws: string): Promise<PeopleSettings> {
     handbookPageId: r.handbook_page_id,
     countries: parseJson<string[]>(r.countries, []),
     hrAdmins: admins.map((a) => a.user_id),
+    approveChanges: Number(r.approve_changes) === 1,
   };
 }
 
 export async function updateSettings(
   ctx: PeopleCtx,
-  input: { visibility?: Record<string, unknown>; welcome?: string; handbookPageId?: string | null; countries?: unknown[]; hrAdmins?: unknown[] },
+  input: { visibility?: Record<string, unknown>; welcome?: string; handbookPageId?: string | null; countries?: unknown[]; hrAdmins?: unknown[]; approveChanges?: boolean },
 ): Promise<PeopleSettings> {
   requireHr(ctx);
   const cur = await getSettings(ctx.ws);
@@ -873,6 +905,7 @@ export async function updateSettings(
     }
     await db().prepare('UPDATE people_settings SET visibility = ? WHERE workspace_id = ?').run(JSON.stringify(vis), ctx.ws);
   }
+  if (input.approveChanges !== undefined) await db().prepare('UPDATE people_settings SET approve_changes = ? WHERE workspace_id = ?').run(input.approveChanges ? 1 : 0, ctx.ws);
   if (input.welcome !== undefined) await db().prepare('UPDATE people_settings SET welcome = ? WHERE workspace_id = ?').run(str(input.welcome, 4000), ctx.ws);
   if (input.handbookPageId !== undefined) await db().prepare('UPDATE people_settings SET handbook_page_id = ? WHERE workspace_id = ?').run(input.handbookPageId || null, ctx.ws);
   if (input.countries) {

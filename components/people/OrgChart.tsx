@@ -51,6 +51,9 @@ export function layoutOrg(nodes: OrgNode[]): { placed: Placed[]; width: number; 
   return { placed, width: Math.max(cursor - GX, W), height: (depthMax + 1) * (H + GY) - GY };
 }
 
+/** Alto máximo del recuadro en escritorio (el mismo que el tope de styles/people.css). */
+const maxBoxHeight = () => Math.min(window.innerHeight * 0.7, 640);
+
 const clampZoom = (z: number) => Math.max(0.2, Math.min(2.5, Math.round(z * 100) / 100));
 
 export default function OrgChart({ nodes }: { nodes: OrgNode[] }) {
@@ -69,9 +72,11 @@ export default function OrgChart({ nodes }: { nodes: OrgNode[] }) {
     const el = box.current;
     if (!el) return;
     const pad = 24;
-    const all = clampZoom(Math.min(1, (el.clientWidth - pad * 2) / width, (el.clientHeight - pad * 2) / height));
+    const phone = el.clientWidth < 640;
+    // En un teléfono la altura la da la página (el recuadro crece con el organigrama): cuenta solo el ancho.
+    const all = clampZoom(phone ? Math.min(1, (el.clientWidth - pad * 2) / width) : Math.min(1, (el.clientWidth - pad * 2) / width, (maxBoxHeight() - pad * 2) / height));
     // Al abrir en un teléfono, nombres legibles aunque no entre todo: se recorre con el dedo.
-    const z = readable && el.clientWidth < 640 ? Math.max(all, 0.6) : all;
+    const z = readable && phone ? Math.max(all, 0.6) : all;
     setZoom(z);
     setPan({ x: Math.max(pad, (el.clientWidth - width * z) / 2), y: pad });
   }, [width, height]);
@@ -228,6 +233,7 @@ export default function OrgChart({ nodes }: { nodes: OrgNode[] }) {
             ref={box}
             className="ppl-org"
             data-testid="people-org"
+            style={{ height: Math.round(height * zoom) + 48 }}
             tabIndex={0}
             role="application"
             aria-label={t('org.canvas')}
@@ -276,6 +282,12 @@ export default function OrgChart({ nodes }: { nodes: OrgNode[] }) {
             </div>
           </div>
           <p className="ppl-hint">{t('org.help')}</p>
+          {!nodes.some((n) => n.managerId) && (
+            <p className="ppl-note" data-testid="people-org-flat">
+              {nodes.length === 1 ? t('org.alone') : t('org.flat')}{' '}
+              <Link href="/app/people">{t('org.openDirectory')}</Link>
+            </p>
+          )}
         </>
       )}
     </div>

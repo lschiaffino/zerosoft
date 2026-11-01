@@ -190,7 +190,9 @@ export async function listChecklists(ctx: PeopleCtx, opts: { employeeId?: string
   for (const l of lists) {
     const mine = tasks.filter((t) => t.checklist_id === l.id);
     const whole = ctx.viewer.hr || isSelf(ctx.viewer, l.employee_id) || isManagerOf(ctx.viewer, l.employee_id);
-    const visible = whole ? mine : mine.filter((t) => t.assignee_id === ctx.personId);
+    // Del offboarding, la propia persona ve sus tareas: lo que hacen IT o HR (quitar accesos, entrevista) no es para ella.
+    const ownLeaving = l.kind === 'offboarding' && isSelf(ctx.viewer, l.employee_id) && !ctx.viewer.hr && !isManagerOf(ctx.viewer, l.employee_id);
+    const visible = whole && !ownLeaving ? mine : mine.filter((t) => t.assignee_id === ctx.personId || (ownLeaving && t.assignee_role === 'new_hire'));
     if (!visible.length && !whole) continue;
     const dtos = visible.map((t) => ({
       id: String(t.id),

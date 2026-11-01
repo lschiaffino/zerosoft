@@ -52,7 +52,25 @@ export const MAX_QUESTIONS = 20;
 export const MAX_STAGES = 12;
 export const MAX_CRITERIA = 10;
 export const MAX_TAGS = 20;
-export const RESUME_MAX_BYTES = 10 * 1024 * 1024;
+/** Tope real: la subida pasa por la función (Vercel corta el pedido en 4,5 MB) para validar los bytes y guardarla privada. */
+export const RESUME_MAX_BYTES = 4 * 1024 * 1024;
+
+// ---------- Quién ve un puesto ----------
+
+/**
+ * Fuera del equipo de un puesto (y sin ser admin) solo se ve lo publicado y no
+ * confidencial: es lo que ya está en la página de empleos. Borradores, cerrados,
+ * archivados y confidenciales no existen para esa persona, en ninguna lectura.
+ */
+export function canSeeJob(a: { admin: boolean; jobRole: TeamRole | null; status: string; confidential: boolean }): boolean {
+  if (a.admin || a.jobRole) return true;
+  return a.status === 'published' && !a.confidential;
+}
+
+/** El salario oculto solo lo ven admins, recruiters y hiring managers del puesto. */
+export function canSeeJobSalary(a: { admin: boolean; jobRole: TeamRole | null; salaryPublic: boolean }): boolean {
+  return a.salaryPublic || a.admin || a.jobRole === 'recruiter' || a.jobRole === 'hiring_manager';
+}
 
 // ---------- Preguntas y knock-out ----------
 
@@ -65,10 +83,11 @@ export const questionSchema = z.object({
   /**
    * Knock-out: la respuesta que se espera. yesno → 'yes' | 'no'; select →
    * opciones aceptadas; number → mínimo. Una respuesta distinta marca la
-   * postulación para revisión: nunca se rechaza sola.
+   * postulación para revisión; con autoReject, además queda rechazada (se puede
+   * reactivar y al candidato no se le avisa).
    */
   knockout: z
-    .object({ accepted: z.array(z.string().trim().max(120)).max(20).default([]), min: z.number().nullable().default(null) })
+    .object({ accepted: z.array(z.string().trim().max(120)).max(20).default([]), min: z.number().nullable().default(null), autoReject: z.boolean().default(false) })
     .nullable()
     .default(null),
 });
@@ -92,6 +111,14 @@ export function answerErrors(questions: Question[], answers: Answers): string[] 
   }
   return out;
 }
+
+/** ¿Alguna de las knock-out que falló rechaza sola? */
+export function autoRejected(questions: Question[], failed: string[]): boolean {
+  return questions.some((q) => q.knockout?.autoReject && failed.includes(q.id));
+}
+
+/** Motivos de rechazo de fábrica (texto en messages: reject.reasons.<clave>). También se puede escribir otro. */
+export const REJECT_REASONS = ['experience', 'skills', 'salary', 'location', 'culture', 'position_filled', 'withdrew', 'no_response'] as const;
 
 /** Preguntas knock-out que la respuesta no cumple (ids). Sin respuesta en una knock-out = no cumple. */
 export function failedKnockouts(questions: Question[], answers: Answers): string[] {

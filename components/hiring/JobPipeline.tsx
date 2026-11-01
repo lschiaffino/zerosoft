@@ -4,6 +4,7 @@ import { useState, type DragEvent, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
+import CsvImportDialog from '@/components/ui/CsvImportDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import type { JobDetail } from '@/lib/hiring/core';
 import type { ApplicationListItem } from '@/lib/hiring/candidates';
@@ -32,6 +33,7 @@ export default function JobPipeline({
   const [dragging, setDragging] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [importOpen, setImportOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const { job, stages } = detail;
@@ -98,6 +100,9 @@ export default function JobPipeline({
             <Link className="btn btn-secondary" href={`/app/hiring/jobs/${job.id}/edit`}>
               {t('pipeline.editJob')}
             </Link>
+            <button type="button" className="btn btn-secondary" onClick={() => setImportOpen(true)}>
+              {t('import.button')}
+            </button>
             <button type="button" className="btn btn-primary" onClick={() => setAddOpen(true)}>
               {t('pipeline.addCandidate')}
             </button>
@@ -119,6 +124,32 @@ export default function JobPipeline({
   return (
     <div className="app-page ui-page hr-page hr-wide">
       {header}
+      <CsvImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        url={`/api/hiring/jobs/${job.id}/import`}
+        Dialog={HrDialog}
+        onDone={async (r) => {
+          push(t('import.done', { added: Number(r.added ?? 0), existing: Number(r.existing ?? 0) }));
+          router.refresh();
+          const list = await api<{ applications: ApplicationListItem[] }>(`/api/hiring/applications?jobId=${job.id}&status=${status}`);
+          if (list.ok) setApps(list.data.applications);
+        }}
+        strings={{
+          title: t('import.title'),
+          help: t('import.help'),
+          file: t('import.file'),
+          preview: t('import.preview'),
+          cancel: t('common.cancel'),
+          confirm: t('import.confirm'),
+          back: t('import.back'),
+          empty: t('import.empty'),
+          summary: (d) => t('import.summary', { valid: d.valid ?? 0 }),
+          failedTitle: t('import.failed'),
+          line: (n, code) => t('import.line', { n, error: errText(code) }),
+          errorText: errText,
+        }}
+      />
       <div className="hr-toolbar">
         <div className="ui-tabs" role="tablist" aria-label={t('pipeline.view')}>
           <button type="button" role="tab" className="ui-tab" aria-selected={view === 'board'} onClick={() => setView('board')}>

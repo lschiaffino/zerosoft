@@ -7,6 +7,7 @@ import { actorOf } from '@/lib/hiring/http';
 import { appBase, canCreateJobs, ensureSettings, getJob, hiringPeople, listJobs, settingsDto } from '@/lib/hiring/core';
 import { getCandidateProfile, listApplications, visibleTags } from '@/lib/hiring/candidates';
 import { myPendingEvaluations } from '@/lib/hiring/evaluation';
+import { myPendingApprovals } from '@/lib/hiring/approvals';
 import { listTemplates, repliesEnabled } from '@/lib/hiring/comms';
 import { hiringReport } from '@/lib/hiring/reports';
 import { jobTemplates } from '@/lib/hiring/builtin';
@@ -53,8 +54,8 @@ export default async function HiringPage(props: Props) {
 
   if (!section) {
     if (sp.new === '1') redirect(`/${locale}/app/hiring/jobs/new`);
-    const [jobs, pending, recent] = await Promise.all([listJobs(actor, { status: 'published' }), myPendingEvaluations(actor), listApplications(actor, { status: 'active', limit: 8 })]);
-    return <HiringOverview jobs={jobs} pending={pending} recent={recent} careersUrl={careersUrl} published={settings.published === 1} canCreate={canCreateJobs(actor, settings)} />;
+    const [jobs, pending, recent, approvals] = await Promise.all([listJobs(actor, { status: 'published' }), myPendingEvaluations(actor), listApplications(actor, { status: 'active', limit: 8 }), myPendingApprovals(actor)]);
+    return <HiringOverview jobs={jobs} pending={pending} recent={recent} approvals={approvals} careersUrl={careersUrl} published={settings.published === 1} canCreate={canCreateJobs(actor, settings)} />;
   }
 
   switch (section) {
@@ -72,7 +73,7 @@ export default async function HiringPage(props: Props) {
       if (!detail) notFound();
       if (sub === 'edit') {
         if (!detail.canManage) notFound();
-        return <JobEditor detail={detail} people={await hiringPeople(actor.ws)} careersUrl={careersUrl} tab={sp.tab ?? 'details'} />;
+        return <JobEditor detail={detail} people={await hiringPeople(actor.ws)} careersUrl={careersUrl} tab={sp.tab ?? 'details'} me={actor.person} />;
       }
       if (sub) notFound();
       const apps = detail.canManage ? await listApplications(actor, { jobId: id, status: sp.status ?? 'active' }) : [];
@@ -99,13 +100,14 @@ export default async function HiringPage(props: Props) {
       if (sub) notFound();
       const profile = await getCandidateProfile(actor, id);
       if (!profile) notFound();
-      const templates = await listTemplates(actor);
+      const [templates, allJobs] = await Promise.all([listTemplates(actor), listJobs(actor, { status: 'all' })]);
       return (
         <CandidateProfile
           initial={profile}
           focusApp={sp.app ?? null}
           me={actor.person}
           isAdmin={actor.admin}
+          manageJobs={allJobs.filter((j) => j.canManage && j.status !== 'archived').map((j) => ({ id: j.id, title: j.title }))}
           templates={templates.filter((t) => t.kind !== 'job').map((t) => ({ id: t.id, jobId: t.jobId, kind: t.kind, name: t.name, subject: t.subject, body: t.body }))}
           repliesEnabled={repliesEnabled()}
           signEnabled={userCanUseApp(user, 'sign')}
@@ -131,7 +133,7 @@ export default async function HiringPage(props: Props) {
     }
     case 'settings': {
       if (id) notFound();
-      return <HiringSettings initial={settingsDto(settings)} canAdmin={actor.admin} careersUrl={careersUrl} repliesEnabled={repliesEnabled()} />;
+      return <HiringSettings initial={settingsDto(settings)} canAdmin={actor.admin} careersUrl={careersUrl} repliesEnabled={repliesEnabled()} people={actor.admin ? (await hiringPeople(actor.ws)).map((p) => ({ id: p.id, name: p.name ?? p.email })) : []} />;
     }
     default:
       notFound();

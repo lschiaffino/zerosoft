@@ -19,6 +19,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const input = await parseBody(req, z.object({ subject: z.string().trim().min(1).max(300), body: z.string().trim().min(1).max(20_000) }));
     const { app, job, candidate } = await requireManageApp(a.actor, (await params).id);
     const res = await sendCandidateEmail(a.actor.ws, { candidate, job, applicationId: app.id, senderName: await personName(a.actor.person) }, input, a.actor.person);
+    if (res.code) return hJson({ error: res.code }, 429);
     return hJson({ ok: res.ok }, res.ok ? 201 : 502);
   } catch (err) {
     return hFail(err);

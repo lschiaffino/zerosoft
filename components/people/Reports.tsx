@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
@@ -24,7 +25,7 @@ function Breakdown({ title, rows, label }: { title: string; rows: Array<{ key: s
   );
 }
 
-export default function Reports({ report, audit }: { report: PeopleReport; audit: AuditEntry[] }) {
+export default function Reports({ report, audit, custom }: { report: PeopleReport; audit: AuditEntry[]; custom?: ReactNode }) {
   const t = useTranslations('people');
   const locale = useLocale();
   const num = useNumber();
@@ -117,6 +118,7 @@ export default function Reports({ report, audit }: { report: PeopleReport; audit
           </ul>
         )}
       </section>
+      {custom}
       <section className="ppl-panel">
         <h2 className="ppl-panel-title">{t('reports.audit')}</h2>
         <p className="ppl-hint">{t('reports.auditHint')}</p>

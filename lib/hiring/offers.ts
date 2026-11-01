@@ -12,6 +12,7 @@ import { getDb } from '../db';
 import { HiringError, canApproveOffer, renderTemplate, type HiringActor, type OfferStatus } from './types';
 import { ensureSettings, jobRole, listStages, newId, nowIso } from './core';
 import { addEvent, notifyTeam, teamIds } from './events';
+import { approversOf, chainState, decideStep, listChain, startChain, type ApprovalStep } from './approvals';
 import { getApplicationRow, getCandidateRow, markHired, personName, requireManageApp } from './candidates';
 import { mailVars, offerLinkFor, resolveTemplate, sendCandidateEmail } from './comms';
 import { getJobRow } from './core';
@@ -68,7 +69,7 @@ export function offerDto(o: OfferRow) {
     createdAt: o.created_at,
   };
 }
-export type OfferDto = ReturnType<typeof offerDto>;
+export type OfferDto = ReturnType<typeof offerDto> & { approval: ApprovalStep[] };
 
 export function formatSalary(amount: number | null, currency: string, locale = 'en'): string {
   if (amount == null) return '';
@@ -89,7 +90,12 @@ export const offerSchema = z.object({
 });
 
 export async function listOffers(appId: string): Promise<OfferDto[]> {
-  return ((await getDb().prepare('SELECT * FROM hiring_offers WHERE application_id = ? ORDER BY created_at DESC').all(appId)) as OfferRow[]).map(offerDto);
+  const rows = (await getDb().prepare('SELECT * FROM hiring_offers WHERE application_id = ? ORDER BY created_at DESC').all(appId)) as OfferRow[];
+  return Promise.all(rows.map(async (o) => ({ ...offerDto(o), approval: await listChain(o.workspace_id, 'offer', o.id) })));
+}
+
+async function withChain(o: OfferRow): Promise<OfferDto> {
+  return { ...offerDto(o), approval: await listChain(o.workspace_id, 'offer', o.id) };
 }
 
 async function getOfferRow(ws: string, id: string): Promise<OfferRow | null> {
@@ -122,16 +128,27 @@ export async function createOffer(actor: HiringActor, appId: string, input: z.in
     )
     .run(id, actor.ws, app.id, title, input.salary, input.currency, input.startDate, body, actor.person, ts, ts);
   await addEvent(actor.ws, candidate.id, app.id, 'offer', actor.person, { status: 'pending_approval', title });
+  const notice = { title: `${candidate.name} · ${title}`, href: `/app/hiring/candidates/${candidate.id}?app=${app.id}` };
+  const approvers = approversOf(settings, 'offer');
+  if (approvers.length) {
+    const steps = await startChain(actor.ws, 'offer', id, job.id, approvers, actor.person, notice);
+    // Si el único paso era de quien la armó, queda aprobada.
+    if (chainState(steps) === 'approved') {
+      await db.prepare("UPDATE hiring_offers SET status = 'approved', approved_by = ?, approved_at = ?, updated_at = ? WHERE id = ? AND status = 'pending_approval'").run(actor.person, ts, ts, id);
+      await addEvent(actor.ws, candidate.id, app.id, 'offer', actor.person, { status: 'approved', title });
+    }
+    return withChain((await getOfferRow(actor.ws, id))!);
+  }
   await notifyTeam(await teamIds(job.id, ['hiring_manager'], actor.person), {
     title: `${candidate.name} · ${title}`,
     body: 'offer',
     href: `/app/hiring/candidates/${candidate.id}?app=${app.id}`,
     sourceId: id,
   });
-  return offerDto((await getOfferRow(actor.ws, id))!);
+  return withChain((await getOfferRow(actor.ws, id))!);
 }
 
-export const offerActionSchema = z.object({ action: z.enum(['approve', 'send', 'withdraw']), templateId: z.string().max(80).nullable().default(null) });
+export const offerActionSchema = z.object({ action: z.enum(['approve', 'reject', 'send', 'withdraw']), templateId: z.string().max(80).nullable().default(null), note: z.string().trim().max(500).default('') });
 
 /**
  * Aprobar (hiring manager o admin), enviar (solo aprobada) o retirar. Enviar
@@ -143,6 +160,20 @@ export async function actOnOffer(actor: HiringActor, offerId: string, input: z.i
   const { app, job, candidate } = await requireManageApp(actor, offer.application_id);
   const db = getDb();
   const ts = nowIso();
+  const chain = await listChain(actor.ws, 'offer', offer.id);
+  if (chain.length && (input.action === 'approve' || input.action === 'reject')) {
+    if (offer.status !== 'pending_approval') throw new HiringError('invalid_state', 409);
+    const state = await decideStep(actor, 'offer', offer.id, input.action, input.note, { title: `${candidate.name} · ${offer.title}`, href: `/app/hiring/candidates/${candidate.id}?app=${app.id}` });
+    if (state === 'approved') {
+      await db.prepare("UPDATE hiring_offers SET status = 'approved', approved_by = ?, approved_at = ?, updated_at = ? WHERE id = ? AND status = 'pending_approval'").run(actor.person, ts, ts, offer.id);
+      await addEvent(actor.ws, candidate.id, app.id, 'offer', actor.person, { status: 'approved', title: offer.title });
+    } else if (state === 'rejected') {
+      await db.prepare("UPDATE hiring_offers SET status = 'withdrawn', token_hash = NULL, updated_at = ? WHERE id = ? AND status = 'pending_approval'").run(ts, offer.id);
+      await addEvent(actor.ws, candidate.id, app.id, 'offer', actor.person, { status: 'withdrawn', title: offer.title, note: input.note });
+    }
+    return { offer: await withChain((await getOfferRow(actor.ws, offer.id))!) };
+  }
+  if (input.action === 'reject') throw new HiringError('invalid_state', 409);
   if (input.action === 'approve') {
     if (!canApproveOffer({ admin: actor.admin, jobRole: await jobRole(job.id, actor.person) })) throw new HiringError('forbidden', 403);
     // Un hiring manager no aprueba la oferta que armó él mismo (un admin sí).
@@ -152,7 +183,7 @@ export async function actOnOffer(actor: HiringActor, offerId: string, input: z.i
       .run(actor.person, ts, ts, offer.id);
     if (!res.changes) throw new HiringError('invalid_state', 409);
     await addEvent(actor.ws, candidate.id, app.id, 'offer', actor.person, { status: 'approved', title: offer.title });
-    return { offer: offerDto((await getOfferRow(actor.ws, offer.id))!) };
+    return { offer: await withChain((await getOfferRow(actor.ws, offer.id))!) };
   }
   if (input.action === 'withdraw') {
     const res = await db.prepare("UPDATE hiring_offers SET status = 'withdrawn', token_hash = NULL, updated_at = ? WHERE id = ? AND status IN ('pending_approval','approved','sent')").run(ts, offer.id);
@@ -163,7 +194,7 @@ export async function actOnOffer(actor: HiringActor, offerId: string, input: z.i
       const { voidEnvelopeFromApp } = await import('../sign/core');
       await voidEnvelopeFromApp(actor.ws, offer.sign_envelope_id, 'Offer withdrawn', actor.person).catch(() => false);
     }
-    return { offer: offerDto((await getOfferRow(actor.ws, offer.id))!) };
+    return { offer: await withChain((await getOfferRow(actor.ws, offer.id))!) };
   }
   // send
   if (offer.status !== 'approved' && offer.status !== 'sent') throw new HiringError('offer_not_approved', 409);
@@ -181,7 +212,7 @@ export async function actOnOffer(actor: HiringActor, offerId: string, input: z.i
     kind: 'offer',
   });
   await addEvent(actor.ws, candidate.id, app.id, 'offer', actor.person, { status: 'sent', title: offer.title });
-  return { offer: offerDto((await getOfferRow(actor.ws, offer.id))!), link };
+  return { offer: await withChain((await getOfferRow(actor.ws, offer.id))!), link };
 }
 
 /**

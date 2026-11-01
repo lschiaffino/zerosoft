@@ -8,6 +8,7 @@
  */
 import { localized } from './notification-copy';
 import { getDb } from './db';
+import type { AccrualLevel } from './people-time';
 import { canApprove, canRequestFor, canSeeSensitive, isSelf } from './people-access';
 import {
   addDays,
@@ -23,6 +24,7 @@ import {
   type Holiday,
   type PayPeriod,
 } from './people-time';
+import { emailPeople } from './people-email';
 import { getEmployeeRow, newId, nowIso, parseJson, PeopleError, requireHr, today, type PeopleCtx } from './people';
 import { emitPeopleEvent, hrPeople, notifyPeople } from './people-effects';
 
@@ -41,6 +43,42 @@ export interface Policy {
   capDays: number | null;
   halfDay: boolean;
   archived: boolean;
+  levels: AccrualLevel[];
+  appliesTo: PolicyScope;
+}
+
+/** A quién le corresponde la política (vacío = a todos). Coincide con cualquiera de los valores de cada lista. */
+export interface PolicyScope {
+  departments?: string[];
+  locations?: string[];
+  countries?: string[];
+  types?: string[];
+}
+
+export function policyApplies(scope: PolicyScope, emp: { department: string; location: string; country: string; employment_type: string }): boolean {
+  const hit = (list: string[] | undefined, v: string) => !list?.length || list.some((x) => x.toLowerCase() === v.toLowerCase());
+  return hit(scope.departments, emp.department) && hit(scope.locations, emp.location) && hit(scope.countries, emp.country) && hit(scope.types, emp.employment_type);
+}
+
+function cleanLevels(v: unknown): AccrualLevel[] {
+  if (!Array.isArray(v)) return [];
+  const seen = new Set<number>();
+  const out: AccrualLevel[] = [];
+  for (const raw of v.slice(0, 10) as Array<{ afterYears?: unknown; daysPerYear?: unknown }>) {
+    const afterYears = Number(raw?.afterYears);
+    const days = Number(raw?.daysPerYear);
+    if (!Number.isInteger(afterYears) || afterYears < 1 || afterYears > 60 || !Number.isFinite(days) || days < 0 || days > 366) throw new PeopleError('invalid_number');
+    if (seen.has(afterYears)) throw new PeopleError('invalid_number');
+    seen.add(afterYears);
+    out.push({ afterYears, daysPerYear: Math.round(days * 100) / 100 });
+  }
+  return out.sort((a, b) => a.afterYears - b.afterYears);
+}
+
+function cleanScope(v: unknown): PolicyScope {
+  const o = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
+  const list = (x: unknown) => (Array.isArray(x) ? [...new Set(x.map((s) => String(s).trim().slice(0, 80)).filter(Boolean))].slice(0, 30) : []);
+  return { departments: list(o.departments), locations: list(o.locations), countries: list(o.countries), types: list(o.types) };
 }
 
 function toPolicy(r: Record<string, unknown>): Policy {
@@ -54,6 +92,8 @@ function toPolicy(r: Record<string, unknown>): Policy {
     capDays: r.cap_days == null ? null : Number(r.cap_days),
     halfDay: Number(r.half_day) === 1,
     archived: Number(r.archived) === 1,
+    levels: parseJson<AccrualLevel[]>(r.levels, []),
+    appliesTo: parseJson<PolicyScope>(r.applies_to, {}),
   };
 }
 
@@ -88,6 +128,8 @@ function policyInput(input: Record<string, unknown>, base?: Policy) {
     capDays: input.capDays !== undefined ? num(input.capDays) : base?.capDays ?? null,
     halfDay: input.halfDay !== undefined ? input.halfDay !== false : base?.halfDay ?? true,
     archived: input.archived !== undefined ? input.archived === true : base?.archived ?? false,
+    levels: input.levels !== undefined ? cleanLevels(input.levels) : base?.levels ?? [],
+    appliesTo: input.appliesTo !== undefined ? cleanScope(input.appliesTo) : base?.appliesTo ?? {},
   };
 }
 
@@ -98,10 +140,10 @@ export async function createPolicy(ctx: PeopleCtx, input: Record<string, unknown
   const now = nowIso();
   await db()
     .prepare(
-      `INSERT INTO people_policies (id, workspace_id, name, kind, accrual, days_per_year, carryover_max, cap_days, half_day, archived, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+      `INSERT INTO people_policies (id, workspace_id, name, kind, accrual, days_per_year, carryover_max, cap_days, half_day, archived, levels, applies_to, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`,
     )
-    .run(id, ctx.ws, p.name, p.kind, p.accrual, p.daysPerYear, p.carryoverMax, p.capDays, p.halfDay ? 1 : 0, now, now);
+    .run(id, ctx.ws, p.name, p.kind, p.accrual, p.daysPerYear, p.carryoverMax, p.capDays, p.halfDay ? 1 : 0, JSON.stringify(p.levels), JSON.stringify(p.appliesTo), now, now);
   return (await getPolicy(ctx.ws, id))!;
 }
 
@@ -112,10 +154,10 @@ export async function updatePolicy(ctx: PeopleCtx, id: string, input: Record<str
   const p = policyInput(input, base);
   await db()
     .prepare(
-      `UPDATE people_policies SET name = ?, kind = ?, accrual = ?, days_per_year = ?, carryover_max = ?, cap_days = ?, half_day = ?, archived = ?, updated_at = ?
+      `UPDATE people_policies SET name = ?, kind = ?, accrual = ?, days_per_year = ?, carryover_max = ?, cap_days = ?, half_day = ?, archived = ?, levels = ?, applies_to = ?, updated_at = ?
        WHERE id = ? AND workspace_id = ?`,
     )
-    .run(p.name, p.kind, p.accrual, p.daysPerYear, p.carryoverMax, p.capDays, p.halfDay ? 1 : 0, p.archived ? 1 : 0, nowIso(), id, ctx.ws);
+    .run(p.name, p.kind, p.accrual, p.daysPerYear, p.carryoverMax, p.capDays, p.halfDay ? 1 : 0, p.archived ? 1 : 0, JSON.stringify(p.levels), JSON.stringify(p.appliesTo), nowIso(), id, ctx.ws);
   return (await getPolicy(ctx.ws, id))!;
 }
 
@@ -276,7 +318,7 @@ export async function balancesFor(ctx: PeopleCtx, employeeId: string, asOf = tod
 export async function balancesUnchecked(ws: string, employeeId: string, asOf = today()): Promise<Array<{ policy: Policy; balance: Balance }>> {
   const emp = await getEmployeeRow(ws, employeeId);
   if (!emp) throw new PeopleError('not_found', 404);
-  const policies = await listPolicies(ws);
+  const policies = (await listPolicies(ws)).filter((p) => policyApplies(p.appliesTo, emp));
   const out: Array<{ policy: Policy; balance: Balance }> = [];
   for (const policy of policies) {
     const reqs = await approvedAndPending(ws, employeeId, policy.id);
@@ -329,7 +371,7 @@ export async function createRequest(
   const emp = await getEmployeeRow(ctx.ws, employeeId);
   if (!emp || emp.status === 'terminated') throw new PeopleError('not_found', 404);
   const policy = await getPolicy(ctx.ws, String(input.policyId ?? ''));
-  if (!policy || policy.archived) throw new PeopleError('invalid_policy');
+  if (!policy || policy.archived || !policyApplies(policy.appliesTo, emp)) throw new PeopleError('invalid_policy');
   const start = input.startDate;
   const end = input.endDate || input.startDate;
   if (!isIsoDate(start) || !isIsoDate(end) || end < start) throw new PeopleError('invalid_dates');
@@ -362,6 +404,7 @@ export async function createRequest(
     to.filter((u) => u !== emp.user_id),
     { title: localized('timeOffRequested', { name: emp.name }), body: localized('timeOffRequestedBody', { range: end !== start ? `${start} - ${end}` : start, days }), href: '/app/people/time-off?tab=approvals', sourceId: id },
   );
+  await emailPeople(to.filter((u) => u !== emp.user_id), 'timeoff_request', id);
   return toDto(ctx, (await getRequestRow(ctx.ws, id))!);
 }
 
@@ -391,6 +434,7 @@ export async function decideRequest(ctx: PeopleCtx, id: string, decision: 'appro
     href: '/app/people/time-off',
     sourceId: id,
   });
+  await emailPeople([emp?.user_id], status === 'approved' ? 'timeoff_approved' : 'timeoff_declined', id);
   return toDto(ctx, (await getRequestRow(ctx.ws, id))!);
 }
 

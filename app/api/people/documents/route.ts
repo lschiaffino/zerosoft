@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
       const form = await req.formData().catch(() => null);
       const file = form?.get('file');
       if (!form || !(file instanceof File)) return pjson({ error: 'file_required' }, 400);
-      if (file.size > 15 * 1024 * 1024) return pjson({ error: 'file_too_large' }, 413);
+      if (file.size > 4 * 1024 * 1024) return pjson({ error: 'file_too_large' }, 413);
       const doc = await uploadDocument(ctx, String(form.get('employeeId') ?? '') || null, { name: file.name, buffer: Buffer.from(await file.arrayBuffer()) }, {
         title: String(form.get('title') ?? ''),
         kind: String(form.get('kind') ?? ''),

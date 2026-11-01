@@ -487,13 +487,15 @@ a.ppl-rowtitle:not(:hover) {
   position: relative;
   width: 100%;
   min-width: 0;
-  height: min(70vh, 640px);
+  /* El alto lo pone OrgChart según el organigrama: sin lienzo vacío alrededor de un equipo chico. */
+  min-height: 136px;
+  max-height: min(70vh, 640px);
   border: 1px solid var(--line);
   border-radius: var(--radius-1);
   background: var(--brand-enamel);
   overflow: hidden;
   cursor: grab;
-  touch-action: none;
+  touch-action: pan-y;
 }
 .ppl-org:active {
   cursor: grabbing;
@@ -620,6 +622,136 @@ a.ppl-rowtitle:not(:hover) {
     flex: 1 1 140px;
   }
   .ui-fields-2.ppl-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Inicio del directorio: pendientes y cumpleaños */
+.ppl-home {
+  display: grid;
+  gap: 16px;
+  margin: 0 0 16px;
+}
+.ppl-home-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.ppl-home .ppl-panel {
+  margin: 0;
+}
+.ppl-home-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ppl-home-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 36px;
+  color: inherit;
+  text-decoration: none;
+  border-top: 1px solid var(--line);
+}
+.ppl-home-list li:first-child .ppl-home-row {
+  border-top: 0;
+}
+a.ppl-home-row:hover {
+  background: var(--ui-hover);
+  text-decoration: underline;
+}
+.ppl-home-person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.ppl-home-when {
+  flex: none;
+  white-space: nowrap;
+}
+.ppl-page-tail {
+  padding-top: 0;
+}
+.ppl-report-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 4px 16px;
+  border: 0;
+  margin: 12px 0;
+  padding: 0;
+}
+.ppl-report-columns legend {
+  margin-bottom: 8px;
+  padding: 0;
+}
+.ppl-report-save {
+  margin: 12px 0 0;
+}
+.ppl-report-save .input {
+  flex: 1 1 200px;
+  min-width: 0;
+  width: auto;
+}
+.ppl-scope {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.ppl-scope legend {
+  padding: 0;
+}
+.ppl-scope-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.ppl-add-peer {
+  margin: 12px 0 0;
+}
+.ppl-scores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.ppl-scores legend {
+  margin-bottom: 8px;
+  padding: 0;
+}
+.ppl-score {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+.ppl-score:hover {
+  border-color: var(--brand-ink);
+}
+.ppl-score:focus-within {
+  outline: 2px solid var(--brand-ink);
+  outline-offset: 2px;
+}
+.ppl-score-on {
+  background: var(--brand-ink);
+  border-color: var(--brand-ink);
+  color: var(--brand-on-ink);
+}
+.ppl-survey-score {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px;
+  margin: 8px 0;
+}
+@media (max-width: 720px) {
+  .ppl-home-two {
     grid-template-columns: minmax(0, 1fr);
   }
 }

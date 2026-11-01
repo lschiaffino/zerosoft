@@ -102,7 +102,8 @@
       "performance": "Desempeño",
       "compensation": "Sueldo",
       "onboarding": "Onboarding",
-      "notes": "Notas 1:1"
+      "notes": "Notas 1:1",
+      "history": "Historial"
     },
     "sections": "Secciones de la ficha",
     "job": "Trabajo",
@@ -218,7 +219,8 @@
     "ackCount": "{count, plural, one {# persona lo leyó} other {# personas lo leyeron}}",
     "empty": "Todavía no hay documentos.",
     "delete": "Borrar {title}",
-    "signNote": "Los archivos son privados: solo los abren HR y la persona con quien se comparten. La firma electrónica todavía no está; para las políticas, usá la confirmación de lectura."
+    "signNote": "Los archivos son privados: solo los abren HR y la persona con quien se comparten. La firma electrónica todavía no está; para las políticas, usá la confirmación de lectura.",
+    "sendForSignature": "Enviar a firmar"
   },
   "goals": {
     "title": "Objetivos",
@@ -331,7 +333,10 @@
     "help": "Arrastrá para moverte; Ctrl o Cmd con la rueda para el zoom y 0 para ajustar. El manager se elige en cada ficha.",
     "emptyTitle": "Todavía no hay organigrama",
     "emptyBody": "Cargá personas y elegí sus managers: el organigrama se arma solo.",
-    "fit": "Ajustar a la pantalla"
+    "fit": "Ajustar a la pantalla",
+    "flat": "Nadie tiene manager todavía, así que todos quedan en una fila. Poné un manager en una ficha para dibujar las líneas de reporte.",
+    "alone": "Por ahora sos la única persona acá. Sumá gente o importala desde el directorio.",
+    "openDirectory": "Abrir el directorio"
   },
   "reviews": {
     "desc": "Ciclos de evaluación con autoevaluación, evaluación del manager y de pares.",
@@ -391,7 +396,12 @@
     "submit": "Enviar evaluación",
     "received": "Evaluaciones",
     "noneReceived": "Todavía no hay evaluaciones enviadas.",
-    "noAnswer": "Sin respuesta"
+    "noAnswer": "Sin respuesta",
+    "addPeer": "Sumar par",
+    "pickPeer": "Elegí un par",
+    "addPeerFor": "Sumar un evaluador par para {name}",
+    "removePeer": "Quitar",
+    "peerAdded": "Par sumado y avisado."
   },
   "reports": {
     "desc": "Dotación, rotación, licencias y antigüedad. Esta página es solo para HR.",
@@ -440,7 +450,8 @@
       "fields": "Campos propios",
       "visibility": "Visibilidad",
       "documents": "Políticas y bienvenida",
-      "access": "HR admins"
+      "access": "HR admins",
+      "changes": "Aprobación de cambios"
     },
     "newPolicy": "Nueva política",
     "kind": "Tipo",
@@ -487,11 +498,7 @@
     "optionsHint": "Para listas: opciones separadas por comas.",
     "sensitiveField": "Sensible: solo HR y la persona",
     "visibilityHint": "Quién del workspace ve cada campo en el directorio y las fichas. HR y cada persona siempre ven lo suyo.",
-    "levels": {
-      "everyone": "Todo el workspace",
-      "managers": "Sus managers",
-      "hr": "Solo HR"
-    },
+    "levels": "Más días con la antigüedad",
     "alwaysPrivate": "Sueldo, datos personales, documento, contactos de emergencia, desempeño y entrevistas de salida son siempre privados.",
     "policiesDocs": "Políticas de la empresa",
     "createHandbook": "Crear manual en Docs",
@@ -504,7 +511,10 @@
     "hrAdmins": "HR admins",
     "hrAdminsHint": "Los HR admins gestionan fichas, licencias, documentos, sueldos, evaluaciones y reportes. Owner y admins del workspace son siempre HR admins.",
     "implicitHr": "Admin del workspace",
-    "onlyAdmins": "Solo owner y admins del workspace eligen HR admins."
+    "onlyAdmins": "Solo owner y admins del workspace eligen HR admins.",
+    "levelsHint": "Años=días por año, separados por comas. 3=18, 5=20 quiere decir 18 días desde el año 3 y 20 desde el año 5.",
+    "scope": "A quién le corresponde",
+    "scopeHint": "Vacío quiere decir a todos. Separá los valores con comas."
   },
   "welcome": {
     "title": "Te damos la bienvenida, {name}",
@@ -526,15 +536,15 @@
     "unauthorized": "No tenés acceso a People en este workspace.",
     "forbidden": "No tenés permiso para hacer eso.",
     "not_found": "Ya no existe.",
-    "name_required": "Escribí un nombre.",
+    "name_required": "Una fila no tiene nombre.",
     "label_required": "Escribí una etiqueta.",
     "title_required": "Escribí un título.",
     "options_required": "Una lista necesita al menos una opción.",
-    "invalid_date": "Esa fecha no es válida.",
+    "invalid_date": "Usá fechas como AAAA-MM-DD.",
     "invalid_dates": "Revisá las fechas: el fin no puede ser antes del inicio.",
-    "invalid_manager": "Ese manager no existe.",
+    "invalid_manager": "Ninguna ficha tiene ese email de manager.",
     "manager_cycle": "Eso haría que alguien sea su propio manager en la cadena.",
-    "invalid_type": "Elegí un tipo de contratación.",
+    "invalid_type": "El tipo tiene que ser full_time, part_time, contractor o intern.",
     "invalid_pay_period": "Elegí un período de pago.",
     "invalid_status": "Elegí un estado.",
     "invalid_email": "Ese email no es válido.",
@@ -550,7 +560,7 @@
     "no_working_days": "Esas fechas son todas fines de semana o feriados.",
     "overlap": "Ya tenés un pedido para alguno de esos días.",
     "insufficient_balance": "No te alcanzan los días disponibles.",
-    "not_pending": "Alguien ya decidió sobre este pedido.",
+    "not_pending": "Esto ya se decidió.",
     "not_cancellable": "Este pedido ya no se puede cancelar.",
     "no_profile": "Para eso necesitás una ficha en People.",
     "invalid_template": "Elegí una plantilla.",
@@ -559,7 +569,7 @@
     "invalid_rating": "El puntaje va de 1 a 5.",
     "answers_required": "Respondé todas las preguntas antes de enviar.",
     "file_required": "Elegí un archivo.",
-    "file_too_large": "El archivo es demasiado grande.",
+    "file_too_large": "El archivo es muy grande (4 MB como máximo).",
     "file_type": "Usá un archivo PDF, PNG, JPEG, WebP o DOCX.",
     "image_type": "Usá una imagen PNG, JPEG, GIF, WebP o AVIF.",
     "invalid_page": "Esa página de Docs no existe en este workspace.",
@@ -567,6 +577,133 @@
     "storage_unavailable": "El almacenamiento de archivos no está disponible ahora.",
     "file_type_not_allowed": "Ese tipo de archivo no está permitido.",
     "cannot_remove": "Solo owner y admins del workspace sacan personas del workspace, y un admin no saca a otro admin. La ficha no cambió.",
-    "rate_limited": "Demasiadas salidas por ahora. Probá en un rato."
+    "rate_limited": "Demasiadas salidas por ahora. Probá en un rato.",
+    "csv_columns": "El archivo necesita una fila de títulos con la columna Nombre.",
+    "csv_empty": "El archivo no tiene filas.",
+    "duplicate_in_file": "Este email está repetido en el archivo.",
+    "report_columns": "Elegí al menos una columna.",
+    "survey_closed": "Esta encuesta está cerrada.",
+    "already_answered": "Ya respondiste esta encuesta.",
+    "cycle_not_active": "Este ciclo no está activo.",
+    "invalid_reviewer": "Esa persona no puede ser evaluadora acá.",
+    "already_reviewer": "Esa persona ya es evaluadora.",
+    "already_submitted": "Esta evaluación ya se envió.",
+    "own_request": "Tu propio cambio lo tiene que revisar otra persona de HR.",
+    "nothing_to_change": "Completá al menos un cambio."
+  },
+  "home": {
+    "inbox": "Te esperan",
+    "celebrations": "Lo que viene",
+    "birthday": "Cumpleaños",
+    "anniversary": "{years, plural, one {# año} other {# años}} acá",
+    "items": {
+      "approvals": "Licencias para aprobar",
+      "changes": "Cambios de datos para revisar",
+      "tasks": "Tareas de onboarding",
+      "reviews": "Evaluaciones para escribir",
+      "surveys": "Encuestas para responder",
+      "documents": "Documentos para leer"
+    }
+  },
+  "import": {
+    "button": "Importar",
+    "title": "Importar personas",
+    "help": "Un CSV con una fila de títulos. El nombre es obligatorio; también Email, Puesto, Área, Ubicación, País, Teléfono, Ingreso (AAAA-MM-DD), Tipo (full_time, part_time, contractor, intern) y Manager (su email de trabajo). Un email de trabajo conocido actualiza esa ficha. No se invita ni se avisa a nadie.",
+    "file": "Archivo CSV (2 MB como máximo)",
+    "preview": "Revisar el archivo",
+    "confirm": "Importar",
+    "back": "Volver",
+    "empty": "Primero elegí un archivo.",
+    "summary": "{creates, plural, one {# ficha nueva} other {# fichas nuevas}} y {updates, plural, one {# actualización} other {# actualizaciones}}.",
+    "failed": "Filas que se van a saltear",
+    "line": "Línea {n}: {error}",
+    "done": "Importado: {created} nuevas, {updated} actualizadas."
+  },
+  "customReports": {
+    "title": "Reporte a medida",
+    "hint": "Elegí columnas y filtros, y miralo acá o bajá un CSV. Sueldos y datos personales no están acá: los cubre el export de nómina, que queda auditado.",
+    "pick": "Columnas",
+    "run": "Ver reporte",
+    "needColumns": "Elegí al menos una columna.",
+    "noRows": "Nadie coincide con estos filtros.",
+    "total": "{count, plural, one {# persona} other {# personas}}",
+    "csv": "Bajar CSV",
+    "save": "Guardar reporte",
+    "namePlaceholder": "Nombre del reporte",
+    "deleteNamed": "Borrar {name}",
+    "sensitive": "sensible, auditado",
+    "columns": {
+      "name": "Nombre",
+      "workEmail": "Email de trabajo",
+      "jobTitle": "Puesto",
+      "department": "Área",
+      "location": "Ubicación",
+      "country": "País",
+      "manager": "Manager",
+      "status": "Estado",
+      "employmentType": "Tipo",
+      "startDate": "Ingreso",
+      "endDate": "Salida",
+      "tenureYears": "Años acá",
+      "payPeriod": "Período de pago",
+      "phone": "Teléfono"
+    }
+  },
+  "surveys": {
+    "title": "Encuestas",
+    "new": "Nueva encuesta eNPS",
+    "open": "Abrir encuesta",
+    "question": "Pregunta",
+    "newHint": "Se le pide a cada persona con ficha que responda, de 0 a 10, una vez. Las respuestas no llevan nombre.",
+    "defaultQuestion": "¿Qué tan probable es que le recomiendes a un amigo trabajar acá?",
+    "empty": "Todavía no hay encuestas.",
+    "scale": "0 es nada probable, 10 es muy probable.",
+    "comment": "Comentario (opcional)",
+    "anonymous": "Tu nombre no se guarda con tu respuesta.",
+    "send": "Enviar respuesta",
+    "thanks": "Gracias, tu respuesta quedó registrada.",
+    "close": "Cerrar encuesta",
+    "tooFew": "{count, plural, one {# respuesta} other {# respuestas}} hasta ahora. El resultado se ve desde 3 respuestas, para que no se pueda adivinar a nadie.",
+    "summary": "{count} respuestas: {promoters} promotores, {passives} neutros, {detractors} detractores",
+    "status": {
+      "open": "Abierta",
+      "closed": "Cerrada"
+    }
+  },
+  "changes": {
+    "toggle": "Los cambios de datos de contacto y personales propios necesitan aprobación de HR",
+    "hint": "Con esto encendido, un cambio de teléfono, dirección, documento o contactos de emergencia espera acá. Pronombres y bio se aplican al momento.",
+    "empty": "Nada para revisar.",
+    "off": "La aprobación está apagada: los cambios se aplican al momento.",
+    "field": "Campo",
+    "before": "Antes",
+    "after": "Después",
+    "approve": "Aprobar",
+    "deny": "Rechazar",
+    "pending": "Esperando a HR",
+    "pendingSelf": "Tu último cambio de datos está esperando a HR. Se va a ver acá cuando lo aprueben.",
+    "pendingHr": "Esta persona tiene un cambio de datos para revisar en Ajustes."
+  },
+  "history": {
+    "empty": "Todavía no hay cambios. Acá aparecen los de puesto, área, ubicación, manager, tipo y estado.",
+    "date": "Fecha",
+    "field": "Cambio",
+    "from": "De",
+    "to": "A",
+    "by": "Por",
+    "fields": {
+      "jobTitle": "Puesto",
+      "department": "Área",
+      "location": "Ubicación",
+      "managerId": "Manager",
+      "employmentType": "Tipo",
+      "status": "Estado"
+    },
+    "scheduled": "Cambios agendados",
+    "schedule": "Agendar un cambio",
+    "noScheduled": "Nada agendado.",
+    "effective": "Se aplica el",
+    "scheduleHint": "Completá solo lo que cambia. Hasta esa fecha lo ve solo HR.",
+    "keep": "Sin cambio"
   }
 }

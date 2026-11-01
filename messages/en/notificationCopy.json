@@ -53,5 +53,13 @@
   "dateRange": "{start} to {end}",
   "peopleDocRead": "Please read: {title}",
   "peopleDocNew": "New document: {title}",
-  "reviewCycle": "Review cycle started: {name}"
+  "reviewCycle": "Review cycle started: {name}",
+  "peopleChangeRequested": "{name} requested a change to their data",
+  "peopleChangeApproved": "Your data change was approved",
+  "peopleChangeDeclined": "Your data change was declined",
+  "peopleScheduledFailed": "A scheduled job change could not be applied",
+  "peopleHireAdded": "{name} was hired: their profile is ready",
+  "hiringApprovalWaiting": "Waiting for your approval",
+  "hiringApprovalDone": "Approved",
+  "hiringApprovalRejected": "Rejected"
 }

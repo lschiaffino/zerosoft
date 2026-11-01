@@ -21,6 +21,8 @@ import {
   TEAM_ROLES,
   canManageJob,
   canSeeApplication,
+  canSeeJob,
+  canSeeJobSalary,
   criterionSchema,
   defaultStages,
   questionSchema,
@@ -61,6 +63,8 @@ export interface SettingsRow {
   consent_text: string;
   auto_ack: number;
   members_create_jobs: number;
+  job_approvers: string;
+  offer_approvers: string;
   created_at: string;
   updated_at: string;
 }
@@ -108,7 +112,16 @@ export const settingsSchema = z.object({
   consentText: z.string().trim().max(1000).optional(),
   autoAck: z.boolean().optional(),
   membersCreateJobs: z.boolean().optional(),
+  jobApprovers: z.array(z.string().min(1).max(80)).max(6).optional(),
+  offerApprovers: z.array(z.string().min(1).max(80)).max(6).optional(),
 });
+
+async function checkApprovers(ws: string, ids: string[]): Promise<string[]> {
+  const people = new Set((await listOwnerSpacePeople(ws, { app: 'hiring' })).map((p) => p.id));
+  const out = [...new Set(ids)];
+  if (out.some((id) => !people.has(id))) throw new HiringError('invalid_member');
+  return out;
+}
 
 export async function updateSettings(actor: HiringActor, input: z.infer<typeof settingsSchema>): Promise<SettingsRow> {
   if (!actor.admin) throw new HiringError('forbidden', 403);
@@ -120,7 +133,7 @@ export async function updateSettings(actor: HiringActor, input: z.infer<typeof s
   }
   await db
     .prepare(
-      `UPDATE hiring_settings SET handle = ?, company = ?, intro = ?, color = ?, locale = ?, published = ?, retention_months = ?, consent_text = ?, auto_ack = ?, members_create_jobs = ?, updated_at = ? WHERE workspace_id = ?`,
+      `UPDATE hiring_settings SET handle = ?, company = ?, intro = ?, color = ?, locale = ?, published = ?, retention_months = ?, consent_text = ?, auto_ack = ?, members_create_jobs = ?, job_approvers = ?, offer_approvers = ?, updated_at = ? WHERE workspace_id = ?`,
     )
     .run(
       input.handle ?? cur.handle,
@@ -133,6 +146,8 @@ export async function updateSettings(actor: HiringActor, input: z.infer<typeof s
       input.consentText ?? cur.consent_text,
       input.autoAck === undefined ? cur.auto_ack : input.autoAck ? 1 : 0,
       input.membersCreateJobs === undefined ? cur.members_create_jobs : input.membersCreateJobs ? 1 : 0,
+      input.jobApprovers ? JSON.stringify(await checkApprovers(actor.ws, input.jobApprovers)) : cur.job_approvers,
+      input.offerApprovers ? JSON.stringify(await checkApprovers(actor.ws, input.offerApprovers)) : cur.offer_approvers,
       nowIso(),
       actor.ws,
     );
@@ -151,6 +166,8 @@ export function settingsDto(s: SettingsRow) {
     consentText: s.consent_text,
     autoAck: s.auto_ack === 1,
     membersCreateJobs: s.members_create_jobs === 1,
+    jobApprovers: parseJson<string[]>(s.job_approvers, []),
+    offerApprovers: parseJson<string[]>(s.offer_approvers, []),
   };
 }
 export type SettingsDto = ReturnType<typeof settingsDto>;
@@ -217,6 +234,8 @@ export interface JobRow {
   description: string;
   questions: string;
   status: JobStatus;
+  confidential: number;
+  approval_status: string;
   template: string;
   created_by: string | null;
   published_at: string | null;
@@ -232,12 +251,13 @@ export interface StageRow {
   kind: StageKind;
   position: number;
   criteria: string;
+  kit: string;
   cal_event_type_id: string | null;
   created_at: string;
 }
 
 export function stageDto(s: StageRow) {
-  return { id: s.id, name: s.name, kind: s.kind, position: s.position, criteria: parseJson<Criterion[]>(s.criteria, []) };
+  return { id: s.id, name: s.name, kind: s.kind, position: s.position, criteria: parseJson<Criterion[]>(s.criteria, []), kit: parseJson<string[]>(s.kit, []) };
 }
 export type StageDto = ReturnType<typeof stageDto>;
 
@@ -258,6 +278,8 @@ export function jobDto(j: JobRow) {
     description: j.description,
     questions: parseJson<Question[]>(j.questions, []),
     status: j.status,
+    confidential: j.confidential === 1,
+    approvalStatus: j.approval_status,
     publishedAt: j.published_at,
     closedAt: j.closed_at,
     createdAt: j.created_at,
@@ -265,6 +287,22 @@ export function jobDto(j: JobRow) {
   };
 }
 export type JobDto = ReturnType<typeof jobDto>;
+
+/** El puesto como lo ve esta persona: sin salario oculto ni reglas de knock-out si no gestiona el puesto. */
+function jobFor(j: JobRow, access: { admin: boolean; jobRole: TeamRole | null }): JobDto {
+  const dto = jobDto(j);
+  const out = canSeeJobSalary({ ...access, salaryPublic: dto.salaryPublic }) ? dto : { ...dto, salaryMin: null, salaryMax: null };
+  return canManageJob(access) ? out : { ...out, questions: [] };
+}
+
+/** Predicado SQL de puestos que la persona ve (alias `j`). Ver canSeeJob. */
+export function visibleJobsSql(actor: HiringActor, alias = 'j'): { sql: string; args: string[] } {
+  if (actor.admin) return { sql: '1 = 1', args: [] };
+  return {
+    sql: `((${alias}.status = 'published' AND ${alias}.confidential = 0) OR EXISTS (SELECT 1 FROM hiring_job_members vm WHERE vm.job_id = ${alias}.id AND vm.user_id = ?))`,
+    args: [actor.person],
+  };
+}
 
 export async function getJobRow(ws: string, id: string): Promise<JobRow | null> {
   return ((await getDb().prepare('SELECT * FROM hiring_jobs WHERE id = ? AND workspace_id = ?').get(id, ws)) as JobRow | undefined) ?? null;
@@ -299,8 +337,9 @@ export interface JobListItem extends JobDto {
 }
 
 export async function listJobs(actor: HiringActor, opts: { status?: string; q?: string } = {}): Promise<JobListItem[]> {
-  const where = ['j.workspace_id = ?'];
-  const args: Array<string> = [actor.ws];
+  const vis = visibleJobsSql(actor);
+  const where = ['j.workspace_id = ?', vis.sql];
+  const args: Array<string> = [actor.ws, ...vis.args];
   if (opts.status && opts.status !== 'all') {
     where.push('j.status = ?');
     args.push(opts.status);
@@ -322,12 +361,15 @@ export async function listJobs(actor: HiringActor, opts: { status?: string; q?: 
     .all(actor.person, ...args)) as Array<JobRow & { my_role: TeamRole | null; active_count: number }>;
   return rows.map((r) => {
     const manage = canManageJob({ admin: actor.admin, jobRole: r.my_role });
-    return { ...jobDto(r), myRole: r.my_role, activeCount: manage ? Number(r.active_count) : null, canManage: manage };
+    return { ...jobFor(r, { admin: actor.admin, jobRole: r.my_role }), myRole: r.my_role, activeCount: manage ? Number(r.active_count) : null, canManage: manage };
   });
 }
 
 export interface JobDetail {
   job: JobDto;
+  /** Hay aprobadores en Ajustes: publicar pide la cadena. */
+  needsApproval?: boolean;
+  approval?: Array<{ id: string; position: number; userId: string; name: string; status: string; note: string; decidedAt: string | null }>;
   stages: StageDto[];
   team: TeamMember[];
   myRole: TeamRole | null;
@@ -337,8 +379,18 @@ export interface JobDetail {
 export async function getJob(actor: HiringActor, id: string): Promise<JobDetail | null> {
   const row = await getJobRow(actor.ws, id);
   if (!row) return null;
-  const [stages, team, role] = await Promise.all([listStages(id), listTeam(id), jobRole(id, actor.person)]);
-  return { job: jobDto(row), stages: stages.map(stageDto), team, myRole: role, canManage: canManageJob({ admin: actor.admin, jobRole: role }) };
+  const role = await jobRole(id, actor.person);
+  if (!canSeeJob({ admin: actor.admin, jobRole: role, status: row.status, confidential: row.confidential === 1 })) return null;
+  // Fuera del equipo: el aviso publicado y nada más (ni etapas, ni quién contrata).
+  const inside = actor.admin || role != null;
+  const [stages, team] = inside ? await Promise.all([listStages(id), listTeam(id)]) : [[], []];
+  const out: JobDetail = { job: jobFor(row, { admin: actor.admin, jobRole: role }), stages: stages.map(stageDto), team, myRole: role, canManage: canManageJob({ admin: actor.admin, jobRole: role }) };
+  if (inside) {
+    const { listChain } = await import('./approvals');
+    out.approval = await listChain(actor.ws, 'job', id);
+    out.needsApproval = parseJson<string[]>((await ensureSettings(actor.ws)).job_approvers, []).length > 0;
+  }
+  return out;
 }
 
 export const jobInputSchema = z.object({
@@ -355,6 +407,7 @@ export const jobInputSchema = z.object({
   description: z.string().max(20_000).optional(),
   questions: z.array(questionSchema).max(MAX_QUESTIONS).optional(),
   status: z.enum(['draft', 'published', 'closed', 'archived']).optional(),
+  confidential: z.boolean().optional(),
   template: z.string().trim().max(60).optional(),
 });
 export type JobInput = z.infer<typeof jobInputSchema>;
@@ -416,8 +469,8 @@ export async function createJob(actor: HiringActor, input: JobInput, locale = 'e
   await db
     .prepare(
       `INSERT INTO hiring_jobs (id, workspace_id, slug, title, department, location, workplace, employment_type, salary_min, salary_max, salary_currency, salary_period,
-        salary_public, description, questions, status, template, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?)`,
+        salary_public, description, questions, status, confidential, template, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -435,6 +488,7 @@ export async function createJob(actor: HiringActor, input: JobInput, locale = 'e
       merged.salaryPublic ? 1 : 0,
       merged.description ?? '',
       JSON.stringify(questions),
+      merged.confidential ? 1 : 0,
       input.template ?? '',
       actor.person,
       ts,
@@ -474,16 +528,22 @@ export async function updateJob(actor: HiringActor, id: string, patch: Partial<J
     description: patch.description ?? cur.description,
     questions: patch.questions ? JSON.stringify(patch.questions) : cur.questions,
     status: patch.status ?? cur.status,
+    confidential: patch.confidential === undefined ? cur.confidential : patch.confidential ? 1 : 0,
   };
   checkSalary(next.salary_min, next.salary_max);
   if (patch.questions) checkQuestions(patch.questions);
   if (next.status === 'published' && !next.description.trim()) throw new HiringError('description_required');
+  // Con aprobadores en Ajustes, nadie publica sin la cadena completa (tampoco un admin). Reabrir lo ya publicado no pide nada.
+  if (next.status === 'published' && !cur.published_at && cur.approval_status !== 'approved') {
+    const settings = await ensureSettings(actor.ws);
+    if (parseJson<string[]>(settings.job_approvers, []).length) throw new HiringError('approval_required', 409);
+  }
   const ts = nowIso();
   const slug = patch.title && patch.title !== cur.title && cur.status === 'draft' ? await uniqueSlug(actor.ws, patch.title, id) : cur.slug;
   await getDb()
     .prepare(
       `UPDATE hiring_jobs SET slug = ?, title = ?, department = ?, location = ?, workplace = ?, employment_type = ?, salary_min = ?, salary_max = ?, salary_currency = ?,
-        salary_period = ?, salary_public = ?, description = ?, questions = ?, status = ?,
+        salary_period = ?, salary_public = ?, description = ?, questions = ?, status = ?, confidential = ?,
         published_at = CASE WHEN ? = 'published' AND published_at IS NULL THEN ? ELSE published_at END,
         closed_at = CASE WHEN ? IN ('closed','archived') THEN COALESCE(closed_at, ?) WHEN ? = 'published' THEN NULL ELSE closed_at END,
         updated_at = ? WHERE id = ?`,
@@ -503,6 +563,7 @@ export async function updateJob(actor: HiringActor, id: string, patch: Partial<J
       next.description,
       next.questions,
       next.status,
+      next.confidential,
       next.status,
       ts,
       next.status,
@@ -520,6 +581,7 @@ export async function deleteJob(actor: HiringActor, id: string): Promise<void> {
   const db = getDb();
   const apps = (await db.prepare('SELECT id FROM hiring_applications WHERE job_id = ?').all(id)) as Array<{ id: string }>;
   for (const a of apps) await deleteApplicationRows(a.id);
+  await db.prepare("DELETE FROM hiring_approvals WHERE workspace_id = ? AND subject_type = 'job' AND subject_id = ?").run(actor.ws, id);
   await db.prepare('DELETE FROM hiring_stages WHERE job_id = ?').run(id);
   await db.prepare('DELETE FROM hiring_job_members WHERE job_id = ?').run(id);
   await db.prepare('DELETE FROM hiring_jobs WHERE id = ? AND workspace_id = ?').run(id, actor.ws);
@@ -529,6 +591,7 @@ export async function deleteApplicationRows(appId: string): Promise<void> {
   const db = getDb();
   // Los tipos de evento de Cal de sus entrevistas dejan de aceptar reservas.
   await db.prepare("UPDATE calendar_event_types SET active = 0 WHERE kind = 'hiring' AND id IN (SELECT event_type_id FROM hiring_interviews WHERE application_id = ?)").run(appId);
+  await db.prepare("DELETE FROM hiring_approvals WHERE subject_type = 'offer' AND subject_id IN (SELECT id FROM hiring_offers WHERE application_id = ?)").run(appId);
   for (const t of ['hiring_evaluators', 'hiring_scorecards', 'hiring_interviews', 'hiring_offers']) await db.prepare(`DELETE FROM ${t} WHERE application_id = ?`).run(appId);
   await db.prepare('DELETE FROM hiring_events WHERE application_id = ?').run(appId);
   await db.prepare('DELETE FROM hiring_applications WHERE id = ?').run(appId);
@@ -561,7 +624,7 @@ export async function setTeam(actor: HiringActor, jobId: string, members: z.infe
 }
 
 export const stagesSchema = z
-  .array(z.object({ id: z.string().max(60).optional(), name: z.string().trim().min(1).max(60), kind: z.enum(STAGE_KINDS), criteria: z.array(criterionSchema).max(MAX_CRITERIA).default([]) }))
+  .array(z.object({ id: z.string().max(60).optional(), name: z.string().trim().min(1).max(60), kind: z.enum(STAGE_KINDS), criteria: z.array(criterionSchema).max(MAX_CRITERIA).default([]), kit: z.array(z.string().trim().min(1).max(300)).max(15).default([]) }))
   .min(2)
   .max(MAX_STAGES);
 
@@ -584,11 +647,11 @@ export async function setStages(actor: HiringActor, jobId: string, stages: z.inf
   for (const s of stages) {
     const exists = s.id && current.some((c) => c.id === s.id);
     if (exists) {
-      await db.prepare('UPDATE hiring_stages SET name = ?, kind = ?, position = ?, criteria = ? WHERE id = ? AND job_id = ?').run(s.name, s.kind, pos++, JSON.stringify(s.criteria), s.id!, jobId);
+      await db.prepare('UPDATE hiring_stages SET name = ?, kind = ?, position = ?, criteria = ?, kit = ? WHERE id = ? AND job_id = ?').run(s.name, s.kind, pos++, JSON.stringify(s.criteria), JSON.stringify(s.kit), s.id!, jobId);
     } else {
       await db
-        .prepare('INSERT INTO hiring_stages (id, job_id, name, kind, position, criteria, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
-        .run(newId('stg'), jobId, s.name, s.kind, pos++, JSON.stringify(s.criteria), ts);
+        .prepare('INSERT INTO hiring_stages (id, job_id, name, kind, position, criteria, kit, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(newId('stg'), jobId, s.name, s.kind, pos++, JSON.stringify(s.criteria), JSON.stringify(s.kit), ts);
     }
   }
   await db.prepare('UPDATE hiring_jobs SET updated_at = ? WHERE id = ?').run(ts, jobId);

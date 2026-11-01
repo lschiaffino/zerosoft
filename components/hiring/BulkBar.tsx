@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
+import { RejectReasonOptions } from './ui';
 import { HrDialog, api, useErrorText } from './ui';
 
 /** Acciones en lote sobre las postulaciones elegidas: mover de etapa, rechazar (con email de plantilla) o etiquetar. */
@@ -89,7 +90,8 @@ export default function BulkBar({
           <div className="ui-modal-body ui-fields">
             <label className="ui-field">
               <span className="label">{t('reject.reason')}</span>
-              <input className="input" maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />
+              <input className="input" list="hr-reject-reasons" maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />
+              <RejectReasonOptions />
             </label>
             <label className="ui-check">
               <input type="checkbox" checked={sendEmail} onChange={(e) => setSendEmail(e.target.checked)} />

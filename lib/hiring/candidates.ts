@@ -15,6 +15,7 @@ import {
   HiringError,
   MAX_TAGS,
   RESUME_MAX_BYTES,
+  autoRejected,
   SOURCES,
   answerErrors,
   canManageJob,
@@ -46,6 +47,7 @@ import {
   requireManage,
   stageDto,
   visibleAppsSql,
+  visibleJobsSql,
   type JobRow,
   type StageDto,
 } from './core';
@@ -302,11 +304,13 @@ interface ApplyCore {
   referrer: string;
   answers: Record<string, string>;
   knockouts: string[];
+  /** Una knock-out que rechaza sola falló: entra rechazada. */
+  autoReject?: boolean;
   createdBy: string | null;
 }
 
 /** Postulación nueva (o la existente si ya se había postulado a este puesto). */
-async function createApplication(ws: string, input: ApplyCore): Promise<{ app: ApplicationRow; existing: boolean }> {
+export async function createApplication(ws: string, input: ApplyCore): Promise<{ app: ApplicationRow; existing: boolean }> {
   const db = getDb();
   const prev = (await db.prepare('SELECT * FROM hiring_applications WHERE job_id = ? AND candidate_id = ?').get(input.job.id, input.candidate.id)) as ApplicationRow | undefined;
   if (prev) {
@@ -318,11 +322,12 @@ async function createApplication(ws: string, input: ApplyCore): Promise<{ app: A
   const ts = nowIso();
   await db
     .prepare(
-      `INSERT INTO hiring_applications (id, workspace_id, job_id, candidate_id, stage_id, status, source, utm, referrer, answers, knocked_out, stage_changed_at, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO hiring_applications (id, workspace_id, job_id, candidate_id, stage_id, status, reject_reason, rejected_at, source, utm, referrer, answers, knocked_out, stage_changed_at, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, ws, input.job.id, input.candidate.id, stage.id, input.source, JSON.stringify(input.utm), input.referrer.slice(0, 500), JSON.stringify(input.answers), input.knockouts.length ? 1 : 0, ts, input.createdBy, ts, ts);
+    .run(id, ws, input.job.id, input.candidate.id, stage.id, input.autoReject ? 'rejected' : 'active', input.autoReject ? 'knockout' : '', input.autoReject ? ts : null, input.source, JSON.stringify(input.utm), input.referrer.slice(0, 500), JSON.stringify(input.answers), input.knockouts.length ? 1 : 0, ts, input.createdBy, ts, ts);
   await addEvent(ws, input.candidate.id, id, 'applied', input.createdBy, { source: input.source, stage: stage.name, knockouts: input.knockouts, job: input.job.title });
+  if (input.autoReject) await addEvent(ws, input.candidate.id, id, 'rejected', null, { reason: 'knockout', auto: true });
   await notifyTeam(await teamIds(input.job.id, ['recruiter', 'hiring_manager'], input.createdBy), {
     title: `${input.candidate.name} · ${input.job.title}`,
     body: input.knockouts.length ? 'knock-out' : undefined,
@@ -362,7 +367,7 @@ export async function applyPublic(handle: string, jobSlug: string, input: z.infe
   const db = getDb();
   const settings = (await db.prepare('SELECT * FROM hiring_settings WHERE handle = ? AND published = 1').get(handle.toLowerCase())) as Awaited<ReturnType<typeof getSettings>> | undefined;
   if (!settings) throw new HiringError('not_found', 404);
-  const job = (await db.prepare("SELECT * FROM hiring_jobs WHERE workspace_id = ? AND slug = ? AND status = 'published'").get(settings.workspace_id, jobSlug)) as JobRow | undefined;
+  const job = (await db.prepare("SELECT * FROM hiring_jobs WHERE workspace_id = ? AND slug = ? AND status = 'published' AND confidential = 0").get(settings.workspace_id, jobSlug)) as JobRow | undefined;
   if (!job) throw new HiringError('not_found', 404);
   if (!input.consent) throw new HiringError('consent_required');
   if (!EMAIL_RE.test(input.email)) throw new HiringError('invalid_email');
@@ -377,15 +382,16 @@ export async function applyPublic(handle: string, jobSlug: string, input: z.infe
   const links = input.linkedin && /^https?:\/\//i.test(input.linkedin) ? [input.linkedin] : [];
   const fresh: NewCandidate = { email: input.email, name: input.name, phone: input.phone, links, resume: stored, consent: true, keepConsent: input.keepConsent };
   const knockouts = failedKnockouts(questions, answers);
+  const autoReject = autoRejected(questions, knockouts);
   const onJob = await candidateOnJob(settings.workspace_id, job.id, input.email);
   if (onJob) {
-    const { app } = await createApplication(settings.workspace_id, { job, candidate: onJob, source, utm, referrer: input.referrer, answers, knockouts, createdBy: null });
+    const { app } = await createApplication(settings.workspace_id, { job, candidate: onJob, source, utm, referrer: input.referrer, answers, knockouts, autoReject, createdBy: null });
     await mergeInto(onJob, fresh, { fillEmpty: false, applicationId: app.id });
     return { applicationId: app.id, duplicate: true, existing: true };
   }
   const duplicate = (await sameEmail(settings.workspace_id, input.email)).length > 0;
   const { candidate, forgetToken } = await insertCandidate(settings.workspace_id, fresh);
-  const { app } = await createApplication(settings.workspace_id, { job, candidate, source, utm, referrer: input.referrer, answers, knockouts, createdBy: null });
+  const { app } = await createApplication(settings.workspace_id, { job, candidate, source, utm, referrer: input.referrer, answers, knockouts, autoReject, createdBy: null });
   if (settings.auto_ack === 1) {
     const tpl = await resolveTemplate(settings.workspace_id, 'ack', settings, null, job.id);
     await sendCandidateEmail(
@@ -831,6 +837,9 @@ export async function markHired(ws: string, appId: string, actorId: string | nul
   };
   await emitHiring(ws, 'hiring.candidate.hired', job.id, { candidate: payload.candidate, job: payload.job, offer: payload.offer, hiredAt: payload.hiredAt });
   await runOnHire(payload);
+  // People: el ingreso queda cargado (solo si el workspace usa People). Nunca corta la contratación.
+  const { addHireToPeople } = await import('../people-hire');
+  await addHireToPeople(payload).catch((err: unknown) => console.error('[hiring] people hand-off', err instanceof Error ? err.message : 'error'));
 }
 
 export const rejectSchema = z.object({ reason: z.string().trim().max(300).default(''), sendEmail: z.boolean().default(false), templateId: z.string().max(80).nullable().default(null) });
@@ -1064,14 +1073,15 @@ export interface HiringSearchHit {
   href: string;
 }
 
-/** Cmd+K: puestos (cualquiera con Hiring) y candidatos solo si la persona los ve. */
+/** Cmd+K: puestos y candidatos, solo los que la persona ve (visibleJobsSql y visibleAppsSql). */
 export async function searchHiring(actor: HiringActor, q: string): Promise<HiringSearchHit[]> {
   const query = q.trim().slice(0, 100);
   if (!query) return [];
   const like = `%${query}%`;
+  const vis = visibleJobsSql(actor);
   const jobs = (await getDb()
-    .prepare("SELECT id, title, department, status FROM hiring_jobs WHERE workspace_id = ? AND status != 'archived' AND (title LIKE ? OR department LIKE ?) ORDER BY updated_at DESC LIMIT 6")
-    .all(actor.ws, like, like)) as Array<{ id: string; title: string; department: string; status: string }>;
+    .prepare(`SELECT j.id, j.title, j.department, j.status FROM hiring_jobs j WHERE j.workspace_id = ? AND j.status != 'archived' AND ${vis.sql} AND (j.title LIKE ? OR j.department LIKE ?) ORDER BY j.updated_at DESC LIMIT 6`)
+    .all(actor.ws, ...vis.args, like, like)) as Array<{ id: string; title: string; department: string; status: string }>;
   const apps = await listApplications(actor, { q: query, limit: 30 });
   const seen = new Set<string>();
   const cands: HiringSearchHit[] = [];

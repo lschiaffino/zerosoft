@@ -53,5 +53,13 @@
   "dateRange": "{start} a {end}",
   "peopleDocRead": "Para leer: {title}",
   "peopleDocNew": "Documento nuevo: {title}",
-  "reviewCycle": "Empezó el ciclo de evaluación: {name}"
+  "reviewCycle": "Empezó el ciclo de evaluación: {name}",
+  "peopleChangeRequested": "{name} pidió un cambio en sus datos",
+  "peopleChangeApproved": "Aprobaron tu cambio de datos",
+  "peopleChangeDeclined": "Rechazaron tu cambio de datos",
+  "peopleScheduledFailed": "No se pudo aplicar un cambio de puesto agendado",
+  "peopleHireAdded": "Contrataron a {name}: su ficha está lista",
+  "hiringApprovalWaiting": "Espera tu aprobación",
+  "hiringApprovalDone": "Aprobado",
+  "hiringApprovalRejected": "Rechazado"
 }

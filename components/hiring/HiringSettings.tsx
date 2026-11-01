@@ -6,7 +6,46 @@ import PageHeader from '@/components/ui/PageHeader';
 import type { SettingsDto } from '@/lib/hiring/core';
 import { api, useErrorText, useToast } from './ui';
 
-export default function HiringSettings({ initial, canAdmin, careersUrl, repliesEnabled }: { initial: SettingsDto; canAdmin: boolean; careersUrl: string; repliesEnabled: boolean }) {
+/** Cadena de aprobadores, en orden. Vacía = no hace falta aprobación de este tipo. */
+function ApproverChain({ label, people, value, onChange, addLabel, removeLabel }: { label: string; people: Array<{ id: string; name: string }>; value: string[]; onChange: (v: string[]) => void; addLabel: string; removeLabel: string }) {
+  const free = people.filter((p) => !value.includes(p.id));
+  return (
+    <div className="ui-field">
+      <span className="label">{label}</span>
+      {value.length > 0 && (
+        <ol className="hr-chain">
+          {value.map((id) => (
+            <li key={id}>
+              <span>{people.find((p) => p.id === id)?.name ?? id}</span>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => onChange(value.filter((x) => x !== id))}>
+                {removeLabel}
+              </button>
+            </li>
+          ))}
+        </ol>
+      )}
+      {free.length > 0 && value.length < 6 && (
+        <select
+          className="select"
+          aria-label={`${label}: ${addLabel}`}
+          value=""
+          onChange={(e) => {
+            if (e.target.value) onChange([...value, e.target.value]);
+          }}
+        >
+          <option value="">{addLabel}</option>
+          {free.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+      )}
+    </div>
+  );
+}
+
+export default function HiringSettings({ initial, canAdmin, careersUrl, repliesEnabled, people = [] }: { initial: SettingsDto; canAdmin: boolean; careersUrl: string; repliesEnabled: boolean; people?: Array<{ id: string; name: string }> }) {
   const t = useTranslations('hiring');
   const errText = useErrorText();
   const [toast, push] = useToast();
@@ -37,6 +76,11 @@ export default function HiringSettings({ initial, canAdmin, careersUrl, repliesE
               <input type="checkbox" role="switch" checked={s.published} onChange={(e) => setS({ ...s, published: e.target.checked })} aria-label={t('settings.published')} />
               {t('settings.published')}
             </label>
+            {s.published && (
+              <p className="ui-help" data-testid="hiring-feed-url">
+                {t('settings.feed')} <code>{url.replace(/\/careers\/([^/]+)$/, '/api/hiring/public/$1/feed')}</code>
+              </p>
+            )}
             <p className="ui-help">
               <a href={url} target="_blank" rel="noreferrer">
                 {url}
@@ -82,6 +126,14 @@ export default function HiringSettings({ initial, canAdmin, careersUrl, repliesE
             </label>
             <p className="ui-help">{repliesEnabled ? t('settings.repliesOn') : t('settings.repliesOff')}</p>
           </section>
+          {canAdmin && (
+            <section className="ui-fields" data-testid="hiring-approvers">
+              <h2 className="hr-panel-title">{t('settings.approvals')}</h2>
+              <p className="ui-help">{t('settings.approvalsHelp')}</p>
+              <ApproverChain label={t('settings.jobApprovers')} people={people} value={s.jobApprovers} onChange={(jobApprovers) => setS({ ...s, jobApprovers })} addLabel={t('settings.addApprover')} removeLabel={t('common.remove')} />
+              <ApproverChain label={t('settings.offerApprovers')} people={people} value={s.offerApprovers} onChange={(offerApprovers) => setS({ ...s, offerApprovers })} addLabel={t('settings.addApprover')} removeLabel={t('common.remove')} />
+            </section>
+          )}
           <section className="ui-fields">
             <h2 className="hr-panel-title">{t('settings.privacy')}</h2>
             <label className="ui-field">

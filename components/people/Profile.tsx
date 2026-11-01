@@ -7,7 +7,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import type { CustomField, EmployeeDto } from '@/lib/people';
 import { HOLIDAY_COUNTRIES } from '@/lib/people-time';
 import { api, Avatar, Dialog, Fact, Field, Tabs, useDay, useErrorText, useToast } from './people-ui';
-import { CompensationSection, DocumentsSection, OnboardingSection, OneOnOneSection, PerformanceSection, TimeOffSection } from './ProfileSections';
+import { CompensationSection, DocumentsSection, HistorySection, OnboardingSection, OneOnOneSection, PerformanceSection, TimeOffSection } from './ProfileSections';
 
 type TabKey = 'overview' | 'timeoff' | 'documents' | 'performance' | 'compensation' | 'onboarding' | 'notes';
 
@@ -21,11 +21,13 @@ export interface ProfileProps {
   templates: Array<{ id: string; name: string; kind: string }>;
   /** Owner o admin del workspace: puede sacar a alguien del workspace al hacer el offboarding. */
   wsAdmin?: boolean;
+  /** HR con la app Sign: puede abrir un sobre desde Documentos. */
+  signEnabled?: boolean;
 }
 
 const TYPES = ['full_time', 'part_time', 'contractor', 'intern'] as const;
 
-export default function Profile({ employee: e, fields, people, hr, myEmployeeId, tab: initialTab, templates, wsAdmin = false }: ProfileProps) {
+export default function Profile({ employee: e, fields, people, hr, myEmployeeId, tab: initialTab, templates, wsAdmin = false, signEnabled = false }: ProfileProps) {
   const t = useTranslations('people');
   const router = useRouter();
   const day = useDay();
@@ -42,7 +44,7 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
     { key: 'overview', label: t('profile.tabs.overview') },
     ...(e.can.seeTimeOff ? [{ key: 'timeoff' as const, label: t('profile.tabs.timeoff') }] : []),
     { key: 'documents', label: t('profile.tabs.documents') },
-    ...(e.can.seePerformance ? [{ key: 'performance' as const, label: t('profile.tabs.performance') }] : []),
+    ...(e.can.seePerformance ? [{ key: 'performance' as const, label: t('profile.tabs.performance') }, { key: 'history' as const, label: t('profile.tabs.history') }] : []),
     ...(e.can.seeCompensation ? [{ key: 'compensation' as const, label: t('profile.tabs.compensation') }] : []),
     ...(hr || e.can.isSelf || e.can.isManager ? [{ key: 'onboarding' as const, label: t('profile.tabs.onboarding') }] : []),
     ...(myEmployeeId && !e.can.isSelf ? [{ key: 'notes' as const, label: t('profile.tabs.notes') }] : []),
@@ -193,6 +195,12 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
         </p>
       )}
 
+      {e.pendingChange && (
+        <p className="ppl-note" data-testid="people-pending-change">
+          <span className="badge badge-warn">{t('changes.pending')}</span> {e.can.isSelf ? t('changes.pendingSelf') : t('changes.pendingHr')}
+        </p>
+      )}
+
       <Tabs items={tabs} value={tab} onChange={changeTab} label={t('profile.sections')} />
 
       <div className="ppl-tabpanel" role="tabpanel" aria-label={tabs.find((x) => x.key === tab)?.label}>
@@ -274,8 +282,9 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
           </div>
         )}
         {tab === 'timeoff' && <TimeOffSection employeeId={e.id} hr={hr} isSelf={e.can.isSelf} />}
-        {tab === 'documents' && <DocumentsSection employeeId={e.id} hr={hr} isSelf={e.can.isSelf} />}
+        {tab === 'documents' && <DocumentsSection employeeId={e.id} hr={hr} isSelf={e.can.isSelf} signEnabled={signEnabled} />}
         {tab === 'performance' && <PerformanceSection employeeId={e.id} />}
+        {tab === 'history' && <HistorySection employeeId={e.id} hr={hr} people={people} />}
         {tab === 'compensation' && <CompensationSection employeeId={e.id} hr={hr} />}
         {tab === 'onboarding' && <OnboardingSection employeeId={e.id} hr={hr} templates={templates} />}
         {tab === 'notes' && <OneOnOneSection employeeId={e.id} name={e.name} />}

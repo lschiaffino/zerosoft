@@ -32,7 +32,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'BambooHR',
   alsoCompared: ['Workable (Hiring, app aparte)'],
-  lastReviewed: '2026-10-29',
+  lastReviewed: '2026-11-01',
   areas: [
     { id: 'records', label: loc(['Employee records', 'Fichas de personas', 'Perfis de pessoas']) },
     { id: 'org', label: loc(['Directory and org chart', 'Directorio y organigrama', 'Diretório e organograma']) },
@@ -80,11 +80,11 @@ const parity: ProductParity = {
         'Cada pessoa edita seus dados de contato e pessoais, vê seus saldos, pede folgas e lê os documentos compartilhados com ela',
       ],
     }),
-    row('change-approvals', 'records', ['Approval of profile changes', 'Aprobación de cambios en la ficha', 'Aprovação de mudanças no perfil'], 'missing', {
-      detail: ['Self-service edits apply at once; there is no approval step', 'Los cambios del autoservicio se aplican al instante; no hay paso de aprobación', 'As mudanças do autoatendimento valem na hora; não há etapa de aprovação'],
+    row('change-approvals', 'records', ['Approval of profile changes', 'Aprobación de cambios en la ficha', 'Aprovação de mudanças no perfil'], 'have', {
+      detail: ['Off by default. When on, changes to your own phone and personal data wait for HR, who sees before and after, approves or declines. Pronouns and bio apply at once. One step, decided by anyone in HR', 'Apagada por defecto. Encendida, los cambios de teléfono y datos personales propios esperan a HR, que ve el antes y el después y aprueba o rechaza. Pronombres y bio se aplican al momento. Un solo paso, lo decide cualquiera de HR', 'Desligada por padrão. Ligada, alterações de telefone e dados pessoais próprios esperam o RH, que vê o antes e o depois e aprova ou recusa. Pronomes e bio se aplicam na hora. Uma só etapa, decidida por qualquer pessoa do RH'],
     }),
-    row('employee-history', 'records', ['Job and status history', 'Historial de puesto y estado', 'Histórico de cargo e status'], 'partial', {
-      detail: ['Salary changes keep their history; job title and department changes do not', 'Los cambios de sueldo quedan en un historial; los de puesto y área no', 'As mudanças de salário ficam no histórico; as de cargo e área não'],
+    row('employee-history', 'records', ['Job and status history', 'Historial de puesto y estado', 'Histórico de cargo e status'], 'have', {
+      detail: ['Salary history, plus a job history tab: job title, department, location, manager, type and status, each with date and author. Changes made before this release are not in it. Future-dated changes are a separate row', 'Historial de sueldo y una pestaña de historial: puesto, área, ubicación, manager, tipo y estado, cada uno con fecha y autor. Lo cambiado antes de esta versión no figura. Los cambios a futuro son otra fila', 'Histórico de salário e uma aba de histórico: cargo, departamento, localização, manager, tipo e status, cada um com data e autor. O que mudou antes desta versão não aparece. Alterações futuras são outra linha'],
     }),
     // Directorio y organigrama
     row('directory', 'org', ['Employee directory with search and filters', 'Directorio con búsqueda y filtros', 'Diretório com busca e filtros'], 'have', {
@@ -98,19 +98,17 @@ const parity: ProductParity = {
     row('directory-visibility', 'org', ['Directory visibility settings', 'Visibilidad del directorio', 'Visibilidade do diretório'], 'have', {
       detail: ['Phone, location, start date, employment type and birthday: everyone, managers or HR only', 'Teléfono, ubicación, fecha de ingreso, tipo de contratación y cumpleaños: todos, managers o solo HR', 'Telefone, localização, data de admissão, tipo de contratação e aniversário: todos, gestores ou só o RH'],
     }),
-    row('celebrations', 'org', ['Birthdays and work anniversaries feed', 'Cumpleaños y aniversarios', 'Aniversários e tempo de casa'], 'missing'),
+    row('celebrations', 'org', ['Birthdays and work anniversaries feed', 'Cumpleaños y aniversarios', 'Aniversários e tempo de casa'], 'have', {
+      detail: ['Birthdays and work anniversaries of the next 30 days above the directory, following the visibility settings; birth year never shown. No automatic posts or emails', 'Cumpleaños y aniversarios de los próximos 30 días arriba del directorio, según la visibilidad de Ajustes; nunca el año de nacimiento. Sin publicaciones ni emails automáticos', 'Aniversários e tempo de casa dos próximos 30 dias acima do diretório, conforme a visibilidade em Ajustes; nunca o ano de nascimento. Sem publicações nem emails automáticos'],
+    }),
     // Licencias
     row('pto-policies', 'timeoff', ['Time off policies per type', 'Políticas de licencia por tipo', 'Políticas de folga por tipo'], 'have', {
       weight: 2,
       detail: ['Vacation, sick, personal and other policies, each with its own accrual, carryover and cap', 'Vacaciones, enfermedad, personales y otras, cada una con su devengamiento, arrastre y tope', 'Férias, licença médica, pessoais e outras, cada uma com seu acúmulo, transferência e limite'],
     }),
-    row('accrual', 'timeoff', ['Accrual rules', 'Reglas de devengamiento', 'Regras de acúmulo'], 'partial', {
+    row('accrual', 'timeoff', ['Accrual rules', 'Reglas de devengamiento', 'Regras de acúmulo'], 'have', {
       weight: 2,
-      detail: [
-        'Yearly (prorated the first year), monthly or per pay period (weekly, every two weeks, twice a month, monthly), carryover limit and balance cap. No accrual by tenure levels or per-group policy assignment: every policy applies to everyone',
-        'Anual (prorrateado el primer año), mensual o por período de pago (semanal, cada dos semanas, quincenal, mensual), límite de arrastre y tope de saldo. Sin niveles por antigüedad ni asignación de políticas por grupo: cada política aplica a todos',
-        'Anual (proporcional no primeiro ano), mensal ou por período de pagamento (semanal, a cada duas semanas, quinzenal, mensal), limite de transferência e de saldo. Sem níveis por tempo de casa nem atribuição de políticas por grupo: cada política vale para todos',
-      ],
+      detail: ['Yearly (prorated the first year), monthly or per pay period, carryover limit, balance cap, more days with tenure (years=days per policy) and who each policy applies to by department, location, country and type', 'Anual (prorrateado el primer año), mensual o por período de pago, tope de arrastre, saldo máximo, más días con la antigüedad (años=días por política) y a quién le corresponde cada política por área, ubicación, país y tipo', 'Anual (proporcional no primeiro ano), mensal ou por período de pagamento, limite de transferência, saldo máximo, mais dias com o tempo de casa (anos=dias por política) e para quem vale cada política por departamento, localização, país e tipo'],
     }),
     row('pto-requests', 'timeoff', ['Requests and approvals', 'Pedidos y aprobaciones', 'Pedidos e aprovações'], 'have', {
       weight: 2,
@@ -130,7 +128,7 @@ const parity: ProductParity = {
       detail: ['Approved days block the person in Cal (no bookings) and set an out-of-office status in Talk', 'Los días aprobados bloquean a la persona en Cal (sin reservas) y ponen "fuera de la oficina" en Talk', 'Os dias aprovados bloqueiam a pessoa no Cal (sem reservas) e colocam "fora do escritório" no Talk'],
     }),
     row('pto-notifications', 'timeoff', ['Time off notifications', 'Avisos de licencias', 'Avisos de folgas'], 'partial', {
-      detail: ['In-app notifications to the approver and the requester. No email or Slack digests', 'Avisos dentro de la app a quien aprueba y a quien pide. Sin resúmenes por email o Slack', 'Avisos no app para quem aprova e quem pede. Sem resumos por email ou Slack'],
+      detail: ['In-app notifications and a short email to the approver and the requester, with no dates or type in the email. Email delivery checked only against the local capture, not a real inbox. No Slack digests', 'Avisos en la app y un email corto a quien aprueba y a quien pide, sin fechas ni tipo en el email. El envío se probó solo contra la captura local, no con una casilla real. Sin resúmenes en Slack', 'Avisos no app e um email curto a quem aprova e a quem pede, sem datas nem tipo no email. O envio foi testado só com a captura local, não com uma caixa real. Sem resumos no Slack'],
     }),
     // Onboarding y offboarding
     row('onboarding-templates', 'onboarding', ['Onboarding checklists from templates', 'Checklists de onboarding desde plantillas', 'Checklists de onboarding a partir de modelos'], 'have', {
@@ -141,7 +139,7 @@ const parity: ProductParity = {
       detail: ['HR message, manager, team, first tasks and documents to read', 'Mensaje de HR, manager, equipo, primeras tareas y documentos para leer', 'Mensagem do RH, gestor, equipe, primeiras tarefas e documentos para ler'],
     }),
     row('preboarding', 'onboarding', ['Pre-boarding before the first day', 'Preingreso antes del primer día', 'Pré-admissão antes do primeiro dia'], 'partial', {
-      detail: ['HR adds the person before they join and the profile links when they accept the invite. No separate packet or form to fill', 'HR carga a la persona antes de que entre y la ficha se enlaza al aceptar la invitación. Sin paquete ni formulario aparte', 'O RH cadastra a pessoa antes de entrar e o perfil se vincula ao aceitar o convite. Sem pacote nem formulário à parte'],
+      detail: ['HR adds the person before they join, or Hiring adds them on hire, and the profile links when they accept the invite. No separate packet or form to fill', 'HR carga a la persona antes de que entre, o Hiring la carga al contratar, y la ficha se enlaza cuando acepta la invitación. Sin paquete ni formulario aparte', 'O RH adiciona a pessoa antes da entrada, ou o Hiring adiciona ao contratar, e o perfil se vincula quando ela aceita o convite. Sem pacote nem formulário à parte'],
     }),
     row('offboarding', 'onboarding', ['Offboarding with access removal', 'Offboarding con corte de accesos', 'Desligamento com remoção de acessos'], 'better', {
       weight: 2,
@@ -157,23 +155,25 @@ const parity: ProductParity = {
     row('policy-ack', 'documents', ['Policy acknowledgement', 'Confirmación de lectura de políticas', 'Confirmação de leitura de políticas'], 'have', {
       detail: ['Company policies and the handbook (a Docs page) with "I have read it" and a count per document', 'Políticas y manual (una página de Docs) con "Lo leí" y conteo por documento', 'Políticas e manual (uma página do Docs) com "Li" e contagem por documento'],
     }),
-    row('esign', 'documents', ['E-signature', 'Firma electrónica', 'Assinatura eletrônica'], 'missing', {
+    row('esign', 'documents', ['E-signature', 'Firma electrónica', 'Assinatura eletrônica'], 'partial', {
       weight: 2,
-      detail: ['There is no Sign app yet; use read confirmations', 'Todavía no hay app Sign; se usa la confirmación de lectura', 'Ainda não há app Sign; use a confirmação de leitura'],
+      detail: ['With the Sign app: from the Documents tab HR opens a new envelope and sends it. The signed copy stays in Sign, not on the profile, and the document is not prefilled. Without Sign, read confirmations', 'Con la app Sign: desde Documentos, HR abre un sobre nuevo y lo envía. La copia firmada queda en Sign, no en la ficha, y el documento no viene precargado. Sin Sign, confirmación de lectura', 'Com o app Sign: em Documentos, o RH abre um envelope novo e envia. A cópia assinada fica no Sign, não no perfil, e o documento não vem preenchido. Sem Sign, confirmação de leitura'],
     }),
     // Desempeño
     row('review-cycles', 'performance', ['Review cycles', 'Ciclos de evaluación', 'Ciclos de avaliação'], 'have', {
       weight: 2,
       detail: ['Self, manager and peer reviews with text and 1 to 5 questions; the person sees the manager review when the cycle closes', 'Autoevaluación, del manager y de pares con preguntas de texto y de 1 a 5; la persona ve la del manager al cerrar el ciclo', 'Autoavaliação, do gestor e de pares com perguntas de texto e de 1 a 5; a pessoa vê a do gestor quando o ciclo fecha'],
     }),
-    row('peer-picking', 'performance', ['Choosing peer reviewers', 'Elegir quién evalúa como par', 'Escolher quem avalia como par'], 'partial', {
-      detail: ['Peers are picked automatically (up to two who share the manager); they cannot be chosen by hand', 'Los pares se eligen solos (hasta dos que comparten manager); no se eligen a mano', 'Os pares são escolhidos automaticamente (até dois com o mesmo gestor); não dá para escolher à mão'],
+    row('peer-picking', 'performance', ['Choosing peer reviewers', 'Elegir quién evalúa como par', 'Escolher quem avalia como par'], 'have', {
+      detail: ['Up to two peers who share the manager are added on launch, and HR or the manager chain adds or removes others while the cycle is active. People cannot nominate themselves', 'Al lanzar se suman hasta dos pares que comparten manager, y HR o la cadena de managers suman o sacan otros mientras el ciclo está activo. Cada persona no puede proponer los suyos', 'Ao lançar entram até dois pares com o mesmo manager, e o RH ou a cadeia de managers adiciona ou remove outros enquanto o ciclo está ativo. A própria pessoa não indica os seus'],
     }),
     row('goals', 'performance', ['Goals with progress', 'Objetivos con avance', 'Metas com progresso'], 'have'),
     row('one-on-ones', 'performance', ['1:1 notes', 'Notas 1:1', 'Notas 1:1'], 'have', {
       detail: ['Private to the two people, not even HR', 'Privadas entre las dos personas, ni HR las ve', 'Privadas entre as duas pessoas, nem o RH vê'],
     }),
-    row('surveys', 'performance', ['Employee satisfaction surveys (eNPS)', 'Encuestas de satisfacción (eNPS)', 'Pesquisas de satisfação (eNPS)'], 'missing'),
+    row('surveys', 'performance', ['Employee satisfaction surveys (eNPS)', 'Encuestas de satisfacción (eNPS)', 'Pesquisas de satisfação (eNPS)'], 'have', {
+      detail: ['eNPS opened by HR: a 0 to 10 answer and a comment, once per person. Who answered and what they said are stored apart, the answer has no time, and results show from 3 answers and only to HR. No benchmarks or AI analysis', 'eNPS abierto por HR: una respuesta de 0 a 10 y un comentario, una vez por persona. Quién respondió y qué dijo se guardan por separado, la respuesta no tiene hora y el resultado se ve desde 3 respuestas y solo para HR. Sin comparativas ni análisis con IA', 'eNPS aberto pelo RH: uma resposta de 0 a 10 e um comentário, uma vez por pessoa. Quem respondeu e o que disse ficam separados, a resposta não tem horário e o resultado aparece a partir de 3 respostas e só para o RH. Sem comparativos nem análise com IA'],
+    }),
     // Sueldos y nómina
     row('comp-history', 'comp', ['Compensation history', 'Historial de sueldos', 'Histórico salarial'], 'have', {
       weight: 2,
@@ -189,7 +189,9 @@ const parity: ProductParity = {
     row('reports', 'reports', ['Headcount, turnover, time off and tenure', 'Dotación, rotación, licencias y antigüedad', 'Quadro, rotatividade, folgas e tempo de casa'], 'have', {
       detail: ['Fixed reports with 12 months of hires and exits', 'Reportes fijos con 12 meses de ingresos y salidas', 'Relatórios fixos com 12 meses de admissões e saídas'],
     }),
-    row('custom-reports', 'reports', ['Custom report builder', 'Reportes a medida', 'Relatórios personalizados'], 'missing'),
+    row('custom-reports', 'reports', ['Custom report builder', 'Reportes a medida', 'Relatórios personalizados'], 'partial', {
+      detail: ['Pick columns (custom fields too) and filters, see the list, download a CSV and save it. No grouping or charts. Salaries and personal data stay out', 'Elegís columnas (también campos propios) y filtros, ves la lista, bajás un CSV y la guardás. Sin agrupar ni gráficos. Sueldos y datos personales quedan afuera', 'Escolha colunas (inclusive campos próprios) e filtros, veja a lista, baixe um CSV e salve. Sem agrupar nem gráficos. Salários e dados pessoais ficam de fora'],
+    }),
     // Acceso y privacidad
     row('roles', 'security', ['HR, manager and employee roles', 'Roles HR, manager y empleado', 'Papéis RH, gestor e colaborador'], 'have', {
       detail: ['On top of the workspace roles: HR admins, managers by reporting line, employees', 'Encima de los roles del workspace: HR admins, managers por línea de reporte, empleados', 'Acima dos papéis do workspace: admins de RH, gestores pela linha de reporte, colaboradores'],
@@ -218,13 +220,36 @@ const parity: ProductParity = {
         'Quem está fora, saldos próprios, aprovações pendentes e o diretório (campos públicos); pede e aprova com confirmação. Um valor de salário só chega ao modelo quando a pessoa pergunta pelo próprio: o RH que pergunta por outra pessoa recebe o link do perfil e os demais, um erro',
       ],
     }),
-    row('import', 'platform', ['Import from a spreadsheet or another HRIS', 'Importar de planilla u otro sistema', 'Importar de planilha ou outro sistema'], 'missing'),
+    row('import', 'platform', ['Import from a spreadsheet or another HRIS', 'Importar de planilla u otro sistema', 'Importar de planilha ou outro sistema'], 'have', {
+      detail: ['CSV with a preview and an error per row. A known work email updates that profile, managers are set by email and nobody is invited or notified. Save an Excel sheet as CSV first. No direct import from another HRIS', 'CSV con vista previa y un error por fila. Un email de trabajo conocido actualiza esa ficha, los managers se ponen por email y no se invita ni se avisa a nadie. Un Excel hay que guardarlo como CSV. Sin importar directo de otro HRIS', 'CSV com prévia e um erro por linha. Um email de trabalho conhecido atualiza o perfil, os managers entram por email e ninguém é convidado nem avisado. Um Excel precisa ser salvo como CSV. Sem importar direto de outro HRIS'],
+    }),
     row('mobile', 'platform', ['Mobile app', 'App móvil', 'App móvel'], 'partial', {
       detail: ['Works in the mobile browser at 390px; no native app', 'Funciona en el navegador del celular a 390 px; sin app nativa', 'Funciona no navegador do celular a 390 px; sem app nativo'],
     }),
     row('ats', 'platform', ['Applicant tracking', 'Búsquedas y candidatos', 'Recrutamento'], 'missing', {
       detail: ['Out of People on purpose: Hiring (Workable) is a separate app', 'Afuera de People a propósito: Hiring (Workable) es otra app', 'Fora do People de propósito: Hiring (Workable) é outro app'],
     }),
+    row('home-inbox', 'platform', ['Home with what is waiting for you', 'Inicio con lo que te espera', 'Início com o que espera por você'], 'have', {
+      weight: 2,
+      detail: ['Above the directory: time off to approve, profile changes, tasks, reviews, surveys and documents, each counted by its own permissions', 'Arriba del directorio: licencias para aprobar, cambios de datos, tareas, evaluaciones, encuestas y documentos, cada uno contado con sus permisos', 'Acima do diretório: folgas para aprovar, alterações de dados, tarefas, avaliações, pesquisas e documentos, cada um contado com suas permissões'],
+    }),
+    row('future-dated-changes', 'records', ['Job and pay changes with a future date', 'Cambios de puesto y sueldo con fecha futura', 'Alterações de cargo e salário com data futura'], 'have', {
+      weight: 2,
+      detail: ['HR schedules job title, department, location, manager or type for a future date and the hourly job applies it. Only HR sees it until then. Salary entries already take a future effective date', 'HR agenda puesto, área, ubicación, manager o tipo para una fecha futura y el proceso de cada hora lo aplica. Hasta entonces lo ve solo HR. Los sueldos ya aceptan una fecha futura', 'O RH agenda cargo, departamento, localização, manager ou tipo para uma data futura e o processo de cada hora aplica. Até lá, só o RH vê. Os salários já aceitam uma data futura'],
+    }),
+    row('custom-approvals', 'records', ['Custom approval workflows', 'Flujos de aprobación a medida', 'Fluxos de aprovação personalizados'], 'missing'),
+    row('bulk-edit', 'records', ['Bulk edit', 'Edición masiva', 'Edição em massa'], 'partial', {
+      detail: ['Through the CSV import: a known work email updates that profile. No editing grid', 'Con la importación CSV: un email de trabajo conocido actualiza esa ficha. Sin grilla de edición', 'Pela importação CSV: um email de trabalho conhecido atualiza o perfil. Sem grade de edição'],
+    }),
+    row('point-in-time-report', 'reports', ['Reports as of a past date', 'Reportes a una fecha pasada', 'Relatórios em uma data passada'], 'missing'),
+    row('custom-dashboards', 'reports', ['Custom dashboards and benchmarks', 'Tableros a medida y comparativas', 'Painéis personalizados e comparativos'], 'missing'),
+    row('levels-bands', 'comp', ['Job levels and pay bands', 'Niveles de puesto y bandas salariales', 'Níveis de cargo e faixas salariais'], 'missing'),
+    row('comp-planning', 'comp', ['Compensation planning cycles', 'Ciclos de planificación salarial', 'Ciclos de planejamento salarial'], 'missing'),
+    row('total-rewards', 'comp', ['Total rewards statements', 'Resúmenes de compensación total', 'Demonstrativos de remuneração total'], 'missing'),
+    row('recognition-rewards', 'performance', ['Peer recognition and rewards', 'Reconocimientos y premios entre pares', 'Reconhecimento e prêmios entre pares'], 'missing'),
+    row('wellbeing-survey', 'performance', ['Well-being survey', 'Encuesta de bienestar', 'Pesquisa de bem-estar'], 'missing'),
+    row('feedback-ai-summary', 'performance', ['AI summaries of feedback', 'Resúmenes de feedback con IA', 'Resumos de feedback com IA'], 'missing'),
+    row('company-community', 'platform', ['Company announcements hub', 'Centro de anuncios de la empresa', 'Central de comunicados da empresa'], 'missing'),
   ],
 };
 
