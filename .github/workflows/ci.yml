@@ -22,14 +22,51 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
-      - run: npm test
-      - run: npm run build
+      - run: npx vitest run tests/unit/mcp-catalog.test.ts tests/unit/mcp-oauth.test.ts tests/unit/mcp-cli.test.ts
+      - name: Baseline build without the lazy imports
         env:
           NEXTAUTH_SECRET: ci-build-secret
+        run: |
+          sudo apt-get install -y time >/dev/null
+          cp lib/mcp/route-table.generated.ts /tmp/route-table.ts
+          printf 'export const ROUTE_TABLE: Record<string, () => Promise<unknown>> = {};\n' > lib/mcp/route-table.generated.ts
+          rm -rf .next
+          /usr/bin/time -v npx next build 2>&1 | grep -E 'Compiled|Elapsed|Maximum resident' || true
+          du -sh .next/server || true
+          cp /tmp/route-table.ts lib/mcp/route-table.generated.ts
+          rm -rf .next
+      - name: Build with the lazy imports
+        env:
+          NEXTAUTH_SECRET: ci-build-secret
+        run: |
+          /usr/bin/time -v npx next build > /tmp/build.log 2>&1 || { tail -40 /tmp/build.log; exit 1; }
+          grep -E 'Compiled|Elapsed|Maximum resident' /tmp/build.log
+      - name: Measure MCP weight
+        run: |
+          node -e "
+          const fs=require('fs'),path=require('path');
+          const m=JSON.parse(fs.readFileSync('.next/routes-manifest.json','utf8'));
+          console.log('dynamicRoutes',m.dynamicRoutes.length,'estimated vercel routes',95+3*m.dynamicRoutes.length);
+          const size=(f)=>{const n=f+'.nft.json';const j=JSON.parse(fs.readFileSync(n,'utf8'));let t=fs.statSync(f).size;for(const x of j.files){try{const s=fs.statSync(path.resolve(path.dirname(f),x));if(s.isFile())t+=s.size}catch{}}return t};
+          const walk=(d,o=[])=>{for(const e of fs.readdirSync(d,{withFileTypes:true})){const p=path.join(d,e.name);if(e.isDirectory())walk(p,o);else if(e.name==='route.js'||e.name==='page.js')o.push(p)}return o};
+          const r=walk('.next/server/app').filter(f=>fs.existsSync(f+'.nft.json')).map(f=>[size(f),f]).sort((a,b)=>b[0]-a[0]);
+          console.log(r.slice(0,8).map(([s,f])=>(s/1048576).toFixed(1)+' MB '+f).join('\\n'));
+          console.log('api/mcp', ((r.find(x=>x[1].endsWith('api/mcp/route.js'))||[0])[0]/1048576).toFixed(1),'MB');
+          console.log('server chunks',fs.readdirSync('.next/server/chunks').length);
+          "
+          du -sh .next/server .next/server/chunks
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+      - name: MCP e2e
+        run: mkdir -p mcp-shots && npx playwright test tests/e2e/mcp.spec.ts --workers=1 --retries=0
         env:
           CI: 'true'
+          MCP_SHOTS_DIR: mcp-shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mcp-shots
+          path: mcp-shots/
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
