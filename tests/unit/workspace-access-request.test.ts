@@ -212,7 +212,9 @@ describe('nadie da apps que no tiene', () => {
     await actAs(owner, adl, 'admin', ['docs']);
 
     const inv = (body: unknown) => invites.POST(json('/api/teams/invites', 'POST', body));
-    expect((await inv({ emails: 'gr1x@acme.io' })).status).toBe(403);
+    // Sin decir apps (invitar desde una app): las de quien invita.
+    expect((await inv({ emails: 'gr1z@acme.io' })).status).toBe(201);
+    expect(parseApps(((await getDb().prepare("SELECT apps FROM team_invites WHERE email = 'gr1z@acme.io'").get()) as { apps: string }).apps)).toEqual(['docs']);
     expect((await inv({ emails: 'gr1x@acme.io', apps: '*' })).status).toBe(403);
     expect((await inv({ emails: 'gr1x@acme.io', apps: ['crm'] })).status).toBe(403);
     expect((await inv({ emails: 'gr1x@acme.io', apps: ['docs'] })).status).toBe(201);

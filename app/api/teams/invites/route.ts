@@ -37,8 +37,11 @@ export async function POST(req: NextRequest) {
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return teamsError('invalid_input');
   if (parsed.data.role === 'admin' && ctx.role !== 'owner') return teamsError('forbidden', 403);
-  const offered = parsed.data.role === 'guest' ? [] : parseApps(parsed.data.apps ?? '*');
-  if (!canGrantApps(ctx.user.apps ?? '*', offered)) return teamsError('apps_not_yours', 403);
+  // Sin apps en el pedido (invitar desde una app): las de quien invita, nunca más.
+  const actorApps = ctx.user.apps ?? '*';
+  const apps = parsed.data.apps ?? actorApps;
+  const offered = parsed.data.role === 'guest' ? [] : parseApps(apps);
+  if (!canGrantApps(actorApps, offered)) return teamsError('apps_not_yours', 403);
   const limit = await rateLimit(`teams:invite:${ctx.realId}`, 30, 3600);
   if (!limit.ok) return teamsError('rate_limited', 429);
   const { results, invalid } = await inviteMany({
@@ -46,7 +49,7 @@ export async function POST(req: NextRequest) {
     inviter: { id: ctx.realId, name: ctx.real.name, email: ctx.real.email },
     emails: parsed.data.emails,
     role: parsed.data.role,
-    apps: parsed.data.apps,
+    apps,
     groupIds: parsed.data.groupIds,
     locale: requestLocale(req, parsed.data.locale),
     base: publicBase(req),
