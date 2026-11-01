@@ -461,7 +461,7 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
   cursor: pointer;
   transition: background-color var(--ui-dur) var(--ease), color var(--ui-dur) var(--ease);
 }
-.task-check:hover { color: var(--ink); background: var(--bg); }
+.task-check:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 8%, transparent); }
 .task-check.checked { color: var(--accent-on); background: var(--accent); }
 .task-check svg { width: 12px; height: 12px; }
 .task-subject { font-size: 0.875rem; font-weight: 500; color: var(--ink); }

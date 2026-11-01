@@ -31,7 +31,7 @@ export default async function Footer({ locale }: { locale: string }) {
           </a>
         </div>
 
-        <div className="footer-col">
+        <div className="footer-col footer-col-products">
           <h4>{t('colProducts')}</h4>
           <ul>
             {SITE_PRODUCTS.map((k) => (

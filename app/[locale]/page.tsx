@@ -67,7 +67,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
       <section className="lp-hero" aria-labelledby="lp-title">
         <div className="lp-hero-copy">
           <h1 id="lp-title" className="lp-h1">
-            {h('hero.title1')}
+            {h.rich('hero.title1', { nb: (chunks) => <span className="lp-nowrap">{chunks}</span> })}
             <br />
             <span className="lp-h1-dim">{h('hero.title2')}</span>
           </h1>
