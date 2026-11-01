@@ -92,7 +92,8 @@ test('mensaje recurrente: se arma en Envíos, muestra las próximas corridas, se
   await page.getByRole('combobox', { name: /^Repeats/ }).selectOption('cron');
   await page.getByLabel('Cron expression').fill('0 9 * * 1-5');
   await page.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByText('Saved')).toBeVisible();
+  // exact y en el aviso: sin eso "Saved" también matchea el texto "SaveDelete" de los botones del formulario.
+  await expect(page.getByRole('status').getByText('Saved', { exact: true })).toBeVisible();
   await page.goto('/en/app/groups/broadcasts', { waitUntil: 'networkidle' });
   const row = page.getByRole('row', { name: new RegExp(`Weekly ${tag}`) });
   await expect(row).toBeVisible();
