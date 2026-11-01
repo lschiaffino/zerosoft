@@ -41,6 +41,7 @@ Clase de cada operación: DELETE y lo que manda algo afuera, mueve plata o toca 
 - Las pantallas de permisos no se dejan enmarcar y el POST exige Origin propio.
 - Salida: etiquetas `<untrusted_data>` con nonce por respuesta, secretos y URLs que funcionan como credencial tapados (`scrub.ts`), 60.000 caracteres por llamada con paginación. Un cuerpo con la marca de valor tapado se rechaza: no pisa el secreto.
 - Lo que crea una credencial, una URL que funciona como credencial o guarda keys de terceros no está en el catálogo (`WEB_ONLY_RULES`): responde `web_only` con dónde hacerlo.
+- Campos sueltos con una URL que el servidor llama o la key de un tercero, dentro de operaciones normales, se rechazan en `field-policy.ts`: una línea en la lista por cada campo nuevo. Las automatizaciones (flows, workflows del CRM, robots) sí llevan sus URLs: son de clase destructiva, y lo que se prende sigue corriendo al desconectar, como dicen la pantalla de permisos y la documentación.
 - Pedidos de autorización inválidos terminan en `/oauth/error`, nunca en una URI registrada. El link del dispositivo no salta a los permisos y arranca en solo lectura.
 - Rate limit por conexión: 300 lecturas y 60 escrituras por minuto. Auditoría de cada escritura en `mcp_audit_log`, sin argumentos ni secretos.
 
