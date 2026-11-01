@@ -141,7 +141,7 @@ body:has(.bp-root) .fl-root {
 
 /* ---------- Voto ---------- */
 .bp-vote {
-  display: flex; flex-direction: column; align-items: center; gap: 2px; width: var(--bp-vote-w);
+  display: flex; flex-direction: column; align-items: center; align-self: start; gap: 2px; width: var(--bp-vote-w);
   padding: 8px 4px 7px; border: 1px solid var(--bp-line); border-radius: var(--bp-radius);
   background: var(--bp-bg); color: var(--bp-ink); cursor: pointer; font: inherit;
 }
@@ -156,7 +156,7 @@ body:has(.bp-root) .fl-root {
 .bp-columns > section { padding: 0; }
 .bp-columns { display: grid; grid-template-columns: repeat(var(--bp-cols, 5), minmax(200px, 1fr)); gap: 0 20px; overflow-x: auto; padding-bottom: 12px; }
 .bp-col-head { display: flex; justify-content: space-between; align-items: baseline; padding: 16px 0 10px; border-bottom: var(--stroke-rule) solid var(--brand-ink); }
-.bp-col-head h2 { font-family: var(--font-signage); letter-spacing: var(--signage-tracking); font-stretch: var(--signage-stretch); font-weight: var(--signage-weight); font-size: 1.375rem; line-height: 1; }
+.bp-col-head h2 { font-family: var(--font-signage); letter-spacing: var(--signage-tracking); font-stretch: var(--signage-stretch); font-weight: var(--signage-weight); font-size: 1.375rem; line-height: 1.1; }
 .bp-col-count { font-size: 13px; font-weight: 600; color: var(--bp-ink-3); }
 .bp-card { padding: 14px 0; border-bottom: 1px solid var(--bp-line); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
 .bp-card-title { font-size: 15px; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
@@ -167,7 +167,7 @@ body:has(.bp-root) .fl-root {
 .bp-detail { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 48px; padding: 40px 0 80px; }
 .bp-back { font-size: 14px; font-weight: 600; color: var(--bp-ink); text-decoration: underline; text-underline-offset: 4px; display: inline-block; margin-bottom: 18px; }
 .bp-detail-head { display: grid; grid-template-columns: var(--bp-vote-w) minmax(0, 1fr); gap: 18px; align-items: start; }
-.bp-detail-title { font-family: var(--font-signage); letter-spacing: var(--signage-tracking); font-stretch: var(--signage-stretch); font-weight: var(--signage-weight); font-size: var(--t-h2); line-height: 1; overflow-wrap: anywhere; text-wrap: balance; }
+.bp-detail-title { font-family: var(--font-signage); letter-spacing: var(--signage-tracking); font-stretch: var(--signage-stretch); font-weight: var(--signage-weight); font-size: var(--t-h2); line-height: 1.1; overflow-wrap: anywhere; text-wrap: balance; }
 .bp-detail-desc { margin-top: 18px; white-space: pre-wrap; line-height: 1.6; color: var(--bp-ink-2); overflow-wrap: anywhere; }
 .bp-closed { margin-top: 20px; padding: 14px 16px; background: var(--bp-soft); font-size: 0.92rem; line-height: 1.5; }
 .bp-shipped { margin-top: 20px; padding: 14px 16px; background: var(--ok-soft); color: var(--ok-ink); font-size: 0.92rem; }
@@ -183,7 +183,7 @@ body:has(.bp-root) .fl-root {
 
 /* ---------- Comentarios ---------- */
 .bp-comments { margin-top: 44px; border-top: 1px solid var(--bp-line); padding-top: 24px; }
-.bp-comments h2 { font-family: var(--font-signage); letter-spacing: var(--signage-tracking); font-stretch: var(--signage-stretch); font-weight: var(--signage-weight); font-size: 1.5rem; line-height: 1; margin-bottom: 16px; }
+.bp-comments h2 { font-family: var(--font-signage); letter-spacing: var(--signage-tracking); font-stretch: var(--signage-stretch); font-weight: var(--signage-weight); font-size: 1.5rem; line-height: 1.1; margin-bottom: 16px; }
 .bp-comment { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--bp-line); }
 .bp-comment.is-official { background: var(--bp-soft); padding-left: 12px; padding-right: 12px; }
 .bp-comment-head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; font-size: 13px; }
@@ -226,24 +226,22 @@ body:has(.bp-root) .fl-root {
 .fl-root.is-tucked { transform: translateY(calc(100% + 32px)); opacity: 0; visibility: hidden; pointer-events: none; transition-delay: 0s, 0s, 200ms; }
 @media (prefers-reduced-motion: reduce) { .fl-root { transition: none; } }
 /*
- * Teléfono: el botón queda como una pestaña angosta pegada al borde derecho,
- * por encima de las barras de acción de abajo. Así no tapa botones, la última
- * etiqueta de un gráfico ni las acciones de los toasts. Mide lo mismo que el
- * margen lateral de la app (16px): no se monta sobre lo que va alineado a la
- * derecha (un "Disponible", un switch, la última columna).
+ * El botón es una pestaña angosta pegada al borde derecho, por encima de las
+ * barras de acción de abajo: no tapa botones, menús de fila ni la última columna.
+ * Mide lo mismo que el margen lateral de la app (16px).
  */
+.fl-root,
+.fl-root.has-support { right: 0; bottom: 112px; }
+.fl-root .fl-button {
+  width: 16px;
+  height: 40px;
+  border-right: 0;
+  border-radius: var(--bp-radius) 0 0 var(--bp-radius);
+}
+.fl-root .fl-button svg { width: 10px; height: 10px; }
+.fl-root.is-tucked { transform: translateX(100%); }
+.fl-root .fl-panel { right: 8px; bottom: 52px; max-height: min(560px, calc(100dvh - 220px)); }
 @media (max-width: 760px) {
-  .fl-root,
-  .fl-root.has-support { right: 0; bottom: 112px; }
-  .fl-root .fl-button {
-    width: 16px;
-    height: 40px;
-    border-right: 0;
-    border-radius: var(--bp-radius) 0 0 var(--bp-radius);
-  }
-  .fl-root .fl-button svg { width: 10px; height: 10px; }
-  .fl-root.is-tucked { transform: translateX(100%); }
-  .fl-root .fl-panel { right: 8px; bottom: 52px; max-height: min(560px, calc(100dvh - 220px)); }
   /* Mientras se escribe en un campo, la pestaña se corre: no tapa el campo ni el teclado. */
   body:has(main :is(input, textarea, select):focus) .fl-root:not(:focus-within) { transform: translateX(100%); opacity: 0; visibility: hidden; pointer-events: none; }
 }

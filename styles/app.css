@@ -381,9 +381,11 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   .side-line[data-more-below]::after {
     content: '\2304';
     position: sticky;
-    bottom: 0;
+    /* La lista tiene 4px de padding: sin esto el ítem recortado asomaba debajo de la franja. */
+    bottom: -4px;
     display: block;
-    height: 18px;
+    flex: none;
+    height: 20px;
     font-size: 0.875rem;
     line-height: 10px;
     text-align: center;
@@ -1034,7 +1036,7 @@ button.view-tab {
   font-stretch: var(--signage-stretch);
   font-weight: var(--signage-weight);
   font-size: 2rem;
-  line-height: 1.05;
+  line-height: 1.12;
 }
 
 /* Celda de acciones: era display:flex en un <td> y cortaba los bordes de la fila. */
@@ -1171,6 +1173,7 @@ td.cell-actions > * + * { margin-left: 4px; }
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 12px;
 }
+.home-today:has(> :nth-child(4):last-child) { grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); }
 .home-block {
   display: flex;
   flex-direction: column;

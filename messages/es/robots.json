@@ -418,6 +418,7 @@
     "credentialHidden": "El paso {step} no escribió el login porque la página no estaba en el sitio permitido. Solo quien armó este robot o un admin puede ver el detalle.",
     "credentialOrigin": "El paso {step} no escribió el login. La página estaba en {here} y este paso solo permite {bound}. Si {here} es correcto, escribilo en Sitio del login del paso {step}, en la pestaña Pasos.",
     "credentialScript": "El paso {step} puede leer lo que se escribió en un campo y este robot usa un login, así que la corrida se frenó antes de abrir el navegador. Abrí la pestaña Pasos y sacá ese paso (Ejecutar JavaScript, o leer el atributo value), o dejá de usar el login en este robot.",
+    "credentialNoPage": "El paso {step} no escribió el login porque el robot todavía no abrió ninguna página. Agregá antes un paso Ir a URL con la dirección del sitio.",
     "credentialNoSite": "El paso {step} no escribió el login porque este robot no tiene un sitio fijo: la dirección de su paso Ir a URL usa una variable. La página estaba en {here}. Para permitirlo, escribí ese sitio en Sitio del login del paso {step}, en la pestaña Pasos.",
     "useSite": "Usar este sitio",
     "useSiteTitle": "¿Escribir este login en {here}?",

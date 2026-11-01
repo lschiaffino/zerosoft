@@ -27,7 +27,7 @@
   font-stretch: var(--signage-stretch);
   font-weight: var(--signage-weight);
   font-size: var(--t-display);
-  line-height: 1;
+  line-height: 1.06;
   letter-spacing: -0.01em;
   text-wrap: balance;
 }
@@ -47,6 +47,13 @@
 .pd-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
 
 .lp-notes { margin-top: 20px; font-family: var(--font-data); font-size: 13px; color: var(--brand-gray-2); }
+.lp-notes-end { white-space: nowrap; }
+/* En el teléfono, una línea por dato: un separador nunca queda colgando al final. */
+@media (max-width: 620px) {
+  .lp-notes-start { display: block; }
+  .lp-notes-sep { display: none; }
+}
+@media (max-width: 340px) { .lp-notes-end { white-space: normal; } }
 .lp-notes a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 
 .lp-hero-map,
@@ -69,15 +76,15 @@
 
 .lp-section { padding-top: 0; padding-bottom: 112px; scroll-margin-top: var(--site-band-h); }
 .sign-band { background: var(--sign-bg); color: var(--sign-fg); border-top: var(--sign-border); margin-bottom: 48px; }
-.sign-inner { display: flex; align-items: center; gap: 20px; min-height: 104px; padding-top: 20px; padding-bottom: 20px; }
-.sign-mark { flex-shrink: 0; }
+.sign-inner { display: flex; align-items: baseline; gap: 20px; padding-top: 30px; padding-bottom: 30px; }
+.sign-mark { flex-shrink: 0; position: relative; top: 2px; }
 .sign-title {
   font-family: var(--font-signage);
   letter-spacing: var(--signage-tracking);
   font-stretch: var(--signage-stretch);
   font-weight: var(--signage-weight);
   font-size: var(--t-h2);
-  line-height: 1;
+  line-height: 1.1;
   text-wrap: balance;
 }
 .sign-sub { color: var(--sign-fg-2); margin-left: 0.25em; }
@@ -140,7 +147,7 @@
   font-stretch: var(--signage-stretch);
   font-weight: var(--signage-weight);
   font-size: var(--t-h3);
-  line-height: 1;
+  line-height: 1.1;
 }
 .suite-group-head p { font-size: 15px; color: var(--brand-gray-2); text-align: right; }
 
@@ -283,7 +290,7 @@
   font-stretch: var(--signage-stretch);
   font-weight: var(--signage-weight);
   font-size: var(--t-h3);
-  line-height: 1;
+  line-height: 1.1;
 }
 .pricing-usage-head p { max-width: 64ch; font-size: 15px; color: var(--brand-gray-1); }
 .pricing-table th[scope='row'] { font-weight: 600; }
@@ -298,6 +305,12 @@
 .lp-split-rev .lp-split-code { order: 1; }
 .lp-split-text { min-width: 0; }
 .lp-split-code { min-width: 0; display: grid; gap: 16px; }
+/* La API: el panel de código llega hasta el final de la lista de al lado, sin hueco abajo. */
+@media (min-width: 861px) {
+  #developers .lp-split { align-items: stretch; }
+  #developers .code-win { display: flex; flex-direction: column; }
+  #developers .code-win-body { flex: 1; }
+}
 
 .lp-checks { list-style: none; margin-top: 24px; display: grid; gap: 10px; }
 .lp-checks li { display: flex; align-items: baseline; gap: 10px; font-size: 15px; line-height: 1.45; }
@@ -399,7 +412,7 @@
   font-stretch: var(--signage-stretch);
   font-weight: var(--signage-weight);
   font-size: var(--t-display);
-  line-height: 0.92;
+  line-height: 1.06;
   text-wrap: balance;
 }
 .lp-end h2 span { color: var(--brand-on-ink-2); }
@@ -433,7 +446,7 @@
   font-stretch: var(--signage-stretch);
   font-weight: var(--signage-weight);
   font-size: var(--t-h3);
-  line-height: 1.05;
+  line-height: 1.12;
   color: var(--brand-gray-2);
   max-width: 22ch;
 }
@@ -449,6 +462,15 @@
 }
 .pline-list { list-style: none; display: flex; overflow-x: auto; scrollbar-width: none; }
 .pline-list::-webkit-scrollbar { display: none; }
+/* Lo que no entra: sombra en el borde donde sigue la lista. */
+.pline-list,
+.showcase-tabs {
+  background:
+    linear-gradient(to right, var(--bg) 60%, transparent) left / 40px 100% no-repeat local,
+    linear-gradient(to left, var(--bg) 60%, transparent) right / 40px 100% no-repeat local,
+    linear-gradient(to right, color-mix(in srgb, var(--ink) 9%, transparent), color-mix(in srgb, var(--ink) 3%, transparent) 45%, transparent) left / 28px 100% no-repeat scroll,
+    linear-gradient(to left, color-mix(in srgb, var(--ink) 9%, transparent), color-mix(in srgb, var(--ink) 3%, transparent) 45%, transparent) right / 28px 100% no-repeat scroll;
+}
 .pline-list li { position: relative; flex: 0 0 auto; }
 .pline-link {
   position: relative;
@@ -541,8 +563,8 @@
 .parity-num .data {
   font-size: clamp(4rem, 8vw, 6.5rem);
   font-weight: 500;
-  line-height: 0.9;
-  letter-spacing: -0.04em;
+  line-height: 0.95;
+  letter-spacing: -0.015em;
   color: var(--accent-ink, var(--ink));
 }
 .parity-num-label { font-size: 17px; font-weight: 600; }
@@ -574,6 +596,7 @@
 .parity-legend { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 8px 0 16px; font-size: 12px; color: var(--brand-gray-2); }
 .parity-table-wrap { border-top: var(--stroke-rule) solid var(--brand-ink); }
 .parity-table { font-size: 15px; table-layout: fixed; }
+.parity-table thead th { padding-left: 0; }
 .parity-table thead th:nth-child(1) { width: 38%; }
 .parity-table thead th:nth-child(3) { width: 16%; }
 .parity-table td,
@@ -602,8 +625,15 @@
 .parity-list li > a { grid-column: 3; white-space: nowrap; }
 .parity-list li span { color: var(--brand-gray-1); font-size: 14px; line-height: 1.5; }
 .parity-beyond .parity-list li { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
+section.parity-beyond { padding-top: 0; padding-bottom: 0; margin-top: 48px; }
 .parity-beyond .parity-h3 { margin-bottom: 12px; }
 .parity-missing { margin-top: 48px; border-top: var(--stroke-rule) solid var(--brand-ink); max-width: 960px; }
+.parity-all { border-bottom: 1px solid var(--line); }
+.parity-all summary { display: flex; align-items: center; gap: 12px; padding: 20px 0; cursor: pointer; list-style: none; font-size: 1.375rem; font-weight: 700; }
+.parity-all summary::-webkit-details-marker { display: none; }
+.parity-all-count { font-size: 14px; font-weight: 500; color: var(--brand-gray-2); }
+.parity-all summary .faq-plus { margin-left: auto; }
+.parity-all[open] .faq-plus::after { transform: rotate(0deg); }
 .parity-missing summary {
   display: flex;
   align-items: center;
@@ -1218,7 +1248,7 @@
     padding: 32px 16px 32px;
   }
 
-  .sign-inner { min-height: 80px; gap: 14px; }
+  .sign-inner { padding-top: 24px; padding-bottom: 24px; gap: 14px; }
   .sign-band { margin-bottom: 32px; }
   .lp-section { padding-bottom: 72px; }
 
@@ -1262,6 +1292,7 @@
 
   .lp-code { font-size: 12px; padding: 16px; }
   .code-win-body .lp-code { min-height: 0; }
+  .lp-code code { white-space: pre-wrap; overflow-wrap: anywhere; }
   .lp-ctas .btn-lg,
   .pd-actions .btn-lg { flex: 1 1 auto; }
 

@@ -224,7 +224,7 @@ test('biblioteca: carpeta nueva, mover, renombrar y borrar sin recargar; ⌘K', 
   await expect(again).toHaveCount(0);
 });
 
-test('mover: "solo estas personas" avisa y el error se ve adentro del diálogo', async ({ page }) => {
+test('mover: "solo estas personas" avisa y no deja mover a donde no se puede', async ({ page }) => {
   await page.goto('/en/app/rec', { waitUntil: 'networkidle' });
   const body = await makeWebm(page);
   const title = `People ${uid()}`;
@@ -235,8 +235,12 @@ test('mover: "solo estas personas" avisa y el error se ve adentro del diálogo',
   const move = page.getByRole('dialog', { name: 'Move video' });
   await move.getByText('Workspace', { exact: true }).click();
   await expect(move.getByTestId('rec-move-notice')).toContainText('Only specific people');
-  await move.getByTestId('rec-move-submit').click();
-  await expect(move.getByTestId('rec-move-error')).toBeVisible();
+  // Si el aviso ya dice que no se puede, Mover no se ofrece y no hay un error repitiéndolo.
+  await expect(move.getByTestId('rec-move-submit')).toBeDisabled();
+  await expect(move.getByTestId('rec-move-error')).toHaveCount(0);
+  // Volviendo a un destino posible, se puede de nuevo.
+  await move.getByText('My videos', { exact: true }).click();
+  await expect(move.getByTestId('rec-move-notice')).toHaveCount(0);
   await page.keyboard.press('Escape');
   await expect(move).toBeHidden();
 });

@@ -499,6 +499,11 @@ select.select,
   scrollbar-width: none;
 }
 .ui-tabs::-webkit-scrollbar { display: none; }
+/* En el teléfono, cinco pestañas cortas entran sin cortar la última. */
+@media (max-width: 420px) {
+  .ui-tabs { gap: 2px; }
+  .ui-tabs .ui-tab { padding-left: 8px; padding-right: 8px; }
+}
 .ui-tab {
   position: relative;
   display: inline-flex;
@@ -676,7 +681,7 @@ dialog.ui-drawer[open] { display: flex; }
   font-stretch: var(--signage-stretch);
   font-weight: var(--signage-weight);
   font-size: 1.5rem;
-  line-height: 1.05;
+  line-height: 1.12;
 }
 .ui-empty-body { max-width: 56ch; font-size: 0.9375rem; line-height: 1.5; color: var(--brand-gray-1); }
 .ui-empty-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
@@ -748,7 +753,7 @@ textarea.ui-title-input.ui-title-input { line-height: 1.2; }
   font-stretch: var(--signage-stretch);
   font-weight: var(--signage-weight);
   font-size: 2rem;
-  line-height: 1.05;
+  line-height: 1.12;
   letter-spacing: -0.005em;
   text-wrap: balance;
   /* Un título sin espacios (un link corto, un email) se corta antes que
@@ -1051,3 +1056,10 @@ input[type='file']::file-selector-button {
 input[type='file']::file-selector-button:hover { background: var(--ui-hover); }
 /* Totales al pie de una tabla: filete pleno, igual en la celda de título y en la del monto. */
 .table tfoot th { color: var(--ink); border-bottom-color: var(--line); font-size: inherit; }
+
+/* Texto y placeholder largos terminan en puntos suspensivos, no en media letra. */
+.input, .select, input[type='search'] { text-overflow: ellipsis; }
+.input::placeholder { text-overflow: ellipsis; }
+
+/* La insignia neutra usa el mismo gris que el hover de fila: con el filete no se pierde. */
+tr:hover .badge:not(.badge-ok, .badge-warn, .badge-bad, .badge-info, .badge-ink) { border-color: var(--line); }

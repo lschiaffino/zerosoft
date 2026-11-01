@@ -87,8 +87,12 @@ export default async function FeatureParity({ locale, product, headingId }: { lo
 
       {!hasIncluded && <p className="parity-none">{t('noneYet', { name })}</p>}
       {hasIncluded && (
-        <>
-          <h3 className="parity-h3">{t('tableTitle', { name })}</h3>
+        <details className="parity-all">
+          <summary>
+            <span className="parity-all-title">{t('tableTitle', { name })}</span>
+            <span className="parity-all-count data">{parity.rows.filter(included).length}</span>
+            <span className="faq-plus" aria-hidden="true" />
+          </summary>
           <p className="parity-legend data">
             {(['have', 'better', 'partial'] as const).map((s) => (
               <span key={s}>
@@ -141,7 +145,7 @@ export default async function FeatureParity({ locale, product, headingId }: { lo
               })}
             </table>
           </div>
-        </>
+        </details>
       )}
 
       {beyond.length > 0 && (

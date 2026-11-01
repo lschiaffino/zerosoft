@@ -428,7 +428,7 @@
   display: inline-block;
   vertical-align: bottom;
 }
-.cell-inline:hover { border-bottom-color: var(--dim); }
+.cell-inline:hover { border-bottom-color: var(--dim); text-decoration: none; }
 .cell-inline.empty { color: var(--ink-disabled); }
 
 .cell-quick {
@@ -3252,6 +3252,21 @@ section.pb-body, section.pb-qs, section.pb-runs { padding: 0; }
     color: var(--brand-gray-2);
   }
   .crm-cards td[data-card='line'] > :first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  /* El teléfono va en un div propio: que llene la línea para que sus botones queden bajo el del email. */
+  .crm-cards tbody td.cell-sub { max-width: none; margin-top: 0; }
+  /* Contactos: teléfono, WhatsApp y email en una sola línea de íconos, con el email de texto al lado. */
+  .crm-cards tbody tr:has(.card-contact-email, .card-contact-phone) { grid-template-columns: 32px auto minmax(0, 1fr) auto; }
+  .crm-cards tbody tr:has(.card-contact-email, .card-contact-phone) td[data-card='main'] { grid-column: 2 / 4; }
+  .crm-cards tbody tr:has(.card-contact-email, .card-contact-phone) td[data-card='state'] { grid-column: 4; }
+  .crm-cards tbody td.card-contact-phone { grid-column: 2; grid-row: 2; padding-right: 0; }
+  .crm-cards tbody td.card-contact-phone > .cell-inline { display: none; }
+  .crm-cards tbody td.card-contact-email { grid-column: 3 / -1; grid-row: 2; padding-left: 0; }
+  .crm-cards tbody tr:not(:has(.card-contact-phone .cell-quick)) td.card-contact-email { grid-column: 2 / -1; padding-left: 8px; }
+  .crm-cards tbody td.card-contact-email > .cell-quick { order: -1; margin-left: 0; }
+  .crm-cards tbody td.card-contact-email > .cell-inline { order: 0; }
+  .crm-cards tbody td.card-contact-phone .phone-touch.is-compact { margin-left: 0; }
+  .crm-cards tbody td.card-contact-phone .cell-quick,
+  .crm-cards tbody td.card-contact-email .cell-quick { margin-block: 0; }
   /* Una línea vacía de la tarjeta (sin email, sin empresa) no se muestra: un "—" suelto no dice de qué es. */
   .crm-cards tbody td[data-card='line']:has(> .cell-inline.empty:only-child),
   .crm-cards tbody td[data-card='line']:has(> .cell-empty:only-child) { display: none; }

@@ -6,6 +6,7 @@
    ============================================================ */
 
 .flow-muted { color: var(--brand-gray-2); }
+.flow-table .flow-name-cell .flow-ellipsis { max-width: 64ch; }
 .flow-ellipsis { display: block; min-width: 0; max-width: 36ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .flow-link {
   margin-left: 4px;
@@ -54,6 +55,8 @@
 .flow-row-menu { display: flex; justify-content: flex-end; }
 .flow-row-menu .row-menu { top: calc(100% + 4px); }
 
+.flow-templates-all { display: none; margin-top: 12px; }
+@media (max-width: 1023px) { .flow-templates-all { display: inline-flex; } }
 .flow-templates {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -85,7 +88,7 @@
 .flow-bar { padding: 8px 16px 0; background: var(--bg); }
 .flow-bar-main { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 44px; }
 .flow-name {
-  flex: 0 1 360px;
+  flex: 0 1 640px;
   min-width: 120px;
   height: 36px;
   padding: 0 8px;
@@ -479,6 +482,7 @@
   .flow-runs { grid-template-columns: minmax(0, 1fr); }
   .flow-runs-list { max-height: 280px; border-right: 0; border-bottom: 1px solid var(--line); }
   .flow-templates { grid-template-columns: minmax(0, 1fr); }
+  .flow-templates:not(.is-all) > li:nth-child(n + 7) { display: none; }
 }
 
 /* Debajo de 900px las tablas se apilan: cada fila es un bloque de dos columnas. */

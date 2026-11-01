@@ -2,7 +2,7 @@
   "products": {
     "meta": {
       "title": "24 apps open source para empresas: CRM, chat, docs e mais",
-      "description": "Vinte e quatro apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics, Social, Hiring, People, Books, Sign e Forms. Open source para o seu servidor, ou no zerosoft Cloud com plano grátis e pagamento por uso."
+      "description": "Vinte e quatro apps open source, do CRM e do chat de suporte aos docs, faturas e formulários. No seu servidor ou na zerosoft Cloud com plano grátis."
     },
     "hero": {
       "title1": "Vinte e quatro apps.",
@@ -313,7 +313,7 @@
     "cal": {
       "meta": {
         "title": "Cal: páginas de agendamento com Google Calendar",
-        "description": "Páginas de agendamento sincronizadas com Google Calendar e Meet, round-robin, formulários de roteamento, embeds, API e webhooks. Alternativa open source ao Calendly."
+        "description": "Páginas de agendamento com Google Calendar e Meet, round-robin, formulários de roteamento, embeds e API. Alternativa open source ao Calendly."
       },
       "hero": {
         "tag": "Agendamento",
@@ -509,7 +509,7 @@
     "chat": {
       "meta": {
         "title": "Chat: widget de chat no site e caixa compartilhada",
-        "description": "Widget de chat para o seu site, caixa de entrada compartilhada, SLAs, regras de atribuição, respostas salvas, bot com IA e CSAT. Alternativa open source ao Intercom."
+        "description": "Widget de chat para o seu site, caixa de entrada compartilhada, SLAs, regras de atribuição e bot com IA. Alternativa open source ao Intercom."
       },
       "hero": {
         "tag": "Chat com clientes",
@@ -607,7 +607,7 @@
     "groups": {
       "meta": {
         "title": "Groups: caixa de WhatsApp para equipes, open source",
-        "description": "Caixa compartilhada para chats e grupos de WhatsApp: atribuição, notas, tickets por emoji, SLA, envios em massa e gestão de grupos em lote, ligada ao seu CRM. Alternativa open source ao Periskope."
+        "description": "Caixa compartilhada para chats e grupos de WhatsApp: atribuição, notas, tickets, SLA e envios, ligada ao seu CRM. Alternativa open source ao Periskope."
       },
       "hero": {
         "sub": "Uma caixa para cada chat de WhatsApp e cada grupo de cliente. Atribua, responda, transforme mensagens em tickets e gerencie centenas de grupos de uma vez, com cada grupo na ficha do CRM."
@@ -1106,7 +1106,7 @@
     "voice": {
       "meta": {
         "title": "Voice: ditado por voz e notas de reunião open source",
-        "description": "Dite em qualquer campo do zerosoft e faça notas de reunião com transcrição ao vivo, resumo com IA, decisões e tarefas. A alternativa open source ao Wispr Flow e ao Granola."
+        "description": "Dite em qualquer campo do zerosoft e faça notas de reunião com transcrição, resumo com IA e tarefas. Alternativa open source ao Wispr Flow e ao Granola."
       },
       "hero": {
         "sub": "Segure uma tecla, fale e o texto limpo fica onde você estava escrevendo. Grave uma chamada pelo navegador, anote algumas linhas e a IA monta a nota com a transcrição, na mesma suíte do seu CRM, Docs e Track."
@@ -1191,7 +1191,7 @@
     "rec": {
       "meta": {
         "title": "Rec: gravação de tela e câmera open source",
-        "description": "Grave sua tela, sua câmera ou as duas pelo navegador, compartilhe com um link, receba comentários no segundo exato e veja quem assistiu. Uma alternativa open source ao Loom."
+        "description": "Grave a tela ou a câmera pelo navegador, compartilhe com um link e receba comentários no segundo exato. Alternativa open source ao Loom."
       },
       "hero": {
         "sub": "Grave sua tela, uma janela ou uma aba com sua câmera numa bolha, direto do navegador. Quando você para, o link já fica copiado: os comentários caem no segundo exato e você vê quem assistiu e quanto."
@@ -1276,7 +1276,7 @@
     "talk": {
       "meta": {
         "title": "Talk: mensagens de equipe open source, alternativa ao Slack",
-        "description": "Canais públicos e privados, mensagens diretas, fios, menções, busca e avisos para a sua equipe, na mesma suíte do seu CRM, Track e Docs. Alternativa open source ao Slack."
+        "description": "Canais, mensagens diretas, threads, menções e busca para a sua equipe, ao lado do seu CRM, Track e Docs. Alternativa open source ao Slack."
       },
       "hero": {
         "sub": "As mensagens da sua equipe: canais públicos e privados, mensagens diretas e fios, com as mesmas pessoas do workspace e links para issues, negócios e páginas que aparecem com o status."
@@ -1361,7 +1361,7 @@
     "shop": {
       "meta": {
         "title": "Shop: loja online open source com Stripe e Mercado Pago",
-        "description": "Venda online com produtos, variantes, estoque por local, cupons de desconto, tarifas de frete e checkout com Stripe ou Mercado Pago. Uma alternativa open source ao Shopify e à Nuvemshop."
+        "description": "Venda online com variantes, estoque por local, cupons, frete e checkout com Stripe ou Mercado Pago. Alternativa open source ao Shopify e à Nuvemshop."
       },
       "hero": {
         "sub": "Cadastre seu catálogo ou importe do Shopify ou da Nuvemshop, escolha um tema e publique. Seus clientes compram como convidados com cartão, Mercado Pago ou transferência, e cada pedido chega ao seu CRM."
@@ -1442,7 +1442,7 @@
     "design": {
       "meta": {
         "title": "Design: design gráfico open source",
-        "description": "Crie posts, apresentações, documentos e logos a partir de modelos, com o kit da sua marca, comentários e download em PNG, JPG e PDF. Uma alternativa open source ao Canva."
+        "description": "Crie posts, apresentações e logos a partir de modelos, com o kit da sua marca e download em PNG, JPG e PDF. Alternativa open source ao Canva."
       },
       "hero": {
         "sub": "Escolha um tamanho ou um modelo, troque o texto, coloque suas imagens e as cores da sua marca e baixe em PNG, JPG ou PDF. Sua equipe comenta direto na tela."
@@ -1613,7 +1613,7 @@
     "social": {
       "meta": {
         "title": "Social: alternativa open source ao Hootsuite",
-        "description": "Agende publicações no Facebook, Instagram, LinkedIn, X, TikTok, YouTube, Threads e Bluesky, responda comentários e mensagens em uma só caixa de entrada, aprove o que o time publica e meça o que funciona. Alternativa open source ao Hootsuite."
+        "description": "Agende posts em oito redes, responda comentários em uma caixa, aprove o que o time publica e meça o que funciona. Alternativa open source ao Hootsuite."
       },
       "hero": {
         "sub": "Planeje, publique e responda nas redes sociais com seu time: um editor para todas as redes, um calendário compartilhado, aprovações, uma caixa de entrada unificada e métricas. Cada rede é feita sobre a API oficial e estamos verificando com contas reais."
@@ -1698,7 +1698,7 @@
     "people": {
       "meta": {
         "title": "People: RH open source com folgas, onboarding e avaliações",
-        "description": "Diretório, organograma, folgas com acúmulo e aprovações, checklists de onboarding, documentos, avaliações e histórico salarial. Uma alternativa open source ao BambooHR."
+        "description": "Diretório, organograma, folgas com aprovações, checklists de onboarding, documentos e avaliações. Alternativa open source ao BambooHR."
       },
       "hero": {
         "sub": "Cada pessoa do seu workspace tem um perfil. Controle folgas com saldos reais, faça o onboarding a partir de modelos, guarde documentos privados e rode ciclos de avaliação, ao lado dos apps que sua equipe já usa."
@@ -1779,7 +1779,7 @@
     "hiring": {
       "meta": {
         "title": "Hiring: recrutamento open source com página de vagas",
-        "description": "Vagas a partir de modelos, página de vagas com dados para o Google for Jobs, pipeline de candidatos, scorecards, entrevistas agendadas com o Cal e ofertas que o candidato aceita online. Uma alternativa open source ao Workable."
+        "description": "Vagas, página de carreiras, pipeline de candidatos, scorecards, entrevistas com o Cal e ofertas aceitas online. Alternativa open source ao Workable."
       },
       "hero": {
         "sub": "Publique vagas na sua página de carreiras, mova candidatos em um kanban, reúna os scorecards dos entrevistadores e envie ofertas, com os dados de cada candidato visíveis só para o time da vaga."
@@ -1865,7 +1865,7 @@
     "sign": {
       "meta": {
         "title": "Sign: assinatura eletrônica open source com trilha de auditoria",
-        "description": "Envie PDFs para assinatura com ordem de assinatura, códigos por email, modelos e envio em massa. Cada envelope termina com um certificado de conclusão e hashes SHA-256. Uma alternativa open source ao DocuSign."
+        "description": "Envie PDFs para assinatura com ordem, códigos por email e modelos. Cada envelope termina com um certificado. Alternativa open source ao DocuSign."
       },
       "hero": {
         "sub": "Envie um PDF ou escolha uma página do Docs, coloque os campos de cada pessoa, defina a ordem e envie. Os destinatários assinam pelo celular sem conta, e todos recebem a cópia assinada com a trilha de auditoria."
@@ -1951,7 +1951,7 @@
     "books": {
       "meta": {
         "title": "Books: faturamento e contabilidade open source",
-        "description": "Faturas com imposto por linha, pagamento online com Stripe ou Mercado Pago, contas a pagar, despesas, conciliação bancária e contabilidade de partida dobrada para pequenas empresas da América Latina. Uma alternativa open source ao Xero e ao QuickBooks."
+        "description": "Faturas, pagamento online, contas, despesas, conciliação bancária e partida dobrada para pequenas empresas. Alternativa open source ao Xero."
       },
       "hero": {
         "sub": "Fature na sua moeda com imposto por linha, receba online, lance suas contas e comprovantes, importe o extrato do banco e concilie. Cada documento gera seu próprio lançamento de partida dobrada."
@@ -2032,7 +2032,7 @@
     "forms": {
       "meta": {
         "title": "Forms: alternativa open source ao Typeform",
-        "description": "Formulários e pesquisas que perguntam uma de cada vez, com lógica, quizzes, NPS, envio de arquivos, temas, embeds e uma tabela de respostas com resumo por pergunta. Uma alternativa open source ao Typeform, Google Forms e Tally."
+        "description": "Formulários e pesquisas que perguntam uma de cada vez, com lógica, quizzes, NPS e embeds. Alternativa open source ao Typeform e ao Google Forms."
       },
       "hero": {
         "sub": "Monte um formulário a partir de um modelo, adicione lógica e suas cores, compartilhe um link ou incorpore, e leia as respostas numa tabela, num resumo por pergunta e num CSV. Cada resposta pode chegar ao seu CRM e às suas automações."
@@ -3597,7 +3597,7 @@
     "index": {
       "meta": {
         "title": "Alternativas open source, comparadas recurso por recurso",
-        "description": "Cada app da zerosoft ao lado do produto que substitui: HubSpot, Notion, Linear, Calendly, Intercom, Slack e outros. Paridade contada nas nossas tabelas, com o que ainda falta."
+        "description": "Cada app da zerosoft ao lado do produto que substitui: HubSpot, Notion, Linear, Slack e outros. Paridade contada nas nossas tabelas, com o que falta."
       },
       "title": "Comparar.",
       "titleDim": "Cada app ao lado do produto que substitui.",
