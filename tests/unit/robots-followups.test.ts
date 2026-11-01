@@ -239,6 +239,13 @@ describe('robots: el login va solo al sitio configurado', () => {
     expect(actions.some((x) => x.startsWith('fill:'))).toBe(false);
   });
 
+  it('sin ningún goto antes, explica el problema sin esperar a que aparezca el campo', async () => {
+    const { page, actions } = fakePage({});
+    const res = await robotInterpreter(page, steps([{ type: 'fill', selector: '#no-existe', value: '{{credentials.LOGIN.password}}' }]), {}, { ...opts, credentials: creds });
+    expect(res.error).toBe('1: credential_no_site');
+    expect(actions.some((x) => x.startsWith('fill:'))).toBe(false);
+  });
+
   it('el esquema acepta el sitio del login y lo valida', () => {
     const cred = '{{credentials.L.password}}';
     const saved = (origin: string) => {

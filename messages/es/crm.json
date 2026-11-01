@@ -80,6 +80,7 @@
     "preview": "Vista previa"
   },
   "assoc": {
+    "noneToAdd": "No queda nada para vincular. Creá un registro primero.",
     "associate": "Asociar",
     "associating": "Asociando…",
     "pickDeal": "Elegí un deal…",

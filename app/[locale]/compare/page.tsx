@@ -44,7 +44,7 @@ export default async function CompareIndexPage(props: { params: Promise<{ locale
     <main className="container cmp-page">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(ld) }} />
       <header className="read-hero">
-        <h1 className="read-title">
+        <h1 className="read-title cmp-title">
           {t('index.title')} <span className="dim">{t('index.titleDim')}</span>
         </h1>
         <p className="read-intro">{t('index.lead')}</p>

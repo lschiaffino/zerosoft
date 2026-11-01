@@ -6,6 +6,7 @@
    ============================================================ */
 
 .flow-muted { color: var(--brand-gray-2); }
+.flow-table .flow-name-cell .flow-ellipsis { max-width: 64ch; }
 .flow-ellipsis { display: block; min-width: 0; max-width: 36ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .flow-link {
   margin-left: 4px;
@@ -85,7 +86,7 @@
 .flow-bar { padding: 8px 16px 0; background: var(--bg); }
 .flow-bar-main { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 44px; }
 .flow-name {
-  flex: 0 1 360px;
+  flex: 0 1 640px;
   min-width: 120px;
   height: 36px;
   padding: 0 8px;

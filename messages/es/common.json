@@ -1,7 +1,7 @@
 {
   "meta": {
     "tagline": "Veinticuatro apps open source para tu equipo.",
-    "description": "CRM, chat de soporte, agentes de IA, automatizaciones, robots, proyectos, links, docs, notas, agenda y pizarra. Open source (AGPLv3): corrélas en tu servidor por $0 o usá zerosoft Cloud, con plan gratis y pago por uso.",
+    "description": "Apps open source para empresas: CRM, chat de soporte, agentes de IA, automatizaciones, docs y más. Corrélas en tu servidor por $0 o usá zerosoft Cloud.",
     "homeTitle": "zerosoft: apps open source para empresas, del CRM a los docs"
   },
   "header": {
@@ -36,7 +36,7 @@
       "board": "Pizarra infinita compartida",
       "voice": "Dictado por voz y notas de reunión",
       "rec": "Videos de pantalla y cámara que se comparten con un link",
-      "talk": "En construcción: mensajería de equipo",
+      "talk": "Canales, mensajes directos y huddles",
       "shop": "Tienda online con checkout y pedidos",
       "design": "Diseño gráfico desde plantillas, con tu marca",
       "analytics": "Analítica de producto y feature flags",
@@ -264,7 +264,7 @@
       "desc": "Videos de pantalla y cámara para compartir con un link."
     },
     "talk": {
-      "desc": "Canales, mensajes directos e hilos. En construcción."
+      "desc": "Canales, mensajes directos e hilos para tu equipo."
     },
     "shop": {
       "desc": "Una tienda online con variantes, stock, checkout y pedidos."
@@ -359,8 +359,9 @@
     "metaTitle": "Blog: guías, migraciones y software open source",
     "metaDescription": "Cómo pasarte desde HubSpot, Notion, Linear, Calendly o Bitly, guías de cada app de zerosoft y cómo construimos una suite open source.",
     "tagsTitle": "Temas",
-    "tagTitle": "Posts sobre {tag}",
-    "tagMetaDescription": "{count} posts del blog de zerosoft sobre {tag}: guías, migraciones y notas de cómo construimos las apps.",
+    "more": "Ver más artículos (quedan {count})",
+    "tagTitle": "Artículos sobre {tag}",
+    "tagMetaDescription": "{count} artículos del blog de zerosoft sobre {tag}: guías, migraciones y notas de cómo construimos las apps.",
     "tagLead": "{count} posts.",
     "authorTitle": "Posts de {name}",
     "authorMetaDescription": "Todo lo que {name} publicó en el blog de zerosoft: {count} posts.",
@@ -377,6 +378,7 @@
     "by": "por {name}"
   },
   "footer": {
+    "colExplore": "Explorar",
     "tagline": "Hecho de ceros.",
     "copyright": "© 2026 zerosoft.ai",
     "colProduct": "Producto",
@@ -409,7 +411,7 @@
     "hero": {
       "title1": "Veinticuatro apps para tu equipo.",
       "title2": "Cero licencias.",
-      "sub": "Alternativas open source a HubSpot, Intercom, Calendly, Linear, Notion y cinco productos más que tu equipo paga cada mes. Corrélas en tu servidor por $0 o usalas en zerosoft Cloud.",
+      "sub": "Alternativas open source a HubSpot, Intercom, Calendly, Linear, Notion y 19 productos más que tu equipo paga cada mes. Corrélas en tu servidor por $0 o usalas en zerosoft Cloud.",
       "ctaStart": "Empezá gratis",
       "ctaSelfHost": "Hostealo vos",
       "note1": "Sin tarjeta",

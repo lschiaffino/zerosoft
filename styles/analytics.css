@@ -39,7 +39,7 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 8px 16px;
-  padding: 10px clamp(16px, 3vw, 32px);
+  padding: 10px 0;
   border-bottom: 1px solid var(--line);
 }
 .an-projectbar-field { display: flex; align-items: center; gap: 8px; min-width: 0; }

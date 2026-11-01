@@ -25,10 +25,15 @@ const nextConfig = {
   // Slugs de blog renombrados: el viejo redirige para siempre al nuevo.
   async redirects() {
     const renamed = [['open-source-no-es-gratis-es-libre', 'gratis-vs-libre']];
-    return renamed.flatMap(([from, to]) => [
-      { source: `/:locale(en|es|pt)/blog/${from}`, destination: `/:locale/blog/${to}`, permanent: true },
-      { source: `/blog/${from}`, destination: `/blog/${to}`, permanent: true },
-    ]);
+    return [
+      // Los lectores de feeds prueban estas rutas en la raíz: el feed real vive en /en/blog.
+      ...['/rss.xml', '/feed.xml', '/feed'].map((source) => ({ source, destination: '/en/blog/rss.xml', permanent: true })),
+      { source: '/atom.xml', destination: '/en/blog/atom.xml', permanent: true },
+      ...renamed.flatMap(([from, to]) => [
+        { source: `/:locale(en|es|pt)/blog/${from}`, destination: `/:locale/blog/${to}`, permanent: true },
+        { source: `/blog/${from}`, destination: `/blog/${to}`, permanent: true },
+      ]),
+    ];
   },
   // Subidas locales (sin Blob): /uploads/* siempre pasa por la ruta que
   // chequea carpeta y pone headers seguros. beforeFiles corre antes de mirar

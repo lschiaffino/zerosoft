@@ -1319,8 +1319,12 @@ a.track-issue-link .track-status-glyph {
   display: block;
 }
 
+.track-table-wrap.is-linear td a:focus-visible,
+.track-table-wrap.is-linear td button:focus-visible { outline-offset: -2px; }
+
 .track-table-wrap.is-linear .track-col-project {
   order: 5;
+  flex: 0 0 160px;
   max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1334,6 +1338,8 @@ a.track-issue-link .track-status-glyph {
 
 .track-table-wrap.is-linear .track-col-due {
   order: 7;
+  /* Ancho fijo: el vencimiento vacío medía distinto en cada fila y corría la columna de proyecto. */
+  flex: 0 0 140px;
 }
 
 .track-table-wrap.is-linear .track-col-assignee {

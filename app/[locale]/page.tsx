@@ -101,10 +101,13 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
             </a>
           </div>
           <p className="lp-notes">
-            {h('hero.note1')} · {h('hero.note2')} ·{' '}
-            <a href={GITHUB_URL} target="_blank" rel="noreferrer">
-              {h('hero.note3')}
-            </a>
+            {h('hero.note1')} ·{' '}
+            <span className="lp-notes-end">
+              {h('hero.note2')} ·{' '}
+              <a href={GITHUB_URL} target="_blank" rel="noreferrer">
+                {h('hero.note3')}
+              </a>
+            </span>
           </p>
         </div>
         <HeroVisual className="lp-hero-map" caption={h('hero.fig')} hint={h('hero.figHint')} />
@@ -351,7 +354,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
                     {'  '}-d <span className="tk-s">&apos;{'{'}</span>
                     {'\n'}
                     <span className="tk-s">
-                      {'    '}&quot;url&quot;: &quot;https://zerosoft.ai/blog/software-is-dead&quot;,{'\n'}
+                      {'    '}&quot;url&quot;: &quot;https://zerosoft.ai/blog/open-source-launch&quot;,{'\n'}
                       {'    '}&quot;slug&quot;: &quot;manifesto&quot;,{'\n'}
                       {'    '}&quot;tags&quot;: [&quot;launch&quot;, &quot;blog&quot;]{'\n'}
                       {'  '}
@@ -366,7 +369,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
                     {'  '}<span className="tk-k">&quot;id&quot;</span>: <span className="tk-s">&quot;lnk_9f3ka2&quot;</span>,{'\n'}
                     {'  '}<span className="tk-k">&quot;slug&quot;</span>: <span className="tk-s">&quot;manifesto&quot;</span>,{'\n'}
                     {'  '}<span className="tk-k">&quot;short_url&quot;</span>: <span className="tk-s">&quot;https://zs.ai/manifesto&quot;</span>,{'\n'}
-                    {'  '}<span className="tk-k">&quot;url&quot;</span>: <span className="tk-s">&quot;https://zerosoft.ai/blog/software-is-dead&quot;</span>,{'\n'}
+                    {'  '}<span className="tk-k">&quot;url&quot;</span>: <span className="tk-s">&quot;https://zerosoft.ai/blog/open-source-launch&quot;</span>,{'\n'}
                     {'  '}<span className="tk-k">&quot;tags&quot;</span>: [<span className="tk-s">&quot;launch&quot;</span>, <span className="tk-s">&quot;blog&quot;</span>],{'\n'}
                     {'  '}<span className="tk-k">&quot;created_at&quot;</span>: <span className="tk-s">&quot;2026-07-14T18:22:41Z&quot;</span>
                     {'\n}'}

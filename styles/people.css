@@ -13,10 +13,11 @@
 .ppl-toolbar .select {
   width: auto;
   max-width: 100%;
-  flex: 0 1 180px;
+  flex: 0 1 160px;
+  min-width: 0;
 }
 .ppl-search {
-  flex: 1 1 240px;
+  flex: 1 1 200px;
   min-width: 0;
 }
 .ppl-search .input {
@@ -183,6 +184,7 @@ a.ppl-rowtitle:not(:hover) {
 }
 .ppl-fact dd {
   margin: 0;
+  font-size: 0.875rem;
   overflow-wrap: anywhere;
 }
 .ppl-bio,

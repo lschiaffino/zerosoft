@@ -2,7 +2,7 @@
   "products": {
     "meta": {
       "title": "24 apps open source para empresas: CRM, chat, docs y más",
-      "description": "Veinticuatro apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics, Social, Hiring, People, Books, Sign y Forms. Open source para tu servidor, o en zerosoft Cloud con plan gratis y pago por uso."
+      "description": "Veinticuatro apps open source, del CRM y el chat de soporte a los docs, las facturas y los formularios. En tu servidor o en zerosoft Cloud con plan gratis."
     },
     "hero": {
       "title1": "Veinticuatro apps.",
@@ -3597,7 +3597,7 @@
     "index": {
       "meta": {
         "title": "Alternativas open source, comparadas función por función",
-        "description": "Cada app de zerosoft al lado del producto que reemplaza: HubSpot, Notion, Linear, Calendly, Intercom, Slack y más. Paridad contada con nuestras tablas, con lo que todavía falta."
+        "description": "Cada app de zerosoft al lado del producto que reemplaza: HubSpot, Notion, Linear, Slack y más. Paridad contada con nuestras tablas, con lo que falta."
       },
       "title": "Comparar.",
       "titleDim": "Cada app al lado del producto que reemplaza.",

@@ -2,7 +2,7 @@
 
 .cmp-page { padding-bottom: 96px; }
 .cmp-hero { margin-bottom: 40px; }
-.cmp-title { max-width: 22ch; }
+.read-title.cmp-title { max-width: 30ch; }
 .cmp-glyph { display: inline-flex; vertical-align: middle; margin-right: 14px; transform: translateY(-4px); }
 
 /* Sin el aire de las <section> del sitio (globals.css): acá lo da el margen. */
@@ -14,7 +14,7 @@
   font-stretch: var(--signage-stretch);
   font-weight: var(--signage-weight);
   font-size: 1.75rem;
-  line-height: 1.05;
+  line-height: 1.12;
   margin-bottom: 20px;
   text-wrap: balance;
 }
@@ -78,4 +78,9 @@
 }
 
 /* El nombre de una comparación puede ser más largo que la pantalla: el botón pasa a dos líneas. */
-.cmp-page .btn { max-width: 100%; height: auto; white-space: normal; text-align: left; }
+.cmp-page .btn { max-width: 100%; height: auto; padding-top: 8px; padding-bottom: 8px; white-space: normal; text-align: left; }
+/* En el teléfono los tres botones se apilan parejos, con el mismo aire. */
+@media (max-width: 560px) {
+  .cmp-page .read-actions { flex-direction: column; align-items: stretch; gap: 8px; }
+  .cmp-page .read-actions .btn { justify-content: center; text-align: center; padding: 10px 16px; }
+}

@@ -196,3 +196,26 @@ test('una comparación que no existe da 404', async ({ page }) => {
   const res = await page.goto('/en/compare/zerosoft-vs-nadie');
   expect(res?.status()).toBe(404);
 });
+
+test('una raíz con punto no es un idioma: 404, y los feeds de la raíz llevan al feed real', async ({ request }) => {
+  for (const path of ['/wp-login.php', '/foo.bar', '/.env']) {
+    const res = await request.get(path, { maxRedirects: 0 });
+    expect(res.status(), path).toBe(404);
+    expect(await res.text(), path).not.toContain(`lang="${path.slice(1)}"`);
+  }
+  for (const path of ['/rss.xml', '/feed.xml']) {
+    const res = await request.get(path, { maxRedirects: 0 });
+    expect(res.status(), path).toBe(308);
+    expect(res.headers().location, path).toBe('/en/blog/rss.xml');
+  }
+});
+
+test('índices con datos estructurados y descripciones que entran en el buscador', async ({ page }) => {
+  for (const url of ['/en', '/en/products', '/es/products', '/pt/products', '/en/changelog', '/en/docs', '/en/tools']) {
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+    const desc = await page.locator('meta[name="description"]').getAttribute('content');
+    expect(desc?.length ?? 0, `${url} description`).toBeLessThanOrEqual(160);
+    if (url !== '/en' && url !== '/en/tools') expect(await page.locator('script[type="application/ld+json"]').count(), url).toBeGreaterThan(0);
+  }
+});
+

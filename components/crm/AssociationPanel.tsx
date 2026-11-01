@@ -170,6 +170,7 @@ export default function AssociationPanel({
         </ul>
       )}
 
+      {available.length === 0 && !action && <p className="muted assoc-none">{t('assoc.noneToAdd')}</p>}
       {(available.length > 0 || action) && (
         <div className="assoc-add-row">
           {available.length > 0 && (

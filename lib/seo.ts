@@ -101,7 +101,25 @@ export const DEFAULT_OG_IMAGE = '/api/og/home';
 export const TITLE_SUFFIX_MAX = 50;
 
 /** Metadata completa de una página pública. */
-export function pageMetadata(seo: PageSeo): Metadata {
+/** Largo que los buscadores muestran de una descripción. */
+export const META_DESCRIPTION_MAX = 160;
+
+/**
+ * Recorta una descripción a lo que el buscador muestra: hasta la última frase
+ * completa que entra y, si la primera ya no entra, hasta la última palabra.
+ */
+export function clampDescription(text: string, max = META_DESCRIPTION_MAX): string {
+  const clean = text.replace(/\s+/g, ' ').trim();
+  if (clean.length <= max) return clean;
+  const head = clean.slice(0, max);
+  const sentence = head.search(/[.!?](?=\s[^.!?]*$)/);
+  if (sentence >= 60) return head.slice(0, sentence + 1);
+  const cut = head.slice(0, max - 1);
+  return `${cut.slice(0, cut.lastIndexOf(' ')).replace(/[\s,;:·]+$/, '')}…`;
+}
+
+export function pageMetadata(input: PageSeo): Metadata {
+  const seo = { ...input, description: clampDescription(input.description) };
   const alternates = alternatesFor(seo.path, seo.locale, seo.locales);
   const image = seo.image ?? DEFAULT_OG_IMAGE;
   const ogLocale = isSeoLocale(seo.locale) ? OG_LOCALE[seo.locale] : OG_LOCALE.en;

@@ -428,7 +428,7 @@
   display: inline-block;
   vertical-align: bottom;
 }
-.cell-inline:hover { border-bottom-color: var(--dim); }
+.cell-inline:hover { border-bottom-color: var(--dim); text-decoration: none; }
 .cell-inline.empty { color: var(--ink-disabled); }
 
 .cell-quick {
@@ -3252,6 +3252,8 @@ section.pb-body, section.pb-qs, section.pb-runs { padding: 0; }
     color: var(--brand-gray-2);
   }
   .crm-cards td[data-card='line'] > :first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  /* El teléfono va en un div propio: que llene la línea para que sus botones queden bajo el del email. */
+  .crm-cards tbody td.cell-sub { max-width: none; margin-top: 0; }
   /* Una línea vacía de la tarjeta (sin email, sin empresa) no se muestra: un "—" suelto no dice de qué es. */
   .crm-cards tbody td[data-card='line']:has(> .cell-inline.empty:only-child),
   .crm-cards tbody td[data-card='line']:has(> .cell-empty:only-child) { display: none; }
