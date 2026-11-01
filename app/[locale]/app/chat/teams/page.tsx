@@ -5,6 +5,8 @@ import { listChatAgents } from '@/lib/chat-data';
 import PageHeader from '@/components/ui/PageHeader';
 import TeamsClient from '@/components/chat/TeamsClient';
 import RoutingClient from '@/components/chat/RoutingClient';
+import SnoozeOptionsClient from '@/components/chat/SnoozeOptionsClient';
+import { listChatTeams } from '@/lib/chat-collab';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +22,7 @@ export default async function ChatTeamsPage(props: { params: Promise<{ locale: s
       <Suspense fallback={null}>
         <TeamsClient agents={agents} canManage={isWorkspaceAdmin(user)} />
         <RoutingClient canManage={isWorkspaceAdmin(user)} />
+        <SnoozeOptionsClient canManage={isWorkspaceAdmin(user)} teams={(await listChatTeams(user.id)).map((x) => ({ id: x.id, name: x.name }))} />
       </Suspense>
     </div>
   );

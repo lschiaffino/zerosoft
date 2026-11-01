@@ -7995,6 +7995,53 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Rec, gauntlet contra Loom: etiquetas y estilo de subtítulos en cada video, subtítulos
+    // traducidos y comentarios que responden con un video. Solo agrega: no toca filas existentes.
+    id: '195_rec_tags_captions_replies',
+    async up(client) {
+      await addColumn(client, "ALTER TABLE rec_videos ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(client, "ALTER TABLE rec_videos ADD COLUMN caption_style TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, "ALTER TABLE rec_videos ADD COLUMN caption_langs TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(client, 'ALTER TABLE rec_comments ADD COLUMN reply_video_id TEXT');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS rec_caption_tracks (
+          video_id TEXT NOT NULL REFERENCES rec_videos(id) ON DELETE CASCADE,
+          lang TEXT NOT NULL,
+          segments TEXT NOT NULL DEFAULT '[]',
+          created_by TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (video_id, lang)
+        );
+      `);
+    },
+  },
+  {
+    // Chat, gauntlet contra Intercom: fuente, adjuntos y tiempo de respuesta del messenger, uso de
+    // respuestas guardadas, campañas programadas y opciones propias de posponer. Solo agrega columnas y una tabla.
+    id: '196_chat_messenger_macros_schedule',
+    async up(client) {
+      await addColumn(client, "ALTER TABLE chat_widgets ADD COLUMN font TEXT NOT NULL DEFAULT 'system'");
+      await addColumn(client, "ALTER TABLE chat_widgets ADD COLUMN visitor_attachments TEXT NOT NULL DEFAULT 'all'");
+      await addColumn(client, "ALTER TABLE chat_widgets ADD COLUMN reply_time TEXT NOT NULL DEFAULT ''");
+      await addColumn(client, 'ALTER TABLE chat_canned_responses ADD COLUMN use_count INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE chat_canned_responses ADD COLUMN last_used_at TEXT');
+      await addColumn(client, 'ALTER TABLE chat_campaigns ADD COLUMN scheduled_at TEXT');
+      await addColumn(client, 'ALTER TABLE chat_campaigns ADD COLUMN schedule_error TEXT');
+      await client.executeMultiple(`
+        CREATE INDEX IF NOT EXISTS idx_chat_campaigns_due ON chat_campaigns(scheduled_at) WHERE scheduled_at IS NOT NULL;
+        CREATE TABLE IF NOT EXISTS chat_snooze_options (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          label TEXT NOT NULL,
+          minutes INTEGER NOT NULL,
+          team_id TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_snooze_options_ws ON chat_snooze_options(workspace_id);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

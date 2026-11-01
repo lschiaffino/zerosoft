@@ -58,7 +58,47 @@
     "discardConfirm": "Discard this recording?",
     "keepRecording": "Keep recording",
     "stopHint": "Finish (Alt+Shift+S)",
-    "pauseHint": "Pause or resume (Alt+Shift+P)"
+    "pauseHint": "Pause or resume (Alt+Shift+P)",
+    "look": "Camera look",
+    "shape": "Bubble shape",
+    "shapes": {
+      "circle": "Circle",
+      "square": "Square"
+    },
+    "frame": "Bubble frame",
+    "frames": {
+      "white": "White",
+      "dark": "Dark",
+      "accent": "Red",
+      "none": "No frame"
+    },
+    "lowLight": "Low light boost",
+    "blur": "Blur my background",
+    "blurNote": "Background blur depends on your browser and system, and this one does not offer it for this camera.",
+    "filterNote": "This browser cannot apply the low light boost.",
+    "drawTools": "Drawing tools while recording",
+    "notes": "Speaker notes",
+    "notesPlaceholder": "Write what you want to say",
+    "notesHelp": "Only you see them, on this page or in the floating window. If you share this window, they appear in the video.",
+    "float": "Floating controls",
+    "floatOpen": "Controls are in the floating window",
+    "floatOff": "Floating controls need Chrome or Edge on a computer.",
+    "drawGroup": "Drawing tools",
+    "pen": "Draw",
+    "pointer": "Pointer",
+    "drawHelp": "Draw or point on the preview above. It goes into the video; it does not follow your mouse on other windows.",
+    "inkColors": {
+      "e11d48": "Red",
+      "f59e0b": "Amber",
+      "2563eb": "Blue",
+      "ffffff": "White"
+    },
+    "rewind": "Go back",
+    "rewindBack": "{n} s",
+    "rewindUndo": "Undo",
+    "rewindHelp": "Removes the last seconds from the video. Press Resume, wait for the notice to end and say it again.",
+    "rewindOff": "Going back is not available in this recording: it needs a WebM recording of up to 600 MB.",
+    "rewindLead": "Recording. Start talking in {n} s"
   },
   "player": {
     "label": "Video player: {title}",
@@ -69,7 +109,9 @@
     "speed": "Playback speed {speed}",
     "unmute": "Unmute",
     "mute": "Mute",
-    "fullscreen": "Full screen"
+    "fullscreen": "Full screen",
+    "captionLang": "Captions language",
+    "captionOriginal": "Original"
   },
   "comments": {
     "title": "Comments",
@@ -101,7 +143,10 @@
     "guest": "Guest",
     "authorBadge": "Author",
     "more": "Show older comments ({shown} of {total})",
-    "signinToComment": "Sign in to comment on this video."
+    "signinToComment": "Sign in to comment on this video.",
+    "replyVideo": "Reply with video",
+    "recordReply": "Record a video",
+    "replyVideoLink": "Video reply · {time}"
   },
   "common": {
     "copied": "Copied",
@@ -289,7 +334,10 @@
     "archiveAction": "Archive",
     "restore": "Restore",
     "archived": "Archived",
-    "restored": "Restored"
+    "restored": "Restored",
+    "filterByTag": "Tags",
+    "tags": "Tags",
+    "noTagMatches": "No videos here have that tag."
   },
   "record": {
     "title": "Record a video",
@@ -305,7 +353,9 @@
     "statusSynced": "Uploaded",
     "savingOffline": "No connection. The recording is safe in this browser and uploads by itself when you are back online.",
     "downloadLocal": "Download recording",
-    "later": "Finish later"
+    "later": "Finish later",
+    "replyBody": "Video reply",
+    "replyNote": "When you finish, this video is posted as a reply. It has its own link and follows the privacy of your new videos."
   },
   "share": {
     "title": "Share",
@@ -475,12 +525,14 @@
     "kind": {
       "text": "Text",
       "box": "Box",
-      "arrow": "Arrow"
+      "arrow": "Arrow",
+      "link": "Link"
     },
     "add": {
       "text": "Add text",
       "box": "Add box",
-      "arrow": "Add arrow"
+      "arrow": "Add arrow",
+      "link": "Add link"
     },
     "colors": {
       "ffffff": "White",
@@ -489,7 +541,9 @@
       "f59e0b": "Amber",
       "16a34a": "Green",
       "2563eb": "Blue"
-    }
+    },
+    "url": "Link",
+    "urlHelp": "Web links only. It opens in a new tab when someone clicks it on the video."
   },
   "edit": {
     "title": "Edit from the transcript",
@@ -578,5 +632,81 @@
     "transferConfirmTitle": "Transfer this content?",
     "transferConfirmBody": "{videos, plural, one {# video} other {# videos}} and {folders, plural, one {# folder} other {# folders}} go from {from} to {to}. {to} will also see the personal videos of {from}.",
     "transferNone": "Nobody who left has videos or folders here."
+  },
+  "tags": {
+    "label": "Tags",
+    "none": "No tags",
+    "placeholder": "Add a tag",
+    "help": "Enter or comma adds it. Tags help you filter the library and find videos with Cmd+K.",
+    "limit": "A video can have up to {n} tags.",
+    "remove": "Remove tag {tag}"
+  },
+  "captions": {
+    "title": "Captions",
+    "help": "How captions look on this video, in the app, on the shared page and in embeds. Downloaded files do not carry them.",
+    "size": "Size",
+    "sizes": {
+      "small": "Small",
+      "medium": "Medium",
+      "large": "Large"
+    },
+    "look": "Look",
+    "looks": {
+      "dark": "White on dark",
+      "light": "Dark on white",
+      "yellow": "Yellow on dark"
+    },
+    "position": "Position",
+    "positions": {
+      "bottom": "Bottom",
+      "top": "Top"
+    },
+    "translations": "Translations",
+    "translationsHelp": "Viewers pick the language from the player, next to CC. Each translation uses the AI quota of the workspace.",
+    "needTranscript": "Translations need a transcript. When this video has one, you can translate it here.",
+    "noTranslations": "No translations yet.",
+    "language": "Language",
+    "pick": "Pick a language",
+    "translate": "Translate",
+    "translating": "Translating",
+    "remove": "Remove",
+    "limit": "A video can have up to {n} translations.",
+    "errors": {
+      "too_many_caption_tracks": "This video already has the maximum number of translations.",
+      "no_transcript": "This video has no transcript yet.",
+      "transcript_too_long": "This transcript is too long to translate.",
+      "ai_disabled": "AI is off for this workspace.",
+      "ai_failed": "The translation failed. Try again."
+    }
+  },
+  "admin": {
+    "insights": "Workspace insights",
+    "insightsHelp": "Last {days} days, for admins.",
+    "videos": "Videos",
+    "creators": "People recording",
+    "views": "Views",
+    "viewers": "Unique viewers",
+    "comments": "Comments",
+    "byPerson": "By person",
+    "person": "Person",
+    "noPeople": "Nobody has recorded yet.",
+    "topVideos": "Most watched",
+    "noTop": "No views you can list in this period.",
+    "viewsN": "{n, plural, one {# view} other {# views}}",
+    "privateNote": "Counts include everyone's personal videos. Titles only appear for videos you can open.",
+    "activity": "Activity log",
+    "activityHelp": "Who changed sharing, retention or content. Video titles are not shown here.",
+    "noActivity": "Nothing yet.",
+    "someone": "Someone",
+    "actions": {
+      "share_change": "changed who can watch a video",
+      "retention_on": "turned on retention for {days} days",
+      "transfer": "transferred {count} videos",
+      "recap": "emailed a recap to {count} people",
+      "export_doc": "turned a video into a Docs page",
+      "export_issue": "turned a video into a Track issue",
+      "captions_translate": "translated the captions of a video",
+      "delete_video": "deleted a video"
+    }
   }
 }

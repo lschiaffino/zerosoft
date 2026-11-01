@@ -34,6 +34,8 @@ export default function CannedClient({ widgetId, agents = [] }: CannedClientProp
   const [responses, setResponses] = useState<ChatCannedResponseRow[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [byUse, setByUse] = useState(false);
+  const sorted = byUse ? [...responses].sort((a, b) => Number(b.use_count ?? 0) - Number(a.use_count ?? 0)) : responses;
   const [error, setError] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -187,13 +189,19 @@ export default function CannedClient({ widgetId, agents = [] }: CannedClientProp
                 <th scope="col">{t('canned.shortcut')}</th>
                 <th scope="col">{t('canned.body')}</th>
                 <th scope="col">{t('canned.autoActions')}</th>
+                <th scope="col" aria-sort={byUse ? 'descending' : 'none'}>
+                  <button type="button" className="chat-sort-button" onClick={() => setByUse((v) => !v)} data-testid="chat-canned-sort-usage">
+                    {t('canned.usage')}
+                    <span aria-hidden="true">{byUse ? ' ↓' : ''}</span>
+                  </button>
+                </th>
                 <th scope="col">
                   <span className="sr-only">{t('common.actions')}</span>
                 </th>
               </tr>
             </thead>
             <tbody>
-              {responses.map((r) => {
+              {sorted.map((r) => {
                 const summary = describe(parseCannedActions(r.actions));
                 return (
                   <tr key={r.id}>
@@ -209,6 +217,9 @@ export default function CannedClient({ widgetId, agents = [] }: CannedClientProp
                       <span className="chat-clamp">{r.body}</span>
                     </td>
                     <td className="chat-canned-macro" data-label={t('canned.autoActions')}>{summary || <span className="chat-quiet">{t('macros.none')}</span>}</td>
+                    <td className="chat-canned-usage data" data-label={t('canned.usage')} data-testid="chat-canned-usage">
+                      {Number(r.use_count) > 0 ? t('canned.usedTimes', { count: Number(r.use_count) }) : <span className="chat-quiet">{t('canned.neverUsed')}</span>}
+                    </td>
                     <td className="chat-row-actions">
                       <button
                         type="button"

@@ -27,6 +27,8 @@ export interface ChatCampaign {
   sent: number;
   failed: number;
   sent_at: string | null;
+  scheduled_at: string | null;
+  schedule_error: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -201,6 +203,54 @@ async function reserveCap(workspaceId: string, limit: number, now: Date): Promis
  * la campaña a medio armar. El tope no corta el envío: sale hasta el cupo y el
  * resto queda pendiente para cuando se libere al día siguiente.
  */
+/** Programar el envío de un borrador. Se valida ahora para no descubrir el problema a la hora de mandar. */
+export async function scheduleCampaign(workspaceId: string, id: string, at: unknown, now = new Date()): Promise<ChatCampaign> {
+  const c = await getCampaign(workspaceId, id);
+  if (!c) throw new ChatCollabError('not_found', 404);
+  if (c.status !== 'draft') throw new ChatCollabError('already_sent', 409);
+  if (!c.subject.trim() || !c.body.trim()) throw new ChatCollabError('missing_body');
+  const when = new Date(typeof at === 'string' ? at : NaN);
+  if (Number.isNaN(when.getTime()) || when.getTime() < now.getTime() + 60_000 || when.getTime() > now.getTime() + 90 * 86_400_000) throw new ChatCollabError('invalid_schedule');
+  const info = await describeAudience(c.widget_id, c.audience);
+  if (info.size === 0) throw new ChatCollabError('no_recipients');
+  await getDb().prepare('UPDATE chat_campaigns SET scheduled_at = ?, schedule_error = NULL, updated_at = ? WHERE id = ?').run(when.toISOString(), now.toISOString(), id);
+  return (await getCampaign(workspaceId, id))!;
+}
+
+export async function unscheduleCampaign(workspaceId: string, id: string): Promise<ChatCampaign> {
+  const c = await getCampaign(workspaceId, id);
+  if (!c) throw new ChatCollabError('not_found', 404);
+  await getDb().prepare('UPDATE chat_campaigns SET scheduled_at = NULL, schedule_error = NULL, updated_at = ? WHERE id = ?').run(new Date().toISOString(), id);
+  return (await getCampaign(workspaceId, id))!;
+}
+
+/**
+ * Las programadas que ya vencieron: cada una se reclama (compare-and-set sobre
+ * scheduled_at) y arranca con las mismas reglas que a mano. Pocas por corrida
+ * para no comerle tiempo al resto del cron; por fecha, la más vieja primero.
+ */
+export async function startDueCampaigns(now = new Date(), limit = 5): Promise<number> {
+  const db = getDb();
+  const iso = now.toISOString();
+  const due = (await db
+    .prepare("SELECT id, workspace_id, scheduled_at FROM chat_campaigns WHERE status = 'draft' AND scheduled_at IS NOT NULL AND scheduled_at <= ? ORDER BY scheduled_at LIMIT ?")
+    .all(iso, limit)) as Array<{ id: string; workspace_id: string; scheduled_at: string }>;
+  let started = 0;
+  for (const c of due) {
+    const claim = await db.prepare('UPDATE chat_campaigns SET scheduled_at = NULL WHERE id = ? AND scheduled_at = ?').run(c.id, c.scheduled_at);
+    if (!claim.changes) continue;
+    try {
+      await startCampaign(c.workspace_id, c.id, now);
+      started += 1;
+    } catch (err) {
+      // Queda en borrador con el motivo a la vista (por ejemplo, ya no hay destinatarios con consentimiento).
+      const code = err instanceof ChatCollabError ? err.code : 'generic';
+      await db.prepare('UPDATE chat_campaigns SET schedule_error = ? WHERE id = ?').run(code, c.id);
+    }
+  }
+  return started;
+}
+
 export async function startCampaign(workspaceId: string, id: string, now = new Date()): Promise<ChatCampaign> {
   const db = getDb();
   const c = await getCampaign(workspaceId, id);
@@ -293,6 +343,8 @@ export async function processChatCampaigns(opts: { limit?: number; origin?: stri
   const origin = opts.origin ?? process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? 'https://zerosoft.ai';
   const gap = opts.gapMs ?? (process.env.RESEND_API_KEY ? SEND_GAP_MS : 0);
   const nowIso = new Date().toISOString();
+  // Solo el cron (sin campaña puntual) arranca las programadas.
+  if (!opts.campaignId) await startDueCampaigns().catch(() => 0);
   // Preparación que murió a la mitad: se retoma (el INSERT es idempotente).
   const staleAt = new Date(Date.now() - 600_000).toISOString();
   const stuck = (await db.prepare(`SELECT id, widget_id, audience, total FROM chat_campaigns WHERE status = 'preparing' AND updated_at < ?`).all(staleAt)) as Array<{ id: string; widget_id: string; audience: string; total: number }>;

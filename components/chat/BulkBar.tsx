@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import type { ChatAgent } from '@/lib/chat-data';
 import type { BulkAction } from '@/lib/chat-inbox';
 import { SNOOZE_OPTIONS } from './inbox-model';
+import { useSnoozeOptions } from './useSnoozeOptions';
 
 interface BulkBarProps {
   selected: ReadonlySet<string>;
@@ -23,6 +24,7 @@ interface BulkBarProps {
  */
 export default function BulkBar({ selected, visibleIds, agents, currentUserId, onSelect, onDone }: BulkBarProps) {
   const t = useTranslations('chat');
+  const snoozeOptions = useSnoozeOptions();
   const [busy, setBusy] = useState(false);
   const [tag, setTag] = useState('');
   const [status, setStatus] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
@@ -115,6 +117,11 @@ export default function BulkBar({ selected, visibleIds, agents, currentUserId, o
               {t(`conversation.snooze.${opt.key}`)}
             </option>
           ))}
+                  {snoozeOptions.map((o) => (
+                    <option key={o.id} value={o.minutes * 60_000}>
+                      {o.label}
+                    </option>
+                  ))}
         </select>
         <form
           className="chat-bulk-tag"

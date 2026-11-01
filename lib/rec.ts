@@ -20,12 +20,15 @@ import { deleteUploads } from './uploads';
 import {
   chaptersInTrim,
   chaptersToText,
+  cleanCaptionStyle,
   cleanEmails,
   cleanOverlays,
+  cleanTags,
   MAX_REC_ALLOWED,
   overlaysInTrim,
   remapChapters,
   remapSegments,
+  type RecCaptionStyle,
   type RecEditPiece,
   type RecOverlay,
   coveredPct,
@@ -192,6 +195,9 @@ export interface RecVideoRow {
   trimmed_url: string | null;
   trimmed_for: string | null;
   comments_require_account: number;
+  tags: string;
+  caption_style: string;
+  caption_langs: string;
   processing_at: string | null;
   views: number;
   last_viewed_at: string | null;
@@ -225,6 +231,9 @@ export interface RecVideoDto {
   archived: boolean;
   spaceId: string | null;
   overlays: RecOverlay[];
+  tags: string[];
+  captionStyle: RecCaptionStyle;
+  captionLangs: string[];
   hasPassword: boolean;
   expiresAt: string | null;
   allowDownload: boolean;
@@ -236,6 +245,7 @@ export interface RecVideoDto {
   transcript: RecSegment[];
   transcriptStatus: RecTranscriptStatus;
   transcriptError: string | null;
+  transcriptLang: string | null;
   summary: string;
   /** El resumen corresponde al recorte vigente (o lo escribió la persona). */
   summaryFitsTrim: boolean;
@@ -295,6 +305,9 @@ export function toDto(row: RecVideoRow & { author_name?: string | null }, actor:
     archived: !!row.archived_at,
     spaceId: row.space_id ?? null,
     overlays: manager ? parseJson<RecOverlay[]>(row.overlays, []) : overlaysInTrim(parseJson<RecOverlay[]>(row.overlays, []), row.trim_start, row.trim_end),
+    tags: parseJson<string[]>(row.tags, []),
+    captionStyle: cleanCaptionStyle(parseJson<unknown>(row.caption_style || '{}', {})),
+    captionLangs: parseJson<string[]>(row.caption_langs, []),
     hasPassword: !!row.password_hash,
     expiresAt: row.expires_at,
     allowDownload: !!row.allow_download,
@@ -306,6 +319,7 @@ export function toDto(row: RecVideoRow & { author_name?: string | null }, actor:
     transcript,
     transcriptStatus: row.transcript_status,
     transcriptError: row.transcript_error,
+    transcriptLang: row.transcript_lang,
     summary: manager || summaryFitsTrim(row) ? row.summary : '',
     summaryFitsTrim: summaryFitsTrim(row),
     commentsRequireAccount: !!row.comments_require_account,
@@ -405,7 +419,7 @@ async function canEnterSpace(a: RecActor, spaceId: string | null | undefined): P
  * SQL de lo que esta persona ve en la biblioteca: lo suyo, y lo del workspace
  * salvo los espacios de los que no es miembro. Todo listado pasa por acá.
  */
-function visibleSql(alias: string, a: RecActor): { sql: string; args: Array<string | number> } {
+export function visibleSql(alias: string, a: RecActor): { sql: string; args: Array<string | number> } {
   const t = alias ? `${alias}.` : '';
   return {
     sql: `(${t}created_by = ? OR (${t}space = 'workspace' AND (${t}space_id IS NULL OR ? = 1 OR ${t}space_id IN (SELECT space_id FROM rec_space_members WHERE user_id = ?))))`,
@@ -518,6 +532,7 @@ export interface RecListItem {
   hasGif: boolean;
   archived: boolean;
   watchLater: boolean;
+  tags: string[];
   spaceId: string | null;
   contentType: string;
   size: number;
@@ -566,14 +581,14 @@ export async function listVideos(a: RecActor, scope: RecScope, q = ''): Promise<
   }
   const needle = q.trim();
   if (needle) {
-    where.push("(v.title LIKE ? ESCAPE '\\' OR v.description LIKE ? ESCAPE '\\' OR v.transcript LIKE ? ESCAPE '\\')");
-    const like = `%${needle.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
-    args.push(like, like, like);
+    where.push("(v.title LIKE ? ESCAPE '\\' OR v.description LIKE ? ESCAPE '\\' OR v.transcript LIKE ? ESCAPE '\\' OR v.tags LIKE ? ESCAPE '\\')");
+    const like = `%${needle.replace(/^#/, '').replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
+    args.push(like, like, like, like);
   }
   const rows = (await getDb()
     .prepare(
       `SELECT v.id, v.share_id, v.title, v.status, v.space, v.folder_id, v.duration_sec, v.trim_start, v.trim_end, v.views,
-              v.archived_at, v.space_id, v.content_type, v.size, v.thumb_url, v.gif_url, v.thumb_at, v.thumb_for, v.gif_for, v.created_by, v.workspace_id, v.created_at, v.updated_at, v.description${needle ? ', v.transcript' : ''},
+              v.archived_at, v.space_id, v.content_type, v.size, v.thumb_url, v.gif_url, v.thumb_at, v.thumb_for, v.gif_for, v.created_by, v.workspace_id, v.created_at, v.updated_at, v.description, v.tags${needle ? ', v.transcript' : ''},
               COALESCE(u.name, u.email, '') AS author_name,
               EXISTS (SELECT 1 FROM rec_watch_later l WHERE l.video_id = v.id AND l.user_id = ?) AS in_later,
               (SELECT COUNT(DISTINCT viewer_key) FROM rec_views w WHERE w.video_id = v.id) AS unique_viewers,
@@ -593,6 +608,7 @@ export async function listVideos(a: RecActor, scope: RecScope, q = ''): Promise<
       comments: number;
       description: string;
       transcript?: string;
+      tags: string;
     }
   >;
   return rows.filter((r) => !needle || matchesVisibleText(a, r, needle)).map((r) => ({
@@ -612,6 +628,7 @@ export async function listVideos(a: RecActor, scope: RecScope, q = ''): Promise<
     hasGif: !!r.gif_url && (canManage(a, r) || assetVisible(r, 'gif')),
     archived: !!r.archived_at,
     watchLater: !!Number(r.in_later),
+    tags: parseJson<string[]>(r.tags, []),
     spaceId: r.space_id ?? null,
     contentType: r.content_type,
     size: Number(r.size) || 0,
@@ -629,11 +646,12 @@ export async function listVideos(a: RecActor, scope: RecScope, q = ''): Promise<
  */
 function matchesVisibleText(
   a: RecActor,
-  r: Pick<RecVideoRow, 'workspace_id' | 'created_by' | 'space' | 'title' | 'trim_start' | 'trim_end'> & { description?: string; transcript?: string },
+  r: Pick<RecVideoRow, 'workspace_id' | 'created_by' | 'space' | 'title' | 'trim_start' | 'trim_end'> & { description?: string; transcript?: string; tags?: string },
   needle: string,
 ): boolean {
-  const n = needle.toLowerCase();
+  const n = needle.toLowerCase().replace(/^#/, '');
   if (r.title.toLowerCase().includes(n) || (r.description ?? '').toLowerCase().includes(n)) return true;
+  if (parseJson<string[]>(r.tags ?? '[]', []).some((t) => t.includes(n))) return true;
   const segs = parseJson<RecSegment[]>(r.transcript ?? '[]', []);
   const visible = canManage(a, r) ? segs : segmentsInTrim(segs, r.trim_start, r.trim_end);
   return visible.some((x) => x.text.toLowerCase().includes(n));
@@ -643,18 +661,18 @@ function matchesVisibleText(
 export async function searchRec(a: RecActor, q: string, limit = 6): Promise<Array<{ id: string; kind: 'video' | 'folder' | 'space'; label: string; meta: string }>> {
   const needle = q.trim();
   if (!needle) return [];
-  const like = `%${needle.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
+  const like = `%${needle.replace(/^#/, '').replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
   const vis = visibleSql('', a);
   const vids = (await getDb()
     .prepare(
-      `SELECT id, title AS label, title, description, transcript, duration_sec, workspace_id, created_by, space, trim_start, trim_end FROM rec_videos
+      `SELECT id, title AS label, title, description, transcript, tags, duration_sec, workspace_id, created_by, space, trim_start, trim_end FROM rec_videos
        WHERE workspace_id = ? AND status = 'ready' AND ${vis.sql}
-         AND (title LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\' OR transcript LIKE ? ESCAPE '\\')
+         AND (title LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\' OR transcript LIKE ? ESCAPE '\\' OR tags LIKE ? ESCAPE '\\')
        ORDER BY updated_at DESC LIMIT 40`,
     )
-    .all(a.ws, ...vis.args, like, like, like)
+    .all(a.ws, ...vis.args, like, like, like, like)
     .catch(() => [])) as Array<
-    { id: string; label: string; duration_sec: number; description: string; transcript: string } & Pick<
+    { id: string; label: string; duration_sec: number; description: string; transcript: string; tags: string } & Pick<
       RecVideoRow,
       'workspace_id' | 'created_by' | 'space' | 'title' | 'trim_start' | 'trim_end'
     >
@@ -735,6 +753,8 @@ export async function createVideo(
 }
 
 export interface RecVideoPatch {
+  tags?: unknown;
+  captionStyle?: unknown;
   title?: string;
   description?: string;
   summary?: string;
@@ -877,6 +897,8 @@ export async function updateVideo(a: RecActor, id: string, patch: RecVideoPatch)
     }
   }
   if (patch.ctaMode !== undefined) set('cta_mode', patch.ctaMode === 'end' ? 'end' : 'always');
+  if (patch.tags !== undefined) set('tags', JSON.stringify(cleanTags(patch.tags)));
+  if (patch.captionStyle !== undefined) set('caption_style', JSON.stringify(cleanCaptionStyle(patch.captionStyle)));
   let dropCut: string | null = null;
   if (patch.trimStart !== undefined || patch.trimEnd !== undefined) {
     const rawStart = patch.trimStart ?? v.trim_start;
@@ -1177,6 +1199,8 @@ export interface PublicVideoDto {
   ctaMode: RecCtaMode;
   hasThumb: boolean;
   overlays: RecOverlay[];
+  captionStyle: RecCaptionStyle;
+  captionLangs: string[];
 }
 
 /** Lo que ve quien abre el link. Si no es el autor, solo lo que queda dentro del recorte. */
@@ -1204,6 +1228,8 @@ export function toPublicDto(v: RecVideoRow & { author_name: string | null }, isA
     ctaMode: v.cta_mode,
     hasThumb: !!v.thumb_url && (isAuthor || assetVisible(v, 'thumb')),
     overlays: isAuthor ? parseJson<RecOverlay[]>(v.overlays, []) : overlaysInTrim(parseJson<RecOverlay[]>(v.overlays, []), v.trim_start, v.trim_end),
+    captionStyle: cleanCaptionStyle(parseJson<unknown>(v.caption_style || '{}', {})),
+    captionLangs: parseJson<string[]>(v.caption_langs, []),
   };
 }
 
@@ -1429,6 +1455,8 @@ export interface RecCommentDto {
   byAuthor: boolean;
   mine: boolean;
   createdAt: string;
+  /** Respuesta en video: el link al video de quien respondió (tiene su propia privacidad). */
+  replyVideo: { shareId: string; durationSec: number } | null;
 }
 
 export interface RecCommentPage {
@@ -1453,9 +1481,24 @@ type CommentRow = {
   author_name: string;
   viewer_key: string;
   created_at: string;
+  reply_video_id?: string | null;
 };
 
-function commentDto(r: CommentRow, viewerKey: string | null, authorId: string): RecCommentDto {
+type ReplyVideos = Map<string, { shareId: string; durationSec: number }>;
+
+/** Videos de las respuestas que siguen existiendo y están listos. */
+async function replyVideosFor(rows: CommentRow[]): Promise<ReplyVideos> {
+  const ids = [...new Set(rows.map((r) => r.reply_video_id).filter((x): x is string => !!x))];
+  const out: ReplyVideos = new Map();
+  if (!ids.length) return out;
+  const found = (await getDb()
+    .prepare(`SELECT id, share_id, duration_sec FROM rec_videos WHERE status = 'ready' AND id IN (${ids.map(() => '?').join(',')})`)
+    .all(...ids)) as Array<{ id: string; share_id: string; duration_sec: number }>;
+  for (const v of found) out.set(v.id, { shareId: v.share_id, durationSec: v.duration_sec });
+  return out;
+}
+
+function commentDto(r: CommentRow, viewerKey: string | null, authorId: string, replyVideos: ReplyVideos = new Map()): RecCommentDto {
   return {
     id: r.id,
     parentId: r.parent_id,
@@ -1468,6 +1511,7 @@ function commentDto(r: CommentRow, viewerKey: string | null, authorId: string): 
     byAuthor: !!r.user_id && r.user_id === authorId,
     mine: !!viewerKey && r.viewer_key === viewerKey,
     createdAt: r.created_at,
+    replyVideo: r.reply_video_id ? (replyVideos.get(r.reply_video_id) ?? null) : null,
   };
 }
 
@@ -1505,8 +1549,9 @@ export async function listComments(
   const total = Number(
     ((await db.prepare("SELECT COUNT(*) AS n FROM rec_comments WHERE video_id = ? AND kind = 'comment' AND parent_id IS NULL").get(v.id)) as { n: number }).n,
   );
+  const replyVideos = await replyVideosFor([...page, ...replies]);
   return {
-    comments: [...page.map(({ rid: _rid, ...r }) => r), ...replies].map((r) => commentDto(r, viewerKey, v.created_by)),
+    comments: [...page.map(({ rid: _rid, ...r }) => r), ...replies].map((r) => commentDto(r, viewerKey, v.created_by, replyVideos)),
     reactions: Object.fromEntries(counts.map((c) => [c.emoji, Number(c.n)])),
     reactionMarks: marks.map((r) => commentDto(r, viewerKey, v.created_by)),
     nextBefore: top.length > limit ? String(page[page.length - 1].rid) : null,
@@ -1517,7 +1562,7 @@ export async function listComments(
 export async function addComment(
   v: RecVideoRow,
   viewer: RecViewer,
-  input: { kind: 'comment' | 'reaction'; body?: string; emoji?: string; atSec?: number | null; parentId?: string | null },
+  input: { kind: 'comment' | 'reaction'; body?: string; emoji?: string; atSec?: number | null; parentId?: string | null; replyVideoId?: string | null },
 ): Promise<RecCommentDto> {
   if (!v.allow_comments) throw new RecError('comments_off', 403);
   if (v.comments_require_account && !viewer.userId) throw new RecError('signin_required', 403);
@@ -1544,16 +1589,24 @@ export async function addComment(
     parentId = p.id;
   }
   const at = input.atSec === null || input.atSec === undefined || parentId ? null : Math.max(0, Math.min(Number(input.atSec) || 0, Math.max(v.duration_sec, 0) || 12 * 3600));
+  // Responder con un video: solo con sesión y con un video propio ya listo.
+  let replyVideoId: string | null = null;
+  if (input.replyVideoId && kind === 'comment') {
+    if (!viewer.userId) throw new RecError('signin_required', 403);
+    const own = (await getDb().prepare("SELECT id FROM rec_videos WHERE id = ? AND created_by = ? AND status = 'ready'").get(input.replyVideoId, viewer.userId)) as { id: string } | undefined;
+    if (!own) throw new RecError('invalid_input');
+    replyVideoId = own.id;
+  }
   const id = crypto.randomUUID();
   await getDb()
     .prepare(
-      `INSERT INTO rec_comments (id, video_id, workspace_id, parent_id, kind, body, emoji, at_sec, user_id, author_name, viewer_key)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO rec_comments (id, video_id, workspace_id, parent_id, kind, body, emoji, at_sec, user_id, author_name, viewer_key, reply_video_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, v.id, v.workspace_id, parentId, kind, body, emoji, at === null ? null : Math.round(at * 10) / 10, viewer.userId, name, viewer.key);
+    .run(id, v.id, v.workspace_id, parentId, kind, body, emoji, at === null ? null : Math.round(at * 10) / 10, viewer.userId, name, viewer.key, replyVideoId);
   if (!viewer.isAuthor) await notifyCommentGrouped(v, viewer.userId ? name : `${name} (guest)`, kind, body, emoji);
   const row = (await getDb().prepare('SELECT * FROM rec_comments WHERE id = ?').get(id)) as CommentRow;
-  return commentDto(row, viewer.key, v.created_by);
+  return commentDto(row, viewer.key, v.created_by, await replyVideosFor([row]));
 }
 
 /** Borrar un comentario: quien lo escribió (misma clave de espectador) o quien administra el video. */

@@ -58,7 +58,47 @@
     "discardConfirm": "Descartar esta gravação?",
     "keepRecording": "Continuar gravando",
     "stopHint": "Terminar (Alt+Shift+S)",
-    "pauseHint": "Pausar ou continuar (Alt+Shift+P)"
+    "pauseHint": "Pausar ou continuar (Alt+Shift+P)",
+    "look": "Como a câmera aparece",
+    "shape": "Forma da bolha",
+    "shapes": {
+      "circle": "Círculo",
+      "square": "Quadrada"
+    },
+    "frame": "Moldura da bolha",
+    "frames": {
+      "white": "Branca",
+      "dark": "Escura",
+      "accent": "Vermelha",
+      "none": "Sem moldura"
+    },
+    "lowLight": "Mais luz para lugares escuros",
+    "blur": "Desfocar meu fundo",
+    "blurNote": "O desfoque depende do navegador e do sistema, e este não oferece para esta câmera.",
+    "filterNote": "Este navegador não consegue aplicar o ajuste de luz.",
+    "drawTools": "Ferramentas de desenho ao gravar",
+    "notes": "Notas para ler",
+    "notesPlaceholder": "Escreva o que quer dizer",
+    "notesHelp": "Só você vê, nesta página ou na janela flutuante. Se compartilhar esta janela, elas aparecem no vídeo.",
+    "float": "Controles flutuantes",
+    "floatOpen": "Os controles estão na janela flutuante",
+    "floatOff": "Os controles flutuantes precisam do Chrome ou Edge em um computador.",
+    "drawGroup": "Ferramentas de desenho",
+    "pen": "Desenhar",
+    "pointer": "Ponteiro",
+    "drawHelp": "Desenhe ou aponte na prévia acima. Fica no vídeo; não acompanha seu mouse em outras janelas.",
+    "inkColors": {
+      "e11d48": "Vermelho",
+      "f59e0b": "Âmbar",
+      "2563eb": "Azul",
+      "ffffff": "Branco"
+    },
+    "rewind": "Voltar",
+    "rewindBack": "{n} s",
+    "rewindUndo": "Desfazer",
+    "rewindHelp": "Tira os últimos segundos do vídeo. Clique em Retomar, espere o aviso terminar e diga de novo.",
+    "rewindOff": "Nesta gravação não dá para voltar: precisa de uma gravação WebM de até 600 MB.",
+    "rewindLead": "Gravando. Comece a falar em {n} s"
   },
   "player": {
     "label": "Player: {title}",
@@ -69,7 +109,9 @@
     "speed": "Velocidade {speed}",
     "unmute": "Ativar som",
     "mute": "Silenciar",
-    "fullscreen": "Tela cheia"
+    "fullscreen": "Tela cheia",
+    "captionLang": "Idioma das legendas",
+    "captionOriginal": "Original"
   },
   "comments": {
     "title": "Comentários",
@@ -101,7 +143,10 @@
     "guest": "Convidado",
     "authorBadge": "Autor",
     "more": "Ver comentários anteriores ({shown} de {total})",
-    "signinToComment": "Entre com sua conta para comentar este vídeo."
+    "signinToComment": "Entre com sua conta para comentar este vídeo.",
+    "replyVideo": "Responder com vídeo",
+    "recordReply": "Gravar um vídeo",
+    "replyVideoLink": "Resposta em vídeo · {time}"
   },
   "common": {
     "copied": "Copiado",
@@ -289,7 +334,10 @@
     "archiveAction": "Arquivar",
     "restore": "Restaurar",
     "archived": "Arquivado",
-    "restored": "Restaurado"
+    "restored": "Restaurado",
+    "filterByTag": "Etiquetas",
+    "tags": "Etiquetas",
+    "noTagMatches": "Nenhum vídeo aqui tem essa etiqueta."
   },
   "record": {
     "title": "Gravar um vídeo",
@@ -305,7 +353,9 @@
     "statusSynced": "Enviado",
     "savingOffline": "Sem conexão. A gravação está segura neste navegador e é enviada sozinha quando a rede voltar.",
     "downloadLocal": "Baixar a gravação",
-    "later": "Terminar depois"
+    "later": "Terminar depois",
+    "replyBody": "Resposta em vídeo",
+    "replyNote": "Ao terminar, este vídeo é publicado como resposta. Ele tem link próprio e segue a privacidade dos seus vídeos novos."
   },
   "share": {
     "title": "Compartilhar",
@@ -475,12 +525,14 @@
     "kind": {
       "text": "Texto",
       "box": "Caixa",
-      "arrow": "Seta"
+      "arrow": "Seta",
+      "link": "Link"
     },
     "add": {
       "text": "Adicionar texto",
       "box": "Adicionar caixa",
-      "arrow": "Adicionar seta"
+      "arrow": "Adicionar seta",
+      "link": "Adicionar link"
     },
     "colors": {
       "ffffff": "Branco",
@@ -489,7 +541,9 @@
       "f59e0b": "Âmbar",
       "16a34a": "Verde",
       "2563eb": "Azul"
-    }
+    },
+    "url": "Link",
+    "urlHelp": "Só links web. Abre em outra aba ao clicar no vídeo."
   },
   "edit": {
     "title": "Editar pela transcrição",
@@ -578,5 +632,81 @@
     "transferConfirmTitle": "Transferir este conteúdo?",
     "transferConfirmBody": "{videos, plural, one {# vídeo} other {# vídeos}} e {folders, plural, one {# pasta} other {# pastas}} passam de {from} para {to}. {to} também vai ver os vídeos pessoais de {from}.",
     "transferNone": "Ninguém que saiu tem vídeos ou pastas aqui."
+  },
+  "tags": {
+    "label": "Etiquetas",
+    "none": "Sem etiquetas",
+    "placeholder": "Adicionar uma etiqueta",
+    "help": "Enter ou vírgula adiciona. Servem para filtrar a biblioteca e encontrar vídeos com Cmd+K.",
+    "limit": "Um vídeo pode ter até {n} etiquetas.",
+    "remove": "Remover a etiqueta {tag}"
+  },
+  "captions": {
+    "title": "Legendas",
+    "help": "Como as legendas aparecem neste vídeo, no app, na página compartilhada e ao incorporar. Arquivos baixados não as levam.",
+    "size": "Tamanho",
+    "sizes": {
+      "small": "Pequeno",
+      "medium": "Médio",
+      "large": "Grande"
+    },
+    "look": "Estilo",
+    "looks": {
+      "dark": "Branco no escuro",
+      "light": "Escuro no branco",
+      "yellow": "Amarelo no escuro"
+    },
+    "position": "Posição",
+    "positions": {
+      "bottom": "Embaixo",
+      "top": "Em cima"
+    },
+    "translations": "Traduções",
+    "translationsHelp": "Quem assiste escolhe o idioma no player, ao lado de CC. Cada tradução usa a cota de IA do workspace.",
+    "needTranscript": "As traduções precisam de transcrição. Quando este vídeo tiver, dá para traduzir aqui.",
+    "noTranslations": "Ainda não há traduções.",
+    "language": "Idioma",
+    "pick": "Escolha um idioma",
+    "translate": "Traduzir",
+    "translating": "Traduzindo",
+    "remove": "Remover",
+    "limit": "Um vídeo pode ter até {n} traduções.",
+    "errors": {
+      "too_many_caption_tracks": "Este vídeo já tem o máximo de traduções.",
+      "no_transcript": "Este vídeo ainda não tem transcrição.",
+      "transcript_too_long": "Esta transcrição é longa demais para traduzir.",
+      "ai_disabled": "A IA está desligada neste workspace.",
+      "ai_failed": "A tradução falhou. Tente de novo."
+    }
+  },
+  "admin": {
+    "insights": "Uso do workspace",
+    "insightsHelp": "Últimos {days} dias, para admins.",
+    "videos": "Vídeos",
+    "creators": "Pessoas gravando",
+    "views": "Visualizações",
+    "viewers": "Espectadores únicos",
+    "comments": "Comentários",
+    "byPerson": "Por pessoa",
+    "person": "Pessoa",
+    "noPeople": "Ninguém gravou ainda.",
+    "topVideos": "Os mais vistos",
+    "noTop": "Não há visualizações que você possa listar neste período.",
+    "viewsN": "{n, plural, one {# visualização} other {# visualizações}}",
+    "privateNote": "Os números incluem os vídeos pessoais de cada um. Os títulos só aparecem nos vídeos que você pode abrir.",
+    "activity": "Registro de atividade",
+    "activityHelp": "Quem mudou o compartilhamento, a retenção ou o conteúdo. Títulos de vídeos não aparecem aqui.",
+    "noActivity": "Nada ainda.",
+    "someone": "Alguém",
+    "actions": {
+      "share_change": "mudou quem pode ver um vídeo",
+      "retention_on": "ligou a retenção em {days} dias",
+      "transfer": "transferiu {count} vídeos",
+      "recap": "enviou um resumo por email a {count} pessoas",
+      "export_doc": "transformou um vídeo em uma página do Docs",
+      "export_issue": "transformou um vídeo em uma issue do Track",
+      "captions_translate": "traduziu as legendas de um vídeo",
+      "delete_video": "apagou um vídeo"
+    }
   }
 }

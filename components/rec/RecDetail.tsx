@@ -17,6 +17,8 @@ import RecComments from './RecComments';
 import RecCopy from './RecCopy';
 import RecActions from './RecActions';
 import RecEditTools from './RecEditTools';
+import RecCaptionEditor from './RecCaptionEditor';
+import RecTags from './RecTags';
 import RecOverlayEditor from './RecOverlayEditor';
 import RecDownload from './RecDownload';
 import RecShareDialog from './RecShareDialog';
@@ -345,7 +347,7 @@ export default function RecDetail({
           {video.archived ? `${t('badgeArchived')} · ` : ''}
           {video.privacy === 'people' ? t('badgePeople') : video.privacy === 'workspace' ? t('badgeWorkspace') : t('badgeLink')}
           {video.hasPassword ? ` · ${t('badgePassword')}` : ''}
-          {video.expiresAt ? ` · ${t('badgeExpires', { date: new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(parseDbUtc(video.expiresAt)) })}` : ''}
+          {video.expiresAt && mounted ? ` · ${t('badgeExpires', { date: new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(parseDbUtc(video.expiresAt)) })}` : ''}
         </span>
       </div>
       {error && (
@@ -370,6 +372,8 @@ export default function RecDetail({
             onTime={setNow}
             overlays={overlays}
             noDownload={!video.canManage && !video.allowDownload}
+            captionStyle={video.captionStyle}
+            captionLangs={video.captionLangs}
           />
           <div className="ui-tabs" role="tablist" aria-label={t('tabs')}>
             {(['details', 'transcript', ...(video.canManage ? (['insights', 'edit'] as const) : [])] as Tab[]).map((k) => (
@@ -386,6 +390,7 @@ export default function RecDetail({
                   {transcriptMsg}
                 </p>
               )}
+              <RecTags tags={video.tags} canEdit={video.canManage} busy={busy} onSave={(tags) => void patch({ tags })} />
               <div className="ui-field">
                 <label className="label" htmlFor="rec-summary">
                   {t('summary')}
@@ -669,6 +674,19 @@ export default function RecDetail({
                 </div>
               </section>
               <RecOverlayEditor overlays={overlays} duration={video.durationSec} currentAbs={relNow} busy={busy} onChange={setOverlays} onSave={() => void patch({ overlays }, t('saved'))} />
+              <RecCaptionEditor
+                videoId={video.id}
+                style={video.captionStyle}
+                langs={video.captionLangs}
+                sourceLang={video.transcriptLang}
+                hasTranscript={video.transcript.length > 0}
+                busy={busy}
+                onStyle={(captionStyle) => void patch({ captionStyle }, t('saved'))}
+                onLangs={(captionLangs) => {
+                  setVideo((v) => ({ ...v, captionLangs }));
+                  changed();
+                }}
+              />
               <RecEditTools video={video} uploadMode={uploadMode} partBytes={partBytes} />
             </div>
           )}

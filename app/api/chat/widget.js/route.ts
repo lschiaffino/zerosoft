@@ -5,6 +5,17 @@ import { pickWidgetLocale, WIDGET_STRINGS } from '@/lib/chat-widget-i18n';
 
 export const dynamic = 'force-dynamic';
 
+// Las siete fuentes del messenger: pilas del sistema, sin cargar nada de afuera en el sitio del cliente.
+const WIDGET_FONT_STACKS = {
+  system: 'system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif',
+  humanist: 'Seravek,Gill Sans Nova,Ubuntu,Calibri,DejaVu Sans,source-sans-pro,sans-serif',
+  geometric: 'Avenir,Montserrat,Corbel,URW Gothic,source-sans-pro,sans-serif',
+  rounded: 'ui-rounded,Hiragino Maru Gothic ProN,Quicksand,Comfortaa,Manjari,Arial Rounded MT,Calibri,source-sans-pro,sans-serif',
+  serif: 'Iowan Old Style,Palatino Linotype,URW Palladio L,P052,serif',
+  slab: 'Rockwell,Rockwell Nova,Roboto Slab,DejaVu Serif,Sitka Small,serif',
+  mono: 'ui-monospace,Cascadia Code,Source Code Pro,Menlo,Consolas,DejaVu Sans Mono,monospace',
+} as const;
+
 function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: string) {
   const id = widget!.id;
   const color = widget!.color;
@@ -12,6 +23,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   // Sin mensaje propio: el saludo por defecto en el idioma del visitante.
   const welcomeMessage = widget!.welcome_message || null;
   const localeSetting = widget!.locale ?? 'auto';
+  const widgetFont = (widget!.font ?? 'system') as keyof typeof WIDGET_FONT_STACKS;
   const fields = (() => {
     try {
       const parsed = JSON.parse(widget!.fields);
@@ -49,6 +61,9 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   var ORIGIN = ${JSON.stringify(origin)};
   // Pestaña "Help": artículos publicados del centro de ayuda (Docs).
   var HELP = ${JSON.stringify(widget!.help_enabled === 1)};
+  var FONT = ${JSON.stringify(WIDGET_FONT_STACKS[widgetFont] ?? WIDGET_FONT_STACKS.system)};
+  var ATTACH_MODE = ${JSON.stringify(widget!.visitor_attachments ?? 'all')};
+  var REPLY_TIME = ${JSON.stringify(widget!.reply_time ?? '')};
   var STORAGE_KEY = 'zs_chat_visitor_' + WIDGET_ID;
   var MAX_FILE_SIZE = 10 * 1024 * 1024;
   var MAX_MESSAGE = ${CHAT_MESSAGE_MAX};
@@ -134,7 +149,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   // email en minúsculas con el secreto del widget, calculado en el server del
   // sitio: con una firma válida el email queda verificado en el inbox.
   var SCRIPT_EL = document.currentScript;
-  var identity = { email: null, name: null, userHash: null, campaignOptIn: false };
+  var identity = { email: null, name: null, userHash: null, campaignOptIn: false, attributes: null };
   function cleanIdentity(o) {
     if (!o || typeof o !== 'object') return;
     if (typeof o.email === 'string') {
@@ -147,6 +162,8 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     }
     if (typeof o.userHash === 'string' && /^[0-9a-fA-F]{64}$/.test(o.userHash)) identity.userHash = o.userHash;
     if (o.campaignOptIn === true) identity.campaignOptIn = true;
+    if (o.attributes && typeof o.attributes === 'object') identity.attributes = o.attributes;
+    updateAttachButton();
     if (typeof o.name === 'string') {
       var n = o.name.replace(/[\\u0000-\\u001f]/g, '').trim().slice(0, 120);
       if (n) identity.name = n;
@@ -173,6 +190,8 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     if (identity.name) payload.name = identity.name;
     if (identity.email && identity.userHash) payload.userHash = identity.userHash;
     if (identity.email && identity.userHash && identity.campaignOptIn) payload.campaignOptIn = true;
+    // Atributos de la persona: el servidor solo los toma si la firma es válida.
+    if (identity.email && identity.userHash && identity.attributes) payload.attributes = identity.attributes;
     payload.context = pageContext();
     return payload;
   }
@@ -236,7 +255,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   var root = dom('div', {
     id: 'zs-chat-root',
     style:
-      'position:fixed;z-index:99999;font-family:system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;font-size:14px;line-height:1.4;',
+      'position:fixed;z-index:99999;font-family:' + FONT + ';font-size:14px;line-height:1.4;',
   });
 
   var btn = dom('button', {
@@ -287,11 +306,111 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     'aria-expanded': 'false',
   }, [T('history')]);
   var closeBtn = dom('button', { style: 'background:none;border:none;color:#fff;font-size:18px;cursor:pointer;line-height:1;', 'aria-label': T('close') }, ['×']);
+  var searchBtn = dom('button', {
+    type: 'button',
+    id: 'zs-chat-search-btn',
+    style: 'background:none;border:none;color:#fff;cursor:pointer;padding:2px 4px;border-radius:4px;display:inline-flex;align-items:center;',
+    'aria-label': T('searchConversation'),
+    title: T('searchConversation'),
+    'aria-expanded': 'false',
+  });
+  searchBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>';
+  headActions.appendChild(searchBtn);
   headActions.appendChild(historyBtn);
   headActions.appendChild(closeBtn);
   header.appendChild(headActions);
 
   var messages = dom('div', { style: 'flex:1;overflow-y:auto;padding:16px;background:#f8f8f8;' });
+
+  // Buscar dentro de la conversación: marca lo encontrado sin tocar los mensajes (solo nodos de texto).
+  var searchBar = dom('div', { id: 'zs-chat-search', style: 'display:none;align-items:center;gap:8px;padding:8px 12px;background:#fff;border-bottom:1px solid rgba(0,0,0,0.06);' });
+  var searchInput = dom('input', {
+    type: 'search',
+    id: 'zs-chat-search-input',
+    placeholder: T('searchConversation'),
+    'aria-label': T('searchConversation'),
+    style: 'flex:1;min-width:0;border:1px solid rgba(0,0,0,0.15);border-radius:8px;padding:6px 8px;font:inherit;font-size:13px;color:#111;background:#fff;',
+  });
+  var searchCount = dom('span', { id: 'zs-chat-search-count', style: 'font-size:12px;color:#666;white-space:nowrap;' }, ['']);
+  searchBar.appendChild(searchInput);
+  searchBar.appendChild(searchCount);
+  var searchHits = [];
+  var searchIndex = 0;
+  function clearSearchMarks() {
+    var marks = messages.querySelectorAll('mark[data-zs-hit]');
+    for (var i = 0; i < marks.length; i++) {
+      var m = marks[i];
+      var parent = m.parentNode;
+      if (!parent) continue;
+      parent.replaceChild(document.createTextNode(m.textContent || ''), m);
+      parent.normalize();
+    }
+    searchHits = [];
+    searchIndex = 0;
+  }
+  function focusSearchHit() {
+    for (var i = 0; i < searchHits.length; i++) searchHits[i].style.background = i === searchIndex ? '#fbbf24' : '#fde68a';
+    var hit = searchHits[searchIndex];
+    if (hit && hit.scrollIntoView) hit.scrollIntoView({ block: 'center' });
+    searchCount.textContent = searchHits.length ? searchIndex + 1 + ' / ' + searchHits.length : searchInput.value.trim() ? T('searchNoMatches') : '';
+  }
+  function runSearch() {
+    clearSearchMarks();
+    var needle = searchInput.value.trim().toLowerCase();
+    if (!needle) {
+      searchCount.textContent = '';
+      return;
+    }
+    var walker = document.createTreeWalker(messages, NodeFilter.SHOW_TEXT);
+    var nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(function (node) {
+      var text = node.nodeValue || '';
+      var lower = text.toLowerCase();
+      var at = lower.indexOf(needle);
+      if (at < 0 || !node.parentNode) return;
+      var frag = document.createDocumentFragment();
+      var from = 0;
+      while (at >= 0) {
+        if (at > from) frag.appendChild(document.createTextNode(text.slice(from, at)));
+        var mark = document.createElement('mark');
+        mark.setAttribute('data-zs-hit', '1');
+        mark.style.cssText = 'background:#fde68a;color:#111;border-radius:2px;';
+        mark.textContent = text.slice(at, at + needle.length);
+        frag.appendChild(mark);
+        searchHits.push(mark);
+        from = at + needle.length;
+        at = lower.indexOf(needle, from);
+      }
+      if (from < text.length) frag.appendChild(document.createTextNode(text.slice(from)));
+      node.parentNode.replaceChild(frag, node);
+    });
+    searchIndex = 0;
+    focusSearchHit();
+  }
+  function toggleSearch(show) {
+    searchBar.style.display = show ? 'flex' : 'none';
+    searchBtn.setAttribute('aria-expanded', show ? 'true' : 'false');
+    if (show) searchInput.focus();
+    else {
+      searchInput.value = '';
+      clearSearchMarks();
+      searchCount.textContent = '';
+    }
+  }
+  searchBtn.addEventListener('click', function () { toggleSearch(searchBar.style.display === 'none'); });
+  searchInput.addEventListener('input', runSearch);
+  searchInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      toggleSearch(false);
+      searchBtn.focus();
+    } else if (e.key === 'Enter' && searchHits.length) {
+      e.preventDefault();
+      searchIndex = (searchIndex + (e.shiftKey ? searchHits.length - 1 : 1)) % searchHits.length;
+      focusSearchHit();
+    }
+  });
 
   var awayBanner = dom('div', {
     style:
@@ -324,7 +443,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
       'display:none;align-items:center;gap:6px;padding:8px 16px;font-size:12px;color:#666;background:#fff;border-top:1px solid rgba(0,0,0,0.04);',
   });
   typingIndicator.innerHTML =
-    '<span class="zs-chat-typing-dots"><span></span><span></span><span></span></span> Agent is typing…';
+    '<span class="zs-chat-typing-dots"><span></span><span></span><span></span></span> ' + T('agentTyping');
 
   var previewWrap = dom('div', {
     style:
@@ -349,6 +468,13 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
     title: T('attachFile'),
   }, ['⊕']);
   var fileInput = dom('input', { type: 'file', style: 'display:none;' });
+  // Quién puede adjuntar lo decide el widget (el servidor lo vuelve a comprobar).
+  function updateAttachButton() {
+    if (!attachBtn) return;
+    var allowed = ATTACH_MODE === 'all' || (ATTACH_MODE === 'identified' && identity.email && identity.userHash);
+    attachBtn.style.display = allowed ? '' : 'none';
+  }
+  updateAttachButton();
   var input = dom('input', {
     type: 'text',
     placeholder: T('placeholder'),
@@ -390,6 +516,11 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   helpPane.appendChild(helpFoot);
 
   box.appendChild(header);
+  if (REPLY_TIME) {
+    var replyKey = REPLY_TIME === 'minutes' ? 'replyMinutes' : REPLY_TIME === 'hour' ? 'replyHour' : 'replyDay';
+    box.appendChild(dom('div', { id: 'zs-chat-reply-time', style: 'padding:6px 16px;background:#fff;color:#555;font-size:12px;border-bottom:1px solid rgba(0,0,0,0.06);' }, [T(replyKey)]));
+  }
+  box.appendChild(searchBar);
   chatPane.appendChild(formWrap);
   chatPane.appendChild(awayBanner);
   chatPane.appendChild(messages);
@@ -1397,6 +1528,7 @@ function buildScript(widget: Awaited<ReturnType<typeof getChatWidget>>, origin: 
   }
 
   function renderAll(list) {
+    searchHits = [];
     messages.innerHTML = '';
     visitorBubbles = {};
     renderedEdits = {};

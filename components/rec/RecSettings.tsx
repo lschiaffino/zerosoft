@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import RecAdminInsights from './RecAdminInsights';
 import type { RecContentOwner, RecSettingsDto } from '@/lib/rec-admin';
 import { REC_RETENTION_GRACE_DAYS, REC_RETENTION_OPTIONS } from '@/lib/rec-schema';
 import { parseDbUtc } from '@/lib/utils';
@@ -297,6 +298,7 @@ export default function RecSettings() {
           </div>
         </section>
       )}
+      {data.admin && <RecAdminInsights />}
       {toast && (
         <div className="ui-toasts" aria-live="polite">
           <div className="ui-toast" role="status" data-testid="rec-settings-toast">

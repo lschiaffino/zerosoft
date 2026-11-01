@@ -1,3 +1,4 @@
+import { mergeVisitorAttributes } from '@/lib/chat-companies';
 import { after, NextResponse } from 'next/server';
 import { limitByIp } from '@/lib/rate-limit';
 import {
@@ -103,6 +104,10 @@ export async function POST(req: Request) {
   // Consentimiento para campañas: solo si el sitio firmó la identidad. Sin firma cualquiera podría anotar un email ajeno.
   if (verified && body.campaignOptIn === true && !visitor.campaign_opt_in_at && visitor.email === identity.email?.toLowerCase()) {
     await setCampaignOptIn(visitor.id, true);
+  }
+  // Atributos de la persona: solo con identidad firmada. Sin firma cualquiera podría escribirlos.
+  if (verified && body.attributes && typeof body.attributes === 'object') {
+    await mergeVisitorAttributes(visitor.id, body.attributes).catch(() => undefined);
   }
   // Respuestas del formulario y la página desde la que escribe (panel del inbox).
   visitor = await saveVisitorContext(visitor, {

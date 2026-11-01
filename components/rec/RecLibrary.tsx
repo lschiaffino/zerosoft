@@ -52,6 +52,7 @@ export default function RecLibrary({
   const [videos, setVideos] = useState(initialVideos);
   const [folders, setFolders] = useState(initialFolders);
   const [q, setQ] = useState('');
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -347,6 +348,8 @@ export default function RecLibrary({
     router.push(scope.folder.space === 'workspace' ? '/app/rec/workspace' : '/app/rec');
   }
 
+  const allTags = [...new Set(videos.flatMap((v) => v.tags))].sort((a, b) => a.localeCompare(b)).slice(0, 40);
+  const shownVideos = tagFilter ? videos.filter((v) => v.tags.includes(tagFilter)) : videos;
   const shareUrl = (v: RecListItem) => `${baseUrl}/${locale}/v/${v.shareId}`;
   const date = (d: string) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(parseDbUtc(d));
   const title =
@@ -508,7 +511,19 @@ export default function RecLibrary({
           ))}
         </ul>
       )}
-      {videos.length === 0 ? (
+      {allTags.length > 0 && (
+        <div className="rec-tag-filter" role="group" aria-label={t('filterByTag')} data-testid="rec-tag-filter">
+          <span className="label">{t('filterByTag')}</span>
+          {allTags.map((tag) => (
+            <button key={tag} type="button" className="rec-tag rec-tag-btn" aria-pressed={tagFilter === tag} onClick={() => setTagFilter(tagFilter === tag ? null : tag)}>
+              #{tag}
+            </button>
+          ))}
+        </div>
+      )}
+      {shownVideos.length === 0 && videos.length > 0 ? (
+        <p className="ui-help" data-testid="rec-tag-empty">{t('noTagMatches')}</p>
+      ) : videos.length === 0 ? (
         q ? (
           shownFolders.length ? null : 
           <p className="ui-help">{t('noMatches')}</p>
@@ -542,7 +557,7 @@ export default function RecLibrary({
         )
       ) : (
         <ul className="rec-grid" aria-label={t('videos')}>
-          {videos.map((v) => {
+          {shownVideos.map((v) => {
             const dur = trimmedDuration(v.durationSec, v.trimStart, v.trimEnd);
             const file = `/api/rec/videos/${v.id}/file`;
             return (
@@ -557,6 +572,16 @@ export default function RecLibrary({
                   </span>
                   <span className="rec-card-title">{v.title}</span>
                 </Link>
+                {v.tags.length > 0 && (
+                  <ul className="rec-tags rec-card-tags" aria-label={t('tags')}>
+                    {v.tags.slice(0, 3).map((tag) => (
+                      <li key={tag} className="rec-tag">
+                        #{tag}
+                      </li>
+                    ))}
+                    {v.tags.length > 3 && <li className="rec-tag muted">+{v.tags.length - 3}</li>}
+                  </ul>
+                )}
                 <div className="rec-card-meta">
                   <span className="muted">
                     {v.authorName ? `${v.authorName} · ` : ''}

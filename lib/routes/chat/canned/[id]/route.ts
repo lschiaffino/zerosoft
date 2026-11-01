@@ -6,6 +6,7 @@ import {
   deleteCannedResponse,
   getCannedResponse,
   getChatWidget,
+  markCannedUsed,
   updateCannedResponse,
 } from '@/lib/chat-data';
 
@@ -22,6 +23,17 @@ async function canAccessResponse(
   // cualquier usuario sin team sobre widgets personales ajenos (null === null).
   if (!await canAccessWidget(widget, user)) return { ok: false, response: null };
   return { ok: true, response };
+}
+
+/** Se insertó en una respuesta: suma al contador (solo para ver cuáles se usan y cuáles sobran). */
+export async function POST(_req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const { ok } = await canAccessResponse(params.id, user);
+  if (!ok) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  await markCannedUsed(params.id);
+  return NextResponse.json({ ok: true });
 }
 
 export async function GET(_req: Request, props: { params: Promise<{ id: string }> }) {

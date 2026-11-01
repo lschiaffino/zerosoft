@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
-import { defaultTitle, type RecMode } from '@/lib/rec-schema';
+import { defaultTitle, MAX_REC_EDIT_BYTES, type RecMode } from '@/lib/rec-schema';
 import Recorder, { type RecorderSink, type RecordingResult } from './Recorder';
 import { LiveUpload, finishRecording, type UploadStatus } from './liveUpload';
 import { localRecording, saveFile } from './recStore';
@@ -39,7 +39,22 @@ export function useUploadLabel() {
  * se puede descargar la grabación o dejarla para después (se recupera al
  * volver a abrir Rec en este navegador).
  */
-export default function RecRecordPage({ folderId, space, spaceId = null, baseUrl, transcriptionOn }: { folderId: string | null; space: 'personal' | 'workspace'; spaceId?: string | null; baseUrl: string; transcriptionOn: boolean }) {
+export default function RecRecordPage({
+  folderId,
+  space,
+  spaceId = null,
+  baseUrl,
+  transcriptionOn,
+  replyTo = null,
+}: {
+  folderId: string | null;
+  space: 'personal' | 'workspace';
+  spaceId?: string | null;
+  baseUrl: string;
+  transcriptionOn: boolean;
+  /** Responder con un video a un comentario de este video compartido. */
+  replyTo?: { shareId: string; parentId: string | null; atSec: number | null } | null;
+}) {
   const t = useTranslations('rec.record');
   const tc = useTranslations('rec.common');
   const locale = useLocale();
@@ -109,12 +124,24 @@ export default function RecRecordPage({ folderId, space, spaceId = null, baseUrl
     setStage('saving');
     setError(null);
     try {
-      await up.seal({ durationMs: r.durationSec * 1000, width: r.width, height: r.height, audio: r.audio, thumb: r.thumbnail, gif: r.gif });
+      await up.seal({ durationMs: r.durationSec * 1000, width: r.width, height: r.height, audio: r.audio, thumb: r.thumbnail, gif: r.gif, keep: r.keep });
       await finishRecording(up, setStatus);
       setRecording(false);
       const copied = await copyToClipboard(`${baseUrl}/${locale}/v/${up.info.shareId}`);
       notifyRecChanged();
       upload.current = null;
+      if (replyTo) {
+        // Queda como comentario del video original; si falla, el video igual quedó en la biblioteca.
+        const res = await fetch(`/api/rec/v/${encodeURIComponent(replyTo.shareId)}/comments`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ kind: 'comment', body: t('replyBody'), replyVideoId: up.videoId, parentId: replyTo.parentId, atSec: replyTo.parentId ? null : replyTo.atSec }),
+        }).catch(() => null);
+        if (res?.ok) {
+          window.location.assign(`/${locale}/v/${encodeURIComponent(replyTo.shareId)}`);
+          return;
+        }
+      }
       router.push(`/app/rec/${up.videoId}?created=${copied ? 'copied' : '1'}`);
     } catch (err) {
       setStage('error');
@@ -135,12 +162,15 @@ export default function RecRecordPage({ folderId, space, spaceId = null, baseUrl
   return (
     <div className="app-page ui-page rec-record-page" data-testid="rec-record-page">
       <PageHeader title={t('title')} description={t('desc')} back={{ href: back, label: t('back') }} />
+      {replyTo && <p className="ui-help rec-note" data-testid="rec-reply-note">{t('replyNote')}</p>}
       {!transcriptionOn && <p className="ui-help rec-note">{t('noTranscription')}</p>}
       {stage === 'record' && <RecPending />}
       {stage === 'record' && (
         <Recorder
           sink={sink}
           captureAudioTrack
+          rewind
+          canRewind={!status || status.totalBytes <= MAX_REC_EDIT_BYTES}
           onDone={(r) => void onDone(r)}
           onCancel={() => router.push(back)}
           status={

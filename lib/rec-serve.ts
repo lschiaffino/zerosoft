@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { segmentsInTrim, segmentsToVtt, type RecSegment } from './rec-schema';
+import { getDb } from './db';
+import { isCaptionLang, segmentsInTrim, segmentsToVtt, type RecSegment } from './rec-schema';
 import { assetVisible, videoFileFor, type RecVideoRow } from './rec';
 import type { serveRecFile as ServeFn } from './rec-upload';
 
@@ -21,8 +22,16 @@ export async function serveRecKind(
   const notFound = () => NextResponse.json({ error: 'not_found' }, { status: 404 });
   if (kind === 'captions') {
     let segments: RecSegment[] = [];
+    const lang = sp.get('lang');
+    let source = v.transcript;
+    if (lang) {
+      if (!isCaptionLang(lang)) return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
+      const track = (await getDb().prepare('SELECT segments FROM rec_caption_tracks WHERE video_id = ? AND lang = ?').get(v.id, lang)) as { segments: string } | undefined;
+      if (!track) return notFound();
+      source = track.segments;
+    }
     try {
-      segments = JSON.parse(v.transcript) as RecSegment[];
+      segments = JSON.parse(source) as RecSegment[];
     } catch {
       segments = [];
     }

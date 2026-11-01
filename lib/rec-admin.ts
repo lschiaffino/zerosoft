@@ -15,6 +15,7 @@ import {
   nowDb,
   RecError,
   summaryFitsTrim,
+  visibleSql,
   type RecActor,
   type RecVideoRow,
 } from './rec';
@@ -755,4 +756,98 @@ export async function sendRecap(a: RecActor, id: string, rawEmails: string[], sh
   await db.prepare('UPDATE rec_recaps SET sent = ? WHERE key = ?').run(sent, key);
   await recAudit(a.ws, a.actor, 'recap', { video: id, recipients: emails.length, sent });
   return { sent, duplicate: false };
+}
+
+// ============================================================
+// Vista de admin: uso del workspace y registro de actividad
+// ============================================================
+
+export interface RecWorkspaceInsights {
+  days: number;
+  videos: number;
+  creators: number;
+  views: number;
+  viewers: number;
+  comments: number;
+  /** Por persona: solo cantidades, también de sus videos personales. */
+  people: Array<{ userId: string; name: string; videos: number; views: number }>;
+  /** Títulos solo de lo que este admin puede ver (los videos personales de otros no salen). */
+  topVideos: Array<{ id: string; title: string; views: number }>;
+}
+
+/** Uso de Rec en el workspace, solo para admins. Lo personal de otros cuenta en los números, nunca con su título. */
+export async function recWorkspaceInsights(a: RecActor, days = 30): Promise<RecWorkspaceInsights> {
+  requireAdmin(a);
+  const window = `-${Math.max(1, Math.min(365, Math.round(days)))} days`;
+  const db = getDb();
+  const made = (await db
+    .prepare("SELECT COUNT(*) AS videos, COUNT(DISTINCT created_by) AS creators FROM rec_videos WHERE workspace_id = ? AND status = 'ready' AND created_at >= datetime('now', ?)")
+    .get(a.ws, window)) as { videos: number; creators: number };
+  const seen = (await db
+    .prepare("SELECT COUNT(*) AS views, COUNT(DISTINCT viewer_key) AS viewers FROM rec_views WHERE workspace_id = ? AND started_at >= datetime('now', ?)")
+    .get(a.ws, window)) as { views: number; viewers: number };
+  const talk = (await db
+    .prepare("SELECT COUNT(*) AS n FROM rec_comments WHERE workspace_id = ? AND kind = 'comment' AND created_at >= datetime('now', ?)")
+    .get(a.ws, window)) as { n: number };
+  const people = (await db
+    .prepare(
+      `SELECT v.created_by AS user_id, COALESCE(u.name, u.email, '') AS name,
+              SUM(CASE WHEN v.created_at >= datetime('now', ?) THEN 1 ELSE 0 END) AS videos,
+              (SELECT COUNT(*) FROM rec_views w JOIN rec_videos x ON x.id = w.video_id WHERE x.created_by = v.created_by AND x.workspace_id = v.workspace_id AND w.started_at >= datetime('now', ?)) AS views
+       FROM rec_videos v LEFT JOIN users u ON u.id = v.created_by
+       WHERE v.workspace_id = ? AND v.status = 'ready'
+       GROUP BY v.created_by ORDER BY videos DESC, views DESC LIMIT 20`,
+    )
+    .all(window, window, a.ws)) as Array<{ user_id: string; name: string; videos: number; views: number }>;
+  const vis = visibleSql('v', a);
+  const top = (await db
+    .prepare(
+      `SELECT v.id, v.title, COUNT(w.id) AS views FROM rec_videos v JOIN rec_views w ON w.video_id = v.id AND w.started_at >= datetime('now', ?)
+       WHERE v.workspace_id = ? AND v.status = 'ready' AND ${vis.sql}
+       GROUP BY v.id ORDER BY views DESC LIMIT 5`,
+    )
+    .all(window, a.ws, ...vis.args)) as Array<{ id: string; title: string; views: number }>;
+  return {
+    days,
+    videos: Number(made.videos) || 0,
+    creators: Number(made.creators) || 0,
+    views: Number(seen.views) || 0,
+    viewers: Number(seen.viewers) || 0,
+    comments: Number(talk.n) || 0,
+    people: people.map((p) => ({ userId: p.user_id, name: p.name, videos: Number(p.videos) || 0, views: Number(p.views) || 0 })),
+    topVideos: top.map((v) => ({ id: v.id, title: v.title, views: Number(v.views) || 0 })),
+  };
+}
+
+export interface RecActivityItem {
+  id: string;
+  action: string;
+  actorName: string;
+  createdAt: string;
+  days: number | null;
+  count: number | null;
+}
+
+const REC_ACTIVITY_PAGE = 50;
+
+/** Últimos movimientos de Rec, solo para admins. Sin títulos: quien mira puede no tener acceso a ese video. */
+export async function recActivity(a: RecActor): Promise<RecActivityItem[]> {
+  requireAdmin(a);
+  const rows = (await getDb()
+    .prepare(
+      `SELECT r.id, r.action, r.detail, r.created_at, COALESCE(u.name, u.email, '') AS actor_name
+       FROM rec_audit r LEFT JOIN users u ON u.id = r.actor_id
+       WHERE r.workspace_id = ? ORDER BY r.created_at DESC, r.rowid DESC LIMIT ?`,
+    )
+    .all(a.ws, REC_ACTIVITY_PAGE)) as Array<{ id: string; action: string; detail: string; created_at: string; actor_name: string }>;
+  return rows.map((r) => {
+    let d: Record<string, unknown> = {};
+    try {
+      d = JSON.parse(r.detail) as Record<string, unknown>;
+    } catch {
+      d = {};
+    }
+    const count = typeof d.videos === 'number' ? d.videos : typeof d.sent === 'number' ? d.sent : null;
+    return { id: r.id, action: r.action, actorName: r.actor_name, createdAt: r.created_at, days: typeof d.days === 'number' ? d.days : null, count };
+  });
 }
