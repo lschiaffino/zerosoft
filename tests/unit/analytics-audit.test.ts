@@ -79,6 +79,22 @@ describe('web overview', () => {
   });
 });
 
+describe('where a visit came from', () => {
+  it('counts the source once per session: moving inside the site adds nothing', async () => {
+    const { project } = await setup();
+    const h = { 'x-forwarded-for': '203.0.113.1' };
+    const first = { $session_id: 's1', $pathname: '/landing', $current_url: 'https://shop.test/landing?utm_source=news&utm_medium=email', $referrer: 'https://news.example.com/post', utm_source: 'news', utm_medium: 'email' };
+    await capture(project.public_key, '$pageview', 'a', h, first);
+    await new Promise((r) => setTimeout(r, 5));
+    await capture(project.public_key, '$pageview', 'a', h, { $session_id: 's1', $pathname: '/two', $current_url: 'https://shop.test/two', $referrer: 'https://shop.test/landing' });
+    const web = await runWeb(project, { kind: 'web', dateRange: { from: '-1d' }, compare: false });
+    expect(web.referrers).toEqual([{ key: 'news.example.com', visitors: 1, views: 2 }]);
+    expect(web.channels.map((c) => [c.key, c.visitors, c.views])).toEqual([['email', 1, 2]]);
+    expect(web.utmSources.map((c) => c.key)).toEqual(['news']);
+    expect(web.pages.map((c) => c.key).sort()).toEqual(['/landing', '/two']);
+  });
+});
+
 describe('flag payloads', () => {
   it('each variant has its own payload and decide returns the one that was assigned', async () => {
     const { project } = await setup();

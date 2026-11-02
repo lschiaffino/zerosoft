@@ -124,9 +124,17 @@ export default function LiveEvents({ projectId, initial }: { projectId: string; 
             <tbody>
               {events.map((e) => (
                 <Fragment key={e.id}>
-                  <tr>
+                  <tr className="an-live-row" onClick={() => setOpen(open === e.id ? null : e.id)}>
                     <td>
-                      <button type="button" className="an-row-button" aria-expanded={open === e.id} onClick={() => setOpen(open === e.id ? null : e.id)}>
+                      <button
+                        type="button"
+                        className="an-row-button"
+                        aria-expanded={open === e.id}
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          setOpen(open === e.id ? null : e.id);
+                        }}
+                      >
                         {e.event}
                       </button>
                     </td>

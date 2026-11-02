@@ -1002,6 +1002,23 @@ export async function runWeb(project: ProjectRow, q: WebQuery, now = Date.now())
       pvArgs(range),
     ).then((rows) => rows.map((r) => ({ key: String(r.key), visitors: Number(r.visitors), views: Number(r.views) })));
 
+  /**
+   * De dónde vino cada visita: lo dice el primer pageview de la sesión. Lo que se navega adentro
+   * del sitio no suma otra fuente. Los pageviews sin sesión (de un servidor) cuentan solos.
+   */
+  const topEntry = (col: string): Promise<Top> =>
+    all(
+      `WITH f AS (SELECT e.session_id AS sid, MIN(e.ts) AS t, COUNT(*) AS views FROM analytics_events e WHERE ${pv} AND e.session_id IS NOT NULL GROUP BY 1),
+       rows AS (
+         SELECT ${col} AS c, ${PERSON_KEY} AS person, f.views AS views FROM f
+           JOIN analytics_events e ON e.project_id = ? AND e.session_id = f.sid AND e.ts = f.t AND e.event = '$pageview' ${join} GROUP BY f.sid
+         UNION ALL
+         SELECT ${col} AS c, ${PERSON_KEY} AS person, 1 AS views FROM analytics_events e ${join} WHERE ${pv} AND e.session_id IS NULL
+       )
+       SELECT COALESCE(c, '(none)') AS key, COUNT(DISTINCT person) AS visitors, SUM(views) AS views FROM rows GROUP BY 1 ORDER BY visitors DESC, views DESC LIMIT 10`,
+      [...pvArgs(range), project.id, ...pvArgs(range)],
+    ).then((rows) => rows.map((r) => ({ key: String(r.key), visitors: Number(r.visitors), views: Number(r.views) })));
+
   const [cur, before, chart, pages, entries, referrers, utmSources, countries, devices, browsers, os, hosts, channels] = await Promise.all([
     stats(range),
     q.compare ? stats(prev) : Promise.resolve(null),
@@ -1016,14 +1033,14 @@ export async function runWeb(project: ProjectRow, q: WebQuery, now = Date.now())
        WHERE project_id = ? AND started_at >= ? AND started_at <= ? AND pageviews > 0${sessionFilter(range).sql} GROUP BY 1 ORDER BY visitors DESC LIMIT 10`,
       [project.id, range.from, range.to, ...sessionFilter(range).args],
     ).then((rows) => rows.map((r) => ({ key: String(r.key), visitors: Number(r.visitors), views: Number(r.views) }))),
-    top('e.referring_domain'),
-    top('e.utm_source'),
+    topEntry('e.referring_domain'),
+    topEntry('e.utm_source'),
     top('e.country'),
     top('e.device'),
     top('e.browser'),
     top('e.os'),
     top('e.host'),
-    top(channelSql('e')),
+    topEntry(channelSql('e')),
   ]);
   // Sin pageviews en el período: ¿el proyecto recibió alguno alguna vez? Cambia lo que se le dice a la persona.
   const hasPageviews =

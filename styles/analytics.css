@@ -406,3 +406,4 @@
 .an-ret-btn:focus-visible { outline: 2px solid var(--c-analytics); outline-offset: 2px; }
 .an-ret-mean th, .an-ret-mean td { font-weight: 600; }
 .an-ret-values tr.is-picked th { font-weight: 600; }
+.an-live-row { cursor: pointer; }
