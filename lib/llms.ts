@@ -87,7 +87,7 @@ export function llmsTxt(): string {
   lines.push('', '## Comparisons', '');
   for (const c of getComparisons()) {
     lines.push(
-      `- [${c.name} vs ${c.competitor}](${url(`/compare/${c.vsSlug}`)}): ${c.score.percent}% parity by our count (${c.score.have} included, ${c.score.partial} partial, ${c.score.missing} missing), reviewed ${c.lastReviewed}. Alternative page: ${url(`/compare/${c.altSlug}`)}`,
+      `- [${c.name} vs ${c.competitor}](${url(`/compare/${c.vsSlug}`)}): ${c.percentNote ? '' : `${c.score.percent}% parity by our count `}(${c.score.have} included, ${c.score.partial} partial, ${c.score.missing} missing), reviewed ${c.lastReviewed}. Alternative page: ${url(`/compare/${c.altSlug}`)}`,
     );
   }
   lines.push('', pricingSection(), '', '## Docs', '');
@@ -125,7 +125,7 @@ export function llmsFullTxt(): string {
     out.push(
       `### Parity with ${parity.competitor}`,
       '',
-      `${score.percent}% by our count: ${score.have} included, ${score.partial} partial, ${score.missing} missing out of ${score.counted} capabilities, reviewed against the code on ${parity.lastReviewed}.`,
+      `${parity.percentHidden ? 'By our count' : `${score.percent}% by our count`}: ${score.have} included, ${score.partial} partial, ${score.missing} missing out of ${score.counted} capabilities, reviewed against the code on ${parity.lastReviewed}.`,
       '',
     );
     const gaps = parity.rows.filter((r) => r.competitorHas && (r.status === 'missing' || r.status === 'partial'));

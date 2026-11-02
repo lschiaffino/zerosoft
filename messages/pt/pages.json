@@ -2114,7 +2114,8 @@
         "sub": "Abra o Forms, escolha um modelo e publique um link.",
         "button": "Abrir Forms"
       }
-    }
+    },
+    "parityCounts": "{have} incluídas, {partial} parciais de {counted} capacidades do {competitor}"
   },
   "product": {
     "launch": "Testar o {name}",
@@ -2178,7 +2179,10 @@
       "missingTitle": "O que ainda falta ({count})",
       "missingLead": "{competitor} tem isto e nós ainda não. Se precisar, vote no board público.",
       "vote": "Votar no board",
-      "noneYet": "O {name} ainda não inclui nenhuma capacidade: está em construção. Abaixo estão todas as que medimos."
+      "noneYet": "O {name} ainda não inclui nenhuma capacidade: está em construção. Abaixo estão todas as que medimos.",
+      "methodCounts": "Medimos {count} capacidades do {competitor} a partir da documentação dele. É nossa própria avaliação, verificada com o código em {date}.",
+      "areaCounts": "{have} incluídas · {partial} parciais · {missing} faltam",
+      "kickerCounts": "comparado com {competitor}"
     },
     "building": {
       "badge": "Em construção",
@@ -3522,7 +3526,7 @@
   "parityOverview": {
     "title": "Paridade de funções, app por app.",
     "titleDim": "Medida contra cada concorrente.",
-    "lead": "Paridade média dos 24 apps: {average}%. Comparamos {counted} capacidades da ferramenta que cada app substitui.",
+    "lead": "Paridade média de {apps} dos 24 apps: {average} %. Comparamos {counted} capacidades da ferramenta que cada app substitui.",
     "col": {
       "app": "App",
       "competitor": "Comparado com",
@@ -3532,7 +3536,8 @@
       "missing": "Faltam",
       "beyond": "Além"
     },
-    "method": "Cada app soma 1 por capacidade incluída, 0,5 por parcial e 0 por faltante, com peso dobrado para as centrais. É a nossa avaliação contra o código e é atualizada a cada versão. Abra um app para ver a lista completa."
+    "method": "Cada app soma 1 por capacidade incluída, 0,5 por parcial e 0 por faltante, com peso dobrado para as centrais. É a nossa avaliação contra o código e é atualizada a cada versão. Abra um app para ver a lista completa.",
+    "notComparable": "Não comparável"
   },
   "desktopLogin": {
     "title": "Entrar no app do zerosoft",
@@ -3612,7 +3617,8 @@
         "pages": "Páginas"
       },
       "vsLink": "{name} vs {competitor}",
-      "altLink": "Alternativa ao {competitor}"
+      "altLink": "Alternativa ao {competitor}",
+      "notComparable": "Não comparável"
     },
     "vs": {
       "metaTitle": "zerosoft {name} vs {competitor}: comparação recurso por recurso",
@@ -3627,11 +3633,14 @@
         "oursValue": "$0 no seu servidor (AGPLv3). Na zerosoft Cloud: plano grátis e depois pagamento por uso. Assentos não são cobrados.",
         "license": "Licença do {name}",
         "licenseValue": "AGPLv3, código no GitHub",
-        "reviewed": "Última revisão"
+        "reviewed": "Última revisão",
+        "counts": "Incluídas · parciais · faltam"
       },
       "tableTitle": "Recurso por recurso.",
       "tableTitleDim": "A nossa conta, a partir do código.",
-      "altCta": "Alternativa ao {competitor}: o que você tem e o que falta"
+      "altCta": "Alternativa ao {competitor}: o que você tem e o que falta",
+      "metaDescriptionCounts": "{name} ao lado do {competitor}, em {count} capacidades da documentação dele: {have} incluídas, {partial} parciais, {missing} faltam. Código aberto, $0 no seu servidor.",
+      "leadCounts": "{name} é o app da zerosoft que substitui o {competitor}. Percorrendo as {count} capacidades da documentação dele, contamos {have} incluídas, {partial} parciais e {missing} que faltam. A tabela vem dos mesmos dados da página do produto."
     },
     "alt": {
       "metaTitle": "Alternativa open source ao {competitor}: zerosoft {name}",
@@ -3648,7 +3657,9 @@
       "moveTitle": "Como migrar do {competitor}",
       "vsCta": "Ver a tabela completa",
       "partial": "parcial",
-      "missing": "falta"
+      "missing": "falta",
+      "metaDescriptionCounts": "zerosoft {name} é uma alternativa de código aberto ao {competitor}: $0 no seu servidor, plano grátis no zerosoft Cloud. De {count} capacidades da documentação dele, {have} estão incluídas e {partial} são parciais.",
+      "leadCounts": "{name} roda no seu servidor por $0 sob AGPLv3, ou no zerosoft Cloud com um plano grátis e preço por uso, sem cobrança por pessoa. Das {count} capacidades da documentação do {competitor}, contamos {have} incluídas, {partial} parciais e {missing} que faltam."
     },
     "faqTitle": "Perguntas.",
     "relatedTitle": "Guias e posts",

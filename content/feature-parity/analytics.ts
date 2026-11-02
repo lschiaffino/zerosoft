@@ -36,6 +36,13 @@ const BASE_AREAS = new Set(['ingest', 'privacy', 'insights', 'people', 'flags', 
 const parity: ProductParity = {
   competitor: 'PostHog',
   lastReviewed: '2026-11-01',
+  percentHidden: {
+    note: loc([
+      'This comparison goes through the full PostHog docs, feature by feature, so it has many more rows than the other apps and its numbers are not comparable with their percentages. That is why there is no overall percentage here.',
+      'Esta comparación recorre toda la documentación de PostHog, función por función, así que tiene muchas más filas que las otras apps y sus números no se comparan con los porcentajes de ellas. Por eso acá no hay un porcentaje general.',
+      'Esta comparação percorre toda a documentação do PostHog, função por função, por isso tem muito mais linhas que os outros apps e seus números não se comparam com as porcentagens deles. Por isso aqui não há uma porcentagem geral.',
+    ]),
+  },
   areas: [
     { id: 'ingest', label: loc(['Capture and SDKs', 'Captura y SDKs', 'Captura e SDKs']) },
     { id: 'privacy', label: loc(['Privacy and limits', 'Privacidad y límites', 'Privacidade e limites']) },

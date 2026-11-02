@@ -2114,7 +2114,8 @@
         "sub": "Abrí Forms, elegí una plantilla y publicá un link.",
         "button": "Abrir Forms"
       }
-    }
+    },
+    "parityCounts": "{have} incluidas, {partial} parciales de {counted} capacidades de {competitor}"
   },
   "product": {
     "launch": "Probar {name}",
@@ -2178,7 +2179,10 @@
       "missingTitle": "Lo que todavía falta ({count})",
       "missingLead": "{competitor} tiene esto y nosotros todavía no. Si te hace falta, votalo en el board público.",
       "vote": "Votar en el board",
-      "noneYet": "{name} todavía no incluye ninguna capacidad: está en construcción. Abajo están todas las que medimos."
+      "noneYet": "{name} todavía no incluye ninguna capacidad: está en construcción. Abajo están todas las que medimos.",
+      "methodCounts": "Medimos {count} capacidades de {competitor} a partir de su documentación. Es nuestra propia evaluación, comprobada contra el código el {date}.",
+      "areaCounts": "{have} incluidas · {partial} parciales · {missing} faltan",
+      "kickerCounts": "comparado con {competitor}"
     },
     "building": {
       "badge": "En construcción",
@@ -3522,7 +3526,7 @@
   "parityOverview": {
     "title": "Paridad de funciones, app por app.",
     "titleDim": "Medida contra cada competidor.",
-    "lead": "Paridad promedio de las 24 apps: {average}%. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
+    "lead": "Paridad promedio de {apps} de las 24 apps: {average} %. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
     "col": {
       "app": "App",
       "competitor": "Comparada con",
@@ -3532,7 +3536,8 @@
       "missing": "Faltan",
       "beyond": "Más allá"
     },
-    "method": "Cada app suma 1 por capacidad incluida, 0,5 por parcial y 0 por faltante, con peso doble para las centrales. Es nuestra evaluación contra el código y se actualiza con cada versión. Abrí una app para ver la lista completa."
+    "method": "Cada app suma 1 por capacidad incluida, 0,5 por parcial y 0 por faltante, con peso doble para las centrales. Es nuestra evaluación contra el código y se actualiza con cada versión. Abrí una app para ver la lista completa.",
+    "notComparable": "No comparable"
   },
   "desktopLogin": {
     "title": "Entrar a la app de zerosoft",
@@ -3612,7 +3617,8 @@
         "pages": "Páginas"
       },
       "vsLink": "{name} vs {competitor}",
-      "altLink": "Alternativa a {competitor}"
+      "altLink": "Alternativa a {competitor}",
+      "notComparable": "No comparable"
     },
     "vs": {
       "metaTitle": "zerosoft {name} vs {competitor}: comparación función por función",
@@ -3627,11 +3633,14 @@
         "oursValue": "$0 en tu servidor (AGPLv3). En zerosoft Cloud: plan gratis y después pago por uso. Los asientos no se cobran.",
         "license": "Licencia de {name}",
         "licenseValue": "AGPLv3, código en GitHub",
-        "reviewed": "Última revisión"
+        "reviewed": "Última revisión",
+        "counts": "Incluidas · parciales · faltan"
       },
       "tableTitle": "Función por función.",
       "tableTitleDim": "Nuestra cuenta, desde el código.",
-      "altCta": "Alternativa a {competitor}: qué tenés y qué falta"
+      "altCta": "Alternativa a {competitor}: qué tenés y qué falta",
+      "metaDescriptionCounts": "{name} al lado de {competitor}, en {count} capacidades de su documentación: {have} incluidas, {partial} parciales, {missing} faltan. Código abierto, $0 en tu servidor.",
+      "leadCounts": "{name} es la app de zerosoft que reemplaza a {competitor}. Recorriendo las {count} capacidades de su documentación, contamos {have} incluidas, {partial} parciales y {missing} que faltan. La tabla sale de los mismos datos que la página de producto."
     },
     "alt": {
       "metaTitle": "Alternativa open source a {competitor}: zerosoft {name}",
@@ -3648,7 +3657,9 @@
       "moveTitle": "Cómo pasarte desde {competitor}",
       "vsCta": "Ver la tabla completa",
       "partial": "parcial",
-      "missing": "falta"
+      "missing": "falta",
+      "metaDescriptionCounts": "zerosoft {name} es una alternativa de código abierto a {competitor}: $0 en tu servidor, plan gratis en zerosoft Cloud. De {count} capacidades de su documentación, {have} están incluidas y {partial} son parciales.",
+      "leadCounts": "{name} corre en tu servidor por $0 bajo AGPLv3, o en zerosoft Cloud con un plan gratis y precio por uso, sin cobro por persona. De las {count} capacidades de la documentación de {competitor}, contamos {have} incluidas, {partial} parciales y {missing} que faltan."
     },
     "faqTitle": "Preguntas.",
     "relatedTitle": "Guías y posts",
