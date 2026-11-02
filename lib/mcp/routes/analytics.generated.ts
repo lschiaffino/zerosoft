@@ -34,16 +34,15 @@ import * as r31 from "@/app/api/analytics/properties/route";
 import * as r32 from "@/app/api/analytics/query/route";
 import * as r33 from "@/app/api/analytics/replay/route";
 import * as r34 from "@/lib/routes/analytics/replay/[id]/route";
-import * as r35 from "@/lib/routes/analytics/replay/[id]/chunks/route";
-import * as r36 from "@/app/api/analytics/replay/sessions/route";
-import * as r37 from "@/app/api/analytics/shares/route";
-import * as r38 from "@/lib/routes/analytics/shares/[id]/route";
-import * as r39 from "@/app/api/analytics/surveys/route";
-import * as r40 from "@/lib/routes/analytics/surveys/[id]/route";
-import * as r41 from "@/lib/routes/analytics/surveys/[id]/export/route";
-import * as r42 from "@/lib/routes/analytics/surveys/[id]/results/route";
-import * as r43 from "@/app/api/analytics/web-live/route";
-import * as r44 from "@/app/api/analytics/web-vitals/route";
+import * as r35 from "@/app/api/analytics/replay/sessions/route";
+import * as r36 from "@/app/api/analytics/shares/route";
+import * as r37 from "@/lib/routes/analytics/shares/[id]/route";
+import * as r38 from "@/app/api/analytics/surveys/route";
+import * as r39 from "@/lib/routes/analytics/surveys/[id]/route";
+import * as r40 from "@/lib/routes/analytics/surveys/[id]/export/route";
+import * as r41 from "@/lib/routes/analytics/surveys/[id]/results/route";
+import * as r42 from "@/app/api/analytics/web-live/route";
+import * as r43 from "@/app/api/analytics/web-vitals/route";
 
 export const routes: Record<string, unknown> = {
   "/api/analytics/actions": r0,
@@ -81,14 +80,13 @@ export const routes: Record<string, unknown> = {
   "/api/analytics/query": r32,
   "/api/analytics/replay": r33,
   "/api/analytics/replay/[id]": r34,
-  "/api/analytics/replay/[id]/chunks": r35,
-  "/api/analytics/replay/sessions": r36,
-  "/api/analytics/shares": r37,
-  "/api/analytics/shares/[id]": r38,
-  "/api/analytics/surveys": r39,
-  "/api/analytics/surveys/[id]": r40,
-  "/api/analytics/surveys/[id]/export": r41,
-  "/api/analytics/surveys/[id]/results": r42,
-  "/api/analytics/web-live": r43,
-  "/api/analytics/web-vitals": r44,
+  "/api/analytics/replay/sessions": r35,
+  "/api/analytics/shares": r36,
+  "/api/analytics/shares/[id]": r37,
+  "/api/analytics/surveys": r38,
+  "/api/analytics/surveys/[id]": r39,
+  "/api/analytics/surveys/[id]/export": r40,
+  "/api/analytics/surveys/[id]/results": r41,
+  "/api/analytics/web-live": r42,
+  "/api/analytics/web-vitals": r43,
 };
