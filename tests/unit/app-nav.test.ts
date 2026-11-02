@@ -118,7 +118,7 @@ describe('sidebar de la app', () => {
   it('el switcher sale de PRODUCT_CONFIG: las 24 apps, en el orden de siempre', () => {
     expect(SWITCHER_PRODUCTS.map((p) => p.key)).toEqual(PRODUCTS.filter((p) => p !== 'home').sort((a, b) => SWITCHER_ORDER.indexOf(a) - SWITCHER_ORDER.indexOf(b)));
     expect(SWITCHER_PRODUCTS.find((p) => p.key === 'calendar')).toMatchObject({ line: 'cal', name: 'Cal', href: '/app/calendar' });
-    expect(SWITCHER_PRODUCTS[0]).toMatchObject({ key: 'link', href: '/app/links' });
+    expect(SWITCHER_PRODUCTS[0]).toMatchObject({ key: 'track', href: '/app/track' });
     for (const p of SWITCHER_PRODUCTS) expect(p.href, p.key).not.toBe('/app');
   });
 
