@@ -14,7 +14,7 @@ test.beforeAll(async ({ request }) => {
   const { project } = (await (await request.post('/api/analytics/projects', { data: { name: `Share ${uid()}` } })).json()) as { project: { id: string; publicKey: string } };
   projectId = project.id;
   for (const event of ['a', 'b']) await request.post('/api/ingest/e', { headers: { origin: 'http://shop.test' }, data: { api_key: project.publicKey, event, distinct_id: 'u' } });
-  const { insight } = await (await request.post('/api/analytics/insights', { data: { projectId, name: 'Shared', query: { kind: 'trends', series: [{ event: 'a' }, { event: 'b' }], dateRange: { from: '-1d' } } } })).json();
+  const { insight } = await (await request.post('/api/analytics/insights', { data: { projectId, name: 'Zebra report', query: { kind: 'trends', series: [{ event: 'a' }, { event: 'b' }], dateRange: { from: '-1d' } } } })).json();
   insightId = insight.id;
 });
 
@@ -74,7 +74,7 @@ test('contraseña: pide, equivocarse no abre, acertar sí, y al quitarla se cort
   await p.goto(`/en/stats/a/${token}?refresh=true`, { waitUntil: 'networkidle' });
   await expect(p.getByTestId('an-share-locked')).toBeVisible();
   // Bloqueado no llega ningún dato al HTML.
-  expect(await p.content()).not.toContain('Shared');
+  expect(await p.content()).not.toContain('Zebra report');
   await p.getByLabel('Password').fill('wrong');
   await p.getByRole('button', { name: 'Open' }).click();
   await expect(p.getByRole('alert')).toContainText('not right');
