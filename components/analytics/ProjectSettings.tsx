@@ -388,7 +388,7 @@ function IntegrationGuides({ origin, publicKey }: { origin: string; publicKey: s
   const host = origin || 'https://zerosoft.ai';
   const hostName = host.replace(/^https?:\/\//, '');
   const nextProxy = `// next.config.js\nasync rewrites() {\n  return [\n    { source: '/z/zs.js', destination: '${host}/zs.js' },\n    { source: '/z/zs-replay.js', destination: '${host}/zs-replay.js' },\n    { source: '/z/api/ingest/:path*', destination: '${host}/api/ingest/:path*' },\n  ];\n}`;
-  const nginx = `# Solo el snippet y la ingesta, no toda la app.\nlocation ~ ^/z/(zs\\.js|zs-replay\\.js|api/ingest/.*)$ {\n  proxy_pass ${host}/$1$is_args$args;\n  proxy_set_header Host ${hostName};\n  proxy_ssl_server_name on;\n}`;
+  const nginx = `# Only the snippet and ingest, not the whole app.\nlocation ~ ^/z/(zs\\.js|zs-replay\\.js|api/ingest/.*)$ {\n  proxy_pass ${host}/$1$is_args$args;\n  proxy_set_header Host ${hostName};\n  proxy_ssl_server_name on;\n}`;
   const useProxy = `<script src="/z/zs.js" defer></script>\n<script>\n  window.zs = window.zs || [];\n  zs.push(['init', '${publicKey}', { api_host: location.origin + '/z' }]);\n</script>`;
   const node = `import { PostHog } from 'posthog-node';\n\nconst client = new PostHog('${publicKey}', { host: '${host}/api/ingest' });\nclient.capture({ distinctId: 'user-123', event: 'order_paid', properties: { total: 42 } });\nawait client.shutdown();`;
   const defs = `curl ${host}/api/ingest/flag-definitions \\\n  -H "Authorization: Bearer zss_…"`;

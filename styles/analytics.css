@@ -5,7 +5,7 @@
    de la app solo en series y barras.
    ============================================================ */
 
-.an-page section { padding-top: 0; padding-bottom: 0; }
+.an-page section:not(.ui-section):not(.an-panel) { padding-top: 0; padding-bottom: 0; }
 .an-page { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 
 /* Colores de las series (la primera es la de la app). */
@@ -332,8 +332,8 @@
 /* Bloques seguidos dentro de un panel. */
 .an-panel > .an-code + .an-code, .an-panel > .an-code + form { margin-top: 8px; }
 
-/* Los paneles conservan su relleno aunque sean <section>. */
-.an-page section.an-panel { padding-top: 16px; padding-bottom: 16px; }
+/* En un teléfono, el evento de una serie o un paso no se aplasta contra sus controles. */
+.an-series > .an-row { flex-wrap: wrap; }
 /* Las pestañas de tipo de insight entran todas en un teléfono. */
 .an-editor .ui-tabs { flex-wrap: wrap; }
 .an-live-filter { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 0 1 280px; }

@@ -150,7 +150,7 @@ test('encuestas: crear desde la UI, editar, vista previa y estado', async ({ pag
   const surveyId = page.url().split('/').pop()!;
   await expect(page.getByRole('heading', { name: 'Launch NPS' })).toBeVisible();
   await expect(page.getByTestId('an-sv-preview')).toContainText('How likely are you to recommend us');
-  await expect(page.getByTestId('an-sv-preview').locator('.an-sv-rate span')).toHaveCount(10);
+  await expect(page.getByTestId('an-sv-preview').locator('.an-sv-rate span')).toHaveCount(11);
 
   // Segunda pregunta de opciones y tercera de texto.
   await page.getByRole('button', { name: '+ Add question' }).click();
