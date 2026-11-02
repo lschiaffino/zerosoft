@@ -178,7 +178,7 @@ test('tendencia y embudo de 2 pasos desde el editor', async ({ page, baseURL }) 
   // Embudo: $pageview → signed_up.
   await page.goto('/en/app/analytics/insights/new?kind=funnel', { waitUntil: 'networkidle' });
   await page.getByRole('tab', { name: 'Funnel' }).click();
-  await page.getByLabel('Step 2').fill('signed_up');
+  await page.getByLabel('Step 2', { exact: true }).fill('signed_up');
   await expect(result.locator('.an-funnel-step')).toHaveCount(2);
   await expect(result.locator('.an-funnel-step').nth(1)).toContainText('signed_up');
   await expect(result.locator('.an-funnel-total')).toContainText('1 of');

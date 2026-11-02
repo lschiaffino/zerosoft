@@ -8339,6 +8339,12 @@ export const MIGRATIONS: Migration[] = [
       await client.execute('CREATE TABLE IF NOT EXISTS analytics_cookieless_salts (day TEXT PRIMARY KEY, salt TEXT NOT NULL, created_at INTEGER NOT NULL)');
     },
   },
+  {
+    id: '186_analytics_dashboard_settings',
+    up: async (client) => {
+      await addColumn(client, "ALTER TABLE analytics_dashboards ADD COLUMN settings TEXT NOT NULL DEFAULT '{}'");
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

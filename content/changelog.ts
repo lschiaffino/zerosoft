@@ -29,6 +29,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-02-analytics-tendencias-tableros',
+    date: '2026-11-02',
+    title: {
+      en: 'Analytics: trend options and dashboards with filters, text and templates',
+      es: 'Analytics: opciones de tendencias y tableros con filtros, texto y plantillas',
+      pt: 'Analytics: opções de tendências e painéis com filtros, texto e modelos',
+    },
+    items: [
+      {
+        product: 'analytics',
+        en: 'Trends add weekly and monthly active people, per-person minimum, maximum, median and percentiles, several events in one series and first occurrence. Charts gain smoothing, hidden weekends, goal lines, axis range and labels, value units, a dotted line for the period still running, stacked bars, total bars, donut and proportion bar. Series can be turned off or isolated.',
+        es: 'Las tendencias suman personas activas por semana y por mes, mínimo, máximo, mediana y percentiles por persona, varios eventos en una serie y primera ocurrencia. Los gráficos suman suavizado, fines de semana ocultos, líneas de meta, rango y etiquetas de ejes, unidades, línea punteada para el período en curso, barras apiladas, barras de total, anillo y barra de proporción. Las series se pueden apagar o aislar.',
+        pt: 'As tendências ganham pessoas ativas por semana e por mês, mínimo, máximo, mediana e percentis por pessoa, vários eventos em uma série e primeira ocorrência. Os gráficos ganham suavização, fins de semana ocultos, linhas de meta, intervalo e rótulos de eixos, unidades, linha pontilhada para o período em andamento, barras empilhadas, barras de total, rosca e barra de proporção. As séries podem ser desligadas ou isoladas.',
+      },
+      {
+        product: 'analytics',
+        en: 'Dashboards keep their date range, filters, cohort and internal people setting, and refresh on their own while the tab is open. Tiles have their own size, dates, filters and display, can ignore the dashboard filters and can be copied or moved. Text cards in Markdown and three ready-made dashboards: website, product health and LLM metrics.',
+        es: 'Los tableros guardan sus fechas, filtros, cohorte y gente interna, y se actualizan solos con la pestaña abierta. Las tarjetas tienen su tamaño, fechas, filtros y vista, pueden ignorar los filtros del tablero y se copian o mueven. Tarjetas de texto en Markdown y tres tableros armados: sitio web, salud del producto y métricas de LLM.',
+        pt: 'Os painéis guardam seu período, filtros, coorte e pessoas internas, e se atualizam sozinhos com a aba aberta. Os cards têm tamanho, período, filtros e visão próprios, podem ignorar os filtros do painel e podem ser copiados ou movidos. Cards de texto em Markdown e três painéis prontos: site, saúde do produto e métricas de LLM.',
+      },
+      {
+        product: 'analytics',
+        en: 'From a funnel step you can explore the paths leading to it, between steps, after it and around dropping off, and from a path you can open its funnel.',
+        es: 'Desde un paso de un embudo se exploran los caminos que llevan a él, entre pasos, después y alrededor de abandonar, y desde un camino se abre su embudo.',
+        pt: 'A partir de uma etapa de um funil dá para explorar os caminhos que levam a ela, entre etapas, depois e em torno da desistência, e de um caminho dá para abrir seu funil.',
+      },
+    ],
+  },
+  {
     id: '2026-11-02-analytics-embudos',
     date: '2026-11-02',
     title: {

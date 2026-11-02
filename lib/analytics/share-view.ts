@@ -5,17 +5,21 @@
  * corra las consultas en cada visita. Server-only.
  */
 import { getDb } from '../db';
+import { applyDashboard, layoutOf } from './dashboard-core';
 import { getDashboard, getInsight, listInsights } from './records';
 import { runInsight } from './query';
 import { shareByToken } from './records-more';
 import type { ProjectRow } from './projects';
-import { shareableQuery, type InsightDto, type InsightResult, type TrendDisplay } from './types';
+import { shareableQuery, type DashboardSettings, type InsightDto, type InsightResult, type TrendDisplay } from './types';
 
 export interface PublicTile {
   name: string;
   display: TrendDisplay;
   result: InsightResult | null;
   error: boolean;
+  /** Tarjeta de texto (Markdown) en lugar de un insight. */
+  text?: string;
+  size?: 's' | 'm' | 'l';
 }
 
 export interface PublicShareView {
@@ -33,10 +37,11 @@ export function publicResult(r: InsightResult): InsightResult {
   return r.kind === 'funnel' ? { ...r, droppedPersons: r.droppedPersons.map(() => []), reachedPersons: undefined } : r;
 }
 
-async function tile(project: ProjectRow, i: InsightDto): Promise<PublicTile> {
+async function tile(project: ProjectRow, i: InsightDto, settings?: DashboardSettings): Promise<PublicTile> {
   const display: TrendDisplay = i.query.kind === 'trends' ? i.query.display : 'line';
+  const t = settings?.tiles[i.id];
   try {
-    return { name: i.name, display, result: publicResult(await runInsight(project, i.query)), error: false };
+    return { name: i.name, display, result: publicResult(await runInsight(project, applyDashboard(i.query, settings, t))), error: false, size: t?.size };
   } catch {
     return { name: i.name, display, result: null, error: true };
   }
@@ -64,7 +69,15 @@ export async function publicShareView(token: string): Promise<PublicShareView | 
       const all = await listInsights(project.id);
       const insights = dashboard.insightIds.map((id) => all.find((x) => x.id === id)).filter((x): x is InsightDto => Boolean(x) && shareableQuery((x as InsightDto).query)).slice(0, MAX_TILES);
       const tiles: PublicTile[] = [];
-      for (const i of insights) tiles.push(await tile(project, i));
+      const byId = new Map(insights.map((i) => [i.id, i]));
+      for (const ref of layoutOf(insights.map((i) => i.id), dashboard.settings)) {
+        if (ref.kind === 'text') {
+          const text = dashboard.settings.texts.find((x) => x.id === ref.id);
+          if (text) tiles.push({ name: '', display: 'line', result: null, error: false, text: text.body });
+        } else {
+          tiles.push(await tile(project, byId.get(ref.id)!, dashboard.settings));
+        }
+      }
       view = { title: dashboard.name, description: dashboard.description, tiles };
     }
   }

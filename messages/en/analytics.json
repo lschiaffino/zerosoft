@@ -174,7 +174,23 @@
     "noBreakdownValues": "Nobody in this funnel has a value for this property.",
     "breakdownValue": "Value",
     "stepHead": "Step {n}",
-    "completedSteps": "Completed {n, plural, one {# step} other {# steps}}"
+    "completedSteps": "Completed {n, plural, one {# step} other {# steps}}",
+    "weekendsHidden": "Saturdays and Sundays are hidden.",
+    "allHidden": "All series are hidden. Turn one on in the table below.",
+    "showAll": "Show all",
+    "hideAll": "Hide all",
+    "isolate": "Isolate",
+    "hideOthers": "Hide others",
+    "hideOthersOf": "Hide everything except {name}",
+    "stepPaths": "Explore paths",
+    "viewFunnel": "View funnel",
+    "pathModes": {
+      "before": "Paths leading to step {n}",
+      "between": "Paths between step {prev} and {n}",
+      "after": "Paths after step {n}",
+      "after_dropoff": "Paths after dropping off at step {n}",
+      "before_dropoff": "Paths before dropping off at step {n}"
+    }
   },
   "filters": {
     "filterN": "Filter {n}",
@@ -224,7 +240,11 @@
       "table": "Table",
       "area": "Area",
       "cumulative": "Cumulative",
-      "pie": "Pie"
+      "pie": "Pie",
+      "stacked": "Stacked bars",
+      "bar_total": "Total value bars",
+      "donut": "Donut",
+      "proportion": "Proportion bar"
     },
     "compare": "Compare to previous period",
     "breakdown": "Breakdown",
@@ -335,7 +355,17 @@
       "median": "Median of property",
       "p90": "90th percentile",
       "p95": "95th percentile",
-      "p99": "99th percentile"
+      "p99": "99th percentile",
+      "wau": "Weekly active people",
+      "mau": "Monthly active people",
+      "per_user_min": "Minimum per person",
+      "per_user_max": "Maximum per person",
+      "per_user_median": "Median per person",
+      "per_user_p75": "75th percentile per person",
+      "per_user_p90": "90th percentile per person",
+      "per_user_p95": "95th percentile per person",
+      "per_user_p99": "99th percentile per person",
+      "p75": "75th percentile"
     },
     "pathSources": {
       "pageviews": "Pages only",
@@ -396,7 +426,45 @@
     "exclusionToN": "To step {n}",
     "removeExclusion": "Remove",
     "addExclusion": "Add exclusion",
-    "exclusionIsStep": "This event is already a step of the funnel, so it is ignored as an exclusion."
+    "exclusionIsStep": "This event is already a step of the funnel, so it is ignored as an exclusion.",
+    "duplicateSeries": "Duplicate",
+    "orSeriesEvent": "Alternative event for series {n}",
+    "firstSeriesLabel": "Which occurrence counts in series {n}",
+    "chartOptions": "Chart options",
+    "smoothing": "Smoothing",
+    "smoothingNone": "No smoothing",
+    "smoothingN": "{n}-day average",
+    "hideWeekends": "Hide weekends",
+    "dailyOnly": "Smoothing and hiding weekends work when grouping by day.",
+    "unit": "Value unit",
+    "units": {
+      "none": "Plain number",
+      "short": "Short number (1.2K)",
+      "duration": "Duration in seconds",
+      "duration_ms": "Duration in milliseconds",
+      "percentage": "Percentage",
+      "currency": "Currency"
+    },
+    "currency": "Currency code",
+    "prefix": "Prefix",
+    "suffix": "Suffix",
+    "yMin": "Y axis minimum",
+    "yMax": "Y axis maximum",
+    "xLabel": "X axis label",
+    "yLabel": "Y axis label",
+    "showValues": "Show values on the series",
+    "hideLegend": "Hide legend",
+    "goalValue": "Goal value",
+    "goalLabel": "Goal label",
+    "addGoal": "Goal line",
+    "pathFunnelClear": "Show everyone",
+    "pathFunnelModes": {
+      "before": "Only people who reached funnel step {n}, up to that step.",
+      "between": "Only people who reached funnel step {n}, between step {prev} and that step.",
+      "after": "Only people who reached funnel step {n}, after that step.",
+      "after_dropoff": "Only people who dropped off at funnel step {n}, after they left.",
+      "before_dropoff": "Only people who dropped off at funnel step {n}, before they left."
+    }
   },
   "sql": {
     "title": "SQL",
@@ -447,7 +515,65 @@
     "duplicate": "Duplicate",
     "copyName": "{name} (copy)",
     "overrideRange": "Same dates on every tile",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "filtersTitle": "Dashboard filters",
+    "filtersOn": "Applies to every tile except those set to ignore them.",
+    "internalInherit": "Internal people: as each insight says",
+    "internalOn": "Internal people: leave out everywhere",
+    "internalOff": "Internal people: include everywhere",
+    "internalLabel": "Internal and test people",
+    "autoRefresh": "Auto refresh",
+    "autoOff": "Off",
+    "autoEvery": "Every {n, plural, one {minute} other {# minutes}}",
+    "addText": "Text card",
+    "editText": "Edit",
+    "textTitle": "Text card",
+    "textLabel": "Text, with Markdown",
+    "deleteText": "Delete",
+    "moveUpText": "Move text card up",
+    "moveDownText": "Move text card down",
+    "tileOptions": "Options",
+    "tileOptionsOf": "Options for {name}",
+    "tileSize": "Size",
+    "sizes": {
+      "s": "Small",
+      "m": "Medium",
+      "l": "Full width"
+    },
+    "ignoreFilters": "Ignore dashboard date and filters",
+    "ignoresBadge": "Ignores dashboard filters",
+    "tileRange": "Own date range",
+    "tileInterval": "Interval",
+    "intervalInsight": "As the insight says",
+    "tileFilters": "Filters for this tile",
+    "tileSmoothing": "Smoothing",
+    "tileValues": "Show values",
+    "tileLegend": "Hide legend",
+    "copyTo": "Copy to dashboard",
+    "moveTo": "Move to dashboard",
+    "chooseDashboard": "Choose a dashboard",
+    "noOtherDashboards": "No other dashboards yet",
+    "copied": "Copied.",
+    "close": "Close",
+    "refreshTile": "Refresh {name}",
+    "computedAt": "Computed at {time}",
+    "templatesTitle": "Start from a template",
+    "useTemplate": "Create",
+    "useTemplateNamed": "Create the {name} dashboard",
+    "templates": {
+      "website": {
+        "name": "Website",
+        "body": "Pageviews, visitors, sessions, top pages, referrers and devices."
+      },
+      "product": {
+        "name": "Product health",
+        "body": "Daily, weekly and monthly active people, growth, retention and stickiness."
+      },
+      "llm": {
+        "name": "LLM metrics",
+        "body": "Generations, people, cost, latency and usage by model."
+      }
+    }
   },
   "persons": {
     "title": "People",

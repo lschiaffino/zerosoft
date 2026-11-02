@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import NoProject from '@/components/analytics/NoProject';
 import CollectionPage from '@/components/analytics/CollectionPage';
+import DashboardTemplates from '@/components/analytics/DashboardTemplates';
 import { analyticsPage } from '@/lib/analytics/page';
 import { listDashboards } from '@/lib/analytics/records';
 
@@ -23,6 +24,7 @@ export default async function AnalyticsDashboardsPage(props: { params: Promise<{
     <CollectionPage
       kind="dashboards"
       projectId={ctx.project.id}
+      extra={<DashboardTemplates projectId={ctx.project.id} />}
       canCreate
       canEdit
       items={dashboards.map((d) => ({ id: d.id, name: d.name, meta: t('insightsCount', { count: d.insightIds.length }), href: `/app/analytics/dashboards/${d.id}` }))}

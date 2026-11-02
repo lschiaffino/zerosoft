@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import DashboardText from '@/components/analytics/DashboardText';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import ClientMessages from '@/components/i18n/ClientMessages';
@@ -49,8 +50,9 @@ export default async function PublicAnalyticsShare(props: Props) {
         {view.tiles.length === 0 && <p className="an-empty-result">{t('emptyPublic')}</p>}
         <div className={view.tiles.length > 1 ? 'an-tiles' : 'an-form'}>
           {view.tiles.map((tile, i) => (
-            <article key={i} className="an-tile an-panel">
-              {(view.tiles.length > 1 || embed) && <h2 className="an-h3 an-flush">{tile.name}</h2>}
+            <article key={i} className={`an-tile an-panel is-${tile.size ?? 'm'}`}>
+              {tile.text !== undefined && <DashboardText body={tile.text} />}
+              {tile.text === undefined && (view.tiles.length > 1 || embed) && <h2 className="an-h3 an-flush">{tile.name}</h2>}
               {tile.error ? <p className="ui-error">{t('tileError')}</p> : tile.result && <InsightResultView result={tile.result} display={tile.display} />}
             </article>
           ))}

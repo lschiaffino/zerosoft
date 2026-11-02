@@ -13,7 +13,7 @@
  */
 
 import { bucketOf, bucketList } from './compute';
-import type { Interval } from './types';
+import type { FunnelPathMode, Interval } from './types';
 import type { Tz } from './tz';
 
 export type FunnelOrder = 'ordered' | 'strict' | 'unordered';
@@ -39,6 +39,8 @@ export interface FunnelOptions {
   droppedLimit?: number;
   attribution?: FunnelAttribution | null;
   attributionStep?: number;
+  /** Devolver los tiempos de cada persona (para caminos desde un paso). */
+  collectTimes?: boolean;
   /** Cubetas por fecha de entrada al embudo (gráfico histórico). */
   historical?: { interval: Interval; tz: Tz; now: number } | null;
 }
@@ -74,6 +76,29 @@ export interface FunnelComputed {
   /** Valores de la apertura, ordenados por cuántos entraron. */
   breakdown: Array<{ value: string | null; counts: number[] }>;
   historical: Array<{ bucket: string; counts: number[]; incomplete: boolean }> | null;
+  personTimes?: Map<string, number[]>;
+}
+
+/**
+ * Qué parte de la actividad de una persona mira un camino desde un paso `k` del
+ * embudo (0 es el primero). null: esa persona no entra. Abandonar en `k` es
+ * haber llegado al paso anterior y no a `k`.
+ */
+export function pathWindow(mode: FunnelPathMode, k: number, times: number[]): { from: number; to: number } | null {
+  const reached = times.length;
+  const any = { from: Number.NEGATIVE_INFINITY, to: Number.POSITIVE_INFINITY };
+  switch (mode) {
+    case 'before':
+      return reached > k ? { ...any, to: times[k] } : null;
+    case 'between':
+      return k >= 1 && reached > k ? { from: times[k - 1], to: times[k] } : null;
+    case 'after':
+      return reached > k ? { ...any, from: times[k] } : null;
+    case 'after_dropoff':
+      return k >= 1 && reached === k ? { ...any, from: times[k - 1] } : null;
+    case 'before_dropoff':
+      return k >= 1 && reached === k ? { ...any, to: times[k - 1] } : null;
+  }
 }
 
 function median(xs: number[]): number | null {
@@ -213,6 +238,7 @@ export function computeFunnel(rows: FunnelRow[], nSteps: number, windowMs: numbe
     for (let s = 0; s < steps; s++) c[s]++;
   };
   const hist = opts.historical ? new Map<string, number[]>() : null;
+  const personTimes = opts.collectTimes ? new Map<string, number[]>() : undefined;
   const attribution = opts.attribution ?? null;
 
   let i = 0;
@@ -247,6 +273,7 @@ export function computeFunnel(rows: FunnelRow[], nSteps: number, windowMs: numbe
       }
     }
 
+    personTimes?.set(person, best.times);
     const who = events[0].owner ?? person;
     for (let s = 0; s < best.reached; s++) {
       counts[s]++;
@@ -305,5 +332,5 @@ export function computeFunnel(rows: FunnelRow[], nSteps: number, windowMs: numbe
     }));
   }
 
-  return { counts, medians: gaps.map((g, s) => (s === 0 ? null : median(g))), dropped, converted, reached, times, breakdown, historical };
+  return { counts, medians: gaps.map((g, s) => (s === 0 ? null : median(g))), dropped, converted, reached, times, breakdown, historical, personTimes };
 }

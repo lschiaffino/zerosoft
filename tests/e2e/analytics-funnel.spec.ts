@@ -169,6 +169,29 @@ test('primera vez, sesiones, apertura, tiempo hasta convertir e histórico', asy
   await expect(result(page)).toBeVisible();
 });
 
+test('de un paso del embudo a sus caminos, y de un camino a su embudo', async ({ page, baseURL }) => {
+  await open(page, baseURL!);
+  await expect(page.locator('.an-funnel-total')).toContainText('3 of 5', { timeout: 15_000 });
+  const step = steps(page).nth(1);
+  await step.locator('summary', { hasText: 'Explore paths' }).click();
+  await step.getByRole('link', { name: 'Paths between step 1 and 2' }).click();
+  await expect(page).toHaveURL(/insights\/new\?query=/);
+  await expect(page.getByTestId('an-paths-funnel')).toContainText('between step 1');
+  // bob pasó por "browse" y carla por "refund" entre medio.
+  const table = result(page).locator('table').last();
+  await expect(table).toContainText('view → browse → buy', { timeout: 15_000 });
+  await expect(table).toContainText('view → refund → buy');
+  await expect(result(page)).not.toContainText('purchase');
+
+  // Vuelta: abrir el embudo de ese camino.
+  await table.getByRole('row', { name: /view → browse → buy/ }).getByRole('link', { name: 'View funnel' }).click();
+  await expect(page).toHaveURL(/insights\/new\?query=/);
+  await expect(page.getByRole('tab', { name: 'Funnel' })).toHaveAttribute('aria-selected', 'true');
+  // Solo bob hizo los tres, en ese orden.
+  await expect(page.locator('.an-funnel-total')).toContainText('1 of 5', { timeout: 15_000 });
+  await expect(steps(page)).toHaveCount(3);
+});
+
 test('a 390px no hay scroll horizontal con todas las opciones abiertas', async ({ page, baseURL }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await open(page, baseURL!);

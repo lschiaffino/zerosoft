@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
-import type { FunnelResult, InsightResult, PathsResult, RetentionResult, SqlResult, TrendDisplay, TrendsResult } from '@/lib/analytics/types';
+import type { FunnelPathMode, FunnelQuery, FunnelResult, InsightQuery, InsightResult, PathsResult, RetentionResult, SqlResult, TrendDisplay, TrendsResult } from '@/lib/analytics/types';
+import { formatTrendValue } from '@/lib/analytics/trend-core';
 import Chart from './Chart';
 import { Lifecycle, PathsSankey, Stickiness } from './ResultCharts';
 import { bucketLabel, delta, fmtDuration, fmtNumber, fmtPercent } from './client';
@@ -20,28 +21,73 @@ const running = (data: number[]) => {
   return data.map((v) => Math.round((acc += v) * 100) / 100);
 };
 
-/** Torta de los totales: un anillo por porciones, con la leyenda al lado. */
-function Pie({ items, summary }: { items: Array<{ label: string; value: number }>; summary: string }) {
+/** Torta o anillo de los totales, con la leyenda al lado. */
+function Pie({ items, summary, donut, format }: { items: Array<{ label: string; value: number; color: number }>; summary: string; donut?: boolean; format: (v: number) => string }) {
   const locale = useLocale();
   const total = items.reduce((a, x) => a + Math.max(x.value, 0), 0) || 1;
   let acc = 0;
-  const R = 15.915; // circunferencia 100: el largo del trazo es el porcentaje.
+  // Radio con circunferencia 100 en el anillo. La torta usa el mismo círculo con un trazo que llega al centro.
+  const R = donut ? 15.915 : 7.9575;
+  const scale = donut ? 1 : 0.5;
   return (
     <div className="an-pie">
-      <svg viewBox="0 0 42 42" className="an-pie-svg" role="img" aria-label={summary}>
+      <svg viewBox="0 0 42 42" className={`an-pie-svg${donut ? '' : ' is-solid'}`} role="img" aria-label={summary}>
         {items.map((x, i) => {
-          const pct = (Math.max(x.value, 0) / total) * 100;
-          const el = <circle key={i} className={`an-pie-slice an-s${i % 6}`} cx="21" cy="21" r={R} fill="none" strokeDasharray={`${pct} ${100 - pct}`} strokeDashoffset={25 - acc} />;
+          const pct = (Math.max(x.value, 0) / total) * 100 * scale;
+          const el = <circle key={i} className={`an-pie-slice an-s${x.color % 6}`} cx="21" cy="21" r={R} fill="none" strokeDasharray={`${pct} ${100 * scale - pct}`} strokeDashoffset={25 * scale - acc} />;
           acc += pct;
           return el;
         })}
       </svg>
       <ul className="an-pie-legend" role="list">
         {items.map((x, i) => (
-          <li key={i} className={`an-s${i % 6}`}>
+          <li key={i} className={`an-s${x.color % 6}`}>
             <i className="an-swatch" aria-hidden="true" />
             <span className="an-pie-name">{x.label}</span>
-            <span className="an-mono">{fmtNumber(x.value, locale)}</span>
+            <span className="an-mono">{format(x.value)}</span>
+            <span className="an-muted an-small">{fmtPercent(Math.max(x.value, 0) / total, locale)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** El total de cada serie como una barra horizontal. */
+function TotalBars({ items, format }: { items: Array<{ label: string; value: number; color: number }>; format: (v: number) => string }) {
+  const peak = Math.max(...items.map((x) => x.value), 1);
+  return (
+    <ul className="an-hist an-total-bars" role="list">
+      {items.map((x, i) => (
+        <li key={i} className={`an-hist-row an-s${x.color % 6}`}>
+          <span className="an-hist-label an-pie-name">{x.label}</span>
+          <span className="an-hist-bar" aria-hidden="true">
+            {x.value > 0 && <span className="an-total-fill" style={{ width: `${Math.max(1, (x.value / peak) * 100)}%` }} />}
+          </span>
+          <span className="an-mono an-hist-n">{format(x.value)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Una sola barra partida en segmentos, con el porcentaje en la leyenda. */
+function ProportionBar({ items, format, summary }: { items: Array<{ label: string; value: number; color: number }>; format: (v: number) => string; summary: string }) {
+  const locale = useLocale();
+  const total = items.reduce((a, x) => a + Math.max(x.value, 0), 0) || 1;
+  return (
+    <div className="an-proportion">
+      <div className="an-proportion-bar" role="img" aria-label={summary}>
+        {items.map((x, i) => (
+          <span key={i} className={`an-s${x.color % 6}`} style={{ width: `${(Math.max(x.value, 0) / total) * 100}%` }} />
+        ))}
+      </div>
+      <ul className="an-pie-legend" role="list">
+        {items.map((x, i) => (
+          <li key={i} className={`an-s${x.color % 6}`}>
+            <i className="an-swatch" aria-hidden="true" />
+            <span className="an-pie-name">{x.label}</span>
+            <span className="an-mono">{format(x.value)}</span>
             <span className="an-muted an-small">{fmtPercent(Math.max(x.value, 0) / total, locale)}</span>
           </li>
         ))}
@@ -53,45 +99,90 @@ function Pie({ items, summary }: { items: Array<{ label: string; value: number }
 function Trends({ r, display, annotations }: { r: TrendsResult; display: TrendDisplay; annotations?: Array<{ date: string; content: string }> }) {
   const t = useTranslations('analytics.result');
   const locale = useLocale();
+  const [hidden, setHidden] = useState<Set<number>>(new Set());
   const labels = r.buckets.map((b) => bucketLabel(b, locale));
   const names = r.series.map((s) => seriesName(s, t('other'), t('none')));
   const total = r.series.reduce((a, s) => a + s.total, 0);
+  const o = r.options;
+  const format = (v: number) => formatTrendValue(v, o, locale);
+  const formatted = Boolean(o?.unit && o.unit !== 'none') || Boolean(o?.prefix) || Boolean(o?.suffix);
   if (!r.series.length || total === 0 && r.series.every((s) => (s.compareTotal ?? 0) === 0)) {
     return <p className="an-empty-result">{t('noData')}</p>;
   }
+  const visible = r.series.map((s, i) => ({ s, i })).filter((x) => !hidden.has(x.i));
+  const items = visible.map(({ s, i }) => ({ label: names[i], value: s.total, color: i }));
+  const summary = t('trendSummary', { total: fmtNumber(total, locale) });
+  const toggle = (i: number) =>
+    setHidden((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
+  const many = r.series.length > 1;
   return (
     <div className="an-result">
-      {display === 'number' ? (
+      {r.weekendsHidden && <p className="an-note">{t('weekendsHidden')}</p>}
+      {!visible.length ? (
+        <p className="an-empty-result">{t('allHidden')}</p>
+      ) : display === 'number' ? (
         <div className="an-bignums">
-          {r.series.map((s, i) => {
+          {visible.map(({ s, i }) => {
             const d = delta(s.total, s.compareTotal ?? null);
             return (
               <div key={i} className="an-bignum">
-                <span className="an-bignum-value">{fmtNumber(s.total, locale)}</span>
+                <span className="an-bignum-value">{formatted ? format(s.total) : fmtNumber(s.total, locale)}</span>
                 <span className="an-bignum-label">{names[i]}</span>
                 {d !== null && <span className={`an-delta ${d >= 0 ? 'is-up' : 'is-down'}`}>{t('vsPrevious', { delta: fmtPercent(d, locale) })}</span>}
               </div>
             );
           })}
         </div>
-      ) : display === 'table' ? null : display === 'pie' ? (
-        <Pie items={r.series.map((s, i) => ({ label: names[i], value: s.total }))} summary={t('trendSummary', { total: fmtNumber(total, locale) })} />
+      ) : display === 'table' ? null : display === 'pie' || display === 'donut' ? (
+        <Pie items={items} summary={summary} donut={display === 'donut'} format={format} />
+      ) : display === 'bar_total' ? (
+        <TotalBars items={items} format={format} />
+      ) : display === 'proportion' ? (
+        <ProportionBar items={items} format={format} summary={summary} />
       ) : (
         <Chart
-          kind={display === 'bar' ? 'bar' : display === 'area' ? 'area' : 'line'}
+          kind={display === 'bar' || display === 'stacked' ? 'bar' : display === 'area' ? 'area' : 'line'}
           annotations={(annotations ?? []).flatMap((a) => {
             // La anotación cae en la cubeta de su día (o en la semana o mes que lo contiene).
             const index = r.buckets.findIndex((b, i) => b.slice(0, 10) <= a.date && (i + 1 < r.buckets.length ? a.date < r.buckets[i + 1].slice(0, 10) || b.slice(0, 10) === a.date : true));
             return index >= 0 && a.date >= r.buckets[0].slice(0, 10) ? [{ index, text: a.content }] : [];
           })}
           labels={labels}
-          series={r.series.map((s, i) => ({
+          series={visible.map(({ s, i }) => ({
             label: names[i],
+            colorIndex: i,
             data: display === 'cumulative' ? running(s.data) : s.data,
             compare: s.compare && (display === 'cumulative' ? running(s.compare) : s.compare),
           }))}
-          summary={t('trendSummary', { total: fmtNumber(total, locale) })}
+          summary={summary}
+          extras={{
+            stacked: display === 'stacked',
+            goalLines: o?.goalLines,
+            yMin: o?.yMin,
+            yMax: o?.yMax,
+            xLabel: o?.xLabel,
+            yLabel: o?.yLabel,
+            format: formatted ? format : undefined,
+            showValues: o?.showValues,
+            hideLegend: o?.hideLegend,
+            lastIncomplete: r.lastIncomplete && display !== 'cumulative',
+          }}
         />
+      )}
+      {many && (
+        <div className="an-row an-wrap an-series-actions">
+          <button type="button" className="btn btn-ghost btn-sm" disabled={!hidden.size} onClick={() => setHidden(new Set())}>
+            {t('showAll')}
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm" disabled={hidden.size === r.series.length} onClick={() => setHidden(new Set(r.series.map((_, i) => i)))}>
+            {t('hideAll')}
+          </button>
+        </div>
       )}
       <div className="table-wrap">
         <table className="table table-compact an-table">
@@ -106,19 +197,39 @@ function Trends({ r, display, annotations }: { r: TrendsResult; display: TrendDi
                   {t('previous')}
                 </th>
               )}
+              {many && <th scope="col" className="an-sr-col"><span className="sr-only">{t('isolate')}</span></th>}
             </tr>
           </thead>
           <tbody>
             {r.series.map((s, i) => (
-              <tr key={i}>
+              <tr key={i} className={hidden.has(i) ? 'an-row-off' : undefined}>
                 <td>
-                  <span className={`an-s${i % 6}`}>
-                    <i className="an-swatch" aria-hidden="true" />
-                  </span>{' '}
-                  {names[i]}
+                  {many ? (
+                    <label className="ui-check an-series-check">
+                      <input type="checkbox" checked={!hidden.has(i)} onChange={() => toggle(i)} />
+                      <span className={`an-s${i % 6}`}>
+                        <i className="an-swatch" aria-hidden="true" />
+                      </span>{' '}
+                      {names[i]}
+                    </label>
+                  ) : (
+                    <>
+                      <span className={`an-s${i % 6}`}>
+                        <i className="an-swatch" aria-hidden="true" />
+                      </span>{' '}
+                      {names[i]}
+                    </>
+                  )}
                 </td>
-                <td className="num">{fmtNumber(s.total, locale)}</td>
-                {r.series.some((x) => x.compare) && <td className="num">{fmtNumber(s.compareTotal ?? 0, locale)}</td>}
+                <td className="num">{formatted ? format(s.total) : fmtNumber(s.total, locale)}</td>
+                {r.series.some((x) => x.compare) && <td className="num">{formatted ? format(s.compareTotal ?? 0) : fmtNumber(s.compareTotal ?? 0, locale)}</td>}
+                {many && (
+                  <td className="an-td-action">
+                    <button type="button" className="btn btn-ghost btn-sm" aria-label={t('hideOthersOf', { name: names[i] })} onClick={() => setHidden(new Set(r.series.map((_, k) => k).filter((k) => k !== i)))}>
+                      {t('hideOthers')}
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -286,7 +397,37 @@ function FunnelBreakdown({ r }: { r: FunnelResult }) {
   );
 }
 
-function Funnel({ r, peopleHref }: { r: FunnelResult; peopleHref?: (ids: string[]) => string }) {
+/** Enlaces a caminos desde un paso: lo que vino antes, entre medio, después y al abandonar. */
+function StepPaths({ query, step }: { query: FunnelQuery; step: number }) {
+  const t = useTranslations('analytics.result');
+  const n = query.steps.length;
+  const href = (mode: FunnelPathMode) => {
+    const paths = { kind: 'paths', dateRange: query.dateRange, steps: 4, source: 'all', funnel: { query, step, mode } };
+    return `/app/analytics/insights/new?query=${encodeURIComponent(JSON.stringify(paths))}`;
+  };
+  const modes: FunnelPathMode[] = [
+    'before',
+    ...(step > 0 ? (['between'] as const) : []),
+    'after',
+    ...(step > 0 ? (['after_dropoff', 'before_dropoff'] as const) : []),
+  ];
+  return (
+    <details className="an-step-paths">
+      <summary>{t('stepPaths')}</summary>
+      <ul className="an-step-paths-list" role="list">
+        {modes.map((m) => (
+          <li key={m}>
+            <Link href={href(m)} className="an-link">
+              {t(`pathModes.${m}`, { n: step + 1, prev: step, total: n })}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+function Funnel({ r, peopleHref, query }: { r: FunnelResult; peopleHref?: (ids: string[]) => string; query?: FunnelQuery }) {
   const t = useTranslations('analytics.result');
   const locale = useLocale();
   const first = r.steps[0]?.count ?? 0;
@@ -344,6 +485,7 @@ function Funnel({ r, peopleHref }: { r: FunnelResult; peopleHref?: (ids: string[
                     </span>
                   )}
                 </div>
+                {query && !unordered && <StepPaths query={query} step={i} />}
               </li>
             );
           })}
@@ -402,7 +544,17 @@ function Retention({ r }: { r: RetentionResult }) {
   );
 }
 
-function Paths({ r }: { r: PathsResult }) {
+/** Un nodo de camino como paso de embudo: una página es un $pageview en esa URL; si no, el evento. */
+function nodeStep(node: string) {
+  return node.startsWith('/') ? { event: '$pageview', filters: [{ key: '$pathname', op: 'eq', value: node, type: 'event' }] } : { event: node, filters: [] };
+}
+
+function funnelFromPath(path: string[]): string {
+  const steps = (path.length >= 2 ? path.slice(0, 10) : [path[0], path[0]]).map(nodeStep);
+  return `/app/analytics/insights/new?query=${encodeURIComponent(JSON.stringify({ kind: 'funnel', steps }))}`;
+}
+
+function Paths({ r, linkFunnels }: { r: PathsResult; linkFunnels?: boolean }) {
   const t = useTranslations('analytics.result');
   const locale = useLocale();
   if (!r.sessions) return <p className="an-empty-result">{t('noData')}</p>;
@@ -444,6 +596,11 @@ function Paths({ r }: { r: PathsResult }) {
               <th scope="col" className="num">
                 {t('sessions')}
               </th>
+              {linkFunnels && (
+                <th scope="col">
+                  <span className="sr-only">{t('viewFunnel')}</span>
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -451,6 +608,13 @@ function Paths({ r }: { r: PathsResult }) {
               <tr key={i}>
                 <td className="an-path-cell">{p.path.join(' → ')}</td>
                 <td className="num">{fmtNumber(p.count, locale)}</td>
+                {linkFunnels && (
+                  <td className="an-td-action">
+                    <Link href={funnelFromPath(p.path)} className="an-link">
+                      {t('viewFunnel')}
+                    </Link>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -502,21 +666,24 @@ export default function InsightResultView({
   display = 'line',
   peopleHref,
   annotations,
+  query,
 }: {
   result: InsightResult;
   display?: TrendDisplay;
   peopleHref?: (ids: string[]) => string;
   annotations?: Array<{ date: string; content: string }>;
+  /** La consulta, en el editor: habilita enlaces entre embudos y caminos. */
+  query?: InsightQuery;
 }) {
   switch (result.kind) {
     case 'trends':
       return <Trends r={result} display={display} annotations={annotations} />;
     case 'funnel':
-      return <Funnel r={result} peopleHref={peopleHref} />;
+      return <Funnel r={result} peopleHref={peopleHref} query={query?.kind === 'funnel' ? query : undefined} />;
     case 'retention':
       return <Retention r={result} />;
     case 'paths':
-      return <Paths r={result} />;
+      return <Paths r={result} linkFunnels={Boolean(query)} />;
     case 'sql':
       return <Sql r={result} />;
     case 'stickiness':

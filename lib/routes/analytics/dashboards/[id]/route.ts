@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { deleteDashboard, getDashboard, listInsights, updateDashboard } from '@/lib/analytics/records';
+import { deleteDashboard, getDashboard, listInsights, transferDashboardTile, updateDashboard } from '@/lib/analytics/records';
+import { dashboardSettingsSchema } from '@/lib/analytics/types';
 import { aError, analyticsActor, isResponse, readJson, recordProject } from '@/lib/analytics/http';
 import { toProjectDto } from '@/lib/analytics/projects';
 
@@ -26,6 +27,9 @@ const patchSchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),
   description: z.string().max(2000).optional(),
   insightIds: z.array(z.string().max(64)).max(50).optional(),
+  settings: dashboardSettingsSchema.optional(),
+  /** Copiar o mover una tarjeta a otro tablero del proyecto. */
+  transfer: z.object({ targetId: z.string().max(64), kind: z.enum(['insight', 'text']), tileId: z.string().max(64), move: z.boolean() }).optional(),
 });
 
 export async function PATCH(req: NextRequest, ctx: Ctx) {
@@ -36,7 +40,13 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   if (isResponse(project)) return project;
   const parsed = patchSchema.safeParse(await readJson(req));
   if (!parsed.success) return aError(400, 'invalid_input');
-  return NextResponse.json({ dashboard: await updateDashboard(project.id, id, parsed.data) });
+  const { transfer, ...patch } = parsed.data;
+  if (transfer) {
+    const dashboard = await transferDashboardTile(project.id, id, transfer.targetId, { kind: transfer.kind, id: transfer.tileId }, transfer.move);
+    if (!dashboard) return aError(404, 'not_found');
+    return NextResponse.json({ dashboard });
+  }
+  return NextResponse.json({ dashboard: await updateDashboard(project.id, id, patch) });
 }
 
 export async function DELETE(req: NextRequest, ctx: Ctx) {

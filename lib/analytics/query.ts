@@ -32,6 +32,8 @@ import { getCohort, loadActions, type ActionMap } from './records';
 import { channelSql, webFiltersSql } from './web-core';
 import type { ProjectRow } from './projects';
 import { ACTION_PREFIX, funnelWindowMs, PROPERTY_MATHS } from './types';
+import { pathWindow } from './funnel-core';
+import { activeInWindow, isWeekend, rolling } from './trend-core';
 import type {
   CorrelationQuery,
   CorrelationResult,
@@ -134,6 +136,16 @@ function internalFilters(project: ProjectRow, on: boolean | undefined): Property
 
 const MATH_SUFFIX: Record<string, string> = {
   unique: 'unique users',
+  wau: 'weekly active',
+  mau: 'monthly active',
+  per_user_min: 'min per user',
+  per_user_max: 'max per user',
+  per_user_median: 'median per user',
+  per_user_p75: 'p75 per user',
+  per_user_p90: 'p90 per user',
+  per_user_p95: 'p95 per user',
+  per_user_p99: 'p99 per user',
+  p75: 'p75',
   sessions: 'sessions',
   per_user: 'per user',
   unique_group: 'unique groups',
@@ -147,9 +159,10 @@ const MATH_SUFFIX: Record<string, string> = {
   p99: 'p99',
 };
 
-function seriesLabel(event: string, s: { math: string; mathProperty?: string; label?: string }, actions?: ActionMap): string {
+function seriesLabel(event: string, s: { math: string; mathProperty?: string; label?: string; orEvents?: string[] }, actions?: ActionMap): string {
   if (s.label) return s.label;
-  const name = event === '*' ? 'All events' : event.startsWith(ACTION_PREFIX) ? (actions?.get(event.slice(ACTION_PREFIX.length))?.name ?? 'Deleted action') : event;
+  const one = (ev: string) => (ev === '*' ? 'All events' : ev.startsWith(ACTION_PREFIX) ? (actions?.get(ev.slice(ACTION_PREFIX.length))?.name ?? 'Deleted action') : ev);
+  const name = [event, ...(s.orEvents ?? [])].map(one).join(' / ');
   const suffix = MATH_SUFFIX[s.math];
   if (!suffix) return name;
   return s.mathProperty && PROPERTY_MATHS.includes(s.math as never) ? `${name} (${suffix} of ${s.mathProperty})` : `${name} (${suffix})`;
@@ -271,20 +284,115 @@ async function percentileSeries(
   return out.sort((a, b) => b.total - a.total).slice(0, 10);
 }
 
+const PER_USER_OF: Record<string, number> = { per_user_median: 0.5, per_user_p75: 0.75, per_user_p90: 0.9, per_user_p95: 0.95, per_user_p99: 0.99 };
+
+/** Conteos por persona en cada cubeta y su mínimo, máximo, mediana o percentil. */
+async function perUserSeries(
+  project: ProjectRow,
+  s: TrendsQuery['series'][number],
+  q: TrendsQuery,
+  where: Frag,
+  joins: string,
+  buckets: string[],
+  range: { from: number; to: number },
+): Promise<Array<{ value: string | null; data: number[]; total: number }>> {
+  const p = s.math === 'per_user_min' ? 0 : s.math === 'per_user_max' ? 1 : PER_USER_OF[s.math];
+  const bd = q.breakdown ? propText(q.breakdown.key, q.breakdown.type) : null;
+  const rows = (await all(
+    `SELECT ${bucketSql(q.interval, 'e.ts', shiftFor(project, range))} AS bucket, ${bd ? bd.sql : 'NULL'} AS value, ${PERSON_KEY} AS person, COUNT(*) AS n FROM analytics_events e ${joins}
+     WHERE ${where.sql} GROUP BY 1, 2, 3 LIMIT ?`,
+    [offAt(project, range.from), ...(bd?.args ?? []), ...where.args, ROW_CAP],
+  )) as Array<{ bucket: string; value: string | null; person: string; n: number }>;
+  const groups = new Map<string | null, { perBucket: Map<string, number[]>; perPerson: Map<string, number> }>();
+  for (const r of rows) {
+    const k = bd ? (r.value ?? '(none)') : null;
+    let g = groups.get(k);
+    if (!g) groups.set(k, (g = { perBucket: new Map(), perPerson: new Map() }));
+    let list = g.perBucket.get(String(r.bucket));
+    if (!list) g.perBucket.set(String(r.bucket), (list = []));
+    list.push(Number(r.n));
+    g.perPerson.set(String(r.person), (g.perPerson.get(String(r.person)) ?? 0) + Number(r.n));
+  }
+  const out = [...groups.entries()].map(([value, g]) => ({
+    value,
+    data: buckets.map((b) => percentile(g.perBucket.get(b) ?? [], p)),
+    total: percentile([...g.perPerson.values()], p),
+  }));
+  return out.sort((a, b) => b.total - a.total).slice(0, 10);
+}
+
+/** Activos en los últimos 7 o 30 días: el total es el valor de la última cubeta. */
+async function activeSeries(
+  project: ProjectRow,
+  s: TrendsQuery['series'][number],
+  q: TrendsQuery,
+  extra: Frag | null,
+  filters: PropertyFilter[],
+  cohort: Frag | null,
+  actions: ActionMap,
+  joins: string,
+  buckets: string[],
+  range: { from: number; to: number },
+): Promise<Array<{ value: string | null; data: number[]; total: number }>> {
+  const days = s.math === 'wau' ? 7 : 30;
+  const wide = { from: range.from - days * DAY, to: range.to };
+  const base = whereFor(project, wide, extra ? null : s.event, filters, cohort, actions);
+  const where = extra ? andFrag(base, extra) : base;
+  const bd = q.breakdown ? propText(q.breakdown.key, q.breakdown.type) : null;
+  const rows = (await all(
+    `SELECT DISTINCT ${bucketSql('day', 'e.ts', shiftFor(project, wide))} AS day, ${bd ? bd.sql : 'NULL'} AS value, ${PERSON_KEY} AS person FROM analytics_events e ${joins}
+     WHERE ${where.sql} LIMIT ?`,
+    [offAt(project, wide.from), ...(bd?.args ?? []), ...where.args, ROW_CAP],
+  )) as Array<{ day: string; value: string | null; person: string }>;
+  const groups = new Map<string | null, Array<{ day: string; person: string }>>();
+  for (const r of rows) {
+    const k = bd ? (r.value ?? '(none)') : null;
+    let g = groups.get(k);
+    if (!g) groups.set(k, (g = []));
+    g.push({ day: String(r.day), person: String(r.person) });
+  }
+  const lastDay = bucketOf(range.to, 'day', projectTz(project));
+  const out = [...groups.entries()].map(([value, g]) => {
+    const data = activeInWindow(g, buckets, q.interval, days, lastDay);
+    return { value, data, total: data[data.length - 1] ?? 0 };
+  });
+  return out.sort((a, b) => b.total - a.total).slice(0, 10);
+}
+
+function andFrag(a: Frag, b: Frag): Frag {
+  return { sql: `${a.sql} AND ${b.sql}`, args: [...a.args, ...b.args] };
+}
+
+/** Condición extra de una serie: otros eventos con OR y solo la primera vez de cada persona. */
+function seriesExtra(project: ProjectRow, s: TrendsQuery['series'][number], filters: PropertyFilter[], actions: ActionMap): Frag | null {
+  const events = [s.event, ...(s.orEvents ?? [])];
+  const ms = events.map((e) => eventMatch(e, actions));
+  const match: Frag = { sql: ms.length === 1 ? ms[0].sql : `(${ms.map((m) => m.sql).join(' OR ')})`, args: ms.flatMap((m) => m.args) };
+  if (!s.first) return events.length > 1 ? match : null;
+  // Con "la primera de todas" valen los filtros de afuera: si esa primera vez no los cumple, no cuenta.
+  const f = s.first === 'matching' ? filtersSql(filters) : { sql: '', args: [] };
+  const needs = s.first === 'matching' && needsPerson(filters);
+  const first: Frag = {
+    sql: `(${PERSON_KEY}, e.ts) IN (SELECT ${PERSON_KEY}, MIN(e.ts) FROM analytics_events e ${personJoins(needs)} WHERE e.project_id = ? AND e.ts >= 0 AND e.ts <= 8640000000000000 AND ${match.sql}${f.sql ? ` AND ${f.sql}` : ''} GROUP BY 1)`,
+    args: [project.id, ...match.args, ...f.args],
+  };
+  return andFrag(match, first);
+}
+
 async function trendOnce(project: ProjectRow, q: TrendsQuery, range: { from: number; to: number }, now: number) {
   const off = offAt(project, range.from);
   const shift = shiftFor(project, range);
   const tz = projectTz(project);
   const buckets = bucketList(range.from, range.to, q.interval, tz);
   const cohort = await cohortFrag(project, q.cohortId, now);
-  const actions = await loadActions(project.id, q.series.map((s) => s.event));
+  const actions = await loadActions(project.id, q.series.flatMap((s) => [s.event, ...(s.orEvents ?? [])]));
   let usedRollup = false;
   const out: Array<{ label: string; breakdownValue: string | null; data: number[]; total: number }> = [];
   for (const s of q.series) {
     const filters = [...internalFilters(project, q.excludeInternal), ...q.filters, ...s.filters];
     const label = seriesLabel(s.event, s, actions);
     const isAction = s.event.startsWith(ACTION_PREFIX);
-    if (!filters.length && !q.breakdown && !cohort && !isAction && s.math === 'total') {
+    if (!filters.length && !q.breakdown && !cohort && !isAction && s.math === 'total' && !s.orEvents?.length && !s.first) {
       const data = await trendFromRollup(project, s.event, s.math, q.interval, range, buckets);
       if (data) {
         usedRollup = true;
@@ -293,9 +401,20 @@ async function trendOnce(project: ProjectRow, q: TrendsQuery, range: { from: num
       }
     }
     const withPerson = needsPerson(filters) || q.breakdown?.type === 'person';
-    const usesPerson = s.math === 'unique' || s.math === 'per_user';
+    const isPerUser = s.math.startsWith('per_user_');
+    const isActive = s.math === 'wau' || s.math === 'mau';
+    const usesPerson = s.math === 'unique' || s.math === 'per_user' || isPerUser || isActive || Boolean(s.first);
     const joins = usesPerson || withPerson || cohort ? personJoins(withPerson) : '';
-    const where = whereFor(project, range, s.event, filters, cohort, actions);
+    const extra = seriesExtra(project, s, filters, actions);
+    const where = extra ? andFrag(whereFor(project, range, null, filters, cohort, actions), extra) : whereFor(project, range, s.event, filters, cohort, actions);
+    if (isActive) {
+      for (const b of await activeSeries(project, s, q, extra, filters, cohort, actions, joins, buckets, range)) out.push({ label, breakdownValue: b.value, data: b.data, total: b.total });
+      continue;
+    }
+    if (isPerUser) {
+      for (const b of await perUserSeries(project, s, q, where, joins, buckets, range)) out.push({ label, breakdownValue: b.value, data: b.data, total: b.total });
+      continue;
+    }
     if (PERCENTILE_OF[s.math] !== undefined) {
       for (const b of await percentileSeries(project, s, q, where, joins, buckets, range)) out.push({ label, breakdownValue: b.value, data: b.data, total: b.total });
       continue;
@@ -341,8 +460,8 @@ async function trendOnce(project: ProjectRow, q: TrendsQuery, range: { from: num
   return { buckets, series: out, usedRollup };
 }
 
-export async function runTrends(project: ProjectRow, q: TrendsQuery, now = Date.now()): Promise<TrendsResult> {
-  const range = resolveRange(q.dateRange, now, projectTz(project));
+/** Series con la comparación y la fórmula ya aplicadas. */
+async function trendsFor(project: ProjectRow, q: TrendsQuery, range: { from: number; to: number }, now: number): Promise<{ buckets: string[]; series: TrendsResult['series']; usedRollup: boolean }> {
   const cur = await trendOnce(project, q, range, now);
   const series = cur.series.map((s) => ({ ...s }) as TrendsResult['series'][number]);
   if (q.compare) {
@@ -369,9 +488,41 @@ export async function runTrends(project: ProjectRow, q: TrendsQuery, now = Date.
       out.compare = applyFormula(node, series.map((x) => x.compare ?? []), cur.buckets.length);
       out.compareTotal = formulaValue(node, series.map((x) => x.compareTotal ?? 0));
     }
-    return { kind: 'trends', buckets: cur.buckets, series: [out], usedRollup: cur.usedRollup };
+    return { buckets: cur.buckets, series: [out], usedRollup: cur.usedRollup };
   }
-  return { kind: 'trends', buckets: cur.buckets, series, usedRollup: cur.usedRollup };
+  return { buckets: cur.buckets, series, usedRollup: cur.usedRollup };
+}
+
+export async function runTrends(project: ProjectRow, q: TrendsQuery, now = Date.now()): Promise<TrendsResult> {
+  const tz = projectTz(project);
+  const range = resolveRange(q.dateRange, now, tz);
+  const base = await trendsFor(project, q, range, now);
+  let { buckets, series } = base;
+  const o = q.options;
+  const daily = q.interval === 'day';
+  // El promedio móvil mira días antes del rango, para que el primer día ya tenga su ventana completa.
+  if (daily && o?.smoothing) {
+    const n = o.smoothing;
+    const wide = await trendsFor(project, q, { from: range.from - (n - 1) * DAY, to: range.to }, now);
+    const len = buckets.length;
+    series = series.map((s) => {
+      const w = wide.series.find((x) => x.label === s.label && x.breakdownValue === s.breakdownValue);
+      if (!w) return { ...s, data: rolling(s.data, n), compare: s.compare && rolling(s.compare, n) };
+      return { ...s, data: rolling(w.data, n).slice(-len), compare: w.compare && rolling(w.compare, n).slice(-len) };
+    });
+  }
+  const weekendsHidden = Boolean(daily && o?.hideWeekends);
+  if (weekendsHidden) {
+    const keep = buckets.map((b, i) => (isWeekend(b) ? -1 : i)).filter((i) => i >= 0);
+    const summable = !q.formula && q.series.every((s) => s.math === 'total' || s.math === 'sum') && !o?.smoothing;
+    buckets = keep.map((i) => buckets[i]);
+    series = series.map((s) => {
+      const data = keep.map((i) => s.data[i]);
+      return { ...s, data, compare: s.compare && keep.map((i) => s.compare![i]), total: summable ? round2(data.reduce((a, b) => a + b, 0)) : s.total };
+    });
+  }
+  const lastIncomplete = buckets.length > 0 && buckets[buckets.length - 1] === bucketOf(now, q.interval, tz);
+  return { kind: 'trends', buckets, series, usedRollup: base.usedRollup, options: o ?? null, lastIncomplete, weekendsHidden };
 }
 
 // ---------- Embudos ----------
@@ -432,7 +583,7 @@ async function funnelRows(project: ProjectRow, q: FunnelQuery, range: { from: nu
     const needs = s.first === 'matching' && needsPerson(s.filters);
     const firsts = (await all(
       `SELECT ${key.sql} AS person, MIN(e.ts) AS ts FROM analytics_events e ${personJoins(needs)}
-       WHERE e.project_id = ? AND ${m.sql}${f.sql ? ` AND ${f.sql}` : ''}${notNull ? ` AND ${key.sql} IS NOT NULL` : ''} GROUP BY 1 LIMIT ?`,
+       WHERE e.project_id = ? AND e.ts >= 0 AND e.ts <= 8640000000000000 AND ${m.sql}${f.sql ? ` AND ${f.sql}` : ''}${notNull ? ` AND ${key.sql} IS NOT NULL` : ''} GROUP BY 1 LIMIT ?`,
       [...key.args, project.id, ...m.args, ...f.args, ...(notNull ? key.args : []), ROW_CAP + 1],
     )) as Row[];
     if (firsts.length > ROW_CAP) truncated = true;
@@ -654,18 +805,41 @@ export async function runPaths(project: ProjectRow, q: PathsQuery, now = Date.no
   const range = resolveRange(q.dateRange, now, projectTz(project));
   // Con eventos propios: la página o el nombre del evento (sin el ruido de autocapture e identify).
   const source = q.source ?? 'pageviews';
+  // Desde un paso de un embudo: solo esa gente y la parte de su actividad que importa.
+  const f = q.funnel;
+  let windows: Map<string, { from: number; to: number }> | null = null;
+  let funnelTruncated = false;
+  if (f) {
+    const order = f.query.order ?? 'ordered';
+    const fr = await funnelRows(project, { ...f.query, order, groupType: null, bySession: false, breakdown: null }, range, now);
+    funnelTruncated = fr.truncated;
+    const c = computeFunnel(fr.list, f.query.steps.length, funnelWindowMs(f.query), range, { order, exclusions: fr.exclusions, droppedLimit: 0, collectTimes: true });
+    windows = new Map();
+    for (const [person, times] of c.personTimes ?? []) {
+      const w = pathWindow(f.mode, Math.min(f.step, f.query.steps.length - 1), times);
+      if (w) windows.set(person, w);
+    }
+  }
+  const owner = f ? `, ${PERSON_KEY} AS person` : '';
+  const ownerJoin = f ? personJoins(false) : '';
   const rows = (await all(
     source === 'all'
-      ? `SELECT e.session_id AS session, e.pathname AS path, e.event AS event, e.ts AS ts FROM analytics_events e
+      ? `SELECT e.session_id AS session, e.pathname AS path, e.event AS event, e.ts AS ts${owner} FROM analytics_events e ${ownerJoin}
          WHERE e.project_id = ? AND e.event NOT IN ('$autocapture', '$identify', '$set', '$groupidentify', '$create_alias', '$pageleave', '$feature_flag_called', '$web_vitals') AND e.ts >= ? AND e.ts <= ? AND e.session_id IS NOT NULL
          ORDER BY e.ts LIMIT ?`
-      : `SELECT e.session_id AS session, e.pathname AS path, e.event AS event, e.ts AS ts FROM analytics_events e
+      : `SELECT e.session_id AS session, e.pathname AS path, e.event AS event, e.ts AS ts${owner} FROM analytics_events e ${ownerJoin}
          WHERE e.project_id = ? AND e.event = '$pageview' AND e.ts >= ? AND e.ts <= ? AND e.session_id IS NOT NULL AND e.pathname IS NOT NULL
          ORDER BY e.ts LIMIT ?`,
     [project.id, range.from, range.to, ROW_CAP + 1],
-  )) as Array<{ session: string; path: string | null; event: string; ts: number }>;
-  const truncated = rows.length > ROW_CAP;
-  const nodes = rows.slice(0, ROW_CAP).map((x) => {
+  )) as Array<{ session: string; path: string | null; event: string; ts: number; person?: string }>;
+  const truncated = rows.length > ROW_CAP || funnelTruncated;
+  const kept = windows
+    ? rows.slice(0, ROW_CAP).filter((x) => {
+        const w = windows.get(String(x.person));
+        return w !== undefined && Number(x.ts) >= w.from && Number(x.ts) <= w.to;
+      })
+    : rows.slice(0, ROW_CAP);
+  const nodes = kept.map((x) => {
     const raw = String(x.event) === '$pageview' ? String(x.path ?? '') : String(x.event);
     return { session: String(x.session), path: q.collapseIds && String(x.event) === '$pageview' ? collapsePath(raw) : raw, ts: Number(x.ts) };
   });

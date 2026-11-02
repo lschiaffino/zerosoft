@@ -174,7 +174,23 @@
     "noBreakdownValues": "Ninguém neste funil tem valor para esta propriedade.",
     "breakdownValue": "Valor",
     "stepHead": "Etapa {n}",
-    "completedSteps": "Completou {n, plural, one {# etapa} other {# etapas}}"
+    "completedSteps": "Completou {n, plural, one {# etapa} other {# etapas}}",
+    "weekendsHidden": "Sábados e domingos estão ocultos.",
+    "allHidden": "Todas as séries estão ocultas. Ative uma na tabela abaixo.",
+    "showAll": "Mostrar todas",
+    "hideAll": "Ocultar todas",
+    "isolate": "Isolar",
+    "hideOthers": "Ocultar as outras",
+    "hideOthersOf": "Ocultar tudo menos {name}",
+    "stepPaths": "Explorar caminhos",
+    "viewFunnel": "Ver funil",
+    "pathModes": {
+      "before": "Caminhos que levam à etapa {n}",
+      "between": "Caminhos entre a etapa {prev} e a {n}",
+      "after": "Caminhos depois da etapa {n}",
+      "after_dropoff": "Caminhos depois de desistir na etapa {n}",
+      "before_dropoff": "Caminhos antes de desistir na etapa {n}"
+    }
   },
   "filters": {
     "filterN": "Filtro {n}",
@@ -224,7 +240,11 @@
       "table": "Tabela",
       "area": "Área",
       "cumulative": "Acumulado",
-      "pie": "Pizza"
+      "pie": "Pizza",
+      "stacked": "Barras empilhadas",
+      "bar_total": "Barras de total",
+      "donut": "Rosca",
+      "proportion": "Barra de proporção"
     },
     "compare": "Comparar com o período anterior",
     "breakdown": "Detalhamento",
@@ -335,7 +355,17 @@
       "median": "Mediana da propriedade",
       "p90": "Percentil 90",
       "p95": "Percentil 95",
-      "p99": "Percentil 99"
+      "p99": "Percentil 99",
+      "wau": "Pessoas ativas por semana",
+      "mau": "Pessoas ativas por mês",
+      "per_user_min": "Mínimo por pessoa",
+      "per_user_max": "Máximo por pessoa",
+      "per_user_median": "Mediana por pessoa",
+      "per_user_p75": "Percentil 75 por pessoa",
+      "per_user_p90": "Percentil 90 por pessoa",
+      "per_user_p95": "Percentil 95 por pessoa",
+      "per_user_p99": "Percentil 99 por pessoa",
+      "p75": "Percentil 75"
     },
     "pathSources": {
       "pageviews": "Só páginas",
@@ -396,7 +426,45 @@
     "exclusionToN": "Até a etapa {n}",
     "removeExclusion": "Remover",
     "addExclusion": "Adicionar exclusão",
-    "exclusionIsStep": "Este evento já é uma etapa do funil, então não é usado como exclusão."
+    "exclusionIsStep": "Este evento já é uma etapa do funil, então não é usado como exclusão.",
+    "duplicateSeries": "Duplicar",
+    "orSeriesEvent": "Evento alternativo da série {n}",
+    "firstSeriesLabel": "Qual ocorrência conta na série {n}",
+    "chartOptions": "Opções do gráfico",
+    "smoothing": "Suavização",
+    "smoothingNone": "Sem suavização",
+    "smoothingN": "Média de {n} dias",
+    "hideWeekends": "Ocultar fins de semana",
+    "dailyOnly": "A suavização e ocultar fins de semana funcionam ao agrupar por dia.",
+    "unit": "Unidade dos valores",
+    "units": {
+      "none": "Número simples",
+      "short": "Número curto (1,2 mil)",
+      "duration": "Duração em segundos",
+      "duration_ms": "Duração em milissegundos",
+      "percentage": "Porcentagem",
+      "currency": "Moeda"
+    },
+    "currency": "Código da moeda",
+    "prefix": "Prefixo",
+    "suffix": "Sufixo",
+    "yMin": "Mínimo do eixo Y",
+    "yMax": "Máximo do eixo Y",
+    "xLabel": "Rótulo do eixo X",
+    "yLabel": "Rótulo do eixo Y",
+    "showValues": "Mostrar valores na série",
+    "hideLegend": "Ocultar legenda",
+    "goalValue": "Valor da meta",
+    "goalLabel": "Rótulo da meta",
+    "addGoal": "Linha de meta",
+    "pathFunnelClear": "Mostrar todos",
+    "pathFunnelModes": {
+      "before": "Só quem chegou à etapa {n} do funil, até essa etapa.",
+      "between": "Só quem chegou à etapa {n} do funil, entre a etapa {prev} e essa etapa.",
+      "after": "Só quem chegou à etapa {n} do funil, depois dessa etapa.",
+      "after_dropoff": "Só quem desistiu na etapa {n} do funil, depois de sair.",
+      "before_dropoff": "Só quem desistiu na etapa {n} do funil, antes de sair."
+    }
   },
   "sql": {
     "title": "SQL",
@@ -447,7 +515,65 @@
     "duplicate": "Duplicar",
     "copyName": "{name} (cópia)",
     "overrideRange": "Mesmas datas em todos",
-    "refresh": "Atualizar"
+    "refresh": "Atualizar",
+    "filtersTitle": "Filtros do painel",
+    "filtersOn": "Valem para todos os cards, exceto os que os ignoram.",
+    "internalInherit": "Pessoas internas: como cada insight disser",
+    "internalOn": "Pessoas internas: de fora em todos",
+    "internalOff": "Pessoas internas: incluídas em todos",
+    "internalLabel": "Pessoas internas e de teste",
+    "autoRefresh": "Atualizar sozinho",
+    "autoOff": "Desligado",
+    "autoEvery": "A cada {n, plural, one {minuto} other {# minutos}}",
+    "addText": "Card de texto",
+    "editText": "Editar",
+    "textTitle": "Card de texto",
+    "textLabel": "Texto, com Markdown",
+    "deleteText": "Excluir",
+    "moveUpText": "Subir o card de texto",
+    "moveDownText": "Descer o card de texto",
+    "tileOptions": "Opções",
+    "tileOptionsOf": "Opções de {name}",
+    "tileSize": "Tamanho",
+    "sizes": {
+      "s": "Pequeno",
+      "m": "Médio",
+      "l": "Largura total"
+    },
+    "ignoreFilters": "Ignorar data e filtros do painel",
+    "ignoresBadge": "Ignora os filtros do painel",
+    "tileRange": "Período próprio",
+    "tileInterval": "Intervalo",
+    "intervalInsight": "Como o insight disser",
+    "tileFilters": "Filtros deste card",
+    "tileSmoothing": "Suavização",
+    "tileValues": "Mostrar valores",
+    "tileLegend": "Ocultar legenda",
+    "copyTo": "Copiar para um painel",
+    "moveTo": "Mover para um painel",
+    "chooseDashboard": "Escolha um painel",
+    "noOtherDashboards": "Ainda não há outros painéis",
+    "copied": "Copiado.",
+    "close": "Fechar",
+    "refreshTile": "Atualizar {name}",
+    "computedAt": "Calculado às {time}",
+    "templatesTitle": "Começar de um painel pronto",
+    "useTemplate": "Criar",
+    "useTemplateNamed": "Criar o painel {name}",
+    "templates": {
+      "website": {
+        "name": "Site",
+        "body": "Páginas vistas, visitantes, sessões, páginas mais vistas, de onde chegam e dispositivos."
+      },
+      "product": {
+        "name": "Saúde do produto",
+        "body": "Pessoas ativas por dia, semana e mês, crescimento, retenção e stickiness."
+      },
+      "llm": {
+        "name": "Métricas de LLM",
+        "body": "Gerações, pessoas, custo, latência e uso por modelo."
+      }
+    }
   },
   "persons": {
     "title": "Pessoas",

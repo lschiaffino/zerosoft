@@ -174,7 +174,23 @@
     "noBreakdownValues": "Nadie en este embudo tiene un valor para esta propiedad.",
     "breakdownValue": "Valor",
     "stepHead": "Paso {n}",
-    "completedSteps": "Completó {n, plural, one {# paso} other {# pasos}}"
+    "completedSteps": "Completó {n, plural, one {# paso} other {# pasos}}",
+    "weekendsHidden": "Sábados y domingos están ocultos.",
+    "allHidden": "Todas las series están ocultas. Prendé una en la tabla de abajo.",
+    "showAll": "Mostrar todas",
+    "hideAll": "Ocultar todas",
+    "isolate": "Aislar",
+    "hideOthers": "Ocultar las demás",
+    "hideOthersOf": "Ocultar todo menos {name}",
+    "stepPaths": "Explorar caminos",
+    "viewFunnel": "Ver embudo",
+    "pathModes": {
+      "before": "Caminos que llevan al paso {n}",
+      "between": "Caminos entre el paso {prev} y el {n}",
+      "after": "Caminos después del paso {n}",
+      "after_dropoff": "Caminos después de abandonar en el paso {n}",
+      "before_dropoff": "Caminos antes de abandonar en el paso {n}"
+    }
   },
   "filters": {
     "filterN": "Filtro {n}",
@@ -224,7 +240,11 @@
       "table": "Tabla",
       "area": "Área",
       "cumulative": "Acumulado",
-      "pie": "Torta"
+      "pie": "Torta",
+      "stacked": "Barras apiladas",
+      "bar_total": "Barras de total",
+      "donut": "Anillo",
+      "proportion": "Barra de proporción"
     },
     "compare": "Comparar con el período anterior",
     "breakdown": "Apertura",
@@ -335,7 +355,17 @@
       "median": "Mediana de propiedad",
       "p90": "Percentil 90",
       "p95": "Percentil 95",
-      "p99": "Percentil 99"
+      "p99": "Percentil 99",
+      "wau": "Personas activas por semana",
+      "mau": "Personas activas por mes",
+      "per_user_min": "Mínimo por persona",
+      "per_user_max": "Máximo por persona",
+      "per_user_median": "Mediana por persona",
+      "per_user_p75": "Percentil 75 por persona",
+      "per_user_p90": "Percentil 90 por persona",
+      "per_user_p95": "Percentil 95 por persona",
+      "per_user_p99": "Percentil 99 por persona",
+      "p75": "Percentil 75"
     },
     "pathSources": {
       "pageviews": "Solo páginas",
@@ -396,7 +426,45 @@
     "exclusionToN": "Hasta el paso {n}",
     "removeExclusion": "Quitar",
     "addExclusion": "Agregar exclusión",
-    "exclusionIsStep": "Este evento ya es un paso del embudo, así que no se usa como exclusión."
+    "exclusionIsStep": "Este evento ya es un paso del embudo, así que no se usa como exclusión.",
+    "duplicateSeries": "Duplicar",
+    "orSeriesEvent": "Evento alternativo de la serie {n}",
+    "firstSeriesLabel": "Qué ocurrencia cuenta en la serie {n}",
+    "chartOptions": "Opciones del gráfico",
+    "smoothing": "Suavizado",
+    "smoothingNone": "Sin suavizado",
+    "smoothingN": "Promedio de {n} días",
+    "hideWeekends": "Ocultar fines de semana",
+    "dailyOnly": "El suavizado y ocultar fines de semana funcionan al agrupar por día.",
+    "unit": "Unidad de los valores",
+    "units": {
+      "none": "Número simple",
+      "short": "Número corto (1,2 K)",
+      "duration": "Duración en segundos",
+      "duration_ms": "Duración en milisegundos",
+      "percentage": "Porcentaje",
+      "currency": "Moneda"
+    },
+    "currency": "Código de moneda",
+    "prefix": "Prefijo",
+    "suffix": "Sufijo",
+    "yMin": "Mínimo del eje Y",
+    "yMax": "Máximo del eje Y",
+    "xLabel": "Etiqueta del eje X",
+    "yLabel": "Etiqueta del eje Y",
+    "showValues": "Mostrar valores en la serie",
+    "hideLegend": "Ocultar leyenda",
+    "goalValue": "Valor de la meta",
+    "goalLabel": "Etiqueta de la meta",
+    "addGoal": "Línea de meta",
+    "pathFunnelClear": "Mostrar a todos",
+    "pathFunnelModes": {
+      "before": "Solo quienes llegaron al paso {n} del embudo, hasta ese paso.",
+      "between": "Solo quienes llegaron al paso {n} del embudo, entre el paso {prev} y ese paso.",
+      "after": "Solo quienes llegaron al paso {n} del embudo, después de ese paso.",
+      "after_dropoff": "Solo quienes abandonaron en el paso {n} del embudo, después de irse.",
+      "before_dropoff": "Solo quienes abandonaron en el paso {n} del embudo, antes de irse."
+    }
   },
   "sql": {
     "title": "SQL",
@@ -447,7 +515,65 @@
     "duplicate": "Duplicar",
     "copyName": "{name} (copia)",
     "overrideRange": "Mismas fechas en todos",
-    "refresh": "Actualizar"
+    "refresh": "Actualizar",
+    "filtersTitle": "Filtros del tablero",
+    "filtersOn": "Aplican a todas las tarjetas salvo las que los ignoran.",
+    "internalInherit": "Gente interna: como diga cada insight",
+    "internalOn": "Gente interna: afuera en todas",
+    "internalOff": "Gente interna: incluida en todas",
+    "internalLabel": "Gente interna y de prueba",
+    "autoRefresh": "Actualizar solo",
+    "autoOff": "Apagado",
+    "autoEvery": "Cada {n, plural, one {minuto} other {# minutos}}",
+    "addText": "Tarjeta de texto",
+    "editText": "Editar",
+    "textTitle": "Tarjeta de texto",
+    "textLabel": "Texto, con Markdown",
+    "deleteText": "Borrar",
+    "moveUpText": "Subir la tarjeta de texto",
+    "moveDownText": "Bajar la tarjeta de texto",
+    "tileOptions": "Opciones",
+    "tileOptionsOf": "Opciones de {name}",
+    "tileSize": "Tamaño",
+    "sizes": {
+      "s": "Chica",
+      "m": "Mediana",
+      "l": "Todo el ancho"
+    },
+    "ignoreFilters": "Ignorar fecha y filtros del tablero",
+    "ignoresBadge": "Ignora los filtros del tablero",
+    "tileRange": "Fechas propias",
+    "tileInterval": "Intervalo",
+    "intervalInsight": "Como diga el insight",
+    "tileFilters": "Filtros de esta tarjeta",
+    "tileSmoothing": "Suavizado",
+    "tileValues": "Mostrar valores",
+    "tileLegend": "Ocultar leyenda",
+    "copyTo": "Copiar a un tablero",
+    "moveTo": "Mover a un tablero",
+    "chooseDashboard": "Elegí un tablero",
+    "noOtherDashboards": "Todavía no hay otros tableros",
+    "copied": "Copiada.",
+    "close": "Cerrar",
+    "refreshTile": "Actualizar {name}",
+    "computedAt": "Calculado a las {time}",
+    "templatesTitle": "Empezar de un tablero armado",
+    "useTemplate": "Crear",
+    "useTemplateNamed": "Crear el tablero {name}",
+    "templates": {
+      "website": {
+        "name": "Sitio web",
+        "body": "Páginas vistas, visitantes, sesiones, páginas más vistas, de dónde llegan y dispositivos."
+      },
+      "product": {
+        "name": "Salud del producto",
+        "body": "Personas activas por día, semana y mes, crecimiento, retención y stickiness."
+      },
+      "llm": {
+        "name": "Métricas de LLM",
+        "body": "Generaciones, personas, costo, latencia y uso por modelo."
+      }
+    }
   },
   "persons": {
     "title": "Personas",

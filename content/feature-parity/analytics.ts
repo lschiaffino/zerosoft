@@ -292,8 +292,8 @@ const parity: ProductParity = {
     row('api-scopes', 'data', ['API access with scoped keys', 'Acceso por API con keys con permisos', 'Acesso por API com keys com permissões'], 'have', {
       detail: ['analytics:read and analytics:write for queries, events and persons', 'analytics:read y analytics:write para consultas, eventos y personas', 'analytics:read e analytics:write para consultas, eventos e pessoas'],
     }),
-    row('ai-assistant', 'data', ['AI assistant over your analytics', 'Asistente de IA sobre tu analítica', 'Assistente de IA sobre o seu analytics'], 'have', {
-      detail: ['Read tools in the platform assistant, with the same app access', 'Herramientas de lectura en el asistente de la plataforma, con el mismo acceso por app', 'Ferramentas de leitura no assistente da plataforma, com o mesmo acesso por app'],
+    row('ai-assistant', 'data', ['AI assistant over your analytics', 'Asistente de IA sobre tu analítica', 'Assistente de IA sobre o seu analytics'], 'partial', {
+      detail: ['Read tools in the platform assistant, with the same app access; not yet tried from start to finish with a real model', 'Herramientas de lectura en el asistente de la plataforma, con el mismo acceso por app; todavía sin probar de punta a punta con un modelo real', 'Ferramentas de leitura no assistente da plataforma, com o mesmo acesso por app; ainda sem testar do início ao fim com um modelo real'],
     }),
     row('data-warehouse', 'data', ['Data warehouse and external sources', 'Data warehouse y fuentes externas', 'Data warehouse e fontes externas'], 'missing'),
     row('pipelines', 'data', ['CDP destinations and pipelines', 'Destinos CDP y pipelines', 'Destinos CDP e pipelines'], 'missing'),

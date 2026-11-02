@@ -18,7 +18,7 @@ import type {
   StickinessQuery,
   TrendsQuery,
 } from '@/lib/analytics/types';
-import { FUNNEL_ATTRIBUTIONS, FUNNEL_DISPLAYS, FUNNEL_ORDERS, FUNNEL_WINDOW_UNITS, PROPERTY_MATHS, SERIES_MATHS, shareableQuery, TREND_DISPLAYS, type FunnelWindowUnit, type InsightQuery as AnyQuery, type SeriesMath } from '@/lib/analytics/types';
+import { FUNNEL_ATTRIBUTIONS, FUNNEL_DISPLAYS, FUNNEL_ORDERS, FUNNEL_WINDOW_UNITS, PROPERTY_MATHS, SERIES_MATHS, shareableQuery, TREND_DISPLAYS, TREND_UNITS, type FunnelWindowUnit, type InsightQuery as AnyQuery, type SeriesMath } from '@/lib/analytics/types';
 import { AlertsPanel, CorrelationPanel, ShareDialog, downloadCsv } from './InsightPanels';
 import { ApiError, apiErrorText, api, notifyChanged, runQuery } from './client';
 import { EventInput, FilterList, cleanFilters, useProjectMeta, type ProjectMeta } from './Filters';
@@ -67,8 +67,9 @@ function clean(q: InsightQuery): InsightQuery {
       return {
         ...q,
         filters: cleanFilters(q.filters),
-        series: q.series.map((s) => ({ ...s, event: s.event.trim() || '*', filters: cleanFilters(s.filters) })),
+        series: q.series.map((s) => ({ ...s, event: s.event.trim() || '*', orEvents: (s.orEvents ?? []).map((e) => e.trim()).filter(Boolean), filters: cleanFilters(s.filters) })),
         breakdown: q.breakdown && q.breakdown.key.trim() ? { ...q.breakdown, key: q.breakdown.key.trim() } : null,
+        options: q.options ? { ...q.options, goalLines: (q.options.goalLines ?? []).filter((g) => Number.isFinite(g.value)) } : null,
       };
     case 'funnel':
       return {
@@ -153,11 +154,37 @@ function TrendsForm({ q, set, meta, cohorts, internal }: { q: TrendsQuery; set: 
                 </option>
               ))}
             </select>
+            {q.series.length < 5 && (
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ ...q, series: [...q.series.slice(0, i + 1), { ...s, filters: [...s.filters] }, ...q.series.slice(i + 1)] })}>
+                {t('duplicateSeries')}
+              </button>
+            )}
             {q.series.length > 1 && (
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ ...q, series: q.series.filter((_, j) => j !== i) })}>
                 {t('removeSeries')}
               </button>
             )}
+          </div>
+          {(s.orEvents ?? []).map((ev, k) => (
+            <div key={k} className="an-row">
+              <span className="an-muted an-small">{t('orWord')}</span>
+              <EventInput value={ev} onChange={(event) => set({ ...q, series: q.series.map((x, j) => (j === i ? { ...x, orEvents: (x.orEvents ?? []).map((y, m) => (m === k ? event : y)) } : x)) })} meta={meta} label={t('orSeriesEvent', { n: letters[i] })} />
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ ...q, series: q.series.map((x, j) => (j === i ? { ...x, orEvents: (x.orEvents ?? []).filter((_, m) => m !== k) } : x)) })}>
+                {t('removeOr')}
+              </button>
+            </div>
+          ))}
+          <div className="an-row an-wrap">
+            {(s.orEvents ?? []).length < 4 && (
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ ...q, series: q.series.map((x, j) => (j === i ? { ...x, orEvents: [...(x.orEvents ?? []), '$pageview'] } : x)) })}>
+                + {t('addOr')}
+              </button>
+            )}
+            <select className="select" aria-label={t('firstSeriesLabel', { n: letters[i] })} value={s.first ?? ''} onChange={(e) => set({ ...q, series: q.series.map((x, j) => (j === i ? { ...x, first: (e.target.value || null) as 'ever' | 'matching' | null } : x)) })}>
+              <option value="">{t('firstAny')}</option>
+              <option value="ever">{t('firstEver')}</option>
+              <option value="matching">{t('firstMatching')}</option>
+            </select>
           </div>
           {PROPERTY_MATHS.includes(s.math) && (
             <input
@@ -245,6 +272,7 @@ function TrendsForm({ q, set, meta, cohorts, internal }: { q: TrendsQuery; set: 
           ))}
         </datalist>
       </div>
+      <TrendOptionsForm q={q} set={set} />
       <details className="an-more">
         <summary>{t('globalFilters')}</summary>
         <FilterList filters={q.filters} onChange={(filters) => set({ ...q, filters })} meta={meta} />
@@ -252,6 +280,107 @@ function TrendsForm({ q, set, meta, cohorts, internal }: { q: TrendsQuery; set: 
       </details>
       <InternalToggle value={Boolean(q.excludeInternal)} onChange={(excludeInternal) => set({ ...q, excludeInternal })} available={internal} />
     </div>
+  );
+}
+
+/** Opciones del gráfico: suavizado, ejes, unidades, líneas de meta. */
+function TrendOptionsForm({ q, set }: { q: TrendsQuery; set: (q: TrendsQuery) => void }) {
+  const t = useTranslations('analytics.editor');
+  const o = q.options ?? {};
+  const patch = (p: Partial<NonNullable<TrendsQuery['options']>>) => set({ ...q, options: { ...o, ...p } });
+  const num = (v: string) => (v.trim() === '' || !Number.isFinite(Number(v)) ? null : Number(v));
+  const goals = o.goalLines ?? [];
+  const daily = q.interval === 'day';
+  return (
+    <details className="an-more" data-testid="an-chart-options">
+      <summary>{t('chartOptions')}</summary>
+      <div className="an-row an-wrap">
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('smoothing')}</span>
+          <select className="select" disabled={!daily} value={daily ? (o.smoothing ?? 0) : 0} onChange={(e) => patch({ smoothing: Number(e.target.value) as 0 | 7 | 28 })}>
+            <option value={0}>{t('smoothingNone')}</option>
+            <option value={7}>{t('smoothingN', { n: 7 })}</option>
+            <option value={28}>{t('smoothingN', { n: 28 })}</option>
+          </select>
+        </label>
+        <label className="ui-check">
+          <input type="checkbox" disabled={!daily} checked={daily && Boolean(o.hideWeekends)} onChange={(e) => patch({ hideWeekends: e.target.checked })} /> {t('hideWeekends')}
+        </label>
+      </div>
+      {!daily && <p className="ui-help">{t('dailyOnly')}</p>}
+      <div className="an-row an-wrap">
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('unit')}</span>
+          <select className="select" value={o.unit ?? 'none'} onChange={(e) => patch({ unit: e.target.value as NonNullable<TrendsQuery['options']>['unit'] })}>
+            {TREND_UNITS.map((u) => (
+              <option key={u} value={u}>
+                {t(`units.${u}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+        {o.unit === 'currency' && (
+          <label className="ui-field an-inline-field">
+            <span className="label">{t('currency')}</span>
+            <input className="input an-num-input" maxLength={3} defaultValue={o.currency ?? 'USD'} onBlur={(e) => /^[A-Za-z]{3}$/.test(e.target.value) && patch({ currency: e.target.value.toUpperCase() })} />
+          </label>
+        )}
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('prefix')}</span>
+          <input className="input an-num-input" maxLength={12} value={o.prefix ?? ''} onChange={(e) => patch({ prefix: e.target.value })} />
+        </label>
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('suffix')}</span>
+          <input className="input an-num-input" maxLength={12} value={o.suffix ?? ''} onChange={(e) => patch({ suffix: e.target.value })} />
+        </label>
+      </div>
+      <div className="an-row an-wrap">
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('yMin')}</span>
+          <input className="input an-num-input" type="number" value={o.yMin ?? ''} onChange={(e) => patch({ yMin: num(e.target.value) })} />
+        </label>
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('yMax')}</span>
+          <input className="input an-num-input" type="number" value={o.yMax ?? ''} onChange={(e) => patch({ yMax: num(e.target.value) })} />
+        </label>
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('xLabel')}</span>
+          <input className="input" maxLength={60} value={o.xLabel ?? ''} onChange={(e) => patch({ xLabel: e.target.value })} />
+        </label>
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('yLabel')}</span>
+          <input className="input" maxLength={60} value={o.yLabel ?? ''} onChange={(e) => patch({ yLabel: e.target.value })} />
+        </label>
+      </div>
+      <div className="an-row an-wrap">
+        <label className="ui-check">
+          <input type="checkbox" checked={Boolean(o.showValues)} onChange={(e) => patch({ showValues: e.target.checked })} /> {t('showValues')}
+        </label>
+        <label className="ui-check">
+          <input type="checkbox" checked={Boolean(o.hideLegend)} onChange={(e) => patch({ hideLegend: e.target.checked })} /> {t('hideLegend')}
+        </label>
+      </div>
+      {goals.map((g, i) => (
+        <div key={i} className="an-row an-wrap">
+          <label className="ui-field an-inline-field">
+            <span className="label">{t('goalValue')}</span>
+            <input className="input an-num-input" type="number" value={g.value} onChange={(e) => patch({ goalLines: goals.map((x, j) => (j === i ? { ...x, value: Number(e.target.value) } : x)) })} />
+          </label>
+          <label className="ui-field an-inline-field">
+            <span className="label">{t('goalLabel')}</span>
+            <input className="input" maxLength={60} value={g.label ?? ''} onChange={(e) => patch({ goalLines: goals.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })} />
+          </label>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => patch({ goalLines: goals.filter((_, j) => j !== i) })}>
+            {t('removeOr')}
+          </button>
+        </div>
+      ))}
+      {goals.length < 5 && (
+        <button type="button" className="btn btn-sm" onClick={() => patch({ goalLines: [...goals, { value: 100 }] })}>
+          + {t('addGoal')}
+        </button>
+      )}
+    </details>
   );
 }
 
@@ -605,6 +734,14 @@ function PathsForm({ q, set }: { q: PathsQuery; set: (q: PathsQuery) => void }) 
   const t = useTranslations('analytics.editor');
   return (
     <div className="an-form">
+      {q.funnel && (
+        <div className="an-row an-wrap" data-testid="an-paths-funnel">
+          <span className="an-note">{t(`pathFunnelModes.${q.funnel.mode}`, { n: q.funnel.step + 1, prev: q.funnel.step })}</span>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ ...q, funnel: null })}>
+            {t('pathFunnelClear')}
+          </button>
+        </div>
+      )}
       <div className="an-row an-wrap">
         <DateRangePicker value={q.dateRange} onChange={(dateRange) => set({ ...q, dateRange })} />
         <label className="ui-field an-inline-field">
@@ -670,6 +807,7 @@ export default function InsightEditor({
   projectId,
   insight,
   initialKind,
+  initialQuery,
   dashboards,
   cohorts,
   hasInternalFilters = false,
@@ -682,6 +820,8 @@ export default function InsightEditor({
   projectId: string;
   insight: InsightDto | null;
   initialKind?: InsightKind;
+  /** Consulta armada desde un embudo o un camino. */
+  initialQuery?: InsightQuery;
   dashboards: Array<{ id: string; name: string; insightIds: string[] }>;
   cohorts: Array<{ id: string; name: string }>;
 }) {
@@ -689,9 +829,9 @@ export default function InsightEditor({
   const tc = useTranslations('analytics.common');
   const router = useRouter();
   const meta = useProjectMeta(projectId);
-  const [drafts, setDrafts] = useState(() => (insight ? { ...DEFAULTS, [insight.kind]: insight.query } : DEFAULTS));
+  const [drafts, setDrafts] = useState(() => (insight ? { ...DEFAULTS, [insight.kind]: insight.query } : initialQuery ? { ...DEFAULTS, [initialQuery.kind]: initialQuery } : DEFAULTS));
   const [sharing, setSharing] = useState(false);
-  const [kind, setKind] = useState<InsightKind>(insight?.kind ?? initialKind ?? 'trends');
+  const [kind, setKind] = useState<InsightKind>(insight?.kind ?? initialQuery?.kind ?? initialKind ?? 'trends');
   const [result, setResult] = useState<InsightResult | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -897,6 +1037,7 @@ export default function InsightEditor({
               display={query.kind === 'trends' ? query.display : 'line'}
               peopleHref={(ids) => `/app/analytics/persons?ids=${encodeURIComponent(ids.join(','))}`}
               annotations={annotations}
+              query={cleaned}
             />
           )}
           {!running && !result && !error && kind === 'sql' && <p className="an-muted">{t('runHint')}</p>}

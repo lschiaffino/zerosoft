@@ -139,7 +139,7 @@ export function percentile(values: number[], p: number): number {
   return round2(s[lo] + (s[hi] - s[lo]) * (pos - lo));
 }
 
-export const PERCENTILE_OF: Record<string, number> = { median: 0.5, p90: 0.9, p95: 0.95, p99: 0.99 };
+export const PERCENTILE_OF: Record<string, number> = { median: 0.5, p75: 0.75, p90: 0.9, p95: 0.95, p99: 0.99 };
 
 // ---------- Stickiness ----------
 

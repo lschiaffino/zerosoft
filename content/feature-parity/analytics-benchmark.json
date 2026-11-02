@@ -1140,13 +1140,8 @@
         "es": "Varias series",
         "pt": "Várias séries"
       },
-      "status": "partial",
-      "competitorHas": true,
-      "detail": {
-        "en": "Up to 5 series per trend; series can be duplicated by hand but not with a button",
-        "es": "Hasta 5 series por tendencia; no hay botón para duplicar una serie",
-        "pt": "Até 5 séries por tendência; não há botão para duplicar uma série"
-      }
+      "status": "have",
+      "competitorHas": true
     },
     {
       "id": "trends-inline-event-or",
@@ -1156,7 +1151,7 @@
         "es": "Combinar eventos en una serie con OR",
         "pt": "Combinar eventos em uma série com OR"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1167,7 +1162,7 @@
         "es": "Primera ocurrencia por serie",
         "pt": "Primeira ocorrência por série"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1178,7 +1173,7 @@
         "es": "Línea punteada en períodos incompletos",
         "pt": "Linha pontilhada em períodos incompletos"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1189,7 +1184,7 @@
         "es": "Ocultar datos de fin de semana",
         "pt": "Ocultar dados de fim de semana"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1200,8 +1195,13 @@
         "es": "Suavizado",
         "pt": "Suavização"
       },
-      "status": "missing",
-      "competitorHas": true
+      "status": "partial",
+      "competitorHas": true,
+      "detail": {
+        "en": "7 or 28 day rolling average by day; not by hour or minute",
+        "es": "Promedio móvil de 7 o 28 días por día; no por hora ni minuto",
+        "pt": "Média móvel de 7 ou 28 dias por dia; não por hora nem minuto"
+      }
     },
     {
       "id": "trends-confidence-intervals",
@@ -1222,7 +1222,7 @@
         "es": "Líneas de objetivo",
         "pt": "Linhas de meta"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1233,7 +1233,7 @@
         "es": "Rango personalizado del eje Y",
         "pt": "Intervalo personalizado do eixo Y"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1244,7 +1244,7 @@
         "es": "Etiquetas de ejes personalizadas",
         "pt": "Rótulos de eixos personalizados"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1255,7 +1255,7 @@
         "es": "Unidades de valor",
         "pt": "Unidades de valor"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1266,7 +1266,7 @@
         "es": "Prefijo y sufijo personalizados",
         "pt": "Prefixo e sufixo personalizados"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1277,7 +1277,7 @@
         "es": "Valores sobre las series",
         "pt": "Valores sobre as séries"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1288,13 +1288,8 @@
         "es": "Leyenda",
         "pt": "Legenda"
       },
-      "status": "partial",
-      "competitorHas": true,
-      "detail": {
-        "en": "A series legend is shown under the chart; it is not optional",
-        "es": "Se muestra una leyenda de series bajo el gráfico; no es opcional",
-        "pt": "Uma legenda de séries é mostrada sob o gráfico; não é opcional"
-      }
+      "status": "have",
+      "competitorHas": true
     },
     {
       "id": "trends-series-toggle",
@@ -1304,7 +1299,7 @@
         "es": "Visibilidad y aislar series",
         "pt": "Visibilidade e isolar séries"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1326,13 +1321,8 @@
         "es": "Conteo por usuario",
         "pt": "Contagem por usuário"
       },
-      "status": "partial",
-      "competitorHas": true,
-      "detail": {
-        "en": "Per-user count exists as a single aggregation; no separate average, min, max, median or percentile variants",
-        "es": "El conteo por usuario existe como una sola agregación; sin variantes de promedio, mínimo, máximo, mediana ni percentiles",
-        "pt": "A contagem por usuário existe como uma única agregação; sem variantes de média, mínimo, máximo, mediana nem percentis"
-      }
+      "status": "have",
+      "competitorHas": true
     },
     {
       "id": "math-unique-users",
@@ -1358,7 +1348,7 @@
         "es": "Usuarios activos semanales",
         "pt": "Usuários ativos semanais"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1369,7 +1359,7 @@
         "es": "Usuarios activos mensuales",
         "pt": "Usuários ativos mensais"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1428,13 +1418,8 @@
         "es": "Mediana y percentiles de una propiedad",
         "pt": "Mediana e percentis de uma propriedade"
       },
-      "status": "partial",
-      "competitorHas": true,
-      "detail": {
-        "en": "Median, p90, p95 and p99 are available; p75 is not",
-        "es": "Hay mediana, p90, p95 y p99; no hay p75",
-        "pt": "Há mediana, p90, p95 e p99; não há p75"
-      }
+      "status": "have",
+      "competitorHas": true
     },
     {
       "id": "math-sql",
@@ -1525,7 +1510,7 @@
         "es": "Barras apiladas",
         "pt": "Barras empilhadas"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1590,7 +1575,7 @@
         "es": "Barra de valor total",
         "pt": "Barra de valor total"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1633,7 +1618,7 @@
         "es": "Dona",
         "pt": "Rosca"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1644,7 +1629,7 @@
         "es": "Barra de proporción",
         "pt": "Barra de proporção"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -2070,7 +2055,7 @@
         "es": "Explorar caminos desde un paso",
         "pt": "Explorar caminhos a partir de uma etapa"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -2400,7 +2385,7 @@
         "es": "Ver el embudo desde un paso",
         "pt": "Ver o funil a partir de uma etapa"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -3160,7 +3145,7 @@
         "es": "Plantillas incluidas",
         "pt": "Modelos incluídos"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -3237,13 +3222,8 @@
         "es": "Duplicar un tablero",
         "pt": "Duplicar um painel"
       },
-      "status": "partial",
-      "competitorHas": true,
-      "detail": {
-        "en": "A dashboard can be duplicated by name; the copy is not checked end to end",
-        "es": "Un tablero se puede duplicar con otro nombre; la copia no está probada de punta a punta",
-        "pt": "Um painel pode ser duplicado com outro nome; a cópia não foi testada de ponta a ponta"
-      }
+      "status": "have",
+      "competitorHas": true
     },
     {
       "id": "dashboard-date-override",
@@ -3253,13 +3233,8 @@
         "es": "Rango de fechas del tablero",
         "pt": "Intervalo de datas do painel"
       },
-      "status": "partial",
-      "competitorHas": true,
-      "detail": {
-        "en": "A date range selector at the top of a dashboard applies to all its insights; it is not saved with the dashboard",
-        "es": "Un selector de fechas arriba del tablero se aplica a todos sus insights; no se guarda con el tablero",
-        "pt": "Um seletor de datas no topo do painel vale para todos os insights; não é salvo com o painel"
-      }
+      "status": "have",
+      "competitorHas": true
     },
     {
       "id": "dashboard-filters",
@@ -3269,8 +3244,13 @@
         "es": "Filtros del tablero",
         "pt": "Filtros do painel"
       },
-      "status": "missing",
-      "competitorHas": true
+      "status": "partial",
+      "competitorHas": true,
+      "detail": {
+        "en": "Event and person properties and a cohort apply to all tiles; no flag or group filters",
+        "es": "Propiedades de evento y persona y una cohorte aplican a todas las tarjetas; sin filtros por flag ni grupo",
+        "pt": "Propriedades de evento e pessoa e uma coorte valem para todos os cards; sem filtros por flag nem grupo"
+      }
     },
     {
       "id": "dashboard-test-account-control",
@@ -3280,7 +3260,7 @@
         "es": "Filtro de cuentas de prueba en el tablero",
         "pt": "Filtro de contas de teste no painel"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -3291,8 +3271,13 @@
         "es": "Ajustes por mosaico",
         "pt": "Ajustes por bloco"
       },
-      "status": "missing",
-      "competitorHas": true
+      "status": "partial",
+      "competitorHas": true,
+      "detail": {
+        "en": "Date range, interval and properties per tile; no breakdown per tile",
+        "es": "Fechas, intervalo y propiedades por tarjeta; sin apertura por tarjeta",
+        "pt": "Período, intervalo e propriedades por card; sem abertura por card"
+      }
     },
     {
       "id": "dashboard-tile-ignore-filters",
@@ -3302,7 +3287,7 @@
         "es": "Mosaico que ignora los filtros del tablero",
         "pt": "Bloco que ignora os filtros do painel"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -3324,8 +3309,13 @@
         "es": "Cambiar el tamaño de los mosaicos",
         "pt": "Redimensionar os blocos"
       },
-      "status": "missing",
-      "competitorHas": true
+      "status": "partial",
+      "competitorHas": true,
+      "detail": {
+        "en": "Each tile is small, medium or full width; no drag to resize or change height",
+        "es": "Cada tarjeta es chica, mediana o de todo el ancho; no se arrastra para cambiar tamaño ni alto",
+        "pt": "Cada card é pequeno, médio ou de largura total; não se arrasta para mudar tamanho nem altura"
+      }
     },
     {
       "id": "dashboard-edit-layout",
@@ -3362,8 +3352,13 @@
         "es": "Opciones de visualización por insight",
         "pt": "Opções de exibição por insight"
       },
-      "status": "missing",
-      "competitorHas": true
+      "status": "partial",
+      "competitorHas": true,
+      "detail": {
+        "en": "Smoothing, values and legend from the tile on trends; no axis scale or annotations toggle",
+        "es": "Suavizado, valores y leyenda desde la tarjeta en tendencias; sin escala de ejes ni anotaciones",
+        "pt": "Suavização, valores e legenda a partir do card em tendências; sem escala de eixos nem anotações"
+      }
     },
     {
       "id": "dashboard-move-tile",
@@ -3373,7 +3368,7 @@
         "es": "Mover o copiar mosaicos",
         "pt": "Mover ou copiar blocos"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -3384,8 +3379,13 @@
         "es": "Tarjetas de texto",
         "pt": "Cartões de texto"
       },
-      "status": "missing",
-      "competitorHas": true
+      "status": "partial",
+      "competitorHas": true,
+      "detail": {
+        "en": "Text cards with Markdown; images only from files uploaded to zerosoft",
+        "es": "Tarjetas de texto con Markdown; imágenes solo de archivos subidos a zerosoft",
+        "pt": "Cards de texto com Markdown; imagens só de arquivos enviados ao zerosoft"
+      }
     },
     {
       "id": "dashboard-button-tiles",
@@ -3436,9 +3436,9 @@
       "status": "partial",
       "competitorHas": true,
       "detail": {
-        "en": "A refresh button reruns all insights of the dashboard; no per-tile refresh or last computed time",
-        "es": "Un botón actualizar vuelve a correr todos los insights del tablero; sin actualización por mosaico ni hora del último cálculo",
-        "pt": "Um botão atualizar roda de novo todos os insights do painel; sem atualização por bloco nem hora do último cálculo"
+        "en": "Full and per-tile refresh with the last computed time; no rate limit display",
+        "es": "Actualizar todo o una tarjeta con la hora del último cálculo; no se muestran límites",
+        "pt": "Atualizar tudo ou um card com a hora do último cálculo; não mostra limites"
       }
     },
     {
@@ -3449,7 +3449,7 @@
         "es": "Actualización automática",
         "pt": "Atualização automática"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -6439,8 +6439,13 @@
         "es": "Enmascarar todos los campos",
         "pt": "Mascarar todos os campos"
       },
-      "status": "have",
-      "competitorHas": true
+      "status": "partial",
+      "competitorHas": true,
+      "detail": {
+        "en": "Inputs are always masked; there are no per-type options or a mask callback",
+        "es": "Los campos siempre se enmascaran; no hay opciones por tipo ni callback de máscara",
+        "pt": "Os campos sempre são mascarados; não há opções por tipo nem callback de máscara"
+      }
     },
     {
       "id": "replay-mask-text",

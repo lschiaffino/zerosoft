@@ -1,13 +1,13 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { nanoid } from 'nanoid';
 import { getDb, upsertUser } from '@/lib/db';
-import { computeFunnel, timeBins, type FunnelRow } from '@/lib/analytics/funnel-core';
+import { computeFunnel, pathWindow, timeBins, type FunnelRow } from '@/lib/analytics/funnel-core';
 import { parseIngestBody } from '@/lib/analytics/ingest-core';
 import { storeEvents } from '@/lib/analytics/ingest';
 import { createProject, getProject, type ProjectRow } from '@/lib/analytics/projects';
-import { runFunnel } from '@/lib/analytics/query';
+import { runFunnel, runPaths } from '@/lib/analytics/query';
 import { publicResult } from '@/lib/analytics/share-view';
-import { funnelQuerySchema, funnelWindowMs, shareableQuery } from '@/lib/analytics/types';
+import { funnelQuerySchema, funnelWindowMs, pathsQuerySchema, shareableQuery } from '@/lib/analytics/types';
 
 const MIN = 60_000;
 const DAY = 86_400_000;
@@ -299,6 +299,22 @@ describe('funnel core: historical', () => {
   });
 });
 
+describe('paths from a funnel step', () => {
+  it('each mode looks at the right part, and only at the right people', () => {
+    const conv = [10, 20, 30];
+    expect(pathWindow('before', 1, conv)).toEqual({ from: Number.NEGATIVE_INFINITY, to: 20 });
+    expect(pathWindow('between', 1, conv)).toEqual({ from: 10, to: 20 });
+    expect(pathWindow('after', 1, conv)).toEqual({ from: 20, to: Number.POSITIVE_INFINITY });
+    expect(pathWindow('between', 0, conv)).toBeNull();
+    // Abandonó en el paso 3 (índice 2): llegó al 2 y no al 3.
+    const left = [10, 20];
+    expect(pathWindow('after_dropoff', 2, left)).toEqual({ from: 20, to: Number.POSITIVE_INFINITY });
+    expect(pathWindow('before_dropoff', 2, left)).toEqual({ from: Number.NEGATIVE_INFINITY, to: 20 });
+    expect(pathWindow('after_dropoff', 1, left)).toBeNull();
+    expect(pathWindow('after', 2, left)).toBeNull();
+  });
+});
+
 describe('funnel query', () => {
   it('window units convert, with a cap of a year', () => {
     expect(funnelWindowMs({ windowDays: 14 })).toBe(14 * DAY);
@@ -439,6 +455,40 @@ describe('funnel query on stored events', () => {
     // La primera que cumple los filtros ignora las anteriores que no: 'nofit' vuelve.
     const matching = await runFunnel(p, query({ steps: [{ event: 'view' }, { event: 'buy', filters, first: 'matching' }] }));
     expect(matching.steps.map((s) => s.count)).toEqual([4, 2]);
+  });
+
+  it('first occurrence ignores a row with an impossible date', async () => {
+    const p = await setup();
+    await ingest(p, [{ event: 'view', who: 'a', at: NOW - 5000 }]);
+    await getDb().prepare("INSERT INTO analytics_events (project_id, event, distinct_id, ts, properties) VALUES (?, 'view', 'a', -1152921504606846976, '{}')").run(p.id);
+    expect((await runFunnel(p, query({ steps: [{ event: 'view', first: 'ever' }, { event: 'buy' }] }))).steps[0].count).toBe(1);
+  });
+
+  it('paths from a step only take who is there, in the right stretch', async () => {
+    const p = await setup();
+    const s = (who: string) => ({ $session_id: `s-${who}` });
+    await ingest(p, [
+      { event: 'before', who: 'conv', at: NOW - 9000, props: s('conv') },
+      { event: 'view', who: 'conv', at: NOW - 8000, props: s('conv') },
+      { event: 'middle', who: 'conv', at: NOW - 7000, props: s('conv') },
+      { event: 'buy', who: 'conv', at: NOW - 6000, props: s('conv') },
+      { event: 'later', who: 'conv', at: NOW - 5000, props: s('conv') },
+      { event: 'view', who: 'gone', at: NOW - 8000, props: s('gone') },
+      { event: 'left', who: 'gone', at: NOW - 7000, props: s('gone') },
+    ]);
+    const funnel = funnelQuerySchema.parse({ kind: 'funnel', steps: [{ event: 'view' }, { event: 'buy' }], dateRange: { from: '-7d' } });
+    const nodes = async (mode: string, step: number) => {
+      const r = await runPaths(p, pathsQuerySchema.parse({ kind: 'paths', dateRange: { from: '-7d' }, steps: 6, source: 'all', funnel: { query: funnel, step, mode } }));
+      return r.topPaths.map((x) => x.path);
+    };
+    expect(await nodes('before', 1)).toEqual([['before', 'view', 'middle', 'buy']]);
+    expect(await nodes('between', 1)).toEqual([['view', 'middle', 'buy']]);
+    expect(await nodes('after', 1)).toEqual([['buy', 'later']]);
+    expect(await nodes('after_dropoff', 1)).toEqual([['view', 'left']]);
+    expect(await nodes('before_dropoff', 1)).toEqual([['view']]);
+    // Sin embudo se ve todo.
+    const all = await runPaths(p, pathsQuerySchema.parse({ kind: 'paths', dateRange: { from: '-7d' }, steps: 6, source: 'all' }));
+    expect(all.sessions).toBe(2);
   });
 
   it('breakdown by event property and historical view', async () => {
