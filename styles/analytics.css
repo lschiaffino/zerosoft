@@ -337,3 +337,5 @@
 /* Las pestañas de tipo de insight entran todas en un teléfono. */
 .an-editor .ui-tabs { flex-wrap: wrap; }
 .an-live-filter { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 0 1 280px; }
+.an-live { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.an-live > .an-toolbar { align-items: flex-end; }
