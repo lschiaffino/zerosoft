@@ -18,7 +18,7 @@ import type {
   StickinessQuery,
   TrendsQuery,
 } from '@/lib/analytics/types';
-import { PROPERTY_MATHS, SERIES_MATHS, shareableQuery, TREND_DISPLAYS, type InsightQuery as AnyQuery, type SeriesMath } from '@/lib/analytics/types';
+import { FUNNEL_ATTRIBUTIONS, FUNNEL_DISPLAYS, FUNNEL_ORDERS, FUNNEL_WINDOW_UNITS, PROPERTY_MATHS, SERIES_MATHS, shareableQuery, TREND_DISPLAYS, type FunnelWindowUnit, type InsightQuery as AnyQuery, type SeriesMath } from '@/lib/analytics/types';
 import { AlertsPanel, CorrelationPanel, ShareDialog, downloadCsv } from './InsightPanels';
 import { ApiError, apiErrorText, api, notifyChanged, runQuery } from './client';
 import { EventInput, FilterList, cleanFilters, useProjectMeta, type ProjectMeta } from './Filters';
@@ -71,7 +71,13 @@ function clean(q: InsightQuery): InsightQuery {
         breakdown: q.breakdown && q.breakdown.key.trim() ? { ...q.breakdown, key: q.breakdown.key.trim() } : null,
       };
     case 'funnel':
-      return { ...q, filters: cleanFilters(q.filters), steps: q.steps.map((s) => ({ ...s, event: s.event.trim() || '*', filters: cleanFilters(s.filters) })) };
+      return {
+        ...q,
+        filters: cleanFilters(q.filters),
+        steps: q.steps.map((s) => ({ ...s, event: s.event.trim() || '*', orEvents: (s.orEvents ?? []).map((e) => e.trim()).filter(Boolean), filters: cleanFilters(s.filters) })),
+        exclusions: (q.exclusions ?? []).filter((x) => x.event.trim()).map((x) => ({ ...x, event: x.event.trim(), filters: cleanFilters(x.filters) })),
+        breakdown: q.breakdown && q.breakdown.key.trim() ? { ...q.breakdown, key: q.breakdown.key.trim() } : null,
+      };
     case 'retention':
       return { ...q, filters: cleanFilters(q.filters), startEvent: q.startEvent.trim() || '$pageview', returnEvent: q.returnEvent.trim() || '$pageview' };
     case 'stickiness':
@@ -251,6 +257,15 @@ function TrendsForm({ q, set, meta, cohorts, internal }: { q: TrendsQuery; set: 
 
 function FunnelForm({ q, set, meta, cohorts, internal }: { q: FunnelQuery; set: (q: FunnelQuery) => void; meta: ProjectMeta; cohorts: Array<{ id: string; name: string }>; internal: boolean }) {
   const t = useTranslations('analytics.editor');
+  const setStep = (i: number, patch: Partial<FunnelQuery['steps'][number]>) => set({ ...q, steps: q.steps.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
+  const order = q.order ?? 'ordered';
+  const display = q.display ?? 'steps';
+  const win = q.window ?? { value: q.windowDays, unit: 'day' as FunnelWindowUnit };
+  const exclusions = q.exclusions ?? [];
+  const attribution = q.attribution ?? 'first';
+  const stepNames = new Set(q.steps.flatMap((s) => [s.event, ...(s.orEvents ?? [])]));
+  const setExclusion = (i: number, patch: Partial<NonNullable<FunnelQuery['exclusions']>[number]>) => set({ ...q, exclusions: exclusions.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
+  const countBy = q.bySession ? 'session' : q.groupType != null ? 'group' : 'person';
   return (
     <div className="an-form">
       <ol className="an-steps" role="list">
@@ -258,14 +273,35 @@ function FunnelForm({ q, set, meta, cohorts, internal }: { q: FunnelQuery; set: 
           <li key={i} className="an-series">
             <div className="an-row">
               <span className="an-step-n">{i + 1}</span>
-              <EventInput value={s.event} onChange={(event) => set({ ...q, steps: q.steps.map((x, j) => (j === i ? { ...x, event } : x)) })} meta={meta} label={t('stepN', { n: i + 1 })} />
+              <EventInput value={s.event} onChange={(event) => setStep(i, { event })} meta={meta} label={t('stepN', { n: i + 1 })} />
               {q.steps.length > 2 && (
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ ...q, steps: q.steps.filter((_, j) => j !== i) })}>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ ...q, steps: q.steps.filter((_, j) => j !== i), attributionStep: 0, exclusions: [] })}>
                   {t('removeStep')}
                 </button>
               )}
             </div>
-            <FilterList filters={s.filters} onChange={(filters) => set({ ...q, steps: q.steps.map((x, j) => (j === i ? { ...x, filters } : x)) })} meta={meta} />
+            {(s.orEvents ?? []).map((ev, k) => (
+              <div key={k} className="an-row">
+                <span className="an-muted an-small">{t('orWord')}</span>
+                <EventInput value={ev} onChange={(event) => setStep(i, { orEvents: (s.orEvents ?? []).map((x, j) => (j === k ? event : x)) })} meta={meta} label={t('orEvent', { n: i + 1 })} />
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStep(i, { orEvents: (s.orEvents ?? []).filter((_, j) => j !== k) })}>
+                  {t('removeOr')}
+                </button>
+              </div>
+            ))}
+            <div className="an-row an-wrap">
+              {(s.orEvents ?? []).length < 4 && (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStep(i, { orEvents: [...(s.orEvents ?? []), '$pageview'] })}>
+                  + {t('addOr')}
+                </button>
+              )}
+              <select className="select" aria-label={t('firstLabel', { n: i + 1 })} value={s.first ?? ''} onChange={(e) => setStep(i, { first: (e.target.value || null) as 'ever' | 'matching' | null })}>
+                <option value="">{t('firstAny')}</option>
+                <option value="ever">{t('firstEver')}</option>
+                <option value="matching">{t('firstMatching')}</option>
+              </select>
+            </div>
+            <FilterList filters={s.filters} onChange={(filters) => setStep(i, { filters })} meta={meta} />
           </li>
         ))}
       </ol>
@@ -277,27 +313,170 @@ function FunnelForm({ q, set, meta, cohorts, internal }: { q: FunnelQuery; set: 
       <div className="an-row an-wrap">
         <DateRangePicker value={q.dateRange} onChange={(dateRange) => set({ ...q, dateRange })} />
         <label className="ui-field an-inline-field">
-          <span className="label">{t('window')}</span>
+          <span className="label">{t('graph')}</span>
+          <select className="select" value={display} onChange={(e) => set({ ...q, display: e.target.value as typeof display })}>
+            {FUNNEL_DISPLAYS.map((d) => (
+              <option key={d} value={d}>
+                {t(`funnelDisplays.${d}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+        {display === 'trends' && (
+          <select className="select" aria-label={t('interval')} value={q.interval ?? 'day'} onChange={(e) => set({ ...q, interval: e.target.value as FunnelQuery['interval'] })}>
+            {(['hour', 'day', 'week', 'month'] as const).map((iv) => (
+              <option key={iv} value={iv}>
+                {t(`intervals.${iv}`)}
+              </option>
+            ))}
+          </select>
+        )}
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('stepOrder')}</span>
+          <select className="select" value={order} onChange={(e) => set({ ...q, order: e.target.value as typeof order })}>
+            {FUNNEL_ORDERS.map((o) => (
+              <option key={o} value={o}>
+                {t(`funnelOrders.${o}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="an-row an-wrap">
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('windowValue')}</span>
           <input
             className="input an-num-input"
             type="number"
             min={1}
-            max={90}
-            value={q.windowDays}
-            onChange={(e) => set({ ...q, windowDays: Math.min(90, Math.max(1, Number(e.target.value) || 1)) })}
+            max={10000}
+            value={win.value}
+            onChange={(e) => set({ ...q, window: { unit: win.unit, value: Math.min(10000, Math.max(1, Number(e.target.value) || 1)) } })}
           />
         </label>
+        <select className="select" aria-label={t('windowUnit')} value={win.unit} onChange={(e) => set({ ...q, window: { value: win.value, unit: e.target.value as FunnelWindowUnit } })}>
+          {FUNNEL_WINDOW_UNITS.map((u) => (
+            <option key={u} value={u}>
+              {t(`windowUnits.${u}`)}
+            </option>
+          ))}
+        </select>
         <label className="ui-field an-inline-field">
           <span className="label">{t('countBy')}</span>
+          <select
+            className="select"
+            value={countBy}
+            onChange={(e) => {
+              const v = e.target.value;
+              set({ ...q, bySession: v === 'session', groupType: v === 'group' ? (q.groupType ?? '') : null });
+            }}
+          >
+            <option value="person">{t('countPeople')}</option>
+            <option value="session">{t('countSessions')}</option>
+            <option value="group">{t('countGroups')}</option>
+          </select>
+        </label>
+        {countBy === 'group' && (
           <input
-            className="input"
-            placeholder={t('countByPeople')}
+            className="input an-filter-key"
+            aria-label={t('groupType')}
+            placeholder={t('groupTypePlaceholder')}
             value={q.groupType ?? ''}
             maxLength={100}
-            onChange={(e) => set({ ...q, groupType: e.target.value || null })}
+            onChange={(e) => set({ ...q, groupType: e.target.value })}
           />
-        </label>
+        )}
       </div>
+      <div className="an-row an-wrap">
+        <span className="label">{t('breakdown')}</span>
+        <select
+          className="select"
+          aria-label={t('breakdownType')}
+          value={q.breakdown?.type ?? 'event'}
+          onChange={(e) => set({ ...q, breakdown: { key: q.breakdown?.key ?? '', type: e.target.value as 'event' | 'person' } })}
+        >
+          <option value="event">{t('eventProperty')}</option>
+          <option value="person">{t('personProperty')}</option>
+        </select>
+        <input
+          className="input an-filter-key"
+          aria-label={t('breakdownKey')}
+          placeholder={t('breakdownPlaceholder')}
+          value={q.breakdown?.key ?? ''}
+          list="an-breakdown-keys"
+          onChange={(e) => set({ ...q, breakdown: e.target.value ? { key: e.target.value, type: q.breakdown?.type ?? 'event' } : null })}
+        />
+        <datalist id="an-breakdown-keys">
+          {['$pathname', '$browser', '$os', '$device_type', '$geoip_country_code', '$referring_domain', 'utm_source', ...(q.breakdown?.type === 'person' ? meta.personProperties : meta.eventProperties)].map((k) => (
+            <option key={k} value={k} />
+          ))}
+        </datalist>
+        {q.breakdown?.key && (
+          <>
+            <select className="select" aria-label={t('attribution')} value={attribution} onChange={(e) => set({ ...q, attribution: e.target.value as typeof attribution })}>
+              {FUNNEL_ATTRIBUTIONS.map((a) => (
+                <option key={a} value={a}>
+                  {a === 'step' && order === 'unordered' ? t('attributionAnyStep') : t(`attributions.${a}`)}
+                </option>
+              ))}
+            </select>
+            {attribution === 'step' && order !== 'unordered' && (
+              <select className="select" aria-label={t('attributionStep')} value={Math.min(q.attributionStep ?? 0, q.steps.length - 1)} onChange={(e) => set({ ...q, attributionStep: Number(e.target.value) })}>
+                {q.steps.map((_, i) => (
+                  <option key={i} value={i}>
+                    {t('stepN', { n: i + 1 })}
+                  </option>
+                ))}
+              </select>
+            )}
+          </>
+        )}
+      </div>
+      <details className="an-more" open={exclusions.length > 0 || undefined}>
+        <summary>{t('exclusions')}</summary>
+        <p className="ui-help">{order === 'unordered' ? t('exclusionsHelpAny') : t('exclusionsHelp')}</p>
+        {exclusions.map((x, i) => (
+          <div key={i} className="an-series">
+            <div className="an-row an-wrap">
+              <EventInput value={x.event} onChange={(event) => setExclusion(i, { event })} meta={meta} label={t('exclusionEvent')} />
+              {order !== 'unordered' && (
+                <>
+                  <select className="select" aria-label={t('exclusionFrom')} value={Math.min(x.fromStep, q.steps.length - 2)} onChange={(e) => { const fromStep = Number(e.target.value); setExclusion(i, { fromStep, toStep: Math.max(x.toStep, fromStep + 1) }); }}>
+                    {q.steps.slice(0, -1).map((_, k) => (
+                      <option key={k} value={k}>
+                        {t('exclusionFromN', { n: k + 1 })}
+                      </option>
+                    ))}
+                  </select>
+                  <select className="select" aria-label={t('exclusionTo')} value={Math.min(x.toStep, q.steps.length - 1)} onChange={(e) => setExclusion(i, { toStep: Number(e.target.value) })}>
+                    {q.steps.map((_, k) =>
+                      k > x.fromStep ? (
+                        <option key={k} value={k}>
+                          {t('exclusionToN', { n: k + 1 })}
+                        </option>
+                      ) : null,
+                    )}
+                  </select>
+                </>
+              )}
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ ...q, exclusions: exclusions.filter((_, j) => j !== i) })}>
+                {t('removeExclusion')}
+              </button>
+            </div>
+            {stepNames.has(x.event) && (
+              <p className="ui-help" role="alert">
+                {t('exclusionIsStep')}
+              </p>
+            )}
+            <FilterList filters={x.filters} onChange={(filters) => setExclusion(i, { filters })} meta={meta} />
+          </div>
+        ))}
+        {exclusions.length < 5 && (
+          <button type="button" className="btn btn-sm" onClick={() => set({ ...q, exclusions: [...exclusions, { event: '', filters: [], fromStep: 0, toStep: q.steps.length - 1 }] })}>
+            + {t('addExclusion')}
+          </button>
+        )}
+      </details>
       <details className="an-more">
         <summary>{t('globalFilters')}</summary>
         <FilterList filters={q.filters} onChange={(filters) => set({ ...q, filters })} meta={meta} />

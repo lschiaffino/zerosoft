@@ -29,6 +29,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-02-analytics-embudos',
+    date: '2026-11-02',
+    title: {
+      en: 'Analytics: funnels with step order, exclusions and breakdowns',
+      es: 'Analytics: embudos con orden de pasos, exclusiones y aperturas',
+      pt: 'Analytics: funis com ordem das etapas, exclusões e aberturas',
+    },
+    items: [
+      {
+        product: 'analytics',
+        en: 'Funnels can run in sequential, strict or any order, with a conversion window from seconds to months, exclusion steps, several events in one step and first occurrence per step. They can count people, sessions or groups.',
+        es: 'Los embudos corren en orden secuencial, estricto o cualquiera, con ventana de conversión de segundos a meses, pasos de exclusión, varios eventos en un paso y primera ocurrencia por paso. Cuentan personas, sesiones o grupos.',
+        pt: 'Os funis rodam em ordem sequencial, estrita ou qualquer, com janela de conversão de segundos a meses, etapas de exclusão, vários eventos em uma etapa e primeira ocorrência por etapa. Contam pessoas, sessões ou grupos.',
+      },
+      {
+        product: 'analytics',
+        en: 'New funnel views: time to convert as a distribution and conversion over time by entry date, with an option to hide incomplete periods. Breakdowns take first touch, last touch, all steps or a specific step, and the people who reached any step can be listed. The date range now applies to every step of a funnel.',
+        es: 'Vistas nuevas de embudo: tiempo hasta convertir como distribución y conversión en el tiempo por fecha de entrada, con opción de ocultar períodos incompletos. Las aperturas toman el primer contacto, el último, todos los pasos o un paso específico, y se listan quienes llegaron a cualquier paso. El rango de fechas ahora rige en todos los pasos de un embudo.',
+        pt: 'Novas visões de funil: tempo até converter como distribuição e conversão ao longo do tempo por data de entrada, com opção de ocultar períodos incompletos. As aberturas usam o primeiro contato, o último, todas as etapas ou uma etapa específica, e quem chegou a qualquer etapa pode ser listado. O período agora vale para todas as etapas de um funil.',
+      },
+      {
+        product: 'analytics',
+        en: 'Projects can measure without cookies, always or when a visitor rejects them, with a visitor id that changes every day, so the same person on two days counts as two visitors.',
+        es: 'Los proyectos pueden medir sin cookies, siempre o cuando la persona las rechaza, con un id de visitante que cambia cada día: la misma persona en dos días cuenta como dos visitantes.',
+        pt: 'Os projetos podem medir sem cookies, sempre ou quando a pessoa os recusa, com um id de visitante que muda a cada dia: a mesma pessoa em dois dias conta como dois visitantes.',
+      },
+    ],
+  },
+  {
     id: '2026-11-01-analytics-replay-experimentos',
     date: '2026-11-01',
     title: {

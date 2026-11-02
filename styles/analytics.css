@@ -339,3 +339,17 @@
 .an-live-filter { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 0 1 280px; }
 .an-live { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .an-live > .an-toolbar { align-items: flex-end; }
+
+/* Embudos: tiempo hasta convertir y apertura */
+.an-funnel-times { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.an-hist { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.an-hist-row { display: grid; grid-template-columns: minmax(120px, 170px) minmax(0, 1fr) auto; align-items: center; gap: 10px; font-size: 0.75rem; }
+.an-hist-label { color: var(--dim); }
+.an-hist-bar { display: block; height: 16px; background: var(--brand-enamel); }
+.an-hist-bar span { display: block; height: 100%; background: var(--c-analytics); }
+.an-hist-n { text-align: right; white-space: nowrap; }
+.an-funnel-breakdown td.an-break { overflow-wrap: anywhere; }
+@media (max-width: 560px) {
+  .an-hist-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .an-hist-bar { grid-column: 1 / -1; grid-row: 2; }
+}

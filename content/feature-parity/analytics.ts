@@ -35,7 +35,7 @@ const BASE_AREAS = new Set(['ingest', 'privacy', 'insights', 'people', 'flags', 
 
 const parity: ProductParity = {
   competitor: 'PostHog',
-  lastReviewed: '2026-11-01',
+  lastReviewed: '2026-11-02',
   percentHidden: {
     note: loc([
       'This comparison goes through the full PostHog docs, feature by feature, so it has many more rows than the other apps and its numbers are not comparable with their percentages. That is why there is no overall percentage here.',

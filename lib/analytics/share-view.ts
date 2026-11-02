@@ -30,7 +30,7 @@ const cache = new Map<string, { at: number; view: PublicShareView }>();
 
 /** Quita lo que identifica personas del resultado. */
 export function publicResult(r: InsightResult): InsightResult {
-  return r.kind === 'funnel' ? { ...r, droppedPersons: r.droppedPersons.map(() => []) } : r;
+  return r.kind === 'funnel' ? { ...r, droppedPersons: r.droppedPersons.map(() => []), reachedPersons: undefined } : r;
 }
 
 async function tile(project: ProjectRow, i: InsightDto): Promise<PublicTile> {

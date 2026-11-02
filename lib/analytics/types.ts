@@ -91,18 +91,59 @@ export const trendsQuerySchema = z.object({
 });
 export type TrendsQuery = z.infer<typeof trendsQuerySchema>;
 
+export const FUNNEL_ORDERS = ['ordered', 'strict', 'unordered'] as const;
+export const FUNNEL_ATTRIBUTIONS = ['first', 'last', 'all', 'step'] as const;
+export const FUNNEL_DISPLAYS = ['steps', 'time', 'trends'] as const;
+export type FunnelDisplay = (typeof FUNNEL_DISPLAYS)[number];
+export const FUNNEL_WINDOW_UNITS = ['second', 'minute', 'hour', 'day', 'week', 'month'] as const;
+export type FunnelWindowUnit = (typeof FUNNEL_WINDOW_UNITS)[number];
+const WINDOW_UNIT_MS: Record<FunnelWindowUnit, number> = { second: 1000, minute: 60_000, hour: 3_600_000, day: 86_400_000, week: 7 * 86_400_000, month: 30 * 86_400_000 };
+
 export const funnelQuerySchema = z.object({
   kind: z.literal('funnel'),
-  steps: z.array(z.object({ event: eventNameSchema, filters: filtersSchema, label: z.string().trim().max(100).optional() })).min(2).max(10),
+  steps: z
+    .array(
+      z.object({
+        event: eventNameSchema,
+        /** Otros eventos que también cumplen el paso (OR). */
+        orEvents: z.array(eventNameSchema).max(4).optional(),
+        filters: filtersSchema,
+        label: z.string().trim().max(100).optional(),
+        /** Solo la primera vez: de ese tipo de evento, o la primera que cumple los filtros del paso. */
+        first: z.enum(['ever', 'matching']).nullable().optional(),
+      }),
+    )
+    .min(2)
+    .max(10),
   windowDays: z.number().int().min(1).max(90).default(14),
+  /** Ventana en otra unidad; si está, manda sobre windowDays. */
+  window: z.object({ value: z.number().int().min(1).max(10_000), unit: z.enum(FUNNEL_WINDOW_UNITS) }).nullable().optional(),
+  order: z.enum(FUNNEL_ORDERS).optional(),
+  exclusions: z
+    .array(z.object({ event: eventNameSchema, filters: filtersSchema, fromStep: z.number().int().min(0).max(9), toStep: z.number().int().min(1).max(9) }))
+    .max(5)
+    .optional(),
+  breakdown: z.object({ key: propertyKeySchema, type: z.enum(['event', 'person']).default('event') }).nullable().optional(),
+  attribution: z.enum(FUNNEL_ATTRIBUTIONS).optional(),
+  attributionStep: z.number().int().min(0).max(9).optional(),
+  display: z.enum(FUNNEL_DISPLAYS).optional(),
+  interval: z.enum(INTERVALS).optional(),
   dateRange: dateRangeSchema.default({ from: '-30d' }),
   filters: filtersSchema,
   cohortId: z.string().max(64).nullable().optional(),
   /** Contar grupos (empresa, equipo) en lugar de personas. */
   groupType: propertyKeySchema.nullable().optional(),
+  /** Contar sesiones en lugar de personas. */
+  bySession: z.boolean().optional(),
   excludeInternal: z.boolean().optional(),
 });
 export type FunnelQuery = z.infer<typeof funnelQuerySchema>;
+
+/** Ventana de conversión en ms, con tope de un año. */
+export function funnelWindowMs(q: { windowDays?: number; window?: { value: number; unit: FunnelWindowUnit } | null }): number {
+  const ms = q.window ? q.window.value * WINDOW_UNIT_MS[q.window.unit] : (q.windowDays ?? 14) * WINDOW_UNIT_MS.day;
+  return Math.min(ms, 365 * WINDOW_UNIT_MS.day);
+}
 
 export const retentionQuerySchema = z.object({
   kind: z.literal('retention'),
@@ -221,7 +262,19 @@ export interface FunnelResult {
   steps: FunnelStepResult[];
   /** Personas que llegaron a cada paso y no al siguiente (hasta 100 por paso). */
   droppedPersons: string[][];
+  /** Personas que llegaron a cada paso (hasta 100 por paso). Se quita en links públicos. */
+  reachedPersons?: string[][];
   truncated: boolean;
+  /** Qué se cuenta. */
+  unit?: 'person' | 'session' | 'group';
+  order?: 'ordered' | 'strict' | 'unordered';
+  display?: FunnelDisplay;
+  /** Tiempos entre pasos seguidos y, si hay más de dos, del primero al último. */
+  times?: Array<{ fromStep: number; toStep: number; count: number; avgMs: number | null; medianMs: number | null; bins: Array<{ fromMs: number; toMs: number; count: number }> }>;
+  /** Apertura: pasos por valor. */
+  breakdown?: Array<{ value: string | null; counts: number[] }>;
+  /** Conversión por fecha de entrada. */
+  historical?: Array<{ bucket: string; counts: number[]; incomplete: boolean }>;
 }
 
 export interface RetentionResult {
@@ -606,7 +659,7 @@ export interface ExperimentResults {
  */
 export function shareableQuery(q: InsightQuery): boolean {
   if (q.kind === 'sql') return false;
-  if (q.kind === 'trends' && q.breakdown && (q.breakdown.type === 'person' || q.breakdown.key === 'distinct_id')) return false;
+  if ((q.kind === 'trends' || q.kind === 'funnel') && q.breakdown && (q.breakdown.type === 'person' || q.breakdown.key === 'distinct_id')) return false;
   return true;
 }
 

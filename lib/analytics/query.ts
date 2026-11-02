@@ -31,7 +31,7 @@ import { runReadOnly, SqlRunError } from './sql-run';
 import { getCohort, loadActions, type ActionMap } from './records';
 import { channelSql, webFiltersSql } from './web-core';
 import type { ProjectRow } from './projects';
-import { ACTION_PREFIX, PROPERTY_MATHS } from './types';
+import { ACTION_PREFIX, funnelWindowMs, PROPERTY_MATHS } from './types';
 import type {
   CorrelationQuery,
   CorrelationResult,
@@ -376,51 +376,112 @@ export async function runTrends(project: ProjectRow, q: TrendsQuery, now = Date.
 
 // ---------- Embudos ----------
 
-/** Filas de un embudo (persona o grupo, ts, qué pasos cumple). */
-async function funnelRows(project: ProjectRow, q: FunnelQuery, range: { from: number; to: number }, windowMs: number, now: number): Promise<{ list: FunnelRow[]; truncated: boolean; actions: ActionMap }> {
+/** Filas de un embudo (persona, sesión o grupo, ts, qué pasos y exclusiones cumple). La fecha rige en todos los pasos. */
+async function funnelRows(project: ProjectRow, q: FunnelQuery, range: { from: number; to: number }, now: number): Promise<{ list: FunnelRow[]; truncated: boolean; actions: ActionMap; exclusions: Array<{ fromStep: number; toStep: number }> }> {
   const cohort = await cohortFrag(project, q.cohortId, now);
-  const actions = await loadActions(project.id, q.steps.map((s) => s.event));
+  const stepEvents = q.steps.map((s) => [s.event, ...(s.orEvents ?? [])]);
+  const allStepEvents = new Set(stepEvents.flat());
+  const n = q.steps.length;
+  // Un evento que también es paso no puede excluir; en cualquier orden la exclusión rige en todo el embudo.
+  const exclusions = (q.exclusions ?? [])
+    .filter((x) => !allStepEvents.has(x.event))
+    .map((x) => (q.order === 'unordered' ? { ...x, fromStep: 0, toStep: n - 1 } : { ...x, toStep: Math.min(x.toStep, n - 1) }))
+    .filter((x) => x.fromStep < x.toStep);
+  const actions = await loadActions(project.id, [...allStepEvents, ...exclusions.map((x) => x.event)]);
   const filters = [...internalFilters(project, q.excludeInternal), ...q.filters];
-  const withPerson = needsPerson(filters) || q.steps.some((s) => needsPerson(s.filters));
-  const flags: Frag[] = q.steps.map((s) => {
+  const withPerson = needsPerson(filters) || q.steps.some((s) => needsPerson(s.filters)) || exclusions.some((x) => needsPerson(x.filters)) || q.breakdown?.type === 'person';
+  const stepMatch = (i: number): Frag => {
+    const ms = stepEvents[i].map((e) => eventMatch(e, actions));
+    return { sql: ms.length === 1 ? ms[0].sql : `(${ms.map((m) => m.sql).join(' OR ')})`, args: ms.flatMap((m) => m.args) };
+  };
+  const flags: Frag[] = q.steps.map((s, i) => {
     const f = filtersSql(s.filters);
-    const m = eventMatch(s.event, actions);
+    const m = stepMatch(i);
     const parts = [m.sql, f.sql].filter(Boolean);
     return { sql: `(${parts.join(' AND ')})`, args: [...m.args, ...f.args] };
   });
-  const events = [...new Set(q.steps.map((s) => s.event))];
-  // Con una acción, un paso puede ser cualquier evento: el recorte por nombre solo sirve sin acciones.
-  const anyEvent = events.includes('*') || events.some((e) => e.startsWith(ACTION_PREFIX));
-  const where = whereFor(project, { from: range.from, to: range.to + windowMs }, null, filters, cohort);
-  const key: Frag = q.groupType ? { sql: groupKeySql(), args: [`$."$groups"."${q.groupType}"`] } : { sql: PERSON_KEY, args: [] };
+  const exFlags: Frag[] = exclusions.map((x) => {
+    const f = filtersSql(x.filters);
+    const m = eventMatch(x.event, actions);
+    const parts = [m.sql, f.sql].filter(Boolean);
+    return { sql: `(${parts.join(' AND ')})`, args: [...m.args, ...f.args] };
+  });
+  const events = [...new Set([...allStepEvents, ...exclusions.map((x) => x.event)])];
+  // Con una acción un paso puede ser cualquier evento, y en orden estricto importan todos los del medio.
+  const anyEvent = q.order === 'strict' || events.includes('*') || events.some((e) => e.startsWith(ACTION_PREFIX));
+  const where = whereFor(project, range, null, filters, cohort);
+  const key: Frag = q.groupType ? { sql: groupKeySql(), args: [`$."$groups"."${q.groupType}"`] } : q.bySession ? { sql: 'e.session_id', args: [] } : { sql: PERSON_KEY, args: [] };
+  const value = q.breakdown ? propText(q.breakdown.key, q.breakdown.type) : null;
+  const notNull = q.groupType || q.bySession;
   const rows = (await all(
-    `SELECT ${key.sql} AS person, e.ts AS ts, ${flags.map((f, i) => `${f.sql} AS s${i}`).join(', ')}
+    `SELECT ${key.sql} AS person, e.ts AS ts${q.bySession ? `, ${PERSON_KEY} AS owner` : ''}${value ? `, ${value.sql} AS value` : ''}, ${[...flags.map((f, i) => `${f.sql} AS s${i}`), ...exFlags.map((f, i) => `${f.sql} AS x${i}`)].join(', ')}
      FROM analytics_events e ${personJoins(withPerson)}
-     WHERE ${where.sql}${anyEvent ? '' : ` AND e.event IN (${events.map(() => '?').join(',')})`}${q.groupType ? ` AND ${key.sql} IS NOT NULL` : ''}
+     WHERE ${where.sql}${anyEvent ? '' : ` AND e.event IN (${events.map(() => '?').join(',')})`}${notNull ? ` AND ${key.sql} IS NOT NULL` : ''}
      ORDER BY person, e.ts LIMIT ?`,
-    [...key.args, ...flags.flatMap((f) => f.args), ...where.args, ...(anyEvent ? [] : events), ...(q.groupType ? key.args : []), ROW_CAP + 1],
+    [...key.args, ...(value?.args ?? []), ...flags.flatMap((f) => f.args), ...exFlags.flatMap((f) => f.args), ...where.args, ...(anyEvent ? [] : events), ...(notNull ? key.args : []), ROW_CAP + 1],
   )) as Row[];
+
+  // Primera vez: el momento en que cada uno hizo por primera vez ese evento, en toda su historia.
+  let truncated = rows.length > ROW_CAP;
+  const firstAt = new Map<number, Map<string, number>>();
+  for (let i = 0; i < n; i++) {
+    const s = q.steps[i];
+    if (!s.first) continue;
+    const m = stepMatch(i);
+    const f = s.first === 'matching' ? filtersSql(s.filters) : { sql: '', args: [] };
+    const needs = s.first === 'matching' && needsPerson(s.filters);
+    const firsts = (await all(
+      `SELECT ${key.sql} AS person, MIN(e.ts) AS ts FROM analytics_events e ${personJoins(needs)}
+       WHERE e.project_id = ? AND ${m.sql}${f.sql ? ` AND ${f.sql}` : ''}${notNull ? ` AND ${key.sql} IS NOT NULL` : ''} GROUP BY 1 LIMIT ?`,
+      [...key.args, project.id, ...m.args, ...f.args, ...(notNull ? key.args : []), ROW_CAP + 1],
+    )) as Row[];
+    if (firsts.length > ROW_CAP) truncated = true;
+    firstAt.set(i, new Map(firsts.map((r) => [String(r.person), Number(r.ts)])));
+  }
+
   return {
-    truncated: rows.length > ROW_CAP,
+    truncated,
     actions,
-    list: rows.slice(0, ROW_CAP).map((r) => ({
-      person: String(r.person),
-      ts: Number(r.ts),
-      steps: q.steps.map((_, i) => i).filter((i) => Number(r[`s${i}`]) === 1),
-    })),
+    exclusions,
+    list: rows.slice(0, ROW_CAP).map((r) => {
+      const person = String(r.person);
+      const ts = Number(r.ts);
+      return {
+        person,
+        ts,
+        steps: q.steps.map((_, i) => i).filter((i) => Number(r[`s${i}`]) === 1 && (!firstAt.has(i) || firstAt.get(i)?.get(person) === ts)),
+        excl: exclusions.map((_, i) => i).filter((i) => Number(r[`x${i}`]) === 1),
+        value: value ? (r.value == null ? null : String(r.value)) : undefined,
+        owner: q.bySession ? String(r.owner) : undefined,
+      };
+    }),
   };
+}
+
+function funnelStepLabel(s: FunnelQuery['steps'][number], actions: ActionMap): string {
+  if (s.label) return s.label;
+  const name = (e: string) => (e.startsWith(ACTION_PREFIX) ? (actions.get(e.slice(ACTION_PREFIX.length))?.name ?? 'Deleted action') : e);
+  return [s.event, ...(s.orEvents ?? [])].map(name).join(' / ');
 }
 
 export async function runFunnel(project: ProjectRow, q: FunnelQuery, now = Date.now()): Promise<FunnelResult> {
   const range = resolveRange(q.dateRange, now, projectTz(project));
-  const windowMs = q.windowDays * DAY;
-  const { list, truncated, actions } = await funnelRows(project, q, range, windowMs, now);
-  const c = computeFunnel(list, q.steps.length, windowMs, range);
+  const windowMs = funnelWindowMs(q);
+  const order = q.order ?? 'ordered';
+  const display = q.display ?? 'steps';
+  const { list, truncated, actions, exclusions } = await funnelRows(project, { ...q, order }, range, now);
+  const c = computeFunnel(list, q.steps.length, windowMs, range, {
+    order,
+    exclusions,
+    attribution: q.breakdown ? (q.attribution ?? 'first') : null,
+    attributionStep: Math.min(q.attributionStep ?? 0, q.steps.length - 1),
+    historical: display === 'trends' ? { interval: q.interval ?? 'day', tz: projectTz(project), now } : null,
+  });
   const first = c.counts[0] || 0;
   return {
     kind: 'funnel',
     steps: q.steps.map((s, i) => ({
-      label: s.label || (s.event.startsWith(ACTION_PREFIX) ? (actions.get(s.event.slice(ACTION_PREFIX.length))?.name ?? 'Deleted action') : s.event),
+      label: funnelStepLabel(s, actions),
       event: s.event,
       count: c.counts[i],
       conversion: first ? c.counts[i] / first : 0,
@@ -429,7 +490,14 @@ export async function runFunnel(project: ProjectRow, q: FunnelQuery, now = Date.
       medianMs: c.medians[i],
     })),
     droppedPersons: c.dropped,
+    reachedPersons: c.reached,
     truncated,
+    unit: q.groupType ? 'group' : q.bySession ? 'session' : 'person',
+    order,
+    display,
+    times: c.times,
+    breakdown: q.breakdown ? c.breakdown : undefined,
+    historical: c.historical ?? undefined,
   };
 }
 
@@ -442,9 +510,9 @@ const CORRELATION_PEOPLE = 5000;
 export async function runCorrelation(project: ProjectRow, q: CorrelationQuery, now = Date.now()): Promise<CorrelationResult> {
   const f = q.funnel;
   const range = resolveRange(f.dateRange, now, projectTz(project));
-  const windowMs = f.windowDays * DAY;
-  const { list, truncated } = await funnelRows(project, { ...f, groupType: null }, range, windowMs, now);
-  const c = computeFunnel(list, f.steps.length, windowMs, range, Number.MAX_SAFE_INTEGER);
+  const windowMs = funnelWindowMs(f);
+  const { list, truncated, exclusions } = await funnelRows(project, { ...f, groupType: null, bySession: false, breakdown: null, order: f.order ?? 'ordered' }, range, now);
+  const c = computeFunnel(list, f.steps.length, windowMs, range, { order: f.order ?? 'ordered', exclusions, droppedLimit: Number.MAX_SAFE_INTEGER });
   const dropped = new Set(c.dropped.flat());
   const converted = new Set(c.converted);
   const base = { kind: 'correlation' as const, convertedPeople: converted.size, droppedPeople: dropped.size };
@@ -454,7 +522,7 @@ export async function runCorrelation(project: ProjectRow, q: CorrelationQuery, n
     const rows = (await all(
       `SELECT DISTINCT ${PERSON_KEY} AS person, e.event AS name FROM analytics_events e ${personJoins(false)}
        WHERE e.project_id = ? AND e.ts >= ? AND e.ts <= ? LIMIT ?`,
-      [project.id, range.from, range.to + windowMs, ROW_CAP + 1],
+      [project.id, range.from, range.to, ROW_CAP + 1],
     )) as Array<{ person: string; name: string }>;
     const r = correlate(rows.slice(0, ROW_CAP).filter((x) => !skip.has(String(x.name))).map((x) => ({ person: String(x.person), name: String(x.name) })), converted, dropped, 'event');
     return { ...base, ...r, truncated: truncated || rows.length > ROW_CAP };

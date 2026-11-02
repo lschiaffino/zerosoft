@@ -1781,7 +1781,7 @@
         "es": "Combinar eventos en un paso con OR",
         "pt": "Combinar eventos em uma etapa com OR"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1792,7 +1792,7 @@
         "es": "Pasos repetidos",
         "pt": "Etapas repetidas"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1835,13 +1835,8 @@
         "es": "Orden secuencial",
         "pt": "Ordem sequencial"
       },
-      "status": "partial",
-      "competitorHas": true,
-      "detail": {
-        "en": "Steps are matched in order with other events allowed in between; this is the only order mode",
-        "es": "Los pasos se evalúan en orden y se permiten otros eventos en el medio; es el único modo de orden",
-        "pt": "As etapas são avaliadas em ordem, com outros eventos permitidos no meio; é o único modo de ordem"
-      }
+      "status": "have",
+      "competitorHas": true
     },
     {
       "id": "funnel-order-strict",
@@ -1851,7 +1846,7 @@
         "es": "Orden estricto",
         "pt": "Ordem estrita"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1862,7 +1857,7 @@
         "es": "Cualquier orden",
         "pt": "Qualquer ordem"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1873,7 +1868,7 @@
         "es": "Pasos de exclusión",
         "pt": "Etapas de exclusão"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1884,13 +1879,8 @@
         "es": "Conversión respecto del primer paso",
         "pt": "Conversão em relação à primeira etapa"
       },
-      "status": "partial",
-      "competitorHas": true,
-      "detail": {
-        "en": "The overall conversion from the first step is shown for each step",
-        "es": "Se muestra la conversión total desde el primer paso en cada paso",
-        "pt": "A conversão total desde a primeira etapa é mostrada em cada etapa"
-      }
+      "status": "have",
+      "competitorHas": true
     },
     {
       "id": "funnel-rate-previous",
@@ -1900,13 +1890,8 @@
         "es": "Conversión respecto del paso anterior",
         "pt": "Conversão em relação à etapa anterior"
       },
-      "status": "partial",
-      "competitorHas": true,
-      "detail": {
-        "en": "The step-to-step conversion is shown for each step",
-        "es": "Se muestra la conversión de paso a paso en cada paso",
-        "pt": "A conversão de etapa a etapa é mostrada em cada etapa"
-      }
+      "status": "have",
+      "competitorHas": true
     },
     {
       "id": "funnel-conversion-window",
@@ -1916,13 +1901,8 @@
         "es": "Ventana de conversión",
         "pt": "Janela de conversão"
       },
-      "status": "partial",
-      "competitorHas": true,
-      "detail": {
-        "en": "The window is set in days from 1 to 90, default 14; other units are not available",
-        "es": "La ventana se fija en días de 1 a 90, por defecto 14; no hay otras unidades",
-        "pt": "A janela é definida em dias de 1 a 90, padrão 14; não há outras unidades"
-      }
+      "status": "have",
+      "competitorHas": true
     },
     {
       "id": "funnel-window-units",
@@ -1932,13 +1912,8 @@
         "es": "Unidades de la ventana de conversión",
         "pt": "Unidades da janela de conversão"
       },
-      "status": "missing",
-      "competitorHas": false,
-      "detail": {
-        "en": "The evidence for this PostHog capability is thin (unverified), so it is not counted against parity. Not built here.",
-        "es": "La evidencia de esta capacidad de PostHog es escasa (sin verificar), así que no cuenta contra la paridad. No está hecha acá.",
-        "pt": "A evidência desta capacidade do PostHog é escassa (não verificada), então não conta contra a paridade. Não foi feita aqui."
-      }
+      "status": "have",
+      "competitorHas": false
     },
     {
       "id": "funnel-optional-steps",
@@ -1964,8 +1939,13 @@
         "es": "Apertura de embudos",
         "pt": "Abertura de funis"
       },
-      "status": "missing",
-      "competitorHas": true
+      "status": "partial",
+      "competitorHas": true,
+      "detail": {
+        "en": "Breakdown by an event or person property, up to 25 values with the rest in Other; no element or cohort breakdown",
+        "es": "Apertura por una propiedad de evento o de persona, hasta 25 valores y el resto en Otros; sin apertura por elemento ni cohorte",
+        "pt": "Abertura por uma propriedade de evento ou de pessoa, até 25 valores e o resto em Outros; sem abertura por elemento nem coorte"
+      }
     },
     {
       "id": "funnel-attribution-first",
@@ -1975,7 +1955,7 @@
         "es": "Atribución al primer punto de contacto",
         "pt": "Atribuição ao primeiro ponto de contato"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1986,7 +1966,7 @@
         "es": "Atribución al último punto de contacto",
         "pt": "Atribuição ao último ponto de contato"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1997,7 +1977,7 @@
         "es": "Atribución a todos los pasos",
         "pt": "Atribuição a todas as etapas"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -2008,7 +1988,7 @@
         "es": "Atribución a un paso específico",
         "pt": "Atribuição a uma etapa específica"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -2019,7 +1999,7 @@
         "es": "Primera ocurrencia por paso",
         "pt": "Primeira ocorrência por etapa"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -2030,13 +2010,8 @@
         "es": "Gráfico de pasos de conversión",
         "pt": "Gráfico de etapas de conversão"
       },
-      "status": "partial",
-      "competitorHas": true,
-      "detail": {
-        "en": "Counts, drop-off and conversion per step are shown",
-        "es": "Se muestran cantidades, abandono y conversión por paso",
-        "pt": "Mostram-se contagens, desistência e conversão por etapa"
-      }
+      "status": "have",
+      "competitorHas": true
     },
     {
       "id": "funnel-graph-time-to-convert",
@@ -2046,13 +2021,8 @@
         "es": "Gráfico de tiempo hasta convertir",
         "pt": "Gráfico de tempo até converter"
       },
-      "status": "partial",
-      "competitorHas": true,
-      "detail": {
-        "en": "Only the median time between steps is shown; there is no distribution graph",
-        "es": "Solo se muestra la mediana de tiempo entre pasos; no hay gráfico de distribución",
-        "pt": "Só é mostrada a mediana de tempo entre etapas; não há gráfico de distribuição"
-      }
+      "status": "have",
+      "competitorHas": true
     },
     {
       "id": "funnel-graph-historical",
@@ -2062,7 +2032,7 @@
         "es": "Gráfico histórico de tendencia",
         "pt": "Gráfico histórico de tendência"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -2073,13 +2043,8 @@
         "es": "Usuarios que convirtieron y que abandonaron",
         "pt": "Usuários que converteram e que desistiram"
       },
-      "status": "partial",
-      "competitorHas": true,
-      "detail": {
-        "en": "The people who dropped at each step are listed, up to 100; converted users are not listed",
-        "es": "Se lista la gente que abandonó en cada paso, hasta 100; no se lista a quienes convirtieron",
-        "pt": "As pessoas que desistiram em cada etapa são listadas, até 100; quem converteu não é listado"
-      }
+      "status": "have",
+      "competitorHas": true
     },
     {
       "id": "funnel-save-cohort",
@@ -2092,9 +2057,9 @@
       "status": "partial",
       "competitorHas": true,
       "detail": {
-        "en": "A funnel can be saved as a static cohort; the choice of converted or dropped people per step is limited",
-        "es": "Un embudo se puede guardar como cohorte estática; la elección de quienes convirtieron o abandonaron por paso es limitada",
-        "pt": "Um funil pode ser salvo como coorte estática; a escolha de quem converteu ou desistiu por etapa é limitada"
+        "en": "People who reached or dropped at any step can be listed and saved as a static cohort, up to 100 per step",
+        "es": "Quienes llegaron o abandonaron en cualquier paso se listan y se guardan como cohorte estática, hasta 100 por paso",
+        "pt": "Quem chegou ou desistiu em qualquer etapa pode ser listado e salvo como coorte estática, até 100 por etapa"
       }
     },
     {
@@ -2132,7 +2097,7 @@
         "es": "Embudos por sesión",
         "pt": "Funis por sessão"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {

@@ -415,7 +415,7 @@ function IntegrationGuides({ origin, publicKey }: { origin: string; publicKey: s
         <CopyBlock code={useProxy} label={t('proxyUse')} />
         <h3 className="an-h4">{t('cookielessTitle')}</h3>
         <p className="an-note">{t('cookielessDesc')}</p>
-        <CopyBlock code={`zs.push(['init', '${publicKey}', { cookieless_mode: 'always' }]);\n\n// Con un aviso de cookies: nada hasta que la persona decide.\nzs.push(['init', '${publicKey}', { cookieless_mode: 'on_reject' }]);\nzs.optIn();  // acepta\nzs.optOut(); // rechaza: sigue sin cookies`} label={t('cookielessTitle')} />
+        <CopyBlock code={`zs.push(['init', '${publicKey}', { cookieless_mode: 'always' }]);\n\n// With a cookie banner: nothing until the person decides.\nzs.push(['init', '${publicKey}', { cookieless_mode: 'on_reject' }]);\nzs.optIn();  // accepts\nzs.optOut(); // rejects: stays without cookies`} label={t('cookielessTitle')} />
         <h3 className="an-h4">{t('sdkTitle')}</h3>
         <p className="an-note">{t('sdkDesc')}</p>
         <CopyBlock code={node} label={t('sdkTitle')} />

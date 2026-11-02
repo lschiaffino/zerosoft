@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import type { FunnelResult, InsightResult, PathsResult, RetentionResult, SqlResult, TrendDisplay, TrendsResult } from '@/lib/analytics/types';
@@ -127,52 +128,228 @@ function Trends({ r, display, annotations }: { r: TrendsResult; display: TrendDi
   );
 }
 
+/** Tiempo hasta convertir: una barra por rango de duración, con selector de pasos. */
+function FunnelTimes({ r }: { r: FunnelResult }) {
+  const t = useTranslations('analytics.result');
+  const locale = useLocale();
+  const times = r.times ?? [];
+  const [pick, setPick] = useState(times.length - 1);
+  const cur = times[Math.min(pick, times.length - 1)];
+  if (!cur || !cur.count) return <p className="an-empty-result">{t('noConversions')}</p>;
+  const peak = Math.max(...cur.bins.map((b) => b.count), 1);
+  return (
+    <div className="an-funnel-times">
+      <div className="an-row an-wrap">
+        <select className="select" aria-label={t('timeSteps')} value={Math.min(pick, times.length - 1)} onChange={(e) => setPick(Number(e.target.value))}>
+          {times.map((x, i) => (
+            <option key={i} value={i}>
+              {t('timeFromTo', { from: x.fromStep + 1, to: x.toStep + 1 })}
+            </option>
+          ))}
+        </select>
+        <span className="an-muted an-small">{t('timeStats', { avg: fmtDuration(cur.avgMs ?? 0), median: fmtDuration(cur.medianMs ?? 0), count: fmtNumber(cur.count, locale) })}</span>
+      </div>
+      <ul className="an-hist" role="list">
+        {cur.bins.map((b, i) => (
+          <li key={i} className="an-hist-row">
+            <span className="an-hist-label an-mono">{b.fromMs === b.toMs ? fmtDuration(b.fromMs) : `${fmtDuration(b.fromMs)} – ${fmtDuration(b.toMs)}`}</span>
+            <span className="an-hist-bar" aria-hidden="true">
+              {b.count > 0 && <span style={{ width: `${Math.max(2, (b.count / peak) * 100)}%` }} />}
+            </span>
+            <span className="an-mono an-hist-n">
+              {fmtNumber(b.count, locale)} · {fmtPercent(b.count / cur.count, locale)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Conversión por fecha de entrada, con pasos a elegir y sin períodos incompletos si se pide. */
+function FunnelHistorical({ r }: { r: FunnelResult }) {
+  const t = useTranslations('analytics.result');
+  const locale = useLocale();
+  const n = r.steps.length;
+  const [from, setFrom] = useState(0);
+  const [to, setTo] = useState(n - 1);
+  const [hide, setHide] = useState(false);
+  const toStep = Math.min(Math.max(to, from + 1), n - 1);
+  const list = (r.historical ?? []).filter((b) => !hide || !b.incomplete);
+  const rate = (b: { counts: number[] }) => (b.counts[from] ? Math.round((b.counts[toStep] / b.counts[from]) * 1000) / 10 : 0);
+  if (!r.historical) return <p className="an-empty-result">{t('noData')}</p>;
+  return (
+    <div className="an-funnel-times">
+      <div className="an-row an-wrap">
+        <select className="select" aria-label={t('historicalFrom')} value={from} onChange={(e) => setFrom(Number(e.target.value))}>
+          {r.steps.slice(0, -1).map((_, i) => (
+            <option key={i} value={i}>
+              {t('stepFrom', { n: i + 1 })}
+            </option>
+          ))}
+        </select>
+        <select className="select" aria-label={t('historicalTo')} value={toStep} onChange={(e) => setTo(Number(e.target.value))}>
+          {r.steps.map((_, i) =>
+            i > from ? (
+              <option key={i} value={i}>
+                {t('stepTo', { n: i + 1 })}
+              </option>
+            ) : null,
+          )}
+        </select>
+        <label className="ui-check">
+          <input type="checkbox" checked={hide} onChange={(e) => setHide(e.target.checked)} /> {t('hideIncomplete')}
+        </label>
+      </div>
+      {list.length ? (
+        <Chart
+          kind="line"
+          labels={list.map((b) => bucketLabel(b.bucket, locale))}
+          series={[{ label: t('conversionRate'), data: list.map(rate) }]}
+          summary={t('historicalSummary', { from: from + 1, to: toStep + 1 })}
+        />
+      ) : (
+        <p className="an-empty-result">{t('noData')}</p>
+      )}
+      <div className="table-wrap">
+        <table className="table table-compact an-table">
+          <thead>
+            <tr>
+              <th scope="col">{t('entered')}</th>
+              <th scope="col" className="num">
+                {t('stepFrom', { n: from + 1 })}
+              </th>
+              <th scope="col" className="num">
+                {t('stepTo', { n: toStep + 1 })}
+              </th>
+              <th scope="col" className="num">
+                {t('conversionRate')}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {list.map((b) => (
+              <tr key={b.bucket}>
+                <td>
+                  {bucketLabel(b.bucket, locale)}
+                  {b.incomplete && <span className="an-muted an-small"> · {t('incomplete')}</span>}
+                </td>
+                <td className="num">{fmtNumber(b.counts[from], locale)}</td>
+                <td className="num">{fmtNumber(b.counts[toStep], locale)}</td>
+                <td className="num">{b.counts[from] ? fmtPercent(b.counts[toStep] / b.counts[from], locale) : '·'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/** Pasos por valor de la apertura. */
+function FunnelBreakdown({ r }: { r: FunnelResult }) {
+  const t = useTranslations('analytics.result');
+  const locale = useLocale();
+  const rows = r.breakdown ?? [];
+  if (!rows.length) return <p className="an-note">{t('noBreakdownValues')}</p>;
+  return (
+    <div className="table-wrap">
+      <table className="table table-compact an-table an-funnel-breakdown">
+        <thead>
+          <tr>
+            <th scope="col">{t('breakdownValue')}</th>
+            {r.steps.map((_, i) => (
+              <th key={i} scope="col" className="num">
+                {t('stepHead', { n: i + 1 })}
+              </th>
+            ))}
+            <th scope="col" className="num">
+              {t('conversionRate')}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((b, i) => (
+            <tr key={i}>
+              <td className="an-break">{b.value === null ? t('none') : b.value === '$other' ? t('other') : b.value}</td>
+              {b.counts.map((c, k) => (
+                <td key={k} className="num">
+                  {fmtNumber(c, locale)}
+                </td>
+              ))}
+              <td className="num">{b.counts[0] ? fmtPercent(b.counts[b.counts.length - 1] / b.counts[0], locale) : '·'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function Funnel({ r, peopleHref }: { r: FunnelResult; peopleHref?: (ids: string[]) => string }) {
   const t = useTranslations('analytics.result');
   const locale = useLocale();
   const first = r.steps[0]?.count ?? 0;
   if (!first) return <p className="an-empty-result">{t('noData')}</p>;
   const last = r.steps[r.steps.length - 1];
+  const totalKey = r.unit === 'session' ? 'funnelTotalSessions' : r.unit === 'group' ? 'funnelTotalGroups' : 'funnelTotal';
+  const display = r.display ?? 'steps';
+  const unordered = r.order === 'unordered';
   return (
     <div className="an-result">
-      <p className="an-funnel-total">
-        {t('funnelTotal', { conversion: fmtPercent(last.conversion, locale), count: fmtNumber(last.count, locale), start: fmtNumber(first, locale), n: first })}
-      </p>
-      <ol className="an-funnel" role="list">
-        {r.steps.map((s, i) => (
-          <li key={i} className="an-funnel-step">
-            <div className="an-funnel-head">
-              <span className="an-funnel-n">{i + 1}</span>
-              <span className="an-funnel-name">{s.label}</span>
-              <span className="an-funnel-count">
-                {fmtNumber(s.count, locale)} · {fmtPercent(s.conversion, locale)}
-              </span>
-            </div>
-            <div className="an-funnel-bar" aria-hidden="true">
-              {s.conversion > 0 && <span style={{ width: `${Math.max(1, s.conversion * 100)}%` }} />}
-            </div>
-            <div className="an-funnel-meta">
-              {i > 0 && (
-                <span>
-                  {t('fromPrevious', { pct: fmtPercent(s.stepConversion, locale) })}
-                  {s.medianMs !== null && ` · ${t('medianTime', { time: fmtDuration(s.medianMs) })}`}
-                </span>
-              )}
-              {i + 1 < r.steps.length && s.dropped > 0 && (
-                <span>
-                  {peopleHref && r.droppedPersons[i]?.length ? (
-                    <Link href={peopleHref(r.droppedPersons[i])} className="an-link">
-                      {t('dropped', { count: s.dropped })}
-                    </Link>
-                  ) : (
-                    t('dropped', { count: s.dropped })
+      <p className="an-funnel-total">{t(totalKey, { conversion: fmtPercent(last.conversion, locale), count: fmtNumber(last.count, locale), start: fmtNumber(first, locale), n: first })}</p>
+      {display === 'time' ? (
+        <FunnelTimes r={r} />
+      ) : display === 'trends' ? (
+        <FunnelHistorical r={r} />
+      ) : (
+        <ol className="an-funnel" role="list">
+          {r.steps.map((s, i) => {
+            const reached = r.reachedPersons?.[i] ?? [];
+            const count = `${fmtNumber(s.count, locale)} · ${fmtPercent(s.conversion, locale)}`;
+            return (
+              <li key={i} className="an-funnel-step">
+                <div className="an-funnel-head">
+                  <span className="an-funnel-n">{i + 1}</span>
+                  <span className="an-funnel-name">{unordered ? t('completedSteps', { n: i + 1 }) : s.label}</span>
+                  <span className="an-funnel-count">
+                    {peopleHref && reached.length && r.unit !== 'group' ? (
+                      <Link href={peopleHref(reached)} className="an-link">
+                        {count}
+                      </Link>
+                    ) : (
+                      count
+                    )}
+                  </span>
+                </div>
+                <div className="an-funnel-bar" aria-hidden="true">
+                  {s.conversion > 0 && <span style={{ width: `${Math.max(1, s.conversion * 100)}%` }} />}
+                </div>
+                <div className="an-funnel-meta">
+                  {i > 0 && (
+                    <span>
+                      {t('fromPrevious', { pct: fmtPercent(s.stepConversion, locale) })}
+                      {s.medianMs !== null && ` · ${t('medianTime', { time: fmtDuration(s.medianMs) })}`}
+                    </span>
                   )}
-                </span>
-              )}
-            </div>
-          </li>
-        ))}
-      </ol>
+                  {i + 1 < r.steps.length && s.dropped > 0 && (
+                    <span>
+                      {peopleHref && r.droppedPersons[i]?.length && r.unit !== 'group' ? (
+                        <Link href={peopleHref(r.droppedPersons[i])} className="an-link">
+                          {t('dropped', { count: s.dropped })}
+                        </Link>
+                      ) : (
+                        t('dropped', { count: s.dropped })
+                      )}
+                    </span>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+      {display === 'steps' && r.breakdown && <FunnelBreakdown r={r} />}
       {r.truncated && <p className="an-note">{t('truncated')}</p>}
     </div>
   );

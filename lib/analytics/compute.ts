@@ -216,82 +216,9 @@ export function alignSeries(rows: Array<{ bucket: string; count: number }>, buck
   return out;
 }
 
-// ---------- Embudos ----------
+// ---------- Embudos: lib/analytics/funnel-core.ts ----------
 
-export interface FunnelRow {
-  person: string;
-  /** Índices de los pasos que este evento cumple (un evento puede servir a más de uno). */
-  steps: number[];
-  ts: number;
-}
-
-export interface FunnelComputed {
-  counts: number[];
-  /** Mediana de tiempo entre el paso i-1 y el i (ms); null en el primero o sin datos. */
-  medians: Array<number | null>;
-  /** Personas que llegaron al paso i y no al i+1. */
-  dropped: string[][];
-  /** Personas que llegaron al último paso. */
-  converted: string[];
-}
-
-function median(xs: number[]): number | null {
-  if (!xs.length) return null;
-  const s = [...xs].sort((a, b) => a - b);
-  const m = Math.floor(s.length / 2);
-  return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2);
-}
-
-/**
- * Embudo secuencial (como el "sequential" de PostHog): por persona, cada
- * arranque del paso 1 dentro del rango abre un intento; los pasos siguientes
- * cuentan en orden y dentro de la ventana desde ese arranque. Gana el intento
- * que más lejos llega. Las filas vienen ordenadas por persona y tiempo.
- */
-export function computeFunnel(rows: FunnelRow[], nSteps: number, windowMs: number, range: { from: number; to: number }, droppedLimit = 100): FunnelComputed {
-  const counts = new Array(nSteps).fill(0);
-  const gaps: number[][] = Array.from({ length: nSteps }, () => []);
-  const dropped: string[][] = Array.from({ length: nSteps }, () => []);
-  const converted: string[] = [];
-
-  let i = 0;
-  while (i < rows.length) {
-    const person = rows[i].person;
-    let j = i;
-    while (j < rows.length && rows[j].person === person) j++;
-    const events = rows.slice(i, j);
-    i = j;
-
-    let best = 0;
-    let bestTimes: number[] = [];
-    for (let s = 0; s < events.length && best < nSteps; s++) {
-      const start = events[s];
-      if (!start.steps.includes(0) || start.ts < range.from || start.ts > range.to) continue;
-      const times = [start.ts];
-      let step = 1;
-      for (let k = s + 1; k < events.length && step < nSteps; k++) {
-        const ev = events[k];
-        if (ev.ts - start.ts > windowMs) break;
-        if (ev.steps.includes(step) && ev.ts >= times[step - 1]) {
-          times.push(ev.ts);
-          step++;
-        }
-      }
-      if (step > best) {
-        best = step;
-        bestTimes = times;
-      }
-    }
-    if (best === 0) continue;
-    for (let s = 0; s < best; s++) {
-      counts[s]++;
-      if (s > 0) gaps[s].push(bestTimes[s] - bestTimes[s - 1]);
-    }
-    if (best < nSteps && dropped[best - 1].length < droppedLimit) dropped[best - 1].push(person);
-    if (best === nSteps) converted.push(person);
-  }
-  return { counts, medians: gaps.map((g, s) => (s === 0 ? null : median(g))), dropped, converted };
-}
+export { computeFunnel, type FunnelRow, type FunnelComputed } from './funnel-core';
 
 // ---------- Retención ----------
 
