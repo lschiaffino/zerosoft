@@ -451,6 +451,7 @@ export interface ProjectDto {
   tzOffsetMin: number;
   tzName: string | null;
   keepBots: boolean;
+  cookieless: boolean;
   botsFiltered: number;
   /** Filtros que definen gente interna o de prueba (se aplican con excludeInternal). */
   testFilters: PropertyFilter[];

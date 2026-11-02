@@ -10,6 +10,7 @@
  */
 import { getDb } from '../db';
 import { bucketOf } from './compute';
+import { purgeCookielessSalts } from './cookieless';
 import { fromLocal, projectTz, type Tz } from './tz';
 import { purgeProjectRecordings, runReplayRetention } from './replay';
 import { runErrorRegressions } from './errors';
@@ -122,6 +123,8 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
   } catch (err) {
     console.error('[analytics cron] replay', err);
   }
+
+  await purgeCookielessSalts(now).catch(() => null);
 
   // 2. Rollup diario: hasta ayer (día local del proyecto), 31 días por corrida.
   const candidates = (await db

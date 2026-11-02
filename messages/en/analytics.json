@@ -574,7 +574,11 @@
     "localEvalDesc": "Fetch the definitions with the secret key and evaluate them without a request per check. They use the same hash as PostHog.",
     "timezoneFixed": "Fixed offset {offset} (no daylight saving)",
     "keepBots": "Keep traffic from known bots",
-    "botsFiltered": "{count, plural, =0 {No bot hits filtered so far.} one {# bot hit filtered so far.} other {# bot hits filtered so far.}} Known crawlers are left out by default."
+    "botsFiltered": "{count, plural, =0 {No bot hits filtered so far.} one {# bot hit filtered so far.} other {# bot hits filtered so far.}} Known crawlers are left out by default.",
+    "cookieless": "Allow tracking without cookies",
+    "cookielessHelp": "The snippet can run without storing anything in the browser, with cookieless_mode. Visitors are counted with a hash that changes every day, so the same person on two days counts twice and there are no person profiles. The IP is not stored. Off by default.",
+    "cookielessTitle": "Without cookies",
+    "cookielessDesc": "Nothing is stored in the browser and identify does nothing. Recordings and surveys stay off in this mode. Turn on \"Allow tracking without cookies\" above first."
   },
   "share": {
     "title": "Public link",

@@ -38,6 +38,7 @@ export interface ProjectRow {
   /** Zona IANA; null = el desfase fijo de tz_offset_min. */
   tz_name: string | null;
   keep_bots: number;
+  cookieless: number;
   bots_filtered: number;
   test_filters: string;
   rolled_through: string | null;
@@ -88,6 +89,7 @@ export function toProjectDto(r: ProjectRow): ProjectDto {
     tzOffsetMin: r.tz_name ? offsetMsAt(r.tz_name, Date.now()) / 60_000 : Number(r.tz_offset_min),
     tzName: r.tz_name,
     keepBots: r.keep_bots === 1,
+    cookieless: r.cookieless === 1,
     botsFiltered: Number(r.bots_filtered ?? 0),
     testFilters: parseTestFilters(r.test_filters),
     createdAt: r.created_at,
@@ -139,6 +141,7 @@ export interface ProjectPatch {
   tzOffsetMin?: number;
   tzName?: string | null;
   keepBots?: boolean;
+  cookieless?: boolean;
   testFilters?: PropertyFilter[];
 }
 
@@ -202,6 +205,10 @@ export async function updateProject(workspaceId: string, id: string, patch: Proj
   if (patch.tzOffsetMin !== undefined) {
     sets.push('tz_offset_min = ?');
     args.push(Math.min(840, Math.max(-720, Math.round(patch.tzOffsetMin))));
+  }
+  if (patch.cookieless !== undefined) {
+    sets.push('cookieless = ?');
+    args.push(patch.cookieless ? 1 : 0);
   }
   if (patch.keepBots !== undefined) {
     sets.push('keep_bots = ?');

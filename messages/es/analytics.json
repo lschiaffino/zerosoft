@@ -574,7 +574,11 @@
     "localEvalDesc": "Traé las definiciones con la key secreta y evaluálas sin un pedido por chequeo. Usan el mismo hash que PostHog.",
     "timezoneFixed": "Desfase fijo {offset} (sin horario de verano)",
     "keepBots": "Guardar el tráfico de bots conocidos",
-    "botsFiltered": "{count, plural, =0 {Todavía no se filtró ningún hit de bots.} one {# hit de bots filtrado hasta ahora.} other {# hits de bots filtrados hasta ahora.}} Los crawlers conocidos quedan afuera por defecto."
+    "botsFiltered": "{count, plural, =0 {Todavía no se filtró ningún hit de bots.} one {# hit de bots filtrado hasta ahora.} other {# hits de bots filtrados hasta ahora.}} Los crawlers conocidos quedan afuera por defecto.",
+    "cookieless": "Permitir medir sin cookies",
+    "cookielessHelp": "El snippet puede correr sin guardar nada en el navegador, con cookieless_mode. Los visitantes se cuentan con un hash que cambia cada día, así que la misma persona en dos días cuenta dos veces y no hay perfiles de persona. La IP no se guarda. Apagado por defecto.",
+    "cookielessTitle": "Sin cookies",
+    "cookielessDesc": "No se guarda nada en el navegador e identify no hace nada. Las grabaciones y encuestas quedan apagadas en este modo. Primero prendé \"Permitir medir sin cookies\" arriba."
   },
   "share": {
     "title": "Link público",

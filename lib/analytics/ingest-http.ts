@@ -11,6 +11,7 @@ import { extractBearer } from '../api-auth';
 import { ensureMigrated, getClient, getDb } from '../db';
 import { clientIp } from '../rate-limit';
 import { isBotUserAgent } from './bots';
+import { applyCookieless, cookielessIdFor, isCookielessId } from './cookieless';
 import { INGEST_LIMITS, originAllowed, parseIngestBody } from './ingest-core';
 import { requestContext, storeEvents } from './ingest';
 import { parseDomainList, projectByKey, type ProjectRow } from './projects';
@@ -172,8 +173,18 @@ export async function handleCapture(req: Request): Promise<Response> {
   if (block) return block;
   // Un servidor con la key secreta no es el navegador de la persona: sin user agent ni IP del pedido.
   const ctx = r.secret ? null : requestContext(req);
+  // Sin cookies: el id sale de un hash del lado del servidor, solo si el proyecto lo prendió. La IP no se guarda.
+  let events = parsed.events;
+  let storeCtx = ctx;
+  if (events.some((e) => isCookielessId(e.distinctId))) {
+    if (r.secret || r.project.cookieless !== 1) events = events.filter((e) => !isCookielessId(e.distinctId));
+    else {
+      events = await applyCookieless(r.project, events, req, clientIp(req));
+      if (storeCtx) storeCtx = { ...storeCtx, ip: null };
+    }
+  }
   // Tope diario de los eventos especiales (errores, encuestas, vitals, LLM).
-  const stored = await storeEvents(r.project, await capSpecialEvents(r.project.id, parsed.events), ctx);
+  const stored = await storeEvents(r.project, await capSpecialEvents(r.project.id, events), storeCtx);
   return reply(req, 200, { status: 1, stored, dropped: parsed.dropped + (parsed.events.length - stored) });
 }
 
@@ -194,7 +205,9 @@ export async function handleDecide(req: Request): Promise<Response> {
   if ('res' in r) return r.res;
   const block = await limited(req, 'adecide', r.project.id, DECIDE_RPM);
   if (block) return block;
-  const distinctId = typeof body.distinct_id === 'string' ? body.distinct_id.slice(0, INGEST_LIMITS.maxDistinctId) : '';
+  let distinctId = typeof body.distinct_id === 'string' ? body.distinct_id.slice(0, INGEST_LIMITS.maxDistinctId) : '';
+  // Sin cookies, el flag se evalúa con el id de hoy (y sin el ajuste, nada: no hay a quién evaluar).
+  if (isCookielessId(distinctId)) distinctId = r.project.cookieless === 1 && !r.secret ? await cookielessIdFor(r.project, req, clientIp(req), Date.now()) : '';
   const overrides = body.person_properties && typeof body.person_properties === 'object' && !Array.isArray(body.person_properties) ? (body.person_properties as Record<string, unknown>) : {};
   const botHere = !r.secret && r.project.keep_bots !== 1 && isBotUserAgent(req.headers.get('user-agent'));
   const { flags: featureFlags, payloads } = distinctId ? await decideFlagsFull(r.project.id, distinctId, overrides) : { flags: {}, payloads: {} };

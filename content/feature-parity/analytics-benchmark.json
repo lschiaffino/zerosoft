@@ -10404,7 +10404,7 @@
         "es": "Modo sin cookies siempre",
         "pt": "Modo sem cookies sempre"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -10415,7 +10415,7 @@
         "es": "Sin cookies al rechazar",
         "pt": "Sem cookies ao recusar"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -10442,8 +10442,13 @@
         "es": "Opt-out por defecto",
         "pt": "Opt-out por padrão"
       },
-      "status": "missing",
-      "competitorHas": true
+      "status": "partial",
+      "competitorHas": true,
+      "detail": {
+        "en": "The snippet starts without capturing with opt_out_capturing_by_default and saves the decision. Not checked end to end on its own",
+        "es": "El snippet arranca sin capturar con opt_out_capturing_by_default y guarda la decisión. No se probó de punta a punta por separado",
+        "pt": "O snippet começa sem capturar com opt_out_capturing_by_default e guarda a decisão. Não foi testado de ponta a ponta separadamente"
+      }
     },
     {
       "id": "consent-cross-subdomain",
@@ -10464,13 +10469,8 @@
         "es": "Estado del consentimiento",
         "pt": "Status do consentimento"
       },
-      "status": "missing",
-      "competitorHas": false,
-      "detail": {
-        "en": "The evidence for this PostHog capability is thin (unverified), so it is not counted against parity. Not built here.",
-        "es": "La evidencia de esta capacidad de PostHog es escasa (sin verificar), así que no cuenta contra la paridad. No está hecha acá.",
-        "pt": "A evidência desta capacidade do PostHog é escassa (não verificada), então não conta contra a paridade. Não foi feita aqui."
-      }
+      "status": "have",
+      "competitorHas": false
     },
     {
       "id": "property-denylist",
