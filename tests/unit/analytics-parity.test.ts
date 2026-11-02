@@ -1,5 +1,5 @@
 import { gzipSync } from 'zlib';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { getDb, upsertUser } from '@/lib/db';
 import { nanoid } from 'nanoid';
 import { parseIngestBody } from '@/lib/analytics/ingest-core';
@@ -65,11 +65,22 @@ async function ingest(project: ProjectRow, events: Ev[]) {
   return storeEvents(fresh, parsed.events, null);
 }
 
+const created: string[] = [];
+
 async function newProject(name = 'P') {
   const user = await upsertUser({ email: `an-parity-${nanoid(8)}@test.dev` });
   const project = await createProject(user.id, user.id, name);
+  created.push(project.id);
   return { user, project };
 }
+
+// Los archivos de test comparten la base: el cron de los otros no tiene que hacer cola detrás de estos proyectos.
+afterAll(async () => {
+  for (const id of created) {
+    await getDb().prepare('DELETE FROM analytics_events WHERE project_id = ?').run(id);
+    await getDb().prepare('DELETE FROM analytics_projects WHERE id = ?').run(id);
+  }
+});
 
 describe('analytics: fórmulas', () => {
   it('respeta precedencia y paréntesis, y dividir por 0 da 0', () => {
@@ -414,6 +425,19 @@ describe('analytics: lo que queda en una grabación', () => {
     const json = JSON.stringify(parsed);
     for (const secret of ['token=abc', 'access_token', 'CSRF', 'CSRF2', 'data-x']) expect(json).not.toContain(secret);
   });
+});
+
+describe('analytics: turno del cron', () => {
+  it('muchos proyectos sin nada que hacer no dejan sin rollup a uno con eventos', async () => {
+    const idle = await Promise.all(Array.from({ length: 60 }, () => newProject('idle')));
+    const { project: busy } = await newProject('busy');
+    await ingest(busy, [{ event: 'e', distinct_id: 'a', ts: NOW - 2 * DAY }]);
+    expect(idle).toHaveLength(60);
+    // Como mucho unas pocas corridas: cada una atiende 50 y los deja atrás en la cola.
+    for (let i = 0; i < 6; i++) await runAnalyticsCron({ budgetMs: 15_000 });
+    const n = (await getDb().prepare('SELECT COUNT(*) AS n FROM analytics_daily WHERE project_id = ?').get(busy.id)) as { n: number };
+    expect(Number(n.n)).toBeGreaterThan(0);
+  }, 60_000);
 });
 
 describe('analytics: bots', () => {

@@ -136,8 +136,10 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
       await rollup(p);
     } catch (err) {
       console.error('[analytics cron] rollup', p.id, err);
-      await db.prepare('UPDATE analytics_projects SET rollup_claimed_at = NULL WHERE id = ?').run(p.id).catch(() => null);
     }
+    // Turno rotativo: el que acaba de pasar, con o sin trabajo, queda atrás en la cola y
+    // disponible para la próxima corrida. Sin esto, 50 proyectos sin nada que hacer dejan sin turno al resto.
+    await db.prepare('UPDATE analytics_projects SET rollup_claimed_at = ? WHERE id = ?').run(now - CLAIM_MS - 1, p.id).catch(() => null);
   }
   async function rollup(p: (typeof candidates)[number]) {
     const tz = projectTz(p);
@@ -189,7 +191,7 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
 
   // 3. Retención: una vez cada 6 h por proyecto.
   const due = (await db
-    .prepare('SELECT id, retention_days FROM analytics_projects WHERE deleted_at IS NULL AND (purged_at IS NULL OR purged_at < ?) LIMIT 50')
+    .prepare('SELECT id, retention_days FROM analytics_projects WHERE deleted_at IS NULL AND (purged_at IS NULL OR purged_at < ?) ORDER BY purged_at LIMIT 50')
     .all(now - 6 * 3_600_000)) as Array<{ id: string; retention_days: number }>;
   for (const p of due) {
     if (left() <= 0) break;
