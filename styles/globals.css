@@ -184,9 +184,13 @@ a { color: inherit; text-decoration: none; }
 /* El sistema de controles (.btn, .input, .select, .textarea, .label, .badge,
    .table, .panel y los .ui-*) vive en styles/ui.css, que se carga después. */
 
-/* ---------- ZeroTorus: el cero en 3D hecho de ceros ---------- */
+/* ---------- ZeroArt y ZeroTorus: figuras hechas de ceros ----------
+   La letra sale del tamaño de la caja, sin JS: la figura ocupa su lugar desde
+   el primer pintado y no mueve nada. --art-cols y --art-rows los pone el
+   componente; 0.6 y 1.12 son CHAR_W y LINE_H de lib/zero-art/engine.ts.
+   contain: un cuadro nuevo no recalcula el resto de la página. */
 
-.zero-torus {
+.zero-art {
   position: relative;
   width: 100%;
   height: 100%;
@@ -195,19 +199,29 @@ a { color: inherit; text-decoration: none; }
   justify-content: center;
   overflow: hidden;
   color: var(--ink);
+  container-type: size;
+  contain: strict;
 }
-.zero-torus pre {
+.zero-art pre {
   margin: 0;
+  flex: none;
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: min(calc(100cqw / (var(--art-cols) * 0.6)), calc(100cqh / (var(--art-rows) * 1.12)));
+  /* Medida fija en em: al llegar la fuente web, la figura no se corre (CLS). */
+  width: calc(var(--art-cols) * 0.6em);
+  height: calc(var(--art-rows) * 1.12em);
   line-height: 1.12;
   white-space: pre;
   user-select: none;
   -webkit-user-select: none;
   color: inherit;
 }
-.zero-torus.is-interactive pre { cursor: grab; touch-action: none; }
-.zero-torus.is-interactive pre[data-dragging] { cursor: grabbing; }
+/* Lo vertical sigue moviendo la página en el teléfono; lo horizontal gira. */
+.zero-art.is-draggable { cursor: grab; touch-action: pan-y; }
+.zero-art.is-draggable[data-dragging] { cursor: grabbing; }
+/* Las que ocupan lo que les den: la letra es fija y lo que sobra se recorta. */
+.zero-art.is-fluid { display: block; pointer-events: none; }
+.zero-art.is-fluid pre { font-size: 13px; width: auto; height: auto; }
 /* De fondo (login, links vencidos): grande, quieto al tacto y muy tenue. */
 .zero-torus-bg {
   position: absolute;

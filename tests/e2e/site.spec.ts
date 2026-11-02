@@ -87,3 +87,36 @@ test('desde la landing de un producto, el botón del header abre esa app', async
   await page.goto('/es/blog');
   await expect(page.locator('.hd-right a.btn-chrome')).toHaveAttribute('href', '/es/app');
 });
+
+test('figuras de ceros: decorativas, se mueven y con movimiento reducido quedan quietas', async ({ page, browser }) => {
+  await page.goto('/es/products/cal');
+  const art = page.locator('.hero-field .zero-art');
+  await expect(art).toHaveAttribute('aria-hidden', 'true');
+  await expect(art.locator('a, button, [tabindex]')).toHaveCount(0);
+  const pre = art.locator('pre');
+  const first = await pre.textContent();
+  expect(first?.trim().length).toBeGreaterThan(100);
+  await expect.poll(() => pre.textContent(), { timeout: 15_000 }).not.toBe(first);
+
+  const ctx = await browser.newContext({ reducedMotion: 'reduce', baseURL: test.info().project.use.baseURL });
+  const still = await ctx.newPage();
+  await still.goto('/es/products/cal');
+  const stillPre = still.locator('.hero-field .zero-art pre');
+  const before = await stillPre.textContent();
+  await still.waitForTimeout(2500);
+  expect(await stillPre.textContent()).toBe(before);
+  await ctx.close();
+});
+
+test('la figura que se arrastra no bloquea el scroll en el teléfono', async ({ page }) => {
+  for (const url of ['/es', '/es/products/link']) {
+    await page.goto(url);
+    await expect(page.locator('.hero-field .zero-art.is-draggable')).toHaveCSS('touch-action', 'pan-y');
+  }
+});
+
+test('el 404 lleva el cero en el medio y sigue pudiendo volver al inicio', async ({ page }) => {
+  await page.goto('/es/esta-pagina-no-existe');
+  await expect(page.locator('.nf-art pre')).toBeVisible();
+  await expect(page.locator('.nf-hero a.btn-primary')).toBeInViewport();
+});

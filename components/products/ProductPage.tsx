@@ -354,7 +354,12 @@ export default async function ProductPage({ locale, product }: { locale: string;
             )}
           </div>
         </div>
-        <HeroVisual focus={product} className="pd-hero-map" />
+        <HeroVisual
+          focus={product}
+          className="pd-hero-map"
+          caption={t(`product.heroFig.${product}`)}
+          hint={product === 'link' ? t('product.heroFigHint') : undefined}
+        />
       </section>
 
       <ProductSectionNav product={product} sections={sections} label={t('product.navLabel', { name: cfg.name })} />
