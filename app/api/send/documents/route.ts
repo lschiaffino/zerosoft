@@ -34,8 +34,13 @@ export async function POST(req: NextRequest) {
     if (input.docsPageId) {
       const page = await docsPageVersion(a.user, a.actor, input.docsPageId);
       const doc = await createDocument(a.actor, input.title || page.title);
-      const version = await versionFromPdf(a.actor, doc.id, page.bytes, page.name, 'docs', input.docsPageId);
-      return sJson({ document: { id: doc.id, title: doc.title }, version: versionDto(version, null) }, 201);
+      try {
+        const version = await versionFromPdf(a.actor, doc.id, page.bytes, page.name, 'docs', input.docsPageId);
+        return sJson({ document: { id: doc.id, title: doc.title }, version: versionDto(version, null) }, 201);
+      } catch (err) {
+        await deleteDocument(a.actor, doc.id).catch(() => undefined);
+        throw err;
+      }
     }
     const file = input.file!;
     const doc = await createDocument(a.actor, input.title || file.name.replace(/\.[a-z0-9]+$/i, ''));

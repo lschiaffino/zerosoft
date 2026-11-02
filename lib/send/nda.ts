@@ -19,6 +19,8 @@ function actorOf(link: LinkRow): SignActor {
 export async function startNda(link: LinkRow, session: SessionRow, name: string, locale: string): Promise<{ signPath: string }> {
   if (!link.nda_template_id) throw new SendError('not_on_this_step', 409);
   if (!session.email) throw new SendError('email_required', 400);
+  // Nunca un sobre a nombre de un email sin probar: el link de firma le daría la firma de otro.
+  if (!session.email_verified) throw new SendError('not_on_this_step', 409);
   const db = getDb();
   const actor = actorOf(link);
   try {
@@ -46,6 +48,6 @@ export async function checkNda(session: SessionRow): Promise<boolean> {
   if (!session.nda_envelope_id) return false;
   const rec = (await listRecipients(session.nda_envelope_id)).find((r) => r.email === session.email);
   if (!rec || (rec.status !== 'signed' && rec.status !== 'completed')) return false;
-  await getDb().prepare('UPDATE send_sessions SET nda_signed_at = ? WHERE id = ?').run(nowIso(), session.id);
-  return true;
+  const res = await getDb().prepare('UPDATE send_sessions SET nda_signed_at = ? WHERE id = ? AND email = ? AND nda_envelope_id = ?').run(nowIso(), session.id, session.email, session.nda_envelope_id);
+  return res.changes > 0;
 }

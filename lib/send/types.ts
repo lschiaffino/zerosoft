@@ -34,6 +34,13 @@ export const LIVE_WINDOW_MS = 25_000;
 /** Primer aviso: lo manda el navegador tras 3 s visibles. Antes de eso no hay visita. */
 export const MIN_FIRST_SECONDS = 2;
 export const MAX_DELTA_PER_PING = 120;
+/** Margen total entre el reloj del navegador y el del servidor. No se suma aviso por aviso. */
+export const CLOCK_SLACK_SEC = 1.5;
+/** Tope del primer aviso: lo que un navegador pudo juntar antes de crear la visita. */
+export const MAX_FIRST_CLAIM = 15;
+/** Avisos a quien mandó el link: tantos por hora y por link; el resto va en un resumen. */
+export const ALERTS_PER_HOUR = 3;
+export const ALERT_WINDOW_MS = 3_600_000;
 /** Video: partes de hasta 10 s, y no más de 120 tramos por video. */
 export const VIDEO_BUCKET_SEC = 10;
 export const MAX_VIDEO_BUCKETS = 120;
@@ -140,6 +147,8 @@ export interface LinkRules {
   access_list: string;
   watermark: number | boolean;
   nda_template_id: string | null;
+  /** Espacio con acceso por persona: los emails de la lista. Sin lista, undefined. */
+  space_emails?: readonly string[];
 }
 
 export interface SessionState {
@@ -160,12 +169,16 @@ export function parseAccessList(raw: string | null | undefined): string[] {
 
 /** Un watermark con el email, la lista y el acuerdo necesitan un email: se pide aunque el link no lo marque. */
 export function linkNeedsEmail(l: LinkRules): boolean {
-  return Boolean(l.require_email || l.verify_email || l.watermark || l.nda_template_id || l.access_mode !== 'none');
+  return Boolean(l.require_email || l.verify_email || l.watermark || l.nda_template_id || l.access_mode !== 'none' || l.space_emails);
 }
 
-/** Una lista de permitidos sin verificar se esquiva escribiendo un email de la lista. */
+/**
+ * Lo que depende de quién es la persona se verifica: una lista de permitidos o un
+ * acceso por persona se esquivarían escribiendo un email de la lista, y un acuerdo
+ * se firmaría a nombre de otro.
+ */
 export function linkNeedsVerify(l: LinkRules): boolean {
-  return Boolean(l.verify_email || l.access_mode === 'allow');
+  return Boolean(l.verify_email || l.access_mode === 'allow' || l.nda_template_id || l.space_emails);
 }
 
 /** El primer paso que falta, o null si la sesión puede ver el contenido. */
@@ -175,6 +188,8 @@ export function nextGate(l: LinkRules, s: SessionState | null): GateStep | null 
   if (linkNeedsVerify(l) && !s?.email_verified) return 'verify';
   const mode = (l.access_mode === 'allow' || l.access_mode === 'block' ? l.access_mode : 'none') as AccessMode;
   if (mode !== 'none' && !accessAllowed(mode, parseAccessList(l.access_list), s?.email ?? null)) return 'denied';
+  // Con acceso por persona, quien no está en la lista no entra.
+  if (l.space_emails && !(s?.email && l.space_emails.includes(s.email))) return 'denied';
   if (l.nda_template_id && !s?.nda_signed_at) return 'nda';
   return null;
 }
@@ -189,11 +204,21 @@ export function linkState(l: { disabled_at: string | null; expires_at: string | 
 
 // ---------- Tiempo y páginas ----------
 
-/** Segundos que se aceptan de un aviso: lo que pasó desde el anterior, más un margen por la red. */
-export function acceptedSeconds(claimed: number, elapsedSec: number): number {
+/**
+ * Segundos que se aceptan de un aviso: nunca más de los que pasaron en el reloj del
+ * servidor desde que empezó la visita, sumando lo ya contado. Mandar muchos avisos
+ * no agrega tiempo.
+ */
+export function acceptedSeconds(claimed: number, o: { elapsedSec: number; usedSec: number; baseSec: number }): number {
   if (!Number.isFinite(claimed) || claimed <= 0) return 0;
-  const cap = Math.min(MAX_DELTA_PER_PING, Math.max(0, elapsedSec) + 3);
-  return Math.round(Math.min(claimed, cap) * 10) / 10;
+  const left = Math.max(0, o.elapsedSec) + o.baseSec + CLOCK_SLACK_SEC - o.usedSec;
+  return Math.round(Math.max(0, Math.min(claimed, MAX_DELTA_PER_PING, left)) * 10) / 10;
+}
+
+/** Primer aviso de una visita: lo que el navegador pudo juntar desde que abrió la sesión. */
+export function firstClaim(claimed: number, sinceSessionSec: number): number {
+  if (!Number.isFinite(claimed) || claimed <= 0) return 0;
+  return Math.round(Math.max(0, Math.min(claimed, MAX_FIRST_CLAIM, Math.max(0, sinceSessionSec) + CLOCK_SLACK_SEC)) * 10) / 10;
 }
 
 /** Reparte el total aceptado entre las páginas informadas, sin pasarse. */
@@ -249,6 +274,15 @@ export function videoMime(head: Uint8Array): string {
   if (head[0] === 0x1a && head[1] === 0x45) return 'video/webm';
   const brand = String.fromCharCode(...head.subarray(8, 12));
   return brand.startsWith('qt') ? 'video/quicktime' : 'video/mp4';
+}
+
+// ---------- Clientes ----------
+
+/** Herramientas y librerías, no una persona con un navegador. */
+const SCRIPTED_UA = /\b(curl|wget|httpie|python-requests|python-urllib|aiohttp|httpx|node-fetch|undici|axios|got|okhttp|go-http-client|java\/|libwww|scrapy|postman|insomnia|ruby|php\/|powershell|winhttp)\b/i;
+
+export function isScriptedUserAgent(ua: string): boolean {
+  return SCRIPTED_UA.test(ua);
 }
 
 // ---------- Marca ----------

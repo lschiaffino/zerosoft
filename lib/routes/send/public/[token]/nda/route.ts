@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { checkNda, startNda } from '@/lib/send/nda';
 import { loadSession, viewerState } from '@/lib/send/viewer';
 import { parseBody, publicLink, sendLimit, sFail, sJson, type PublicCtx } from '@/lib/send/http';
+import { rateLimit } from '@/lib/rate-limit';
 import { nextGate } from '@/lib/send/types';
 
 export const runtime = 'nodejs';
@@ -22,8 +23,11 @@ export async function POST(req: NextRequest, ctx: PublicCtx) {
     if (!session || nextGate(p.link, session) !== 'nda') return sJson({ error: 'not_on_this_step' }, 409);
     if (input.action === 'start') {
       if (!input.name) return sJson({ error: 'invalid_input' }, 400);
+      // Tope por persona y por link: cada sobre manda un email.
       const created = await sendLimit(req, 'nda-start', 5, 3600, p.link.id);
       if (created) return created;
+      const perLink = await rateLimit(`send:nda-link:${p.link.id}`, 60, 3600);
+      if (!perLink.ok) return sJson({ error: 'too_many_attempts' }, 429);
       const { signPath } = await startNda(p.link, session, input.name, input.locale ?? 'en');
       return sJson({ signUrl: signPath });
     }

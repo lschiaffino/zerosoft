@@ -64,6 +64,7 @@ export async function sendUp(client: Client): Promise<void> {
       ref TEXT NOT NULL,
       width INTEGER NOT NULL,
       height INTEGER NOT NULL,
+      bytes INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (version_id, page)
     );
 
@@ -112,6 +113,9 @@ export async function sendUp(client: Client): Promise<void> {
       notify INTEGER NOT NULL DEFAULT 1,
       use_branding INTEGER NOT NULL DEFAULT 1,
       access_epoch INTEGER NOT NULL DEFAULT 1,
+      alert_window_at INTEGER,
+      alert_count INTEGER NOT NULL DEFAULT 0,
+      alert_digest INTEGER NOT NULL DEFAULT 0,
       disabled_at TEXT,
       last_visit_at TEXT,
       created_at TEXT NOT NULL,
@@ -120,14 +124,6 @@ export async function sendUp(client: Client): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS idx_send_links_doc ON send_links(document_id, deleted_at);
     CREATE INDEX IF NOT EXISTS idx_send_links_space ON send_links(space_id, deleted_at);
-
-    CREATE TABLE IF NOT EXISTS send_link_items (
-      link_id TEXT NOT NULL REFERENCES send_links(id) ON DELETE CASCADE,
-      document_id TEXT NOT NULL REFERENCES send_documents(id) ON DELETE CASCADE,
-      visible INTEGER NOT NULL DEFAULT 1,
-      downloadable INTEGER NOT NULL DEFAULT 1,
-      PRIMARY KEY (link_id, document_id)
-    );
 
     CREATE TABLE IF NOT EXISTS send_space_access (
       space_id TEXT NOT NULL REFERENCES send_spaces(id) ON DELETE CASCADE,
@@ -192,6 +188,7 @@ export async function sendUp(client: Client): Promise<void> {
       seconds REAL NOT NULL DEFAULT 0,
       pages_seen INTEGER NOT NULL DEFAULT 0,
       page_total INTEGER NOT NULL DEFAULT 0,
+      base_seconds REAL NOT NULL DEFAULT 0,
       downloads INTEGER NOT NULL DEFAULT 0,
       device TEXT NOT NULL DEFAULT '',
       os TEXT NOT NULL DEFAULT '',
@@ -204,6 +201,13 @@ export async function sendUp(client: Client): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_send_visits_link ON send_visits(link_id, started_at);
     CREATE INDEX IF NOT EXISTS idx_send_visits_session ON send_visits(session_id, document_id, last_ping_at);
     CREATE INDEX IF NOT EXISTS idx_send_visits_visitor ON send_visits(visitor_id, started_at);
+
+    CREATE TABLE IF NOT EXISTS send_page_views (
+      session_id TEXT NOT NULL,
+      version_id TEXT NOT NULL,
+      page INTEGER NOT NULL,
+      PRIMARY KEY (session_id, version_id, page)
+    );
 
     CREATE TABLE IF NOT EXISTS send_page_stats (
       visit_id TEXT NOT NULL REFERENCES send_visits(id) ON DELETE CASCADE,
@@ -229,10 +233,11 @@ export async function sendUp(client: Client): Promise<void> {
     CREATE TABLE IF NOT EXISTS send_download_cache (
       session_id TEXT NOT NULL,
       version_id TEXT NOT NULL,
+      email TEXT NOT NULL DEFAULT '',
       refs TEXT NOT NULL,
       size INTEGER NOT NULL,
       expires_at TEXT NOT NULL,
-      PRIMARY KEY (session_id, version_id)
+      PRIMARY KEY (session_id, version_id, email)
     );
 
     CREATE TABLE IF NOT EXISTS send_settings (

@@ -46,6 +46,9 @@ const REFUSED_FIELDS = new Set([
 
 /** Campos que solo se rechazan en esas rutas: la URL a la que van los datos de otra persona. */
 const REFUSED_BY_ROUTE: Array<[RegExp, string[]]> = [
+  // Compartir un documento vuelve a servirlo en los links de otros. Subir un archivo pide el navegador.
+  [/^\/api\/send\/documents\/\[id\]$/, ['sharing']],
+  [/^\/api\/send\/documents$/, ['file']],
   // Sus respuestas viajan a esta URL (pass_answers viene prendido por defecto al crear).
   [/^\/api\/calendar\/routing(\/|$)/, ['fallbackUrl', 'targetUrl']],
   [/^\/api\/(v1\/)?calendar\/event-types(\/|$)/, ['redirectUrl']],

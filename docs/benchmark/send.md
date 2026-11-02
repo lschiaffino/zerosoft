@@ -63,6 +63,7 @@ Leído el 2026-11-02. Base de `content/feature-parity/send.ts`. Cada fila de par
 - Un token de link es de 192 bits. En la base solo está su hash; una copia cifrada deja volver a copiarlo desde el panel.
 - Código de acceso con hash scrypt y dos topes (por IP y por link). Cambiar una regla de acceso vuelve a pasar a quien ya entró.
 - Sin descarga, el navegador recibe imágenes por página, sin caché; el archivo no sale. Un video se puede capturar igual: el producto lo dice.
-- Una lista de permitidos exige verificación por código. DocSend solo la recomienda.
+- Una lista de permitidos, un acuerdo y el acceso por persona de un espacio exigen verificación por código. DocSend solo la recomienda para las listas.
+- Un link no publica más de lo que ve quien lo armó: si el dueño vuelve privado un documento, el link de otro deja de servirlo.
 - Abrir la página no escribe nada: no hay sesión ni visita hasta un POST del navegador y unos segundos de lectura.
-- MCP: crear un link y cambiar sus reglas queda solo en la web (`WEB_ONLY_RULES`), porque un link funciona sin cuenta y sobrevive a la conexión; lo público queda excluido; las URLs de links se tapan en las respuestas (`scrub.ts`). Deshabilitar un link desde la web usa la misma ruta.
+- MCP: crear un link, cambiar sus reglas, cambiar los documentos o el acceso de un espacio, reemplazar un archivo y cambiar la marca quedan solo en la web (`WEB_ONLY_RULES`), porque cambian qué muestra un link vivo y a quién; `sharing` se rechaza por campo (`field-policy.ts`). Lo público, las partes de subida y el render quedan excluidos; las URLs de links se tapan en las respuestas (`scrub.ts`). Borrar sigue disponible: solo corta acceso.

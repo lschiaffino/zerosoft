@@ -2140,7 +2140,7 @@
       },
       "f4": {
         "t": "The file stays with you",
-        "d": "Without download, people see images of the pages and never get the file. A watermark with their email is drawn on the server. A screenshot can't be stopped, and we say so."
+        "d": "Without download, PDF, Word and PowerPoint reach the browser as page images, not as the file. A watermark with their email is drawn on the server. A video is streamed, so someone determined can save it, and a screenshot can't be stopped. We say so."
       },
       "f5": {
         "t": "Replace it, keep the links",
@@ -2176,7 +2176,7 @@
       "faq": {
         "f1": {
           "q": "Can someone copy a document I share?",
-          "a": "They can take a screenshot or a photo, and no web page can stop that. Without download they never get the file, and with a watermark their email goes on each page image."
+          "a": "They can take a screenshot or a photo, and no web page can stop that. Without download, documents reach them as page images, not as the file, and with a watermark their email goes on each image. A video is streamed, so someone determined can save it."
         },
         "f2": {
           "q": "How do you know who the visitor is?",

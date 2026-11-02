@@ -48,7 +48,7 @@
     "upload": "Upload a file",
     "docs": "Docs page",
     "dropTitle": "Choose a file or drop it here",
-    "dropHint": "Documents up to {doc} MB, video up to {video} GB",
+    "dropHint": "Documents up to {doc} MB, video up to {video} GB, within the workspace's storage",
     "formats": "PDF is shown exactly as it is. Word (.docx) and PowerPoint (.pptx) go through a simplified converter: check the preview, and export to PDF when the layout matters. Old .doc and .ppt, Excel, Keynote and password-protected PDFs are not supported. Video: MP4, WebM or MOV.",
     "docsSearch": "Search your pages",
     "docsEmpty": "No pages found.",
@@ -128,8 +128,8 @@
     "accessBlockHelp": "One per line. Without verification, someone blocked can type another email.",
     "protectTitle": "Protection",
     "download": "Allow download",
-    "downloadOn": "People get the original file, with the watermark if the link has one.",
-    "downloadOff": "People see images of the pages and never get the file. A screenshot can't be stopped.",
+    "downloadOn": "People get the original file, with the watermark if the link has one. A PowerPoint or Word original keeps its hidden slides, notes and comments: turn on the watermark, or export to PDF first.",
+    "downloadOff": "PDF, Word and PowerPoint reach the browser as page images, never as the file. A video is streamed, so someone determined can save it. A screenshot can't be stopped.",
     "watermark": "Watermark with the viewer's email",
     "watermarkHelp": "Drawn into each page image on the server, with the date and time. It discourages sharing but doesn't stop a screenshot. On video it's only drawn over the player.",
     "nda": "Signed agreement before viewing",
@@ -168,7 +168,8 @@
     "tagExpires": "Expires {date}",
     "visits": "{count, plural, one {# visit} other {# visits}}",
     "visitors": "{count, plural, one {# person} other {# people}}",
-    "last": "last {date}"
+    "last": "last {date}",
+    "verifyForcedNda": "An agreement needs it: otherwise anyone could sign as someone else."
   },
   "visits": {
     "loadError": "The numbers didn't load.",
@@ -206,7 +207,7 @@
     "page": "Page {page}",
     "notSeen": "Not seen",
     "noLocation": "No location for this visit.",
-    "perPage": "Average time per page, and how many visits got there",
+    "perPage": "Average time per page in version {n}, and how many visits got there",
     "reach": "{pct}% reached",
     "deniedTitle": "Tried to open it without access"
   },
@@ -237,9 +238,9 @@
     "moveDown": "Move down",
     "remove": "Remove",
     "accessTitle": "Access per person",
-    "accessNew": "Limit a person",
-    "accessHelp": "Someone on this list sees only the documents you pick. Everyone else sees all the space. It goes by the email on the link: turn on email verification so it can't be typed by someone else.",
-    "accessEmpty": "Nobody is limited: everyone with a link sees all the space.",
+    "accessNew": "Add a person",
+    "accessHelp": "Once someone is on this list, the space closes: only listed people get in, with a verified email, and each sees only the documents you pick. With an empty list, everyone with a link sees all the space.",
+    "accessEmpty": "No list: everyone with a link sees all the space.",
     "accessNone": "No documents",
     "accessEmail": "Email",
     "accessDocs": "Documents they can see",
@@ -247,7 +248,10 @@
     "perDocument": "Per document",
     "deleteTitle": "Delete this space?",
     "deleteBody": "Its links stop working now. The documents stay in Send, and they keep their numbers.",
-    "colDocument": "Document"
+    "colDocument": "Document",
+    "sharing": "Who in the workspace sees it",
+    "sharingPrivate": "Only me and admins",
+    "sharingWorkspace": "Whole workspace"
   },
   "settings": {
     "title": "Send settings",
@@ -353,6 +357,9 @@
     "link_expired": "This link has expired.",
     "download_blocked": "This link doesn't allow downloads.",
     "nda_unavailable": "The agreement isn't available. Ask the person who sent the link.",
-    "nda_template_invalid": "The agreement needs a template with one signer."
+    "nda_template_invalid": "The agreement needs a template with one signer.",
+    "render_unavailable": "This server can't prepare pages right now. The file is safe and we keep retrying.",
+    "office_too_complex": "This file is too large to convert. Export it to PDF and upload that.",
+    "storage_quota": "The workspace reached its Send storage. Delete documents to make room."
   }
 }

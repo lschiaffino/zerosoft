@@ -201,7 +201,8 @@ export async function pumpVersion(
   let v = initial;
   let waits = 0;
   let errors = 0;
-  while (v.status === 'processing' && waits < 200) {
+  // Con error mientras procesa, el servidor no puede renderizar ahora: sigue el cron y el detalle lo dice.
+  while (v.status === 'processing' && !v.error && waits < 200) {
     const before = v.renderedCount;
     const res = await fetch(`/api/send/versions/${versionId}/process`, { method: 'POST' }).catch(() => null);
     const data = res ? await jsonOf(res) : {};

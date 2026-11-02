@@ -22,7 +22,7 @@ describe('workspace-mode', () => {
   });
 
   it('uso personal destaca Notes, Docs, Cal, Board, Link y Track', () => {
-    expect(featuredApps({ mode: 'personal' })).toEqual(['notes', 'docs', 'cal', 'board', 'link', 'track']);
+    expect(featuredApps({ mode: 'personal' })).toEqual(['track', 'notes', 'docs', 'cal', 'board', 'link']);
     const more = moreAppsByCategory({ mode: 'personal' }).flatMap((g) => g.apps);
     for (const k of ['chat', 'groups', 'agents', 'robots', 'crm'] as const) expect(more, k).toContain(k);
     expect(showTeamUi('personal')).toBe(false);

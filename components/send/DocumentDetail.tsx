@@ -49,6 +49,11 @@ export default function DocumentDetail({ document: initial, versions: initialVer
   const current = versions.find((v) => v.current) ?? null;
   const latest = versions[0] ?? null;
   const pending = latest && latest.id !== current?.id && (latest.status === 'processing' || latest.status === 'uploading') ? latest : null;
+  const retryRender = async () => {
+    if (!latest) return;
+    await fetch(`/api/send/versions/${latest.id}/process?retry=1`, { method: 'POST' }).catch(() => null);
+    await reloadVersions();
+  };
   const failed = latest && latest.status === 'failed' ? latest : null;
 
   const reloadVersions = useCallback(async () => {
@@ -78,7 +83,7 @@ export default function DocumentDetail({ document: initial, versions: initialVer
   useEffect(() => {
     if (!pending && latest?.status !== 'processing') return;
     const v = pending ?? latest;
-    if (!v || v.status !== 'processing') return;
+    if (!v || v.status !== 'processing' || v.error) return;
     let stop = false;
     void (async () => {
       await pumpVersion(v.id, { id: v.id, status: v.status, error: v.error, pageCount: v.pageCount, renderedCount: v.renderedCount, note: v.note }, () => undefined);
@@ -179,7 +184,7 @@ export default function DocumentDetail({ document: initial, versions: initialVer
             <h1 className="sd-title-static">{doc.title}</h1>
           )}
           <p className="sd-rowmeta">
-            {current ? `${t(`kind.${current.kind}`)} · ${current.kind === 'video' && current.durationSec ? formatSeconds(current.durationSec) : t('home.pages', { count: current.pageCount })} · ${t('versions.label', { n: current.n })}` : t('status.processing')}
+            {current ? `${t(`kind.${current.kind}`)} · ${current.kind === 'video' && current.durationSec ? formatSeconds(current.durationSec) : t('home.pages', { count: current.pageCount })} · ${t('versions.label', { n: current.n })}` : failed ? t('status.failed') : t('status.processing')}
           </p>
         </div>
         {doc.canEdit && (
@@ -220,12 +225,17 @@ export default function DocumentDetail({ document: initial, versions: initialVer
       )}
       {!replacing && pending && (
         <p className="sd-notice" role="status" data-testid="send-processing">
-          {pending.pageCount ? t('new.rendering', { done: pending.renderedCount, total: pending.pageCount }) : t('new.preparing')}
+          {pending.error ? errorText(pending.error) : pending.pageCount ? t('new.rendering', { done: pending.renderedCount, total: pending.pageCount }) : t('new.preparing')}
         </p>
       )}
       {failed && (
         <p className="sd-notice sd-notice-bad" role="alert" data-testid="send-failed">
-          {errorText(failed.error)} {current ? t('detail.keepsCurrent', { n: current.n }) : t('detail.replaceToFix')}
+          {errorText(failed.error)} {current ? t('detail.keepsCurrent', { n: current.n }) : t('detail.replaceToFix')}{' '}
+          {['render_failed', 'render_unavailable', 'file_unavailable'].includes(failed.error ?? '') && (
+            <button type="button" className="btn btn-secondary btn-sm" data-testid="send-retry" onClick={retryRender}>
+              {tc('retry')}
+            </button>
+          )}
         </p>
       )}
       {current?.note === 'simplified' && (

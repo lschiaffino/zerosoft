@@ -43,6 +43,15 @@ interface PdfHandle {
   close(): Promise<void>;
 }
 
+/**
+ * Carga el lienzo y pdf.js. Si falla (dependencia que no llegó al deploy) no es culpa
+ * del archivo: quien llama deja la versión en cola, para reintentar.
+ */
+export async function loadRenderEngine(): Promise<void> {
+  await canvas();
+  await import(/* webpackIgnore: true */ 'pdfjs-dist/legacy/build/pdf.mjs');
+}
+
 /** Abre un PDF con pdf.js. Con contraseña o roto: error que la interfaz explica. */
 export async function openPdf(bytes: Buffer): Promise<PdfHandle> {
   const c = await canvas();
@@ -64,8 +73,11 @@ export async function openPdf(bytes: Buffer): Promise<PdfHandle> {
     doc = await task.promise;
   } catch (err) {
     await task.destroy().catch(() => undefined);
-    const name = (err as { name?: string })?.name;
-    throw new SendError(name === 'PasswordException' ? 'pdf_password' : 'pdf_invalid', 422);
+    const e = err as { name?: string; message?: string };
+    if (e?.name === 'PasswordException') throw new SendError('pdf_password', 422);
+    // Un worker o una fuente que no cargó es del servidor, no del archivo.
+    if (/worker|cannot find|module not found|ENOENT/i.test(e?.message ?? '')) throw new SendError('render_unavailable', 503);
+    throw new SendError('pdf_invalid', 422);
   }
   return {
     numPages: doc.numPages,

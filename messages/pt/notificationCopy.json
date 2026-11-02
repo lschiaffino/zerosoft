@@ -76,6 +76,6 @@
   "sendReadingBody": "Link: {link}",
   "sendDenied": "{who} tentou abrir {title} e não tem acesso",
   "sendCrmSubject": "Abriu {title} no Send",
-  "sendCrmBody": "{email} abriu por um link do Send.",
-  "sendCrmBodyUnverified": "Alguém que digitou {email} abriu por um link do Send. O email não está verificado."
+  "sendCrmBody": "{email} abriu por um link do Send, com o email verificado.",
+  "sendDigest": "Mais {count} visitas ou tentativas sem acesso em {title}"
 }

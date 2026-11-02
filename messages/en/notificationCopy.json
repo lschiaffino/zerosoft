@@ -76,6 +76,6 @@
   "sendReadingBody": "Link: {link}",
   "sendDenied": "{who} tried to open {title} and has no access",
   "sendCrmSubject": "Opened {title} in Send",
-  "sendCrmBody": "{email} opened it through a Send link.",
-  "sendCrmBodyUnverified": "Someone who typed {email} opened it through a Send link. The email is not verified."
+  "sendCrmBody": "{email} opened it through a Send link, with a verified email.",
+  "sendDigest": "{count} more visits or denied attempts on {title}"
 }

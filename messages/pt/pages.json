@@ -2140,7 +2140,7 @@
       },
       "f4": {
         "t": "O arquivo fica com você",
-        "d": "Sem download, as pessoas veem imagens das páginas e o arquivo não chega. A marca d'água com o email é desenhada no servidor. Um print de tela não pode ser impedido, e dizemos isso."
+        "d": "Sem download, PDF, Word e PowerPoint chegam ao navegador como imagens das páginas, não como o arquivo. A marca d'água com o email é desenhada no servidor. Um vídeo é transmitido, então alguém determinado pode salvá-lo, e um print não pode ser impedido. Dizemos isso."
       },
       "f5": {
         "t": "Substitua sem mexer nos links",
@@ -2176,7 +2176,7 @@
       "faq": {
         "f1": {
           "q": "Alguém pode copiar um documento que envio?",
-          "a": "Pode tirar um print ou uma foto, e nenhuma página web impede isso. Sem download o arquivo não chega, e com marca d'água o email vai na imagem de cada página."
+          "a": "Pode tirar um print ou uma foto, e nenhuma página web impede isso. Sem download, os documentos chegam como imagens das páginas, não como o arquivo, e com marca d'água o email vai em cada imagem. Um vídeo é transmitido, então alguém determinado pode salvá-lo."
         },
         "f2": {
           "q": "Como vocês sabem quem abriu?",

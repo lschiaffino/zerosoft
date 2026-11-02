@@ -2140,7 +2140,7 @@
       },
       "f4": {
         "t": "El archivo se queda con vos",
-        "d": "Sin descarga, se ven imágenes de las páginas y el archivo no llega. El watermark con su email se dibuja en el servidor. Una captura de pantalla no se puede impedir, y lo decimos."
+        "d": "Sin descarga, PDF, Word y PowerPoint llegan al navegador como imágenes de las páginas, no como el archivo. El watermark con su email se dibuja en el servidor. Un video se transmite, así que alguien decidido puede guardarlo, y una captura no se puede impedir. Lo decimos."
       },
       "f5": {
         "t": "Reemplazalo sin tocar los links",
@@ -2176,7 +2176,7 @@
       "faq": {
         "f1": {
           "q": "¿Alguien puede copiar un documento que mando?",
-          "a": "Puede sacar una captura o una foto, y ninguna página web lo puede frenar. Sin descarga el archivo no le llega, y con watermark su email va en la imagen de cada página."
+          "a": "Puede sacar una captura o una foto, y ninguna página web lo puede frenar. Sin descarga, los documentos le llegan como imágenes de las páginas, no como el archivo, y con watermark su email va en cada imagen. Un video se transmite, así que alguien decidido puede guardarlo."
         },
         "f2": {
           "q": "¿Cómo saben quién es quien abre?",

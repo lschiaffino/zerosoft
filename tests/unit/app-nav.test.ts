@@ -14,7 +14,7 @@ import {
 } from '@/components/app/sidebar-nav';
 import { pageExists } from './page-exists';
 
-const SWITCHER_ORDER: AppProduct[] = ['link', 'crm', 'shop', 'books', 'forms', 'send', 'docs', 'calendar', 'track', 'chat', 'groups', 'social', 'flow', 'notes', 'board', 'design', 'talk', 'people', 'voice', 'rec', 'hiring', 'sign', 'agents', 'robots', 'analytics'];
+const SWITCHER_ORDER: AppProduct[] = ['track', 'link', 'crm', 'shop', 'books', 'forms', 'send', 'docs', 'calendar', 'chat', 'groups', 'social', 'flow', 'notes', 'board', 'design', 'talk', 'people', 'voice', 'rec', 'hiring', 'sign', 'agents', 'robots', 'analytics'];
 const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send'];
 
 
@@ -118,7 +118,7 @@ describe('sidebar de la app', () => {
   it('el switcher sale de PRODUCT_CONFIG: las 25 apps, en el orden de siempre', () => {
     expect(SWITCHER_PRODUCTS.map((p) => p.key)).toEqual(PRODUCTS.filter((p) => p !== 'home').sort((a, b) => SWITCHER_ORDER.indexOf(a) - SWITCHER_ORDER.indexOf(b)));
     expect(SWITCHER_PRODUCTS.find((p) => p.key === 'calendar')).toMatchObject({ line: 'cal', name: 'Cal', href: '/app/calendar' });
-    expect(SWITCHER_PRODUCTS[0]).toMatchObject({ key: 'link', href: '/app/links' });
+    expect(SWITCHER_PRODUCTS[0]).toMatchObject({ key: 'track', href: '/app/track' });
     for (const p of SWITCHER_PRODUCTS) expect(p.href, p.key).not.toBe('/app');
   });
 

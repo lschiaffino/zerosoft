@@ -34,7 +34,7 @@ export default function GoogleButton({
       void startNativeLogin(locale, () => setWaiting(false));
       return;
     }
-    void signIn('google', { callbackUrl: callbackUrl ?? `/${locale}/app` });
+    void signIn('google', { callbackUrl: callbackUrl ?? `/${locale}/app/start` });
   }
   return (
     <>

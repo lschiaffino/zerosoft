@@ -20,6 +20,11 @@ const files = privateFileStore({
   unavailable: () => new SendError('storage_unavailable', 503),
 });
 
+/** ¿Hay dónde guardar? En Vercel el disco es efímero: hace falta un store de Blob. */
+export function sendStorageConfigured(): boolean {
+  return !process.env.VERCEL || Boolean(process.env.SEND_BLOB_READ_WRITE_TOKEN?.trim() || process.env.BLOB_READ_WRITE_TOKEN);
+}
+
 export const storeSendFile = files.store;
 export const readSendFile = files.read;
 export const deleteSendFiles = files.remove;

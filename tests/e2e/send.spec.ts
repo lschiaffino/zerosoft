@@ -1,4 +1,5 @@
 import { readFileSync, existsSync, mkdirSync } from 'fs';
+import { createClient } from '@libsql/client';
 import path from 'path';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
@@ -52,6 +53,26 @@ const analytics = async (request: APIRequestContext, id: string) => (await (awai
   visits: Array<{ email: string | null; emailVerified: boolean; forwarded: boolean; pagesSeen: number; pageTotal: number; completion: number; seconds: number; versionN: number; returning: boolean; pages: Array<{ page: number; seconds: number }> }>;
   pages: Array<{ page: number; avgSeconds: number; reach: number }>;
 };
+
+async function sql(statement: string, args: Array<string | number | null> = []) {
+  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  try {
+    return (await db.execute({ sql: statement, args })).rows as unknown as Array<Record<string, unknown>>;
+  } finally {
+    db.close();
+  }
+}
+
+/** Escribe el email y el código que llegó, y sigue. */
+async function passEmail(v: Page, email: string) {
+  await v.getByTestId('sv-input').fill(email);
+  await v.getByTestId('sv-submit').click();
+  await expect(v.getByTestId('sv-gate-verify')).toBeVisible();
+  const before = /\d{6}/;
+  await slow.poll(() => mailsTo(email).filter((m) => before.test(m.subject)).length).toBeGreaterThan(0);
+  await v.getByTestId('sv-input').fill(before.exec(mailsTo(email).filter((m) => before.test(m.subject)).at(-1)!.subject)![0]);
+  await v.getByTestId('sv-submit').click();
+}
 
 function mailsTo(to: string): Array<{ to: string; subject: string; text: string }> {
   const file = process.env.E2E_MAIL_FILE;
@@ -419,15 +440,20 @@ test('espacios: varios documentos detrás de un link, con números y acceso por 
   const created = await request.post('/api/send/spaces', { data: { title: 'Series A room' } });
   const { space } = await created.json();
   expect((await request.patch(`/api/send/spaces/${space.id}`, { data: { items: [{ documentId: a.id, folder: 'Deck' }, { documentId: b.id, folder: 'Numbers' }] } })).ok()).toBe(true);
-  expect((await request.put(`/api/send/spaces/${space.id}/access`, { data: { email: 'limited@acme.com', documentIds: [a.id] } })).ok()).toBe(true);
-  const res = await request.post(`/api/send/spaces/${space.id}/links`, { data: { name: 'Room', requireEmail: true } });
+  const suffix = Math.random().toString(36).slice(2, 7);
+  expect((await request.put(`/api/send/spaces/${space.id}/access`, { data: { email: `limited${suffix}@acme.com`, documentIds: [a.id] } })).ok()).toBe(true);
+  expect((await request.put(`/api/send/spaces/${space.id}/access`, { data: { email: `all${suffix}@acme.com`, documentIds: [a.id, b.id] } })).ok()).toBe(true);
+  expect((await request.put(`/api/send/spaces/${space.id}/access`, { data: { email: 'all@acme.com', documentIds: [a.id, b.id] } })).ok()).toBe(true);
+  // Un link sin ninguna regla: con lista, igual pide email verificado.
+  const res = await request.post(`/api/send/spaces/${space.id}/links`, { data: { name: 'Room' } });
   const { link } = await res.json();
+  const token = String(link.path).split('/').pop();
 
   const ctx = await browser.newContext({ viewport: { width: 390, height: 780 } });
   const v = await ctx.newPage();
   await v.goto(`/en${link.path}`);
-  await v.getByTestId('sv-input').fill('limited@acme.com');
-  await v.getByTestId('sv-submit').click();
+  await expect(v.getByTestId('sv-gate-email')).toBeVisible();
+  await passEmail(v, `limited${suffix}@acme.com`);
   await expect(v.getByTestId('sv-space')).toBeVisible();
   await expect(v.getByTestId('sv-space-doc')).toHaveCount(1);
   await shot(v, 'space-viewer-390');
@@ -437,15 +463,25 @@ test('espacios: varios documentos detrás de un link, con números y acceso por 
   await v.getByTestId('sv-back').click();
   await expect(v.getByTestId('sv-space')).toBeVisible();
   // El documento que no le toca no sale, ni pidiéndolo a mano.
-  const token = String(link.path).split('/').pop();
   expect((await ctx.request.get(`/api/send/public/${token}/pages/${b.versionId}/1`)).status()).toBe(409);
+  // Escribir otra dirección de la lista no alcanza: pide otro código, y la anterior queda atrás.
+  const typed = await ctx.request.post(`/api/send/public/${token}`, { data: { email: 'all@acme.com' } });
+  expect((await typed.json()).step).toBe('verify');
+  expect((await ctx.request.get(`/api/send/public/${token}/pages/${b.versionId}/1`)).status()).toBe(401);
   await ctx.close();
+
+  // Quien no figura no entra, aunque verifique su email.
+  const outsider = await browser.newContext();
+  const o = await outsider.newPage();
+  await o.goto(`/en${link.path}`);
+  await passEmail(o, `outsider${suffix}@acme.com`);
+  await expect(o.getByTestId('sv-denied')).toBeVisible();
+  await outsider.close();
 
   const other = await browser.newContext();
   const w = await other.newPage();
   await w.goto(`/en${link.path}`);
-  await w.getByTestId('sv-input').fill('all@acme.com');
-  await w.getByTestId('sv-submit').click();
+  await passEmail(w, `all${suffix}@acme.com`);
   await expect(w.getByTestId('sv-space-doc')).toHaveCount(2);
   await other.close();
 
@@ -454,14 +490,161 @@ test('espacios: varios documentos detrás de un link, con números y acceso por 
   await shot(page, 'space-detail');
   await page.getByTestId('send-space-tab-activity').click();
   await expect(page.getByTestId('send-space-docstats')).toContainText('Pitch');
-  await expect(page.getByTestId('send-space-people')).toContainText('limited@acme.com');
+  await expect(page.getByTestId('send-space-people')).toContainText(`limited${suffix}@acme.com`);
   await shot(page, 'space-activity');
   const csv = await request.get(`/api/send/spaces/${space.id}/analytics?format=csv`);
   expect(csv.headers()['content-type']).toContain('text/csv');
-  expect(await csv.text()).toContain('limited@acme.com');
+  expect(await csv.text()).toContain(`limited${suffix}@acme.com`);
+  await expect(page.getByTestId('send-space-denied')).toContainText(`outsider${suffix}@acme.com`);
   await page.getByTestId('send-space-tab-access').click();
-  await expect(page.getByTestId('send-access-row')).toContainText('limited@acme.com');
+  await expect(page.getByTestId('send-access-row')).toContainText(`limited${suffix}@acme.com`);
   await page.goto('/en/app/send/spaces');
   await expect(page.getByTestId('send-space-row').filter({ hasText: 'Series A room' })).toBeVisible();
   await shot(page, 'spaces');
+});
+
+test('tiempo y completado salen del servidor: avisos armados no suman', async ({ browser, request, playwright, baseURL }) => {
+  const { id, versionId } = await makeDoc(request, 'Forged', await pdf(3));
+  const link = await makeLink(request, id, { name: 'Forge' });
+  const ctx = await browser.newContext();
+  await ctx.request.post(`/api/send/public/${link.token}`, { data: {} });
+  // Sin pedir ninguna página: no hay visita.
+  await new Promise((r) => setTimeout(r, 2500));
+  const blind = await ctx.request.post(`/api/send/public/${link.token}/ping`, { data: { documentId: id, versionId, deltas: [{ page: 1, seconds: 3 }, { page: 2, seconds: 3 }, { page: 3, seconds: 3 }] } });
+  expect((await blind.json()).counted).toBe(false);
+  // Pide solo la primera, y manda 40 avisos de golpe, diciendo que leyó las tres.
+  expect((await ctx.request.get(`/api/send/public/${link.token}/pages/${versionId}/1`)).ok()).toBe(true);
+  const start = Date.now();
+  for (let i = 0; i < 40; i++) await ctx.request.post(`/api/send/public/${link.token}/ping`, { data: { documentId: id, versionId, deltas: [{ page: 1, seconds: 3 }, { page: 2, seconds: 3 }, { page: 3, seconds: 3 }] } });
+  const elapsed = (Date.now() - start) / 1000;
+  const a = await analytics(request, id);
+  expect(a.visits).toHaveLength(1);
+  // Lo del primer aviso (hasta 15 s), más lo que pasó de verdad.
+  expect(a.visits[0].seconds).toBeLessThanOrEqual(15 + elapsed + 2);
+  expect(a.visits[0].pagesSeen).toBe(1);
+  expect(a.visits[0].completion).toBe(33);
+  await ctx.close();
+  // Una herramienta no cuenta.
+  const curl = await playwright.request.newContext({ baseURL, extraHTTPHeaders: { 'user-agent': 'curl/8.4.0' } });
+  await curl.post(`/api/send/public/${link.token}`, { data: {} });
+  await curl.get(`/api/send/public/${link.token}/pages/${versionId}/1`);
+  await new Promise((r) => setTimeout(r, 1000));
+  expect((await (await curl.post(`/api/send/public/${link.token}/ping`, { data: { documentId: id, versionId, deltas: [{ page: 1, seconds: 3 }] } })).json()).counted).toBe(false);
+  await curl.dispose();
+  expect((await analytics(request, id)).totals.visits).toBe(1);
+});
+
+test('otro email es otra persona: otra visita y otra copia con watermark', async ({ browser, request }) => {
+  const { id, versionId } = await makeDoc(request, 'Switch', await pdf(1));
+  const link = await makeLink(request, id, { name: 'Switch', watermark: true, allowDownload: true });
+  const ctx = await browser.newContext();
+  const api = ctx.request;
+  await api.post(`/api/send/public/${link.token}`, { data: { email: 'first@acme.com' } });
+  const first = await (await api.get(`/api/send/public/${link.token}/download?document=${id}&piece=0`)).body();
+  await api.get(`/api/send/public/${link.token}/pages/${versionId}/1`);
+  await new Promise((r) => setTimeout(r, 2500));
+  await api.post(`/api/send/public/${link.token}/ping`, { data: { documentId: id, versionId, deltas: [{ page: 1, seconds: 2.5 }] } });
+  await api.post(`/api/send/public/${link.token}`, { data: { email: 'second@acme.com' } });
+  const second = await (await api.get(`/api/send/public/${link.token}/download?document=${id}&piece=0`)).body();
+  expect(second.equals(first)).toBe(false);
+  await api.get(`/api/send/public/${link.token}/pages/${versionId}/1`);
+  await new Promise((r) => setTimeout(r, 1000));
+  await api.post(`/api/send/public/${link.token}/ping`, { data: { documentId: id, versionId, deltas: [{ page: 1, seconds: 3 }] } });
+  const a = await analytics(request, id);
+  expect(a.visits.map((v) => v.email).sort()).toEqual(['first@acme.com', 'second@acme.com']);
+  await ctx.close();
+});
+
+test('el visor: encabezados, mensaje después de entrar, código con espacio y volver a prender', async ({ browser, request }) => {
+  const { id, versionId } = await makeDoc(request, 'Headers', await pdf(1));
+  const link = await makeLink(request, id, { name: 'H', passcode: 'open-sesame', message: 'Hi there, private note.' });
+  const ctx = await browser.newContext();
+  const res = await ctx.request.get(link.url);
+  const h = res.headers();
+  expect(h['x-frame-options']).toBe('DENY');
+  expect(h['referrer-policy']).toBe('no-referrer');
+  expect(h['content-security-policy']).toContain("frame-ancestors 'none'");
+  expect(await res.text()).not.toContain('private note');
+  const v = await ctx.newPage();
+  const errors: string[] = [];
+  v.on('console', (m) => {
+    if (m.type() === 'error' && /Content Security Policy/i.test(m.text())) errors.push(m.text());
+  });
+  await v.goto(link.url);
+  await expect(v.getByTestId('sv-gate-passcode')).not.toContainText('private note');
+  await v.getByTestId('sv-input').fill('open-sesame ');
+  await v.getByTestId('sv-submit').click();
+  await expect(v.getByTestId('sv-reader')).toContainText('private note');
+  expect(errors).toEqual([]);
+  // Apagar y volver a prender: hay que pasar otra vez.
+  await request.patch(`/api/send/links/${link.id}`, { data: { disabled: true } });
+  await request.patch(`/api/send/links/${link.id}`, { data: { disabled: false } });
+  expect((await ctx.request.get(`/api/send/public/${link.token}/pages/${versionId}/1`)).status()).toBe(401);
+  await ctx.close();
+});
+
+test('una pestaña quieta se cierra sola al deshabilitar', async ({ browser, request }) => {
+  const { id } = await makeDoc(request, 'Idle tab', await pdf(1));
+  const link = await makeLink(request, id, { name: 'Idle' });
+  const ctx = await browser.newContext();
+  const v = await ctx.newPage();
+  await v.goto(link.url);
+  await expect(v.getByTestId('sv-reader')).toBeVisible();
+  await request.patch(`/api/send/links/${link.id}`, { data: { disabled: true } });
+  await expect(v.getByTestId('sv-closed')).toBeVisible({ timeout: 30_000 });
+  await ctx.close();
+});
+
+test('los avisos tienen tope por link, y el resto va a un resumen', async ({ browser, request }) => {
+  const { id, versionId } = await makeDoc(request, 'Flooded', await pdf(1));
+  const link = await makeLink(request, id, { name: 'Flood' });
+  for (let i = 0; i < 5; i++) {
+    const ctx = await browser.newContext();
+    await ctx.request.post(`/api/send/public/${link.token}`, { data: {} });
+    await ctx.request.get(`/api/send/public/${link.token}/pages/${versionId}/1`);
+    await new Promise((r) => setTimeout(r, 1000));
+    await ctx.request.post(`/api/send/public/${link.token}/ping`, { data: { documentId: id, versionId, deltas: [{ page: 1, seconds: 3 }] } });
+    await ctx.close();
+  }
+  expect((await analytics(request, id)).totals.visits).toBe(5);
+  expect(mailsTo('demo@zerosoft.ai').filter((m) => m.subject.includes('Flooded'))).toHaveLength(3);
+  const row = (await sql('SELECT alert_digest FROM send_links WHERE id = ?', [link.id]))[0];
+  expect(Number(row.alert_digest)).toBe(2);
+});
+
+test('borrar un documento se lleva las copias con watermark y el email de quien lo abrió', async ({ browser, request }) => {
+  const { id, versionId } = await makeDoc(request, 'Gone', await pdf(1));
+  const link = await makeLink(request, id, { name: 'G', watermark: true, allowDownload: true });
+  const email = `gone-${Math.random().toString(36).slice(2, 7)}@acme.com`;
+  const ctx = await browser.newContext();
+  await ctx.request.post(`/api/send/public/${link.token}`, { data: { email } });
+  expect((await ctx.request.get(`/api/send/public/${link.token}/download?document=${id}&piece=0`)).ok()).toBe(true);
+  expect(await sql('SELECT 1 FROM send_download_cache WHERE version_id = ?', [versionId])).toHaveLength(1);
+  await ctx.close();
+  expect((await request.delete(`/api/send/documents/${id}`)).ok()).toBe(true);
+  expect(await sql('SELECT 1 FROM send_download_cache WHERE version_id = ?', [versionId])).toHaveLength(0);
+  expect(await sql('SELECT 1 FROM send_visitors WHERE email = ?', [email])).toHaveLength(0);
+});
+
+test('un documento fallido lo dice en el encabezado', async ({ page, request }) => {
+  const bad = Buffer.from('%PDF-1.7\n1 0 obj\n<<>>\nendobj\n');
+  const created = await request.post('/api/send/documents', { data: { title: 'Broken', file: { name: 'b.pdf', mime: 'application/pdf', size: bad.length } } });
+  const { document, version } = await created.json();
+  await request.put(`/api/send/versions/${version.id}/parts/0`, { data: bad });
+  await request.post(`/api/send/versions/${version.id}/complete`, { data: {} });
+  await request.post(`/api/send/versions/${version.id}/process`);
+  await page.goto(`/en/app/send/documents/${document.id}`);
+  await expect(page.getByTestId('send-failed')).toBeVisible();
+  await expect(page.locator('.sd-doc-title .sd-rowmeta')).toHaveText('Failed');
+});
+
+test('un PDF con contraseña da su motivo', async ({ page, request }) => {
+  const enc = Buffer.from('%PDF-1.7\n1 0 obj<</Type/Catalog>>endobj\n2 0 obj<</Filter/Standard/V 1/R 2/O(x)/U(y)/P -4>>endobj\ntrailer<</Root 1 0 R/Encrypt 2 0 R>>\n%%EOF');
+  const created = await request.post('/api/send/documents', { data: { title: 'Locked file', file: { name: 'e.pdf', mime: 'application/pdf', size: enc.length } } });
+  const { document, version } = await created.json();
+  await request.put(`/api/send/versions/${version.id}/parts/0`, { data: enc });
+  await request.post(`/api/send/versions/${version.id}/complete`, { data: {} });
+  await request.post(`/api/send/versions/${version.id}/process`);
+  await page.goto(`/en/app/send/documents/${document.id}`);
+  await expect(page.getByTestId('send-failed')).toContainText('has a password');
 });

@@ -6,6 +6,10 @@
 .sd-table th[scope='row'] { font-weight: 400; min-width: 0; }
 .sd-rowlink { display: flex; flex-direction: column; color: inherit; text-decoration: none; min-width: 0; }
 .sd-rowlink:hover .sd-rowtitle { text-decoration: underline; }
+/* Toda la fila abre el documento. */
+.sd-table tbody tr:has(.sd-rowlink) { position: relative; }
+.sd-table tbody tr:has(.sd-rowlink):hover { background: var(--ui-hover); }
+.sd-rowlink::after { content: ''; position: absolute; inset: 0; }
 .sd-rowlink:focus-visible, .sd-disclose:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .sd-rowtitle { display: block; font-weight: 600; overflow-wrap: anywhere; color: inherit; }
 .sd-rowmeta { display: block; color: var(--brand-gray-2); font-size: 0.875rem; overflow-wrap: anywhere; }
@@ -19,6 +23,9 @@
 @keyframes sd-pulse { 50% { opacity: 0.35; } }
 @media (prefers-reduced-motion: reduce) { .sd-live i { animation: none; } }
 .sd-live-bar { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: center; padding: 10px 12px; margin: 0 0 12px; border: 1px solid var(--c-send); background: color-mix(in srgb, var(--c-send) 8%, var(--brand-white)); }
+
+/* Las secciones del sitio traen relleno propio: dentro de la app y del visor, no. */
+.sd-page section, .sv-root section { padding: 0; margin: 0; }
 
 /* Formularios */
 .sd-form { display: grid; gap: 16px; }

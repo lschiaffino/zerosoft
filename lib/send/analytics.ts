@@ -67,6 +67,8 @@ export interface VersionStat {
 export interface DocumentAnalytics {
   totals: { visits: number; visitors: number; seconds: number; avgSeconds: number; avgCompletion: number; downloads: number; live: number };
   pages: PageStat[];
+  /** Versión de `pages`. */
+  pagesVersionN: number;
   visits: VisitDto[];
   visitors: VisitorDto[];
   versions: VersionStat[];
@@ -172,9 +174,13 @@ export async function documentAnalytics(documentId: string, opts: { versionId?: 
     };
   });
 
-  // Por página: sobre las visitas que pasaron por ella.
+  // Por página, de una sola versión: la página 3 de dos archivos distintos no se mezcla.
+  const current = (await db.prepare('SELECT current_version_id FROM send_documents WHERE id = ?').get(documentId)) as { current_version_id: string | null } | undefined;
+  const pagesVersionId = opts.versionId ?? current?.current_version_id ?? visits[0]?.versionId ?? null;
+  const pageVisits = visits.filter((v) => v.versionId === pagesVersionId);
+  const pagesVersionN = pageVisits[0]?.versionN ?? (pagesVersionId ? Number(((await db.prepare('SELECT n FROM send_versions WHERE id = ?').get(pagesVersionId)) as { n: number } | undefined)?.n ?? 1) : 1);
   const perPage = new Map<number, { total: number; visits: number }>();
-  for (const v of visits) {
+  for (const v of pageVisits) {
     for (const p of v.pages) {
       if (p.seconds < 1) continue;
       const cur = perPage.get(p.page) ?? { total: 0, visits: 0 };
@@ -183,7 +189,7 @@ export async function documentAnalytics(documentId: string, opts: { versionId?: 
       perPage.set(p.page, cur);
     }
   }
-  const pageTotal = visits.reduce((m, v) => Math.max(m, v.pageTotal), 0);
+  const pageTotal = pageVisits.reduce((m, v) => Math.max(m, v.pageTotal), 0);
   const pages: PageStat[] = [];
   for (let page = 1; page <= pageTotal; page++) {
     const s = perPage.get(page);
@@ -192,7 +198,7 @@ export async function documentAnalytics(documentId: string, opts: { versionId?: 
       totalSeconds: Math.round((s?.total ?? 0) * 10) / 10,
       visits: s?.visits ?? 0,
       avgSeconds: s ? Math.round((s.total / s.visits) * 10) / 10 : 0,
-      reach: visits.length ? Math.round(((s?.visits ?? 0) / visits.length) * 100) : 0,
+      reach: pageVisits.length ? Math.round(((s?.visits ?? 0) / pageVisits.length) * 100) : 0,
     });
   }
 
@@ -247,6 +253,7 @@ export async function documentAnalytics(documentId: string, opts: { versionId?: 
       live: new Set(visits.filter((v) => v.live).map((v) => v.visitorKey)).size,
     },
     pages,
+    pagesVersionN,
     visits,
     visitors: [...people.values()].sort((a, b) => (a.lastSeenAt < b.lastSeenAt ? 1 : -1)),
     versions: versionRows.map((v) => ({
@@ -281,7 +288,7 @@ export async function liveReaders(documentId: string): Promise<Array<{ email: st
 
 /** CSV de todas las visitas del documento, con una columna por página. */
 export function analyticsCsv(a: DocumentAnalytics): string {
-  const pageCount = a.pages.length;
+  const pageCount = a.visits.reduce((m, v) => Math.max(m, v.pageTotal), a.pages.length);
   const head = [
     'visit_id',
     'started_at',

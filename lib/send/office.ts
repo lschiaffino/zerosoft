@@ -15,7 +15,17 @@ import { canvas, type RenderedPage } from './render';
 type Canvas = typeof import('@napi-rs/canvas');
 type Ctx = ReturnType<ReturnType<Canvas['createCanvas']>['getContext']>;
 
+/** Topes antes de trabajar: un .pptx chico puede pedir mucho al abrirse. */
 const PART_MAX = 32 * 1024 * 1024;
+const XML_MAX = 4 * 1024 * 1024;
+const DOCX_XML_MAX = 16 * 1024 * 1024;
+const XML_TOTAL_MAX = 128 * 1024 * 1024;
+const MAX_SHAPES = 2000;
+const MAX_SLIDES = 500;
+const IMAGE_BYTES_MAX = 16 * 1024 * 1024;
+const IMAGE_PIXELS_MAX = 16_000_000;
+const IMAGE_SIDE_MAX = 6000;
+const MAX_HEIGHT = 2400;
 const WIDTH = 1600;
 const EMU_PER_PT = 12700;
 
@@ -83,7 +93,11 @@ function deep(n: XmlNode | undefined, ...tags: string[]): XmlNode | undefined {
 interface Pkg {
   src: ZipSource;
   entries: Map<string, ZipEntry>;
+  xml: Map<string, XmlNode | null>;
+  xmlBytes: number;
 }
+
+const breathe = () => new Promise((r) => setImmediate(r));
 
 async function readPart(p: Pkg, name: string): Promise<Buffer | null> {
   const e = p.entries.get(name);
@@ -92,8 +106,18 @@ async function readPart(p: Pkg, name: string): Promise<Buffer | null> {
 }
 
 async function readXml(p: Pkg, name: string): Promise<XmlNode | null> {
-  const b = await readPart(p, name);
-  return b ? parseXml(b.toString('utf8')) : null;
+  if (p.xml.has(name)) return p.xml.get(name) ?? null;
+  const e = p.entries.get(name);
+  if (!e) return null;
+  // Se mira el tamaño declarado antes de descomprimir: una parte enorme ni se abre.
+  if (e.size > XML_MAX) throw new SendError('office_too_complex', 422);
+  p.xmlBytes += e.size;
+  if (p.xmlBytes > XML_TOTAL_MAX) throw new SendError('office_too_complex', 422);
+  const b = await readZipEntry(p.src, e, XML_MAX).catch(() => null);
+  const node = b ? parseXml(b.toString('utf8')) : null;
+  p.xml.set(name, node);
+  await breathe();
+  return node;
 }
 
 async function rels(p: Pkg, part: string): Promise<Map<string, { target: string; type: string }>> {
@@ -344,14 +368,46 @@ function drawText(ctx: Ctx, tx: XmlNode | undefined, box: Box, def: TextDefaults
   }
 }
 
+/** Ancho y alto por la cabecera, sin decodificar. Otro formato (SVG con otro nombre, por ejemplo): null. */
+export function imageSize(b: Buffer): { width: number; height: number } | null {
+  if (b.length > 24 && b.readUInt32BE(0) === 0x89504e47) return { width: b.readUInt32BE(16), height: b.readUInt32BE(20) };
+  if (b.length > 10 && b.subarray(0, 3).toString('latin1') === 'GIF') return { width: b.readUInt16LE(6), height: b.readUInt16LE(8) };
+  if (b.length > 4 && b[0] === 0xff && b[1] === 0xd8) {
+    let i = 2;
+    while (i + 9 < b.length) {
+      if (b[i] !== 0xff) return null;
+      const m = b[i + 1];
+      if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) return { height: b.readUInt16BE(i + 5), width: b.readUInt16BE(i + 7) };
+      i += 2 + b.readUInt16BE(i + 2);
+    }
+    return null;
+  }
+  if (b.length > 30 && b.subarray(0, 4).toString('latin1') === 'RIFF' && b.subarray(8, 12).toString('latin1') === 'WEBP') {
+    const f = b.subarray(12, 16).toString('latin1');
+    if (f === 'VP8 ') return { width: b.readUInt16LE(26) & 0x3fff, height: b.readUInt16LE(28) & 0x3fff };
+    if (f === 'VP8L') {
+      const n = b.readUInt32LE(21);
+      return { width: (n & 0x3fff) + 1, height: ((n >> 14) & 0x3fff) + 1 };
+    }
+    if (f === 'VP8X') return { width: b.readUIntLE(24, 3) + 1, height: b.readUIntLE(27, 3) + 1 };
+  }
+  return null;
+}
+
+function imageFits(size: { width: number; height: number } | null): boolean {
+  return !!size && size.width > 0 && size.height > 0 && size.width <= IMAGE_SIDE_MAX && size.height <= IMAGE_SIDE_MAX && size.width * size.height <= IMAGE_PIXELS_MAX;
+}
+
 async function loadImageFor(s: SlideCtx, rid: string | undefined): Promise<unknown | null> {
   if (!rid) return null;
   const target = s.rel.get(rid)?.target;
   if (!target || !/\.(png|jpe?g|gif|webp)$/i.test(target)) return null;
   if (s.images.has(target)) return s.images.get(target) ?? null;
-  const bytes = await readPart(s.pkg, target);
+  const e = s.pkg.entries.get(target);
+  const bytes = e && e.size <= IMAGE_BYTES_MAX ? await readPart(s.pkg, target) : null;
   let img: unknown = null;
-  if (bytes) img = await s.c.loadImage(bytes).catch(() => null);
+  // Sin cabecera conocida o demasiado grande, la imagen no se dibuja.
+  if (bytes && imageFits(imageSize(bytes))) img = await s.c.loadImage(bytes).catch(() => null);
   s.images.set(target, img);
   return img;
 }
@@ -381,7 +437,11 @@ function indexPlaceholders(tree: XmlNode | undefined): Placeholder[] & { idx?: M
 }
 
 async function drawTree(tree: XmlNode | undefined, s: SlideCtx, t: Xform, layouts: Array<ReturnType<typeof indexPlaceholders>>, skipPlaceholders: boolean): Promise<void> {
+  if (!tree) return;
+  if (tree.kids.length > MAX_SHAPES) throw new SendError('office_too_complex', 422);
+  let drawn = 0;
   for (const n of tree?.kids ?? []) {
+    if (++drawn % 100 === 0) await breathe();
     if (n.tag === 'p:grpSp') {
       const x = deep(n, 'p:grpSpPr', 'a:xfrm');
       const b = boxOf(x);
@@ -485,7 +545,7 @@ function solidBg(cSld: XmlNode | undefined, theme: Theme): { color: string | nul
  * Dibuja las diapositivas después de `skip` hasta `deadline`, entregándolas de a una.
  * Devuelve cuántas tiene el archivo: quien llama sigue en el pedido siguiente.
  */
-export async function pptxToImages(bytes: Buffer, opts: { skip?: number; deadline?: number; onPage?: (page: RenderedPage) => Promise<void> } = {}): Promise<number> {
+export async function pptxToImages(bytes: Buffer, opts: { skip?: number; deadline?: number; onPage?: (page: RenderedPage) => Promise<void>; onTotal?: (n: number) => Promise<void> } = {}): Promise<number> {
   const c = await canvas();
   const src = bufferSource(bytes);
   let list: ZipEntry[];
@@ -494,17 +554,22 @@ export async function pptxToImages(bytes: Buffer, opts: { skip?: number; deadlin
   } catch {
     throw new SendError('office_invalid', 422);
   }
-  const pkg: Pkg = { src, entries: new Map(list.map((e) => [e.name, e])) };
+  const pkg: Pkg = { src, entries: new Map(list.map((e) => [e.name, e])), xml: new Map(), xmlBytes: 0 };
   const pres = await readXml(pkg, 'ppt/presentation.xml');
   const presNode = kid(pres ?? undefined, 'p:presentation');
   if (!presNode) throw new SendError('office_invalid', 422);
   const size = kid(presNode, 'p:sldSz');
-  const cx = Number(size?.attrs.cx) || 12192000;
-  const cy = Number(size?.attrs.cy) || 6858000;
+  const cx = size ? Number(size.attrs.cx) : 12192000;
+  const cy = size ? Number(size.attrs.cy) : 6858000;
+  if (!Number.isFinite(cx) || !Number.isFinite(cy) || cx <= 0 || cy <= 0) throw new SendError('office_invalid', 422);
   const presRels = await rels(pkg, 'ppt/presentation.xml');
   const ids = kids(kid(presNode, 'p:sldIdLst'), 'p:sldId').map((n) => n.attrs['r:id']);
-  const scale = WIDTH / cx;
-  const height = Math.round(cy * scale);
+  if (ids.length > MAX_SLIDES + 1) throw new SendError('too_many_pages', 422);
+  // Ancho fijo salvo que la diapositiva sea muy alta: entonces manda el alto.
+  const scale = Math.min(WIDTH / cx, MAX_HEIGHT / cy);
+  const width = Math.max(1, Math.round(cx * scale));
+  const height = Math.max(1, Math.round(cy * scale));
+  if (width < 16 || height < 16) throw new SendError('office_invalid', 422);
   let pageNo = 0;
   const visible: Array<{ part: string; node: XmlNode }> = [];
   for (const rid of ids) {
@@ -514,6 +579,8 @@ export async function pptxToImages(bytes: Buffer, opts: { skip?: number; deadlin
     const node = kid(slide ?? undefined, 'p:sld');
     if (node && node.attrs.show !== '0') visible.push({ part, node });
   }
+  if (visible.length > MAX_SLIDES) throw new SendError('too_many_pages', 422);
+  await opts.onTotal?.(visible.length);
   for (const { part, node } of visible) {
     pageNo++;
     if (pageNo <= (opts.skip ?? 0)) continue;
@@ -529,10 +596,10 @@ export async function pptxToImages(bytes: Buffer, opts: { skip?: number; deadlin
     const masterRels = masterPart ? await rels(pkg, masterPart) : new Map<string, { target: string; type: string }>();
     const themePart = [...masterRels.values()].find((r) => r.type.endsWith('/theme'))?.target;
     const theme = themeFrom(themePart ? await readXml(pkg, themePart) : null);
-    const cv = c.createCanvas(WIDTH, height);
+    const cv = c.createCanvas(width, height);
     const ctx = cv.getContext('2d');
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, WIDTH, height);
+    ctx.fillRect(0, 0, width, height);
     const images = new Map<string, unknown>();
     const base = { c, ctx, pkg, theme, scale, images };
     const t: Xform = { sx: 1, sy: 1, ox: 0, oy: 0 };
@@ -547,10 +614,10 @@ export async function pptxToImages(bytes: Buffer, opts: { skip?: number; deadlin
       if (bg.color || bg.blip) {
         if (bg.color) {
           ctx.fillStyle = bg.color;
-          ctx.fillRect(0, 0, WIDTH, height);
+          ctx.fillRect(0, 0, width, height);
         }
         const img = await loadImageFor({ ...base, rel: rl }, bg.blip ?? undefined);
-        if (img) ctx.drawImage(img as never, 0, 0, WIDTH, height);
+        if (img) ctx.drawImage(img as never, 0, 0, width, height);
         break;
       }
     }
@@ -558,7 +625,19 @@ export async function pptxToImages(bytes: Buffer, opts: { skip?: number; deadlin
     await drawTree(trees[0], { ...base, rel: masterRels }, t, [], true);
     await drawTree(trees[1], { ...base, rel: layoutRels }, t, [], true);
     await drawTree(deep(node, 'p:cSld', 'p:spTree'), { ...base, rel: slideRels }, t, layouts, false);
-    await opts.onPage?.({ page: pageNo, bytes: await cv.encode('webp', 84), width: WIDTH, height });
+    await opts.onPage?.({ page: pageNo, bytes: await cv.encode('webp', 84), width, height });
+    await breathe();
   }
   return visible.length;
+}
+
+/** Word: el XML principal, por su tamaño declarado, antes de abrirlo. */
+export async function assertOfficeSize(bytes: Buffer): Promise<void> {
+  let list: ZipEntry[];
+  try {
+    list = await listZipEntries(bufferSource(bytes));
+  } catch {
+    throw new SendError('office_invalid', 422);
+  }
+  if (list.some((e) => e.name.endsWith('.xml') && e.size > DOCX_XML_MAX)) throw new SendError('office_too_complex', 422);
 }

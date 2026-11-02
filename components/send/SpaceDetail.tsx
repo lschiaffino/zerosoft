@@ -115,6 +115,21 @@ export default function SpaceDetail({
         </div>
         {space.canEdit && (
           <div className="sd-doc-actions">
+            <select
+              className="input sd-sharing"
+              value={space.sharing}
+              aria-label={t('sharing')}
+              data-testid="send-space-sharing"
+              onChange={async (e) => {
+                const sharing = e.target.value;
+                const r = await api(`/api/send/spaces/${space.id}`, { method: 'PATCH', json: { sharing } });
+                if (r.ok) setSpace((x) => ({ ...x, sharing }));
+                else toast(errorText(r.data.error), 'bad');
+              }}
+            >
+              <option value="private">{t('sharingPrivate')}</option>
+              <option value="workspace">{t('sharingWorkspace')}</option>
+            </select>
             <button type="button" className="btn btn-ghost btn-sm btn-danger" onClick={() => setDeleting(true)} data-testid="send-space-delete">
               {tc('delete')}
             </button>
@@ -288,7 +303,7 @@ export default function SpaceDetail({
               <span>{tv('kDownloads')}</span>
             </div>
           </div>
-          {a.totals.visits === 0 ? (
+          {a.totals.visits === 0 && a.denied.length === 0 ? (
             <EmptyState compact body={tv('empty')} />
           ) : (
             <>
@@ -357,6 +372,22 @@ export default function SpaceDetail({
                   </tbody>
                 </table>
               </div>
+              {a.denied.length > 0 && (
+                <>
+                  <h3 className="sd-h3">{tv('deniedTitle')}</h3>
+                  <ul className="sd-denied" data-testid="send-space-denied">
+                    {a.denied.map((d, i) => (
+                      <li key={i}>
+                        <span className="sd-wrap">{d.email ?? tv('anonymous')}</span>
+                        <span className="sd-rowmeta">
+                          {d.linkName ? `${d.linkName} · ` : ''}
+                          {date(d.at)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
             </>
           )}
         </section>

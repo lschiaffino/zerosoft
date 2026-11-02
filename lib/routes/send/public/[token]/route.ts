@@ -55,7 +55,7 @@ export async function POST(req: NextRequest, ctx: PublicCtx) {
     if (state.state === 'gate' && state.step === 'denied' && fresh) await recordDenied(p.link, fresh);
     const res = sJson(state);
     if (setCookie) {
-      res.cookies.set(sessionCookie(p.link.id), setCookie, { httpOnly: true, sameSite: 'lax', secure: req.nextUrl.protocol === 'https:', path: '/', maxAge: SESSION_MAX_AGE });
+      res.cookies.set(sessionCookie(p.link.id), setCookie, { httpOnly: true, sameSite: 'lax', secure: Boolean(process.env.VERCEL) || req.nextUrl.protocol === 'https:' || req.headers.get('x-forwarded-proto') === 'https', path: '/', maxAge: SESSION_MAX_AGE });
     }
     return res;
   } catch (err) {

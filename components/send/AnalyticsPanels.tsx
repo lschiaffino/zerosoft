@@ -297,7 +297,7 @@ function Pages({ a, kind, bucketSec }: { a: DocumentAnalytics; kind: string; buc
   const max = Math.max(1, ...a.pages.map((p) => p.avgSeconds));
   return (
     <>
-      <h3 className="sd-h3">{t('perPage')}</h3>
+      <h3 className="sd-h3">{t('perPage', { n: a.pagesVersionN })}</h3>
       <ul className="sd-bars sd-bars-pages" data-testid="send-page-stats">
         {a.pages.map((p) => (
           <li key={p.page} data-page={p.page} data-avg={p.avgSeconds} data-reach={p.reach}>

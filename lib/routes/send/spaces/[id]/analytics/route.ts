@@ -11,7 +11,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   if ('res' in a) return a.res;
   try {
     const s = await getSpace(a.actor, (await ctx.params).id);
-    const data = await spaceAnalytics(s.id);
+    const data = await spaceAnalytics(a.actor, s.id);
     if (req.nextUrl.searchParams.get('format') === 'csv') {
       if (!a.actor.admin) return sJson({ error: 'forbidden' }, 403);
       return new NextResponse(spaceCsv(data), { headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': 'attachment; filename="send-space-visits.csv"', 'cache-control': 'private, no-store' } });

@@ -72,6 +72,20 @@ const nextConfig = {
           { key: 'Referrer-Policy', value: 'no-referrer' },
         ],
       },
+      // Visor de Send: un documento confidencial, sin iframes ajenos, sin referer y sin recursos de otros orígenes salvo el logo.
+      {
+        source: '/:locale(en|es|pt)/send/:token',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Referrer-Policy', value: 'no-referrer' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+          {
+            key: 'Content-Security-Policy',
+            value: `default-src 'self'; script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'production' ? '' : " 'unsafe-eval'"}; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; media-src 'self'; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'`,
+          },
+        ],
+      },
       {
         source: '/api/chat/:route(identify|messages|csat|read|typing|help|history|outbound|visitor)',
         headers: cors,

@@ -40,6 +40,20 @@ export default function SendViewer({ token, initial }: { token: string; initial:
     });
   }, [api, state.state]);
 
+  // Un link cortado cierra también una pestaña oculta o quieta: se vuelve a mirar cada 20 s y al volver a la pestaña.
+  useEffect(() => {
+    if (state.state !== 'open') return;
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void refresh();
+    };
+    const h = window.setInterval(() => void refresh(), 20_000);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(h);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [refresh, state.state]);
+
   const brandStyle = useMemo<CSSProperties>(() => (state.brand.color ? ({ '--accent': state.brand.color, '--sv-on': onColor(state.brand.color) } as CSSProperties) : {}), [state.brand.color]);
 
   return (
@@ -166,7 +180,6 @@ function Gate({ api, state, onState }: { api: string; state: Extract<ViewerState
       <form className="sv-card" onSubmit={submit}>
         <Brand state={state} />
         <h1>{copy.title}</h1>
-        {state.message && state.step !== 'verify' && <p className="sv-message">{state.message}</p>}
         <p>{copy.body}</p>
         <label className="sv-field">
           <span>{copy.label}</span>
@@ -365,7 +378,8 @@ function DocView({ api, doc, state, onBack, refresh }: { api: string; doc: Viewe
     sending.current = true;
     const r = await postJson(`${api}/ping`, body);
     sending.current = false;
-    if (r.ok) {
+    // Sin contar todavía (por ejemplo, la imagen no terminó de pedirse): se guarda para el próximo aviso.
+    if (r.ok && (r.data.counted || counted.current)) {
       // Se saca lo que se mandó, no lo que se sumó mientras tanto.
       for (const d of body.deltas) {
         const left = (pending.current.get(d.page) ?? 0) - d.seconds;
@@ -373,6 +387,8 @@ function DocView({ api, doc, state, onBack, refresh }: { api: string; doc: Viewe
         else pending.current.delete(d.page);
       }
       if (r.data.counted) counted.current = true;
+    } else if (r.ok) {
+      // Nada.
     } else if (r.status === 410 || r.status === 401 || r.status === 409 || r.status === 404) {
       await refresh();
     }

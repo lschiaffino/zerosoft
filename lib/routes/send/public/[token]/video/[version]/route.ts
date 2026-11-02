@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { parseRange } from '@/lib/upload-serve';
 import { readRange } from '@/lib/send/core';
-import { linkDocuments, requireViewer } from '@/lib/send/viewer';
+import { linkDocuments, markPageView, requireViewer } from '@/lib/send/viewer';
 import { binaryResponse, publicLink, sendLimit, sFail, sJson } from '@/lib/send/http';
 import { PART_BYTES, videoMime } from '@/lib/send/types';
 
@@ -20,6 +20,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ token: stri
     const docs = await linkDocuments(p.link, session.email);
     const target = docs.find((d) => d.version.id === version);
     if (!target || target.version.kind !== 'video') return sJson({ error: 'not_found' }, 404);
+    await markPageView(session, version, 0);
     const size = Number(target.version.size);
     const range = parseRange(req.headers.get('range'), size) ?? [0, size - 1];
     const end = Math.min(range[1], range[0] + PART_BYTES - 1);

@@ -14,16 +14,20 @@ import { getDb } from '../db';
 import { verifyPassword } from '../links';
 import { contextFromHeaders } from '../track';
 import { isBotUserAgent } from '../analytics/bots';
-import { peekCount, rateLimit } from '../rate-limit';
+import { isRateLimited, peekCount, rateLimit } from '../rate-limit';
 import { appSender, escapeHtml, renderBrandedHtml, sendEmail } from '../email';
 import { createNotification } from '../notifications';
 import { localized, renderForRecipient } from '../notification-copy';
 import { deleteSendFiles, readSendFile, storeSendFile } from './files';
-import { getBranding, pagesOf, readRange, type DocumentRow, type LinkRow, type VersionRow } from './core';
+import { getBranding, pagesOf, readRange, storeRefsOf, type DocumentRow, type LinkRow, type VersionRow } from './core';
 import { linkContact } from './crm';
 import { sendCopy, type SendLocale } from './i18n';
 import {
   acceptedSeconds,
+  ALERT_WINDOW_MS,
+  ALERTS_PER_HOUR,
+  firstClaim,
+  isScriptedUserAgent,
   CODE_ATTEMPTS,
   CODE_MINUTES,
   deviceKind,
@@ -77,6 +81,9 @@ export async function resolveLink(token: string): Promise<LinkRow | null> {
   } else if (link.space_id) {
     const s = (await db.prepare('SELECT id FROM send_spaces WHERE id = ? AND deleted_at IS NULL').get(link.space_id)) as { id: string } | undefined;
     if (!s) return null;
+    // Acceso por persona: con lista, el espacio está cerrado para quien no figura.
+    const rows = (await db.prepare('SELECT email FROM send_space_access WHERE space_id = ?').all(link.space_id)) as Array<{ email: string }>;
+    if (rows.length) link.space_emails = rows.map((r) => r.email);
   } else return null;
   return link;
 }
@@ -150,7 +157,6 @@ export type ViewerState =
       state: 'gate';
       step: GateStep;
       brand: ViewerBrand;
-      message: string;
       email: string | null;
       needsEmail: boolean;
       needsPasscode: boolean;
@@ -173,6 +179,23 @@ async function brandOf(link: LinkRow): Promise<ViewerBrand> {
   return { name: b.brandName, logoUrl: b.logoUrl, color: b.brandColor, siteUrl: b.siteUrl };
 }
 
+/**
+ * ¿Quien armó el link puede ver este documento hoy? Un link no publica más de lo que
+ * ve su autor: si el dueño vuelve privado un documento, el link de otro deja de
+ * servirlo en ese momento.
+ */
+async function creatorRole(link: LinkRow): Promise<'admin' | 'member'> {
+  if (link.created_by === link.workspace_id) return 'admin';
+  const row = (await getDb()
+    .prepare('SELECT m.role FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ? AND m.user_id = ? LIMIT 1')
+    .get(link.workspace_id, link.created_by)) as { role: string } | undefined;
+  return row?.role === 'admin' || row?.role === 'owner' ? 'admin' : 'member';
+}
+
+function creatorSees(link: LinkRow, role: 'admin' | 'member', doc: Pick<DocumentRow, 'owner_id' | 'sharing'>): boolean {
+  return role === 'admin' || doc.owner_id === link.created_by || doc.sharing === 'workspace';
+}
+
 interface LinkDocRow {
   doc: DocumentRow;
   version: VersionRow;
@@ -183,25 +206,26 @@ interface LinkDocRow {
 /** Documentos que este link muestra, y a esta persona, con su versión actual lista. */
 export async function linkDocuments(link: LinkRow, email: string | null): Promise<LinkDocRow[]> {
   const db = getDb();
+  const role = await creatorRole(link);
   if (link.document_id) {
     const doc = (await db.prepare('SELECT * FROM send_documents WHERE id = ? AND deleted_at IS NULL').get(link.document_id)) as DocumentRow | undefined;
-    if (!doc?.current_version_id) return [];
+    if (!doc?.current_version_id || !creatorSees(link, role, doc)) return [];
     const version = (await db.prepare('SELECT * FROM send_versions WHERE id = ?').get(doc.current_version_id)) as VersionRow;
     return [{ doc, version, folder: '', downloadable: !!link.allow_download }];
   }
   const rows = (await db
     .prepare(
-      `SELECT d.*, i.folder AS item_folder, li.visible AS li_visible, li.downloadable AS li_downloadable
+      `SELECT d.*, i.folder AS item_folder
        FROM send_space_items i
        JOIN send_documents d ON d.id = i.document_id AND d.deleted_at IS NULL
-       LEFT JOIN send_link_items li ON li.link_id = ? AND li.document_id = d.id
        WHERE i.space_id = ? ORDER BY i.position, i.added_at`,
     )
-    .all(link.id, link.space_id)) as Array<DocumentRow & { item_folder: string; li_visible: number | null; li_downloadable: number | null }>;
-  // Acceso por persona: si el email tiene una fila propia, ve solo lo que dice esa fila.
+    .all(link.space_id)) as Array<DocumentRow & { item_folder: string }>;
+  // Acceso por persona: cada email ve solo lo que dice su fila.
   let only: Set<string> | null = null;
-  if (email) {
-    const grant = (await db.prepare('SELECT document_ids FROM send_space_access WHERE space_id = ? AND email = ?').get(link.space_id, email)) as { document_ids: string } | undefined;
+  if (link.space_emails) {
+    const grant = email ? ((await db.prepare('SELECT document_ids FROM send_space_access WHERE space_id = ? AND email = ?').get(link.space_id, email)) as { document_ids: string } | undefined) : undefined;
+    only = new Set();
     if (grant) {
       try {
         const ids = JSON.parse(grant.document_ids);
@@ -213,10 +237,10 @@ export async function linkDocuments(link: LinkRow, email: string | null): Promis
   }
   const out: LinkDocRow[] = [];
   for (const r of rows) {
-    if (r.li_visible === 0 || !r.current_version_id) continue;
+    if (!r.current_version_id || !creatorSees(link, role, r)) continue;
     if (only && !only.has(r.id)) continue;
     const version = (await db.prepare('SELECT * FROM send_versions WHERE id = ?').get(r.current_version_id)) as VersionRow;
-    out.push({ doc: r, version, folder: r.item_folder, downloadable: !!link.allow_download && r.li_downloadable !== 0 });
+    out.push({ doc: r, version, folder: r.item_folder, downloadable: !!link.allow_download });
   }
   return out;
 }
@@ -231,8 +255,6 @@ export async function viewerState(link: LinkRow, session: SessionRow | null): Pr
       state: 'gate',
       step,
       brand,
-      // El mensaje de bienvenida no dice nada del contenido a quien todavía no pasó el código.
-      message: step === 'passcode' ? '' : link.message,
       email: session?.email ?? null,
       needsEmail: linkNeedsEmail(link),
       needsPasscode: !!link.passcode_hash,
@@ -299,23 +321,34 @@ async function upsertVisitor(workspaceId: string, email: string): Promise<string
 
 export async function submitPasscode(link: LinkRow, session: SessionRow, passcode: string, ipKey: string): Promise<void> {
   if (!link.passcode_hash) return;
-  // Dos topes: por persona (IP) y por link, para que repartir IPs tampoco alcance.
-  const byIp = await rateLimit(`send:pass:${link.id}:${ipKey}`, 8, 900);
-  const byLink = await rateLimit(`send:passlink:${link.id}`, 60, 3600);
-  if (!byIp.ok || !byLink.ok) throw new SendError('too_many_attempts', 429);
-  const ok = await verifyPassword(passcode.slice(0, 100), link.passcode_hash);
+  // Por persona (IP) se corta; por link solo se frena: fallar desde muchas IPs no le cierra el link a quien tiene el código.
+  const ipKeyName = `send:pass:${link.id}:${ipKey}`;
+  if (await isRateLimited(ipKeyName, 8, 900)) throw new SendError('too_many_attempts', 429);
+  const linkKey = `send:passlink:${link.id}`;
+  const failures = await peekCount(linkKey, 3600);
+  if (failures > 20) await new Promise((r) => setTimeout(r, Math.min(2000, (failures - 20) * 50)));
+  const ok = await verifyPassword(passcode.trim().slice(0, 100), link.passcode_hash);
   if (!ok) {
+    await rateLimit(ipKeyName, 8, 900);
+    await rateLimit(linkKey, 1_000_000, 3600);
     await logEvent(link, 'passcode_failed', session.email);
     throw new SendError('bad_passcode', 401);
   }
   await getDb().prepare('UPDATE send_sessions SET passcode_ok = 1 WHERE id = ?').run(session.id);
 }
 
+/**
+ * Cambiar de email es otra persona: se va la verificación y el acuerdo. El mismo
+ * email otra vez no cambia nada.
+ */
 export async function submitEmail(link: LinkRow, session: SessionRow, raw: string): Promise<void> {
   const email = normalizeEmail(raw);
   if (!email) throw new SendError('invalid_email', 400);
+  if (email === session.email) return;
   const visitorId = await upsertVisitor(link.workspace_id, email);
-  await getDb().prepare('UPDATE send_sessions SET email = ?, email_verified = 0, visitor_id = ? WHERE id = ?').run(email, visitorId, session.id);
+  await getDb()
+    .prepare('UPDATE send_sessions SET email = ?, email_verified = 0, visitor_id = ?, nda_envelope_id = NULL, nda_signed_at = NULL WHERE id = ?')
+    .run(email, visitorId, session.id);
 }
 
 export async function clearEmail(session: SessionRow): Promise<void> {
@@ -359,16 +392,19 @@ export async function verifyEmailCode(link: LinkRow, session: SessionRow, code: 
   if (hashCode(session.id, code.trim().slice(0, 12)) !== row.code_hash) throw new SendError('bad_code', 401);
   const used = await db.prepare('UPDATE send_email_codes SET used_at = ? WHERE id = ? AND used_at IS NULL').run(nowIso(), row.id);
   if (!used.changes) throw new SendError('code_expired', 410);
-  await db.prepare('UPDATE send_sessions SET email_verified = 1 WHERE id = ?').run(session.id);
+  // Atado al email del código: si la sesión cambió de email en el medio, no verifica al nuevo.
+  const verified = await db.prepare('UPDATE send_sessions SET email_verified = 1 WHERE id = ? AND email = ?').run(session.id, row.email);
+  if (!verified.changes) throw new SendError('code_expired', 410);
   await logEvent(link, 'email_verified', session.email);
 }
 
-/** Paso `denied`: queda registrado una vez por sesión, y al dueño le llega un aviso. */
+/** Paso `denied`: queda registrado una vez por sesión, y al dueño le llega un aviso (con tope por link). */
 export async function recordDenied(link: LinkRow, session: SessionRow): Promise<void> {
-  const already = await peekCount(`send:denied:${session.id}`, 86_400);
+  const already = await peekCount(`send:denied:${session.id}:${session.email ?? ''}`, 86_400);
   if (already) return;
-  await rateLimit(`send:denied:${session.id}`, 1000, 86_400);
+  await rateLimit(`send:denied:${session.id}:${session.email ?? ''}`, 1000, 86_400);
   await logEvent(link, 'denied', session.email);
+  if (!(await claimAlert(link))) return;
   const doc = await targetTitle(link);
   await createNotification({
     userId: link.created_by,
@@ -401,20 +437,28 @@ export interface RequestMeta {
 
 /** Bots, navegadores automatizados y escáneres: no cuentan como visita. */
 export function isAutomated(meta: RequestMeta, webdriver: boolean | undefined): boolean {
-  if (!meta.ua.trim() || isBotUserAgent(meta.ua)) return true;
+  if (!meta.ua.trim() || isBotUserAgent(meta.ua) || isScriptedUserAgent(meta.ua)) return true;
   if (webdriver && process.env.ANALYTICS_ALLOW_HEADLESS !== '1') return true;
   return false;
 }
 
-function visitSeq(sessionId: string, documentId: string, versionId: string, seq: number): string {
-  const h = createHash('sha256').update(`${sessionId}|${documentId}|${versionId}|${seq}`).digest('base64url').slice(0, 24);
+function visitSeq(sessionId: string, email: string | null, documentId: string, versionId: string, seq: number): string {
+  const h = createHash('sha256').update(`${sessionId}|${email ?? ''}|${documentId}|${versionId}|${seq}`).digest('base64url').slice(0, 24);
   return `sx_${h}`;
+}
+
+/** La sesión pidió de verdad esta página (o el video, página 0): sin eso, no cuenta como vista. */
+export async function markPageView(session: SessionRow, versionId: string, page: number): Promise<void> {
+  await getDb().prepare('INSERT OR IGNORE INTO send_page_views (session_id, version_id, page) VALUES (?, ?, ?)').run(session.id, versionId, page);
 }
 
 /**
  * Suma tiempo a una visita. La primera vez crea la visita y avisa a quien mandó el
- * link. El id de la visita sale de la sesión y el orden: dos pestañas que empiezan
- * a la vez caen en la misma fila.
+ * link. El id de la visita sale de la sesión, el email y el orden: dos pestañas que
+ * empiezan a la vez caen en la misma fila, y otro email es otra visita.
+ *
+ * El tiempo se acota con el reloj del servidor, por visita, por sesión y por página, y
+ * solo cuentan páginas que la sesión pidió.
  */
 export async function recordPing(link: LinkRow, session: SessionRow, input: PingInput, meta: RequestMeta): Promise<{ visitId: string | null }> {
   if (isAutomated(meta, input.webdriver)) return { visitId: null };
@@ -423,33 +467,48 @@ export async function recordPing(link: LinkRow, session: SessionRow, input: Ping
   if (!target) throw new SendError('not_found', 404);
   // El dueño reemplazó el archivo mientras leían: el navegador recarga la versión nueva.
   if (target.version.id !== input.versionId) throw new SendError('version_changed', 409);
-  const claimed = input.deltas.reduce((n, d) => n + (Number.isFinite(d.seconds) ? Math.max(0, d.seconds) : 0), 0);
   const db = getDb();
-  const prev = (await db
-    .prepare('SELECT id, last_ping_at, version_id FROM send_visits WHERE session_id = ? AND document_id = ? ORDER BY started_at DESC LIMIT 1')
-    .get(session.id, input.documentId)) as { id: string; last_ping_at: string; version_id: string } | undefined;
-  const nowMs = Date.now();
-  const prevMs = prev ? new Date(prev.last_ping_at).getTime() : 0;
-  const same = prev && prev.version_id === input.versionId && nowMs - prevMs < VISIT_GAP_MS;
+  const isVideo = target.version.kind === 'video';
+  const viewedRows = (await db.prepare('SELECT page FROM send_page_views WHERE session_id = ? AND version_id = ?').all(session.id, input.versionId)) as Array<{ page: number }>;
+  const viewed = new Set(viewedRows.map((r) => Number(r.page)));
   const total = Number(target.version.page_count);
+  const known = input.deltas.filter((d) => d.page <= total && (isVideo ? viewed.has(0) : viewed.has(d.page)));
+  const claimed = known.reduce((n, d) => n + (Number.isFinite(d.seconds) ? Math.max(0, d.seconds) : 0), 0);
+  const prev = (await db
+    .prepare('SELECT id, last_ping_at, started_at, version_id, seconds, base_seconds FROM send_visits WHERE session_id = ? AND document_id = ? AND COALESCE(email, \'\') = ? ORDER BY started_at DESC LIMIT 1')
+    .get(session.id, input.documentId, session.email ?? '')) as { id: string; last_ping_at: string; started_at: string; version_id: string; seconds: number; base_seconds: number } | undefined;
+  const nowMs = Date.now();
+  const same = prev && prev.version_id === input.versionId && nowMs - new Date(prev.last_ping_at).getTime() < VISIT_GAP_MS;
   let visitId: string;
   let created = false;
   let cap: number;
+  let visitElapsed: number;
+  let visitBase: number;
   if (same) {
     visitId = prev.id;
-    cap = acceptedSeconds(claimed, (nowMs - prevMs) / 1000);
+    visitElapsed = (nowMs - new Date(prev.started_at).getTime()) / 1000;
+    visitBase = Number(prev.base_seconds);
+    cap = acceptedSeconds(claimed, { elapsedSec: visitElapsed, usedSec: Number(prev.seconds), baseSec: visitBase });
+    // Y en toda la sesión: dos documentos a la vez no suman más tiempo que el reloj.
+    const all = (await db
+      .prepare("SELECT MIN(started_at) AS first_at, COALESCE(SUM(seconds), 0) AS used, COALESCE(SUM(base_seconds), 0) AS base FROM send_visits WHERE session_id = ? AND last_ping_at >= ?")
+      .get(session.id, new Date(nowMs - VISIT_GAP_MS).toISOString())) as { first_at: string | null; used: number; base: number };
+    if (all.first_at) cap = Math.min(cap, acceptedSeconds(claimed, { elapsedSec: (nowMs - new Date(all.first_at).getTime()) / 1000, usedSec: Number(all.used), baseSec: Number(all.base) }));
   } else {
     // Nada de visita con menos de unos segundos: es lo que se ve de un escáner.
-    if (claimed < MIN_FIRST_SECONDS) return { visitId: null };
-    const n = (await db.prepare('SELECT COUNT(*) AS n FROM send_visits WHERE session_id = ? AND document_id = ?').get(session.id, input.documentId)) as { n: number };
-    visitId = visitSeq(session.id, input.documentId, input.versionId, Number(n.n));
+    cap = firstClaim(claimed, (nowMs - new Date(session.created_at).getTime()) / 1000);
+    if (cap < MIN_FIRST_SECONDS) return { visitId: null };
+    const n = (await db.prepare("SELECT COUNT(*) AS n FROM send_visits WHERE session_id = ? AND document_id = ? AND COALESCE(email, '') = ?").get(session.id, input.documentId, session.email ?? '')) as { n: number };
+    visitId = visitSeq(session.id, session.email, input.documentId, input.versionId, Number(n.n));
+    visitElapsed = 0;
+    visitBase = cap;
     const ctx = contextFromHeaders(meta.headers);
     const ua = new UAParser(meta.ua).getResult();
     const ts = nowIso();
     const res = await db
       .prepare(
-        `INSERT OR IGNORE INTO send_visits (id, workspace_id, link_id, session_id, visitor_id, document_id, version_id, email, email_verified, forwarded, started_at, last_ping_at, page_total, device, os, browser, country, city)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT OR IGNORE INTO send_visits (id, workspace_id, link_id, session_id, visitor_id, document_id, version_id, email, email_verified, forwarded, started_at, last_ping_at, page_total, base_seconds, device, os, browser, country, city)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         visitId,
@@ -465,6 +524,7 @@ export async function recordPing(link: LinkRow, session: SessionRow, input: Ping
         ts,
         ts,
         total,
+        cap,
         deviceKind(ua.device.type),
         (ua.os.name ?? '').slice(0, 40),
         (ua.browser.name ?? '').slice(0, 40),
@@ -472,20 +532,21 @@ export async function recordPing(link: LinkRow, session: SessionRow, input: Ping
         ctx.city,
       );
     created = res.changes > 0;
-    cap = acceptedSeconds(claimed, 15);
   }
-  const deltas = scaleDeltas(
-    input.deltas.filter((d) => d.page <= total),
-    cap,
-  ).slice(0, 50);
+  const deltas = scaleDeltas(known, cap).slice(0, 50);
+  const pageRows = (await db.prepare('SELECT page, seconds FROM send_page_stats WHERE visit_id = ?').all(visitId)) as Array<{ page: number; seconds: number }>;
+  const pageUsed = new Map(pageRows.map((r) => [Number(r.page), Number(r.seconds)]));
   const ts = nowIso();
   for (const d of deltas) {
+    // Una página no puede tener más tiempo que la visita.
+    const seconds = acceptedSeconds(d.seconds, { elapsedSec: visitElapsed, usedSec: pageUsed.get(d.page) ?? 0, baseSec: visitBase });
+    if (seconds <= 0) continue;
     await db
       .prepare(
         `INSERT INTO send_page_stats (visit_id, page, seconds, first_at, last_at) VALUES (?, ?, ?, ?, ?)
          ON CONFLICT (visit_id, page) DO UPDATE SET seconds = seconds + excluded.seconds, last_at = excluded.last_at`,
       )
-      .run(visitId, d.page, d.seconds, ts, ts);
+      .run(visitId, d.page, seconds, ts, ts);
   }
   const agg = (await db
     .prepare('SELECT COALESCE(SUM(seconds), 0) AS seconds, SUM(CASE WHEN seconds >= 1 THEN 1 ELSE 0 END) AS seen FROM send_page_stats WHERE visit_id = ?')
@@ -495,7 +556,8 @@ export async function recordPing(link: LinkRow, session: SessionRow, input: Ping
   if (session.visitor_id) await db.prepare('UPDATE send_visitors SET last_seen_at = ? WHERE id = ?').run(ts, session.visitor_id);
   if (created) {
     await alertReading(link, session, visitId, target.doc, Number(agg.seen ?? 0), total).catch((err) => console.error('[send:alert]', err instanceof Error ? err.message : 'error'));
-    if (session.email) await linkContact(link.workspace_id, session, target.doc, visitId).catch(() => undefined);
+    // Solo un email verificado llega al CRM: uno escrito se queda en Send.
+    if (session.email && session.email_verified) await linkContact(link.workspace_id, session, target.doc).catch(() => undefined);
   }
   return { visitId };
 }
@@ -512,6 +574,52 @@ async function targetTitle(link: LinkRow): Promise<string> {
     ? ((await db.prepare('SELECT title FROM send_documents WHERE id = ?').get(link.document_id)) as { title: string } | undefined)
     : ((await db.prepare('SELECT title FROM send_spaces WHERE id = ?').get(link.space_id)) as { title: string } | undefined);
   return r?.title ?? '';
+}
+
+/**
+ * ¿Sale este aviso? Hasta ALERTS_PER_HOUR por hora y por link (compare-and-set en una
+ * sola sentencia). Los demás se suman a un resumen que sale al cerrar la hora.
+ */
+async function claimAlert(link: LinkRow): Promise<boolean> {
+  const db = getDb();
+  const now = Date.now();
+  const row = (await db
+    .prepare(
+      `UPDATE send_links SET
+         alert_count = CASE WHEN alert_window_at IS NULL OR alert_window_at < ? THEN 1 ELSE alert_count + 1 END,
+         alert_window_at = CASE WHEN alert_window_at IS NULL OR alert_window_at < ? THEN ? ELSE alert_window_at END
+       WHERE id = ? RETURNING alert_count`,
+    )
+    .get(now - ALERT_WINDOW_MS, now - ALERT_WINDOW_MS, now, link.id)) as { alert_count: number } | undefined;
+  if (Number(row?.alert_count ?? 1) <= ALERTS_PER_HOUR) return true;
+  await db.prepare('UPDATE send_links SET alert_digest = alert_digest + 1 WHERE id = ?').run(link.id);
+  return false;
+}
+
+/** Cron: el resumen de lo que no se avisó, una vez cerrada la hora. */
+export async function flushAlertDigests(): Promise<number> {
+  const db = getDb();
+  const rows = (await db
+    .prepare('SELECT * FROM send_links WHERE alert_digest > 0 AND alert_window_at < ? LIMIT 50')
+    .all(Date.now() - ALERT_WINDOW_MS)) as LinkRow[];
+  let sent = 0;
+  for (const link of rows) {
+    const claim = await db.prepare('UPDATE send_links SET alert_digest = 0 WHERE id = ? AND alert_digest = ?').run(link.id, link.alert_digest);
+    if (!claim.changes) continue;
+    const title = await targetTitle(link);
+    const text = localized('sendDigest', { count: link.alert_digest, title, link: link.name || null });
+    const owner = link.document_id ? ((await db.prepare('SELECT owner_id FROM send_documents WHERE id = ?').get(link.document_id)) as { owner_id: string } | undefined)?.owner_id : ((await db.prepare('SELECT owner_id FROM send_spaces WHERE id = ?').get(link.space_id)) as { owner_id: string } | undefined)?.owner_id;
+    for (const userId of new Set([owner ?? link.created_by, link.created_by])) {
+      await createNotification({ userId, type: 'send_activity', title: text, href: linkHref(link), sourceType: 'send_link', sourceId: link.id }).catch(() => undefined);
+      const user = (await db.prepare('SELECT email FROM users WHERE id = ?').get(userId)) as { email: string | null } | undefined;
+      if (!user?.email) continue;
+      const [subject] = await renderForRecipient(userId, [text]);
+      const url = `${appOrigin()}${linkHref(link)}`;
+      await sendEmail({ to: user.email, from: appSender(), subject: subject ?? '', text: url, html: renderBrandedHtml({ eyebrow: 'Send', heading: subject ?? '', paragraphs: [`<a href="${escapeHtml(url)}" style="color:#000000;font-weight:500;">${escapeHtml(url)}</a>`] }) }).catch(() => undefined);
+    }
+    sent++;
+  }
+  return sent;
 }
 
 function appOrigin(): string {
@@ -532,6 +640,7 @@ async function alertReading(link: LinkRow, session: SessionRow, visitId: string,
   if (recent) return;
   const claim = await db.prepare('UPDATE send_visits SET alerted_at = ? WHERE id = ? AND alerted_at IS NULL').run(nowIso(), visitId);
   if (!claim.changes) return;
+  if (!(await claimAlert(link))) return;
   const visit = (await db.prepare('SELECT country, city FROM send_visits WHERE id = ?').get(visitId)) as { country: string | null; city: string | null };
   const place = [visit.city, visit.country].filter(Boolean).join(', ');
   const whoVars = session.email ? { who: session.email } : { who: place || null };
@@ -558,7 +667,7 @@ async function alertReading(link: LinkRow, session: SessionRow, visitId: string,
       from: appSender(),
       subject: subject ?? '',
       text: `${body ?? ''}\n\n${url}`,
-      html: renderBrandedHtml({ eyebrow: 'Send', heading: escapeHtml(subject ?? ''), paragraphs: [escapeHtml(body ?? ''), `<a href="${escapeHtml(url)}" style="color:#000000;font-weight:500;">${escapeHtml(url)}</a>`] }),
+      html: renderBrandedHtml({ eyebrow: 'Send', heading: subject ?? '', paragraphs: [escapeHtml(body ?? ''), `<a href="${escapeHtml(url)}" style="color:#000000;font-weight:500;">${escapeHtml(url)}</a>`] }),
     }).catch(() => undefined);
   }
 }
@@ -577,15 +686,16 @@ export interface DownloadPiece {
 /** PDF con el watermark de esta sesión, una sola copia por sesión y versión, guardada cifrada. */
 async function stampedRefs(link: LinkRow, session: SessionRow, version: VersionRow): Promise<{ refs: string[]; size: number }> {
   const db = getDb();
-  const cached = (await db.prepare('SELECT refs, size FROM send_download_cache WHERE session_id = ? AND version_id = ?').get(session.id, version.id)) as { refs: string; size: number } | undefined;
+  const email = session.email ?? '';
+  const cached = (await db.prepare('SELECT refs, size FROM send_download_cache WHERE session_id = ? AND version_id = ? AND email = ?').get(session.id, version.id, email)) as { refs: string; size: number } | undefined;
   if (cached) return { refs: JSON.parse(cached.refs) as string[], size: Number(cached.size) };
   const { stampPdf } = await import('./stamp');
   const bytes = await stampPdf(version, watermarkText(session));
   const refs: string[] = [];
   for (let i = 0; i * PART_BYTES < bytes.length; i++) refs.push(await storeSendFile(Buffer.from(bytes.subarray(i * PART_BYTES, (i + 1) * PART_BYTES)), 'application/pdf'));
   const res = await db
-    .prepare('INSERT OR IGNORE INTO send_download_cache (session_id, version_id, refs, size, expires_at) VALUES (?, ?, ?, ?, ?)')
-    .run(session.id, version.id, JSON.stringify(refs), bytes.length, new Date(Date.now() + 3600_000).toISOString());
+    .prepare('INSERT OR IGNORE INTO send_download_cache (session_id, version_id, email, refs, size, expires_at) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(session.id, version.id, email, JSON.stringify(refs), bytes.length, new Date(Date.now() + 3600_000).toISOString());
   if (!res.changes) {
     // Otra pestaña la armó primero: se usa la suya.
     await deleteSendFiles(refs).catch(() => undefined);
@@ -596,10 +706,10 @@ async function stampedRefs(link: LinkRow, session: SessionRow, version: VersionR
 
 export async function purgeDownloadCache(): Promise<number> {
   const db = getDb();
-  const rows = (await db.prepare('SELECT session_id, version_id, refs FROM send_download_cache WHERE expires_at < ? LIMIT 50').all(nowIso())) as Array<{ session_id: string; version_id: string; refs: string }>;
+  const rows = (await db.prepare('SELECT session_id, version_id, email, refs FROM send_download_cache WHERE expires_at < ? LIMIT 50').all(nowIso())) as Array<{ session_id: string; version_id: string; email: string; refs: string }>;
   for (const r of rows) {
-    const res = await db.prepare('DELETE FROM send_download_cache WHERE session_id = ? AND version_id = ?').run(r.session_id, r.version_id);
-    if (res.changes) await deleteSendFiles(JSON.parse(r.refs) as string[]).catch(() => undefined);
+    const res = await db.prepare('DELETE FROM send_download_cache WHERE session_id = ? AND version_id = ? AND email = ?').run(r.session_id, r.version_id, r.email);
+    if (res.changes) await deleteSendFiles(storeRefsOf(r.refs)).catch(() => undefined);
   }
   return rows.length;
 }
@@ -632,7 +742,7 @@ async function countDownload(link: LinkRow, session: SessionRow, documentId: str
   const db = getDb();
   await logEvent({ ...link, document_id: documentId }, 'download', session.email);
   await db
-    .prepare('UPDATE send_visits SET downloads = downloads + 1 WHERE id = (SELECT id FROM send_visits WHERE session_id = ? AND document_id = ? ORDER BY started_at DESC LIMIT 1)')
-    .run(session.id, documentId);
+    .prepare("UPDATE send_visits SET downloads = downloads + 1 WHERE id = (SELECT id FROM send_visits WHERE session_id = ? AND document_id = ? AND COALESCE(email, '') = ? ORDER BY started_at DESC LIMIT 1)")
+    .run(session.id, documentId, session.email ?? '');
 }
 

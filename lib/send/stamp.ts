@@ -18,7 +18,7 @@ async function basePdf(v: VersionRow): Promise<PDFDocument> {
     try {
       return await PDFDocument.load(await readParts(v.id), { updateMetadata: false });
     } catch {
-      throw new SendError('pdf_invalid', 422);
+      // Cifrado o con una estructura que pdf-lib no lee: se arma con las páginas, como un Word.
     }
   }
   // Word y PowerPoint: se arma con las páginas ya renderizadas.

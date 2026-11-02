@@ -131,9 +131,9 @@ const parity: ProductParity = {
     row('allow-block-csv', 'access', ['Import the list from a CSV', 'Importar la lista de un CSV', 'Importar a lista de um CSV'], 'missing', {
       detail: ['Pasting works, with one entry per line or separated by commas', 'Se puede pegar, una entrada por línea o separadas por comas', 'Dá para colar, uma entrada por linha ou separadas por vírgula'],
     }),
-    row('download-toggle', 'access', ['Allow or block download', 'Permitir o bloquear descarga', 'Permitir ou bloquear download'], 'have', {
+    row('download-toggle', 'access', ['Allow or block download', 'Permitir o bloquear descarga', 'Permitir ou bloquear download'], 'partial', {
       weight: 2,
-      detail: ['Without it, the file never reaches the browser, only page images', 'Sin ella, el archivo no llega al navegador, solo imágenes de las páginas', 'Sem ela, o arquivo nunca chega ao navegador, só imagens das páginas'],
+      detail: ["Documents reach the browser as page images, not as the file. A streamed video can be saved by someone determined", "Los documentos llegan al navegador como imágenes de las páginas, no como el archivo. Un video transmitido lo puede guardar alguien decidido", "Os documentos chegam ao navegador como imagens das páginas, não como o arquivo. Um vídeo transmitido pode ser salvo por alguém determinado"],
     }),
     row('watermark', 'access', ['Dynamic watermark', 'Watermark dinámico', 'Marca d\'água dinâmica'], 'partial', {
       weight: 2,
@@ -197,7 +197,7 @@ const parity: ProductParity = {
     // Avisos
     row('email-alert', 'alerts', ['Email when someone opens it', 'Email cuando alguien lo abre', 'Email quando alguém abre'], 'partial', {
       weight: 2,
-      detail: ['Sent when a real visit starts, at most once per half hour per session. Needs an email provider set up, and is checked with captured mail so far', 'Sale cuando empieza una visita real, como mucho una vez por media hora por sesión. Pide un proveedor de email configurado, y por ahora se probó con correo capturado', 'Sai quando começa uma visita real, no máximo uma vez a cada meia hora por sessão. Precisa de um provedor de email configurado, e por enquanto foi testado com correio capturado'],
+      detail: ["Sent when a real visit starts, up to 3 an hour per link and the rest in a digest. Needs an email provider set up, and is checked with captured mail so far", "Sale cuando empieza una visita real, hasta 3 por hora por link y el resto en un resumen. Pide un proveedor de email configurado, y por ahora se probó con correo capturado", "Sai quando começa uma visita real, até 3 por hora por link e o resto em um resumo. Precisa de um provedor de email configurado, e por enquanto foi testado com correio capturado"],
     }),
     row('in-app-alert', 'alerts', ['Live "someone is reading" alert', 'Aviso en vivo de "alguien está leyendo"', 'Aviso ao vivo de "alguém está lendo"'], 'have', {
       detail: ['In the notification bell and on the document page. DocSend\'s are desktop notifications', 'En la campana de avisos y en la página del documento. Los de DocSend son notificaciones de escritorio', 'No sino de avisos e na página do documento. Os do DocSend são notificações de desktop'],
@@ -223,7 +223,7 @@ const parity: ProductParity = {
     row('space-create', 'spaces', ['Several documents behind one link', 'Varios documentos detrás de un link', 'Vários documentos atrás de um link'], 'have', { weight: 2 }),
     row('space-analytics', 'spaces', ['Numbers per document and per visitor', 'Números por documento y por persona', 'Números por documento e por pessoa'], 'have', { weight: 2 }),
     row('space-access', 'spaces', ['Access per person', 'Acceso por persona', 'Acesso por pessoa'], 'have', {
-      detail: ['By email: pick which documents a person sees. Works with verification on', 'Por email: elegí qué documentos ve cada persona. Sirve con la verificación prendida', 'Por email: escolha quais documentos cada pessoa vê. Funciona com a verificação ligada'],
+      detail: ["By email, with a verified address: anyone not listed stays out, and each person sees only their documents", "Por email, con la dirección verificada: quien no figura queda afuera, y cada persona ve solo sus documentos", "Por email, com o endereço verificado: quem não está na lista fica de fora, e cada pessoa vê só seus documentos"],
     }),
     row('space-csv', 'spaces', ['Export the space\'s visits', 'Exportar las visitas del espacio', 'Exportar as visitas do espaço'], 'have'),
     row('space-folders', 'spaces', ['Folders', 'Carpetas', 'Pastas'], 'partial', {
@@ -250,7 +250,7 @@ const parity: ProductParity = {
     // Acuerdos
     row('nda-gate', 'agreements', ['Signed NDA before viewing', 'NDA firmado antes de ver', 'NDA assinado antes de ver'], 'partial', {
       weight: 2,
-      detail: ['Through a Sign template with one signer: each person signs a copy. Not per folder, and no one-click agreement', 'Con una plantilla de Sign con un firmante: cada persona firma su copia. Sin acuerdo por carpeta ni de un clic', 'Com um modelo do Sign com um signatário: cada pessoa assina sua cópia. Sem acordo por pasta nem de um clique'],
+      detail: ["Through a Sign template with one signer and a verified email: each person signs a copy. Not per folder, and no one-click agreement", "Con una plantilla de Sign con un firmante y el email verificado: cada persona firma su copia. Sin acuerdo por carpeta ni de un clic", "Com um modelo do Sign com um signatário e o email verificado: cada pessoa assina sua cópia. Sem acordo por pasta nem de um clique"],
     }),
     row('one-click-nda', 'agreements', ['One-click agreement', 'Acuerdo de un clic', 'Acordo de um clique'], 'missing'),
     row('certificate', 'agreements', ['Certificate and audit trail', 'Certificado y auditoría', 'Certificado e auditoria'], 'have', {
@@ -273,7 +273,7 @@ const parity: ProductParity = {
       detail: ['Workspace roles and access per app. A member sees theirs and what\'s shared', 'Roles del workspace y acceso por app. Un member ve lo suyo y lo compartido', 'Papéis do workspace e acesso por app. Um member vê o seu e o compartilhado'],
     }),
     row('crm-timeline', 'platform', ['Visits on the CRM contact', 'Visitas en el contacto del CRM', 'Visitas no contato do CRM'], 'have', {
-      detail: ['With zerosoft\'s CRM, when the email matches. DocSend does it with Salesforce', 'Con el CRM de zerosoft, cuando el email coincide. DocSend lo hace con Salesforce', 'Com o CRM da zerosoft, quando o email coincide. O DocSend faz isso com o Salesforce'],
+      detail: ["With zerosoft's CRM, when a verified email matches. Typed emails stay in Send. DocSend does it with Salesforce", "Con el CRM de zerosoft, cuando coincide un email verificado. Los emails escritos se quedan en Send. DocSend lo hace con Salesforce", "Com o CRM da zerosoft, quando um email verificado coincide. Emails digitados ficam no Send. O DocSend faz isso com o Salesforce"],
     }),
     row('salesforce', 'platform', ['Salesforce', 'Salesforce', 'Salesforce'], 'missing'),
     row('zapier', 'platform', ['Zapier and IFTTT', 'Zapier e IFTTT', 'Zapier e IFTTT'], 'missing'),

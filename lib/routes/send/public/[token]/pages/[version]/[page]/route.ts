@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { pageRef } from '@/lib/send/core';
 import { readSendFile } from '@/lib/send/files';
-import { linkDocuments, requireViewer, watermarkText } from '@/lib/send/viewer';
+import { linkDocuments, markPageView, requireViewer, watermarkText } from '@/lib/send/viewer';
 import { binaryResponse, publicLink, sendLimit, sFail, sJson } from '@/lib/send/http';
 import { watermarkImage } from '@/lib/send/render';
 
@@ -26,6 +26,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ token: stri
     if (!ref) return sJson({ error: 'not_found' }, 404);
     const bytes = await readSendFile(ref.ref);
     if (!bytes) return sJson({ error: 'file_unavailable' }, 404);
+    await markPageView(session, version, Number(page));
     const out = p.link.watermark ? await watermarkImage(bytes, watermarkText(session)) : bytes;
     return binaryResponse(out, 'image/webp');
   } catch (err) {

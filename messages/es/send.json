@@ -48,7 +48,7 @@
     "upload": "Subir un archivo",
     "docs": "Página de Docs",
     "dropTitle": "Elegí un archivo o soltalo acá",
-    "dropHint": "Documentos hasta {doc} MB, video hasta {video} GB",
+    "dropHint": "Documentos hasta {doc} MB, video hasta {video} GB, dentro del almacenamiento del workspace",
     "formats": "El PDF se ve exactamente como es. Word (.docx) y PowerPoint (.pptx) pasan por un conversor simplificado: mirá la vista previa y exportá a PDF si el diseño importa. Los .doc y .ppt viejos, Excel, Keynote y los PDF con contraseña no se aceptan. Video: MP4, WebM o MOV.",
     "docsSearch": "Buscá en tus páginas",
     "docsEmpty": "No se encontraron páginas.",
@@ -128,8 +128,8 @@
     "accessBlockHelp": "Uno por línea. Sin verificación, alguien bloqueado puede escribir otro email.",
     "protectTitle": "Protección",
     "download": "Permitir descarga",
-    "downloadOn": "Se baja el archivo original, con watermark si el link lo tiene.",
-    "downloadOff": "Se ven imágenes de las páginas y el archivo nunca llega. Una captura de pantalla no se puede impedir.",
+    "downloadOn": "Se baja el archivo original, con watermark si el link lo tiene. Un PowerPoint o un Word original conserva diapositivas ocultas, notas y comentarios: prendé el watermark, o exportá antes a PDF.",
+    "downloadOff": "PDF, Word y PowerPoint llegan al navegador como imágenes de las páginas, nunca como el archivo. Un video se transmite, así que alguien decidido puede guardarlo. Una captura de pantalla no se puede impedir.",
     "watermark": "Watermark con el email de quien mira",
     "watermarkHelp": "Se dibuja en la imagen de cada página en el servidor, con fecha y hora. Desalienta compartir pero no frena una captura. En un video solo se dibuja sobre el reproductor.",
     "nda": "Acuerdo firmado antes de ver",
@@ -168,7 +168,8 @@
     "tagExpires": "Vence {date}",
     "visits": "{count, plural, one {# visita} other {# visitas}}",
     "visitors": "{count, plural, one {# persona} other {# personas}}",
-    "last": "última {date}"
+    "last": "última {date}",
+    "verifyForcedNda": "Un acuerdo lo necesita: si no, cualquiera podría firmar a nombre de otro."
   },
   "visits": {
     "loadError": "Los números no cargaron.",
@@ -206,7 +207,7 @@
     "page": "Página {page}",
     "notSeen": "Sin ver",
     "noLocation": "Sin ubicación para esta visita.",
-    "perPage": "Tiempo promedio por página, y cuántas visitas llegaron",
+    "perPage": "Tiempo promedio por página en la versión {n}, y cuántas visitas llegaron",
     "reach": "llegó el {pct} %",
     "deniedTitle": "Intentaron abrirlo sin acceso"
   },
@@ -237,9 +238,9 @@
     "moveDown": "Bajar",
     "remove": "Quitar",
     "accessTitle": "Acceso por persona",
-    "accessNew": "Limitar a una persona",
-    "accessHelp": "Quien esté en esta lista ve solo los documentos que elijas. El resto ve todo el espacio. Va por el email del link: prendé la verificación para que nadie más pueda escribirlo.",
-    "accessEmpty": "Nadie tiene límite: quien tenga un link ve todo el espacio.",
+    "accessNew": "Sumar a una persona",
+    "accessHelp": "Cuando hay alguien en esta lista, el espacio se cierra: entran solo quienes figuran, con el email verificado, y cada uno ve solo los documentos que elijas. Con la lista vacía, quien tenga un link ve todo el espacio.",
+    "accessEmpty": "Sin lista: quien tenga un link ve todo el espacio.",
     "accessNone": "Ningún documento",
     "accessEmail": "Email",
     "accessDocs": "Documentos que puede ver",
@@ -247,7 +248,10 @@
     "perDocument": "Por documento",
     "deleteTitle": "¿Borrar este espacio?",
     "deleteBody": "Sus links dejan de andar ya. Los documentos quedan en Send, con sus números.",
-    "colDocument": "Documento"
+    "colDocument": "Documento",
+    "sharing": "Quién del workspace lo ve",
+    "sharingPrivate": "Solo yo y los admins",
+    "sharingWorkspace": "Todo el workspace"
   },
   "settings": {
     "title": "Ajustes de Send",
@@ -353,6 +357,9 @@
     "link_expired": "Este link venció.",
     "download_blocked": "Este link no permite descargas.",
     "nda_unavailable": "El acuerdo no está disponible. Consultá a quien mandó el link.",
-    "nda_template_invalid": "El acuerdo necesita una plantilla con un firmante."
+    "nda_template_invalid": "El acuerdo necesita una plantilla con un firmante.",
+    "render_unavailable": "Este servidor no puede preparar páginas ahora. El archivo está a salvo y seguimos reintentando.",
+    "office_too_complex": "Este archivo es demasiado grande para convertirlo. Exportalo a PDF y subí ese.",
+    "storage_quota": "El workspace llegó a su almacenamiento de Send. Borrá documentos para hacer lugar."
   }
 }

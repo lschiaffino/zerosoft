@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   acceptedSeconds,
+  firstClaim,
+  isScriptedUserAgent,
   accessAllowed,
   cleanAccessList,
   completionPct,
@@ -23,7 +25,8 @@ import {
   videoBuckets,
   videoMime,
 } from '@/lib/send/types';
-import { kid, kids, parseXml } from '@/lib/send/office';
+import { assertOfficeSize, imageSize, kid, kids, parseXml, pptxToImages } from '@/lib/send/office';
+import { buildZip } from '@/lib/zip-reader';
 import { excludeReason, webOnlyWhere } from '@/lib/mcp/excludes.mjs';
 import { scrubText } from '@/lib/mcp/scrub';
 
@@ -120,6 +123,25 @@ describe('Send: pasos del link', () => {
     expect(nextGate(l, { ...v, nda_signed_at: '2026-01-01' })).toBeNull();
   });
 
+  it('un acuerdo exige un email verificado: nunca se firma a nombre de un email escrito', () => {
+    const l = { ...open, nda_template_id: 't' };
+    expect(linkNeedsVerify(l)).toBe(true);
+    expect(nextGate(l, { ...fresh, email: 'ceo@bigco.com' })).toBe('verify');
+    expect(nextGate(l, { ...fresh, email: 'ceo@bigco.com', email_verified: 1 })).toBe('nda');
+  });
+
+  it('con acceso por persona, el espacio está cerrado para quien no figura, y hace falta verificar', () => {
+    const l = { ...open, space_emails: ['ana@acme.com'] };
+    expect(linkNeedsEmail(l)).toBe(true);
+    expect(linkNeedsVerify(l)).toBe(true);
+    expect(nextGate(l, null)).toBe('email');
+    expect(nextGate(l, { ...fresh, email: 'ana@acme.com' })).toBe('verify');
+    expect(nextGate(l, { ...fresh, email: 'ana@acme.com', email_verified: 1 })).toBeNull();
+    expect(nextGate(l, { ...fresh, email: 'otro@acme.com', email_verified: 1 })).toBe('denied');
+    // Sin lista no cambia nada.
+    expect(nextGate(open, null)).toBeNull();
+  });
+
   it('deshabilitado y vencido cortan; deshabilitado manda', () => {
     const now = new Date('2026-11-02T12:00:00Z');
     expect(linkState({ disabled_at: null, expires_at: null }, now)).toBe('active');
@@ -131,12 +153,26 @@ describe('Send: pasos del link', () => {
 
 describe('Send: tiempo', () => {
   it('no acepta más segundos que los que pasaron, y nada de negativos ni NaN', () => {
-    expect(acceptedSeconds(5, 5)).toBe(5);
-    expect(acceptedSeconds(3600, 5)).toBe(8);
-    expect(acceptedSeconds(3600, 100000)).toBe(120);
-    expect(acceptedSeconds(-1, 10)).toBe(0);
-    expect(acceptedSeconds(Number.NaN, 10)).toBe(0);
-    expect(acceptedSeconds(1, -100)).toBe(1);
+    const at = (elapsedSec: number, usedSec = 0, baseSec = 0) => ({ elapsedSec, usedSec, baseSec });
+    expect(acceptedSeconds(5, at(5))).toBe(5);
+    expect(acceptedSeconds(3600, at(5))).toBe(6.5);
+    expect(acceptedSeconds(3600, at(100000))).toBe(120);
+    expect(acceptedSeconds(-1, at(10))).toBe(0);
+    expect(acceptedSeconds(Number.NaN, at(10))).toBe(0);
+    expect(acceptedSeconds(9, at(-100))).toBe(1.5);
+  });
+
+  it('muchos avisos no suman tiempo: el margen es uno solo, no uno por aviso', () => {
+    let used = 0;
+    for (let i = 0; i < 40; i++) used += acceptedSeconds(3, { elapsedSec: 0.15, usedSec: used, baseSec: 2 });
+    expect(used).toBeLessThanOrEqual(3.65);
+  });
+
+  it('el primer aviso no vale más que el tiempo desde que abrió la sesión', () => {
+    expect(firstClaim(3.5, 3.6)).toBe(3.5);
+    expect(firstClaim(100, 0)).toBe(1.5);
+    expect(firstClaim(100, 1000)).toBe(15);
+    expect(firstClaim(-1, 10)).toBe(0);
   });
 
   it('reparte sin pasarse y descarta páginas inválidas', () => {
@@ -205,18 +241,95 @@ describe('Send: archivos', () => {
   });
 });
 
+describe('Send: clientes y archivos con trampa', () => {
+  it('reconoce herramientas, no navegadores', () => {
+    for (const ua of ['curl/8.4.0', 'python-requests/2.31', 'Go-http-client/2.0', 'axios/1.6', 'node-fetch/1.0', 'Wget/1.21', 'okhttp/4.12']) expect(isScriptedUserAgent(ua), ua).toBe(true);
+    expect(isScriptedUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36')).toBe(false);
+    expect(isScriptedUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1')).toBe(false);
+  });
+
+  it('el tamaño de una imagen sale de su cabecera; otra cosa con nombre de imagen no', () => {
+    const png = Buffer.alloc(32);
+    png.writeUInt32BE(0x89504e47, 0);
+    png.writeUInt32BE(8000, 16);
+    png.writeUInt32BE(9000, 20);
+    expect(imageSize(png)).toEqual({ width: 8000, height: 9000 });
+    expect(imageSize(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><image href="file:///etc/passwd"/></svg>'))).toBeNull();
+  });
+
+  const ns = 'xmlns:a="a" xmlns:r="r" xmlns:p="p"';
+  const rel = (items: Array<[string, string, string]>) => `<Relationships>${items.map(([id, type, t]) => `<Relationship Id="${id}" Type="x/${type}" Target="${t}"/>`).join('')}</Relationships>`;
+  const deck = (slides: string[], size = 'cx="12192000" cy="6858000"') =>
+    buildZip([
+      { name: 'ppt/presentation.xml', data: `<p:presentation ${ns}><p:sldIdLst>${slides.map((_, i) => `<p:sldId id="${i}" r:id="rId${i + 1}"/>`).join('')}</p:sldIdLst><p:sldSz ${size}/></p:presentation>` },
+      { name: 'ppt/_rels/presentation.xml.rels', data: rel(slides.map((_, i) => [`rId${i + 1}`, 'slide', `slides/slide${i + 1}.xml`])) },
+      ...slides.map((d, i) => ({ name: `ppt/slides/slide${i + 1}.xml`, data: d })),
+    ]);
+  const slide = '<p:sld><p:cSld><p:spTree></p:spTree></p:cSld></p:sld>';
+
+  it('una diapositiva gigante se abre con tamaño acotado', async () => {
+    const pages: Array<{ width: number; height: number }> = [];
+    await pptxToImages(deck([slide], 'cx="914400" cy="13716000"'), { onPage: async (p) => void pages.push(p) });
+    expect(pages[0].height).toBeLessThanOrEqual(2400);
+    expect(pages[0].width).toBeLessThanOrEqual(1600);
+  });
+
+  it('un tamaño absurdo o negativo se rechaza sin dibujar', async () => {
+    await expect(pptxToImages(deck([slide], 'cx="12192000" cy="-5"'))).rejects.toMatchObject({ code: 'office_invalid' });
+    await expect(pptxToImages(deck([slide], 'cx="1" cy="2000000000"'))).rejects.toMatchObject({ code: 'office_invalid' });
+  });
+
+  it('una parte enorme que se comprime a casi nada no se abre', async () => {
+    const start = Date.now();
+    const bomb = buildZip([
+      { name: 'ppt/presentation.xml', data: `<p:presentation ${ns}><p:sldIdLst><p:sldId id="1" r:id="rId1"/></p:sldIdLst><p:sldSz cx="9" cy="9"/></p:presentation>` },
+      { name: 'ppt/_rels/presentation.xml.rels', data: rel([['rId1', 'slide', 'slides/slide1.xml']]) },
+      { name: 'ppt/slides/slide1.xml', data: ' '.repeat(40 * 1024 * 1024), deflate: true },
+    ]);
+    await expect(pptxToImages(bomb)).rejects.toMatchObject({ code: 'office_too_complex' });
+    expect(Date.now() - start).toBeLessThan(5000);
+    const word = buildZip([{ name: 'word/document.xml', data: ' '.repeat(40 * 1024 * 1024), deflate: true }]);
+    await expect(assertOfficeSize(word)).rejects.toMatchObject({ code: 'office_too_complex' });
+  });
+
+  it('más de 500 diapositivas se rechaza antes de dibujar', async () => {
+    let drawn = 0;
+    await expect(pptxToImages(deck(Array.from({ length: 501 }, () => slide)), { onPage: async () => void drawn++ })).rejects.toMatchObject({ code: 'too_many_pages' });
+    expect(drawn).toBe(0);
+  });
+
+  it('el tope de tiempo frena entre diapositivas y sigue donde quedó', async () => {
+    const seen: number[] = [];
+    const total = await pptxToImages(deck([slide, slide, slide]), { skip: 1, deadline: Date.now() + 60_000, onPage: async (p) => void seen.push(p.page) });
+    expect(total).toBe(3);
+    expect(seen).toEqual([2, 3]);
+    const none: number[] = [];
+    await pptxToImages(deck([slide, slide]), { deadline: Date.now() - 1, onPage: async (p) => void none.push(p.page) });
+    expect(none).toEqual([]);
+  });
+});
+
 describe('Send: MCP', () => {
   it('las rutas públicas y las partes de subida quedan fuera del alcance de un token', () => {
     for (const path of ['/api/send/public/[token]', '/api/send/public/[token]/ping', '/api/send/public/[token]/code', '/api/send/public/[token]/nda', '/api/send/public/[token]/pages/[version]/[page]', '/api/send/public/[token]/video/[version]', '/api/send/public/[token]/download']) {
       expect(excludeReason(path, 'GET') ?? excludeReason(path, 'POST'), path).toBeTruthy();
     }
     expect(excludeReason('/api/send/versions/[id]/parts/[n]', 'PUT')).toBeTruthy();
+    expect(excludeReason('/api/send/versions/[id]/complete', 'POST')).toBeTruthy();
+    // El render pide el lienzo nativo, que no viaja con la función del MCP.
+    expect(excludeReason('/api/send/versions/[id]/process', 'POST')).toBeTruthy();
   });
 
   it('crear un link o aflojarlo se hace desde la web: sobrevive a la conexión', () => {
     expect(webOnlyWhere('/api/send/documents/[id]/links', 'POST')).toBeTruthy();
     expect(webOnlyWhere('/api/send/spaces/[id]/links', 'POST')).toBeTruthy();
     expect(webOnlyWhere('/api/send/links/[id]', 'PATCH')).toBeTruthy();
+    // Lo que cambia qué muestra un link vivo, o a quién.
+    expect(webOnlyWhere('/api/send/spaces/[id]', 'PATCH')).toBeTruthy();
+    expect(webOnlyWhere('/api/send/spaces/[id]/access', 'PUT')).toBeTruthy();
+    expect(webOnlyWhere('/api/send/spaces/[id]/access', 'DELETE')).toBeTruthy();
+    expect(webOnlyWhere('/api/send/documents/[id]/versions', 'POST')).toBeTruthy();
+    expect(webOnlyWhere('/api/send/settings', 'PUT')).toBeTruthy();
     // Leer y borrar sí: borrar corta el acceso, no lo abre.
     expect(webOnlyWhere('/api/send/documents/[id]/links', 'GET')).toBeNull();
     expect(webOnlyWhere('/api/send/links/[id]', 'DELETE')).toBeNull();

@@ -18,7 +18,7 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     const s = await getSpace(a.actor, (await ctx.params).id);
     const input = await parseBody(req, schema);
     await setSpaceAccess(a.actor, s.id, input.email, input.documentIds);
-    return sJson({ access: await listSpaceAccess(s.id) });
+    return sJson({ access: await listSpaceAccess(a.actor, s.id) });
   } catch (err) {
     return sFail(err);
   }
@@ -30,7 +30,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
   try {
     const s = await getSpace(a.actor, (await ctx.params).id);
     await removeSpaceAccess(a.actor, s.id, req.nextUrl.searchParams.get('email') ?? '');
-    return sJson({ access: await listSpaceAccess(s.id) });
+    return sJson({ access: await listSpaceAccess(a.actor, s.id) });
   } catch (err) {
     return sFail(err);
   }

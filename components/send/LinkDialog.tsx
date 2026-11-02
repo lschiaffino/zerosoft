@@ -61,7 +61,7 @@ function LinkForm({ link, createUrl, templates, onClose, onSaved }: { link: Link
 
   // Lo que estas reglas piden aunque no se tilde: se muestra y queda tildado.
   const emailForced = watermark || !!nda || accessMode !== 'none' || verifyEmail;
-  const verifyForced = accessMode === 'allow';
+  const verifyForced = accessMode === 'allow' || !!nda;
   const emailOn = requireEmail || emailForced;
   const verifyOn = verifyEmail || verifyForced;
 
@@ -121,7 +121,7 @@ function LinkForm({ link, createUrl, templates, onClose, onSaved }: { link: Link
             <input type="checkbox" checked={verifyOn} disabled={verifyForced} onChange={(e) => setVerifyEmail(e.target.checked)} data-testid="link-verify" />
             <span>
               {t('verifyEmail')}
-              <small>{verifyForced ? t('verifyForced') : t('verifyHelp')}</small>
+              <small>{verifyForced ? (nda ? t('verifyForcedNda') : t('verifyForced')) : t('verifyHelp')}</small>
             </span>
           </label>
           <label className="sd-check">

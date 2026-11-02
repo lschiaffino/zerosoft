@@ -10,9 +10,10 @@ import { hashPassword } from '../links';
 import { guardPdf } from '../sign/pdf';
 import { blocksToPdf, needsUnicodeFont } from '../docs-pdf';
 import { docxToBlocks } from '../docs-docx';
-import { deleteSendFiles, openSendValue, readSendFile, sealSendValue, storeSendFile } from './files';
-import { openPdf } from './render';
-import { pptxToImages } from './office';
+import { USAGE_RATES } from '../pricing';
+import { deleteSendFiles, openSendValue, readSendFile, sealSendValue, sendStorageConfigured, storeSendFile } from './files';
+import { loadRenderEngine, openPdf } from './render';
+import { assertOfficeSize, pptxToImages } from './office';
 import {
   cleanAccessList,
   hashToken,
@@ -102,6 +103,11 @@ export interface LinkRow {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  alert_window_at: number | null;
+  alert_count: number;
+  alert_digest: number;
+  /** Lo arma resolveLink: emails del acceso por persona del espacio, si hay lista. */
+  space_emails?: readonly string[];
 }
 
 // ---------- Permisos ----------
@@ -218,9 +224,11 @@ export async function deleteDocument(actor: SendActor, id: string): Promise<void
   await db.prepare('UPDATE send_documents SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL').run(nowIso(), id);
   await db.prepare('UPDATE send_links SET deleted_at = ?, disabled_at = COALESCE(disabled_at, ?) WHERE document_id = ?').run(nowIso(), nowIso(), id);
   const versions = (await db.prepare('SELECT id, derived_ref FROM send_versions WHERE document_id = ?').all(id)) as Array<{ id: string; derived_ref: string | null }>;
-  for (const v of versions) await purgeVersionFiles(v.id, v.derived_ref);
+  for (const v of versions) {
+    await purgeVersionFiles(v.id, v.derived_ref);
+    await db.prepare('DELETE FROM send_page_views WHERE version_id = ?').run(v.id);
+  }
   await db.prepare('DELETE FROM send_space_items WHERE document_id = ?').run(id);
-  await db.prepare('DELETE FROM send_link_items WHERE document_id = ?').run(id);
   await db.prepare('DELETE FROM send_page_stats WHERE visit_id IN (SELECT id FROM send_visits WHERE document_id = ?)').run(id);
   await db.prepare('DELETE FROM send_visits WHERE document_id = ?').run(id);
   await db.prepare('DELETE FROM send_events WHERE document_id = ?').run(id);
@@ -228,13 +236,27 @@ export async function deleteDocument(actor: SendActor, id: string): Promise<void
   await db.prepare('DELETE FROM send_links WHERE document_id = ?').run(id);
   await db.prepare('DELETE FROM send_versions WHERE document_id = ?').run(id);
   await db.prepare('DELETE FROM send_documents WHERE id = ?').run(id);
+  // Un visitante sin otras visitas se va con el documento: su email no queda guardado.
+  await db.prepare('DELETE FROM send_visitors WHERE workspace_id = ? AND id NOT IN (SELECT visitor_id FROM send_visits WHERE workspace_id = ? AND visitor_id IS NOT NULL) AND id NOT IN (SELECT visitor_id FROM send_sessions WHERE workspace_id = ? AND visitor_id IS NOT NULL)').run(actor.ws, actor.ws, actor.ws);
+}
+
+/** Referencias guardadas como JSON (copias de una descarga con watermark). */
+export function storeRefsOf(raw: string): string[] {
+  try {
+    const v = JSON.parse(raw);
+    return Array.isArray(v) ? v.map(String) : [];
+  } catch {
+    return [];
+  }
 }
 
 async function purgeVersionFiles(versionId: string, derivedRef: string | null): Promise<void> {
   const db = getDb();
   const parts = (await db.prepare('SELECT ref FROM send_version_parts WHERE version_id = ?').all(versionId)) as Array<{ ref: string }>;
   const pages = (await db.prepare('SELECT ref FROM send_pages WHERE version_id = ?').all(versionId)) as Array<{ ref: string }>;
-  await deleteSendFiles([...parts.map((p) => p.ref), ...pages.map((p) => p.ref), derivedRef]).catch(() => undefined);
+  const stamped = (await db.prepare('SELECT refs FROM send_download_cache WHERE version_id = ?').all(versionId)) as Array<{ refs: string }>;
+  await deleteSendFiles([...parts.map((p) => p.ref), ...pages.map((p) => p.ref), ...stamped.flatMap((c) => storeRefsOf(c.refs)), derivedRef]).catch(() => undefined);
+  await db.prepare('DELETE FROM send_download_cache WHERE version_id = ?').run(versionId);
   await db.prepare('DELETE FROM send_version_parts WHERE version_id = ?').run(versionId);
   await db.prepare('DELETE FROM send_pages WHERE version_id = ?').run(versionId);
 }
@@ -314,6 +336,35 @@ function kindFromName(name: string, mime: string): VersionKind | null {
   return null;
 }
 
+/**
+ * Cuota de almacenamiento del workspace, por sus archivos y páginas. En zerosoft Cloud
+ * es lo incluido en el plan (lib/pricing.ts); SEND_STORAGE_LIMIT_GB la cambia, y en
+ * self-host no hay tope salvo que se defina.
+ */
+export function sendStorageLimit(): number | null {
+  const raw = process.env.SEND_STORAGE_LIMIT_GB?.trim();
+  if (raw) {
+    const gb = Number(raw);
+    return Number.isFinite(gb) && gb > 0 ? gb * 1024 ** 3 : null;
+  }
+  if (!process.env.VERCEL) return null;
+  return (USAGE_RATES.find((r) => r.key === 'storage')?.free ?? 0.5) * 1024 ** 3;
+}
+
+export async function sendStorageUsed(workspaceId: string): Promise<number> {
+  const db = getDb();
+  const files = (await db.prepare(`SELECT COALESCE(SUM(size), 0) AS n FROM send_versions WHERE workspace_id = ? AND status <> 'failed'`).get(workspaceId)) as { n: number };
+  const pages = (await db.prepare('SELECT COALESCE(SUM(p.bytes), 0) AS n FROM send_pages p JOIN send_versions v ON v.id = p.version_id WHERE v.workspace_id = ?').get(workspaceId)) as { n: number };
+  return Number(files.n) + Number(pages.n);
+}
+
+/** Antes de guardar nada: sin dónde guardar, o sin lugar, no queda una fila a medias. */
+export async function assertCanStore(workspaceId: string, bytes: number): Promise<void> {
+  if (!sendStorageConfigured()) throw new SendError('storage_unavailable', 503);
+  const limit = sendStorageLimit();
+  if (limit !== null && (await sendStorageUsed(workspaceId)) + bytes > limit) throw new SendError('storage_quota', 413);
+}
+
 export async function startUpload(actor: SendActor, documentId: string, input: UploadInput): Promise<VersionRow> {
   const name = input.name.slice(0, 200) || 'document';
   const kind = kindFromName(name, input.mime);
@@ -321,6 +372,7 @@ export async function startUpload(actor: SendActor, documentId: string, input: U
   const max = kind === 'video' ? MAX_VIDEO_BYTES : MAX_DOCUMENT_BYTES;
   if (!Number.isInteger(input.size) || input.size <= 0) throw new SendError('invalid_input', 400);
   if (input.size > max) throw new SendError('file_too_large', 413);
+  await assertCanStore(actor.ws, input.size);
   const id = newId('sv');
   const n = await nextVersionNumber(documentId);
   await getDb()
@@ -338,7 +390,14 @@ export async function storePart(actor: SendActor, versionId: string, n: number, 
   if (v.status !== 'uploading') throw new SendError('not_uploading', 409);
   if (!Number.isInteger(n) || n < 0 || n >= v.part_count) throw new SendError('invalid_part', 400);
   if (bytes.length === 0 || bytes.length > PART_BYTES) throw new SendError('invalid_part', 400);
-  const ref = await storeSendFile(bytes, 'application/octet-stream');
+  let ref: string;
+  try {
+    ref = await storeSendFile(bytes, 'application/octet-stream');
+  } catch (err) {
+    // Sin dónde guardar no sirve reintentar: la fila queda fallida y se puede borrar.
+    if (err instanceof SendError && err.code === 'storage_unavailable') await failVersion(versionId, err.code);
+    throw err;
+  }
   const db = getDb();
   const old = (await db.prepare('SELECT ref FROM send_version_parts WHERE version_id = ? AND n = ?').get(versionId, n)) as { ref: string } | undefined;
   await db
@@ -428,6 +487,8 @@ async function activateVersion(documentId: string, versionId: string, n: number)
 
 const CLAIM_MS = 90_000;
 const MAX_STALLS = 4;
+/** Los topes de un PDF de Send: alcanzan para los 100 MB y 500 páginas que promete la app. */
+const SEND_PDF_LIMITS = { objects: 2_000_000, stream: 512 * 1024 * 1024, total: 4 * 1024 * 1024 * 1024, render: true };
 /** Una subida que no terminó en un día no va a terminar. */
 const UPLOAD_TTL_MS = 86_400_000;
 
@@ -435,8 +496,8 @@ export async function storeRenderedPage(versionId: string, page: { page: number;
   const ref = await storeSendFile(page.bytes, 'image/webp');
   const db = getDb();
   await db
-    .prepare('INSERT INTO send_pages (version_id, page, ref, width, height) VALUES (?, ?, ?, ?, ?) ON CONFLICT (version_id, page) DO UPDATE SET ref = excluded.ref, width = excluded.width, height = excluded.height')
-    .run(versionId, page.page, ref, page.width, page.height);
+    .prepare('INSERT INTO send_pages (version_id, page, ref, width, height, bytes) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (version_id, page) DO UPDATE SET ref = excluded.ref, width = excluded.width, height = excluded.height, bytes = excluded.bytes')
+    .run(versionId, page.page, ref, page.width, page.height, page.bytes.length);
   await db.prepare('UPDATE send_versions SET rendered_count = MAX(rendered_count, ?), render_stalls = 0 WHERE id = ?').run(page.page, versionId);
 }
 
@@ -450,6 +511,7 @@ async function workingPdf(v: VersionRow): Promise<Buffer> {
   const file = await readParts(v.id);
   if (v.kind === 'pdf' || v.kind === 'docs') return file;
   if (v.kind === 'word') {
+    await assertOfficeSize(file);
     let blocks;
     try {
       blocks = docxToBlocks(file);
@@ -479,7 +541,16 @@ export async function pumpRender(versionId: string, budgetMs = 8000): Promise<Ve
     .run(now, versionId, now - CLAIM_MS);
   const load = async () => (await db.prepare('SELECT * FROM send_versions WHERE id = ?').get(versionId)) as VersionRow;
   if (!claim.changes) return load();
+  // Si el motor no carga en este servidor, el archivo no tiene la culpa: queda en cola, con un motivo, y se reintenta.
+  try {
+    await loadRenderEngine();
+  } catch (err) {
+    console.error('[send:render] engine', err instanceof Error ? err.message : 'error');
+    await db.prepare('UPDATE send_versions SET error = ? WHERE id = ?').run('render_unavailable', versionId);
+    return load();
+  }
   const v = await load();
+  if (v.error) await db.prepare('UPDATE send_versions SET error = NULL WHERE id = ?').run(v.id);
   const deadline = now + budgetMs;
   // Una página que tumba la función vuelve a reclamarse: sin avance tras varios intentos, se corta con un motivo.
   if (Number(v.render_stalls) >= MAX_STALLS) {
@@ -490,26 +561,29 @@ export async function pumpRender(versionId: string, budgetMs = 8000): Promise<Ve
   try {
     if (v.kind === 'slides') {
       const file = await readParts(v.id);
-      const total = await pptxToImages(file, { skip: Number(v.rendered_count), deadline, onPage: (page) => storeRenderedPage(v.id, page) });
-      if (total > MAX_PAGES) throw new SendError('too_many_pages', 422);
+      const total = await pptxToImages(file, { skip: Number(v.rendered_count), deadline, onPage: (page) => storeRenderedPage(v.id, page), onTotal: (n) => db.prepare('UPDATE send_versions SET page_count = ?, note = ? WHERE id = ?').run(n, 'simplified', v.id).then(() => undefined) });
       if (!total) throw new SendError('office_invalid', 422);
-      await db.prepare('UPDATE send_versions SET page_count = ?, note = ? WHERE id = ?').run(total, 'simplified', v.id);
     } else {
       const pdf = await workingPdf(v);
-      try {
-        guardPdf(pdf);
-      } catch {
-        throw new SendError('pdf_too_complex', 422);
-      }
       const doc = await openPdf(pdf);
       try {
         if (doc.numPages > MAX_PAGES) throw new SendError('too_many_pages', 422);
         if (doc.numPages < 1) throw new SendError('pdf_invalid', 422);
+        // Una vez, ya sabiendo que abre: una contraseña se informa como tal.
+        if (Number(v.rendered_count) === 0) {
+          try {
+            guardPdf(pdf, SEND_PDF_LIMITS);
+          } catch {
+            throw new SendError('pdf_too_complex', 422);
+          }
+        }
         if (Number(v.page_count) !== doc.numPages) await db.prepare('UPDATE send_versions SET page_count = ? WHERE id = ?').run(doc.numPages, v.id);
         let next = Number(v.rendered_count) + 1;
         while (next <= doc.numPages && Date.now() < deadline) {
           await storeRenderedPage(v.id, await doc.renderPage(next));
           next++;
+          // Entre página y página, le deja lugar al resto de los pedidos.
+          await new Promise((r) => setImmediate(r));
         }
       } finally {
         await doc.close();
@@ -517,18 +591,32 @@ export async function pumpRender(versionId: string, budgetMs = 8000): Promise<Ve
     }
     const after = await load();
     if (Number(after.rendered_count) >= Number(after.page_count) && Number(after.page_count) > 0) {
-      const res = await db.prepare(`UPDATE send_versions SET status = 'ready', ready_at = ?, render_claimed_at = NULL WHERE id = ? AND status = 'processing'`).run(nowIso(), v.id);
+      const res = await db.prepare(`UPDATE send_versions SET status = 'ready', ready_at = ?, render_claimed_at = NULL, render_stalls = 0 WHERE id = ? AND status = 'processing'`).run(nowIso(), v.id);
       if (res.changes) await activateVersion(v.document_id, v.id, v.n);
     } else {
       await db.prepare('UPDATE send_versions SET render_claimed_at = NULL WHERE id = ?').run(v.id);
     }
   } catch (err) {
-    // Lo que no se puede renderizar queda marcado con su motivo: reintentar no lo arregla.
+    if (err instanceof SendError && err.code === 'render_unavailable') {
+      await db.prepare('UPDATE send_versions SET error = ?, render_stalls = 0 WHERE id = ?').run(err.code, v.id);
+      return load();
+    }
+    // Lo que no se puede renderizar queda marcado con su motivo.
     const code = err instanceof SendError ? err.code : 'render_failed';
     if (!(err instanceof SendError)) console.error('[send:render]', v.id, err instanceof Error ? err.message : 'error');
     await failVersion(v.id, code);
   }
   return load();
+}
+
+/** Errores que no son del archivo: se pueden reintentar. */
+export const RETRYABLE_ERRORS = ['render_failed', 'render_unavailable', 'file_unavailable'];
+
+/** Reintentar a mano una versión que falló por el servidor. */
+export async function retryVersion(versionId: string): Promise<void> {
+  await getDb()
+    .prepare(`UPDATE send_versions SET status = 'processing', error = NULL, render_stalls = 0, render_claimed_at = NULL WHERE id = ? AND status = 'failed' AND error IN ('render_failed', 'render_unavailable', 'file_unavailable')`)
+    .run(versionId);
 }
 
 /** Cron de cada minuto: versiones que quedaron a medio renderizar porque quien subió se fue. */
@@ -543,6 +631,7 @@ export async function runSendRenderCron(opts: { budgetMs?: number } = {}): Promi
     if (left < 1000) break;
     await pumpRender(r.id, Math.min(left, 10_000)).catch(() => null);
     pumped++;
+    await new Promise((res) => setImmediate(res));
   }
   return { pumped };
 }
@@ -551,6 +640,7 @@ export async function runSendRenderCron(opts: { budgetMs?: number } = {}): Promi
 export async function purgeSendLeftovers(): Promise<void> {
   const db = getDb();
   const now = nowIso();
+  await db.prepare('DELETE FROM send_page_views WHERE session_id IN (SELECT id FROM send_sessions WHERE expires_at < ?)').run(now);
   await db.prepare('DELETE FROM send_sessions WHERE expires_at < ?').run(now);
   await db.prepare('DELETE FROM send_email_codes WHERE expires_at < ?').run(new Date(Date.now() - 86_400_000).toISOString());
   const stale = (await db
@@ -565,6 +655,7 @@ export async function purgeSendLeftovers(): Promise<void> {
 
 /** Una versión hecha de un PDF ya armado (página de Docs). */
 export async function versionFromPdf(actor: SendActor, documentId: string, pdf: Buffer, name: string, kind: VersionKind, sourceRef: string | null): Promise<VersionRow> {
+  await assertCanStore(actor.ws, pdf.length);
   const id = newId('sv');
   const n = await nextVersionNumber(documentId);
   const db = getDb();
@@ -641,8 +732,9 @@ export interface LinkDto {
   mine: boolean;
 }
 
-export function linkDto(l: LinkRow, actor: SendActor, counts: { visits: number; visitors: number } = { visits: 0, visitors: 0 }): LinkDto {
-  const token = openSendValue(l.token_sealed);
+export function linkDto(l: LinkRow, actor: SendActor, counts: { visits: number; visitors: number } = { visits: 0, visitors: 0 }, canCopy = true): LinkDto {
+  // La URL abre sin cuenta: solo la copia quien armó el link, el dueño del documento o un admin.
+  const token = canCopy ? openSendValue(l.token_sealed) : null;
   return {
     id: l.id,
     name: l.name,
@@ -681,7 +773,10 @@ export async function listLinks(actor: SendActor, target: { documentId?: string;
     )
     .all(target.documentId ?? target.spaceId ?? '')) as Array<{ link_id: string; visits: number; visitors: number }>;
   const by = new Map(counts.map((c) => [c.link_id, { visits: Number(c.visits), visitors: Number(c.visitors) }]));
-  return rows.map((r) => linkDto(r, actor, by.get(r.id)));
+  const owner = (await getDb()
+    .prepare(target.documentId ? 'SELECT owner_id FROM send_documents WHERE id = ?' : 'SELECT owner_id FROM send_spaces WHERE id = ?')
+    .get(target.documentId ?? target.spaceId ?? '')) as { owner_id: string } | undefined;
+  return rows.map((r) => linkDto(r, actor, by.get(r.id), actor.admin || owner?.owner_id === actor.person || r.created_by === actor.person));
 }
 
 function cleanLinkFields(input: LinkInput) {
@@ -811,7 +906,10 @@ export async function updateLink(actor: SendActor, id: string, input: LinkInput)
   if (input.disabled !== undefined) {
     sets.push('disabled_at = ?');
     args.push(input.disabled ? nowIso() : null);
+    // Volver a prenderlo no revive a quien ya había entrado: pasa de nuevo por los pasos.
+    if (!input.disabled && cur.disabled_at) reGate = true;
   }
+  if (fields.expires_at !== undefined && linkState({ disabled_at: null, expires_at: cur.expires_at }) === 'expired') reGate = true;
   if (reGate) sets.push('access_epoch = access_epoch + 1');
   if (sets.length) {
     await getDb()
@@ -825,8 +923,12 @@ export async function deleteLink(actor: SendActor, id: string): Promise<void> {
   await requireEditLink(actor, id);
   const ts = nowIso();
   // Se conservan las visitas de un link borrado: siguen contando en los números del documento.
-  await getDb().prepare('UPDATE send_links SET deleted_at = ?, disabled_at = COALESCE(disabled_at, ?), updated_at = ? WHERE id = ?').run(ts, ts, ts, id);
-  await getDb().prepare('DELETE FROM send_sessions WHERE link_id = ?').run(id);
+  const db = getDb();
+  await db.prepare('UPDATE send_links SET deleted_at = ?, disabled_at = COALESCE(disabled_at, ?), updated_at = ? WHERE id = ?').run(ts, ts, ts, id);
+  const copies = (await db.prepare('SELECT refs FROM send_download_cache WHERE session_id IN (SELECT id FROM send_sessions WHERE link_id = ?)').all(id)) as Array<{ refs: string }>;
+  await deleteSendFiles(copies.flatMap((c) => storeRefsOf(c.refs))).catch(() => undefined);
+  await db.prepare('DELETE FROM send_download_cache WHERE session_id IN (SELECT id FROM send_sessions WHERE link_id = ?)').run(id);
+  await db.prepare('DELETE FROM send_sessions WHERE link_id = ?').run(id);
 }
 
 // ---------- Marca ----------

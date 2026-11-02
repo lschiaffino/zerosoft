@@ -234,7 +234,17 @@ test('NDA con Sign: sin firmar no se ve; firmado, el visor sigue solo', async ({
   const ctx = await browser.newContext();
   const v = await ctx.newPage();
   await v.goto(link.url);
-  await v.getByTestId('sv-input').fill(`signer-${uid()}@acme.com`);
+  const signer = `signer-${uid()}@acme.com`;
+  await v.getByTestId('sv-input').fill(signer);
+  await v.getByTestId('sv-submit').click();
+  // Sin probar el email no hay sobre: pedir el acuerdo acá no da link ni manda nada.
+  await expect(v.getByTestId('sv-gate-verify')).toBeVisible();
+  const early = await ctx.request.post(`/api/send/public/${link.token}/nda`, { data: { action: 'start', name: 'Impostor' } });
+  expect(early.status()).toBe(409);
+  expect(JSON.stringify(await early.json())).not.toContain('/sign/');
+  expect(mails(signer).filter((m) => /sign/i.test(m.subject) && !/\d{6}/.test(m.subject))).toHaveLength(0);
+  await slow.poll(() => mails(signer).filter((m) => /\d{6}/.test(m.subject)).length).toBeGreaterThan(0);
+  await v.getByTestId('sv-input').fill(/\d{6}/.exec(mails(signer).filter((m) => /\d{6}/.test(m.subject)).at(-1)!.subject)![0]);
   await v.getByTestId('sv-submit').click();
   await expect(v.getByTestId('sv-gate-nda')).toBeVisible();
   await shot(v, 'viewer-nda');
@@ -251,6 +261,11 @@ test('NDA con Sign: sin firmar no se ve; firmado, el visor sigue solo', async ({
   await expect(signing.getByText(/signed|done|finished/i).first()).toBeVisible({ timeout: 30_000 });
   // El visor original sigue solo.
   await expect(v.getByTestId('sv-reader')).toBeVisible({ timeout: 20_000 });
+  // La firma es de esa persona: con otro email hay que verificar y firmar de nuevo.
+  expect((await ctx.request.get(`/api/send/public/${link.token}/pages/${made.version.id}/1`)).ok()).toBe(true);
+  const other = await ctx.request.post(`/api/send/public/${link.token}`, { data: { email: 'someone-else@acme.com' } });
+  expect((await other.json()).step).toBe('verify');
+  expect((await ctx.request.get(`/api/send/public/${link.token}/pages/${made.version.id}/1`)).status()).toBe(401);
   await ctx.close();
 });
 
@@ -263,16 +278,37 @@ test('CRM: la visita queda en la línea de tiempo del contacto con ese email', a
   await request.put(`/api/send/versions/${made.version.id}/parts/0`, { data: bytes });
   await request.post(`/api/send/versions/${made.version.id}/complete`, { data: {} });
   await request.post(`/api/send/versions/${made.version.id}/process`);
-  const link = await linkFor(request, made.document.id, { requireEmail: true });
+  // Con un email escrito no llega al contacto: cualquiera puede escribir el de un cliente.
+  const typedLink = await linkFor(request, made.document.id, { requireEmail: true });
+  const typed = await browser.newContext();
+  const t = await typed.newPage();
+  await t.goto(typedLink.url);
+  await t.getByTestId('sv-input').fill(email);
+  await t.getByTestId('sv-submit').click();
+  await expect(t.getByTestId('sv-reader')).toBeVisible();
+  await t.waitForTimeout(4500);
+  await typed.close();
+  await slow.poll(async () => (await analytics(request, made.document.id)).totals.visits).toBe(1);
+  await page.goto(`/en/app/crm/contacts/${contactId}`);
+  await expect(page.getByText('Opened Proposal for CRM in Send')).toHaveCount(0);
+  await page.goto(`/en/app/send/documents/${made.document.id}?tab=activity`);
+  await expect(page.getByTestId('send-visitors').getByRole('link', { name: 'CRM contact' })).toHaveCount(0);
+
+  // Con el email verificado, sí.
+  const link = await linkFor(request, made.document.id, { verifyEmail: true });
   const ctx = await browser.newContext();
   const v = await ctx.newPage();
   await v.goto(link.url);
   await v.getByTestId('sv-input').fill(email);
   await v.getByTestId('sv-submit').click();
+  await expect(v.getByTestId('sv-gate-verify')).toBeVisible();
+  await slow.poll(() => mails(email).filter((m) => /\d{6}/.test(m.subject)).length).toBeGreaterThan(0);
+  await v.getByTestId('sv-input').fill(/\d{6}/.exec(mails(email).filter((m) => /\d{6}/.test(m.subject)).at(-1)!.subject)![0]);
+  await v.getByTestId('sv-submit').click();
   await expect(v.getByTestId('sv-reader')).toBeVisible();
   await v.waitForTimeout(4500);
   await ctx.close();
-  await expect.poll(async () => (await analytics(request, made.document.id)).totals.visits, { timeout: 15_000 }).toBe(1);
+  await slow.poll(async () => (await analytics(request, made.document.id)).totals.visits).toBe(2);
   await page.goto(`/en/app/crm/contacts/${contactId}`);
   await expect(page.getByText('Opened Proposal for CRM in Send')).toBeVisible();
   await shot(page, 'crm-timeline');
@@ -295,11 +331,11 @@ test('Volver, mensaje, marca apagada y números por link', async ({ browser, req
   const ctx = await browser.newContext();
   const v = await ctx.newPage();
   await v.goto(a.url);
-  await expect(v.getByTestId('sv-gate-email')).toContainText('Hi Ana, here is the plan.');
+  await expect(v.getByTestId('sv-gate-email')).not.toContainText('Hi Ana');
   await expect(v.getByTestId('sv-gate-email')).toContainText('Acme Capital');
   await v.getByTestId('sv-input').fill('back@acme.com');
   await v.getByTestId('sv-submit').click();
-  await expect(v.getByTestId('sv-reader')).toBeVisible();
+  await expect(v.getByTestId('sv-reader')).toContainText('Hi Ana, here is the plan.');
   await v.waitForTimeout(4200);
   await slow.poll(async () => (await analytics(request, id)).totals.visits).toBe(1);
   await v.close();

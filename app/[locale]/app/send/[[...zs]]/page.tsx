@@ -76,12 +76,12 @@ export default async function SendPage(props: Props) {
       return (
         <SpaceDetail
           space={{ id: s.id, title: s.title, description: s.description, sharing: s.sharing, canEdit: canEditSpace(actor, s) }}
-          initialItems={await spaceItems(s.id)}
-          initialAccess={await listSpaceAccess(s.id)}
+          initialItems={await spaceItems(actor, s.id)}
+          initialAccess={await listSpaceAccess(actor, s.id)}
           links={await listLinks(actor, { spaceId: s.id })}
           documents={(await listDocuments(actor)).filter((x) => x.status === 'ready').map((x) => ({ id: x.id, title: x.title }))}
           templates={await templates()}
-          analytics={await spaceAnalytics(s.id)}
+          analytics={await spaceAnalytics(actor, s.id)}
           admin={actor.admin}
         />
       );
