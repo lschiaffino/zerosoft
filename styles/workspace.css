@@ -355,3 +355,4 @@ body:has(.wl-page) .zs-support-launcher { display: none; }
 .ws-requested-marker { display: block; margin-top: 2px; text-align: left; }
 .ws-switcher-name-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .wl-notyou-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.wl-notyou-actions .btn { white-space: normal; height: auto; min-height: 30px; text-align: left; overflow-wrap: anywhere; }

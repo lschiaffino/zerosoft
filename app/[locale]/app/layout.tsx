@@ -645,8 +645,8 @@ export default async function AppLayout(
                 workspaceName={user.workspace.name}
                 labels={{
                   title: tGuard('guardTitle'),
-                  switched: tGuard('guardSwitched', { workspace: user.workspace.name }),
-                  gone: tGuard('guardGone', { workspace: user.workspace.name }),
+                  switched: tGuard.raw('guardSwitched') as string,
+                  gone: tGuard.raw('guardGone') as string,
                   switchBack: tGuard.raw('guardSwitchBack') as string,
                   reload: tGuard('guardStay'),
                   home: tGuard('guardHome'),

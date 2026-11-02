@@ -231,7 +231,11 @@ export default function MembersPanel({
   function closeEdit() {
     setEditing(null);
     // Sin ?person= recargar no vuelve a abrir el diálogo.
-    if (openPerson) router.replace('/app/settings/members', { scroll: false });
+    if (openPerson) {
+      // La URL cambia ya (recargar enseguida no reabre); el replace le avisa a la página.
+      window.history.replaceState(null, '', window.location.pathname);
+      router.replace('/app/settings/members', { scroll: false });
+    }
   }
 
   // El aviso de "pide acceso": la página ya comprobó que es de este workspace. Sigue al link aunque

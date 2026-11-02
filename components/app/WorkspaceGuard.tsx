@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { WORKSPACE_HEADER } from '@/lib/return-path';
 
 /** Sin workspace: entrar, cambiar de workspace y marcar avisos valen desde cualquier pestaña. */
+const STORAGE = 'zs-workspace-guard';
 const EXEMPT = ['/api/auth', '/api/teams/switch', '/api/teams/accept', '/api/teams/join', '/api/teams/guest-of', '/api/onboarding', '/api/notifications'];
 
 function guarded(input: RequestInfo | URL, init?: RequestInit): 'api' | 'action' | null {
@@ -34,9 +35,35 @@ export default function WorkspaceGuard({
   workspaceName: string;
   labels: { title: string; switched: string; gone: string; switchBack: string; reload: string; home: string; switchError: string };
 }) {
+  // El nombre y el id van con el aviso: una server action rechazada puede terminar recargando la
+  // página (ya en el otro workspace), y el aviso tiene que sobrevivir para decir qué pasó.
   const [lost, setLost] = useState<Lost | null>(null);
+  const [origin, setOrigin] = useState({ id: workspaceId, name: workspaceName });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(STORAGE);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { id: string; name: string; lost: Lost };
+      if (saved.id === workspaceId) sessionStorage.removeItem(STORAGE);
+      else {
+        setOrigin({ id: saved.id, name: saved.name });
+        setLost(saved.lost);
+      }
+    } catch {
+      /* sin almacenamiento: el aviso vive hasta recargar */
+    }
+  }, [workspaceId]);
+
+  function clearSaved() {
+    try {
+      sessionStorage.removeItem(STORAGE);
+    } catch {
+      /* nada */
+    }
+  }
 
   useEffect(() => {
     const original = window.fetch;
@@ -49,7 +76,15 @@ export default function WorkspaceGuard({
       if (!res.ok || res.redirected || res.headers.has('x-action-redirect')) {
         const now = await original(`/api/teams/switch?id=${encodeURIComponent(workspaceId)}`).catch(() => null);
         const data = now?.ok ? ((await now.json().catch(() => null)) as { active?: boolean; member?: boolean; teamId?: string | null } | null) : null;
-        if (data && !data.active) setLost(data.member ? { teamId: data.teamId ?? null } : 'gone');
+        if (data && !data.active) {
+          const next: Lost = data.member ? { teamId: data.teamId ?? null } : 'gone';
+          setLost(next);
+          try {
+            sessionStorage.setItem(STORAGE, JSON.stringify({ id: workspaceId, name: workspaceName, lost: next }));
+          } catch {
+            /* nada */
+          }
+        }
       }
       return res;
     };
@@ -57,7 +92,7 @@ export default function WorkspaceGuard({
     return () => {
       if (window.fetch === wrapped) window.fetch = original;
     };
-  }, [workspaceId]);
+  }, [workspaceId, workspaceName]);
 
   async function switchBack() {
     if (lost === null || lost === 'gone') return;
@@ -69,8 +104,14 @@ export default function WorkspaceGuard({
       body: JSON.stringify({ teamId: lost.teamId }),
     }).catch(() => null);
     setBusy(false);
-    if (res?.ok) setLost(null);
-    else setError(true);
+    if (!res?.ok) {
+      setError(true);
+      return;
+    }
+    clearSaved();
+    // Si la página ya se recargó en el otro workspace hay que volver a pintarla; si no, lo escrito sigue ahí.
+    if (origin.id !== workspaceId) window.location.reload();
+    else setLost(null);
   }
 
   if (!lost) return null;
@@ -78,19 +119,19 @@ export default function WorkspaceGuard({
   return (
     <div className="ws-guard" role="alert" data-testid="workspace-guard">
       <p className="ws-guard-title">{labels.title}</p>
-      <p className="ws-guard-body">{lost === 'gone' ? labels.gone : labels.switched}</p>
+      <p className="ws-guard-body">{(lost === 'gone' ? labels.gone : labels.switched).replace('{workspace}', origin.name)}</p>
       {error && <p className="ui-error">{labels.switchError}</p>}
       <div className="ws-guard-actions">
         {lost === 'gone' ? (
-          <a className="btn btn-primary btn-sm" href={home}>
+          <a className="btn btn-primary btn-sm" href={home} onClick={clearSaved}>
             {labels.home}
           </a>
         ) : (
           <>
             <button type="button" className="btn btn-primary btn-sm" onClick={() => void switchBack()} disabled={busy} aria-busy={busy || undefined}>
-              {labels.switchBack.replace('{workspace}', workspaceName)}
+              {labels.switchBack.replace('{workspace}', origin.name)}
             </button>
-            <a className="btn btn-secondary btn-sm" href={home}>
+            <a className="btn btn-secondary btn-sm" href={home} onClick={clearSaved}>
               {labels.reload}
             </a>
           </>

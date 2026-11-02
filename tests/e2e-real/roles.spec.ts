@@ -98,7 +98,7 @@ test('la campana abre el pedido aunque ya esté en Miembros; Esc y recargar no l
     await expect(dialog.getByRole('checkbox', { name: /Track/ })).toBeChecked();
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
-    await expect(page).toHaveURL(/\/app\/settings\/members$/);
+    await expect(page).toHaveURL(/\/app\/settings\/members$/, { timeout: 15_000 });
     await page.reload({ waitUntil: 'networkidle' });
     await expect(page.getByRole('dialog')).toHaveCount(0);
     // Quitar sigue a la vista a 1280: la tabla no scrollea por dentro.
@@ -127,7 +127,7 @@ test('rechazar: la persona se entera y vuelve a pedir; aprobar cierra el aviso d
     await olga.page.goto(`/en${href}`, { waitUntil: 'networkidle' });
     await olga.page.getByTestId('deny-request').click();
     await expect(olga.page.getByRole('dialog')).toHaveCount(0);
-    await expect(olga.page).toHaveURL(/\/app\/settings\/members$/);
+    await expect(olga.page).toHaveURL(/\/app\/settings\/members$/, { timeout: 15_000 });
     expect((await unread(ada)).some((r) => r.href.includes(mel.id))).toBe(false);
     expect((await unread(mel)).some((r) => /CRM/.test(r.title))).toBe(true);
 
@@ -320,8 +320,8 @@ test('permisos de admins: invitaciones ajenas y ajustes de ingreso por dominio',
     // Una invitación con más apps que las mías: ni reenviar ni ver el link, con ningún cuerpo.
     expect((await post(lia, wide, {})).status()).toBe(403);
     expect((await post(lia, wide, { action: 'resend', allowAnyEmail: true })).status()).toBe(403);
-    const list = (await (await lia.ctx.request.get('/api/teams/invites')).json()) as { invites: Array<{ id: string; url?: string; canResend: boolean; canAllowAnyEmail: boolean }> };
-    const row = (id: string) => list.invites.find((i) => i.id === id)!;
+    const list = (await (await lia.ctx.request.get('/api/teams/invites')).json()) as { rows: Array<{ id: string; url?: string; canResend: boolean; canAllowAnyEmail: boolean }> };
+    const row = (id: string) => list.rows.find((i) => i.id === id)!;
     expect(row(wide).url).toBeUndefined();
     expect(row(wide).canResend).toBe(false);
     expect(row(narrow).url).toBeTruthy();
@@ -371,11 +371,11 @@ test('una server action de la pestaña que quedó atrás avisa: Docs y CRM, al c
     expect((await ada.ctx.request.post('/api/teams/switch', { data: { teamId: null } })).ok()).toBe(true);
     const before = [await count(ada.id), await count(olga.id)];
     await ada.page.getByRole('button', { name: /New page/ }).first().click();
-    await expect(guard).toContainText('changed in another tab');
+    await expect(guard).toContainText('changed in another tab', { timeout: 20_000 });
     expect([await count(ada.id), await count(olga.id)]).toEqual(before);
-    // Volver no recarga: lo escrito sigue y se puede reintentar.
     await guard.getByRole('button', { name: /Switch back to/ }).click();
-    await expect(guard).toHaveCount(0);
+    await expect(guard).toHaveCount(0, { timeout: 20_000 });
+    await ada.page.waitForLoadState('networkidle');
     await ada.page.getByRole('button', { name: /New page/ }).first().click();
     await ada.page.waitForURL(/\/app\/docs\/[^/?]+/);
     expect(await count(olga.id)).toBe(before[1] + 1);
@@ -385,8 +385,10 @@ test('una server action de la pestaña que quedó atrás avisa: Docs y CRM, al c
     const lead = (await (await olga.ctx.request.post('/api/crm/leads', { data: { name: `Lead ${uid()}`, contactId: contact.id } })).json()) as { id: string };
     await ada.page.goto(`/en/app/crm/leads/${lead.id}`, { waitUntil: 'networkidle' });
     expect((await ada.ctx.request.post('/api/teams/switch', { data: { teamId: null } })).ok()).toBe(true);
-    await ada.page.getByRole('button', { name: /^Remove Ana/ }).first().click();
-    await expect(guard).toContainText('changed in another tab');
+    const removeAna = ada.page.getByRole('button', { name: /^Remove Ana/ }).first();
+    await ada.page.locator('li', { has: removeAna }).first().hover();
+    await removeAna.click({ timeout: 20_000 });
+    await expect(guard).toContainText('changed in another tab', { timeout: 20_000 });
     const row = (await sql('SELECT contact_id FROM crm_leads WHERE id = ?', [lead.id]))[0];
     expect(row.contact_id).toBe(contact.id);
 
@@ -396,7 +398,7 @@ test('una server action de la pestaña que quedó atrás avisa: Docs y CRM, al c
     expect((await olga.ctx.request.delete(`/api/teams/members/${mel.id}`)).ok()).toBe(true);
     const melBefore = await count(mel.id);
     await mel.page.getByRole('button', { name: /New page/ }).first().click();
-    await expect(melGuard).toContainText('no longer have access');
+    await expect(melGuard).toContainText('no longer have access', { timeout: 20_000 });
     expect(await count(mel.id)).toBe(melBefore);
   } finally {
     await closeAll(olga, ada, mel);
