@@ -429,7 +429,7 @@ export default function JobEditor({ detail, people, careersUrl, tab: initialTab,
                   {q.knockout && q.type === 'yesno' && (
                     <label className="ui-field hr-inline">
                       <span className="label">{t('questions.expected')}</span>
-                      <select className="select" value={q.knockout.accepted[0] ?? 'yes'} onChange={(e) => setQuestions((qs) => qs.map((x, j) => (j === i ? { ...x, knockout: { accepted: [e.target.value], min: null } } : x)))}>
+                      <select className="select" value={q.knockout.accepted[0] ?? 'yes'} onChange={(e) => setQuestions((qs) => qs.map((x, j) => (j === i ? { ...x, knockout: { accepted: [e.target.value], min: null, autoReject: x.knockout?.autoReject } } : x)))}>
                         <option value="yes">{t('common.yes')}</option>
                         <option value="no">{t('common.no')}</option>
                       </select>
@@ -448,6 +448,7 @@ export default function JobEditor({ detail, people, careersUrl, tab: initialTab,
                                 ? {
                                     ...x,
                                     knockout: {
+                                      autoReject: x.knockout?.autoReject,
                                       accepted: e.target.value
                                         .split(',')
                                         .map((o) => o.trim())
@@ -465,7 +466,7 @@ export default function JobEditor({ detail, people, careersUrl, tab: initialTab,
                   {q.knockout && q.type === 'number' && (
                     <label className="ui-field hr-inline">
                       <span className="label">{t('questions.min')}</span>
-                      <input className="input" inputMode="decimal" value={q.knockout.min ?? ''} onChange={(e) => setQuestions((qs) => qs.map((x, j) => (j === i ? { ...x, knockout: { accepted: [], min: e.target.value === '' ? null : Number(e.target.value) } } : x)))} />
+                      <input className="input" inputMode="decimal" value={q.knockout.min ?? ''} onChange={(e) => setQuestions((qs) => qs.map((x, j) => (j === i ? { ...x, knockout: { accepted: [], min: e.target.value === '' ? null : Number(e.target.value), autoReject: x.knockout?.autoReject } } : x)))} />
                     </label>
                   )}
                   <button type="button" className="btn btn-ghost btn-sm hr-push-right" onClick={() => setQuestions((qs) => qs.filter((_, j) => j !== i))}>

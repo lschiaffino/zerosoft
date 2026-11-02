@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { pjson, readJson, withPeople } from '@/lib/people-http';
-import { answerSurvey, closeSurvey, deleteSurvey } from '@/lib/people-extras';
+import { answerSurvey, closeSurvey, deleteSurvey, renameSurvey } from '@/lib/people-extras';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,9 +16,17 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   });
 }
 
-/** PATCH: HR la cierra. */
-export async function PATCH(_req: NextRequest, { params }: Ctx) {
-  return withPeople(async (ctx) => ((await closeSurvey(ctx, (await params).id)) ? pjson({ ok: true }) : pjson({ error: 'not_found' }, 404)));
+/** PATCH: HR la cierra; con { question }, le cambia el texto mientras nadie respondió. */
+export async function PATCH(req: NextRequest, { params }: Ctx) {
+  return withPeople(async (ctx) => {
+    const b = await readJson(req);
+    const id = (await params).id;
+    if (typeof b.question === 'string') {
+      await renameSurvey(ctx, id, b.question);
+      return pjson({ ok: true });
+    }
+    return (await closeSurvey(ctx, id)) ? pjson({ ok: true }) : pjson({ error: 'not_found' }, 404);
+  });
 }
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {

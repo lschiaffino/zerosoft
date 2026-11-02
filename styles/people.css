@@ -764,3 +764,29 @@ a.ppl-home-row:hover {
 }
 .ppl-linked-warn { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 6px; font-size: 0.875rem; color: var(--ink-2); }
 .ppl-linked-warn p { margin: 0; }
+
+/* La fila del directorio: el nombre no se aprieta contra la insignia ni contra las otras columnas. */
+.ppl-table th[scope='row']:has(.ppl-rowlink) {
+  min-width: 260px;
+}
+.ppl-rowlink .ppl-rowtext {
+  flex: 1 1 auto;
+}
+.ppl-rowlink .badge {
+  flex: none;
+}
+td.ppl-ellipsis {
+  max-width: 260px;
+}
+.ppl-review > .ppl-panel-actions,
+.ppl-panel > .ppl-panel-actions {
+  margin-top: 12px;
+}
+.ppl-survey-answer {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+#surveys {
+  margin-top: 24px;
+}

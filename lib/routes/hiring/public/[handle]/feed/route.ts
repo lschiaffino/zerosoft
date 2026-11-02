@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { careersFeed } from '@/lib/hiring/careers';
-import { renderMarkdown } from '@/lib/hiring/markdown';
+import { descriptionHtml } from '@/lib/hiring/markdown';
 import { hiringLimit } from '@/lib/hiring/http';
 
 export const runtime = 'nodejs';
@@ -12,7 +12,7 @@ type Ctx = { params: Promise<{ handle: string }> };
 export async function GET(req: NextRequest, { params }: Ctx) {
   const limited = await hiringLimit(req, 'feed', 60, 3600);
   if (limited) return limited;
-  const xml = await careersFeed((await params).handle.toLowerCase(), renderMarkdown);
+  const xml = await careersFeed((await params).handle.toLowerCase(), descriptionHtml);
   if (!xml) return new Response('Not found', { status: 404 });
   return new Response(xml, { headers: { 'content-type': 'application/xml; charset=utf-8', 'cache-control': 'public, max-age=900' } });
 }

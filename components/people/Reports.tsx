@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
@@ -30,6 +31,7 @@ export default function Reports({ report, audit, canExport, custom }: { report: 
   const locale = useLocale();
   const num = useNumber();
   const day = useDay();
+  const [allAudit, setAllAudit] = useState(false);
   const none = t('reports.none');
   const maxMonth = Math.max(1, ...report.monthly.map((m) => Math.max(m.hires, m.exits)));
   const monthLabel = (m: string) => new Date(`${m}-01T00:00:00Z`).toLocaleDateString(locale, { month: 'short', year: '2-digit', timeZone: 'UTC' });
@@ -127,6 +129,7 @@ export default function Reports({ report, audit, canExport, custom }: { report: 
         {audit.length === 0 ? (
           <EmptyState compact quiet body={t('reports.auditEmpty')} />
         ) : (
+          <>
           <div className="table-wrap">
             <table className="table table-compact ppl-table" data-testid="people-audit">
               <thead>
@@ -138,7 +141,7 @@ export default function Reports({ report, audit, canExport, custom }: { report: 
                 </tr>
               </thead>
               <tbody>
-                {audit.map((a) => (
+                {(allAudit ? audit : audit.slice(0, 25)).map((a) => (
                   <tr key={a.id}>
                     <td>{day(a.createdAt, { dateStyle: 'short', timeStyle: 'short' })}</td>
                     <td>{a.actorName}</td>
@@ -152,6 +155,12 @@ export default function Reports({ report, audit, canExport, custom }: { report: 
               </tbody>
             </table>
           </div>
+            {!allAudit && audit.length > 25 && (
+              <button type="button" className="btn btn-sm btn-ghost" onClick={() => setAllAudit(true)}>
+                {t('reports.auditAll', { count: audit.length })}
+              </button>
+            )}
+          </>
         )}
       </section>
     </div>

@@ -1,17 +1,17 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import EmptyState from '@/components/ui/EmptyState';
 import type { ReportConfig, ReportResult, SavedReport } from '@/lib/people-extras';
-import { api, useErrorText, useToast } from './people-ui';
+import { api, Dialog, Field, useErrorText, useToast } from './people-ui';
 
 const COLUMNS = ['name', 'workEmail', 'jobTitle', 'department', 'location', 'country', 'manager', 'status', 'employmentType', 'startDate', 'endDate', 'tenureYears', 'payPeriod', 'phone'] as const;
 const TYPES = ['full_time', 'part_time', 'contractor', 'intern'] as const;
 const STATUSES = ['active', 'onboarding', 'offboarding', 'terminated'] as const;
 
 /** Armar una lista de personas: columnas, filtros, vista previa, CSV y guardarla. Solo HR (la ruta lo exige). */
-export default function CustomReports({ saved: initial, customFields, departments, locations }: { saved: SavedReport[]; customFields: Array<{ id: string; label: string; sensitive: boolean }>; departments: string[]; locations: string[] }) {
+export default function CustomReports({ saved: initial, customFields, departments, locations, openId = null }: { openId?: string | null; saved: SavedReport[]; customFields: Array<{ id: string; label: string; sensitive: boolean }>; departments: string[]; locations: string[] }) {
   const t = useTranslations('people');
   const errText = useErrorText();
   const [toast, push] = useToast();
@@ -20,6 +20,7 @@ export default function CustomReports({ saved: initial, customFields, department
   const [result, setResult] = useState<ReportResult | null>(null);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
+  const [renaming, setRenaming] = useState<SavedReport | null>(null);
 
   const options = useMemo(
     () => [...COLUMNS.map((c) => ({ key: c as string, label: t(`customReports.columns.${c}`) })), ...customFields.map((f) => ({ key: `custom:${f.id}`, label: f.sensitive ? `${f.label} (${t('customReports.sensitive')})` : f.label }))],
@@ -33,6 +34,27 @@ export default function CustomReports({ saved: initial, customFields, department
     setBusy(false);
     if (!res.ok) return push(errText(res.data.error), 'bad');
     setResult(res.data);
+  };
+  // Desde ⌘K: /reports?report=<id> abre ese reporte.
+  const opened = useRef(false);
+  useEffect(() => {
+    if (opened.current || !openId) return;
+    opened.current = true;
+    const r = initial.find((x) => x.id === openId);
+    if (r) {
+      setConfig(r.config);
+      void run(r.config);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openId]);
+  const rename = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!renaming) return;
+    const next = String(new FormData(e.currentTarget).get('name') ?? '');
+    const res = await api(`/api/people/custom-reports/${renaming.id}`, { method: 'PATCH', json: { name: next } });
+    if (!res.ok) return push(errText(res.data.error), 'bad');
+    setSaved((s) => s.map((x) => (x.id === renaming.id ? { ...x, name: next.trim() } : x)).sort((a, b) => a.name.localeCompare(b.name)));
+    setRenaming(null);
   };
   const toggle = (key: string, on: boolean) => setConfig((c) => ({ ...c, columns: on ? [...c.columns, key] : c.columns.filter((x) => x !== key) }));
   const download = async () => {
@@ -79,9 +101,14 @@ export default function CustomReports({ saved: initial, customFields, department
               >
                 {r.name}
               </button>
-              <button type="button" className="btn btn-sm btn-ghost" aria-label={t('customReports.deleteNamed', { name: r.name })} onClick={() => void remove(r.id)}>
-                {t('common.delete')}
-              </button>
+              <span className="ppl-panel-actions">
+                <button type="button" className="btn btn-sm btn-ghost" aria-label={t('customReports.renameNamed', { name: r.name })} onClick={() => setRenaming(r)}>
+                  {t('customReports.rename')}
+                </button>
+                <button type="button" className="btn btn-sm btn-ghost" aria-label={t('customReports.deleteNamed', { name: r.name })} onClick={() => void remove(r.id)}>
+                  {t('common.delete')}
+                </button>
+              </span>
             </li>
           ))}
         </ul>
@@ -174,6 +201,23 @@ export default function CustomReports({ saved: initial, customFields, department
             </div>
           </>
         ))}
+      <Dialog open={renaming !== null} title={t('customReports.rename')} onClose={() => setRenaming(null)}>
+        <form onSubmit={rename}>
+          <div className="ui-modal-body ui-fields">
+            <Field label={t('customReports.namePlaceholder')} htmlFor="rpt-name">
+              <input key={renaming?.id} id="rpt-name" name="name" className="input" required maxLength={80} defaultValue={renaming?.name ?? ''} autoFocus />
+            </Field>
+          </div>
+          <div className="ui-modal-foot">
+            <button type="button" className="btn btn-ghost" onClick={() => setRenaming(null)}>
+              {t('common.cancel')}
+            </button>
+            <button type="submit" className="btn btn-primary">
+              {t('common.save')}
+            </button>
+          </div>
+        </form>
+      </Dialog>
     </section>
   );
 }

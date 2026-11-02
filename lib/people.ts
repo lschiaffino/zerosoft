@@ -83,6 +83,7 @@ export interface PeopleCtx {
 
 interface SettingsRow {
   workspace_id: string;
+  approve_changes: number;
   visibility: string;
   welcome: string;
   handbook_page_id: string | null;
@@ -1204,7 +1205,7 @@ export async function searchPeopleForPalette(
   personId: string,
   wsRole: string,
   q: string,
-): Promise<Array<{ kind: 'person' | 'template' | 'cycle'; id: string; label: string; meta: string }>> {
+): Promise<Array<{ kind: 'person' | 'template' | 'cycle' | 'survey' | 'report'; id: string; label: string; meta: string }>> {
   const term = q.trim();
   if (!term) return [];
   const exists = await db().prepare('SELECT 1 AS x FROM people_settings WHERE workspace_id = ?').get(ws);
@@ -1226,5 +1227,18 @@ export async function searchPeopleForPalette(
        ORDER BY c.created_at DESC LIMIT 5`,
     )
     .all(ws, like, hr ? 1 : 0, me ?? '-', me ?? '-')) as Array<{ id: string; name: string; status: string }>;
-  return [...people, ...templates, ...cycles.map((c) => ({ kind: 'cycle' as const, id: c.id, label: c.name, meta: c.status }))];
+  // Encuestas: las abiertas para todos, todas para HR. Reportes guardados: solo HR.
+  const surveys = (await db()
+    .prepare(`SELECT id, question, status FROM people_surveys WHERE workspace_id = ? AND question LIKE ? ESCAPE '\\' AND (? = 1 OR status = 'open') ORDER BY created_at DESC LIMIT 5`)
+    .all(ws, like, hr ? 1 : 0)) as Array<{ id: string; question: string; status: string }>;
+  const reports = hr
+    ? ((await db().prepare(`SELECT id, name FROM people_saved_reports WHERE workspace_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT 5`).all(ws, like)) as Array<{ id: string; name: string }>)
+    : [];
+  return [
+    ...people,
+    ...templates,
+    ...cycles.map((c) => ({ kind: 'cycle' as const, id: c.id, label: c.name, meta: c.status })),
+    ...surveys.map((s) => ({ kind: 'survey' as const, id: s.id, label: s.question, meta: s.status })),
+    ...reports.map((r) => ({ kind: 'report' as const, id: r.id, label: r.name, meta: '' })),
+  ];
 }

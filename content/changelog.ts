@@ -29,8 +29,8 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    id: '2026-11-01-people-hiring-parity',
-    date: '2026-11-01',
+    id: '2026-11-02-people-hiring-parity',
+    date: '2026-11-02',
     title: { en: 'People and Hiring: approvals, imports and history', es: 'People y Hiring: aprobaciones, importación e historial', pt: 'People e Hiring: aprovações, importação e histórico' },
     items: [
       { product: 'people', en: 'Import people from a CSV, with a preview and an error per row.', es: 'Importá personas desde un CSV, con vista previa y un error por fila.', pt: 'Importe pessoas de um CSV, com prévia e um erro por linha.' },
@@ -41,6 +41,9 @@ export const CHANGELOG: ChangelogEntry[] = [
       { product: 'hiring', en: 'Import candidates from a CSV, copy or move them between jobs, merge duplicates and export what you can see.', es: 'Importá candidatos desde un CSV, copialos o movelos entre puestos, fusioná duplicados y exportá lo que ves.', pt: 'Importe candidatos de um CSV, copie ou mova entre vagas, mescle duplicados e exporte o que você vê.' },
       { product: 'hiring', en: 'Knock-out questions can reject on their own, rejection reasons get a report, and each stage can have an interview guide.', es: 'Las preguntas knock-out pueden rechazar solas, los motivos de rechazo tienen reporte y cada etapa puede tener una guía de entrevista.', pt: 'Perguntas eliminatórias podem recusar sozinhas, os motivos de recusa têm relatório e cada etapa pode ter um guia de entrevista.' },
       { product: 'hiring', en: 'A hire now lands in People as a new profile in onboarding, if your workspace uses People.', es: 'Una contratación ahora queda en People como ficha en onboarding, si tu workspace usa People.', pt: 'Uma contratação agora entra no People como perfil em onboarding, se o seu workspace usa o People.' },
+    ],
+  },
+  {
     id: '2026-11-01-mcp-unificado',
     date: '2026-11-01',
     title: {

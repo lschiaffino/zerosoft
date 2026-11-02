@@ -836,7 +836,7 @@ export function HistorySection({ employeeId, hr, people }: { employeeId: string;
     if (!res.ok) return push(errText(res.data.error), 'bad');
     scheduled.reload();
   };
-  if (error) return <LoadError onRetry={reload} />;
+  if (error) return <LoadError retry={reload} />;
   if (!data) return <Loading />;
   const entries = data.entries;
   const upcoming = (scheduled.data?.scheduled ?? []).filter((s) => s.status !== 'applied');

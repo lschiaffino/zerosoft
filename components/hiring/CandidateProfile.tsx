@@ -196,12 +196,12 @@ export default function CandidateProfile({
                 {t('profile.reject')}
               </button>
             )}
+            {manageJobs.some((j) => j.id !== app.job.id) && (
+              <button type="button" className="btn btn-secondary" data-testid="hiring-copy" onClick={() => setCopyOpen(true)}>
+                {t('copy.button')}
+              </button>
+            )}
           </div>
-        )}
-        {app.canManage && manageJobs.some((j) => j.id !== app.job.id) && (
-          <button type="button" className="btn btn-ghost" data-testid="hiring-copy" onClick={() => setCopyOpen(true)}>
-            {t('copy.button')}
-          </button>
         )}
         {!app.canManage && stage && <span className="hr-rowmeta">{stage.name}</span>}
       </div>

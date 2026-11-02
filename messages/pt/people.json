@@ -443,7 +443,8 @@
       "view": "Viu",
       "change": "Alterou",
       "export": "Exportou"
-    }
+    },
+    "auditAll": "Ver todos os {count}"
   },
   "settings": {
     "title": "Configurações do People",
@@ -513,15 +514,12 @@
     "welcomeHint": "Aparece no topo da página de boas-vindas, com o gestor, a equipe, as primeiras tarefas e o que ler.",
     "previewWelcome": "Ver as boas-vindas",
     "hrAdmins": "Admins de RH",
-    "hrAdminsHint": "Admins de RH gerenciam perfis, folgas, documentos, salários, avaliações e relatórios. Owner e admins do workspace são sempre admins de RH.",
-    "implicitHr": "Admin do workspace",
+    "hrAdminsHint": "Admins de RH gerenciam perfis, folgas, documentos, salários, avaliações e relatórios. Salários e a exportação da folha são do owner, dos admins de RH e de cada pessoa. Admins do workspace gerenciam o resto do People sem ver salários. Só o owner nomeia admins de RH.",
+    "implicitHr": "Owner do workspace",
     "onlyAdmins": "Só owner e admins do workspace escolhem admins de RH.",
     "levelsHint": "Anos=dias por ano, separados por vírgulas. 3=18, 5=20 quer dizer 18 dias a partir do ano 3 e 20 a partir do ano 5.",
     "scope": "Para quem vale",
-    "scopeHint": "Vazio quer dizer todos. Separe os valores com vírgulas.",
-    "hrAdminsHint": "Admins de RH gerenciam perfis, folgas, documentos, salários, avaliações e relatórios. Salários e a exportação da folha são do owner, dos admins de RH e de cada pessoa. Admins do workspace gerenciam o resto do People sem ver salários. Só o owner nomeia admins de RH.",
-    "implicitHr": "Owner do workspace",
-    "onlyAdmins": "Só owner e admins do workspace escolhem admins de RH."
+    "scopeHint": "Vazio quer dizer todos. Separe os valores com vírgulas."
   },
   "welcome": {
     "title": "Boas-vindas, {name}",
@@ -596,7 +594,8 @@
     "already_reviewer": "Essa pessoa já é avaliadora.",
     "already_submitted": "Esta avaliação já foi enviada.",
     "own_request": "Sua própria alteração precisa ser revisada por outra pessoa do RH.",
-    "nothing_to_change": "Preencha ao menos uma alteração."
+    "nothing_to_change": "Preencha ao menos uma alteração.",
+    "survey_answered": "Esta pesquisa já tem respostas: o texto fica como está."
   },
   "home": {
     "inbox": "Aguardando você",
@@ -654,7 +653,9 @@
       "tenureYears": "Anos aqui",
       "payPeriod": "Período de pagamento",
       "phone": "Telefone"
-    }
+    },
+    "rename": "Renomear",
+    "renameNamed": "Renomear {name}"
   },
   "surveys": {
     "title": "Pesquisas",
@@ -671,15 +672,16 @@
     "thanks": "Obrigado, sua resposta foi registrada.",
     "close": "Encerrar pesquisa",
     "tooFew": "{count, plural, one {# resposta} other {# respostas}} até agora. O resultado aparece a partir de 3 respostas, para que ninguém seja identificado.",
-    "summary": "{count} respostas: {promoters} promotores, {passives} neutros, {detractors} detratores",
+    "summary": "{count, plural, one {# resposta} other {# respostas}}: {promoters, plural, one {# promotor} other {# promotores}}, {passives, plural, one {# neutro} other {# neutros}}, {detractors, plural, one {# detrator} other {# detratores}}",
     "status": {
       "open": "Aberta",
       "closed": "Encerrada"
-    }
+    },
+    "yourAnswer": "Sua resposta"
   },
   "changes": {
     "toggle": "Alterações nos próprios dados de contato e pessoais precisam de aprovação do RH",
-    "hint": "Com isto ligado, uma alteração de telefone, endereço, documento ou contatos de emergência espera aqui. Pronomes e bio se aplicam na hora.",
+    "hint": "Com isto ligado, uma alteração de telefone, endereço, data de nascimento ou contatos de emergência espera aqui. Pronomes e bio se aplicam na hora.",
     "empty": "Nada para revisar.",
     "off": "A aprovação está desligada: as alterações se aplicam na hora.",
     "field": "Campo",

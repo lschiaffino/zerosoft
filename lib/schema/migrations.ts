@@ -8123,6 +8123,9 @@ export const MIGRATIONS: Migration[] = [
     id: '164_people_linked_confirmed',
     up: async (client) => {
       await addColumn(client, 'ALTER TABLE people_employees ADD COLUMN linked_confirmed TEXT');
+    },
+  },
+  {
     // Puestos confidenciales (Hiring): fuera de la página de empleos y solo para el equipo y los admins.
     id: '165_hiring_confidential',
     up: async (c) => {

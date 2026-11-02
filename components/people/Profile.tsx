@@ -9,7 +9,7 @@ import { HOLIDAY_COUNTRIES } from '@/lib/people-time';
 import { api, Avatar, Dialog, Fact, Field, Tabs, useDay, useErrorText, useToast } from './people-ui';
 import { CompensationSection, DocumentsSection, HistorySection, OnboardingSection, OneOnOneSection, PerformanceSection, TimeOffSection } from './ProfileSections';
 
-type TabKey = 'overview' | 'timeoff' | 'documents' | 'performance' | 'compensation' | 'onboarding' | 'notes';
+type TabKey = 'overview' | 'timeoff' | 'documents' | 'performance' | 'history' | 'compensation' | 'onboarding' | 'notes';
 
 export interface ProfileProps {
   employee: EmployeeDto;
@@ -417,9 +417,12 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
                     <Field label={t('fields.address')} htmlFor="pp-addr">
                       <input id="pp-addr" name="address" className="input" defaultValue={p.address} maxLength={500} />
                     </Field>
-                    <Field label={t('fields.nationalId')} htmlFor="pp-nid">
-                      <input id="pp-nid" name="nationalId" className="input" defaultValue={p.nationalId} maxLength={60} />
-                    </Field>
+                    {/* El documento lo carga HR: cada persona lo ve en su ficha, y mandarlo desde acá hacía fallar todo el guardado. */}
+                    {hr && (
+                      <Field label={t('fields.nationalId')} htmlFor="pp-nid">
+                        <input id="pp-nid" name="nationalId" className="input" defaultValue={p.nationalId} maxLength={60} />
+                      </Field>
+                    )}
                     {[0, 1].map((i) => (
                       <fieldset key={i} className="ppl-fieldset">
                         <legend className="label">{t('profile.emergencyContact', { n: i + 1 })}</legend>

@@ -191,7 +191,7 @@ async function peopleView(props: Props, user: SessionUser, ctx: PeopleCtx) {
       if (id) notFound();
       if (!ctx.viewer.hr) return hrOnly();
       const [report, audit, saved, fields, facets] = await Promise.all([peopleReport(ctx), listAudit(ctx, 100), listSavedReports(ctx), listFields(ctx.ws), directoryFacets(ctx)]);
-      return <Reports report={report} audit={audit} canExport={ctx.viewer.comp === true} custom={<CustomReports saved={saved} customFields={fields.map((f) => ({ id: f.id, label: f.label, sensitive: f.sensitive }))} departments={facets.departments} locations={facets.locations} />} />;
+      return <Reports report={report} audit={audit} canExport={ctx.viewer.comp === true} custom={<CustomReports saved={saved} customFields={fields.map((f) => ({ id: f.id, label: f.label, sensitive: f.sensitive }))} departments={facets.departments} locations={facets.locations} openId={sp.report ?? null} />} />;
     }
     case 'settings': {
       if (id) notFound();

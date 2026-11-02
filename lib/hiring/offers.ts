@@ -154,7 +154,7 @@ export const offerActionSchema = z.object({ action: z.enum(['approve', 'reject',
  * Aprobar (hiring manager o admin), enviar (solo aprobada) o retirar. Enviar
  * devuelve el link para que quien la manda lo pueda copiar.
  */
-export async function actOnOffer(actor: HiringActor, offerId: string, input: z.infer<typeof offerActionSchema>): Promise<{ offer: OfferDto; link?: string }> {
+export async function actOnOffer(actor: HiringActor, offerId: string, input: z.input<typeof offerActionSchema>): Promise<{ offer: OfferDto; link?: string }> {
   const offer = await getOfferRow(actor.ws, offerId);
   if (!offer) throw new HiringError('not_found', 404);
   const { app, job, candidate } = await requireManageApp(actor, offer.application_id);
@@ -163,13 +163,13 @@ export async function actOnOffer(actor: HiringActor, offerId: string, input: z.i
   const chain = await listChain(actor.ws, 'offer', offer.id);
   if (chain.length && (input.action === 'approve' || input.action === 'reject')) {
     if (offer.status !== 'pending_approval') throw new HiringError('invalid_state', 409);
-    const state = await decideStep(actor, 'offer', offer.id, input.action, input.note, { title: `${candidate.name} · ${offer.title}`, href: `/app/hiring/candidates/${candidate.id}?app=${app.id}` });
+    const state = await decideStep(actor, 'offer', offer.id, input.action, input.note ?? '', { title: `${candidate.name} · ${offer.title}`, href: `/app/hiring/candidates/${candidate.id}?app=${app.id}` });
     if (state === 'approved') {
       await db.prepare("UPDATE hiring_offers SET status = 'approved', approved_by = ?, approved_at = ?, updated_at = ? WHERE id = ? AND status = 'pending_approval'").run(actor.person, ts, ts, offer.id);
       await addEvent(actor.ws, candidate.id, app.id, 'offer', actor.person, { status: 'approved', title: offer.title });
     } else if (state === 'rejected') {
       await db.prepare("UPDATE hiring_offers SET status = 'withdrawn', token_hash = NULL, updated_at = ? WHERE id = ? AND status = 'pending_approval'").run(ts, offer.id);
-      await addEvent(actor.ws, candidate.id, app.id, 'offer', actor.person, { status: 'withdrawn', title: offer.title, note: input.note });
+      await addEvent(actor.ws, candidate.id, app.id, 'offer', actor.person, { status: 'withdrawn', title: offer.title, note: input.note ?? '' });
     }
     return { offer: await withChain((await getOfferRow(actor.ws, offer.id))!) };
   }

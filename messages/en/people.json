@@ -443,7 +443,8 @@
       "view": "Viewed",
       "change": "Changed",
       "export": "Exported"
-    }
+    },
+    "auditAll": "Show all {count}"
   },
   "settings": {
     "title": "People settings",
@@ -513,15 +514,12 @@
     "welcomeHint": "Shown at the top of the welcome page, with their manager, team, first tasks and what to read.",
     "previewWelcome": "See the welcome page",
     "hrAdmins": "HR admins",
-    "hrAdminsHint": "HR admins manage profiles, time off, documents, compensation, reviews and reports. Workspace owners and admins are always HR admins.",
-    "implicitHr": "Workspace admin",
+    "hrAdminsHint": "HR admins manage profiles, time off, documents, compensation, reviews and reports. Salaries and the payroll export are for the owner, HR admins and each person. Workspace admins manage the rest of People without seeing salaries. Only the owner names HR admins.",
+    "implicitHr": "Workspace owner",
     "onlyAdmins": "Only workspace owners and admins choose HR admins.",
     "levelsHint": "Years=days per year, separated by commas. 3=18, 5=20 means 18 days from year 3 and 20 from year 5.",
     "scope": "Who gets this policy",
-    "scopeHint": "Blank means everyone. Separate values with commas.",
-    "hrAdminsHint": "HR admins manage profiles, time off, documents, compensation, reviews and reports. Salaries and the payroll export are for the owner, HR admins and each person. Workspace admins manage the rest of People without seeing salaries. Only the owner names HR admins.",
-    "implicitHr": "Workspace owner",
-    "onlyAdmins": "Only workspace owners and admins choose HR admins."
+    "scopeHint": "Blank means everyone. Separate values with commas."
   },
   "welcome": {
     "title": "Welcome, {name}",
@@ -596,7 +594,8 @@
     "already_reviewer": "That person is already a reviewer.",
     "already_submitted": "This review was already submitted.",
     "own_request": "Someone else in HR has to review your own change.",
-    "nothing_to_change": "Fill in at least one change."
+    "nothing_to_change": "Fill in at least one change.",
+    "survey_answered": "This survey already has answers, so its text stays as it is."
   },
   "home": {
     "inbox": "Waiting for you",
@@ -654,7 +653,9 @@
       "tenureYears": "Years here",
       "payPeriod": "Pay period",
       "phone": "Phone"
-    }
+    },
+    "rename": "Rename",
+    "renameNamed": "Rename {name}"
   },
   "surveys": {
     "title": "Surveys",
@@ -671,15 +672,16 @@
     "thanks": "Thanks, your answer is in.",
     "close": "Close survey",
     "tooFew": "{count, plural, one {# answer} other {# answers}} so far. Results show from 3 answers, so nobody can be guessed.",
-    "summary": "{count} answers: {promoters} promoters, {passives} passives, {detractors} detractors",
+    "summary": "{count, plural, one {# answer} other {# answers}}: {promoters, plural, one {# promoter} other {# promoters}}, {passives, plural, one {# passive} other {# passives}}, {detractors, plural, one {# detractor} other {# detractors}}",
     "status": {
       "open": "Open",
       "closed": "Closed"
-    }
+    },
+    "yourAnswer": "Your answer"
   },
   "changes": {
     "toggle": "People need HR approval to change their own contact and personal data",
-    "hint": "When this is on, a change to phone, address, ID or emergency contacts waits here. Pronouns and bio apply at once.",
+    "hint": "When this is on, a change to phone, address, birth date or emergency contacts waits here. Pronouns and bio apply at once.",
     "empty": "Nothing waiting for review.",
     "off": "Approval is off, so changes apply at once.",
     "field": "Field",

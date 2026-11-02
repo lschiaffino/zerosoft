@@ -46,10 +46,15 @@ function ChangesPanel({ approveChanges, onChanged, onError }: { approveChanges: 
   const t = useTranslations('people');
   const { data, error, reload } = useLoad<{ requests: ChangeRequest[] }>('/api/people/changes');
   const requests = data?.requests ?? [];
+  const [on, setOn] = useState(approveChanges);
   const label = (f: string) => (t.has(`fields.${f}`) ? t(`fields.${f}`) : f);
-  const toggle = async (on: boolean) => {
-    const res = await api('/api/people/settings', { method: 'PATCH', json: { approveChanges: on } });
-    if (!res.ok) return onError(res.data.error);
+  const toggle = async (next: boolean) => {
+    setOn(next);
+    const res = await api('/api/people/settings', { method: 'PATCH', json: { approveChanges: next } });
+    if (!res.ok) {
+      setOn(!next);
+      return onError(res.data.error);
+    }
     onChanged();
   };
   const decide = async (id: string, decision: 'approve' | 'deny') => {
@@ -62,16 +67,16 @@ function ChangesPanel({ approveChanges, onChanged, onError }: { approveChanges: 
     <section className="ppl-panel" data-testid="people-changes">
       <h2 className="ppl-panel-title">{t('settings.tabs.changes')}</h2>
       <label className="ppl-check">
-        <input type="checkbox" checked={approveChanges} onChange={(e) => void toggle(e.target.checked)} />
+        <input type="checkbox" checked={on} onChange={(e) => void toggle(e.target.checked)} />
         <span>{t('changes.toggle')}</span>
       </label>
       <p className="ppl-hint">{t('changes.hint')}</p>
       {error ? (
-        <LoadError onRetry={reload} />
+        <LoadError retry={reload} />
       ) : !data ? (
         <Loading />
       ) : requests.length === 0 ? (
-        <EmptyState compact quiet body={approveChanges ? t('changes.empty') : t('changes.off')} />
+        <EmptyState compact quiet body={on ? t('changes.empty') : t('changes.off')} />
       ) : (
         requests.map((r) => (
           <article key={r.id} className="ppl-review">
@@ -120,7 +125,7 @@ export default function PeopleSettings({ settings, policies, fields, holidays, s
   const day = useDay();
   const errText = useErrorText();
   const [toast, push] = useToast();
-  const tabs: Array<{ key: TabKey; label: string }> = [
+  const tabs: Array<{ key: TabKey; label: string; count?: number }> = [
     { key: 'policies', label: t('settings.tabs.policies') },
     { key: 'holidays', label: t('settings.tabs.holidays') },
     { key: 'fields', label: t('settings.tabs.fields') },

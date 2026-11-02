@@ -294,3 +294,6 @@ a.hr-list-row:hover .hr-list-main { text-decoration: underline; }
   margin: 8px 0 0;
   padding-left: 20px;
 }
+
+.hr-stagebar-actions .btn { white-space: nowrap; }
+@media (max-width: 720px) { .hr-stagebar-actions { flex-wrap: wrap; } .hr-stagebar-actions .select { flex: 1 1 100%; } }

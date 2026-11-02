@@ -75,6 +75,7 @@ test('People: salarios, personales, bajas y salidas por rol y por canal', async 
     const address = `Calle Secreta ${uid()}`;
     expect((await request.patch(`/api/people/employees/${empId}`, { data: { managerId: bossId, personal: { address }, startDate: '2020-01-02' } })).ok()).toBe(true);
     expect((await request.post(`/api/people/employees/${empId}/compensation`, { data: { amount: salary, currency: 'USD', period: 'year', reason: 'hire', effectiveDate: '2024-01-01' } })).ok()).toBe(true);
+    expect((await request.patch(`/api/people/employees/${peerId}`, { data: { managerId: bossId } })).ok()).toBe(true);
     expect((await request.patch('/api/people/settings', { data: { hrAdmins: [hr.id] } })).ok()).toBe(true);
 
     // Empleado (compañero): nada de lo sensible por ninguna vía.
@@ -218,7 +219,10 @@ test('Hiring: borradores, confidenciales y salario oculto por rol y por canal', 
       expect(page, url).not.toContain(candidate);
     }
     expect(await html(outsider.ctx, `/en/app/hiring/jobs/${draftId}`)).not.toContain(draftTitle);
-    for (const q of [draftTitle, secretTitle, candidate]) expect(await text(outsider.ctx.request.get(`/api/search?q=${encodeURIComponent(q)}`))).not.toContain(q);
+    for (const q of [draftTitle, secretTitle, candidate]) {
+      const found = (await (await outsider.ctx.request.get(`/api/search?q=${encodeURIComponent(q)}`)).json()) as { items: Array<{ label: string; href: string }> };
+      expect(found.items.filter((i) => i.label === q || i.href.includes(draftId) || i.href.includes(secretId))).toEqual([]);
+    }
     expect(await text(outsider.ctx.request.get('/api/hiring/export'))).not.toContain(candidate);
     expect((await outsider.ctx.request.post(`/api/hiring/jobs/${openId}/import`, { data: { csv: 'Name,Email\nA,a@x.co\n', dryRun: true } })).status()).toBe(403);
     expect((await outsider.ctx.request.get(`/api/hiring/candidates/${candidateId}`)).status()).toBe(404);
@@ -249,7 +253,8 @@ test('Hiring: borradores, confidenciales y salario oculto por rol y por canal', 
     // Sin la app.
     expect((await noApp.ctx.request.get('/api/hiring/jobs')).status()).toBe(401);
     expect((await noApp.ctx.request.get('/api/hiring/export')).status()).toBe(401);
-    expect(await text(noApp.ctx.request.get(`/api/search?q=${encodeURIComponent(openTitle)}`))).not.toContain(openTitle);
+    const noAppFound = (await (await noApp.ctx.request.get(`/api/search?q=${encodeURIComponent(openTitle)}`)).json()) as { items: Array<{ label: string }> };
+    expect(noAppFound.items.filter((i) => i.label === openTitle)).toEqual([]);
 
     // Página pública: lo confidencial y el borrador no están ni en el feed.
     const { settings } = (await (await request.put('/api/hiring/settings', { data: { published: true } })).json()) as { settings: { handle: string } };

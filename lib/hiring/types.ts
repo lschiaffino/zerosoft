@@ -87,7 +87,7 @@ export const questionSchema = z.object({
    * reactivar y al candidato no se le avisa).
    */
   knockout: z
-    .object({ accepted: z.array(z.string().trim().max(120)).max(20).default([]), min: z.number().nullable().default(null), autoReject: z.boolean().default(false) })
+    .object({ accepted: z.array(z.string().trim().max(120)).max(20).default([]), min: z.number().nullable().default(null), autoReject: z.boolean().optional() })
     .nullable()
     .default(null),
 });

@@ -9,7 +9,7 @@ import { api, Dialog, Field, useErrorText, useToast } from './people-ui';
 
 const SCORES = Array.from({ length: 11 }, (_, i) => i);
 
-function AnswerForm({ survey, onDone }: { survey: SurveyDto; onDone: () => void }) {
+function AnswerForm({ survey, onDone, hideQuestion }: { survey: SurveyDto; onDone: () => void; hideQuestion: boolean }) {
   const t = useTranslations('people');
   const errText = useErrorText();
   const [score, setScore] = useState<number | null>(null);
@@ -25,7 +25,7 @@ function AnswerForm({ survey, onDone }: { survey: SurveyDto; onDone: () => void 
   return (
     <form className="ui-fields" onSubmit={submit} data-testid="people-survey-form">
       <fieldset className="ppl-scores">
-        <legend className="label">{survey.question}</legend>
+        <legend className={hideQuestion ? 'label' : 'ppl-panel-title'}>{hideQuestion ? t('surveys.yourAnswer') : survey.question}</legend>
         {SCORES.map((n) => (
           <label key={n} className={`ppl-score${score === n ? ' ppl-score-on' : ''}`}>
             <input type="radio" className="sr-only" name={`score-${survey.id}`} value={n} checked={score === n} onChange={() => setScore(n)} />
@@ -58,6 +58,7 @@ export default function Surveys({ surveys, hr }: { surveys: SurveyDto[]; hr: boo
   const errText = useErrorText();
   const [toast, push] = useToast();
   const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<SurveyDto | null>(null);
   const refresh = (msg?: string) => {
     if (msg) push(msg);
     router.refresh();
@@ -69,8 +70,16 @@ export default function Surveys({ surveys, hr }: { surveys: SurveyDto[]; hr: boo
     setCreating(false);
     refresh();
   };
+  const rename = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editing) return;
+    const res = await api(`/api/people/surveys/${editing.id}`, { method: 'PATCH', json: { question: new FormData(e.currentTarget).get('question') } });
+    if (!res.ok) return push(errText(res.data.error), 'bad');
+    setEditing(null);
+    refresh();
+  };
   const act = async (id: string, method: 'PATCH' | 'DELETE') => {
-    const res = await api(`/api/people/surveys/${id}`, { method });
+    const res = await api(`/api/people/surveys/${id}`, { method, ...(method === 'PATCH' ? { json: {} } : {}) });
     if (!res.ok) return push(errText(res.data.error), 'bad');
     refresh();
   };
@@ -119,6 +128,11 @@ export default function Surveys({ surveys, hr }: { surveys: SurveyDto[]; hr: boo
                   </>
                 )}
                 <div className="ppl-panel-actions">
+                  {s.responses === 0 && (
+                    <button type="button" className="btn btn-sm btn-ghost" onClick={() => setEditing(s)}>
+                      {t('common.edit')}
+                    </button>
+                  )}
                   {s.status === 'open' && (
                     <button type="button" className="btn btn-sm btn-ghost" onClick={() => void act(s.id, 'PATCH')}>
                       {t('surveys.close')}
@@ -130,10 +144,38 @@ export default function Surveys({ surveys, hr }: { surveys: SurveyDto[]; hr: boo
                 </div>
               </>
             )}
-            {s.status === 'open' && (s.answered ? <p className="ppl-hint">{t('surveys.thanks')}</p> : <AnswerForm survey={s} onDone={() => refresh(t('surveys.thanks'))} />)}
+            {s.status === 'open' && (
+              <div className={hr ? 'ppl-survey-answer' : undefined}>
+                {s.answered ? (
+                  <>
+                    {!hr && <h3 className="ppl-panel-title">{s.question}</h3>}
+                    <p className="ppl-hint">{t('surveys.thanks')}</p>
+                  </>
+                ) : (
+                  <AnswerForm survey={s} hideQuestion={hr} onDone={() => refresh(t('surveys.thanks'))} />
+                )}
+              </div>
+            )}
           </article>
         ))
       )}
+      <Dialog open={editing !== null} title={t('common.edit')} onClose={() => setEditing(null)}>
+        <form onSubmit={rename}>
+          <div className="ui-modal-body ui-fields">
+            <Field label={t('surveys.question')} htmlFor="svy-edit">
+              <textarea key={editing?.id} id="svy-edit" name="question" className="input" rows={2} required maxLength={300} defaultValue={editing?.question ?? ''} autoFocus />
+            </Field>
+          </div>
+          <div className="ui-modal-foot">
+            <button type="button" className="btn btn-ghost" onClick={() => setEditing(null)}>
+              {t('common.cancel')}
+            </button>
+            <button type="submit" className="btn btn-primary">
+              {t('common.save')}
+            </button>
+          </div>
+        </form>
+      </Dialog>
       <Dialog open={creating} title={t('surveys.new')} onClose={() => setCreating(false)}>
         <form onSubmit={create}>
           <div className="ui-modal-body ui-fields">

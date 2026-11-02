@@ -419,6 +419,14 @@ export async function saveReport(ctx: PeopleCtx, name: string, config: ReportCon
   return { id: reportId, name: clean, config };
 }
 
+export async function renameReport(ctx: PeopleCtx, id: string, name: string): Promise<void> {
+  requireHr(ctx);
+  const clean = name.trim().slice(0, 80);
+  if (!clean) throw new PeopleError('name_required');
+  const res = await db().prepare('UPDATE people_saved_reports SET name = ?, updated_at = ? WHERE id = ? AND workspace_id = ?').run(clean, nowIso(), id, ctx.ws);
+  if (!res.changes) throw new PeopleError('not_found', 404);
+}
+
 export async function deleteReport(ctx: PeopleCtx, id: string): Promise<boolean> {
   requireHr(ctx);
   return (await db().prepare('DELETE FROM people_saved_reports WHERE id = ? AND workspace_id = ?').run(id, ctx.ws)).changes > 0;
@@ -488,6 +496,16 @@ export async function createSurvey(ctx: PeopleCtx, question: string): Promise<st
   const people = (await db().prepare("SELECT user_id FROM people_employees WHERE workspace_id = ? AND status IN ('active', 'onboarding') AND user_id IS NOT NULL").all(ctx.ws)) as Array<{ user_id: string }>;
   await notifyPeople(people.map((p) => p.user_id).filter((u) => u !== ctx.personId), { title: q.slice(0, 180), href: '/app/people/reviews#surveys', sourceId: id });
   return id;
+}
+
+/** El texto se puede corregir hasta la primera respuesta: después, las respuestas ya no dirían a qué contestaron. */
+export async function renameSurvey(ctx: PeopleCtx, id: string, question: string): Promise<void> {
+  requireHr(ctx);
+  const q = question.trim().slice(0, 300);
+  if (!q) throw new PeopleError('name_required');
+  if (await db().prepare('SELECT 1 AS x FROM people_survey_responses WHERE survey_id = ? LIMIT 1').get(id)) throw new PeopleError('survey_answered', 409);
+  const res = await db().prepare('UPDATE people_surveys SET question = ? WHERE id = ? AND workspace_id = ?').run(q, id, ctx.ws);
+  if (!res.changes) throw new PeopleError('not_found', 404);
 }
 
 export async function closeSurvey(ctx: PeopleCtx, id: string): Promise<boolean> {

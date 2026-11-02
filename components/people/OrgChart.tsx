@@ -76,9 +76,9 @@ export default function OrgChart({ nodes }: { nodes: OrgNode[] }) {
     // En un teléfono la altura la da la página (el recuadro crece con el organigrama): cuenta solo el ancho.
     const all = clampZoom(phone ? Math.min(1, (el.clientWidth - pad * 2) / width) : Math.min(1, (el.clientWidth - pad * 2) / width, (maxBoxHeight() - pad * 2) / height));
     // Al abrir en un teléfono, nombres legibles aunque no entre todo: se recorre con el dedo.
-    const z = readable && phone ? Math.max(all, 0.6) : all;
+    const z = readable ? Math.max(all, phone ? 0.6 : 0.5) : all;
     setZoom(z);
-    setPan({ x: Math.max(pad, (el.clientWidth - width * z) / 2), y: pad });
+    setPan({ x: width * z < el.clientWidth ? (el.clientWidth - width * z) / 2 : pad, y: pad });
   }, [width, height]);
   useEffect(() => fit(true), [fit]);
 

@@ -465,8 +465,8 @@ describe('Hiring: quién ve qué puesto', () => {
     expect((await listJobs(w.outsider, { status: 'all' })).some((j) => j.id === draft.id)).toBe(false);
     expect(await getJob(w.outsider, draft.id)).toBeNull();
     expect((await searchHiring(w.outsider, draft.title)).length).toBe(0);
-    const tool = hiringTools.find((t) => t.name === 'hiring_jobs')!;
-    const res = (await tool.run!(toolCtx(w.outsider), { query: draft.title })) as { jobs: unknown[] };
+    const tool = hiringTools.find((t) => t.name === 'hiring_jobs')! as { run: (c: ToolCtx, i: unknown) => Promise<unknown> };
+    const res = (await tool.run(toolCtx(w.outsider), { query: draft.title })) as { jobs: unknown[] };
     expect(res.jobs).toEqual([]);
     expect((await listJobs(w.interviewer, { status: 'all' })).some((j) => j.id === draft.id)).toBe(true);
   });
