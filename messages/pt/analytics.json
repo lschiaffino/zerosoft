@@ -867,7 +867,9 @@
     "wrongPassword": "Essa senha não está certa.",
     "passwordTitle": "Este link está protegido",
     "passwordLabel": "Senha",
-    "passwordEnter": "Abrir"
+    "passwordEnter": "Abrir",
+    "dependsOn": "Os números deste link dependem de {list}. Quem as editar muda o que o link mostra.",
+    "changesPublic": "Isto muda os números de {count, plural, one {um link público} other {# links públicos}}: {list}."
   },
   "alerts": {
     "title": "Alertas",

@@ -3566,8 +3566,13 @@
         "es": "Suscripciones",
         "pt": "Assinaturas"
       },
-      "status": "have",
-      "competitorHas": true
+      "status": "partial",
+      "competitorHas": true,
+      "detail": {
+        "en": "Scheduled by the hourly cron; tried with test email capture, not yet with a real send",
+        "es": "Programadas por el cron de cada hora; probadas con captura de emails, todavía sin un envío real",
+        "pt": "Agendadas pelo cron de cada hora; testadas com captura de emails, ainda sem um envio real"
+      }
     },
     {
       "id": "subscriptions-email",
@@ -3615,8 +3620,13 @@
         "es": "Opciones de horario",
         "pt": "Opções de horário"
       },
-      "status": "have",
-      "competitorHas": true
+      "status": "partial",
+      "competitorHas": true,
+      "detail": {
+        "en": "The dates are computed and tested, delivery not yet tried with a real send",
+        "es": "Las fechas se calculan y están probadas; la entrega todavía sin un envío real",
+        "pt": "As datas são calculadas e testadas; a entrega ainda sem um envio real"
+      }
     },
     {
       "id": "subscriptions-select-insights",
@@ -3626,8 +3636,13 @@
         "es": "Elegir insights de la suscripción",
         "pt": "Escolher insights da assinatura"
       },
-      "status": "have",
-      "competitorHas": true
+      "status": "partial",
+      "competitorHas": true,
+      "detail": {
+        "en": "Choosing up to 20 works; delivery not yet tried with a real send",
+        "es": "Elegir hasta 20 funciona; la entrega todavía sin un envío real",
+        "pt": "Escolher até 20 funciona; a entrega ainda sem um envio real"
+      }
     },
     {
       "id": "subscriptions-page",
@@ -3653,8 +3668,13 @@
         "es": "Probar la entrega",
         "pt": "Testar a entrega"
       },
-      "status": "have",
-      "competitorHas": true
+      "status": "partial",
+      "competitorHas": true,
+      "detail": {
+        "en": "Send now works against test email capture, not yet with a real send",
+        "es": "Mandar ahora funciona contra la captura de emails, todavía sin un envío real",
+        "pt": "Mandar agora funciona com a captura de emails, ainda sem um envio real"
+      }
     },
     {
       "id": "subscriptions-ai-summary",

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createShare, listShareLog, listSharePasswords, listShares, shareOptions } from '@/lib/analytics/records-more';
+import { createShare, shareDependencies, listShareLog, listSharePasswords, listShares, shareOptions } from '@/lib/analytics/records-more';
 import { getDashboard, getInsight } from '@/lib/analytics/records';
 import { shareableQuery } from '@/lib/analytics/types';
 import { actorProject, aError, analyticsActor, canManageAnalytics, isResponse, readJson } from '@/lib/analytics/http';
@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     shares: await Promise.all(shares.map(async (x) => ({ ...x, options: shareOptions(x), passwords: await listSharePasswords(x.id) }))),
     log: await listShareLog(project.id, { insightId, dashboardId }),
+    dependsOn: await shareDependencies(project.id, { insightId, dashboardId }),
   });
 }
 

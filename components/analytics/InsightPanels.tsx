@@ -32,6 +32,7 @@ export function ShareDialog({ open, onClose, projectId, target }: { open: boolea
   const [origin, setOrigin] = useState('');
   const [copied, setCopied] = useState<string | null>(null);
   const [log, setLog] = useState<ShareLogDto[]>([]);
+  const [dependsOn, setDependsOn] = useState<Array<{ kind: 'cohort' | 'action'; name: string }>>([]);
   const [note, setNote] = useState('');
   const [shown, setShown] = useState<{ share: string; password: string } | null>(null);
   const param = target.insightId ? `insight=${encodeURIComponent(target.insightId)}` : `dashboard=${encodeURIComponent(target.dashboardId ?? '')}`;
@@ -52,10 +53,11 @@ export function ShareDialog({ open, onClose, projectId, target }: { open: boolea
   }, [open, projectId, param]);
 
   const load = () =>
-    api<{ shares: ShareRowDto[]; log: ShareLogDto[] }>(`/api/analytics/shares?project=${encodeURIComponent(projectId)}&${param}`)
+    api<{ shares: ShareRowDto[]; log: ShareLogDto[]; dependsOn: Array<{ kind: 'cohort' | 'action'; name: string }> }>(`/api/analytics/shares?project=${encodeURIComponent(projectId)}&${param}`)
       .then((r) => {
         setShares(r.shares);
         setLog(r.log);
+        setDependsOn(r.dependsOn);
       })
       .catch(() => setError(true));
   /** Un cambio en un link y volver a leer: las opciones, las contraseñas y el historial. */
@@ -200,6 +202,11 @@ export function ShareDialog({ open, onClose, projectId, target }: { open: boolea
             </div>
           );
         })}
+        {shares && shares.length > 0 && dependsOn.length > 0 && (
+          <p className="an-note" data-testid="an-share-depends">
+            {t('dependsOn', { list: dependsOn.map((d) => d.name).join(', ') })}
+          </p>
+        )}
         {log.length > 0 && (
           <details className="an-more">
             <summary>{t('history')}</summary>

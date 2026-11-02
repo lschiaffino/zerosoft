@@ -8464,6 +8464,9 @@ export const MIGRATIONS: Migration[] = [
     up: async (c) => {
       await addColumn(c, "ALTER TABLE hiring_settings ADD COLUMN candidate_fields TEXT NOT NULL DEFAULT '[]'");
       await addColumn(c, "ALTER TABLE hiring_candidates ADD COLUMN custom TEXT NOT NULL DEFAULT '{}'");
+    },
+  },
+  {
     id: '190_analytics_cookieless',
     up: async (client) => {
       await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN cookieless INTEGER NOT NULL DEFAULT 0');

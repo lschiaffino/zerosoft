@@ -42,6 +42,9 @@ export const CHANGELOG: ChangelogEntry[] = [
       { product: 'hiring', en: 'Knock-out questions can reject on their own, rejection reasons get a report, and each stage can have an interview guide.', es: 'Las preguntas knock-out pueden rechazar solas, los motivos de rechazo tienen reporte y cada etapa puede tener una guía de entrevista.', pt: 'Perguntas eliminatórias podem recusar sozinhas, os motivos de recusa têm relatório e cada etapa pode ter um guia de entrevista.' },
       { product: 'hiring', en: 'Your own fields on each candidate, with protected ones for recruiters and hiring managers.', es: 'Campos propios en cada candidato, con protegidos para recruiters y hiring managers.', pt: 'Campos próprios em cada candidato, com protegidos para recruiters e hiring managers.' },
       { product: 'hiring', en: 'A hire now lands in People as a new profile in onboarding, if your workspace uses People.', es: 'Una contratación ahora queda en People como ficha en onboarding, si tu workspace usa People.', pt: 'Uma contratação agora entra no People como perfil em onboarding, se o seu workspace usa o People.' },
+    ],
+  },
+  {
     id: '2026-11-02-analytics-tendencias-tableros',
     date: '2026-11-02',
     title: {

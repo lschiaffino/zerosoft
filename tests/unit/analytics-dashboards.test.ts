@@ -7,10 +7,10 @@ import { parseIngestBody } from '@/lib/analytics/ingest-core';
 import { storeEvents } from '@/lib/analytics/ingest';
 import { createProject, getProject, type ProjectRow } from '@/lib/analytics/projects';
 import { runInsight } from '@/lib/analytics/query';
-import { createDashboard, createDashboardFromTemplate, createInsight, getCohort, getDashboard, transferDashboardTile, updateDashboard } from '@/lib/analytics/records';
-import { createShare } from '@/lib/analytics/records-more';
+import { createCohort, createDashboard, createDashboardFromTemplate, createInsight, getCohort, getDashboard, transferDashboardTile, updateDashboard } from '@/lib/analytics/records';
+import { createAction, createShare, shareDependencies, sharesUsing } from '@/lib/analytics/records-more';
 import { publicShareView } from '@/lib/analytics/share-view';
-import { dashboardSettingsSchema, funnelQuerySchema, insightQuerySchema, trendsQuerySchema, type DashboardSettings } from '@/lib/analytics/types';
+import { cohortDefinitionSchema, dashboardSettingsSchema, funnelQuerySchema, insightQuerySchema, trendsQuerySchema, type DashboardSettings } from '@/lib/analytics/types';
 
 async function setupOne() {
   const user = await upsertUser({ email: `an-dash-c-${nanoid(8)}@test.dev` });
@@ -181,5 +181,31 @@ describe('dashboards on stored data', () => {
     const elsewhere = await createDashboard(foreign.id, foreignUser, { name: 'Other' });
     await expect(transferDashboardTile(project.id, other.id, elsewhere.id, { kind: 'insight', id: insight.id }, false)).resolves.toBeNull();
     expect((await getDashboard(foreign.id, elsewhere.id))?.insightIds).toEqual([]);
+  });
+});
+
+describe('public links that depend on a cohort or an action', () => {
+  it('lists the links, directly and through a board, and tells the admin', async () => {
+    const { project } = await setupOne();
+    const userId = project.workspace_id;
+    const cohort = await createCohort(project.id, userId, { name: 'Pros', definition: cohortDefinitionSchema.parse({ type: 'static', properties: [], behavior: null, groups: [] }) });
+    const action = await createAction(project.id, userId, { name: 'Bought', description: '', steps: [{ event: 'buy', urlContains: null, filters: [] }] });
+    const byCohort = await createInsight(project.id, userId, { name: 'By cohort', query: trendsQuerySchema.parse({ kind: 'trends', series: [{ event: 'x' }], cohortId: cohort.id }) });
+    const byAction = await createInsight(project.id, userId, { name: 'By action', query: trendsQuerySchema.parse({ kind: 'trends', series: [{ event: `@action:${action.id}` }] }) });
+    const plain = await createInsight(project.id, userId, { name: 'Plain', query: trendsQuerySchema.parse({ kind: 'trends', series: [{ event: 'x' }] }) });
+    const board = await createDashboard(project.id, userId, { name: 'Board' });
+    await updateDashboard(project.id, board.id, { insightIds: [byAction.id, plain.id] });
+    const onlyFilter = await createDashboard(project.id, userId, { name: 'Filtered board' });
+    await updateDashboard(project.id, onlyFilter.id, { insightIds: [plain.id], settings: base({ cohortId: cohort.id }) });
+    expect(await sharesUsing(project.id, { cohortId: cohort.id })).toEqual([]);
+    await createShare(project.id, userId, { insightId: byCohort.id });
+    await createShare(project.id, userId, { dashboardId: board.id });
+    await createShare(project.id, userId, { dashboardId: onlyFilter.id });
+    await createShare(project.id, userId, { insightId: plain.id });
+    expect((await sharesUsing(project.id, { cohortId: cohort.id })).map((x) => x.name).sort()).toEqual(['By cohort', 'Filtered board']);
+    expect((await sharesUsing(project.id, { actionId: action.id })).map((x) => x.name)).toEqual(['Board']);
+    expect(await shareDependencies(project.id, { dashboardId: board.id })).toEqual([{ kind: 'action', name: 'Bought' }]);
+    expect(await shareDependencies(project.id, { insightId: byCohort.id })).toEqual([{ kind: 'cohort', name: 'Pros' }]);
+    expect(await shareDependencies(project.id, { insightId: plain.id })).toEqual([]);
   });
 });

@@ -867,7 +867,9 @@
     "wrongPassword": "That password is not right.",
     "passwordTitle": "This link is protected",
     "passwordLabel": "Password",
-    "passwordEnter": "Open"
+    "passwordEnter": "Open",
+    "dependsOn": "Numbers on this link depend on {list}. A member who edits them changes what the link shows.",
+    "changesPublic": "This changes the numbers on {count, plural, one {a public link} other {# public links}}: {list}."
   },
   "alerts": {
     "title": "Alerts",

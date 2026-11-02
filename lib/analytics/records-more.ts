@@ -347,6 +347,50 @@ export async function hasActiveShare(projectId: string, target: { insightId?: st
   return Boolean(row);
 }
 
+/** Lo que aparece en cada link público del proyecto: el nombre del insight o tablero y la consulta de cada insight. */
+async function sharedTargets(projectId: string): Promise<Array<{ shareId: string; name: string; queries: string[]; boardSettings: string | null; insightId: string | null; dashboardId: string | null }>> {
+  const db = getDb();
+  const rows = (await db
+    .prepare(
+      `SELECT s.id AS share_id, s.insight_id, s.dashboard_id, i.name AS insight_name, i.query AS insight_query, d.name AS board_name, d.settings AS board_settings
+       FROM analytics_shares s LEFT JOIN analytics_insights i ON i.id = s.insight_id LEFT JOIN analytics_dashboards d ON d.id = s.dashboard_id WHERE s.project_id = ?`,
+    )
+    .all(projectId)) as unknown as Array<{ share_id: string; insight_id: string | null; dashboard_id: string | null; insight_name: string | null; insight_query: string | null; board_name: string | null; board_settings: string | null }>;
+  const out = [];
+  for (const r of rows) {
+    const queries = r.insight_query ? [r.insight_query] : [];
+    if (r.dashboard_id) {
+      const items = (await db.prepare('SELECT i.query FROM analytics_dashboard_items x JOIN analytics_insights i ON i.id = x.insight_id WHERE x.dashboard_id = ?').all(r.dashboard_id)) as unknown as Array<{ query: string }>;
+      queries.push(...items.map((x) => x.query));
+    }
+    out.push({ shareId: r.share_id, name: r.insight_name ?? r.board_name ?? '', queries, boardSettings: r.board_settings, insightId: r.insight_id, dashboardId: r.dashboard_id });
+  }
+  return out;
+}
+
+const usesCohort = (text: string, id: string) => text.includes(`"cohortId":"${id}"`) || text.includes(`"${id}"`);
+const usesAction = (text: string, id: string) => text.includes(`"${ACTION_PREFIX}${id}"`);
+
+/** Links públicos cuyos números cambian si se edita esta cohorte o acción. */
+export async function sharesUsing(projectId: string, record: { cohortId?: string; actionId?: string }): Promise<Array<{ shareId: string; name: string }>> {
+  const uses = (text: string) => (record.cohortId ? usesCohort(text, record.cohortId) : usesAction(text, record.actionId ?? ''));
+  return (await sharedTargets(projectId)).filter((t) => t.queries.some(uses) || (record.cohortId && t.boardSettings && uses(t.boardSettings))).map((t) => ({ shareId: t.shareId, name: t.name }));
+}
+
+/** Para quien administra un link: de qué cohortes y acciones dependen sus números. */
+export async function shareDependencies(projectId: string, target: { insightId?: string; dashboardId?: string }): Promise<Array<{ kind: 'cohort' | 'action'; name: string }>> {
+  const db = getDb();
+  const t = (await sharedTargets(projectId)).find((x) => (target.insightId ? x.insightId === target.insightId : x.dashboardId === target.dashboardId));
+  if (!t) return [];
+  const text = [...t.queries, t.boardSettings ?? ''].join('\n');
+  const cohorts = (await db.prepare('SELECT id, name FROM analytics_cohorts WHERE project_id = ?').all(projectId)) as unknown as Array<{ id: string; name: string }>;
+  const actions = (await db.prepare('SELECT id, name FROM analytics_actions WHERE project_id = ?').all(projectId)) as unknown as Array<{ id: string; name: string }>;
+  return [
+    ...cohorts.filter((c) => usesCohort(text, c.id)).map((c) => ({ kind: 'cohort' as const, name: c.name })),
+    ...actions.filter((a) => usesAction(text, a.id)).map((a) => ({ kind: 'action' as const, name: a.name })),
+  ];
+}
+
 export async function revokeShare(projectId: string, id: string, personId: string | null = null): Promise<boolean> {
   const cur = await shareById(projectId, id);
   if (cur) await logShare(projectId, id, 'disabled', personId, { insightId: cur.insight_id, dashboardId: cur.dashboard_id });
