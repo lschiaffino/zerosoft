@@ -29,11 +29,23 @@ test('Notes: N crea una nota, / busca y las flechas recorren la lista', async ({
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
   const second = page.locator('.notes-item').nth(1);
-  await expect(second).toBeFocused();
+  // Con el editor ya montado: es lo que se llevaba el foco de la lista.
   await expect(second).toHaveAttribute('aria-current', 'true');
+  await expect(page.locator('.note-body .docs-title')).toHaveText(/Flechas/);
+  await expect(page.locator('.note-body .docs-editable').first()).toBeVisible();
+  await expect(second).toBeFocused();
+  // La flecha siguiente sigue en la lista: vuelve a la primera y la abre.
+  await page.keyboard.press('ArrowUp');
+  const first = page.locator('.notes-item').first();
+  await expect(first).toHaveAttribute('aria-current', 'true');
+  await expect(first).toBeFocused();
+  await expect(page.locator('.note-body .docs-title')).toHaveText('Flechas dos');
+  // Enter pasa de la lista a escribir en la nota abierta.
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.note-body .docs-editable').first()).toBeFocused();
+  await page.keyboard.press('Escape');
 
   // N fuera de un campo crea una nota y enfoca el título.
-  await second.blur();
   await page.locator('.notes-list-head h1').click();
   await page.keyboard.press('n');
   await expect(page.locator('.note-body .docs-title')).toBeFocused();

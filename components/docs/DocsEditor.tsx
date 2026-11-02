@@ -169,6 +169,8 @@ interface DocsEditorProps {
    * archivos solo si se pasan `pageLinks` / `files` (con sus propias rutas).
    */
   embedded?: boolean;
+  /** Al abrir no toma el foco: lo tiene otra parte de la pantalla (las flechas de la lista de Notes). */
+  keepFocusOnOpen?: boolean;
   /** Links [[ a otra cosa que páginas de Docs (Notes: a otras notas). */
   pageLinks?: PageLinkSource;
   /** Rutas propias de subida y descarga de archivos (Notes). */
@@ -506,6 +508,7 @@ export default function DocsEditor({
   commentCounts,
   onBlockComment,
   embedded = false,
+  keepFocusOnOpen = false,
   pageLinks,
   files,
   belowTitle,
@@ -586,7 +589,7 @@ export default function DocsEditor({
   // En el teléfono no se enfoca el primer bloque al abrir: el asa y el "+"
   // aparecen recién cuando la persona toca un bloque.
   const prevFocus = useRef<number>(
-    typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches ? 0 : -1,
+    keepFocusOnOpen || (typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches) ? 0 : -1,
   );
   /** Índice del bloque con menú contextual abierto (click en el grip ⋮⋮). */
   const [blockMenu, setBlockMenu] = useState<number | null>(null);
@@ -744,7 +747,7 @@ export default function DocsEditor({
 
   // Página nueva (sin título): el foco va al título, como en Notion.
   useEffect(() => {
-    if (page.title) return;
+    if (page.title || keepFocusOnOpen) return;
     const id = requestAnimationFrame(() => titleRef.current?.focus());
     return () => cancelAnimationFrame(id);
     // Solo al abrir la página.
