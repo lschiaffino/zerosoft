@@ -8,6 +8,8 @@ import type { Client } from '@libsql/client';
  * privado (lib/send/files.ts); acá solo hay referencias.
  */
 export async function sendUp(client: Client): Promise<void> {
+  // Antes de crear: los índices de abajo usan columnas que una forma vieja no tiene.
+  await healOlderShape(client);
   await client.executeMultiple(`
     CREATE TABLE IF NOT EXISTS send_documents (
       id TEXT PRIMARY KEY,
@@ -250,7 +252,6 @@ export async function sendUp(client: Client): Promise<void> {
       updated_at TEXT NOT NULL
     );
   `);
-  await healOlderShape(client);
 }
 
 /**
@@ -271,22 +272,12 @@ async function healOlderShape(client: Client): Promise<void> {
     ['send_visits', 'base_seconds', 'REAL NOT NULL DEFAULT 0'],
   ];
   for (const [table, column, type] of missing) {
-    if (!(await columns(table)).has(column)) await client.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+    const have = await columns(table);
+    // Tabla que no existe: la crea sendUp, con todo.
+    if (have.size && !have.has(column)) await client.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
   }
-  // La clave de esta tabla cambió y SQLite no la altera. Son copias que se vuelven a armar: se recrea vacía.
-  if (!(await columns('send_download_cache')).has('email')) {
-    await client.executeMultiple(`
-      DROP TABLE send_download_cache;
-      CREATE TABLE send_download_cache (
-        session_id TEXT NOT NULL,
-        version_id TEXT NOT NULL,
-        email TEXT NOT NULL DEFAULT '',
-        refs TEXT NOT NULL,
-        size INTEGER NOT NULL,
-        expires_at TEXT NOT NULL,
-        PRIMARY KEY (session_id, version_id, email)
-      );
-    `);
-  }
+  // La clave de esta tabla cambió y SQLite no la altera. Son copias que se vuelven a armar: sendUp la recrea vacía.
+  const cache = await columns('send_download_cache');
+  if (cache.size && !cache.has('email')) await client.execute('DROP TABLE send_download_cache');
   await client.execute('DROP TABLE IF EXISTS send_link_items');
 }

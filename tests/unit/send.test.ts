@@ -29,6 +29,8 @@ import { assertOfficeSize, imageSize, kid, kids, parseXml, pptxToImages } from '
 import { buildZip } from '@/lib/zip-reader';
 import { renderPdfPages } from '@/lib/send/render';
 import { PDFDocument } from 'pdf-lib';
+import { createClient } from '@libsql/client';
+import { sendUp } from '@/lib/schema/send-migration';
 import { excludeReason, webOnlyWhere } from '@/lib/mcp/excludes.mjs';
 import { scrubText } from '@/lib/mcp/scrub';
 
@@ -341,6 +343,31 @@ describe('Send: render en un hilo aparte', () => {
   it('un archivo roto da su motivo', async () => {
     await expect(renderPdfPages(Buffer.from('%PDF-1.7 nada'), { from: 1, deadline: Date.now() + 30_000, onInfo: async () => undefined, onPage: async () => undefined })).rejects.toMatchObject({ code: 'pdf_invalid' });
   }, 30_000);
+});
+
+describe('Send: migración sobre una forma vieja', () => {
+  it('completa columnas, recrea la caché y saca la tabla que ya no se usa', async () => {
+    const client = createClient({ url: ':memory:' });
+    await client.executeMultiple(`
+      CREATE TABLE send_versions (id TEXT PRIMARY KEY, document_id TEXT, workspace_id TEXT, n INTEGER, kind TEXT, name TEXT, mime TEXT, status TEXT, created_by TEXT, created_at TEXT);
+      CREATE TABLE send_pages (version_id TEXT, page INTEGER, ref TEXT, width INTEGER, height INTEGER, PRIMARY KEY (version_id, page));
+      CREATE TABLE send_links (id TEXT PRIMARY KEY, workspace_id TEXT, document_id TEXT, space_id TEXT, deleted_at TEXT, created_by TEXT, name TEXT, token_hash TEXT, token_sealed TEXT, created_at TEXT, updated_at TEXT);
+      CREATE TABLE send_visits (id TEXT PRIMARY KEY, workspace_id TEXT, link_id TEXT, session_id TEXT, visitor_id TEXT, document_id TEXT, version_id TEXT, started_at TEXT, last_ping_at TEXT);
+      CREATE TABLE send_download_cache (session_id TEXT, version_id TEXT, refs TEXT, size INTEGER, expires_at TEXT, PRIMARY KEY (session_id, version_id));
+      CREATE TABLE send_link_items (link_id TEXT, document_id TEXT);
+      INSERT INTO send_links (id) VALUES ('sl_old');
+    `);
+    await sendUp(client);
+    await sendUp(client);
+    const cols = async (t: string) => (await client.execute(`PRAGMA table_info(${t})`)).rows.map((r) => String(r.name));
+    expect(await cols('send_links')).toEqual(expect.arrayContaining(['transferred_from', 'alert_window_at', 'alert_count', 'alert_digest']));
+    expect(await cols('send_versions')).toEqual(expect.arrayContaining(['derived_ref', 'render_stalls']));
+    expect(await cols('send_pages')).toContain('bytes');
+    expect(await cols('send_visits')).toContain('base_seconds');
+    expect(await cols('send_download_cache')).toContain('email');
+    expect(await cols('send_link_items')).toEqual([]);
+    expect((await client.execute('SELECT id FROM send_links')).rows).toHaveLength(1);
+  });
 });
 
 describe('Send: MCP', () => {

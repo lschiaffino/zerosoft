@@ -686,10 +686,27 @@ test('sacar a la última persona del acceso pide confirmar y dice que se abre', 
   await page.goto(`/en/app/send/spaces/${space.id}`);
   await page.getByTestId('send-space-tab-access').click();
   await page.getByTestId('send-access-remove').click();
-  await expect(page.getByRole('dialog')).toContainText('opens again');
+  await expect(page.locator('dialog[open]')).toContainText('opens again');
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('send-access-row')).toHaveCount(1);
   await page.getByTestId('send-access-remove').click();
   await page.getByRole('button', { name: 'Remove and open the space' }).click();
   await expect(page.getByTestId('send-access-row')).toHaveCount(0);
+});
+
+test('un link sin autor: quien lo abre ve que no está, el dueño ve por qué', async ({ browser, page, request }) => {
+  const { id } = await makeDoc(request, 'Orphan link', await pdf(1));
+  const link = await makeLink(request, id, { name: 'Orphan' });
+  await sql('UPDATE send_links SET created_by = ? WHERE id = ?', ['someone-who-left', link.id]);
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 780 } });
+  const v = await ctx.newPage();
+  await v.goto(link.url);
+  await expect(v.getByTestId('sv-closed')).toHaveAttribute('data-reason', 'unavailable');
+  await expect(v.getByTestId('sv-closed')).toContainText('no longer available');
+  await shot(v, 'viewer-unavailable-390');
+  await ctx.close();
+  await page.goto(`/en/app/send/documents/${id}`);
+  await expect(page.getByTestId('send-link-problem')).toHaveText('Not serving');
+  await expect(page.getByTestId('send-link-problem-text')).toContainText('left the workspace');
+  await shot(page, 'link-not-serving');
 });
