@@ -178,6 +178,34 @@ test('vistas de totales y series que se prenden y apagan', async ({ page, baseUR
   await expect(rows).toHaveCount(3, { timeout: 15_000 });
 });
 
+test('aperturas: dos propiedades, en rangos y cargar más', async ({ page, baseURL, request }) => {
+  for (let i = 0; i < 30; i++) await send(request, 'many', `m${i}`, 2 * DAY, { code: `v${String(i).padStart(2, '0')}`, $browser: i % 2 ? 'Chrome' : 'Safari', $os: 'Mac', amount: i });
+  await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
+  await page.goto('/en/app/analytics/insights/new', { waitUntil: 'networkidle' });
+  await page.getByLabel('Event', { exact: true }).first().fill('many');
+  await page.getByLabel('Display', { exact: true }).selectOption('table');
+  await page.getByLabel('Breakdown property').first().fill('$browser');
+  const rows = result(page).locator('tbody tr');
+  await expect(rows).toHaveCount(2, { timeout: 15_000 });
+  await page.getByRole('button', { name: '+ Another breakdown' }).click();
+  await expect(result(page).locator('tbody')).toContainText('Chrome / Mac', { timeout: 15_000 });
+  await page.getByLabel('Breakdown property').nth(1).fill('');
+  await expect(result(page).locator('tbody')).not.toContainText('/ Mac', { timeout: 15_000 });
+
+  // 30 valores: entran 25 y el resto en Otros, hasta cargar más.
+  await page.getByLabel('Breakdown property').first().fill('code');
+  await expect(rows).toHaveCount(26, { timeout: 15_000 });
+  await page.getByRole('button', { name: 'Load more values' }).click();
+  await expect(rows).toHaveCount(30, { timeout: 15_000 });
+
+  // En rangos: del 0 al 29 en tres partes iguales.
+  await page.getByLabel('Breakdown property').first().fill('amount');
+  await page.getByLabel('In ranges').check();
+  await page.getByLabel('Number of ranges').fill('3');
+  await expect(rows).toHaveCount(3, { timeout: 15_000 });
+  await expect(result(page).locator('tbody')).toContainText('0 to 9.66667');
+});
+
 test('a 390px no hay scroll horizontal con opciones abiertas', async ({ page, baseURL }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await open(page, baseURL!);

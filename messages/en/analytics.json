@@ -199,7 +199,8 @@
     "retentionCell": "{count} people from {start}, period {n}",
     "retentionValue": "Cohorts for {value}. Choose it again to see everyone.",
     "smoothedNote": "The chart shows a {n}-day average. Totals are the real counts for the range.",
-    "peopleCap": "The list opens the first 100 people."
+    "peopleCap": "The list opens the first 100 people.",
+    "loadMoreValues": "Load more values"
   },
   "filters": {
     "filterN": "Filter {n}",
@@ -498,7 +499,14 @@
     "retentionShow": "Show",
     "retentionBoth": "Graph and table",
     "retentionGraph": "Graph only",
-    "retentionTable": "Table only"
+    "retentionTable": "Table only",
+    "groupProperty": "Group property",
+    "addBreakdown": "Another breakdown",
+    "breakdownByCohort": "Breakdown by cohort",
+    "chooseCohort": "Choose a cohort",
+    "removeCohortBreakdown": "Stop breaking down by {name}",
+    "breakdownBins": "In ranges",
+    "breakdownBinCount": "Number of ranges"
   },
   "sql": {
     "title": "SQL",

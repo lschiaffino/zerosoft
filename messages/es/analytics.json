@@ -199,7 +199,8 @@
     "retentionCell": "{count} personas de {start}, período {n}",
     "retentionValue": "Cohortes de {value}. Elegilo de nuevo para ver a todos.",
     "smoothedNote": "El gráfico muestra un promedio de {n} días. Los totales son las cuentas reales del rango.",
-    "peopleCap": "La lista abre las primeras 100 personas."
+    "peopleCap": "La lista abre las primeras 100 personas.",
+    "loadMoreValues": "Cargar más valores"
   },
   "filters": {
     "filterN": "Filtro {n}",
@@ -498,7 +499,14 @@
     "retentionShow": "Mostrar",
     "retentionBoth": "Gráfico y tabla",
     "retentionGraph": "Solo gráfico",
-    "retentionTable": "Solo tabla"
+    "retentionTable": "Solo tabla",
+    "groupProperty": "Propiedad de grupo",
+    "addBreakdown": "Otra apertura",
+    "breakdownByCohort": "Apertura por cohorte",
+    "chooseCohort": "Elegí una cohorte",
+    "removeCohortBreakdown": "Dejar de abrir por {name}",
+    "breakdownBins": "En rangos",
+    "breakdownBinCount": "Cantidad de rangos"
   },
   "sql": {
     "title": "SQL",

@@ -137,7 +137,7 @@ export function alertFires(condition: AlertDto['condition'], threshold: number, 
 /** Valor del último intervalo cerrado y el anterior. El intervalo en curso no cuenta: va por la mitad y dispararía solo. */
 export async function alertValues(project: ProjectRow, query: TrendsQuery, seriesIndex: number, frequency: 'hourly' | 'daily', now: number): Promise<{ value: number; previous: number | null } | null> {
   const interval = frequency === 'hourly' ? 'hour' : 'day';
-  const q: TrendsQuery = { ...query, interval, compare: false, breakdown: null, dateRange: { from: frequency === 'hourly' ? '-4h' : '-4d' } };
+  const q: TrendsQuery = { ...query, interval, compare: false, breakdown: null, breakdownsMore: [], breakdownCohorts: null, dateRange: { from: frequency === 'hourly' ? '-4h' : '-4d' } };
   const res = await runTrends(project, q, now);
   const s = res.series[seriesIndex] ?? res.series[0];
   if (!s || s.data.length < 2) return null;

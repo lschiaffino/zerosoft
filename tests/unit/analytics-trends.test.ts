@@ -6,7 +6,9 @@ import { storeEvents } from '@/lib/analytics/ingest';
 import { createProject, getProject, type ProjectRow } from '@/lib/analytics/projects';
 import { runTrends } from '@/lib/analytics/query';
 import { activeInWindow, bucketEndDay, formatTrendValue, isWeekend, rolling } from '@/lib/analytics/trend-core';
-import { trendsQuerySchema } from '@/lib/analytics/types';
+import { createCohort } from '@/lib/analytics/records';
+import { addCohortMembers } from '@/lib/analytics/records-more';
+import { cohortDefinitionSchema, trendsQuerySchema } from '@/lib/analytics/types';
 
 const DAY = 86_400_000;
 
@@ -190,6 +192,41 @@ describe('trends on stored events', () => {
     expect(r.options?.unit).toBe('percentage');
     const past = await runTrends(p, query([{ event: 'x' }], { dateRange: { from: '2020-01-01', to: '2020-01-03' } }));
     expect(past.lastIncomplete).toBe(false);
+  });
+
+  it('breakdowns: two properties, a group property, ranges, cohorts and the limit', async () => {
+    const p = await setup();
+    await ingest(p, [
+      { event: 'x', who: 'a', at: NOW - 1000, props: { $browser: 'Chrome', $os: 'Mac', amount: 5, $groups: { company: 'acme' } } },
+      { event: 'x', who: 'b', at: NOW - 1000, props: { $browser: 'Chrome', $os: 'Win', amount: 15 } },
+      { event: 'x', who: 'c', at: NOW - 1000, props: { $browser: 'Safari', amount: 95 } },
+      { event: '$groupidentify', who: 'a', at: NOW - 1000, props: { $group_type: 'company', $group_key: 'acme', $group_set: { tier: 'gold' } } },
+    ]);
+    const by = (r: { series: Array<{ breakdownValue: string | null; total: number }> }) => Object.fromEntries(r.series.map((s) => [s.breakdownValue, s.total]));
+    const two = await runTrends(p, query([{ event: 'x' }], { breakdown: { key: '$browser' }, breakdownsMore: [{ key: '$os' }] }));
+    expect(by(two)).toEqual({ 'Chrome / Mac': 1, 'Chrome / Win': 1, 'Safari / (none)': 1 });
+    const group = await runTrends(p, query([{ event: 'x' }], { breakdown: { key: 'tier', type: 'group', groupType: 'company' } }));
+    expect(by(group)).toEqual({ gold: 1, '(none)': 2 });
+    const bins = await runTrends(p, query([{ event: 'x' }], { breakdown: { key: 'amount', bins: 3 } }));
+    expect(by(bins)).toEqual({ '5 to 35': 2, '65 to 95': 1 });
+    const limited = await runTrends(p, query([{ event: 'x' }], { breakdown: { key: 'amount' }, breakdownLimit: 2 }));
+    expect(limited.series.map((s) => s.breakdownValue)).toContain('$other');
+    const more = await runTrends(p, query([{ event: 'x' }], { breakdown: { key: 'amount' }, breakdownLimit: 3 }));
+    expect(more.series.map((s) => s.breakdownValue)).not.toContain('$other');
+    await expect(runTrends(p, query([{ event: 'x' }], { breakdown: { key: 'tier', type: 'group' } }))).rejects.toThrow('group_type_required');
+    await expect(runTrends(p, query([{ event: 'x' }], { breakdownCohorts: ['nope'] }))).rejects.toThrow('cohort_not_found');
+  });
+
+  it('breakdown by cohorts counts each cohort with its name', async () => {
+    const p = await setup();
+    await ingest(p, [
+      { event: 'x', who: 'a', at: NOW - 1000 },
+      { event: 'x', who: 'b', at: NOW - 1000 },
+    ]);
+    const cohort = await createCohort(p.id, 'u', { name: 'Only a', definition: cohortDefinitionSchema.parse({ type: 'static', properties: [], behavior: null, groups: [] }) });
+    await addCohortMembers(p.id, cohort.id, ['a']);
+    const r = await runTrends(p, query([{ event: 'x' }], { breakdownCohorts: [cohort.id] }));
+    expect(r.series.map((s) => [s.breakdownValue, s.total])).toEqual([['Only a', 1]]);
   });
 
   it('a saved insight from before still parses', () => {

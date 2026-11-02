@@ -98,12 +98,27 @@ export const trendOptionsSchema = z.object({
 });
 export type TrendOptions = z.infer<typeof trendOptionsSchema>;
 
+/** Apertura de una tendencia: por propiedad de evento, persona o grupo, con cubetas si es numérica. */
+export const trendBreakdownSchema = z.object({
+  key: propertyKeySchema,
+  type: z.enum(['event', 'person', 'group']).default('event'),
+  groupType: propertyKeySchema.optional(),
+  bins: z.number().int().min(2).max(50).nullable().optional(),
+});
+export type TrendBreakdown = z.infer<typeof trendBreakdownSchema>;
+
 export const trendsQuerySchema = z.object({
   kind: z.literal('trends'),
   series: z.array(seriesSchema).min(1).max(5),
   interval: z.enum(INTERVALS).default('day'),
   dateRange: dateRangeSchema.default({ from: '-7d' }),
-  breakdown: z.object({ key: propertyKeySchema, type: z.enum(['event', 'person']).default('event') }).nullable().optional(),
+  breakdown: trendBreakdownSchema.nullable().optional(),
+  /** Hasta dos aperturas más: el valor junta las tres. */
+  breakdownsMore: z.array(trendBreakdownSchema).max(2).optional(),
+  /** Una serie por cohorte, en lugar de una por valor de una propiedad. */
+  breakdownCohorts: z.array(z.string().max(64)).max(5).nullable().optional(),
+  /** Cuántos valores traer (de a 25 con "Cargar más"). */
+  breakdownLimit: z.number().int().min(1).max(500).optional(),
   compare: z.boolean().default(false),
   filters: filtersSchema,
   cohortId: z.string().max(64).nullable().optional(),
@@ -746,7 +761,8 @@ export const SAFE_SHARE_BREAKDOWNS = ['$browser', '$browser_version', '$os', '$d
  */
 export function shareableQuery(q: InsightQuery): boolean {
   if (q.kind === 'sql') return false;
-  if ((q.kind === 'trends' || q.kind === 'funnel' || q.kind === 'retention') && q.breakdown && (q.breakdown.type === 'person' || !SAFE_SHARE_BREAKDOWNS.includes(q.breakdown.key))) return false;
+  if (q.kind === 'trends' && (q.breakdownCohorts?.length || q.breakdownsMore?.some((b) => b.type !== 'event' || !SAFE_SHARE_BREAKDOWNS.includes(b.key)))) return false;
+  if ((q.kind === 'trends' || q.kind === 'funnel' || q.kind === 'retention') && q.breakdown && (q.breakdown.type !== 'event' || !SAFE_SHARE_BREAKDOWNS.includes(q.breakdown.key))) return false;
   return true;
 }
 

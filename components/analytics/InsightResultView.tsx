@@ -97,7 +97,7 @@ function ProportionBar({ items, format, summary }: { items: Array<{ label: strin
   );
 }
 
-function Trends({ r, display, annotations }: { r: TrendsResult; display: TrendDisplay; annotations?: Array<{ date: string; content: string }> }) {
+function Trends({ r, display, annotations, onLoadMore, limit }: { r: TrendsResult; display: TrendDisplay; annotations?: Array<{ date: string; content: string }>; onLoadMore?: () => void; limit?: number }) {
   const t = useTranslations('analytics.result');
   const locale = useLocale();
   const [hidden, setHidden] = useState<Set<number>>(new Set());
@@ -175,6 +175,11 @@ function Trends({ r, display, annotations }: { r: TrendsResult; display: TrendDi
             lastIncomplete: r.lastIncomplete && display !== 'cumulative',
           }}
         />
+      )}
+      {onLoadMore && limit !== undefined && r.series.filter((x) => x.breakdownValue !== null && x.breakdownValue !== '$other').length >= limit && (
+        <button type="button" className="btn btn-sm an-self-start" onClick={onLoadMore}>
+          {t('loadMoreValues')}
+        </button>
       )}
       {many && (
         <div className="an-row an-wrap an-series-actions">
@@ -786,6 +791,7 @@ export default function InsightResultView({
   annotations,
   query,
   onRetentionCell,
+  onLoadMore,
 }: {
   result: InsightResult;
   display?: TrendDisplay;
@@ -795,10 +801,20 @@ export default function InsightResultView({
   query?: InsightQuery;
   /** Abrir quiénes están en una celda de retención. */
   onRetentionCell?: (cell: { cohort: number; k: number; value?: string | null }) => void;
+  /** Traer más valores de una apertura. */
+  onLoadMore?: () => void;
 }) {
   switch (result.kind) {
     case 'trends':
-      return <Trends r={result} display={display} annotations={annotations} />;
+      return (
+        <Trends
+          r={result}
+          display={display}
+          annotations={annotations}
+          onLoadMore={onLoadMore}
+          limit={query?.kind === 'trends' && (query.breakdown || query.breakdownsMore?.length) ? (query.breakdownLimit ?? 25) : undefined}
+        />
+      );
     case 'funnel':
       return <Funnel r={result} peopleHref={peopleHref} query={query?.kind === 'funnel' ? query : undefined} />;
     case 'retention':

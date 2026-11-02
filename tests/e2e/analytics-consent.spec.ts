@@ -26,7 +26,7 @@ test.beforeAll(async ({ request, baseURL }) => {
 });
 test.afterAll(() => server.close());
 
-const open = async (browser: Browser, opts: Record<string, unknown>, init?: (page: Page) => Promise<void>) => {
+const open = async (browser: Browser, opts: Record<string, unknown>, init?: (page: Page) => Promise<unknown>) => {
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
   const decides: string[] = [];

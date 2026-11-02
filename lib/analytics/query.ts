@@ -33,6 +33,7 @@ import { checkSql, SQL_MAX_ROWS, wrapSql } from './sql-safe';
 import { runReadOnly, SqlRunError } from './sql-run';
 import { getCohort, loadActions, type ActionMap } from './records';
 import { channelSql, webFiltersSql } from './web-core';
+import { groupPropText } from './sql-build';
 import type { ProjectRow } from './projects';
 import { ACTION_PREFIX, funnelWindowMs, PROPERTY_MATHS } from './types';
 import { pathWindow } from './funnel-core';
@@ -260,11 +261,11 @@ async function percentileSeries(
   joins: string,
   buckets: string[],
   range: { from: number; to: number },
+  bd: Frag | null,
 ): Promise<Array<{ value: string | null; data: number[]; total: number }>> {
   if (!s.mathProperty) throw new QueryError('math_property_required');
   const p = PERCENTILE_OF[s.math];
   const v = numericProp(s.mathProperty);
-  const bd = q.breakdown ? propText(q.breakdown.key, q.breakdown.type) : null;
   const rows = (await all(
     `SELECT ${bucketSql(q.interval, 'e.ts', shiftFor(project, range))} AS bucket, ${bd ? bd.sql : 'NULL'} AS value, ${v.sql} AS v FROM analytics_events e ${joins}
      WHERE ${where.sql} AND ${v.sql} IS NOT NULL LIMIT ?`,
@@ -284,7 +285,36 @@ async function percentileSeries(
     data: buckets.map((b) => percentile(g.get(b) ?? [], p)),
     total: percentile([...g.values()].flat(), p),
   }));
-  return out.sort((a, b) => b.total - a.total).slice(0, 10);
+  return out.sort((a, b) => b.total - a.total).slice(0, q.breakdownLimit ?? 25);
+}
+
+/** Expresión del valor de la apertura. Con cubetas, primero mira el mínimo y el máximo de lo que va a abrir. */
+async function trendBreakdownFrag(q: TrendsQuery, where: Frag, joins: string): Promise<Frag | null> {
+  const list = [q.breakdown, ...(q.breakdownsMore ?? [])].filter((b): b is NonNullable<TrendsQuery['breakdown']> => Boolean(b));
+  if (!list.length) return null;
+  const parts: Frag[] = [];
+  for (const b of list) {
+    if (b.type === 'group' && !b.groupType) throw new QueryError('group_type_required');
+    const text = b.type === 'group' ? groupPropText(b.key, b.groupType!) : propText(b.key, b.type as 'event' | 'person');
+    if (!b.bins) {
+      parts.push(text);
+      continue;
+    }
+    const num = `CAST(${text.sql} AS REAL)`;
+    const seen = (await getDb()
+      .prepare(`SELECT MIN(${num}) AS lo, MAX(${num}) AS hi FROM analytics_events e ${joins} WHERE ${where.sql} AND ${text.sql} IS NOT NULL`)
+      .get(...text.args, ...text.args, ...where.args, ...text.args)) as { lo: number | null; hi: number | null } | undefined;
+    const lo = Number(seen?.lo ?? 0);
+    const hi = Number(seen?.hi ?? 0);
+    const width = (hi - lo) / b.bins || 1;
+    const index = `MIN(${b.bins - 1}, CAST((${num} - ?) / ? AS INTEGER))`;
+    parts.push({
+      sql: `(CASE WHEN ${text.sql} IS NULL THEN NULL ELSE printf('%g to %g', ? + ${index} * ?, ? + (${index} + 1) * ?) END)`,
+      args: [...text.args, lo, ...text.args, lo, width, width, lo, ...text.args, lo, width, width],
+    });
+  }
+  if (parts.length === 1) return parts[0];
+  return { sql: parts.map((f) => `COALESCE(${f.sql}, '(none)')`).join(" || ' / ' || "), args: parts.flatMap((f) => f.args) };
 }
 
 const PER_USER_OF: Record<string, number> = { per_user_median: 0.5, per_user_p75: 0.75, per_user_p90: 0.9, per_user_p95: 0.95, per_user_p99: 0.99 };
@@ -298,9 +328,9 @@ async function perUserSeries(
   joins: string,
   buckets: string[],
   range: { from: number; to: number },
+  bd: Frag | null,
 ): Promise<Array<{ value: string | null; data: number[]; total: number }>> {
   const p = s.math === 'per_user_min' ? 0 : s.math === 'per_user_max' ? 1 : PER_USER_OF[s.math];
-  const bd = q.breakdown ? propText(q.breakdown.key, q.breakdown.type) : null;
   const rows = (await all(
     `SELECT ${bucketSql(q.interval, 'e.ts', shiftFor(project, range))} AS bucket, ${bd ? bd.sql : 'NULL'} AS value, ${PERSON_KEY} AS person, COUNT(*) AS n FROM analytics_events e ${joins}
      WHERE ${where.sql} GROUP BY 1, 2, 3 LIMIT ?`,
@@ -321,7 +351,7 @@ async function perUserSeries(
     data: buckets.map((b) => percentile(g.perBucket.get(b) ?? [], p)),
     total: percentile([...g.perPerson.values()], p),
   }));
-  return out.sort((a, b) => b.total - a.total).slice(0, 10);
+  return out.sort((a, b) => b.total - a.total).slice(0, q.breakdownLimit ?? 25);
 }
 
 /** Activos en los últimos 7 o 30 días: el total es el valor de la última cubeta. */
@@ -336,12 +366,12 @@ async function activeSeries(
   joins: string,
   buckets: string[],
   range: { from: number; to: number },
+  bd: Frag | null,
 ): Promise<Array<{ value: string | null; data: number[]; total: number }>> {
   const days = s.math === 'wau' ? 7 : 30;
   const wide = { from: range.from - days * DAY, to: range.to };
   const base = whereFor(project, wide, extra ? null : s.event, filters, cohort, actions);
   const where = extra ? andFrag(base, extra) : base;
-  const bd = q.breakdown ? propText(q.breakdown.key, q.breakdown.type) : null;
   const rows = (await all(
     `SELECT DISTINCT ${bucketSql('day', 'e.ts', shiftFor(project, wide))} AS day, ${bd ? bd.sql : 'NULL'} AS value, ${PERSON_KEY} AS person FROM analytics_events e ${joins}
      WHERE ${where.sql} LIMIT ?`,
@@ -359,7 +389,7 @@ async function activeSeries(
     const data = activeInWindow(g, buckets, q.interval, days, lastDay);
     return { value, data, total: data[data.length - 1] ?? 0 };
   });
-  return out.sort((a, b) => b.total - a.total).slice(0, 10);
+  return out.sort((a, b) => b.total - a.total).slice(0, q.breakdownLimit ?? 25);
 }
 
 function andFrag(a: Frag, b: Frag): Frag {
@@ -382,7 +412,18 @@ function seriesExtra(project: ProjectRow, s: TrendsQuery['series'][number], filt
   return andFrag(match, first);
 }
 
-async function trendOnce(project: ProjectRow, q: TrendsQuery, range: { from: number; to: number }, now: number) {
+async function trendOnce(project: ProjectRow, q: TrendsQuery, range: { from: number; to: number }, now: number): Promise<{ buckets: string[]; series: Array<{ label: string; breakdownValue: string | null; data: number[]; total: number; latest?: boolean }>; usedRollup: boolean }> {
+  // Por cohorte: una corrida por cada una, con su nombre como valor.
+  if (q.breakdownCohorts?.length) {
+    const runs = [];
+    for (const id of q.breakdownCohorts) {
+      const c = await getCohort(project.id, id);
+      if (!c) throw new QueryError('cohort_not_found');
+      const r = await trendOnce(project, { ...q, breakdownCohorts: null, breakdown: null, breakdownsMore: [], cohortId: id }, range, now);
+      runs.push(...r.series.map((x) => ({ ...x, breakdownValue: c.name })));
+    }
+    return { buckets: bucketList(range.from, range.to, q.interval, projectTz(project)), series: runs, usedRollup: false };
+  }
   const off = offAt(project, range.from);
   const shift = shiftFor(project, range);
   const tz = projectTz(project);
@@ -404,7 +445,7 @@ async function trendOnce(project: ProjectRow, q: TrendsQuery, range: { from: num
         continue;
       }
     }
-    const withPerson = needsPerson(filters) || q.breakdown?.type === 'person';
+    const withPerson = needsPerson(filters) || q.breakdown?.type === 'person' || Boolean(q.breakdownsMore?.some((b) => b.type === 'person'));
     const isPerUser = s.math.startsWith('per_user_');
     const isActive = s.math === 'wau' || s.math === 'mau';
     const usesPerson = s.math === 'unique' || s.math === 'per_user' || isPerUser || isActive || Boolean(s.first);
@@ -413,21 +454,22 @@ async function trendOnce(project: ProjectRow, q: TrendsQuery, range: { from: num
     const base = extra ? andFrag(whereFor(project, range, null, filters, cohort, actions), extra) : whereFor(project, range, s.event, filters, cohort, actions);
     // Sin fines de semana: se sacan de los eventos, así únicos, promedios y totales no los cuentan.
     const where = hideWeekends ? andFrag(base, { sql: `CAST(strftime('%w', (e.ts + CAST(? AS INTEGER)${shift}) / 1000, 'unixepoch') AS INTEGER) NOT IN (0, 6)`, args: [off] }) : base;
+    const bd = await trendBreakdownFrag(q, where, joins);
     if (isActive) {
-      for (const b of await activeSeries(project, s, q, extra, filters, cohort, actions, joins, buckets, range)) out.push({ label, breakdownValue: b.value, data: b.data, total: b.total, latest: true });
+      for (const b of await activeSeries(project, s, q, extra, filters, cohort, actions, joins, buckets, range, bd)) out.push({ label, breakdownValue: b.value, data: b.data, total: b.total, latest: true });
       continue;
     }
     if (isPerUser) {
-      for (const b of await perUserSeries(project, s, q, where, joins, buckets, range)) out.push({ label, breakdownValue: b.value, data: b.data, total: b.total });
+      for (const b of await perUserSeries(project, s, q, where, joins, buckets, range, bd)) out.push({ label, breakdownValue: b.value, data: b.data, total: b.total });
       continue;
     }
     if (PERCENTILE_OF[s.math] !== undefined) {
-      for (const b of await percentileSeries(project, s, q, where, joins, buckets, range)) out.push({ label, breakdownValue: b.value, data: b.data, total: b.total });
+      for (const b of await percentileSeries(project, s, q, where, joins, buckets, range, bd)) out.push({ label, breakdownValue: b.value, data: b.data, total: b.total });
       continue;
     }
     const agg = aggSql(s);
-    if (q.breakdown) {
-      const value = propText(q.breakdown.key, q.breakdown.type);
+    if (bd) {
+      const value = bd;
       const rows = (await all(
         `SELECT ${bucketSql(q.interval, 'e.ts', shift)} AS bucket, ${value.sql} AS value, ${agg.sql} AS count FROM analytics_events e ${joins}
          WHERE ${where.sql} GROUP BY 1, 2`,
@@ -442,7 +484,7 @@ async function trendOnce(project: ProjectRow, q: TrendsQuery, range: { from: num
               (r) => [r.value ?? '(none)', round2(Number(r.n ?? 0))] as const,
             ),
           );
-      for (const b of breakdownSeries(rows.map((r) => ({ ...r, count: round2(Number(r.count ?? 0)) })), buckets, 10, summable)) {
+      for (const b of breakdownSeries(rows.map((r) => ({ ...r, count: round2(Number(r.count ?? 0)) })), buckets, q.breakdownLimit ?? 25, summable)) {
         out.push({ label, breakdownValue: b.value, data: b.data, total: exact ? (exact.get(b.value) ?? 0) : round2(b.total) });
       }
     } else {
@@ -480,7 +522,7 @@ async function trendsFor(project: ProjectRow, q: TrendsQuery, range: { from: num
     }
   }
   // Fórmula: una sola serie calculada (sin apertura, que multiplicaría las letras).
-  if (q.formula && !q.breakdown) {
+  if (q.formula && !q.breakdown && !q.breakdownCohorts?.length) {
     const node = parseFormula(q.formula);
     if (!node) throw new QueryError('invalid_formula');
     const data = applyFormula(node, series.map((x) => x.data), cur.buckets.length);

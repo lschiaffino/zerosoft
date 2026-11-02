@@ -18,7 +18,7 @@ import type {
   StickinessQuery,
   TrendsQuery,
 } from '@/lib/analytics/types';
-import { FUNNEL_ATTRIBUTIONS, FUNNEL_DISPLAYS, FUNNEL_ORDERS, FUNNEL_WINDOW_UNITS, PROPERTY_MATHS, RETENTION_TYPES, SERIES_MATHS, shareableQuery, TREND_DISPLAYS, TREND_UNITS, type FunnelWindowUnit, type InsightQuery as AnyQuery, type SeriesMath } from '@/lib/analytics/types';
+import { FUNNEL_ATTRIBUTIONS, FUNNEL_DISPLAYS, FUNNEL_ORDERS, FUNNEL_WINDOW_UNITS, PROPERTY_MATHS, RETENTION_TYPES, SERIES_MATHS, shareableQuery, TREND_DISPLAYS, TREND_UNITS, type FunnelWindowUnit, type TrendBreakdown, type InsightQuery as AnyQuery, type SeriesMath } from '@/lib/analytics/types';
 import { AlertsPanel, CorrelationPanel, ShareDialog, downloadCsv } from './InsightPanels';
 import { ApiError, apiErrorText, api, notifyChanged, runQuery } from './client';
 import { EventInput, FilterList, cleanFilters, useProjectMeta, type ProjectMeta } from './Filters';
@@ -68,7 +68,8 @@ function clean(q: InsightQuery): InsightQuery {
         ...q,
         filters: cleanFilters(q.filters),
         series: q.series.map((s) => ({ ...s, event: s.event.trim() || '*', orEvents: (s.orEvents ?? []).map((e) => e.trim()).filter(Boolean), filters: cleanFilters(s.filters) })),
-        breakdown: q.breakdown && q.breakdown.key.trim() ? { ...q.breakdown, key: q.breakdown.key.trim() } : null,
+        breakdown: q.breakdown && q.breakdown.key.trim() ? { ...q.breakdown, key: q.breakdown.key.trim(), groupType: q.breakdown.groupType?.trim() || undefined } : null,
+        breakdownsMore: (q.breakdownsMore ?? []).filter((b) => b.key.trim()),
         options: q.options ? { ...q.options, goalLines: (q.options.goalLines ?? []).filter((g) => Number.isFinite(g.value)) } : null,
       };
     case 'funnel':
@@ -123,6 +124,39 @@ function InternalToggle({ value, onChange, available }: { value: boolean; onChan
           </Link>
         </span>
       )}
+    </div>
+  );
+}
+
+/** Una apertura: propiedad de evento, de persona o de grupo; si es numérica, en rangos. */
+function BreakdownRow({ value, onChange, meta }: { value: TrendBreakdown | null; onChange: (v: TrendBreakdown | null) => void; meta: ProjectMeta }) {
+  const t = useTranslations('analytics.editor');
+  void meta;
+  const type = value?.type ?? 'event';
+  const set = (patch: Partial<TrendBreakdown>) => onChange({ key: value?.key ?? '', type, ...value, ...patch });
+  return (
+    <div className="an-row an-wrap">
+      <span className="label">{t('breakdown')}</span>
+      <select className="select" aria-label={t('breakdownType')} value={type} onChange={(e) => set({ type: e.target.value as TrendBreakdown['type'] })}>
+        <option value="event">{t('eventProperty')}</option>
+        <option value="person">{t('personProperty')}</option>
+        <option value="group">{t('groupProperty')}</option>
+      </select>
+      {type === 'group' && <input className="input an-filter-key" aria-label={t('groupType')} placeholder={t('groupTypePlaceholder')} value={value?.groupType ?? ''} maxLength={100} onChange={(e) => set({ groupType: e.target.value || undefined })} />}
+      <input
+        className="input an-filter-key"
+        aria-label={t('breakdownKey')}
+        placeholder={t('breakdownPlaceholder')}
+        value={value?.key ?? ''}
+        list="an-breakdown-keys"
+        onChange={(e) => (e.target.value ? set({ key: e.target.value }) : onChange(null))}
+      />
+      {value?.key && (
+        <label className="ui-check">
+          <input type="checkbox" checked={Boolean(value.bins)} onChange={(e) => set({ bins: e.target.checked ? 5 : null })} /> {t('breakdownBins')}
+        </label>
+      )}
+      {value?.bins && <input className="input an-num-input" type="number" min={2} max={50} aria-label={t('breakdownBinCount')} value={value.bins} onChange={(e) => set({ bins: Math.min(50, Math.max(2, Number(e.target.value) || 2)) })} />}
     </div>
   );
 }
@@ -247,31 +281,50 @@ function TrendsForm({ q, set, meta, cohorts, internal }: { q: TrendsQuery; set: 
         />
         <span className="ui-help">{q.breakdown ? t('formulaOff') : t('formulaHelp')}</span>
       </label>
-      <div className="an-row an-wrap">
-        <span className="label">{t('breakdown')}</span>
-        <select
-          className="select"
-          aria-label={t('breakdownType')}
-          value={q.breakdown?.type ?? 'event'}
-          onChange={(e) => set({ ...q, breakdown: { key: q.breakdown?.key ?? '', type: e.target.value as 'event' | 'person' } })}
-        >
-          <option value="event">{t('eventProperty')}</option>
-          <option value="person">{t('personProperty')}</option>
-        </select>
-        <input
-          className="input an-filter-key"
-          aria-label={t('breakdownKey')}
-          placeholder={t('breakdownPlaceholder')}
-          value={q.breakdown?.key ?? ''}
-          list="an-breakdown-keys"
-          onChange={(e) => set({ ...q, breakdown: e.target.value ? { key: e.target.value, type: q.breakdown?.type ?? 'event' } : null })}
+      <BreakdownRow value={q.breakdown ?? null} onChange={(breakdown) => set({ ...q, breakdown, breakdownsMore: breakdown ? q.breakdownsMore : [], breakdownLimit: undefined })} meta={meta} />
+      {(q.breakdownsMore ?? []).map((b, i) => (
+        <BreakdownRow
+          key={i}
+          value={b}
+          meta={meta}
+          onChange={(v) => set({ ...q, breakdownsMore: v ? (q.breakdownsMore ?? []).map((x, j) => (j === i ? v : x)) : (q.breakdownsMore ?? []).filter((_, j) => j !== i), breakdownLimit: undefined })}
         />
-        <datalist id="an-breakdown-keys">
-          {['$pathname', '$browser', '$os', '$device_type', '$geoip_country_code', '$referring_domain', 'utm_source', ...(q.breakdown?.type === 'person' ? meta.personProperties : meta.eventProperties)].map((k) => (
-            <option key={k} value={k} />
-          ))}
-        </datalist>
+      ))}
+      <div className="an-row an-wrap">
+        {q.breakdown?.key && (q.breakdownsMore ?? []).length < 2 && (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ ...q, breakdownsMore: [...(q.breakdownsMore ?? []), { key: '$os', type: 'event' }] })}>
+            + {t('addBreakdown')}
+          </button>
+        )}
+        {cohorts.length > 0 && (
+          <label className="ui-field an-inline-field">
+            <span className="label">{t('breakdownByCohort')}</span>
+            <select
+              className="select"
+              value=""
+              disabled={(q.breakdownCohorts ?? []).length >= 5}
+              onChange={(e) => e.target.value && set({ ...q, breakdown: null, breakdownsMore: [], breakdownCohorts: [...new Set([...(q.breakdownCohorts ?? []), e.target.value])] })}
+            >
+              <option value="">{t('chooseCohort')}</option>
+              {cohorts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {(q.breakdownCohorts ?? []).map((id) => (
+          <button key={id} type="button" className="btn btn-ghost btn-sm" aria-label={t('removeCohortBreakdown', { name: cohorts.find((c) => c.id === id)?.name ?? id })} onClick={() => set({ ...q, breakdownCohorts: (q.breakdownCohorts ?? []).filter((x) => x !== id) })}>
+            {cohorts.find((c) => c.id === id)?.name ?? id} ×
+          </button>
+        ))}
       </div>
+      <datalist id="an-breakdown-keys">
+        {['$pathname', '$browser', '$os', '$device_type', '$geoip_country_code', '$referring_domain', 'utm_source', '$el_text', ...meta.eventProperties, ...meta.personProperties].map((k, i) => (
+          <option key={`${k}-${i}`} value={k} />
+        ))}
+      </datalist>
       <TrendOptionsForm q={q} set={set} />
       <details className="an-more">
         <summary>{t('globalFilters')}</summary>
@@ -1129,6 +1182,11 @@ export default function InsightEditor({
               peopleHref={(ids) => `/app/analytics/persons?ids=${encodeURIComponent(ids.join(','))}`}
               annotations={annotations}
               query={cleaned}
+              onLoadMore={
+                query.kind === 'trends'
+                  ? () => set({ ...query, breakdownLimit: (query.breakdownLimit ?? 25) + 25 })
+                  : undefined
+              }
               onRetentionCell={
                 insight || kind === 'retention'
                   ? (cell) => {

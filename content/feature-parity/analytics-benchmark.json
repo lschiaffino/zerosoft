@@ -1662,13 +1662,8 @@
         "es": "Varias aperturas",
         "pt": "Várias aberturas"
       },
-      "status": "partial",
-      "competitorHas": true,
-      "detail": {
-        "en": "Trends take a single breakdown property",
-        "es": "Las tendencias aceptan una sola propiedad de apertura",
-        "pt": "As tendências aceitam uma única propriedade de abertura"
-      }
+      "status": "have",
+      "competitorHas": true
     },
     {
       "id": "breakdown-load-more",
@@ -1678,7 +1673,7 @@
         "es": "Cargar más valores de apertura",
         "pt": "Carregar mais valores de abertura"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1689,7 +1684,7 @@
         "es": "Apertura por propiedad de grupo",
         "pt": "Abertura por propriedade de grupo"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1700,7 +1695,7 @@
         "es": "Apertura por cohorte",
         "pt": "Abertura por coorte"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -1711,8 +1706,13 @@
         "es": "Apertura por elemento",
         "pt": "Abertura por elemento"
       },
-      "status": "missing",
-      "competitorHas": true
+      "status": "partial",
+      "competitorHas": true,
+      "detail": {
+        "en": "By element text with $el_text on trends; no tag or href shortcut",
+        "es": "Por texto del elemento con $el_text en tendencias; sin atajo por tag ni href",
+        "pt": "Por texto do elemento com $el_text em tendências; sem atalho por tag nem href"
+      }
     },
     {
       "id": "breakdown-sql",
@@ -1733,7 +1733,7 @@
         "es": "Rangos numéricos en la apertura",
         "pt": "Faixas numéricas na abertura"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {

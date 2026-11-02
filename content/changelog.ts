@@ -63,6 +63,12 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         product: 'analytics',
+        en: 'Trend breakdowns can combine up to three properties, use group properties, group numbers into ranges, compare cohorts and load more than the first 25 values.',
+        es: 'Las aperturas de tendencias combinan hasta tres propiedades, usan propiedades de grupo, agrupan números en rangos, comparan cohortes y cargan más que los primeros 25 valores.',
+        pt: 'As aberturas de tendências combinam até três propriedades, usam propriedades de grupo, agrupam números em faixas, comparam coortes e carregam mais do que os primeiros 25 valores.',
+      },
+      {
+        product: 'analytics',
         en: 'From a funnel step you can explore the paths leading to it, between steps, after it and around dropping off, and from a path you can open its funnel.',
         es: 'Desde un paso de un embudo se exploran los caminos que llevan a él, entre pasos, después y alrededor de abandonar, y desde un camino se abre su embudo.',
         pt: 'A partir de uma etapa de um funil dá para explorar os caminhos que levam a ela, entre etapas, depois e em torno da desistência, e de um caminho dá para abrir seu funil.',
