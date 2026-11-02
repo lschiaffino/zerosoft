@@ -81,7 +81,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
   /** aria-current del link de la sección en la que estás. */
   // Desde la landing de un producto, Dashboard y el alta llevan a esa app.
   const landing = pathname.match(/^\/products\/([a-z]+)/)?.[1];
-  const appHref = landing && isProductKey(landing) ? PRODUCT_CONFIG[landing].launch : '/app';
+  const appHref = landing && isProductKey(landing) ? PRODUCT_CONFIG[landing].launch : '/app/start';
   const current = (href: string) => (pathname === href || pathname.startsWith(`${href}/`) ? ('page' as const) : undefined);
 
   /** Cuándo se abrió el menú por hover: un clic justo después no lo cierra. */
