@@ -3517,7 +3517,8 @@
     "scope_notes_read": "Read notes the key's owner can see, and their tasks.",
     "scope_notes_write": "Create and edit the notes of the key's owner.",
     "formsApiTitle": "Forms",
-    "formsApiDesc": "Forms and their responses. The key acts as the person who created it and only sees the forms that person can open. Scope forms:read."
+    "formsApiDesc": "Forms and their responses. The key acts as the person who created it and only sees the forms that person can open. Scope forms:read.",
+    "mcpCta": "Connect Claude and the CLI"
   },
   "parityOverview": {
     "title": "Feature parity, app by app.",
@@ -3655,5 +3656,11 @@
     "otherTitle": "Other comparisons",
     "tryCta": "Try {name}",
     "productCta": "The {name} page"
+  },
+  "docsMcp": {
+    "meta": {
+      "title": "Connect Claude and the CLI",
+      "description": "Connect Claude Code or the zerosoft CLI to your account with your normal login, and work in all 24 apps as yourself."
+    }
   }
 }

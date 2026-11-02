@@ -29,6 +29,7 @@ export const STATIC_PAGES = {
   download: { path: '/download', ns: 'pages.download.meta', title: 'title', description: 'description', priority: 0.7, freq: 'weekly' },
   changelog: { path: '/changelog', ns: 'changelog', title: 'metaTitle', description: 'metaDescription', priority: 0.6, freq: 'weekly' },
   docs: { path: '/docs', ns: 'pages.docs.meta', title: 'title', description: 'description', priority: 0.6, freq: 'monthly' },
+  docsMcp: { path: '/docs/mcp', ns: 'pages.docsMcp.meta', title: 'title', description: 'description', priority: 0.6, freq: 'monthly' },
   videos: { path: '/videos', ns: 'videos.meta', title: 'title', description: 'description', priority: 0.4, freq: 'monthly' },
   status: { path: '/status', ns: 'pages.status.meta', title: 'title', description: 'description', priority: 0.3, freq: 'monthly' },
   // Fechas de "Última actualización" de messages/<locale>/legal.json.

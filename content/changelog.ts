@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-01-mcp-unificado',
+    date: '2026-11-01',
+    title: {
+      en: 'Connect Claude to all 24 apps, and a zerosoft CLI',
+      es: 'Conectá Claude a las 24 apps, y una CLI de zerosoft',
+      pt: 'Conecte o Claude aos 24 apps, e uma CLI da zerosoft',
+    },
+    items: [
+      {
+        product: 'agents',
+        en: 'One connector for Claude Code. You sign in with your normal login, choose the workspace and whether it can write, and Claude acts as you, with your role and permissions. See and disconnect your apps in Settings, API and webhooks.',
+        es: 'Un solo conector para Claude Code. Entrás con tu login de siempre, elegís el workspace y si puede escribir, y Claude actúa como vos, con tu rol y tus permisos. Mirá y desconectá tus apps en Ajustes, API y webhooks.',
+        pt: 'Um único conector para o Claude Code. Você entra com seu login de sempre, escolhe o workspace e se pode escrever, e o Claude age como você, com seu papel e suas permissões. Veja e desconecte seus apps em Ajustes, API e webhooks.',
+      },
+      {
+        product: 'agents',
+        en: 'A zerosoft command line with the same reach, for the terminal and for scripts. It runs from the repository for now and is not on npm.',
+        es: 'Una línea de comandos de zerosoft con el mismo alcance, para la terminal y para scripts. Por ahora corre desde el repositorio y no está en npm.',
+        pt: 'Uma linha de comando da zerosoft com o mesmo alcance, para o terminal e para scripts. Por enquanto roda a partir do repositório e não está no npm.',
+      },
+    ],
+  },
+  {
     id: '2026-10-31-pedir-acceso',
     date: '2026-10-31',
     title: {

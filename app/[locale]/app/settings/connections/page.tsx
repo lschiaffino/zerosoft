@@ -34,6 +34,7 @@ export default async function ConnectionsSettingsPage(props: { params: Promise<{
         { href: '/app/crm/settings?tab=integrations', label: t('connections.gmail') },
         { href: '/app/groups/settings?tab=numbers', label: t('connections.whatsapp') },
         { href: '/app/track/settings?tab=github', label: t('connections.github') },
+        { href: '/app/settings/api#connected', label: t('connections.apps') },
       ]}
     >
       <CredentialsSummary credentials={credentials} canEdit={canEditFlows(user)} locale={locale} />
