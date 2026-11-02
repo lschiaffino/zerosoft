@@ -15,6 +15,10 @@ import {
   HiringError,
   MAX_TAGS,
   RESUME_MAX_BYTES,
+  oneLine,
+  cleanCustomValues,
+  type CandidateField,
+  autoRejected,
   SOURCES,
   answerErrors,
   canManageJob,
@@ -46,6 +50,7 @@ import {
   requireManage,
   stageDto,
   visibleAppsSql,
+  visibleJobsSql,
   type JobRow,
   type StageDto,
 } from './core';
@@ -66,6 +71,7 @@ export interface CandidateRow {
   resume_name: string | null;
   resume_mime: string | null;
   resume_text: string;
+  custom: string;
   ai_summary: string;
   ai_fields: string;
   consent_at: string | null;
@@ -302,11 +308,13 @@ interface ApplyCore {
   referrer: string;
   answers: Record<string, string>;
   knockouts: string[];
+  /** Una knock-out que rechaza sola falló: entra rechazada. */
+  autoReject?: boolean;
   createdBy: string | null;
 }
 
 /** Postulación nueva (o la existente si ya se había postulado a este puesto). */
-async function createApplication(ws: string, input: ApplyCore): Promise<{ app: ApplicationRow; existing: boolean }> {
+export async function createApplication(ws: string, input: ApplyCore): Promise<{ app: ApplicationRow; existing: boolean }> {
   const db = getDb();
   const prev = (await db.prepare('SELECT * FROM hiring_applications WHERE job_id = ? AND candidate_id = ?').get(input.job.id, input.candidate.id)) as ApplicationRow | undefined;
   if (prev) {
@@ -318,11 +326,12 @@ async function createApplication(ws: string, input: ApplyCore): Promise<{ app: A
   const ts = nowIso();
   await db
     .prepare(
-      `INSERT INTO hiring_applications (id, workspace_id, job_id, candidate_id, stage_id, status, source, utm, referrer, answers, knocked_out, stage_changed_at, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO hiring_applications (id, workspace_id, job_id, candidate_id, stage_id, status, reject_reason, rejected_at, source, utm, referrer, answers, knocked_out, stage_changed_at, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, ws, input.job.id, input.candidate.id, stage.id, input.source, JSON.stringify(input.utm), input.referrer.slice(0, 500), JSON.stringify(input.answers), input.knockouts.length ? 1 : 0, ts, input.createdBy, ts, ts);
+    .run(id, ws, input.job.id, input.candidate.id, stage.id, input.autoReject ? 'rejected' : 'active', input.autoReject ? 'knockout' : '', input.autoReject ? ts : null, input.source, JSON.stringify(input.utm), input.referrer.slice(0, 500), JSON.stringify(input.answers), input.knockouts.length ? 1 : 0, ts, input.createdBy, ts, ts);
   await addEvent(ws, input.candidate.id, id, 'applied', input.createdBy, { source: input.source, stage: stage.name, knockouts: input.knockouts, job: input.job.title });
+  if (input.autoReject) await addEvent(ws, input.candidate.id, id, 'rejected', null, { reason: 'knockout', auto: true });
   await notifyTeam(await teamIds(input.job.id, ['recruiter', 'hiring_manager'], input.createdBy), {
     title: `${input.candidate.name} · ${input.job.title}`,
     body: input.knockouts.length ? 'knock-out' : undefined,
@@ -338,7 +347,7 @@ async function createApplication(ws: string, input: ApplyCore): Promise<{ app: A
 }
 
 export const publicApplySchema = z.object({
-  name: z.string().trim().min(1).max(160),
+  name: z.string().transform(oneLine).pipe(z.string().min(1).max(160)),
   email: z.string().trim().max(254),
   phone: z.string().trim().max(40).default(''),
   linkedin: z.string().trim().max(300).default(''),
@@ -362,7 +371,7 @@ export async function applyPublic(handle: string, jobSlug: string, input: z.infe
   const db = getDb();
   const settings = (await db.prepare('SELECT * FROM hiring_settings WHERE handle = ? AND published = 1').get(handle.toLowerCase())) as Awaited<ReturnType<typeof getSettings>> | undefined;
   if (!settings) throw new HiringError('not_found', 404);
-  const job = (await db.prepare("SELECT * FROM hiring_jobs WHERE workspace_id = ? AND slug = ? AND status = 'published'").get(settings.workspace_id, jobSlug)) as JobRow | undefined;
+  const job = (await db.prepare("SELECT * FROM hiring_jobs WHERE workspace_id = ? AND slug = ? AND status = 'published' AND confidential = 0").get(settings.workspace_id, jobSlug)) as JobRow | undefined;
   if (!job) throw new HiringError('not_found', 404);
   if (!input.consent) throw new HiringError('consent_required');
   if (!EMAIL_RE.test(input.email)) throw new HiringError('invalid_email');
@@ -377,15 +386,16 @@ export async function applyPublic(handle: string, jobSlug: string, input: z.infe
   const links = input.linkedin && /^https?:\/\//i.test(input.linkedin) ? [input.linkedin] : [];
   const fresh: NewCandidate = { email: input.email, name: input.name, phone: input.phone, links, resume: stored, consent: true, keepConsent: input.keepConsent };
   const knockouts = failedKnockouts(questions, answers);
+  const autoReject = autoRejected(questions, knockouts);
   const onJob = await candidateOnJob(settings.workspace_id, job.id, input.email);
   if (onJob) {
-    const { app } = await createApplication(settings.workspace_id, { job, candidate: onJob, source, utm, referrer: input.referrer, answers, knockouts, createdBy: null });
+    const { app } = await createApplication(settings.workspace_id, { job, candidate: onJob, source, utm, referrer: input.referrer, answers, knockouts, autoReject, createdBy: null });
     await mergeInto(onJob, fresh, { fillEmpty: false, applicationId: app.id });
     return { applicationId: app.id, duplicate: true, existing: true };
   }
   const duplicate = (await sameEmail(settings.workspace_id, input.email)).length > 0;
   const { candidate, forgetToken } = await insertCandidate(settings.workspace_id, fresh);
-  const { app } = await createApplication(settings.workspace_id, { job, candidate, source, utm, referrer: input.referrer, answers, knockouts, createdBy: null });
+  const { app } = await createApplication(settings.workspace_id, { job, candidate, source, utm, referrer: input.referrer, answers, knockouts, autoReject, createdBy: null });
   if (settings.auto_ack === 1) {
     const tpl = await resolveTemplate(settings.workspace_id, 'ack', settings, null, job.id);
     await sendCandidateEmail(
@@ -401,7 +411,7 @@ export async function applyPublic(handle: string, jobSlug: string, input: z.infe
 
 export const manualAddSchema = z.object({
   jobId: z.string().min(1).max(80),
-  name: z.string().trim().min(1).max(160),
+  name: z.string().transform(oneLine).pipe(z.string().min(1).max(160)),
   email: z.string().trim().max(254),
   phone: z.string().trim().max(40).optional(),
   location: z.string().trim().max(120).optional(),
@@ -630,6 +640,9 @@ export interface CandidateProfile {
   timeline: ReturnType<typeof eventDto>[];
   canDelete: boolean;
   documents: DocumentDto[];
+  /** Campos propios: los protegidos solo si gestiona alguna postulación del candidato. */
+  customFields: Array<{ id: string; label: string; type: CandidateField['type']; options: string[]; protected: boolean; value: string }>;
+  canEditCustom: boolean;
   /** Otros registros con el mismo email que la persona también ve. */
   duplicates: Array<{ id: string; name: string }>;
 }
@@ -685,6 +698,12 @@ export async function getCandidateProfile(actor: HiringActor, candidateId: strin
   }
   if (!out.length) return null;
   const visibleIds = new Set(out.map((a) => a.id));
+  const canEditCustom = actor.admin || managed.size > 0;
+  const customValues = parseJson<Record<string, string>>(c.custom, {});
+  const defined = parseJson<CandidateField[]>((await ensureSettings(actor.ws)).candidate_fields, []);
+  const customFields = defined
+    .filter((f) => canEditCustom || !f.protected)
+    .map((f) => ({ id: f.id, label: f.label, type: f.type, options: f.options, protected: f.protected, value: customValues[f.id] ?? '' }));
 
   const events = (await db
     .prepare('SELECT e.*, u.name AS actor_name FROM hiring_events e LEFT JOIN users u ON u.id = e.actor_id WHERE e.candidate_id = ? ORDER BY e.created_at DESC LIMIT 300')
@@ -705,6 +724,8 @@ export async function getCandidateProfile(actor: HiringActor, candidateId: strin
     applications: out,
     timeline,
     canDelete: actor.admin || manageAll,
+    customFields,
+    canEditCustom,
     documents: await listDocuments(candidateId, visibleIds),
     duplicates: await visibleDuplicates(actor, c),
   };
@@ -783,7 +804,13 @@ export async function moveApplication(actor: HiringActor, appId: string, stageId
   const stages = (await listStages(job.id)).map(stageDto);
   const to = stages.find((s) => s.id === stageId);
   if (!to) throw new HiringError('invalid_stage');
+  if (app.status === 'withdrawn') throw new HiringError('application_withdrawn', 409);
   if (app.stage_id === stageId && app.status !== 'rejected') return app;
+  if (app.status === 'hired' && to.kind !== 'hired') {
+    // La ficha de People no se borra sola: alguien de HR decide qué hacer con ella.
+    const { warnHireUndone } = await import('../people-hire');
+    await warnHireUndone(actor.ws, app.id, candidate.name).catch(() => undefined);
+  }
   const from = stages.find((s) => s.id === app.stage_id);
   const ts = nowIso();
   const hired = to.kind === 'hired';
@@ -826,11 +853,14 @@ export async function markHired(ws: string, appId: string, actorId: string | nul
     hiredAt: app.hired_at ?? nowIso(),
     hiredBy: actorId,
     candidate: { id: c.id, name: c.name, email: c.email, phone: c.phone, location: c.location },
-    job: { id: job.id, title: job.title, department: job.department, location: job.location, workplace: job.workplace, employmentType: job.employment_type },
+    job: { id: job.id, title: job.title, department: job.department, location: job.location, workplace: job.workplace, employmentType: job.employment_type, confidential: job.confidential === 1 },
     offer: offer ? { title: offer.title, salary: offer.salary, currency: offer.currency, startDate: offer.start_date } : null,
   };
   await emitHiring(ws, 'hiring.candidate.hired', job.id, { candidate: payload.candidate, job: payload.job, offer: payload.offer, hiredAt: payload.hiredAt });
   await runOnHire(payload);
+  // People: el ingreso queda cargado (solo si el workspace usa People). Nunca corta la contratación.
+  const { addHireToPeople } = await import('../people-hire');
+  await addHireToPeople(payload).catch((err: unknown) => console.error('[hiring] people hand-off', err instanceof Error ? err.message : 'error'));
 }
 
 export const rejectSchema = z.object({ reason: z.string().trim().max(300).default(''), sendEmail: z.boolean().default(false), templateId: z.string().max(80).nullable().default(null) });
@@ -838,6 +868,7 @@ export const rejectSchema = z.object({ reason: z.string().trim().max(300).defaul
 /** Rechazo hecho por una persona (con email de rechazo opcional desde una plantilla). */
 export async function rejectApplication(actor: HiringActor, appId: string, input: z.infer<typeof rejectSchema>): Promise<ApplicationRow> {
   const { app, job, candidate } = await requireManageApp(actor, appId);
+  if (app.status === 'withdrawn') throw new HiringError('application_withdrawn', 409);
   const ts = nowIso();
   await getDb().prepare("UPDATE hiring_applications SET status = 'rejected', reject_reason = ?, rejected_at = ?, updated_at = ? WHERE id = ?").run(input.reason, ts, ts, app.id);
   await addEvent(actor.ws, candidate.id, app.id, 'rejected', actor.person, { reason: input.reason });
@@ -875,13 +906,14 @@ export async function addNote(actor: HiringActor, appId: string, body: string): 
 }
 
 export const candidatePatchSchema = z.object({
-  name: z.string().trim().min(1).max(160).optional(),
+  name: z.string().transform(oneLine).pipe(z.string().min(1).max(160)).optional(),
   phone: z.string().trim().max(40).optional(),
   location: z.string().trim().max(120).optional(),
   headline: z.string().trim().max(200).optional(),
   links: z.array(z.string().trim().url().max(300)).max(10).optional(),
   tags: z.array(z.string().trim().min(1).max(40)).max(MAX_TAGS).optional(),
   keepConsent: z.boolean().optional(),
+  custom: z.record(z.string().max(40), z.string().max(500)).optional(),
 });
 
 export async function updateCandidate(actor: HiringActor, id: string, patch: z.infer<typeof candidatePatchSchema>): Promise<CandidateDto> {
@@ -889,8 +921,9 @@ export async function updateCandidate(actor: HiringActor, id: string, patch: z.i
   if (!(await canManageCandidate(actor, id))) throw new HiringError('forbidden', 403);
   const oldTags = parseJson<string[]>(c.tags, []);
   const tags = patch.tags ? [...new Set(patch.tags)] : oldTags;
+  const custom = patch.custom ? cleanCustomValues(parseJson<CandidateField[]>((await ensureSettings(actor.ws)).candidate_fields, []), patch.custom, parseJson<Record<string, string>>(c.custom, {})) : parseJson<Record<string, string>>(c.custom, {});
   await getDb()
-    .prepare('UPDATE hiring_candidates SET name = ?, phone = ?, location = ?, headline = ?, links = ?, tags = ?, keep_consent = ?, updated_at = ? WHERE id = ?')
+    .prepare('UPDATE hiring_candidates SET name = ?, phone = ?, location = ?, headline = ?, links = ?, tags = ?, keep_consent = ?, custom = ?, updated_at = ? WHERE id = ?')
     .run(
       patch.name ?? c.name,
       patch.phone ?? c.phone,
@@ -899,6 +932,7 @@ export async function updateCandidate(actor: HiringActor, id: string, patch: z.i
       patch.links ? JSON.stringify(patch.links) : c.links,
       JSON.stringify(tags),
       patch.keepConsent === undefined ? c.keep_consent : patch.keepConsent ? 1 : 0,
+      JSON.stringify(custom),
       nowIso(),
       id,
     );
@@ -1064,14 +1098,15 @@ export interface HiringSearchHit {
   href: string;
 }
 
-/** Cmd+K: puestos (cualquiera con Hiring) y candidatos solo si la persona los ve. */
+/** Cmd+K: puestos y candidatos, solo los que la persona ve (visibleJobsSql y visibleAppsSql). */
 export async function searchHiring(actor: HiringActor, q: string): Promise<HiringSearchHit[]> {
   const query = q.trim().slice(0, 100);
   if (!query) return [];
   const like = `%${query}%`;
+  const vis = visibleJobsSql(actor);
   const jobs = (await getDb()
-    .prepare("SELECT id, title, department, status FROM hiring_jobs WHERE workspace_id = ? AND status != 'archived' AND (title LIKE ? OR department LIKE ?) ORDER BY updated_at DESC LIMIT 6")
-    .all(actor.ws, like, like)) as Array<{ id: string; title: string; department: string; status: string }>;
+    .prepare(`SELECT j.id, j.title, j.department, j.status FROM hiring_jobs j WHERE j.workspace_id = ? AND j.status != 'archived' AND ${vis.sql} AND (j.title LIKE ? OR j.department LIKE ?) ORDER BY j.updated_at DESC LIMIT 6`)
+    .all(actor.ws, ...vis.args, like, like)) as Array<{ id: string; title: string; department: string; status: string }>;
   const apps = await listApplications(actor, { q: query, limit: 30 });
   const seen = new Set<string>();
   const cands: HiringSearchHit[] = [];

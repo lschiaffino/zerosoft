@@ -9,16 +9,80 @@ import type { InterviewDto } from '@/lib/hiring/interviews';
 import type { OfferDto } from '@/lib/hiring/offers';
 import { OVERALL } from '@/lib/hiring/types';
 import { VARIABLES } from './variables';
-import { AppStatusBadge, HrDialog, api, money, useDate, useErrorText, useToast } from './ui';
+import { AppStatusBadge, HrDialog, RejectReasonOptions, api, money, useDate, useErrorText, useToast } from './ui';
 
 type Tpl = { id: string; jobId: string | null; kind: string; name: string; subject: string; body: string };
 const TABS = ['timeline', 'resume', 'scorecards', 'interviews', 'offers'] as const;
+
+function CustomFieldsPanel({ candidateId, fields, editable, onSaved, onError }: { candidateId: string; fields: Profile['customFields']; editable: boolean; onSaved: () => void; onError: (code: string | undefined) => void }) {
+  const t = useTranslations('hiring');
+  const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((f) => [f.id, f.value])));
+  const [busy, setBusy] = useState(false);
+  const shown = editable ? fields : fields.filter((f) => f.value);
+  return (
+    <section className="panel" data-testid="hiring-custom-fields" aria-labelledby="hr-custom-fields">
+      <h2 id="hr-custom-fields" className="hr-panel-title">
+        {t('candidateFields.panel')}
+      </h2>
+      {shown.length === 0 && <p className="ui-help">{t('candidateFields.nothing')}</p>}
+      {editable ? (
+        <form
+          className="ui-fields"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setBusy(true);
+            const res = await api(`/api/hiring/candidates/${candidateId}`, { method: 'PATCH', json: { custom: values } });
+            setBusy(false);
+            if (!res.ok) return onError(res.data.error);
+            onSaved();
+          }}
+        >
+          {fields.map((f) => (
+            <label key={f.id} className="ui-field">
+              <span className="label">
+                {f.label}
+                {f.protected ? ` (${t('candidateFields.protectedShort')})` : ''}
+              </span>
+              {f.type === 'select' ? (
+                <select className="select" value={values[f.id] ?? ''} onChange={(e) => setValues({ ...values, [f.id]: e.target.value })}>
+                  <option value="" />
+                  {f.options.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input className="input" type={f.type} maxLength={500} value={values[f.id] ?? ''} onChange={(e) => setValues({ ...values, [f.id]: e.target.value })} />
+              )}
+            </label>
+          ))}
+          <div>
+            <button type="submit" className="btn btn-secondary btn-sm" disabled={busy}>
+              {t('common.save')}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <dl className="hr-custom-list">
+          {shown.map((f) => (
+            <div key={f.id}>
+              <dt>{f.label}</dt>
+              <dd>{f.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </section>
+  );
+}
 
 export default function CandidateProfile({
   initial,
   focusApp,
   me,
   isAdmin,
+  manageJobs = [],
   templates,
   repliesEnabled,
   signEnabled = false,
@@ -27,6 +91,8 @@ export default function CandidateProfile({
   focusApp: string | null;
   me: string;
   isAdmin: boolean;
+  /** Puestos que la persona gestiona (destinos de copiar o mover). */
+  manageJobs?: Array<{ id: string; title: string }>;
   templates: Tpl[];
   repliesEnabled: boolean;
   /** La persona tiene Sign: la oferta aprobada puede salir a firmar con firma electrónica. */
@@ -66,6 +132,9 @@ export default function CandidateProfile({
   };
 
   // ---------- Etapa ----------
+  const [copyOpen, setCopyOpen] = useState(false);
+  const [mergeWith, setMergeWith] = useState<{ id: string; name: string } | null>(null);
+  const [offerNote, setOfferNote] = useState('');
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [rejectEmail, setRejectEmail] = useState(true);
@@ -169,12 +238,12 @@ export default function CandidateProfile({
             {app.utm.utm_campaign ? ` · utm_campaign=${app.utm.utm_campaign}` : ''} · {date(app.createdAt, false)}
           </span>
         </div>
-        {app.canManage && (
+        {app.canManage && app.status !== 'withdrawn' && (
           <div className="hr-stagebar-actions">
             <label className="sr-only" htmlFor="hr-stage-select">
               {t('profile.stage')}
             </label>
-            <select id="hr-stage-select" className="select" value={app.stageId} disabled={busy} onChange={(e) => void act(`/api/hiring/applications/${app.id}`, 'PATCH', { action: 'move', stageId: e.target.value }, t('profile.movedTo', { stage: app.stages.find((s) => s.id === e.target.value)?.name ?? '' }))}>
+            <select id="hr-stage-select" className="select" value={app.stageId} disabled={busy} onChange={(e) => void act(`/api/hiring/applications/${app.id}`, 'PATCH', { action: 'move', stageId: e.target.value }, app.status === 'hired' ? t('profile.hireUndone') : t('profile.movedTo', { stage: app.stages.find((s) => s.id === e.target.value)?.name ?? '' }))}>
               {app.stages.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -188,6 +257,11 @@ export default function CandidateProfile({
             ) : (
               <button type="button" className="btn btn-danger" disabled={busy} onClick={() => setRejectOpen(true)}>
                 {t('profile.reject')}
+              </button>
+            )}
+            {manageJobs.some((j) => j.id !== app.job.id) && (
+              <button type="button" className="btn btn-secondary" data-testid="hiring-copy" onClick={() => setCopyOpen(true)}>
+                {t('copy.button')}
               </button>
             )}
           </div>
@@ -279,6 +353,16 @@ export default function CandidateProfile({
               {canScore && scoreStage && (
                 <form className="panel hr-scoreform" onSubmit={submitScore} aria-label={t('score.formTitle', { stage: scoreStage.name })}>
                   <h3 className="hr-panel-title">{t('score.formTitle', { stage: scoreStage.name })}</h3>
+                  {(scoreStage.kit ?? []).length > 0 && (
+                    <details className="hr-kit" open data-testid="hiring-kit">
+                      <summary>{t('score.kit')}</summary>
+                      <ol>
+                        {scoreStage.kit.map((q, i) => (
+                          <li key={i}>{q}</li>
+                        ))}
+                      </ol>
+                    </details>
+                  )}
                   {scoreStage.criteria.map((cr) => (
                     <fieldset key={cr.id} className="hr-criterion">
                       <legend className="label">{cr.label}</legend>
@@ -383,11 +467,13 @@ export default function CandidateProfile({
 
           {tab === 'offers' && app.canManage && (
             <section className="hr-section">
+{app.status !== 'withdrawn' && (
               <div className="hr-actions-row">
                 <button type="button" className="btn btn-primary" onClick={() => setOfferOpen(true)}>
                   {t('offers.new')}
                 </button>
               </div>
+)}
               {offerLink && (
                 <p className="hr-short">
                   <input className="input" readOnly value={offerLink} aria-label={t('offers.link')} onFocus={(e) => e.currentTarget.select()} />
@@ -414,12 +500,35 @@ export default function CandidateProfile({
                       {o.status === 'accepted' && <p className="ui-help">{t('offers.signed', { name: o.signedName ?? '', date: date(o.respondedAt), ip: o.signedIp ?? '' })}</p>}
                       {o.status === 'declined' && o.declineReason && <p className="ui-help">{o.declineReason}</p>}
                       <div className="hr-actions-row">
-                        {o.status === 'pending_approval' && (isAdmin || app.myRole === 'hiring_manager') && (
+                        {o.status === 'pending_approval' && o.approval.length > 0 && (
+                          <div className="hr-chain-offer" data-testid="hiring-offer-chain">
+                            <ol className="hr-chain">
+                              {o.approval.map((st) => (
+                                <li key={st.id}>
+                                  <span>{st.name}</span>
+                                  <span className={`badge ${st.status === 'approved' || st.status === 'skipped' ? 'badge-ok' : st.status === 'rejected' ? 'badge-bad' : 'badge-outline'}`}>{t(`approvals.status.${st.status}`)}</span>
+                                </li>
+                              ))}
+                            </ol>
+                            {o.approval.find((st) => st.status === 'pending')?.userId === me && (
+                              <div className="hr-chain-actions">
+                                <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => void act(`/api/hiring/offers/${o.id}`, 'PATCH', { action: 'approve' }, t('offers.approved'))}>
+                                  {t('offers.approve')}
+                                </button>
+                                <input className="input" value={offerNote} maxLength={500} placeholder={t('approvals.reason')} aria-label={t('approvals.reason')} onChange={(e) => setOfferNote(e.target.value)} />
+                                <button type="button" className="btn btn-secondary btn-sm" disabled={busy || !offerNote.trim()} onClick={() => void act(`/api/hiring/offers/${o.id}`, 'PATCH', { action: 'reject', note: offerNote }, t('approvals.done.reject'))}>
+                                  {t('approvals.reject')}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {o.status === 'pending_approval' && o.approval.length === 0 && (isAdmin || app.myRole === 'hiring_manager') && (
                           <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => void act(`/api/hiring/offers/${o.id}`, 'PATCH', { action: 'approve' }, t('offers.approved'))}>
                             {t('offers.approve')}
                           </button>
                         )}
-                        {o.status === 'pending_approval' && !(isAdmin || app.myRole === 'hiring_manager') && <span className="ui-help">{t('offers.waitingApproval')}</span>}
+                        {o.status === 'pending_approval' && o.approval.length === 0 && !(isAdmin || app.myRole === 'hiring_manager') && <span className="ui-help">{t('offers.waitingApproval')}</span>}
                         {o.status === 'sent' && o.signEnvelopeId && (
                           <a className="btn btn-outline btn-sm" href={`/${locale}/app/sign/envelopes/${o.signEnvelopeId}`}>
                             {t('esign.open')}
@@ -471,6 +580,7 @@ export default function CandidateProfile({
         </div>
 
         <aside className="hr-profile-side">
+          {profile.customFields.length > 0 && <CustomFieldsPanel key={profile.customFields.map((f) => f.value).join('|')} candidateId={c.id} fields={profile.customFields} editable={profile.canEditCustom} onSaved={() => { push(t('common.saved')); void reload(); }} onError={(code) => push(errText(code), 'bad')} />}
           {(c.links.length > 0 || profile.documents.length > 0 || profile.duplicates.length > 0) && (
             <section className="panel">
               {c.links.length > 0 && (
@@ -514,6 +624,11 @@ export default function CandidateProfile({
                         <a className="hr-list-row" href={`/${locale}/app/hiring/candidates/${d.id}`}>
                           <span className="hr-list-main">{d.name}</span>
                         </a>
+                        {app.canManage && (
+                          <button type="button" className="btn btn-ghost btn-sm" data-testid="hiring-merge" onClick={() => setMergeWith(d)}>
+                            {t('merge.button')}
+                          </button>
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -620,6 +735,74 @@ export default function CandidateProfile({
         </aside>
       </div>
 
+      <HrDialog open={copyOpen} title={t('copy.title', { name: c.name })} onClose={() => setCopyOpen(false)}>
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.currentTarget);
+            const res = await api<{ applicationId: string; existing: boolean }>(`/api/hiring/applications/${app.id}/copy`, { method: 'POST', json: { jobId: fd.get('jobId'), move: fd.get('move') === 'on' } });
+            if (!res.ok) return push(errText(res.data.error), 'bad');
+            setCopyOpen(false);
+            push(res.data.existing ? t('copy.already') : t('copy.done'));
+            router.refresh();
+            window.location.assign(`/${locale}/app/hiring/candidates/${c.id}?app=${res.data.applicationId}`);
+          }}
+        >
+          <div className="ui-modal-body ui-fields">
+            <label className="ui-field">
+              <span className="label">{t('copy.job')}</span>
+              <select name="jobId" className="select" required>
+                {manageJobs
+                  .filter((j) => j.id !== app.job.id)
+                  .map((j) => (
+                    <option key={j.id} value={j.id}>
+                      {j.title}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label className="ui-check">
+              <input type="checkbox" name="move" />
+              {t('copy.move')}
+            </label>
+            <p className="ui-help">{t('copy.help')}</p>
+          </div>
+          <div className="ui-modal-foot">
+            <button type="button" className="btn btn-ghost" onClick={() => setCopyOpen(false)}>
+              {t('common.cancel')}
+            </button>
+            <button type="submit" className="btn btn-primary">
+              {t('copy.confirm')}
+            </button>
+          </div>
+        </form>
+      </HrDialog>
+      <HrDialog open={mergeWith !== null} title={t('merge.title')} onClose={() => setMergeWith(null)}>
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!mergeWith) return;
+            const res = await api(`/api/hiring/candidates/${c.id}/merge`, { method: 'POST', json: { dropId: mergeWith.id } });
+            setMergeWith(null);
+            if (!res.ok) return push(errText(res.data.error), 'bad');
+            push(t('merge.done'));
+            router.refresh();
+          }}
+        >
+          <div className="ui-modal-body">
+            <p>{t('merge.body', { keep: c.name, drop: mergeWith?.name ?? '' })}</p>
+            <p className="ui-help">{t('merge.visibility')}</p>
+          </div>
+          <div className="ui-modal-foot">
+            <button type="button" className="btn btn-ghost" onClick={() => setMergeWith(null)}>
+              {t('common.cancel')}
+            </button>
+            <button type="submit" className="btn btn-primary" autoFocus>
+              {t('merge.confirm')}
+            </button>
+          </div>
+        </form>
+      </HrDialog>
       <HrDialog open={rejectOpen} title={t('reject.titleOne', { name: c.name })} onClose={() => setRejectOpen(false)}>
         <form
           onSubmit={async (e) => {
@@ -631,7 +814,8 @@ export default function CandidateProfile({
           <div className="ui-modal-body ui-fields">
             <label className="ui-field">
               <span className="label">{t('reject.reason')}</span>
-              <input className="input" maxLength={300} value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} autoFocus />
+              <input className="input" list="hr-reject-reasons" maxLength={300} value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} autoFocus />
+              <RejectReasonOptions />
             </label>
             <label className="ui-check">
               <input type="checkbox" checked={rejectEmail} onChange={(e) => setRejectEmail(e.target.checked)} />
@@ -835,7 +1019,7 @@ function eventVars(data: Record<string, unknown>, t: ReturnType<typeof useTransl
   const s = (v: unknown) => (typeof v === 'string' ? v : '');
   const status = s(data.status);
   return {
-    to: s(data.to),
+    to: s(data.to) || (data.movedJob ? t('events.anotherJob') : ''),
     from: s(data.from),
     stage: s(data.stage),
     job: s(data.job),

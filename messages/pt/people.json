@@ -102,7 +102,8 @@
       "performance": "Desempenho",
       "compensation": "Salário",
       "onboarding": "Onboarding",
-      "notes": "Notas 1:1"
+      "notes": "Notas 1:1",
+      "history": "Histórico"
     },
     "sections": "Seções do perfil",
     "job": "Trabalho",
@@ -126,7 +127,11 @@
     "linkedAccount": "Conta vinculada",
     "linkedMismatch": "O email de trabalho deste perfil não coincide com a conta que o lê: {email}. Confirme que é a pessoa certa antes de cadastrar o salário.",
     "linkedConfirm": "Confirmar esta conta",
-    "linkedPayBlocked": "Este perfil está vinculado a {email}, que não coincide com o email de trabalho. Confirme essa conta no perfil antes de mudar o salário."
+    "linkedPayBlocked": "Este perfil está vinculado a {email}, que não coincide com o email de trabalho. Confirme essa conta no perfil antes de mudar o salário.",
+    "exitOverdue": "A data de saída passou: confirme.",
+    "finishExit": "Concluir saída",
+    "cancelExit": "Cancelar saída",
+    "reactivate": "Reativar"
   },
   "offboard": {
     "action": "Desligamento",
@@ -195,7 +200,8 @@
     "nextMonth": "Próximo mês",
     "thisMonth": "Hoje",
     "outThisMonth": "Fora neste mês",
-    "nobodyOut": "Ninguém está fora neste mês."
+    "nobodyOut": "Ninguém está fora neste mês.",
+    "laterYears": "{days} dias pedidos para anos seguintes"
   },
   "documents": {
     "upload": "Enviar documento",
@@ -222,7 +228,8 @@
     "ackCount": "{count, plural, one {# pessoa leu} other {# pessoas leram}}",
     "empty": "Ainda não há documentos.",
     "delete": "Excluir {title}",
-    "signNote": "Os arquivos são privados: só o RH e a pessoa com quem são compartilhados podem abrir. A assinatura eletrônica ainda não está disponível; para políticas, use a confirmação de leitura."
+    "signNote": "Os arquivos são privados: só o RH e a pessoa com quem são compartilhados podem abrir. A assinatura eletrônica ainda não está disponível; para políticas, use a confirmação de leitura.",
+    "sendForSignature": "Enviar para assinatura"
   },
   "goals": {
     "title": "Metas",
@@ -335,7 +342,11 @@
     "help": "Arraste para mover; Ctrl ou Cmd com a roda para o zoom e 0 para ajustar. O gestor é definido em cada perfil.",
     "emptyTitle": "Ainda não há organograma",
     "emptyBody": "Cadastre pessoas e defina os gestores: o organograma se monta sozinho.",
-    "fit": "Ajustar à tela"
+    "fit": "Ajustar à tela",
+    "flat": "Ninguém tem manager ainda, então todos ficam em uma linha. Defina um manager em um perfil para desenhar as linhas de reporte.",
+    "alone": "Por enquanto só há você aqui. Adicione pessoas ou importe pelo diretório.",
+    "openDirectory": "Abrir o diretório",
+    "loose": "Sem manager ainda ({count})"
   },
   "reviews": {
     "desc": "Ciclos de avaliação com autoavaliação, avaliação do gestor e de pares.",
@@ -395,7 +406,12 @@
     "submit": "Enviar avaliação",
     "received": "Avaliações",
     "noneReceived": "Ainda não há avaliações enviadas.",
-    "noAnswer": "Sem resposta"
+    "noAnswer": "Sem resposta",
+    "addPeer": "Adicionar par",
+    "pickPeer": "Escolha um par",
+    "addPeerFor": "Adicionar um avaliador par para {name}",
+    "removePeer": "Remover",
+    "peerAdded": "Par adicionado e avisado."
   },
   "reports": {
     "desc": "Quadro de pessoal, rotatividade, folgas e tempo de casa. Só o RH vê esta página.",
@@ -433,7 +449,8 @@
       "view": "Viu",
       "change": "Alterou",
       "export": "Exportou"
-    }
+    },
+    "auditAll": "Ver todos os {count}"
   },
   "settings": {
     "title": "Configurações do People",
@@ -444,7 +461,8 @@
       "fields": "Campos personalizados",
       "visibility": "Visibilidade",
       "documents": "Políticas e boas-vindas",
-      "access": "Admins de RH"
+      "access": "Admins de RH",
+      "changes": "Aprovação de alterações"
     },
     "newPolicy": "Nova política",
     "kind": "Tipo",
@@ -491,11 +509,7 @@
     "optionsHint": "Para listas: opções separadas por vírgulas.",
     "sensitiveField": "Sensível: só o RH e a pessoa",
     "visibilityHint": "Quem do workspace vê cada campo no diretório e nos perfis. O RH e cada pessoa sempre veem o próprio.",
-    "levels": {
-      "everyone": "Todo o workspace",
-      "managers": "Os gestores",
-      "hr": "Só o RH"
-    },
+    "levels": "Mais dias com o tempo de casa",
     "alwaysPrivate": "Salário, dados pessoais, documento, contatos de emergência, desempenho e entrevistas de desligamento são sempre privados.",
     "policiesDocs": "Políticas da empresa",
     "createHandbook": "Criar manual no Docs",
@@ -508,7 +522,10 @@
     "hrAdmins": "Admins de RH",
     "hrAdminsHint": "Admins de RH gerenciam perfis, folgas, documentos, salários, avaliações e relatórios. Salários e a exportação da folha são do owner, dos admins de RH e de cada pessoa. Admins do workspace gerenciam o resto do People sem ver salários. Só o owner nomeia admins de RH.",
     "implicitHr": "Owner do workspace",
-    "onlyAdmins": "Só owner e admins do workspace escolhem admins de RH."
+    "onlyAdmins": "Só owner e admins do workspace escolhem admins de RH.",
+    "levelsHint": "Anos=dias por ano, separados por vírgulas. 3=18, 5=20 quer dizer 18 dias a partir do ano 3 e 20 a partir do ano 5.",
+    "scope": "Para quem vale",
+    "scopeHint": "Vazio quer dizer todos. Separe os valores com vírgulas."
   },
   "welcome": {
     "title": "Boas-vindas, {name}",
@@ -530,15 +547,15 @@
     "unauthorized": "Você não tem acesso ao People neste workspace.",
     "forbidden": "Você não tem permissão para fazer isso.",
     "not_found": "Isso não existe mais.",
-    "name_required": "Escreva um nome.",
+    "name_required": "Uma linha não tem nome.",
     "label_required": "Escreva um rótulo.",
     "title_required": "Escreva um título.",
     "options_required": "Uma lista precisa de pelo menos uma opção.",
-    "invalid_date": "Essa data não é válida.",
+    "invalid_date": "Use datas como AAAA-MM-DD.",
     "invalid_dates": "Confira as datas: o fim não pode ser antes do início.",
-    "invalid_manager": "Esse gestor não existe.",
+    "invalid_manager": "Nenhum perfil tem esse email de manager.",
     "manager_cycle": "Isso faria alguém ser o próprio gestor na cadeia.",
-    "invalid_type": "Escolha um tipo de contratação.",
+    "invalid_type": "O tipo precisa ser full_time, part_time, contractor ou intern.",
     "invalid_pay_period": "Escolha um período de pagamento.",
     "invalid_status": "Escolha um status.",
     "invalid_email": "Esse email não é válido.",
@@ -554,7 +571,7 @@
     "no_working_days": "Essas datas são todas fins de semana ou feriados.",
     "overlap": "Você já tem um pedido para alguns desses dias.",
     "insufficient_balance": "Não há dias suficientes disponíveis.",
-    "not_pending": "Alguém já decidiu sobre este pedido.",
+    "not_pending": "Isto já foi decidido.",
     "not_cancellable": "Este pedido não pode mais ser cancelado.",
     "no_profile": "Para isso você precisa de um perfil no People.",
     "invalid_template": "Escolha um modelo.",
@@ -563,7 +580,7 @@
     "invalid_rating": "A nota vai de 1 a 5.",
     "answers_required": "Responda todas as perguntas antes de enviar.",
     "file_required": "Escolha um arquivo.",
-    "file_too_large": "O arquivo é grande demais.",
+    "file_too_large": "O arquivo é muito grande (4 MB no máximo).",
     "file_type": "Use um arquivo PDF, PNG, JPEG, WebP ou DOCX.",
     "image_type": "Use uma imagem PNG, JPEG, GIF, WebP ou AVIF.",
     "invalid_page": "Essa página do Docs não existe neste workspace.",
@@ -572,8 +589,147 @@
     "file_type_not_allowed": "Esse tipo de arquivo não é permitido.",
     "cannot_remove": "Só owner e admins do workspace removem pessoas do workspace, e um admin não remove outro admin. O perfil não mudou.",
     "rate_limited": "Remoções demais por agora. Tente daqui a pouco.",
+    "csv_columns": "O arquivo precisa de uma linha de títulos com a coluna Nome.",
+    "csv_empty": "O arquivo não tem linhas.",
+    "duplicate_in_file": "Este email está repetido no arquivo.",
+    "report_columns": "Escolha ao menos uma coluna.",
+    "survey_closed": "Esta pesquisa está encerrada.",
+    "already_answered": "Você já respondeu esta pesquisa.",
+    "cycle_not_active": "Este ciclo não está ativo.",
+    "invalid_reviewer": "Essa pessoa não pode ser avaliadora aqui.",
+    "already_reviewer": "Essa pessoa já é avaliadora.",
+    "already_submitted": "Esta avaliação já foi enviada.",
+    "own_request": "Sua própria alteração precisa ser revisada por outra pessoa do RH.",
+    "nothing_to_change": "Preencha ao menos uma alteração.",
+    "survey_answered": "Esta pesquisa já tem respostas: o texto fica como está.",
+    "stale_change": "Este valor mudou depois do pedido. Confira e confirme.",
+    "work_email_locked": "Só o owner ou um HR admin marcado podem mudar este email de trabalho.",
+    "not_leaving": "Esta pessoa não está saindo."
+  },
+  "home": {
+    "inbox": "Aguardando você",
+    "celebrations": "Em breve",
+    "birthday": "Aniversário",
+    "anniversary": "{years, plural, one {# ano} other {# anos}} aqui",
+    "items": {
+      "approvals": "Folgas para aprovar",
+      "changes": "Alterações de dados para revisar",
+      "tasks": "Tarefas de onboarding",
+      "reviews": "Avaliações para escrever",
+      "surveys": "Pesquisas para responder",
+      "documents": "Documentos para ler",
+      "exits": "Saídas para confirmar"
+    }
+  },
+  "import": {
+    "button": "Importar",
+    "title": "Importar pessoas",
+    "help": "Um CSV com uma linha de títulos. O nome é obrigatório; também Email, Cargo, Departamento, Localização, País, Telefone, Data de início (AAAA-MM-DD), Tipo (full_time, part_time, contractor, intern) e Manager (o email de trabalho). Um email de trabalho conhecido atualiza esse perfil. Ninguém é convidado nem avisado.",
+    "file": "Arquivo CSV (2 MB no máximo)",
+    "preview": "Verificar o arquivo",
+    "confirm": "Importar",
+    "back": "Voltar",
+    "empty": "Primeiro escolha um arquivo.",
+    "summary": "{creates, plural, one {# perfil novo} other {# perfis novos}} e {updates, plural, one {# atualização} other {# atualizações}}.",
+    "failed": "Linhas que serão ignoradas",
+    "line": "Linha {n}: {error}",
+    "done": "Importado: {created} novos, {updated} atualizados."
+  },
+  "customReports": {
+    "title": "Relatório personalizado",
+    "hint": "Escolha colunas e filtros, veja aqui ou baixe um CSV. Salários e dados pessoais não estão aqui: o export da folha cobre esses dados e fica auditado.",
+    "pick": "Colunas",
+    "run": "Ver relatório",
+    "needColumns": "Escolha ao menos uma coluna.",
+    "noRows": "Ninguém corresponde a estes filtros.",
+    "total": "{count, plural, one {# pessoa} other {# pessoas}}",
+    "csv": "Baixar CSV",
+    "save": "Salvar relatório",
+    "namePlaceholder": "Nome do relatório",
+    "deleteNamed": "Excluir {name}",
+    "sensitive": "sensível, auditado",
+    "columns": {
+      "name": "Nome",
+      "workEmail": "Email de trabalho",
+      "jobTitle": "Cargo",
+      "department": "Departamento",
+      "location": "Localização",
+      "country": "País",
+      "manager": "Manager",
+      "status": "Status",
+      "employmentType": "Tipo",
+      "startDate": "Início",
+      "endDate": "Saída",
+      "tenureYears": "Anos aqui",
+      "payPeriod": "Período de pagamento",
+      "phone": "Telefone"
+    },
+    "rename": "Renomear",
+    "renameNamed": "Renomear {name}"
+  },
+  "surveys": {
+    "title": "Pesquisas",
+    "new": "Nova pesquisa eNPS",
+    "open": "Abrir pesquisa",
+    "question": "Pergunta",
+    "newHint": "Cada pessoa com perfil é convidada a responder, de 0 a 10, uma vez. As respostas não levam nome. O RH vê o resultado só ao encerrar, com ao menos 5 respostas.",
+    "defaultQuestion": "Qual a probabilidade de você recomendar trabalhar aqui a um amigo?",
+    "empty": "Ainda não há pesquisas.",
+    "scale": "0 é nada provável, 10 é muito provável.",
+    "comment": "Comentário (opcional)",
+    "anonymous": "Seu nome não é salvo com a resposta. O RH vê o resultado só depois de encerrar a pesquisa, com ao menos 5 respostas.",
+    "send": "Enviar resposta",
+    "thanks": "Obrigado, sua resposta foi registrada.",
+    "close": "Encerrar pesquisa",
+    "tooFew": "{count, plural, one {# resposta} other {# respostas}} até agora. O resultado aparece ao encerrar a pesquisa, com ao menos 5 respostas, para que ninguém seja identificado.",
+    "summary": "{count, plural, one {# resposta} other {# respostas}}: {promoters, plural, one {# promotor} other {# promotores}}, {passives, plural, one {# neutro} other {# neutros}}, {detractors, plural, one {# detrator} other {# detratores}}",
+    "status": {
+      "open": "Aberta",
+      "closed": "Encerrada"
+    },
+    "yourAnswer": "Sua resposta",
+    "closedTooFew": "Encerrada com {count, plural, one {# resposta} other {# respostas}}. O resultado precisa de ao menos 5, para que ninguém seja identificado."
+  },
+  "changes": {
+    "toggle": "Alterações nos próprios dados de contato e pessoais precisam de aprovação do RH",
+    "hint": "Com isto ligado, uma alteração de telefone, endereço, data de nascimento ou contatos de emergência espera aqui. Pronomes e bio se aplicam na hora.",
+    "empty": "Nada para revisar.",
+    "off": "A aprovação está desligada: as alterações se aplicam na hora.",
+    "field": "Campo",
+    "before": "Antes",
+    "after": "Depois",
+    "approve": "Aprovar",
+    "deny": "Recusar",
+    "pending": "Aguardando o RH",
+    "pendingSelf": "Sua última alteração de dados está aguardando o RH. Ela aparece aqui depois de aprovada.",
+    "pendingHr": "Esta pessoa tem uma alteração de dados para revisar em Ajustes.",
+    "stale": "Mudou desde o pedido. Aprovar sobrescreve o valor mais novo.",
+    "approveAnyway": "Aprovar mesmo assim"
+  },
+  "history": {
+    "empty": "Ainda não há alterações. Aqui aparecem as de cargo, departamento, localização, manager, tipo e status.",
+    "date": "Data",
+    "field": "Alteração",
+    "from": "De",
+    "to": "Para",
+    "by": "Por",
+    "fields": {
+      "jobTitle": "Cargo",
+      "department": "Departamento",
+      "location": "Localização",
+      "managerId": "Manager",
+      "employmentType": "Tipo",
+      "status": "Status"
+    },
+    "scheduled": "Alterações agendadas",
+    "schedule": "Agendar uma alteração",
+    "noScheduled": "Nada agendado.",
+    "effective": "Vale a partir de",
+    "scheduleHint": "Preencha só o que muda. Até essa data, só o RH vê.",
+    "keep": "Sem alteração",
     "work_email_locked": "Só o owner ou um admin de RH podem mudar o email de trabalho deste perfil.",
     "delete_has_pay": "Este perfil tem histórico de salários. Só o owner ou um admin de RH podem excluí-lo.",
-    "linked_account_mismatch": "A conta vinculada deste perfil não coincide com o email de trabalho. Confirme-a primeiro no perfil."
+    "linked_account_mismatch": "A conta vinculada deste perfil não coincide com o email de trabalho. Confirme-a primeiro no perfil.",
+    "auto": "Automático"
   }
 }

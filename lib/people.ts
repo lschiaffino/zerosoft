@@ -27,7 +27,7 @@ import {
   type VisibilityLevel,
   type VisibilitySettings,
 } from './people-access';
-import { isIsoDate, tenureYears, type PayPeriod } from './people-time';
+import { addDays, isIsoDate, tenureYears, type PayPeriod } from './people-time';
 import { seedLocale, type SeedLocale } from './seed-locale';
 
 // ---------- Errores y utilidades ----------
@@ -60,6 +60,8 @@ const str = (v: unknown, max = 200) => (typeof v === 'string' ? v.trim().slice(0
 const db = () => getDb();
 
 export const EMPLOYMENT_TYPES = ['full_time', 'part_time', 'contractor', 'intern'] as const;
+/** El cron cierra solo las salidas de estos últimos días; las más viejas las confirma HR. */
+export const EXIT_GRACE_DAYS = 7;
 export const EMPLOYEE_STATUSES = ['active', 'onboarding', 'offboarding', 'terminated'] as const;
 export const PAY_PERIODS: PayPeriod[] = ['monthly', 'semimonthly', 'biweekly', 'weekly'];
 export type EmployeeStatus = (typeof EMPLOYEE_STATUSES)[number];
@@ -83,6 +85,7 @@ export interface PeopleCtx {
 
 interface SettingsRow {
   workspace_id: string;
+  approve_changes: number;
   visibility: string;
   welcome: string;
   handbook_page_id: string | null;
@@ -91,6 +94,8 @@ interface SettingsRow {
 }
 
 export interface PeopleSettings {
+  /** Los cambios de datos propios esperan aprobación de HR. */
+  approveChanges: boolean;
   visibility: Record<string, VisibilityLevel>;
   welcome: string;
   handbookPageId: string | null;
@@ -198,6 +203,7 @@ async function linkOrCreate(
       await db()
         .prepare("UPDATE people_employees SET status = 'active', end_date = NULL, updated_at = ? WHERE id = ? AND status IN ('terminated', 'offboarding')")
         .run(nowIso(), own.id);
+      await (await extras()).recordJobChanges(ws, own.id, null, [{ field: 'status', from: 'terminated', to: 'active' }]);
     }
     return;
   }
@@ -225,22 +231,32 @@ export async function linkJoinedPerson(ws: string, userId: string): Promise<void
 
 /** Paso de personRemoved: la ficha queda como baja (no se borra: cuenta para rotación y antigüedad). */
 export async function markRemovedPerson(ws: string, userId: string): Promise<void> {
+  const before = (await db().prepare('SELECT id, status FROM people_employees WHERE workspace_id = ? AND user_id = ?').get(ws, userId)) as { id: string; status: string } | undefined;
   await db()
     .prepare(
       `UPDATE people_employees SET status = 'terminated', end_date = COALESCE(end_date, ?), updated_at = ?
        WHERE workspace_id = ? AND user_id = ? AND status != 'terminated'`,
     )
     .run(today(), nowIso(), ws, userId);
+  if (before && before.status !== 'terminated') await (await extras()).recordJobChanges(ws, before.id, null, [{ field: 'status', from: before.status, to: 'terminated' }]);
   await db().prepare('DELETE FROM people_hr_admins WHERE workspace_id = ? AND user_id = ?').run(ws, userId);
 }
 
+/** La ficha de la persona está dada de baja: conserva su propia ficha y nada más. El owner nunca. */
+export async function isTerminatedPerson(ws: string, personId: string): Promise<boolean> {
+  if (ws === personId) return false;
+  return Boolean(await db().prepare("SELECT 1 AS x FROM people_employees WHERE workspace_id = ? AND user_id = ? AND status = 'terminated'").get(ws, personId));
+}
+
 export async function isHrAdmin(ws: string, personId: string, wsAdmin: boolean): Promise<boolean> {
+  if (await isTerminatedPerson(ws, personId)) return false;
   return wsAdmin || (await hasCompensationAccess(ws, personId));
 }
 
 /** Sueldos y nómina: el owner o un HR admin marcado (por el owner). Un admin sin marca, no. */
 export async function hasCompensationAccess(ws: string, personId: string): Promise<boolean> {
   if (ws === personId) return true;
+  if (await isTerminatedPerson(ws, personId)) return false;
   return Boolean(
     await db()
       .prepare(
@@ -257,6 +273,21 @@ async function managerMap(ws: string): Promise<Map<string, string | null>> {
 }
 
 /** Contexto de People para una persona del workspace (sesión, asistente, API). */
+/**
+ * A quién le toca lo del manager de esta ficha: el primero de la cadena que sigue
+ * activo y tiene cuenta. Null si no hay nadie (entonces, HR).
+ */
+export async function activeManagerUser(ws: string, employeeId: string): Promise<string | null> {
+  const seen = new Set<string>([employeeId]);
+  let cur = await getEmployeeRow(ws, employeeId);
+  while (cur?.manager_id && !seen.has(cur.manager_id)) {
+    seen.add(cur.manager_id);
+    cur = await getEmployeeRow(ws, cur.manager_id);
+    if (cur && cur.status !== 'terminated' && cur.user_id) return cur.user_id;
+  }
+  return null;
+}
+
 export async function peopleContext(ws: string, personId: string, wsRole: string): Promise<PeopleCtx> {
   await ensurePeople(ws);
   // Leer no crea fichas: las altas llegan por personJoined (JOIN_STEPS). Si falta alguna
@@ -273,21 +304,23 @@ export async function peopleContext(ws: string, personId: string, wsRole: string
         )
         .get(ws),
     );
-  const wsAdmin = wsRole === 'owner' || wsRole === 'admin' || ws === personId;
-  const comp = await hasCompensationAccess(ws, personId);
-  const hr = wsAdmin || comp;
   const [me, map, settings] = await Promise.all([
-    db().prepare('SELECT id, manager_id FROM people_employees WHERE workspace_id = ? AND user_id = ?').get(ws, personId) as Promise<{ id: string; manager_id: string | null } | undefined>,
+    db().prepare('SELECT id, manager_id, status FROM people_employees WHERE workspace_id = ? AND user_id = ?').get(ws, personId) as Promise<{ id: string; manager_id: string | null; status: string } | undefined>,
     managerMap(ws),
     db().prepare('SELECT visibility FROM people_settings WHERE workspace_id = ?').get(ws) as Promise<{ visibility: string } | undefined>,
   ]);
+  // Dada de baja: ve su propia ficha, sin HR, sueldos ni reportes, aunque siga en el workspace.
+  const gone = ws !== personId && me?.status === 'terminated';
+  const wsAdmin = !gone && (wsRole === 'owner' || wsRole === 'admin' || ws === personId);
+  const comp = !gone && (await hasCompensationAccess(ws, personId));
+  const hr = wsAdmin || comp;
   const employeeId = me?.id ?? null;
   return {
     ws,
     personId,
     wsAdmin,
     wsRole: ws === personId ? 'owner' : wsRole,
-    viewer: { personId, employeeId, hr, comp, wsOwner: ws === personId, reports: employeeId ? reportsOf(employeeId, map) : new Set() },
+    viewer: { personId, employeeId, hr, comp, wsOwner: ws === personId, reports: employeeId && !gone ? reportsOf(employeeId, map) : new Set() },
     visibility: parseJson<VisibilitySettings>(settings?.visibility, {}),
     hasManager: Boolean(me?.manager_id),
     needsSync,
@@ -450,7 +483,7 @@ export function readPersonal(raw: string): PersonalData {
   return { ...EMPTY_PERSONAL, ...parseJson<Partial<PersonalData>>(plain, {}) };
 }
 
-function sealPersonal(p: PersonalData): string {
+export function sealPersonal(p: PersonalData): string {
   return seal(JSON.stringify(p));
 }
 
@@ -473,6 +506,12 @@ export interface EmployeeSummary {
 }
 
 export interface EmployeeDto extends EmployeeSummary {
+  /** Hay un pedido de cambio de datos esperando a HR (lo ven HR y la persona). */
+  /** Pasó la fecha de salida hace más de lo que el cron cierra solo: HR lo confirma. */
+  exitOverdue: boolean;
+  pendingChange: boolean;
+  /** Lo que espera a HR (la persona y HR): su formulario parte de acá. */
+  pendingValues: { phone?: string; personal?: Record<string, unknown> } | null;
   managerName: string | null;
   pronouns: string;
   bio: string;
@@ -508,6 +547,8 @@ export function photoUrl(row: Pick<EmployeeRow, 'id' | 'photo_url' | 'updated_at
 /** Lo que cualquiera del workspace ve en el directorio (más lo configurable, si corresponde). */
 export function summarize(ctx: PeopleCtx, r: EmployeeRow): EmployeeSummary {
   const see = (f: (typeof CONFIGURABLE_FIELDS)[number]) => canSeeField(ctx.viewer, r.id, f, ctx.visibility);
+  // Que alguien está por irse lo saben HR, esa persona y su cadena de managers.
+  const seeLeaving = ctx.viewer.hr || isSelf(ctx.viewer, r.id) || isManagerOf(ctx.viewer, r.id);
   return {
     id: r.id,
     userId: r.user_id,
@@ -516,7 +557,7 @@ export function summarize(ctx: PeopleCtx, r: EmployeeRow): EmployeeSummary {
     department: r.department,
     workEmail: r.work_email,
     managerId: r.manager_id,
-    status: r.status,
+    status: r.status === 'offboarding' && !seeLeaving ? 'active' : r.status,
     photo: photoUrl(r),
     location: see('location') ? r.location : null,
     phone: see('phone') ? r.phone : null,
@@ -541,8 +582,11 @@ async function rows(ws: string): Promise<EmployeeRow[]> {
 
 export async function listEmployees(ctx: PeopleCtx, f: ListFilters = {}): Promise<EmployeeSummary[]> {
   const q = (f.q ?? '').trim().toLowerCase();
+  // Filtrar por estado (bajas, salidas en curso) es de HR: el resto ve el directorio de gente activa.
+  const status = ctx.viewer.hr ? f.status : '';
+  const includeTerminated = ctx.viewer.hr && f.includeTerminated;
   return (await rows(ctx.ws))
-    .filter((r) => (f.status ? r.status === f.status : f.includeTerminated || r.status !== 'terminated'))
+    .filter((r) => (status ? r.status === status : includeTerminated || r.status !== 'terminated'))
     .map((r) => summarize(ctx, r))
     .filter((e) => {
       if (f.department && e.department !== f.department) return false;
@@ -576,6 +620,8 @@ export async function getEmployee(ctx: PeopleCtx, id: string, opts: { via?: stri
   const r = await getEmployeeRow(ctx.ws, id);
   if (!r) return null;
   const v = ctx.viewer;
+  // La ficha de quien ya se fue queda para HR, la propia persona y su cadena.
+  if (r.status === 'terminated' && !v.hr && !isSelf(v, id) && !isManagerOf(v, id)) return null;
   const [fields, manager, reports] = await Promise.all([
     listFields(ctx.ws),
     r.manager_id ? (db().prepare('SELECT name FROM people_employees WHERE id = ?').get(r.manager_id) as Promise<{ name: string } | undefined>) : Promise.resolve(undefined),
@@ -617,6 +663,9 @@ export async function getEmployee(ctx: PeopleCtx, id: string, opts: { via?: stri
       isManager: isManagerOf(v, id),
     },
     hasAccount: Boolean(r.user_id),
+    exitOverdue: v.hr && r.status === 'offboarding' && Boolean(r.end_date) && (r.end_date as string) < addDays(today(), -EXIT_GRACE_DAYS),
+    pendingChange: (v.hr || isSelf(v, id)) && (await (await extras()).pendingChangeFor(ctx.ws, id)),
+    pendingValues: v.hr || isSelf(v, id) ? await (await extras()).pendingValuesFor(ctx.ws, id) : null,
   };
 }
 
@@ -819,10 +868,39 @@ async function hasCompensationRows(ws: string, employeeId: string): Promise<bool
  * persona sus datos de contacto y personales. Los cambios a lo sensible
  * quedan en la auditoría.
  */
-export async function updateEmployee(ctx: PeopleCtx, id: string, input: EmployeeInput): Promise<EmployeeDto> {
+/** Carga diferida: people-extras importa este módulo. */
+const extras = () => import('./people-extras');
+
+/** Los mismos chequeos de formato que crear y editar: la vista previa de la importación dice lo que después pasa. */
+export function checkEmployeeValues(values: EmployeeInput): void {
+  for (const [key, value] of Object.entries(values)) {
+    if (value === undefined || !(key in JOB_COLUMNS) || key === 'managerId') continue;
+    normalizeValue(key, value);
+  }
+}
+
+export async function updateEmployee(ctx: PeopleCtx, id: string, rawInput: EmployeeInput): Promise<EmployeeDto> {
   const r = await getEmployeeRow(ctx.ws, id);
   if (!r) throw new PeopleError('not_found', 404);
+  let input = rawInput;
+  // Primero se valida todo: un pedido que no corresponde no deja nada en la cola.
+  for (const [key, value] of Object.entries(input)) {
+    if (value === undefined || key === 'custom' || key === 'personal' || key === 'confirmLinkedAccount') continue;
+    if (!canEditField(ctx.viewer, id, key)) throw new PeopleError('forbidden', 403);
+  }
+  if (input.custom && !ctx.viewer.hr) throw new PeopleError('forbidden', 403);
+  // Con la aprobación encendida, teléfono y datos personales de la propia ficha esperan a HR.
+  // Lo demás (pronombres, bio) se aplica. HR edita directo.
+  if (isSelf(ctx.viewer, id) && !ctx.viewer.hr && (input.phone !== undefined || input.personal) && (await extras().then((m) => m.approvalsOn(ctx.ws)))) {
+    for (const key of Object.keys(input.personal ?? {})) if (!canEditField(ctx.viewer, id, key)) throw new PeopleError('forbidden', 403);
+    const personal = input.personal ? cleanPersonal(input.personal, EMPTY_PERSONAL) : undefined;
+    const picked = personal ? Object.fromEntries(Object.keys(input.personal!).map((k) => [k, personal[k as keyof PersonalData]])) : undefined;
+    await (await extras()).queueChange(ctx, id, { ...(input.phone !== undefined ? { phone: normalizeValue('phone', input.phone) ?? '' } : {}), ...(picked ? { personal: picked } : {}) });
+    const { phone: _phone, personal: _personal, ...rest } = input;
+    input = rest;
+  }
   const sets: string[] = [];
+  const jobChanges: Array<{ field: 'jobTitle' | 'department' | 'location' | 'managerId' | 'employmentType' | 'status'; from: string; to: string }> = [];
   const args: Array<string | null> = [];
   if (input.confirmLinkedAccount) {
     requireCompensation(ctx);
@@ -855,6 +933,9 @@ export async function updateEmployee(ctx: PeopleCtx, id: string, input: Employee
     }
     sets.push(`${col} = ?`);
     args.push(v);
+    if (key === 'jobTitle' || key === 'department' || key === 'location' || key === 'managerId' || key === 'employmentType' || key === 'status') {
+      jobChanges.push({ field: key, from: String(r[col] ?? ''), to: v ?? '' });
+    }
   }
   if (input.custom) {
     const fields = await listFields(ctx.ws);
@@ -879,6 +960,7 @@ export async function updateEmployee(ctx: PeopleCtx, id: string, input: Employee
     sets.push('updated_at = ?');
     args.push(nowIso());
     await db().prepare(`UPDATE people_employees SET ${sets.join(', ')} WHERE id = ? AND workspace_id = ?`).run(...args, id, ctx.ws);
+    if (jobChanges.length) await (await extras()).recordJobChanges(ctx.ws, id, ctx.personId, jobChanges);
   }
   return (await getEmployee(ctx, id, { audit: false }))!;
 }
@@ -922,12 +1004,13 @@ export async function getSettings(ws: string): Promise<PeopleSettings> {
     handbookPageId: r.handbook_page_id,
     countries: parseJson<string[]>(r.countries, []),
     hrAdmins: admins.map((a) => a.user_id),
+    approveChanges: Number(r.approve_changes) === 1,
   };
 }
 
 export async function updateSettings(
   ctx: PeopleCtx,
-  input: { visibility?: Record<string, unknown>; welcome?: string; handbookPageId?: string | null; countries?: unknown[]; hrAdmins?: unknown[] },
+  input: { visibility?: Record<string, unknown>; welcome?: string; handbookPageId?: string | null; countries?: unknown[]; hrAdmins?: unknown[]; approveChanges?: boolean },
 ): Promise<PeopleSettings> {
   requireHr(ctx);
   const cur = await getSettings(ctx.ws);
@@ -939,6 +1022,7 @@ export async function updateSettings(
     }
     await db().prepare('UPDATE people_settings SET visibility = ? WHERE workspace_id = ?').run(JSON.stringify(vis), ctx.ws);
   }
+  if (input.approveChanges !== undefined) await db().prepare('UPDATE people_settings SET approve_changes = ? WHERE workspace_id = ?').run(input.approveChanges ? 1 : 0, ctx.ws);
   if (input.welcome !== undefined) await db().prepare('UPDATE people_settings SET welcome = ? WHERE workspace_id = ?').run(str(input.welcome, 4000), ctx.ws);
   if (input.handbookPageId !== undefined) await db().prepare('UPDATE people_settings SET handbook_page_id = ? WHERE workspace_id = ?').run(input.handbookPageId || null, ctx.ws);
   if (input.countries) {
@@ -1171,7 +1255,7 @@ export async function searchPeopleForPalette(
   personId: string,
   wsRole: string,
   q: string,
-): Promise<Array<{ kind: 'person' | 'template' | 'cycle'; id: string; label: string; meta: string }>> {
+): Promise<Array<{ kind: 'person' | 'template' | 'cycle' | 'survey' | 'report'; id: string; label: string; meta: string }>> {
   const term = q.trim();
   if (!term) return [];
   const exists = await db().prepare('SELECT 1 AS x FROM people_settings WHERE workspace_id = ?').get(ws);
@@ -1193,5 +1277,18 @@ export async function searchPeopleForPalette(
        ORDER BY c.created_at DESC LIMIT 5`,
     )
     .all(ws, like, hr ? 1 : 0, me ?? '-', me ?? '-')) as Array<{ id: string; name: string; status: string }>;
-  return [...people, ...templates, ...cycles.map((c) => ({ kind: 'cycle' as const, id: c.id, label: c.name, meta: c.status }))];
+  // Encuestas: las abiertas para todos, todas para HR. Reportes guardados: solo HR.
+  const surveys = (await db()
+    .prepare(`SELECT id, question, status FROM people_surveys WHERE workspace_id = ? AND question LIKE ? ESCAPE '\\' AND (? = 1 OR status = 'open') ORDER BY created_at DESC LIMIT 5`)
+    .all(ws, like, hr ? 1 : 0)) as Array<{ id: string; question: string; status: string }>;
+  const reports = hr
+    ? ((await db().prepare(`SELECT id, name FROM people_saved_reports WHERE workspace_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT 5`).all(ws, like)) as Array<{ id: string; name: string }>)
+    : [];
+  return [
+    ...people,
+    ...templates,
+    ...cycles.map((c) => ({ kind: 'cycle' as const, id: c.id, label: c.name, meta: c.status })),
+    ...surveys.map((s) => ({ kind: 'survey' as const, id: s.id, label: s.question, meta: s.status })),
+    ...reports.map((r) => ({ kind: 'report' as const, id: r.id, label: r.name, meta: '' })),
+  ];
 }

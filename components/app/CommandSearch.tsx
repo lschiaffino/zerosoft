@@ -138,6 +138,8 @@ function useGroupOrder() {
         'people',
         'peopleTemplates',
         'peopleCycles',
+        'peopleSurveys',
+        'peopleReports',
         'shopOrders',
         'shopProducts',
         'shopCollections',

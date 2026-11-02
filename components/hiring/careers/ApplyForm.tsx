@@ -1,5 +1,6 @@
 'use client';
 
+import { RESUME_MAX_BYTES } from '@/lib/hiring/types';
 import { useState, type FormEvent } from 'react';
 import type { Question } from '@/lib/hiring/types';
 import type { CareersStrings } from '@/lib/hiring/careers-i18n';
@@ -31,6 +32,12 @@ export default function ApplyForm({
     setBusy(true);
     setError(null);
     const form = new FormData(e.currentTarget);
+    const resume = form.get('resume');
+    if (resume instanceof File && resume.size > RESUME_MAX_BYTES) {
+      setError(t.errors.resume_size ?? t.errors.generic);
+      setBusy(false);
+      return;
+    }
     form.set('handle', handle);
     form.set('job', job);
     for (const [k, v] of Object.entries(utm)) form.set(k, v);

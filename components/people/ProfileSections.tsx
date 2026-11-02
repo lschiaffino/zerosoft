@@ -10,6 +10,7 @@ import type { PeopleDocument } from '@/lib/people-docs';
 import type { CompEntry } from '@/lib/people';
 import type { Checklist } from '@/lib/people-onboarding';
 import type { Goal, OneOnOne, ReviewDto } from '@/lib/people-perf';
+import type { JobHistoryEntry, ScheduledChange } from '@/lib/people-extras';
 import { api, Bar, Dialog, Field, useDay, useErrorText, useNumber, useToast } from './people-ui';
 import RequestDialog from './RequestDialog';
 import RequestsTable from './RequestsTable';
@@ -21,6 +22,8 @@ export function useLoad<T>(url: string): { data: T | null; error: boolean; reloa
   const [error, setError] = useState(false);
   const [n, setN] = useState(0);
   useEffect(() => {
+    // Sin URL (el panel no corresponde a este rol) no pide nada.
+    if (!url) return;
     let alive = true;
     setError(false);
     void api<T>(url).then((r) => {
@@ -94,6 +97,7 @@ export function BalanceCards({ balances }: { balances: Array<{ policy: Policy; b
               ? t('noAccrual')
               : t('balanceMeta', { accrued: num(balance.accrued), used: num(balance.used + balance.scheduled), pending: num(balance.pending), carried: num(balance.carriedOver) })}
           </span>
+          {balance.laterYears > 0 && <span className="ppl-card-meta" data-testid="people-later-years">{t('laterYears', { days: num(balance.laterYears) })}</span>}
           {balance.expiringAtYearEnd > 0 && <span className="ppl-card-meta ppl-warn">{t('expiring', { days: num(balance.expiringAtYearEnd) })}</span>}
         </div>
       ))}
@@ -332,7 +336,7 @@ export function UploadDocumentDialog({ open, onClose, onDone, employeeId }: { op
   );
 }
 
-export function DocumentsSection({ employeeId, hr }: { employeeId: string; hr: boolean; isSelf: boolean }) {
+export function DocumentsSection({ employeeId, hr, signEnabled = false }: { employeeId: string; hr: boolean; isSelf: boolean; signEnabled?: boolean }) {
   const t = useTranslations('people');
   const [toast, push] = useToast();
   const docs = useLoad<{ documents: PeopleDocument[] }>(`/api/people/documents?employeeId=${employeeId}`);
@@ -346,9 +350,16 @@ export function DocumentsSection({ employeeId, hr }: { employeeId: string; hr: b
         title={t('profile.tabs.documents')}
         actions={
           hr ? (
-            <button type="button" className="btn btn-sm btn-primary" onClick={() => setUploading(true)}>
-              {t('documents.upload')}
-            </button>
+            <>
+              {signEnabled && (
+                <Link className="btn btn-sm btn-secondary" href="/app/sign/new">
+                  {t('documents.sendForSignature')}
+                </Link>
+              )}
+              <button type="button" className="btn btn-sm btn-primary" onClick={() => setUploading(true)}>
+                {t('documents.upload')}
+              </button>
+            </>
           ) : undefined
         }
       >
@@ -800,5 +811,159 @@ export function OneOnOneSection({ employeeId, name }: { employeeId: string; name
         </ul>
       )}
     </Panel>
+  );
+}
+
+/** Puesto, área, ubicación, manager, tipo y estado: cada cambio con su fecha y quién lo hizo. */
+export function HistorySection({ employeeId, hr, people }: { employeeId: string; hr: boolean; people: Array<{ id: string; name: string }> }) {
+  const t = useTranslations('people');
+  const day = useDay();
+  const errText = useErrorText();
+  const [toast, push] = useToast();
+  const [open, setOpen] = useState(false);
+  const { data, error, reload } = useLoad<{ entries: JobHistoryEntry[] }>(`/api/people/employees/${employeeId}/history`);
+  const scheduled = useLoad<{ scheduled: ScheduledChange[] }>(hr ? `/api/people/employees/${employeeId}/scheduled` : '');
+  const schedule = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const changes = Object.fromEntries(['jobTitle', 'department', 'location', 'managerId', 'employmentType'].map((k) => [k, String(fd.get(k) ?? '')]));
+    const res = await api(`/api/people/employees/${employeeId}/scheduled`, { method: 'POST', json: { effectiveDate: fd.get('effectiveDate'), changes } });
+    if (!res.ok) return push(errText(res.data.error), 'bad');
+    setOpen(false);
+    scheduled.reload();
+  };
+  const cancel = async (id: string) => {
+    const res = await api(`/api/people/scheduled/${id}`, { method: 'DELETE' });
+    if (!res.ok) return push(errText(res.data.error), 'bad');
+    scheduled.reload();
+  };
+  if (error) return <LoadError retry={reload} />;
+  if (!data) return <Loading />;
+  const entries = data.entries;
+  const upcoming = (scheduled.data?.scheduled ?? []).filter((s) => s.status !== 'applied');
+  const shown = (s: ScheduledChange) => s.changes.map((c) => `${t(`history.fields.${c.field}`)}: ${c.field === 'employmentType' && t.has(`types.${c.value}`) ? t(`types.${c.value}`) : c.value}`).join(' · ');
+  const scheduledBlock = hr ? (
+    <section className="ppl-panel" data-testid="people-scheduled">
+      {toast}
+      <div className="ppl-panel-head">
+        <h3 className="ppl-panel-title">{t('history.scheduled')}</h3>
+        <button type="button" className="btn btn-sm btn-secondary" onClick={() => setOpen(true)}>
+          {t('history.schedule')}
+        </button>
+      </div>
+      {upcoming.length === 0 ? (
+        <p className="ppl-hint">{t('history.noScheduled')}</p>
+      ) : (
+        <ul className="ppl-home-list">
+          {upcoming.map((s) => (
+            <li key={s.id} className="ppl-home-row">
+              <span>
+                {day(s.effectiveDate)} · {shown(s)}
+                {s.status === 'failed' && <span className="badge badge-bad"> {errText(s.error)}</span>}
+              </span>
+              {s.status === 'pending' && (
+                <button type="button" className="btn btn-sm btn-ghost" onClick={() => void cancel(s.id)}>
+                  {t('common.cancel')}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      <Dialog open={open} title={t('history.schedule')} onClose={() => setOpen(false)}>
+        <form onSubmit={schedule}>
+          <div className="ui-modal-body ui-fields">
+            <Field label={t('history.effective')} htmlFor="sch-date">
+              <input id="sch-date" name="effectiveDate" type="date" className="input" required autoFocus />
+            </Field>
+            <p className="ppl-hint">{t('history.scheduleHint')}</p>
+            <div className="ui-fields-2 ppl-fields">
+              <Field label={t('history.fields.jobTitle')} htmlFor="sch-title">
+                <input id="sch-title" name="jobTitle" className="input" maxLength={200} />
+              </Field>
+              <Field label={t('history.fields.department')} htmlFor="sch-dept">
+                <input id="sch-dept" name="department" className="input" maxLength={200} />
+              </Field>
+              <Field label={t('history.fields.location')} htmlFor="sch-loc">
+                <input id="sch-loc" name="location" className="input" maxLength={200} />
+              </Field>
+              <Field label={t('history.fields.managerId')} htmlFor="sch-mgr">
+                <select id="sch-mgr" name="managerId" className="select" defaultValue="">
+                  <option value="">{t('history.keep')}</option>
+                  {people
+                    .filter((p) => p.id !== employeeId)
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                </select>
+              </Field>
+              <Field label={t('history.fields.employmentType')} htmlFor="sch-type">
+                <select id="sch-type" name="employmentType" className="select" defaultValue="">
+                  <option value="">{t('history.keep')}</option>
+                  {(['full_time', 'part_time', 'contractor', 'intern'] as const).map((k) => (
+                    <option key={k} value={k}>
+                      {t(`types.${k}`)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          </div>
+          <div className="ui-modal-foot">
+            <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>
+              {t('common.cancel')}
+            </button>
+            <button type="submit" className="btn btn-primary">
+              {t('history.schedule')}
+            </button>
+          </div>
+        </form>
+      </Dialog>
+    </section>
+  ) : null;
+  if (!entries.length) {
+    return (
+      <>
+        {scheduledBlock}
+        <EmptyState compact quiet body={t('history.empty')} />
+      </>
+    );
+  }
+  const value = (f: string, v: string) => {
+    if (!v) return t('reports.none');
+    if (f === 'employmentType' && t.has(`types.${v}`)) return t(`types.${v}`);
+    if (f === 'status' && t.has(`status.${v}`)) return t(`status.${v}`);
+    return v;
+  };
+  return (
+    <>
+      {scheduledBlock}
+    <div className="table-wrap">
+      <table className="table table-compact ppl-table ppl-history" data-testid="people-history">
+        <thead>
+          <tr>
+            <th scope="col">{t('history.date')}</th>
+            <th scope="col">{t('history.field')}</th>
+            <th scope="col">{t('history.from')}</th>
+            <th scope="col">{t('history.to')}</th>
+            <th scope="col">{t('history.by')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((h) => (
+            <tr key={h.id}>
+              <td>{day(h.date)}</td>
+              <td>{t(`history.fields.${h.field}`)}</td>
+              <td>{value(h.field, h.from)}</td>
+              <td>{value(h.field, h.to)}</td>
+              <td>{h.actorName || t('history.auto')}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    </>
   );
 }
