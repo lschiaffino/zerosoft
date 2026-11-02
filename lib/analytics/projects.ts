@@ -106,6 +106,11 @@ export async function listProjects(workspaceId: string): Promise<ProjectRow[]> {
 }
 
 /** Proyecto del workspace (null si no existe, es de otro workspace o se borró). */
+/** Sin workspace: solo para el cron, que ya sabe de qué fila viene. */
+export async function getProjectById(id: string): Promise<ProjectRow | null> {
+  return ((await getDb().prepare('SELECT * FROM analytics_projects WHERE id = ? AND deleted_at IS NULL').get(id)) as ProjectRow | undefined) ?? null;
+}
+
 export async function getProject(workspaceId: string, id: string): Promise<ProjectRow | null> {
   const row = (await getDb()
     .prepare('SELECT * FROM analytics_projects WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL')

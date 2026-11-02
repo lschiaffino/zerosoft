@@ -15,7 +15,8 @@
     "alerts": "Alertas",
     "annotations": "Anotaciones",
     "data": "Gestión de datos",
-    "groups": "Grupos"
+    "groups": "Grupos",
+    "subscriptions": "Suscripciones"
   },
   "common": {
     "cancel": "Cancelar",
@@ -506,7 +507,8 @@
     "chooseCohort": "Elegí una cohorte",
     "removeCohortBreakdown": "Dejar de abrir por {name}",
     "breakdownBins": "En rangos",
-    "breakdownBinCount": "Cantidad de rangos"
+    "breakdownBinCount": "Cantidad de rangos",
+    "subscribe": "Suscribir"
   },
   "sql": {
     "title": "SQL",
@@ -617,7 +619,8 @@
       }
     },
     "sharedAdminOnly": "Esto aparece en un link público, así que solo un admin lo puede cambiar.",
-    "sharedLocked": "Este tablero tiene un link público. Solo un admin lo puede cambiar."
+    "sharedLocked": "Este tablero tiene un link público. Solo un admin lo puede cambiar.",
+    "subscribe": "Suscribir"
   },
   "persons": {
     "title": "Personas",
@@ -1055,5 +1058,94 @@
     "key": "Grupo",
     "properties": "Propiedades",
     "updated": "Actualizado"
+  },
+  "subscriptions": {
+    "title": "Suscripciones",
+    "description": "Insights y tableros por email, según un calendario.",
+    "new": "Nueva suscripción",
+    "adminsOnly": "Solo un admin puede crear o cambiar suscripciones, porque mandan datos fuera de la app.",
+    "newTitle": "Nueva suscripción",
+    "editTitle": "Editar suscripción",
+    "what": "Qué mandar",
+    "choose": "Elegí",
+    "dashboards": "Tableros",
+    "insights": "Insights",
+    "name": "Nombre",
+    "recipients": "Destinatarios",
+    "recipientsHelp": "Direcciones de email, de tu equipo o de afuera. Cada una recibe un aviso y se puede dar de baja. Hasta 20.",
+    "message": "Mensaje",
+    "frequency": "Frecuencia",
+    "daily": "Diaria",
+    "weekly": "Semanal",
+    "monthly": "Mensual",
+    "every": "Cada",
+    "hour": "Hora, en la zona del proyecto",
+    "onDays": "Los días",
+    "days": {
+      "sun": "Domingo",
+      "mon": "Lunes",
+      "tue": "Martes",
+      "wed": "Miércoles",
+      "thu": "Jueves",
+      "fri": "Viernes",
+      "sat": "Sábado",
+      "day": "Día",
+      "weekday": "Día de semana"
+    },
+    "monthRule": "Cuándo en el mes",
+    "ruleDay": "Un día del mes",
+    "ruleOrdinal": "Una posición, como el último viernes",
+    "dayOfMonth": "Día",
+    "ordinal": "Posición",
+    "ordinalDay": "Día",
+    "ordinals": {
+      "1": "Primer",
+      "2": "Segundo",
+      "3": "Tercer",
+      "4": "Cuarto",
+      "last": "Último"
+    },
+    "pickInsights": "Insights que van ({n} de hasta 20)",
+    "searchInsights": "Buscar insights",
+    "needRecipients": "Agregá al menos una dirección de email.",
+    "needTarget": "Elegí un insight o un tablero.",
+    "invalidInput": "Revisá las direcciones de email y el calendario.",
+    "filterBy": "Filtrar por",
+    "tabs": {
+      "all": "Todas",
+      "mine": "Mías",
+      "dashboard": "Tableros",
+      "insight": "Insights"
+    },
+    "search": "Buscar por nombre o destinatario",
+    "sort": "Ordenar",
+    "sortCreated": "Más nuevas",
+    "sortNext": "Próxima entrega",
+    "sortName": "Nombre",
+    "noMatch": "Nada coincide.",
+    "next": "Próxima entrega",
+    "actions": "Acciones",
+    "disabled": "Apagada",
+    "lastFailed": "La última entrega falló",
+    "edit": "Editar",
+    "editNamed": "Editar {name}",
+    "test": "Mandar ahora",
+    "testSent": "Enviada a sus destinatarios.",
+    "testDisabled": "Prendela para mandarla.",
+    "disable": "Apagar",
+    "enable": "Prender",
+    "deleteNamed": "Borrar {name}",
+    "deleted": "{name} se borró.",
+    "undo": "Deshacer",
+    "notScheduled": "Sin programar",
+    "emptyTitle": "Todavía no hay suscripciones",
+    "emptyBody": "Mandá un insight o un tablero por email según un calendario.",
+    "emptyBodyNothing": "Primero guardá un insight y después mandalo por email según un calendario.",
+    "newInsight": "Nuevo insight",
+    "unsubscribeTitle": "Dejar de recibir este reporte",
+    "unsubscribeBody": "Vas a dejar de recibir este reporte por email. Los demás lo siguen recibiendo.",
+    "unsubscribeConfirm": "Darme de baja",
+    "unsubscribed": "Listo. Ya no vas a recibir este reporte.",
+    "unsubscribeError": "Este link no es válido."
   }
 }

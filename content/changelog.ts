@@ -75,6 +75,12 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         product: 'analytics',
+        en: 'Subscriptions send an insight or a dashboard by email on a daily, weekly or monthly schedule, with their own page to search, test, turn off and delete. Recipients get a notice and can unsubscribe. Only what could go on a public link is sent.',
+        es: 'Las suscripciones mandan un insight o un tablero por email con calendario diario, semanal o mensual, con su página para buscar, probar, apagar y borrar. Los destinatarios reciben un aviso y se pueden dar de baja. Solo se manda lo que podría ir en un link público.',
+        pt: 'As inscrições mandam um insight ou um painel por email em agenda diária, semanal ou mensal, com uma página para buscar, testar, desligar e excluir. Os destinatários recebem um aviso e podem cancelar. Só é enviado o que poderia ir em um link público.',
+      },
+      {
+        product: 'analytics',
         en: 'From a funnel step you can explore the paths leading to it, between steps, after it and around dropping off, and from a path you can open its funnel.',
         es: 'Desde un paso de un embudo se exploran los caminos que llevan a él, entre pasos, después y alrededor de abandonar, y desde un camino se abre su embudo.',
         pt: 'A partir de uma etapa de um funil dá para explorar os caminhos que levam a ela, entre etapas, depois e em torno da desistência, e de um caminho dá para abrir seu funil.',

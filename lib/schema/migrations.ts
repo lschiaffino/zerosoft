@@ -8377,6 +8377,32 @@ export const MIGRATIONS: Migration[] = [
       await client.execute('CREATE INDEX IF NOT EXISTS idx_analytics_share_log_target ON analytics_share_log(project_id, created_at)');
     },
   },
+  {
+    id: '189_analytics_subscriptions',
+    up: async (client) => {
+      await client.execute(`CREATE TABLE IF NOT EXISTS analytics_subscriptions (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        insight_id TEXT REFERENCES analytics_insights(id) ON DELETE CASCADE,
+        dashboard_id TEXT REFERENCES analytics_dashboards(id) ON DELETE CASCADE,
+        insight_ids TEXT NOT NULL DEFAULT '[]',
+        recipients TEXT NOT NULL DEFAULT '[]',
+        message TEXT NOT NULL DEFAULT '',
+        schedule TEXT NOT NULL DEFAULT '{}',
+        enabled INTEGER NOT NULL DEFAULT 1,
+        next_at INTEGER,
+        claimed_at INTEGER,
+        last_sent_at INTEGER,
+        last_error TEXT,
+        created_by TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_analytics_subscriptions_due ON analytics_subscriptions(enabled, next_at)');
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_analytics_subscriptions_project ON analytics_subscriptions(project_id, created_at)');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

@@ -59,15 +59,18 @@ export function ShareDialog({ open, onClose, projectId, target }: { open: boolea
       })
       .catch(() => setError(true));
   /** Un cambio en un link y volver a leer: las opciones, las contraseñas y el historial. */
-  const change = async (id: string, body: Record<string, unknown>) => {
+  const change = async (id: string, body: { options?: ShareRowDto['options'] } & Record<string, unknown>) => {
     setBusy(true);
     setError(false);
+    // La opción se ve cambiada al toque; si falla, load() la vuelve a como está guardada.
+    if (body.options) setShares((list) => (list ?? []).map((x) => (x.id === id ? { ...x, options: { ...x.options, ...body.options } } : x)));
     try {
       const r = await api<{ password?: { password: string } }>(`/api/analytics/shares/${id}`, { method: 'PATCH', body });
       if (r.password) setShown({ share: id, password: r.password.password });
       await load();
     } catch {
       setError(true);
+      await load();
     } finally {
       setBusy(false);
     }
@@ -150,7 +153,7 @@ export function ShareDialog({ open, onClose, projectId, target }: { open: boolea
               <div className="an-row an-wrap">
                 <label className="ui-field an-inline-field">
                   <span className="label">{t('theme')}</span>
-                  <select className="select" value={s.options.theme ?? 'system'} disabled={busy} onChange={(e) => void change(s.id, { options: { theme: e.target.value } })}>
+                  <select className="select" value={s.options.theme ?? 'system'} disabled={busy} onChange={(e) => void change(s.id, { options: { theme: e.target.value as 'system' | 'light' | 'dark' } })}>
                     <option value="system">{t('themeSystem')}</option>
                     <option value="light">{t('themeLight')}</option>
                     <option value="dark">{t('themeDark')}</option>

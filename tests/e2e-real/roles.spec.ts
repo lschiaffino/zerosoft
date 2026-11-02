@@ -565,7 +565,7 @@ test('un admin sin apps ve en el inicio solo lo que puede hacer', async ({ brows
   }
 });
 
-test('Analytics: sin sesión o con un token inventado la API dice 401, y sin la app dice 403', async ({ browser }) => {
+test('Analytics: sin sesión, con un token inventado o sin la app, la API dice 401', async ({ browser }) => {
   const olga = await owner(browser);
   const nia = await join(browser, olga, 'Nia', 'member', []);
   const baseURL = test.info().project.use.baseURL as string;
@@ -575,7 +575,8 @@ test('Analytics: sin sesión o con un token inventado la API dice 401, y sin la 
     for (const path of paths) {
       expect((await anon.request.get(path)).status(), path).toBe(401);
       expect((await anon.request.get(path, { headers: { authorization: 'Bearer zsk_inventado' } })).status(), path).toBe(401);
-      expect((await nia.ctx.request.get(path)).status(), path).toBe(403);
+      // Sin la app la sesión cuenta como que no alcanza para esa API (lib/session.ts).
+      expect((await nia.ctx.request.get(path)).status(), path).toBe(401);
     }
     expect((await anon.request.post('/api/analytics/query', { data: { projectId: 'x', query: { kind: 'sql', sql: 'SELECT 1' } } })).status()).toBe(401);
     // Y el que sí tiene la app entra.

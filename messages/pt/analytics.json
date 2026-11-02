@@ -15,7 +15,8 @@
     "alerts": "Alertas",
     "annotations": "Anotações",
     "data": "Gestão de dados",
-    "groups": "Grupos"
+    "groups": "Grupos",
+    "subscriptions": "Inscrições"
   },
   "common": {
     "cancel": "Cancelar",
@@ -506,7 +507,8 @@
     "chooseCohort": "Escolha uma coorte",
     "removeCohortBreakdown": "Parar de abrir por {name}",
     "breakdownBins": "Em faixas",
-    "breakdownBinCount": "Quantidade de faixas"
+    "breakdownBinCount": "Quantidade de faixas",
+    "subscribe": "Inscrever"
   },
   "sql": {
     "title": "SQL",
@@ -617,7 +619,8 @@
       }
     },
     "sharedAdminOnly": "Isto aparece em um link público, então só um admin pode mudar.",
-    "sharedLocked": "Este painel tem um link público. Só um admin pode mudar."
+    "sharedLocked": "Este painel tem um link público. Só um admin pode mudar.",
+    "subscribe": "Inscrever"
   },
   "persons": {
     "title": "Pessoas",
@@ -1055,5 +1058,94 @@
     "key": "Grupo",
     "properties": "Propriedades",
     "updated": "Atualizado"
+  },
+  "subscriptions": {
+    "title": "Inscrições",
+    "description": "Insights e painéis por email, em uma agenda.",
+    "new": "Nova inscrição",
+    "adminsOnly": "Só um admin pode criar ou mudar inscrições, porque elas mandam dados para fora do app.",
+    "newTitle": "Nova inscrição",
+    "editTitle": "Editar inscrição",
+    "what": "O que mandar",
+    "choose": "Escolha",
+    "dashboards": "Painéis",
+    "insights": "Insights",
+    "name": "Nome",
+    "recipients": "Destinatários",
+    "recipientsHelp": "Endereços de email, da sua equipe ou de fora. Cada um recebe um aviso e pode cancelar. Até 20.",
+    "message": "Mensagem",
+    "frequency": "Frequência",
+    "daily": "Diária",
+    "weekly": "Semanal",
+    "monthly": "Mensal",
+    "every": "A cada",
+    "hour": "Hora, no fuso do projeto",
+    "onDays": "Nos dias",
+    "days": {
+      "sun": "Domingo",
+      "mon": "Segunda",
+      "tue": "Terça",
+      "wed": "Quarta",
+      "thu": "Quinta",
+      "fri": "Sexta",
+      "sat": "Sábado",
+      "day": "Dia",
+      "weekday": "Dia útil"
+    },
+    "monthRule": "Quando no mês",
+    "ruleDay": "Um dia do mês",
+    "ruleOrdinal": "Uma posição, como a última sexta",
+    "dayOfMonth": "Dia",
+    "ordinal": "Posição",
+    "ordinalDay": "Dia",
+    "ordinals": {
+      "1": "Primeiro",
+      "2": "Segundo",
+      "3": "Terceiro",
+      "4": "Quarto",
+      "last": "Último"
+    },
+    "pickInsights": "Insights incluídos ({n} de até 20)",
+    "searchInsights": "Buscar insights",
+    "needRecipients": "Adicione pelo menos um endereço de email.",
+    "needTarget": "Escolha um insight ou um painel.",
+    "invalidInput": "Confira os endereços de email e a agenda.",
+    "filterBy": "Filtrar por",
+    "tabs": {
+      "all": "Todas",
+      "mine": "Minhas",
+      "dashboard": "Painéis",
+      "insight": "Insights"
+    },
+    "search": "Buscar por nome ou destinatário",
+    "sort": "Ordenar",
+    "sortCreated": "Mais novas",
+    "sortNext": "Próxima entrega",
+    "sortName": "Nome",
+    "noMatch": "Nada encontrado.",
+    "next": "Próxima entrega",
+    "actions": "Ações",
+    "disabled": "Desligada",
+    "lastFailed": "A última entrega falhou",
+    "edit": "Editar",
+    "editNamed": "Editar {name}",
+    "test": "Mandar agora",
+    "testSent": "Enviada aos destinatários.",
+    "testDisabled": "Ligue para mandar.",
+    "disable": "Desligar",
+    "enable": "Ligar",
+    "deleteNamed": "Excluir {name}",
+    "deleted": "{name} foi excluída.",
+    "undo": "Desfazer",
+    "notScheduled": "Sem agenda",
+    "emptyTitle": "Ainda não há inscrições",
+    "emptyBody": "Mande um insight ou um painel por email em uma agenda.",
+    "emptyBodyNothing": "Primeiro salve um insight e depois mande por email em uma agenda.",
+    "newInsight": "Novo insight",
+    "unsubscribeTitle": "Parar de receber este relatório",
+    "unsubscribeBody": "Você vai parar de receber este relatório por email. Os outros continuam recebendo.",
+    "unsubscribeConfirm": "Cancelar inscrição",
+    "unsubscribed": "Pronto. Você não vai mais receber este relatório.",
+    "unsubscribeError": "Este link não é válido."
   }
 }

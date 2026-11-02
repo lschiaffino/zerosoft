@@ -209,6 +209,7 @@ function useGroupOrder() {
         'analyticsErrors',
         'analyticsExperiments',
         'analyticsAlerts',
+        'analyticsSubscriptions',
         'analyticsProjects',
         'assistantChats',
       ], []);

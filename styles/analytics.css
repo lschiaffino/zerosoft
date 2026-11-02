@@ -412,3 +412,8 @@
 .an-share-unlock { display: flex; flex-direction: column; gap: 12px; max-width: 380px; margin: 48px auto; }
 .an-share-brand { text-align: center; margin-top: 8px; }
 .an-share-log { display: flex; flex-direction: column; gap: 4px; margin: 6px 0 0; padding: 0; list-style: none; }
+
+/* Suscripciones */
+.an-subs-table { min-width: 780px; }
+.an-sub-days { border: 0; padding: 0; margin: 0; }
+.an-sub-days legend { padding: 0; margin-bottom: 6px; }

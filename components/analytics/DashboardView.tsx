@@ -11,6 +11,7 @@ import { AUTO_REFRESH_MINUTES, type DashboardDto, type DashboardSettings, type D
 import DashboardText from './DashboardText';
 import { FilterList, cleanFilters, useProjectMeta, type ProjectMeta } from './Filters';
 import { ShareDialog } from './InsightPanels';
+import { SubscribeDialog } from './Subscriptions';
 import { DateRangePicker } from './RangeSelect';
 import { ApiError, apiErrorText, api, notifyChanged, runQuery } from './client';
 import InsightResultView from './InsightResultView';
@@ -473,6 +474,7 @@ export default function DashboardView({
     }
   };
   const [sharing, setSharing] = useState(false);
+  const [subscribing, setSubscribing] = useState(false);
   const noInsightOption = !allInsights.length ? t('noInsightsYet') : t('allAdded');
 
   const layout = layoutOf(dashboard.insightIds, settings);
@@ -520,6 +522,11 @@ export default function DashboardView({
             <button type="button" className="btn" disabled={!canShare} title={canShare ? undefined : t('shareAdminsOnly')} onClick={() => setSharing(true)}>
               {t('share')}
             </button>
+            {canShare && (
+              <button type="button" className="btn" onClick={() => setSubscribing(true)}>
+                {t('subscribe')}
+              </button>
+            )}
             <button type="button" className="btn" disabled={busy} onClick={() => void duplicate()}>
               {t('duplicate')}
             </button>
@@ -646,6 +653,14 @@ export default function DashboardView({
           save({ ...settings, texts: [...settings.texts, { id, body }] });
           setAddingText(false);
         }}
+      />
+      <SubscribeDialog
+        open={subscribing}
+        onClose={() => setSubscribing(false)}
+        projectId={projectId}
+        insights={insights.map((i) => ({ id: i.id, name: i.name }))}
+        dashboards={[{ id: dashboard.id, name: dashboard.name, insightIds: dashboard.insightIds }]}
+        target={{ dashboardId: dashboard.id }}
       />
       <ShareDialog open={sharing} onClose={() => setSharing(false)} projectId={projectId} target={{ dashboardId: dashboard.id }} />
       <NameDialog

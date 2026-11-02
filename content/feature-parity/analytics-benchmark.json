@@ -3566,7 +3566,7 @@
         "es": "Suscripciones",
         "pt": "Assinaturas"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -3577,8 +3577,13 @@
         "es": "Entrega por email",
         "pt": "Entrega por email"
       },
-      "status": "missing",
-      "competitorHas": true
+      "status": "partial",
+      "competitorHas": true,
+      "detail": {
+        "en": "Several recipients, a message, notice and unsubscribe; results as tables, no chart images",
+        "es": "Varios destinatarios, mensaje, aviso y baja; los resultados van en tablas, sin imágenes de gráficos",
+        "pt": "Vários destinatários, mensagem, aviso e cancelamento; os resultados vão em tabelas, sem imagens de gráficos"
+      }
     },
     {
       "id": "subscriptions-slack",
@@ -3610,7 +3615,7 @@
         "es": "Opciones de horario",
         "pt": "Opções de horário"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -3621,7 +3626,7 @@
         "es": "Elegir insights de la suscripción",
         "pt": "Escolher insights da assinatura"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -3632,8 +3637,13 @@
         "es": "Página de suscripciones",
         "pt": "Página de assinaturas"
       },
-      "status": "missing",
-      "competitorHas": true
+      "status": "partial",
+      "competitorHas": true,
+      "detail": {
+        "en": "Tabs, search, sort, next delivery, test, turn off and delete with undo; no filter by channel or creator",
+        "es": "Pestañas, búsqueda, orden, próxima entrega, prueba, apagar y borrar con deshacer; sin filtro por canal ni creador",
+        "pt": "Abas, busca, ordem, próxima entrega, teste, desligar e excluir com desfazer; sem filtro por canal nem criador"
+      }
     },
     {
       "id": "subscriptions-test",
@@ -3643,7 +3653,7 @@
         "es": "Probar la entrega",
         "pt": "Testar a entrega"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {

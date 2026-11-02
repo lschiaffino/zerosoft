@@ -15,7 +15,8 @@
     "alerts": "Alerts",
     "annotations": "Annotations",
     "data": "Data management",
-    "groups": "Groups"
+    "groups": "Groups",
+    "subscriptions": "Subscriptions"
   },
   "common": {
     "cancel": "Cancel",
@@ -506,7 +507,8 @@
     "chooseCohort": "Choose a cohort",
     "removeCohortBreakdown": "Stop breaking down by {name}",
     "breakdownBins": "In ranges",
-    "breakdownBinCount": "Number of ranges"
+    "breakdownBinCount": "Number of ranges",
+    "subscribe": "Subscribe"
   },
   "sql": {
     "title": "SQL",
@@ -617,7 +619,8 @@
       }
     },
     "sharedAdminOnly": "This appears on a public link, so only admins can change it.",
-    "sharedLocked": "This dashboard has a public link. Only admins can change it."
+    "sharedLocked": "This dashboard has a public link. Only admins can change it.",
+    "subscribe": "Subscribe"
   },
   "persons": {
     "title": "People",
@@ -1055,5 +1058,94 @@
     "key": "Group",
     "properties": "Properties",
     "updated": "Updated"
+  },
+  "subscriptions": {
+    "title": "Subscriptions",
+    "description": "Insights and dashboards sent by email on a schedule.",
+    "new": "New subscription",
+    "adminsOnly": "Only admins can create or change subscriptions, because they send data outside the app.",
+    "newTitle": "New subscription",
+    "editTitle": "Edit subscription",
+    "what": "What to send",
+    "choose": "Choose",
+    "dashboards": "Dashboards",
+    "insights": "Insights",
+    "name": "Name",
+    "recipients": "Recipients",
+    "recipientsHelp": "Email addresses, inside or outside your team. Each one gets a notice and can unsubscribe. Up to 20.",
+    "message": "Message",
+    "frequency": "Frequency",
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "monthly": "Monthly",
+    "every": "Every",
+    "hour": "Time, in the project time zone",
+    "onDays": "On",
+    "days": {
+      "sun": "Sunday",
+      "mon": "Monday",
+      "tue": "Tuesday",
+      "wed": "Wednesday",
+      "thu": "Thursday",
+      "fri": "Friday",
+      "sat": "Saturday",
+      "day": "Day",
+      "weekday": "Weekday"
+    },
+    "monthRule": "When in the month",
+    "ruleDay": "A day of the month",
+    "ruleOrdinal": "A position, such as the last Friday",
+    "dayOfMonth": "Day",
+    "ordinal": "Position",
+    "ordinalDay": "Day",
+    "ordinals": {
+      "1": "First",
+      "2": "Second",
+      "3": "Third",
+      "4": "Fourth",
+      "last": "Last"
+    },
+    "pickInsights": "Insights to include ({n} of up to 20)",
+    "searchInsights": "Search insights",
+    "needRecipients": "Add at least one email address.",
+    "needTarget": "Choose an insight or a dashboard.",
+    "invalidInput": "Check the email addresses and the schedule.",
+    "filterBy": "Filter by",
+    "tabs": {
+      "all": "All",
+      "mine": "Mine",
+      "dashboard": "Dashboards",
+      "insight": "Insights"
+    },
+    "search": "Search by name or recipient",
+    "sort": "Sort",
+    "sortCreated": "Newest",
+    "sortNext": "Next delivery",
+    "sortName": "Name",
+    "noMatch": "Nothing matches.",
+    "next": "Next delivery",
+    "actions": "Actions",
+    "disabled": "Disabled",
+    "lastFailed": "Last delivery failed",
+    "edit": "Edit",
+    "editNamed": "Edit {name}",
+    "test": "Send now",
+    "testSent": "Sent to its recipients.",
+    "testDisabled": "Turn it on to send it.",
+    "disable": "Turn off",
+    "enable": "Turn on",
+    "deleteNamed": "Delete {name}",
+    "deleted": "{name} was deleted.",
+    "undo": "Undo",
+    "notScheduled": "Not scheduled",
+    "emptyTitle": "No subscriptions yet",
+    "emptyBody": "Send an insight or a dashboard by email on a schedule.",
+    "emptyBodyNothing": "Save an insight first, then send it by email on a schedule.",
+    "newInsight": "New insight",
+    "unsubscribeTitle": "Stop receiving this report",
+    "unsubscribeBody": "You will stop getting this report by email. Others keep getting it.",
+    "unsubscribeConfirm": "Unsubscribe",
+    "unsubscribed": "Done. You will not get this report anymore.",
+    "unsubscribeError": "This link is not valid."
   }
 }

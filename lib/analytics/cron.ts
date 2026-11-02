@@ -90,7 +90,10 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
     // Todo explícito (no depende de que las FK en cascada estén prendidas).
     await db.prepare('DELETE FROM analytics_dashboard_items WHERE dashboard_id IN (SELECT id FROM analytics_dashboards WHERE project_id = ?)').run(id);
     // Primero lo que apunta a insights, tableros y cohortes.
+    await db.prepare('DELETE FROM analytics_share_passwords WHERE share_id IN (SELECT id FROM analytics_shares WHERE project_id = ?)').run(id);
     for (const table of [
+      'analytics_share_log',
+      'analytics_subscriptions',
       'analytics_shares',
       'analytics_alerts',
       'analytics_experiments',

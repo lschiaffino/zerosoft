@@ -350,6 +350,7 @@ export async function hasActiveShare(projectId: string, target: { insightId?: st
 export async function revokeShare(projectId: string, id: string, personId: string | null = null): Promise<boolean> {
   const cur = await shareById(projectId, id);
   if (cur) await logShare(projectId, id, 'disabled', personId, { insightId: cur.insight_id, dashboardId: cur.dashboard_id });
+  await getDb().prepare('DELETE FROM analytics_share_passwords WHERE share_id = ?').run(id);
   const res = await getDb().prepare('DELETE FROM analytics_shares WHERE id = ? AND project_id = ?').run(id, projectId);
   return res.changes > 0;
 }

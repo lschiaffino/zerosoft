@@ -201,6 +201,7 @@ export interface SidebarLabels {
     experiments: string;
     actions: string;
     alerts: string;
+    subscriptions: string;
     annotations: string;
     data: string;
     groups: string;
@@ -854,6 +855,7 @@ export function buildNav(
             { href: '/app/analytics/dashboards', label: a.dashboards, active: at('/app/analytics/dashboards'), icon: 'dashboards', branch: true },
             { href: '/app/analytics/sql', label: a.sql, active: at('/app/analytics/sql'), icon: 'sql' },
             { href: '/app/analytics/alerts', label: a.alerts, active: at('/app/analytics/alerts'), icon: 'bell' },
+            { href: '/app/analytics/subscriptions', label: a.subscriptions, active: at('/app/analytics/subscriptions'), icon: 'calendar' },
           ],
         },
         {

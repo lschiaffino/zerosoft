@@ -20,6 +20,7 @@ import type {
 } from '@/lib/analytics/types';
 import { FUNNEL_ATTRIBUTIONS, FUNNEL_DISPLAYS, FUNNEL_ORDERS, FUNNEL_WINDOW_UNITS, PROPERTY_MATHS, RETENTION_TYPES, SERIES_MATHS, shareableQuery, TREND_DISPLAYS, TREND_UNITS, type FunnelWindowUnit, type TrendBreakdown, type InsightQuery as AnyQuery, type SeriesMath } from '@/lib/analytics/types';
 import { AlertsPanel, CorrelationPanel, ShareDialog, downloadCsv } from './InsightPanels';
+import { SubscribeDialog } from './Subscriptions';
 import { ApiError, apiErrorText, api, notifyChanged, runQuery } from './client';
 import { EventInput, FilterList, cleanFilters, useProjectMeta, type ProjectMeta } from './Filters';
 import InsightResultView from './InsightResultView';
@@ -975,6 +976,7 @@ export default function InsightEditor({
   const meta = useProjectMeta(projectId);
   const [drafts, setDrafts] = useState(() => (insight ? { ...DEFAULTS, [insight.kind]: insight.query } : initialQuery ? { ...DEFAULTS, [initialQuery.kind]: initialQuery } : DEFAULTS));
   const [sharing, setSharing] = useState(false);
+  const [subscribing, setSubscribing] = useState(false);
   const [kind, setKind] = useState<InsightKind>(insight?.kind ?? initialQuery?.kind ?? initialKind ?? 'trends');
   const [result, setResult] = useState<InsightResult | null>(null);
   const [running, setRunning] = useState(false);
@@ -1105,6 +1107,11 @@ export default function InsightEditor({
                 {t('share')}
               </button>
             )}
+            {insight && canShare && shareableQuery(cleaned) && (
+              <button type="button" className="btn" onClick={() => setSubscribing(true)}>
+                {t('subscribe')}
+              </button>
+            )}
             {insight && (
               <select
                 className="select an-header-select"
@@ -1217,6 +1224,9 @@ export default function InsightEditor({
         <AlertsPanel projectId={projectId} insightId={insight.id} insightName={insight.name} seriesLabels={result.series.map((s) => s.label)} />
       )}
       {insight && insight.kind !== 'trends' && <p className="an-note">{t('alertsTrendsOnly')}</p>}
+      {insight && (
+        <SubscribeDialog open={subscribing} onClose={() => setSubscribing(false)} projectId={projectId} insights={[{ id: insight.id, name: insight.name }]} dashboards={[]} target={{ insightId: insight.id }} />
+      )}
       {insight && <ShareDialog open={sharing} onClose={() => setSharing(false)} projectId={projectId} target={{ insightId: insight.id }} />}
       <NameDialog
         open={askName}

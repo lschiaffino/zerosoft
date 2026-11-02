@@ -568,7 +568,6 @@ function Retention({ r, onDrill }: { r: RetentionResult; onDrill?: (cell: { coho
   const mean = retentionMean(live, n, reference, o.mean ?? 'weighted');
   const show = o.show ?? 'both';
   const asPct = (v: number | null) => (v === null ? 0 : Math.round(v * 1000) / 10);
-  const peak = live.slice(-6);
   return (
     <div className="an-result">
       {r.breakdown && (
@@ -618,10 +617,7 @@ function Retention({ r, onDrill }: { r: RetentionResult; onDrill?: (cell: { coho
         <Chart
           kind={o.chart === 'bar' ? 'bar' : 'line'}
           labels={heads}
-          series={[{ label: t('retentionMeanRow'), data: mean.map(asPct) }, ...peak.map((c) => ({ label: bucketLabel(c.start, locale), data: c.values.map((_, k) => asPct(retentionRate(c.values, c.size, k, reference))) }))].map((x) => ({
-            ...x,
-            data: Array.from({ length: n }, (_, k) => x.data[k] ?? 0),
-          }))}
+          series={[{ label: t('retentionMeanRow'), data: mean.map(asPct) }]}
           summary={t('retentionChart')}
           extras={{ format: (v) => `${v}%` }}
         />
