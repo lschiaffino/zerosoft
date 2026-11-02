@@ -112,9 +112,9 @@ const parity: ProductParity = {
       weight: 2,
       detail: ['Vacation, sick, personal and other policies, each with its own accrual, carryover and cap', 'Vacaciones, enfermedad, personales y otras, cada una con su devengamiento, arrastre y tope', 'Férias, licença médica, pessoais e outras, cada uma com seu acúmulo, transferência e limite'],
     }),
-    row('accrual', 'timeoff', ['Accrual rules', 'Reglas de devengamiento', 'Regras de acúmulo'], 'have', {
+    row('accrual', 'timeoff', ['Accrual rules', 'Reglas de devengamiento', 'Regras de acúmulo'], 'partial', {
       weight: 2,
-      detail: ['Yearly (prorated the first year), monthly or per pay period, carryover limit, balance cap, more days with tenure (years=days per policy) and who each policy applies to by department, location, country and type', 'Anual (prorrateado el primer año), mensual o por período de pago, tope de arrastre, saldo máximo, más días con la antigüedad (años=días por política) y a quién le corresponde cada política por área, ubicación, país y tipo', 'Anual (proporcional no primeiro ano), mensal ou por período de pagamento, limite de transferência, saldo máximo, mais dias com o tempo de casa (anos=dias por política) e para quem vale cada política por departamento, localização, país e tipo'],
+      detail: ['Yearly, monthly or per pay period, carryover limit, balance cap, tenure levels and policies by department, location, country and type. Scope was used in a browser; accrual, carryover and tenure balances are tested against the database only', 'Anual, mensual o por período de pago, tope de arrastre, saldo máximo, niveles por antigüedad y políticas por área, ubicación, país y tipo. El alcance se usó en el navegador; devengo, arrastre y antigüedad están probados solo contra la base', 'Anual, mensal ou por período de pagamento, limite de transferência, saldo máximo, níveis por tempo de casa e políticas por departamento, localização, país e tipo. O alcance foi usado no navegador; acúmulo, transferência e tempo de casa estão testados só contra o banco'],
     }),
     row('pto-requests', 'timeoff', ['Requests and approvals', 'Pedidos y aprobaciones', 'Pedidos e aprovações'], 'have', {
       weight: 2,
@@ -239,9 +239,9 @@ const parity: ProductParity = {
       weight: 2,
       detail: ['Above the directory: time off to approve, profile changes, tasks, reviews, surveys and documents, each counted by its own permissions', 'Arriba del directorio: licencias para aprobar, cambios de datos, tareas, evaluaciones, encuestas y documentos, cada uno contado con sus permisos', 'Acima do diretório: folgas para aprovar, alterações de dados, tarefas, avaliações, pesquisas e documentos, cada um contado com suas permissões'],
     }),
-    row('future-dated-changes', 'records', ['Job and pay changes with a future date', 'Cambios de puesto y sueldo con fecha futura', 'Alterações de cargo e salário com data futura'], 'have', {
+    row('future-dated-changes', 'records', ['Job and pay changes with a future date', 'Cambios de puesto y sueldo con fecha futura', 'Alterações de cargo e salário com data futura'], 'partial', {
       weight: 2,
-      detail: ['HR schedules job title, department, location, manager or type for a future date and the hourly job applies it. Only HR sees it until then. Salary entries already take a future effective date', 'HR agenda puesto, área, ubicación, manager o tipo para una fecha futura y el proceso de cada hora lo aplica. Hasta entonces lo ve solo HR. Los sueldos ya aceptan una fecha futura', 'O RH agenda cargo, departamento, localização, manager ou tipo para uma data futura e o processo de cada hora aplica. Até lá, só o RH vê. Os salários já aceitam uma data futura'],
+      detail: ['HR schedules job title, department, location, manager or type for a future date from the profile. The hourly job that applies it is tested against the database, not yet watched in a browser on a real date', 'HR agenda puesto, área, ubicación, manager o tipo para una fecha futura desde la ficha. El proceso de cada hora que lo aplica está probado contra la base, todavía no visto en el navegador en una fecha real', 'O RH agenda cargo, departamento, localização, manager ou tipo para uma data futura pelo perfil. O processo de cada hora que aplica está testado contra o banco, ainda não visto no navegador em uma data real'],
     }),
     row('custom-approvals', 'records', ['Custom approval workflows', 'Flujos de aprobación a medida', 'Fluxos de aprovação personalizados'], 'missing'),
     row('bulk-edit', 'records', ['Bulk edit', 'Edición masiva', 'Edição em massa'], 'partial', {
@@ -289,8 +289,8 @@ const parity: ProductParity = {
     row('accrual-front-load', 'timeoff', ['Front-loaded annual allotment', 'Asignación anticipada anual', 'Concessão anual antecipada'], 'partial', {
       detail: ['Annual accrual credits on January 1. Built; not yet walked end to end in a browser for each role', 'El devengo anual acredita el 1 de enero. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'O acúmulo anual credita em 1º de janeiro. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],
     }),
-    row('tenure-milestones', 'timeoff', ['Tenure milestones', 'Hitos de antigüedad', 'Marcos de tempo de casa'], 'have', {
-      detail: ['More days from a given year of tenure, per policy', 'Más días desde un año de antigüedad, por política', 'Mais dias a partir de um ano de casa, por política'],
+    row('tenure-milestones', 'timeoff', ['Tenure milestones', 'Hitos de antigüedad', 'Marcos de tempo de casa'], 'partial', {
+      detail: ['HR sets more days from a given year per policy in Settings. The resulting balance is tested against the database, not yet checked on a long-tenure person in a browser', 'HR pone más días desde un año por política en Ajustes. El saldo resultante está probado contra la base, todavía no visto en el navegador con alguien de mucha antigüedad', 'O RH define mais dias a partir de um ano por política em Ajustes. O saldo resultante está testado contra o banco, ainda não visto no navegador com alguém de muito tempo de casa'],
     }),
     row('carryover', 'timeoff', ['Carryover', 'Arrastre al año siguiente', 'Saldo transferido para o ano seguinte'], 'partial', {
       detail: ['A carryover limit per policy. Built; not yet walked end to end in a browser for each role', 'Tope de arrastre por política. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'Limite de transferência por política. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],

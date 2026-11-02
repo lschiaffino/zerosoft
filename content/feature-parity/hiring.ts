@@ -85,8 +85,8 @@ const parity: ProductParity = {
     row('resume-upload', 'careers', ['Resume upload', 'Subida de CV', 'Envio de currículo'], 'have', {
       detail: ['PDF, DOC or DOCX up to 4 MB, checked by their bytes; private Blob store or encrypted at rest', 'PDF, DOC o DOCX de hasta 4 MB, chequeados por sus bytes; Blob privado o cifrado en reposo', 'PDF, DOC ou DOCX de até 4 MB, verificados pelos bytes; Blob privado ou criptografado em repouso'],
     }),
-    row('knockout', 'careers', ['Knock-out questions', 'Preguntas knock-out', 'Perguntas eliminatórias'], 'have', {
-      detail: ['The application is flagged for review or, if the question says so, rejected automatically with the reason on record. The candidate is not told and it can be reactivated', 'La postulación queda marcada para revisión o, si la pregunta lo pide, rechazada sola con el motivo registrado. Al candidato no se le avisa y se puede reactivar', 'A candidatura fica marcada para revisão ou, se a pergunta pedir, recusada automaticamente com o motivo registrado. O candidato não é avisado e dá para reativar'],
+    row('knockout', 'careers', ['Knock-out questions', 'Preguntas knock-out', 'Perguntas eliminatórias'], 'partial', {
+      detail: ['Flag for review, or reject automatically with the reason on record; the candidate is not told and it can be reactivated. Automatic rejection is tested against the database, not yet set from the job editor and applied through the careers page in a browser', 'Marca para revisión, o rechaza solo con el motivo registrado; al candidato no se le avisa y se puede reactivar. El rechazo solo está probado contra la base, todavía no configurado desde el editor y postulado por la página de empleos en el navegador', 'Marca para revisão, ou recusa automaticamente com o motivo registrado; o candidato não é avisado e dá para reativar. A recusa automática está testada contra o banco, ainda não configurada no editor e candidatada pela página de vagas no navegador'],
     }),
     row('anti-spam', 'careers', ['Spam protection', 'Protección contra spam', 'Proteção contra spam'], 'partial', {
       detail: ['Rate limit per IP and a hidden trap field; no CAPTCHA', 'Límite por IP y un campo trampa oculto; sin CAPTCHA', 'Limite por IP e um campo armadilha oculto; sem CAPTCHA'],
@@ -208,9 +208,9 @@ const parity: ProductParity = {
     }),
     row('ai-job-content', 'jobs', ['AI job descriptions and interview questions', 'Avisos y preguntas de entrevista con IA', 'Descrições de vaga e perguntas de entrevista com IA'], 'missing'),
     row('careers-widget', 'careers', ['Embeddable job list', 'Lista de empleos para embeber', 'Lista de vagas para incorporar'], 'missing'),
-    row('candidate-search', 'candidates', ['Search all candidates across jobs', 'Búsqueda de candidatos en todos los puestos', 'Busca de candidatos em todas as vagas'], 'have', {
+    row('candidate-search', 'candidates', ['Search all candidates across jobs', 'Búsqueda de candidatos en todos los puestos', 'Busca de candidatos em todas as vagas'], 'partial', {
       weight: 2,
-      detail: ['Limited to the jobs each person can see. No boolean operators', 'Limitada a los puestos que cada persona ve. Sin operadores booleanos', 'Limitada às vagas que cada pessoa vê. Sem operadores booleanos'],
+      detail: ['Limited to the jobs each person can see, no boolean operators. Permissions are tested through the API; the filters are not yet walked in a browser for each role', 'Limitada a los puestos que cada persona ve, sin operadores booleanos. Los permisos están probados por la API; los filtros todavía no se recorrieron en el navegador con cada rol', 'Limitada às vagas que cada pessoa vê, sem operadores booleanos. As permissões estão testadas pela API; os filtros ainda não foram percorridos no navegador com cada papel'],
     }),
     row('candidate-custom-fields', 'candidates', ['Custom candidate fields', 'Campos propios de candidatos', 'Campos próprios de candidatos'], 'missing', {
       weight: 2,
