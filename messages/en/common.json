@@ -795,7 +795,7 @@
   "categories": {
     "sell": {
       "title": "Sell",
-      "desc": "Pipeline, contacts and links with analytics."
+      "desc": "Pipeline, links, store, social and forms."
     },
     "support": {
       "title": "Support",
@@ -807,11 +807,15 @@
     },
     "build": {
       "title": "Build",
-      "desc": "Issues, projects and whiteboards to plan and ship."
+      "desc": "Issues, whiteboards, design and analytics."
+    },
+    "run": {
+      "title": "Run",
+      "desc": "Accounting, people, hiring and contracts."
     },
     "daily": {
       "title": "Daily work",
-      "desc": "Docs, notes and scheduling for every day."
+      "desc": "Docs, notes, calendar, calls and recordings."
     }
   },
   "appSoon": {

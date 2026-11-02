@@ -2,7 +2,7 @@
   "name": "zerosoft-desktop",
   "productName": "zerosoft",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "zerosoft for Mac and Windows: the whole platform, dictation in any app and meeting notes with system audio.",
   "author": "zerosoft <hello@zerosoft.ai>",
   "homepage": "https://zerosoft.ai/download",

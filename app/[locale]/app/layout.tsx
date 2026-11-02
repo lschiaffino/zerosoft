@@ -384,6 +384,7 @@ export default async function AppLayout(
               support: tCat('support.title'),
               automate: tCat('automate.title'),
               build: tCat('build.title'),
+              run: tCat('run.title'),
               daily: tCat('daily.title'),
             },
             platform: tSide('platform'),

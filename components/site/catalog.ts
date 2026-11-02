@@ -82,7 +82,7 @@ export const AUDIENCE_PRODUCTS: Record<Audience, readonly ProductKey[]> = {
 
 /**
  * Menú de productos y la suite del sitio: por categoría (vender, atender,
- * automatizar, construir, trabajo diario), en el orden de PRODUCT_CATEGORIES.
+ * automatizar, construir, operar, trabajo diario), en el orden de PRODUCT_CATEGORIES.
  */
 export const CATEGORY_PRODUCTS: ReadonlyArray<{ category: ProductCategory; products: readonly ProductKey[] }> =
   PRODUCT_CATEGORIES.map((category) => ({ category, products: productsByCategory(category) })).filter((g) => g.products.length > 0);
