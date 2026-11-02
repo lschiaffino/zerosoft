@@ -137,6 +137,29 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-01-figuras-de-ceros',
+    date: '2026-11-01',
+    title: {
+      en: 'Site: every app page has its own figure drawn with zeros',
+      es: 'Sitio: cada app tiene su figura dibujada con ceros',
+      pt: 'Site: cada app tem sua figura desenhada com zeros',
+    },
+    items: [
+      {
+        product: 'site',
+        en: 'The first screen of each app page shows what the app does, animated and made of zeros: a chain for Link, a month filling up for Cal, a board for Track, pulses through a flow for Flow. The 404 page has a zero that moves, and the closing band of the home reacts to the cursor.',
+        es: 'La primera pantalla de cada app muestra lo que hace, animado y hecho de ceros: una cadena en Link, un mes que se ocupa en Cal, un tablero en Track, pulsos por un flujo en Flow. El 404 tiene un cero que se mueve y la banda final del home reacciona al puntero.',
+        pt: 'A primeira tela de cada app mostra o que ele faz, animado e feito de zeros: uma corrente no Link, um mês se enchendo no Cal, um quadro no Track, pulsos por um fluxo no Flow. O 404 tem um zero que se move e a faixa final da home reage ao ponteiro.',
+      },
+      {
+        product: 'site',
+        en: 'The figures stop when they leave the screen or the tab is hidden, stay still with reduced motion, and show their first frame without JavaScript. On phones, dragging the zero no longer blocks page scroll.',
+        es: 'Las figuras se detienen fuera de pantalla o con la pestaña oculta, quedan quietas con movimiento reducido y muestran su primer cuadro sin JavaScript. En el teléfono, arrastrar el cero ya no bloquea el scroll de la página.',
+        pt: 'As figuras param fora da tela ou com a aba oculta, ficam paradas com movimento reduzido e mostram o primeiro quadro sem JavaScript. No celular, arrastar o zero não bloqueia mais a rolagem da página.',
+      },
+    ],
+  },
+  {
     id: '2026-10-31-sitio-comparaciones-blog',
     date: '2026-10-31',
     title: {
