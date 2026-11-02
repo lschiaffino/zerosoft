@@ -166,8 +166,7 @@ test('/new de altas en modal: la primera visita nunca muestra el formulario dos 
       }).observe(document, { subtree: true, childList: true });
     });
     await page.goto(path);
-    // Primera visita de un contexto nuevo en CI cargado: la página puede tardar más que los 5s por defecto.
-    await expect(page.getByRole('dialog'), path).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('dialog'), path).toBeVisible();
     // Espera a que se guarde la cookie y pase el refresh.
     await expect.poll(async () => (await context.cookies()).some((c) => c.name === 'tz')).toBe(true);
     await page.waitForLoadState('networkidle');
