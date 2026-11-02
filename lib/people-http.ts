@@ -11,7 +11,7 @@ export function pjson<T>(body: T, status = 200, headers?: Record<string, string>
 }
 
 export function pfail(err: unknown) {
-  if (err instanceof PeopleError) return pjson({ error: err.code }, err.status);
+  if (err instanceof PeopleError) return pjson({ error: err.code, ...err.data }, err.status);
   throw err;
 }
 

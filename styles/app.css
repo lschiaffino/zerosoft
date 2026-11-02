@@ -1333,3 +1333,18 @@ td.cell-actions > * + * { margin-left: 4px; }
 /* Marca "pronto" de las apps en construcción (Voice, Rec, Talk) en el switcher y el sidebar del inicio. */
 .app-soon-tag { margin-left: auto; padding: 0 4px; font-family: var(--mono); font-size: 11px; line-height: 16px; color: var(--brand-gray-2); border: 1px solid var(--line); }
 .sidebar-collapsed .side-soon { display: none; }
+
+/* Pantallas muy angostas: la banda entera entra (la campana quedaba afuera a 320px) y
+   Recientes no corta la fecha a mitad de palabra. */
+@media (max-width: 360px) {
+  .band-product-name { display: none; }
+}
+.band-right { flex-shrink: 0; }
+@media (max-width: 480px) {
+  .home-row { flex-wrap: wrap; gap: 0 12px; }
+  .home-row-meta { max-width: 100%; white-space: normal; }
+}
+
+
+/* Sin ningún bloque (todos vacíos en uso personal): no queda el título solo. */
+.home-section:has(> .home-today:empty) { display: none; }

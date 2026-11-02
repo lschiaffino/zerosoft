@@ -319,3 +319,39 @@ body:has(.wl-page) .zs-support-launcher { display: none; }
 .ws-link-btn:hover { color: var(--ink); }
 .ws-link-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .ws-role-select { min-width: 0; width: auto; }
+.home-blocked-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.home-blocked-actions .ui-error { margin: 0; }
+.home-blocked-sent { margin: 10px 0 0; color: var(--ink-2); font-size: 0.875rem; }
+.ws-danger { display: grid; gap: 14px; }
+.ws-danger > div { min-width: 0; }
+.ws-danger .st-strong { margin: 0 0 2px; }
+.ws-danger .ui-help { margin: 0; overflow-wrap: anywhere; }
+.ws-danger > .btn { justify-self: start; }
+.ws-roles { margin-top: 14px; font-size: 0.875rem; }
+.ws-roles summary { cursor: pointer; color: var(--ink-2); }
+.ws-roles summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.ws-roles dl { display: grid; gap: 8px; margin: 10px 0 8px; }
+.ws-roles dl > div { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 12px; }
+.ws-roles dd { margin: 0; }
+@media (max-width: 520px) { .ws-roles dl > div { grid-template-columns: 1fr; gap: 2px; } }
+.wl-signout { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
+.wl-signout:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.ws-guest-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.ws-guest-name { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.ws-request-notice { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.ws-request-notice p { margin: 0; }
+.ws-request-line { margin: 0 0 12px; font-size: 0.875rem; }
+.ws-app-requested { color: var(--ink-2); font-size: 0.75rem; }
+.ws-members .ws-person { min-width: 190px; }
+.ws-members td .ws-cell-muted { display: inline-block; min-width: 88px; }
+.home-no-apps { margin: 0 0 20px; padding: 12px 14px; border: 1px solid var(--line); }
+.ws-members .ws-person-email { max-width: 170px; }
+.ws-members td .ws-cell-muted { min-width: 72px; }
+.ws-members .ws-person { min-width: 170px; }
+.ws-members .ws-person-email { max-width: 150px; }
+.ws-members .ws-person { min-width: 150px; }
+.ws-members .ws-person-email { max-width: 130px; }
+.ws-requested-marker { display: block; margin-top: 2px; text-align: left; }
+.ws-switcher-name-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.wl-notyou-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.wl-notyou-actions .btn { white-space: normal; height: auto; min-height: 30px; text-align: left; overflow-wrap: anywhere; }

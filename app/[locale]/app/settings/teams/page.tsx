@@ -17,6 +17,6 @@ export default async function TeamsSettingsPage(props: { params: Promise<{ local
   const { locale } = await props.params;
   const user = await requireUser(locale);
   const team = user.workspace ?? (await ensureWorkspace(user.id));
-  const dir = await loadDirectory(team, user.role, '');
+  const dir = await loadDirectory(team, user.role, '', user.apps ?? '*');
   return <TeamsPanel initial={dir.groups} people={dir.members} canEdit={isWorkspaceAdmin(user)} />;
 }

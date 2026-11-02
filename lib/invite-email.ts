@@ -36,7 +36,7 @@ const COPY: Record<
     line: '{inviter} invited you to work together in {workspace} on zerosoft.',
     role: {
       admin: 'You join as an admin: you can invite people and change settings.',
-      member: 'You join as a member: you use the same apps and data as the rest of the team.',
+      member: 'You join as a member: you use the workspace’s apps, and what you see in each one depends on how it’s shared.',
       guest: 'You join as a guest: you only see what they share with you.',
     },
     apps: 'You will use {apps} with the rest of the team.',
@@ -54,7 +54,7 @@ const COPY: Record<
     line: '{inviter} te invitó a trabajar en {workspace} en zerosoft.',
     role: {
       admin: 'Entrás como admin: podés invitar gente y cambiar la configuración.',
-      member: 'Entrás como miembro: usás las mismas apps y datos que el resto del equipo.',
+      member: 'Entrás como miembro: usás las apps del workspace, y lo que ves en cada una depende de cómo esté compartido.',
       guest: 'Entrás como invitado: solo ves lo que te compartan.',
     },
     apps: 'Vas a usar {apps} con el resto del equipo.',
@@ -72,7 +72,7 @@ const COPY: Record<
     line: '{inviter} convidou você para trabalhar em {workspace} no zerosoft.',
     role: {
       admin: 'Você entra como admin: pode convidar pessoas e mudar as configurações.',
-      member: 'Você entra como membro: usa os mesmos apps e dados que o resto da equipe.',
+      member: 'Você entra como membro: usa os apps do workspace, e o que você vê em cada um depende de como está compartilhado.',
       guest: 'Você entra como convidado: só vê o que compartilharem com você.',
     },
     apps: 'Você vai usar {apps} com o resto da equipe.',

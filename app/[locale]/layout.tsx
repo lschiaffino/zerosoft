@@ -8,6 +8,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ChromeGate from '@/components/ChromeGate';
 import SupportWidget from '@/components/SupportWidget';
+import { WorkspaceNoticeOutsideApp } from '@/components/app/WorkspaceGuard';
 import FeedbackLauncher from '@/components/FeedbackLauncher';
 import { supportWidgetId } from '@/lib/support';
 import { surfaceForHost } from '@/lib/host-rewrite';
@@ -121,6 +122,7 @@ export default async function LocaleLayout(
         <ThemeProvider initial={themePref}>
         {/* Al cliente va solo lo común (header, launcher de feedback); cada app
             y página pública suma sus namespaces en su layout. */}
+        <WorkspaceNoticeOutsideApp />
         <ClientMessages root locale={locale} namespaces={['common', 'feedback.form', 'feedbackBoard']}>
           <ChromeGate
             header={<Header locale={locale} />}

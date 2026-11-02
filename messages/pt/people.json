@@ -122,7 +122,11 @@
     "reports": "{count, plural, one {# liderado direto} other {# liderados diretos}}",
     "endsOn": "Último dia: {date}",
     "emergencyContact": "Contato de emergência {n}",
-    "relation": "Parentesco"
+    "relation": "Parentesco",
+    "linkedAccount": "Conta vinculada",
+    "linkedMismatch": "O email de trabalho deste perfil não coincide com a conta que o lê: {email}. Confirme que é a pessoa certa antes de cadastrar o salário.",
+    "linkedConfirm": "Confirmar esta conta",
+    "linkedPayBlocked": "Este perfil está vinculado a {email}, que não coincide com o email de trabalho. Confirme essa conta no perfil antes de mudar o salário."
   },
   "offboard": {
     "action": "Desligamento",
@@ -502,8 +506,8 @@
     "welcomeHint": "Aparece no topo da página de boas-vindas, com o gestor, a equipe, as primeiras tarefas e o que ler.",
     "previewWelcome": "Ver as boas-vindas",
     "hrAdmins": "Admins de RH",
-    "hrAdminsHint": "Admins de RH gerenciam perfis, folgas, documentos, salários, avaliações e relatórios. Owner e admins do workspace são sempre admins de RH.",
-    "implicitHr": "Admin do workspace",
+    "hrAdminsHint": "Admins de RH gerenciam perfis, folgas, documentos, salários, avaliações e relatórios. Salários e a exportação da folha são do owner, dos admins de RH e de cada pessoa. Admins do workspace gerenciam o resto do People sem ver salários. Só o owner nomeia admins de RH.",
+    "implicitHr": "Owner do workspace",
     "onlyAdmins": "Só owner e admins do workspace escolhem admins de RH."
   },
   "welcome": {
@@ -567,6 +571,9 @@
     "storage_unavailable": "O armazenamento de arquivos não está disponível agora.",
     "file_type_not_allowed": "Esse tipo de arquivo não é permitido.",
     "cannot_remove": "Só owner e admins do workspace removem pessoas do workspace, e um admin não remove outro admin. O perfil não mudou.",
-    "rate_limited": "Remoções demais por agora. Tente daqui a pouco."
+    "rate_limited": "Remoções demais por agora. Tente daqui a pouco.",
+    "work_email_locked": "Só o owner ou um admin de RH podem mudar o email de trabalho deste perfil.",
+    "delete_has_pay": "Este perfil tem histórico de salários. Só o owner ou um admin de RH podem excluí-lo.",
+    "linked_account_mismatch": "A conta vinculada deste perfil não coincide com o email de trabalho. Confirme-a primeiro no perfil."
   }
 }

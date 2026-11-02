@@ -465,9 +465,9 @@
       "guest": "Invitado"
     },
     "roleHelp": {
-      "member": "Usa las apps que le habilites, con los mismos datos que el resto del equipo.",
+      "member": "Usa las apps que le habilites. Lo que ve en cada una depende de cómo esté compartido.",
       "admin": "Como un miembro, y además invita gente, cambia roles y edita la configuración.",
-      "guest": "No entra al workspace: solo ve lo que le compartas, página por página."
+      "guest": "No entra al workspace: solo ve lo que le compartas, como una página de Docs."
     },
     "apps": "Apps",
     "allApps": "Todas las apps",
@@ -542,7 +542,9 @@
       "invalid_emails": "Ninguno es un email válido.",
       "owner_cant_leave": "El owner no puede salir del workspace.",
       "cant_change_own_role": "No podés cambiar tu propio rol.",
-      "not_found": "Esa persona o invitación ya no existe. Recargá la página."
+      "not_found": "Esa persona o invitación ya no existe. Recargá la página.",
+      "wrong_workspace": "Cambiaste de workspace en otra pestaña. Recargá y probá de nuevo.",
+      "apps_not_yours": "Solo podés dar acceso a apps que tenés."
     },
     "approve": "Aprobar",
     "allowAnyEmail": "Permitir otro email",
@@ -556,7 +558,40 @@
       "body": "El link deja de servir en el acto. Podés volver a invitar a esta persona después.",
       "confirm": "Revocar",
       "cancel": "Cancelar"
-    }
+    },
+    "rolesLegend": "Qué puede hacer cada rol",
+    "rolesLegendApps": "Dentro de cada app hay acciones solo para admins, como borrar pipelines o cambiar los ajustes de la app. Si necesitás una, pedísela a un admin.",
+    "guestOf": {
+      "title": "Workspaces donde sos invitado",
+      "desc": "Un invitado no entra al workspace. Abrís lo que te comparten desde su link, tus avisos o Docs.",
+      "leave": "Dejar de ser invitado",
+      "openDocs": "Abrir Docs",
+      "error": "No se pudo. Probá de nuevo.",
+      "confirmTitle": "¿Dejar de ser invitado de {workspace}?",
+      "confirmBody": "Perdés lo que te compartieron persona a persona. Para volver, alguien te tiene que invitar de nuevo."
+    },
+    "roleLegend": {
+      "owner": "Usa todas las apps y ve los sueldos en People. Es la única persona que nombra, cambia o saca admins y nombra HR admins. No puede salir del workspace.",
+      "admin": "Usa las apps que tiene habilitadas. Además invita gente, cambia el rol y las apps de miembros e invitados y edita los ajustes del workspace. Ve sueldos solo si el owner lo nombra HR admin.",
+      "member": "Usa las apps que tiene habilitadas. Lo que ve en cada una depende de cómo esté compartido.",
+      "guest": "No entra al workspace. Solo ve lo que le comparten, como una página de Docs."
+    },
+    "requestWorkspace": {
+      "body": "Este pedido es de {workspace}, que no es tu workspace activo. Su acceso se abre ahí.",
+      "switch": "Cambiar a {workspace}",
+      "error": "No se pudo cambiar. Probá de nuevo.",
+      "notPart": "Este pedido es de un workspace del que no sos parte.",
+      "removed": "Esta persona ya no está en {workspace}: no queda nada por responder.",
+      "adminOnly": "Solo el owner puede cambiar el acceso de un admin, y el del owner no se puede cambiar.",
+      "adminsOnly": "Solo el owner y los admins de {workspace} pueden abrir el acceso de alguien."
+    },
+    "requested": "(pedida)",
+    "appsLimitHelp": "Solo podés habilitar apps que tenés.",
+    "denyRequest": "Rechazar pedido",
+    "requestLine": "{name} pidió {apps}.",
+    "rolesLegendAppsAdmin": "Dentro de cada app hay acciones solo para admins, como borrar pipelines o cambiar los ajustes de la app.",
+    "appsLimitAllHelp": "Esta persona tiene todas las apps. Podés limitarla a las que tenés.",
+    "requestedMarker": "Pidió {apps}"
   },
   "teamsForm": {
     "createTitle": "Crear un equipo",
@@ -613,7 +648,7 @@
     "detailsDesc": "El nombre y el logo que todos ven en el sidebar y en las invitaciones.",
     "name": "Nombre",
     "slug": "Identificador",
-    "slugPlaceholder": "darwin-ai",
+    "slugPlaceholder": "acme",
     "slugHelp": "Minúsculas, números y guiones. Único en zerosoft.",
     "size": "Tamaño del equipo",
     "sizeUnset": "Sin definir",
@@ -660,10 +695,20 @@
       "file_too_large": "La imagen pesa más de 2 MB.",
       "storage_unavailable": "Acá no hay almacenamiento de archivos configurado.",
       "forbidden": "Solo el owner y los admins pueden cambiar esto.",
-      "domain_not_yours": "Solo podés habilitar el dominio de tu propio email."
+      "domain_not_yours": "Solo podés habilitar el dominio de tu propio email.",
+      "apps_not_yours": "Solo podés dar acceso a apps que tenés."
     },
     "joinApproval": "Un admin aprueba a cada persona antes de que entre",
-    "joinRole": "Entran como miembros con estas apps:"
+    "joinRole": "Entran como miembros con estas apps:",
+    "dangerTitle": "Propiedad y cierre",
+    "dangerDesc": "Lo que todavía no está en el producto y qué hacer mientras tanto.",
+    "transferTitle": "Transferir la propiedad",
+    "transferBody": "Todavía no se puede transferir la propiedad desde la app. Mientras tanto, hacé admin a la próxima persona en Ajustes › Miembros: los admins invitan, cambian roles y editan estos ajustes.",
+    "closeTitle": "Cerrar el workspace",
+    "closeBody": "Todavía no se puede cerrar un workspace desde el producto. Para pedirlo, escribí a hola@zerosoft.ai desde {email} y te respondemos a mano.",
+    "leaveTitle": "Salir de {workspace}",
+    "leaveBody": "Perdés el acceso a sus apps al instante. Lo que creaste queda en el workspace.",
+    "leaveCta": "Salir desde Miembros"
   },
   "switcher": {
     "label": "Workspace: {name}. Cambiar de workspace",
@@ -686,20 +731,36 @@
     "createSubmit": "Crear e invitar",
     "cancel": "Cancelar",
     "teamName": "Nombre del equipo",
-    "teamNamePlaceholder": "Darwin AI",
+    "teamNamePlaceholder": "Acme",
     "createHelp": "Tu workspace pasa a ser de equipo con este nombre. Tus datos quedan donde están. Después invitás a la gente."
   },
   "access": {
     "title": "No tenés acceso a {app} acá",
     "body": "Un admin de {workspace} te lo puede habilitar en Ajustes › Miembros.",
-    "back": "Volver a las apps"
+    "back": "Volver a las apps",
+    "request": "Pedir acceso",
+    "sending": "Enviando…",
+    "sent": "Pedido enviado. Te avisamos cuando lo respondan.",
+    "error": "No se pudo enviar el pedido. Probá de nuevo.",
+    "already": "Ya lo pediste hoy. Te avisamos cuando lo respondan.",
+    "hasAccess": "Ya tenés esta app. Abrila desde tus apps.",
+    "limited": "Demasiados pedidos en la última hora. Esperá un rato y volvé a pedirlo.",
+    "bodyAdmin": "El owner de {workspace} te puede habilitar {app} en Ajustes › Miembros.",
+    "guardTitle": "Este cambio no se guardó",
+    "guardSwitched": "Esta pestaña está en {workspace} y tu workspace activo cambió en otra pestaña. No se guardó nada.",
+    "guardGone": "Ya no tenés acceso a {workspace}. No se guardó nada. Copiá lo que hayas escrito antes de salir de esta página.",
+    "guardSwitchBack": "Volver a {workspace}",
+    "guardStay": "Ir a mi workspace activo",
+    "guardHome": "Ir al inicio",
+    "guardSwitchError": "No se pudo volver. Probá de nuevo.",
+    "guardClose": "Cerrar"
   },
   "invite": {
     "metaTitle": "Invitación",
     "title": "Sumate a {workspace}",
     "sub": "{inviter} te invitó a zerosoft.",
     "roleLine": {
-      "member": "Vas a usar las mismas apps y datos que el resto del equipo.",
+      "member": "Vas a usar las apps del workspace. Lo que ves en cada una depende de cómo esté compartido.",
       "admin": "Entrás como admin: podés invitar gente y cambiar la configuración.",
       "guest": "Entrás como invitado: solo ves lo que te compartan."
     },
@@ -712,7 +773,7 @@
     "useAccount": "Entrá con {email}: con Google o con un código por email.",
     "expires": "El link vence el {date}.",
     "invalidTitle": "Esta invitación ya no sirve",
-    "invalidDesc": "Ya se usó o la revocaron. Pedile una nueva a quien te invitó.",
+    "invalidDesc": "Ya se usó o la revocaron. Si la aceptaste, entrá con esa cuenta. Si no, pedile una nueva a quien te invitó.",
     "expiredTitle": "Esta invitación venció",
     "expiredDesc": "Las invitaciones duran 14 días. Pedile a quien te invitó que te la reenvíe.",
     "alreadyTitle": "Ya estás en {workspace}",
@@ -774,7 +835,7 @@
       "title": "Tu equipo",
       "sub": "Este es el workspace que va a compartir tu equipo.",
       "name": "Nombre del equipo",
-      "namePlaceholder": "Darwin AI",
+      "namePlaceholder": "Acme",
       "size": "¿Cuántas personas son?",
       "sizes": {
         "1": "Solo yo",
@@ -812,8 +873,10 @@
     "invited": {
       "title": "Te damos la bienvenida a {workspace}",
       "titleNoName": "Te damos la bienvenida a zerosoft",
-      "sub": "Dos datos y entrás.",
-      "go": "Ir a {workspace}"
+      "sub": "Revisá estos datos y entrás.",
+      "go": "Ir a {workspace}",
+      "guestSub": "Entraste a {workspace} como invitado: abrís lo que te comparten desde su link o desde tus avisos. Vas a llegar a tu propio workspace.",
+      "guestTitle": "Sos invitado de {workspace}"
     },
     "results": {
       "title": "Casi listo",
@@ -827,7 +890,12 @@
       },
       "invalid": "Estos no son emails válidos: {list}",
       "limited": "Llegaste al límite de invitaciones por ahora. Invitá al resto más tarde desde Ajustes › Miembros."
-    }
+    },
+    "notYou": "¿No sos vos? Salir",
+    "stepFirst": "Paso 1",
+    "notYouJoined": "Ya te sumaste a {workspace} con {email}. Cerrar sesión no lo deshace. Para sacar esta cuenta de {workspace}, salí ahora; para volver con otra cuenta vas a necesitar una invitación nueva.",
+    "notYouLeave": "Salir de {workspace} y cerrar sesión",
+    "notYouStay": "Solo cerrar sesión"
   },
   "profileForm": {
     "title": "Tus datos",

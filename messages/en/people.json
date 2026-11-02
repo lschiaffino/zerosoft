@@ -122,7 +122,11 @@
     "reports": "{count, plural, one {# direct report} other {# direct reports}}",
     "endsOn": "Last day: {date}",
     "emergencyContact": "Emergency contact {n}",
-    "relation": "Relationship"
+    "relation": "Relationship",
+    "linkedAccount": "Linked account",
+    "linkedMismatch": "This record's work email doesn't match the account that reads it: {email}. Confirm it's the right person before adding pay.",
+    "linkedConfirm": "Confirm this account",
+    "linkedPayBlocked": "This record is linked to {email}, which doesn't match its work email. Confirm that account on the profile before changing pay."
   },
   "offboard": {
     "action": "Offboard",
@@ -502,8 +506,8 @@
     "welcomeHint": "Shown at the top of the welcome page, with their manager, team, first tasks and what to read.",
     "previewWelcome": "See the welcome page",
     "hrAdmins": "HR admins",
-    "hrAdminsHint": "HR admins manage profiles, time off, documents, compensation, reviews and reports. Workspace owners and admins are always HR admins.",
-    "implicitHr": "Workspace admin",
+    "hrAdminsHint": "HR admins manage profiles, time off, documents, compensation, reviews and reports. Salaries and the payroll export are for the owner, HR admins and each person. Workspace admins manage the rest of People without seeing salaries. Only the owner names HR admins.",
+    "implicitHr": "Workspace owner",
     "onlyAdmins": "Only workspace owners and admins choose HR admins."
   },
   "welcome": {
@@ -567,6 +571,9 @@
     "storage_unavailable": "File storage is not available right now.",
     "file_type_not_allowed": "That file type is not allowed.",
     "cannot_remove": "Only workspace owners and admins remove people from the workspace, and an admin cannot remove another admin. The profile was not changed.",
-    "rate_limited": "Too many removals for now. Try again in a while."
+    "rate_limited": "Too many removals for now. Try again in a while.",
+    "work_email_locked": "Only the owner or an HR admin can change the work email of this record.",
+    "delete_has_pay": "This record has pay history. Only the owner or an HR admin can delete it.",
+    "linked_account_mismatch": "This record's linked account doesn't match its work email. Confirm it on the profile first."
   }
 }

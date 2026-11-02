@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { signOut } from 'next-auth/react';
+import { clearOfflineData } from '@/lib/offline-queue';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 
@@ -34,6 +35,19 @@ export default function InviteAccept({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Si la revocaron o venció con la página abierta, al volver a la pestaña ya no se ofrece sumarse.
+  useEffect(() => {
+    const check = () => {
+      if (document.visibilityState === 'visible') router.refresh();
+    };
+    window.addEventListener('focus', check);
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      window.removeEventListener('focus', check);
+      document.removeEventListener('visibilitychange', check);
+    };
+  }, [router]);
+
   async function join(confirm: boolean) {
     if (busy) return;
     setBusy(true);
@@ -47,6 +61,8 @@ export default function InviteAccept({
     if (!res?.ok) {
       setBusy(false);
       setError(data.error && t.has(`errors.${data.error}`) ? t(`errors.${data.error}`) : t('errors.generic'));
+      // Ya no sirve: la página pasa a decirlo y saca el botón.
+      if (data.error === 'invite_invalid' || data.error === 'invite_expired') router.refresh();
       return;
     }
     router.push(data.next ?? '/app');
@@ -58,7 +74,7 @@ export default function InviteAccept({
       type="button"
       className={`btn ${strict ? 'btn-primary' : 'btn-secondary'} btn-block`}
       disabled={busy}
-      onClick={() => void signOut({ callbackUrl: `/${locale}/auth/signin?callbackUrl=${encodeURIComponent(`/${locale}/invite/${token}`)}` })}
+      onClick={() => void clearOfflineData().finally(() => signOut({ callbackUrl: `/${locale}/auth/signin?callbackUrl=${encodeURIComponent(`/${locale}/invite/${token}`)}` }))}
     >
       {t('otherAccount')}
     </button>

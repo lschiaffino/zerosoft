@@ -3594,7 +3594,10 @@
     "failed": "{count, plural, one {# cambio no se pudo guardar} other {# cambios no se pudieron guardar}} al reconectar.",
     "savedOffline": "Guardado sin conexión. Se sincroniza al volver la red.",
     "retry": "Sincronizar ahora",
-    "dismiss": "Cerrar"
+    "dismiss": "Cerrar",
+    "blocked": "{count, plural, one {# cambio espera} other {# cambios esperan}}: se hicieron en otro workspace o antes de que terminara tu sesión. Volvé a ese workspace para enviarlos.",
+    "blockedUnknown": "{count, plural, one {# cambio espera} other {# cambios esperan}}: se guardaron antes de que este dispositivo supiera de qué workspace son. No se enviaron. Descartalos si no los necesitás.",
+    "discard": "Descartar"
   },
   "extension": {
     "title": "Extensión de Chrome para Gmail",

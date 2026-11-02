@@ -61,6 +61,17 @@ export function userCanUseApp(user: { role?: string | null; apps?: AppAccess | s
   return canUseApp({ role: user.role ?? 'owner', apps: user.apps ?? '*' }, app);
 }
 
+/**
+ * ¿Quien tiene `actor` puede dejarle `requested` a alguien que hoy tiene
+ * `current`? Nadie da apps que no tiene: puede quitar y mantener, no sumar.
+ */
+export function canGrantApps(actor: AppAccess, requested: AppAccess, current: AppAccess = []): boolean {
+  if (actor === '*') return true;
+  if (requested === '*') return current === '*';
+  if (current === '*') return true;
+  return requested.filter((a) => !current.includes(a)).every((a) => actor.includes(a));
+}
+
 /** Tiene todas las apps (owner o '*'): lo piden los ajustes que cruzan apps, como los webhooks. */
 export function hasAllApps(user: { role?: string | null; apps?: AppAccess | string | null }): boolean {
   return user.role === 'owner' || user.apps == null || user.apps === '*';

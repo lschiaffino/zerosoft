@@ -8,7 +8,7 @@ import { QUEUED_EVENT } from '@/lib/offline-queue';
 import { registerAppServiceWorker, serviceWorkerEnabled } from '@/lib/sw-client';
 import { listenInstallPrompt } from './installPrompt';
 
-type SyncState = 'idle' | 'syncing' | 'synced' | 'failed';
+type SyncState = 'idle' | 'syncing' | 'synced' | 'failed' | 'blocked';
 
 /**
  * CRM offline: registra el service worker (public/sw.js), avisa cuando no hay
@@ -25,6 +25,7 @@ export default function OfflineSync() {
   const [pending, setPending] = useState(0);
   const [sync, setSync] = useState<SyncState>('idle');
   const [failed, setFailed] = useState(0);
+  const [unknown, setUnknown] = useState(0);
   const [queuedNotice, setQueuedNotice] = useState(false);
 
   useEffect(() => {
@@ -35,12 +36,13 @@ export default function OfflineSync() {
     const sw = navigator.serviceWorker;
 
     function onMessage(e: MessageEvent) {
-      const data = (e.data ?? {}) as { type?: string; count?: number; done?: number; failed?: number };
+      const data = (e.data ?? {}) as { type?: string; count?: number; done?: number; failed?: number; blocked?: boolean; remaining?: number; unknown?: number };
       if (data.type === 'zs-queue') setPending(data.count ?? 0);
       else if (data.type === 'zs-sync-start') setSync('syncing');
       else if (data.type === 'zs-sync-done') {
         setFailed(data.failed ?? 0);
-        setSync((data.failed ?? 0) > 0 ? 'failed' : 'synced');
+        setUnknown(data.unknown ?? 0);
+        setSync(data.blocked ? 'blocked' : (data.failed ?? 0) > 0 ? 'failed' : 'synced');
         if ((data.done ?? 0) + (data.failed ?? 0) > 0) router.refresh();
       }
     }
@@ -118,6 +120,8 @@ export default function OfflineSync() {
     text = t('offline.syncing');
   } else if (sync === 'synced') {
     text = t('offline.synced');
+  } else if (sync === 'blocked') {
+    text = unknown > 0 ? t('offline.blockedUnknown', { count: unknown }) : t('offline.blocked', { count: pending });
   } else if (sync === 'failed') {
     text = t('offline.failed', { count: failed });
   } else if (pending > 0) {
@@ -143,6 +147,11 @@ export default function OfflineSync() {
           onClick={() => navigator.serviceWorker?.controller?.postMessage({ type: 'zs-sync' })}
         >
           {t('offline.retry')}
+        </button>
+      )}
+      {sync === 'blocked' && unknown > 0 && (
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigator.serviceWorker?.controller?.postMessage({ type: 'zs-drop-unscoped' })}>
+          {t('offline.discard')}
         </button>
       )}
       {sync === 'failed' && (
