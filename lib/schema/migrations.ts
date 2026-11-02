@@ -8129,7 +8129,7 @@ export const MIGRATIONS: Migration[] = [
     // Puestos confidenciales (Hiring): fuera de la página de empleos y solo para el equipo y los admins.
     id: '165_hiring_confidential',
     up: async (c) => {
-      await c.execute('ALTER TABLE hiring_jobs ADD COLUMN confidential INTEGER NOT NULL DEFAULT 0');
+      await addColumn(c, 'ALTER TABLE hiring_jobs ADD COLUMN confidential INTEGER NOT NULL DEFAULT 0');
     },
   },
   {
@@ -8151,11 +8151,11 @@ export const MIGRATIONS: Migration[] = [
         );
         CREATE INDEX IF NOT EXISTS idx_hiring_approvals_subject ON hiring_approvals(workspace_id, subject_type, subject_id, position);
         CREATE INDEX IF NOT EXISTS idx_hiring_approvals_user ON hiring_approvals(workspace_id, user_id, status);
-        ALTER TABLE hiring_settings ADD COLUMN job_approvers TEXT NOT NULL DEFAULT '[]';
-        ALTER TABLE hiring_settings ADD COLUMN offer_approvers TEXT NOT NULL DEFAULT '[]';
-        ALTER TABLE hiring_jobs ADD COLUMN approval_status TEXT NOT NULL DEFAULT 'none';
-        ALTER TABLE hiring_stages ADD COLUMN kit TEXT NOT NULL DEFAULT '[]';
       `);
+      await addColumn(c, "ALTER TABLE hiring_settings ADD COLUMN job_approvers TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(c, "ALTER TABLE hiring_settings ADD COLUMN offer_approvers TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(c, "ALTER TABLE hiring_jobs ADD COLUMN approval_status TEXT NOT NULL DEFAULT 'none'");
+      await addColumn(c, "ALTER TABLE hiring_stages ADD COLUMN kit TEXT NOT NULL DEFAULT '[]'");
     },
   },
   {
@@ -8220,12 +8220,12 @@ export const MIGRATIONS: Migration[] = [
           updated_at TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_people_saved_reports ON people_saved_reports(workspace_id);
-        ALTER TABLE people_settings ADD COLUMN approve_changes INTEGER NOT NULL DEFAULT 0;
-        ALTER TABLE people_policies ADD COLUMN levels TEXT NOT NULL DEFAULT '[]';
-        ALTER TABLE people_policies ADD COLUMN applies_to TEXT NOT NULL DEFAULT '{}';
-        ALTER TABLE people_employees ADD COLUMN source_application_id TEXT;
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_people_employees_source ON people_employees(workspace_id, source_application_id) WHERE source_application_id IS NOT NULL;
       `);
+      await addColumn(c, "ALTER TABLE people_settings ADD COLUMN approve_changes INTEGER NOT NULL DEFAULT 0");
+      await addColumn(c, "ALTER TABLE people_policies ADD COLUMN levels TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(c, "ALTER TABLE people_policies ADD COLUMN applies_to TEXT NOT NULL DEFAULT '{}'");
+      await addColumn(c, "ALTER TABLE people_employees ADD COLUMN source_application_id TEXT");
+      await c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_people_employees_source ON people_employees(workspace_id, source_application_id) WHERE source_application_id IS NOT NULL");
     },
   },
   {
