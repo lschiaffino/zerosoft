@@ -681,6 +681,11 @@
       "title": "Bring your data",
       "body": "Import from HubSpot, Pipedrive, Linear, Notion, Calendly, Bitly and other tools.",
       "cta": "Import"
+    },
+    "noApps": {
+      "title": "No apps turned on yet",
+      "body": "An admin of {workspace} can turn apps on for you in Settings › Members.",
+      "bodyAdmin": "The owner of {workspace} can turn apps on for you in Settings › Members."
     }
   },
   "publicPage": {

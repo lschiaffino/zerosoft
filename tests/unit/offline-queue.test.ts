@@ -47,6 +47,7 @@ const item = (url: string, createdAt: number): Omit<QueuedRequest, 'id'> => ({
   url,
   method: 'POST',
   contentType: 'application/json',
+  workspace: 'ws1',
   body: '{}',
   createdAt,
 });
@@ -101,6 +102,38 @@ describe('replayQueue', () => {
     const res = await replayQueue(store, async (r) => (r.url === '/a' ? { ok: false, status: 404 } : { ok: true, status: 200 }));
     expect(res).toEqual({ done: 1, failed: 1, remaining: 0 });
     expect(store.left()).toEqual([]);
+  });
+});
+
+describe('replayQueue con otro workspace activo', () => {
+  it('un 401 deja el item y lo que sigue de ese workspace; lo de otro workspace sigue', async () => {
+    const store = memoryStore([
+      { ...item('/a', 1), workspace: 'ws1' },
+      { ...item('/b', 2), workspace: 'ws1' },
+      { ...item('/c', 3), workspace: 'ws2' },
+    ]);
+    const seen: string[] = [];
+    const res = await replayQueue(store, async (r) => {
+      seen.push(r.url);
+      return r.workspace === 'ws1' ? { ok: false, status: 401 } : { ok: true, status: 200 };
+    });
+    expect(seen).toEqual(['/a', '/c']);
+    expect(res).toEqual({ done: 1, failed: 0, remaining: 2, blocked: true });
+    expect(store.left().map((i) => i.url)).toEqual(['/a', '/b']);
+  });
+});
+
+describe('replayQueue con items viejos', () => {
+  it('sin workspace no se envía: queda retenido y se cuenta aparte', async () => {
+    const store = memoryStore([{ ...item('/old', 1), workspace: undefined }, item('/new', 2)]);
+    const seen: string[] = [];
+    const res = await replayQueue(store, async (r) => {
+      seen.push(r.url);
+      return { ok: true, status: 200 };
+    });
+    expect(seen).toEqual(['/new']);
+    expect(res).toEqual({ done: 1, failed: 0, remaining: 1, blocked: true, unknown: 1 });
+    expect(store.left().map((i) => i.url)).toEqual(['/old']);
   });
 });
 

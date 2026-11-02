@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { assistantModelId, assistantState } from '@/lib/assistant/config';
 import { assistantUser } from '@/lib/assistant/http';
 import { toolSummary } from '@/lib/assistant/tools';
-import { isWorkspaceAdmin } from '@/lib/session';
+import { hasAllApps, isWorkspaceAdmin } from '@/lib/session';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -14,6 +14,7 @@ export async function GET() {
   return NextResponse.json({
     state: assistantState(),
     admin: isWorkspaceAdmin(user),
+    webhooks: isWorkspaceAdmin(user) && hasAllApps(user),
     model: assistantModelId(),
     tools: toolSummary(user),
   });

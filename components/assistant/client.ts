@@ -34,6 +34,8 @@ export interface ChatItem {
 export interface AssistantStatus {
   state: 'ready' | 'not_configured' | 'disabled';
   admin: boolean;
+  /** Puede usar webhooks: si no, no se le sugieren. */
+  webhooks?: boolean;
   model: string;
   tools: Array<{ name: string; app: string | null; kind: 'read' | 'write' }>;
 }

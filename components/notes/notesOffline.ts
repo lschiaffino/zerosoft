@@ -237,6 +237,9 @@ const touchesText = (p: Record<string, unknown>) => p.content !== undefined || p
  * ("<título> (copia offline)"); si es de una nota bloqueada, la copia va
  * bloqueada con el mismo sobre.
  */
+/** Reintentar después: servidor caído, y 401 (sin sesión u otro workspace activo): el cambio no se pierde. */
+const holdForLater = (status: number) => status >= 500 || status === 429 || status === 401;
+
 export async function replayOutbox(ops: OutboxOp[], deps: ReplayDeps): Promise<ReplayResult> {
   const r: ReplayResult = { done: 0, copies: 0, stuck: 0, remaining: 0, retry: false };
   const json = (body: unknown): RequestInit => ({
@@ -281,7 +284,7 @@ export async function replayOutbox(ops: OutboxOp[], deps: ReplayDeps): Promise<R
     try {
       if (op.kind === 'create') {
         const res = await deps.fetch('/api/notes', { method: 'POST', ...json({ ...op.body, id: op.id }) });
-        if (res.status >= 500 || res.status === 429) {
+        if (holdForLater(res.status)) {
           r.remaining = ops.length - i;
           r.retry = true;
           return r;
@@ -298,7 +301,7 @@ export async function replayOutbox(ops: OutboxOp[], deps: ReplayDeps): Promise<R
       // Texto sin versión conocida: no se manda a ciegas, queda como copia.
       if (!op.base && touchesText(op.patch)) {
         const res = await deps.fetch(`/api/notes/${encodeURIComponent(op.id)}`, { method: 'GET' });
-        if (res.status >= 500 || res.status === 429) {
+        if (holdForLater(res.status)) {
           r.remaining = ops.length - i;
           r.retry = true;
           return r;
@@ -318,7 +321,7 @@ export async function replayOutbox(ops: OutboxOp[], deps: ReplayDeps): Promise<R
       if (res.ok) {
         r.done++;
         await deps.complete(op, await updatedAt(res));
-      } else if (res.status >= 500 || res.status === 429) {
+      } else if (holdForLater(res.status)) {
         r.remaining = ops.length - i;
         r.retry = true;
         return r;
