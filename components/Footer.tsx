@@ -42,6 +42,12 @@ export default async function Footer({ locale }: { locale: string }) {
                 </Link>
               </li>
             ))}
+          </ul>
+        </div>
+
+        <div className="footer-col">
+          <h4>{t('colExplore')}</h4>
+          <ul>
             <li>
               <Link href="/products">{t('allProducts')}</Link>
             </li>

@@ -1,5 +1,7 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { IBM_Plex_Mono, Space_Grotesk } from 'next/font/google';
+import { notFound } from 'next/navigation';
+import { hasLocale } from 'next-intl';
 import { routing } from '@/i18n/routing';
 import { siteOrigin, siteVerification } from '@/lib/seo';
 import Header from '@/components/Header';
@@ -50,6 +52,8 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
     locale
   } = params;
 
+  if (!hasLocale(routing.locales, locale)) return {};
+
   const t = await getTranslations({ locale, namespace: 'common.meta' });
   return {
     title: {
@@ -84,6 +88,9 @@ export default async function LocaleLayout(
   const {
     locale
   } = params;
+
+  // /wp-login.php y cualquier otra raíz con punto llegan acá sin pasar por el middleware.
+  if (!hasLocale(routing.locales, locale)) notFound();
 
   const {
     children

@@ -186,7 +186,7 @@ function LoginSiteBlocked({ run, onUse }: { run: RobotRunDto; onUse?: (runId: st
   if (run.dataHidden) return <span>{t('credentialHidden', { step })}</span>;
   return (
     <span>
-      {noSite ? t('credentialNoSite', { step, here }) : t('credentialOrigin', { step, here, bound })}{' '}
+      {noSite ? t(here === '?' ? 'credentialNoPage' : 'credentialNoSite', { step, here }) : t('credentialOrigin', { step, here, bound })}{' '}
       {done ? (
         <span className="robots-muted">{t('useSiteDone', { here })}</span>
       ) : (
@@ -599,8 +599,8 @@ function FailureCapture({
           </>
         )}
       </dl>
-      {failure.matched === false && <p className="ui-help">{t('notMatched')}</p>}
-      {onApplyFix && failure.dom && (
+      {failure.matched === false && !/^credential_/.test(String(failure.error ?? '')) && <p className="ui-help">{t('notMatched')}</p>}
+      {onApplyFix && failure.dom && failure.url !== 'about:blank' && (
         <div className="robots-fix" aria-live="polite">
           {!fix && (
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => void suggest()} disabled={fixing} aria-busy={fixing || undefined}>
@@ -632,7 +632,7 @@ function FailureCapture({
           )}
         </div>
       )}
-      {shot && (
+      {shot && failure.url !== 'about:blank' && (
         <figure className="robots-shot robots-failure-shot">
           {!shot.startsWith('data:') ? (
             <a href={shot} target="_blank" rel="noreferrer">
@@ -646,7 +646,7 @@ function FailureCapture({
           <figcaption>{t('screenshot')}</figcaption>
         </figure>
       )}
-      {failure.dom && (
+      {failure.dom && failure.url !== 'about:blank' && (
         <div className="robots-var">
           <span className="robots-var-name">{failure.matched ? t('domElement') : t('domPage')}</span>
           <pre className="robots-json data">{failure.dom}</pre>

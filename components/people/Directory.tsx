@@ -150,8 +150,8 @@ export default function Directory({ employees, facets, hr, templates, filters, o
                       {e.status !== 'active' && <span className={`badge ${e.status === 'terminated' ? 'badge-outline' : 'badge-warn'}`}>{t(`status.${e.status}`)}</span>}
                     </Link>
                   </th>
-                  <td className="ppl-hide-sm">{e.department}</td>
-                  <td className="ppl-hide-sm">{e.location ?? ''}</td>
+                  <td className="ppl-hide-sm ppl-nowrap">{e.department}</td>
+                  <td className="ppl-hide-sm ppl-nowrap">{e.location ?? ''}</td>
                   <td className="ppl-hide-sm ppl-ellipsis">{e.workEmail}</td>
                 </tr>
               ))}

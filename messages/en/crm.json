@@ -80,6 +80,7 @@
     "preview": "Preview"
   },
   "assoc": {
+    "noneToAdd": "Nothing left to link. Create a record first.",
     "associate": "Associate",
     "associating": "Associating…",
     "pickDeal": "Select a deal…",

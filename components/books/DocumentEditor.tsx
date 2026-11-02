@@ -479,6 +479,9 @@ export default function DocumentEditor({
                     ))}
                   </select>
                 </label>
+                {(pay.method === 'bank' || pay.method === 'card' || pay.method === 'other') && refs.bankAccounts.length === 0 && (
+                  <p className="ui-help">{t('editor.noBankAccounts')}</p>
+                )}
                 {(pay.method === 'bank' || pay.method === 'card' || pay.method === 'other') && refs.bankAccounts.length > 0 && (
                   <label className="ui-field">
                     <span className="label">{t('editor.bankAccount')}</span>

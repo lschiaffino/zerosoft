@@ -326,7 +326,7 @@ export default function GroupsList({
                     </Link>
                   </td>
                   <td className="num" data-label={t('list.colMembers')}>{c.memberCount}</td>
-                  <td data-label={c.labels.length ? t('list.colLabels') : undefined} hidden={c.labels.length === 0}>
+                  <td className={c.labels.length ? undefined : 'gr-empty-cell'} data-label={c.labels.length ? t('list.colLabels') : undefined}>
                     <span className="gr-label-row">
                       {c.labels.map((l) => (
                         <LabelTag key={l.id} name={l.name} color={l.color} />

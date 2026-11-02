@@ -1,7 +1,7 @@
 {
   "meta": {
     "tagline": "Twenty-four open-source apps for your team.",
-    "description": "CRM, support chat, AI agents, automations, browser robots, projects, links, docs, notes, scheduling and a whiteboard. Open source (AGPLv3): run them on your server for $0 or use zerosoft Cloud, with a free plan and usage-based pricing.",
+    "description": "Open-source business apps: CRM, support chat, AI agents, automations, docs and more. Run them on your server for $0 or use zerosoft Cloud.",
     "homeTitle": "zerosoft: open-source business apps, from CRM to docs"
   },
   "header": {
@@ -36,7 +36,7 @@
       "board": "Shared infinite whiteboard",
       "voice": "Voice dictation and meeting notes",
       "rec": "Screen and camera videos shared with a link",
-      "talk": "In the works: team messaging",
+      "talk": "Channels, direct messages and huddles",
       "shop": "Online store with checkout and orders",
       "design": "Graphic design from templates, with your brand",
       "analytics": "Product analytics and feature flags",
@@ -265,7 +265,7 @@
       "desc": "Screen and camera videos to share with a link."
     },
     "talk": {
-      "desc": "Channels, direct messages and threads. In the works."
+      "desc": "Channels, direct messages and threads for your team."
     },
     "shop": {
       "desc": "An online store with variants, stock, checkout and orders."
@@ -360,6 +360,7 @@
     "metaTitle": "Blog: guides, migrations and open-source software",
     "metaDescription": "How to move from HubSpot, Notion, Linear, Calendly or Bitly, guides for each zerosoft app, and how we build an open-source suite.",
     "tagsTitle": "Topics",
+    "more": "Show more posts ({count} left)",
     "tagTitle": "Posts about {tag}",
     "tagMetaDescription": "{count} zerosoft blog posts about {tag}: guides, migrations and notes on how we build the apps.",
     "tagLead": "{count} posts.",
@@ -378,6 +379,7 @@
     "by": "by {name}"
   },
   "footer": {
+    "colExplore": "Explore",
     "tagline": "Made of zeros.",
     "copyright": "© 2026 zerosoft.ai",
     "colProduct": "Product",
@@ -410,7 +412,7 @@
     "hero": {
       "title1": "<nb>Twenty-four</nb> apps for your team.",
       "title2": "Zero licenses.",
-      "sub": "Open-source alternatives to HubSpot, Intercom, Calendly, Linear, Notion and five more products your team pays for every month. Run them on your server for $0 or use them on zerosoft Cloud.",
+      "sub": "Open-source alternatives to HubSpot, Intercom, Calendly, Linear, Notion and 19 more products your team pays for every month. Run them on your server for $0 or use them on zerosoft Cloud.",
       "ctaStart": "Start free",
       "ctaSelfHost": "Self-host",
       "note1": "No credit card",

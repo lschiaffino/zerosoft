@@ -866,6 +866,12 @@ export async function robotInterpreter(
           // origen de SU frame (lo sabe el navegador) y se escribe en ese elemento: si la página
           // navega en el medio, el elemento ya no sirve y el login no llega a la nueva.
           const bound = str(s.origin).trim() || credOrigin;
+          // Sin un Ir a URL antes no hay sitio contra el que comparar: no hace falta esperar al campo.
+          if (!bound) {
+            // about:blank no tiene origen: "?" hace que el error pida un Ir a URL en vez de nombrar un sitio.
+            failDetail = `${/^https?:/.test(page.url()) ? originOf(page.url()) || '?' : '?'} ≠ ?`;
+            fail('credential_no_site');
+          }
           const loc = page.locator(selector).first();
           const handle = loc.elementHandle ? await loc.elementHandle({ timeout: timeout() }) : null;
           const frame = handle ? await handle.ownerFrame() : null;
