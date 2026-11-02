@@ -149,7 +149,8 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
     const yesterday = addDays(bucketOf(now, 'day', tz), -1);
     let from: string | null = p.dirty_from ?? (p.rolled_through ? addDays(p.rolled_through, 1) : null);
     if (!from) {
-      const first = (await db.prepare('SELECT MIN(ts) AS ts FROM analytics_events WHERE project_id = ?').get(p.id)) as { ts: number | null } | undefined;
+      // Solo fechas posibles: una fila vieja con un valor imposible no frena el primer rollup del proyecto.
+      const first = (await db.prepare('SELECT MIN(ts) AS ts FROM analytics_events WHERE project_id = ? AND ts >= 0 AND ts <= 8640000000000000').get(p.id)) as { ts: number | null } | undefined;
       if (first?.ts == null || !Number.isFinite(Number(first.ts))) return;
       // Nunca más atrás que la retención máxima (5 años), aunque haya un dato raro.
       from = bucketOf(Math.max(Number(first.ts), now - 5 * 365 * DAY), 'day', tz);
