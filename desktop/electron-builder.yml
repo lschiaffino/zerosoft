@@ -27,6 +27,7 @@ electronFuses:
   onlyLoadAppFromAsar: true
   enableCookieEncryption: true
   grantFileProtocolExtraPrivileges: false
+afterSign: scripts/adhoc-sign.cjs
 protocols:
   - name: zerosoft
     schemes: [zerosoft]
