@@ -2115,7 +2115,7 @@
         "button": "Open Forms"
       }
     },
-    "parityCounts": "{have} included, {partial} partial of {counted} {competitor} capabilities"
+    "parityCounts": "{have} included, {partial} partial of {counted}"
   },
   "product": {
     "launch": "Try {name}",

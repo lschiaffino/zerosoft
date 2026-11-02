@@ -1341,3 +1341,4 @@ section.parity-beyond { padding-top: 0; padding-bottom: 0; margin-top: 48px; }
 .cmp-scope-note { margin-top: 12px; max-width: 62ch; font-size: 14px; line-height: 1.55; color: var(--brand-gray-1); }
 .parity-area-head > span:first-child { display: none; }
 .parity-area-head .parity-area-counts { grid-column: 1 / -1; white-space: normal; }
+.suite-parity { white-space: normal; }

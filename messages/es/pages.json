@@ -2115,7 +2115,7 @@
         "button": "Abrir Forms"
       }
     },
-    "parityCounts": "{have} incluidas, {partial} parciales de {counted} capacidades de {competitor}"
+    "parityCounts": "{have} incluidas, {partial} parciales de {counted}"
   },
   "product": {
     "launch": "Probar {name}",
