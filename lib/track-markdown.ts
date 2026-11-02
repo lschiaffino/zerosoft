@@ -64,9 +64,30 @@ export const ISSUE_REF_START = /(^|[^\w@/-])@?[A-Z][A-Z0-9]{1,15}(?:-[A-Z0-9]{1,
 /** Link a un issue de Track (/app/track/issues/<id>, con o sin locale y dominio). */
 export const ISSUE_URL_RE = /\/(?:[a-z]{2}\/)?app\/track\/issues\/([A-Za-z0-9-]{8,80})(?:[?#].*)?$/;
 
-/** Archivos subidos a zerosoft (adjuntos): estos sí se muestran como imagen. */
+/**
+ * Host del Blob de este deployment. En el navegador lo deja next.config al compilar y en el
+ * servidor sale del token (vercel_blob_rw_<storeId>_…). Sin ninguno, ninguna URL de Blob es nuestra.
+ */
+function ownBlobHost(): string | null {
+  const built = process.env.NEXT_PUBLIC_OWN_BLOB_HOST?.trim().toLowerCase();
+  if (built) return built;
+  const m = /^vercel_blob_rw_([A-Za-z0-9]+)_/.exec(process.env.BLOB_READ_WRITE_TOKEN ?? '');
+  return m ? `${m[1].toLowerCase()}.public.blob.vercel-storage.com` : null;
+}
+
+const LOCAL_UPLOAD = /^\/uploads\/[a-z]+\/[A-Za-z0-9_-][A-Za-z0-9._-]{0,199}$/;
+
+/** Archivos subidos a zerosoft (adjuntos): estos sí se muestran como imagen. Forma exacta, sin rodeos. */
 export function isOwnUpload(href: string): boolean {
-  return href.startsWith('/uploads/') || /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//i.test(href);
+  if (href.startsWith('/')) return LOCAL_UPLOAD.test(href) && !href.includes('..');
+  const host = ownBlobHost();
+  if (!host) return false;
+  try {
+    const u = new URL(href);
+    return u.protocol === 'https:' && !u.username && !u.password && !u.port && u.hostname.toLowerCase() === host;
+  } catch {
+    return false;
+  }
 }
 
 // ---------- Bloques colapsables y callouts ----------
