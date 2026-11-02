@@ -676,7 +676,8 @@
         "insight": "Insight",
         "socialPost": "Social post",
         "booksInvoice": "Invoice",
-        "form": "Form"
+        "form": "Form",
+        "sendDocument": "Shared document"
       },
       "untitled": "Untitled",
       "partial": "Some apps couldn't load. Reload the page to see them."

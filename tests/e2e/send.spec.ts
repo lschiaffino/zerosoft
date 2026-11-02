@@ -456,6 +456,9 @@ test('espacios: varios documentos detrás de un link, con números y acceso por 
   await expect(page.getByTestId('send-space-docstats')).toContainText('Pitch');
   await expect(page.getByTestId('send-space-people')).toContainText('limited@acme.com');
   await shot(page, 'space-activity');
+  const csv = await request.get(`/api/send/spaces/${space.id}/analytics?format=csv`);
+  expect(csv.headers()['content-type']).toContain('text/csv');
+  expect(await csv.text()).toContain('limited@acme.com');
   await page.getByTestId('send-space-tab-access').click();
   await expect(page.getByTestId('send-access-row')).toContainText('limited@acme.com');
   await page.goto('/en/app/send/spaces');

@@ -101,8 +101,10 @@ textarea.sd-title-input:focus { outline: none; border-color: var(--ink); }
 .sd-preview img { width: 100%; height: auto; border: 1px solid var(--line); background: #fff; display: block; }
 .sd-preview-video { width: 100%; max-width: 960px; background: #000; display: block; }
 
+section > .sd-help:last-child { margin-top: 12px; }
 @media (max-width: 640px) {
   .sd-hide-sm { display: none; }
+  .sd-kpis > div:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .sd-bars-pages li { grid-template-columns: 70px minmax(0, 1fr) 52px; }
   .sd-bar-reach { grid-column: 2 / -1; text-align: left; margin-top: -4px; }
   .sd-bars li { grid-template-columns: 70px minmax(0, 1fr) 52px; }

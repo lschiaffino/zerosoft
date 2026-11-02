@@ -17,7 +17,6 @@ const shot = async (page: Page, name: string, fullPage = false) => {
 };
 const uid = () => Math.random().toString(36).slice(2, 8);
 
-test.describe.configure({ mode: 'serial' });
 test.setTimeout(240_000);
 const slow = expect.configure({ timeout: 45_000 });
 
@@ -89,6 +88,7 @@ async function member(browser: Browser, baseURL: string, label: string, apps: st
   await ctx.addCookies([{ name: 'zs_e2e_as', value: email, url: baseURL }]);
   const p = await ctx.newPage();
   await p.goto('/en/app', { waitUntil: 'networkidle' });
+  await expect.poll(async () => (await sql('SELECT id FROM users WHERE email = ?', [email])).length, { timeout: 30_000 }).toBeGreaterThan(0);
   await p.close();
   const demoTeam = String((await sql("SELECT id FROM teams WHERE owner_id = 'demo' ORDER BY created_at, id LIMIT 1"))[0].id);
   const id = String((await sql('SELECT id FROM users WHERE email = ?', [email]))[0].id);
@@ -280,6 +280,56 @@ test('CRM: la visita queda en la línea de tiempo del contacto con ese email', a
   await expect(page.getByTestId('send-visitors').getByRole('link', { name: 'CRM contact' })).toBeVisible();
 });
 
+test('Volver, mensaje, marca apagada y números por link', async ({ browser, request }) => {
+  const saved = await request.put('/api/send/settings', { data: { brandName: 'Acme Capital', logoUrl: '', brandColor: '', siteUrl: '' } });
+  expect(saved.ok()).toBe(true);
+  const bytes = await plainPdf(1);
+  const made = await (await request.post('/api/send/documents', { data: { title: 'Returning', file: { name: 'r.pdf', mime: 'application/pdf', size: bytes.length } } })).json();
+  await request.put(`/api/send/versions/${made.version.id}/parts/0`, { data: bytes });
+  await request.post(`/api/send/versions/${made.version.id}/complete`, { data: {} });
+  await request.post(`/api/send/versions/${made.version.id}/process`);
+  const id = made.document.id;
+  const a = await linkFor(request, id, { name: 'With brand', message: 'Hi Ana, here is the plan.', requireEmail: true });
+  const b = await linkFor(request, id, { name: 'No brand', useBranding: false });
+
+  const ctx = await browser.newContext();
+  const v = await ctx.newPage();
+  await v.goto(a.url);
+  await expect(v.getByTestId('sv-gate-email')).toContainText('Hi Ana, here is the plan.');
+  await expect(v.getByTestId('sv-gate-email')).toContainText('Acme Capital');
+  await v.getByTestId('sv-input').fill('back@acme.com');
+  await v.getByTestId('sv-submit').click();
+  await expect(v.getByTestId('sv-reader')).toBeVisible();
+  await v.waitForTimeout(4200);
+  await slow.poll(async () => (await analytics(request, id)).totals.visits).toBe(1);
+  await v.close();
+  // Media hora después, con la misma sesión: otra visita, marcada como vuelta, sin pedir el email de nuevo.
+  await sql('UPDATE send_visits SET started_at = ?, last_ping_at = ? WHERE document_id = ?', [new Date(Date.now() - 3600_000).toISOString(), new Date(Date.now() - 3600_000).toISOString(), id]);
+  const again = await ctx.newPage();
+  await again.goto(a.url);
+  await expect(again.getByTestId('sv-reader')).toBeVisible();
+  await again.waitForTimeout(4200);
+  await slow.poll(async () => (await analytics(request, id)).totals.visits).toBe(2);
+  const data = (await (await request.get(`/api/send/documents/${id}/analytics`)).json()) as { totals: { visitors: number }; visits: Array<{ returning: boolean }> };
+  expect(data.totals.visitors).toBe(1);
+  expect(data.visits.map((x) => x.returning)).toEqual([true, false]);
+  await again.close();
+  await ctx.close();
+
+  const other = await browser.newContext();
+  const o = await other.newPage();
+  await o.goto(b.url);
+  await expect(o.getByTestId('sv-reader')).toBeVisible();
+  await expect(o.getByTestId('sv-reader')).not.toContainText('Acme Capital');
+  await other.close();
+  // Por link: el segundo todavía no tiene visitas.
+  const byLink = await (await request.get(`/api/send/documents/${id}/analytics?link=${b.id}`)).json();
+  expect(byLink.totals.visits).toBe(0);
+  const byA = await (await request.get(`/api/send/documents/${id}/analytics?link=${a.id}`)).json();
+  expect(byA.totals.visits).toBe(2);
+  await request.put('/api/send/settings', { data: { brandName: '', logoUrl: '', brandColor: '', siteUrl: '' } });
+});
+
 test('Roles: un member ve lo suyo y lo compartido, y no exporta', async ({ browser, request, baseURL }) => {
   const bytes = await plainPdf(1);
   const made = await (await request.post('/api/send/documents', { data: { title: 'Admin doc', file: { name: 'a.pdf', mime: 'application/pdf', size: bytes.length } } })).json();
@@ -357,6 +407,7 @@ test('Se ve bien: oscuro, 390 px y marca propia', async ({ page, browser, reques
     await p.getByTestId('send-tab-links').click();
     await p.getByTestId('send-link-edit').first().click();
     await expect(p.getByTestId('link-save')).toBeVisible();
+    await p.waitForTimeout(400);
     await shot(p, `link-dialog-${name}`);
     // Esc cierra.
     await p.keyboard.press('Escape');

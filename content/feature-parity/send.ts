@@ -116,9 +116,9 @@ const parity: ProductParity = {
       weight: 2,
       detail: ['Shown as not verified: a typed email is declared, not proven', 'Se muestra sin verificar: un email escrito es declarado, no probado', 'Aparece como não verificado: um email digitado é declarado, não comprovado'],
     }),
-    row('verify-email', 'access', ['Verify the email', 'Verificar el email', 'Verificar o email'], 'have', {
+    row('verify-email', 'access', ['Verify the email', 'Verificar el email', 'Verificar o email'], 'partial', {
       weight: 2,
-      detail: ['6-digit code, 15 minutes, same browser; 5 attempts. Sent through the workspace\'s email provider', 'Código de 6 dígitos, 15 minutos, mismo navegador; 5 intentos. Sale por el proveedor de email', 'Código de 6 dígitos, 15 minutos, mesmo navegador; 5 tentativas. Sai pelo provedor de email'],
+      detail: ['6-digit code, 15 minutes, same browser; 5 attempts. Needs an email provider set up, and is checked with captured mail so far', 'Código de 6 dígitos, 15 minutos, mismo navegador; 5 intentos. Pide un proveedor de email configurado, y por ahora se probó con correo capturado', 'Código de 6 dígitos, 15 minutos, mesmo navegador; 5 tentativas. Precisa de um provedor de email configurado, e por enquanto foi testado com correio capturado'],
     }),
     row('passcode', 'access', ['Passcode', 'Código de acceso', 'Código de acesso'], 'have', {
       weight: 2,
@@ -197,7 +197,7 @@ const parity: ProductParity = {
     // Avisos
     row('email-alert', 'alerts', ['Email when someone opens it', 'Email cuando alguien lo abre', 'Email quando alguém abre'], 'partial', {
       weight: 2,
-      detail: ['Sent when a real visit starts, at most once per half hour per session. With no email provider set up it isn\'t delivered', 'Sale cuando empieza una visita real, como mucho una vez por media hora por sesión. Sin proveedor de email configurado no llega', 'Sai quando começa uma visita real, no máximo uma vez a cada meia hora por sessão. Sem provedor de email configurado não chega'],
+      detail: ['Sent when a real visit starts, at most once per half hour per session. Needs an email provider set up, and is checked with captured mail so far', 'Sale cuando empieza una visita real, como mucho una vez por media hora por sesión. Pide un proveedor de email configurado, y por ahora se probó con correo capturado', 'Sai quando começa uma visita real, no máximo uma vez a cada meia hora por sessão. Precisa de um provedor de email configurado, e por enquanto foi testado com correio capturado'],
     }),
     row('in-app-alert', 'alerts', ['Live "someone is reading" alert', 'Aviso en vivo de "alguien está leyendo"', 'Aviso ao vivo de "alguém está lendo"'], 'have', {
       detail: ['In the notification bell and on the document page. DocSend\'s are desktop notifications', 'En la campana de avisos y en la página del documento. Los de DocSend son notificaciones de escritorio', 'No sino de avisos e na página do documento. Os do DocSend são notificações de desktop'],
@@ -262,7 +262,7 @@ const parity: ProductParity = {
     row('nda-badge', 'agreements', ['See who signed from the visit', 'Ver quién firmó desde la visita', 'Ver quem assinou a partir da visita'], 'missing'),
 
     // Marca
-    row('brand-logo-color', 'branding', ['Logo, color and website link', 'Logo, color y link al sitio', 'Logo, cor e link para o site'], 'have', {
+    row('brand-logo-color', 'branding', ['Logo, color and website link', 'Logo, color y link al sitio', 'Logo, cor e link para o site'], 'partial', {
       detail: ['The logo goes by URL, with no upload yet', 'El logo va por URL, todavía sin subida', 'O logo vai por URL, ainda sem upload'],
     }),
     row('brand-per-link', 'branding', ['Turn the brand off per link', 'Apagar la marca por link', 'Desligar a marca por link'], 'have', { competitorHas: false }),

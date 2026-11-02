@@ -676,7 +676,8 @@
         "insight": "Insight",
         "socialPost": "Publicación de Social",
         "booksInvoice": "Factura",
-        "form": "Formulario"
+        "form": "Formulario",
+        "sendDocument": "Documento compartido"
       },
       "untitled": "Sin título",
       "partial": "No pudimos cargar algunas apps. Recargá la página para verlas."
