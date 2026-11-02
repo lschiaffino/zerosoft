@@ -3595,7 +3595,9 @@
     "savedOffline": "Salvo offline. Sincroniza quando a conexão voltar.",
     "retry": "Sincronizar agora",
     "dismiss": "Fechar",
-    "blocked": "{count, plural, one {# alteração aguarda} other {# alterações aguardam}}: feitas em outro workspace ou antes de sua sessão terminar. Volte a esse workspace para enviá-las."
+    "blocked": "{count, plural, one {# alteração aguarda} other {# alterações aguardam}}: feitas em outro workspace ou antes de sua sessão terminar. Volte a esse workspace para enviá-las.",
+    "blockedUnknown": "{count, plural, one {# alteração aguarda} other {# alterações aguardam}}: salvas antes de este dispositivo saber de qual workspace são. Não foram enviadas. Descarte se não precisar delas.",
+    "discard": "Descartar"
   },
   "extension": {
     "title": "Extensão do Chrome para Gmail",

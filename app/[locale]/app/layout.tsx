@@ -651,6 +651,7 @@ export default async function AppLayout(
                   reload: tGuard('guardStay'),
                   home: tGuard('guardHome'),
                   switchError: tGuard('guardSwitchError'),
+                  close: tGuard('guardClose'),
                 }}
               />
             )}

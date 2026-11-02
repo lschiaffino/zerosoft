@@ -752,7 +752,8 @@
     "guardSwitchBack": "Switch back to {workspace}",
     "guardStay": "Go to my active workspace",
     "guardHome": "Go to Home",
-    "guardSwitchError": "Couldn't switch back. Try again."
+    "guardSwitchError": "Couldn't switch back. Try again.",
+    "guardClose": "Dismiss"
   },
   "invite": {
     "metaTitle": "Invitation",

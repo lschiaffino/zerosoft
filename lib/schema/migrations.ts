@@ -8118,6 +8118,13 @@ export const MIGRATIONS: Migration[] = [
         )`);
     },
   },
+  {
+    // People: la cuenta enlazada a una ficha que el owner o un HR admin confirmó. Columna nueva, vacía.
+    id: '164_people_linked_confirmed',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE people_employees ADD COLUMN linked_confirmed TEXT');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

@@ -60,6 +60,8 @@ export default async function PlatformHomePage(props: {
   const more = moreAppsByCategory({ mode })
     .map((g) => ({ ...g, apps: g.apps.filter(can) }))
     .filter((g) => g.apps.length > 0);
+  // Sin apps no hay nada que invitar a usar ni que importar: solo lo que esa persona puede hacer.
+  const showCards = admin && (featured.length > 0 || more.length > 0);
   const blockedKey = (await props.searchParams).blocked;
   // El link puede quedar viejo: si ya tiene la app (se la dieron), no hay nada que avisar.
   const blocked = typeof blockedKey === 'string' && blockedKey in PRODUCT_CONFIG && !userCanUseApp(user, blockedKey as ProductKey) ? (blockedKey as ProductKey) : null;
@@ -140,7 +142,7 @@ export default async function PlatformHomePage(props: {
       </section>
       )}
 
-      <div className={`home-split${admin ? '' : ' home-split-full'}`}>
+      <div className={`home-split${showCards ? '' : ' home-split-full'}`}>
         <section className="home-section" aria-labelledby="home-recent">
           <h2 id="home-recent" className="home-h">
             {t('recent.title')}
@@ -150,7 +152,7 @@ export default async function PlatformHomePage(props: {
           </Suspense>
         </section>
 
-        {admin && (
+        {showCards && (
           <aside className="home-cards" aria-label={t('import.title')}>
             {team && (
               <div className="home-card" data-testid="home-invite">

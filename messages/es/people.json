@@ -122,7 +122,11 @@
     "reports": "{count, plural, one {# reporte directo} other {# reportes directos}}",
     "endsOn": "Último día: {date}",
     "emergencyContact": "Contacto de emergencia {n}",
-    "relation": "Vínculo"
+    "relation": "Vínculo",
+    "linkedAccount": "Cuenta enlazada",
+    "linkedMismatch": "El email de trabajo de esta ficha no coincide con la cuenta que la lee: {email}. Confirmá que es la persona correcta antes de cargar sueldo.",
+    "linkedConfirm": "Confirmar esta cuenta",
+    "linkedPayBlocked": "Esta ficha está enlazada a {email}, que no coincide con su email de trabajo. Confirmá esa cuenta en la ficha antes de cambiar el sueldo."
   },
   "offboard": {
     "action": "Offboarding",
@@ -568,6 +572,8 @@
     "file_type_not_allowed": "Ese tipo de archivo no está permitido.",
     "cannot_remove": "Solo owner y admins del workspace sacan personas del workspace, y un admin no saca a otro admin. La ficha no cambió.",
     "rate_limited": "Demasiadas salidas por ahora. Probá en un rato.",
-    "work_email_locked": "Esta ficha tiene sueldo: solo el owner o un HR admin pueden cambiar su email de trabajo."
+    "work_email_locked": "Solo el owner o un HR admin pueden cambiar el email de trabajo de esta ficha.",
+    "delete_has_pay": "Esta ficha tiene historial de sueldos. Solo el owner o un HR admin la pueden borrar.",
+    "linked_account_mismatch": "La cuenta enlazada de esta ficha no coincide con su email de trabajo. Confirmala primero en la ficha."
   }
 }

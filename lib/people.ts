@@ -36,6 +36,8 @@ export class PeopleError extends Error {
   constructor(
     public code: string,
     public status = 400,
+    /** Datos para que el mensaje nombre lo que corresponde. */
+    public data?: Record<string, string>,
   ) {
     super(code);
   }
@@ -414,6 +416,8 @@ interface EmployeeRow {
   end_date: string | null;
   employment_type: string;
   pay_period: string;
+  /** Email de la cuenta enlazada que el owner o un HR admin confirmó para esta ficha. */
+  linked_confirmed?: string | null;
   status: string;
   photo_url: string;
   pronouns: string;
@@ -474,6 +478,8 @@ export interface EmployeeDto extends EmployeeSummary {
   bio: string;
   endDate: string | null;
   payPeriod: string;
+  /** La cuenta enlazada: solo para el owner y los HR admins. */
+  linkedAccount: { email: string; name: string | null; needsConfirm: boolean } | null;
   /** Cumpleaños (mes-día) según la visibilidad; la fecha completa va en personal. */
   birthday: string | null;
   custom: Record<string, string>;
@@ -485,6 +491,7 @@ export interface EmployeeDto extends EmployeeSummary {
     seePersonal: boolean;
     seeCompensation: boolean;
     editCompensation: boolean;
+    deleteRecord: boolean;
     seePerformance: boolean;
     seeTimeOff: boolean;
     seeExit: boolean;
@@ -576,6 +583,7 @@ export async function getEmployee(ctx: PeopleCtx, id: string, opts: { via?: stri
       Array<{ id: string; name: string; job_title: string }>
     >,
   ]);
+  const linked = v.comp === true ? await linkedAccountOf(r) : null;
   const seePersonal = canSeeSensitive(v, id, 'personal');
   const customRaw = parseJson<Record<string, string>>(r.custom, {});
   const custom: Record<string, string> = {};
@@ -590,6 +598,7 @@ export async function getEmployee(ctx: PeopleCtx, id: string, opts: { via?: stri
     bio: r.bio,
     endDate: v.hr || isSelf(v, id) ? r.end_date : null,
     payPeriod: v.comp === true ? r.pay_period : '',
+    linkedAccount: v.comp === true && linked ? { email: linked.email, name: linked.name, needsConfirm: linkedAccountUnconfirmed(r, linked) } : null,
     birthday: birth ? birth.slice(5) : null,
     custom,
     personal,
@@ -600,6 +609,7 @@ export async function getEmployee(ctx: PeopleCtx, id: string, opts: { via?: stri
       seePersonal,
       seeCompensation: canSeeSensitive(v, id, 'compensation'),
       editCompensation: v.comp === true,
+      deleteRecord: v.hr && (v.comp === true || !(await hasCompensationRows(ctx.ws, id))),
       seePerformance: canSeeSensitive(v, id, 'performance'),
       seeTimeOff: canSeeSensitive(v, id, 'timeoff'),
       seeExit: canSeeSensitive(v, id, 'exit'),
@@ -623,6 +633,8 @@ export interface EmployeeInput {
   endDate?: string | null;
   employmentType?: string;
   payPeriod?: string;
+  /** Owner o HR admin: esta cuenta es la correcta para la ficha. */
+  confirmLinkedAccount?: boolean;
   status?: string;
   pronouns?: string;
   bio?: string;
@@ -779,6 +791,25 @@ async function cleanCustom(ws: string, input: Record<string, unknown>, base: Rec
   return out;
 }
 
+/** La cuenta enlazada a la ficha: es quien ve el sueldo, sea cual sea el email escrito en la ficha. */
+async function linkedAccountOf(r: Pick<EmployeeRow, 'user_id'>): Promise<{ email: string; name: string | null } | null> {
+  if (!r.user_id) return null;
+  return ((await db().prepare('SELECT email, name FROM users WHERE id = ?').get(r.user_id)) as { email: string; name: string | null } | undefined) ?? null;
+}
+
+/** ¿El email de la ficha dice otra cosa que la cuenta que la lee, y nadie lo confirmó? */
+function linkedAccountUnconfirmed(r: Pick<EmployeeRow, 'work_email' | 'linked_confirmed'>, linked: { email: string } | null): boolean {
+  if (!linked) return false;
+  const email = linked.email.toLowerCase();
+  return email !== (r.work_email ?? '').toLowerCase() && email !== (r.linked_confirmed ?? '').toLowerCase();
+}
+
+/** Antes de cargar o cambiar sueldo: quien lo va a leer tiene que ser quien la ficha dice, o estar confirmado. */
+async function assertLinkedAccountConfirmed(r: Pick<EmployeeRow, 'user_id' | 'work_email' | 'linked_confirmed'>): Promise<void> {
+  const linked = await linkedAccountOf(r);
+  if (linkedAccountUnconfirmed(r, linked)) throw new PeopleError('linked_account_mismatch', 409, { linkedEmail: linked!.email });
+}
+
 async function hasCompensationRows(ws: string, employeeId: string): Promise<boolean> {
   return Boolean(await db().prepare('SELECT 1 AS x FROM people_compensation WHERE workspace_id = ? AND employee_id = ? LIMIT 1').get(ws, employeeId));
 }
@@ -793,17 +824,27 @@ export async function updateEmployee(ctx: PeopleCtx, id: string, input: Employee
   if (!r) throw new PeopleError('not_found', 404);
   const sets: string[] = [];
   const args: Array<string | null> = [];
+  if (input.confirmLinkedAccount) {
+    requireCompensation(ctx);
+    const linked = await linkedAccountOf(r);
+    if (!linked) throw new PeopleError('not_found', 404);
+    sets.push('linked_confirmed = ?');
+    args.push(linked.email.toLowerCase());
+    await audit(ctx, 'change', 'linked_account', id);
+  }
   for (const [key, value] of Object.entries(input)) {
-    if (value === undefined || key === 'custom' || key === 'personal') continue;
+    if (value === undefined || key === 'custom' || key === 'personal' || key === 'confirmLinkedAccount') continue;
+    if (key === 'payPeriod') await assertLinkedAccountConfirmed(r);
     if (!canEditField(ctx.viewer, id, key)) throw new PeopleError('forbidden', 403);
     const col = JOB_COLUMNS[key] ?? ({ phone: 'phone', pronouns: 'pronouns', bio: 'bio' } as Record<string, keyof EmployeeRow>)[key];
     if (!col) continue;
     const v = normalizeValue(key, value);
     // El período de pago va con el sueldo: quien no lo lee, tampoco lo cambia.
     if (key === 'payPeriod' && ctx.viewer.comp !== true) throw new PeopleError('forbidden', 403);
-    // El email de trabajo enlaza la ficha con la cuenta que entre con ese email (linkOrCreate) y esa
-    // persona ve el sueldo: en una ficha con sueldo solo lo cambia quien ya puede leerlo.
-    if (key === 'workEmail' && (v ?? '') !== (r.work_email ?? '') && ctx.viewer.comp !== true && (await hasCompensationRows(ctx.ws, id))) {
+    // El email de trabajo enlaza una ficha sin cuenta con quien entre con ese email (linkOrCreate), y esa
+    // persona ve el sueldo: en una ficha sin cuenta o con sueldo solo lo cambia quien ya puede leerlo.
+    // Crear la ficha con su email sigue siendo de HR: es el alta normal de un ingreso.
+    if (key === 'workEmail' && (v ?? '') !== (r.work_email ?? '') && ctx.viewer.comp !== true && (!r.user_id || (await hasCompensationRows(ctx.ws, id)))) {
       throw new PeopleError('work_email_locked', 403);
     }
     if (key === 'managerId') {
@@ -847,6 +888,8 @@ export async function deleteEmployee(ctx: PeopleCtx, id: string): Promise<boolea
   requireHr(ctx);
   const r = await getEmployeeRow(ctx.ws, id);
   if (!r) return false;
+  // Borrar la ficha borra su historial de sueldos: no lo hace quien no puede leerlo.
+  if (ctx.viewer.comp !== true && (await hasCompensationRows(ctx.ws, id))) throw new PeopleError('delete_has_pay', 403);
   if (r.user_id && r.user_id === ctx.ws) throw new PeopleError('owner_profile', 409);
   await db().prepare('UPDATE people_employees SET manager_id = ? WHERE workspace_id = ? AND manager_id = ?').run(r.manager_id, ctx.ws, id);
   const { cancelCalBlocksFor } = await import('./people-timeoff');
@@ -955,7 +998,9 @@ export async function listCompensation(ctx: PeopleCtx, employeeId: string, via =
 
 export async function addCompensation(ctx: PeopleCtx, employeeId: string, input: Record<string, unknown>): Promise<CompEntry> {
   requireCompensation(ctx);
-  if (!(await getEmployeeRow(ctx.ws, employeeId))) throw new PeopleError('not_found', 404);
+  const target = await getEmployeeRow(ctx.ws, employeeId);
+  if (!target) throw new PeopleError('not_found', 404);
+  await assertLinkedAccountConfirmed(target);
   const amount = Number(input.amount);
   if (!Number.isFinite(amount) || amount <= 0 || amount > 1e10) throw new PeopleError('invalid_amount');
   if (!isIsoDate(input.effectiveDate)) throw new PeopleError('invalid_date');

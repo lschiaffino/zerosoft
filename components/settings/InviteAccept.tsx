@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { signOut } from 'next-auth/react';
+import { clearOfflineData } from '@/lib/offline-queue';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 
@@ -73,7 +74,7 @@ export default function InviteAccept({
       type="button"
       className={`btn ${strict ? 'btn-primary' : 'btn-secondary'} btn-block`}
       disabled={busy}
-      onClick={() => void signOut({ callbackUrl: `/${locale}/auth/signin?callbackUrl=${encodeURIComponent(`/${locale}/invite/${token}`)}` })}
+      onClick={() => void clearOfflineData().finally(() => signOut({ callbackUrl: `/${locale}/auth/signin?callbackUrl=${encodeURIComponent(`/${locale}/invite/${token}`)}` }))}
     >
       {t('otherAccount')}
     </button>

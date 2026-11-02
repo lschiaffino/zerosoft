@@ -2,10 +2,11 @@
 
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { WORKSPACE_GUARD_KEY } from '@/lib/offline-queue';
 import { WORKSPACE_HEADER } from '@/lib/return-path';
 
 /** Sin workspace: entrar, cambiar de workspace y marcar avisos valen desde cualquier pestaña. */
-const STORAGE = 'zs-workspace-guard';
+const STORAGE = WORKSPACE_GUARD_KEY;
 const EXEMPT = ['/api/auth', '/api/teams/switch', '/api/teams/accept', '/api/teams/join', '/api/teams/guest-of', '/api/onboarding', '/api/notifications'];
 
 function guarded(input: RequestInfo | URL, init?: RequestInit): 'api' | 'action' | null {
@@ -28,6 +29,7 @@ export interface GuardLabels {
   reload: string;
   home: string;
   switchError: string;
+  close: string;
 }
 interface Saved {
   id: string;
@@ -100,6 +102,16 @@ function Notice({ saved, stay, fixed, onDone }: { saved: Saved; stay: boolean; f
             </a>
           </>
         )}
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={() => {
+            clearSaved();
+            onDone();
+          }}
+        >
+          {labels.close}
+        </button>
       </div>
     </div>
   );
@@ -163,14 +175,16 @@ export default function WorkspaceGuard({ workspaceId, workspaceName, labels }: {
 /**
  * El mismo aviso donde no hay shell de la app: la recarga de una escritura
  * rechazada puede caer en un 404 (la página era del otro workspace). Vive en el
- * layout raíz y solo aparece si quedó un aviso guardado en esta pestaña.
+ * layout raíz y solo aparece bajo /app, si quedó un aviso guardado en esta pestaña.
  */
 export function WorkspaceNoticeOutsideApp() {
   const [saved, setSaved] = useState<Saved | null>(null);
   // Sigue a la navegación: la vuelta de la escritura rechazada es suave y este layout no se vuelve a montar.
   const pathname = usePathname();
   useEffect(() => {
-    setSaved(document.querySelector('[data-workspace-guard]') ? null : readSaved());
+    // Solo dentro de la app (también su 404): en el sitio público no se nombra ningún workspace.
+    const inApp = /^(\/(en|es|pt))?\/app(\/|$)/.test(window.location.pathname);
+    setSaved(!inApp || document.querySelector('[data-workspace-guard]') ? null : readSaved());
   }, [pathname]);
   if (!saved) return null;
   return <Notice saved={saved} stay={false} fixed onDone={() => setSaved(null)} />;

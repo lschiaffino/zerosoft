@@ -752,7 +752,8 @@
     "guardSwitchBack": "Volver a {workspace}",
     "guardStay": "Ir a mi workspace activo",
     "guardHome": "Ir al inicio",
-    "guardSwitchError": "No se pudo volver. Probá de nuevo."
+    "guardSwitchError": "No se pudo volver. Probá de nuevo.",
+    "guardClose": "Cerrar"
   },
   "invite": {
     "metaTitle": "Invitación",

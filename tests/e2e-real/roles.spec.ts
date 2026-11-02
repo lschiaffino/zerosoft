@@ -295,9 +295,11 @@ test('permisos de sueldos: un admin sin marca no cambia el email ni el período 
     const seen = (await (await ada.ctx.request.get(`/api/people/employees/${employee.id}`)).json()) as { employee?: { payPeriod?: string }; payPeriod?: string };
     expect(seen.employee?.payPeriod ?? seen.payPeriod ?? '').toBe('');
     expect((await ada.ctx.request.get(`/api/people/employees/${employee.id}/compensation`)).status()).toBe(403);
-    // Una ficha nueva sin sueldo se puede completar como siempre (alta de un ingreso).
-    const { employee: fresh } = (await (await ada.ctx.request.post('/api/people/employees', { data: { name: 'Ingreso' } })).json()) as { employee: { id: string } };
-    expect((await ada.ctx.request.patch(`/api/people/employees/${fresh.id}`, { data: { workEmail: `ingreso-${uid()}@real-e2e.io` } })).ok()).toBe(true);
+    // El alta normal de un ingreso: crearla con su email sigue siendo de un admin.
+    const { employee: fresh } = (await (await ada.ctx.request.post('/api/people/employees', { data: { name: 'Ingreso', workEmail: `ingreso-${uid()}@real-e2e.io` } })).json()) as { employee: { id: string } };
+    // Cambiar el email de una ficha sin cuenta, no: decide quién queda enlazado.
+    expect((await ada.ctx.request.patch(`/api/people/employees/${fresh.id}`, { data: { workEmail: `otro-${uid()}@real-e2e.io` } })).status()).toBe(403);
+    expect((await olga.ctx.request.patch(`/api/people/employees/${fresh.id}`, { data: { workEmail: `otro-${uid()}@real-e2e.io` } })).ok()).toBe(true);
     // El owner sí puede corregir el email de la ficha con sueldo.
     expect((await olga.ctx.request.patch(`/api/people/employees/${employee.id}`, { data: { workEmail: `bien-${uid()}@real-e2e.io` } })).ok()).toBe(true);
   } finally {
@@ -452,5 +454,112 @@ test('"No sos vos" después de aceptar dice que esa cuenta ya entró y deja sali
     expect(left).toEqual([]);
   } finally {
     await closeAll(olga, late);
+  }
+});
+
+test('permisos de sueldos: la cuenta enlazada manda, se ve y se confirma antes de cargar sueldo; borrar con sueldo es de quien lo lee', async ({ browser }) => {
+  const olga = await owner(browser);
+  const ada = await join(browser, olga, 'Ada', 'admin', '*');
+  const alt = await signIn(browser, 'Alt');
+  try {
+    await olga.ctx.request.get('/api/people/me');
+    const original = `original-${uid()}@real-e2e.io`;
+    const create = async (by: Person, data: Record<string, unknown>) => ((await (await by.ctx.request.post('/api/people/employees', { data })).json()) as { employee: { id: string } }).employee.id;
+    const pay = (who: Person, id: string) =>
+      who.ctx.request.post(`/api/people/employees/${id}/compensation`, { data: { amount: 5000, currency: 'USD', period: 'month', effectiveDate: '2026-01-01' } });
+
+    // La secuencia: una ficha sin cuenta y sin sueldo, y un admin que quiere cambiarle el email.
+    const pending = await create(olga, { name: 'Sin cuenta', workEmail: original });
+    expect((await ada.ctx.request.patch(`/api/people/employees/${pending}`, { data: { workEmail: alt.email } })).status()).toBe(403);
+
+    // Lo que queda: una ficha creada con otro email, que enlaza esa cuenta y después se "arregla" a mano.
+    const hire = await create(ada, { name: 'Ingreso', workEmail: alt.email });
+    const inv = await ada.ctx.request.post('/api/teams/invites', { data: { emails: alt.email, apps: ['people'] } });
+    const { results } = (await inv.json()) as { results: Array<{ url: string }> };
+    expect((await alt.ctx.request.post('/api/teams/accept', { data: { token: results[0].url.split('/invite/')[1].split('?')[0] } })).ok()).toBe(true);
+    expect((await alt.ctx.request.post('/api/onboarding', { data: { kind: 'invited', name: 'Alt' } })).ok()).toBe(true);
+    await alt.ctx.request.get('/api/people/me');
+    const row = (await sql('SELECT user_id FROM people_employees WHERE id = ?', [hire]))[0];
+    expect(row.user_id).toBe(alt.id);
+    expect((await ada.ctx.request.patch(`/api/people/employees/${hire}`, { data: { workEmail: original } })).ok()).toBe(true);
+
+    // El owner carga sueldo: se frena y nombra la cuenta.
+    const refused = await pay(olga, hire);
+    expect(refused.status()).toBe(409);
+    expect(await refused.json()).toMatchObject({ error: 'linked_account_mismatch', linkedEmail: alt.email });
+    expect((await alt.ctx.request.get(`/api/people/employees/${hire}/compensation`)).ok() ? ((await (await alt.ctx.request.get(`/api/people/employees/${hire}/compensation`)).json()) as { entries?: unknown[] }).entries ?? [] : []).toEqual([]);
+
+    // La ficha le muestra la cuenta al owner y no a un admin sin marca, que tampoco confirma.
+    const adaView = (await (await ada.ctx.request.get(`/api/people/employees/${hire}`)).json()) as { employee: { linkedAccount: unknown } };
+    expect(adaView.employee.linkedAccount).toBeNull();
+    expect((await ada.ctx.request.patch(`/api/people/employees/${hire}`, { data: { confirmLinkedAccount: true } })).status()).toBe(403);
+    await olga.page.goto(`/en/app/people/${hire}`, { waitUntil: 'networkidle' });
+    await expect(olga.page.getByTestId('people-linked-account')).toContainText(alt.email);
+    await olga.page.getByRole('button', { name: 'Confirm this account' }).click();
+    await expect(olga.page.getByRole('button', { name: 'Confirm this account' })).toHaveCount(0);
+    await expect(olga.page.getByTestId('people-linked-account')).toContainText(alt.email);
+    expect((await pay(olga, hire)).ok()).toBe(true);
+
+    // Borrar: con sueldo, solo quien lo puede leer; y el botón no se le ofrece.
+    expect((await ada.ctx.request.delete(`/api/people/employees/${hire}`)).status()).toBe(403);
+    await ada.page.goto(`/en/app/people/${hire}`, { waitUntil: 'networkidle' });
+    await expect(ada.page.getByRole('button', { name: 'Delete' })).toHaveCount(0);
+    const empty = await create(ada, { name: 'Sin sueldo' });
+    expect((await ada.ctx.request.delete(`/api/people/employees/${empty}`)).ok()).toBe(true);
+    expect((await olga.ctx.request.delete(`/api/people/employees/${hire}`)).ok()).toBe(true);
+  } finally {
+    await closeAll(olga, ada, alt);
+  }
+});
+
+test('el aviso de pestaña vieja se cierra, no sale en el sitio público y no sobrevive a cerrar sesión', async ({ browser }) => {
+  const olga = await owner(browser);
+  const ada = await join(browser, olga, 'Ada', 'admin', '*');
+  try {
+    const p = ada.page;
+    const guard = p.getByTestId('workspace-guard');
+    const trip = async () => {
+      await p.goto('/en/app/docs', { waitUntil: 'networkidle' });
+      expect((await ada.ctx.request.post('/api/teams/switch', { data: { teamId: null } })).ok()).toBe(true);
+      expect(await p.evaluate(async () => (await fetch('/api/docs/pages', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"title":"x"}' })).status)).toBe(401);
+      await expect(guard).toBeVisible();
+    };
+    const stored = () => p.evaluate(() => sessionStorage.getItem('zs-workspace-guard'));
+    const rejoin = () => ada.ctx.request.post('/api/teams/switch', { data: { teamId: olga.teamId } });
+
+    await trip();
+    await guard.getByRole('button', { name: 'Dismiss' }).click();
+    await expect(guard).toHaveCount(0);
+    expect(await stored()).toBeNull();
+
+    await rejoin();
+    await trip();
+    expect(await stored()).toBeTruthy();
+    await p.goto('/en', { waitUntil: 'networkidle' });
+    await expect(guard).toHaveCount(0);
+
+    await p.goto('/en/app', { waitUntil: 'networkidle' });
+    await expect(guard).toBeVisible();
+    await p.getByRole('button', { name: 'Sign out' }).first().click({ timeout: 10_000 }).catch(async () => {
+      await p.locator('.ws-switcher-btn').click();
+      await p.getByRole('menuitem', { name: 'Sign out' }).click();
+    });
+    await p.waitForURL((u) => !u.pathname.includes('/app'), { timeout: 20_000 });
+    expect(await stored()).toBeNull();
+  } finally {
+    await closeAll(olga, ada);
+  }
+});
+
+test('un admin sin apps ve en el inicio solo lo que puede hacer', async ({ browser }) => {
+  const olga = await owner(browser);
+  const nia = await join(browser, olga, 'Nia', 'admin', []);
+  try {
+    await nia.page.goto('/en/app', { waitUntil: 'networkidle' });
+    await expect(nia.page.getByTestId('home-no-apps')).toBeVisible();
+    await expect(nia.page.getByTestId('home-invite')).toHaveCount(0);
+    await expect(nia.page.getByTestId('home-import')).toHaveCount(0);
+  } finally {
+    await closeAll(olga, nia);
   }
 });

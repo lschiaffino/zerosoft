@@ -35,7 +35,7 @@
  * - notificationclick: abre (o enfoca) el chat del aviso.
  * - La bandeja de Groups no se cachea: siempre se ve al día.
  */
-const VERSION = 'zs-app-v5';
+const VERSION = 'zs-app-v6';
 const PAGES = `${VERSION}-pages`;
 const META = `${VERSION}-meta`;
 const USER_KEY = '/__zs-user';
@@ -72,8 +72,14 @@ async function replayQueue(store, doFetch) {
   let done = 0;
   let failed = 0;
   const blocked = new Set();
+  let unknown = 0;
   for (let i = 0; i < items.length; i += 1) {
-    const key = items[i].workspace || '';
+    // De antes de guardar el workspace: no se sabe de cuál es. No se envía; se avisa y se puede descartar.
+    if (!items[i].workspace) {
+      unknown += 1;
+      continue;
+    }
+    const key = items[i].workspace;
     if (blocked.has(key)) continue;
     let res;
     try {
@@ -91,9 +97,10 @@ async function replayQueue(store, doFetch) {
     if (res.ok) done += 1;
     else failed += 1;
   }
-  let remaining = 0;
-  for (const it of items) if (blocked.has(it.workspace || '')) remaining += 1;
-  return blocked.size ? { done, failed, remaining, blocked: true } : { done, failed, remaining: 0 };
+  let remaining = unknown;
+  for (const it of items) if (it.workspace && blocked.has(it.workspace)) remaining += 1;
+  if (!remaining) return { done, failed, remaining: 0 };
+  return unknown ? { done, failed, remaining, blocked: true, unknown } : { done, failed, remaining, blocked: true };
 }
 
 // El CRM entero, Notes y el inicio de la app (/app, sin subruta). Notes
@@ -418,6 +425,16 @@ self.addEventListener('message', (event) => {
   const data = event.data || {};
   if (data.type === 'zs-user') event.waitUntil(setUser(data.id, data.who));
   else if (data.type === 'zs-sync') event.waitUntil(replay());
+  else if (data.type === 'zs-drop-unscoped') {
+    // La persona descarta lo que no se sabe de qué workspace es.
+    event.waitUntil(
+      (async () => {
+        for (const it of await idbStore.all()) if (!it.workspace) await idbStore.remove(it.id);
+        await broadcastCount();
+        await broadcast({ type: 'zs-sync-done', done: 0, failed: 0 });
+      })(),
+    );
+  }
   else if (data.type === 'zs-drop-notes') {
     // Una nota se bloqueó: fuera las páginas de Notes guardadas (podían tener su texto).
     event.waitUntil(

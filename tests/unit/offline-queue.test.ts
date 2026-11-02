@@ -47,6 +47,7 @@ const item = (url: string, createdAt: number): Omit<QueuedRequest, 'id'> => ({
   url,
   method: 'POST',
   contentType: 'application/json',
+  workspace: 'ws1',
   body: '{}',
   createdAt,
 });
@@ -119,6 +120,20 @@ describe('replayQueue con otro workspace activo', () => {
     expect(seen).toEqual(['/a', '/c']);
     expect(res).toEqual({ done: 1, failed: 0, remaining: 2, blocked: true });
     expect(store.left().map((i) => i.url)).toEqual(['/a', '/b']);
+  });
+});
+
+describe('replayQueue con items viejos', () => {
+  it('sin workspace no se envía: queda retenido y se cuenta aparte', async () => {
+    const store = memoryStore([{ ...item('/old', 1), workspace: undefined }, item('/new', 2)]);
+    const seen: string[] = [];
+    const res = await replayQueue(store, async (r) => {
+      seen.push(r.url);
+      return { ok: true, status: 200 };
+    });
+    expect(seen).toEqual(['/new']);
+    expect(res).toEqual({ done: 1, failed: 0, remaining: 1, blocked: true, unknown: 1 });
+    expect(store.left().map((i) => i.url)).toEqual(['/old']);
   });
 });
 

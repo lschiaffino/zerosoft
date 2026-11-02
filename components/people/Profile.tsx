@@ -98,6 +98,15 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
     router.refresh();
   };
 
+  const confirmLinked = async () => {
+    setBusy(true);
+    const res = await api(`/api/people/employees/${e.id}`, { method: 'PATCH', json: { confirmLinkedAccount: true } });
+    setBusy(false);
+    if (!res.ok) return push(errText(res.data.error), 'bad');
+    push(t('common.saved'));
+    router.refresh();
+  };
+
   const uploadPhoto = async (file: File) => {
     const fd = new FormData();
     fd.set('file', file);
@@ -178,7 +187,7 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
                 {t('offboard.action')}
               </button>
             )}
-            {hr && !e.can.isSelf && (
+            {e.can.deleteRecord && !e.can.isSelf && (
               <button type="button" className="btn btn-danger" onClick={() => setConfirmDelete(true)}>
                 {t('profile.delete')}
               </button>
@@ -207,6 +216,19 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
                 <Fact label={t('fields.department')} value={e.department} />
                 <Fact label={t('fields.manager')} value={e.managerId ? <Link href={`/app/people/${e.managerId}`}>{e.managerName}</Link> : null} />
                 <Fact label={t('fields.workEmail')} value={e.workEmail ? <a href={`mailto:${e.workEmail}`}>{e.workEmail}</a> : null} />
+                {e.linkedAccount && (
+                  <div className="ppl-linked" data-testid="people-linked-account">
+                    <Fact label={t('profile.linkedAccount')} value={e.linkedAccount.email} />
+                    {e.linkedAccount.needsConfirm && (
+                      <div className="ppl-linked-warn" role="status">
+                        <p>{t('profile.linkedMismatch', { email: e.linkedAccount.email })}</p>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => void confirmLinked()} disabled={busy}>
+                          {t('profile.linkedConfirm')}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <Fact label={t('fields.phone')} value={e.phone} hidden={e.phone === null} />
                 <Fact label={t('fields.location')} value={[e.location, e.country ? t(`countries.${e.country}`) : ''].filter(Boolean).join(' · ')} hidden={e.location === null} />
                 <Fact label={t('fields.startDate')} value={e.startDate ? day(e.startDate) : null} hidden={e.startDate === undefined} />
