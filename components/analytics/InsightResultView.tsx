@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import type { FunnelPathMode, FunnelQuery, FunnelResult, InsightQuery, InsightResult, PathsResult, RetentionResult, SqlResult, TrendDisplay, TrendsResult } from '@/lib/analytics/types';
+import { retentionMean, retentionRate } from '@/lib/analytics/retention-view';
 import { formatTrendValue } from '@/lib/analytics/trend-core';
 import Chart from './Chart';
 import { Lifecycle, PathsSankey, Stickiness } from './ResultCharts';
@@ -497,48 +498,163 @@ function Funnel({ r, peopleHref, query }: { r: FunnelResult; peopleHref?: (ids: 
   );
 }
 
-function Retention({ r }: { r: RetentionResult }) {
+function retentionHead(t: (k: string, v: { n: number }) => string, period: RetentionResult['period'], k: number, labelStart: number) {
+  const key = period === 'hour' ? 'hourN' : period === 'month' ? 'monthN' : period === 'day' ? 'dayN' : 'weekN';
+  return t(key, { n: k + labelStart });
+}
+
+function RetentionRows({
+  cohorts,
+  n,
+  reference,
+  onCell,
+}: {
+  cohorts: RetentionResult['cohorts'];
+  n: number;
+  reference: 'period0' | 'previous';
+  onCell?: (cohort: number, k: number) => void;
+}) {
+  const locale = useLocale();
+  const t = useTranslations('analytics.result');
+  return (
+    <>
+      {cohorts.map((c, i) => (
+        <tr key={c.start}>
+          <th scope="row">{bucketLabel(c.start, locale)}</th>
+          <td className="num">{fmtNumber(c.size, locale)}</td>
+          {Array.from({ length: n }, (_, k) => {
+            const v = c.values[k];
+            if (v === undefined) return <td key={k} />;
+            const pct = retentionRate(c.values, c.size, k, reference);
+            const text = pct === null ? '–' : fmtPercent(pct, locale);
+            return (
+              <td key={k} className="num an-ret-cell" style={{ ['--an-ret' as string]: String(pct ?? 0) }} title={`${v}`}>
+                {onCell && v > 0 ? (
+                  <button type="button" className="an-ret-btn" onClick={() => onCell(i, k)} aria-label={t('retentionCell', { start: bucketLabel(c.start, locale), n: k, count: v })}>
+                    {text}
+                  </button>
+                ) : (
+                  text
+                )}
+              </td>
+            );
+          })}
+        </tr>
+      ))}
+    </>
+  );
+}
+
+function Retention({ r, onDrill }: { r: RetentionResult; onDrill?: (cell: { cohort: number; k: number; value?: string | null }) => void }) {
   const t = useTranslations('analytics.result');
   const locale = useLocale();
+  const [picked, setPicked] = useState<string>('');
+  const o = r.options ?? {};
+  const reference = o.reference ?? 'period0';
+  const labelStart = o.labelStart ?? 0;
+  const pickedRow = r.breakdown && picked ? r.breakdown.find((b) => String(b.value) === picked) : undefined;
+  const cohorts = pickedRow?.cohorts ?? r.cohorts;
   if (!r.cohorts.some((c) => c.size > 0)) return <p className="an-empty-result">{t('noData')}</p>;
   const n = r.cohorts.length;
+  const heads = Array.from({ length: n }, (_, k) => retentionHead(t as never, r.period, k, labelStart));
+  const live = cohorts.filter((c) => c.size > 0);
+  const mean = retentionMean(live, n, reference, o.mean ?? 'weighted');
+  const show = o.show ?? 'both';
+  const asPct = (v: number | null) => (v === null ? 0 : Math.round(v * 1000) / 10);
+  const peak = live.slice(-6);
   return (
     <div className="an-result">
-      <div className="table-wrap">
-        <table className="table table-compact an-retention">
-          <thead>
-            <tr>
-              <th scope="col">{t('cohort')}</th>
-              <th scope="col" className="num">
-                {t('people')}
-              </th>
-              {Array.from({ length: n }, (_, k) => (
-                <th key={k} scope="col" className="num">
-                  {r.period === 'day' ? t('dayN', { n: k }) : t('weekN', { n: k })}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {r.cohorts.map((c) => (
-              <tr key={c.start}>
-                <th scope="row">{bucketLabel(c.start, locale)}</th>
-                <td className="num">{fmtNumber(c.size, locale)}</td>
-                {Array.from({ length: n }, (_, k) => {
-                  const v = c.values[k];
-                  if (v === undefined) return <td key={k} />;
-                  const pct = c.size ? v / c.size : 0;
+      {r.breakdown && (
+        <>
+          <div className="table-wrap">
+            <table className="table table-compact an-table an-ret-values">
+              <thead>
+                <tr>
+                  <th scope="col">{t('breakdownValue')}</th>
+                  <th scope="col" className="num">
+                    {r.unit === 'group' ? t('groupsCol') : t('people')}
+                  </th>
+                  {heads.map((h) => (
+                    <th key={h} scope="col" className="num">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {r.breakdown.map((b) => {
+                  const m = retentionMean(b.cohorts.filter((c) => c.size > 0), n, reference, o.mean ?? 'weighted');
+                  const name = b.value === null ? t('none') : b.value;
                   return (
-                    <td key={k} className="num an-ret-cell" style={{ ['--an-ret' as string]: String(pct) }} title={`${v}`}>
-                      {c.size ? fmtPercent(pct, locale) : '–'}
-                    </td>
+                    <tr key={String(b.value)} className={picked === String(b.value) ? 'is-picked' : undefined}>
+                      <th scope="row" className="an-break">
+                        <button type="button" className="an-ret-btn an-link" aria-pressed={picked === String(b.value)} onClick={() => setPicked(picked === String(b.value) ? '' : String(b.value))}>
+                          {name}
+                        </button>
+                      </th>
+                      <td className="num">{fmtNumber(b.cohorts.reduce((a, c) => a + c.size, 0), locale)}</td>
+                      {m.map((v, k) => (
+                        <td key={k} className="num">
+                          {v === null ? '–' : fmtPercent(v, locale)}
+                        </td>
+                      ))}
+                    </tr>
                   );
                 })}
+              </tbody>
+            </table>
+          </div>
+          {pickedRow && <p className="an-note">{t('retentionValue', { value: pickedRow.value === null ? t('none') : pickedRow.value })}</p>}
+        </>
+      )}
+      {show !== 'table' && (
+        <Chart
+          kind={o.chart === 'bar' ? 'bar' : 'line'}
+          labels={heads}
+          series={[{ label: t('retentionMeanRow'), data: mean.map(asPct) }, ...peak.map((c) => ({ label: bucketLabel(c.start, locale), data: c.values.map((_, k) => asPct(retentionRate(c.values, c.size, k, reference))) }))].map((x) => ({
+            ...x,
+            data: Array.from({ length: n }, (_, k) => x.data[k] ?? 0),
+          }))}
+          summary={t('retentionChart')}
+          extras={{ format: (v) => `${v}%` }}
+        />
+      )}
+      {show !== 'graph' && (
+        <div className="table-wrap">
+          <table className="table table-compact an-retention">
+            <thead>
+              <tr>
+                <th scope="col">{t('cohort')}</th>
+                <th scope="col" className="num">
+                  {r.unit === 'group' ? t('groupsCol') : t('people')}
+                </th>
+                {heads.map((h) => (
+                  <th key={h} scope="col" className="num">
+                    {h}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              <tr className="an-ret-mean">
+                <th scope="row">{t('retentionMeanRow')}</th>
+                <td className="num">{fmtNumber(live.reduce((a, c) => a + c.size, 0), locale)}</td>
+                {mean.map((v, k) => (
+                  <td key={k} className="num">
+                    {v === null ? '–' : fmtPercent(v, locale)}
+                  </td>
+                ))}
+              </tr>
+              <RetentionRows
+                cohorts={cohorts}
+                n={n}
+                reference={reference}
+                onCell={onDrill && r.unit !== 'group' ? (cohort, k) => onDrill({ cohort, k, ...(pickedRow ? { value: pickedRow.value } : {}) }) : undefined}
+              />
+            </tbody>
+          </table>
+        </div>
+      )}
       {r.truncated && <p className="an-note">{t('truncated')}</p>}
     </div>
   );
@@ -667,6 +783,7 @@ export default function InsightResultView({
   peopleHref,
   annotations,
   query,
+  onRetentionCell,
 }: {
   result: InsightResult;
   display?: TrendDisplay;
@@ -674,6 +791,8 @@ export default function InsightResultView({
   annotations?: Array<{ date: string; content: string }>;
   /** La consulta, en el editor: habilita enlaces entre embudos y caminos. */
   query?: InsightQuery;
+  /** Abrir quiénes están en una celda de retención. */
+  onRetentionCell?: (cell: { cohort: number; k: number; value?: string | null }) => void;
 }) {
   switch (result.kind) {
     case 'trends':
@@ -681,7 +800,7 @@ export default function InsightResultView({
     case 'funnel':
       return <Funnel r={result} peopleHref={peopleHref} query={query?.kind === 'funnel' ? query : undefined} />;
     case 'retention':
-      return <Retention r={result} />;
+      return <Retention r={result} onDrill={onRetentionCell} />;
     case 'paths':
       return <Paths r={result} linkFunnels={Boolean(query)} />;
     case 'sql':

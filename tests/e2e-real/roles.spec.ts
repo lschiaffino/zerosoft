@@ -564,3 +564,28 @@ test('un admin sin apps ve en el inicio solo lo que puede hacer', async ({ brows
     await closeAll(olga, nia);
   }
 });
+
+test('Analytics: sin sesión o con un token inventado la API dice 401, y sin la app dice 403', async ({ browser }) => {
+  const olga = await owner(browser);
+  const nia = await join(browser, olga, 'Nia', 'member', []);
+  const baseURL = test.info().project.use.baseURL as string;
+  const anon = await browser.newContext({ baseURL });
+  try {
+    const paths = ['/api/analytics/projects', '/api/analytics/dashboards?project=x', '/api/analytics/insights?project=x'];
+    for (const path of paths) {
+      expect((await anon.request.get(path)).status(), path).toBe(401);
+      expect((await anon.request.get(path, { headers: { authorization: 'Bearer zsk_inventado' } })).status(), path).toBe(401);
+      expect((await nia.ctx.request.get(path)).status(), path).toBe(403);
+    }
+    expect((await anon.request.post('/api/analytics/query', { data: { projectId: 'x', query: { kind: 'sql', sql: 'SELECT 1' } } })).status()).toBe(401);
+    // Y el que sí tiene la app entra.
+    expect((await olga.ctx.request.get('/api/analytics/projects')).status()).toBe(200);
+    // La página no se abre sin sesión.
+    const page = await anon.newPage();
+    await page.goto('/en/app/analytics');
+    await page.waitForURL((u) => !u.pathname.includes('/app/'), { timeout: 20_000 });
+  } finally {
+    await anon.close();
+    await closeAll(olga, nia);
+  }
+});

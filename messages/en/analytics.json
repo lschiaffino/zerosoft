@@ -190,7 +190,14 @@
       "after": "Paths after step {n}",
       "after_dropoff": "Paths after dropping off at step {n}",
       "before_dropoff": "Paths before dropping off at step {n}"
-    }
+    },
+    "hourN": "Hour {n}",
+    "monthN": "Month {n}",
+    "groupsCol": "Groups",
+    "retentionMeanRow": "Mean",
+    "retentionChart": "Retention by period",
+    "retentionCell": "{count} people from {start}, period {n}",
+    "retentionValue": "Cohorts for {value}. Choose it again to see everyone."
   },
   "filters": {
     "filterN": "Filter {n}",
@@ -464,7 +471,30 @@
       "after": "Only people who reached funnel step {n}, after that step.",
       "after_dropoff": "Only people who dropped off at funnel step {n}, after they left.",
       "before_dropoff": "Only people who dropped off at funnel step {n}, before they left."
-    }
+    },
+    "retentionType": "Who enters a cohort",
+    "retentionTypes": {
+      "recurring": "Recurring: each time",
+      "first_time": "First time in the range",
+      "first_ever": "First time ever"
+    },
+    "returning": "Returning",
+    "returningOn": "On that period",
+    "returningAfter": "On or after that period",
+    "retentionReference": "Percentages relative to",
+    "retentionPeriod0": "Period 0",
+    "retentionPrevious": "Previous period",
+    "retentionMean": "Mean",
+    "retentionWeighted": "Weighted",
+    "retentionSimple": "Simple",
+    "retentionLabels": "Cohort labels start at",
+    "retentionFrom0": "Period 0",
+    "retentionFrom1": "Period 1",
+    "retentionChartType": "Chart",
+    "retentionShow": "Show",
+    "retentionBoth": "Graph and table",
+    "retentionGraph": "Graph only",
+    "retentionTable": "Table only"
   },
   "sql": {
     "title": "SQL",

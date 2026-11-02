@@ -190,7 +190,14 @@
       "after": "Caminhos depois da etapa {n}",
       "after_dropoff": "Caminhos depois de desistir na etapa {n}",
       "before_dropoff": "Caminhos antes de desistir na etapa {n}"
-    }
+    },
+    "hourN": "Hora {n}",
+    "monthN": "Mês {n}",
+    "groupsCol": "Grupos",
+    "retentionMeanRow": "Média",
+    "retentionChart": "Retenção por período",
+    "retentionCell": "{count} pessoas de {start}, período {n}",
+    "retentionValue": "Coortes de {value}. Escolha de novo para ver todos."
   },
   "filters": {
     "filterN": "Filtro {n}",
@@ -464,7 +471,30 @@
       "after": "Só quem chegou à etapa {n} do funil, depois dessa etapa.",
       "after_dropoff": "Só quem desistiu na etapa {n} do funil, depois de sair.",
       "before_dropoff": "Só quem desistiu na etapa {n} do funil, antes de sair."
-    }
+    },
+    "retentionType": "Quem entra em uma coorte",
+    "retentionTypes": {
+      "recurring": "Recorrente: cada vez",
+      "first_time": "Primeira vez no período",
+      "first_ever": "Primeira vez de todas"
+    },
+    "returning": "Volta",
+    "returningOn": "Nesse período",
+    "returningAfter": "Nesse período ou depois",
+    "retentionReference": "Percentuais em relação a",
+    "retentionPeriod0": "Período 0",
+    "retentionPrevious": "Período anterior",
+    "retentionMean": "Média",
+    "retentionWeighted": "Ponderada",
+    "retentionSimple": "Simples",
+    "retentionLabels": "Os rótulos começam em",
+    "retentionFrom0": "Período 0",
+    "retentionFrom1": "Período 1",
+    "retentionChartType": "Gráfico",
+    "retentionShow": "Mostrar",
+    "retentionBoth": "Gráfico e tabela",
+    "retentionGraph": "Só gráfico",
+    "retentionTable": "Só tabela"
   },
   "sql": {
     "title": "SQL",

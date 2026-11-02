@@ -16,6 +16,9 @@ import {
   computeFunnel,
   computePaths,
   computeRetention,
+  periodSql,
+  periodStartLocal,
+  retentionCellPeople,
   periodLabel,
   periodOf,
   previousAligned,
@@ -765,37 +768,71 @@ export async function runRetention(project: ProjectRow, q: RetentionQuery, now =
   const tz = projectTz(project);
   const lastPeriod = periodOf(now, q.period, tz);
   const firstPeriod = lastPeriod - q.periods + 1;
-  const firstDay = q.period === 'day' ? firstPeriod : firstPeriod * 7 - 3;
-  const from = fromLocal(firstDay * DAY, tz);
+  const from = fromLocal(periodStartLocal(firstPeriod, q.period), tz);
   const off = offAt(project, from);
   const shift = shiftFor(project, { from, to: now });
   const cohort = await cohortFrag(project, q.cohortId, now);
   const filters = [...internalFilters(project, q.excludeInternal), ...q.filters];
   const actions = await loadActions(project.id, [q.startEvent, q.returnEvent]);
-  const withPerson = needsPerson(filters);
+  const withPerson = needsPerson(filters) || q.breakdown?.type === 'person';
+  const key: Frag = q.groupType ? { sql: groupKeySql(), args: [`$."$groups"."${q.groupType}"`] } : { sql: PERSON_KEY, args: [] };
+  const bd = q.breakdown ? propText(q.breakdown.key, q.breakdown.type) : null;
+  const notNull = q.groupType ? ` AND ${key.sql} IS NOT NULL` : '';
   // CAST: Turso manda los números como REAL y la división tiene que ser entera.
-  const periodSql = q.period === 'day' ? `((e.ts + CAST(? AS INTEGER)${shift}) / 86400000)` : `((((e.ts + CAST(? AS INTEGER)${shift}) / 86400000) + 3) / 7)`;
+  const periodExpr = periodSql(q.period, shift);
   const fetch = async (event: string) => {
     const where = whereFor(project, { from, to: now }, event, filters, cohort, actions);
     return (await all(
-      `SELECT DISTINCT ${PERSON_KEY} AS person, ${periodSql} AS period FROM analytics_events e ${personJoins(withPerson)} WHERE ${where.sql} LIMIT ?`,
-      [off, ...where.args, ROW_CAP + 1],
-    )) as Array<{ person: string; period: number }>;
+      `SELECT DISTINCT ${key.sql} AS person, ${periodExpr} AS period${bd ? `, ${bd.sql} AS value` : ''} FROM analytics_events e ${personJoins(withPerson)} WHERE ${where.sql}${notNull} LIMIT ?`,
+      // La expresión de mes usa el desfase dos veces.
+      [...key.args, ...(q.period === 'month' ? [off, off] : [off]), ...(bd?.args ?? []), ...where.args, ...(q.groupType ? key.args : []), ROW_CAP + 1],
+    )) as Array<{ person: string; period: number; value?: string | null }>;
   };
-  const [starts, returns] = await Promise.all([fetch(q.startEvent), q.returnEvent === q.startEvent ? null : fetch(q.returnEvent)]);
-  const ret = returns ?? starts;
-  const truncated = starts.length > ROW_CAP || ret.length > ROW_CAP;
-  const cohorts = computeRetention(
-    starts.map((r) => ({ person: String(r.person), period: Number(r.period) })),
-    ret.map((r) => ({ person: String(r.person), period: Number(r.period) })),
-    firstPeriod,
-    q.periods,
-  );
+  const [rawStarts, returns] = await Promise.all([fetch(q.startEvent), q.returnEvent === q.startEvent ? null : fetch(q.returnEvent)]);
+  const rawReturns = returns ?? rawStarts;
+  let truncated = rawStarts.length > ROW_CAP || rawReturns.length > ROW_CAP;
+  const norm = (rows: typeof rawStarts) => rows.slice(0, ROW_CAP).map((r) => ({ person: String(r.person), period: Number(r.period), value: r.value == null ? null : String(r.value) }));
+  let starts = norm(rawStarts);
+  const rets = norm(rawReturns);
+  // La primera de todas: quien ya lo había hecho antes del rango no entra en ninguna cohorte.
+  if (q.type === 'first_ever') {
+    const m = eventMatch(q.startEvent, actions);
+    const firsts = (await all(
+      `SELECT ${key.sql} AS person, MIN(e.ts) AS ts FROM analytics_events e ${personJoins(false)} WHERE e.project_id = ? AND e.ts >= 0 AND e.ts <= 8640000000000000 AND ${m.sql}${notNull} GROUP BY 1 LIMIT ?`,
+      [...key.args, project.id, ...m.args, ...(q.groupType ? key.args : []), ROW_CAP + 1],
+    )) as Array<{ person: string; ts: number }>;
+    if (firsts.length > ROW_CAP) truncated = true;
+    const firstPeriodOf = new Map(firsts.map((r) => [String(r.person), periodOf(Number(r.ts), q.period, tz)]));
+    starts = starts.filter((r) => firstPeriodOf.get(r.person) === r.period);
+  }
+  const opts = { recurring: q.type === 'recurring', cumulative: q.cumulative };
+  const label = (cs: ReturnType<typeof computeRetention>) => cs.map((c) => ({ start: periodLabel(c.period, q.period), size: c.size, values: c.values }));
+  // Con apertura, el inicio y la vuelta tienen que tener el mismo valor.
+  const values = bd ? [...new Set(starts.map((r) => r.value))] : [];
+  const breakdown = bd
+    ? values
+        .map((value) => ({
+          value,
+          cohorts: label(computeRetention(starts.filter((r) => r.value === value), rets.filter((r) => r.value === value), firstPeriod, q.periods, opts)),
+        }))
+        .sort((a, b) => b.cohorts.reduce((n, c) => n + c.size, 0) - a.cohorts.reduce((n, c) => n + c.size, 0))
+        .slice(0, 25)
+    : undefined;
+  let drillPersons: string[] | undefined;
+  if (q.drill) {
+    const v = q.drill.value;
+    const inValue = <T extends { value: string | null }>(rows: T[]) => (bd && v !== undefined ? rows.filter((r) => r.value === v) : rows);
+    drillPersons = retentionCellPeople(inValue(starts), inValue(rets), firstPeriod, q.periods, opts, q.drill.cohort, q.drill.k);
+  }
   return {
     kind: 'retention',
     period: q.period,
-    cohorts: cohorts.map((c) => ({ start: periodLabel(c.period, q.period), size: c.size, values: c.values })),
+    cohorts: label(computeRetention(starts, rets, firstPeriod, q.periods, opts)),
     truncated,
+    options: { reference: q.reference, mean: q.mean, labelStart: q.labelStart, chart: q.chart, show: q.show },
+    unit: q.groupType ? 'group' : 'person',
+    breakdown,
+    drillPersons,
   };
 }
 

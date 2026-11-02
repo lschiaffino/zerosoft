@@ -18,7 +18,7 @@ import type {
   StickinessQuery,
   TrendsQuery,
 } from '@/lib/analytics/types';
-import { FUNNEL_ATTRIBUTIONS, FUNNEL_DISPLAYS, FUNNEL_ORDERS, FUNNEL_WINDOW_UNITS, PROPERTY_MATHS, SERIES_MATHS, shareableQuery, TREND_DISPLAYS, TREND_UNITS, type FunnelWindowUnit, type InsightQuery as AnyQuery, type SeriesMath } from '@/lib/analytics/types';
+import { FUNNEL_ATTRIBUTIONS, FUNNEL_DISPLAYS, FUNNEL_ORDERS, FUNNEL_WINDOW_UNITS, PROPERTY_MATHS, RETENTION_TYPES, SERIES_MATHS, shareableQuery, TREND_DISPLAYS, TREND_UNITS, type FunnelWindowUnit, type InsightQuery as AnyQuery, type SeriesMath } from '@/lib/analytics/types';
 import { AlertsPanel, CorrelationPanel, ShareDialog, downloadCsv } from './InsightPanels';
 import { ApiError, apiErrorText, api, notifyChanged, runQuery } from './client';
 import { EventInput, FilterList, cleanFilters, useProjectMeta, type ProjectMeta } from './Filters';
@@ -631,15 +631,106 @@ function RetentionForm({ q, set, meta, cohorts, internal }: { q: RetentionQuery;
         </label>
       </div>
       <div className="an-row an-wrap">
-        <select className="select" aria-label={t('period')} value={q.period} onChange={(e) => set({ ...q, period: e.target.value as 'day' | 'week' })}>
-          <option value="day">{t('intervals.day')}</option>
-          <option value="week">{t('intervals.week')}</option>
+        <select className="select" aria-label={t('period')} value={q.period} onChange={(e) => set({ ...q, period: e.target.value as RetentionQuery['period'] })}>
+          {(['hour', 'day', 'week', 'month'] as const).map((iv) => (
+            <option key={iv} value={iv}>
+              {t(`intervals.${iv}`)}
+            </option>
+          ))}
         </select>
         <label className="ui-field an-inline-field">
           <span className="label">{t('periods')}</span>
-          <input className="input an-num-input" type="number" min={2} max={16} value={q.periods} onChange={(e) => set({ ...q, periods: Math.min(16, Math.max(2, Number(e.target.value) || 2)) })} />
+          <input className="input an-num-input" type="number" min={2} max={24} value={q.periods} onChange={(e) => set({ ...q, periods: Math.min(24, Math.max(2, Number(e.target.value) || 2)) })} />
         </label>
       </div>
+      <div className="an-row an-wrap">
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('retentionType')}</span>
+          <select className="select" value={q.type ?? 'first_time'} onChange={(e) => set({ ...q, type: e.target.value as RetentionQuery['type'] })}>
+            {RETENTION_TYPES.map((k) => (
+              <option key={k} value={k}>
+                {t(`retentionTypes.${k}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('returning')}</span>
+          <select className="select" value={q.cumulative ? 'after' : 'on'} onChange={(e) => set({ ...q, cumulative: e.target.value === 'after' })}>
+            <option value="on">{t('returningOn')}</option>
+            <option value="after">{t('returningAfter')}</option>
+          </select>
+        </label>
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('countBy')}</span>
+          <select className="select" value={q.groupType != null ? 'group' : 'person'} onChange={(e) => set({ ...q, groupType: e.target.value === 'group' ? (q.groupType ?? '') : null })}>
+            <option value="person">{t('countPeople')}</option>
+            <option value="group">{t('countGroups')}</option>
+          </select>
+        </label>
+        {q.groupType != null && <input className="input an-filter-key" aria-label={t('groupType')} placeholder={t('groupTypePlaceholder')} value={q.groupType} maxLength={100} onChange={(e) => set({ ...q, groupType: e.target.value })} />}
+      </div>
+      <div className="an-row an-wrap">
+        <span className="label">{t('breakdown')}</span>
+        <select className="select" aria-label={t('breakdownType')} value={q.breakdown?.type ?? 'event'} onChange={(e) => set({ ...q, breakdown: { key: q.breakdown?.key ?? '', type: e.target.value as 'event' | 'person' } })}>
+          <option value="event">{t('eventProperty')}</option>
+          <option value="person">{t('personProperty')}</option>
+        </select>
+        <input
+          className="input an-filter-key"
+          aria-label={t('breakdownKey')}
+          placeholder={t('breakdownPlaceholder')}
+          value={q.breakdown?.key ?? ''}
+          list="an-breakdown-keys"
+          onChange={(e) => set({ ...q, breakdown: e.target.value ? { key: e.target.value, type: q.breakdown?.type ?? 'event' } : null })}
+        />
+        <datalist id="an-breakdown-keys">
+          {['$pathname', '$browser', '$os', '$device_type', '$geoip_country_code', '$referring_domain', 'utm_source', ...(q.breakdown?.type === 'person' ? meta.personProperties : meta.eventProperties)].map((k) => (
+            <option key={k} value={k} />
+          ))}
+        </datalist>
+      </div>
+      <details className="an-more">
+        <summary>{t('chartOptions')}</summary>
+        <div className="an-row an-wrap">
+          <label className="ui-field an-inline-field">
+            <span className="label">{t('retentionReference')}</span>
+            <select className="select" value={q.reference ?? 'period0'} onChange={(e) => set({ ...q, reference: e.target.value as RetentionQuery['reference'] })}>
+              <option value="period0">{t('retentionPeriod0')}</option>
+              <option value="previous">{t('retentionPrevious')}</option>
+            </select>
+          </label>
+          <label className="ui-field an-inline-field">
+            <span className="label">{t('retentionMean')}</span>
+            <select className="select" value={q.mean ?? 'weighted'} onChange={(e) => set({ ...q, mean: e.target.value as RetentionQuery['mean'] })}>
+              <option value="weighted">{t('retentionWeighted')}</option>
+              <option value="simple">{t('retentionSimple')}</option>
+            </select>
+          </label>
+          <label className="ui-field an-inline-field">
+            <span className="label">{t('retentionLabels')}</span>
+            <select className="select" value={q.labelStart ?? 0} onChange={(e) => set({ ...q, labelStart: Number(e.target.value) as 0 | 1 })}>
+              <option value={0}>{t('retentionFrom0')}</option>
+              <option value={1}>{t('retentionFrom1')}</option>
+            </select>
+          </label>
+          <label className="ui-field an-inline-field">
+            <span className="label">{t('retentionChartType')}</span>
+            <select className="select" value={q.chart ?? 'line'} onChange={(e) => set({ ...q, chart: e.target.value as RetentionQuery['chart'] })}>
+              <option value="line">{t('displays.line')}</option>
+              <option value="bar">{t('displays.bar')}</option>
+            </select>
+          </label>
+          <label className="ui-field an-inline-field">
+            <span className="label">{t('retentionShow')}</span>
+            <select className="select" value={q.show ?? 'both'} onChange={(e) => set({ ...q, show: e.target.value as RetentionQuery['show'] })}>
+              <option value="both">{t('retentionBoth')}</option>
+              <option value="graph">{t('retentionGraph')}</option>
+              <option value="table">{t('retentionTable')}</option>
+            </select>
+          </label>
+        </div>
+      </details>
       <details className="an-more">
         <summary>{t('globalFilters')}</summary>
         <FilterList filters={q.filters} onChange={(filters) => set({ ...q, filters })} meta={meta} />
@@ -1038,6 +1129,19 @@ export default function InsightEditor({
               peopleHref={(ids) => `/app/analytics/persons?ids=${encodeURIComponent(ids.join(','))}`}
               annotations={annotations}
               query={cleaned}
+              onRetentionCell={
+                insight || kind === 'retention'
+                  ? (cell) => {
+                      const q = cleaned as RetentionQuery;
+                      void runQuery(projectId, { ...q, drill: cell })
+                        .then((r) => {
+                          const ids = r.kind === 'retention' ? (r.drillPersons ?? []) : [];
+                          if (ids.length) router.push(`/app/analytics/persons?ids=${encodeURIComponent(ids.join(','))}`);
+                        })
+                        .catch(() => setError(t('errors.request_failed')));
+                    }
+                  : undefined
+              }
             />
           )}
           {!running && !result && !error && kind === 'sql' && <p className="an-muted">{t('runHint')}</p>}

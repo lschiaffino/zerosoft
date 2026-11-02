@@ -190,7 +190,14 @@
       "after": "Caminos después del paso {n}",
       "after_dropoff": "Caminos después de abandonar en el paso {n}",
       "before_dropoff": "Caminos antes de abandonar en el paso {n}"
-    }
+    },
+    "hourN": "Hora {n}",
+    "monthN": "Mes {n}",
+    "groupsCol": "Grupos",
+    "retentionMeanRow": "Promedio",
+    "retentionChart": "Retención por período",
+    "retentionCell": "{count} personas de {start}, período {n}",
+    "retentionValue": "Cohortes de {value}. Elegilo de nuevo para ver a todos."
   },
   "filters": {
     "filterN": "Filtro {n}",
@@ -464,7 +471,30 @@
       "after": "Solo quienes llegaron al paso {n} del embudo, después de ese paso.",
       "after_dropoff": "Solo quienes abandonaron en el paso {n} del embudo, después de irse.",
       "before_dropoff": "Solo quienes abandonaron en el paso {n} del embudo, antes de irse."
-    }
+    },
+    "retentionType": "Quién entra en una cohorte",
+    "retentionTypes": {
+      "recurring": "Recurrente: cada vez",
+      "first_time": "Primera vez en el rango",
+      "first_ever": "Primera vez de todas"
+    },
+    "returning": "Vuelve",
+    "returningOn": "En ese período",
+    "returningAfter": "En ese período o después",
+    "retentionReference": "Porcentajes respecto de",
+    "retentionPeriod0": "Período 0",
+    "retentionPrevious": "Período anterior",
+    "retentionMean": "Promedio",
+    "retentionWeighted": "Ponderado",
+    "retentionSimple": "Simple",
+    "retentionLabels": "Las etiquetas arrancan en",
+    "retentionFrom0": "Período 0",
+    "retentionFrom1": "Período 1",
+    "retentionChartType": "Gráfico",
+    "retentionShow": "Mostrar",
+    "retentionBoth": "Gráfico y tabla",
+    "retentionGraph": "Solo gráfico",
+    "retentionTable": "Solo tabla"
   },
   "sql": {
     "title": "SQL",

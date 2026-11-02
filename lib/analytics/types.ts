@@ -171,15 +171,30 @@ export function funnelWindowMs(q: { windowDays?: number; window?: { value: numbe
   return Math.min(ms, 365 * WINDOW_UNIT_MS.day);
 }
 
+export const RETENTION_TYPES = ['recurring', 'first_time', 'first_ever'] as const;
+
 export const retentionQuerySchema = z.object({
   kind: z.literal('retention'),
   startEvent: eventNameSchema.default('$pageview'),
   returnEvent: eventNameSchema.default('$pageview'),
-  period: z.enum(['day', 'week']).default('week'),
-  periods: z.number().int().min(2).max(16).default(8),
+  period: z.enum(['hour', 'day', 'week', 'month']).default('week'),
+  periods: z.number().int().min(2).max(24).default(8),
   filters: filtersSchema,
   cohortId: z.string().max(64).nullable().optional(),
   excludeInternal: z.boolean().optional(),
+  /** Quién entra en una cohorte. Sin valor: la primera vez dentro del rango. */
+  type: z.enum(RETENTION_TYPES).optional(),
+  /** Quien vuelve después también cuenta en los períodos anteriores. */
+  cumulative: z.boolean().optional(),
+  reference: z.enum(['period0', 'previous']).optional(),
+  mean: z.enum(['weighted', 'simple']).optional(),
+  labelStart: z.union([z.literal(0), z.literal(1)]).optional(),
+  chart: z.enum(['line', 'bar']).optional(),
+  show: z.enum(['both', 'table', 'graph']).optional(),
+  breakdown: z.object({ key: propertyKeySchema, type: z.enum(['event', 'person']).default('event') }).nullable().optional(),
+  groupType: propertyKeySchema.nullable().optional(),
+  /** Pedir quiénes están en una celda: va con su apertura, cohorte y período. */
+  drill: z.object({ cohort: z.number().int().min(0).max(23), k: z.number().int().min(0).max(23), value: z.string().max(500).nullable().optional() }).nullable().optional(),
 });
 export type RetentionQuery = z.infer<typeof retentionQuerySchema>;
 
@@ -313,9 +328,15 @@ export interface FunnelResult {
 
 export interface RetentionResult {
   kind: 'retention';
-  period: 'day' | 'week';
+  period: 'hour' | 'day' | 'week' | 'month';
   cohorts: Array<{ start: string; size: number; values: number[] }>;
   truncated: boolean;
+  options?: Pick<RetentionQuery, 'reference' | 'mean' | 'labelStart' | 'chart' | 'show'>;
+  /** Grupos en lugar de personas. */
+  unit?: 'person' | 'group';
+  breakdown?: Array<{ value: string | null; cohorts: Array<{ start: string; size: number; values: number[] }> }>;
+  /** Quiénes están en la celda pedida. No se manda a links públicos. */
+  drillPersons?: string[];
 }
 
 export interface PathsResult {
@@ -719,7 +740,7 @@ export interface ExperimentResults {
  */
 export function shareableQuery(q: InsightQuery): boolean {
   if (q.kind === 'sql') return false;
-  if ((q.kind === 'trends' || q.kind === 'funnel') && q.breakdown && (q.breakdown.type === 'person' || q.breakdown.key === 'distinct_id')) return false;
+  if ((q.kind === 'trends' || q.kind === 'funnel' || q.kind === 'retention') && q.breakdown && (q.breakdown.type === 'person' || q.breakdown.key === 'distinct_id')) return false;
   return true;
 }
 

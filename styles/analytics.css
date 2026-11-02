@@ -399,3 +399,10 @@
   .an-tile-head { flex-wrap: wrap; }
   .an-tile-head .an-tile-title { flex: 1 0 100%; white-space: normal; overflow-wrap: anywhere; }
 }
+
+/* Retención */
+.an-ret-btn { all: unset; cursor: pointer; display: inline-block; }
+.an-ret-btn:hover { text-decoration: underline; }
+.an-ret-btn:focus-visible { outline: 2px solid var(--c-analytics); outline-offset: 2px; }
+.an-ret-mean th, .an-ret-mean td { font-weight: 600; }
+.an-ret-values tr.is-picked th { font-weight: 600; }

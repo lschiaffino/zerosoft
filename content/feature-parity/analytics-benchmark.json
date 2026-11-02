@@ -2136,13 +2136,8 @@
         "es": "Períodos de retención",
         "pt": "Períodos de retenção"
       },
-      "status": "partial",
-      "competitorHas": true,
-      "detail": {
-        "en": "Retention runs by day or week, with 2 to 16 periods; no hours or months",
-        "es": "La retención va por día o semana, de 2 a 16 períodos; sin horas ni meses",
-        "pt": "A retenção vai por dia ou semana, de 2 a 16 períodos; sem horas nem meses"
-      }
+      "status": "have",
+      "competitorHas": true
     },
     {
       "id": "retention-custom-brackets",
@@ -2163,7 +2158,7 @@
         "es": "Retención por grupo",
         "pt": "Retenção por grupo"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -2190,7 +2185,7 @@
         "es": "Tipo recurrente",
         "pt": "Tipo recorrente"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -2201,13 +2196,8 @@
         "es": "Tipo primera vez",
         "pt": "Tipo primeira vez"
       },
-      "status": "partial",
-      "competitorHas": true,
-      "detail": {
-        "en": "Each person is placed in the cohort of their first start event in the range; this is the only type",
-        "es": "Cada persona entra en la cohorte de su primer evento inicial del rango; es el único tipo",
-        "pt": "Cada pessoa entra na coorte do seu primeiro evento inicial do intervalo; é o único tipo"
-      }
+      "status": "have",
+      "competitorHas": true
     },
     {
       "id": "retention-type-first-ever",
@@ -2217,7 +2207,7 @@
         "es": "Tipo primera vez absoluta",
         "pt": "Tipo primeira vez absoluta"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -2228,13 +2218,8 @@
         "es": "Gráfico y tabla de retención",
         "pt": "Gráfico e tabela de retenção"
       },
-      "status": "partial",
-      "competitorHas": true,
-      "detail": {
-        "en": "The cohort table is shown; there is no line or bar graph",
-        "es": "Se muestra la tabla de cohortes; no hay gráfico de líneas ni barras",
-        "pt": "A tabela de coortes é mostrada; não há gráfico de linhas nem barras"
-      }
+      "status": "have",
+      "competitorHas": true
     },
     {
       "id": "retention-cell-actors",
@@ -2244,7 +2229,7 @@
         "es": "Detalle de una celda de retención",
         "pt": "Detalhe de uma célula de retenção"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -2255,13 +2240,8 @@
         "es": "Referencia de retención",
         "pt": "Referência de retenção"
       },
-      "status": "partial",
-      "competitorHas": true,
-      "detail": {
-        "en": "Values are relative to period 0; the previous period reference is not available",
-        "es": "Los valores son respecto del período 0; no se puede usar el período anterior como referencia",
-        "pt": "Os valores são relativos ao período 0; não é possível usar o período anterior como referência"
-      }
+      "status": "have",
+      "competitorHas": true
     },
     {
       "id": "retention-relative-basis",
@@ -2271,13 +2251,8 @@
         "es": "Base del porcentaje",
         "pt": "Base da porcentagem"
       },
-      "status": "partial",
-      "competitorHas": true,
-      "detail": {
-        "en": "Percentages use the starting cohort size; the previous period basis is not available",
-        "es": "Los porcentajes usan el tamaño inicial de la cohorte; no se puede usar el período anterior",
-        "pt": "As porcentagens usam o tamanho inicial da coorte; não é possível usar o período anterior"
-      }
+      "status": "have",
+      "competitorHas": true
     },
     {
       "id": "retention-cumulative",
@@ -2287,7 +2262,7 @@
         "es": "Retorno acumulado (en o después)",
         "pt": "Retorno acumulado (em ou depois)"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -2298,7 +2273,7 @@
         "es": "Promedio de retención",
         "pt": "Média de retenção"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -2309,7 +2284,7 @@
         "es": "Índice inicial de las etiquetas",
         "pt": "Índice inicial dos rótulos"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -2320,8 +2295,13 @@
         "es": "Apertura de retención",
         "pt": "Abertura de retenção"
       },
-      "status": "missing",
-      "competitorHas": true
+      "status": "partial",
+      "competitorHas": true,
+      "detail": {
+        "en": "Breakdown by an event or person property, with the mean per value, its cohorts and only returns with the same value; no flag, group, cohort or SQL breakdown",
+        "es": "Apertura por una propiedad de evento o de persona, con el promedio por valor, sus cohortes y solo vueltas con el mismo valor; sin apertura por flag, grupo, cohorte ni SQL",
+        "pt": "Abertura por uma propriedade de evento ou de pessoa, com a média por valor, suas coortes e só voltas com o mesmo valor; sem abertura por flag, grupo, coorte nem SQL"
+      }
     },
     {
       "id": "paths-sankey",

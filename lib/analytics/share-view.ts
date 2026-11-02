@@ -34,6 +34,7 @@ const cache = new Map<string, { at: number; view: PublicShareView }>();
 
 /** Quita lo que identifica personas del resultado. */
 export function publicResult(r: InsightResult): InsightResult {
+  if (r.kind === 'retention') return { ...r, drillPersons: undefined };
   return r.kind === 'funnel' ? { ...r, droppedPersons: r.droppedPersons.map(() => []), reachedPersons: undefined } : r;
 }
 
