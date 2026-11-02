@@ -12,6 +12,7 @@ import {
   layoutStickies,
   layoutStickiesInFreeSpace,
   parseBulkStickies,
+  stickiesToCsv,
   stickiesWithTag,
   stickySkeleton,
   stickyTags,
@@ -127,6 +128,19 @@ export default function BoardStickyTool({ api }: { api: CanvasApi | null }) {
     void updateSelected((el) => withStickyTags(el, [...stickyTags(el), tag]));
   }
 
+  function exportCsv() {
+    if (!api) return;
+    const ids = selectedIds(api);
+    const only = selection.length > 0 ? ids : undefined;
+    const csv = stickiesToCsv(api.getSceneElements() as SceneEl[], only);
+    const url = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'stickies.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function selectTag(tag: string) {
     if (!api) return;
     const ids = stickiesWithTag(api.getSceneElements() as SceneEl[], tag);
@@ -236,6 +250,12 @@ export default function BoardStickyTool({ api }: { api: CanvasApi | null }) {
             />
             <button type="button" className="btn btn-sm board-pop-start" disabled={drafts.length === 0} onClick={() => void add(drafts)}>
               {t('bulkAdd', { count: drafts.length })}
+            </button>
+          </div>
+
+          <div className="board-pop-section">
+            <button type="button" className="btn btn-sm" onClick={exportCsv} data-testid="board-stickies-csv">
+              {selection.length > 0 ? t('exportSelected', { count: selection.length }) : t('exportAll')}
             </button>
           </div>
 

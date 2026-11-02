@@ -277,3 +277,36 @@ export function stickyIssueTitle(text: string): string {
 export function elementBox(el: SceneEl): { x: number; y: number; width: number; height: number } {
   return { x: Number(el.x) || 0, y: Number(el.y) || 0, width: Math.abs(Number(el.width) || 0), height: Math.abs(Number(el.height) || 0) };
 }
+
+// ---------- Export a CSV ----------
+
+/** Celda CSV segura: comillas y sin fórmulas (=, +, -, @ al principio). */
+function csvField(v: string): string {
+  const s = /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
+  return `"${s.replace(/"/g, '""')}"`;
+}
+
+/** Clave del color si es de la paleta; si no, el valor tal cual. */
+function stickyColorName(fill: string | undefined): string {
+  const hit = STICKY_COLORS.find((c) => c.fill === fill);
+  return hit ? hit.key : (fill ?? '');
+}
+
+/**
+ * Stickies como CSV (text, tags, color, x, y), en orden de lectura: de arriba
+ * a abajo y de izquierda a derecha. Con `onlyIds` exporta solo esos.
+ */
+export function stickiesToCsv(elements: readonly SceneEl[], onlyIds?: ReadonlySet<string>): string {
+  const byId = new Map(elements.filter((e) => !e.isDeleted).map((e) => [e.id, e]));
+  const rows = elements
+    .filter((el) => isSticky(el) && (!onlyIds || onlyIds.has(el.id)))
+    .map((el) => ({ el, text: elementText(el, byId) }))
+    .filter((r) => r.text)
+    .sort((a, b) => Math.round((a.el.y ?? 0) / 40) - Math.round((b.el.y ?? 0) / 40) || (a.el.x ?? 0) - (b.el.x ?? 0));
+  const lines = rows.map(({ el, text }) =>
+    [text, stickyTags(el).join(' '), stickyColorName(el.backgroundColor), String(Math.round(el.x ?? 0)), String(Math.round(el.y ?? 0))]
+      .map(csvField)
+      .join(','),
+  );
+  return ['text,tags,color,x,y', ...lines].join('\n') + '\n';
+}
