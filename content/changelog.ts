@@ -69,6 +69,12 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         product: 'analytics',
+        en: 'Public links gain a theme, a legend and credit option, passwords with a note for each person, a new link without changing the insight, a history of changes, refresh on load with ?refresh=true, refresh every 30 minutes and an embed that adjusts its height.',
+        es: 'Los links públicos suman tema, opción de leyenda y de crédito, contraseñas con una nota para cada persona, un link nuevo sin cambiar el insight, historial de cambios, actualizar al abrir con ?refresh=true, actualización cada 30 minutos y un embed que ajusta su alto.',
+        pt: 'Os links públicos ganham tema, opção de legenda e de crédito, senhas com uma nota para cada pessoa, um link novo sem mudar o insight, histórico de mudanças, atualizar ao abrir com ?refresh=true, atualização a cada 30 minutos e um embed que ajusta sua altura.',
+      },
+      {
+        product: 'analytics',
         en: 'From a funnel step you can explore the paths leading to it, between steps, after it and around dropping off, and from a path you can open its funnel.',
         es: 'Desde un paso de un embudo se exploran los caminos que llevan a él, entre pasos, después y alrededor de abandonar, y desde un camino se abre su embudo.',
         pt: 'A partir de uma etapa de um funil dá para explorar os caminhos que levam a ela, entre etapas, depois e em torno da desistência, e de um caminho dá para abrir seu funil.',

@@ -8,7 +8,7 @@ import { getDb } from '../db';
 import { applyDashboard, layoutOf } from './dashboard-core';
 import { getDashboard, getInsight, listInsights } from './records';
 import { runInsight } from './query';
-import { shareByToken } from './records-more';
+import { shareByToken, shareOptions, type ShareOptions } from './records-more';
 import type { ProjectRow } from './projects';
 import { shareableQuery, type DashboardSettings, type InsightDto, type InsightResult, type TrendDisplay } from './types';
 
@@ -26,6 +26,7 @@ export interface PublicShareView {
   title: string;
   description: string;
   tiles: PublicTile[];
+  options: ShareOptions;
 }
 
 const TTL_MS = 60_000;
@@ -48,7 +49,7 @@ async function tile(project: ProjectRow, i: InsightDto, settings?: DashboardSett
   }
 }
 
-export async function publicShareView(token: string): Promise<PublicShareView | null> {
+export async function publicShareView(token: string, fresh = false): Promise<PublicShareView | null> {
   const share = await shareByToken(token);
   if (!share) {
     // Revocado: no queda nada en caché.
@@ -56,14 +57,15 @@ export async function publicShareView(token: string): Promise<PublicShareView | 
     return null;
   }
   const hit = cache.get(token);
-  if (hit && Date.now() - hit.at < TTL_MS) return hit.view;
+  if (!fresh && hit && Date.now() - hit.at < TTL_MS) return hit.view;
   const project = (await getDb().prepare('SELECT * FROM analytics_projects WHERE id = ? AND deleted_at IS NULL').get(share.project_id)) as ProjectRow | undefined;
   if (!project) return null;
   let view: PublicShareView | null = null;
+  const options = shareOptions(share);
   if (share.insight_id) {
     const insight = await getInsight(project.id, share.insight_id);
     // Un resultado de SQL nunca sale por un link público.
-    if (insight && shareableQuery(insight.query)) view = { title: insight.name, description: insight.description, tiles: [await tile(project, insight)] };
+    if (insight && shareableQuery(insight.query)) view = { title: insight.name, description: insight.description, tiles: [await tile(project, insight)], options };
   } else if (share.dashboard_id) {
     const dashboard = await getDashboard(project.id, share.dashboard_id);
     if (dashboard) {
@@ -79,10 +81,14 @@ export async function publicShareView(token: string): Promise<PublicShareView | 
           tiles.push(await tile(project, byId.get(ref.id)!, dashboard.settings));
         }
       }
-      view = { title: dashboard.name, description: dashboard.description, tiles };
+      view = { title: dashboard.name, description: dashboard.description, tiles, options };
     }
   }
   if (!view) return null;
+  // Sin leyenda: la decide quien comparte.
+  if (options.legend === false) {
+    for (const t of view.tiles) if (t.result?.kind === 'trends') t.result = { ...t.result, options: { ...t.result.options, hideLegend: true } };
+  }
   if (cache.size > 500) cache.clear();
   cache.set(token, { at: Date.now(), view });
   return view;

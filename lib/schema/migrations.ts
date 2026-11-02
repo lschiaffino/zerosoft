@@ -8351,6 +8351,32 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN cookieless_dropped INTEGER NOT NULL DEFAULT 0');
     },
   },
+  {
+    id: '188_analytics_share_options',
+    up: async (client) => {
+      await addColumn(client, "ALTER TABLE analytics_shares ADD COLUMN options TEXT NOT NULL DEFAULT '{}'");
+      await client.execute(`CREATE TABLE IF NOT EXISTS analytics_share_passwords (
+        id TEXT PRIMARY KEY,
+        share_id TEXT NOT NULL REFERENCES analytics_shares(id) ON DELETE CASCADE,
+        hash TEXT NOT NULL,
+        note TEXT NOT NULL DEFAULT '',
+        created_by TEXT,
+        created_at TEXT NOT NULL
+      )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_analytics_share_passwords_share ON analytics_share_passwords(share_id)');
+      await client.execute(`CREATE TABLE IF NOT EXISTS analytics_share_log (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+        share_id TEXT NOT NULL,
+        action TEXT NOT NULL,
+        person_id TEXT,
+        insight_id TEXT,
+        dashboard_id TEXT,
+        created_at TEXT NOT NULL
+      )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_analytics_share_log_target ON analytics_share_log(project_id, created_at)');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

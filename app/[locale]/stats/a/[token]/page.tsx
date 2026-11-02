@@ -4,15 +4,17 @@ import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import ClientMessages from '@/components/i18n/ClientMessages';
 import InsightResultView from '@/components/analytics/InsightResultView';
+import ShareChrome, { ShareUnlock } from '@/components/analytics/ShareChrome';
+import { shareAccessOk, shareByToken, shareCookieName, shareHasPasswordProtect } from '@/lib/analytics/records-more';
 import { publicShareView } from '@/lib/analytics/share-view';
 import { clientIp, rateLimit } from '@/lib/rate-limit';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import '@/styles/app-shared.css';
 import '@/styles/analytics.css';
 
 export const dynamic = 'force-dynamic';
 
-type Props = { params: Promise<{ locale: string; token: string }>; searchParams: Promise<{ embed?: string }> };
+type Props = { params: Promise<{ locale: string; token: string }>; searchParams: Promise<{ embed?: string; refresh?: string }> };
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const { locale } = await props.params;
@@ -27,7 +29,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
  */
 export default async function PublicAnalyticsShare(props: Props) {
   const { locale, token } = await props.params;
-  const { embed } = await props.searchParams;
+  const { embed, refresh } = await props.searchParams;
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'analytics.share' });
   const h = await headers();
@@ -36,11 +38,26 @@ export default async function PublicAnalyticsShare(props: Props) {
   if (!limit.ok && process.env.RATE_LIMIT_DISABLED !== 'true') {
     return <p className="an-empty-result">{t('rateLimited')}</p>;
   }
-  const view = await publicShareView(token);
+  // Con contraseña: nada se calcula ni se manda hasta que este navegador la haya dado.
+  const share = await shareByToken(token);
+  if (share && (await shareHasPasswordProtect(share.id))) {
+    const access = (await cookies()).get(shareCookieName(share.id))?.value;
+    if (!(await shareAccessOk(share.id, access))) {
+      return (
+        <ClientMessages locale={locale} namespaces={['analytics']}>
+          <main className={`an-share-public${embed ? ' is-embed' : ''}`} data-testid="an-share-locked">
+            <ShareUnlock token={token} />
+          </main>
+        </ClientMessages>
+      );
+    }
+  }
+  const view = await publicShareView(token, refresh === 'true');
   if (!view) notFound();
   return (
     <ClientMessages locale={locale} namespaces={['analytics']}>
       <main className={`an-share-public${embed ? ' is-embed' : ''}`} data-testid="an-share-public">
+        <ShareChrome theme={view.options.theme ?? 'system'} embed={Boolean(embed)} />
         {!embed && (
           <header className="an-share-head">
             <h1 className="an-share-title">{view.title}</h1>
@@ -57,6 +74,13 @@ export default async function PublicAnalyticsShare(props: Props) {
             </article>
           ))}
         </div>
+        {view.options.branding !== false && (
+          <p className="an-note an-share-brand" data-testid="an-share-brand">
+            <a href="https://zerosoft.ai" target="_blank" rel="noopener noreferrer" className="an-link">
+              {t('poweredBy')}
+            </a>
+          </p>
+        )}
       </main>
     </ClientMessages>
   );

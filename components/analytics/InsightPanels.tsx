@@ -11,6 +11,13 @@ interface ShareRowDto {
   id: string;
   token: string;
   created_at: string;
+  options: { theme?: 'system' | 'light' | 'dark'; branding?: boolean; legend?: boolean };
+  passwords: Array<{ id: string; note: string; createdAt: string }>;
+}
+interface ShareLogDto {
+  action: string;
+  personId: string | null;
+  createdAt: string;
 }
 
 /** Link público de un insight o un tablero: crear, copiar, código para embeber y revocar. Solo admins. */
@@ -24,6 +31,9 @@ export function ShareDialog({ open, onClose, projectId, target }: { open: boolea
   const [busy, setBusy] = useState(false);
   const [origin, setOrigin] = useState('');
   const [copied, setCopied] = useState<string | null>(null);
+  const [log, setLog] = useState<ShareLogDto[]>([]);
+  const [note, setNote] = useState('');
+  const [shown, setShown] = useState<{ share: string; password: string } | null>(null);
   const param = target.insightId ? `insight=${encodeURIComponent(target.insightId)}` : `dashboard=${encodeURIComponent(target.dashboardId ?? '')}`;
 
   useEffect(() => {
@@ -37,11 +47,31 @@ export function ShareDialog({ open, onClose, projectId, target }: { open: boolea
   useEffect(() => {
     if (!open) return;
     setError(false);
-    api<{ shares: ShareRowDto[] }>(`/api/analytics/shares?project=${encodeURIComponent(projectId)}&${param}`)
-      .then((r) => setShares(r.shares))
-      .catch(() => setError(true));
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, projectId, param]);
 
+  const load = () =>
+    api<{ shares: ShareRowDto[]; log: ShareLogDto[] }>(`/api/analytics/shares?project=${encodeURIComponent(projectId)}&${param}`)
+      .then((r) => {
+        setShares(r.shares);
+        setLog(r.log);
+      })
+      .catch(() => setError(true));
+  /** Un cambio en un link y volver a leer: las opciones, las contraseñas y el historial. */
+  const change = async (id: string, body: Record<string, unknown>) => {
+    setBusy(true);
+    setError(false);
+    try {
+      const r = await api<{ password?: { password: string } }>(`/api/analytics/shares/${id}`, { method: 'PATCH', body });
+      if (r.password) setShown({ share: id, password: r.password.password });
+      await load();
+    } catch {
+      setError(true);
+    } finally {
+      setBusy(false);
+    }
+  };
   const create = async () => {
     setBusy(true);
     setError(false);
@@ -99,7 +129,7 @@ export function ShareDialog({ open, onClose, projectId, target }: { open: boolea
         {shares?.length === 0 && <p className="an-muted">{t('none')}</p>}
         {shares?.map((s) => {
           const url = `${origin}/${locale}/stats/a/${s.token}`;
-          const embed = `<iframe src="${url}?embed=1" width="100%" height="480" style="border:0" title="zerosoft Analytics"></iframe>`;
+          const embed = `<iframe name="zs-${s.id}" src="${url}?embed=1" width="100%" height="480" style="border:0" title="zerosoft Analytics"></iframe>\n<script>addEventListener('message',function(e){if(e.data&&e.data.event==='zs:dimensions'&&e.data.name==='zs-${s.id}')document.querySelector('iframe[name="zs-${s.id}"]').height=e.data.height})</script>`;
           return (
             <div key={s.id} className="an-share-row" data-testid="an-share-row">
               <input className="input an-mono" readOnly value={url} aria-label={t('link')} onFocus={(e) => e.currentTarget.select()} />
@@ -110,13 +140,75 @@ export function ShareDialog({ open, onClose, projectId, target }: { open: boolea
                 <button type="button" className="btn btn-sm" onClick={() => copy(embed, `${s.id}:e`)}>
                   {copied === `${s.id}:e` ? tc('copied') : t('copyEmbed')}
                 </button>
+                <button type="button" className="btn btn-sm" disabled={busy} onClick={() => void change(s.id, { rotateToken: true })}>
+                  {t('rotate')}
+                </button>
                 <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => void revoke(s.id)}>
                   {t('revoke')}
                 </button>
               </div>
+              <div className="an-row an-wrap">
+                <label className="ui-field an-inline-field">
+                  <span className="label">{t('theme')}</span>
+                  <select className="select" value={s.options.theme ?? 'system'} disabled={busy} onChange={(e) => void change(s.id, { options: { theme: e.target.value } })}>
+                    <option value="system">{t('themeSystem')}</option>
+                    <option value="light">{t('themeLight')}</option>
+                    <option value="dark">{t('themeDark')}</option>
+                  </select>
+                </label>
+                <label className="ui-check">
+                  <input type="checkbox" checked={s.options.legend !== false} disabled={busy} onChange={(e) => void change(s.id, { options: { legend: e.target.checked } })} /> {t('showLegend')}
+                </label>
+                <label className="ui-check">
+                  <input type="checkbox" checked={s.options.branding !== false} disabled={busy} onChange={(e) => void change(s.id, { options: { branding: e.target.checked } })} /> {t('showBranding')}
+                </label>
+              </div>
+              <div className="an-form-tight">
+                <span className="label">{t('passwords')}</span>
+                <p className="ui-help">{s.passwords.length ? t('passwordsOn') : t('passwordsOff')}</p>
+                {s.passwords.map((p) => (
+                  <div key={p.id} className="an-row an-wrap">
+                    <span className="an-small">{p.note || t('passwordNoNote')}</span>
+                    <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => void change(s.id, { removePassword: p.id })}>
+                      {t('passwordRemove')}
+                    </button>
+                  </div>
+                ))}
+                <div className="an-row an-wrap">
+                  <input className="input an-filter-key" aria-label={t('passwordNote')} placeholder={t('passwordNote')} maxLength={200} value={note} onChange={(e) => setNote(e.target.value)} />
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    disabled={busy}
+                    onClick={() => {
+                      void change(s.id, { addPassword: { note } });
+                      setNote('');
+                    }}
+                  >
+                    {t('passwordAdd')}
+                  </button>
+                </div>
+                {shown?.share === s.id && (
+                  <p className="an-note" role="status">
+                    {t('passwordOnce')} <code className="an-mono" data-testid="an-share-password">{shown.password}</code>
+                  </p>
+                )}
+              </div>
             </div>
           );
         })}
+        {log.length > 0 && (
+          <details className="an-more">
+            <summary>{t('history')}</summary>
+            <ul className="an-share-log" role="list">
+              {log.map((l, i) => (
+                <li key={i} className="an-small">
+                  {t(`logActions.${l.action}`)} · {new Date(l.createdAt).toLocaleString(locale)}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
       </div>
       <div className="ui-modal-foot">
         <button type="button" className="btn btn-sm" onClick={onClose}>

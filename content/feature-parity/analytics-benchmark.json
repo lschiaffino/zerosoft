@@ -3489,7 +3489,7 @@
         "es": "Opciones de visualización al compartir",
         "pt": "Opções de exibição ao compartilhar"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -3500,7 +3500,7 @@
         "es": "Tema del contenido compartido",
         "pt": "Tema do conteúdo compartilhado"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -3511,7 +3511,7 @@
         "es": "Parámetro de actualización en embeds",
         "pt": "Parâmetro de atualização em embeds"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -3522,7 +3522,7 @@
         "es": "Ajuste automático de altura del embed",
         "pt": "Ajuste automático de altura do embed"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -3533,13 +3533,8 @@
         "es": "Actualización automática de lo compartido",
         "pt": "Atualização automática do compartilhado"
       },
-      "status": "partial",
-      "competitorHas": true,
-      "detail": {
-        "en": "Public views are cached for a minute per link; there is no 30 minute refresh cycle",
-        "es": "Las vistas públicas se cachean un minuto por link; no hay un ciclo de actualización de 30 minutos",
-        "pt": "As visões públicas ficam em cache por um minuto por link; não há ciclo de atualização de 30 minutos"
-      }
+      "status": "have",
+      "competitorHas": true
     },
     {
       "id": "sharing-password",
@@ -3549,7 +3544,7 @@
         "es": "Protección con contraseña",
         "pt": "Proteção por senha"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
@@ -3560,7 +3555,7 @@
         "es": "Registro de auditoría de compartidos",
         "pt": "Registro de auditoria de compartilhados"
       },
-      "status": "missing",
+      "status": "have",
       "competitorHas": true
     },
     {
