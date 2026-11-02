@@ -655,4 +655,6 @@ section.status-note-block { padding: 24px; }
 .nf-hero { padding-top: 8px; padding-bottom: 56px; margin-bottom: 0; border-bottom: 0; }
 /* Aire blanco entre la banda del header y el cartel. */
 .nf .sign-band { margin-top: 32px; }
+/* 404 con el cero que gira. La caja tiene la proporción de la figura: nada se mueve al cargar. */
+.nf-art { height: auto; aspect-ratio: 57.6 / 33.6; max-width: 440px; margin: 32px 0 8px; }
 .nf-rule { margin-bottom: 96px; color: var(--brand-gray-3); opacity: 0.7; }

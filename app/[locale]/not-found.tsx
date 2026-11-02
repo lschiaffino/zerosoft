@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import BrandSymbol from '@/components/brand/BrandSymbol';
 import { ZeroRule } from '@/components/zero/ZeroTexture';
+import ZeroArt from '@/components/zero/ZeroArt';
 import '@/styles/pages.css';
 
 export async function generateMetadata() {
@@ -21,6 +22,7 @@ export default async function LocaleNotFound() {
         </div>
       </div>
       <div className="container">
+        <ZeroArt figure={['notfound', '']} className="nf-art" />
         <header className="read-hero nf-hero">
           <h1 className="read-title">{t('title')}</h1>
           <p className="read-intro">{t('body')}</p>

@@ -2193,7 +2193,34 @@
       "faqTitleDim": "O que já sabemos e o que falta.",
       "compareZero": "Com a zerosoft, quando estiver pronto",
       "zeroApp": "{name} no seu servidor, quando estiver pronto"
-    }
+    },
+    "heroFig": {
+      "link": "fig. 0 · uma corrente de elos",
+      "crm": "fig. 0 · negócios avançando no pipeline",
+      "chat": "fig. 0 · uma conversa de ida e volta",
+      "groups": "fig. 0 · o grupo com mensagem nova sobe",
+      "agents": "fig. 0 · um agente consultando o que tem em volta",
+      "flow": "fig. 0 · um pulso percorrendo dois ramos",
+      "robots": "fig. 0 · um robô lê uma página e preenche uma tabela",
+      "track": "fig. 0 · issues avançando em um quadro",
+      "docs": "fig. 0 · uma página sendo escrita",
+      "notes": "fig. 0 · uma lista sendo marcada",
+      "cal": "fig. 0 · um mês se enchendo",
+      "board": "fig. 0 · um desenho à mão em um quadro",
+      "voice": "fig. 0 · a forma de onda de uma voz",
+      "rec": "fig. 0 · uma gravação com a câmera na bolha",
+      "talk": "fig. 0 · mensagens chegando em um canal",
+      "design": "fig. 0 · uma forma mudando na prancheta",
+      "shop": "fig. 0 · um catálogo de seis produtos",
+      "analytics": "fig. 0 · um gráfico de barras com dados de exemplo",
+      "social": "fig. 0 · publicações em um calendário",
+      "hiring": "fig. 0 · candidatos passando de etapa",
+      "people": "fig. 0 · licenças em um calendário",
+      "books": "fig. 0 · movimentos sendo conciliados",
+      "sign": "fig. 0 · uma assinatura ao pé de um contrato",
+      "forms": "fig. 0 · um formulário sendo preenchido"
+    },
+    "heroFigHint": "arraste para girar"
   },
   "mockups": {
     "link": {

@@ -19,6 +19,7 @@ import SuiteGrid from '@/components/site/SuiteGrid';
 import ParityOverview from '@/components/products/ParityOverview';
 import SectionSign from '@/components/site/SectionSign';
 import HeroVisual from '@/components/site/HeroVisual';
+import ZeroArt from '@/components/zero/ZeroArt';
 import CloudPricing from '@/components/site/CloudPricing';
 import TypedTerminal from '@/components/site/TypedTerminal';
 import { ZeroEdge } from '@/components/zero/ZeroTexture';
@@ -430,6 +431,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
       {/* Cierre: la página se vuelve tinta, de a ceros, y la banda con las once apps. */}
       <ZeroEdge />
       <section className="lp-end" id="sumate" aria-labelledby="h-end">
+        <ZeroArt figure={['field', '']} className="lp-end-field" />
         <div className="container lp-end-inner">
           <h2 id="h-end">
             {h('end.title1')}

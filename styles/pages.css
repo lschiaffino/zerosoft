@@ -60,9 +60,9 @@
 .pd-hero-map { min-width: 0; }
 /* El cero en 3D (ZeroTorus). En la página de un producto toma su color. */
 .hero-field { position: relative; min-width: 0; height: clamp(340px, 42vw, 600px); }
-.hero-field[class*="card-"] .zero-torus { color: var(--accent); }
+.hero-field[class*="card-"] .zero-art { color: var(--accent); }
 .hero-field.has-caption { display: flex; flex-direction: column; margin: 0; }
-.hero-field.has-caption .zero-torus { flex: 1; min-height: 0; height: auto; }
+.hero-field.has-caption .zero-art { flex: 1; min-height: 0; height: auto; }
 .hero-fig-cap { justify-content: center; gap: 8px 32px; flex-wrap: wrap; margin-top: 0; }
 /* En el teléfono, siempre en dos líneas: con la fuente real no entra en una y el salto movía la página (CLS). */
 @media (max-width: 640px) {
@@ -70,6 +70,8 @@
 }
 @media (max-width: 860px) {
   .hero-field { height: 260px; }
+  /* Las figuras de las apps tienen detalle: a 260 px no se leen. */
+  .hero-field.pd-hero-map { height: clamp(290px, 88vw, 460px); }
 }
 
 /* ---------- Cartel de sección (SectionSign) ---------- */
@@ -88,6 +90,10 @@
   text-wrap: balance;
 }
 .sign-sub { color: var(--sign-fg-2); margin-left: 0.25em; }
+/* A 320 px una palabra larga del cartel no entra al lado del cero: el cero cede su lugar. */
+@media (max-width: 360px) {
+  .sign-inner > .sign-mark { display: none; }
+}
 
 .lp-lede { max-width: 60ch; font-size: var(--t-lead); line-height: 1.45; color: var(--brand-gray-1); }
 .lp-lede-block { margin-bottom: 40px; }
@@ -405,7 +411,21 @@
 
 /* ---------- Cierre: banda negra ---------- */
 
-.lp-end { padding: 96px 0 72px; background: var(--brand-ink); color: var(--brand-on-ink); }
+.lp-end { position: relative; overflow: hidden; padding: 96px 0 72px; background: var(--brand-ink); color: var(--brand-on-ink); }
+.lp-end-inner { position: relative; z-index: 1; }
+/* El campo de ceros va detrás del texto y se levanta con el puntero. A la izquierda, donde está el texto, casi no se ve. */
+.lp-end-field {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  color: var(--brand-on-ink-2);
+  -webkit-mask-image: linear-gradient(90deg, rgb(0 0 0 / 0.16) 0%, rgb(0 0 0 / 0.3) 45%, rgb(0 0 0 / 0.9) 100%);
+  mask-image: linear-gradient(90deg, rgb(0 0 0 / 0.16) 0%, rgb(0 0 0 / 0.3) 45%, rgb(0 0 0 / 0.9) 100%);
+}
+/* En el teléfono el texto ocupa todo el ancho: el campo baja parejo. */
+@media (max-width: 860px) {
+  .lp-end-field { -webkit-mask-image: none; mask-image: none; opacity: 0.2; }
+}
 .lp-end h2 {
   font-family: var(--font-signage);
   letter-spacing: var(--signage-tracking);

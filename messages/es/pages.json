@@ -2193,7 +2193,34 @@
       "faqTitleDim": "Lo que ya sabemos y lo que falta.",
       "compareZero": "Con zerosoft, cuando esté lista",
       "zeroApp": "{name} en tu servidor, cuando esté lista"
-    }
+    },
+    "heroFig": {
+      "link": "fig. 0 · una cadena de eslabones",
+      "crm": "fig. 0 · tratos que avanzan por el pipeline",
+      "chat": "fig. 0 · una conversación de ida y vuelta",
+      "groups": "fig. 0 · el grupo con un mensaje nuevo sube",
+      "agents": "fig. 0 · un agente que consulta lo que tiene alrededor",
+      "flow": "fig. 0 · un pulso que recorre dos ramas",
+      "robots": "fig. 0 · un robot lee una página y llena una tabla",
+      "track": "fig. 0 · issues que avanzan por un tablero",
+      "docs": "fig. 0 · una página que se escribe",
+      "notes": "fig. 0 · una lista que se va tildando",
+      "cal": "fig. 0 · un mes que se va ocupando",
+      "board": "fig. 0 · un dibujo a mano en una pizarra",
+      "voice": "fig. 0 · la forma de onda de una voz",
+      "rec": "fig. 0 · una grabación con la cámara en su burbuja",
+      "talk": "fig. 0 · mensajes que llegan a un canal",
+      "design": "fig. 0 · una forma que cambia en su mesa de trabajo",
+      "shop": "fig. 0 · un catálogo de seis productos",
+      "analytics": "fig. 0 · un gráfico de barras con datos de ejemplo",
+      "social": "fig. 0 · publicaciones en un calendario",
+      "hiring": "fig. 0 · candidatos que pasan de etapa",
+      "people": "fig. 0 · licencias en un calendario",
+      "books": "fig. 0 · movimientos que se concilian",
+      "sign": "fig. 0 · una firma al pie de un contrato",
+      "forms": "fig. 0 · un formulario que se completa"
+    },
+    "heroFigHint": "arrastrá para girar"
   },
   "mockups": {
     "link": {
