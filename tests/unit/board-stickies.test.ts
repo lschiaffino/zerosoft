@@ -10,6 +10,7 @@ import {
   layoutStickies,
   layoutStickiesInFreeSpace,
   parseBulkStickies,
+  stickiesToCsv,
   selectionItems,
   stickiesWithTag,
   stickyFill,
@@ -174,5 +175,29 @@ describe('board-view: idioma de Excalidraw', () => {
     expect(excalidrawLang('en')).toBe('en');
     expect(excalidrawLang('es-AR')).toBe('es-ES');
     expect(excalidrawLang('fr')).toBe('en');
+  });
+});
+
+describe('stickiesToCsv', () => {
+  const mk = (id: string, text: string, x: number, y: number, fill: string, tags: string[] = []): SceneEl[] => [
+    { id, type: 'rectangle', x, y, backgroundColor: fill, customData: { sticky: true, tags }, boundElements: [{ id: `${id}-t`, type: 'text' }] },
+    { id: `${id}-t`, type: 'text', text, originalText: text, containerId: id },
+  ];
+  const els = [...mk('b', 'Second', 300, 0, '#a5d8ff', ['ux']), ...mk('a', '=cmd "x"', 0, 0, '#ffec99'), ...mk('c', 'Below', 0, 400, '#123456')];
+
+  it('orders rows by reading order and names palette colors', () => {
+    const lines = stickiesToCsv(els).trim().split('\n');
+    expect(lines[0]).toBe('text,tags,color,x,y');
+    expect(lines[1]).toContain('yellow');
+    expect(lines[2]).toBe('"Second","ux","blue","300","0"');
+    expect(lines[3]).toContain('"#123456"');
+  });
+
+  it('neutralizes formulas and escapes quotes', () => {
+    expect(stickiesToCsv(els).split('\n')[1].startsWith(`"'=cmd ""x"""`)).toBe(true);
+  });
+
+  it('exports only the given ids', () => {
+    expect(stickiesToCsv(els, new Set(['c'])).trim().split('\n')).toHaveLength(2);
   });
 });
