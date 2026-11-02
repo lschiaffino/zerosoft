@@ -19,83 +19,48 @@ function guarded(input: RequestInfo | URL, init?: RequestInit): 'api' | 'action'
 }
 
 type Lost = { teamId: string | null } | 'gone';
+export interface GuardLabels {
+  title: string;
+  switched: string;
+  gone: string;
+  switchBack: string;
+  reload: string;
+  home: string;
+  switchError: string;
+}
+interface Saved {
+  id: string;
+  name: string;
+  lost: Lost;
+  labels: GuardLabels;
+}
 
-/**
- * Cada escritura de la pestaña dice para qué workspace es (lib/session.ts la
- * rechaza si ya no es el activo). Si la rechazaron por eso, avisa arriba del
- * contenido, sin taparlo ni recargar: lo escrito sigue ahí. Volver al
- * workspace deja reintentar; si ya no se puede, lo dice.
- */
-export default function WorkspaceGuard({
-  workspaceId,
-  workspaceName,
-  labels,
-}: {
-  workspaceId: string;
-  workspaceName: string;
-  labels: { title: string; switched: string; gone: string; switchBack: string; reload: string; home: string; switchError: string };
-}) {
-  // El nombre y el id van con el aviso: una server action rechazada puede terminar recargando la
-  // página (ya en el otro workspace), y el aviso tiene que sobrevivir para decir qué pasó.
-  const [lost, setLost] = useState<Lost | null>(null);
-  const [origin, setOrigin] = useState({ id: workspaceId, name: workspaceName });
+function readSaved(): Saved | null {
+  try {
+    const raw = sessionStorage.getItem(STORAGE);
+    return raw ? (JSON.parse(raw) as Saved) : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearSaved() {
+  try {
+    sessionStorage.removeItem(STORAGE);
+  } catch {
+    /* nada */
+  }
+}
+
+/** El aviso: qué pasó y cómo seguir. `stay`: la página sigue siendo la del workspace (lo escrito sigue ahí). */
+function Notice({ saved, stay, fixed, onDone }: { saved: Saved; stay: boolean; fixed?: boolean; onDone: () => void }) {
+  const { labels, lost, name } = saved;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
-
-  useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(STORAGE);
-      if (!raw) return;
-      const saved = JSON.parse(raw) as { id: string; name: string; lost: Lost };
-      if (saved.id === workspaceId) sessionStorage.removeItem(STORAGE);
-      else {
-        setOrigin({ id: saved.id, name: saved.name });
-        setLost(saved.lost);
-      }
-    } catch {
-      /* sin almacenamiento: el aviso vive hasta recargar */
-    }
-  }, [workspaceId]);
-
-  function clearSaved() {
-    try {
-      sessionStorage.removeItem(STORAGE);
-    } catch {
-      /* nada */
-    }
-  }
-
-  useEffect(() => {
-    const original = window.fetch;
-    const wrapped: typeof window.fetch = async (input, init) => {
-      if (!guarded(input, init)) return original(input, init);
-      const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
-      headers.set(WORKSPACE_HEADER, workspaceId);
-      const res = await original(input, { ...init, headers });
-      // Rechazada: 401 en la API; en una server action, un 500 (tira 'unauthorized') o un redirect.
-      if (!res.ok || res.redirected || res.headers.has('x-action-redirect')) {
-        const now = await original(`/api/teams/switch?id=${encodeURIComponent(workspaceId)}`).catch(() => null);
-        const data = now?.ok ? ((await now.json().catch(() => null)) as { active?: boolean; member?: boolean; teamId?: string | null } | null) : null;
-        if (data && !data.active) {
-          const next: Lost = data.member ? { teamId: data.teamId ?? null } : 'gone';
-          setLost(next);
-          try {
-            sessionStorage.setItem(STORAGE, JSON.stringify({ id: workspaceId, name: workspaceName, lost: next }));
-          } catch {
-            /* nada */
-          }
-        }
-      }
-      return res;
-    };
-    window.fetch = wrapped;
-    return () => {
-      if (window.fetch === wrapped) window.fetch = original;
-    };
-  }, [workspaceId, workspaceName]);
+  const home = `/${window.location.pathname.split('/')[1] || 'en'}/app`;
 
   async function switchBack() {
-    if (lost === null || lost === 'gone') return;
+    if (lost === 'gone') return;
     setBusy(true);
     setError(false);
     const res = await fetch('/api/teams/switch', {
@@ -109,17 +74,15 @@ export default function WorkspaceGuard({
       return;
     }
     clearSaved();
-    // Si la página ya se recargó en el otro workspace hay que volver a pintarla; si no, lo escrito sigue ahí.
-    if (origin.id !== workspaceId) window.location.reload();
-    else setLost(null);
+    // Si la página ya se recargó en el otro workspace, hay que volver a pintarla (o salir del 404).
+    if (stay) onDone();
+    else window.location.reload();
   }
 
-  if (!lost) return null;
-  const home = `/${window.location.pathname.split('/')[1] || 'en'}/app`;
   return (
-    <div className="ws-guard" role="alert" data-testid="workspace-guard">
+    <div className={`ws-guard${fixed ? ' ws-guard-fixed' : ''}`} role="alert" data-testid="workspace-guard">
       <p className="ws-guard-title">{labels.title}</p>
-      <p className="ws-guard-body">{(lost === 'gone' ? labels.gone : labels.switched).replace('{workspace}', origin.name)}</p>
+      <p className="ws-guard-body">{(lost === 'gone' ? labels.gone : labels.switched).replace('{workspace}', name)}</p>
       {error && <p className="ui-error">{labels.switchError}</p>}
       <div className="ws-guard-actions">
         {lost === 'gone' ? (
@@ -129,7 +92,7 @@ export default function WorkspaceGuard({
         ) : (
           <>
             <button type="button" className="btn btn-primary btn-sm" onClick={() => void switchBack()} disabled={busy} aria-busy={busy || undefined}>
-              {labels.switchBack.replace('{workspace}', origin.name)}
+              {labels.switchBack.replace('{workspace}', name)}
             </button>
             <a className="btn btn-secondary btn-sm" href={home} onClick={clearSaved}>
               {labels.reload}
@@ -139,4 +102,73 @@ export default function WorkspaceGuard({
       </div>
     </div>
   );
+}
+
+/**
+ * Cada escritura de la pestaña dice para qué workspace es (lib/session.ts la
+ * rechaza si ya no es el activo). Si la rechazaron por eso, avisa arriba del
+ * contenido, sin taparlo. El aviso queda guardado en la pestaña: una server
+ * action rechazada termina recargando la página, ya en el otro workspace.
+ */
+export default function WorkspaceGuard({ workspaceId, workspaceName, labels }: { workspaceId: string; workspaceName: string; labels: GuardLabels }) {
+  const [saved, setSaved] = useState<Saved | null>(null);
+
+  useEffect(() => {
+    const prior = readSaved();
+    if (!prior) return;
+    if (prior.id === workspaceId) clearSaved();
+    else setSaved(prior);
+  }, [workspaceId]);
+
+  useEffect(() => {
+    const original = window.fetch;
+    const wrapped: typeof window.fetch = async (input, init) => {
+      const kind = guarded(input, init);
+      if (!kind) return original(input, init);
+      const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
+      headers.set(WORKSPACE_HEADER, workspaceId);
+      const res = await original(input, { ...init, headers });
+      // Rechazada: 401 en la API. Una server action puede responder 500, un redirect o hasta un 200 con
+      // su propio error, así que después de cada una se pregunta. Son pocas por pantalla.
+      if (kind === 'action' || !res.ok || res.redirected) {
+        const now = await original(`/api/teams/switch?id=${encodeURIComponent(workspaceId)}`).catch(() => null);
+        const data = now?.ok ? ((await now.json().catch(() => null)) as { active?: boolean; member?: boolean; teamId?: string | null } | null) : null;
+        if (data && !data.active) {
+          const next: Saved = { id: workspaceId, name: workspaceName, lost: data.member ? { teamId: data.teamId ?? null } : 'gone', labels };
+          setSaved(next);
+          try {
+            sessionStorage.setItem(STORAGE, JSON.stringify(next));
+          } catch {
+            /* sin almacenamiento: el aviso vive hasta recargar */
+          }
+        }
+      }
+      return res;
+    };
+    window.fetch = wrapped;
+    return () => {
+      if (window.fetch === wrapped) window.fetch = original;
+    };
+  }, [workspaceId, workspaceName, labels]);
+
+  return (
+    <>
+      <span data-workspace-guard hidden />
+      {saved && <Notice saved={saved} stay={saved.id === workspaceId} onDone={() => setSaved(null)} />}
+    </>
+  );
+}
+
+/**
+ * El mismo aviso donde no hay shell de la app: la recarga de una escritura
+ * rechazada puede caer en un 404 (la página era del otro workspace). Vive en el
+ * layout raíz y solo aparece si quedó un aviso guardado en esta pestaña.
+ */
+export function WorkspaceNoticeOutsideApp() {
+  const [saved, setSaved] = useState<Saved | null>(null);
+  useEffect(() => {
+    if (!document.querySelector('[data-workspace-guard]')) setSaved(readSaved());
+  }, []);
+  if (!saved) return null;
+  return <Notice saved={saved} stay={false} fixed onDone={() => setSaved(null)} />;
 }

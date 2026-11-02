@@ -744,7 +744,7 @@
     "limited": "Muitos pedidos na última hora. Espere um pouco e peça de novo.",
     "bodyAdmin": "O owner de {workspace} pode ativar o {app} para você em Configurações › Membros.",
     "guardTitle": "Esta mudança não foi salva",
-    "guardSwitched": "Esta aba está em {workspace} e seu workspace ativo mudou em outra aba. Nada foi salvo. O que você digitou continua aqui.",
+    "guardSwitched": "Esta aba está em {workspace} e seu workspace ativo mudou em outra aba. Nada foi salvo.",
     "guardGone": "Você não tem mais acesso a {workspace}. Nada foi salvo. Copie o que digitou antes de sair desta página.",
     "guardSwitchBack": "Voltar para {workspace}",
     "guardStay": "Ir para meu workspace ativo",

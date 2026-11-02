@@ -73,7 +73,10 @@ async function join(browser: Browser, by: Person, name: string, role: 'admin' | 
   return p;
 }
 
-const closeAll = (...people: Person[]) => Promise.all(people.map((p) => p.ctx.close()));
+/** Cerrar un contexto con el service worker del CRM a veces se traba en Chromium: no es parte de lo que se prueba. */
+const closeAll = async (...people: Person[]) => {
+  for (const p of people) await Promise.race([p.ctx.close().catch(() => undefined), new Promise((done) => setTimeout(done, 5000))]);
+};
 
 test('la campana abre el pedido aunque ya esté en Miembros; Esc y recargar no lo reabren', async ({ browser }) => {
   const olga = await owner(browser);
@@ -383,14 +386,16 @@ test('una server action de la pestaña que quedó atrás avisa: Docs y CRM, al c
     // CRM: quitar el contacto de un lead.
     const contact = (await (await olga.ctx.request.post('/api/crm/contacts', { data: { firstName: 'Ana', lastName: uid() } })).json()) as { id: string; firstName?: string; lastName?: string };
     const lead = (await (await olga.ctx.request.post('/api/crm/leads', { data: { name: `Lead ${uid()}`, contactId: contact.id } })).json()) as { id: string };
-    await ada.page.goto(`/en/app/crm/leads/${lead.id}`, { waitUntil: 'networkidle' });
+    await ada.page.goto(`/en/app/crm/leads/${lead.id}?tab=related`, { waitUntil: 'networkidle' });
     expect((await ada.ctx.request.post('/api/teams/switch', { data: { teamId: null } })).ok()).toBe(true);
-    const removeAna = ada.page.getByRole('button', { name: /^Remove Ana/ }).first();
-    await ada.page.locator('li', { has: removeAna }).first().hover();
-    await removeAna.click({ timeout: 20_000 });
+    await ada.page.getByRole('button', { name: /^Remove Ana/ }).first().click({ timeout: 20_000 });
     await expect(guard).toContainText('changed in another tab', { timeout: 20_000 });
     const row = (await sql('SELECT contact_id FROM crm_leads WHERE id = ?', [lead.id]))[0];
     expect(row.contact_id).toBe(contact.id);
+    // Esa página no existe en el otro workspace: el aviso llega igual y volver la recupera.
+    await guard.getByRole('button', { name: /Switch back to/ }).click();
+    await ada.page.waitForURL(/\/app\/crm\/leads\//);
+    await expect(ada.page.getByRole('heading', { name: /Lead / }).first()).toBeVisible({ timeout: 20_000 });
 
     // Perder el acceso: Docs y CRM dicen eso y ofrecen salir.
     const melGuard = mel.page.getByTestId('workspace-guard');

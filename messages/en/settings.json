@@ -744,7 +744,7 @@
     "limited": "Too many requests in the last hour. Wait a while and ask again.",
     "bodyAdmin": "The owner of {workspace} can turn {app} on for you in Settings › Members.",
     "guardTitle": "This change wasn't saved",
-    "guardSwitched": "This tab is on {workspace}, and your active workspace changed in another tab. Nothing was saved. What you typed is still here.",
+    "guardSwitched": "This tab is on {workspace}, and your active workspace changed in another tab. Nothing was saved.",
     "guardGone": "You no longer have access to {workspace}. Nothing was saved. Copy anything you typed before you leave this page.",
     "guardSwitchBack": "Switch back to {workspace}",
     "guardStay": "Go to my active workspace",

@@ -744,7 +744,7 @@
     "limited": "Demasiados pedidos en la última hora. Esperá un rato y volvé a pedirlo.",
     "bodyAdmin": "El owner de {workspace} te puede habilitar {app} en Ajustes › Miembros.",
     "guardTitle": "Este cambio no se guardó",
-    "guardSwitched": "Esta pestaña está en {workspace} y tu workspace activo cambió en otra pestaña. No se guardó nada. Lo que escribiste sigue acá.",
+    "guardSwitched": "Esta pestaña está en {workspace} y tu workspace activo cambió en otra pestaña. No se guardó nada.",
     "guardGone": "Ya no tenés acceso a {workspace}. No se guardó nada. Copiá lo que hayas escrito antes de salir de esta página.",
     "guardSwitchBack": "Volver a {workspace}",
     "guardStay": "Ir a mi workspace activo",
