@@ -12,6 +12,8 @@ export default defineConfig({
     include: ['tests/unit/**/*.test.ts'],
     environment: 'node',
     fileParallelism: false,
+    // Las que corren todas las migraciones sobre una base vacía tardan más de 5 s en un runner cargado.
+    testTimeout: 20_000,
     env: { TURSO_DATABASE_URL: `file:${dbFile}`, NEXTAUTH_SECRET: 'test-secret' },
   },
 });

@@ -178,7 +178,7 @@ test('ajustes: diccionario, plantillas y estilo; 390px y oscuro', async ({ page,
   await page.getByRole('combobox', { name: 'Type' }).selectOption('replace');
   await page.getByRole('textbox', { name: /What you say/ }).fill(phrase);
   await page.getByRole('textbox', { name: /What gets written/ }).fill('zerosoft');
-  await page.getByRole('button', { name: 'Add' }).click();
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(page.getByTestId('voice-dictionary-row').filter({ hasText: phrase })).toBeVisible();
   await page.getByTestId('voice-dictionary-row').filter({ hasText: phrase }).getByRole('button', { name: 'Delete' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();

@@ -644,93 +644,97 @@ export default function AppSidebar({
         </nav>
 
         <div className="side-foot">
-          <Link
-            href={settingsItem.href}
-            className={`side-link${settingsItem.active ? ' active' : ''}`}
-            aria-current={settingsItem.active ? 'page' : undefined}
-            title={collapsed ? settingsItem.label : undefined}
-            data-testid="side-settings"
-          >
-            <Icon name={settingsItem.icon} size={15} />
-            <span className="side-label">{settingsItem.label}</span>
-          </Link>
-          {importItem && (
-            <Link
-              href={importItem.href}
-              className={`side-link${importItem.active ? ' active' : ''}`}
-              aria-current={importItem.active ? 'page' : undefined}
-              title={collapsed ? importItem.label : undefined}
-              data-testid="side-import"
-            >
-              <Icon name={importItem.icon} size={15} />
-              <span className="side-label">{importItem.label}</span>
-            </Link>
-          )}
-          <Link href="/docs" className="side-link" title={collapsed ? labels.docsSite : undefined} data-testid="side-help">
-            <Icon name="help" size={15} />
-            <span className="side-label">{labels.docsSite}</span>
-          </Link>
-          <Link href="/" className="side-link" title={collapsed ? labels.backToSite : undefined}>
-            <Icon name="back" size={15} />
-            <span className="side-label">{labels.backToSite}</span>
-          </Link>
-          <ThemeSwitcher className="side-theme" />
+          {/* Una sola fila, como Linear o Notion: lo demás vive en el menú de la cuenta. */}
           <div className="side-user">
-            {user.image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.image} alt="" referrerPolicy="no-referrer" />
-            ) : (
-              <span className="side-avatar" aria-hidden="true">
-                {(user.name ?? user.email).slice(0, 1).toUpperCase()}
-              </span>
-            )}
-            {/* El pie es el switcher de workspace (no suma alto: las apps siguen entrando en 900px). */}
-            {workspaces.length > 0 ? (
-              <WorkspaceSwitcher entries={workspaces} collapsed={collapsed} person={user.name ?? user.email} email={user.email} />
-            ) : (
-              <div className="side-user-meta side-label" title={teamName ? `${user.email} · ${labels.team}: ${teamName}` : undefined}>
-                <p className="side-user-name">{user.name ?? user.email}</p>
-                <p className="side-user-mail">{user.email}</p>
-              </div>
-            )}
-            {demo ? (
-              <Link href="/" className="side-signout side-label">
-                {labels.signOut}
+            <WorkspaceSwitcher
+              entries={workspaces}
+              collapsed={collapsed}
+              person={user.name ?? user.email}
+              email={user.email}
+              avatar={
+                user.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={user.image} alt="" referrerPolicy="no-referrer" />
+                ) : (
+                  <span className="side-avatar" aria-hidden="true">
+                    {(user.name ?? user.email).slice(0, 1).toUpperCase()}
+                  </span>
+                )
+              }
+            >
+              <Link
+                href={settingsItem.href}
+                role="menuitem"
+                className="side-menu-item"
+                aria-current={settingsItem.active ? 'page' : undefined}
+                data-testid="side-settings"
+              >
+                <Icon name={settingsItem.icon} size={14} />
+                {settingsItem.label}
               </Link>
-            ) : (
-              <>
-                <button type="button" className="side-signout side-label" onClick={() => void requestSignOut()}>
+              {importItem && (
+                <Link
+                  href={importItem.href}
+                  role="menuitem"
+                  className="side-menu-item"
+                  aria-current={importItem.active ? 'page' : undefined}
+                  data-testid="side-import"
+                >
+                  <Icon name={importItem.icon} size={14} />
+                  {importItem.label}
+                </Link>
+              )}
+              <Link href="/docs" role="menuitem" className="side-menu-item" data-testid="side-help">
+                <Icon name="help" size={14} />
+                {labels.docsSite}
+              </Link>
+              <Link href="/" role="menuitem" className="side-menu-item">
+                <Icon name="back" size={14} />
+                {labels.backToSite}
+              </Link>
+              <ThemeSwitcher className="side-theme" />
+              <div className="ws-switcher-sep" role="separator" />
+              {demo ? (
+                <Link href="/" role="menuitem" className="side-menu-item" data-testid="side-signout">
+                  {labels.signOut}
+                </Link>
+              ) : (
+                <button type="button" role="menuitem" className="side-menu-item ws-switcher-item" onClick={() => void requestSignOut()} data-testid="side-signout">
                   {labels.signOut}
                 </button>
-                <RecSignOutDialog open={recPending > 0} count={recPending} owner={recOwner} onClose={() => setRecPending(0)} onSignOut={doSignOut} />
-                <NotesSignOutDialog
-                  open={notesWarn !== null}
-                  count={notesWarn?.count ?? 0}
-                  offline={notesWarn?.offline ?? false}
-                  text={notesWarn?.text ?? ''}
-                  onClose={() => setNotesWarn(null)}
-                  onSignOut={() => {
-                    setNotesWarn(null);
-                    doSignOut();
-                  }}
-                />
-              </>
-            )}
+              )}
+            </WorkspaceSwitcher>
+            <button
+              type="button"
+              className="side-handle"
+              onClick={toggleCollapsed}
+              aria-label={collapsed ? labels.expand : labels.collapse}
+              aria-pressed={collapsed}
+              title={collapsed ? labels.expand : labels.collapse}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                <rect x="1.5" y="2.5" width="13" height="11" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M6 3v10" stroke="currentColor" strokeWidth="1.5" />
+              </svg>
+            </button>
           </div>
-          <button
-            type="button"
-            className="side-handle"
-            onClick={toggleCollapsed}
-            aria-label={collapsed ? labels.expand : labels.collapse}
-            aria-pressed={collapsed}
-            title={collapsed ? labels.expand : labels.collapse}
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-              <rect x="1.5" y="2.5" width="13" height="11" fill="none" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M6 3v10" stroke="currentColor" strokeWidth="1.5" />
-            </svg>
-            <span className="side-label">{collapsed ? labels.expand : labels.collapse}</span>
-          </button>
+          {/* Fuera del menú: siguen abiertos aunque el menú ya se haya cerrado. */}
+          {!demo && (
+            <>
+              <RecSignOutDialog open={recPending > 0} count={recPending} owner={recOwner} onClose={() => setRecPending(0)} onSignOut={doSignOut} />
+              <NotesSignOutDialog
+                open={notesWarn !== null}
+                count={notesWarn?.count ?? 0}
+                offline={notesWarn?.offline ?? false}
+                text={notesWarn?.text ?? ''}
+                onClose={() => setNotesWarn(null)}
+                onSignOut={() => {
+                  setNotesWarn(null);
+                  doSignOut();
+                }}
+              />
+            </>
+          )}
         </div>
       </aside>
     </>

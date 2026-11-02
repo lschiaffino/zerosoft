@@ -53,10 +53,12 @@ test('app: el selector del sidebar cambia y persiste el modo', async ({ page }) 
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/es/app/crm', { waitUntil: 'networkidle' });
   const sw = page.locator('.side [data-testid="theme-switcher"]');
+  await page.getByTestId('workspace-switcher').click();
   await sw.getByRole('radio', { name: 'Oscuro' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 
   await page.goto('/es/app/docs', { waitUntil: 'networkidle' });
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.getByTestId('workspace-switcher').click();
   await expect(sw.getByRole('radio', { name: 'Oscuro' })).toHaveAttribute('aria-checked', 'true');
 });

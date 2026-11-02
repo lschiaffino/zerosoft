@@ -3521,7 +3521,8 @@
     "scope_notes_read": "Ler as notas que quem criou a chave pode ver, e suas tarefas.",
     "scope_notes_write": "Criar e editar as notas de quem criou a chave.",
     "formsApiTitle": "Forms",
-    "formsApiDesc": "Formulários e suas respostas. A key age como a pessoa que a criou e só vê os formulários que ela pode abrir. Scope forms:read."
+    "formsApiDesc": "Formulários e suas respostas. A key age como a pessoa que a criou e só vê os formulários que ela pode abrir. Scope forms:read.",
+    "mcpCta": "Conectar o Claude e a CLI"
   },
   "parityOverview": {
     "title": "Paridade de funções, app por app.",
@@ -3666,5 +3667,11 @@
     "otherTitle": "Outras comparações",
     "tryCta": "Testar {name}",
     "productCta": "A página do {name}"
+  },
+  "docsMcp": {
+    "meta": {
+      "title": "Conectar o Claude e a CLI",
+      "description": "Conecte o Claude Code ou a CLI da zerosoft à sua conta com seu login de sempre, e trabalhe nos 24 apps como você."
+    }
   }
 }

@@ -86,7 +86,7 @@ test('permisos: una bandeja restringida no se ve, no se abre y no sale en Cmd+K'
   await page.getByRole('switch', { name: 'Restrict this inbox' }).check();
   await page.getByRole('button', { name: 'Save' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Save changes' }).click();
-  await expect(page.getByText('Saved', { exact: false })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
 
   for (const url of [`/api/chat/widgets/${w.id}`, `/api/chat/conversations/${conv.conversation.id}`, `/api/chat/conversations/${conv.conversation.id}/messages`, `/api/chat/widgets/${w.id}/rules`]) {
     expect((await ctx.request.get(url)).status(), url).toBe(404);
