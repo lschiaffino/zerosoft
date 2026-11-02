@@ -105,7 +105,7 @@ export default function TemplatesBoard({
                   </td>
                   <td className="gr-hide-sm gr-mono" data-label={t('templates.colGroupName')}>{tpl.groupName || <span className="ui-help">{t('templates.sameName')}</span>}</td>
                   <td className="num" data-label={t('templates.colMembers')}>{tpl.members.length}</td>
-                  <td className="gr-hide-sm" data-label={t('details.labels')} hidden={tpl.labelIds.length === 0}>
+                  <td className={`gr-hide-sm${tpl.labelIds.length === 0 ? ' gr-empty-cell' : ''}`} data-label={t('details.labels')}>
                     <span className="gr-label-row">
                       {tpl.labelIds.map((id) => {
                         const l = labelById.get(id);

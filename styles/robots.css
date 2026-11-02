@@ -92,6 +92,7 @@
 
 /* ---------- Editor: cabecera ---------- */
 .robots-title-input {
+  text-overflow: ellipsis;
   max-width: 100%;
   min-width: 8ch;
   field-sizing: content;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alternatesFor, articleLd, faqLd, pageMetadata, siteVerification, softwareLd } from '@/lib/seo';
+import { alternatesFor, articleLd, clampDescription, faqLd, pageMetadata, siteVerification, softwareLd } from '@/lib/seo';
 import { compareSlugs, competitorSlug, findComparison, getComparisons, gapRows, rivalMatches } from '@/lib/compare';
 import { PARITY } from '@/content/feature-parity';
 import { computeParity } from '@/lib/feature-parity';
@@ -7,6 +7,40 @@ import { PRODUCT_KEYS } from '@/lib/products';
 import { STATIC_PAGES } from '@/lib/seo-routes';
 import { localizeLinks, tagSlug } from '@/lib/blog';
 import { clampText, titleSize } from '@/lib/og-text';
+
+describe('clampDescription', () => {
+  it('deja igual lo que entra', () => {
+    expect(clampDescription('Corta.')).toBe('Corta.');
+  });
+  it('corta en la última frase completa si es larga', () => {
+    const first = 'Una primera frase que tiene bastante largo para quedarse sola en la descripción.';
+    const out = clampDescription(`${first} ${'Y otra frase que ya no entra de ninguna manera en el resultado final '.repeat(3)}.`);
+    expect(out).toBe(first);
+  });
+  it('sin frase corta, corta en una palabra con puntos suspensivos', () => {
+    const out = clampDescription('palabra '.repeat(40));
+    expect(out.length).toBeLessThanOrEqual(160);
+    expect(out.endsWith('palabra…')).toBe(true);
+  });
+  it('pageMetadata nunca deja pasar una descripción larga', () => {
+    const meta = pageMetadata({ locale: 'en', path: '/x', title: 'X', description: 'word '.repeat(80) });
+    expect(String(meta.description).length).toBeLessThanOrEqual(160);
+  });
+});
+
+describe('apps en construcción', () => {
+  it('sin apps en BUILDING_PRODUCTS, ningún texto del sitio dice que una está en construcción', async () => {
+    const { BUILDING_PRODUCTS } = await import('@/lib/products');
+    const { readFileSync } = await import('node:fs');
+    expect(BUILDING_PRODUCTS).toHaveLength(0);
+    for (const locale of ['en', 'es', 'pt']) {
+      // Las claves "building" son los textos que se usarían si una app volviera a estar en construcción.
+      const common = JSON.parse(readFileSync(`messages/${locale}/common.json`, 'utf8'));
+      const text = JSON.stringify(common, (k, v) => (k === 'building' ? undefined : v));
+      expect(text, locale).not.toMatch(/In the works|En construcción|Em construção/);
+    }
+  });
+});
 
 describe('pageMetadata', () => {
   it('pone canonical, hreflang de los tres idiomas y x-default al inglés', () => {

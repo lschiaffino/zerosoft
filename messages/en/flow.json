@@ -49,6 +49,7 @@
     "noMatchBody": "Try another search or clear the filter."
   },
   "templates": {
+    "seeAll": "See all {count}",
     "title": "Templates",
     "subtitle": "Ready-made flows. Use one and adjust the details.",
     "use": "Use template",

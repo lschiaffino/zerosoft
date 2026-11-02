@@ -2,7 +2,7 @@
   "products": {
     "meta": {
       "title": "24 apps open source para empresas: CRM, chat, docs y más",
-      "description": "Veinticuatro apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics, Social, Hiring, People, Books, Sign y Forms. Open source para tu servidor, o en zerosoft Cloud con plan gratis y pago por uso."
+      "description": "Veinticuatro apps open source, del CRM y el chat de soporte a los docs, las facturas y los formularios. En tu servidor o en zerosoft Cloud con plan gratis."
     },
     "hero": {
       "title1": "Veinticuatro apps.",
@@ -607,7 +607,7 @@
     "groups": {
       "meta": {
         "title": "Groups: bandeja de WhatsApp para equipos, open source",
-        "description": "Bandeja compartida para chats y grupos de WhatsApp: asignación, notas, tickets por emoji, SLA, envíos masivos y gestión de grupos en lote, vinculada a tu CRM. Alternativa open source a Periskope."
+        "description": "Bandeja compartida para chats y grupos de WhatsApp: asignación, notas, tickets, SLA y envíos, vinculada a tu CRM. Alternativa open source a Periskope."
       },
       "hero": {
         "sub": "Una bandeja para cada chat de WhatsApp y cada grupo de cliente. Asigná, respondé, convertí mensajes en tickets y manejá cientos de grupos a la vez, con cada grupo en su ficha del CRM."
@@ -1106,7 +1106,7 @@
     "voice": {
       "meta": {
         "title": "Voice: dictado por voz y notas de reunión open source",
-        "description": "Dictá en cualquier campo de zerosoft y tomá notas de reunión con transcripción en vivo, resumen con IA, decisiones y tareas. La alternativa open source a Wispr Flow y Granola."
+        "description": "Dictá en cualquier campo de zerosoft y tomá notas de reunión con transcripción, resumen con IA y tareas. Alternativa open source a Wispr Flow y Granola."
       },
       "hero": {
         "sub": "Mantené una tecla, hablá y el texto limpio queda donde estabas escribiendo. Grabá una llamada desde el navegador, anotá un par de líneas y la IA arma la nota con la transcripción, en la misma suite que tu CRM, Docs y Track."
@@ -1191,7 +1191,7 @@
     "rec": {
       "meta": {
         "title": "Rec: grabación de pantalla y cámara open source",
-        "description": "Grabá tu pantalla, tu cámara o las dos desde el navegador, compartí con un link, recibí comentarios con el segundo exacto y mirá quién lo vio. Una alternativa open source a Loom."
+        "description": "Grabá pantalla o cámara desde el navegador, compartí con un link y recibí comentarios con el segundo exacto. Alternativa open source a Loom."
       },
       "hero": {
         "sub": "Grabá tu pantalla, una ventana o una pestaña con tu cámara en una burbuja, desde el navegador. Cuando cortás, el link queda copiado: los comentarios caen en el segundo exacto y ves quién lo vio y cuánto."
@@ -1276,7 +1276,7 @@
     "talk": {
       "meta": {
         "title": "Talk: mensajería de equipo open source, alternativa a Slack",
-        "description": "Canales públicos y privados, mensajes directos, hilos, menciones, búsqueda y avisos para tu equipo, en la misma suite que tu CRM, Track y Docs. Alternativa open source a Slack."
+        "description": "Canales, mensajes directos, hilos, menciones y búsqueda para tu equipo, al lado de tu CRM, Track y Docs. Alternativa open source a Slack."
       },
       "hero": {
         "sub": "La mensajería de tu equipo: canales públicos y privados, mensajes directos e hilos, con las mismas personas del workspace y links a issues, deals y páginas que se ven con su estado."
@@ -1361,7 +1361,7 @@
     "shop": {
       "meta": {
         "title": "Shop: tienda online open source con Stripe y Mercado Pago",
-        "description": "Vendé online con productos, variantes, stock por ubicación, códigos de descuento, tarifas de envío y checkout con Stripe o Mercado Pago. Una alternativa open source a Shopify y Tiendanube."
+        "description": "Vendé online con variantes, stock por ubicación, descuentos, envíos y checkout con Stripe o Mercado Pago. Alternativa open source a Shopify y Tiendanube."
       },
       "hero": {
         "sub": "Cargá tu catálogo o importalo de Shopify o Tiendanube, elegí un tema y publicá. Tus clientes compran como invitados con tarjeta, Mercado Pago o transferencia, y cada pedido llega a tu CRM."
@@ -1442,7 +1442,7 @@
     "design": {
       "meta": {
         "title": "Design: diseño gráfico open source",
-        "description": "Hacé posts, presentaciones, documentos y logos desde plantillas, con tu kit de marca, comentarios y descarga en PNG, JPG y PDF. Una alternativa open source a Canva."
+        "description": "Hacé posts, presentaciones y logos desde plantillas, con tu kit de marca y descarga en PNG, JPG y PDF. Alternativa open source a Canva."
       },
       "hero": {
         "sub": "Elegí un tamaño o una plantilla, cambiá el texto, sumá tus imágenes y los colores de tu marca, y descargalo en PNG, JPG o PDF. Tu equipo comenta directo sobre el lienzo."
@@ -1613,7 +1613,7 @@
     "social": {
       "meta": {
         "title": "Social: alternativa open source a Hootsuite",
-        "description": "Programá publicaciones en Facebook, Instagram, LinkedIn, X, TikTok, YouTube, Threads y Bluesky, contestá comentarios y mensajes desde una sola bandeja, aprobá lo que publica tu equipo y medí qué funciona. Alternativa open source a Hootsuite."
+        "description": "Programá posts en ocho redes, contestá comentarios desde una bandeja, aprobá lo que publica tu equipo y medí qué funciona. Alternativa open source a Hootsuite."
       },
       "hero": {
         "sub": "Planeá, publicá y contestá en redes sociales con tu equipo: un compositor para todas las redes, un calendario compartido, aprobaciones, una bandeja unificada y métricas. Cada red está hecha sobre su API oficial y la estamos verificando con cuentas reales."
@@ -1698,7 +1698,7 @@
     "people": {
       "meta": {
         "title": "People: RR. HH. open source, licencias y onboarding",
-        "description": "Directorio, organigrama, licencias con devengamiento y aprobaciones, checklists de onboarding, documentos, evaluaciones e historial de sueldos. Una alternativa open source a BambooHR."
+        "description": "Directorio, organigrama, licencias con aprobaciones, checklists de onboarding, documentos y evaluaciones. Alternativa open source a BambooHR."
       },
       "hero": {
         "sub": "Cada persona de tu workspace tiene su ficha. Llevá las licencias con saldos reales, armá el onboarding desde plantillas, guardá documentos privados y corré ciclos de evaluación, al lado de las apps que tu equipo ya usa."
@@ -1779,7 +1779,7 @@
     "hiring": {
       "meta": {
         "title": "Hiring: selección de personal open source con página de empleos",
-        "description": "Puestos desde plantillas, página de empleos con datos para Google for Jobs, pipeline de candidatos, scorecards, entrevistas agendadas con Cal y ofertas que el candidato acepta en línea. Una alternativa open source a Workable."
+        "description": "Puestos, página de empleos, pipeline de candidatos, scorecards, entrevistas con Cal y ofertas que se aceptan en línea. Alternativa open source a Workable."
       },
       "hero": {
         "sub": "Publicá puestos en tu página de empleos, mové candidatos en un kanban, juntá los scorecards de tus entrevistadores y mandá ofertas, con los datos de cada candidato visibles solo para el equipo de su puesto."
@@ -1865,7 +1865,7 @@
     "sign": {
       "meta": {
         "title": "Sign: firma electrónica open source con registro de auditoría",
-        "description": "Mandá PDFs a firmar con orden de firma, códigos por email, plantillas y envío masivo. Cada sobre termina con un certificado de finalización y hashes SHA-256. Una alternativa open source a DocuSign."
+        "description": "Mandá PDFs a firmar con orden de firma, códigos por email y plantillas. Cada sobre termina con un certificado. Alternativa open source a DocuSign."
       },
       "hero": {
         "sub": "Subí un PDF o elegí una página de Docs, poné los campos de cada persona, definí el orden y enviá. Los destinatarios firman desde el celular sin cuenta, y todos reciben la copia firmada con su registro de auditoría."
@@ -1951,7 +1951,7 @@
     "books": {
       "meta": {
         "title": "Books: facturación y contabilidad open source",
-        "description": "Facturas con impuesto por línea, cobro online con Stripe o Mercado Pago, compras, gastos, conciliación bancaria y contabilidad por partida doble para pymes de Latinoamérica. Una alternativa open source a Xero, QuickBooks y Alegra."
+        "description": "Facturas, cobro online, compras, gastos, conciliación bancaria y partida doble para pymes de Latinoamérica. Alternativa open source a Xero y Alegra."
       },
       "hero": {
         "sub": "Facturá en tu moneda con IVA por línea, cobrá online, cargá tus compras y comprobantes, importá el extracto del banco y conciliá. Cada comprobante genera su propio asiento de partida doble."
@@ -2032,7 +2032,7 @@
     "forms": {
       "meta": {
         "title": "Forms: alternativa open source a Typeform",
-        "description": "Formularios y encuestas que preguntan de a una, con lógica, quizzes, NPS, archivos adjuntos, temas, embeds y una tabla de respuestas con resumen por pregunta. Una alternativa open source a Typeform, Google Forms y Tally."
+        "description": "Formularios y encuestas que preguntan de a una, con lógica, quizzes, NPS y embeds. Alternativa open source a Typeform y Google Forms."
       },
       "hero": {
         "sub": "Armá un formulario desde una plantilla, sumale lógica y tus colores, compartí un link o incrustalo, y leé las respuestas en una tabla, un resumen por pregunta y un CSV. Cada respuesta puede llegar a tu CRM y a tus automatizaciones."
@@ -3598,7 +3598,7 @@
     "index": {
       "meta": {
         "title": "Alternativas open source, comparadas función por función",
-        "description": "Cada app de zerosoft al lado del producto que reemplaza: HubSpot, Notion, Linear, Calendly, Intercom, Slack y más. Paridad contada con nuestras tablas, con lo que todavía falta."
+        "description": "Cada app de zerosoft al lado del producto que reemplaza: HubSpot, Notion, Linear, Slack y más. Paridad contada con nuestras tablas, con lo que falta."
       },
       "title": "Comparar.",
       "titleDim": "Cada app al lado del producto que reemplaza.",

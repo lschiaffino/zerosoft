@@ -152,7 +152,7 @@
 
 /* ---------- Cuentas ---------- */
 
-.sc-networks { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.sc-networks { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; align-items: start; }
 .sc-network { border: 1px solid var(--line); border-radius: var(--radius-1); padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .sc-network code { font-size: 0.75rem; overflow-wrap: anywhere; }
 .sc-slots { display: flex; flex-direction: column; gap: 6px; }
