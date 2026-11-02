@@ -14,7 +14,7 @@ import {
 } from '@/components/app/sidebar-nav';
 import { pageExists } from './page-exists';
 
-const SWITCHER_ORDER: AppProduct[] = ['link', 'crm', 'shop', 'books', 'forms', 'docs', 'calendar', 'track', 'chat', 'groups', 'social', 'flow', 'notes', 'board', 'design', 'talk', 'people', 'voice', 'rec', 'hiring', 'sign', 'agents', 'robots', 'analytics'];
+const SWITCHER_ORDER: AppProduct[] = ['track', 'link', 'crm', 'shop', 'books', 'forms', 'docs', 'calendar', 'chat', 'groups', 'social', 'flow', 'notes', 'board', 'design', 'talk', 'people', 'voice', 'rec', 'hiring', 'sign', 'agents', 'robots', 'analytics'];
 const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'social', 'hiring', 'people', 'books', 'sign', 'forms'];
 
 
