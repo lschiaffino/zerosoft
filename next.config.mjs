@@ -2,8 +2,12 @@ import createNextIntlPlugin from 'next-intl/plugin';
 
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
+// El host de nuestro Blob no es secreto (está en cada URL pública) y el Markdown lo necesita en el navegador.
+const blobStore = /^vercel_blob_rw_([A-Za-z0-9]+)_/.exec(process.env.BLOB_READ_WRITE_TOKEN ?? '');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  env: { NEXT_PUBLIC_OWN_BLOB_HOST: blobStore ? `${blobStore[1].toLowerCase()}.public.blob.vercel-storage.com` : '' },
   // El <title> va siempre en el <head>: con metadata en streaming cae en el <body> y compite
   // con la hidratación (error #418 intermitente en rutas con loading.tsx).
   htmlLimitedBots: /.*/,
