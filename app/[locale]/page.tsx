@@ -32,18 +32,18 @@ import { faqLd, graphLd, jsonLdString, organizationLd, websiteLd } from '@/lib/s
 import '@/styles/pages.css';
 
 const SHOWCASE = [
+  { key: 'track', Mockup: TrackMockup },
   { key: 'crm', Mockup: CrmMockup },
   { key: 'chat', Mockup: ChatMockup },
   { key: 'agents', Mockup: AgentsMockup },
   { key: 'flow', Mockup: FlowMockup },
-  { key: 'track', Mockup: TrackMockup },
   { key: 'link', Mockup: LinkMockup },
   { key: 'cal', Mockup: CalMockup },
   { key: 'docs', Mockup: DocsMockup },
 ] as const;
 
 /** Orden de la tabla de costos: de la más cara a la más barata. */
-const STACK_ORDER = ['crm', 'chat', 'cal', 'docs', 'track', 'link'] as const;
+const STACK_ORDER = ['track', 'crm', 'chat', 'cal', 'docs', 'link'] as const;
 
 const FAQ = ['1', '2', '3', '4', '5', '6', '7'] as const;
 
@@ -94,7 +94,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
           </h1>
           <p className="lp-sub">{h('hero.sub')}</p>
           <div className="lp-ctas">
-            <Link className="btn btn-primary btn-lg" href="/app">
+            <Link className="btn btn-primary btn-lg" href="/app/start">
               {h('hero.ctaStart')}
             </Link>
             <a className="btn btn-secondary btn-lg" href={GITHUB_URL} target="_blank" rel="noreferrer">
@@ -440,7 +440,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
           </h2>
           <p className="lp-end-sub">{h('end.sub')}</p>
           <div className="lp-ctas">
-            <Link className="btn btn-invert-solid btn-lg" href="/app">
+            <Link className="btn btn-invert-solid btn-lg" href="/app/start">
               {h('hero.ctaStart')}
             </Link>
             <a className="btn btn-invert btn-lg" href={GITHUB_URL} target="_blank" rel="noreferrer">

@@ -117,7 +117,7 @@ test('sitio: productos por categoría y la nota de equipos y uso personal', asyn
   const trigger = page.locator('.site-header .hd-trigger');
   await trigger.click();
   const mega = page.locator('#hd-mega');
-  await expect(mega.locator('.hd-group-title')).toHaveText(['Vender', 'Atender', 'Automatizar', 'Construir', 'Operar', 'Trabajo diario']);
+  await expect(mega.locator('.hd-group-title')).toHaveText(['Construir', 'Vender', 'Atender', 'Automatizar', 'Operar', 'Trabajo diario']);
   await expect(mega.locator('a.hd-prod')).toHaveCount(24);
   await expect(mega.locator('.hd-mega-note')).toContainText('Para equipos y para uso personal');
   await page.keyboard.press('Escape');
@@ -125,8 +125,11 @@ test('sitio: productos por categoría y la nota de equipos y uso personal', asyn
   await expect(suite.locator('.suite-group')).toHaveCount(6);
   await expect(suite.locator('.suite-row')).toHaveCount(24);
   await expect(suite.locator('.suite-audience')).toContainText('Para equipos y para uso personal');
-  // Desde el sitio, Dashboard lleva al inicio (no a Link); desde una landing, a esa app.
-  await expect(page.locator('.hd-right a.btn-chrome')).toHaveAttribute('href', '/es/app');
+  // Desde el sitio, Dashboard entra por Track; desde una landing, a esa app.
+  await expect(page.locator('.hd-right a.btn-chrome')).toHaveAttribute('href', '/es/app/start');
+  await page.goto('/es/app/start');
+  await expect(page).toHaveURL(/\/es\/app\/track/);
+  await page.goto('/es', { waitUntil: 'networkidle' });
   await page.goto('/es/products/notes', { waitUntil: 'networkidle' });
   await expect(page.locator('.hd-right a.btn-chrome')).toHaveAttribute('href', '/es/app/notes');
 });

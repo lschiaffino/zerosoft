@@ -79,7 +79,7 @@ export function onboardingDestination(profile: OnboardingProfile, importNow: boo
   const tool = profile.sourceTool ? SOURCE_TOOLS[profile.sourceTool] : undefined;
   if (importNow && tool?.importHref) return tool.importHref;
   const app = profile.entryApp ?? tool?.app;
-  return app ? PRODUCT_CONFIG[app].launch : '/app';
+  return app ? PRODUCT_CONFIG[app].launch : '/app/start';
 }
 
 function cleanLocale(raw: unknown): 'en' | 'es' | 'pt' | null {
