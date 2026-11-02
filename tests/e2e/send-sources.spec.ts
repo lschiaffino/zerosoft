@@ -332,16 +332,17 @@ test('Volver, mensaje, marca apagada y números por link', async ({ browser, req
 
 test('Roles: un member ve lo suyo y lo compartido, y no exporta', async ({ browser, request, baseURL }) => {
   const bytes = await plainPdf(1);
-  const made = await (await request.post('/api/send/documents', { data: { title: 'Admin doc', file: { name: 'a.pdf', mime: 'application/pdf', size: bytes.length } } })).json();
+  const adminTitle = `Admin doc ${uid()}`;
+  const made = await (await request.post('/api/send/documents', { data: { title: adminTitle, file: { name: 'a.pdf', mime: 'application/pdf', size: bytes.length } } })).json();
   await request.put(`/api/send/versions/${made.version.id}/parts/0`, { data: bytes });
   await request.post(`/api/send/versions/${made.version.id}/complete`, { data: {} });
   await request.post(`/api/send/versions/${made.version.id}/process`);
   const id = made.document.id;
   const link = await linkFor(request, id, { name: 'Owner link' });
 
-  const m = await member(browser, baseURL!, 'send-member', 'send');
+  const m = await member(browser, baseURL!, 'send-member', '["send"]');
   const privateList = await (await m.request.get('/api/send/documents')).json();
-  expect(JSON.stringify(privateList)).not.toContain('Admin doc');
+  expect(JSON.stringify(privateList)).not.toContain(adminTitle);
   expect((await m.request.get(`/api/send/documents/${id}`)).status()).toBe(404);
   expect((await m.request.get(`/api/send/documents/${id}/analytics`)).status()).toBe(404);
   expect((await m.request.get(`/api/send/versions/${made.version.id}/pages/1`)).status()).toBe(404);
@@ -360,7 +361,7 @@ test('Roles: un member ve lo suyo y lo compartido, y no exporta', async ({ brows
   await m.close();
 
   // Sin la app: nada.
-  const n = await member(browser, baseURL!, 'no-send', 'crm');
+  const n = await member(browser, baseURL!, 'no-send', '["crm"]');
   expect((await n.request.get('/api/send/documents')).status()).toBe(401);
   await n.close();
 });
