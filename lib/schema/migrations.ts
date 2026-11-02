@@ -8012,6 +8012,95 @@ export const MIGRATIONS: Migration[] = [
       await client.execute('CREATE INDEX IF NOT EXISTS idx_robot_audit_robot ON robot_audit (robot_id, created_at)');
     },
   },
+  {
+    // MCP unificado y su login OAuth (lib/oauth): clientes, pedidos, conexiones, tokens (solo hash) y auditoría.
+    id: '162_mcp_oauth',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS oauth_clients (
+          client_id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          client_uri TEXT,
+          redirect_uris TEXT NOT NULL DEFAULT '[]',
+          grant_types TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS oauth_auth_requests (
+          id TEXT PRIMARY KEY,
+          client_id TEXT NOT NULL,
+          redirect_uri TEXT NOT NULL,
+          scope TEXT NOT NULL,
+          state TEXT,
+          code_challenge TEXT NOT NULL,
+          resource TEXT NOT NULL,
+          code_hash TEXT,
+          grant_id TEXT,
+          consumed_at TEXT,
+          expires_at TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_oauth_auth_requests_code ON oauth_auth_requests (code_hash);
+        CREATE TABLE IF NOT EXISTS oauth_device_codes (
+          id TEXT PRIMARY KEY,
+          device_hash TEXT NOT NULL UNIQUE,
+          user_code TEXT NOT NULL UNIQUE,
+          client_id TEXT NOT NULL,
+          scope TEXT NOT NULL,
+          resource TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          grant_id TEXT,
+          last_poll_at TEXT,
+          expires_at TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS oauth_grants (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          client_id TEXT NOT NULL,
+          team_id TEXT,
+          scope TEXT NOT NULL,
+          resource TEXT NOT NULL,
+          via TEXT NOT NULL DEFAULT 'code',
+          redirect_uri TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          last_used_at TEXT,
+          revoked_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_oauth_grants_user ON oauth_grants (user_id, revoked_at);
+        CREATE TABLE IF NOT EXISTS oauth_tokens (
+          token_hash TEXT PRIMARY KEY,
+          grant_id TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK (kind IN ('access', 'refresh')),
+          expires_at TEXT NOT NULL,
+          used_at TEXT,
+          replays INTEGER NOT NULL DEFAULT 0,
+          scope TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_oauth_tokens_grant ON oauth_tokens (grant_id);
+        CREATE TABLE IF NOT EXISTS mcp_audit_log (
+          id TEXT PRIMARY KEY,
+          at TEXT NOT NULL DEFAULT (datetime('now')),
+          user_id TEXT NOT NULL,
+          workspace_id TEXT,
+          client_id TEXT,
+          client_name TEXT,
+          grant_id TEXT,
+          api_key_id TEXT,
+          operation TEXT NOT NULL,
+          access TEXT NOT NULL,
+          status INTEGER NOT NULL,
+          duration_ms INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE INDEX IF NOT EXISTS idx_mcp_audit_user ON mcp_audit_log (user_id, at);
+      `);
+      // Una base que ya tenía estas tablas (CREATE IF NOT EXISTS no las toca) queda igual que una nueva.
+      await addColumn(client, `ALTER TABLE oauth_grants ADD COLUMN via TEXT NOT NULL DEFAULT 'code'`);
+      await addColumn(client, 'ALTER TABLE oauth_grants ADD COLUMN redirect_uri TEXT');
+      await addColumn(client, 'ALTER TABLE oauth_tokens ADD COLUMN scope TEXT');
+      await addColumn(client, 'ALTER TABLE oauth_tokens ADD COLUMN replays INTEGER NOT NULL DEFAULT 0');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

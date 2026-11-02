@@ -32,6 +32,7 @@ export default function ApiKeysPanel({ initialKeys, isAdmin }: { initialKeys: Ap
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [scopes, setScopes] = useState<ApiScope[]>([...API_SCOPES]);
+  const [mcp, setMcp] = useState(false);
 
   function toggleScope(scope: ApiScope) {
     setScopes((prev) => (prev.includes(scope) ? prev.filter((s) => s !== scope) : API_SCOPES.filter((s) => s === scope || prev.includes(s))));
@@ -46,7 +47,7 @@ export default function ApiKeysPanel({ initialKeys, isAdmin }: { initialKeys: Ap
       const res = await fetch('/api/keys', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), scopes }),
+        body: JSON.stringify({ name: name.trim(), scopes, mcp }),
       });
       if (res.status !== 201) throw new Error(String(res.status));
       const data = (await res.json()) as { id: string; key: string; scopes: ApiScope[] };
@@ -58,6 +59,7 @@ export default function ApiKeysPanel({ initialKeys, isAdmin }: { initialKeys: Ap
           prefix: data.key.slice(0, 10),
           created_at: new Date().toISOString(),
           last_used_at: null,
+          mcp,
           scopes: data.scopes,
         },
         ...prev,
@@ -137,6 +139,11 @@ export default function ApiKeysPanel({ initialKeys, isAdmin }: { initialKeys: Ap
             ))}
           </div>
           {scopes.length === 0 && <p className="ui-error">{t('scopesNone')}</p>}
+          <label className="ui-check">
+            <input type="checkbox" checked={mcp} onChange={(e) => setMcp(e.target.checked)} />
+            <span>{t('mcpAccess')}</span>
+          </label>
+          <p className="ui-help">{t('mcpAccessHelp')}</p>
         </fieldset>
       </AdvancedSection>
 
