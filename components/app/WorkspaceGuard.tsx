@@ -1,5 +1,6 @@
 'use client';
 
+import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { WORKSPACE_HEADER } from '@/lib/return-path';
 
@@ -166,9 +167,11 @@ export default function WorkspaceGuard({ workspaceId, workspaceName, labels }: {
  */
 export function WorkspaceNoticeOutsideApp() {
   const [saved, setSaved] = useState<Saved | null>(null);
+  // Sigue a la navegación: la vuelta de la escritura rechazada es suave y este layout no se vuelve a montar.
+  const pathname = usePathname();
   useEffect(() => {
-    if (!document.querySelector('[data-workspace-guard]')) setSaved(readSaved());
-  }, []);
+    setSaved(document.querySelector('[data-workspace-guard]') ? null : readSaved());
+  }, [pathname]);
   if (!saved) return null;
   return <Notice saved={saved} stay={false} fixed onDone={() => setSaved(null)} />;
 }
