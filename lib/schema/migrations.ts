@@ -10,6 +10,7 @@ import { peopleUp } from './people-migration';
 import { booksUp } from './books-migration';
 import { signUp } from './sign-migration';
 import { formsUp } from './forms-migration';
+import { sendUp } from './send-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -8331,6 +8332,11 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN keep_bots INTEGER NOT NULL DEFAULT 0');
       await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN bots_filtered INTEGER NOT NULL DEFAULT 0');
     },
+  },
+  {
+    // Send (DocSend): ver lib/schema/send-migration.ts.
+    id: '185_send',
+    up: sendUp,
   },
 ];
 

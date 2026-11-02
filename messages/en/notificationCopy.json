@@ -70,5 +70,12 @@
   "workspaceChangeAsk": "Ask {who} if you have questions.",
   "roleNameAdmin": "Admin",
   "roleNameMember": "Member",
-  "roleNameGuest": "Guest"
+  "roleNameGuest": "Guest",
+  "sendReading": "{who} is reading {title}",
+  "sendReadingUnverified": "{who} (email not verified) is reading {title}",
+  "sendReadingBody": "Link: {link}",
+  "sendDenied": "{who} tried to open {title} and has no access",
+  "sendCrmSubject": "Opened {title} in Send",
+  "sendCrmBody": "{email} opened it through a Send link.",
+  "sendCrmBodyUnverified": "Someone who typed {email} opened it through a Send link. The email is not verified."
 }

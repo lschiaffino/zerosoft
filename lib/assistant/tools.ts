@@ -61,6 +61,7 @@ import { peopleTools } from './tools-people';
 import { booksTools } from './tools-books';
 import { signTools } from './tools-sign';
 import { formsTools } from './tools-forms';
+import { sendTools } from './tools-send';
 
 // ---------- Utilidades ----------
 
@@ -1173,7 +1174,7 @@ const social: AssistantTool[] = [
   }),
 ];
 
-export const ALL_TOOLS: AssistantTool[] = [...platform, ...crm, ...track, ...content, ...automate, ...comms, ...shopTools, ...analytics, ...social, ...hiringTools, ...peopleTools, ...booksTools, ...signTools, ...formsTools];
+export const ALL_TOOLS: AssistantTool[] = [...platform, ...crm, ...track, ...content, ...automate, ...comms, ...shopTools, ...analytics, ...social, ...hiringTools, ...peopleTools, ...booksTools, ...signTools, ...formsTools, ...sendTools];
 
 /** Herramientas que la sesión puede usar (rol y apps del workspace activo). */
 export function toolsFor(user: Pick<SessionUser, 'role' | 'apps'>): AssistantTool[] {

@@ -141,6 +141,51 @@ function forms(): Figure {
   };
 }
 
+/** Send: una página que se lee renglón por renglón; al lado, el tiempo de cada página crece. */
+function send(): Figure {
+  const rand = seeded(47);
+  const PAGES = 4;
+  const STEP = 3.2;
+  const PERIOD = PAGES * STEP + 2;
+  const X = 6;
+  const W = 32;
+  const lines = Array.from({ length: PAGES }, () => Array.from({ length: 9 }, () => words(rand, 18 + Math.floor(rand() * 9))));
+  // Cuánto se queda quien lee en cada página: unas interesan más que otras.
+  const dwell = [0.55, 1, 0.3, 0.8];
+  return {
+    cols: COLS,
+    rows: ROWS,
+    fps: 20,
+    still: 6.2,
+    draw(c, time) {
+      c.clear();
+      const t = time % PERIOD;
+      const fade = 1 - smooth((t - PERIOD + 1.2) / 1);
+      const n = Math.min(PAGES - 1, Math.floor(t / STEP));
+      const local = clamp((t - n * STEP) / STEP);
+      // La página actual, con la pila atrás.
+      c.card(X + 2, 4, W, 27, 0);
+      c.card(X, 2, W, 27, 0);
+      const page = lines[n];
+      const reading = Math.floor(local * page.length);
+      page.forEach((line, i) => {
+        const tone = i < reading ? 0.82 : i === reading ? 1 : 0.28;
+        run(c, X + 3, 5 + i * 2, line, tone * fade);
+      });
+      // Tiempo por página: una barra por página.
+      const BX = X + W + 6;
+      const BW = 72 - BX - 3;
+      for (let p = 0; p < PAGES; p++) {
+        const y = 5 + p * 6;
+        const grown = p < n ? 1 : p === n ? local : 0;
+        const len = Math.round(BW * dwell[p] * ease(grown) * fade);
+        for (let i = 0; i < 3; i++) c.lift(BX + i, y, p === n ? 0.9 : 0.45);
+        for (let j = 0; j < 2; j++) for (let i = 0; i < len; i++) c.lift(BX + i, y + 1 + j, p === n ? 0.9 : 0.55);
+      }
+    },
+  };
+}
+
 interface Bubble {
   mine: boolean;
   lines: boolean[][];
@@ -441,6 +486,8 @@ export function paperFigure(variant: string): Figure {
       return notes();
     case 'forms':
       return forms();
+    case 'send':
+      return send();
     case 'chat':
       return chat();
     case 'talk':

@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { PDFDocument } from 'pdf-lib';
 
 /**
  * Smoke parejo para todas las apps con ítems creados por la persona. Cada
@@ -862,6 +863,32 @@ const APPS: AppCase[] = [
     detail: (i) => `/en/app/forms/${i.id}`,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/forms/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/forms/${i.id}`))),
+  },
+  {
+    // Send: un documento con un PDF de una página, subido como lo hace el navegador.
+    app: 'Send documents',
+    list: '/en/app/send',
+    create: async (request, name) => {
+      const doc = await PDFDocument.create();
+      doc.addPage([612, 792]);
+      const bytes = Buffer.from(await doc.save());
+      const { document, version } = await ok<{ document: { id: string }; version: { id: string } }>(request.post('/api/send/documents', { data: { title: name, file: { name: 'smoke.pdf', mime: 'application/pdf', size: bytes.length } } }));
+      await ok(request.put(`/api/send/versions/${version.id}/parts/0`, { data: bytes, headers: { 'content-type': 'application/octet-stream' } }));
+      await ok(request.post(`/api/send/versions/${version.id}/complete`, { data: {} }));
+      await ok(request.post(`/api/send/versions/${version.id}/process`));
+      return { id: document.id, name };
+    },
+    detail: (i) => `/en/app/send/documents/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/send/documents/${i.id}`, { data: { title: name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/send/documents/${i.id}`))),
+  },
+  {
+    app: 'Send spaces',
+    list: '/en/app/send/spaces',
+    create: async (request, name) => ({ id: (await ok<{ space: { id: string } }>(request.post('/api/send/spaces', { data: { title: name } }))).space.id, name }),
+    detail: (i) => `/en/app/send/spaces/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/send/spaces/${i.id}`, { data: { title: name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/send/spaces/${i.id}`))),
   },
 ];
 

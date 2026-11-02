@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "24 open-source business apps: CRM, chat, docs and more",
-      "description": "Twenty-four open-source apps, from CRM and support chat to docs, invoicing and forms. On your own server or on zerosoft Cloud with a free plan."
+      "description": "Twenty-five open-source apps, from CRM and support chat to docs, invoicing and forms. On your own server or on zerosoft Cloud with a free plan."
     },
     "hero": {
-      "title1": "Twenty-four apps.",
+      "title1": "Twenty-five apps.",
       "title2": "One workspace.",
       "sub": "For your company: CRM, support, AI agents, automations, robots, projects and links. For you: docs, notes, scheduling and a whiteboard. The core of each one is open source and runs on your server for $0."
     },
     "cta": {
-      "title1": "Try all twenty-four apps.",
+      "title1": "Try all twenty-five apps.",
       "title2": "With one account.",
       "sub": "Sign in with Google, create a workspace and start on the free plan. If you later prefer your own server, the code is on GitHub.",
       "button": "Open the app"
@@ -2115,7 +2115,93 @@
         "button": "Open Forms"
       }
     },
-    "parityCounts": "{have} included, {partial} partial of {counted}"
+    "parityCounts": "{have} included, {partial} partial of {counted}",
+    "send": {
+      "meta": {
+        "title": "Send: share documents by link and see who read each page",
+        "description": "Share a PDF, a deck or a video by link with email, passcode, expiry and watermark rules, and see time per page per person. Open source alternative to DocSend."
+      },
+      "hero": {
+        "sub": "Upload a PDF, a deck, a Word file or a video and make one link per person. Set the rules of each link, and see who opened it, how long they stayed on each page and whether they came back."
+      },
+      "featuresTitle": "Know who read what.",
+      "featuresTitleDim": "Page by page.",
+      "f1": {
+        "t": "One document, many links",
+        "d": "A link per recipient or campaign, each with its own name and rules. Disable one and it stops working on the next request, images included."
+      },
+      "f2": {
+        "t": "Rules on each link",
+        "d": "Email, verification by code, passcode, expiry, allow or block lists by email or domain, a signed NDA through Sign, and download on or off."
+      },
+      "f3": {
+        "t": "Time on every page",
+        "d": "Seconds per page from the reader's browser with the tab visible. Completion, return visits, device, approximate location, and a mark when another email opens a recipient's link."
+      },
+      "f4": {
+        "t": "The file stays with you",
+        "d": "Without download, people see images of the pages and never get the file. A watermark with their email is drawn on the server. A screenshot can't be stopped, and we say so."
+      },
+      "f5": {
+        "t": "Replace it, keep the links",
+        "d": "Upload a new version and every link shows it when it's ready. Each visit counts for the version it saw, so you can compare them."
+      },
+      "f6": {
+        "t": "Spaces and your other apps",
+        "d": "Several documents behind one link, with numbers per document and access per person. Visits land on the CRM contact when the email matches."
+      },
+      "steps": {
+        "s1": {
+          "t": "Upload",
+          "d": "PDF, PowerPoint, Word, video or a Docs page."
+        },
+        "s2": {
+          "t": "Make a link",
+          "d": "One per person, with the rules it needs."
+        },
+        "s3": {
+          "t": "See who read it",
+          "d": "An alert when someone starts, and time on every page."
+        }
+      },
+      "compare": {
+        "rival": "DocSend",
+        "price": "Plans per user",
+        "per": "per user, or flat plans with a set number of users",
+        "teamLabel": "A team of 5 sharing proposals",
+        "team": "see DocSend's pricing",
+        "zero": "$0",
+        "note": "DocSend's pricing page couldn't be read when we checked, so we don't quote a price: look at docsend.com/pricing. Send on your own server costs $0 plus your database, storage and email."
+      },
+      "faq": {
+        "f1": {
+          "q": "Can someone copy a document I share?",
+          "a": "They can take a screenshot or a photo, and no web page can stop that. Without download they never get the file, and with a watermark their email goes on each page image."
+        },
+        "f2": {
+          "q": "How do you know who the visitor is?",
+          "a": "If the link asks for an email, that's what they typed, and it shows as not verified. With verification, a code goes to that address and the email shows as verified. Without either, you see the visit as anonymous, with device and approximate location."
+        },
+        "f3": {
+          "q": "Do bots and link previews count as views?",
+          "a": "No. Opening the page writes nothing. A visit starts after a few seconds of reading in a browser with the tab visible, and known bots and automated browsers are left out. A scanner that behaves exactly like a person could still count."
+        },
+        "f4": {
+          "q": "Which files can I upload?",
+          "a": "PDF up to 100 MB and 500 pages, shown exactly. Word (.docx) and PowerPoint (.pptx) through a simplified converter, so check the preview or export to PDF. Video up to 1 GB. No .doc, .ppt, Excel, Keynote or PDFs with a password."
+        },
+        "f5": {
+          "q": "What's missing compared to DocSend?",
+          "a": "Custom domains, Salesforce, browser and email add-ins, Excel, Q&A in spaces, and audit logs in their own view, among others. The parity table above has the full list."
+        }
+      },
+      "cta": {
+        "title1": "Send it.",
+        "title2": "See who read it.",
+        "sub": "Open Send, upload a document and make your first link.",
+        "button": "Open Send"
+      }
+    }
   },
   "product": {
     "launch": "Try {name}",
@@ -2130,7 +2216,7 @@
     "apiDocs": "API docs",
     "howTitle": "How it works.",
     "suiteTitle": "One workspace.",
-    "suiteTitleDim": "Twenty-four apps, same login.",
+    "suiteTitleDim": "Twenty-five apps, same login.",
     "shotTitle": "{name}, inside.",
     "crumbs": "Breadcrumb",
     "navLabel": "{name} sections",
@@ -2218,7 +2304,8 @@
       "people": "fig. 0 · time off on a calendar",
       "books": "fig. 0 · transactions being reconciled",
       "sign": "fig. 0 · a signature at the foot of a contract",
-      "forms": "fig. 0 · a form being filled in"
+      "forms": "fig. 0 · a form being filled in",
+      "send": "fig. 0 · pages being read, with the time on each"
     },
     "heroFigHint": "drag to rotate"
   },
@@ -2668,6 +2755,27 @@
       "i2": "Press 9, then Enter",
       "summary": "Summary",
       "action": "42 responses · average 8.4 · 3 stopped at question 4"
+    },
+    "send": {
+      "listTitle": "Links",
+      "r1name": "Proposal for Acme",
+      "r1time": "2 min ago",
+      "r1meta": "ana@acme.com · verified",
+      "r2name": "Investors",
+      "r2time": "Yesterday",
+      "r2meta": "4 people · 3 visits each",
+      "r3name": "Newsletter",
+      "r3time": "Disabled",
+      "r3meta": "128 visits",
+      "status": "Reading now",
+      "p1label": "Page 1",
+      "p1time": "0:48",
+      "p2label": "Page 2",
+      "p2time": "1:05",
+      "p3label": "Page 3",
+      "p3time": "0:25",
+      "p4label": "Page 4",
+      "p4time": "0:08"
     }
   },
   "status": {
@@ -3554,7 +3662,7 @@
   "parityOverview": {
     "title": "Feature parity, app by app.",
     "titleDim": "Measured against each competitor.",
-    "lead": "Average parity across {apps} of the 24 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
+    "lead": "Average parity across {apps} of the 25 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
     "col": {
       "app": "App",
       "competitor": "Compared with",
@@ -3698,7 +3806,7 @@
   "docsMcp": {
     "meta": {
       "title": "Connect Claude and the CLI",
-      "description": "Connect Claude Code or the zerosoft CLI to your account with your normal login, and work in all 24 apps as yourself."
+      "description": "Connect Claude Code or the zerosoft CLI to your account with your normal login, and work in all 25 apps as yourself."
     }
   }
 }

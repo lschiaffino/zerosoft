@@ -1,0 +1,641 @@
+/**
+ * Send: lo que pasa del lado de quien abre un link, sin cuenta. Server-only.
+ *
+ * - Cada pedido vuelve a mirar el link: deshabilitado, vencido o borrado corta en
+ *   ese momento, también las imágenes (no hay caché ni URLs firmadas).
+ * - GET de la página no escribe nada. La sesión nace con un POST del navegador y
+ *   la visita con el primer aviso, tras unos segundos con la pestaña visible:
+ *   un previsualizador de links o un escáner de correo no cuentan ni avisan.
+ * - Sin copia del archivo en el navegador: páginas como imágenes por sesión.
+ */
+import { createHash, randomBytes } from 'crypto';
+import UAParser from 'ua-parser-js';
+import { getDb } from '../db';
+import { verifyPassword } from '../links';
+import { contextFromHeaders } from '../track';
+import { isBotUserAgent } from '../analytics/bots';
+import { peekCount, rateLimit } from '../rate-limit';
+import { appSender, escapeHtml, renderBrandedHtml, sendEmail } from '../email';
+import { createNotification } from '../notifications';
+import { localized, renderForRecipient } from '../notification-copy';
+import { deleteSendFiles, readSendFile, storeSendFile } from './files';
+import { getBranding, pagesOf, readRange, type DocumentRow, type LinkRow, type VersionRow } from './core';
+import { linkContact } from './crm';
+import { sendCopy, type SendLocale } from './i18n';
+import {
+  acceptedSeconds,
+  CODE_ATTEMPTS,
+  CODE_MINUTES,
+  deviceKind,
+  hashCode,
+  hashToken,
+  isForwarded,
+  linkNeedsEmail,
+  linkNeedsVerify,
+  linkState,
+  MIN_FIRST_SECONDS,
+  newCode,
+  newId,
+  normalizeEmail,
+  nextGate,
+  nowIso,
+  PART_BYTES,
+  scaleDeltas,
+  SendError,
+  SESSION_DAYS,
+  TOKEN_RE,
+  VISIT_GAP_MS,
+  type GateStep,
+} from './types';
+
+export interface SessionRow {
+  id: string;
+  link_id: string;
+  workspace_id: string;
+  visitor_id: string | null;
+  token_hash: string;
+  epoch: number;
+  passcode_ok: number;
+  email: string | null;
+  email_verified: number;
+  nda_envelope_id: string | null;
+  nda_signed_at: string | null;
+  created_at: string;
+  expires_at: string;
+}
+
+// ---------- Link y sesión ----------
+
+export async function resolveLink(token: string): Promise<LinkRow | null> {
+  if (!TOKEN_RE.test(token)) return null;
+  const db = getDb();
+  const link = (await db.prepare('SELECT * FROM send_links WHERE token_hash = ? AND deleted_at IS NULL').get(hashToken(token))) as LinkRow | undefined;
+  if (!link) return null;
+  if (link.document_id) {
+    const d = (await db.prepare('SELECT id FROM send_documents WHERE id = ? AND deleted_at IS NULL').get(link.document_id)) as { id: string } | undefined;
+    if (!d) return null;
+  } else if (link.space_id) {
+    const s = (await db.prepare('SELECT id FROM send_spaces WHERE id = ? AND deleted_at IS NULL').get(link.space_id)) as { id: string } | undefined;
+    if (!s) return null;
+  } else return null;
+  return link;
+}
+
+export async function loadSession(link: LinkRow, cookie: string | undefined | null): Promise<SessionRow | null> {
+  if (!cookie || cookie.length > 100) return null;
+  const db = getDb();
+  const s = (await db.prepare('SELECT * FROM send_sessions WHERE token_hash = ? AND link_id = ?').get(hashToken(cookie), link.id)) as SessionRow | undefined;
+  if (!s) return null;
+  if (new Date(s.expires_at).getTime() <= Date.now()) {
+    await db.prepare('DELETE FROM send_sessions WHERE id = ?').run(s.id);
+    return null;
+  }
+  // El dueño cambió las reglas del link: quien ya entró vuelve a pasar los pasos.
+  if (Number(s.epoch) !== Number(link.access_epoch)) {
+    await db
+      .prepare('UPDATE send_sessions SET epoch = ?, passcode_ok = 0, email = NULL, email_verified = 0, nda_envelope_id = NULL, nda_signed_at = NULL, visitor_id = NULL WHERE id = ?')
+      .run(link.access_epoch, s.id);
+    return { ...s, epoch: link.access_epoch, passcode_ok: 0, email: null, email_verified: 0, nda_envelope_id: null, nda_signed_at: null, visitor_id: null };
+  }
+  return s;
+}
+
+export async function createSession(link: LinkRow): Promise<{ session: SessionRow; cookie: string }> {
+  const cookie = randomBytes(24).toString('base64url');
+  const id = newId('ss');
+  const ts = nowIso();
+  const expires = new Date(Date.now() + SESSION_DAYS * 86_400_000).toISOString();
+  await getDb()
+    .prepare('INSERT INTO send_sessions (id, link_id, workspace_id, token_hash, epoch, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(id, link.id, link.workspace_id, hashToken(cookie), link.access_epoch, ts, expires);
+  const session = (await getDb().prepare('SELECT * FROM send_sessions WHERE id = ?').get(id)) as SessionRow;
+  return { session, cookie };
+}
+
+export const SESSION_MAX_AGE = SESSION_DAYS * 86_400;
+
+async function logEvent(link: LinkRow, type: string, email: string | null, detail = ''): Promise<void> {
+  await getDb()
+    .prepare('INSERT INTO send_events (id, workspace_id, link_id, document_id, type, email, detail, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(newId('se'), link.workspace_id, link.id, link.document_id, type, email, detail.slice(0, 300), nowIso());
+}
+
+// ---------- Lo que ve el navegador ----------
+
+export interface ViewerDoc {
+  id: string;
+  title: string;
+  kind: string;
+  versionId: string;
+  pages: Array<{ page: number; width: number; height: number }>;
+  pageCount: number;
+  durationSec: number | null;
+  bucketSec: number | null;
+  downloadable: boolean;
+  folder: string;
+}
+
+export interface ViewerBrand {
+  name: string;
+  logoUrl: string;
+  color: string;
+  siteUrl: string;
+}
+
+export type ViewerState =
+  | { state: 'closed'; reason: 'disabled' | 'expired'; brand: ViewerBrand }
+  // Sin pasos y sin sesión: el navegador la abre con un POST. El HTML no lleva el título ni nada del documento.
+  | { state: 'start'; brand: ViewerBrand }
+  | {
+      state: 'gate';
+      step: GateStep;
+      brand: ViewerBrand;
+      message: string;
+      email: string | null;
+      needsEmail: boolean;
+      needsPasscode: boolean;
+      needsVerify: boolean;
+    }
+  | {
+      state: 'open';
+      brand: ViewerBrand;
+      message: string;
+      email: string | null;
+      emailVerified: boolean;
+      watermark: boolean;
+      space: { title: string; description: string } | null;
+      documents: ViewerDoc[];
+    };
+
+async function brandOf(link: LinkRow): Promise<ViewerBrand> {
+  if (!link.use_branding) return { name: '', logoUrl: '', color: '', siteUrl: '' };
+  const b = await getBranding(link.workspace_id);
+  return { name: b.brandName, logoUrl: b.logoUrl, color: b.brandColor, siteUrl: b.siteUrl };
+}
+
+interface LinkDocRow {
+  doc: DocumentRow;
+  version: VersionRow;
+  folder: string;
+  downloadable: boolean;
+}
+
+/** Documentos que este link muestra, y a esta persona, con su versión actual lista. */
+export async function linkDocuments(link: LinkRow, email: string | null): Promise<LinkDocRow[]> {
+  const db = getDb();
+  if (link.document_id) {
+    const doc = (await db.prepare('SELECT * FROM send_documents WHERE id = ? AND deleted_at IS NULL').get(link.document_id)) as DocumentRow | undefined;
+    if (!doc?.current_version_id) return [];
+    const version = (await db.prepare('SELECT * FROM send_versions WHERE id = ?').get(doc.current_version_id)) as VersionRow;
+    return [{ doc, version, folder: '', downloadable: !!link.allow_download }];
+  }
+  const rows = (await db
+    .prepare(
+      `SELECT d.*, i.folder AS item_folder, li.visible AS li_visible, li.downloadable AS li_downloadable
+       FROM send_space_items i
+       JOIN send_documents d ON d.id = i.document_id AND d.deleted_at IS NULL
+       LEFT JOIN send_link_items li ON li.link_id = ? AND li.document_id = d.id
+       WHERE i.space_id = ? ORDER BY i.position, i.added_at`,
+    )
+    .all(link.id, link.space_id)) as Array<DocumentRow & { item_folder: string; li_visible: number | null; li_downloadable: number | null }>;
+  // Acceso por persona: si el email tiene una fila propia, ve solo lo que dice esa fila.
+  let only: Set<string> | null = null;
+  if (email) {
+    const grant = (await db.prepare('SELECT document_ids FROM send_space_access WHERE space_id = ? AND email = ?').get(link.space_id, email)) as { document_ids: string } | undefined;
+    if (grant) {
+      try {
+        const ids = JSON.parse(grant.document_ids);
+        if (Array.isArray(ids)) only = new Set(ids.map(String));
+      } catch {
+        only = new Set();
+      }
+    }
+  }
+  const out: LinkDocRow[] = [];
+  for (const r of rows) {
+    if (r.li_visible === 0 || !r.current_version_id) continue;
+    if (only && !only.has(r.id)) continue;
+    const version = (await db.prepare('SELECT * FROM send_versions WHERE id = ?').get(r.current_version_id)) as VersionRow;
+    out.push({ doc: r, version, folder: r.item_folder, downloadable: !!link.allow_download && r.li_downloadable !== 0 });
+  }
+  return out;
+}
+
+export async function viewerState(link: LinkRow, session: SessionRow | null): Promise<ViewerState> {
+  const brand = await brandOf(link);
+  const ls = linkState(link);
+  if (ls !== 'active') return { state: 'closed', reason: ls, brand };
+  const step = nextGate(link, session);
+  if (step) {
+    return {
+      state: 'gate',
+      step,
+      brand,
+      // El mensaje de bienvenida no dice nada del contenido a quien todavía no pasó el código.
+      message: step === 'passcode' ? '' : link.message,
+      email: session?.email ?? null,
+      needsEmail: linkNeedsEmail(link),
+      needsPasscode: !!link.passcode_hash,
+      needsVerify: linkNeedsVerify(link),
+    };
+  }
+  if (!session) return { state: 'start', brand };
+  const docs = await linkDocuments(link, session.email);
+  const documents: ViewerDoc[] = [];
+  for (const d of docs) {
+    documents.push({
+      id: d.doc.id,
+      title: d.doc.title,
+      kind: d.version.kind,
+      versionId: d.version.id,
+      pages: d.version.kind === 'video' ? [] : await pagesOf(d.version.id),
+      pageCount: Number(d.version.page_count),
+      durationSec: d.version.duration_sec === null ? null : Number(d.version.duration_sec),
+      bucketSec: d.version.bucket_sec === null ? null : Number(d.version.bucket_sec),
+      // Un video no se puede marcar en el servidor: con watermark no se descarga.
+      downloadable: d.downloadable && !(link.watermark && d.version.kind === 'video'),
+      folder: d.folder,
+    });
+  }
+  let space: { title: string; description: string } | null = null;
+  if (link.space_id) {
+    const s = (await getDb().prepare('SELECT title, description FROM send_spaces WHERE id = ?').get(link.space_id)) as { title: string; description: string } | undefined;
+    if (s) space = s;
+  }
+  return { state: 'open', brand, message: link.message, email: session.email, emailVerified: !!session.email_verified, watermark: !!link.watermark, space, documents };
+}
+
+/** Sesión que puede ver, o el motivo por el que no. Lo usa cada imagen, video y descarga. */
+export async function requireViewer(link: LinkRow, cookie: string | undefined | null): Promise<SessionRow> {
+  const ls = linkState(link);
+  if (ls !== 'active') throw new SendError(`link_${ls}`, 410);
+  const session = await loadSession(link, cookie);
+  if (nextGate(link, session)) throw new SendError('gate_required', 401);
+  if (session) return session;
+  throw new SendError('gate_required', 401);
+}
+
+/** Texto del watermark: email, y a qué hora se vio. Sale en cada imagen desde el servidor. */
+export function watermarkText(session: SessionRow, now = new Date()): string {
+  const stamp = now.toISOString().slice(0, 16).replace('T', ' ');
+  return `${session.email ?? 'unknown'} · ${stamp} UTC`;
+}
+
+// ---------- Pasos ----------
+
+async function upsertVisitor(workspaceId: string, email: string): Promise<string> {
+  const db = getDb();
+  const id = newId('sr');
+  const ts = nowIso();
+  await db
+    .prepare(
+      `INSERT INTO send_visitors (id, workspace_id, email, first_seen_at, last_seen_at) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (workspace_id, email) WHERE email IS NOT NULL DO UPDATE SET last_seen_at = excluded.last_seen_at`,
+    )
+    .run(id, workspaceId, email, ts, ts);
+  const row = (await db.prepare('SELECT id FROM send_visitors WHERE workspace_id = ? AND email = ?').get(workspaceId, email)) as { id: string };
+  return row.id;
+}
+
+export async function submitPasscode(link: LinkRow, session: SessionRow, passcode: string, ipKey: string): Promise<void> {
+  if (!link.passcode_hash) return;
+  // Dos topes: por persona (IP) y por link, para que repartir IPs tampoco alcance.
+  const byIp = await rateLimit(`send:pass:${link.id}:${ipKey}`, 8, 900);
+  const byLink = await rateLimit(`send:passlink:${link.id}`, 60, 3600);
+  if (!byIp.ok || !byLink.ok) throw new SendError('too_many_attempts', 429);
+  const ok = await verifyPassword(passcode.slice(0, 100), link.passcode_hash);
+  if (!ok) {
+    await logEvent(link, 'passcode_failed', session.email);
+    throw new SendError('bad_passcode', 401);
+  }
+  await getDb().prepare('UPDATE send_sessions SET passcode_ok = 1 WHERE id = ?').run(session.id);
+}
+
+export async function submitEmail(link: LinkRow, session: SessionRow, raw: string): Promise<void> {
+  const email = normalizeEmail(raw);
+  if (!email) throw new SendError('invalid_email', 400);
+  const visitorId = await upsertVisitor(link.workspace_id, email);
+  await getDb().prepare('UPDATE send_sessions SET email = ?, email_verified = 0, visitor_id = ? WHERE id = ?').run(email, visitorId, session.id);
+}
+
+export async function clearEmail(session: SessionRow): Promise<void> {
+  await getDb().prepare('UPDATE send_sessions SET email = NULL, email_verified = 0, visitor_id = NULL, nda_envelope_id = NULL, nda_signed_at = NULL WHERE id = ?').run(session.id);
+}
+
+export async function sendEmailCode(link: LinkRow, session: SessionRow, locale: SendLocale, ipKey: string): Promise<void> {
+  if (!session.email) throw new SendError('email_required', 400);
+  const byEmail = await rateLimit(`send:code:${link.id}:${session.email}`, 5, 3600);
+  const byIp = await rateLimit(`send:codeip:${ipKey}`, 20, 3600);
+  if (!byEmail.ok || !byIp.ok) throw new SendError('too_many_attempts', 429);
+  const code = newCode();
+  const db = getDb();
+  await db.prepare('UPDATE send_email_codes SET used_at = ? WHERE session_id = ? AND used_at IS NULL').run(nowIso(), session.id);
+  await db
+    .prepare('INSERT INTO send_email_codes (id, session_id, email, code_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(newId('sc'), session.id, session.email, hashCode(session.id, code), new Date(Date.now() + CODE_MINUTES * 60_000).toISOString(), nowIso());
+  const brand = await brandOf(link);
+  const subject = sendCopy(locale, 'codeSubject', { code });
+  const line = sendCopy(locale, 'codeLine', { minutes: String(CODE_MINUTES) });
+  const res = await sendEmail({
+    to: session.email,
+    from: appSender(),
+    subject,
+    text: `${code}\n\n${line}`,
+    html: renderBrandedHtml({ eyebrow: brand.name || 'zerosoft', heading: code, paragraphs: [escapeHtml(line)] }),
+  }).catch(() => ({ ok: false }));
+  if (!res.ok) throw new SendError('email_failed', 502);
+  await logEvent(link, 'code_sent', session.email);
+}
+
+export async function verifyEmailCode(link: LinkRow, session: SessionRow, code: string): Promise<void> {
+  const db = getDb();
+  const row = (await db
+    .prepare('SELECT * FROM send_email_codes WHERE session_id = ? AND used_at IS NULL ORDER BY created_at DESC LIMIT 1')
+    .get(session.id)) as { id: string; email: string; code_hash: string; attempts: number; expires_at: string } | undefined;
+  if (!row || row.email !== session.email || new Date(row.expires_at).getTime() <= Date.now()) throw new SendError('code_expired', 410);
+  // Se cuenta el intento antes de comparar: dos pedidos a la vez no ganan intentos extra.
+  const claim = await db.prepare('UPDATE send_email_codes SET attempts = attempts + 1 WHERE id = ? AND attempts < ?').run(row.id, CODE_ATTEMPTS);
+  if (!claim.changes) throw new SendError('code_expired', 410);
+  if (hashCode(session.id, code.trim().slice(0, 12)) !== row.code_hash) throw new SendError('bad_code', 401);
+  const used = await db.prepare('UPDATE send_email_codes SET used_at = ? WHERE id = ? AND used_at IS NULL').run(nowIso(), row.id);
+  if (!used.changes) throw new SendError('code_expired', 410);
+  await db.prepare('UPDATE send_sessions SET email_verified = 1 WHERE id = ?').run(session.id);
+  await logEvent(link, 'email_verified', session.email);
+}
+
+/** Paso `denied`: queda registrado una vez por sesión, y al dueño le llega un aviso. */
+export async function recordDenied(link: LinkRow, session: SessionRow): Promise<void> {
+  const already = await peekCount(`send:denied:${session.id}`, 86_400);
+  if (already) return;
+  await rateLimit(`send:denied:${session.id}`, 1000, 86_400);
+  await logEvent(link, 'denied', session.email);
+  const doc = await targetTitle(link);
+  await createNotification({
+    userId: link.created_by,
+    type: 'send_activity',
+    title: localized('sendDenied', { who: session.email, title: doc }),
+    href: linkHref(link),
+    sourceType: 'send_link',
+    sourceId: link.id,
+  }).catch(() => undefined);
+}
+
+// ---------- Avisos del navegador ----------
+
+export interface PingDelta {
+  page: number;
+  seconds: number;
+}
+
+export interface PingInput {
+  documentId: string;
+  versionId: string;
+  deltas: PingDelta[];
+  webdriver?: boolean;
+}
+
+export interface RequestMeta {
+  headers: Headers;
+  ua: string;
+}
+
+/** Bots, navegadores automatizados y escáneres: no cuentan como visita. */
+export function isAutomated(meta: RequestMeta, webdriver: boolean | undefined): boolean {
+  if (!meta.ua.trim() || isBotUserAgent(meta.ua)) return true;
+  if (webdriver && process.env.ANALYTICS_ALLOW_HEADLESS !== '1') return true;
+  return false;
+}
+
+function visitSeq(sessionId: string, documentId: string, versionId: string, seq: number): string {
+  const h = createHash('sha256').update(`${sessionId}|${documentId}|${versionId}|${seq}`).digest('base64url').slice(0, 24);
+  return `sx_${h}`;
+}
+
+/**
+ * Suma tiempo a una visita. La primera vez crea la visita y avisa a quien mandó el
+ * link. El id de la visita sale de la sesión y el orden: dos pestañas que empiezan
+ * a la vez caen en la misma fila.
+ */
+export async function recordPing(link: LinkRow, session: SessionRow, input: PingInput, meta: RequestMeta): Promise<{ visitId: string | null }> {
+  if (isAutomated(meta, input.webdriver)) return { visitId: null };
+  const docs = await linkDocuments(link, session.email);
+  const target = docs.find((d) => d.doc.id === input.documentId);
+  if (!target) throw new SendError('not_found', 404);
+  // El dueño reemplazó el archivo mientras leían: el navegador recarga la versión nueva.
+  if (target.version.id !== input.versionId) throw new SendError('version_changed', 409);
+  const claimed = input.deltas.reduce((n, d) => n + (Number.isFinite(d.seconds) ? Math.max(0, d.seconds) : 0), 0);
+  const db = getDb();
+  const prev = (await db
+    .prepare('SELECT id, last_ping_at, version_id FROM send_visits WHERE session_id = ? AND document_id = ? ORDER BY started_at DESC LIMIT 1')
+    .get(session.id, input.documentId)) as { id: string; last_ping_at: string; version_id: string } | undefined;
+  const nowMs = Date.now();
+  const prevMs = prev ? new Date(prev.last_ping_at).getTime() : 0;
+  const same = prev && prev.version_id === input.versionId && nowMs - prevMs < VISIT_GAP_MS;
+  const total = Number(target.version.page_count);
+  let visitId: string;
+  let created = false;
+  let cap: number;
+  if (same) {
+    visitId = prev.id;
+    cap = acceptedSeconds(claimed, (nowMs - prevMs) / 1000);
+  } else {
+    // Nada de visita con menos de unos segundos: es lo que se ve de un escáner.
+    if (claimed < MIN_FIRST_SECONDS) return { visitId: null };
+    const n = (await db.prepare('SELECT COUNT(*) AS n FROM send_visits WHERE session_id = ? AND document_id = ?').get(session.id, input.documentId)) as { n: number };
+    visitId = visitSeq(session.id, input.documentId, input.versionId, Number(n.n));
+    const ctx = contextFromHeaders(meta.headers);
+    const ua = new UAParser(meta.ua).getResult();
+    const first = (await db
+      .prepare('SELECT email FROM send_visits WHERE link_id = ? AND email IS NOT NULL ORDER BY started_at LIMIT 1')
+      .get(link.id)) as { email: string } | undefined;
+    const ts = nowIso();
+    const res = await db
+      .prepare(
+        `INSERT OR IGNORE INTO send_visits (id, workspace_id, link_id, session_id, visitor_id, document_id, version_id, email, email_verified, forwarded, started_at, last_ping_at, page_total, device, os, browser, country, city)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        visitId,
+        link.workspace_id,
+        link.id,
+        session.id,
+        session.visitor_id,
+        input.documentId,
+        input.versionId,
+        session.email,
+        session.email_verified ? 1 : 0,
+        isForwarded(link.recipient_email, first?.email ?? null, session.email) ? 1 : 0,
+        ts,
+        ts,
+        total,
+        deviceKind(ua.device.type),
+        (ua.os.name ?? '').slice(0, 40),
+        (ua.browser.name ?? '').slice(0, 40),
+        ctx.country,
+        ctx.city,
+      );
+    created = res.changes > 0;
+    cap = acceptedSeconds(claimed, 15);
+  }
+  const deltas = scaleDeltas(
+    input.deltas.filter((d) => d.page <= total),
+    cap,
+  ).slice(0, 50);
+  const ts = nowIso();
+  for (const d of deltas) {
+    await db
+      .prepare(
+        `INSERT INTO send_page_stats (visit_id, page, seconds, first_at, last_at) VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT (visit_id, page) DO UPDATE SET seconds = seconds + excluded.seconds, last_at = excluded.last_at`,
+      )
+      .run(visitId, d.page, d.seconds, ts, ts);
+  }
+  const agg = (await db
+    .prepare('SELECT COALESCE(SUM(seconds), 0) AS seconds, SUM(CASE WHEN seconds >= 1 THEN 1 ELSE 0 END) AS seen FROM send_page_stats WHERE visit_id = ?')
+    .get(visitId)) as { seconds: number; seen: number | null };
+  await db.prepare('UPDATE send_visits SET seconds = ?, pages_seen = ?, last_ping_at = ? WHERE id = ?').run(Number(agg.seconds), Number(agg.seen ?? 0), ts, visitId);
+  await db.prepare('UPDATE send_links SET last_visit_at = ? WHERE id = ?').run(ts, link.id);
+  if (session.visitor_id) await db.prepare('UPDATE send_visitors SET last_seen_at = ? WHERE id = ?').run(ts, session.visitor_id);
+  if (created) {
+    await alertReading(link, session, visitId, target.doc, Number(agg.seen ?? 0), total).catch((err) => console.error('[send:alert]', err instanceof Error ? err.message : 'error'));
+    if (session.email) await linkContact(link.workspace_id, session, target.doc, visitId).catch(() => undefined);
+  }
+  return { visitId };
+}
+
+// ---------- Avisos a quien mandó el link ----------
+
+function linkHref(link: LinkRow): string {
+  return link.document_id ? `/app/send/documents/${link.document_id}` : `/app/send/spaces/${link.space_id}`;
+}
+
+async function targetTitle(link: LinkRow): Promise<string> {
+  const db = getDb();
+  const r = link.document_id
+    ? ((await db.prepare('SELECT title FROM send_documents WHERE id = ?').get(link.document_id)) as { title: string } | undefined)
+    : ((await db.prepare('SELECT title FROM send_spaces WHERE id = ?').get(link.space_id)) as { title: string } | undefined);
+  return r?.title ?? '';
+}
+
+function appOrigin(): string {
+  return (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || '').replace(/\/$/, '');
+}
+
+/**
+ * "Alguien está leyendo": un aviso en la campana y un email, una vez por visita y
+ * nunca dos veces en media hora para la misma sesión (compare-and-set por fila).
+ */
+async function alertReading(link: LinkRow, session: SessionRow, visitId: string, doc: DocumentRow, seen: number, total: number): Promise<void> {
+  if (!link.notify) return;
+  const db = getDb();
+  const since = new Date(Date.now() - VISIT_GAP_MS).toISOString();
+  const recent = (await db
+    .prepare('SELECT 1 AS x FROM send_visits WHERE session_id = ? AND id <> ? AND alerted_at >= ? LIMIT 1')
+    .get(session.id, visitId, since)) as { x: number } | undefined;
+  if (recent) return;
+  const claim = await db.prepare('UPDATE send_visits SET alerted_at = ? WHERE id = ? AND alerted_at IS NULL').run(nowIso(), visitId);
+  if (!claim.changes) return;
+  const visit = (await db.prepare('SELECT country, city FROM send_visits WHERE id = ?').get(visitId)) as { country: string | null; city: string | null };
+  const place = [visit.city, visit.country].filter(Boolean).join(', ');
+  const whoVars = session.email ? { who: session.email } : { who: place || null };
+  const titleKey = session.email && !session.email_verified ? 'sendReadingUnverified' : 'sendReading';
+  const href = `/app/send/documents/${doc.id}`;
+  const recipients = new Set([doc.owner_id, link.created_by]);
+  for (const userId of recipients) {
+    await createNotification({
+      userId,
+      type: 'send_activity',
+      title: localized(titleKey, { ...whoVars, title: doc.title }),
+      body: localized('sendReadingBody', { link: link.name || null }),
+      href,
+      sourceType: 'send_visit',
+      sourceId: visitId,
+      meta: { seen, total },
+    }).catch(() => undefined);
+    const user = (await db.prepare('SELECT email FROM users WHERE id = ?').get(userId)) as { email: string | null } | undefined;
+    if (!user?.email) continue;
+    const [subject, body] = await renderForRecipient(userId, [localized(titleKey, { ...whoVars, title: doc.title }), localized('sendReadingBody', { link: link.name || null })]);
+    const url = `${appOrigin()}${href}`;
+    await sendEmail({
+      to: user.email,
+      from: appSender(),
+      subject: subject ?? '',
+      text: `${body ?? ''}\n\n${url}`,
+      html: renderBrandedHtml({ eyebrow: 'Send', heading: escapeHtml(subject ?? ''), paragraphs: [escapeHtml(body ?? ''), `<a href="${escapeHtml(url)}" style="color:#000000;font-weight:500;">${escapeHtml(url)}</a>`] }),
+    }).catch(() => undefined);
+  }
+}
+
+// ---------- Descarga ----------
+
+/** Un pedazo de lo que se baja: las funciones de Vercel cortan la respuesta en 4,5 MB. */
+export interface DownloadPiece {
+  bytes: Buffer;
+  name: string;
+  mime: string;
+  piece: number;
+  pieces: number;
+}
+
+/** PDF con el watermark de esta sesión, una sola copia por sesión y versión, guardada cifrada. */
+async function stampedRefs(link: LinkRow, session: SessionRow, version: VersionRow): Promise<{ refs: string[]; size: number }> {
+  const db = getDb();
+  const cached = (await db.prepare('SELECT refs, size FROM send_download_cache WHERE session_id = ? AND version_id = ?').get(session.id, version.id)) as { refs: string; size: number } | undefined;
+  if (cached) return { refs: JSON.parse(cached.refs) as string[], size: Number(cached.size) };
+  const { stampPdf } = await import('./stamp');
+  const bytes = await stampPdf(version, watermarkText(session));
+  const refs: string[] = [];
+  for (let i = 0; i * PART_BYTES < bytes.length; i++) refs.push(await storeSendFile(Buffer.from(bytes.subarray(i * PART_BYTES, (i + 1) * PART_BYTES)), 'application/pdf'));
+  const res = await db
+    .prepare('INSERT OR IGNORE INTO send_download_cache (session_id, version_id, refs, size, expires_at) VALUES (?, ?, ?, ?, ?)')
+    .run(session.id, version.id, JSON.stringify(refs), bytes.length, new Date(Date.now() + 3600_000).toISOString());
+  if (!res.changes) {
+    // Otra pestaña la armó primero: se usa la suya.
+    await deleteSendFiles(refs).catch(() => undefined);
+    return stampedRefs(link, session, version);
+  }
+  return { refs, size: bytes.length };
+}
+
+export async function purgeDownloadCache(): Promise<number> {
+  const db = getDb();
+  const rows = (await db.prepare('SELECT session_id, version_id, refs FROM send_download_cache WHERE expires_at < ? LIMIT 50').all(nowIso())) as Array<{ session_id: string; version_id: string; refs: string }>;
+  for (const r of rows) {
+    const res = await db.prepare('DELETE FROM send_download_cache WHERE session_id = ? AND version_id = ?').run(r.session_id, r.version_id);
+    if (res.changes) await deleteSendFiles(JSON.parse(r.refs) as string[]).catch(() => undefined);
+  }
+  return rows.length;
+}
+
+export async function downloadPiece(link: LinkRow, session: SessionRow, documentId: string, piece: number): Promise<DownloadPiece> {
+  const docs = await linkDocuments(link, session.email);
+  const target = docs.find((d) => d.doc.id === documentId);
+  if (!target) throw new SendError('not_found', 404);
+  if (!target.downloadable || (link.watermark && target.version.kind === 'video')) throw new SendError('download_blocked', 403);
+  const v = target.version;
+  if (!Number.isInteger(piece) || piece < 0) throw new SendError('invalid_input', 400);
+  const safeTitle = target.doc.title.replace(/[^\p{L}\p{N} ._-]/gu, '_').slice(0, 120) || 'document';
+  if (link.watermark) {
+    const { refs } = await stampedRefs(link, session, v);
+    if (piece >= refs.length) throw new SendError('not_found', 404);
+    const bytes = await readSendFile(refs[piece]);
+    if (!bytes) throw new SendError('file_unavailable', 404);
+    if (piece === 0) await countDownload(link, session, documentId);
+    return { bytes, name: `${safeTitle}.pdf`, mime: 'application/pdf', piece, pieces: refs.length };
+  }
+  const size = Number(v.size);
+  const pieces = Math.max(1, Math.ceil(size / PART_BYTES));
+  if (piece >= pieces) throw new SendError('not_found', 404);
+  const bytes = await readRange(v.id, piece * PART_BYTES, Math.min(size, (piece + 1) * PART_BYTES) - 1);
+  if (piece === 0) await countDownload(link, session, documentId);
+  return { bytes, name: v.name.replace(/[\r\n"\\]/g, '_'), mime: v.mime || 'application/octet-stream', piece, pieces };
+}
+
+async function countDownload(link: LinkRow, session: SessionRow, documentId: string): Promise<void> {
+  const db = getDb();
+  await logEvent({ ...link, document_id: documentId }, 'download', session.email);
+  await db
+    .prepare('UPDATE send_visits SET downloads = downloads + 1 WHERE id = (SELECT id FROM send_visits WHERE session_id = ? AND document_id = ? ORDER BY started_at DESC LIMIT 1)')
+    .run(session.id, documentId);
+}
+

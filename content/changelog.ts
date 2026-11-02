@@ -29,6 +29,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-02-send',
+    date: '2026-11-02',
+    title: {
+      en: 'Send: share documents by link and see who read each page',
+      es: 'Send: compartí documentos por link y mirá quién leyó cada página',
+      pt: 'Send: compartilhe documentos por link e veja quem leu cada página',
+    },
+    items: [
+      { product: 'send', en: 'Upload a PDF, a PowerPoint, a Word file or a video, or pick a Docs page. PDFs show exactly as they are; Word and PowerPoint go through a simplified converter, with a warning and a preview. Files are stored privately and reach people only through a link.', es: 'Subí un PDF, un PowerPoint, un Word o un video, o elegí una página de Docs. Los PDF se ven exactos; Word y PowerPoint pasan por un conversor simplificado, con un aviso y una vista previa. Los archivos se guardan privados y llegan a la gente solo por un link.', pt: 'Envie um PDF, um PowerPoint, um Word ou um vídeo, ou escolha uma página do Docs. Os PDFs aparecem exatos; Word e PowerPoint passam por um conversor simplificado, com um aviso e uma prévia. Os arquivos ficam privados e só chegam às pessoas por um link.' },
+      { product: 'send', en: 'One document, many links, each with its own name and rules: email, verification by code, passcode, expiry, download, allow and block lists, a watermark with the viewer\'s email and a signed NDA through Sign. Disable a link and it stops working on the next request.', es: 'Un documento, muchos links, cada uno con su nombre y sus reglas: email, verificación por código, código de acceso, vencimiento, descarga, listas de permitidos y bloqueados, watermark con el email de quien mira y NDA firmado con Sign. Deshabilitá un link y deja de andar en el pedido siguiente.', pt: 'Um documento, vários links, cada um com seu nome e suas regras: email, verificação por código, código de acesso, vencimento, download, listas de permitidos e bloqueados, marca d\'água com o email de quem vê e NDA assinado com o Sign. Desabilite um link e ele para de funcionar no pedido seguinte.' },
+      { product: 'send', en: 'See who opened it, seconds on each page, completion, return visits, device, approximate location and possible forwards, with a live "reading now", a bell alert and an email. Link previews and bots don\'t count as visits. Admins can export visits as CSV.', es: 'Mirá quién lo abrió, segundos en cada página, completado, visitas de vuelta, dispositivo, ubicación aproximada y posibles reenvíos, con "leyendo ahora" en vivo, un aviso en la campana y un email. Las vistas previas de links y los bots no cuentan como visitas. Los admins exportan las visitas a CSV.', pt: 'Veja quem abriu, segundos em cada página, conclusão, visitas de volta, dispositivo, localização aproximada e possíveis encaminhamentos, com "lendo agora" ao vivo, um aviso no sino e um email. Prévias de links e bots não contam como visitas. Admins exportam as visitas em CSV.' },
+      { product: 'send', en: 'Replace a file and every link shows the new version when it\'s ready, with numbers per version. Spaces put several documents behind one link, with numbers per document and access per person. When a visitor\'s email matches a CRM contact, the visit lands on its timeline.', es: 'Reemplazá un archivo y cada link muestra la versión nueva cuando está lista, con números por versión. Los espacios ponen varios documentos detrás de un link, con números por documento y acceso por persona. Si el email de quien abre coincide con un contacto del CRM, la visita llega a su línea de tiempo.', pt: 'Substitua um arquivo e cada link mostra a versão nova quando estiver pronta, com números por versão. Os espaços colocam vários documentos atrás de um link, com números por documento e acesso por pessoa. Se o email de quem abre coincide com um contato do CRM, a visita chega à linha do tempo.' },
+    ],
+  },
+  {
     id: '2026-11-01-analytics-replay-experimentos',
     date: '2026-11-01',
     title: {

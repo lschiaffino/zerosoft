@@ -12,9 +12,12 @@ const nextConfig = {
   // __dirname at require time, which breaks when webpack bundles it.
   // Keep it external so it is required from node_modules at runtime.
   // playwright-core (runner local de Robots) se carga de node_modules en runtime.
-  serverExternalPackages: ['geoip-lite', 'playwright-core'],
+  serverExternalPackages: ['geoip-lite', 'playwright-core', '@napi-rs/canvas', 'pdfjs-dist'],
   // La descarga de la extensión de Chrome arma el zip leyendo extensions/chrome en runtime.
   outputFileTracingIncludes: {
+    // Send: pdf.js (worker y fuentes estándar) y el lienzo nativo se cargan en runtime.
+    '/api/send/**': ['./node_modules/pdfjs-dist/legacy/build/**/*', './node_modules/pdfjs-dist/standard_fonts/**/*', './node_modules/pdfjs-dist/cmaps/**/*', './node_modules/pdfjs-dist/wasm/**/*', './node_modules/@napi-rs/canvas*/**/*'],
+    '/api/cron/minute': ['./node_modules/pdfjs-dist/legacy/build/**/*', './node_modules/pdfjs-dist/standard_fonts/**/*', './node_modules/pdfjs-dist/cmaps/**/*', './node_modules/pdfjs-dist/wasm/**/*', './node_modules/@napi-rs/canvas*/**/*'],
     '/api/crm/extension/download': ['./extensions/chrome/**/*'],
     // Imágenes OG (lib/og-card.tsx): las fuentes de la marca y los posts del blog, leídos en runtime.
     '/api/og/[...card]': ['./lib/og-fonts/*.ttf', './content/blog/**/*.md'],

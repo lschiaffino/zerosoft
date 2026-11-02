@@ -70,5 +70,12 @@
   "workspaceChangeAsk": "Preguntale a {who} si tenés dudas.",
   "roleNameAdmin": "Admin",
   "roleNameMember": "Miembro",
-  "roleNameGuest": "Invitado"
+  "roleNameGuest": "Invitado",
+  "sendReading": "{who} está leyendo {title}",
+  "sendReadingUnverified": "{who} (email sin verificar) está leyendo {title}",
+  "sendReadingBody": "Link: {link}",
+  "sendDenied": "{who} intentó abrir {title} y no tiene acceso",
+  "sendCrmSubject": "Abrió {title} en Send",
+  "sendCrmBody": "{email} lo abrió desde un link de Send.",
+  "sendCrmBodyUnverified": "Alguien que escribió {email} lo abrió desde un link de Send. El email no está verificado."
 }

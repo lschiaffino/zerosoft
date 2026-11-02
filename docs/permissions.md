@@ -86,6 +86,7 @@ excepciones. "Admin" incluye al owner.
 | Design | Sus diseños y los compartidos | Plantillas del workspace, kit de marca | Diseños privados: ni los admins los ven |
 | Rec | Ve sus videos, los del workspace que no están en un espacio y los de sus espacios | Gestionar videos del workspace y todos los espacios | `visibleSql` en `lib/rec.ts` |
 | Sign | Sus sobres y los que firma | Ver y gestionar todos | |
+| Send | Sus documentos y espacios y los compartidos con el workspace; en un compartido puede armar links propios | Ver y editar todos, exportar CSV, marca del visor | Un documento o espacio nuevo es privado de quien lo sube. Quien abre un link no tiene cuenta: cada imagen, video y descarga vuelve a mirar el link y la sesión. Crear un link o cambiar sus reglas no se puede por MCP (`WEB_ONLY_RULES`) |
 | Forms | Los compartidos con el workspace (`sharing='workspace'`, el valor por defecto), los suyos y donde está sumado | Ver todos, ajustes | |
 | Hiring | Ve la lista de puestos del workspace, sin candidatos salvo que gestione el puesto (`listJobs`); crea puestos solo si un admin lo habilita (`members_create_jobs`, `canCreateJobs`) | Ajustes, ver todo | Candidatos: equipo del puesto y admins. Aprobar ofertas: hiring manager o admin |
 | Social | Publica directo o como borrador (aprobación), en las cuentas que le dieron | Conectar cuentas, dar acceso, aprobar | |
@@ -101,7 +102,7 @@ excepciones. "Admin" incluye al owner.
 - **Corte por app, en navegador:** `workspace-teams.spec.ts` prueba a una persona
   con CRM y Docs sin Track ni Link (HTML, RSC, búsqueda, inicio, v1 y MCP).
 - **Tabla de apps, sin pasada en navegador:** sale de leer rutas y helpers, no de
-  probar cada acción con cada rol. Social, Shop, Rec, Sign, Forms, Hiring, Voice
+  probar cada acción con cada rol. Social, Shop, Rec, Sign, Forms, Send, Hiring, Voice
   y Analytics salen sobre todo de comentarios de cabecera y algunas rutas:
   revisarlos antes de publicarlos como garantía.
 
