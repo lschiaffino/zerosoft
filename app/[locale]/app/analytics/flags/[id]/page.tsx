@@ -29,7 +29,7 @@ export default async function AnalyticsFlagPage(props: { params: Promise<{ local
   return (
     <>
       <SyncProject projectId={ctx.project.id} currentId={cookieProject} />
-      <FlagEditor key={flag.id} projectId={ctx.project.id} flag={flag} publicKey={ctx.project.public_key} cohorts={(await listCohorts(ctx.project.id)).map((c) => ({ id: c.id, name: c.name }))} />
+      <FlagEditor key={flag.id} canManage={ctx.canManage} projectId={ctx.project.id} flag={flag} publicKey={ctx.project.public_key} cohorts={(await listCohorts(ctx.project.id)).map((c) => ({ id: c.id, name: c.name }))} />
     </>
   );
 }

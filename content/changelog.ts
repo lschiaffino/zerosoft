@@ -51,6 +51,18 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         product: 'analytics',
+        en: 'Retention gains hours and months, recurring and first-ever cohorts, on or after returning, percentages over the previous period, weighted or simple means, breakdowns, group counts, a chart, and a click on a cell lists its people.',
+        es: 'Retención suma horas y meses, cohortes recurrentes y de primera vez de todas, vuelta en un período o después, porcentajes sobre el período anterior, promedio ponderado o simple, aperturas, conteo por grupos, gráfico, y un clic en una celda lista a sus personas.',
+        pt: 'A retenção ganha horas e meses, coortes recorrentes e de primeira vez de todas, volta em um período ou depois, percentuais sobre o período anterior, média ponderada ou simples, aberturas, contagem por grupos, gráfico, e um clique em uma célula lista suas pessoas.',
+      },
+      {
+        product: 'analytics',
+        en: 'Rejecting consent, Do Not Track, Global Privacy Control and cookieless mode now clear what the snippet had saved in the browser. Changes to what appears on a public link and to feature flags need an admin, and public links accept breakdowns only by browser, OS, device, country, page, host, referrer or UTM.',
+        es: 'Rechazar el consentimiento, Do Not Track, Global Privacy Control y el modo sin cookies ahora borran lo que el snippet había guardado en el navegador. Cambiar lo que aparece en un link público y los feature flags necesita un admin, y los links públicos solo aceptan aperturas por navegador, sistema, dispositivo, país, página, host, referente o UTM.',
+        pt: 'Recusar o consentimento, Do Not Track, Global Privacy Control e o modo sem cookies agora apagam o que o snippet tinha guardado no navegador. Mudar o que aparece em um link público e os feature flags precisa de um admin, e os links públicos só aceitam aberturas por navegador, sistema, dispositivo, país, página, host, referência ou UTM.',
+      },
+      {
+        product: 'analytics',
         en: 'From a funnel step you can explore the paths leading to it, between steps, after it and around dropping off, and from a path you can open its funnel.',
         es: 'Desde un paso de un embudo se exploran los caminos que llevan a él, entre pasos, después y alrededor de abandonar, y desde un camino se abre su embudo.',
         pt: 'A partir de uma etapa de um funil dá para explorar os caminhos que levam a ela, entre etapas, depois e em torno da desistência, e de um caminho dá para abrir seu funil.',

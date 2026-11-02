@@ -197,7 +197,9 @@
     "retentionMeanRow": "Média",
     "retentionChart": "Retenção por período",
     "retentionCell": "{count} pessoas de {start}, período {n}",
-    "retentionValue": "Coortes de {value}. Escolha de novo para ver todos."
+    "retentionValue": "Coortes de {value}. Escolha de novo para ver todos.",
+    "smoothedNote": "O gráfico mostra uma média de {n} dias. Os totais são as contagens reais do período.",
+    "peopleCap": "A lista abre as primeiras 100 pessoas."
   },
   "filters": {
     "filterN": "Filtro {n}",
@@ -324,7 +326,9 @@
       "sql_busy": "Há consultas SQL demais rodando agora. Tente de novo em alguns segundos.",
       "invalid_formula": "A fórmula não é válida. Use as letras das séries, números e + - * / ( ).",
       "math_property_required": "Escolha a propriedade numérica para calcular.",
-      "group_type_required": "Escreva o tipo de grupo para contar."
+      "group_type_required": "Escreva o tipo de grupo para contar.",
+      "shared_admin_only": "Isto aparece em um link público, então só um admin pode mudar.",
+      "admin_only": "Só um admin pode mudar feature flags."
     },
     "noCohorts": "Ainda não há coortes",
     "excludeInternal": "Tirar pessoas internas e de teste",
@@ -424,8 +428,8 @@
     "attributionAnyStep": "Qualquer etapa",
     "attributionStep": "Etapa da atribuição",
     "exclusions": "Etapas de exclusão",
-    "exclusionsHelp": "Quem fizer este evento entre as duas etapas fica de fora de todo o funil.",
-    "exclusionsHelpAny": "Quem fizer este evento enquanto completa as etapas fica de fora de todo o funil.",
+    "exclusionsHelp": "Quem fizer este evento entre as duas etapas fica de fora de todo o funil. Se já tinha concluído uma conversão antes, ela continua contando.",
+    "exclusionsHelpAny": "Quem fizer este evento enquanto completa as etapas fica de fora de todo o funil. Se já tinha concluído uma conversão antes, ela continua contando.",
     "exclusionEvent": "Evento a excluir",
     "exclusionFrom": "Excluído a partir da etapa",
     "exclusionTo": "Excluído até a etapa",
@@ -603,7 +607,9 @@
         "name": "Métricas de LLM",
         "body": "Gerações, pessoas, custo, latência e uso por modelo."
       }
-    }
+    },
+    "sharedAdminOnly": "Isto aparece em um link público, então só um admin pode mudar.",
+    "sharedLocked": "Este painel tem um link público. Só um admin pode mudar."
   },
   "persons": {
     "title": "Pessoas",
@@ -733,7 +739,8 @@
     "groupsMax": "Até 10 grupos",
     "payloads": "Payloads (JSON)",
     "payloadsHelp": "Dados que chegam com cada valor. Leia com zs.getFeatureFlagPayload(chave).",
-    "payloadInvalid": "O payload de {key} não é JSON válido."
+    "payloadInvalid": "O payload de {key} não é JSON válido.",
+    "adminOnly": "Só um admin pode mudar feature flags. Você pode ver como este está configurado."
   },
   "projects": {
     "title": "Projetos",
@@ -804,11 +811,12 @@
     "cookieless": "Permitir medir sem cookies",
     "cookielessHelp": "O snippet pode rodar sem guardar nada no navegador, com cookieless_mode. Os visitantes são contados com um hash que muda todo dia, então a mesma pessoa em dois dias conta duas vezes e não há perfis de pessoa. O IP não é guardado. Desligado por padrão.",
     "cookielessTitle": "Sem cookies",
-    "cookielessDesc": "Nada é guardado no navegador e identify não faz nada. Gravações e pesquisas ficam desligadas neste modo. Primeiro ligue \"Permitir medir sem cookies\" acima."
+    "cookielessDesc": "Nada é guardado no navegador e identify não faz nada. Gravações e pesquisas ficam desligadas neste modo. Primeiro ligue \"Permitir medir sem cookies\" acima.",
+    "cookielessDropped": "{count, plural, one {# evento chegou} other {# eventos chegaram}} com cookieless_mode e foram descartados porque \"Permitir medir sem cookies\" está desligado. Ligue ou mude o snippet."
   },
   "share": {
     "title": "Link público",
-    "warning": "Qualquer pessoa com o link vê estes resultados, incluindo valores das aberturas e caminhos de páginas, sem entrar. A definição da consulta e os ids de pessoas não aparecem. Revogue um link para fechá-lo na hora.",
+    "warning": "Qualquer pessoa com o link pode ver estes resultados e os caminhos de páginas sem entrar. A definição da consulta e os ids de pessoas continuam privados. Só se publicam aberturas por navegador, sistema, dispositivo, país, página, host, referência ou UTM. Revogue um link para fechá-lo na hora.",
     "none": "Ainda não há links públicos.",
     "link": "Link público",
     "copyLink": "Copiar link",

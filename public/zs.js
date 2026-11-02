@@ -66,6 +66,24 @@
     }
     return v;
   }
+  /** Borra todo lo del proyecto en este navegador, salvo la decisión de consentimiento. */
+  function wipeIdentity() {
+    memory = {};
+    [w.localStorage, w.sessionStorage].forEach(function (area) {
+      try {
+        var prefix = 'zs_' + cfg.key + '_';
+        for (var i = area.length - 1; i >= 0; i--) {
+          var name = area.key(i);
+          if (name && name.indexOf(prefix) === 0 && name !== prefix + 'consent') area.removeItem(name);
+        }
+      } catch (e) {
+        /* sin almacenamiento */
+      }
+    });
+    state.identified = false;
+    state.props = {};
+    state.groups = {};
+  }
   function assign(a, b) {
     for (var k in b) if (Object.prototype.hasOwnProperty.call(b, k)) a[k] = b[k];
     return a;
@@ -220,6 +238,19 @@
   // ---------- Flags ----------
   function loadFlags() {
     if (!cfg.key) return Promise.resolve(null);
+    if (state.optedOut) {
+      state.flags = {};
+      state.flagPayloads = {};
+      var waiting = state.flagCbs.slice();
+      waiting.forEach(function (cb) {
+        try {
+          cb(state.flags);
+        } catch (e) {
+          /* callback del sitio */
+        }
+      });
+      return Promise.resolve(state.flags);
+    }
     return send('/api/ingest/decide', { api_key: cfg.key, distinct_id: state.distinctId }, false).then(function (r) {
       if (!r) {
         startAutocapture();
@@ -236,6 +267,16 @@
       if (r.config && r.config.replay) startReplay(r.config.replay);
       if (r.config) {
         cfg.respectDnt = !!r.config.respectDnt;
+        // Do Not Track o GPC con el ajuste prendido: nada queda en el navegador.
+        if (browserSignal()) {
+          if (cfg.respectDnt) {
+            cfg.noStorage = true;
+            wipeIdentity();
+          } else if (cfg.noStorage && !cfg.cookieless && !state.optedOut) {
+            cfg.noStorage = false;
+            store('id', { id: state.distinctId, identified: state.identified });
+          }
+        }
         if (r.config.captureExceptions) startExceptionCapture();
         if (r.config.webVitals) startWebVitals();
         if (r.config.surveys) loadSurveys();
@@ -899,8 +940,11 @@
     if (s.urlContains && w.location.href.indexOf(s.urlContains) < 0) return false;
     return !surveySeen(s);
   }
+  function browserSignal() {
+    return w.navigator.doNotTrack === '1' || w.navigator.globalPrivacyControl === true;
+  }
   function dntActive() {
-    return cfg.respectDnt && (w.navigator.doNotTrack === '1' || w.navigator.globalPrivacyControl === true);
+    return cfg.respectDnt && browserSignal();
   }
   function evaluateSurveys() {
     if (!surveyList || surveyOpen || surveyTimer || state.optedOut || dntActive() || !d.body) return;
@@ -1128,7 +1172,8 @@
     cfg.cookieless = cfg.mode === 'always' || (cfg.mode === 'on_reject' && consent === 'denied');
     var pending = !consent && (cfg.mode === 'on_reject' || cfg.defaultOut);
     state.optedOut = pending || (consent === 'denied' && cfg.mode !== 'on_reject' && cfg.mode !== 'always');
-    cfg.noStorage = cfg.cookieless || pending;
+    cfg.noStorage = cfg.cookieless || pending || consent === 'denied';
+    if (cfg.noStorage) wipeIdentity();
   }
   function setConsent(value) {
     store('consent', value);
@@ -1181,7 +1226,11 @@
     cfg.defaultOut = opts.opt_out_capturing_by_default === true;
     var consent = store('consent');
     applyConsent(consent);
-    if (!cfg.cookieless) state.optedOut = state.optedOut || !!store('optout');
+    // Quien había salido con una versión anterior: queda como rechazo.
+    if (!consent && !cfg.noStorage && store('optout')) {
+      store('consent', 'denied');
+      applyConsent('denied');
+    }
     if (cfg.cookieless) {
       state.distinctId = SENTINEL;
       state.identified = false;
@@ -1189,6 +1238,8 @@
       var saved = store('id');
       state.distinctId = saved && saved.id ? saved.id : uuid();
       state.identified = !!(saved && saved.identified);
+      // Con Do Not Track o GPC no se escribe nada hasta saber si el proyecto lo respeta.
+      if (!cfg.noStorage && browserSignal()) cfg.noStorage = true;
       if (!saved) store('id', { id: state.distinctId, identified: false });
     }
     state.props = store('props') || {};
@@ -1255,24 +1306,10 @@
       api.optOut();
     },
     optOut: function () {
-      if (cfg.mode !== 'never') {
-        setConsent('denied');
-        return;
-      }
-      store('consent', 'denied');
-      state.optedOut = true;
-      state.buffer = [];
-      if (replay.started) stopReplay();
-      store('optout', true);
+      setConsent('denied');
     },
     optIn: function () {
-      if (cfg.mode !== 'never' || cfg.defaultOut) {
-        setConsent('granted');
-        return;
-      }
-      store('consent', 'granted');
-      state.optedOut = false;
-      store('optout', null);
+      setConsent('granted');
     },
     push: function (args) {
       var m = args && api[args[0]];

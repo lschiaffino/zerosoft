@@ -213,6 +213,18 @@ export async function createShare(projectId: string, personId: string, target: {
   return { id, token, project_id: projectId, insight_id: target.insightId ?? null, dashboard_id: target.dashboardId ?? null, created_at: ts };
 }
 
+/** ¿Lo que se quiere tocar se ve en algún link público? Un insight también, si está en un tablero compartido. */
+export async function hasActiveShare(projectId: string, target: { insightId?: string; dashboardId?: string }): Promise<boolean> {
+  const row = target.insightId
+    ? await getDb()
+        .prepare(
+          `SELECT 1 AS x FROM analytics_shares s WHERE s.project_id = ? AND (s.insight_id = ? OR s.dashboard_id IN (SELECT dashboard_id FROM analytics_dashboard_items WHERE insight_id = ?)) LIMIT 1`,
+        )
+        .get(projectId, target.insightId, target.insightId)
+    : await getDb().prepare('SELECT 1 AS x FROM analytics_shares WHERE project_id = ? AND dashboard_id = ? LIMIT 1').get(projectId, target.dashboardId ?? '');
+  return Boolean(row);
+}
+
 export async function revokeShare(projectId: string, id: string): Promise<boolean> {
   const res = await getDb().prepare('DELETE FROM analytics_shares WHERE id = ? AND project_id = ?').run(id, projectId);
   return res.changes > 0;

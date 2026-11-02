@@ -40,6 +40,7 @@ export interface ProjectRow {
   keep_bots: number;
   cookieless: number;
   bots_filtered: number;
+  cookieless_dropped?: number;
   test_filters: string;
   rolled_through: string | null;
   dirty_from: string | null;
@@ -91,6 +92,7 @@ export function toProjectDto(r: ProjectRow): ProjectDto {
     keepBots: r.keep_bots === 1,
     cookieless: r.cookieless === 1,
     botsFiltered: Number(r.bots_filtered ?? 0),
+    cookielessDropped: Number(r.cookieless_dropped ?? 0),
     testFilters: parseTestFilters(r.test_filters),
     createdAt: r.created_at,
     updatedAt: r.updated_at,

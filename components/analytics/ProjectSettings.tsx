@@ -236,6 +236,11 @@ zs.identify('user-123', { email: 'ana@example.com' });`;
             <input type="checkbox" data-testid="an-cookieless" checked={form.cookieless} onChange={(e) => setForm({ ...form, cookieless: e.target.checked })} /> {t('cookieless')}
           </label>
           <p className="ui-help">{t('cookielessHelp')}</p>
+          {!project.cookieless && project.cookielessDropped > 0 && (
+            <p className="ui-error" role="alert" data-testid="an-cookieless-dropped">
+              {t('cookielessDropped', { count: project.cookielessDropped })}
+            </p>
+          )}
           <label className="ui-check">
             <input type="checkbox" data-testid="an-keep-bots" checked={form.keepBots} onChange={(e) => setForm({ ...form, keepBots: e.target.checked })} /> {t('keepBots')}
           </label>

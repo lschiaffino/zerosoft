@@ -124,6 +124,7 @@ function Trends({ r, display, annotations }: { r: TrendsResult; display: TrendDi
   return (
     <div className="an-result">
       {r.weekendsHidden && <p className="an-note">{t('weekendsHidden')}</p>}
+      {Boolean(o?.smoothing) && <p className="an-note">{t('smoothedNote', { n: o?.smoothing ?? 0 })}</p>}
       {!visible.length ? (
         <p className="an-empty-result">{t('allHidden')}</p>
       ) : display === 'number' ? (
@@ -486,6 +487,7 @@ function Funnel({ r, peopleHref, query }: { r: FunnelResult; peopleHref?: (ids: 
                     </span>
                   )}
                 </div>
+                {peopleHref && s.count > 100 && r.unit !== 'group' && <p className="an-note an-flush">{t('peopleCap')}</p>}
                 {query && !unordered && <StepPaths query={query} step={i} />}
               </li>
             );

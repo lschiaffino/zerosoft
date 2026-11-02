@@ -197,7 +197,9 @@
     "retentionMeanRow": "Promedio",
     "retentionChart": "Retención por período",
     "retentionCell": "{count} personas de {start}, período {n}",
-    "retentionValue": "Cohortes de {value}. Elegilo de nuevo para ver a todos."
+    "retentionValue": "Cohortes de {value}. Elegilo de nuevo para ver a todos.",
+    "smoothedNote": "El gráfico muestra un promedio de {n} días. Los totales son las cuentas reales del rango.",
+    "peopleCap": "La lista abre las primeras 100 personas."
   },
   "filters": {
     "filterN": "Filtro {n}",
@@ -324,7 +326,9 @@
       "sql_busy": "Hay demasiadas consultas SQL corriendo ahora. Probá de nuevo en unos segundos.",
       "invalid_formula": "La fórmula no es válida. Usá las letras de las series, números y + - * / ( ).",
       "math_property_required": "Elegí la propiedad numérica para calcular.",
-      "group_type_required": "Escribí el tipo de grupo para contar."
+      "group_type_required": "Escribí el tipo de grupo para contar.",
+      "shared_admin_only": "Esto aparece en un link público, así que solo un admin lo puede cambiar.",
+      "admin_only": "Solo un admin puede cambiar los feature flags."
     },
     "noCohorts": "Todavía no hay cohortes",
     "excludeInternal": "Sacar gente interna y de prueba",
@@ -424,8 +428,8 @@
     "attributionAnyStep": "Cualquier paso",
     "attributionStep": "Paso de la atribución",
     "exclusions": "Pasos de exclusión",
-    "exclusionsHelp": "Quien haga este evento entre los dos pasos queda afuera de todo el embudo.",
-    "exclusionsHelpAny": "Quien haga este evento mientras completa los pasos queda afuera de todo el embudo.",
+    "exclusionsHelp": "Quien haga este evento entre los dos pasos queda afuera de todo el embudo. Si ya había completado una conversión antes, esa sigue contando.",
+    "exclusionsHelpAny": "Quien haga este evento mientras completa los pasos queda afuera de todo el embudo. Si ya había completado una conversión antes, esa sigue contando.",
     "exclusionEvent": "Evento a excluir",
     "exclusionFrom": "Excluido desde el paso",
     "exclusionTo": "Excluido hasta el paso",
@@ -603,7 +607,9 @@
         "name": "Métricas de LLM",
         "body": "Generaciones, personas, costo, latencia y uso por modelo."
       }
-    }
+    },
+    "sharedAdminOnly": "Esto aparece en un link público, así que solo un admin lo puede cambiar.",
+    "sharedLocked": "Este tablero tiene un link público. Solo un admin lo puede cambiar."
   },
   "persons": {
     "title": "Personas",
@@ -733,7 +739,8 @@
     "groupsMax": "Hasta 10 grupos",
     "payloads": "Payloads (JSON)",
     "payloadsHelp": "Datos que llegan con cada valor. Se leen con zs.getFeatureFlagPayload(clave).",
-    "payloadInvalid": "El payload de {key} no es JSON válido."
+    "payloadInvalid": "El payload de {key} no es JSON válido.",
+    "adminOnly": "Solo un admin puede cambiar los feature flags. Podés ver cómo está armado este."
   },
   "projects": {
     "title": "Proyectos",
@@ -804,11 +811,12 @@
     "cookieless": "Permitir medir sin cookies",
     "cookielessHelp": "El snippet puede correr sin guardar nada en el navegador, con cookieless_mode. Los visitantes se cuentan con un hash que cambia cada día, así que la misma persona en dos días cuenta dos veces y no hay perfiles de persona. La IP no se guarda. Apagado por defecto.",
     "cookielessTitle": "Sin cookies",
-    "cookielessDesc": "No se guarda nada en el navegador e identify no hace nada. Las grabaciones y encuestas quedan apagadas en este modo. Primero prendé \"Permitir medir sin cookies\" arriba."
+    "cookielessDesc": "No se guarda nada en el navegador e identify no hace nada. Las grabaciones y encuestas quedan apagadas en este modo. Primero prendé \"Permitir medir sin cookies\" arriba.",
+    "cookielessDropped": "{count, plural, one {# evento llegó} other {# eventos llegaron}} con cookieless_mode y se descartaron porque \"Permitir medir sin cookies\" está apagado. Prendelo o cambiá el snippet."
   },
   "share": {
     "title": "Link público",
-    "warning": "Cualquiera con el link ve estos resultados, incluidos los valores de las aperturas y las rutas de páginas, sin iniciar sesión. La definición de la consulta y los ids de personas no se muestran. Revocá un link para cerrarlo al instante.",
+    "warning": "Cualquiera con el link puede ver estos resultados y las rutas de páginas sin iniciar sesión. La definición de la consulta y los ids de personas siguen privados. Solo se publican aperturas por navegador, sistema, dispositivo, país, página, host, referente o UTM. Revocá un link para cerrarlo al instante.",
     "none": "Todavía no hay links públicos.",
     "link": "Link público",
     "copyLink": "Copiar link",

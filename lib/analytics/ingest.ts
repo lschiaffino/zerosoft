@@ -25,7 +25,7 @@ import { offsetMsAt, projectTz, type Tz } from './tz';
 
 /** Contexto del pedido: user agent, país y IP (sin headers que pueda inventar el cliente). */
 export function requestContext(req: Request): RequestContext {
-  const c = contextFromHeaders(req.headers);
+  const c = contextFromHeaders(req.headers, clientIp(req));
   const ua = req.headers.get('user-agent') ?? '';
   // Sin user agent (un servidor): el navegador y el sistema los dice el evento.
   const hasUa = ua.trim().length > 0;

@@ -8345,6 +8345,12 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, "ALTER TABLE analytics_dashboards ADD COLUMN settings TEXT NOT NULL DEFAULT '{}'");
     },
   },
+  {
+    id: '187_analytics_cookieless_dropped',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN cookieless_dropped INTEGER NOT NULL DEFAULT 0');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

@@ -272,6 +272,8 @@ export interface TrendSeriesResult {
   label: string;
   /** Valor de la apertura (breakdown) o null. */
   breakdownValue: string | null;
+  /** El total es el valor del último punto (activos en una ventana). */
+  latest?: boolean;
   data: number[];
   total: number;
   /** Mismo largo que data: el período anterior (si se pidió comparar). */
@@ -561,6 +563,7 @@ export interface ProjectDto {
   keepBots: boolean;
   cookieless: boolean;
   botsFiltered: number;
+  cookielessDropped: number;
   /** Filtros que definen gente interna o de prueba (se aplican con excludeInternal). */
   testFilters: PropertyFilter[];
   createdAt: string;
@@ -733,14 +736,17 @@ export interface ExperimentResults {
   truncated: boolean;
 }
 
+/** Propiedades cuyos valores no dicen quién es alguien: las únicas aperturas que van a un link abierto. */
+export const SAFE_SHARE_BREAKDOWNS = ['$browser', '$browser_version', '$os', '$device_type', '$geoip_country_code', '$pathname', '$host', '$referring_domain', '$lib', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+
 /**
  * ¿Se puede publicar el resultado de esta consulta en un link abierto? SQL no
  * (puede traer cualquier dato) y tampoco una apertura por propiedad de persona o
- * por distinct_id, porque sus valores identifican gente.
+ * por una propiedad fuera de la lista segura, porque sus valores pueden identificar gente.
  */
 export function shareableQuery(q: InsightQuery): boolean {
   if (q.kind === 'sql') return false;
-  if ((q.kind === 'trends' || q.kind === 'funnel' || q.kind === 'retention') && q.breakdown && (q.breakdown.type === 'person' || q.breakdown.key === 'distinct_id')) return false;
+  if ((q.kind === 'trends' || q.kind === 'funnel' || q.kind === 'retention') && q.breakdown && (q.breakdown.type === 'person' || !SAFE_SHARE_BREAKDOWNS.includes(q.breakdown.key))) return false;
   return true;
 }
 

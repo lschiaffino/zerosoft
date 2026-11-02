@@ -197,7 +197,9 @@
     "retentionMeanRow": "Mean",
     "retentionChart": "Retention by period",
     "retentionCell": "{count} people from {start}, period {n}",
-    "retentionValue": "Cohorts for {value}. Choose it again to see everyone."
+    "retentionValue": "Cohorts for {value}. Choose it again to see everyone.",
+    "smoothedNote": "The chart shows a {n}-day average. Totals are the real counts for the range.",
+    "peopleCap": "The list opens the first 100 people."
   },
   "filters": {
     "filterN": "Filter {n}",
@@ -324,7 +326,9 @@
       "sql_busy": "Too many SQL queries are running right now. Try again in a few seconds.",
       "invalid_formula": "The formula is not valid. Use the series letters, numbers and + - * / ( ).",
       "math_property_required": "Choose the numeric property to calculate.",
-      "group_type_required": "Write the group type to count."
+      "group_type_required": "Write the group type to count.",
+      "shared_admin_only": "This appears on a public link, so only admins can change it.",
+      "admin_only": "Only admins can change feature flags."
     },
     "noCohorts": "No cohorts yet",
     "excludeInternal": "Filter out internal and test people",
@@ -424,8 +428,8 @@
     "attributionAnyStep": "Any step",
     "attributionStep": "Attribution step",
     "exclusions": "Exclusion steps",
-    "exclusionsHelp": "Whoever does this event between the two steps is left out of the whole funnel.",
-    "exclusionsHelpAny": "Whoever does this event while completing the steps is left out of the whole funnel.",
+    "exclusionsHelp": "Whoever does this event between the two steps is left out of the whole funnel. A conversion they had already finished before that stays counted.",
+    "exclusionsHelpAny": "Whoever does this event while completing the steps is left out of the whole funnel. A conversion they had already finished before that stays counted.",
     "exclusionEvent": "Event to exclude",
     "exclusionFrom": "Excluded from step",
     "exclusionTo": "Excluded until step",
@@ -603,7 +607,9 @@
         "name": "LLM metrics",
         "body": "Generations, people, cost, latency and usage by model."
       }
-    }
+    },
+    "sharedAdminOnly": "This appears on a public link, so only admins can change it.",
+    "sharedLocked": "This dashboard has a public link. Only admins can change it."
   },
   "persons": {
     "title": "People",
@@ -733,7 +739,8 @@
     "groupsMax": "Up to 10 groups",
     "payloads": "Payloads (JSON)",
     "payloadsHelp": "Data that comes with each value. Read it with zs.getFeatureFlagPayload(key).",
-    "payloadInvalid": "The payload of {key} is not valid JSON."
+    "payloadInvalid": "The payload of {key} is not valid JSON.",
+    "adminOnly": "Only admins can change feature flags. You can see how this one is set up."
   },
   "projects": {
     "title": "Projects",
@@ -804,11 +811,12 @@
     "cookieless": "Allow tracking without cookies",
     "cookielessHelp": "The snippet can run without storing anything in the browser, with cookieless_mode. Visitors are counted with a hash that changes every day, so the same person on two days counts twice and there are no person profiles. The IP is not stored. Off by default.",
     "cookielessTitle": "Without cookies",
-    "cookielessDesc": "Nothing is stored in the browser and identify does nothing. Recordings and surveys stay off in this mode. Turn on \"Allow tracking without cookies\" above first."
+    "cookielessDesc": "Nothing is stored in the browser and identify does nothing. Recordings and surveys stay off in this mode. Turn on \"Allow tracking without cookies\" above first.",
+    "cookielessDropped": "{count, plural, one {# event} other {# events}} came in with cookieless_mode and were dropped because \"Allow tracking without cookies\" is off. Turn it on or change the snippet."
   },
   "share": {
     "title": "Public link",
-    "warning": "Anyone with the link can see these results, including breakdown values and page paths, without signing in. The query definition and person ids stay private. Revoke a link to close it at once.",
+    "warning": "Anyone with the link can see these results and page paths without signing in. The query definition and person ids stay private. Only breakdowns by browser, OS, device, country, page, host, referrer or UTM can be published. Revoke a link to close it at once.",
     "none": "No public links yet.",
     "link": "Public link",
     "copyLink": "Copy link",

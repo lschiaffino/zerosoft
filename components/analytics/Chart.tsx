@@ -129,7 +129,7 @@ export default function Chart({
                     {n === 1 && <circle className="an-dot" cx={x(0)} cy={y(s.data[0])} r={3.5} />}
                     {showValues &&
                       s.data.map((v, i) =>
-                        i % valueEvery === 0 || i === n - 1 ? (
+                        (i % valueEvery === 0 && n - 1 - i >= valueEvery) || i === n - 1 ? (
                           <text key={i} className="an-value-label" x={x(i)} y={y(v) - 7} textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}>
                             {fmt(v)}
                           </text>

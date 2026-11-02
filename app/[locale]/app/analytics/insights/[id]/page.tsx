@@ -49,7 +49,7 @@ export default async function AnalyticsInsightPage(props: { params: Promise<{ lo
     <>
       <SyncProject projectId={ctx.project.id} currentId={cookieProject} />
       <InsightEditor
-        key={insight?.id ?? query ?? 'new'}
+        key={insight?.id ?? query ?? `new-${kind ?? ''}`}
         projectId={ctx.project.id}
         insight={insight}
         initialKind={INSIGHT_KINDS.includes(kind as InsightKind) ? (kind as InsightKind) : undefined}

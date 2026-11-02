@@ -381,6 +381,7 @@ export default function DashboardView({
   annotations = [],
   cohorts = [],
   otherDashboards = [],
+  locked = false,
 }: {
   projectId: string;
   dashboard: DashboardDto;
@@ -390,6 +391,8 @@ export default function DashboardView({
   annotations?: Array<{ date: string; content: string }>;
   cohorts?: Array<{ id: string; name: string }>;
   otherDashboards?: Array<{ id: string; name: string }>;
+  /** Está en un link público y quien mira no es admin: no se puede cambiar. */
+  locked?: boolean;
 }) {
   const t = useTranslations('analytics.dashboards');
   const te = useTranslations('analytics.editor');
@@ -401,6 +404,7 @@ export default function DashboardView({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const errorText = (err: unknown) => (err instanceof ApiError && err.code === 'shared_admin_only' ? t('sharedAdminOnly') : apiErrorText(err, tc));
   const patch = async (body: Record<string, unknown>) => {
     setBusy(true);
     setError(null);
@@ -410,7 +414,7 @@ export default function DashboardView({
       router.refresh();
       return true;
     } catch (err) {
-      setError(apiErrorText(err, tc));
+      setError(errorText(err));
       return false;
     } finally {
       setBusy(false);
@@ -435,7 +439,11 @@ export default function DashboardView({
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       const clean: DashboardSettings = { ...next, filters: cleanFilters(next.filters) };
-      api(`/api/analytics/dashboards/${dashboard.id}`, { method: 'PATCH', body: { settings: clean } }).catch((err) => setError(apiErrorText(err, tc)));
+      api(`/api/analytics/dashboards/${dashboard.id}`, { method: 'PATCH', body: { settings: clean } }).catch((err) => {
+        setError(errorText(err));
+        // Lo que no se guardó no se queda en pantalla como si se hubiera guardado.
+        setSettings(JSON.parse(serverSettings) as DashboardSettings);
+      });
     }, 500);
   };
   const setTile = (id: string, tile: DashboardTile) => save({ ...settings, tiles: { ...settings.tiles, [id]: { ...tile, filters: tile.filters } } });
@@ -460,7 +468,7 @@ export default function DashboardView({
       }
       return true;
     } catch (err) {
-      setError(apiErrorText(err, tc));
+      setError(errorText(err));
       return false;
     }
   };
@@ -527,6 +535,11 @@ export default function DashboardView({
       {error && (
         <p className="ui-error" role="alert">
           {error}
+        </p>
+      )}
+      {locked && (
+        <p className="an-note" role="status" data-testid="an-board-locked">
+          {t('sharedLocked')}
         </p>
       )}
       <div className="an-toolbar an-wrap">
@@ -663,8 +676,9 @@ export default function DashboardView({
             await api(`/api/analytics/dashboards/${dashboard.id}`, { method: 'DELETE' });
             notifyChanged();
             router.replace('/app/analytics/dashboards');
-          } catch {
-            setError(tc('error'));
+          } catch (err) {
+            setError(errorText(err));
+            setDeleting(false);
             setBusy(false);
           }
         }}

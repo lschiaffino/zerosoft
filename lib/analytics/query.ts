@@ -387,15 +387,16 @@ async function trendOnce(project: ProjectRow, q: TrendsQuery, range: { from: num
   const shift = shiftFor(project, range);
   const tz = projectTz(project);
   const buckets = bucketList(range.from, range.to, q.interval, tz);
+  const hideWeekends = q.interval === 'day' && Boolean(q.options?.hideWeekends);
   const cohort = await cohortFrag(project, q.cohortId, now);
   const actions = await loadActions(project.id, q.series.flatMap((s) => [s.event, ...(s.orEvents ?? [])]));
   let usedRollup = false;
-  const out: Array<{ label: string; breakdownValue: string | null; data: number[]; total: number }> = [];
+  const out: Array<{ label: string; breakdownValue: string | null; data: number[]; total: number; latest?: boolean }> = [];
   for (const s of q.series) {
     const filters = [...internalFilters(project, q.excludeInternal), ...q.filters, ...s.filters];
     const label = seriesLabel(s.event, s, actions);
     const isAction = s.event.startsWith(ACTION_PREFIX);
-    if (!filters.length && !q.breakdown && !cohort && !isAction && s.math === 'total' && !s.orEvents?.length && !s.first) {
+    if (!filters.length && !q.breakdown && !cohort && !isAction && s.math === 'total' && !s.orEvents?.length && !s.first && !hideWeekends) {
       const data = await trendFromRollup(project, s.event, s.math, q.interval, range, buckets);
       if (data) {
         usedRollup = true;
@@ -409,9 +410,11 @@ async function trendOnce(project: ProjectRow, q: TrendsQuery, range: { from: num
     const usesPerson = s.math === 'unique' || s.math === 'per_user' || isPerUser || isActive || Boolean(s.first);
     const joins = usesPerson || withPerson || cohort ? personJoins(withPerson) : '';
     const extra = seriesExtra(project, s, filters, actions);
-    const where = extra ? andFrag(whereFor(project, range, null, filters, cohort, actions), extra) : whereFor(project, range, s.event, filters, cohort, actions);
+    const base = extra ? andFrag(whereFor(project, range, null, filters, cohort, actions), extra) : whereFor(project, range, s.event, filters, cohort, actions);
+    // Sin fines de semana: se sacan de los eventos, así únicos, promedios y totales no los cuentan.
+    const where = hideWeekends ? andFrag(base, { sql: `CAST(strftime('%w', (e.ts + CAST(? AS INTEGER)${shift}) / 1000, 'unixepoch') AS INTEGER) NOT IN (0, 6)`, args: [off] }) : base;
     if (isActive) {
-      for (const b of await activeSeries(project, s, q, extra, filters, cohort, actions, joins, buckets, range)) out.push({ label, breakdownValue: b.value, data: b.data, total: b.total });
+      for (const b of await activeSeries(project, s, q, extra, filters, cohort, actions, joins, buckets, range)) out.push({ label, breakdownValue: b.value, data: b.data, total: b.total, latest: true });
       continue;
     }
     if (isPerUser) {
@@ -506,7 +509,8 @@ export async function runTrends(project: ProjectRow, q: TrendsQuery, now = Date.
   // El promedio móvil mira días antes del rango, para que el primer día ya tenga su ventana completa.
   if (daily && o?.smoothing) {
     const n = o.smoothing;
-    const wide = await trendsFor(project, q, { from: range.from - (n - 1) * DAY, to: range.to }, now);
+    // El promedio mira los días reales, también los fines de semana, aunque después no se muestren.
+    const wide = await trendsFor(project, { ...q, options: { ...o, hideWeekends: false } }, { from: range.from - (n - 1) * DAY, to: range.to }, now);
     const len = buckets.length;
     series = series.map((s) => {
       const w = wide.series.find((x) => x.label === s.label && x.breakdownValue === s.breakdownValue);
@@ -517,15 +521,16 @@ export async function runTrends(project: ProjectRow, q: TrendsQuery, now = Date.
   const weekendsHidden = Boolean(daily && o?.hideWeekends);
   if (weekendsHidden) {
     const keep = buckets.map((b, i) => (isWeekend(b) ? -1 : i)).filter((i) => i >= 0);
-    const summable = !q.formula && q.series.every((s) => s.math === 'total' || s.math === 'sum') && !o?.smoothing;
     buckets = keep.map((i) => buckets[i]);
     series = series.map((s) => {
       const data = keep.map((i) => s.data[i]);
-      return { ...s, data, compare: s.compare && keep.map((i) => s.compare![i]), total: summable ? round2(data.reduce((a, b) => a + b, 0)) : s.total };
+      const compare = s.compare && keep.map((i) => s.compare![i]);
+      // Los activos en una ventana valen lo de su último punto: el último que se ve.
+      return s.latest ? { ...s, data, compare, total: data[data.length - 1] ?? 0, compareTotal: compare ? (compare[compare.length - 1] ?? 0) : s.compareTotal } : { ...s, data, compare };
     });
   }
   const lastIncomplete = buckets.length > 0 && buckets[buckets.length - 1] === bucketOf(now, q.interval, tz);
-  return { kind: 'trends', buckets, series, usedRollup: base.usedRollup, options: o ?? null, lastIncomplete, weekendsHidden };
+  return { kind: 'trends', buckets, series: series.map(({ latest: _latest, ...x }) => x), usedRollup: base.usedRollup, options: o ?? null, lastIncomplete, weekendsHidden };
 }
 
 // ---------- Embudos ----------

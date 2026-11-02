@@ -7,10 +7,15 @@ import { parseIngestBody } from '@/lib/analytics/ingest-core';
 import { storeEvents } from '@/lib/analytics/ingest';
 import { createProject, getProject, type ProjectRow } from '@/lib/analytics/projects';
 import { runInsight } from '@/lib/analytics/query';
-import { createDashboard, createDashboardFromTemplate, createInsight, getDashboard, transferDashboardTile, updateDashboard } from '@/lib/analytics/records';
+import { createDashboard, createDashboardFromTemplate, createInsight, getCohort, getDashboard, transferDashboardTile, updateDashboard } from '@/lib/analytics/records';
 import { createShare } from '@/lib/analytics/records-more';
 import { publicShareView } from '@/lib/analytics/share-view';
 import { dashboardSettingsSchema, funnelQuerySchema, insightQuerySchema, trendsQuerySchema, type DashboardSettings } from '@/lib/analytics/types';
+
+async function setupOne() {
+  const user = await upsertUser({ email: `an-dash-c-${nanoid(8)}@test.dev` });
+  return { project: await createProject(user.id, user.id, 'C') };
+}
 
 const trend = trendsQuerySchema.parse({ kind: 'trends', series: [{ event: 'x' }], dateRange: { from: '-7d' }, filters: [{ key: 'a', op: 'eq', value: 1 }] });
 const base = (patch: Partial<DashboardSettings> = {}): DashboardSettings => ({ ...normalizeSettings(null), ...patch });
@@ -91,6 +96,13 @@ describe('dashboard core', () => {
 
   it('settings saved before parse fine', () => {
     expect(dashboardSettingsSchema.parse({})).toEqual({ filters: [], texts: [], order: [], tiles: {} });
+  });
+});
+
+describe('cohort on a board', () => {
+  it('the route refuses a cohort from elsewhere', async () => {
+    const { project } = await setupOne();
+    expect(await getCohort(project.id, 'ac_other-workspace')).toBeNull();
   });
 });
 

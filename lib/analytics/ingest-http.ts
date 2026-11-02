@@ -9,6 +9,7 @@ import { gunzipSync } from 'zlib';
 import { NextResponse } from 'next/server';
 import { extractBearer } from '../api-auth';
 import { ensureMigrated, getClient, getDb } from '../db';
+import { createHmac } from 'crypto';
 import { clientIp } from '../rate-limit';
 import { isBotUserAgent } from './bots';
 import { applyCookieless, cookielessIdFor, isCookielessId } from './cookieless';
@@ -130,6 +131,11 @@ export function dntOn(req: Request): boolean {
  * Tope por proyecto y por IP dentro del proyecto, los dos en un solo viaje a la
  * base (ventanas fijas de un minuto en rate_limits, como lib/rate-limit.ts).
  */
+/** Lo que queda en la tabla de límites: nunca la IP tal cual. */
+function ipKey(ip: string, windowStart: number): string {
+  return createHmac('sha256', process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'zs-rate').update(`${windowStart}:${ip}`).digest('base64url').slice(0, 24);
+}
+
 export async function limited(req: Request, bucket: string, projectId: string, rpm: number): Promise<NextResponse | null> {
   if (process.env.RATE_LIMIT_DISABLED === 'true') return null;
   const now = Date.now();
@@ -140,7 +146,7 @@ export async function limited(req: Request, bucket: string, projectId: string, r
     args: [key, start, start + 60_000],
   });
   await ensureMigrated();
-  const [project, ip] = await getClient().batch([upsert(`${bucket}:${projectId}`), upsert(`${bucket}:${projectId}:${clientIp(req)}`)], 'write');
+  const [project, ip] = await getClient().batch([upsert(`${bucket}:${projectId}`), upsert(`${bucket}:${projectId}:${ipKey(clientIp(req), start)}`)], 'write');
   if (Number(project.rows[0]?.count ?? 0) <= rpm && Number(ip.rows[0]?.count ?? 0) <= Math.min(rpm, IP_PROJECT_RPM)) return null;
   const res = reply(req, 429, { error: 'rate_limited' });
   res.headers.set('retry-after', String(Math.max(1, Math.ceil((start + 60_000 - now) / 1000))));
@@ -177,7 +183,14 @@ export async function handleCapture(req: Request): Promise<Response> {
   let events = parsed.events;
   let storeCtx = ctx;
   if (events.some((e) => isCookielessId(e.distinctId))) {
-    if (r.secret || r.project.cookieless !== 1) events = events.filter((e) => !isCookielessId(e.distinctId));
+    if (r.secret || r.project.cookieless !== 1) {
+      const kept = events.filter((e) => !isCookielessId(e.distinctId));
+      // Se descartan, pero quien administra el proyecto lo ve en los ajustes.
+      if (!r.secret && kept.length < events.length) {
+        await getDb().prepare('UPDATE analytics_projects SET cookieless_dropped = cookieless_dropped + ? WHERE id = ?').run(events.length - kept.length, r.project.id);
+      }
+      events = kept;
+    }
     else {
       events = await applyCookieless(r.project, events, req, clientIp(req));
       if (storeCtx) storeCtx = { ...storeCtx, ip: null };

@@ -589,3 +589,50 @@ test('Analytics: sin sesión o con un token inventado la API dice 401, y sin la 
     await closeAll(olga, nia);
   }
 });
+
+test('Analytics: lo que está en un link público y los flags los cambia un admin; lo demás, cualquiera con la app', async ({ browser }) => {
+  const olga = await owner(browser);
+  const mia = await join(browser, olga, 'Mia', 'member', ['analytics']);
+  const post = async (path: string, data: unknown) => {
+    const res = await olga.ctx.request.post(path, { data });
+    expect(res.status(), await res.text()).toBeLessThan(300);
+    return res.json();
+  };
+  try {
+    const { project } = await post('/api/analytics/projects', { name: `Real ${uid()}` });
+    const projectId = project.id as string;
+    const query = { kind: 'trends', series: [{ event: 'x' }] };
+    const { insight: shared } = await post('/api/analytics/insights', { projectId, name: 'Shared', query });
+    const { insight: onBoard } = await post('/api/analytics/insights', { projectId, name: 'On board', query });
+    const { insight: free } = await post('/api/analytics/insights', { projectId, name: 'Free', query });
+    const { dashboard: board } = await post('/api/analytics/dashboards', { projectId, name: 'Public board' });
+    const { dashboard: plain } = await post('/api/analytics/dashboards', { projectId, name: 'Plain' });
+    await olga.ctx.request.patch(`/api/analytics/dashboards/${board.id}`, { data: { insightIds: [onBoard.id] } });
+    await post('/api/analytics/shares', { projectId, insightId: shared.id });
+    await post('/api/analytics/shares', { projectId, dashboardId: board.id });
+
+    const m = mia.ctx.request;
+    const settings = { filters: [], order: [], tiles: {}, texts: [{ id: 't', body: 'hola' }] };
+    expect((await m.patch(`/api/analytics/insights/${shared.id}`, { data: { name: 'Otro' } })).status()).toBe(403);
+    expect((await m.patch(`/api/analytics/insights/${onBoard.id}`, { data: { name: 'Otro' } })).status()).toBe(403);
+    expect((await m.delete(`/api/analytics/insights/${shared.id}`)).status()).toBe(403);
+    expect((await m.patch(`/api/analytics/dashboards/${board.id}`, { data: { settings } })).status()).toBe(403);
+    expect((await m.patch(`/api/analytics/dashboards/${board.id}`, { data: { insightIds: [] } })).status()).toBe(403);
+    expect((await m.delete(`/api/analytics/dashboards/${board.id}`)).status()).toBe(403);
+    expect((await m.patch(`/api/analytics/dashboards/${plain.id}`, { data: { transfer: { targetId: board.id, kind: 'insight', tileId: free.id, move: false } } })).status()).toBe(403);
+    // Sin link público, se trabaja normal.
+    expect((await m.patch(`/api/analytics/insights/${free.id}`, { data: { name: 'Libre' } })).status()).toBe(200);
+    expect((await m.patch(`/api/analytics/dashboards/${plain.id}`, { data: { settings } })).status()).toBe(200);
+    // Un admin sí puede.
+    expect((await olga.ctx.request.patch(`/api/analytics/insights/${shared.id}`, { data: { name: 'Otro' } })).status()).toBe(200);
+
+    // Flags: crear, cambiar y borrar son de admin.
+    const { flag } = await post('/api/analytics/flags', { projectId, key: `f-${uid()}`, name: '', active: false, rollout: 100, variants: [], conditions: [] });
+    expect((await m.post('/api/analytics/flags', { data: { projectId, key: `m-${uid()}`, name: '', active: true, rollout: 100, variants: [], conditions: [] } })).status()).toBe(403);
+    expect((await m.patch(`/api/analytics/flags/${flag.id}`, { data: { active: true } })).status()).toBe(403);
+    expect((await m.delete(`/api/analytics/flags/${flag.id}`)).status()).toBe(403);
+    expect((await m.get(`/api/analytics/flags/${flag.id}`)).status()).toBe(200);
+  } finally {
+    await closeAll(olga, mia);
+  }
+});

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { deleteDashboard, getDashboard, listInsights, transferDashboardTile, updateDashboard } from '@/lib/analytics/records';
+import { deleteDashboard, getCohort, getDashboard, listInsights, transferDashboardTile, updateDashboard } from '@/lib/analytics/records';
 import { dashboardSettingsSchema } from '@/lib/analytics/types';
-import { aError, analyticsActor, isResponse, readJson, recordProject } from '@/lib/analytics/http';
+import { aError, analyticsActor, canManageAnalytics, isResponse, readJson, recordProject } from '@/lib/analytics/http';
+import { hasActiveShare } from '@/lib/analytics/records-more';
 import { toProjectDto } from '@/lib/analytics/projects';
 
 export const runtime = 'nodejs';
@@ -41,6 +42,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   const parsed = patchSchema.safeParse(await readJson(req));
   if (!parsed.success) return aError(400, 'invalid_input');
   const { transfer, ...patch } = parsed.data;
+  // Lo que se ve en un link público lo cambia quien puede publicar.
+  if (!canManageAnalytics(actor)) {
+    if (await hasActiveShare(project.id, { dashboardId: id })) return aError(403, 'shared_admin_only');
+    if (transfer && (await hasActiveShare(project.id, { dashboardId: transfer.targetId }))) return aError(403, 'shared_admin_only');
+  }
+  if (patch.settings?.cohortId && !(await getCohort(project.id, patch.settings.cohortId))) return aError(400, 'cohort_not_found');
   if (transfer) {
     const dashboard = await transferDashboardTile(project.id, id, transfer.targetId, { kind: transfer.kind, id: transfer.tileId }, transfer.move);
     if (!dashboard) return aError(404, 'not_found');
@@ -55,6 +62,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   const project = await recordProject(actor, 'analytics_dashboards', id);
   if (isResponse(project)) return project;
+  if (!canManageAnalytics(actor) && (await hasActiveShare(project.id, { dashboardId: id }))) return aError(403, 'shared_admin_only');
   await deleteDashboard(project.id, id);
   return NextResponse.json({ ok: true });
 }
