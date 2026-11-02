@@ -9,11 +9,11 @@
  * `category` y `audience` ordenan los menús: el catálogo del sitio
  * (AUDIENCE_PRODUCTS) y el switcher de la app salen de acá.
  */
-export type ProductCategory = 'sell' | 'support' | 'automate' | 'build' | 'daily';
+export type ProductCategory = 'sell' | 'support' | 'automate' | 'build' | 'run' | 'daily';
 export type ProductAudience = 'team' | 'personal';
 
-/** Orden de las categorías en los menús: vender, atender, automatizar, construir, trabajo diario. */
-export const PRODUCT_CATEGORIES: readonly ProductCategory[] = ['sell', 'support', 'automate', 'build', 'daily'];
+/** Orden de las categorías en los menús: vender, atender, automatizar, construir, operar, trabajo diario. */
+export const PRODUCT_CATEGORIES: readonly ProductCategory[] = ['sell', 'support', 'automate', 'build', 'run', 'daily'];
 
 interface ProductEntry {
   name: string;
@@ -47,10 +47,10 @@ export const PRODUCT_CONFIG = {
   shop: { name: 'Shop', launch: '/app/shop', path: 'shop', color: '#15803d', category: 'sell', audience: 'team' },
   analytics: { name: 'Analytics', launch: '/app/analytics', path: 'analytics', color: '#4f46e5', category: 'build', audience: 'team' },
   social: { name: 'Social', launch: '/app/social', path: 'social', color: '#7e22ce', category: 'sell', audience: 'team' },
-  hiring: { name: 'Hiring', launch: '/app/hiring', path: 'hiring', color: '#0f766e', category: 'daily', audience: 'team' },
-  people: { name: 'People', launch: '/app/people', path: 'people', color: '#8b5e34', category: 'daily', audience: 'team' },
-  books: { name: 'Books', launch: '/app/books', path: 'books', color: '#1e3a8a', category: 'sell', audience: 'team' },
-  sign: { name: 'Sign', launch: '/app/sign', path: 'sign', color: '#7f1d1d', category: 'sell', audience: 'team' },
+  hiring: { name: 'Hiring', launch: '/app/hiring', path: 'hiring', color: '#0f766e', category: 'run', audience: 'team' },
+  people: { name: 'People', launch: '/app/people', path: 'people', color: '#8b5e34', category: 'run', audience: 'team' },
+  books: { name: 'Books', launch: '/app/books', path: 'books', color: '#1e3a8a', category: 'run', audience: 'team' },
+  sign: { name: 'Sign', launch: '/app/sign', path: 'sign', color: '#7f1d1d', category: 'run', audience: 'team' },
   forms: { name: 'Forms', launch: '/app/forms', path: 'forms', color: '#6e730d', category: 'sell', audience: 'team' },
 } as const satisfies Record<string, ProductEntry>;
 
