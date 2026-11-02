@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
   const dueTasks = await fireDueTasks().catch(() => null);
   // Send: versiones a medio renderizar porque quien subió se fue (claim por fila), y descargas vencidas.
   const sendRender = await import('@/lib/send/core').then((m) => m.runSendRenderCron({ budgetMs: 15_000 })).catch(() => null);
-  await import('@/lib/send/viewer').then((m) => m.purgeDownloadCache()).catch(() => null);
+  await import('@/lib/send/viewer').then((m) => Promise.all([m.purgeDownloadCache(), m.flushAlertDigests()])).catch(() => null);
   await import('@/lib/send/core').then((m) => m.purgeSendLeftovers()).catch(() => null);
   // Reintentos de webhooks con backoff (1m, 5m, 30m…): claim por entrega en claimed_until.
   const webhookRetries = await retryDueWebhooks(100).catch(() => null);
