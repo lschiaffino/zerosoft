@@ -54,6 +54,14 @@
   "peopleDocRead": "Para ler: {title}",
   "peopleDocNew": "Novo documento: {title}",
   "reviewCycle": "Ciclo de avaliação iniciado: {name}",
+  "peopleChangeRequested": "{name} pediu uma alteração nos dados",
+  "peopleChangeApproved": "Sua alteração de dados foi aprovada",
+  "peopleChangeDeclined": "Sua alteração de dados foi recusada",
+  "peopleScheduledFailed": "Não foi possível aplicar uma alteração de cargo agendada",
+  "peopleHireAdded": "{name} foi contratado: o perfil está pronto",
+  "hiringApprovalWaiting": "Aguarda sua aprovação",
+  "hiringApprovalDone": "Aprovado",
+  "hiringApprovalRejected": "Recusado",
   "analyticsAlertTitle": "Alerta: {name}",
   "analyticsAlertBody": "Valor {value} em {insight}",
   "analyticsRegression": "Um erro resolvido voltou a aparecer: {title}",
@@ -70,5 +78,7 @@
   "workspaceChangeAsk": "Pergunte a {who} se tiver dúvidas.",
   "roleNameAdmin": "Admin",
   "roleNameMember": "Membro",
-  "roleNameGuest": "Convidado"
+  "roleNameGuest": "Convidado",
+  "peopleHireUndone": "A contratação de {name} foi desfeita: o perfil continua no People",
+  "peopleExitFinished": "A data de saída de {name} passou: o perfil foi encerrado"
 }

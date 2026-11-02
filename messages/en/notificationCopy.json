@@ -54,6 +54,14 @@
   "peopleDocRead": "Please read: {title}",
   "peopleDocNew": "New document: {title}",
   "reviewCycle": "Review cycle started: {name}",
+  "peopleChangeRequested": "{name} requested a change to their data",
+  "peopleChangeApproved": "Your data change was approved",
+  "peopleChangeDeclined": "Your data change was declined",
+  "peopleScheduledFailed": "A scheduled job change could not be applied",
+  "peopleHireAdded": "{name} was hired: their profile is ready",
+  "hiringApprovalWaiting": "Waiting for your approval",
+  "hiringApprovalDone": "Approved",
+  "hiringApprovalRejected": "Rejected",
   "analyticsAlertTitle": "Alert: {name}",
   "analyticsAlertBody": "Value {value} on {insight}",
   "analyticsRegression": "Error is back after being resolved: {title}",
@@ -70,5 +78,7 @@
   "workspaceChangeAsk": "Ask {who} if you have questions.",
   "roleNameAdmin": "Admin",
   "roleNameMember": "Member",
-  "roleNameGuest": "Guest"
+  "roleNameGuest": "Guest",
+  "peopleHireUndone": "The hire of {name} was undone: their profile is still in People",
+  "peopleExitFinished": "{name}'s exit date has passed: their profile is now closed"
 }

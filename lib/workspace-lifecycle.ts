@@ -142,6 +142,14 @@ const STEPS: Step[] = [
     },
   },
   {
+    // Hiring: si aprobaba puestos u ofertas, su paso pasa al owner y deja de estar en los ajustes.
+    name: 'hiring_approvals',
+    run: async (e) => {
+      const { reassignApprover } = await import('./hiring/approvals');
+      await reassignApprover(e.ownerId, e.userId);
+    },
+  },
+  {
     // Lo que se le compartió persona a persona dentro del workspace.
     name: 'shares',
     run: async (e) => {

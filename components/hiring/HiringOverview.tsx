@@ -13,6 +13,7 @@ export default function HiringOverview({
   jobs,
   pending,
   recent,
+  approvals = [],
   careersUrl,
   published,
   canCreate,
@@ -20,6 +21,7 @@ export default function HiringOverview({
   jobs: JobListItem[];
   pending: PendingEvaluation[];
   recent: ApplicationListItem[];
+  approvals?: Array<{ subject: 'job' | 'offer'; id: string; title: string; href: string }>;
   careersUrl: string;
   published: boolean;
   canCreate: boolean;
@@ -46,6 +48,23 @@ export default function HiringOverview({
           </>
         }
       />
+      {approvals.length > 0 && (
+        <section className="panel hr-approvals" aria-labelledby="hr-approvals" data-testid="hiring-approvals">
+          <h2 id="hr-approvals" className="hr-panel-title">
+            {t('approvals.waiting')}
+          </h2>
+          <ul className="hr-list">
+            {approvals.map((a) => (
+              <li key={`${a.subject}-${a.id}`}>
+                <Link href={a.href} className="hr-list-row">
+                  <span className="hr-list-main">{a.title}</span>
+                  <span className="hr-rowmeta">{t(`approvals.subject.${a.subject}`)}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <div className="hr-overview">
         <section className="panel" aria-labelledby="hr-open-jobs">
           <h2 id="hr-open-jobs" className="hr-panel-title">

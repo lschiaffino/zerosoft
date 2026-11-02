@@ -42,13 +42,13 @@ function publicJob(row: JobRow): PublicJob {
 }
 
 export async function publishedJobs(ws: string): Promise<PublicJob[]> {
-  const rows = (await getDb().prepare("SELECT * FROM hiring_jobs WHERE workspace_id = ? AND status = 'published' ORDER BY department, title").all(ws)) as JobRow[];
+  const rows = (await getDb().prepare("SELECT * FROM hiring_jobs WHERE workspace_id = ? AND status = 'published' AND confidential = 0 ORDER BY department, title").all(ws)) as JobRow[];
   return rows.map(publicJob);
 }
 
 export async function publishedJob(ws: string, slug: string): Promise<PublicJob | null> {
   if (!/^[a-z0-9][a-z0-9-]{0,80}$/.test(slug)) return null;
-  const row = (await getDb().prepare("SELECT * FROM hiring_jobs WHERE workspace_id = ? AND slug = ? AND status = 'published'").get(ws, slug)) as JobRow | undefined;
+  const row = (await getDb().prepare("SELECT * FROM hiring_jobs WHERE workspace_id = ? AND slug = ? AND status = 'published' AND confidential = 0").get(ws, slug)) as JobRow | undefined;
   return row ? publicJob(row) : null;
 }
 
@@ -99,6 +99,36 @@ export function jobPostingJsonLd(c: PublicCareers, job: PublicJob, descriptionHt
 
 function xmlEscape(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/**
+ * Feed XML de avisos en el formato de Indeed (publisher, job con title, date,
+ * referencenumber, url, company, city, description, salary, jobtype). Lo leen
+ * los agregadores que aceptan feeds; hay que registrarlo en cada uno.
+ */
+export async function careersFeed(handle: string, renderDescription: (md: string) => string): Promise<string | null> {
+  const c = await publishedCareers(handle);
+  if (!c) return null;
+  const jobs = await publishedJobs(c.settings.workspace_id);
+  const cdata = (s: string) => `<![CDATA[${s.replace(/]]>/g, ']]]]><![CDATA[>')}]]>`;
+  const items = jobs.map((j) => {
+    const salary = j.salaryPublic && (j.salaryMin != null || j.salaryMax != null) ? `${j.salaryCurrency} ${[j.salaryMin, j.salaryMax].filter((x) => x != null).join(' - ')} per ${j.salaryPeriod}` : '';
+    return [
+      '<job>',
+      `<title>${cdata(j.title)}</title>`,
+      `<date>${cdata(new Date(j.publishedAt ?? j.createdAt).toUTCString())}</date>`,
+      `<referencenumber>${cdata(j.id)}</referencenumber>`,
+      `<url>${cdata(jobUrl(c.settings.handle, j.slug))}</url>`,
+      `<company>${cdata(c.company)}</company>`,
+      `<city>${cdata(j.location)}</city>`,
+      `<description>${cdata(renderDescription(j.description))}</description>`,
+      salary ? `<salary>${cdata(salary)}</salary>` : '',
+      `<jobtype>${cdata(j.employmentType.replace('_', ''))}</jobtype>`,
+      j.workplace === 'remote' ? `<remotetype>${cdata('Fully remote')}</remotetype>` : '',
+      '</job>',
+    ].filter(Boolean).join('');
+  });
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<source><publisher>${xmlEscape(c.company)}</publisher><publisherurl>${xmlEscape(`${appBase()}/careers/${c.settings.handle}`)}</publisherurl>${items.join('')}</source>\n`;
 }
 
 export async function careersSitemap(handle: string): Promise<string | null> {

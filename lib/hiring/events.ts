@@ -4,6 +4,7 @@
  */
 import { getDb } from '../db';
 import { createNotification } from '../notifications';
+import type { LocalizedText } from '../notification-copy';
 import { emitEventSoon } from '../events';
 import { personAppAccess } from '../api-auth';
 import { newId, nowIso, parseJson } from './core';
@@ -68,9 +69,9 @@ export async function teamIds(jobId: string, roles: string[], except?: string | 
 }
 
 /** Aviso in-app. Solo a personas del equipo del puesto: el texto lleva datos del candidato. */
-export async function notifyTeam(userIds: string[], payload: { title: string; body?: string; href: string; sourceId: string }): Promise<void> {
+export async function notifyTeam(userIds: string[], payload: { title: string; body?: string | LocalizedText; href: string; sourceId: string }): Promise<void> {
   for (const userId of new Set(userIds)) {
-    await createNotification({ userId, type: 'hiring_activity', title: payload.title.slice(0, 200), body: payload.body?.slice(0, 300), href: payload.href, sourceType: 'hiring', sourceId: payload.sourceId }).catch(() => null);
+    await createNotification({ userId, type: 'hiring_activity', title: payload.title.slice(0, 200), body: typeof payload.body === 'string' ? payload.body.slice(0, 300) : payload.body, href: payload.href, sourceType: 'hiring', sourceId: payload.sourceId }).catch(() => null);
   }
 }
 
@@ -107,7 +108,7 @@ export interface HireEvent {
   hiredAt: string;
   hiredBy: string | null;
   candidate: { id: string; name: string; email: string; phone: string; location: string };
-  job: { id: string; title: string; department: string; location: string; workplace: string; employmentType: string };
+  job: { id: string; title: string; department: string; location: string; workplace: string; employmentType: string; confidential?: boolean };
   offer: { title: string; salary: number | null; currency: string; startDate: string | null } | null;
 }
 

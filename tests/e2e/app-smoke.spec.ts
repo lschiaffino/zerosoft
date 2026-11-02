@@ -508,6 +508,23 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await ok(request.delete(`/api/sign/templates/${i.id}`))),
   },
   {
+    app: 'People surveys',
+    list: '/en/app/people/reviews',
+    create: async (request, name) => ({ id: (await ok<{ id: string }>(request.post('/api/people/surveys', { data: { question: name } }))).id, name }),
+    detail: () => '/en/app/people/reviews',
+    detailUrl: () => /\/app\/people\/reviews/,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/people/surveys/${i.id}`, { data: { question: name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/people/surveys/${i.id}`))),
+  },
+  {
+    app: 'People saved reports',
+    list: '/en/app/people/reports',
+    create: async (request, name) => ({ id: (await ok<{ report: { id: string } }>(request.post('/api/people/custom-reports', { data: { name, config: { columns: ['name'] } } }))).report.id, name }),
+    detail: (i) => `/en/app/people/reports?report=${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/people/custom-reports/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/people/custom-reports/${i.id}`))),
+  },
+  {
     app: 'Hiring jobs',
     list: '/en/app/hiring/jobs',
     create: async (request, name) => ({ id: (await ok<{ job: { id: string } }>(request.post('/api/hiring/jobs', { data: { title: name } }))).job.id, name }),

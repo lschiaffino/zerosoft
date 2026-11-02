@@ -87,7 +87,7 @@ excepciones. "Admin" incluye al owner.
 | Rec | Ve sus videos, los del workspace que no están en un espacio y los de sus espacios | Gestionar videos del workspace y todos los espacios | `visibleSql` en `lib/rec.ts` |
 | Sign | Sus sobres y los que firma | Ver y gestionar todos | |
 | Forms | Los compartidos con el workspace (`sharing='workspace'`, el valor por defecto), los suyos y donde está sumado | Ver todos, ajustes | |
-| Hiring | Ve la lista de puestos del workspace, sin candidatos salvo que gestione el puesto (`listJobs`); crea puestos solo si un admin lo habilita (`members_create_jobs`, `canCreateJobs`) | Ajustes, ver todo | Candidatos: equipo del puesto y admins. Aprobar ofertas: hiring manager o admin |
+| Hiring | Ve los puestos publicados no confidenciales (título y aviso, sin salario oculto, equipo ni etapas) y los de su equipo, sin candidatos salvo que gestione el puesto (`canSeeJob`, `listJobs`, `getJob`); crea puestos solo si un admin lo habilita (`members_create_jobs`, `canCreateJobs`) | Ajustes, ver todo | Candidatos: equipo del puesto y admins. Aprobar ofertas: hiring manager o admin |
 | Social | Publica directo o como borrador (aprobación), en las cuentas que le dieron | Conectar cuentas, dar acceso, aprobar | |
 | Shop | Gestiona la tienda | Handle, publicar, moneda, reembolsos, credenciales de pago (`savePayments`, `lib/shop-payments.ts`) | |
 | Analytics | Usa los proyectos | Proyectos, claves, ajustes, borrar personas | |

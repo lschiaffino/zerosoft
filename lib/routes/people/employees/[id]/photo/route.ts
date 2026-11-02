@@ -32,7 +32,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const form = await req.formData().catch(() => null);
     const file = form?.get('file');
     if (!(file instanceof File)) return pjson({ error: 'file_required' }, 400);
-    if (file.size > 5 * 1024 * 1024) return pjson({ error: 'file_too_large' }, 413);
+    if (file.size > 4 * 1024 * 1024) return pjson({ error: 'file_too_large' }, 413);
     const buffer = Buffer.from(await file.arrayBuffer());
     const kind = sniffRaster(new Uint8Array(buffer.subarray(0, 32)));
     if (!kind) throw new PeopleError('image_type', 415);

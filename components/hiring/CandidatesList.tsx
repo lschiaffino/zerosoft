@@ -66,7 +66,15 @@ export default function CandidatesList({
 
   return (
     <div className="app-page ui-page hr-page">
-      <PageHeader title={t('nav.candidates')} description={t('candidates.desc')} />
+      <PageHeader
+        title={t('nav.candidates')}
+        description={t('candidates.desc')}
+        actions={
+          <a className="btn btn-secondary" download href={`/api/hiring/export?${new URLSearchParams(Object.entries({ q: filters.q, job: filters.job, status: filters.status, source: filters.source, tag: filters.tag }).filter(([, v]) => v)).toString()}`}>
+            {t('candidates.export')}
+          </a>
+        }
+      />
       <div className="hr-toolbar hr-filters">
         <form onSubmit={search} role="search" className="hr-search">
           <input className="input" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('candidates.search')} aria-label={t('candidates.search')} />
