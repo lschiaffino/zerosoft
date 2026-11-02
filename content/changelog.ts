@@ -87,6 +87,41 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-10-31-pedir-acceso',
+    date: '2026-10-31',
+    title: {
+      en: 'Ask for access to an app and see what each role can do',
+      es: 'Pedí acceso a una app y mirá qué puede hacer cada rol',
+      pt: 'Peça acesso a um app e veja o que cada papel pode fazer',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'When an app is off for you in a workspace, Ask for access sends a notification to the owner and the admins. The notification opens your access in Settings › Members, with what you asked for already checked, and you hear back either way.',
+        es: 'Cuando una app no está habilitada para vos en un workspace, Pedir acceso le manda un aviso al owner y a los admins. El aviso abre tu acceso en Ajustes › Miembros, con lo pedido ya tildado, y te enterás de la respuesta.',
+        pt: 'Quando um app não está ativo para você em um workspace, Pedir acesso envia um aviso ao owner e aos admins. O aviso abre seu acesso em Configurações › Membros, com o pedido já marcado, e você fica sabendo da resposta.',
+      },
+      {
+        product: 'platform',
+        en: 'Salaries and the payroll export in People are now for the owner, the HR admins the owner names, and each person.',
+        es: 'Los sueldos y la exportación de nómina de People ahora son del owner, los HR admins que nombra y cada persona.',
+        pt: 'Os salários e a exportação da folha no People agora são do owner, dos admins de RH que ele nomeia e de cada pessoa.',
+      },
+      {
+        product: 'platform',
+        en: 'Requests to join by email domain also reach the owner and the admins as a notification.',
+        es: 'Los pedidos para sumarse por dominio de email también les llegan al owner y a los admins como aviso.',
+        pt: 'Os pedidos para entrar pelo domínio do email também chegam ao owner e aos admins como aviso.',
+      },
+      {
+        product: 'platform',
+        en: 'Settings › Members explains each role, and Settings lists only the apps you have.',
+        es: 'Ajustes › Miembros explica cada rol y Ajustes lista solo las apps que tenés.',
+        pt: 'Configurações › Membros explica cada papel e Configurações lista só os apps que você tem.',
+      },
+    ],
+  },
+  {
     id: '2026-10-31-correcciones-qa',
     date: '2026-10-31',
     title: {

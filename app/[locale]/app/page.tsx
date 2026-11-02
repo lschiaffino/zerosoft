@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { isWorkspaceAdmin, requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, requireUser, userCanUseApp } from '@/lib/session';
 import { dayPart, getWorkspaceMode, homeCanUse, normalizeTaskScope } from '@/lib/home';
 import { getUserTimeZone } from '@/lib/user-tz';
 import { featuredApps, moreAppsByCategory, showTeamUi } from '@/lib/workspace-mode';
@@ -9,6 +9,9 @@ import { PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import PageHeader from '@/components/ui/PageHeader';
 import HomeAsk from '@/components/assistant/HomeAsk';
+import RequestAccessButton from '@/components/app/RequestAccessButton';
+import LostAccessNotice from '@/components/app/LostAccessNotice';
+import { isRequestPending, lostAccessNotice } from '@/lib/workspace-access-request';
 import {
   CalBookingsBlock,
   CrmTasksBlock,
@@ -57,9 +60,16 @@ export default async function PlatformHomePage(props: {
   const more = moreAppsByCategory({ mode })
     .map((g) => ({ ...g, apps: g.apps.filter(can) }))
     .filter((g) => g.apps.length > 0);
+  // Sin apps no hay nada que invitar a usar ni que importar: solo lo que esa persona puede hacer.
+  const showCards = admin && (featured.length > 0 || more.length > 0);
   const blockedKey = (await props.searchParams).blocked;
-  const blocked = typeof blockedKey === 'string' && blockedKey in PRODUCT_CONFIG ? (blockedKey as ProductKey) : null;
+  // El link puede quedar viejo: si ya tiene la app (se la dieron), no hay nada que avisar.
+  const blocked = typeof blockedKey === 'string' && blockedKey in PRODUCT_CONFIG && !userCanUseApp(user, blockedKey as ProductKey) ? (blockedKey as ProductKey) : null;
   const tAccess = blocked ? await getTranslations({ locale, namespace: 'settings.access' }) : null;
+  // "Pedido enviado" sigue al recargar: sale de la base, no del estado del botón.
+  const alreadyAsked = Boolean(blocked && user.actingUser && user.workspace && (await isRequestPending(user.workspace.id, person.id, blocked)));
+  const lost = await lostAccessNotice(person.id);
+  const todayBlocks = can('crm') || can('track') || can('cal') || (can('chat') && can('groups'));
 
   const appCard = (k: ProductKey) => (
     <li key={k}>
@@ -77,13 +87,25 @@ export default async function PlatformHomePage(props: {
       {blocked && tAccess && (
         <div className="home-blocked" role="status" data-testid="home-blocked">
           <p className="home-blocked-title">{tAccess('title', { app: PRODUCT_CONFIG[blocked].name })}</p>
-          <p className="home-blocked-body">{tAccess('body', { app: PRODUCT_CONFIG[blocked].name, workspace: user.workspace?.name ?? '' })}</p>
+          <p className="home-blocked-body">
+            {tAccess(user.role === 'admin' ? 'bodyAdmin' : 'body', { app: PRODUCT_CONFIG[blocked].name, workspace: user.workspace?.name ?? '' })}
+          </p>
+          {user.actingUser && (
+            <RequestAccessButton
+              app={blocked}
+              alreadyAsked={alreadyAsked}
+              labels={{ request: tAccess('request'), sending: tAccess('sending'), sent: tAccess('sent'), already: tAccess('already'), hasAccess: tAccess('hasAccess'), limited: tAccess('limited'), error: tAccess('error') }}
+            />
+          )}
         </div>
       )}
+
+      {lost && <LostAccessNotice id={lost.id} title={lost.title} body={lost.body} />}
 
       {/* El asistente de la plataforma: preguntar abre la charla a página completa. */}
       <HomeAsk />
 
+      {todayBlocks && (
       <section className="home-section" aria-labelledby="home-today">
         <h2 id="home-today" className="home-h">
           {t('today.title')}
@@ -118,8 +140,9 @@ export default async function PlatformHomePage(props: {
           </Suspense>
         </div>
       </section>
+      )}
 
-      <div className={`home-split${admin ? '' : ' home-split-full'}`}>
+      <div className={`home-split${showCards ? '' : ' home-split-full'}`}>
         <section className="home-section" aria-labelledby="home-recent">
           <h2 id="home-recent" className="home-h">
             {t('recent.title')}
@@ -129,7 +152,7 @@ export default async function PlatformHomePage(props: {
           </Suspense>
         </section>
 
-        {admin && (
+        {showCards && (
           <aside className="home-cards" aria-label={t('import.title')}>
             {team && (
               <div className="home-card" data-testid="home-invite">
@@ -151,14 +174,23 @@ export default async function PlatformHomePage(props: {
         )}
       </div>
 
-      <section className="home-section" aria-labelledby="home-apps">
-        <h2 id="home-apps" className="home-h">
-          {t('featured')}
-        </h2>
-        <nav className="app-home-apps" aria-labelledby="home-apps" data-testid="home-featured">
-          <ul>{featured.map(appCard)}</ul>
-        </nav>
-      </section>
+      {featured.length > 0 && (
+        <section className="home-section" aria-labelledby="home-apps">
+          <h2 id="home-apps" className="home-h">
+            {t('featured')}
+          </h2>
+          <nav className="app-home-apps" aria-labelledby="home-apps" data-testid="home-featured">
+            <ul>{featured.map(appCard)}</ul>
+          </nav>
+        </section>
+      )}
+
+      {featured.length === 0 && more.length === 0 && (
+        <div className="home-no-apps" data-testid="home-no-apps">
+          <p className="home-blocked-title">{t('noApps.title')}</p>
+          <p className="home-blocked-body">{t(user.role === 'admin' ? 'noApps.bodyAdmin' : 'noApps.body', { workspace: user.workspace?.name ?? '' })}</p>
+        </div>
+      )}
 
       {more.length > 0 && (
         <section className="home-section" aria-labelledby="home-more">

@@ -682,6 +682,11 @@
       "title": "Traga seus dados",
       "body": "Importe do HubSpot, Pipedrive, Linear, Notion, Calendly, Bitly e outras ferramentas.",
       "cta": "Importar"
+    },
+    "noApps": {
+      "title": "Ainda não há apps ativados para você",
+      "body": "Um admin de {workspace} pode ativá-los em Configurações › Membros.",
+      "bodyAdmin": "O owner de {workspace} pode ativá-los em Configurações › Membros."
     }
   },
   "publicPage": {

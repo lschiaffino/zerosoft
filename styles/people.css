@@ -630,3 +630,5 @@ a.ppl-rowtitle:not(:hover) {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+.ppl-linked-warn { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 6px; font-size: 0.875rem; color: var(--ink-2); }
+.ppl-linked-warn p { margin: 0; }

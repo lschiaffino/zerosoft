@@ -154,7 +154,7 @@ async function peopleView(props: Props, user: SessionUser, ctx: PeopleCtx) {
       if (id) notFound();
       if (!ctx.viewer.hr) return hrOnly();
       const [report, audit] = await Promise.all([peopleReport(ctx), listAudit(ctx, 100)]);
-      return <Reports report={report} audit={audit} />;
+      return <Reports report={report} audit={audit} canExport={ctx.viewer.comp === true} />;
     }
     case 'settings': {
       if (id) notFound();
@@ -177,6 +177,7 @@ async function peopleView(props: Props, user: SessionUser, ctx: PeopleCtx) {
           seeded={seeded}
           members={members.map((m) => ({ id: m.id, name: m.name ?? '', email: m.email, role: m.role }))}
           wsAdmin={ctx.wsAdmin}
+          isOwner={ctx.viewer.wsOwner === true}
           tab={sp.tab ?? ''}
         />
       );

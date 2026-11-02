@@ -21,6 +21,7 @@ import RecorderProvider from '@/components/voice/RecorderProvider';
 import TimezoneCookie from '@/components/app/TimezoneCookie';
 import ActiveTabIntoView from '@/components/app/ActiveTabIntoView';
 import { SupportIdentify } from '@/components/SupportWidget';
+import WorkspaceGuard from '@/components/app/WorkspaceGuard';
 import { supportWidgetId } from '@/lib/support';
 import { signVisitorIdentity } from '@/lib/chat-identity';
 import { getUserTimeZone } from '@/lib/user-tz';
@@ -84,6 +85,7 @@ export default async function AppLayout(
   const effective = user.actingUser ? (user.workspace?.id ?? null) : user.team ? (real.active_team_id ?? null) : null;
   const workspaces: SwitcherEntry[] = (await listMyWorkspaces(real).catch(() => [])).map((w) => ({ ...w, current: w.teamId === effective }));
   if (workspaces.length && !workspaces.some((w) => w.current)) workspaces[0].current = true;
+  const tGuard = await getTranslations({ locale, namespace: 'settings.access' });
   const tTriage = await getTranslations({ locale, namespace: 'trackTriage' });
   const tAnalyticsReplay = await getTranslations({ locale, namespace: 'analyticsReplay' });
   const tAnalyticsMore = await getTranslations({ locale, namespace: 'analyticsMore' });
@@ -605,6 +607,8 @@ export default async function AppLayout(
               markRead: tTrack('notifications.markRead'),
               markAllRead: tTrack('notifications.markAllRead'),
               empty: tTrack('notifications.empty'),
+              loading: tTrack('notifications.loading'),
+              loadError: tTrack('notifications.loadError'),
               text: {
                 someone: tTrack('inbox.someone'),
                 untitled: tTrack('notifications.untitled'),
@@ -658,7 +662,25 @@ export default async function AppLayout(
           <Suspense fallback={null}>
             <NavProgress />
           </Suspense>
-          <main className="app-content">{children}</main>
+          <main className="app-content">
+            {user.workspace && (
+              <WorkspaceGuard
+                workspaceId={user.workspace.id}
+                workspaceName={user.workspace.name}
+                labels={{
+                  title: tGuard('guardTitle'),
+                  switched: tGuard.raw('guardSwitched') as string,
+                  gone: tGuard.raw('guardGone') as string,
+                  switchBack: tGuard.raw('guardSwitchBack') as string,
+                  reload: tGuard('guardStay'),
+                  home: tGuard('guardHome'),
+                  switchError: tGuard('guardSwitchError'),
+                  close: tGuard('guardClose'),
+                }}
+              />
+            )}
+            {children}
+          </main>
         </div>
         <CommandSearch allowedApps={user.role === 'owner' ? '*' : PRODUCT_KEYS.filter((key) => userCanUseApp(user, key))} />
         {/* Asistente de la plataforma: ⌘J o el botón de la banda, en toda la app. */}

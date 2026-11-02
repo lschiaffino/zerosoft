@@ -65,7 +65,7 @@ export function needsOnboarding(user: Pick<UserRow, 'onboarded_at'>): boolean {
   return !user.onboarded_at;
 }
 
-/** Nombre sugerido del equipo a partir del dominio del email ("ana@getdarwin.ai" → "Getdarwin"). */
+/** Nombre sugerido del equipo a partir del dominio del email ("ana@acme.io" → "Acme"). */
 export function suggestTeamName(email: string, fallback: string): string {
   const domain = email.split('@')[1] ?? '';
   const base = domain.split('.')[0] ?? '';

@@ -8102,6 +8102,30 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Pedidos de acceso a una app: pendientes hasta que alguien responde. Tabla nueva, sin tocar datos.
+    id: '163_workspace_access_requests',
+    up: async (client) => {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS workspace_access_requests (
+          team_id TEXT NOT NULL,
+          person_id TEXT NOT NULL,
+          app TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          requested_at TEXT NOT NULL,
+          resolved_at TEXT,
+          resolved_by TEXT,
+          PRIMARY KEY (team_id, person_id, app)
+        )`);
+    },
+  },
+  {
+    // People: la cuenta enlazada a una ficha que el owner o un HR admin confirmó. Columna nueva, vacía.
+    id: '164_people_linked_confirmed',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE people_employees ADD COLUMN linked_confirmed TEXT');
+    },
+  },
+  {
     id: '180_analytics_parity',
     up: async (client) => {
       await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN test_filters TEXT NOT NULL DEFAULT \'[]\'');

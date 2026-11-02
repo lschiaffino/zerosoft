@@ -9,7 +9,9 @@
     "emptyReadOnly": "Acá aparecen las páginas que tu workspace comparte con vos.",
     "edited": "Editada {date}",
     "colPage": "Página",
-    "colEdited": "Editada"
+    "colEdited": "Editada",
+    "guestShared": "Sos invitado de {workspace}. Estas páginas te las compartieron.",
+    "guestEmpty": "Sos invitado de {workspace}. Las páginas que te compartan aparecen acá."
   },
   "sidebar": {
     "overview": "Resumen",

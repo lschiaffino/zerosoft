@@ -221,7 +221,6 @@ body:has(.bp-root) .fl-root {
 
 /* ---------- Launcher de feedback (in-app y sitio) ---------- */
 .fl-root { position: fixed; right: 20px; bottom: 20px; z-index: 99990; font-family: var(--sans); }
-.fl-root.has-support { right: 88px; bottom: 26px; }
 .fl-root { transition: transform 200ms var(--ease-out-expo, ease-out), opacity 200ms ease-out, visibility 0s linear 0s; }
 .fl-root.is-tucked { transform: translateY(calc(100% + 32px)); opacity: 0; visibility: hidden; pointer-events: none; transition-delay: 0s, 0s, 200ms; }
 @media (prefers-reduced-motion: reduce) { .fl-root { transition: none; } }
@@ -239,6 +238,14 @@ body:has(.bp-root) .fl-root {
   border-radius: var(--bp-radius) 0 0 var(--bp-radius);
 }
 .fl-root .fl-button svg { width: 10px; height: 10px; }
+/* El de soporte también es una pestaña del ancho del margen, arriba de la de feedback: no se monta sobre el contenido. */
+body:has(.fl-root.has-support) #zs-chat-btn {
+  right: 0 !important; bottom: 160px !important; width: 16px !important; height: 40px !important;
+  border: 1px solid var(--bp-line) !important; border-right: 0 !important; border-radius: var(--bp-radius) 0 0 var(--bp-radius) !important;
+  background: var(--bp-bg) !important; color: var(--bp-ink) !important; box-shadow: none !important;
+}
+body:has(.fl-root.has-support) #zs-chat-btn svg { width: 10px; height: 10px; }
+body:has(.fl-root.has-support) #zs-chat-btn:hover { border-color: var(--bp-ink) !important; }
 .fl-root.is-tucked { transform: translateX(100%); }
 .fl-root .fl-panel { right: 8px; bottom: 52px; max-height: min(560px, calc(100dvh - 220px)); }
 @media (max-width: 760px) {
@@ -310,3 +317,11 @@ body:has(.fl-root:not(.is-tucked)) .ui-toasts { bottom: 76px; }
   .bp-logo .bp-logo-symbol { display: flex; }
   .bp-nav a { padding: 0 6px; font-size: 14px; }
 }
+
+/* Aviso de pestaña que se quedó sin su workspace (components/app/WorkspaceGuard.tsx): también fuera del shell, como en un 404. */
+.ws-guard { position: sticky; top: calc(var(--band-h, 48px) + 8px); z-index: 50; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 0 0 16px; padding: 12px 14px; background: var(--bg); border: 1px solid var(--ink); border-radius: var(--r-xs); }
+.ws-guard-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ws-guard p { margin: 0; }
+.ws-guard-title { font-weight: 500; }
+.ws-guard-body { color: var(--ink-2); font-size: 0.875rem; }
+.ws-guard-fixed { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); width: min(560px, calc(100vw - 32px)); margin: 0; z-index: 99995; }

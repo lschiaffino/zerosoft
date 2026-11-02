@@ -23,10 +23,12 @@ export interface SettingsProps {
   seeded: Record<string, Array<{ date: string; name: string }>>;
   members: Array<{ id: string; name: string; email: string; role: string }>;
   wsAdmin: boolean;
+  /** Solo el owner nombra HR admins. */
+  isOwner: boolean;
   tab: string;
 }
 
-export default function PeopleSettings({ settings, policies, fields, holidays, seeded, members, wsAdmin, tab: initialTab }: SettingsProps) {
+export default function PeopleSettings({ settings, policies, fields, holidays, seeded, members, isOwner, tab: initialTab }: SettingsProps) {
   const t = useTranslations('people');
   const router = useRouter();
   const locale = useLocale();
@@ -390,11 +392,11 @@ export default function PeopleSettings({ settings, policies, fields, holidays, s
             <p className="ppl-hint">{t('settings.hrAdminsHint')}</p>
             <ul className="ppl-list">
               {members.map((m) => {
-                const implicit = m.role === 'owner' || m.role === 'admin';
+                const implicit = m.role === 'owner';
                 return (
                   <li key={m.id}>
                     <label className="ppl-check">
-                      <input type="checkbox" name="hr" value={m.id} defaultChecked={implicit || settings.hrAdmins.includes(m.id)} disabled={implicit || !wsAdmin} />
+                      <input type="checkbox" name="hr" value={m.id} defaultChecked={implicit || settings.hrAdmins.includes(m.id)} disabled={implicit || !isOwner} />
                       <span>
                         {m.name || m.email}
                         <span className="ppl-muted"> · {implicit ? t('settings.implicitHr') : m.email}</span>
@@ -404,7 +406,7 @@ export default function PeopleSettings({ settings, policies, fields, holidays, s
                 );
               })}
             </ul>
-            {wsAdmin ? (
+            {isOwner ? (
               <div className="ppl-panel-actions">
                 <button type="submit" className="btn btn-primary">
                   {t('common.save')}

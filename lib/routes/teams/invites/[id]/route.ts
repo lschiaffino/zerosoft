@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { approveJoinRequest, revokeInvite, setInviteAnyEmail } from '@/lib/teams';
+import { approveJoinRequest, getInvite, revokeInvite, setInviteAnyEmail } from '@/lib/teams';
+import { canGrantApps, parseApps } from '@/lib/workspace';
+import { canHandleInvite } from '@/lib/workspace-directory';
 import { isResponse, publicBase, teamsCtx, teamsError } from '@/lib/teams-http';
 import { resendInvite } from '@/lib/workspace-invites';
 
@@ -26,10 +28,21 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if (isResponse(ctx)) return ctx;
   const body = (await req.json().catch(() => ({}))) as { action?: string; allowAnyEmail?: boolean };
   if (body.action === 'approve') {
+    // Aprobar da las apps del pedido: quien aprueba tiene que tenerlas.
+    const request = await getInvite(params.id, ctx.team.id);
+    if (request && !canGrantApps(ctx.user.apps ?? '*', parseApps(request.apps))) return teamsError('apps_not_yours', 403);
     if (!(await approveJoinRequest(params.id, ctx.team.id, ctx.realId))) return teamsError('not_found', 404);
     return NextResponse.json({ ok: true });
   }
-  if (typeof body.allowAnyEmail === 'boolean') await setInviteAnyEmail(params.id, ctx.team.id, body.allowAnyEmail);
+  const current = await getInvite(params.id, ctx.team.id);
+  if (!current) return teamsError('not_found', 404);
+  // Reenviar da el link: solo quien podría haber hecho esa invitación.
+  if (!canHandleInvite(ctx.role, ctx.user.apps ?? '*', current)) return teamsError('apps_not_yours', 403);
+  // Abrirla a otro email es mandarla a otra persona: solo quien la hizo o el owner.
+  if (typeof body.allowAnyEmail === 'boolean') {
+    if (ctx.role !== 'owner' && current.invited_by !== ctx.realId) return teamsError('forbidden', 403);
+    await setInviteAnyEmail(params.id, ctx.team.id, body.allowAnyEmail);
+  }
   const res = await resendInvite({
     team: ctx.team,
     inviteId: params.id,

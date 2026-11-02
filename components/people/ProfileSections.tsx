@@ -495,7 +495,10 @@ export function CompensationSection({ employeeId, hr }: { employeeId: string; hr
       method: 'POST',
       json: { amount: Number(fd.get('amount')), currency: fd.get('currency'), period: fd.get('period'), effectiveDate: fd.get('effectiveDate'), reason: fd.get('reason') },
     });
-    if (!res.ok) return push(errText(res.data.error), 'bad');
+    if (!res.ok) {
+      const data = res.data as { error?: string; linkedEmail?: string };
+      return push(data.error === 'linked_account_mismatch' ? t('profile.linkedPayBlocked', { email: data.linkedEmail ?? '' }) : errText(data.error), 'bad');
+    }
     setAdding(false);
     comp.reload();
   };

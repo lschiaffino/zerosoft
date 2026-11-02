@@ -192,7 +192,7 @@ describe('email de invitación con apps limitadas', () => {
     expect(limited.text).toContain('Vas a usar CRM y Docs con el resto del equipo.');
     expect(limited.text).not.toContain('las mismas apps');
     const all = renderInviteEmail({ ...base, role: 'member', locale: 'en' });
-    expect(all.text).toContain('the same apps and data');
+    expect(all.text).toContain('what you see in each one depends on how it’s shared');
     const admin = renderInviteEmail({ ...base, role: 'admin', locale: 'pt', apps: ['Track'] });
     expect(admin.text).toContain('Você entra como admin');
     expect(admin.text).toContain('Você vai usar Track com o resto da equipe.');

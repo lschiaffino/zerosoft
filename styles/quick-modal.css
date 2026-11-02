@@ -254,3 +254,6 @@
     flex-wrap: wrap;
   }
 }
+
+/* El foco entra al diálogo por código cuando no tiene campo de texto: sin marco alrededor de todo. */
+.qm:focus { outline: none; }
