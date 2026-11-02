@@ -28,6 +28,14 @@ const db = () => getDb();
 
 const STEPS: Step[] = [
   {
+    // Sus links de Send pasan al owner: siguen sobre lo compartido; sobre lo privado se frenan, y el panel dice por qué.
+    name: 'send',
+    run: async (e) => {
+      const { transferLinksOfRemoved } = await import('./send/access');
+      await transferLinksOfRemoved({ ownerId: e.ownerId, userId: e.userId });
+    },
+  },
+  {
     // Sus pedidos de acceso sin responder se cierran (y los avisos de quien los iba a responder).
     name: 'access_requests',
     run: async (e) => {
@@ -139,6 +147,14 @@ const STEPS: Step[] = [
         const { cancelCalBlocksFor } = await import('./people-timeoff');
         await cancelCalBlocksFor(e.ownerId, id);
       }
+    },
+  },
+  {
+    // Hiring: si aprobaba puestos u ofertas, su paso pasa al owner y deja de estar en los ajustes.
+    name: 'hiring_approvals',
+    run: async (e) => {
+      const { reassignApprover } = await import('./hiring/approvals');
+      await reassignApprover(e.ownerId, e.userId);
     },
   },
   {

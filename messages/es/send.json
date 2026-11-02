@@ -117,7 +117,7 @@
     "verifyHelp": "Le mandamos un código a esa dirección, y sirve solo en el mismo navegador.",
     "verifyForced": "Una lista de permitidos lo necesita: si no, alcanzaría con escribir un email de la lista.",
     "passcode": "Pedir un código de acceso",
-    "passcodeNew": "Al menos 4 caracteres",
+    "passcodeNew": "Al menos 6 caracteres",
     "passcodeKeep": "Dejalo vacío para mantener el actual",
     "expiry": "Vence el",
     "accessList": "Permitir o bloquear emails y dominios",
@@ -169,7 +169,12 @@
     "visits": "{count, plural, one {# visita} other {# visitas}}",
     "visitors": "{count, plural, one {# persona} other {# personas}}",
     "last": "última {date}",
-    "verifyForcedNda": "Un acuerdo lo necesita: si no, cualquiera podría firmar a nombre de otro."
+    "verifyForcedNda": "Un acuerdo lo necesita: si no, cualquiera podría firmar a nombre de otro.",
+    "notServing": "No está sirviendo",
+    "problem_creator_left": "Quien armó este link se fue del workspace. Armá un link nuevo.",
+    "problem_creator_no_access": "Quien armó este link ya no tiene Send. Dale acceso de nuevo, o armá un link nuevo.",
+    "problem_document_private": "El documento es privado, así que este link no lo puede mostrar. Compartilo con el workspace, o armá un link nuevo.",
+    "problem_space_nothing_visible": "Los documentos de este espacio son privados de otras personas, así que este link no tiene qué mostrar. Compartilos con el workspace, o armá un link nuevo."
   },
   "visits": {
     "loadError": "Los números no cargaron.",
@@ -251,14 +256,17 @@
     "colDocument": "Documento",
     "sharing": "Quién del workspace lo ve",
     "sharingPrivate": "Solo yo y los admins",
-    "sharingWorkspace": "Todo el workspace"
+    "sharingWorkspace": "Todo el workspace",
+    "lastAccessTitle": "¿Sacar a la última persona?",
+    "lastAccessBody": "Con la lista vacía el espacio se vuelve a abrir: quien tenga un link lo ve entero, sin verificar nada.",
+    "lastAccessConfirm": "Sacar y abrir el espacio"
   },
   "settings": {
     "title": "Ajustes de Send",
     "desc": "La marca que ve quien abre un link.",
     "brandName": "Nombre de la empresa",
     "logoUrl": "URL del logo",
-    "logoHelp": "Una imagen pública, mejor un PNG transparente. El visor la carga sin decir qué link se abrió.",
+    "logoHelp": "Una imagen pública en una dirección https://, mejor un PNG transparente. El visor la carga sin decir qué link se abrió.",
     "color": "Color de acento",
     "colorNone": "Predeterminado",
     "colorHelp": "Se usa en los botones principales del visor.",
@@ -312,7 +320,8 @@
     "pageAlt": "Página {page}",
     "pageError": "Esta página no cargó.",
     "retry": "Reintentar",
-    "videoError": "El video no cargó. Algunos navegadores no reproducen archivos MOV."
+    "videoError": "El video no cargó. Algunos navegadores no reproducen archivos MOV.",
+    "unavailableTitle": "Este link ya no está disponible"
   },
   "errors": {
     "generic": "Algo salió mal. Probá de nuevo.",
@@ -338,7 +347,7 @@
     "docs_unavailable": "No tenés acceso a Docs.",
     "render_failed": "No pudimos procesar este archivo. Exportalo de nuevo a PDF y reintentá.",
     "file_unavailable": "El archivo no está disponible ahora.",
-    "invalid_passcode": "El código necesita al menos 4 caracteres.",
+    "invalid_passcode": "El código necesita al menos 6 caracteres.",
     "invalid_expiry": "Elegí una fecha de vencimiento válida.",
     "invalid_recipient": "Revisá el email del destinatario.",
     "invalid_access_entry": "Una de las entradas no es un email ni un dominio.",
@@ -360,6 +369,8 @@
     "nda_template_invalid": "El acuerdo necesita una plantilla con un firmante.",
     "render_unavailable": "Este servidor no puede preparar páginas ahora. El archivo está a salvo y seguimos reintentando.",
     "office_too_complex": "Este archivo es demasiado grande para convertirlo. Exportalo a PDF y subí ese.",
-    "storage_quota": "El workspace llegó a su almacenamiento de Send. Borrá documentos para hacer lugar."
+    "storage_quota": "Esto pasaría el límite de almacenamiento del workspace. Borrá documentos para hacer lugar.",
+    "logo_https": "El logo necesita una dirección https://: el visor solo carga imágenes seguras.",
+    "page_too_complex": "Una página de este archivo es demasiado pesada para prepararla. Imprimilo a un PDF nuevo, o bajale el detalle, y subí ese."
   }
 }

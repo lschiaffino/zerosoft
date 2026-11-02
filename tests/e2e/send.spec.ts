@@ -647,3 +647,49 @@ test('un PDF con contraseña da su motivo', async ({ page, request }) => {
   await page.goto(`/en/app/send/documents/${document.id}`);
   await expect(page.getByTestId('send-failed')).toContainText('has a password');
 });
+
+test('50 intentos de código a la vez: solo se comparan los del tope', async ({ browser, request }) => {
+  const { id } = await makeDoc(request, 'Parallel', await pdf(1));
+  const link = await makeLink(request, id, { name: 'P', passcode: 'open-sesame' });
+  const ctx = await browser.newContext();
+  await ctx.request.post(`/api/send/public/${link.token}`, { data: {} });
+  const all = await Promise.all(Array.from({ length: 50 }, (_, i) => ctx.request.post(`/api/send/public/${link.token}`, { data: { passcode: `wrong-${i}` } })));
+  const statuses = all.map((r) => r.status());
+  expect(statuses.filter((x) => x === 401).length).toBeLessThanOrEqual(8);
+  expect(statuses.filter((x) => x === 429).length).toBeGreaterThanOrEqual(42);
+  await ctx.close();
+  // Un código corto no se acepta.
+  expect((await request.post(`/api/send/documents/${id}/links`, { data: { passcode: '12345' } })).status()).toBe(400);
+});
+
+test('marca: un logo http se rechaza al guardar', async ({ request }) => {
+  const res = await request.put('/api/send/settings', { data: { brandName: '', logoUrl: 'http://acme.example/logo.png', brandColor: '', siteUrl: '' } });
+  expect(res.status()).toBe(400);
+  expect((await res.json()).error).toBe('logo_https');
+});
+
+test('un link con avisos apagados no avisa de un intento sin acceso', async ({ browser, request }) => {
+  const title = `Quiet ${Math.random().toString(36).slice(2, 7)}`;
+  const { id } = await makeDoc(request, title, await pdf(1));
+  const link = await makeLink(request, id, { name: 'Q', notify: false, accessMode: 'block', accessList: ['blocked.example'] });
+  const ctx = await browser.newContext();
+  const res = await ctx.request.post(`/api/send/public/${link.token}`, { data: { email: 'a@blocked.example' } });
+  expect((await res.json()).step).toBe('denied');
+  await ctx.close();
+  expect(JSON.stringify(await (await request.get('/api/notifications?limit=30')).json())).not.toContain(title);
+});
+
+test('sacar a la última persona del acceso pide confirmar y dice que se abre', async ({ page, request }) => {
+  const created = await request.post('/api/send/spaces', { data: { title: 'Confirm room' } });
+  const { space } = await created.json();
+  expect((await request.put(`/api/send/spaces/${space.id}/access`, { data: { email: 'one@acme.com', documentIds: [] } })).ok()).toBe(true);
+  await page.goto(`/en/app/send/spaces/${space.id}`);
+  await page.getByTestId('send-space-tab-access').click();
+  await page.getByTestId('send-access-remove').click();
+  await expect(page.getByRole('dialog')).toContainText('opens again');
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('send-access-row')).toHaveCount(1);
+  await page.getByTestId('send-access-remove').click();
+  await page.getByRole('button', { name: 'Remove and open the space' }).click();
+  await expect(page.getByTestId('send-access-row')).toHaveCount(0);
+});

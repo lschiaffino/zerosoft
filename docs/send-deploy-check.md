@@ -20,7 +20,7 @@ Con un preview con las variables de arriba, y un PDF, un .pptx, un .docx y un MP
 2. **PDF.** En `/app/send/new` subí el PDF. Tiene que llegar a "Links" sin error. Si dice "Este servidor no puede preparar páginas ahora", el motor no cargó: en los logs de la función, buscá `[send:render] engine`. La versión queda en cola y se reintenta sola: no hay que subirla de nuevo.
 3. **Fuentes.** Un PDF con letras sin incrustar (Helvetica de pdf-lib alcanza) se tiene que ver con texto. Si las páginas salen sin texto, faltan `standard_fonts` en el trazado.
 4. **Escaneado.** Un PDF con imágenes JPEG 2000 se tiene que ver con imagen. Si no, falta `pdfjs-dist/wasm`.
-5. **Cron.** Subí un PDF grande y cerrá la pestaña durante "Preparando páginas". Volvé a los dos minutos: tiene que haber seguido. Prueba el trazado de `/api/cron/minute`.
+5. **Cron.** Subí un PDF grande y cerrá la pestaña durante "Preparando páginas". Volvé a los dos minutos: tiene que haber seguido. Prueba el trazado de `/api/cron/send-render`, que va aparte de `/api/cron/minute` y arranca `lib/send/render-worker.mjs` en un hilo.
 6. **Link.** Armá un link con email, watermark y sin descarga. En una ventana privada, abrilo: las imágenes salen con el email dibujado. Prueba el lienzo y la fuente en la función de `/api/send/[...zsPath]`.
 7. **Cookie.** En esa ventana, las herramientas de desarrollo tienen que mostrar `zs_send_*` con `HttpOnly`, `Secure` y `SameSite=Lax`.
 8. **Encabezados.** `curl -sI <url del link>` tiene que traer `content-security-policy`, `x-frame-options: DENY`, `referrer-policy: no-referrer` y `x-robots-tag`.
@@ -32,7 +32,18 @@ Con un preview con las variables de arriba, y un PDF, un .pptx, un .docx y un MP
 ## Si algo falla
 
 - **Motor que no carga:** revisá `outputFileTracingIncludes` en `next.config.mjs`. La versión queda con `render_unavailable` y sigue en cola: al desplegar el arreglo, el cron la termina. Nada se marca como fallido por esto.
-- **Fallo sin avance:** tras 4 intentos sin página nueva, la versión queda en `render_failed`, con un botón Reintentar en el documento.
+- **Página que no termina:** el hilo se corta por tiempo (15 s por página) o memoria (1 GB). Tras 4 intentos sin página nueva, la versión falla con `page_too_complex`.
+- **Error del servidor al renderizar:** `render_failed` tiene un botón Reintentar en el documento.
 - **Sin Blob:** la subida responde antes de crear nada. Una parte que falla por esto deja la versión fallida, y el documento se puede borrar.
 
 La lista de lo que todavía no se probó en un deploy real va en el informe de cada tanda.
+
+## Self-host
+
+Sumá una entrada más a tu cron, cada minuto, además de `/api/cron/minute`:
+
+```
+* * * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://tu-dominio/api/cron/send-render
+```
+
+Sin ella, el render sigue mientras alguien tenga abierto el documento.

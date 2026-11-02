@@ -108,6 +108,11 @@ export function refusedByFieldPolicy(op: Pick<Operation, 'method' | 'path'>, bod
   const byRoute = REFUSED_BY_ROUTE.filter(([re]) => re.test(op.path)).flatMap(([, names]) => names);
   const field = findRefusedField(body, REFUSED_FIELDS) ?? (byRoute.length ? findRefusedField(body, new Set(byRoute)) : null);
   if (!field) return null;
+  if (op.path.startsWith('/api/send/documents')) {
+    return field === 'sharing'
+      ? { message: 'Sharing a document with the workspace can put it back on links other people made, so it is changed in zerosoft. The rest of this operation works here without it.', where: 'Send, the document' }
+      : { message: 'Uploading a file takes a browser, so it is done in zerosoft. A Docs page works here with docsPageId.', where: 'Send, New document' };
+  }
   return {
     message: `The field ${field} holds an address the server would call, or the key of another service, so it is set in zerosoft. The rest of this operation works here without it.`,
     where: 'the settings of this item in zerosoft',

@@ -113,6 +113,7 @@ export async function sendUp(client: Client): Promise<void> {
       notify INTEGER NOT NULL DEFAULT 1,
       use_branding INTEGER NOT NULL DEFAULT 1,
       access_epoch INTEGER NOT NULL DEFAULT 1,
+      transferred_from TEXT,
       alert_window_at INTEGER,
       alert_count INTEGER NOT NULL DEFAULT 0,
       alert_digest INTEGER NOT NULL DEFAULT 0,
@@ -249,4 +250,43 @@ export async function sendUp(client: Client): Promise<void> {
       updated_at TEXT NOT NULL
     );
   `);
+  await healOlderShape(client);
+}
+
+/**
+ * Una base compartida pudo correr una forma vieja de esta migración (cuando se llamaba
+ * 185_send): CREATE IF NOT EXISTS no toca esas tablas, así que se completa acá.
+ */
+async function healOlderShape(client: Client): Promise<void> {
+  const columns = async (table: string) => new Set((await client.execute(`PRAGMA table_info(${table})`)).rows.map((r) => String(r.name)));
+  const missing: Array<[string, string, string]> = [
+    ['send_versions', 'derived_ref', 'TEXT'],
+    ['send_versions', 'render_claimed_at', 'INTEGER'],
+    ['send_versions', 'render_stalls', 'INTEGER NOT NULL DEFAULT 0'],
+    ['send_pages', 'bytes', 'INTEGER NOT NULL DEFAULT 0'],
+    ['send_links', 'transferred_from', 'TEXT'],
+    ['send_links', 'alert_window_at', 'INTEGER'],
+    ['send_links', 'alert_count', 'INTEGER NOT NULL DEFAULT 0'],
+    ['send_links', 'alert_digest', 'INTEGER NOT NULL DEFAULT 0'],
+    ['send_visits', 'base_seconds', 'REAL NOT NULL DEFAULT 0'],
+  ];
+  for (const [table, column, type] of missing) {
+    if (!(await columns(table)).has(column)) await client.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+  }
+  // La clave de esta tabla cambió y SQLite no la altera. Son copias que se vuelven a armar: se recrea vacía.
+  if (!(await columns('send_download_cache')).has('email')) {
+    await client.executeMultiple(`
+      DROP TABLE send_download_cache;
+      CREATE TABLE send_download_cache (
+        session_id TEXT NOT NULL,
+        version_id TEXT NOT NULL,
+        email TEXT NOT NULL DEFAULT '',
+        refs TEXT NOT NULL,
+        size INTEGER NOT NULL,
+        expires_at TEXT NOT NULL,
+        PRIMARY KEY (session_id, version_id, email)
+      );
+    `);
+  }
+  await client.execute('DROP TABLE IF EXISTS send_link_items');
 }

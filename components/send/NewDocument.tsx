@@ -50,7 +50,14 @@ export default function NewDocument({ docsAvailable, maxDocMb, maxVideoMb }: { d
       const r = await api<{ document: { id: string }; version: UploadedVersion }>('/api/send/documents', { method: 'POST', json: body });
       if (!r.ok) return setError(errorText(r.data.error));
       const { document, version } = r.data;
-      const done = source === 'upload' ? await uploadFile(version.id, file!, onProgress) : await pumpVersion(version.id, version, onProgress);
+      const done =
+        source === 'upload'
+          ? await uploadFile(version.id, file!, onProgress).catch(async (err) => {
+              // Subida cortada: no queda un documento a medias ocupando lugar.
+              await fetch(`/api/send/documents/${document.id}`, { method: 'DELETE' }).catch(() => null);
+              throw err;
+            })
+          : await pumpVersion(version.id, version, onProgress);
       // También con error: el detalle explica qué pasó y deja reemplazar el archivo.
       void done;
       router.push(`/app/send/documents/${document.id}`);

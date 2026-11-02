@@ -95,6 +95,12 @@ export default function SpaceDetail({
     setGrantEmail('');
     setGrantDocs([]);
   };
+  const [lastRevoke, setLastRevoke] = useState<string | null>(null);
+  const askRevoke = (email: string) => {
+    // Sacar a la última persona de la lista vuelve a abrir el espacio para cualquiera con un link.
+    if (access.length === 1) setLastRevoke(email);
+    else void revoke(email);
+  };
   const revoke = async (email: string) => {
     const r = await api<{ access: SpaceAccessDto[] }>(`/api/send/spaces/${space.id}/access?email=${encodeURIComponent(email)}`, { method: 'DELETE' });
     if (r.ok) setAccess(r.data.access);
@@ -237,7 +243,7 @@ export default function SpaceDetail({
                   </div>
                   {space.canEdit && (
                     <div className="sd-link-actions">
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => revoke(g.email)}>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => askRevoke(g.email)} data-testid="send-access-remove">
                         {t('remove')}
                       </button>
                     </div>
@@ -392,6 +398,20 @@ export default function SpaceDetail({
           )}
         </section>
       )}
+      <ConfirmDialog
+        open={lastRevoke !== null}
+        title={t('lastAccessTitle')}
+        body={t('lastAccessBody')}
+        confirmLabel={t('lastAccessConfirm')}
+        cancelLabel={tc('cancel')}
+        danger
+        onConfirm={() => {
+          const email = lastRevoke;
+          setLastRevoke(null);
+          if (email) void revoke(email);
+        }}
+        onCancel={() => setLastRevoke(null)}
+      />
       <ConfirmDialog open={deleting} title={t('deleteTitle')} body={t('deleteBody')} confirmLabel={tc('delete')} cancelLabel={tc('cancel')} danger busy={busy} onConfirm={remove} onCancel={() => setDeleting(false)} />
     </div>
   );

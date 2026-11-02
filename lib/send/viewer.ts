@@ -14,12 +14,13 @@ import { getDb } from '../db';
 import { verifyPassword } from '../links';
 import { contextFromHeaders } from '../track';
 import { isBotUserAgent } from '../analytics/bots';
-import { isRateLimited, peekCount, rateLimit } from '../rate-limit';
+import { peekCount, rateLimit } from '../rate-limit';
 import { appSender, escapeHtml, renderBrandedHtml, sendEmail } from '../email';
 import { createNotification } from '../notifications';
 import { localized, renderForRecipient } from '../notification-copy';
 import { deleteSendFiles, readSendFile, storeSendFile } from './files';
 import { getBranding, pagesOf, readRange, storeRefsOf, type DocumentRow, type LinkRow, type VersionRow } from './core';
+import { activeRecipients, creatorAccess, creatorSees, linkProblem } from './access';
 import { linkContact } from './crm';
 import { sendCopy, type SendLocale } from './i18n';
 import {
@@ -51,6 +52,11 @@ import {
   VISIT_GAP_MS,
   type GateStep,
 } from './types';
+
+const PASSCODE_PER_IP = 8;
+const PASSCODE_IP_WINDOW = 900;
+const PASSCODE_PER_LINK = 600;
+const PASSCODE_SLOW_AFTER = 30;
 
 export interface SessionRow {
   id: string;
@@ -150,7 +156,7 @@ export interface ViewerBrand {
 }
 
 export type ViewerState =
-  | { state: 'closed'; reason: 'disabled' | 'expired'; brand: ViewerBrand }
+  | { state: 'closed'; reason: 'disabled' | 'expired' | 'unavailable'; brand: ViewerBrand }
   // Sin pasos y sin sesión: el navegador la abre con un POST. El HTML no lleva el título ni nada del documento.
   | { state: 'start'; brand: ViewerBrand }
   | {
@@ -179,23 +185,6 @@ async function brandOf(link: LinkRow): Promise<ViewerBrand> {
   return { name: b.brandName, logoUrl: b.logoUrl, color: b.brandColor, siteUrl: b.siteUrl };
 }
 
-/**
- * ¿Quien armó el link puede ver este documento hoy? Un link no publica más de lo que
- * ve su autor: si el dueño vuelve privado un documento, el link de otro deja de
- * servirlo en ese momento.
- */
-async function creatorRole(link: LinkRow): Promise<'admin' | 'member'> {
-  if (link.created_by === link.workspace_id) return 'admin';
-  const row = (await getDb()
-    .prepare('SELECT m.role FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ? AND m.user_id = ? LIMIT 1')
-    .get(link.workspace_id, link.created_by)) as { role: string } | undefined;
-  return row?.role === 'admin' || row?.role === 'owner' ? 'admin' : 'member';
-}
-
-function creatorSees(link: LinkRow, role: 'admin' | 'member', doc: Pick<DocumentRow, 'owner_id' | 'sharing'>): boolean {
-  return role === 'admin' || doc.owner_id === link.created_by || doc.sharing === 'workspace';
-}
-
 interface LinkDocRow {
   doc: DocumentRow;
   version: VersionRow;
@@ -206,7 +195,7 @@ interface LinkDocRow {
 /** Documentos que este link muestra, y a esta persona, con su versión actual lista. */
 export async function linkDocuments(link: LinkRow, email: string | null): Promise<LinkDocRow[]> {
   const db = getDb();
-  const role = await creatorRole(link);
+  const { role } = await creatorAccess(link.workspace_id, link.created_by);
   if (link.document_id) {
     const doc = (await db.prepare('SELECT * FROM send_documents WHERE id = ? AND deleted_at IS NULL').get(link.document_id)) as DocumentRow | undefined;
     if (!doc?.current_version_id || !creatorSees(link, role, doc)) return [];
@@ -249,6 +238,8 @@ export async function viewerState(link: LinkRow, session: SessionRow | null): Pr
   const brand = await brandOf(link);
   const ls = linkState(link);
   if (ls !== 'active') return { state: 'closed', reason: ls, brand };
+  // Quien lo armó ya no puede publicarlo: no hay nada que pedirle a quien lo abre.
+  if (await linkProblem(link)) return { state: 'closed', reason: 'unavailable', brand };
   const step = nextGate(link, session);
   if (step) {
     return {
@@ -321,20 +312,30 @@ async function upsertVisitor(workspaceId: string, email: string): Promise<string
 
 export async function submitPasscode(link: LinkRow, session: SessionRow, passcode: string, ipKey: string): Promise<void> {
   if (!link.passcode_hash) return;
-  // Por persona (IP) se corta; por link solo se frena: fallar desde muchas IPs no le cierra el link a quien tiene el código.
+  // Se cuenta antes de comparar: 50 pedidos a la vez no ganan intentos. Si acierta, el intento se devuelve.
   const ipKeyName = `send:pass:${link.id}:${ipKey}`;
-  if (await isRateLimited(ipKeyName, 8, 900)) throw new SendError('too_many_attempts', 429);
   const linkKey = `send:passlink:${link.id}`;
-  const failures = await peekCount(linkKey, 3600);
-  if (failures > 20) await new Promise((r) => setTimeout(r, Math.min(2000, (failures - 20) * 50)));
+  const byIp = await rateLimit(ipKeyName, PASSCODE_PER_IP, PASSCODE_IP_WINDOW);
+  const byLink = await rateLimit(linkKey, PASSCODE_PER_LINK, 3600);
+  // Muchos fallos en el link, desde cualquier IP: se frena con ventanas cortas, sin retener el pedido.
+  const slow = PASSCODE_PER_LINK - byLink.remaining > PASSCODE_SLOW_AFTER ? await rateLimit(`send:passslow:${link.id}`, 5, 10) : { ok: true };
+  if (!byIp.ok || !byLink.ok || !slow.ok) throw new SendError('too_many_attempts', 429);
   const ok = await verifyPassword(passcode.trim().slice(0, 100), link.passcode_hash);
   if (!ok) {
-    await rateLimit(ipKeyName, 8, 900);
-    await rateLimit(linkKey, 1_000_000, 3600);
     await logEvent(link, 'passcode_failed', session.email);
     throw new SendError('bad_passcode', 401);
   }
+  await refundAttempt(ipKeyName, PASSCODE_IP_WINDOW);
+  await refundAttempt(linkKey, 3600);
   await getDb().prepare('UPDATE send_sessions SET passcode_ok = 1 WHERE id = ?').run(session.id);
+}
+
+async function refundAttempt(key: string, windowSec: number): Promise<void> {
+  const windowMs = windowSec * 1000;
+  await getDb()
+    .prepare('UPDATE rate_limits SET count = count - 1 WHERE key = ? AND window_start = ? AND count > 0')
+    .run(key, Math.floor(Date.now() / windowMs) * windowMs)
+    .catch(() => undefined);
 }
 
 /**
@@ -404,7 +405,7 @@ export async function recordDenied(link: LinkRow, session: SessionRow): Promise<
   if (already) return;
   await rateLimit(`send:denied:${session.id}:${session.email ?? ''}`, 1000, 86_400);
   await logEvent(link, 'denied', session.email);
-  if (!(await claimAlert(link))) return;
+  if (!link.notify || !(await claimAlert(link))) return;
   const doc = await targetTitle(link);
   await createNotification({
     userId: link.created_by,
@@ -600,7 +601,7 @@ async function claimAlert(link: LinkRow): Promise<boolean> {
 export async function flushAlertDigests(): Promise<number> {
   const db = getDb();
   const rows = (await db
-    .prepare('SELECT * FROM send_links WHERE alert_digest > 0 AND alert_window_at < ? LIMIT 50')
+    .prepare('SELECT * FROM send_links WHERE alert_digest > 0 AND alert_window_at < ? AND deleted_at IS NULL LIMIT 50')
     .all(Date.now() - ALERT_WINDOW_MS)) as LinkRow[];
   let sent = 0;
   for (const link of rows) {
@@ -609,15 +610,24 @@ export async function flushAlertDigests(): Promise<number> {
     const title = await targetTitle(link);
     const text = localized('sendDigest', { count: link.alert_digest, title, link: link.name || null });
     const owner = link.document_id ? ((await db.prepare('SELECT owner_id FROM send_documents WHERE id = ?').get(link.document_id)) as { owner_id: string } | undefined)?.owner_id : ((await db.prepare('SELECT owner_id FROM send_spaces WHERE id = ?').get(link.space_id)) as { owner_id: string } | undefined)?.owner_id;
-    for (const userId of new Set([owner ?? link.created_by, link.created_by])) {
-      await createNotification({ userId, type: 'send_activity', title: text, href: linkHref(link), sourceType: 'send_link', sourceId: link.id }).catch(() => undefined);
+    const recipients = await activeRecipients(link.workspace_id, [owner ?? link.created_by, link.created_by]);
+    let failed = false;
+    for (const userId of recipients) {
       const user = (await db.prepare('SELECT email FROM users WHERE id = ?').get(userId)) as { email: string | null } | undefined;
-      if (!user?.email) continue;
-      const [subject] = await renderForRecipient(userId, [text]);
-      const url = `${appOrigin()}${linkHref(link)}`;
-      await sendEmail({ to: user.email, from: appSender(), subject: subject ?? '', text: url, html: renderBrandedHtml({ eyebrow: 'Send', heading: subject ?? '', paragraphs: [`<a href="${escapeHtml(url)}" style="color:#000000;font-weight:500;">${escapeHtml(url)}</a>`] }) }).catch(() => undefined);
+      if (user?.email) {
+        const [subject] = await renderForRecipient(userId, [text]);
+        const url = `${appOrigin()}${linkHref(link)}`;
+        const res = await sendEmail({ to: user.email, from: appSender(), subject: subject ?? '', text: url, html: renderBrandedHtml({ eyebrow: 'Send', heading: subject ?? '', paragraphs: [`<a href="${escapeHtml(url)}" style="color:#000000;font-weight:500;">${escapeHtml(url)}</a>`] }) }).catch(() => ({ ok: false }));
+        if (!res.ok) {
+          failed = true;
+          continue;
+        }
+      }
+      await createNotification({ userId, type: 'send_activity', title: text, href: linkHref(link), sourceType: 'send_link', sourceId: link.id }).catch(() => undefined);
     }
-    sent++;
+    // Sin email: el resumen queda para la próxima pasada del cron, con lo que se sumó mientras tanto.
+    if (failed) await db.prepare('UPDATE send_links SET alert_digest = alert_digest + ? WHERE id = ?').run(link.alert_digest, link.id);
+    else sent++;
   }
   return sent;
 }
@@ -646,7 +656,7 @@ async function alertReading(link: LinkRow, session: SessionRow, visitId: string,
   const whoVars = session.email ? { who: session.email } : { who: place || null };
   const titleKey = session.email && !session.email_verified ? 'sendReadingUnverified' : 'sendReading';
   const href = `/app/send/documents/${doc.id}`;
-  const recipients = new Set([doc.owner_id, link.created_by]);
+  const recipients = await activeRecipients(link.workspace_id, [doc.owner_id, link.created_by]);
   for (const userId of recipients) {
     await createNotification({
       userId,

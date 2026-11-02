@@ -69,7 +69,7 @@ function LinkForm({ link, createUrl, templates, onClose, onSaved }: { link: Link
     e.preventDefault();
     if (busy) return;
     setError('');
-    if (usePasscode && !link?.hasPasscode && passcode.trim().length < 4) return setError(errorText('invalid_passcode'));
+    if (usePasscode && !link?.hasPasscode && passcode.trim().length < 6) return setError(errorText('invalid_passcode'));
     if (hasExpiry && !expiresAt) return setError(errorText('invalid_expiry'));
     setBusy(true);
     const body = {

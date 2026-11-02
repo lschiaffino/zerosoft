@@ -7,6 +7,7 @@
  * email de la sesión, antes de que la imagen salga del servidor.
  */
 import path from 'path';
+import { Worker } from 'worker_threads';
 import { SendError } from './types';
 
 type Canvas = typeof import('@napi-rs/canvas');
@@ -29,6 +30,10 @@ export async function canvas(): Promise<Canvas> {
 export const PAGE_WIDTH = 1600;
 const MAX_HEIGHT = 4000;
 const WEBP_QUALITY = 84;
+/** Por página: tiempo, operaciones de dibujo y memoria del hilo. */
+const PAGE_LIMIT_MS = 15_000;
+const MAX_PAGE_OPERATORS = 1_500_000;
+const WORKER_HEAP_MB = 1024;
 
 export interface RenderedPage {
   page: number;
@@ -37,72 +42,74 @@ export interface RenderedPage {
   height: number;
 }
 
-interface PdfHandle {
-  numPages: number;
-  renderPage(n: number): Promise<RenderedPage>;
-  close(): Promise<void>;
+/** Carga el lienzo. Si falla (una dependencia que no llegó al deploy) no es culpa del archivo. */
+export async function loadRenderEngine(): Promise<void> {
+  await canvas();
 }
 
 /**
- * Carga el lienzo y pdf.js. Si falla (dependencia que no llegó al deploy) no es culpa
- * del archivo: quien llama deja la versión en cola, para reintentar.
+ * Dibuja páginas en un hilo aparte: con tope de memoria y de tiempo por página, sin
+ * frenar a nadie más. Si se pasa, el hilo se corta y sale render_stalled: la versión lo
+ * reintenta y, a los 4 intentos sin avance, falla con un motivo.
  */
-export async function loadRenderEngine(): Promise<void> {
-  await canvas();
-  await import(/* webpackIgnore: true */ 'pdfjs-dist/legacy/build/pdf.mjs');
-}
-
-/** Abre un PDF con pdf.js. Con contraseña o roto: error que la interfaz explica. */
-export async function openPdf(bytes: Buffer): Promise<PdfHandle> {
-  const c = await canvas();
-  // Sin pasar por webpack: Notes y Sign usan pdf.js en el navegador y no puede ser externo para todos.
-  const pdfjs: typeof import('pdfjs-dist/legacy/build/pdf.mjs') = await import(/* webpackIgnore: true */ 'pdfjs-dist/legacy/build/pdf.mjs');
-  const task = pdfjs.getDocument({
-    data: new Uint8Array(bytes),
-    disableFontFace: true,
-    useSystemFonts: false,
-    standardFontDataUrl: `${path.join(process.cwd(), 'node_modules/pdfjs-dist/standard_fonts')}/`,
-    // PDFs con letras CJK sin incrustar, y escaneados en JPEG 2000 o JBIG2.
-    cMapUrl: `${path.join(process.cwd(), 'node_modules/pdfjs-dist/cmaps')}/`,
-    cMapPacked: true,
-    wasmUrl: `${path.join(process.cwd(), 'node_modules/pdfjs-dist/wasm')}/`,
-    verbosity: 0,
+export async function renderPdfPages(
+  bytes: Buffer,
+  o: { from: number; deadline: number; onInfo: (numPages: number) => Promise<void>; onPage: (page: RenderedPage) => Promise<void> },
+): Promise<void> {
+  const data = new Uint8Array(bytes);
+  const worker = new Worker(path.join(process.cwd(), 'lib/send/render-worker.mjs'), {
+    workerData: { data, from: o.from, root: process.cwd(), pageWidth: PAGE_WIDTH, maxHeight: MAX_HEIGHT, maxOperators: MAX_PAGE_OPERATORS, quality: WEBP_QUALITY },
+    resourceLimits: { maxOldGenerationSizeMb: WORKER_HEAP_MB },
   });
-  let doc: Awaited<typeof task.promise>;
-  try {
-    doc = await task.promise;
-  } catch (err) {
-    await task.destroy().catch(() => undefined);
-    const e = err as { name?: string; message?: string };
-    // Cifrado que no abre sin más: lo que hay que pedir es sacarle la contraseña.
-    if (e?.name === 'PasswordException' || bytes.includes('/Encrypt')) throw new SendError('pdf_password', 422);
-    // Un worker o una fuente que no cargó es del servidor, no del archivo.
-    if (/worker|cannot find|module not found|ENOENT/i.test(e?.message ?? '')) throw new SendError('render_unavailable', 503);
-    throw new SendError('pdf_invalid', 422);
-  }
-  return {
-    numPages: doc.numPages,
-    async renderPage(n) {
-      const page = await doc.getPage(n);
-      const base = page.getViewport({ scale: 1 });
-      let scale = PAGE_WIDTH / base.width;
-      if (base.height * scale > MAX_HEIGHT) scale = MAX_HEIGHT / base.height;
-      const vp = page.getViewport({ scale });
-      const width = Math.max(1, Math.round(vp.width));
-      const height = Math.max(1, Math.round(vp.height));
-      const cv = c.createCanvas(width, height);
-      const ctx = cv.getContext('2d');
-      // Un PDF sin fondo es transparente: papel blanco.
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, width, height);
-      await page.render({ canvas: cv as never, canvasContext: ctx as never, viewport: vp }).promise;
-      page.cleanup();
-      return { page: n, bytes: await cv.encode('webp', WEBP_QUALITY), width, height };
-    },
-    async close() {
-      await task.destroy().catch(() => undefined);
-    },
-  };
+  await new Promise<void>((resolve, reject) => {
+    let settled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let queue: Promise<void> = Promise.resolve();
+    const finish = (err?: Error) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      void worker.terminate();
+      if (err) reject(err);
+      else resolve();
+    };
+    const arm = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => finish(new SendError('render_stalled', 503)), PAGE_LIMIT_MS);
+    };
+    const inOrder = (fn: () => Promise<void>) => {
+      queue = queue.then(fn).catch((err) => finish(err as Error));
+    };
+    arm();
+    worker.on('message', (m: { type: string; [k: string]: unknown }) => {
+      if (m.type === 'start') arm();
+      else if (m.type === 'unavailable') finish(new SendError('render_unavailable', 503, { message: String(m.message ?? '') }));
+      else if (m.type === 'too_complex') inOrder(async () => finish(new SendError('page_too_complex', 422)));
+      else if (m.type === 'crash') inOrder(async () => finish(new SendError('render_stalled', 503)));
+      else if (m.type === 'open_error') {
+        const message = String(m.message ?? '');
+        // Cifrado que no abre sin más: lo que hay que pedir es sacarle la contraseña.
+        if (m.name === 'PasswordException' || bytes.includes('/Encrypt')) finish(new SendError('pdf_password', 422));
+        // Un worker o una fuente que no cargó es del servidor, no del archivo.
+        else if (/worker|cannot find|module not found|ENOENT/i.test(message)) finish(new SendError('render_unavailable', 503, { message }));
+        else finish(new SendError('pdf_invalid', 422));
+      } else if (m.type === 'info') inOrder(() => o.onInfo(Number(m.numPages)));
+      else if (m.type === 'page')
+        inOrder(async () => {
+          await o.onPage({ page: Number(m.page), bytes: Buffer.from(m.bytes as Uint8Array), width: Number(m.width), height: Number(m.height) });
+          // Se acabó el turno: el resto sigue en el pedido siguiente.
+          if (Date.now() >= o.deadline) finish();
+        });
+      else if (m.type === 'done') inOrder(async () => finish());
+    });
+    worker.on('error', (err: Error & { code?: string }) => {
+      // Sin memoria: es la página. Sin el archivo o sin un módulo: es el servidor.
+      if (err.code === 'ERR_WORKER_OUT_OF_MEMORY') finish(new SendError('render_stalled', 503));
+      else if (/cannot find|module not found|ENOENT/i.test(err.message) || err.code === 'ERR_MODULE_NOT_FOUND') finish(new SendError('render_unavailable', 503, { message: err.message }));
+      else finish(new SendError('render_stalled', 503));
+    });
+    worker.on('exit', () => inOrder(async () => finish(new SendError('render_stalled', 503))));
+  });
 }
 
 /**

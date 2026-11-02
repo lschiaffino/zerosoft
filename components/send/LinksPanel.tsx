@@ -89,7 +89,17 @@ export default function LinksPanel({
                 <div className="sd-link-title">
                   <strong>{l.name || t('unnamed')}</strong>
                   {l.state !== 'active' && <span className={`badge ${l.state === 'disabled' ? 'badge-outline' : 'badge-warn'}`}>{t(`state.${l.state}`)}</span>}
+                  {l.state === 'active' && l.problem && (
+                    <span className="badge badge-warn" data-testid="send-link-problem">
+                      {t('notServing')}
+                    </span>
+                  )}
                 </div>
+                {l.state === 'active' && l.problem && (
+                  <span className="sd-rowmeta" data-testid="send-link-problem-text" data-problem={l.problem}>
+                    {t(`problem_${l.problem}`)}
+                  </span>
+                )}
                 {l.recipientEmail && <span className="sd-rowmeta">{t('forRecipient', { email: l.recipientEmail })}</span>}
                 <span className="sd-rowmeta">{tags(l).join(' · ')}</span>
                 <span className="sd-rowmeta">

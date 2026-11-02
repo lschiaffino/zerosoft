@@ -54,6 +54,14 @@
   "peopleDocRead": "Para leer: {title}",
   "peopleDocNew": "Documento nuevo: {title}",
   "reviewCycle": "Empezó el ciclo de evaluación: {name}",
+  "peopleChangeRequested": "{name} pidió un cambio en sus datos",
+  "peopleChangeApproved": "Aprobaron tu cambio de datos",
+  "peopleChangeDeclined": "Rechazaron tu cambio de datos",
+  "peopleScheduledFailed": "No se pudo aplicar un cambio de puesto agendado",
+  "peopleHireAdded": "Contrataron a {name}: su ficha está lista",
+  "hiringApprovalWaiting": "Espera tu aprobación",
+  "hiringApprovalDone": "Aprobado",
+  "hiringApprovalRejected": "Rechazado",
   "analyticsAlertTitle": "Alerta: {name}",
   "analyticsAlertBody": "Valor {value} en {insight}",
   "analyticsRegression": "Un error resuelto volvió a aparecer: {title}",
@@ -77,5 +85,9 @@
   "sendDenied": "{who} intentó abrir {title} y no tiene acceso",
   "sendCrmSubject": "Abrió {title} en Send",
   "sendCrmBody": "{email} lo abrió desde un link de Send, con el email verificado.",
-  "sendDigest": "{count} visitas o intentos sin acceso más en {title}"
+  "sendDigest": "{count} visitas o intentos sin acceso más en {title}",
+  "peopleHireUndone": "Se deshizo la contratación de {name}: su ficha sigue en People",
+  "peopleExitFinished": "Pasó la fecha de salida de {name}: su ficha quedó cerrada",
+  "sendLinksTransferred": "{count} links de Send de {who} pasaron a vos",
+  "sendLinksStopped": "{count} se frenaron porque sus documentos son privados. Cada link dice qué hacer."
 }

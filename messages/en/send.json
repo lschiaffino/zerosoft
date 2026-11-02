@@ -117,7 +117,7 @@
     "verifyHelp": "We send a code to that address, and it only works in the same browser.",
     "verifyForced": "An allow list needs it: otherwise typing a listed email would be enough.",
     "passcode": "Require a passcode",
-    "passcodeNew": "At least 4 characters",
+    "passcodeNew": "At least 6 characters",
     "passcodeKeep": "Leave empty to keep the current one",
     "expiry": "Expires on",
     "accessList": "Allow or block emails and domains",
@@ -169,7 +169,12 @@
     "visits": "{count, plural, one {# visit} other {# visits}}",
     "visitors": "{count, plural, one {# person} other {# people}}",
     "last": "last {date}",
-    "verifyForcedNda": "An agreement needs it: otherwise anyone could sign as someone else."
+    "verifyForcedNda": "An agreement needs it: otherwise anyone could sign as someone else.",
+    "notServing": "Not serving",
+    "problem_creator_left": "The person who made this link left the workspace. Make a new link.",
+    "problem_creator_no_access": "The person who made this link no longer has Send. Give them access again, or make a new link.",
+    "problem_document_private": "The document is private, so this link can't show it. Share the document with the workspace, or make a new link.",
+    "problem_space_nothing_visible": "The documents in this space are private to others, so this link has nothing to show. Share them with the workspace, or make a new link."
   },
   "visits": {
     "loadError": "The numbers didn't load.",
@@ -251,14 +256,17 @@
     "colDocument": "Document",
     "sharing": "Who in the workspace sees it",
     "sharingPrivate": "Only me and admins",
-    "sharingWorkspace": "Whole workspace"
+    "sharingWorkspace": "Whole workspace",
+    "lastAccessTitle": "Remove the last person?",
+    "lastAccessBody": "With an empty list the space opens again: everyone with a link sees all of it, with no verification.",
+    "lastAccessConfirm": "Remove and open the space"
   },
   "settings": {
     "title": "Send settings",
     "desc": "The brand people see when they open a link.",
     "brandName": "Company name",
     "logoUrl": "Logo URL",
-    "logoHelp": "A public image, ideally a transparent PNG. The viewer loads it without sending which link was opened.",
+    "logoHelp": "A public image at an https:// address, ideally a transparent PNG. The viewer loads it without sending which link was opened.",
     "color": "Accent color",
     "colorNone": "Default",
     "colorHelp": "Used for the main buttons of the viewer.",
@@ -312,7 +320,8 @@
     "pageAlt": "Page {page}",
     "pageError": "This page didn't load.",
     "retry": "Try again",
-    "videoError": "The video didn't load. Some browsers can't play MOV files."
+    "videoError": "The video didn't load. Some browsers can't play MOV files.",
+    "unavailableTitle": "This link is no longer available"
   },
   "errors": {
     "generic": "Something went wrong. Try again.",
@@ -338,7 +347,7 @@
     "docs_unavailable": "You don't have access to Docs.",
     "render_failed": "We couldn't process this file. Export it to PDF again and retry.",
     "file_unavailable": "The file isn't available right now.",
-    "invalid_passcode": "The passcode needs at least 4 characters.",
+    "invalid_passcode": "The passcode needs at least 6 characters.",
     "invalid_expiry": "Pick a valid expiry date.",
     "invalid_recipient": "Check the recipient's email.",
     "invalid_access_entry": "One of the entries isn't an email or a domain.",
@@ -360,6 +369,8 @@
     "nda_template_invalid": "The agreement needs a template with one signer.",
     "render_unavailable": "This server can't prepare pages right now. The file is safe and we keep retrying.",
     "office_too_complex": "This file is too large to convert. Export it to PDF and upload that.",
-    "storage_quota": "The workspace reached its Send storage. Delete documents to make room."
+    "storage_quota": "This would go over the workspace's storage limit. Delete documents to make room.",
+    "logo_https": "The logo needs an https:// address: the viewer only loads secure images.",
+    "page_too_complex": "A page in this file is too heavy to prepare. Print it to a new PDF, or lower its detail, and upload that."
   }
 }

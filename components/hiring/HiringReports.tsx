@@ -121,6 +121,23 @@ export default function HiringReports({ report, jobs }: { report: HiringReport; 
         )}
       </section>
 
+      <section className="panel hr-report" aria-labelledby="hr-reject-reasons-title" data-testid="hiring-reject-reasons">
+        <h2 id="hr-reject-reasons-title" className="hr-panel-title">
+          {t('reports.rejectReasons')}
+        </h2>
+        {report.rejectReasons.length === 0 ? (
+          <p className="ui-help">{t('reports.noRejections')}</p>
+        ) : (
+          <ul className="hr-list">
+            {report.rejectReasons.map((r) => (
+              <li key={r.reason || '_'} className="hr-list-row">
+                <span className="hr-list-main">{r.reason === 'knockout' ? t('reports.reasonKnockout') : r.reason || t('reports.reasonNone')}</span>
+                <span className="hr-rowmeta">{r.count}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
       <section className="panel hr-report" aria-labelledby="hr-open">
         <h2 id="hr-open" className="hr-panel-title">
           {t('reports.openJobs')}

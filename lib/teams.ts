@@ -100,6 +100,11 @@ export async function setMemberApps(teamId: string, userId: string, apps: AppAcc
       if (!(await personHasSocialApp(team.owner_id, userId).catch(() => true))) {
         await pauseAuthorPosts(team.owner_id, userId, { reason: 'author_app' }).catch(() => undefined);
       }
+      // Hiring: si perdió la app, lo que le tocaba aprobar pasa a otra persona.
+      const hiringAccess = await (await import('./api-auth')).personAppAccess(team.owner_id, userId).catch(() => null);
+      if (hiringAccess && hiringAccess.apps !== '*' && !hiringAccess.apps.includes('hiring')) {
+        await (await import('./hiring/approvals')).reassignApprover(team.owner_id, userId).catch(() => undefined);
+      }
       const { emitTalkEvent } = await import('./talk');
       await emitTalkEvent(team.owner_id, 'access', { userId, payload: { change: 'apps' } }).catch(() => undefined);
       // Si perdió Talk, el push sin entregar de este workspace no debe mostrar ese texto.

@@ -27,6 +27,8 @@ import {
 } from '@/lib/send/types';
 import { assertOfficeSize, imageSize, kid, kids, parseXml, pptxToImages } from '@/lib/send/office';
 import { buildZip } from '@/lib/zip-reader';
+import { renderPdfPages } from '@/lib/send/render';
+import { PDFDocument } from 'pdf-lib';
 import { excludeReason, webOnlyWhere } from '@/lib/mcp/excludes.mjs';
 import { scrubText } from '@/lib/mcp/scrub';
 
@@ -307,6 +309,38 @@ describe('Send: clientes y archivos con trampa', () => {
     await pptxToImages(deck([slide, slide]), { deadline: Date.now() - 1, onPage: async (p) => void none.push(p.page) });
     expect(none).toEqual([]);
   });
+});
+
+describe('Send: render en un hilo aparte', () => {
+  const heavy = () => {
+    const ops = '0 g\n'.repeat(1_600_000);
+    const objs = [
+      '<< /Type /Catalog /Pages 2 0 R >>',
+      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>',
+      `<< /Length ${ops.length} >>\nstream\n${ops}endstream`,
+    ];
+    return Buffer.from(`%PDF-1.7\n${objs.map((o, i) => `${i + 1} 0 obj\n${o}\nendobj\n`).join('')}trailer << /Root 1 0 R /Size 5 >>\n%%EOF`, 'latin1');
+  };
+
+  it('dibuja las páginas y sigue desde donde quedó', async () => {
+    const doc = await PDFDocument.create();
+    for (let i = 0; i < 3; i++) doc.addPage([612, 792]).drawText(`Page ${i + 1}`, { x: 60, y: 700 });
+    const bytes = Buffer.from(await doc.save());
+    const seen: Array<{ page: number; width: number }> = [];
+    let total = 0;
+    await renderPdfPages(bytes, { from: 2, deadline: Date.now() + 60_000, onInfo: async (n) => void (total = n), onPage: async (p) => void seen.push({ page: p.page, width: p.width }) });
+    expect(total).toBe(3);
+    expect(seen).toEqual([{ page: 2, width: 1600 }, { page: 3, width: 1600 }]);
+  }, 60_000);
+
+  it('una página con demasiadas operaciones se corta con su motivo, sin tumbar el proceso', async () => {
+    await expect(renderPdfPages(heavy(), { from: 1, deadline: Date.now() + 60_000, onInfo: async () => undefined, onPage: async () => undefined })).rejects.toMatchObject({ code: expect.stringMatching(/page_too_complex|render_stalled/) });
+  }, 60_000);
+
+  it('un archivo roto da su motivo', async () => {
+    await expect(renderPdfPages(Buffer.from('%PDF-1.7 nada'), { from: 1, deadline: Date.now() + 30_000, onInfo: async () => undefined, onPage: async () => undefined })).rejects.toMatchObject({ code: 'pdf_invalid' });
+  }, 30_000);
 });
 
 describe('Send: MCP', () => {

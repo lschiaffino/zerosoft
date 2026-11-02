@@ -8334,8 +8334,142 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Puestos confidenciales (Hiring): fuera de la página de empleos y solo para el equipo y los admins.
+    id: '185_hiring_confidential',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE hiring_jobs ADD COLUMN confidential INTEGER NOT NULL DEFAULT 0');
+    },
+  },
+  {
+    // Hiring: cadenas de aprobación de puestos y ofertas, y guía de entrevista por etapa. Todo apagado hasta que un admin elija aprobadores.
+    id: '186_hiring_approvals',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS hiring_approvals (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          subject_type TEXT NOT NULL,
+          subject_id TEXT NOT NULL,
+          position INTEGER NOT NULL,
+          user_id TEXT NOT NULL,
+          requested_by TEXT,
+          status TEXT NOT NULL DEFAULT 'pending',
+          note TEXT NOT NULL DEFAULT '',
+          decided_at TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_hiring_approvals_subject ON hiring_approvals(workspace_id, subject_type, subject_id, position);
+        CREATE INDEX IF NOT EXISTS idx_hiring_approvals_user ON hiring_approvals(workspace_id, user_id, status);
+      `);
+      await addColumn(c, "ALTER TABLE hiring_settings ADD COLUMN job_approvers TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(c, "ALTER TABLE hiring_settings ADD COLUMN offer_approvers TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(c, "ALTER TABLE hiring_jobs ADD COLUMN approval_status TEXT NOT NULL DEFAULT 'none'");
+      await addColumn(c, "ALTER TABLE hiring_stages ADD COLUMN kit TEXT NOT NULL DEFAULT '[]'");
+    },
+  },
+  {
+    // People: historial de puesto, aprobación de cambios (apagada por defecto), encuestas, reportes guardados, niveles de antigüedad y alcance por política.
+    id: '187_people_parity',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS people_job_history (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          employee_id TEXT NOT NULL REFERENCES people_employees(id) ON DELETE CASCADE,
+          field TEXT NOT NULL,
+          old_value TEXT NOT NULL DEFAULT '',
+          new_value TEXT NOT NULL DEFAULT '',
+          effective_date TEXT NOT NULL,
+          actor_id TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_people_job_history ON people_job_history(workspace_id, employee_id, created_at);
+        CREATE TABLE IF NOT EXISTS people_change_requests (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          employee_id TEXT NOT NULL REFERENCES people_employees(id) ON DELETE CASCADE,
+          requested_by TEXT NOT NULL,
+          payload TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          note TEXT NOT NULL DEFAULT '',
+          decided_by TEXT,
+          decided_at TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_people_change_requests ON people_change_requests(workspace_id, status, employee_id);
+        CREATE TABLE IF NOT EXISTS people_surveys (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          question TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'open',
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          closed_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_people_surveys ON people_surveys(workspace_id, created_at);
+        CREATE TABLE IF NOT EXISTS people_survey_participants (
+          survey_id TEXT NOT NULL REFERENCES people_surveys(id) ON DELETE CASCADE,
+          employee_id TEXT NOT NULL,
+          PRIMARY KEY (survey_id, employee_id)
+        ) WITHOUT ROWID;
+        CREATE TABLE IF NOT EXISTS people_survey_responses (
+          id TEXT PRIMARY KEY,
+          survey_id TEXT NOT NULL REFERENCES people_surveys(id) ON DELETE CASCADE,
+          score INTEGER NOT NULL,
+          comment TEXT NOT NULL DEFAULT ''
+        ) WITHOUT ROWID;
+        CREATE INDEX IF NOT EXISTS idx_people_survey_responses ON people_survey_responses(survey_id);
+        CREATE TABLE IF NOT EXISTS people_saved_reports (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          config TEXT NOT NULL,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_people_saved_reports ON people_saved_reports(workspace_id);
+      `);
+      await addColumn(c, "ALTER TABLE people_settings ADD COLUMN approve_changes INTEGER NOT NULL DEFAULT 0");
+      await addColumn(c, "ALTER TABLE people_policies ADD COLUMN levels TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(c, "ALTER TABLE people_policies ADD COLUMN applies_to TEXT NOT NULL DEFAULT '{}'");
+      await addColumn(c, "ALTER TABLE people_employees ADD COLUMN source_application_id TEXT");
+      await c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_people_employees_source ON people_employees(workspace_id, source_application_id) WHERE source_application_id IS NOT NULL");
+    },
+  },
+  {
+    // People: cambios de puesto con fecha futura. Los aplica el cron de cada hora, reclamando cada fila.
+    id: '188_people_scheduled_changes',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS people_scheduled_changes (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          employee_id TEXT NOT NULL REFERENCES people_employees(id) ON DELETE CASCADE,
+          changes TEXT NOT NULL,
+          effective_date TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          error TEXT NOT NULL DEFAULT '',
+          created_by TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          applied_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_people_scheduled_due ON people_scheduled_changes(status, effective_date);
+        CREATE INDEX IF NOT EXISTS idx_people_scheduled_emp ON people_scheduled_changes(workspace_id, employee_id);
+      `);
+    },
+  },
+  {
+    // Hiring: campos propios de candidatos. Vacíos hasta que un admin los defina.
+    id: '189_hiring_candidate_fields',
+    up: async (c) => {
+      await addColumn(c, "ALTER TABLE hiring_settings ADD COLUMN candidate_fields TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(c, "ALTER TABLE hiring_candidates ADD COLUMN custom TEXT NOT NULL DEFAULT '{}'");
+    },
+  },
+  {
     // Send (DocSend): ver lib/schema/send-migration.ts.
-    id: '185_send',
+    id: '190_send',
     up: sendUp,
   },
 ];

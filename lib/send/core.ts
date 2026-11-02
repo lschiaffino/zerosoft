@@ -12,7 +12,8 @@ import { blocksToPdf, needsUnicodeFont } from '../docs-pdf';
 import { docxToBlocks } from '../docs-docx';
 import { USAGE_RATES } from '../pricing';
 import { deleteSendFiles, openSendValue, readSendFile, sealSendValue, sendStorageConfigured, storeSendFile } from './files';
-import { loadRenderEngine, openPdf } from './render';
+import { linkProblem, type LinkProblem } from './access';
+import { loadRenderEngine, renderPdfPages } from './render';
 import { assertOfficeSize, pptxToImages } from './office';
 import {
   cleanAccessList,
@@ -98,6 +99,7 @@ export interface LinkRow {
   notify: number;
   use_branding: number;
   access_epoch: number;
+  transferred_from: string | null;
   disabled_at: string | null;
   last_visit_at: string | null;
   created_at: string;
@@ -353,9 +355,16 @@ export function sendStorageLimit(): number | null {
 
 export async function sendStorageUsed(workspaceId: string): Promise<number> {
   const db = getDb();
-  const files = (await db.prepare(`SELECT COALESCE(SUM(size), 0) AS n FROM send_versions WHERE workspace_id = ? AND status <> 'failed'`).get(workspaceId)) as { n: number };
+  // Una subida reserva su tamaño media hora; si se cortó, después cuenta solo lo que llegó.
+  const cutoff = new Date(Date.now() - UPLOAD_RESERVE_MS).toISOString();
+  const files = (await db
+    .prepare(`SELECT COALESCE(SUM(CASE WHEN status = 'uploading' AND created_at < ? THEN 0 ELSE size END), 0) AS n FROM send_versions WHERE workspace_id = ?`)
+    .get(cutoff, workspaceId)) as { n: number };
+  const parts = (await db
+    .prepare(`SELECT COALESCE(SUM(p.size), 0) AS n FROM send_version_parts p JOIN send_versions v ON v.id = p.version_id WHERE v.workspace_id = ? AND v.status = 'uploading' AND v.created_at < ?`)
+    .get(workspaceId, cutoff)) as { n: number };
   const pages = (await db.prepare('SELECT COALESCE(SUM(p.bytes), 0) AS n FROM send_pages p JOIN send_versions v ON v.id = p.version_id WHERE v.workspace_id = ?').get(workspaceId)) as { n: number };
-  return Number(files.n) + Number(pages.n);
+  return Number(files.n) + Number(parts.n) + Number(pages.n);
 }
 
 /** Antes de guardar nada: sin dónde guardar, o sin lugar, no queda una fila a medias. */
@@ -466,8 +475,17 @@ export async function completeUpload(actor: SendActor, versionId: string, input:
   return (await db.prepare('SELECT * FROM send_versions WHERE id = ?').get(v.id)) as VersionRow;
 }
 
+/**
+ * Sin reintento posible (el archivo no sirve), los archivos se borran y dejan de contar
+ * en la cuota. Los que se pueden reintentar los conservan, y cuentan hasta borrarlos.
+ */
 async function failVersion(id: string, code: string): Promise<void> {
-  await getDb().prepare(`UPDATE send_versions SET status = 'failed', error = ?, render_claimed_at = NULL WHERE id = ?`).run(code, id);
+  const db = getDb();
+  const res = await db.prepare(`UPDATE send_versions SET status = 'failed', error = ?, render_claimed_at = NULL WHERE id = ? AND status <> 'failed'`).run(code, id);
+  if (!res.changes || RETRYABLE_ERRORS.includes(code)) return;
+  const v = (await db.prepare('SELECT derived_ref FROM send_versions WHERE id = ?').get(id)) as { derived_ref: string | null } | undefined;
+  await purgeVersionFiles(id, v?.derived_ref ?? null);
+  await db.prepare('UPDATE send_versions SET size = 0, derived_ref = NULL, rendered_count = 0 WHERE id = ?').run(id);
 }
 
 /**
@@ -488,9 +506,11 @@ async function activateVersion(documentId: string, versionId: string, n: number)
 const CLAIM_MS = 90_000;
 const MAX_STALLS = 4;
 /** Los topes de un PDF de Send: alcanzan para los 100 MB y 500 páginas que promete la app. */
-const SEND_PDF_LIMITS = { objects: 2_000_000, stream: 512 * 1024 * 1024, total: 4 * 1024 * 1024 * 1024, render: true };
-/** Una subida que no terminó en un día no va a terminar. */
-const UPLOAD_TTL_MS = 86_400_000;
+const SEND_PDF_LIMITS = { objects: 2_000_000, stream: 128 * 1024 * 1024, total: 1024 * 1024 * 1024, render: true };
+const GUARD_MAX_BYTES = 32 * 1024 * 1024;
+/** Una subida cortada deja de reservar enseguida, y sus partes se borran a las pocas horas. */
+const UPLOAD_RESERVE_MS = 30 * 60_000;
+const UPLOAD_TTL_MS = 6 * 3_600_000;
 
 export async function storeRenderedPage(versionId: string, page: { page: number; bytes: Buffer; width: number; height: number }): Promise<void> {
   const ref = await storeSendFile(page.bytes, 'image/webp');
@@ -541,53 +561,44 @@ export async function pumpRender(versionId: string, budgetMs = 8000): Promise<Ve
     .run(now, versionId, now - CLAIM_MS);
   const load = async () => (await db.prepare('SELECT * FROM send_versions WHERE id = ?').get(versionId)) as VersionRow;
   if (!claim.changes) return load();
-  // Si el motor no carga en este servidor, el archivo no tiene la culpa: queda en cola, con un motivo, y se reintenta.
-  try {
-    await loadRenderEngine();
-  } catch (err) {
-    console.error('[send:render] engine', err instanceof Error ? err.message : 'error');
-    await db.prepare('UPDATE send_versions SET error = ? WHERE id = ?').run('render_unavailable', versionId);
-    return load();
-  }
   const v = await load();
   if (v.error) await db.prepare('UPDATE send_versions SET error = NULL WHERE id = ?').run(v.id);
   const deadline = now + budgetMs;
   // Una página que tumba la función vuelve a reclamarse: sin avance tras varios intentos, se corta con un motivo.
   if (Number(v.render_stalls) >= MAX_STALLS) {
-    await failVersion(v.id, 'render_failed');
+    await failVersion(v.id, 'page_too_complex');
     return load();
   }
   await db.prepare('UPDATE send_versions SET render_stalls = render_stalls + 1 WHERE id = ?').run(v.id);
   try {
     if (v.kind === 'slides') {
+      // Si el lienzo no carga en este servidor, el archivo no tiene la culpa.
+      await loadRenderEngine().catch(() => {
+        throw new SendError('render_unavailable', 503);
+      });
       const file = await readParts(v.id);
       const total = await pptxToImages(file, { skip: Number(v.rendered_count), deadline, onPage: (page) => storeRenderedPage(v.id, page), onTotal: (n) => db.prepare('UPDATE send_versions SET page_count = ?, note = ? WHERE id = ?').run(n, 'simplified', v.id).then(() => undefined) });
       if (!total) throw new SendError('office_invalid', 422);
     } else {
       const pdf = await workingPdf(v);
-      const doc = await openPdf(pdf);
-      try {
-        if (doc.numPages > MAX_PAGES) throw new SendError('too_many_pages', 422);
-        if (doc.numPages < 1) throw new SendError('pdf_invalid', 422);
-        // Una vez, ya sabiendo que abre: una contraseña se informa como tal.
-        if (Number(v.rendered_count) === 0) {
-          try {
-            guardPdf(pdf, SEND_PDF_LIMITS);
-          } catch {
-            throw new SendError('pdf_too_complex', 422);
-          }
+      // Bombas de descompresión en archivos chicos: uno grande sin bomba va directo al hilo, que tiene sus topes.
+      if (Number(v.rendered_count) === 0 && pdf.length <= GUARD_MAX_BYTES) {
+        try {
+          guardPdf(pdf, SEND_PDF_LIMITS);
+        } catch {
+          throw new SendError('pdf_too_complex', 422);
         }
-        if (Number(v.page_count) !== doc.numPages) await db.prepare('UPDATE send_versions SET page_count = ? WHERE id = ?').run(doc.numPages, v.id);
-        let next = Number(v.rendered_count) + 1;
-        while (next <= doc.numPages && Date.now() < deadline) {
-          await storeRenderedPage(v.id, await doc.renderPage(next));
-          next++;
-          // Entre página y página, le deja lugar al resto de los pedidos.
-          await new Promise((r) => setImmediate(r));
-        }
-      } finally {
-        await doc.close();
       }
+      await renderPdfPages(pdf, {
+        from: Number(v.rendered_count) + 1,
+        deadline,
+        onInfo: async (numPages) => {
+          if (numPages > MAX_PAGES) throw new SendError('too_many_pages', 422);
+          if (numPages < 1) throw new SendError('pdf_invalid', 422);
+          if (Number(v.page_count) !== numPages) await db.prepare('UPDATE send_versions SET page_count = ? WHERE id = ?').run(numPages, v.id);
+        },
+        onPage: (page) => storeRenderedPage(v.id, page),
+      });
     }
     const after = await load();
     if (Number(after.rendered_count) >= Number(after.page_count) && Number(after.page_count) > 0) {
@@ -598,7 +609,13 @@ export async function pumpRender(versionId: string, budgetMs = 8000): Promise<Ve
     }
   } catch (err) {
     if (err instanceof SendError && err.code === 'render_unavailable') {
+      console.error('[send:render] engine', err.detail?.message ?? '');
       await db.prepare('UPDATE send_versions SET error = ?, render_stalls = 0 WHERE id = ?').run(err.code, v.id);
+      return load();
+    }
+    // Una página que no termina (tiempo o memoria): otro intento; a los 4, falla con su motivo.
+    if (err instanceof SendError && err.code === 'render_stalled') {
+      await db.prepare('UPDATE send_versions SET render_claimed_at = NULL WHERE id = ?').run(v.id);
       return load();
     }
     // Lo que no se puede renderizar queda marcado con su motivo.
@@ -610,7 +627,7 @@ export async function pumpRender(versionId: string, budgetMs = 8000): Promise<Ve
 }
 
 /** Errores que no son del archivo: se pueden reintentar. */
-export const RETRYABLE_ERRORS = ['render_failed', 'render_unavailable', 'file_unavailable'];
+export const RETRYABLE_ERRORS = ['render_failed', 'render_unavailable', 'file_unavailable', 'storage_unavailable'];
 
 /** Reintentar a mano una versión que falló por el servidor. */
 export async function retryVersion(versionId: string): Promise<void> {
@@ -621,7 +638,7 @@ export async function retryVersion(versionId: string): Promise<void> {
 
 /** Cron de cada minuto: versiones que quedaron a medio renderizar porque quien subió se fue. */
 export async function runSendRenderCron(opts: { budgetMs?: number } = {}): Promise<{ pumped: number }> {
-  const deadline = Date.now() + (opts.budgetMs ?? 20_000);
+  const deadline = Date.now() + (opts.budgetMs ?? 40_000);
   const rows = (await getDb()
     .prepare(`SELECT id FROM send_versions WHERE status = 'processing' AND (render_claimed_at IS NULL OR render_claimed_at < ?) ORDER BY created_at LIMIT 10`)
     .all(Date.now() - CLAIM_MS)) as Array<{ id: string }>;
@@ -725,6 +742,8 @@ export interface LinkDto {
   notify: boolean;
   useBranding: boolean;
   state: 'active' | 'disabled' | 'expired';
+  /** Activo pero sin servir nada, y por qué. */
+  problem: LinkProblem | null;
   lastVisitAt: string | null;
   visits: number;
   visitors: number;
@@ -732,7 +751,7 @@ export interface LinkDto {
   mine: boolean;
 }
 
-export function linkDto(l: LinkRow, actor: SendActor, counts: { visits: number; visitors: number } = { visits: 0, visitors: 0 }, canCopy = true): LinkDto {
+export function linkDto(l: LinkRow, actor: SendActor, counts: { visits: number; visitors: number } = { visits: 0, visitors: 0 }, canCopy = true, problem: LinkProblem | null = null): LinkDto {
   // La URL abre sin cuenta: solo la copia quien armó el link, el dueño del documento o un admin.
   const token = canCopy ? openSendValue(l.token_sealed) : null;
   return {
@@ -753,6 +772,7 @@ export function linkDto(l: LinkRow, actor: SendActor, counts: { visits: number; 
     notify: !!l.notify,
     useBranding: !!l.use_branding,
     state: linkState(l),
+    problem,
     lastVisitAt: l.last_visit_at,
     visits: counts.visits,
     visitors: counts.visitors,
@@ -776,7 +796,9 @@ export async function listLinks(actor: SendActor, target: { documentId?: string;
   const owner = (await getDb()
     .prepare(target.documentId ? 'SELECT owner_id FROM send_documents WHERE id = ?' : 'SELECT owner_id FROM send_spaces WHERE id = ?')
     .get(target.documentId ?? target.spaceId ?? '')) as { owner_id: string } | undefined;
-  return rows.map((r) => linkDto(r, actor, by.get(r.id), actor.admin || owner?.owner_id === actor.person || r.created_by === actor.person));
+  const out: LinkDto[] = [];
+  for (const r of rows) out.push(linkDto(r, actor, by.get(r.id), actor.admin || owner?.owner_id === actor.person || r.created_by === actor.person, await linkProblem(r)));
+  return out;
 }
 
 function cleanLinkFields(input: LinkInput) {
@@ -813,7 +835,7 @@ function cleanLinkFields(input: LinkInput) {
 
 async function passcodeHash(passcode: string): Promise<string> {
   const p = passcode.trim();
-  if (p.length < 4 || p.length > 100) throw new SendError('invalid_passcode', 400);
+  if (p.length < 6 || p.length > 100) throw new SendError('invalid_passcode', 400);
   return hashPassword(p);
 }
 

@@ -57,7 +57,7 @@ Al **sacar a alguien** (`lib/workspace-lifecycle.ts`): pierde el acceso en el
 pedido siguiente; sus API keys se revocan; deja de ser host en Cal y sus
 reservas futuras pasan a otro host; sus conversaciones de Chat y Groups vuelven
 a la cola; sale de subequipos, canales de Talk, accesos de Track, teamspaces de
-Docs y de lo compartido persona a persona. Lo que creó queda en el workspace.
+Docs y de lo compartido persona a persona. Lo que creó queda en el workspace. Sus links de Send pasan al owner: siguen sobre lo compartido y se frenan sobre lo privado.
 Las notas privadas siguen siendo suyas: un admin las puede transferir desde la
 consola de Notes solo si la persona ya no está.
 
@@ -86,9 +86,9 @@ excepciones. "Admin" incluye al owner.
 | Design | Sus diseños y los compartidos | Plantillas del workspace, kit de marca | Diseños privados: ni los admins los ven |
 | Rec | Ve sus videos, los del workspace que no están en un espacio y los de sus espacios | Gestionar videos del workspace y todos los espacios | `visibleSql` en `lib/rec.ts` |
 | Sign | Sus sobres y los que firma | Ver y gestionar todos | |
-| Send | Sus documentos y espacios y los compartidos con el workspace; en un compartido puede armar links propios | Ver y editar todos, exportar CSV, marca del visor | Un documento o espacio nuevo es privado de quien lo sube. Quien abre un link no tiene cuenta: cada imagen, video y descarga vuelve a mirar el link y la sesión. Un link no sirve lo que quien lo armó ya no ve. La URL de un link solo la copia quien lo armó, el dueño o un admin. Crear un link, cambiar sus reglas o lo que muestra no se puede por MCP (`WEB_ONLY_RULES`) |
+| Send | Sus documentos y espacios y los compartidos con el workspace; en un compartido puede armar links propios | Ver y editar todos, exportar CSV, marca del visor | Un documento o espacio nuevo es privado de quien lo sube. Quien abre un link no tiene cuenta: cada imagen, video y descarga vuelve a mirar el link y la sesión. Un link no sirve lo que quien lo armó ya no ve, ni si se fue, perdió la app o pasó a guest; al irse, sus links pasan al owner y siguen solo sobre lo compartido. La URL de un link solo la copia quien lo armó, el dueño o un admin. Crear un link, cambiar sus reglas o lo que muestra no se puede por MCP (`WEB_ONLY_RULES`) |
 | Forms | Los compartidos con el workspace (`sharing='workspace'`, el valor por defecto), los suyos y donde está sumado | Ver todos, ajustes | |
-| Hiring | Ve la lista de puestos del workspace, sin candidatos salvo que gestione el puesto (`listJobs`); crea puestos solo si un admin lo habilita (`members_create_jobs`, `canCreateJobs`) | Ajustes, ver todo | Candidatos: equipo del puesto y admins. Aprobar ofertas: hiring manager o admin |
+| Hiring | Ve los puestos publicados no confidenciales (título y aviso, sin salario oculto, equipo ni etapas) y los de su equipo, sin candidatos salvo que gestione el puesto (`canSeeJob`, `listJobs`, `getJob`); crea puestos solo si un admin lo habilita (`members_create_jobs`, `canCreateJobs`) | Ajustes, ver todo | Candidatos: equipo del puesto y admins. Aprobar ofertas: hiring manager o admin |
 | Social | Publica directo o como borrador (aprobación), en las cuentas que le dieron | Conectar cuentas, dar acceso, aprobar | |
 | Shop | Gestiona la tienda | Handle, publicar, moneda, reembolsos, credenciales de pago (`savePayments`, `lib/shop-payments.ts`) | |
 | Analytics | Usa los proyectos | Proyectos, claves, ajustes, borrar personas | |

@@ -1,5 +1,7 @@
 'use client';
 
+import type { ReactNode } from 'react';
+import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
@@ -24,11 +26,12 @@ function Breakdown({ title, rows, label }: { title: string; rows: Array<{ key: s
   );
 }
 
-export default function Reports({ report, audit, canExport }: { report: PeopleReport; audit: AuditEntry[]; canExport: boolean }) {
+export default function Reports({ report, audit, canExport, custom }: { report: PeopleReport; audit: AuditEntry[]; canExport: boolean; custom?: ReactNode }) {
   const t = useTranslations('people');
   const locale = useLocale();
   const num = useNumber();
   const day = useDay();
+  const [allAudit, setAllAudit] = useState(false);
   const none = t('reports.none');
   const maxMonth = Math.max(1, ...report.monthly.map((m) => Math.max(m.hires, m.exits)));
   const monthLabel = (m: string) => new Date(`${m}-01T00:00:00Z`).toLocaleDateString(locale, { month: 'short', year: '2-digit', timeZone: 'UTC' });
@@ -119,12 +122,14 @@ export default function Reports({ report, audit, canExport }: { report: PeopleRe
           </ul>
         )}
       </section>
+      {custom}
       <section className="ppl-panel">
         <h2 className="ppl-panel-title">{t('reports.audit')}</h2>
         <p className="ppl-hint">{t('reports.auditHint')}</p>
         {audit.length === 0 ? (
           <EmptyState compact quiet body={t('reports.auditEmpty')} />
         ) : (
+          <>
           <div className="table-wrap">
             <table className="table table-compact ppl-table" data-testid="people-audit">
               <thead>
@@ -136,7 +141,7 @@ export default function Reports({ report, audit, canExport }: { report: PeopleRe
                 </tr>
               </thead>
               <tbody>
-                {audit.map((a) => (
+                {(allAudit ? audit : audit.slice(0, 25)).map((a) => (
                   <tr key={a.id}>
                     <td>{day(a.createdAt, { dateStyle: 'short', timeStyle: 'short' })}</td>
                     <td>{a.actorName}</td>
@@ -150,6 +155,12 @@ export default function Reports({ report, audit, canExport }: { report: PeopleRe
               </tbody>
             </table>
           </div>
+            {!allAudit && audit.length > 25 && (
+              <button type="button" className="btn btn-sm btn-ghost" onClick={() => setAllAudit(true)}>
+                {t('reports.auditAll', { count: audit.length })}
+              </button>
+            )}
+          </>
         )}
       </section>
     </div>

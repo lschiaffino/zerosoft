@@ -12,8 +12,8 @@ for (const product of PRODUCTS) {
   test(`paridad en /es/products/${product}`, async ({ page }) => {
     await page.goto(`/es/products/${product}`);
     const section = page.locator('#parity');
-    if (product === 'analytics') {
-      // Mide toda la documentación de PostHog: cuentas por estado y una nota, sin porcentaje.
+    if (['analytics', 'people', 'hiring'].includes(product)) {
+      // Miden toda la documentación del competidor: cuentas por estado y una nota, sin porcentaje.
       await expect(section.locator('.parity-num')).toHaveCount(0);
       await expect(section.getByTestId('parity-scope-note')).toBeVisible();
       await expect(section.locator('.parity-counts dd').first()).toHaveText(/^\d+$/);

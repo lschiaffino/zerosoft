@@ -20,8 +20,8 @@ const nextConfig = {
   // La descarga de la extensión de Chrome arma el zip leyendo extensions/chrome en runtime.
   outputFileTracingIncludes: {
     // Send: pdf.js (worker y fuentes estándar) y el lienzo nativo se cargan en runtime.
-    '/api/send/**': ['./node_modules/pdfjs-dist/package.json', './node_modules/pdfjs-dist/legacy/build/**/*', './node_modules/pdfjs-dist/standard_fonts/**/*', './node_modules/pdfjs-dist/cmaps/**/*', './node_modules/pdfjs-dist/wasm/**/*', './node_modules/@napi-rs/canvas*/**/*'],
-    '/api/cron/minute': ['./node_modules/pdfjs-dist/package.json', './node_modules/pdfjs-dist/legacy/build/**/*', './node_modules/pdfjs-dist/standard_fonts/**/*', './node_modules/pdfjs-dist/cmaps/**/*', './node_modules/pdfjs-dist/wasm/**/*', './node_modules/@napi-rs/canvas*/**/*'],
+    '/api/send/**': ['./lib/send/render-worker.mjs', './node_modules/pdfjs-dist/package.json', './node_modules/pdfjs-dist/legacy/build/**/*', './node_modules/pdfjs-dist/standard_fonts/**/*', './node_modules/pdfjs-dist/cmaps/**/*', './node_modules/pdfjs-dist/wasm/**/*', './node_modules/@napi-rs/canvas*/**/*'],
+    '/api/cron/send-render': ['./lib/send/render-worker.mjs', './node_modules/pdfjs-dist/package.json', './node_modules/pdfjs-dist/legacy/build/**/*', './node_modules/pdfjs-dist/standard_fonts/**/*', './node_modules/pdfjs-dist/cmaps/**/*', './node_modules/pdfjs-dist/wasm/**/*', './node_modules/@napi-rs/canvas*/**/*'],
     '/api/crm/extension/download': ['./extensions/chrome/**/*'],
     // Imágenes OG (lib/og-card.tsx): las fuentes de la marca y los posts del blog, leídos en runtime.
     '/api/og/[...card]': ['./lib/og-fonts/*.ttf', './content/blog/**/*.md'],

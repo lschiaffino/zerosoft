@@ -22,6 +22,8 @@ export async function PUT(req: NextRequest) {
   if (!a.actor.admin) return sJson({ error: 'forbidden' }, 403);
   try {
     const b = await parseBody(req, schema);
+    // El visor solo carga imágenes por https (CSP): un logo http no se vería.
+    if (b.logoUrl.trim() && !/^https:\/\//i.test(b.logoUrl.trim())) return sJson({ error: 'logo_https' }, 400);
     const branding = { brandName: b.brandName, logoUrl: safeHttpUrl(b.logoUrl), brandColor: safeBrandColor(b.brandColor), siteUrl: safeHttpUrl(b.siteUrl) };
     await saveBranding(a.actor.ws, branding);
     return sJson({ branding });

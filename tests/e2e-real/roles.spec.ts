@@ -634,7 +634,11 @@ test('Send: cada rol ve y hace solo lo suyo, y un link no sirve lo que su autor 
     expect((await olga.ctx.request.patch(`/api/send/documents/${shared.id}`, { data: { sharing: 'private' } })).ok()).toBe(true);
     expect((await anon.request.get(`/api/send/public/${melToken}/pages/${shared.versionId}/1`)).status()).toBe(409);
     expect((await anon.request.get(`/api/send/public/${melToken}/download?document=${shared.id}&piece=0`)).status()).toBe(404);
-    expect(((await (await anon.request.get(`/api/send/public/${melToken}`)).json()) as { documents: unknown[] }).documents).toHaveLength(0);
+    // Quien lo abre ve que ya no está; el dueño ve por qué y qué hacer.
+    expect(((await (await anon.request.get(`/api/send/public/${melToken}`)).json()) as { state: string; reason: string })).toMatchObject({ state: 'closed', reason: 'unavailable' });
+    const owned = (await (await olga.ctx.request.get(`/api/send/documents/${shared.id}/links`)).json()) as { links: Array<{ name: string; problem: string | null }> };
+    expect(owned.links.find((l) => l.name === 'Mel')?.problem).toBe('document_private');
+    expect(owned.links.find((l) => l.name === 'Owner')?.problem).toBeNull();
     // El link del dueño sigue.
     const ownToken = ownLink.link.path.split('/').pop()!;
     expect(((await (await anon.request.post(`/api/send/public/${ownToken}`, { data: {} })).json()) as { documents: unknown[] }).documents).toHaveLength(1);
@@ -695,5 +699,67 @@ test('Send: los avisos de más salen en un resumen', async ({ browser, baseURL }
     expect(mails.filter((m) => /2 more/.test(m.subject))).toHaveLength(1);
   } finally {
     await closeAll(olga);
+  }
+});
+
+test('Send: quien se va, pierde la app o pasa a guest deja de publicar; lo compartido pasa al owner', async ({ browser, baseURL }) => {
+  const olga = await owner(browser);
+  const left = await join(browser, olga, 'Lena', 'member', ['send']);
+  const lost = await join(browser, olga, 'Lucho', 'member', ['send', 'crm']);
+  const down = await join(browser, olga, 'Dora', 'member', ['send']);
+  const open = async (token: string) => {
+    const c = await browser.newContext({ baseURL, extraHTTPHeaders: { 'user-agent': REAL_UA } });
+    const state = (await (await c.request.post(`/api/send/public/${token}`, { data: {} })).json()) as { state: string; reason?: string };
+    await c.close();
+    return state;
+  };
+  const makeLink = async (p: Person, id: string, name: string) => ((await (await p.ctx.request.post(`/api/send/documents/${id}/links`, { data: { name } })).json()) as { link: { path: string } }).link.path.split('/').pop()!;
+  try {
+    const shared = await sendDoc(olga, `Team ${uid()}`);
+    expect((await olga.ctx.request.patch(`/api/send/documents/${shared.id}`, { data: { sharing: 'workspace' } })).ok()).toBe(true);
+
+    // Se va: su link sobre lo compartido sigue, ahora del owner; el de su documento privado se frena.
+    const hers = await sendDoc(left, `Hers ${uid()}`);
+    const herShared = await sendDoc(left, `Hers shared ${uid()}`);
+    expect((await left.ctx.request.patch(`/api/send/documents/${herShared.id}`, { data: { sharing: 'workspace' } })).ok()).toBe(true);
+    const onShared = await makeLink(left, shared.id, 'On shared');
+    const onHerShared = await makeLink(left, herShared.id, 'On her shared');
+    const onHerPrivate = await makeLink(left, hers.id, 'On her private');
+    expect((await open(onHerPrivate)).state).toBe('open');
+    expect((await olga.ctx.request.delete(`/api/teams/members/${left.id}`)).ok()).toBe(true);
+    expect((await open(onShared)).state).toBe('open');
+    expect((await open(onHerShared)).state).toBe('open');
+    expect(await open(onHerPrivate)).toMatchObject({ state: 'closed', reason: 'unavailable' });
+    const links = (await (await olga.ctx.request.get(`/api/send/documents/${hers.id}/links`)).json()) as { links: Array<{ name: string; problem: string | null; mine: boolean }> };
+    expect(links.links[0]).toMatchObject({ problem: 'document_private', mine: true });
+    expect((await sql('SELECT created_by, transferred_from FROM send_links WHERE name = ?', ['On shared']))[0]).toMatchObject({ created_by: olga.id, transferred_from: left.id });
+    const bell = JSON.stringify(await (await olga.ctx.request.get('/api/notifications?limit=30')).json());
+    expect(bell).toContain('passed to you');
+    expect(bell).toContain('stopped');
+    // Compartir el documento lo vuelve a servir: lo decide el owner.
+    expect((await olga.ctx.request.patch(`/api/send/documents/${hers.id}`, { data: { sharing: 'workspace' } })).ok()).toBe(true);
+    expect((await open(onHerPrivate)).state).toBe('open');
+
+    // Pierde la app: deja de servir, también sobre lo compartido; el owner ve por qué.
+    const his = await makeLink(lost, shared.id, 'Lucho link');
+    expect((await open(his)).state).toBe('open');
+    expect((await olga.ctx.request.patch(`/api/teams/members/${lost.id}`, { data: { apps: ['crm'] } })).ok()).toBe(true);
+    expect(await open(his)).toMatchObject({ state: 'closed', reason: 'unavailable' });
+    const hisLinks = (await (await olga.ctx.request.get(`/api/send/documents/${shared.id}/links`)).json()) as { links: Array<{ name: string; problem: string | null }> };
+    expect(hisLinks.links.find((l) => l.name === 'Lucho link')?.problem).toBe('creator_no_access');
+    // Se la devuelven: vuelve.
+    expect((await olga.ctx.request.patch(`/api/teams/members/${lost.id}`, { data: { apps: ['send', 'crm'] } })).ok()).toBe(true);
+    expect((await open(his)).state).toBe('open');
+
+    // Pasa a guest: como irse.
+    const dorasDoc = await sendDoc(down, `Dora ${uid()}`);
+    const onDorasPrivate = await makeLink(down, dorasDoc.id, 'Dora private');
+    const onSharedByDora = await makeLink(down, shared.id, 'Dora shared');
+    expect((await olga.ctx.request.patch(`/api/teams/members/${down.id}`, { data: { role: 'guest' } })).ok()).toBe(true);
+    expect((await open(onDorasPrivate)).state).toBe('closed');
+    expect((await open(onSharedByDora)).state).toBe('open');
+    expect((await sql('SELECT created_by FROM send_links WHERE name = ?', ['Dora shared']))[0].created_by).toBe(olga.id);
+  } finally {
+    await closeAll(olga, left, lost, down);
   }
 });

@@ -27,7 +27,9 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ token: stri
     const bytes = await readSendFile(ref.ref);
     if (!bytes) return sJson({ error: 'file_unavailable' }, 404);
     await markPageView(session, version, Number(page));
-    const out = p.link.watermark ? await watermarkImage(bytes, watermarkText(session)) : bytes;
+    // Sin lienzo no se dibuja el watermark: nunca sale la imagen limpia en su lugar. El visor muestra su mensaje.
+    const out = p.link.watermark ? await watermarkImage(bytes, watermarkText(session)).catch(() => null) : bytes;
+    if (!out) return sJson({ error: 'render_unavailable' }, 503);
     return binaryResponse(out, 'image/webp');
   } catch (err) {
     return sFail(err);

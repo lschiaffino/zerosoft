@@ -213,8 +213,8 @@ export async function GET(req: NextRequest) {
   for (const f of forms) items.push({ id: `forms:${f.id}`, group: 'forms', label: f.label, meta: f.meta, href: f.href });
   for (const f of send) items.push({ id: `send:${f.id}`, group: 'send', label: f.label, meta: f.meta, href: f.href });
 
-  const PEOPLE_GROUP = { person: 'people', template: 'peopleTemplates', cycle: 'peopleCycles' } as const;
-  const PEOPLE_HREF = { person: (id: string) => `/app/people/${id}`, template: (id: string) => `/app/people/onboarding/templates/${id}`, cycle: (id: string) => `/app/people/reviews/${id}` } as const;
+  const PEOPLE_GROUP = { person: 'people', template: 'peopleTemplates', cycle: 'peopleCycles', survey: 'peopleSurveys', report: 'peopleReports' } as const;
+  const PEOPLE_HREF = { person: (id: string) => `/app/people/${id}`, template: (id: string) => `/app/people/onboarding/templates/${id}`, cycle: (id: string) => `/app/people/reviews/${id}`, survey: () => '/app/people/reviews#surveys', report: (id: string) => `/app/people/reports?report=${id}` } as const;
   for (const p of people) {
     items.push({ id: `${p.kind}:${p.id}`, group: PEOPLE_GROUP[p.kind], label: p.label, meta: p.meta, href: PEOPLE_HREF[p.kind](p.id) });
   }

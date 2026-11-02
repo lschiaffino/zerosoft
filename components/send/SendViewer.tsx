@@ -85,13 +85,13 @@ function Brand({ state }: { state: ViewerState }) {
   );
 }
 
-function Closed({ reason, state }: { reason: 'disabled' | 'expired'; state: ViewerState }) {
+function Closed({ reason, state }: { reason: 'disabled' | 'expired' | 'unavailable'; state: ViewerState }) {
   const t = useTranslations('send.viewer');
   return (
     <main className="sv-gate" data-testid="sv-closed" data-reason={reason}>
       <div className="sv-card">
         <Brand state={state} />
-        <h1>{reason === 'expired' ? t('expiredTitle') : t('disabledTitle')}</h1>
+        <h1>{reason === 'expired' ? t('expiredTitle') : reason === 'unavailable' ? t('unavailableTitle') : t('disabledTitle')}</h1>
         <p>{t('closedBody')}</p>
       </div>
     </main>
