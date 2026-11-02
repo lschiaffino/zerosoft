@@ -177,7 +177,7 @@ export default async function ContactDetailPage(props: {
               }}
             />
             {userCanUseApp(user, 'sign') && user.role !== 'guest' && (
-              <Link className="btn btn-outline" href={`/app/sign/new?crm=contact:${contact.id}`}>
+              <Link className="btn btn-outline btn-sm" href={`/app/sign/new?crm=contact:${contact.id}`}>
                 {t('record.sendForSignature')}
               </Link>
             )}

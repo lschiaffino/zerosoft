@@ -164,6 +164,8 @@ test('historial a página completa: preguntar desde el inicio, renombrar, buscar
 
   // Renombrar (Enter confirma).
   const renamed = `Team check ${uid()}`;
+  // Renombrar y Borrar aparecen al pasar el mouse (o con foco) por la fila.
+  await history.getByRole('link', { name: question }).hover();
   await history.getByRole('button', { name: `Rename: ${question}` }).click();
   const field = history.getByRole('textbox', { name: 'Chat name' });
   await field.fill(renamed);
@@ -180,6 +182,7 @@ test('historial a página completa: preguntar desde el inicio, renombrar, buscar
   await assistantPage.getByRole('searchbox', { name: 'Search chats' }).fill('');
 
   // Borrar con confirmación.
+  await history.getByRole('link', { name: renamed }).hover();
   await history.getByRole('button', { name: `Delete: ${renamed}` }).click();
   const dialog = page.getByRole('alertdialog', { name: 'Delete this chat?' });
   await dialog.getByRole('button', { name: 'Delete' }).click();

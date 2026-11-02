@@ -12,7 +12,7 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,14 +26,70 @@ jobs:
       - run: npm run build
         env:
           NEXTAUTH_SECRET: ci-build-secret
+      # En un tar: .next es una carpeta oculta y lleva symlinks, que el artifact no conserva sueltos.
+      - run: tar -cf next-build.tar --exclude=.next/cache .next
+      - uses: actions/upload-artifact@v4
+        with:
+          name: next-build
+          path: next-build.tar
+          retention-days: 1
+          compression-level: 1
+
+  e2e:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: next-build
+      - run: tar -xf next-build.tar && rm next-build.tar
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+      # Un worker por shard: los tests comparten el workspace demo de la base de cada corrida.
+      - run: npx playwright test --shard=${{ matrix.shard }}/4
         env:
           CI: 'true'
       - uses: actions/upload-artifact@v4
-        if: failure()
+        if: ${{ !success() }}
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+  # Sesiones reales: sin DEMO_MODE, cada rol entra con su código por email.
+  e2e-real:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: next-build
+      - run: tar -xf next-build.tar && rm next-build.tar
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e:real
+      - uses: actions/upload-artifact@v4
+        if: ${{ !success() }}
+        with:
+          name: playwright-report-real
           path: |
             playwright-report/
             test-results/
@@ -53,3 +109,17 @@ jobs:
           for i in $(seq 1 30); do curl -sf http://localhost:3000/en >/dev/null && break; sleep 2; done
           curl -sf -o /dev/null -w "%{http_code}\n" http://localhost:3000/en
           docker logs zs | tail -20
+
+  # Nombre estable para exigir un solo check, sea cual sea la cantidad de shards.
+  ci-result:
+    name: CI result
+    needs: [check, e2e, e2e-real, docker]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "check=${{ needs.check.result }} e2e=${{ needs.e2e.result }} e2e-real=${{ needs.e2e-real.result }} docker=${{ needs.docker.result }}"
+          test "${{ needs.check.result }}" = success
+          test "${{ needs.e2e.result }}" = success
+          test "${{ needs.e2e-real.result }}" = success
+          test "${{ needs.docker.result }}" = success

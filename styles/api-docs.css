@@ -94,7 +94,7 @@
   font-stretch: var(--signage-stretch);
   font-weight: var(--signage-weight);
   font-size: var(--t-h2);
-  line-height: 1;
+  line-height: 1.1;
   margin-bottom: 12px;
   scroll-margin-top: calc(var(--site-band-h, 64px) + 24px);
 }
@@ -327,12 +327,13 @@
   .api-docs-nav {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 24px;
+    gap: 4px 24px;
   }
+  .api-docs-nav-section { margin: 0; }
+  .api-docs-nav-list { display: none; }
 }
 
 @media (max-width: 640px) {
-  .api-docs-nav { grid-template-columns: 1fr; }
   .code-tabs-header { flex-wrap: wrap; }
   .code-tabs-list { order: 2; width: 100%; }
   .code-copy { order: 1; margin-left: auto; }

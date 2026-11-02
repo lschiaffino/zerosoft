@@ -123,7 +123,11 @@
     "reports": "{count, plural, one {# direct report} other {# direct reports}}",
     "endsOn": "Last day: {date}",
     "emergencyContact": "Emergency contact {n}",
-    "relation": "Relationship"
+    "relation": "Relationship",
+    "linkedAccount": "Linked account",
+    "linkedMismatch": "This record's work email doesn't match the account that reads it: {email}. Confirm it's the right person before adding pay.",
+    "linkedConfirm": "Confirm this account",
+    "linkedPayBlocked": "This record is linked to {email}, which doesn't match its work email. Confirm that account on the profile before changing pay."
   },
   "offboard": {
     "action": "Offboard",
@@ -514,7 +518,10 @@
     "onlyAdmins": "Only workspace owners and admins choose HR admins.",
     "levelsHint": "Years=days per year, separated by commas. 3=18, 5=20 means 18 days from year 3 and 20 from year 5.",
     "scope": "Who gets this policy",
-    "scopeHint": "Blank means everyone. Separate values with commas."
+    "scopeHint": "Blank means everyone. Separate values with commas.",
+    "hrAdminsHint": "HR admins manage profiles, time off, documents, compensation, reviews and reports. Salaries and the payroll export are for the owner, HR admins and each person. Workspace admins manage the rest of People without seeing salaries. Only the owner names HR admins.",
+    "implicitHr": "Workspace owner",
+    "onlyAdmins": "Only workspace owners and admins choose HR admins."
   },
   "welcome": {
     "title": "Welcome, {name}",
@@ -704,6 +711,9 @@
     "noScheduled": "Nothing scheduled.",
     "effective": "Takes effect on",
     "scheduleHint": "Fill in only what changes. Only HR sees it until that date.",
-    "keep": "No change"
+    "keep": "No change",
+    "work_email_locked": "Only the owner or an HR admin can change the work email of this record.",
+    "delete_has_pay": "This record has pay history. Only the owner or an HR admin can delete it.",
+    "linked_account_mismatch": "This record's linked account doesn't match its work email. Confirm it on the profile first."
   }
 }

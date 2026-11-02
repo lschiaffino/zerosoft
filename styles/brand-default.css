@@ -25,7 +25,7 @@
   font-weight: var(--signage-weight);
   font-size: var(--t-display);
   letter-spacing: -0.03em;
-  line-height: 1;
+  line-height: 1.06;
 }
 .bd-lead { margin-top: 20px; max-width: 46ch; font-size: var(--t-lead); line-height: 1.45; color: var(--ink-2); }
 
@@ -35,7 +35,7 @@ section.bd-section { padding: 48px 0 0; margin-top: 48px; border-top: 1px solid 
   font-weight: var(--signage-weight);
   font-size: var(--t-h2);
   letter-spacing: var(--signage-tracking);
-  line-height: 1.05;
+  line-height: 1.1;
 }
 .bd-h3 {
   margin: 36px 0 14px;

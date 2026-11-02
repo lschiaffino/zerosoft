@@ -211,7 +211,7 @@ test('un guest que entra a /app/welcome sin ?invited=1 recibe el onboarding cort
     expect((await ctx.request.post('/api/teams/accept', { data: { token } })).ok()).toBe(true);
     const p = await ctx.newPage();
     await p.goto('/en/app/welcome', { waitUntil: 'networkidle' });
-    await expect(p.getByRole('heading', { name: `Welcome to ${team}` })).toBeVisible();
+    await expect(p.getByRole('heading', { name: `You’re a guest of ${team}` })).toBeVisible();
     await expect(p.getByText('With my team')).toHaveCount(0);
   } finally {
     await ctx.close();

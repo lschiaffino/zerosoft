@@ -1,7 +1,8 @@
 {
   "meta": {
     "tagline": "Vinte e quatro apps open source para o seu time.",
-    "description": "CRM, chat de suporte, agentes de IA, automações, robôs de navegador, projetos, links, docs, notas, agenda e quadro branco. Open source (AGPLv3): rode no seu servidor por $0 ou use a zerosoft Cloud, com plano grátis e cobrança por uso."
+    "description": "Apps open source para empresas: CRM, chat de suporte, agentes de IA, automações, docs e mais. Rode no seu servidor por $0 ou use a zerosoft Cloud.",
+    "homeTitle": "zerosoft: apps open source para empresas, do CRM aos docs"
   },
   "header": {
     "products": "Produtos",
@@ -35,7 +36,7 @@
       "board": "Quadro branco infinito compartilhado",
       "voice": "Ditado por voz e notas de reunião",
       "rec": "Vídeos de tela e câmera compartilhados com um link",
-      "talk": "Em construção: mensagens de equipe",
+      "talk": "Canais, mensagens diretas e huddles",
       "shop": "Loja online com checkout e pedidos",
       "design": "Design gráfico a partir de modelos, com sua marca",
       "analytics": "Analytics de produto e feature flags",
@@ -263,7 +264,7 @@
       "desc": "Vídeos de tela e câmera para compartilhar com um link."
     },
     "talk": {
-      "desc": "Canais, mensagens diretas e threads. Em construção."
+      "desc": "Canais, mensagens diretas e threads para a sua equipe."
     },
     "shop": {
       "desc": "Uma loja online com variantes, estoque, checkout e pedidos."
@@ -354,9 +355,30 @@
     "titleDim": "Como construímos a zerosoft, e por quê.",
     "readingTime": "min de leitura",
     "back": "← Todos os posts",
-    "empty": "Ainda não há posts. Volte em breve."
+    "empty": "Ainda não há posts. Volte em breve.",
+    "metaTitle": "Blog: guias, migrações e software open source",
+    "metaDescription": "Como migrar do HubSpot, Notion, Linear, Calendly ou Bitly, guias de cada app da zerosoft e como construímos uma suíte open source.",
+    "tagsTitle": "Temas",
+    "more": "Ver mais artigos (restam {count})",
+    "tagTitle": "Artigos sobre {tag}",
+    "tagMetaDescription": "{count} artigos do blog da zerosoft sobre {tag}: guias, migrações e notas de como construímos os apps.",
+    "tagLead": "{count} posts.",
+    "authorTitle": "Posts de {name}",
+    "authorMetaDescription": "Tudo o que {name} publicou no blog da zerosoft: {count} posts.",
+    "authorLead": "Estes posts são escritos pelo time da zerosoft. Até agora, {count}.",
+    "relatedTitle": "Continue lendo",
+    "updated": "Atualizado em {date}",
+    "feeds": "Feeds",
+    "tagsLabel": "Tags",
+    "productLead": "{name} é o app da zerosoft de que este post fala.",
+    "productCta": "A página do {name}",
+    "compareCta": "{name} vs {competitor}",
+    "crumbHome": "Início",
+    "crumbs": "Trilha de navegação",
+    "by": "por {name}"
   },
   "footer": {
+    "colExplore": "Explorar",
     "tagline": "Feito de zeros.",
     "copyright": "© 2026 zerosoft.ai",
     "colProduct": "Produto",
@@ -382,13 +404,14 @@
     "starCta": "Dê uma estrela no GitHub",
     "feedback": "Feedback",
     "videos": "Vídeos",
-    "desktopApp": "App de desktop"
+    "desktopApp": "App de desktop",
+    "compare": "Comparações"
   },
   "home": {
     "hero": {
       "title1": "Vinte e quatro apps para o seu time.",
       "title2": "Zero licenças.",
-      "sub": "Alternativas open source ao HubSpot, Intercom, Calendly, Linear, Notion e mais cinco produtos que o seu time paga todo mês. Rode no seu servidor por $0 ou use na zerosoft Cloud.",
+      "sub": "Alternativas open source ao HubSpot, Intercom, Calendly, Linear, Notion e mais 19 produtos que o seu time paga todo mês. Rode no seu servidor por $0 ou use na zerosoft Cloud.",
       "ctaStart": "Comece grátis",
       "ctaSelfHost": "Hospede você",
       "note1": "Sem cartão",
@@ -539,7 +562,7 @@
       "label": "Desenvolvedores",
       "title": "Uma API de verdade.",
       "titleDim": "E webhooks assinados.",
-      "p": "Crie uma chave nas configurações e use Link, CRM, Cal e Agents via REST. Assine eventos e verifique cada entrega com uma assinatura HMAC.",
+      "p": "Crie uma chave nas configurações e use Link, CRM, Cal, Track, Docs, Chat, Agents e mais por REST. Assine eventos e verifique cada entrega com uma assinatura HMAC.",
       "b1t": "API REST v1",
       "b1": "Links; contatos, empresas, negócios, tarefas, pipelines, produtos e cotações do CRM; tipos de evento e agendamentos do Cal; e mensagens para os seus agentes.",
       "b2t": "Chaves pessoais",
@@ -658,6 +681,11 @@
       "title": "Traga seus dados",
       "body": "Importe do HubSpot, Pipedrive, Linear, Notion, Calendly, Bitly e outras ferramentas.",
       "cta": "Importar"
+    },
+    "noApps": {
+      "title": "Ainda não há apps ativados para você",
+      "body": "Um admin de {workspace} pode ativá-los em Configurações › Membros.",
+      "bodyAdmin": "O owner de {workspace} pode ativá-los em Configurações › Membros."
     }
   },
   "publicPage": {

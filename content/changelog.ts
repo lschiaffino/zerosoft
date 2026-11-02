@@ -41,6 +41,125 @@ export const CHANGELOG: ChangelogEntry[] = [
       { product: 'hiring', en: 'Import candidates from a CSV, copy or move them between jobs, merge duplicates and export what you can see.', es: 'Importá candidatos desde un CSV, copialos o movelos entre puestos, fusioná duplicados y exportá lo que ves.', pt: 'Importe candidatos de um CSV, copie ou mova entre vagas, mescle duplicados e exporte o que você vê.' },
       { product: 'hiring', en: 'Knock-out questions can reject on their own, rejection reasons get a report, and each stage can have an interview guide.', es: 'Las preguntas knock-out pueden rechazar solas, los motivos de rechazo tienen reporte y cada etapa puede tener una guía de entrevista.', pt: 'Perguntas eliminatórias podem recusar sozinhas, os motivos de recusa têm relatório e cada etapa pode ter um guia de entrevista.' },
       { product: 'hiring', en: 'A hire now lands in People as a new profile in onboarding, if your workspace uses People.', es: 'Una contratación ahora queda en People como ficha en onboarding, si tu workspace usa People.', pt: 'Uma contratação agora entra no People como perfil em onboarding, se o seu workspace usa o People.' },
+    id: '2026-11-01-mcp-unificado',
+    date: '2026-11-01',
+    title: {
+      en: 'Connect Claude to all 24 apps, and a zerosoft CLI',
+      es: 'Conectá Claude a las 24 apps, y una CLI de zerosoft',
+      pt: 'Conecte o Claude aos 24 apps, e uma CLI da zerosoft',
+    },
+    items: [
+      {
+        product: 'agents',
+        en: 'One connector for Claude Code. You sign in with your normal login, choose the workspace and whether it can write, and Claude acts as you, with your role and permissions. See and disconnect your apps in Settings, API and webhooks.',
+        es: 'Un solo conector para Claude Code. Entrás con tu login de siempre, elegís el workspace y si puede escribir, y Claude actúa como vos, con tu rol y tus permisos. Mirá y desconectá tus apps en Ajustes, API y webhooks.',
+        pt: 'Um único conector para o Claude Code. Você entra com seu login de sempre, escolhe o workspace e se pode escrever, e o Claude age como você, com seu papel e suas permissões. Veja e desconecte seus apps em Ajustes, API e webhooks.',
+      },
+      {
+        product: 'agents',
+        en: 'A zerosoft command line with the same reach, for the terminal and for scripts. It runs from the repository for now and is not on npm.',
+        es: 'Una línea de comandos de zerosoft con el mismo alcance, para la terminal y para scripts. Por ahora corre desde el repositorio y no está en npm.',
+        pt: 'Uma linha de comando da zerosoft com o mesmo alcance, para o terminal e para scripts. Por enquanto roda a partir do repositório e não está no npm.',
+      },
+    ],
+  },
+  {
+    id: '2026-10-31-pedir-acceso',
+    date: '2026-10-31',
+    title: {
+      en: 'Ask for access to an app and see what each role can do',
+      es: 'Pedí acceso a una app y mirá qué puede hacer cada rol',
+      pt: 'Peça acesso a um app e veja o que cada papel pode fazer',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'When an app is off for you in a workspace, Ask for access sends a notification to the owner and the admins. The notification opens your access in Settings › Members, with what you asked for already checked, and you hear back either way.',
+        es: 'Cuando una app no está habilitada para vos en un workspace, Pedir acceso le manda un aviso al owner y a los admins. El aviso abre tu acceso en Ajustes › Miembros, con lo pedido ya tildado, y te enterás de la respuesta.',
+        pt: 'Quando um app não está ativo para você em um workspace, Pedir acesso envia um aviso ao owner e aos admins. O aviso abre seu acesso em Configurações › Membros, com o pedido já marcado, e você fica sabendo da resposta.',
+      },
+      {
+        product: 'platform',
+        en: 'Salaries and the payroll export in People are now for the owner, the HR admins the owner names, and each person.',
+        es: 'Los sueldos y la exportación de nómina de People ahora son del owner, los HR admins que nombra y cada persona.',
+        pt: 'Os salários e a exportação da folha no People agora são do owner, dos admins de RH que ele nomeia e de cada pessoa.',
+      },
+      {
+        product: 'platform',
+        en: 'Requests to join by email domain also reach the owner and the admins as a notification.',
+        es: 'Los pedidos para sumarse por dominio de email también les llegan al owner y a los admins como aviso.',
+        pt: 'Os pedidos para entrar pelo domínio do email também chegam ao owner e aos admins como aviso.',
+      },
+      {
+        product: 'platform',
+        en: 'Settings › Members explains each role, and Settings lists only the apps you have.',
+        es: 'Ajustes › Miembros explica cada rol y Ajustes lista solo las apps que tenés.',
+        pt: 'Configurações › Membros explica cada papel e Configurações lista só os apps que você tem.',
+      },
+    ],
+  },
+  {
+    id: '2026-10-31-correcciones-qa',
+    date: '2026-10-31',
+    title: {
+      en: 'Clearer batch estimates, moving videos and dates in your time zone',
+      es: 'Lotes más claros, mover videos y fechas en tu zona horaria',
+      pt: 'Lotes mais claros, mover vídeos e datas no seu fuso horário',
+    },
+    items: [
+      {
+        product: 'robots',
+        en: 'The bulk run dialog says how many rows your remaining minutes cover. Rows that wait too long in the queue now send a notice when they are dropped.',
+        es: 'El diálogo de corrida en lote dice cuántas filas cubren los minutos que te quedan. Las filas que esperan demasiado en la cola ahora mandan un aviso cuando se descartan.',
+        pt: 'O diálogo de execução em lote diz quantas linhas os minutos restantes cobrem. As linhas que esperam demais na fila agora enviam um aviso quando são descartadas.',
+      },
+      {
+        product: 'talk',
+        en: 'Daily recaps stay on when AI is temporarily unavailable and resume on their own. Retrying /ask after a timeout returns the first answer instead of posting a second one.',
+        es: 'Los recaps diarios siguen activos si la IA no está disponible por un rato y vuelven solos. Reintentar /ask después de un timeout devuelve la primera respuesta en lugar de publicar otra.',
+        pt: 'Os resumos diários continuam ativos se a IA ficar indisponível por um tempo e voltam sozinhos. Tentar /ask de novo depois de um timeout devolve a primeira resposta em vez de publicar outra.',
+      },
+      {
+        product: 'rec',
+        en: 'The move dialog warns when a video changes to Only specific people and shows move errors inside the dialog.',
+        es: 'El diálogo de mover avisa cuando un video pasa a Solo personas puntuales y muestra los errores adentro del diálogo.',
+        pt: 'O diálogo de mover avisa quando um vídeo passa para Só pessoas específicas e mostra os erros dentro do diálogo.',
+      },
+      {
+        product: 'crm',
+        en: 'Dates in CRM lists stay on the right day, and times in Docs, Board, Link, Voice and CRM groups use your time zone.',
+        es: 'Las fechas de las listas del CRM quedan en el día correcto, y las horas de Docs, Board, Link, Voice y los grupos del CRM usan tu zona horaria.',
+        pt: 'As datas das listas do CRM ficam no dia certo, e os horários de Docs, Board, Link, Voice e grupos do CRM usam seu fuso horário.',
+      },
+    ],
+  },
+  {
+    id: '2026-10-31-sitio-comparaciones-blog',
+    date: '2026-10-31',
+    title: {
+      en: 'Site: comparison pages for every app, blog topics and feeds, six migration guides',
+      es: 'Sitio: comparaciones de cada app, temas y feeds del blog, seis guías de migración',
+      pt: 'Site: comparações de cada app, temas e feeds do blog, seis guias de migração',
+    },
+    items: [
+      {
+        product: 'site',
+        en: 'Each app has two pages next to the product it replaces: /compare/zerosoft-vs-<competitor> with the full parity table and /compare/<competitor>-alternative with what you get, what is missing and how to move. Both come from the same parity data as the product page, so they update with it.',
+        es: 'Cada app tiene dos páginas al lado del producto que reemplaza: /compare/zerosoft-vs-<competidor> con la tabla de paridad completa y /compare/<competidor>-alternative con lo que tenés, lo que falta y cómo pasarte. Salen de los mismos datos de paridad que la página de producto, así que se actualizan con ella.',
+        pt: 'Cada app tem duas páginas ao lado do produto que substitui: /compare/zerosoft-vs-<concorrente> com a tabela de paridade completa e /compare/<concorrente>-alternative com o que você tem, o que falta e como migrar. Saem dos mesmos dados de paridade da página do produto, então se atualizam com ela.',
+      },
+      {
+        product: 'site',
+        en: 'The blog has topic and author pages, RSS and Atom feeds per language, related posts and a share image per post in its language. New guides: moving from Linear, Calendly, Intercom, Pipedrive, Evernote and Excalidraw.',
+        es: 'El blog tiene páginas por tema y por autor, feeds RSS y Atom por idioma, posts relacionados y una imagen para compartir por post en su idioma. Guías nuevas: cómo pasarte desde Linear, Calendly, Intercom, Pipedrive, Evernote y Excalidraw.',
+        pt: 'O blog tem páginas por tema e por autor, feeds RSS e Atom por idioma, posts relacionados e uma imagem de compartilhamento por post no seu idioma. Guias novos: como migrar do Linear, Calendly, Intercom, Pipedrive, Evernote e Excalidraw.',
+      },
+      {
+        product: 'site',
+        en: 'Every public page has its own title, canonical URL, links to its other languages and a PNG share image. /llms.txt and /llms-full.txt describe the apps, prices and comparisons for AI assistants.',
+        es: 'Cada página pública tiene título propio, URL canónica, links a sus otros idiomas y una imagen PNG para compartir. /llms.txt y /llms-full.txt describen las apps, los precios y las comparaciones para asistentes de IA.',
+        pt: 'Cada página pública tem título próprio, URL canônica, links para os outros idiomas e uma imagem PNG de compartilhamento. /llms.txt e /llms-full.txt descrevem os apps, os preços e as comparações para assistentes de IA.',
+      },
     ],
   },
   {

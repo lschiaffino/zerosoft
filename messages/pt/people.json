@@ -123,7 +123,11 @@
     "reports": "{count, plural, one {# liderado direto} other {# liderados diretos}}",
     "endsOn": "Último dia: {date}",
     "emergencyContact": "Contato de emergência {n}",
-    "relation": "Parentesco"
+    "relation": "Parentesco",
+    "linkedAccount": "Conta vinculada",
+    "linkedMismatch": "O email de trabalho deste perfil não coincide com a conta que o lê: {email}. Confirme que é a pessoa certa antes de cadastrar o salário.",
+    "linkedConfirm": "Confirmar esta conta",
+    "linkedPayBlocked": "Este perfil está vinculado a {email}, que não coincide com o email de trabalho. Confirme essa conta no perfil antes de mudar o salário."
   },
   "offboard": {
     "action": "Desligamento",
@@ -514,7 +518,10 @@
     "onlyAdmins": "Só owner e admins do workspace escolhem admins de RH.",
     "levelsHint": "Anos=dias por ano, separados por vírgulas. 3=18, 5=20 quer dizer 18 dias a partir do ano 3 e 20 a partir do ano 5.",
     "scope": "Para quem vale",
-    "scopeHint": "Vazio quer dizer todos. Separe os valores com vírgulas."
+    "scopeHint": "Vazio quer dizer todos. Separe os valores com vírgulas.",
+    "hrAdminsHint": "Admins de RH gerenciam perfis, folgas, documentos, salários, avaliações e relatórios. Salários e a exportação da folha são do owner, dos admins de RH e de cada pessoa. Admins do workspace gerenciam o resto do People sem ver salários. Só o owner nomeia admins de RH.",
+    "implicitHr": "Owner do workspace",
+    "onlyAdmins": "Só owner e admins do workspace escolhem admins de RH."
   },
   "welcome": {
     "title": "Boas-vindas, {name}",
@@ -704,6 +711,9 @@
     "noScheduled": "Nada agendado.",
     "effective": "Vale a partir de",
     "scheduleHint": "Preencha só o que muda. Até essa data, só o RH vê.",
-    "keep": "Sem alteração"
+    "keep": "Sem alteração",
+    "work_email_locked": "Só o owner ou um admin de RH podem mudar o email de trabalho deste perfil.",
+    "delete_has_pay": "Este perfil tem histórico de salários. Só o owner ou um admin de RH podem excluí-lo.",
+    "linked_account_mismatch": "A conta vinculada deste perfil não coincide com o email de trabalho. Confirme-a primeiro no perfil."
   }
 }

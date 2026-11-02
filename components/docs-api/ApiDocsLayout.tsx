@@ -1,12 +1,13 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import EndpointSection from './EndpointSection';
 import { API_BASE_URL, API_ROOT_URL, API_SECTIONS, API_ENDPOINTS, API_SCOPE_DOCS } from '@/lib/api-docs';
 
 const AUTH_TOKEN = 'zs_live_9f3k...';
 
 export default function ApiDocsLayout() {
+  const locale = useLocale();
   const t = useTranslations('pages.docs');
 
   const sections = API_SECTIONS.map((section) => ({
@@ -51,6 +52,9 @@ export default function ApiDocsLayout() {
           <p className="doc-intro">
             <a className="btn btn-secondary btn-sm" href="/api/v1/openapi.json" download="zerosoft-openapi.json">
               {t('openapiCta')}
+            </a>{' '}
+            <a className="btn btn-secondary btn-sm" href={`/${locale}/docs/mcp`}>
+              {t('mcpCta')}
             </a>
           </p>
         </section>

@@ -6,7 +6,7 @@ import { parseDbUtc } from '@/lib/utils';
 import { parseCsv } from '@/lib/robots-csv';
 import type { RobotBatchSummary, RobotUsage } from '@/lib/robots';
 import { recorderBookmarklet, recorderLabels } from '@/lib/robots-recorder';
-import { MAX_BATCH_BYTES, MAX_BATCH_INPUTS, MAX_BULK_INPUTS, type RobotInputDef, type RobotStep } from '@/lib/robots-schema';
+import { batchRowsCovered, MAX_BATCH_BYTES, MAX_BATCH_INPUTS, MAX_BULK_INPUTS, type RobotInputDef, type RobotStep } from '@/lib/robots-schema';
 import { errorText, RobotDialog } from './robots-ui';
 
 /** Resumen corto de un paso ("Ir a URL · https://…") para las vistas previas. */
@@ -268,7 +268,7 @@ export function BulkRunDialog({
       if (!res?.ok || !data?.total) {
         setBusy(false);
         setProgress(null);
-        setError(`${errorText(tr, data?.error, { name: data?.name ?? '' })} ${t('nothingStarted')}`);
+        setError(`${errorText(tr, data?.error, { name: data?.name ?? '', index: (data?.index ?? 0) + 1 })} ${t('nothingStarted')}`);
         return;
       }
       total = data.total;
@@ -605,11 +605,23 @@ function BatchEstimate({ rows, usage, avgRunMs }: { rows: number; usage: RobotUs
   const wallMinutes = Math.ceil(minutes / Math.max(usage.concurrency, 1));
   const wall = wallMinutes < 60 ? t('wallMinutes', { count: wallMinutes }) : t('wallHours', { count: Math.ceil(wallMinutes / 60) });
   const left = usage.minutesLimit === null ? null : Math.max(0, Math.floor(usage.minutesLimit - usage.minutesUsed));
+  const covered = left === null ? rows : batchRowsCovered(left, seconds, rows);
+  const exp = usage.batchExpiry ?? { unit: 'days', count: 45 };
+  const age = exp.unit === 'days' ? t('days', { count: exp.count }) : t('hours', { count: exp.count });
   return (
     <div className="robots-small" data-testid="robots-batch-estimate">
       <p className="robots-muted">{t('estimate', { minutes, wall, seconds: Math.round(seconds), concurrency: usage.concurrency })}</p>
-      {left !== null && minutes > left && <p className="robots-note-warn">{t('estimateOver', { left })}</p>}
-      <p className="robots-muted">{t('expiry')}</p>
+      {left !== null &&
+        (covered < rows ? (
+          <p className="robots-note-warn" data-testid="robots-batch-cover">
+            {t('cover', { left, covered, rows })}
+          </p>
+        ) : (
+          <p className="robots-muted" data-testid="robots-batch-cover">
+            {t('coverAll', { left, rows })}
+          </p>
+        ))}
+      <p className="robots-muted">{t('expiry', { age })}</p>
     </div>
   );
 }

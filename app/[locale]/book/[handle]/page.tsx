@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
@@ -9,6 +10,12 @@ import { hostToken, parseHostToken } from '@/lib/calendar-host-token';
 import '@/styles/calendar.css';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata(props: { params: Promise<{ handle: string }> }): Promise<Metadata> {
+  const { handle } = await props.params;
+  const profile = await getPublicProfile(handle);
+  return profile ? { title: { absolute: profile.name } } : {};
+}
 
 /**
  * /book/<x>: si <x> es un slug de los links viejos (antes de los handles),

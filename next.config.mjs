@@ -16,6 +16,8 @@ const nextConfig = {
   // La descarga de la extensión de Chrome arma el zip leyendo extensions/chrome en runtime.
   outputFileTracingIncludes: {
     '/api/crm/extension/download': ['./extensions/chrome/**/*'],
+    // Imágenes OG (lib/og-card.tsx): las fuentes de la marca y los posts del blog, leídos en runtime.
+    '/api/og/[...card]': ['./lib/og-fonts/*.ttf', './content/blog/**/*.md'],
   },
   // El widget de Chat corre embebido en sitios de terceros y llama a estos
   // endpoints públicos (sin cookies). Next responde el preflight OPTIONS solo;
@@ -23,10 +25,16 @@ const nextConfig = {
   // Slugs de blog renombrados: el viejo redirige para siempre al nuevo.
   async redirects() {
     const renamed = [['open-source-no-es-gratis-es-libre', 'gratis-vs-libre']];
-    return renamed.flatMap(([from, to]) => [
-      { source: `/:locale(en|es|pt)/blog/${from}`, destination: `/:locale/blog/${to}`, permanent: true },
-      { source: `/blog/${from}`, destination: `/blog/${to}`, permanent: true },
-    ]);
+    return [
+      // Los lectores de feeds prueban estas rutas en la raíz: el feed real vive en /en/blog.
+      // Solo rutas con punto: una sin punto (como /feed) puede ser el slug de un link corto en cualquier dominio.
+      ...['/rss.xml', '/feed.xml'].map((source) => ({ source, destination: '/en/blog/rss.xml', permanent: true })),
+      { source: '/atom.xml', destination: '/en/blog/atom.xml', permanent: true },
+      ...renamed.flatMap(([from, to]) => [
+        { source: `/:locale(en|es|pt)/blog/${from}`, destination: `/:locale/blog/${to}`, permanent: true },
+        { source: `/blog/${from}`, destination: `/blog/${to}`, permanent: true },
+      ]),
+    ];
   },
   // Subidas locales (sin Blob): /uploads/* siempre pasa por la ruta que
   // chequea carpeta y pone headers seguros. beforeFiles corre antes de mirar
@@ -52,6 +60,15 @@ const nextConfig = {
       { key: 'Access-Control-Max-Age', value: '86400' },
     ];
     return [
+      // Pantallas de permisos de OAuth: nunca dentro de un iframe (clickjacking).
+      {
+        source: '/:locale(en|es|pt)/oauth/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
+          { key: 'Referrer-Policy', value: 'no-referrer' },
+        ],
+      },
       {
         source: '/api/chat/:route(identify|messages|csat|read|typing|help|history|outbound|visitor)',
         headers: cors,

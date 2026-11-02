@@ -55,7 +55,8 @@ test.describe('a 390px', () => {
     );
     await page.goto('/en/app/crm/contacts', { waitUntil: 'networkidle' });
     const card = page.locator('.crm-cards tbody tr').filter({ hasText: last });
-    await expect(card.getByText('+54 9 11 5555-0100')).toBeVisible();
+    // En la tarjeta el teléfono va como ícono (una sola línea); el número formateado se ve en la ficha, abajo.
+    await expect(card.getByRole('link', { name: 'Call' }).first()).toBeVisible();
     await card.getByRole('link', { name: 'Call' }).first().evaluate((a) => a.addEventListener('click', (e) => e.preventDefault()));
     await card.getByRole('link', { name: 'Call' }).first().click();
     const log = page.getByRole('form', { name: 'Log this touch' });
@@ -111,11 +112,14 @@ test.describe('a 390px', () => {
     const menu = page.getByRole('menu', { name: 'Move to…' });
     await expect(menu).toBeVisible();
     await insideViewport(menu);
-    const c = (await card.boundingBox())!;
-    const m = (await menu.boundingBox())!;
-    // Pegado a la card: arriba o abajo, a menos de 16px de su borde.
-    const gap = m.y >= c.y ? m.y - (c.y + c.height) : c.y - (m.y + m.height);
-    expect(Math.abs(gap)).toBeLessThanOrEqual(16);
+    // Pegado a la card: arriba o abajo, a menos de 16px de su borde (poll: el foco pudo dejar andando un scroll suave).
+    await expect
+      .poll(async () => {
+        const c = (await card.boundingBox())!;
+        const m = (await menu.boundingBox())!;
+        return Math.abs(m.y >= c.y ? m.y - (c.y + c.height) : c.y - (m.y + m.height));
+      })
+      .toBeLessThanOrEqual(16);
     await page.keyboard.press('Escape');
     await expect(menu).toBeHidden();
   });

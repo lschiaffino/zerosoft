@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { signIn, signOut } from 'next-auth/react';
+import { clearOfflineData } from '@/lib/offline-queue';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import LocaleSwitcher from './LocaleSwitcher';
@@ -283,7 +284,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
           <ThemeSwitcher />
           <LocaleSwitcher locale={locale} />
           {user ? (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => signOut({ callbackUrl: '/' })}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void clearOfflineData().finally(() => signOut({ callbackUrl: '/' }))}>
               {labels.signOut}
             </button>
           ) : (

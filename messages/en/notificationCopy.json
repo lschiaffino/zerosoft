@@ -61,5 +61,19 @@
   "peopleHireAdded": "{name} was hired: their profile is ready",
   "hiringApprovalWaiting": "Waiting for your approval",
   "hiringApprovalDone": "Approved",
-  "hiringApprovalRejected": "Rejected"
+  "hiringApprovalRejected": "Rejected",
+  "appAccessRequest": "{who} asks for access to {app}",
+  "appAccessRequestBody": "Turn it on in Settings › Members of {workspace}.",
+  "joinRequest": "{who} asks to join {workspace}",
+  "appAccessGranted": "{who} gave you access to {app} in {workspace}",
+  "appAccessGrantedAll": "{who} gave you access to every app in {workspace}",
+  "appAccessDenied": "{who} didn't turn on {app} in {workspace}",
+  "appAccessDeniedBody": "You can ask again from the app's screen.",
+  "workspaceRemoved": "{who} removed you from {workspace}",
+  "workspaceDemotedGuest": "{who} made you a guest of {workspace}: you only see what's shared with you",
+  "workspaceRoleChanged": "{who} changed your role in {workspace} to {role}",
+  "workspaceChangeAsk": "Ask {who} if you have questions.",
+  "roleNameAdmin": "Admin",
+  "roleNameMember": "Member",
+  "roleNameGuest": "Guest"
 }

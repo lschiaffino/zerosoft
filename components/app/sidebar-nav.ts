@@ -249,6 +249,8 @@ export interface SidebarLabels {
     markRead: string;
     markAllRead: string;
     empty: string;
+    loading: string;
+    loadError: string;
     text: NotificationTextLabels;
   };
 }
@@ -440,7 +442,7 @@ export function homeAppGroups(
     icon: APP_ICONS[line],
     soon: isBuildingProduct(line) || undefined,
   });
-  const groups: NavGroup[] = [{ section: labels.yourApps, items: top.map(item) }];
+  const groups: NavGroup[] = top.length ? [{ section: labels.yourApps, items: top.map(item) }] : [];
   if (rest.length) groups.push({ section: labels.moreApps, items: rest.map(item), collapsible: true });
   return groups;
 }

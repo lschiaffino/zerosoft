@@ -320,6 +320,7 @@
   border-radius: var(--radius-1);
 }
 .lk-route-arrow { flex-shrink: 0; color: var(--dim); }
+.lk-route > .lk-route-name:first-child { flex-shrink: 0; max-width: 50%; }
 .lk-route-name {
   font-size: 0.8125rem;
   color: var(--ink);
@@ -416,12 +417,12 @@ section.lk-block { padding-bottom: 0; }
 .lk-list { display: flex; flex-direction: column; gap: 8px; }
 .links-table .lk-col-check { width: 36px; padding-right: 0; }
 .links-table .ui-check input { margin: 0; }
-.lk-col-link { max-width: 320px; }
+.lk-col-link { max-width: 260px; }
 .lk-cell-link { display: flex; align-items: center; gap: 2px; min-width: 0; }
 .lk-cell-link .cell-link { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8125rem; }
 .lk-cell-link .lk-copy { flex-shrink: 0; }
 .lk-cell-sub { font-size: 0.8125rem; color: var(--brand-gray-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
-.lk-col-dest { max-width: 280px; }
+.lk-col-dest { max-width: 200px; }
 .lk-dest { display: block; font-size: 0.8125rem; color: var(--brand-gray-1); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lk-dest:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .lk-dest-text { display: block; max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--brand-gray-1); }
@@ -600,8 +601,8 @@ section.lk-block { padding-bottom: 0; }
 .lk-bio-item[data-on] .lk-bio-label { font-weight: 600; }
 .lk-bio-check { flex: 1; min-width: 0; align-items: center; }
 .lk-bio-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lk-bio-short { font-size: 0.8125rem; color: var(--brand-gray-2); }
-.lk-bio-move { display: flex; }
+.lk-bio-short { flex: 0 1 auto; min-width: 0; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8125rem; color: var(--brand-gray-2); }
+.lk-bio-move { display: flex; flex-shrink: 0; }
 .lk-bio-item[data-hidden]:not([data-on]) .lk-bio-label { color: var(--brand-gray-2); }
 .lk-bio-why { flex-shrink: 0; }
 
@@ -619,6 +620,7 @@ section.lk-block { padding-bottom: 0; }
   .lk-rule, .lk-rule-ab { grid-template-columns: 24px minmax(0, 1fr); }
   .lk-rule > :not(.lk-rule-n) { grid-column: 2; }
   .lk-route { flex-wrap: wrap; row-gap: 4px; }
+  .lk-route > .lk-route-name:first-child { flex-shrink: 1; max-width: 100%; }
   .lk-search { max-width: none; flex-basis: 100%; }
   .lk-danger-delete, .lk-danger-delete .input { width: 100%; }
   .lk-panel { padding: 16px; }

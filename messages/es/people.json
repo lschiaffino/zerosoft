@@ -123,7 +123,11 @@
     "reports": "{count, plural, one {# reporte directo} other {# reportes directos}}",
     "endsOn": "Último día: {date}",
     "emergencyContact": "Contacto de emergencia {n}",
-    "relation": "Vínculo"
+    "relation": "Vínculo",
+    "linkedAccount": "Cuenta enlazada",
+    "linkedMismatch": "El email de trabajo de esta ficha no coincide con la cuenta que la lee: {email}. Confirmá que es la persona correcta antes de cargar sueldo.",
+    "linkedConfirm": "Confirmar esta cuenta",
+    "linkedPayBlocked": "Esta ficha está enlazada a {email}, que no coincide con su email de trabajo. Confirmá esa cuenta en la ficha antes de cambiar el sueldo."
   },
   "offboard": {
     "action": "Offboarding",
@@ -514,7 +518,10 @@
     "onlyAdmins": "Solo owner y admins del workspace eligen HR admins.",
     "levelsHint": "Años=días por año, separados por comas. 3=18, 5=20 quiere decir 18 días desde el año 3 y 20 desde el año 5.",
     "scope": "A quién le corresponde",
-    "scopeHint": "Vacío quiere decir a todos. Separá los valores con comas."
+    "scopeHint": "Vacío quiere decir a todos. Separá los valores con comas.",
+    "hrAdminsHint": "Los HR admins gestionan fichas, licencias, documentos, sueldos, evaluaciones y reportes. Los sueldos y la exportación de nómina son del owner, los HR admins y cada persona. Los admins del workspace gestionan el resto de People sin ver sueldos. Solo el owner nombra HR admins.",
+    "implicitHr": "Owner del workspace",
+    "onlyAdmins": "Solo owner y admins del workspace eligen HR admins."
   },
   "welcome": {
     "title": "Te damos la bienvenida, {name}",
@@ -704,6 +711,9 @@
     "noScheduled": "Nada agendado.",
     "effective": "Se aplica el",
     "scheduleHint": "Completá solo lo que cambia. Hasta esa fecha lo ve solo HR.",
-    "keep": "Sin cambio"
+    "keep": "Sin cambio",
+    "work_email_locked": "Solo el owner o un HR admin pueden cambiar el email de trabajo de esta ficha.",
+    "delete_has_pay": "Esta ficha tiene historial de sueldos. Solo el owner o un HR admin la pueden borrar.",
+    "linked_account_mismatch": "La cuenta enlazada de esta ficha no coincide con su email de trabajo. Confirmala primero en la ficha."
   }
 }

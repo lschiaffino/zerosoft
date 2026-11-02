@@ -180,6 +180,8 @@
   .vc-rec-indicator-link,
   .vc-rec-indicator-stop { display: none; }
   .vc-rec-indicator-compact { display: inline-flex; }
+  /* CRM y Docs suman el botón de su IA: con el indicador, el logo le cede el lugar para que la campana no salga de pantalla. */
+  .app-band:has(.vc-rec-indicator-compact):has(.band-ai:not(.band-assistant)) .band-home { display: none; }
 }
 
 /* Transforms: reescribir la selección (DictationHost) */

@@ -116,9 +116,9 @@ describe('Docs: bloques de imagen y archivo', () => {
     expect(file.mime).toBeUndefined();
   });
 
-  it('topes: 50 MB por el servidor (disco propio) y 5 GB subiendo directo a Blob', () => {
+  it('topes: 50 MB por el servidor (disco propio) y 100 MB subiendo directo a Blob', () => {
     expect(DOCS_MAX_UPLOAD).toBe(50 * 1024 * 1024);
-    expect(DOCS_MAX_BLOB_UPLOAD).toBe(5 * 1024 * 1024 * 1024);
+    expect(DOCS_MAX_BLOB_UPLOAD).toBe(100 * 1024 * 1024);
     expect(DOCS_MAX_UPLOAD).toBeGreaterThan(MAX_UPLOAD_SIZE);
   });
 

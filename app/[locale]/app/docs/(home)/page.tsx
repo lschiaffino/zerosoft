@@ -1,6 +1,7 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { listDocPageSummaries, listDocWorkspaceTemplates, listSharedWithMe } from '@/lib/docs';
+import { listGuestWorkspaces } from '@/lib/teams';
 import { listDocFavorites } from '@/lib/docs-favorites';
 import { listTeamspaces } from '@/lib/docs-access';
 import { canCreateDocPage, docsHidden } from '@/lib/docs-guard';
@@ -18,7 +19,8 @@ import {
   reorderDocPageAction,
 } from '@/lib/docs-actions';
 import { getDocTemplates } from '@/lib/docs-templates';
-import { formatDateTime } from '@/lib/utils';
+import LocalDate from '@/components/ui/LocalDate';
+import { DATE_SLOT, TextAroundDate } from '@/components/ui/TextAroundDate';
 import Icon from '@/components/app/icons';
 import { Link } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
@@ -57,6 +59,9 @@ export default async function DocsLandingPage(props: {
   ]);
   // Miembros de solo lectura (o comentario): el inicio no ofrece crear, importar ni plantillas.
   const canCreate = await canCreateDocPage(user, {});
+  // Un guest llega acá por lo que le compartieron: eso va primero y dice de qué workspace es.
+  const guestOf = await listGuestWorkspaces(realUserId(user));
+  const guestNames = guestOf.map((g) => g.name).join(', ');
   const now = Date.now();
   const canDeleteAnyTemplate = isWorkspaceAdmin(user);
   const templates = getDocTemplates(locale);
@@ -115,7 +120,31 @@ export default async function DocsLandingPage(props: {
           </p>
         )}
 
-        {pages.length === 0 ? (
+        {guestOf.length > 0 && (
+          <p className="ui-notice docs-guest-note" data-testid="docs-guest-note">
+            {t(shared.length ? 'landing.guestShared' : 'landing.guestEmpty', { workspace: guestNames })}
+          </p>
+        )}
+
+        {shared.length > 0 && (pages.length === 0 || guestOf.length > 0) && (
+          <section className="docs-section docs-shared-first" aria-labelledby="docs-shared-first" data-testid="docs-shared-first">
+            <h2 className="docs-section-title" id="docs-shared-first">
+              {t('sidebar.sharedWithMe')}
+            </h2>
+            <ul className="docs-shared-first-list">
+              {shared.map((p) => (
+                <li key={p.id}>
+                  <Link href={`/app/docs/${p.id}`} className="docs-shared-first-row">
+                    <span className="docs-shared-first-title">{p.title || t('untitled')}</span>
+                    <span className="docs-shared-first-meta">{t(`share.roles.${p.role}`)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {pages.length === 0 && shared.length > 0 ? null : pages.length === 0 ? (
           <EmptyState
             product="docs"
             title={t('landing.emptyTitle')}
@@ -161,7 +190,7 @@ export default async function DocsLandingPage(props: {
                 {
                   key: 'edited',
                   header: t('landing.colEdited'),
-                  cell: (p) => formatDateTime(p.updated_at, locale),
+                  cell: (p) => <LocalDate value={p.updated_at} locale={locale} />,
                   numeric: true,
                   width: '200px',
                 },
@@ -199,7 +228,7 @@ export default async function DocsLandingPage(props: {
                     if (!p.verified_at) return <span className="docs-wiki-state">{t('verify.unverified')}</span>;
                     return (
                       <span className={`docs-wiki-state${expired ? ' is-expired' : ' is-ok'}`}>
-                        {expired ? t('verify.expiredBadge') : p.verified_until ? t('verify.until', { date: formatDateTime(p.verified_until, locale) }) : t('verify.forever')}
+                        {expired ? t('verify.expiredBadge') : p.verified_until ? <TextAroundDate text={t('verify.until', { date: DATE_SLOT })}><LocalDate value={p.verified_until} locale={locale} /></TextAroundDate> : t('verify.forever')}
                       </span>
                     );
                   },

@@ -1,7 +1,7 @@
 {
   "hub": {
     "metaTitle": "Herramientas gratis para negocios, sin registro",
-    "metaDescription": "Herramientas gratis para equipos chicos: generador de firmas de email, códigos QR, facturas, política de privacidad, análisis de sitios web, redactor de emails y anuncios con AI, nombres de negocio y más. Sin registro ni tracking.",
+    "metaDescription": "Herramientas gratis para equipos chicos: firmas de email, códigos QR, facturas, políticas de privacidad, análisis de sitios y redactores con IA. Sin registro.",
     "label": "Herramientas gratis",
     "title1": "Herramientas gratis.",
     "title2": "Sin registro.",
@@ -477,7 +477,7 @@
       "name": "Generador de firmas de email",
       "short": "Firmas profesionales que funcionan en Gmail, Outlook y Apple Mail.",
       "metaTitle": "Generador de firmas de email gratis (Gmail, Outlook, Apple Mail)",
-      "metaDescription": "Creá una firma de email HTML profesional en un minuto. Cuatro plantillas, tus colores, redes sociales y un botón para agendar reuniones. Sin píxeles de tracking.",
+      "metaDescription": "Creá una firma de email HTML profesional en un minuto. Cuatro plantillas, tus colores, redes y un botón para agendar. Sin píxeles de tracking.",
       "title": "Generador de firmas de email",
       "sub": "Completá tus datos, elegí una plantilla y copiala directo en Gmail, Outlook o Apple Mail. HTML con tablas que se ve bien en todos lados, y sin píxeles de tracking.",
       "ctaTitle": "Convertí respuestas en reuniones",
@@ -505,7 +505,7 @@
       "name": "Generador de códigos QR",
       "short": "Códigos QR para links, Wi-Fi, contactos y email. PNG o SVG.",
       "metaTitle": "Generador de códigos QR gratis: URL, Wi-Fi, vCard, PNG y SVG",
-      "metaDescription": "Creá códigos QR para links, redes Wi-Fi, tarjetas de contacto y emails. Colores, tamaño y corrección de errores a medida. Descargalos en PNG o SVG. Los códigos no vencen.",
+      "metaDescription": "Creá códigos QR para links, Wi-Fi, tarjetas de contacto y emails, con tus colores y tamaño. Descargalos en PNG o SVG. Los códigos no vencen.",
       "title": "Generador de códigos QR",
       "sub": "Creá un código QR para un link, una red Wi-Fi, una tarjeta de contacto o un email. Elegí colores y tamaño, y descargalo en PNG o SVG. Se genera en tu navegador.",
       "ctaTitle": "Medí cada escaneo",
@@ -577,7 +577,7 @@
         },
         {
           "q": "¿zerosoft reemplaza todas las herramientas de la lista?",
-          "a": "Link, CRM, Cal, Track, Chat y Docs ya están disponibles. Flow, Board y Notes están en camino."
+          "a": "zerosoft tiene 24 apps, todas disponibles hoy. Cada página de producto lista lo que todavía falta al lado del producto que reemplaza."
         }
       ]
     },
@@ -585,7 +585,7 @@
       "name": "Generador de política de privacidad",
       "short": "Una política de privacidad clara para tu sitio, con un formulario guiado.",
       "metaTitle": "Generador de política de privacidad gratis (RGPD, CCPA, LGPD)",
-      "metaDescription": "Generá la política de privacidad de tu sitio web o app con un formulario guiado: datos que recopilás, cookies, analítica, terceros y tu jurisdicción. Copiala o descargala en Markdown o HTML.",
+      "metaDescription": "Generá la política de privacidad de tu sitio o app con un formulario guiado: datos, cookies, analítica y jurisdicción. Copiala o descargala.",
       "title": "Generador de política de privacidad",
       "sub": "Respondé unas preguntas y obtené una política de privacidad legible para tu sitio o app, con secciones para RGPD, CCPA, LGPD y más. Copiala o descargala en Markdown o HTML.",
       "ctaTitle": "Guardá tus políticas en un solo lugar",
@@ -685,7 +685,7 @@
       "name": "Analizador de sitios web",
       "short": "Puntuá tu sitio en velocidad, SEO, seguridad, mobile y accesibilidad.",
       "metaTitle": "Analizador de sitios web gratis: SEO, velocidad y seguridad",
-      "metaDescription": "Calificá tu sitio web sobre 100: HTTPS, tiempo de respuesta, peso de la página, título y meta etiquetas, Open Graph, robots.txt, sitemap, viewport mobile, texto alt y más, con cómo arreglarlo.",
+      "metaDescription": "Calificá tu sitio sobre 100: HTTPS, velocidad, peso, meta etiquetas, Open Graph, robots.txt, sitemap, viewport y texto alt, con cómo arreglarlo.",
       "title": "Analizador de sitios web",
       "sub": "Ingresá tu URL y recibí un puntaje sobre 100 en seguridad, rendimiento, SEO, mobile y accesibilidad, con un arreglo concreto para cada problema.",
       "ctaTitle": "Sabé en qué hacen clic tus visitas",
@@ -761,7 +761,7 @@
       "name": "Generador de UTM",
       "short": "URLs de campaña con seguimiento para tu analítica, en un clic.",
       "metaTitle": "Generador de UTM gratis: creá URLs de campaña",
-      "metaDescription": "Armá URLs de campaña con parámetros UTM (source, medium, campaign, term, content) para Google Analytics y cualquier herramienta de analítica. Atajos y valores prolijos y consistentes.",
+      "metaDescription": "Armá URLs de campaña con parámetros UTM para Google Analytics y cualquier herramienta de analítica, con atajos y valores prolijos.",
       "title": "Generador de UTM",
       "sub": "Agregá utm_source, utm_medium y utm_campaign a cualquier link para que tu analítica sepa de dónde vino cada visita. Valores consistentes y en minúsculas por defecto.",
       "ctaTitle": "Acortalo y contá los clics",

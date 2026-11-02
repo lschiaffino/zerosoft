@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import type { LinkActivityRow } from '@/lib/link-activity';
-import { formatDateTime } from '@/lib/utils';
+import LocalDate from '@/components/ui/LocalDate';
 
 const FIELD_KEYS = new Set([
   'url',
@@ -66,7 +66,7 @@ export default async function LinkActivityList({
                   {r.via !== 'app' && r.via !== 'system' ? ` · ${t(`activity.via.${r.via}`)}` : ''}
                 </span>
                 <time className="lk-activity-when data" dateTime={r.created_at}>
-                  {formatDateTime(r.created_at, locale)}
+                  <LocalDate value={r.created_at} locale={locale} />
                 </time>
               </div>
               {changes.length > 0 && (

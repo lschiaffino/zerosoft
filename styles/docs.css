@@ -2246,3 +2246,11 @@ body:has(.docs-touchbar) .docs-editor { padding-bottom: 220px; }
 .docs-site-tables { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
 .docs-publish-settings { display: grid; gap: 12px; margin-top: 8px; }
 .docs-publish-settings textarea { resize: vertical; }
+.docs-guest-note { margin: 0 0 16px; }
+.docs-shared-first-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--r-xs); }
+.docs-shared-first-list li + li { border-top: 1px solid var(--line); }
+.docs-shared-first-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 12px; color: var(--ink); text-decoration: none; }
+.docs-shared-first-row:hover { background: var(--ui-hover); }
+.docs-shared-first-row:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.docs-shared-first-title { min-width: 0; overflow-wrap: anywhere; }
+.docs-shared-first-meta { flex-shrink: 0; color: var(--ink-2); font-size: 0.8125rem; }

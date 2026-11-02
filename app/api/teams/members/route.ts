@@ -9,6 +9,6 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   const ctx = await teamsCtx();
   if (isResponse(ctx)) return ctx;
-  const dir = await loadDirectory(ctx.team, ctx.role, publicBase(req));
+  const dir = await loadDirectory(ctx.team, ctx.role, publicBase(req), ctx.user.apps ?? '*', ctx.realId);
   return NextResponse.json({ ...dir, me: ctx.realId, role: ctx.role });
 }

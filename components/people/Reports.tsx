@@ -25,7 +25,7 @@ function Breakdown({ title, rows, label }: { title: string; rows: Array<{ key: s
   );
 }
 
-export default function Reports({ report, audit, custom }: { report: PeopleReport; audit: AuditEntry[]; custom?: ReactNode }) {
+export default function Reports({ report, audit, canExport, custom }: { report: PeopleReport; audit: AuditEntry[]; canExport: boolean; custom?: ReactNode }) {
   const t = useTranslations('people');
   const locale = useLocale();
   const num = useNumber();
@@ -39,9 +39,11 @@ export default function Reports({ report, audit, custom }: { report: PeopleRepor
         title={t('nav.reports')}
         description={t('reports.desc')}
         actions={
-          <a className="btn btn-secondary" href="/api/people/export" download>
-            {t('reports.payroll')}
-          </a>
+          canExport ? (
+            <a className="btn btn-secondary" href="/api/people/export" download>
+              {t('reports.payroll')}
+            </a>
+          ) : undefined
         }
       />
       <div className="ppl-cards">

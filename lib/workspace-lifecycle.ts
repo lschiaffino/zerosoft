@@ -28,6 +28,14 @@ const db = () => getDb();
 
 const STEPS: Step[] = [
   {
+    // Sus pedidos de acceso sin responder se cierran (y los avisos de quien los iba a responder).
+    name: 'access_requests',
+    run: async (e) => {
+      const { resolveRequests } = await import('./workspace-access-request');
+      await resolveRequests(e.teamId, e.userId, '*', 'closed', null);
+    },
+  },
+  {
     // Las API keys que creó en el workspace dejan de funcionar.
     name: 'api_keys',
     run: (e) => db().prepare('UPDATE api_keys SET revoked = 1 WHERE user_id = ? AND created_by = ?').run(e.ownerId, e.userId),

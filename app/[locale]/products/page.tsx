@@ -1,4 +1,6 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { staticPageMetadata, staticPageText } from '@/lib/seo-pages';
+import { absoluteUrl, breadcrumbLd, graphLd, jsonLdString, localePath } from '@/lib/seo';
 import { Link } from '@/i18n/navigation';
 import SuiteGrid from '@/components/site/SuiteGrid';
 import SectionSign from '@/components/site/SectionSign';
@@ -14,8 +16,7 @@ import '@/styles/pages.css';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
-  const t = await getTranslations({ locale, namespace: 'pages.products' });
-  return { title: t('meta.title'), description: t('meta.description') };
+  return staticPageMetadata('products', locale);
 }
 
 /** /products: el cero, las once apps y los precios. */
@@ -28,9 +29,19 @@ export default async function ProductsPage(props: { params: Promise<{ locale: st
   const parity = Object.fromEntries(
     PRODUCT_KEYS.map((k) => [k, t('parityShort', { percent: computeParity(PARITY[k].rows).percent, competitor: PARITY[k].competitor })]),
   );
+  const seoText = await staticPageText('products', locale);
+  const ld = graphLd([
+    breadcrumbLd(locale, [
+      { name: 'zerosoft', path: '' },
+      { name: seoText.title, path: '/products' },
+    ]),
+    { '@type': 'CollectionPage', name: seoText.title, description: seoText.description, url: absoluteUrl(localePath(locale, '/products')), inLanguage: locale },
+  ]);
+
 
   return (
     <main className="lp">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(ld) }} />
       <section className="lp-hero" aria-labelledby="products-title">
         <div className="lp-hero-copy">
           <h1 id="products-title" className="lp-h1">

@@ -36,6 +36,8 @@ export class PeopleError extends Error {
   constructor(
     public code: string,
     public status = 400,
+    /** Datos para que el mensaje nombre lo que corresponde. */
+    public data?: Record<string, string>,
   ) {
     super(code);
   }
@@ -235,7 +237,12 @@ export async function markRemovedPerson(ws: string, userId: string): Promise<voi
 }
 
 export async function isHrAdmin(ws: string, personId: string, wsAdmin: boolean): Promise<boolean> {
-  if (wsAdmin || ws === personId) return true;
+  return wsAdmin || (await hasCompensationAccess(ws, personId));
+}
+
+/** Sueldos y nómina: el owner o un HR admin marcado (por el owner). Un admin sin marca, no. */
+export async function hasCompensationAccess(ws: string, personId: string): Promise<boolean> {
+  if (ws === personId) return true;
   return Boolean(
     await db()
       .prepare(
@@ -269,8 +276,9 @@ export async function peopleContext(ws: string, personId: string, wsRole: string
         .get(ws),
     );
   const wsAdmin = wsRole === 'owner' || wsRole === 'admin' || ws === personId;
-  const [hr, me, map, settings] = await Promise.all([
-    isHrAdmin(ws, personId, wsAdmin),
+  const comp = await hasCompensationAccess(ws, personId);
+  const hr = wsAdmin || comp;
+  const [me, map, settings] = await Promise.all([
     db().prepare('SELECT id, manager_id FROM people_employees WHERE workspace_id = ? AND user_id = ?').get(ws, personId) as Promise<{ id: string; manager_id: string | null } | undefined>,
     managerMap(ws),
     db().prepare('SELECT visibility FROM people_settings WHERE workspace_id = ?').get(ws) as Promise<{ visibility: string } | undefined>,
@@ -281,11 +289,15 @@ export async function peopleContext(ws: string, personId: string, wsRole: string
     personId,
     wsAdmin,
     wsRole: ws === personId ? 'owner' : wsRole,
-    viewer: { personId, employeeId, hr, wsOwner: ws === personId, reports: employeeId ? reportsOf(employeeId, map) : new Set() },
+    viewer: { personId, employeeId, hr, comp, wsOwner: ws === personId, reports: employeeId ? reportsOf(employeeId, map) : new Set() },
     visibility: parseJson<VisibilitySettings>(settings?.visibility, {}),
     hasManager: Boolean(me?.manager_id),
     needsSync,
   };
+}
+
+export function requireCompensation(ctx: PeopleCtx): void {
+  if (ctx.viewer.comp !== true) throw new PeopleError('forbidden', 403);
 }
 
 export function requireHr(ctx: PeopleCtx): void {
@@ -406,6 +418,8 @@ interface EmployeeRow {
   end_date: string | null;
   employment_type: string;
   pay_period: string;
+  /** Email de la cuenta enlazada que el owner o un HR admin confirmó para esta ficha. */
+  linked_confirmed?: string | null;
   status: string;
   photo_url: string;
   pronouns: string;
@@ -468,6 +482,8 @@ export interface EmployeeDto extends EmployeeSummary {
   bio: string;
   endDate: string | null;
   payPeriod: string;
+  /** La cuenta enlazada: solo para el owner y los HR admins. */
+  linkedAccount: { email: string; name: string | null; needsConfirm: boolean } | null;
   /** Cumpleaños (mes-día) según la visibilidad; la fecha completa va en personal. */
   birthday: string | null;
   custom: Record<string, string>;
@@ -478,6 +494,8 @@ export interface EmployeeDto extends EmployeeSummary {
     editSelf: boolean;
     seePersonal: boolean;
     seeCompensation: boolean;
+    editCompensation: boolean;
+    deleteRecord: boolean;
     seePerformance: boolean;
     seeTimeOff: boolean;
     seeExit: boolean;
@@ -576,6 +594,7 @@ export async function getEmployee(ctx: PeopleCtx, id: string, opts: { via?: stri
       Array<{ id: string; name: string; job_title: string }>
     >,
   ]);
+  const linked = v.comp === true ? await linkedAccountOf(r) : null;
   const seePersonal = canSeeSensitive(v, id, 'personal');
   const customRaw = parseJson<Record<string, string>>(r.custom, {});
   const custom: Record<string, string> = {};
@@ -589,7 +608,8 @@ export async function getEmployee(ctx: PeopleCtx, id: string, opts: { via?: stri
     pronouns: r.pronouns,
     bio: r.bio,
     endDate: v.hr || isSelf(v, id) ? r.end_date : null,
-    payPeriod: v.hr ? r.pay_period : '',
+    payPeriod: v.comp === true ? r.pay_period : '',
+    linkedAccount: v.comp === true && linked ? { email: linked.email, name: linked.name, needsConfirm: linkedAccountUnconfirmed(r, linked) } : null,
     birthday: birth ? birth.slice(5) : null,
     custom,
     personal,
@@ -599,6 +619,8 @@ export async function getEmployee(ctx: PeopleCtx, id: string, opts: { via?: stri
       editSelf: isSelf(v, id),
       seePersonal,
       seeCompensation: canSeeSensitive(v, id, 'compensation'),
+      editCompensation: v.comp === true,
+      deleteRecord: v.hr && (v.comp === true || !(await hasCompensationRows(ctx.ws, id))),
       seePerformance: canSeeSensitive(v, id, 'performance'),
       seeTimeOff: canSeeSensitive(v, id, 'timeoff'),
       seeExit: canSeeSensitive(v, id, 'exit'),
@@ -623,6 +645,8 @@ export interface EmployeeInput {
   endDate?: string | null;
   employmentType?: string;
   payPeriod?: string;
+  /** Owner o HR admin: esta cuenta es la correcta para la ficha. */
+  confirmLinkedAccount?: boolean;
   status?: string;
   pronouns?: string;
   bio?: string;
@@ -738,7 +762,7 @@ export async function createEmployee(ctx: PeopleCtx, input: EmployeeInput & { on
       managerId,
       startDate,
       input.employmentType ? normalizeValue('employmentType', input.employmentType)! : 'full_time',
-      input.payPeriod ? normalizeValue('payPeriod', input.payPeriod)! : 'monthly',
+      input.payPeriod && ctx.viewer.comp === true ? normalizeValue('payPeriod', input.payPeriod)! : 'monthly',
       status,
       str(input.pronouns, 40),
       str(input.bio, 2000),
@@ -779,6 +803,29 @@ async function cleanCustom(ws: string, input: Record<string, unknown>, base: Rec
   return out;
 }
 
+/** La cuenta enlazada a la ficha: es quien ve el sueldo, sea cual sea el email escrito en la ficha. */
+async function linkedAccountOf(r: Pick<EmployeeRow, 'user_id'>): Promise<{ email: string; name: string | null } | null> {
+  if (!r.user_id) return null;
+  return ((await db().prepare('SELECT email, name FROM users WHERE id = ?').get(r.user_id)) as { email: string; name: string | null } | undefined) ?? null;
+}
+
+/** ¿El email de la ficha dice otra cosa que la cuenta que la lee, y nadie lo confirmó? */
+function linkedAccountUnconfirmed(r: Pick<EmployeeRow, 'work_email' | 'linked_confirmed'>, linked: { email: string } | null): boolean {
+  if (!linked) return false;
+  const email = linked.email.toLowerCase();
+  return email !== (r.work_email ?? '').toLowerCase() && email !== (r.linked_confirmed ?? '').toLowerCase();
+}
+
+/** Antes de cargar o cambiar sueldo: quien lo va a leer tiene que ser quien la ficha dice, o estar confirmado. */
+async function assertLinkedAccountConfirmed(r: Pick<EmployeeRow, 'user_id' | 'work_email' | 'linked_confirmed'>): Promise<void> {
+  const linked = await linkedAccountOf(r);
+  if (linkedAccountUnconfirmed(r, linked)) throw new PeopleError('linked_account_mismatch', 409, { linkedEmail: linked!.email });
+}
+
+async function hasCompensationRows(ws: string, employeeId: string): Promise<boolean> {
+  return Boolean(await db().prepare('SELECT 1 AS x FROM people_compensation WHERE workspace_id = ? AND employee_id = ? LIMIT 1').get(ws, employeeId));
+}
+
 /**
  * Cambia una ficha. Cada campo pide su permiso (canEditField): HR todo, la
  * persona sus datos de contacto y personales. Los cambios a lo sensible
@@ -804,12 +851,29 @@ export async function updateEmployee(ctx: PeopleCtx, id: string, rawInput: Emplo
   const sets: string[] = [];
   const jobChanges: Array<{ field: 'jobTitle' | 'department' | 'location' | 'managerId' | 'employmentType' | 'status'; from: string; to: string }> = [];
   const args: Array<string | null> = [];
+  if (input.confirmLinkedAccount) {
+    requireCompensation(ctx);
+    const linked = await linkedAccountOf(r);
+    if (!linked) throw new PeopleError('not_found', 404);
+    sets.push('linked_confirmed = ?');
+    args.push(linked.email.toLowerCase());
+    await audit(ctx, 'change', 'linked_account', id);
+  }
   for (const [key, value] of Object.entries(input)) {
-    if (value === undefined || key === 'custom' || key === 'personal') continue;
+    if (value === undefined || key === 'custom' || key === 'personal' || key === 'confirmLinkedAccount') continue;
+    if (key === 'payPeriod') await assertLinkedAccountConfirmed(r);
     if (!canEditField(ctx.viewer, id, key)) throw new PeopleError('forbidden', 403);
     const col = JOB_COLUMNS[key] ?? ({ phone: 'phone', pronouns: 'pronouns', bio: 'bio' } as Record<string, keyof EmployeeRow>)[key];
     if (!col) continue;
     const v = normalizeValue(key, value);
+    // El período de pago va con el sueldo: quien no lo lee, tampoco lo cambia.
+    if (key === 'payPeriod' && ctx.viewer.comp !== true) throw new PeopleError('forbidden', 403);
+    // El email de trabajo enlaza una ficha sin cuenta con quien entre con ese email (linkOrCreate), y esa
+    // persona ve el sueldo: en una ficha sin cuenta o con sueldo solo lo cambia quien ya puede leerlo.
+    // Crear la ficha con su email sigue siendo de HR: es el alta normal de un ingreso.
+    if (key === 'workEmail' && (v ?? '') !== (r.work_email ?? '') && ctx.viewer.comp !== true && (!r.user_id || (await hasCompensationRows(ctx.ws, id)))) {
+      throw new PeopleError('work_email_locked', 403);
+    }
     if (key === 'managerId') {
       // Nadie se elige su propio manager (así no se saca de la cadena de aprobación); el owner sí.
       if (isSelf(ctx.viewer, id) && !ctx.viewer.wsOwner && (v ?? null) !== (r.manager_id ?? null)) throw new PeopleError('forbidden', 403);
@@ -855,6 +919,8 @@ export async function deleteEmployee(ctx: PeopleCtx, id: string): Promise<boolea
   requireHr(ctx);
   const r = await getEmployeeRow(ctx.ws, id);
   if (!r) return false;
+  // Borrar la ficha borra su historial de sueldos: no lo hace quien no puede leerlo.
+  if (ctx.viewer.comp !== true && (await hasCompensationRows(ctx.ws, id))) throw new PeopleError('delete_has_pay', 403);
   if (r.user_id && r.user_id === ctx.ws) throw new PeopleError('owner_profile', 409);
   await db().prepare('UPDATE people_employees SET manager_id = ? WHERE workspace_id = ? AND manager_id = ?').run(r.manager_id, ctx.ws, id);
   const { cancelCalBlocksFor } = await import('./people-timeoff');
@@ -913,8 +979,8 @@ export async function updateSettings(
     await db().prepare('UPDATE people_settings SET countries = ? WHERE workspace_id = ?').run(JSON.stringify(list), ctx.ws);
   }
   if (input.hrAdmins) {
-    // Solo owner y admins del workspace nombran HR admins.
-    if (!ctx.wsAdmin) throw new PeopleError('forbidden', 403);
+    // Solo el owner nombra HR admins: dan acceso a los sueldos.
+    if (ctx.viewer.wsOwner !== true) throw new PeopleError('forbidden', 403);
     const members = new Set((await listOwnerSpacePeople(ctx.ws)).map((p) => p.id));
     const ids = [...new Set(input.hrAdmins.map(String))].filter((id) => members.has(id));
     await db().prepare('DELETE FROM people_hr_admins WHERE workspace_id = ?').run(ctx.ws);
@@ -964,8 +1030,10 @@ export async function listCompensation(ctx: PeopleCtx, employeeId: string, via =
 }
 
 export async function addCompensation(ctx: PeopleCtx, employeeId: string, input: Record<string, unknown>): Promise<CompEntry> {
-  requireHr(ctx);
-  if (!(await getEmployeeRow(ctx.ws, employeeId))) throw new PeopleError('not_found', 404);
+  requireCompensation(ctx);
+  const target = await getEmployeeRow(ctx.ws, employeeId);
+  if (!target) throw new PeopleError('not_found', 404);
+  await assertLinkedAccountConfirmed(target);
   const amount = Number(input.amount);
   if (!Number.isFinite(amount) || amount <= 0 || amount > 1e10) throw new PeopleError('invalid_amount');
   if (!isIsoDate(input.effectiveDate)) throw new PeopleError('invalid_date');
@@ -983,7 +1051,7 @@ export async function addCompensation(ctx: PeopleCtx, employeeId: string, input:
 }
 
 export async function deleteCompensation(ctx: PeopleCtx, employeeId: string, entryId: string): Promise<boolean> {
-  requireHr(ctx);
+  requireCompensation(ctx);
   const res = await db().prepare('DELETE FROM people_compensation WHERE id = ? AND employee_id = ? AND workspace_id = ?').run(entryId, employeeId, ctx.ws);
   if (res.changes) await audit(ctx, 'change', 'compensation', employeeId);
   return res.changes > 0;
@@ -996,9 +1064,9 @@ function csvCell(v: unknown): string {
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-/** CSV de nómina (sin procesar pagos): fichas activas con el sueldo vigente. Solo HR; queda auditado. */
+/** CSV de nómina (sin procesar pagos): fichas activas con el sueldo vigente. Owner y HR admins marcados; queda auditado. */
 export async function payrollCsv(ctx: PeopleCtx, asOf = today()): Promise<string> {
-  requireHr(ctx);
+  requireCompensation(ctx);
   const list = (await rows(ctx.ws)).filter((r) => r.status !== 'terminated' || (r.end_date ?? '') >= asOf.slice(0, 8) + '01');
   const comp = (await db()
     .prepare('SELECT employee_id, effective_date, data FROM people_compensation WHERE workspace_id = ? AND effective_date <= ? ORDER BY effective_date DESC, created_at DESC')
