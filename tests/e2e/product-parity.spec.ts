@@ -53,7 +53,7 @@ test('/products muestra el porcentaje de cada app', async ({ page }) => {
 
 test('Analytics no publica porcentaje en /products, /compare ni en su comparación', async ({ page, request }) => {
   await page.goto('/en/products');
-  const tag = page.locator('.suite-parity', { hasText: 'PostHog' });
+  const tag = page.locator('.suite-vs', { hasText: 'PostHog' }).locator('.suite-parity');
   await expect(tag).toHaveText(/included, \d+ partial of \d+$/);
   const row = page.locator('#paridad .parity-overview-table tbody tr', { hasText: 'Analytics' });
   await expect(row).toContainText('Not comparable');
