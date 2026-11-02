@@ -416,6 +416,31 @@ describe('funnel query on stored events', () => {
     expect((await runFunnel(p, query({ steps: [{ event: 'view', filters, first: 'matching' }, { event: 'buy' }] }))).steps[0].count).toBe(2);
   });
 
+  it('first-ever on a later step leaves out the whole person when that first time does not count, and not who has yet to do it', async () => {
+    const p = await setup();
+    await ingest(p, [
+      // Su primera compra fue fuera del rango: afuera de todo, también del primer paso.
+      { event: 'buy', who: 'old', at: NOW - 20 * DAY },
+      { event: 'view', who: 'old', at: NOW - 5000 },
+      { event: 'buy', who: 'old', at: NOW - 4000 },
+      // Su primera compra no cumple el filtro: también afuera, aunque la segunda sí.
+      { event: 'view', who: 'nofit', at: NOW - 5000 },
+      { event: 'buy', who: 'nofit', at: NOW - 4500, props: { plan: 'free' } },
+      { event: 'buy', who: 'nofit', at: NOW - 4000, props: { plan: 'pro' } },
+      // Nunca compró: abandona en el paso 1.
+      { event: 'view', who: 'yet', at: NOW - 5000 },
+      // Primera compra en rango y con el filtro: convierte.
+      { event: 'view', who: 'fits', at: NOW - 5000 },
+      { event: 'buy', who: 'fits', at: NOW - 4000, props: { plan: 'pro' } },
+    ]);
+    const filters = [{ key: 'plan', op: 'eq', value: 'pro', type: 'event' }];
+    const ever = await runFunnel(p, query({ steps: [{ event: 'view' }, { event: 'buy', filters, first: 'ever' }] }));
+    expect(ever.steps.map((s) => s.count)).toEqual([2, 1]);
+    // La primera que cumple los filtros ignora las anteriores que no: 'nofit' vuelve.
+    const matching = await runFunnel(p, query({ steps: [{ event: 'view' }, { event: 'buy', filters, first: 'matching' }] }));
+    expect(matching.steps.map((s) => s.count)).toEqual([4, 2]);
+  });
+
   it('breakdown by event property and historical view', async () => {
     const p = await setup();
     await ingest(p, [

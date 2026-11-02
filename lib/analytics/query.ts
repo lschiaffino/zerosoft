@@ -439,23 +439,29 @@ async function funnelRows(project: ProjectRow, q: FunnelQuery, range: { from: nu
     firstAt.set(i, new Map(firsts.map((r) => [String(r.person), Number(r.ts)])));
   }
 
-  return {
-    truncated,
-    actions,
-    exclusions,
-    list: rows.slice(0, ROW_CAP).map((r) => {
-      const person = String(r.person);
-      const ts = Number(r.ts);
-      return {
-        person,
-        ts,
-        steps: q.steps.map((_, i) => i).filter((i) => Number(r[`s${i}`]) === 1 && (!firstAt.has(i) || firstAt.get(i)?.get(person) === ts)),
-        excl: exclusions.map((_, i) => i).filter((i) => Number(r[`x${i}`]) === 1),
-        value: value ? (r.value == null ? null : String(r.value)) : undefined,
-        owner: q.bySession ? String(r.owner) : undefined,
-      };
-    }),
-  };
+  const list: FunnelRow[] = rows.slice(0, ROW_CAP).map((r) => {
+    const person = String(r.person);
+    const ts = Number(r.ts);
+    return {
+      person,
+      ts,
+      steps: q.steps.map((_, i) => i).filter((i) => Number(r[`s${i}`]) === 1 && (!firstAt.has(i) || firstAt.get(i)?.get(person) === ts)),
+      excl: exclusions.map((_, i) => i).filter((i) => Number(r[`x${i}`]) === 1),
+      value: value ? (r.value == null ? null : String(r.value)) : undefined,
+      owner: q.bySession ? String(r.owner) : undefined,
+    };
+  });
+
+  // Primera de todas: si esa primera vez no cumple los filtros del paso o cae fuera de las fechas,
+  // la persona queda afuera de todo el embudo aunque después lo haga bien. Quien nunca lo hizo sigue.
+  const everSteps = q.steps.flatMap((s, i) => (s.first === 'ever' ? [i] : []));
+  if (!everSteps.length) return { truncated, actions, exclusions, list };
+  const met = new Set(list.flatMap((r) => everSteps.filter((i) => r.steps.includes(i)).map((i) => `${i}:${r.person}`)));
+  const out = new Set<string>();
+  for (const i of everSteps) {
+    for (const person of firstAt.get(i)?.keys() ?? []) if (!met.has(`${i}:${person}`)) out.add(person);
+  }
+  return { truncated, actions, exclusions, list: list.filter((r) => !out.has(r.person)) };
 }
 
 function funnelStepLabel(s: FunnelQuery['steps'][number], actions: ActionMap): string {
