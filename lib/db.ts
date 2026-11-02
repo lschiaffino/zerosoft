@@ -4,6 +4,7 @@ import {
   type InValue,
   type ResultSet,
   type Transaction,
+  type TransactionMode,
 } from '@libsql/client';
 import fs from 'fs';
 import { runMigrations } from './schema/migrations';
@@ -18,6 +19,26 @@ const IS_REMOTE = !DB_URL.startsWith('file:');
 
 let _client: Client | null = null;
 
+const BUSY_WAIT_MS = 5000;
+
+/**
+ * SQLite local (self-host, tests): una transacción interactiva se lleva la conexión y libsql abre otra
+ * sin busy_timeout, así que otra escritura del mismo proceso falla al instante con SQLITE_BUSY. Un
+ * busy_timeout no sirve: la espera es síncrona, frena el event loop y la transacción nunca termina.
+ * Se reintenta cediendo el turno. Turso no pasa por acá: espera del lado del servidor.
+ */
+async function retryBusy<T>(run: () => Promise<T>): Promise<T> {
+  const deadline = Date.now() + BUSY_WAIT_MS;
+  for (let wait = 2; ; wait = Math.min(wait * 2, 50)) {
+    try {
+      return await run();
+    } catch (err) {
+      if (!/SQLITE_BUSY|database is locked/i.test(String(err)) || Date.now() >= deadline) throw err;
+      await new Promise((done) => setTimeout(done, wait));
+    }
+  }
+}
+
 /**
  * Cliente libsql crudo (para transacciones interactivas).
  * createClient no hace I/O al construir: es safe llamarlo de forma sync.
@@ -29,6 +50,10 @@ export function getClient(): Client {
     url: DB_URL,
     authToken: IS_REMOTE ? process.env.TURSO_AUTH_TOKEN : undefined,
   });
+  if (!IS_REMOTE) {
+    const begin = _client.transaction.bind(_client) as (mode?: TransactionMode) => Promise<Transaction>;
+    _client.transaction = ((mode?: TransactionMode) => retryBusy(() => begin(mode))) as Client['transaction'];
+  }
   return _client;
 }
 
@@ -150,8 +175,9 @@ let _db: Db | null = null;
 export function getDb(): Db {
   if (_db) return _db;
   const client = getClient();
+  const executor: Executor = IS_REMOTE ? client : { execute: (stmt) => retryBusy(() => client.execute(stmt)) };
   _db = {
-    prepare: (sql) => makeStatement(client, sql, ensureMigrated),
+    prepare: (sql) => makeStatement(executor, sql, ensureMigrated),
     exec: async (sql) => {
       await ensureMigrated();
       await client.executeMultiple(sql);
