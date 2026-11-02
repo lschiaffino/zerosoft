@@ -942,8 +942,8 @@ section.ui-section { padding: 0; }
 /* En el pie del sidebar: alineado con los links; colapsado, en columna. */
 .side-theme { align-self: flex-start; margin: 4px 12px; }
 @media (min-width: 1024px) {
-  .sidebar-collapsed .side-theme { flex-direction: column; align-self: center; margin: 4px 0; }
-  .sidebar-collapsed .side-theme button + button { border-left: 0; border-top: 1px solid var(--line); }
+  .sidebar-collapsed .side-theme:not(.ws-switcher-menu *) { flex-direction: column; align-self: center; margin: 4px 0; }
+  .sidebar-collapsed .side-theme:not(.ws-switcher-menu *) button + button { border-left: 0; border-top: 1px solid var(--line); }
 }
 
 /* ---------- Importadores (Track, Cal, Docs). Prefijo ximp-: imp- es del import del CRM. ---------- */

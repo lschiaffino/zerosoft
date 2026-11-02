@@ -215,6 +215,7 @@ test('Link: copy de clics consistente y en pt el título coincide con el nav', a
 
 test('pie del sidebar: la ayuda se llama Ayuda (no Docs, que es una app)', async ({ page }) => {
   await page.goto('/es/app', { waitUntil: 'networkidle' });
+  await page.getByTestId('workspace-switcher').click();
   const help = page.getByTestId('side-help');
   await expect(help).toHaveText('Ayuda');
   await expect(help).toHaveAttribute('href', '/es/docs');

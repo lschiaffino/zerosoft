@@ -55,7 +55,10 @@ export default function WorkspaceInviteForm({ onInvited }: { onInvited?: () => v
       setEmail('');
     } else {
       setError(res?.status === 429 || first?.status === 'limited' ? t('access.inviteLimited') : res?.status === 400 ? t('access.inviteInvalid') : t('access.inviteFailed'));
-      if (first?.url) setLink(first.url);
+      if (first?.url) {
+        setLink(first.url);
+        setEmail('');
+      }
     }
     void loadPending();
     onInvited?.();
