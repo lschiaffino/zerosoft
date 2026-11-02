@@ -14,6 +14,69 @@ import { AppStatusBadge, HrDialog, RejectReasonOptions, api, money, useDate, use
 type Tpl = { id: string; jobId: string | null; kind: string; name: string; subject: string; body: string };
 const TABS = ['timeline', 'resume', 'scorecards', 'interviews', 'offers'] as const;
 
+function CustomFieldsPanel({ candidateId, fields, editable, onSaved, onError }: { candidateId: string; fields: Profile['customFields']; editable: boolean; onSaved: () => void; onError: (code: string | undefined) => void }) {
+  const t = useTranslations('hiring');
+  const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((f) => [f.id, f.value])));
+  const [busy, setBusy] = useState(false);
+  const shown = editable ? fields : fields.filter((f) => f.value);
+  return (
+    <section className="panel" data-testid="hiring-custom-fields" aria-labelledby="hr-custom-fields">
+      <h2 id="hr-custom-fields" className="hr-panel-title">
+        {t('candidateFields.panel')}
+      </h2>
+      {shown.length === 0 && <p className="ui-help">{t('candidateFields.nothing')}</p>}
+      {editable ? (
+        <form
+          className="ui-fields"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setBusy(true);
+            const res = await api(`/api/hiring/candidates/${candidateId}`, { method: 'PATCH', json: { custom: values } });
+            setBusy(false);
+            if (!res.ok) return onError(res.data.error);
+            onSaved();
+          }}
+        >
+          {fields.map((f) => (
+            <label key={f.id} className="ui-field">
+              <span className="label">
+                {f.label}
+                {f.protected ? ` (${t('candidateFields.protectedShort')})` : ''}
+              </span>
+              {f.type === 'select' ? (
+                <select className="select" value={values[f.id] ?? ''} onChange={(e) => setValues({ ...values, [f.id]: e.target.value })}>
+                  <option value="" />
+                  {f.options.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input className="input" type={f.type} maxLength={500} value={values[f.id] ?? ''} onChange={(e) => setValues({ ...values, [f.id]: e.target.value })} />
+              )}
+            </label>
+          ))}
+          <div>
+            <button type="submit" className="btn btn-secondary btn-sm" disabled={busy}>
+              {t('common.save')}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <dl className="hr-custom-list">
+          {shown.map((f) => (
+            <div key={f.id}>
+              <dt>{f.label}</dt>
+              <dd>{f.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </section>
+  );
+}
+
 export default function CandidateProfile({
   initial,
   focusApp,
@@ -515,6 +578,7 @@ export default function CandidateProfile({
         </div>
 
         <aside className="hr-profile-side">
+          {profile.customFields.length > 0 && <CustomFieldsPanel key={profile.customFields.map((f) => f.value).join('|')} candidateId={c.id} fields={profile.customFields} editable={profile.canEditCustom} onSaved={() => { push(t('common.saved')); void reload(); }} onError={(code) => push(errText(code), 'bad')} />}
           {(c.links.length > 0 || profile.documents.length > 0 || profile.duplicates.length > 0) && (
             <section className="panel">
               {c.links.length > 0 && (

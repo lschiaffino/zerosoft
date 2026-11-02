@@ -580,7 +580,9 @@
     "duplicate_in_file": "Este email está repetido no arquivo.",
     "same_job": "É a mesma vaga.",
     "same_candidate": "É o mesmo candidato.",
-    "file_too_large": "O arquivo é muito grande (2 MB no máximo)."
+    "file_too_large": "O arquivo é muito grande (2 MB no máximo).",
+    "invalid_field": "Esse valor não corresponde ao tipo do campo.",
+    "duplicate_field": "Esse campo está repetido."
   },
   "esign": {
     "send": "Enviar para assinatura com Sign",
@@ -642,5 +644,25 @@
     "body": "Tudo de {drop} passa para {keep}: candidaturas, linha do tempo, documentos e tags. Não dá para desfazer.",
     "confirm": "Mesclar",
     "done": "Mesclados."
+  },
+  "candidateFields": {
+    "title": "Campos de candidatos",
+    "help": "Seus próprios campos em cada candidato, como aviso prévio. Os protegidos são vistos só por recruiters, hiring managers e admins.",
+    "name": "Nome do campo",
+    "type": "Tipo",
+    "types": {
+      "text": "Texto",
+      "number": "Número",
+      "date": "Data",
+      "select": "Lista"
+    },
+    "options": "Opções, separadas por vírgulas",
+    "protected": "Só para recruiters e hiring managers",
+    "protectedShort": "protegido",
+    "removeNamed": "Remover {name}",
+    "empty": "Ainda não há campos.",
+    "add": "Adicionar um campo",
+    "panel": "Dados",
+    "nothing": "Nada preenchido ainda."
   }
 }

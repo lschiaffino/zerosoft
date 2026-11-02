@@ -148,6 +148,8 @@ export async function mergeCandidates(actor: HiringActor, keepId: string, dropId
   await db.prepare('UPDATE hiring_events SET candidate_id = ? WHERE candidate_id = ?').run(keepId, dropId);
   await db.prepare('UPDATE hiring_documents SET candidate_id = ? WHERE candidate_id = ?').run(keepId, dropId);
   const tags = [...new Set([...parseJson<string[]>(keep.tags, []), ...parseJson<string[]>(drop.tags, [])])].slice(0, MAX_TAGS);
+  const custom = { ...parseJson<Record<string, string>>(drop.custom, {}), ...parseJson<Record<string, string>>(keep.custom, {}) };
+  await db.prepare('UPDATE hiring_candidates SET custom = ? WHERE id = ?').run(JSON.stringify(custom), keepId);
   await db
     .prepare(
       `UPDATE hiring_candidates SET tags = ?, phone = CASE WHEN phone = '' THEN ? ELSE phone END, location = CASE WHEN location = '' THEN ? ELSE location END,

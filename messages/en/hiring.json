@@ -580,7 +580,9 @@
     "duplicate_in_file": "This email is repeated in the file.",
     "same_job": "That is the same job.",
     "same_candidate": "That is the same candidate.",
-    "file_too_large": "The file is too large (2 MB at most)."
+    "file_too_large": "The file is too large (2 MB at most).",
+    "invalid_field": "That value does not fit the field type.",
+    "duplicate_field": "That field is repeated."
   },
   "esign": {
     "send": "Send for e-signature with Sign",
@@ -642,5 +644,25 @@
     "body": "Everything from {drop} moves to {keep}: applications, timeline, documents and tags. This cannot be undone.",
     "confirm": "Merge",
     "done": "Merged."
+  },
+  "candidateFields": {
+    "title": "Candidate fields",
+    "help": "Your own fields on each candidate, such as notice period. Protected fields are seen only by recruiters, hiring managers and admins.",
+    "name": "Field name",
+    "type": "Type",
+    "types": {
+      "text": "Text",
+      "number": "Number",
+      "date": "Date",
+      "select": "List"
+    },
+    "options": "Options, separated by commas",
+    "protected": "Only for recruiters and hiring managers",
+    "protectedShort": "protected",
+    "removeNamed": "Remove {name}",
+    "empty": "No fields yet.",
+    "add": "Add a field",
+    "panel": "Details",
+    "nothing": "Nothing filled in yet."
   }
 }

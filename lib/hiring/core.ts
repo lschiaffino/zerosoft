@@ -19,6 +19,8 @@ import {
   MAX_STAGES,
   STAGE_KINDS,
   TEAM_ROLES,
+  MAX_CANDIDATE_FIELDS,
+  candidateFieldSchema,
   canManageJob,
   canSeeApplication,
   canSeeJob,
@@ -27,6 +29,7 @@ import {
   defaultStages,
   questionSchema,
   slugify,
+  type CandidateField,
   type Criterion,
   type HiringActor,
   type JobStatus,
@@ -64,6 +67,7 @@ export interface SettingsRow {
   auto_ack: number;
   members_create_jobs: number;
   job_approvers: string;
+  candidate_fields: string;
   offer_approvers: string;
   created_at: string;
   updated_at: string;
@@ -114,7 +118,18 @@ export const settingsSchema = z.object({
   membersCreateJobs: z.boolean().optional(),
   jobApprovers: z.array(z.string().min(1).max(80)).max(6).optional(),
   offerApprovers: z.array(z.string().min(1).max(80)).max(6).optional(),
+  candidateFields: z.array(candidateFieldSchema).max(MAX_CANDIDATE_FIELDS).optional(),
 });
+
+function checkFields(fields: CandidateField[]): CandidateField[] {
+  const ids = new Set<string>();
+  for (const f of fields) {
+    if (ids.has(f.id)) throw new HiringError('duplicate_field');
+    ids.add(f.id);
+    if (f.type === 'select' && !f.options.length) throw new HiringError('question_options');
+  }
+  return fields;
+}
 
 async function checkApprovers(ws: string, ids: string[]): Promise<string[]> {
   const people = new Set((await listOwnerSpacePeople(ws, { app: 'hiring' })).map((p) => p.id));
@@ -133,7 +148,7 @@ export async function updateSettings(actor: HiringActor, input: z.infer<typeof s
   }
   await db
     .prepare(
-      `UPDATE hiring_settings SET handle = ?, company = ?, intro = ?, color = ?, locale = ?, published = ?, retention_months = ?, consent_text = ?, auto_ack = ?, members_create_jobs = ?, job_approvers = ?, offer_approvers = ?, updated_at = ? WHERE workspace_id = ?`,
+      `UPDATE hiring_settings SET handle = ?, company = ?, intro = ?, color = ?, locale = ?, published = ?, retention_months = ?, consent_text = ?, auto_ack = ?, members_create_jobs = ?, job_approvers = ?, offer_approvers = ?, candidate_fields = ?, updated_at = ? WHERE workspace_id = ?`,
     )
     .run(
       input.handle ?? cur.handle,
@@ -148,6 +163,7 @@ export async function updateSettings(actor: HiringActor, input: z.infer<typeof s
       input.membersCreateJobs === undefined ? cur.members_create_jobs : input.membersCreateJobs ? 1 : 0,
       input.jobApprovers ? JSON.stringify(await checkApprovers(actor.ws, input.jobApprovers)) : cur.job_approvers,
       input.offerApprovers ? JSON.stringify(await checkApprovers(actor.ws, input.offerApprovers)) : cur.offer_approvers,
+      input.candidateFields ? JSON.stringify(checkFields(input.candidateFields)) : cur.candidate_fields,
       nowIso(),
       actor.ws,
     );
@@ -168,6 +184,7 @@ export function settingsDto(s: SettingsRow) {
     membersCreateJobs: s.members_create_jobs === 1,
     jobApprovers: parseJson<string[]>(s.job_approvers, []),
     offerApprovers: parseJson<string[]>(s.offer_approvers, []),
+    candidateFields: parseJson<CandidateField[]>(s.candidate_fields, []),
   };
 }
 export type SettingsDto = ReturnType<typeof settingsDto>;

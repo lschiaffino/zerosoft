@@ -32,9 +32,9 @@ import {
 import { createCycle, launchCycle } from '@/lib/people-perf';
 import { listChecklists, listTemplates, startChecklist } from '@/lib/people-onboarding';
 import { addHireToPeople } from '@/lib/people-hire';
-import { canSeeJob, canSeeJobSalary, failedKnockouts, autoRejected, type HiringActor, type Question } from '@/lib/hiring/types';
+import { canSeeJob, canSeeJobSalary, cleanCustomValues, failedKnockouts, autoRejected, type HiringActor, type Question } from '@/lib/hiring/types';
 import { createJob, getJob, listJobs, setTeam, updateJob, updateSettings as updateHiringSettings, ensureSettings } from '@/lib/hiring/core';
-import { addCandidateManually, applyPublic, getCandidateProfile, listApplications, searchHiring } from '@/lib/hiring/candidates';
+import { addCandidateManually, applyPublic, getCandidateProfile, listApplications, searchHiring, updateCandidate } from '@/lib/hiring/candidates';
 import { actOnJobApproval, chainState, currentStep, listChain, myPendingApprovals } from '@/lib/hiring/approvals';
 import { actOnOffer, createOffer } from '@/lib/hiring/offers';
 import { hiringReport } from '@/lib/hiring/reports';
@@ -647,6 +647,35 @@ describe('Hiring: cadenas de aprobación', () => {
     const offer = await createOffer(w.recruiter, c.applicationId, { salary: 1, currency: 'USD', startDate: null, templateId: null, body: 'Hi' });
     expect(offer.approval.map((s) => s.status)).toEqual(['skipped', 'pending']);
     await updateHiringSettings(w.owner, { offerApprovers: [] });
+  });
+});
+
+describe('Hiring: campos propios', () => {
+  it('valores por tipo; lo no definido no entra; vacío borra', () => {
+    const fields = [
+      { id: 'n', label: 'N', type: 'number' as const, options: [], protected: false },
+      { id: 'd', label: 'D', type: 'date' as const, options: [], protected: false },
+      { id: 's', label: 'S', type: 'select' as const, options: ['a'], protected: true },
+    ];
+    expect(cleanCustomValues(fields, { n: '3', d: '2026-01-02', s: 'a', ghost: 'x' }, {})).toEqual({ n: '3', d: '2026-01-02', s: 'a' });
+    expect(cleanCustomValues(fields, { n: '' }, { n: '3' })).toEqual({});
+    for (const bad of [{ n: 'x' }, { d: '01/02/2026' }, { s: 'b' }]) expect(() => cleanCustomValues(fields, bad, {})).toThrow('invalid_field');
+  });
+
+  it('los protegidos no llegan a quien entrevista; editar es de quien gestiona', async () => {
+    const w = await hiringWorld();
+    await updateHiringSettings(w.owner, { candidateFields: [{ id: 'open', label: 'Open', type: 'text', options: [], protected: false }, { id: 'pay', label: 'Pay', type: 'text', options: [], protected: true }] });
+    const job = await jobFor(w);
+    const c = await addCandidateManually(w.recruiter, { jobId: job.id, name: 'F', email: `f-${uid()}@x.co`, source: 'manual' }, null);
+    await updateCandidate(w.recruiter, c.candidateId, { custom: { open: 'yes', pay: '100' } });
+    const rec = (await getCandidateProfile(w.recruiter, c.candidateId))!;
+    expect(rec.customFields.map((f) => f.value)).toEqual(['yes', '100']);
+    await getDb().prepare('INSERT INTO hiring_evaluators (application_id, user_id, stage_id, requested_at) VALUES (?, ?, ?, ?)').run(c.applicationId, w.interviewer.person, rec.applications[0].stageId, new Date().toISOString());
+    const iv = (await getCandidateProfile(w.interviewer, c.candidateId))!;
+    expect(iv.canEditCustom).toBe(false);
+    expect(iv.customFields.map((f) => f.id)).toEqual(['open']);
+    await expect(updateCandidate(w.interviewer, c.candidateId, { custom: { open: 'no' } })).rejects.toMatchObject({ status: 403 });
+    await expect(updateHiringSettings(w.recruiter, { candidateFields: [] })).rejects.toMatchObject({ status: 403 });
   });
 });
 

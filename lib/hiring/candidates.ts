@@ -15,6 +15,8 @@ import {
   HiringError,
   MAX_TAGS,
   RESUME_MAX_BYTES,
+  cleanCustomValues,
+  type CandidateField,
   autoRejected,
   SOURCES,
   answerErrors,
@@ -68,6 +70,7 @@ export interface CandidateRow {
   resume_name: string | null;
   resume_mime: string | null;
   resume_text: string;
+  custom: string;
   ai_summary: string;
   ai_fields: string;
   consent_at: string | null;
@@ -636,6 +639,9 @@ export interface CandidateProfile {
   timeline: ReturnType<typeof eventDto>[];
   canDelete: boolean;
   documents: DocumentDto[];
+  /** Campos propios: los protegidos solo si gestiona alguna postulación del candidato. */
+  customFields: Array<{ id: string; label: string; type: CandidateField['type']; options: string[]; protected: boolean; value: string }>;
+  canEditCustom: boolean;
   /** Otros registros con el mismo email que la persona también ve. */
   duplicates: Array<{ id: string; name: string }>;
 }
@@ -691,6 +697,12 @@ export async function getCandidateProfile(actor: HiringActor, candidateId: strin
   }
   if (!out.length) return null;
   const visibleIds = new Set(out.map((a) => a.id));
+  const canEditCustom = actor.admin || managed.size > 0;
+  const customValues = parseJson<Record<string, string>>(c.custom, {});
+  const defined = parseJson<CandidateField[]>((await ensureSettings(actor.ws)).candidate_fields, []);
+  const customFields = defined
+    .filter((f) => canEditCustom || !f.protected)
+    .map((f) => ({ id: f.id, label: f.label, type: f.type, options: f.options, protected: f.protected, value: customValues[f.id] ?? '' }));
 
   const events = (await db
     .prepare('SELECT e.*, u.name AS actor_name FROM hiring_events e LEFT JOIN users u ON u.id = e.actor_id WHERE e.candidate_id = ? ORDER BY e.created_at DESC LIMIT 300')
@@ -711,6 +723,8 @@ export async function getCandidateProfile(actor: HiringActor, candidateId: strin
     applications: out,
     timeline,
     canDelete: actor.admin || manageAll,
+    customFields,
+    canEditCustom,
     documents: await listDocuments(candidateId, visibleIds),
     duplicates: await visibleDuplicates(actor, c),
   };
@@ -891,6 +905,7 @@ export const candidatePatchSchema = z.object({
   links: z.array(z.string().trim().url().max(300)).max(10).optional(),
   tags: z.array(z.string().trim().min(1).max(40)).max(MAX_TAGS).optional(),
   keepConsent: z.boolean().optional(),
+  custom: z.record(z.string().max(40), z.string().max(500)).optional(),
 });
 
 export async function updateCandidate(actor: HiringActor, id: string, patch: z.infer<typeof candidatePatchSchema>): Promise<CandidateDto> {
@@ -898,8 +913,9 @@ export async function updateCandidate(actor: HiringActor, id: string, patch: z.i
   if (!(await canManageCandidate(actor, id))) throw new HiringError('forbidden', 403);
   const oldTags = parseJson<string[]>(c.tags, []);
   const tags = patch.tags ? [...new Set(patch.tags)] : oldTags;
+  const custom = patch.custom ? cleanCustomValues(parseJson<CandidateField[]>((await ensureSettings(actor.ws)).candidate_fields, []), patch.custom, parseJson<Record<string, string>>(c.custom, {})) : parseJson<Record<string, string>>(c.custom, {});
   await getDb()
-    .prepare('UPDATE hiring_candidates SET name = ?, phone = ?, location = ?, headline = ?, links = ?, tags = ?, keep_consent = ?, updated_at = ? WHERE id = ?')
+    .prepare('UPDATE hiring_candidates SET name = ?, phone = ?, location = ?, headline = ?, links = ?, tags = ?, keep_consent = ?, custom = ?, updated_at = ? WHERE id = ?')
     .run(
       patch.name ?? c.name,
       patch.phone ?? c.phone,
@@ -908,6 +924,7 @@ export async function updateCandidate(actor: HiringActor, id: string, patch: z.i
       patch.links ? JSON.stringify(patch.links) : c.links,
       JSON.stringify(tags),
       patch.keepConsent === undefined ? c.keep_consent : patch.keepConsent ? 1 : 0,
+      JSON.stringify(custom),
       nowIso(),
       id,
     );

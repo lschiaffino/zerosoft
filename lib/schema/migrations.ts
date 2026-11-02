@@ -8457,6 +8457,14 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Hiring: campos propios de candidatos. Vacíos hasta que un admin los defina.
+    id: '189_hiring_candidate_fields',
+    up: async (c) => {
+      await addColumn(c, "ALTER TABLE hiring_settings ADD COLUMN candidate_fields TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(c, "ALTER TABLE hiring_candidates ADD COLUMN custom TEXT NOT NULL DEFAULT '{}'");
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

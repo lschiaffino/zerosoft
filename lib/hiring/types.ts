@@ -72,6 +72,38 @@ export function canSeeJobSalary(a: { admin: boolean; jobRole: TeamRole | null; s
   return a.salaryPublic || a.admin || a.jobRole === 'recruiter' || a.jobRole === 'hiring_manager';
 }
 
+// ---------- Campos propios de candidatos ----------
+
+export const MAX_CANDIDATE_FIELDS = 30;
+
+export const candidateFieldSchema = z.object({
+  id: z.string().trim().regex(/^[a-z0-9_-]{1,40}$/),
+  label: z.string().trim().min(1).max(80),
+  type: z.enum(['text', 'number', 'date', 'select']),
+  options: z.array(z.string().trim().min(1).max(120)).max(30).default([]),
+  /** Solo recruiters, hiring managers y admins: ni quien entrevista lo ve. */
+  protected: z.boolean().default(false),
+});
+export type CandidateField = z.infer<typeof candidateFieldSchema>;
+
+/** Los valores que se guardan: solo campos definidos, con el formato de cada tipo. Un valor vacío borra. */
+export function cleanCustomValues(fields: CandidateField[], input: Record<string, unknown>, base: Record<string, string>): Record<string, string> {
+  const out = { ...base };
+  for (const f of fields) {
+    if (!(f.id in input)) continue;
+    const v = String(input[f.id] ?? '').trim().slice(0, 500);
+    if (!v) {
+      delete out[f.id];
+      continue;
+    }
+    if (f.type === 'number' && !Number.isFinite(Number(v))) throw new HiringError('invalid_field', 400, { field: f.id });
+    if (f.type === 'date' && !/^\d{4}-\d{2}-\d{2}$/.test(v)) throw new HiringError('invalid_field', 400, { field: f.id });
+    if (f.type === 'select' && !f.options.includes(v)) throw new HiringError('invalid_field', 400, { field: f.id });
+    out[f.id] = v;
+  }
+  return out;
+}
+
 // ---------- Preguntas y knock-out ----------
 
 export const questionSchema = z.object({
