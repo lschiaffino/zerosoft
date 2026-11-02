@@ -467,11 +467,13 @@ export default function CandidateProfile({
 
           {tab === 'offers' && app.canManage && (
             <section className="hr-section">
+{app.status !== 'withdrawn' && (
               <div className="hr-actions-row">
                 <button type="button" className="btn btn-primary" onClick={() => setOfferOpen(true)}>
                   {t('offers.new')}
                 </button>
               </div>
+)}
               {offerLink && (
                 <p className="hr-short">
                   <input className="input" readOnly value={offerLink} aria-label={t('offers.link')} onFocus={(e) => e.currentTarget.select()} />

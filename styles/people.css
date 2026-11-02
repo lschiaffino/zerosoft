@@ -863,3 +863,7 @@ td.ppl-ellipsis {
     content: ' \2192  ';
   }
 }
+
+.ppl-note {
+  flex-wrap: wrap;
+}

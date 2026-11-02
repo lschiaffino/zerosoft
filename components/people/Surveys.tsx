@@ -79,7 +79,7 @@ export default function Surveys({ surveys, hr }: { surveys: SurveyDto[]; hr: boo
     refresh();
   };
   const act = async (id: string, method: 'PATCH' | 'DELETE') => {
-    const res = await api(`/api/people/surveys/${id}`, { method, ...(method === 'PATCH' ? { json: {} } : {}) });
+    const res = await api(`/api/people/surveys/${id}`, { method, ...(method === 'PATCH' ? { json: { status: 'closed' } } : {}) });
     if (!res.ok) return push(errText(res.data.error), 'bad');
     refresh();
   };

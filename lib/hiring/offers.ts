@@ -12,7 +12,7 @@ import { getDb } from '../db';
 import { HiringError, canApproveOffer, renderTemplate, type HiringActor, type OfferStatus } from './types';
 import { ensureSettings, jobRole, listStages, newId, nowIso } from './core';
 import { addEvent, notifyTeam, teamIds } from './events';
-import { approversOf, chainState, decideStep, listChain, startChain, type ApprovalStep } from './approvals';
+import { approversOf, chainState, decideStep, listChain, resolveSteps, startChain, type ApprovalStep } from './approvals';
 import { getApplicationRow, getCandidateRow, markHired, personName, requireManageApp } from './candidates';
 import { mailVars, offerLinkFor, resolveTemplate, sendCandidateEmail } from './comms';
 import { getJobRow } from './core';
@@ -105,10 +105,14 @@ async function getOfferRow(ws: string, id: string): Promise<OfferRow | null> {
 /** Crea la oferta (pendiente de aprobación) con la carta armada desde la plantilla. */
 export async function createOffer(actor: HiringActor, appId: string, input: z.infer<typeof offerSchema>): Promise<OfferDto> {
   const { app, job, candidate } = await requireManageApp(actor, appId);
+  if (app.status === 'withdrawn') throw new HiringError('application_withdrawn', 409);
   const db = getDb();
   const open = await db.prepare("SELECT 1 FROM hiring_offers WHERE application_id = ? AND status IN ('pending_approval','approved','sent')").get(app.id);
   if (open) throw new HiringError('offer_open', 409);
   const settings = await ensureSettings(actor.ws);
+  // Sin alguien que pueda aprobar no se crea nada.
+  const approversNow = approversOf(settings, 'offer');
+  if (approversNow.length) await resolveSteps(actor.ws, approversNow, actor.person);
   const title = input.title || job.title;
   let body = input.body;
   if (!body) {
@@ -175,6 +179,13 @@ export async function actOnOffer(actor: HiringActor, offerId: string, input: z.i
   }
   if (input.action === 'reject') throw new HiringError('invalid_state', 409);
   if (input.action === 'approve') {
+    // Una oferta anterior a la cadena: si ahora hay cadena, la sigue.
+    const settingsNow = await ensureSettings(actor.ws);
+    const approversNow = approversOf(settingsNow, 'offer');
+    if (approversNow.length && offer.status === 'pending_approval') {
+      await startChain(actor.ws, 'offer', offer.id, job.id, approversNow, offer.created_by ?? actor.person, { title: `${candidate.name} · ${offer.title}`, href: `/app/hiring/candidates/${candidate.id}?app=${app.id}` });
+      return { offer: await withChain((await getOfferRow(actor.ws, offer.id))!) };
+    }
     if (!canApproveOffer({ admin: actor.admin, jobRole: await jobRole(job.id, actor.person) })) throw new HiringError('forbidden', 403);
     // Un hiring manager no aprueba la oferta que armó él mismo (un admin sí).
     if (!actor.admin && offer.created_by === actor.person) throw new HiringError('own_offer', 403);

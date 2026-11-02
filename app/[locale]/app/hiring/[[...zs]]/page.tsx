@@ -4,7 +4,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { userCanUseApp } from '@/lib/workspace';
 import { actorOf } from '@/lib/hiring/http';
-import { appBase, canCreateJobs, ensureSettings, getJob, hiringPeople, listJobs, settingsDto } from '@/lib/hiring/core';
+import { appBase, canCreateJobs, ensureSettings, getJob, hiringPeople, listJobs, settingsDtoFor } from '@/lib/hiring/core';
 import { getCandidateProfile, listApplications, visibleTags } from '@/lib/hiring/candidates';
 import { myPendingEvaluations } from '@/lib/hiring/evaluation';
 import { myPendingApprovals } from '@/lib/hiring/approvals';
@@ -133,7 +133,7 @@ export default async function HiringPage(props: Props) {
     }
     case 'settings': {
       if (id) notFound();
-      return <HiringSettings initial={settingsDto(settings)} canAdmin={actor.admin} careersUrl={careersUrl} repliesEnabled={repliesEnabled()} people={actor.admin ? (await hiringPeople(actor.ws)).map((p) => ({ id: p.id, name: p.name ?? p.email })) : []} />;
+      return <HiringSettings initial={settingsDtoFor(settings, actor.admin)} canAdmin={actor.admin} careersUrl={careersUrl} repliesEnabled={repliesEnabled()} people={actor.admin ? (await hiringPeople(actor.ws)).map((p) => ({ id: p.id, name: p.name ?? p.email })) : []} />;
     }
     default:
       notFound();

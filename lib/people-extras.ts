@@ -11,6 +11,7 @@ import { parseCsv, toCsv } from './hr-csv';
 import {
   audit,
   checkEmployeeValues,
+  EXIT_GRACE_DAYS,
   createEmployee,
   getEmployeeRow,
   listFields,
@@ -27,7 +28,8 @@ import {
 } from './people';
 import { canSeeField, canSeeSensitive, isManagerOf } from './people-access';
 import { hrPeople, notifyPeople } from './people-effects';
-import { addDays, isIsoDate, tenureYears } from './people-time';
+import { addDays, isIsoDate, tenureYears, zonedToday } from './people-time';
+import { personTz, reroutePendingRequests } from './people-timeoff';
 
 const db = () => getDb();
 
@@ -731,19 +733,63 @@ export async function applyDueChanges(asOf = today(), budgetMs = 20_000): Promis
       failed++;
     }
   }
-  await finishExits(asOf);
+  await finishExits(new Date(`${asOf}T12:00:00Z`));
   return { applied, failed };
 }
 
-/** Las salidas con fecha pasan a baja el día que corresponde, con su fila en el historial. */
-export async function finishExits(asOf = today(), limit = 100): Promise<number> {
-  const rows = (await db().prepare("SELECT id, workspace_id FROM people_employees WHERE status = 'offboarding' AND end_date IS NOT NULL AND end_date <= ? LIMIT ?").all(asOf, limit)) as Array<{ id: string; workspace_id: string }>;
+/**
+ * Las salidas pasan a baja cuando su último día terminó en la zona del workspace.
+ * Solo las de los últimos días: una más vieja puede estar mal cargada, así que la
+ * confirma HR (exitOverdue en la ficha y en la bandeja). Avisa a HR de cada una.
+ */
+export async function finishExits(now = new Date(), limit = 100): Promise<number> {
+  const utcToday = now.toISOString().slice(0, 10);
+  const rows = (await db()
+    .prepare("SELECT id, workspace_id, name, end_date FROM people_employees WHERE status = 'offboarding' AND end_date IS NOT NULL AND end_date >= ? AND end_date <= ? ORDER BY end_date LIMIT ?")
+    .all(addDays(utcToday, -EXIT_GRACE_DAYS - 1), utcToday, limit)) as Array<{ id: string; workspace_id: string; name: string; end_date: string }>;
   let done = 0;
   for (const r of rows) {
-    const res = await db().prepare("UPDATE people_employees SET status = 'terminated', updated_at = ? WHERE id = ? AND status = 'offboarding'").run(nowIso(), r.id);
-    if (!res.changes) continue;
-    await recordJobChanges(r.workspace_id, r.id, null, [{ field: 'status', from: 'offboarding', to: 'terminated' }]);
-    done++;
+    const wsToday = zonedToday(await personTz(r.workspace_id), now);
+    if (r.end_date >= wsToday || r.end_date < addDays(wsToday, -EXIT_GRACE_DAYS)) continue;
+    if (await closeExit(r.workspace_id, r.id, r.name, null)) done++;
   }
   return done;
+}
+
+/** Compare-and-set: dos corridas no la cierran dos veces. */
+async function closeExit(ws: string, id: string, name: string, actorId: string | null): Promise<boolean> {
+  const res = await db().prepare("UPDATE people_employees SET status = 'terminated', updated_at = ? WHERE id = ? AND workspace_id = ? AND status = 'offboarding'").run(nowIso(), id, ws);
+  if (!res.changes) return false;
+  await recordJobChanges(ws, id, actorId, [{ field: 'status', from: 'offboarding', to: 'terminated' }]);
+  await reroutePendingRequests(ws, id);
+  await notifyPeople(await hrPeople(ws), { title: localized('peopleExitFinished', { name }), href: `/app/people/${id}`, sourceId: id });
+  return true;
+}
+
+/** HR confirma una salida cuya fecha pasó. */
+export async function finishExit(ctx: PeopleCtx, id: string): Promise<void> {
+  requireHr(ctx);
+  const emp = await getEmployeeRow(ctx.ws, id);
+  if (!emp) throw new PeopleError('not_found', 404);
+  if (emp.status !== 'offboarding') throw new PeopleError('not_leaving', 409);
+  await closeExit(ctx.ws, id, emp.name, ctx.personId);
+}
+
+/** HR deshace una baja o cancela una salida antes de su fecha: la ficha vuelve y la fecha de salida se borra. */
+export async function reactivateEmployee(ctx: PeopleCtx, id: string): Promise<void> {
+  requireHr(ctx);
+  const emp = await getEmployeeRow(ctx.ws, id);
+  if (!emp) throw new PeopleError('not_found', 404);
+  if (emp.status !== 'terminated' && emp.status !== 'offboarding') throw new PeopleError('not_leaving', 409);
+  const next = emp.start_date && emp.start_date > today() ? 'onboarding' : 'active';
+  const res = await db().prepare("UPDATE people_employees SET status = ?, end_date = NULL, updated_at = ? WHERE id = ? AND workspace_id = ? AND status IN ('terminated', 'offboarding')").run(next, nowIso(), id, ctx.ws);
+  if (!res.changes) throw new PeopleError('not_leaving', 409);
+  await recordJobChanges(ctx.ws, id, ctx.personId, [{ field: 'status', from: emp.status, to: next }]);
+}
+
+/** Cuántas salidas esperan que HR las confirme. */
+export async function countOverdueExits(ctx: PeopleCtx): Promise<number> {
+  if (!ctx.viewer.hr) return 0;
+  const r = (await db().prepare("SELECT COUNT(*) AS n FROM people_employees WHERE workspace_id = ? AND status = 'offboarding' AND end_date < ?").get(ctx.ws, addDays(today(), -EXIT_GRACE_DAYS))) as { n: number };
+  return Number(r.n);
 }

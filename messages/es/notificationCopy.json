@@ -79,5 +79,6 @@
   "roleNameAdmin": "Admin",
   "roleNameMember": "Miembro",
   "roleNameGuest": "Invitado",
-  "peopleHireUndone": "Se deshizo la contratación de {name}: su ficha sigue en People"
+  "peopleHireUndone": "Se deshizo la contratación de {name}: su ficha sigue en People",
+  "peopleExitFinished": "Pasó la fecha de salida de {name}: su ficha quedó cerrada"
 }

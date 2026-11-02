@@ -585,8 +585,8 @@
     "file_too_large": "The file is too large (2 MB at most).",
     "invalid_field": "That value does not fit the field type.",
     "duplicate_field": "That field is repeated.",
-    "no_other_approver": "Someone other than you has to approve this. Add another approver in Settings.",
-    "close_to_edit": "This job was approved as it is. Close it to change the title or salary, then request approval again.",
+    "no_other_approver": "Someone other than you has to approve this, and there is nobody else. Invite another admin, or remove the approvers in Hiring settings.",
+    "close_to_edit": "This job is published. Close it to change the title or salary, show a hidden salary or turn off confidential, then request approval.",
     "job_not_open": "That job is not open.",
     "application_withdrawn": "This application was withdrawn."
   },
@@ -621,7 +621,8 @@
     },
     "fallback": "Added because nobody else would review it",
     "reassigned": "Reassigned: the approver left the workspace",
-    "statusStale": "Changed after approval: request approval again"
+    "statusStale": "Changed after approval: request approval again",
+    "noApprover": "Nobody else can approve this. Add an approver or another admin, then request again."
   },
   "import": {
     "button": "Import CSV",

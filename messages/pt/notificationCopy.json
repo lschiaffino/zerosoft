@@ -79,5 +79,6 @@
   "roleNameAdmin": "Admin",
   "roleNameMember": "Membro",
   "roleNameGuest": "Convidado",
-  "peopleHireUndone": "A contratação de {name} foi desfeita: o perfil continua no People"
+  "peopleHireUndone": "A contratação de {name} foi desfeita: o perfil continua no People",
+  "peopleExitFinished": "A data de saída de {name} passou: o perfil foi encerrado"
 }

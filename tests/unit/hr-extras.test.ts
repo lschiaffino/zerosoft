@@ -7,7 +7,7 @@ import { ensureWorkspace } from '@/lib/workspace';
 import { csvCell, parseCsv, toCsv } from '@/lib/hr-csv';
 import { accrualEvents, daysPerYearAt } from '@/lib/people-time';
 import { policyApplies, createPolicy, createRequest, balancesFor, listPolicies } from '@/lib/people-timeoff';
-import { getEmployee, listEmployees, peopleContext, updateEmployee, updateSettings, type PeopleCtx } from '@/lib/people';
+import { activeManagerUser, getEmployee, listEmployees, peopleContext, updateEmployee, updateSettings, type PeopleCtx } from '@/lib/people';
 import {
   addPeerReviewer,
   answerSurvey,
@@ -23,6 +23,7 @@ import {
   listChangeRequests,
   listJobHistory,
   closeSurvey,
+  reactivateEmployee,
   finishExits,
   deleteSurvey,
   listSurveys,
@@ -210,7 +211,7 @@ describe('People: bajas y salidas no se filtran', () => {
     const hrw = await peopleWorld();
     await offboard(hrw.hr, hrw.ids.emp, { endDate: '2098-01-01' });
     expect((await listJobHistory(hrw.hr, hrw.ids.emp)).find((h) => h.field === 'status')).toMatchObject({ from: 'active', to: 'offboarding' });
-    expect(await finishExits('2098-01-01')).toBeGreaterThanOrEqual(1);
+    expect(await finishExits(new Date('2098-01-02T12:00:00Z'))).toBeGreaterThanOrEqual(1);
     expect((await getEmployee(hrw.hr, hrw.ids.emp, { audit: false }))?.status).toBe('terminated');
     expect((await listJobHistory(hrw.hr, hrw.ids.emp)).find((h) => h.to === 'terminated')).toMatchObject({ from: 'offboarding', actorName: '' });
   });
@@ -816,8 +817,36 @@ describe('Hiring: cadenas de aprobación', () => {
     await actOnJobApproval(w.recruiter, job.id, { action: 'request', note: '' });
     await reassignApprover(w.owner.ws, w.approver.person);
     expect((await listChain(w.owner.ws, 'job', job.id)).map((s) => [s.userId, s.note])).toEqual([[w.owner.person, 'reassigned']]);
+    expect(((await getDb().prepare('SELECT COUNT(*) AS n FROM hiring_job_members WHERE user_id = ?').get(w.approver.person)) as { n: number }).n).toBe(0);
     expect((await ensureSettings(w.owner.ws)).job_approvers).toBe('[]');
     await updateHiringSettings(w.owner, { jobApprovers: [w.approver.person, w.owner.person] });
+  });
+
+  it('una baja no es HR, ni sueldos, ni manager', async () => {
+    const pw = await peopleWorld();
+    await updateEmployee(pw.hr, pw.ids.hrp, { status: 'terminated' });
+    const gone = await pctx(pw, 'hrp');
+    expect([gone.viewer.hr, gone.viewer.comp]).toEqual([false, false]);
+    await updateEmployee(pw.hr, pw.ids.boss, { status: 'terminated' });
+    expect((await pctx(pw, 'boss')).viewer.reports.size).toBe(0);
+    expect(await activeManagerUser(pw.owner, pw.ids.emp)).toBeNull();
+    await updateEmployee(pw.hr, pw.ids.peer, { managerId: null });
+    await updateEmployee(pw.hr, pw.ids.boss, { managerId: pw.ids.peer });
+    expect(await activeManagerUser(pw.owner, pw.ids.emp)).toBe(pw.users.peer);
+  });
+
+  it('el cron cierra solo salidas recientes, después del último día en la zona del workspace', async () => {
+    const pw = await peopleWorld();
+    const off = async (k: string, end: string) => getDb().prepare("UPDATE people_employees SET status = 'offboarding', end_date = ? WHERE id = ?").run(end, pw.ids[k]);
+    await off('emp', '2097-06-10');
+    await off('peer', '2097-05-01');
+    expect(await finishExits(new Date('2097-06-10T23:00:00Z'))).toBe(0);
+    expect((await getEmployee(pw.hr, pw.ids.emp, { audit: false }))?.status).toBe('offboarding');
+    await finishExits(new Date('2097-06-11T12:00:00Z'));
+    expect((await getEmployee(pw.hr, pw.ids.emp, { audit: false }))?.status).toBe('terminated');
+    expect((await getEmployee(pw.hr, pw.ids.peer, { audit: false }))?.status).toBe('offboarding');
+    await reactivateEmployee(pw.hr, pw.ids.emp);
+    expect(await getEmployee(pw.hr, pw.ids.emp, { audit: false })).toMatchObject({ status: 'active', endDate: null });
   });
 
   it('quien arma la oferta no se aprueba a sí mismo: su paso queda salteado', async () => {

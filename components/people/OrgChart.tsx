@@ -118,7 +118,8 @@ export default function OrgChart({ nodes }: { nodes: OrgNode[] }) {
     const pad = 24;
     const phone = el.clientWidth < 640;
     const all = clampZoom(phone ? Math.min(1, (el.clientWidth - pad * 2) / width) : Math.min(1, (el.clientWidth - pad * 2) / width, (el.clientHeight - pad * 2) / height));
-    const z = readable ? Math.max(all, phone ? 0.6 : 0.7) : all;
+    const floor = phone ? 0.6 : 0.5;
+    const z = readable && all < floor ? (phone ? 0.6 : 0.7) : all;
     setZoom(z);
     const root = placed.find((p) => !p.managerId);
     const fits = width * z <= el.clientWidth - pad * 2;

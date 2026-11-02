@@ -25,7 +25,7 @@ import {
   type PayPeriod,
 } from './people-time';
 import { emailPeople } from './people-email';
-import { getEmployeeRow, newId, nowIso, parseJson, PeopleError, requireHr, today, type PeopleCtx } from './people';
+import { activeManagerUser, getEmployeeRow, newId, nowIso, parseJson, PeopleError, requireHr, today, type PeopleCtx } from './people';
 import { emitPeopleEvent, hrPeople, notifyPeople } from './people-effects';
 
 const db = () => getDb();
@@ -398,8 +398,8 @@ export async function createRequest(
     )
     .run(id, ctx.ws, employeeId, policy.id, start, end, half, days, String(input.note ?? '').slice(0, 500), ctx.personId, now, now);
   // Aviso a quien aprueba: el manager directo; si no hay, HR. Sin el tipo de licencia.
-  const mgr = emp.manager_id ? await getEmployeeRow(ctx.ws, emp.manager_id) : null;
-  const to = mgr?.user_id ? [mgr.user_id] : await hrPeople(ctx.ws);
+  const mgrUser = await activeManagerUser(ctx.ws, employeeId);
+  const to = mgrUser ? [mgrUser] : await hrPeople(ctx.ws);
   await notifyPeople(
     to.filter((u) => u !== emp.user_id),
     { title: localized('timeOffRequested', { name: emp.name }), body: localized('timeOffRequestedBody', { range: end !== start ? `${start} - ${end}` : start, days }), href: '/app/people/time-off?tab=approvals', sourceId: id },
@@ -584,4 +584,22 @@ export async function teamCalendar(ctx: PeopleCtx, from: string, to: string, cou
 
 export function settingsCountries(raw: string): string[] {
   return parseJson<string[]>(raw, []);
+}
+
+/**
+ * Alguien de la cadena se fue: los pedidos pendientes de quienes le reportaban
+ * avisan a quien sigue (el próximo manager activo, o HR), para que no queden trabados.
+ */
+export async function reroutePendingRequests(ws: string, goneEmployeeId: string): Promise<void> {
+  const rows = (await db()
+    .prepare(
+      `SELECT r.id, e.id AS employee_id, e.name, e.user_id, r.start_date, r.end_date, r.days FROM people_requests r JOIN people_employees e ON e.id = r.employee_id
+       WHERE r.workspace_id = ? AND r.status = 'pending' AND e.manager_id = ?`,
+    )
+    .all(ws, goneEmployeeId)) as Array<{ id: string; employee_id: string; name: string; user_id: string | null; start_date: string; end_date: string; days: number }>;
+  for (const r of rows) {
+    const mgrUser = await activeManagerUser(ws, r.employee_id);
+    const to = (mgrUser ? [mgrUser] : await hrPeople(ws)).filter((u) => u !== r.user_id);
+    await notifyPeople(to, { title: localized('timeOffRequested', { name: r.name }), body: localized('timeOffRequestedBody', { range: r.end_date !== r.start_date ? `${r.start_date} - ${r.end_date}` : r.start_date, days: Number(r.days) }), href: '/app/people/time-off?tab=approvals', sourceId: r.id });
+  }
 }

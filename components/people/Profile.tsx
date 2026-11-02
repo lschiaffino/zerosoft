@@ -119,6 +119,14 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
     router.refresh();
   };
 
+  const exitAction = async (action: 'finish' | 'reactivate') => {
+    setBusy(true);
+    const res = await api(`/api/people/employees/${e.id}/exit`, { method: 'POST', json: { action } });
+    setBusy(false);
+    if (!res.ok) return push(errText(res.data.error), 'bad');
+    push(t('common.saved'));
+    router.refresh();
+  };
   const remove = async () => {
     const res = await api(`/api/people/employees/${e.id}`, { method: 'DELETE' });
     if (!res.ok) return push(errText(res.data.error), 'bad');
@@ -205,6 +213,22 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
         <p className="ppl-note">
           <span className={`badge ${e.status === 'terminated' ? 'badge-outline' : 'badge-warn'}`}>{t(`status.${e.status}`)}</span>
           {e.endDate && <span> {t('profile.endsOn', { date: day(e.endDate) })}</span>}
+          {hr && e.exitOverdue && <span data-testid="people-exit-overdue"> {t('profile.exitOverdue')}</span>}
+          {hr && e.exitOverdue && (
+            <button type="button" className="btn btn-sm btn-primary" disabled={busy} onClick={() => void exitAction('finish')}>
+              {t('profile.finishExit')}
+            </button>
+          )}
+          {hr && e.status === 'offboarding' && (
+            <button type="button" className="btn btn-sm btn-secondary" disabled={busy} onClick={() => void exitAction('reactivate')}>
+              {t('profile.cancelExit')}
+            </button>
+          )}
+          {hr && e.status === 'terminated' && (
+            <button type="button" className="btn btn-sm btn-secondary" disabled={busy} onClick={() => void exitAction('reactivate')}>
+              {t('profile.reactivate')}
+            </button>
+          )}
         </p>
       )}
 

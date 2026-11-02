@@ -27,7 +27,7 @@ import {
   type VisibilityLevel,
   type VisibilitySettings,
 } from './people-access';
-import { isIsoDate, tenureYears, type PayPeriod } from './people-time';
+import { addDays, isIsoDate, tenureYears, type PayPeriod } from './people-time';
 import { seedLocale, type SeedLocale } from './seed-locale';
 
 // ---------- Errores y utilidades ----------
@@ -60,6 +60,8 @@ const str = (v: unknown, max = 200) => (typeof v === 'string' ? v.trim().slice(0
 const db = () => getDb();
 
 export const EMPLOYMENT_TYPES = ['full_time', 'part_time', 'contractor', 'intern'] as const;
+/** El cron cierra solo las salidas de estos últimos días; las más viejas las confirma HR. */
+export const EXIT_GRACE_DAYS = 7;
 export const EMPLOYEE_STATUSES = ['active', 'onboarding', 'offboarding', 'terminated'] as const;
 export const PAY_PERIODS: PayPeriod[] = ['monthly', 'semimonthly', 'biweekly', 'weekly'];
 export type EmployeeStatus = (typeof EMPLOYEE_STATUSES)[number];
@@ -240,13 +242,21 @@ export async function markRemovedPerson(ws: string, userId: string): Promise<voi
   await db().prepare('DELETE FROM people_hr_admins WHERE workspace_id = ? AND user_id = ?').run(ws, userId);
 }
 
+/** La ficha de la persona está dada de baja: conserva su propia ficha y nada más. El owner nunca. */
+export async function isTerminatedPerson(ws: string, personId: string): Promise<boolean> {
+  if (ws === personId) return false;
+  return Boolean(await db().prepare("SELECT 1 AS x FROM people_employees WHERE workspace_id = ? AND user_id = ? AND status = 'terminated'").get(ws, personId));
+}
+
 export async function isHrAdmin(ws: string, personId: string, wsAdmin: boolean): Promise<boolean> {
+  if (await isTerminatedPerson(ws, personId)) return false;
   return wsAdmin || (await hasCompensationAccess(ws, personId));
 }
 
 /** Sueldos y nómina: el owner o un HR admin marcado (por el owner). Un admin sin marca, no. */
 export async function hasCompensationAccess(ws: string, personId: string): Promise<boolean> {
   if (ws === personId) return true;
+  if (await isTerminatedPerson(ws, personId)) return false;
   return Boolean(
     await db()
       .prepare(
@@ -263,6 +273,21 @@ async function managerMap(ws: string): Promise<Map<string, string | null>> {
 }
 
 /** Contexto de People para una persona del workspace (sesión, asistente, API). */
+/**
+ * A quién le toca lo del manager de esta ficha: el primero de la cadena que sigue
+ * activo y tiene cuenta. Null si no hay nadie (entonces, HR).
+ */
+export async function activeManagerUser(ws: string, employeeId: string): Promise<string | null> {
+  const seen = new Set<string>([employeeId]);
+  let cur = await getEmployeeRow(ws, employeeId);
+  while (cur?.manager_id && !seen.has(cur.manager_id)) {
+    seen.add(cur.manager_id);
+    cur = await getEmployeeRow(ws, cur.manager_id);
+    if (cur && cur.status !== 'terminated' && cur.user_id) return cur.user_id;
+  }
+  return null;
+}
+
 export async function peopleContext(ws: string, personId: string, wsRole: string): Promise<PeopleCtx> {
   await ensurePeople(ws);
   // Leer no crea fichas: las altas llegan por personJoined (JOIN_STEPS). Si falta alguna
@@ -279,21 +304,23 @@ export async function peopleContext(ws: string, personId: string, wsRole: string
         )
         .get(ws),
     );
-  const wsAdmin = wsRole === 'owner' || wsRole === 'admin' || ws === personId;
-  const comp = await hasCompensationAccess(ws, personId);
-  const hr = wsAdmin || comp;
   const [me, map, settings] = await Promise.all([
-    db().prepare('SELECT id, manager_id FROM people_employees WHERE workspace_id = ? AND user_id = ?').get(ws, personId) as Promise<{ id: string; manager_id: string | null } | undefined>,
+    db().prepare('SELECT id, manager_id, status FROM people_employees WHERE workspace_id = ? AND user_id = ?').get(ws, personId) as Promise<{ id: string; manager_id: string | null; status: string } | undefined>,
     managerMap(ws),
     db().prepare('SELECT visibility FROM people_settings WHERE workspace_id = ?').get(ws) as Promise<{ visibility: string } | undefined>,
   ]);
+  // Dada de baja: ve su propia ficha, sin HR, sueldos ni reportes, aunque siga en el workspace.
+  const gone = ws !== personId && me?.status === 'terminated';
+  const wsAdmin = !gone && (wsRole === 'owner' || wsRole === 'admin' || ws === personId);
+  const comp = !gone && (await hasCompensationAccess(ws, personId));
+  const hr = wsAdmin || comp;
   const employeeId = me?.id ?? null;
   return {
     ws,
     personId,
     wsAdmin,
     wsRole: ws === personId ? 'owner' : wsRole,
-    viewer: { personId, employeeId, hr, comp, wsOwner: ws === personId, reports: employeeId ? reportsOf(employeeId, map) : new Set() },
+    viewer: { personId, employeeId, hr, comp, wsOwner: ws === personId, reports: employeeId && !gone ? reportsOf(employeeId, map) : new Set() },
     visibility: parseJson<VisibilitySettings>(settings?.visibility, {}),
     hasManager: Boolean(me?.manager_id),
     needsSync,
@@ -480,6 +507,8 @@ export interface EmployeeSummary {
 
 export interface EmployeeDto extends EmployeeSummary {
   /** Hay un pedido de cambio de datos esperando a HR (lo ven HR y la persona). */
+  /** Pasó la fecha de salida hace más de lo que el cron cierra solo: HR lo confirma. */
+  exitOverdue: boolean;
   pendingChange: boolean;
   /** Lo que espera a HR (la persona y HR): su formulario parte de acá. */
   pendingValues: { phone?: string; personal?: Record<string, unknown> } | null;
@@ -634,6 +663,7 @@ export async function getEmployee(ctx: PeopleCtx, id: string, opts: { via?: stri
       isManager: isManagerOf(v, id),
     },
     hasAccount: Boolean(r.user_id),
+    exitOverdue: v.hr && r.status === 'offboarding' && Boolean(r.end_date) && (r.end_date as string) < addDays(today(), -EXIT_GRACE_DAYS),
     pendingChange: (v.hr || isSelf(v, id)) && (await (await extras()).pendingChangeFor(ctx.ws, id)),
     pendingValues: v.hr || isSelf(v, id) ? await (await extras()).pendingValuesFor(ctx.ws, id) : null,
   };

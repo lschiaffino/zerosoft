@@ -127,7 +127,11 @@
     "linkedAccount": "Conta vinculada",
     "linkedMismatch": "O email de trabalho deste perfil não coincide com a conta que o lê: {email}. Confirme que é a pessoa certa antes de cadastrar o salário.",
     "linkedConfirm": "Confirmar esta conta",
-    "linkedPayBlocked": "Este perfil está vinculado a {email}, que não coincide com o email de trabalho. Confirme essa conta no perfil antes de mudar o salário."
+    "linkedPayBlocked": "Este perfil está vinculado a {email}, que não coincide com o email de trabalho. Confirme essa conta no perfil antes de mudar o salário.",
+    "exitOverdue": "A data de saída passou: confirme.",
+    "finishExit": "Concluir saída",
+    "cancelExit": "Cancelar saída",
+    "reactivate": "Reativar"
   },
   "offboard": {
     "action": "Desligamento",
@@ -599,7 +603,8 @@
     "nothing_to_change": "Preencha ao menos uma alteração.",
     "survey_answered": "Esta pesquisa já tem respostas: o texto fica como está.",
     "stale_change": "Este valor mudou depois do pedido. Confira e confirme.",
-    "work_email_locked": "Só o owner ou um HR admin marcado podem mudar este email de trabalho."
+    "work_email_locked": "Só o owner ou um HR admin marcado podem mudar este email de trabalho.",
+    "not_leaving": "Esta pessoa não está saindo."
   },
   "home": {
     "inbox": "Aguardando você",
@@ -612,7 +617,8 @@
       "tasks": "Tarefas de onboarding",
       "reviews": "Avaliações para escrever",
       "surveys": "Pesquisas para responder",
-      "documents": "Documentos para ler"
+      "documents": "Documentos para ler",
+      "exits": "Saídas para confirmar"
     }
   },
   "import": {

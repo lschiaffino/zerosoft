@@ -127,7 +127,11 @@
     "linkedAccount": "Linked account",
     "linkedMismatch": "This record's work email doesn't match the account that reads it: {email}. Confirm it's the right person before adding pay.",
     "linkedConfirm": "Confirm this account",
-    "linkedPayBlocked": "This record is linked to {email}, which doesn't match its work email. Confirm that account on the profile before changing pay."
+    "linkedPayBlocked": "This record is linked to {email}, which doesn't match its work email. Confirm that account on the profile before changing pay.",
+    "exitOverdue": "Exit date passed: confirm it.",
+    "finishExit": "Finish exit",
+    "cancelExit": "Cancel exit",
+    "reactivate": "Reactivate"
   },
   "offboard": {
     "action": "Offboard",
@@ -599,7 +603,8 @@
     "nothing_to_change": "Fill in at least one change.",
     "survey_answered": "This survey already has answers, so its text stays as it is.",
     "stale_change": "This value changed after the request. Check it and confirm.",
-    "work_email_locked": "Only the owner or a named HR admin can change this work email."
+    "work_email_locked": "Only the owner or a named HR admin can change this work email.",
+    "not_leaving": "This person is not leaving."
   },
   "home": {
     "inbox": "Waiting for you",
@@ -612,7 +617,8 @@
       "tasks": "Onboarding tasks",
       "reviews": "Reviews to write",
       "surveys": "Surveys to answer",
-      "documents": "Documents to read"
+      "documents": "Documents to read",
+      "exits": "Exits to confirm"
     }
   },
   "import": {

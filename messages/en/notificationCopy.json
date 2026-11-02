@@ -79,5 +79,6 @@
   "roleNameAdmin": "Admin",
   "roleNameMember": "Member",
   "roleNameGuest": "Guest",
-  "peopleHireUndone": "The hire of {name} was undone: their profile is still in People"
+  "peopleHireUndone": "The hire of {name} was undone: their profile is still in People",
+  "peopleExitFinished": "{name}'s exit date has passed: their profile is now closed"
 }

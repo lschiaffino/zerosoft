@@ -8351,6 +8351,7 @@ export const MIGRATIONS: Migration[] = [
           subject_id TEXT NOT NULL,
           position INTEGER NOT NULL,
           user_id TEXT NOT NULL,
+          requested_by TEXT,
           status TEXT NOT NULL DEFAULT 'pending',
           note TEXT NOT NULL DEFAULT '',
           decided_at TEXT,

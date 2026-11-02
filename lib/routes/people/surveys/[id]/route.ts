@@ -16,7 +16,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   });
 }
 
-/** PATCH: HR la cierra; con { question }, le cambia el texto mientras nadie respondió. */
+/** PATCH { status: 'closed' }: HR la cierra; con { question }, le cambia el texto mientras nadie respondió. */
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   return withPeople(async (ctx) => {
     const b = await readJson(req);
@@ -25,6 +25,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       await renameSurvey(ctx, id, b.question);
       return pjson({ ok: true });
     }
+    if (b.status !== 'closed') return pjson({ error: 'invalid_input' }, 400);
     return (await closeSurvey(ctx, id)) ? pjson({ ok: true }) : pjson({ error: 'not_found' }, 404);
   });
 }

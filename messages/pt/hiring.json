@@ -585,8 +585,8 @@
     "file_too_large": "O arquivo é muito grande (2 MB no máximo).",
     "invalid_field": "Esse valor não corresponde ao tipo do campo.",
     "duplicate_field": "Esse campo está repetido.",
-    "no_other_approver": "Outra pessoa precisa aprovar. Adicione outro aprovador em Ajustes.",
-    "close_to_edit": "Esta vaga foi aprovada como está. Feche para mudar o título ou o salário e peça aprovação de novo.",
+    "no_other_approver": "Outra pessoa precisa aprovar e não há mais ninguém. Convide outro admin ou remova os aprovadores em Ajustes do Hiring.",
+    "close_to_edit": "Esta vaga está publicada. Feche para mudar o título ou o salário, mostrar um salário oculto ou tirar o confidencial, e peça aprovação.",
     "job_not_open": "Essa vaga não está aberta.",
     "application_withdrawn": "Esta candidatura foi retirada."
   },
@@ -621,7 +621,8 @@
     },
     "fallback": "Adicionado porque ninguém mais revisaria",
     "reassigned": "Reatribuído: quem aprovava saiu do workspace",
-    "statusStale": "Mudou depois de aprovado: é preciso pedir aprovação de novo"
+    "statusStale": "Mudou depois de aprovado: é preciso pedir aprovação de novo",
+    "noApprover": "Ninguém mais pode aprovar isto. Adicione um aprovador ou outro admin e peça de novo."
   },
   "import": {
     "button": "Importar CSV",

@@ -12,6 +12,7 @@ export interface PeopleInbox {
   documents: number;
   surveys: number;
   changes: number;
+  exits: number;
 }
 
 /** Arriba del directorio: lo que espera a esta persona y los cumpleaños y aniversarios que vienen. Sin nada de eso, no ocupa lugar. */
@@ -21,6 +22,7 @@ export default function PeopleHome({ inbox, celebrations }: { inbox: PeopleInbox
   const items: Array<{ key: keyof PeopleInbox; href: string }> = [
     { key: 'approvals', href: '/app/people/time-off?tab=approvals' },
     { key: 'changes', href: '/app/people/settings?tab=changes' },
+    { key: 'exits', href: '/app/people?status=offboarding' },
     { key: 'tasks', href: '/app/people/onboarding' },
     { key: 'reviews', href: '/app/people/reviews' },
     { key: 'surveys', href: '/app/people/reviews#surveys' },

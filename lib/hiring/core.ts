@@ -142,6 +142,14 @@ export async function updateSettings(actor: HiringActor, input: z.infer<typeof s
   if (!actor.admin) throw new HiringError('forbidden', 403);
   const cur = await ensureSettings(actor.ws);
   const db = getDb();
+  if (input.jobApprovers) {
+    const cleaned = JSON.stringify(await checkApprovers(actor.ws, input.jobApprovers));
+    if (cleaned !== cur.job_approvers) {
+      // Lo aprobado o pendiente era con la cadena anterior: lo publicado sigue, lo demás vuelve a pedir aprobación.
+      await db.prepare("UPDATE hiring_jobs SET approval_status = 'none' WHERE workspace_id = ? AND approval_status IN ('approved', 'pending', 'rejected', 'stale')").run(actor.ws);
+      await db.prepare("DELETE FROM hiring_approvals WHERE workspace_id = ? AND subject_type = 'job'").run(actor.ws);
+    }
+  }
   if (input.handle !== undefined && input.handle !== cur.handle) {
     if (!HANDLE_RE.test(input.handle) || RESERVED_CAREERS_HANDLES.has(input.handle)) throw new HiringError('invalid_handle');
     if (await db.prepare('SELECT 1 FROM hiring_settings WHERE handle = ? AND workspace_id != ?').get(input.handle, actor.ws)) throw new HiringError('handle_taken', 409);
@@ -188,6 +196,12 @@ export function settingsDto(s: SettingsRow) {
   };
 }
 export type SettingsDto = ReturnType<typeof settingsDto>;
+
+/** Quien no administra no recibe aprobadores ni campos propios: los nombres de los protegidos no son para todos. */
+export function settingsDtoFor(s: SettingsRow, admin: boolean): SettingsDto {
+  const dto = settingsDto(s);
+  return admin ? dto : { ...dto, jobApprovers: [], offerApprovers: [], candidateFields: [] };
+}
 
 export function appBase(): string {
   return (process.env.NEXTAUTH_URL ?? 'https://zerosoft.ai').replace(/\/$/, '');
@@ -550,18 +564,27 @@ export async function updateJob(actor: HiringActor, id: string, patch: Partial<J
   checkSalary(next.salary_min, next.salary_max);
   if (patch.questions) checkQuestions(patch.questions);
   if (next.status === 'published' && !next.description.trim()) throw new HiringError('description_required');
-  // Lo aprobado es este título y este salario: si cambian, hay que aprobar de nuevo.
+  // Lo aprobado es este título, este salario y esta visibilidad: si cambian, hay que aprobar de nuevo.
   const settingsNow = await ensureSettings(actor.ws);
   const chainOn = parseJson<string[]>(settingsNow.job_approvers, []).length > 0;
-  const materialChange = next.title !== cur.title || next.salary_min !== cur.salary_min || next.salary_max !== cur.salary_max || next.salary_currency !== cur.salary_currency || next.salary_period !== cur.salary_period;
+  const materialChange =
+    next.title !== cur.title ||
+    next.salary_min !== cur.salary_min ||
+    next.salary_max !== cur.salary_max ||
+    next.salary_currency !== cur.salary_currency ||
+    next.salary_period !== cur.salary_period ||
+    (next.salary_public === 1 && cur.salary_public !== 1) ||
+    (next.confidential === 0 && cur.confidential === 1);
   let approvalStatus = cur.approval_status;
-  if (chainOn && materialChange && (cur.approval_status === 'approved' || cur.approval_status === 'pending')) {
+  if (chainOn && materialChange) {
     if (cur.status === 'published') throw new HiringError('close_to_edit', 409);
-    approvalStatus = 'stale';
-    await getDb().prepare("DELETE FROM hiring_approvals WHERE workspace_id = ? AND subject_type = 'job' AND subject_id = ?").run(actor.ws, id);
+    if (cur.approval_status === 'approved' || cur.approval_status === 'pending') {
+      approvalStatus = 'stale';
+      await getDb().prepare("DELETE FROM hiring_approvals WHERE workspace_id = ? AND subject_type = 'job' AND subject_id = ?").run(actor.ws, id);
+    }
   }
-  // Con aprobadores en Ajustes, nadie publica sin la cadena completa (tampoco un admin). Reabrir lo ya publicado no pide nada, salvo que haya cambiado.
-  if (chainOn && next.status === 'published' && cur.status !== 'published' && approvalStatus !== 'approved' && (!cur.published_at || approvalStatus === 'stale')) {
+  // Con aprobadores en Ajustes, nadie publica sin la cadena completa: ni un admin, ni al reabrir, por ningún camino.
+  if (chainOn && next.status === 'published' && cur.status !== 'published' && approvalStatus !== 'approved') {
     throw new HiringError('approval_required', 409);
   }
   const ts = nowIso();

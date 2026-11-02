@@ -39,7 +39,7 @@ import Welcome from '@/components/people/Welcome';
 import PeopleHome, { type PeopleInbox } from '@/components/people/PeopleHome';
 import Surveys from '@/components/people/Surveys';
 import CustomReports from '@/components/people/CustomReports';
-import { celebrations, countChangeRequests, listSavedReports, listSurveys } from '@/lib/people-extras';
+import { celebrations, countChangeRequests, countOverdueExits, listSavedReports, listSurveys } from '@/lib/people-extras';
 
 export const dynamic = 'force-dynamic';
 
@@ -83,15 +83,16 @@ export default async function PeoplePage(props: Props) {
 
 /** Lo que espera a esta persona (arriba del directorio). Solo cuenta: cada lista aplica sus permisos. */
 async function homeInbox(ctx: PeopleCtx): Promise<PeopleInbox> {
-  const [approvals, tasks, reviews, documents, surveys, changes] = await Promise.all([
+  const [approvals, tasks, reviews, documents, surveys, changes, exits] = await Promise.all([
     listRequests(ctx, { scope: 'approvals' }),
     myOpenTasks(ctx),
     listReviews(ctx, { mineToWrite: true }),
     pendingAcks(ctx),
     listSurveys(ctx),
     ctx.viewer.hr ? countChangeRequests(ctx) : Promise.resolve(0),
+    countOverdueExits(ctx),
   ]);
-  return { approvals: approvals.length, tasks: tasks.length, reviews: reviews.length, documents: documents.length, surveys: surveys.filter((s) => s.status === 'open' && !s.answered).length, changes };
+  return { approvals: approvals.length, tasks: tasks.length, reviews: reviews.length, documents: documents.length, surveys: surveys.filter((s) => s.status === 'open' && !s.answered).length, changes, exits };
 }
 
 async function peopleView(props: Props, user: SessionUser, ctx: PeopleCtx) {

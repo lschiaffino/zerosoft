@@ -64,7 +64,7 @@ export default function JobEditor({ detail, people, careersUrl, tab: initialTab,
   };
   const currentStep = approval.find((s) => s.status === 'pending');
   const blocked = job.approvalStatus === 'rejected' || !currentStep;
-  const needsChain = Boolean(detail.needsApproval) && job.status !== 'published' && job.approvalStatus !== 'approved' && (!job.publishedAt || job.approvalStatus === 'stale');
+  const needsChain = Boolean(detail.needsApproval) && job.status !== 'published' && job.approvalStatus !== 'approved';
 
   const saveDetails = async (e?: FormEvent, status?: string) => {
     e?.preventDefault();
@@ -229,7 +229,7 @@ export default function JobEditor({ detail, people, careersUrl, tab: initialTab,
               <li key={s.id}>
                 <span>{s.name}</span>
                 <span className={`badge ${s.status === 'approved' || s.status === 'skipped' ? 'badge-ok' : s.status === 'rejected' ? 'badge-bad' : 'badge-outline'}`}>{t(`approvals.status.${s.status}`)}</span>
-                {s.note && <span className="hr-rowmeta">{s.note === 'fallback' ? t('approvals.fallback') : s.note === 'reassigned' ? t('approvals.reassigned') : s.note}</span>}
+                {s.note && <span className="hr-rowmeta">{s.note === 'fallback' ? t('approvals.fallback') : s.note === 'reassigned' ? t('approvals.reassigned') : s.note === 'no_approver' ? t('approvals.noApprover') : s.note}</span>}
               </li>
             ))}
           </ol>
