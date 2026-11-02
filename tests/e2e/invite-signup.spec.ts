@@ -127,7 +127,7 @@ test('invitar con apps limitadas, entrar sin Google con un código por email y s
     // El foco pasa al campo del código.
     await expect(m.getByLabel('Código')).toBeFocused();
     const codeMail = await lastMail(marta, /Seu código do zerosoft/);
-    const code = /\b(\d{6})\b/.exec(codeMail.text)![1];
+    const code = /^(\d{6})$/m.exec(codeMail.text)![1];
     // Un código equivocado lo dice; Enter confirma.
     await m.getByLabel('Código').fill(code === '000000' ? '111111' : '000000');
     await m.keyboard.press('Enter');
@@ -189,7 +189,7 @@ test('la página de entrar ofrece Google y código por email', async ({ browser 
     const email = `nuevo-${uid()}@fastmail-e2e.io`;
     await p.getByLabel('Email de trabajo').fill(email);
     await p.keyboard.press('Enter');
-    const code = /\b(\d{6})\b/.exec((await lastMail(email, /Tu código de zerosoft/)).text)![1];
+    const code = /^(\d{6})$/m.exec((await lastMail(email, /Tu código de zerosoft/)).text)![1];
     await p.getByLabel('Código').fill(code);
     await p.keyboard.press('Enter');
     // Cuenta nueva: el onboarding completo.

@@ -166,6 +166,8 @@ export default function NotesApp({
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   const [confirmState, setConfirmState] = useState<Confirm | null>(null);
   const [focusTitle, setFocusTitle] = useState(0);
+  const [keepListFocus, setKeepListFocus] = useState(false);
+  const openSeq = useRef(0);
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [toast, setToast] = useState<string | null>(null);
   /** Aviso de éxito (importación); `toast` es siempre de error. */
@@ -676,7 +678,9 @@ export default function NotesApp({
   }, [notes]);
 
   const openNote = useCallback(
-    async (id: string) => {
+    async (id: string, opts?: { keepListFocus?: boolean }) => {
+      // Con las flechas se abren varias seguidas: gana la última, aunque otra responda después.
+      const seq = ++openSeq.current;
       // Grabando: la grabación no se pierde (se agrega a su nota), pero se avisa antes de cambiar.
       if (isRecordingActive() && !confirm(t('capture.confirmLeave'))) return;
       setHighlight(q.trim() ? highlightTerms(q) : []);
@@ -685,7 +689,9 @@ export default function NotesApp({
         const res = await fetch(`/api/notes/${id}`);
         if (!res.ok) throw new Error(String(res.status));
         const opened = (await res.json()) as NoteDetail;
+        if (seq !== openSeq.current) return;
         bases.current.set(opened.id, opened.updated_at);
+        setKeepListFocus(Boolean(opts?.keepListFocus));
         setNote(opened);
         setConflict((c) => (c && c.id !== opened.id ? null : c));
         setPane('editor');
@@ -695,7 +701,9 @@ export default function NotesApp({
         if (isNetworkError(err) && storeRef.current) {
           setOffline(true);
           const cached = await storeRef.current.get(id).catch(() => null);
+          if (seq !== openSeq.current) return;
           if (cached?.full) {
+            setKeepListFocus(Boolean(opts?.keepListFocus));
             setNote({ ...(cached as NoteDetail), content: cached.content ?? [], share_token: cached.share_token ?? null });
             setPane('editor');
             setStatus('idle');
@@ -1369,6 +1377,11 @@ export default function NotesApp({
       if (!e.shiftKey) setAnchor(id);
       return;
     }
+    // Enter sobre la nota que las flechas ya abrieron: pasa a escribir en ella.
+    if (e.detail === 0 && id === note?.id) {
+      (document.querySelector<HTMLElement>('.note-body .docs-editable') ?? document.querySelector<HTMLElement>('.note-body .docs-title'))?.focus();
+      return;
+    }
     void openNote(id);
   }
 
@@ -1417,7 +1430,7 @@ export default function NotesApp({
     e.preventDefault();
     items[next].focus();
     const id = items[next].dataset.id;
-    if (id && id !== note?.id && !selectMode) void openNote(id);
+    if (id && id !== note?.id && !selectMode) void openNote(id, { keepListFocus: true });
   }
 
   const showSkeleton = loading && loadedKey !== listKey(filter, sort);
@@ -2072,6 +2085,7 @@ export default function NotesApp({
             note={note}
             notebooks={notebooks}
             focusTitle={focusTitle}
+            keepListFocus={keepListFocus}
             status={status}
             onBack={() => {
               setFocusMode(false);
