@@ -118,6 +118,7 @@ test('HubSpot dentro del hub: permisos, listas e invitar owners que faltan', asy
 
 test('atajo Importar del sidebar y Cmd+K llevan al hub', async ({ page }) => {
   await page.goto('/en/app/docs', { waitUntil: 'networkidle' });
+  await page.getByTestId('workspace-switcher').click();
   await page.getByTestId('side-import').click();
   await expect(page).toHaveURL(/settings\/import\?app=docs/);
   // La app de origen va primero.

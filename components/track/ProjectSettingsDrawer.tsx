@@ -225,10 +225,10 @@ function MembersPanel({ projectId, isAdmin }: { projectId: string; isAdmin: bool
         </form>
       ) : null}
       {isAdmin ? (
-        <>
-          <p className="ui-help">{t('access.inviteHelp')}</p>
+        <div className="track-team-invite">
+          <h4 className="ui-label">{t('access.inviteTitle')}</h4>
           <WorkspaceInviteForm onInvited={load} />
-        </>
+        </div>
       ) : null}
       <Link href="/app/track/settings?tab=access" className="btn btn-sm">
         {t('teamSettings.manageAccess')}
