@@ -2175,7 +2175,7 @@
       },
       "faq": {
         "f1": {
-          "q": "¿Alguien puede copiar un documento que comparto?",
+          "q": "¿Alguien puede copiar un documento que mando?",
           "a": "Puede sacar una captura o una foto, y ninguna página web lo puede frenar. Sin descarga el archivo no le llega, y con watermark su email va en la imagen de cada página."
         },
         "f2": {
@@ -3657,7 +3657,8 @@
     "scope_notes_write": "Crear y editar las notas de quien creó la clave.",
     "formsApiTitle": "Forms",
     "formsApiDesc": "Formularios y sus respuestas. La key actúa como la persona que la creó y solo ve los formularios que esa persona puede abrir. Scope forms:read.",
-    "mcpCta": "Conectar Claude y la CLI"
+    "mcpCta": "Conectar Claude y la CLI",
+    "scope_send_read": "Leer los documentos que la persona ve, con sus links y visitas."
   },
   "parityOverview": {
     "title": "Paridad de funciones, app por app.",

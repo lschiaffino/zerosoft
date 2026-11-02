@@ -286,7 +286,7 @@
     "otherEmail": "Usar otro email",
     "deniedTitle": "Este email no tiene acceso",
     "deniedBody": "{email} no puede abrir este link. Consultá a quien te lo mandó.",
-    "trackingNotice": "Quien lo mandó puede ver cuándo se abrió y cuánto tiempo se vio cada página.",
+    "trackingNotice": "Quien lo mandó puede ver cuándo se abrió y cuánto tiempo se vio cada parte.",
     "watermarkNotice": "Las páginas llevan tu email.",
     "ndaTitle": "Firmá el acuerdo para seguir",
     "ndaBody": "Tenés que firmar un acuerdo antes de ver esto. Se abre en otra pestaña.",

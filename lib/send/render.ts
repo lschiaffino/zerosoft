@@ -46,7 +46,8 @@ interface PdfHandle {
 /** Abre un PDF con pdf.js. Con contraseña o roto: error que la interfaz explica. */
 export async function openPdf(bytes: Buffer): Promise<PdfHandle> {
   const c = await canvas();
-  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  // Sin pasar por webpack: Notes y Sign usan pdf.js en el navegador y no puede ser externo para todos.
+  const pdfjs: typeof import('pdfjs-dist/legacy/build/pdf.mjs') = await import(/* webpackIgnore: true */ 'pdfjs-dist/legacy/build/pdf.mjs');
   const task = pdfjs.getDocument({
     data: new Uint8Array(bytes),
     disableFontFace: true,

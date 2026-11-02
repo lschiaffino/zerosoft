@@ -3657,7 +3657,8 @@
     "scope_notes_write": "Create and edit the notes of the key's owner.",
     "formsApiTitle": "Forms",
     "formsApiDesc": "Forms and their responses. The key acts as the person who created it and only sees the forms that person can open. Scope forms:read.",
-    "mcpCta": "Connect Claude and the CLI"
+    "mcpCta": "Connect Claude and the CLI",
+    "scope_send_read": "Read the documents the person can see, with their links and visits."
   },
   "parityOverview": {
     "title": "Feature parity, app by app.",

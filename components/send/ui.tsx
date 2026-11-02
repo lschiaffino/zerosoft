@@ -1,8 +1,60 @@
 'use client';
 
-import { useCallback, useEffect, useRef, type ReactNode } from 'react';
-import { useTranslations } from 'next-intl';
-export { api, useDate, useToast } from '@/components/sign/ui';
+import { useMounted } from '@/components/ui/useMounted';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
+
+/** fetch JSON a la API de Send: { ok, status, data } (nunca lanza). */
+export async function api<T = Record<string, unknown>>(url: string, init: RequestInit & { json?: unknown } = {}): Promise<{ ok: boolean; status: number; data: T & { error?: string } }> {
+  const { json, ...rest } = init;
+  try {
+    const res = await fetch(url, {
+      ...rest,
+      headers: { ...(json !== undefined ? { 'content-type': 'application/json' } : {}), ...(rest.headers ?? {}) },
+      body: json !== undefined ? JSON.stringify(json) : rest.body,
+    });
+    const data = (await res.json().catch(() => ({}))) as T & { error?: string };
+    return { ok: res.ok, status: res.status, data };
+  } catch {
+    return { ok: false, status: 0, data: { error: 'network' } as T & { error?: string } };
+  }
+}
+
+export function useDate() {
+  const locale = useLocale();
+  const mounted = useMounted();
+  return useCallback(
+    (value: string | null | undefined, withTime = true) => {
+      // La zona del navegador recién al hidratar (#418).
+      if (!value || !mounted) return '';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return value;
+      return d.toLocaleString(locale, withTime ? { dateStyle: 'medium', timeStyle: 'short' } : { dateStyle: 'medium' });
+    },
+    [locale, mounted],
+  );
+}
+
+/** Toasts simples (mismo estilo que el resto de la app). */
+export function useToast(): [ReactNode, (msg: string, tone?: 'ok' | 'bad') => void] {
+  const [items, setItems] = useState<Array<{ id: number; msg: string; tone: 'ok' | 'bad' }>>([]);
+  const seq = useRef(0);
+  const push = useCallback((msg: string, tone: 'ok' | 'bad' = 'ok') => {
+    const id = ++seq.current;
+    setItems((x) => [...x, { id, msg, tone }]);
+    window.setTimeout(() => setItems((x) => x.filter((i) => i.id !== id)), 3500);
+  }, []);
+  const node = (
+    <div className="ui-toasts" role="status" aria-live="polite">
+      {items.map((i) => (
+        <div key={i.id} className={`ui-toast${i.tone === 'bad' ? ' ui-toast-bad' : ''}`}>
+          {i.msg}
+        </div>
+      ))}
+    </div>
+  );
+  return [node, push];
+}
 
 /** Texto del error de la API en el idioma de la UI (send.errors.<code>). */
 export function useErrorText() {

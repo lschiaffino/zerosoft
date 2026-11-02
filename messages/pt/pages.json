@@ -2175,7 +2175,7 @@
       },
       "faq": {
         "f1": {
-          "q": "Alguém pode copiar um documento que compartilho?",
+          "q": "Alguém pode copiar um documento que envio?",
           "a": "Pode tirar um print ou uma foto, e nenhuma página web impede isso. Sem download o arquivo não chega, e com marca d'água o email vai na imagem de cada página."
         },
         "f2": {
@@ -3657,7 +3657,8 @@
     "scope_notes_write": "Criar e editar as notas de quem criou a chave.",
     "formsApiTitle": "Forms",
     "formsApiDesc": "Formulários e suas respostas. A key age como a pessoa que a criou e só vê os formulários que ela pode abrir. Scope forms:read.",
-    "mcpCta": "Conectar o Claude e a CLI"
+    "mcpCta": "Conectar o Claude e a CLI",
+    "scope_send_read": "Ler os documentos que a pessoa vê, com seus links e visitas."
   },
   "parityOverview": {
     "title": "Paridade de funções, app por app.",
