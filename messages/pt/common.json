@@ -787,7 +787,7 @@
   "categories": {
     "sell": {
       "title": "Vender",
-      "desc": "Pipeline, contatos e links com métricas."
+      "desc": "Pipeline, links, loja, redes e formulários."
     },
     "support": {
       "title": "Atender",
@@ -799,11 +799,15 @@
     },
     "build": {
       "title": "Construir",
-      "desc": "Issues, projetos e quadros para planejar e entregar."
+      "desc": "Issues, quadros, design e analytics."
+    },
+    "run": {
+      "title": "Operar",
+      "desc": "Contabilidade, pessoas, recrutamento e contratos."
     },
     "daily": {
       "title": "Trabalho diário",
-      "desc": "Docs, notas e agenda para o dia a dia."
+      "desc": "Docs, notas, agenda, chamadas e gravações."
     }
   },
   "appSoon": {
